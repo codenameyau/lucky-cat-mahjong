@@ -1,0 +1,21 @@
+{
+  "heading": "What people are saying",
+  "subheading": "Workshops, lessons, and collaborations our community loves",
+  "testimonials": [
+    {
+      "quote": "Our team had an absolute blast — the instructors made it so easy for total beginners to jump in. Best office event we've done all year.",
+      "author": "Office Workshop",
+      "role": "NYC Tech Team"
+    },
+    {
+      "quote": "I went from never having touched a tile to confidently playing with points in one session. Patient, fun, and welcoming.",
+      "author": "Private Lesson Student",
+      "role": "Manhattan"
+    },
+    {
+      "quote": "The pop-up they hosted with us drew a huge crowd and amazing content. Easy to work with and great energy.",
+      "author": "Brand Collaboration",
+      "role": "NYC Hospitality Partner"
+    }
+  ]
+}

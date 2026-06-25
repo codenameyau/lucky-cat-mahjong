@@ -19,5 +19,10 @@
     "heading": "Ready to play?",
     "body": "Follow us on Instagram for upcoming events and community highlights — or reach out to book your next session. We're most active on Instagram.",
     "button_label": "Book a session"
-  }
+  },
+  "stats": [
+    { "value": "20K–30K", "label": "Views per event" },
+    { "value": "3", "label": "NYC boroughs served" },
+    { "value": "8–24", "label": "Guests per workshop" }
+  ]
 }
