@@ -1,23 +1,23 @@
 {
   "title": "Lucky Cat Mahjong",
   "tagline": "Hong Kong Mahjong Events in NYC",
-  "description": "Lucky Cat Mahjong brings the joy of Hong Kong mahjong to offices and private gatherings. Learn, play, and connect with us.",
+  "description": "Lucky Cat Mahjong brings the joy of Hong Kong mahjong to offices and private lessons. Learn, play, and connect with us.",
+  "contact_email": "events@luckycatmahjong.com",
   "instagram": {
     "handle": "luckycat.mahjong",
     "url": "https://www.instagram.com/luckycat.mahjong/"
   },
-  "contact_email": "events@luckycatmahjong.com",
   "hero": {
     "headline": "Hong Kong Mahjong Events in NYC",
     "subheadline": "From corporate workshops to private lessons, we make mahjong accessible and unforgettable."
   },
   "about": {
     "heading": "About Lucky Cat Mahjong",
-    "body": "Lucky Cat Mahjong started in November 2025 with a simple goal: make mahjong accessible and build a community of the strongest players. We specialize in Hong Kong–style mahjong and teach you how to play not only with the basics but also with points, scoring, and strategy to match the flow of real games. Whether you're picking up tiles for the first time or looking to level up, our sessions give you the skills and confidence to sit down at any table."
+    "body": "Lucky Cat Mahjong started in November 2025 with a simple goal: make mahjong accessible and build a community of the strongest players. We specialize in Hong Kong–style mahjong and teach you how to play with the fundamentals, points, and strategy to match the flow of real games. Whether you're picking up tiles for the first time or looking to level up, our sessions give you the skills and confidence to sit down at any table."
   },
   "cta": {
     "heading": "Ready to play?",
-    "body": "Follow us on Instagram for upcoming events and community highlights — or reach out to book your next session.",
+    "body": "Follow us on Instagram for upcoming events and community highlights — or reach out to book your next session. We're most active on Instagram.",
     "button_label": "Book a session"
   }
 }
