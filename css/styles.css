@@ -1,6 +1,8 @@
 :root {
   --color-primary: #C41E3A;
+  --color-primary-rgb: 196, 30, 58;
   --color-secondary: #F4A020;
+  --color-secondary-rgb: 244, 160, 32;
   --color-accent: #2D8B4E;
   --color-background: #FFF8F0;
   --color-surface: #FFFFFF;
@@ -10,7 +12,7 @@
   --font-heading: "KN Yuanmo SC", sans-serif;
   --radius: 12px;
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 12px 48px rgba(196, 30, 58, 0.12);
+  --shadow-lg: 0 12px 48px rgba(var(--color-primary-rgb), 0.12);
   --max-width: 1100px;
 }
 
@@ -68,8 +70,8 @@ h1, h2, h3 {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(196, 30, 58, 0.08) 0%, transparent 70%),
-    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(244, 160, 32, 0.12) 0%, transparent 60%);
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(var(--color-primary-rgb), 0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(var(--color-secondary-rgb), 0.12) 0%, transparent 60%);
   pointer-events: none;
 }
 
@@ -156,7 +158,7 @@ h1, h2, h3 {
 .btn-primary {
   background: var(--color-primary);
   color: #fff;
-  box-shadow: 0 4px 16px rgba(196, 30, 58, 0.3);
+  box-shadow: 0 4px 16px rgba(var(--color-primary-rgb), 0.3);
 }
 
 .btn-primary:hover {
@@ -255,7 +257,7 @@ h1, h2, h3 {
   width: 48px;
   height: 48px;
   border-radius: 10px;
-  background: rgba(196, 30, 58, 0.08);
+  background: rgba(var(--color-primary-rgb), 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -327,7 +329,7 @@ h1, h2, h3 {
 }
 
 .rates-table tbody tr:hover {
-  background: rgba(196, 30, 58, 0.03);
+  background: rgba(var(--color-primary-rgb), 0.03);
 }
 
 .rates-table td:nth-child(3) {
