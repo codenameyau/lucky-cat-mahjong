@@ -84,6 +84,22 @@ content:
               - name: button_label
                 label: Button Label
                 type: string
+          - name: stats
+            label: Hero Stats
+            type: object
+            list: true
+            description: Small credibility numbers shown under the hero buttons (leave empty to hide)
+            fields:
+              - name: value
+                label: Value
+                type: string
+                required: true
+                description: "e.g. 20K–30K"
+              - name: label
+                label: Label
+                type: string
+                required: true
+                description: "e.g. Views per event"
 
       - name: styleguide
         label: Style Guide
@@ -229,6 +245,37 @@ content:
               - name: notes
                 label: Notes
                 type: text
+
+      - name: testimonials
+        label: Testimonials
+        type: file
+        path: data/testimonials.json
+        format: json
+        fields:
+          - name: heading
+            label: Section Heading
+            type: string
+          - name: subheading
+            label: Section Subheading
+            type: string
+          - name: testimonials
+            label: Testimonials
+            type: object
+            list: true
+            description: Leave empty to hide the section entirely
+            fields:
+              - name: quote
+                label: Quote
+                type: text
+                required: true
+              - name: author
+                label: Author
+                type: string
+                description: "e.g. Office Workshop, or a person's name"
+              - name: role
+                label: Role / Context
+                type: string
+                description: "e.g. NYC Tech Team"
 
       - name: faq
         label: FAQ

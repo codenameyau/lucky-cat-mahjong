@@ -98,7 +98,35 @@ function linkifyContact(text, email, igHandle, igUrl) {
   return html;
 }
 
-let contactInfo = { email: '', igHandle: '', igUrl: '' };
+let contactInfo = { email: '', igHandle: '', igUrl: '', igDmUrl: '' };
+
+function track(name, params) {
+  try {
+    if (typeof gtag === 'function') gtag('event', name, params || {});
+  } catch (_) { /* analytics is best-effort */ }
+}
+
+function buildMailto(subject, body) {
+  const email = contactInfo.email || 'events@luckycatmahjong.com';
+  const params = [];
+  if (subject) params.push('subject=' + encodeURIComponent(subject));
+  if (body) params.push('body=' + encodeURIComponent(body));
+  return `mailto:${email}` + (params.length ? '?' + params.join('&') : '');
+}
+
+let toastTimer;
+function showToast(message) {
+  const el = document.querySelector('.toast');
+  if (!el) return;
+  el.textContent = message;
+  el.hidden = false;
+  requestAnimationFrame(() => el.classList.add('show'));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => { el.hidden = true; }, 300);
+  }, 4500);
+}
 
 function applySite(site) {
   document.title = site.title;
@@ -113,13 +141,14 @@ function applySite(site) {
   document.querySelector('.cta-body').textContent = site.cta.body;
 
   const mailto = `mailto:${site.contact_email}`;
-  document.querySelectorAll('.cta-button, .hero-book-button').forEach((btn) => {
-    btn.href = mailto;
+  document.querySelectorAll('.cta-button, .hero-book-button, .header-book').forEach((btn) => {
     const label = btn.querySelector('.btn-label');
     if (label) {
       label.textContent = site.cta.button_label;
     }
   });
+  const ctaBtn = document.querySelector('.cta-button');
+  if (ctaBtn) ctaBtn.href = mailto;
 
   const igUrl = site.instagram.url;
   const igHandle = site.instagram.handle;
@@ -240,23 +269,174 @@ function applyRates(ratesData) {
   `).join('');
 }
 
+function applyStats(stats) {
+  const el = document.querySelector('.hero-stats');
+  if (!el) return;
+  if (!Array.isArray(stats) || stats.length === 0) {
+    el.hidden = true;
+    return;
+  }
+  el.hidden = false;
+  el.innerHTML = stats.map((s) => `
+    <div class="hero-stat">
+      <span class="hero-stat-value">${escapeHtml(s.value)}</span>
+      <span class="hero-stat-label">${escapeHtml(s.label)}</span>
+    </div>
+  `).join('');
+}
+
+function applyTestimonials(data) {
+  const section = document.getElementById('testimonials');
+  if (!section) return;
+  if (!data || !Array.isArray(data.testimonials) || data.testimonials.length === 0) {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+
+  const headingEl = document.querySelector('.testimonials-heading');
+  const subheadingEl = document.querySelector('.testimonials-subheading');
+  if (headingEl && data.heading) headingEl.textContent = data.heading;
+  if (subheadingEl && data.subheading) subheadingEl.textContent = data.subheading;
+
+  const grid = section.querySelector('.testimonials-grid');
+  grid.innerHTML = data.testimonials.map((t) => `
+    <figure class="testimonial-card">
+      <svg class="testimonial-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6C6.46 6 4 8.46 4 11.5V18h6v-6H7.5c0-1.66 0-3.5 2-3.5V6zm10 0c-3.04 0-5.5 2.46-5.5 5.5V18h6v-6h-2.5c0-1.66 0-3.5 2-3.5V6z"/></svg>
+      <blockquote class="testimonial-quote">${escapeHtml(t.quote)}</blockquote>
+      <figcaption class="testimonial-author">
+        ${escapeHtml(t.author || '')}
+        ${t.role ? `<span class="testimonial-role">${escapeHtml(t.role)}</span>` : ''}
+      </figcaption>
+    </figure>
+  `).join('');
+}
+
+function setupQuoteForm(servicesData) {
+  const form = document.querySelector('.quote-form');
+  if (!form) return;
+
+  const select = form.querySelector('.quote-service');
+  if (select) {
+    const titles = (servicesData && Array.isArray(servicesData.services))
+      ? servicesData.services.map((s) => (s.title === 'Business Collaborations' ? 'Business Collaboration' : s.title))
+      : [];
+    const options = [...titles, 'Something else / Not sure'];
+    select.innerHTML = options
+      .map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`)
+      .join('');
+  }
+
+  const compose = () => {
+    const data = new FormData(form);
+    const get = (k) => String(data.get(k) || '').trim();
+    const name = get('name');
+    const service = get('service') || 'a session';
+    const group = get('group');
+    const dates = get('dates');
+    const message = get('message');
+
+    const lines = [`Hi Lucky Cat Mahjong! I'd love to book ${service}.`, ''];
+    if (name) lines.push(`Name: ${name}`);
+    if (group) lines.push(`Group size: ${group}`);
+    if (dates) lines.push(`Preferred date(s): ${dates}`);
+    if (message) lines.push('', message);
+    return { service, name, text: lines.join('\n') };
+  };
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (typeof form.reportValidity === 'function' && !form.reportValidity()) return;
+    const { service, text } = compose();
+    track('quote_submit_email', { location: 'quote_form', service });
+    window.location.href = buildMailto(`Mahjong inquiry: ${service}`, text);
+  });
+
+  const dmBtn = form.querySelector('.quote-dm');
+  if (dmBtn) {
+    dmBtn.addEventListener('click', async () => {
+      const { service, text } = compose();
+      track('quote_submit_dm', { location: 'quote_form', service });
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(text);
+        copied = true;
+      } catch (_) { /* clipboard may be unavailable */ }
+      showToast(copied
+        ? 'Your message was copied — just paste it into the Instagram DM that opened!'
+        : 'Opening Instagram — send us your group size and dates and we\u2019ll take it from there!');
+      window.open(contactInfo.igDmUrl, '_blank', 'noopener');
+    });
+  }
+
+  const note = form.querySelector('.quote-note');
+  if (note) {
+    const mailto = buildMailto('Mahjong booking inquiry', '');
+    note.innerHTML = `Prefer to reach out directly? Email <a href="${mailto}" data-evt="email_click" data-loc="quote_note">${escapeHtml(contactInfo.email)}</a> or DM <a href="${contactInfo.igDmUrl}" target="_blank" rel="noopener noreferrer" data-evt="instagram_dm" data-loc="quote_note">@${escapeHtml(contactInfo.igHandle)}</a>.`;
+  }
+}
+
+function setupConversion(servicesData) {
+  const handle = contactInfo.igHandle;
+  contactInfo.igDmUrl = handle ? `https://ig.me/m/${handle}` : contactInfo.igUrl;
+
+  document.querySelectorAll('.js-ig-dm').forEach((el) => { el.href = contactInfo.igDmUrl; });
+  document.querySelectorAll('.js-ig-profile').forEach((el) => { el.href = contactInfo.igUrl; });
+
+  const bookingBody = [
+    'Hi Lucky Cat Mahjong,',
+    '',
+    "I'd like to book a session. A few details:",
+    '',
+    '\u2022 Service: ',
+    '\u2022 Group size: ',
+    '\u2022 Preferred date(s): ',
+    '\u2022 Location (for workshops): ',
+    '',
+    'Thanks!',
+  ].join('\n');
+  const bookingMailto = buildMailto('Mahjong booking inquiry', bookingBody);
+  document.querySelectorAll('.cta-button, .footer-email, .mobile-bar-email').forEach((el) => {
+    el.href = bookingMailto;
+  });
+
+  setupQuoteForm(servicesData);
+
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-evt]');
+    if (!el) return;
+    track(el.dataset.evt, { location: el.dataset.loc || 'unknown' });
+  });
+
+  const header = document.getElementById('site-header');
+  if (header) {
+    const onScroll = () => header.classList.toggle('scrolled', window.scrollY > 8);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+}
+
 async function init() {
   document.getElementById('year').textContent = new Date().getFullYear();
 
   try {
-    const [site, styleguide, services, rates, faq] = await Promise.all([
+    const [site, styleguide, services, rates, faq, testimonials] = await Promise.all([
       loadJSON('data/site.json'),
       loadJSON('data/styleguide.json'),
       loadJSON('data/services.json'),
       loadJSON('data/rates.json'),
       loadJSON('data/faq.json').catch(() => null),
+      loadJSON('data/testimonials.json').catch(() => null),
     ]);
 
     applyStyleguide(styleguide);
     applySite(site);
     applyServices(services);
+    applyStats(site.stats);
+    applyTestimonials(testimonials);
     applyRates(rates);
     if (faq) applyFaq(faq);
+    setupConversion(services);
   } catch (err) {
     console.warn('Could not load CMS data, using static defaults:', err);
   }
