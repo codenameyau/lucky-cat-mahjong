@@ -5,7 +5,7 @@ A static website for the Lucky Cat Mahjong club, with content managed through [P
 ## Features
 
 - **Logo & branding** — Uses `logo.png` with a red-forward color palette matching the Lucky Cat brand
-- **Services** — Large events, office workshops, business collaborations, and private lessons
+- **Services** — Office workshops, business collaborations, and private lessons
 - **Editable rates** — Pricing table managed via Pages CMS
 - **Customizable style guide** — Fonts, primary/secondary colors, and accent colors all editable in the CMS
 - **Instagram** — Links to [@luckycat.mahjong](https://www.instagram.com/luckycat.mahjong/)

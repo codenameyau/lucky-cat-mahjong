@@ -11,6 +11,18 @@ async function loadJSON(path) {
   return res.json();
 }
 
+const GOOGLE_FONTS = new Set([
+  'DM Sans', 'Inter', 'Lato', 'Open Sans', 'Roboto', 'Source Sans 3',
+  'Nunito', 'Poppins', 'Work Sans', 'Playfair Display', 'Merriweather',
+  'Lora', 'Libre Baskerville', 'Cormorant Garamond', 'DM Serif Display',
+  'Fraunces', 'Bitter',
+]);
+
+const FONT_FALLBACKS = {
+  'Avenir Medium': '"Avenir Next Medium", Avenir, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  'KN Yuanmo SC': 'sans-serif',
+};
+
 function applyStyleguide(styleguide) {
   const root = document.documentElement;
   const { fontFamily, headingFont, colors } = styleguide;
@@ -23,23 +35,35 @@ function applyStyleguide(styleguide) {
   root.style.setProperty('--color-surface', colors.surface);
   root.style.setProperty('--color-text', colors.text);
   root.style.setProperty('--color-text-muted', colors.textMuted);
-  root.style.setProperty('--font-body', `"${fontFamily}", system-ui, sans-serif`);
-  root.style.setProperty('--font-heading', `"${headingFont}", Georgia, serif`);
 
-  const fontsLink = document.getElementById('google-fonts');
-  const families = [fontFamily, headingFont]
-    .filter(Boolean)
-    .map((f) => f.replace(/ /g, '+') + ':wght@400;500;600;700')
-    .join('&family=');
-  fontsLink.href = `https://fonts.googleapis.com/css2?family=${families}&display=swap`;
+  const bodyFallback = FONT_FALLBACKS[fontFamily] || 'system-ui, sans-serif';
+  const headingFallback = FONT_FALLBACKS[headingFont] || 'sans-serif';
+  root.style.setProperty('--font-body', `"${fontFamily}", ${bodyFallback}`);
+  root.style.setProperty('--font-heading', `"${headingFont}", ${headingFallback}`);
+
+  const googleFonts = [fontFamily, headingFont].filter((f) => GOOGLE_FONTS.has(f));
+  let fontsLink = document.getElementById('google-fonts');
+  if (googleFonts.length) {
+    if (!fontsLink) {
+      fontsLink = document.createElement('link');
+      fontsLink.id = 'google-fonts';
+      fontsLink.rel = 'stylesheet';
+      document.head.appendChild(fontsLink);
+    }
+    const families = googleFonts
+      .map((f) => f.replace(/ /g, '+') + ':wght@400;500;600;700')
+      .join('&family=');
+    fontsLink.href = `https://fonts.googleapis.com/css2?family=${families}&display=swap`;
+  } else if (fontsLink) {
+    fontsLink.remove();
+  }
 }
 
 function applySite(site) {
   document.title = site.title;
   document.querySelector('meta[name="description"]').content = site.description;
 
-  document.querySelector('.nav-title').textContent = site.title;
-  document.querySelector('.hero-headline').textContent = site.hero.headline;
+  document.querySelector('.hero-headline').textContent = site.tagline;
   document.querySelector('.hero-subheadline').textContent = site.hero.subheadline;
   document.querySelector('#about .section-heading').textContent = site.about.heading;
   document.querySelector('.about-body').textContent = site.about.body;
@@ -52,7 +76,7 @@ function applySite(site) {
   document.querySelector('.cta-button').href = mailto;
 
   const igUrl = site.instagram.url;
-  const igHandle = `@${site.instagram.handle}`;
+  const igHandle = site.instagram.handle;
 
   document.querySelectorAll('.instagram-link, .instagram-link-footer, .footer-instagram').forEach((el) => {
     el.href = igUrl;
@@ -103,23 +127,6 @@ function applyRates(ratesData) {
   `).join('');
 }
 
-function initNav() {
-  const toggle = document.querySelector('.nav-toggle');
-  const links = document.querySelector('.nav-links');
-
-  toggle.addEventListener('click', () => {
-    const open = links.classList.toggle('open');
-    toggle.setAttribute('aria-expanded', open);
-  });
-
-  links.querySelectorAll('a').forEach((link) => {
-    link.addEventListener('click', () => {
-      links.classList.remove('open');
-      toggle.setAttribute('aria-expanded', 'false');
-    });
-  });
-}
-
 async function init() {
   document.getElementById('year').textContent = new Date().getFullYear();
 
@@ -138,8 +145,6 @@ async function init() {
   } catch (err) {
     console.warn('Could not load CMS data, using static defaults:', err);
   }
-
-  initNav();
 }
 
 init();
