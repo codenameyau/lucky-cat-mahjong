@@ -78,6 +78,13 @@ function escapeHtml(str) {
   }[c]));
 }
 
+function multilineHtml(text) {
+  return escapeHtml(text)
+    .replace(/\r\n/g, '\n')
+    .replace(/\n{2,}/g, '<br><br>')
+    .replace(/\n/g, '<br>');
+}
+
 function linkifyContact(text, email, igHandle, igUrl) {
   let html = escapeHtml(text);
   if (email) {
@@ -135,10 +142,10 @@ function applySite(site) {
   document.querySelector('.hero-headline').textContent = site.tagline;
   document.querySelector('.hero-subheadline').textContent = site.hero.subheadline;
   document.querySelector('#about .section-heading').textContent = site.about.heading;
-  document.querySelector('.about-body').textContent = site.about.body;
+  document.querySelector('.about-body').innerHTML = multilineHtml(site.about.body);
 
   document.querySelector('.cta-heading').textContent = site.cta.heading;
-  document.querySelector('.cta-body').textContent = site.cta.body;
+  document.querySelector('.cta-body').innerHTML = multilineHtml(site.cta.body);
 
   const mailto = `mailto:${site.contact_email}`;
   document.querySelectorAll('.cta-button, .hero-book-button, .header-book').forEach((btn) => {

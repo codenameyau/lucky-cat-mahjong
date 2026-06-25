@@ -71,6 +71,7 @@ content:
               - name: body
                 label: Body Text
                 type: text
+                description: Leave a blank line between paragraphs to start a new paragraph.
           - name: cta
             label: Call to Action
             type: object
@@ -81,6 +82,7 @@ content:
               - name: body
                 label: Body Text
                 type: text
+                description: Leave a blank line between paragraphs to start a new paragraph.
               - name: button_label
                 label: Button Label
                 type: string
