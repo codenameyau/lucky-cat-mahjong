@@ -4,7 +4,7 @@
   "faqs": [
     {
       "question": "Where do you teach mahjong in NYC?",
-      "answer": "We host private lessons and office workshops throughout New York City — including Manhattan, Brooklyn, and Queens. For office workshops we come to your space; for private lessons we'll coordinate a location that works for you."
+      "answer": "We host private lessons and office workshops throughout New York City — including Manhattan, Brooklyn, and Queens. For office workshops and private lessons, we'll come to you."
     },
     {
       "question": "Do I need to know mahjong to book a session?",
@@ -15,16 +15,16 @@
       "answer": "We specialize in Hong Kong-style mahjong, which is widely played across Asia and in Chinese diaspora communities. If you've played American mahjong before, we'll happily walk you through the differences."
     },
     {
-      "question": "How much does a private mahjong lesson cost?",
-      "answer": "Private lessons are $75 per person for a 2-hour session, with a minimum of 4 and a maximum of 8 players. Multi-session and group discounts are available — reach out and we'll put together a package."
-    },
-    {
       "question": "Can you host a mahjong workshop at our office?",
-      "answer": "Yes — office workshops are one of our most popular offerings. We bring tiles, mats, and instructors to your space. Workshops are $75 per person plus a $100 setup fee, for groups of 8–24. We invoice through Stripe and accept credit cards."
+      "answer": "Yes — office workshops are one of our most popular offerings. We bring tiles, mats, and instructors to your space. Workshops rates are listed above and we accommodate for groups of 8–24. We invoice through Stripe and accept credit cards."
     },
     {
       "question": "How do I book a session?",
-      "answer": "Email us at events@luckycatmahjong.com or DM us on Instagram at @luckycat.mahjong. Tell us the type of session you're interested in, your group size, and a few dates that could work — we'll take it from there."
+      "answer": "Email us at events@luckycatmahjong.com or DM us on Instagram at @luckycat.mahjong. Tell us the type of session you're interested in, your group size, and a few dates and times that could work — we'll take it from there."
+    },
+    {
+      "question": "I'm a business owner or manager interested in collaborating. Where do I begin?",
+      "answer": "We’d love to connect! The best way to start is by sending us a DM on Instagram. Drop us a message with a quick intro, and we’ll check out your brand and content to make sure there's great synergy for a joint event. As part of the collaboration, we'll promote your brand through our stories, posts, and reels—our event content typically draws around 20k to 30k views with high engagement metrics (we're happy to share screenshots), giving us a good potential to go viral together. From there, we can chat about potential dates, logistics, and pricing to see how we can bring an incredible experience to life."
     }
   ]
 }
