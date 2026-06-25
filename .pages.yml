@@ -1,0 +1,233 @@
+media:
+  input: media
+  output: /media
+
+components:
+  color:
+    type: string
+    description: "Hex color code (e.g. #C41E3A)"
+    pattern: "^#[0-9A-Fa-f]{6}$"
+    options:
+      maxlength: 7
+
+content:
+  - name: website
+    label: Website
+    type: group
+    items:
+      - name: site
+        label: Site Settings
+        type: file
+        path: data/site.json
+        format: json
+        fields:
+          - name: title
+            label: Site Title
+            type: string
+            required: true
+          - name: tagline
+            label: Tagline
+            type: string
+          - name: description
+            label: Site Description
+            type: text
+            description: Used for SEO meta description
+          - name: contact_email
+            label: Contact Email
+            type: string
+            required: true
+          - name: instagram
+            label: Instagram
+            type: object
+            fields:
+              - name: handle
+                label: Handle (without @)
+                type: string
+                required: true
+                description: "e.g. luckycat.mahjong"
+              - name: url
+                label: Profile URL
+                type: string
+                required: true
+                description: "e.g. https://www.instagram.com/luckycat.mahjong/"
+          - name: hero
+            label: Hero Section
+            type: object
+            fields:
+              - name: headline
+                label: Headline
+                type: string
+                required: true
+              - name: subheadline
+                label: Subheadline
+                type: text
+          - name: about
+            label: About Section
+            type: object
+            fields:
+              - name: heading
+                label: Heading
+                type: string
+              - name: body
+                label: Body Text
+                type: text
+          - name: cta
+            label: Call to Action
+            type: object
+            fields:
+              - name: heading
+                label: Heading
+                type: string
+              - name: body
+                label: Body Text
+                type: text
+              - name: button_label
+                label: Button Label
+                type: string
+
+      - name: styleguide
+        label: Style Guide
+        type: file
+        path: data/styleguide.json
+        format: json
+        fields:
+          - name: fontFamily
+            label: Body Font
+            type: select
+            required: true
+            options:
+              values:
+                - DM Sans
+                - Inter
+                - Lato
+                - Open Sans
+                - Roboto
+                - Source Sans 3
+                - Nunito
+                - Poppins
+                - Work Sans
+            description: Google Font used for body text
+          - name: headingFont
+            label: Heading Font
+            type: select
+            required: true
+            options:
+              values:
+                - Playfair Display
+                - Merriweather
+                - Lora
+                - Libre Baskerville
+                - Cormorant Garamond
+                - DM Serif Display
+                - Fraunces
+                - Bitter
+            description: Google Font used for headings
+          - name: colors
+            label: Colors
+            type: object
+            fields:
+              - name: primary
+                label: Primary Color
+                component: color
+                description: Main brand color (red recommended)
+              - name: primaryDark
+                label: Primary Dark
+                component: color
+                description: Darker shade for headings and hover states
+              - name: secondary
+                label: Secondary Color
+                component: color
+                description: Accent color for buttons and highlights
+              - name: accent
+                label: Accent Color
+                component: color
+                description: Additional accent (e.g. green from logo)
+              - name: background
+                label: Background
+                component: color
+              - name: surface
+                label: Surface / Cards
+                component: color
+              - name: text
+                label: Text
+                component: color
+              - name: textMuted
+                label: Muted Text
+                component: color
+
+      - name: services
+        label: Services
+        type: file
+        path: data/services.json
+        format: json
+        fields:
+          - name: heading
+            label: Section Heading
+            type: string
+          - name: subheading
+            label: Section Subheading
+            type: string
+          - name: services
+            label: Services List
+            type: object
+            list: true
+            fields:
+              - name: id
+                label: ID (URL slug)
+                type: string
+                pattern: "^[a-z0-9-]+$"
+              - name: title
+                label: Title
+                type: string
+                required: true
+              - name: description
+                label: Description
+                type: text
+                required: true
+              - name: icon
+                label: Icon
+                type: select
+                options:
+                  values:
+                    - calendar
+                    - building
+                    - handshake
+                    - user
+
+      - name: rates
+        label: Rates
+        type: file
+        path: data/rates.json
+        format: json
+        fields:
+          - name: heading
+            label: Section Heading
+            type: string
+          - name: subheading
+            label: Section Subheading
+            type: string
+          - name: disclaimer
+            label: Disclaimer
+            type: text
+            description: Shown below the rates table
+          - name: rates
+            label: Rate Items
+            type: object
+            list: true
+            fields:
+              - name: service
+                label: Service
+                type: string
+                required: true
+              - name: duration
+                label: Duration
+                type: string
+                required: true
+              - name: price
+                label: Price
+                type: string
+                required: true
+                description: "e.g. $75, $600, or Quote"
+              - name: notes
+                label: Notes
+                type: text

@@ -1,0 +1,23 @@
+{
+  "title": "Lucky Cat Mahjong",
+  "tagline": "Where tradition meets fun",
+  "description": "Lucky Cat Mahjong brings the joy of mahjong to events, offices, and private gatherings. Learn, play, and connect with us.",
+  "instagram": {
+    "handle": "luckycat.mahjong",
+    "url": "https://www.instagram.com/luckycat.mahjong/"
+  },
+  "contact_email": "hello@luckycatmahjong.com",
+  "hero": {
+    "headline": "Bring the joy of mahjong to your next gathering",
+    "subheadline": "From corporate workshops to private lessons, we make mahjong accessible, social, and unforgettable."
+  },
+  "about": {
+    "heading": "About Lucky Cat Mahjong",
+    "body": "We're a mahjong club dedicated to sharing the rich tradition of this beloved game. Whether you're a complete beginner or looking to sharpen your skills, our experienced instructors create welcoming spaces for everyone to learn and play."
+  },
+  "cta": {
+    "heading": "Ready to play?",
+    "body": "Follow us on Instagram for upcoming events, tips, and community highlights — or reach out to book your next session.",
+    "button_label": "Book a session"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "heading": "Rates",
+  "subheading": "Transparent pricing for every service",
+  "disclaimer": "Custom packages and multi-session discounts available. Contact us for a quote tailored to your event.",
+  "rates": [
+    {
+      "service": "Private Lessons",
+      "duration": "1 hour",
+      "price": "$75",
+      "notes": "Per person; groups up to 4"
+    },
+    {
+      "service": "Private Lessons",
+      "duration": "2 hours",
+      "price": "$130",
+      "notes": "Per person; groups up to 4"
+    },
+    {
+      "service": "Office Workshops",
+      "duration": "2 hours",
+      "price": "$600",
+      "notes": "Up to 20 participants; includes materials"
+    },
+    {
+      "service": "Office Workshops",
+      "duration": "Half day",
+      "price": "$1,200",
+      "notes": "Up to 30 participants; includes materials"
+    },
+    {
+      "service": "Large Events",
+      "duration": "Half day",
+      "price": "$2,500",
+      "notes": "Starting rate; scales with attendance"
+    },
+    {
+      "service": "Large Events",
+      "duration": "Full day",
+      "price": "$4,500",
+      "notes": "Starting rate; scales with attendance"
+    },
+    {
+      "service": "Business Collaborations",
+      "duration": "Custom",
+      "price": "Quote",
+      "notes": "Pricing based on scope and partnership terms"
+    }
+  ]
+}

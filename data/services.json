@@ -1,0 +1,30 @@
+{
+  "heading": "Our Services",
+  "subheading": "Tailored mahjong experiences for every occasion",
+  "services": [
+    {
+      "id": "large-events",
+      "title": "Large Events",
+      "description": "Full-scale mahjong experiences for festivals, galas, and community gatherings. We handle setup, instruction, and facilitation so your guests can jump right in.",
+      "icon": "calendar"
+    },
+    {
+      "id": "office-workshops",
+      "title": "Office Workshops",
+      "description": "Team-building sessions designed for the workplace. Break the ice, build connections, and give your team a fresh way to unwind together.",
+      "icon": "building"
+    },
+    {
+      "id": "business-collaborations",
+      "title": "Business Collaborations",
+      "description": "Partner with us for branded events, pop-ups, and cross-promotions. We work with venues, brands, and organizations to create memorable mahjong moments.",
+      "icon": "handshake"
+    },
+    {
+      "id": "private-lessons",
+      "title": "Private Lessons",
+      "description": "One-on-one or small-group instruction tailored to your pace. Perfect for beginners learning the basics or players refining their strategy.",
+      "icon": "user"
+    }
+  ]
+}
