@@ -343,13 +343,14 @@ function setupQuoteForm(servicesData) {
     if (typeof form.reportValidity === 'function' && !form.reportValidity()) return;
     const { service, text } = compose();
     track('book_session_submit', { location: 'quote_form', service });
+    track('email_click', { location: 'quote_form', source_event: 'book_session_submit' });
     window.location.href = buildMailto(`Mahjong inquiry: ${service}`, text);
   });
 
   const note = form.querySelector('.quote-note');
   if (note) {
     const mailto = buildMailto('Mahjong booking inquiry', '');
-    note.innerHTML = `Prefer to reach out directly? Email <a href="${mailto}" data-evt="email_click_quotenote" data-loc="quote_note">${escapeHtml(contactInfo.email)}</a> or DM <a href="${contactInfo.igDmUrl}" target="_blank" rel="noopener noreferrer" data-evt="instagram_message_quotenote" data-loc="quote_note">@${escapeHtml(contactInfo.igHandle)}</a>.`;
+    note.innerHTML = `Prefer to reach out directly? Email <a href="${mailto}" data-evt="email_click_quotenote" data-channel="email_click" data-loc="quote_note">${escapeHtml(contactInfo.email)}</a> or DM <a href="${contactInfo.igDmUrl}" target="_blank" rel="noopener noreferrer" data-evt="instagram_message_quotenote" data-channel="instagram_message" data-loc="quote_note">@${escapeHtml(contactInfo.igHandle)}</a>.`;
   }
 }
 
@@ -382,7 +383,11 @@ function setupConversion(servicesData) {
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-evt]');
     if (!el) return;
-    track(el.dataset.evt, { location: el.dataset.loc || 'unknown' });
+    const location = el.dataset.loc || 'unknown';
+    track(el.dataset.evt, { location });
+    if (el.dataset.channel) {
+      track(el.dataset.channel, { location, source_event: el.dataset.evt });
+    }
   });
 
   const header = document.getElementById('site-header');
