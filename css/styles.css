@@ -196,7 +196,7 @@ h1, h2, h3 {
 .section-heading {
   font-size: clamp(1.75rem, 4vw, 2.25rem);
   color: var(--color-primary-dark);
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .section-subheading {
