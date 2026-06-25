@@ -194,10 +194,12 @@ function applyServices(servicesData) {
     const iconPath = ICONS[service.icon] || ICONS.calendar;
     return `
       <article class="service-card" id="${service.id}">
-        <div class="service-icon">
-          <svg viewBox="0 0 24 24" aria-hidden="true">${iconPath}</svg>
-        </div>
-        <h3 class="service-title">${service.title}</h3>
+        <h3 class="service-title">
+          <span class="service-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">${iconPath}</svg>
+          </span>
+          <span class="service-title-text">${service.title}</span>
+        </h3>
         <p class="service-description">${service.description}</p>
       </article>
     `;
