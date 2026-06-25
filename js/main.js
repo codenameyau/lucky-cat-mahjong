@@ -1,10 +1,3 @@
-const ICONS = {
-  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
-  building: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01"/>',
-  handshake: '<path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-2"/><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/><path d="M3 4h8"/>',
-  user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
-};
-
 async function loadJSON(path) {
   const res = await fetch(path);
   if (!res.ok) throw new Error(`Failed to load ${path}`);
@@ -190,18 +183,12 @@ function applyServices(servicesData) {
   document.querySelector('.services-subheading').textContent = servicesData.subheading;
 
   const grid = document.querySelector('.services-grid');
-  grid.innerHTML = servicesData.services.map((service) => {
-    const iconPath = ICONS[service.icon] || ICONS.calendar;
-    return `
+  grid.innerHTML = servicesData.services.map((service) => `
       <article class="service-card" id="${service.id}">
-        <div class="service-icon">
-          <svg viewBox="0 0 24 24" aria-hidden="true">${iconPath}</svg>
-        </div>
         <h3 class="service-title">${service.title}</h3>
         <p class="service-description">${service.description}</p>
       </article>
-    `;
-  }).join('');
+    `).join('');
 }
 
 function applyFaq(faqData) {
@@ -355,14 +342,15 @@ function setupQuoteForm(servicesData) {
     e.preventDefault();
     if (typeof form.reportValidity === 'function' && !form.reportValidity()) return;
     const { service, text } = compose();
-    track('quote_submit_email', { location: 'quote_form', service });
+    track('book_session_submit', { location: 'quote_form', service });
+    track('email_click', { location: 'quote_form', source_event: 'book_session_submit' });
     window.location.href = buildMailto(`Mahjong inquiry: ${service}`, text);
   });
 
   const note = form.querySelector('.quote-note');
   if (note) {
     const mailto = buildMailto('Mahjong booking inquiry', '');
-    note.innerHTML = `Prefer to reach out directly? Email <a href="${mailto}" data-evt="email_click" data-loc="quote_note">${escapeHtml(contactInfo.email)}</a> or DM <a href="${contactInfo.igDmUrl}" target="_blank" rel="noopener noreferrer" data-evt="instagram_dm" data-loc="quote_note">@${escapeHtml(contactInfo.igHandle)}</a>.`;
+    note.innerHTML = `Prefer to reach out directly? Email <a href="${mailto}" data-evt="email_click_quotenote" data-channel="email_click" data-loc="quote_note">${escapeHtml(contactInfo.email)}</a> or DM <a href="${contactInfo.igDmUrl}" target="_blank" rel="noopener noreferrer" data-evt="instagram_message_quotenote" data-channel="instagram_message" data-loc="quote_note">@${escapeHtml(contactInfo.igHandle)}</a>.`;
   }
 }
 
@@ -395,7 +383,11 @@ function setupConversion(servicesData) {
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-evt]');
     if (!el) return;
-    track(el.dataset.evt, { location: el.dataset.loc || 'unknown' });
+    const location = el.dataset.loc || 'unknown';
+    track(el.dataset.evt, { location });
+    if (el.dataset.channel) {
+      track(el.dataset.channel, { location, source_event: el.dataset.evt });
+    }
   });
 
   const header = document.getElementById('site-header');

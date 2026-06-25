@@ -263,28 +263,6 @@ h1, h2, h3 {
   box-shadow: var(--shadow-lg);
 }
 
-.service-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  background: rgba(var(--color-primary-rgb), 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1rem;
-  color: var(--color-primary);
-}
-
-.service-icon svg {
-  width: 24px;
-  height: 24px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
 .service-title {
   font-family: var(--font-heading);
   font-size: 1.25rem;
@@ -512,40 +490,6 @@ h1, h2, h3 {
 .footer-tagline {
   margin: 0;
   font-size: 0.95rem;
-}
-
-.footer-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.5rem;
-  justify-content: center;
-  align-items: center;
-}
-
-.footer-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  color: var(--color-secondary);
-  font-weight: 500;
-}
-
-.footer-link:hover {
-  color: #fff;
-}
-
-.footer-link .icon {
-  width: 1.05em;
-  height: 1.05em;
-}
-
-.footer-instagram {
-  color: var(--color-secondary);
-  font-weight: 500;
-}
-
-.footer-instagram:hover {
-  color: #fff;
 }
 
 .rates-disclaimer a {
