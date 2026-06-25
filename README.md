@@ -13,7 +13,7 @@ A static website for the Lucky Cat Mahjong club, with content managed through [P
 - **Multi-paragraph copy** — About and CTA body text support paragraphs (leave a blank line in the CMS to start a new paragraph)
 - **Social proof** — Editable testimonials section and hero "stats" band to build trust
 - **Floating mobile contact bar** — "Email Us" + "Message Us" buttons pinned to the bottom on phones
-- **Analytics events** — CTAs fire Google Analytics 4 events (`book_cta`, `email_click`, `instagram_dm`, `instagram_profile`, `quote_submit_email`) so engagement is measurable
+- **Analytics events** — Every CTA fires a uniquely named Google Analytics 4 event (with a `location` parameter) so each can be tracked individually: `book_session_hero`, `book_session_submit`, `instagram_message_hero`, `instagram_message_mobilebar`, `instagram_message_quotenote`, `instagram_profile_header`, `instagram_profile_cta`, `email_click_cta`, `email_click_mobilebar`, `email_click_quotenote`
 - **Services** — Private lessons, office workshops, and business collaborations
 - **Editable rates** — Pricing table managed via Pages CMS
 - **Customizable style guide** — Fonts, primary/secondary colors, and accent colors all editable in the CMS

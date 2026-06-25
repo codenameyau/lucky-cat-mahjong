@@ -342,14 +342,14 @@ function setupQuoteForm(servicesData) {
     e.preventDefault();
     if (typeof form.reportValidity === 'function' && !form.reportValidity()) return;
     const { service, text } = compose();
-    track('quote_submit_email', { location: 'quote_form', service });
+    track('book_session_submit', { location: 'quote_form', service });
     window.location.href = buildMailto(`Mahjong inquiry: ${service}`, text);
   });
 
   const note = form.querySelector('.quote-note');
   if (note) {
     const mailto = buildMailto('Mahjong booking inquiry', '');
-    note.innerHTML = `Prefer to reach out directly? Email <a href="${mailto}" data-evt="email_click" data-loc="quote_note">${escapeHtml(contactInfo.email)}</a> or DM <a href="${contactInfo.igDmUrl}" target="_blank" rel="noopener noreferrer" data-evt="instagram_dm" data-loc="quote_note">@${escapeHtml(contactInfo.igHandle)}</a>.`;
+    note.innerHTML = `Prefer to reach out directly? Email <a href="${mailto}" data-evt="email_click_quotenote" data-loc="quote_note">${escapeHtml(contactInfo.email)}</a> or DM <a href="${contactInfo.igDmUrl}" target="_blank" rel="noopener noreferrer" data-evt="instagram_message_quotenote" data-loc="quote_note">@${escapeHtml(contactInfo.igHandle)}</a>.`;
   }
 }
 
