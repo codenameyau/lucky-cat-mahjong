@@ -3,6 +3,12 @@
   "subheading": "Professional mahjong experiences for every occasion",
   "services": [
     {
+      "id": "private-lessons",
+      "title": "Private Lessons",
+      "description": "One-on-one or small-group instruction tailored to your pace. Perfect for beginners learning the basics or players refining their strategy. We'll teach you how to play with points.",
+      "icon": "user"
+    },
+    {
       "id": "office-workshops",
       "title": "Office Workshops",
       "description": "Team-building sessions designed for the workplace. Break the ice, build connections, and give your team a fresh way to unwind together. We bring sets, mats, and instructors. We send out invoices through stripe and accept credit card payments.",
@@ -11,14 +17,8 @@
     {
       "id": "business-collaborations",
       "title": "Business Collaborations",
-      "description": "Collaborate with us for branded events, pop-ups, and cross-promotions. We work with businesses, brands, and organizations to create memorable mahjong moments.",
+      "description": "Elevate your next event with a curated mahjong experience. We team up with brands, businesses, and organizations for custom pop-ups, collaborative marketing, and unique experiences that get people talking.",
       "icon": "handshake"
-    },
-    {
-      "id": "private-lessons",
-      "title": "Private Lessons",
-      "description": "One-on-one or small-group instruction tailored to your pace. Perfect for beginners learning the basics or players refining their strategy. We'll teach you how to play with points.",
-      "icon": "user"
     }
   ]
 }
