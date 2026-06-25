@@ -5,7 +5,7 @@
     {
       "id": "office-workshops",
       "title": "Office Workshops",
-      "description": "Team-building sessions designed for the workplace. Break the ice, build connections, and give your team a fresh way to unwind together. We send out invoices and accept payments through stripe and credit card.",
+      "description": "Team-building sessions designed for the workplace. Break the ice, build connections, and give your team a fresh way to unwind together. We bring sets, mats, and instructors. We send out invoices through stripe and accept credit card payments.",
       "icon": "building"
     },
     {
