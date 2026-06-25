@@ -359,6 +359,7 @@ h1, h2, h3 {
 /* FAQ */
 .faq {
   background: var(--color-background);
+  padding-top: 2rem;
 }
 
 .faq-list {
@@ -699,6 +700,7 @@ h1, h2, h3 {
 /* Testimonials */
 .testimonials {
   background: var(--color-background);
+  padding-top: 2rem;
 }
 
 .testimonials-grid {
