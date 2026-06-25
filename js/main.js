@@ -369,7 +369,7 @@ function setupConversion(servicesData) {
     '\u2022 Service: ',
     '\u2022 Group size: ',
     '\u2022 Preferred date(s): ',
-    '\u2022 Location (for workshops): ',
+    '\u2022 Location: ',
     '',
     'Thanks!',
   ].join('\n');
