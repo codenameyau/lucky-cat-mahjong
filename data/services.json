@@ -3,12 +3,6 @@
   "subheading": "Tailored mahjong experiences for every occasion",
   "services": [
     {
-      "id": "large-events",
-      "title": "Large Events",
-      "description": "Full-scale mahjong experiences for festivals, galas, and community gatherings. We handle setup, instruction, and facilitation so your guests can jump right in.",
-      "icon": "calendar"
-    },
-    {
       "id": "office-workshops",
       "title": "Office Workshops",
       "description": "Team-building sessions designed for the workplace. Break the ice, build connections, and give your team a fresh way to unwind together.",

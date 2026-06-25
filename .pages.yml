@@ -97,6 +97,7 @@ content:
             required: true
             options:
               values:
+                - Avenir Medium
                 - DM Sans
                 - Inter
                 - Lato
@@ -106,13 +107,14 @@ content:
                 - Nunito
                 - Poppins
                 - Work Sans
-            description: Google Font used for body text
+            description: Body text font (Avenir Medium uses system-installed font)
           - name: headingFont
             label: Heading Font
             type: select
             required: true
             options:
               values:
+                - KN Yuanmo SC
                 - Playfair Display
                 - Merriweather
                 - Lora
@@ -121,7 +123,7 @@ content:
                 - DM Serif Display
                 - Fraunces
                 - Bitter
-            description: Google Font used for headings
+            description: Font used for all headings
           - name: colors
             label: Colors
             type: object
