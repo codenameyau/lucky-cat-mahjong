@@ -238,6 +238,10 @@ h1, h2, h3 {
   text-align: center;
 }
 
+.about-body {
+  text-align: left;
+}
+
 /* Services */
 .services-grid {
   display: grid;
