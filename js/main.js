@@ -59,6 +59,34 @@ function applyStyleguide(styleguide) {
   }
 }
 
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+function linkifyContact(text, email, igHandle, igUrl) {
+  let html = escapeHtml(text);
+  if (email) {
+    const escapedEmail = escapeHtml(email);
+    html = html.replaceAll(
+      escapedEmail,
+      `<a href="mailto:${escapedEmail}">${escapedEmail}</a>`
+    );
+  }
+  if (igHandle && igUrl) {
+    const escapedHandle = escapeHtml(igHandle);
+    const escapedUrl = escapeHtml(igUrl);
+    html = html.replaceAll(
+      escapedHandle,
+      `<a href="${escapedUrl}" target="_blank" rel="noopener noreferrer">${escapedHandle}</a>`
+    );
+  }
+  return html;
+}
+
+let contactInfo = { email: '', igHandle: '', igUrl: '' };
+
 function applySite(site) {
   document.title = site.title;
   document.querySelector('meta[name="description"]').content = site.description;
@@ -70,13 +98,20 @@ function applySite(site) {
 
   document.querySelector('.cta-heading').textContent = site.cta.heading;
   document.querySelector('.cta-body').textContent = site.cta.body;
-  document.querySelector('.cta-button').textContent = site.cta.button_label;
 
   const mailto = `mailto:${site.contact_email}`;
-  document.querySelector('.cta-button').href = mailto;
+  document.querySelectorAll('.cta-button, .hero-book-button').forEach((btn) => {
+    btn.href = mailto;
+    const label = btn.querySelector('.btn-label');
+    if (label) {
+      label.textContent = site.cta.button_label;
+    }
+  });
 
   const igUrl = site.instagram.url;
   const igHandle = site.instagram.handle;
+
+  contactInfo = { email: site.contact_email, igHandle, igUrl };
 
   document.querySelectorAll('.instagram-link, .instagram-link-footer, .footer-instagram').forEach((el) => {
     el.href = igUrl;
@@ -87,6 +122,15 @@ function applySite(site) {
       el.textContent = igHandle;
     }
   });
+
+  const footerEmail = document.querySelector('.footer-email');
+  if (footerEmail) {
+    footerEmail.href = mailto;
+    const emailTextNode = footerEmail.childNodes[footerEmail.childNodes.length - 1];
+    if (emailTextNode && emailTextNode.nodeType === Node.TEXT_NODE) {
+      emailTextNode.textContent = site.contact_email;
+    }
+  }
 
   document.querySelector('.footer-brand span').textContent = site.title;
   document.querySelector('.footer-tagline').textContent = site.tagline;
@@ -114,15 +158,20 @@ function applyServices(servicesData) {
 function applyRates(ratesData) {
   document.querySelector('.rates-heading').textContent = ratesData.heading;
   document.querySelector('.rates-subheading').textContent = ratesData.subheading;
-  document.querySelector('.rates-disclaimer').textContent = ratesData.disclaimer;
+  document.querySelector('.rates-disclaimer').innerHTML = linkifyContact(
+    ratesData.disclaimer,
+    contactInfo.email,
+    contactInfo.igHandle,
+    contactInfo.igUrl
+  );
 
   const tbody = document.querySelector('.rates-body');
   tbody.innerHTML = ratesData.rates.map((rate) => `
     <tr>
-      <td>${rate.service}</td>
-      <td>${rate.duration}</td>
-      <td>${rate.price}</td>
-      <td>${rate.notes}</td>
+      <td>${escapeHtml(rate.service)}</td>
+      <td>${escapeHtml(rate.duration)}</td>
+      <td>${escapeHtml(rate.price)}</td>
+      <td>${linkifyContact(rate.notes, contactInfo.email, contactInfo.igHandle, contactInfo.igUrl)}</td>
     </tr>
   `).join('');
 }
