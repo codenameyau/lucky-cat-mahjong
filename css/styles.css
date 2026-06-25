@@ -1,6 +1,5 @@
 :root {
   --color-primary: #C41E3A;
-  --color-primary-dark: #8B1529;
   --color-secondary: #F4A020;
   --color-accent: #2D8B4E;
   --color-background: #FFF8F0;
@@ -106,7 +105,7 @@ h1, h2, h3 {
 .hero-headline {
   font-size: clamp(2rem, 5vw, 3rem);
   max-width: 18ch;
-  color: var(--color-primary-dark);
+  color: var(--color-primary);
 }
 
 .hero-subheadline {
@@ -161,7 +160,7 @@ h1, h2, h3 {
 }
 
 .btn-primary:hover {
-  background: var(--color-primary-dark);
+  filter: brightness(0.92);
   color: #fff;
 }
 
@@ -204,7 +203,7 @@ h1, h2, h3 {
 
 .section-heading {
   font-size: clamp(1.75rem, 4vw, 2.25rem);
-  color: var(--color-primary-dark);
+  color: var(--color-primary);
   margin-bottom: 1rem;
 }
 
@@ -277,7 +276,7 @@ h1, h2, h3 {
 .service-title {
   font-family: var(--font-heading);
   font-size: 1.25rem;
-  color: var(--color-primary-dark);
+  color: var(--color-primary);
   margin-bottom: 0.5rem;
 }
 
@@ -380,7 +379,7 @@ h1, h2, h3 {
   font-family: var(--font-body);
   font-weight: 600;
   font-size: 1.05rem;
-  color: var(--color-primary-dark);
+  color: var(--color-primary);
   cursor: pointer;
   list-style: none;
 }
@@ -419,8 +418,7 @@ h1, h2, h3 {
 
 /* CTA */
 .cta {
-  background:
-    linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  background: var(--color-primary);
   color: #fff;
 }
 

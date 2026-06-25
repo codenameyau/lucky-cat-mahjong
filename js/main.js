@@ -28,7 +28,6 @@ function applyStyleguide(styleguide) {
   const { fontFamily, headingFont, colors } = styleguide;
 
   root.style.setProperty('--color-primary', colors.primary);
-  root.style.setProperty('--color-primary-dark', colors.primaryDark);
   root.style.setProperty('--color-secondary', colors.secondary);
   root.style.setProperty('--color-accent', colors.accent);
   root.style.setProperty('--color-background', colors.background);
