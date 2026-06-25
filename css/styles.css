@@ -121,7 +121,16 @@ h1, h2, h3 {
   flex-wrap: wrap;
   gap: 1rem;
   justify-content: center;
+  align-items: stretch;
   margin-top: 0.5rem;
+}
+
+.hero-actions .btn,
+.cta-actions .btn {
+  flex: 1 1 auto;
+  min-width: 220px;
+  max-width: 280px;
+  justify-content: center;
 }
 
 /* Buttons */
@@ -361,6 +370,7 @@ h1, h2, h3 {
   flex-wrap: wrap;
   gap: 1rem;
   justify-content: center;
+  align-items: stretch;
 }
 
 .cta .btn-primary {
@@ -421,6 +431,31 @@ h1, h2, h3 {
   font-size: 0.95rem;
 }
 
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  justify-content: center;
+  align-items: center;
+}
+
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--color-secondary);
+  font-weight: 500;
+}
+
+.footer-link:hover {
+  color: #fff;
+}
+
+.footer-link .icon {
+  width: 1.05em;
+  height: 1.05em;
+}
+
 .footer-instagram {
   color: var(--color-secondary);
   font-weight: 500;
@@ -428,6 +463,16 @@ h1, h2, h3 {
 
 .footer-instagram:hover {
   color: #fff;
+}
+
+.rates-disclaimer a {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.rates-table a {
+  color: var(--color-primary);
+  font-weight: 600;
 }
 
 .footer-copy {
