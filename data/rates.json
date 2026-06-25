@@ -6,13 +6,13 @@
     {
       "service": "Private Lessons",
       "duration": "2 hours",
-      "price": "$60/person",
+      "price": "$60/person (promotional rate)",
       "notes": "Minimum 4 people; max 8 people."
     },
     {
       "service": "Office Workshops",
       "duration": "2 hours",
-      "price": "$60/person + $100 fee",
+      "price": "$60/person + $100 fee (promotional rate)",
       "notes": "Minimum 8 people; max 20 people."
     },
     {
