@@ -5,15 +5,16 @@ A static website for the Lucky Cat Mahjong club, with content managed through [P
 ## Features
 
 - **Logo & branding** — Uses `logo.png` with a red-forward color palette matching the Lucky Cat brand
-- **Sticky header** — Persistent navigation with always-visible "Book a session" and Instagram buttons
-- **Conversion-focused CTAs** — Hero and closing calls-to-action drive emails and Instagram DMs
-- **Request-a-quote form** — Static lead form that builds a pre-filled email *or* an Instagram DM (no backend needed); the form is copied to the clipboard before opening Instagram
-- **Direct Instagram DM links** — "Message us" buttons open straight into a DM via `ig.me/m/<handle>`
+- **Sticky header** — Persistent navigation (About us, Services, Rates, FAQ) with an Instagram button
+- **Conversion-focused CTAs** — Hero and closing calls-to-action drive emails and Instagram messages
+- **"Book a session" form** — Static lead form that builds a pre-filled email (no backend needed); a direct email/Instagram link sits beneath it
+- **Direct Instagram message links** — "Message us" buttons open straight into a DM via `ig.me/m/<handle>`
 - **Pre-filled email** — `mailto:` links open with a subject and a short template so leads arrive qualified
+- **Multi-paragraph copy** — About and CTA body text support paragraphs (leave a blank line in the CMS to start a new paragraph)
 - **Social proof** — Editable testimonials section and hero "stats" band to build trust
-- **Floating mobile contact bar** — Email + DM buttons pinned to the bottom on phones
-- **Analytics events** — All CTAs fire Google Analytics 4 events (`book_cta`, `email_click`, `instagram_dm`, `instagram_profile`, `quote_submit_email`, `quote_submit_dm`) so engagement is measurable
-- **Services** — Office workshops, business collaborations, and private lessons
+- **Floating mobile contact bar** — "Email Us" + "Message Us" buttons pinned to the bottom on phones
+- **Analytics events** — CTAs fire Google Analytics 4 events (`book_cta`, `email_click`, `instagram_dm`, `instagram_profile`, `quote_submit_email`) so engagement is measurable
+- **Services** — Private lessons, office workshops, and business collaborations
 - **Editable rates** — Pricing table managed via Pages CMS
 - **Customizable style guide** — Fonts, primary/secondary colors, and accent colors all editable in the CMS
 - **Instagram** — Links to [@luckycat.mahjong](https://www.instagram.com/luckycat.mahjong/)
@@ -33,7 +34,7 @@ Then open [http://localhost:8080](http://localhost:8080).
 1. Go to [app.pagescms.org](https://app.pagescms.org) and sign in with GitHub
 2. Install the Pages CMS GitHub App on this repository
 3. Open the repo — the `.pages.yml` config defines all editable content:
-   - **Site Settings** — Title, hero text, about section, contact email, Instagram, and hero stats
+   - **Site Settings** — Title, hero text, about section, contact email, Instagram, and hero stats (About and CTA body text support multiple paragraphs — leave a blank line between them)
    - **Style Guide** — Body font, heading font, and all brand colors
    - **Services** — Add, edit, or reorder service offerings
    - **Rates** — Set and update pricing for each service
