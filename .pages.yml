@@ -233,3 +233,30 @@ content:
               - name: notes
                 label: Notes
                 type: text
+
+      - name: faq
+        label: FAQ
+        type: file
+        path: data/faq.json
+        format: json
+        fields:
+          - name: heading
+            label: Section Heading
+            type: string
+          - name: subheading
+            label: Section Subheading
+            type: string
+          - name: faqs
+            label: Questions & Answers
+            type: object
+            list: true
+            fields:
+              - name: question
+                label: Question
+                type: string
+                required: true
+              - name: answer
+                label: Answer
+                type: text
+                required: true
+                description: Plain text; basic line breaks are preserved.
