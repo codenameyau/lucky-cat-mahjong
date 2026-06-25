@@ -7,19 +7,19 @@
       "service": "Private Lessons",
       "duration": "2 hours",
       "price": "$60/person",
-      "notes": "Groups up to 8"
+      "notes": "Minimum 4 people; max 8 people."
     },
     {
       "service": "Office Workshops",
       "duration": "2 hours",
-      "price": "$80/person + $100 fee",
-      "notes": "Minimum 8 people; max 20 participants"
+      "price": "$60/person + $100 fee",
+      "notes": "Minimum 8 people; max 20 people."
     },
     {
       "service": "Business Collaborations",
       "duration": "Custom",
       "price": "Contact us",
-      "notes": "Email or Instagram DM at luckycat.mahjong"
+      "notes": "Email or Instagram DM us at luckycat.mahjong"
     }
   ]
 }
