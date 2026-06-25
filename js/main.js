@@ -319,7 +319,7 @@ function setupQuoteForm(servicesData) {
   const select = form.querySelector('.quote-service');
   if (select) {
     const titles = (servicesData && Array.isArray(servicesData.services))
-      ? servicesData.services.map((s) => s.title)
+      ? servicesData.services.map((s) => (s.title === 'Business Collaborations' ? 'Business Collaboration' : s.title))
       : [];
     const options = [...titles, 'Something else / Not sure'];
     select.innerHTML = options
