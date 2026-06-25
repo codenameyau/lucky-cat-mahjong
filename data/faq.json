@@ -4,7 +4,7 @@
   "faqs": [
     {
       "question": "Where do you teach mahjong?",
-      "answer": "We teach private lessons and office workshops throughout New York City — including Manhattan, Brooklyn, and Queens. We'll come to you."
+      "answer": "We teach private lessons and office workshops throughout New York City — including Manhattan, Brooklyn, and Queens. We'll come to you and bring mahjong sets and mats."
     },
     {
       "question": "Do I need to know mahjong to book a session?",
@@ -15,12 +15,12 @@
       "answer": "We specialize in Hong Kong-style mahjong, which is widely played across Asia and in Chinese diaspora communities. If you've played American mahjong before, we'll happily walk you through the differences."
     },
     {
-      "question": "Can you host a mahjong workshop at our office?",
-      "answer": "Yes — office workshops are one of our most popular offerings. We bring tiles, mats, and instructors to your space. Workshops rates are listed above and we accommodate for groups of 8–24. We invoice through Stripe and accept credit cards."
-    },
-    {
       "question": "How do I book a session?",
       "answer": "Email us at events@luckycatmahjong.com or DM us on Instagram at @luckycat.mahjong. Tell us the type of session you're interested in, your group size, and a few dates and times that could work — we'll take it from there."
+    },
+    {
+      "question": "Can you host a mahjong workshop at our office?",
+      "answer": "Yes — office workshops are one of our most popular offerings. We bring tiles, mats, and instructors to your space. Workshops rates are listed above and we accommodate for groups of 8–24. We invoice through Stripe and accept credit cards."
     },
     {
       "question": "I'm a business owner or manager interested in collaborating. Where do I begin?",
