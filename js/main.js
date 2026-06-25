@@ -352,23 +352,6 @@ function setupQuoteForm(servicesData) {
     window.location.href = buildMailto(`Mahjong inquiry: ${service}`, text);
   });
 
-  const dmBtn = form.querySelector('.quote-dm');
-  if (dmBtn) {
-    dmBtn.addEventListener('click', async () => {
-      const { service, text } = compose();
-      track('quote_submit_dm', { location: 'quote_form', service });
-      let copied = false;
-      try {
-        await navigator.clipboard.writeText(text);
-        copied = true;
-      } catch (_) { /* clipboard may be unavailable */ }
-      showToast(copied
-        ? 'Your message was copied — just paste it into the Instagram DM that opened!'
-        : 'Opening Instagram — send us your group size and dates and we\u2019ll take it from there!');
-      window.open(contactInfo.igDmUrl, '_blank', 'noopener');
-    });
-  }
-
   const note = form.querySelector('.quote-note');
   if (note) {
     const mailto = buildMailto('Mahjong booking inquiry', '');
