@@ -132,10 +132,6 @@ content:
                 label: Primary Color
                 component: color
                 description: Main brand color (red recommended)
-              - name: primaryDark
-                label: Primary Dark
-                component: color
-                description: Darker shade for headings and hover states
               - name: secondary
                 label: Secondary Color
                 component: color

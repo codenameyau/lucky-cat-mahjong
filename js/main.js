@@ -23,18 +23,31 @@ const FONT_FALLBACKS = {
   'KN Yuanmo SC': 'sans-serif',
 };
 
+function hexToRgbTriplet(hex) {
+  const match = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(hex).trim());
+  if (!match) return null;
+  let h = match[1];
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  const int = parseInt(h, 16);
+  return `${(int >> 16) & 255}, ${(int >> 8) & 255}, ${int & 255}`;
+}
+
 function applyStyleguide(styleguide) {
   const root = document.documentElement;
   const { fontFamily, headingFont, colors } = styleguide;
 
   root.style.setProperty('--color-primary', colors.primary);
-  root.style.setProperty('--color-primary-dark', colors.primaryDark);
   root.style.setProperty('--color-secondary', colors.secondary);
   root.style.setProperty('--color-accent', colors.accent);
   root.style.setProperty('--color-background', colors.background);
   root.style.setProperty('--color-surface', colors.surface);
   root.style.setProperty('--color-text', colors.text);
   root.style.setProperty('--color-text-muted', colors.textMuted);
+
+  const primaryRgb = hexToRgbTriplet(colors.primary);
+  const secondaryRgb = hexToRgbTriplet(colors.secondary);
+  if (primaryRgb) root.style.setProperty('--color-primary-rgb', primaryRgb);
+  if (secondaryRgb) root.style.setProperty('--color-secondary-rgb', secondaryRgb);
 
   const bodyFallback = FONT_FALLBACKS[fontFamily] || 'system-ui, sans-serif';
   const headingFallback = FONT_FALLBACKS[headingFont] || 'sans-serif';
