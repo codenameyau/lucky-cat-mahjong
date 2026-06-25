@@ -1,0 +1,30 @@
+{
+  "heading": "Frequently Asked Questions",
+  "subheading": "Everything you need to know before booking",
+  "faqs": [
+    {
+      "question": "Where do you teach mahjong in NYC?",
+      "answer": "We host private lessons and office workshops throughout New York City — including Manhattan, Brooklyn, and Queens. For office workshops we come to your space; for private lessons we'll coordinate a location that works for you."
+    },
+    {
+      "question": "Do I need to know mahjong to book a session?",
+      "answer": "Not at all. Most of our students start as complete beginners. We'll teach you the tiles, the flow of the game, how to score with points, and basic strategy so you'll feel confident sitting down at any table."
+    },
+    {
+      "question": "Do you teach Hong Kong-style or American mahjong?",
+      "answer": "We specialize in Hong Kong-style mahjong, which is widely played across Asia and in Chinese diaspora communities. If you've played American mahjong before, we'll happily walk you through the differences."
+    },
+    {
+      "question": "How much does a private mahjong lesson cost?",
+      "answer": "Private lessons are $75 per person for a 2-hour session, with a minimum of 4 and a maximum of 8 players. Multi-session and group discounts are available — reach out and we'll put together a package."
+    },
+    {
+      "question": "Can you host a mahjong workshop at our office?",
+      "answer": "Yes — office workshops are one of our most popular offerings. We bring tiles, mats, and instructors to your space. Workshops are $75 per person plus a $100 setup fee, for groups of 8–24. We invoice through Stripe and accept credit cards."
+    },
+    {
+      "question": "How do I book a session?",
+      "answer": "Email us at events@luckycatmahjong.com or DM us on Instagram at @luckycat.mahjong. Tell us the type of session you're interested in, your group size, and a few dates that could work — we'll take it from there."
+    }
+  ]
+}

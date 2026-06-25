@@ -155,6 +155,57 @@ function applyServices(servicesData) {
   }).join('');
 }
 
+function applyFaq(faqData) {
+  if (!faqData || !Array.isArray(faqData.faqs) || faqData.faqs.length === 0) {
+    const faqSection = document.getElementById('faq');
+    if (faqSection) faqSection.hidden = true;
+    return;
+  }
+
+  const headingEl = document.querySelector('.faq-heading');
+  const subheadingEl = document.querySelector('.faq-subheading');
+  if (headingEl && faqData.heading) headingEl.textContent = faqData.heading;
+  if (subheadingEl && faqData.subheading) subheadingEl.textContent = faqData.subheading;
+
+  const list = document.querySelector('.faq-list');
+  list.innerHTML = faqData.faqs.map((item, idx) => {
+    const answerHtml = linkifyContact(
+      item.answer,
+      contactInfo.email,
+      contactInfo.igHandle,
+      contactInfo.igUrl
+    ).replace(/\n+/g, '<br>');
+    return `
+      <details class="faq-item" role="listitem"${idx === 0 ? ' open' : ''}>
+        <summary class="faq-question">
+          <span>${escapeHtml(item.question)}</span>
+          <svg class="faq-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </summary>
+        <div class="faq-answer">${answerHtml}</div>
+      </details>
+    `;
+  }).join('');
+
+  const ldId = 'faq-jsonld';
+  document.getElementById(ldId)?.remove();
+  const ldScript = document.createElement('script');
+  ldScript.type = 'application/ld+json';
+  ldScript.id = ldId;
+  ldScript.textContent = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqData.faqs.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.answer,
+      },
+    })),
+  });
+  document.head.appendChild(ldScript);
+}
+
 function applyRates(ratesData) {
   document.querySelector('.rates-heading').textContent = ratesData.heading;
   document.querySelector('.rates-subheading').textContent = ratesData.subheading;
@@ -180,17 +231,19 @@ async function init() {
   document.getElementById('year').textContent = new Date().getFullYear();
 
   try {
-    const [site, styleguide, services, rates] = await Promise.all([
+    const [site, styleguide, services, rates, faq] = await Promise.all([
       loadJSON('data/site.json'),
       loadJSON('data/styleguide.json'),
       loadJSON('data/services.json'),
       loadJSON('data/rates.json'),
+      loadJSON('data/faq.json').catch(() => null),
     ]);
 
     applyStyleguide(styleguide);
     applySite(site);
     applyServices(services);
     applyRates(rates);
+    if (faq) applyFaq(faq);
   } catch (err) {
     console.warn('Could not load CMS data, using static defaults:', err);
   }
