@@ -171,7 +171,33 @@
   </script>
 </head>
 <body>
-  <main>
+  <header class="site-header" id="site-header">
+    <div class="container header-inner">
+      <a href="#top" class="header-brand" aria-label="Lucky Cat Mahjong home">
+        <picture>
+          <source srcset="logo.webp" type="image/webp">
+          <img src="logo.png" alt="" class="header-logo" width="36" height="37" decoding="async">
+        </picture>
+        <span class="header-brand-name">Lucky Cat Mahjong</span>
+      </a>
+      <nav class="header-nav" aria-label="Primary">
+        <a href="#services" class="header-nav-link">Services</a>
+        <a href="#testimonials" class="header-nav-link">Reviews</a>
+        <a href="#rates" class="header-nav-link">Rates</a>
+        <a href="#faq" class="header-nav-link">FAQ</a>
+      </nav>
+      <div class="header-actions">
+        <a href="https://www.instagram.com/luckycat.mahjong/" target="_blank" rel="noopener noreferrer" class="header-ig js-ig-profile" data-evt="instagram_profile" data-loc="header" aria-label="Follow Lucky Cat Mahjong on Instagram">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+        </a>
+        <a href="#quote" class="btn btn-primary btn-sm header-book" data-evt="book_cta" data-loc="header">
+          <span class="btn-label">Book a session</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
     <section class="hero">
       <div class="hero-bg"></div>
       <div class="container hero-inner">
@@ -182,15 +208,16 @@
         <h1 class="hero-headline">Bring mahjong into your life</h1>
         <p class="hero-subheadline">From corporate workshops to private lessons, we make mahjong accessible, social, and unforgettable.</p>
         <div class="hero-actions">
-          <a href="mailto:events@luckycatmahjong.com" class="btn btn-primary hero-book-button">
+          <a href="#quote" class="btn btn-primary hero-book-button" data-evt="book_cta" data-loc="hero">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z"/></svg>
             <span class="btn-label">Book a session</span>
           </a>
-          <a href="https://www.instagram.com/luckycat.mahjong/" target="_blank" rel="noopener noreferrer" class="btn btn-outline instagram-link">
+          <a href="https://ig.me/m/luckycat.mahjong" target="_blank" rel="noopener noreferrer" class="btn btn-outline js-ig-dm" data-evt="instagram_dm" data-loc="hero">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
-            luckycat.mahjong
+            <span class="btn-label">Message us on Instagram</span>
           </a>
         </div>
+        <div class="hero-stats" aria-label="At a glance"></div>
       </div>
     </section>
 
@@ -208,6 +235,16 @@
           <p class="section-subheading services-subheading">Tailored mahjong experiences for every occasion</p>
         </div>
         <div class="services-grid"></div>
+      </div>
+    </section>
+
+    <section id="testimonials" class="section testimonials" hidden>
+      <div class="container">
+        <div class="section-intro">
+          <h2 class="section-heading testimonials-heading">What people are saying</h2>
+          <p class="section-subheading testimonials-subheading">Workshops, lessons, and collaborations our community loves</p>
+        </div>
+        <div class="testimonials-grid"></div>
       </div>
     </section>
 
@@ -234,6 +271,54 @@
       </div>
     </section>
 
+    <section id="quote" class="section quote">
+      <div class="container">
+        <div class="section-intro">
+          <h2 class="section-heading">Request a quote</h2>
+          <p class="section-subheading">Tell us a little about your group and we'll get right back to you. Usually within a day.</p>
+        </div>
+        <div class="quote-card">
+          <form class="quote-form" novalidate>
+            <div class="form-row">
+              <label class="form-field">
+                <span class="form-label">Your name</span>
+                <input type="text" name="name" autocomplete="name" placeholder="Jane Doe" required>
+              </label>
+              <label class="form-field">
+                <span class="form-label">What are you interested in?</span>
+                <select name="service" class="quote-service"></select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label class="form-field">
+                <span class="form-label">Group size</span>
+                <input type="text" name="group" inputmode="numeric" placeholder="e.g. 12 people">
+              </label>
+              <label class="form-field">
+                <span class="form-label">Preferred date(s)</span>
+                <input type="text" name="dates" placeholder="e.g. weekend of Aug 10">
+              </label>
+            </div>
+            <label class="form-field">
+              <span class="form-label">Anything else? <span class="form-optional">(optional)</span></span>
+              <textarea name="message" rows="3" placeholder="Location, occasion, questions…"></textarea>
+            </label>
+            <div class="quote-actions">
+              <button type="submit" class="btn btn-primary quote-submit">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z"/></svg>
+                <span class="btn-label">Send via email</span>
+              </button>
+              <button type="button" class="btn btn-outline quote-dm">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                <span class="btn-label">Send via Instagram DM</span>
+              </button>
+            </div>
+            <p class="quote-note"></p>
+          </form>
+        </div>
+      </div>
+    </section>
+
     <section id="faq" class="section faq">
       <div class="container">
         <div class="section-intro">
@@ -249,11 +334,11 @@
         <h2 class="section-heading cta-heading">Ready to play?</h2>
         <p class="section-body cta-body"></p>
         <div class="cta-actions">
-          <a href="mailto:events@luckycatmahjong.com" class="btn btn-primary cta-button">
+          <a href="mailto:events@luckycatmahjong.com" class="btn btn-primary cta-button" data-evt="email_click" data-loc="cta">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z"/></svg>
             <span class="btn-label">Book a session</span>
           </a>
-          <a href="https://www.instagram.com/luckycat.mahjong/" target="_blank" rel="noopener noreferrer" class="btn btn-secondary instagram-link-footer">
+          <a href="https://www.instagram.com/luckycat.mahjong/" target="_blank" rel="noopener noreferrer" class="btn btn-secondary instagram-link-footer js-ig-profile" data-evt="instagram_profile" data-loc="cta">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
             luckycat.mahjong
           </a>
@@ -261,6 +346,19 @@
       </div>
     </section>
   </main>
+
+  <div class="mobile-bar" aria-label="Quick contact">
+    <a href="mailto:events@luckycatmahjong.com" class="mobile-bar-btn mobile-bar-email" data-evt="email_click" data-loc="mobile_bar">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z"/></svg>
+      <span>Email us</span>
+    </a>
+    <a href="https://ig.me/m/luckycat.mahjong" target="_blank" rel="noopener noreferrer" class="mobile-bar-btn mobile-bar-dm js-ig-dm" data-evt="instagram_dm" data-loc="mobile_bar">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+      <span>DM us</span>
+    </a>
+  </div>
+
+  <div class="toast" role="status" aria-live="polite" hidden></div>
 
   <footer class="site-footer">
     <div class="container footer-inner">
@@ -273,11 +371,11 @@
       </div>
       <p class="footer-tagline"></p>
       <div class="footer-links">
-        <a href="https://www.instagram.com/luckycat.mahjong/" target="_blank" rel="noopener noreferrer" class="footer-link footer-instagram">
+        <a href="https://www.instagram.com/luckycat.mahjong/" target="_blank" rel="noopener noreferrer" class="footer-link footer-instagram js-ig-profile" data-evt="instagram_profile" data-loc="footer">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
           luckycat.mahjong
         </a>
-        <a href="mailto:events@luckycatmahjong.com" class="footer-link footer-email">
+        <a href="mailto:events@luckycatmahjong.com" class="footer-link footer-email" data-evt="email_click" data-loc="footer">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z"/></svg>
           events@luckycatmahjong.com
         </a>
