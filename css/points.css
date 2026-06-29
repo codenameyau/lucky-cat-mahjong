@@ -238,7 +238,39 @@
   font-family: var(--font-heading);
   font-size: 1.15rem;
   color: var(--color-primary);
-  margin-bottom: 0.75rem;
+  margin: 0;
+}
+
+.calc-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.calc-card > h3 {
+  margin-bottom: 1rem;
+}
+
+.calc-reset {
+  flex-shrink: 0;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: var(--color-background);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.calc-reset:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
 }
 
 /* Hand area */
@@ -302,8 +334,6 @@
 }
 
 .calc-controls button:hover { background: var(--color-primary); color: #fff; }
-.calc-controls .calc-reset { margin-left: auto; border-color: rgba(0, 0, 0, 0.2); color: var(--color-text-muted); }
-.calc-controls .calc-reset:hover { background: var(--color-text); color: #fff; }
 
 /* Palette */
 .palette-group { margin-bottom: 1rem; }

@@ -153,6 +153,7 @@
     thirteenOrphans: LIMIT,
     nineGates: LIMIT,
     allKongs: LIMIT,
+    allTerminals: LIMIT,
     dragonPung: 1,
     yakuWind: 1,
     selfDraw: 1,
@@ -160,12 +161,14 @@
     lastTile: 1,
     robKong: 1,
     kongBloom: 1,
-    doubleKong: 8,
+    doubleKong: 9,
     noFlowers: 1,
     seatFlower: 1,
     seatSeason: 1,
     allFlowers: 2,
     allSeasons: 2,
+    sevenFlowers: 5,
+    eightFlowers: LIMIT,
   };
 
   var FLOWER_IDS = ['f1', 'f2', 'f3', 'f4'];
@@ -276,7 +279,20 @@
    * 6. Special hands (checked before normal decomposition)
    * ------------------------------------------------------------------ */
 
-  var TERMINALS = { m: [1, 9], p: [1, 9], s: [1, 9] };
+  function isAllTerminals(c) {
+    // 清老头 — only 1s and 9s; no honors, no simple tiles (2–8)
+    if (c.z.reduce(function (a, b) { return a + b; }, 0) !== 0) return false;
+    var numSuits = ['m', 'p', 's'];
+    for (var si = 0; si < numSuits.length; si++) {
+      var su = numSuits[si];
+      for (var v = 2; v <= 8; v++) {
+        if (c[su][v] > 0) return false;
+      }
+    }
+    return numSuits.some(function (su) {
+      return c[su][1] > 0 || c[su][9] > 0;
+    });
+  }
 
   function isThirteenOrphans(c) {
     // 1 & 9 of each suit + all 7 honors, exactly one of them doubled (14 tiles)
@@ -331,9 +347,9 @@
       for (var v = 1; v <= max; v++) {
         var n = c[su][v];
         if (n === 0) continue;
-        if (n !== 2) return false;
+        if (n !== 2 && n !== 4) return false;
         total += n;
-        pairs += 1;
+        pairs += n / 2;
       }
     }
     return total === 14 && pairs === 7;
@@ -346,7 +362,10 @@
       var su = suits[si];
       var max = su === 'z' ? 7 : 9;
       for (var v = 1; v <= max; v++) {
-        if (c[su][v] === 2) ids.push({ suit: su, val: v });
+        var n = c[su][v];
+        if (n === 2 || n === 4) {
+          for (var p = 0; p < n / 2; p++) ids.push({ suit: su, val: v });
+        }
       }
     }
     var order = { m: 0, p: 1, s: 2, z: 3 };
@@ -452,6 +471,13 @@
     return items.reduce(function (a, b) { return a + b.faan; }, 0);
   }
 
+  function flowerAutoWinItem() {
+    var n = flowers.length;
+    if (n >= 8) return { name: 'Eight Flowers', cn: '八花', faan: FAAN.eightFlowers };
+    if (n >= 7) return { name: 'Seven Flowers', cn: '七花', faan: FAAN.sevenFlowers };
+    return null;
+  }
+
   /* ------------------------------------------------------------------ *
    * 9. Situational faan from the checkboxes / selects
    * ------------------------------------------------------------------ */
@@ -460,6 +486,8 @@
     var items = [];
     function on(id) { var el = document.getElementById(id); return el && el.checked; }
     function hasBonus(id) { return flowers.indexOf(id) !== -1; }
+
+    if (flowers.length >= 7) return items;
 
     if (on('opt-no-flowers')) {
       items.push({ name: 'No Flowers', cn: '無花', faan: FAAN.noFlowers });
@@ -522,8 +550,23 @@
 
     var result = { valid: false, items: [], faan: 0, points: null, message: '' };
 
+    var flowerWin = flowerAutoWinItem();
+    if (flowerWin) {
+      result.valid = true;
+      result.items = [flowerWin];
+      result.faan = flowerWin.faan;
+      result.points = faanToPoints(result.faan);
+      return result;
+    }
+
     if (total === 0) {
-      result.message = 'Add tiles to your hand to see its score.';
+      if (flowers.length) {
+        result.message = 'You have ' + flowers.length + ' flower/season tile' +
+          (flowers.length === 1 ? '' : 's') +
+          '. Collect 7 for an automatic win (七花, 5 faan), or all 8 for the limit hand (八花). Or add regular tiles to score a standard hand.';
+      } else {
+        result.message = 'Add tiles to your hand to see its score.';
+      }
       return result;
     }
 
@@ -537,14 +580,15 @@
     } else if (isSevenPairs(c)) {
       result.valid = true;
       result.items = [{ name: 'Seven Pairs', cn: '七對子', faan: FAAN.sevenPairs }];
+      if (profile.numSuits.length === 0 && profile.honors) {
+        result.items.push({ name: 'All Honors', cn: '字一色', faan: FAAN.allHonors });
+      } else if (isAllTerminals(c)) {
+        result.items.push({ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals });
+      }
     } else {
       var parses = winningParses(c);
       if (parses.length === 0) {
-        result.message = 'Not a complete winning hand yet. A standard hand needs four sets (sequences or triplets) plus one pair, or seven pairs — that is 14 tiles (15–17 if you have kongs).';
-        // Still show a flush hint if everything is one suit
-        if (total >= 2 && profile.numSuits.length === 1 && !profile.honors) {
-          result.message += ' (So far every tile is one suit — heading toward a Full Flush 清一色.)';
-        }
+        result.message = 'Not a complete winning hand yet.';
         return result;
       }
       // pick the parse with the highest faan
@@ -555,7 +599,12 @@
         if (f > bestFaan) { bestFaan = f; best = parses[i]; bestItems = its; }
       }
       result.valid = true;
-      result.items = bestItems;
+      var hasFourKongs = bestItems.some(function (i) { return i.name === 'Four Kongs'; });
+      if (isAllTerminals(c) && !hasFourKongs) {
+        result.items = [{ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals }];
+      } else {
+        result.items = bestItems;
+      }
     }
 
     // Situational add-ons
@@ -737,7 +786,7 @@
     html += '</div>';
 
     if (!hand.length && !flowers.length) {
-      html += '<p class="hand-empty">Tap tiles below to build a 14-tile winning hand.</p>';
+      html += '<p class="hand-empty">Tap tiles to build a winning hand.</p>';
     } else {
       html += '<div class="hand-tiles">' + pieces.join('') + flowerPieces.join('') + '</div>';
     }
@@ -762,7 +811,7 @@
     var totalLabel = res.faan >= LIMIT ? 'Limit hand (' + LIMIT + ' faan)' : res.faan + ' faan';
     var payout;
     if (res.points === null) {
-      payout = '<p class="result-payout result-below">Below the common ' + MIN_FAAN + '-faan minimum to win — many tables would not allow this hand to go out (詐糊). House rules vary.</p>';
+      payout = '<p class="result-payout result-below">Below the common ' + MIN_FAAN + '-faan minimum to win. Table rules vary.</p>';
     } else {
       var selfDraw = document.getElementById('opt-selfdraw') && document.getElementById('opt-selfdraw').checked;
       var payNote = selfDraw
@@ -785,24 +834,27 @@
   function resetHand() {
     hand = [];
     flowers = [];
-    resetOptions();
     update();
   }
 
-  function resetOptions() {
-    document.querySelectorAll('#calc-options input[type="checkbox"]').forEach(function (cb) { cb.checked = false; });
+  function resetBonuses() {
+    document.querySelectorAll('#calc-options input[type="checkbox"]').forEach(function (cb) {
+      cb.checked = false;
+    });
+    var seat = document.getElementById('opt-seat');
+    var round = document.getElementById('opt-round');
+    if (seat) seat.value = '1';
+    if (round) round.value = '1';
+    renderResult(evaluate());
   }
 
   function loadExample(which) {
     hand = [];
     flowers = [];
-    resetOptions();
 
     if (which === 'sequence') {
-      // All sequences (1) + self-draw (1) + fully concealed (1) = 3 faan; all three suits
+      // All sequences (1 faan) across three suits
       hand = ['m2', 'm3', 'm4', 'p5', 'p6', 'p7', 's4', 's5', 's6', 's7', 's8', 's9', 'p2', 'p2'];
-      document.getElementById('opt-selfdraw').checked = true;
-      document.getElementById('opt-concealed').checked = true;
     } else if (which === 'halfflush') {
       // One suit mixed with a dragon pair = 3 faan
       hand = ['m2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm7', 'm8', 'm9', 'm3', 'm3', 'm3', 'dr', 'dr'];
@@ -815,6 +867,15 @@
       hand = ['m2', 'm2', 'p4', 'p4', 's6', 's6', 'm8', 'm8', 'p9', 'p9', 's1', 's1', 'we', 'we'];
     } else if (which === 'thirteen') {
       hand = ['m1', 'm9', 'p1', 'p9', 's1', 's9', 'we', 'ws', 'ww', 'wn', 'dg', 'dw', 'dr', 'dr'];
+    } else if (which === 'fourwinds') {
+      // Great Four Winds (limit): pungs of all four winds plus a pair
+      hand = ['we', 'we', 'we', 'ws', 'ws', 'ws', 'ww', 'ww', 'ww', 'wn', 'wn', 'wn', 'dr', 'dr'];
+    } else if (which === 'allterminals') {
+      // All Terminals (limit): only 1s and 9s — no honors
+      hand = ['m1', 'm1', 'm1', 'm9', 'm9', 'm9', 'p1', 'p1', 'p1', 'p9', 'p9', 'p9', 's1', 's1'];
+    } else if (which === 'ninegates') {
+      // Nine Gates (limit): 1112345678999 plus one extra of the same suit
+      hand = ['m1', 'm1', 'm1', 'm2', 'm3', 'm4', 'm5', 'm5', 'm6', 'm7', 'm8', 'm9', 'm9', 'm9'];
     }
     update();
   }
@@ -833,6 +894,9 @@
 
     var reset = document.getElementById('calc-reset');
     if (reset) reset.addEventListener('click', resetHand);
+
+    var resetOptions = document.getElementById('calc-reset-options');
+    if (resetOptions) resetOptions.addEventListener('click', resetBonuses);
 
     document.querySelectorAll('[data-example]').forEach(function (b) {
       b.addEventListener('click', function () { loadExample(b.getAttribute('data-example')); });
