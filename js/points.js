@@ -831,6 +831,202 @@
     renderResult(evaluate());
   }
 
+  var PLAYABLE_IDS = TILES.filter(function (t) { return t.suit !== 'f'; }).map(function (t) { return t.id; });
+  var NUMBER_SUITS = ['m', 'p', 's'];
+
+  function rand(n) { return Math.floor(Math.random() * n); }
+
+  function shuffle(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = rand(i + 1);
+      var tmp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  function countsFromIds(ids) {
+    var c = {
+      m: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      p: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      s: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      z: [0, 0, 0, 0, 0, 0, 0, 0],
+    };
+    ids.forEach(function (id) {
+      var t = TILE_BY_ID[id];
+      c[t.suit][t.val] += 1;
+    });
+    return c;
+  }
+
+  function isValidWinningHandIds(ids) {
+    if (ids.length !== 14) return false;
+    var c = countsFromIds(ids);
+    if (isSevenPairs(c)) return true;
+    return winningParses(c).length > 0;
+  }
+
+  function patternFaanForIds(ids) {
+    var c = countsFromIds(ids);
+    var ctx = ctxFromUI();
+    var profile = suitProfile(c);
+
+    if (isThirteenOrphans(c)) return FAAN.thirteenOrphans;
+    if (isNineGates(c)) return FAAN.nineGates;
+    if (isSevenPairs(c)) {
+      var faan = FAAN.sevenPairs;
+      if (profile.numSuits.length === 0 && profile.honors) faan += FAAN.allHonors;
+      else if (isAllTerminals(c)) faan += FAAN.allTerminals;
+      return faan;
+    }
+
+    var parses = winningParses(c);
+    if (!parses.length) return -1;
+
+    var bestFaan = -1;
+    var bestItems = null;
+    for (var i = 0; i < parses.length; i++) {
+      var its = evalParse(parses[i], profile, ctx);
+      var f = sumFaan(its);
+      if (f > bestFaan) { bestFaan = f; bestItems = its; }
+    }
+
+    var hasFourKongs = bestItems && bestItems.some(function (i) { return i.name === 'Four Kongs'; });
+    if (isAllTerminals(c) && !hasFourKongs) return FAAN.allTerminals;
+
+    return bestFaan;
+  }
+
+  function randomThirteenOrphans() {
+    var base = ['m1', 'm9', 'p1', 'p9', 's1', 's9', 'we', 'ws', 'ww', 'wn', 'dg', 'dw', 'dr'];
+    var dup = base[rand(base.length)];
+    return base.concat([dup]);
+  }
+
+  function randomNineGates() {
+    var suit = NUMBER_SUITS[rand(3)];
+    var extra = 1 + rand(9);
+    var counts = { 1: 3, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 3 };
+    counts[extra] += 1;
+    var ids = [];
+    for (var v = 1; v <= 9; v++) {
+      for (var i = 0; i < counts[v]; i++) ids.push(suit + v);
+    }
+    return ids;
+  }
+
+  function randomFourWinds() {
+    var winds = ['we', 'ws', 'ww', 'wn'];
+    var ids = [];
+    winds.forEach(function (w) { ids.push(w, w, w); });
+    var pairPool = PLAYABLE_IDS.filter(function (id) { return winds.indexOf(id) === -1; });
+    var pair = pairPool[rand(pairPool.length)];
+    return ids.concat([pair, pair]);
+  }
+
+  function randomAllTerminals() {
+    var pool = shuffle(['m1', 'm9', 'p1', 'p9', 's1', 's9']);
+    var ids = [];
+    pool.slice(0, 4).forEach(function (id) { ids.push(id, id, id); });
+    ids.push(pool[4], pool[4]);
+    return ids;
+  }
+
+  function randomLimitHand() {
+    var builders = [randomThirteenOrphans, randomNineGates, randomFourWinds, randomAllTerminals];
+    return builders[rand(builders.length)]();
+  }
+
+  function randomSevenPairsHand() {
+    var pool = shuffle(PLAYABLE_IDS.slice());
+    var ids = [];
+    for (var i = 0; i < pool.length && ids.length < 14; i++) {
+      ids.push(pool[i], pool[i]);
+    }
+    return ids.length === 14 ? ids : null;
+  }
+
+  function randomStandardHand() {
+    var counts = {};
+    function getCount(id) { return counts[id] || 0; }
+    function add(id, n) {
+      for (var i = 0; i < n; i++) {
+        counts[id] = (counts[id] || 0) + 1;
+      }
+    }
+
+    var melds = 0;
+    var tries = 0;
+    while (melds < 4 && tries < 200) {
+      tries++;
+      if (Math.random() < 0.55) {
+        var suit = NUMBER_SUITS[rand(3)];
+        var start = 1 + rand(7);
+        var ids = [suit + start, suit + (start + 1), suit + (start + 2)];
+        if (ids.every(function (id) { return getCount(id) < 4; })) {
+          ids.forEach(function (id) { add(id, 1); });
+          melds++;
+        }
+      } else {
+        var id = PLAYABLE_IDS[rand(PLAYABLE_IDS.length)];
+        if (getCount(id) <= 1) {
+          add(id, 3);
+          melds++;
+        }
+      }
+    }
+    if (melds < 4) return null;
+
+    tries = 0;
+    while (tries < 100) {
+      tries++;
+      var pairId = PLAYABLE_IDS[rand(PLAYABLE_IDS.length)];
+      if (getCount(pairId) <= 2) {
+        add(pairId, 2);
+        var handIds = [];
+        Object.keys(counts).forEach(function (tid) {
+          for (var j = 0; j < counts[tid]; j++) handIds.push(tid);
+        });
+        return handIds.length === 14 ? handIds : null;
+      }
+    }
+    return null;
+  }
+
+  function generateRandomHand() {
+    hand = [];
+    flowers = [];
+
+    if (Math.random() < 0.05) {
+      var limitHand = randomLimitHand();
+      if (limitHand && isValidWinningHandIds(limitHand)) {
+        hand = limitHand;
+        update();
+        return;
+      }
+    }
+
+    if (Math.random() < 0.07) {
+      var sevenPairs = randomSevenPairsHand();
+      if (sevenPairs) {
+        hand = sevenPairs;
+        update();
+        return;
+      }
+    }
+
+    for (var attempt = 0; attempt < 200; attempt++) {
+      var candidate = randomStandardHand();
+      if (candidate && isValidWinningHandIds(candidate) && patternFaanForIds(candidate) >= MIN_FAAN) {
+        hand = candidate;
+        update();
+        return;
+      }
+    }
+    loadExample('halfflush');
+  }
+
   function resetHand() {
     hand = [];
     flowers = [];
@@ -891,6 +1087,9 @@
     }
     var opts = document.getElementById('calc-options');
     if (opts) opts.addEventListener('change', function () { renderResult(evaluate()); });
+
+    var randomBtn = document.getElementById('calc-random');
+    if (randomBtn) randomBtn.addEventListener('click', generateRandomHand);
 
     var reset = document.getElementById('calc-reset');
     if (reset) reset.addEventListener('click', resetHand);
