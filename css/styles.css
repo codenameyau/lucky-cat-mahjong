@@ -816,7 +816,7 @@ h1, h2, h3 {
 
 .mobile-bar-dm {
   background: var(--color-secondary);
-  color: var(--color-text);
+  color: var(--color-primary);
 }
 
 .mobile-bar-btn .icon {
@@ -898,10 +898,6 @@ h1, h2, h3 {
     backdrop-filter: blur(12px);
     border-top: 1px solid rgba(0, 0, 0, 0.08);
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
-  }
-
-  body {
-    padding-bottom: 72px;
   }
 
   .toast {
