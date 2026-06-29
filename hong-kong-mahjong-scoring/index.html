@@ -146,7 +146,7 @@
       <div class="container">
         <div class="section-intro">
           <h2 class="section-heading">Interactive Points Calculator</h2>
-          <p class="section-subheading">Build a hand, tick the situational bonuses, and see the faan instantly</p>
+          <p class="section-subheading">Build a hand, select the situational bonuses, and see the points instantly</p>
         </div>
 
         <div class="calc">
@@ -166,16 +166,14 @@
                 <div class="opt-selects">
                   <label class="opt-select">Seat wind
                     <select id="opt-seat">
-                      <option value="0">None</option>
                       <option value="1" selected>East 東</option>
                       <option value="2">South 南</option>
                       <option value="3">West 西</option>
                       <option value="4">North 北</option>
                     </select>
                   </label>
-                  <label class="opt-select">Round wind
+                  <label class="opt-select">Table wind
                     <select id="opt-round">
-                      <option value="0">None</option>
                       <option value="1" selected>East 東</option>
                       <option value="2">South 南</option>
                       <option value="3">West 西</option>
@@ -195,6 +193,7 @@
                 <button type="button" data-example="halfflush">Example: Half Flush</button>
                 <button type="button" data-example="fullflush">Example: Full Flush</button>
                 <button type="button" data-example="alltriplets">Example: All Triplets</button>
+                <button type="button" data-example="sevenpairs">Example: Seven Pairs</button>
                 <button type="button" data-example="thirteen">Example: 13 Orphans</button>
                 <button type="button" id="calc-reset" class="calc-reset">Reset</button>
               </div>
@@ -218,10 +217,10 @@
           <h2 class="section-heading">How Scoring Works</h2>
         </div>
         <p class="points-lead">
-          In Hong Kong mahjong a winning hand is <strong>four sets plus one pair</strong> (14 tiles). A set is either a <em>sequence</em> of three consecutive tiles in one suit (e.g. 4-5-6 Circles) or a <em>triplet</em> of three identical tiles. The pair is two identical tiles.
+          In Hong Kong mahjong a winning hand is usually <strong>four sets plus one pair</strong> of 14 tiles. A set is either a <em>sequence</em> of three consecutive tiles in one suit (e.g. 4-5-6 Circles) or a <em>triplet</em> of three identical tiles. The pair is two identical tiles.
         </p>
         <p class="points-lead">
-          Once you have a legal winning hand, you count <strong>faan (番)</strong> — bonus points awarded for patterns like flushes, all-triplet hands, dragon triplets, and rare special hands. Most tables require a minimum of <strong>3 faan</strong> to win; the maximum is the <strong>limit hand</strong>, usually 13 faan. House rules vary widely, so always confirm before you play.
+          Once you have a winning hand, you count <strong>faan (番)</strong> — points awarded for patterns like flushes, all-triplet hands, dragon triplets, and rare special hands. Most tables require a minimum of <strong>3 faan</strong> to win; the maximum is the <strong>limit hand</strong>, usually 13 faan. House rules vary widely, so always confirm before you play.
         </p>
       </div>
     </section>
@@ -251,15 +250,16 @@
             <table class="faan-table">
               <thead><tr><th>Pattern</th><th>Faan</th><th>What it means</th></tr></thead>
               <tbody>
-                <tr><td><span class="faan-name">Chicken Hand (雞糊)</span></td><td class="faan-value">0</td><td class="faan-desc">A legal 4-sets-and-a-pair win with no scoring pattern. Only countable where a 0-faan minimum is allowed.</td></tr>
-                <tr><td><span class="faan-name">All Sequences (平糊)</span></td><td class="faan-value">1</td><td class="faan-desc">Every set is a sequence, and the pair is not a scoring (dragon/seat/round-wind) tile.</td></tr>
-                <tr><td><span class="faan-name">All Triplets (對對糊)</span></td><td class="faan-value">3</td><td class="faan-desc">All four sets are pungs or kongs plus a pair. No sequences. Kongs score the same as pungs for this pattern.</td></tr>
-                <tr><td><span class="faan-name">Half Flush (混一色)</span></td><td class="faan-value">3</td><td class="faan-desc">One numbered suit only, mixed with honor tiles (winds/dragons).</td></tr>
+                <tr><td><span class="faan-name">Chicken Hand (雞糊)</span></td><td class="faan-value">0</td><td class="faan-desc">Four sets and a pair. Only countable where a 0-faan minimum is allowed.</td></tr>
+                <tr><td><span class="faan-name">All Sequences (平糊)</span></td><td class="faan-value">1</td><td class="faan-desc">Four sets of sequences plus a pair.</td></tr>
+                <tr><td><span class="faan-name">All Triplets (對對糊)</span></td><td class="faan-value">3</td><td class="faan-desc">All four sets are pungs or kongs plus a pair. No sequences.</td></tr>
+                <tr><td><span class="faan-name">Seven Pairs (七對子)</span></td><td class="faan-value">4</td><td class="faan-desc">Seven different pairs of 14 tiles with no sets. Valid hand at many tables.</td></tr>
+                <tr><td><span class="faan-name">Half Flush (混一色)</span></td><td class="faan-value">3</td><td class="faan-desc">One suit only, mixed with honor tiles (winds/dragons).</td></tr>
                 <tr><td><span class="faan-name">Small Three Dragons (小三元)</span></td><td class="faan-value">5</td><td class="faan-desc">Pungs or kongs of two dragons plus a pair of the third dragon.</td></tr>
-                <tr><td><span class="faan-name">Full Flush (清一色)</span></td><td class="faan-value">7</td><td class="faan-desc">The entire hand is a single numbered suit, with no honors.</td></tr>
+                <tr><td><span class="faan-name">Full Flush (清一色)</span></td><td class="faan-value">7</td><td class="faan-desc">One suit only with no honors.</td></tr>
                 <tr><td><span class="faan-name">Small Four Winds (小四喜)</span></td><td class="faan-value">8</td><td class="faan-desc">Pungs or kongs of three winds plus a pair of the fourth wind.</td></tr>
                 <tr><td><span class="faan-name">Great Three Dragons (大三元)</span></td><td class="faan-value">8</td><td class="faan-desc">Pungs or kongs of all three dragons (Red, Green, White).</td></tr>
-                <tr><td><span class="faan-name">All Honors (字一色)</span></td><td class="faan-value">10</td><td class="faan-desc">The whole hand is made only of wind and dragon tiles.</td></tr>
+                <tr><td><span class="faan-name">All Honors (字一色)</span></td><td class="faan-value">10</td><td class="faan-desc">Only winds and dragons.</td></tr>
               </tbody>
             </table>
           </div>
@@ -272,9 +272,9 @@
               <thead><tr><th>Bonus</th><th>Faan</th><th>What it means</th></tr></thead>
               <tbody>
                 <tr><td><span class="faan-name">Self-Draw (自摸)</span></td><td class="faan-value">1</td><td class="faan-desc">You drew your own winning tile from the wall.</td></tr>
-                <tr><td><span class="faan-name">Fully Concealed (門前清)</span></td><td class="faan-value">1</td><td class="faan-desc">You never melded (claimed) a tile from another player.</td></tr>
-                <tr><td><span class="faan-name">Dragon Pung / Kong (箭刻)</span></td><td class="faan-value">1</td><td class="faan-desc">A pung or kong of Red, Green, or White dragons (each).</td></tr>
-                <tr><td><span class="faan-name">Seat / Round Wind (門風 / 圈風)</span></td><td class="faan-value">1</td><td class="faan-desc">A pung or kong of your seat wind or the prevailing round wind (each). When both winds are the same, one wind pung/kong earns 2 faan.</td></tr>
+                <tr><td><span class="faan-name">Fully Concealed (門前清)</span></td><td class="faan-value">1</td><td class="faan-desc">You never revealed a set by taking another player's tile.</td></tr>
+                <tr><td><span class="faan-name">Dragon Pung / Kong (箭刻)</span></td><td class="faan-value">1</td><td class="faan-desc">A pung or kong for each Red, Green, or White dragons.</td></tr>
+                <tr><td><span class="faan-name">Seat / Table Wind (門風 / 圈風)</span></td><td class="faan-value">1</td><td class="faan-desc">A pung or kong of your seat wind or the table wind (each). When both winds are the same, one wind pung/kong earns 2 faan.</td></tr>
                 <tr><td><span class="faan-name">Win on Last Tile (海底撈月)</span></td><td class="faan-value">1</td><td class="faan-desc">Winning on the very last tile drawn or discarded.</td></tr>
                 <tr><td><span class="faan-name">Win on Kong Replacement (槓上開花)</span></td><td class="faan-value">1</td><td class="faan-desc">Winning on the replacement tile drawn after declaring a kong. Often also counts as self-draw (+1).</td></tr>
                 <tr><td><span class="faan-name">Robbing the Kong (搶槓)</span></td><td class="faan-value">1</td><td class="faan-desc">Winning on a tile another player adds to an exposed pung to form a kong.</td></tr>
