@@ -88,7 +88,7 @@
           {
             "@type": "Question",
             "name": "What is a limit hand in Hong Kong mahjong?",
-            "acceptedAnswer": { "@type": "Answer", "text": "A limit hand reaches the maximum payout, commonly 13 faan. Examples include Great Three Dragons, Thirteen Orphans, All Honors, the Nine Gates, and Four Kongs." }
+            "acceptedAnswer": { "@type": "Answer", "text": "A limit hand reaches the maximum payout, commonly 13 faan. Examples include Great Three Dragons, Thirteen Orphans, All Terminals, the Nine Gates, and Four Kongs." }
           },
           {
             "@type": "Question",
@@ -152,7 +152,10 @@
         <div class="calc">
           <div class="calc-left">
             <div class="calc-card">
-              <h3>Situational Bonuses</h3>
+              <div class="calc-card-head">
+                <h3>Situational Bonuses</h3>
+                <button type="button" id="calc-reset-options" class="calc-reset">Reset</button>
+              </div>
               <form id="calc-options" class="calc-options">
                 <div class="opt-checks">
                   <label class="opt-check"><input type="checkbox" id="opt-selfdraw"><span>Self-draw <span class="opt-cn">(自摸)</span></span></label>
@@ -185,7 +188,10 @@
             </div>
 
             <div class="calc-card" style="margin-top:1.25rem;">
-              <h3>Your Hand</h3>
+              <div class="calc-card-head">
+                <h3>Your Hand</h3>
+                <button type="button" id="calc-reset" class="calc-reset">Reset</button>
+              </div>
               <div id="calc-hand" class="calc-hand"></div>
               <div id="calc-result" class="calc-result"></div>
               <div class="calc-controls">
@@ -195,7 +201,9 @@
                 <button type="button" data-example="alltriplets">Example: All Triplets</button>
                 <button type="button" data-example="sevenpairs">Example: Seven Pairs</button>
                 <button type="button" data-example="thirteen">Example: 13 Orphans</button>
-                <button type="button" id="calc-reset" class="calc-reset">Reset</button>
+                <button type="button" data-example="fourwinds">Example: Four Winds</button>
+                <button type="button" data-example="allterminals">Example: All Terminals</button>
+                <button type="button" data-example="ninegates">Example: Nine Gates</button>
               </div>
             </div>
           </div>
@@ -278,7 +286,7 @@
                 <tr><td><span class="faan-name">Win on Last Tile (海底撈月)</span></td><td class="faan-value">1</td><td class="faan-desc">Winning on the very last tile drawn or discarded.</td></tr>
                 <tr><td><span class="faan-name">Win on Kong Replacement (槓上開花)</span></td><td class="faan-value">1</td><td class="faan-desc">Winning on the replacement tile drawn after declaring a kong. Often also counts as self-draw (+1).</td></tr>
                 <tr><td><span class="faan-name">Robbing the Kong (搶槓)</span></td><td class="faan-value">1</td><td class="faan-desc">Winning on a tile another player adds to an exposed pung to form a kong.</td></tr>
-                <tr><td><span class="faan-name">Win on Double Kong (槓上槓)</span></td><td class="faan-value">8</td><td class="faan-desc">Winning on a replacement tile drawn after a kong that itself came from a kong replacement.</td></tr>
+                <tr><td><span class="faan-name">Win on Double Kong (槓上槓)</span></td><td class="faan-value">9</td><td class="faan-desc">Winning on a replacement tile drawn after a kong that itself came from a kong replacement.</td></tr>
               </tbody>
             </table>
           </div>
@@ -295,6 +303,8 @@
                 <tr><td><span class="faan-name">Seat Season (正花)</span></td><td class="faan-value">1</td><td class="faan-desc">Your matching season: East 春, South 夏, West 秋, North 冬.</td></tr>
                 <tr><td><span class="faan-name">All Flowers (四花齊)</span></td><td class="faan-value">2</td><td class="faan-desc">All four flower tiles (梅蘭菊竹). Stacks with seat flower.</td></tr>
                 <tr><td><span class="faan-name">All Seasons (四季齊)</span></td><td class="faan-value">2</td><td class="faan-desc">All four season tiles (春夏秋冬). Stacks with seat season.</td></tr>
+                <tr><td><span class="faan-name">Seven Flowers (七花)</span></td><td class="faan-value">5</td><td class="faan-desc">Automatic win with any 7 flower or season tiles.</td></tr>
+                <tr><td><span class="faan-name">Eight Flowers (八花)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Automatic win with all 8 flower and season tiles.</td></tr>
               </tbody>
             </table>
           </div>
@@ -318,6 +328,7 @@
                 <tr><td><span class="faan-name">Great Four Winds (大四喜)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Pungs or kongs of all four winds.</td></tr>
                 <tr><td><span class="faan-name">Nine Gates (九蓮寶燈)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">A pure one-suit hand in the pattern 1-1-1-2-3-4-5-6-7-8-9-9-9 plus one extra of that suit.</td></tr>
                 <tr><td><span class="faan-name">Four Kongs (十八羅漢)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Four kongs plus a pair (18 tiles).</td></tr>
+                <tr><td><span class="faan-name">All Terminals (清老頭)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Every tile is a 1 or 9 — no simple tiles (2–8) and no honors.</td></tr>
                 <tr><td><span class="faan-name">Heavenly Hand (天糊)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Dealer wins on a complete hand from the initial deal.</td></tr>
                 <tr><td><span class="faan-name">Earthly Hand (地糊)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">A non-dealer wins on the dealer’s first discarded tile.</td></tr>
               </tbody>
@@ -355,7 +366,7 @@
             </table>
           </div>
         </div>
-        <p class="points-note">On a <em>self-draw</em>, each of the three opponents pays the base points. In some variations, a <em>self-draw</em> pays half the base points from each opponent instead. <br> On a <em>discard</em>, the player who discarded the winning tile pays. Exact payment splits are a house rule.</p>
+        <p class="points-note">On a <em>self-draw</em>, each of the three opponents pays the base points. In some variations, for a <em>self-draw</em> each opponent pays half the base points instead. <br> On a <em>discard</em>, the player who discarded the winning tile pays the base points. Exact faan limits and payment splits are a house rule.</p>
         <div class="points-cta">
           <a href="/" class="btn btn-primary">Want to learn in person? See our lessons &amp; workshops</a>
         </div>
@@ -372,7 +383,7 @@
         </picture>
         <span>Lucky Cat Mahjong</span>
       </div>
-      <p class="footer-tagline">Bring mahjong into your life.</p>
+      <p class="footer-tagline">Hong Kong Mahjong in NYC</p>
       <p class="footer-copy">&copy; <span id="year"></span> Lucky Cat Mahjong</p>
     </div>
   </footer>
