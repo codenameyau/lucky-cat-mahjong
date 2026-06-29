@@ -63,7 +63,7 @@
     { id: 'f1', file: '39-plum.svg', name: 'Plum', marking: '梅' },
     { id: 'f2', file: '40-orchid.svg', name: 'Orchid', marking: '蘭' },
     { id: 'f3', file: '41-chrysanthemum.svg', name: 'Chrysanthemum', marking: '菊' },
-    { id: 'f4', file: '42-bamboo.svg', name: 'Bamboo (Flower)', marking: '竹' },
+    { id: 'f4', file: '42-bamboo.svg', name: 'Bamboo', marking: '竹' },
   ].forEach(function (t) {
     TILES.push({ id: t.id, file: t.file, group: 'flowers', suit: 'f', name: t.name, marking: t.marking });
   });
@@ -114,12 +114,12 @@
     if (!host) return;
 
     var groups = [
-      { title: 'Characters (萬 / Wàn)', desc: 'The “ten-thousands” suit. Numbered 1–9; the top character is the number, the bottom is 萬.', ids: ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9'] },
+      { title: 'Characters (萬 / Wàn)', desc: 'Also called ten-thousands. Numbered 1–9; the top character is the number, the bottom is 萬.', ids: ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9'] },
       { title: 'Circles (筒 / Tóng)', desc: 'Also called dots or coins. Count the circles — that is the tile’s number, 1–9.', ids: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9'] },
       { title: 'Bamboo (索 / Sok)', desc: 'Also called sticks. Count the bamboo sticks for the number. The 1 Bamboo is usually a bird.', ids: ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9'] },
-      { title: 'Winds (風)', desc: 'Honor tiles: East, South, West, North. They never form sequences — only pairs or triplets.', ids: ['we', 'ws', 'ww', 'wn'] },
+      { title: 'Winds (風)', desc: 'Honor tiles: East, South, West, North. They never form sequences — only pairs or triplets or quads.', ids: ['we', 'ws', 'ww', 'wn'] },
       { title: 'Dragons (三元牌)', desc: 'Honor tiles: Red (中), Green (發), White (白). A triplet of dragons is always worth points.', ids: ['dr', 'dg', 'dw'] },
-      { title: 'Flowers & Seasons (花 / 季)', desc: 'Bonus tiles set aside when drawn and replaced. They never form part of the 14-tile hand but can add bonus points.', ids: ['f1', 'f2', 'f3', 'f4', 'se1', 'se2', 'se3', 'se4'] },
+      { title: 'Flowers & Seasons (花 / 季)', desc: 'Set aside when drawn and replaced by a tile from the end of the wall. Count as bonus tiles.', ids: ['f1', 'f2', 'f3', 'f4', 'se1', 'se2', 'se3', 'se4'] },
     ];
 
     host.innerHTML = groups.map(function (g) {
@@ -148,7 +148,7 @@
     allHonors: 10,
     smallDragons: 5,
     greatDragons: 8,
-    smallWinds: 8,
+    smallWinds: 6,
     greatWinds: LIMIT,
     thirteenOrphans: LIMIT,
     nineGates: LIMIT,
