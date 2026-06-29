@@ -142,6 +142,7 @@
     chicken: 0,
     allSequences: 1,
     allTriplets: 3,
+    sevenPairs: 4,
     halfFlush: 3,
     fullFlush: 7,
     allHonors: 10,
@@ -320,6 +321,45 @@
     return extra === 1;
   }
 
+  function isSevenPairs(c) {
+    var total = 0;
+    var pairs = 0;
+    var suits = ['m', 'p', 's', 'z'];
+    for (var si = 0; si < suits.length; si++) {
+      var su = suits[si];
+      var max = su === 'z' ? 7 : 9;
+      for (var v = 1; v <= max; v++) {
+        var n = c[su][v];
+        if (n === 0) continue;
+        if (n !== 2) return false;
+        total += n;
+        pairs += 1;
+      }
+    }
+    return total === 14 && pairs === 7;
+  }
+
+  function sevenPairTileIds(c) {
+    var ids = [];
+    var suits = ['m', 'p', 's', 'z'];
+    for (var si = 0; si < suits.length; si++) {
+      var su = suits[si];
+      var max = su === 'z' ? 7 : 9;
+      for (var v = 1; v <= max; v++) {
+        if (c[su][v] === 2) ids.push({ suit: su, val: v });
+      }
+    }
+    var order = { m: 0, p: 1, s: 2, z: 3 };
+    ids.sort(function (a, b) {
+      if (order[a.suit] !== order[b.suit]) return order[a.suit] - order[b.suit];
+      return a.val - b.val;
+    });
+    return ids.map(function (p) {
+      var id = tileIdFromSuitVal(p.suit, p.val);
+      return [id, id];
+    }).reduce(function (acc, pair) { return acc.concat(pair); }, []);
+  }
+
   /* ------------------------------------------------------------------ *
    * 7. Global hand features
    * ------------------------------------------------------------------ */
@@ -400,7 +440,7 @@
           items.push({ name: 'Double Wind ' + kind, cn: '門風圈風', faan: FAAN.yakuWind * 2 });
         } else {
           if (m.val === ctx.seat && ctx.seat > 0) items.push({ name: 'Seat Wind ' + kind, cn: '門風', faan: FAAN.yakuWind });
-          if (m.val === ctx.round && ctx.round > 0) items.push({ name: 'Round Wind ' + kind, cn: '圈風', faan: FAAN.yakuWind });
+          if (m.val === ctx.round && ctx.round > 0) items.push({ name: 'Table Wind ' + kind, cn: '圈風', faan: FAAN.yakuWind });
         }
       });
     }
@@ -465,8 +505,8 @@
   }
 
   function ctxFromUI() {
-    var seat = parseInt((document.getElementById('opt-seat') || {}).value || '0', 10);
-    var round = parseInt((document.getElementById('opt-round') || {}).value || '0', 10);
+    var seat = parseInt((document.getElementById('opt-seat') || {}).value || '1', 10);
+    var round = parseInt((document.getElementById('opt-round') || {}).value || '1', 10);
     return { seat: seat, round: round };
   }
 
@@ -494,10 +534,13 @@
     } else if (isNineGates(c)) {
       result.valid = true;
       result.items = [{ name: 'Nine Gates', cn: '九蓮寶燈', faan: FAAN.nineGates }];
+    } else if (isSevenPairs(c)) {
+      result.valid = true;
+      result.items = [{ name: 'Seven Pairs', cn: '七對子', faan: FAAN.sevenPairs }];
     } else {
       var parses = winningParses(c);
       if (parses.length === 0) {
-        result.message = 'Not a complete winning hand yet. A standard hand needs four sets (sequences or triplets) plus one pair — that is 14 tiles (15–17 if you have kongs).';
+        result.message = 'Not a complete winning hand yet. A standard hand needs four sets (sequences or triplets) plus one pair, or seven pairs — that is 14 tiles (15–17 if you have kongs).';
         // Still show a flush hint if everything is one suit
         if (total >= 2 && profile.numSuits.length === 1 && !profile.honors) {
           result.message += ' (So far every tile is one suit — heading toward a Full Flush 清一色.)';
@@ -637,6 +680,8 @@
     if (!handIds.length) return [];
 
     var c = handCounts();
+    if (isSevenPairs(c)) return sevenPairTileIds(c);
+
     var parse = bestWinningParse(c);
     if (parse) {
       var ordered = [];
@@ -762,9 +807,12 @@
       // One suit mixed with a dragon pair = 3 faan
       hand = ['m2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm7', 'm8', 'm9', 'm3', 'm3', 'm3', 'dr', 'dr'];
     } else if (which === 'fullflush') {
-      hand = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's1', 's2', 's3', 's5', 's5'];
+      hand = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's8', 's8', 's8', 's5', 's5'];
     } else if (which === 'alltriplets') {
       hand = ['m2', 'm2', 'm2', 'p5', 'p5', 'p5', 's8', 's8', 's8', 'ws', 'ws', 'ws', 'p2', 'p2'];
+    } else if (which === 'sevenpairs') {
+      // Seven distinct pairs = 4 faan
+      hand = ['m2', 'm2', 'p4', 'p4', 's6', 's6', 'm8', 'm8', 'p9', 'p9', 's1', 's1', 'we', 'we'];
     } else if (which === 'thirteen') {
       hand = ['m1', 'm9', 'p1', 'p9', 's1', 's9', 'we', 'ws', 'ww', 'wn', 'dg', 'dw', 'dr', 'dr'];
     }
