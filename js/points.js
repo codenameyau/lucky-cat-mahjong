@@ -998,7 +998,7 @@
     hand = [];
     flowers = [];
 
-    if (Math.random() < 0.01) {
+    if (Math.random() < 0.05) {
       var limitHand = randomLimitHand();
       if (limitHand && isValidWinningHandIds(limitHand)) {
         hand = limitHand;
