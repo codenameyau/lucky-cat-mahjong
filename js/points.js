@@ -15,7 +15,7 @@
   var NUM_SUITS = [
     { key: 'm', label: 'Characters', cn: '萬', word: 'characters', offset: 7 },
     { key: 'p', label: 'Circles', cn: '筒', word: 'circles', offset: 16 },
-    { key: 's', label: 'Bamboo', cn: '索', word: 'bamboos', offset: 25 },
+    { key: 's', label: 'Bamboos', cn: '索', word: 'bamboos', offset: 25 },
   ];
 
   var WORD_NUMBERS = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
@@ -62,8 +62,8 @@
   [
     { id: 'f1', file: '39-plum.svg', name: 'Plum', marking: '梅' },
     { id: 'f2', file: '40-orchid.svg', name: 'Orchid', marking: '蘭' },
-    { id: 'f3', file: '41-chrysanthemum.svg', name: 'Chrysanthemum', marking: '菊' },
-    { id: 'f4', file: '42-bamboo.svg', name: 'Bamboo', marking: '竹' },
+    { id: 'f3', file: '41-chrysanthemum.svg', name: 'Chrysanthe-mum', marking: '菊' },
+    { id: 'f4', file: '42-bamboo.svg', name: 'Bamboo Flower', marking: '竹' },
   ].forEach(function (t) {
     TILES.push({ id: t.id, file: t.file, group: 'flowers', suit: 'f', name: t.name, marking: t.marking });
   });
@@ -177,10 +177,24 @@
   // Faan -> base points payout (classic "3 faan to win" doubling, capped at limit).
   var PAYOUT = { 3: 8, 4: 16, 5: 32, 6: 64, 7: 128, 8: 256, 9: 512, 10: 1024, 11: 2048, 12: 4096, 13: 8192 };
 
+  function capFaan(faan) {
+    if (unlimitedFaan) return faan;
+    return faan > LIMIT ? LIMIT : faan;
+  }
+
+  function faanLabel(faan) {
+    if (!unlimitedFaan && faan >= LIMIT) return 'Limit';
+    return faan + ' faan';
+  }
+
   function faanToPoints(faan) {
     if (faan < MIN_FAAN) return null;
-    if (faan > LIMIT) faan = LIMIT;
-    return PAYOUT[faan];
+    var effective = capFaan(faan);
+    if (PAYOUT[effective]) return PAYOUT[effective];
+    if (unlimitedFaan && effective > LIMIT) {
+      return PAYOUT[LIMIT] * Math.pow(2, effective - LIMIT);
+    }
+    return null;
   }
 
   /* ------------------------------------------------------------------ *
@@ -189,6 +203,27 @@
 
   var hand = []; // array of suited/honor tile ids (max 18)
   var flowers = []; // array of flower/season tile ids
+  var activeExample = null;
+  var unlimitedFaan = false;
+
+  function syncExampleButtons() {
+    document.querySelectorAll('[data-example]').forEach(function (btn) {
+      var on = btn.getAttribute('data-example') === activeExample;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+
+  function setActiveExample(which) {
+    activeExample = which;
+    syncExampleButtons();
+  }
+
+  function clearActiveExample() {
+    if (!activeExample) return;
+    activeExample = null;
+    syncExampleButtons();
+  }
 
   function handCounts() {
     var c = { m: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], p: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], s: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], z: [0, 0, 0, 0, 0, 0, 0, 0] };
@@ -428,7 +463,7 @@
       items.push({ name: 'All Triplets', cn: '對對糊', faan: FAAN.allTriplets });
     }
     if (kongs.length === 4) {
-      items.push({ name: 'Four Kongs', cn: '十八羅漢', faan: FAAN.allKongs });
+      items.push({ name: 'Four Quads', cn: '十八羅漢', faan: FAAN.allKongs });
     }
     if (allChows && !pairIsYaku && !profile.honors) {
       items.push({ name: 'All Sequences', cn: '平糊', faan: FAAN.allSequences });
@@ -442,7 +477,7 @@
     } else {
       dragonPungs.forEach(function (m) {
         var t = TILES.filter(function (x) { return x.suit === 'z' && x.val === m.val; })[0];
-        var kind = m.type === 'kong' ? 'Kong' : 'Pung';
+        var kind = m.type === 'kong' ? 'Quad' : 'Triplet';
         items.push({ name: 'Dragon ' + kind + ' (' + t.name + ')', cn: '箭刻', faan: FAAN.dragonPung });
       });
     }
@@ -454,7 +489,7 @@
       items.push({ name: 'Small Four Winds', cn: '小四喜', faan: FAAN.smallWinds });
     } else {
       windPungs.forEach(function (m) {
-        var kind = m.type === 'kong' ? 'Kong' : 'Pung';
+        var kind = m.type === 'kong' ? 'Quad' : 'Triplet';
         if (m.val === ctx.seat && m.val === ctx.round && ctx.seat > 0) {
           items.push({ name: 'Double Wind ' + kind, cn: '門風圈風', faan: FAAN.yakuWind * 2 });
         } else {
@@ -487,10 +522,10 @@
     function on(id) { var el = document.getElementById(id); return el && el.checked; }
     function hasBonus(id) { return flowers.indexOf(id) !== -1; }
 
-    if (flowers.length >= 7) return items;
-
     if (on('opt-no-flowers')) {
-      items.push({ name: 'No Flowers', cn: '無花', faan: FAAN.noFlowers });
+      if (!flowers.length) {
+        items.push({ name: 'No Flowers', cn: '無花', faan: FAAN.noFlowers });
+      }
       return items;
     }
     if (!flowers.length) return items;
@@ -500,13 +535,15 @@
 
     if (allFlowers) {
       items.push({ name: 'All Flowers', cn: '四花齊', faan: FAAN.allFlowers });
-    } else if (seat > 0 && hasBonus(FLOWER_IDS[seat - 1])) {
+    }
+    if (seat > 0 && hasBonus(FLOWER_IDS[seat - 1])) {
       items.push({ name: 'Seat Flower', cn: '正花', faan: FAAN.seatFlower });
     }
 
     if (allSeasons) {
       items.push({ name: 'All Seasons', cn: '四季齊', faan: FAAN.allSeasons });
-    } else if (seat > 0 && hasBonus(SEASON_IDS[seat - 1])) {
+    }
+    if (seat > 0 && hasBonus(SEASON_IDS[seat - 1])) {
       items.push({ name: 'Seat Season', cn: '正花', faan: FAAN.seatSeason });
     }
 
@@ -551,21 +588,21 @@
     var result = { valid: false, items: [], faan: 0, points: null, message: '' };
 
     var flowerWin = flowerAutoWinItem();
-    if (flowerWin) {
-      result.valid = true;
-      result.items = [flowerWin];
-      result.faan = flowerWin.faan;
-      result.points = faanToPoints(result.faan);
-      return result;
-    }
 
     if (total === 0) {
+      if (flowerWin) {
+        result.valid = true;
+        result.items = [flowerWin].concat(situationalItems());
+        result.faan = capFaan(sumFaan(result.items));
+        result.points = faanToPoints(result.faan);
+        return result;
+      }
       if (flowers.length) {
         result.message = 'You have ' + flowers.length + ' flower/season tile' +
           (flowers.length === 1 ? '' : 's') +
           '. Collect 7 for an automatic win (七花, 5 faan), or all 8 for the limit hand (八花). Or add regular tiles to score a standard hand.';
       } else {
-        result.message = 'Add tiles to your hand to see its score.';
+        result.message = '';
       }
       return result;
     }
@@ -588,6 +625,13 @@
     } else {
       var parses = winningParses(c);
       if (parses.length === 0) {
+        if (flowerWin) {
+          result.valid = true;
+          result.items = [flowerWin].concat(situationalItems());
+          result.faan = capFaan(sumFaan(result.items));
+          result.points = faanToPoints(result.faan);
+          return result;
+        }
         result.message = 'Not a complete winning hand yet.';
         return result;
       }
@@ -599,12 +643,17 @@
         if (f > bestFaan) { bestFaan = f; best = parses[i]; bestItems = its; }
       }
       result.valid = true;
-      var hasFourKongs = bestItems.some(function (i) { return i.name === 'Four Kongs'; });
+      var hasFourKongs = bestItems.some(function (i) { return i.name === 'Four Quads'; });
       if (isAllTerminals(c) && !hasFourKongs) {
         result.items = [{ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals }];
       } else {
         result.items = bestItems;
       }
+    }
+
+    if (flowerWin) {
+      result.items.push(flowerWin);
+      result.valid = true;
     }
 
     // Situational add-ons
@@ -615,8 +664,7 @@
       result.items.push({ name: 'Chicken Hand', cn: '雞糊', faan: FAAN.chicken });
     }
 
-    var faan = sumFaan(result.items);
-    if (faan > LIMIT) faan = LIMIT;
+    var faan = capFaan(sumFaan(result.items));
     result.faan = faan;
     result.points = faanToPoints(faan);
     return result;
@@ -631,12 +679,12 @@
     if (!host) return;
 
     var groups = [
-      { title: 'Characters 萬', ids: ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9'] },
-      { title: 'Circles 筒', ids: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9'] },
-      { title: 'Bamboo 索', ids: ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9'] },
-      { title: 'Winds 風', ids: ['we', 'ws', 'ww', 'wn'] },
-      { title: 'Dragons 三元', ids: ['dr', 'dg', 'dw'] },
-      { title: 'Flowers & Seasons 花季', ids: ['f1', 'f2', 'f3', 'f4', 'se1', 'se2', 'se3', 'se4'] },
+      { title: 'Characters', ids: ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9'] },
+      { title: 'Circles', ids: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9'] },
+      { title: 'Bamboo', ids: ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9'] },
+      { title: 'Winds', ids: ['we', 'ws', 'ww', 'wn'] },
+      { title: 'Dragons', ids: ['dr', 'dg', 'dw'] },
+      { title: 'Flowers & Seasons', ids: ['f1', 'f2', 'f3', 'f4', 'se1', 'se2', 'se3', 'se4'] },
     ];
 
     host.innerHTML = groups.map(function (g) {
@@ -646,7 +694,6 @@
           var t = TILE_BY_ID[id];
           return '<button type="button" class="palette-tile" data-id="' + id + '" aria-label="Add ' + t.name + '">' +
             tileImg(t) +
-            '<span class="palette-mark">' + t.marking + '</span>' +
             '</button>';
         }).join('') + '</div>' +
         '</div>';
@@ -671,6 +718,7 @@
       if (hand.length >= 18) return;
       hand.push(id);
     }
+    clearActiveExample();
     update();
   }
 
@@ -682,6 +730,7 @@
       var hi = hand.indexOf(id);
       if (hi !== -1) hand.splice(hi, 1);
     }
+    clearActiveExample();
     update();
   }
 
@@ -785,11 +834,13 @@
     if (flowers.length) html += '<span class="hand-meta-flowers">+ ' + flowers.length + ' flower/season</span>';
     html += '</div>';
 
+    html += '<div class="hand-body">';
     if (!hand.length && !flowers.length) {
-      html += '<p class="hand-empty">Tap tiles to build a winning hand.</p>';
+      html += '<p class="hand-placeholder">Click an example or add tiles to make a hand and see its score</p>';
     } else {
       html += '<div class="hand-tiles">' + pieces.join('') + flowerPieces.join('') + '</div>';
     }
+    html += '</div>';
     host.innerHTML = html;
   }
 
@@ -798,27 +849,26 @@
     if (!host) return;
 
     if (!res.valid) {
-      host.innerHTML = '<p class="result-note">' + res.message + '</p>';
+      host.innerHTML = res.message
+        ? '<p class="result-note">' + res.message + '</p>'
+        : '';
       return;
     }
 
     var rows = res.items.map(function (it) {
-      var label = it.faan >= LIMIT ? 'Limit' : it.faan + ' faan';
       return '<li class="result-item"><span class="result-name">' + it.name + ' (' + it.cn + ')</span>' +
-        '<span class="result-faan">' + label + '</span></li>';
+        '<span class="result-faan">' + faanLabel(it.faan) + '</span></li>';
     }).join('');
 
-    var totalLabel = res.faan >= LIMIT ? 'Limit hand (' + LIMIT + ' faan)' : res.faan + ' faan';
+    var totalLabel = unlimitedFaan || res.faan < LIMIT
+      ? res.faan + ' faan'
+      : 'Limit hand (' + LIMIT + ' faan)';
     var payout;
     if (res.points === null) {
       payout = '<p class="result-payout result-below">Below the common ' + MIN_FAAN + '-faan minimum to win. Table rules vary.</p>';
     } else {
       var selfDraw = document.getElementById('opt-selfdraw') && document.getElementById('opt-selfdraw').checked;
-      var payNote = selfDraw
-        ? 'Each opponent pays ' + res.points
-        : 'The discarder pays ' + res.points;
-      payout = '<p class="result-payout">Worth <strong>' + res.points + ' base points</strong> ' +
-        '<span class="result-payout-note">' + payNote + '</span></p>';
+       payout = '<p class="result-payout"><strong>' + res.points.toLocaleString() + ' points</strong></p>';
     }
 
     host.innerHTML = '<ul class="result-list">' + rows + '</ul>' +
@@ -892,7 +942,7 @@
       if (f > bestFaan) { bestFaan = f; bestItems = its; }
     }
 
-    var hasFourKongs = bestItems && bestItems.some(function (i) { return i.name === 'Four Kongs'; });
+    var hasFourKongs = bestItems && bestItems.some(function (i) { return i.name === 'Four Quads'; });
     if (isAllTerminals(c) && !hasFourKongs) return FAAN.allTerminals;
 
     return bestFaan;
@@ -997,6 +1047,7 @@
   function generateRandomHand() {
     hand = [];
     flowers = [];
+    clearActiveExample();
 
     if (Math.random() < 0.05) {
       var limitHand = randomLimitHand();
@@ -1030,7 +1081,18 @@
   function resetHand() {
     hand = [];
     flowers = [];
+    clearActiveExample();
     update();
+  }
+
+  function toggleUnlimitedFaan() {
+    unlimitedFaan = !unlimitedFaan;
+    var btn = document.getElementById('calc-unlimited');
+    if (btn) {
+      btn.classList.toggle('is-active', unlimitedFaan);
+      btn.setAttribute('aria-pressed', unlimitedFaan ? 'true' : 'false');
+    }
+    renderResult(evaluate());
   }
 
   function resetBonuses() {
@@ -1048,31 +1110,44 @@
     hand = [];
     flowers = [];
 
-    if (which === 'sequence') {
+    if (which === 'chicken') {
+      // Chicken (雞糊): valid win with no scoring patterns — 0 faan
+      hand = ['m2', 'm3', 'm4', 'p5', 'p6', 'p7', 'p8', 'p8', 'p8', 's7', 's8', 's9', 'm5', 'm5'];
+    } else if (which === 'sequence') {
       // All sequences (1 faan) across three suits
       hand = ['m2', 'm3', 'm4', 'p5', 'p6', 'p7', 's4', 's5', 's6', 's7', 's8', 's9', 'p2', 'p2'];
     } else if (which === 'halfflush') {
-      // One suit mixed with a dragon pair = 3 faan
+      // One suit mixed with a dragon pair — 3 faan
       hand = ['m2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm7', 'm8', 'm9', 'm3', 'm3', 'm3', 'dr', 'dr'];
-    } else if (which === 'fullflush') {
-      hand = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's8', 's8', 's8', 's5', 's5'];
     } else if (which === 'alltriplets') {
+      // All triplets — 3 faan
       hand = ['m2', 'm2', 'm2', 'p5', 'p5', 'p5', 's8', 's8', 's8', 'ws', 'ws', 'ws', 'p2', 'p2'];
     } else if (which === 'sevenpairs') {
-      // Seven distinct pairs = 4 faan
+      // Seven distinct pairs — 4 faan
       hand = ['m2', 'm2', 'p4', 'p4', 's6', 's6', 'm8', 'm8', 'p9', 'p9', 's1', 's1', 'we', 'we'];
+    } else if (which === 'fullflush') {
+      // Full flush — 7 faan
+      hand = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's8', 's8', 's8', 's5', 's5'];
+    } else if (which === 'threedragons') {
+      // Great Three Dragons (大三元) — 8 faan
+      hand = ['dr', 'dr', 'dr', 'dg', 'dg', 'dg', 'dw', 'dw', 'dw', 'm2', 'm3', 'm4', 'p5', 'p5'];
+    } else if (which === 'allhonors') {
+      // All Honors (字一色) — 10 faan
+      hand = ['ws', 'ws', 'ws', 'ww', 'ww', 'ww', 'dr', 'dr', 'dr', 'dg', 'dg', 'dg', 'wn', 'wn'];
     } else if (which === 'thirteen') {
+      // Thirteen Orphans (limit) — 13 faan
       hand = ['m1', 'm9', 'p1', 'p9', 's1', 's9', 'we', 'ws', 'ww', 'wn', 'dg', 'dw', 'dr', 'dr'];
-    } else if (which === 'fourwinds') {
-      // Great Four Winds (limit): pungs of all four winds plus a pair
-      hand = ['we', 'we', 'we', 'ws', 'ws', 'ws', 'ww', 'ww', 'ww', 'wn', 'wn', 'wn', 'dr', 'dr'];
     } else if (which === 'allterminals') {
-      // All Terminals (limit): only 1s and 9s — no honors
+      // All Terminals (limit) — 13 faan
       hand = ['m1', 'm1', 'm1', 'm9', 'm9', 'm9', 'p1', 'p1', 'p1', 'p9', 'p9', 'p9', 's1', 's1'];
+    } else if (which === 'fourwinds') {
+      // Great Four Winds (limit) — 13 faan
+      hand = ['we', 'we', 'we', 'ws', 'ws', 'ws', 'ww', 'ww', 'ww', 'wn', 'wn', 'wn', 'dr', 'dr'];
     } else if (which === 'ninegates') {
-      // Nine Gates (limit): 1112345678999 plus one extra of the same suit
+      // Nine Gates (limit) — 13 faan
       hand = ['m1', 'm1', 'm1', 'm2', 'm3', 'm4', 'm5', 'm5', 'm6', 'm7', 'm8', 'm9', 'm9', 'm9'];
     }
+    setActiveExample(which);
     update();
   }
 
@@ -1090,6 +1165,9 @@
 
     var randomBtn = document.getElementById('calc-random');
     if (randomBtn) randomBtn.addEventListener('click', generateRandomHand);
+
+    var unlimitedBtn = document.getElementById('calc-unlimited');
+    if (unlimitedBtn) unlimitedBtn.addEventListener('click', toggleUnlimitedFaan);
 
     var reset = document.getElementById('calc-reset');
     if (reset) reset.addEventListener('click', resetHand);
@@ -1113,6 +1191,7 @@
     renderReference();
     renderPalette();
     bindCalcControls();
+    syncExampleButtons();
     update();
   }
 

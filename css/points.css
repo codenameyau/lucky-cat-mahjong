@@ -104,15 +104,17 @@
   background: linear-gradient(160deg, #ffffff 0%, #fbf3e7 100%);
   border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12), inset 0 -3px 0 rgba(0, 0, 0, 0.06);
-  padding: 8%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12), inset 0 -2px 0 rgba(0, 0, 0, 0.05);
+  padding: 9% 8% 6% 8%;
   overflow: hidden;
 }
 
 .tile-face img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
+  object-position: center 53%;
 }
 
 .tile-group { margin-bottom: 2.25rem; }
@@ -300,8 +302,19 @@
   color: #fff;
 }
 
+.calc-reset.is-active,
+.calc-reset.is-active:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
 /* Hand area */
-.calc-hand { min-height: 96px; }
+.calc-hand { min-height: 0; }
+
+.hand-body {
+  min-height: 5.75rem;
+}
 
 .hand-meta {
   display: flex;
@@ -314,11 +327,20 @@
 
 .hand-meta-flowers { color: var(--color-accent); font-weight: 600; }
 
-.hand-empty {
-  color: var(--color-text-muted);
-  font-size: 0.95rem;
-  margin: 0.5rem 0;
+.hand-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 5.75rem;
+  margin: 0;
+  padding: 0.85rem 1rem;
   text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+  background: var(--color-background);
+  border-radius: var(--radius);
+  border: 1px dashed rgba(0, 0, 0, 0.1);
 }
 
 .hand-tiles {
@@ -328,6 +350,9 @@
 }
 
 .hand-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   width: 46px;
   padding: 0;
   border: none;
@@ -336,13 +361,18 @@
   transition: transform 0.12s;
 }
 
+.hand-tile .tile-face,
+.palette-tile .tile-face {
+  width: 100%;
+}
+
 .hand-tile:hover { transform: translateY(-3px); }
 .hand-tile.is-flower .tile-face { border-color: var(--color-accent); }
 
 /* Example + reset controls */
 .calc-controls {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
   margin-top: 1rem;
 }
@@ -358,9 +388,18 @@
   color: var(--color-primary);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
+  width: 100%;
+  text-align: center;
 }
 
 .calc-controls button:hover { background: var(--color-primary); color: #fff; }
+
+.calc-controls button.is-active,
+.calc-controls button.is-active:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
 
 /* Palette */
 .palette-group { margin-bottom: 1rem; }
@@ -381,6 +420,9 @@
 }
 
 .palette-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   position: relative;
   width: 42px;
   padding: 0;
@@ -391,13 +433,6 @@
 }
 
 .palette-tile:hover { transform: translateY(-3px); }
-
-.palette-mark {
-  display: block;
-  font-size: 0.72rem;
-  color: var(--color-primary);
-  margin-top: 1px;
-}
 
 /* Options */
 .calc-options { display: grid; gap: 0.85rem; }
@@ -497,10 +532,10 @@
   margin: 0.75rem 0 0;
   font-size: 0.95rem;
   color: var(--color-text);
+  text-align: right;
 }
 
 .result-payout strong { color: var(--color-primary); }
-.result-payout-note { display: block; font-size: 0.82rem; color: var(--color-text-muted); margin-top: 0.15rem; }
 .result-below { color: var(--color-text-muted); font-style: italic; }
 
 .calc-disclaimer {
@@ -578,6 +613,12 @@
 }
 
 @media (max-width: 600px) {
+  .calc-controls { gap: 0.3rem; }
+  .calc-controls button {
+    font-size: clamp(0.68rem, 2.6vw, 0.72rem);
+    padding: 0.35rem 0.12rem;
+    white-space: nowrap;
+  }
   .tile-grid { grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); gap: 0.65rem; }
   #tile-reference { max-width: none; }
   #tiles .tile-grid {
@@ -586,5 +627,10 @@
   }
   #tiles .tile-cap-name { font-size: 0.72rem; }
   #tiles .tile-cap-mark { font-size: 0.85rem; }
+  .tile-face {
+    padding: 10% 8% 5% 8%;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+  }
+  .tile-face img { object-position: center 55%; }
   .points-section { padding: 2.25rem 0; }
 }
