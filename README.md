@@ -58,9 +58,16 @@ Changes save directly to the JSON files in `data/` and deploy with your next pus
 ```
 ├── .pages.yml          # Pages CMS configuration
 ├── index.html          # Main page
+├── hong-kong-mahjong-scoring/
+│   └── index.html        # Scoring guide + interactive points calculator
 ├── logo.png            # Club logo
-├── css/styles.css      # Styles (CSS variables from styleguide)
-├── js/main.js          # Loads CMS data and renders content
+├── css/
+│   ├── styles.css        # Shared styles (CSS variables from styleguide)
+│   └── points.css        # Styles for the points/scoring page
+├── js/
+│   ├── main.js           # Loads CMS data and renders the home page
+│   └── points.js         # Tile data, reference, and the faan calculator
+├── tiles/              # Hong Kong mahjong tile SVGs (CC0, see credit below)
 ├── data/
 │   ├── site.json         # Site settings, copy & hero stats
 │   ├── styleguide.json   # Fonts & colors
@@ -70,3 +77,7 @@ Changes save directly to the JSON files in `data/` and deploy with your next pus
 │   └── faq.json          # Frequently asked questions
 └── media/              # Uploaded media (via Pages CMS)
 ```
+
+## Credits
+
+Mahjong tile artwork in `tiles/` comes from the public-domain (CC0) [samoheen/mahjong-tiles](https://github.com/samoheen/mahjong-tiles) project.
