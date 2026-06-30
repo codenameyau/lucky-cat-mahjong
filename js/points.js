@@ -1440,18 +1440,32 @@
     var toggleExamples = document.getElementById('calc-toggle-examples');
     var examplesPanel = document.getElementById('calc-examples');
     if (toggleExamples && examplesPanel) {
+      var examplesVisibleKey = 'hk-mahjong-calc-examples-visible';
+
+      function getStoredExamplesVisible() {
+        try {
+          var stored = localStorage.getItem(examplesVisibleKey);
+          if (stored === 'true') return true;
+          if (stored === 'false') return false;
+        } catch (e) {}
+        return true;
+      }
+
       function setExamplesVisible(show) {
         examplesPanel.hidden = !show;
         examplesPanel.classList.toggle('is-hidden', !show);
         toggleExamples.textContent = show ? 'Hide Examples' : 'Show Examples';
         toggleExamples.setAttribute('aria-expanded', show ? 'true' : 'false');
+        try {
+          localStorage.setItem(examplesVisibleKey, show ? 'true' : 'false');
+        } catch (e) {}
       }
 
       toggleExamples.addEventListener('click', function () {
         setExamplesVisible(examplesPanel.hidden);
       });
 
-      setExamplesVisible(true);
+      setExamplesVisible(getStoredExamplesVisible());
     }
   }
 
