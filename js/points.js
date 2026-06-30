@@ -217,6 +217,7 @@
   var handLayout = []; // display order: { id, isFlower }
   var handDrag = null;
   var HAND_DRAG_THRESHOLD = 8;
+  var urlSyncEnabled = false;
   var activeExample = null;
   var pendingHandHighlight = null; // { id, isFlower } — brief add animation in hand area
   var handHighlightTimer = null;
@@ -1290,6 +1291,7 @@
     var res = evaluate();
     renderHand(res);
     renderResult(res);
+    if (urlSyncEnabled) syncCalculatorUrl();
   }
 
   var PLAYABLE_IDS = TILES.filter(function (t) {
@@ -1789,6 +1791,13 @@
     return url.toString();
   }
 
+  function syncCalculatorUrl() {
+    if (typeof history === 'undefined' || !history.replaceState) return;
+    var next = buildShareUrl();
+    if (next === window.location.href) return;
+    history.replaceState(null, '', next);
+  }
+
   function copyText(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       return navigator.clipboard.writeText(text);
@@ -1825,9 +1834,8 @@
     clearTimeout(btn._shareResetTimer);
     btn.disabled = true;
 
-    var url = buildShareUrl();
-    history.replaceState(null, '', url);
-    copyText(url).then(function () {
+    syncCalculatorUrl();
+    copyText(window.location.href).then(function () {
       flashControlButton(btn, 'success');
       btn.textContent = 'Copied Link';
       btn._shareResetTimer = setTimeout(function () { resetShareButton(btn); }, 1200);
@@ -1928,35 +1936,167 @@
     return next;
   }
 
-  function getHandDropIndex(container, x, y, skipBtn, placeholder) {
-    var bestIndex = container.children.length;
-    var bestDist = Infinity;
+  function isPointInHandDropZone(container, x, y) {
+    var zone = container.closest ? container.closest('.hand-body') : null;
+    if (!zone) zone = container;
+    var rect = zone.getBoundingClientRect();
+    var pad = 10;
+    return x >= rect.left - pad && x <= rect.right + pad &&
+      y >= rect.top - pad && y <= rect.bottom + pad;
+  }
 
+  function bindHandDragDocumentListeners() {
+    document.addEventListener('pointermove', onHandDragPointerMove);
+    document.addEventListener('pointerup', onHandDragPointerEnd);
+    document.addEventListener('pointercancel', onHandDragPointerEnd);
+  }
+
+  function unbindHandDragDocumentListeners() {
+    document.removeEventListener('pointermove', onHandDragPointerMove);
+    document.removeEventListener('pointerup', onHandDragPointerEnd);
+    document.removeEventListener('pointercancel', onHandDragPointerEnd);
+  }
+
+  function onHandDragPointerMove(e) {
+    if (!handDrag || handDrag.pointerId !== e.pointerId) return;
+    if (!handDrag.active) {
+      var dx = e.clientX - handDrag.startX;
+      var dy = e.clientY - handDrag.startY;
+      if (dx * dx + dy * dy < HAND_DRAG_THRESHOLD * HAND_DRAG_THRESHOLD) return;
+      startHandDrag();
+    }
+    moveHandDrag(e);
+  }
+
+  function onHandDragPointerEnd(e) {
+    if (!handDrag || handDrag.pointerId !== e.pointerId) return;
+    var d = handDrag;
+    unbindHandDragDocumentListeners();
+    if (d.active) {
+      if (!isPointInHandDropZone(d.container, e.clientX, e.clientY)) {
+        moveHandPlaceholder(d.container, d.placeholder, d.originDropIndex);
+      }
+      finishHandDrag();
+      return;
+    }
+    removeTileWithFlash(d.btn);
+    try {
+      d.btn.releasePointerCapture(d.pointerId);
+    } catch (err) {}
+    handDrag = null;
+  }
+
+  function collectHandDropTiles(container, skipBtn, placeholder) {
+    var tiles = [];
     Array.prototype.forEach.call(container.children, function (el) {
       if (el === skipBtn || el === placeholder) return;
-      var index = Array.prototype.indexOf.call(container.children, el);
-      var rect = el.getBoundingClientRect();
-      var beforeX = rect.left;
-      var beforeY = rect.top + rect.height / 2;
-      var beforeDist = (x - beforeX) * (x - beforeX) + (y - beforeY) * (y - beforeY);
-      if (beforeDist < bestDist) {
-        bestDist = beforeDist;
-        bestIndex = index;
-      }
+      tiles.push({ el: el, rect: el.getBoundingClientRect() });
+    });
+    return tiles;
+  }
 
-      if (el !== skipBtn) {
-        var afterX = rect.right;
-        var afterY = beforeY;
-        var afterDist = (x - afterX) * (x - afterX) + (y - afterY) * (y - afterY);
-        var afterIndex = index + 1;
-        if (afterDist < bestDist) {
-          bestDist = afterDist;
-          bestIndex = afterIndex;
+  function groupHandDropRows(tiles) {
+    var rowTolerance = 8;
+    var rows = [];
+
+    tiles.forEach(function (tile) {
+      var midY = tile.rect.top + tile.rect.height / 2;
+      var row = null;
+      for (var i = 0; i < rows.length; i++) {
+        if (Math.abs(rows[i].midY - midY) <= rowTolerance) {
+          row = rows[i];
+          break;
         }
       }
+      if (!row) {
+        row = { midY: midY, tiles: [] };
+        rows.push(row);
+      }
+      row.tiles.push(tile);
+      row.midY = (row.midY * (row.tiles.length - 1) + midY) / row.tiles.length;
     });
 
-    return bestIndex;
+    rows.sort(function (a, b) { return a.midY - b.midY; });
+    rows.forEach(function (row) {
+      row.tiles.sort(function (a, b) { return a.rect.left - b.rect.left; });
+      row.top = row.tiles[0].rect.top;
+      row.bottom = row.tiles[row.tiles.length - 1].rect.bottom;
+      row.left = row.tiles[0].rect.left;
+      row.right = row.tiles[row.tiles.length - 1].rect.right;
+    });
+    return rows;
+  }
+
+  function pickHandDropRow(rows, x, y, containerRect) {
+    if (!rows.length) return null;
+
+    for (var i = rows.length - 1; i >= 0; i--) {
+      var trailingRow = rows[i];
+      if (x >= trailingRow.right - 12 &&
+          x <= containerRect.right + 4 &&
+          y >= trailingRow.top - 10 &&
+          y <= trailingRow.bottom + 10) {
+        return trailingRow;
+      }
+    }
+
+    var chosen = rows[0];
+    for (var j = 0; j < rows.length; j++) {
+      if (y >= rows[j].top - 10) chosen = rows[j];
+    }
+    return chosen;
+  }
+
+  function handDropInsertBefore(container, el, placeholder) {
+    if (!el) return null;
+    var next = el.nextSibling;
+    if (next === placeholder) return placeholder;
+    return next;
+  }
+
+  function getHandDropInsertBefore(container, x, y, skipBtn, placeholder) {
+    var tiles = collectHandDropTiles(container, skipBtn, placeholder);
+    if (!tiles.length) return null;
+
+    var containerRect = container.getBoundingClientRect();
+    var rows = groupHandDropRows(tiles);
+    var row = pickHandDropRow(rows, x, y, containerRect);
+    if (!row) return tiles[0].el;
+
+    var lastTile = row.tiles[row.tiles.length - 1];
+    var firstTile = row.tiles[0];
+
+    if (x >= lastTile.rect.right - 12 ||
+        (x >= row.right - 12 && x <= containerRect.right + 4 &&
+         y >= row.top - 10 && y <= row.bottom + 10)) {
+      return handDropInsertBefore(container, lastTile.el, placeholder);
+    }
+
+    if (x < firstTile.rect.left + firstTile.rect.width * 0.5) {
+      if (firstTile.el.previousSibling === placeholder) return placeholder;
+      return firstTile.el;
+    }
+
+    for (var i = 0; i < row.tiles.length - 1; i++) {
+      var cur = row.tiles[i];
+      var next = row.tiles[i + 1];
+      var splitX = (cur.rect.right + next.rect.left) / 2;
+      if (x < splitX) {
+        if (next.el.previousSibling === placeholder) return placeholder;
+        return next.el;
+      }
+    }
+
+    return handDropInsertBefore(container, lastTile.el, placeholder);
+  }
+
+  function getHandDropIndex(container, x, y, skipBtn, placeholder) {
+    var insertBefore = getHandDropInsertBefore(container, x, y, skipBtn, placeholder);
+    if (insertBefore === null) return container.children.length;
+    if (insertBefore === placeholder) {
+      return Array.prototype.indexOf.call(container.children, placeholder);
+    }
+    return Array.prototype.indexOf.call(container.children, insertBefore);
   }
 
   function moveHandPlaceholder(container, placeholder, nextIndex) {
@@ -1986,7 +2126,6 @@
     var rect = d.btn.getBoundingClientRect();
     d.offsetX = d.startX - rect.left;
     d.offsetY = d.startY - rect.top;
-    d.dropIndex = handSlotIndex(d.btn);
 
     d.placeholder = document.createElement('span');
     d.placeholder.className = 'hand-tile-placeholder';
@@ -1994,6 +2133,8 @@
     d.placeholder.style.width = rect.width + 'px';
     d.placeholder.style.height = rect.height + 'px';
     d.container.insertBefore(d.placeholder, d.btn);
+    d.originDropIndex = Array.prototype.indexOf.call(d.container.children, d.placeholder);
+    d.dropIndex = d.originDropIndex;
 
     d.container.removeChild(d.btn);
     document.body.appendChild(d.btn);
@@ -2015,6 +2156,14 @@
     d.btn.style.left = (e.clientX - d.offsetX) + 'px';
     d.btn.style.top = (e.clientY - d.offsetY) + 'px';
 
+    if (!isPointInHandDropZone(d.container, e.clientX, e.clientY)) {
+      if (d.dropIndex !== d.originDropIndex) {
+        moveHandPlaceholder(d.container, d.placeholder, d.originDropIndex);
+        d.dropIndex = d.originDropIndex;
+      }
+      return;
+    }
+
     var nextIndex = getHandDropIndex(d.container, e.clientX, e.clientY, d.btn, d.placeholder);
     if (nextIndex === d.dropIndex) return;
     if (moveHandPlaceholder(d.container, d.placeholder, nextIndex)) {
@@ -2024,6 +2173,7 @@
 
   function finishHandDrag() {
     var d = handDrag;
+    unbindHandDragDocumentListeners();
     if (d.btn.parentNode === document.body) {
       document.body.removeChild(d.btn);
     }
@@ -2047,6 +2197,7 @@
       updateHandMeta(shell.meta, res);
     }
     renderResult(res);
+    syncCalculatorUrl();
   }
 
   function bindHandTileInteraction(hostHand) {
@@ -2068,36 +2219,9 @@
         pointerId: e.pointerId,
         active: false,
       };
+      bindHandDragDocumentListeners();
       btn.setPointerCapture(e.pointerId);
     });
-
-    hostHand.addEventListener('pointermove', function (e) {
-      if (!handDrag || handDrag.pointerId !== e.pointerId) return;
-      if (!handDrag.active) {
-        var dx = e.clientX - handDrag.startX;
-        var dy = e.clientY - handDrag.startY;
-        if (dx * dx + dy * dy < HAND_DRAG_THRESHOLD * HAND_DRAG_THRESHOLD) return;
-        startHandDrag();
-      }
-      moveHandDrag(e);
-    });
-
-    function onHandPointerEnd(e) {
-      if (!handDrag || handDrag.pointerId !== e.pointerId) return;
-      var d = handDrag;
-      if (d.active) {
-        finishHandDrag();
-      } else {
-        removeTileWithFlash(d.btn);
-        try {
-          d.btn.releasePointerCapture(d.pointerId);
-        } catch (err) {}
-        handDrag = null;
-      }
-    }
-
-    hostHand.addEventListener('pointerup', onHandPointerEnd);
-    hostHand.addEventListener('pointercancel', onHandPointerEnd);
   }
 
   function bindCalcControls() {
@@ -2198,6 +2322,7 @@
     syncExampleButtons();
     loadCalculatorFromQuery();
     update();
+    urlSyncEnabled = true;
   }
 
   if (document.readyState === 'loading') {
