@@ -551,7 +551,7 @@ h1, h2, h3 {
 .header-brand-name {
   font-family: var(--font-heading);
   font-size: 1.05rem;
-  color: var(--color-text);
+  color: var(--color-primary);
 }
 
 .header-nav {
