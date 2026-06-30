@@ -860,7 +860,7 @@
 .result-below { color: var(--color-text-muted); font-style: italic; }
 
 .calc-disclaimer {
-  margin-top: 1.5rem;
+  margin-top: 2.2rem;
   text-align: center;
   font-size: 0.88rem;
   color: var(--color-text-muted);
