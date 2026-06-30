@@ -1037,7 +1037,7 @@
     hand = [];
     flowers = [];
     var noFlowers = document.getElementById('opt-no-flowers');
-    if (noFlowers) noFlowers.checked = false;
+    if (noFlowers) noFlowers.checked = true;
     clearActiveExample();
     update();
   }
@@ -1102,7 +1102,12 @@
     if (!params.has('b')) {
       Object.keys(OPT_QUERY_KEYS).forEach(function (id) {
         var el = document.getElementById(id);
-        if (el) el.checked = false;
+        if (!el) return;
+        if (id === 'opt-no-flowers') {
+          el.checked = flowers.length === 0;
+        } else {
+          el.checked = false;
+        }
       });
       return;
     }
@@ -1239,7 +1244,7 @@
 
   function resetBonuses() {
     document.querySelectorAll('#calc-options input[type="checkbox"]').forEach(function (cb) {
-      cb.checked = false;
+      cb.checked = cb.id === 'opt-no-flowers' && flowers.length === 0;
     });
     var seat = document.getElementById('opt-seat');
     var round = document.getElementById('opt-round');
