@@ -33,6 +33,22 @@
   justify-content: start;
 }
 
+#tiles .tile-face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8%;
+}
+
+#tiles .tile-face img {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center center;
+  transform: translateY(-2.5%);
+}
+
 .points-lead {
   max-width: 65ch;
   margin: 0 auto 2rem;
@@ -118,7 +134,7 @@
 }
 
 .faan-table-wrap {
-  overflow-x: auto;
+  overflow: hidden;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   background: var(--color-surface);
@@ -144,6 +160,26 @@
   font-family: var(--font-body);
   font-weight: 600;
   white-space: nowrap;
+}
+
+.faan-table th:first-child {
+  border-radius: var(--radius) 0 0 0;
+}
+
+.faan-table th:last-child {
+  border-radius: 0 var(--radius) 0 0;
+}
+
+.faan-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.faan-table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: var(--radius);
+}
+
+.faan-table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: var(--radius);
 }
 
 .faan-table td:first-child,
@@ -905,10 +941,6 @@
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.04);
   }
 
-  .faan-table-wrap {
-    overflow-x: visible;
-  }
-
   .faan-table {
     font-size: 0.84rem;
     table-layout: fixed;
@@ -970,6 +1002,11 @@
   }
   #tiles .tile-cap-name { font-size: 0.72rem; }
   #tiles .tile-cap-mark { font-size: 0.85rem; }
+  #tiles .tile-face {
+    padding: 8%;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+  }
+  #tiles .tile-face img { object-position: center center; }
   .tile-face {
     padding: 10% 8% 5% 8%;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.04);

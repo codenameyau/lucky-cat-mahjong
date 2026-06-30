@@ -565,7 +565,7 @@
 
     // --- Dragons ---
     if (dragonPungs.length === 3) {
-      items.push({ name: 'Great Three Dragons', cn: '大三元', faan: FAAN.greatDragons });
+      items.push({ name: 'Big Three Dragons', cn: '大三元', faan: FAAN.greatDragons });
     } else if (dragonPungs.length === 2 && dragonPair) {
       items.push({ name: 'Small Three Dragons', cn: '小三元', faan: FAAN.smallDragons });
     } else {
@@ -578,7 +578,7 @@
 
     // --- Winds ---
     if (windPungs.length === 4) {
-      items.push({ name: 'Great Four Winds', cn: '大四喜', faan: FAAN.greatWinds });
+      items.push({ name: 'Big Four Winds', cn: '大四喜', faan: FAAN.greatWinds });
     } else if (windPungs.length === 3 && windPair) {
       items.push({ name: 'Small Four Winds', cn: '小四喜', faan: FAAN.smallWinds });
     } else {
@@ -698,6 +698,8 @@
       return result;
     }
 
+    var isChickenHand = false;
+
     // Special hands first; otherwise pick the best standard or seven-pairs score
     if (isThirteenOrphans(c)) {
       result.valid = true;
@@ -710,6 +712,7 @@
       if (patternItems) {
         result.valid = true;
         result.items = patternItems;
+        isChickenHand = sumFaan(patternItems) === 0;
       } else if (flowerWin) {
         result.valid = true;
         result.items = [flowerWin].concat(situationalItems());
@@ -726,13 +729,12 @@
       result.valid = true;
     }
 
+    if (isChickenHand) {
+      result.items.unshift({ name: 'Chicken Hand', cn: '雞糊', faan: FAAN.chicken });
+    }
+
     // Situational add-ons
     result.items = result.items.concat(situationalItems());
-
-    // Chicken hand: a valid win with zero pattern faan
-    if (result.valid && sumFaan(result.items) === 0) {
-      result.items.push({ name: 'Chicken Hand', cn: '雞糊', faan: FAAN.chicken });
-    }
 
     var faan = capFaan(sumFaan(result.items));
     result.faan = faan;
@@ -910,7 +912,7 @@
       : 'Limit hand (' + LIMIT + ' faan)';
     var payout;
     if (res.points === null) {
-      payout = '<p class="result-payout result-below">Below the ' + MIN_FAAN + '-faan minimum to win. Table rules vary.</p>';
+      payout = '<p class="result-payout result-below">Below the ' + MIN_FAAN + '-faan minimum to win</p>';
     } else {
       var selfDraw = document.getElementById('opt-selfdraw') && document.getElementById('opt-selfdraw').checked;
        payout = '<p class="result-payout"><strong>' + res.points.toLocaleString() + ' points</strong></p>';
@@ -1369,7 +1371,7 @@
       // Full flush — 7 faan
       hand = ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9', 'b8', 'b8', 'b8', 'b5', 'b5'];
     } else if (which === 'threedragons') {
-      // Great Three Dragons (大三元) — 8 faan
+      // Big Three Dragons (大三元) — 8 faan
       hand = ['dr', 'dr', 'dr', 'dg', 'dg', 'dg', 'dw', 'dw', 'dw', 'c2', 'c3', 'c4', 'd5', 'd5'];
     } else if (which === 'allhonors') {
       // All Honors (字一色) — 10 faan
@@ -1381,7 +1383,7 @@
       // All Terminals (limit) — 13 faan
       hand = ['c1', 'c1', 'c1', 'c9', 'c9', 'c9', 'd1', 'd1', 'd1', 'd9', 'd9', 'd9', 'b1', 'b1'];
     } else if (which === 'fourwinds') {
-      // Great Four Winds (limit) — 13 faan
+      // Big Four Winds (limit) — 13 faan
       hand = ['we', 'we', 'we', 'ws', 'ws', 'ws', 'ww', 'ww', 'ww', 'wn', 'wn', 'wn', 'dr', 'dr'];
     } else if (which === 'ninegates') {
       // Nine Gates (limit) — 13 faan
@@ -1448,7 +1450,7 @@
           if (stored === 'true') return true;
           if (stored === 'false') return false;
         } catch (e) {}
-        return true;
+        return false;
       }
 
       function setExamplesVisible(show) {
