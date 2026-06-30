@@ -842,6 +842,8 @@
     if (isChickenHand) {
       result.items.unshift({ name: 'Chicken Hand', cn: '雞糊', faan: FAAN.chicken });
     }
+    
+    result.items = applyAllHonorsNoStacking(applyLimitNoStacking(result.items));
 
     // Situational add-ons
     result.items = result.items.concat(situationalItems());
@@ -1494,7 +1496,7 @@
       hand = ['c1', 'c1', 'c1', 'c9', 'c9', 'c9', 'd1', 'd1', 'd1', 'd9', 'd9', 'd9', 'b1', 'b1'];
     } else if (which === 'fourwinds') {
       // Big Four Winds (limit) — 13 faan
-      hand = ['we', 'we', 'we', 'ws', 'ws', 'ws', 'ww', 'ww', 'ww', 'wn', 'wn', 'wn', 'dr', 'dr'];
+      hand = ['we', 'we', 'we', 'ws', 'ws', 'ws', 'ww', 'ww', 'ww', 'wn', 'wn', 'wn', 'c8', 'c8'];
     } else if (which === 'ninegates') {
       // Nine Gates (limit) — 13 faan
       hand = ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'c5', 'c5', 'c6', 'c7', 'c8', 'c9', 'c9', 'c9'];
