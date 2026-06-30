@@ -997,7 +997,7 @@
 
     html += '<div class="hand-body">';
     if (!hand.length && !flowers.length) {
-      html += '<p class="hand-placeholder">Click an example, random, or add tiles to make a hand and see its score</p>';
+      html += '<p class="hand-placeholder">Click random, show examples, or add tiles to make a hand and see its score</p>';
     } else {
       html += '<div class="hand-tiles">' + pieces.join('') + flowerPieces.join('') + '</div>';
     }
@@ -1058,6 +1058,144 @@
     return arr;
   }
 
+  function numberedTileIds() {
+    var ids = [];
+    NUMBER_SUITS.forEach(function (suit) {
+      for (var v = 1; v <= 9; v++) ids.push(suit + v);
+    });
+    return ids;
+  }
+
+  function allChowSpecs() {
+    var specs = [];
+    NUMBER_SUITS.forEach(function (suit) {
+      for (var start = 1; start <= 7; start++) specs.push({ suit: suit, start: start });
+    });
+    return specs;
+  }
+
+  function handIdsFromCounts(counts) {
+    var handIds = [];
+    Object.keys(counts).forEach(function (tid) {
+      for (var j = 0; j < counts[tid]; j++) handIds.push(tid);
+    });
+    return handIds;
+  }
+
+  function handLengthForMeldPlan(meldTypes) {
+    return 14 + meldTypes.filter(function (type) { return type === 'quad'; }).length;
+  }
+
+  function handBuilder() {
+    var counts = {};
+    return {
+      count: function (id) { return counts[id] || 0; },
+      canAdd: function (id, n) { return this.count(id) + n <= 4; },
+      add: function (id, n) {
+        for (var i = 0; i < n; i++) counts[id] = (counts[id] || 0) + 1;
+      },
+      remove: function (id, n) {
+        counts[id] = (counts[id] || 0) - n;
+        if (counts[id] <= 0) delete counts[id];
+      },
+      addChow: function (suit, start) {
+        var ids = [suit + start, suit + (start + 1), suit + (start + 2)];
+        if (!ids.every(function (id) { return this.canAdd(id, 1); }, this)) return false;
+        ids.forEach(function (id) { this.add(id, 1); }, this);
+        return true;
+      },
+      addPung: function (id) {
+        if (!this.canAdd(id, 3)) return false;
+        this.add(id, 3);
+        return true;
+      },
+      addQuad: function (id) {
+        if (!this.canAdd(id, 4)) return false;
+        this.add(id, 4);
+        return true;
+      },
+      addPair: function (id) {
+        if (!this.canAdd(id, 2)) return false;
+        this.add(id, 2);
+        return true;
+      },
+      toIds: function () { return handIdsFromCounts(counts); },
+    };
+  }
+
+  // Build 4 melds + a pair from an explicit meld template (e.g. ['chow','chow','pung','quad']).
+  function buildStandardHand(meldTypes, options) {
+    options = options || {};
+    var meldPool = options.meldPool || PLAYABLE_IDS;
+    var pairPool = options.pairPool || PLAYABLE_IDS;
+    var accept = options.accept || function () { return true; };
+    var expectedLen = handLengthForMeldPlan(meldTypes);
+
+    var builder = handBuilder();
+    var chowSpecs = shuffle(allChowSpecs());
+    var chowIdx = 0;
+
+    for (var m = 0; m < meldTypes.length; m++) {
+      if (meldTypes[m] === 'chow') {
+        var chowPlaced = false;
+        while (chowIdx < chowSpecs.length) {
+          var chow = chowSpecs[chowIdx++];
+          if (builder.addChow(chow.suit, chow.start)) {
+            chowPlaced = true;
+            break;
+          }
+        }
+        if (!chowPlaced) return null;
+      } else if (meldTypes[m] === 'pung' || meldTypes[m] === 'quad') {
+        var meldPlaced = false;
+        var addMeld = meldTypes[m] === 'quad' ? 'addQuad' : 'addPung';
+        shuffle(meldPool.slice()).some(function (id) {
+          if (builder[addMeld](id)) meldPlaced = true;
+          return meldPlaced;
+        });
+        if (!meldPlaced) return null;
+      }
+    }
+
+    return shuffle(pairPool.slice()).reduce(function (found, pairId) {
+      if (found) return found;
+      if (!builder.addPair(pairId)) return null;
+      var ids = builder.toIds();
+      builder.remove(pairId, 2);
+      return ids.length === expectedLen && accept(ids) ? ids : null;
+    }, null);
+  }
+
+  function buildHandFromSteps(steps) {
+    var builder = handBuilder();
+    for (var i = 0; i < steps.length; i++) {
+      var step = steps[i];
+      if (step.type === 'chow' && !builder.addChow(step.suit, step.start)) return null;
+      if (step.type === 'pung' && !builder.addPung(step.id)) return null;
+      if (step.type === 'quad' && !builder.addQuad(step.id)) return null;
+      if (step.type === 'pair' && !builder.addPair(step.id)) return null;
+    }
+    return builder.toIds();
+  }
+
+  var STANDARD_MELD_PLANS = [
+    ['chow', 'chow', 'chow', 'chow'],
+    ['chow', 'chow', 'chow', 'pung'],
+    ['chow', 'chow', 'pung', 'pung'],
+    ['chow', 'pung', 'pung', 'pung'],
+    ['pung', 'pung', 'pung', 'pung'],
+    ['chow', 'chow', 'chow', 'quad'],
+    ['chow', 'chow', 'pung', 'quad'],
+    ['chow', 'pung', 'pung', 'quad'],
+    ['pung', 'pung', 'pung', 'quad'],
+    ['chow', 'chow', 'quad', 'quad'],
+    ['chow', 'pung', 'quad', 'quad'],
+    ['pung', 'pung', 'quad', 'quad'],
+    ['chow', 'quad', 'quad', 'quad'],
+    ['pung', 'quad', 'quad', 'quad'],
+    ['quad', 'quad', 'quad', 'quad'],
+  ];
+
   function countsFromIds(ids) {
     var c = {
       c: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -1072,12 +1210,31 @@
     return c;
   }
 
+  function isFourQuads(c) {
+    var total = 0;
+    var suits = ['c', 'd', 'b', 'z'];
+    for (var si = 0; si < suits.length; si++) {
+      var su = suits[si];
+      var max = su === 'z' ? 7 : 9;
+      for (var v = 1; v <= max; v++) total += c[su][v];
+    }
+    if (total !== 18) return false;
+    return winningParses(c).some(function (p) {
+      return p.melds.filter(function (m) { return m.type === 'kong'; }).length === 4;
+    });
+  }
+
   function isValidWinningHandIds(ids) {
-    if (ids.length !== 14) return false;
     var c = countsFromIds(ids);
-    if (isThirteenOrphans(c) || isNineGates(c)) return true;
-    if (winningParses(c).length > 0) return true;
-    return isSevenPairs(c);
+    var total = ids.length;
+    if (total < 14 || total > 18) return false;
+    if (isFourQuads(c)) return true;
+    if (total === 14) {
+      if (isThirteenOrphans(c) || isNineGates(c)) return true;
+      if (winningParses(c).length > 0) return true;
+      return isSevenPairs(c);
+    }
+    return winningParses(c).length > 0;
   }
 
   function patternFaanForIds(ids) {
@@ -1129,65 +1286,75 @@
     return ids;
   }
 
+  function randomFourQuads() {
+    var pool = shuffle(PLAYABLE_IDS.slice());
+    var ids = [];
+    pool.slice(0, 4).forEach(function (id) { ids.push(id, id, id, id); });
+    ids.push(pool[4], pool[4]);
+    return ids;
+  }
+
   function randomLimitHand() {
-    var builders = [randomThirteenOrphans, randomNineGates, randomFourWinds, randomAllTerminals];
+    var builders = [
+      randomThirteenOrphans,
+      randomNineGates,
+      randomFourWinds,
+      randomAllTerminals,
+      randomFourQuads,
+    ];
     return builders[rand(builders.length)]();
   }
 
   function randomSevenPairsHand() {
-    var pool = shuffle(PLAYABLE_IDS.slice());
-    var ids = [];
-    for (var i = 0; i < pool.length && ids.length < 14; i++) {
-      ids.push(pool[i], pool[i]);
-    }
-    return ids.length === 14 ? ids : null;
+    return shuffle(PLAYABLE_IDS.slice()).slice(0, 7).reduce(function (ids, tileId) {
+      return ids.concat([tileId, tileId]);
+    }, []);
+  }
+
+  function randomSequenceHand() {
+    return buildStandardHand(['chow', 'chow', 'chow', 'chow'], {
+      pairPool: numberedTileIds(),
+      accept: function (ids) { return patternFaanForIds(ids) === FAAN.allSequences; },
+    }) || buildHandFromSteps([
+      { type: 'chow', suit: 'c', start: 2 },
+      { type: 'chow', suit: 'd', start: 3 },
+      { type: 'chow', suit: 'b', start: 4 },
+      { type: 'chow', suit: 'c', start: 5 },
+      { type: 'pair', id: 'd7' },
+    ]);
+  }
+
+  function randomChickenHand() {
+    var chickenPlans = [
+      ['chow', 'chow', 'chow', 'pung'],
+      ['chow', 'chow', 'quad', 'pung'],
+      ['chow', 'chow', 'chow', 'quad'],
+    ];
+    return shuffle(chickenPlans.slice()).reduce(function (found, plan) {
+      if (found) return found;
+      return buildStandardHand(plan, {
+        meldPool: numberedTileIds(),
+        pairPool: numberedTileIds(),
+        accept: function (ids) { return patternFaanForIds(ids) === 0; },
+      });
+    }, null) || buildHandFromSteps([
+      { type: 'chow', suit: 'c', start: 2 },
+      { type: 'chow', suit: 'd', start: 4 },
+      { type: 'chow', suit: 'b', start: 6 },
+      { type: 'pung', id: 'c8' },
+      { type: 'pair', id: 'd9' },
+    ]);
   }
 
   function randomStandardHand() {
-    var counts = {};
-    function getCount(id) { return counts[id] || 0; }
-    function add(id, n) {
-      for (var i = 0; i < n; i++) {
-        counts[id] = (counts[id] || 0) + 1;
-      }
-    }
-
-    var melds = 0;
-    var tries = 0;
-    while (melds < 4 && tries < 200) {
-      tries++;
-      if (Math.random() < 0.55) {
-        var suit = NUMBER_SUITS[rand(3)];
-        var start = 1 + rand(7);
-        var ids = [suit + start, suit + (start + 1), suit + (start + 2)];
-        if (ids.every(function (id) { return getCount(id) < 4; })) {
-          ids.forEach(function (id) { add(id, 1); });
-          melds++;
-        }
-      } else {
-        var id = PLAYABLE_IDS[rand(PLAYABLE_IDS.length)];
-        if (getCount(id) <= 1) {
-          add(id, 3);
-          melds++;
-        }
-      }
-    }
-    if (melds < 4) return null;
-
-    tries = 0;
-    while (tries < 100) {
-      tries++;
-      var pairId = PLAYABLE_IDS[rand(PLAYABLE_IDS.length)];
-      if (getCount(pairId) <= 2) {
-        add(pairId, 2);
-        var handIds = [];
-        Object.keys(counts).forEach(function (tid) {
-          for (var j = 0; j < counts[tid]; j++) handIds.push(tid);
-        });
-        return handIds.length === 14 ? handIds : null;
-      }
-    }
-    return null;
+    return shuffle(STANDARD_MELD_PLANS.slice()).reduce(function (found, plan) {
+      if (found) return found;
+      return buildStandardHand(plan, {
+        accept: function (ids) {
+          return isValidWinningHandIds(ids) && patternFaanForIds(ids) >= MIN_FAAN;
+        },
+      });
+    }, null);
   }
 
   function generateRandomHand() {
@@ -1196,32 +1363,19 @@
     clearActiveExample();
     clearHandHighlight();
 
-    if (Math.random() < 0.15) {
-      var limitHand = randomLimitHand();
-      if (limitHand && isValidWinningHandIds(limitHand)) {
-        hand = limitHand;
-        update();
-        return;
-      }
+    function commit(ids) {
+      if (!ids || !isValidWinningHandIds(ids)) return false;
+      hand = ids;
+      update();
+      return true;
     }
 
-    if (Math.random() < 0.07) {
-      var sevenPairs = randomSevenPairsHand();
-      if (sevenPairs) {
-        hand = sevenPairs;
-        update();
-        return;
-      }
-    }
+    if (Math.random() < 0.15 && commit(randomLimitHand())) return;
+    if (Math.random() < 0.10 && commit(randomChickenHand())) return;
+    if (Math.random() < 0.10 && commit(randomSequenceHand())) return;
+    if (Math.random() < 0.07 && commit(randomSevenPairsHand())) return;
+    if (commit(randomStandardHand())) return;
 
-    for (var attempt = 0; attempt < 200; attempt++) {
-      var candidate = randomStandardHand();
-      if (candidate && isValidWinningHandIds(candidate) && patternFaanForIds(candidate) >= MIN_FAAN) {
-        hand = candidate;
-        update();
-        return;
-      }
-    }
     loadExample('halfflush');
   }
 

@@ -43,7 +43,49 @@ const HANDS = {
   mixedTerminals: ['c1', 'c1', 'c1', 'c9', 'c9', 'c9', 'd1', 'd1', 'd1', 'dr', 'dr', 'dr', 'd9', 'd9'],
   seatWind: ['we', 'we', 'we', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'd2', 'd2'],
   plainChicken: ['c2', 'c3', 'c4', 'd5', 'd6', 'd7', 'b1', 'b2', 'b3', 'c8', 'c8', 'c8', 'd2', 'd2'],
+  oneQuad: [
+    'c2', 'c2', 'c2', 'c2',
+    'd5', 'd5', 'd5',
+    'b8', 'b8', 'b8',
+    'c3', 'c3', 'c3',
+    'd2', 'd2',
+  ],
+  twoQuads: [
+    'c2', 'c2', 'c2', 'c2',
+    'd5', 'd5', 'd5', 'd5',
+    'b8', 'b8', 'b8',
+    'c3', 'c3', 'c3',
+    'd2', 'd2',
+  ],
+  threeQuads: [
+    'c2', 'c2', 'c2', 'c2',
+    'd5', 'd5', 'd5', 'd5',
+    'b8', 'b8', 'b8', 'b8',
+    'c3', 'c3', 'c3',
+    'd2', 'd2',
+  ],
+  chickenWithQuad: [
+    'c2', 'c3', 'c4',
+    'd5', 'd6', 'd7',
+    'b8', 'b8', 'b8', 'b8',
+    'c6', 'c6', 'c6',
+    'd2', 'd2',
+  ],
 };
+
+function hasQuad(hand) {
+  var counts = {};
+  hand.forEach(function (id) { counts[id] = (counts[id] || 0) + 1; });
+  return Object.keys(counts).some(function (id) { return counts[id] === 4; });
+}
+
+function numberedTileIds() {
+  var ids = [];
+  ['c', 'd', 'b'].forEach(function (suit) {
+    for (var v = 1; v <= 9; v++) ids.push(suit + v);
+  });
+  return ids;
+}
 
 function patternItems(result) {
   return result.items.filter(function (item) { return !SITUATIONAL.has(item.name); });
@@ -222,6 +264,28 @@ describe('Hong Kong mahjong scoring', function () {
 
       assert.equal(result.valid, false);
     });
+
+    it('accepts winning hands with one to three quads (15–17 tiles)', function () {
+      assert.equal(api.isValidWinningHandIds(HANDS.oneQuad), true);
+      assert.equal(api.isValidWinningHandIds(HANDS.twoQuads), true);
+      assert.equal(api.isValidWinningHandIds(HANDS.threeQuads), true);
+
+      api.setHand(HANDS.oneQuad);
+      assert.equal(api.evaluate().valid, true);
+
+      api.setHand(HANDS.twoQuads);
+      assert.equal(api.evaluate().valid, true);
+
+      api.setHand(HANDS.threeQuads);
+      assert.equal(api.evaluate().valid, true);
+    });
+
+    it('rejects 15-tile hands that are not winning shapes', function () {
+      assert.equal(api.isValidWinningHandIds([
+        'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9',
+        'd1', 'd2', 'd3', 'd4', 'd5', 'd6',
+      ]), false);
+    });
   });
 
   describe('common patterns', function () {
@@ -287,6 +351,95 @@ describe('Hong Kong mahjong scoring', function () {
       assert.ok(result.items.some(function (item) { return item.name === 'Chicken Hand'; }));
       assert.equal(result.faan, 0);
       assert.equal(result.points, null);
+    });
+
+    it('labels a zero-pattern 15-tile hand with a quad as Chicken Hand', function () {
+      api.setHand(HANDS.chickenWithQuad);
+      var result = api.evaluate();
+
+      assert.equal(result.valid, true);
+      assert.equal(HANDS.chickenWithQuad.length, 15);
+      assert.ok(result.items.some(function (item) { return item.name === 'Chicken Hand'; }));
+      assert.equal(result.faan, 0);
+      assert.equal(result.points, null);
+    });
+  });
+
+  describe('random hand generation', function () {
+    it('maps meld plans to the expected tile counts', function () {
+      assert.equal(api.handLengthForMeldPlan(['chow', 'chow', 'chow', 'chow']), 14);
+      assert.equal(api.handLengthForMeldPlan(['chow', 'chow', 'pung', 'quad']), 15);
+      assert.equal(api.handLengthForMeldPlan(['chow', 'quad', 'quad', 'quad']), 17);
+      assert.equal(api.handLengthForMeldPlan(['quad', 'quad', 'quad', 'quad']), 18);
+    });
+
+    it('buildStandardHand constructs a single-quad hand with 15 tiles', function () {
+      var ids = api.buildStandardHand(['chow', 'chow', 'pung', 'quad'], {
+        meldPool: numberedTileIds(),
+        pairPool: numberedTileIds(),
+        accept: function () { return true; },
+      });
+
+      assert.ok(ids);
+      assert.equal(ids.length, 15);
+      assert.equal(api.isValidWinningHandIds(ids), true);
+      assert.ok(hasQuad(ids));
+    });
+
+    it('randomSequenceHand returns valid all-sequences hands', function () {
+      for (var i = 0; i < 30; i++) {
+        var ids = api.randomSequenceHand();
+        assert.ok(ids);
+        assert.equal(ids.length, 14);
+        assert.equal(api.isValidWinningHandIds(ids), true);
+        assert.equal(api.patternFaanForIds(ids), 1);
+      }
+    });
+
+    it('randomChickenHand returns valid zero-pattern hands', function () {
+      for (var i = 0; i < 30; i++) {
+        var ids = api.randomChickenHand();
+        assert.ok(ids);
+        assert.ok(ids.length === 14 || ids.length === 15);
+        assert.equal(api.isValidWinningHandIds(ids), true);
+        assert.equal(api.patternFaanForIds(ids), 0);
+
+        api.setHand(ids);
+        var result = api.evaluate();
+        assert.ok(result.items.some(function (item) { return item.name === 'Chicken Hand'; }));
+      }
+    });
+
+    it('randomStandardHand returns valid hands at or above the minimum faan', function () {
+      for (var i = 0; i < 40; i++) {
+        var ids = api.randomStandardHand();
+        assert.ok(ids);
+        assert.ok(ids.length >= 14 && ids.length <= 18);
+        assert.equal(api.isValidWinningHandIds(ids), true);
+        assert.ok(api.patternFaanForIds(ids) >= 3);
+      }
+    });
+
+    it('randomStandardHand can produce hands with quads', function () {
+      var sawQuad = false;
+      for (var i = 0; i < 80; i++) {
+        var ids = api.randomStandardHand();
+        if (hasQuad(ids)) sawQuad = true;
+      }
+      assert.equal(sawQuad, true);
+    });
+
+    it('randomLimitHand can produce four-quad limit hands', function () {
+      var sawFourQuads = false;
+      for (var i = 0; i < 80; i++) {
+        var ids = api.randomLimitHand();
+        if (ids.length === 18 && hasQuad(ids) && api.patternFaanForIds(ids) === 13) {
+          sawFourQuads = true;
+          api.setHand(ids);
+          assertPatternNames(api.evaluate(), ['Four Quads']);
+        }
+      }
+      assert.equal(sawFourQuads, true);
     });
   });
 
