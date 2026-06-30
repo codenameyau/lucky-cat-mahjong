@@ -1036,6 +1036,8 @@
   function resetHand() {
     hand = [];
     flowers = [];
+    var noFlowers = document.getElementById('opt-no-flowers');
+    if (noFlowers) noFlowers.checked = false;
     clearActiveExample();
     update();
   }
@@ -1084,6 +1086,10 @@
       next.push(id);
     }
     flowers = next;
+    if (next.length) {
+      var noFlowers = document.getElementById('opt-no-flowers');
+      if (noFlowers) noFlowers.checked = false;
+    }
     clearActiveExample();
   }
 
@@ -1093,7 +1099,13 @@
 
   function loadOptionsFromQuery(params) {
     params = params || new URLSearchParams(window.location.search);
-    if (!params.has('b')) return;
+    if (!params.has('b')) {
+      Object.keys(OPT_QUERY_KEYS).forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.checked = false;
+      });
+      return;
+    }
 
     var selected = {};
     var seatVal = null;
@@ -1127,6 +1139,7 @@
       var round = document.getElementById('opt-round');
       if (round) round.value = tableVal;
     }
+    if (selected.noflowers) flowers = [];
   }
 
   function encodeOptionsForUrl() {
@@ -1151,23 +1164,20 @@
 
   function buildShareUrl() {
     var url = new URL(window.location.href);
+    var params = new URLSearchParams();
+
+    var opts = encodeOptionsForUrl();
+    if (opts) params.set('b', opts);
+
     if (hand.length) {
-      url.searchParams.set('h', hand.join(HAND_URL_DELIM));
-    } else {
-      url.searchParams.delete('h');
+      params.set('h', hand.join(HAND_URL_DELIM));
     }
     var bonus = encodeFlowersForUrl();
     if (bonus) {
-      url.searchParams.set('f', bonus);
-    } else {
-      url.searchParams.delete('f');
+      params.set('f', bonus);
     }
-    var opts = encodeOptionsForUrl();
-    if (opts) {
-      url.searchParams.set('b', opts);
-    } else {
-      url.searchParams.delete('b');
-    }
+
+    url.search = params.toString();
     url.hash = 'calculator';
     return url.toString();
   }
