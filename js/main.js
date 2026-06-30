@@ -401,6 +401,10 @@ function setupConversion(servicesData) {
 async function init() {
   document.getElementById('year').textContent = new Date().getFullYear();
 
+  document.querySelectorAll('.hero-logo, .header-logo, .footer-logo, .hero picture, .header-brand picture, .footer-brand picture').forEach((el) => {
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
+  });
+
   try {
     const [site, styleguide, services, rates, faq, testimonials] = await Promise.all([
       loadJSON('data/site.json'),
