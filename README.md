@@ -31,6 +31,16 @@ python3 -m http.server 8080
 
 Then open [http://localhost:8080](http://localhost:8080).
 
+## Tests
+
+The Hong Kong scoring calculator (`js/points.js`) has unit tests using Node’s built-in test runner. Requires **Node.js 18+**.
+
+```bash
+npm test
+```
+
+This runs `node --test js/points.test.js`. The harness in `js/points.harness.js` loads the calculator in a mocked browser environment so scoring logic can be tested without opening the page.
+
 ## Editing content with Pages CMS
 
 1. Go to [app.pagescms.org](https://app.pagescms.org) and sign in with GitHub
@@ -66,7 +76,10 @@ Changes save directly to the JSON files in `data/` and deploy with your next pus
 │   └── points.css        # Styles for the points/scoring page
 ├── js/
 │   ├── main.js           # Loads CMS data and renders the home page
-│   └── points.js         # Tile data, reference, and the faan calculator
+│   ├── points.js         # Tile data, reference, and the faan calculator
+│   ├── points.harness.js # Test harness for the scoring calculator
+│   └── points.test.js    # Scoring calculator unit tests
+├── package.json          # npm scripts (includes `npm test`)
 ├── tiles/              # Hong Kong mahjong tile SVGs (CC0, see credit below)
 ├── data/
 │   ├── site.json         # Site settings, copy & hero stats
