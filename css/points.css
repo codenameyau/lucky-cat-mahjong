@@ -569,6 +569,15 @@
 }
 
 @media (max-width: 768px) {
+  .calc-card-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .calc-card-actions {
+    flex-wrap: wrap;
+  }
+
   .faan-table-wrap {
     overflow-x: visible;
   }

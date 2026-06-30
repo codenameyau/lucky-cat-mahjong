@@ -8,14 +8,14 @@
 
   /* ------------------------------------------------------------------ *
    * 1. Tile dataset (42 tiles)
-   *    suit: 'm' = characters, 'p' = circles, 's' = bamboo, 'z' = honors
+   *    suit: 'c' = characters, 'd' = circles, 'b' = bamboos, 's' = seasons, 'f' = flowers, 'z' = honors
    *    z value mapping (honors): 1 E, 2 S, 3 W, 4 N, 5 White, 6 Green, 7 Red
    * ------------------------------------------------------------------ */
 
   var NUM_SUITS = [
-    { key: 'm', label: 'Characters', cn: '萬', word: 'characters', offset: 7 },
-    { key: 'p', label: 'Circles', cn: '筒', word: 'circles', offset: 16 },
-    { key: 's', label: 'Bamboos', cn: '索', word: 'bamboos', offset: 25 },
+    { key: 'c', label: 'Characters', cn: '萬', word: 'characters', offset: 7 },
+    { key: 'd', label: 'Circles', cn: '筒', word: 'circles', offset: 16 },
+    { key: 'b', label: 'Bamboos', cn: '索', word: 'bamboos', offset: 25 },
   ];
 
   var WORD_NUMBERS = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
@@ -68,12 +68,12 @@
     TILES.push({ id: t.id, file: t.file, group: 'flowers', suit: 'f', name: t.name, marking: t.marking });
   });
   [
-    { id: 'se1', file: '35-spring.svg', name: 'Spring', marking: '春' },
-    { id: 'se2', file: '36-summer.svg', name: 'Summer', marking: '夏' },
-    { id: 'se3', file: '37-autumn.svg', name: 'Autumn', marking: '秋' },
-    { id: 'se4', file: '38-winter.svg', name: 'Winter', marking: '冬' },
+    { id: 's1', file: '35-spring.svg', name: 'Spring', marking: '春' },
+    { id: 's2', file: '36-summer.svg', name: 'Summer', marking: '夏' },
+    { id: 's3', file: '37-autumn.svg', name: 'Autumn', marking: '秋' },
+    { id: 's4', file: '38-winter.svg', name: 'Winter', marking: '冬' },
   ].forEach(function (t) {
-    TILES.push({ id: t.id, file: t.file, group: 'seasons', suit: 'f', name: t.name, marking: t.marking });
+    TILES.push({ id: t.id, file: t.file, group: 'seasons', suit: 's', name: t.name, marking: t.marking });
   });
 
   var TILE_BY_ID = {};
@@ -114,12 +114,12 @@
     if (!host) return;
 
     var groups = [
-      { title: 'Characters (萬 / Wàn)', desc: 'Also called ten-thousands. Numbered 1–9; the top character is the number, the bottom is 萬.', ids: ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9'] },
-      { title: 'Circles (筒 / Tóng)', desc: 'Also called dots or coins. Count the circles — that is the tile’s number, 1–9.', ids: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9'] },
-      { title: 'Bamboo (索 / Sok)', desc: 'Also called sticks. Count the bamboo sticks for the number. The 1 Bamboo is usually a bird.', ids: ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9'] },
+      { title: 'Characters (萬 / Wàn)', desc: 'Also called ten-thousands. Numbered 1–9; the top character is the number, the bottom is 萬.', ids: ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9'] },
+      { title: 'Circles (筒 / Tóng)', desc: 'Also called dots or coins. Count the circles — that is the tile’s number, 1–9.', ids: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9'] },
+      { title: 'Bamboo (索 / Sok)', desc: 'Also called sticks. Count the bamboo sticks for the number. The 1 Bamboo is usually a bird.', ids: ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9'] },
       { title: 'Winds (風)', desc: 'Honor tiles: East, South, West, North. They never form sequences — only pairs or triplets or quads.', ids: ['we', 'ws', 'ww', 'wn'] },
       { title: 'Dragons (三元牌)', desc: 'Honor tiles: Red (中), Green (發), White (白). A triplet of dragons is always worth points.', ids: ['dr', 'dg', 'dw'] },
-      { title: 'Flowers & Seasons (花 / 季)', desc: 'Set aside when drawn and replaced by a tile from the end of the wall. Count as bonus tiles.', ids: ['f1', 'f2', 'f3', 'f4', 'se1', 'se2', 'se3', 'se4'] },
+      { title: 'Flowers & Seasons (花 / 季)', desc: 'Set aside when drawn and replaced by a tile from the end of the wall. Count as bonus tiles.', ids: ['f1', 'f2', 'f3', 'f4', 's1', 's2', 's3', 's4'] },
     ];
 
     host.innerHTML = groups.map(function (g) {
@@ -174,18 +174,23 @@
   };
 
   var FLOWER_IDS = ['f1', 'f2', 'f3', 'f4'];
-  var SEASON_IDS = ['se1', 'se2', 'se3', 'se4'];
+  var SEASON_IDS = ['s1', 's2', 's3', 's4'];
 
   // Faan -> base points payout (classic "3 faan to win" doubling, capped at limit).
   var PAYOUT = { 3: 8, 4: 16, 5: 32, 6: 64, 7: 128, 8: 256, 9: 512, 10: 1024, 11: 2048, 12: 4096, 13: 8192 };
 
+  function isUnlimitedFaan() {
+    var el = document.getElementById('opt-unlimited');
+    return !!(el && el.checked);
+  }
+
   function capFaan(faan) {
-    if (unlimitedFaan) return faan;
+    if (isUnlimitedFaan()) return faan;
     return faan > LIMIT ? LIMIT : faan;
   }
 
   function faanLabel(faan) {
-    if (!unlimitedFaan && faan >= LIMIT) return 'Limit';
+    if (!isUnlimitedFaan() && faan >= LIMIT) return 'Limit';
     return faan + ' faan';
   }
 
@@ -193,7 +198,7 @@
     if (faan < MIN_FAAN) return null;
     var effective = capFaan(faan);
     if (PAYOUT[effective]) return PAYOUT[effective];
-    if (unlimitedFaan && effective > LIMIT) {
+    if (isUnlimitedFaan() && effective > LIMIT) {
       return PAYOUT[LIMIT] * Math.pow(2, effective - LIMIT);
     }
     return null;
@@ -206,7 +211,19 @@
   var hand = []; // array of suited/honor tile ids (max 18)
   var flowers = []; // array of flower/season tile ids
   var activeExample = null;
-  var unlimitedFaan = false;
+  var HAND_URL_DELIM = '-';
+  var OPT_URL_DELIM = '-';
+  var OPT_QUERY_KEYS = {
+    'opt-selfdraw': 'selfdraw',
+    'opt-concealed': 'concealed',
+    'opt-lasttile': 'lasttile',
+    'opt-robkong': 'robkong',
+    'opt-kongbloom': 'kongbloom',
+    'opt-double-kong': 'doublekong',
+    'opt-no-flowers': 'noflowers',
+    'opt-unlimited': 'unlimited',
+  };
+  var KONG_WIN_OPTS = ['opt-robkong', 'opt-kongbloom', 'opt-double-kong'];
 
   function syncExampleButtons() {
     document.querySelectorAll('[data-example]').forEach(function (btn) {
@@ -228,7 +245,7 @@
   }
 
   function handCounts() {
-    var c = { m: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], p: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], s: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], z: [0, 0, 0, 0, 0, 0, 0, 0] };
+    var c = { c: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], d: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], b: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], z: [0, 0, 0, 0, 0, 0, 0, 0] };
     hand.forEach(function (id) {
       var t = TILE_BY_ID[id];
       c[t.suit][t.val] += 1;
@@ -247,12 +264,12 @@
    * ------------------------------------------------------------------ */
 
   function cloneCounts(c) {
-    return { m: c.m.slice(), p: c.p.slice(), s: c.s.slice(), z: c.z.slice() };
+    return { c: c.c.slice(), d: c.d.slice(), b: c.b.slice(), z: c.z.slice() };
   }
 
   // Returns array of meld-lists that fully consume `c` (each meld = {type,suit,val}).
   function decomposeAll(c) {
-    var suits = ['m', 'p', 's', 'z'];
+    var suits = ['c', 'd', 'b', 'z'];
     var suit = null, v = -1;
     for (var si = 0; si < suits.length && suit === null; si++) {
       var su = suits[si];
@@ -292,7 +309,7 @@
 
   function winningParses(c) {
     var parses = [];
-    var suits = ['m', 'p', 's', 'z'];
+    var suits = ['c', 'd', 'b', 'z'];
     for (var si = 0; si < suits.length; si++) {
       var su = suits[si];
       var max = su === 'z' ? 7 : 9;
@@ -330,7 +347,7 @@
   function isAllTerminals(c) {
     // 清老头 — only 1s and 9s; no honors, no suited tiles (2–8)
     if (c.z.reduce(function (a, b) { return a + b; }, 0) !== 0) return false;
-    var numSuits = ['m', 'p', 's'];
+    var numSuits = ['c', 'd', 'b'];
     for (var si = 0; si < numSuits.length; si++) {
       var su = numSuits[si];
       for (var v = 2; v <= 8; v++) {
@@ -344,7 +361,7 @@
 
   function isMixedTerminals(c) {
     // 混老头 — every tile is a 1, 9, or honor; must include both terminals and honors
-    var numSuits = ['m', 'p', 's'];
+    var numSuits = ['c', 'd', 'b'];
     for (var si = 0; si < numSuits.length; si++) {
       var su = numSuits[si];
       for (var v = 2; v <= 8; v++) {
@@ -360,12 +377,12 @@
 
   function isThirteenOrphans(c) {
     // 1 & 9 of each suit + all 7 honors, exactly one of them doubled (14 tiles)
-    var needed = [['m', 1], ['m', 9], ['p', 1], ['p', 9], ['s', 1], ['s', 9], ['z', 1], ['z', 2], ['z', 3], ['z', 4], ['z', 5], ['z', 6], ['z', 7]];
+    var needed = [['c', 1], ['c', 9], ['d', 1], ['d', 9], ['b', 1], ['b', 9], ['z', 1], ['z', 2], ['z', 3], ['z', 4], ['z', 5], ['z', 6], ['z', 7]];
     var total = 0, pairs = 0;
     // any non-terminal/non-honor tile disqualifies
     var allowed = {};
     needed.forEach(function (n) { allowed[n[0] + n[1]] = true; });
-    var suits = ['m', 'p', 's', 'z'];
+    var suits = ['c', 'd', 'b', 'z'];
     for (var si = 0; si < suits.length; si++) {
       var su = suits[si];
       for (var v = 1; v < c[su].length; v++) {
@@ -384,7 +401,7 @@
 
   function isNineGates(c) {
     // pure one number suit, pattern 1112345678999 + one extra of any 1-9
-    var numSuits = ['m', 'p', 's'];
+    var numSuits = ['c', 'd', 'b'];
     if (c.z.reduce(function (a, b) { return a + b; }, 0) !== 0) return false;
     var active = numSuits.filter(function (su) { return c[su].reduce(function (a, b) { return a + b; }, 0) > 0; });
     if (active.length !== 1) return false;
@@ -404,7 +421,7 @@
   function isSevenPairs(c) {
     var total = 0;
     var pairs = 0;
-    var suits = ['m', 'p', 's', 'z'];
+    var suits = ['c', 'd', 'b', 'z'];
     for (var si = 0; si < suits.length; si++) {
       var su = suits[si];
       var max = su === 'z' ? 7 : 9;
@@ -419,36 +436,12 @@
     return total === 14 && pairs === 7;
   }
 
-  function sevenPairTileIds(c) {
-    var ids = [];
-    var suits = ['m', 'p', 's', 'z'];
-    for (var si = 0; si < suits.length; si++) {
-      var su = suits[si];
-      var max = su === 'z' ? 7 : 9;
-      for (var v = 1; v <= max; v++) {
-        var n = c[su][v];
-        if (n === 2 || n === 4) {
-          for (var p = 0; p < n / 2; p++) ids.push({ suit: su, val: v });
-        }
-      }
-    }
-    var order = { m: 0, p: 1, s: 2, z: 3 };
-    ids.sort(function (a, b) {
-      if (order[a.suit] !== order[b.suit]) return order[a.suit] - order[b.suit];
-      return a.val - b.val;
-    });
-    return ids.map(function (p) {
-      var id = tileIdFromSuitVal(p.suit, p.val);
-      return [id, id];
-    }).reduce(function (acc, pair) { return acc.concat(pair); }, []);
-  }
-
   /* ------------------------------------------------------------------ *
    * 7. Global hand features
    * ------------------------------------------------------------------ */
 
   function suitProfile(c) {
-    var numSuits = ['m', 'p', 's'];
+    var numSuits = ['c', 'd', 'b'];
     var used = numSuits.filter(function (su) { return c[su].reduce(function (a, b) { return a + b; }, 0) > 0; });
     var honors = c.z.reduce(function (a, b) { return a + b; }, 0) > 0;
     return { numSuits: used, honors: honors };
@@ -635,7 +628,7 @@
       if (flowers.length) {
         result.message = 'You have ' + flowers.length + ' flower/season tile' +
           (flowers.length === 1 ? '' : 's') +
-          '. Collect 7 for an automatic win (七搶一, 5 faan), or all 8 for the limit hand (八仙過海). Or add regular tiles to score a standard hand.';
+          '. Collect 7 for Seven Robbing One or all 8 for an automatic win with Eight Immortals Crossing the Sea.';
       } else {
         result.message = '';
       }
@@ -717,12 +710,12 @@
     if (!host) return;
 
     var groups = [
-      { title: 'Characters', ids: ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9'] },
-      { title: 'Circles', ids: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9'] },
-      { title: 'Bamboo', ids: ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9'] },
+      { title: 'Characters', ids: ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9'] },
+      { title: 'Circles', ids: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9'] },
+      { title: 'Bamboo', ids: ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9'] },
       { title: 'Winds', ids: ['we', 'ws', 'ww', 'wn'] },
       { title: 'Dragons', ids: ['dr', 'dg', 'dw'] },
-      { title: 'Flowers & Seasons', ids: ['f1', 'f2', 'f3', 'f4', 'se1', 'se2', 'se3', 'se4'] },
+      { title: 'Flowers & Seasons', ids: ['f1', 'f2', 'f3', 'f4', 's1', 's2', 's3', 's4'] },
     ];
 
     host.innerHTML = groups.map(function (g) {
@@ -747,10 +740,12 @@
   function addTile(id) {
     var t = TILE_BY_ID[id];
     if (!t) return;
-    if (t.suit === 'f') {
+    if (t.suit === 'f' || t.suit === 's') {
       if (flowers.indexOf(id) !== -1) return; // one of each bonus tile
       if (flowers.length >= 8) return;
       flowers.push(id);
+      var noFlowers = document.getElementById('opt-no-flowers');
+      if (noFlowers) noFlowers.checked = false;
     } else {
       if (tileCount(id) >= 4) return;
       if (hand.length >= 18) return;
@@ -772,94 +767,12 @@
     update();
   }
 
-  function meldToTileIds(meld) {
-    if (meld.type === 'chow') {
-      var s = meld.suit;
-      return [
-        tileIdFromSuitVal(s, meld.val),
-        tileIdFromSuitVal(s, meld.val + 1),
-        tileIdFromSuitVal(s, meld.val + 2),
-      ];
-    }
-    var id = tileIdFromSuitVal(meld.suit, meld.val);
-    var n = meld.type === 'kong' ? 4 : 3;
-    var ids = [];
-    for (var i = 0; i < n; i++) ids.push(id);
-    return ids;
-  }
-
-  function sortMeldsForDisplay(melds) {
-    var suitOrder = { m: 0, p: 1, s: 2, z: 3 };
-    var typeOrder = { chow: 0, pung: 1, kong: 2 };
-    return melds.slice().sort(function (a, b) {
-      if (suitOrder[a.suit] !== suitOrder[b.suit]) return suitOrder[a.suit] - suitOrder[b.suit];
-      if (a.val !== b.val) return a.val - b.val;
-      return typeOrder[a.type] - typeOrder[b.type];
-    });
-  }
-
-  function bestWinningParse(c) {
-    var parses = winningParses(c);
-    if (!parses.length) return null;
-    var ctx = ctxFromUI();
-    var profile = suitProfile(c);
-    var best = parses[0];
-    var bestFaan = -1;
-    for (var i = 0; i < parses.length; i++) {
-      var f = sumFaan(evalParse(parses[i], profile, ctx));
-      if (f > bestFaan) { bestFaan = f; best = parses[i]; }
-    }
-    return best;
-  }
-
-  function orderHandForDisplay(handIds) {
-    if (!handIds.length) return [];
-
-    var c = handCounts();
-    if (isSevenPairs(c)) return sevenPairTileIds(c);
-
-    var parse = bestWinningParse(c);
-    if (parse) {
-      var ordered = [];
-      sortMeldsForDisplay(parse.melds).forEach(function (m) {
-        meldToTileIds(m).forEach(function (id) { ordered.push(id); });
-      });
-      var pairId = tileIdFromSuitVal(parse.pair.suit, parse.pair.val);
-      ordered.push(pairId, pairId);
-      return ordered;
-    }
-
-    var counts = {};
-    handIds.forEach(function (id) { counts[id] = (counts[id] || 0) + 1; });
-    var pairCandidates = Object.keys(counts).filter(function (id) { return counts[id] === 2; });
-    if (pairCandidates.length === 1) {
-      var pairId2 = pairCandidates[0];
-      var rest = handIds.filter(function (id) { return id !== pairId2; });
-      var order = { m: 0, p: 1, s: 2, z: 3 };
-      rest.sort(function (a, b) {
-        var ta = TILE_BY_ID[a], tb = TILE_BY_ID[b];
-        if (order[ta.suit] !== order[tb.suit]) return order[ta.suit] - order[tb.suit];
-        return ta.val - tb.val;
-      });
-      return rest.concat([pairId2, pairId2]);
-    }
-
-    var order = { m: 0, p: 1, s: 2, z: 3 };
-    return handIds.slice().sort(function (a, b) {
-      var ta = TILE_BY_ID[a], tb = TILE_BY_ID[b];
-      if (order[ta.suit] !== order[tb.suit]) return order[ta.suit] - order[tb.suit];
-      return ta.val - tb.val;
-    });
-  }
-
   function renderHand() {
     var host = document.getElementById('calc-hand');
     if (!host) return;
 
-    var sorted = orderHandForDisplay(hand);
-
     var countLabel = hand.length + ' tile' + (hand.length === 1 ? '' : 's');
-    var pieces = sorted.map(function (id) {
+    var pieces = hand.map(function (id) {
       var t = TILE_BY_ID[id];
       return '<button type="button" class="hand-tile" data-id="' + id + '" data-flower="0" aria-label="Remove ' + t.name + '">' + tileImg(t) + '</button>';
     });
@@ -898,12 +811,12 @@
         '<span class="result-faan">' + faanLabel(it.faan) + '</span></li>';
     }).join('');
 
-    var totalLabel = unlimitedFaan || res.faan < LIMIT
+    var totalLabel = isUnlimitedFaan() || res.faan < LIMIT
       ? res.faan + ' faan'
       : 'Limit hand (' + LIMIT + ' faan)';
     var payout;
     if (res.points === null) {
-      payout = '<p class="result-payout result-below">Below the common ' + MIN_FAAN + '-faan minimum to win. Table rules vary.</p>';
+      payout = '<p class="result-payout result-below">Below the ' + MIN_FAAN + '-faan minimum to win. Table rules vary.</p>';
     } else {
       var selfDraw = document.getElementById('opt-selfdraw') && document.getElementById('opt-selfdraw').checked;
        payout = '<p class="result-payout"><strong>' + res.points.toLocaleString() + ' points</strong></p>';
@@ -919,8 +832,10 @@
     renderResult(evaluate());
   }
 
-  var PLAYABLE_IDS = TILES.filter(function (t) { return t.suit !== 'f'; }).map(function (t) { return t.id; });
-  var NUMBER_SUITS = ['m', 'p', 's'];
+  var PLAYABLE_IDS = TILES.filter(function (t) {
+    return t.suit === 'c' || t.suit === 'd' || t.suit === 'b' || t.suit === 'z';
+  }).map(function (t) { return t.id; });
+  var NUMBER_SUITS = ['c', 'd', 'b'];
 
   function rand(n) { return Math.floor(Math.random() * n); }
 
@@ -936,9 +851,9 @@
 
   function countsFromIds(ids) {
     var c = {
-      m: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      p: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      s: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      c: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      d: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      b: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       z: [0, 0, 0, 0, 0, 0, 0, 0],
     };
     ids.forEach(function (id) {
@@ -989,7 +904,7 @@
   }
 
   function randomThirteenOrphans() {
-    var base = ['m1', 'm9', 'p1', 'p9', 's1', 's9', 'we', 'ws', 'ww', 'wn', 'dg', 'dw', 'dr'];
+    var base = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'ww', 'wn', 'dg', 'dw', 'dr'];
     var dup = base[rand(base.length)];
     return base.concat([dup]);
   }
@@ -1016,7 +931,7 @@
   }
 
   function randomAllTerminals() {
-    var pool = shuffle(['m1', 'm9', 'p1', 'p9', 's1', 's9']);
+    var pool = shuffle(['c1', 'c9', 'd1', 'd9', 'b1', 'b9']);
     var ids = [];
     pool.slice(0, 4).forEach(function (id) { ids.push(id, id, id); });
     ids.push(pool[4], pool[4]);
@@ -1125,14 +1040,191 @@
     update();
   }
 
-  function toggleUnlimitedFaan() {
-    unlimitedFaan = !unlimitedFaan;
-    var btn = document.getElementById('calc-unlimited');
-    if (btn) {
-      btn.classList.toggle('is-active', unlimitedFaan);
-      btn.setAttribute('aria-pressed', unlimitedFaan ? 'true' : 'false');
+  function loadHandFromQuery(params) {
+    params = params || new URLSearchParams(window.location.search);
+    var h = params.get('h');
+    if (!h) return;
+
+    var ids = h.split(HAND_URL_DELIM);
+    var next = [];
+    var counts = {};
+    for (var i = 0; i < ids.length; i++) {
+      var id = ids[i].trim();
+      if (!id) continue;
+      var t = TILE_BY_ID[id];
+      if (!t || t.suit === 'f' || t.suit === 's') continue;
+      counts[id] = (counts[id] || 0) + 1;
+      if (counts[id] > 4) continue;
+      if (next.length >= 18) break;
+      next.push(id);
     }
-    renderResult(evaluate());
+    if (!next.length) return;
+
+    hand = next;
+    clearActiveExample();
+  }
+
+  function loadFlowersFromQuery(params) {
+    params = params || new URLSearchParams(window.location.search);
+    if (!params.has('f')) {
+      flowers = [];
+      return;
+    }
+
+    var ids = (params.get('f') || '').split(HAND_URL_DELIM);
+    var next = [];
+    var seen = {};
+    for (var i = 0; i < ids.length; i++) {
+      var id = ids[i].trim();
+      if (!id || seen[id]) continue;
+      var t = TILE_BY_ID[id];
+      if (!t || (t.suit !== 'f' && t.suit !== 's')) continue;
+      seen[id] = true;
+      if (next.length >= 8) break;
+      next.push(id);
+    }
+    flowers = next;
+    clearActiveExample();
+  }
+
+  function encodeFlowersForUrl() {
+    return flowers.join(HAND_URL_DELIM);
+  }
+
+  function loadOptionsFromQuery(params) {
+    params = params || new URLSearchParams(window.location.search);
+    if (!params.has('b')) return;
+
+    var selected = {};
+    var seatVal = null;
+    var tableVal = null;
+    (params.get('b') || '').split(OPT_URL_DELIM).forEach(function (key) {
+      key = key.trim();
+      if (!key) return;
+      var seatMatch = /^seat([1-4])$/.exec(key);
+      if (seatMatch) {
+        seatVal = seatMatch[1];
+        return;
+      }
+      var tableMatch = /^table([1-4])$/.exec(key);
+      if (tableMatch) {
+        tableVal = tableMatch[1];
+        return;
+      }
+      selected[key] = true;
+    });
+
+    Object.keys(OPT_QUERY_KEYS).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.checked = !!selected[OPT_QUERY_KEYS[id]];
+    });
+
+    if (seatVal) {
+      var seat = document.getElementById('opt-seat');
+      if (seat) seat.value = seatVal;
+    }
+    if (tableVal) {
+      var round = document.getElementById('opt-round');
+      if (round) round.value = tableVal;
+    }
+  }
+
+  function encodeOptionsForUrl() {
+    var parts = [];
+    Object.keys(OPT_QUERY_KEYS).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el && el.checked) parts.push(OPT_QUERY_KEYS[id]);
+    });
+    var seat = document.getElementById('opt-seat');
+    var round = document.getElementById('opt-round');
+    if (seat) parts.push('seat' + seat.value);
+    if (round) parts.push('table' + round.value);
+    return parts.join(OPT_URL_DELIM);
+  }
+
+  function loadCalculatorFromQuery() {
+    var params = new URLSearchParams(window.location.search);
+    loadHandFromQuery(params);
+    loadFlowersFromQuery(params);
+    loadOptionsFromQuery(params);
+  }
+
+  function buildShareUrl() {
+    var url = new URL(window.location.href);
+    if (hand.length) {
+      url.searchParams.set('h', hand.join(HAND_URL_DELIM));
+    } else {
+      url.searchParams.delete('h');
+    }
+    var bonus = encodeFlowersForUrl();
+    if (bonus) {
+      url.searchParams.set('f', bonus);
+    } else {
+      url.searchParams.delete('f');
+    }
+    var opts = encodeOptionsForUrl();
+    if (opts) {
+      url.searchParams.set('b', opts);
+    } else {
+      url.searchParams.delete('b');
+    }
+    url.hash = 'calculator';
+    return url.toString();
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'absolute';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy') ? resolve() : reject(new Error('copy failed'));
+      } catch (err) {
+        reject(err);
+      } finally {
+        document.body.removeChild(ta);
+      }
+    });
+  }
+
+  function shareHand() {
+    var btn = document.getElementById('calc-share');
+    var label = btn ? btn.textContent : 'Share';
+    var url = buildShareUrl();
+    history.replaceState(null, '', url);
+    copyText(url).then(function () {
+      if (!btn) return;
+      btn.textContent = 'Copied Link';
+      setTimeout(function () { btn.textContent = label; }, 1500);
+    }).catch(function () {
+      if (!btn) return;
+      btn.textContent = 'Copy failed';
+      setTimeout(function () { btn.textContent = label; }, 1500);
+    });
+  }
+
+  function handleOptionsChange(e) {
+    var target = e && e.target;
+    if (target && target.type === 'checkbox') {
+      if (KONG_WIN_OPTS.indexOf(target.id) !== -1 && target.checked) {
+        KONG_WIN_OPTS.forEach(function (id) {
+          if (id === target.id) return;
+          var el = document.getElementById(id);
+          if (el) el.checked = false;
+        });
+      }
+      if (target.id === 'opt-no-flowers' && target.checked) {
+        flowers = [];
+      }
+    }
+    update();
   }
 
   function resetBonuses() {
@@ -1152,40 +1244,40 @@
 
     if (which === 'chicken') {
       // Chicken (雞糊): valid win with no scoring patterns — 0 faan
-      hand = ['m2', 'm3', 'm4', 'p5', 'p6', 'p7', 'p8', 'p8', 'p8', 's7', 's8', 's9', 'm5', 'm5'];
+      hand = ['c2', 'c3', 'c4', 'd5', 'd6', 'd7', 'd8', 'd8', 'd8', 'b7', 'b8', 'b9', 'c5', 'c5'];
     } else if (which === 'sequence') {
       // All sequences (1 faan) across three suits
-      hand = ['m2', 'm3', 'm4', 'p5', 'p6', 'p7', 's4', 's5', 's6', 's7', 's8', 's9', 'p2', 'p2'];
+      hand = ['c2', 'c3', 'c4', 'd5', 'd6', 'd7', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9', 'd2', 'd2'];
     } else if (which === 'halfflush') {
       // One suit mixed with a dragon pair — 3 faan
-      hand = ['m2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm7', 'm8', 'm9', 'm3', 'm3', 'm3', 'dr', 'dr'];
+      hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c7', 'c8', 'c9', 'c3', 'c3', 'c3', 'dr', 'dr'];
     } else if (which === 'alltriplets') {
       // All triplets — 3 faan
-      hand = ['m2', 'm2', 'm2', 'p5', 'p5', 'p5', 's8', 's8', 's8', 'ws', 'ws', 'ws', 'p2', 'p2'];
+      hand = ['c2', 'c2', 'c2', 'd5', 'd5', 'd5', 'b8', 'b8', 'b8', 'ws', 'ws', 'ws', 'd2', 'd2'];
     } else if (which === 'sevenpairs') {
       // Seven distinct pairs — 4 faan
-      hand = ['m2', 'm2', 'p4', 'p4', 's6', 's6', 'm8', 'm8', 'p9', 'p9', 's1', 's1', 'we', 'we'];
+      hand = ['c2', 'c2', 'd4', 'd4', 'b6', 'b6', 'c8', 'c8', 'd9', 'd9', 'b1', 'b1', 'we', 'we'];
     } else if (which === 'fullflush') {
       // Full flush — 7 faan
-      hand = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's8', 's8', 's8', 's5', 's5'];
+      hand = ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9', 'b8', 'b8', 'b8', 'b5', 'b5'];
     } else if (which === 'threedragons') {
       // Great Three Dragons (大三元) — 8 faan
-      hand = ['dr', 'dr', 'dr', 'dg', 'dg', 'dg', 'dw', 'dw', 'dw', 'm2', 'm3', 'm4', 'p5', 'p5'];
+      hand = ['dr', 'dr', 'dr', 'dg', 'dg', 'dg', 'dw', 'dw', 'dw', 'c2', 'c3', 'c4', 'd5', 'd5'];
     } else if (which === 'allhonors') {
       // All Honors (字一色) — 10 faan
       hand = ['ws', 'ws', 'ws', 'ww', 'ww', 'ww', 'dr', 'dr', 'dr', 'dg', 'dg', 'dg', 'wn', 'wn'];
     } else if (which === 'thirteen') {
       // Thirteen Orphans (limit) — 13 faan
-      hand = ['m1', 'm9', 'p1', 'p9', 's1', 's9', 'we', 'ws', 'ww', 'wn', 'dg', 'dw', 'dr', 'dr'];
+      hand = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'ww', 'wn', 'dg', 'dw', 'dr', 'dr'];
     } else if (which === 'allterminals') {
       // All Terminals (limit) — 13 faan
-      hand = ['m1', 'm1', 'm1', 'm9', 'm9', 'm9', 'p1', 'p1', 'p1', 'p9', 'p9', 'p9', 's1', 's1'];
+      hand = ['c1', 'c1', 'c1', 'c9', 'c9', 'c9', 'd1', 'd1', 'd1', 'd9', 'd9', 'd9', 'b1', 'b1'];
     } else if (which === 'fourwinds') {
       // Great Four Winds (limit) — 13 faan
       hand = ['we', 'we', 'we', 'ws', 'ws', 'ws', 'ww', 'ww', 'ww', 'wn', 'wn', 'wn', 'dr', 'dr'];
     } else if (which === 'ninegates') {
       // Nine Gates (limit) — 13 faan
-      hand = ['m1', 'm1', 'm1', 'm2', 'm3', 'm4', 'm5', 'm5', 'm6', 'm7', 'm8', 'm9', 'm9', 'm9'];
+      hand = ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'c5', 'c5', 'c6', 'c7', 'c8', 'c9', 'c9', 'c9'];
     }
     setActiveExample(which);
     update();
@@ -1201,16 +1293,16 @@
       });
     }
     var opts = document.getElementById('calc-options');
-    if (opts) opts.addEventListener('change', function () { renderResult(evaluate()); });
+    if (opts) opts.addEventListener('change', handleOptionsChange);
 
     var randomBtn = document.getElementById('calc-random');
     if (randomBtn) randomBtn.addEventListener('click', generateRandomHand);
 
-    var unlimitedBtn = document.getElementById('calc-unlimited');
-    if (unlimitedBtn) unlimitedBtn.addEventListener('click', toggleUnlimitedFaan);
-
     var reset = document.getElementById('calc-reset');
     if (reset) reset.addEventListener('click', resetHand);
+
+    var shareBtn = document.getElementById('calc-share');
+    if (shareBtn) shareBtn.addEventListener('click', shareHand);
 
     var resetOptions = document.getElementById('calc-reset-options');
     if (resetOptions) resetOptions.addEventListener('click', resetBonuses);
@@ -1232,6 +1324,7 @@
     renderPalette();
     bindCalcControls();
     syncExampleButtons();
+    loadCalculatorFromQuery();
     update();
   }
 
