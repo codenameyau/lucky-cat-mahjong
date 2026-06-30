@@ -33,13 +33,13 @@ Then open [http://localhost:8080](http://localhost:8080).
 
 ## Tests
 
-The Hong Kong scoring calculator (`js/points.js`) has unit tests using Node’s built-in test runner. Requires **Node.js 18+**.
+The Hong Kong scoring calculator (`js/points.js`) and homepage renderer (`js/main.js`) have unit tests using Node’s built-in test runner. Requires **Node.js 18+**.
 
 ```bash
 npm test
 ```
 
-This runs `node --test js/points.test.js`. The harness in `js/points.harness.js` loads the calculator in a mocked browser environment so scoring logic can be tested without opening the page.
+This runs `node --test js/points.test.js js/main.test.js`. Harnesses in `js/points.harness.js` and `js/main.harness.js` load each script in a mocked browser environment so scoring logic and CMS rendering can be tested without opening the page.
 
 ## Editing content with Pages CMS
 
@@ -76,6 +76,8 @@ Changes save directly to the JSON files in `data/` and deploy with your next pus
 │   └── points.css        # Styles for the points/scoring page
 ├── js/
 │   ├── main.js           # Loads CMS data and renders the home page
+│   ├── main.harness.js   # Test harness for the homepage renderer
+│   ├── main.test.js      # Homepage unit tests
 │   ├── points.js         # Tile data, reference, and the faan calculator
 │   ├── points.harness.js # Test harness for the scoring calculator
 │   └── points.test.js    # Scoring calculator unit tests
