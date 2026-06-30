@@ -5,6 +5,10 @@
   'use strict';
 
   var TILE_BASE = '../tiles/';
+  var TILE_ENTER_MS = 380;
+  var TILE_REMOVE_MS = 320;
+  var TILE_FLASH_OK_MS = 340;
+  var TILE_FLASH_NO_MS = 460;
 
   /* ------------------------------------------------------------------ *
    * 1. Tile dataset (42 tiles)
@@ -95,7 +99,7 @@
     var alt = tile.name + ' (' + tile.marking + ')';
     var lazy = opts.eager ? '' : ' loading="lazy"';
     return '<span class="tile-face">' +
-      '<img src="' + TILE_BASE + tile.file + '" alt="' + alt + '" width="100" height="140"' + lazy + ' decoding="async">' +
+      '<img src="' + TILE_BASE + tile.file + '" alt="' + alt + '" width="100" height="140"' + lazy + ' decoding="async" draggable="false">' +
       '</span>';
   }
 
@@ -210,6 +214,9 @@
 
   var hand = []; // array of suited/honor tile ids (max 18)
   var flowers = []; // array of flower/season tile ids
+  var handLayout = []; // display order: { id, isFlower }
+  var handDrag = null;
+  var HAND_DRAG_THRESHOLD = 8;
   var activeExample = null;
   var pendingHandHighlight = null; // { id, isFlower } — brief add animation in hand area
   var handHighlightTimer = null;
@@ -226,6 +233,25 @@
     'opt-unlimited': 'unlimited',
   };
   var KONG_WIN_OPTS = ['opt-robkong', 'opt-kongbloom', 'opt-double-kong'];
+
+  function syncHandLayoutFromArrays() {
+    handLayout = [];
+    hand.forEach(function (id) {
+      handLayout.push({ id: id, isFlower: false });
+    });
+    flowers.forEach(function (id) {
+      handLayout.push({ id: id, isFlower: true });
+    });
+  }
+
+  function syncArraysFromHandLayout() {
+    hand = [];
+    flowers = [];
+    handLayout.forEach(function (slot) {
+      if (slot.isFlower) flowers.push(slot.id);
+      else hand.push(slot.id);
+    });
+  }
 
   function syncExampleButtons() {
     document.querySelectorAll('[data-example]').forEach(function (btn) {
@@ -897,24 +923,273 @@
   function flashControlButton(btn, outcome) {
     if (!btn) return;
     var ok = outcome !== 'rejected';
+    var cls = ok ? 'is-flash-success' : 'is-flash-rejected';
     btn.classList.remove('is-flash-success', 'is-flash-rejected');
-    void btn.offsetWidth;
-    btn.classList.add(ok ? 'is-flash-success' : 'is-flash-rejected');
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        btn.classList.add(cls);
+      });
+    });
     clearTimeout(btn._flashTimer);
     btn._flashTimer = setTimeout(function () {
       btn.classList.remove('is-flash-success', 'is-flash-rejected');
-    }, ok ? 450 : 480);
+    }, ok ? TILE_FLASH_OK_MS : TILE_FLASH_NO_MS);
   }
 
   function removeTileWithFlash(btn) {
     if (!btn || btn.classList.contains('is-removing')) return;
-    btn.classList.add('is-removing');
     btn.disabled = true;
-    var delay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 90 : 260;
+
+    var id = btn.getAttribute('data-id');
+    var isFlower = btn.getAttribute('data-flower') === '1';
+    var slotIndex = handSlotIndex(btn);
+    var container = btn.parentNode;
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (btn.parentNode) btn.remove();
+      removeTile(id, isFlower, slotIndex);
+      return;
+    }
+
+    btn.classList.add('is-removing');
+    var shifting = beginHandTileShiftLeft(btn, container);
+
+    function finishRemove() {
+      clearTimeout(btn._removeTimer);
+      cleanupHandTileShift(btn, container, shifting);
+      removeTile(id, isFlower, slotIndex);
+    }
+
     clearTimeout(btn._removeTimer);
-    btn._removeTimer = setTimeout(function () {
-      removeTile(btn.getAttribute('data-id'), btn.getAttribute('data-flower') === '1');
-    }, delay);
+    btn._removeTimer = setTimeout(finishRemove, TILE_REMOVE_MS + 40);
+  }
+
+  function findReusableHandButton(existing, used, piece, preferredIndex) {
+    var preferred = existing[preferredIndex];
+    if (preferred && !used.has(preferred) && handTileMatches(preferred, piece.id, piece.isFlower)) {
+      return preferred;
+    }
+    for (var j = 0; j < existing.length; j++) {
+      var btn = existing[j];
+      if (used.has(btn) || btn.classList.contains('is-removing') ||
+          btn.classList.contains('is-dragging-absolute')) continue;
+      if (handTileMatches(btn, piece.id, piece.isFlower)) return btn;
+    }
+    return null;
+  }
+
+  function applyHandTileState(btn, piece) {
+    if (btn.classList.contains('is-removing')) return;
+    btn.classList.toggle('is-flower', piece.isFlower);
+    if (piece.isJustAdded) btn.classList.add('is-just-added');
+    else btn.classList.remove('is-just-added');
+    btn.disabled = false;
+  }
+
+  function handSlotIndex(btn) {
+    return btn.parentNode ? Array.prototype.indexOf.call(btn.parentNode.children, btn) : -1;
+  }
+
+  function captureHandTileRects(container) {
+    var map = new Map();
+    Array.prototype.forEach.call(container.children, function (btn) {
+      map.set(btn, btn.getBoundingClientRect());
+    });
+    return map;
+  }
+
+  function beginHandTileShiftLeft(btn, container) {
+    if (!container) return [];
+
+    var containerRect = container.getBoundingClientRect();
+    var btnRect = btn.getBoundingClientRect();
+    var beforeRects = captureHandTileRects(container);
+    var shifting = [];
+
+    btn.style.left = (btnRect.left - containerRect.left) + 'px';
+    btn.style.top = (btnRect.top - containerRect.top) + 'px';
+    btn.style.width = btnRect.width + 'px';
+    container.classList.add('hand-tiles--removing');
+    btn.classList.add('is-removing-absolute');
+
+    void container.offsetWidth;
+
+    Array.prototype.forEach.call(container.children, function (el) {
+      if (el === btn || !beforeRects.has(el)) return;
+      var before = beforeRects.get(el);
+      var after = el.getBoundingClientRect();
+      var dx = before.left - after.left;
+      var dy = before.top - after.top;
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+      el.style.setProperty('--shift-x', dx + 'px');
+      el.style.setProperty('--shift-y', dy + 'px');
+      el.classList.add('is-shifting', 'is-shift-from');
+      shifting.push(el);
+    });
+
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        shifting.forEach(function (el) {
+          el.classList.remove('is-shift-from');
+        });
+      });
+    });
+
+    return shifting;
+  }
+
+  function cleanupHandTileShift(btn, container, shifting) {
+    if (btn) {
+      btn.style.removeProperty('left');
+      btn.style.removeProperty('top');
+      btn.style.removeProperty('width');
+      if (btn.parentNode) btn.remove();
+    }
+    (shifting || []).forEach(function (el) {
+      el.classList.remove('is-shifting', 'is-shift-from');
+      el.style.removeProperty('--shift-x');
+      el.style.removeProperty('--shift-y');
+    });
+    if (container) container.classList.remove('hand-tiles--removing');
+  }
+
+  function handTileClass(isFlower, isJustAdded) {
+    var cls = 'hand-tile';
+    if (isFlower) cls += ' is-flower';
+    if (isJustAdded) cls += ' is-just-added';
+    return cls;
+  }
+
+  function createHandTileButton(id, isFlower, isJustAdded) {
+    var t = TILE_BY_ID[id];
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = handTileClass(isFlower, false);
+    btn.setAttribute('data-id', id);
+    btn.setAttribute('data-flower', isFlower ? '1' : '0');
+    btn.setAttribute('aria-label', t.name + ' — drag to reorder, tap to remove');
+    btn.insertAdjacentHTML('beforeend', tileImg(t, { eager: true }));
+    if (isJustAdded) {
+      requestAnimationFrame(function () {
+        btn.classList.add('is-just-added');
+      });
+    }
+    return btn;
+  }
+
+  function handTileMatches(btn, id, isFlower) {
+    return btn.getAttribute('data-id') === id &&
+      (btn.getAttribute('data-flower') === '1') === isFlower;
+  }
+
+  function buildHandPieces() {
+    var pieces = [];
+    var highlightLayoutIndex = -1;
+    if (pendingHandHighlight) {
+      for (var i = handLayout.length - 1; i >= 0; i--) {
+        if (handLayout[i].id === pendingHandHighlight.id &&
+            handLayout[i].isFlower === pendingHandHighlight.isFlower) {
+          highlightLayoutIndex = i;
+          break;
+        }
+      }
+    }
+    handLayout.forEach(function (slot, index) {
+      pieces.push({
+        id: slot.id,
+        isFlower: slot.isFlower,
+        isJustAdded: index === highlightLayoutIndex,
+      });
+    });
+    return pieces;
+  }
+
+  function updateHandMeta(meta, res) {
+    var countSpan = meta.querySelector('.hand-meta-count');
+    if (!countSpan) {
+      countSpan = document.createElement('span');
+      countSpan.className = 'hand-meta-count';
+      meta.appendChild(countSpan);
+    }
+
+    var countLabel = hand.length + ' tile' + (hand.length === 1 ? '' : 's');
+    if (hand.length && res && !res.valid) countLabel += ' (incomplete hand)';
+    countSpan.textContent = countLabel;
+
+    var flowersSpan = meta.querySelector('.hand-meta-flowers');
+    if (flowers.length) {
+      if (!flowersSpan) {
+        flowersSpan = document.createElement('span');
+        flowersSpan.className = 'hand-meta-flowers';
+        meta.appendChild(flowersSpan);
+      }
+      flowersSpan.textContent = '+ ' + flowers.length + ' flower/season';
+    } else if (flowersSpan) {
+      flowersSpan.remove();
+    }
+  }
+
+  function syncHandTiles(body, pieces) {
+    var placeholderText = 'Click random, show examples, or add tiles to make a hand and see its score';
+
+    if (!pieces.length) {
+      var tiles = body.querySelector('.hand-tiles');
+      if (tiles) tiles.remove();
+      var ph = body.querySelector('.hand-placeholder');
+      if (!ph) {
+        ph = document.createElement('p');
+        ph.className = 'hand-placeholder';
+        ph.textContent = placeholderText;
+        body.appendChild(ph);
+      }
+      return;
+    }
+
+    var ph = body.querySelector('.hand-placeholder');
+    if (ph) ph.remove();
+
+    var container = body.querySelector('.hand-tiles');
+    if (!container) {
+      container = document.createElement('div');
+      container.className = 'hand-tiles';
+      body.appendChild(container);
+    }
+
+    var existing = Array.prototype.slice.call(container.children);
+    var used = new Set();
+
+    for (var i = 0; i < pieces.length; i++) {
+      var p = pieces[i];
+      var btn = findReusableHandButton(existing, used, p, i);
+
+      if (btn) {
+        used.add(btn);
+        if (!btn.classList.contains('is-removing')) {
+          var at = container.children[i];
+          if (at !== btn) container.insertBefore(btn, at || null);
+        }
+        applyHandTileState(btn, p);
+      } else {
+        var newBtn = createHandTileButton(p.id, p.isFlower, p.isJustAdded);
+        container.insertBefore(newBtn, container.children[i] || null);
+        used.add(newBtn);
+      }
+    }
+
+    for (var k = 0; k < existing.length; k++) {
+      if (!used.has(existing[k])) existing[k].remove();
+    }
+  }
+
+  function ensureHandShell(host) {
+    var meta = host.querySelector('.hand-meta');
+    var body = host.querySelector('.hand-body');
+    if (!meta || !body) {
+      host.innerHTML = '<div class="hand-meta"></div><div class="hand-body"></div>';
+      meta = host.querySelector('.hand-meta');
+      body = host.querySelector('.hand-body');
+    }
+    return { meta: meta, body: body };
   }
 
   function scheduleHandHighlightClear() {
@@ -924,7 +1199,7 @@
       document.querySelectorAll('.hand-tile.is-just-added').forEach(function (el) {
         el.classList.remove('is-just-added');
       });
-    }, 480);
+    }, TILE_ENTER_MS + 40);
   }
 
   function addTile(id) {
@@ -933,16 +1208,17 @@
     if (t.suit === 'f' || t.suit === 's') {
       if (flowers.indexOf(id) !== -1) return false;
       if (flowers.length >= 8) return false;
-      flowers.push(id);
+      handLayout.push({ id: id, isFlower: true });
       var noFlowers = document.getElementById('opt-no-flowers');
       if (noFlowers) noFlowers.checked = false;
       pendingHandHighlight = { id: id, isFlower: true };
     } else {
       if (tileCount(id) >= 4) return false;
       if (hand.length >= 18) return false;
-      hand.push(id);
+      handLayout.push({ id: id, isFlower: false });
       pendingHandHighlight = { id: id, isFlower: false };
     }
+    syncArraysFromHandLayout();
     clearActiveExample();
     update();
     scheduleHandHighlightClear();
@@ -954,14 +1230,18 @@
     clearTimeout(handHighlightTimer);
   }
 
-  function removeTile(id, isFlower) {
-    if (isFlower) {
-      var fi = flowers.indexOf(id);
-      if (fi !== -1) flowers.splice(fi, 1);
+  function removeTile(id, isFlower, slotIndex) {
+    if (typeof slotIndex === 'number' && slotIndex >= 0 && slotIndex < handLayout.length) {
+      handLayout.splice(slotIndex, 1);
     } else {
-      var hi = hand.indexOf(id);
-      if (hi !== -1) hand.splice(hi, 1);
+      for (var i = 0; i < handLayout.length; i++) {
+        if (handLayout[i].id === id && handLayout[i].isFlower === isFlower) {
+          handLayout.splice(i, 1);
+          break;
+        }
+      }
     }
+    syncArraysFromHandLayout();
     clearActiveExample();
     clearHandHighlight();
     update();
@@ -971,38 +1251,9 @@
     var host = document.getElementById('calc-hand');
     if (!host) return;
 
-    var countLabel = hand.length + ' tile' + (hand.length === 1 ? '' : 's');
-    if (hand.length && res && !res.valid) {
-      countLabel += ' (incomplete hand)';
-    }
-    var highlightHandIndex = -1;
-    if (pendingHandHighlight && !pendingHandHighlight.isFlower) {
-      highlightHandIndex = hand.lastIndexOf(pendingHandHighlight.id);
-    }
-    var pieces = hand.map(function (id, index) {
-      var t = TILE_BY_ID[id];
-      var cls = 'hand-tile' + (index === highlightHandIndex ? ' is-just-added' : '');
-      return '<button type="button" class="' + cls + '" data-id="' + id + '" data-flower="0" aria-label="Remove ' + t.name + '">' + tileImg(t) + '</button>';
-    });
-    var flowerPieces = flowers.map(function (id) {
-      var t = TILE_BY_ID[id];
-      var justAdded = pendingHandHighlight && pendingHandHighlight.isFlower && pendingHandHighlight.id === id;
-      var cls = 'hand-tile is-flower' + (justAdded ? ' is-just-added' : '');
-      return '<button type="button" class="' + cls + '" data-id="' + id + '" data-flower="1" aria-label="Remove ' + t.name + '">' + tileImg(t) + '</button>';
-    });
-
-    var html = '<div class="hand-meta"><span>' + countLabel + '</span>';
-    if (flowers.length) html += '<span class="hand-meta-flowers">+ ' + flowers.length + ' flower/season</span>';
-    html += '</div>';
-
-    html += '<div class="hand-body">';
-    if (!hand.length && !flowers.length) {
-      html += '<p class="hand-placeholder">Click random, show examples, or add tiles to make a hand and see its score</p>';
-    } else {
-      html += '<div class="hand-tiles">' + pieces.join('') + flowerPieces.join('') + '</div>';
-    }
-    html += '</div>';
-    host.innerHTML = html;
+    var shell = ensureHandShell(host);
+    updateHandMeta(shell.meta, res);
+    syncHandTiles(shell.body, buildHandPieces());
   }
 
   function renderResult(res) {
@@ -1360,12 +1611,14 @@
   function generateRandomHand() {
     hand = [];
     flowers = [];
+    handLayout = [];
     clearActiveExample();
     clearHandHighlight();
 
     function commit(ids) {
       if (!ids || !isValidWinningHandIds(ids)) return false;
       hand = ids;
+      syncHandLayoutFromArrays();
       update();
       return true;
     }
@@ -1382,6 +1635,7 @@
   function resetHand() {
     hand = [];
     flowers = [];
+    handLayout = [];
     var noFlowers = document.getElementById('opt-no-flowers');
     if (noFlowers) noFlowers.checked = true;
     clearActiveExample();
@@ -1512,6 +1766,7 @@
     loadHandFromQuery(params);
     loadFlowersFromQuery(params);
     loadOptionsFromQuery(params);
+    syncHandLayoutFromArrays();
   }
 
   function buildShareUrl() {
@@ -1597,6 +1852,7 @@
       }
       if (target.id === 'opt-no-flowers' && target.checked) {
         flowers = [];
+        syncHandLayoutFromArrays();
       }
     }
     update();
@@ -1655,18 +1911,199 @@
       // Nine Gates (limit) — 13 faan
       hand = ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'c5', 'c5', 'c6', 'c7', 'c8', 'c9', 'c9', 'c9'];
     }
+    syncHandLayoutFromArrays();
     setActiveExample(which);
     update();
+  }
+
+  function readHandLayoutFromContainer(container) {
+    var next = [];
+    Array.prototype.forEach.call(container.children, function (el) {
+      if (!el.classList.contains('hand-tile')) return;
+      next.push({
+        id: el.getAttribute('data-id'),
+        isFlower: el.getAttribute('data-flower') === '1',
+      });
+    });
+    return next;
+  }
+
+  function getHandDropIndex(container, x, y, skipBtn, placeholder) {
+    var bestIndex = container.children.length;
+    var bestDist = Infinity;
+
+    Array.prototype.forEach.call(container.children, function (el) {
+      if (el === skipBtn || el === placeholder) return;
+      var index = Array.prototype.indexOf.call(container.children, el);
+      var rect = el.getBoundingClientRect();
+      var beforeX = rect.left;
+      var beforeY = rect.top + rect.height / 2;
+      var beforeDist = (x - beforeX) * (x - beforeX) + (y - beforeY) * (y - beforeY);
+      if (beforeDist < bestDist) {
+        bestDist = beforeDist;
+        bestIndex = index;
+      }
+
+      if (el !== skipBtn) {
+        var afterX = rect.right;
+        var afterY = beforeY;
+        var afterDist = (x - afterX) * (x - afterX) + (y - afterY) * (y - afterY);
+        var afterIndex = index + 1;
+        if (afterDist < bestDist) {
+          bestDist = afterDist;
+          bestIndex = afterIndex;
+        }
+      }
+    });
+
+    return bestIndex;
+  }
+
+  function moveHandPlaceholder(container, placeholder, nextIndex) {
+    var ref = container.children[nextIndex] || null;
+    if (ref === placeholder) return false;
+    container.insertBefore(placeholder, ref);
+    return true;
+  }
+
+  function clearHandDragStyles(btn) {
+    if (!btn) return;
+    btn.classList.remove('is-dragging', 'is-dragging-absolute');
+    btn.style.removeProperty('position');
+    btn.style.removeProperty('left');
+    btn.style.removeProperty('top');
+    btn.style.removeProperty('width');
+    btn.style.removeProperty('z-index');
+    btn.style.removeProperty('margin');
+    btn.style.removeProperty('will-change');
+    btn.style.removeProperty('pointer-events');
+    btn.removeAttribute('aria-grabbed');
+  }
+
+  function startHandDrag() {
+    var d = handDrag;
+    d.active = true;
+    var rect = d.btn.getBoundingClientRect();
+    d.offsetX = d.startX - rect.left;
+    d.offsetY = d.startY - rect.top;
+    d.dropIndex = handSlotIndex(d.btn);
+
+    d.placeholder = document.createElement('span');
+    d.placeholder.className = 'hand-tile-placeholder';
+    d.placeholder.setAttribute('aria-hidden', 'true');
+    d.placeholder.style.width = rect.width + 'px';
+    d.placeholder.style.height = rect.height + 'px';
+    d.container.insertBefore(d.placeholder, d.btn);
+
+    d.container.removeChild(d.btn);
+    document.body.appendChild(d.btn);
+
+    d.btn.style.position = 'fixed';
+    d.btn.style.left = rect.left + 'px';
+    d.btn.style.top = rect.top + 'px';
+    d.btn.style.width = rect.width + 'px';
+    d.btn.style.zIndex = '1000';
+    d.btn.style.margin = '0';
+    d.btn.style.pointerEvents = 'none';
+    d.btn.classList.add('is-dragging', 'is-dragging-absolute');
+    d.btn.setAttribute('aria-grabbed', 'true');
+    d.container.classList.add('hand-tiles--dragging');
+  }
+
+  function moveHandDrag(e) {
+    var d = handDrag;
+    d.btn.style.left = (e.clientX - d.offsetX) + 'px';
+    d.btn.style.top = (e.clientY - d.offsetY) + 'px';
+
+    var nextIndex = getHandDropIndex(d.container, e.clientX, e.clientY, d.btn, d.placeholder);
+    if (nextIndex === d.dropIndex) return;
+    if (moveHandPlaceholder(d.container, d.placeholder, nextIndex)) {
+      d.dropIndex = nextIndex;
+    }
+  }
+
+  function finishHandDrag() {
+    var d = handDrag;
+    if (d.btn.parentNode === document.body) {
+      document.body.removeChild(d.btn);
+    }
+    d.container.insertBefore(d.btn, d.placeholder);
+    d.placeholder.remove();
+    clearHandDragStyles(d.btn);
+    d.container.classList.remove('hand-tiles--dragging');
+
+    handLayout = readHandLayoutFromContainer(d.container);
+    syncArraysFromHandLayout();
+    clearActiveExample();
+    try {
+      d.btn.releasePointerCapture(d.pointerId);
+    } catch (err) {}
+    handDrag = null;
+
+    var res = evaluate();
+    var host = document.getElementById('calc-hand');
+    if (host) {
+      var shell = ensureHandShell(host);
+      updateHandMeta(shell.meta, res);
+    }
+    renderResult(res);
+  }
+
+  function bindHandTileInteraction(hostHand) {
+    if (!hostHand) return;
+
+    hostHand.addEventListener('pointerdown', function (e) {
+      var btn = e.target.closest ? e.target.closest('.hand-tile') : null;
+      if (!btn || !hostHand.contains(btn)) return;
+      var container = btn.parentNode;
+      if (!container || !container.classList.contains('hand-tiles')) return;
+      if (btn.disabled || btn.classList.contains('is-removing') || btn.classList.contains('is-shifting')) return;
+      if (typeof e.button === 'number' && e.button !== 0) return;
+
+      handDrag = {
+        btn: btn,
+        container: container,
+        startX: e.clientX,
+        startY: e.clientY,
+        pointerId: e.pointerId,
+        active: false,
+      };
+      btn.setPointerCapture(e.pointerId);
+    });
+
+    hostHand.addEventListener('pointermove', function (e) {
+      if (!handDrag || handDrag.pointerId !== e.pointerId) return;
+      if (!handDrag.active) {
+        var dx = e.clientX - handDrag.startX;
+        var dy = e.clientY - handDrag.startY;
+        if (dx * dx + dy * dy < HAND_DRAG_THRESHOLD * HAND_DRAG_THRESHOLD) return;
+        startHandDrag();
+      }
+      moveHandDrag(e);
+    });
+
+    function onHandPointerEnd(e) {
+      if (!handDrag || handDrag.pointerId !== e.pointerId) return;
+      var d = handDrag;
+      if (d.active) {
+        finishHandDrag();
+      } else {
+        removeTileWithFlash(d.btn);
+        try {
+          d.btn.releasePointerCapture(d.pointerId);
+        } catch (err) {}
+        handDrag = null;
+      }
+    }
+
+    hostHand.addEventListener('pointerup', onHandPointerEnd);
+    hostHand.addEventListener('pointercancel', onHandPointerEnd);
   }
 
   function bindCalcControls() {
     var hostHand = document.getElementById('calc-hand');
     if (hostHand) {
-      hostHand.addEventListener('click', function (e) {
-        var btn = e.target.closest ? e.target.closest('.hand-tile') : null;
-        if (!btn) return;
-        removeTileWithFlash(btn);
-      });
+      bindHandTileInteraction(hostHand);
     }
     var opts = document.getElementById('calc-options');
     if (opts) opts.addEventListener('change', handleOptionsChange);
@@ -1741,7 +2178,17 @@
    * 12. Init
    * ------------------------------------------------------------------ */
 
+  function preventMobileViewportZoom() {
+    ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (eventName) {
+      document.addEventListener(eventName, function (e) {
+        e.preventDefault();
+      });
+    });
+  }
+
   function init() {
+    preventMobileViewportZoom();
+
     var yearEl = document.getElementById('year');
     if (yearEl) yearEl.textContent = new Date().getFullYear();
 
