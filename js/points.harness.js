@@ -1,0 +1,94 @@
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+
+const OPTION_IDS = [
+  'opt-selfdraw',
+  'opt-concealed',
+  'opt-lasttile',
+  'opt-robkong',
+  'opt-kongbloom',
+  'opt-double-kong',
+  'opt-no-flowers',
+  'opt-unlimited',
+];
+
+function createScoringApi() {
+  const checkboxes = {};
+  const selects = {
+    'opt-seat': { value: '1' },
+    'opt-round': { value: '1' },
+  };
+
+  OPTION_IDS.forEach(function (id) {
+    checkboxes[id] = { checked: id === 'opt-no-flowers' };
+  });
+
+  const sandbox = {
+    checkboxes: checkboxes,
+    selects: selects,
+    document: {
+      getElementById: function (id) {
+        if (id === 'opt-seat' || id === 'opt-round') return selects[id];
+        return checkboxes[id] || null;
+      },
+      querySelectorAll: function () { return []; },
+      readyState: 'complete',
+      addEventListener: function () {},
+    },
+    history: { replaceState: function () {} },
+    localStorage: {
+      getItem: function () { return null; },
+      setItem: function () {},
+    },
+    matchMedia: function () { return { matches: true }; },
+    navigator: {
+      clipboard: { writeText: function () { return Promise.resolve(); } },
+    },
+    __POINTS_TEST_API__: null,
+  };
+  sandbox.window = sandbox;
+
+  const source = fs.readFileSync(path.join(__dirname, 'points.js'), 'utf8');
+  const injected = source.replace(
+    '  if (document.readyState === \'loading\') {\n' +
+    '    document.addEventListener(\'DOMContentLoaded\', init);\n' +
+    '  } else {\n' +
+    '    init();\n' +
+    '  }\n' +
+    '})();',
+    '  __POINTS_TEST_API__ = {\n' +
+    '    evaluate: evaluate,\n' +
+    '    setHand: function (tiles, bonusTiles) {\n' +
+    '      hand = tiles || [];\n' +
+    '      flowers = bonusTiles || [];\n' +
+    '    },\n' +
+    '    setOption: function (id, value) {\n' +
+    '      if (id === \'opt-seat\' || id === \'opt-round\') {\n' +
+    '        selects[id].value = String(value);\n' +
+    '        return;\n' +
+    '      }\n' +
+    '      if (checkboxes[id]) checkboxes[id].checked = !!value;\n' +
+    '    },\n' +
+    '    resetOptions: function () {\n' +
+    '      var optionIds = [\n' +
+    '        \'opt-selfdraw\', \'opt-concealed\', \'opt-lasttile\', \'opt-robkong\',\n' +
+    '        \'opt-kongbloom\', \'opt-double-kong\', \'opt-no-flowers\', \'opt-unlimited\'\n' +
+    '      ];\n' +
+    '      optionIds.forEach(function (optionId) {\n' +
+    '        checkboxes[optionId].checked = optionId === \'opt-no-flowers\';\n' +
+    '      });\n' +
+    '      selects[\'opt-seat\'].value = \'1\';\n' +
+    '      selects[\'opt-round\'].value = \'1\';\n' +
+    '    },\n' +
+    '  };\n' +
+    '})();'
+  );
+
+  vm.runInNewContext(injected, sandbox);
+  return sandbox.__POINTS_TEST_API__;
+}
+
+module.exports = { createScoringApi, OPTION_IDS };

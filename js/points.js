@@ -163,7 +163,7 @@
     lastTile: 1,
     robKong: 1,
     kongBloom: 1,
-    doubleKong: 9,
+    doubleKong: 8,
     noFlowers: 1,
     seatFlower: 1,
     seatSeason: 1,
@@ -459,12 +459,19 @@
     return items;
   }
 
+  function concealedTripletsItem(c, ctx) {
+    if (ctx.concealed && isAllTripletsHand(c)) {
+      return { name: 'Concealed Triplets', cn: '門清對對糊', faan: FAAN.allConcealedTriplets };
+    }
+    return null;
+  }
+
   function sevenPairsItems(c, profile, ctx) {
     var items = [{ name: 'Seven Pairs', cn: '七對子', faan: FAAN.sevenPairs }];
     if (profile.numSuits.length === 0 && profile.honors) {
       items.push({ name: 'All Honors', cn: '字一色', faan: FAAN.allHonors });
     } else if (isAllTerminals(c)) {
-      items.push({ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals });
+      return [{ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals }];
     } else if (isMixedTerminals(c)) {
       items.push({ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals });
     }
@@ -486,7 +493,10 @@
 
     var hasFourKongs = bestItems.some(function (i) { return i.name === 'Four Quads'; });
     if (isAllTerminals(c) && !hasFourKongs) {
-      bestItems = [{ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals }].concat(bestItems);
+      var terminalItems = [{ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals }];
+      var ct = concealedTripletsItem(c, ctx);
+      if (ct) terminalItems.push(ct);
+      return terminalItems;
     } else if (isMixedTerminals(c) && !hasFourKongs) {
       bestItems = [{ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals }].concat(bestItems);
     }
@@ -553,7 +563,7 @@
     var allChows = chows.length === 4;
     if (allTriplets && ctx.concealed) {
       items.push({ name: 'Concealed Triplets', cn: '門清對對糊', faan: FAAN.allConcealedTriplets });
-    } else if (allTriplets) {
+    } else if (allTriplets && !(profile.numSuits.length === 0 && profile.honors)) {
       items.push({ name: 'All Triplets', cn: '對對糊', faan: FAAN.allTriplets });
     }
     if (kongs.length === 4) {
@@ -569,11 +579,26 @@
     } else if (dragonPungs.length === 2 && dragonPair) {
       items.push({ name: 'Small Three Dragons', cn: '小三元', faan: FAAN.smallDragons });
     } else {
+      var dragonTripletCount = 0;
+      var dragonQuadCount = 0;
       dragonPungs.forEach(function (m) {
-        var t = TILES.filter(function (x) { return x.suit === 'z' && x.val === m.val; })[0];
-        var kind = m.type === 'kong' ? 'Quad' : 'Triplet';
-        items.push({ name: 'Dragon ' + kind + ' (' + t.name + ')', cn: '箭刻', faan: FAAN.dragonPung });
+        if (m.type === 'kong') dragonQuadCount++;
+        else dragonTripletCount++;
       });
+      if (dragonTripletCount) {
+        items.push({
+          name: 'Dragon Triplet',
+          cn: '箭刻',
+          faan: FAAN.dragonPung * dragonTripletCount,
+        });
+      }
+      if (dragonQuadCount) {
+        items.push({
+          name: 'Dragon Quad',
+          cn: '箭刻',
+          faan: FAAN.dragonPung * dragonQuadCount,
+        });
+      }
     }
 
     // --- Winds ---
@@ -598,6 +623,91 @@
 
   function sumFaan(items) {
     return items.reduce(function (a, b) { return a + b.faan; }, 0);
+  }
+
+  // Limit hands pay limit only — constituent patterns required to form them do not stack.
+  var LIMIT_HAND_NAMES = {
+    'Thirteen Orphans': true,
+    'Nine Gates': true,
+    'Big Four Winds': true,
+    'Four Quads': true,
+    'All Terminals': true,
+    'Eight Immortals Crossing the Sea': true,
+  };
+
+  // Separate achievements that still stack even when a limit hand is present.
+  var LIMIT_STACKABLE = {
+    'Concealed Triplets': true,
+    'All Honors': true,
+    'Big Four Winds': true,
+    'Four Quads': true,
+  };
+
+  var LIMIT_CONSTITUENTS = {
+    'Big Four Winds': [
+      'All Triplets', 'Half Flush', 'Full Flush',
+      'All Sequences', 'Small Four Winds', 'Small Three Dragons', 'Big Three Dragons',
+      'Dragon Triplet', 'Dragon Quad',
+    ],
+    'Four Quads': [
+      'All Triplets', 'Half Flush', 'Full Flush',
+      'All Sequences', 'Small Four Winds', 'Small Three Dragons', 'Big Three Dragons',
+      'Dragon Triplet', 'Dragon Quad',
+    ],
+    'All Terminals': [
+      'All Triplets', 'Mixed Terminals', 'Seven Pairs',
+      'Half Flush', 'Full Flush', 'All Sequences',
+    ],
+    'Thirteen Orphans': [
+      'Mixed Terminals', 'Seven Pairs', 'All Triplets',
+      'Half Flush', 'Full Flush', 'All Sequences',
+    ],
+    'Nine Gates': [
+      'Full Flush', 'All Triplets', 'All Sequences',
+    ],
+  };
+
+  var LIMIT_PREFIX_CONSTITUENTS = {
+    'Big Four Winds': ['Seat Wind ', 'Table Wind ', 'Double Wind '],
+    'Four Quads': ['Seat Wind ', 'Table Wind ', 'Double Wind '],
+  };
+
+  function isLimitHandItem(item) {
+    return item.faan >= LIMIT && LIMIT_HAND_NAMES[item.name];
+  }
+
+  function isConstituentOfLimitHand(item, limitName) {
+    if (LIMIT_STACKABLE[item.name]) return false;
+    var exact = LIMIT_CONSTITUENTS[limitName];
+    if (exact) {
+      for (var i = 0; i < exact.length; i++) {
+        if (item.name === exact[i]) return true;
+      }
+    }
+    var prefixes = LIMIT_PREFIX_CONSTITUENTS[limitName];
+    if (prefixes) {
+      for (var j = 0; j < prefixes.length; j++) {
+        if (item.name.indexOf(prefixes[j]) === 0) return true;
+      }
+    }
+    return false;
+  }
+
+  function applyAllHonorsNoStacking(items) {
+    if (!items.some(function (it) { return it.name === 'All Honors'; })) return items;
+    return items.filter(function (it) { return it.name !== 'All Triplets'; });
+  }
+
+  function applyLimitNoStacking(items) {
+    var limits = items.filter(isLimitHandItem);
+    if (!limits.length) return items;
+    return items.filter(function (item) {
+      if (isLimitHandItem(item)) return true;
+      for (var k = 0; k < limits.length; k++) {
+        if (isConstituentOfLimitHand(item, limits[k].name)) return false;
+      }
+      return true;
+    });
   }
 
   function flowerAutoWinItem() {
@@ -732,6 +842,8 @@
     if (isChickenHand) {
       result.items.unshift({ name: 'Chicken Hand', cn: '雞糊', faan: FAAN.chicken });
     }
+
+    result.items = applyAllHonorsNoStacking(applyLimitNoStacking(result.items));
 
     // Situational add-ons
     result.items = result.items.concat(situationalItems());
@@ -977,7 +1089,7 @@
     if (isNineGates(c)) return FAAN.nineGates;
 
     var patternItems = pickPatternItems(c, profile, ctx);
-    if (patternItems) return sumFaan(patternItems);
+    if (patternItems) return sumFaan(applyAllHonorsNoStacking(applyLimitNoStacking(patternItems)));
 
     return -1;
   }
@@ -1375,7 +1487,7 @@
       hand = ['dr', 'dr', 'dr', 'dg', 'dg', 'dg', 'dw', 'dw', 'dw', 'c2', 'c3', 'c4', 'd5', 'd5'];
     } else if (which === 'allhonors') {
       // All Honors (字一色) — 10 faan
-      hand = ['ws', 'ws', 'ws', 'ww', 'ww', 'ww', 'dr', 'dr', 'dr', 'dg', 'dg', 'dg', 'wn', 'wn'];
+      hand = ['we', 'we', 'we', 'ww', 'ww', 'ww', 'dr', 'dr', 'dr', 'dg', 'dg', 'dg', 'wn', 'wn'];
     } else if (which === 'thirteen') {
       // Thirteen Orphans (limit) — 13 faan
       hand = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'ww', 'wn', 'dg', 'dw', 'dr', 'dr'];
@@ -1384,7 +1496,7 @@
       hand = ['c1', 'c1', 'c1', 'c9', 'c9', 'c9', 'd1', 'd1', 'd1', 'd9', 'd9', 'd9', 'b1', 'b1'];
     } else if (which === 'fourwinds') {
       // Big Four Winds (limit) — 13 faan
-      hand = ['we', 'we', 'we', 'ws', 'ws', 'ws', 'ww', 'ww', 'ww', 'wn', 'wn', 'wn', 'dr', 'dr'];
+      hand = ['we', 'we', 'we', 'ws', 'ws', 'ws', 'ww', 'ww', 'ww', 'wn', 'wn', 'wn', 'c8', 'c8'];
     } else if (which === 'ninegates') {
       // Nine Gates (limit) — 13 faan
       hand = ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'c5', 'c5', 'c6', 'c7', 'c8', 'c9', 'c9', 'c9'];
