@@ -842,7 +842,7 @@
     if (isChickenHand) {
       result.items.unshift({ name: 'Chicken Hand', cn: '雞糊', faan: FAAN.chicken });
     }
-
+    
     result.items = applyAllHonorsNoStacking(applyLimitNoStacking(result.items));
 
     // Situational add-ons
