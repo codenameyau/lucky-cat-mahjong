@@ -6,7 +6,7 @@ const { createScoringApi } = require('./points.harness.js');
 
 const SITUATIONAL = new Set([
   'Self-Draw',
-  'Fully Concealed',
+  'Concealed',
   'Win on Last Tile',
   'Robbing the Kong',
   'Win by Kong',
@@ -189,13 +189,13 @@ describe('Hong Kong mahjong scoring', function () {
       assert.equal(faanFor(result, 'Win by Double Kong'), 8);
     });
 
-    it('does not stack Fully Concealed with Concealed Triplets', function () {
+    it('does not stack Concealed with Concealed Triplets', function () {
       api.setOption('opt-concealed', true);
       api.setHand(HANDS.allTriplets);
       var result = api.evaluate();
 
       assert.ok(result.items.some(function (item) { return item.name === 'Concealed Triplets'; }));
-      assert.ok(!result.items.some(function (item) { return item.name === 'Fully Concealed'; }));
+      assert.ok(!result.items.some(function (item) { return item.name === 'Concealed'; }));
     });
   });
 
