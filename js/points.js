@@ -762,7 +762,7 @@
 
     if (on('opt-selfdraw')) items.push({ name: 'Self-Draw', cn: '自摸', faan: FAAN.selfDraw });
     if (on('opt-concealed') && !isAllTripletsHand(handCounts())) {
-      items.push({ name: 'Fully Concealed', cn: '門前清', faan: FAAN.concealed });
+      items.push({ name: 'Concealed', cn: '門前清', faan: FAAN.concealed });
     }
     if (on('opt-lasttile')) items.push({ name: 'Win on Last Tile', cn: '海底撈月', faan: FAAN.lastTile });
     if (on('opt-robkong')) items.push({ name: 'Robbing the Kong', cn: '搶槓', faan: FAAN.robKong });
