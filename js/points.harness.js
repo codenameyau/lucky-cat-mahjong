@@ -61,6 +61,14 @@ function createScoringApi() {
     '})();',
     '  __POINTS_TEST_API__ = {\n' +
     '    evaluate: evaluate,\n' +
+    '    isValidWinningHandIds: isValidWinningHandIds,\n' +
+    '    patternFaanForIds: patternFaanForIds,\n' +
+    '    buildStandardHand: buildStandardHand,\n' +
+    '    handLengthForMeldPlan: handLengthForMeldPlan,\n' +
+    '    randomStandardHand: randomStandardHand,\n' +
+    '    randomChickenHand: randomChickenHand,\n' +
+    '    randomSequenceHand: randomSequenceHand,\n' +
+    '    randomLimitHand: randomLimitHand,\n' +
     '    setHand: function (tiles, bonusTiles) {\n' +
     '      hand = tiles || [];\n' +
     '      flowers = bonusTiles || [];\n' +
