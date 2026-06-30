@@ -1,62 +1,6 @@
 /* Hong Kong Mahjong Points page — tile components, faan tables, calculator.
    Builds on the shared design tokens defined in styles.css. */
 
-/* ---- Page hero ---- */
-.points-hero {
-  position: relative;
-  padding: 3.5rem 0 2.5rem;
-  text-align: center;
-  overflow: hidden;
-}
-
-.points-hero .hero-bg {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(var(--color-primary-rgb), 0.08) 0%, transparent 70%),
-    radial-gradient(ellipse 60% 50% at 80% 90%, rgba(var(--color-secondary-rgb), 0.12) 0%, transparent 60%);
-  pointer-events: none;
-}
-
-.points-hero-inner {
-  position: relative;
-}
-
-.points-hero h1 {
-  font-size: clamp(1.9rem, 5vw, 2.9rem);
-  color: var(--color-primary);
-  max-width: 18ch;
-  margin: 0 auto 0.75rem;
-}
-
-.points-hero p {
-  color: var(--color-text-muted);
-  font-size: clamp(1rem, 2.4vw, 1.18rem);
-  max-width: 56ch;
-  margin: 0 auto;
-}
-
-.points-toc {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.75rem;
-  justify-content: center;
-  margin-top: 1.75rem;
-}
-
-.points-toc a {
-  display: inline-block;
-  padding: 0.45rem 0.95rem;
-  border-radius: 999px;
-  background: var(--color-surface);
-  border: 1px solid rgba(var(--color-primary-rgb), 0.2);
-  color: var(--color-primary);
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.points-toc a:hover { background: var(--color-primary); color: #fff; text-decoration: none; }
-
 /* ---- Section helpers ---- */
 .points-section { padding: 3rem 0; }
 
@@ -87,6 +31,22 @@
 #tiles .tile-grid {
   grid-template-columns: repeat(auto-fill, minmax(78px, 78px));
   justify-content: start;
+}
+
+#tiles .tile-face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8%;
+}
+
+#tiles .tile-face img {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center center;
+  transform: translateY(-2.5%);
 }
 
 .points-lead {
@@ -174,7 +134,7 @@
 }
 
 .faan-table-wrap {
-  overflow-x: auto;
+  overflow: hidden;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   background: var(--color-surface);
@@ -200,6 +160,26 @@
   font-family: var(--font-body);
   font-weight: 600;
   white-space: nowrap;
+}
+
+.faan-table th:first-child {
+  border-radius: var(--radius) 0 0 0;
+}
+
+.faan-table th:last-child {
+  border-radius: 0 var(--radius) 0 0;
+}
+
+.faan-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.faan-table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: var(--radius);
+}
+
+.faan-table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: var(--radius);
 }
 
 .faan-table td:first-child,
@@ -880,7 +860,7 @@
 .result-below { color: var(--color-text-muted); font-style: italic; }
 
 .calc-disclaimer {
-  margin-top: 1.5rem;
+  margin-top: 2.2rem;
   text-align: center;
   font-size: 0.88rem;
   color: var(--color-text-muted);
@@ -961,10 +941,6 @@
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.04);
   }
 
-  .faan-table-wrap {
-    overflow-x: visible;
-  }
-
   .faan-table {
     font-size: 0.84rem;
     table-layout: fixed;
@@ -1026,6 +1002,11 @@
   }
   #tiles .tile-cap-name { font-size: 0.72rem; }
   #tiles .tile-cap-mark { font-size: 0.85rem; }
+  #tiles .tile-face {
+    padding: 8%;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+  }
+  #tiles .tile-face img { object-position: center center; }
   .tile-face {
     padding: 10% 8% 5% 8%;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.04);
