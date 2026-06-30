@@ -15,6 +15,7 @@
   --shadow-lg: 0 12px 48px rgba(var(--color-primary-rgb), 0.12);
   --max-width: 1100px;
   --header-height: 64px;
+  --mobile-bar-offset: 0px;
 }
 
 section[id] {
@@ -90,12 +91,27 @@ h1, h2, h3 {
 }
 
 .hero-logo,
+.header-logo,
 .footer-logo {
   display: block;
   width: auto;
   height: auto;
   max-width: 100%;
   object-fit: contain;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  user-drag: none;
+  -webkit-touch-callout: none;
+  pointer-events: none;
+}
+
+.hero picture,
+.header-brand picture,
+.footer-brand picture {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .hero-logo {
@@ -193,9 +209,21 @@ h1, h2, h3 {
 }
 
 .icon {
+  display: block;
   width: 1.15em;
   height: 1.15em;
   fill: currentColor;
+  flex-shrink: 0;
+}
+
+.btn .icon,
+.mobile-bar-btn .icon {
+  width: 1.5em;
+  height: 1.5em;
+}
+
+.icon-instagram {
+  overflow: visible;
 }
 
 /* Sections */
@@ -599,9 +627,9 @@ h1, h2, h3 {
   text-decoration: none;
 }
 
-.header-ig .icon {
-  width: 1.2em;
-  height: 1.2em;
+.header-ig .icon-instagram {
+  width: 1.65em;
+  height: 1.65em;
 }
 
 .btn-sm {
@@ -818,11 +846,6 @@ h1, h2, h3 {
   color: var(--color-primary);
 }
 
-.mobile-bar-btn .icon {
-  width: 1.1em;
-  height: 1.1em;
-}
-
 /* Toast */
 .toast {
   position: fixed;
@@ -899,8 +922,16 @@ h1, h2, h3 {
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
   }
 
-  .toast {
-    bottom: 84px;
+  body:has(.mobile-bar) {
+    --mobile-bar-offset: calc(5rem + env(safe-area-inset-bottom, 0));
+  }
+
+  body:has(.mobile-bar) .site-footer {
+    padding-bottom: calc(2.5rem + var(--mobile-bar-offset));
+  }
+
+  body:has(.mobile-bar) .toast {
+    bottom: calc(var(--mobile-bar-offset) + 12px);
   }
 }
 
