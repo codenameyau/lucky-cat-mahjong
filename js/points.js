@@ -481,7 +481,7 @@
     // --- Meld shape ---
     var allTriplets = triplets.length === 4;
     var allChows = chows.length === 4;
-    if (allTriplets && ctx.concealed && kongs.length < 4) {
+    if (allTriplets && ctx.concealed) {
       items.push({ name: 'Concealed Triplets', cn: '門清對對糊', faan: FAAN.allConcealedTriplets });
     } else if (allTriplets) {
       items.push({ name: 'All Triplets', cn: '對對糊', faan: FAAN.allTriplets });
