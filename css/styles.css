@@ -17,9 +17,8 @@
   --header-height: 64px;
 }
 
-section[id],
-main[id] {
-  scroll-margin-top: calc(var(--header-height) + 12px);
+section[id] {
+  scroll-margin-top: var(--header-height);
 }
 
 *, *::before, *::after {
