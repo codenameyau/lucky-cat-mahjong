@@ -2,7 +2,7 @@
 <html lang="en-US">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Hong Kong Mahjong Points and Faan Explained | Lucky Cat Mahjong</title>
   <meta name="description" content="Learn points and faan in Hong Kong mahjong with a free points calculator.">
   <meta name="keywords" content="hong kong mahjong, hong kong mahjong points, hong kong mahjong rules, hong kong mahjong points calculator, hk mahjong, hk mahjong points, hk mahjong rules, hk mahjong points calculator, mahjong faan, mahjong scoring, how to score mahjong, mahjong points calculator, mahjong special hands, mahjong limit hands, faan list, learn mahjong scoring, learn hong kong mahjong, mahjong tiles guide, hong kong mahjong tutorial, mahjong tutorial, mahjong, mahjong points, mahjong faan">
@@ -145,79 +145,88 @@
       <div class="container">
         <div class="section-intro">
           <h2 class="section-heading">Interactive Points Calculator</h2>
-          <p class="section-subheading">Build a hand, select the situational bonuses, and see the points instantly</p>
         </div>
 
         <div class="calc">
           <div class="calc-left">
-            <div class="calc-card">
+            <div class="calc-card calc-bonuses">
               <div class="calc-card-head">
-                <h3>Situational Bonuses</h3>
+                <h3>Situational Points</h3>
                 <button type="button" id="calc-reset-options" class="calc-reset">Reset</button>
               </div>
               <form id="calc-options" class="calc-options">
-                <div class="opt-checks">
-                  <label class="opt-check"><input type="checkbox" id="opt-selfdraw"><span>Self-draw <span class="opt-cn">(自摸)</span></span></label>
-                  <label class="opt-check"><input type="checkbox" id="opt-concealed"><span>Concealed <span class="opt-cn">(門前清)</span></span></label>
-                  <label class="opt-check"><input type="checkbox" id="opt-lasttile"><span>Win on last tile <span class="opt-cn">(海底撈月)</span></span></label>
-                  <label class="opt-check"><input type="checkbox" id="opt-robkong"><span>Robbing the kong <span class="opt-cn">(搶槓)</span></span></label>
-                  <label class="opt-check"><input type="checkbox" id="opt-kongbloom"><span>Win by kong <span class="opt-cn">(槓上開花)</span></span></label>
-                  <label class="opt-check"><input type="checkbox" id="opt-double-kong"><span>Win by double kong <span class="opt-cn">(槓上槓)</span></span></label>
-                  <label class="opt-check"><input type="checkbox" id="opt-no-flowers" checked><span>No flowers <span class="opt-cn">(無花)</span></span></label>
-                  <label class="opt-check"><input type="checkbox" id="opt-unlimited"><span>Unlimited faan (不設番頂)</span></label>
-                </div>
-                <div class="opt-selects">
-                  <label class="opt-select">Seat wind
-                    <select id="opt-seat">
-                      <option value="1" selected>East 東</option>
-                      <option value="2">South 南</option>
-                      <option value="3">West 西</option>
-                      <option value="4">North 北</option>
-                    </select>
-                  </label>
-                  <label class="opt-select">Table wind
-                    <select id="opt-round">
-                      <option value="1" selected>East 東</option>
-                      <option value="2">South 南</option>
-                      <option value="3">West 西</option>
-                      <option value="4">North 北</option>
-                    </select>
-                  </label>
-                </div>
+                <table class="calc-options-table">
+                  <tbody>
+                    <tr>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-selfdraw"><span>Self-draw</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-concealed"><span>Concealed</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-lasttile"><span>Win on last tile</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-robkong"><span>Robbing the kong</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-kongbloom"><span>Win by kong</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-double-kong"><span>Win by double kong</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-no-flowers" checked><span>No flowers</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-unlimited"><span>Unlimited faan</span></label></td>
+                    </tr>
+                    <tr class="calc-options-winds">
+                      <td>
+                        <label class="opt-select opt-select--inline">Seat wind
+                          <select id="opt-seat">
+                            <option value="1" selected>East</option>
+                            <option value="2">South</option>
+                            <option value="3">West</option>
+                            <option value="4">North</option>
+                          </select>
+                        </label>
+                      </td>
+                      <td>
+                        <label class="opt-select opt-select--inline">Table wind
+                          <select id="opt-round">
+                            <option value="1" selected>East</option>
+                            <option value="2">South</option>
+                            <option value="3">West</option>
+                            <option value="4">North</option>
+                          </select>
+                        </label>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </form>
             </div>
 
-            <div class="calc-card" style="margin-top:1.25rem;">
+            <div class="calc-card">
               <div class="calc-card-head">
-                <h3>Your Hand</h3>
+                <h3>Hand</h3>
                 <div class="calc-card-actions">
                   <button type="button" id="calc-random" class="calc-reset">Random</button>
                   <button type="button" id="calc-reset" class="calc-reset">Reset</button>
-                  <button type="button" id="calc-share" class="calc-reset">Share</button>
+                  <button type="button" id="calc-share" class="calc-reset">Share Hand</button>
                 </div>
               </div>
               <div id="calc-hand" class="calc-hand"></div>
               <div id="calc-result" class="calc-result"></div>
-              <div class="calc-controls">
-                <button type="button" data-example="chicken">Chicken</button>
+            </div>
+          </div>
+
+          <div class="calc-right">
+            <div class="calc-card">
+              <div class="calc-card-head">
+                <h3>Add Tiles To Hand</h3>
+                <button type="button" id="calc-toggle-examples" class="calc-reset" aria-expanded="true" aria-controls="calc-examples">Hide Examples</button>
+              </div>
+              <div id="calc-examples" class="calc-controls">
                 <button type="button" data-example="sequence">Sequence</button>
                 <button type="button" data-example="halfflush">Half Flush</button>
                 <button type="button" data-example="alltriplets">All Triplets</button>
                 <button type="button" data-example="sevenpairs">Seven Pairs</button>
                 <button type="button" data-example="fullflush">Full Flush</button>
-                <button type="button" data-example="threedragons">Three Dragons</button>
-                <button type="button" data-example="allhonors">All Honors</button>
                 <button type="button" data-example="thirteen">13 Orphans</button>
                 <button type="button" data-example="allterminals">All Terminals</button>
                 <button type="button" data-example="fourwinds">Four Winds</button>
                 <button type="button" data-example="ninegates">Nine Gates</button>
               </div>
+              <div id="calc-palette"></div>
             </div>
-          </div>
-
-          <div class="calc-card">
-            <h3>Add Tiles To Your Hand</h3>
-            <div id="calc-palette"></div>
           </div>
         </div>
 

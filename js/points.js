@@ -211,6 +211,8 @@
   var hand = []; // array of suited/honor tile ids (max 18)
   var flowers = []; // array of flower/season tile ids
   var activeExample = null;
+  var pendingHandHighlight = null; // { id, isFlower } — brief add animation in hand area
+  var handHighlightTimer = null;
   var HAND_URL_DELIM = '-';
   var OPT_URL_DELIM = '-';
   var OPT_QUERY_KEYS = {
@@ -419,6 +421,7 @@
   }
 
   function isSevenPairs(c) {
+    // Valid as seven pairs when no better standard parse is chosen.
     var total = 0;
     var pairs = 0;
     var suits = ['c', 'd', 'b', 'z'];
@@ -434,6 +437,73 @@
       }
     }
     return total === 14 && pairs === 7;
+  }
+
+  function sevenPairsWindItems(c, ctx) {
+    var items = [];
+    for (var val = 1; val <= 4; val++) {
+      var n = c.z[val];
+      if (n !== 2 && n !== 4) continue;
+      var kind = n === 4 ? 'Quad' : 'Pair';
+      if (val === ctx.seat && val === ctx.round && ctx.seat > 0) {
+        items.push({ name: 'Double Wind ' + kind, cn: '門風圈風', faan: FAAN.yakuWind * 2 });
+      } else {
+        if (val === ctx.seat && ctx.seat > 0) {
+          items.push({ name: 'Seat Wind ' + kind, cn: '門風', faan: FAAN.yakuWind });
+        }
+        if (val === ctx.round && ctx.round > 0) {
+          items.push({ name: 'Table Wind ' + kind, cn: '圈風', faan: FAAN.yakuWind });
+        }
+      }
+    }
+    return items;
+  }
+
+  function sevenPairsItems(c, profile, ctx) {
+    var items = [{ name: 'Seven Pairs', cn: '七對子', faan: FAAN.sevenPairs }];
+    if (profile.numSuits.length === 0 && profile.honors) {
+      items.push({ name: 'All Honors', cn: '字一色', faan: FAAN.allHonors });
+    } else if (isAllTerminals(c)) {
+      items.push({ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals });
+    } else if (isMixedTerminals(c)) {
+      items.push({ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals });
+    }
+    items = items.concat(sevenPairsWindItems(c, ctx));
+    return items;
+  }
+
+  function bestStandardItems(c, profile, ctx) {
+    var parses = winningParses(c);
+    if (!parses.length) return null;
+
+    var bestItems = null;
+    var bestFaan = -1;
+    for (var i = 0; i < parses.length; i++) {
+      var its = evalParse(parses[i], profile, ctx);
+      var f = sumFaan(its);
+      if (f > bestFaan) { bestFaan = f; bestItems = its; }
+    }
+
+    var hasFourKongs = bestItems.some(function (i) { return i.name === 'Four Quads'; });
+    if (isAllTerminals(c) && !hasFourKongs) {
+      bestItems = [{ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals }].concat(bestItems);
+    } else if (isMixedTerminals(c) && !hasFourKongs) {
+      bestItems = [{ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals }].concat(bestItems);
+    }
+    return bestItems;
+  }
+
+  // Prefer standard 4-set parses when faan ties; seven pairs wins only if it scores higher.
+  function pickPatternItems(c, profile, ctx) {
+    var standardItems = bestStandardItems(c, profile, ctx);
+    var sevenItems = isSevenPairs(c) ? sevenPairsItems(c, profile, ctx) : null;
+
+    if (standardItems && sevenItems) {
+      return sumFaan(sevenItems) > sumFaan(standardItems) ? sevenItems : standardItems;
+    }
+    if (standardItems) return standardItems;
+    if (sevenItems) return sevenItems;
+    return null;
   }
 
   /* ------------------------------------------------------------------ *
@@ -613,7 +683,7 @@
     var ctx = ctxFromUI();
     var profile = suitProfile(c);
 
-    var result = { valid: false, items: [], faan: 0, points: null, message: '' };
+    var result = { valid: false, items: [], faan: 0, points: null };
 
     var flowerWin = flowerAutoWinItem();
 
@@ -625,60 +695,29 @@
         result.points = faanToPoints(result.faan);
         return result;
       }
-      if (flowers.length) {
-        result.message = 'You have ' + flowers.length + ' flower/season tile' +
-          (flowers.length === 1 ? '' : 's') +
-          '. Collect 7 for Seven Robbing One or all 8 for an automatic win with Eight Immortals Crossing the Sea.';
-      } else {
-        result.message = '';
-      }
       return result;
     }
 
-    // Special hands first
+    // Special hands first; otherwise pick the best standard or seven-pairs score
     if (isThirteenOrphans(c)) {
       result.valid = true;
       result.items = [{ name: 'Thirteen Orphans', cn: '十三么', faan: FAAN.thirteenOrphans }];
     } else if (isNineGates(c)) {
       result.valid = true;
       result.items = [{ name: 'Nine Gates', cn: '九蓮寶燈', faan: FAAN.nineGates }];
-    } else if (isSevenPairs(c)) {
-      result.valid = true;
-      result.items = [{ name: 'Seven Pairs', cn: '七對子', faan: FAAN.sevenPairs }];
-      if (profile.numSuits.length === 0 && profile.honors) {
-        result.items.push({ name: 'All Honors', cn: '字一色', faan: FAAN.allHonors });
-      } else if (isAllTerminals(c)) {
-        result.items.push({ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals });
-      } else if (isMixedTerminals(c)) {
-        result.items.push({ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals });
-      }
     } else {
-      var parses = winningParses(c);
-      if (parses.length === 0) {
-        if (flowerWin) {
-          result.valid = true;
-          result.items = [flowerWin].concat(situationalItems());
-          result.faan = capFaan(sumFaan(result.items));
-          result.points = faanToPoints(result.faan);
-          return result;
-        }
-        result.message = 'Not a complete winning hand yet.';
+      var patternItems = pickPatternItems(c, profile, ctx);
+      if (patternItems) {
+        result.valid = true;
+        result.items = patternItems;
+      } else if (flowerWin) {
+        result.valid = true;
+        result.items = [flowerWin].concat(situationalItems());
+        result.faan = capFaan(sumFaan(result.items));
+        result.points = faanToPoints(result.faan);
         return result;
-      }
-      // pick the parse with the highest faan
-      var best = null, bestItems = null, bestFaan = -1;
-      for (var i = 0; i < parses.length; i++) {
-        var its = evalParse(parses[i], profile, ctx);
-        var f = sumFaan(its);
-        if (f > bestFaan) { bestFaan = f; best = parses[i]; bestItems = its; }
-      }
-      result.valid = true;
-      var hasFourKongs = bestItems.some(function (i) { return i.name === 'Four Quads'; });
-      result.items = bestItems;
-      if (isAllTerminals(c) && !hasFourKongs) {
-        result.items.unshift({ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals });
-      } else if (isMixedTerminals(c) && !hasFourKongs) {
-        result.items.unshift({ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals });
+      } else {
+        return result;
       }
     }
 
@@ -712,9 +751,8 @@
     var groups = [
       { title: 'Characters', ids: ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9'] },
       { title: 'Circles', ids: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9'] },
-      { title: 'Bamboo', ids: ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9'] },
-      { title: 'Winds', ids: ['we', 'ws', 'ww', 'wn'] },
-      { title: 'Dragons', ids: ['dr', 'dg', 'dw'] },
+      { title: 'Bamboos', ids: ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9'] },
+      { title: 'Honors', ids: ['we', 'ws', 'ww', 'wn', 'dr', 'dg', 'dw'] },
       { title: 'Flowers & Seasons', ids: ['f1', 'f2', 'f3', 'f4', 's1', 's2', 's3', 's4'] },
     ];
 
@@ -733,26 +771,73 @@
     host.addEventListener('click', function (e) {
       var btn = e.target.closest ? e.target.closest('.palette-tile') : null;
       if (!btn) return;
-      addTile(btn.getAttribute('data-id'));
+      var added = addTile(btn.getAttribute('data-id'));
+      flashPaletteTile(btn, added);
     });
+  }
+
+  function flashPaletteTile(btn, added) {
+    flashControlButton(btn, added ? 'success' : 'rejected');
+  }
+
+  function flashControlButton(btn, outcome) {
+    if (!btn) return;
+    var ok = outcome !== 'rejected';
+    btn.classList.remove('is-flash-success', 'is-flash-rejected');
+    void btn.offsetWidth;
+    btn.classList.add(ok ? 'is-flash-success' : 'is-flash-rejected');
+    clearTimeout(btn._flashTimer);
+    btn._flashTimer = setTimeout(function () {
+      btn.classList.remove('is-flash-success', 'is-flash-rejected');
+    }, ok ? 450 : 480);
+  }
+
+  function removeTileWithFlash(btn) {
+    if (!btn || btn.classList.contains('is-removing')) return;
+    btn.classList.add('is-removing');
+    btn.disabled = true;
+    var delay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 90 : 260;
+    clearTimeout(btn._removeTimer);
+    btn._removeTimer = setTimeout(function () {
+      removeTile(btn.getAttribute('data-id'), btn.getAttribute('data-flower') === '1');
+    }, delay);
+  }
+
+  function scheduleHandHighlightClear() {
+    clearTimeout(handHighlightTimer);
+    handHighlightTimer = setTimeout(function () {
+      pendingHandHighlight = null;
+      document.querySelectorAll('.hand-tile.is-just-added').forEach(function (el) {
+        el.classList.remove('is-just-added');
+      });
+    }, 480);
   }
 
   function addTile(id) {
     var t = TILE_BY_ID[id];
-    if (!t) return;
+    if (!t) return false;
     if (t.suit === 'f' || t.suit === 's') {
-      if (flowers.indexOf(id) !== -1) return; // one of each bonus tile
-      if (flowers.length >= 8) return;
+      if (flowers.indexOf(id) !== -1) return false;
+      if (flowers.length >= 8) return false;
       flowers.push(id);
       var noFlowers = document.getElementById('opt-no-flowers');
       if (noFlowers) noFlowers.checked = false;
+      pendingHandHighlight = { id: id, isFlower: true };
     } else {
-      if (tileCount(id) >= 4) return;
-      if (hand.length >= 18) return;
+      if (tileCount(id) >= 4) return false;
+      if (hand.length >= 18) return false;
       hand.push(id);
+      pendingHandHighlight = { id: id, isFlower: false };
     }
     clearActiveExample();
     update();
+    scheduleHandHighlightClear();
+    return true;
+  }
+
+  function clearHandHighlight() {
+    pendingHandHighlight = null;
+    clearTimeout(handHighlightTimer);
   }
 
   function removeTile(id, isFlower) {
@@ -764,21 +849,32 @@
       if (hi !== -1) hand.splice(hi, 1);
     }
     clearActiveExample();
+    clearHandHighlight();
     update();
   }
 
-  function renderHand() {
+  function renderHand(res) {
     var host = document.getElementById('calc-hand');
     if (!host) return;
 
     var countLabel = hand.length + ' tile' + (hand.length === 1 ? '' : 's');
-    var pieces = hand.map(function (id) {
+    if (hand.length && res && !res.valid) {
+      countLabel += ' (incomplete hand)';
+    }
+    var highlightHandIndex = -1;
+    if (pendingHandHighlight && !pendingHandHighlight.isFlower) {
+      highlightHandIndex = hand.lastIndexOf(pendingHandHighlight.id);
+    }
+    var pieces = hand.map(function (id, index) {
       var t = TILE_BY_ID[id];
-      return '<button type="button" class="hand-tile" data-id="' + id + '" data-flower="0" aria-label="Remove ' + t.name + '">' + tileImg(t) + '</button>';
+      var cls = 'hand-tile' + (index === highlightHandIndex ? ' is-just-added' : '');
+      return '<button type="button" class="' + cls + '" data-id="' + id + '" data-flower="0" aria-label="Remove ' + t.name + '">' + tileImg(t) + '</button>';
     });
     var flowerPieces = flowers.map(function (id) {
       var t = TILE_BY_ID[id];
-      return '<button type="button" class="hand-tile is-flower" data-id="' + id + '" data-flower="1" aria-label="Remove ' + t.name + '">' + tileImg(t) + '</button>';
+      var justAdded = pendingHandHighlight && pendingHandHighlight.isFlower && pendingHandHighlight.id === id;
+      var cls = 'hand-tile is-flower' + (justAdded ? ' is-just-added' : '');
+      return '<button type="button" class="' + cls + '" data-id="' + id + '" data-flower="1" aria-label="Remove ' + t.name + '">' + tileImg(t) + '</button>';
     });
 
     var html = '<div class="hand-meta"><span>' + countLabel + '</span>';
@@ -787,7 +883,7 @@
 
     html += '<div class="hand-body">';
     if (!hand.length && !flowers.length) {
-      html += '<p class="hand-placeholder">Click an example or add tiles to make a hand and see its score</p>';
+      html += '<p class="hand-placeholder">Click an example, random, or add tiles to make a hand and see its score</p>';
     } else {
       html += '<div class="hand-tiles">' + pieces.join('') + flowerPieces.join('') + '</div>';
     }
@@ -800,9 +896,7 @@
     if (!host) return;
 
     if (!res.valid) {
-      host.innerHTML = res.message
-        ? '<p class="result-note">' + res.message + '</p>'
-        : '';
+      host.innerHTML = '';
       return;
     }
 
@@ -828,8 +922,9 @@
   }
 
   function update() {
-    renderHand();
-    renderResult(evaluate());
+    var res = evaluate();
+    renderHand(res);
+    renderResult(res);
   }
 
   var PLAYABLE_IDS = TILES.filter(function (t) {
@@ -866,8 +961,9 @@
   function isValidWinningHandIds(ids) {
     if (ids.length !== 14) return false;
     var c = countsFromIds(ids);
-    if (isSevenPairs(c)) return true;
-    return winningParses(c).length > 0;
+    if (isThirteenOrphans(c) || isNineGates(c)) return true;
+    if (winningParses(c).length > 0) return true;
+    return isSevenPairs(c);
   }
 
   function patternFaanForIds(ids) {
@@ -877,30 +973,11 @@
 
     if (isThirteenOrphans(c)) return FAAN.thirteenOrphans;
     if (isNineGates(c)) return FAAN.nineGates;
-    if (isSevenPairs(c)) {
-      var faan = FAAN.sevenPairs;
-      if (profile.numSuits.length === 0 && profile.honors) faan += FAAN.allHonors;
-      else if (isAllTerminals(c)) faan += FAAN.allTerminals;
-      else if (isMixedTerminals(c)) faan += FAAN.mixedTerminals;
-      return faan;
-    }
 
-    var parses = winningParses(c);
-    if (!parses.length) return -1;
+    var patternItems = pickPatternItems(c, profile, ctx);
+    if (patternItems) return sumFaan(patternItems);
 
-    var bestFaan = -1;
-    var bestItems = null;
-    for (var i = 0; i < parses.length; i++) {
-      var its = evalParse(parses[i], profile, ctx);
-      var f = sumFaan(its);
-      if (f > bestFaan) { bestFaan = f; bestItems = its; }
-    }
-
-    var hasFourKongs = bestItems && bestItems.some(function (i) { return i.name === 'Four Quads'; });
-    if (isAllTerminals(c) && !hasFourKongs) return bestFaan + FAAN.allTerminals;
-    if (isMixedTerminals(c) && !hasFourKongs) return bestFaan + FAAN.mixedTerminals;
-
-    return bestFaan;
+    return -1;
   }
 
   function randomThirteenOrphans() {
@@ -1003,8 +1080,9 @@
     hand = [];
     flowers = [];
     clearActiveExample();
+    clearHandHighlight();
 
-    if (Math.random() < 0.05) {
+    if (Math.random() < 0.15) {
       var limitHand = randomLimitHand();
       if (limitHand && isValidWinningHandIds(limitHand)) {
         hand = limitHand;
@@ -1039,6 +1117,7 @@
     var noFlowers = document.getElementById('opt-no-flowers');
     if (noFlowers) noFlowers.checked = true;
     clearActiveExample();
+    clearHandHighlight();
     update();
   }
 
@@ -1209,25 +1288,38 @@
     });
   }
 
+  function resetShareButton(btn) {
+    if (!btn) return;
+    clearTimeout(btn._shareResetTimer);
+    btn.disabled = false;
+    btn.textContent = 'Share Hand';
+  }
+
   function shareHand() {
     var btn = document.getElementById('calc-share');
-    var label = btn ? btn.textContent : 'Share';
+    if (!btn || btn.disabled) return;
+
+    clearTimeout(btn._shareResetTimer);
+    btn.disabled = true;
+
     var url = buildShareUrl();
     history.replaceState(null, '', url);
     copyText(url).then(function () {
-      if (!btn) return;
+      flashControlButton(btn, 'success');
       btn.textContent = 'Copied Link';
-      setTimeout(function () { btn.textContent = label; }, 1500);
+      btn._shareResetTimer = setTimeout(function () { resetShareButton(btn); }, 1200);
     }).catch(function () {
-      if (!btn) return;
+      flashControlButton(btn, 'rejected');
       btn.textContent = 'Copy failed';
-      setTimeout(function () { btn.textContent = label; }, 1500);
+      btn._shareResetTimer = setTimeout(function () { resetShareButton(btn); }, 1200);
     });
   }
 
   function handleOptionsChange(e) {
     var target = e && e.target;
     if (target && target.type === 'checkbox') {
+      var label = target.closest ? target.closest('.opt-check') : null;
+      if (label) flashControlButton(label, 'success');
       if (KONG_WIN_OPTS.indexOf(target.id) !== -1 && target.checked) {
         KONG_WIN_OPTS.forEach(function (id) {
           if (id === target.id) return;
@@ -1256,6 +1348,7 @@
   function loadExample(which) {
     hand = [];
     flowers = [];
+    clearHandHighlight();
 
     if (which === 'chicken') {
       // Chicken (雞糊): valid win with no scoring patterns — 0 faan
@@ -1304,27 +1397,62 @@
       hostHand.addEventListener('click', function (e) {
         var btn = e.target.closest ? e.target.closest('.hand-tile') : null;
         if (!btn) return;
-        removeTile(btn.getAttribute('data-id'), btn.getAttribute('data-flower') === '1');
+        removeTileWithFlash(btn);
       });
     }
     var opts = document.getElementById('calc-options');
     if (opts) opts.addEventListener('change', handleOptionsChange);
 
     var randomBtn = document.getElementById('calc-random');
-    if (randomBtn) randomBtn.addEventListener('click', generateRandomHand);
+    if (randomBtn) {
+      randomBtn.addEventListener('click', function () {
+        generateRandomHand();
+        flashControlButton(randomBtn);
+      });
+    }
 
     var reset = document.getElementById('calc-reset');
-    if (reset) reset.addEventListener('click', resetHand);
+    if (reset) {
+      reset.addEventListener('click', function () {
+        resetHand();
+        flashControlButton(reset);
+      });
+    }
 
     var shareBtn = document.getElementById('calc-share');
     if (shareBtn) shareBtn.addEventListener('click', shareHand);
 
     var resetOptions = document.getElementById('calc-reset-options');
-    if (resetOptions) resetOptions.addEventListener('click', resetBonuses);
+    if (resetOptions) {
+      resetOptions.addEventListener('click', function () {
+        resetBonuses();
+        flashControlButton(resetOptions);
+      });
+    }
 
     document.querySelectorAll('[data-example]').forEach(function (b) {
-      b.addEventListener('click', function () { loadExample(b.getAttribute('data-example')); });
+      b.addEventListener('click', function () {
+        loadExample(b.getAttribute('data-example'));
+        flashControlButton(b);
+      });
     });
+
+    var toggleExamples = document.getElementById('calc-toggle-examples');
+    var examplesPanel = document.getElementById('calc-examples');
+    if (toggleExamples && examplesPanel) {
+      function setExamplesVisible(show) {
+        examplesPanel.hidden = !show;
+        examplesPanel.classList.toggle('is-hidden', !show);
+        toggleExamples.textContent = show ? 'Hide Examples' : 'Show Examples';
+        toggleExamples.setAttribute('aria-expanded', show ? 'true' : 'false');
+      }
+
+      toggleExamples.addEventListener('click', function () {
+        setExamplesVisible(examplesPanel.hidden);
+      });
+
+      setExamplesVisible(true);
+    }
   }
 
   /* ------------------------------------------------------------------ *
