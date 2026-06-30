@@ -142,6 +142,7 @@
     chicken: 0,
     allSequences: 1,
     allTriplets: 3,
+    allConcealedTriplets: 8,
     sevenPairs: 4,
     halfFlush: 3,
     fullFlush: 7,
@@ -154,6 +155,7 @@
     nineGates: LIMIT,
     allKongs: LIMIT,
     allTerminals: LIMIT,
+    mixedTerminals: 4,
     dragonPung: 1,
     yakuWind: 1,
     selfDraw: 1,
@@ -310,12 +312,23 @@
     return parses;
   }
 
+  function isAllTripletsHand(c) {
+    var parses = winningParses(c);
+    for (var i = 0; i < parses.length; i++) {
+      var melds = parses[i].melds;
+      if (melds.length === 4 && melds.every(function (m) { return m.type === 'pung' || m.type === 'kong'; })) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /* ------------------------------------------------------------------ *
    * 6. Special hands (checked before normal decomposition)
    * ------------------------------------------------------------------ */
 
   function isAllTerminals(c) {
-    // 清老头 — only 1s and 9s; no honors, no simple tiles (2–8)
+    // 清老头 — only 1s and 9s; no honors, no suited tiles (2–8)
     if (c.z.reduce(function (a, b) { return a + b; }, 0) !== 0) return false;
     var numSuits = ['m', 'p', 's'];
     for (var si = 0; si < numSuits.length; si++) {
@@ -327,6 +340,22 @@
     return numSuits.some(function (su) {
       return c[su][1] > 0 || c[su][9] > 0;
     });
+  }
+
+  function isMixedTerminals(c) {
+    // 混老头 — every tile is a 1, 9, or honor; must include both terminals and honors
+    var numSuits = ['m', 'p', 's'];
+    for (var si = 0; si < numSuits.length; si++) {
+      var su = numSuits[si];
+      for (var v = 2; v <= 8; v++) {
+        if (c[su][v] > 0) return false;
+      }
+    }
+    var hasHonor = c.z.reduce(function (a, b) { return a + b; }, 0) > 0;
+    var hasTerminal = numSuits.some(function (su) {
+      return c[su][1] > 0 || c[su][9] > 0;
+    });
+    return hasHonor && hasTerminal;
   }
 
   function isThirteenOrphans(c) {
@@ -459,7 +488,9 @@
     // --- Meld shape ---
     var allTriplets = triplets.length === 4;
     var allChows = chows.length === 4;
-    if (allTriplets && !(profile.numSuits.length === 0 && profile.honors)) {
+    if (allTriplets && ctx.concealed && kongs.length < 4) {
+      items.push({ name: 'Concealed Triplets', cn: '門清對對糊', faan: FAAN.allConcealedTriplets });
+    } else if (allTriplets) {
       items.push({ name: 'All Triplets', cn: '對對糊', faan: FAAN.allTriplets });
     }
     if (kongs.length === 4) {
@@ -508,8 +539,8 @@
 
   function flowerAutoWinItem() {
     var n = flowers.length;
-    if (n >= 8) return { name: 'Eight Flowers', cn: '八花', faan: FAAN.eightFlowers };
-    if (n >= 7) return { name: 'Seven Flowers', cn: '七花', faan: FAAN.sevenFlowers };
+    if (n >= 8) return { name: 'Eight Immortals Crossing the Sea', cn: '八仙過海', faan: FAAN.eightFlowers };
+    if (n >= 7) return { name: 'Seven Robbing One', cn: '七搶一', faan: FAAN.sevenFlowers };
     return null;
   }
 
@@ -529,6 +560,7 @@
       return items;
     }
     if (!flowers.length) return items;
+    if (flowers.length >= 7) return items; // Seven Robbing One / Eight Immortals — exclusive
 
     var allFlowers = FLOWER_IDS.every(hasBonus);
     var allSeasons = SEASON_IDS.every(hasBonus);
@@ -556,13 +588,15 @@
     var ctx = ctxFromUI();
 
     if (on('opt-selfdraw')) items.push({ name: 'Self-Draw', cn: '自摸', faan: FAAN.selfDraw });
-    if (on('opt-concealed')) items.push({ name: 'Fully Concealed', cn: '門前清', faan: FAAN.concealed });
+    if (on('opt-concealed') && !isAllTripletsHand(handCounts())) {
+      items.push({ name: 'Fully Concealed', cn: '門前清', faan: FAAN.concealed });
+    }
     if (on('opt-lasttile')) items.push({ name: 'Win on Last Tile', cn: '海底撈月', faan: FAAN.lastTile });
     if (on('opt-robkong')) items.push({ name: 'Robbing the Kong', cn: '搶槓', faan: FAAN.robKong });
     if (on('opt-double-kong')) {
-      items.push({ name: 'Win on Double Kong', cn: '槓上槓', faan: FAAN.doubleKong });
+      items.push({ name: 'Win by Double Kong', cn: '槓上槓', faan: FAAN.doubleKong });
     } else if (on('opt-kongbloom')) {
-      items.push({ name: 'Win on Kong Replacement', cn: '槓上開花', faan: FAAN.kongBloom });
+      items.push({ name: 'Win by Kong', cn: '槓上開花', faan: FAAN.kongBloom });
     }
 
     items = items.concat(flowerBonusItems(ctx.seat));
@@ -572,7 +606,8 @@
   function ctxFromUI() {
     var seat = parseInt((document.getElementById('opt-seat') || {}).value || '1', 10);
     var round = parseInt((document.getElementById('opt-round') || {}).value || '1', 10);
-    return { seat: seat, round: round };
+    var concealedEl = document.getElementById('opt-concealed');
+    return { seat: seat, round: round, concealed: !!(concealedEl && concealedEl.checked) };
   }
 
   /* ------------------------------------------------------------------ *
@@ -600,7 +635,7 @@
       if (flowers.length) {
         result.message = 'You have ' + flowers.length + ' flower/season tile' +
           (flowers.length === 1 ? '' : 's') +
-          '. Collect 7 for an automatic win (七花, 5 faan), or all 8 for the limit hand (八花). Or add regular tiles to score a standard hand.';
+          '. Collect 7 for an automatic win (七搶一, 5 faan), or all 8 for the limit hand (八仙過海). Or add regular tiles to score a standard hand.';
       } else {
         result.message = '';
       }
@@ -621,6 +656,8 @@
         result.items.push({ name: 'All Honors', cn: '字一色', faan: FAAN.allHonors });
       } else if (isAllTerminals(c)) {
         result.items.push({ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals });
+      } else if (isMixedTerminals(c)) {
+        result.items.push({ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals });
       }
     } else {
       var parses = winningParses(c);
@@ -644,10 +681,11 @@
       }
       result.valid = true;
       var hasFourKongs = bestItems.some(function (i) { return i.name === 'Four Quads'; });
+      result.items = bestItems;
       if (isAllTerminals(c) && !hasFourKongs) {
-        result.items = [{ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals }];
-      } else {
-        result.items = bestItems;
+        result.items.unshift({ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals });
+      } else if (isMixedTerminals(c) && !hasFourKongs) {
+        result.items.unshift({ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals });
       }
     }
 
@@ -928,6 +966,7 @@
       var faan = FAAN.sevenPairs;
       if (profile.numSuits.length === 0 && profile.honors) faan += FAAN.allHonors;
       else if (isAllTerminals(c)) faan += FAAN.allTerminals;
+      else if (isMixedTerminals(c)) faan += FAAN.mixedTerminals;
       return faan;
     }
 
@@ -943,7 +982,8 @@
     }
 
     var hasFourKongs = bestItems && bestItems.some(function (i) { return i.name === 'Four Quads'; });
-    if (isAllTerminals(c) && !hasFourKongs) return FAAN.allTerminals;
+    if (isAllTerminals(c) && !hasFourKongs) return bestFaan + FAAN.allTerminals;
+    if (isMixedTerminals(c) && !hasFourKongs) return bestFaan + FAAN.mixedTerminals;
 
     return bestFaan;
   }

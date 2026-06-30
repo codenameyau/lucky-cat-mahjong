@@ -160,8 +160,8 @@
                   <label class="opt-check"><input type="checkbox" id="opt-concealed"><span>Concealed <span class="opt-cn">(門前清)</span></span></label>
                   <label class="opt-check"><input type="checkbox" id="opt-lasttile"><span>Win on last tile <span class="opt-cn">(海底撈月)</span></span></label>
                   <label class="opt-check"><input type="checkbox" id="opt-robkong"><span>Robbing the kong <span class="opt-cn">(搶槓)</span></span></label>
-                  <label class="opt-check"><input type="checkbox" id="opt-kongbloom"><span>Kong replacement <span class="opt-cn">(槓上開花)</span></span></label>
-                  <label class="opt-check"><input type="checkbox" id="opt-double-kong"><span>Double kong win <span class="opt-cn">(槓上槓)</span></span></label>
+                  <label class="opt-check"><input type="checkbox" id="opt-kongbloom"><span>Win by kong <span class="opt-cn">(槓上開花)</span></span></label>
+                  <label class="opt-check"><input type="checkbox" id="opt-double-kong"><span>Win by double kong <span class="opt-cn">(槓上槓)</span></span></label>
                   <label class="opt-check"><input type="checkbox" id="opt-no-flowers"><span>No flowers <span class="opt-cn">(無花)</span></span></label>
                 </div>
                 <div class="opt-selects">
@@ -265,13 +265,15 @@
               <tbody>
                 <tr><td><span class="faan-name">Chicken Hand (雞糊)</span></td><td class="faan-value">0</td><td class="faan-desc">Four sets and a pair. Only countable where a 0-faan minimum is allowed.</td></tr>
                 <tr><td><span class="faan-name">All Sequences (平糊)</span></td><td class="faan-value">1</td><td class="faan-desc">Four sets of sequences plus a pair.</td></tr>
-                <tr><td><span class="faan-name">All Triplets (對對糊)</span></td><td class="faan-value">3</td><td class="faan-desc">All four sets are pungs or kongs plus a pair. No sequences.</td></tr>
+                <tr><td><span class="faan-name">All Triplets (對對糊)</span></td><td class="faan-value">3</td><td class="faan-desc">All four sets are triplets or quads plus a pair.</td></tr>
                 <tr><td><span class="faan-name">Half Flush (混一色)</span></td><td class="faan-value">3</td><td class="faan-desc">One suit only, mixed with honor tiles (winds/dragons).</td></tr>
-                <tr><td><span class="faan-name">Seven Pairs (七對子)</span></td><td class="faan-value">4</td><td class="faan-desc">Seven different pairs of 14 tiles with no sets. Valid hand at many tables.</td></tr>
-                <tr><td><span class="faan-name">Small Three Dragons (小三元)</span></td><td class="faan-value">5</td><td class="faan-desc">Pungs or kongs of two dragons plus a pair of the third dragon.</td></tr>
-                <tr><td><span class="faan-name">Small Four Winds (小四喜)</span></td><td class="faan-value">6</td><td class="faan-desc">Pungs or kongs of three winds plus a pair of the fourth wind.</td></tr>
+                <tr><td><span class="faan-name">Seven Pairs (七對子)</span></td><td class="faan-value">4</td><td class="faan-desc">Seven different pairs of 14 tiles with no sets. Only valid hand at some tables.</td></tr>
+                <tr><td><span class="faan-name">Mixed Terminals (混老頭)</span></td><td class="faan-value">4</td><td class="faan-desc">Every tile is a 1, 9, or honor — no suited tiles from 2–8.</td></tr>
+                <tr><td><span class="faan-name">Small Three Dragons (小三元)</span></td><td class="faan-value">5</td><td class="faan-desc">Triplets or quads of two dragons plus a pair of the third dragon.</td></tr>
+                <tr><td><span class="faan-name">Small Four Winds (小四喜)</span></td><td class="faan-value">6</td><td class="faan-desc">Triplets or quads of three winds plus a pair of the fourth wind.</td></tr>
                 <tr><td><span class="faan-name">Full Flush (清一色)</span></td><td class="faan-value">7</td><td class="faan-desc">One suit only with no honors.</td></tr>
-                <tr><td><span class="faan-name">Great Three Dragons (大三元)</span></td><td class="faan-value">8</td><td class="faan-desc">Pungs or kongs of all three dragons (red, green, white).</td></tr>
+                <tr><td><span class="faan-name">Great Three Dragons (大三元)</span></td><td class="faan-value">8</td><td class="faan-desc">Triplets or quads of all three dragons (red, green, white).</td></tr>
+                <tr><td><span class="faan-name">Concealed Triplets (門清對對糊)</span></td><td class="faan-value">8</td><td class="faan-desc">All four sets are concealed triplets or quads plus a pair.</td></tr>
                 <tr><td><span class="faan-name">All Honors (字一色)</span></td><td class="faan-value">10</td><td class="faan-desc">Only winds and dragons.</td></tr>
               </tbody>
             </table>
@@ -285,13 +287,13 @@
               <thead><tr><th>Bonus</th><th>Faan</th><th>What it means</th></tr></thead>
               <tbody>
                 <tr><td><span class="faan-name">Self-Draw (自摸)</span></td><td class="faan-value">1</td><td class="faan-desc">You drew your own winning tile from the wall.</td></tr>
-                <tr><td><span class="faan-name">Fully Concealed (門前清)</span></td><td class="faan-value">1</td><td class="faan-desc">You never took another player's discarded tile to complete a set. Taking a pair is fine.</td></tr>
-                <tr><td><span class="faan-name">Dragon Pung / Kong (箭刻)</span></td><td class="faan-value">1</td><td class="faan-desc">A pung or kong for red, green, or white dragon (+1 for each).</td></tr>
-                <tr><td><span class="faan-name">Seat / Table Wind (門風 / 圈風)</span></td><td class="faan-value">1</td><td class="faan-desc">A pung or kong of your seat wind or the table wind (+1 for each).</td></tr>
+                <tr><td><span class="faan-name">Fully Concealed (門前清)</span></td><td class="faan-value">1</td><td class="faan-desc">You never took another player's discarded tile to complete a set. Taking a pair is fine. Does not stack with Concealed Triplets.</td></tr>
+                <tr><td><span class="faan-name">Dragon Triplet / Quad (箭刻)</span></td><td class="faan-value">1</td><td class="faan-desc">A triplet or quad for red, green, or white dragon (+1 for each).</td></tr>
+                <tr><td><span class="faan-name">Seat / Table Wind (門風 / 圈風)</span></td><td class="faan-value">1</td><td class="faan-desc">A triplet or quad of your seat wind or the table wind (+1 for each).</td></tr>
                 <tr><td><span class="faan-name">Win on Last Tile (海底撈月)</span></td><td class="faan-value">1</td><td class="faan-desc">Winning on the very last tile drawn or discarded.</td></tr>
-                <tr><td><span class="faan-name">Win on Kong Replacement (槓上開花)</span></td><td class="faan-value">1</td><td class="faan-desc">Winning on the replacement tile drawn from a kong.</td></tr>
+                <tr><td><span class="faan-name">Win by Kong (槓上開花)</span></td><td class="faan-value">1</td><td class="faan-desc">Winning on the replacement tile drawn from a kong.</td></tr>
                 <tr><td><span class="faan-name">Robbing the Kong (搶槓)</span></td><td class="faan-value">1</td><td class="faan-desc">Winning by taking the replacement tile another player used for a kong.</td></tr>
-                <tr><td><span class="faan-name">Win on Double Kong (槓上槓)</span></td><td class="faan-value">9</td><td class="faan-desc">Winning on a replacement tile drawn after a kong that itself came from a kong.</td></tr>
+                <tr><td><span class="faan-name">Win by Double Kong (槓上槓)</span></td><td class="faan-value">9</td><td class="faan-desc">Winning on a replacement tile drawn after a kong that itself came from a kong.</td></tr>
               </tbody>
             </table>
           </div>
@@ -303,13 +305,13 @@
             <table class="faan-table">
               <thead><tr><th>Bonus tile</th><th>Faan</th><th>What it means</th></tr></thead>
               <tbody>
-                <tr><td><span class="faan-name">No Flowers (無花)</span></td><td class="faan-value">1</td><td class="faan-desc">You have no flower or season tiles.</td></tr>
-                <tr><td><span class="faan-name">Seat Flower (正花)</span></td><td class="faan-value">1</td><td class="faan-desc">Your matching flower: East 梅, South 蘭, West 菊, North 竹.</td></tr>
-                <tr><td><span class="faan-name">Seat Season (正花)</span></td><td class="faan-value">1</td><td class="faan-desc">Your matching season: East 春, South 夏, West 秋, North 冬.</td></tr>
-                <tr><td><span class="faan-name">All Flowers (四花齊)</span></td><td class="faan-value">2</td><td class="faan-desc">All four flower tiles (梅蘭菊竹). Stacks with seat flower.</td></tr>
-                <tr><td><span class="faan-name">All Seasons (四季齊)</span></td><td class="faan-value">2</td><td class="faan-desc">All four season tiles (春夏秋冬). Stacks with seat season.</td></tr>
-                <tr><td><span class="faan-name">Seven Flowers (七花)</span></td><td class="faan-value">5</td><td class="faan-desc">Automatic win with any 7 flower or season tiles.</td></tr>
-                <tr><td><span class="faan-name">Eight Flowers (八花)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Automatic win with all 8 flower and season tiles.</td></tr>
+                <tr><td><span class="faan-name">No Flowers (無花)</span></td><td class="faan-value">1</td><td class="faan-desc">Have have no flower or season tiles.</td></tr>
+                <tr><td><span class="faan-name">Seat Flower (正花)</span></td><td class="faan-value">1</td><td class="faan-desc">Have your matching flower: East 梅, South 蘭, West 菊, North 竹.</td></tr>
+                <tr><td><span class="faan-name">Seat Season (正花)</span></td><td class="faan-value">1</td><td class="faan-desc">Have your matching season: East 春, South 夏, West 秋, North 冬.</td></tr>
+                <tr><td><span class="faan-name">All Flowers (四花齊)</span></td><td class="faan-value">2</td><td class="faan-desc">Have all four flower tiles (梅蘭菊竹).</td></tr>
+                <tr><td><span class="faan-name">All Seasons (四季齊)</span></td><td class="faan-value">2</td><td class="faan-desc">Have all four season tiles (春夏秋冬).</td></tr>
+                <tr><td><span class="faan-name">Seven Robbing One (七搶一)</span></td><td class="faan-value">5</td><td class="faan-desc">Have 7 flower or season tiles. Can rob the last missing tile when another player draws it.</td></tr>
+                <tr><td><span class="faan-name">Eight Immortals Crossing the Sea (八仙過海)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Automatic win with all 8 flower and season tiles.</td></tr>
               </tbody>
             </table>
           </div>
@@ -333,7 +335,7 @@
                 <tr><td><span class="faan-name">Great Four Winds (大四喜)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Pungs or kongs of all four winds.</td></tr>
                 <tr><td><span class="faan-name">Nine Gates (九蓮寶燈)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">A pure one-suit hand in the pattern 1-1-1-2-3-4-5-6-7-8-9-9-9 plus one extra of that suit.</td></tr>
                 <tr><td><span class="faan-name">Four Kongs (十八羅漢)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Four kongs plus a pair (18 tiles).</td></tr>
-                <tr><td><span class="faan-name">All Terminals (清老頭)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Every tile is a 1 or 9 — no simple tiles (2–8) and no honors.</td></tr>
+                <tr><td><span class="faan-name">All Terminals (清老頭)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Every tile is a 1 or 9 — no suited tiles (2–8) and no honors.</td></tr>
                 <tr><td><span class="faan-name">Heavenly Hand (天糊)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Dealer wins on a complete hand from the initial deal.</td></tr>
                 <tr><td><span class="faan-name">Earthly Hand (地糊)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">A non-dealer wins on the dealer’s first discarded tile.</td></tr>
               </tbody>
