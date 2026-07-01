@@ -7,46 +7,16 @@
 #calculator.points-section { background: var(--color-surface); }
 
 #basics.points-section { background: var(--color-background); }
+#scoring.points-section { background: var(--color-surface); }
+#special.points-section { background: var(--color-background); }
+#payout.points-section { background: var(--color-surface); }
 
-#tiles.points-section { background: var(--color-surface); }
-#scoring.points-section { background: var(--color-background); }
-#special.points-section { background: var(--color-surface); }
-#payout.points-section { background: var(--color-background); }
-
-#basics .section-intro,
-#tiles .section-intro {
+#basics .section-intro {
   margin-bottom: 1rem;
 }
 
-#basics .section-heading,
-#tiles .section-heading {
+#basics .section-heading {
   margin-bottom: 0.35rem;
-}
-
-#tile-reference {
-  max-width: 52rem;
-  margin-inline: auto;
-}
-
-#tiles .tile-grid {
-  grid-template-columns: repeat(auto-fill, minmax(78px, 78px));
-  justify-content: start;
-}
-
-#tiles .tile-face {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8%;
-}
-
-#tiles .tile-face img {
-  width: 100%;
-  height: auto;
-  max-height: 100%;
-  object-fit: contain;
-  object-position: center center;
-  transform: translateY(-2.5%);
 }
 
 .points-lead {
@@ -54,7 +24,7 @@
   margin: 0 auto 2rem;
   text-align: center;
   color: var(--color-text-muted);
-  font-size: 1.08rem;
+  font-size: 1rem;
 }
 
 /* ---- Tile component ---- */
@@ -75,52 +45,6 @@
   height: 100%;
   object-fit: contain;
   object-position: center 53%;
-}
-
-.tile-group { margin-bottom: 2.25rem; }
-
-.tile-group-title {
-  font-family: var(--font-heading);
-  font-size: 1.3rem;
-  color: var(--color-primary);
-  margin-bottom: 0.35rem;
-}
-
-.tile-group-desc {
-  color: var(--color-text-muted);
-  font-size: 0.97rem;
-  margin: 0 0 1rem;
-  max-width: 100ch;
-}
-
-.tile-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
-  gap: 0.9rem;
-}
-
-.tile {
-  margin: 0;
-  text-align: center;
-}
-
-.tile .tile-face { margin-bottom: 0.4rem; }
-
-.tile-cap {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
-}
-
-.tile-cap-name {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.tile-cap-mark {
-  font-size: 0.95rem;
-  color: var(--color-primary);
 }
 
 /* ---- Faan tables ---- */
@@ -600,6 +524,14 @@
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   -webkit-tap-highlight-color: transparent;
+}
+
+.palette-tile-mark {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--color-primary);
+  line-height: 1.1;
+  margin-top: 0.5rem;
 }
 
 .palette-tile.is-flash-success,
@@ -1100,19 +1032,6 @@
     padding: 0.35rem 0.12rem;
     white-space: nowrap;
   }
-  .tile-grid { grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); gap: 0.65rem; }
-  #tile-reference { max-width: none; }
-  #tiles .tile-grid {
-    grid-template-columns: repeat(auto-fill, minmax(58px, 58px));
-    gap: 0.5rem;
-  }
-  #tiles .tile-cap-name { font-size: 0.72rem; }
-  #tiles .tile-cap-mark { font-size: 0.85rem; }
-  #tiles .tile-face {
-    padding: 8%;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.04);
-  }
-  #tiles .tile-face img { object-position: center center; }
   .tile-face {
     padding: 10% 8% 5% 8%;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.04);

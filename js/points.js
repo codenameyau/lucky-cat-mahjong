@@ -103,36 +103,14 @@
       '</span>';
   }
 
-  function tileFigure(tile) {
-    return '<figure class="tile">' +
-      tileImg(tile) +
-      '<figcaption class="tile-cap">' +
-      '<span class="tile-cap-name">' + tile.name + '</span>' +
-      '<span class="tile-cap-mark">' + tile.marking + '</span>' +
-      '</figcaption>' +
-      '</figure>';
-  }
-
-  function renderReference() {
-    var host = document.getElementById('tile-reference');
-    if (!host) return;
-
-    var groups = [
-      { title: 'Characters (萬 / Wàn)', desc: 'Also called ten-thousands. Numbered 1–9; the top character is the number, the bottom is 萬.', ids: ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9'] },
-      { title: 'Circles (筒 / Tóng)', desc: 'Also called dots or coins. Count the circles — that is the tile’s number, 1–9.', ids: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9'] },
-      { title: 'Bamboo (索 / Sok)', desc: 'Also called sticks. Count the bamboo sticks for the number. The 1 Bamboo is usually a bird.', ids: ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9'] },
-      { title: 'Winds (風)', desc: 'Honor tiles: East, South, West, North. They never form sequences — only pairs or triplets or quads.', ids: ['we', 'ws', 'ww', 'wn'] },
-      { title: 'Dragons (三元牌)', desc: 'Honor tiles: Red (中), Green (發), White (白). A triplet of dragons is always worth points.', ids: ['dr', 'dg', 'dw'] },
-      { title: 'Flowers & Seasons (花 / 季)', desc: 'Set aside when drawn and replaced by a tile from the end of the wall. Count as bonus tiles.', ids: ['f1', 'f2', 'f3', 'f4', 's1', 's2', 's3', 's4'] },
-    ];
-
-    host.innerHTML = groups.map(function (g) {
-      return '<div class="tile-group">' +
-        '<h3 class="tile-group-title">' + g.title + '</h3>' +
-        '<p class="tile-group-desc">' + g.desc + '</p>' +
-        '<div class="tile-grid">' + g.ids.map(function (id) { return tileFigure(TILE_BY_ID[id]); }).join('') + '</div>' +
-        '</div>';
-    }).join('');
+  function paletteTileHtml(tile) {
+    var label = tile.name + ' (' + tile.marking + ')';
+    var mark = (tile.suit === 'f' || tile.suit === 's')
+      ? '<span class="palette-tile-mark" aria-hidden="true">' + tile.marking + '</span>'
+      : '';
+    return '<button type="button" class="palette-tile" data-id="' + tile.id + '" aria-label="Add ' + label + '">' +
+      tileImg(tile) + mark +
+      '</button>';
   }
 
   /* ------------------------------------------------------------------ *
@@ -158,7 +136,7 @@
     thirteenOrphans: LIMIT,
     nineGates: LIMIT,
     allKongs: LIMIT,
-    allTerminals: LIMIT,
+    allTerminals: 10,
     mixedTerminals: 4,
     dragonPung: 1,
     yakuWind: 1,
@@ -486,19 +464,12 @@
     return items;
   }
 
-  function concealedTripletsItem(c, ctx) {
-    if (ctx.concealed && isAllTripletsHand(c)) {
-      return { name: 'Concealed Triplets', cn: '門清對對糊', faan: FAAN.allConcealedTriplets };
-    }
-    return null;
-  }
-
   function sevenPairsItems(c, profile, ctx) {
     var items = [{ name: 'Seven Pairs', cn: '七對子', faan: FAAN.sevenPairs }];
     if (profile.numSuits.length === 0 && profile.honors) {
       items.push({ name: 'All Honors', cn: '字一色', faan: FAAN.allHonors });
     } else if (isAllTerminals(c)) {
-      return [{ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals }];
+      items.push({ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals });
     } else if (isMixedTerminals(c)) {
       items.push({ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals });
     }
@@ -520,10 +491,7 @@
 
     var hasFourKongs = bestItems.some(function (i) { return i.name === 'Four Quads'; });
     if (isAllTerminals(c) && !hasFourKongs) {
-      var terminalItems = [{ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals }];
-      var ct = concealedTripletsItem(c, ctx);
-      if (ct) terminalItems.push(ct);
-      return terminalItems;
+      bestItems = [{ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals }].concat(bestItems);
     } else if (isMixedTerminals(c) && !hasFourKongs) {
       bestItems = [{ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals }].concat(bestItems);
     }
@@ -658,7 +626,6 @@
     'Nine Gates': true,
     'Big Four Winds': true,
     'Four Quads': true,
-    'All Terminals': true,
     'Eight Immortals Crossing the Sea': true,
   };
 
@@ -680,10 +647,6 @@
       'All Triplets', 'Half Flush', 'Full Flush',
       'All Sequences', 'Small Four Winds', 'Small Three Dragons', 'Big Three Dragons',
       'Dragon Triplet', 'Dragon Quad',
-    ],
-    'All Terminals': [
-      'All Triplets', 'Mixed Terminals', 'Seven Pairs',
-      'Half Flush', 'Full Flush', 'All Sequences',
     ],
     'Thirteen Orphans': [
       'Mixed Terminals', 'Seven Pairs', 'All Triplets',
@@ -901,10 +864,7 @@
       return '<div class="palette-group">' +
         '<h4 class="palette-title">' + g.title + '</h4>' +
         '<div class="palette-row">' + g.ids.map(function (id) {
-          var t = TILE_BY_ID[id];
-          return '<button type="button" class="palette-tile" data-id="' + id + '" aria-label="Add ' + t.name + '">' +
-            tileImg(t) +
-            '</button>';
+          return paletteTileHtml(TILE_BY_ID[id]);
         }).join('') + '</div>' +
         '</div>';
     }).join('');
@@ -1273,7 +1233,7 @@
 
     var totalLabel = isUnlimitedFaan() || res.faan < LIMIT
       ? res.faan + ' faan'
-      : 'Limit hand (' + LIMIT + ' faan)';
+      : LIMIT + ' faan (limit hand)';
     var payout;
     if (res.points === null) {
       payout = '<p class="result-payout result-below">Below the ' + MIN_FAAN + '-faan minimum to win</p>';
@@ -1531,14 +1491,6 @@
     return ids.concat([pair, pair]);
   }
 
-  function randomAllTerminals() {
-    var pool = shuffle(['c1', 'c9', 'd1', 'd9', 'b1', 'b9']);
-    var ids = [];
-    pool.slice(0, 4).forEach(function (id) { ids.push(id, id, id); });
-    ids.push(pool[4], pool[4]);
-    return ids;
-  }
-
   function randomFourQuads() {
     var pool = shuffle(PLAYABLE_IDS.slice());
     var ids = [];
@@ -1552,7 +1504,6 @@
       randomThirteenOrphans,
       randomNineGates,
       randomFourWinds,
-      randomAllTerminals,
       randomFourQuads,
     ];
     return builders[rand(builders.length)]();
@@ -1910,7 +1861,7 @@
       // Thirteen Orphans (limit) — 13 faan
       hand = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'ww', 'wn', 'dg', 'dw', 'dr', 'dr'];
     } else if (which === 'allterminals') {
-      // All Terminals (limit) — 13 faan
+      // All Terminals (清老頭) — 10 faan
       hand = ['c1', 'c1', 'c1', 'c9', 'c9', 'c9', 'd1', 'd1', 'd1', 'd9', 'd9', 'd9', 'b1', 'b1'];
     } else if (which === 'fourwinds') {
       // Big Four Winds (limit) — 13 faan
@@ -2316,7 +2267,6 @@
     var yearEl = document.getElementById('year');
     if (yearEl) yearEl.textContent = new Date().getFullYear();
 
-    renderReference();
     renderPalette();
     bindCalcControls();
     syncExampleButtons();
