@@ -146,7 +146,7 @@
     chicken: 0,
     allSequences: 1,
     allTriplets: 3,
-    allConcealedTriplets: 8,
+    allConcealedTriplets: 10,
     sevenPairs: 4,
     halfFlush: 3,
     fullFlush: 7,
