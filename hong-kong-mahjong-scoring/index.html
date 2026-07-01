@@ -88,7 +88,7 @@
           {
             "@type": "Question",
             "name": "What is a limit hand in Hong Kong mahjong?",
-            "acceptedAnswer": { "@type": "Answer", "text": "A limit hand reaches the maximum payout, commonly 13 faan. Examples include Big Three Dragons, Thirteen Orphans, All Terminals, the Nine Gates, and Four Kongs." }
+            "acceptedAnswer": { "@type": "Answer", "text": "A limit hand reaches the maximum payout, commonly 13 faan. Examples include Thirteen Orphans, Big Four Winds, the Nine Gates, and Four Kongs." }
           },
           {
             "@type": "Question",
@@ -113,7 +113,6 @@
       </a>
       <nav class="header-nav" aria-label="Primary">
         <a href="#calculator" class="header-nav-link">Calculator</a>
-        <a href="#tiles" class="header-nav-link">Tiles</a>
         <a href="#scoring" class="header-nav-link">Scoring</a>
         <a href="#payout" class="header-nav-link">Payout</a>
       </nav>
@@ -208,8 +207,8 @@
                 <button type="button" data-example="fullflush">Full Flush</button>
                 <button type="button" data-example="threedragons">Three Dragons</button>
                 <button type="button" data-example="allhonors">All Honors</button>
-                <button type="button" data-example="thirteen">13 Orphans</button>
                 <button type="button" data-example="allterminals">All Terminals</button>
+                <button type="button" data-example="thirteen">13 Orphans</button>
                 <button type="button" data-example="fourwinds">Four Winds</button>
                 <button type="button" data-example="ninegates">Nine Gates</button>
               </div>
@@ -229,22 +228,14 @@
           <h2 class="section-heading">How Scoring Works</h2>
         </div>
         <p class="points-lead">
-          In Hong Kong mahjong a winning hand is usually <strong>four sets plus one pair</strong> of 14 tiles. A set is either a <em>sequence</em> of three consecutive tiles in one suit (e.g. 4-5-6 Circles) or a <em>triplet</em> of three identical tiles. The pair is two identical tiles.
+          A Hong Kong set has three numbered suits (Characters, Circles, Bamboos), the Honor tiles (Winds and Dragons), and bonus Flowers & Seasons. There are four of each tile and one of each of the 8 flower and season tiles for a total of 144.
+        </p>
+        <p class="points-lead">
+          In Hong Kong mahjong a winning hand is usually <strong>four sets plus one pair</strong> of 14 tiles. A set is either a <em>sequence</em> of three consecutive tiles in one suit (e.g. 4-5-6 Circles) or a <em>triplet</em> of three identical tiles. The pair is always two identical tiles.
         </p>
         <p class="points-lead">
           Once you have a winning hand, you count <strong>faan (番)</strong> — points awarded for patterns like flushes, all-triplet hands, dragon triplets, and rare special hands. Most tables require a minimum of <strong>3 faan</strong> to win. The maximum is the <strong>limit hand</strong>, usually 10 or 13 faan. House rules vary, so always confirm before you play.
         </p>
-      </div>
-    </section>
-
-    <!-- TILES -->
-    <section id="tiles" class="points-section">
-      <div class="container">
-        <div class="section-intro">
-          <h2 class="section-heading">Meet the Tiles</h2>
-        </div>
-        <p class="points-lead">A Hong Kong set has three numbered suits (Characters, Circles, Bamboos), the Honor tiles (Winds and Dragons), and bonus Flowers &amp; Seasons. There are four of each tile and one of each of the 8 flower and season tiles for a total of 144.</p>
-        <div id="tile-reference"></div>
       </div>
     </section>
 
@@ -274,6 +265,7 @@
                 <tr><td><span class="faan-name">Big Three Dragons (大三元)</span></td><td class="faan-value">8</td><td class="faan-desc">Triplets or quads of all three dragons (red, green, white).</td></tr>
                 <tr><td><span class="faan-name">Concealed Triplets (門清對對糊)</span></td><td class="faan-value">10</td><td class="faan-desc">All four sets are concealed triplets or quads.</td></tr>
                 <tr><td><span class="faan-name">All Honors (字一色)</span></td><td class="faan-value">10</td><td class="faan-desc">Only winds and dragons.</td></tr>
+                <tr><td><span class="faan-name">All Terminals (清老頭)</span></td><td class="faan-value">10</td><td class="faan-desc">Every tile is a 1 or 9 — no suited tiles (2–8) and no honors.</td></tr>
               </tbody>
             </table>
           </div>
@@ -309,8 +301,8 @@
                 <tr><td><span class="faan-name">Seat Season (正花)</span></td><td class="faan-value">1</td><td class="faan-desc">Have your matching season.</td></tr>
                 <tr><td><span class="faan-name">All Flowers (四花齊)</span></td><td class="faan-value">2</td><td class="faan-desc">Have all four flower tiles.</td></tr>
                 <tr><td><span class="faan-name">All Seasons (四季齊)</span></td><td class="faan-value">2</td><td class="faan-desc">Have all four season tiles.</td></tr>
-                <tr><td><span class="faan-name">Seven Robbing One (七搶一)</span></td><td class="faan-value">5</td><td class="faan-desc">Automatic win with 7 flower or season tiles. Can rob the last flower or season when revealed.</td></tr>
-                <tr><td><span class="faan-name">Eight Immortals Crossing the Sea (八仙過海)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Automatic win with all 8 flower and season tiles.</td></tr>
+                <tr><td><span class="faan-name">Seven Robbing One (七搶一)</span></td><td class="faan-value">5</td><td class="faan-desc">Can declare an automatic win with 7 flowers or seasons regardless of hand. Can rob the last flower or season when another player draws it.</td></tr>
+                <tr><td><span class="faan-name">Eight Immortals Crossing the Sea (八仙過海)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Automatic win with all 8 flowers and seasons regardless of hand.</td></tr>
               </tbody>
             </table>
           </div>
@@ -334,7 +326,6 @@
                 <tr><td><span class="faan-name">Big Four Winds (大四喜)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Triplets or quads of all four winds.</td></tr>
                 <tr><td><span class="faan-name">Nine Gates (九蓮寶燈)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">A pure one-suit hand in the pattern 1-1-1-2-3-4-5-6-7-8-9-9-9 plus one extra of that suit.</td></tr>
                 <tr><td><span class="faan-name">Four Kongs (十八羅漢)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Four quads plus a pair (18 tiles).</td></tr>
-                <tr><td><span class="faan-name">All Terminals (清老頭)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Every tile is a 1 or 9 — no suited tiles (2–8) and no honors.</td></tr>
                 <tr><td><span class="faan-name">Heavenly Hand (天糊)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Dealer wins on a complete hand from the initial deal.</td></tr>
                 <tr><td><span class="faan-name">Earthly Hand (地糊)</span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">A non-dealer wins on the dealer’s first discarded tile.</td></tr>
               </tbody>
@@ -350,7 +341,7 @@
       <div class="container">
         <div class="section-intro">
           <h2 class="section-heading">Payout Faan into Points</h2>
-          <p class="section-subheading">A common doubling table (3-faan minimum)</p>
+          <p class="section-subheading">A common doubling table (3-faan minimum) for games with payout</p>
         </div>
         <div class="payout-table">
           <div class="faan-table-wrap">

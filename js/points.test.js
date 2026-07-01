@@ -128,14 +128,6 @@ describe('Hong Kong mahjong scoring', function () {
       assert.equal(result.faan, 13);
     });
 
-    it('scores All Terminals without All Triplets', function () {
-      api.setHand(HANDS.allTerminals);
-      var result = api.evaluate();
-
-      assertPatternNames(result, ['All Terminals']);
-      assert.equal(result.faan, 13);
-    });
-
     it('scores Thirteen Orphans as a single limit pattern', function () {
       api.setHand(HANDS.thirteenOrphans);
       var result = api.evaluate();
@@ -175,14 +167,6 @@ describe('Hong Kong mahjong scoring', function () {
       var result = api.evaluate();
 
       assertPatternNames(result, ['All Honors', 'Concealed Triplets', 'Big Four Winds']);
-    });
-
-    it('stacks Concealed Triplets with All Terminals when concealed', function () {
-      api.setOption('opt-concealed', true);
-      api.setHand(HANDS.allTerminals);
-      var result = api.evaluate();
-
-      assertPatternNames(result, ['All Terminals', 'Concealed Triplets']);
     });
 
     it('stacks Concealed Triplets with Four Quads when concealed', function () {
@@ -341,6 +325,25 @@ describe('Hong Kong mahjong scoring', function () {
       assert.ok(patternNames(result).includes('All Triplets'));
       assert.equal(result.faan, 8);
       assert.equal(result.points, 256);
+    });
+
+    it('scores All Terminals and its meld constituents', function () {
+      api.setHand(HANDS.allTerminals);
+      var result = api.evaluate();
+
+      assert.ok(patternNames(result).includes('All Terminals'));
+      assert.ok(patternNames(result).includes('All Triplets'));
+      assert.equal(result.faan, 13);
+      assert.equal(result.points, 8192);
+    });
+
+    it('stacks Concealed Triplets with All Terminals when concealed', function () {
+      api.setOption('opt-concealed', true);
+      api.setHand(HANDS.allTerminals);
+      var result = api.evaluate();
+
+      assertPatternNames(result, ['All Terminals', 'Concealed Triplets']);
+      assert.equal(result.faan, 13);
     });
 
     it('labels a zero-pattern hand as Chicken Hand', function () {
