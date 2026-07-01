@@ -160,6 +160,11 @@
 
   // Faan -> base points payout (classic "3 faan to win" doubling, capped at limit).
   var PAYOUT = { 3: 8, 4: 16, 5: 32, 6: 64, 7: 128, 8: 256, 9: 512, 10: 1024, 11: 2048, 12: 4096, 13: 8192 };
+  var spicyMode = 'full';
+
+  function isHalfSpicy() {
+    return spicyMode === 'half';
+  }
 
   function isUnlimitedFaan() {
     var el = document.getElementById('opt-unlimited');
@@ -176,14 +181,25 @@
     return faan + ' faan';
   }
 
+  function halfSpicyPoints(faan) {
+    if (faan <= 4) return Math.pow(2, faan);
+    if (faan % 2 === 0) return Math.pow(2, (faan + 4) / 2);
+    return Math.pow(2, (faan + 3) / 2) * 1.5;
+  }
+
+  function fullSpicyPoints(faan) {
+    if (PAYOUT[faan]) return PAYOUT[faan];
+    if (isUnlimitedFaan() && faan > LIMIT) {
+      return PAYOUT[LIMIT] * Math.pow(2, faan - LIMIT);
+    }
+    return null;
+  }
+
   function faanToPoints(faan) {
     if (faan < MIN_FAAN) return null;
     var effective = capFaan(faan);
-    if (PAYOUT[effective]) return PAYOUT[effective];
-    if (isUnlimitedFaan() && effective > LIMIT) {
-      return PAYOUT[LIMIT] * Math.pow(2, effective - LIMIT);
-    }
-    return null;
+    if (isHalfSpicy()) return halfSpicyPoints(effective);
+    return fullSpicyPoints(effective);
   }
 
   /* ------------------------------------------------------------------ *
@@ -1238,13 +1254,17 @@
     if (res.points === null) {
       payout = '<p class="result-payout result-below">Below the ' + MIN_FAAN + '-faan minimum to win</p>';
     } else {
-      var selfDraw = document.getElementById('opt-selfdraw') && document.getElementById('opt-selfdraw').checked;
-       payout = '<p class="result-payout"><strong>' + res.points.toLocaleString() + ' points</strong></p>';
+      payout = '<p class="result-payout"><strong>' + res.points.toLocaleString() + ' points</strong></p>';
     }
+
+    var spicyToggle = '<div class="spicy-toggle" role="group" aria-label="Payout table">' +
+      '<button type="button" class="spicy-toggle-btn' + (!isHalfSpicy() ? ' is-active' : '') + '" data-spicy="full" aria-pressed="' + (!isHalfSpicy() ? 'true' : 'false') + '">Full spicy</button>' +
+      '<button type="button" class="spicy-toggle-btn' + (isHalfSpicy() ? ' is-active' : '') + '" data-spicy="half" aria-pressed="' + (isHalfSpicy() ? 'true' : 'false') + '">Half spicy</button>' +
+      '</div>';
 
     host.innerHTML = '<ul class="result-list">' + rows + '</ul>' +
       '<div class="result-total"><span>Total</span><strong>' + totalLabel + '</strong></div>' +
-      payout;
+      '<div class="result-footer">' + spicyToggle + payout + '</div>';
   }
 
   function update() {
@@ -1654,6 +1674,7 @@
   function loadOptionsFromQuery(params) {
     params = params || new URLSearchParams(window.location.search);
     if (!params.has('b')) {
+      spicyMode = 'full';
       Object.keys(OPT_QUERY_KEYS).forEach(function (id) {
         var el = document.getElementById(id);
         if (!el) return;
@@ -1690,6 +1711,8 @@
       if (el) el.checked = !!selected[OPT_QUERY_KEYS[id]];
     });
 
+    spicyMode = selected.halfspicy ? 'half' : 'full';
+
     if (seatVal) {
       var seat = document.getElementById('opt-seat');
       if (seat) seat.value = seatVal;
@@ -1707,6 +1730,7 @@
       var el = document.getElementById(id);
       if (el && el.checked) parts.push(OPT_QUERY_KEYS[id]);
     });
+    if (isHalfSpicy()) parts.push('halfspicy');
     var seat = document.getElementById('opt-seat');
     var round = document.getElementById('opt-round');
     if (seat) parts.push('seat' + seat.value);
@@ -1818,6 +1842,7 @@
   }
 
   function resetBonuses() {
+    spicyMode = 'full';
     document.querySelectorAll('#calc-options input[type="checkbox"]').forEach(function (cb) {
       cb.checked = cb.id === 'opt-no-flowers' && flowers.length === 0;
     });
@@ -2201,6 +2226,19 @@
 
     var shareBtn = document.getElementById('calc-share');
     if (shareBtn) shareBtn.addEventListener('click', shareHand);
+
+    var calcResult = document.getElementById('calc-result');
+    if (calcResult) {
+      calcResult.addEventListener('click', function (e) {
+        var btn = e.target.closest ? e.target.closest('.spicy-toggle-btn') : null;
+        if (!btn || !calcResult.contains(btn)) return;
+        var mode = btn.getAttribute('data-spicy');
+        if (mode !== 'full' && mode !== 'half') return;
+        if (spicyMode === mode) return;
+        spicyMode = mode;
+        update();
+      });
+    }
 
     var resetOptions = document.getElementById('calc-reset-options');
     if (resetOptions) {

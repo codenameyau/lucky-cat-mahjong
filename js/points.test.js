@@ -468,6 +468,37 @@ describe('Hong Kong mahjong scoring', function () {
       assert.equal(result.faan, 3);
       assert.equal(result.points, 8);
     });
+
+    it('maps faan totals to the half spicy payout table', function () {
+      api.setSpicyMode('half');
+      api.setHand(HANDS.halfFlush);
+      var result = api.evaluate();
+
+      assert.equal(result.faan, 4);
+      assert.equal(result.points, 16);
+
+      api.setHand(HANDS.allTriplets);
+      api.setOption('opt-selfdraw', true);
+      result = api.evaluate();
+      assert.equal(result.faan, 4);
+      assert.equal(result.points, 16);
+
+      assert.equal(api.faanToPoints(5), 24);
+      assert.equal(api.faanToPoints(7), 48);
+      assert.equal(api.faanToPoints(13), 384);
+    });
+
+    it('extends payout tables beyond the limit when unlimited faan is enabled', function () {
+      api.setOption('opt-unlimited', true);
+
+      api.setSpicyMode('full');
+      assert.equal(api.faanToPoints(14), 16384);
+      assert.equal(api.faanToPoints(15), 32768);
+
+      api.setSpicyMode('half');
+      assert.equal(api.faanToPoints(14), 512);
+      assert.equal(api.faanToPoints(15), 768);
+    });
   });
 
   describe('wind and flower bonuses', function () {

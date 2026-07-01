@@ -80,6 +80,10 @@ function createScoringApi() {
     '      }\n' +
     '      if (checkboxes[id]) checkboxes[id].checked = !!value;\n' +
     '    },\n' +
+    '    setSpicyMode: function (mode) {\n' +
+    '      spicyMode = mode === \'half\' ? \'half\' : \'full\';\n' +
+    '    },\n' +
+    '    faanToPoints: faanToPoints,\n' +
     '    resetOptions: function () {\n' +
     '      var optionIds = [\n' +
     '        \'opt-selfdraw\', \'opt-concealed\', \'opt-lasttile\', \'opt-robkong\',\n' +
