@@ -113,11 +113,10 @@
 
 .faan-table tbody tr:hover { background: rgba(var(--color-primary-rgb), 0.03); }
 
-.faan-name { font-weight: 700; color: var(--color-text); font-size: 0.85rem; }
+.faan-name { color: var(--color-text); font-size: 0.85rem; }
 .faan-cn { color: var(--color-text-muted); font-weight: 500; }
 
 .faan-value {
-  font-weight: 700;
   color: var(--color-primary);
   white-space: nowrap;
 }
