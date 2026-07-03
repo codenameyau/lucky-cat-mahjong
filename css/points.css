@@ -286,6 +286,25 @@
   color: #fff;
 }
 
+.calc-reset.is-share-ready,
+.calc-reset.is-share-ready:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+  animation: calc-share-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes calc-share-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0.55);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(var(--color-primary-rgb), 0), 0 0 16px rgba(var(--color-primary-rgb), 0.45);
+    transform: scale(1.04);
+  }
+}
+
 /* Hand area */
 .calc-hand { min-height: 0; }
 
@@ -659,8 +678,14 @@
   .calc-controls button.is-flash-success,
   .calc-controls button.is-flash-rejected,
   .calc-reset.is-flash-success,
-  .calc-reset.is-flash-rejected {
+  .calc-reset.is-flash-rejected,
+  .calc-reset.is-share-ready {
     animation: none;
+  }
+
+  .calc-reset.is-share-ready,
+  .calc-reset.is-share-ready:hover {
+    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.45);
   }
 
   .opt-check.is-flash-success {
