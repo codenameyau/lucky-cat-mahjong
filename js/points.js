@@ -1233,7 +1233,14 @@
     syncHandTiles(shell.body, buildHandPieces());
   }
 
+  function updateShareHighlight(res) {
+    var btn = document.getElementById('calc-share');
+    if (!btn) return;
+    btn.classList.toggle('is-share-ready', !!(res && res.valid));
+  }
+
   function renderResult(res) {
+    updateShareHighlight(res);
     var host = document.getElementById('calc-result');
     if (!host) return;
 
