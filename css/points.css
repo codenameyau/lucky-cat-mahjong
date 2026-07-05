@@ -139,21 +139,92 @@
 }
 
 /* ---- Payout table (compact) ---- */
-.payout-table { max-width: 40rem; margin: 0 auto; }
+.payout-table {
+  max-width: 40rem;
+  margin: 0 auto;
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.payout-table .faan-table-wrap {
+  overflow: visible;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
 
 .payout-faan-table {
   table-layout: fixed;
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 0;
+  overflow: visible;
+  box-shadow: none;
+  background: var(--color-surface);
+  border: none;
 }
 
-.payout-faan-table th,
-.payout-faan-table td {
-  width: 33.33%;
+.payout-faan-table .payout-col {
+  width: calc(100% / 3);
+}
+
+.payout-faan-table.faan-table th,
+.payout-faan-table.faan-table td {
   text-align: center;
   white-space: normal;
+  border: 0;
+  background-clip: padding-box;
+}
+
+.payout-faan-table thead tr {
+  background-color: var(--color-primary);
+  position: relative;
+}
+
+.payout-faan-table.faan-table th {
+  background-color: transparent;
+}
+
+.payout-faan-table tbody tr {
+  background-color: var(--color-surface);
+  position: relative;
+}
+
+.payout-faan-table thead tr::after,
+.payout-faan-table tbody tr:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.06);
+  pointer-events: none;
+}
+
+.payout-faan-table.faan-table tbody td {
+  background-color: transparent;
+}
+
+.payout-faan-table tbody tr:hover {
+  background-color: rgba(var(--color-primary-rgb), 0.03);
+}
+
+.payout-faan-table tbody tr:hover td {
+  background-color: transparent;
+}
+
+.payout-faan-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .payout-faan-table .faan-value {
   white-space: normal;
+}
+
+.payout-faan-table .payout-faan-num {
+  color: var(--color-text);
 }
 
 /* ---- Calculator ---- */
@@ -1068,14 +1139,14 @@
     table-layout: fixed;
   }
 
-  .faan-table:has(th:nth-child(3)) th:nth-child(1),
-  .faan-table:has(th:nth-child(3)) td:nth-child(1) { width: 32%; }
+  .faan-table:not(.payout-faan-table):has(th:nth-child(3)) th:nth-child(1),
+  .faan-table:not(.payout-faan-table):has(th:nth-child(3)) td:nth-child(1) { width: 32%; }
 
-  .faan-table:has(th:nth-child(3)) th:nth-child(2),
-  .faan-table:has(th:nth-child(3)) td:nth-child(2) { width: 16%; }
+  .faan-table:not(.payout-faan-table):has(th:nth-child(3)) th:nth-child(2),
+  .faan-table:not(.payout-faan-table):has(th:nth-child(3)) td:nth-child(2) { width: 16%; }
 
-  .faan-table:has(th:nth-child(3)) th:nth-child(3),
-  .faan-table:has(th:nth-child(3)) td:nth-child(3) { width: 52%; }
+  .faan-table:not(.payout-faan-table):has(th:nth-child(3)) th:nth-child(3),
+  .faan-table:not(.payout-faan-table):has(th:nth-child(3)) td:nth-child(3) { width: 52%; }
 
   .faan-table th,
   .faan-table td {
@@ -1099,6 +1170,37 @@
 
   .faan-desc {
     font-size: 0.85rem;
+  }
+
+  .payout-faan-table {
+    display: block;
+  }
+
+  .payout-faan-table colgroup {
+    display: none;
+  }
+
+  .payout-faan-table thead,
+  .payout-faan-table tbody {
+    display: block;
+  }
+
+  .payout-faan-table tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    column-gap: 0;
+  }
+
+  .payout-faan-table th,
+  .payout-faan-table td {
+    display: block;
+    min-width: 0;
+    width: auto;
+  }
+
+  .payout-faan-table tbody {
+    width: 100%;
   }
 }
 
