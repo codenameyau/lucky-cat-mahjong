@@ -141,9 +141,19 @@
 /* ---- Payout table (compact) ---- */
 .payout-table { max-width: 40rem; margin: 0 auto; }
 
-.payout-faan-table th:not(:first-child),
-.payout-faan-table td:not(:first-child) {
-  white-space: nowrap;
+.payout-faan-table {
+  table-layout: fixed;
+}
+
+.payout-faan-table th,
+.payout-faan-table td {
+  width: 33.33%;
+  text-align: center;
+  white-space: normal;
+}
+
+.payout-faan-table .faan-value {
+  white-space: normal;
 }
 
 /* ---- Calculator ---- */
