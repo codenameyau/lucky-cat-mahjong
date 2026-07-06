@@ -29,7 +29,17 @@ Serve the site locally (requires a local server for JSON data loading):
 python3 -m http.server 8080
 ```
 
-Then open [http://localhost:8080](http://localhost:8080).
+Then open [localhost:8080](http://localhost:8080).
+
+Find your host machine's ip address to preview on your mobile device on the same network.
+```
+ipconfig getifaddr en0
+```
+
+Then for example, go to your phone and type the ip address plus port into your browser.
+
+For example [192.168.1.155:8080](http://192.168.1.155:8080).
+
 
 ## Tests
 
