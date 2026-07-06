@@ -390,7 +390,7 @@
 .calc-hand { min-height: 0; }
 
 .hand-body {
-  min-height: 8.75rem;
+  min-height: 7.75rem;
 }
 
 .hand-meta {
@@ -408,7 +408,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 8.75rem;
+  min-height: 7.75rem;
   margin: 0;
   padding: 0.85rem 1rem;
   text-align: center;
