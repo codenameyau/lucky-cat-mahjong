@@ -1603,9 +1603,9 @@
       return true;
     }
 
-    if (Math.random() < 0.15 && commit(randomLimitHand())) return;
-    if (Math.random() < 0.10 && commit(randomChickenHand())) return;
+    if (Math.random() < 0.10 && commit(randomLimitHand())) return;
     if (Math.random() < 0.10 && commit(randomSequenceHand())) return;
+    if (Math.random() < 0.10 && commit(randomChickenHand())) return;
     if (Math.random() < 0.07 && commit(randomSevenPairsHand())) return;
     if (commit(randomStandardHand())) return;
 
