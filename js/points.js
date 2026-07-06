@@ -745,14 +745,14 @@
     var allSeasons = SEASON_IDS.every(hasBonus);
 
     if (allFlowers) {
-      items.push({ name: 'All Flowers', cn: '四花齊', faan: FAAN.allFlowers });
+      items.push({ name: 'Four Flowers', cn: '四花齊', faan: FAAN.allFlowers });
     }
     if (seat > 0 && hasBonus(FLOWER_IDS[seat - 1])) {
       items.push({ name: 'Seat Flower', cn: '正花', faan: FAAN.seatFlower });
     }
 
     if (allSeasons) {
-      items.push({ name: 'All Seasons', cn: '四季齊', faan: FAAN.allSeasons });
+      items.push({ name: 'Four Seasons', cn: '四季齊', faan: FAAN.allSeasons });
     }
     if (seat > 0 && hasBonus(SEASON_IDS[seat - 1])) {
       items.push({ name: 'Seat Season', cn: '正花', faan: FAAN.seatSeason });

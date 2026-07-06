@@ -14,8 +14,8 @@ const SITUATIONAL = new Set([
   'No Flowers',
   'Seat Flower',
   'Seat Season',
-  'All Flowers',
-  'All Seasons',
+  'Four Flowers',
+  'Four Seasons',
   'Chicken Hand',
 ]);
 
