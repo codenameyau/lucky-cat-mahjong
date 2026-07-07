@@ -8,6 +8,7 @@
   var DEFAULT_LINKS = [
     { label: 'Our Services', href: '/' },
     { label: 'Points Calculator', href: '/hong-kong-mahjong-scoring/' },
+    { label: 'Events', href: 'https://buytickets.at/luckycatmahjong' },
   ];
 
   function escapeHtml(str) {
