@@ -467,13 +467,13 @@
     for (var val = 1; val <= 4; val++) {
       if (c.z[val] !== 4) continue;
       if (val === ctx.seat && val === ctx.round && ctx.seat > 0) {
-        items.push({ name: 'Double Wind Quad', cn: '門風圈風', faan: FAAN.yakuWind * 2 });
+        items.push({ name: 'Seat and Table Wind', cn: '門風圈風', faan: FAAN.yakuWind * 2 });
       } else {
         if (val === ctx.seat && ctx.seat > 0) {
-          items.push({ name: 'Seat Wind Quad', cn: '門風', faan: FAAN.yakuWind });
+          items.push({ name: 'Seat Wind', cn: '門風', faan: FAAN.yakuWind });
         }
         if (val === ctx.round && ctx.round > 0) {
-          items.push({ name: 'Table Wind Quad', cn: '圈風', faan: FAAN.yakuWind });
+          items.push({ name: 'Table Wind', cn: '圈風', faan: FAAN.yakuWind });
         }
       }
     }
@@ -623,12 +623,11 @@
       items.push({ name: 'Small Four Winds', cn: '小四喜', faan: FAAN.smallWinds });
     } else {
       windPungs.forEach(function (m) {
-        var kind = m.type === 'kong' ? 'Quad' : 'Triplet';
         if (m.val === ctx.seat && m.val === ctx.round && ctx.seat > 0) {
-          items.push({ name: 'Double Wind ' + kind, cn: '門風圈風', faan: FAAN.yakuWind * 2 });
+          items.push({ name: 'Seat and Table Wind', cn: '門風圈風', faan: FAAN.yakuWind * 2 });
         } else {
-          if (m.val === ctx.seat && ctx.seat > 0) items.push({ name: 'Seat Wind ' + kind, cn: '門風', faan: FAAN.yakuWind });
-          if (m.val === ctx.round && ctx.round > 0) items.push({ name: 'Table Wind ' + kind, cn: '圈風', faan: FAAN.yakuWind });
+          if (m.val === ctx.seat && ctx.seat > 0) items.push({ name: 'Seat Wind', cn: '門風', faan: FAAN.yakuWind });
+          if (m.val === ctx.round && ctx.round > 0) items.push({ name: 'Table Wind', cn: '圈風', faan: FAAN.yakuWind });
         }
       });
     }
@@ -678,8 +677,8 @@
   };
 
   var LIMIT_PREFIX_CONSTITUENTS = {
-    'Big Four Winds': ['Seat Wind ', 'Table Wind ', 'Double Wind '],
-    'Four Quads': ['Seat Wind ', 'Table Wind ', 'Double Wind '],
+    'Big Four Winds': ['Seat Wind ', 'Table Wind ', 'Seat and Table Wind '],
+    'Four Quads': ['Seat Wind ', 'Table Wind ', 'Seat and Table Wind '],
   };
 
   function isLimitHandItem(item) {
