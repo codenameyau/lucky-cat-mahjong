@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Page not found | Lucky Cat Mahjong</title>
+  <meta name="description" content="This page isn't on the table. Head back to Lucky Cat Mahjong.">
+  <meta name="robots" content="noindex, follow">
+  <meta name="theme-color" content="#C41E3A">
+
+  <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="/logo.png" type="image/png" sizes="1024x1063">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+  <link rel="preload" as="image" href="/logo.webp" type="image/webp" fetchpriority="high">
+  <link rel="stylesheet" href="/css/fonts.css">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="page-404">
+  <main class="not-found">
+    <div class="not-found-bg" aria-hidden="true"></div>
+
+    <div class="not-found-tiles" aria-hidden="true">
+      <img src="/tiles/08-characters-1.svg" alt="" class="not-found-tile" width="52" height="69" decoding="async">
+      <img src="/tiles/16-characters-9.svg" alt="" class="not-found-tile" width="52" height="69" decoding="async">
+      <img src="/tiles/17-circles-1.svg" alt="" class="not-found-tile" width="52" height="69" decoding="async">
+      <img src="/tiles/25-circles-9.svg" alt="" class="not-found-tile" width="52" height="69" decoding="async">
+      <img src="/tiles/26-bamboos-1.svg" alt="" class="not-found-tile" width="52" height="69" decoding="async">
+      <img src="/tiles/34-bamboos-9.svg" alt="" class="not-found-tile" width="52" height="69" decoding="async">
+      <img src="/tiles/04-east-wind.svg" alt="" class="not-found-tile" width="52" height="69" decoding="async">
+      <img src="/tiles/05-south-wind.svg" alt="" class="not-found-tile" width="52" height="69" decoding="async">
+      <img src="/tiles/06-west-wind.svg" alt="" class="not-found-tile" width="52" height="69" decoding="async">
+      <img src="/tiles/07-north-wind.svg" alt="" class="not-found-tile" width="52" height="69" decoding="async">
+      <img src="/tiles/02-green-dragon.svg" alt="" class="not-found-tile" width="52" height="69" decoding="async">
+      <img src="/tiles/01-white-dragon.svg" alt="" class="not-found-tile" width="52" height="69" decoding="async">
+      <img src="/tiles/03-red-dragon.svg" alt="" class="not-found-tile" width="52" height="69" decoding="async">
+    </div>
+
+    <div class="not-found-inner">
+      <a href="/" class="not-found-logo-link" aria-label="Lucky Cat Mahjong home">
+        <picture>
+          <source srcset="/logo.webp" type="image/webp">
+          <img src="/logo.png" alt="Lucky Cat Mahjong logo" class="not-found-logo" width="200" height="208" fetchpriority="high" decoding="async" draggable="false">
+        </picture>
+      </a>
+
+      <div class="not-found-code" aria-hidden="true">404</div>
+
+      <h1 class="not-found-heading">Wrong draw.</h1>
+      <p class="not-found-message">This page isn't on the table — no faan here. Let's get you back to the game.</p>
+
+      <a href="/" class="btn btn-primary not-found-home">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        <span class="btn-label">Return to homepage</span>
+      </a>
+    </div>
+  </main>
+  <script>
+    (function () {
+      var tiles = document.querySelectorAll('.not-found-tile');
+      var container = document.querySelector('.not-found-tiles');
+      var area = document.querySelector('.not-found');
+      var inner = document.querySelector('.not-found-inner');
+      if (!tiles.length || !container || !area || !inner) return;
+
+      function rand(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function shuffle(list) {
+        for (var i = list.length - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var tmp = list[i];
+          list[i] = list[j];
+          list[j] = tmp;
+        }
+        return list;
+      }
+
+      function getTileSize(sample) {
+        var width = sample.offsetWidth;
+        var height = sample.offsetHeight;
+        if (!width || !height) {
+          var style = window.getComputedStyle(sample);
+          width = parseFloat(style.width) || 60;
+          height = parseFloat(style.height) || width * 1.33;
+        }
+        return { width: width, height: height };
+      }
+
+      function getTileRadius(size, scale) {
+        return Math.sqrt(size.width * size.width + size.height * size.height) / 2 * scale;
+      }
+
+      function randomPoint(areaRect, tileRadius, edgePad) {
+        var minX = (edgePad + tileRadius) / areaRect.width;
+        var maxX = 1 - minX;
+        var minY = (edgePad + tileRadius) / areaRect.height;
+        var maxY = 1 - minY;
+        return { x: rand(minX, maxX), y: rand(minY, maxY) };
+      }
+
+      function layoutTiles() {
+        var areaRect = area.getBoundingClientRect();
+        var innerRect = inner.getBoundingClientRect();
+        var tileSize = getTileSize(tiles[0]);
+        var maxScale = 1.06;
+        var tileRadius = getTileRadius(tileSize, maxScale);
+        var tileGap = 8;
+        var contentPad = 20;
+        var edgePad = 12;
+        var placed = [];
+
+        var content = {
+          left: innerRect.left - areaRect.left - contentPad,
+          top: innerRect.top - areaRect.top - contentPad,
+          right: innerRect.right - areaRect.left + contentPad,
+          bottom: innerRect.bottom - areaRect.top + contentPad
+        };
+
+        function toPixels(x, y) {
+          return { cx: x * areaRect.width, cy: y * areaRect.height };
+        }
+
+        function inViewport(cx, cy, radius) {
+          return cx - radius > edgePad &&
+            cx + radius < areaRect.width - edgePad &&
+            cy - radius > edgePad &&
+            cy + radius < areaRect.height - edgePad;
+        }
+
+        function overlapsContent(cx, cy, radius) {
+          return cx + radius > content.left &&
+            cx - radius < content.right &&
+            cy + radius > content.top &&
+            cy - radius < content.bottom;
+        }
+
+        function overlapsTiles(cx, cy, radius) {
+          for (var i = 0; i < placed.length; i++) {
+            var dx = placed[i].cx - cx;
+            var dy = placed[i].cy - cy;
+            if (Math.sqrt(dx * dx + dy * dy) < placed[i].radius + radius + tileGap) {
+              return true;
+            }
+          }
+          return false;
+        }
+
+        function isValid(cx, cy, radius) {
+          return inViewport(cx, cy, radius) &&
+            !overlapsContent(cx, cy, radius) &&
+            !overlapsTiles(cx, cy, radius);
+        }
+
+        function findPosition(slotIndex, total) {
+          for (var attempt = 0; attempt < 300; attempt++) {
+            var point = randomPoint(areaRect, tileRadius, edgePad);
+            var pixels = toPixels(point.x, point.y);
+            if (isValid(pixels.cx, pixels.cy, tileRadius)) {
+              return { x: point.x, y: point.y, radius: tileRadius };
+            }
+          }
+
+          var cols = 6;
+          var rows = 5;
+          for (var row = 0; row < rows; row++) {
+            for (var col = 0; col < cols; col++) {
+              var x = (col + 0.5 + rand(-0.2, 0.2)) / cols;
+              var y = (row + 0.5 + rand(-0.2, 0.2)) / rows;
+              var offset = ((slotIndex + col + row) % 7) * 0.01;
+              x = Math.min(0.95, Math.max(0.05, x + offset));
+              y = Math.min(0.95, Math.max(0.05, y + offset));
+              var pixels = toPixels(x, y);
+              if (isValid(pixels.cx, pixels.cy, tileRadius)) {
+                return { x: x, y: y, radius: tileRadius };
+              }
+            }
+          }
+
+          var fallback = randomPoint(areaRect, tileRadius, edgePad);
+          var fallbackPixels = toPixels(fallback.x, fallback.y);
+          return {
+            x: fallback.x,
+            y: fallback.y,
+            radius: tileRadius,
+            cx: fallbackPixels.cx,
+            cy: fallbackPixels.cy
+          };
+        }
+
+        function applyPosition(tile, position) {
+          var scale = rand(0.94, 1.06);
+          var actualRadius = getTileRadius(tileSize, scale);
+          var pixels = position.cx != null
+            ? { cx: position.cx, cy: position.cy }
+            : toPixels(position.x, position.y);
+
+          placed.push({
+            cx: pixels.cx,
+            cy: pixels.cy,
+            radius: actualRadius
+          });
+
+          tile.hidden = false;
+          tile.style.setProperty('--tile-x', (position.x * 100).toFixed(1) + '%');
+          tile.style.setProperty('--tile-y', (position.y * 100).toFixed(1) + '%');
+          tile.style.setProperty('--tile-rotate', rand(-36, 36).toFixed(1) + 'deg');
+          tile.style.setProperty('--tile-scale', scale.toFixed(2));
+          tile.style.animationDelay = (-rand(0, 10)).toFixed(2) + 's';
+        }
+
+        var slots = shuffle(Array.from({ length: tiles.length }, function (_, i) { return i; }));
+
+        tiles.forEach(function (tile, index) {
+          applyPosition(tile, findPosition(slots[index], tiles.length));
+        });
+
+        container.classList.add('is-placed');
+      }
+
+      requestAnimationFrame(function () {
+        requestAnimationFrame(layoutTiles);
+      });
+    })();
+  </script>
+</body>
+</html>
