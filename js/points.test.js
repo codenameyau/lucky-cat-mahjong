@@ -368,6 +368,17 @@ describe('Hong Kong mahjong scoring', function () {
       }));
     });
 
+    it('does not score Seven Pairs when a quad substitutes for two pairs', function () {
+      api.setHand([
+        'c1', 'c1', 'c1', 'c1',
+        'c2', 'c2', 'c3', 'c3', 'c4', 'c4',
+        'c5', 'c5', 'c6', 'c6',
+      ]);
+      var result = api.evaluate();
+
+      assert.ok(!result.items.some(function (item) { return item.name === 'Seven Pairs'; }));
+    });
+
     it('prefers Seven Pairs over a lower-scoring All Sequences parse', function () {
       api.setOption('opt-no-flowers', false);
       api.setHand([

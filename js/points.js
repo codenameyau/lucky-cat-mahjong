@@ -443,7 +443,7 @@
   }
 
   function isSevenPairs(c) {
-    // Valid as seven pairs when no better standard parse is chosen.
+    // Seven unique pairs: exactly 7 tile types, each appearing twice (no quads).
     var total = 0;
     var pairs = 0;
     var suits = ['c', 'd', 'b', 'z'];
@@ -453,9 +453,9 @@
       for (var v = 1; v <= max; v++) {
         var n = c[su][v];
         if (n === 0) continue;
-        if (n !== 2 && n !== 4) return false;
+        if (n !== 2) return false;
         total += n;
-        pairs += n / 2;
+        pairs += 1;
       }
     }
     return total === 14 && pairs === 7;
