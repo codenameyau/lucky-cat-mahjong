@@ -144,7 +144,7 @@
     concealed: 1,
     lastTile: 1,
     robKong: 1,
-    kongBloom: 1,
+    kongWin: 1,
     doubleKong: 8,
     noFlowers: 1,
     seatFlower: 1,
@@ -223,12 +223,12 @@
     'opt-concealed': 'concealed',
     'opt-lasttile': 'lasttile',
     'opt-robkong': 'robkong',
-    'opt-kongbloom': 'kongbloom',
+    'opt-kongwin': 'kongwin',
     'opt-double-kong': 'doublekong',
     'opt-no-flowers': 'noflowers',
     'opt-unlimited': 'unlimited',
   };
-  var KONG_WIN_OPTS = ['opt-robkong', 'opt-kongbloom', 'opt-double-kong'];
+  var KONG_WIN_OPTS = ['opt-robkong', 'opt-kongwin', 'opt-double-kong'];
 
   function syncHandLayoutFromArrays() {
     handLayout = [];
@@ -351,6 +351,85 @@
       }
     }
     return parses;
+  }
+
+  function handInLayoutOrder() {
+    if (handLayout.length) {
+      return handLayout.filter(function (slot) { return !slot.isFlower; }).map(function (slot) { return slot.id; });
+    }
+    return hand.slice();
+  }
+
+  function encodeHandForUrl() {
+    return handInLayoutOrder().join(HAND_URL_DELIM);
+  }
+  function consumeMeldFromStart(ids) {
+    if (ids.length < 3) return null;
+    var t = TILE_BY_ID[ids[0]];
+
+    if (ids.length >= 4 && ids[0] === ids[1] && ids[1] === ids[2] && ids[2] === ids[3]) {
+      return {
+        meld: { type: 'kong', suit: t.suit, val: t.val },
+        rest: ids.slice(4),
+      };
+    }
+    if (ids[0] === ids[1] && ids[1] === ids[2]) {
+      return {
+        meld: { type: 'pung', suit: t.suit, val: t.val },
+        rest: ids.slice(3),
+      };
+    }
+    if (t.suit !== 'z') {
+      var t2 = TILE_BY_ID[ids[1]];
+      var t3 = TILE_BY_ID[ids[2]];
+      if (t2.suit === t.suit && t3.suit === t.suit &&
+          t2.val === t.val + 1 && t3.val === t.val + 2) {
+        return {
+          meld: { type: 'chow', suit: t.suit, val: t.val },
+          rest: ids.slice(3),
+        };
+      }
+    }
+    return null;
+  }
+
+  function parseLeftToRight(ids) {
+    if (!ids || ids.length < 14 || ids.length > 18) return null;
+
+    var melds = [];
+    var remaining = ids.slice();
+    while (remaining.length > 0) {
+      if (remaining.length === 2) {
+        var t0 = TILE_BY_ID[remaining[0]];
+        var t1 = TILE_BY_ID[remaining[1]];
+        if (melds.length === 4 && t0.suit === t1.suit && t0.val === t1.val) {
+          return { melds: melds, pair: { suit: t0.suit, val: t0.val } };
+        }
+        return null;
+      }
+      var step = consumeMeldFromStart(remaining);
+      if (!step) return null;
+      melds.push(step.meld);
+      remaining = step.rest;
+    }
+    return null;
+  }
+
+  function applyTerminalPatternStacking(items, c) {
+    var hasFourKongs = items.some(function (i) { return i.name === 'Four Quads'; });
+    if (isAllTerminals(c) && !hasFourKongs) {
+      return [{ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals }].concat(items);
+    }
+    if (isMixedTerminals(c) && !hasFourKongs) {
+      return [{ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals }].concat(items);
+    }
+    return items;
+  }
+
+  function leftToRightStandardItems(c, profile, ctx, orderedIds) {
+    var parse = parseLeftToRight(orderedIds);
+    if (!parse) return null;
+    return applyTerminalPatternStacking(evalParse(parse, profile, ctx), c);
   }
 
   function isAllTripletsHand(c) {
@@ -518,8 +597,10 @@
     return bestItems;
   }
 
-  // Prefer standard 4-set parses when faan ties; seven pairs wins only if it scores higher.
-  function pickPatternItems(c, profile, ctx) {
+  function pickPatternItems(c, profile, ctx, orderedIds) {
+    var leftToRightItems = leftToRightStandardItems(c, profile, ctx, orderedIds);
+    if (leftToRightItems) return leftToRightItems;
+
     var standardItems = bestStandardItems(c, profile, ctx);
     var sevenItems = isSevenPairs(c) ? sevenPairsItems(c, profile, ctx) : null;
 
@@ -791,8 +872,8 @@
     if (on('opt-robkong')) items.push({ name: 'Robbing the Kong', cn: '搶槓', faan: FAAN.robKong });
     if (on('opt-double-kong')) {
       items.push({ name: 'Win by Double Kong', cn: '槓上槓', faan: FAAN.doubleKong });
-    } else if (on('opt-kongbloom')) {
-      items.push({ name: 'Win by Kong', cn: '槓上開花', faan: FAAN.kongBloom });
+    } else if (on('opt-kongwin')) {
+      items.push({ name: 'Win by Kong', cn: '槓上開花', faan: FAAN.kongWin });
     }
 
     items = items.concat(flowerBonusItems(ctx.seat));
@@ -841,7 +922,7 @@
       result.valid = true;
       result.items = [{ name: 'Nine Gates', cn: '九蓮寶燈', faan: FAAN.nineGates }];
     } else {
-      var patternItems = pickPatternItems(c, profile, ctx);
+      var patternItems = pickPatternItems(c, profile, ctx, handInLayoutOrder());
       if (patternItems) {
         result.valid = true;
         result.items = patternItems;
@@ -1502,7 +1583,7 @@
     if (isThirteenOrphans(c)) return FAAN.thirteenOrphans;
     if (isNineGates(c)) return FAAN.nineGates;
 
-    var patternItems = pickPatternItems(c, profile, ctx);
+    var patternItems = pickPatternItems(c, profile, ctx, ids);
     if (patternItems) return sumFaan(applyInherentTripletsNoStacking(applyLimitNoStacking(patternItems)));
 
     return -1;
@@ -1661,6 +1742,7 @@
     if (!next.length) return;
 
     hand = next;
+    handLayout = next.map(function (id) { return { id: id, isFlower: false }; });
     clearActiveExample();
   }
 
@@ -1778,7 +1860,7 @@
     if (opts) params.set('b', opts);
 
     if (hand.length) {
-      params.set('h', hand.join(HAND_URL_DELIM));
+      params.set('h', encodeHandForUrl());
     }
     var bonus = encodeFlowersForUrl();
     if (bonus) {
@@ -1786,7 +1868,7 @@
     }
 
     url.search = params.toString();
-    url.hash = 'calculator';
+    url.hash = '';
     return url.toString();
   }
 

@@ -455,6 +455,47 @@ describe('Hong Kong mahjong scoring', function () {
     });
   });
 
+  describe('left-to-right meld parsing', function () {
+    it('scores grouped chows from left to right even when Seven Pairs is possible', function () {
+      api.setOption('opt-no-flowers', false);
+      api.setHand([
+        'c1', 'c2', 'c3',
+        'c1', 'c2', 'c3',
+        'c4', 'c5', 'c6',
+        'c4', 'c5', 'c6',
+        'c7', 'c7',
+      ]);
+      var result = api.evaluate();
+
+      assertPatternNames(result, ['Full Flush', 'All Sequences']);
+      assert.ok(!result.items.some(function (item) { return item.name === 'Seven Pairs'; }));
+      assert.equal(result.faan, 8);
+    });
+
+    it('falls back to the highest faan when left-to-right melds do not form a winning hand', function () {
+      api.setOption('opt-no-flowers', false);
+      api.setHand([
+        'c1', 'c1', 'c2', 'c2', 'c3', 'c3',
+        'c4', 'c4', 'c5', 'c5', 'c6', 'c6',
+        'c7', 'c7',
+      ]);
+      var result = api.evaluate();
+
+      assertPatternNames(result, ['Seven Pairs', 'Full Flush']);
+      assert.equal(result.faan, 11);
+    });
+
+    it('scores grouped chows when loaded from a share URL', function () {
+      api.loadFromQuery('h=c1-c2-c3-c1-c2-c3-c4-c5-c6-c4-c5-c6-c7-c7');
+      api.setOption('opt-no-flowers', false);
+      var result = api.evaluate();
+
+      assertPatternNames(result, ['Full Flush', 'All Sequences']);
+      assert.ok(!result.items.some(function (item) { return item.name === 'Seven Pairs'; }));
+      assert.equal(result.faan, 8);
+    });
+  });
+
   describe('random hand generation', function () {
     it('maps meld plans to the expected tile counts', function () {
       assert.equal(api.handLengthForMeldPlan(['chow', 'chow', 'chow', 'chow']), 14);

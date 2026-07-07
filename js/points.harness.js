@@ -9,7 +9,7 @@ const OPTION_IDS = [
   'opt-concealed',
   'opt-lasttile',
   'opt-robkong',
-  'opt-kongbloom',
+  'opt-kongwin',
   'opt-double-kong',
   'opt-no-flowers',
   'opt-unlimited',
@@ -29,6 +29,7 @@ function createScoringApi() {
   const sandbox = {
     checkboxes: checkboxes,
     selects: selects,
+    URLSearchParams: URLSearchParams,
     document: {
       getElementById: function (id) {
         if (id === 'opt-seat' || id === 'opt-round') return selects[id];
@@ -72,6 +73,7 @@ function createScoringApi() {
     '    setHand: function (tiles, bonusTiles) {\n' +
     '      hand = tiles || [];\n' +
     '      flowers = bonusTiles || [];\n' +
+    '      syncHandLayoutFromArrays();\n' +
     '    },\n' +
     '    setOption: function (id, value) {\n' +
     '      if (id === \'opt-seat\' || id === \'opt-round\') {\n' +
@@ -87,13 +89,21 @@ function createScoringApi() {
     '    resetOptions: function () {\n' +
     '      var optionIds = [\n' +
     '        \'opt-selfdraw\', \'opt-concealed\', \'opt-lasttile\', \'opt-robkong\',\n' +
-    '        \'opt-kongbloom\', \'opt-double-kong\', \'opt-no-flowers\', \'opt-unlimited\'\n' +
+    '        \'opt-kongwin\', \'opt-double-kong\', \'opt-no-flowers\', \'opt-unlimited\'\n' +
     '      ];\n' +
     '      optionIds.forEach(function (optionId) {\n' +
     '        checkboxes[optionId].checked = optionId === \'opt-no-flowers\';\n' +
     '      });\n' +
     '      selects[\'opt-seat\'].value = \'1\';\n' +
     '      selects[\'opt-round\'].value = \'1\';\n' +
+    '    },\n' +
+    '    loadFromQuery: function (search) {\n' +
+    '      var query = search.charAt(0) === \'?\' ? search.slice(1) : search;\n' +
+    '      var params = new URLSearchParams(query);\n' +
+    '      loadHandFromQuery(params);\n' +
+    '      loadFlowersFromQuery(params);\n' +
+    '      loadOptionsFromQuery(params);\n' +
+    '      syncHandLayoutFromArrays();\n' +
     '    },\n' +
     '  };\n' +
     '})();'
