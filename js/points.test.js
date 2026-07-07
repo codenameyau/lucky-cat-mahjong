@@ -223,6 +223,15 @@ describe('Hong Kong mahjong scoring', function () {
       assert.ok(result.items.some(function (item) { return item.name === 'Concealed Triplets'; }));
       assert.ok(!result.items.some(function (item) { return item.name === 'Concealed'; }));
     });
+
+    it('does not stack Concealed with Seven Pairs', function () {
+      api.setOption('opt-concealed', true);
+      api.setHand(HANDS.sevenPairs);
+      var result = api.evaluate();
+
+      assert.ok(result.items.some(function (item) { return item.name === 'Seven Pairs'; }));
+      assert.ok(!result.items.some(function (item) { return item.name === 'Concealed'; }));
+    });
   });
 
   describe('basic scoring', function () {
@@ -298,6 +307,19 @@ describe('Hong Kong mahjong scoring', function () {
       assertPatternNames(result, ['Seven Pairs']);
       assert.equal(result.faan, 4);
       assert.equal(result.points, 16);
+    });
+
+    it('does not score wind faan from wind pairs in Seven Pairs', function () {
+      api.setHand([
+        'we', 'we', 'c2', 'c2', 'd4', 'd4', 'b6', 'b6',
+        'c8', 'c8', 'd9', 'd9', 'b1', 'b1',
+      ]);
+      var result = api.evaluate();
+
+      assertPatternNames(result, ['Seven Pairs']);
+      assert.ok(!result.items.some(function (item) {
+        return item.name.indexOf('Wind') !== -1;
+      }));
     });
 
     it('scores Big Three Dragons at 8 faan', function () {

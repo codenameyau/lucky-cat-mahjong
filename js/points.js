@@ -462,19 +462,18 @@
   }
 
   function sevenPairsWindItems(c, ctx) {
+    // Wind faan requires a triplet or quad; pairs never score in seven pairs.
     var items = [];
     for (var val = 1; val <= 4; val++) {
-      var n = c.z[val];
-      if (n !== 2 && n !== 4) continue;
-      var kind = n === 4 ? 'Quad' : 'Pair';
+      if (c.z[val] !== 4) continue;
       if (val === ctx.seat && val === ctx.round && ctx.seat > 0) {
-        items.push({ name: 'Double Wind ' + kind, cn: '門風圈風', faan: FAAN.yakuWind * 2 });
+        items.push({ name: 'Double Wind Quad', cn: '門風圈風', faan: FAAN.yakuWind * 2 });
       } else {
         if (val === ctx.seat && ctx.seat > 0) {
-          items.push({ name: 'Seat Wind ' + kind, cn: '門風', faan: FAAN.yakuWind });
+          items.push({ name: 'Seat Wind Quad', cn: '門風', faan: FAAN.yakuWind });
         }
         if (val === ctx.round && ctx.round > 0) {
-          items.push({ name: 'Table Wind ' + kind, cn: '圈風', faan: FAAN.yakuWind });
+          items.push({ name: 'Table Wind Quad', cn: '圈風', faan: FAAN.yakuWind });
         }
       }
     }
@@ -768,7 +767,8 @@
     var ctx = ctxFromUI();
 
     if (on('opt-selfdraw')) items.push({ name: 'Self-Draw', cn: '自摸', faan: FAAN.selfDraw });
-    if (on('opt-concealed') && !isAllTripletsHand(handCounts())) {
+    var c = handCounts();
+    if (on('opt-concealed') && !isAllTripletsHand(c) && !isSevenPairs(c)) {
       items.push({ name: 'Concealed', cn: '門前清', faan: FAAN.concealed });
     }
     if (on('opt-lasttile')) items.push({ name: 'Win on Last Tile', cn: '海底撈月', faan: FAAN.lastTile });
