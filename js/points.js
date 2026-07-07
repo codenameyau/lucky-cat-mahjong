@@ -467,13 +467,13 @@
     for (var val = 1; val <= 4; val++) {
       if (c.z[val] !== 4) continue;
       if (val === ctx.seat && val === ctx.round && ctx.seat > 0) {
-        items.push({ name: 'Seat and Table Wind', cn: '門風圈風', faan: FAAN.yakuWind * 2 });
+        items.push({ name: 'Seat and Round Wind', cn: '門風圈風', faan: FAAN.yakuWind * 2 });
       } else {
         if (val === ctx.seat && ctx.seat > 0) {
           items.push({ name: 'Seat Wind', cn: '門風', faan: FAAN.yakuWind });
         }
         if (val === ctx.round && ctx.round > 0) {
-          items.push({ name: 'Table Wind', cn: '圈風', faan: FAAN.yakuWind });
+          items.push({ name: 'Round Wind', cn: '圈風', faan: FAAN.yakuWind });
         }
       }
     }
@@ -624,10 +624,10 @@
     } else {
       windPungs.forEach(function (m) {
         if (m.val === ctx.seat && m.val === ctx.round && ctx.seat > 0) {
-          items.push({ name: 'Seat and Table Wind', cn: '門風圈風', faan: FAAN.yakuWind * 2 });
+          items.push({ name: 'Seat and Round Wind', cn: '門風圈風', faan: FAAN.yakuWind * 2 });
         } else {
           if (m.val === ctx.seat && ctx.seat > 0) items.push({ name: 'Seat Wind', cn: '門風', faan: FAAN.yakuWind });
-          if (m.val === ctx.round && ctx.round > 0) items.push({ name: 'Table Wind', cn: '圈風', faan: FAAN.yakuWind });
+          if (m.val === ctx.round && ctx.round > 0) items.push({ name: 'Round Wind', cn: '圈風', faan: FAAN.yakuWind });
         }
       });
     }
@@ -677,8 +677,8 @@
   };
 
   var LIMIT_PREFIX_CONSTITUENTS = {
-    'Big Four Winds': ['Seat Wind ', 'Table Wind ', 'Seat and Table Wind '],
-    'Four Quads': ['Seat Wind ', 'Table Wind ', 'Seat and Table Wind '],
+    'Big Four Winds': ['Seat Wind ', 'Round Wind ', 'Seat and Round Wind '],
+    'Four Quads': ['Seat Wind ', 'Round Wind ', 'Seat and Round Wind '],
   };
 
   function isLimitHandItem(item) {
@@ -1713,7 +1713,7 @@
 
     var selected = {};
     var seatVal = null;
-    var tableVal = null;
+    var roundVal = null;
     (params.get('b') || '').split(OPT_URL_DELIM).forEach(function (key) {
       key = key.trim();
       if (!key) return;
@@ -1722,9 +1722,9 @@
         seatVal = seatMatch[1];
         return;
       }
-      var tableMatch = /^table([1-4])$/.exec(key);
-      if (tableMatch) {
-        tableVal = tableMatch[1];
+      var roundMatch = /^round([1-4])$/.exec(key);
+      if (roundMatch) {
+        roundVal = roundMatch[1];
         return;
       }
       selected[key] = true;
@@ -1741,9 +1741,9 @@
       var seat = document.getElementById('opt-seat');
       if (seat) seat.value = seatVal;
     }
-    if (tableVal) {
+    if (roundVal) {
       var round = document.getElementById('opt-round');
-      if (round) round.value = tableVal;
+      if (round) round.value = roundVal;
     }
     if (selected.noflowers) flowers = [];
   }
@@ -1758,7 +1758,7 @@
     var seat = document.getElementById('opt-seat');
     var round = document.getElementById('opt-round');
     if (seat) parts.push('seat' + seat.value);
-    if (round) parts.push('table' + round.value);
+    if (round) parts.push('round' + round.value);
     return parts.join(OPT_URL_DELIM);
   }
 
