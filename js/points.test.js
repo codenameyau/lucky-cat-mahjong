@@ -232,6 +232,30 @@ describe('Hong Kong mahjong scoring', function () {
       assert.ok(result.items.some(function (item) { return item.name === 'Seven Pairs'; }));
       assert.ok(!result.items.some(function (item) { return item.name === 'Concealed'; }));
     });
+
+    it('does not stack Concealed with Thirteen Orphans', function () {
+      api.setOption('opt-concealed', true);
+      api.setHand(HANDS.thirteenOrphans);
+      var result = api.evaluate();
+
+      assert.ok(result.items.some(function (item) { return item.name === 'Thirteen Orphans'; }));
+      assert.ok(!result.items.some(function (item) { return item.name === 'Concealed'; }));
+    });
+
+    it('does not stack Concealed with Seven Pairs Full Flush', function () {
+      api.setOption('opt-concealed', true);
+      api.setOption('opt-no-flowers', false);
+      api.setHand([
+        'c1', 'c1', 'c2', 'c2', 'c3', 'c3',
+        'c4', 'c4', 'c5', 'c5', 'c6', 'c6',
+        'c7', 'c7',
+      ]);
+      var result = api.evaluate();
+
+      assertPatternNames(result, ['Seven Pairs', 'Full Flush']);
+      assert.ok(!result.items.some(function (item) { return item.name === 'Concealed'; }));
+      assert.equal(result.faan, 11);
+    });
   });
 
   describe('basic scoring', function () {
@@ -320,6 +344,33 @@ describe('Hong Kong mahjong scoring', function () {
       assert.ok(!result.items.some(function (item) {
         return item.name.indexOf('Wind') !== -1;
       }));
+    });
+
+    it('prefers Seven Pairs over a lower-scoring All Sequences parse', function () {
+      api.setOption('opt-no-flowers', false);
+      api.setHand([
+        'c1', 'c1', 'c2', 'c2', 'c3', 'c3',
+        'd4', 'd4', 'd5', 'd5', 'd6', 'd6',
+        'c7', 'c7',
+      ]);
+      var result = api.evaluate();
+
+      assertPatternNames(result, ['Seven Pairs']);
+      assert.equal(result.faan, 4);
+    });
+
+    it('prefers Seven Pairs with Full Flush over an All Sequences parse', function () {
+      api.setOption('opt-no-flowers', false);
+      api.setHand([
+        'c1', 'c1', 'c2', 'c2', 'c3', 'c3',
+        'c4', 'c4', 'c5', 'c5', 'c6', 'c6',
+        'c7', 'c7',
+      ]);
+      var result = api.evaluate();
+
+      assertPatternNames(result, ['Seven Pairs', 'Full Flush']);
+      assert.ok(!result.items.some(function (item) { return item.name === 'All Sequences'; }));
+      assert.equal(result.faan, 11);
     });
 
     it('scores Big Three Dragons at 8 faan', function () {

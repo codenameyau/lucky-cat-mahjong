@@ -488,6 +488,10 @@
       items.push({ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals });
     } else if (isMixedTerminals(c)) {
       items.push({ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals });
+    } else if (profile.numSuits.length === 1 && !profile.honors) {
+      items.push({ name: 'Full Flush', cn: '清一色', faan: FAAN.fullFlush });
+    } else if (profile.numSuits.length === 1 && profile.honors) {
+      items.push({ name: 'Half Flush', cn: '混一色', faan: FAAN.halfFlush });
     }
     items = items.concat(sevenPairsWindItems(c, ctx));
     return items;
@@ -761,14 +765,24 @@
     return items;
   }
 
-  function situationalItems() {
+  function suppressesConcealedBonus(patternItems) {
+    if (!patternItems || !patternItems.length) return false;
+    for (var i = 0; i < patternItems.length; i++) {
+      var name = patternItems[i].name;
+      if (name === 'Seven Pairs' || name === 'Concealed Triplets' || name === 'Thirteen Orphans') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function situationalItems(earnedPatternItems) {
     var items = [];
     function on(id) { var el = document.getElementById(id); return el && el.checked; }
     var ctx = ctxFromUI();
 
     if (on('opt-selfdraw')) items.push({ name: 'Self-Draw', cn: '自摸', faan: FAAN.selfDraw });
-    var c = handCounts();
-    if (on('opt-concealed') && !isAllTripletsHand(c) && !isSevenPairs(c)) {
+    if (on('opt-concealed') && !suppressesConcealedBonus(earnedPatternItems)) {
       items.push({ name: 'Concealed', cn: '門前清', faan: FAAN.concealed });
     }
     if (on('opt-lasttile')) items.push({ name: 'Win on Last Tile', cn: '海底撈月', faan: FAAN.lastTile });
@@ -807,7 +821,7 @@
     if (total === 0) {
       if (flowerWin) {
         result.valid = true;
-        result.items = [flowerWin].concat(situationalItems());
+        result.items = [flowerWin].concat(situationalItems([flowerWin]));
         result.faan = capFaan(sumFaan(result.items));
         result.points = faanToPoints(result.faan);
         return result;
@@ -832,7 +846,7 @@
         isChickenHand = sumFaan(patternItems) === 0;
       } else if (flowerWin) {
         result.valid = true;
-        result.items = [flowerWin].concat(situationalItems());
+        result.items = [flowerWin].concat(situationalItems([flowerWin]));
         result.faan = capFaan(sumFaan(result.items));
         result.points = faanToPoints(result.faan);
         return result;
@@ -853,7 +867,7 @@
     result.items = applyAllHonorsNoStacking(applyLimitNoStacking(result.items));
 
     // Situational add-ons
-    result.items = result.items.concat(situationalItems());
+    result.items = result.items.concat(situationalItems(result.items));
 
     var faan = capFaan(sumFaan(result.items));
     result.faan = faan;
