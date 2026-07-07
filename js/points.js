@@ -211,6 +211,7 @@
   var handLayout = []; // display order: { id, isFlower }
   var handDrag = null;
   var HAND_DRAG_THRESHOLD = 8;
+  var HAND_DRAG_EDGE_THRESHOLD = 12;
   var urlSyncEnabled = false;
   var activeExample = null;
   var pendingHandHighlight = null; // { id, isFlower } — brief add animation in hand area
@@ -1969,10 +1970,10 @@
     handDrag = null;
   }
 
-  function collectHandDropTiles(container, skipBtn, placeholder) {
+  function collectHandDropTiles(container, skipBtn) {
     var tiles = [];
     Array.prototype.forEach.call(container.children, function (el) {
-      if (el === skipBtn || el === placeholder) return;
+      if (el === skipBtn) return;
       tiles.push({ el: el, rect: el.getBoundingClientRect() });
     });
     return tiles;
@@ -2012,10 +2013,11 @@
 
   function pickHandDropRow(rows, x, y, containerRect) {
     if (!rows.length) return null;
+    var edge = HAND_DRAG_EDGE_THRESHOLD;
 
     for (var i = rows.length - 1; i >= 0; i--) {
       var trailingRow = rows[i];
-      if (x >= trailingRow.right - 12 &&
+      if (x >= trailingRow.right - edge &&
           x <= containerRect.right + 4 &&
           y >= trailingRow.top - 10 &&
           y <= trailingRow.bottom + 10) {
@@ -2038,7 +2040,7 @@
   }
 
   function getHandDropInsertBefore(container, x, y, skipBtn, placeholder) {
-    var tiles = collectHandDropTiles(container, skipBtn, placeholder);
+    var tiles = collectHandDropTiles(container, skipBtn);
     if (!tiles.length) return null;
 
     var containerRect = container.getBoundingClientRect();
@@ -2048,23 +2050,22 @@
 
     var lastTile = row.tiles[row.tiles.length - 1];
     var firstTile = row.tiles[0];
+    var edge = HAND_DRAG_EDGE_THRESHOLD;
 
-    if (x >= lastTile.rect.right - 12 ||
-        (x >= row.right - 12 && x <= containerRect.right + 4 &&
+    if (x >= lastTile.rect.right - edge ||
+        (x >= row.right - edge && x <= containerRect.right + 4 &&
          y >= row.top - 10 && y <= row.bottom + 10)) {
       return handDropInsertBefore(container, lastTile.el, placeholder);
     }
 
-    if (x < firstTile.rect.left + firstTile.rect.width * 0.5) {
+    if (x < firstTile.rect.left + edge) {
       if (firstTile.el.previousSibling === placeholder) return placeholder;
       return firstTile.el;
     }
 
     for (var i = 0; i < row.tiles.length - 1; i++) {
-      var cur = row.tiles[i];
       var next = row.tiles[i + 1];
-      var splitX = (cur.rect.right + next.rect.left) / 2;
-      if (x < splitX) {
+      if (x < next.rect.left + edge) {
         if (next.el.previousSibling === placeholder) return placeholder;
         return next.el;
       }
