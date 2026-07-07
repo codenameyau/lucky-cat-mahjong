@@ -6,6 +6,8 @@
   --color-accent: #2D8B4E;
   --color-background: #FFF8F0;
   --color-surface: #FFFFFF;
+  --color-surface-rgb: 255, 255, 255;
+  --color-background-rgb: 255, 248, 240;
   --color-text: #1A1A1A;
   --color-text-muted: #5C5C5C;
   --font-body: "Avenir Medium", "Avenir Next Medium", Avenir, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -16,6 +18,9 @@
   --max-width: 1100px;
   --header-height: 64px;
   --mobile-bar-offset: 0px;
+  --nav-glass-bg: rgba(var(--color-background-rgb), 0.78);
+  --nav-glass-backdrop: saturate(180%) blur(8px);
+  --nav-glass-border: rgba(0, 0, 0, 0.06);
 }
 
 section[id] {
@@ -552,10 +557,10 @@ h1, h2, h3 {
   top: 0;
   z-index: 100;
   min-height: var(--header-height);
-  background: rgba(var(--color-surface-rgb, 255, 255, 255), 0.85);
-  -webkit-backdrop-filter: saturate(180%) blur(12px);
-  backdrop-filter: saturate(180%) blur(12px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: var(--nav-glass-bg);
+  -webkit-backdrop-filter: var(--nav-glass-backdrop);
+  backdrop-filter: var(--nav-glass-backdrop);
+  border-bottom: 1px solid var(--nav-glass-border);
   transition: box-shadow 0.2s, background 0.2s;
 }
 
@@ -927,7 +932,10 @@ h1, h2, h3 {
     right: 0;
     flex-direction: column;
     align-items: stretch;
-    background: var(--color-surface);
+    background: var(--nav-glass-bg);
+    -webkit-backdrop-filter: var(--nav-glass-backdrop);
+    backdrop-filter: var(--nav-glass-backdrop);
+    border-bottom: 1px solid var(--nav-glass-border);
     padding: 0;
     gap: 0;
     box-shadow: var(--shadow);
@@ -992,10 +1000,10 @@ h1, h2, h3 {
     padding: 0.6rem 0 calc(0.6rem + env(safe-area-inset-bottom, 0));
     padding-left: max(0px, env(safe-area-inset-left, 0px));
     padding-right: max(0px, env(safe-area-inset-right, 0px));
-    background: rgba(var(--color-surface-rgb, 255, 255, 255), 0.92);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
-    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    background: var(--nav-glass-bg);
+    -webkit-backdrop-filter: var(--nav-glass-backdrop);
+    backdrop-filter: var(--nav-glass-backdrop);
+    border-top: 1px solid var(--nav-glass-border);
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
   }
 
