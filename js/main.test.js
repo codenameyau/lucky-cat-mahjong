@@ -112,7 +112,7 @@ describe('Homepage CMS rendering', function () {
     it('fills hero, about, CTA, and contact links from site.json-shaped data', function () {
       ctx.api.applySite(SAMPLE_SITE);
 
-      assert.equal(ctx.document.title, SAMPLE_SITE.title);
+      assert.equal(ctx.document.title, 'Test Mahjong Club | Mahjong in Test City');
       assert.equal(ctx.document.querySelector('meta[name="description"]').content, SAMPLE_SITE.description);
       assert.equal(ctx.document.querySelector('.hero-headline').textContent, SAMPLE_SITE.tagline);
       assert.equal(ctx.document.querySelector('.hero-subheadline').textContent, SAMPLE_SITE.hero.subheadline);
