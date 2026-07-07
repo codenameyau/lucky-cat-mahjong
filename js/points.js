@@ -462,19 +462,18 @@
   }
 
   function sevenPairsWindItems(c, ctx) {
+    // Wind faan requires a triplet or quad; pairs never score in seven pairs.
     var items = [];
     for (var val = 1; val <= 4; val++) {
-      var n = c.z[val];
-      if (n !== 2 && n !== 4) continue;
-      var kind = n === 4 ? 'Quad' : 'Pair';
+      if (c.z[val] !== 4) continue;
       if (val === ctx.seat && val === ctx.round && ctx.seat > 0) {
-        items.push({ name: 'Double Wind ' + kind, cn: '門風圈風', faan: FAAN.yakuWind * 2 });
+        items.push({ name: 'Seat and Table Wind', cn: '門風圈風', faan: FAAN.yakuWind * 2 });
       } else {
         if (val === ctx.seat && ctx.seat > 0) {
-          items.push({ name: 'Seat Wind ' + kind, cn: '門風', faan: FAAN.yakuWind });
+          items.push({ name: 'Seat Wind', cn: '門風', faan: FAAN.yakuWind });
         }
         if (val === ctx.round && ctx.round > 0) {
-          items.push({ name: 'Table Wind ' + kind, cn: '圈風', faan: FAAN.yakuWind });
+          items.push({ name: 'Table Wind', cn: '圈風', faan: FAAN.yakuWind });
         }
       }
     }
@@ -489,6 +488,10 @@
       items.push({ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals });
     } else if (isMixedTerminals(c)) {
       items.push({ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals });
+    } else if (profile.numSuits.length === 1 && !profile.honors) {
+      items.push({ name: 'Full Flush', cn: '清一色', faan: FAAN.fullFlush });
+    } else if (profile.numSuits.length === 1 && profile.honors) {
+      items.push({ name: 'Half Flush', cn: '混一色', faan: FAAN.halfFlush });
     }
     items = items.concat(sevenPairsWindItems(c, ctx));
     return items;
@@ -620,12 +623,11 @@
       items.push({ name: 'Small Four Winds', cn: '小四喜', faan: FAAN.smallWinds });
     } else {
       windPungs.forEach(function (m) {
-        var kind = m.type === 'kong' ? 'Quad' : 'Triplet';
         if (m.val === ctx.seat && m.val === ctx.round && ctx.seat > 0) {
-          items.push({ name: 'Double Wind ' + kind, cn: '門風圈風', faan: FAAN.yakuWind * 2 });
+          items.push({ name: 'Seat and Table Wind', cn: '門風圈風', faan: FAAN.yakuWind * 2 });
         } else {
-          if (m.val === ctx.seat && ctx.seat > 0) items.push({ name: 'Seat Wind ' + kind, cn: '門風', faan: FAAN.yakuWind });
-          if (m.val === ctx.round && ctx.round > 0) items.push({ name: 'Table Wind ' + kind, cn: '圈風', faan: FAAN.yakuWind });
+          if (m.val === ctx.seat && ctx.seat > 0) items.push({ name: 'Seat Wind', cn: '門風', faan: FAAN.yakuWind });
+          if (m.val === ctx.round && ctx.round > 0) items.push({ name: 'Table Wind', cn: '圈風', faan: FAAN.yakuWind });
         }
       });
     }
@@ -675,8 +677,8 @@
   };
 
   var LIMIT_PREFIX_CONSTITUENTS = {
-    'Big Four Winds': ['Seat Wind ', 'Table Wind ', 'Double Wind '],
-    'Four Quads': ['Seat Wind ', 'Table Wind ', 'Double Wind '],
+    'Big Four Winds': ['Seat Wind ', 'Table Wind ', 'Seat and Table Wind '],
+    'Four Quads': ['Seat Wind ', 'Table Wind ', 'Seat and Table Wind '],
   };
 
   function isLimitHandItem(item) {
@@ -762,13 +764,24 @@
     return items;
   }
 
-  function situationalItems() {
+  function suppressesConcealedBonus(patternItems) {
+    if (!patternItems || !patternItems.length) return false;
+    for (var i = 0; i < patternItems.length; i++) {
+      var name = patternItems[i].name;
+      if (name === 'Seven Pairs' || name === 'Concealed Triplets' || name === 'Thirteen Orphans') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function situationalItems(earnedPatternItems) {
     var items = [];
     function on(id) { var el = document.getElementById(id); return el && el.checked; }
     var ctx = ctxFromUI();
 
     if (on('opt-selfdraw')) items.push({ name: 'Self-Draw', cn: '自摸', faan: FAAN.selfDraw });
-    if (on('opt-concealed') && !isAllTripletsHand(handCounts())) {
+    if (on('opt-concealed') && !suppressesConcealedBonus(earnedPatternItems)) {
       items.push({ name: 'Concealed', cn: '門前清', faan: FAAN.concealed });
     }
     if (on('opt-lasttile')) items.push({ name: 'Win on Last Tile', cn: '海底撈月', faan: FAAN.lastTile });
@@ -807,7 +820,7 @@
     if (total === 0) {
       if (flowerWin) {
         result.valid = true;
-        result.items = [flowerWin].concat(situationalItems());
+        result.items = [flowerWin].concat(situationalItems([flowerWin]));
         result.faan = capFaan(sumFaan(result.items));
         result.points = faanToPoints(result.faan);
         return result;
@@ -832,7 +845,7 @@
         isChickenHand = sumFaan(patternItems) === 0;
       } else if (flowerWin) {
         result.valid = true;
-        result.items = [flowerWin].concat(situationalItems());
+        result.items = [flowerWin].concat(situationalItems([flowerWin]));
         result.faan = capFaan(sumFaan(result.items));
         result.points = faanToPoints(result.faan);
         return result;
@@ -853,7 +866,7 @@
     result.items = applyAllHonorsNoStacking(applyLimitNoStacking(result.items));
 
     // Situational add-ons
-    result.items = result.items.concat(situationalItems());
+    result.items = result.items.concat(situationalItems(result.items));
 
     var faan = capFaan(sumFaan(result.items));
     result.faan = faan;
