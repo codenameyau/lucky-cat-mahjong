@@ -1,0 +1,26 @@
+{
+  "events": [
+    {
+      "title": "Summer Mahjong Night",
+      "date": "2026-08-15",
+      "time": "7:00 PM",
+      "price": "Free",
+      "location": "Brooklyn, NY",
+      "flyer": "",
+      "description": "Join us for an open community mahjong night — all skill levels welcome.\n\nWe provide tiles and a quick rules refresher for beginners. Come solo or bring friends.",
+      "registration_url": "",
+      "slug": "2026-08-15-summer-mahjong-night"
+    },
+    {
+      "title": "Spring Workshop",
+      "date": "2026-05-10",
+      "time": "2:00 PM",
+      "price": "$25",
+      "location": "Manhattan, NY",
+      "flyer": "",
+      "description": "A hands-on afternoon covering Hong Kong mahjong fundamentals, scoring basics, and table etiquette.",
+      "registration_url": "",
+      "slug": "2026-05-10-spring-workshop"
+    }
+  ]
+}

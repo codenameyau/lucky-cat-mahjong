@@ -5,6 +5,10 @@
       "href": "/"
     },
     {
+      "label": "Events",
+      "href": "/events/"
+    },
+    {
       "label": "Points Calculator",
       "href": "/hong-kong-mahjong-scoring/"
     }

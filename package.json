@@ -2,6 +2,8 @@
   "name": "lucky-cat-mahjong",
   "private": true,
   "scripts": {
-    "test": "node --test js/points.test.js js/main.test.js"
+    "sync-events": "node scripts/sync-events.js",
+    "pretest": "node scripts/sync-events.js",
+    "test": "node --test js/points.test.js js/main.test.js js/events.test.js"
   }
 }

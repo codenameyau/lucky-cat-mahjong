@@ -305,3 +305,64 @@ content:
                 type: text
                 required: true
                 description: Plain text; basic line breaks are preserved.
+
+      - name: events_page
+        label: Events Page
+        type: file
+        path: data/events-page.json
+        format: json
+        fields:
+          - name: heading
+            label: Page Heading
+            type: string
+          - name: subheading
+            label: Page Subheading
+            type: string
+
+  - name: events
+    label: Events
+    type: collection
+    path: data/events
+    format: json
+    filename: "{fields.date}-{primary}.json"
+    view:
+      primary: title
+      sort: date
+      order: desc
+      fields: [date, title, location, price]
+    fields:
+      - name: title
+        label: Title
+        type: string
+        required: true
+        description: Used in the URL slug after the date (e.g. "Summer Mahjong Night" → summer-mahjong-night).
+      - name: date
+        label: Date
+        type: date
+        required: true
+        description: Event date; also used in the URL slug (YYYY-MM-DD).
+      - name: time
+        label: Time
+        type: string
+        description: "Optional, e.g. 7:00 PM"
+      - name: price
+        label: Price
+        type: string
+        required: true
+        description: "e.g. $25 or Free"
+      - name: location
+        label: Location
+        type: string
+        required: true
+      - name: flyer
+        label: Flyer Image
+        type: image
+        description: Instagram post ratio 1080×1350 (4:5). Shown on the listing and detail pages.
+      - name: description
+        label: Description
+        type: text
+        description: Full event blurb for the detail page. Leave a blank line between paragraphs.
+      - name: registration_url
+        label: Registration URL
+        type: string
+        description: Optional ticket or sign-up link.

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Events | Lucky Cat Mahjong</title>
+  <meta name="description" content="Upcoming Lucky Cat Mahjong community events, workshops, and tournaments in NYC.">
+  <meta name="author" content="Lucky Cat Mahjong">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+  <meta name="theme-color" content="#C41E3A">
+
+  <link rel="canonical" href="https://luckycatmahjong.com/events/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Lucky Cat Mahjong">
+  <meta property="og:title" content="Events | Lucky Cat Mahjong">
+  <meta property="og:description" content="Upcoming Lucky Cat Mahjong community events, workshops, and tournaments in NYC.">
+  <meta property="og:url" content="https://luckycatmahjong.com/events/">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:image" content="https://luckycatmahjong.com/logo.png">
+  <meta property="og:image:alt" content="Lucky Cat Mahjong logo">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Events | Lucky Cat Mahjong">
+  <meta name="twitter:description" content="Upcoming Lucky Cat Mahjong community events, workshops, and tournaments in NYC.">
+  <meta name="twitter:image" content="https://luckycatmahjong.com/logo.png">
+  <meta name="twitter:image:alt" content="Lucky Cat Mahjong logo">
+
+  <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="/logo.png" type="image/png" sizes="1024x1063">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+  <link rel="stylesheet" href="/css/fonts.css">
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/events.css">
+
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-B514HH987M"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-B514HH987M');
+  </script>
+</head>
+<body data-events-mode="listing">
+  <header class="site-header" id="site-header"></header>
+
+  <main class="events-main">
+    <section class="events-listing">
+      <div class="container">
+        <div class="events-section">
+          <h1 class="events-section-title">Upcoming events</h1>
+          <div id="upcoming-events" class="events-grid" aria-live="polite"></div>
+          <p id="upcoming-empty" class="events-empty" hidden>No upcoming events right now. Follow us on Instagram for announcements, or reach out to plan a session.</p>
+        </div>
+
+        <div id="past-events-wrap" class="events-past-wrap" hidden>
+          <button type="button" id="past-events-toggle" class="events-past-toggle" aria-expanded="false" aria-controls="past-events-panel">
+            View past events
+          </button>
+          <div id="past-events-panel" class="events-past-panel" hidden>
+            <h2 class="events-section-title">Past events</h2>
+            <div id="past-events" class="events-grid"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <picture>
+          <source srcset="/logo.webp" type="image/webp">
+          <img src="/logo.png" alt="" class="footer-logo" width="40" height="42" loading="lazy" decoding="async" draggable="false">
+        </picture>
+        <span>Lucky Cat Mahjong</span>
+      </div>
+      <p class="footer-tagline">Hong Kong Mahjong in NYC</p>
+      <p class="footer-copy">&copy; <span id="year"></span> Lucky Cat Mahjong</p>
+    </div>
+  </footer>
+
+  <script src="/js/nav.js" defer></script>
+  <script src="/js/events-lib.js" defer></script>
+  <script src="/js/events.js" defer></script>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
