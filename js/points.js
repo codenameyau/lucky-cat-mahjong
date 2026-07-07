@@ -702,8 +702,11 @@
     return false;
   }
 
-  function applyAllHonorsNoStacking(items) {
-    if (!items.some(function (it) { return it.name === 'All Honors'; })) return items;
+  function applyInherentTripletsNoStacking(items) {
+    var suppressAllTriplets = items.some(function (it) {
+      return it.name === 'All Honors' || it.name === 'All Terminals';
+    });
+    if (!suppressAllTriplets) return items;
     return items.filter(function (it) { return it.name !== 'All Triplets'; });
   }
 
@@ -863,7 +866,7 @@
       result.items.unshift({ name: 'Chicken Hand', cn: '雞糊', faan: FAAN.chicken });
     }
     
-    result.items = applyAllHonorsNoStacking(applyLimitNoStacking(result.items));
+    result.items = applyInherentTripletsNoStacking(applyLimitNoStacking(result.items));
 
     // Situational add-ons
     result.items = result.items.concat(situationalItems(result.items));
@@ -1500,7 +1503,7 @@
     if (isNineGates(c)) return FAAN.nineGates;
 
     var patternItems = pickPatternItems(c, profile, ctx);
-    if (patternItems) return sumFaan(applyAllHonorsNoStacking(applyLimitNoStacking(patternItems)));
+    if (patternItems) return sumFaan(applyInherentTripletsNoStacking(applyLimitNoStacking(patternItems)));
 
     return -1;
   }
