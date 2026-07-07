@@ -196,6 +196,28 @@ describe('Hong Kong mahjong scoring', function () {
     });
   });
 
+  describe('All Terminals stacking rules', function () {
+    it('does not stack All Terminals with All Triplets', function () {
+      api.setHand(HANDS.allTerminals);
+      var result = api.evaluate();
+
+      assert.ok(patternNames(result).includes('All Terminals'));
+      assert.ok(!patternNames(result).includes('All Triplets'));
+      assert.equal(result.faan, 10);
+      assert.equal(result.points, 1024);
+    });
+
+    it('stacks Concealed Triplets with All Terminals when concealed', function () {
+      api.setOption('opt-concealed', true);
+      api.setHand(HANDS.allTerminals);
+      var result = api.evaluate();
+
+      assertPatternNames(result, ['All Terminals', 'Concealed Triplets']);
+      assert.ok(!patternNames(result).includes('All Triplets'));
+      assert.equal(result.faan, 13);
+    });
+  });
+
   describe('dragon triplet display', function () {
     it('combines multiple dragon triplets into one stacked line item', function () {
       api.setHand(HANDS.allHonors);
@@ -398,25 +420,6 @@ describe('Hong Kong mahjong scoring', function () {
       assert.ok(patternNames(result).includes('All Triplets'));
       assert.equal(result.faan, 8);
       assert.equal(result.points, 256);
-    });
-
-    it('scores All Terminals and its meld constituents', function () {
-      api.setHand(HANDS.allTerminals);
-      var result = api.evaluate();
-
-      assert.ok(patternNames(result).includes('All Terminals'));
-      assert.ok(patternNames(result).includes('All Triplets'));
-      assert.equal(result.faan, 13);
-      assert.equal(result.points, 8192);
-    });
-
-    it('stacks Concealed Triplets with All Terminals when concealed', function () {
-      api.setOption('opt-concealed', true);
-      api.setHand(HANDS.allTerminals);
-      var result = api.evaluate();
-
-      assertPatternNames(result, ['All Terminals', 'Concealed Triplets']);
-      assert.equal(result.faan, 13);
     });
 
     it('labels a zero-pattern hand as Chicken Hand', function () {
