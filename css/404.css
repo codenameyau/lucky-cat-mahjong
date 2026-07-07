@@ -1,0 +1,114 @@
+.page-404 {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.not-found {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 0;
+  overflow: hidden;
+}
+
+.not-found-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 20%, rgba(var(--color-primary-rgb), 0.1) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 45% at 15% 85%, rgba(var(--color-secondary-rgb), 0.14) 0%, transparent 55%),
+    radial-gradient(ellipse 45% 40% at 90% 70%, rgba(var(--color-accent), 0.08) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.not-found-tiles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.not-found-tiles:not(.is-placed) .not-found-tile {
+  opacity: 0;
+}
+
+.not-found-tile {
+  position: absolute;
+  left: var(--tile-x, -20%);
+  top: var(--tile-y, -20%);
+  width: clamp(2.25rem, 6vw, 3.75rem);
+  opacity: 0.38;
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.1));
+  transform: translate(-50%, -50%) rotate(var(--tile-rotate, 0deg)) scale(var(--tile-scale, 1));
+  animation: tile-drift 9s ease-in-out infinite;
+  transition: opacity 0.25s ease;
+}
+
+@keyframes tile-drift {
+  0%, 100% {
+    transform: translate(-50%, -50%) translateY(0) rotate(var(--tile-rotate, 0deg)) scale(var(--tile-scale, 1));
+  }
+  50% {
+    transform: translate(-50%, -50%) translateY(-12px) rotate(calc(var(--tile-rotate, 0deg) + 6deg)) scale(var(--tile-scale, 1));
+  }
+}
+
+.not-found-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1rem;
+  width: min(100% - 2rem, 36rem);
+  padding: 2rem 1.5rem;
+}
+
+.not-found-logo-link {
+  display: block;
+  line-height: 0;
+}
+
+.not-found-logo-link:hover {
+  text-decoration: none;
+}
+
+.not-found-logo {
+  max-width: min(200px, 50vw);
+  animation: float 4s ease-in-out infinite;
+}
+
+.not-found-code {
+  margin-top: 0.5rem;
+  font-family: var(--font-heading);
+  font-size: clamp(3.5rem, 14vw, 5.5rem);
+  line-height: 1;
+  color: var(--color-primary);
+}
+
+.not-found-heading {
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  color: var(--color-text);
+}
+
+.not-found-message {
+  margin: 0;
+  max-width: 34ch;
+  color: var(--color-text-muted);
+  font-size: clamp(1rem, 2.5vw, 1.125rem);
+}
+
+.not-found-home {
+  margin-top: 0.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .not-found-logo,
+  .not-found-tile {
+    animation: none;
+  }
+}
