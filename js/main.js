@@ -128,8 +128,15 @@ function showToast(message) {
   }, 4500);
 }
 
+function buildPageTitle(site) {
+  return site.tagline ? `${site.title} | ${site.tagline}` : site.title;
+}
+
 function applySite(site) {
-  document.title = site.title;
+  const pageTitle = buildPageTitle(site);
+  if (document.title !== pageTitle) {
+    document.title = pageTitle;
+  }
   document.querySelector('meta[name="description"]').content = site.description;
 
   document.querySelector('.hero-headline').textContent = site.tagline;
@@ -389,13 +396,6 @@ function setupConversion(servicesData) {
       track(el.dataset.channel, { location, source_event: el.dataset.evt });
     }
   });
-
-  const header = document.getElementById('site-header');
-  if (header) {
-    const onScroll = () => header.classList.toggle('scrolled', window.scrollY > 8);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-  }
 }
 
 async function init() {
