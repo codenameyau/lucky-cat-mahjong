@@ -575,14 +575,14 @@ describe('Hong Kong mahjong scoring', function () {
   });
 
   describe('wind and flower bonuses', function () {
-    it('scores Seat Wind Triplet when seat matches East in a South round', function () {
+    it('scores Seat Wind when seat matches East in a South round', function () {
       api.setOption('opt-seat', 1);
       api.setOption('opt-round', 2);
       api.setHand(HANDS.seatWind);
       var result = api.evaluate();
 
-      assert.ok(patternNames(result).includes('Seat Wind Triplet'));
-      assert.equal(faanFor(result, 'Seat Wind Triplet'), 1);
+      assert.ok(patternNames(result).includes('Seat Wind'));
+      assert.equal(faanFor(result, 'Seat Wind'), 1);
     });
 
     it('scores No Flowers bonus when enabled and no bonus tiles', function () {
