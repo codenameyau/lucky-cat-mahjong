@@ -76,7 +76,8 @@ body {
   border-radius: var(--radius);
   background: var(--color-surface);
   border: 1px solid rgba(var(--color-secondary-rgb), 0.4);
-  border-left: 3px solid var(--color-primary);
+  border-top: 3px solid var(--color-primary);
+  border-bottom: 3px solid var(--color-secondary);
   box-shadow: var(--shadow);
   overflow: hidden;
   -webkit-touch-callout: none;
@@ -84,7 +85,7 @@ body {
 
 .community-photo img {
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 3 / 2;
   object-fit: cover;
   display: block;
 }

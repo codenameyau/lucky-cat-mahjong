@@ -92,7 +92,7 @@ async function processMediaFolder() {
 
       if (result.status === 'updated') {
         pathMap.set(result.oldWebPath, result.webPath);
-        console.log(`updated ${result.from} -> ${path.basename(result.webPath)}`);
+        console.log(`"/media/${path.basename(result.webPath)}",`);
       }
     } catch (err) {
       console.error(`failed ${filename}: ${err.message}`);
