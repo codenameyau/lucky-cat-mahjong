@@ -39,6 +39,14 @@ body {
   white-space: nowrap;
 }
 
+@media (max-width: 768px) {
+  .community-event-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+}
+
 .community-event-description {
   color: var(--color-text);
   line-height: 1.65;
