@@ -626,22 +626,49 @@ h1, h2, h3 {
 
 .nav-toggle {
   display: none;
-  flex-direction: column;
-  gap: 5px;
+  position: relative;
+  width: 2.5rem;
+  height: 2.5rem;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0.5rem;
+  padding: 0;
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
 }
 
 .nav-toggle span {
-  display: block;
+  position: absolute;
+  left: 50%;
+  top: 50%;
   width: 24px;
   height: 2px;
+  margin-left: -12px;
+  margin-top: -1px;
   background: var(--color-text);
   transition: transform 0.2s, opacity 0.2s;
+  transform-origin: center;
+}
+
+.nav-toggle span:nth-child(1) {
+  transform: translateY(-7px);
+}
+
+.nav-toggle span:nth-child(3) {
+  transform: translateY(7px);
+}
+
+.nav-toggle[aria-expanded="true"] span:nth-child(1) {
+  transform: translateY(0) rotate(45deg);
+}
+
+.nav-toggle[aria-expanded="true"] span:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0);
+}
+
+.nav-toggle[aria-expanded="true"] span:nth-child(3) {
+  transform: translateY(0) rotate(-45deg);
 }
 
 .btn-sm {
