@@ -1,0 +1,33 @@
+{
+  "heading": "Community",
+  "subheading": "At our core, we value inclusivity, thoughtfulness, and cultural respect. We've built a space where mahjong pros can chase Thirteen Orphans and newcomers can learn the game without feeling intimidated. For us, mahjong is more than just tiles. It's a reason for us to actually get together in person and connect. We're here to build a welcoming and special community where members can make lifelong connections and keep this game thriving for generations to come. —Jorge Yau, Founder of Lucky Cat Mahjong",
+  "events": [
+    {
+      "name": "Summer Social Night",
+      "date": "2026-06-15",
+      "description": "Our biggest open community night of the season — new faces, old friends, and plenty of tiles on the table.",
+      "photos": [
+        "/logo.png",
+        "/logo.png"
+      ]
+    },
+    {
+      "name": "Spring Invitational",
+      "date": "2026-05-10",
+      "description": "An exclusive tournament celebrating our most active club members at a special Brooklyn venue.",
+      "photos": [
+        "/logo.png"
+      ]
+    },
+    {
+      "name": "April Beginner Workshop",
+      "date": "2026-04-05",
+      "description": "A hands-on intro to Hong Kong mahjong — tiles, melds, and scoring basics for first-time players.",
+      "photos": [
+        "/logo.png",
+        "/logo.png",
+        "/logo.png"
+      ]
+    }
+  ]
+}

@@ -305,3 +305,44 @@ content:
                 type: text
                 required: true
                 description: Plain text; basic line breaks are preserved.
+
+      - name: community
+        label: Community
+        type: file
+        path: data/community.json
+        format: json
+        fields:
+          - name: heading
+            label: Page Heading
+            type: string
+          - name: subheading
+            label: Page Subheading
+            type: string
+          - name: events
+            label: Community Events
+            type: object
+            list: true
+            description: Past events shown newest-first on the community page. Drag to reorder in the CMS; display order on the site is always by event date.
+            fields:
+              - name: name
+                label: Event Name
+                type: string
+                required: true
+              - name: date
+                label: Event Date
+                type: date
+                required: true
+              - name: description
+                label: Description
+                type: text
+                description: Optional recap of the event. Leave a blank line between paragraphs.
+              - name: photos
+                label: Photos
+                type: image
+                required: true
+                options:
+                  multiple:
+                    min: 1
+                  extensions: [jpg, jpeg, png, webp]
+                  rename: safe
+                description: Upload event photos. Drag to reorder; display order matches this list.

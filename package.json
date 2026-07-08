@@ -2,6 +2,6 @@
   "name": "lucky-cat-mahjong",
   "private": true,
   "scripts": {
-    "test": "node --test js/points.test.js js/main.test.js"
+    "test": "node --test js/points.test.js js/main.test.js js/community.test.js"
   }
 }
