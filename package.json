@@ -2,6 +2,10 @@
   "name": "lucky-cat-mahjong",
   "private": true,
   "scripts": {
-    "test": "node --test js/points.test.js js/main.test.js"
+    "format-media": "node scripts/format-media.js",
+    "test": "node --test js/points.test.js js/main.test.js js/community.test.js scripts/format-media.test.js"
+  },
+  "devDependencies": {
+    "sharp": "^0.34.2"
   }
 }
