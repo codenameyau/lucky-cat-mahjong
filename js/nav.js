@@ -61,31 +61,59 @@
     );
   }
 
-  function setupLinkCloseHandlers() {
+  function measureNavLinksHeight(links) {
+    var wasOpen = links.classList.contains('open');
+    links.classList.add('open');
+    var previous = links.style.maxHeight;
+    links.style.maxHeight = 'none';
+    var height = links.scrollHeight;
+    links.style.maxHeight = previous;
+    if (!wasOpen) links.classList.remove('open');
+    return height;
+  }
+
+  function syncMobileNavHeight(header, links) {
+    if (!header || !links) return;
+    if (!links.classList.contains('open')) {
+      header.style.setProperty('--mobile-nav-height', '0px');
+      return;
+    }
+    header.style.setProperty('--mobile-nav-height', measureNavLinksHeight(links) + 'px');
+  }
+
+  function setMobileNavOpen(header, links, toggle, open) {
+    links.classList.toggle('open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    syncMobileNavHeight(header, links);
+  }
+
+  function setupLinkCloseHandlers(header) {
     var toggle = document.querySelector('.nav-toggle');
     var links = document.querySelector('.nav-links');
     if (!toggle || !links) return;
 
     links.querySelectorAll('a').forEach(function (link) {
       link.addEventListener('click', function () {
-        links.classList.remove('open');
-        toggle.setAttribute('aria-expanded', 'false');
+        setMobileNavOpen(header, links, toggle, false);
       });
     });
   }
 
-  function setupMenu() {
+  function setupMenu(header) {
     var toggle = document.querySelector('.nav-toggle');
     var links = document.querySelector('.nav-links');
     if (!toggle || !links || toggle.dataset.bound) return;
     toggle.dataset.bound = 'true';
 
     toggle.addEventListener('click', function () {
-      var open = links.classList.toggle('open');
-      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      setMobileNavOpen(header, links, toggle, !links.classList.contains('open'));
     });
 
-    setupLinkCloseHandlers();
+    window.addEventListener('resize', function () {
+      syncMobileNavHeight(header, links);
+    });
+
+    setupLinkCloseHandlers(header);
   }
 
   function setupScrollShadow(header) {
@@ -118,7 +146,7 @@
     if (!header) return;
 
     header.innerHTML = renderHeader(DEFAULT_LINKS);
-    setupMenu();
+    setupMenu(header);
     setupScrollShadow(header);
     setupBrandProtection();
 
@@ -128,7 +156,8 @@
         var list = header.querySelector('.nav-links');
         if (!list) return;
         list.innerHTML = renderListItems(links);
-        setupLinkCloseHandlers();
+        setupLinkCloseHandlers(header);
+        syncMobileNavHeight(header, list);
       })
       .catch(function () {});
   }
