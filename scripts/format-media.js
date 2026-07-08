@@ -69,11 +69,17 @@ async function formatImage(sourcePath) {
 async function processMediaFolder() {
   const files = listMediaImages(MEDIA_DIR);
   const results = [];
+  const processedDates = new Set();
 
   for (const sourcePath of files) {
     if (!fs.existsSync(sourcePath)) continue;
 
     const filename = path.basename(sourcePath);
+    const relativePath = path.relative(MEDIA_DIR, sourcePath);
+    const dateKey = relativePath.split(path.sep)[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+      processedDates.add(dateKey);
+    }
     try {
       const result = await formatImage(sourcePath);
       results.push(result);
@@ -86,15 +92,16 @@ async function processMediaFolder() {
     }
   }
 
-  return { results: results };
+  return { results: results, processedDates: processedDates };
 }
 
-function syncCommunityJson() {
+function syncCommunityJson(processedDates) {
   if (!fs.existsSync(COMMUNITY_JSON)) return false;
+  if (!processedDates || !processedDates.size) return false;
 
   const community = JSON.parse(fs.readFileSync(COMMUNITY_JSON, 'utf8'));
   const dateToPhotos = buildDateToWebpMap(MEDIA_DIR, MEDIA_DIR);
-  const communityChanged = updateCommunityFromMedia(community, dateToPhotos);
+  const communityChanged = updateCommunityFromMedia(community, dateToPhotos, processedDates);
 
   if (communityChanged) {
     fs.writeFileSync(COMMUNITY_JSON, JSON.stringify(community, null, 2) + '\n', 'utf8');
@@ -111,7 +118,7 @@ async function main() {
   }
 
   const mediaRun = await processMediaFolder();
-  const communityChanged = syncCommunityJson();
+  const communityChanged = syncCommunityJson(mediaRun.processedDates);
 
   if (!mediaRun.results.length && !communityChanged) {
     console.log('No images found in media/.');

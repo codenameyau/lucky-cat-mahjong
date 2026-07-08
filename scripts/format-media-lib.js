@@ -54,12 +54,13 @@ function buildDateToWebpMap(mediaDir, dirPath) {
   return map;
 }
 
-function updateCommunityFromMedia(community, dateToPhotos) {
+function updateCommunityFromMedia(community, dateToPhotos, allowedDates) {
   let changed = false;
   (community.events || []).forEach(function (event) {
     const rawDate = event && event.date;
     if (!rawDate) return;
     const dateKey = String(rawDate).slice(0, 10);
+    if (allowedDates && !allowedDates.has(dateKey)) return;
     if (!dateToPhotos.has(dateKey)) return;
 
     const nextPhotos = dateToPhotos.get(dateKey).map(normalizePhotoPath).filter(Boolean);

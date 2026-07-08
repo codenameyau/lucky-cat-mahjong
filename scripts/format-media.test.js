@@ -98,6 +98,36 @@ describe('format-media utilities', function () {
       assert.deepEqual(community.events[1].photos, ['/media/2026-05-26/keep.webp']);
     });
 
+    it('only updates dates included in the current run', function () {
+      const community = {
+        events: [
+          {
+            name: 'June event',
+            date: '2026-06-14',
+            photos: ['/media/2026-06-14/old.webp'],
+          },
+          {
+            name: 'May event',
+            date: '2026-05-26',
+            photos: ['/media/2026-05-26/original-order-b.webp', '/media/2026-05-26/original-order-a.webp'],
+          },
+        ],
+      };
+      const dateToPhotos = new Map([
+        ['2026-06-14', ['/media/2026-06-14/new.webp']],
+        ['2026-05-26', ['/media/2026-05-26/a.webp', '/media/2026-05-26/b.webp']],
+      ]);
+
+      const changed = updateCommunityFromMedia(community, dateToPhotos, new Set(['2026-06-14']));
+
+      assert.equal(changed, true);
+      assert.deepEqual(community.events[0].photos, ['/media/2026-06-14/new.webp']);
+      assert.deepEqual(community.events[1].photos, [
+        '/media/2026-05-26/original-order-b.webp',
+        '/media/2026-05-26/original-order-a.webp',
+      ]);
+    });
+
     it('cleans trailing comma artifacts before comparing paths', function () {
       const community = {
         events: [
