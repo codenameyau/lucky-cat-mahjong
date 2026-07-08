@@ -540,40 +540,23 @@
     return total === 14 && pairs === 7;
   }
 
-  function sevenPairsWindItems(c, ctx) {
-    // Wind faan requires a triplet or quad; pairs never score in seven pairs.
-    var items = [];
-    for (var val = 1; val <= 4; val++) {
-      if (c.z[val] !== 4) continue;
-      if (val === ctx.seat && val === ctx.round && ctx.seat > 0) {
-        items.push({ name: 'Seat and Round Wind', cn: '門風圈風', faan: FAAN.yakuWind * 2 });
-      } else {
-        if (val === ctx.seat && ctx.seat > 0) {
-          items.push({ name: 'Seat Wind', cn: '門風', faan: FAAN.yakuWind });
-        }
-        if (val === ctx.round && ctx.round > 0) {
-          items.push({ name: 'Round Wind', cn: '圈風', faan: FAAN.yakuWind });
-        }
-      }
-    }
-    return items;
-  }
-
-  function sevenPairsItems(c, profile, ctx) {
-    var items = [{ name: 'Seven Pairs', cn: '七對子', faan: FAAN.sevenPairs }];
+  function handCompositionItems(c, profile) {
     if (profile.numSuits.length === 0 && profile.honors) {
-      items.push({ name: 'All Honors', cn: '字一色', faan: FAAN.allHonors });
-    } else if (isAllTerminals(c)) {
-      items.push({ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals });
-    } else if (isMixedTerminals(c)) {
-      items.push({ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals });
-    } else if (profile.numSuits.length === 1 && !profile.honors) {
-      items.push({ name: 'Full Flush', cn: '清一色', faan: FAAN.fullFlush });
-    } else if (profile.numSuits.length === 1 && profile.honors) {
-      items.push({ name: 'Half Flush', cn: '混一色', faan: FAAN.halfFlush });
+      return [{ name: 'All Honors', cn: '字一色', faan: FAAN.allHonors }];
     }
-    items = items.concat(sevenPairsWindItems(c, ctx));
-    return items;
+    if (isAllTerminals(c)) {
+      return [{ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals }];
+    }
+    if (isMixedTerminals(c)) {
+      return [{ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals }];
+    }
+    if (profile.numSuits.length === 1 && !profile.honors) {
+      return [{ name: 'Full Flush', cn: '清一色', faan: FAAN.fullFlush }];
+    }
+    if (profile.numSuits.length === 1 && profile.honors) {
+      return [{ name: 'Half Flush', cn: '混一色', faan: FAAN.halfFlush }];
+    }
+    return [];
   }
 
   function bestStandardItems(c, profile, ctx) {
@@ -602,7 +585,9 @@
     if (leftToRightItems) return leftToRightItems;
 
     var standardItems = bestStandardItems(c, profile, ctx);
-    var sevenItems = isSevenPairs(c) ? sevenPairsItems(c, profile, ctx) : null;
+    var sevenItems = isSevenPairs(c)
+      ? [{ name: 'Seven Pairs', cn: '七對子', faan: FAAN.sevenPairs }].concat(handCompositionItems(c, profile))
+      : null;
 
     if (standardItems && sevenItems) {
       return sumFaan(sevenItems) > sumFaan(standardItems) ? sevenItems : standardItems;
