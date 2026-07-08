@@ -8,6 +8,8 @@ const {
   sortEventsByDateDesc,
   formatEventDate,
   normalizePhotos,
+  normalizePhotoPath,
+  renderPhoto,
 } = require('./community.js');
 
 describe('Community utilities', function () {
@@ -67,6 +69,29 @@ describe('Community utilities', function () {
 
     it('returns empty array for missing photos', function () {
       assert.deepEqual(normalizePhotos(null), []);
+    });
+
+    it('strips trailing commas and quotes from pasted paths', function () {
+      assert.deepEqual(
+        normalizePhotos(['"/media/2026-06-14/photo.webp",']),
+        ['/media/2026-06-14/photo.webp']
+      );
+    });
+
+    it('adds a leading slash to media paths', function () {
+      assert.deepEqual(normalizePhotos(['media/2026-06-14/photo.webp']), ['/media/2026-06-14/photo.webp']);
+    });
+  });
+
+  describe('renderPhoto', function () {
+    it('eager-loads the first batch of photos', function () {
+      var html = renderPhoto({ name: 'June Social' }, '/media/photo.webp', 0, false);
+      assert.match(html, /loading="eager"/);
+    });
+
+    it('lazy-loads later batches of photos', function () {
+      var html = renderPhoto({ name: 'June Social' }, '/media/photo.webp', 0, true);
+      assert.match(html, /loading="lazy"/);
     });
   });
 });

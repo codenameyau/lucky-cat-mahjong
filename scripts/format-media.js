@@ -4,6 +4,11 @@ const fs = require('fs');
 const path = require('path');
 const { randomUUID } = require('crypto');
 const sharp = require('sharp');
+const {
+  mediaWebPath,
+  buildDateToWebpMap,
+  updateCommunityFromMedia,
+} = require('./format-media-lib.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const MEDIA_DIR = path.join(ROOT, 'media');
@@ -12,10 +17,6 @@ const TARGET_WIDTH = 2000;
 const TARGET_HEIGHT = Math.round(TARGET_WIDTH * (2 / 3));
 const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png']);
 const JPEG_EXTENSIONS = new Set(['.jpg', '.jpeg']);
-
-function mediaWebPath(relativePath) {
-  return '/media/' + relativePath.split(path.sep).join('/');
-}
 
 function listMediaImages(dirPath) {
   if (!fs.existsSync(dirPath)) return [];
@@ -26,21 +27,6 @@ function listMediaImages(dirPath) {
     if (IMAGE_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) return [entryPath];
     return [];
   });
-}
-
-function updateCommunityPhotoPaths(community, pathMap) {
-  let changed = false;
-  (community.events || []).forEach(function (event) {
-    if (!Array.isArray(event.photos)) return;
-    event.photos = event.photos.map(function (photo) {
-      if (pathMap.has(photo)) {
-        changed = true;
-        return pathMap.get(photo);
-      }
-      return photo;
-    });
-  });
-  return changed;
 }
 
 async function formatImage(sourcePath) {
@@ -82,7 +68,6 @@ async function formatImage(sourcePath) {
 
 async function processMediaFolder() {
   const files = listMediaImages(MEDIA_DIR);
-  const pathMap = new Map();
   const results = [];
 
   for (const sourcePath of files) {
@@ -92,10 +77,8 @@ async function processMediaFolder() {
     try {
       const result = await formatImage(sourcePath);
       results.push(result);
-
       if (result.status === 'updated') {
-        pathMap.set(result.oldWebPath, result.webPath);
-        console.log(`"${result.webPath}",`);
+        console.log(`updated ${result.from} -> ${result.webPath}`);
       }
     } catch (err) {
       console.error(`failed ${filename}: ${err.message}`);
@@ -103,7 +86,22 @@ async function processMediaFolder() {
     }
   }
 
-  return { pathMap: pathMap, results: results };
+  return { results: results };
+}
+
+function syncCommunityJson() {
+  if (!fs.existsSync(COMMUNITY_JSON)) return false;
+
+  const community = JSON.parse(fs.readFileSync(COMMUNITY_JSON, 'utf8'));
+  const dateToPhotos = buildDateToWebpMap(MEDIA_DIR, MEDIA_DIR);
+  const communityChanged = updateCommunityFromMedia(community, dateToPhotos);
+
+  if (communityChanged) {
+    fs.writeFileSync(COMMUNITY_JSON, JSON.stringify(community, null, 2) + '\n', 'utf8');
+    console.log(`updated ${COMMUNITY_JSON}`);
+  }
+
+  return communityChanged;
 }
 
 async function main() {
@@ -113,20 +111,11 @@ async function main() {
   }
 
   const mediaRun = await processMediaFolder();
+  const communityChanged = syncCommunityJson();
 
-  if (!mediaRun.results.length) {
+  if (!mediaRun.results.length && !communityChanged) {
     console.log('No images found in media/.');
     return;
-  }
-
-  if (fs.existsSync(COMMUNITY_JSON) && mediaRun.pathMap.size) {
-    const community = JSON.parse(fs.readFileSync(COMMUNITY_JSON, 'utf8'));
-    const communityChanged = updateCommunityPhotoPaths(community, mediaRun.pathMap);
-
-    if (communityChanged) {
-      fs.writeFileSync(COMMUNITY_JSON, JSON.stringify(community, null, 2) + '\n', 'utf8');
-      console.log(`updated ${COMMUNITY_JSON}`);
-    }
   }
 
   const updated = mediaRun.results.filter(function (r) { return r.status === 'updated'; }).length;
