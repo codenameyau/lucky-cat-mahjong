@@ -13,20 +13,19 @@ const TARGET_HEIGHT = Math.round(TARGET_WIDTH * (2 / 3));
 const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png']);
 const JPEG_EXTENSIONS = new Set(['.jpg', '.jpeg']);
 
-function mediaWebPath(filename) {
-  return '/media/' + filename;
+function mediaWebPath(relativePath) {
+  return '/media/' + relativePath.split(path.sep).join('/');
 }
 
-function listMediaImages() {
-  if (!fs.existsSync(MEDIA_DIR)) return [];
+function listMediaImages(dirPath) {
+  if (!fs.existsSync(dirPath)) return [];
 
-  return fs.readdirSync(MEDIA_DIR)
-    .filter(function (file) {
-      return IMAGE_EXTENSIONS.has(path.extname(file).toLowerCase());
-    })
-    .map(function (file) {
-      return path.join(MEDIA_DIR, file);
-    });
+  return fs.readdirSync(dirPath, { withFileTypes: true }).flatMap(function (entry) {
+    const entryPath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) return listMediaImages(entryPath);
+    if (IMAGE_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) return [entryPath];
+    return [];
+  });
 }
 
 function updateCommunityPhotoPaths(community, pathMap) {
@@ -48,11 +47,14 @@ async function formatImage(sourcePath) {
   const filename = path.basename(sourcePath);
   const ext = path.extname(filename).toLowerCase();
   const isJpeg = JPEG_EXTENSIONS.has(ext);
-  const oldWebPath = mediaWebPath(filename);
+  const relativeDir = path.relative(MEDIA_DIR, path.dirname(sourcePath));
+  const oldRelativePath = path.relative(MEDIA_DIR, sourcePath);
+  const oldWebPath = mediaWebPath(oldRelativePath);
   const meta = await sharp(sourcePath).metadata();
 
   const outFilename = randomUUID() + '.webp';
-  const outPath = path.join(MEDIA_DIR, outFilename);
+  const outRelativePath = relativeDir === '' ? outFilename : path.join(relativeDir, outFilename);
+  const outPath = path.join(MEDIA_DIR, outRelativePath);
   const pipeline = sharp(sourcePath).rotate();
 
   if (isJpeg || meta.width !== TARGET_WIDTH) {
@@ -62,6 +64,7 @@ async function formatImage(sourcePath) {
     });
   }
 
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
   await pipeline.webp({ quality: 85 }).toFile(outPath);
 
   if (sourcePath !== outPath && fs.existsSync(sourcePath)) {
@@ -70,7 +73,7 @@ async function formatImage(sourcePath) {
 
   return {
     status: 'updated',
-    webPath: mediaWebPath(outFilename),
+    webPath: mediaWebPath(outRelativePath),
     oldWebPath: oldWebPath,
     sourcePath: sourcePath,
     from: filename,
@@ -78,7 +81,7 @@ async function formatImage(sourcePath) {
 }
 
 async function processMediaFolder() {
-  const files = listMediaImages();
+  const files = listMediaImages(MEDIA_DIR);
   const pathMap = new Map();
   const results = [];
 
@@ -92,7 +95,7 @@ async function processMediaFolder() {
 
       if (result.status === 'updated') {
         pathMap.set(result.oldWebPath, result.webPath);
-        console.log(`"/media/${path.basename(result.webPath)}",`);
+        console.log(`"${result.webPath}",`);
       }
     } catch (err) {
       console.error(`failed ${filename}: ${err.message}`);
