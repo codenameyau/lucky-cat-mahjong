@@ -33,6 +33,7 @@
   <link rel="icon" href="../logo.png" type="image/png" sizes="1024x1063">
   <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 
+  <link rel="preload" href="/fonts/kn-yuanmo-sc.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="../css/fonts.css">
   <link rel="stylesheet" href="../css/styles.css">
   <link rel="stylesheet" href="../css/points.css">
@@ -102,7 +103,27 @@
   </script>
 </head>
 <body>
-  <header class="site-header" id="site-header"></header>
+  <header class="site-header" id="site-header">
+    <nav class="nav container">
+      <a href="/" class="header-brand" aria-label="Lucky Cat Mahjong home">
+        <picture>
+          <source srcset="/logo.webp" type="image/webp">
+          <img src="/logo.png" alt="" class="header-logo" width="36" height="37" decoding="async" draggable="false">
+        </picture>
+        <span class="header-brand-name">Lucky Cat Mahjong</span>
+      </a>
+      <button type="button" class="nav-toggle" aria-label="Toggle menu" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <ul class="nav-links">
+        <li><a href="/" class="nav-link">Our Services</a></li>
+        <li><a href="/hong-kong-mahjong-scoring/" class="nav-link">Points Calculator</a></li>
+        <li><a href="https://buytickets.at/luckycatmahjong" class="nav-link">Events</a></li>
+      </ul>
+    </nav>
+  </header>
 
   <main id="top">
     <!-- CALCULATOR -->

@@ -61,6 +61,26 @@
     );
   }
 
+  function applyActiveStates(list) {
+    list.querySelectorAll('a.nav-link').forEach(function (a) {
+      a.classList.toggle('is-active', linkIsActive(a.getAttribute('href') || ''));
+    });
+  }
+
+  function getLinksFromList(list) {
+    return Array.prototype.map.call(list.querySelectorAll('a.nav-link'), function (a) {
+      return { label: a.textContent, href: a.getAttribute('href') || '' };
+    });
+  }
+
+  function linksEqual(a, b) {
+    if (a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].label !== b[i].label || a[i].href !== b[i].href) return false;
+    }
+    return true;
+  }
+
   function measureNavLinksHeight(links) {
     var wasOpen = links.classList.contains('open');
     links.classList.add('open');
@@ -145,7 +165,15 @@
     var header = document.getElementById('site-header');
     if (!header) return;
 
-    header.innerHTML = renderHeader(DEFAULT_LINKS);
+    var list = header.querySelector('.nav-links');
+    if (!list) {
+      header.innerHTML = renderHeader(DEFAULT_LINKS);
+      list = header.querySelector('.nav-links');
+    }
+
+    if (!list) return;
+
+    applyActiveStates(list);
     setupMenu(header);
     setupScrollShadow(header);
     setupBrandProtection();
@@ -153,10 +181,11 @@
     loadNavConfig()
       .then(function (links) {
         if (!links.length) return;
-        var list = header.querySelector('.nav-links');
-        if (!list) return;
-        list.innerHTML = renderListItems(links);
-        setupLinkCloseHandlers(header);
+        if (!linksEqual(links, getLinksFromList(list))) {
+          list.innerHTML = renderListItems(links);
+          setupLinkCloseHandlers(header);
+        }
+        applyActiveStates(list);
         syncMobileNavHeight(header, list);
       })
       .catch(function () {});

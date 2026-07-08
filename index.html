@@ -34,6 +34,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
   <link rel="preload" as="image" href="logo.webp" type="image/webp" fetchpriority="high">
+  <link rel="preload" href="fonts/kn-yuanmo-sc.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="css/fonts.css">
   <link rel="stylesheet" href="css/styles.css">
 
@@ -171,7 +172,27 @@
   </script>
 </head>
 <body>
-  <header class="site-header" id="site-header"></header>
+  <header class="site-header" id="site-header">
+    <nav class="nav container">
+      <a href="/" class="header-brand" aria-label="Lucky Cat Mahjong home">
+        <picture>
+          <source srcset="/logo.webp" type="image/webp">
+          <img src="/logo.png" alt="" class="header-logo" width="36" height="37" decoding="async" draggable="false">
+        </picture>
+        <span class="header-brand-name">Lucky Cat Mahjong</span>
+      </a>
+      <button type="button" class="nav-toggle" aria-label="Toggle menu" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <ul class="nav-links">
+        <li><a href="/" class="nav-link">Our Services</a></li>
+        <li><a href="/hong-kong-mahjong-scoring/" class="nav-link">Points Calculator</a></li>
+        <li><a href="https://buytickets.at/luckycatmahjong" class="nav-link">Events</a></li>
+      </ul>
+    </nav>
+  </header>
 
   <main id="top">
     <section class="hero">
@@ -182,7 +203,7 @@
           <img src="logo.png" alt="Lucky Cat Mahjong logo" class="hero-logo" width="280" height="291" fetchpriority="high" decoding="async" draggable="false">
         </picture>
         <h1 class="hero-headline">Hong Kong Mahjong in NYC</h1>
-        <p class="hero-subheadline">From corporate workshops to private lessons, we make mahjong accessible, social, and unforgettable.</p>
+        <p class="hero-subheadline">From private lessons to office workshops to curated brand collaborations, we make mahjong easy and unforgettable.</p>
         <div class="hero-actions">
           <a href="#quote" class="btn btn-primary hero-book-button" data-evt="book_session_hero" data-loc="hero">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z"/></svg>
@@ -351,7 +372,7 @@
         </picture>
         <span>Lucky Cat Mahjong</span>
       </div>
-      <p class="footer-tagline"></p>
+      <p class="footer-tagline">Hong Kong Mahjong in NYC</p>
       <p class="footer-copy">&copy; <span id="year"></span> Lucky Cat Mahjong</p>
     </div>
   </footer>
