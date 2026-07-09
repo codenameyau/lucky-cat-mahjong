@@ -2,14 +2,6 @@ media:
   input: media
   output: /media
 
-components:
-  color:
-    type: string
-    description: "Hex color code (e.g. #C41E3A)"
-    pattern: "^#[0-9A-Fa-f]{6}$"
-    options:
-      maxlength: 7
-
 content:
   - name: website
     label: Website
@@ -102,74 +94,6 @@ content:
                 type: string
                 required: true
                 description: "e.g. Views per event"
-
-      - name: styleguide
-        label: Style Guide
-        type: file
-        path: data/styleguide.json
-        format: json
-        fields:
-          - name: fontFamily
-            label: Body Font
-            type: select
-            required: true
-            options:
-              values:
-                - Avenir Medium
-                - DM Sans
-                - Inter
-                - Lato
-                - Open Sans
-                - Roboto
-                - Source Sans 3
-                - Nunito
-                - Poppins
-                - Work Sans
-            description: Body text font (Avenir Medium uses system-installed font)
-          - name: headingFont
-            label: Heading Font
-            type: select
-            required: true
-            options:
-              values:
-                - KN Yuanmo SC
-                - Playfair Display
-                - Merriweather
-                - Lora
-                - Libre Baskerville
-                - Cormorant Garamond
-                - DM Serif Display
-                - Fraunces
-                - Bitter
-            description: Font used for all headings
-          - name: colors
-            label: Colors
-            type: object
-            fields:
-              - name: primary
-                label: Primary Color
-                component: color
-                description: Main brand color (red recommended)
-              - name: secondary
-                label: Secondary Color
-                component: color
-                description: Accent color for buttons and highlights
-              - name: accent
-                label: Accent Color
-                component: color
-                description: Additional accent (e.g. green from logo)
-              - name: background
-                label: Background
-                component: color
-              - name: surface
-                label: Surface / Cards
-                component: color
-              - name: text
-                label: Text
-                component: color
-              - name: textMuted
-                label: Muted Text
-                component: color
 
       - name: services
         label: Services

@@ -4,18 +4,6 @@
   var BATCH_SIZE = 2;
   var DATA_PREFIX = '../data/';
 
-  var GOOGLE_FONTS = new Set([
-    'DM Sans', 'Inter', 'Lato', 'Open Sans', 'Roboto', 'Source Sans 3',
-    'Nunito', 'Poppins', 'Work Sans', 'Playfair Display', 'Merriweather',
-    'Lora', 'Libre Baskerville', 'Cormorant Garamond', 'DM Serif Display',
-    'Fraunces', 'Bitter',
-  ]);
-
-  var FONT_FALLBACKS = {
-    'Avenir Medium': '"Avenir Next Medium", Avenir, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    'KN Yuanmo SC': 'sans-serif',
-  };
-
   var allEvents = [];
   var renderedCount = 0;
   var observer = null;
@@ -75,56 +63,6 @@
       if (!res.ok) throw new Error('Failed to load ' + path);
       return res.json();
     });
-  }
-
-  function hexToRgbTriplet(hex) {
-    var match = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(hex).trim());
-    if (!match) return null;
-    var h = match[1];
-    if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join('');
-    var int = parseInt(h, 16);
-    return ((int >> 16) & 255) + ', ' + ((int >> 8) & 255) + ', ' + (int & 255);
-  }
-
-  function applyStyleguide(styleguide) {
-    var root = document.documentElement;
-    var colors = styleguide.colors || {};
-
-    root.style.setProperty('--color-primary', colors.primary);
-    root.style.setProperty('--color-secondary', colors.secondary);
-    root.style.setProperty('--color-accent', colors.accent);
-    root.style.setProperty('--color-background', colors.background);
-    root.style.setProperty('--color-surface', colors.surface);
-    root.style.setProperty('--color-text', colors.text);
-    root.style.setProperty('--color-text-muted', colors.textMuted);
-
-    var primaryRgb = hexToRgbTriplet(colors.primary);
-    var secondaryRgb = hexToRgbTriplet(colors.secondary);
-    if (primaryRgb) root.style.setProperty('--color-primary-rgb', primaryRgb);
-    if (secondaryRgb) root.style.setProperty('--color-secondary-rgb', secondaryRgb);
-
-    var bodyFallback = FONT_FALLBACKS[styleguide.fontFamily] || 'system-ui, sans-serif';
-    var headingFallback = FONT_FALLBACKS[styleguide.headingFont] || 'sans-serif';
-    root.style.setProperty('--font-body', '"' + styleguide.fontFamily + '", ' + bodyFallback);
-    root.style.setProperty('--font-heading', '"' + styleguide.headingFont + '", ' + headingFallback);
-
-    var googleFonts = [styleguide.fontFamily, styleguide.headingFont].filter(function (f) {
-      return GOOGLE_FONTS.has(f);
-    });
-    var fontsLink = document.getElementById('google-fonts');
-    if (googleFonts.length) {
-      if (!fontsLink) {
-        fontsLink = document.createElement('link');
-        fontsLink.id = 'google-fonts';
-        fontsLink.rel = 'stylesheet';
-        document.head.appendChild(fontsLink);
-      }
-      fontsLink.href = 'https://fonts.googleapis.com/css2?family=' +
-        googleFonts.map(function (f) { return f.replace(/ /g, '+') + ':wght@400;500;600;700'; }).join('&family=') +
-        '&display=swap';
-    } else if (fontsLink) {
-      fontsLink.remove();
-    }
   }
 
   function renderPhoto(event, photo, index, lazyLoad) {
@@ -350,12 +288,7 @@
     var yearEl = document.getElementById('year');
     if (yearEl) yearEl.textContent = String(new Date().getFullYear());
 
-    Promise.all([
-      loadJSON(DATA_PREFIX + 'styleguide.json'),
-      loadJSON(DATA_PREFIX + 'community.json'),
-    ]).then(function (results) {
-      applyStyleguide(results[0]);
-      var community = results[1];
+    loadJSON(DATA_PREFIX + 'community.json').then(function (community) {
       applyPageCopy(community);
       allEvents = sortEventsByDateDesc(community.events || []);
 

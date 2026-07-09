@@ -82,7 +82,7 @@ Changes save directly to the JSON files in `data/` and deploy with your next pus
 │   └── index.html        # Scoring guide + interactive points calculator
 ├── logo.png            # Club logo
 ├── css/
-│   ├── styles.css        # Shared styles (CSS variables from styleguide)
+│   ├── styles.css        # Shared styles and design tokens
 │   └── points.css        # Styles for the points/scoring page
 ├── js/
 │   ├── main.js           # Loads CMS data and renders the home page
@@ -95,7 +95,6 @@ Changes save directly to the JSON files in `data/` and deploy with your next pus
 ├── tiles/              # Hong Kong mahjong tile SVGs (CC0, see credit below)
 ├── data/
 │   ├── site.json         # Site settings, copy & hero stats
-│   ├── styleguide.json   # Fonts & colors
 │   ├── services.json     # Service offerings
 │   ├── rates.json        # Pricing table
 │   ├── testimonials.json # Social proof / reviews
