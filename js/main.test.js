@@ -36,22 +36,6 @@ describe('Homepage utilities', function () {
     api = createHomepageApi().api;
   });
 
-  describe('hexToRgbTriplet', function () {
-    it('converts 6-digit hex colors', function () {
-      assert.equal(api.hexToRgbTriplet('#C41E3A'), '196, 30, 58');
-      assert.equal(api.hexToRgbTriplet('C41E3A'), '196, 30, 58');
-    });
-
-    it('converts 3-digit shorthand hex', function () {
-      assert.equal(api.hexToRgbTriplet('#f00'), '255, 0, 0');
-    });
-
-    it('returns null for invalid input', function () {
-      assert.equal(api.hexToRgbTriplet('not-a-color'), null);
-      assert.equal(api.hexToRgbTriplet(''), null);
-    });
-  });
-
   describe('escapeHtml', function () {
     it('escapes HTML special characters', function () {
       assert.equal(
@@ -234,31 +218,4 @@ describe('Homepage CMS rendering', function () {
     });
   });
 
-  describe('applyStyleguide', function () {
-    it('sets CSS custom properties from the style guide', function () {
-      ctx.api.applyStyleguide({
-        fontFamily: 'Inter',
-        headingFont: 'Playfair Display',
-        colors: {
-          primary: '#C41E3A',
-          secondary: '#1A1A2E',
-          accent: '#F5A623',
-          background: '#FFF8F0',
-          surface: '#FFFFFF',
-          text: '#1A1A2E',
-          textMuted: '#6B7280',
-        },
-      });
-
-      const root = ctx.document.documentElement;
-      assert.equal(root.style['--color-primary'], '#C41E3A');
-      assert.equal(root.style['--color-secondary-rgb'], '26, 26, 46');
-      assert.match(root.style['--font-body'], /"Inter"/);
-      assert.match(root.style['--font-heading'], /"Playfair Display"/);
-
-      const fontsLink = ctx.document.getElementById('google-fonts');
-      assert.ok(fontsLink);
-      assert.match(fontsLink.href, /fonts\.googleapis\.com/);
-    });
-  });
 });

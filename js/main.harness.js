@@ -399,7 +399,6 @@ function createHomepageApi() {
   const injected = source.replace(
     /\ninit\(\);\s*$/,
     '\n__MAIN_TEST_API__ = {\n' +
-    '  hexToRgbTriplet: hexToRgbTriplet,\n' +
     '  escapeHtml: escapeHtml,\n' +
     '  multilineHtml: multilineHtml,\n' +
     '  linkifyContact: linkifyContact,\n' +
@@ -410,7 +409,6 @@ function createHomepageApi() {
     '  applyStats: applyStats,\n' +
     '  applyTestimonials: applyTestimonials,\n' +
     '  applyRates: applyRates,\n' +
-    '  applyStyleguide: applyStyleguide,\n' +
     '  setContactInfo: function (info) { contactInfo = info; },\n' +
     '  getContactInfo: function () { return contactInfo; },\n' +
     '};\n'

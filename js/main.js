@@ -4,67 +4,6 @@ async function loadJSON(path) {
   return res.json();
 }
 
-const GOOGLE_FONTS = new Set([
-  'DM Sans', 'Inter', 'Lato', 'Open Sans', 'Roboto', 'Source Sans 3',
-  'Nunito', 'Poppins', 'Work Sans', 'Playfair Display', 'Merriweather',
-  'Lora', 'Libre Baskerville', 'Cormorant Garamond', 'DM Serif Display',
-  'Fraunces', 'Bitter',
-]);
-
-const FONT_FALLBACKS = {
-  'Avenir Medium': '"Avenir Next Medium", Avenir, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-  'KN Yuanmo SC': 'sans-serif',
-};
-
-function hexToRgbTriplet(hex) {
-  const match = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(hex).trim());
-  if (!match) return null;
-  let h = match[1];
-  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
-  const int = parseInt(h, 16);
-  return `${(int >> 16) & 255}, ${(int >> 8) & 255}, ${int & 255}`;
-}
-
-function applyStyleguide(styleguide) {
-  const root = document.documentElement;
-  const { fontFamily, headingFont, colors } = styleguide;
-
-  root.style.setProperty('--color-primary', colors.primary);
-  root.style.setProperty('--color-secondary', colors.secondary);
-  root.style.setProperty('--color-accent', colors.accent);
-  root.style.setProperty('--color-background', colors.background);
-  root.style.setProperty('--color-surface', colors.surface);
-  root.style.setProperty('--color-text', colors.text);
-  root.style.setProperty('--color-text-muted', colors.textMuted);
-
-  const primaryRgb = hexToRgbTriplet(colors.primary);
-  const secondaryRgb = hexToRgbTriplet(colors.secondary);
-  if (primaryRgb) root.style.setProperty('--color-primary-rgb', primaryRgb);
-  if (secondaryRgb) root.style.setProperty('--color-secondary-rgb', secondaryRgb);
-
-  const bodyFallback = FONT_FALLBACKS[fontFamily] || 'system-ui, sans-serif';
-  const headingFallback = FONT_FALLBACKS[headingFont] || 'sans-serif';
-  root.style.setProperty('--font-body', `"${fontFamily}", ${bodyFallback}`);
-  root.style.setProperty('--font-heading', `"${headingFont}", ${headingFallback}`);
-
-  const googleFonts = [fontFamily, headingFont].filter((f) => GOOGLE_FONTS.has(f));
-  let fontsLink = document.getElementById('google-fonts');
-  if (googleFonts.length) {
-    if (!fontsLink) {
-      fontsLink = document.createElement('link');
-      fontsLink.id = 'google-fonts';
-      fontsLink.rel = 'stylesheet';
-      document.head.appendChild(fontsLink);
-    }
-    const families = googleFonts
-      .map((f) => f.replace(/ /g, '+') + ':wght@400;500;600;700')
-      .join('&family=');
-    fontsLink.href = `https://fonts.googleapis.com/css2?family=${families}&display=swap`;
-  } else if (fontsLink) {
-    fontsLink.remove();
-  }
-}
-
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -406,16 +345,14 @@ async function init() {
   });
 
   try {
-    const [site, styleguide, services, rates, faq, testimonials] = await Promise.all([
+    const [site, services, rates, faq, testimonials] = await Promise.all([
       loadJSON('data/site.json'),
-      loadJSON('data/styleguide.json'),
       loadJSON('data/services.json'),
       loadJSON('data/rates.json'),
       loadJSON('data/faq.json').catch(() => null),
       loadJSON('data/testimonials.json').catch(() => null),
     ]);
 
-    applyStyleguide(styleguide);
     applySite(site);
     applyServices(services);
     applyStats(site.stats);
