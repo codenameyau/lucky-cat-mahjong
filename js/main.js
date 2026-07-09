@@ -322,7 +322,7 @@ function setupQuoteForm(servicesData) {
     const titles = (servicesData && Array.isArray(servicesData.services))
       ? servicesData.services.map((s) => (s.title === 'Business Collaborations' ? 'Business Collaboration' : s.title))
       : [];
-    const options = [...titles, 'Something else / Not sure'];
+    const options = [...titles, 'Something else'];
     select.innerHTML = options
       .map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`)
       .join('');
