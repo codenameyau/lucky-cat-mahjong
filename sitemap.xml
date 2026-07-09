@@ -3,50 +3,75 @@
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://luckycatmahjong.com/</loc>
-    <lastmod>2026-06-25</lastmod>
+    <lastmod>2026-07-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
     <image:image>
       <image:loc>https://luckycatmahjong.com/logo.png</image:loc>
       <image:title>Lucky Cat Mahjong logo</image:title>
-      <image:caption>Lucky Cat Mahjong — Hong Kong mahjong lessons and workshops in NYC</image:caption>
+      <image:caption>Lucky Cat Mahjong — Hong Kong mahjong lessons, corporate workshops, and community events in NYC</image:caption>
     </image:image>
   </url>
   <url>
     <loc>https://luckycatmahjong.com/hong-kong-mahjong-scoring/</loc>
-    <lastmod>2026-06-29</lastmod>
+    <lastmod>2026-07-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://luckycatmahjong.com/#about</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://luckycatmahjong.com/#services</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://luckycatmahjong.com/#rates</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://luckycatmahjong.com/#quote</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://luckycatmahjong.com/#contact</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://luckycatmahjong.com/logo.png</image:loc>
+      <image:title>Hong Kong Mahjong Points Calculator</image:title>
+      <image:caption>Free Hong Kong mahjong points calculator and scoring guide — count faan, score winning patterns, and learn special hands</image:caption>
+    </image:image>
   </url>
   <url>
     <loc>https://luckycatmahjong.com/community/</loc>
     <lastmod>2026-07-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://luckycatmahjong.com/media/2026-06-30/7f10e9bb-be22-4564-909c-dafc29cac51d.webp</image:loc>
+      <image:title>June 2026 Invitational</image:title>
+      <image:caption>Our monthly tournament where our strongest and most deserving players compete. Winner and Player of the Month — Jackie Ho</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://luckycatmahjong.com/media/2026-06-21/62fb3129-a9f3-4dc6-9c01-49eb6f6ea672.webp</image:loc>
+      <image:title>Mahjong at Good Company</image:title>
+      <image:caption>A mahjong collaboration with this new dispensary on the Upper West Side.</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://luckycatmahjong.com/media/2026-06-16/13f0d429-c483-4a13-add0-c4f633aeb56f.webp</image:loc>
+      <image:title>Mahjong at Marathon HK Diner</image:title>
+      <image:caption>A mahjong collaboration with authentic Hong Kong comfort food at the LIC Food Hall.</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://luckycatmahjong.com/media/2026-06-14/4367139b-c2d2-4ba3-82f2-71d30c0fb0b8.webp</image:loc>
+      <image:title>June 2026 Monthly</image:title>
+      <image:caption>Our signature free monthly community gathering with 300+ in attendance. Sponsored this month by Umami Granola.</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://luckycatmahjong.com/media/2026-05-26/6ff49ba3-20de-410d-a0ed-48688e574b3f.webp</image:loc>
+      <image:title>May 2026 Invitational</image:title>
+      <image:caption>Our monthly tournament where our strongest and most deserving players compete. Winner and Player of the Month — Jon Chan</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://luckycatmahjong.com/media/2026-05-03/f02995b2-177c-4623-bb3a-dd590619eaab.webp</image:loc>
+      <image:title>May 2026 Monthly</image:title>
+      <image:caption>Our signature free monthly community gathering with 200+ in attendance.</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://luckycatmahjong.com/media/2026-04-28/ef9faa07-3300-4b4a-ba47-97b6896f2f7a.webp</image:loc>
+      <image:title>April 2026 Invitational</image:title>
+      <image:caption>Our monthly tournament where our strongest and most deserving players compete. Winner and Player of the Month — Vivien Guo</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://luckycatmahjong.com/media/2026-04-19/ce7792bf-f7f0-4c49-8aca-09aee6cdc207.webp</image:loc>
+      <image:title>April 2026 Monthly</image:title>
+      <image:caption>Our signature free monthly community gathering with 140+ in attendance.</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://luckycatmahjong.com/media/2026-03-15/06f2042e-df4e-42db-90dc-fc57b7923cce.webp</image:loc>
+      <image:title>March 2026 Monthly</image:title>
+      <image:caption>Our signature free monthly community gathering with 100+ in attendance.</image:caption>
+    </image:image>
   </url>
 </urlset>
