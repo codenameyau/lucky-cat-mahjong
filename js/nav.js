@@ -9,7 +9,7 @@
     { label: 'Our Services', href: '/' },
     { label: 'Points Calculator', href: '/hong-kong-mahjong-scoring/' },
     { label: 'Community', href: '/community/' },
-    { label: 'Events', href: 'https://buytickets.at/luckycatmahjong' },
+    { label: 'Events', href: '/events/' },
   ];
 
   function escapeHtml(str) {
