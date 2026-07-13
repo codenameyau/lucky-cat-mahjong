@@ -4,6 +4,11 @@ body {
   background: #fff;
 }
 
+/* Reserve space so the footer stays below the fold while the TT widget loads */
+main {
+  min-height: calc(95dvh - var(--header-height));
+}
+
 .events-hero {
   padding: 0;
   margin-top: 3rem;
