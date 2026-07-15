@@ -10,6 +10,7 @@ const {
   normalizePhotoPath,
   photosEqual,
   buildDateToWebpMap,
+  defaultEventName,
   updateCommunityFromMedia,
 } = require('./format-media-lib.js');
 
@@ -166,6 +167,60 @@ describe('format-media utilities', function () {
 
       assert.equal(changed, true);
       assert.deepEqual(community.events[0].photos, ['/media/2026-06-14/new.webp']);
+    });
+
+    it('prepends new dated media into the events array', function () {
+      const community = {
+        events: [
+          {
+            name: 'June event',
+            date: '2026-06-14',
+            photos: ['/media/2026-06-14/a.webp'],
+          },
+        ],
+      };
+      const dateToPhotos = new Map([
+        ['2026-07-12', ['/media/2026-07-12/uuid-b.webp', '/media/2026-07-12/uuid-a.webp']],
+        ['2026-06-14', ['/media/2026-06-14/a.webp']],
+      ]);
+
+      const changed = updateCommunityFromMedia(
+        community,
+        dateToPhotos,
+        new Set(['2026-07-12'])
+      );
+
+      assert.equal(changed, true);
+      assert.equal(community.events.length, 2);
+      assert.deepEqual(community.events[0], {
+        name: defaultEventName('2026-07-12'),
+        date: '2026-07-12',
+        description: '',
+        photos: ['/media/2026-07-12/uuid-b.webp', '/media/2026-07-12/uuid-a.webp'],
+      });
+      assert.equal(community.events[1].name, 'June event');
+    });
+
+    it('prepends multiple new dates newest-first', function () {
+      const community = { events: [] };
+      const dateToPhotos = new Map([
+        ['2026-06-01', ['/media/2026-06-01/a.webp']],
+        ['2026-07-12', ['/media/2026-07-12/b.webp']],
+      ]);
+
+      const changed = updateCommunityFromMedia(community, dateToPhotos);
+
+      assert.equal(changed, true);
+      assert.deepEqual(
+        community.events.map(function (event) { return event.date; }),
+        ['2026-07-12', '2026-06-01']
+      );
+    });
+  });
+
+  describe('defaultEventName', function () {
+    it('formats ISO dates for placeholder event names', function () {
+      assert.equal(defaultEventName('2026-07-12'), 'July 12, 2026');
     });
   });
 });
