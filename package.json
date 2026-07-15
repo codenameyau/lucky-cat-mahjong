@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "format-media": "node scripts/format-media.js",
+    "format-json": "node scripts/format-media.js",
     "test": "node --test js/points.test.js js/main.test.js js/community.test.js scripts/format-media.test.js"
   },
   "devDependencies": {

@@ -95,13 +95,36 @@ async function processMediaFolder() {
   return { results: results, processedDates: processedDates };
 }
 
+function datesMissingFromCommunity(community, dateToPhotos) {
+  const missing = new Set();
+  const existing = new Set(
+    (community.events || [])
+      .map(function (event) {
+        return event && event.date ? String(event.date).slice(0, 10) : '';
+      })
+      .filter(Boolean)
+  );
+
+  dateToPhotos.forEach(function (_photos, dateKey) {
+    if (!existing.has(dateKey)) missing.add(dateKey);
+  });
+
+  return missing;
+}
+
 function syncCommunityJson(processedDates) {
   if (!fs.existsSync(COMMUNITY_JSON)) return false;
-  if (!processedDates || !processedDates.size) return false;
 
   const community = JSON.parse(fs.readFileSync(COMMUNITY_JSON, 'utf8'));
   const dateToPhotos = buildDateToWebpMap(MEDIA_DIR, MEDIA_DIR);
-  const communityChanged = updateCommunityFromMedia(community, dateToPhotos, processedDates);
+  const datesToSync = new Set(processedDates || []);
+  datesMissingFromCommunity(community, dateToPhotos).forEach(function (dateKey) {
+    datesToSync.add(dateKey);
+  });
+
+  if (!datesToSync.size) return false;
+
+  const communityChanged = updateCommunityFromMedia(community, dateToPhotos, datesToSync);
 
   if (communityChanged) {
     fs.writeFileSync(COMMUNITY_JSON, JSON.stringify(community, null, 2) + '\n', 'utf8');

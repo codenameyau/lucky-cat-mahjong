@@ -54,12 +54,31 @@ function buildDateToWebpMap(mediaDir, dirPath) {
   return map;
 }
 
+function defaultEventName(dateKey) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateKey));
+  if (!match) return String(dateKey);
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+function eventDateKey(event) {
+  if (!event || !event.date) return '';
+  return String(event.date).slice(0, 10);
+}
+
 function updateCommunityFromMedia(community, dateToPhotos, allowedDates) {
   let changed = false;
-  (community.events || []).forEach(function (event) {
-    const rawDate = event && event.date;
-    if (!rawDate) return;
-    const dateKey = String(rawDate).slice(0, 10);
+  if (!Array.isArray(community.events)) community.events = [];
+
+  const existingDates = new Set();
+  community.events.forEach(function (event) {
+    const dateKey = eventDateKey(event);
+    if (!dateKey) return;
+    existingDates.add(dateKey);
     if (allowedDates && !allowedDates.has(dateKey)) return;
     if (!dateToPhotos.has(dateKey)) return;
 
@@ -70,6 +89,31 @@ function updateCommunityFromMedia(community, dateToPhotos, allowedDates) {
     event.photos = nextPhotos;
     changed = true;
   });
+
+  const datesToAdd = [];
+  dateToPhotos.forEach(function (photos, dateKey) {
+    if (allowedDates && !allowedDates.has(dateKey)) return;
+    if (existingDates.has(dateKey)) return;
+    const nextPhotos = photos.map(normalizePhotoPath).filter(Boolean);
+    if (!nextPhotos.length) return;
+    datesToAdd.push(dateKey);
+  });
+
+  // Oldest first so each unshift leaves newest events at the front.
+  datesToAdd.sort(function (a, b) {
+    return String(a).localeCompare(String(b));
+  });
+  datesToAdd.forEach(function (dateKey) {
+    const photos = dateToPhotos.get(dateKey).map(normalizePhotoPath).filter(Boolean);
+    community.events.unshift({
+      name: defaultEventName(dateKey),
+      date: dateKey,
+      description: '',
+      photos: photos,
+    });
+    changed = true;
+  });
+
   return changed;
 }
 
@@ -78,5 +122,6 @@ module.exports = {
   normalizePhotoPath,
   photosEqual,
   buildDateToWebpMap,
+  defaultEventName,
   updateCommunityFromMedia,
 };
