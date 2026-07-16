@@ -116,6 +116,11 @@
 .faan-name { color: var(--color-text); font-size: 0.85rem; }
 .faan-cn { color: var(--color-text-muted); font-weight: 500; }
 
+html.hide-extra-chinese .faan-cn,
+html.hide-extra-chinese .result-cn {
+  display: none;
+}
+
 .faan-value {
   color: var(--color-primary);
   white-space: nowrap;

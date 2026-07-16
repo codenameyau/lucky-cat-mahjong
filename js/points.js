@@ -117,6 +117,10 @@
    * 3. Scoring constants
    * ------------------------------------------------------------------ */
 
+  // Feature flag: show Chinese names next to English in the calculator
+  // results and the scoring reference tables. Set to false to hide them.
+  var SHOW_EXTRA_CHINESE = false;
+
   var LIMIT = 13; // limit (full) hand ceiling in faan
   var MIN_FAAN = 3; // common minimum faan to declare a win (house rules vary)
 
@@ -1348,7 +1352,10 @@
     }
 
     var rows = res.items.map(function (it) {
-      return '<li class="result-item"><span class="result-name">' + it.name + ' (' + it.cn + ')</span>' +
+      var name = it.name + (SHOW_EXTRA_CHINESE
+        ? '<span class="result-cn"> (' + it.cn + ')</span>'
+        : '');
+      return '<li class="result-item"><span class="result-name">' + name + '</span>' +
         '<span class="result-faan">' + faanLabel(it.faan) + '</span></li>';
     }).join('');
 
@@ -2405,8 +2412,13 @@
     });
   }
 
+  function applyExtraChineseVisibility() {
+    document.documentElement.classList.toggle('hide-extra-chinese', !SHOW_EXTRA_CHINESE);
+  }
+
   function init() {
     preventMobileViewportZoom();
+    applyExtraChineseVisibility();
 
     var yearEl = document.getElementById('year');
     if (yearEl) yearEl.textContent = new Date().getFullYear();
