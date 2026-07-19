@@ -27,7 +27,7 @@ const ASSETS_DIR = path.join(ROOT, 'assets');
 
 const OUTPUT = process.argv[2]
   ? path.resolve(process.argv[2])
-  : path.join(ASSETS_DIR, 'lucky-cat-mahjong-rules-booklet.pdf');
+  : path.join(ASSETS_DIR, 'lucky-cat-mahjong-rules.pdf');
 
 /* ------------------------------------------------------------------ *
  * Asset loading
