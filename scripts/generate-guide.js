@@ -182,7 +182,7 @@ const BONUS_TREE = [
   { name: 'Win by Kong', faan: '1', note: 'win on a replacement tile after a kong' },
   { name: 'Robbing the Kong', faan: '1', note: 'win on a tile used to form a kong' },
   { name: 'Win by Double Kong', faan: '8', note: 'win on a tile from a kong, which itself was from a kong' },
-  { name: 'Heavenly Hand', faan: 'Limit', note: 'dealer wins on the initial 14-tile dealt hand' },
+  { name: 'Heavenly Hand', faan: 'Limit', note: 'dealer wins on their initial 14-tile hand' },
   { name: 'Earthly Hand', faan: 'Limit', note: 'win on dealer’s first discard' },
 ];
 
@@ -205,82 +205,82 @@ const FLOWER_TREE = [
 const EXAMPLE_HANDS = [
   {
     name: 'Chicken Hand', faan: '0 faan',
-    note: 'Mixed suits, sequences, and triplets.',
+    note: 'Mixed suits, sequences, and triplets',
     groups: [['c2', 'c3', 'c4'], ['d5', 'd5', 'd5'], ['b7', 'b8', 'b9'], ['we', 'we', 'we'], ['d2', 'd2']],
   },
   {
     name: 'All Sequences', faan: '1 faan',
-    note: 'Four sequences and a pair.',
+    note: 'Four sequences and a pair',
     groups: [['c2', 'c3', 'c4'], ['d5', 'd6', 'd7'], ['b4', 'b5', 'b6'], ['b7', 'b8', 'b9'], ['d2', 'd2']],
   },
   {
     name: 'All Triplets', faan: '3 faan',
-    note: 'Four triplets/quads plus a pair.',
+    note: 'Four triplets/quads plus a pair',
     groups: [['c2', 'c2', 'c2'], ['d5', 'd5', 'd5'], ['b8', 'b8', 'b8'], ['ws', 'ws', 'ws'], ['d2', 'd2']],
   },
   {
     name: 'Half Flush', faan: '3 faan',
-    note: 'One suit plus honors.',
+    note: 'One suit plus honors',
     groups: [['c2', 'c3', 'c4'], ['c5', 'c6', 'c7'], ['c7', 'c8', 'c9'], ['c3', 'c3', 'c3'], ['dr', 'dr']],
   },
   {
     name: 'Mixed Terminals', faan: '4 faan',
-    note: '1s, 9s, and honors only.',
+    note: '1s, 9s, and honors only',
     groups: [['c1', 'c1', 'c1'], ['c9', 'c9', 'c9'], ['d1', 'd1', 'd1'], ['we', 'we', 'we'], ['b9', 'b9']],
   },
   {
     name: 'Seven Pairs', faan: '4 faan',
-    note: 'Seven unique pairs.',
+    note: 'Seven unique pairs',
     groups: [['c1', 'c1'], ['d2', 'd2'], ['b3', 'b3'], ['c5', 'c5'], ['d7', 'd7'], ['we', 'we'], ['dr', 'dr']],
   },
   {
     name: 'Small Three Dragons', faan: '5 faan',
-    note: 'Two dragon triplets/quads and a dragon pair.',
+    note: 'Two dragon triplets/quads and a dragon pair',
     groups: [['dg', 'dg', 'dg'], ['dw', 'dw', 'dw'], ['dr', 'dr'], ['c2', 'c3', 'c4'], ['b5', 'b5', 'b5']],
   },
   {
     name: 'Small Four Winds', faan: '6 faan',
-    note: 'Three wind triplets/quads and a wind pair.',
+    note: 'Three wind triplets/quads and a wind pair',
     groups: [['we', 'we', 'we'], ['ws', 'ws', 'ws'], ['ww', 'ww', 'ww'], ['wn', 'wn'], ['c5', 'c5', 'c5']],
   },
   {
     name: 'Full Flush', faan: '7 faan',
-    note: 'All one suit, no honors.',
+    note: 'All one suit, no honors',
     groups: [['b1', 'b2', 'b3'], ['b4', 'b5', 'b6'], ['b7', 'b8', 'b9'], ['b8', 'b8', 'b8'], ['b5', 'b5']],
   },
   {
     name: 'Big Three Dragons', faan: '8 faan',
-    note: 'A triplet/quad of each dragon.',
+    note: 'A triplet/quad of each dragon',
     groups: [['dg', 'dg', 'dg'], ['dw', 'dw', 'dw'], ['dr', 'dr', 'dr'], ['c2', 'c3', 'c4'], ['b5', 'b5']],
   },
   {
     name: 'All Honors', faan: '10 faan',
-    note: 'Only wind and dragon tiles.',
+    note: 'Only wind and dragon tiles',
     groups: [['we', 'we', 'we'], ['ws', 'ws', 'ws'], ['dg', 'dg', 'dg'], ['dr', 'dr', 'dr'], ['dw', 'dw']],
   },
   {
     name: 'All Terminals', faan: '10 faan',
-    note: 'Only 1s and 9s.',
+    note: 'Only 1s and 9s',
     groups: [['c1', 'c1', 'c1'], ['c9', 'c9', 'c9'], ['d1', 'd1', 'd1'], ['b9', 'b9', 'b9'], ['d9', 'd9']],
   },
   {
     name: 'Big Four Winds', faan: 'Limit',
-    note: 'A triplet/quad of each wind, plus a pair.',
+    note: 'A triplet/quad of each wind, plus a pair',
     groups: [['we', 'we', 'we'], ['ws', 'ws', 'ws'], ['ww', 'ww', 'ww'], ['wn', 'wn', 'wn'], ['dr', 'dr']],
   },
   {
     name: 'Thirteen Orphans', faan: 'Limit',
-    note: 'One of each terminal and honor, plus one duplicate.',
+    note: 'One of each terminal and honor, plus one duplicate',
     groups: [['c1', 'c9', 'd1'], ['d9', 'b1', 'b9'], ['we', 'ws', 'ww'], ['wn', 'dg', 'dw'], ['dr', 'dr']],
   },
   {
     name: 'Nine Gates', faan: 'Limit',
-    note: 'Pure suit 1112345678999 plus one extra.',
+    note: 'One suit of 1112345678999 plus one extra',
     groups: [['c1', 'c1', 'c1'], ['c2', 'c3', 'c4'], ['c5', 'c5'], ['c6', 'c7', 'c8'], ['c9', 'c9', 'c9']],
   },
   {
     name: 'Four Quads', faan: 'Limit',
-    note: 'Four kongs plus a pair.',
+    note: 'Four kongs plus a pair',
     groups: [['c1', 'c1', 'c1', 'c1'], ['d5', 'd5', 'd5', 'd5'], ['b8', 'b8', 'b8', 'b8'], ['we', 'we', 'we', 'we'], ['dr', 'dr']],
   },
 ];
@@ -400,18 +400,18 @@ function coverPanel() {
       <h2>How to Get Involved</h2>
       <div class="involve-block">
         <h3>Support Our Cause</h3>
-        <p>Our mission is to make mahjong accessible to everyone and use it as a powerful tool for connection and connecting with Asian culture. Our core values are <strong>RICE</strong>—Respect, Integrity, Community, and Empathy. Support us by telling your friends, inviting them to our events, teaching newcomers, and bringing mahjong sets to our free community events.</p>
+        <p>Our mission is to use mahjong as a powerful tool for building social connection and connecting with Asian culture by making it accessible to all. Our core values are <strong>RICE</strong>—Respect, Integrity, Community, and Empathy. Support us by telling and inviting your friends, teaching newcomers, buying merch, and bringing mahjong sets to our free community events.</p>
       </div>
       <div class="involve-block">
         <h3>Volunteer</h3>
-        <p>Volunteer at our events! We always need people to help greet attendees, teach newcomers, bring mahjong sets, and carry out event logistics. As a thank you, our volunteers get free entry to paid events, and our most dedicated and consistent volunteers will be recognized on our website and get the opportunity to attend exclusive events.</p>
+        <p>Contact us to volunteer at our events! We always need people to help greet attendees, teach newcomers, bring mahjong sets, and carry out event logistics. Our volunteers get free entry to paid events, and our most dedicated and consistent volunteers will be recognized on our website and get the opportunity to attend exclusive events.</p>
       </div>
     </div>
 
     <div class="cover-bottom">
       <img class="qr" src="${QR_URI}" alt="QR code to ${WEBSITE}">
       <div class="cover-contact">
-        <p class="scan">Scan to visit</p>
+        <p class="scan">Scan for our online points calculator</p>
         <p class="url">${WEBSITE}</p>
         <p class="ig">Follow us on Instagram<br><strong>@${IG_HANDLE}</strong></p>
       </div>
@@ -435,7 +435,7 @@ function setupPanel() {
 
       <div class="block">
         <h3>1. Build the Walls</h3>
-        <p>Shuffle all 144 tiles face down. Each player builds a wall <strong>18 stacks long and 2 tiles high</strong> (36 tiles each), then pushes the walls together into a square.</p>
+        <p>Shuffle all 144 tiles face down. Builds four walls of <strong>18 tiles long and 2 tiles high</strong> (36 tiles each). Then push the walls closer together into a square.</p>
       </div>
 
       <div class="block">
@@ -446,12 +446,12 @@ function setupPanel() {
 
       <div class="block">
         <h3>3. Deal the Tiles</h3>
-        <p>Deal in groups of four tiles going counter-clockwise, while drawing clockwise until everyone has <strong>13 tiles</strong>. Everyone draws replacement tiles for any bonus tiles, starting with the dealer. The dealer draws one extra to make <strong>14</strong> and starts by discarding a tile.</p>
+        <p>Deal tiles in groups of four going counter-clockwise, while drawing clockwise until everyone has <strong>13 tiles</strong> and the dealer has <strong>14 tiles</strong>. Everyone draws replacement tiles for any bonus tiles, starting with the dealer. The dealer starts by discarding a tile.</p>
       </div>
 
       <div class="block">
         <h3>4. The Flow of Play</h3>
-        <p>Take turns playing counter-clockwise (East → South → West → North). Draw clockwise from the wall. Between turns you may claim a discarded tile instead of drawing to complete a meld by revealing it. End your turn by discarding a tile.</p>
+        <p>Take turns playing counter-clockwise (East → South → West → North). Draw clockwise from the wall. Between turns you may claim a discarded tile instead of drawing to complete a meld by exposing it. End your turn by discarding a tile.</p>
       </div>
     </div>
   </section>`;
@@ -464,7 +464,7 @@ function conceptsPanel() {
     <div class="p-body">
       <div class="block">
         <h3>What Is a Meld?</h3>
-        <p>A <strong>meld</strong> is a legal set of tiles that counts toward your winning hand. In Hong Kong mahjong you need <strong>four melds plus one pair</strong>. Melds can stay hidden in your hand (concealed) or be laid face-up after you claim a discard (exposed).</p>
+        <p>A <strong>meld</strong> is a legal set of tiles that counts toward your winning hand. In Hong Kong mahjong you typically need <strong>four melds plus one pair</strong>. Melds can stay hidden in your hand (concealed) or be laid face-up after you claim a discarded tile (exposed).</p>
       </div>
 
       <div class="block">
@@ -488,7 +488,7 @@ function conceptsPanel() {
             <div class="concept-tiles">${meldRow([['b8', 'b8', 'b8', 'b8']], 'tile-sm')}</div>
             <div class="concept-text">
               <div class="concept-name">Kong <span class="concept-role">Quad</span></div>
-              Four identical tiles. Claim a discard to make an exposed kong, or declare a concealed kong when you draw the fourth yourself. After either, draw a replacement tile from the end of the wall.
+              Four identical tiles. Claim a discard to make an exposed kong, or declare a concealed kong or add it to an exposed meld when you draw the fourth yourself. After either, draw a replacement tile from the end of the wall.
             </div>
           </div>
           <div class="concept-row">
@@ -503,7 +503,7 @@ function conceptsPanel() {
 
       <div class="block">
         <h3>Winning on the Last Tile</h3>
-        <p>You can win by <strong>self-drawing</strong> the last tile you need from the wall, or by <strong>claiming</strong> that tile from anyone’s discard. A win has the highest priority over chi, pung, and kong. If more than one player needs the same discard tile to win, the next player in the turn order wins.</p>
+        <p>You can win by <strong>self-drawing</strong> the last tile you need from the wall, or by <strong>claiming</strong> that tile from anyone’s discard. A win has the highest priority over chi, pung, and kong. If more than one player needs the same discard to win, the next player in the turn order wins.</p>
       </div>
 
       <div class="block">
@@ -513,7 +513,7 @@ function conceptsPanel() {
 
       <div class="block">
         <h3>Flowers &amp; Seasons</h3>
-        <p>Eight bonus tiles. They never form melds. Set them aside when drawn and take a replacement tile from the end of the wall. They can add bonus faan at the end.</p>
+        <p>Eight <strong>bonus tiles</strong>. They never form melds and are not part of your hand. Set them aside when drawn and take a replacement tile from the end of the wall.</p>
         ${bonusTilesHtml()}
       </div>
     </div>
@@ -538,7 +538,7 @@ function scoringPanel() {
       </div>
 
       <div class="examples">
-        <h4>Winning Hand Patterns</h4>
+        <h4>All Hand Patterns</h4>
         <div class="examples-grid">
           ${EXAMPLE_HANDS.map(exampleHand).join('')}
         </div>
@@ -564,8 +564,8 @@ const CSS = `
     --bg: #FFFFFF;
     --surface: #FFFFFF;
     --tile: #FDF9F2;
-    --text: #1A1A1A;
-    --muted: #5C5C5C;
+    --text: #111111;
+    --muted: #3A3A3A;
     --heading: "KN Yuanmo SC", sans-serif;
     --body: "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
   }
@@ -706,7 +706,7 @@ const CSS = `
   .setup-panel .p-body { gap: 0; }
   .dice-seats-wrap {
     width: 100%;
-    max-width: 3.4in;
+    max-width: 3.05in;
     margin: 0.08in 0 0;
     border-radius: 8px;
     overflow: hidden;
@@ -717,14 +717,14 @@ const CSS = `
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
-    font-size: 8.5pt;
+    font-size: 7.75pt;
     background: #fff;
   }
   .dice-seats th,
   .dice-seats td {
     border: 1px solid rgba(5, 105, 58, 0.18);
-    padding: 0.04in 0.06in;
-    line-height: 1.25;
+    padding: 0.03in 0.05in;
+    line-height: 1.2;
     background: #fff;
   }
   .dice-seats tr:first-child th { border-top: none; }
@@ -735,7 +735,7 @@ const CSS = `
   .dice-seats tr td:last-child { border-right: none; }
   .dice-seats th {
     font-family: var(--heading);
-    font-size: 8pt;
+    font-size: 7.25pt;
     color: var(--accent);
     text-align: center;
     background: #f3faf5;
@@ -743,12 +743,12 @@ const CSS = `
   .dice-seats .dice-seat {
     color: var(--text);
     white-space: nowrap;
-    width: 1.2in;
+    width: 1.05in;
     text-align: left;
   }
   .dice-seats th.dice-seat { color: var(--accent); }
   .dice-seats .dice-n {
-    width: 0.5in;
+    width: 0.45in;
     text-align: center;
     font-variant-numeric: tabular-nums;
   }
