@@ -338,7 +338,7 @@ function diceSeatsTableHtml() {
   }).join('');
   return `<div class="dice-seats-wrap">
     <table class="dice-seats">
-      <thead><tr><th class="dice-seat">Seat</th><th colspan="4">Dice totals</th></tr></thead>
+      <thead><tr><th class="dice-seat">Seat</th><th colspan="4">Dice totals wall</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   </div>`;
@@ -400,7 +400,7 @@ function coverPanel() {
       <h2>How to Get Involved</h2>
       <div class="involve-block">
         <h3>Support Our Cause</h3>
-        <p>Our mission is to use mahjong as a powerful tool for building social connection and connecting with Asian culture by making it accessible to all. Our core values are <strong>RICE</strong>—Respect, Integrity, Community, and Empathy. Support us by telling and inviting your friends, teaching newcomers, buying merch, and bringing mahjong sets to our free community events.</p>
+        <p>Our mission is to use mahjong as a powerful tool for building social connection and connecting with Asian culture by making it accessible to all. Our core values are <strong>RICE</strong>—Respect, Integrity, Community, and Empathy. Support us by telling your friends, teaching newcomers, buying merch, and bringing mahjong sets to our free community events.</p>
       </div>
       <div class="involve-block">
         <h3>Volunteer</h3>
@@ -440,13 +440,13 @@ function setupPanel() {
 
       <div class="block">
         <h3>2. Roll the Dice for the Break</h3>
-        <p>The dealer (East) rolls three dice and sums the total. Go counter-clockwise around the table starting with East as 1 to determine which player's wall to break. Then count the same dice total from the beginning of their wall moving clockwise to make the break.</p>
+        <p>The dealer (East) rolls three dice. Sums the total and go counter-clockwise that many times around the walls starting with East as 1 to determine which wall to break. Then count the same dice total from that wall going clockwise to make the break.</p>
         ${diceSeatsTableHtml()}
       </div>
 
       <div class="block">
         <h3>3. Deal the Tiles</h3>
-        <p>Deal tiles in groups of four going counter-clockwise, while drawing clockwise until everyone has <strong>13 tiles</strong> and the dealer has <strong>14 tiles</strong>. Everyone draws replacement tiles for any bonus tiles, starting with the dealer. The dealer starts by discarding a tile.</p>
+        <p>Deal tiles in groups of four going counter-clockwise, while drawing clockwise until everyone has <strong>13 tiles</strong> and the dealer has <strong>14 tiles</strong>. Everyone draws replacement tiles from the end of the wall for revealing bonus tiles, starting with the dealer. The dealer starts by discarding a tile.</p>
       </div>
 
       <div class="block">
@@ -488,7 +488,7 @@ function conceptsPanel() {
             <div class="concept-tiles">${meldRow([['b8', 'b8', 'b8', 'b8']], 'tile-sm')}</div>
             <div class="concept-text">
               <div class="concept-name">Kong <span class="concept-role">Quad</span></div>
-              Four identical tiles. Claim a discard to make an exposed kong, or declare a concealed kong or add it to an exposed meld when you draw the fourth yourself. After either, draw a replacement tile from the end of the wall.
+              Four identical tiles. Claim a discard to make an exposed kong, or declare a concealed kong or add it to an exposed meld when you draw the fourth yourself. After either, draw a replacement tile from the end of the wall. Has priority over a pung.
             </div>
           </div>
           <div class="concept-row">
