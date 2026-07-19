@@ -4,9 +4,11 @@
   "scripts": {
     "format-media": "node scripts/format-media.js",
     "format-json": "node scripts/format-media.js",
+    "generate-guide": "node scripts/generate-guide.js",
     "test": "node --test js/points.test.js js/main.test.js js/community.test.js scripts/format-media.test.js"
   },
   "devDependencies": {
+    "puppeteer": "^25.3.0",
     "sharp": "^0.34.2"
   }
 }
