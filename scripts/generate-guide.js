@@ -440,7 +440,7 @@ function setupPanel() {
 
       <div class="block">
         <h3>2. Roll the Dice for the Break</h3>
-        <p>The dealer (East) rolls three dice. Sums the total and go counter-clockwise that many times around the walls starting with East as 1 to determine which wall to break. Then count the same dice total from that wall going clockwise to make the break.</p>
+        <p>The dealer (East) rolls three dice. Sum the total and go counter-clockwise that many times around the walls starting with East as 1 to determine which wall to break. Then count the same dice total from that wall going clockwise to make the break.</p>
         ${diceSeatsTableHtml()}
       </div>
 
