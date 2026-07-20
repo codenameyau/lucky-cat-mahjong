@@ -5,6 +5,7 @@
     "format-media": "node scripts/format-media.js",
     "format-json": "node scripts/format-media.js",
     "generate-guide": "node scripts/generate-guide.js",
+    "licensing-agreement": "node scripts/licensing-agreement.js",
     "test": "node --test js/points.test.js js/main.test.js js/community.test.js scripts/format-media.test.js"
   },
   "devDependencies": {
