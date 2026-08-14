@@ -215,7 +215,7 @@ const EXAMPLE_HANDS = [
   },
   {
     name: 'All Triplets', faan: '3 faan',
-    note: 'Four triplets/quads plus a pair',
+    note: 'Four triplets/quads. Worth 10 faan if hand is concealed',
     groups: [['c2', 'c2', 'c2'], ['d5', 'd5', 'd5'], ['b8', 'b8', 'b8'], ['ws', 'ws', 'ws'], ['d2', 'd2']],
   },
   {
