@@ -167,7 +167,7 @@ content:
                 label: Price
                 type: string
                 required: true
-                description: "e.g. $75, $600, or Quote"
+                description: "e.g. $60, $600, or Quote"
               - name: notes
                 label: Notes
                 type: text
