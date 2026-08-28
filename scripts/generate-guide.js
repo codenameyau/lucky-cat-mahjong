@@ -54,6 +54,10 @@ const QR_URI = dataUri(
   path.join(ASSETS_DIR, 'lucky-cat-mahjong-qr-code-branded.png'),
   'image/png'
 );
+const SETUP_URI = dataUri(
+  path.join(ASSETS_DIR, 'mahjong-setup.png'),
+  'image/png'
+);
 const FONT_URI = dataUri(
   path.join(ROOT, 'fonts', 'kn-yuanmo-sc.ttf'),
   'font/ttf'
@@ -161,14 +165,6 @@ const TILE_SET_ROWS = [
 
 const ABOUT_PARAS = SITE.about.body.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
 const IG_HANDLE = SITE.instagram.handle;
-
-// Three dice totals (3–18). Count counter-clockwise from East as 1.
-const DICE_SEATS = [
-  { seat: 'East', totals: [5, 9, 13, 17] },
-  { seat: 'South', totals: [6, 10, 14, 18] },
-  { seat: 'West', totals: [3, 7, 11, 15] },
-  { seat: 'North', totals: [4, 8, 12, 16] },
-];
 
 /*
  * Scoring hierarchy. Upgrades REPLACE their parent (do not stack).
@@ -329,21 +325,6 @@ function exampleHand(h) {
   </div>`;
 }
 
-function diceSeatsTableHtml() {
-  const rows = DICE_SEATS.map(function (d) {
-    const cells = d.totals.map(function (n) {
-      return `<td class="dice-n">${n}</td>`;
-    }).join('');
-    return `<tr><td class="dice-seat">${d.seat}</td>${cells}</tr>`;
-  }).join('');
-  return `<div class="dice-seats-wrap">
-    <table class="dice-seats">
-      <thead><tr><th class="dice-seat">Seat</th><th colspan="4">Dice totals wall</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </div>`;
-}
-
 function tileSetHtml() {
   const setRows = TILE_SET_ROWS.map(function (row) {
     return `<div class="tile-set-row">
@@ -435,18 +416,19 @@ function setupPanel() {
 
       <div class="block">
         <h3>1. Build the Walls</h3>
-        <p>Shuffle all 144 tiles face down. Builds four walls of <strong>18 tiles long and 2 tiles high</strong> (36 tiles each). Then push the walls closer together into a square.</p>
+        <p>Flip all 144 tiles face down and shuffle them. Builds four walls of <strong>18 tiles long and 2 tiles high</strong> (36 tiles each). Then push the walls closer together into a square.</p>
       </div>
 
       <div class="block">
         <h3>2. Roll the Dice for the Break</h3>
-        <p>The dealer (East) rolls three dice. Sum the total and go counter-clockwise that many times around the walls starting with East as 1 to determine which wall to break. Then count the same dice total from that wall going clockwise to make the break.</p>
-        ${diceSeatsTableHtml()}
-      </div>
-
-      <div class="block">
-        <h3>3. Deal the Tiles</h3>
-        <p>Deal tiles in groups of four going counter-clockwise, while drawing clockwise until everyone has <strong>13 tiles</strong> and the dealer has <strong>14 tiles</strong>. Everyone draws replacement tiles from the end of the wall for revealing bonus tiles, starting with the dealer. The dealer starts by discarding a tile.</p>
+        <div class="setup-break">
+          <div class="setup-break-copy">
+            <p>The dealer (East) rolls three dice. Sum the total and go counter-clockwise that many times around the walls starting with East as 1 to determine which wall to break. Then count the same dice total from that wall going clockwise to make the break.</p>
+            <h3>3. Deal the Tiles</h3>
+            <p>Deal tiles in groups of four going counter-clockwise, while drawing clockwise until everyone has <strong>13 tiles</strong> and the dealer has <strong>14 tiles</strong>. Everyone draws replacement tiles from the end of the wall for revealing bonus tiles, starting with the dealer. The dealer starts by discarding a tile.</p>
+          </div>
+          <img class="setup-diagram" src="${SETUP_URI}" alt="Walls, dice totals, and play direction">
+        </div>
       </div>
 
       <div class="block">
@@ -702,55 +684,22 @@ const CSS = `
   .meld { display: inline-flex; gap: 0; }
 
   /* Setup page */
-  .setup-panel .block { margin-bottom: 0.1in; }
+  .setup-panel .p-head { margin-bottom: 0.12in; }
+  .setup-panel .block { margin-bottom: 0.08in; }
   .setup-panel .p-body { gap: 0; }
-  .dice-seats-wrap {
-    width: 100%;
-    max-width: 3.05in;
-    margin: 0.08in 0 0;
+  .setup-break {
+    display: grid;
+    grid-template-columns: 1fr 2.28in;
+    column-gap: 0.1in;
+    align-items: start;
+  }
+  .setup-break-copy h3 { margin-top: 0.1in; }
+  .setup-diagram {
+    display: block;
+    width: 2.52in;
+    height: auto;
+    justify-self: start;
     border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid rgba(5, 105, 58, 0.18);
-    background: #fff;
-  }
-  .dice-seats {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed;
-    font-size: 7.75pt;
-    background: #fff;
-  }
-  .dice-seats th,
-  .dice-seats td {
-    border: 1px solid rgba(5, 105, 58, 0.18);
-    padding: 0.03in 0.05in;
-    line-height: 1.2;
-    background: #fff;
-  }
-  .dice-seats tr:first-child th { border-top: none; }
-  .dice-seats tr:last-child td { border-bottom: none; }
-  .dice-seats tr th:first-child,
-  .dice-seats tr td:first-child { border-left: none; }
-  .dice-seats tr th:last-child,
-  .dice-seats tr td:last-child { border-right: none; }
-  .dice-seats th {
-    font-family: var(--heading);
-    font-size: 7.25pt;
-    color: var(--accent);
-    text-align: center;
-    background: #f3faf5;
-  }
-  .dice-seats .dice-seat {
-    color: var(--text);
-    white-space: nowrap;
-    width: 1.05in;
-    text-align: left;
-  }
-  .dice-seats th.dice-seat { color: var(--accent); }
-  .dice-seats .dice-n {
-    width: 0.45in;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
   }
   .tile-set { margin: 0; }
   .tile-set-head {
