@@ -54,6 +54,10 @@ const QR_URI = dataUri(
   path.join(ASSETS_DIR, 'lucky-cat-mahjong-qr-code-branded.png'),
   'image/png'
 );
+const SETUP_URI = dataUri(
+  path.join(ASSETS_DIR, 'mahjong-setup.png'),
+  'image/png'
+);
 const FONT_URI = dataUri(
   path.join(ROOT, 'fonts', 'kn-yuanmo-sc.ttf'),
   'font/ttf'
@@ -162,14 +166,6 @@ const TILE_SET_ROWS = [
 const ABOUT_PARAS = SITE.about.body.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
 const IG_HANDLE = SITE.instagram.handle;
 
-// Three dice totals (3–18). Count counter-clockwise from East as 1.
-const DICE_SEATS = [
-  { seat: 'East', totals: [5, 9, 13, 17] },
-  { seat: 'South', totals: [6, 10, 14, 18] },
-  { seat: 'West', totals: [3, 7, 11, 15] },
-  { seat: 'North', totals: [4, 8, 12, 16] },
-];
-
 /*
  * Scoring hierarchy. Upgrades REPLACE their parent (do not stack).
  * Stackable bonuses add on top of the pattern score.
@@ -179,27 +175,27 @@ const BONUS_TREE = [
   { name: 'Self-Draw', faan: '1', note: 'draw the winning tile from the wall' },
   { name: 'Concealed', faan: '1', note: 'no claimed discards except the winning tile' },
   { name: 'Win on Last Tile', faan: '1', note: 'win on the last tile of the wall' },
-  { name: 'Win by Kong', faan: '1', note: 'win on a replacement tile after a kong' },
   { name: 'Robbing the Kong', faan: '1', note: 'win on a tile used to form a kong' },
-  { name: 'Win by Double Kong', faan: '8', note: 'win on a tile from a kong, which itself was from a kong' },
+  { name: 'Win by Kong', faan: '1', note: 'win on a replacement tile after a kong', families: ['kong'] },
+  { name: 'Win by Double Kong', faan: '8', note: 'win on a tile from a kong, which itself was from a kong', families: ['kong'] },
   { name: 'Heavenly Hand', faan: 'Limit', note: 'dealer wins on their initial 14-tile hand' },
   { name: 'Earthly Hand', faan: 'Limit', note: 'win on dealer’s first discard' },
 ];
 
 const HONORS_TREE = [
-  { name: 'Dragons', faan: '1 each', note: 'dragon triplet or quad' },
-  { name: 'Seat Wind', faan: '1', note: 'wind triplet or quad' },
-  { name: 'Round Wind', faan: '1', note: 'wind triplet or quad' },
+  { name: 'Dragons', faan: '1 each', note: 'dragon triplet or quad', families: ['dragons'] },
+  { name: 'Seat Wind', faan: '1', note: 'wind triplet or quad', families: ['winds'] },
+  { name: 'Round Wind', faan: '1', note: 'wind triplet or quad', families: ['winds'] },
 ];
 
 const FLOWER_TREE = [
   { name: 'No Flowers', faan: '1', note: 'no flower or season tiles' },
   { name: 'Seat Flower', faan: '1', note: 'flower matching your seat' },
   { name: 'Seat Season', faan: '1', note: 'season matching your seat' },
-  { name: 'Four Flowers', faan: '2', note: 'stacks with seat flower' },
-  { name: 'Four Seasons', faan: '2', note: 'stacks with seat season' },
-  { name: 'Seven Robbing One', faan: '5', note: 'seven flowers and seasons; can rob the remaining tile from another player when drawn; auto-win' },
-  { name: 'Eight Immortals Crossing Sea', faan: 'Limit', note: 'eight flowers and seasons; auto-win' },
+  { name: 'Four Flowers', faan: '2', note: 'have all four flowers', families: ['immortals'] },
+  { name: 'Four Seasons', faan: '2', note: 'have all four seasons', families: ['immortals'] },
+  { name: 'Seven Robbing One', faan: '5', note: 'seven flowers and seasons; can rob the remaining tile from another player when drawn; auto-win', families: ['immortals'] },
+  { name: 'Eight Immortals Crossing Sea', faan: 'Limit', note: 'eight flowers and seasons; auto-win', families: ['immortals'] },
 ];
 
 const EXAMPLE_HANDS = [
@@ -214,18 +210,21 @@ const EXAMPLE_HANDS = [
     groups: [['c2', 'c3', 'c4'], ['d5', 'd6', 'd7'], ['b4', 'b5', 'b6'], ['b7', 'b8', 'b9'], ['d2', 'd2']],
   },
   {
-    name: 'All Triplets', faan: '3 faan',
-    note: 'Four triplets/quads. Worth 10 faan if hand is concealed',
-    groups: [['c2', 'c2', 'c2'], ['d5', 'd5', 'd5'], ['b8', 'b8', 'b8'], ['ws', 'ws', 'ws'], ['d2', 'd2']],
-  },
-  {
     name: 'Half Flush', faan: '3 faan',
     note: 'One suit plus honors',
+    families: ['flush'],
     groups: [['c2', 'c3', 'c4'], ['c5', 'c6', 'c7'], ['c7', 'c8', 'c9'], ['c3', 'c3', 'c3'], ['dr', 'dr']],
+  },
+  {
+    name: 'All Triplets', faan: '3 faan',
+    note: 'Four triplets/quads. Worth 10 faan if hand is concealed',
+    families: ['triplets'],
+    groups: [['c2', 'c2', 'c2'], ['d5', 'd5', 'd5'], ['b8', 'b8', 'b8'], ['ws', 'ws', 'ws'], ['d2', 'd2']],
   },
   {
     name: 'Mixed Terminals', faan: '4 faan',
     note: '1s, 9s, and honors only',
+    families: ['terminals'],
     groups: [['c1', 'c1', 'c1'], ['c9', 'c9', 'c9'], ['d1', 'd1', 'd1'], ['we', 'we', 'we'], ['b9', 'b9']],
   },
   {
@@ -236,22 +235,32 @@ const EXAMPLE_HANDS = [
   {
     name: 'Small Three Dragons', faan: '5 faan',
     note: 'Two dragon triplets/quads and a dragon pair',
+    families: ['dragons'],
     groups: [['dg', 'dg', 'dg'], ['dw', 'dw', 'dw'], ['dr', 'dr'], ['c2', 'c3', 'c4'], ['b5', 'b5', 'b5']],
   },
   {
     name: 'Small Four Winds', faan: '6 faan',
     note: 'Three wind triplets/quads and a wind pair',
+    families: ['winds'],
     groups: [['we', 'we', 'we'], ['ws', 'ws', 'ws'], ['ww', 'ww', 'ww'], ['wn', 'wn'], ['c5', 'c5', 'c5']],
   },
   {
     name: 'Full Flush', faan: '7 faan',
     note: 'All one suit, no honors',
+    families: ['flush'],
     groups: [['b1', 'b2', 'b3'], ['b4', 'b5', 'b6'], ['b7', 'b8', 'b9'], ['b8', 'b8', 'b8'], ['b5', 'b5']],
   },
   {
     name: 'Big Three Dragons', faan: '8 faan',
     note: 'A triplet/quad of each dragon',
+    families: ['dragons'],
     groups: [['dg', 'dg', 'dg'], ['dw', 'dw', 'dw'], ['dr', 'dr', 'dr'], ['c2', 'c3', 'c4'], ['b5', 'b5']],
+  },
+  {
+    name: 'All Terminals', faan: '10 faan',
+    note: 'Only 1s and 9s',
+    families: ['terminals'],
+    groups: [['c1', 'c1', 'c1'], ['c9', 'c9', 'c9'], ['d1', 'd1', 'd1'], ['b9', 'b9', 'b9'], ['d9', 'd9']],
   },
   {
     name: 'All Honors', faan: '10 faan',
@@ -259,28 +268,27 @@ const EXAMPLE_HANDS = [
     groups: [['we', 'we', 'we'], ['ws', 'ws', 'ws'], ['dg', 'dg', 'dg'], ['dr', 'dr', 'dr'], ['dw', 'dw']],
   },
   {
-    name: 'All Terminals', faan: '10 faan',
-    note: 'Only 1s and 9s',
-    groups: [['c1', 'c1', 'c1'], ['c9', 'c9', 'c9'], ['d1', 'd1', 'd1'], ['b9', 'b9', 'b9'], ['d9', 'd9']],
+    name: 'Thirteen Orphans', faan: 'Limit',
+    note: 'One of each terminal and honor, plus one duplicate',
+    families: ['terminals'],
+    groups: [['c1', 'c9', 'd1'], ['d9', 'b1', 'b9'], ['we', 'ws', 'ww'], ['wn', 'dg', 'dw'], ['dr', 'dr']],
   },
   {
     name: 'Big Four Winds', faan: 'Limit',
     note: 'A triplet/quad of each wind, plus a pair',
+    families: ['winds'],
     groups: [['we', 'we', 'we'], ['ws', 'ws', 'ws'], ['ww', 'ww', 'ww'], ['wn', 'wn', 'wn'], ['dr', 'dr']],
-  },
-  {
-    name: 'Thirteen Orphans', faan: 'Limit',
-    note: 'One of each terminal and honor, plus one duplicate',
-    groups: [['c1', 'c9', 'd1'], ['d9', 'b1', 'b9'], ['we', 'ws', 'ww'], ['wn', 'dg', 'dw'], ['dr', 'dr']],
   },
   {
     name: 'Nine Gates', faan: 'Limit',
     note: 'One suit of 1112345678999 plus one extra',
+    families: ['flush'],
     groups: [['c1', 'c1', 'c1'], ['c2', 'c3', 'c4'], ['c5', 'c5'], ['c6', 'c7', 'c8'], ['c9', 'c9', 'c9']],
   },
   {
     name: 'Four Quads', faan: 'Limit',
     note: 'Four kongs plus a pair',
+    families: ['triplets'],
     groups: [['c1', 'c1', 'c1', 'c1'], ['d5', 'd5', 'd5', 'd5'], ['b8', 'b8', 'b8', 'b8'], ['we', 'we', 'we', 'we'], ['dr', 'dr']],
   },
 ];
@@ -297,7 +305,7 @@ function treeRows(nodes, depth) {
       : '';
     const note = n.note ? `<span class="tree-note"> — ${n.note}</span>` : '';
     const row = `<tr class="depth-${depth}">
-      <td class="fn depth-${depth}">${indent}<span class="fname">${n.name}</span>${note}</td>
+      <td class="fn depth-${depth}">${indent}<span class="fname${familyClass(n.families)}">${n.name}</span>${note}</td>
       <td class="fv">${n.faan}</td>
     </tr>`;
     const kids = n.children ? treeRows(n.children, depth + 1) : '';
@@ -313,6 +321,10 @@ function faanTree(title, nodes, legend) {
   </div>`;
 }
 
+function familyClass(families) {
+  return families && families[0] ? ' family-' + families[0] : '';
+}
+
 function exampleHand(h) {
   const tiles = h.groups.reduce(function (all, g) { return all.concat(g); }, [])
     .map(function (id) { return tile(id, 'tile-ex'); })
@@ -320,27 +332,12 @@ function exampleHand(h) {
   return `<div class="example">
     <div class="example-head">
       <div class="example-title">
-        <span class="example-name">${h.name}</span>
+        <span class="example-name${familyClass(h.families)}">${h.name}</span>
         <span class="example-faan">${h.faan}</span>
       </div>
       <div class="example-note">${h.note}</div>
     </div>
     <span class="meld-row example-tiles">${tiles}</span>
-  </div>`;
-}
-
-function diceSeatsTableHtml() {
-  const rows = DICE_SEATS.map(function (d) {
-    const cells = d.totals.map(function (n) {
-      return `<td class="dice-n">${n}</td>`;
-    }).join('');
-    return `<tr><td class="dice-seat">${d.seat}</td>${cells}</tr>`;
-  }).join('');
-  return `<div class="dice-seats-wrap">
-    <table class="dice-seats">
-      <thead><tr><th class="dice-seat">Seat</th><th colspan="4">Dice totals wall</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
   </div>`;
 }
 
@@ -382,7 +379,9 @@ function bonusTilesHtml() {
 
 function coverPanel() {
   // Keep About Us readable — use first paragraph mainly if both are long
-  const aboutHtml = ABOUT_PARAS.map(function (p) { return `<p>${p}</p>`; }).join('');
+  const aboutHtml = ABOUT_PARAS.map(function (p) {
+    return `<p>${p.replace(/Lucky Cat Mahjong/g, '<strong>Lucky Cat Mahjong</strong>')}</p>`;
+  }).join('');
   return `<section class="panel cover">
     <div class="cover-top">
       <img class="cover-logo" src="${LOGO_URI}" alt="Lucky Cat Mahjong logo">
@@ -400,11 +399,11 @@ function coverPanel() {
       <h2>How to Get Involved</h2>
       <div class="involve-block">
         <h3>Support Our Cause</h3>
-        <p>Our mission is to use mahjong as a powerful tool for building social connection and connecting with Asian culture by making it accessible to all. Our core values are <strong>RICE</strong>—Respect, Integrity, Community, and Empathy. Support us by telling your friends, teaching newcomers, buying merch, and bringing mahjong sets to our free community events.</p>
+        <p>Our mission is to use mahjong as a powerful tool for building social connection and connecting with Asian culture by making it accessible to all. Our core values are <strong>RICE</strong>—Respect, Integrity, Community, and Empathy. Support us by buying merch, telling your friends, teaching beginners, and bringing mahjong sets to our free community events.</p>
       </div>
       <div class="involve-block">
         <h3>Volunteer</h3>
-        <p>Contact us to volunteer at our events! We always need people to help greet attendees, teach newcomers, bring mahjong sets, and carry out event logistics. Our volunteers get free entry to paid events, and our most dedicated and consistent volunteers will be recognized on our website and get the opportunity to attend exclusive events.</p>
+        <p>Volunteer at our events! We always need people to help greet attendees, teach newcomers, bring mahjong sets, and carry out event logistics. Our volunteers get free entry to paid events, and our most dedicated and consistent volunteers will be recognized on our website and get the opportunity to attend exclusive events.</p>
       </div>
     </div>
 
@@ -435,18 +434,19 @@ function setupPanel() {
 
       <div class="block">
         <h3>1. Build the Walls</h3>
-        <p>Shuffle all 144 tiles face down. Builds four walls of <strong>18 tiles long and 2 tiles high</strong> (36 tiles each). Then push the walls closer together into a square.</p>
+        <p>Flip all 144 tiles face down and shuffle them. Builds four walls of <strong>18 tiles long and 2 tiles high</strong> (36 tiles each). Then push the walls closer together into a square.</p>
       </div>
 
       <div class="block">
         <h3>2. Roll the Dice for the Break</h3>
-        <p>The dealer (East) rolls three dice. Sum the total and go counter-clockwise that many times around the walls starting with East as 1 to determine which wall to break. Then count the same dice total from that wall going clockwise to make the break.</p>
-        ${diceSeatsTableHtml()}
-      </div>
-
-      <div class="block">
-        <h3>3. Deal the Tiles</h3>
-        <p>Deal tiles in groups of four going counter-clockwise, while drawing clockwise until everyone has <strong>13 tiles</strong> and the dealer has <strong>14 tiles</strong>. Everyone draws replacement tiles from the end of the wall for revealing bonus tiles, starting with the dealer. The dealer starts by discarding a tile.</p>
+        <div class="setup-break">
+          <div class="setup-break-copy">
+            <p>The dealer (East) rolls three dice. Sum the total and go counter-clockwise that many times around the walls starting with East as 1 to determine which wall to break. Then count the same dice total from that wall going clockwise to make the break.</p>
+            <h3>3. Deal the Tiles</h3>
+            <p>Deal tiles in groups of four going counter-clockwise, while drawing clockwise until everyone has <strong>13 tiles</strong> and the dealer has <strong>14 tiles</strong>. Everyone draws replacement tiles from the end of the wall for revealing bonus tiles, starting with the dealer. The dealer starts by discarding a tile.</p>
+          </div>
+          <img class="setup-diagram" src="${SETUP_URI}" alt="Walls, dice totals, and play direction">
+        </div>
       </div>
 
       <div class="block">
@@ -508,7 +508,7 @@ function conceptsPanel() {
 
       <div class="block">
         <h3>Concealed vs. Exposed</h3>
-        <p>A hand is <strong>concealed</strong> if you never claim a discard tile (except the winning tile). Concealed hands and self-draws earn bonus faan. Claiming discards <strong>exposes</strong> those melds face-up on the table for everyone to see.</p>
+        <p>A hand is <strong>concealed</strong> if you never claim a discard tile (except the winning tile). Concealed hands and self-draws earn bonus faan. Claiming discards <strong>exposes</strong> those melds face-up on the table for everyone to see. Once melds are exposed, they cannot be split apart.</p>
       </div>
 
       <div class="block">
@@ -525,7 +525,7 @@ function scoringPanel() {
     <header class="p-head"><span class="p-kicker">Page 4</span><h2>Scoring — Faan</h2></header>
 
     <div class="p-body">
-      <p class="score-intro">Most tables have a <strong>3-faan</strong> minimum to win, with an upper limit of <strong>13 faan</strong>. Faan do not stack with their constituents. Use this guide as a learning aid, not a referee. House rules vary.</p>
+      <p class="score-intro">Most tables have a <strong>3-faan</strong> minimum to win, with an upper limit of <strong>13 faan</strong>. Faan with different values in the same colored group do not stack — use the highest hand faan value. House rules vary.</p>
 
       <div class="score-cols">
         <div class="score-col">
@@ -568,6 +568,13 @@ const CSS = `
     --muted: #3A3A3A;
     --heading: "KN Yuanmo SC", sans-serif;
     --body: "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
+    --family-flush: #C41E3A;
+    --family-dragons: #1D4ED8;
+    --family-winds: #C05600;
+    --family-triplets: #05693A;
+    --family-terminals: #7A3E9D;
+    --family-kong: #0E7490;
+    --family-immortals: #BE185D;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { margin: 0; padding: 0; }
@@ -702,55 +709,22 @@ const CSS = `
   .meld { display: inline-flex; gap: 0; }
 
   /* Setup page */
-  .setup-panel .block { margin-bottom: 0.1in; }
+  .setup-panel .p-head { margin-bottom: 0.12in; }
+  .setup-panel .block { margin-bottom: 0.08in; }
   .setup-panel .p-body { gap: 0; }
-  .dice-seats-wrap {
-    width: 100%;
-    max-width: 3.05in;
-    margin: 0.08in 0 0;
+  .setup-break {
+    display: grid;
+    grid-template-columns: 1fr 2.28in;
+    column-gap: 0.1in;
+    align-items: start;
+  }
+  .setup-break-copy h3 { margin-top: 0.1in; }
+  .setup-diagram {
+    display: block;
+    width: 2.52in;
+    height: auto;
+    justify-self: start;
     border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid rgba(5, 105, 58, 0.18);
-    background: #fff;
-  }
-  .dice-seats {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed;
-    font-size: 7.75pt;
-    background: #fff;
-  }
-  .dice-seats th,
-  .dice-seats td {
-    border: 1px solid rgba(5, 105, 58, 0.18);
-    padding: 0.03in 0.05in;
-    line-height: 1.2;
-    background: #fff;
-  }
-  .dice-seats tr:first-child th { border-top: none; }
-  .dice-seats tr:last-child td { border-bottom: none; }
-  .dice-seats tr th:first-child,
-  .dice-seats tr td:first-child { border-left: none; }
-  .dice-seats tr th:last-child,
-  .dice-seats tr td:last-child { border-right: none; }
-  .dice-seats th {
-    font-family: var(--heading);
-    font-size: 7.25pt;
-    color: var(--accent);
-    text-align: center;
-    background: #f3faf5;
-  }
-  .dice-seats .dice-seat {
-    color: var(--text);
-    white-space: nowrap;
-    width: 1.05in;
-    text-align: left;
-  }
-  .dice-seats th.dice-seat { color: var(--accent); }
-  .dice-seats .dice-n {
-    width: 0.45in;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
   }
   .tile-set { margin: 0; }
   .tile-set-head {
@@ -870,6 +844,13 @@ const CSS = `
   }
   .example-name { font-size: 6.8pt; font-family: var(--heading); color: var(--text); font-weight: 700; }
   .example-faan { font-size: 6.8pt; font-family: var(--heading); color: var(--primary); flex-shrink: 0; }
+  .family-flush { color: var(--family-flush); }
+  .family-dragons { color: var(--family-dragons); }
+  .family-winds { color: var(--family-winds); }
+  .family-triplets { color: var(--family-triplets); }
+  .family-terminals { color: var(--family-terminals); }
+  .family-kong { color: var(--family-kong); }
+  .family-immortals { color: var(--family-immortals); }
   .example-note {
     font-size: 6.5pt; color: var(--muted); font-family: var(--body, sans-serif);
     font-weight: 400; font-style: italic; line-height: 1.2; margin-top: 0.01in;
