@@ -2379,7 +2379,7 @@
           if (stored === 'true') return true;
           if (stored === 'false') return false;
         } catch (e) {}
-        return false;
+        return true;
       }
 
       function setExamplesVisible(show) {
