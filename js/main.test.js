@@ -53,6 +53,13 @@ describe('Homepage utilities', function () {
     it('turns single newlines into line breaks', function () {
       assert.equal(api.multilineHtml('Line one.\nLine two.'), 'Line one.<br>Line two.');
     });
+
+    it('wraps markdown emphasis after escaping', function () {
+      assert.equal(
+        api.multilineHtml('Learn **Hong Kong mahjong** and *points*.'),
+        'Learn <strong>Hong Kong mahjong</strong> and <em>points</em>.'
+      );
+    });
   });
 
   describe('linkifyContact', function () {

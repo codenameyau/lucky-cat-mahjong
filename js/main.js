@@ -11,10 +11,18 @@ function escapeHtml(str) {
 }
 
 function multilineHtml(text) {
-  return escapeHtml(text)
-    .replace(/\r\n/g, '\n')
-    .replace(/\n{2,}/g, '<br><br>')
-    .replace(/\n/g, '<br>');
+  return applyEmphasis(
+    escapeHtml(text)
+      .replace(/\r\n/g, '\n')
+      .replace(/\n{2,}/g, '<br><br>')
+      .replace(/\n/g, '<br>')
+  );
+}
+
+function applyEmphasis(html) {
+  return html
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>');
 }
 
 function linkifyContact(text, email, igHandle, igUrl) {
