@@ -807,29 +807,15 @@
     });
   }
 
-  var FLOWER_GROUP_BONUSES = {
-    'Seat Flower': true,
-    'Seat Season': true,
-    'Four Flowers': true,
-    'Four Seasons': true,
-    'Seven Robbing One': true,
-    'Eight Immortals Crossing the Sea': true,
-  };
-
+  // Per HK rules: All Flowers replaces Flower of Own Wind, and All Seasons
+  // replaces Season of Own Wind. Flowers and seasons otherwise stack.
   function applyFlowerBonusNoStacking(items) {
-    var best = -1;
-    items.forEach(function (it) {
-      if (FLOWER_GROUP_BONUSES[it.name] && it.faan > best) best = it.faan;
-    });
-    if (best < 0) return items;
-    var kept = false;
+    var hasFourFlowers = items.some(function (it) { return it.name === 'Four Flowers'; });
+    var hasFourSeasons = items.some(function (it) { return it.name === 'Four Seasons'; });
     return items.filter(function (it) {
-      if (!FLOWER_GROUP_BONUSES[it.name]) return true;
-      if (!kept && it.faan === best) {
-        kept = true;
-        return true;
-      }
-      return false;
+      if (hasFourFlowers && it.name === 'Seat Flower') return false;
+      if (hasFourSeasons && it.name === 'Seat Season') return false;
+      return true;
     });
   }
 
@@ -882,7 +868,8 @@
     if (!patternItems || !patternItems.length) return false;
     for (var i = 0; i < patternItems.length; i++) {
       var name = patternItems[i].name;
-      if (name === 'Seven Pairs' || name === 'Concealed Triplets' || name === 'Thirteen Orphans') {
+      if (name === 'Seven Pairs' || name === 'Concealed Triplets' ||
+          name === 'Thirteen Orphans' || name === 'Nine Gates') {
         return true;
       }
     }

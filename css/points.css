@@ -90,10 +90,8 @@
   --family-terminals-rgb: 122, 62, 157;
   --family-kong: #0E7490;
   --family-kong-rgb: 14, 116, 144;
-  --family-immortals: #BE185D;
-  --family-immortals-rgb: 190, 24, 93;
-  --family-opening: #4338CA;
-  --family-opening-rgb: 67, 56, 202;
+  --family-opening: #BE185D;
+  --family-opening-rgb: 190, 24, 93;
 }
 
 .faan-table th,
@@ -148,7 +146,6 @@
 .faan-table tbody tr.family-triplets { --family: var(--family-triplets); --family-rgb: var(--family-triplets-rgb); }
 .faan-table tbody tr.family-terminals { --family: var(--family-terminals); --family-rgb: var(--family-terminals-rgb); }
 .faan-table tbody tr.family-kong { --family: var(--family-kong); --family-rgb: var(--family-kong-rgb); }
-.faan-table tbody tr.family-immortals { --family: var(--family-immortals); --family-rgb: var(--family-immortals-rgb); }
 .faan-table tbody tr.family-opening { --family: var(--family-opening); --family-rgb: var(--family-opening-rgb); }
 
 .faan-table tbody tr.family-flush,
@@ -157,7 +154,6 @@
 .faan-table tbody tr.family-triplets,
 .faan-table tbody tr.family-terminals,
 .faan-table tbody tr.family-kong,
-.faan-table tbody tr.family-immortals,
 .faan-table tbody tr.family-opening {
   background: rgba(var(--family-rgb), 0.08);
 }
@@ -168,7 +164,6 @@
 .faan-table tbody tr.family-triplets:hover,
 .faan-table tbody tr.family-terminals:hover,
 .faan-table tbody tr.family-kong:hover,
-.faan-table tbody tr.family-immortals:hover,
 .faan-table tbody tr.family-opening:hover {
   background: rgba(var(--family-rgb), 0.14);
 }
@@ -179,7 +174,6 @@
 .faan-table tbody tr.family-triplets .faan-name,
 .faan-table tbody tr.family-terminals .faan-name,
 .faan-table tbody tr.family-kong .faan-name,
-.faan-table tbody tr.family-immortals .faan-name,
 .faan-table tbody tr.family-opening .faan-name {
   color: var(--family);
 }

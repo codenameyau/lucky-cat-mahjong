@@ -36,7 +36,7 @@
   <link rel="preload" href="/fonts/kn-yuanmo-sc.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="../css/fonts.css">
   <link rel="stylesheet" href="../css/styles.css">
-  <link rel="stylesheet" href="../css/points.css?v=20260902">
+  <link rel="stylesheet" href="../css/points.css?v=20260902c">
 
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-B514HH987M"></script>
   <script>
@@ -256,7 +256,7 @@
               <thead><tr><th>Bonus</th><th>Faan</th><th>What it means</th></tr></thead>
               <tbody>
                 <tr><td><span class="faan-name">Self-Draw<span class="faan-cn"> (自摸)</span></span></td><td class="faan-value">1</td><td class="faan-desc">You drew your own winning tile from the wall.</td></tr>
-                <tr><td><span class="faan-name">Concealed<span class="faan-cn"> (門前清)</span></span></td><td class="faan-value">1</td><td class="faan-desc">You never took another player's discarded tile except to win.</td></tr>
+                <tr><td><span class="faan-name">Concealed<span class="faan-cn"> (門前清)</span></span></td><td class="faan-value">1</td><td class="faan-desc">You never took another player's tile except to win.</td></tr>
                 <tr><td><span class="faan-name">Win on Last Tile<span class="faan-cn"> (海底撈月)</span></span></td><td class="faan-value">1</td><td class="faan-desc">Winning on the very last tile drawn or discarded.</td></tr>
                 <tr><td><span class="faan-name">Robbing the Kong<span class="faan-cn"> (搶槓)</span></span></td><td class="faan-value">1</td><td class="faan-desc">Winning by robbing the tile another player used for a revealed kong.</td></tr>
                 <tr class="family-kong"><td><span class="faan-name">Win by Kong<span class="faan-cn"> (槓上開花)</span></span></td><td class="faan-value">1</td><td class="faan-desc">Winning on the replacement tile drawn from a kong.</td></tr>
@@ -279,14 +279,14 @@
                 <tr><td><span class="faan-name">Seven Pairs<span class="faan-cn"> (七對子)</span></span></td><td class="faan-value">4</td><td class="faan-desc">Seven unique pairs of 14 tiles. Only valid hand at some tables.</td></tr>
                 <tr><td><span class="faan-name">All Honors<span class="faan-cn"> (字一色)</span></span></td><td class="faan-value">10</td><td class="faan-desc">Only winds and dragons.</td></tr>
                 <tr class="family-triplets"><td><span class="faan-name">All Triplets<span class="faan-cn"> (對對糊)</span></span></td><td class="faan-value">3</td><td class="faan-desc">All four sets are triplets or quads plus a pair.</td></tr>
-                <tr class="family-triplets"><td><span class="faan-name">Concealed Triplets<span class="faan-cn"> (門清對對糊)</span></span></td><td class="faan-value">10</td><td class="faan-desc">All four sets are concealed triplets or quads. Must self-draw all melds to count.</td></tr>
+                <tr class="family-triplets"><td><span class="faan-name">Concealed Triplets<span class="faan-cn"> (門清對對糊)</span></span></td><td class="faan-value">10</td><td class="faan-desc">All four sets are concealed triplets or quads. All melds must be concealed to count.</td></tr>
                 <tr class="family-triplets"><td><span class="faan-name">Four Quads<span class="faan-cn"> (十八羅漢)</span></span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Four quads plus a pair (18 tiles).</td></tr>
                 <tr class="family-flush"><td><span class="faan-name">Half Flush<span class="faan-cn"> (混一色)</span></span></td><td class="faan-value">3</td><td class="faan-desc">One suit only, mixed with honor tiles (winds/dragons).</td></tr>
                 <tr class="family-flush"><td><span class="faan-name">Full Flush<span class="faan-cn"> (清一色)</span></span></td><td class="faan-value">7</td><td class="faan-desc">One suit only with no honors.</td></tr>
-                <tr class="family-flush"><td><span class="faan-name">Nine Gates<span class="faan-cn"> (九蓮寶燈)</span></span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">A pure one-suit hand in the pattern 1-1-1-2-3-4-5-6-7-8-9-9-9 plus one extra of that suit.</td></tr>
+                <tr class="family-flush"><td><span class="faan-name">Nine Gates<span class="faan-cn"> (九蓮寶燈)</span></span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">A one-suit hand in the pattern 1-1-1-2-3-4-5-6-7-8-9-9-9 plus one extra tile. Must be concealed.</td></tr>
                 <tr class="family-terminals"><td><span class="faan-name">Mixed Orphans<span class="faan-cn"> (混老頭)</span></span></td><td class="faan-value">1</td><td class="faan-desc">Every tile is a 1, 9, or honor. No suited tiles from 2–8.</td></tr>
                 <tr class="family-terminals"><td><span class="faan-name">All Terminals<span class="faan-cn"> (清老頭)</span></span></td><td class="faan-value">10</td><td class="faan-desc">Every tile is a 1 or 9. No suited tiles (2–8) and no honors.</td></tr>
-                <tr class="family-terminals"><td><span class="faan-name">Thirteen Orphans<span class="faan-cn"> (十三么)</span></span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">One each of every 1, 9, and honor tile, plus a duplicate of any one of them.</td></tr>
+                <tr class="family-terminals"><td><span class="faan-name">Thirteen Orphans<span class="faan-cn"> (十三么)</span></span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">One each of every 1, 9, and honor tile, plus one extra tile of any one of them.</td></tr>
                 <tr class="family-dragons"><td><span class="faan-name">Dragon Triplet / Quad<span class="faan-cn"> (箭刻)</span></span></td><td class="faan-value">1</td><td class="faan-desc">A triplet or quad for red, green, or white dragon (+1 for each).</td></tr>
                 <tr class="family-dragons"><td><span class="faan-name">Small Three Dragons<span class="faan-cn"> (小三元)</span></span></td><td class="faan-value">5</td><td class="faan-desc">Triplets or quads of two dragons plus a pair of the third dragon.</td></tr>
                 <tr class="family-dragons"><td><span class="faan-name">Big Three Dragons<span class="faan-cn"> (大三元)</span></span></td><td class="faan-value">8</td><td class="faan-desc">Triplets or quads of all three dragons (red, green, white).</td></tr>
@@ -305,12 +305,12 @@
               <thead><tr><th>Bonus tile</th><th>Faan</th><th>What it means</th></tr></thead>
               <tbody>
                 <tr><td><span class="faan-name">No Flowers<span class="faan-cn"> (無花)</span></span></td><td class="faan-value">1</td><td class="faan-desc">Have no flower or season tiles.</td></tr>
-                <tr class="family-immortals"><td><span class="faan-name">Seat Flower<span class="faan-cn"> (正花)</span></span></td><td class="faan-value">1</td><td class="faan-desc">Have your matching flower.</td></tr>
-                <tr class="family-immortals"><td><span class="faan-name">Seat Season<span class="faan-cn"> (正季)</span></span></td><td class="faan-value">1</td><td class="faan-desc">Have your matching season.</td></tr>
-                <tr class="family-immortals"><td><span class="faan-name">Four Flowers<span class="faan-cn"> (四花齊)</span></span></td><td class="faan-value">2</td><td class="faan-desc">Have all four flower tiles.</td></tr>
-                <tr class="family-immortals"><td><span class="faan-name">Four Seasons<span class="faan-cn"> (四季齊)</span></span></td><td class="faan-value">2</td><td class="faan-desc">Have all four season tiles.</td></tr>
-                <tr class="family-immortals"><td><span class="faan-name">Seven Robbing One<span class="faan-cn"> (七搶一)</span></span></td><td class="faan-value">5</td><td class="faan-desc">Can declare an automatic win with 7 flowers or seasons regardless of hand. Can rob the last flower or season when another player draws it.</td></tr>
-                <tr class="family-immortals"><td><span class="faan-name">Eight Immortals Crossing the Sea<span class="faan-cn"> (八仙過海)</span></span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Automatic win with all 8 flowers and seasons regardless of hand.</td></tr>
+                <tr><td><span class="faan-name">Seat Flower<span class="faan-cn"> (正花)</span></span></td><td class="faan-value">1</td><td class="faan-desc">Have your matching seat flower.</td></tr>
+                <tr><td><span class="faan-name">Seat Season<span class="faan-cn"> (正季)</span></span></td><td class="faan-value">1</td><td class="faan-desc">Have your matching seat season.</td></tr>
+                <tr><td><span class="faan-name">Four Flowers<span class="faan-cn"> (四花齊)</span></span></td><td class="faan-value">2</td><td class="faan-desc">Have all four flower tiles. Does not stack with seat flower.</td></tr>
+                <tr><td><span class="faan-name">Four Seasons<span class="faan-cn"> (四季齊)</span></span></td><td class="faan-value">2</td><td class="faan-desc">Have all four season tiles. Does not stack with seat season.</td></tr>
+                <tr><td><span class="faan-name">Seven Robbing One<span class="faan-cn"> (七搶一)</span></span></td><td class="faan-value">5</td><td class="faan-desc">Can declare an automatic win with 7 bonus tiles regardless of hand. Can rob the last bonus tile when another player draws it.</td></tr>
+                <tr><td><span class="faan-name">Eight Immortals Crossing the Sea<span class="faan-cn"> (八仙過海)</span></span></td><td class="faan-value faan-limit">Limit</td><td class="faan-desc">Automatic win with all 8 flowers and seasons regardless of hand.</td></tr>
               </tbody>
             </table>
           </div>
@@ -379,6 +379,6 @@
   </footer>
 
   <script src="/js/nav.js" defer></script>
-  <script src="../js/points.js?v=20260902" defer></script>
+  <script src="../js/points.js?v=20260902e" defer></script>
 </body>
 </html>

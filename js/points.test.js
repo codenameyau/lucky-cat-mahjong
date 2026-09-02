@@ -688,38 +688,40 @@ describe('Hong Kong mahjong scoring', function () {
       assert.equal(faanFor(result, 'Seat Season'), null);
     });
 
-    it('does not stack Four Flowers with Seat Season', function () {
+    it('stacks Four Flowers with Season of Own Wind', function () {
+      // Wikipedia: All Flowers only conflicts with Flower of Own Wind, not the season.
       api.setOption('opt-no-flowers', false);
       api.setOption('opt-seat', 1);
       api.setHand(HANDS.chicken, ['f1', 'f2', 'f3', 'f4', 's1']);
       var result = api.evaluate();
 
       assert.equal(faanFor(result, 'Four Flowers'), 2);
-      assert.equal(faanFor(result, 'Seat Season'), null);
+      assert.equal(faanFor(result, 'Seat Season'), 1);
       assert.equal(faanFor(result, 'Seat Flower'), null);
-      assert.equal(result.faan, 2);
+      assert.equal(result.faan, 3);
     });
 
-    it('does not stack Four Seasons with Seat Flower', function () {
+    it('stacks Four Seasons with Flower of Own Wind', function () {
       api.setOption('opt-no-flowers', false);
       api.setOption('opt-seat', 1);
       api.setHand(HANDS.chicken, ['s1', 's2', 's3', 's4', 'f1']);
       var result = api.evaluate();
 
       assert.equal(faanFor(result, 'Four Seasons'), 2);
-      assert.equal(faanFor(result, 'Seat Flower'), null);
-      assert.equal(result.faan, 2);
+      assert.equal(faanFor(result, 'Seat Flower'), 1);
+      assert.equal(faanFor(result, 'Seat Season'), null);
+      assert.equal(result.faan, 3);
     });
 
-    it('does not stack Seat Flower with Seat Season', function () {
+    it('stacks Flower of Own Wind with Season of Own Wind', function () {
       api.setOption('opt-no-flowers', false);
       api.setOption('opt-seat', 1);
       api.setHand(HANDS.chicken, ['f1', 's1']);
       var result = api.evaluate();
 
       assert.equal(faanFor(result, 'Seat Flower'), 1);
-      assert.equal(faanFor(result, 'Seat Season'), null);
-      assert.equal(result.faan, 1);
+      assert.equal(faanFor(result, 'Seat Season'), 1);
+      assert.equal(result.faan, 2);
     });
   });
 });

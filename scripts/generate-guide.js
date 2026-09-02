@@ -178,8 +178,8 @@ const BONUS_TREE = [
   { name: 'Robbing the Kong', faan: '1', note: 'win on a tile used to form a kong' },
   { name: 'Win by Kong', faan: '1', note: 'win on a replacement tile after a kong', families: ['kong'] },
   { name: 'Win by Double Kong', faan: '8', note: 'win on a tile from a kong, which itself was from a kong', families: ['kong'] },
-  { name: 'Heavenly Hand', faan: 'Limit', note: 'dealer wins on their initial 14-tile hand' },
-  { name: 'Earthly Hand', faan: 'Limit', note: 'win on dealer’s first discard' },
+  { name: 'Heavenly Hand', faan: 'Limit', note: 'dealer wins on their initial 14-tile hand', families: ['opening'] },
+  { name: 'Earthly Hand', faan: 'Limit', note: 'win on dealer’s first discard', families: ['opening'] },
 ];
 
 const HONORS_TREE = [
@@ -190,12 +190,12 @@ const HONORS_TREE = [
 
 const FLOWER_TREE = [
   { name: 'No Flowers', faan: '1', note: 'no flower or season tiles' },
-  { name: 'Seat Flower', faan: '1', note: 'flower matching your seat', families: ['immortals'] },
-  { name: 'Seat Season', faan: '1', note: 'season matching your seat', families: ['immortals'] },
-  { name: 'Four Flowers', faan: '2', note: 'have all four flowers', families: ['immortals'] },
-  { name: 'Four Seasons', faan: '2', note: 'have all four seasons', families: ['immortals'] },
-  { name: 'Seven Robbing One', faan: '5', note: 'seven flowers and seasons; can rob the remaining tile from another player when drawn; auto-win', families: ['immortals'] },
-  { name: 'Eight Immortals Crossing Sea', faan: 'Limit', note: 'eight flowers and seasons; auto-win', families: ['immortals'] },
+  { name: 'Seat Flower', faan: '1', note: 'flower matching your seat' },
+  { name: 'Seat Season', faan: '1', note: 'season matching your seat' },
+  { name: 'Four Flowers', faan: '2', note: 'have all four flowers' },
+  { name: 'Four Seasons', faan: '2', note: 'have all four seasons' },
+  { name: 'Seven Robbing One', faan: '5', note: 'seven flowers and seasons; can rob the remaining tile from another player when drawn; auto-win' },
+  { name: 'Eight Immortals Crossing the Sea', faan: 'Limit', note: 'eight flowers and seasons; auto-win' },
 ];
 
 const EXAMPLE_HANDS = [
@@ -580,7 +580,7 @@ const CSS = `
     --family-triplets: #05693A;
     --family-terminals: #7A3E9D;
     --family-kong: #0E7490;
-    --family-immortals: #BE185D;
+    --family-opening: #BE185D;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { margin: 0; padding: 0; }
@@ -858,7 +858,7 @@ const CSS = `
   .family-triplets { color: var(--family-triplets); }
   .family-terminals { color: var(--family-terminals); }
   .family-kong { color: var(--family-kong); }
-  .family-immortals { color: var(--family-immortals); }
+  .family-opening { color: var(--family-opening); }
   .example-note {
     font-size: 6.5pt; color: var(--muted); font-family: var(--body, sans-serif);
     font-weight: 400; font-style: italic; line-height: 1.2; margin-top: 0.01in;
