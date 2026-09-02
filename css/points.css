@@ -8,10 +8,10 @@
 
 #basics.points-section { background: var(--color-background); }
 #scoring.points-section { background: var(--color-surface); }
-#special.points-section { background: var(--color-background); }
-#payout.points-section { background: var(--color-surface); }
+#payout.points-section { background: var(--color-background); }
 
-#basics .section-intro {
+#basics .section-intro,
+#scoring .section-intro {
   margin-bottom: 1rem;
 }
 
@@ -20,7 +20,7 @@
 }
 
 .points-lead {
-  max-width: 65ch;
+  max-width: 90ch;
   margin: 0 auto 2rem;
   text-align: center;
   color: var(--color-text-muted);
@@ -29,6 +29,11 @@
 
 #basics .points-lead:last-child {
   margin-bottom: 0;
+}
+
+#basics .points-lead em,
+#basics .points-lead strong {
+  color: var(--color-primary);
 }
 
 /* ---- Tile component ---- */
@@ -72,6 +77,23 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 0.97rem;
+  /* Same family tokens as the printable rulesheet. Same-color names do not stack. */
+  --family-flush: #C41E3A;
+  --family-flush-rgb: 196, 30, 58;
+  --family-dragons: #1D4ED8;
+  --family-dragons-rgb: 29, 78, 216;
+  --family-winds: #C05600;
+  --family-winds-rgb: 192, 86, 0;
+  --family-triplets: #05693A;
+  --family-triplets-rgb: 5, 105, 58;
+  --family-terminals: #7A3E9D;
+  --family-terminals-rgb: 122, 62, 157;
+  --family-kong: #0E7490;
+  --family-kong-rgb: 14, 116, 144;
+  --family-immortals: #BE185D;
+  --family-immortals-rgb: 190, 24, 93;
+  --family-opening: #4338CA;
+  --family-opening-rgb: 67, 56, 202;
 }
 
 .faan-table th,
@@ -119,6 +141,48 @@
 
 .faan-name { color: var(--color-text); font-size: 0.85rem; }
 .faan-cn { color: var(--color-text-muted); font-weight: 500; }
+
+.faan-table tbody tr.family-flush { --family: var(--family-flush); --family-rgb: var(--family-flush-rgb); }
+.faan-table tbody tr.family-dragons { --family: var(--family-dragons); --family-rgb: var(--family-dragons-rgb); }
+.faan-table tbody tr.family-winds { --family: var(--family-winds); --family-rgb: var(--family-winds-rgb); }
+.faan-table tbody tr.family-triplets { --family: var(--family-triplets); --family-rgb: var(--family-triplets-rgb); }
+.faan-table tbody tr.family-terminals { --family: var(--family-terminals); --family-rgb: var(--family-terminals-rgb); }
+.faan-table tbody tr.family-kong { --family: var(--family-kong); --family-rgb: var(--family-kong-rgb); }
+.faan-table tbody tr.family-immortals { --family: var(--family-immortals); --family-rgb: var(--family-immortals-rgb); }
+.faan-table tbody tr.family-opening { --family: var(--family-opening); --family-rgb: var(--family-opening-rgb); }
+
+.faan-table tbody tr.family-flush,
+.faan-table tbody tr.family-dragons,
+.faan-table tbody tr.family-winds,
+.faan-table tbody tr.family-triplets,
+.faan-table tbody tr.family-terminals,
+.faan-table tbody tr.family-kong,
+.faan-table tbody tr.family-immortals,
+.faan-table tbody tr.family-opening {
+  background: rgba(var(--family-rgb), 0.08);
+}
+
+.faan-table tbody tr.family-flush:hover,
+.faan-table tbody tr.family-dragons:hover,
+.faan-table tbody tr.family-winds:hover,
+.faan-table tbody tr.family-triplets:hover,
+.faan-table tbody tr.family-terminals:hover,
+.faan-table tbody tr.family-kong:hover,
+.faan-table tbody tr.family-immortals:hover,
+.faan-table tbody tr.family-opening:hover {
+  background: rgba(var(--family-rgb), 0.14);
+}
+
+.faan-table tbody tr.family-flush .faan-name,
+.faan-table tbody tr.family-dragons .faan-name,
+.faan-table tbody tr.family-winds .faan-name,
+.faan-table tbody tr.family-triplets .faan-name,
+.faan-table tbody tr.family-terminals .faan-name,
+.faan-table tbody tr.family-kong .faan-name,
+.faan-table tbody tr.family-immortals .faan-name,
+.faan-table tbody tr.family-opening .faan-name {
+  color: var(--family);
+}
 
 html.hide-extra-chinese .faan-cn,
 html.hide-extra-chinese .result-cn {

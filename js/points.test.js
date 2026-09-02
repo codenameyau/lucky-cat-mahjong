@@ -40,7 +40,7 @@ const HANDS = {
   sevenPairs: ['c1', 'c1', 'd2', 'd2', 'b3', 'b3', 'c5', 'c5', 'd7', 'd7', 'b8', 'b8', 'dr', 'dr'],
   bigThreeDragons: ['dr', 'dr', 'dr', 'dg', 'dg', 'dg', 'dw', 'dw', 'dw', 'c1', 'c2', 'c3', 'd5', 'd5'],
   allSequences: ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'd2', 'd3', 'd4', 'd5', 'd5'],
-  mixedTerminals: ['c1', 'c1', 'c1', 'c9', 'c9', 'c9', 'd1', 'd1', 'd1', 'dr', 'dr', 'dr', 'd9', 'd9'],
+  mixedOrphans: ['c1', 'c1', 'c1', 'c9', 'c9', 'c9', 'd1', 'd1', 'd1', 'dr', 'dr', 'dr', 'd9', 'd9'],
   seatWind: ['we', 'we', 'we', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'd2', 'd2'],
   plainChicken: ['c2', 'c3', 'c4', 'd5', 'd6', 'd7', 'b1', 'b2', 'b3', 'c8', 'c8', 'c8', 'd2', 'd2'],
   oneQuad: [
@@ -423,14 +423,14 @@ describe('Hong Kong mahjong scoring', function () {
       assert.equal(result.faan, 1);
     });
 
-    it('scores Mixed Terminals and its meld constituents', function () {
-      api.setHand(HANDS.mixedTerminals);
+    it('scores Mixed Orphans at 1 faan stacked with All Triplets', function () {
+      api.setHand(HANDS.mixedOrphans);
       var result = api.evaluate();
 
-      assert.ok(patternNames(result).includes('Mixed Terminals'));
-      assert.ok(patternNames(result).includes('All Triplets'));
-      assert.equal(result.faan, 8);
-      assert.equal(result.points, 256);
+      assert.equal(faanFor(result, 'Mixed Orphans'), 1);
+      assert.equal(faanFor(result, 'All Triplets'), 3);
+      assert.equal(result.faan, 5);
+      assert.equal(result.points, 32);
     });
 
     it('labels a zero-pattern hand as Chicken Hand', function () {
@@ -655,6 +655,71 @@ describe('Hong Kong mahjong scoring', function () {
       var result = api.evaluate();
 
       assert.equal(faanFor(result, 'Seat Flower'), 1);
+    });
+
+    it('does not stack Seat Flower with Four Flowers', function () {
+      api.setOption('opt-no-flowers', false);
+      api.setOption('opt-seat', 1);
+      api.setHand(HANDS.chicken, ['f1', 'f2', 'f3', 'f4']);
+      var result = api.evaluate();
+
+      assert.equal(faanFor(result, 'Four Flowers'), 2);
+      assert.equal(faanFor(result, 'Seat Flower'), null);
+    });
+
+    it('does not stack Seat Flower with Four Flowers for every seat', function () {
+      api.setOption('opt-no-flowers', false);
+      [1, 2, 3, 4].forEach(function (seat) {
+        api.setOption('opt-seat', seat);
+        api.setHand(HANDS.chicken, ['f1', 'f2', 'f3', 'f4']);
+        var result = api.evaluate();
+        assert.equal(faanFor(result, 'Four Flowers'), 2, 'seat ' + seat);
+        assert.equal(faanFor(result, 'Seat Flower'), null, 'seat ' + seat);
+      });
+    });
+
+    it('does not stack Seat Season with Four Seasons', function () {
+      api.setOption('opt-no-flowers', false);
+      api.setOption('opt-seat', 3);
+      api.setHand(HANDS.chicken, ['s1', 's2', 's3', 's4']);
+      var result = api.evaluate();
+
+      assert.equal(faanFor(result, 'Four Seasons'), 2);
+      assert.equal(faanFor(result, 'Seat Season'), null);
+    });
+
+    it('does not stack Four Flowers with Seat Season', function () {
+      api.setOption('opt-no-flowers', false);
+      api.setOption('opt-seat', 1);
+      api.setHand(HANDS.chicken, ['f1', 'f2', 'f3', 'f4', 's1']);
+      var result = api.evaluate();
+
+      assert.equal(faanFor(result, 'Four Flowers'), 2);
+      assert.equal(faanFor(result, 'Seat Season'), null);
+      assert.equal(faanFor(result, 'Seat Flower'), null);
+      assert.equal(result.faan, 2);
+    });
+
+    it('does not stack Four Seasons with Seat Flower', function () {
+      api.setOption('opt-no-flowers', false);
+      api.setOption('opt-seat', 1);
+      api.setHand(HANDS.chicken, ['s1', 's2', 's3', 's4', 'f1']);
+      var result = api.evaluate();
+
+      assert.equal(faanFor(result, 'Four Seasons'), 2);
+      assert.equal(faanFor(result, 'Seat Flower'), null);
+      assert.equal(result.faan, 2);
+    });
+
+    it('does not stack Seat Flower with Seat Season', function () {
+      api.setOption('opt-no-flowers', false);
+      api.setOption('opt-seat', 1);
+      api.setHand(HANDS.chicken, ['f1', 's1']);
+      var result = api.evaluate();
+
+      assert.equal(faanFor(result, 'Seat Flower'), 1);
+      assert.equal(faanFor(result, 'Seat Season'), null);
+      assert.equal(result.faan, 1);
     });
   });
 });

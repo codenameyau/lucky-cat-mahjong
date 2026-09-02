@@ -141,7 +141,7 @@
     nineGates: LIMIT,
     allKongs: LIMIT,
     allTerminals: 10,
-    mixedTerminals: 4,
+    mixedOrphans: 1,
     dragonPung: 1,
     yakuWind: 1,
     selfDraw: 1,
@@ -211,7 +211,7 @@
    * ------------------------------------------------------------------ */
 
   var hand = []; // array of suited/honor tile ids (max 18)
-  var flowers = []; // array of flower/season tile ids
+  var flowers = []; // array of bonus flower tile ids
   var handLayout = []; // display order: { id, isFlower }
   var handDrag = null;
   var HAND_DRAG_THRESHOLD = 8;
@@ -424,8 +424,8 @@
     if (isAllTerminals(c) && !hasFourKongs) {
       return [{ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals }].concat(items);
     }
-    if (isMixedTerminals(c) && !hasFourKongs) {
-      return [{ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals }].concat(items);
+    if (isMixedOrphans(c) && !hasFourKongs) {
+      return [{ name: 'Mixed Orphans', cn: '混老頭', faan: FAAN.mixedOrphans }].concat(items);
     }
     return items;
   }
@@ -466,7 +466,7 @@
     });
   }
 
-  function isMixedTerminals(c) {
+  function isMixedOrphans(c) {
     // 混老头 — every tile is a 1, 9, or honor; must include both terminals and honors
     var numSuits = ['c', 'd', 'b'];
     for (var si = 0; si < numSuits.length; si++) {
@@ -569,8 +569,8 @@
       items.push({ name: 'All Honors', cn: '字一色', faan: FAAN.allHonors });
     } else if (isAllTerminals(c)) {
       items.push({ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals });
-    } else if (isMixedTerminals(c)) {
-      items.push({ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals });
+    } else if (isMixedOrphans(c)) {
+      items.push({ name: 'Mixed Orphans', cn: '混老頭', faan: FAAN.mixedOrphans });
     } else if (profile.numSuits.length === 1 && !profile.honors) {
       items.push({ name: 'Full Flush', cn: '清一色', faan: FAAN.fullFlush });
     } else if (profile.numSuits.length === 1 && profile.honors) {
@@ -595,8 +595,8 @@
     var hasFourKongs = bestItems.some(function (i) { return i.name === 'Four Quads'; });
     if (isAllTerminals(c) && !hasFourKongs) {
       bestItems = [{ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals }].concat(bestItems);
-    } else if (isMixedTerminals(c) && !hasFourKongs) {
-      bestItems = [{ name: 'Mixed Terminals', cn: '混老頭', faan: FAAN.mixedTerminals }].concat(bestItems);
+    } else if (isMixedOrphans(c) && !hasFourKongs) {
+      bestItems = [{ name: 'Mixed Orphans', cn: '混老頭', faan: FAAN.mixedOrphans }].concat(bestItems);
     }
     return bestItems;
   }
@@ -753,7 +753,7 @@
       'Dragon Triplet', 'Dragon Quad',
     ],
     'Thirteen Orphans': [
-      'Mixed Terminals', 'Seven Pairs', 'All Triplets',
+      'Mixed Orphans', 'Seven Pairs', 'All Triplets',
       'Half Flush', 'Full Flush', 'All Sequences',
     ],
     'Nine Gates': [
@@ -807,6 +807,32 @@
     });
   }
 
+  var FLOWER_GROUP_BONUSES = {
+    'Seat Flower': true,
+    'Seat Season': true,
+    'Four Flowers': true,
+    'Four Seasons': true,
+    'Seven Robbing One': true,
+    'Eight Immortals Crossing the Sea': true,
+  };
+
+  function applyFlowerBonusNoStacking(items) {
+    var best = -1;
+    items.forEach(function (it) {
+      if (FLOWER_GROUP_BONUSES[it.name] && it.faan > best) best = it.faan;
+    });
+    if (best < 0) return items;
+    var kept = false;
+    return items.filter(function (it) {
+      if (!FLOWER_GROUP_BONUSES[it.name]) return true;
+      if (!kept && it.faan === best) {
+        kept = true;
+        return true;
+      }
+      return false;
+    });
+  }
+
   function flowerAutoWinItem() {
     var n = flowers.length;
     if (n >= 8) return { name: 'Eight Immortals Crossing the Sea', cn: '八仙過海', faan: FAAN.eightFlowers };
@@ -846,10 +872,10 @@
       items.push({ name: 'Four Seasons', cn: '四季齊', faan: FAAN.allSeasons });
     }
     if (seat > 0 && hasBonus(SEASON_IDS[seat - 1])) {
-      items.push({ name: 'Seat Season', cn: '正花', faan: FAAN.seatSeason });
+      items.push({ name: 'Seat Season', cn: '正季', faan: FAAN.seatSeason });
     }
 
-    return items;
+    return applyFlowerBonusNoStacking(items);
   }
 
   function suppressesConcealedBonus(patternItems) {
@@ -1202,7 +1228,7 @@
         flowersSpan.className = 'hand-meta-flowers';
         meta.appendChild(flowersSpan);
       }
-      flowersSpan.textContent = '+ ' + flowers.length + ' flower/season';
+      flowersSpan.textContent = '+ ' + flowers.length + ' bonus tiles';
     } else if (flowersSpan) {
       flowersSpan.remove();
     }

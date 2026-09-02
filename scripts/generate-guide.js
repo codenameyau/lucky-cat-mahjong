@@ -190,8 +190,8 @@ const HONORS_TREE = [
 
 const FLOWER_TREE = [
   { name: 'No Flowers', faan: '1', note: 'no flower or season tiles' },
-  { name: 'Seat Flower', faan: '1', note: 'flower matching your seat' },
-  { name: 'Seat Season', faan: '1', note: 'season matching your seat' },
+  { name: 'Seat Flower', faan: '1', note: 'flower matching your seat', families: ['immortals'] },
+  { name: 'Seat Season', faan: '1', note: 'season matching your seat', families: ['immortals'] },
   { name: 'Four Flowers', faan: '2', note: 'have all four flowers', families: ['immortals'] },
   { name: 'Four Seasons', faan: '2', note: 'have all four seasons', families: ['immortals'] },
   { name: 'Seven Robbing One', faan: '5', note: 'seven flowers and seasons; can rob the remaining tile from another player when drawn; auto-win', families: ['immortals'] },
@@ -222,7 +222,7 @@ const EXAMPLE_HANDS = [
     groups: [['c2', 'c2', 'c2'], ['d5', 'd5', 'd5'], ['b8', 'b8', 'b8'], ['ws', 'ws', 'ws'], ['d2', 'd2']],
   },
   {
-    name: 'Mixed Terminals', faan: '4 faan',
+    name: 'Mixed Orphans', faan: '1 faan',
     note: '1s, 9s, and honors only',
     families: ['terminals'],
     groups: [['c1', 'c1', 'c1'], ['c9', 'c9', 'c9'], ['d1', 'd1', 'd1'], ['we', 'we', 'we'], ['b9', 'b9']],
@@ -377,10 +377,16 @@ function bonusTilesHtml() {
  * Panels
  * ------------------------------------------------------------------ */
 
+function applyEmphasis(text) {
+  return String(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>');
+}
+
 function coverPanel() {
   // Keep About Us readable — use first paragraph mainly if both are long
   const aboutHtml = ABOUT_PARAS.map(function (p) {
-    return `<p>${p.replace(/Lucky Cat Mahjong/g, '<strong>Lucky Cat Mahjong</strong>')}</p>`;
+    return `<p>${applyEmphasis(p).replace(/Lucky Cat Mahjong/g, '<strong>Lucky Cat Mahjong</strong>')}</p>`;
   }).join('');
   return `<section class="panel cover">
     <div class="cover-top">
@@ -627,6 +633,8 @@ const CSS = `
   .card p { font-size: 8pt; line-height: 1.35; color: var(--text); margin: 0 0 0.06in; }
   .card p:last-child { margin-bottom: 0; }
   .about { background: #FDF6F7; }
+  .about em,
+  .about strong { color: var(--primary); }
   .involved { background: #f3faf5; border-color: rgba(5, 105, 58, 0.18); }
   .involved h2 { color: var(--accent); }
   .involve-block { margin: 0 0 0.075in; }

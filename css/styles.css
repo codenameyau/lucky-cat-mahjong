@@ -282,7 +282,13 @@ h1, h2, h3 {
 
 .about-body {
   margin-top: 2rem;
-  text-align: left;
+  max-width: 90ch;
+  text-align: center;
+}
+
+.about-body em,
+.about-body strong {
+  color: var(--color-primary);
 }
 
 /* Services */
