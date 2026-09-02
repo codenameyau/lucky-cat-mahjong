@@ -198,6 +198,8 @@ const FLOWER_TREE = [
   { name: 'Eight Immortals Crossing the Sea', faan: 'Limit', note: 'eight flowers and seasons; auto-win' },
 ];
 
+// Ordered to mirror the scoring table's Hand Patterns grouping:
+// ungrouped, then triplets, flush, terminals, dragons, winds.
 const EXAMPLE_HANDS = [
   {
     name: 'Chicken Hand', faan: '0 faan',
@@ -210,10 +212,14 @@ const EXAMPLE_HANDS = [
     groups: [['c2', 'c3', 'c4'], ['d5', 'd6', 'd7'], ['b4', 'b5', 'b6'], ['b7', 'b8', 'b9'], ['d2', 'd2']],
   },
   {
-    name: 'Half Flush', faan: '3 faan',
-    note: 'One suit plus honors',
-    families: ['flush'],
-    groups: [['c2', 'c3', 'c4'], ['c5', 'c6', 'c7'], ['c7', 'c8', 'c9'], ['c3', 'c3', 'c3'], ['dr', 'dr']],
+    name: 'Seven Pairs', faan: '4 faan',
+    note: 'Seven unique pairs',
+    groups: [['c1', 'c1'], ['d2', 'd2'], ['b3', 'b3'], ['c5', 'c5'], ['d7', 'd7'], ['we', 'we'], ['dr', 'dr']],
+  },
+  {
+    name: 'All Honors', faan: '10 faan',
+    note: 'Only wind and dragon tiles',
+    groups: [['we', 'we', 'we'], ['ws', 'ws', 'ws'], ['dg', 'dg', 'dg'], ['dr', 'dr', 'dr'], ['dw', 'dw']],
   },
   {
     name: 'All Triplets', faan: '3 faan',
@@ -222,27 +228,16 @@ const EXAMPLE_HANDS = [
     groups: [['c2', 'c2', 'c2'], ['d5', 'd5', 'd5'], ['b8', 'b8', 'b8'], ['ws', 'ws', 'ws'], ['d2', 'd2']],
   },
   {
-    name: 'Mixed Orphans', faan: '1 faan',
-    note: '1s, 9s, and honors only',
-    families: ['terminals'],
-    groups: [['c1', 'c1', 'c1'], ['c9', 'c9', 'c9'], ['d1', 'd1', 'd1'], ['we', 'we', 'we'], ['b9', 'b9']],
+    name: 'Four Quads', faan: 'Limit',
+    note: 'Four kongs plus a pair',
+    families: ['triplets'],
+    groups: [['c1', 'c1', 'c1', 'c1'], ['d5', 'd5', 'd5', 'd5'], ['b8', 'b8', 'b8', 'b8'], ['we', 'we', 'we', 'we'], ['dr', 'dr']],
   },
   {
-    name: 'Seven Pairs', faan: '4 faan',
-    note: 'Seven unique pairs',
-    groups: [['c1', 'c1'], ['d2', 'd2'], ['b3', 'b3'], ['c5', 'c5'], ['d7', 'd7'], ['we', 'we'], ['dr', 'dr']],
-  },
-  {
-    name: 'Small Three Dragons', faan: '5 faan',
-    note: 'Two dragon triplets/quads and a dragon pair',
-    families: ['dragons'],
-    groups: [['dg', 'dg', 'dg'], ['dw', 'dw', 'dw'], ['dr', 'dr'], ['c2', 'c3', 'c4'], ['b5', 'b5', 'b5']],
-  },
-  {
-    name: 'Small Four Winds', faan: '6 faan',
-    note: 'Three wind triplets/quads and a wind pair',
-    families: ['winds'],
-    groups: [['we', 'we', 'we'], ['ws', 'ws', 'ws'], ['ww', 'ww', 'ww'], ['wn', 'wn'], ['c5', 'c5', 'c5']],
+    name: 'Half Flush', faan: '3 faan',
+    note: 'One suit plus honors',
+    families: ['flush'],
+    groups: [['c2', 'c3', 'c4'], ['c5', 'c6', 'c7'], ['c7', 'c8', 'c9'], ['c3', 'c3', 'c3'], ['dr', 'dr']],
   },
   {
     name: 'Full Flush', faan: '7 faan',
@@ -251,10 +246,16 @@ const EXAMPLE_HANDS = [
     groups: [['b1', 'b2', 'b3'], ['b4', 'b5', 'b6'], ['b7', 'b8', 'b9'], ['b8', 'b8', 'b8'], ['b5', 'b5']],
   },
   {
-    name: 'Big Three Dragons', faan: '8 faan',
-    note: 'A triplet/quad of each dragon',
-    families: ['dragons'],
-    groups: [['dg', 'dg', 'dg'], ['dw', 'dw', 'dw'], ['dr', 'dr', 'dr'], ['c2', 'c3', 'c4'], ['b5', 'b5']],
+    name: 'Nine Gates', faan: 'Limit',
+    note: 'One suit of 1112345678999 plus one extra',
+    families: ['flush'],
+    groups: [['c1', 'c1', 'c1'], ['c2', 'c3', 'c4'], ['c5', 'c5'], ['c6', 'c7', 'c8'], ['c9', 'c9', 'c9']],
+  },
+  {
+    name: 'Mixed Orphans', faan: '1 faan',
+    note: '1s, 9s, and honors only',
+    families: ['terminals'],
+    groups: [['c1', 'c1', 'c1'], ['c9', 'c9', 'c9'], ['d1', 'd1', 'd1'], ['we', 'we', 'we'], ['b9', 'b9']],
   },
   {
     name: 'All Terminals', faan: '10 faan',
@@ -263,33 +264,34 @@ const EXAMPLE_HANDS = [
     groups: [['c1', 'c1', 'c1'], ['c9', 'c9', 'c9'], ['d1', 'd1', 'd1'], ['b9', 'b9', 'b9'], ['d9', 'd9']],
   },
   {
-    name: 'All Honors', faan: '10 faan',
-    note: 'Only wind and dragon tiles',
-    groups: [['we', 'we', 'we'], ['ws', 'ws', 'ws'], ['dg', 'dg', 'dg'], ['dr', 'dr', 'dr'], ['dw', 'dw']],
-  },
-  {
     name: 'Thirteen Orphans', faan: 'Limit',
     note: 'One of each terminal and honor, plus one duplicate',
     families: ['terminals'],
     groups: [['c1', 'c9', 'd1'], ['d9', 'b1', 'b9'], ['we', 'ws', 'ww'], ['wn', 'dg', 'dw'], ['dr', 'dr']],
   },
   {
+    name: 'Small Three Dragons', faan: '5 faan',
+    note: 'Two dragon triplets/quads and a dragon pair',
+    families: ['dragons'],
+    groups: [['dg', 'dg', 'dg'], ['dw', 'dw', 'dw'], ['dr', 'dr'], ['c2', 'c3', 'c4'], ['b5', 'b5', 'b5']],
+  },
+  {
+    name: 'Big Three Dragons', faan: '8 faan',
+    note: 'A triplet/quad of each dragon',
+    families: ['dragons'],
+    groups: [['dg', 'dg', 'dg'], ['dw', 'dw', 'dw'], ['dr', 'dr', 'dr'], ['c2', 'c3', 'c4'], ['b5', 'b5']],
+  },
+  {
+    name: 'Small Four Winds', faan: '6 faan',
+    note: 'Three wind triplets/quads and a wind pair',
+    families: ['winds'],
+    groups: [['we', 'we', 'we'], ['ws', 'ws', 'ws'], ['ww', 'ww', 'ww'], ['wn', 'wn'], ['c5', 'c5', 'c5']],
+  },
+  {
     name: 'Big Four Winds', faan: 'Limit',
     note: 'A triplet/quad of each wind, plus a pair',
     families: ['winds'],
     groups: [['we', 'we', 'we'], ['ws', 'ws', 'ws'], ['ww', 'ww', 'ww'], ['wn', 'wn', 'wn'], ['dr', 'dr']],
-  },
-  {
-    name: 'Nine Gates', faan: 'Limit',
-    note: 'One suit of 1112345678999 plus one extra',
-    families: ['flush'],
-    groups: [['c1', 'c1', 'c1'], ['c2', 'c3', 'c4'], ['c5', 'c5'], ['c6', 'c7', 'c8'], ['c9', 'c9', 'c9']],
-  },
-  {
-    name: 'Four Quads', faan: 'Limit',
-    note: 'Four kongs plus a pair',
-    families: ['triplets'],
-    groups: [['c1', 'c1', 'c1', 'c1'], ['d5', 'd5', 'd5', 'd5'], ['b8', 'b8', 'b8', 'b8'], ['we', 'we', 'we', 'we'], ['dr', 'dr']],
   },
 ];
 
