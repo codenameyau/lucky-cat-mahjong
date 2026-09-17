@@ -30,6 +30,8 @@ function createScoringApi() {
     checkboxes: checkboxes,
     selects: selects,
     URLSearchParams: URLSearchParams,
+    setTimeout: setTimeout,
+    clearTimeout: clearTimeout,
     document: {
       getElementById: function (id) {
         if (id === 'opt-seat' || id === 'opt-round') return selects[id];
@@ -97,6 +99,11 @@ function createScoringApi() {
     '      selects[\'opt-seat\'].value = \'1\';\n' +
     '      selects[\'opt-round\'].value = \'1\';\n' +
     '    },\n' +
+    '    isOptionChecked: function (id) {\n' +
+    '      return !!(checkboxes[id] && checkboxes[id].checked);\n' +
+    '    },\n' +
+    '    addTile: addTile,\n' +
+    '    removeTile: removeTile,\n' +
     '    loadFromQuery: function (search) {\n' +
     '      var query = search.charAt(0) === \'?\' ? search.slice(1) : search;\n' +
     '      var params = new URLSearchParams(query);\n' +

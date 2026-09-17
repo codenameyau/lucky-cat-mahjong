@@ -723,5 +723,35 @@ describe('Hong Kong mahjong scoring', function () {
       assert.equal(faanFor(result, 'Seat Season'), 1);
       assert.equal(result.faan, 2);
     });
+
+    it('checks No Flowers when the last bonus tile is removed', function () {
+      api.setHand(HANDS.chicken, ['f1']);
+      api.setOption('opt-no-flowers', false);
+
+      api.removeTile('f1', true);
+
+      assert.equal(api.isOptionChecked('opt-no-flowers'), true);
+      assert.equal(faanFor(api.evaluate(), 'No Flowers'), 1);
+    });
+
+    it('checks No Flowers when the last season tile is removed', function () {
+      api.setHand(HANDS.chicken, ['s2']);
+      api.setOption('opt-no-flowers', false);
+
+      api.removeTile('s2', true);
+
+      assert.equal(api.isOptionChecked('opt-no-flowers'), true);
+      assert.equal(faanFor(api.evaluate(), 'No Flowers'), 1);
+    });
+
+    it('does not check No Flowers while other bonus tiles remain', function () {
+      api.setHand(HANDS.chicken, ['f1', 's1']);
+      api.setOption('opt-no-flowers', false);
+
+      api.removeTile('f1', true);
+
+      assert.equal(api.isOptionChecked('opt-no-flowers'), false);
+      assert.equal(faanFor(api.evaluate(), 'No Flowers'), null);
+    });
   });
 });
