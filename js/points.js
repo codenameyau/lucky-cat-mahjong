@@ -1334,6 +1334,10 @@
       }
     }
     syncArraysFromHandLayout();
+    if (isFlower && !flowers.length) {
+      var noFlowers = document.getElementById('opt-no-flowers');
+      if (noFlowers) noFlowers.checked = true;
+    }
     clearActiveExample();
     clearHandHighlight();
     update();
