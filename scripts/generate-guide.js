@@ -281,7 +281,7 @@ const EXAMPLE_HANDS = [
   },
   {
     name: 'Nine Gates', faan: 'Limit',
-    note: 'One suit of 1112345678999 plus one extra. Must be concealed',
+    note: 'One suit of 1112345678999 plus one. Must be concealed',
     families: ['flush'],
     groups: [['c1', 'c1', 'c1'], ['c2', 'c3', 'c4'], ['c5', 'c5'], ['c6', 'c7', 'c8'], ['c9', 'c9', 'c9']],
   },
