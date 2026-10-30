@@ -494,7 +494,7 @@
     {
       text: 'What\'s on your phone lock screen?',
       options: [
-        { emoji: '🤳', text: 'A selfie where I look the best.', tiles: ['one-character', 'red-dragon', 'one-bamboo'] },
+        { emoji: '🤳', text: 'A selfie. I look good, obviously.', tiles: ['one-character', 'red-dragon', 'one-bamboo'] },
         { emoji: '🏞️', text: 'A nature picture. I touch grass, okay?', tiles: ['autumn', 'white-dragon'] },
         { emoji: '🥰', text: 'My significant other. Or my crush, who has no idea.', tiles: ['west-wind', 'south-wind', 'nine-dot'] },
         { emoji: '🪴', text: 'My pet. Or my plant. Same thing.', tiles: ['orchid', 'bamboo', 'blank-tile'] },
