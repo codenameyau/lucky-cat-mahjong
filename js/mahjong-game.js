@@ -163,9 +163,17 @@
    * 2. Sound (synthesized with WebAudio; no audio files to download)
    * ------------------------------------------------------------------ */
 
+  // Tile sounds are layered "clacks": a crisp noise tick, a few short
+  // inharmonic partials (the ring of a bone/resin tile), and a soft table
+  // thud. Musical cues use plucked-string notes (Karplus-Strong) on a
+  // pentatonic scale and a soft gong, instead of plain beeps.
+  var NOTE = { G4: 392, A4: 440, C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880 };
+
   function createSound(enabled) {
     var ac = null;
     var noiseBuf = null;
+    var master = null;
+    var plucks = {};
     var api = { enabled: enabled };
 
     function ctx() {
@@ -174,6 +182,13 @@
         var AC = root.AudioContext || root.webkitAudioContext;
         if (!AC) return null;
         ac = new AC();
+        master = ac.createDynamicsCompressor();
+        master.threshold.value = -14;
+        master.ratio.value = 3;
+        var out = ac.createGain();
+        out.gain.value = 0.9;
+        master.connect(out);
+        out.connect(ac.destination);
       }
       if (ac.state === 'suspended') ac.resume();
       return ac;
@@ -181,7 +196,7 @@
 
     function noise(a) {
       if (!noiseBuf) {
-        noiseBuf = a.createBuffer(1, a.sampleRate * 0.3, a.sampleRate);
+        noiseBuf = a.createBuffer(1, Math.floor(a.sampleRate * 2), a.sampleRate);
         var d = noiseBuf.getChannelData(0);
         for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       }
@@ -190,76 +205,155 @@
       return src;
     }
 
-    function tone(a, freq, start, dur, type, gain, endFreq) {
-      var o = a.createOscillator();
+    function env(a, start, peak, dur, attack) {
       var g = a.createGain();
-      o.type = type || 'sine';
-      o.frequency.setValueAtTime(freq, start);
-      if (endFreq) o.frequency.exponentialRampToValueAtTime(endFreq, start + dur);
       g.gain.setValueAtTime(0.0001, start);
-      g.gain.exponentialRampToValueAtTime(gain, start + 0.008);
+      g.gain.exponentialRampToValueAtTime(peak, start + (attack || 0.002));
       g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-      o.connect(g); g.connect(a.destination);
-      o.start(start); o.stop(start + dur + 0.02);
+      g.connect(master);
+      return g;
     }
 
-    function click(a, start, freq, gain, dur) {
+    function partial(a, start, freq, gain, dur) {
+      var o = a.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(freq, start);
+      o.connect(env(a, start, gain, dur));
+      o.start(start);
+      o.stop(start + dur + 0.02);
+    }
+
+    // One tile touching the table or another tile.
+    function clack(a, start, gain, pitch) {
+      pitch = (pitch || 1) * (0.93 + Math.random() * 0.14);
       var src = noise(a);
       var f = a.createBiquadFilter();
       f.type = 'bandpass';
-      f.frequency.value = freq;
-      f.Q.value = 1.4;
+      f.frequency.value = 3400 * pitch;
+      f.Q.value = 2.2;
+      src.connect(f);
+      f.connect(env(a, start, gain * 0.9, 0.018, 0.001));
+      src.start(start, Math.random() * 1.5, 0.05);
+      partial(a, start, 1720 * pitch, gain * 0.32, 0.055);
+      partial(a, start, 2890 * pitch, gain * 0.2, 0.04);
+      partial(a, start, 4310 * pitch, gain * 0.1, 0.028);
+      partial(a, start, 160, gain * 0.22, 0.05);
+    }
+
+    function pluckBuffer(a, freq, dur) {
+      var key = Math.round(freq) + ':' + dur;
+      if (plucks[key]) return plucks[key];
+      var sr = a.sampleRate;
+      var len = Math.floor(sr * dur);
+      var buf = a.createBuffer(1, len, sr);
+      var y = buf.getChannelData(0);
+      var n = Math.max(2, Math.round(sr / freq));
+      for (var i = 0; i < n; i++) y[i] = Math.random() * 2 - 1;
+      for (var k = 1; k < n; k++) y[k] = (y[k] + y[k - 1]) * 0.5; // soften the attack
+      for (var m = n; m < len; m++) y[m] = 0.4985 * (y[m - n] + y[m - n + 1]);
+      plucks[key] = buf;
+      return buf;
+    }
+
+    function pluck(a, start, freq, gain, dur) {
+      dur = dur || 1.4;
+      var src = a.createBufferSource();
+      src.buffer = pluckBuffer(a, freq, dur);
+      var lp = a.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 3200;
       var g = a.createGain();
       g.gain.setValueAtTime(gain, start);
       g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-      src.connect(f); f.connect(g); g.connect(a.destination);
-      src.start(start); src.stop(start + dur + 0.02);
+      src.connect(lp); lp.connect(g); g.connect(master);
+      src.start(start);
     }
 
-    api.play = function (name) {
+    function gong(a, start, gain) {
+      [[98, 1], [151, 0.6], [207, 0.45], [283, 0.3], [392, 0.15]].forEach(function (pr, k) {
+        partial(a, start + k * 0.004, pr[0], gain * pr[1], 2.6 - k * 0.3);
+      });
+    }
+
+    // Tiles being swirled face down on the felt before a hand.
+    function wash(a, start, dur) {
+      var src = noise(a);
+      var lp = a.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 1100;
+      var g = a.createGain();
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(0.09, start + 0.25);
+      g.gain.setValueAtTime(0.09, start + dur - 0.3);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+      src.connect(lp); lp.connect(g); g.connect(master);
+      src.start(start, 0, dur + 0.05);
+      var n = Math.round(dur * 34);
+      for (var i = 0; i < n; i++) {
+        clack(a, start + Math.random() * dur, 0.04 + Math.random() * 0.12, 0.85 + Math.random() * 0.4);
+      }
+    }
+
+    api.play = function (name, opt) {
       var a = ctx();
       if (!a) return;
-      var t = a.currentTime + 0.005;
+      var t = a.currentTime + 0.01;
       switch (name) {
-        case 'draw':
-          click(a, t, 3200, 0.18, 0.05);
+        case 'wash':
+          wash(a, t, (opt && opt.dur) || 1.4);
           break;
-        case 'discard':
-          click(a, t, 2100, 0.55, 0.09);
-          tone(a, 190, t, 0.09, 'sine', 0.25, 120);
+        case 'build':
+          for (var b = 0; b < 12; b++) clack(a, t + b * ((opt && opt.step) || 0.05), 0.12, 0.9 + (b % 3) * 0.06);
           break;
         case 'deal':
-          for (var i = 0; i < 6; i++) click(a, t + i * 0.07, 2600 + i * 90, 0.2, 0.05);
+          clack(a, t, 0.22, 1.05);
+          clack(a, t + 0.025, 0.12, 1.1);
           break;
-        case 'flower':
-          tone(a, 1046, t, 0.25, 'triangle', 0.12);
-          tone(a, 1568, t + 0.08, 0.3, 'triangle', 0.1);
+        case 'draw':
+          clack(a, t, 0.22, 1.15);
           break;
-        case 'claim':
-          click(a, t, 1800, 0.5, 0.08);
-          tone(a, 660, t, 0.18, 'triangle', 0.18);
-          tone(a, 990, t + 0.09, 0.26, 'triangle', 0.16);
-          break;
-        case 'kong':
-          click(a, t, 1600, 0.5, 0.1);
-          [523, 659, 784].forEach(function (f, k) { tone(a, f, t + k * 0.08, 0.3, 'triangle', 0.15); });
-          break;
-        case 'turn':
-          tone(a, 880, t, 0.16, 'sine', 0.08);
+        case 'discard':
+          clack(a, t, 0.6, 1);
+          clack(a, t + 0.03, 0.14, 1.08);
           break;
         case 'select':
-          click(a, t, 4200, 0.08, 0.03);
+          clack(a, t, 0.07, 1.35);
+          break;
+        case 'flower':
+          pluck(a, t, NOTE.G5, 0.22, 1.2);
+          pluck(a, t + 0.09, NOTE.E5, 0.18, 1.2);
+          break;
+        case 'claim':
+          clack(a, t, 0.5, 0.95);
+          clack(a, t + 0.05, 0.45, 1);
+          pluck(a, t + 0.04, NOTE.A4, 0.26);
+          pluck(a, t + 0.12, NOTE.D5, 0.22);
+          break;
+        case 'kong':
+          for (var k = 0; k < 4; k++) clack(a, t + k * 0.055, 0.42, 0.95 + k * 0.03);
+          pluck(a, t + 0.08, NOTE.G4, 0.26);
+          pluck(a, t + 0.2, NOTE.D5, 0.24);
+          break;
+        case 'turn':
+          pluck(a, t, NOTE.E5, 0.13, 0.9);
           break;
         case 'win':
-          tone(a, 110, t, 1.8, 'sine', 0.35, 98);
-          [523, 659, 784, 1046, 1318].forEach(function (f, k) { tone(a, f, t + k * 0.1, 0.6, 'triangle', 0.16); });
+          gong(a, t, 0.32);
+          [NOTE.G4, NOTE.A4, NOTE.C5, NOTE.D5, NOTE.E5, NOTE.G5, NOTE.A5].forEach(function (f, n) {
+            pluck(a, t + 0.05 + n * 0.09, f, 0.24, 1.8);
+          });
+          break;
+        case 'otherwin':
+          gong(a, t, 0.22);
+          pluck(a, t + 0.05, NOTE.D5, 0.2, 1.6);
+          pluck(a, t + 0.17, NOTE.G4, 0.18, 1.6);
           break;
         case 'lose':
-          [392, 330, 262].forEach(function (f, k) { tone(a, f, t + k * 0.16, 0.4, 'triangle', 0.14); });
+          [NOTE.E5, NOTE.D5, NOTE.A4, NOTE.G4].forEach(function (f, n) { pluck(a, t + n * 0.17, f, 0.2, 1.6); });
           break;
         case 'drawgame':
-          tone(a, 440, t, 0.3, 'triangle', 0.12);
-          tone(a, 349, t + 0.18, 0.45, 'triangle', 0.12);
+          pluck(a, t, NOTE.D5, 0.2, 1.4);
+          pluck(a, t + 0.22, NOTE.A4, 0.2, 1.6);
           break;
       }
     };
@@ -327,7 +421,16 @@
       hint: null,
       notice: null,
       hide: { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], drawn: false },
-      dealProgress: 1,
+      dealShown: null, // tiles shown per seat while dealing
+      dealFront: null, // tiles taken from the wall while dealing
+      buildP: null, // wall-building progress (null = built)
+      wash: null,
+      thinking: null, // seat whose bot is deciding
+      botLift: null, // { seat, index } tile a bot is considering
+      botDrawn: [false, false, false, false], // bot's fresh draw sits apart
+      botDiscardFrom: [null, null, null, null],
+      oppHand: [null, null, null, null],
+      teachTurns: 0,
       overlay: null,
       lastHandRects: [],
       meldAnchor: [null, null, null, null],
@@ -340,10 +443,10 @@
       if (liveRegion) liveRegion.textContent = text;
     }
 
-    // `instant` (from ?instant=1) skips every delay; handy for testing whole hands.
-    var instant = !!settings.instant;
-
-    function speed(ms) { return reduceMotion ? 0 : ms; }
+    // Animation speed: 'normal', 'fast', or 'off' (skip animations and delays).
+    var SPEEDS = { normal: 1, fast: 0.45 };
+    function instantMode() { return settings.speed === 'off'; }
+    function speed(ms) { return reduceMotion ? 0 : ms * (SPEEDS[settings.speed] || 1); }
 
     /* ---------------- frame loop ---------------- */
 
@@ -370,7 +473,7 @@
     }
 
     function animate(dur, step, ease) {
-      if (instant) {
+      if (instantMode()) {
         step(1, 1);
         requestRender();
         return Promise.resolve();
@@ -393,10 +496,10 @@
     }
 
     function sleep(ms) {
-      if (instant) return destroyed ? new Promise(function () {}) : Promise.resolve();
+      if (instantMode()) return destroyed ? new Promise(function () {}) : Promise.resolve();
       return new Promise(function (resolve) {
         if (destroyed) return;
-        setTimeout(function () { if (!destroyed) resolve(); }, reduceMotion ? Math.min(ms, 120) : ms);
+        setTimeout(function () { if (!destroyed) resolve(); }, reduceMotion ? Math.min(ms, 120) : speed(ms));
       });
     }
 
@@ -472,8 +575,8 @@
       var bandTop = hintY;
       var gap = 6;
 
-      var sideW = portrait ? clamp(W * 0.14, 50, 80) : clamp(W * 0.15, 110, 190);
-      var topPanelH = portrait ? clamp(H * 0.11, 64, 96) : clamp(H * 0.15, 80, 124);
+      var sideW = portrait ? clamp(W * 0.17, 58, 92) : clamp(W * 0.17, 124, 214);
+      var topPanelH = portrait ? clamp(H * 0.12, 74, 108) : clamp(H * 0.18, 96, 140);
       var sideHead = portrait ? 36 : 26;
       var topHead = 24;
       var opp = [];
@@ -493,16 +596,38 @@
 
       var pond = { x: mid, y: topH + topPanelH + gap, w: W - 2 * mid, h: Math.max(60, bandTop - (topH + topPanelH + 2 * gap)) };
 
+      // Optional walls: a square of 18 two-tile stacks per side just inside
+      // the pond, in front of each player, with the discards inside it.
+      var wall = null;
+      var inner = pond;
+      if (settings.walls) {
+        var ww = clamp(Math.min(pond.w, pond.h) / 21.6, 6, 18);
+        var depth = ww * (TILE_ASPECT + 0.38) + 3;
+        wall = { ww: ww, depth: depth, frames: [] };
+        wall.frames[0] = makeFrame({ x: pond.x, y: pond.y + pond.h - depth, w: pond.w, h: depth }, 0);
+        wall.frames[1] = makeFrame({ x: pond.x + pond.w - depth, y: pond.y, w: depth, h: pond.h }, 1);
+        wall.frames[2] = makeFrame({ x: pond.x, y: pond.y, w: pond.w, h: depth }, 2);
+        wall.frames[3] = makeFrame({ x: pond.x, y: pond.y, w: depth, h: pond.h }, 3);
+        // Same tile size on every side; stacks sit flush, centered on each side.
+        var tws = ww;
+        wall.frames.forEach(function (f) { tws = Math.min(tws, (f.w - 2 * depth) / 18 - 0.3); });
+        wall.frames.forEach(function (f) {
+          f.tw = tws;
+          f.x0 = (f.w - 18 * (tws + 0.3)) / 2;
+        });
+        inner = { x: pond.x + depth + 4, y: pond.y + depth + 4, w: pond.w - 2 * depth - 8, h: pond.h - 2 * depth - 8 };
+      }
+
       // Discard zones form a cross around the center info box.
       var zones = [];
       var sideFrac = 0.26, midFrac = 0.3;
-      zones[2] = { x: pond.x + pond.w * sideFrac, y: pond.y + 2, w: pond.w * (1 - 2 * sideFrac), h: pond.h * midFrac - 2 };
-      zones[0] = { x: pond.x + pond.w * sideFrac, y: pond.y + pond.h * (1 - midFrac), w: pond.w * (1 - 2 * sideFrac), h: pond.h * midFrac - 2 };
-      zones[3] = { x: pond.x + 2, y: pond.y + 2, w: pond.w * sideFrac - 6, h: pond.h - 4 };
-      zones[1] = { x: pond.x + pond.w * (1 - sideFrac) + 4, y: pond.y + 2, w: pond.w * sideFrac - 6, h: pond.h - 4 };
+      zones[2] = { x: inner.x + inner.w * sideFrac, y: inner.y + 2, w: inner.w * (1 - 2 * sideFrac), h: inner.h * midFrac - 2 };
+      zones[0] = { x: inner.x + inner.w * sideFrac, y: inner.y + inner.h * (1 - midFrac), w: inner.w * (1 - 2 * sideFrac), h: inner.h * midFrac - 2 };
+      zones[3] = { x: inner.x + 2, y: inner.y + 2, w: inner.w * sideFrac - 6, h: inner.h - 4 };
+      zones[1] = { x: inner.x + inner.w * (1 - sideFrac) + 4, y: inner.y + 2, w: inner.w * sideFrac - 6, h: inner.h - 4 };
       var center = {
-        x: pond.x + pond.w * sideFrac + 4, y: pond.y + pond.h * midFrac + 2,
-        w: pond.w * (1 - 2 * sideFrac) - 8, h: pond.h * (1 - 2 * midFrac) - 4,
+        x: inner.x + inner.w * sideFrac + 4, y: inner.y + inner.h * midFrac + 2,
+        w: inner.w * (1 - 2 * sideFrac) - 8, h: inner.h * (1 - 2 * midFrac) - 4,
       };
       var zoneFrames = zones.map(function (z, k) { return makeFrame(z, k); });
       var maxDiscards = 20;
@@ -515,7 +640,7 @@
         pad: pad, topH: topH, portrait: portrait,
         tw: tw, th: th, handY: handY, mw: mw, meY: meY, meldRowH: meldRowH,
         actionsY: actionsY, actionsH: actionsH, hintY: hintY, hintH: hintH,
-        opp: opp, oppFrames: oppFrames, pond: pond, zones: zones, zoneFrames: zoneFrames,
+        opp: opp, oppFrames: oppFrames, pond: pond, inner: inner, wall: wall, zones: zones, zoneFrames: zoneFrames,
         center: center, pw: pw, maxDiscards: maxDiscards,
       };
     }
@@ -543,9 +668,10 @@
       var h = sp.height / dpr;
       ctx.save();
       if (opts.alpha !== undefined) ctx.globalAlpha = opts.alpha;
-      if (opts.rot) {
+      if (opts.rot || opts.scaleX !== undefined) {
         ctx.translate(x + w / 2, y + h / 2);
-        ctx.rotate(opts.rot);
+        if (opts.rot) ctx.rotate(opts.rot);
+        if (opts.scaleX !== undefined) ctx.scale(Math.max(0.02, opts.scaleX), 1);
         ctx.translate(-(x + w / 2), -(y + h / 2));
       }
       if (opts.shadow !== false && w >= 14) {
@@ -627,6 +753,8 @@
       }
       drawTopBar();
       drawPond(t);
+      drawWall();
+      drawWash();
       [1, 2, 3].forEach(function (s) { drawOpponent(s, t); });
       drawMe(t);
       drawHintBand();
@@ -739,6 +867,12 @@
       if (pts) text(pts, r.x + r.w / 2, r.y + r.h - 7, { size: 11, weight: 'bold', align: 'center', color: COLORS.goldLight });
     }
 
+    function oppConcealedCount(seat) {
+      var n = game.hand.seats[seat].hand.length;
+      if (ui.dealShown) n = Math.min(n, ui.dealShown[seat]);
+      return Math.max(0, n - ui.hide.backs[seat]);
+    }
+
     function drawOpponent(seat, t) {
       var r = L.opp[seat];
       var s = game.hand.seats[seat];
@@ -756,25 +890,28 @@
       ctx.restore();
       drawOppHeader(seat, r.head);
 
-      // Everything below is drawn in the seat's rotated frame, facing its owner:
-      // the concealed hand along their edge, melds and flowers in front of it.
+      // Drawn in the seat's rotated frame, facing its owner: the concealed
+      // hand along their edge (a fresh draw sits a little apart, and the tile
+      // they are considering lifts), melds and flowers in front of it.
       var f = L.oppFrames[seat];
-      var depthTile = (f.h - 6) / (2 * (TILE_ASPECT + 0.1));
-      var bw = clamp(Math.min(f.w / 14.4, depthTile), 7, 28);
-      var count = Math.round(s.hand.length * ui.dealProgress) - ui.hide.backs[seat];
+      var bw = clamp(Math.min(f.w / 15.2, (f.h - 6) * 0.56 / (TILE_ASPECT + 0.08)), 8, 34);
+      var count = oppConcealedCount(seat);
+      var apart = ui.botDrawn[seat] && count > 0;
       var backsY = f.h - bw * (TILE_ASPECT + 0.08) - 1;
-      var bx0 = (f.w - 14 * bw) / 2;
+      var bx0 = (f.w - 14.4 * bw) / 2;
+      var lift = ui.botLift && ui.botLift.seat === seat ? ui.botLift.index : -1;
+      var backX = function (i) { return bx0 + i * bw + (apart && i === count - 1 ? bw * 0.4 : 0); };
 
       var items = meldItems(seat);
-      var meldTiles = items.filter(function (it) { return !it.gap; }).length;
-      var gaps = items.length - meldTiles;
+      var meldTilesN = items.filter(function (it) { return !it.gap; }).length;
+      var gaps = items.length - meldTilesN;
       var flowersN = s.flowers.length;
-      var mw = clamp(Math.min(bw, f.w / (meldTiles + gaps * 0.35 + flowersN * 0.8 + 1.5)), 6, 28);
-      var meldY = backsY - mw * (TILE_ASPECT + 0.08) - 4;
+      var mw = clamp(Math.min(bw * 0.86, f.w / (meldTilesN + gaps * 0.35 + flowersN * 0.8 + 1.5)), 6, 30);
+      var meldY = backsY - mw * (TILE_ASPECT + 0.08) - 5;
 
       enterFrame(f);
       for (var i = 0; i < count; i++) {
-        drawTile(null, bx0 + i * bw, backsY, bw - 0.5, { back: true, shadow: false });
+        drawTile(null, backX(i), backsY - (i === lift ? bw * 0.38 : 0), bw - 0.5, { back: true, shadow: false });
       }
       var mx = 0;
       items.forEach(function (it) {
@@ -789,9 +926,101 @@
       });
       ctx.restore();
 
-      ui.backAnchor[seat] = localPose(f, bx0 + Math.max(0, count) * bw, backsY, bw);
+      ui.oppHand[seat] = { f: f, backX: backX, backsY: backsY, bw: bw };
+      ui.backAnchor[seat] = localPose(f, bx0 + count * bw + bw * 0.4, backsY, bw);
       ui.meldAnchor[seat] = localPose(f, mx + (items.length ? mw * 0.35 : 0), meldY, mw);
       ui.flowerAnchor[seat] = localPose(f, fx - fw, meldY, fw);
+
+      if (ui.thinking === seat) drawThinking(seat, t);
+    }
+
+    // "..." bubble while a bot decides.
+    function drawThinking(seat, t) {
+      var pos = seatBannerPos(seat);
+      var w = 46, h = 22;
+      ctx.save();
+      pill(pos.x - w / 2, pos.y - h / 2, w, h, 'rgba(255,248,240,0.95)');
+      for (var k = 0; k < 3; k++) {
+        var a = 0.35 + 0.65 * Math.max(0, Math.sin(t / 160 - k * 0.9));
+        ctx.beginPath();
+        ctx.arc(pos.x - 11 + k * 11, pos.y, 3.2, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(196,30,58,' + a + ')';
+        ctx.fill();
+      }
+      ctx.restore();
+      requestRender();
+    }
+
+    /* ---------------- the wall ---------------- */
+
+    var WALL_SIDES = [0, 3, 2, 1]; // clockwise around the table, starting with yours
+
+    // Where the dealer breaks the wall (stands in for the dice roll).
+    function wallBreak() {
+      return WALL_SIDES.indexOf(game.dealer) * 18 + 2 + (game.handNumber * 5) % 14;
+    }
+
+    function wallTaken() {
+      var h = game.hand;
+      if (ui.dealFront !== null) return { front: ui.dealFront, back: 0 };
+      return { front: 144 - h.wall.length - h.backDrawn, back: h.backDrawn };
+    }
+
+    // Placement of draw position `pos` (0 = first tile dealt). Even positions
+    // are the top tile of a stack.
+    function wallSlot(pos) {
+      var j = Math.floor(pos / 2);
+      var g = (j + wallBreak()) % 72;
+      var side = WALL_SIDES[Math.floor(g / 18)];
+      var p = g % 18;
+      var f = L.wall.frames[side];
+      var x = f.x0 + (17 - p) * (f.tw + 0.3);
+      var y = f.h - f.tw * (TILE_ASPECT + 0.08) - 2 - (pos % 2 === 0 ? f.tw * 0.32 : 0);
+      return { f: f, x: x, y: y, w: f.tw, p: p };
+    }
+
+    function wallPose(pos) {
+      if (!L.wall) {
+        var c = L.center;
+        return { x: c.x + c.w / 2 - 10, y: c.y + c.h / 2 - 14, w: 20, rot: 0 };
+      }
+      var sl = wallSlot(pos);
+      return localPose(sl.f, sl.x, sl.y, sl.w);
+    }
+
+    function drawWall() {
+      if (!L.wall) return;
+      var taken = wallTaken();
+      var built = ui.buildP === null ? 18 : Math.floor(ui.buildP * 18.999);
+      [1, 0].forEach(function (layer) {
+        for (var j = 0; j < 72; j++) {
+          var pos = 2 * j + layer;
+          if (pos < taken.front || pos >= 144 - taken.back) continue;
+          var sl = wallSlot(pos);
+          if (sl.p >= built) continue;
+          enterFrame(sl.f);
+          drawTile(null, sl.x, sl.y, sl.w, { back: true, shadow: false });
+          ctx.restore();
+        }
+      });
+    }
+
+    // Face-down tiles swirling on the felt before the walls are built.
+    function drawWash() {
+      var w = ui.wash;
+      if (!w) return;
+      var c = L.inner;
+      var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
+      var rx = c.w * 0.42, ry = c.h * 0.42;
+      var tw = clamp(Math.min(c.w, c.h) / 11, 10, 26);
+      var gather = w.p > 0.78 ? 1 - (w.p - 0.78) / 0.22 : 1;
+      w.tiles.forEach(function (tl) {
+        var a = tl.a0 + tl.dir * w.p * tl.turns * Math.PI * 2;
+        var r = tl.r * gather * (0.85 + 0.15 * Math.sin(w.p * 9 + tl.wob));
+        var x = cx + Math.cos(a) * rx * r - tw / 2;
+        var y = cy + Math.sin(a) * ry * r - tw * TILE_ASPECT / 2;
+        drawTile(null, x, y, tw, { back: true, rot: a * tl.spin, alpha: gather < 0.35 ? gather / 0.35 : 1 });
+      });
     }
 
     function drawPond(t) {
@@ -836,7 +1065,8 @@
       var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
       var big = clamp(c.h * 0.42, 14, 40);
       text(E.WIND_CN[game.round], cx, cy - big * 0.32, { size: big, family: FONT_HEAD, align: 'center', color: COLORS.goldLight });
-      var left = game.hand.wall.length;
+      var tk = wallTaken();
+      var left = 144 - tk.front - tk.back;
       text(left + ' left', cx, cy + big * 0.55, { size: clamp(c.h * 0.16, 10, 14), align: 'center', color: COLORS.cream });
 
       // Arrow toward whose turn it is.
@@ -881,20 +1111,17 @@
         mx = end.x + L.mw * 0.35;
       }
       ui.meldAnchor[0] = { x: mx, y: y, w: L.mw, rot: 0 };
-      if (s.flowers.length) {
-        var fw = L.mw * 0.8;
-        var fx = W - pad - infoW + 26;
-        var fy = y + 26;
-        s.flowers.forEach(function (f, k) { drawTile(f, fx + k * (fw + 1), fy, fw, { shadow: false }); });
-        ui.flowerAnchor[0] = { x: fx + s.flowers.length * (fw + 1), y: fy, w: fw };
-      } else {
-        ui.flowerAnchor[0] = { x: W - pad - infoW + 26, y: y + 26, w: L.mw * 0.8 };
-      }
+      // Flowers sit after the melds, in the same row (away from your name).
+      var fw = L.mw * 0.8;
+      var fx = mx + (items.length ? L.mw * 0.2 : 0);
+      var fy = y + (L.mw - fw) * TILE_ASPECT;
+      s.flowers.forEach(function (f, k) { drawTile(f, fx + k * (fw + 1), fy, fw, { shadow: false }); });
+      ui.flowerAnchor[0] = { x: fx + s.flowers.length * (fw + 1), y: fy, w: fw, rot: 0 };
 
       // Hand.
       var order = myHandOrder();
       var tiles = order.tiles;
-      var count = Math.round(tiles.length * ui.dealProgress);
+      var count = ui.dealShown ? Math.min(tiles.length, ui.dealShown[0]) : tiles.length;
       if (ui.hide.drawn && order.drawnSeparate) count = Math.min(count, tiles.length - 1);
       var tw = L.tw;
       var total = tiles.length * tw + (order.drawnSeparate ? tw * 0.4 : 0);
@@ -934,7 +1161,10 @@
     }
 
     function drawHintBand() {
-      if (!L.hintH) return;
+      if (!L.hintH) {
+        if (ui.notice && !ui.overlay && (ui.turnPrompt || ui.claimPrompt)) drawToast(ui.notice);
+        return;
+      }
       var x = L.pad, y = L.hintY, w = W - 2 * L.pad, h = L.hintH;
       var lines = [];
       if (ui.notice) lines.push({ text: ui.notice, color: COLORS.goldLight });
@@ -970,6 +1200,23 @@
       });
     }
 
+    function drawToast(msg) {
+      var size = W < 600 ? 12 : 13;
+      ctx.font = size + 'px ' + FONT_BODY;
+      var lines = wrapText(ctx, msg, Math.min(W - 40, 520));
+      var w = Math.min(W - 24, Math.max.apply(null, lines.map(function (l) { return ctx.measureText(l).width; })) + 28);
+      var h = lines.length * (size + 4) + 14;
+      var x = (W - w) / 2, y = L.actionsY - h - 6;
+      ctx.save();
+      roundRect(ctx, x, y, w, h, 12);
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fill();
+      ctx.restore();
+      lines.forEach(function (l, i) {
+        text(l, W / 2, y + 7 + (size + 4) * i + (size + 4) / 2, { size: size, align: 'center', color: COLORS.goldLight });
+      });
+    }
+
     function drawActions() {
       if (ui.overlay) return;
       var acts = [];
@@ -996,11 +1243,18 @@
       if (!acts.length) return;
       var h = 38;
       var gap = 8;
-      var maxW = W - 2 * L.pad;
-      var bw = clamp((maxW - gap * (acts.length - 1)) / acts.length, 64, 150);
+      // When claiming, show the tile that is up for grabs beside the buttons.
+      var claimTile = ui.claimPrompt ? ui.claimPrompt.opts.tile : null;
+      var ctw = claimTile ? Math.min(30, (L.actionsH - 4) / TILE_ASPECT) : 0;
+      var lead = claimTile ? ctw + 10 : 0;
+      var maxW = W - 2 * L.pad - lead;
+      var bw = clamp((maxW - gap * (acts.length - 1)) / acts.length, 60, 150);
       var total = acts.length * bw + (acts.length - 1) * gap;
-      var x = (W - total) / 2;
+      var x = (W - total - lead) / 2 + lead;
       var y = L.actionsY + (L.actionsH - h) / 2;
+      if (claimTile) {
+        drawTile(claimTile, x - lead, L.actionsY + (L.actionsH - ctw * TILE_ASPECT) / 2, ctw, { glow: COLORS.gold });
+      }
       var hintDecision = ui.hints && ui.hint && ui.hint.decision;
       acts.forEach(function (a, i) {
         var id = 'act-' + i;
@@ -1031,7 +1285,13 @@
 
     function drawFlights() {
       flights.forEach(function (f) {
-        drawTile(f.id, f.x, f.y, f.w, { back: f.back, rot: f.rot || 0 });
+        if (f.flip) {
+          // Turns face up halfway through the flight.
+          var up = f.p >= 0.5;
+          drawTile(up ? f.id : null, f.x, f.y, f.w, { back: !up, rot: f.rot || 0, scaleX: Math.abs(1 - 2 * f.p) });
+        } else {
+          drawTile(f.id, f.x, f.y, f.w, { back: f.back, rot: f.rot || 0 });
+        }
       });
     }
 
@@ -1208,17 +1468,43 @@
       button(label, r.x + r.w / 2 - 80, r.y + r.h - 56, 160, 42, function () { closeOverlay(); }, 'primary', 'next');
     }
 
+    var SPEED_LABELS = { normal: 'Normal', fast: 'Fast', off: 'Skip' };
+    var SPEED_ORDER = ['normal', 'fast', 'off'];
+
     function drawMenu() {
-      var r = panelRect(340, 330);
+      var r = panelRect(340, 432);
       drawPanelBg(r);
       text('Paused', r.x + r.w / 2, r.y + 36, { size: 24, family: FONT_HEAD, align: 'center', color: COLORS.red });
-      var bx = r.x + 30, bw = r.w - 60, y = r.y + 64;
-      button('Resume', bx, y, bw, 42, function () { closeOverlay(); }, 'primary', 'm-resume'); y += 52;
-      button(ui.hints ? 'Turn hints off' : 'Turn hints on', bx, y, bw, 42, toggleHints, 'light', 'm-hints'); y += 52;
-      button(sound.enabled ? 'Turn sound off' : 'Turn sound on', bx, y, bw, 42, toggleSound, 'light', 'm-sound'); y += 52;
-      button('Quit game', bx, y, bw, 42, function () { quit(); }, 'light', 'm-quit');
+      var bx = r.x + 30, bw = r.w - 60, y = r.y + 62, step = 50;
+      button('Resume', bx, y, bw, 40, function () { closeOverlay(); }, 'primary', 'm-resume'); y += step;
+      button('Animations: ' + SPEED_LABELS[settings.speed || 'normal'], bx, y, bw, 40, cycleSpeed, 'light', 'm-speed'); y += step;
+      button(settings.walls ? 'Hide the walls' : 'Show the walls', bx, y, bw, 40, toggleWalls, 'light', 'm-walls'); y += step;
+      button(ui.hints ? 'Turn hints off' : 'Turn hints on', bx, y, bw, 40, toggleHints, 'light', 'm-hints'); y += step;
+      button(sound.enabled ? 'Turn sound off' : 'Turn sound on', bx, y, bw, 40, toggleSound, 'light', 'm-sound'); y += step;
+      button('Quit game', bx, y, bw, 40, function () { quit(); }, 'light', 'm-quit');
       var modeLine = (settings.mode === 'practice' ? 'Practice mode' : 'Payout mode') + ' · ' + (settings.spicy === 'half' ? 'Half spicy' : 'Full spicy');
-      text(modeLine, r.x + r.w / 2, r.y + r.h - 20, { size: 12, align: 'center', color: COLORS.muted });
+      text(modeLine, r.x + r.w / 2, r.y + r.h - 18, { size: 12, align: 'center', color: COLORS.muted });
+    }
+
+    function saveSetting(key, value) {
+      settings[key] = value;
+      var saved = readJson(SETTINGS_KEY, {});
+      saved[key] = value;
+      writeJson(SETTINGS_KEY, saved);
+    }
+
+    function cycleSpeed() {
+      var next = SPEED_ORDER[(SPEED_ORDER.indexOf(settings.speed || 'normal') + 1) % SPEED_ORDER.length];
+      saveSetting('speed', next);
+      requestRender();
+      track('play_set_speed', { speed: next });
+    }
+
+    function toggleWalls() {
+      saveSetting('walls', !settings.walls);
+      L = computeLayout();
+      requestRender();
+      track('play_toggle_walls', { walls: settings.walls ? 'on' : 'off' });
     }
 
     function drawGameOver() {
@@ -1273,10 +1559,7 @@
 
     function toggleHints() {
       ui.hints = !ui.hints;
-      settings.hints = ui.hints;
-      var saved = readJson(SETTINGS_KEY, {});
-      saved.hints = ui.hints;
-      writeJson(SETTINGS_KEY, saved);
+      saveSetting('hints', ui.hints);
       L = computeLayout();
       refreshHint();
       requestRender();
@@ -1438,7 +1721,7 @@
       opts = opts || {};
       var r0 = from.rot || 0;
       var dr = turnBetween(r0, to.rot || 0);
-      var f = { id: id, back: !!opts.back, x: from.x, y: from.y, w: from.w, rot: r0 };
+      var f = { id: id, back: !!opts.back, flip: !!opts.flip, p: 0, x: from.x, y: from.y, w: from.w, rot: r0 };
       flights.push(f);
       var arc = opts.arc !== undefined ? opts.arc : 30;
       return animate(dur, function (p) {
@@ -1446,6 +1729,7 @@
         f.y = from.y + (to.y - from.y) * p - Math.sin(p * Math.PI) * arc;
         f.w = from.w + (to.w - from.w) * p;
         f.rot = r0 + dr * p;
+        f.p = p;
       }, easeInOut).then(function () {
         flights.splice(flights.indexOf(f), 1);
       });
@@ -1488,15 +1772,29 @@
     var handlers = {
       handStart: function () {
         ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], drawn: false };
+        ui.botDrawn = [false, false, false, false];
+        ui.botLift = null;
+        ui.thinking = null;
         ui.turnSeat = null;
         ui.selected = -1;
         ui.notice = null;
         ui.hint = null;
         L = computeLayout();
-        ui.dealProgress = 0;
-        sound.play('deal');
         announce('Hand ' + game.handNumber + '. ' + (game.dealer === 0 ? 'You are' : game.players[game.dealer].name + ' is') + ' the dealer.');
-        return animate(700, function (p) { ui.dealProgress = p; }, easeOut).then(function () { ui.dealProgress = 1; });
+        if (instantMode()) {
+          ui.dealShown = null;
+          ui.dealFront = null;
+          ui.buildP = null;
+          return Promise.resolve();
+        }
+        ui.dealShown = [0, 0, 0, 0];
+        ui.dealFront = 0;
+        ui.buildP = 0;
+        return introShuffle().then(introBuild).then(introDeal).then(function () {
+          ui.dealShown = null;
+          ui.dealFront = null;
+          requestRender();
+        });
       },
       turn: function (d) {
         ui.turnSeat = d.seat;
@@ -1504,20 +1802,23 @@
       },
       draw: function (d) {
         sound.play('draw');
-        var c = L.center;
-        var from = { x: c.x + c.w / 2 - 10, y: c.y + c.h / 2 - 14, w: 20, rot: 0 };
+        var h = game.hand;
+        var pos = d.replacement ? 144 - h.backDrawn : 144 - h.wall.length - h.backDrawn - 1;
+        var from = wallPose(pos);
         if (d.seat === 0) {
           ui.hide.drawn = true;
           var order = myHandOrder();
           var total = order.tiles.length * L.tw + L.tw * 0.4;
           var x0 = Math.max(L.pad, (W - total) / 2);
           var to = { x: x0 + (order.tiles.length - 1) * L.tw + L.tw * 0.4, y: L.handY, w: L.tw - 1, rot: 0 };
-          return fly(d.tile, from, to, 260, { arc: 20 }).then(function () { ui.hide.drawn = false; requestRender(); });
+          return fly(d.tile, from, to, 300, { arc: 20 }).then(function () { ui.hide.drawn = false; requestRender(); });
         }
         ui.hide.backs[d.seat] = 1;
+        ui.botDrawn[d.seat] = false;
         var anchor = seatAnchor(d.seat);
-        return fly(null, from, anchor, 200, { back: true, arc: 12 }).then(function () {
+        return fly(null, from, anchor, 300, { back: true, arc: 16 }).then(function () {
           ui.hide.backs[d.seat] = 0;
+          ui.botDrawn[d.seat] = true;
           requestRender();
         });
       },
@@ -1526,17 +1827,22 @@
         var pos = seatBannerPos(d.seat);
         banner(d.seat === 0 ? 'Flower!' : 'Flower', pos.x, pos.y, { size: 18, color: COLORS.green, dur: 800 });
         announce((d.seat === 0 ? 'You' : game.players[d.seat].name) + ' reveals ' + E.tileName(d.tile) + '.');
-        return sleep(ui.dealProgress < 1 ? 120 : 380);
+        return sleep(ui.dealShown ? 120 : 380);
       },
       discard: function (d) {
         var list = game.hand.seats[d.seat].discards.filter(function (x) { return !x.claimed; });
         if (list.length > L.maxDiscards - 1) L = computeLayout();
         var slot = pondPose(d.seat, list.length - 1);
-        var from = d.seat === 0 && ui.discardFrom ? ui.discardFrom : seatAnchor(d.seat);
+        var bot = d.seat !== 0;
+        var from = bot ? (ui.botDiscardFrom[d.seat] || seatAnchor(d.seat)) : (ui.discardFrom || seatAnchor(0));
         ui.discardFrom = null;
+        ui.botDiscardFrom[d.seat] = null;
+        ui.botDrawn[d.seat] = false;
+        ui.botLift = null;
         ui.hide.pond[d.seat] = 1;
         announce((d.seat === 0 ? 'You discard ' : game.players[d.seat].name + ' discards ') + E.tileName(d.tile) + '.');
-        return fly(d.tile, from, slot, 240, { arc: 26 }).then(function () {
+        // Bots reveal the tile as it leaves their hand.
+        return fly(d.tile, from, slot, bot ? 380 : 260, { arc: 26, flip: bot }).then(function () {
           ui.hide.pond[d.seat] = 0;
           sound.play('discard');
           requestRender();
@@ -1552,6 +1858,7 @@
         var from = pondPose(d.from, list.length);
         var to = ui.meldAnchor[d.seat] || seatAnchor(d.seat);
         ui.hide.meld[d.seat] = 1;
+        ui.botDrawn[d.seat] = false;
         announce((d.seat === 0 ? 'You claim ' : game.players[d.seat].name + ' claims ') + E.tileName(d.tile) + ' for a ' + d.type + '.');
         return fly(d.tile, from, to, 320, { arc: 34 }).then(function () {
           ui.hide.meld[d.seat] = 0;
@@ -1585,7 +1892,7 @@
           confetti(cx, cy, 140, false);
           confetti(cx, cy, 50, true);
         } else {
-          sound.play(res.payer === 0 ? 'lose' : 'win');
+          sound.play(res.payer === 0 ? 'lose' : 'otherwin');
           confetti(cx, cy, 40, true);
         }
         announce((mine ? 'You win' : game.players[res.winner].name + ' wins') + ' with ' + res.score.faan + ' faan.');
@@ -1612,14 +1919,107 @@
 
     /* ---------------- agents ---------------- */
 
+    /* ---------------- start-of-hand ritual ---------------- */
+
+    function introShuffle() {
+      var tiles = [];
+      for (var i = 0; i < 46; i++) {
+        tiles.push({
+          a0: Math.random() * Math.PI * 2, r: 0.12 + Math.random() * 0.88,
+          dir: Math.random() < 0.5 ? -1 : 1, turns: 0.4 + Math.random() * 0.9,
+          spin: (Math.random() - 0.5) * 3, wob: Math.random() * 6,
+        });
+      }
+      ui.wash = { tiles: tiles, p: 0 };
+      sound.play('wash', { dur: speed(1600) / 1000 });
+      return animate(1600, function (p) { ui.wash.p = p; }).then(function () { ui.wash = null; });
+    }
+
+    function introBuild() {
+      if (!L.wall) { ui.buildP = null; return Promise.resolve(); }
+      sound.play('build', { step: speed(720) / 1000 / 12 });
+      return animate(720, function (p) { ui.buildP = p; }, easeOut).then(function () { ui.buildP = null; });
+    }
+
+    function dealTarget(seat) {
+      if (seat === 0) return { x: W / 2 - L.tw / 2, y: L.handY, w: L.tw, rot: 0 };
+      return ui.backAnchor[seat] || seatAnchor(seat);
+    }
+
+    // Dealt from the wall like at a real table: three rounds of four tiles,
+    // one more each, and a last tile for the dealer.
+    async function introDeal() {
+      var order = [0, 1, 2, 3].map(function (k) { return (game.dealer + k) % 4; });
+      var chunks = [];
+      for (var r = 0; r < 3; r++) order.forEach(function (st) { chunks.push([st, 4]); });
+      order.forEach(function (st) { chunks.push([st, 1]); });
+      chunks.push([game.dealer, 1]);
+      var last = Promise.resolve();
+      for (var i = 0; i < chunks.length; i++) {
+        if (destroyed) return;
+        var seat = chunks[i][0], n = chunks[i][1];
+        var from = wallPose(ui.dealFront);
+        ui.dealFront += n;
+        last = (function (seat2, n2) {
+          return fly(null, from, dealTarget(seat2), 260, { back: true, arc: 18 }).then(function () {
+            ui.dealShown[seat2] += n2;
+            sound.play('deal');
+            requestRender();
+          });
+        })(seat, n);
+        await sleep(n === 4 ? 120 : 90);
+      }
+      await last;
+      await sleep(220);
+    }
+
+    /* ---------------- agents ---------------- */
+
+    // Where a bot keeps a tile: sorted hand, with a fresh draw at the end.
+    function botHandIndex(seat, tile) {
+      var hand = game.hand.seats[seat].hand;
+      var drawn = ui.botDrawn[seat] ? game.hand.drawnTile : null;
+      if (drawn && tile === drawn) return hand.length - 1;
+      var rest = hand.slice();
+      if (drawn) rest.splice(rest.lastIndexOf(drawn), 1);
+      return E.sortTiles(rest).indexOf(tile);
+    }
+
     function botAgent() {
       return {
         turn: function (g, seat, opts) {
-          var delay = 220 + Math.random() * 260;
-          return sleep(delay).then(function () { return B.chooseTurnAction(g, seat, opts); });
+          var action = B.chooseTurnAction(g, seat, opts);
+          if (instantMode()) return Promise.resolve(action);
+          var n = g.hand.seats[seat].hand.length;
+          var think = 560 + Math.random() * 520;
+          ui.thinking = seat;
+          requestRender();
+          // Look over a couple of tiles, then lift the one to throw.
+          var glance = function () {
+            ui.botLift = { seat: seat, index: Math.floor(Math.random() * n) };
+            requestRender();
+            return sleep(think / 3);
+          };
+          return glance().then(glance).then(function () {
+            ui.thinking = null;
+            if (action.type !== 'discard') {
+              ui.botLift = null;
+              return action;
+            }
+            var idx = botHandIndex(seat, action.tile);
+            ui.botLift = { seat: seat, index: idx };
+            requestRender();
+            return sleep(think / 3).then(function () {
+              var oh = ui.oppHand[seat];
+              if (oh) ui.botDiscardFrom[seat] = localPose(oh.f, oh.backX(idx), oh.backsY - oh.bw * 0.38, oh.bw);
+              return action;
+            });
+          });
         },
         claim: function (g, seat, opts) {
-          return sleep(opts.win ? 220 : 40).then(function () { return B.chooseClaim(g, seat, opts); });
+          var decision = B.chooseClaim(g, seat, opts);
+          if (instantMode()) return Promise.resolve(decision);
+          return sleep(decision.type === 'pass' ? 50 : 420).then(function () { return decision; });
         },
       };
     }
@@ -1633,6 +2033,10 @@
             ui.notice = opts.completeButShort
               ? 'Your hand is complete, but only ' + opts.completeButShort.faan + ' faan. You need ' + game.settings.minFaan + ' to win.'
               : (opts.win ? 'You can win with ' + opts.win.faan + ' faan!' : null);
+            if (!ui.notice && ui.teachTurns < 3) {
+              ui.teachTurns++;
+              ui.notice = 'Your turn: tap a tile to pick it, then tap it again (or press Discard) to throw it.';
+            }
             refreshHint();
             sound.play('turn');
             announce(opts.win ? 'You can win. Press Win, or pick a tile to discard.' : 'Your turn. Pick a tile to discard.');
@@ -1674,7 +2078,10 @@
       spriteCache = {};
       game = E.createGame({ spicy: settings.spicy, mode: settings.mode });
       var agents = [humanAgent(), botAgent(), botAgent(), botAgent()];
-      track('play_start', { spicy: settings.spicy, mode: settings.mode, hints: settings.hints ? 'on' : 'off' });
+      track('play_start', {
+        spicy: settings.spicy, mode: settings.mode, hints: settings.hints ? 'on' : 'off',
+        speed: settings.speed, walls: settings.walls ? 'on' : 'off',
+      });
       while (!destroyed) {
         var res = await E.runHand(game, agents, uiBridge);
         if (destroyed) return;
@@ -1745,6 +2152,8 @@
       spicy: get('spicy', 'full'),
       mode: get('mode', 'payout'),
       hints: get('hints', 'on') === 'on',
+      speed: get('speed', 'normal'),
+      walls: get('walls', 'on') === 'on',
     };
   }
 
@@ -1756,6 +2165,8 @@
     if (saved.spicy) set('spicy', saved.spicy);
     if (saved.mode) set('mode', saved.mode);
     if (saved.hints !== undefined) set('hints', saved.hints ? 'on' : 'off');
+    if (saved.speed) set('speed', saved.speed);
+    if (saved.walls !== undefined) set('walls', saved.walls ? 'on' : 'off');
   }
 
   function init() {
@@ -1770,7 +2181,6 @@
     var table = null;
 
     function open(settings) {
-      writeJson(SETTINGS_KEY, settings);
       stage.hidden = false;
       document.documentElement.classList.add('is-playing');
       if (table) table.destroy();
@@ -1795,7 +2205,9 @@
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var settings = readForm(form);
-      if (/[?&]instant=1/.test(root.location.search)) settings.instant = true;
+      writeJson(SETTINGS_KEY, settings);
+      // ?instant=1 skips animations for this visit only (handy for testing).
+      if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
       open(settings);
     });
   }

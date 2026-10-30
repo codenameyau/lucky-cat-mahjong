@@ -305,6 +305,7 @@
       kongChain: 0,
       drawnTile: null,
       canSelfDraw: true, // false right after a chow/pung: no win or kong until the next draw
+      backDrawn: 0, // replacement tiles taken from the back of the wall (for drawing the wall)
 
     };
     game.hand = h;
@@ -332,6 +333,7 @@
       if (onFlower) onFlower(f);
       if (!game.hand.wall.length) break;
       var rep = game.hand.wall.pop();
+      game.hand.backDrawn++;
       s.hand.push(rep);
       drawn.push(rep);
     }
@@ -342,6 +344,7 @@
     var w = game.hand.wall;
     if (!w.length) return null;
     var t = fromBack ? w.pop() : w.shift();
+    if (fromBack) game.hand.backDrawn++;
     game.hand.seats[seat].hand.push(t);
     game.hand.canSelfDraw = true;
     return t;

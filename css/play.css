@@ -111,6 +111,8 @@
   gap: 0.6rem;
 }
 
+.play-options--3 { grid-template-columns: repeat(3, 1fr); }
+
 .play-option {
   position: relative;
   cursor: pointer;
@@ -224,7 +226,8 @@ html.is-playing body {
 @media (max-width: 560px) {
   .play-card,
   .play-rules { padding: 1.4rem 1.1rem; }
-  .play-options { grid-template-columns: 1fr; }
+  .play-options,
+  .play-options--3 { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

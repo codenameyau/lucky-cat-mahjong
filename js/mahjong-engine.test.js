@@ -243,6 +243,9 @@ describe('full hands with four bots', () => {
       assert.equal(all.length, 144, 'seed ' + seed);
       assert.ok(c(all).every((n) => n === 4), 'seed ' + seed);
       assert.equal(res.deltas.reduce((a, b) => a + b, 0), 0);
+      // Every flower and kong takes one replacement tile from the back of the wall.
+      const replacements = h.seats.reduce((n, st) => n + st.flowers.length + st.melds.filter((m) => m.type === 'kong').length, 0);
+      assert.equal(h.backDrawn, replacements, 'seed ' + seed);
       if (res.type === 'win') {
         assert.ok(res.score.faan >= 3, 'wins need 3 faan');
         assert.equal(res.score.valid, true);
