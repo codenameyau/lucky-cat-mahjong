@@ -924,26 +924,18 @@
       renderGallery(tile.id);
     }
 
-    // Other tiles' results only become browsable once this visitor has taken the quiz.
-    function hasTakenQuiz() {
-      return !!getTile(state.tile);
-    }
-
     function renderRelation(other) {
       if (!other) return '';
-      var inner = '<span class="tq-relation-art">' + art(other.id) + '</span>' +
+      return '<a class="tq-relation-link" href="' + escapeHtml(shareUrl(root.location.href, other.id)) + '">' +
+        '<span class="tq-relation-art">' + art(other.id) + '</span>' +
         '<span class="tq-relation-text"><strong>' + escapeHtml(other.name) + '</strong>' +
-        '<span class="tq-muted">' + escapeHtml(other.title) + '</span></span>';
-      return hasTakenQuiz()
-        ? '<a class="tq-relation-link" href="' + escapeHtml(shareUrl(root.location.href, other.id)) + '">' + inner + '</a>'
-        : '<div class="tq-relation-link">' + inner + '</div>';
+        '<span class="tq-muted">' + escapeHtml(other.title) + '</span></span>' +
+      '</a>';
     }
 
     function renderGallery(activeId) {
       var grid = $('#tq-gallery-grid');
       if (!grid) return;
-      $('#tq-gallery').hidden = !hasTakenQuiz();
-      if (!hasTakenQuiz()) return;
       grid.innerHTML = TILES.map(function (t) {
         var active = t.id === activeId ? ' is-active' : '';
         return '<li><a class="tq-gallery-item' + active + '" href="' + escapeHtml(shareUrl(root.location.href, t.id)) + '">' +
@@ -973,7 +965,7 @@
 
     function copyLink() {
       var url = currentShareUrl();
-      var done = function () { toast('Link copied! Go spread the tile tea 🫖'); };
+      var done = function () { toast('Link copied! Go spread the tea 🫖'); };
       if (root.navigator.clipboard && root.navigator.clipboard.writeText) {
         root.navigator.clipboard.writeText(url).then(done, function () { root.prompt('Copy this link:', url); });
       } else {
