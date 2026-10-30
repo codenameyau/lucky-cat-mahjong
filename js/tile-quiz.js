@@ -425,7 +425,7 @@
         { emoji: '📊', text: 'Organizing dinner for 8. I made a group poll.', tiles: ['east-wind', 'nine-bamboo', 'south-wind'] },
         { emoji: '🎤', text: 'K-town karaoke until 4am. No plans, all vibes.', tiles: ['summer', 'red-dragon', 'nine-character'] },
         { emoji: '🛋️', text: 'Blanket burrito. Phone at 3%. Do not disturb.', tiles: ['winter', 'one-dot'] },
-        { emoji: '🎨', text: 'At a sip-and-paint night I found on Instagram.', tiles: ['spring', 'orchid', 'chrysanthemum'] },
+        { emoji: '🎨', text: 'At a sip-and-paint night I found on Insta.', tiles: ['spring', 'orchid', 'chrysanthemum'] },
       ],
     },
     {
