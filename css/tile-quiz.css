@@ -30,6 +30,17 @@
   display: none !important;
 }
 
+.tq-unlock-note {
+  display: inline-block;
+  margin: 0 0 1rem;
+  padding: 0.45rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: rgba(var(--color-primary-rgb), 0.08);
+  border-radius: 999px;
+}
+
 .tq-eyebrow {
   margin: 0 0 0.35rem;
   font-size: 0.8rem;

@@ -143,6 +143,34 @@ describe('restorableProgress', () => {
   });
 });
 
+describe('quiz completion record', () => {
+  const answers = quiz.QUESTIONS.map((_, i) => i % 4);
+  const record = quiz.signCompletion(answers, '2026-11-01T12:00:00.000Z');
+
+  it('verifies a genuine record and returns the tile the answers score to', () => {
+    assert.equal(quiz.verifyCompletion(record).id, quiz.scoreAnswers(answers));
+    assert.equal(quiz.verifyCompletion(JSON.parse(JSON.stringify(record))).id, record.tile);
+  });
+
+  it('rejects a missing or hand-made record', () => {
+    assert.equal(quiz.verifyCompletion(undefined), null);
+    assert.equal(quiz.verifyCompletion({ tile: 'red-dragon' }), null);
+    assert.equal(quiz.verifyCompletion(true), null);
+  });
+
+  it('rejects a record whose tile, answers, time, or signature was edited', () => {
+    const otherTile = quiz.TILES.find((t) => t.id !== record.tile).id;
+    assert.equal(quiz.verifyCompletion({ ...record, tile: otherTile }), null);
+    assert.equal(quiz.verifyCompletion({ ...record, answers: record.answers.map((a) => (a + 1) % 4) }), null);
+    assert.equal(quiz.verifyCompletion({ ...record, at: '2026-11-02T12:00:00.000Z' }), null);
+    assert.equal(quiz.verifyCompletion({ ...record, sig: 'deadbeef' }), null);
+  });
+
+  it('rejects a record from a different set of questions', () => {
+    assert.equal(quiz.verifyCompletion({ ...record, answers: record.answers.slice(1) }), null);
+  });
+});
+
 describe('getTile', () => {
   it('still resolves the IDs used before the descriptive slugs', () => {
     assert.equal(quiz.getTile('character-1').id, 'one-character');

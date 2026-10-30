@@ -527,8 +527,8 @@
     return TILE_MAP[id] || TILE_MAP[LEGACY_TILE_IDS[id]] || null;
   }
 
-  function hash(str) {
-    var h = 2166136261;
+  function hash(str, seed) {
+    var h = seed === undefined ? 2166136261 : seed;
     for (var i = 0; i < str.length; i++) {
       h ^= str.charCodeAt(i);
       h = Math.imul(h, 16777619) >>> 0;
@@ -556,6 +556,33 @@
       }
     });
     return best;
+  }
+
+  // Proof that this browser finished the quiz: the answers, the tile they score to, and a signature
+  // over both. Anyone who reads this code can still forge one, but a hand-added localStorage value
+  // (or a tile that doesn't match the answers) won't unlock the results.
+  var COMPLETION_SALT = 'lucky-cat-mahjong/tile-quiz/v1';
+
+  function completionSignature(answers, tile, at) {
+    var payload = [COMPLETION_SALT, answers.join(''), tile, at].join('|');
+    return hash(payload).toString(16) + hash(payload, 0x811c9dc5 ^ 0x5bd1e995).toString(16);
+  }
+
+  function signCompletion(answers, at) {
+    var tile = scoreAnswers(answers);
+    return { answers: answers.slice(), tile: tile, at: at, sig: completionSignature(answers, tile, at) };
+  }
+
+  // The tile from a valid completion record, or null if it's missing, edited, or from older questions.
+  function verifyCompletion(record) {
+    if (!record || !Array.isArray(record.answers) || typeof record.at !== 'string') return null;
+    if (record.answers.length !== QUESTIONS.length) return null;
+    var valid = record.answers.every(function (a, q) {
+      return Number.isInteger(a) && a >= 0 && a < QUESTIONS[q].options.length;
+    });
+    if (!valid || scoreAnswers(record.answers) !== record.tile) return null;
+    if (completionSignature(record.answers, record.tile, record.at) !== record.sig) return null;
+    return getTile(record.tile);
   }
 
   var QUIZ_PATH = '/which-mahjong-tiles-are-you/';
@@ -681,6 +708,11 @@
     // no-cors requests can't see the error), so drop that flag to ask those players again.
     delete state.submitted;
     if (getTile(state.tile)) state.tile = getTile(state.tile).id;
+
+    // Tile details only open for visitors with a valid, signed record of finishing the quiz.
+    function completedTile() {
+      return verifyCompletion(state.completion);
+    }
     var answers = [];
     var current = 0;
     var resultTile = null;
@@ -724,7 +756,7 @@
       }).join('');
 
       var note = $('#tq-returning');
-      var mine = getTile(state.tile);
+      var mine = completedTile();
       if (mine) {
         note.innerHTML = 'Last time you were the <a href="' + escapeHtml(shareUrl(root.location.href, mine.id)) + '">' +
           escapeHtml(mine.name) + '</a>. Let\'s see if that\'s still true.';
@@ -895,6 +927,7 @@
       show('loading');
       Promise.all([pending, wait(1600)]).then(function () {
         state.tile = resultTile.id;
+        state.completion = signCompletion(answers, new Date().toISOString());
         clearProgress();
         setUrlTile(resultTile.id);
         renderResult(resultTile, true);
@@ -1150,13 +1183,24 @@
       renderIntro();
       var params = new URLSearchParams(root.location.search);
       var shared = getTile(params.get('tile'));
-      if (shared) {
+      var mine = completedTile();
+      if (shared && mine) {
         // Show the tile page's URL, so sharing from the browser's own share button gets the tile preview.
         setUrlTile(shared.id);
-        renderResult(shared, shared.id === state.tile);
+        renderResult(shared, shared.id === mine.id);
         show('result');
         track('tile_quiz_view_shared', { tile: shared.id });
-      } else if (!resumeQuiz()) {
+        return;
+      }
+      if (shared) {
+        // Haven't finished the quiz yet: send them to it, with a note about the tile they tried to open.
+        setUrlTile(null);
+        var unlock = $('#tq-unlock-note');
+        unlock.textContent = 'Take the quiz to unlock the ' + shared.name + ' and every other tile.';
+        unlock.hidden = false;
+        track('tile_quiz_locked_view', { tile: shared.id });
+      }
+      if (!resumeQuiz()) {
         renderGallery(null);
         show('intro');
       }
@@ -1178,6 +1222,8 @@
     validateProfile: validateProfile,
     buildFormBody: buildFormBody,
     restorableProgress: restorableProgress,
+    signCompletion: signCompletion,
+    verifyCompletion: verifyCompletion,
   };
 
   if (typeof module !== 'undefined' && module.exports) {
