@@ -566,17 +566,10 @@
     return i === -1 ? SITE_URL : clean.slice(0, i + QUIZ_PATH.length);
   }
 
-  // Each tile has its own static page (scripts/generate-tile-pages.js) so link previews show that tile.
+  // Each tile has a small page (scripts/generate-tile-pages.js) with that tile's link preview, which
+  // redirects back here with ?tile=. Sharing that page's URL is what makes previews show the tile.
   function shareUrl(base, id) {
     return quizRootUrl(base) + encodeURIComponent(id) + '/';
-  }
-
-  // "/which-mahjong-tiles-are-you/red-dragon/" -> "red-dragon"; null on the quiz page itself.
-  function tileIdFromPath(pathname) {
-    var i = String(pathname).indexOf(QUIZ_PATH);
-    if (i === -1) return null;
-    var rest = pathname.slice(i + QUIZ_PATH.length).replace(/\/?(index\.html)?$/, '');
-    return rest && rest.indexOf('/') === -1 ? decodeURIComponent(rest) : null;
   }
 
   function normalizeInstagram(value) {
@@ -1161,9 +1154,10 @@
       bind();
       renderIntro();
       var params = new URLSearchParams(root.location.search);
-      var shared = getTile(tileIdFromPath(root.location.pathname) || params.get('tile'));
+      var shared = getTile(params.get('tile'));
       if (shared) {
-        if (root.location.href !== shareUrl(root.location.href, shared.id)) setUrlTile(shared.id);
+        // Show the tile page's URL, so sharing from the browser's own share button gets the tile preview.
+        setUrlTile(shared.id);
         renderResult(shared, shared.id === state.tile);
         show('result');
         track('tile_quiz_view_shared', { tile: shared.id });
@@ -1184,7 +1178,6 @@
     getTile: getTile,
     scoreAnswers: scoreAnswers,
     shareUrl: shareUrl,
-    tileIdFromPath: tileIdFromPath,
     normalizeInstagram: normalizeInstagram,
     isValidZip: isValidZip,
     validateProfile: validateProfile,

@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /*
- * Generates the per-tile pages and link-preview images for the "Which Mahjong Tile Are You?" quiz.
+ * Generates the per-tile link-preview pages and images for the "Which Mahjong Tile Are You?" quiz.
  *
- *   which-mahjong-tiles-are-you/<tile-id>/index.html   copy of the quiz page with that tile's preview tags
+ *   which-mahjong-tiles-are-you/<tile-id>/index.html   preview tags + redirect to the quiz (?tile=<tile-id>)
  *   which-mahjong-tiles-are-you/images/<tile-id>.png   1200x630 preview image
  *
- * Re-run after editing which-mahjong-tiles-are-you/index.html or any tile's art or copy.
+ * Re-run after changing a tile's name, title, tagline or art.
  *
  * Usage:
  *   node scripts/generate-tile-pages.js            pages and images
@@ -25,11 +25,10 @@ const QUIZ_DIR = path.join(ROOT, 'which-mahjong-tiles-are-you');
 const FONT_FILE = path.join(ROOT, 'fonts', 'kn-yuanmo-sc.ttf');
 
 function writePages() {
-  const template = fs.readFileSync(path.join(QUIZ_DIR, 'index.html'), 'utf8');
   quiz.TILES.forEach((tile) => {
     const dir = path.join(QUIZ_DIR, tile.id);
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'index.html'), buildTilePage(template, tile));
+    fs.writeFileSync(path.join(dir, 'index.html'), buildTilePage(tile));
   });
   console.log('Wrote ' + quiz.TILES.length + ' tile pages');
 }

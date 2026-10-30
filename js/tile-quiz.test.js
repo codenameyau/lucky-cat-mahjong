@@ -166,13 +166,3 @@ describe('shareUrl', () => {
     assert.equal(quiz.shareUrl('file:///tmp/quiz.html', 'one-dot'), 'https://luckycatmahjong.com/which-mahjong-tiles-are-you/one-dot/');
   });
 });
-
-describe('tileIdFromPath', () => {
-  it('reads the tile from a tile page path', () => {
-    assert.equal(quiz.tileIdFromPath('/which-mahjong-tiles-are-you/red-dragon/'), 'red-dragon');
-    assert.equal(quiz.tileIdFromPath('/which-mahjong-tiles-are-you/red-dragon/index.html'), 'red-dragon');
-    assert.equal(quiz.tileIdFromPath('/which-mahjong-tiles-are-you/'), null);
-    assert.equal(quiz.tileIdFromPath('/which-mahjong-tiles-are-you/index.html'), null);
-    assert.equal(quiz.tileIdFromPath('/events/'), null);
-  });
-});

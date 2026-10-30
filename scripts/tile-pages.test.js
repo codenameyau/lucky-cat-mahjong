@@ -8,7 +8,6 @@ const quiz = require('../js/tile-quiz.js');
 const { IMAGE_DIR, IMAGE_WIDTH, IMAGE_HEIGHT, buildTilePage, tilePageUrl } = require('./tile-pages-lib.js');
 
 const QUIZ_DIR = path.join(__dirname, '..', 'which-mahjong-tiles-are-you');
-const template = fs.readFileSync(path.join(QUIZ_DIR, 'index.html'), 'utf8');
 
 function meta(html, attr, name) {
   const match = html.match(new RegExp('<meta ' + attr + '="' + name + '" content="([^"]*)">'));
@@ -23,29 +22,35 @@ function pngSize(file) {
 
 describe('tile share pages', () => {
   it('keeps the Lucky Cat logo as the quiz page preview', () => {
-    assert.equal(meta(template, 'property', 'og:image'), 'https://luckycatmahjong.com/logo.png');
+    const quizPage = fs.readFileSync(path.join(QUIZ_DIR, 'index.html'), 'utf8');
+    assert.equal(meta(quizPage, 'property', 'og:image'), 'https://luckycatmahjong.com/logo.png');
   });
 
   it('points each tile page preview at that tile', () => {
     const tile = quiz.getTile('red-dragon');
-    const html = buildTilePage(template, tile);
+    const html = buildTilePage(tile);
     assert.equal(meta(html, 'property', 'og:image'), 'https://luckycatmahjong.com/which-mahjong-tiles-are-you/images/red-dragon.png');
     assert.equal(meta(html, 'name', 'twitter:image'), 'https://luckycatmahjong.com/which-mahjong-tiles-are-you/images/red-dragon.png');
     assert.equal(meta(html, 'property', 'og:url'), tilePageUrl(tile));
     assert.equal(meta(html, 'property', 'og:title'), 'Red Dragon: The Final Boss');
-    assert.match(html, /<link rel="canonical" href="https:\/\/luckycatmahjong\.com\/which-mahjong-tiles-are-you\/red-dragon\/">/);
+  });
+
+  it('redirects each tile page to the quiz showing that tile', () => {
+    const html = buildTilePage(quiz.getTile('nine-dot'));
+    assert.match(html, /<meta http-equiv="refresh" content="0; url=\/which-mahjong-tiles-are-you\/\?tile=nine-dot">/);
+    assert.match(html, /location\.replace\('\/which-mahjong-tiles-are-you\/\?tile=nine-dot'\)/);
   });
 
   it('escapes quotes in tile copy', () => {
-    const html = buildTilePage(template, quiz.getTile('nine-character'));
+    const html = buildTilePage(quiz.getTile('nine-character'));
     assert.match(meta(html, 'property', 'og:description'), /^&quot;It was on sale\.&quot;/);
   });
 
-  it('has a generated page that matches the quiz page for every tile (run `npm run generate-tile-pages`)', () => {
+  it('has an up-to-date page for every tile (run `npm run generate-tile-pages`)', () => {
     quiz.TILES.forEach((tile) => {
       const file = path.join(QUIZ_DIR, tile.id, 'index.html');
       assert.ok(fs.existsSync(file), tile.id + ' page is missing');
-      assert.equal(fs.readFileSync(file, 'utf8'), buildTilePage(template, tile), tile.id + ' page is out of date');
+      assert.equal(fs.readFileSync(file, 'utf8'), buildTilePage(tile), tile.id + ' page is out of date');
     });
   });
 
