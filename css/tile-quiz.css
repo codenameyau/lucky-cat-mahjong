@@ -393,11 +393,6 @@
   margin: 0.2rem 0 0.1rem;
 }
 
-.tq-result-chinese {
-  font-size: 0.8em;
-  opacity: 0.85;
-}
-
 .tq-result-title {
   font-family: var(--font-heading);
   font-size: clamp(1.15rem, 4.5vw, 1.45rem);

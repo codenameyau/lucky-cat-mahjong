@@ -23,11 +23,10 @@
     {
       id: 'one-bamboo',
       name: '1 Bamboo',
-      chinese: '一索',
       title: 'The Little Birdie',
       emoji: '🐦',
       tagline: 'Knows the tea before it\'s even been poured.',
-      description: 'Fun fact: the 1 Bamboo is a bird, and players literally nickname it 幺雞, "little chicken." Same energy. You\'re the group chat\'s unofficial news anchor, dropping 4-minute voice memos that start with "okay, don\'t be mad." You don\'t gossip, you share updates. Everyone acts annoyed, but they\'re refreshing their phone waiting for your next drop.',
+      description: 'Fun fact: the 1 Bamboo is a bird, and players literally nickname it "little chicken." Same energy. You\'re the group chat\'s unofficial news anchor, dropping 4-minute voice memos that start with "okay, don\'t be mad." You don\'t gossip, you share updates. Everyone acts annoyed, but they\'re refreshing their phone waiting for your next drop.',
       why: [
         'Your screen time report is a cry for help, but the content is elite',
         'You know everyone\'s birthday, ex, and MBTI',
@@ -41,7 +40,6 @@
     {
       id: 'nine-bamboo',
       name: '9 Bamboo',
-      chinese: '九索',
       title: 'The Type A Icon',
       emoji: '📋',
       tagline: 'Has a Notion template for their Notion templates.',
@@ -59,7 +57,6 @@
     {
       id: 'one-character',
       name: '1 Character',
-      chinese: '一萬',
       title: 'The Main Character',
       emoji: '👑',
       tagline: 'Walks to the bodega like it\'s the opening scene of an A24 movie.',
@@ -77,11 +74,10 @@
     {
       id: 'nine-character',
       name: '9 Character',
-      chinese: '九萬',
       title: 'The Big Spender',
       emoji: '🛍️',
       tagline: '"It was on sale." (It was not on sale.)',
-      description: '萬 means ten thousand, which is roughly how many online shopping tabs you have open right now. You treat yourself, you treat your friends, you treat the barista. You\'ll fight three aunties for the check at dim sum, and you\'ll win. Your bank account is in its villain era, but your vibes are immaculate.',
+      description: 'The character on this tile means ten thousand, which is roughly how many online shopping tabs you have open right now. You treat yourself, you treat your friends, you treat the barista. You\'ll fight three aunties for the check at dim sum, and you\'ll win. Your bank account is in its villain era, but your vibes are immaculate.',
       why: [
         'Your delivery driver knows you by name',
         'You\'ve justified a purchase with "cost per wear"',
@@ -95,7 +91,6 @@
     {
       id: 'one-dot',
       name: '1 Dot',
-      chinese: '一筒',
       title: 'The Snack Era',
       emoji: '🥟',
       tagline: 'Round, warm, and thinking about dumplings.',
@@ -113,7 +108,6 @@
     {
       id: 'nine-dot',
       name: '9 Dot',
-      chinese: '九筒',
       title: 'The Overthinker',
       emoji: '🌀',
       tagline: '47 tabs open in the browser. 47 more in the brain.',
@@ -131,11 +125,10 @@
     {
       id: 'green-dragon',
       name: 'Green Dragon',
-      chinese: '發',
       title: 'The Hustler',
       emoji: '💸',
-      tagline: '發 means "get rich." You took that personally.',
-      description: '發 (fa) is the same 發 as in "gung hei fat choy," and you\'ve had a side hustle since flipping Pokémon cards in third grade. A resale business, a Depop, a "personal brand": you\'ve tried them all and somehow turned a profit. You manifest, you grind, you check your stocks during Lunar New Year dinner. The Lucky Cat approves.',
+      tagline: 'Its character means "get rich." You took that personally.',
+      description: 'The character on this tile is the same "fat" as in "gung hei fat choy," and you\'ve had a side hustle since flipping Pokémon cards in third grade. A resale business, a Depop, a "personal brand": you\'ve tried them all and somehow turned a profit. You manifest, you grind, you check your stocks during Lunar New Year dinner. The Lucky Cat approves.',
       why: [
         'You\'ve said "let\'s circle back" in a casual conversation',
         'Your red envelope money went straight into an index fund',
@@ -149,11 +142,10 @@
     {
       id: 'red-dragon',
       name: 'Red Dragon',
-      chinese: '中',
       title: 'The Final Boss',
       emoji: '🔥',
       tagline: 'Center of attention? It\'s literally in the name.',
-      description: '中 means "center," and it also means "hit the target." You do both. You walk in and the room rearranges itself around you. At the mahjong table you don\'t play to participate: you play to win, slam the winning tile, and post about it. People call you intimidating. You prefer "iconic." Even the aunties are a little scared of you.',
+      description: 'The character on this tile means "center," and it also means "hit the target." You do both. You walk in and the room rearranges itself around you. At the mahjong table you don\'t play to participate: you play to win, slam the winning tile, and post about it. People call you intimidating. You prefer "iconic." Even the aunties are a little scared of you.',
       why: [
         'You\'ve won an argument you were wrong in',
         'Your "just threw this on" fit took 45 minutes',
@@ -167,7 +159,6 @@
     {
       id: 'white-dragon',
       name: 'White Dragon',
-      chinese: '白板',
       title: 'The Quiet Luxury',
       emoji: '🤍',
       tagline: 'Beige apartment. Loud standards.',
@@ -185,7 +176,6 @@
     {
       id: 'east-wind',
       name: 'East Wind',
-      chinese: '東',
       title: 'The Group Chat CEO',
       emoji: '🌅',
       tagline: 'The sun rises in the east. So do you, at 6am, unprompted.',
@@ -203,7 +193,6 @@
     {
       id: 'south-wind',
       name: 'South Wind',
-      chinese: '南',
       title: 'The Golden Retriever',
       emoji: '🐶',
       tagline: 'Warm breeze, warm heart, zero thoughts, all vibes.',
@@ -221,7 +210,6 @@
     {
       id: 'west-wind',
       name: 'West Wind',
-      chinese: '西',
       title: 'The Sunset Romantic',
       emoji: '🌇',
       tagline: 'Golden hour is a personality, and you have it.',
@@ -239,7 +227,6 @@
     {
       id: 'north-wind',
       name: 'North Wind',
-      chinese: '北',
       title: 'The Cool Introvert',
       emoji: '🎧',
       tagline: 'Cold exterior. Warm interior. Do not disturb.',
@@ -257,11 +244,10 @@
     {
       id: 'spring',
       name: 'Spring',
-      chinese: '春',
       title: 'The Fresh Start',
       emoji: '🌸',
       tagline: 'New hobby, new me. (Again.)',
-      description: '春 is the character people stick on their doors for Lunar New Year, and you\'re basically a walking New Year\'s resolution. Pottery, run club, crochet, sourdough, learning mahjong (great choice). You\'ve had about 47 fresh starts this year, and you\'re optimistic about every single one. The hobby gear is collecting dust, but the vibes are blooming.',
+      description: 'The character for spring is the one people stick on their doors for Lunar New Year, and you\'re basically a walking New Year\'s resolution. Pottery, run club, crochet, sourdough, learning mahjong (great choice). You\'ve had about 47 fresh starts this year, and you\'re optimistic about every single one. The hobby gear is collecting dust, but the vibes are blooming.',
       why: [
         'You\'ve bought all the gear for a hobby you tried once',
         'Your "new era" announcements are a monthly event',
@@ -275,7 +261,6 @@
     {
       id: 'summer',
       name: 'Summer',
-      chinese: '夏',
       title: 'Out of Office',
       emoji: '😎',
       tagline: 'Hot tile summer, all year round.',
@@ -293,7 +278,6 @@
     {
       id: 'autumn',
       name: 'Autumn',
-      chinese: '秋',
       title: 'The Cozy Era',
       emoji: '🍂',
       tagline: 'Oversized sweater, warm drink, candle lit. Always.',
@@ -311,7 +295,6 @@
     {
       id: 'winter',
       name: 'Winter',
-      chinese: '冬',
       title: 'The Hibernator',
       emoji: '😴',
       tagline: 'Canceled plans are my love language.',
@@ -329,7 +312,6 @@
     {
       id: 'plum-blossom',
       name: 'Plum Blossom',
-      chinese: '梅',
       title: 'The Comeback Kid',
       emoji: '🌺',
       tagline: 'Blooms in the snow. Unbothered. Moisturized.',
@@ -347,7 +329,6 @@
     {
       id: 'orchid',
       name: 'Orchid',
-      chinese: '蘭',
       title: 'The Elegant One',
       emoji: '🪷',
       tagline: 'Not high maintenance. Highly curated.',
@@ -365,7 +346,6 @@
     {
       id: 'chrysanthemum',
       name: 'Chrysanthemum',
-      chinese: '菊',
       title: 'The Old Soul',
       emoji: '🍵',
       tagline: '24 going on 84.',
@@ -383,7 +363,6 @@
     {
       id: 'bamboo',
       name: 'Bamboo',
-      chinese: '竹',
       title: 'The Go-With-The-Flow',
       emoji: '🐼',
       tagline: 'Bends, never breaks. Also low-key a panda.',
@@ -401,7 +380,6 @@
     {
       id: 'blank-tile',
       name: 'Blank Tile',
-      chinese: '空白',
       title: 'The Spare',
       emoji: '🫥',
       tagline: 'Wasn\'t supposed to be in the box. Showed up anyway.',
@@ -915,7 +893,7 @@
       var name = isMine && state.profile && state.profile.name ? state.profile.name.split(' ')[0] : '';
       $('#tq-result-kicker').textContent = isMine ? (name ? name + ', you\'re the' : 'You\'re the') : 'Meet the';
       $('#tq-result-art').innerHTML = art(tile.id, { label: tile.name + ' chibi mahjong tile', className: 'tile-art tq-result-svg' });
-      $('#tq-result-name').innerHTML = escapeHtml(tile.name) + ' <span class="tq-result-chinese" lang="zh-Hant">' + escapeHtml(tile.chinese) + '</span>';
+      $('#tq-result-name').textContent = tile.name;
       $('#tq-result-title').textContent = tile.emoji + ' ' + tile.title;
       $('#tq-result-tagline').textContent = tile.tagline;
       $('#tq-result-description').textContent = tile.description;
@@ -962,7 +940,7 @@
     }
 
     function shareText(tile, isMine) {
-      return (isMine ? 'I\'m the ' : 'You\'re giving ') + tile.name + ' ' + tile.chinese + ': ' + tile.title + ' ' + tile.emoji +
+      return (isMine ? 'I\'m the ' : 'You\'re giving ') + tile.name + ': ' + tile.title + ' ' + tile.emoji +
         '\nWhich mahjong tile are you?';
     }
 
@@ -1060,7 +1038,7 @@
         ctx.fillStyle = '#5C5C5C';
         ctx.font = '600 38px ' + body;
         ctx.fillText('I\'m the', W / 2, 96);
-        var nameText = tile.name + ' ' + tile.chinese;
+        var nameText = tile.name;
         var nameSize = 88;
         do {
           ctx.font = nameSize + 'px ' + heading;
