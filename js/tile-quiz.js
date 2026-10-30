@@ -605,6 +605,23 @@
     return errors;
   }
 
+  // Saved mid-quiz progress, or null if it's missing or no longer matches the questions.
+  // `current` equal to QUESTIONS.length means every question is answered (the info form step).
+  function restorableProgress(progress) {
+    if (!progress || !Array.isArray(progress.answers)) return null;
+    var answers = progress.answers;
+    var current = progress.current;
+    if (answers.length > QUESTIONS.length) return null;
+    var valid = answers.every(function (a, q) {
+      return a === null || (Number.isInteger(a) && a >= 0 && a < QUESTIONS[q].options.length);
+    });
+    if (!valid || !Number.isInteger(current) || current < 0 || current > QUESTIONS.length) return null;
+    for (var q = 0; q < current; q++) {
+      if (!Number.isInteger(answers[q])) return null;
+    }
+    return { answers: answers.slice(), current: current };
+  }
+
   function buildFormBody(profile, tile) {
     var params = [
       [FORM_FIELDS.name, String(profile.name).trim()],
@@ -737,14 +754,41 @@
       if (focusTarget) focusTarget.focus({ preventScroll: true });
     }
 
+    function saveProgress() {
+      state.progress = { answers: answers.slice(), current: current };
+      saveState(state);
+    }
+
+    function clearProgress() {
+      delete state.progress;
+      saveState(state);
+    }
+
     function startQuiz() {
       answers = [];
       current = 0;
       resultTile = null;
       setUrlTile(null);
       track('tile_quiz_start');
+      saveProgress();
       renderQuestion();
       show('question');
+    }
+
+    // Pick up where a refresh left off: the same question, or the info form if every question is answered.
+    function resumeQuiz() {
+      var saved = restorableProgress(state.progress);
+      if (!saved) return false;
+      answers = saved.answers;
+      current = saved.current;
+      if (current === QUESTIONS.length) {
+        resultTile = getTile(scoreAnswers(answers));
+        showAfterQuiz();
+      } else {
+        renderQuestion();
+        show('question');
+      }
+      return true;
     }
 
     function choose(index) {
@@ -754,6 +798,7 @@
       setTimeout(function () {
         if (current < QUESTIONS.length - 1) {
           current += 1;
+          saveProgress();
           renderQuestion();
         } else {
           finishQuiz();
@@ -763,10 +808,12 @@
 
     function goBack() {
       if (current === 0) {
+        clearProgress();
         show('intro');
         return;
       }
       current -= 1;
+      saveProgress();
       renderQuestion();
     }
 
@@ -774,7 +821,12 @@
       $('#tq-progress-bar').style.width = '100%';
       resultTile = getTile(scoreAnswers(answers));
       track('tile_quiz_complete', { tile: resultTile.id });
+      current = QUESTIONS.length;
+      saveProgress();
+      showAfterQuiz();
+    }
 
+    function showAfterQuiz() {
       if (state.submitted) {
         reveal(Promise.resolve());
         return;
@@ -848,7 +900,7 @@
       show('loading');
       Promise.all([pending, wait(1600)]).then(function () {
         state.tile = resultTile.id;
-        saveState(state);
+        clearProgress();
         setUrlTile(resultTile.id);
         renderResult(resultTile, true);
         show('result');
@@ -1097,6 +1149,7 @@
       $('#tq-info-form').addEventListener('submit', onInfoSubmit);
       $('#tq-info-back').addEventListener('click', function () {
         current = QUESTIONS.length - 1;
+        saveProgress();
         renderQuestion();
         show('question');
       });
@@ -1115,7 +1168,7 @@
         renderResult(shared, shared.id === state.tile);
         show('result');
         track('tile_quiz_view_shared', { tile: shared.id });
-      } else {
+      } else if (!resumeQuiz()) {
         renderGallery(null);
         show('intro');
       }
@@ -1136,6 +1189,7 @@
     isValidZip: isValidZip,
     validateProfile: validateProfile,
     buildFormBody: buildFormBody,
+    restorableProgress: restorableProgress,
   };
 
   if (typeof module !== 'undefined' && module.exports) {

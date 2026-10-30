@@ -122,6 +122,27 @@ describe('profile helpers', () => {
   });
 });
 
+describe('restorableProgress', () => {
+  it('restores a quiz in progress', () => {
+    assert.deepEqual(quiz.restorableProgress({ answers: [0, 3, 1], current: 3 }), { answers: [0, 3, 1], current: 3 });
+    assert.deepEqual(quiz.restorableProgress({ answers: [], current: 0 }), { answers: [], current: 0 });
+  });
+
+  it('restores a finished quiz at the info form step', () => {
+    const answers = quiz.QUESTIONS.map(() => 2);
+    assert.equal(quiz.restorableProgress({ answers, current: quiz.QUESTIONS.length }).current, quiz.QUESTIONS.length);
+  });
+
+  it('rejects missing, malformed, or outdated progress', () => {
+    assert.equal(quiz.restorableProgress(undefined), null);
+    assert.equal(quiz.restorableProgress({ answers: 'nope', current: 0 }), null);
+    assert.equal(quiz.restorableProgress({ answers: [0, 9], current: 2 }), null);
+    assert.equal(quiz.restorableProgress({ answers: [0], current: 3 }), null);
+    assert.equal(quiz.restorableProgress({ answers: [0], current: -1 }), null);
+    assert.equal(quiz.restorableProgress({ answers: new Array(quiz.QUESTIONS.length + 1).fill(0), current: 1 }), null);
+  });
+});
+
 describe('getTile', () => {
   it('still resolves the IDs used before the descriptive slugs', () => {
     assert.equal(quiz.getTile('character-1').id, 'one-character');
