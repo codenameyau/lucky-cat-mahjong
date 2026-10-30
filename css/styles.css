@@ -614,6 +614,12 @@ h1, h2, h3 {
   gap: 1.5rem;
 }
 
+@media (max-width: 900px) {
+  .nav-links {
+    gap: 1rem;
+  }
+}
+
 .nav-link {
   color: var(--color-text);
   font-weight: 500;

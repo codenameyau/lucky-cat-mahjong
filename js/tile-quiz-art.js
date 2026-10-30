@@ -12,12 +12,12 @@
   var CJK_FONT = "'KN Yuanmo SC','PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC',sans-serif";
 
   var ART = {
-    'bamboo-1': { back: '#3FA34D', symbol: 'bird', eyes: 'sparkle', mouth: 'open', arms: 'wave', acc: ['bubble'] },
-    'bamboo-9': { back: '#2E7D5B', symbol: 'bamboo9', eyes: 'dot', mouth: 'smile', arms: 'rest', acc: ['squareGlasses', 'clipboard'] },
-    'character-1': { back: '#E0B23A', symbol: 'char1', eyes: 'sparkle', mouth: 'smirk', arms: 'cheer', acc: ['crown'] },
-    'character-9': { back: '#E66A9A', symbol: 'char9', eyes: 'star', mouth: 'open', arms: 'rest', acc: ['shoppingBags'] },
-    'dot-1': { back: '#E8964A', symbol: 'dot1', eyes: 'happy', mouth: 'cat', arms: 'rest', acc: ['boba'] },
-    'dot-9': { back: '#5C6BC0', symbol: 'dot9', eyes: 'spiral', mouth: 'wobble', arms: 'rest', acc: ['sweat', 'thoughtCloud'] },
+    'one-bamboo': { back: '#3FA34D', symbol: 'bird', eyes: 'sparkle', mouth: 'open', arms: 'wave', acc: ['bubble'] },
+    'nine-bamboo': { back: '#2E7D5B', symbol: 'bamboo9', eyes: 'dot', mouth: 'smile', arms: 'rest', acc: ['squareGlasses', 'clipboard'] },
+    'one-character': { back: '#E0B23A', symbol: 'char1', eyes: 'sparkle', mouth: 'smirk', arms: 'cheer', acc: ['crown'] },
+    'nine-character': { back: '#E66A9A', symbol: 'char9', eyes: 'star', mouth: 'open', arms: 'rest', acc: ['shoppingBags'] },
+    'one-dot': { back: '#E8964A', symbol: 'dot1', eyes: 'happy', mouth: 'cat', arms: 'rest', acc: ['boba'] },
+    'nine-dot': { back: '#5C6BC0', symbol: 'dot9', eyes: 'spiral', mouth: 'wobble', arms: 'rest', acc: ['sweat', 'thoughtCloud'] },
     'green-dragon': { back: '#1F8A4C', symbol: 'greenDragon', eyes: 'money', mouth: 'open', arms: 'rest', acc: ['moneyBag', 'coins'] },
     'red-dragon': { back: '#C41E3A', symbol: 'redDragon', eyes: 'none', mouth: 'smirk', arms: 'cheer', acc: ['shades', 'sparkles'] },
     'white-dragon': { back: '#7FA7D9', symbol: 'whiteDragon', eyes: 'calm', mouth: 'smile', arms: 'rest', acc: ['clawClip', 'sparkles'] },
@@ -29,11 +29,11 @@
     'summer': { back: '#2BB3C0', symbol: 'summer', eyes: 'wink', mouth: 'tongue', arms: 'wave', acc: ['sunHat'] },
     'autumn': { back: '#C8642E', symbol: 'autumn', eyes: 'happy', mouth: 'cat', arms: 'rest', acc: ['scarf', 'coffee'] },
     'winter': { back: '#6C8EDB', symbol: 'winter', eyes: 'sleepy', mouth: 'o', arms: 'rest', acc: ['beanie', 'zzz'] },
-    'plum': { back: '#D94A6B', symbol: 'plum', eyes: 'sparkle', mouth: 'smile', arms: 'cheer', acc: ['bandaid', 'sparkles'] },
+    'plum-blossom': { back: '#D94A6B', symbol: 'plum', eyes: 'sparkle', mouth: 'smile', arms: 'cheer', acc: ['bandaid', 'sparkles'] },
     'orchid': { back: '#A578D6', symbol: 'orchid', eyes: 'lashes', mouth: 'smile', arms: 'rest', acc: ['bow'] },
     'chrysanthemum': { back: '#D9A521', symbol: 'chrysanthemum', eyes: 'happy', mouth: 'smile', arms: 'rest', acc: ['roundGlasses', 'teacup'] },
-    'bamboo-flower': { back: '#5FA83A', symbol: 'bambooFlower', eyes: 'panda', mouth: 'cat', arms: 'rest', acc: ['pandaEars', 'bambooStick'] },
-    'blank': { back: '#B9B2A6', symbol: 'blank', eyes: 'dot', mouth: 'flat', arms: 'rest', acc: ['sweat', 'question'] },
+    'bamboo': { back: '#5FA83A', symbol: 'bambooFlower', eyes: 'panda', mouth: 'cat', arms: 'rest', acc: ['pandaEars', 'bambooStick'] },
+    'blank-tile': { back: '#B9B2A6', symbol: 'blank', eyes: 'dot', mouth: 'flat', arms: 'rest', acc: ['sweat', 'question'] },
   };
 
   var BACK_ACCESSORIES = { sunHalo: true, pandaEars: true, dogEars: true, headphonesBand: true };
