@@ -34,7 +34,7 @@
         'You heard about your cousin\'s engagement before your mom did',
       ],
       greenFlag: 'Remembers the tiny thing you said once in March',
-      redFlag: '"I won\'t tell anyone" (told the whole family group chat)',
+      redFlag: '"I won\'t tell anyone"',
       bestie: 'south-wind',
       enemy: 'north-wind',
     },
