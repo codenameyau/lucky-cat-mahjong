@@ -52,6 +52,17 @@ A static website for the Lucky Cat Mahjong club, with content managed through [P
 - **Tile details unlock after the quiz** — The "Meet the whole set" gallery shows and links every tile, but a tile's full reading only opens for visitors who have finished the quiz; anyone else who opens a tile link (including a shared one) is sent to the quiz with a note naming that tile. Completion is a signed record in `localStorage` (the answers, the tile they score to, and a signature over both), so hand-adding a value doesn't unlock it. It's a deterrent only: anyone who reads the code can forge one. Changing the questions invalidates old records, so players retake the quiz to unlock again. Link previews are unaffected
 - **Analytics events** — `tile_quiz_start`, `tile_quiz_complete`, `tile_quiz_submit`, `tile_quiz_share` (with `method`), and `tile_quiz_view_shared`, each with a `tile` parameter
 
+### Play Hong Kong mahjong (`/play-mahjong/`)
+
+- **Settings preview** — Pick **Payout** mode (everyone starts with 2,000 points; the game ends when you run out) or **Practice** mode (no points or payouts, only each hand's faan), the **full spicy** or **half spicy** payout table, and hint tips on or off. Choices are remembered in `localStorage`
+- **Same rules as the calculator** — Hands are scored by `HKScoring.scoreHand` in `js/points.js`, the calculator's own pattern detection, faan counting and payout tables, so the game and the calculator always agree. 3 faan minimum to win. On a self-draw every opponent pays the base points; on a discard (or robbed kong) only the discarder pays, as the scoring guide describes. Heavenly and Earthly hands, robbing the kong, win by kong/double kong, last tile, flowers and seasons (including Seven Robbing One and Eight Immortals) are all handled. The dealer keeps the deal after a win or a drawn hand, and the round wind moves on once everyone has dealt. A bot that runs out of points is replaced by a new opponent
+- **Engine** (`js/mahjong-engine.js`) — Wall, dealing, flower replacement, draws, claims with HK priority (win > pung/kong > chow, chow only from the left), kongs with replacement draws, settlement, and a fast suit-by-suit shanten solver
+- **Bots** (`js/mahjong-bot.js`) — Every decision is an expected-value estimate from information the seat could legally see. Offense weighs shanten and live improving tiles for each plan (plain hand, half/full flush, all triplets, seven pairs, thirteen orphans) against the faan that plan is likely to reach; ready hands are valued exactly by scoring every wait with `points.js`, so bots know which waits can actually clear 3 faan. Defense estimates each opponent's chance of being ready (melds, turn, flush reading) and every tile's deal-in risk, so bots fold slow hands against a likely winner. Claims compare the hand's value with and without the meld
+- **Hint tips** — The same analysis suggests your best discard (glowing tile), explains the plan and live tiles, lists your waits and their faan when you're ready, warns when a hand is too cheap to win or an opponent looks ready, and recommends claims or passes with the reason. Toggle in the settings, top bar, or menu
+- **Canvas table** (`js/mahjong-game.js`) — The whole table is one `<canvas>` that only redraws while something changes or animates, with tile faces pre-rendered per size from the `tiles/` SVGs. Like a real table, each opponent's hand, melds and discards face that player (the player across is upside-down, the side players are turned 90°). Animated draws, discards, claims and wins (banners, confetti), WebAudio sound effects synthesized in the browser (no audio files), keyboard play (arrows, Enter, Esc), and an end-of-hand summary showing the winning hand, every pattern with its faan, the total, base points, and each player's payout
+- **Analytics events** — `play_start` (`spicy`, `mode`, `hints`), `play_hand_end` (`result`, `faan`), `play_toggle_hints`, `play_game_over`
+- **Testing tip** — Add `?instant=1` to the page URL to skip animation and bot delays
+
 ### Other
 
 - **Custom 404 page** — On-brand "page not found" screen with mahjong tile artwork
@@ -79,13 +90,13 @@ For example [192.168.1.155:8080](http://192.168.1.155:8080).
 
 ## Tests
 
-The Hong Kong scoring calculator (`js/points.js`), homepage renderer (`js/main.js`), community page (`js/community.js`), tile quiz (`js/tile-quiz.js`), and media formatter (`scripts/format-media-lib.js`) have unit tests using Node's built-in test runner. Requires **Node.js 18+**.
+The Hong Kong scoring calculator (`js/points.js`), the Play game's engine and bots (`js/mahjong-engine.js`, `js/mahjong-bot.js`), homepage renderer (`js/main.js`), community page (`js/community.js`), tile quiz (`js/tile-quiz.js`), and media formatter (`scripts/format-media-lib.js`) have unit tests using Node's built-in test runner. Requires **Node.js 18+**.
 
 ```bash
 npm test
 ```
 
-This runs `node --test js/points.test.js js/main.test.js js/community.test.js js/tile-quiz.test.js scripts/format-media.test.js`. Harnesses in `js/points.harness.js` and `js/main.harness.js` load each script in a mocked browser environment so scoring logic and CMS rendering can be tested without opening the page.
+This runs `node --test` over the `js/*.test.js` files listed in `package.json` plus the script tests. The game tests check that `scoreHand` matches the calculator, cover legal claims, payouts and dealer rotation, play full bot hands to check that every tile is accounted for, and include a fixed-seed strength check of the bots against a tile-efficiency baseline. Harnesses in `js/points.harness.js` and `js/main.harness.js` load each script in a mocked browser environment so scoring logic and CMS rendering can be tested without opening the page.
 
 ## Media formatting
 
@@ -130,12 +141,15 @@ Navigation links (`data/nav.json`) and site styles (`css/`) are edited directly 
 │   └── index.html          # Community event recaps
 ├── hong-kong-mahjong-scoring/
 │   └── index.html          # Scoring guide + interactive points calculator
+├── play-mahjong/
+│   └── index.html          # Play page: settings preview + canvas game
 ├── 404.html                # Custom not-found page
 ├── logo.png / logo.webp    # Club logo
 ├── css/
 │   ├── styles.css          # Shared styles and design tokens
 │   ├── community.css       # Community page styles
 │   ├── points.css          # Points calculator styles
+│   ├── play.css            # Play page styles
 │   ├── 404.css             # 404 page styles
 │   └── fonts.css           # Web font (KN Yuanmo SC)
 ├── js/
@@ -147,7 +161,12 @@ Navigation links (`data/nav.json`) and site styles (`css/`) are edited directly 
 │   ├── community.test.js   # Community page unit tests
 │   ├── points.js           # Tile data, reference, and the faan calculator
 │   ├── points.harness.js   # Test harness for the scoring calculator
-│   └── points.test.js      # Scoring calculator unit tests
+│   ├── points.test.js      # Scoring calculator unit tests
+│   ├── mahjong-engine.js   # Play: rules engine, shanten, claims, settlement
+│   ├── mahjong-engine.test.js
+│   ├── mahjong-bot.js      # Play: bot decisions and hint tips
+│   ├── mahjong-bot.test.js
+│   └── mahjong-game.js     # Play: canvas table, animation, sound
 ├── scripts/
 │   ├── format-media.js     # CLI: optimize media/ images and sync community.json
 │   ├── format-media-lib.js # Shared image-formatting logic
