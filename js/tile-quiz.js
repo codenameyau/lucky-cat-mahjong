@@ -979,7 +979,7 @@
 
     function copyLink() {
       var url = currentShareUrl();
-      var done = function () { toast('Link copied! Go spread the tile tea 🫖'); };
+      var done = function () { toast('Link copied! Go spread the tea 🫖'); };
       if (root.navigator.clipboard && root.navigator.clipboard.writeText) {
         root.navigator.clipboard.writeText(url).then(done, function () { root.prompt('Copy this link:', url); });
       } else {
