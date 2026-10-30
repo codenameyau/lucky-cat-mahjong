@@ -558,8 +558,18 @@
     return best;
   }
 
+  var QUIZ_PATH = '/which-mahjong-tiles-are-you/';
+
+  function quizRootUrl(base) {
+    var clean = String(base).split('?')[0].split('#')[0];
+    var i = clean.indexOf(QUIZ_PATH);
+    return i === -1 ? SITE_URL : clean.slice(0, i + QUIZ_PATH.length);
+  }
+
+  // Each tile has a small page (scripts/generate-tile-pages.js) with that tile's link preview, which
+  // redirects back here with ?tile=. Sharing that page's URL is what makes previews show the tile.
   function shareUrl(base, id) {
-    return base.split('?')[0].split('#')[0] + '?tile=' + encodeURIComponent(id);
+    return quizRootUrl(base) + encodeURIComponent(id) + '/';
   }
 
   function normalizeInstagram(value) {
@@ -665,6 +675,7 @@
   function createApp(doc) {
     var $ = function (sel) { return doc.querySelector(sel); };
     var screens = ['intro', 'question', 'info', 'loading', 'result'];
+    var QUIZ_TITLE = 'Which Mahjong Tile Are You? Personality Quiz | Lucky Cat Mahjong';
     var state = loadState();
     if (getTile(state.tile)) state.tile = getTile(state.tile).id;
     var answers = [];
@@ -683,8 +694,11 @@
 
     function setUrlTile(id) {
       if (!root.history || !root.history.replaceState) return;
-      var url = id ? shareUrl(root.location.href, id) : root.location.pathname;
+      var url = id ? shareUrl(root.location.href, id) : quizRootUrl(root.location.href);
       root.history.replaceState(null, '', url);
+      // Match the title the tile's own page would have, since the URL changed without a page load.
+      var tile = getTile(id);
+      doc.title = tile ? tile.name + ': ' + tile.title + ' | Which Mahjong Tile Are You?' : QUIZ_TITLE;
     }
 
     // Fisher-Yates shuffle, so the intro shows a different random set of tiles on every visit.
@@ -1142,7 +1156,8 @@
       var params = new URLSearchParams(root.location.search);
       var shared = getTile(params.get('tile'));
       if (shared) {
-        if (params.get('tile') !== shared.id) setUrlTile(shared.id);
+        // Show the tile page's URL, so sharing from the browser's own share button gets the tile preview.
+        setUrlTile(shared.id);
         renderResult(shared, shared.id === state.tile);
         show('result');
         track('tile_quiz_view_shared', { tile: shared.id });
