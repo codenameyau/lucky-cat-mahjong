@@ -422,16 +422,16 @@
     {
       text: 'It\'s Friday night. Where are you?',
       options: [
-        { emoji: '📊', text: 'Organizing dinner for 8 (I made a group poll)', tiles: ['east-wind', 'nine-bamboo', 'south-wind'] },
-        { emoji: '🎤', text: 'K-town karaoke until 4am. No plans, all vibes.', tiles: ['summer', 'red-dragon', 'nine-character'] },
-        { emoji: '🛋️', text: 'Blanket burrito. Phone at 3%. Do not perceive me.', tiles: ['winter', 'one-dot'] },
+        { emoji: '📊', text: 'Organizing dinner for 8. I made a group poll', tiles: ['east-wind', 'nine-bamboo', 'south-wind'] },
+        { emoji: '🎤', text: 'K-town karaoke until 4am. No plans, all vibes', tiles: ['summer', 'red-dragon', 'nine-character'] },
+        { emoji: '🛋️', text: 'Blanket burrito. Phone at 3%. Do not perceive me', tiles: ['winter', 'one-dot'] },
         { emoji: '🎨', text: 'At a sip-and-paint night I found on Instagram', tiles: ['spring', 'orchid', 'chrysanthemum'] },
       ],
     },
     {
       text: 'What\'s your role in the group chat?',
       options: [
-        { emoji: '🎙️', text: 'The yapper. Voice memos and breaking news.', tiles: ['one-bamboo', 'south-wind', 'one-character'] },
+        { emoji: '🎙️', text: 'The yapper. Voice memos and breaking news', tiles: ['one-bamboo', 'south-wind', 'one-character'] },
         { emoji: '👍', text: 'Leaves it on read, hearts it 3 days later', tiles: ['north-wind', 'winter'] },
         { emoji: '🧾', text: 'Books the table and sends the Splitwise before dessert', tiles: ['nine-bamboo', 'east-wind', 'white-dragon'] },
         { emoji: '🐸', text: 'Sends reels at 3am that nobody asked for', tiles: ['nine-dot', 'summer'] },
@@ -440,19 +440,19 @@
     {
       text: 'Pick your drink order:',
       options: [
-        { emoji: '☕', text: 'Iced oat latte, extra shot. I have meetings.', tiles: ['one-character', 'nine-bamboo', 'green-dragon'] },
+        { emoji: '☕', text: 'Iced oat latte, extra shot. I have meetings', tiles: ['one-character', 'nine-bamboo', 'green-dragon'] },
         { emoji: '🧋', text: 'Boba, 100% sugar, no regrets', tiles: ['one-dot', 'autumn', 'winter'] },
-        { emoji: '🫖', text: 'Hot water. Mom said cold drinks are bad for you.', tiles: ['chrysanthemum', 'plum-blossom'] },
-        { emoji: '🍵', text: 'Ceremonial-grade matcha. I can taste the difference.', tiles: ['orchid', 'white-dragon'] },
+        { emoji: '🫖', text: 'Hot water. Mom said cold drinks are bad for you', tiles: ['chrysanthemum', 'plum-blossom'] },
+        { emoji: '🍵', text: 'Ceremonial-grade matcha. I can taste the difference', tiles: ['orchid', 'white-dragon'] },
       ],
     },
     {
       text: 'Your relationship with money is…',
       options: [
         { emoji: '📈', text: '3 side hustles and a high-yield savings account', tiles: ['green-dragon', 'nine-bamboo', 'east-wind'] },
-        { emoji: '🕯️', text: '"It\'s an investment." (It\'s a $90 candle.)', tiles: ['nine-character', 'orchid'] },
-        { emoji: '🍜', text: 'Spent it all on food. No regrets.', tiles: ['one-dot', 'summer'] },
-        { emoji: '✨', text: 'What money? I run on vibes.', tiles: ['blank-tile', 'spring', 'bamboo'] },
+        { emoji: '🕯️', text: 'A $90 candle, because "it\'s an investment"', tiles: ['nine-character', 'orchid'] },
+        { emoji: '🍜', text: 'Spent it all on food. No regrets', tiles: ['one-dot', 'summer'] },
+        { emoji: '✨', text: 'What money? I run on vibes', tiles: ['blank-tile', 'spring', 'bamboo'] },
       ],
     },
     {
@@ -477,8 +477,8 @@
       text: 'Your friends would describe you as…',
       options: [
         { emoji: '🐕', text: 'A golden retriever in human form', tiles: ['south-wind', 'one-bamboo', 'spring'] },
-        { emoji: '🧊', text: 'Intimidating… until they get to know you', tiles: ['north-wind', 'red-dragon', 'white-dragon'] },
-        { emoji: '🫶', text: 'The mom friend / unpaid therapist', tiles: ['plum-blossom', 'bamboo', 'chrysanthemum'] },
+        { emoji: '🧊', text: 'Intimidating until they get to know you', tiles: ['north-wind', 'red-dragon', 'white-dragon'] },
+        { emoji: '🫶', text: 'The mom friend and unpaid therapist', tiles: ['plum-blossom', 'bamboo', 'chrysanthemum'] },
         { emoji: '🌪️', text: 'Chaotic, but lovable', tiles: ['nine-dot', 'blank-tile', 'nine-character'] },
       ],
     },
@@ -496,8 +496,8 @@
       options: [
         { emoji: '🤳', text: 'A group selfie where I look the best', tiles: ['one-character', 'red-dragon', 'one-bamboo'] },
         { emoji: '🌇', text: 'A sunset I took 4 years ago', tiles: ['west-wind', 'autumn'] },
-        { emoji: '📵', text: 'The default one. Too many choices, so I never changed it.', tiles: ['blank-tile', 'white-dragon', 'nine-dot'] },
-        { emoji: '🪴', text: 'My pet. Or my plant. Same thing.', tiles: ['orchid', 'bamboo', 'south-wind'] },
+        { emoji: '📵', text: 'The default one. Too many choices, so I never changed it', tiles: ['blank-tile', 'white-dragon', 'nine-dot'] },
+        { emoji: '🪴', text: 'My pet. Or my plant. Same thing', tiles: ['orchid', 'bamboo', 'south-wind'] },
       ],
     },
     {
@@ -505,26 +505,26 @@
       options: [
         { emoji: '📸', text: 'Taking 300 photos for the family group chat', tiles: ['one-bamboo', 'west-wind', 'one-character'] },
         { emoji: '🀄', text: 'At the mahjong table with the uncles until 2am', tiles: ['east-wind', 'nine-bamboo', 'green-dragon'] },
-        { emoji: '🥟', text: 'In the kitchen wrapping dumplings (and eating them)', tiles: ['one-dot', 'plum-blossom', 'south-wind'] },
+        { emoji: '🥟', text: 'In the kitchen wrapping dumplings and eating half of them', tiles: ['one-dot', 'plum-blossom', 'south-wind'] },
         { emoji: '🙈', text: 'Hiding from aunties asking about my salary and love life', tiles: ['north-wind', 'winter', 'blank-tile'] },
       ],
     },
     {
       text: 'Pick your dim sum must-order:',
       options: [
-        { emoji: '🦐', text: 'Har gow. Classic, clean, perfect.', tiles: ['white-dragon', 'orchid', 'chrysanthemum'] },
-        { emoji: '🥧', text: 'Egg tarts. Sweet, golden, everyone\'s favorite.', tiles: ['autumn', 'summer', 'spring'] },
-        { emoji: '🐔', text: 'Chicken feet. Misunderstood, but iconic.', tiles: ['north-wind', 'red-dragon', 'nine-dot'] },
-        { emoji: '🛒', text: 'Whatever the cart auntie brings. All of it.', tiles: ['bamboo', 'one-dot', 'blank-tile', 'nine-character'] },
+        { emoji: '🦐', text: 'Har gow. Classic, clean, perfect', tiles: ['white-dragon', 'orchid', 'chrysanthemum'] },
+        { emoji: '🥧', text: 'Egg tarts. Sweet, golden, everyone\'s favorite', tiles: ['autumn', 'summer', 'spring'] },
+        { emoji: '🐔', text: 'Chicken feet. Misunderstood, but iconic', tiles: ['north-wind', 'red-dragon', 'nine-dot'] },
+        { emoji: '🛒', text: 'Whatever the cart auntie brings. All of it', tiles: ['bamboo', 'one-dot', 'blank-tile', 'nine-character'] },
       ],
     },
     {
       text: 'Pick a life motto:',
       options: [
-        { emoji: '🎋', text: '"Bend, don\'t break."', tiles: ['bamboo', 'plum-blossom'] },
-        { emoji: '💰', text: '"Secure the bag."', tiles: ['green-dragon', 'nine-character'] },
-        { emoji: '🤍', text: '"Less is more."', tiles: ['white-dragon', 'north-wind', 'chrysanthemum'] },
-        { emoji: '🎞️', text: '"Romanticize everything."', tiles: ['west-wind', 'autumn', 'orchid'] },
+        { emoji: '🎋', text: '"Bend, don\'t break"', tiles: ['bamboo', 'plum-blossom'] },
+        { emoji: '💰', text: '"Secure the bag"', tiles: ['green-dragon', 'nine-character'] },
+        { emoji: '🤍', text: '"Less is more"', tiles: ['white-dragon', 'north-wind', 'chrysanthemum'] },
+        { emoji: '🎞️', text: '"Romanticize everything"', tiles: ['west-wind', 'autumn', 'orchid'] },
       ],
     },
   ];
