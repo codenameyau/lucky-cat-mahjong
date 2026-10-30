@@ -154,10 +154,25 @@ describe('getTile', () => {
 });
 
 describe('shareUrl', () => {
-  it('replaces any existing query or hash with the tile', () => {
+  it('links to the tile\'s own page so previews show that tile', () => {
     assert.equal(
       quiz.shareUrl('https://luckycatmahjong.com/which-mahjong-tiles-are-you/?tile=one-dot#x', 'blank-tile'),
-      'https://luckycatmahjong.com/which-mahjong-tiles-are-you/?tile=blank-tile',
+      'https://luckycatmahjong.com/which-mahjong-tiles-are-you/blank-tile/',
     );
+    assert.equal(
+      quiz.shareUrl('http://localhost:8080/which-mahjong-tiles-are-you/red-dragon/', 'nine-dot'),
+      'http://localhost:8080/which-mahjong-tiles-are-you/nine-dot/',
+    );
+    assert.equal(quiz.shareUrl('file:///tmp/quiz.html', 'one-dot'), 'https://luckycatmahjong.com/which-mahjong-tiles-are-you/one-dot/');
+  });
+});
+
+describe('tileIdFromPath', () => {
+  it('reads the tile from a tile page path', () => {
+    assert.equal(quiz.tileIdFromPath('/which-mahjong-tiles-are-you/red-dragon/'), 'red-dragon');
+    assert.equal(quiz.tileIdFromPath('/which-mahjong-tiles-are-you/red-dragon/index.html'), 'red-dragon');
+    assert.equal(quiz.tileIdFromPath('/which-mahjong-tiles-are-you/'), null);
+    assert.equal(quiz.tileIdFromPath('/which-mahjong-tiles-are-you/index.html'), null);
+    assert.equal(quiz.tileIdFromPath('/events/'), null);
   });
 });

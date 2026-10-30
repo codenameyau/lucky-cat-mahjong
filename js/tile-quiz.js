@@ -558,8 +558,25 @@
     return best;
   }
 
+  var QUIZ_PATH = '/which-mahjong-tiles-are-you/';
+
+  function quizRootUrl(base) {
+    var clean = String(base).split('?')[0].split('#')[0];
+    var i = clean.indexOf(QUIZ_PATH);
+    return i === -1 ? SITE_URL : clean.slice(0, i + QUIZ_PATH.length);
+  }
+
+  // Each tile has its own static page (scripts/generate-tile-pages.js) so link previews show that tile.
   function shareUrl(base, id) {
-    return base.split('?')[0].split('#')[0] + '?tile=' + encodeURIComponent(id);
+    return quizRootUrl(base) + encodeURIComponent(id) + '/';
+  }
+
+  // "/which-mahjong-tiles-are-you/red-dragon/" -> "red-dragon"; null on the quiz page itself.
+  function tileIdFromPath(pathname) {
+    var i = String(pathname).indexOf(QUIZ_PATH);
+    if (i === -1) return null;
+    var rest = pathname.slice(i + QUIZ_PATH.length).replace(/\/?(index\.html)?$/, '');
+    return rest && rest.indexOf('/') === -1 ? decodeURIComponent(rest) : null;
   }
 
   function normalizeInstagram(value) {
@@ -665,6 +682,7 @@
   function createApp(doc) {
     var $ = function (sel) { return doc.querySelector(sel); };
     var screens = ['intro', 'question', 'info', 'loading', 'result'];
+    var QUIZ_TITLE = 'Which Mahjong Tile Are You? Personality Quiz | Lucky Cat Mahjong';
     var state = loadState();
     if (getTile(state.tile)) state.tile = getTile(state.tile).id;
     var answers = [];
@@ -683,8 +701,11 @@
 
     function setUrlTile(id) {
       if (!root.history || !root.history.replaceState) return;
-      var url = id ? shareUrl(root.location.href, id) : root.location.pathname;
+      var url = id ? shareUrl(root.location.href, id) : quizRootUrl(root.location.href);
       root.history.replaceState(null, '', url);
+      // Match the title the tile's own page would have, since the URL changed without a page load.
+      var tile = getTile(id);
+      doc.title = tile ? tile.name + ': ' + tile.title + ' | Which Mahjong Tile Are You?' : QUIZ_TITLE;
     }
 
     // Fisher-Yates shuffle, so the intro shows a different random set of tiles on every visit.
@@ -1140,9 +1161,9 @@
       bind();
       renderIntro();
       var params = new URLSearchParams(root.location.search);
-      var shared = getTile(params.get('tile'));
+      var shared = getTile(tileIdFromPath(root.location.pathname) || params.get('tile'));
       if (shared) {
-        if (params.get('tile') !== shared.id) setUrlTile(shared.id);
+        if (root.location.href !== shareUrl(root.location.href, shared.id)) setUrlTile(shared.id);
         renderResult(shared, shared.id === state.tile);
         show('result');
         track('tile_quiz_view_shared', { tile: shared.id });
@@ -1163,6 +1184,7 @@
     getTile: getTile,
     scoreAnswers: scoreAnswers,
     shareUrl: shareUrl,
+    tileIdFromPath: tileIdFromPath,
     normalizeInstagram: normalizeInstagram,
     isValidZip: isValidZip,
     validateProfile: validateProfile,
