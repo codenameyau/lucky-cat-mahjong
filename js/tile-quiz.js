@@ -924,38 +924,24 @@
       renderGallery(tile.id);
     }
 
-    // Other tiles' results only become browsable once this visitor has taken the quiz.
-    function hasTakenQuiz() {
-      return !!getTile(state.tile);
-    }
-
     function renderRelation(other) {
       if (!other) return '';
-      var inner = '<span class="tq-relation-art">' + art(other.id) + '</span>' +
+      return '<a class="tq-relation-link" href="' + escapeHtml(shareUrl(root.location.href, other.id)) + '">' +
+        '<span class="tq-relation-art">' + art(other.id) + '</span>' +
         '<span class="tq-relation-text"><strong>' + escapeHtml(other.name) + '</strong>' +
-        '<span class="tq-muted">' + escapeHtml(other.title) + '</span></span>';
-      return hasTakenQuiz()
-        ? '<a class="tq-relation-link" href="' + escapeHtml(shareUrl(root.location.href, other.id)) + '">' + inner + '</a>'
-        : '<div class="tq-relation-link">' + inner + '</div>';
+        '<span class="tq-muted">' + escapeHtml(other.title) + '</span></span>' +
+      '</a>';
     }
 
     function renderGallery(activeId) {
       var grid = $('#tq-gallery-grid');
       if (!grid) return;
-      // Everyone sees the whole set; tiles only open to their full reading after taking the quiz.
-      var unlocked = hasTakenQuiz();
-      $('#tq-gallery-hint').innerHTML = unlocked
-        ? 'Dragons, winds, flowers, seasons, and one very confused blank tile. Tap any tile to send it to the friend who\'s <em>exactly</em> that.'
-        : 'Dragons, winds, flowers, seasons, and one very confused blank tile. Take the quiz to find out which one you are and unlock everyone\'s full reading.';
-      grid.classList.toggle('is-locked', !unlocked);
       grid.innerHTML = TILES.map(function (t) {
         var active = t.id === activeId ? ' is-active' : '';
-        var inner = '<span class="tq-gallery-art">' + art(t.id) + '</span>' +
+        return '<li><a class="tq-gallery-item' + active + '" href="' + escapeHtml(shareUrl(root.location.href, t.id)) + '">' +
+          '<span class="tq-gallery-art">' + art(t.id) + '</span>' +
           '<span class="tq-gallery-name">' + escapeHtml(t.name) + '</span>' +
-          '<span class="tq-gallery-title">' + escapeHtml(t.title) + '</span>';
-        return unlocked
-          ? '<li><a class="tq-gallery-item' + active + '" href="' + escapeHtml(shareUrl(root.location.href, t.id)) + '">' + inner + '</a></li>'
-          : '<li><div class="tq-gallery-item">' + inner + '</div></li>';
+          '<span class="tq-gallery-title">' + escapeHtml(t.title) + '</span></a></li>';
       }).join('');
     }
 
