@@ -21,106 +21,112 @@
 
   var TILES = [
     {
-      id: 'bamboo-1',
+      id: 'one-bamboo',
       name: '1 Bamboo',
       chinese: '一索',
       title: 'The Little Birdie',
       emoji: '🐦',
-      tagline: 'Knows the tea before the kettle is even hot.',
-      description: 'Fun fact: the 1 Bamboo isn\'t bamboo at all, it\'s a bird. And honestly? Same energy. You\'re the group chat\'s unofficial news anchor, sending 4-minute voice memos that start with "okay so don\'t be mad." You don\'t gossip, you share updates. Everyone acts annoyed but they\'re refreshing their phone waiting for your next drop.',
+      tagline: 'Knows the tea before it\'s even been poured.',
+      description: 'Fun fact: the 1 Bamboo is a bird, and players literally nickname it 幺雞, "little chicken." Same energy. You\'re the group chat\'s unofficial news anchor, dropping 4-minute voice memos that start with "okay, don\'t be mad." You don\'t gossip, you share updates. Everyone acts annoyed, but they\'re refreshing their phone waiting for your next drop.',
       why: [
         'Your screen time report is a cry for help, but the content is elite',
-        'You know everyone\'s birthday, ex, and star sign',
-        'You can make a new best friend in a bathroom line in under 30 seconds',
+        'You know everyone\'s birthday, ex, and MBTI',
+        'You heard about your cousin\'s engagement before your mom did',
       ],
-      greenFlag: 'Remembers the tiny thing you mentioned once in March',
-      redFlag: '"I won\'t tell anyone" (told 3 people)',
+      greenFlag: 'Remembers the tiny thing you said once in March',
+      redFlag: '"I won\'t tell anyone" (told the whole family group chat)',
       bestie: 'south-wind',
+      enemy: 'north-wind',
     },
     {
-      id: 'bamboo-9',
+      id: 'nine-bamboo',
       name: '9 Bamboo',
       chinese: '九索',
       title: 'The Type A Icon',
       emoji: '📋',
       tagline: 'Has a Notion template for their Notion templates.',
-      description: 'Nine perfectly lined-up sticks? That\'s you before your 7am alarm even goes off. You have a five-year plan, a color-coded calendar, and a backup itinerary for the backup itinerary. Your friends call you "a lot" and then call you first the second anything goes wrong. Chaos fears you.',
+      description: 'Nine sticks, perfectly lined up? That\'s you before your 7am alarm. Five-year plan, color-coded calendar, and a backup itinerary for the backup itinerary. You\'ve Venmo-requested a friend for $3.47 and itemized the tip. People call you "a lot," then call you first the second anything goes wrong. Chaos fears you.',
       why: [
         'Your Google Calendar is a work of art (and a threat)',
-        'You\'ve typed "per my last message" and meant violence',
-        'Group trips only happen because of you',
+        'You\'ve typed "per my last email" and meant violence',
+        'Low-key your parents\' favorite. They\'ll never say it out loud.',
       ],
       greenFlag: 'Shows up 10 minutes early with snacks and a plan',
-      redFlag: 'Redoes the whole group project at 2am without telling anyone',
+      redFlag: 'Splits the hot pot bill down to who ate the extra fish balls',
       bestie: 'east-wind',
+      enemy: 'blank-tile',
     },
     {
-      id: 'character-1',
+      id: 'one-character',
       name: '1 Character',
       chinese: '一萬',
       title: 'The Main Character',
       emoji: '👑',
-      tagline: 'Walks to the bodega like it\'s the opening scene of a movie.',
-      description: 'Number one, baby. One of one. You romanticize your commute, narrate your life in your head, and have a playlist for every mood, including "walking dramatically in the rain." Some call it delusion. You call it manifesting. Either way the camera is always on you, and you are giving the people a show.',
+      tagline: 'Walks to the bodega like it\'s the opening scene of an A24 movie.',
+      description: 'Number one, baby. One of one. You romanticize your commute, narrate your life in your head, and have a playlist for every mood, including "staring out the 7 train window like it\'s a music video." Some call it delulu. You call it manifesting. Either way, the camera is always on you, and you are giving the people a show.',
       why: [
-        'Your Instagram grid has a cohesive color palette',
+        'You\'ve done a GRWM for a trip to H Mart',
         'You\'ve posed for a "candid" at least 40 times',
-        'Self-love speedrun, any%',
+        'Your camera roll has 200 photos of the same pose and you need all of them',
       ],
       greenFlag: 'Hypes yourself up AND hypes your friends up',
       redFlag: 'Every story somehow ends up being about you',
       bestie: 'red-dragon',
+      enemy: 'blank-tile',
     },
     {
-      id: 'character-9',
+      id: 'nine-character',
       name: '9 Character',
       chinese: '九萬',
       title: 'The Big Spender',
       emoji: '🛍️',
       tagline: '"It was on sale." (It was not on sale.)',
-      description: '萬 literally means ten thousand, which is roughly how many online shopping tabs you have open right now. You treat yourself, you treat your friends, you treat the barista. Your bank account is in its villain era but your vibes are immaculate. "Life\'s too short" is your entire financial strategy, and honestly it\'s working (emotionally).',
+      description: '萬 means ten thousand, which is roughly how many online shopping tabs you have open right now. You treat yourself, you treat your friends, you treat the barista. You\'ll fight three aunties for the check at dim sum, and you\'ll win. Your bank account is in its villain era, but your vibes are immaculate.',
       why: [
         'Your delivery driver knows you by name',
         'You\'ve justified a purchase with "cost per wear"',
-        'Picks up the whole bill, then Venmo requests 3 days later',
+        'You grabbed the dim sum check so fast your uncle is still mad about it',
       ],
       greenFlag: 'Generous with gifts, time, and snacks',
       redFlag: 'Your "little treat" budget has its own zip code',
       bestie: 'green-dragon',
+      enemy: 'white-dragon',
     },
     {
-      id: 'dot-1',
+      id: 'one-dot',
       name: '1 Dot',
       chinese: '一筒',
       title: 'The Snack Era',
       emoji: '🥟',
       tagline: 'Round, warm, and thinking about dumplings.',
-      description: 'The 1 Dot is basically a giant mooncake, and so are you: soft, comforting, and a little bit sweet. You plan your whole day around meals, your camera roll is 80% food, and you have never once said no to "want to split an appetizer?" People feel at home around you, probably because you always have snacks in your bag.',
+      description: 'The 1 Dot looks like the top of a mooncake, and so are you: soft, comforting, and a little bit sweet. You plan your whole day around meals, your camera roll is 80% food, and you have never once said no to "want to split something?" Like your mom, you always have snacks in your bag. Everyone feels at home around you because you feed them like it\'s your job.',
       why: [
-        'You\'ve ranked every dumpling spot within a 2-mile radius',
-        'Your love language is "I saved you the last bite"',
+        'You\'ve ranked every soup dumpling spot within a 2-mile radius',
+        'Your love language is "have you eaten yet?"',
         'You\'re the reason the group always ends up at hot pot',
       ],
       greenFlag: 'Feeds everyone. Literally everyone.',
       redFlag: 'Gets hangry and becomes a completely different person',
       bestie: 'autumn',
+      enemy: 'orchid',
     },
     {
-      id: 'dot-9',
+      id: 'nine-dot',
       name: '9 Dot',
       chinese: '九筒',
       title: 'The Overthinker',
       emoji: '🌀',
       tagline: '47 tabs open in the browser. 47 more in the brain.',
-      description: 'Nine dots, nine thoughts per second, zero chill. You\'ve rehearsed a phone call to order pizza. You re-read a text you sent four hours ago looking for "tone." But that big brain also makes you the funniest, most self-aware person in the room. Your 3am thoughts are genuinely elite content.',
+      description: 'Nine dots, nine thoughts per second, zero chill. You\'ve rehearsed a phone call to order takeout. You reread a text you sent four hours ago to check the "tone." At the mahjong table, you\'ve held the same tile for three turns because it might be someone\'s winning tile. But that big brain makes you the funniest, most self-aware person in the room. Your 3am thoughts are elite content.',
       why: [
         'You\'ve typed "haha" and deleted it 6 times',
-        'You\'ve made a plan for a scenario with a 0.01% chance of happening',
+        'You\'ve planned for a scenario with a 0.01% chance of happening',
         'Your Notes app is a museum of unhinged thoughts',
       ],
       greenFlag: 'Notices everything. Thoughtful to the core.',
       redFlag: 'Spirals for a full day if someone texts "can we talk?"',
       bestie: 'chrysanthemum',
+      enemy: 'bamboo',
     },
     {
       id: 'green-dragon',
@@ -129,49 +135,52 @@
       title: 'The Hustler',
       emoji: '💸',
       tagline: '發 means "get rich." You took that personally.',
-      description: '發 (fa) literally means prosperity, and you\'ve had a side hustle since your 3rd grade lemonade stand. A resale business, an Etsy shop, a "personal brand": you\'ve tried them all and somehow turned a profit. You manifest, you grind, you say "it\'s giving abundance." The Lucky Cat approves of your energy.',
+      description: '發 (fa) is the same 發 as in "gung hei fat choy," and you\'ve had a side hustle since flipping Pokémon cards in third grade. A resale business, a Depop, a "personal brand": you\'ve tried them all and somehow turned a profit. You manifest, you grind, you check your stocks during Lunar New Year dinner. The Lucky Cat approves.',
       why: [
         'You\'ve said "let\'s circle back" in a casual conversation',
-        'Your LinkedIn has more posts than your Instagram',
+        'Your red envelope money went straight into an index fund',
         'Low-key the luckiest person anyone knows',
       ],
       greenFlag: 'Ambitious, and makes it look fun',
       redFlag: 'Turns a friend\'s birthday dinner into a networking event',
-      bestie: 'character-9',
+      bestie: 'nine-character',
+      enemy: 'summer',
     },
     {
       id: 'red-dragon',
       name: 'Red Dragon',
       chinese: '中',
-      title: 'The It Girl',
+      title: 'The Final Boss',
       emoji: '🔥',
       tagline: 'Center of attention? It\'s literally in the name.',
-      description: '中 means "center" and "hitting the target." You walk into a room and it rearranges itself around you. Confident, competitive, and slightly dangerous at game night, you don\'t play to participate. You play to win, and then you post about it. People say you\'re intimidating; you prefer the word "iconic."',
+      description: '中 means "center," and it also means "hit the target." You do both. You walk in and the room rearranges itself around you. At the mahjong table you don\'t play to participate: you play to win, slam the winning tile, and post about it. People call you intimidating. You prefer "iconic." Even the aunties are a little scared of you.',
       why: [
         'You\'ve won an argument you were wrong in',
         'Your "just threw this on" fit took 45 minutes',
-        'Board game night ends friendships when you\'re there',
+        'You slam your winning tile so hard the whole table jumps',
       ],
       greenFlag: 'Defends your friends like it\'s an Olympic sport',
       redFlag: 'Ultra competitive. Even at Uno. Especially at Uno.',
-      bestie: 'character-1',
+      bestie: 'one-character',
+      enemy: 'bamboo',
     },
     {
       id: 'white-dragon',
       name: 'White Dragon',
       chinese: '白板',
-      title: 'The Clean Girl Aesthetic',
+      title: 'The Quiet Luxury',
       emoji: '🤍',
-      tagline: 'Quiet luxury. Loud standards.',
-      description: 'The White Dragon is a clean blue frame and absolutely nothing else: the original minimalist. Your apartment is beige, your wardrobe is a capsule, and your skincare routine has 9 steps so your makeup can look like zero. You\'re calm, curated, and a little mysterious. Nobody knows what you\'re thinking, and you like it that way.',
+      tagline: 'Beige apartment. Loud standards.',
+      description: 'The White Dragon is a clean blue frame and absolutely nothing else: the original minimalist. Your apartment is beige, your closet is a capsule, and your 10-step skincare routine exists so your face can look like zero steps. You\'re calm, curated, and a little mysterious. Nobody knows what you\'re thinking, and you like it that way.',
       why: [
         'You own at least 3 of the exact same white tee',
-        'Zero unread notifications (psychopath behavior)',
-        'You\'ve said "less is more" and actually meant it',
+        'Zero unread notifications (genuinely unhinged behavior)',
+        'Shoes off at the door, no exceptions',
       ],
       greenFlag: 'Keeps the peace and the countertops clean',
       redFlag: 'Silently judges anyone who leaves dishes in the sink',
       bestie: 'north-wind',
+      enemy: 'nine-character',
     },
     {
       id: 'east-wind',
@@ -180,15 +189,16 @@
       title: 'The Group Chat CEO',
       emoji: '🌅',
       tagline: 'The sun rises in the east. So do you, at 6am, unprompted.',
-      description: 'East Wind always goes first: the dealer, the leader, the one who rises with the sun. You\'re the friend who says "okay so who\'s booking?" and then books it. You make the plans, send the calendar invite, and remember who\'s vegetarian. Without you, the group chat is just 12 people saying "I\'m down" and nobody doing anything.',
+      description: 'In mahjong, East is the dealer, and in life you\'re the one dealing out the plans. Pure East Coast energy: you walk fast, text faster, and say "okay, so who\'s booking?" and then book it. Calendar invite sent, table for 8 secured, and you remembered who\'s vegetarian. Without you, the group chat is 12 people saying "I\'m down" and nobody doing anything.',
       why: [
         'You\'ve made a group poll for a casual dinner',
         'You wake up before your alarm and you\'re annoyingly happy about it',
-        'Natural-born leader with an unnatural amount of energy',
+        'You got a table for 10 at dim sum on a Sunday with no wait',
       ],
       greenFlag: 'Makes things actually happen',
       redFlag: 'Takes it personally when people don\'t vote in the poll',
-      bestie: 'bamboo-9',
+      bestie: 'nine-bamboo',
+      enemy: 'winter',
     },
     {
       id: 'south-wind',
@@ -197,15 +207,16 @@
       title: 'The Golden Retriever',
       emoji: '🐶',
       tagline: 'Warm breeze, warm heart, zero thoughts, all vibes.',
-      description: 'South Wind brings the warm weather, and you bring warm energy everywhere you go. You\'re the hype person, the "OMG YOU LOOK SO GOOD" commenter, the friend who greets everyone like it\'s been years (it\'s been 2 days). You could make friends with a wall, and the wall would walk away happier.',
+      description: 'South Wind brings the warm weather, and you bring warm, SoCal energy everywhere you go. You\'re the hype person, the "OMG YOU LOOK SO GOOD" commenter, the friend who greets everyone like it\'s been years (it\'s been two days). You\'d make friends with every auntie in the 99 Ranch checkout line, and every one of them would try to set you up with their kid.',
       why: [
         'You hug people you met 5 minutes ago',
         'You\'ve cried at a dog video this week',
-        'Your enthusiasm could power a small city',
+        'Aunties love you. Like, a concerning amount.',
       ],
       greenFlag: 'Everyone\'s biggest fan, no conditions',
       redFlag: 'Cannot lie. Your face gives it away instantly.',
-      bestie: 'bamboo-1',
+      bestie: 'one-bamboo',
+      enemy: 'north-wind',
     },
     {
       id: 'west-wind',
@@ -214,15 +225,16 @@
       title: 'The Sunset Romantic',
       emoji: '🌇',
       tagline: 'Golden hour is a personality, and you have it.',
-      description: 'The sun sets in the west and so does your heart, every single evening. You romanticize everything: your coffee, your commute, a mildly nice cloud. You\'ve written a poem in your Notes app about a stranger on the subway. You\'re a hopeless romantic, and honestly? It\'s working. Life looks better through your filter.',
+      description: 'The sun sets in the west and so does your heart, every single evening. You romanticize everything: your iced coffee, your commute, a mildly nice cloud. Your camera roll is 40% sunsets, and every single one is "the best one yet." You\'ve written a poem in your Notes app about a stranger at the boba shop. Hopeless romantic? Yes. Thriving? Also yes.',
       why: [
         'You\'ve stopped mid-sentence to photograph the sky',
         'Your Spotify Wrapped is just yearning',
-        'You still have a playlist for someone from 2019',
+        'You\'ve rewatched the same K-drama finale 4 times and cried every time',
       ],
       greenFlag: 'Makes ordinary days feel like a movie',
-      redFlag: 'Falls in love with anyone who holds a door open',
+      redFlag: 'Falls in love with anyone who holds the door open',
       bestie: 'orchid',
+      enemy: 'east-wind',
     },
     {
       id: 'north-wind',
@@ -231,15 +243,16 @@
       title: 'The Cool Introvert',
       emoji: '🎧',
       tagline: 'Cold exterior. Warm interior. Do not perceive me.',
-      description: 'North Wind is chilly, mysterious, and comes from somewhere far away. People think you\'re aloof, but really your social battery is at 2%. You have three close friends, noise-canceling headphones that never come off, and a dry sense of humor that absolutely destroys. Once someone gets in, they\'re lucky for life.',
+      description: 'North Wind is chilly, mysterious, and comes from somewhere far away. People think you\'re aloof, but your social battery is just at 2%. You have three close friends, AirPods that never come out, and a deadpan humor that absolutely destroys. At family parties you hide in the back room with the cousins and a phone charger. Once someone gets in, they\'re lucky for life.',
       why: [
-        'You\'ve pretended not to see someone you know in public',
+        'You\'ve pretended not to see someone you know at H Mart',
         'Your social battery has a 2-hour lifespan',
-        'Deadpan humor that sneaks up on people',
+        'Deadpan jokes that hit 10 seconds later',
       ],
       greenFlag: 'Loyal to the end (to a very select few)',
       redFlag: 'Irish exits every single party',
       bestie: 'white-dragon',
+      enemy: 'south-wind',
     },
     {
       id: 'spring',
@@ -248,7 +261,7 @@
       title: 'The Fresh Start',
       emoji: '🌸',
       tagline: 'New hobby, new me. (Again.)',
-      description: 'Spring is all about new beginnings, and you\'ve had about 47 of them this year. Pottery, run club, sourdough, crochet, learning mahjong (great choice, by the way). You\'re optimistic, curious, and always blooming into something new. Your closet is full of hobby gear, but your heart is full of joy, and that\'s what counts.',
+      description: '春 is the character people stick on their doors for Lunar New Year, and you\'re basically a walking New Year\'s resolution. Pottery, run club, crochet, sourdough, learning mahjong (great choice). You\'ve had about 47 fresh starts this year, and you\'re optimistic about every single one. The hobby gear is collecting dust, but the vibes are blooming.',
       why: [
         'You\'ve bought all the gear for a hobby you tried once',
         'Your "new era" announcements are a monthly event',
@@ -257,6 +270,7 @@
       greenFlag: 'Brings fresh energy into every room',
       redFlag: 'Your hobbies have a two-week half-life',
       bestie: 'summer',
+      enemy: 'autumn',
     },
     {
       id: 'summer',
@@ -265,15 +279,16 @@
       title: 'Out of Office',
       emoji: '😎',
       tagline: 'Hot tile summer, all year round.',
-      description: 'Summer is the season of "say yes to everything," and you live there year-round. Beach day? Yes. Spontaneous road trip? Already packed. Rooftop at 11pm on a Tuesday? Obviously. You have a tan line in November and a camera roll full of sunsets. You\'ve never experienced FOMO, because you are always there.',
+      description: 'Summer is the season of "say yes to everything," and you live there year-round. Beach day? Yes. Spontaneous road trip? Already in the car. K-town karaoke until 4am on a Tuesday? Obviously. You have a tan line in November and a camera roll full of sunsets. You\'ve never experienced FOMO, because you are always there.',
       why: [
         'You\'ve booked a flight on a whim',
-        'Your camera roll is 90% sunsets and spritzes',
+        'You know which karaoke room has the best tambourine',
         'You have never once left a party early',
       ],
       greenFlag: 'The most fun person in any room',
       redFlag: 'Replies to texts from a different time zone',
       bestie: 'spring',
+      enemy: 'winter',
     },
     {
       id: 'autumn',
@@ -282,15 +297,16 @@
       title: 'The Cozy Era',
       emoji: '🍂',
       tagline: 'Oversized sweater, warm drink, candle lit. Always.',
-      description: 'Autumn is your whole aesthetic: chunky knits, journaling at a café, a candle named something like "Cashmere Woods" burning at all times. You\'re soft, sentimental, and the friend who says "let\'s just stay in and do a puzzle." It\'s giving cottagecore with Wi-Fi, and you are so comforting to be around.',
+      description: 'Autumn is your whole aesthetic: chunky knits, journaling at a café, and a candle called something like "Cashmere Woods" burning 24/7. Mid-Autumn Festival is your Super Bowl: lanterns, mooncakes, and 40 blurry photos of the moon. You\'re soft, sentimental, and always the first to say "let\'s just stay in and do a puzzle." It\'s giving cottagecore with Wi-Fi.',
       why: [
         'You own more blankets than plates',
         'You start decorating for fall in August',
-        'You\'ve rewatched your comfort show more than five times',
+        'You have a strong opinion on lotus seed vs. red bean mooncakes',
       ],
       greenFlag: 'Makes everyone feel safe and cozy',
       redFlag: 'Will not leave the house if it\'s under 60°F',
-      bestie: 'dot-1',
+      bestie: 'one-dot',
+      enemy: 'spring',
     },
     {
       id: 'winter',
@@ -299,32 +315,34 @@
       title: 'The Hibernator',
       emoji: '😴',
       tagline: 'Canceled plans are my love language.',
-      description: 'Winter is here, and so are your blankets. You are a professional homebody, a certified blanket burrito, and a world-class napper. When plans get canceled you feel a joy so pure it should be illegal. But when you do show up? Everyone\'s thrilled, because you\'re cozy, chill, and you bring the best snacks to hot pot.',
+      description: 'Winter is here, and so are your blankets. You\'re a professional homebody, a certified blanket burrito, and a world-class napper. House slippers are a lifestyle. When plans get canceled you feel a joy so pure it should be illegal. But when you do show up for hot pot night, everyone\'s thrilled, because you\'re cozy, chill, and you bring the good snacks.',
       why: [
         'Your bed is your office, dining room, and therapist',
-        'You\'ve said "on my way!" while still in pajamas',
-        'Peak performance hours: 11pm to 3am',
+        'You\'ve texted "omw!" while still in pajamas',
+        'You own a heated blanket, a rice cooker, and no intention of leaving',
       ],
       greenFlag: 'Zero drama, ultra low-maintenance friend',
       redFlag: 'Do Not Disturb has been on since 2022',
       bestie: 'chrysanthemum',
+      enemy: 'summer',
     },
     {
-      id: 'plum',
+      id: 'plum-blossom',
       name: 'Plum Blossom',
       chinese: '梅',
       title: 'The Comeback Kid',
       emoji: '🌺',
       tagline: 'Blooms in the snow. Unbothered. Moisturized.',
-      description: 'The plum blossom is the first flower to bloom in the dead of winter, and that\'s you: you\'ve been through it and came out glowing. You\'re the friend everyone calls in a crisis, the group\'s unpaid therapist, and somehow still smiling. You don\'t just bounce back. You bounce back with a new haircut.',
+      description: 'The plum blossom blooms in the dead of winter, which is why it\'s a classic Chinese symbol of resilience. That\'s you: you\'ve been through it and came out glowing. You\'re the friend everyone calls in a crisis, the group\'s unpaid therapist, and somehow still smiling. You don\'t just bounce back. You bounce back with a new haircut and a 30-day gym streak.',
       why: [
         'You\'ve given life-changing advice while your own life was on fire',
         'Your glow-up arc is legendary',
-        'Rejection? Redirection, bestie',
+        'Survived "why not 100%?" and turned out great',
       ],
       greenFlag: 'Strong, steady, and always there for people',
       redFlag: 'Says "I\'m fine" while clearly in a season finale',
-      bestie: 'bamboo-flower',
+      bestie: 'bamboo',
+      enemy: 'one-character',
     },
     {
       id: 'orchid',
@@ -333,7 +351,7 @@
       title: 'The Elegant One',
       emoji: '🪷',
       tagline: 'Not high maintenance. Highly curated.',
-      description: 'Orchids are graceful, refined, and need very specific conditions to thrive. Sounds about right. You have taste: in music, in food, in restaurants nobody has heard of yet. You\'re a plant parent, a matcha connoisseur, and you somehow always smell amazing. People think you\'re fancy. You are. You\'ve earned it.',
+      description: 'Orchids are graceful, refined, and need very specific conditions to thrive. Sounds about right. You have taste: in music, in food, in restaurants nobody\'s heard of yet. You\'re a plant parent, a matcha snob, and you somehow always smell amazing. Basically, you\'re the orchid on your mom\'s windowsill that\'s been alive since 2009: elegant, a little dramatic, and low-key indestructible.',
       why: [
         'You have opinions about the water temperature for tea',
         'Your plants have names and birthdays',
@@ -342,6 +360,7 @@
       greenFlag: 'Elevates every hangout with impeccable taste',
       redFlag: 'Won\'t eat anywhere under 4.5 stars',
       bestie: 'west-wind',
+      enemy: 'one-dot',
     },
     {
       id: 'chrysanthemum',
@@ -350,24 +369,25 @@
       title: 'The Old Soul',
       emoji: '🍵',
       tagline: '24 going on 84.',
-      description: 'Chrysanthemums stand for long life, and you\'ve basically lived several already. You love tea, crosswords, gardening, and being in bed by 9:30pm. You give advice like the wise grandma in a kung fu movie, and nobody knows how you know so much. You\'re calm, wise, and frankly the reason your friend group hasn\'t fallen apart.',
+      description: 'Chrysanthemums stand for long life, and you\'ve basically lived several already. You order chrysanthemum tea at dim sum unironically, do the crossword, and are in bed by 9:30pm. Your cure for everything is "drink more hot water." You give advice like the wise grandma in a kung fu movie, and nobody knows how you know so much. Your friend group would have fallen apart without you.',
       why: [
         'You\'ve said "kids these days" unironically',
-        'You own a cardigan for every occasion',
+        'Your medical advice is hot water and going to bed early',
         'Your idea of a wild night is a new 1,000-piece puzzle',
       ],
       greenFlag: 'Wise beyond your years and great at advice',
       redFlag: 'Goes to bed before the party even starts',
-      bestie: 'dot-9',
+      bestie: 'nine-dot',
+      enemy: 'summer',
     },
     {
-      id: 'bamboo-flower',
+      id: 'bamboo',
       name: 'Bamboo',
       chinese: '竹',
       title: 'The Go-With-The-Flow',
       emoji: '🐼',
       tagline: 'Bends, never breaks. Also low-key a panda.',
-      description: 'Bamboo sways in the wind and never snaps, and you\'re just as chill. Plans changed? Cool. Two-hour wait at the restaurant? We\'ll find another one. You\'re adaptable, easygoing, and the most peaceful presence in any group. Pandas would trust you. Your friends definitely do.',
+      description: 'Bamboo sways in the wind and never snaps, and you\'re just as chill. Plans changed? Cool. Two-hour wait at the dim sum spot? We\'ll find another one. You\'re the lucky bamboo from the Chinatown florist: low-maintenance, good vibes, and somehow always thriving. Pandas would trust you. Your friends definitely do.',
       why: [
         'Your answer to "where do you want to eat?" is a genuine "anything!"',
         'You have never once stressed about running late',
@@ -375,24 +395,26 @@
       ],
       greenFlag: 'Unshakeable calm in any storm',
       redFlag: 'Cannot make a decision to save your life',
-      bestie: 'plum',
+      bestie: 'plum-blossom',
+      enemy: 'red-dragon',
     },
     {
-      id: 'blank',
+      id: 'blank-tile',
       name: 'Blank Tile',
       chinese: '空白',
       title: 'The Spare',
       emoji: '🫥',
       tagline: 'Wasn\'t supposed to be in the box. Showed up anyway.',
-      description: 'Plot twist: you\'re the blank tile. The spare. The "wait, what\'s this one for?" Grandma uses you to replace the tile she lost in 1997. You have no suit, no number, no rules, and you are thriving. You\'re unpredictable, unbothered, and a total wildcard. Nobody knows what you\'ll do next, including you.',
+      description: 'Plot twist: you\'re the blank tile. The spare. The "wait, what\'s this one for?" Your grandma uses you to replace the tile she lost in 1997. You have no suit, no number, no rules, and you are thriving. Unpredictable, unbothered, a total wildcard. Nobody knows what you\'re going to do next, including you.',
       why: [
         'You\'ve shown up to a party without knowing whose party it was',
         'Your vibe is "loading…" and somehow it works',
-        'You can literally be anything. True wildcard energy.',
+        'You show up to Lunar New Year empty-handed and still get the biggest red envelope',
       ],
       greenFlag: 'Fits in anywhere, gets along with everyone',
       redFlag: 'Your five-year plan is a shrug emoji',
-      bestie: 'dot-9',
+      bestie: 'nine-dot',
+      enemy: 'nine-bamboo',
     },
   ];
 
@@ -400,89 +422,107 @@
     {
       text: 'It\'s Friday night. Where are you?',
       options: [
-        { emoji: '📊', text: 'Organizing dinner for 8 (I made a group poll)', tiles: ['east-wind', 'bamboo-9', 'south-wind'] },
-        { emoji: '🪩', text: 'Out until sunrise. No plans, all vibes.', tiles: ['summer', 'red-dragon', 'character-9'] },
-        { emoji: '🛋️', text: 'Blanket burrito. Phone at 3%. Do not perceive me.', tiles: ['winter', 'dot-1'] },
+        { emoji: '📊', text: 'Organizing dinner for 8 (I made a group poll)', tiles: ['east-wind', 'nine-bamboo', 'south-wind'] },
+        { emoji: '🎤', text: 'K-town karaoke until 4am. No plans, all vibes.', tiles: ['summer', 'red-dragon', 'nine-character'] },
+        { emoji: '🛋️', text: 'Blanket burrito. Phone at 3%. Do not perceive me.', tiles: ['winter', 'one-dot'] },
         { emoji: '🏺', text: 'At the pottery class I found on TikTok yesterday', tiles: ['spring', 'orchid', 'chrysanthemum'] },
       ],
     },
     {
       text: 'What\'s your role in the group chat?',
       options: [
-        { emoji: '🎙️', text: 'The yapper. Voice memos and breaking news.', tiles: ['bamboo-1', 'south-wind', 'character-1'] },
-        { emoji: '👍', text: 'Leaves it on read, thumbs-ups it 3 days later', tiles: ['north-wind', 'winter'] },
-        { emoji: '🗂️', text: 'Drops the Google Doc itinerary', tiles: ['bamboo-9', 'east-wind', 'white-dragon'] },
-        { emoji: '🐸', text: 'Sends memes at 3am that nobody asked for', tiles: ['dot-9', 'summer'] },
+        { emoji: '🎙️', text: 'The yapper. Voice memos and breaking news.', tiles: ['one-bamboo', 'south-wind', 'one-character'] },
+        { emoji: '👍', text: 'Leaves it on read, hearts it 3 days later', tiles: ['north-wind', 'winter'] },
+        { emoji: '🗂️', text: 'Drops the Google Doc itinerary', tiles: ['nine-bamboo', 'east-wind', 'white-dragon'] },
+        { emoji: '🐸', text: 'Sends memes at 3am that nobody asked for', tiles: ['nine-dot', 'summer'] },
       ],
     },
     {
       text: 'Pick your drink order:',
       options: [
-        { emoji: '☕', text: 'Iced oat latte, extra shot. I\'m busy.', tiles: ['character-1', 'bamboo-9', 'green-dragon'] },
-        { emoji: '🧋', text: 'Brown sugar boba, 100% sweet', tiles: ['dot-1', 'autumn', 'winter'] },
-        { emoji: '🍵', text: 'Loose-leaf tea, brewed at exactly 80°C', tiles: ['chrysanthemum', 'plum', 'orchid'] },
-        { emoji: '💧', text: 'Water. Room temperature.', tiles: ['white-dragon', 'blank'] },
+        { emoji: '☕', text: 'Iced oat latte, extra shot. I have meetings.', tiles: ['one-character', 'nine-bamboo', 'green-dragon'] },
+        { emoji: '🧋', text: 'Brown sugar boba, 100% sugar, no regrets', tiles: ['one-dot', 'autumn', 'winter'] },
+        { emoji: '🫖', text: 'Hot water. Mom said cold drinks are bad for you.', tiles: ['chrysanthemum', 'plum-blossom'] },
+        { emoji: '🍵', text: 'Ceremonial-grade matcha. I can taste the difference.', tiles: ['orchid', 'white-dragon'] },
       ],
     },
     {
       text: 'Your relationship with money is…',
       options: [
-        { emoji: '📈', text: '3 side hustles and a high-yield savings account', tiles: ['green-dragon', 'bamboo-9', 'east-wind'] },
-        { emoji: '🕯️', text: '"It\'s an investment." (It\'s a $90 candle.)', tiles: ['character-9', 'orchid'] },
-        { emoji: '🍜', text: 'Spent it all on food. No regrets.', tiles: ['dot-1', 'summer'] },
-        { emoji: '✨', text: 'What money? I run on vibes.', tiles: ['blank', 'spring', 'bamboo-flower'] },
+        { emoji: '📈', text: '3 side hustles and a high-yield savings account', tiles: ['green-dragon', 'nine-bamboo', 'east-wind'] },
+        { emoji: '🕯️', text: '"It\'s an investment." (It\'s a $90 candle.)', tiles: ['nine-character', 'orchid'] },
+        { emoji: '🍜', text: 'Spent it all on food. No regrets.', tiles: ['one-dot', 'summer'] },
+        { emoji: '✨', text: 'What money? I run on vibes.', tiles: ['blank-tile', 'spring', 'bamboo'] },
       ],
     },
     {
       text: 'Be honest. Your toxic trait is…',
       options: [
-        { emoji: '📱', text: 'Overthinking a text for 45 minutes', tiles: ['dot-9', 'west-wind'] },
+        { emoji: '📱', text: 'Overthinking a text for 45 minutes', tiles: ['nine-dot', 'west-wind'] },
         { emoji: '🏆', text: 'Turning everything into a competition', tiles: ['red-dragon', 'green-dragon', 'east-wind'] },
-        { emoji: '🎬', text: 'Main-charactering on the subway with headphones in', tiles: ['character-1', 'west-wind', 'summer'] },
+        { emoji: '🎬', text: 'Main-charactering on the subway with my headphones in', tiles: ['one-character', 'west-wind', 'summer'] },
         { emoji: '🙅', text: 'Canceling plans and feeling zero guilt', tiles: ['winter', 'north-wind'] },
       ],
     },
     {
       text: 'Pick a season to live in forever:',
       options: [
-        { emoji: '🌸', text: 'Cherry blossoms and fresh starts', tiles: ['spring', 'plum', 'bamboo-1', 'east-wind'] },
+        { emoji: '🌸', text: 'Cherry blossoms and fresh starts', tiles: ['spring', 'plum-blossom', 'one-bamboo', 'east-wind'] },
         { emoji: '🏖️', text: 'Beach days and sunburns', tiles: ['summer', 'south-wind'] },
         { emoji: '🍂', text: 'Sweater weather and journaling', tiles: ['autumn', 'west-wind', 'chrysanthemum'] },
-        { emoji: '❄️', text: 'Snow days and hot pot', tiles: ['winter', 'north-wind', 'plum', 'dot-1'] },
+        { emoji: '❄️', text: 'Snow days and hot pot', tiles: ['winter', 'plum-blossom'] },
       ],
     },
     {
       text: 'Your friends would describe you as…',
       options: [
-        { emoji: '🐕', text: 'A golden retriever in human form', tiles: ['south-wind', 'bamboo-1', 'spring'] },
+        { emoji: '🐕', text: 'A golden retriever in human form', tiles: ['south-wind', 'one-bamboo', 'spring'] },
         { emoji: '🧊', text: 'Intimidating… until they get to know you', tiles: ['north-wind', 'red-dragon', 'white-dragon'] },
-        { emoji: '🫶', text: 'The mom friend / unpaid therapist', tiles: ['plum', 'bamboo-flower', 'chrysanthemum'] },
-        { emoji: '🌪️', text: 'Chaotic, but lovable', tiles: ['dot-9', 'blank', 'character-9'] },
+        { emoji: '🫶', text: 'The mom friend / unpaid therapist', tiles: ['plum-blossom', 'bamboo', 'chrysanthemum'] },
+        { emoji: '🌪️', text: 'Chaotic, but lovable', tiles: ['nine-dot', 'blank-tile', 'nine-character'] },
       ],
     },
     {
       text: 'At the mahjong table, you\'re…',
       options: [
-        { emoji: '🐉', text: 'Going for the biggest, flashiest hand every time', tiles: ['character-9', 'red-dragon', 'character-1'] },
-        { emoji: '🧮', text: 'Counting every tile like a human spreadsheet', tiles: ['bamboo-9', 'dot-9', 'green-dragon'] },
-        { emoji: '🥟', text: 'Mostly here for the snacks and the gossip', tiles: ['dot-1', 'bamboo-1', 'autumn'] },
-        { emoji: '🍀', text: 'Somehow winning without knowing the rules', tiles: ['blank', 'bamboo-flower', 'spring'] },
+        { emoji: '🐉', text: 'Going for Thirteen Orphans every single game', tiles: ['nine-character', 'red-dragon', 'one-character'] },
+        { emoji: '🧮', text: 'Counting faan in my head before I\'ve even won', tiles: ['nine-bamboo', 'nine-dot', 'green-dragon'] },
+        { emoji: '🥟', text: 'Mostly here for the snacks and the gossip', tiles: ['one-dot', 'one-bamboo', 'autumn'] },
+        { emoji: '🍀', text: 'Winning on beginner\'s luck with no idea how', tiles: ['blank-tile', 'bamboo', 'spring'] },
       ],
     },
     {
       text: 'What\'s on your phone lock screen?',
       options: [
-        { emoji: '🤳', text: 'A group selfie where I look the best', tiles: ['character-1', 'red-dragon', 'bamboo-1'] },
+        { emoji: '🤳', text: 'A group selfie where I look the best', tiles: ['one-character', 'red-dragon', 'one-bamboo'] },
         { emoji: '🌇', text: 'A sunset I took 4 years ago', tiles: ['west-wind', 'autumn'] },
-        { emoji: '📵', text: 'The default one. Too many choices, so I never changed it.', tiles: ['blank', 'white-dragon', 'dot-9'] },
-        { emoji: '🪴', text: 'My pet. Or my plant. Same thing.', tiles: ['orchid', 'bamboo-flower', 'south-wind'] },
+        { emoji: '📵', text: 'The default one. Too many choices, so I never changed it.', tiles: ['blank-tile', 'white-dragon', 'nine-dot'] },
+        { emoji: '🪴', text: 'My pet. Or my plant. Same thing.', tiles: ['orchid', 'bamboo', 'south-wind'] },
+      ],
+    },
+    {
+      text: 'Lunar New Year at the family\'s. You\'re…',
+      options: [
+        { emoji: '📸', text: 'Taking 300 photos for the family group chat', tiles: ['one-bamboo', 'west-wind', 'one-character'] },
+        { emoji: '🀄', text: 'At the mahjong table with the uncles until 2am', tiles: ['east-wind', 'nine-bamboo', 'green-dragon'] },
+        { emoji: '🥟', text: 'In the kitchen wrapping dumplings (and eating them)', tiles: ['one-dot', 'plum-blossom', 'south-wind'] },
+        { emoji: '🙈', text: 'Hiding from aunties asking about my salary and love life', tiles: ['north-wind', 'winter', 'blank-tile'] },
+      ],
+    },
+    {
+      text: 'Pick your dim sum must-order:',
+      options: [
+        { emoji: '🦐', text: 'Har gow. Classic, clean, perfect.', tiles: ['white-dragon', 'orchid', 'chrysanthemum'] },
+        { emoji: '🥧', text: 'Egg tarts. Sweet, golden, everyone\'s favorite.', tiles: ['autumn', 'summer', 'spring'] },
+        { emoji: '🐔', text: 'Chicken feet. Misunderstood, but iconic.', tiles: ['north-wind', 'red-dragon', 'nine-dot'] },
+        { emoji: '🛒', text: 'Whatever the cart auntie brings. All of it.', tiles: ['bamboo', 'one-dot', 'blank-tile', 'nine-character'] },
       ],
     },
     {
       text: 'Pick a life motto:',
       options: [
-        { emoji: '🎋', text: '"Bend, don\'t break."', tiles: ['bamboo-flower', 'plum'] },
-        { emoji: '💰', text: '"Secure the bag."', tiles: ['green-dragon', 'character-9'] },
+        { emoji: '🎋', text: '"Bend, don\'t break."', tiles: ['bamboo', 'plum-blossom'] },
+        { emoji: '💰', text: '"Secure the bag."', tiles: ['green-dragon', 'nine-character'] },
         { emoji: '🤍', text: '"Less is more."', tiles: ['white-dragon', 'north-wind', 'chrysanthemum'] },
         { emoji: '🎞️', text: '"Romanticize everything."', tiles: ['west-wind', 'autumn', 'orchid'] },
       ],
@@ -492,8 +532,21 @@
   var TILE_MAP = {};
   TILES.forEach(function (t) { TILE_MAP[t.id] = t; });
 
+  // IDs used before the descriptive slugs; links with these were already shared, so keep them working.
+  var LEGACY_TILE_IDS = {
+    'bamboo-1': 'one-bamboo',
+    'bamboo-9': 'nine-bamboo',
+    'character-1': 'one-character',
+    'character-9': 'nine-character',
+    'dot-1': 'one-dot',
+    'dot-9': 'nine-dot',
+    'plum': 'plum-blossom',
+    'bamboo-flower': 'bamboo',
+    'blank': 'blank-tile',
+  };
+
   function getTile(id) {
-    return TILE_MAP[id] || null;
+    return TILE_MAP[id] || TILE_MAP[LEGACY_TILE_IDS[id]] || null;
   }
 
   function hash(str) {
@@ -618,6 +671,7 @@
     var $ = function (sel) { return doc.querySelector(sel); };
     var screens = ['intro', 'question', 'info', 'loading', 'result'];
     var state = loadState();
+    if (getTile(state.tile)) state.tile = getTile(state.tile).id;
     var answers = [];
     var current = 0;
     var resultTile = null;
@@ -638,14 +692,27 @@
       root.history.replaceState(null, '', url);
     }
 
+    // Fisher-Yates shuffle, so the intro shows a different random set of tiles on every visit.
+    function shuffle(list) {
+      var copy = list.slice();
+      for (var i = copy.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = copy[i];
+        copy[i] = copy[j];
+        copy[j] = tmp;
+      }
+      return copy;
+    }
+
     function renderIntro() {
-      var parade = ['character-1', 'red-dragon', 'spring', 'bamboo-1', 'blank'];
+      // The blank tile stays a surprise; the intro copy only hints at it.
+      var parade = shuffle(TILES.map(function (t) { return t.id; }).filter(function (id) { return id !== 'blank-tile'; })).slice(0, 3);
       $('#tq-parade').innerHTML = parade.map(function (id, i) {
         return '<div class="tq-parade-tile" style="--i:' + i + '">' + art(id) + '</div>';
       }).join('');
 
       var note = $('#tq-returning');
-      var mine = state.tile && getTile(state.tile);
+      var mine = getTile(state.tile);
       if (mine) {
         note.innerHTML = 'Last time you were the <a href="' + escapeHtml(shareUrl(root.location.href, mine.id)) + '">' +
           escapeHtml(mine.name) + '</a>. Let\'s see if that\'s still true.';
@@ -804,26 +871,35 @@
       $('#tq-result-green').textContent = tile.greenFlag;
       $('#tq-result-red').textContent = tile.redFlag;
 
-      var bestie = getTile(tile.bestie);
-      $('#tq-result-bestie').innerHTML = bestie ? (
-        '<a class="tq-bestie-link" href="' + escapeHtml(shareUrl(root.location.href, bestie.id)) + '">' +
-          '<span class="tq-bestie-art">' + art(bestie.id) + '</span>' +
-          '<span><strong>' + escapeHtml(bestie.name) + '</strong><br><span class="tq-muted">' + escapeHtml(bestie.title) + '</span></span>' +
-        '</a>'
-      ) : '';
+      $('#tq-result-bestie').innerHTML = renderRelation(getTile(tile.bestie));
+      $('#tq-result-enemy').innerHTML = renderRelation(getTile(tile.enemy));
 
-      $('#tq-retake').textContent = isMine ? 'Retake the quiz' : 'Which tile are you? Take the quiz';
-      $('#tq-retake').classList.toggle('btn-primary', !isMine);
-      $('#tq-retake').classList.toggle('btn-outline', isMine);
       $('#tq-share-heading').textContent = isMine ? 'Share your tile' : 'Send this to the friend who\'s a ' + tile.name;
       card.setAttribute('data-mine', isMine ? 'true' : 'false');
       resultTile = tile;
       renderGallery(tile.id);
     }
 
+    // Other tiles' results only become browsable once this visitor has taken the quiz.
+    function hasTakenQuiz() {
+      return !!getTile(state.tile);
+    }
+
+    function renderRelation(other) {
+      if (!other) return '';
+      var inner = '<span class="tq-relation-art">' + art(other.id) + '</span>' +
+        '<span class="tq-relation-text"><strong>' + escapeHtml(other.name) + '</strong>' +
+        '<span class="tq-muted">' + escapeHtml(other.title) + '</span></span>';
+      return hasTakenQuiz()
+        ? '<a class="tq-relation-link" href="' + escapeHtml(shareUrl(root.location.href, other.id)) + '">' + inner + '</a>'
+        : '<div class="tq-relation-link">' + inner + '</div>';
+    }
+
     function renderGallery(activeId) {
       var grid = $('#tq-gallery-grid');
       if (!grid) return;
+      $('#tq-gallery').hidden = !hasTakenQuiz();
+      if (!hasTakenQuiz()) return;
       grid.innerHTML = TILES.map(function (t) {
         var active = t.id === activeId ? ' is-active' : '';
         return '<li><a class="tq-gallery-item' + active + '" href="' + escapeHtml(shareUrl(root.location.href, t.id)) + '">' +
@@ -874,14 +950,13 @@
     }
 
     function wrapLines(ctx, text, maxWidth) {
-      var words = text.split(' ');
       var lines = [];
       var line = '';
-      words.forEach(function (w) {
-        var test = line ? line + ' ' + w : w;
-        if (ctx.measureText(test).width > maxWidth && line) {
+      text.split(' ').forEach(function (word) {
+        var test = line ? line + ' ' + word : word;
+        if (line && ctx.measureText(test).width > maxWidth) {
           lines.push(line);
-          line = w;
+          line = word;
         } else {
           line = test;
         }
@@ -890,81 +965,111 @@
       return lines;
     }
 
+    function loadSvgImage(svg) {
+      return new Promise(function (resolve, reject) {
+        var img = new Image();
+        img.onload = function () { resolve(img); };
+        img.onerror = reject;
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+      });
+    }
+
+    // Instagram portrait (1080x1350, 4:5) card: tile art, name, title, tagline and the full description.
     function buildShareImage(tile) {
       var W = 1080;
       var H = 1350;
+      var PAD = 80;
       var color = root.LuckyCatTileArt.colorFor(tile.id);
+      var heading = '"KN Yuanmo SC", "PingFang SC", sans-serif';
+      var body = '"Avenir Next", Avenir, -apple-system, "Segoe UI", sans-serif';
       var canvas = doc.createElement('canvas');
       canvas.width = W;
       canvas.height = H;
       var ctx = canvas.getContext('2d');
-      var heading = '"KN Yuanmo SC", "PingFang SC", sans-serif';
-      var body = '"Avenir Next", Avenir, -apple-system, "Segoe UI", sans-serif';
+      var fontsReady = doc.fonts && doc.fonts.load
+        ? doc.fonts.load('64px "KN Yuanmo SC"').catch(function () {})
+        : Promise.resolve();
 
-      ctx.fillStyle = '#FFF8F0';
-      ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.18;
-      ctx.beginPath();
-      ctx.arc(W / 2, 580, 420, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = color;
-      ctx.fillRect(0, 0, W, 18);
-      ctx.fillRect(0, H - 18, W, 18);
+      return Promise.all([fontsReady, loadSvgImage(root.LuckyCatTileArt.render(tile.id, { width: 300 }))]).then(function (loaded) {
+        var img = loaded[1];
 
-      var svg = root.LuckyCatTileArt.render(tile.id, { width: 480 });
-      var img = new Image();
-      var fontsReady = doc.fonts && doc.fonts.load ? doc.fonts.load('64px "KN Yuanmo SC"').catch(function () {}) : Promise.resolve();
+        ctx.fillStyle = '#FFF8F0';
+        ctx.fillRect(0, 0, W, H);
+        ctx.globalAlpha = 0.16;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(W / 2, 480, 230, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillRect(0, 0, W, 16);
+        ctx.fillRect(0, H - 16, W, 16);
 
-      return fontsReady.then(function () {
-        return new Promise(function (resolve, reject) {
-          img.onload = resolve;
-          img.onerror = reject;
-          img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
-        });
-      }).then(function () {
         ctx.textAlign = 'center';
         ctx.fillStyle = '#5C5C5C';
-        ctx.font = '600 44px ' + body;
-        ctx.fillText('I\'m the', W / 2, 120);
-        ctx.fillStyle = '#C41E3A';
-        ctx.font = '96px ' + heading;
-        ctx.fillText(tile.name + ' ' + tile.chinese, W / 2, 222);
-
-        ctx.drawImage(img, W / 2 - 240, 262, 480, 600);
-
+        ctx.font = '600 38px ' + body;
+        ctx.fillText('I\'m the', W / 2, 96);
+        var nameText = tile.name + ' ' + tile.chinese;
+        var nameSize = 88;
+        do {
+          ctx.font = nameSize + 'px ' + heading;
+          nameSize -= 4;
+        } while (ctx.measureText(nameText).width > W - PAD * 2 && nameSize > 48);
+        ctx.fillStyle = color;
+        ctx.fillText(nameText, W / 2, 188);
         ctx.fillStyle = '#1A1A1A';
-        ctx.font = '64px ' + heading;
-        ctx.fillText(tile.title, W / 2, 940);
+        ctx.font = '48px ' + heading;
+        ctx.fillText(tile.emoji + ' ' + tile.title, W / 2, 258);
 
-        ctx.fillStyle = '#5C5C5C';
-        ctx.font = '600 40px ' + body;
-        wrapLines(ctx, tile.tagline, 880).slice(0, 3).forEach(function (line, i) {
-          ctx.fillText(line, W / 2, 1012 + i * 54);
+        ctx.drawImage(img, W / 2 - 150, 290, 300, 375);
+
+        var y = 735;
+        ctx.fillStyle = '#1A1A1A';
+        ctx.font = '700 38px ' + body;
+        wrapLines(ctx, tile.tagline, W - PAD * 2).forEach(function (line) {
+          ctx.fillText(line, W / 2, y);
+          y += 50;
         });
 
+        // Shrink the description until it fits above the footer.
+        var maxBottom = 1195;
+        var size = 32;
+        var lines;
+        do {
+          ctx.font = '500 ' + size + 'px ' + body;
+          lines = wrapLines(ctx, tile.description, W - PAD * 2);
+          size -= 2;
+        } while (y + 14 + lines.length * (size + 2) * 1.4 > maxBottom && size > 22);
+        var lineHeight = (size + 2) * 1.4;
+        y += 14;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#3D3D3D';
+        lines.forEach(function (line) {
+          y += lineHeight;
+          ctx.fillText(line, PAD, y);
+        });
+
+        ctx.textAlign = 'center';
         ctx.fillStyle = color;
-        ctx.font = '48px ' + heading;
-        ctx.fillText('Which mahjong tile are you?', W / 2, 1200);
+        ctx.font = '44px ' + heading;
+        ctx.fillText('Which mahjong tile are you?', W / 2, 1262);
         ctx.fillStyle = '#5C5C5C';
-        ctx.font = '600 34px ' + body;
-        ctx.fillText('luckycatmahjong.com 🐱', W / 2, 1260);
+        ctx.font = '600 30px ' + body;
+        ctx.fillText('luckycatmahjong.com', W / 2, 1310);
 
         return new Promise(function (resolve) { canvas.toBlob(resolve, 'image/png'); });
       });
     }
 
-    function saveImage() {
+    function downloadImage() {
       var tile = resultTile;
-      var button = $('#tq-save-image');
+      var button = $('#tq-download');
       button.disabled = true;
       buildShareImage(tile).then(function (blob) {
-        var filename = 'i-am-the-' + tile.id + '-mahjong-tile.png';
+        var filename = 'lucky-cat-mahjong-' + tile.id + '.png';
         var file = typeof File === 'function' ? new File([blob], filename, { type: 'image/png' }) : null;
-        if (file && root.navigator.canShare && root.navigator.canShare({ files: [file] })) {
-          return root.navigator.share({ files: [file], title: tile.name, text: shareText(tile, true) + '\n' + currentShareUrl() })
-            .catch(function () {});
+        // Phones: the share sheet's "Save Image" puts it in the camera roll, ready for a story.
+        if (file && root.navigator.canShare && root.navigator.canShare({ files: [file] }) && /Mobi|Android|iPhone|iPad/i.test(root.navigator.userAgent)) {
+          return root.navigator.share({ files: [file], title: tile.name }).catch(function () {});
         }
         var a = doc.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -973,7 +1078,7 @@
         a.click();
         a.remove();
         setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
-        toast('Saved! Perfect for your story 📸');
+        toast('Downloaded! Perfect for your story 📸');
       }).catch(function () {
         toast('Couldn\'t make the image. Try a screenshot instead!');
       }).then(function () {
@@ -995,11 +1100,9 @@
         renderQuestion();
         show('question');
       });
-      $('#tq-retake').addEventListener('click', startQuiz);
+      $('#tq-download').addEventListener('click', downloadImage);
       $('#tq-hero-cta').addEventListener('click', startQuiz);
       $('#tq-share').addEventListener('click', shareLink);
-      $('#tq-copy').addEventListener('click', copyLink);
-      $('#tq-save-image').addEventListener('click', saveImage);
     }
 
     function init() {
@@ -1008,6 +1111,7 @@
       var params = new URLSearchParams(root.location.search);
       var shared = getTile(params.get('tile'));
       if (shared) {
+        if (params.get('tile') !== shared.id) setUrlTile(shared.id);
         renderResult(shared, shared.id === state.tile);
         show('result');
         track('tile_quiz_view_shared', { tile: shared.id });

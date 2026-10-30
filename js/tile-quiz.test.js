@@ -6,30 +6,28 @@ const quiz = require('./tile-quiz.js');
 const art = require('./tile-quiz-art.js');
 
 const ORPHANS = [
-  'bamboo-1', 'bamboo-9', 'character-1', 'character-9', 'dot-1', 'dot-9',
+  'one-bamboo', 'nine-bamboo', 'one-character', 'nine-character', 'one-dot', 'nine-dot',
   'green-dragon', 'red-dragon', 'white-dragon',
   'east-wind', 'south-wind', 'west-wind', 'north-wind',
 ];
-const FLOWERS_AND_SEASONS = ['spring', 'summer', 'autumn', 'winter', 'plum', 'orchid', 'chrysanthemum', 'bamboo-flower'];
+const FLOWERS_AND_SEASONS = ['spring', 'summer', 'autumn', 'winter', 'plum-blossom', 'orchid', 'chrysanthemum', 'bamboo'];
 
-function eachAnswerCombo(fn) {
-  const n = quiz.QUESTIONS.length;
-  const total = 4 ** n;
-  for (let k = 0; k < total; k++) {
-    const answers = [];
-    let x = k;
-    for (let i = 0; i < n; i++) {
-      answers.push(x % 4);
-      x = Math.floor(x / 4);
-    }
-    fn(answers);
+// Deterministic pseudo-random answer sets; 4^12 combos is too many to enumerate.
+function eachSampledAnswers(count, fn) {
+  let seed = 12345;
+  const next = () => {
+    seed = (Math.imul(seed, 1103515245) + 12345) >>> 0;
+    return seed >>> 16;
+  };
+  for (let k = 0; k < count; k++) {
+    fn(quiz.QUESTIONS.map(() => next() % 4));
   }
 }
 
 describe('tile quiz data', () => {
   it('has the 13 orphans, 8 flowers and seasons, and the blank tile', () => {
     const ids = quiz.TILES.map((t) => t.id).sort();
-    assert.deepEqual(ids, [...ORPHANS, ...FLOWERS_AND_SEASONS, 'blank'].sort());
+    assert.deepEqual(ids, [...ORPHANS, ...FLOWERS_AND_SEASONS, 'blank-tile'].sort());
   });
 
   it('gives every tile artwork, copy, and a valid bestie', () => {
@@ -39,7 +37,10 @@ describe('tile quiz data', () => {
       assert.ok(t.name && t.title && t.tagline && t.description, `${t.id} copy`);
       assert.equal(t.why.length, 3);
       assert.ok(quiz.getTile(t.bestie), `${t.id} bestie`);
+      assert.ok(quiz.getTile(t.enemy), `${t.id} enemy`);
       assert.notEqual(t.bestie, t.id);
+      assert.notEqual(t.enemy, t.id);
+      assert.notEqual(t.bestie, t.enemy);
     });
   });
 
@@ -53,21 +54,21 @@ describe('tile quiz data', () => {
 
 describe('scoreAnswers', () => {
   it('is deterministic', () => {
-    const answers = [0, 1, 2, 3, 0, 1, 2, 3, 0, 1];
+    const answers = [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3];
     assert.equal(quiz.scoreAnswers(answers), quiz.scoreAnswers(answers.slice()));
   });
 
   it('can land on every tile, and no tile hogs the results', () => {
     const counts = {};
     let total = 0;
-    eachAnswerCombo((answers) => {
+    eachSampledAnswers(200000, (answers) => {
       const id = quiz.scoreAnswers(answers);
       counts[id] = (counts[id] || 0) + 1;
       total += 1;
     });
     quiz.TILES.forEach((t) => {
       const share = (counts[t.id] || 0) / total;
-      assert.ok(share > 0.025 && share < 0.08, `${t.id}: ${(share * 100).toFixed(2)}%`);
+      assert.ok(share > 0.03 && share < 0.065, `${t.id}: ${(share * 100).toFixed(2)}%`);
     });
   });
 });
@@ -121,11 +122,21 @@ describe('profile helpers', () => {
   });
 });
 
+describe('getTile', () => {
+  it('still resolves the IDs used before the descriptive slugs', () => {
+    assert.equal(quiz.getTile('character-1').id, 'one-character');
+    assert.equal(quiz.getTile('dot-9').id, 'nine-dot');
+    assert.equal(quiz.getTile('bamboo-flower').id, 'bamboo');
+    assert.equal(quiz.getTile('blank').id, 'blank-tile');
+    assert.equal(quiz.getTile('nope'), null);
+  });
+});
+
 describe('shareUrl', () => {
   it('replaces any existing query or hash with the tile', () => {
     assert.equal(
-      quiz.shareUrl('https://luckycatmahjong.com/which-mahjong-tiles-are-you/?tile=dot-1#x', 'blank'),
-      'https://luckycatmahjong.com/which-mahjong-tiles-are-you/?tile=blank',
+      quiz.shareUrl('https://luckycatmahjong.com/which-mahjong-tiles-are-you/?tile=one-dot#x', 'blank-tile'),
+      'https://luckycatmahjong.com/which-mahjong-tiles-are-you/?tile=blank-tile',
     );
   });
 });

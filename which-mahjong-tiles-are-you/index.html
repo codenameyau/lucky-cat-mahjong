@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Which Mahjong Tile Are You? Personality Quiz | Lucky Cat Mahjong</title>
-  <meta name="description" content="Take the Lucky Cat Mahjong personality quiz and find out which mahjong tile you are: a dragon, a wind, a flower, a season, or the chaotic blank tile. Share your tile with friends!">
+  <meta name="description" content="Take the Lucky Cat Mahjong personality quiz to find out which mahjong tile you really are, plus your mahjong bestie and your mahjong enemy.">
   <meta name="author" content="Lucky Cat Mahjong">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
   <meta name="theme-color" content="#C41E3A">
@@ -14,7 +14,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Lucky Cat Mahjong">
   <meta property="og:title" content="Which Mahjong Tile Are You?">
-  <meta property="og:description" content="10 questions. 22 tiles. One very accurate personality reading. Find your mahjong tile and send it to the group chat.">
+  <meta property="og:description" content="12 questions. One painfully accurate personality reading. Find your mahjong tile, your bestie, and your enemy.">
   <meta property="og:url" content="https://luckycatmahjong.com/which-mahjong-tiles-are-you/">
   <meta property="og:locale" content="en_US">
   <meta property="og:image" content="https://luckycatmahjong.com/logo.png">
@@ -22,7 +22,7 @@
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Which Mahjong Tile Are You?">
-  <meta name="twitter:description" content="10 questions. 22 tiles. One very accurate personality reading. Find your mahjong tile and send it to the group chat.">
+  <meta name="twitter:description" content="12 questions. One painfully accurate personality reading. Find your mahjong tile, your bestie, and your enemy.">
   <meta name="twitter:image" content="https://luckycatmahjong.com/logo.png">
   <meta name="twitter:image:alt" content="Lucky Cat Mahjong logo">
 
@@ -33,7 +33,7 @@
   <link rel="preload" href="/fonts/kn-yuanmo-sc.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="/css/fonts.css">
   <link rel="stylesheet" href="/css/styles.css">
-  <link rel="stylesheet" href="/css/tile-quiz.css">
+  <link rel="stylesheet" href="/css/tile-quiz.css?v=20261031m">
 
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-B514HH987M"></script>
   <script>
@@ -63,6 +63,7 @@
         <li><a href="/hong-kong-mahjong-scoring/" class="nav-link">Points Calculator</a></li>
         <li><a href="/community/" class="nav-link">Community</a></li>
         <li><a href="/events/" class="nav-link">Events</a></li>
+        <li><a href="/which-mahjong-tiles-are-you/" class="nav-link">Quiz</a></li>
       </ul>
     </nav>
   </header>
@@ -74,7 +75,7 @@
         <div class="tq-parade" id="tq-parade" aria-hidden="true"></div>
         <p class="tq-eyebrow">Personality quiz</p>
         <h1 id="tq-intro-title" class="tq-title">Which Mahjong Tile Are You?</h1>
-        <p class="tq-lead">10 questions. 22 tiles. One extremely accurate reading of your entire personality. Are you a dragon, a wind, a flower, a season, or… the blank tile?</p>
+        <p class="tq-lead">12 questions. One painfully accurate reading of your entire personality. Are you a dragon? A wind? A flower? Or the tile your grandma keeps in the box "just in case"? Find out, plus your mahjong bestie and your mahjong enemy.</p>
         <button type="button" class="btn btn-primary tq-start" id="tq-start">Find my tile ✨</button>
         <p class="tq-returning" id="tq-returning" hidden></p>
       </section>
@@ -155,25 +156,31 @@
               <p id="tq-result-red"></p>
             </div>
           </div>
-          <h2 class="tq-section-title">Mahjong bestie</h2>
-          <div id="tq-result-bestie"></div>
+          <div class="tq-relations">
+            <div class="tq-relation">
+              <h2 class="tq-section-title">🤝 Mahjong bestie</h2>
+              <div id="tq-result-bestie"></div>
+            </div>
+            <div class="tq-relation">
+              <h2 class="tq-section-title">⚔️ Mahjong enemy</h2>
+              <div id="tq-result-enemy"></div>
+            </div>
+          </div>
         </div>
 
         <div class="tq-card tq-share">
           <h2 class="tq-section-title" id="tq-share-heading">Share your tile</h2>
           <div class="tq-share-actions">
             <button type="button" class="btn btn-primary" id="tq-share">Share link 📲</button>
-            <button type="button" class="btn btn-secondary" id="tq-save-image">Save image 📸</button>
-            <button type="button" class="btn btn-outline" id="tq-copy">Copy link 🔗</button>
+            <button type="button" class="btn btn-secondary" id="tq-download">Download image 📸</button>
           </div>
-          <button type="button" class="btn btn-outline tq-retake" id="tq-retake">Retake the quiz</button>
           <p class="tq-cta">Ready to play your tile for real? <a href="/">Learn Hong Kong mahjong with Lucky Cat</a> or <a href="/events/">join an event</a>.</p>
         </div>
       </section>
 
-      <section class="tq-gallery" aria-labelledby="tq-gallery-title">
-        <h2 id="tq-gallery-title" class="tq-subtitle">Meet all 22 tiles</h2>
-        <p class="tq-muted">The 13 orphans, 8 flowers &amp; seasons, and one very confused blank tile. Tap any tile to send it to the friend who's <em>exactly</em> that.</p>
+      <section class="tq-gallery" id="tq-gallery" aria-labelledby="tq-gallery-title" hidden>
+        <h2 id="tq-gallery-title" class="tq-subtitle">Meet the whole set</h2>
+        <p class="tq-muted">Dragons, winds, flowers, seasons, and one very confused blank tile. Tap any tile to send it to the friend who's <em>exactly</em> that.</p>
         <ul class="tq-gallery-grid" id="tq-gallery-grid"></ul>
       </section>
     </div>
@@ -196,8 +203,8 @@
   </footer>
 
   <script src="/js/nav.js" defer></script>
-  <script src="/js/tile-quiz-art.js" defer></script>
-  <script src="/js/tile-quiz.js" defer></script>
+  <script src="/js/tile-quiz-art.js?v=20261031m" defer></script>
+  <script src="/js/tile-quiz.js?v=20261031m" defer></script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
   </script>

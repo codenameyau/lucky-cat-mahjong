@@ -10,6 +10,7 @@
     { label: 'Points Calculator', href: '/hong-kong-mahjong-scoring/' },
     { label: 'Community', href: '/community/' },
     { label: 'Events', href: '/events/' },
+    { label: 'Quiz', href: '/which-mahjong-tiles-are-you/' },
   ];
 
   function escapeHtml(str) {
