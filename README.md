@@ -39,6 +39,15 @@ A static website for the Lucky Cat Mahjong club, with content managed through [P
 - **Desktop lightbox** — Click any photo on larger screens to browse full-size in a keyboard-navigable viewer
 - **Image pipeline** — `npm run format-media` converts uploaded JPG/PNG to WebP, resizes for the web, and syncs paths back into `data/community.json`
 
+### "Which Mahjong Tile Are You?" quiz (`/which-mahjong-tiles-are-you/`)
+
+- **Personality quiz** — 10 questions match players to one of 22 tiles: the 13 orphans, the 8 flowers & seasons, and the blank tile. Quiz copy and scoring live in `js/tile-quiz.js`
+- **Chibi tile art** — Each tile is a hand-built inline SVG character (`js/tile-quiz-art.js`), no image files needed
+- **Lead capture** — Before the result is revealed, first-time players enter name, Instagram, zip code, and skill level, which is posted straight to the "Which mahjong tile are you?" Google Form, including the tile they got (`FORM_FIELDS` in `js/tile-quiz.js` holds the entry IDs). The form's "Result" dropdown options must match each tile's `name` exactly, or Google rejects the submission
+- **One submission per browser** — The submission and latest result are kept in `localStorage`; retakes skip the form and never re-submit
+- **Shareable results** — Every tile has its own link (`?tile=red-dragon`) showing that tile with a "Take the quiz" button, plus native share, copy link, and a "Save image" button that renders an Instagram-story-sized PNG
+- **Analytics events** — `tile_quiz_start`, `tile_quiz_complete`, `tile_quiz_submit`, `tile_quiz_share` (with `method`), and `tile_quiz_view_shared`, each with a `tile` parameter
+
 ### Other
 
 - **Custom 404 page** — On-brand "page not found" screen with mahjong tile artwork
@@ -66,13 +75,13 @@ For example [192.168.1.155:8080](http://192.168.1.155:8080).
 
 ## Tests
 
-The Hong Kong scoring calculator (`js/points.js`), homepage renderer (`js/main.js`), community page (`js/community.js`), and media formatter (`scripts/format-media-lib.js`) have unit tests using Node's built-in test runner. Requires **Node.js 18+**.
+The Hong Kong scoring calculator (`js/points.js`), homepage renderer (`js/main.js`), community page (`js/community.js`), tile quiz (`js/tile-quiz.js`), and media formatter (`scripts/format-media-lib.js`) have unit tests using Node's built-in test runner. Requires **Node.js 18+**.
 
 ```bash
 npm test
 ```
 
-This runs `node --test js/points.test.js js/main.test.js js/community.test.js scripts/format-media.test.js`. Harnesses in `js/points.harness.js` and `js/main.harness.js` load each script in a mocked browser environment so scoring logic and CMS rendering can be tested without opening the page.
+This runs `node --test js/points.test.js js/main.test.js js/community.test.js js/tile-quiz.test.js scripts/format-media.test.js`. Harnesses in `js/points.harness.js` and `js/main.harness.js` load each script in a mocked browser environment so scoring logic and CMS rendering can be tested without opening the page.
 
 ## Media formatting
 
