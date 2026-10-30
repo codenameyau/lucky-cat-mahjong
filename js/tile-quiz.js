@@ -242,7 +242,7 @@
       chinese: '北',
       title: 'The Cool Introvert',
       emoji: '🎧',
-      tagline: 'Cold exterior. Warm interior. Do not perceive me.',
+      tagline: 'Cold exterior. Warm interior. Do not disturb.',
       description: 'North Wind is chilly, mysterious, and comes from somewhere far away. People think you\'re aloof, but your social battery is just at 2%. You have three close friends, AirPods that never come out, and a deadpan humor that absolutely destroys. At family parties you hide in the back room with the cousins and a phone charger. Once someone gets in, they\'re lucky for life.',
       why: [
         'You\'ve pretended not to see someone you know at H Mart',
@@ -424,7 +424,7 @@
       options: [
         { emoji: '📊', text: 'Organizing dinner for 8. I made a group poll', tiles: ['east-wind', 'nine-bamboo', 'south-wind'] },
         { emoji: '🎤', text: 'K-town karaoke until 4am. No plans, all vibes', tiles: ['summer', 'red-dragon', 'nine-character'] },
-        { emoji: '🛋️', text: 'Blanket burrito. Phone at 3%. Do not perceive me', tiles: ['winter', 'one-dot'] },
+        { emoji: '🛋️', text: 'Blanket burrito. Phone at 3%. Do not disturb', tiles: ['winter', 'one-dot'] },
         { emoji: '🎨', text: 'At a sip-and-paint night I found on Instagram', tiles: ['spring', 'orchid', 'chrysanthemum'] },
       ],
     },
