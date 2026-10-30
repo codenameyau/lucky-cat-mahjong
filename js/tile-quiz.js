@@ -942,14 +942,20 @@
     function renderGallery(activeId) {
       var grid = $('#tq-gallery-grid');
       if (!grid) return;
-      $('#tq-gallery').hidden = !hasTakenQuiz();
-      if (!hasTakenQuiz()) return;
+      // Everyone sees the whole set; tiles only open to their full reading after taking the quiz.
+      var unlocked = hasTakenQuiz();
+      $('#tq-gallery-hint').innerHTML = unlocked
+        ? 'Dragons, winds, flowers, seasons, and one very confused blank tile. Tap any tile to send it to the friend who\'s <em>exactly</em> that.'
+        : 'Dragons, winds, flowers, seasons, and one very confused blank tile. Take the quiz to find out which one you are and unlock everyone\'s full reading.';
+      grid.classList.toggle('is-locked', !unlocked);
       grid.innerHTML = TILES.map(function (t) {
         var active = t.id === activeId ? ' is-active' : '';
-        return '<li><a class="tq-gallery-item' + active + '" href="' + escapeHtml(shareUrl(root.location.href, t.id)) + '">' +
-          '<span class="tq-gallery-art">' + art(t.id) + '</span>' +
+        var inner = '<span class="tq-gallery-art">' + art(t.id) + '</span>' +
           '<span class="tq-gallery-name">' + escapeHtml(t.name) + '</span>' +
-          '<span class="tq-gallery-title">' + escapeHtml(t.title) + '</span></a></li>';
+          '<span class="tq-gallery-title">' + escapeHtml(t.title) + '</span>';
+        return unlocked
+          ? '<li><a class="tq-gallery-item' + active + '" href="' + escapeHtml(shareUrl(root.location.href, t.id)) + '">' + inner + '</a></li>'
+          : '<li><div class="tq-gallery-item">' + inner + '</div></li>';
       }).join('');
     }
 

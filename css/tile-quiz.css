@@ -606,7 +606,7 @@ a.tq-relation-link:hover {
   transition: transform 0.15s, border-color 0.15s;
 }
 
-.tq-gallery-item:hover {
+a.tq-gallery-item:hover {
   text-decoration: none;
   transform: translateY(-3px) rotate(-1deg);
   border-color: rgba(var(--color-primary-rgb), 0.3);
@@ -614,6 +614,10 @@ a.tq-relation-link:hover {
 
 .tq-gallery-item.is-active {
   border-color: var(--color-primary);
+}
+
+.tq-gallery-grid.is-locked .tq-gallery-item {
+  cursor: default;
 }
 
 .tq-gallery-art {
