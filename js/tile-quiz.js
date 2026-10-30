@@ -433,7 +433,7 @@
       options: [
         { emoji: '🎙️', text: 'The yapper. Voice memos and breaking news.', tiles: ['one-bamboo', 'south-wind', 'one-character'] },
         { emoji: '👍', text: 'Leaves it on read, hearts it 3 days later', tiles: ['north-wind', 'winter'] },
-        { emoji: '🗂️', text: 'Drops the Google Doc itinerary', tiles: ['nine-bamboo', 'east-wind', 'white-dragon'] },
+        { emoji: '🧾', text: 'Books the table and sends the Splitwise before dessert', tiles: ['nine-bamboo', 'east-wind', 'white-dragon'] },
         { emoji: '🐸', text: 'Sends reels at 3am that nobody asked for', tiles: ['nine-dot', 'summer'] },
       ],
     },
