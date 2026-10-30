@@ -677,6 +677,9 @@
     var screens = ['intro', 'question', 'info', 'loading', 'result'];
     var QUIZ_TITLE = 'Which Mahjong Tile Are You? Personality Quiz | Lucky Cat Mahjong';
     var state = loadState();
+    // Submissions flagged before Nov 2026 never reached the form (it required Google sign-in, and
+    // no-cors requests can't see the error), so drop that flag to ask those players again.
+    delete state.submitted;
     if (getTile(state.tile)) state.tile = getTile(state.tile).id;
     var answers = [];
     var current = 0;
@@ -819,7 +822,7 @@
     }
 
     function showAfterQuiz() {
-      if (state.submitted) {
+      if (state.formSubmitted) {
         reveal(Promise.resolve());
         return;
       }
@@ -878,7 +881,7 @@
 
       var tile = resultTile;
       var submission = submitToForm(profile, tile).then(function () {
-        state.submitted = true;
+        state.formSubmitted = true;
         state.submittedAt = new Date().toISOString();
         state.submittedTile = tile.id;
         saveState(state);
