@@ -441,7 +441,7 @@
       text: 'Pick your drink order:',
       options: [
         { emoji: '☕', text: 'Iced oat latte, extra shot. I have meetings.', tiles: ['one-character', 'nine-bamboo', 'green-dragon'] },
-        { emoji: '🧋', text: 'Bubble tea, 100% sugar, no regrets', tiles: ['one-dot', 'autumn', 'winter'] },
+        { emoji: '🧋', text: 'Boba, 100% sugar, no regrets', tiles: ['one-dot', 'autumn', 'winter'] },
         { emoji: '🫖', text: 'Hot water. Mom said cold drinks are bad for you.', tiles: ['chrysanthemum', 'plum-blossom'] },
         { emoji: '🍵', text: 'Ceremonial-grade matcha. I can taste the difference.', tiles: ['orchid', 'white-dragon'] },
       ],
