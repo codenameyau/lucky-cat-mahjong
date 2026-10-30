@@ -598,7 +598,7 @@
 
   function validateProfile(profile) {
     var errors = {};
-    if (!String(profile.name || '').trim()) errors.name = 'Tell us what to call you';
+    if (!String(profile.name || '').trim()) errors.name = 'Enter your full name';
     if (!/^@[A-Za-z0-9._]{1,30}$/.test(normalizeInstagram(profile.instagram))) errors.instagram = 'Enter your Instagram handle, like @luckycat.mahjong';
     if (!isValidZip(profile.zip)) errors.zip = 'Enter a 5-digit zip code';
     if (SKILL_LEVELS.indexOf(profile.skill) === -1) errors.skill = 'Pick your skill level';
