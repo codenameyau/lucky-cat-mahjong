@@ -1022,11 +1022,15 @@
       for (var seat = 0; seat < 4; seat++) {
         var f = L.zoneFrames[seat];
         enterFrame(f);
-        // Faint seat-wind watermark, facing the owner, so each pile is easy to find.
+        // Faint seat-wind watermark so each pile is easy to find. Turned back
+        // upright so every wind reads the same way for the player.
         var ws = clamp(Math.min(f.w, f.h) * 0.5, 14, 54);
+        ctx.save();
+        ctx.translate(f.w / 2, f.h / 2);
+        ctx.rotate(-f.a);
         ctx.globalAlpha = ui.turnSeat === seat ? 0.2 : 0.09;
-        text(WIND_LETTERS[E.seatWind(game, seat)], f.w / 2, f.h / 2, { size: ws, family: FONT_HEAD, align: 'center', color: COLORS.cream });
-        ctx.globalAlpha = 1;
+        text(WIND_LETTERS[E.seatWind(game, seat)], 0, 0, { size: ws, family: FONT_HEAD, align: 'center', color: COLORS.cream });
+        ctx.restore();
         var all = game.hand.seats[seat].discards;
         var list = all.filter(function (d) { return !d.claimed; });
         var shown = list.length - ui.hide.pond[seat];
