@@ -257,10 +257,9 @@ describe('coach: after a chow', () => {
     assert.match(text(hint), /Aim for (Half|Full) Flush \(\d+ faan\) in Bamboo/);
   });
 
-  it('keeps other suits in play once the hand holds 2 faan of flowers', () => {
+  it('commits to the chow suit even when the hand holds 2 faan of flowers', () => {
     // East seat: f1 and s1 are its own flower and season.
-    const v = C.look(chowed(['f1', 's1']), 0);
-    assert.equal(v.committedSuit, null);
+    assert.equal(C.look(chowed(['f1', 's1']), 0).committedSuit, 'b');
     assert.equal(C.look(chowed(), 0).committedSuit, 'b');
   });
 

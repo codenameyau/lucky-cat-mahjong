@@ -286,9 +286,25 @@ describe('expert playbook', () => {
     ctx.flowers = ['f1', 'f2', 'f3', 'f4', 's1']; assert.equal(B.flowerPoints(ctx), 3);
   });
 
-  it('does not commit to the chow suit once a dragon set has banked a faan', () => {
-    const game = table({ seats: [{ hand: ['c2', 'c3', 'c4', 'd5', 'd6', 'b7', 'b8'], melds: [meld('chow', 'b1'), meld('pung', 'dr')], flowers: ['f1'] }] });
-    assert.equal(B.chowCommitment(B.buildContext(game, 0)), null);
+  it('commits to the chow suit even with a dragon set and a seat flower', () => {
+    const hand = ['c2', 'c3', 'c4', 'd5', 'd6', 'b7', 'b8', 'b9'];
+    const game = table({ seats: [{ hand, melds: [meld('chow', 'b1'), meld('pung', 'dr')], flowers: ['f1'] }] });
+    assert.equal(B.chowCommitment(B.buildContext(game, 0)), 'b');
+    const pick = B.chooseTurnAction(game, 0, noKongs).tile;
+    assert.ok(['c2', 'c3', 'c4', 'd5', 'd6'].includes(pick), 'discarded ' + pick);
+  });
+
+  it('throws other suits first after a chow even while folding', () => {
+    const hand = ['c2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9', 'b9', 'we', 'ws'];
+    const game = table({
+      seats: [
+        { hand, melds: [meld('chow', 'b1')] },
+        { melds: [meld('pung', 'd2'), meld('pung', 'd5'), meld('chow', 'd7')], discards: ['b9', 'we', 'ws'] },
+      ],
+      wallLeft: 12,
+    });
+    assert.ok(B.analyzeDiscards(game, 0).folding);
+    assert.equal(B.chooseTurnAction(game, 0, noKongs).tile, 'c2');
   });
 
   it('takes an early open kong when the hand is already open', () => {
@@ -334,18 +350,14 @@ describe('chows and committing to a suit', () => {
     assert.ok(['c5', 'd7', 'c2', 'd3'].includes(pick), 'discarded ' + pick);
   });
 
-  it('commits to the chow\'s suit unless the hand already holds 2 faan of flowers', () => {
+  it('commits to the chow\'s suit whatever flowers the hand holds', () => {
     const plain = afterChow({});
     assert.equal(B.chowCommitment(B.buildContext(plain, 1)), 'b');
     // Seat 1 is South (wind 2): its flower and season are f2 and s2 and make 2 faan.
     const rich = afterChow({});
     rich.hand.seats[1].flowers = ['f2', 's2'];
     assert.equal(B.flowerPoints(B.buildContext(rich, 1)), 2);
-    assert.equal(B.chowCommitment(B.buildContext(rich, 1)), null);
-    // No flowers is only 1 faan, a lone seat flower is 1: both still commit.
-    const lone = afterChow({});
-    lone.hand.seats[1].flowers = ['f2'];
-    assert.equal(B.chowCommitment(B.buildContext(lone, 1)), 'b');
+    assert.equal(B.chowCommitment(B.buildContext(rich, 1)), 'b');
   });
 
   it('does not commit when the open melds already span two suits', () => {

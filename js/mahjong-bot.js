@@ -208,25 +208,14 @@
     return group('f') + group('s');
   }
 
-  // Faan the hand has already banked outside its shape: flowers, plus every
-  // dragon or own/round wind set, open or held concealed.
-  function bankedFaan(ctx, c) {
-    var f = flowerPoints(ctx);
-    ctx.melds.forEach(function (m) {
-      if (m.type !== 'chow') f += valueWeight(ctx, E.tileIndex(m.tiles[0]));
-    });
-    if (c) for (var i = 27; i < 34; i++) if (c[i] >= 3) f += valueWeight(ctx, i);
-    return f;
-  }
-
   // Once you've exposed a chow, a hand of mixed suits can't reach the 3-faan
   // minimum (it has given up Concealed, and All Sequences needs 3 faan from
   // somewhere else), so the way forward is a flush in the chow's suit and
-  // every tile of another suit is worth nothing. The exception is a hand
-  // that has already banked 2 faan, from flowers or from dragon and wind
-  // sets. Returns that suit, or null.
-  function chowCommitment(ctx, c) {
-    if (!ctx.hasChow || bankedFaan(ctx, c) >= 2) return null;
+  // every tile of another suit is worth nothing. This holds for every chow
+  // hand; only open melds in two number suits (where no flush is left) don't
+  // commit. Returns that suit, or null.
+  function chowCommitment(ctx) {
+    if (!ctx.hasChow) return null;
     var suits = Object.keys(ctx.meldSuits).filter(function (k) { return k !== 'z'; });
     return suits.length === 1 ? suits[0] : null;
   }
@@ -856,6 +845,10 @@
       x.tier = x.priority === 0 || x.shanten <= bestShanten ? x.priority : 10 + x.priority;
     });
     out.sort(function (a, b) {
+      // Off-suit tiles after a chow always go first, even while folding
+      // (then the safest of them goes).
+      var offA = a.priority === 0, offB = b.priority === 0;
+      if (offA !== offB) return offA ? -1 : 1;
       if (!folding && a.tier !== b.tier) return a.tier - b.tier;
       if (b.score !== a.score) return b.score - a.score;
       if (a.priority !== b.priority) return a.priority - b.priority;
@@ -1031,7 +1024,6 @@
     readyValue: readyValue,
     opponentThreats: opponentThreats,
     flowerPoints: flowerPoints,
-    bankedFaan: bankedFaan,
     deadTile: deadTile,
     chowCommitment: chowCommitment,
     chaseSevenPairs: chaseSevenPairs,
