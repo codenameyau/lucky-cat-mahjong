@@ -364,6 +364,13 @@
     return null;
   }
 
+  // The "Target: ..." phrase is wrapped in invisible markers so the game can
+  // draw it in the brand red (see TARGET_START / TARGET_END in mahjong-game.js).
+  function marked(text) {
+    var m = text.match(/^([\s\S]*?\(about [^)]*\))([\s\S]*)$/);
+    return m ? '\u0001Target: ' + m[1] + '\u0002' + m[2] : 'Target: ' + text;
+  }
+
   function stepsText(shanten) {
     if (shanten <= 0) return 'Ready';
     return shanten === 1 ? '1 tile from ready' : shanten + ' tiles from ready';
@@ -508,7 +515,7 @@
       if (liveLeft <= 1) notes.push('Almost none are left, so change the wait if you can.');
       tips.push(state + (notes.length ? ' ' + notes.join(' ') : ''));
     } else if (pick.plan) {
-      var line = stepsText(pick.shanten) + '. Target: ' + targetText(v, pick.plan, cAfter, next && next.index) + '. ' +
+      var line = stepsText(pick.shanten) + '. ' + marked(targetText(v, pick.plan, cAfter, next && next.index)) + '. ' +
         pick.plan.live + ' tiles help.';
       if (route.faan < min - 0.25) line += ' That\'s short of ' + min + ' faan: a flush, all triplets or a dragon or wind set fixes it.';
       else if (!defending) { var phase = phaseText(v, threats); if (phase) line += ' ' + phase; }
@@ -601,7 +608,7 @@
       if (res && res.plan) {
         var short = res.plan.route.faan < min - 0.25 ? ' Still short of ' + min + ' faan, so keep looking for more.' : '';
         lines.push((res.discard ? 'Then discard ' + E.tileName(res.discard) + '. ' : '') + stepsText(res.plan.shanten) +
-          '. Target: ' + targetText(res.view || v, res.plan, res.counts || hand13) + '.' + short);
+          '. ' + marked(targetText(res.view || v, res.plan, res.counts || hand13)) + '.' + short);
       }
       var shown = threats.filter(function (t) { return t.level >= 2; });
       if (shown.length) lines.push('Threats: ' + shown.map(function (t) { return t.name + ' ' + t.levelName; }).join(', ') + '.');
