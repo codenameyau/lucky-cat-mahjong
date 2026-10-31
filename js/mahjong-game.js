@@ -437,6 +437,10 @@
     var ui = {
       coach: settings.coach || 'on', // 'on' (advice), 'feedback' (notes on your last move) or 'off'
       feedback: null, // the coach's note on your previous move
+      handSlots: [], // each hand tile's slide from where it was to where it belongs
+      handSlide: 1,  // 0..1 progress of that slide
+      handSig: '',   // what the hand looked like when the slots were last matched
+      handLayout: '',
       restartArmed: 0, // when Restart game was first tapped in the menu
       turnSeat: null,
       selected: -1,
@@ -445,7 +449,6 @@
       hint: null,
       notice: null,
       hide: { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], drawn: false },
-      thinking: null, // seat whose bot is deciding
       botLift: null, // { seat, index } tile a bot is considering
       botDrawn: [false, false, false, false], // bot's fresh draw sits apart
       botDiscardFrom: [null, null, null, null],
@@ -1072,27 +1075,6 @@
       ui.backAnchor[seat] = localPose(f, bx0 + count * bw + bw * 0.4, backsY, bw);
       ui.meldAnchor[seat] = localPose(f, mx + (items.length ? mw * 0.35 : 0), meldY, mw);
       ui.flowerAnchor[seat] = localPose(f, fx + flowersN * fw, meldY, fw);
-
-      if (ui.thinking === seat) drawThinking(seat, t);
-    }
-
-    // "..." bubble while a bot decides, turned to face the bot like its tiles.
-    function drawThinking(seat, t) {
-      var pos = seatBannerPos(seat);
-      var w = 46, h = 22;
-      ctx.save();
-      ctx.translate(pos.x, pos.y);
-      ctx.rotate(SEAT_ANGLE[seat]);
-      pill(-w / 2, -h / 2, w, h, 'rgba(255,248,240,0.95)');
-      for (var k = 0; k < 3; k++) {
-        var a = 0.35 + 0.65 * Math.max(0, Math.sin(t / 160 - k * 0.9));
-        ctx.beginPath();
-        ctx.arc(-11 + k * 11, 0, 3.2, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(196,30,58,' + a + ')';
-        ctx.fill();
-      }
-      ctx.restore();
-      requestRender();
     }
 
     /* ---------------- where drawn tiles come from ---------------- */
@@ -1168,6 +1150,8 @@
       }
     }
 
+    var HAND_SLIDE_MS = 260;
+
     function myHandOrder() {
       var s = game.hand.seats[0];
       var drawn = game.hand.drawnTile;
@@ -1221,6 +1205,41 @@
       var hintTile = ui.coach === 'on' && ui.hint && ui.hint.tile;
       var hintUsed = false;
       ui.lastHandRects = [];
+
+      // Where each tile belongs, and which tile was where: when the hand
+      // re-sorts (a drawn tile merging in, tiles leaving for a claim) every
+      // tile slides from its old place to its new one.
+      var targets = tiles.map(function (tid, k) {
+        return x0 + k * tw + (order.drawnSeparate && k === tiles.length - 1 ? tw * 0.4 : 0);
+      });
+      var layoutKey = [tw, W, H].join(':');
+      var sig = tiles.join(',') + '|' + (order.drawnSeparate ? 1 : 0);
+      if (ui.handSig !== sig || ui.handLayout !== layoutKey) {
+        var snap = ui.handLayout !== layoutKey; // a resize repositions without sliding
+        var pool = (ui.handSlots || []).slice();
+        var moved = false;
+        ui.handSlots = tiles.map(function (tid, k) {
+          var best = -1, bestD = Infinity;
+          for (var q = 0; q < pool.length; q++) {
+            if (pool[q] && pool[q].id === tid) {
+              var dd = Math.abs(pool[q].to - targets[k]);
+              if (dd < bestD) { bestD = dd; best = q; }
+            }
+          }
+          var from = targets[k];
+          if (best >= 0 && !snap) {
+            var o = pool[best];
+            from = o.from + (o.to - o.from) * ui.handSlide; // where it is right now
+          }
+          if (best >= 0) pool[best] = null;
+          if (Math.abs(from - targets[k]) > 0.5) moved = true;
+          return { id: tid, from: from, to: targets[k] };
+        });
+        ui.handSig = sig;
+        ui.handLayout = layoutKey;
+        ui.handSlide = moved ? 0 : 1;
+        if (moved) animate(HAND_SLIDE_MS, function (e) { ui.handSlide = e; }, easeInOut);
+      }
       if (active && !ui.overlay) {
         ctx.save();
         roundRect(ctx, x0 - 6, L.handY - 8, total + 12, L.th + 16, 12);
@@ -1230,7 +1249,8 @@
       }
       for (var i = 0; i < count; i++) {
         var id = tiles[i];
-        var x = x0 + i * tw + (order.drawnSeparate && i === tiles.length - 1 ? tw * 0.4 : 0);
+        var slot = ui.handSlots[i];
+        var x = slot.from + (slot.to - slot.from) * ui.handSlide;
         var lift = 0;
         if (i === ui.selected) lift = tw * 0.32;
         else if (hover === 'hand-' + i && ui.turnPrompt) lift = tw * 0.12;
@@ -1713,16 +1733,13 @@
       });
     }
 
-    var SPEED_LABELS = { normal: 'Show', off: 'Skip' };
-    var SPEED_ORDER = ['normal', 'off'];
 
     function drawMenu() {
-      var r = panelRect(340, 332);
+      var r = panelRect(340, 282);
       drawPanelBg(r);
       text('Paused', r.x + r.w / 2, r.y + 36, { size: 24, family: FONT_HEAD, align: 'center', color: COLORS.red });
       var bx = r.x + 30, bw = r.w - 60, y = r.y + 62, step = 50;
       button('Resume', bx, y, bw, 40, function () { closeOverlay(); }, 'primary', 'm-resume'); y += step;
-      button('Animations: ' + SPEED_LABELS[settings.speed || 'normal'], bx, y, bw, 40, cycleSpeed, 'light', 'm-speed'); y += step;
       var armed = ui.restartArmed && now() - ui.restartArmed < 5000;
       button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, 40, restartGame, armed ? 'gold' : 'light', 'm-restart'); y += step;
       button('Quit game', bx, y, bw, 40, function () { quit(); }, 'light', 'm-quit');
@@ -1748,13 +1765,6 @@
       var saved = readJson(SETTINGS_KEY, {});
       saved[key] = value;
       writeJson(SETTINGS_KEY, saved);
-    }
-
-    function cycleSpeed() {
-      var next = SPEED_ORDER[(SPEED_ORDER.indexOf(settings.speed || 'normal') + 1) % SPEED_ORDER.length];
-      saveSetting('speed', next);
-      requestRender();
-      track('play_set_speed', { speed: next });
     }
 
     function drawGameOver() {
@@ -2067,7 +2077,6 @@
         ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], drawn: false };
         ui.botDrawn = [false, false, false, false];
         ui.botLift = null;
-        ui.thinking = null;
         ui.turnSeat = null;
         ui.selected = -1;
         ui.notice = null;
@@ -2215,8 +2224,6 @@
           if (instantMode()) return Promise.resolve(action);
           var n = g.hand.seats[seat].hand.length;
           var think = 560 + Math.random() * 520;
-          ui.thinking = seat;
-          requestRender();
           // Look over a couple of tiles, then lift the one to throw.
           var glance = function () {
             ui.botLift = { seat: seat, index: Math.floor(Math.random() * n) };
@@ -2224,7 +2231,6 @@
             return sleep(think / 3);
           };
           return glance().then(glance).then(function () {
-            ui.thinking = null;
             if (action.type !== 'discard') {
               ui.botLift = null;
               return action;
@@ -2370,7 +2376,7 @@
    * 5. Preview page wiring (settings form <-> table)
    * ------------------------------------------------------------------ */
 
-  // Settings the form doesn't show (coach, animations) keep whatever
+  // Settings the form doesn't show (the coach) keep whatever
   // was last chosen from the in-game menu.
   function readForm(form, saved) {
     saved = saved || {};
@@ -2383,7 +2389,8 @@
       mode: get('mode', saved.mode || 'payout'),
       // Older saves had a hints on/off flag.
       coach: saved.coach || (saved.hints === false ? 'off' : 'on'),
-      speed: get('speed', saved.speed) === 'off' ? 'off' : 'normal', // an old 'fast' setting shows animations
+      // Animations are always on; ?instant=1 skips them for a visit (see below).
+      speed: 'normal',
     };
   }
 
@@ -2394,7 +2401,6 @@
     };
     if (saved.spicy) set('spicy', saved.spicy);
     if (saved.mode) set('mode', saved.mode);
-    if (saved.speed) set('speed', saved.speed);
   }
 
   function init() {
@@ -2442,7 +2448,7 @@
       e.preventDefault();
       var settings = readForm(form, readJson(SETTINGS_KEY, {}));
       writeJson(SETTINGS_KEY, settings);
-      // ?instant=1 skips animations for this visit only (handy for testing).
+      // ?instant=1 skips animations for this visit only, to speed up testing.
       if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
       open(settings);
     });
