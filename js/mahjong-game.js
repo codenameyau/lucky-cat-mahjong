@@ -1826,15 +1826,13 @@
     var SPEED_ORDER = ['normal', 'fast', 'off'];
 
     function drawMenu() {
-      var r = panelRect(340, 432);
+      var r = panelRect(340, 332);
       drawPanelBg(r);
       text('Paused', r.x + r.w / 2, r.y + 36, { size: 24, family: FONT_HEAD, align: 'center', color: COLORS.red });
       var bx = r.x + 30, bw = r.w - 60, y = r.y + 62, step = 50;
       button('Resume', bx, y, bw, 40, function () { closeOverlay(); }, 'primary', 'm-resume'); y += step;
       button('Animations: ' + SPEED_LABELS[settings.speed || 'normal'], bx, y, bw, 40, cycleSpeed, 'light', 'm-speed'); y += step;
       button(settings.walls ? 'Hide the walls' : 'Show the walls', bx, y, bw, 40, toggleWalls, 'light', 'm-walls'); y += step;
-      button(ui.hints ? 'Turn hints off' : 'Turn hints on', bx, y, bw, 40, toggleHints, 'light', 'm-hints'); y += step;
-      button(sound.enabled ? 'Turn sound off' : 'Turn sound on', bx, y, bw, 40, toggleSound, 'light', 'm-sound'); y += step;
       button('Quit game', bx, y, bw, 40, function () { quit(); }, 'light', 'm-quit');
       var modeLine = (settings.mode === 'practice' ? 'Practice mode' : 'Payout mode') + ' · ' + (settings.spicy === 'half' ? 'Half spicy' : 'Full spicy');
       text(modeLine, r.x + r.w / 2, r.y + r.h - 18, { size: 12, align: 'center', color: COLORS.muted });
