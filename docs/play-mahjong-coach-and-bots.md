@@ -37,6 +37,11 @@ While the hand is folding (see Defense), safety decides instead, and this order 
 4. **Pairs.** A pair is kept until the tiles above are gone. Keeping it leaves a later pung, a chow, or Seven Pairs open.
 5. **A dragon that none of the table has shown yet.** This is kept even longer than a normal pair.
 
+Two hands change this order:
+
+- **All Triplets** (or Concealed Triplets) keeps every pair and every pung. Both wait behind any single, and a finished pung waits behind a pair.
+- **Concealed All Sequences** throws honors before any number tile, because an honor can never be part of the hand. The exception is an honor pair that is the hand's eyes while the hand is ready or one tile from ready. While folding, safety decides instead.
+
 ## Pairs
 
 A pair is two concealed copies of the same tile, not three. Three is a pung. The spare from a pung can be thrown. The pair itself waits.
