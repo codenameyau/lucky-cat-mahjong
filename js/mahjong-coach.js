@@ -145,7 +145,7 @@
       return 'You\'ve already chowed in ' + SUIT_NAME[v.committedSuit] + ', so tiles from other suits can\'t help you reach ' + v.game.settings.minFaan + ' faan.';
     }
     if (B.isPungTile(v.game, i) && c[i] < 2) {
-      return 'Someone already Punged it, so it is safe to drop, and your hand does not need it.';
+      return pungedReason(i);
     }
     if (route && route.id === 'pairs' && c[i] === 1) {
       return 'Seven Pairs keeps every pair, so this single goes first.';
@@ -301,7 +301,7 @@
   // Why a tile is safe against a threat, in the usual order of reads.
   function safetyReason(v, t, i) {
     var id = E.tileId(i);
-    if (B.isPungTile(v.game, i)) return 'a Pung of it is already on the table';
+    if (B.deadTile(v.game, i)) return 'a Pung of it is already on the table';
     if (t.since[id]) return t.name + ' threw it after their last meld';
     if (i >= 27 && 4 - v.unseen[i] >= 3) return 'three are already out';
     if (t.flush && E.suitOfIndex(i) !== t.flush && i < 27) return t.name + ' is collecting ' + SUIT_NAME[t.flush];
@@ -350,6 +350,14 @@
   // The main action (the first sentence of tips[k], e.g. "Discard Nine
   // Circle.") is shown on its own line; the rest reads as one paragraph,
   // starting with why.
+  // A punged honor can't deal in at all. A punged number tile can't be
+  // punged or waited on as a pair, but it can still finish someone's chow.
+  function pungedReason(i) {
+    return i >= 27
+      ? 'Someone already Punged it, so it is safe to drop, and your hand does not need it.'
+      : 'Someone already Punged it, so nobody can Pung it or wait on it as a pair, and your hand does not need it.';
+  }
+
   function lead(hint, k) {
     var t = hint.tips[k] || '';
     var m = t.match(/^(.+?[.!?])(?:\s+(.*))?$/);
@@ -391,7 +399,7 @@
     var buildingLimit = route && (route.id === 'orphans' || route.id === 'gates');
     var pungSafe = B.isPungTile(v.game, pick.index) && c[pick.index] < 2;
     var why = pungSafe
-      ? 'Someone already Punged it, so it is safe to drop, and your hand does not need it.'
+      ? pungedReason(pick.index)
       : (defending
         ? 'It\'s the safe play, since your hand is slow and ' + (v.ctx.wallLeft < 16 ? 'the wall is nearly gone.' : 'someone is close to winning.')
         : (pick.ready && pick.shanten === 0 && !buildingLimit ? 'It leaves you ready to win.' : whyDiscard(v, c, pick, route)));

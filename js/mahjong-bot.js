@@ -23,19 +23,25 @@
         suji, kabe (a neighbor with all 4 visible), then everything else,
         with fresh honors and middle tiles the most dangerous.
      D. with under 16 tiles left in the wall, play safe unless already ready
-        with a big hand; Chow only when it clearly gets closer to ready; Pung
-        dragons and own/round winds freely; avoid early open kongs.
+        with a big hand; Chow only when it clearly gets closer to ready, and
+        early in the hand only for a ready hand or a flush one tile from
+        ready; Pung dragons and own/round winds freely; a kong is fine at
+        any point.
      E. keep pairs. Break one only after every non-pair is gone, unless a
         chow has committed the hand to one suit: pairs in the other suits
         are discarded with those suits.
      F. keep dragons until at least one copy is already visible. A tile
-        someone has Punged or Konged is safe for the whole table, and it
-        is the first discard when the hand does not need it.
+        someone has Punged or Konged is the first discard when the hand
+        does not need it. A punged honor is safe for the whole table; a
+        punged number tile can still finish a chow.
      G. with more than four concealed pairs and no pung or kong, play
-        Seven Pairs. With eight or more terminal and honor tiles, play
-        Thirteen Orphans. With eight tiles of a suit's 1112345678999
-        skeleton, play Nine Gates. A concealed hand of runs, with no
-        honors and no claims, plays Concealed All Sequences.
+        Seven Pairs. With nine different terminals and honors (or eight
+        and a pair), all still live, play Thirteen Orphans. With eleven
+        tiles of a suit's 1112345678999 skeleton, play Nine Gates. A
+        concealed hand of runs, with no honors and no claims, plays
+        Concealed All Sequences.
+     The keep-pairs and keep-dragons orders never cost a step toward ready,
+     and while folding, safety decides and they only break ties.
    The coach in js/mahjong-coach.js says this same decision in words. It
    does not keep a second plan of its own. */
 
@@ -146,12 +152,7 @@
    * ------------------------------------------------------------------ */
 
   function baseFaan(ctx) {
-    var f = 0;
-    if (!ctx.flowers.length) f += 1;
-    ctx.flowers.forEach(function (id) {
-      var n = parseInt(id.charAt(1), 10);
-      if (n === ctx.seatWind) f += 1;
-    });
+    var f = flowerPoints(ctx);
     ctx.melds.forEach(function (m) {
       if (m.type === 'chow') return;
       f += valueWeight(ctx, E.tileIndex(m.tiles[0]));
@@ -192,26 +193,40 @@
     return n;
   }
 
-  // Faan a hand already holds from its flowers: No Flowers is 1; otherwise
-  // your seat's flower and season are 1 each, and a full set of four is 2.
+  // Faan a hand already holds from its flowers, scored as points.js does:
+  // No Flowers is 1; otherwise your seat's flower and season are 1 each, and
+  // a full set of four flowers (or seasons) is 2 in place of the seat one.
   function flowerPoints(ctx) {
     var f = ctx.flowers;
     if (!f.length) return 1;
-    var seat = ctx.seatWind, pts = 0;
-    if (f.indexOf('f' + seat) !== -1) pts++;
-    if (f.indexOf('s' + seat) !== -1) pts++;
-    if (['f1', 'f2', 'f3', 'f4'].every(function (id) { return f.indexOf(id) !== -1; })) pts += 2;
-    if (['s1', 's2', 's3', 's4'].every(function (id) { return f.indexOf(id) !== -1; })) pts += 2;
-    return pts;
+    var seat = ctx.seatWind;
+    var has = function (id) { return f.indexOf(id) !== -1; };
+    var group = function (letter) {
+      var all = [1, 2, 3, 4].every(function (n) { return has(letter + n); });
+      return all ? 2 : has(letter + seat) ? 1 : 0;
+    };
+    return group('f') + group('s');
+  }
+
+  // Faan the hand has already banked outside its shape: flowers, plus every
+  // dragon or own/round wind set, open or held concealed.
+  function bankedFaan(ctx, c) {
+    var f = flowerPoints(ctx);
+    ctx.melds.forEach(function (m) {
+      if (m.type !== 'chow') f += valueWeight(ctx, E.tileIndex(m.tiles[0]));
+    });
+    if (c) for (var i = 27; i < 34; i++) if (c[i] >= 3) f += valueWeight(ctx, i);
+    return f;
   }
 
   // Once you've exposed a chow, a hand of mixed suits can't reach the 3-faan
   // minimum (it has given up Concealed, and All Sequences needs 3 faan from
   // somewhere else), so the way forward is a flush in the chow's suit and
   // every tile of another suit is worth nothing. The exception is a hand
-  // that already holds 2 faan of flowers. Returns that suit, or null.
-  function chowCommitment(ctx) {
-    if (!ctx.hasChow || flowerPoints(ctx) >= 2) return null;
+  // that has already banked 2 faan, from flowers or from dragon and wind
+  // sets. Returns that suit, or null.
+  function chowCommitment(ctx, c) {
+    if (!ctx.hasChow || bankedFaan(ctx, c) >= 2) return null;
     var suits = Object.keys(ctx.meldSuits).filter(function (k) { return k !== 'z'; });
     return suits.length === 1 ? suits[0] : null;
   }
@@ -241,17 +256,32 @@
 
   var ORPHAN_INDEXES = [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33];
   var GATES_NEED = [3, 1, 1, 1, 1, 1, 1, 1, 3];
+  // Thirteen Orphans starts at 9 (nine different terminals and honors, or
+  // eight and a pair). Nine Gates starts at 11 of its 13 tiles: short of that
+  // a Full Flush keeps the same tiles and can still claim, so it's the better
+  // plan.
+  var ORPHANS_MIN = 9;
+  var GATES_MIN = 11;
   var SUIT_LETTERS = ['c', 'd', 'b'];
 
   function isOrphanIndex(i) {
     return ORPHAN_INDEXES.indexOf(i) !== -1;
   }
 
-  // A pair counts as two. A third copy of the same tile does not.
-  function orphanTileCount(c) {
-    var n = 0;
-    ORPHAN_INDEXES.forEach(function (i) { n += Math.min(c[i] || 0, 2); });
-    return n;
+  // Progress toward Thirteen Orphans: one for each different terminal or
+  // honor, plus one for a pair. (13 minus this is the hand's shanten.)
+  function orphanProgress(c) {
+    var kinds = 0, pair = 0;
+    ORPHAN_INDEXES.forEach(function (i) {
+      if (c[i]) kinds++;
+      if (c[i] >= 2) pair = 1;
+    });
+    return kinds + pair;
+  }
+
+  // Worth chasing only while every missing terminal and honor is still live.
+  function orphansAlive(c, ctx) {
+    return ORPHAN_INDEXES.every(function (i) { return c[i] || ctx.unseen[i] > 0; });
   }
 
   function nineGatesProgress(c, start) {
@@ -265,7 +295,7 @@
     var best = null;
     for (var s = 0; s < 3; s++) {
       var progress = nineGatesProgress(c, s * 9);
-      if (progress >= 8 && (!best || progress > best.progress)) {
+      if (progress >= GATES_MIN && (!best || progress > best.progress)) {
         best = { suit: SUIT_LETTERS[s], start: s * 9, progress: progress };
       }
     }
@@ -302,7 +332,7 @@
     if (kind === 'pairs') {
       return {
         id: 'pairs', label: 'Seven Pairs', counts: c, shantenFn: E.sevenPairsShanten,
-        faan: baseFaan(ctx) + 4, open: false,
+        faan: baseFaan(ctx) + 4 + pairsFlush(c), open: false,
       };
     }
     if (kind === 'orphans') {
@@ -317,12 +347,25 @@
     };
   }
 
+  // Seven Pairs scores a flush too: 3 for one suit with honors, 7 for one
+  // suit alone, once the pairs already held are all in it.
+  function pairsFlush(c) {
+    var suits = {}, honors = false;
+    for (var i = 0; i < 34; i++) {
+      if (c[i] < 2) continue;
+      if (i >= 27) honors = true; else suits[E.suitOfIndex(i)] = true;
+    }
+    var n = Object.keys(suits).length;
+    if (n !== 1) return 0;
+    return honors ? 3 : 7;
+  }
+
   // Seven Pairs, Thirteen Orphans, or Nine Gates, whichever is closer.
   function pickSpecial(c, ctx) {
     if (ctx.declared) return null;
     var list = [];
-    if (chaseSevenPairs(c, ctx)) list.push({ kind: 'pairs', faan: baseFaan(ctx) + 4, shantenFn: E.sevenPairsShanten });
-    if (orphanTileCount(c) >= 8) list.push({ kind: 'orphans', faan: 13, shantenFn: E.orphansShanten });
+    if (chaseSevenPairs(c, ctx)) list.push({ kind: 'pairs', faan: baseFaan(ctx) + 4 + pairsFlush(c), shantenFn: E.sevenPairsShanten });
+    if (orphanProgress(c) >= ORPHANS_MIN && orphansAlive(c, ctx)) list.push({ kind: 'orphans', faan: 13, shantenFn: E.orphansShanten });
     var gates = bestNineGates(c);
     if (gates) list.push({ kind: 'gates', gates: gates, faan: 13, shantenFn: nineGatesShanten(gates.start) });
     var best = null;
@@ -357,7 +400,9 @@
     return n;
   }
 
-  // An open pung or kong uses the tile up. The last copy cannot deal in.
+  // An open pung or kong of this tile is on the table. The last copy can't be
+  // punged or paired by anyone. For an honor that makes it completely safe;
+  // a number tile can still finish someone's chow (see deadTile).
   function isPungTile(game, i) {
     var id = E.tileId(i);
     for (var s = 0; s < 4; s++) {
@@ -382,7 +427,7 @@
     var locked = ctx.lockedSpecial;
     if (locked && locked.kind === 'orphans') return isOrphanIndex(i) ? 4 : 0;
     if (locked && locked.kind === 'gates') return gatesTileNeeded(counts, locked.gates.start, i) ? 4 : 0;
-    var committed = chowCommitment(ctx);
+    var committed = chowCommitment(ctx, counts);
     if (committed && i < 27 && E.suitOfIndex(i) !== committed) return 0;
     if (isPungTile(game, i) && counts[i] < 2 && candidate.shanten <= bestShanten) return 1;
     var best = candidate.analysis && candidate.analysis.best;
@@ -406,7 +451,7 @@
     var yaku = handYaku(ctx, c);
     var plans = [];
 
-    var committed = chowCommitment(ctx);
+    var committed = chowCommitment(ctx, c);
     if (committed) {
       // Only the chow's suit (and honors) count. Tiles of other suits fall
       // out of every plan, so they're the first to go.
@@ -736,8 +781,13 @@
     return Math.min(chance, 0.6);
   }
 
+  // An honor with a pung of it on the table can't deal in to anyone.
+  function deadTile(game, i) {
+    return i >= 27 && isPungTile(game, i);
+  }
+
   function dealInLoss(game, threats, i) {
-    if (isPungTile(game, i)) return 0;
+    if (deadTile(game, i)) return 0;
     var loss = 0;
     threats.forEach(function (t) {
       loss += t.ready * waitChance(game, t, i) * t.payment;
@@ -791,24 +841,32 @@
     var bestShanten = Math.min.apply(null, out.map(function (x) { return x.shanten; }));
     var readyFaan = out.reduce(function (m, x) { return Math.max(m, x.analysis.ready ? x.analysis.ready.bestFaan : 0); }, 0);
     var weight = defenseWeight(ctx, threats, bestShanten, readyFaan);
+    // Folding: safety decides, and the keep-pairs and keep-dragons orders
+    // only break ties (a safe pair is the right tile to break).
+    var folding = weight > (ctx.isDealer ? 0.9 : 1);
     // After a chow, tiles of other suits are worthless: they go first, ahead
     // of honors and chow-suit tiles that tie with them on value.
-    var committed = chowCommitment(ctx);
+    var committed = chowCommitment(ctx, c);
     out.forEach(function (x) {
       x.score = x.util - weight * x.loss;
       if (committed && x.index < 27 && E.suitOfIndex(x.index) !== committed) x.score += 0.004;
       x.priority = discardPriority(game, ctx, c, x, bestShanten);
+      // Keeping a pair or a dragon never costs a step toward ready: a discard
+      // that leaves the hand slower waits behind every one that doesn't.
+      x.tier = x.priority === 0 || x.shanten <= bestShanten ? x.priority : 10 + x.priority;
     });
     out.sort(function (a, b) {
-      if (a.priority !== b.priority) return a.priority - b.priority;
+      if (!folding && a.tier !== b.tier) return a.tier - b.tier;
       if (b.score !== a.score) return b.score - a.score;
+      if (a.priority !== b.priority) return a.priority - b.priority;
       return E.isTerminalOrHonorIndex(b.index) - E.isTerminalOrHonorIndex(a.index);
     });
     // Concealed sequences wants suited tiles. Honors go first, unless a pair
     // of them is already the eyes and the hand is ready or one tile away.
+    // (Not while folding: then safety decides.)
     var lead = out[0] && out[0].analysis.best;
     var leadPlan = lead && lead.plan;
-    if (leadPlan && leadPlan.id === 'straights' && !lead.readyBest) {
+    if (!folding && leadPlan && leadPlan.id === 'straights' && !lead.readyBest) {
       var honors = [];
       var rest = [];
       out.forEach(function (x) {
@@ -818,7 +876,7 @@
       });
       if (honors.length) out = honors.concat(rest);
     }
-    return { ctx: ctx, candidates: out, threats: threats, defense: weight };
+    return { ctx: ctx, candidates: out, threats: threats, defense: weight, folding: folding };
   }
 
   /* ------------------------------------------------------------------ *
@@ -873,9 +931,9 @@
       var ck = c.slice();
       ck[ti] -= 3;
       var uk = handUtility(ck, withMeld(ctx, { type: 'kong', tiles: [tile, tile, tile, tile], concealed: false }));
-      // Axis D: avoid early open kongs unless the hand is built on sets.
-      var setsHand = uk.best && uk.best.plan && uk.best.plan.id === 'triplets';
-      out.push({ decision: { type: 'kong' }, score: uk.util * (ctx.wallLeft > 60 && !setsHand ? 0.85 : 1.05), analysis: uk });
+      // A kong is fine at any point in the hand: it draws a free
+      // replacement tile, so it's taken whenever it doesn't hurt the hand.
+      out.push({ decision: { type: 'kong' }, score: uk.util * 1.05, analysis: uk });
     }
     opts.chows.forEach(function (pair) {
       var h2 = hand.slice();
@@ -906,7 +964,13 @@
     // A dragon, or your own or the round wind, is taken even out of a
     // sequence hand. Seven Pairs, Thirteen Orphans and Nine Gates cannot use a set.
     if (!lockedShape && ti >= 27 && valueWeight(ctx, ti) && (opts.pung || opts.kong)) {
-      return { decision: { type: opts.pung ? 'pung' : 'kong' }, found: res };
+      // ...unless the hand is already ready and the claim would leave it
+      // slower and worth less: then it's weighed like any other claim.
+      var take = opts.pung ? 'pung' : 'kong';
+      var after = res.options.filter(function (o) { return o.decision.type === take; })[0];
+      var breaksReady = res.stay.shanten === 0 && after && after.analysis &&
+        after.analysis.shanten > 0 && after.score < res.passScore;
+      if (!breaksReady) return { decision: { type: take }, found: res };
     }
     // Any other claim breaks Concealed All Sequences.
     if (stayPlan && stayPlan.id === 'straights') return { decision: { type: 'pass' }, found: res };
@@ -938,7 +1002,10 @@
     if (after === 0) return !!(an.ready && an.ready.bestFaan >= min);
     if (!plan || plan.faan < min - 0.25) return false;
     var flushPlan = /^(half|full)/.test(plan.id);
-    if (flushPlan && after <= 2) return true;
+    // Early in the hand (over 60 tiles left) there's time to draw the tile
+    // instead, so a flush chow must leave the hand within one tile of ready.
+    var early = ctx.wallLeft > 60;
+    if (flushPlan && after <= (early ? 1 : 2)) return true;
     // Late in the hand, a chow that saves a step is worth the cost.
     var late = ctx.turn >= 9 || ctx.wallLeft < 48;
     return late && before - after >= 1 && after <= 2;
@@ -964,6 +1031,8 @@
     readyValue: readyValue,
     opponentThreats: opponentThreats,
     flowerPoints: flowerPoints,
+    bankedFaan: bankedFaan,
+    deadTile: deadTile,
     chowCommitment: chowCommitment,
     chaseSevenPairs: chaseSevenPairs,
     syncHandPlans: syncHandPlans,

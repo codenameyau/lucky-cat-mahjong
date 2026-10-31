@@ -26,7 +26,7 @@ const meld = (type, tile) => {
   const tiles = type === 'chow' ? [tile, E.tileId(i + 1), E.tileId(i + 2)] : Array(3).fill(tile);
   return { type, tiles, concealed: false, from: 2 };
 };
-const text = (hint) => [hint.action].concat(hint.tips).join(' ');
+const text = (hint) => [hint.action].concat(hint.tips).join(' ').replace(/[\u0001\u0002]/g, '');
 
 describe('highlightPatterns', () => {
   it('marks hand patterns and their faan, and leaves "your target is" alone', () => {
@@ -79,17 +79,17 @@ describe('coach: discards', () => {
     assert.match(text(hint), /Seven Pairs/);
   });
 
-  it('aims for thirteen orphans once eight orphan tiles are in hand', () => {
-    const hand = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'c2', 'c3', 'c4', 'c5', 'd2', 'd3'];
+  it('aims for thirteen orphans once nine different terminals and honors are in hand', () => {
+    const hand = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'dr', 'c3', 'c4', 'c5', 'd2', 'd3'];
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
-    assert.ok(['c2', 'c3', 'c4', 'c5', 'd2', 'd3'].includes(hint.tile), 'discarded ' + hint.tile);
+    assert.ok(['c3', 'c4', 'c5', 'd2', 'd3'].includes(hint.tile), 'discarded ' + hint.tile);
     assert.match(text(hint), /Thirteen Orphans/);
   });
 
-  it('aims for nine gates once eight necessary tiles are in one suit', () => {
-    const hand = ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'd2', 'd3', 'd4', 'd5', 'b2', 'b3'];
+  it('aims for nine gates once eleven necessary tiles are in one suit', () => {
+    const hand = ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c9', 'c9', 'd2', 'd3', 'b2'];
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
-    assert.ok(['d2', 'd3', 'd4', 'd5', 'b2', 'b3'].includes(hint.tile), 'discarded ' + hint.tile);
+    assert.ok(['d2', 'd3', 'b2'].includes(hint.tile), 'discarded ' + hint.tile);
     assert.match(text(hint), /Nine Gates \(\d+ faan\) in Characters/);
   });
 
@@ -150,9 +150,9 @@ describe('coach: discards', () => {
     });
     const hint = C.turnHint(game, 0, { kongs: [] });
     assert.notEqual(hint.tile, 'b5');
-    // The hand is concealed sequences, so the honor goes before the safe Bamboo.
-    assert.equal(hint.tile, 'wn');
-    assert.match(text(hint), /All Sequences/);
+    // Folding against an Extreme Bamboo flush: a tile East has already thrown
+    // is the safest. (The punged Nine Bamboo could still finish a 7-8 chow.)
+    assert.ok(['d1', 'd9', 'wn'].includes(hint.tile), 'discarded ' + hint.tile);
     assert.match(text(hint), /\w+ is an Extreme threat \(3 melds, Bamboo\)/);
   });
 });
