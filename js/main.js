@@ -87,7 +87,15 @@ function applySite(site) {
   document.querySelector('meta[name="description"]').content = site.description;
 
   document.querySelector('.hero-headline').textContent = site.tagline;
-  document.querySelector('.hero-subheadline').textContent = site.hero.subheadline;
+  const subheadline = document.querySelector('.hero-subheadline');
+  const subheadlineText = site.hero.subheadline || '';
+  if (subheadlineText.includes('\n')) {
+    subheadline.innerHTML = escapeHtml(subheadlineText)
+      .replace(/\r\n/g, '\n')
+      .replace(/\n+/g, '<br> ');
+  } else {
+    subheadline.textContent = subheadlineText;
+  }
   document.querySelector('#about .section-heading').textContent = site.about.heading;
   document.querySelector('.about-body').innerHTML = multilineHtml(site.about.body);
 
@@ -354,7 +362,7 @@ async function init() {
 
   try {
     const [site, services, rates, faq, testimonials] = await Promise.all([
-      loadJSON('data/site.json'),
+      loadJSON('data/site.json?v=20261031h'),
       loadJSON('data/services.json'),
       loadJSON('data/rates.json'),
       loadJSON('data/faq.json').catch(() => null),

@@ -181,6 +181,31 @@ describe('getTile', () => {
   });
 });
 
+describe('clearAnswerFocus', () => {
+  it('blurs every answer so the last click does not stay focused on the next question', () => {
+    const blurred = [];
+    function option() {
+      return {
+        classList: { contains: (name) => name === 'tq-option' },
+        blur: function () { blurred.push(this); },
+      };
+    }
+    const first = option();
+    const second = option();
+    const doc = {
+      activeElement: first,
+      querySelectorAll: function (sel) {
+        assert.equal(sel, '.tq-option');
+        return [first, second];
+      },
+    };
+
+    quiz.clearAnswerFocus(doc);
+
+    assert.deepEqual(blurred, [first, second]);
+  });
+});
+
 describe('shareUrl', () => {
   it('links to the tile\'s own page so previews show that tile', () => {
     assert.equal(

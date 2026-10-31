@@ -1,12 +1,8 @@
 {
   "links": [
     {
-      "label": "Our Services",
+      "label": "Home",
       "href": "/"
-    },
-    {
-      "label": "Points Calculator",
-      "href": "/hong-kong-mahjong-scoring/"
     },
     {
       "label": "Community",
@@ -17,11 +13,15 @@
       "href": "/events/"
     },
     {
-      "label": "Quiz",
+      "label": "Points Calculator",
+      "href": "/hong-kong-mahjong-scoring/"
+    },
+    {
+      "label": "Personality Quiz",
       "href": "/which-mahjong-tiles-are-you/"
     },
     {
-      "label": "Play",
+      "label": "Play Mahjong",
       "href": "/play-mahjong/"
     }
   ]

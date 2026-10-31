@@ -18,7 +18,7 @@ A static website for the Lucky Cat Mahjong club, with content managed through [P
 - **Analytics events** — Each CTA fires two Google Analytics 4 events (both with a `location` parameter):
   - a **unique** event so it can be tracked individually — `book_session_hero`, `book_session_submit`, `instagram_message_hero`, `instagram_message_mobilebar`, `instagram_message_quotenote`, `instagram_profile_header`, `instagram_profile_cta`, `email_click_cta`, `email_click_mobilebar`, `email_click_quotenote`
   - a **unified** channel event so totals are easy to read across the whole site — `email_click` (every email action, including the booking form), `instagram_message` (every Instagram DM action), and `instagram_profile` (every Instagram profile/follow click). The unified events include a `source_event` parameter identifying which specific CTA fired it.
-- **Services** — Private lessons, office workshops, and business collaborations
+- **Services** — Private lessons, workshops, and business collaborations
 - **Editable rates** — Pricing table managed via Pages CMS
 - **Instagram** — Links to [@luckycat.mahjong](https://www.instagram.com/luckycat.mahjong/)
 
