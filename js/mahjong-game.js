@@ -1478,7 +1478,10 @@
       if (!plain) return;
       var last = ui.coachLog[ui.coachLog.length - 1];
       if (last && last.kind === kind && last.action === plain.action && last.detail === plain.detail) return;
-      ui.coachLog.push({ kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber() });
+      ui.coachLog.push({
+        kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber(),
+        hand: game ? game.handNumber : 1, // the log runs across the whole game
+      });
       if (ui.coachLog.length > 200) ui.coachLog.shift(); // a whole hand's worth
       ui.coachStick = true;
     }
@@ -1514,10 +1517,10 @@
       var textPad = 8 + avatar + 8;
       var blocks = pastCoachEntries().map(function (entry) {
         var lines = [];
-        var moveLabel = 'Move ' + entry.move;
-        ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
-        var moveW = ctx.measureText(moveLabel).width + 12;
-        var innerW = viewW - textPad - 16 - moveW;
+        var moveLabel = 'Hand ' + entry.hand + ' · Move ' + entry.move;
+        // The label gets its own line, so the advice uses the full width.
+        var moveW = 0;
+        var innerW = viewW - textPad - 16;
         function pushWrapped(value, bold, baseColor) {
           if (!value) return;
           ctx.font = (bold ? 'bold ' : '') + size + 'px ' + FONT_BODY;
@@ -1541,7 +1544,7 @@
         // The whole note for that move: the advice in bold, then why.
         pushWrapped(entry.action, true, COLORS.goldLight);
         pushWrapped(entry.detail, false, COLORS.cream);
-        var h = Math.max(avatar + 16, lines.length * lh + 16);
+        var h = Math.max(avatar + 16, (lines.length + 1) * lh + 16);
         return { entry: entry, lines: lines, h: h, moveLabel: moveLabel, moveW: moveW };
       });
       var contentH = blocks.reduce(function (n, b) { return n + b.h + 8; }, 0);
@@ -1570,13 +1573,13 @@
           var logoH = avatar * (images.logo.height / images.logo.width || 1);
           ctx.drawImage(images.logo, viewX + 8, y + (b.h - logoH) / 2, avatar, logoH);
         }
-        var blockH = b.lines.length * lh;
+        var blockH = (b.lines.length + 1) * lh;
         var startY = y + (b.h - blockH) / 2 + lh / 2;
-        text(b.moveLabel, viewX + textPad, startY, { size: size, weight: 'bold', color: COLORS.gold });
+        text(b.moveLabel, viewX + textPad, startY, { size: size - 1, weight: 'bold', color: COLORS.gold });
         b.lines.forEach(function (ln, i) {
           var cx = viewX + textPad + b.moveW;
           ln.segs.forEach(function (sg) {
-            text(sg.text, cx, startY + i * lh, { size: size, color: sg.color, weight: ln.bold ? 'bold' : '' });
+            text(sg.text, cx, startY + (i + 1) * lh, { size: size, color: sg.color, weight: ln.bold ? 'bold' : '' });
             ctx.font = (ln.bold ? 'bold ' : '') + size + 'px ' + FONT_BODY;
             cx += ctx.measureText(sg.text).width;
           });
