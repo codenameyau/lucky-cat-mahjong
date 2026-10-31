@@ -1301,7 +1301,8 @@
       ctx.restore();
       if (images.logo) {
         var iw = iconS * (images.logo.width / images.logo.height);
-        ctx.drawImage(images.logo, x + 8, y + 7, Math.min(iw, 48), Math.min(iconS, 48 / (iw / iconS)));
+        var dw = Math.min(iw, 48), dh = Math.min(iconS, 48 / (iw / iconS));
+        ctx.drawImage(images.logo, x + 8, y + (h - dh) / 2, dw, dh); // centered in the box, however tall it grows
       }
       var startY = y + h / 2 - (out.length * lh) / 2 + lh / 2;
       out.forEach(function (l, i) {
