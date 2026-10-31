@@ -296,7 +296,7 @@
       return buf;
     }
 
-    function pluck(a, start, freq, gain, dur, dest) {
+    function pluck(a, start, freq, gain, dur) {
       dur = dur || 1.4;
       var src = a.createBufferSource();
       src.buffer = pluckBuffer(a, freq, dur);
@@ -306,7 +306,7 @@
       var g = a.createGain();
       g.gain.setValueAtTime(gain, start);
       g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-      src.connect(lp); lp.connect(g); g.connect(dest || master);
+      src.connect(lp); lp.connect(g); g.connect(master);
       src.start(start);
     }
 
@@ -372,96 +372,6 @@
           break;
       }
     };
-    /* Background music: a calm tune on plucked zither strings in G major
-       pentatonic over a soft pad, 4 phrases of 8 beats that loop, with small
-       variations each time round. Each phrase is scheduled a little ahead of
-       time so the loop never stutters. */
-    var BEAT = 60 / 64;
-    function midi(m) { return 440 * Math.pow(2, (m - 69) / 12); }
-    // [root, melody as [beat, note, beats]] for each phrase.
-    var PHRASES = [
-      [43, [[0, 74, 1], [1, 76, 1], [2, 79, 2], [4, 76, 1], [5, 74, 1], [6, 71, 2]]],
-      [40, [[0, 76, 1], [1, 74, 1], [2, 71, 1], [3, 69, 1], [4, 71, 2.5], [7, 74, 1]]],
-      [45, [[0, 76, 1.5], [1.5, 79, 0.5], [2, 81, 2], [4, 79, 1], [5, 76, 1], [6, 74, 2]]],
-      [38, [[0, 71, 1], [1, 69, 1], [2, 67, 2], [4, 69, 1], [5, 71, 1], [6, 74, 1.5], [7.5, 67, 0.5]]],
-    ];
-    var music = { timer: null, bus: null, next: 0, count: 0 };
-
-    function pad(a, t, root, dur) {
-      var out = a.createGain();
-      out.gain.setValueAtTime(0.0001, t);
-      out.gain.exponentialRampToValueAtTime(0.05, t + 1.6);
-      out.gain.setValueAtTime(0.05, t + dur - 0.4);
-      out.gain.exponentialRampToValueAtTime(0.0001, t + dur + 1.6);
-      var lp = a.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.value = 700;
-      lp.connect(out);
-      out.connect(music.bus);
-      [[root + 12, -4], [root + 19, 4], [root + 24, 0]].forEach(function (n) {
-        var o = a.createOscillator();
-        o.type = 'triangle';
-        o.frequency.value = midi(n[0]);
-        o.detune.value = n[1];
-        o.connect(lp);
-        o.start(t);
-        o.stop(t + dur + 1.8);
-      });
-    }
-
-    function schedulePhrase(a, t) {
-      var p = PHRASES[music.count % PHRASES.length];
-      var round = Math.floor(music.count / PHRASES.length);
-      var dur = 8 * BEAT;
-      pad(a, t, p[0], dur);
-      pluck(a, t, midi(p[0] + 12), 0.1, 2.4, music.bus);
-      pluck(a, t + 4 * BEAT, midi(p[0] + 19), 0.07, 2.2, music.bus);
-      p[1].forEach(function (n) {
-        var at = t + n[0] * BEAT + (Math.random() - 0.5) * 0.03;
-        pluck(a, at, midi(n[1]), 0.1 + Math.random() * 0.03, Math.min(2.4, n[2] * BEAT + 1), music.bus);
-        // Every other time round, a soft octave echo on longer notes.
-        if (round % 2 === 1 && n[2] >= 2) pluck(a, at + BEAT * 0.5, midi(n[1] + 12), 0.035, 1.6, music.bus);
-      });
-      if (music.count % PHRASES.length === 0) {
-        [[392, 1], [588, 0.4], [988, 0.15]].forEach(function (pr) {
-          var o = a.createOscillator();
-          var g = a.createGain();
-          o.frequency.value = pr[0];
-          g.gain.setValueAtTime(0.0001, t);
-          g.gain.exponentialRampToValueAtTime(0.03 * pr[1], t + 0.01);
-          g.gain.exponentialRampToValueAtTime(0.0001, t + 3);
-          o.connect(g); g.connect(music.bus);
-          o.start(t); o.stop(t + 3.1);
-        });
-      }
-      music.count++;
-      return dur;
-    }
-
-    api.musicOn = true;
-    api.startMusic = function () {
-      if (!api.musicOn || music.timer) return;
-      var a = ctx();
-      if (!a) return;
-      music.bus = a.createGain();
-      music.bus.gain.value = 0.9;
-      music.bus.connect(master);
-      music.next = a.currentTime + 0.4;
-      var tick = function () {
-        while (music.next < a.currentTime + 1.5) music.next += schedulePhrase(a, music.next);
-      };
-      tick();
-      music.timer = setInterval(tick, 400);
-    };
-    api.stopMusic = function () {
-      if (music.timer) clearInterval(music.timer);
-      music.timer = null;
-      // Notes already scheduled fade out with their bus.
-      if (music.bus && ac) {
-        music.bus.gain.setTargetAtTime(0, ac.currentTime, 0.25);
-        music.bus = null;
-      }
-    };
     return api;
   }
 
@@ -503,7 +413,6 @@
     var ctx = canvas.getContext('2d');
     var prefs = readJson(PREFS_KEY, { sound: true });
     var sound = createSound(prefs.sound !== false);
-    sound.musicOn = prefs.music !== false;
     var reduceMotion = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     // W and H are the layout size. On short landscape screens the table is
@@ -1795,14 +1704,13 @@
     var SPEED_ORDER = ['normal', 'off'];
 
     function drawMenu() {
-      var r = panelRect(340, 382);
+      var r = panelRect(340, 332);
       drawPanelBg(r);
       text('Paused', r.x + r.w / 2, r.y + 36, { size: 24, family: FONT_HEAD, align: 'center', color: COLORS.red });
       var bx = r.x + 30, bw = r.w - 60, y = r.y + 62, step = 50;
       button('Resume', bx, y, bw, 40, function () { closeOverlay(); }, 'primary', 'm-resume'); y += step;
       button('Animations: ' + SPEED_LABELS[settings.speed || 'normal'], bx, y, bw, 40, cycleSpeed, 'light', 'm-speed'); y += step;
       button(settings.walls ? 'Hide the walls' : 'Show the walls', bx, y, bw, 40, toggleWalls, 'light', 'm-walls'); y += step;
-      button(sound.musicOn ? 'Music: On' : 'Music: Off', bx, y, bw, 40, toggleMusic, 'light', 'm-music'); y += step;
       button('Quit game', bx, y, bw, 40, function () { quit(); }, 'light', 'm-quit');
       var modeLine = (settings.mode === 'practice' ? 'Practice mode' : 'Payout mode') + ' · ' + (settings.spicy === 'half' ? 'Half spicy' : 'Full spicy');
       text(modeLine, r.x + r.w / 2, r.y + r.h - 18, { size: 12, align: 'center', color: COLORS.muted });
@@ -1887,23 +1795,11 @@
       track('play_toggle_hints', { hints: ui.hints ? 'on' : 'off' });
     }
 
-    function savePrefs() {
-      writeJson(PREFS_KEY, { sound: sound.enabled, music: sound.musicOn });
-    }
-
     function toggleSound() {
       sound.enabled = !sound.enabled;
-      savePrefs();
-      if (sound.enabled) { sound.play('select'); sound.startMusic(); } else sound.stopMusic();
+      writeJson(PREFS_KEY, { sound: sound.enabled });
+      if (sound.enabled) sound.play('select');
       requestRender();
-    }
-
-    function toggleMusic() {
-      sound.musicOn = !sound.musicOn;
-      savePrefs();
-      if (sound.musicOn) sound.startMusic(); else sound.stopMusic();
-      requestRender();
-      track('play_toggle_music', { music: sound.musicOn ? 'on' : 'off' });
     }
 
     function quit() {
@@ -1990,7 +1886,6 @@
     }
 
     function onPointerDown(e) {
-      sound.startMusic(); // no-op once playing; covers browsers that block audio until a tap
       var p = pointerPos(e);
       var r = hitTest(p.x, p.y);
       if (!r) {
@@ -2419,14 +2314,12 @@
 
     return {
       start: function () {
-        sound.startMusic();
         play().catch(function (err) {
           if (root.console) console.error(err);
         });
       },
       destroy: function () {
         destroyed = true;
-        sound.stopMusic();
         root.removeEventListener('resize', onResize);
         root.removeEventListener('keydown', onKey);
         canvas.removeEventListener('pointerdown', onPointerDown);
