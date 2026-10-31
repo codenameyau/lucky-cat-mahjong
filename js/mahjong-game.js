@@ -29,7 +29,9 @@
     white: '#ffffff',
   };
   var FONT_BODY = '"Avenir Medium", "Avenir Next Medium", Avenir, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-  var FONT_HEAD = '"KN Yuanmo SC", ' + FONT_BODY;
+  // Headings, winds and banners; drawn bold (see text() and fitFont()).
+  var FONT_HEAD = '"Cinzel", Georgia, "Times New Roman", serif';
+  var WIND_LETTERS = ['', 'E', 'S', 'W', 'N'];
 
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function now() { return (root.performance && performance.now) ? performance.now() : Date.now(); }
@@ -76,6 +78,12 @@
       return loadImage('/tiles/' + E.HKScoring.TILE_BY_ID[id].file).then(function (img) { images[id] = img; });
     });
     jobs.push(loadImage('/logo.png').then(function (img) { images.logo = img; }));
+    if (document.fonts && document.fonts.load) {
+      jobs.push(Promise.race([
+        document.fonts.load('bold 16px Cinzel').catch(function () {}),
+        new Promise(function (resolve) { setTimeout(resolve, 1500); }),
+      ]));
+    }
     assetsReady = Promise.all(jobs);
     return assetsReady;
   }
@@ -387,6 +395,7 @@
   }
 
   function fitFont(ctx, text, maxW, size, family, weight) {
+    if (!weight && family === FONT_HEAD) weight = 'bold';
     var s = size;
     for (; s > 8; s--) {
       ctx.font = (weight || '') + ' ' + s + 'px ' + family;
@@ -698,7 +707,8 @@
 
     function text(str, x, y, opts) {
       opts = opts || {};
-      ctx.font = (opts.weight || '') + ' ' + (opts.size || 13) + 'px ' + (opts.family || FONT_BODY);
+      var weight = opts.weight || (opts.family === FONT_HEAD ? 'bold' : '');
+      ctx.font = weight + ' ' + (opts.size || 13) + 'px ' + (opts.family || FONT_BODY);
       ctx.fillStyle = opts.color || COLORS.white;
       ctx.textAlign = opts.align || 'left';
       ctx.textBaseline = opts.baseline || 'middle';
@@ -786,7 +796,6 @@
       button(ui.hints ? 'Hints on' : 'Hints off', right - sw - hw - 6, 7, hw, 28, toggleHints, ui.hints ? 'gold' : 'ghost', 'hints');
       if (game) {
         var label = E.WIND_NAMES[game.round] + ' round · Hand ' + game.handNumber;
-        if (W >= 520) label = E.WIND_CN[game.round] + '  ' + label;
         var maxW = right - sw - hw - 12 - (pad + 72);
         var size = fitFont(ctx, label, maxW, 15, FONT_HEAD);
         text(label, pad + 72 + maxW / 2, 22, { size: size, family: FONT_HEAD, align: 'center', color: COLORS.cream });
@@ -800,7 +809,7 @@
       ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fillStyle = isDealer ? COLORS.red : 'rgba(255,248,240,0.92)';
       ctx.fill();
-      text(E.WIND_CN[wind], x, y + 1, { size: Math.round(r * 1.15), family: FONT_HEAD, align: 'center', color: isDealer ? COLORS.white : COLORS.ink });
+      text(WIND_LETTERS[wind], x, y + 1, { size: Math.round(r * 1.05), family: FONT_HEAD, align: 'center', color: isDealer ? COLORS.white : COLORS.ink });
     }
 
     function seatTitle(seat) {
@@ -1016,7 +1025,7 @@
         // Faint seat-wind watermark, facing the owner, so each pile is easy to find.
         var ws = clamp(Math.min(f.w, f.h) * 0.5, 14, 54);
         ctx.globalAlpha = ui.turnSeat === seat ? 0.2 : 0.09;
-        text(E.WIND_CN[E.seatWind(game, seat)], f.w / 2, f.h / 2, { size: ws, family: FONT_HEAD, align: 'center', color: COLORS.cream });
+        text(WIND_LETTERS[E.seatWind(game, seat)], f.w / 2, f.h / 2, { size: ws, family: FONT_HEAD, align: 'center', color: COLORS.cream });
         ctx.globalAlpha = 1;
         var all = game.hand.seats[seat].discards;
         var list = all.filter(function (d) { return !d.claimed; });
@@ -1042,7 +1051,7 @@
       ctx.restore();
       var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
       var big = clamp(c.h * 0.42, 14, 40);
-      text(E.WIND_CN[game.round], cx, cy - big * 0.32, { size: big, family: FONT_HEAD, align: 'center', color: COLORS.goldLight });
+      text(WIND_LETTERS[game.round], cx, cy - big * 0.32, { size: big, family: FONT_HEAD, align: 'center', color: COLORS.goldLight });
       var tk = wallTaken();
       var left = 144 - tk.front - tk.back;
       text(left + ' left', cx, cy + big * 0.55, { size: clamp(c.h * 0.16, 10, 14), align: 'center', color: COLORS.cream });
@@ -1283,7 +1292,7 @@
         ctx.translate(b.x, b.y);
         ctx.scale(scale, scale);
         var size = b.size || 30;
-        ctx.font = size + 'px ' + FONT_HEAD;
+        ctx.font = 'bold ' + size + 'px ' + FONT_HEAD;
         var tw = ctx.measureText(b.text).width;
         var bw = tw + size * 1.2, bh = size * 1.5;
         roundRect(ctx, -bw / 2, -bh / 2, bw, bh, bh / 2);
@@ -1499,8 +1508,6 @@
           var ns = fitFont(ctx, it.name, colW - faanW - 40, 15, FONT_BODY);
           text(it.name, colX, my, { size: ns, color: COLORS.ink });
           ctx.font = ns + 'px ' + FONT_BODY;
-          var nameW = ctx.measureText(it.name).width;
-          if (nameW + 44 < colW - faanW) text(it.cn, colX + nameW + 8, my, { size: 13, family: FONT_HEAD, color: COLORS.muted });
           text(faanLabel, colX + colW, my, { size: 15, weight: 'bold', align: 'right', color: it.faan ? COLORS.ink : COLORS.muted });
           y += rh;
         });
@@ -1927,9 +1934,8 @@
       claim: function (d) {
         sound.play(d.type === 'kong' ? 'kong' : 'claim');
         var words = { chow: 'Chow!', pung: 'Pung!', kong: 'Kong!' };
-        var cn = { chow: '上', pung: '碰', kong: '槓' };
         var pos = seatBannerPos(d.seat);
-        banner(cn[d.type] + ' ' + words[d.type], pos.x, pos.y, { size: 24 });
+        banner(words[d.type], pos.x, pos.y, { size: 24 });
         var list = game.hand.seats[d.from].discards.filter(function (x) { return !x.claimed; });
         var from = pondPose(d.from, list.length);
         var to = ui.meldAnchor[d.seat] || seatAnchor(d.seat);
@@ -1944,13 +1950,13 @@
       },
       kongAttempt: function (d) {
         var pos = seatBannerPos(d.seat);
-        banner('槓 Kong?', pos.x, pos.y, { size: 20, dur: 700 });
+        banner('Kong?', pos.x, pos.y, { size: 20, dur: 700 });
         return sleep(300);
       },
       kong: function (d) {
         sound.play('kong');
         var pos = seatBannerPos(d.seat);
-        banner('槓 Kong!', pos.x, pos.y, { size: 24 });
+        banner('Kong!', pos.x, pos.y, { size: 24 });
         announce((d.seat === 0 ? 'You declare' : game.players[d.seat].name + ' declares') + ' a kong of ' + E.tileName(d.tile) + '.');
         return sleep(650);
       },
@@ -1959,8 +1965,8 @@
         ui.claimPrompt = null;
         var c = L.center;
         var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
-        var label = res.how === 'selfDraw' ? '自摸 Self-draw!' : '食糊 Win!';
-        if (res.how === 'flowers') label = '花糊 Flower win!';
+        var label = res.how === 'selfDraw' ? 'Self-draw!' : 'Win!';
+        if (res.how === 'flowers') label = 'Flower win!';
         var mine = res.winner === 0;
         banner(label, cx, cy, { size: 34, dur: 1700, color: mine ? COLORS.gold : COLORS.red, textColor: mine ? COLORS.ink : COLORS.white, sub: (mine ? 'You' : game.players[res.winner].name) + ' · ' + res.score.faan + ' faan' });
         if (mine) {
@@ -1977,7 +1983,7 @@
       drawGame: function () {
         sound.play('drawgame');
         var c = L.center;
-        banner('流局 Draw', c.x + c.w / 2, c.y + c.h / 2, { size: 30, dur: 1400, color: COLORS.muted });
+        banner('Draw', c.x + c.w / 2, c.y + c.h / 2, { size: 30, dur: 1400, color: COLORS.muted });
         announce('Draw game. The wall is empty.');
         return sleep(1200);
       },
