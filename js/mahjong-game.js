@@ -1058,7 +1058,9 @@
       text(WIND_LETTERS[game.round], cx, cy - big * 0.32, { size: big, family: FONT_HEAD, align: 'center', color: COLORS.goldLight });
       var tk = wallTaken();
       var left = 144 - tk.front - tk.back;
-      text(left + ' left', cx, cy + big * 0.55, { size: clamp(c.h * 0.16, 10, 14), align: 'center', color: COLORS.cream });
+      var leftLabel = left + ' tiles left';
+      var leftSize = fitFont(ctx, leftLabel, c.w - 8, clamp(c.h * 0.16, 10, 14), FONT_BODY);
+      text(leftLabel, cx, cy + big * 0.55, { size: leftSize, align: 'center', color: COLORS.cream });
 
       // Arrow toward whose turn it is.
       if (ui.turnSeat !== null && !ui.overlay) {

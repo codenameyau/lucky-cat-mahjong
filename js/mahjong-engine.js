@@ -247,7 +247,7 @@
    * 3. Game + hand state
    * ------------------------------------------------------------------ */
 
-  var BOT_NAMES = ['Mei', 'Kenji', 'Lulu', 'Wing', 'Rosa', 'Tak', 'Bo', 'Ming', 'Sasha', 'Hugo', 'Pearl', 'Jade'];
+  var BOT_NAMES = ['Mei', 'Kwan', 'Lulu', 'Wing', 'Rosa', 'Tak', 'Bo', 'Ming', 'Grace', 'Hugo', 'Pearl', 'Jade'];
 
   function createGame(options) {
     options = options || {};
