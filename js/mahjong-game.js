@@ -429,6 +429,9 @@
     var flights = [];
     var regions = [];
     var hover = null;
+    // Face-up tiles drawn this frame (screen boxes) and the mouse position,
+    // for the tile-name tooltip.
+    var tileSpots = [], tipsOn = true, mouse = null, tipTile = null;
 
     var ui = {
       hints: !!settings.hints,
@@ -698,6 +701,7 @@
         roundRect(ctx, x + 1, y + 2, w, h, w * 0.13);
         ctx.fill();
       }
+      if (id && !opts.back && tipsOn) recordSpot(id, x, y, w, h);
       ctx.drawImage(sp, x, y, w, h);
       if (opts.glow) {
         ctx.strokeStyle = opts.glow;
@@ -763,8 +767,50 @@
 
     /* ---------------- render ---------------- */
 
+    // Screen-space box of a tile under the current transform (rotated seats,
+    // the scaled summary panel), in layout units.
+    function recordSpot(id, x, y, w, h) {
+      var m = ctx.getTransform();
+      var xs = [], ys = [];
+      [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].forEach(function (c) {
+        xs.push((m.a * c[0] + m.c * c[1] + m.e) / dpr);
+        ys.push((m.b * c[0] + m.d * c[1] + m.f) / dpr);
+      });
+      tileSpots.push({ id: id, x0: Math.min.apply(null, xs), y0: Math.min.apply(null, ys), x1: Math.max.apply(null, xs), y1: Math.max.apply(null, ys) });
+    }
+
+    function spotAt(p) {
+      if (!p) return null;
+      for (var i = tileSpots.length - 1; i >= 0; i--) {
+        var sp = tileSpots[i];
+        if (p.x >= sp.x0 && p.x <= sp.x1 && p.y >= sp.y0 && p.y <= sp.y1) return sp;
+      }
+      return null;
+    }
+
+    function drawTileTip() {
+      var sp = spotAt(mouse);
+      tipTile = sp ? sp.id : null;
+      if (!sp) return;
+      var label = E.tileName(sp.id);
+      ctx.font = 'bold 13px ' + FONT_BODY;
+      var w = ctx.measureText(label).width + 18, h = 26;
+      var x = clamp((sp.x0 + sp.x1) / 2 - w / 2, 4, W - w - 4);
+      var y = sp.y0 - h - 6;
+      if (y < 4) y = sp.y1 + 6;
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.3)';
+      ctx.shadowBlur = 8;
+      roundRect(ctx, x, y, w, h, 8);
+      ctx.fillStyle = 'rgba(26,26,26,0.92)';
+      ctx.fill();
+      ctx.restore();
+      text(label, x + w / 2, y + h / 2 + 1, { size: 13, weight: 'bold', align: 'center', color: COLORS.cream });
+    }
+
     function render(t) {
       regions = [];
+      tileSpots = [];
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       drawFelt();
       if (!game || !game.hand) {
@@ -778,10 +824,16 @@
       drawMe(t);
       drawHintBand();
       drawActions();
+      tipsOn = false; // tiles in flight, banners and effects get no tooltip
       drawFlights();
       drawBanners(t);
       drawParticles(t);
-      if (ui.overlay) drawOverlay(t);
+      tipsOn = true;
+      if (ui.overlay) {
+        tileSpots = []; // only the overlay's own tiles are under the mouse
+        drawOverlay(t);
+      }
+      drawTileTip();
     }
 
     function drawFelt() {
@@ -1797,7 +1849,14 @@
       var r = hitTest(p.x, p.y);
       var id = r ? r.id : null;
       canvas.style.cursor = r ? 'pointer' : 'default';
-      if (id !== hover) { hover = id; requestRender(); }
+      mouse = p;
+      var sp = spotAt(p);
+      if (id !== hover || (sp ? sp.id : null) !== tipTile) { hover = id; requestRender(); }
+    }
+
+    function onPointerLeave() {
+      mouse = null;
+      if (tipTile || hover) { hover = null; requestRender(); }
     }
 
     function onKey(e) {
@@ -2172,6 +2231,7 @@
     root.addEventListener('keydown', onKey);
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerleave', onPointerLeave);
     var ro = root.ResizeObserver ? new ResizeObserver(onResize) : null;
     if (ro) ro.observe(canvas);
     resize();
@@ -2188,6 +2248,7 @@
         root.removeEventListener('keydown', onKey);
         canvas.removeEventListener('pointerdown', onPointerDown);
         canvas.removeEventListener('pointermove', onPointerMove);
+        canvas.removeEventListener('pointerleave', onPointerLeave);
         if (ro) ro.disconnect();
       },
       // Exposed for debugging in the browser console.
