@@ -6,7 +6,7 @@
     "format-json": "node scripts/format-media.js",
     "generate-guide": "node scripts/generate-guide.js",
     "licensing-agreement": "node scripts/licensing-agreement.js",
-    "test": "node --test js/points.test.js js/main.test.js js/community.test.js js/tile-quiz.test.js js/mahjong-engine.test.js js/mahjong-bot.test.js scripts/tile-pages.test.js scripts/format-media.test.js",
+    "test": "node --test js/points.test.js js/main.test.js js/community.test.js js/tile-quiz.test.js js/mahjong-engine.test.js js/mahjong-bot.test.js js/mahjong-shuffle.test.js scripts/tile-pages.test.js scripts/format-media.test.js",
     "generate-tile-pages": "node scripts/generate-tile-pages.js"
   },
   "devDependencies": {

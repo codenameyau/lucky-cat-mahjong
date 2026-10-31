@@ -223,22 +223,66 @@
       o.stop(start + dur + 0.02);
     }
 
-    // One tile touching the table or another tile.
-    function clack(a, start, gain, pitch) {
-      pitch = (pitch || 1) * (0.93 + Math.random() * 0.14);
-      var src = noise(a);
-      var f = a.createBiquadFilter();
-      f.type = 'bandpass';
-      f.frequency.value = 3400 * pitch;
-      f.Q.value = 2.2;
-      src.connect(f);
-      f.connect(env(a, start, gain * 0.9, 0.018, 0.001));
-      src.start(start, Math.random() * 1.5, 0.05);
-      partial(a, start, 1720 * pitch, gain * 0.32, 0.055);
-      partial(a, start, 2890 * pitch, gain * 0.2, 0.04);
-      partial(a, start, 4310 * pitch, gain * 0.1, 0.028);
-      partial(a, start, 160, gain * 0.22, 0.05);
+    // Tile impacts are modal: a few short, decaying resonances plus a tiny
+    // noise transient. A handful of variants per kind are rendered once and
+    // replayed with slight pitch changes so no two hits sound identical.
+    var IMPACTS = {
+      // Tile striking tile: hard, bright and very short.
+      click: { dur: 0.07, spread: 0.12, tick: 0.5, thump: 0, modes: [[2450, 0.016, 1], [3900, 0.011, 0.75], [5600, 0.007, 0.5], [7900, 0.004, 0.3]] },
+      // Tile set down on the felt-covered table: duller and lower.
+      thock: { dur: 0.1, spread: 0.1, tick: 0.25, thump: 0.6, modes: [[820, 0.022, 0.7], [1500, 0.016, 1], [2650, 0.01, 0.55], [4300, 0.005, 0.25]] },
+    };
+    var banks = {};
+
+    function makeImpact(a, spec) {
+      var sr = a.sampleRate;
+      var len = Math.floor(sr * spec.dur);
+      var buf = a.createBuffer(1, len, sr);
+      var y = buf.getChannelData(0);
+      var modes = spec.modes.map(function (m) {
+        return {
+          w: 2 * Math.PI * m[0] * (1 + (Math.random() - 0.5) * 2 * spec.spread),
+          d: m[1] * (0.8 + Math.random() * 0.4),
+          g: m[2] * (0.7 + Math.random() * 0.6),
+          ph: Math.random() * Math.PI * 2,
+        };
+      });
+      var low = 0, peak = 0;
+      for (var i = 0; i < len; i++) {
+        var t = i / sr;
+        var v = 0;
+        for (var k = 0; k < modes.length; k++) v += modes[k].g * Math.exp(-t / modes[k].d) * Math.sin(modes[k].w * t + modes[k].ph);
+        var n = Math.random() * 2 - 1;
+        v += spec.tick * n * Math.exp(-t / 0.0012);
+        low += (n - low) * 0.06;
+        v += spec.thump * low * 3 * Math.exp(-t / 0.01);
+        y[i] = v;
+        if (Math.abs(v) > peak) peak = Math.abs(v);
+      }
+      for (var j = 0; j < len; j++) y[j] *= 0.9 / peak;
+      return buf;
     }
+
+    function impact(a, start, kind, gain, rate) {
+      var bank = banks[kind];
+      if (!bank) {
+        bank = banks[kind] = [];
+        for (var i = 0; i < 6; i++) bank.push(makeImpact(a, IMPACTS[kind]));
+      }
+      var src = a.createBufferSource();
+      src.buffer = bank[Math.floor(Math.random() * bank.length)];
+      src.playbackRate.value = (rate || 1) * (0.94 + Math.random() * 0.12);
+      var g = a.createGain();
+      g.gain.value = gain;
+      src.connect(g);
+      g.connect(master);
+      src.start(start);
+    }
+
+    // Tile against tile.
+    function clack(a, start, gain, pitch) { impact(a, start, 'click', gain, pitch); }
+    // Tile put down on the table.
+    function thock(a, start, gain, pitch) { impact(a, start, 'thock', gain, pitch); }
 
     function pluckBuffer(a, freq, dur) {
       var key = Math.round(freq) + ':' + dur;
@@ -275,62 +319,82 @@
       });
     }
 
-    // Tiles being swirled face down on the felt before a hand.
-    function wash(a, start, dur) {
-      var src = noise(a);
-      var lp = a.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.value = 1100;
-      var g = a.createGain();
-      g.gain.setValueAtTime(0.0001, start);
-      g.gain.exponentialRampToValueAtTime(0.09, start + 0.25);
-      g.gain.setValueAtTime(0.09, start + dur - 0.3);
-      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-      src.connect(lp); lp.connect(g); g.connect(master);
-      src.start(start, 0, dur + 0.05);
-      var n = Math.round(dur * 34);
-      for (var i = 0; i < n; i++) {
-        clack(a, start + Math.random() * dur, 0.04 + Math.random() * 0.12, 0.85 + Math.random() * 0.4);
+    // The shuffle: each collision in the simulation is a click, louder for
+    // harder hits, over a soft rumble of tiles sliding on the felt.
+    api.hit = function (strength) {
+      var a = ctx();
+      if (!a) return;
+      impact(a, a.currentTime + Math.random() * 0.012, 'click', 0.05 + strength * 0.45, 0.9 + Math.random() * 0.25);
+    };
+
+    var slideGain = null;
+    api.slide = function (level) {
+      if (!api.enabled || !level) {
+        if (slideGain) slideGain.gain.setTargetAtTime(0, slideGain.context.currentTime, 0.06);
+        return;
       }
-    }
+      var a = ctx();
+      if (!a) return;
+      if (!slideGain) {
+        var src = noise(a);
+        src.loop = true;
+        var bp = a.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 650;
+        bp.Q.value = 0.6;
+        var lp = a.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 1800;
+        slideGain = a.createGain();
+        slideGain.gain.value = 0;
+        src.connect(bp); bp.connect(lp); lp.connect(slideGain); slideGain.connect(master);
+        src.start();
+      }
+      slideGain.gain.setTargetAtTime(Math.min(1, level) * 0.07, a.currentTime, 0.05);
+    };
 
     api.play = function (name, opt) {
       var a = ctx();
       if (!a) return;
       var t = a.currentTime + 0.01;
       switch (name) {
-        case 'wash':
-          wash(a, t, (opt && opt.dur) || 1.4);
-          break;
         case 'build':
-          for (var b = 0; b < 12; b++) clack(a, t + b * ((opt && opt.step) || 0.05), 0.12, 0.9 + (b % 3) * 0.06);
+          for (var b = 0; b < 12; b++) {
+            var bt = t + b * ((opt && opt.step) || 0.05);
+            thock(a, bt, 0.16, 1.05);
+            clack(a, bt + 0.012, 0.1, 0.95 + (b % 3) * 0.05);
+          }
           break;
         case 'deal':
-          clack(a, t, 0.22, 1.05);
-          clack(a, t + 0.025, 0.12, 1.1);
+          thock(a, t, 0.32, 1);
+          clack(a, t + 0.018, 0.16, 1.05);
+          clack(a, t + 0.04, 0.08, 1.1);
           break;
         case 'draw':
-          clack(a, t, 0.22, 1.15);
+          clack(a, t, 0.2, 1.05);
           break;
         case 'discard':
-          clack(a, t, 0.6, 1);
-          clack(a, t + 0.03, 0.14, 1.08);
+          thock(a, t, 0.75, 1);
+          clack(a, t + 0.022, 0.22, 1);
           break;
         case 'select':
-          clack(a, t, 0.07, 1.35);
+          clack(a, t, 0.06, 1.2);
           break;
         case 'flower':
           pluck(a, t, NOTE.G5, 0.22, 1.2);
           pluck(a, t + 0.09, NOTE.E5, 0.18, 1.2);
           break;
         case 'claim':
-          clack(a, t, 0.5, 0.95);
-          clack(a, t + 0.05, 0.45, 1);
+          thock(a, t, 0.45, 0.95);
+          clack(a, t + 0.05, 0.4, 1);
           pluck(a, t + 0.04, NOTE.A4, 0.26);
           pluck(a, t + 0.12, NOTE.D5, 0.22);
           break;
         case 'kong':
-          for (var k = 0; k < 4; k++) clack(a, t + k * 0.055, 0.42, 0.95 + k * 0.03);
+          for (var k = 0; k < 4; k++) {
+            thock(a, t + k * 0.055, 0.32, 1);
+            clack(a, t + k * 0.055 + 0.01, 0.3, 0.95 + k * 0.03);
+          }
           pluck(a, t + 0.08, NOTE.G4, 0.26);
           pluck(a, t + 0.2, NOTE.D5, 0.24);
           break;
@@ -358,6 +422,182 @@
       }
     };
     return api;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Shuffle physics: face-down tiles pushed around the felt by two palms.
+   * Tiles are rigid boxes that collide, bounce, spin and slow down on the
+   * felt; overlaps are resolved every substep so tiles never pass through
+   * each other.
+   * ------------------------------------------------------------------ */
+
+  var WASH_STEP = 1 / 240;
+
+  function createWashSim(bounds, tw, count, total) {
+    var hw = tw / 2, hh = tw * TILE_ASPECT / 2;
+    var diag = Math.sqrt(hw * hw + hh * hh);
+    var inertia = (hw * hw + hh * hh) / 3; // box of mass 1
+    var deepest = 0;
+    var sim = { bounds: bounds, tiles: [], palms: [], hits: [], energy: 0, hw: hw, hh: hh, step: step };
+
+    // Start scattered on a grid with room to turn, so nothing overlaps.
+    var cell = diag * 2 + 1;
+    var cols = Math.max(1, Math.floor(bounds.w / cell));
+    var rows = Math.max(1, Math.floor(bounds.h / cell));
+    var cells = [];
+    for (var i = 0; i < cols * rows; i++) cells.push(i);
+    for (var j = cells.length - 1; j > 0; j--) {
+      var k = Math.floor(Math.random() * (j + 1));
+      var tmp = cells[j]; cells[j] = cells[k]; cells[k] = tmp;
+    }
+    var ox = bounds.x + (bounds.w - cols * cell) / 2;
+    var oy = bounds.y + (bounds.h - rows * cell) / 2;
+    cells.slice(0, count).forEach(function (c) {
+      sim.tiles.push({
+        x: ox + (c % cols + 0.5) * cell, y: oy + (Math.floor(c / cols) + 0.5) * cell,
+        a: Math.random() * Math.PI * 2, vx: 0, vy: 0, va: 0,
+      });
+    });
+    var palmR = Math.max(tw * 1.25, Math.min(bounds.w, bounds.h) * 0.12);
+    sim.palms = [{ dir: 1, ph: Math.random() * Math.PI * 2 }, { dir: -1, ph: Math.random() * Math.PI * 2 }].map(function (pm) {
+      pm.x = 0; pm.y = 0; pm.vx = 0; pm.vy = 0; pm.r = 0; pm.k = 0; pm.R = palmR;
+      return pm;
+    });
+
+    function axes(t) {
+      var c = Math.cos(t.a), s = Math.sin(t.a);
+      return [c, s, -s, c]; // width axis, then height axis
+    }
+
+    // The corner of a box furthest along (x, y).
+    function support(t, ax, x, y) {
+      var sx = ax[0] * x + ax[1] * y >= 0 ? 1 : -1;
+      var sy = ax[2] * x + ax[3] * y >= 0 ? 1 : -1;
+      return [t.x + ax[0] * hw * sx + ax[2] * hh * sy, t.y + ax[1] * hw * sx + ax[3] * hh * sy];
+    }
+
+    function bounce(A, B, p, nx, ny) {
+      var rax = p[0] - A.x, ray = p[1] - A.y, rbx = p[0] - B.x, rby = p[1] - B.y;
+      var vn = (B.vx - B.va * rby - A.vx + A.va * ray) * nx + (B.vy + B.va * rbx - A.vy - A.va * rax) * ny;
+      if (vn >= 0) return;
+      var ra = rax * ny - ray * nx, rb = rbx * ny - rby * nx;
+      var jn = -1.35 * vn / (2 + (ra * ra + rb * rb) / inertia);
+      A.vx -= jn * nx; A.vy -= jn * ny; A.va -= ra * jn / inertia;
+      B.vx += jn * nx; B.vy += jn * ny; B.va += rb * jn / inertia;
+      sim.hits.push(-vn);
+    }
+
+    // Separating-axis test between two tiles; pushes them apart and bounces.
+    function collide(A, B) {
+      var dx = B.x - A.x, dy = B.y - A.y;
+      if (dx * dx + dy * dy >= 4 * diag * diag) return;
+      var aa = axes(A), ab = axes(B);
+      var list = [aa[0], aa[1], aa[2], aa[3], ab[0], ab[1], ab[2], ab[3]];
+      var best = Infinity, nx = 0, ny = 0, fromA = true;
+      for (var i = 0; i < 4; i++) {
+        var x = list[i * 2], y = list[i * 2 + 1];
+        var ra = hw * Math.abs(aa[0] * x + aa[1] * y) + hh * Math.abs(aa[2] * x + aa[3] * y);
+        var rb = hw * Math.abs(ab[0] * x + ab[1] * y) + hh * Math.abs(ab[2] * x + ab[3] * y);
+        var d = dx * x + dy * y;
+        var o = ra + rb - Math.abs(d);
+        if (o <= 0) return;
+        if (o < best) { best = o; nx = d < 0 ? -x : x; ny = d < 0 ? -y : y; fromA = i < 2; }
+      }
+      if (best > deepest) deepest = best;
+      var p = fromA ? support(B, ab, -nx, -ny) : support(A, aa, nx, ny);
+      var push = best / 2 + 0.05;
+      A.x -= nx * push; A.y -= ny * push;
+      B.x += nx * push; B.y += ny * push;
+      bounce(A, B, p, nx, ny);
+    }
+
+    // A palm is a soft disc that shoves tiles along with it.
+    function shove(t, pm) {
+      var ax = axes(t);
+      var dx = pm.x - t.x, dy = pm.y - t.y;
+      var lx = dx * ax[0] + dy * ax[1], ly = dx * ax[2] + dy * ax[3];
+      var cx = clamp(lx, -hw, hw), cy = clamp(ly, -hh, hh);
+      var qx = t.x + ax[0] * cx + ax[2] * cy, qy = t.y + ax[1] * cx + ax[3] * cy;
+      var ex = qx - pm.x, ey = qy - pm.y;
+      var dist = Math.sqrt(ex * ex + ey * ey);
+      var inside = cx === lx && cy === ly;
+      if (!inside && dist >= pm.r) return;
+      var nx, ny;
+      if (inside || dist < 1e-6) {
+        var cd = Math.sqrt((t.x - pm.x) * (t.x - pm.x) + (t.y - pm.y) * (t.y - pm.y)) || 1;
+        nx = (t.x - pm.x) / cd; ny = (t.y - pm.y) / cd;
+      } else {
+        nx = ex / dist; ny = ey / dist;
+      }
+      // Pushes by velocity only; moving tiles directly could crush them together.
+      var rx = qx - t.x, ry = qy - t.y;
+      var vn = (t.vx - t.va * ry - pm.vx) * nx + (t.vy + t.va * rx - pm.vy) * ny;
+      if (vn < 0) {
+        var rn = rx * ny - ry * nx;
+        var jn = -1.1 * vn / (1 + rn * rn / inertia);
+        t.vx += jn * nx; t.vy += jn * ny; t.va += rn * jn / inertia;
+      }
+    }
+
+    function keepInside(t) {
+      var b = sim.bounds, ax = axes(t);
+      var ex = hw * Math.abs(ax[0]) + hh * Math.abs(ax[2]);
+      var ey = hw * Math.abs(ax[1]) + hh * Math.abs(ax[3]);
+      if (t.x - ex < b.x) { t.x = b.x + ex; if (t.vx < 0) { sim.hits.push(-t.vx * 0.5); t.vx *= -0.3; } }
+      if (t.x + ex > b.x + b.w) { t.x = b.x + b.w - ex; if (t.vx > 0) { sim.hits.push(t.vx * 0.5); t.vx *= -0.3; } }
+      if (t.y - ey < b.y) { t.y = b.y + ey; if (t.vy < 0) { sim.hits.push(-t.vy * 0.5); t.vy *= -0.3; } }
+      if (t.y + ey > b.y + b.h) { t.y = b.y + b.h - ey; if (t.vy > 0) { sim.hits.push(t.vy * 0.5); t.vy *= -0.3; } }
+    }
+
+    // Palms press down, wash in opposite circles, then lift off.
+    function movePalms(time, dt) {
+      var b = sim.bounds;
+      var cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+      var down = clamp(time / 0.25, 0, 1);
+      var up = clamp((total * 0.78 - time) / 0.2, 0, 1);
+      sim.palms.forEach(function (pm, i) {
+        var ang = pm.ph + pm.dir * time * 3.1;
+        var wander = 0.18 + 0.06 * Math.sin(time * 1.7 + i * 2);
+        var x = cx + Math.cos(ang) * b.w * wander + (i ? 1 : -1) * b.w * 0.08;
+        var y = cy + Math.sin(ang) * b.h * wander;
+        if (pm.k) { pm.vx = (x - pm.x) / dt; pm.vy = (y - pm.y) / dt; }
+        pm.x = x; pm.y = y;
+        pm.k = Math.min(down, up);
+        pm.r = pm.R * pm.k;
+      });
+    }
+
+    function step(dt, time) {
+      movePalms(time, dt);
+      var tiles = sim.tiles, n = tiles.length;
+      var lin = Math.exp(-2.4 * dt), ang = Math.exp(-3.2 * dt);
+      var speed = 0;
+      for (var i = 0; i < n; i++) {
+        var t = tiles[i];
+        t.x += t.vx * dt; t.y += t.vy * dt; t.a += t.va * dt;
+        t.vx *= lin; t.vy *= lin; t.va *= ang;
+        // Felt friction brings slow tiles to rest.
+        var sp = Math.sqrt(t.vx * t.vx + t.vy * t.vy);
+        if (sp < tw * 0.15) { t.vx = 0; t.vy = 0; } else speed += sp;
+        if (Math.abs(t.va) < 0.05) t.va = 0;
+      }
+      sim.energy = n ? speed / n : 0;
+      sim.palms.forEach(function (pm) {
+        if (pm.r > 0) for (var p = 0; p < n; p++) shove(tiles[p], pm);
+      });
+      // Separate until nothing overlaps; tiles pinned against the edge of the
+      // felt can take a few passes to settle.
+      for (var it = 0; it < 40; it++) {
+        deepest = 0;
+        for (var a = 0; a < n; a++) {
+          for (var b = a + 1; b < n; b++) collide(tiles[a], tiles[b]);
+        }
+        for (var c = 0; c < n; c++) keepInside(tiles[c]);
+        if (deepest < 0.05) break;
+      }
+    }
+
+    return sim;
   }
 
   /* ------------------------------------------------------------------ *
@@ -1005,21 +1245,21 @@
       });
     }
 
-    // Face-down tiles swirling on the felt before the walls are built.
+    // Face-down tiles being washed on the felt before the walls are built.
     function drawWash() {
       var w = ui.wash;
       if (!w) return;
-      var c = L.inner;
-      var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
-      var rx = c.w * 0.42, ry = c.h * 0.42;
-      var tw = clamp(Math.min(c.w, c.h) / 11, 10, 26);
-      var gather = w.p > 0.78 ? 1 - (w.p - 0.78) / 0.22 : 1;
-      w.tiles.forEach(function (tl) {
-        var a = tl.a0 + tl.dir * w.p * tl.turns * Math.PI * 2;
-        var r = tl.r * gather * (0.85 + 0.15 * Math.sin(w.p * 9 + tl.wob));
-        var x = cx + Math.cos(a) * rx * r - tw / 2;
-        var y = cy + Math.sin(a) * ry * r - tw * TILE_ASPECT / 2;
-        drawTile(null, x, y, tw, { back: true, rot: a * tl.spin, alpha: gather < 0.35 ? gather / 0.35 : 1 });
+      var sim = w.sim;
+      sim.palms.forEach(function (pm) {
+        if (pm.r <= 0) return;
+        var g = ctx.createRadialGradient(pm.x, pm.y + pm.r * 0.2, pm.r * 0.2, pm.x, pm.y + pm.r * 0.2, pm.r * 1.3);
+        g.addColorStop(0, 'rgba(0,0,0,' + (0.2 * pm.k) + ')');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(pm.x - pm.r * 1.4, pm.y - pm.r * 1.2, pm.r * 2.8, pm.r * 2.8);
+      });
+      sim.tiles.forEach(function (t) {
+        drawTile(null, t.x - sim.hw, t.y - sim.hh, sim.hw * 2, { back: true, rot: t.a, alpha: w.alpha });
       });
     }
 
@@ -1056,6 +1296,8 @@
         ctx.restore();
       }
 
+      // The tiles being washed cover the whole felt, so the badge waits.
+      if (ui.wash) return;
       var c = L.center;
       ctx.save();
       roundRect(ctx, c.x, c.y, c.w, c.h, 12);
@@ -2033,18 +2275,48 @@
 
     /* ---------------- start-of-hand ritual ---------------- */
 
+    var WASH_MS = 2200;
+
+    function washBounds() {
+      var c = L.inner;
+      return { x: c.x + 4, y: c.y + 4, w: c.w - 8, h: c.h - 8 };
+    }
+
+    // Collisions become clicks (the hardest few each frame), and the overall
+    // motion drives the sliding rumble.
+    function washSounds(sim) {
+      var tw = sim.hw * 2;
+      sim.hits.filter(function (v) { return v > tw * 1.5; })
+        .sort(function (x, y) { return y - x; })
+        .slice(0, 3)
+        .forEach(function (v) { sound.hit(Math.min(1, v / (tw * 14))); });
+      sim.hits.length = 0;
+      var level = Math.min(1, sim.energy / (tw * 4));
+      sound.slide(level);
+      if (Math.random() < level * 0.5) sound.hit(0.05 + Math.random() * 0.15 * level);
+    }
+
     function introShuffle() {
-      var tiles = [];
-      for (var i = 0; i < 46; i++) {
-        tiles.push({
-          a0: Math.random() * Math.PI * 2, r: 0.12 + Math.random() * 0.88,
-          dir: Math.random() < 0.5 ? -1 : 1, turns: 0.4 + Math.random() * 0.9,
-          spin: (Math.random() - 0.5) * 3, wob: Math.random() * 6,
-        });
-      }
-      ui.wash = { tiles: tiles, p: 0 };
-      sound.play('wash', { dur: speed(1600) / 1000 });
-      return animate(1600, function (p) { ui.wash.p = p; }).then(function () { ui.wash = null; });
+      if (instantMode()) return Promise.resolve();
+      var b = washBounds();
+      var tw = clamp(Math.min(b.w, b.h) / 8, 12, 30);
+      var count = clamp(Math.round(b.w * b.h * 0.32 / (tw * tw * TILE_ASPECT)), 14, 56);
+      ui.wash = { sim: createWashSim(b, tw, count, WASH_MS / 1000), t: 0, alpha: 1 };
+      return animate(WASH_MS, function (p, raw) {
+        var w = ui.wash;
+        if (!w) return;
+        w.sim.bounds = washBounds();
+        var target = raw * WASH_MS / 1000;
+        // Catch up in fixed steps; if frames stalled (hidden tab), skip ahead.
+        var steps = Math.min(40, Math.floor((target - w.t) / WASH_STEP));
+        for (var i = 0; i < steps; i++) { w.sim.step(WASH_STEP, w.t); w.t += WASH_STEP; }
+        if (target - w.t > WASH_STEP) w.t = target;
+        w.alpha = raw > 0.9 ? (1 - raw) / 0.1 : 1;
+        washSounds(w.sim);
+      }).then(function () {
+        ui.wash = null;
+        sound.slide(0);
+      });
     }
 
     function introBuild() {
@@ -2240,6 +2512,7 @@
       },
       destroy: function () {
         destroyed = true;
+        sound.slide(0);
         root.removeEventListener('resize', onResize);
         root.removeEventListener('keydown', onKey);
         canvas.removeEventListener('pointerdown', onPointerDown);
@@ -2328,7 +2601,8 @@
     });
   }
 
-  var api = { createTable: createTable, init: init };
+  var api = { createTable: createTable, init: init, createWashSim: createWashSim, WASH_STEP: WASH_STEP };
+  if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   root.MahjongGame = api;
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
