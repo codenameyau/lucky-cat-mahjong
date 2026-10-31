@@ -96,7 +96,8 @@
         }),
       ] },
     ] },
-    { title: 'Situational', families: [
+    // No hover preview here: these are about how a hand is won, not its tiles.
+    { title: 'Situational', preview: false, families: [
       { rows: [
         rule('Self-Draw', '自摸', 'selfDraw', 'You draw the winning tile', {
           sets: RUNS, open: [0], flags: { selfDraw: true }, note: 'You drew the last Two Circle from the wall.',

@@ -315,9 +315,9 @@ html.is-playing body {
   color: #1A1A1A;
 }
 
-.rules-row { cursor: help; border-radius: 6px; }
-.rules-row:hover,
-.rules-row:focus { background: rgba(196, 30, 58, 0.22); outline: none; }
+.rules-row--example { cursor: help; border-radius: 6px; }
+.rules-row--example:hover,
+.rules-row--example:focus { background: rgba(196, 30, 58, 0.22); outline: none; }
 
 .rules-sheet { position: fixed; }
 

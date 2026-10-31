@@ -949,7 +949,6 @@
           fam.rows.forEach(function (r) {
             var row = document.createElement('div');
             row.className = 'rules-row';
-            row.tabIndex = 0;
             var faan = F[r.key];
             var limit = faan >= F.thirteenOrphans;
             row.innerHTML = '<div class="rules-row-text"><div class="rules-name"></div><div class="rules-desc"></div></div><div class="rules-faan"></div>';
@@ -964,12 +963,16 @@
             pill.textContent = limit ? 'Limit' : faan + ' faan';
             if (limit) pill.classList.add('rules-faan--limit');
             // Hover (or tap, or focus) shows an example hand.
-            var show = function () { showRuleExample(row, r, pill.textContent); };
-            row.addEventListener('mouseenter', show);
-            row.addEventListener('focus', show);
-            row.addEventListener('click', show);
-            row.addEventListener('mouseleave', hideRuleExample);
-            row.addEventListener('blur', hideRuleExample);
+            if (section.preview !== false) {
+              row.classList.add('rules-row--example');
+              row.tabIndex = 0;
+              var show = function () { showRuleExample(row, r, pill.textContent); };
+              row.addEventListener('mouseenter', show);
+              row.addEventListener('focus', show);
+              row.addEventListener('click', show);
+              row.addEventListener('mouseleave', hideRuleExample);
+              row.addEventListener('blur', hideRuleExample);
+            }
             box.appendChild(row);
           });
           grid.appendChild(box);
