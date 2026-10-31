@@ -1374,6 +1374,7 @@
         ctx.save();
         ctx.globalAlpha = alpha;
         ctx.translate(b.x, b.y);
+        if (b.rot) ctx.rotate(b.rot);
         ctx.scale(scale, scale);
         var size = b.size || 30;
         ctx.font = size + 'px ' + FONT_HEAD;
@@ -1925,15 +1926,16 @@
       opts = opts || {};
       banners.push({
         text: textStr, sub: opts.sub, x: x, y: y, start: now(), dur: opts.dur || 1100,
-        color: opts.color, textColor: opts.textColor, size: opts.size,
+        color: opts.color, textColor: opts.textColor, size: opts.size, rot: opts.rot || 0,
       });
       requestRender();
     }
 
     function seatBannerPos(seat) {
-      if (seat === 0) return { x: W / 2, y: L.actionsY + L.actionsH / 2 };
+      if (seat === 0) return { x: W / 2, y: L.actionsY + L.actionsH / 2, rot: 0 };
       var r = L.opp[seat];
-      return { x: r.x + r.w / 2, y: r.y + r.h * 0.6 };
+      // Opponents' banners face them, like their tiles.
+      return { x: r.x + r.w / 2, y: r.y + r.h * 0.6, rot: SEAT_ANGLE[seat] };
     }
 
     function confetti(cx, cy, n, coins) {
@@ -1999,7 +2001,7 @@
       flower: function (d) {
         sound.play('flower');
         var pos = seatBannerPos(d.seat);
-        banner(d.seat === 0 ? 'Flower!' : 'Flower', pos.x, pos.y, { size: 18, color: COLORS.green, dur: 800 });
+        banner(d.seat === 0 ? 'Flower!' : 'Flower', pos.x, pos.y, { rot: pos.rot, size: 18, color: COLORS.green, dur: 800 });
         announce((d.seat === 0 ? 'You' : game.players[d.seat].name) + ' reveals ' + E.tileName(d.tile) + '.');
         return sleep(380);
       },
@@ -2026,7 +2028,7 @@
         sound.play(d.type === 'kong' ? 'kong' : 'claim');
         var words = { chow: 'Chow!', pung: 'Pung!', kong: 'Kong!' };
         var pos = seatBannerPos(d.seat);
-        banner(words[d.type], pos.x, pos.y, { size: 24 });
+        banner(words[d.type], pos.x, pos.y, { rot: pos.rot, size: 24 });
         var list = game.hand.seats[d.from].discards.filter(function (x) { return !x.claimed; });
         var from = pondPose(d.from, list.length);
         var to = ui.meldAnchor[d.seat] || seatAnchor(d.seat);
@@ -2041,13 +2043,13 @@
       },
       kongAttempt: function (d) {
         var pos = seatBannerPos(d.seat);
-        banner('Kong?', pos.x, pos.y, { size: 20, dur: 700 });
+        banner('Kong?', pos.x, pos.y, { rot: pos.rot, size: 20, dur: 700 });
         return sleep(300);
       },
       kong: function (d) {
         sound.play('kong');
         var pos = seatBannerPos(d.seat);
-        banner('Kong!', pos.x, pos.y, { size: 24 });
+        banner('Kong!', pos.x, pos.y, { rot: pos.rot, size: 24 });
         announce((d.seat === 0 ? 'You declare' : game.players[d.seat].name + ' declares') + ' a kong of ' + E.tileName(d.tile) + '.');
         return sleep(650);
       },
