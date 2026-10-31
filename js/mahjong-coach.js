@@ -131,10 +131,10 @@
     var selfOnly = ready.waits.filter(function (w) { return !w.ronOk && w.tsumoOk; });
     var short = ready.waits.filter(function (w) { return !w.tsumoOk; });
     if (short.length === ready.waits.length) {
-      notes.push('But no wait reaches ' + min + ' faan yet, so it can\'t win.');
+      notes.push('No wait reaches ' + min + ' faan yet.');
     } else {
-      if (selfOnly.length) notes.push(selfOnly.map(function (w) { return name(E.tileIndex(w.tile)); }).join(' and ') + ' only wins if you draw it yourself.');
-      if (short.length) notes.push(short.map(function (w) { return name(E.tileIndex(w.tile)); }).join(' and ') + ' is short of ' + min + ' faan.');
+      if (selfOnly.length) notes.push(selfOnly.map(function (w) { return name(E.tileIndex(w.tile)); }).join(' and ') + ' wins only on self-draw.');
+      if (short.length) notes.push(short.map(function (w) { return name(E.tileIndex(w.tile)); }).join(' and ') + ' is under ' + min + ' faan.');
     }
     return notes;
   }
@@ -142,41 +142,37 @@
   function whyDiscard(v, c, pick, route) {
     var i = pick.index;
     if (v.committedSuit && i < 27 && E.suitOfIndex(i) !== v.committedSuit) {
-      return 'You\'ve already chowed in ' + SUIT_NAME[v.committedSuit] + ', so tiles from other suits can\'t help you reach ' + v.game.settings.minFaan + ' faan.';
+      return 'You chowed ' + SUIT_NAME[v.committedSuit] + ', so other suits are dead weight.';
     }
     if (B.isPungTile(v.game, i) && c[i] < 2) {
       return pungedReason(i);
     }
     if (route && route.id === 'pairs' && c[i] === 1) {
-      return 'Seven Pairs keeps every pair, so this single goes first.';
+      return 'Seven Pairs keeps pairs, so singles go.';
     }
     if (route && route.id === 'orphans' && !E.isTerminalOrHonorIndex(i)) {
-      return 'Thirteen Orphans only uses terminals and honors.';
+      return 'Thirteen Orphans uses only terminals and honors.';
     }
     if (route && route.id === 'gates' && E.suitOfIndex(i) !== route.suit) {
       return 'Nine Gates uses only ' + SUIT_NAME[route.suit] + '.';
     }
     if (i >= 27 && c[i] === 1 && B.revealedCopies(v.game, i) >= 2) {
       var out = B.revealedCopies(v.game, i);
-      return COUNT_WORDS[out] + ' ' + (out === 1 ? name(i) + ' is' : plural(i) + ' are') + ' already out, so it can\'t become a set.';
+      return COUNT_WORDS[out] + ' are out, so it can\'t make a set.';
     }
     if (route && route.keep && !route.keep(i)) {
-      if (route.id === 'straights') return 'Honor tiles spoil an All Sequences hand.';
+      if (route.id === 'straights') return 'Honors break All Sequences.';
       var suit = SUIT_NAME[route.suit];
-      return route.id === 'half'
-        ? 'It isn\'t ' + suit + ' or an honor, and you\'re collecting ' + suit + '.'
-        : 'It isn\'t ' + suit + ', and you\'re collecting only ' + suit + '.';
+      return route.id === 'half' ? 'Not ' + suit + ' or an honor.' : 'Not ' + suit + '.';
     }
-    if (c[i] >= 3) return route && route.id === 'pairs' ? 'Seven Pairs only uses two of each.' : 'You hold three, and a spare tile helps more elsewhere.';
-    if (c[i] === 2) return 'You have more pairs than you need.';
+    if (c[i] >= 3) return route && route.id === 'pairs' ? 'Seven Pairs uses only two of each.' : 'A spare from your three.';
+    if (c[i] === 2) return 'One pair too many.';
     if (pick.lone) {
-      if (i >= 27) return 'It\'s a lone honor that adds no faan for you.';
-      return E.isTerminalOrHonorIndex(i)
-        ? 'It\'s a terminal on its own, the hardest kind to use.'
-        : 'It\'s on its own, with nothing next to it.';
+      if (i >= 27) return 'A lone honor worth no faan to you.';
+      return E.isTerminalOrHonorIndex(i) ? 'A lone terminal, the hardest to use.' : 'Nothing connects to it.';
     }
     var r = i % 9;
-    if (i < 27 && (r === 0 || r === 8)) return 'Terminals like this one are the slowest to build on.';
+    if (i < 27 && (r === 0 || r === 8)) return 'Terminals are slow to build on.';
     return 'Your hand needs it least.';
   }
 
@@ -265,19 +261,18 @@
     var f = (own[r.id] !== undefined ? own[r.id] : 0) + ' faan';
     if (r.id === 'straights') {
       var keep = liveValueSingles(v, c).filter(function (i) { return i !== nextOut; });
-      return 'Concealed All Sequences (' + f + '), so use self-draw tiles and don\'t claim discards' +
-        (v.flowerFaan ? '. Your flowers add the third faan' : '') +
-        (keep.length ? '. Hold the ' + listNames(keep) + ' in case ' + (keep.length > 1 ? 'one pairs' : 'it pairs') + ' up' : '');
+      return 'Concealed All Sequences (' + f + ')' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' +
+        (keep.length ? '. Keep the ' + listNames(keep) + ' in case ' + (keep.length > 1 ? 'one pairs' : 'it pairs') : '');
     }
-    if (r.id === 'half') return 'Half Flush (' + f + ') in ' + SUIT_NAME[r.suit] + ', so keep ' + SUIT_NAME[r.suit] + ' and honors';
-    if (r.id === 'full') return 'Full Flush (' + f + ') in ' + SUIT_NAME[r.suit] + ', so keep only ' + SUIT_NAME[r.suit];
-    if (r.id === 'triplets') return 'All Triplets (' + f + '), so keep your pairs and Pung them';
-    if (r.id === 'concealed-triplets') return 'Concealed Triplets (' + f + '), so keep your pairs and don\'t claim discards';
-    if (r.id === 'pairs') return 'Seven Pairs (' + f + '), so keep your pairs and don\'t claim discards';
-    if (r.id === 'orphans') return 'Thirteen Orphans (' + f + '), so keep every terminal and honor and don\'t claim discards';
-    if (r.id === 'gates') return 'Nine Gates (' + f + ') in ' + SUIT_NAME[r.suit] + ', so keep 1112345678999 in ' + SUIT_NAME[r.suit] + ' and don\'t claim discards';
+    if (r.id === 'half') return 'Half Flush (' + f + ') in ' + SUIT_NAME[r.suit];
+    if (r.id === 'full') return 'Full Flush (' + f + ') in ' + SUIT_NAME[r.suit];
+    if (r.id === 'triplets') return 'All Triplets (' + f + '). Pung your pairs';
+    if (r.id === 'concealed-triplets') return 'Concealed Triplets (' + f + '). Don\'t claim';
+    if (r.id === 'pairs') return 'Seven Pairs (' + f + '). Don\'t claim';
+    if (r.id === 'orphans') return 'Thirteen Orphans (' + f + '). Don\'t claim';
+    if (r.id === 'gates') return 'Nine Gates (' + f + ') in ' + SUIT_NAME[r.suit] + '. Don\'t claim';
     for (var i = 27; i < 34; i++) {
-      if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) return (/^[AEIOU]/.test(name(i)) ? 'an ' : 'a ') + name(i) + ' set (' + honorWorth(v, i) + ' faan), so Pung it if it\'s thrown';
+      if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) return (/^[AEIOU]/.test(name(i)) ? 'an ' : 'a ') + name(i) + ' set (' + honorWorth(v, i) + ' faan). Pung it if it\'s thrown';
     }
     return 'a chicken hand (0 faan)';
   }
@@ -285,9 +280,8 @@
   // Axis A in words: early on there's room to build; late, finish fast.
   function phaseText(v, threats) {
     var big = threats.some(function (t) { return t.level >= 2 && t.faan >= 5; });
-    if (big) return 'Someone shows a big hand, so speed matters more than size.';
-    if (v.ctx.turn <= 5) return 'It\'s early, so there\'s room to build a bigger hand.';
-    if (v.ctx.turn >= 10 || v.ctx.wallLeft < 32) return 'It\'s late in the hand, so finish fast.';
+    if (big) return 'Someone shows a big hand, so play for speed.';
+    if (v.ctx.turn >= 10 || v.ctx.wallLeft < 32) return 'It\'s late, so finish fast.';
     return '';
   }
 
@@ -301,34 +295,38 @@
   // Why a tile is safe against a threat, in the usual order of reads.
   function safetyReason(v, t, i) {
     var id = E.tileId(i);
-    if (B.deadTile(v.game, i)) return 'a Pung of it is already on the table';
-    if (t.since[id]) return t.name + ' threw it after their last meld';
-    if (i >= 27 && 4 - v.unseen[i] >= 3) return 'three are already out';
-    if (t.flush && E.suitOfIndex(i) !== t.flush && i < 27) return t.name + ' is collecting ' + SUIT_NAME[t.flush];
+    if (B.deadTile(v.game, i)) return 'it\'s already Punged';
+    if (t.since[id]) return t.name + ' just threw one';
+    if (i >= 27 && 4 - v.unseen[i] >= 3) return 'three are out';
+    if (t.flush && E.suitOfIndex(i) !== t.flush && i < 27) return t.name + ' wants ' + SUIT_NAME[t.flush];
     if (i < 27) {
       var r = i % 9, su = E.suitOfIndex(i);
       var low = r >= 3 && t.suji[su][r - 3], high = r <= 5 && t.suji[su][r + 3];
       if ((r < 3 && high) || (r > 5 && low) || (low && high)) {
-        return t.name + ' threw the ' + name(low ? i - 3 : i + 3) + ', which makes this one safer';
+        return t.name + ' threw the ' + name(low ? i - 3 : i + 3);
       }
       var blocked = [-1, 1].filter(function (d) { var j = r + d; return j >= 0 && j <= 8 && v.unseen[i + d] === 0; })[0];
-      if (blocked !== undefined) return 'all four ' + plural(i + blocked) + ' are visible, so few hands can use it';
+      if (blocked !== undefined) return 'all four ' + plural(i + blocked) + ' are out';
     }
     if (t.discarded[id]) return t.name + ' threw one earlier';
     return '';
   }
 
-  function threatPhrase(t) {
-    var bits = [];
-    if (t.melds) bits.push(t.melds + (t.melds === 1 ? ' meld' : ' melds'));
-    if (t.flush) bits.push(SUIT_NAME[t.flush]);
-    return t.name + ' is ' + (t.levelName === 'Extreme' ? 'an' : 'a') + ' ' + t.levelName + ' threat' + (bits.length ? ' (' + bits.join(', ') + ')' : '');
-  }
-
-  // "Grace is an Extreme threat and Rosa is a High threat."
+  // "Grace is Extreme (3 melds, Bamboo). Rosa (1 meld), Tak and Bo are High."
   function threatSentence(list) {
-    var parts = list.map(threatPhrase);
-    return (parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0]) + '.';
+    var levels = [];
+    var byLevel = {};
+    list.forEach(function (t) {
+      if (!byLevel[t.levelName]) { byLevel[t.levelName] = []; levels.push(t.levelName); }
+      var bits = [];
+      if (t.melds) bits.push(t.melds + (t.melds === 1 ? ' meld' : ' melds'));
+      if (t.flush) bits.push(SUIT_NAME[t.flush]);
+      byLevel[t.levelName].push(t.name + (bits.length ? ' (' + bits.join(', ') + ')' : ''));
+    });
+    return levels.map(function (lv) {
+      var names = byLevel[lv];
+      return (names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] + ' are ' : names[0] + ' is ') + lv + '.';
+    }).join(' ');
   }
 
   function defenseLine(v, threats, pick, list) {
@@ -336,13 +334,16 @@
     var word = dangerWord(pick.loss);
     if (!shown.length) return pick.loss >= 0.035 ? E.tileName(pick.tile) + ' is ' + word + '.' : '';
     var top = shown[0];
-    var line = threatSentence(shown) + ' ' + E.tileName(pick.tile) + ' is ' + word;
-    var why = top.level >= 2 ? safetyReason(v, top, pick.index) : '';
-    if (why) line += ' because ' + why;
+    // Quiet tables (only Medium threats) get a word on the tile, nothing more.
+    if (top.level < 2) return pick.loss >= 0.012 ? E.tileName(pick.tile) + ' is ' + word + '.' : '';
+    // Sorted worst first, so Extreme players are named before High ones.
+    var line = threatSentence(shown.filter(function (t) { return t.level >= 2; })) + ' ' + E.tileName(pick.tile) + ' is ' + word;
+    var why = pick.loss < 0.012 ? safetyReason(v, top, pick.index) : '';
+    if (why) line += ', ' + why;
     line += '.';
     var worst = list.slice().sort(function (a, b) { return b.loss - a.loss; })[0];
-    if (top.level >= 2 && worst && worst.tile !== pick.tile && worst.loss > pick.loss * 2 && worst.loss >= 0.012) {
-      line += ' Hold on to ' + E.tileName(worst.tile) + ', which is ' + dangerWord(worst.loss) + '.';
+    if (worst && worst.tile !== pick.tile && worst.loss > pick.loss * 2 && worst.loss >= 0.012) {
+      line += ' Hold ' + E.tileName(worst.tile) + '.';
     }
     return line;
   }
@@ -354,8 +355,8 @@
   // punged or waited on as a pair, but it can still finish someone's chow.
   function pungedReason(i) {
     return i >= 27
-      ? 'Someone already Punged it, so it is safe to drop, and your hand does not need it.'
-      : 'Someone already Punged it, so nobody can Pung it or wait on it as a pair, and your hand does not need it.';
+      ? 'Already Punged, so it\'s safe and useless to you.'
+      : 'Already Punged, so nobody can Pung it.';
   }
 
   function lead(hint, k) {
@@ -387,11 +388,11 @@
     var tips = [];
 
     if (opts.completeButShort) {
-      tips.push('Your hand is complete but only ' + opts.completeButShort.faan + ' faan. You need ' + min + ', so keep going.');
+      tips.push('Complete, but only ' + opts.completeButShort.faan + ' faan. You need ' + min + '.');
     }
     if (opts.kongs && opts.kongs.length) {
       var kong = B.chooseTurnAction(game, seat, { kongs: opts.kongs });
-      if (kong.type === 'kong') { var kongAt = tips.length; tips.push('Declare a Kong of ' + E.tileName(kong.tile) + '. You get a free extra tile.'); }
+      if (kong.type === 'kong') { var kongAt = tips.length; tips.push('Kong ' + E.tileName(kong.tile) + '. You get a free tile.'); }
     }
 
     // 1. What to do.
@@ -401,10 +402,12 @@
     var why = pungSafe
       ? pungedReason(pick.index)
       : (defending
-        ? 'It\'s the safe play, since your hand is slow and ' + (v.ctx.wallLeft < 16 ? 'the wall is nearly gone.' : 'someone is close to winning.')
-        : (pick.ready && pick.shanten === 0 && !buildingLimit ? 'It leaves you ready to win.' : whyDiscard(v, c, pick, route)));
+        ? 'Play safe, ' + (v.ctx.wallLeft < 16 ? 'the wall is nearly gone.' : 'someone is close to winning.')
+        : (pick.ready && pick.shanten === 0 && !buildingLimit ? 'It leaves you ready.' : whyDiscard(v, c, pick, route)));
     var discardAt = tips.length;
-    tips.push('Discard ' + E.tileName(pick.tile) + '. ' + why);
+    var readyPick = !pungSafe && !defending && pick.ready && pick.shanten === 0 && !buildingLimit;
+    // A ready discard is explained by the wait that follows.
+    tips.push('Discard ' + E.tileName(pick.tile) + '.' + (readyPick ? '' : ' ' + why));
 
     // 2. Where the hand stands (and, for 4, what goes next).
     var cAfter = c.slice();
@@ -418,15 +421,14 @@
     }
     if (isReady) {
       var wins = pick.ready.waits.filter(function (w) { return w.ronOk; }).map(function (w) { return w.ronFaan; });
-      var state = 'You are ready and waiting on ' + waitsText(pick.ready) + (wins.length ? ', worth ' + Math.min.apply(null, wins) + '+ faan.' : '.');
+      var state = 'Ready, waiting on ' + waitsText(pick.ready) + (wins.length ? ' for ' + Math.min.apply(null, wins) + '+ faan.' : '.');
       var notes = readyNotes(pick.ready, min);
       var liveLeft = pick.ready.waits.reduce(function (n, w) { return n + w.left; }, 0);
-      if (liveLeft <= 1) notes.push('Almost none are left, so change the wait if you can.');
+      if (liveLeft <= 1) notes.push('Almost none left, so switch waits if you can.');
       tips.push(state + (notes.length ? ' ' + notes.join(' ') : ''));
     } else if (pick.plan) {
-      var line = stepsText(buildingLimit ? pick.plan.shanten : pick.shanten) + '. Your target is ' + targetText(v, pick.plan, cAfter, next && next.index) + '. ' +
-        pick.plan.live + ' tiles help.';
-      if (route.faan < min - 0.25) line += ' That\'s short of ' + min + ' faan, but a Half Flush, a Full Flush, All Triplets, or a dragon or wind set would fix it.';
+      var line = stepsText(buildingLimit ? pick.plan.shanten : pick.shanten) + '. Aim for ' + targetText(v, pick.plan, cAfter, next && next.index) + '.';
+      if (route.faan < min - 0.25) line += ' Short of ' + min + ' faan, so look for a flush, All Triplets or a dragon or wind set.';
       else if (!defending) { var phase = phaseText(v, threats); if (phase) line += ' ' + phase; }
       tips.push(line);
     }
@@ -436,7 +438,7 @@
     if (defense) tips.push(defense);
 
     // 4. What goes next if the next draw doesn't help.
-    if (next) tips.push('If your next draw doesn\'t help, let ' + E.tileName(next.tile) + ' go.');
+    if (next) tips.push(E.tileName(next.tile) + ' goes next.');
 
     var worry = threats.filter(function (t) { return t.level >= 2; }).sort(function (a, b) { return b.level - a.level; })[0];
     return lead({
@@ -467,7 +469,7 @@
     var threats = B.opponentThreats(game, seat);
     var tips = [];
     if (opts.completeButShort) {
-      tips.push(E.tileName(opts.tile) + ' would finish your hand, but only for ' + opts.completeButShort.faan + ' faan. You need ' + min + '.');
+      tips.push(E.tileName(opts.tile) + ' completes your hand, but only for ' + opts.completeButShort.faan + ' faan. You need ' + min + '.');
     }
     if (!found || !found.options.length) return lead({ kind: 'claim', decision: dec, tips: tips.concat(['Pass.']) }, tips.length);
 
@@ -501,12 +503,14 @@
 
     // Where the hand stands afterwards, and the threats. On a pass this is
     // the hand as it is; on a claim it is the hand after the call and its discard.
-    function after(plan, counts, discard) {
+    function after(plan, counts, discard, named) {
       var lines = [];
-      if (plan) {
-        var short = plan.route.faan < min - 0.25 ? ' Still short of ' + min + ' faan, so keep looking for more.' : '';
+      if (plan && named) {
+        lines.push((discard ? 'Then discard ' + E.tileName(discard) + '. ' : '') + stepsText(plan.shanten) + '.');
+      } else if (plan) {
+        var short = plan.route.faan < min - 0.25 ? ' Still short of ' + min + ' faan.' : '';
         lines.push((discard ? 'Then discard ' + E.tileName(discard) + '. ' : '') + stepsText(plan.shanten) +
-          '. Your target is ' + targetText(v, plan, counts) + '.' + short);
+          '. Aim for ' + targetText(v, plan, counts) + '.' + short);
       }
       var shown = threats.filter(function (t) { return t.level >= 2; });
       if (shown.length) lines.push(threatSentence(shown));
@@ -515,31 +519,34 @@
 
     if (taken && ti >= 27 && honorWorth(v, ti) && dec.type !== 'chow') {
       var honorCall = spoken(taken);
-      tips.push(honorCall.label + '! A ' + E.tileName(opts.tile) + ' set is worth ' + honorWorth(v, ti) + ' faan and gets you closer.');
+      tips.push(honorCall.label + '! A ' + E.tileName(opts.tile) + ' set is ' + honorWorth(v, ti) + ' faan.');
       return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(honorCall.plan, honorCall.counts, honorCall.discard)) }, tips.length - 1);
     }
     if (taken) {
       var call = spoken(taken);
       var route = call.plan.route;
       var fits = route.id === 'half' || route.id === 'full'
-        ? 'It fits your ' + (route.id === 'full' ? 'Full Flush' : 'Half Flush') + ' in ' + SUIT_NAME[route.suit]
+        ? 'It builds your ' + (route.id === 'full' ? 'Full Flush' : 'Half Flush') + ' in ' + SUIT_NAME[route.suit]
         : route.id === 'triplets' || route.id === 'concealed-triplets'
-          ? 'You\'re going for ' + (route.id === 'concealed-triplets' ? 'Concealed Triplets' : 'All Triplets')
+          ? 'It builds ' + (route.id === 'concealed-triplets' ? 'Concealed Triplets' : 'All Triplets')
           : 'It speeds up your hand';
-      tips.push(call.label + '. ' + fits + (call.faan >= min ? ', and the hand is still worth about ' + faanWord(call.faan) + '.' : '.'));
-      return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(call.plan, call.counts, call.discard)) }, tips.length - 1);
+      tips.push(call.label + '. ' + fits + (call.faan >= min ? ', about ' + faanWord(call.faan) + '.' : '.'));
+      var named = route.id !== 'plain' && route.id !== 'mixed' && /builds/.test(fits);
+      return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(call.plan, call.counts, call.discard, named)) }, tips.length - 1);
     }
 
     var chowOnly = found.options.every(function (o) { return o.decision.type === 'chow'; });
     if (chowOnly && bestFaan >= min) {
-      tips.push('Pass. A chow gives up' + (v.concealed ? ' your concealed hand and' : '') + ' flexibility, so save it for when it makes you ready or builds a Half Flush or Full Flush.');
+      tips.push(v.concealed
+        ? 'Pass. Stay concealed, and save chows for a ready hand or a flush.'
+        : 'Pass. Save chows for a ready hand or a flush.');
     } else if (bestFaan < min) {
-      tips.push('Pass. After claiming, this hand couldn\'t reach ' + min + ' faan on its own.');
+      tips.push('Pass. Claiming leaves you short of ' + min + ' faan.');
     } else if (v.concealed) {
       tips.push('Pass. Staying concealed is worth 1 faan' +
-        (stay && stay.route.id === 'straights' ? ' and keeps All Sequences possible' : '') + ', and this claim barely helps.');
+        (stay && stay.route.id === 'straights' ? ' and keeps All Sequences' : '') + '.');
     } else {
-      tips.push('Pass. It doesn\'t help your hand enough.');
+      tips.push('Pass. It doesn\'t help enough.');
     }
     return lead({ kind: 'claim', decision: { type: 'pass' }, tips: tips.concat(after(stay, c)) }, tips.length - 1);
   }
@@ -568,24 +575,24 @@
 
     if (great) {
       return { kind: 'feedback', action: 'Great discard.', tips: [chosen.tile === top.tile
-        ? (mine + ' was the coach\'s top choice. ' + (hint.why || '')).trim()
-        : mine + ' is about as good as the coach\'s pick, ' + best + '.'] };
+        ? (mine + ' was the top choice. ' + (hint.why || '')).trim()
+        : mine + ' is as good as ' + best + '.'] };
     }
-    var tips = ['The coach would have discarded ' + best + '. ' + (hint.why || '')];
+    var tips = ['The coach picks ' + best + '. ' + (hint.why || '')];
     var action;
     if (slows) {
       action = 'That discard slows your hand.';
       var more = chosen.shanten - top.shanten;
-      tips.push('Throwing ' + mine + ' leaves you ' + stepsWords(chosen.shanten) + ', ' + more + (more === 1 ? ' tile' : ' tiles') + ' further than the coach\'s discard.');
+      tips.push(mine + ' leaves you ' + stepsWords(chosen.shanten) + ', ' + more + ' more than ' + best + '.');
     } else if (risky) {
       action = 'That discard was risky.';
-      tips.push('Throwing ' + mine + ' was risky because ' + (hint.threatName ? hint.threatName + ' looks close to winning.' : 'an opponent may be waiting on it.'));
+      tips.push(hint.threatName ? hint.threatName + ' looks close to winning.' : 'Someone may be waiting on it.');
     } else if (good) {
       action = 'Good discard.';
-      tips.push('Both work, but the coach rates ' + best + ' a little higher.');
+      tips = ['Both work, but ' + best + ' is slightly better.'];
     } else {
       action = 'There was a better discard.';
-      tips.push('Throwing ' + mine + ' keeps fewer ways to improve your hand.');
+      tips.push(mine + ' leaves fewer ways to improve.');
     }
     return { kind: 'feedback', action: action, tips: tips.map(function (t) { return t.trim(); }) };
   }

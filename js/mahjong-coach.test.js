@@ -68,8 +68,8 @@ describe('coach: discards', () => {
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
     assert.equal(hint.tile, 'ws');
     assert.match(text(hint), /Triplets/);
-    assert.match(text(hint), /let Red Dragon go/);
-    assert.doesNotMatch(text(hint), /let Two Character go|let Five Circle go|let Eight Bamboo go/);
+    assert.match(text(hint), /Red Dragon goes next/);
+    assert.doesNotMatch(text(hint), /(Two Character|Five Circle|Eight Bamboo) goes next/);
   });
 
   it('aims for seven pairs once the hand has more than four concealed pairs and no pung', () => {
@@ -103,14 +103,14 @@ describe('coach: discards', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
     assert.equal(hint.tile, 'dr');
     assert.equal(hint.action, 'Discard Red Dragon.');
-    assert.match(text(hint), /Honor tiles spoil an All Sequences/);
+    assert.match(text(hint), /Honors break All Sequences/);
   });
 
   it('lets the dragon go once two are already out', () => {
     const game = table({ seats: [{ hand: mixed }, { discards: ['dr'] }, { discards: ['dr'] }] });
     const hint = C.turnHint(game, 0, { kongs: [] });
     assert.equal(hint.tile, 'dr');
-    assert.match(text(hint), /Two Red Dragons are already out/);
+    assert.match(text(hint), /Two are out, so it can't make a set/);
   });
 
   it('plays concealed runs when the hand is spread across suits', () => {
@@ -119,14 +119,14 @@ describe('coach: discards', () => {
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
     assert.ok(['ww', 'wn'].includes(hint.tile), 'discarded ' + hint.tile);
     assert.match(text(hint), /All Sequences/);
-    assert.match(text(hint), /use self-draw tiles and don't claim discards/);
+    assert.match(text(hint), /Don't claim/);
   });
 
   it('commits to a flush and says why off-suit tiles go', () => {
     const hand = ['b2', 'b3', 'b4', 'b5', 'b6', 'b6', 'b7', 'b8', 'b8', 'dr', 'dr', 'c5', 'd7', 'ws'];
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
     assert.ok(['c5', 'd7'].includes(hint.tile), 'discarded ' + hint.tile);
-    assert.match(text(hint), /collecting Bamboo/);
+    assert.match(text(hint), /Not Bamboo/);
     assert.match(text(hint), /Half Flush \(\d+ faan\) in Bamboo/);
   });
 
@@ -134,8 +134,7 @@ describe('coach: discards', () => {
     const hand = ['c2', 'c3', 'c4', 'd2', 'd3', 'd4', 'b5', 'b6', 'b7', 'dr', 'dr', 'c5', 'c6', 'd9'];
     const hint = C.turnHint(table({ seats: [{ hand, flowers: ['f1'] }] }), 0, { kongs: [] });
     assert.equal(hint.tile, 'd9');
-    assert.match(hint.tips[0], /leaves you ready/);
-    assert.match(hint.tips[1], /^You are ready and waiting on .*Four Character.*Seven Character/);
+    assert.match(hint.tips[0], /^Ready, waiting on .*Four Character.*Seven Character/);
   });
 
   it('plays a tile the threatening player already threw', () => {
@@ -153,7 +152,7 @@ describe('coach: discards', () => {
     // Folding against an Extreme Bamboo flush: a tile East has already thrown
     // is the safest. (The punged Nine Bamboo could still finish a 7-8 chow.)
     assert.ok(['d1', 'd9', 'wn'].includes(hint.tile), 'discarded ' + hint.tile);
-    assert.match(text(hint), /\w+ is an Extreme threat \(3 melds, Bamboo\)/);
+    assert.match(text(hint), /\w+ \(3 melds, Bamboo\) is Extreme/);
   });
 });
 
@@ -174,7 +173,7 @@ describe('coach: claims', () => {
     const opts = E.claimOptions(game, 0, 'dr', 2, false);
     const hint = C.claimHint(game, 0, opts);
     assert.equal(hint.decision.type, 'pung');
-    assert.match(text(hint), /^Pung! A Red Dragon set is worth 1 faan/);
+    assert.match(text(hint), /^Pung! A Red Dragon set is 1 faan/);
   });
 
   it('chows into a flush it is building', () => {
@@ -183,7 +182,7 @@ describe('coach: claims', () => {
     const opts = E.claimOptions(game, 0, 'b3', 3, false);
     const hint = C.claimHint(game, 0, opts);
     assert.equal(hint.decision.type, 'chow');
-    assert.match(text(hint), /^Chow 1-2-3 Bamboo\. It fits your (Half|Full) Flush in Bamboo/);
+    assert.match(text(hint), /^Chow 1-2-3 Bamboo\. It builds your (Half|Full) Flush in Bamboo/);
   });
 
   it('tells you to win when you can', () => {
@@ -202,15 +201,15 @@ describe('coach: feedback on your last move', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
     const fb = C.discardFeedback(hint, 'dr');
     assert.equal(fb.action, 'Great discard.');
-    assert.match(fb.tips[0], /^Red Dragon was the coach's top choice\. /);
+    assert.match(fb.tips[0], /^Red Dragon was the top choice\. /);
   });
 
   it('says a discard slowed the hand and compares it with the coach\'s pick', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
     const fb = C.discardFeedback(hint, 'd5');
     assert.equal(fb.action, 'That discard slows your hand.');
-    assert.match(fb.tips.join(' '), /The coach would have discarded Red Dragon\./);
-    assert.match(fb.tips.join(' '), /Throwing Five Circle leaves you 2 tiles from ready, 1 tile further/);
+    assert.match(fb.tips.join(' '), /The coach picks Red Dragon\./);
+    assert.match(fb.tips.join(' '), /Five Circle leaves you 2 tiles from ready, 1 more than Red Dragon/);
   });
 
   it('returns nothing without a usable hint', () => {
@@ -250,12 +249,12 @@ describe('coach: after a chow', () => {
   it('throws a tile of another suit first and says why', () => {
     const hint = C.turnHint(chowed(), 0, { kongs: [] });
     assert.ok(['c5', 'd7', 'c2', 'd3'].includes(hint.tile), 'discarded ' + hint.tile);
-    assert.match(text(hint), /You've already chowed in Bamboo, so tiles from other suits can't help you reach 3 faan/);
+    assert.match(text(hint), /You chowed Bamboo, so other suits are dead weight/);
   });
 
   it('only goes for a flush in the chow\'s suit', () => {
     const hint = C.turnHint(chowed(), 0, { kongs: [] });
-    assert.match(text(hint), /Your target is (Half|Full) Flush \(\d+ faan\) in Bamboo/);
+    assert.match(text(hint), /Aim for (Half|Full) Flush \(\d+ faan\) in Bamboo/);
   });
 
   it('keeps other suits in play once the hand holds 2 faan of flowers', () => {
@@ -269,6 +268,6 @@ describe('coach: after a chow', () => {
     const game = table({ seats: [{ hand: ['c2', 'c3', 'd5', 'd7', 'b2', 'b4', 'b8', 'b9', 'we', 'ws', 'dg', 'dw', 'c9'] }] });
     const hint = C.claimHint(game, 0, E.claimOptions(game, 0, 'c4', 3, false));
     assert.equal(hint.decision.type, 'pass');
-    assert.match(text(hint), /A chow gives up your concealed hand and flexibility/);
+    assert.match(text(hint), /Stay concealed, and save chows for a ready hand or a flush/);
   });
 });
