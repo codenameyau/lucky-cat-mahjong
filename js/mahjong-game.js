@@ -33,7 +33,6 @@
 
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function now() { return (root.performance && performance.now) ? performance.now() : Date.now(); }
-  function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
   function easeInOut(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
   function easeBack(t) { var c = 1.7; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
   function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -171,7 +170,6 @@
 
   function createSound(enabled) {
     var ac = null;
-    var noiseBuf = null;
     var master = null;
     var plucks = {};
     var api = { enabled: enabled };
@@ -192,17 +190,6 @@
       }
       if (ac.state === 'suspended') ac.resume();
       return ac;
-    }
-
-    function noise(a) {
-      if (!noiseBuf) {
-        noiseBuf = a.createBuffer(1, Math.floor(a.sampleRate * 2), a.sampleRate);
-        var d = noiseBuf.getChannelData(0);
-        for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-      }
-      var src = a.createBufferSource();
-      src.buffer = noiseBuf;
-      return src;
     }
 
     function env(a, start, peak, dur, attack) {
@@ -319,57 +306,11 @@
       });
     }
 
-    // The shuffle: each collision in the simulation is a click, louder for
-    // harder hits, over a soft rumble of tiles sliding on the felt.
-    api.hit = function (strength) {
-      var a = ctx();
-      if (!a) return;
-      impact(a, a.currentTime + Math.random() * 0.012, 'click', 0.05 + strength * 0.45, 0.9 + Math.random() * 0.25);
-    };
-
-    var slideGain = null;
-    api.slide = function (level) {
-      if (!api.enabled || !level) {
-        if (slideGain) slideGain.gain.setTargetAtTime(0, slideGain.context.currentTime, 0.06);
-        return;
-      }
-      var a = ctx();
-      if (!a) return;
-      if (!slideGain) {
-        var src = noise(a);
-        src.loop = true;
-        var bp = a.createBiquadFilter();
-        bp.type = 'bandpass';
-        bp.frequency.value = 650;
-        bp.Q.value = 0.6;
-        var lp = a.createBiquadFilter();
-        lp.type = 'lowpass';
-        lp.frequency.value = 1800;
-        slideGain = a.createGain();
-        slideGain.gain.value = 0;
-        src.connect(bp); bp.connect(lp); lp.connect(slideGain); slideGain.connect(master);
-        src.start();
-      }
-      slideGain.gain.setTargetAtTime(Math.min(1, level) * 0.07, a.currentTime, 0.05);
-    };
-
     api.play = function (name, opt) {
       var a = ctx();
       if (!a) return;
       var t = a.currentTime + 0.01;
       switch (name) {
-        case 'build':
-          for (var b = 0; b < 12; b++) {
-            var bt = t + b * ((opt && opt.step) || 0.05);
-            thock(a, bt, 0.16, 1.05);
-            clack(a, bt + 0.012, 0.1, 0.95 + (b % 3) * 0.05);
-          }
-          break;
-        case 'deal':
-          thock(a, t, 0.32, 1);
-          clack(a, t + 0.018, 0.16, 1.05);
-          clack(a, t + 0.04, 0.08, 1.1);
-          break;
         case 'draw':
           clack(a, t, 0.2, 1.05);
           break;
@@ -422,182 +363,6 @@
       }
     };
     return api;
-  }
-
-  /* ------------------------------------------------------------------ *
-   * Shuffle physics: face-down tiles pushed around the felt by two palms.
-   * Tiles are rigid boxes that collide, bounce, spin and slow down on the
-   * felt; overlaps are resolved every substep so tiles never pass through
-   * each other.
-   * ------------------------------------------------------------------ */
-
-  var WASH_STEP = 1 / 240;
-
-  function createWashSim(bounds, tw, count, total) {
-    var hw = tw / 2, hh = tw * TILE_ASPECT / 2;
-    var diag = Math.sqrt(hw * hw + hh * hh);
-    var inertia = (hw * hw + hh * hh) / 3; // box of mass 1
-    var deepest = 0;
-    var sim = { bounds: bounds, tiles: [], palms: [], hits: [], energy: 0, hw: hw, hh: hh, step: step };
-
-    // Start scattered on a grid with room to turn, so nothing overlaps.
-    var cell = diag * 2 + 1;
-    var cols = Math.max(1, Math.floor(bounds.w / cell));
-    var rows = Math.max(1, Math.floor(bounds.h / cell));
-    var cells = [];
-    for (var i = 0; i < cols * rows; i++) cells.push(i);
-    for (var j = cells.length - 1; j > 0; j--) {
-      var k = Math.floor(Math.random() * (j + 1));
-      var tmp = cells[j]; cells[j] = cells[k]; cells[k] = tmp;
-    }
-    var ox = bounds.x + (bounds.w - cols * cell) / 2;
-    var oy = bounds.y + (bounds.h - rows * cell) / 2;
-    cells.slice(0, count).forEach(function (c) {
-      sim.tiles.push({
-        x: ox + (c % cols + 0.5) * cell, y: oy + (Math.floor(c / cols) + 0.5) * cell,
-        a: Math.random() * Math.PI * 2, vx: 0, vy: 0, va: 0,
-      });
-    });
-    var palmR = Math.max(tw * 1.25, Math.min(bounds.w, bounds.h) * 0.12);
-    sim.palms = [{ dir: 1, ph: Math.random() * Math.PI * 2 }, { dir: -1, ph: Math.random() * Math.PI * 2 }].map(function (pm) {
-      pm.x = 0; pm.y = 0; pm.vx = 0; pm.vy = 0; pm.r = 0; pm.k = 0; pm.R = palmR;
-      return pm;
-    });
-
-    function axes(t) {
-      var c = Math.cos(t.a), s = Math.sin(t.a);
-      return [c, s, -s, c]; // width axis, then height axis
-    }
-
-    // The corner of a box furthest along (x, y).
-    function support(t, ax, x, y) {
-      var sx = ax[0] * x + ax[1] * y >= 0 ? 1 : -1;
-      var sy = ax[2] * x + ax[3] * y >= 0 ? 1 : -1;
-      return [t.x + ax[0] * hw * sx + ax[2] * hh * sy, t.y + ax[1] * hw * sx + ax[3] * hh * sy];
-    }
-
-    function bounce(A, B, p, nx, ny) {
-      var rax = p[0] - A.x, ray = p[1] - A.y, rbx = p[0] - B.x, rby = p[1] - B.y;
-      var vn = (B.vx - B.va * rby - A.vx + A.va * ray) * nx + (B.vy + B.va * rbx - A.vy - A.va * rax) * ny;
-      if (vn >= 0) return;
-      var ra = rax * ny - ray * nx, rb = rbx * ny - rby * nx;
-      var jn = -1.35 * vn / (2 + (ra * ra + rb * rb) / inertia);
-      A.vx -= jn * nx; A.vy -= jn * ny; A.va -= ra * jn / inertia;
-      B.vx += jn * nx; B.vy += jn * ny; B.va += rb * jn / inertia;
-      sim.hits.push(-vn);
-    }
-
-    // Separating-axis test between two tiles; pushes them apart and bounces.
-    function collide(A, B) {
-      var dx = B.x - A.x, dy = B.y - A.y;
-      if (dx * dx + dy * dy >= 4 * diag * diag) return;
-      var aa = axes(A), ab = axes(B);
-      var list = [aa[0], aa[1], aa[2], aa[3], ab[0], ab[1], ab[2], ab[3]];
-      var best = Infinity, nx = 0, ny = 0, fromA = true;
-      for (var i = 0; i < 4; i++) {
-        var x = list[i * 2], y = list[i * 2 + 1];
-        var ra = hw * Math.abs(aa[0] * x + aa[1] * y) + hh * Math.abs(aa[2] * x + aa[3] * y);
-        var rb = hw * Math.abs(ab[0] * x + ab[1] * y) + hh * Math.abs(ab[2] * x + ab[3] * y);
-        var d = dx * x + dy * y;
-        var o = ra + rb - Math.abs(d);
-        if (o <= 0) return;
-        if (o < best) { best = o; nx = d < 0 ? -x : x; ny = d < 0 ? -y : y; fromA = i < 2; }
-      }
-      if (best > deepest) deepest = best;
-      var p = fromA ? support(B, ab, -nx, -ny) : support(A, aa, nx, ny);
-      var push = best / 2 + 0.05;
-      A.x -= nx * push; A.y -= ny * push;
-      B.x += nx * push; B.y += ny * push;
-      bounce(A, B, p, nx, ny);
-    }
-
-    // A palm is a soft disc that shoves tiles along with it.
-    function shove(t, pm) {
-      var ax = axes(t);
-      var dx = pm.x - t.x, dy = pm.y - t.y;
-      var lx = dx * ax[0] + dy * ax[1], ly = dx * ax[2] + dy * ax[3];
-      var cx = clamp(lx, -hw, hw), cy = clamp(ly, -hh, hh);
-      var qx = t.x + ax[0] * cx + ax[2] * cy, qy = t.y + ax[1] * cx + ax[3] * cy;
-      var ex = qx - pm.x, ey = qy - pm.y;
-      var dist = Math.sqrt(ex * ex + ey * ey);
-      var inside = cx === lx && cy === ly;
-      if (!inside && dist >= pm.r) return;
-      var nx, ny;
-      if (inside || dist < 1e-6) {
-        var cd = Math.sqrt((t.x - pm.x) * (t.x - pm.x) + (t.y - pm.y) * (t.y - pm.y)) || 1;
-        nx = (t.x - pm.x) / cd; ny = (t.y - pm.y) / cd;
-      } else {
-        nx = ex / dist; ny = ey / dist;
-      }
-      // Pushes by velocity only; moving tiles directly could crush them together.
-      var rx = qx - t.x, ry = qy - t.y;
-      var vn = (t.vx - t.va * ry - pm.vx) * nx + (t.vy + t.va * rx - pm.vy) * ny;
-      if (vn < 0) {
-        var rn = rx * ny - ry * nx;
-        var jn = -1.1 * vn / (1 + rn * rn / inertia);
-        t.vx += jn * nx; t.vy += jn * ny; t.va += rn * jn / inertia;
-      }
-    }
-
-    function keepInside(t) {
-      var b = sim.bounds, ax = axes(t);
-      var ex = hw * Math.abs(ax[0]) + hh * Math.abs(ax[2]);
-      var ey = hw * Math.abs(ax[1]) + hh * Math.abs(ax[3]);
-      if (t.x - ex < b.x) { t.x = b.x + ex; if (t.vx < 0) { sim.hits.push(-t.vx * 0.5); t.vx *= -0.3; } }
-      if (t.x + ex > b.x + b.w) { t.x = b.x + b.w - ex; if (t.vx > 0) { sim.hits.push(t.vx * 0.5); t.vx *= -0.3; } }
-      if (t.y - ey < b.y) { t.y = b.y + ey; if (t.vy < 0) { sim.hits.push(-t.vy * 0.5); t.vy *= -0.3; } }
-      if (t.y + ey > b.y + b.h) { t.y = b.y + b.h - ey; if (t.vy > 0) { sim.hits.push(t.vy * 0.5); t.vy *= -0.3; } }
-    }
-
-    // Palms press down, wash in opposite circles, then lift off.
-    function movePalms(time, dt) {
-      var b = sim.bounds;
-      var cx = b.x + b.w / 2, cy = b.y + b.h / 2;
-      var down = clamp(time / 0.25, 0, 1);
-      var up = clamp((total * 0.78 - time) / 0.2, 0, 1);
-      sim.palms.forEach(function (pm, i) {
-        var ang = pm.ph + pm.dir * time * 3.1;
-        var wander = 0.18 + 0.06 * Math.sin(time * 1.7 + i * 2);
-        var x = cx + Math.cos(ang) * b.w * wander + (i ? 1 : -1) * b.w * 0.08;
-        var y = cy + Math.sin(ang) * b.h * wander;
-        if (pm.k) { pm.vx = (x - pm.x) / dt; pm.vy = (y - pm.y) / dt; }
-        pm.x = x; pm.y = y;
-        pm.k = Math.min(down, up);
-        pm.r = pm.R * pm.k;
-      });
-    }
-
-    function step(dt, time) {
-      movePalms(time, dt);
-      var tiles = sim.tiles, n = tiles.length;
-      var lin = Math.exp(-2.4 * dt), ang = Math.exp(-3.2 * dt);
-      var speed = 0;
-      for (var i = 0; i < n; i++) {
-        var t = tiles[i];
-        t.x += t.vx * dt; t.y += t.vy * dt; t.a += t.va * dt;
-        t.vx *= lin; t.vy *= lin; t.va *= ang;
-        // Felt friction brings slow tiles to rest.
-        var sp = Math.sqrt(t.vx * t.vx + t.vy * t.vy);
-        if (sp < tw * 0.15) { t.vx = 0; t.vy = 0; } else speed += sp;
-        if (Math.abs(t.va) < 0.05) t.va = 0;
-      }
-      sim.energy = n ? speed / n : 0;
-      sim.palms.forEach(function (pm) {
-        if (pm.r > 0) for (var p = 0; p < n; p++) shove(tiles[p], pm);
-      });
-      // Separate until nothing overlaps; tiles pinned against the edge of the
-      // felt can take a few passes to settle.
-      for (var it = 0; it < 40; it++) {
-        deepest = 0;
-        for (var a = 0; a < n; a++) {
-          for (var b = a + 1; b < n; b++) collide(tiles[a], tiles[b]);
-        }
-        for (var c = 0; c < n; c++) keepInside(tiles[c]);
-        if (deepest < 0.05) break;
-      }
-    }
-
-    return sim;
   }
 
   /* ------------------------------------------------------------------ *
@@ -661,10 +426,6 @@
       hint: null,
       notice: null,
       hide: { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], drawn: false },
-      dealShown: null, // tiles shown per seat while dealing
-      dealFront: null, // tiles taken from the wall while dealing
-      buildP: null, // wall-building progress (null = built)
-      wash: null,
       thinking: null, // seat whose bot is deciding
       botLift: null, // { seat, index } tile a bot is considering
       botDrawn: [false, false, false, false], // bot's fresh draw sits apart
@@ -994,7 +755,6 @@
       drawTopBar();
       drawPond(t);
       drawWall();
-      drawWash();
       [1, 2, 3].forEach(function (s) { drawOpponent(s, t); });
       drawMe(t);
       drawHintBand();
@@ -1109,7 +869,6 @@
 
     function oppConcealedCount(seat) {
       var n = game.hand.seats[seat].hand.length;
-      if (ui.dealShown) n = Math.min(n, ui.dealShown[seat]);
       return Math.max(0, n - ui.hide.backs[seat]);
     }
 
@@ -1202,7 +961,6 @@
 
     function wallTaken() {
       var h = game.hand;
-      if (ui.dealFront !== null) return { front: ui.dealFront, back: 0 };
       return { front: 144 - h.wall.length - h.backDrawn, back: h.backDrawn };
     }
 
@@ -1231,35 +989,15 @@
     function drawWall() {
       if (!L.wall) return;
       var taken = wallTaken();
-      var built = ui.buildP === null ? 18 : Math.floor(ui.buildP * 18.999);
       [1, 0].forEach(function (layer) {
         for (var j = 0; j < 72; j++) {
           var pos = 2 * j + layer;
           if (pos < taken.front || pos >= 144 - taken.back) continue;
           var sl = wallSlot(pos);
-          if (sl.p >= built) continue;
           enterFrame(sl.f);
           drawTile(null, sl.x, sl.y, sl.w, { back: true, shadow: false });
           ctx.restore();
         }
-      });
-    }
-
-    // Face-down tiles being washed on the felt before the walls are built.
-    function drawWash() {
-      var w = ui.wash;
-      if (!w) return;
-      var sim = w.sim;
-      sim.palms.forEach(function (pm) {
-        if (pm.r <= 0) return;
-        var g = ctx.createRadialGradient(pm.x, pm.y + pm.r * 0.2, pm.r * 0.2, pm.x, pm.y + pm.r * 0.2, pm.r * 1.3);
-        g.addColorStop(0, 'rgba(0,0,0,' + (0.2 * pm.k) + ')');
-        g.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = g;
-        ctx.fillRect(pm.x - pm.r * 1.4, pm.y - pm.r * 1.2, pm.r * 2.8, pm.r * 2.8);
-      });
-      sim.tiles.forEach(function (t) {
-        drawTile(null, t.x - sim.hw, t.y - sim.hh, sim.hw * 2, { back: true, rot: t.a, alpha: w.alpha });
       });
     }
 
@@ -1296,8 +1034,6 @@
         ctx.restore();
       }
 
-      // The tiles being washed cover the whole felt, so the badge waits.
-      if (ui.wash) return;
       var c = L.center;
       ctx.save();
       roundRect(ctx, c.x, c.y, c.w, c.h, 12);
@@ -1363,7 +1099,7 @@
       // Hand.
       var order = myHandOrder();
       var tiles = order.tiles;
-      var count = ui.dealShown ? Math.min(tiles.length, ui.dealShown[0]) : tiles.length;
+      var count = tiles.length;
       if (ui.hide.drawn && order.drawnSeparate) count = Math.min(count, tiles.length - 1);
       var tw = L.tw;
       var total = tiles.length * tw + (order.drawnSeparate ? tw * 0.4 : 0);
@@ -2133,20 +1869,8 @@
         ui.hint = null;
         L = computeLayout();
         announce('Hand ' + game.handNumber + '. ' + (game.dealer === 0 ? 'You are' : game.players[game.dealer].name + ' is') + ' the dealer.');
-        if (instantMode()) {
-          ui.dealShown = null;
-          ui.dealFront = null;
-          ui.buildP = null;
-          return Promise.resolve();
-        }
-        ui.dealShown = [0, 0, 0, 0];
-        ui.dealFront = 0;
-        ui.buildP = 0;
-        return introShuffle().then(introBuild).then(introDeal).then(function () {
-          ui.dealShown = null;
-          ui.dealFront = null;
-          requestRender();
-        });
+        requestRender();
+        return sleep(400);
       },
       turn: function (d) {
         ui.turnSeat = d.seat;
@@ -2179,7 +1903,7 @@
         var pos = seatBannerPos(d.seat);
         banner(d.seat === 0 ? 'Flower!' : 'Flower', pos.x, pos.y, { size: 18, color: COLORS.green, dur: 800 });
         announce((d.seat === 0 ? 'You' : game.players[d.seat].name) + ' reveals ' + E.tileName(d.tile) + '.');
-        return sleep(ui.dealShown ? 120 : 380);
+        return sleep(380);
       },
       discard: function (d) {
         var list = game.hand.seats[d.seat].discards.filter(function (x) { return !x.claimed; });
@@ -2268,92 +1992,6 @@
         return out || Promise.resolve();
       },
     };
-
-    /* ---------------- agents ---------------- */
-
-    /* ---------------- start-of-hand ritual ---------------- */
-
-    var WASH_MS = 2200;
-
-    function washBounds() {
-      var c = L.inner;
-      return { x: c.x + 4, y: c.y + 4, w: c.w - 8, h: c.h - 8 };
-    }
-
-    // Collisions become clicks (the hardest few each frame), and the overall
-    // motion drives the sliding rumble.
-    function washSounds(sim) {
-      var tw = sim.hw * 2;
-      sim.hits.filter(function (v) { return v > tw * 1.5; })
-        .sort(function (x, y) { return y - x; })
-        .slice(0, 3)
-        .forEach(function (v) { sound.hit(Math.min(1, v / (tw * 14))); });
-      sim.hits.length = 0;
-      var level = Math.min(1, sim.energy / (tw * 4));
-      sound.slide(level);
-      if (Math.random() < level * 0.5) sound.hit(0.05 + Math.random() * 0.15 * level);
-    }
-
-    function introShuffle() {
-      if (instantMode()) return Promise.resolve();
-      var b = washBounds();
-      var tw = clamp(Math.min(b.w, b.h) / 8, 12, 30);
-      var count = clamp(Math.round(b.w * b.h * 0.32 / (tw * tw * TILE_ASPECT)), 14, 56);
-      ui.wash = { sim: createWashSim(b, tw, count, WASH_MS / 1000), t: 0, alpha: 1 };
-      return animate(WASH_MS, function (p, raw) {
-        var w = ui.wash;
-        if (!w) return;
-        w.sim.bounds = washBounds();
-        var target = raw * WASH_MS / 1000;
-        // Catch up in fixed steps; if frames stalled (hidden tab), skip ahead.
-        var steps = Math.min(40, Math.floor((target - w.t) / WASH_STEP));
-        for (var i = 0; i < steps; i++) { w.sim.step(WASH_STEP, w.t); w.t += WASH_STEP; }
-        if (target - w.t > WASH_STEP) w.t = target;
-        w.alpha = raw > 0.9 ? (1 - raw) / 0.1 : 1;
-        washSounds(w.sim);
-      }).then(function () {
-        ui.wash = null;
-        sound.slide(0);
-      });
-    }
-
-    function introBuild() {
-      if (!L.wall) { ui.buildP = null; return Promise.resolve(); }
-      sound.play('build', { step: speed(720) / 1000 / 12 });
-      return animate(720, function (p) { ui.buildP = p; }, easeOut).then(function () { ui.buildP = null; });
-    }
-
-    function dealTarget(seat) {
-      if (seat === 0) return { x: W / 2 - L.tw / 2, y: L.handY, w: L.tw, rot: 0 };
-      return ui.backAnchor[seat] || seatAnchor(seat);
-    }
-
-    // Dealt from the wall like at a real table: three rounds of four tiles,
-    // one more each, and a last tile for the dealer.
-    async function introDeal() {
-      var order = [0, 1, 2, 3].map(function (k) { return (game.dealer + k) % 4; });
-      var chunks = [];
-      for (var r = 0; r < 3; r++) order.forEach(function (st) { chunks.push([st, 4]); });
-      order.forEach(function (st) { chunks.push([st, 1]); });
-      chunks.push([game.dealer, 1]);
-      var last = Promise.resolve();
-      for (var i = 0; i < chunks.length; i++) {
-        if (destroyed) return;
-        var seat = chunks[i][0], n = chunks[i][1];
-        var from = wallPose(ui.dealFront);
-        ui.dealFront += n;
-        last = (function (seat2, n2) {
-          return fly(null, from, dealTarget(seat2), 260, { back: true, arc: 18 }).then(function () {
-            ui.dealShown[seat2] += n2;
-            sound.play('deal');
-            requestRender();
-          });
-        })(seat, n);
-        await sleep(n === 4 ? 120 : 90);
-      }
-      await last;
-      await sleep(220);
-    }
 
     /* ---------------- agents ---------------- */
 
@@ -2510,7 +2148,6 @@
       },
       destroy: function () {
         destroyed = true;
-        sound.slide(0);
         root.removeEventListener('resize', onResize);
         root.removeEventListener('keydown', onKey);
         canvas.removeEventListener('pointerdown', onPointerDown);
@@ -2599,8 +2236,7 @@
     });
   }
 
-  var api = { createTable: createTable, init: init, createWashSim: createWashSim, WASH_STEP: WASH_STEP };
-  if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
+  var api = { createTable: createTable, init: init };
   root.MahjongGame = api;
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
