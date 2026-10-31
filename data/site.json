@@ -9,7 +9,7 @@
   },
   "hero": {
     "headline": "Hong Kong Mahjong in NYC",
-    "subheadline": "From private lessons to office workshops to curated brand collaborations, we make mahjong easy and unforgettable."
+    "subheadline": "From private lessons to office workshops to curated brand collaborations, we make mahjong easy and unforgettable.\nWe build free online tools to help you learn to play mahjong,\nand give you the skills to sit down and play at any table with confidence."
   },
   "about": {
     "heading": "About Lucky Cat Mahjong",
@@ -19,5 +19,19 @@
     "heading": "Ready to play?",
     "body": "Follow us on Instagram for upcoming events and community highlights — or reach out to book your next session. We're most active on Instagram.",
     "button_label": "Book a session"
-  }
+  },
+  "stats": [
+    {
+      "value": "20K–30K",
+      "label": "Views per event"
+    },
+    {
+      "value": "300+",
+      "label": "People per event"
+    },
+    {
+      "value": "4-24",
+      "label": "Person lessons and workshops"
+    }
+  ]
 }

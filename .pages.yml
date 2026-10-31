@@ -78,6 +78,22 @@ content:
               - name: button_label
                 label: Button Label
                 type: string
+          - name: stats
+            label: Hero Stats
+            type: object
+            list: true
+            description: Small credibility numbers shown under the hero buttons (leave empty to hide)
+            fields:
+              - name: value
+                label: Value
+                type: string
+                required: true
+                description: "e.g. 20K–30K"
+              - name: label
+                label: Label
+                type: string
+                required: true
+                description: "e.g. Views per event"
 
       - name: services
         label: Services
