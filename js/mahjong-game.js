@@ -952,7 +952,7 @@
       var sw = W < 420 ? 76 : 92;
       button(soundLabel, right - sw, 7, sw, 28, toggleSound, 'ghost', 'sound');
       var hw = W < 420 ? 72 : 88;
-      button(ui.hints ? 'Hints on' : 'Hints off', right - sw - hw - 6, 7, hw, 28, toggleHints, ui.hints ? 'gold' : 'ghost', 'hints');
+      button(ui.hints ? 'Coach on' : 'Coach off', right - sw - hw - 6, 7, hw, 28, toggleHints, ui.hints ? 'gold' : 'ghost', 'hints');
       if (game) {
         var label = E.WIND_NAMES[game.round] + ' round · Hand ' + game.handNumber;
         var maxW = right - sw - hw - 12 - (pad + 72);
@@ -1342,7 +1342,7 @@
       // The main action on its own line in bold gold; the rest as one paragraph.
       if (ui.hint && ui.hint.action) lines.push({ text: ui.hint.action, color: COLORS.goldLight, bold: true });
       if (ui.hint && ui.hint.tips && ui.hint.tips.length) lines.push({ text: ui.hint.tips.join(' '), color: COLORS.cream });
-      if (!lines.length) lines.push({ text: 'Tips appear here on your turn and when you can claim a tile.', color: 'rgba(255,248,240,0.6)' });
+      if (!lines.length) lines.push({ text: 'The coach gives advice here on your turn and when you can claim a tile.', color: 'rgba(255,248,240,0.6)' });
       var iconS = Math.min(L.hintH - 14, 48);
       var tx = x + 8 + iconS + 8;
       var tw = w - (tx - x) - 10;
