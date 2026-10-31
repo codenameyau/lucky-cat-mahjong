@@ -1031,7 +1031,13 @@
       // they are considering lifts), melds and flowers in front of it.
       var f = L.oppFrames[seat];
       // One tile size for the hand and the meld row, so both rows must fit.
-      var bw = clamp(Math.min(f.w / 14.7, (f.h - 8) / (2 * (TILE_ASPECT + 0.08))), 8, 38);
+      var items = meldItems(seat);
+      var meldTilesN = items.filter(function (it) { return !it.gap; }).length;
+      var gaps = items.length - meldTilesN;
+      var flowersN = s.flowers.length;
+      var meldUnits = meldTilesN + gaps * 0.35 + flowersN + 0.6;
+      var bw = clamp(Math.min(f.w / 14.7, f.w / Math.max(1, meldUnits), (f.h - 8) / (2 * (TILE_ASPECT + 0.08))), 8, 38);
+      var mw = bw; // melds and flowers are exactly the size of the hand's tiles
       var count = oppConcealedCount(seat);
       var apart = ui.botDrawn[seat] && count > 0;
       // Center the hand along the area by the tiles actually held (a fresh
@@ -1047,11 +1053,6 @@
       var lift = ui.botLift && ui.botLift.seat === seat ? ui.botLift.index : -1;
       var backX = function (i) { return bx0 + i * bw + (apart && i === count - 1 ? bw * 0.4 : 0); };
 
-      var items = meldItems(seat);
-      var meldTilesN = items.filter(function (it) { return !it.gap; }).length;
-      var gaps = items.length - meldTilesN;
-      var flowersN = s.flowers.length;
-      var mw = Math.min(bw, f.w / Math.max(1, meldTilesN + gaps * 0.35 + flowersN + 0.6));
       var meldY = backsY - mw * (TILE_ASPECT + 0.08) - 5;
 
       enterFrame(f);
@@ -1098,11 +1099,13 @@
       for (var seat = 0; seat < 4; seat++) {
         var f = L.zoneFrames[seat];
         enterFrame(f);
-        // Faint seat-wind watermark so each pile is easy to find. Turned back
-        // upright so every wind reads the same way for the player.
-        var ws = clamp(Math.min(f.w, f.h) * 0.5, 14, 54);
+        // Faint seat-wind watermark so each pile is easy to find. It sits at
+        // the owner's outer edge, where discards arrive last, so the pile
+        // doesn't cover it as the hand goes on. Turned back upright so every
+        // wind reads the same way for the player.
+        var ws = clamp(Math.min(f.w, f.h) * 0.42, 14, 46);
         ctx.save();
-        ctx.translate(f.w / 2, f.h / 2);
+        ctx.translate(f.w / 2, f.h - ws * 0.5 - 2);
         ctx.rotate(-f.a);
         ctx.globalAlpha = ui.turnSeat === seat ? 0.2 : 0.09;
         text(WIND_LETTERS[E.seatWind(game, seat)], 0, 0, { size: ws, family: FONT_HEAD, align: 'center', color: COLORS.cream });
