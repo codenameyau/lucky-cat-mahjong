@@ -915,69 +915,6 @@
 
     /* ---------------- rules sheet ---------------- */
 
-    // Every hand and its faan, grouped like the Points Guide on the site, and
-    // read from the scoring table so the sheet can't drift from how hands
-    // score. Rows are [name, Chinese, faan key, what it is]; hands in the same
-    // family don't stack (count only the highest).
-    var RULES = [
-      { title: 'Hand Patterns', families: [
-        { title: 'Basics', rows: [
-          ['Chicken Hand', '雞糊', 'chicken', 'Four sets and a pair, nothing else'],
-          ['All Sequences', '平糊', 'allSequences', 'Four chows and a pair, no honors'],
-          ['Seven Pairs', '七對子', 'sevenPairs', 'Seven different pairs, concealed'],
-          ['All Honors', '字一色', 'allHonors', 'Only winds and dragons'],
-        ] },
-        { title: 'Triplets', rows: [
-          ['All Triplets', '對對糊', 'allTriplets', 'Four pungs or kongs and a pair'],
-          ['Concealed Triplets', '坎坎糊', 'allConcealedTriplets', 'Four concealed pungs and a pair'],
-          ['Four Quads', '十八羅漢', 'allKongs', 'Four kongs and a pair'],
-        ] },
-        { title: 'Flushes', rows: [
-          ['Half Flush', '混一色', 'halfFlush', 'One suit plus honors'],
-          ['Full Flush', '清一色', 'fullFlush', 'One suit only'],
-          ['Nine Gates', '九蓮寶燈', 'nineGates', '1112345678999 in one suit, plus one'],
-        ] },
-        { title: 'Terminals', rows: [
-          ['Mixed Orphans', '混老頭', 'mixedOrphans', 'Only 1s, 9s and honors'],
-          ['All Terminals', '清老頭', 'allTerminals', 'Only 1s and 9s'],
-          ['Thirteen Orphans', '十三么', 'thirteenOrphans', 'Every 1, 9 and honor, plus a pair'],
-        ] },
-        { title: 'Dragons', rows: [
-          ['Dragon Set', '箭刻', 'dragonPung', 'Each pung or kong of a dragon'],
-          ['Small Three Dragons', '小三元', 'smallDragons', 'Two dragon sets and a dragon pair'],
-          ['Big Three Dragons', '大三元', 'greatDragons', 'A set of every dragon'],
-        ] },
-        { title: 'Winds', rows: [
-          ['Seat or Round Wind', '門風 / 圈風', 'yakuWind', 'Each set of your wind or the round\'s'],
-          ['Small Four Winds', '小四喜', 'smallWinds', 'Three wind sets and a wind pair'],
-          ['Big Four Winds', '大四喜', 'greatWinds', 'A set of every wind'],
-        ] },
-      ] },
-      { title: 'Situational', families: [
-        { rows: [
-          ['Self-Draw', '自摸', 'selfDraw', 'You draw the winning tile'],
-          ['Concealed', '門前清', 'concealed', 'No claimed sets'],
-          ['Win on Last Tile', '海底撈月', 'lastTile', 'Win on the wall\'s last tile'],
-          ['Robbing the Kong', '搶槓', 'robKong', 'Win on a tile added to a kong'],
-          ['Win by Kong', '槓上開花', 'kongWin', 'Win on a kong\'s replacement tile'],
-          ['Win by Double Kong', '槓上槓', 'doubleKong', 'Win after two kongs in a row'],
-          ['Heavenly Hand', '天糊', 'thirteenOrphans', 'The dealer wins on the deal'],
-          ['Earthly Hand', '地糊', 'thirteenOrphans', 'Win on the dealer\'s first discard'],
-        ] },
-      ] },
-      { title: 'Flowers & Seasons', families: [
-        { rows: [
-          ['No Flowers', '無花', 'noFlowers', 'No flowers or seasons'],
-          ['Seat Flower', '正花', 'seatFlower', 'Your own flower'],
-          ['Seat Season', '正季', 'seatSeason', 'Your own season'],
-          ['Four Flowers', '四花齊', 'allFlowers', 'All four flowers, in place of the seat one'],
-          ['Four Seasons', '四季齊', 'allSeasons', 'All four seasons, in place of the seat one'],
-          ['Seven Robbing One', '七搶一', 'sevenFlowers', 'Seven flowers and seasons'],
-          ['Eight Immortals', '八仙過海', 'eightFlowers', 'All eight flowers and seasons'],
-        ] },
-      ] },
-    ];
-
     function rulesSheet() {
       return document.getElementById('rules-sheet');
     }
@@ -992,7 +929,7 @@
         ' faan. Add up every pattern your hand has, but in each family count only the highest. A hand is capped at ' +
         F.thirteenOrphans + ' faan, a limit hand.';
       body.parentNode.insertBefore(intro, body);
-      RULES.forEach(function (section) {
+      root.MahjongRules.RULES.forEach(function (section) {
         var sec = document.createElement('section');
         sec.className = 'rules-section';
         var h = document.createElement('h3');
@@ -1012,19 +949,27 @@
           fam.rows.forEach(function (r) {
             var row = document.createElement('div');
             row.className = 'rules-row';
-            var faan = F[r[2]];
+            row.tabIndex = 0;
+            var faan = F[r.key];
             var limit = faan >= F.thirteenOrphans;
             row.innerHTML = '<div class="rules-row-text"><div class="rules-name"></div><div class="rules-desc"></div></div><div class="rules-faan"></div>';
             var nm = row.querySelector('.rules-name');
-            nm.textContent = r[0];
+            nm.textContent = r.name;
             var cn = document.createElement('span');
             cn.className = 'rules-cn';
-            cn.textContent = r[1];
+            cn.textContent = r.cn;
             nm.appendChild(cn);
-            row.querySelector('.rules-desc').textContent = r[3];
+            row.querySelector('.rules-desc').textContent = r.desc;
             var pill = row.querySelector('.rules-faan');
             pill.textContent = limit ? 'Limit' : faan + ' faan';
             if (limit) pill.classList.add('rules-faan--limit');
+            // Hover (or tap, or focus) shows an example hand.
+            var show = function () { showRuleExample(row, r, pill.textContent); };
+            row.addEventListener('mouseenter', show);
+            row.addEventListener('focus', show);
+            row.addEventListener('click', show);
+            row.addEventListener('mouseleave', hideRuleExample);
+            row.addEventListener('blur', hideRuleExample);
             box.appendChild(row);
           });
           grid.appendChild(box);
@@ -1032,6 +977,75 @@
         sec.appendChild(grid);
         body.appendChild(sec);
       });
+    }
+
+    function tileImg(id) {
+      var img = document.createElement('img');
+      img.src = '/tiles/' + E.HKScoring.TILE_BY_ID[id].file;
+      img.alt = E.tileName ? E.HKScoring.TILE_BY_ID[id].name : id;
+      img.className = 'rules-tile';
+      return img;
+    }
+
+    // A card beside the row with the example hand as tiles.
+    function showRuleExample(row, r, faanLabel) {
+      var dlg = rulesSheet();
+      var card = dlg.querySelector('.rules-example');
+      if (!card) {
+        card = document.createElement('div');
+        card.className = 'rules-example';
+        card.setAttribute('role', 'tooltip');
+        dlg.appendChild(card);
+      }
+      var ex = r.example;
+      card.innerHTML = '';
+      var head = document.createElement('div');
+      head.className = 'rules-example-head';
+      head.innerHTML = '<span class="rules-example-name"></span><span class="rules-faan"></span>';
+      head.firstChild.textContent = r.name + ' example';
+      head.lastChild.textContent = faanLabel;
+      if (faanLabel === 'Limit') head.lastChild.classList.add('rules-faan--limit');
+      card.appendChild(head);
+      var tiles = document.createElement('div');
+      tiles.className = 'rules-example-tiles';
+      var open = ex.open || [];
+      ex.sets.forEach(function (set, k) {
+        var g = document.createElement('span');
+        g.className = 'rules-set' + (open.indexOf(k) !== -1 ? ' rules-set--open' : '');
+        set.forEach(function (id) { g.appendChild(tileImg(id)); });
+        tiles.appendChild(g);
+      });
+      if (ex.flowers && ex.flowers.length) {
+        var fl = document.createElement('span');
+        fl.className = 'rules-set rules-set--flowers';
+        ex.flowers.forEach(function (id) { fl.appendChild(tileImg(id)); });
+        tiles.appendChild(fl);
+      }
+      card.appendChild(tiles);
+      var notes = [];
+      if (ex.note) notes.push(ex.note);
+      if (open.length) notes.push('Sets underlined in red were claimed.');
+      if (notes.length) {
+        var p = document.createElement('p');
+        p.className = 'rules-example-note';
+        p.textContent = notes.join(' ');
+        card.appendChild(p);
+      }
+      // Place it below the row, or above when there's no room, inside the sheet.
+      card.style.display = 'block';
+      var dr = dlg.getBoundingClientRect(), rr = row.getBoundingClientRect();
+      var w = card.offsetWidth, h = card.offsetHeight;
+      var left = Math.min(Math.max(8, rr.left - dr.left), dr.width - w - 8);
+      var top = rr.bottom - dr.top + 4;
+      if (top + h > dr.height - 8) top = rr.top - dr.top - h - 4;
+      card.style.left = left + 'px';
+      card.style.top = (top + dlg.scrollTop) + 'px';
+    }
+
+    function hideRuleExample() {
+      var dlg = rulesSheet();
+      var card = dlg && dlg.querySelector('.rules-example');
+      if (card) card.style.display = 'none';
     }
 
     function openRules() {
