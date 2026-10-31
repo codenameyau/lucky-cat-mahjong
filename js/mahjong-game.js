@@ -15,10 +15,9 @@
   var TILE_ASPECT = 1.4;
 
   var COLORS = {
-    // Brand palette (css/styles.css): red, gold, green and cream.
-    felt: '#05693A',
-    feltLight: '#0C7E4A',
-    feltDark: '#03482A',
+    felt: '#0b5a39',
+    feltLight: '#127048',
+    feltDark: '#074029',
     red: '#C41E3A',
     redDark: '#8f1229',
     gold: '#F4A020',
@@ -747,17 +746,16 @@
         primary: isHover ? '#d62a47' : COLORS.red,
         gold: isHover ? '#ffb43c' : COLORS.gold,
         light: isHover ? '#ffffff' : 'rgba(255, 248, 240, 0.94)',
-        outline: isHover ? COLORS.red : 'rgba(196,30,58,0)',
+        ghost: isHover ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)',
       };
       ctx.save();
-      ctx.shadowColor = style === 'primary' ? 'rgba(196,30,58,0.3)' : 'rgba(0,0,0,0.25)';
-      ctx.shadowBlur = style === 'outline' ? 0 : 8;
+      ctx.shadowColor = 'rgba(0,0,0,0.25)';
+      ctx.shadowBlur = style === 'ghost' ? 0 : 8;
       ctx.shadowOffsetY = 2;
-      pill(x, y, w, h, fills[style], style === 'outline' ? COLORS.red : null);
+      pill(x, y, w, h, fills[style], style === 'ghost' ? 'rgba(255,255,255,0.3)' : null);
       ctx.restore();
       var color = style === 'light' ? COLORS.ink : COLORS.white;
       if (style === 'gold') color = COLORS.ink;
-      if (style === 'outline') color = isHover ? COLORS.white : COLORS.red;
       var size = fitFont(ctx, label, w - 16, Math.min(16, h * 0.42), FONT_BODY, 'bold');
       text(label, x + w / 2, y + h / 2 + 1, { size: size, weight: 'bold', color: color, align: 'center' });
       addRegion(x, y, w, h, onTap, id);
@@ -795,24 +793,21 @@
     }
 
     function drawTopBar() {
-      // Cream bar like the site header.
-      ctx.fillStyle = 'rgba(255, 248, 240, 0.96)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
       ctx.fillRect(0, 0, W, 42);
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
-      ctx.fillRect(0, 41, W, 1);
       var pad = L ? L.pad : 8;
-      button('Menu', pad, 7, 64, 28, openMenu, 'outline', 'menu');
+      button('Menu', pad, 7, 64, 28, openMenu, 'ghost', 'menu');
       var right = W - pad;
       var soundLabel = sound.enabled ? 'Sound on' : 'Sound off';
       var sw = W < 420 ? 76 : 92;
-      button(soundLabel, right - sw, 7, sw, 28, toggleSound, 'outline', 'sound');
+      button(soundLabel, right - sw, 7, sw, 28, toggleSound, 'ghost', 'sound');
       var hw = W < 420 ? 72 : 88;
-      button(ui.hints ? 'Hints on' : 'Hints off', right - sw - hw - 6, 7, hw, 28, toggleHints, ui.hints ? 'gold' : 'outline', 'hints');
+      button(ui.hints ? 'Hints on' : 'Hints off', right - sw - hw - 6, 7, hw, 28, toggleHints, ui.hints ? 'gold' : 'ghost', 'hints');
       if (game) {
         var label = E.WIND_NAMES[game.round] + ' round · Hand ' + game.handNumber;
         var maxW = right - sw - hw - 12 - (pad + 72);
         var size = fitFont(ctx, label, maxW, 15, FONT_HEAD);
-        text(label, pad + 72 + maxW / 2, 22, { size: size, family: FONT_HEAD, align: 'center', color: COLORS.red });
+        text(label, pad + 72 + maxW / 2, 22, { size: size, family: FONT_HEAD, align: 'center', color: COLORS.cream });
       }
     }
 
@@ -901,11 +896,8 @@
       var active = ui.turnSeat === seat;
       ctx.save();
       roundRect(ctx, r.x, r.y, r.w, r.h, 12);
-      ctx.fillStyle = active ? 'rgba(244,160,32,0.16)' : 'rgba(0,0,0,0.14)';
+      ctx.fillStyle = active ? 'rgba(244,160,32,0.16)' : 'rgba(0,0,0,0.16)';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,248,240,0.14)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
       if (active) {
         ctx.strokeStyle = 'rgba(244,160,32,' + (0.65 + 0.3 * Math.sin(t / 220)) + ')';
         ctx.lineWidth = 2;
@@ -1068,11 +1060,8 @@
       var c = L.center;
       ctx.save();
       roundRect(ctx, c.x, c.y, c.w, c.h, 12);
-      ctx.fillStyle = 'rgba(143,18,41,0.88)';
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(244,160,32,0.6)';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
       ctx.restore();
       var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
       var big = clamp(c.h * 0.42, 14, 40);
@@ -1182,16 +1171,12 @@
       }
       var x = L.pad, y = L.hintY, w = W - 2 * L.pad, h = L.hintH;
       var lines = [];
-      if (ui.notice) lines.push({ text: ui.notice, color: COLORS.red });
-      if (ui.hint && ui.hint.tips) ui.hint.tips.forEach(function (tip) { lines.push({ text: tip, color: COLORS.ink }); });
-      if (!lines.length) lines.push({ text: 'Tips appear here on your turn and when you can claim a tile.', color: COLORS.muted });
-      // A cream card, like the site's.
+      if (ui.notice) lines.push({ text: ui.notice, color: COLORS.goldLight });
+      if (ui.hint && ui.hint.tips) ui.hint.tips.forEach(function (tip) { lines.push({ text: tip, color: COLORS.cream }); });
+      if (!lines.length) lines.push({ text: 'Tips appear here on your turn and when you can claim a tile.', color: 'rgba(255,248,240,0.6)' });
       ctx.save();
       roundRect(ctx, x, y, w, h, 12);
-      ctx.fillStyle = 'rgba(255,248,240,0.96)';
-      ctx.shadowColor = 'rgba(0,0,0,0.2)';
-      ctx.shadowBlur = 10;
-      ctx.shadowOffsetY = 2;
+      ctx.fillStyle = 'rgba(0,0,0,0.32)';
       ctx.fill();
       ctx.restore();
       var iconS = h - 14;
@@ -1228,13 +1213,11 @@
       var x = (W - w) / 2, y = L.actionsY - h - 6;
       ctx.save();
       roundRect(ctx, x, y, w, h, 12);
-      ctx.fillStyle = 'rgba(255,248,240,0.96)';
-      ctx.shadowColor = 'rgba(0,0,0,0.2)';
-      ctx.shadowBlur = 10;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fill();
       ctx.restore();
       lines.forEach(function (l, i) {
-        text(l, W / 2, y + 7 + (size + 4) * i + (size + 4) / 2, { size: size, align: 'center', color: COLORS.red });
+        text(l, W / 2, y + 7 + (size + 4) * i + (size + 4) / 2, { size: size, align: 'center', color: COLORS.goldLight });
       });
     }
 
@@ -1949,7 +1932,7 @@
       flower: function (d) {
         sound.play('flower');
         var pos = seatBannerPos(d.seat);
-        banner(d.seat === 0 ? 'Flower!' : 'Flower', pos.x, pos.y, { size: 18, color: COLORS.gold, textColor: COLORS.ink, dur: 800 });
+        banner(d.seat === 0 ? 'Flower!' : 'Flower', pos.x, pos.y, { size: 18, color: COLORS.green, dur: 800 });
         announce((d.seat === 0 ? 'You' : game.players[d.seat].name) + ' reveals ' + E.tileName(d.tile) + '.');
         return sleep(380);
       },
@@ -2024,7 +2007,7 @@
       drawGame: function () {
         sound.play('drawgame');
         var c = L.center;
-        banner('Draw', c.x + c.w / 2, c.y + c.h / 2, { size: 30, dur: 1400, color: COLORS.cream, textColor: COLORS.red });
+        banner('Draw', c.x + c.w / 2, c.y + c.h / 2, { size: 30, dur: 1400, color: COLORS.muted });
         announce('Draw game. The wall is empty.');
         return sleep(1200);
       },
