@@ -962,13 +962,14 @@
     }
 
     // Lays tiles left-to-right, wrapping inside `w`; returns the next y.
-    function flowRow(items, x, y, w, tw, gapEvery) {
+    // `tw` is each tile's slot; `drawW` (default the same) is how wide it is drawn.
+    function flowRow(items, x, y, w, tw, gapEvery, drawW) {
       var cx = x, cy = y;
       var th = tw * TILE_ASPECT + 3;
       items.forEach(function (it) {
         if (it.gap) { cx += tw * 0.35; return; }
         if (cx + tw > x + w + 0.5) { cx = x; cy += th; }
-        drawTile(it.id, cx, cy, tw, { back: it.back, shadow: false, glow: it.glow });
+        drawTile(it.id, cx, cy, drawW || tw, { back: it.back, shadow: false, glow: it.glow });
         cx += tw + (gapEvery ? 0.5 : 0);
       });
       return { x: cx, y: cy, bottom: cy + th };
@@ -1181,17 +1182,18 @@
       var rowW = W - 2 * pad - infoW - 10;
       var mw = Math.min(L.mw, rowW / Math.max(1, meldN + gapsN * 0.35 + s.flowers.length + 0.6));
       var y0 = y + (L.mw - mw) * TILE_ASPECT;
+      // Drawn exactly as wide as a hand tile (which leaves 1px between tiles).
       if (items.length) {
-        var end = flowRow(items, mx, y0, rowW, mw);
+        var end = flowRow(items, mx, y0, rowW, mw, 0, mw - 1);
         mx = end.x + mw * 0.35;
       }
-      ui.meldAnchor[0] = { x: mx, y: y0, w: mw, rot: 0 };
+      ui.meldAnchor[0] = { x: mx, y: y0, w: mw - 1, rot: 0 };
       // Flowers sit after the melds, in the same row (away from your name).
       var fw = mw;
       var fx = mx + (items.length ? mw * 0.2 : 0);
       var fy = y0;
-      s.flowers.forEach(function (f, k) { drawTile(f, fx + k * (fw + 1), fy, fw, { shadow: false }); });
-      ui.flowerAnchor[0] = { x: fx + s.flowers.length * (fw + 1), y: fy, w: fw, rot: 0 };
+      s.flowers.forEach(function (f, k) { drawTile(f, fx + k * fw, fy, fw - 1, { shadow: false }); });
+      ui.flowerAnchor[0] = { x: fx + s.flowers.length * fw, y: fy, w: fw - 1, rot: 0 };
       ui.meRowFree = { x0: ui.flowerAnchor[0].x + 10, x1: W - pad - infoW - 10 };
 
       // Hand.
@@ -1480,7 +1482,15 @@
         ctx.strokeStyle = COLORS.goldLight;
         ctx.lineWidth = 2;
         ctx.stroke();
-        text(b.text, 0, 2, { size: size, family: FONT_HEAD, align: 'center', color: b.textColor || COLORS.white });
+        // Center the letters (by cap height) in the pill; a fixed offset sits
+        // off-center because the heading font's line box isn't symmetric.
+        ctx.font = size + 'px ' + FONT_HEAD;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic'; // set before measuring: the metrics depend on it
+        // The height of the letters above the baseline (descenders aren't counted).
+        var rise = ctx.measureText(b.text).actualBoundingBoxAscent || size * 0.7;
+        ctx.fillStyle = b.textColor || COLORS.white;
+        ctx.fillText(b.text, 0, rise / 2);
         if (b.sub) text(b.sub, 0, bh / 2 + 14, { size: 14, weight: 'bold', align: 'center', color: COLORS.cream });
         ctx.restore();
       });
@@ -2020,20 +2030,29 @@
     }
 
     // Shrinks a banner so it fits `maxW` (its pill is the text plus 1.2 em).
-    function shrinkBanner(textStr, size, maxW) {
-      if (!maxW) return size;
+    function shrinkBanner(textStr, size, maxW, maxH) {
+      if (!maxW && !maxH) return size;
       for (; size > 10; size--) {
         ctx.font = size + 'px ' + FONT_HEAD;
-        if (ctx.measureText(textStr).width + size * 1.2 <= maxW) break;
+        var fitsW = !maxW || ctx.measureText(textStr).width + size * 1.2 <= maxW;
+        var fitsH = !maxH || size * 1.5 <= maxH;
+        if (fitsW && fitsH) break;
       }
       return size;
     }
 
     function banner(textStr, x, y, opts) {
       opts = opts || {};
+      var fitted = shrinkBanner(textStr, opts.size || 30, opts.maxW, opts.maxH);
+      if (opts.span) {
+        // Stay centered on x unless the pill would cover something at either end.
+        ctx.font = fitted + 'px ' + FONT_HEAD;
+        var half = (ctx.measureText(textStr).width + fitted * 1.2) / 2;
+        x = Math.min(Math.max(x, opts.span[0] + half), opts.span[1] - half);
+      }
       banners.push({
         text: textStr, sub: opts.sub, x: x, y: y, start: now(), dur: opts.dur || 1100,
-        color: opts.color, textColor: opts.textColor, size: shrinkBanner(textStr, opts.size || 30, opts.maxW), rot: opts.rot || 0,
+        color: opts.color, textColor: opts.textColor, size: fitted, rot: opts.rot || 0,
       });
       requestRender();
     }
@@ -2050,7 +2069,11 @@
       var pts = settings.mode === 'payout' ? fmt(game.players[2].points) : '';
       ctx.font = 'bold 13px ' + FONT_BODY;
       var right = r.x + r.w - 8 - (pts ? ctx.measureText(pts).width : 0) - 10;
-      return { x: (left + right) / 2, y: r.y + r.h - r.head.h / 2, rot: 0, maxW: Math.max(40, right - left) };
+      return {
+        x: r.x + r.w / 2, y: r.head.y + r.head.h / 2, rot: 0,
+        maxW: Math.max(40, right - left), span: [left, right],
+        maxH: r.head.h + 4, // stays on their player area, in the name strip
+      };
     }
 
     function seatBannerPos(seat) {
@@ -2122,7 +2145,7 @@
       flower: function (d) {
         sound.play('flower');
         var pos = declarationPos(d.seat);
-        banner(d.seat === 0 ? 'Flower!' : 'Flower', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, size: 18, color: COLORS.green, dur: 800 });
+        banner(d.seat === 0 ? 'Flower!' : 'Flower', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 18, color: COLORS.green, dur: 800 });
         announce((d.seat === 0 ? 'You' : game.players[d.seat].name) + ' reveals ' + E.tileName(d.tile) + '.');
         return sleep(380);
       },
@@ -2149,7 +2172,7 @@
         sound.play(d.type === 'kong' ? 'kong' : 'claim');
         var words = { chow: 'Chow!', pung: 'Pung!', kong: 'Kong!' };
         var pos = declarationPos(d.seat);
-        banner(words[d.type], pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, size: 24 });
+        banner(words[d.type], pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 24 });
         var list = game.hand.seats[d.from].discards.filter(function (x) { return !x.claimed; });
         var from = pondPose(d.from, list.length);
         var to = ui.meldAnchor[d.seat] || seatAnchor(d.seat);
@@ -2164,13 +2187,13 @@
       },
       kongAttempt: function (d) {
         var pos = declarationPos(d.seat);
-        banner('Kong?', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, size: 20, dur: 700 });
+        banner('Kong?', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 20, dur: 700 });
         return sleep(300);
       },
       kong: function (d) {
         sound.play('kong');
         var pos = declarationPos(d.seat);
-        banner('Kong!', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, size: 24 });
+        banner('Kong!', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 24 });
         announce((d.seat === 0 ? 'You declare' : game.players[d.seat].name + ' declares') + ' a kong of ' + E.tileName(d.tile) + '.');
         return sleep(650);
       },
@@ -2372,10 +2395,11 @@
       // Exposed for debugging in the browser console.
       get game() { return game; },
       get ui() { return ui; },
+      get spots() { return tileSpots; }, // face-up tile boxes from the last frame (debugging)
       // Exposed for debugging in the browser console.
-      declare: function (seat, label) {
+      declare: function (seat, label, color) {
         var p = declarationPos(seat);
-        banner(label, p.x, p.y, { rot: p.rot, maxW: p.maxW, size: 24, dur: 6000 });
+        banner(label, p.x, p.y, { rot: p.rot, maxW: p.maxW, span: p.span, maxH: p.maxH, size: 24, dur: 6000, color: color });
       },
     };
   }
