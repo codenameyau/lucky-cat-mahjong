@@ -23,8 +23,10 @@
         suji, kabe (a neighbor with all 4 visible), then everything else,
         with fresh honors and middle tiles the most dangerous.
      D. with under 16 tiles left in the wall, play safe unless already ready
-        with a big hand; Chow only when it clearly gets closer to ready; Pung
-        dragons and own/round winds freely; avoid early open kongs.
+        with a big hand; Chow only when it clearly gets closer to ready, and
+        early in the hand only for a ready hand or a flush one tile from
+        ready; Pung dragons and own/round winds freely; a kong is fine at
+        any point.
      E. keep pairs. Break one only after every non-pair is gone, unless a
         chow has committed the hand to one suit: pairs in the other suits
         are discarded with those suits.
@@ -907,12 +909,9 @@
       var ck = c.slice();
       ck[ti] -= 3;
       var uk = handUtility(ck, withMeld(ctx, { type: 'kong', tiles: [tile, tile, tile, tile], concealed: false }));
-      // Axis D: no open kong early (over 60 tiles left) unless the hand is
-      // built on sets.
-      var setsHand = uk.best && uk.best.plan && uk.best.plan.id === 'triplets';
-      if (ctx.wallLeft <= 60 || setsHand) {
-        out.push({ decision: { type: 'kong' }, score: uk.util * 1.05, analysis: uk });
-      }
+      // A kong is fine at any point in the hand: it draws a free
+      // replacement tile, so it's taken whenever it doesn't hurt the hand.
+      out.push({ decision: { type: 'kong' }, score: uk.util * 1.05, analysis: uk });
     }
     opts.chows.forEach(function (pair) {
       var h2 = hand.slice();
@@ -981,7 +980,10 @@
     if (after === 0) return !!(an.ready && an.ready.bestFaan >= min);
     if (!plan || plan.faan < min - 0.25) return false;
     var flushPlan = /^(half|full)/.test(plan.id);
-    if (flushPlan && after <= 2) return true;
+    // Early in the hand (over 60 tiles left) there's time to draw the tile
+    // instead, so a flush chow must leave the hand within one tile of ready.
+    var early = ctx.wallLeft > 60;
+    if (flushPlan && after <= (early ? 1 : 2)) return true;
     // Late in the hand, a chow that saves a step is worth the cost.
     var late = ctx.turn >= 9 || ctx.wallLeft < 48;
     return late && before - after >= 1 && after <= 2;

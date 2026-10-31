@@ -98,7 +98,7 @@ On this plan every pair is kept, nothing is claimed, and singles are discarded f
 A chow gives up the concealed-hand faan and shows what you are doing, so it is taken only when it does real work:
 
 - it makes the hand ready for a win of at least 3 faan, or
-- it builds the flush the hand is already collecting and leaves you within two tiles of ready, or
+- it builds the flush the hand is already collecting and leaves you within two tiles of ready (within one tile while more than 60 tiles are left in the wall, since early on there's still time to draw the tile instead), or
 - it is late in the hand (around the ninth discard, or under 48 tiles left in the wall) and it still leaves you within two tiles of ready.
 
 A chow that does not get you closer is passed. A Concealed All Sequences hand is not chowed or punged, except for a dragon or a wind that scores.
@@ -109,7 +109,7 @@ Once the chow is down, tiles outside that suit are thrown first, as described ab
 
 A pung of a dragon, or of your own wind, or of the round wind, is always taken, unless the hand is on Seven Pairs, Thirteen Orphans, or Nine Gates (a set cannot be part of those hands). The one other exception is a hand that is already ready, when the pung would leave it further from ready and worth less than waiting. Then it is weighed like any other claim.
 
-An open kong early in the hand (more than 60 tiles left) is skipped unless the hand is already All Triplets. A kong of a dragon or a scoring wind is the exception and is taken like the pung above. A concealed kong is declared when it does not break the hand. A kong draws a replacement tile.
+A kong is fine at any point in the hand, early or late. It draws a free replacement tile, so it is taken whenever the hand is no worse for it. A kong of a dragon or a scoring wind is taken like the pung above. Early chows are the ones to avoid (see After you chow). A concealed kong is declared when it does not break the hand. A kong draws a replacement tile.
 
 Other pungs and chows are taken only when the hand afterwards is clearly better than passing.
 

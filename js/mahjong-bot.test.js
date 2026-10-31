@@ -254,12 +254,24 @@ describe('expert playbook', () => {
     assert.equal(B.chowCommitment(B.buildContext(game, 0)), null);
   });
 
-  it('skips an early open kong unless the hand is built on sets', () => {
-    const hand = ['c2', 'c3', 'c4', 'd5', 'd6', 'd7', 'b5', 'b5', 'b5', 'c8', 'c8', 'd2', 'd3'];
-    const game = table({ seats: [{ hand }], wallLeft: 80 });
+  it('takes an early open kong when the hand is already open', () => {
+    const hand = ['c2', 'c3', 'c4', 'b5', 'b5', 'b5', 'c8', 'c8', 'd2', 'd3'];
+    const game = table({ seats: [{ hand, melds: [meld('pung', 'dr')] }], wallLeft: 80 });
     const opts = E.claimOptions(game, 0, 'b5', 2, false);
     assert.ok(opts.kong);
-    assert.notEqual(B.chooseClaim(game, 0, opts).type, 'kong');
+    assert.equal(B.chooseClaim(game, 0, opts).type, 'kong');
+  });
+
+  it('passes an early flush chow that leaves the hand two tiles from ready', () => {
+    // A Bamboo flush in the making, still two tiles from ready after a chow.
+    const hand = ['d1', 'd3', 'd4', 'b3', 'b5', 'b7', 'b7', 'b8', 'b9', 'b9', 'ws', 'ww', 'dr'];
+    const early = table({ seats: [{ hand }], wallLeft: 80 });
+    const opts = E.claimOptions(early, 0, 'b8', 3, false);
+    assert.ok(opts.chows.length);
+    assert.equal(B.chooseClaim(early, 0, opts).type, 'pass');
+    // Later in the hand the same chow is worth it.
+    const later = table({ seats: [{ hand }], wallLeft: 55 });
+    assert.equal(B.chooseClaim(later, 0, E.claimOptions(later, 0, 'b8', 3, false)).type, 'chow');
   });
 
   it('does not chase seven pairs when the hand holds a pung or only four pairs', () => {
