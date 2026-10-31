@@ -1470,7 +1470,7 @@
       var last = ui.coachLog[ui.coachLog.length - 1];
       if (last && last.kind === kind && last.action === plain.action && last.detail === plain.detail) return;
       ui.coachLog.push({ kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber() });
-      if (ui.coachLog.length > 40) ui.coachLog.shift();
+      if (ui.coachLog.length > 200) ui.coachLog.shift(); // a whole hand's worth
       ui.coachStick = true;
     }
 
@@ -1529,7 +1529,9 @@
             lines.push({ segs: segs, bold: bold });
           });
         }
+        // The whole note for that move: the advice in bold, then why.
         pushWrapped(entry.action, true, COLORS.goldLight);
+        pushWrapped(entry.detail, false, COLORS.cream);
         var h = Math.max(avatar + 16, lines.length * lh + 16);
         return { entry: entry, lines: lines, h: h, moveLabel: moveLabel, moveW: moveW };
       });
