@@ -11,6 +11,7 @@
     { label: 'Community', href: '/community/' },
     { label: 'Events', href: '/events/' },
     { label: 'Quiz', href: '/which-mahjong-tiles-are-you/' },
+    { label: 'Play', href: '/play-mahjong/' },
   ];
 
   function escapeHtml(str) {
