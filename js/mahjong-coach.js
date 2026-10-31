@@ -443,6 +443,19 @@
     return line + '.';
   }
 
+  // The main action (the first sentence of tips[k], e.g. "Discard Nine
+  // Circle.") is shown on its own line; the rest reads as one paragraph,
+  // starting with why.
+  function lead(hint, k) {
+    var t = hint.tips[k] || '';
+    var m = t.match(/^(.+?[.!?])(?:\s+(.*))?$/);
+    hint.action = m ? m[1] : t;
+    var rest = hint.tips.filter(function (x, i) { return i !== k; });
+    if (m && m[2]) rest.unshift(m[2]);
+    hint.tips = rest;
+    return hint;
+  }
+
   /* ------------------------------------------------------------------ *
    * 5. Hints: 1) what to do, 2) where the hand stands, 3) the threats,
    *    4) what goes next if the draw doesn't help.
@@ -450,7 +463,7 @@
 
   function turnHint(game, seat, opts) {
     var min = game.settings.minFaan;
-    if (opts.win) return { kind: 'win', tips: ['You can win with ' + opts.win.faan + ' faan. Tap Win!'] };
+    if (opts.win) return { kind: 'win', action: 'Win!', tips: ['Tap Win: this hand scores ' + opts.win.faan + ' faan.'] };
     var v = look(game, seat);
     var hand = game.hand.seats[seat].hand;
     var c = E.countsOf(hand);
@@ -466,7 +479,7 @@
     }
     if (opts.kongs && opts.kongs.length) {
       var kong = B.chooseTurnAction(game, seat, { kongs: opts.kongs });
-      if (kong.type === 'kong') tips.push('Declare a Kong of ' + E.tileName(kong.tile) + '. You get a free extra tile.');
+      if (kong.type === 'kong') { var kongAt = tips.length; tips.push('Declare a Kong of ' + E.tileName(kong.tile) + '. You get a free extra tile.'); }
     }
 
     // 1. What to do.
@@ -474,6 +487,7 @@
     var why = defending
       ? 'Play safe: your hand is slow and ' + (v.ctx.wallLeft < 16 ? 'the wall is nearly gone.' : 'someone is close to winning.')
       : (pick.ready && pick.shanten === 0 ? 'It leaves you ready to win.' : whyDiscard(v, c, pick, route));
+    var discardAt = tips.length;
     tips.push('Discard ' + E.tileName(pick.tile) + '. ' + why);
 
     // 2. Where the hand stands (and, for 4, what goes next).
@@ -508,7 +522,7 @@
     // 4. What goes next if the next draw doesn't help.
     if (next) tips.push('If your next draw doesn\'t help, let ' + E.tileName(next.tile) + ' go.');
 
-    return { kind: 'discard', tile: pick.tile, tips: tips, candidates: list };
+    return lead({ kind: 'discard', tile: pick.tile, tips: tips, candidates: list }, kongAt !== undefined ? kongAt : discardAt);
   }
 
   function chowLabel(pair, tile) {
@@ -520,7 +534,7 @@
   function claimHint(game, seat, opts) {
     var min = game.settings.minFaan;
     if (opts.win) {
-      return { kind: 'claim', decision: { type: 'win' }, tips: ['Win! ' + E.tileName(opts.tile) + ' finishes your hand for ' + opts.win.faan + ' faan.'] };
+      return { kind: 'claim', decision: { type: 'win' }, action: 'Win!', tips: [E.tileName(opts.tile) + ' finishes your hand for ' + opts.win.faan + ' faan.'] };
     }
     var v = look(game, seat);
     var hand = game.hand.seats[seat].hand;
@@ -564,7 +578,7 @@
       var ch = afterClaim({ type: 'chow', tiles: tiles, concealed: false }, pair);
       if (ch) options.push({ decision: { type: 'chow', tiles: pair }, label: chowLabel(pair, opts.tile), res: ch });
     });
-    if (!options.length) return { kind: 'claim', decision: { type: 'pass' }, tips: tips.concat(['Pass.']) };
+    if (!options.length) return lead({ kind: 'claim', decision: { type: 'pass' }, tips: tips.concat(['Pass.']) }, tips.length);
 
     options.sort(function (a, b) { return b.res.score - a.res.score; });
     var best = options[0];
@@ -596,7 +610,7 @@
 
     if (taken && ti >= 27 && honorWorth(v, ti) && dec.type !== 'chow') {
       tips.push(taken.label + '! A ' + E.tileName(opts.tile) + ' set is worth ' + honorWorth(v, ti) + ' faan and gets you closer.');
-      return { kind: 'claim', decision: dec, tips: tips.concat(after(taken.res, c)) };
+      return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(taken.res, c)) }, tips.length - 1);
     }
     if (taken) {
       best = taken;
@@ -606,7 +620,7 @@
         ? 'It fits your ' + SUIT_NAME[route.suit] + ' flush'
         : route.id === 'triplets' ? 'You\'re going for All Triplets' : 'It speeds up your hand';
       tips.push(best.label + '. ' + fits + (bestFaan >= min ? ', and the hand is still worth about ' + faanWord(bestFaan) + '.' : '.'));
-      return { kind: 'claim', decision: dec, tips: tips.concat(after(best.res, c)) };
+      return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(best.res, c)) }, tips.length - 1);
     }
 
     if (bestFaan < min) {
@@ -619,7 +633,7 @@
     } else {
       tips.push('Pass. It doesn\'t help your hand enough.');
     }
-    return { kind: 'claim', decision: { type: 'pass' }, tips: tips.concat(after(stay, c)) };
+    return lead({ kind: 'claim', decision: { type: 'pass' }, tips: tips.concat(after(stay, c)) }, tips.length - 1);
   }
 
   var api = { turnHint: turnHint, claimHint: claimHint, rankDiscards: rankDiscards, routesFor: routesFor, look: look };

@@ -26,7 +26,7 @@ const meld = (type, tile) => {
   const tiles = type === 'chow' ? [tile, E.tileId(i + 1), E.tileId(i + 2)] : Array(3).fill(tile);
   return { type, tiles, concealed: false, from: 2 };
 };
-const text = (hint) => hint.tips.join(' ');
+const text = (hint) => [hint.action].concat(hint.tips).join(' ');
 
 describe('coach: discards', () => {
   const mixed = ['c2', 'c3', 'c4', 'd4', 'd5', 'd6', 'b3', 'b4', 'b6', 'b7', 'd8', 'd8', 'c9', 'dr'];
@@ -34,14 +34,14 @@ describe('coach: discards', () => {
   it('keeps a live dragon and throws a lone end tile instead', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
     assert.equal(hint.tile, 'c9');
-    assert.match(hint.tips[0], /^Discard Nine Character\. /);
+    assert.equal(hint.action, 'Discard Nine Character.');
   });
 
   it('lets the dragon go once two are already out', () => {
     const game = table({ seats: [{ hand: mixed }, { discards: ['dr'] }, { discards: ['dr'] }] });
     const hint = C.turnHint(game, 0, { kongs: [] });
     assert.equal(hint.tile, 'dr');
-    assert.match(hint.tips[0], /Two Red Dragons are already out/);
+    assert.match(text(hint), /Two Red Dragons are already out/);
   });
 
   it('plays concealed runs when the hand is spread across suits', () => {
@@ -57,7 +57,7 @@ describe('coach: discards', () => {
     const hand = ['b1', 'b2', 'b3', 'b4', 'b5', 'b7', 'b8', 'b9', 'b9', 'dr', 'dr', 'c5', 'd7', 'ws'];
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
     assert.ok(['c5', 'd7'].includes(hint.tile), 'discarded ' + hint.tile);
-    assert.match(hint.tips[0], /collecting Bamboo/);
+    assert.match(text(hint), /collecting Bamboo/);
     assert.match(text(hint), /Half Flush in Bamboo/);
   });
 
@@ -105,7 +105,7 @@ describe('coach: claims', () => {
     const opts = E.claimOptions(game, 0, 'dr', 2, false);
     const hint = C.claimHint(game, 0, opts);
     assert.equal(hint.decision.type, 'pung');
-    assert.match(hint.tips[0], /^Pung! A Red Dragon set is worth 1 faan/);
+    assert.match(text(hint), /^Pung! A Red Dragon set is worth 1 faan/);
   });
 
   it('chows into a flush it is building', () => {
@@ -114,7 +114,7 @@ describe('coach: claims', () => {
     const opts = E.claimOptions(game, 0, 'b3', 3, false);
     const hint = C.claimHint(game, 0, opts);
     assert.equal(hint.decision.type, 'chow');
-    assert.match(hint.tips[0], /^Chow 1-2-3 Bamboo\. It fits your Bamboo flush/);
+    assert.match(text(hint), /^Chow 1-2-3 Bamboo\. It fits your Bamboo flush/);
   });
 
   it('tells you to win when you can', () => {
@@ -122,6 +122,6 @@ describe('coach: claims', () => {
     const game = table({ seats: [{ hand }] });
     const opts = E.claimOptions(game, 0, 'c4', 2, false);
     assert.ok(opts.win);
-    assert.match(C.claimHint(game, 0, opts).tips[0], /^Win! Four Character finishes your hand/);
+    assert.match(text(C.claimHint(game, 0, opts)), /^Win! Four Character finishes your hand/);
   });
 });
