@@ -182,13 +182,13 @@ html.is-playing body {
 
 .rules-sheet::backdrop { background: rgba(0, 0, 0, 0.6); }
 
-.rules-sheet-inner { padding: 18px 22px 22px; }
+.rules-sheet-inner { padding: 14px 22px 16px; }
 
 .rules-sheet-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 
 .rules-sheet-head h2 {
@@ -213,41 +213,66 @@ html.is-playing body {
 .rules-sheet-close:hover { background: rgba(255, 255, 255, 0.22); }
 
 .rules-sheet-intro {
-  margin: 0 0 14px;
-  font-size: 0.95rem;
+  margin: 0 0 10px;
+  font-size: 0.9rem;
   color: rgba(255, 248, 240, 0.85);
 }
 
-.rules-sheet-body {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  align-items: start;
-}
+.rules-sheet-body { display: grid; gap: 10px; }
 
-.rules-group {
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.24);
-}
-
-.rules-group h3 {
-  margin: 0 0 8px;
+.rules-section-title {
+  display: inline-block;
+  margin: 0 0 6px;
+  padding: 2px 16px 3px;
+  border: 2px solid #ffd27a;
+  border-radius: 999px;
+  background: #C41E3A;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
   font-family: "KN Yuanmo SC", var(--font-heading);
   font-size: 1.05rem;
   font-weight: normal;
-  color: #F4A020;
+  color: #fff;
+}
+
+.rules-families {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.rules-families--flat .rules-family {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  column-gap: 16px;
+}
+
+.rules-families--flat { grid-template-columns: 1fr; }
+
+.rules-family {
+  padding: 6px 12px 4px;
+  border-top: 3px solid #C41E3A;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.26);
+}
+
+.rules-family h4 {
+  margin: 0 0 2px;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #EE6A80;
 }
 
 .rules-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 3px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 2px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
-.rules-row:first-of-type { border-top: 0; }
+.rules-family h4 + .rules-row,
+.rules-families--flat .rules-row { border-top: 0; }
 
 .rules-row-text { flex: 1; min-width: 0; }
 
@@ -255,40 +280,49 @@ html.is-playing body {
   font-weight: bold;
   font-size: 0.86rem;
   line-height: 1.3;
-  color: #EE6A80;
+  color: #FFF8F0;
 }
 
 .rules-name .rules-cn {
   margin-left: 6px;
   font-weight: normal;
-  font-size: 0.8rem;
-  color: rgba(255, 248, 240, 0.55);
+  font-size: 0.78rem;
+  color: #EE6A80;
 }
 
 .rules-desc {
   font-size: 0.74rem;
   line-height: 1.25;
-  color: rgba(255, 248, 240, 0.75);
+  color: rgba(255, 248, 240, 0.7);
 }
 
 .rules-faan {
   flex: none;
   min-width: 50px;
   padding: 2px 7px;
+  border: 1px solid rgba(255, 210, 122, 0.6);
   border-radius: 999px;
-  background: #F4A020;
-  color: #1A1A1A;
-  font-size: 0.8rem;
+  background: #C41E3A;
+  color: #fff;
+  font-size: 0.78rem;
   font-weight: bold;
   text-align: center;
 }
 
+.rules-faan--limit {
+  border-color: #ffd27a;
+  background: #F4A020;
+  color: #1A1A1A;
+}
+
 @media (max-width: 1000px) {
-  .rules-sheet-body { grid-template-columns: 1fr 1fr; }
+  .rules-families { grid-template-columns: 1fr 1fr; }
+  .rules-families--flat .rules-family { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 600px) {
-  .rules-sheet-body { grid-template-columns: 1fr; }
+  .rules-families,
+  .rules-families--flat .rules-family { grid-template-columns: 1fr; }
 }
 
 .visually-hidden {
