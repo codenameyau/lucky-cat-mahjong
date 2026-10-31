@@ -1010,16 +1010,18 @@
       if (ui.thinking === seat) drawThinking(seat, t);
     }
 
-    // "..." bubble while a bot decides.
+    // "..." bubble while a bot decides, turned to face the bot like its tiles.
     function drawThinking(seat, t) {
       var pos = seatBannerPos(seat);
       var w = 46, h = 22;
       ctx.save();
-      pill(pos.x - w / 2, pos.y - h / 2, w, h, 'rgba(255,248,240,0.95)');
+      ctx.translate(pos.x, pos.y);
+      ctx.rotate(SEAT_ANGLE[seat]);
+      pill(-w / 2, -h / 2, w, h, 'rgba(255,248,240,0.95)');
       for (var k = 0; k < 3; k++) {
         var a = 0.35 + 0.65 * Math.max(0, Math.sin(t / 160 - k * 0.9));
         ctx.beginPath();
-        ctx.arc(pos.x - 11 + k * 11, pos.y, 3.2, 0, Math.PI * 2);
+        ctx.arc(-11 + k * 11, 0, 3.2, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(196,30,58,' + a + ')';
         ctx.fill();
       }
