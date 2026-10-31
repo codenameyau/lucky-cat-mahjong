@@ -103,6 +103,55 @@ describe('bot decisions', () => {
   });
 });
 
+describe('expert playbook', () => {
+  it('rates three open melds as an Extreme threat', () => {
+    const game = table({ seats: [null, { hand: ['b4', 'b4', 'b6', 'b7'], melds: [meld('pung', 'b1'), meld('chow', 'b2'), meld('pung', 'b9')] }] });
+    const t = B.opponentThreats(game, 0).find((x) => x.seat === 1);
+    assert.equal(t.levelName, 'Extreme');
+    assert.equal(t.flush, 'b');
+  });
+
+  it('treats tiles thrown since the last meld as the safest', () => {
+    const m = Object.assign(meld('pung', 'dr'), { at: 2 });
+    const game = table({ seats: [null, { hand: ['c1', 'c2', 'c3', 'd4', 'd5', 'd6', 'b7', 'b8', 'b9', 'c5'], melds: [m], discards: ['c4', 'd7', 'c6'] }] });
+    const t = B.opponentThreats(game, 0).find((x) => x.seat === 1);
+    const before = B.waitChance(game, t, E.tileIndex('c4')); // thrown before the meld
+    const since = B.waitChance(game, t, E.tileIndex('c6')); // thrown after it
+    assert.ok(since < before, since + ' vs ' + before);
+  });
+
+  it('counts a dead honor as safe and a fresh one as dangerous', () => {
+    const game = table({ seats: [{ hand: ['wn', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'd1', 'd2', 'd3'] }, { discards: ['wn', 'wn'] }, { discards: ['wn'] }] });
+    const t = B.opponentThreats(game, 0).find((x) => x.seat === 3);
+    assert.ok(B.waitChance(game, t, E.tileIndex('wn')) < B.waitChance(game, t, E.tileIndex('dg')) / 5);
+  });
+
+  it('uses suji: a thrown 2 makes the 5 safer', () => {
+    const game = table({ seats: [null, { discards: ['b2', 'b8'] }] });
+    const t = B.opponentThreats(game, 0).find((x) => x.seat === 1);
+    const plain = table({ seats: [null, { discards: ['c9', 'd9'] }] });
+    const t2 = B.opponentThreats(plain, 0).find((x) => x.seat === 1);
+    assert.ok(B.waitChance(game, t, E.tileIndex('b5')) < B.waitChance(plain, t2, E.tileIndex('b5')));
+  });
+
+  it('always pungs a dragon', () => {
+    const game = table({ seats: [{ hand: ['dr', 'dr', 'c2', 'c3', 'c4', 'd6', 'd7', 'b2', 'b3', 'b7', 'b8', 'ws', 'wn'] }] });
+    assert.deepEqual(B.chooseClaim(game, 0, E.claimOptions(game, 0, 'dr', 2, false)), { type: 'pung' });
+  });
+
+  it('passes on an early chow that doesn\'t get closer to ready', () => {
+    const game = table({ seats: [{ hand: ['c2', 'c3', 'c3', 'd5', 'd7', 'b2', 'b4', 'b8', 'b9', 'we', 'ws', 'dg', 'c9'] }] });
+    const opts = E.claimOptions(game, 0, 'c4', 3, false);
+    assert.ok(opts.chows.length);
+    assert.equal(B.chooseClaim(game, 0, opts).type, 'pass');
+  });
+
+  it('switches to defense when the wall is nearly gone', () => {
+    const game = table({ seats: [{ hand: ['c1', 'c4', 'c8', 'd2', 'd6', 'b3', 'b5', 'b9', 'we', 'ws', 'dg', 'dw', 'wn', 'd9'] }], wallLeft: 10 });
+    assert.ok(B.analyzeDiscards(game, 0).defense > 1.25);
+  });
+});
+
 describe('bot strength', () => {
   // Baseline: discards purely for shanten and live tiles, never claims.
   function efficiencyAgent() {

@@ -11,6 +11,20 @@
        flush signals) and every tile a deal-in probability; the expected
        loss is subtracted from the discard's value, so bots fold when
        their hand is slow and an opponent looks ready.
+   On top of that, the expert playbook:
+     A. speed vs value: early on, bigger hands are worth chasing; mid and
+        late game, or when an opponent shows a big hand, speed matters more.
+     B. dead waits (3+ copies visible) are worth little; middle tiles keep
+        a hand flexible.
+     C. each opponent gets a threat level (Low, Medium, High, Extreme) from
+        their melds, one-suit signals and how late it is. When someone is
+        High or Extreme and our hand is slow, defense takes over. Tile safety
+        follows the usual order: thrown since their last meld, dead honors,
+        suji, kabe (a neighbor with all 4 visible), then everything else,
+        with fresh honors and middle tiles the most dangerous.
+     D. with under 16 tiles left in the wall, play safe unless already ready
+        with a big hand; Chow only when it clearly gets closer to ready; Pung
+        dragons and own/round winds freely; avoid early open kongs.
    The human player's hint tips come from js/mahjong-coach.js. */
 
 (function (root) {
@@ -69,6 +83,9 @@
     melds.forEach(function (m) { ctx.meldSuits[meldSuit(m)] = true; });
     ctx.unseenTotal = ctx.unseen.reduce(function (a, b) { return a + b; }, 0) || 1;
     ctx.drawsLeft = Math.max(1, ctx.wallLeft / 4);
+    ctx.turn = s.discards.length;
+    ctx.slope = valueSlope(game, seat);
+    ctx.isDealer = seat === game.dealer;
     return ctx;
   }
 
@@ -94,9 +111,25 @@
    *    loses to simply finishing fast.
    * ------------------------------------------------------------------ */
 
-  function handValue(f) {
+  function handValue(f, slope) {
     if (f < 3) return Math.pow(0.45, 3 - f);
-    return 1 + VALUE_SLOPE * (Math.min(f, ESTIMATE_FAAN_CAP) - 3);
+    return 1 + (slope || VALUE_SLOPE) * (Math.min(f, ESTIMATE_FAAN_CAP) - 3);
+  }
+
+  // Axis A: how much extra faan is worth right now. Early in the hand a
+  // bigger hand is worth building toward; later, or when an opponent shows a
+  // big hand, finishing first matters more.
+  function valueSlope(game, seat) {
+    var turn = game.hand.seats[seat].discards.length;
+    var slope = turn <= 5 ? 0.75 : turn <= 9 ? 0.6 : 0.45;
+    var bigThreat = game.hand.seats.some(function (o, k) {
+      if (k === seat) return false;
+      return o.melds.length >= 2 && o.melds.some(function (m) {
+        var i = E.tileIndex(m.tiles[0]);
+        return m.type !== 'chow' && i >= 27;
+      });
+    });
+    return bigThreat ? Math.min(slope, 0.45) : slope;
   }
 
   /* ------------------------------------------------------------------ *
@@ -270,8 +303,8 @@
       var withTile = ids.concat([E.tileId(w)]);
       var fr = scoreIfWin(ctx, withTile, false);
       var ft = scoreIfWin(ctx, withTile, true);
-      var pr = fr >= min ? handValue(fr) : 0;
-      var pt = ft >= min ? handValue(ft) : 0;
+      var pr = fr >= min ? handValue(fr, ctx.slope) : 0;
+      var pt = ft >= min ? handValue(ft, ctx.slope) : 0;
       details.push({ tile: E.tileId(w), left: r, ronFaan: fr, tsumoFaan: ft, ronOk: fr >= min, tsumoOk: ft >= min });
       if (!r) return;
       if (pt) { tsumo += r; evSum += r * pt * SELF_DRAW_PAYS; }
@@ -284,7 +317,11 @@
       var t = ctx.drawsLeft;
       value = avg * (t / (t + 1 / q)) * COMPETITION;
     }
-    return { value: value, waits: details, live: tsumo + ron / 1.5 };
+    // Axis B: a wait with at most one live tile is close to dead.
+    if (tsumo <= 1) value *= 0.5;
+    var best = 0;
+    details.forEach(function (d) { if (d.left && d.ronOk) best = Math.max(best, d.ronFaan); });
+    return { value: value, waits: details, live: tsumo + ron / 1.5, bestFaan: best };
   }
 
   /* ------------------------------------------------------------------ *
@@ -301,7 +338,7 @@
       var pc = p.counts.slice();
       var u = ukeire(pc, p.shantenFn, ctx.declared, ctx.unseen, s);
       var chance = finishChance(ctx, s, u.total, p.open);
-      var util = handValue(p.faan + SELF_DRAW_CHANCE) * 1.8 * chance;
+      var util = handValue(p.faan + SELF_DRAW_CHANCE, ctx.slope) * 1.8 * chance;
       var entry = { plan: p, shanten: s, ukeire: u.total, ukeireTiles: u.tiles, util: util };
       if (!best || util > best.util) best = entry;
     });
@@ -326,6 +363,12 @@
    * 6. Defense
    * ------------------------------------------------------------------ */
 
+  var THREAT_LEVELS = ['Low', 'Medium', 'High', 'Extreme'];
+
+  function threatLevel(p) {
+    return p >= 0.55 ? 3 : p >= 0.3 ? 2 : p >= 0.12 ? 1 : 0;
+  }
+
   function opponentThreats(game, seat) {
     var out = [];
     var unseenMe = E.unseenCounts(game, seat);
@@ -334,9 +377,14 @@
       var s = game.hand.seats[o];
       var k = s.melds.length;
       var n = s.discards.length;
-      var p = [0.02, 0.1, 0.28, 0.55, 0.9][Math.min(k, 4)] + Math.min(0.25, n * 0.008);
+      // Axis C: 2 melds is cautious, 3 is extreme; after turn 10 any hand,
+      // melded or not, may be ready.
+      var p = [0.02, 0.1, 0.32, 0.6, 0.92][Math.min(k, 4)] + Math.min(0.25, n * 0.008);
+      var shown = p; // what their melds alone say, for the label
+      if (n >= 10) p = Math.max(p, 0.2 + (n - 10) * 0.05);
 
-      // Flush reading from melds and from which suits never get discarded.
+      // Suit isolation: melds in one suit (plus honors) and other suits
+      // thrown means a flush.
       var flush = null;
       var suitsInMelds = {};
       s.melds.forEach(function (m) { suitsInMelds[meldSuit(m)] = true; });
@@ -352,7 +400,8 @@
           if (!flush && bySuit[su] === 0 && numSuits.every(function (x) { return x === su; })) flush = su;
         });
       }
-      if (flush && k >= 2) p += 0.12;
+      if (k === 0 && suitsInMelds.z) flush = null;
+      if (flush && k >= 2) { p += 0.15; shown += 0.15; }
       p = Math.min(0.93, p);
 
       var f = 3;
@@ -365,15 +414,33 @@
         if (i === 26 + wind) f += 1;
         if (i === 26 + game.round) f += 1;
       });
-      var discarded = {};
-      s.discards.forEach(function (d) { discarded[d.tile] = true; });
+      // Tiles they threw, and the ones thrown since their latest meld
+      // (the safest: their current hand didn't want them).
+      var lastMeld = s.melds.reduce(function (m, x) { return Math.max(m, x.at || 0); }, 0);
+      var discarded = {}, since = {}, suji = { c: {}, d: {}, b: {} };
+      s.discards.forEach(function (d, idx) {
+        discarded[d.tile] = true;
+        if (idx >= lastMeld) since[d.tile] = true;
+        var ti = E.tileIndex(d.tile);
+        if (ti < 27) suji[E.suitOfIndex(ti)][ti % 9] = true;
+      });
+      // Late in the hand anyone may be ready, but only melds make a player
+      // Extreme; the late-game read tops out at High.
+      var level = Math.max(Math.min(threatLevel(p), Math.max(2, threatLevel(shown))), k >= 3 ? 3 : flush && k >= 2 ? 2 : 0);
       out.push({
         seat: o,
         name: game.players[o].name,
         ready: p,
+        level: level,
+        levelName: THREAT_LEVELS[level],
+        melds: k,
         flush: flush,
-        payment: handValue(Math.max(3, f)),
+        faan: Math.max(3, f),
+        // Play tighter against a strong dealer (they keep the deal on a win).
+        payment: handValue(Math.max(3, f)) * (o === game.dealer && level >= 2 ? 1.1 : 1),
         discarded: discarded,
+        since: since,
+        suji: suji,
         windIndex: 26 + wind,
         unseen: unseenMe,
       });
@@ -386,26 +453,42 @@
     var unseen = threat.unseen;
     var chance;
     if (i >= 27) {
-      chance = [0, 0.015, 0.035, 0.045, 0.045][unseen[i]] || 0;
+      // Fresh honors are dangerous; with 3+ copies visible, it's dead.
+      chance = [0, 0.004, 0.035, 0.05, 0.05][unseen[i]] || 0;
       if (unseen[i] >= 2 && (DRAGONS.indexOf(i) !== -1 || i === threat.windIndex || i === 26 + game.round)) chance *= 1.3;
     } else {
       var r = i % 9;
       var seq = 0;
+      // A neighbor with every copy visible (kabe) blocks sequences through it.
       var avail = function (d) {
         var j = r + d;
         if (j < 0 || j > 8) return 0;
         return unseen[i + d] / 4;
       };
-      if (r <= 6) seq += Math.min(avail(1), avail(2)) * (r <= 5 && r >= 1 ? 1 : 0.6);
-      if (r >= 2) seq += Math.min(avail(-1), avail(-2)) * (r >= 3 && r <= 7 ? 1 : 0.6);
-      if (r >= 1 && r <= 7) seq += Math.min(avail(-1), avail(1)) * 0.6;
-      chance = seq * 0.025 + (unseen[i] / 3) * 0.018;
-    }
-    if (threat.discarded[E.tileId(i)]) chance *= 0.3;
-    if (threat.flush) {
+      var twoSided = 0;
+      if (r <= 5) twoSided += Math.min(avail(1), avail(2));   // waiting on r with r+1 r+2
+      if (r >= 3) twoSided += Math.min(avail(-1), avail(-2)); // waiting on r with r-1 r-2
+      // Suji: a two-sided wait on r also wins on r-3 or r+3; if they threw
+      // that tile, the matching two-sided wait is unlikely (HK has no
+      // furiten, so this is a read, not a rule).
       var su = E.suitOfIndex(i);
-      if (su === threat.flush) chance *= 2.5;
-      else if (su === 'z') chance *= 1.3;
+      var lowSafe = r < 3 || threat.suji[su][r - 3];
+      var highSafe = r > 5 || threat.suji[su][r + 3];
+      if (r >= 3 && r <= 5) twoSided *= (lowSafe && highSafe) ? 0.35 : (lowSafe || highSafe) ? 0.7 : 1;
+      else twoSided *= (r < 3 ? highSafe : lowSafe) ? 0.4 : 1;
+      seq += twoSided;
+      if (r === 2) seq += Math.min(avail(-1), avail(-2)) * 0.6; // edge wait 1-2 on 3
+      if (r === 6) seq += Math.min(avail(1), avail(2)) * 0.6;   // edge wait 8-9 on 7
+      if (r >= 1 && r <= 7) seq += Math.min(avail(-1), avail(1)) * 0.6; // closed wait
+      chance = seq * 0.025 + (unseen[i] / 3) * 0.018;
+      if (r >= 2 && r <= 6) chance *= 1.1; // middle tiles connect the most
+    }
+    if (threat.since[E.tileId(i)]) chance *= 0.15;
+    else if (threat.discarded[E.tileId(i)]) chance *= 0.5;
+    if (threat.flush) {
+      var fs = E.suitOfIndex(i);
+      if (fs === threat.flush) chance *= 2.5;
+      else if (fs === 'z') chance *= 1.3;
       else chance *= 0.15;
     }
     return Math.min(chance, 0.6);
@@ -417,6 +500,18 @@
       loss += t.ready * waitChance(game, t, i) * t.payment;
     });
     return loss;
+  }
+
+  // Axis C/D: how much more than usual to weigh safety right now. Defense
+  // takes over when someone is High or Extreme and our hand is slow, or when
+  // the wall is nearly gone and we're not already ready with a big hand.
+  function defenseWeight(ctx, threats, shanten, readyFaan) {
+    var w = ctx.isDealer ? 0.9 : 1; // the dealer can push a little harder
+    var top = threats.reduce(function (m, t) { return Math.max(m, t.level); }, 0);
+    // (Tuned over 4,000 simulated hands; stronger weights folded too often.)
+    if (top >= 2 && shanten >= 2) w *= top === 3 ? 1.7 : 1.3;
+    if (ctx.wallLeft < 16 && !(shanten === 0 && readyFaan >= 5)) w *= 1.7;
+    return w;
   }
 
   /* ------------------------------------------------------------------ *
@@ -440,16 +535,19 @@
         index: i,
         util: u.util,
         loss: loss,
-        score: u.util - loss,
         shanten: u.shanten,
         analysis: u,
       });
     }
+    var bestShanten = Math.min.apply(null, out.map(function (x) { return x.shanten; }));
+    var readyFaan = out.reduce(function (m, x) { return Math.max(m, x.analysis.ready ? x.analysis.ready.bestFaan : 0); }, 0);
+    var weight = defenseWeight(ctx, threats, bestShanten, readyFaan);
+    out.forEach(function (x) { x.score = x.util - weight * x.loss; });
     out.sort(function (a, b) {
       if (b.score !== a.score) return b.score - a.score;
       return E.isTerminalOrHonorIndex(b.index) - E.isTerminalOrHonorIndex(a.index);
     });
-    return { ctx: ctx, candidates: out, threats: threats };
+    return { ctx: ctx, candidates: out, threats: threats, defense: weight };
   }
 
   /* ------------------------------------------------------------------ *
@@ -504,7 +602,9 @@
       var ck = c.slice();
       ck[ti] -= 3;
       var uk = handUtility(ck, withMeld(ctx, { type: 'kong', tiles: [tile, tile, tile, tile], concealed: false }));
-      out.push({ decision: { type: 'kong' }, score: uk.util * 1.05, analysis: uk });
+      // Axis D: avoid early open kongs unless the hand is built on sets.
+      var setsHand = uk.best && uk.best.plan && uk.best.plan.id === 'triplets';
+      out.push({ decision: { type: 'kong' }, score: uk.util * (ctx.wallLeft > 60 && !setsHand ? 0.85 : 1.05), analysis: uk });
     }
     opts.chows.forEach(function (pair) {
       var h2 = hand.slice();
@@ -528,7 +628,23 @@
     if (opts.win) return { type: 'win' };
     if (!opts.pung && !opts.kong && !opts.chows.length) return { type: 'pass' };
     var res = claimCandidates(game, seat, opts);
-    var top = res.options[0];
+    var ctx = buildContext(game, seat);
+    var ti = E.tileIndex(opts.tile);
+    // Axis D: Pung dragons and own/round winds freely (unless going for
+    // Seven Pairs, which can't use a set).
+    var stayPlan = res.stay.best && res.stay.best.plan;
+    if (opts.pung && ti >= 27 && valueWeight(ctx, ti) && !(stayPlan && stayPlan.id === 'pairs')) return { type: 'pung' };
+    var options = res.options.filter(function (o) {
+      if (o.decision.type !== 'chow') return true;
+      // Chow only when it clearly gets closer to ready; early on, only for
+      // a flush or a ready hand, so the hand isn't given away.
+      var after = o.analysis ? o.analysis.shanten : 9;
+      if (after >= res.stay.shanten) return false;
+      var plan = o.analysis && o.analysis.best && o.analysis.best.plan;
+      var flushPlan = plan && /^(half|full)/.test(plan.id);
+      return ctx.turn >= 4 || flushPlan || after === 0;
+    });
+    var top = options[0];
     if (top && top.score > res.passScore * 1.04 + 0.01) return top.decision;
     return { type: 'pass' };
   }
@@ -551,6 +667,9 @@
     plansFor: plansFor,
     readyValue: readyValue,
     opponentThreats: opponentThreats,
+    dealInLoss: dealInLoss,
+    defenseWeight: defenseWeight,
+    THREAT_LEVELS: THREAT_LEVELS,
     waitChance: waitChance,
     analyzeDiscards: analyzeDiscards,
     chooseTurnAction: chooseTurnAction,

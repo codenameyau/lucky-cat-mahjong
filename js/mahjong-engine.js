@@ -517,6 +517,7 @@
       removeTiles(s.hand, [d.tile, d.tile, d.tile]);
       meld = { type: 'kong', tiles: [d.tile, d.tile, d.tile, d.tile], from: d.from, claimed: d.tile, concealed: false };
     }
+    meld.at = s.discards.length; // how many tiles they had thrown when they melded (for "safe since" reads)
     s.melds.push(meld);
     markLastDiscardClaimed(game);
     h.claimsMade++;
@@ -529,7 +530,7 @@
     var s = game.hand.seats[seat];
     if (kong.kind === 'concealed') {
       removeTiles(s.hand, [kong.tile, kong.tile, kong.tile, kong.tile]);
-      s.melds.push({ type: 'kong', tiles: [kong.tile, kong.tile, kong.tile, kong.tile], from: null, concealed: true });
+      s.melds.push({ type: 'kong', tiles: [kong.tile, kong.tile, kong.tile, kong.tile], from: null, concealed: true, at: s.discards.length });
     } else {
       removeTiles(s.hand, [kong.tile]);
       s.melds.forEach(function (m) {

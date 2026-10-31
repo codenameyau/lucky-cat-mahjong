@@ -50,7 +50,7 @@ describe('coach: discards', () => {
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
     assert.ok(['ww', 'wn'].includes(hint.tile), 'discarded ' + hint.tile);
     assert.match(text(hint), /All Sequences/);
-    assert.match(text(hint), /don't claim/);
+    assert.match(text(hint), /no claims/);
   });
 
   it('commits to a flush and says why off-suit tiles go', () => {
@@ -65,7 +65,8 @@ describe('coach: discards', () => {
     const hand = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'dr', 'dr', 'c5', 'c6', 'd9'];
     const hint = C.turnHint(table({ seats: [{ hand, flowers: ['f1'] }] }), 0, { kongs: [] });
     assert.equal(hint.tile, 'd9');
-    assert.match(hint.tips[0], /one tile from winning: .*Four Character.*Seven Character/);
+    assert.match(hint.tips[0], /leaves you ready/);
+    assert.match(hint.tips[1], /^Ready: waiting on .*Four Character.*Seven Character/);
   });
 
   it('plays a tile the threatening player already threw', () => {
@@ -81,7 +82,9 @@ describe('coach: discards', () => {
     const hint = C.turnHint(game, 0, { kongs: [] });
     assert.notEqual(hint.tile, 'b5');
     assert.notEqual(hint.tile, 'b9');
-    assert.match(text(hint), /Watch out: .* may be close to winning with Bamboo/);
+    assert.match(text(hint), /Play safe/);
+    assert.match(text(hint), /Threats: \w+ Extreme \(3 melds, Bamboo\)/);
+    assert.match(text(hint), /threw it after their last meld/);
   });
 });
 
