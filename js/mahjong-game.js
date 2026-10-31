@@ -913,6 +913,163 @@
       ctx.fillRect(0, 0, W, H);
     }
 
+    /* ---------------- rules sheet ---------------- */
+
+    function rulesSheet() {
+      return document.getElementById('rules-sheet');
+    }
+
+    function buildRules() {
+      var body = document.getElementById('rules-sheet-body');
+      if (!body || body.childElementCount) return;
+      var F = E.HKScoring.FAAN;
+      var intro = document.createElement('p');
+      intro.className = 'rules-sheet-intro';
+      intro.textContent = 'Win with four sets (pungs, kongs or chows) and a pair, worth at least ' + E.MIN_FAAN +
+        ' faan. Add up every pattern your hand has, but in each family count only the highest. A hand is capped at ' +
+        F.thirteenOrphans + ' faan, a limit hand.';
+      body.parentNode.insertBefore(intro, body);
+      root.MahjongRules.RULES.forEach(function (section) {
+        var sec = document.createElement('section');
+        sec.className = 'rules-section';
+        var h = document.createElement('h3');
+        h.className = 'rules-section-title';
+        h.textContent = section.title;
+        sec.appendChild(h);
+        var grid = document.createElement('div');
+        grid.className = 'rules-families' + (section.families.length === 1 ? ' rules-families--flat' : '');
+        section.families.forEach(function (fam) {
+          var box = document.createElement('div');
+          box.className = 'rules-family';
+          if (fam.title) {
+            var ft = document.createElement('h4');
+            ft.textContent = fam.title;
+            box.appendChild(ft);
+          }
+          fam.rows.forEach(function (r) {
+            var row = document.createElement('div');
+            row.className = 'rules-row';
+            var faan = F[r.key];
+            var limit = faan >= F.thirteenOrphans;
+            row.innerHTML = '<div class="rules-row-text"><div class="rules-name"></div><div class="rules-desc"></div></div><div class="rules-faan"></div>';
+            var nm = row.querySelector('.rules-name');
+            nm.textContent = r.name;
+            var cn = document.createElement('span');
+            cn.className = 'rules-cn';
+            cn.textContent = r.cn;
+            nm.appendChild(cn);
+            row.querySelector('.rules-desc').textContent = r.desc;
+            var pill = row.querySelector('.rules-faan');
+            pill.textContent = limit ? 'Limit' : faan + ' faan';
+            if (limit) pill.classList.add('rules-faan--limit');
+            // Hover (or tap, or focus) shows an example hand.
+            if (section.preview !== false) {
+              row.classList.add('rules-row--example');
+              row.tabIndex = 0;
+              var show = function () { showRuleExample(row, r, pill.textContent); };
+              row.addEventListener('mouseenter', show);
+              row.addEventListener('focus', show);
+              row.addEventListener('click', show);
+              row.addEventListener('mouseleave', hideRuleExample);
+              row.addEventListener('blur', hideRuleExample);
+            }
+            box.appendChild(row);
+          });
+          grid.appendChild(box);
+        });
+        sec.appendChild(grid);
+        body.appendChild(sec);
+      });
+    }
+
+    function tileImg(id) {
+      var img = document.createElement('img');
+      img.src = '/tiles/' + E.HKScoring.TILE_BY_ID[id].file;
+      img.alt = E.tileName ? E.HKScoring.TILE_BY_ID[id].name : id;
+      img.className = 'rules-tile';
+      return img;
+    }
+
+    // A card beside the row with the example hand as tiles.
+    function showRuleExample(row, r, faanLabel) {
+      var dlg = rulesSheet();
+      var card = dlg.querySelector('.rules-example');
+      if (!card) {
+        card = document.createElement('div');
+        card.className = 'rules-example';
+        card.setAttribute('role', 'tooltip');
+        dlg.appendChild(card);
+      }
+      var ex = r.example;
+      card.innerHTML = '';
+      var head = document.createElement('div');
+      head.className = 'rules-example-head';
+      head.innerHTML = '<span class="rules-example-name"></span><span class="rules-faan"></span>';
+      head.firstChild.textContent = r.name + ' example';
+      head.lastChild.textContent = faanLabel;
+      if (faanLabel === 'Limit') head.lastChild.classList.add('rules-faan--limit');
+      card.appendChild(head);
+      var tiles = document.createElement('div');
+      tiles.className = 'rules-example-tiles';
+      var open = ex.open || [];
+      ex.sets.forEach(function (set, k) {
+        var g = document.createElement('span');
+        g.className = 'rules-set' + (open.indexOf(k) !== -1 ? ' rules-set--open' : '');
+        set.forEach(function (id) { g.appendChild(tileImg(id)); });
+        tiles.appendChild(g);
+      });
+      if (ex.flowers && ex.flowers.length) {
+        var fl = document.createElement('span');
+        fl.className = 'rules-set rules-set--flowers';
+        ex.flowers.forEach(function (id) { fl.appendChild(tileImg(id)); });
+        tiles.appendChild(fl);
+      }
+      card.appendChild(tiles);
+      var notes = [];
+      if (ex.note) notes.push(ex.note);
+      if (open.length) notes.push('Sets underlined in red were claimed.');
+      if (notes.length) {
+        var p = document.createElement('p');
+        p.className = 'rules-example-note';
+        p.textContent = notes.join(' ');
+        card.appendChild(p);
+      }
+      // Place it below the row, or above when there's no room, inside the sheet.
+      card.style.display = 'block';
+      var dr = dlg.getBoundingClientRect(), rr = row.getBoundingClientRect();
+      var w = card.offsetWidth, h = card.offsetHeight;
+      var left = Math.min(Math.max(8, rr.left - dr.left), dr.width - w - 8);
+      var top = rr.bottom - dr.top + 4;
+      if (top + h > dr.height - 8) top = rr.top - dr.top - h - 4;
+      card.style.left = left + 'px';
+      card.style.top = (top + dlg.scrollTop) + 'px';
+    }
+
+    function hideRuleExample() {
+      var dlg = rulesSheet();
+      var card = dlg && dlg.querySelector('.rules-example');
+      if (card) card.style.display = 'none';
+    }
+
+    function openRules() {
+      var dlg = rulesSheet();
+      if (!dlg || dlg.open) return;
+      buildRules();
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+      track('play_open_rules', {});
+    }
+
+    function closeRules() {
+      var dlg = rulesSheet();
+      if (!dlg || !dlg.open) return;
+      if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
+    }
+
+    function rulesOpen() {
+      var dlg = rulesSheet();
+      return !!(dlg && dlg.open);
+    }
+
     var COACH_LABELS = { on: 'Coach on', feedback: 'Feedback on', off: 'Coach off' };
     var COACH_ORDER = ['on', 'feedback', 'off'];
 
@@ -927,11 +1084,17 @@
       button(soundLabel, right - sw, 7, sw, 28, toggleSound, 'ghost', 'sound');
       var hw = W < 420 ? 88 : 106;
       button(COACH_LABELS[ui.coach], right - sw - hw - 6, 7, hw, 28, cycleCoach, ui.coach === 'off' ? 'ghost' : 'gold', 'hints');
+      var rw = W < 420 ? 58 : 68;
+      button('Rules', right - sw - hw - rw - 12, 7, rw, 28, openRules, 'ghost', 'rules');
       if (game) {
         var label = E.WIND_NAMES[game.round] + ' round · Hand ' + game.handNumber;
-        var maxW = right - sw - hw - 12 - (pad + 72);
-        var size = fitFont(ctx, label, maxW, 15, FONT_HEAD);
-        text(label, pad + 72 + maxW / 2, 22, { size: size, family: FONT_HEAD, align: 'center', color: COLORS.cream });
+        var maxW = right - sw - hw - rw - 18 - (pad + 72);
+        // Phones have no room beside the buttons; the round wind still shows
+        // in the middle of the table.
+        if (maxW >= 90) {
+          var size = fitFont(ctx, label, maxW, 15, FONT_HEAD);
+          text(label, pad + 72 + maxW / 2, 22, { size: size, family: FONT_HEAD, align: 'center', color: COLORS.cream });
+        }
       }
     }
 
@@ -2261,6 +2424,7 @@
 
     function onKey(e) {
       if (destroyed) return;
+      if (rulesOpen()) return; // the rules sheet handles its own keys (Escape closes it)
       if (e.key === 'Escape') { openMenu(); e.preventDefault(); return; }
       if (ui.overlay) {
         if (e.key === 'Enter' && ui.overlay.type === 'summary') { closeOverlay(); e.preventDefault(); }
@@ -2662,6 +2826,14 @@
     var onResize = function () { resize(); };
     root.addEventListener('resize', onResize);
     root.addEventListener('keydown', onKey);
+    (function () {
+      var dlg = rulesSheet();
+      if (!dlg) return;
+      dlg.querySelector('.rules-sheet-close').addEventListener('click', closeRules);
+      // A click on the dimmed area outside the sheet closes it too.
+      dlg.addEventListener('click', function (e) { if (e.target === dlg) closeRules(); });
+      dlg.addEventListener('close', function () { canvas.focus(); });
+    })();
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);
     canvas.addEventListener('pointerup', onPointerUp);

@@ -6,6 +6,18 @@ Both only use what that seat can see: its own hand and flowers, every open meld,
 
 A winning hand needs at least 3 faan. On a self-draw, every opponent pays. On a discard, only the player who threw the winning tile pays.
 
+## Playing for points, not wins
+
+The goal is the most points over many hands, not the most wins. Payouts double with every faan (3 faan pays 8, 7 faan pays 128, 10 faan pays 1,024), so a hand is valued at its real payout. A 7-faan hand is worth 16 three-faan wins, and a big hand you might deal into costs that much too.
+
+Three things follow:
+
+- **Bigger hands are worth building.** A concealed hand, a flush, or a dragon set adds a faan, and each faan doubles the payout. Staying concealed is often worth more than a chow that gets you one tile closer.
+- **Defense counts more.** The risk of dealing in is weighed 1.5 times as heavily as before, because the hands you would pay for are the big ones.
+- **Fold when you're unlikely to win.** With fewer than 45 tiles left and the hand still two or more tiles from ready, safety is weighed 1.5 times more again.
+
+This was chosen by simulation. Each strategy played thousands of paired deals in one seat against three of the previous bots, with the previous bot playing the same deals in that seat for comparison. Across three rounds (25,000 hands for the main setting), valuing hands by their payout scored about 13 to 17 more points per hand than the old compressed scale, with about 20% fewer wins and 14% fewer deal-ins. Extra defense and the late fold added a little more and dealt in least, so they were kept.
+
 ## Hands they aim for
 
 For each possible discard they score the hand that would be left, and they keep the hand that is closest to a win worth playing. Early in the hand, a bigger hand is worth building. Later, or when someone is showing a big hand, finishing first matters more.
@@ -13,8 +25,8 @@ For each possible discard they score the hand that would be left, and they keep 
 The hands, in the order they come up:
 
 - **A standard hand.** Four sets and a pair. A concealed hand is worth an extra faan.
-- **Concealed All Sequences.** A concealed hand of runs, with no honors and no claims. The concealed faan plus All Sequences is most of the way to 3, and flowers make up the rest. A pung of a dragon, or of your own wind, or of the round wind, is still taken. Any other claim is passed.
-- **Half flush.** One suit plus honors, once that suit already makes up most of the hand and no meld is in another suit. Worth 3 faan on top of whatever the honors add.
+- **Concealed All Sequences.** A concealed hand of runs, with no honors and no claims (not while the hand holds a set of honors, which can't be thrown away). The concealed faan plus All Sequences is most of the way to 3, and flowers make up the rest. A pung of a dragon, or of your own wind, or of the round wind, is still taken. Any other claim is passed.
+- **Half flush.** One suit plus honors, once that suit (with honors, counting sets already made) makes up most of the hand and no meld is in another suit. Worth 3 faan on top of whatever the honors add.
 - **Full flush.** One suit only, once that suit already makes up most of the hand and there is no honor meld. Worth 7 faan.
 - **All Triplets.** Sets and pairs, no chows, once the hand already has several of them.
 - **Concealed Triplets.** No melds yet, and at least two pungs already in hand.
@@ -123,7 +135,7 @@ Other pungs and chows are taken only when the hand afterwards is clearly better 
 
 Each opponent is read as Low, Medium, High, or Extreme from how many melds they have, whether those melds are one suit, and how late the hand is. Three open melds is Extreme. Two melds in one suit is at least High. After many discards, even a quiet hand may be ready, but that read stops at High unless the melds themselves are Extreme.
 
-Defense takes over when someone is High or Extreme and this hand is still two or more tiles from ready, or when fewer than 16 tiles are left in the wall and the hand is not already ready for a big win (5 faan or more). The dealer pushes a little harder than the other seats.
+Defense takes over when someone is High or Extreme and this hand is still two or more tiles from ready, or when fewer than 16 tiles are left in the wall and the hand is not already ready for a big win (5 faan or more). It also gets more weight once fewer than 45 tiles are left and the hand is still two or more tiles from ready (see Playing for points). The dealer pushes a little harder than the other seats.
 
 Against one opponent, a tile is safer in this order:
 

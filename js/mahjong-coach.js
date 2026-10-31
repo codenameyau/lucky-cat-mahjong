@@ -176,8 +176,8 @@
     return 'Your hand needs it least.';
   }
 
-  // Hand-pattern names, with their faan in parentheses, are wrapped in
-  // invisible markers so the game can draw both in the brand red.
+  // Hand-pattern names are wrapped in invisible markers so the game can draw
+  // them in the brand red. Their faan is on the Rules sheet, not in the tips.
   var HAND_PATTERNS = [
     'concealed all sequences',
     'concealed triplets',
@@ -190,23 +190,6 @@
     'full flush',
     'chicken hand',
   ];
-
-  function patternFaan(needle) {
-    var F = E.HKScoring.FAAN;
-    var faan = {
-      'concealed all sequences': F.allSequences + F.concealed,
-      'concealed triplets': F.allConcealedTriplets,
-      'thirteen orphans': F.thirteenOrphans,
-      'all sequences': F.allSequences,
-      'all triplets': F.allTriplets,
-      'seven pairs': F.sevenPairs,
-      'nine gates': F.nineGates,
-      'half flush': F.halfFlush,
-      'full flush': F.fullFlush,
-      'chicken hand': F.chicken,
-    }[needle];
-    return faan + ' faan';
-  }
 
   function highlightPatterns(text) {
     var raw = String(text).replace(/[\u0001\u0002]/g, '');
@@ -227,7 +210,6 @@
             at: at,
             nameEnd: nameEnd,
             spanEnd: nameEnd + (existing ? existing[0].length : 0),
-            insert: existing ? '' : ' (' + patternFaan(needle) + ')',
           });
         }
         from = nameEnd;
@@ -237,7 +219,7 @@
     var out = '';
     var cursor = 0;
     hits.forEach(function (h) {
-      out += raw.slice(cursor, h.at) + '\u0001' + raw.slice(h.at, h.nameEnd) + h.insert + raw.slice(h.nameEnd, h.spanEnd) + '\u0002';
+      out += raw.slice(cursor, h.at) + '\u0001' + raw.slice(h.at, h.nameEnd) + '\u0002';
       cursor = h.spanEnd;
     });
     return out + raw.slice(cursor);
@@ -250,31 +232,22 @@
 
   function targetText(v, plan, c, nextOut) {
     var r = plan.route;
-    // The target is shown at the hand's own value from the scoring table
-    // (what the pattern is worth), not an estimate with bonuses mixed in.
-    var F = E.HKScoring.FAAN;
-    var own = {
-      straights: F.allSequences + F.concealed, half: F.halfFlush, full: F.fullFlush,
-      triplets: F.allTriplets, 'concealed-triplets': F.allConcealedTriplets, pairs: F.sevenPairs,
-      orphans: F.thirteenOrphans, gates: F.nineGates,
-    };
-    var f = (own[r.id] !== undefined ? own[r.id] : 0) + ' faan';
     if (r.id === 'straights') {
       var keep = liveValueSingles(v, c).filter(function (i) { return i !== nextOut; });
-      return 'Concealed All Sequences (' + f + ')' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' +
+      return 'Concealed All Sequences' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' +
         (keep.length ? '. Keep the ' + listNames(keep) + ' in case ' + (keep.length > 1 ? 'one pairs' : 'it pairs') : '');
     }
-    if (r.id === 'half') return 'Half Flush (' + f + ') in ' + SUIT_NAME[r.suit];
-    if (r.id === 'full') return 'Full Flush (' + f + ') in ' + SUIT_NAME[r.suit];
-    if (r.id === 'triplets') return 'All Triplets (' + f + '). Pung your pairs';
-    if (r.id === 'concealed-triplets') return 'Concealed Triplets (' + f + '). Don\'t claim';
-    if (r.id === 'pairs') return 'Seven Pairs (' + f + '). Don\'t claim';
-    if (r.id === 'orphans') return 'Thirteen Orphans (' + f + '). Don\'t claim';
-    if (r.id === 'gates') return 'Nine Gates (' + f + ') in ' + SUIT_NAME[r.suit] + '. Don\'t claim';
+    if (r.id === 'half') return 'Half Flush in ' + SUIT_NAME[r.suit];
+    if (r.id === 'full') return 'Full Flush in ' + SUIT_NAME[r.suit];
+    if (r.id === 'triplets') return 'All Triplets. Pung your pairs';
+    if (r.id === 'concealed-triplets') return 'Concealed Triplets. Don\'t claim';
+    if (r.id === 'pairs') return 'Seven Pairs. Don\'t claim';
+    if (r.id === 'orphans') return 'Thirteen Orphans. Don\'t claim';
+    if (r.id === 'gates') return 'Nine Gates in ' + SUIT_NAME[r.suit] + '. Don\'t claim';
     for (var i = 27; i < 34; i++) {
       if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) return (/^[AEIOU]/.test(name(i)) ? 'an ' : 'a ') + name(i) + ' set (' + honorWorth(v, i) + ' faan). Pung it if it\'s thrown';
     }
-    return 'a chicken hand (0 faan)';
+    return 'a chicken hand';
   }
 
   // Axis A in words: early on there's room to build; late, finish fast.

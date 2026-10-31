@@ -321,15 +321,17 @@ describe('expert playbook', () => {
   });
 
   it('passes an early flush chow that leaves the hand two tiles from ready', () => {
-    // A Bamboo flush in the making, still two tiles from ready after a chow.
-    const hand = ['d1', 'd3', 'd4', 'b3', 'b5', 'b7', 'b7', 'b8', 'b9', 'b9', 'ws', 'ww', 'dr'];
-    const early = table({ seats: [{ hand }], wallLeft: 80 });
-    const opts = E.claimOptions(early, 0, 'b8', 3, false);
+    // An open Bamboo flush in the making (Red Dragon punged), still two tiles
+    // from ready after a chow.
+    const hand = ['b1', 'b2', 'b5', 'b6', 'b8', 'b8', 'b9', 'ws', 'ww', 'c4'];
+    const melds = [meld('pung', 'dr')];
+    const early = table({ seats: [{ hand, melds }], wallLeft: 80 });
+    const opts = E.claimOptions(early, 0, 'b3', 3, false);
     assert.ok(opts.chows.length);
     assert.equal(B.chooseClaim(early, 0, opts).type, 'pass');
     // Later in the hand the same chow is worth it.
-    const later = table({ seats: [{ hand }], wallLeft: 55 });
-    assert.equal(B.chooseClaim(later, 0, E.claimOptions(later, 0, 'b8', 3, false)).type, 'chow');
+    const later = table({ seats: [{ hand, melds }], wallLeft: 55 });
+    assert.equal(B.chooseClaim(later, 0, E.claimOptions(later, 0, 'b3', 3, false)).type, 'chow');
   });
 
   it('does not chase seven pairs when the hand holds a pung or only four pairs', () => {
@@ -379,9 +381,11 @@ describe('chows and committing to a suit', () => {
   });
 
   it('takes a chow that makes a flush hand ready', () => {
-    // Bamboo half flush that the chow turns into a ready hand.
+    // An open Bamboo half flush (Red Dragon punged) that the chow makes ready.
+    // (A concealed hand often does better to stay concealed: that faan
+    // doubles the payout.)
     const game = table({
-      seats: [{ hand: ['b1', 'b2', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9', 'dr', 'dr', 'ww', 'ww', 'we'] }],
+      seats: [{ hand: ['b1', 'b2', 'b4', 'b5', 'b6', 'b7', 'b8', 'ww', 'ww', 'we'], melds: [meld('pung', 'dr')] }],
       wallLeft: 60,
     });
     const opts = E.claimOptions(game, 0, 'b3', 3, false);

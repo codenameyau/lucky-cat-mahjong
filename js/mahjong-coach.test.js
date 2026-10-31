@@ -29,14 +29,13 @@ const meld = (type, tile) => {
 const text = (hint) => [hint.action].concat(hint.tips).join(' ').replace(/[\u0001\u0002]/g, '');
 
 describe('highlightPatterns', () => {
-  it('marks hand patterns and their faan, and leaves "your target is" alone', () => {
-    const F = E.HKScoring.FAAN;
-    const s = C.highlightPatterns('Your target is Concealed All Sequences (2 faan). A flush, all triplets or Thirteen Orphans.');
-    assert.equal(s, 'Your target is \u0001Concealed All Sequences (2 faan)\u0002. A flush, \u0001all triplets (' + F.allTriplets + ' faan)\u0002 or \u0001Thirteen Orphans (' + F.thirteenOrphans + ' faan)\u0002.');
-    assert.equal(C.highlightPatterns('Half Flush in Bamboo'), '\u0001Half Flush (' + F.halfFlush + ' faan)\u0002 in Bamboo');
-    assert.equal(C.highlightPatterns('Half Flush (' + F.halfFlush + ' faan) in Bamboo'), '\u0001Half Flush (' + F.halfFlush + ' faan)\u0002 in Bamboo');
-    assert.equal(C.highlightPatterns('Honor tiles spoil an All Sequences hand.'), 'Honor tiles spoil an \u0001All Sequences (' + F.allSequences + ' faan)\u0002 hand.');
-    assert.equal(C.highlightPatterns('a chicken hand (0 faan)'), 'a \u0001chicken hand (0 faan)\u0002');
+  it('marks hand pattern names without their faan, and leaves "your target is" alone', () => {
+    const s = C.highlightPatterns('Your target is Concealed All Sequences. A flush, all triplets or Thirteen Orphans.');
+    assert.equal(s, 'Your target is \u0001Concealed All Sequences\u0002. A flush, \u0001all triplets\u0002 or \u0001Thirteen Orphans\u0002.');
+    assert.equal(C.highlightPatterns('Half Flush in Bamboo'), '\u0001Half Flush\u0002 in Bamboo');
+    // A faan written after a hand name is dropped; it's on the Rules sheet.
+    assert.equal(C.highlightPatterns('Half Flush (3 faan) in Bamboo'), '\u0001Half Flush\u0002 in Bamboo');
+    assert.equal(C.highlightPatterns('a chicken hand (0 faan)'), 'a \u0001chicken hand\u0002');
   });
 });
 
@@ -90,7 +89,7 @@ describe('coach: discards', () => {
     const hand = ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c9', 'c9', 'd2', 'd3', 'b2'];
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
     assert.ok(['d2', 'd3', 'b2'].includes(hint.tile), 'discarded ' + hint.tile);
-    assert.match(text(hint), /Nine Gates \(\d+ faan\) in Characters/);
+    assert.match(text(hint), /Nine Gates in Characters/);
   });
 
   it('does not aim for seven pairs when the hand already holds a pung', () => {
@@ -126,7 +125,7 @@ describe('coach: discards', () => {
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
     assert.ok(['c5', 'd7'].includes(hint.tile), 'discarded ' + hint.tile);
     assert.match(text(hint), /Not Bamboo/);
-    assert.match(text(hint), /Half Flush \(\d+ faan\) in Bamboo/);
+    assert.match(text(hint), /(Half|Full) Flush in Bamboo/);
   });
 
   it('names the waits when the discard leaves the hand ready', () => {
@@ -176,8 +175,9 @@ describe('coach: claims', () => {
   });
 
   it('chows into a flush it is building', () => {
-    const hand = ['b1', 'b2', 'b4', 'b5', 'b6', 'b8', 'b8', 'dr', 'dr', 'dg', 'ws', 'ws', 'c9'];
-    const game = table({ seats: [{ hand }] });
+    // Already open (Red Dragon punged), so the chow gives up nothing.
+    const hand = ['b1', 'b2', 'b4', 'b5', 'b6', 'b8', 'b8', 'dg', 'ws', 'ws'];
+    const game = table({ seats: [{ hand, melds: [meld('pung', 'dr')] }] });
     const opts = E.claimOptions(game, 0, 'b3', 3, false);
     const hint = C.claimHint(game, 0, opts);
     assert.equal(hint.decision.type, 'chow');
@@ -253,7 +253,7 @@ describe('coach: after a chow', () => {
 
   it('only goes for a flush in the chow\'s suit', () => {
     const hint = C.turnHint(chowed(), 0, { kongs: [] });
-    assert.match(text(hint), /Aim for (Half|Full) Flush \(\d+ faan\) in Bamboo/);
+    assert.match(text(hint), /Aim for (Half|Full) Flush in Bamboo/);
   });
 
   it('commits to the chow suit even when the hand holds 2 faan of flowers', () => {
