@@ -1,7 +1,7 @@
 /* Play page: settings preview card and the full-screen canvas stage. */
 
 .play {
-  padding-top: calc(var(--header-height) + 2rem);
+  padding-top: calc(var(--header-height) + 0.75rem);
   padding-bottom: 3rem;
   display: grid;
   gap: 1.5rem;
@@ -16,7 +16,10 @@
   padding: 2rem;
 }
 
-.play-card { text-align: center; }
+.play-card {
+  text-align: center;
+  padding-top: 1.25rem;
+}
 
 .play-fan {
   display: flex;
