@@ -964,12 +964,14 @@
       var bw = clamp(Math.min(f.w / 14.7, (f.h - 6) * 0.6 / (TILE_ASPECT + 0.08)), 8, 38);
       var count = oppConcealedCount(seat);
       var apart = ui.botDrawn[seat] && count > 0;
-      // Center the hand and the meld row in front of it across the area, and
-      // the hand along it by the tiles actually held (a fresh draw hangs off
-      // the end so the hand doesn't jump every turn).
+      // Center the hand along the area by the tiles actually held (a fresh
+      // draw hangs off the end so the hand doesn't jump every turn). The
+      // player across centers the hand and meld row in their area; side
+      // players keep the hand near their back edge, melds in front.
       var depth = bw * (TILE_ASPECT + 0.08);
       var block = depth + 5 + bw * 0.86 * (TILE_ASPECT + 0.08);
-      var backsY = f.h - Math.max(1, (f.h - block) / 2) - depth;
+      var edge = seat === 2 ? Math.max(1, (f.h - block) / 2) : Math.min(6, Math.max(1, (f.h - block) / 2));
+      var backsY = f.h - edge - depth;
       var held = apart ? count - 1 : count;
       var bx0 = (f.w - held * bw) / 2;
       var lift = ui.botLift && ui.botLift.seat === seat ? ui.botLift.index : -1;
