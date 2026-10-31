@@ -184,6 +184,10 @@
   // markers so the game can draw them in red (see mahjong-game.js).
   function handName(name) { return '\u0001' + name + '\u0002'; }
 
+  // Hand names (All Sequences, Half Flush and so on) are wrapped in invisible
+  // markers so the game can draw them in red (see mahjong-game.js).
+  function handName(name) { return '\u0001' + name + '\u0002'; }
+
   function marked(text) {
     return 'Your target is ' + text;
   }
@@ -456,9 +460,9 @@
       var route = call.plan.route;
       var fits = route.id === 'half' || route.id === 'full'
         ? 'It fits your ' + handName(SUIT_NAME[route.suit] + ' flush')
-        : route.id === 'triplets' || route.id === 'concealed-triplets' ? 'You\'re going for ' + handName('All Triplets') : 'It speeds up your hand';
-      tips.push(call.label + '. ' + fits + (call.faan >= min ? ', and the hand is still worth about ' + faanWord(call.faan) + '.' : '.'));
-      return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(call.plan, call.counts, call.discard)) }, tips.length - 1);
+        : route.id === 'triplets' ? 'You\'re going for ' + handName('All Triplets') : 'It speeds up your hand';
+      tips.push(best.label + '. ' + fits + (bestFaan >= min ? ', and the hand is still worth about ' + faanWord(bestFaan) + '.' : '.'));
+      return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(best.res, c)) }, tips.length - 1);
     }
 
     var chowOnly = found.options.every(function (o) { return o.decision.type === 'chow'; });
