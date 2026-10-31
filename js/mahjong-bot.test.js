@@ -165,13 +165,18 @@ describe('expert playbook', () => {
     assert.equal(B.chooseTurnAction(game, 0, noKongs).tile, 'b2');
   });
 
-  it('treats a punged tile as a safe discard and throws it when the hand does not need it', () => {
+  it('treats a punged honor as dead and throws a punged tile the hand does not need', () => {
     const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'b2', 'b9'];
-    const game = table({ seats: [{ hand }, { melds: [meld('pung', 'b2')] }] });
+    const game = table({ seats: [{ hand }, { melds: [meld('pung', 'b2'), meld('pung', 'ww')] }] });
     const threats = B.opponentThreats(game, 0);
-    assert.equal(B.dealInLoss(game, threats, E.tileIndex('b2')), 0);
-    assert.ok(B.dealInLoss(game, threats, E.tileIndex('b9')) > 0);
+    assert.equal(B.dealInLoss(game, threats, E.tileIndex('ww')), 0);
     assert.equal(B.chooseTurnAction(game, 0, noKongs).tile, 'b2');
+  });
+
+  it('still counts a punged number tile as able to finish a chow', () => {
+    const game = table({ seats: [{}, { melds: [meld('pung', 'b5'), meld('chow', 'b1')] }] });
+    const threats = B.opponentThreats(game, 0);
+    assert.ok(B.dealInLoss(game, threats, E.tileIndex('b5')) > 0);
   });
 
   it('plays concealed all sequences and throws the stray honors', () => {
@@ -192,33 +197,81 @@ describe('expert playbook', () => {
     assert.ok(['b9', 'we', 'ws', 'wn'].includes(top.tile), 'discarded ' + top.tile);
   });
 
-  it('chases thirteen orphans from eight or more orphan tiles', () => {
-    const hand = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'c2', 'c3', 'c4', 'c5', 'd2', 'd3'];
+  it('chases thirteen orphans from nine different terminals and honors', () => {
+    const hand = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'dr', 'c3', 'c4', 'c5', 'd2', 'd3'];
     const game = table({ seats: [{ hand }] });
     const top = B.analyzeDiscards(game, 0).candidates[0];
     assert.equal(top.analysis.best.plan.id, 'orphans');
-    assert.ok(['c2', 'c3', 'c4', 'c5', 'd2', 'd3'].includes(top.tile), 'discarded ' + top.tile);
+    assert.ok(['c3', 'c4', 'c5', 'd2', 'd3'].includes(top.tile), 'discarded ' + top.tile);
   });
 
-  it('does not chase thirteen orphans from seven orphan tiles', () => {
-    const hand = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'c2', 'c3', 'c4', 'c5', 'd2', 'd3', 'd4'];
+  it('does not chase thirteen orphans from eight kinds, or when a missing one is dead', () => {
+    const hand = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'c2', 'c3', 'c4', 'c5', 'd2', 'd3'];
     const game = table({ seats: [{ hand }] });
     assert.notEqual(B.analyzeDiscards(game, 0).candidates[0].analysis.best.plan.id, 'orphans');
+    // Nine kinds, but all four Red Dragons are already in someone's kong.
+    const nine = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'wn', 'c3', 'c4', 'c5', 'd2', 'd3'];
+    const dead = table({ seats: [{ hand: nine }, { melds: [meld('kong', 'dr')] }] });
+    assert.notEqual(B.analyzeDiscards(dead, 0).candidates[0].analysis.best.plan.id, 'orphans');
   });
 
-  it('chases nine gates from eight of the necessary tiles', () => {
-    const hand = ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'd2', 'd3', 'd4', 'd5', 'b2', 'b3'];
+  it('chases nine gates from eleven of the necessary tiles', () => {
+    const hand = ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c9', 'c9', 'd2', 'd3', 'b2'];
     const game = table({ seats: [{ hand }] });
     const top = B.analyzeDiscards(game, 0).candidates[0];
     assert.equal(top.analysis.best.plan.id, 'gates');
     assert.equal(top.analysis.best.plan.suit, 'c');
-    assert.ok(['d2', 'd3', 'd4', 'd5', 'b2', 'b3'].includes(top.tile), 'discarded ' + top.tile);
+    assert.ok(['d2', 'd3', 'b2'].includes(top.tile), 'discarded ' + top.tile);
   });
 
-  it('does not chase nine gates from seven necessary tiles', () => {
-    const hand = ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'c5', 'd2', 'd3', 'd4', 'd5', 'd6', 'b2', 'b3'];
+  it('plays a flush, not nine gates, from ten of the necessary tiles', () => {
+    const hand = ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c9', 'c9', 'd2', 'd3', 'b2', 'b3'];
     const game = table({ seats: [{ hand }] });
     assert.notEqual(B.analyzeDiscards(game, 0).candidates[0].analysis.best.plan.id, 'gates');
+  });
+
+  it('breaks a pair before slowing the hand down', () => {
+    // Two complete runs and four pairs: breaking a pair keeps the hand one
+    // step from ready, breaking a run makes it two.
+    const hand = ['c1', 'c2', 'c3', 'd4', 'd5', 'd6', 'c7', 'c7', 'd9', 'd9', 'b3', 'b3', 'b6', 'b6'];
+    const game = table({ seats: [{ hand }] });
+    const pick = B.chooseTurnAction(game, 0, noKongs).tile;
+    assert.ok(['c7', 'd9', 'b3', 'b6'].includes(pick), 'discarded ' + pick);
+  });
+
+  it('counts flowers exactly as the scoring does', () => {
+    const game = table({ seats: [{}, {}, {}, {}] });
+    const ctx = B.buildContext(game, 0); // East
+    ctx.flowers = []; assert.equal(B.flowerPoints(ctx), 1);
+    ctx.flowers = ['f1']; assert.equal(B.flowerPoints(ctx), 1);
+    ctx.flowers = ['f2']; assert.equal(B.flowerPoints(ctx), 0);
+    ctx.flowers = ['f1', 'f2', 'f3', 'f4']; assert.equal(B.flowerPoints(ctx), 2);
+    ctx.flowers = ['f1', 'f2', 'f3', 'f4', 's1']; assert.equal(B.flowerPoints(ctx), 3);
+  });
+
+  it('does not commit to the chow suit once a dragon set has banked a faan', () => {
+    const game = table({ seats: [{ hand: ['c2', 'c3', 'c4', 'd5', 'd6', 'b7', 'b8'], melds: [meld('chow', 'b1'), meld('pung', 'dr')], flowers: ['f1'] }] });
+    assert.equal(B.chowCommitment(B.buildContext(game, 0)), null);
+  });
+
+  it('takes an early open kong when the hand is already open', () => {
+    const hand = ['c2', 'c3', 'c4', 'b5', 'b5', 'b5', 'c8', 'c8', 'd2', 'd3'];
+    const game = table({ seats: [{ hand, melds: [meld('pung', 'dr')] }], wallLeft: 80 });
+    const opts = E.claimOptions(game, 0, 'b5', 2, false);
+    assert.ok(opts.kong);
+    assert.equal(B.chooseClaim(game, 0, opts).type, 'kong');
+  });
+
+  it('passes an early flush chow that leaves the hand two tiles from ready', () => {
+    // A Bamboo flush in the making, still two tiles from ready after a chow.
+    const hand = ['d1', 'd3', 'd4', 'b3', 'b5', 'b7', 'b7', 'b8', 'b9', 'b9', 'ws', 'ww', 'dr'];
+    const early = table({ seats: [{ hand }], wallLeft: 80 });
+    const opts = E.claimOptions(early, 0, 'b8', 3, false);
+    assert.ok(opts.chows.length);
+    assert.equal(B.chooseClaim(early, 0, opts).type, 'pass');
+    // Later in the hand the same chow is worth it.
+    const later = table({ seats: [{ hand }], wallLeft: 55 });
+    assert.equal(B.chooseClaim(later, 0, E.claimOptions(later, 0, 'b8', 3, false)).type, 'chow');
   });
 
   it('does not chase seven pairs when the hand holds a pung or only four pairs', () => {
