@@ -652,6 +652,16 @@
 
   // ---- Browser UI ----
 
+  // Clicking an answer leaves :focus (and sticky :hover on some devices) on that
+  // button. After we advance, blur every option so the next question starts clean.
+  function clearAnswerFocus(doc) {
+    if (!doc || !doc.querySelectorAll) return;
+    var options = doc.querySelectorAll('.tq-option');
+    for (var i = 0; i < options.length; i++) {
+      if (typeof options[i].blur === 'function') options[i].blur();
+    }
+  }
+
   function escapeHtml(str) {
     return String(str)
       .replace(/&/g, '&amp;')
@@ -771,12 +781,14 @@
       $('#tq-progress-label').textContent = 'Question ' + (current + 1) + ' of ' + QUESTIONS.length;
       $('#tq-progress-bar').style.width = ((current) / QUESTIONS.length * 100) + '%';
       $('#tq-question-text').textContent = q.text;
-      $('#tq-options').innerHTML = q.options.map(function (opt, i) {
-        var selected = answers[current] === i ? ' is-selected' : '';
-        return '<button type="button" class="tq-option' + selected + '" data-index="' + i + '">' +
+      var list = $('#tq-options');
+      list.innerHTML = q.options.map(function (opt, i) {
+        return '<button type="button" class="tq-option" data-index="' + i + '">' +
           '<span class="tq-option-emoji" aria-hidden="true">' + opt.emoji + '</span>' +
           '<span class="tq-option-text">' + escapeHtml(opt.text) + '</span></button>';
       }).join('');
+      list.classList.add('is-fresh');
+      clearAnswerFocus(doc);
       var focusTarget = $('#tq-question-text');
       if (focusTarget) focusTarget.focus({ preventScroll: true });
     }
@@ -822,6 +834,7 @@
       answers[current] = index;
       var buttons = doc.querySelectorAll('.tq-option');
       buttons.forEach(function (b) { b.classList.toggle('is-selected', Number(b.dataset.index) === index); });
+      clearAnswerFocus(doc);
       setTimeout(function () {
         if (current < QUESTIONS.length - 1) {
           current += 1;
@@ -833,6 +846,14 @@
       }, 220);
     }
 
+    function markSavedAnswer() {
+      var saved = answers[current];
+      if (!Number.isInteger(saved)) return;
+      doc.querySelectorAll('.tq-option').forEach(function (b) {
+        b.classList.toggle('is-selected', Number(b.dataset.index) === saved);
+      });
+    }
+
     function goBack() {
       if (current === 0) {
         clearProgress();
@@ -842,6 +863,7 @@
       current -= 1;
       saveProgress();
       renderQuestion();
+      markSavedAnswer();
     }
 
     function finishQuiz() {
@@ -1166,11 +1188,18 @@
         var btn = e.target.closest('.tq-option');
         if (btn) choose(Number(btn.dataset.index));
       });
+      $('#tq-options').addEventListener('pointerdown', function () {
+        this.classList.remove('is-fresh');
+      });
+      $('#tq-options').addEventListener('pointermove', function () {
+        this.classList.remove('is-fresh');
+      });
       $('#tq-info-form').addEventListener('submit', onInfoSubmit);
       $('#tq-info-back').addEventListener('click', function () {
         current = QUESTIONS.length - 1;
         saveProgress();
         renderQuestion();
+        markSavedAnswer();
         show('question');
       });
       $('#tq-download').addEventListener('click', downloadImage);
@@ -1224,6 +1253,7 @@
     restorableProgress: restorableProgress,
     signCompletion: signCompletion,
     verifyCompletion: verifyCompletion,
+    clearAnswerFocus: clearAnswerFocus,
   };
 
   if (typeof module !== 'undefined' && module.exports) {

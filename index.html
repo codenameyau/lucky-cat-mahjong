@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Lucky Cat Mahjong | Hong Kong Mahjong in NYC</title>
   <meta name="description" content="Lucky Cat Mahjong hosts community events, lessons, corporate workshops, brand collaborations, and tournaments across NYC. Learn Mahjong with confidence.">
-  <meta name="keywords" content="lucky cat mahjong, hong kong mahjong, hong kong mahjong points, hong kong mahjong points calculator, mahjong points, mahjong points calculator, hong kong mahjong nyc, mahjong, mahjong nyc, mahjong lessons, mahjong workshop, corporate mahjong, office mahjong, team building nyc, learn mahjong new york, private mahjong tutor, mahjong manhattan, mahjong nyc, mahjong brooklyn, mahjong queens, mahjong classes manhattan, mahjong classes nyc, mahjong classes brooklyn, mahjong classes queens"> 
+  <meta name="keywords" content="lucky cat mahjong, hong kong mahjong, hong kong mahjong points, hong kong mahjong points guide, mahjong points, mahjong points guide, hong kong mahjong nyc, mahjong, mahjong nyc, mahjong lessons, mahjong workshop, corporate mahjong, office mahjong, team building nyc, learn mahjong new york, private mahjong tutor, mahjong manhattan, mahjong nyc, mahjong brooklyn, mahjong queens, mahjong classes manhattan, mahjong classes nyc, mahjong classes brooklyn, mahjong classes queens"> 
   <meta name="author" content="Lucky Cat Mahjong">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
   <meta name="theme-color" content="#C41E3A">
@@ -36,7 +36,7 @@
   <link rel="preload" as="image" href="logo.webp" type="image/webp" fetchpriority="high">
   <link rel="preload" href="fonts/kn-yuanmo-sc.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="css/fonts.css">
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=20261031h">
 
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-B514HH987M"></script>
   <script>
@@ -59,7 +59,7 @@
         "url": "https://luckycatmahjong.com/",
         "logo": "https://luckycatmahjong.com/logo.png",
         "image": "https://luckycatmahjong.com/logo.png",
-        "description": "Hong Kong-style mahjong private lessons, corporate office workshops, and brand collaborations in New York City.",
+        "description": "Hong Kong-style mahjong private lessons, workshops, and brand collaborations in New York City.",
         "email": "events@luckycatmahjong.com",
         "priceRange": "$$",
         "foundingDate": "2025-11",
@@ -122,10 +122,10 @@
               "@type": "Offer",
               "itemOffered": {
                 "@type": "Service",
-                "@id": "https://luckycatmahjong.com/#office-workshops",
-                "name": "Office Mahjong Workshops",
-                "serviceType": "Corporate team-building workshop",
-                "description": "Team-building mahjong sessions designed for NYC offices. Instructors, sets, and mats provided. Invoices via Stripe with credit card payments.",
+                "@id": "https://luckycatmahjong.com/#workshops",
+                "name": "Mahjong Workshops",
+                "serviceType": "Corporate and community team-building workshop",
+                "description": "Team-building mahjong sessions designed for NYC offices and communities. Instructors, sets, and mats provided. Invoices via Stripe with credit card payments.",
                 "provider": { "@id": "https://luckycatmahjong.com/#business" },
                 "areaServed": { "@type": "City", "name": "New York City" }
               },
@@ -187,12 +187,12 @@
         <span></span>
       </button>
       <ul class="nav-links">
-        <li><a href="/" class="nav-link">Our Services</a></li>
-        <li><a href="/hong-kong-mahjong-scoring/" class="nav-link">Points Calculator</a></li>
+        <li><a href="/" class="nav-link">Home</a></li>
         <li><a href="/community/" class="nav-link">Community</a></li>
         <li><a href="/events/" class="nav-link">Events</a></li>
-        <li><a href="/which-mahjong-tiles-are-you/" class="nav-link">Quiz</a></li>
-        <li><a href="/play-mahjong/" class="nav-link">Play</a></li>
+        <li><a href="/hong-kong-mahjong-scoring/" class="nav-link">Points Guide</a></li>
+        <li><a href="/which-mahjong-tiles-are-you/" class="nav-link">Personality Quiz</a></li>
+        <li><a href="/play-mahjong/" class="nav-link">Play Mahjong</a></li>
       </ul>
     </nav>
   </header>
@@ -205,16 +205,33 @@
           <source srcset="logo.webp" type="image/webp">
           <img src="logo.png" alt="Lucky Cat Mahjong logo" class="hero-logo" width="280" height="291" fetchpriority="high" decoding="async" draggable="false">
         </picture>
-        <h1 class="hero-headline">Hong Kong Mahjong in NYC</h1>
-        <p class="hero-subheadline">From private lessons to office workshops to curated brand collaborations, we make mahjong easy and unforgettable.</p>
+        <div class="hero-copy">
+          <h1 class="hero-headline">Hong Kong Mahjong in NYC</h1>
+          <p class="hero-subheadline">            
+            We make mahjong fun, easy, and unforgettable. From private lessons, to workshops, to brand collaborations and pop-ups, we make it happen. Our free online tools are here to help you learn mahjong and connect with its culture.
+          </p>
+        </div>
+        <nav class="hero-features" aria-label="Explore Lucky Cat Mahjong">
+          <a href="/community/" class="btn btn-outline btn-sm" data-evt="community_link_hero" data-loc="hero">
+            <span class="btn-label">Community</span>
+          </a>
+          <a href="/events/" class="btn btn-outline btn-sm" data-evt="events_link_hero" data-loc="hero">
+            <span class="btn-label">Events</span>
+          </a>
+          <a href="/hong-kong-mahjong-scoring/" class="btn btn-outline btn-sm" data-evt="scoring_link_hero" data-loc="hero">
+            <span class="btn-label">Points Guide</span>
+          </a>
+          <a href="/which-mahjong-tiles-are-you/" class="btn btn-outline btn-sm" data-evt="quiz_link_hero" data-loc="hero">
+            <span class="btn-label">Personality quiz</span>
+          </a>
+          <a href="/play-mahjong/" class="btn btn-outline btn-sm" data-evt="play_link_hero" data-loc="hero">
+            <span class="btn-label">Play mahjong</span>
+          </a>
+        </nav>
         <div class="hero-actions">
           <a href="#quote" class="btn btn-primary hero-book-button" data-evt="book_session_hero" data-loc="hero">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z"/></svg>
             <span class="btn-label">Book a session</span>
-          </a>
-          <a href="hong-kong-mahjong-scoring/" class="btn btn-secondary btn-outline" data-evt="scoring_link_hero" data-loc="hero">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" d="M6.5 2.5h11c1.1 0 2 .9 2 2v15c0 1.1-.9 2-2 2h-11c-1.1 0-2-.9-2-2v-15c0-1.1.9-2 2-2z"/><rect x="7.5" y="5.25" width="9" height="3.25" rx="0.65" fill="currentColor"/><rect x="7.5" y="10.75" width="2.25" height="2.25" rx="0.45" fill="currentColor"/><rect x="10.875" y="10.75" width="2.25" height="2.25" rx="0.45" fill="currentColor"/><rect x="14.25" y="10.75" width="2.25" height="2.25" rx="0.45" fill="currentColor"/><rect x="7.5" y="14.125" width="2.25" height="2.25" rx="0.45" fill="currentColor"/><rect x="10.875" y="14.125" width="2.25" height="2.25" rx="0.45" fill="currentColor"/><rect x="14.25" y="14.125" width="2.25" height="2.25" rx="0.45" fill="currentColor"/><rect x="7.5" y="17.5" width="2.25" height="2.25" rx="0.45" fill="currentColor"/><rect x="10.875" y="17.5" width="2.25" height="2.25" rx="0.45" fill="currentColor"/><rect x="14.25" y="17.5" width="2.25" height="2.25" rx="0.45" fill="currentColor"/></svg>
-            <span class="btn-label">Points calculator</span>
           </a>
           <a href="https://ig.me/m/luckycat.mahjong" target="_blank" rel="noopener noreferrer" class="btn btn-outline js-ig-dm" data-evt="instagram_message_hero" data-channel="instagram_message" data-loc="hero">
             <svg class="icon icon-instagram" viewBox="-2 -2 28 28" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
@@ -338,9 +355,8 @@
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z"/></svg>
             <span class="btn-label">Book a session</span>
           </a>
-          <a href="hong-kong-mahjong-scoring/" class="btn btn-secondary cta-scoring-button" data-evt="scoring_link_cta" data-loc="cta">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" d="M6.5 2.5h11c1.1 0 2 .9 2 2v15c0 1.1-.9 2-2 2h-11c-1.1 0-2-.9-2-2v-15c0-1.1.9-2 2-2z"/><rect x="7.5" y="5.25" width="9" height="3.25" rx="0.65" fill="currentColor"/><rect x="7.5" y="10.75" width="2.25" height="2.25" rx="0.45" fill="currentColor"/><rect x="10.875" y="10.75" width="2.25" height="2.25" rx="0.45" fill="currentColor"/><rect x="14.25" y="10.75" width="2.25" height="2.25" rx="0.45" fill="currentColor"/><rect x="7.5" y="14.125" width="2.25" height="2.25" rx="0.45" fill="currentColor"/><rect x="10.875" y="14.125" width="2.25" height="2.25" rx="0.45" fill="currentColor"/><rect x="14.25" y="14.125" width="2.25" height="2.25" rx="0.45" fill="currentColor"/><rect x="7.5" y="17.5" width="2.25" height="2.25" rx="0.45" fill="currentColor"/><rect x="10.875" y="17.5" width="2.25" height="2.25" rx="0.45" fill="currentColor"/><rect x="14.25" y="17.5" width="2.25" height="2.25" rx="0.45" fill="currentColor"/></svg>
-            <span class="btn-label">Points calculator</span>
+          <a href="/play-mahjong/" class="btn btn-secondary cta-play-button" data-evt="play_link_cta" data-loc="cta">
+            <span class="btn-label">Play mahjong</span>
           </a>
           <a href="https://www.instagram.com/luckycat.mahjong/" target="_blank" rel="noopener noreferrer" class="btn btn-secondary instagram-link-footer js-ig-profile" data-evt="instagram_profile_cta" data-channel="instagram_profile" data-loc="cta">
             <svg class="icon icon-instagram" viewBox="-2 -2 28 28" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
@@ -380,7 +396,7 @@
     </div>
   </footer>
 
-  <script src="/js/nav.js" defer></script>
-  <script src="js/main.js" defer></script>
+  <script src="/js/nav.js?v=20261031i" defer></script>
+  <script src="js/main.js?v=20261031h" defer></script>
 </body>
 </html>

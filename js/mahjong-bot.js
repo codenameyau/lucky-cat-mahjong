@@ -25,7 +25,19 @@
      D. with under 16 tiles left in the wall, play safe unless already ready
         with a big hand; Chow only when it clearly gets closer to ready; Pung
         dragons and own/round winds freely; avoid early open kongs.
-   The human player's hint tips come from js/mahjong-coach.js. */
+     E. keep pairs. Break one only after every non-pair is gone, unless a
+        chow has committed the hand to one suit: pairs in the other suits
+        are discarded with those suits.
+     F. keep dragons until at least one copy is already visible. A tile
+        someone has Punged or Konged is safe for the whole table, and it
+        is the first discard when the hand does not need it.
+     G. with more than four concealed pairs and no pung or kong, play
+        Seven Pairs. With eight or more terminal and honor tiles, play
+        Thirteen Orphans. With eight tiles of a suit's 1112345678999
+        skeleton, play Nine Gates. A concealed hand of runs, with no
+        honors and no claims, plays Concealed All Sequences.
+   The coach in js/mahjong-coach.js says this same decision in words. It
+   does not keep a second plan of its own. */
 
 (function (root) {
   'use strict';
@@ -38,9 +50,6 @@
   var SUIT_LABELS = { c: 'Characters', d: 'Circles', b: 'Bamboos' };
   var ESTIMATE_FAAN_CAP = 10;
   var VALUE_SLOPE = 0.6; // value of each faan above the minimum
-  // Seven Pairs is only worth steering toward from 6 pairs; earlier it
-  // tested weaker than building a standard hand.
-  var SEVEN_PAIRS_MIN = 6;
 
   var COMPETITION = 0.7; // chance nobody else finishes first, roughly
   var STEP = 0.42; // each extra tile from ready roughly multiplies the win chance by this
@@ -207,12 +216,188 @@
     return suits.length === 1 ? suits[0] : null;
   }
 
+  // Exact concealed pairs, and whether a concealed pung or kong is in hand.
+  function concealedShape(c) {
+    var pairs = 0;
+    var hasSet = false;
+    for (var i = 0; i < 34; i++) {
+      if (c[i] >= 3) hasSet = true;
+      else if (c[i] === 2) pairs++;
+    }
+    return { pairs: pairs, hasSet: hasSet };
+  }
+
+  // Seven Pairs once the concealed hand holds more than four pairs and no
+  // pung or kong. Any meld, including a chow, makes the pattern impossible.
+  function chaseSevenPairs(c, ctx) {
+    // A hand that still holds a pung or kong is not on this plan, even if
+    // shedding one tile would leave five pairs.
+    if (ctx.blockSevenPairs) return false;
+    if (ctx.declared) return false;
+    if (ctx.melds.some(function (m) { return m.type === 'pung' || m.type === 'kong'; })) return false;
+    var shape = concealedShape(c);
+    return !shape.hasSet && shape.pairs > 4;
+  }
+
+  var ORPHAN_INDEXES = [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33];
+  var GATES_NEED = [3, 1, 1, 1, 1, 1, 1, 1, 3];
+  var SUIT_LETTERS = ['c', 'd', 'b'];
+
+  function isOrphanIndex(i) {
+    return ORPHAN_INDEXES.indexOf(i) !== -1;
+  }
+
+  // A pair counts as two. A third copy of the same tile does not.
+  function orphanTileCount(c) {
+    var n = 0;
+    ORPHAN_INDEXES.forEach(function (i) { n += Math.min(c[i] || 0, 2); });
+    return n;
+  }
+
+  function nineGatesProgress(c, start) {
+    var n = 0;
+    for (var r = 0; r < 9; r++) n += Math.min(c[start + r] || 0, GATES_NEED[r]);
+    return n;
+  }
+
+  // The suit whose 1112345678999 skeleton already has 8 tiles, if any.
+  function bestNineGates(c) {
+    var best = null;
+    for (var s = 0; s < 3; s++) {
+      var progress = nineGatesProgress(c, s * 9);
+      if (progress >= 8 && (!best || progress > best.progress)) {
+        best = { suit: SUIT_LETTERS[s], start: s * 9, progress: progress };
+      }
+    }
+    return best;
+  }
+
+  function nineGatesShanten(start) {
+    return function (counts, declared) {
+      if (declared) return Infinity;
+      var have = 0;
+      var junk = 0;
+      var total = 0;
+      for (var i = 0; i < 34; i++) {
+        var n = counts[i];
+        if (!n) continue;
+        total += n;
+        var offset = i - start;
+        if (offset < 0 || offset > 8) { junk += n; continue; }
+        have += Math.min(n, GATES_NEED[offset]);
+      }
+      if (have >= 13 && junk === 0 && total >= 14) return -1;
+      return 13 - have;
+    };
+  }
+
+  // This copy is one of the 1112345678999 tiles, not a spare and not another suit.
+  function gatesTileNeeded(counts, start, i) {
+    var offset = i - start;
+    if (offset < 0 || offset > 8) return false;
+    return counts[i] <= GATES_NEED[offset];
+  }
+
+  function makeSpecialPlan(kind, c, ctx, gates) {
+    if (kind === 'pairs') {
+      return {
+        id: 'pairs', label: 'Seven Pairs', counts: c, shantenFn: E.sevenPairsShanten,
+        faan: baseFaan(ctx) + 4, open: false,
+      };
+    }
+    if (kind === 'orphans') {
+      return {
+        id: 'orphans', label: 'Thirteen Orphans', counts: c, shantenFn: E.orphansShanten,
+        faan: 13, open: false,
+      };
+    }
+    return {
+      id: 'gates', suit: gates.suit, start: gates.start, label: 'Nine Gates',
+      counts: c, shantenFn: nineGatesShanten(gates.start), faan: 13, open: false,
+    };
+  }
+
+  // Seven Pairs, Thirteen Orphans, or Nine Gates, whichever is closer.
+  function pickSpecial(c, ctx) {
+    if (ctx.declared) return null;
+    var list = [];
+    if (chaseSevenPairs(c, ctx)) list.push({ kind: 'pairs', faan: baseFaan(ctx) + 4, shantenFn: E.sevenPairsShanten });
+    if (orphanTileCount(c) >= 8) list.push({ kind: 'orphans', faan: 13, shantenFn: E.orphansShanten });
+    var gates = bestNineGates(c);
+    if (gates) list.push({ kind: 'gates', gates: gates, faan: 13, shantenFn: nineGatesShanten(gates.start) });
+    var best = null;
+    list.forEach(function (item) {
+      var s = item.shantenFn(c, ctx.declared || 0);
+      if (s === Infinity) return;
+      if (!best || s < best.s || (s === best.s && item.faan > best.faan)) best = { s: s, item: item };
+    });
+    return best ? best.item : null;
+  }
+
+  function specialPlan(ctx, counts) {
+    var spec = ctx.lockedSpecial || pickSpecial(counts, ctx);
+    if (!spec) return null;
+    return makeSpecialPlan(spec.kind, counts, ctx, spec.gates);
+  }
+
+  // Copies already on the table: the pond, and every open meld.
+  function revealedCopies(game, i) {
+    var n = 0;
+    game.hand.seats.forEach(function (s) {
+      s.discards.forEach(function (d) {
+        if (!d.claimed && E.tileIndex(d.tile) === i) n++;
+      });
+      s.melds.forEach(function (m) {
+        if (m.concealed) return;
+        m.tiles.forEach(function (id) {
+          if (E.tileIndex(id) === i) n++;
+        });
+      });
+    });
+    return n;
+  }
+
+  // An open pung or kong uses the tile up. The last copy cannot deal in.
+  function isPungTile(game, i) {
+    var id = E.tileId(i);
+    for (var s = 0; s < 4; s++) {
+      var melds = game.hand.seats[s].melds;
+      for (var m = 0; m < melds.length; m++) {
+        var meld = melds[m];
+        if (meld.concealed) continue;
+        if ((meld.type === 'pung' || meld.type === 'kong') && meld.tiles[0] === id) return true;
+      }
+    }
+    return false;
+  }
+
+  // Lower is thrown first. Off-suit tiles after a committing chow go before
+  // everything. Then a punged tile the hand does not need. Then ordinary
+  // tiles. Pairs wait. An unrevealed dragon waits longer still, unless the
+  // hand is chasing Seven Pairs and that dragon is only a single.
+  function discardPriority(game, ctx, counts, candidate, bestShanten) {
+    var i = candidate.index;
+    var locked = ctx.lockedSpecial;
+    if (locked && locked.kind === 'orphans') return isOrphanIndex(i) ? 4 : 0;
+    if (locked && locked.kind === 'gates') return gatesTileNeeded(counts, locked.gates.start, i) ? 4 : 0;
+    var committed = chowCommitment(ctx);
+    if (committed && i < 27 && E.suitOfIndex(i) !== committed) return 0;
+    if (isPungTile(game, i) && counts[i] < 2 && candidate.shanten <= bestShanten) return 1;
+    var dragon = DRAGONS.indexOf(i) !== -1 && revealedCopies(game, i) < 1;
+    var pair = counts[i] === 2;
+    if (dragon && pair) return 5;
+    if (dragon) return chaseSevenPairs(counts, ctx) ? 3 : 4;
+    if (pair) return 3;
+    return 2;
+  }
+
   // Candidate plans for a 13-tile (waiting to draw) concealed portion.
   function plansFor(c, ctx) {
+    var special = specialPlan(ctx, c);
+    if (special) return [special];
     var base = baseFaan(ctx) + (ctx.concealed ? 1 : 0);
     var yaku = handYaku(ctx, c);
     var plans = [];
-    var honorsInHand = countWhere(c, function (i) { return i >= 27; });
 
     var committed = chowCommitment(ctx);
     if (committed) {
@@ -235,9 +420,19 @@
       return plans;
     }
 
-    var plain = { id: 'plain', label: 'a standard hand', counts: c, shantenFn: E.standardShanten, faan: base + yaku, open: true };
-    if (!honorsInHand && !ctx.melds.some(function (m) { return m.type !== 'chow'; })) plain.faan += 0.5;
-    plans.push(plain);
+    plans.push({ id: 'plain', label: 'a standard hand', counts: c, shantenFn: E.standardShanten, faan: base + yaku, open: true });
+    // Concealed All Sequences: runs only. Honors are discarded, and nothing
+    // is claimed, because either one breaks the hand.
+    if (!ctx.declared) {
+      plans.push({
+        id: 'straights',
+        label: 'Concealed All Sequences',
+        counts: restrict(c, function (i) { return i < 27; }),
+        shantenFn: E.standardShanten,
+        faan: base + 1,
+        open: false,
+      });
+    }
 
     ['c', 'd', 'b'].forEach(function (su) {
       var offSuit = Object.keys(ctx.meldSuits).some(function (k) { return k !== su && k !== 'z'; });
@@ -273,18 +468,6 @@
       }
     }
 
-    if (!ctx.declared) {
-      var pairs = 0, kinds = 0;
-      for (var j = 0; j < 34; j++) { if (c[j] >= 2) pairs++; if (c[j]) kinds++; }
-      if (pairs >= SEVEN_PAIRS_MIN) {
-        plans.push({ id: 'pairs', label: 'Seven Pairs', counts: c, shantenFn: E.sevenPairsShanten, faan: base - 1 + 4, open: false });
-      }
-      var orphanKinds = 0;
-      [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33].forEach(function (k) { if (c[k]) orphanKinds++; });
-      if (orphanKinds >= 9) {
-        plans.push({ id: 'orphans', label: 'Thirteen Orphans', counts: c, shantenFn: E.orphansShanten, faan: 13, open: false });
-      }
-    }
     return plans;
   }
 
@@ -384,14 +567,21 @@
       var u = ukeire(pc, p.shantenFn, ctx.declared, ctx.unseen, s);
       var chance = finishChance(ctx, s, u.total, p.open);
       var util = handValue(p.faan + SELF_DRAW_CHANCE, ctx.slope) * 1.8 * chance;
-      var entry = { plan: p, shanten: s, ukeire: u.total, ukeireTiles: u.tiles, util: util };
+      var entry = { plan: p, shanten: s, planShanten: s, ukeire: u.total, ukeireTiles: u.tiles, util: util };
       if (!best || util > best.util) best = entry;
     });
     var ready = null;
     if (shantenAll === 0) {
       ready = readyValue(c, ctx);
       if (ready && (!best || ready.value >= best.util)) {
-        best = { plan: best ? best.plan : null, shanten: 0, ukeire: ready.live, util: ready.value, readyBest: true };
+        best = {
+          plan: best ? best.plan : null,
+          shanten: 0,
+          planShanten: best ? best.planShanten : 0,
+          ukeire: ready.live,
+          util: ready.value,
+          readyBest: true,
+        };
       }
     }
     var plainS = E.standardShanten(c, ctx.declared);
@@ -540,6 +730,7 @@
   }
 
   function dealInLoss(game, threats, i) {
+    if (isPungTile(game, i)) return 0;
     var loss = 0;
     threats.forEach(function (t) {
       loss += t.ready * waitChance(game, t, i) * t.payment;
@@ -563,10 +754,16 @@
    * 7. Discard analysis (14 tiles in hand)
    * ------------------------------------------------------------------ */
 
+  function syncHandPlans(ctx, counts) {
+    ctx.blockSevenPairs = concealedShape(counts).hasSet;
+    ctx.lockedSpecial = pickSpecial(counts, ctx);
+  }
+
   function analyzeDiscards(game, seat, ctxOverride, handOverride) {
     var ctx = ctxOverride || buildContext(game, seat);
     var hand = handOverride || game.hand.seats[seat].hand;
     var c = E.countsOf(hand);
+    syncHandPlans(ctx, c);
     var threats = opponentThreats(game, seat);
     var out = [];
     for (var i = 0; i < 34; i++) {
@@ -593,8 +790,10 @@
     out.forEach(function (x) {
       x.score = x.util - weight * x.loss;
       if (committed && x.index < 27 && E.suitOfIndex(x.index) !== committed) x.score += 0.004;
+      x.priority = discardPriority(game, ctx, c, x, bestShanten);
     });
     out.sort(function (a, b) {
+      if (a.priority !== b.priority) return a.priority - b.priority;
       if (b.score !== a.score) return b.score - a.score;
       return E.isTerminalOrHonorIndex(b.index) - E.isTerminalOrHonorIndex(a.index);
     });
@@ -675,23 +874,32 @@
     return { options: out, passScore: passScore, stay: stay };
   }
 
-  function chooseClaim(game, seat, opts) {
-    if (opts.win) return { type: 'win' };
-    if (!opts.pung && !opts.kong && !opts.chows.length) return { type: 'pass' };
+  function decideClaim(game, seat, opts) {
+    if (opts.win) return { decision: { type: 'win' }, found: null };
+    if (!opts.pung && !opts.kong && !opts.chows.length) return { decision: { type: 'pass' }, found: null };
     var res = claimCandidates(game, seat, opts);
     var ctx = buildContext(game, seat);
     var ti = E.tileIndex(opts.tile);
-    // Axis D: Pung dragons and own/round winds freely (unless going for
-    // Seven Pairs, which can't use a set).
     var stayPlan = res.stay.best && res.stay.best.plan;
-    if (opts.pung && ti >= 27 && valueWeight(ctx, ti) && !(stayPlan && stayPlan.id === 'pairs')) return { type: 'pung' };
+    var lockedShape = stayPlan && (stayPlan.id === 'pairs' || stayPlan.id === 'orphans' || stayPlan.id === 'gates');
+    // A dragon, or your own or the round wind, is taken even out of a
+    // sequence hand. Seven Pairs, Thirteen Orphans and Nine Gates cannot use a set.
+    if (!lockedShape && ti >= 27 && valueWeight(ctx, ti) && (opts.pung || opts.kong)) {
+      return { decision: { type: opts.pung ? 'pung' : 'kong' }, found: res };
+    }
+    // Any other claim breaks Concealed All Sequences.
+    if (stayPlan && stayPlan.id === 'straights') return { decision: { type: 'pass' }, found: res };
     var options = res.options.filter(function (o) {
       return o.decision.type !== 'chow' || chowWorthIt(o, res, ctx, game);
     });
     var top = options[0];
     var bar = top && top.decision.type === 'chow' ? 1.2 : 1.04;
-    if (top && top.score > res.passScore * bar + 0.01) return top.decision;
-    return { type: 'pass' };
+    if (top && top.score > res.passScore * bar + 0.01) return { decision: top.decision, found: res };
+    return { decision: { type: 'pass' }, found: res };
+  }
+
+  function chooseClaim(game, seat, opts) {
+    return decideClaim(game, seat, opts).decision;
   }
 
   // A chow gives up the hand's concealed faan and shows what you're doing, so
@@ -729,12 +937,19 @@
 
   var api = {
     buildContext: buildContext,
+    valueWeight: valueWeight,
     handUtility: handUtility,
     plansFor: plansFor,
     readyValue: readyValue,
     opponentThreats: opponentThreats,
     flowerPoints: flowerPoints,
     chowCommitment: chowCommitment,
+    chaseSevenPairs: chaseSevenPairs,
+    syncHandPlans: syncHandPlans,
+    specialPlan: specialPlan,
+    revealedCopies: revealedCopies,
+    isPungTile: isPungTile,
+    discardPriority: discardPriority,
     dealInLoss: dealInLoss,
     defenseWeight: defenseWeight,
     THREAT_LEVELS: THREAT_LEVELS,
@@ -742,6 +957,7 @@
     analyzeDiscards: analyzeDiscards,
     chooseTurnAction: chooseTurnAction,
     chooseClaim: chooseClaim,
+    decideClaim: decideClaim,
     claimCandidates: claimCandidates,
     createBotAgent: createBotAgent,
   };

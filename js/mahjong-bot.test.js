@@ -150,6 +150,83 @@ describe('expert playbook', () => {
     const game = table({ seats: [{ hand: ['c1', 'c4', 'c8', 'd2', 'd6', 'b3', 'b5', 'b9', 'we', 'ws', 'dg', 'dw', 'wn', 'd9'] }], wallLeft: 10 });
     assert.ok(B.analyzeDiscards(game, 0).defense > 1.25);
   });
+
+  it('keeps a pair when another discard leaves the hand just as ready', () => {
+    // c3 and West are pairs. c4 and c7 are singles, and throwing either one also leaves the hand ready.
+    const hand = ['c3', 'c3', 'c4', 'c5', 'c6', 'c7', 'd4', 'd5', 'd6', 'b4', 'b5', 'b6', 'ww', 'ww'];
+    const game = table({ seats: [{ hand }] });
+    const pick = B.chooseTurnAction(game, 0, noKongs).tile;
+    assert.ok(['c4', 'c7'].includes(pick), 'discarded ' + pick);
+  });
+
+  it('holds an unrevealed dragon when another tile also leaves the hand ready', () => {
+    const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'b2', 'dr'];
+    const game = table({ seats: [{ hand }] });
+    assert.equal(B.chooseTurnAction(game, 0, noKongs).tile, 'b2');
+  });
+
+  it('treats a punged tile as a safe discard and throws it when the hand does not need it', () => {
+    const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'b2', 'b9'];
+    const game = table({ seats: [{ hand }, { melds: [meld('pung', 'b2')] }] });
+    const threats = B.opponentThreats(game, 0);
+    assert.equal(B.dealInLoss(game, threats, E.tileIndex('b2')), 0);
+    assert.ok(B.dealInLoss(game, threats, E.tileIndex('b9')) > 0);
+    assert.equal(B.chooseTurnAction(game, 0, noKongs).tile, 'b2');
+  });
+
+  it('plays concealed all sequences and throws the stray honors', () => {
+    const hand = ['c2', 'c3', 'c4', 'c6', 'c7', 'd3', 'd4', 'd5', 'b5', 'b6', 'b8', 'b8', 'ww', 'wn'];
+    const game = table({ seats: [{ hand }] });
+    const top = B.analyzeDiscards(game, 0).candidates[0];
+    assert.equal(top.analysis.best.plan.id, 'straights');
+    assert.ok(['ww', 'wn'].includes(top.tile), 'discarded ' + top.tile);
+    const opts = E.claimOptions(game, 0, 'c5', 3, false);
+    if (opts.chows.length) assert.equal(B.chooseClaim(game, 0, opts).type, 'pass');
+  });
+
+  it('chases seven pairs from more than four concealed pairs and no pungs', () => {
+    const hand = ['c2', 'c2', 'c5', 'c5', 'd3', 'd3', 'd8', 'd8', 'b4', 'b4', 'b9', 'we', 'ws', 'wn'];
+    const game = table({ seats: [{ hand }] });
+    const top = B.analyzeDiscards(game, 0).candidates[0];
+    assert.equal(top.analysis.best.plan.id, 'pairs');
+    assert.ok(['b9', 'we', 'ws', 'wn'].includes(top.tile), 'discarded ' + top.tile);
+  });
+
+  it('chases thirteen orphans from eight or more orphan tiles', () => {
+    const hand = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'c2', 'c3', 'c4', 'c5', 'd2', 'd3'];
+    const game = table({ seats: [{ hand }] });
+    const top = B.analyzeDiscards(game, 0).candidates[0];
+    assert.equal(top.analysis.best.plan.id, 'orphans');
+    assert.ok(['c2', 'c3', 'c4', 'c5', 'd2', 'd3'].includes(top.tile), 'discarded ' + top.tile);
+  });
+
+  it('does not chase thirteen orphans from seven orphan tiles', () => {
+    const hand = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'c2', 'c3', 'c4', 'c5', 'd2', 'd3', 'd4'];
+    const game = table({ seats: [{ hand }] });
+    assert.notEqual(B.analyzeDiscards(game, 0).candidates[0].analysis.best.plan.id, 'orphans');
+  });
+
+  it('chases nine gates from eight of the necessary tiles', () => {
+    const hand = ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'd2', 'd3', 'd4', 'd5', 'b2', 'b3'];
+    const game = table({ seats: [{ hand }] });
+    const top = B.analyzeDiscards(game, 0).candidates[0];
+    assert.equal(top.analysis.best.plan.id, 'gates');
+    assert.equal(top.analysis.best.plan.suit, 'c');
+    assert.ok(['d2', 'd3', 'd4', 'd5', 'b2', 'b3'].includes(top.tile), 'discarded ' + top.tile);
+  });
+
+  it('does not chase nine gates from seven necessary tiles', () => {
+    const hand = ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'c5', 'd2', 'd3', 'd4', 'd5', 'd6', 'b2', 'b3'];
+    const game = table({ seats: [{ hand }] });
+    assert.notEqual(B.analyzeDiscards(game, 0).candidates[0].analysis.best.plan.id, 'gates');
+  });
+
+  it('does not chase seven pairs when the hand holds a pung or only four pairs', () => {
+    const pung = table({ seats: [{ hand: ['c2', 'c2', 'c5', 'c5', 'd3', 'd3', 'd8', 'd8', 'b4', 'b4', 'b4', 'we', 'ws', 'wn'] }] });
+    assert.notEqual(B.analyzeDiscards(pung, 0).candidates[0].analysis.best.plan.id, 'pairs');
+    const four = table({ seats: [{ hand: ['c2', 'c2', 'c5', 'c5', 'd3', 'd3', 'd8', 'd8', 'b9', 'we', 'ws', 'wn', 'c9', 'd9'] }] });
+    assert.notEqual(B.analyzeDiscards(four, 0).candidates[0].analysis.best.plan.id, 'pairs');
+  });
 });
 
 describe('chows and committing to a suit', () => {

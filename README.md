@@ -7,7 +7,7 @@ A static website for the Lucky Cat Mahjong club, with content managed through [P
 ### Homepage
 
 - **Logo & branding** — Uses `logo.png` / `logo.webp` with a red-forward color palette matching the Lucky Cat brand
-- **Shared site navigation** — Sticky header across all pages (Our Services, Points Calculator, Community, Events) with a mobile hamburger menu; links load from `data/nav.json`
+- **Shared site navigation** — Sticky header across all pages (Our Services, Points Guide, Community, Events) with a mobile hamburger menu; links load from `data/nav.json`
 - **Conversion-focused CTAs** — Hero and closing calls-to-action drive emails and Instagram messages
 - **"Book a session" form** — Static lead form that builds a pre-filled email (no backend needed); a direct email/Instagram link sits beneath it
 - **Direct Instagram message links** — "Message us" buttons open straight into a DM via `ig.me/m/<handle>`
@@ -18,11 +18,11 @@ A static website for the Lucky Cat Mahjong club, with content managed through [P
 - **Analytics events** — Each CTA fires two Google Analytics 4 events (both with a `location` parameter):
   - a **unique** event so it can be tracked individually — `book_session_hero`, `book_session_submit`, `instagram_message_hero`, `instagram_message_mobilebar`, `instagram_message_quotenote`, `instagram_profile_header`, `instagram_profile_cta`, `email_click_cta`, `email_click_mobilebar`, `email_click_quotenote`
   - a **unified** channel event so totals are easy to read across the whole site — `email_click` (every email action, including the booking form), `instagram_message` (every Instagram DM action), and `instagram_profile` (every Instagram profile/follow click). The unified events include a `source_event` parameter identifying which specific CTA fired it.
-- **Services** — Private lessons, office workshops, and business collaborations
+- **Services** — Private lessons, workshops, and business collaborations
 - **Editable rates** — Pricing table managed via Pages CMS
 - **Instagram** — Links to [@luckycat.mahjong](https://www.instagram.com/luckycat.mahjong/)
 
-### Hong Kong Mahjong Points Calculator (`/hong-kong-mahjong-scoring/`)
+### Hong Kong Mahjong Points Guide (`/hong-kong-mahjong-scoring/`)
 
 - **Interactive faan calculator** — Build a winning hand tile-by-tile from a full 42-tile palette; situational bonuses (self-draw, concealed, seat/round wind, robbing the kong, and more)
 - **Automatic scoring** — Detects patterns, counts faan, and converts to chip payouts with **full spicy** or **half spicy** tables
@@ -54,7 +54,8 @@ A static website for the Lucky Cat Mahjong club, with content managed through [P
 
 ### Play Hong Kong mahjong (`/play-mahjong/`)
 
-- **Settings preview** — Pick **Payout** mode (everyone starts with 2,000 points; the game ends when you run out) or **Practice** mode (no points or payouts, only each hand's faan), and the **full spicy** or **half spicy** payout table. The coach and sound are set from the buttons in the top bar (the coach starts on). The Coach button cycles three ways, Coach on, Feedback on and Coach off. Choices are remembered in `localStorage` as soon as you change them. The in-game menu has **Restart game**, which takes a second tap to confirm
+- **Coach and bot playbook** — The hands, discards, safety reads, and claims the coach and the bots follow are written out in `docs/play-mahjong-coach-and-bots.md`.
+- **Settings preview** — **Practice** mode is the default (no points or payouts, only each hand's faan). **Payout** mode starts everyone with 2,000 points and ends the game when you run out. Payouts always use the **full spicy** table. The coach and sound are set from the buttons in the top bar (the coach starts on). The Coach button cycles three ways, Coach on, Feedback on and Coach off. Choices are remembered in `localStorage` as soon as you change them. The in-game menu has **Restart game**, which takes a second tap to confirm
 - **Same rules as the calculator** — Hands are scored by `HKScoring.scoreHand` in `js/points.js`, the calculator's own pattern detection, faan counting and payout tables, so the game and the calculator always agree. 3 faan minimum to win. On a self-draw every opponent pays the base points; on a discard (or robbed kong) only the discarder pays, as the scoring guide describes. Heavenly and Earthly hands, robbing the kong, win by kong/double kong, last tile, flowers and seasons (including Seven Robbing One and Eight Immortals) are all handled. The dealer keeps the deal after a win or a drawn hand, and the round wind moves on once everyone has dealt. A bot that runs out of points is replaced by a new opponent
 - **Engine** (`js/mahjong-engine.js`) — Wall, dealing, flower replacement, draws, claims with HK priority (win > pung/kong > chow, chow only from the left), kongs with replacement draws, settlement, and a fast suit-by-suit shanten solver
 - **Bots** (`js/mahjong-bot.js`) — Every decision is an expected-value estimate from information the seat could legally see. Offense weighs shanten and live improving tiles for each plan (plain hand, half/full flush, all triplets, seven pairs, thirteen orphans) against the faan that plan is likely to reach; ready hands are valued exactly by scoring every wait with `points.js`, so bots know which waits can actually clear 3 faan. Defense estimates each opponent's chance of being ready (melds, turn, flush reading) and every tile's deal-in risk, so bots fold slow hands against a likely winner. Claims compare the hand's value with and without the meld On top of that they follow an expert playbook: bigger hands are worth more early and speed matters more late or against a big hand; dead waits (3+ copies visible) count for little; each opponent gets a Low/Medium/High/Extreme threat level from melds, one-suit signals and turn count, and defense takes over when someone is High or Extreme and the hand is slow, or when under 16 tiles remain; tile safety follows tiles thrown since the opponent's last meld, dead honors, suji and kabe; chows only when they are necessary or help a lot (they make a winning hand ready, or build the flush the hand is already going for, or save a step late in the hand), and once a chow is exposed every tile of another suit is treated as worthless and thrown first, since a mixed-suit hand can no longer reach 3 faan, unless the hand already holds 2 faan from flowers, dragons and own/round winds are always Punged, and early open kongs are avoided. Over 4,000 simulated hands the playbook cut deal-ins by about a fifth against the previous bots.
@@ -140,7 +141,7 @@ Navigation links (`data/nav.json`) and site styles (`css/`) are edited directly 
 ├── community/
 │   └── index.html          # Community event recaps
 ├── hong-kong-mahjong-scoring/
-│   └── index.html          # Scoring guide + interactive points calculator
+│   └── index.html          # Scoring guide + interactive Points Guide
 ├── play-mahjong/
 │   └── index.html          # Play page: settings preview + canvas game
 ├── 404.html                # Custom not-found page
@@ -148,7 +149,7 @@ Navigation links (`data/nav.json`) and site styles (`css/`) are edited directly 
 ├── css/
 │   ├── styles.css          # Shared styles and design tokens
 │   ├── community.css       # Community page styles
-│   ├── points.css          # Points calculator styles
+│   ├── points.css          # Points Guide styles
 │   ├── play.css            # Play page styles
 │   ├── 404.css             # 404 page styles
 │   └── fonts.css           # Web font (KN Yuanmo SC)

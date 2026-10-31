@@ -2420,8 +2420,8 @@
       return el ? el.value : fallback;
     };
     return {
-      spicy: get('spicy', saved.spicy || 'full'),
-      mode: get('mode', saved.mode || 'payout'),
+      spicy: 'full',
+      mode: get('mode', saved.mode || 'practice'),
       // Older saves had a hints on/off flag.
       coach: saved.coach || (saved.hints === false ? 'off' : 'on'),
       // Animations are always on; ?instant=1 skips them for a visit (see below).
@@ -2434,7 +2434,6 @@
       var el = form.querySelector('input[name="' + name + '"][value="' + value + '"]');
       if (el) el.checked = true;
     };
-    if (saved.spicy) set('spicy', saved.spicy);
     if (saved.mode) set('mode', saved.mode);
   }
 
@@ -2470,12 +2469,13 @@
       if (start) start.focus();
     }
 
-    // Remember the last Payout/Practice and spicy choices as soon as they change.
+    // Remember the last Payout/Practice choice as soon as it changes.
+    // Payouts are always full spicy, including games saved as half spicy.
     form.addEventListener('change', function () {
       var saved = readJson(SETTINGS_KEY, {});
       var now = readForm(form, saved);
       saved.mode = now.mode;
-      saved.spicy = now.spicy;
+      saved.spicy = 'full';
       writeJson(SETTINGS_KEY, saved);
     });
 
