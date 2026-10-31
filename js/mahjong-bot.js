@@ -53,6 +53,7 @@
     : root.MahjongEngine;
 
   var DRAGONS = [31, 32, 33];
+  var EARLY_WALL = 60; // more tiles than this left in the wall is the early part of the hand
   var SUIT_LABELS = { c: 'Characters', d: 'Circles', b: 'Bamboos' };
   var ESTIMATE_FAAN_CAP = 10;
   var VALUE_SLOPE = 0.6; // value of each faan above the minimum
@@ -208,25 +209,14 @@
     return group('f') + group('s');
   }
 
-  // Faan the hand has already banked outside its shape: flowers, plus every
-  // dragon or own/round wind set, open or held concealed.
-  function bankedFaan(ctx, c) {
-    var f = flowerPoints(ctx);
-    ctx.melds.forEach(function (m) {
-      if (m.type !== 'chow') f += valueWeight(ctx, E.tileIndex(m.tiles[0]));
-    });
-    if (c) for (var i = 27; i < 34; i++) if (c[i] >= 3) f += valueWeight(ctx, i);
-    return f;
-  }
-
   // Once you've exposed a chow, a hand of mixed suits can't reach the 3-faan
   // minimum (it has given up Concealed, and All Sequences needs 3 faan from
   // somewhere else), so the way forward is a flush in the chow's suit and
-  // every tile of another suit is worth nothing. The exception is a hand
-  // that has already banked 2 faan, from flowers or from dragon and wind
-  // sets. Returns that suit, or null.
-  function chowCommitment(ctx, c) {
-    if (!ctx.hasChow || bankedFaan(ctx, c) >= 2) return null;
+  // every tile of another suit is worth nothing. This holds for every chow
+  // hand; only open melds in two number suits (where no flush is left) don't
+  // commit. Returns that suit, or null.
+  function chowCommitment(ctx) {
+    if (!ctx.hasChow) return null;
     var suits = Object.keys(ctx.meldSuits).filter(function (k) { return k !== 'z'; });
     return suits.length === 1 ? suits[0] : null;
   }
@@ -434,6 +424,15 @@
     var plan = best && best.plan;
     if (plan && !best.readyBest && (plan.id === 'triplets' || plan.id === 'concealed-triplets') && counts[i] >= 2) {
       return counts[i] >= 3 ? 7 : 6;
+    }
+    // Early in the hand, an honor that can still become a set is one of the
+    // hand's most valuable tiles: it waits like a pair, and a dragon or your
+    // own or the round's wind waits longer still. (Seven Pairs only needs
+    // its pairs, so singles can go there.)
+    if (i >= 27 && ctx.wallLeft > EARLY_WALL && revealedCopies(game, i) < 2 && !chaseSevenPairs(counts, ctx)) {
+      var value = valueWeight(ctx, i) > 0;
+      if (counts[i] >= 2) return value ? 5 : 4;
+      return value ? 4 : 3;
     }
     var dragon = DRAGONS.indexOf(i) !== -1 && revealedCopies(game, i) < 1;
     var pair = counts[i] === 2;
@@ -856,26 +855,15 @@
       x.tier = x.priority === 0 || x.shanten <= bestShanten ? x.priority : 10 + x.priority;
     });
     out.sort(function (a, b) {
+      // Off-suit tiles after a chow always go first, even while folding
+      // (then the safest of them goes).
+      var offA = a.priority === 0, offB = b.priority === 0;
+      if (offA !== offB) return offA ? -1 : 1;
       if (!folding && a.tier !== b.tier) return a.tier - b.tier;
       if (b.score !== a.score) return b.score - a.score;
       if (a.priority !== b.priority) return a.priority - b.priority;
       return E.isTerminalOrHonorIndex(b.index) - E.isTerminalOrHonorIndex(a.index);
     });
-    // Concealed sequences wants suited tiles. Honors go first, unless a pair
-    // of them is already the eyes and the hand is ready or one tile away.
-    // (Not while folding: then safety decides.)
-    var lead = out[0] && out[0].analysis.best;
-    var leadPlan = lead && lead.plan;
-    if (!folding && leadPlan && leadPlan.id === 'straights' && !lead.readyBest) {
-      var honors = [];
-      var rest = [];
-      out.forEach(function (x) {
-        var eyes = c[x.index] === 2 && (x.shanten <= 1 || bestShanten <= 1);
-        if (x.index >= 27 && !eyes) honors.push(x);
-        else rest.push(x);
-      });
-      if (honors.length) out = honors.concat(rest);
-    }
     return { ctx: ctx, candidates: out, threats: threats, defense: weight, folding: folding };
   }
 
@@ -1031,7 +1019,6 @@
     readyValue: readyValue,
     opponentThreats: opponentThreats,
     flowerPoints: flowerPoints,
-    bankedFaan: bankedFaan,
     deadTile: deadTile,
     chowCommitment: chowCommitment,
     chaseSevenPairs: chaseSevenPairs,

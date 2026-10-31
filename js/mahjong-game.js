@@ -1466,11 +1466,9 @@
       return { action: action, detail: detail };
     }
 
-    // The note is saved before that action is applied, so this is the move it is about.
-    function handMoveNumber() {
-      var h = game && game.hand;
-      if (!h) return ui.coachLog.length + 1;
-      return (h.discardCount || 0) + (h.claimsMade || 0) + 1;
+    // Your own moves in this hand, counted 1, 2, 3 (one note per move).
+    function handMoveNumber(hand) {
+      return ui.coachLog.filter(function (e) { return e.hand === hand; }).length + 1;
     }
 
     function rememberCoach(note, kind) {
@@ -1478,10 +1476,8 @@
       if (!plain) return;
       var last = ui.coachLog[ui.coachLog.length - 1];
       if (last && last.kind === kind && last.action === plain.action && last.detail === plain.detail) return;
-      ui.coachLog.push({
-        kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber(),
-        hand: game ? game.handNumber : 1, // the log runs across the whole game
-      });
+      var hand = game ? game.handNumber : 1; // the log runs across the whole game
+      ui.coachLog.push({ kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber(hand), hand: hand });
       if (ui.coachLog.length > 200) ui.coachLog.shift(); // a whole hand's worth
       ui.coachStick = true;
     }
@@ -1517,16 +1513,17 @@
       var textPad = 8 + avatar + 8;
       var blocks = pastCoachEntries().map(function (entry) {
         var lines = [];
+        // "Hand 2 · Move 4" sits at the right end of the advice's row.
         var moveLabel = 'Hand ' + entry.hand + ' · Move ' + entry.move;
-        // The label gets its own line, so the advice uses the full width.
-        var moveW = 0;
+        ctx.font = (size - 2) + 'px ' + FONT_BODY;
+        var moveW = ctx.measureText(moveLabel).width + 12;
         var innerW = viewW - textPad - 16;
-        function pushWrapped(value, bold, baseColor) {
+        function pushWrapped(value, bold, baseColor, width) {
           if (!value) return;
           ctx.font = (bold ? 'bold ' : '') + size + 'px ' + FONT_BODY;
           var piece = coachPieces(value, baseColor);
           var cursor = 0;
-          wrapText(ctx, piece.plain, innerW).forEach(function (ln) {
+          wrapText(ctx, piece.plain, width || innerW).forEach(function (ln) {
             var at = piece.plain.indexOf(ln, cursor);
             cursor = at + ln.length;
             var segs = [], pos = at;
@@ -1542,9 +1539,9 @@
           });
         }
         // The whole note for that move: the advice in bold, then why.
-        pushWrapped(entry.action, true, COLORS.goldLight);
+        pushWrapped(entry.action, true, COLORS.goldLight, innerW - moveW);
         pushWrapped(entry.detail, false, COLORS.cream);
-        var h = Math.max(avatar + 16, (lines.length + 1) * lh + 16);
+        var h = Math.max(avatar + 16, lines.length * lh + 16);
         return { entry: entry, lines: lines, h: h, moveLabel: moveLabel, moveW: moveW };
       });
       var contentH = blocks.reduce(function (n, b) { return n + b.h + 8; }, 0);
@@ -1573,13 +1570,14 @@
           var logoH = avatar * (images.logo.height / images.logo.width || 1);
           ctx.drawImage(images.logo, viewX + 8, y + (b.h - logoH) / 2, avatar, logoH);
         }
-        var blockH = (b.lines.length + 1) * lh;
+        var blockH = b.lines.length * lh;
         var startY = y + (b.h - blockH) / 2 + lh / 2;
-        text(b.moveLabel, viewX + textPad, startY, { size: size - 1, weight: 'bold', color: COLORS.gold });
+        var rightX = viewX + viewW - (ui.coachScrollMax > 0 ? 8 : 0) - 10;
+        text(b.moveLabel, rightX, startY, { size: size - 2, color: 'rgba(255,248,240,0.6)', align: 'right' });
         b.lines.forEach(function (ln, i) {
-          var cx = viewX + textPad + b.moveW;
+          var cx = viewX + textPad;
           ln.segs.forEach(function (sg) {
-            text(sg.text, cx, startY + (i + 1) * lh, { size: size, color: sg.color, weight: ln.bold ? 'bold' : '' });
+            text(sg.text, cx, startY + i * lh, { size: size, color: sg.color, weight: ln.bold ? 'bold' : '' });
             ctx.font = (ln.bold ? 'bold ' : '') + size + 'px ' + FONT_BODY;
             cx += ctx.measureText(sg.text).width;
           });

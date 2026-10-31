@@ -99,11 +99,10 @@ describe('coach: discards', () => {
     assert.doesNotMatch(text(hint), /Seven Pairs/);
   });
 
-  it('throws a live dragon from a concealed sequence hand and keeps the suits', () => {
+  it('keeps a live dragon early and throws a lone terminal instead', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
-    assert.equal(hint.tile, 'dr');
-    assert.equal(hint.action, 'Discard Red Dragon.');
-    assert.match(text(hint), /Honors break All Sequences/);
+    assert.equal(hint.tile, 'c9');
+    assert.equal(hint.action, 'Discard Nine Character.');
   });
 
   it('lets the dragon go once two are already out', () => {
@@ -199,17 +198,17 @@ describe('coach: feedback on your last move', () => {
 
   it('praises the coach\'s top discard and says why', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
-    const fb = C.discardFeedback(hint, 'dr');
+    const fb = C.discardFeedback(hint, 'c9');
     assert.equal(fb.action, 'Great discard.');
-    assert.match(fb.tips[0], /^Red Dragon was the top choice\. /);
+    assert.match(fb.tips[0], /^Nine Character was the top choice\. /);
   });
 
   it('says a discard slowed the hand and compares it with the coach\'s pick', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
     const fb = C.discardFeedback(hint, 'd5');
     assert.equal(fb.action, 'That discard slows your hand.');
-    assert.match(fb.tips.join(' '), /The coach picks Red Dragon\./);
-    assert.match(fb.tips.join(' '), /Five Circle leaves you 2 tiles from ready, 1 more than Red Dragon/);
+    assert.match(fb.tips.join(' '), /The coach picks Nine Character\./);
+    assert.match(fb.tips.join(' '), /Five Circle leaves you 2 tiles from ready, 1 more than Nine Character/);
   });
 
   it('returns nothing without a usable hint', () => {
@@ -257,10 +256,9 @@ describe('coach: after a chow', () => {
     assert.match(text(hint), /Aim for (Half|Full) Flush \(\d+ faan\) in Bamboo/);
   });
 
-  it('keeps other suits in play once the hand holds 2 faan of flowers', () => {
+  it('commits to the chow suit even when the hand holds 2 faan of flowers', () => {
     // East seat: f1 and s1 are its own flower and season.
-    const v = C.look(chowed(['f1', 's1']), 0);
-    assert.equal(v.committedSuit, null);
+    assert.equal(C.look(chowed(['f1', 's1']), 0).committedSuit, 'b');
     assert.equal(C.look(chowed(), 0).committedSuit, 'b');
   });
 

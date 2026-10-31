@@ -29,18 +29,19 @@ A ready hand is scored exactly. Each wait is checked against the real faan table
 
 When several discards are legal, they are taken in this order. A later group is used only when nothing in an earlier group can be thrown without leaving the hand further from ready. Keeping a pair or a dragon never costs a step: if every tile in an earlier group would slow the hand down, a tile from a later group that doesn't goes first.
 
-While the hand is folding (see Defense), safety decides instead, and this order only breaks ties between equally safe tiles. Breaking a safe pair is the right play then.
+While the hand is folding (see Defense), safety decides instead, and this order only breaks ties between equally safe tiles. The one exception is group 1 below: after a chow, tiles of other suits still go first. Breaking a safe pair is the right play then.
 
-1. **Tiles from a suit you no longer need.** After you chow, a mixed hand cannot reach 3 faan, so the hand commits to the chow's suit (honors can stay, for a half flush). Every tile of another suit is thrown first, including pairs. This does not happen when the hand has already banked 2 faan: from flowers (your own flower and season, or a complete set of four flowers or four seasons, which counts 2 in place of your own one), or from sets of dragons or of your own or the round wind, open or held concealed. It also does not happen when the open melds already cover two number suits.
+1. **Tiles from a suit you no longer need.** After you chow, a mixed hand cannot reach 3 faan, so the hand commits to the chow's suit (honors can stay, for a half flush). Every tile of another suit is thrown first, including pairs, every time, whatever faan the hand already has from flowers or honor sets. Even while folding, these go first (the safest of them first). The only exception is when the open melds already cover two number suits, since no flush is possible then.
 2. **A tile someone has already Punged or Konged**, when the hand does not need it. See below.
 3. **Ordinary tiles.** Singles and the spare tile from a triplet, chosen by which one leaves the hand closest to a good win.
 4. **Pairs.** A pair is kept until the tiles above are gone. Keeping it leaves a later pung, a chow, or Seven Pairs open.
 5. **A dragon that none of the table has shown yet.** This is kept even longer than a normal pair.
 
-Two hands change this order:
+**Honors early in the hand.** While more than 60 tiles are left in the wall, an honor that can still become a set (fewer than two copies on the table) is one of the hand's most valuable tiles. A single one waits like a pair (group 4). A dragon, or your own or the round's wind, waits longer still (group 5), and a pair of them longest. Honors are only let go early once two copies are out, or when the hand is on Seven Pairs, which only needs its pairs.
+
+One hand changes this order:
 
 - **All Triplets** (or Concealed Triplets) keeps every pair and every pung. Both wait behind any single, and a finished pung waits behind a pair.
-- **Concealed All Sequences** throws honors before any number tile, because an honor can never be part of the hand. The exception is an honor pair that is the hand's eyes while the hand is ready or one tile from ready. While folding, safety decides instead.
 
 ## Pairs
 
