@@ -1340,8 +1340,8 @@
       var x = L.pad, w = W - 2 * L.pad;
       var lines = [];
       if (ui.notice) lines.push({ text: ui.notice, color: COLORS.goldLight });
-      // The first tip is the advice itself, in bold; the rest explain it.
-      if (ui.hint && ui.hint.tips) ui.hint.tips.forEach(function (tip, k) { lines.push({ text: tip, color: COLORS.cream, bold: k === 0 }); });
+      // The tips read as one paragraph.
+      if (ui.hint && ui.hint.tips && ui.hint.tips.length) lines.push({ text: ui.hint.tips.join(' '), color: COLORS.cream });
       if (!lines.length) lines.push({ text: 'Tips appear here on your turn and when you can claim a tile.', color: 'rgba(255,248,240,0.6)' });
       var iconS = Math.min(L.hintH - 14, 48);
       var tx = x + 8 + iconS + 8;
