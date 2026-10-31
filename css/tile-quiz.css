@@ -191,10 +191,20 @@
 .tq-option:nth-child(3) { animation-delay: 0.08s; }
 .tq-option:nth-child(4) { animation-delay: 0.12s; }
 
-.tq-option:hover {
-  border-color: rgba(var(--color-primary-rgb), 0.4);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(var(--color-primary-rgb), 0.1);
+@media (hover: hover) and (pointer: fine) {
+  .tq-option:hover {
+    border-color: rgba(var(--color-primary-rgb), 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(var(--color-primary-rgb), 0.1);
+  }
+}
+
+.tq-options.is-fresh .tq-option:hover,
+.tq-options.is-fresh .tq-option:focus,
+.tq-options.is-fresh .tq-option:focus-visible {
+  border-color: rgba(0, 0, 0, 0.06);
+  transform: none;
+  box-shadow: none;
 }
 
 .tq-option.is-selected {

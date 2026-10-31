@@ -3,15 +3,15 @@
 (function () {
   'use strict';
 
-  var NAV_JSON = '/data/nav.json';
+  var NAV_JSON = '/data/nav.json?v=20261031c';
 
   var DEFAULT_LINKS = [
-    { label: 'Our Services', href: '/' },
+    { label: 'Home', href: '/' },
     { label: 'Points Calculator', href: '/hong-kong-mahjong-scoring/' },
     { label: 'Community', href: '/community/' },
     { label: 'Events', href: '/events/' },
-    { label: 'Quiz', href: '/which-mahjong-tiles-are-you/' },
-    { label: 'Play', href: '/play-mahjong/' },
+    { label: 'Personality Quiz', href: '/which-mahjong-tiles-are-you/' },
+    { label: 'Play Mahjong', href: '/play-mahjong/' },
   ];
 
   function escapeHtml(str) {

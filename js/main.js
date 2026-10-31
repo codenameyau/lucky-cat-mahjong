@@ -363,7 +363,6 @@ async function init() {
 
     applySite(site);
     applyServices(services);
-    applyStats(site.stats);
     applyTestimonials(testimonials);
     applyRates(rates);
     if (faq) applyFaq(faq);
