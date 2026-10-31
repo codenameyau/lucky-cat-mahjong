@@ -743,6 +743,12 @@
         x: inner.x + inner.w * sideFrac + 4, y: inner.y + inner.h * midFrac + 2,
         w: inner.w * (1 - 2 * sideFrac) - 8, h: inner.h * (1 - 2 * midFrac) - 4,
       };
+      // A little smaller than the gap between the discard areas, kept centered.
+      var shrink = 0.85;
+      center.x += center.w * (1 - shrink) / 2;
+      center.y += center.h * (1 - shrink) / 2;
+      center.w *= shrink;
+      center.h *= shrink;
       var zoneFrames = zones.map(function (z, k) { return makeFrame(z, k); });
       var maxDiscards = 20;
       if (game && game.hand) {
