@@ -14,6 +14,7 @@
   var SETTINGS_KEY = 'lcm-play-settings';
   var PREFS_KEY = 'lcm-play-prefs';
   var TILE_ASPECT = 1.4;
+  var TILE_GAP = 4;
 
   var COLORS = {
     felt: '#0b5a39',
@@ -430,6 +431,7 @@
     var flights = [];
     var regions = [];
     var hover = null;
+    var historyDrag = null;
     // Face-up tiles drawn this frame (screen boxes) and the mouse position,
     // for the tile-name tooltip.
     var tileSpots = [], tipsOn = true, mouse = null, tipTile = null;
@@ -447,6 +449,10 @@
       turnPrompt: null,
       claimPrompt: null,
       hint: null,
+      coachLog: [], // past hints and feedback, oldest first; the live note is not listed
+      coachScroll: 0,
+      coachStick: true, // follow the newest note until the player scrolls up
+      coachScrollMax: 0,
       notice: null,
       hide: { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], drawn: false },
       botLift: null, // { seat, index } tile a bot is considering
@@ -555,11 +561,11 @@
 
     function fitPondTile(zw, zh, n) {
       var best = 8;
-      for (var pw = 40; pw >= 8; pw -= 0.5) {
-        var cols = Math.floor(zw / (pw + 1));
+      for (var pw = 48; pw >= 8; pw -= 0.5) {
+        var cols = Math.floor(zw / (pw + TILE_GAP));
         if (cols < 1) continue;
         var rows = Math.ceil(n / cols);
-        if (rows * (pw * TILE_ASPECT + 2) <= zh) { best = pw; break; }
+        if (rows * (pw * TILE_ASPECT + TILE_GAP) <= zh) { best = pw; break; }
       }
       return best;
     }
@@ -598,17 +604,35 @@
       var pad = W < 600 ? 6 : 14;
       var topH = 42 + 6; // top bar plus a little breathing room below it
       var portrait = W < 700 || W < H * 0.9;
-      var tw = clamp(Math.min((W - 2 * pad) / 14.8, H * 0.085), 20, 60);
+      // Short landscape phones are laid out taller than the screen, so W can
+      // look like a desktop. The coach column follows the real screen.
+      var desktop = cssW >= 980 && cssW >= cssH * 0.9;
+      // Desktop gives the table and hand two thirds of the screen.
+      // The coach column keeps the other third.
+      var historyGap = desktop ? 14 : 0;
+      var ox = 0;
+      var tableW = W;
+      var historyW = 0;
+      if (desktop) {
+        var split = W - historyGap - pad;
+        tableW = Math.round(split * 2 / 3);
+        historyW = split - tableW;
+      }
+      // A little smaller than a row that fills the table, so the center
+      // keeps the room and the discards stay easy to see. The gaps between
+      // tiles are reserved before the size is chosen.
+      var tw = clamp(((tableW - 2 * pad - 13 * TILE_GAP) / 14.8) * 0.88, 18, Math.min(124, H * 0.114));
       var th = tw * TILE_ASPECT;
       var handY = H - pad - th - Math.max(2, tw * 0.08) - 4;
       var mw = tw; // melds and flowers match the hand
       var meldRowH = mw * TILE_ASPECT + 8;
       var meY = handY - meldRowH - 6;
       var actionsH = 44;
-      // The coach's bar keeps its space even when the coach is off, so
+      // On a desktop the bar keeps its space even when the coach is off, so
       // toggling it never moves the table. It fits the action line plus a
-      // four-line paragraph.
-      var hintH = 84;
+      // four-line paragraph. On a phone the words stay hidden and the
+      // recommended tile is marked in the hand, so the table keeps the room.
+      var hintH = desktop ? 84 : 0;
       // Action buttons sit in the meld row, between your melds and your
       // name, so the table gets the room.
       var actionsInRow = true;
@@ -617,15 +641,16 @@
       var bandTop = hintY;
       var gap = 6;
 
-      var sideW = portrait ? clamp(W * 0.18, 62, 98) : clamp(W * 0.18, 130, 224);
-      var topPanelH = portrait ? clamp(H * 0.13, 80, 116) : clamp(H * 0.19, 104, 150);
+      var sideW = portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
+      var topPanelH = portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
       var sideHead = portrait ? 36 : 26;
       var topHead = 24;
       var opp = [];
-      opp[3] = { x: pad, y: topH, w: sideW, h: bandTop - topH - gap };
-      opp[1] = { x: W - pad - sideW, y: topH, w: sideW, h: bandTop - topH - gap };
-      var mid = pad + sideW + gap;
-      opp[2] = { x: mid, y: topH, w: W - 2 * mid, h: topPanelH };
+      opp[3] = { x: ox + pad, y: topH, w: sideW, h: bandTop - topH - gap };
+      opp[1] = { x: ox + tableW - pad - sideW, y: topH, w: sideW, h: bandTop - topH - gap };
+      var mid = ox + pad + sideW + gap;
+      var pondW = tableW - 2 * (pad + sideW + gap);
+      opp[2] = { x: mid, y: topH, w: pondW, h: topPanelH };
       [1, 3].forEach(function (k) {
         var r = opp[k];
         r.head = { x: r.x, y: r.y, w: r.w, h: sideHead };
@@ -636,7 +661,7 @@
       var oppFrames = [];
       [1, 2, 3].forEach(function (k) { oppFrames[k] = makeFrame(opp[k].tiles, k); });
 
-      var pond = { x: mid, y: topH + topPanelH + gap, w: W - 2 * mid, h: Math.max(60, bandTop - (topH + topPanelH + 2 * gap)) };
+      var pond = { x: mid, y: topH + topPanelH + gap, w: pondW, h: Math.max(60, bandTop - (topH + topPanelH + 2 * gap)) };
 
       var inner = pond;
 
@@ -657,15 +682,25 @@
       center.y += center.h * (1 - shrink) / 2;
       center.w *= shrink;
       center.h *= shrink;
+      // The middle plaque is wide on a landscape table; narrow it and keep it centered.
+      var narrow = 0.68;
+      center.x += center.w * (1 - narrow) / 2;
+      center.w *= narrow;
+      var history = historyW ? {
+        x: tableW + historyGap,
+        y: topH,
+        w: historyW,
+        h: H - topH - pad,
+      } : null;
       var zoneFrames = zones.map(function (z, k) { return makeFrame(z, k); });
       var maxDiscards = 20;
       if (game && game.hand) {
         game.hand.seats.forEach(function (st) { maxDiscards = Math.max(maxDiscards, st.discards.length + 2); });
       }
-      var pw = tw * 0.8;
+      var pw = 48;
       zoneFrames.forEach(function (f) { pw = Math.min(pw, fitPondTile(f.w, f.h, maxDiscards)); });
       return {
-        pad: pad, topH: topH, portrait: portrait,
+        pad: pad, topH: topH, portrait: portrait, ox: ox, tableW: tableW, history: history,
         tw: tw, th: th, handY: handY, mw: mw, meY: meY, meldRowH: meldRowH,
         actionsY: actionsY, actionsH: actionsH, actionsInRow: actionsInRow, hintY: hintY, hintH: hintH,
         opp: opp, oppFrames: oppFrames, pond: pond, inner: inner, zones: zones, zoneFrames: zoneFrames,
@@ -677,10 +712,20 @@
     function pondSlotLocal(seat, idx) {
       var f = L.zoneFrames[seat];
       var pw = L.pw;
-      var ph = pw * TILE_ASPECT + 2;
-      var cols = Math.max(1, Math.floor(f.w / (pw + 1)));
-      var gridW = cols * (pw + 1);
-      return { x: (f.w - gridW) / 2 + (idx % cols) * (pw + 1), y: 2 + Math.floor(idx / cols) * ph, w: pw };
+      var ph = pw * TILE_ASPECT + TILE_GAP;
+      var cols = Math.max(1, Math.floor(f.w / (pw + TILE_GAP)));
+      var gridW = cols * (pw + TILE_GAP);
+      return { x: (f.w - gridW) / 2 + (idx % cols) * (pw + TILE_GAP), y: 2 + Math.floor(idx / cols) * ph, w: pw };
+    }
+
+    // A seat's own flower or season scores, and so does every tile in a
+    // complete set of four flowers or four seasons.
+    function flowerGlow(list, wind, id) {
+      var kind = id.charAt(0);
+      if (kind !== 'f' && kind !== 's') return null;
+      var set = kind === 'f' ? ['f1', 'f2', 'f3', 'f4'] : ['s1', 's2', 's3', 's4'];
+      var full = set.every(function (tid) { return list.indexOf(tid) !== -1; });
+      return full || id === kind + wind ? COLORS.gold : null;
     }
 
     function pondPose(seat, idx) {
@@ -837,6 +882,7 @@
       [1, 2, 3].forEach(function (s) { drawOpponent(s, t); });
       drawMe(t);
       drawHintBand();
+      drawCoachHistory();
       drawActions();
       tipsOn = false; // tiles in flight, banners and effects get no tooltip
       drawFlights();
@@ -851,7 +897,8 @@
     }
 
     function drawFelt() {
-      var g = ctx.createRadialGradient(W / 2, H * 0.45, 40, W / 2, H * 0.45, Math.max(W, H) * 0.75);
+      var cx = L ? L.ox + L.tableW / 2 : W / 2;
+      var g = ctx.createRadialGradient(cx, H * 0.45, 40, cx, H * 0.45, Math.max(W, H) * 0.75);
       g.addColorStop(0, COLORS.feltLight);
       g.addColorStop(1, COLORS.feltDark);
       ctx.fillStyle = g;
@@ -963,14 +1010,15 @@
 
     // Lays tiles left-to-right, wrapping inside `w`; returns the next y.
     // `tw` is each tile's slot; `drawW` (default the same) is how wide it is drawn.
-    function flowRow(items, x, y, w, tw, gapEvery, drawW) {
+    function flowRow(items, x, y, w, tw, drawW) {
       var cx = x, cy = y;
-      var th = tw * TILE_ASPECT + 3;
+      var drawn = drawW || tw;
+      var th = drawn * TILE_ASPECT + TILE_GAP;
       items.forEach(function (it) {
         if (it.gap) { cx += tw * 0.35; return; }
-        if (cx + tw > x + w + 0.5) { cx = x; cy += th; }
-        drawTile(it.id, cx, cy, drawW || tw, { back: it.back, shadow: false, glow: it.glow });
-        cx += tw + (gapEvery ? 0.5 : 0);
+        if (cx + drawn > x + w + 0.5) { cx = x; cy += th; }
+        drawTile(it.id, cx, cy, drawn, { back: it.back, shadow: false, glow: it.glow });
+        cx += drawn + TILE_GAP;
       });
       return { x: cx, y: cy, bottom: cy + th };
     }
@@ -1036,7 +1084,12 @@
       var gaps = items.length - meldTilesN;
       var flowersN = s.flowers.length;
       var meldUnits = meldTilesN + gaps * 0.35 + flowersN + 0.6;
-      var bw = clamp(Math.min(f.w / 14.7, f.w / Math.max(1, meldUnits), (f.h - 8) / (2 * (TILE_ASPECT + 0.08))), 8, 38);
+      var tileN = meldTilesN + flowersN;
+      var bw = clamp(Math.min(
+        (f.w - 13 * TILE_GAP) / 14.7,
+        (f.w - Math.max(0, tileN - 1) * TILE_GAP) / Math.max(1, meldUnits),
+        (f.h - 8) / (2 * (TILE_ASPECT + 0.08))
+      ), 8, 33);
       var mw = bw; // melds and flowers are exactly the size of the hand's tiles
       var count = oppConcealedCount(seat);
       var apart = ui.botDrawn[seat] && count > 0;
@@ -1049,34 +1102,36 @@
       var edge = seat === 2 ? Math.max(1, (f.h - block) / 2) : Math.min(6, Math.max(1, (f.h - block) / 2));
       var backsY = f.h - edge - depth;
       var held = apart ? count - 1 : count;
-      var bx0 = (f.w - held * bw) / 2;
+      var pitch = bw + TILE_GAP;
+      var bx0 = (f.w - (held > 0 ? held * bw + (held - 1) * TILE_GAP : 0)) / 2;
       var lift = ui.botLift && ui.botLift.seat === seat ? ui.botLift.index : -1;
-      var backX = function (i) { return bx0 + i * bw + (apart && i === count - 1 ? bw * 0.4 : 0); };
+      var backX = function (i) { return bx0 + i * pitch + (apart && i === count - 1 ? bw * 0.4 : 0); };
 
       var meldY = backsY - mw * (TILE_ASPECT + 0.08) - 5;
 
       enterFrame(f);
       for (var i = 0; i < count; i++) {
-        drawTile(null, backX(i), backsY - (i === lift ? bw * 0.38 : 0), bw - 0.5, { back: true, shadow: false });
+        drawTile(null, backX(i), backsY - (i === lift ? bw * 0.38 : 0), bw, { back: true, shadow: false });
       }
       var mx = 0;
       items.forEach(function (it) {
         if (it.gap) { mx += mw * 0.35; return; }
-        drawTile(it.id, mx, meldY, mw - 0.5, { back: it.back, shadow: false });
-        mx += mw;
+        drawTile(it.id, mx, meldY, mw, { back: it.back, shadow: false });
+        mx += mw + TILE_GAP;
       });
       // Like a real table, melds then flowers run from the owner's left.
       var fw = mw;
       var fx = mx + (items.length ? mw * 0.35 : 0);
+      var wind = E.seatWind(game, seat);
       s.flowers.forEach(function (id, k) {
-        drawTile(id, fx + k * fw, meldY, fw - 0.5, { shadow: false });
+        drawTile(id, fx + k * (fw + TILE_GAP), meldY, fw, { shadow: false, glow: flowerGlow(s.flowers, wind, id) });
       });
       ctx.restore();
 
       ui.oppHand[seat] = { f: f, backX: backX, backsY: backsY, bw: bw };
-      ui.backAnchor[seat] = localPose(f, bx0 + count * bw + bw * 0.4, backsY, bw);
+      ui.backAnchor[seat] = localPose(f, bx0 + count * pitch + bw * 0.4, backsY, bw);
       ui.meldAnchor[seat] = localPose(f, mx + (items.length ? mw * 0.35 : 0), meldY, mw);
-      ui.flowerAnchor[seat] = localPose(f, fx + flowersN * fw, meldY, fw);
+      ui.flowerAnchor[seat] = localPose(f, fx + flowersN * (fw + TILE_GAP), meldY, fw);
     }
 
     /* ---------------- where drawn tiles come from ---------------- */
@@ -1167,6 +1222,19 @@
       return { tiles: order, drawnSeparate: !!showDrawn };
     }
 
+    // The hand is one row across the game area, which is the left two thirds on desktop.
+    function handSpan(count, tileW, drawnSeparate) {
+      if (count <= 0) return 0;
+      return count * tileW + (count - 1) * TILE_GAP + (drawnSeparate ? tileW * 0.4 : 0);
+    }
+
+    function handLeft(count, drawnSeparate) {
+      var total = handSpan(count, L.tw, drawnSeparate);
+      var span = L.tableW;
+      if (total >= span - 2 * L.pad) return L.ox + L.pad;
+      return L.ox + Math.max(L.pad, (span - total) / 2);
+    }
+
     function drawMe(t) {
       var s = game.hand.seats[0];
       var pad = L.pad;
@@ -1174,30 +1242,35 @@
       var active = ui.turnSeat === 0;
 
       // Info + melds row.
-      var infoW = clamp(W * 0.3, 130, 240);
+      var left = L.ox;
+      var rightEdge = L.ox + L.tableW;
+      var infoW = clamp(L.tableW * 0.3, 130, 240);
       // Your name steps aside while action buttons need its spot.
-      if (!ui.buttonsOverName) drawSeatHeader(0, W - pad - infoW, y + 2, infoW);
+      if (!ui.buttonsOverName) drawSeatHeader(0, rightEdge - pad - infoW, y + 2, infoW);
       var items = meldItems(0);
-      var mx = pad;
+      var mx = left + pad;
       // Same size as the hand; only shrinks if the row would run out of room.
       var meldN = items.filter(function (it) { return !it.gap; }).length;
       var gapsN = items.length - meldN;
-      var rowW = W - 2 * pad - infoW - 10;
-      var mw = Math.min(L.mw, rowW / Math.max(1, meldN + gapsN * 0.35 + s.flowers.length + 0.6));
+      var rowW = L.tableW - 2 * pad - infoW - 10;
+      var tileN = meldN + s.flowers.length;
+      var mw = Math.min(L.mw, (rowW - Math.max(0, tileN - 1) * TILE_GAP) / Math.max(1, tileN + gapsN * 0.35 + 0.6));
       var y0 = y + (L.mw - mw) * TILE_ASPECT;
-      // Drawn exactly as wide as a hand tile (which leaves 1px between tiles).
       if (items.length) {
-        var end = flowRow(items, mx, y0, rowW, mw, 0, mw - 1);
+        var end = flowRow(items, mx, y0, rowW, mw, mw);
         mx = end.x + mw * 0.35;
       }
-      ui.meldAnchor[0] = { x: mx, y: y0, w: mw - 1, rot: 0 };
+      ui.meldAnchor[0] = { x: mx, y: y0, w: mw, rot: 0 };
       // Flowers sit after the melds, in the same row (away from your name).
       var fw = mw;
       var fx = mx + (items.length ? mw * 0.2 : 0);
       var fy = y0;
-      s.flowers.forEach(function (f, k) { drawTile(f, fx + k * fw, fy, fw - 1, { shadow: false }); });
-      ui.flowerAnchor[0] = { x: fx + s.flowers.length * fw, y: fy, w: fw - 1, rot: 0 };
-      ui.meRowFree = { x0: ui.flowerAnchor[0].x + 10, x1: W - pad - infoW - 10 };
+      var myWind = E.seatWind(game, 0);
+      s.flowers.forEach(function (f, k) {
+        drawTile(f, fx + k * (fw + TILE_GAP), fy, fw, { shadow: false, glow: flowerGlow(s.flowers, myWind, f) });
+      });
+      ui.flowerAnchor[0] = { x: fx + s.flowers.length * (fw + TILE_GAP), y: fy, w: fw, rot: 0 };
+      ui.meRowFree = { x0: ui.flowerAnchor[0].x + 10, x1: rightEdge - pad - infoW - 10 };
 
       // Hand.
       var order = myHandOrder();
@@ -1205,8 +1278,9 @@
       var count = tiles.length;
       if (ui.hide.drawn && order.drawnSeparate) count = Math.min(count, tiles.length - 1);
       var tw = L.tw;
-      var total = tiles.length * tw + (order.drawnSeparate ? tw * 0.4 : 0);
-      var x0 = Math.max(pad, (W - total) / 2);
+      var step = tw + TILE_GAP;
+      var total = handSpan(tiles.length, tw, order.drawnSeparate);
+      var x0 = handLeft(tiles.length, order.drawnSeparate);
       var hintTile = ui.coach === 'on' && ui.hint && ui.hint.tile;
       var hintUsed = false;
       ui.lastHandRects = [];
@@ -1215,7 +1289,7 @@
       // re-sorts (a drawn tile merging in, tiles leaving for a claim) every
       // tile slides from its old place to its new one.
       var targets = tiles.map(function (tid, k) {
-        return x0 + k * tw + (order.drawnSeparate && k === tiles.length - 1 ? tw * 0.4 : 0);
+        return x0 + k * step + (order.drawnSeparate && k === tiles.length - 1 ? tw * 0.4 : 0);
       });
       var layoutKey = [tw, W, H].join(':');
       var sig = tiles.join(',') + '|' + (order.drawnSeparate ? 1 : 0);
@@ -1266,8 +1340,8 @@
           if (i === lastCopy) { glow = COLORS.gold; hintUsed = true; }
         }
         var claimable = ui.claimPrompt && ui.claimPrompt.highlight && ui.claimPrompt.highlight.indexOf(id) !== -1;
-        drawTile(id, x, L.handY - lift, tw - 1, { glow: glow || (claimable ? 'rgba(255,255,255,0.85)' : null) });
-        var rect = { x: x, y: L.handY - lift, w: tw - 1, h: L.th, id: id, index: i };
+        drawTile(id, x, L.handY - lift, tw, { glow: glow || (claimable ? 'rgba(255,255,255,0.85)' : null) });
+        var rect = { x: x, y: L.handY - lift, w: tw, h: L.th, id: id, index: i };
         ui.lastHandRects.push(rect);
         if (ui.turnPrompt) {
           (function (idx) {
@@ -1278,11 +1352,15 @@
     }
 
     function drawHintBand() {
-      var x = L.pad, w = W - 2 * L.pad;
+      if (!L.hintH) return;
+      var x = L.ox + L.pad, w = L.tableW - 2 * L.pad;
       var lines = [];
       var GRAY = 'rgba(255,248,240,0.5)';
       var note = ui.coach === 'on' ? ui.hint : ui.coach === 'feedback' ? ui.feedback : null;
       var showNotice = ui.notice && !ui.overlay && (ui.turnPrompt || ui.claimPrompt);
+      // In Feedback the Chow and Pass buttons already name the tile, so
+      // "Claim Five Bamboo?" adds nothing. Win and short-hand notices stay.
+      if (ui.coach === 'feedback' && ui.claimPrompt && ui.notice && ui.notice.indexOf('Claim ') === 0) showNotice = false;
       // On a claim the question and the coach's answer share one line, such
       // as "Claim One Circle? Chow 1-2-3 Circles."
       var oneLine = showNotice && ui.claimPrompt && ui.coach === 'on' && note && note.action;
@@ -1309,18 +1387,13 @@
       var iconS = Math.min(L.hintH - 14, 48);
       var tx = x + 8 + iconS + 8;
       var tw = w - (tx - x) - 10;
-      var size = W < 600 ? 12 : 13;
+      var size = L.tableW < 600 ? 12 : 13;
       var out = [];
       lines.forEach(function (l) {
         ctx.font = (l.bold ? 'bold ' : '') + size + 'px ' + FONT_BODY;
-        // The coach marks its "Target: ..." phrase; it's drawn in a light brand red.
-        var plain = '', red = [], from = -1;
-        for (var ci = 0; ci < l.text.length; ci++) {
-          var ch = l.text.charAt(ci);
-          if (ch === '\u0001') from = plain.length;
-          else if (ch === '\u0002') { if (from >= 0) red.push([from, plain.length]); from = -1; }
-          else plain += ch;
-        }
+        // Hand-pattern names and their faan, such as All Triplets (3 faan), are red.
+        var piece = coachPieces(l.text, l.color);
+        var plain = piece.plain, red = piece.red;
         var cursor = 0;
         wrapText(ctx, plain, tw).forEach(function (ln) {
           var at = plain.indexOf(ln, cursor);
@@ -1362,6 +1435,155 @@
       });
     }
 
+    // Split coach copy into plain text plus the ranges that name a hand pattern.
+    function coachPieces(text, baseColor) {
+      var marked = Coach.highlightPatterns ? Coach.highlightPatterns(text) : String(text);
+      var plain = '', red = [], from = -1;
+      for (var ci = 0; ci < marked.length; ci++) {
+        var ch = marked.charAt(ci);
+        if (ch === '\u0001') from = plain.length;
+        else if (ch === '\u0002') { if (from >= 0) red.push([from, plain.length]); from = -1; }
+        else plain += ch;
+      }
+      return { plain: plain, red: red, color: baseColor };
+    }
+
+    function coachPlain(note) {
+      function clean(s) { return String(s).replace(/[\u0001\u0002]/g, ''); }
+      if (!note) return null;
+      var action = note.action ? clean(note.action) : '';
+      var detail = note.tips && note.tips.length ? note.tips.map(clean).join(' ') : '';
+      if (!action && !detail) return null;
+      return { action: action, detail: detail };
+    }
+
+    // The note is saved before that action is applied, so this is the move it is about.
+    function handMoveNumber() {
+      var h = game && game.hand;
+      if (!h) return ui.coachLog.length + 1;
+      return (h.discardCount || 0) + (h.claimsMade || 0) + 1;
+    }
+
+    function rememberCoach(note, kind) {
+      var plain = coachPlain(note);
+      if (!plain) return;
+      var last = ui.coachLog[ui.coachLog.length - 1];
+      if (last && last.kind === kind && last.action === plain.action && last.detail === plain.detail) return;
+      ui.coachLog.push({ kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber() });
+      if (ui.coachLog.length > 40) ui.coachLog.shift();
+      ui.coachStick = true;
+    }
+
+    // The note on the table is still current, so the panel lists only earlier ones.
+    function pastCoachEntries() {
+      var live = coachPlain(ui.coach === 'on' ? ui.hint : ui.coach === 'feedback' ? ui.feedback : null);
+      var entries = ui.coachLog;
+      if (!live || !entries.length) return entries;
+      var last = entries[entries.length - 1];
+      if (last.action === live.action && last.detail === live.detail) return entries.slice(0, -1);
+      return entries;
+    }
+
+    // Older notes start at the top and later ones follow downward.
+    function drawCoachHistory() {
+      var r = L.history;
+      if (!r) return;
+      ctx.save();
+      roundRect(ctx, r.x, r.y, r.w, r.h, 12);
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.fill();
+      ctx.restore();
+      text('Coach', r.x + 14, r.y + 20, { size: 16, weight: 'bold', family: FONT_HEAD, color: COLORS.cream });
+
+      var viewX = r.x + 10;
+      var viewY = r.y + 36;
+      var viewW = r.w - 20;
+      var viewH = r.h - 46;
+      var size = r.w > 520 ? 15 : 13;
+      var lh = size + 4;
+      var avatar = 32;
+      var textPad = 8 + avatar + 8;
+      var blocks = pastCoachEntries().map(function (entry) {
+        var lines = [];
+        var moveLabel = 'Move ' + entry.move;
+        ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
+        var moveW = ctx.measureText(moveLabel).width + 12;
+        var innerW = viewW - textPad - 16 - moveW;
+        function pushWrapped(value, bold, baseColor) {
+          if (!value) return;
+          ctx.font = (bold ? 'bold ' : '') + size + 'px ' + FONT_BODY;
+          var piece = coachPieces(value, baseColor);
+          var cursor = 0;
+          wrapText(ctx, piece.plain, innerW).forEach(function (ln) {
+            var at = piece.plain.indexOf(ln, cursor);
+            cursor = at + ln.length;
+            var segs = [], pos = at;
+            piece.red.forEach(function (span) {
+              var a = Math.max(span[0], at), b = Math.min(span[1], at + ln.length);
+              if (b <= a) return;
+              if (a > pos) segs.push({ text: piece.plain.slice(pos, a), color: baseColor });
+              segs.push({ text: piece.plain.slice(a, b), color: COLORS.redLight });
+              pos = b;
+            });
+            if (pos < at + ln.length) segs.push({ text: piece.plain.slice(pos, at + ln.length), color: baseColor });
+            lines.push({ segs: segs, bold: bold });
+          });
+        }
+        pushWrapped(entry.action, true, COLORS.goldLight);
+        var h = Math.max(avatar + 16, lines.length * lh + 16);
+        return { entry: entry, lines: lines, h: h, moveLabel: moveLabel, moveW: moveW };
+      });
+      var contentH = blocks.reduce(function (n, b) { return n + b.h + 8; }, 0);
+      if (blocks.length) contentH -= 8;
+      ui.coachScrollMax = Math.max(0, contentH - viewH);
+      if (ui.coachStick) ui.coachScroll = ui.coachScrollMax;
+      ui.coachScroll = clamp(ui.coachScroll, 0, ui.coachScrollMax);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(viewX, viewY, viewW, viewH);
+      ctx.clip();
+      if (!blocks.length) {
+        ctx.font = size + 'px ' + FONT_BODY;
+        var empty = 'Hints and feedback will collect here.';
+        wrapText(ctx, empty, viewW - 8).forEach(function (ln, i) {
+          text(ln, viewX + 4, viewY + 14 + i * lh, { size: size, color: 'rgba(255,248,240,0.5)' });
+        });
+      }
+      var y = viewY - ui.coachScroll;
+      blocks.forEach(function (b) {
+        roundRect(ctx, viewX, y, viewW - (ui.coachScrollMax > 0 ? 8 : 0), b.h, 8);
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.fill();
+        if (images.logo) {
+          var logoH = avatar * (images.logo.height / images.logo.width || 1);
+          ctx.drawImage(images.logo, viewX + 8, y + (b.h - logoH) / 2, avatar, logoH);
+        }
+        var blockH = b.lines.length * lh;
+        var startY = y + (b.h - blockH) / 2 + lh / 2;
+        text(b.moveLabel, viewX + textPad, startY, { size: size, weight: 'bold', color: COLORS.gold });
+        b.lines.forEach(function (ln, i) {
+          var cx = viewX + textPad + b.moveW;
+          ln.segs.forEach(function (sg) {
+            text(sg.text, cx, startY + i * lh, { size: size, color: sg.color, weight: ln.bold ? 'bold' : '' });
+            ctx.font = (ln.bold ? 'bold ' : '') + size + 'px ' + FONT_BODY;
+            cx += ctx.measureText(sg.text).width;
+          });
+        });
+        y += b.h + 8;
+      });
+      ctx.restore();
+
+      if (ui.coachScrollMax > 0) {
+        var trackX = r.x + r.w - 8;
+        var thumbH = Math.max(28, viewH * (viewH / (viewH + ui.coachScrollMax)));
+        var thumbY = viewY + (viewH - thumbH) * (ui.coachScroll / ui.coachScrollMax);
+        roundRect(ctx, trackX, thumbY, 4, thumbH, 2);
+        ctx.fillStyle = 'rgba(255,248,240,0.45)';
+        ctx.fill();
+      }
+    }
+
     function setButtonsOverName(on) {
       if (ui.buttonsOverName === on) return;
       ui.buttonsOverName = on;
@@ -1373,7 +1595,7 @@
       var acts = [];
       if (ui.turnPrompt) {
         var o = ui.turnPrompt.opts;
-        if (o.win) acts.push({ label: 'Win · ' + o.win.faan + ' faan', style: 'gold', fn: function () { resolveTurn({ type: 'win' }); } });
+        if (o.win) acts.push({ label: winButtonLabel(o.win), style: 'gold', fn: function () { resolveTurn({ type: 'win' }); } });
         o.kongs.forEach(function (k) {
           acts.push({ label: 'Kong ' + shortName(k.tile), style: 'primary', fn: function () { resolveTurn({ type: 'kong', tile: k.tile }); } });
         });
@@ -1382,7 +1604,7 @@
         }
       } else if (ui.claimPrompt) {
         var c = ui.claimPrompt.opts;
-        if (c.win) acts.push({ label: 'Win · ' + c.win.faan + ' faan', style: 'gold', fn: function () { resolveClaim({ type: 'win' }); } });
+        if (c.win) acts.push({ label: winButtonLabel(c.win), style: 'gold', fn: function () { resolveClaim({ type: 'win' }); } });
         if (c.kong) acts.push({ label: 'Kong', style: 'primary', fn: function () { resolveClaim({ type: 'kong' }); } });
         if (c.pung) acts.push({ label: 'Pung', style: 'primary', fn: function () { resolveClaim({ type: 'pung' }); } });
         c.chows.forEach(function (pair) {
@@ -1398,24 +1620,27 @@
       var claimTile = ui.claimPrompt ? ui.claimPrompt.opts.tile : null;
       var ctw = claimTile ? Math.min(30, (L.actionsH - 4) / TILE_ASPECT) : 0;
       var lead = claimTile ? ctw + 10 : 0;
-      var x0 = L.pad, x1 = W - L.pad, rowY = L.actionsY;
+      var x0 = L.ox + L.pad, x1 = L.ox + L.tableW - L.pad, rowY = L.actionsY;
       var free = ui.meRowFree;
       var cover = null;
       if (L.actionsInRow && free) {
         if (free.x1 - free.x0 - lead >= acts.length * (60 + gap)) { x0 = free.x0; x1 = free.x1; }
-        else if (W - L.pad - free.x0 - lead >= acts.length * (60 + gap)) {
+        else if (L.ox + L.tableW - L.pad - free.x0 - lead >= acts.length * (60 + gap)) {
           // Not enough room beside your name: use the rest of the row and
           // cover the name while the buttons are up.
-          x0 = free.x0; x1 = W - L.pad;
-          cover = { x: free.x1, w: W - free.x1 };
+          x0 = free.x0; x1 = L.ox + L.tableW - L.pad;
+          cover = { x: free.x1, w: x1 - free.x1 };
         } else {
           // Still too many (lots of melds and chow choices): float them over the coach's bar.
-          rowY = L.hintY + (L.hintH - L.actionsH) / 2;
+          // Phones have no bar, so the buttons sit just above the meld row.
+          rowY = L.hintH >= L.actionsH ? L.hintY + (L.hintH - L.actionsH) / 2 : L.meY - L.actionsH - 4;
         }
       }
       setButtonsOverName(!!cover);
       var maxW = x1 - x0 - lead;
-      var bw = clamp((maxW - gap * (acts.length - 1)) / acts.length, 60, 150);
+      ctx.font = 'bold 15px ' + FONT_BODY;
+      var labelW = acts.reduce(function (m, a) { return Math.max(m, ctx.measureText(a.label).width + 28); }, 0);
+      var bw = clamp((maxW - gap * (acts.length - 1)) / acts.length, 60, Math.max(150, Math.min(260, labelW)));
       var total = acts.length * bw + (acts.length - 1) * gap;
       var x = x0 + (x1 - x0 - total - lead) / 2 + lead;
       var y = rowY + (L.actionsH - h) / 2;
@@ -1426,13 +1651,13 @@
       acts.forEach(function (a, i) {
         var id = 'act-' + i;
         var recommended = hintDecision && labelMatches(a.label, hintDecision);
-        if (recommended) {
-          ctx.save();
-          pill(x + i * (bw + gap) - 3, y - 3, bw + 6, h + 6, 'rgba(255,210,122,0.55)');
-          ctx.restore();
-        }
-        button(a.label, x + i * (bw + gap), y, bw, h, a.fn, a.style, id);
+        button(a.label, x + i * (bw + gap), y, bw, h, a.fn, recommended ? 'gold' : a.style, id);
       });
+    }
+
+    function winButtonLabel(win) {
+      var selfDraw = win.items && win.items.some(function (it) { return it.name === 'Self-Draw'; });
+      return 'Win · ' + (selfDraw ? 'self-draw · ' : '') + win.faan + ' faan';
     }
 
     function labelMatches(label, decision) {
@@ -1580,6 +1805,7 @@
       var hand = isWin ? summaryHandItems(res) : [];
       var flowers = isWin ? res.flowers : [];
       var units = hand.reduce(function (n, it) { return n + (it.gap ? 0.3 : 1); }, 0);
+      var tileCount = hand.filter(function (it) { return !it.gap; }).length;
 
       var wide = W >= 680 && showPay;
       var maxW = wide ? 720 : 560;
@@ -1592,7 +1818,7 @@
       // Pick the roomiest spacing that fits the screen.
       var lay;
       [{ rh: 26, tw: 40 }, { rh: 22, tw: 32 }, { rh: 19, tw: 26 }, { rh: 17, tw: 22 }].some(function (c) {
-        var tw = isWin ? clamp((w - 24) / Math.max(units, 1), 14, c.tw) : 0;
+        var tw = isWin ? clamp((w - 24 - Math.max(0, tileCount - 1) * TILE_GAP) / Math.max(units, 1), 14, c.tw) : 0;
         var fw = tw; // bonus tiles match the hand
         var handH = isWin ? tw * TILE_ASPECT + 26 : 0;
         var flowerH = flowers.length ? fw * TILE_ASPECT + 14 : 0;
@@ -1643,11 +1869,14 @@
         roundRect(ctx, x, y, w, stripH, 12);
         ctx.fillStyle = COLORS.felt;
         ctx.fill();
-        var hx = cx - units * tw / 2;
+        var span = 0;
+        hand.forEach(function (it) { span += it.gap ? tw * 0.3 : tw + TILE_GAP; });
+        if (tileCount) span -= TILE_GAP;
+        var hx = cx - span / 2;
         var ty = y + 10;
         hand.forEach(function (it) {
           if (it.gap) { hx += tw * 0.3; return; }
-          drawTile(it.id, hx, ty, tw - 1, { back: it.back, shadow: false, glow: it.glow });
+          drawTile(it.id, hx, ty, tw, { back: it.back, shadow: false, glow: it.glow });
           if (it.win) {
             ctx.beginPath();
             ctx.moveTo(hx + tw / 2 - 5, ty + th + 11);
@@ -1657,22 +1886,22 @@
             ctx.fillStyle = COLORS.gold;
             ctx.fill();
           }
-          hx += tw;
+          hx += tw + TILE_GAP;
         });
         y += stripH;
 
         if (flowers.length) {
-          // Flowers and seasons get their own labelled row; the seat's own ones glow.
+          // Flowers and seasons get their own labelled row. The seat's own
+          // flower or season glows, and so does every tile in a full set of four.
           var fw = lay.fw, fh = fw * TILE_ASPECT;
           y += 14;
           var fy = y;
           sectionLabel('Flowers & seasons', x, fy + fh / 2);
           ctx.font = 'bold 11px ' + FONT_BODY;
-          var fx = Math.min(x + ctx.measureText('FLOWERS & SEASONS').width + 16, x + w - flowers.length * (fw + 6) + 6);
+          var fx = Math.min(x + ctx.measureText('FLOWERS & SEASONS').width + 16, x + w - flowers.length * (fw + TILE_GAP) + TILE_GAP);
           flowers.forEach(function (f) {
-            var own = f === 'f' + res.seatWind || f === 's' + res.seatWind;
-            drawTile(f, fx, fy, fw, { shadow: false, glow: own ? COLORS.gold : null });
-            fx += fw + 6;
+            drawTile(f, fx, fy, fw, { shadow: false, glow: flowerGlow(flowers, res.seatWind, f) });
+            fx += fw + TILE_GAP;
           });
           y += fh;
         }
@@ -1903,6 +2132,7 @@
       // Training mode: judge the move against what the coach would have done.
       if (ui.coach === 'feedback' && ui.hint && action.type === 'discard') {
         ui.feedback = Coach.discardFeedback(ui.hint, action.tile) || ui.feedback;
+        rememberCoach(ui.feedback, 'feedback');
       }
       ui.turnPrompt = null;
       ui.selected = -1;
@@ -1917,6 +2147,7 @@
       if (!p) return;
       if (ui.coach === 'feedback' && ui.hint) {
         ui.feedback = Coach.claimFeedback(ui.hint, decision) || ui.feedback;
+        rememberCoach(ui.feedback, 'feedback');
       }
       ui.claimPrompt = null;
       ui.hint = null;
@@ -1930,6 +2161,7 @@
       if (ui.coach === 'off' || !game || !game.hand) { ui.hint = null; return; }
       if (ui.turnPrompt) ui.hint = Coach.turnHint(game, 0, ui.turnPrompt.opts);
       else if (ui.claimPrompt) ui.hint = Coach.claimHint(game, 0, ui.claimPrompt.opts);
+      if (ui.coach === 'on') rememberCoach(ui.hint, 'hint');
     }
 
     function hitTest(x, y) {
@@ -1945,8 +2177,35 @@
       return { x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom };
     }
 
+    function historyAt(p) {
+      var r = L && L.history;
+      if (!r || !p) return false;
+      return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+    }
+
+    function scrollHistory(next) {
+      ui.coachScroll = clamp(next, 0, ui.coachScrollMax);
+      ui.coachStick = ui.coachScroll >= ui.coachScrollMax - 12;
+      requestRender();
+    }
+
+    function onWheel(e) {
+      if (!historyAt(pointerPos(e)) || ui.coachScrollMax <= 0) return;
+      e.preventDefault();
+      var dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      scrollHistory(ui.coachScroll + dy);
+    }
+
     function onPointerDown(e) {
       var p = pointerPos(e);
+      if (historyAt(p)) {
+        if (ui.coachScrollMax > 0) {
+          historyDrag = { y: p.y, scroll: ui.coachScroll, id: e.pointerId };
+          if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
+        }
+        e.preventDefault();
+        return;
+      }
       var r = hitTest(p.x, p.y);
       if (!r) {
         if (ui.selected >= 0 && !ui.overlay) { ui.selected = -1; ui.notice = null; requestRender(); }
@@ -1957,14 +2216,30 @@
     }
 
     function onPointerMove(e) {
+      if (historyDrag && e.pointerId === historyDrag.id) {
+        var dragged = pointerPos(e);
+        scrollHistory(historyDrag.scroll + (historyDrag.y - dragged.y));
+        canvas.style.cursor = 'grabbing';
+        return;
+      }
       if (e.pointerType && e.pointerType !== 'mouse') return;
       var p = pointerPos(e);
+      if (historyAt(p)) {
+        canvas.style.cursor = ui.coachScrollMax > 0 ? 'grab' : 'default';
+        mouse = p;
+        if (hover) { hover = null; requestRender(); }
+        return;
+      }
       var r = hitTest(p.x, p.y);
       var id = r ? r.id : null;
       canvas.style.cursor = r ? 'pointer' : 'default';
       mouse = p;
       var sp = spotAt(p);
       if (id !== hover || (sp ? sp.id : null) !== tipTile) { hover = id; requestRender(); }
+    }
+
+    function onPointerUp(e) {
+      if (historyDrag && e.pointerId === historyDrag.id) historyDrag = null;
     }
 
     function onPointerLeave() {
@@ -1998,7 +2273,7 @@
 
     function seatAnchor(seat) {
       if (seat === 0) {
-        return { x: W / 2 - L.tw / 2, y: L.handY, w: L.tw, rot: 0 };
+        return { x: L.ox + L.tableW / 2 - L.tw / 2, y: L.handY, w: L.tw, rot: 0 };
       }
       var a = ui.backAnchor[seat];
       if (a) return a;
@@ -2080,7 +2355,7 @@
     }
 
     function seatBannerPos(seat) {
-      if (seat === 0) return { x: W / 2, y: L.actionsY + L.actionsH / 2, rot: 0 };
+      if (seat === 0) return { x: L.ox + L.tableW / 2, y: L.actionsY + L.actionsH / 2, rot: 0 };
       // Opponents' banners sit in the middle of their tiles and face them.
       var f = L.oppFrames[seat];
       var mid = toScreen(f, f.w / 2, f.h / 2);
@@ -2131,9 +2406,8 @@
         if (d.seat === 0) {
           ui.hide.drawn = true;
           var order = myHandOrder();
-          var total = order.tiles.length * L.tw + L.tw * 0.4;
-          var x0 = Math.max(L.pad, (W - total) / 2);
-          var to = { x: x0 + (order.tiles.length - 1) * L.tw + L.tw * 0.4, y: L.handY, w: L.tw - 1, rot: 0 };
+          var x0 = handLeft(order.tiles.length, true);
+          var to = { x: x0 + (order.tiles.length - 1) * (L.tw + TILE_GAP) + L.tw * 0.4, y: L.handY, w: L.tw, rot: 0 };
           return fly(d.tile, from, to, 300, { arc: 20 }).then(function () { ui.hide.drawn = false; requestRender(); });
         }
         ui.hide.backs[d.seat] = 1;
@@ -2295,10 +2569,10 @@
             ui.selected = -1;
             ui.notice = opts.completeButShort
               ? 'Your hand is complete, but only ' + opts.completeButShort.faan + ' faan. You need ' + game.settings.minFaan + ' to win.'
-              : (opts.win ? 'You can win with ' + opts.win.faan + ' faan!' : null);
+              : (opts.win ? 'You can win by self-draw with ' + opts.win.faan + ' faan!' : null);
             refreshHint();
             sound.play('turn');
-            announce(opts.win ? 'You can win. Press Win, or pick a tile to discard.' : 'Your turn. Pick a tile to discard.');
+            announce(opts.win ? 'You can win by self-draw. Press Win, or pick a tile to discard.' : 'Your turn. Pick a tile to discard.');
             requestRender();
           });
         },
@@ -2336,6 +2610,9 @@
       await loadAssets();
       spriteCache = {};
       game = E.createGame({ spicy: settings.spicy, mode: settings.mode });
+      ui.coachLog = [];
+      ui.coachScroll = 0;
+      ui.coachStick = true;
       var agents = [humanAgent(), botAgent(), botAgent(), botAgent()];
       track('play_start', {
         spicy: settings.spicy, mode: settings.mode, coach: settings.coach,
@@ -2375,7 +2652,10 @@
     root.addEventListener('keydown', onKey);
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerUp);
+    canvas.addEventListener('pointercancel', onPointerUp);
     canvas.addEventListener('pointerleave', onPointerLeave);
+    canvas.addEventListener('wheel', onWheel, { passive: false });
     var ro = root.ResizeObserver ? new ResizeObserver(onResize) : null;
     if (ro) ro.observe(canvas);
     resize();
@@ -2392,7 +2672,10 @@
         root.removeEventListener('keydown', onKey);
         canvas.removeEventListener('pointerdown', onPointerDown);
         canvas.removeEventListener('pointermove', onPointerMove);
+        canvas.removeEventListener('pointerup', onPointerUp);
+        canvas.removeEventListener('pointercancel', onPointerUp);
         canvas.removeEventListener('pointerleave', onPointerLeave);
+        canvas.removeEventListener('wheel', onWheel);
         if (ro) ro.disconnect();
       },
       // Exposed for debugging in the browser console.

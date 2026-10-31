@@ -375,6 +375,8 @@
   // everything. Then a punged tile the hand does not need. Then ordinary
   // tiles. Pairs wait. An unrevealed dragon waits longer still, unless the
   // hand is chasing Seven Pairs and that dragon is only a single.
+  // All Triplets keeps every pair and every pung: those wait behind any
+  // single, and a finished pung waits behind a pair.
   function discardPriority(game, ctx, counts, candidate, bestShanten) {
     var i = candidate.index;
     var locked = ctx.lockedSpecial;
@@ -383,6 +385,11 @@
     var committed = chowCommitment(ctx);
     if (committed && i < 27 && E.suitOfIndex(i) !== committed) return 0;
     if (isPungTile(game, i) && counts[i] < 2 && candidate.shanten <= bestShanten) return 1;
+    var best = candidate.analysis && candidate.analysis.best;
+    var plan = best && best.plan;
+    if (plan && !best.readyBest && (plan.id === 'triplets' || plan.id === 'concealed-triplets') && counts[i] >= 2) {
+      return counts[i] >= 3 ? 7 : 6;
+    }
     var dragon = DRAGONS.indexOf(i) !== -1 && revealedCopies(game, i) < 1;
     var pair = counts[i] === 2;
     if (dragon && pair) return 5;
@@ -797,6 +804,20 @@
       if (b.score !== a.score) return b.score - a.score;
       return E.isTerminalOrHonorIndex(b.index) - E.isTerminalOrHonorIndex(a.index);
     });
+    // Concealed sequences wants suited tiles. Honors go first, unless a pair
+    // of them is already the eyes and the hand is ready or one tile away.
+    var lead = out[0] && out[0].analysis.best;
+    var leadPlan = lead && lead.plan;
+    if (leadPlan && leadPlan.id === 'straights' && !lead.readyBest) {
+      var honors = [];
+      var rest = [];
+      out.forEach(function (x) {
+        var eyes = c[x.index] === 2 && (x.shanten <= 1 || bestShanten <= 1);
+        if (x.index >= 27 && !eyes) honors.push(x);
+        else rest.push(x);
+      });
+      if (honors.length) out = honors.concat(rest);
+    }
     return { ctx: ctx, candidates: out, threats: threats, defense: weight };
   }
 
