@@ -1,6 +1,6 @@
 /* Hong Kong mahjong game engine for the Play page: tiles, wall, shanten,
    turn flow, claims, and settlement. Scoring is delegated to js/points.js
-   (HKScoring.scoreHand) so the game and the Points Calculator agree. */
+   (HKScoring.scoreHand) so the game and the Points Guide agree. */
 
 (function (root) {
   'use strict';
@@ -548,7 +548,7 @@
    * 6. Settlement
    * ------------------------------------------------------------------ */
 
-  // Payment rule from the Points Calculator guide: on a self-draw each
+  // Payment rule from the Points Guide: on a self-draw each
   // opponent pays the base points; on a discard (or robbed kong) only the
   // discarder pays.
   function payments(game, winner, payer, points) {

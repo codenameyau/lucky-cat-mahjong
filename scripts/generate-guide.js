@@ -88,7 +88,7 @@ Object.assign(TILE_FILES, {
 
 /*
  * Pre-rasterize each tile into an ivory 5:7 face PNG (like .tile-face in the
- * points calculator). SVG viewBoxes have large empty margins — trim() removes
+ * Points Guide). SVG viewBoxes have large empty margins — trim() removes
  * them so the markings fill the face the way they do on screen.
  */
 const TILE_FACE_W = 140; // px @ ~2x for crisp print
@@ -102,7 +102,7 @@ async function tileUri(id) {
   if (!file) throw new Error('Unknown tile id: ' + id);
 
   const svgPath = path.join(TILES_DIR, file);
-  // Match points calculator padding (~9%/8%/6%/8%) → art ≈ 84% × 85% of face.
+  // Match Points Guide padding (~9%/8%/6%/8%) → art ≈ 84% × 85% of face.
   // Slightly tighter than calculator CSS padding so markings read at print size.
   const artW = Math.round(TILE_FACE_W * 0.88);
   const artH = Math.round(TILE_FACE_H * 0.88);
@@ -416,7 +416,7 @@ function coverPanel() {
     <div class="cover-bottom">
       <img class="qr" src="${QR_URI}" alt="QR code to ${WEBSITE}">
       <div class="cover-contact">
-        <p class="scan">Scan for our online points calculator</p>
+        <p class="scan">Scan for our online Points Guide</p>
         <p class="url">${WEBSITE}</p>
         <p class="ig">Follow us on Instagram<br><strong>@${IG_HANDLE}</strong></p>
       </div>
@@ -921,7 +921,7 @@ function collectTileIds() {
 }
 
 async function main() {
-  process.stdout.write('Rasterizing tile faces… ');
+  process.stdout.write('Rasterizing tile faces... ');
   await prepareTiles(collectTileIds());
   console.log(Object.keys(tileCache).length + ' tiles');
 

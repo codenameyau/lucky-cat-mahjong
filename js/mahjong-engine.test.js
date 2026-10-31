@@ -107,7 +107,7 @@ describe('scoring reuses points.js', () => {
     ['we', 'we', 'we', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'd2', 'd2'],
   ];
 
-  it('gives the same faan as the Points Calculator for concealed hands', () => {
+  it('gives the same faan as the Points Guide for concealed hands', () => {
     hands.forEach((tiles) => {
       [false, true].forEach((selfDraw) => {
         const game = E.HKScoring.scoreHand({ concealed: tiles, seat: 1, round: 1, selfDraw });

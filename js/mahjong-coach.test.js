@@ -31,6 +31,53 @@ const text = (hint) => [hint.action].concat(hint.tips).join(' ');
 describe('coach: discards', () => {
   const mixed = ['c2', 'c3', 'c4', 'd4', 'd5', 'd6', 'b3', 'b4', 'b6', 'b7', 'd8', 'd8', 'c9', 'dr'];
 
+  it('keeps a pair when another discard leaves the hand just as ready', () => {
+    const hand = ['c3', 'c3', 'c4', 'c5', 'c6', 'c7', 'd4', 'd5', 'd6', 'b4', 'b5', 'b6', 'ww', 'ww'];
+    const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
+    assert.ok(['c4', 'c7'].includes(hint.tile), 'discarded ' + hint.tile);
+  });
+
+  it('holds an unrevealed dragon when another tile also leaves the hand ready', () => {
+    const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'b2', 'dr'];
+    const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
+    assert.equal(hint.tile, 'b2');
+  });
+
+  it('drops a punged tile first when the hand does not need it', () => {
+    const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'b2', 'b9'];
+    const game = table({ seats: [{ hand }, { melds: [meld('pung', 'b2')] }] });
+    const hint = C.turnHint(game, 0, { kongs: [] });
+    assert.equal(hint.tile, 'b2');
+    assert.match(text(hint), /Pung/);
+  });
+
+  it('aims for seven pairs once the hand has more than four concealed pairs and no pung', () => {
+    const hand = ['c2', 'c2', 'c5', 'c5', 'd3', 'd3', 'd8', 'd8', 'b4', 'b4', 'b9', 'we', 'ws', 'wn'];
+    const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
+    assert.ok(['b9', 'we', 'ws', 'wn'].includes(hint.tile), 'discarded ' + hint.tile);
+    assert.match(text(hint), /Seven Pairs/);
+  });
+
+  it('aims for thirteen orphans once eight orphan tiles are in hand', () => {
+    const hand = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'c2', 'c3', 'c4', 'c5', 'd2', 'd3'];
+    const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
+    assert.ok(['c2', 'c3', 'c4', 'c5', 'd2', 'd3'].includes(hint.tile), 'discarded ' + hint.tile);
+    assert.match(text(hint), /Thirteen Orphans/);
+  });
+
+  it('aims for nine gates once eight necessary tiles are in one suit', () => {
+    const hand = ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'd2', 'd3', 'd4', 'd5', 'b2', 'b3'];
+    const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
+    assert.ok(['d2', 'd3', 'd4', 'd5', 'b2', 'b3'].includes(hint.tile), 'discarded ' + hint.tile);
+    assert.match(text(hint), /Nine Gates in Characters/);
+  });
+
+  it('does not aim for seven pairs when the hand already holds a pung', () => {
+    const hand = ['c2', 'c2', 'c5', 'c5', 'd3', 'd3', 'd8', 'd8', 'b4', 'b4', 'b4', 'we', 'ws', 'wn'];
+    const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
+    assert.doesNotMatch(text(hint), /Seven Pairs/);
+  });
+
   it('keeps a live dragon and throws a lone terminal instead', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
     assert.equal(hint.tile, 'c9');
@@ -54,7 +101,7 @@ describe('coach: discards', () => {
   });
 
   it('commits to a flush and says why off-suit tiles go', () => {
-    const hand = ['b1', 'b2', 'b3', 'b4', 'b5', 'b7', 'b8', 'b9', 'b9', 'dr', 'dr', 'c5', 'd7', 'ws'];
+    const hand = ['b2', 'b3', 'b4', 'b5', 'b6', 'b6', 'b7', 'b8', 'b8', 'dr', 'dr', 'c5', 'd7', 'ws'];
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
     assert.ok(['c5', 'd7'].includes(hint.tile), 'discarded ' + hint.tile);
     assert.match(text(hint), /collecting Bamboo/);
@@ -62,7 +109,7 @@ describe('coach: discards', () => {
   });
 
   it('names the waits when the discard leaves the hand ready', () => {
-    const hand = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'dr', 'dr', 'c5', 'c6', 'd9'];
+    const hand = ['c2', 'c3', 'c4', 'd2', 'd3', 'd4', 'b5', 'b6', 'b7', 'dr', 'dr', 'c5', 'c6', 'd9'];
     const hint = C.turnHint(table({ seats: [{ hand, flowers: ['f1'] }] }), 0, { kongs: [] });
     assert.equal(hint.tile, 'd9');
     assert.match(hint.tips[0], /leaves you ready/);
@@ -81,10 +128,10 @@ describe('coach: discards', () => {
     });
     const hint = C.turnHint(game, 0, { kongs: [] });
     assert.notEqual(hint.tile, 'b5');
-    assert.notEqual(hint.tile, 'b9');
-    assert.match(text(hint), /safe play/);
+    // Nine Bamboo is already Punged, so it is safe and goes before the tiles East threw.
+    assert.equal(hint.tile, 'b9');
+    assert.match(text(hint), /Pung/);
     assert.match(text(hint), /\w+ is an Extreme threat \(3 melds, Bamboo\)/);
-    assert.match(text(hint), /threw it after their last meld/);
   });
 });
 
