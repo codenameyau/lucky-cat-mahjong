@@ -388,14 +388,14 @@
     var f = (own[r.id] !== undefined ? own[r.id] : 0) + ' faan';
     if (r.id === 'straights') {
       var keep = liveValueSingles(v, c).filter(function (i) { return i !== nextOut; });
-      return 'Concealed All Sequences (' + f + '): runs only, no claims' +
+      return 'Concealed All Sequences (' + f + '): self-draw tiles, don\'t claim discards' +
         (v.flowerFaan ? ', and your flowers add the third faan' : '') +
         (keep.length ? '; hold the ' + listNames(keep) + ' in case ' + (keep.length > 1 ? 'one pairs' : 'it pairs') + ' up' : '');
     }
     if (r.id === 'half') return 'Half Flush in ' + SUIT_NAME[r.suit] + ' (' + f + '): keep ' + SUIT_NAME[r.suit] + ' and honors';
     if (r.id === 'full') return 'Full Flush in ' + SUIT_NAME[r.suit] + ' (' + f + '): keep only ' + SUIT_NAME[r.suit];
     if (r.id === 'triplets') return 'All Triplets (' + f + '): keep pairs and Pung them';
-    if (r.id === 'pairs') return 'Seven Pairs (' + f + '): keep pairs, don\'t claim';
+    if (r.id === 'pairs') return 'Seven Pairs (' + f + '): keep pairs, don\'t claim discards';
     for (var i = 27; i < 34; i++) {
       if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) return 'a ' + name(i) + ' set (' + honorWorth(v, i) + ' faan); Pung it if it\'s thrown';
     }

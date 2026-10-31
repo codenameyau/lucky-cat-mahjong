@@ -50,7 +50,7 @@ describe('coach: discards', () => {
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
     assert.ok(['ww', 'wn'].includes(hint.tile), 'discarded ' + hint.tile);
     assert.match(text(hint), /All Sequences/);
-    assert.match(text(hint), /no claims/);
+    assert.match(text(hint), /self-draw tiles, don't claim discards/);
   });
 
   it('commits to a flush and says why off-suit tiles go', () => {
