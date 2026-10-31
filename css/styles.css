@@ -96,7 +96,7 @@ h1, h2, h3 {
 /* Hero */
 .hero {
   position: relative;
-  padding: 4rem 0 5rem;
+  padding: 4rem 0 5.5rem;
   overflow: hidden;
 }
 
@@ -140,6 +140,12 @@ h1, h2, h3 {
   50% { transform: translateY(-8px); }
 }
 
+.hero-copy {
+  display: inline-grid;
+  justify-items: center;
+  max-width: 100%;
+}
+
 .hero-headline {
   font-size: clamp(2rem, 5vw, 3rem);
   max-width: 20em;
@@ -149,8 +155,10 @@ h1, h2, h3 {
 .hero-subheadline {
   font-size: clamp(1rem, 2.5vw, 1.2rem);
   color: var(--color-text-muted);
-  max-width: 56em;
-  margin: 0;
+  width: 0;
+  min-width: 100%;
+  max-width: 100%;
+  margin: 10px 0;
 }
 
 .hero-actions {
@@ -918,7 +926,7 @@ h1, h2, h3 {
 
 @media (max-width: 768px) {
   .hero {
-    padding: 2.5rem 0 calc(2rem + var(--mobile-bar-offset));
+    padding: 2.5rem 0 2.5rem;
   }
 
   .hero-subheadline br {

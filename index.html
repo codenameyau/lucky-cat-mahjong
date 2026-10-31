@@ -36,7 +36,7 @@
   <link rel="preload" as="image" href="logo.webp" type="image/webp" fetchpriority="high">
   <link rel="preload" href="fonts/kn-yuanmo-sc.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="css/fonts.css">
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=20261031h">
 
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-B514HH987M"></script>
   <script>
@@ -59,7 +59,7 @@
         "url": "https://luckycatmahjong.com/",
         "logo": "https://luckycatmahjong.com/logo.png",
         "image": "https://luckycatmahjong.com/logo.png",
-        "description": "Hong Kong-style mahjong private lessons, corporate office workshops, and brand collaborations in New York City.",
+        "description": "Hong Kong-style mahjong private lessons, workshops, and brand collaborations in New York City.",
         "email": "events@luckycatmahjong.com",
         "priceRange": "$$",
         "foundingDate": "2025-11",
@@ -122,10 +122,10 @@
               "@type": "Offer",
               "itemOffered": {
                 "@type": "Service",
-                "@id": "https://luckycatmahjong.com/#office-workshops",
-                "name": "Office Mahjong Workshops",
-                "serviceType": "Corporate team-building workshop",
-                "description": "Team-building mahjong sessions designed for NYC offices. Instructors, sets, and mats provided. Invoices via Stripe with credit card payments.",
+                "@id": "https://luckycatmahjong.com/#workshops",
+                "name": "Mahjong Workshops",
+                "serviceType": "Corporate and community team-building workshop",
+                "description": "Team-building mahjong sessions designed for NYC offices and communities. Instructors, sets, and mats provided. Invoices via Stripe with credit card payments.",
                 "provider": { "@id": "https://luckycatmahjong.com/#business" },
                 "areaServed": { "@type": "City", "name": "New York City" }
               },
@@ -205,8 +205,12 @@
           <source srcset="logo.webp" type="image/webp">
           <img src="logo.png" alt="Lucky Cat Mahjong logo" class="hero-logo" width="280" height="291" fetchpriority="high" decoding="async" draggable="false">
         </picture>
-        <h1 class="hero-headline">Hong Kong Mahjong in NYC</h1>
-        <p class="hero-subheadline">From private lessons to office workshops to curated brand collaborations, we make mahjong easy and unforgettable.<br> We build free online tools to help you learn to play mahjong,<br> and give you the skills to sit down and play at any table with confidence.</p>
+        <div class="hero-copy">
+          <h1 class="hero-headline">Hong Kong Mahjong in NYC</h1>
+          <p class="hero-subheadline">            
+            We make mahjong fun, easy, and unforgettable. From private lessons, to workshops, to brand collaborations and pop-ups, we make it happen. Our free online tools are here to help you learn mahjong and connect with its culture.
+          </p>
+        </div>
         <nav class="hero-features" aria-label="Explore Lucky Cat Mahjong">
           <a href="/community/" class="btn btn-outline btn-sm" data-evt="community_link_hero" data-loc="hero">
             <span class="btn-label">Community</span>
@@ -394,6 +398,6 @@
   </footer>
 
   <script src="/js/nav.js?v=20261031d" defer></script>
-  <script src="js/main.js?v=20261031f" defer></script>
+  <script src="js/main.js?v=20261031h" defer></script>
 </body>
 </html>

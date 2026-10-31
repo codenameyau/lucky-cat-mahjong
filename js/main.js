@@ -362,7 +362,7 @@ async function init() {
 
   try {
     const [site, services, rates, faq, testimonials] = await Promise.all([
-      loadJSON('data/site.json?v=20261031f'),
+      loadJSON('data/site.json?v=20261031h'),
       loadJSON('data/services.json'),
       loadJSON('data/rates.json'),
       loadJSON('data/faq.json').catch(() => null),
