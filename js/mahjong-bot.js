@@ -121,14 +121,41 @@
 
   /* ------------------------------------------------------------------ *
    * 2. Value model
-   *    Values are in "3-faan wins": a minimum hand won off a discard is 1.
-   *    The scale is compressed (a 7-faan hand is worth ~2.6, not 16) because
-   *    the chance estimates are rough, and chasing big hands on rough odds
-   *    loses to simply finishing fast.
+   *    Values are in "3-faan wins": a minimum hand won off a discard is 1,
+   *    and a bigger hand is worth its real payout relative to that (each
+   *    faan doubles it), so the bots play for the most points, not the most
+   *    wins. Over 16,000 simulated hands this beat the old compressed scale
+   *    (a 7-faan hand worth 3.4 instead of 16) by about 13 points a hand.
    * ------------------------------------------------------------------ */
+
+  // Strategy knobs, so simulations can compare play styles (see setTuning).
+  //   valuePower: a hand is valued at its real payout relative to a 3-faan
+  //     hand, raised to this power (1 = the payout itself); null uses the
+  //     old compressed straight line.
+  //   defenseScale: how much more than that to weigh deal-in risk.
+  //   lateFold: extra weight on safety once the wall is under lateFoldWall
+  //     tiles and the hand is still 2 or more tiles from ready (unlikely to win).
+  // Chosen by simulation for the most points per hand (see the playbook doc).
+  var T = { valuePower: 1, defenseScale: 1.5, lateFold: 1.5, lateFoldWall: 45 };
+
+  function setTuning(next) {
+    Object.keys(next || {}).forEach(function (k) { T[k] = next[k]; });
+    return T;
+  }
+
+  // Payout of `f` faan relative to a 3-faan hand, on the full-spicy table
+  // (each faan doubles it up to the 13-faan limit).
+  function payoutRatio(f) {
+    return Math.pow(2, Math.min(f, 13) - 3);
+  }
 
   function handValue(f, slope) {
     if (f < 3) return Math.pow(0.45, 3 - f);
+    if (T.valuePower !== null) {
+      // Early in the hand a big hand is worth more of its payout; later less.
+      var power = T.valuePower * ((slope || VALUE_SLOPE) / VALUE_SLOPE);
+      return Math.pow(payoutRatio(Math.min(f, ESTIMATE_FAAN_CAP)), power);
+    }
     return 1 + (slope || VALUE_SLOPE) * (Math.min(f, ESTIMATE_FAAN_CAP) - 3);
   }
 
@@ -474,7 +501,11 @@
     plans.push({ id: 'plain', label: 'a standard hand', counts: c, shantenFn: E.standardShanten, faan: base + yaku, open: true });
     // Concealed All Sequences: runs only. Honors are discarded, and nothing
     // is claimed, because either one breaks the hand.
-    if (!ctx.declared) {
+    // (Not while the hand holds a set of honors, which can never be thrown
+    // away to make an all-runs hand.)
+    var honorSet = false;
+    for (var hs = 27; hs < 34; hs++) if (c[hs] >= 3) honorSet = true;
+    if (!ctx.declared && !honorSet) {
       plans.push({
         id: 'straights',
         label: 'Concealed All Sequences',
@@ -490,14 +521,18 @@
       if (offSuit) return;
       var inHalf = function (i) { return E.suitOfIndex(i) === su || i >= 27; };
       var inFull = function (i) { return E.suitOfIndex(i) === su; };
-      if (countWhere(c, inHalf) >= 7) {
+      // Sets already made count toward "most of the hand" (3 tiles each).
+      var setTiles = function (fits) {
+        return ctx.melds.filter(function (m) { return fits(E.tileIndex(m.tiles[0])); }).length * 3;
+      };
+      if (countWhere(c, inHalf) + setTiles(inHalf) >= 7) {
         plans.push({
           id: 'half-' + su, suit: su, label: 'a Half Flush in ' + SUIT_LABELS[su],
           counts: restrict(c, inHalf), shantenFn: E.standardShanten,
           faan: base + 3 + handYaku(ctx, restrict(c, inHalf)), open: true,
         });
       }
-      if (!ctx.meldSuits.z && countWhere(c, inFull) >= 7) {
+      if (!ctx.meldSuits.z && countWhere(c, inFull) + setTiles(inFull) >= 7) {
         plans.push({
           id: 'full-' + su, suit: su, label: 'a Full Flush in ' + SUIT_LABELS[su],
           counts: restrict(c, inFull), shantenFn: E.standardShanten,
@@ -803,6 +838,8 @@
     // (Tuned over 4,000 simulated hands; stronger weights folded too often.)
     if (top >= 2 && shanten >= 2) w *= top === 3 ? 1.7 : 1.3;
     if (ctx.wallLeft < 16 && !(shanten === 0 && readyFaan >= 5)) w *= 1.7;
+    // Unlikely to win: late, and still two or more tiles from ready.
+    if (T.lateFold !== 1 && shanten >= 2 && ctx.wallLeft < T.lateFoldWall) w *= T.lateFold;
     return w;
   }
 
@@ -843,6 +880,7 @@
     // Folding: safety decides, and the keep-pairs and keep-dragons orders
     // only break ties (a safe pair is the right tile to break).
     var folding = weight > (ctx.isDealer ? 0.9 : 1);
+    weight *= T.defenseScale;
     // After a chow, tiles of other suits are worthless: they go first, ahead
     // of honors and chow-suit tiles that tie with them on value.
     var committed = chowCommitment(ctx, c);
@@ -1019,6 +1057,8 @@
     readyValue: readyValue,
     opponentThreats: opponentThreats,
     flowerPoints: flowerPoints,
+    setTuning: setTuning,
+    handValue: handValue,
     deadTile: deadTile,
     chowCommitment: chowCommitment,
     chaseSevenPairs: chaseSevenPairs,

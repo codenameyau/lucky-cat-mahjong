@@ -125,7 +125,7 @@ describe('coach: discards', () => {
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
     assert.ok(['c5', 'd7'].includes(hint.tile), 'discarded ' + hint.tile);
     assert.match(text(hint), /Not Bamboo/);
-    assert.match(text(hint), /Half Flush in Bamboo/);
+    assert.match(text(hint), /(Half|Full) Flush in Bamboo/);
   });
 
   it('names the waits when the discard leaves the hand ready', () => {
@@ -175,8 +175,9 @@ describe('coach: claims', () => {
   });
 
   it('chows into a flush it is building', () => {
-    const hand = ['b1', 'b2', 'b4', 'b5', 'b6', 'b8', 'b8', 'dr', 'dr', 'dg', 'ws', 'ws', 'c9'];
-    const game = table({ seats: [{ hand }] });
+    // Already open (Red Dragon punged), so the chow gives up nothing.
+    const hand = ['b1', 'b2', 'b4', 'b5', 'b6', 'b8', 'b8', 'dg', 'ws', 'ws'];
+    const game = table({ seats: [{ hand, melds: [meld('pung', 'dr')] }] });
     const opts = E.claimOptions(game, 0, 'b3', 3, false);
     const hint = C.claimHint(game, 0, opts);
     assert.equal(hint.decision.type, 'chow');
