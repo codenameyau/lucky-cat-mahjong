@@ -336,31 +336,14 @@
     return 'Your hand needs it least.';
   }
 
-  function planLine(v, plan, c) {
-    var r = plan.route;
-    var f = faanWord(r.faan);
-    if (r.id === 'straights') {
-      var parts = ['Concealed', 'All Sequences'];
-      parts.push(v.flowerFaan ? (v.game.hand.seats[v.seat].flowers.length ? 'your seat flower' : 'No Flowers') : 'self-draw');
-      var keep = liveValueSingles(v, c);
-      return 'Plan: build runs like 3-4-5 and don\'t claim. ' + parts.join(' + ') + ' makes 3 faan.' +
-        (keep.length ? ' Hold the ' + listNames(keep) + ' for now in case ' + (keep.length > 1 ? 'one pairs' : 'it pairs') + ' up.' : '');
-    }
-    if (r.id === 'half') return 'Plan: Half Flush in ' + SUIT_NAME[r.suit] + ' (about ' + f + '). Keep ' + SUIT_NAME[r.suit] + ' and honors.';
-    if (r.id === 'full') return 'Plan: Full Flush in ' + SUIT_NAME[r.suit] + ' (about ' + f + '). Keep only ' + SUIT_NAME[r.suit] + '.';
-    if (r.id === 'triplets') return 'Plan: All Triplets (about ' + f + '). Keep your pairs and Pung them.';
-    if (r.id === 'pairs') return 'Plan: Seven Pairs (about ' + f + '). Keep pairs and don\'t claim.';
-    return null;
-  }
-
   function honorLine(v, c) {
     for (var i = 27; i < 34; i++) {
       if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) {
-        return 'Keep your ' + name(i) + ' pair. A third one makes a set worth ' + honorWorth(v, i) + ' faan; Pung it if someone throws it.';
+        return 'Keep your ' + name(i) + ' pair, since a third one makes a set worth ' + honorWorth(v, i) + ' faan, and Pung it if someone throws it.';
       }
     }
     var singles = liveValueSingles(v, c);
-    if (singles.length) return 'Plan: keep the ' + listNames(singles) + ' and pair ' + (singles.length > 1 ? 'them' : 'it') + ' up. A set of any of these is worth faan.';
+    if (singles.length) return 'Keep the ' + listNames(singles) + ' and pair ' + (singles.length > 1 ? 'them' : 'it') + ' up, because a set of any of these is worth faan.';
     return null;
   }
 
@@ -368,7 +351,7 @@
   // draw it in the brand red (see TARGET_START / TARGET_END in mahjong-game.js).
   function marked(text) {
     var m = text.match(/^([\s\S]*?\(\d+ faan\))([\s\S]*)$/);
-    return m ? '\u0001Target: ' + m[1] + '\u0002' + m[2] : 'Target: ' + text;
+    return m ? '\u0001Your target is ' + m[1] + '\u0002' + m[2] : 'Your target is ' + text;
   }
 
   function stepsText(shanten) {
@@ -388,16 +371,16 @@
     var f = (own[r.id] !== undefined ? own[r.id] : 0) + ' faan';
     if (r.id === 'straights') {
       var keep = liveValueSingles(v, c).filter(function (i) { return i !== nextOut; });
-      return 'Concealed All Sequences (' + f + '): self-draw tiles, don\'t claim discards' +
-        (v.flowerFaan ? ', and your flowers add the third faan' : '') +
-        (keep.length ? '; hold the ' + listNames(keep) + ' in case ' + (keep.length > 1 ? 'one pairs' : 'it pairs') + ' up' : '');
+      return 'Concealed All Sequences (' + f + '), so use self-draw tiles and don\'t claim discards' +
+        (v.flowerFaan ? '. Your flowers add the third faan' : '') +
+        (keep.length ? '. Hold the ' + listNames(keep) + ' in case ' + (keep.length > 1 ? 'one pairs' : 'it pairs') + ' up' : '');
     }
-    if (r.id === 'half') return 'Half Flush in ' + SUIT_NAME[r.suit] + ' (' + f + '): keep ' + SUIT_NAME[r.suit] + ' and honors';
-    if (r.id === 'full') return 'Full Flush in ' + SUIT_NAME[r.suit] + ' (' + f + '): keep only ' + SUIT_NAME[r.suit];
-    if (r.id === 'triplets') return 'All Triplets (' + f + '): keep pairs and Pung them';
-    if (r.id === 'pairs') return 'Seven Pairs (' + f + '): keep pairs, don\'t claim discards';
+    if (r.id === 'half') return 'Half Flush in ' + SUIT_NAME[r.suit] + ' (' + f + '), so keep ' + SUIT_NAME[r.suit] + ' and honors';
+    if (r.id === 'full') return 'Full Flush in ' + SUIT_NAME[r.suit] + ' (' + f + '), so keep only ' + SUIT_NAME[r.suit];
+    if (r.id === 'triplets') return 'All Triplets (' + f + '), so keep your pairs and Pung them';
+    if (r.id === 'pairs') return 'Seven Pairs (' + f + '), so keep your pairs and don\'t claim discards';
     for (var i = 27; i < 34; i++) {
-      if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) return 'a ' + name(i) + ' set (' + honorWorth(v, i) + ' faan); Pung it if it\'s thrown';
+      if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) return (/^[AEIOU]/.test(name(i)) ? 'an ' : 'a ') + name(i) + ' set (' + honorWorth(v, i) + ' faan), so Pung it if it\'s thrown';
     }
     return 'a chicken hand (0 faan)';
   }
@@ -406,8 +389,8 @@
   function phaseText(v, threats) {
     var big = threats.some(function (t) { return t.level >= 2 && t.faan >= 5; });
     if (big) return 'Someone shows a big hand, so speed matters more than size.';
-    if (v.ctx.turn <= 5) return 'Early on: room to build a bigger hand.';
-    if (v.ctx.turn >= 10 || v.ctx.wallLeft < 32) return 'Late in the hand: finish fast.';
+    if (v.ctx.turn <= 5) return 'It\'s early, so there\'s room to build a bigger hand.';
+    if (v.ctx.turn >= 10 || v.ctx.wallLeft < 32) return 'It\'s late in the hand, so finish fast.';
     return '';
   }
 
@@ -437,25 +420,33 @@
     return '';
   }
 
+  function threatPhrase(t) {
+    var bits = [];
+    if (t.melds) bits.push(t.melds + (t.melds === 1 ? ' meld' : ' melds'));
+    if (t.flush) bits.push(SUIT_NAME[t.flush]);
+    return t.name + ' is ' + (t.levelName === 'Extreme' ? 'an' : 'a') + ' ' + t.levelName + ' threat' + (bits.length ? ' (' + bits.join(', ') + ')' : '');
+  }
+
+  // "Grace is an Extreme threat and Rosa is a High threat."
+  function threatSentence(list) {
+    var parts = list.map(threatPhrase);
+    return (parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0]) + '.';
+  }
+
   function defenseLine(v, threats, pick, list) {
     var shown = threats.filter(function (t) { return t.level >= 1; }).sort(function (a, b) { return b.level - a.level; });
     var word = dangerWord(pick.loss);
     if (!shown.length) return pick.loss >= 0.035 ? E.tileName(pick.tile) + ' is ' + word + '.' : '';
-    var who = shown.map(function (t) {
-      var bits = [];
-      if (t.melds) bits.push(t.melds + (t.melds === 1 ? ' meld' : ' melds'));
-      if (t.flush) bits.push(SUIT_NAME[t.flush]);
-      return t.name + ' ' + t.levelName + (bits.length ? ' (' + bits.join(', ') + ')' : '');
-    }).join(', ');
     var top = shown[0];
-    var line = 'Threats: ' + who + '. ' + E.tileName(pick.tile) + ' is ' + word;
+    var line = threatSentence(shown) + ' ' + E.tileName(pick.tile) + ' is ' + word;
     var why = top.level >= 2 ? safetyReason(v, top, pick.index) : '';
-    if (why) line += ': ' + why;
+    if (why) line += ' because ' + why;
+    line += '.';
     var worst = list.slice().sort(function (a, b) { return b.loss - a.loss; })[0];
     if (top.level >= 2 && worst && worst.tile !== pick.tile && worst.loss > pick.loss * 2 && worst.loss >= 0.012) {
-      line += '. Hold on to ' + E.tileName(worst.tile) + ' (' + dangerWord(worst.loss) + ')';
+      line += ' Hold on to ' + E.tileName(worst.tile) + ', which is ' + dangerWord(worst.loss) + '.';
     }
-    return line + '.';
+    return line;
   }
 
   // The main action (the first sentence of tips[k], e.g. "Discard Nine
@@ -478,7 +469,7 @@
 
   function turnHint(game, seat, opts) {
     var min = game.settings.minFaan;
-    if (opts.win) return { kind: 'win', action: 'Win!', tips: ['Tap Win: this hand scores ' + opts.win.faan + ' faan.'] };
+    if (opts.win) return { kind: 'win', action: 'Win!', tips: ['Tap Win to score ' + opts.win.faan + ' faan.'] };
     var v = look(game, seat);
     var hand = game.hand.seats[seat].hand;
     var c = E.countsOf(hand);
@@ -500,7 +491,7 @@
     // 1. What to do.
     var route = pick.plan && pick.plan.route;
     var why = defending
-      ? 'Play safe: your hand is slow and ' + (v.ctx.wallLeft < 16 ? 'the wall is nearly gone.' : 'someone is close to winning.')
+      ? 'It\'s the safe play, since your hand is slow and ' + (v.ctx.wallLeft < 16 ? 'the wall is nearly gone.' : 'someone is close to winning.')
       : (pick.ready && pick.shanten === 0 ? 'It leaves you ready to win.' : whyDiscard(v, c, pick, route));
     var discardAt = tips.length;
     tips.push('Discard ' + E.tileName(pick.tile) + '. ' + why);
@@ -517,7 +508,7 @@
     }
     if (pick.ready && pick.shanten === 0) {
       var wins = pick.ready.waits.filter(function (w) { return w.ronOk; }).map(function (w) { return w.ronFaan; });
-      var state = 'Ready: waiting on ' + waitsText(pick.ready) + (wins.length ? ', worth ' + Math.min.apply(null, wins) + '+ faan.' : '.');
+      var state = 'You are ready and waiting on ' + waitsText(pick.ready) + (wins.length ? ', worth ' + Math.min.apply(null, wins) + '+ faan.' : '.');
       var notes = readyNotes(pick.ready, min);
       var liveLeft = pick.ready.waits.reduce(function (n, w) { return n + w.left; }, 0);
       if (liveLeft <= 1) notes.push('Almost none are left, so change the wait if you can.');
@@ -525,7 +516,7 @@
     } else if (pick.plan) {
       var line = stepsText(pick.shanten) + '. ' + marked(targetText(v, pick.plan, cAfter, next && next.index)) + '. ' +
         pick.plan.live + ' tiles help.';
-      if (route.faan < min - 0.25) line += ' That\'s short of ' + min + ' faan: a flush, all triplets or a dragon or wind set fixes it.';
+      if (route.faan < min - 0.25) line += ' That\'s short of ' + min + ' faan, but a flush, all triplets or a dragon or wind set would fix it.';
       else if (!defending) { var phase = phaseText(v, threats); if (phase) line += ' ' + phase; }
       tips.push(line);
     }
@@ -619,7 +610,7 @@
           '. ' + marked(targetText(res.view || v, res.plan, res.counts || hand13)) + '.' + short);
       }
       var shown = threats.filter(function (t) { return t.level >= 2; });
-      if (shown.length) lines.push('Threats: ' + shown.map(function (t) { return t.name + ' ' + t.levelName; }).join(', ') + '.');
+      if (shown.length) lines.push(threatSentence(shown));
       return lines;
     }
 
