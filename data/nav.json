@@ -19,6 +19,10 @@
     {
       "label": "Quiz",
       "href": "/which-mahjong-tiles-are-you/"
+    },
+    {
+      "label": "Play",
+      "href": "/play-mahjong/"
     }
   ]
 }

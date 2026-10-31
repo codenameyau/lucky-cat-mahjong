@@ -35,6 +35,17 @@
     </image:image>
   </url>
   <url>
+    <loc>https://luckycatmahjong.com/play-mahjong/</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://luckycatmahjong.com/logo.png</image:loc>
+      <image:title>Play Hong Kong Mahjong</image:title>
+      <image:caption>Play Hong Kong mahjong in the browser against three bots, with hint tips</image:caption>
+    </image:image>
+  </url>
+  <url>
     <loc>https://luckycatmahjong.com/which-mahjong-tiles-are-you/</loc>
     <lastmod>2026-10-30</lastmod>
     <changefreq>monthly</changefreq>

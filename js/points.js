@@ -175,8 +175,13 @@
     return !!(el && el.checked);
   }
 
-  function capFaan(faan) {
-    if (isUnlimitedFaan()) return faan;
+  // `opts` (from scoreHand) overrides the calculator's checkboxes when present.
+  function unlimitedFor(opts) {
+    return opts ? !!opts.unlimited : isUnlimitedFaan();
+  }
+
+  function capFaan(faan, opts) {
+    if (unlimitedFor(opts)) return faan;
     return faan > LIMIT ? LIMIT : faan;
   }
 
@@ -191,19 +196,21 @@
     return Math.pow(2, (faan + 3) / 2) * 1.5;
   }
 
-  function fullSpicyPoints(faan) {
+  function fullSpicyPoints(faan, opts) {
     if (PAYOUT[faan]) return PAYOUT[faan];
-    if (isUnlimitedFaan() && faan > LIMIT) {
+    if (unlimitedFor(opts) && faan > LIMIT) {
       return PAYOUT[LIMIT] * Math.pow(2, faan - LIMIT);
     }
     return null;
   }
 
-  function faanToPoints(faan) {
-    if (faan < MIN_FAAN) return null;
-    var effective = capFaan(faan);
-    if (isHalfSpicy()) return halfSpicyPoints(effective);
-    return fullSpicyPoints(effective);
+  function faanToPoints(faan, opts) {
+    var min = opts && typeof opts.minFaan === 'number' ? opts.minFaan : MIN_FAAN;
+    if (faan < min) return null;
+    var effective = capFaan(faan, opts);
+    var half = opts ? opts.spicy === 'half' : isHalfSpicy();
+    if (half) return halfSpicyPoints(effective);
+    return fullSpicyPoints(effective, opts);
   }
 
   /* ------------------------------------------------------------------ *
@@ -272,15 +279,6 @@
     syncExampleButtons();
   }
 
-  function handCounts() {
-    var c = { c: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], d: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], b: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], z: [0, 0, 0, 0, 0, 0, 0, 0] };
-    hand.forEach(function (id) {
-      var t = TILE_BY_ID[id];
-      c[t.suit][t.val] += 1;
-    });
-    return c;
-  }
-
   function tileCount(id) {
     var n = 0;
     hand.forEach(function (x) { if (x === id) n++; });
@@ -335,7 +333,8 @@
     return out;
   }
 
-  function winningParses(c) {
+  function winningParses(c, meldsNeeded) {
+    if (meldsNeeded === undefined) meldsNeeded = 4;
     var parses = [];
     var suits = ['c', 'd', 'b', 'z'];
     for (var si = 0; si < suits.length; si++) {
@@ -347,7 +346,7 @@
           cc[su][v] -= 2;
           var decs = decomposeAll(cc);
           for (var d = 0; d < decs.length; d++) {
-            if (decs[d].length === 4) {
+            if (decs[d].length === meldsNeeded) {
               parses.push({ melds: decs[d], pair: { suit: su, val: v } });
             }
           }
@@ -580,8 +579,14 @@
     return items;
   }
 
-  function bestStandardItems(c, profile, ctx) {
-    var parses = winningParses(c);
+  // `fixedMelds` are melds already declared at the table (claimed or kong'd);
+  // only the remaining tiles in `c` are free to be parsed.
+  function bestStandardItems(c, profile, ctx, fixedMelds, allCounts) {
+    fixedMelds = fixedMelds || [];
+    allCounts = allCounts || c;
+    var parses = winningParses(c, 4 - fixedMelds.length).map(function (p) {
+      return { melds: fixedMelds.concat(p.melds), pair: p.pair };
+    });
     if (!parses.length) return null;
 
     var bestItems = null;
@@ -593,15 +598,18 @@
     }
 
     var hasFourKongs = bestItems.some(function (i) { return i.name === 'Four Quads'; });
-    if (isAllTerminals(c) && !hasFourKongs) {
+    if (isAllTerminals(allCounts) && !hasFourKongs) {
       bestItems = [{ name: 'All Terminals', cn: '清老頭', faan: FAAN.allTerminals }].concat(bestItems);
-    } else if (isMixedOrphans(c) && !hasFourKongs) {
+    } else if (isMixedOrphans(allCounts) && !hasFourKongs) {
       bestItems = [{ name: 'Mixed Orphans', cn: '混老頭', faan: FAAN.mixedOrphans }].concat(bestItems);
     }
     return bestItems;
   }
 
-  function pickPatternItems(c, profile, ctx, orderedIds) {
+  function pickPatternItems(c, profile, ctx, orderedIds, fixedMelds, freeCounts) {
+    if (fixedMelds && fixedMelds.length) {
+      return bestStandardItems(freeCounts, profile, ctx, fixedMelds, c);
+    }
     var leftToRightItems = leftToRightStandardItems(c, profile, ctx, orderedIds);
     if (leftToRightItems) return leftToRightItems;
 
@@ -819,8 +827,8 @@
     });
   }
 
-  function flowerAutoWinItem() {
-    var n = flowers.length;
+  function flowerAutoWinItem(bonus) {
+    var n = bonus.length;
     if (n >= 8) return { name: 'Eight Immortals Crossing the Sea', cn: '八仙過海', faan: FAAN.eightFlowers };
     if (n >= 7) return { name: 'Seven Robbing One', cn: '七搶一', faan: FAAN.sevenFlowers };
     return null;
@@ -830,19 +838,19 @@
    * 9. Situational faan from the checkboxes / selects
    * ------------------------------------------------------------------ */
 
-  function flowerBonusItems(seat) {
+  function flowerBonusItems(bonus, opts) {
     var items = [];
-    function on(id) { var el = document.getElementById(id); return el && el.checked; }
-    function hasBonus(id) { return flowers.indexOf(id) !== -1; }
+    var seat = opts.seat;
+    function hasBonus(id) { return bonus.indexOf(id) !== -1; }
 
-    if (on('opt-no-flowers')) {
-      if (!flowers.length) {
+    if (opts.noFlowers) {
+      if (!bonus.length) {
         items.push({ name: 'No Flowers', cn: '無花', faan: FAAN.noFlowers });
       }
       return items;
     }
-    if (!flowers.length) return items;
-    if (flowers.length >= 7) return items; // Seven Robbing One / Eight Immortals — exclusive
+    if (!bonus.length) return items;
+    if (bonus.length >= 7) return items; // Seven Robbing One / Eight Immortals — exclusive
 
     var allFlowers = FLOWER_IDS.every(hasBonus);
     var allSeasons = SEASON_IDS.every(hasBonus);
@@ -876,25 +884,44 @@
     return false;
   }
 
-  function situationalItems(earnedPatternItems) {
+  function situationalItems(earnedPatternItems, bonus, opts) {
     var items = [];
-    function on(id) { var el = document.getElementById(id); return el && el.checked; }
-    var ctx = ctxFromUI();
 
-    if (on('opt-selfdraw')) items.push({ name: 'Self-Draw', cn: '自摸', faan: FAAN.selfDraw });
-    if (on('opt-concealed') && !suppressesConcealedBonus(earnedPatternItems)) {
+    if (opts.heavenly) items.push({ name: 'Heavenly Hand', cn: '天糊', faan: LIMIT });
+    if (opts.earthly) items.push({ name: 'Earthly Hand', cn: '地糊', faan: LIMIT });
+    if (opts.selfDraw) items.push({ name: 'Self-Draw', cn: '自摸', faan: FAAN.selfDraw });
+    if (opts.concealed && !suppressesConcealedBonus(earnedPatternItems)) {
       items.push({ name: 'Concealed', cn: '門前清', faan: FAAN.concealed });
     }
-    if (on('opt-lasttile')) items.push({ name: 'Win on Last Tile', cn: '海底撈月', faan: FAAN.lastTile });
-    if (on('opt-robkong')) items.push({ name: 'Robbing the Kong', cn: '搶槓', faan: FAAN.robKong });
-    if (on('opt-double-kong')) {
+    if (opts.lastTile) items.push({ name: 'Win on Last Tile', cn: '海底撈月', faan: FAAN.lastTile });
+    if (opts.robKong) items.push({ name: 'Robbing the Kong', cn: '搶槓', faan: FAAN.robKong });
+    if (opts.doubleKong) {
       items.push({ name: 'Win by Double Kong', cn: '槓上槓', faan: FAAN.doubleKong });
-    } else if (on('opt-kongwin')) {
+    } else if (opts.kongWin) {
       items.push({ name: 'Win by Kong', cn: '槓上開花', faan: FAAN.kongWin });
     }
 
-    items = items.concat(flowerBonusItems(ctx.seat));
+    items = items.concat(flowerBonusItems(bonus, opts));
     return items;
+  }
+
+  // The calculator's checkboxes and selects as a scoreHand-style options object.
+  function uiScoringOptions() {
+    function on(id) { var el = document.getElementById(id); return !!(el && el.checked); }
+    var ctx = ctxFromUI();
+    return {
+      seat: ctx.seat,
+      round: ctx.round,
+      concealed: ctx.concealed,
+      selfDraw: on('opt-selfdraw'),
+      lastTile: on('opt-lasttile'),
+      robKong: on('opt-robkong'),
+      kongWin: on('opt-kongwin'),
+      doubleKong: on('opt-double-kong'),
+      noFlowers: on('opt-no-flowers'),
+      unlimited: on('opt-unlimited'),
+      spicy: spicyMode,
+    };
   }
 
   function ctxFromUI() {
@@ -909,47 +936,54 @@
    * ------------------------------------------------------------------ */
 
   function evaluate() {
-    var c = handCounts();
-    var total = hand.length;
-    var ctx = ctxFromUI();
+    return evaluateTiles(hand, flowers, uiScoringOptions(), handInLayoutOrder());
+  }
+
+  // Scores `tiles` (+ bonus `flowerIds`). `fixedMelds` are declared melds whose
+  // tiles are included in `tiles` but must not be re-parsed.
+  function evaluateTiles(tiles, flowerIds, opts, orderedIds, fixedMelds) {
+    fixedMelds = fixedMelds || [];
+    var c = countsFromIds(tiles);
+    var total = tiles.length;
+    var ctx = { seat: opts.seat, round: opts.round, concealed: !!opts.concealed };
     var profile = suitProfile(c);
 
     var result = { valid: false, items: [], faan: 0, points: null };
 
-    var flowerWin = flowerAutoWinItem();
+    var flowerWin = flowerAutoWinItem(flowerIds);
+
+    function flowerOnlyResult() {
+      result.valid = true;
+      result.items = [flowerWin].concat(situationalItems([flowerWin], flowerIds, opts));
+      result.faan = capFaan(sumFaan(result.items), opts);
+      result.points = faanToPoints(result.faan, opts);
+      return result;
+    }
 
     if (total === 0) {
-      if (flowerWin) {
-        result.valid = true;
-        result.items = [flowerWin].concat(situationalItems([flowerWin]));
-        result.faan = capFaan(sumFaan(result.items));
-        result.points = faanToPoints(result.faan);
-        return result;
-      }
+      if (flowerWin) return flowerOnlyResult();
       return result;
     }
 
     var isChickenHand = false;
 
     // Special hands first; otherwise pick the best standard or seven-pairs score
-    if (isThirteenOrphans(c)) {
+    if (!fixedMelds.length && isThirteenOrphans(c)) {
       result.valid = true;
       result.items = [{ name: 'Thirteen Orphans', cn: '十三么', faan: FAAN.thirteenOrphans }];
-    } else if (isNineGates(c)) {
+    } else if (!fixedMelds.length && isNineGates(c)) {
       result.valid = true;
       result.items = [{ name: 'Nine Gates', cn: '九蓮寶燈', faan: FAAN.nineGates }];
     } else {
-      var patternItems = pickPatternItems(c, profile, ctx, handInLayoutOrder());
+      var freeTiles = fixedMelds.length ? freeTilesAfterMelds(tiles, fixedMelds) : tiles;
+      var freeCounts = freeTiles ? countsFromIds(freeTiles) : null;
+      var patternItems = freeCounts ? pickPatternItems(c, profile, ctx, orderedIds, fixedMelds, freeCounts) : null;
       if (patternItems) {
         result.valid = true;
         result.items = patternItems;
         isChickenHand = sumFaan(patternItems) === 0;
       } else if (flowerWin) {
-        result.valid = true;
-        result.items = [flowerWin].concat(situationalItems([flowerWin]));
-        result.faan = capFaan(sumFaan(result.items));
-        result.points = faanToPoints(result.faan);
-        return result;
+        return flowerOnlyResult();
       } else {
         return result;
       }
@@ -963,16 +997,76 @@
     if (isChickenHand) {
       result.items.unshift({ name: 'Chicken Hand', cn: '雞糊', faan: FAAN.chicken });
     }
-    
+
     result.items = applyInherentTripletsNoStacking(applyLimitNoStacking(result.items));
 
     // Situational add-ons
-    result.items = result.items.concat(situationalItems(result.items));
+    result.items = result.items.concat(situationalItems(result.items, flowerIds, opts));
 
-    var faan = capFaan(sumFaan(result.items));
+    var faan = capFaan(sumFaan(result.items), opts);
     result.faan = faan;
-    result.points = faanToPoints(faan);
+    result.points = faanToPoints(faan, opts);
     return result;
+  }
+
+  function meldTileIds(meld) {
+    var size = meld.type === 'kong' ? 4 : 3;
+    var ids = [];
+    for (var i = 0; i < size; i++) {
+      ids.push(tileIdFromSuitVal(meld.suit, meld.type === 'chow' ? meld.val + i : meld.val));
+    }
+    return ids;
+  }
+
+  // Tiles left after removing each fixed meld, or null if a meld isn't in `tiles`.
+  function freeTilesAfterMelds(tiles, fixedMelds) {
+    var rest = tiles.slice();
+    for (var m = 0; m < fixedMelds.length; m++) {
+      var ids = meldTileIds(fixedMelds[m]);
+      for (var i = 0; i < ids.length; i++) {
+        var at = rest.indexOf(ids[i]);
+        if (at === -1) return null;
+        rest.splice(at, 1);
+      }
+    }
+    return rest;
+  }
+
+  /* Public scoring API used by the Play game (js/mahjong-engine.js).
+     input: {
+       concealed: [tile ids still in hand, including the winning tile],
+       melds: [{ type: 'chow'|'pung'|'kong', tile: first tile id, concealed: bool }],
+       flowers: [bonus tile ids], seat: 1-4, round: 1-4,
+       selfDraw, lastTile, robKong, kongWin, doubleKong, heavenly, earthly,
+       noFlowers (false to never award No Flowers), unlimited, spicy: 'full'|'half', minFaan
+     }
+     Returns { valid, items: [{ name, cn, faan }], faan, points }. */
+  function scoreHand(input) {
+    var melds = (input.melds || []).map(function (m) {
+      var t = TILE_BY_ID[m.tile];
+      return { type: m.type, suit: t.suit, val: t.val };
+    });
+    var tiles = (input.concealed || []).slice();
+    melds.forEach(function (m) { tiles = tiles.concat(meldTileIds(m)); });
+    var concealed = (input.melds || []).every(function (m) { return !!m.concealed; });
+    var opts = {
+      seat: input.seat || 1,
+      round: input.round || 1,
+      concealed: concealed,
+      selfDraw: !!input.selfDraw,
+      lastTile: !!input.lastTile,
+      robKong: !!input.robKong,
+      kongWin: !!input.kongWin,
+      doubleKong: !!input.doubleKong,
+      heavenly: !!input.heavenly,
+      earthly: !!input.earthly,
+      // The calculator's "No flowers" box means the hand holds none.
+      noFlowers: input.noFlowers !== false && !(input.flowers || []).length,
+      unlimited: !!input.unlimited,
+      spicy: input.spicy === 'half' ? 'half' : 'full',
+      minFaan: typeof input.minFaan === 'number' ? input.minFaan : MIN_FAAN,
+    };
+    return evaluateTiles(tiles, input.flowers || [], opts, null, melds);
   }
 
   /* ------------------------------------------------------------------ *
@@ -2434,6 +2528,7 @@
   }
 
   function init() {
+    if (!document.getElementById('calc-palette')) return; // scoring-only use (e.g. the Play game)
     preventMobileViewportZoom();
     applyExtraChineseVisibility();
 
@@ -2447,6 +2542,24 @@
     update();
     urlSyncEnabled = true;
   }
+
+  var scoringApi = {
+    TILES: TILES,
+    TILE_BY_ID: TILE_BY_ID,
+    FAAN: FAAN,
+    LIMIT: LIMIT,
+    MIN_FAAN: MIN_FAAN,
+    scoreHand: scoreHand,
+    faanToPoints: function (faan, opts) {
+      return faanToPoints(faan, opts || { spicy: 'full', unlimited: false });
+    },
+    isValidWinningHandIds: isValidWinningHandIds,
+  };
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = scoringApi;
+    return;
+  }
+  window.HKScoring = scoringApi;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
