@@ -620,27 +620,7 @@
 
       var pond = { x: mid, y: topH + topPanelH + gap, w: W - 2 * mid, h: Math.max(60, bandTop - (topH + topPanelH + 2 * gap)) };
 
-      // Optional walls: a square of 18 two-tile stacks per side just inside
-      // the pond, in front of each player, with the discards inside it.
-      var wall = null;
       var inner = pond;
-      if (settings.walls) {
-        var ww = clamp(Math.min(pond.w, pond.h) / 21.6, 6, 18);
-        var depth = ww * (TILE_ASPECT + 0.38) + 3;
-        wall = { ww: ww, depth: depth, frames: [] };
-        wall.frames[0] = makeFrame({ x: pond.x, y: pond.y + pond.h - depth, w: pond.w, h: depth }, 0);
-        wall.frames[1] = makeFrame({ x: pond.x + pond.w - depth, y: pond.y, w: depth, h: pond.h }, 1);
-        wall.frames[2] = makeFrame({ x: pond.x, y: pond.y, w: pond.w, h: depth }, 2);
-        wall.frames[3] = makeFrame({ x: pond.x, y: pond.y, w: depth, h: pond.h }, 3);
-        // Same tile size on every side; stacks sit flush, centered on each side.
-        var tws = ww;
-        wall.frames.forEach(function (f) { tws = Math.min(tws, (f.w - 2 * depth) / 18 - 0.3); });
-        wall.frames.forEach(function (f) {
-          f.tw = tws;
-          f.x0 = (f.w - 18 * (tws + 0.3)) / 2;
-        });
-        inner = { x: pond.x + depth + 4, y: pond.y + depth + 4, w: pond.w - 2 * depth - 8, h: pond.h - 2 * depth - 8 };
-      }
 
       // Discard zones form a cross around the center info box.
       var zones = [];
@@ -670,7 +650,7 @@
         pad: pad, topH: topH, portrait: portrait,
         tw: tw, th: th, handY: handY, mw: mw, meY: meY, meldRowH: meldRowH,
         actionsY: actionsY, actionsH: actionsH, actionsInRow: actionsInRow, hintY: hintY, hintH: hintH,
-        opp: opp, oppFrames: oppFrames, pond: pond, inner: inner, wall: wall, zones: zones, zoneFrames: zoneFrames,
+        opp: opp, oppFrames: oppFrames, pond: pond, inner: inner, zones: zones, zoneFrames: zoneFrames,
         center: center, pw: pw, maxDiscards: maxDiscards,
       };
     }
@@ -836,7 +816,6 @@
       }
       drawTopBar();
       drawPond(t);
-      drawWall();
       [1, 2, 3].forEach(function (s) { drawOpponent(s, t); });
       drawMe(t);
       drawHintBand();
@@ -1049,55 +1028,12 @@
       requestRender();
     }
 
-    /* ---------------- the wall ---------------- */
+    /* ---------------- where drawn tiles come from ---------------- */
 
-    var WALL_SIDES = [0, 3, 2, 1]; // clockwise around the table, starting with yours
-
-    // Where the dealer breaks the wall (stands in for the dice roll).
-    function wallBreak() {
-      return WALL_SIDES.indexOf(game.dealer) * 18 + 2 + (game.handNumber * 5) % 14;
-    }
-
-    function wallTaken() {
-      var h = game.hand;
-      return { front: 144 - h.wall.length - h.backDrawn, back: h.backDrawn };
-    }
-
-    // Placement of draw position `pos` (0 = first tile dealt). Even positions
-    // are the top tile of a stack.
-    function wallSlot(pos) {
-      var j = Math.floor(pos / 2);
-      var g = (j + wallBreak()) % 72;
-      var side = WALL_SIDES[Math.floor(g / 18)];
-      var p = g % 18;
-      var f = L.wall.frames[side];
-      var x = f.x0 + (17 - p) * (f.tw + 0.3);
-      var y = f.h - f.tw * (TILE_ASPECT + 0.08) - 2 - (pos % 2 === 0 ? f.tw * 0.32 : 0);
-      return { f: f, x: x, y: y, w: f.tw, p: p };
-    }
-
-    function wallPose(pos) {
-      if (!L.wall) {
-        var c = L.center;
-        return { x: c.x + c.w / 2 - 10, y: c.y + c.h / 2 - 14, w: 20, rot: 0 };
-      }
-      var sl = wallSlot(pos);
-      return localPose(sl.f, sl.x, sl.y, sl.w);
-    }
-
-    function drawWall() {
-      if (!L.wall) return;
-      var taken = wallTaken();
-      [1, 0].forEach(function (layer) {
-        for (var j = 0; j < 72; j++) {
-          var pos = 2 * j + layer;
-          if (pos < taken.front || pos >= 144 - taken.back) continue;
-          var sl = wallSlot(pos);
-          enterFrame(sl.f);
-          drawTile(null, sl.x, sl.y, sl.w, { back: true, shadow: false });
-          ctx.restore();
-        }
-      });
+    // Tiles fly out of the middle of the table, from the center box.
+    function drawOrigin() {
+      var c = L.center;
+      return { x: c.x + c.w / 2 - 10, y: c.y + c.h / 2 - 14, w: 20, rot: 0 };
     }
 
     function drawPond(t) {
@@ -1146,9 +1082,7 @@
       var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
       var big = clamp(c.h * 0.42, 14, 40);
       text(WIND_LETTERS[game.round], cx, cy - big * 0.32, { size: big, family: FONT_HEAD, align: 'center', color: COLORS.goldLight });
-      var tk = wallTaken();
-      var left = 144 - tk.front - tk.back;
-      var leftLabel = left + ' tiles left';
+      var leftLabel = game.hand.wall.length + ' tiles left';
       var leftSize = fitFont(ctx, leftLabel, c.w - 8, clamp(c.h * 0.16, 10, 14), FONT_BODY);
       text(leftLabel, cx, cy + big * 0.55, { size: leftSize, align: 'center', color: COLORS.cream });
 
@@ -1704,13 +1638,12 @@
     var SPEED_ORDER = ['normal', 'off'];
 
     function drawMenu() {
-      var r = panelRect(340, 332);
+      var r = panelRect(340, 282);
       drawPanelBg(r);
       text('Paused', r.x + r.w / 2, r.y + 36, { size: 24, family: FONT_HEAD, align: 'center', color: COLORS.red });
       var bx = r.x + 30, bw = r.w - 60, y = r.y + 62, step = 50;
       button('Resume', bx, y, bw, 40, function () { closeOverlay(); }, 'primary', 'm-resume'); y += step;
       button('Animations: ' + SPEED_LABELS[settings.speed || 'normal'], bx, y, bw, 40, cycleSpeed, 'light', 'm-speed'); y += step;
-      button(settings.walls ? 'Hide the walls' : 'Show the walls', bx, y, bw, 40, toggleWalls, 'light', 'm-walls'); y += step;
       button('Quit game', bx, y, bw, 40, function () { quit(); }, 'light', 'm-quit');
       var modeLine = (settings.mode === 'practice' ? 'Practice mode' : 'Payout mode') + ' · ' + (settings.spicy === 'half' ? 'Half spicy' : 'Full spicy');
       text(modeLine, r.x + r.w / 2, r.y + r.h - 18, { size: 12, align: 'center', color: COLORS.muted });
@@ -1728,13 +1661,6 @@
       saveSetting('speed', next);
       requestRender();
       track('play_set_speed', { speed: next });
-    }
-
-    function toggleWalls() {
-      saveSetting('walls', !settings.walls);
-      L = computeLayout();
-      requestRender();
-      track('play_toggle_walls', { walls: settings.walls ? 'on' : 'off' });
     }
 
     function drawGameOver() {
@@ -2054,9 +1980,7 @@
       },
       draw: function (d) {
         sound.play('draw');
-        var h = game.hand;
-        var pos = d.replacement ? 144 - h.backDrawn : 144 - h.wall.length - h.backDrawn - 1;
-        var from = wallPose(pos);
+        var from = drawOrigin();
         if (d.seat === 0) {
           ui.hide.drawn = true;
           var order = myHandOrder();
@@ -2271,7 +2195,7 @@
       var agents = [humanAgent(), botAgent(), botAgent(), botAgent()];
       track('play_start', {
         spicy: settings.spicy, mode: settings.mode, hints: settings.hints ? 'on' : 'off',
-        speed: settings.speed, walls: settings.walls ? 'on' : 'off',
+        speed: settings.speed,
       });
       while (!destroyed) {
         var res = await E.runHand(game, agents, uiBridge);
@@ -2342,7 +2266,7 @@
    * 5. Preview page wiring (settings form <-> table)
    * ------------------------------------------------------------------ */
 
-  // Settings the form doesn't show (hints, animations, walls) keep whatever
+  // Settings the form doesn't show (hints, animations) keep whatever
   // was last chosen from the in-game menu.
   function readForm(form, saved) {
     saved = saved || {};
@@ -2355,7 +2279,6 @@
       mode: get('mode', saved.mode || 'payout'),
       hints: get('hints', saved.hints === false ? 'off' : 'on') === 'on',
       speed: get('speed', saved.speed) === 'off' ? 'off' : 'normal', // an old 'fast' setting shows animations
-      walls: get('walls', saved.walls === false ? 'off' : 'on') === 'on',
     };
   }
 
@@ -2368,7 +2291,6 @@
     if (saved.mode) set('mode', saved.mode);
     if (saved.hints !== undefined) set('hints', saved.hints ? 'on' : 'off');
     if (saved.speed) set('speed', saved.speed);
-    if (saved.walls !== undefined) set('walls', saved.walls ? 'on' : 'off');
   }
 
   function init() {
