@@ -53,6 +53,7 @@
     : root.MahjongEngine;
 
   var DRAGONS = [31, 32, 33];
+  var EARLY_WALL = 60; // more tiles than this left in the wall is the early part of the hand
   var SUIT_LABELS = { c: 'Characters', d: 'Circles', b: 'Bamboos' };
   var ESTIMATE_FAAN_CAP = 10;
   var VALUE_SLOPE = 0.6; // value of each faan above the minimum
@@ -423,6 +424,15 @@
     var plan = best && best.plan;
     if (plan && !best.readyBest && (plan.id === 'triplets' || plan.id === 'concealed-triplets') && counts[i] >= 2) {
       return counts[i] >= 3 ? 7 : 6;
+    }
+    // Early in the hand, an honor that can still become a set is one of the
+    // hand's most valuable tiles: it waits like a pair, and a dragon or your
+    // own or the round's wind waits longer still. (Seven Pairs only needs
+    // its pairs, so singles can go there.)
+    if (i >= 27 && ctx.wallLeft > EARLY_WALL && revealedCopies(game, i) < 2 && !chaseSevenPairs(counts, ctx)) {
+      var value = valueWeight(ctx, i) > 0;
+      if (counts[i] >= 2) return value ? 5 : 4;
+      return value ? 4 : 3;
     }
     var dragon = DRAGONS.indexOf(i) !== -1 && revealedCopies(game, i) < 1;
     var pair = counts[i] === 2;
@@ -854,21 +864,6 @@
       if (a.priority !== b.priority) return a.priority - b.priority;
       return E.isTerminalOrHonorIndex(b.index) - E.isTerminalOrHonorIndex(a.index);
     });
-    // Concealed sequences wants suited tiles. Honors go first, unless a pair
-    // of them is already the eyes and the hand is ready or one tile away.
-    // (Not while folding: then safety decides.)
-    var lead = out[0] && out[0].analysis.best;
-    var leadPlan = lead && lead.plan;
-    if (!folding && leadPlan && leadPlan.id === 'straights' && !lead.readyBest) {
-      var honors = [];
-      var rest = [];
-      out.forEach(function (x) {
-        var eyes = c[x.index] === 2 && (x.shanten <= 1 || bestShanten <= 1);
-        if (x.index >= 27 && !eyes) honors.push(x);
-        else rest.push(x);
-      });
-      if (honors.length) out = honors.concat(rest);
-    }
     return { ctx: ctx, candidates: out, threats: threats, defense: weight, folding: folding };
   }
 

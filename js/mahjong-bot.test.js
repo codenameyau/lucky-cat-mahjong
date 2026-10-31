@@ -173,14 +173,19 @@ describe('expert playbook', () => {
     assert.equal(B.chooseTurnAction(game, 0, noKongs).tile, 'b2');
   });
 
-  it('throws honors before suited tiles in a concealed sequence hand', () => {
-    // A dragon used to outrank the suited tiles. Concealed sequences keeps
-    // the suits and lets the honor go.
+  it('keeps live honors early in the hand, even in a concealed sequence hand', () => {
     const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd6', 'd7', 'b2', 'b3', 'dr'];
-    const game = table({ seats: [{ hand }] });
-    const top = B.analyzeDiscards(game, 0).candidates[0];
-    assert.equal(top.analysis.best.plan.id, 'straights');
-    assert.equal(top.tile, 'dr');
+    const game = table({ seats: [{ hand }], wallLeft: 80 });
+    assert.notEqual(B.analyzeDiscards(game, 0).candidates[0].tile, 'dr');
+    // A guest wind is kept early too, as long as it can still become a set.
+    const wind = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd6', 'd7', 'b2', 'b3', 'wn'];
+    assert.notEqual(B.analyzeDiscards(table({ seats: [{ hand: wind }], wallLeft: 80 }), 0).candidates[0].tile, 'wn');
+  });
+
+  it('lets an early honor go once two copies are out', () => {
+    const wind = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd6', 'd7', 'b2', 'b9', 'wn'];
+    const game = table({ seats: [{ hand: wind }, { discards: ['wn'] }, { discards: ['wn'] }], wallLeft: 80 });
+    assert.equal(B.analyzeDiscards(game, 0).candidates[0].tile, 'wn');
   });
 
   it('keeps an honor pair that is the eyes when the hand is close to winning', () => {
