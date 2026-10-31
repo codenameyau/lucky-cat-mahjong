@@ -1466,11 +1466,9 @@
       return { action: action, detail: detail };
     }
 
-    // The note is saved before that action is applied, so this is the move it is about.
-    function handMoveNumber() {
-      var h = game && game.hand;
-      if (!h) return ui.coachLog.length + 1;
-      return (h.discardCount || 0) + (h.claimsMade || 0) + 1;
+    // Your own moves in this hand, counted 1, 2, 3 (one note per move).
+    function handMoveNumber(hand) {
+      return ui.coachLog.filter(function (e) { return e.hand === hand; }).length + 1;
     }
 
     function rememberCoach(note, kind) {
@@ -1478,10 +1476,8 @@
       if (!plain) return;
       var last = ui.coachLog[ui.coachLog.length - 1];
       if (last && last.kind === kind && last.action === plain.action && last.detail === plain.detail) return;
-      ui.coachLog.push({
-        kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber(),
-        hand: game ? game.handNumber : 1, // the log runs across the whole game
-      });
+      var hand = game ? game.handNumber : 1; // the log runs across the whole game
+      ui.coachLog.push({ kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber(hand), hand: hand });
       if (ui.coachLog.length > 200) ui.coachLog.shift(); // a whole hand's worth
       ui.coachStick = true;
     }
