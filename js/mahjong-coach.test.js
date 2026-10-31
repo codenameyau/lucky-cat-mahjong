@@ -31,7 +31,7 @@ const text = (hint) => [hint.action].concat(hint.tips).join(' ');
 describe('coach: discards', () => {
   const mixed = ['c2', 'c3', 'c4', 'd4', 'd5', 'd6', 'b3', 'b4', 'b6', 'b7', 'd8', 'd8', 'c9', 'dr'];
 
-  it('keeps a live dragon and throws a lone end tile instead', () => {
+  it('keeps a live dragon and throws a lone terminal instead', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
     assert.equal(hint.tile, 'c9');
     assert.equal(hint.action, 'Discard Nine Character.');

@@ -8,7 +8,7 @@
        mixed hand built on dragon and wind sets. Routes that can't reach 3
        faan count for little, however fast they are.
      - Then discard what the route doesn't use. After that, lone tiles and
-       end tiles go before pairs and connected shapes.
+       terminals go before pairs and connected shapes.
      - Honors: keep a lone honor while it can still become a set (dragons
        and your own or the round's wind most of all), and let it go once two
        copies are out.
@@ -328,11 +328,11 @@
     if (pick.lone) {
       if (i >= 27) return 'It\'s a lone honor that adds no faan for you.';
       return E.isTerminalOrHonorIndex(i)
-        ? 'It\'s an end tile on its own, the hardest kind to use.'
+        ? 'It\'s a terminal on its own, the hardest kind to use.'
         : 'It\'s on its own, with nothing next to it.';
     }
     var r = i % 9;
-    if (i < 27 && (r === 0 || r === 8)) return 'Edge shapes like this one are the slowest to finish.';
+    if (i < 27 && (r === 0 || r === 8)) return 'Terminals like this one are the slowest to build on.';
     return 'Your hand needs it least.';
   }
 
