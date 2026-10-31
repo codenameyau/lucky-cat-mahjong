@@ -585,8 +585,8 @@
       var bandTop = hintY;
       var gap = 6;
 
-      var sideW = portrait ? clamp(W * 0.17, 58, 92) : clamp(W * 0.17, 124, 214);
-      var topPanelH = portrait ? clamp(H * 0.12, 74, 108) : clamp(H * 0.18, 96, 140);
+      var sideW = portrait ? clamp(W * 0.18, 62, 98) : clamp(W * 0.18, 130, 224);
+      var topPanelH = portrait ? clamp(H * 0.13, 80, 116) : clamp(H * 0.19, 104, 150);
       var sideHead = portrait ? 36 : 26;
       var topHead = 24;
       var opp = [];
@@ -902,7 +902,7 @@
       // hand along their edge (a fresh draw sits a little apart, and the tile
       // they are considering lifts), melds and flowers in front of it.
       var f = L.oppFrames[seat];
-      var bw = clamp(Math.min(f.w / 15.2, (f.h - 6) * 0.56 / (TILE_ASPECT + 0.08)), 8, 34);
+      var bw = clamp(Math.min(f.w / 14.7, (f.h - 6) * 0.6 / (TILE_ASPECT + 0.08)), 8, 38);
       var count = oppConcealedCount(seat);
       var apart = ui.botDrawn[seat] && count > 0;
       var backsY = f.h - bw * (TILE_ASPECT + 0.08) - 1;
