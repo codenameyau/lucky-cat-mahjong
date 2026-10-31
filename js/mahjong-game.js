@@ -414,7 +414,11 @@
     var sound = createSound(prefs.sound !== false);
     var reduceMotion = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    var W = 0, H = 0, dpr = 1;
+    // W and H are the layout size. On short landscape screens the table is
+    // laid out taller and scaled down to fit (zoom < 1); dpr then includes
+    // that zoom so everything still renders sharp.
+    var W = 0, H = 0, dpr = 1, zoom = 1, cssW = 0, cssH = 0;
+    var MIN_LANDSCAPE_H = 520;
     var L = null;
     var game = null;
     var destroyed = false;
@@ -517,11 +521,13 @@
 
     function resize() {
       var rect = canvas.getBoundingClientRect();
-      var nextDpr = Math.min(root.devicePixelRatio || 1, 2.5);
-      if (rect.width === W && rect.height === H && nextDpr === dpr) return;
-      W = rect.width; H = rect.height; dpr = nextDpr;
-      canvas.width = Math.round(W * dpr);
-      canvas.height = Math.round(H * dpr);
+      var deviceDpr = Math.min(root.devicePixelRatio || 1, 2.5);
+      var nextZoom = rect.width > rect.height && rect.height < MIN_LANDSCAPE_H ? rect.height / MIN_LANDSCAPE_H : 1;
+      if (rect.width === cssW && rect.height === cssH && deviceDpr * nextZoom === dpr) return;
+      cssW = rect.width; cssH = rect.height; zoom = nextZoom;
+      W = cssW / zoom; H = cssH / zoom; dpr = deviceDpr * zoom;
+      canvas.width = Math.round(cssW * deviceDpr);
+      canvas.height = Math.round(cssH * deviceDpr);
       spriteCache = {};
       L = computeLayout();
       requestRender();
@@ -572,7 +578,7 @@
       var pad = W < 600 ? 6 : 14;
       var topH = 42;
       var portrait = W < 700 || W < H * 0.9;
-      var tw = clamp((W - 2 * pad) / 14.8, 20, 60);
+      var tw = clamp(Math.min((W - 2 * pad) / 14.8, H * 0.085), 20, 60);
       var th = tw * TILE_ASPECT;
       var handY = H - pad - th - Math.max(2, tw * 0.08) - 4;
       var mw = clamp(tw * 0.7, 16, 40);
@@ -580,8 +586,11 @@
       var meY = handY - meldRowH - 6;
       var actionsH = 44;
       var hintH = ui.hints ? (W < 600 ? 66 : 54) : 0;
-      var actionsY = meY - actionsH - 4;
-      var hintY = actionsY - hintH - (hintH ? 4 : 0);
+      // Short landscape screens put the action buttons in the meld row,
+      // between your melds and your name, to leave room for the table.
+      var actionsInRow = !portrait && H < 640;
+      var actionsY = actionsInRow ? meY + (meldRowH - actionsH) / 2 - 4 : meY - actionsH - 4;
+      var hintY = (actionsInRow ? meY : actionsY) - hintH - (hintH ? 4 : 0);
       var bandTop = hintY;
       var gap = 6;
 
@@ -649,7 +658,7 @@
       return {
         pad: pad, topH: topH, portrait: portrait,
         tw: tw, th: th, handY: handY, mw: mw, meY: meY, meldRowH: meldRowH,
-        actionsY: actionsY, actionsH: actionsH, hintY: hintY, hintH: hintH,
+        actionsY: actionsY, actionsH: actionsH, actionsInRow: actionsInRow, hintY: hintY, hintH: hintH,
         opp: opp, oppFrames: oppFrames, pond: pond, inner: inner, wall: wall, zones: zones, zoneFrames: zoneFrames,
         center: center, pw: pw, maxDiscards: maxDiscards,
       };
@@ -927,8 +936,9 @@
         drawTile(it.id, mx, meldY, mw - 0.5, { back: it.back, shadow: false });
         mx += mw;
       });
+      // Like a real table, melds then flowers run from the owner's left.
       var fw = mw * 0.8;
-      var fx = f.w - flowersN * fw;
+      var fx = mx + (items.length ? mw * 0.35 : 0);
       s.flowers.forEach(function (id, k) {
         drawTile(id, fx + k * fw, meldY + (mw - fw) * TILE_ASPECT, fw - 0.5, { shadow: false });
       });
@@ -937,7 +947,7 @@
       ui.oppHand[seat] = { f: f, backX: backX, backsY: backsY, bw: bw };
       ui.backAnchor[seat] = localPose(f, bx0 + count * bw + bw * 0.4, backsY, bw);
       ui.meldAnchor[seat] = localPose(f, mx + (items.length ? mw * 0.35 : 0), meldY, mw);
-      ui.flowerAnchor[seat] = localPose(f, fx - fw, meldY, fw);
+      ui.flowerAnchor[seat] = localPose(f, fx + flowersN * fw, meldY, fw);
 
       if (ui.thinking === seat) drawThinking(seat, t);
     }
@@ -1110,6 +1120,7 @@
       var fy = y + (L.mw - fw) * TILE_ASPECT;
       s.flowers.forEach(function (f, k) { drawTile(f, fx + k * (fw + 1), fy, fw, { shadow: false }); });
       ui.flowerAnchor[0] = { x: fx + s.flowers.length * (fw + 1), y: fy, w: fw, rot: 0 };
+      ui.meRowFree = { x0: ui.flowerAnchor[0].x + 10, x1: W - pad - infoW - 10 };
 
       // Hand.
       var order = myHandOrder();
@@ -1240,13 +1251,20 @@
       var claimTile = ui.claimPrompt ? ui.claimPrompt.opts.tile : null;
       var ctw = claimTile ? Math.min(30, (L.actionsH - 4) / TILE_ASPECT) : 0;
       var lead = claimTile ? ctw + 10 : 0;
-      var maxW = W - 2 * L.pad - lead;
+      var x0 = L.pad, x1 = W - L.pad, rowY = L.actionsY;
+      var free = ui.meRowFree;
+      if (L.actionsInRow) {
+        // Too many buttons for the gap beside your melds: float them over the tips instead.
+        if (free && free.x1 - free.x0 - lead >= acts.length * (60 + gap)) { x0 = free.x0; x1 = free.x1; }
+        else rowY = L.hintH ? L.hintY + (L.hintH - L.actionsH) / 2 : L.meY - L.actionsH - 4;
+      }
+      var maxW = x1 - x0 - lead;
       var bw = clamp((maxW - gap * (acts.length - 1)) / acts.length, 60, 150);
       var total = acts.length * bw + (acts.length - 1) * gap;
-      var x = (W - total - lead) / 2 + lead;
-      var y = L.actionsY + (L.actionsH - h) / 2;
+      var x = x0 + (x1 - x0 - total - lead) / 2 + lead;
+      var y = rowY + (L.actionsH - h) / 2;
       if (claimTile) {
-        drawTile(claimTile, x - lead, L.actionsY + (L.actionsH - ctw * TILE_ASPECT) / 2, ctw, { glow: COLORS.gold });
+        drawTile(claimTile, x - lead, rowY + (L.actionsH - ctw * TILE_ASPECT) / 2, ctw, { glow: COLORS.gold });
       }
       var hintDecision = ui.hints && ui.hint && ui.hint.decision;
       acts.forEach(function (a, i) {
@@ -1753,7 +1771,7 @@
 
     function pointerPos(e) {
       var rect = canvas.getBoundingClientRect();
-      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      return { x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom };
     }
 
     function onPointerDown(e) {
