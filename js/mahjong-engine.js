@@ -285,6 +285,53 @@
     };
   }
 
+  // A match between hands as plain data (it can go in localStorage). The
+  // shuffle's random numbers can't be resumed, so a restored match deals
+  // its next hand from a fresh seed.
+  function serializeGame(game) {
+    return {
+      v: 1,
+      settings: {
+        spicy: game.settings.spicy, mode: game.settings.mode,
+        startPoints: game.settings.startPoints, minFaan: game.settings.minFaan,
+      },
+      players: game.players.map(function (p) { return { name: p.name, isHuman: !!p.isHuman, points: p.points }; }),
+      spareNames: game.spareNames.slice(),
+      round: game.round,
+      dealer: game.dealer,
+      firstDealer: game.firstDealer,
+      handNumber: game.handNumber,
+      dealerRepeat: game.dealerRepeat,
+    };
+  }
+
+  // Returns a game ready for runHand, or null if the data isn't a valid match.
+  function restoreGame(data) {
+    if (!data || data.v !== 1 || !data.settings || !Array.isArray(data.players) || data.players.length !== 4) return null;
+    var okInt = function (n, lo, hi) { return typeof n === 'number' && n % 1 === 0 && n >= lo && n <= hi; };
+    if (!okInt(data.round, 1, 4) || !okInt(data.dealer, 0, 3) || !okInt(data.firstDealer, 0, 3)) return null;
+    if (!okInt(data.handNumber, 0, 100000) || !okInt(data.dealerRepeat, 0, 100000)) return null;
+    for (var i = 0; i < 4; i++) {
+      var p = data.players[i];
+      if (!p || typeof p.name !== 'string' || typeof p.points !== 'number' || !isFinite(p.points)) return null;
+    }
+    if (!data.players[0].isHuman) return null;
+    var game = createGame({
+      spicy: data.settings.spicy, mode: data.settings.mode,
+      startPoints: okInt(data.settings.startPoints, 1, 1000000) ? data.settings.startPoints : START_POINTS,
+    });
+    game.players = data.players.map(function (p, k) {
+      return { name: p.name.slice(0, 24), isHuman: k === 0, points: p.points };
+    });
+    game.spareNames = Array.isArray(data.spareNames) ? data.spareNames.filter(function (n) { return typeof n === 'string'; }).slice(0, 20) : [];
+    game.round = data.round;
+    game.dealer = data.dealer;
+    game.firstDealer = data.firstDealer;
+    game.handNumber = data.handNumber;
+    game.dealerRepeat = data.dealerRepeat;
+    return game;
+  }
+
   function seatWind(game, seat) {
     return ((seat - game.dealer + 4) % 4) + 1;
   }
@@ -901,6 +948,8 @@
     winningTiles: winningTiles,
     createGame: createGame,
     startHand: startHand,
+    serializeGame: serializeGame,
+    restoreGame: restoreGame,
     seatWind: seatWind,
     wallCount: wallCount,
     replaceFlowers: replaceFlowers,

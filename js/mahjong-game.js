@@ -13,6 +13,7 @@
 
   var SETTINGS_KEY = 'lcm-play-settings';
   var PREFS_KEY = 'lcm-play-prefs';
+  var GAME_KEY = 'lcm-play-game'; // the match in progress, saved after every hand
   var TILE_ASPECT = 1.4;
 
   var COLORS = {
@@ -50,6 +51,9 @@
   }
   function writeJson(key, value) {
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+  }
+  function removeKey(key) {
+    try { localStorage.removeItem(key); } catch (e) {}
   }
 
   function track(name, params) {
@@ -437,6 +441,7 @@
     var ui = {
       coach: settings.coach || 'on', // 'on' (advice), 'feedback' (notes on your last move) or 'off'
       feedback: null, // the coach's note on your previous move
+      restartArmed: 0, // when Restart game was first tapped in the menu
       turnSeat: null,
       selected: -1,
       turnPrompt: null,
@@ -1703,15 +1708,30 @@
     var SPEED_ORDER = ['normal', 'off'];
 
     function drawMenu() {
-      var r = panelRect(340, 282);
+      var r = panelRect(340, 332);
       drawPanelBg(r);
       text('Paused', r.x + r.w / 2, r.y + 36, { size: 24, family: FONT_HEAD, align: 'center', color: COLORS.red });
       var bx = r.x + 30, bw = r.w - 60, y = r.y + 62, step = 50;
       button('Resume', bx, y, bw, 40, function () { closeOverlay(); }, 'primary', 'm-resume'); y += step;
       button('Animations: ' + SPEED_LABELS[settings.speed || 'normal'], bx, y, bw, 40, cycleSpeed, 'light', 'm-speed'); y += step;
+      var armed = ui.restartArmed && now() - ui.restartArmed < 5000;
+      button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, 40, restartGame, armed ? 'gold' : 'light', 'm-restart'); y += step;
       button('Quit game', bx, y, bw, 40, function () { quit(); }, 'light', 'm-quit');
       var modeLine = (settings.mode === 'practice' ? 'Practice mode' : 'Payout mode') + ' · ' + (settings.spicy === 'half' ? 'Half spicy' : 'Full spicy');
       text(modeLine, r.x + r.w / 2, r.y + r.h - 18, { size: 12, align: 'center', color: COLORS.muted });
+    }
+
+    // Restarting throws the match away, so it takes a second tap.
+    function restartGame() {
+      if (ui.restartArmed && now() - ui.restartArmed < 5000) {
+        ui.restartArmed = 0;
+        track('play_restart', {});
+        callbacks.restart();
+        return;
+      }
+      ui.restartArmed = now();
+      requestRender();
+      setTimeout(function () { if (!destroyed) requestRender(); }, 5100);
     }
 
     function saveSetting(key, value) {
@@ -2263,14 +2283,33 @@
       if (res.type === 'win' && res.payer === 0) st.dealIns++;
     }
 
+    // The match is saved between hands: leaving mid-hand resumes at the next
+    // deal with the scores from the last finished hand.
+    function saveMatch() {
+      writeJson(GAME_KEY, { v: 1, savedAt: Date.now(), game: E.serializeGame(game), stats: ui.stats });
+    }
+
     async function play() {
       await loadAssets();
       spriteCache = {};
-      game = E.createGame({ spicy: settings.spicy, mode: settings.mode });
+      var restored = settings.resume ? E.restoreGame(settings.resume.game) : null;
+      if (restored) {
+        game = restored;
+        var st = settings.resume.stats || {};
+        ui.stats = {
+          hands: st.hands > 0 ? Math.floor(st.hands) : 0,
+          wins: st.wins > 0 ? Math.floor(st.wins) : 0,
+          dealIns: st.dealIns > 0 ? Math.floor(st.dealIns) : 0,
+          best: st.best > 0 ? st.best : null,
+        };
+      } else {
+        game = E.createGame({ spicy: settings.spicy, mode: settings.mode });
+      }
+      saveMatch(); // a new game replaces any older saved one
       var agents = [humanAgent(), botAgent(), botAgent(), botAgent()];
       track('play_start', {
-        spicy: settings.spicy, mode: settings.mode, coach: settings.coach,
-        speed: settings.speed,
+        spicy: game.settings.spicy, mode: game.settings.mode, coach: settings.coach,
+        speed: settings.speed, resumed: restored ? 'yes' : 'no',
       });
       while (!destroyed) {
         var res = await E.runHand(game, agents, uiBridge);
@@ -2289,6 +2328,7 @@
           }
         }
         if (res.roundAdvanced && !extra) extra = 'The round wind is now ' + E.WIND_NAMES[game.round] + '.';
+        if (game.over) removeKey(GAME_KEY); else saveMatch();
         await showOverlay({ type: 'summary', result: res, extra: extra });
         if (game.over) {
           track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins });
@@ -2368,6 +2408,20 @@
     if (saved.speed) set('speed', saved.speed);
   }
 
+  // The saved match, if there is a valid one.
+  function savedMatch() {
+    var d = readJson(GAME_KEY, null);
+    return d && d.game && E.restoreGame(d.game) ? d : null;
+  }
+
+  function describeMatch(d) {
+    var g = d.game;
+    var line = E.WIND_NAMES[g.round] + ' round, hand ' + (g.handNumber + 1);
+    if (g.settings.mode === 'payout') line += ', with ' + fmt(g.players[0].points) + ' points';
+    line += '. ' + (g.settings.mode === 'payout' ? 'Payout mode' : 'Practice mode') + ', ' + (g.settings.spicy === 'half' ? 'half spicy' : 'full spicy') + '.';
+    return line;
+  }
+
   function init() {
     var form = document.getElementById('play-settings');
     var stage = document.getElementById('play-stage');
@@ -2378,6 +2432,25 @@
     loadAssets();
 
     var table = null;
+    var resumeBtn = document.getElementById('play-resume');
+    var startBtn = document.getElementById('play-start');
+    var savedBox = document.getElementById('play-saved');
+    var savedInfo = document.getElementById('play-saved-info');
+
+    // With a saved match the card offers Resume game and Start new game.
+    function showSaved() {
+      var d = savedMatch();
+      if (resumeBtn) resumeBtn.disabled = !d;
+      if (resumeBtn) resumeBtn.hidden = !d;
+      if (savedBox) savedBox.hidden = !d;
+      if (d && savedInfo) savedInfo.textContent = describeMatch(d);
+      if (startBtn) {
+        startBtn.textContent = d ? 'Start new game' : 'Start game';
+        startBtn.classList.toggle('btn-primary', !d);
+        startBtn.classList.toggle('btn-outline', !!d);
+      }
+    }
+    showSaved();
 
     function open(settings) {
       stage.hidden = false;
@@ -2385,7 +2458,12 @@
       if (table) table.destroy();
       table = createTable(canvas, live, settings, {
         quit: close,
-        restart: function () { open(settings); },
+        // A restart is always a brand new game, even from a resumed one.
+        restart: function () {
+          var fresh = {};
+          Object.keys(settings).forEach(function (k) { if (k !== 'resume') fresh[k] = settings[k]; });
+          open(fresh);
+        },
       });
       table.start();
       canvas.focus();
@@ -2397,14 +2475,35 @@
       table = null;
       stage.hidden = true;
       document.documentElement.classList.remove('is-playing');
-      var start = document.getElementById('play-start');
-      if (start) start.focus();
+      showSaved();
+      var focus = document.getElementById('play-resume') && !document.getElementById('play-resume').hidden ? resumeBtn : startBtn;
+      if (focus) focus.focus();
     }
+
+    // Remember the last Payout/Practice and spicy choices as soon as they change.
+    form.addEventListener('change', function () {
+      var saved = readJson(SETTINGS_KEY, {});
+      var now = readForm(form, saved);
+      saved.mode = now.mode;
+      saved.spicy = now.spicy;
+      writeJson(SETTINGS_KEY, saved);
+    });
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      var settings = readForm(form, readJson(SETTINGS_KEY, {}));
-      writeJson(SETTINGS_KEY, settings);
+      var saved = readJson(SETTINGS_KEY, {});
+      var settings = readForm(form, saved);
+      var match = e.submitter && e.submitter.id === 'play-resume' ? savedMatch() : null;
+      if (match) {
+        // Resuming plays the saved match's own mode and payout table.
+        settings.mode = match.game.settings.mode;
+        settings.spicy = match.game.settings.spicy;
+        settings.resume = match;
+        applySaved(form, settings);
+      }
+      var toSave = {};
+      Object.keys(settings).forEach(function (k) { if (k !== 'resume') toSave[k] = settings[k]; });
+      writeJson(SETTINGS_KEY, toSave);
       // ?instant=1 skips animations for this visit only (handy for testing).
       if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
       open(settings);

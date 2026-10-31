@@ -28,7 +28,7 @@
   <link rel="preload" href="/fonts/kn-yuanmo-sc.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="/css/fonts.css">
   <link rel="stylesheet" href="/css/styles.css">
-  <link rel="stylesheet" href="/css/play.css?v=20261101b">
+  <link rel="stylesheet" href="/css/play.css?v=20261101c">
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-B514HH987M"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -101,7 +101,16 @@
 
 
 
-        <button type="submit" class="btn btn-primary play-start" id="play-start">Start game</button>
+        <div class="play-saved" id="play-saved" hidden>
+          <p class="play-saved-title">Game in progress</p>
+          <p class="play-saved-info" id="play-saved-info"></p>
+        </div>
+
+        <div class="play-actions">
+          <!-- First, so Enter resumes; disabled (and skipped) when there is no saved game. -->
+          <button type="submit" class="btn btn-primary play-start" id="play-resume" hidden disabled>Resume game</button>
+          <button type="submit" class="btn btn-primary play-start" id="play-start">Start game</button>
+        </div>
       </form>
     </section>
 
@@ -137,10 +146,10 @@
 
   <script src="/js/nav.js" defer></script>
   <script src="/js/points.js?v=20261030b" defer></script>
-  <script src="/js/mahjong-engine.js?v=20261031b" defer></script>
+  <script src="/js/mahjong-engine.js?v=20261101a" defer></script>
   <script src="/js/mahjong-bot.js?v=20261031c" defer></script>
   <script src="/js/mahjong-coach.js?v=20261101f" defer></script>
-  <script src="/js/mahjong-game.js?v=20261101m" defer></script>
+  <script src="/js/mahjong-game.js?v=20261101o" defer></script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
   </script>
