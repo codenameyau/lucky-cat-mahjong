@@ -152,6 +152,60 @@ describe('expert playbook', () => {
   });
 });
 
+describe('chows and committing to a suit', () => {
+  // Seat 1 (South) has exposed the Bamboo chow 1-2-3 and holds ten tiles plus a draw.
+  const afterChow = (extra) => table(Object.assign({
+    seats: [null, {
+      hand: ['b4', 'b5', 'b6', 'b8', 'b9', 'c5', 'd7', 'c2', 'd3', 'ww', 'we'],
+      melds: [{ type: 'chow', tiles: ['b1', 'b2', 'b3'], concealed: false, from: 0 }],
+    }],
+  }, extra));
+
+  it('treats tiles of other suits as worthless after a chow and throws them first', () => {
+    const game = afterChow({});
+    const pick = B.analyzeDiscards(game, 1).candidates[0].tile;
+    assert.ok(['c5', 'd7', 'c2', 'd3'].includes(pick), 'discarded ' + pick);
+  });
+
+  it('commits to the chow\'s suit unless the hand already holds 2 faan of flowers', () => {
+    const plain = afterChow({});
+    assert.equal(B.chowCommitment(B.buildContext(plain, 1)), 'b');
+    // Seat 1 is South (wind 2): its flower and season are f2 and s2 and make 2 faan.
+    const rich = afterChow({});
+    rich.hand.seats[1].flowers = ['f2', 's2'];
+    assert.equal(B.flowerPoints(B.buildContext(rich, 1)), 2);
+    assert.equal(B.chowCommitment(B.buildContext(rich, 1)), null);
+    // No flowers is only 1 faan, a lone seat flower is 1: both still commit.
+    const lone = afterChow({});
+    lone.hand.seats[1].flowers = ['f2'];
+    assert.equal(B.chowCommitment(B.buildContext(lone, 1)), 'b');
+  });
+
+  it('does not commit when the open melds already span two suits', () => {
+    const game = afterChow({});
+    game.hand.seats[1].melds.push({ type: 'pung', tiles: ['c7', 'c7', 'c7'], concealed: false, from: 2 });
+    assert.equal(B.chowCommitment(B.buildContext(game, 1)), null);
+  });
+
+  it('passes on a chow that only helps a little', () => {
+    const game = table({ seats: [{ hand: ['c2', 'c3', 'd5', 'd7', 'b2', 'b4', 'b8', 'b9', 'we', 'ws', 'dg', 'dw', 'c9'] }] });
+    const opts = E.claimOptions(game, 0, 'c4', 3, false);
+    assert.ok(opts.chows.length);
+    assert.equal(B.chooseClaim(game, 0, opts).type, 'pass');
+  });
+
+  it('takes a chow that makes a flush hand ready', () => {
+    // Bamboo half flush that the chow turns into a ready hand.
+    const game = table({
+      seats: [{ hand: ['b1', 'b2', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9', 'dr', 'dr', 'ww', 'ww', 'we'] }],
+      wallLeft: 60,
+    });
+    const opts = E.claimOptions(game, 0, 'b3', 3, false);
+    assert.ok(opts.chows.length);
+    assert.equal(B.chooseClaim(game, 0, opts).type, 'chow');
+  });
+});
+
 describe('bot strength', () => {
   // Baseline: discards purely for shanten and live tiles, never claims.
   function efficiencyAgent() {

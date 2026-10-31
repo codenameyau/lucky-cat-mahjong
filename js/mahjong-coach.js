@@ -88,10 +88,11 @@
       meldSuits: ctx.meldSuits, melds: ctx.melds,
       drawsLeft: Math.max(1, ctx.wallLeft / 4), unseenTotal: ctx.unseenTotal,
     };
-    // No flowers is 1 faan; otherwise your seat's flower and season are 1 each.
-    v.flowerFaan = s.flowers.length
-      ? s.flowers.filter(function (id) { return parseInt(id.charAt(1), 10) === v.seatWind; }).length
-      : 1;
+    // No flowers is 1 faan; otherwise your seat's flower and season are 1 each
+    // (and a full set of four flowers or seasons is 2).
+    v.flowerFaan = B.flowerPoints(ctx);
+    // After a chow, only the chow's suit (and honors) can still win.
+    v.committedSuit = B.chowCommitment(ctx);
     v.meldFaan = meldFaanOf(v, ctx.melds);
     return v;
   }
@@ -116,6 +117,7 @@
     next.hasChow = ctx.hasChow;
     next.meldSuits = ctx.meldSuits;
     next.meldFaan = meldFaanOf(v, ctx.melds);
+    next.committedSuit = B.chowCommitment(ctx);
     return next;
   }
 
@@ -156,6 +158,16 @@
     var honors = countWhere(c, function (i) { return i >= 27; });
     var pairs = 0;
     for (var i = 0; i < 34; i++) if (c[i] >= 2) pairs++;
+
+    if (v.committedSuit) {
+      var cs = v.committedSuit;
+      routes.push({
+        id: 'half', suit: cs, faan: base + 3 + honorFaan(v, c),
+        keep: function (j) { return E.suitOfIndex(j) === cs || j >= 27; },
+      });
+      if (!v.meldSuits.z) routes.push({ id: 'full', suit: cs, faan: base + 7, keep: function (j) { return E.suitOfIndex(j) === cs; } });
+      return routes;
+    }
 
     routes.push({ id: 'mixed', faan: base + honorFaan(v, c) });
     if (!v.declared) {
@@ -271,7 +283,12 @@
     var bestShanten = Math.min.apply(null, out.map(function (x) { return x.shanten; }));
     var readyFaan = out.reduce(function (m, x) { return Math.max(m, x.ready ? x.ready.bestFaan : 0); }, 0);
     var weight = B.defenseWeight(v.ctx, threats, bestShanten, readyFaan);
-    out.forEach(function (x) { x.score = x.offense - weight * x.loss; });
+    out.forEach(function (x) {
+      x.score = x.offense - weight * x.loss;
+      // After a chow, tiles of other suits are worthless and go first (the
+      // bots break ties the same way).
+      if (v.committedSuit && x.index < 27 && E.suitOfIndex(x.index) !== v.committedSuit) x.score += 0.004;
+    });
     out.defense = weight;
     out.sort(function (a, b) {
       if (Math.abs(b.score - a.score) > 1e-9) return b.score - a.score;
@@ -313,6 +330,9 @@
 
   function whyDiscard(v, c, pick, route) {
     var i = pick.index;
+    if (v.committedSuit && i < 27 && E.suitOfIndex(i) !== v.committedSuit) {
+      return 'You\'ve already chowed in ' + SUIT_NAME[v.committedSuit] + ', so tiles from other suits can\'t help you reach ' + v.game.settings.minFaan + ' faan.';
+    }
     if (i >= 27 && c[i] === 1 && v.dropped[i] >= 2) {
       return COUNT_WORDS[v.dropped[i]] + ' ' + (v.dropped[i] === 1 ? name(i) + ' is' : plural(i) + ' are') + ' already out, so it can\'t become a set.';
     }
@@ -633,7 +653,10 @@
       return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(best.res, c)) }, tips.length - 1);
     }
 
-    if (bestFaan < min) {
+    var chowOnly = options.every(function (o) { return o.decision.type === 'chow'; });
+    if (chowOnly && bestFaan >= min) {
+      tips.push('Pass. A chow gives up' + (v.concealed ? ' your concealed hand and' : '') + ' flexibility, so save it for when it makes you ready or builds a flush.');
+    } else if (bestFaan < min) {
       tips.push(v.concealed
         ? 'Pass. Claiming gives up the 1 faan for a concealed hand' + (stay && stay.route.id === 'straights' ? ' and All Sequences' : '') + ', leaving you short of ' + min + ' faan.'
         : 'Pass. After claiming, this hand couldn\'t reach ' + min + ' faan.');

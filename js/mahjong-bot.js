@@ -183,12 +183,57 @@
     return n;
   }
 
+  // Faan a hand already holds from its flowers: No Flowers is 1; otherwise
+  // your seat's flower and season are 1 each, and a full set of four is 2.
+  function flowerPoints(ctx) {
+    var f = ctx.flowers;
+    if (!f.length) return 1;
+    var seat = ctx.seatWind, pts = 0;
+    if (f.indexOf('f' + seat) !== -1) pts++;
+    if (f.indexOf('s' + seat) !== -1) pts++;
+    if (['f1', 'f2', 'f3', 'f4'].every(function (id) { return f.indexOf(id) !== -1; })) pts += 2;
+    if (['s1', 's2', 's3', 's4'].every(function (id) { return f.indexOf(id) !== -1; })) pts += 2;
+    return pts;
+  }
+
+  // Once you've exposed a chow, a hand of mixed suits can't reach the 3-faan
+  // minimum (it has given up Concealed, and All Sequences needs 3 faan from
+  // somewhere else), so the way forward is a flush in the chow's suit and
+  // every tile of another suit is worth nothing. The exception is a hand
+  // that already holds 2 faan of flowers. Returns that suit, or null.
+  function chowCommitment(ctx) {
+    if (!ctx.hasChow || flowerPoints(ctx) >= 2) return null;
+    var suits = Object.keys(ctx.meldSuits).filter(function (k) { return k !== 'z'; });
+    return suits.length === 1 ? suits[0] : null;
+  }
+
   // Candidate plans for a 13-tile (waiting to draw) concealed portion.
   function plansFor(c, ctx) {
     var base = baseFaan(ctx) + (ctx.concealed ? 1 : 0);
     var yaku = handYaku(ctx, c);
     var plans = [];
     var honorsInHand = countWhere(c, function (i) { return i >= 27; });
+
+    var committed = chowCommitment(ctx);
+    if (committed) {
+      // Only the chow's suit (and honors) count. Tiles of other suits fall
+      // out of every plan, so they're the first to go.
+      var inSuitHalf = function (i) { return E.suitOfIndex(i) === committed || i >= 27; };
+      var inSuitFull = function (i) { return E.suitOfIndex(i) === committed; };
+      plans.push({
+        id: 'half-' + committed, suit: committed, label: 'a Half Flush in ' + SUIT_LABELS[committed],
+        counts: restrict(c, inSuitHalf), shantenFn: E.standardShanten,
+        faan: base + 3 + handYaku(ctx, restrict(c, inSuitHalf)), open: true,
+      });
+      if (!ctx.meldSuits.z) {
+        plans.push({
+          id: 'full-' + committed, suit: committed, label: 'a Full Flush in ' + SUIT_LABELS[committed],
+          counts: restrict(c, inSuitFull), shantenFn: E.standardShanten,
+          faan: base + 7, open: true,
+        });
+      }
+      return plans;
+    }
 
     var plain = { id: 'plain', label: 'a standard hand', counts: c, shantenFn: E.standardShanten, faan: base + yaku, open: true };
     if (!honorsInHand && !ctx.melds.some(function (m) { return m.type !== 'chow'; })) plain.faan += 0.5;
@@ -542,7 +587,13 @@
     var bestShanten = Math.min.apply(null, out.map(function (x) { return x.shanten; }));
     var readyFaan = out.reduce(function (m, x) { return Math.max(m, x.analysis.ready ? x.analysis.ready.bestFaan : 0); }, 0);
     var weight = defenseWeight(ctx, threats, bestShanten, readyFaan);
-    out.forEach(function (x) { x.score = x.util - weight * x.loss; });
+    // After a chow, tiles of other suits are worthless: they go first, ahead
+    // of honors and chow-suit tiles that tie with them on value.
+    var committed = chowCommitment(ctx);
+    out.forEach(function (x) {
+      x.score = x.util - weight * x.loss;
+      if (committed && x.index < 27 && E.suitOfIndex(x.index) !== committed) x.score += 0.004;
+    });
     out.sort(function (a, b) {
       if (b.score !== a.score) return b.score - a.score;
       return E.isTerminalOrHonorIndex(b.index) - E.isTerminalOrHonorIndex(a.index);
@@ -635,18 +686,33 @@
     var stayPlan = res.stay.best && res.stay.best.plan;
     if (opts.pung && ti >= 27 && valueWeight(ctx, ti) && !(stayPlan && stayPlan.id === 'pairs')) return { type: 'pung' };
     var options = res.options.filter(function (o) {
-      if (o.decision.type !== 'chow') return true;
-      // Chow only when it clearly gets closer to ready; early on, only for
-      // a flush or a ready hand, so the hand isn't given away.
-      var after = o.analysis ? o.analysis.shanten : 9;
-      if (after >= res.stay.shanten) return false;
-      var plan = o.analysis && o.analysis.best && o.analysis.best.plan;
-      var flushPlan = plan && /^(half|full)/.test(plan.id);
-      return ctx.turn >= 4 || flushPlan || after === 0;
+      return o.decision.type !== 'chow' || chowWorthIt(o, res, ctx, game);
     });
     var top = options[0];
-    if (top && top.score > res.passScore * 1.04 + 0.01) return top.decision;
+    var bar = top && top.decision.type === 'chow' ? 1.2 : 1.04;
+    if (top && top.score > res.passScore * bar + 0.01) return top.decision;
     return { type: 'pass' };
+  }
+
+  // A chow gives up the hand's concealed faan and shows what you're doing, so
+  // take one only when it is necessary or helps a lot: it makes the hand
+  // ready for a winning faan count, or it builds the flush the hand is
+  // already going for, or it's late and gets you meaningfully closer.
+  function chowWorthIt(o, res, ctx, game) {
+    var an = o.analysis;
+    if (!an) return false;
+    var after = an.shanten, before = res.stay.shanten;
+    if (after >= before) return false;
+    var min = game.settings.minFaan;
+    var plan = an.best && an.best.plan;
+    // After the chow the hand must still be able to reach the minimum.
+    if (after === 0) return !!(an.ready && an.ready.bestFaan >= min);
+    if (!plan || plan.faan < min - 0.25) return false;
+    var flushPlan = /^(half|full)/.test(plan.id);
+    if (flushPlan && after <= 2) return true;
+    // Late in the hand, a chow that saves a step is worth the cost.
+    var late = ctx.turn >= 9 || ctx.wallLeft < 48;
+    return late && before - after >= 1 && after <= 2;
   }
 
   function createBotAgent(options) {
@@ -667,6 +733,8 @@
     plansFor: plansFor,
     readyValue: readyValue,
     opponentThreats: opponentThreats,
+    flowerPoints: flowerPoints,
+    chowCommitment: chowCommitment,
     dealInLoss: dealInLoss,
     defenseWeight: defenseWeight,
     THREAT_LEVELS: THREAT_LEVELS,

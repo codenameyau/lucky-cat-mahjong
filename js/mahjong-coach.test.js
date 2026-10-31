@@ -168,3 +168,38 @@ describe('coach: feedback on your last move', () => {
     assert.match(fb.tips[0], /^You took the Chow\. /);
   });
 });
+
+describe('coach: after a chow', () => {
+  const chowed = (flowers) => table({
+    seats: [{
+      hand: ['b4', 'b5', 'b6', 'b8', 'b9', 'c5', 'd7', 'c2', 'd3', 'ww', 'we'],
+      melds: [{ type: 'chow', tiles: ['b1', 'b2', 'b3'], concealed: false, from: 3 }],
+      flowers: flowers || [],
+    }],
+  });
+
+  it('throws a tile of another suit first and says why', () => {
+    const hint = C.turnHint(chowed(), 0, { kongs: [] });
+    assert.ok(['c5', 'd7', 'c2', 'd3'].includes(hint.tile), 'discarded ' + hint.tile);
+    assert.match(text(hint), /You've already chowed in Bamboo, so tiles from other suits can't help you reach 3 faan/);
+  });
+
+  it('only goes for a flush in the chow\'s suit', () => {
+    const hint = C.turnHint(chowed(), 0, { kongs: [] });
+    assert.match(text(hint), /Your target is (Half|Full) Flush in Bamboo/);
+  });
+
+  it('keeps other suits in play once the hand holds 2 faan of flowers', () => {
+    // East seat: f1 and s1 are its own flower and season.
+    const v = C.look(chowed(['f1', 's1']), 0);
+    assert.equal(v.committedSuit, null);
+    assert.equal(C.look(chowed(), 0).committedSuit, 'b');
+  });
+
+  it('advises passing on a chow it would rather wait on', () => {
+    const game = table({ seats: [{ hand: ['c2', 'c3', 'd5', 'd7', 'b2', 'b4', 'b8', 'b9', 'we', 'ws', 'dg', 'dw', 'c9'] }] });
+    const hint = C.claimHint(game, 0, E.claimOptions(game, 0, 'c4', 3, false));
+    assert.equal(hint.decision.type, 'pass');
+    assert.match(text(hint), /A chow gives up your concealed hand and flexibility/);
+  });
+});
