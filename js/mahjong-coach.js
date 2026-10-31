@@ -367,7 +367,7 @@
   // The "Target: ..." phrase is wrapped in invisible markers so the game can
   // draw it in the brand red (see TARGET_START / TARGET_END in mahjong-game.js).
   function marked(text) {
-    var m = text.match(/^([\s\S]*?\(about [^)]*\))([\s\S]*)$/);
+    var m = text.match(/^([\s\S]*?\(\d+ faan\))([\s\S]*)$/);
     return m ? '\u0001Target: ' + m[1] + '\u0002' + m[2] : 'Target: ' + text;
   }
 
@@ -378,10 +378,18 @@
 
   function targetText(v, plan, c, nextOut) {
     var r = plan.route;
-    var f = 'about ' + faanWord(r.faan);
+    // The target is shown at the hand's own value from the scoring table
+    // (what the pattern is worth), not an estimate with bonuses mixed in.
+    var F = E.HKScoring.FAAN;
+    var own = {
+      straights: F.allSequences + F.concealed, half: F.halfFlush, full: F.fullFlush,
+      triplets: F.allTriplets, pairs: F.sevenPairs,
+    };
+    var f = (own[r.id] !== undefined ? own[r.id] : 0) + ' faan';
     if (r.id === 'straights') {
       var keep = liveValueSingles(v, c).filter(function (i) { return i !== nextOut; });
       return 'Concealed All Sequences (' + f + '): runs only, no claims' +
+        (v.flowerFaan ? ', and your flowers add the third faan' : '') +
         (keep.length ? '; hold the ' + listNames(keep) + ' in case ' + (keep.length > 1 ? 'one pairs' : 'it pairs') + ' up' : '');
     }
     if (r.id === 'half') return 'Half Flush in ' + SUIT_NAME[r.suit] + ' (' + f + '): keep ' + SUIT_NAME[r.suit] + ' and honors';
@@ -389,9 +397,9 @@
     if (r.id === 'triplets') return 'All Triplets (' + f + '): keep pairs and Pung them';
     if (r.id === 'pairs') return 'Seven Pairs (' + f + '): keep pairs, don\'t claim';
     for (var i = 27; i < 34; i++) {
-      if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) return 'sets around your ' + name(i) + ' pair (' + f + '); Pung it if it\'s thrown';
+      if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) return 'a ' + name(i) + ' set (' + honorWorth(v, i) + ' faan); Pung it if it\'s thrown';
     }
-    return 'a quick hand (' + f + ')';
+    return 'a chicken hand (0 faan)';
   }
 
   // Axis A in words: early on there's room to build; late, finish fast.
