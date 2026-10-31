@@ -1352,9 +1352,11 @@
       return { x: (W - w) / 2, y: (H - h) / 2, w: w, h: h };
     }
 
-    function drawPanelBg(r) {
-      ctx.fillStyle = 'rgba(0,0,0,0.45)';
-      ctx.fillRect(0, 0, W, H);
+    function drawPanelBg(r, noDim) {
+      if (!noDim) {
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillRect(0, 0, W, H);
+      }
       ctx.save();
       ctx.shadowColor = 'rgba(0,0,0,0.4)';
       ctx.shadowBlur = 30;
@@ -1371,19 +1373,74 @@
       else if (o.type === 'gameover') drawGameOver();
     }
 
+    // Winning hand as one row: melds, then concealed tiles, small gaps between groups.
+    function summaryHandItems(res) {
+      var all = [];
+      res.melds.forEach(function (m) {
+        if (all.length) all.push({ gap: true });
+        meldTiles(m).forEach(function (it) { all.push(it); });
+      });
+      if (res.concealed.length) {
+        if (all.length) all.push({ gap: true });
+        var marked = false;
+        res.concealed.forEach(function (id) {
+          var win = !marked && res.tile === id;
+          if (win) marked = true;
+          all.push({ id: id, glow: win ? COLORS.gold : null, win: win });
+        });
+      }
+      return all;
+    }
+
+    function sectionLabel(str, x, y) {
+      text(str.toUpperCase(), x, y, { size: 11, weight: 'bold', color: COLORS.muted });
+    }
+
     function drawSummary(o) {
       var res = o.result;
-      var practice = settings.mode === 'practice';
       var isWin = res.type === 'win';
+      var showPay = isWin && settings.mode !== 'practice';
       var items = isWin ? res.score.items : [];
-      var rowsH = isWin ? items.length * 24 + 34 : 0;
-      var handH = isWin ? 70 : 0;
-      var payH = practice || !isWin ? 0 : 4 * 24 + 24;
-      var wantH = 84 + handH + rowsH + payH + 72 + (o.extra ? 24 : 0);
-      var r = panelRect(560, wantH);
-      drawPanelBg(r);
-      var x = r.x + 20, w = r.w - 40;
-      var y = r.y + 34;
+      var hand = isWin ? summaryHandItems(res) : [];
+      var flowers = isWin ? res.flowers : [];
+      var units = hand.reduce(function (n, it) { return n + (it.gap ? 0.3 : 1); }, 0);
+
+      var wide = W >= 680 && showPay;
+      var maxW = wide ? 720 : 560;
+      var pw = Math.min(maxW, W - 24);
+      var pad = pw < 400 ? 16 : 24;
+      var w = pw - 2 * pad;
+      var colGap = 28;
+      var colW = wide ? (w - colGap) / 2 : w;
+
+      // Pick the roomiest spacing that fits the screen.
+      var lay;
+      [{ rh: 26, tw: 40 }, { rh: 22, tw: 32 }, { rh: 19, tw: 26 }, { rh: 17, tw: 22 }].some(function (c) {
+        var tw = isWin ? clamp((w - 24) / Math.max(units, 1), 14, c.tw) : 0;
+        var fw = Math.round(clamp(tw * 0.78, 16, 30));
+        var handH = isWin ? tw * TILE_ASPECT + 26 : 0;
+        var flowerH = flowers.length ? fw * TILE_ASPECT + 14 : 0;
+        var patH = isWin ? 24 + items.length * c.rh + 12 + 26 : 0;
+        var payH = showPay ? 24 + 22 + 4 * c.rh : 0;
+        var bodyH = wide ? Math.max(patH, payH) : patH + (payH ? payH + 18 : 0);
+        var h = 24 + 30 + 22 + (isWin ? 14 : 0) + handH + flowerH + (isWin ? 18 : 0) + bodyH + (o.extra ? 28 : 0) + 78;
+        lay = { rh: c.rh, tw: tw, fw: fw, h: h };
+        return h <= H - 24;
+      });
+
+      // Very short screens (landscape phones) shrink the whole panel to fit.
+      var k = Math.min(1, (H - 24) / lay.h);
+      var r = { x: (W - pw) / 2, y: (H - lay.h) / 2, w: pw, h: lay.h };
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      ctx.translate(W / 2, H / 2);
+      ctx.scale(k, k);
+      ctx.translate(-W / 2, -H / 2);
+      drawPanelBg(r, true);
+      var x = r.x + pad;
+      var cx = r.x + r.w / 2;
+      var y = r.y + 24 + 15;
 
       var title, sub;
       if (isWin) {
@@ -1392,80 +1449,135 @@
         if (res.how === 'discard' || res.how === 'robKong') {
           sub = (res.payer === 0 ? 'You' : game.players[res.payer].name) + ' discarded the winning tile.';
         } else {
-          sub = 'Seat wind ' + E.WIND_NAMES[res.seatWind] + ' · ' + E.WIND_NAMES[res.round] + ' round';
+          sub = E.WIND_NAMES[res.seatWind] + ' seat · ' + E.WIND_NAMES[res.round] + ' round';
         }
       } else {
         title = 'Draw game';
         sub = 'The wall ran out with no winner. The dealer keeps the deal.';
       }
-      var ts = fitFont(ctx, title, w, 26, FONT_HEAD);
-      text(title, r.x + r.w / 2, y, { size: ts, family: FONT_HEAD, align: 'center', color: COLORS.red });
-      y += 26;
-      ctx.font = '13px ' + FONT_BODY;
-      text(sub, r.x + r.w / 2, y, { size: fitFont(ctx, sub, w, 13, FONT_BODY), align: 'center', color: COLORS.muted });
-      y += 18;
+      text(title, cx, y, { size: fitFont(ctx, title, w, 26, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.red });
+      y += 15 + 18;
+      text(sub, cx, y, { size: fitFont(ctx, sub, w, 13, FONT_BODY), align: 'center', color: COLORS.muted });
+      y += 11 + 14;
 
       if (isWin) {
-        // Winning hand: declared melds, then concealed tiles, winning tile highlighted.
-        var all = [];
-        res.melds.forEach(function (m) {
-          if (all.length) all.push({ gap: true });
-          meldTiles(m).forEach(function (it) { all.push(it); });
+        // The hand sits on its own felt strip; the winning tile gets a gold caret.
+        var tw = lay.tw, th = tw * TILE_ASPECT;
+        var stripH = th + 26;
+        roundRect(ctx, x, y, w, stripH, 12);
+        ctx.fillStyle = COLORS.felt;
+        ctx.fill();
+        var hx = cx - units * tw / 2;
+        var ty = y + 10;
+        hand.forEach(function (it) {
+          if (it.gap) { hx += tw * 0.3; return; }
+          drawTile(it.id, hx, ty, tw - 1, { back: it.back, shadow: false, glow: it.glow });
+          if (it.win) {
+            ctx.beginPath();
+            ctx.moveTo(hx + tw / 2 - 5, ty + th + 11);
+            ctx.lineTo(hx + tw / 2 + 5, ty + th + 11);
+            ctx.lineTo(hx + tw / 2, ty + th + 5);
+            ctx.closePath();
+            ctx.fillStyle = COLORS.gold;
+            ctx.fill();
+          }
+          hx += tw;
         });
-        if (res.concealed.length) {
-          if (all.length) all.push({ gap: true });
-          var marked = false;
-          res.concealed.forEach(function (id) {
-            var glow = !marked && res.tile === id ? COLORS.gold : null;
-            if (glow) marked = true;
-            all.push({ id: id, glow: glow });
+        y += stripH;
+
+        if (flowers.length) {
+          // Flowers and seasons get their own labelled row; the seat's own ones glow.
+          var fw = lay.fw, fh = fw * TILE_ASPECT;
+          y += 14;
+          var fy = y;
+          sectionLabel('Flowers & seasons', x, fy + fh / 2);
+          ctx.font = 'bold 11px ' + FONT_BODY;
+          var fx = Math.min(x + ctx.measureText('FLOWERS & SEASONS').width + 16, x + w - flowers.length * (fw + 6) + 6);
+          flowers.forEach(function (f) {
+            var own = f === 'f' + res.seatWind || f === 's' + res.seatWind;
+            drawTile(f, fx, fy, fw, { shadow: false, glow: own ? COLORS.gold : null });
+            fx += fw + 6;
           });
+          y += fh;
         }
-        var n = all.filter(function (i) { return !i.gap; }).length + all.filter(function (i) { return i.gap; }).length * 0.35;
-        var tw = clamp((w - (res.flowers.length ? 40 : 0)) / Math.max(n, 1), 14, 34);
-        var hx = r.x + (r.w - n * tw) / 2;
-        flowRow(all, hx, y + 6, n * tw + 2, tw);
-        if (res.flowers.length) {
-          var fw = 14;
-          res.flowers.forEach(function (f, k) { drawTile(f, r.x + r.w - 20 - (res.flowers.length - k) * (fw + 1), y + 6 + tw * TILE_ASPECT - fw * TILE_ASPECT, fw, { shadow: false }); });
-        }
-        y += tw * TILE_ASPECT + 22;
+        y += 18;
 
-        items.forEach(function (it) {
-          text(it.name + '  ' + it.cn, x, y, { size: 15, color: COLORS.ink });
-          text(it.faan >= 13 ? 'Limit' : it.faan + ' faan', x + w, y, { size: 15, weight: 'bold', align: 'right', color: it.faan ? COLORS.ink : COLORS.muted });
-          y += 24;
+        var rh = lay.rh;
+        var colX = x;
+        var top = y;
+        // Patterns and faan.
+        sectionLabel('Patterns', colX, y + 6);
+        y += 24;
+        items.forEach(function (it, i) {
+          if (i % 2 === 0) {
+            ctx.fillStyle = 'rgba(0,0,0,0.035)';
+            roundRect(ctx, colX - 8, y, colW + 16, rh, 6);
+            ctx.fill();
+          }
+          var my = y + rh / 2;
+          var faanLabel = it.faan >= 13 ? 'Limit' : it.faan + ' faan';
+          ctx.font = 'bold 15px ' + FONT_BODY;
+          var faanW = ctx.measureText(faanLabel).width + 12;
+          var ns = fitFont(ctx, it.name, colW - faanW - 40, 15, FONT_BODY);
+          text(it.name, colX, my, { size: ns, color: COLORS.ink });
+          ctx.font = ns + 'px ' + FONT_BODY;
+          var nameW = ctx.measureText(it.name).width;
+          if (nameW + 44 < colW - faanW) text(it.cn, colX + nameW + 8, my, { size: 13, family: FONT_HEAD, color: COLORS.muted });
+          text(faanLabel, colX + colW, my, { size: 15, weight: 'bold', align: 'right', color: it.faan ? COLORS.ink : COLORS.muted });
+          y += rh;
         });
-        ctx.fillStyle = 'rgba(0,0,0,0.12)';
-        ctx.fillRect(x, y - 10, w, 1);
         y += 6;
-        var totalLabel = res.score.faan >= 13 ? res.score.faan + ' faan (limit)' : res.score.faan + ' faan';
-        text('Total', x, y, { size: 17, weight: 'bold', color: COLORS.ink });
-        text(totalLabel, x + w, y, { size: 17, weight: 'bold', align: 'right', color: COLORS.red });
-        y += 28;
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.fillRect(colX, y, colW, 1);
+        y += 6;
+        var totalLabel = res.score.faan >= 13 ? res.score.faan + ' faan · limit' : res.score.faan + ' faan';
+        text('Total', colX, y + 13, { size: 17, weight: 'bold', color: COLORS.ink });
+        text(totalLabel, colX + colW, y + 13, { size: 17, weight: 'bold', align: 'right', color: COLORS.red });
+        y += 26;
+        var bottom = y;
 
-        if (!practice) {
+        if (showPay) {
+          if (wide) { colX = x + colW + colGap; y = top; } else { y += 18; }
+          sectionLabel('Payout · ' + (settings.spicy === 'half' ? 'half spicy' : 'full spicy'), colX, y + 6);
+          y += 24;
           var base = res.score.points;
           var how = res.payer === null || res.payer === undefined
-            ? 'Self-draw: each player pays ' + fmt(base) + ' points'
-            : (res.payer === 0 ? 'You pay ' : game.players[res.payer].name + ' pays ') + fmt(base) + ' points';
-          text(how + (settings.spicy === 'half' ? ' (half spicy)' : ' (full spicy)'), x, y, { size: 13, color: COLORS.muted });
+            ? 'Self-draw: everyone pays ' + fmt(base)
+            : (res.payer === 0 ? 'You pay ' : game.players[res.payer].name + ' pays ') + fmt(base);
+          text(how, colX, y + 7, { size: fitFont(ctx, how, colW, 13, FONT_BODY), color: COLORS.muted });
           y += 22;
           for (var p = 0; p < 4; p++) {
             var d = res.deltas[p];
-            text((p === 0 ? 'You' : game.players[p].name) + (p === res.winner ? ' (winner)' : ''), x, y, { size: 15, weight: p === 0 ? 'bold' : '', color: COLORS.ink });
-            text(signed(d), x + w * 0.68, y, { size: 15, weight: 'bold', align: 'right', color: d > 0 ? COLORS.green : d < 0 ? COLORS.red : COLORS.muted });
-            text(fmt(res.after[p]), x + w, y, { size: 15, align: 'right', color: COLORS.ink });
-            y += 24;
+            var my2 = y + rh / 2;
+            if (p === res.winner) {
+              ctx.fillStyle = 'rgba(244,160,32,0.16)';
+              roundRect(ctx, colX - 8, y, colW + 16, rh, 6);
+              ctx.fill();
+            }
+            var name = (p === 0 ? 'You' : game.players[p].name);
+            text(name, colX, my2, { size: fitFont(ctx, name, colW * 0.5, 15, FONT_BODY, p === 0 ? 'bold' : ''), weight: p === 0 ? 'bold' : '', color: COLORS.ink });
+            text(signed(d), colX + colW * 0.7, my2, { size: 15, weight: 'bold', align: 'right', color: d > 0 ? COLORS.green : d < 0 ? COLORS.red : COLORS.muted });
+            text(fmt(res.after[p]), colX + colW, my2, { size: 15, align: 'right', color: COLORS.muted });
+            y += rh;
           }
+          bottom = Math.max(bottom, y);
         }
+        y = bottom;
       }
       if (o.extra) {
-        text(o.extra, r.x + r.w / 2, y + 2, { size: 13, align: 'center', color: COLORS.muted });
-        y += 24;
+        var ey = y + 18;
+        text(o.extra, cx, ey, { size: fitFont(ctx, o.extra, w, 13, FONT_BODY), align: 'center', color: COLORS.muted });
       }
       var label = game.over ? 'See results' : 'Next hand';
-      button(label, r.x + r.w / 2 - 80, r.y + r.h - 56, 160, 42, function () { closeOverlay(); }, 'primary', 'next');
+      var firstRegion = regions.length;
+      button(label, cx - 80, r.y + r.h - 62, 160, 42, function () { closeOverlay(); }, 'primary', 'next');
+      ctx.restore();
+      regions.slice(firstRegion).forEach(function (g) {
+        g.x = W / 2 + (g.x - W / 2) * k;
+        g.y = H / 2 + (g.y - H / 2) * k;
+        g.w *= k;
+        g.h *= k;
+      });
     }
 
     var SPEED_LABELS = { normal: 'Normal', fast: 'Fast', off: 'Skip' };
@@ -2136,6 +2248,7 @@
       },
       // Exposed for debugging in the browser console.
       get game() { return game; },
+      get ui() { return ui; },
     };
   }
 
