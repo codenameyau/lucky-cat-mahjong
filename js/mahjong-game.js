@@ -874,15 +874,62 @@
       return p.name;
     }
 
+    // A small robot (computer players) or person (human players) icon, drawn
+    // with paths so it doesn't depend on any emoji font.
+    var ICON_GAP = 5;
+    function playerIcon(seat, x, cy, s) {
+      var human = game.players[seat].isHuman;
+      var ink = COLORS.feltDark;
+      ctx.save();
+      ctx.fillStyle = COLORS.cream;
+      ctx.strokeStyle = COLORS.cream;
+      ctx.lineWidth = Math.max(1, s * 0.09);
+      ctx.lineCap = 'round';
+      if (human) {
+        ctx.beginPath();
+        ctx.arc(x + s / 2, cy - s * 0.2, s * 0.24, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x + s * 0.08, cy + s * 0.5);
+        ctx.quadraticCurveTo(x + s * 0.08, cy + s * 0.12, x + s / 2, cy + s * 0.12);
+        ctx.quadraticCurveTo(x + s * 0.92, cy + s * 0.12, x + s * 0.92, cy + s * 0.5);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        // Antenna, head, ears, eyes and mouth.
+        ctx.beginPath();
+        ctx.moveTo(x + s / 2, cy - s * 0.28);
+        ctx.lineTo(x + s / 2, cy - s * 0.46);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x + s / 2, cy - s * 0.5, s * 0.08, 0, Math.PI * 2);
+        ctx.fill();
+        roundRect(ctx, x + s * 0.12, cy - s * 0.28, s * 0.76, s * 0.68, s * 0.16);
+        ctx.fill();
+        ctx.fillRect(x, cy - s * 0.02, s * 0.1, s * 0.26);
+        ctx.fillRect(x + s * 0.9, cy - s * 0.02, s * 0.1, s * 0.26);
+        ctx.fillStyle = ink;
+        ctx.beginPath();
+        ctx.arc(x + s * 0.34, cy + s * 0.02, s * 0.085, 0, Math.PI * 2);
+        ctx.arc(x + s * 0.66, cy + s * 0.02, s * 0.085, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(x + s * 0.32, cy + s * 0.24, s * 0.36, s * 0.07);
+      }
+      ctx.restore();
+    }
+
     function drawSeatHeader(seat, x, y, w) {
       var r = 11;
+      var iconS = 15;
       windBadge(seat, x + r, y + r, r);
       var name = seatTitle(seat);
       var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
       ctx.font = 'bold 13px ' + FONT_BODY;
       var ptsW = pts ? ctx.measureText(pts).width + 6 : 0;
-      var nameSize = fitFont(ctx, name, w - 2 * r - 8 - ptsW, 14, FONT_BODY, 'bold');
+      var nameSize = fitFont(ctx, name, w - 2 * r - 8 - ptsW - iconS - ICON_GAP, 14, FONT_BODY, 'bold');
       text(name, x + 2 * r + 6, y + r + 1, { size: nameSize, weight: 'bold', color: COLORS.cream });
+      ctx.font = 'bold ' + nameSize + 'px ' + FONT_BODY;
+      playerIcon(seat, x + 2 * r + 6 + ctx.measureText(name).width + ICON_GAP, y + r, iconS);
       if (pts) text(pts, x + w, y + r + 1, { size: 13, weight: 'bold', color: COLORS.goldLight, align: 'right' });
     }
 
@@ -928,8 +975,10 @@
       var rad = 8;
       windBadge(seat, r.x + 4 + rad, r.y + 4 + rad, rad);
       var name = seatTitle(seat);
-      var size = fitFont(ctx, name, r.w - 2 * rad - 12, 12, FONT_BODY, 'bold');
+      var size = fitFont(ctx, name, r.w - 2 * rad - 12 - 13 - ICON_GAP, 12, FONT_BODY, 'bold');
       text(name, r.x + 2 * rad + 8, r.y + 4 + rad + 1, { size: size, weight: 'bold', color: COLORS.cream });
+      ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
+      playerIcon(seat, r.x + 2 * rad + 8 + ctx.measureText(name).width + ICON_GAP, r.y + 4 + rad, 13);
       if (pts) text(pts, r.x + r.w / 2, r.y + r.h - 7, { size: 11, weight: 'bold', align: 'center', color: COLORS.goldLight });
     }
 
@@ -1925,7 +1974,7 @@
       var r = L.opp[2];
       var rad = 11;
       ctx.font = 'bold 14px ' + FONT_BODY;
-      var left = r.x + 8 + 2 * rad + 6 + ctx.measureText(seatTitle(2)).width + 10;
+      var left = r.x + 8 + 2 * rad + 6 + ctx.measureText(seatTitle(2)).width + ICON_GAP + 15 + 10;
       var pts = settings.mode === 'payout' ? fmt(game.players[2].points) : '';
       ctx.font = 'bold 13px ' + FONT_BODY;
       var right = r.x + r.w - 8 - (pts ? ctx.measureText(pts).width : 0) - 10;
