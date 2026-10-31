@@ -810,7 +810,7 @@
       pill(x, y, w, h, fills[style], style === 'ghost' ? 'rgba(255,255,255,0.3)' : null);
       ctx.restore();
       if (picked) {
-        // A white button the coach recommends keeps its color and gets a gold ring.
+        // The coach's recommended move keeps its own color and gets a gold ring.
         roundRect(ctx, x - 2, y - 2, w + 4, h + 4, (h + 4) / 2);
         ctx.strokeStyle = COLORS.gold;
         ctx.lineWidth = 3;
@@ -1348,7 +1348,8 @@
           if (i === lastCopy) { glow = COLORS.gold; hintUsed = true; }
         }
         var claimable = ui.claimPrompt && ui.claimPrompt.highlight && ui.claimPrompt.highlight.indexOf(id) !== -1;
-        drawTile(id, x, L.handY - lift, tw, { glow: glow || (claimable ? 'rgba(255,255,255,0.85)' : null) });
+        // Tiles a pung or chow would use get a red border.
+        drawTile(id, x, L.handY - lift, tw, { glow: glow || (claimable ? COLORS.red : null) });
         var rect = { x: x, y: L.handY - lift, w: tw, h: L.th, id: id, index: i };
         ui.lastHandRects.push(rect);
         if (ui.turnPrompt) {
@@ -1655,15 +1656,13 @@
       var x = x0 + (x1 - x0 - total - lead) / 2 + lead;
       var y = rowY + (L.actionsH - h) / 2;
       if (claimTile) {
-        drawTile(claimTile, x - lead, rowY + (L.actionsH - ctw * TILE_ASPECT) / 2, ctw, { glow: COLORS.gold });
+        drawTile(claimTile, x - lead, rowY + (L.actionsH - ctw * TILE_ASPECT) / 2, ctw, { glow: COLORS.red });
       }
       var hintDecision = ui.coach === 'on' && ui.hint && ui.hint.decision;
       acts.forEach(function (a, i) {
         var id = 'act-' + i;
         var recommended = hintDecision && labelMatches(a.label, hintDecision);
-        // Pass always stays white; a recommended Pass is ringed in gold instead.
-        var white = a.style === 'white';
-        button(a.label, x + i * (bw + gap), y, bw, h, a.fn, recommended && !white ? 'gold' : a.style, id, recommended && white);
+        button(a.label, x + i * (bw + gap), y, bw, h, a.fn, a.style, id, recommended);
       });
     }
 
