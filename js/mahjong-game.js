@@ -913,6 +913,112 @@
       ctx.fillRect(0, 0, W, H);
     }
 
+    /* ---------------- rules sheet ---------------- */
+
+    // Every hand and its faan, read from the scoring table so the sheet can't
+    // drift from how hands are scored. [name, Chinese, faan key, what it is]
+    var RULES = [
+      { title: '1 faan each', rows: [
+        ['All Sequences', '平糊', 'allSequences', 'Four chows and a pair, no honors'],
+        ['Concealed', '門前清', 'concealed', 'No claimed sets'],
+        ['Self-Draw', '自摸', 'selfDraw', 'You draw the winning tile'],
+        ['No Flowers', '無花', 'noFlowers', 'No flowers or seasons'],
+        ['Seat Flower', '正花', 'seatFlower', 'Your own flower'],
+        ['Seat Season', '正季', 'seatSeason', 'Your own season'],
+        ['Dragon Set', '箭刻', 'dragonPung', 'Each pung or kong of a dragon'],
+        ['Seat Wind', '門風', 'yakuWind', 'A set of your own wind'],
+        ['Round Wind', '圈風', 'yakuWind', 'A set of the round wind'],
+        ['Win on Last Tile', '海底撈月', 'lastTile', 'Self-draw the wall\'s last tile'],
+        ['Robbing the Kong', '搶槓', 'robKong', 'Win on a tile added to a kong'],
+        ['Win by Kong', '槓上開花', 'kongWin', 'Win on a kong\'s replacement tile'],
+        ['Mixed Orphans', '混老頭', 'mixedOrphans', 'Only terminals and honors'],
+      ] },
+      { title: '2 to 5 faan', rows: [
+        ['Four Flowers', '四花齊', 'allFlowers', 'All four flowers'],
+        ['Four Seasons', '四季齊', 'allSeasons', 'All four seasons'],
+        ['All Triplets', '對對糊', 'allTriplets', 'Four pungs or kongs and a pair'],
+        ['Half Flush', '混一色', 'halfFlush', 'One suit plus honors'],
+        ['Seven Pairs', '七對子', 'sevenPairs', 'Seven different pairs, concealed'],
+        ['Small Three Dragons', '小三元', 'smallDragons', 'Two dragon sets and a dragon pair'],
+        ['Seven Robbing One', '七搶一', 'sevenFlowers', 'Seven flowers and seasons'],
+      ] },
+      { title: '6 to 10 faan', rows: [
+        ['Small Four Winds', '小四喜', 'smallWinds', 'Three wind sets and a wind pair'],
+        ['Full Flush', '清一色', 'fullFlush', 'One suit only'],
+        ['Big Three Dragons', '大三元', 'greatDragons', 'A set of every dragon'],
+        ['Win by Double Kong', '槓上槓', 'doubleKong', 'Win after two kongs in a row'],
+        ['All Honors', '字一色', 'allHonors', 'Only winds and dragons'],
+        ['All Terminals', '清老頭', 'allTerminals', 'Only 1s and 9s'],
+        ['Concealed Triplets', '坎坎糊', 'allConcealedTriplets', 'Four concealed pungs and a pair'],
+      ] },
+      { title: 'Limit hands', rows: [
+        ['Thirteen Orphans', '十三么', 'thirteenOrphans', 'One of every terminal and honor, plus a pair'],
+        ['Nine Gates', '九蓮寶燈', 'nineGates', '1112345678999 in one suit, plus one more'],
+        ['Big Four Winds', '大四喜', 'greatWinds', 'A set of every wind'],
+        ['Four Quads', '十八羅漢', 'allKongs', 'Four kongs'],
+        ['Heavenly Hand', '天糊', 'thirteenOrphans', 'The dealer wins on the opening hand'],
+        ['Earthly Hand', '地糊', 'thirteenOrphans', 'Win on the dealer\'s first discard'],
+        ['Eight Immortals', '八仙過海', 'eightFlowers', 'All eight flowers and seasons'],
+      ] },
+    ];
+
+    function rulesSheet() {
+      return document.getElementById('rules-sheet');
+    }
+
+    function buildRules() {
+      var body = document.getElementById('rules-sheet-body');
+      if (!body || body.childElementCount) return;
+      var F = E.HKScoring.FAAN;
+      var intro = document.createElement('p');
+      intro.className = 'rules-sheet-intro';
+      intro.textContent = 'Win with four sets (pungs, kongs or chows) and a pair, worth at least ' + E.MIN_FAAN +
+        ' faan. Add up every pattern your hand has. A hand is capped at ' + F.thirteenOrphans + ' faan, a limit hand. A Chicken Hand (雞糊) has no patterns and is worth 0.';
+      body.parentNode.insertBefore(intro, body);
+      RULES.forEach(function (group) {
+        var box = document.createElement('section');
+        box.className = 'rules-group';
+        var h = document.createElement('h3');
+        h.textContent = group.title;
+        box.appendChild(h);
+        group.rows.forEach(function (r) {
+          var row = document.createElement('div');
+          row.className = 'rules-row';
+          var faan = F[r[2]];
+          row.innerHTML = '<div class="rules-row-text"><div class="rules-name"></div><div class="rules-desc"></div></div><div class="rules-faan"></div>';
+          var nm = row.querySelector('.rules-name');
+          nm.textContent = r[0];
+          var cn = document.createElement('span');
+          cn.className = 'rules-cn';
+          cn.textContent = r[1];
+          nm.appendChild(cn);
+          row.querySelector('.rules-desc').textContent = r[3];
+          row.querySelector('.rules-faan').textContent = faan >= F.thirteenOrphans ? 'Limit' : faan + ' faan';
+          box.appendChild(row);
+        });
+        body.appendChild(box);
+      });
+    }
+
+    function openRules() {
+      var dlg = rulesSheet();
+      if (!dlg || dlg.open) return;
+      buildRules();
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+      track('play_open_rules', {});
+    }
+
+    function closeRules() {
+      var dlg = rulesSheet();
+      if (!dlg || !dlg.open) return;
+      if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
+    }
+
+    function rulesOpen() {
+      var dlg = rulesSheet();
+      return !!(dlg && dlg.open);
+    }
+
     var COACH_LABELS = { on: 'Coach on', feedback: 'Feedback on', off: 'Coach off' };
     var COACH_ORDER = ['on', 'feedback', 'off'];
 
@@ -927,11 +1033,17 @@
       button(soundLabel, right - sw, 7, sw, 28, toggleSound, 'ghost', 'sound');
       var hw = W < 420 ? 88 : 106;
       button(COACH_LABELS[ui.coach], right - sw - hw - 6, 7, hw, 28, cycleCoach, ui.coach === 'off' ? 'ghost' : 'gold', 'hints');
+      var rw = W < 420 ? 58 : 68;
+      button('Rules', right - sw - hw - rw - 12, 7, rw, 28, openRules, 'ghost', 'rules');
       if (game) {
         var label = E.WIND_NAMES[game.round] + ' round · Hand ' + game.handNumber;
-        var maxW = right - sw - hw - 12 - (pad + 72);
-        var size = fitFont(ctx, label, maxW, 15, FONT_HEAD);
-        text(label, pad + 72 + maxW / 2, 22, { size: size, family: FONT_HEAD, align: 'center', color: COLORS.cream });
+        var maxW = right - sw - hw - rw - 18 - (pad + 72);
+        // Phones have no room beside the buttons; the round wind still shows
+        // in the middle of the table.
+        if (maxW >= 90) {
+          var size = fitFont(ctx, label, maxW, 15, FONT_HEAD);
+          text(label, pad + 72 + maxW / 2, 22, { size: size, family: FONT_HEAD, align: 'center', color: COLORS.cream });
+        }
       }
     }
 
@@ -2261,6 +2373,7 @@
 
     function onKey(e) {
       if (destroyed) return;
+      if (rulesOpen()) return; // the rules sheet handles its own keys (Escape closes it)
       if (e.key === 'Escape') { openMenu(); e.preventDefault(); return; }
       if (ui.overlay) {
         if (e.key === 'Enter' && ui.overlay.type === 'summary') { closeOverlay(); e.preventDefault(); }
@@ -2662,6 +2775,14 @@
     var onResize = function () { resize(); };
     root.addEventListener('resize', onResize);
     root.addEventListener('keydown', onKey);
+    (function () {
+      var dlg = rulesSheet();
+      if (!dlg) return;
+      dlg.querySelector('.rules-sheet-close').addEventListener('click', closeRules);
+      // A click on the dimmed area outside the sheet closes it too.
+      dlg.addEventListener('click', function (e) { if (e.target === dlg) closeRules(); });
+      dlg.addEventListener('close', function () { canvas.focus(); });
+    })();
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);
     canvas.addEventListener('pointerup', onPointerUp);
