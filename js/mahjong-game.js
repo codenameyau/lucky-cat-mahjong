@@ -677,12 +677,14 @@
       var meldRowH = mw * TILE_ASPECT + 8;
       var meY = handY - meldRowH - 6;
       var actionsH = 44;
-      var hintH = ui.hints ? (W < 600 ? 70 : 60) : 0;
-      // Short landscape screens put the action buttons in the meld row,
-      // between your melds and your name, to leave room for the table.
-      var actionsInRow = !portrait && H < 640;
-      var actionsY = actionsInRow ? meY + (meldRowH - actionsH) / 2 - 4 : meY - actionsH - 4;
-      var hintY = (actionsInRow ? meY : actionsY) - hintH - (hintH ? 4 : 0);
+      // The coach's bar keeps its space even when the coach is off, so
+      // toggling it never moves the table.
+      var hintH = W < 600 ? 70 : 60;
+      // Action buttons sit in the meld row, between your melds and your
+      // name, so the table gets the room.
+      var actionsInRow = true;
+      var actionsY = meY + (meldRowH - actionsH) / 2;
+      var hintY = meY - hintH - 4;
       var bandTop = hintY;
       var gap = 6;
 
@@ -1267,7 +1269,8 @@
 
       // Info + melds row.
       var infoW = clamp(W * 0.3, 130, 240);
-      drawSeatHeader(0, W - pad - infoW, y + 2, infoW);
+      // Your name steps aside while action buttons need its spot.
+      if (!ui.buttonsOverName) drawSeatHeader(0, W - pad - infoW, y + 2, infoW);
       var items = meldItems(0);
       var mx = pad;
       // Same size as the hand; only shrinks if the row would run out of room.
@@ -1332,17 +1335,15 @@
     }
 
     function drawHintBand() {
-      if (!L.hintH) {
-        if (ui.notice && !ui.overlay && (ui.turnPrompt || ui.claimPrompt)) drawToast(ui.notice);
-        return;
-      }
+      // With the coach off, the bar's space stays empty apart from notes.
+      if (!ui.hints && !(ui.notice && !ui.overlay && (ui.turnPrompt || ui.claimPrompt))) return;
       var x = L.pad, w = W - 2 * L.pad;
       var lines = [];
       if (ui.notice) lines.push({ text: ui.notice, color: COLORS.goldLight });
       // The main action on its own line in bold gold; the rest as one paragraph.
       if (ui.hint && ui.hint.action) lines.push({ text: ui.hint.action, color: COLORS.goldLight, bold: true });
       if (ui.hint && ui.hint.tips && ui.hint.tips.length) lines.push({ text: ui.hint.tips.join(' '), color: COLORS.cream });
-      if (!lines.length) lines.push({ text: 'The coach gives advice here on your turn and when you can claim a tile.', color: 'rgba(255,248,240,0.6)' });
+      if (!lines.length && ui.hints) lines.push({ text: 'The coach gives advice here on your turn and when you can claim a tile.', color: 'rgba(255,248,240,0.6)' });
       var iconS = Math.min(L.hintH - 14, 48);
       var tx = x + 8 + iconS + 8;
       var tw = w - (tx - x) - 10;
@@ -1371,25 +1372,14 @@
       });
     }
 
-    function drawToast(msg) {
-      var size = W < 600 ? 14 : 16;
-      ctx.font = size + 'px ' + FONT_BODY;
-      var lines = wrapText(ctx, msg, Math.min(W - 40, 520));
-      var w = Math.min(W - 24, Math.max.apply(null, lines.map(function (l) { return ctx.measureText(l).width; })) + 28);
-      var h = lines.length * (size + 4) + 14;
-      var x = (W - w) / 2, y = L.actionsY - h - 6;
-      ctx.save();
-      roundRect(ctx, x, y, w, h, 12);
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fill();
-      ctx.restore();
-      lines.forEach(function (l, i) {
-        text(l, W / 2, y + 7 + (size + 4) * i + (size + 4) / 2, { size: size, align: 'center', color: COLORS.goldLight });
-      });
+    function setButtonsOverName(on) {
+      if (ui.buttonsOverName === on) return;
+      ui.buttonsOverName = on;
+      requestRender(); // your row is drawn first, so redraw it without (or with) the name
     }
 
     function drawActions() {
-      if (ui.overlay) return;
+      if (ui.overlay) { setButtonsOverName(false); return; }
       var acts = [];
       if (ui.turnPrompt) {
         var o = ui.turnPrompt.opts;
@@ -1411,7 +1401,7 @@
         });
         acts.push({ label: 'Pass', style: 'light', fn: function () { resolveClaim({ type: 'pass' }); } });
       }
-      if (!acts.length) return;
+      if (!acts.length) { setButtonsOverName(false); return; }
       var h = 38;
       var gap = 8;
       // When claiming, show the tile that is up for grabs beside the buttons.
@@ -1420,11 +1410,20 @@
       var lead = claimTile ? ctw + 10 : 0;
       var x0 = L.pad, x1 = W - L.pad, rowY = L.actionsY;
       var free = ui.meRowFree;
-      if (L.actionsInRow) {
-        // Too many buttons for the gap beside your melds: float them over the tips instead.
-        if (free && free.x1 - free.x0 - lead >= acts.length * (60 + gap)) { x0 = free.x0; x1 = free.x1; }
-        else rowY = L.hintH ? L.hintY + (L.hintH - L.actionsH) / 2 : L.meY - L.actionsH - 4;
+      var cover = null;
+      if (L.actionsInRow && free) {
+        if (free.x1 - free.x0 - lead >= acts.length * (60 + gap)) { x0 = free.x0; x1 = free.x1; }
+        else if (W - L.pad - free.x0 - lead >= acts.length * (60 + gap)) {
+          // Not enough room beside your name: use the rest of the row and
+          // cover the name while the buttons are up.
+          x0 = free.x0; x1 = W - L.pad;
+          cover = { x: free.x1, w: W - free.x1 };
+        } else {
+          // Still too many (lots of melds and chow choices): float them over the coach's bar.
+          rowY = L.hintY + (L.hintH - L.actionsH) / 2;
+        }
       }
+      setButtonsOverName(!!cover);
       var maxW = x1 - x0 - lead;
       var bw = clamp((maxW - gap * (acts.length - 1)) / acts.length, 60, 150);
       var total = acts.length * bw + (acts.length - 1) * gap;
@@ -1848,7 +1847,6 @@
     function toggleHints() {
       ui.hints = !ui.hints;
       saveSetting('hints', ui.hints);
-      L = computeLayout();
       refreshHint();
       requestRender();
       track('play_toggle_hints', { hints: ui.hints ? 'on' : 'off' });
