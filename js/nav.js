@@ -3,7 +3,7 @@
 (function () {
   'use strict';
 
-  var NAV_JSON = '/data/nav.json?v=20261031i';
+  var NAV_JSON = '/data/nav.json';
 
   var DEFAULT_LINKS = [
     { label: 'Home', href: '/' },

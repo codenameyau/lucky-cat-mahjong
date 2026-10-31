@@ -793,13 +793,14 @@
       regions.push({ x: x, y: y, w: w, h: h, onTap: onTap, id: id });
     }
 
-    function button(label, x, y, w, h, onTap, style, id) {
+    function button(label, x, y, w, h, onTap, style, id, picked) {
       style = style || 'light';
       var isHover = hover === id;
       var fills = {
         primary: isHover ? '#d62a47' : COLORS.red,
         gold: isHover ? '#ffb43c' : COLORS.gold,
         light: isHover ? '#ffffff' : 'rgba(255, 248, 240, 0.94)',
+        white: isHover ? '#ece6de' : '#ffffff',
         ghost: isHover ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)',
       };
       ctx.save();
@@ -808,7 +809,14 @@
       ctx.shadowOffsetY = 2;
       pill(x, y, w, h, fills[style], style === 'ghost' ? 'rgba(255,255,255,0.3)' : null);
       ctx.restore();
-      var color = style === 'light' ? COLORS.ink : COLORS.white;
+      if (picked) {
+        // The coach's recommended move keeps its own color and gets a gold ring.
+        roundRect(ctx, x - 2, y - 2, w + 4, h + 4, (h + 4) / 2);
+        ctx.strokeStyle = COLORS.gold;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+      var color = style === 'light' || style === 'white' ? COLORS.ink : COLORS.white;
       if (style === 'gold') color = COLORS.ink;
       var size = fitFont(ctx, label, w - 16, Math.min(16, h * 0.42), FONT_BODY, 'bold');
       text(label, x + w / 2, y + h / 2 + 1, { size: size, weight: 'bold', color: color, align: 'center' });
@@ -1340,7 +1348,8 @@
           if (i === lastCopy) { glow = COLORS.gold; hintUsed = true; }
         }
         var claimable = ui.claimPrompt && ui.claimPrompt.highlight && ui.claimPrompt.highlight.indexOf(id) !== -1;
-        drawTile(id, x, L.handY - lift, tw, { glow: glow || (claimable ? 'rgba(255,255,255,0.85)' : null) });
+        // Tiles a pung or chow would use get a red border.
+        drawTile(id, x, L.handY - lift, tw, { glow: glow || (claimable ? COLORS.red : null) });
         var rect = { x: x, y: L.handY - lift, w: tw, h: L.th, id: id, index: i };
         ui.lastHandRects.push(rect);
         if (ui.turnPrompt) {
@@ -1469,7 +1478,10 @@
       if (!plain) return;
       var last = ui.coachLog[ui.coachLog.length - 1];
       if (last && last.kind === kind && last.action === plain.action && last.detail === plain.detail) return;
-      ui.coachLog.push({ kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber() });
+      ui.coachLog.push({
+        kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber(),
+        hand: game ? game.handNumber : 1, // the log runs across the whole game
+      });
       if (ui.coachLog.length > 200) ui.coachLog.shift(); // a whole hand's worth
       ui.coachStick = true;
     }
@@ -1505,10 +1517,10 @@
       var textPad = 8 + avatar + 8;
       var blocks = pastCoachEntries().map(function (entry) {
         var lines = [];
-        var moveLabel = 'Move ' + entry.move;
-        ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
-        var moveW = ctx.measureText(moveLabel).width + 12;
-        var innerW = viewW - textPad - 16 - moveW;
+        var moveLabel = 'Hand ' + entry.hand + ' · Move ' + entry.move;
+        // The label gets its own line, so the advice uses the full width.
+        var moveW = 0;
+        var innerW = viewW - textPad - 16;
         function pushWrapped(value, bold, baseColor) {
           if (!value) return;
           ctx.font = (bold ? 'bold ' : '') + size + 'px ' + FONT_BODY;
@@ -1532,7 +1544,7 @@
         // The whole note for that move: the advice in bold, then why.
         pushWrapped(entry.action, true, COLORS.goldLight);
         pushWrapped(entry.detail, false, COLORS.cream);
-        var h = Math.max(avatar + 16, lines.length * lh + 16);
+        var h = Math.max(avatar + 16, (lines.length + 1) * lh + 16);
         return { entry: entry, lines: lines, h: h, moveLabel: moveLabel, moveW: moveW };
       });
       var contentH = blocks.reduce(function (n, b) { return n + b.h + 8; }, 0);
@@ -1561,13 +1573,13 @@
           var logoH = avatar * (images.logo.height / images.logo.width || 1);
           ctx.drawImage(images.logo, viewX + 8, y + (b.h - logoH) / 2, avatar, logoH);
         }
-        var blockH = b.lines.length * lh;
+        var blockH = (b.lines.length + 1) * lh;
         var startY = y + (b.h - blockH) / 2 + lh / 2;
-        text(b.moveLabel, viewX + textPad, startY, { size: size, weight: 'bold', color: COLORS.gold });
+        text(b.moveLabel, viewX + textPad, startY, { size: size - 1, weight: 'bold', color: COLORS.gold });
         b.lines.forEach(function (ln, i) {
           var cx = viewX + textPad + b.moveW;
           ln.segs.forEach(function (sg) {
-            text(sg.text, cx, startY + i * lh, { size: size, color: sg.color, weight: ln.bold ? 'bold' : '' });
+            text(sg.text, cx, startY + (i + 1) * lh, { size: size, color: sg.color, weight: ln.bold ? 'bold' : '' });
             ctx.font = (ln.bold ? 'bold ' : '') + size + 'px ' + FONT_BODY;
             cx += ctx.measureText(sg.text).width;
           });
@@ -1613,7 +1625,7 @@
           var seq = E.sortTiles(pair.concat([c.tile])).map(function (id) { return E.rankOfIndex(E.tileIndex(id)); }).join('-');
           acts.push({ label: 'Chow ' + seq, style: 'primary', fn: function () { resolveClaim({ type: 'chow', tiles: pair }); } });
         });
-        acts.push({ label: 'Pass', style: 'light', fn: function () { resolveClaim({ type: 'pass' }); } });
+        acts.push({ label: 'Pass', style: 'white', fn: function () { resolveClaim({ type: 'pass' }); } });
       }
       if (!acts.length) { setButtonsOverName(false); return; }
       var h = 38;
@@ -1647,13 +1659,13 @@
       var x = x0 + (x1 - x0 - total - lead) / 2 + lead;
       var y = rowY + (L.actionsH - h) / 2;
       if (claimTile) {
-        drawTile(claimTile, x - lead, rowY + (L.actionsH - ctw * TILE_ASPECT) / 2, ctw, { glow: COLORS.gold });
+        drawTile(claimTile, x - lead, rowY + (L.actionsH - ctw * TILE_ASPECT) / 2, ctw, { glow: COLORS.red });
       }
       var hintDecision = ui.coach === 'on' && ui.hint && ui.hint.decision;
       acts.forEach(function (a, i) {
         var id = 'act-' + i;
         var recommended = hintDecision && labelMatches(a.label, hintDecision);
-        button(a.label, x + i * (bw + gap), y, bw, h, a.fn, recommended ? 'gold' : a.style, id);
+        button(a.label, x + i * (bw + gap), y, bw, h, a.fn, a.style, id, recommended);
       });
     }
 
