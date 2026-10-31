@@ -21,6 +21,7 @@
     feltDark: '#074029',
     red: '#C41E3A',
     redDark: '#8f1229',
+    redLight: '#EE6A80', // the brand red, lightened to read on the dark coach bar
     gold: '#F4A020',
     goldLight: '#ffd27a',
     green: '#05693A',
@@ -1358,7 +1359,7 @@
       var out = [];
       lines.forEach(function (l) {
         ctx.font = (l.bold ? 'bold ' : '') + size + 'px ' + FONT_BODY;
-        // The coach marks its "Target: ..." phrase; it's drawn in brand red.
+        // The coach marks its "Target: ..." phrase; it's drawn in a light brand red.
         var plain = '', red = [], from = -1;
         for (var ci = 0; ci < l.text.length; ci++) {
           var ch = l.text.charAt(ci);
@@ -1375,7 +1376,7 @@
             var a = Math.max(r[0], at), b = Math.min(r[1], at + ln.length);
             if (b <= a) return;
             if (a > pos) segs.push({ text: plain.slice(pos, a), color: l.color });
-            segs.push({ text: plain.slice(a, b), color: COLORS.red });
+            segs.push({ text: plain.slice(a, b), color: COLORS.redLight });
             pos = b;
           });
           if (pos < at + ln.length) segs.push({ text: plain.slice(pos, at + ln.length), color: l.color });
