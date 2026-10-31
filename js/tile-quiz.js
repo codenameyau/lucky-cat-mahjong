@@ -386,7 +386,7 @@
       description: 'Plot twist: you\'re the blank tile. The spare. The "wait, what\'s this one for?" Your grandma uses you to replace the tile she lost in 1997. You have no suit, no number, no rules, and you are thriving. Unpredictable, unbothered, a total wildcard. Nobody knows what you\'re going to do next, including you.',
       why: [
         'You\'ve shown up to a party without knowing whose party it was.',
-        'Your vibe is "loading…" and somehow it works.',
+        'Your vibe is "loading..." and somehow it works.',
         'You show up to Lunar New Year empty-handed and still get the biggest red envelope.',
       ],
       greenFlag: 'Fits in anywhere, gets along with everyone.',
@@ -401,9 +401,9 @@
       text: 'It\'s Friday night. Where are you?',
       options: [
         { emoji: '📊', text: 'Organizing dinner for 8. I made a group poll.', tiles: ['east-wind', 'nine-bamboo', 'south-wind'] },
-        { emoji: '🎤', text: 'K-town karaoke until 4am. No plans, all vibes.', tiles: ['summer', 'red-dragon', 'nine-character'] },
+        { emoji: '💃', text: 'Partying in K-Town at 4 AM. No plans, all vibes.', tiles: ['summer', 'red-dragon', 'nine-character'] },
         { emoji: '🛋️', text: 'Blanket burrito. Phone at 3%. Do not disturb.', tiles: ['winter', 'one-dot'] },
-        { emoji: '🎨', text: 'At a sip-and-paint night I found on Insta.', tiles: ['spring', 'orchid', 'chrysanthemum'] },
+        { emoji: '🎨', text: 'At a craft night I found on Insta.', tiles: ['spring', 'orchid', 'chrysanthemum'] },
       ],
     },
     {
@@ -425,16 +425,16 @@
       ],
     },
     {
-      text: 'Your relationship with money is…',
+      text: 'Your relationship with money is',
       options: [
         { emoji: '📈', text: '3 side hustles and a high-yield savings account.', tiles: ['green-dragon', 'nine-bamboo', 'east-wind'] },
-        { emoji: '🕯️', text: 'A $90 candle, because "it\'s an investment."', tiles: ['nine-character', 'orchid'] },
+        { emoji: '🕯️', text: 'A $50 candle, because "it\'s an investment."', tiles: ['nine-character', 'orchid'] },
         { emoji: '🍜', text: 'Spent it all on food. No regrets.', tiles: ['one-dot', 'summer'] },
         { emoji: '✨', text: 'What money? I run on vibes.', tiles: ['blank-tile', 'spring', 'bamboo'] },
       ],
     },
     {
-      text: 'Be honest. Your toxic trait is…',
+      text: 'Be honest. Your toxic trait is...',
       options: [
         { emoji: '📱', text: 'Overthinking a text for 45 minutes.', tiles: ['nine-dot', 'west-wind'] },
         { emoji: '🏆', text: 'Turning everything into a competition.', tiles: ['red-dragon', 'green-dragon', 'east-wind'] },
@@ -452,7 +452,7 @@
       ],
     },
     {
-      text: 'Your friends would describe you as…',
+      text: 'Your friends would describe you as...',
       options: [
         { emoji: '🐕', text: 'A golden retriever in human form.', tiles: ['south-wind', 'one-bamboo', 'spring'] },
         { emoji: '🧊', text: 'Intimidating until they get to know you.', tiles: ['north-wind', 'red-dragon', 'white-dragon'] },
@@ -461,7 +461,7 @@
       ],
     },
     {
-      text: 'At the mahjong table, you\'re…',
+      text: 'At the mahjong table, you\'re...',
       options: [
         { emoji: '🐉', text: 'Going for Thirteen Orphans every single game.', tiles: ['nine-character', 'red-dragon', 'one-character'] },
         { emoji: '🧮', text: 'Counting faan in my head before I\'ve even won.', tiles: ['nine-bamboo', 'nine-dot', 'green-dragon'] },
@@ -479,7 +479,7 @@
       ],
     },
     {
-      text: 'Lunar New Year at the family\'s. You\'re…',
+      text: 'Lunar New Year at the family\'s. You\'re...',
       options: [
         { emoji: '📸', text: 'Taking 300 photos for the family group chat.', tiles: ['one-bamboo', 'west-wind', 'one-character'] },
         { emoji: '🀄', text: 'At the mahjong table with the uncles until 2am.', tiles: ['east-wind', 'nine-bamboo', 'green-dragon'] },
@@ -791,6 +791,7 @@
       clearAnswerFocus(doc);
       var focusTarget = $('#tq-question-text');
       if (focusTarget) focusTarget.focus({ preventScroll: true });
+      track('tile_quiz_question_view', { question_index: current });
     }
 
     function saveProgress() {
@@ -831,6 +832,12 @@
     }
 
     function choose(index) {
+      var option = QUESTIONS[current].options[index];
+      track('tile_quiz_answer_click', {
+        question_index: current,
+        answer_index: index,
+        answer_label: option.text,
+      });
       answers[current] = index;
       var buttons = doc.querySelectorAll('.tq-option');
       buttons.forEach(function (b) { b.classList.toggle('is-selected', Number(b.dataset.index) === index); });
@@ -857,6 +864,7 @@
     function goBack() {
       if (current === 0) {
         clearProgress();
+        renderGallery(null);
         show('intro');
         return;
       }
@@ -1068,11 +1076,17 @@
       });
     }
 
-    // Instagram portrait (1080x1350, 4:5) card: tile art, name, title, tagline and the full description.
+    function hexToRgba(hex, alpha) {
+      var n = parseInt(hex.slice(1), 16);
+      return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + alpha + ')';
+    }
+
+    // Instagram story (1080x1920, 9:16). Copy sits in the middle band so the
+    // story chrome doesn't cover it, with a gap on either side of the art.
     function buildShareImage(tile) {
       var W = 1080;
-      var H = 1350;
-      var PAD = 80;
+      var H = 1920;
+      var PAD = 88;
       var color = root.LuckyCatTileArt.colorFor(tile.id);
       var heading = '"KN Yuanmo SC", "PingFang SC", sans-serif';
       var body = '"Avenir Next", Avenir, -apple-system, "Segoe UI", sans-serif';
@@ -1083,40 +1097,46 @@
       var fontsReady = doc.fonts && doc.fonts.load
         ? doc.fonts.load('64px "KN Yuanmo SC"').catch(function () {})
         : Promise.resolve();
+      var artW = 440;
 
-      return Promise.all([fontsReady, loadSvgImage(root.LuckyCatTileArt.render(tile.id, { width: 300 }))]).then(function (loaded) {
+      return Promise.all([fontsReady, loadSvgImage(root.LuckyCatTileArt.render(tile.id, { width: artW }))]).then(function (loaded) {
         var img = loaded[1];
+        var artH = Math.round(artW * 1.25);
+        var artTop = 560;
+        var artBottom = artTop + artH;
 
         ctx.fillStyle = '#FFF8F0';
         ctx.fillRect(0, 0, W, H);
-        ctx.globalAlpha = 0.16;
+        // Same soft tile-color bloom as the result card on the site.
+        var glow = ctx.createRadialGradient(W / 2, artTop + artH * 0.62, 0, W / 2, artTop + artH * 0.62, 560);
+        glow.addColorStop(0, hexToRgba(color, 0.22));
+        glow.addColorStop(0.6, hexToRgba(color, 0));
+        glow.addColorStop(1, hexToRgba(color, 0));
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, W, H);
         ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(W / 2, 480, 230, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
         ctx.fillRect(0, 0, W, 16);
         ctx.fillRect(0, H - 16, W, 16);
 
         ctx.textAlign = 'center';
         ctx.fillStyle = '#5C5C5C';
         ctx.font = '600 38px ' + body;
-        ctx.fillText('I\'m the', W / 2, 96);
+        ctx.fillText('I\'m the', W / 2, 300);
         var nameText = tile.name;
-        var nameSize = 88;
+        var nameSize = 92;
         do {
           ctx.font = nameSize + 'px ' + heading;
           nameSize -= 4;
         } while (ctx.measureText(nameText).width > W - PAD * 2 && nameSize > 48);
         ctx.fillStyle = color;
-        ctx.fillText(nameText, W / 2, 188);
+        ctx.fillText(nameText, W / 2, 410);
         ctx.fillStyle = '#1A1A1A';
         ctx.font = '48px ' + heading;
-        ctx.fillText(tile.emoji + ' ' + tile.title, W / 2, 258);
+        ctx.fillText(tile.emoji + ' ' + tile.title, W / 2, 500);
 
-        ctx.drawImage(img, W / 2 - 150, 290, 300, 375);
+        ctx.drawImage(img, (W - artW) / 2, artTop, artW, artH);
 
-        var y = 735;
+        var y = artBottom + 96;
         ctx.fillStyle = '#1A1A1A';
         ctx.font = '700 38px ' + body;
         wrapLines(ctx, tile.tagline, W - PAD * 2).forEach(function (line) {
@@ -1125,16 +1145,17 @@
         });
 
         // Shrink the description until it fits above the footer.
-        var maxBottom = 1195;
+        var footerY = 1560;
+        var maxBottom = footerY - 48;
         var size = 32;
         var lines;
         do {
           ctx.font = '500 ' + size + 'px ' + body;
           lines = wrapLines(ctx, tile.description, W - PAD * 2);
           size -= 2;
-        } while (y + 14 + lines.length * (size + 2) * 1.4 > maxBottom && size > 22);
-        var lineHeight = (size + 2) * 1.4;
-        y += 14;
+        } while (y + 20 + lines.length * (size + 2) * 1.45 > maxBottom && size > 22);
+        var lineHeight = (size + 2) * 1.45;
+        y += 20;
         ctx.textAlign = 'left';
         ctx.fillStyle = '#3D3D3D';
         lines.forEach(function (line) {
@@ -1145,10 +1166,10 @@
         ctx.textAlign = 'center';
         ctx.fillStyle = color;
         ctx.font = '44px ' + heading;
-        ctx.fillText('Which mahjong tile are you?', W / 2, 1262);
+        ctx.fillText('Which mahjong tile are you?', W / 2, footerY);
         ctx.fillStyle = '#5C5C5C';
         ctx.font = '600 30px ' + body;
-        ctx.fillText('luckycatmahjong.com', W / 2, 1310);
+        ctx.fillText('luckycatmahjong.com', W / 2, footerY + 56);
 
         return new Promise(function (resolve) { canvas.toBlob(resolve, 'image/png'); });
       });
@@ -1229,10 +1250,9 @@
         unlock.hidden = false;
         track('tile_quiz_locked_view', { tile: shared.id });
       }
-      if (!resumeQuiz()) {
-        renderGallery(null);
-        show('intro');
-      }
+      // Draw the set even when a saved quiz resumes, so Back has tiles to show.
+      renderGallery(null);
+      if (!resumeQuiz()) show('intro');
     }
 
     return { init: init };
@@ -1254,6 +1274,7 @@
     signCompletion: signCompletion,
     verifyCompletion: verifyCompletion,
     clearAnswerFocus: clearAnswerFocus,
+    createApp: createApp,
   };
 
   if (typeof module !== 'undefined' && module.exports) {

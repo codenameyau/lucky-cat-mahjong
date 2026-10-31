@@ -173,6 +173,24 @@ describe('expert playbook', () => {
     assert.equal(B.chooseTurnAction(game, 0, noKongs).tile, 'b2');
   });
 
+  it('throws honors before suited tiles in a concealed sequence hand', () => {
+    // A dragon used to outrank the suited tiles. Concealed sequences keeps
+    // the suits and lets the honor go.
+    const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd6', 'd7', 'b2', 'b3', 'dr'];
+    const game = table({ seats: [{ hand }] });
+    const top = B.analyzeDiscards(game, 0).candidates[0];
+    assert.equal(top.analysis.best.plan.id, 'straights');
+    assert.equal(top.tile, 'dr');
+  });
+
+  it('keeps an honor pair that is the eyes when the hand is close to winning', () => {
+    // Throwing Eight Bamboo leaves the hand ready. The West pair stays.
+    const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'b5', 'b6', 'b8', 'ww', 'ww'];
+    const game = table({ seats: [{ hand }] });
+    const top = B.analyzeDiscards(game, 0).candidates[0];
+    assert.equal(top.tile, 'b8');
+  });
+
   it('still counts a punged number tile as able to finish a chow', () => {
     const game = table({ seats: [{}, { melds: [meld('pung', 'b5'), meld('chow', 'b1')] }] });
     const threats = B.opponentThreats(game, 0);
@@ -187,6 +205,25 @@ describe('expert playbook', () => {
     assert.ok(['ww', 'wn'].includes(top.tile), 'discarded ' + top.tile);
     const opts = E.claimOptions(game, 0, 'c5', 3, false);
     if (opts.chows.length) assert.equal(B.chooseClaim(game, 0, opts).type, 'pass');
+  });
+
+  it('keeps pairs and pungs while going for all triplets', () => {
+    // Two pungs, three pairs, and two dragon singles. Breaking a pung is the
+    // old recommendation; a single is the tile that can actually go.
+    const dragons = table({ seats: [{ hand: ['c2', 'c2', 'c2', 'd5', 'd5', 'd5', 'b8', 'b8', 'wn', 'wn', 'we', 'we', 'dr', 'dg'] }] });
+    const loose = B.analyzeDiscards(dragons, 0).candidates[0];
+    assert.ok(['triplets', 'concealed-triplets'].includes(loose.analysis.best.plan.id));
+    assert.ok(['dr', 'dg'].includes(loose.tile), 'discarded ' + loose.tile);
+
+    // No singles left: throw from a pair, not from a finished pung.
+    const pairs = table({ seats: [{ hand: ['c2', 'c2', 'c2', 'd5', 'd5', 'd5', 'b8', 'b8', 'wn', 'wn', 'we', 'we', 'ws', 'ws'] }] });
+    const pair = B.analyzeDiscards(pairs, 0).candidates[0];
+    assert.ok(['triplets', 'concealed-triplets'].includes(pair.analysis.best.plan.id));
+    assert.equal(pairs.hand.seats[0].hand.filter((t) => t === pair.tile).length, 2);
+
+    // Breaking the pung leaves Seven Pairs ready, so that discard still stands.
+    const ready = table({ seats: [{ hand: ['c2', 'c2', 'c2', 'd5', 'd5', 'b8', 'b8', 'wn', 'wn', 'we', 'we', 'ws', 'ws', 'dr'] }] });
+    assert.equal(B.chooseTurnAction(ready, 0, noKongs).tile, 'c2');
   });
 
   it('chases seven pairs from more than four concealed pairs and no pungs', () => {

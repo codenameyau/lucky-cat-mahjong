@@ -18,7 +18,7 @@
     'nine-character': { back: '#E66A9A', symbol: 'char9', eyes: 'star', mouth: 'open', arms: 'rest', acc: ['shoppingBags'] },
     'one-dot': { back: '#E8964A', symbol: 'dot1', eyes: 'happy', mouth: 'cat', arms: 'rest', acc: ['boba'] },
     'nine-dot': { back: '#5C6BC0', symbol: 'dot9', eyes: 'spiral', mouth: 'wobble', arms: 'rest', acc: ['sweat', 'thoughtCloud'] },
-    'green-dragon': { back: '#1F8A4C', symbol: 'greenDragon', eyes: 'money', mouth: 'open', arms: 'rest', acc: ['moneyBag', 'coins'] },
+    'green-dragon': { back: '#1F8A4C', symbol: 'greenDragon', eyes: 'money', mouth: 'open', arms: 'rest', acc: ['moneyBag'] },
     'red-dragon': { back: '#C41E3A', symbol: 'redDragon', eyes: 'none', mouth: 'smirk', arms: 'cheer', acc: ['shades', 'sparkles'] },
     'white-dragon': { back: '#7FA7D9', symbol: 'whiteDragon', eyes: 'calm', mouth: 'smile', arms: 'rest', acc: ['clawClip', 'sparkles'] },
     'east-wind': { back: '#F4A020', symbol: 'east', eyes: 'sparkle', mouth: 'open', arms: 'cheer', acc: ['sunHalo'] },
@@ -356,12 +356,16 @@
         '<path d="M164 20 q4 -8 8 0 t8 0 q-6 6 -10 0 q-4 -4 -2 4" fill="none" stroke="' + RED + '" stroke-width="2" stroke-linecap="round"/>';
     },
     moneyBag: function () {
-      return '<path d="M166 150 L172 142 L178 150" fill="#C9A35A" ' + stroke(2.5) + '/>' +
-        '<path d="M166 150 Q150 166 158 184 Q172 192 186 184 Q194 166 178 150Z" fill="#E3C27A" ' + stroke(2.5) + '/>' +
-        '<text x="172" y="181" font-size="18" font-weight="800" text-anchor="middle" fill="' + GREEN + '" font-family="Arial,sans-serif">$</text>';
-    },
-    coins: function () {
-      return coin(24, 196, 9, '#FFD23F') + coin(30, 184, 9, '#FFD23F') + sparkle(160, 20, 8, '#FFD23F') + sparkle(176, 40, 5, '#FFD23F');
+      // Round cloth sack, tied with a bow, and one coin in the other hand.
+      return '<ellipse cx="174" cy="196" rx="24" ry="22" fill="#F0D48A" ' + stroke(2.5) + '/>' +
+        '<path d="M160 184 C158 172 164 164 174 162 C184 164 190 172 188 184Z" fill="#F0D48A" ' + stroke(2.5) + '/>' +
+        '<path d="M162 182 Q174 190 186 182" fill="none" stroke="#C9A24A" stroke-width="2.5" stroke-linecap="round"/>' +
+        '<ellipse cx="164" cy="170" rx="8" ry="5" transform="rotate(-28 164 170)" fill="#E2BE62" ' + stroke(2) + '/>' +
+        '<ellipse cx="184" cy="170" rx="8" ry="5" transform="rotate(28 184 170)" fill="#E2BE62" ' + stroke(2) + '/>' +
+        '<circle cx="174" cy="174" r="3.2" fill="#C9A24A" ' + stroke(1.6) + '/>' +
+        '<path d="M170 176 L164 186 M178 176 L184 186" fill="none" ' + stroke(2) + '/>' +
+        '<text x="174" y="204" font-size="20" font-weight="800" text-anchor="middle" fill="' + GREEN + '" font-family="Arial,sans-serif">$</text>' +
+        coin(32, 184, 11, '#FFD23F');
     },
     shades: function () {
       return '<path d="M62 142 H96 Q96 162 82 162 Q64 162 62 142Z" fill="' + INK + '"/>' +

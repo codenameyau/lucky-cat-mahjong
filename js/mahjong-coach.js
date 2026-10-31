@@ -148,7 +148,7 @@
       return pungedReason(i);
     }
     if (route && route.id === 'pairs' && c[i] === 1) {
-      return handName('Seven Pairs') + ' keeps every pair, so this single goes first.';
+      return 'Seven Pairs keeps every pair, so this single goes first.';
     }
     if (route && route.id === 'orphans' && !E.isTerminalOrHonorIndex(i)) {
       return 'Thirteen Orphans only uses terminals and honors.';
@@ -161,13 +161,13 @@
       return COUNT_WORDS[out] + ' ' + (out === 1 ? name(i) + ' is' : plural(i) + ' are') + ' already out, so it can\'t become a set.';
     }
     if (route && route.keep && !route.keep(i)) {
-      if (route.id === 'straights') return 'Honor tiles spoil an ' + handName('All Sequences') + ' hand.';
+      if (route.id === 'straights') return 'Honor tiles spoil an All Sequences hand.';
       var suit = SUIT_NAME[route.suit];
       return route.id === 'half'
         ? 'It isn\'t ' + suit + ' or an honor, and you\'re collecting ' + suit + '.'
         : 'It isn\'t ' + suit + ', and you\'re collecting only ' + suit + '.';
     }
-    if (c[i] >= 3) return route && route.id === 'pairs' ? handName('Seven Pairs') + ' only uses two of each.' : 'You hold three, and a spare tile helps more elsewhere.';
+    if (c[i] >= 3) return route && route.id === 'pairs' ? 'Seven Pairs only uses two of each.' : 'You hold three, and a spare tile helps more elsewhere.';
     if (c[i] === 2) return 'You have more pairs than you need.';
     if (pick.lone) {
       if (i >= 27) return 'It\'s a lone honor that adds no faan for you.';
@@ -180,16 +180,71 @@
     return 'Your hand needs it least.';
   }
 
-  // Hand names (All Sequences, Half Flush and so on) are wrapped in invisible
-  // markers so the game can draw them in red (see mahjong-game.js).
-  function handName(name) { return '\u0001' + name + '\u0002'; }
+  // Hand-pattern names, with their faan in parentheses, are wrapped in
+  // invisible markers so the game can draw both in the brand red.
+  var HAND_PATTERNS = [
+    'concealed all sequences',
+    'concealed triplets',
+    'thirteen orphans',
+    'all sequences',
+    'all triplets',
+    'seven pairs',
+    'nine gates',
+    'half flush',
+    'full flush',
+    'chicken hand',
+  ];
 
-  // Hand names (All Sequences, Half Flush and so on) are wrapped in invisible
-  // markers so the game can draw them in red (see mahjong-game.js).
-  function handName(name) { return '\u0001' + name + '\u0002'; }
+  function patternFaan(needle) {
+    var F = E.HKScoring.FAAN;
+    var faan = {
+      'concealed all sequences': F.allSequences + F.concealed,
+      'concealed triplets': F.allConcealedTriplets,
+      'thirteen orphans': F.thirteenOrphans,
+      'all sequences': F.allSequences,
+      'all triplets': F.allTriplets,
+      'seven pairs': F.sevenPairs,
+      'nine gates': F.nineGates,
+      'half flush': F.halfFlush,
+      'full flush': F.fullFlush,
+      'chicken hand': F.chicken,
+    }[needle];
+    return faan + ' faan';
+  }
 
-  function marked(text) {
-    return 'Your target is ' + text;
+  function highlightPatterns(text) {
+    var raw = String(text).replace(/[\u0001\u0002]/g, '');
+    var lower = raw.toLowerCase();
+    var hits = [];
+    HAND_PATTERNS.forEach(function (needle) {
+      var from = 0;
+      while (from < lower.length) {
+        var at = lower.indexOf(needle, from);
+        if (at < 0) break;
+        var nameEnd = at + needle.length;
+        var beforeOk = at === 0 || !/[a-z]/i.test(raw.charAt(at - 1));
+        var afterOk = nameEnd === raw.length || !/[a-z]/i.test(raw.charAt(nameEnd));
+        var overlap = hits.some(function (h) { return at < h.spanEnd && nameEnd > h.at; });
+        if (beforeOk && afterOk && !overlap) {
+          var existing = raw.slice(nameEnd).match(/^ \(\d+ faan\)/);
+          hits.push({
+            at: at,
+            nameEnd: nameEnd,
+            spanEnd: nameEnd + (existing ? existing[0].length : 0),
+            insert: existing ? '' : ' (' + patternFaan(needle) + ')',
+          });
+        }
+        from = nameEnd;
+      }
+    });
+    hits.sort(function (a, b) { return a.at - b.at; });
+    var out = '';
+    var cursor = 0;
+    hits.forEach(function (h) {
+      out += raw.slice(cursor, h.at) + '\u0001' + raw.slice(h.at, h.nameEnd) + h.insert + raw.slice(h.nameEnd, h.spanEnd) + '\u0002';
+      cursor = h.spanEnd;
+    });
+    return out + raw.slice(cursor);
   }
 
   function stepsText(shanten) {
@@ -210,21 +265,21 @@
     var f = (own[r.id] !== undefined ? own[r.id] : 0) + ' faan';
     if (r.id === 'straights') {
       var keep = liveValueSingles(v, c).filter(function (i) { return i !== nextOut; });
-      return handName('Concealed All Sequences') + ' (' + f + '), so use self-draw tiles and don\'t claim discards' +
+      return 'Concealed All Sequences (' + f + '), so use self-draw tiles and don\'t claim discards' +
         (v.flowerFaan ? '. Your flowers add the third faan' : '') +
         (keep.length ? '. Hold the ' + listNames(keep) + ' in case ' + (keep.length > 1 ? 'one pairs' : 'it pairs') + ' up' : '');
     }
-    if (r.id === 'half') return handName('Half Flush in ' + SUIT_NAME[r.suit]) + ' (' + f + '), so keep ' + SUIT_NAME[r.suit] + ' and honors';
-    if (r.id === 'full') return handName('Full Flush in ' + SUIT_NAME[r.suit]) + ' (' + f + '), so keep only ' + SUIT_NAME[r.suit];
-    if (r.id === 'triplets') return handName('All Triplets') + ' (' + f + '), so keep your pairs and Pung them';
+    if (r.id === 'half') return 'Half Flush (' + f + ') in ' + SUIT_NAME[r.suit] + ', so keep ' + SUIT_NAME[r.suit] + ' and honors';
+    if (r.id === 'full') return 'Full Flush (' + f + ') in ' + SUIT_NAME[r.suit] + ', so keep only ' + SUIT_NAME[r.suit];
+    if (r.id === 'triplets') return 'All Triplets (' + f + '), so keep your pairs and Pung them';
     if (r.id === 'concealed-triplets') return 'Concealed Triplets (' + f + '), so keep your pairs and don\'t claim discards';
-    if (r.id === 'pairs') return handName('Seven Pairs') + ' (' + f + '), so keep your pairs and don\'t claim discards';
+    if (r.id === 'pairs') return 'Seven Pairs (' + f + '), so keep your pairs and don\'t claim discards';
     if (r.id === 'orphans') return 'Thirteen Orphans (' + f + '), so keep every terminal and honor and don\'t claim discards';
-    if (r.id === 'gates') return 'Nine Gates in ' + SUIT_NAME[r.suit] + ' (' + f + '), so keep 1112345678999 in ' + SUIT_NAME[r.suit] + ' and don\'t claim discards';
+    if (r.id === 'gates') return 'Nine Gates (' + f + ') in ' + SUIT_NAME[r.suit] + ', so keep 1112345678999 in ' + SUIT_NAME[r.suit] + ' and don\'t claim discards';
     for (var i = 27; i < 34; i++) {
       if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) return (/^[AEIOU]/.test(name(i)) ? 'an ' : 'a ') + name(i) + ' set (' + honorWorth(v, i) + ' faan), so Pung it if it\'s thrown';
     }
-    return 'a ' + handName('chicken hand') + ' (0 faan)';
+    return 'a chicken hand (0 faan)';
   }
 
   // Axis A in words: early on there's room to build; late, finish fast.
@@ -369,9 +424,9 @@
       if (liveLeft <= 1) notes.push('Almost none are left, so change the wait if you can.');
       tips.push(state + (notes.length ? ' ' + notes.join(' ') : ''));
     } else if (pick.plan) {
-      var line = stepsText(buildingLimit ? pick.plan.shanten : pick.shanten) + '. ' + marked(targetText(v, pick.plan, cAfter, next && next.index)) + '. ' +
+      var line = stepsText(buildingLimit ? pick.plan.shanten : pick.shanten) + '. Your target is ' + targetText(v, pick.plan, cAfter, next && next.index) + '. ' +
         pick.plan.live + ' tiles help.';
-      if (route.faan < min - 0.25) line += ' That\'s short of ' + min + ' faan, but a ' + handName('flush') + ', ' + handName('all triplets') + ' or a dragon or wind set would fix it.';
+      if (route.faan < min - 0.25) line += ' That\'s short of ' + min + ' faan, but a Half Flush, a Full Flush, All Triplets, or a dragon or wind set would fix it.';
       else if (!defending) { var phase = phaseText(v, threats); if (phase) line += ' ' + phase; }
       tips.push(line);
     }
@@ -451,7 +506,7 @@
       if (plan) {
         var short = plan.route.faan < min - 0.25 ? ' Still short of ' + min + ' faan, so keep looking for more.' : '';
         lines.push((discard ? 'Then discard ' + E.tileName(discard) + '. ' : '') + stepsText(plan.shanten) +
-          '. ' + marked(targetText(v, plan, counts)) + '.' + short);
+          '. Your target is ' + targetText(v, plan, counts) + '.' + short);
       }
       var shown = threats.filter(function (t) { return t.level >= 2; });
       if (shown.length) lines.push(threatSentence(shown));
@@ -467,22 +522,22 @@
       var call = spoken(taken);
       var route = call.plan.route;
       var fits = route.id === 'half' || route.id === 'full'
-        ? 'It fits your ' + handName(SUIT_NAME[route.suit] + ' flush')
-        : route.id === 'triplets' ? 'You\'re going for ' + handName('All Triplets') : 'It speeds up your hand';
+        ? 'It fits your ' + (route.id === 'full' ? 'Full Flush' : 'Half Flush') + ' in ' + SUIT_NAME[route.suit]
+        : route.id === 'triplets' || route.id === 'concealed-triplets'
+          ? 'You\'re going for ' + (route.id === 'concealed-triplets' ? 'Concealed Triplets' : 'All Triplets')
+          : 'It speeds up your hand';
       tips.push(call.label + '. ' + fits + (call.faan >= min ? ', and the hand is still worth about ' + faanWord(call.faan) + '.' : '.'));
       return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(call.plan, call.counts, call.discard)) }, tips.length - 1);
     }
 
     var chowOnly = found.options.every(function (o) { return o.decision.type === 'chow'; });
     if (chowOnly && bestFaan >= min) {
-      tips.push('Pass. A chow gives up' + (v.concealed ? ' your concealed hand and' : '') + ' flexibility, so save it for when it makes you ready or builds a ' + handName('flush') + '.');
+      tips.push('Pass. A chow gives up' + (v.concealed ? ' your concealed hand and' : '') + ' flexibility, so save it for when it makes you ready or builds a Half Flush or Full Flush.');
     } else if (bestFaan < min) {
-      tips.push(v.concealed
-        ? 'Pass. Claiming gives up the 1 faan for a concealed hand' + (stay && stay.route.id === 'straights' ? ' and ' + handName('All Sequences') : '') + ', leaving you short of ' + min + ' faan.'
-        : 'Pass. After claiming, this hand couldn\'t reach ' + min + ' faan.');
+      tips.push('Pass. After claiming, this hand couldn\'t reach ' + min + ' faan on its own.');
     } else if (v.concealed) {
       tips.push('Pass. Staying concealed is worth 1 faan' +
-        (stay && stay.route.id === 'straights' ? ' and keeps ' + handName('All Sequences') + ' possible' : '') + ', and this claim barely helps.');
+        (stay && stay.route.id === 'straights' ? ' and keeps All Sequences possible' : '') + ', and this claim barely helps.');
     } else {
       tips.push('Pass. It doesn\'t help your hand enough.');
     }
@@ -555,7 +610,10 @@
     return { kind: 'feedback', action: action, tips: [did + ' ' + reason] };
   }
 
-  var api = { discardFeedback: discardFeedback, claimFeedback: claimFeedback, turnHint: turnHint, claimHint: claimHint, rankDiscards: rankDiscards, look: look };
+  var api = {
+    discardFeedback: discardFeedback, claimFeedback: claimFeedback, turnHint: turnHint, claimHint: claimHint,
+    rankDiscards: rankDiscards, look: look, highlightPatterns: highlightPatterns,
+  };
   if (node) module.exports = api;
   else root.MahjongCoach = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

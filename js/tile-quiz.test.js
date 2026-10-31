@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { describe, it } = require('node:test');
+const { describe, it, mock } = require('node:test');
 const quiz = require('./tile-quiz.js');
 const art = require('./tile-quiz-art.js');
 
@@ -217,5 +217,227 @@ describe('shareUrl', () => {
       'http://localhost:8080/which-mahjong-tiles-are-you/nine-dot/',
     );
     assert.equal(quiz.shareUrl('file:///tmp/quiz.html', 'one-dot'), 'https://luckycatmahjong.com/which-mahjong-tiles-are-you/one-dot/');
+  });
+});
+
+describe('back to the intro', () => {
+  it('fills Meet the whole set after leaving a saved quiz', () => {
+    const previous = {
+      localStorage: global.localStorage,
+      location: global.location,
+      scrollTo: global.scrollTo,
+      LuckyCatTileArt: global.LuckyCatTileArt,
+    };
+    const store = {
+      'lcm-tile-quiz': JSON.stringify({ progress: { answers: [0], current: 0 } }),
+    };
+    global.localStorage = {
+      getItem(key) { return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null; },
+      setItem(key, value) { store[key] = String(value); },
+    };
+    global.location = { href: 'http://127.0.0.1:8080/which-mahjong-tiles-are-you/', search: '' };
+    global.scrollTo = function () {};
+    global.LuckyCatTileArt = art;
+
+    const elements = {};
+    function element() {
+      return {
+        hidden: false,
+        innerHTML: '',
+        textContent: '',
+        style: {},
+        classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
+        listeners: {},
+        addEventListener(type, fn) {
+          this.listeners[type] = this.listeners[type] || [];
+          this.listeners[type].push(fn);
+        },
+        focus() {},
+        setAttribute() {},
+      };
+    }
+    elements['#tq-gallery-grid'] = element();
+    const doc = {
+      title: '',
+      querySelector(sel) {
+        if (!elements[sel]) elements[sel] = element();
+        return elements[sel];
+      },
+      querySelectorAll() { return []; },
+    };
+
+    try {
+      quiz.createApp(doc).init();
+      elements['#tq-back'].listeners.click[0]();
+      assert.match(elements['#tq-gallery-grid'].innerHTML, /one-bamboo/);
+      assert.equal(elements['#tq-intro'].hidden, false);
+    } finally {
+      global.localStorage = previous.localStorage;
+      global.location = previous.location;
+      global.scrollTo = previous.scrollTo;
+      global.LuckyCatTileArt = previous.LuckyCatTileArt;
+    }
+  });
+});
+
+describe('quiz analytics', () => {
+  function mountQuiz(progress) {
+    const calls = [];
+    const previous = {
+      localStorage: global.localStorage,
+      location: global.location,
+      scrollTo: global.scrollTo,
+      history: global.history,
+      LuckyCatTileArt: global.LuckyCatTileArt,
+      gtag: global.gtag,
+    };
+    const store = {};
+    if (progress) store['lcm-tile-quiz'] = JSON.stringify({ progress });
+    global.localStorage = {
+      getItem(key) { return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null; },
+      setItem(key, value) { store[key] = String(value); },
+    };
+    global.location = {
+      href: 'http://127.0.0.1:8080/which-mahjong-tiles-are-you/',
+      search: '',
+      protocol: 'http:',
+    };
+    global.scrollTo = function () {};
+    global.history = { replaceState() {} };
+    global.LuckyCatTileArt = art;
+    global.gtag = function () { calls.push(Array.from(arguments)); };
+
+    const elements = {};
+    function element(sel) {
+      const el = {
+        hidden: false,
+        innerHTML: '',
+        textContent: '',
+        style: {},
+        classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
+        listeners: {},
+        addEventListener(type, fn) {
+          this.listeners[type] = this.listeners[type] || [];
+          this.listeners[type].push(fn);
+        },
+        focus() {},
+        setAttribute() {},
+        getAttribute() { return null; },
+      };
+      if (sel === '#tq-info-form') {
+        el.elements = {
+          name: { value: '' },
+          instagram: { value: '' },
+          zip: { value: '' },
+          skill: [],
+        };
+      }
+      return el;
+    }
+    const doc = {
+      title: '',
+      querySelector(sel) {
+        if (!elements[sel]) elements[sel] = element(sel);
+        return elements[sel];
+      },
+      querySelectorAll() { return []; },
+    };
+
+    return {
+      elements,
+      events() {
+        return calls
+          .filter((call) => call[0] === 'event')
+          .map((call) => ({ name: call[1], params: call[2] }));
+      },
+      init() { quiz.createApp(doc).init(); },
+      restore() {
+        global.localStorage = previous.localStorage;
+        global.location = previous.location;
+        global.scrollTo = previous.scrollTo;
+        global.history = previous.history;
+        global.LuckyCatTileArt = previous.LuckyCatTileArt;
+        global.gtag = previous.gtag;
+      },
+    };
+  }
+
+  function clickAnswer(ui, index) {
+    ui.elements['#tq-options'].listeners.click[0]({
+      target: {
+        closest(sel) {
+          assert.equal(sel, '.tq-option');
+          return { dataset: { index: String(index) } };
+        },
+      },
+    });
+  }
+
+  it('tracks the question shown when a saved quiz resumes', () => {
+    const ui = mountQuiz({ answers: [0, 1, 2], current: 3 });
+    try {
+      ui.init();
+      assert.deepEqual(ui.events(), [
+        { name: 'tile_quiz_question_view', params: { question_index: 3 } },
+      ]);
+    } finally {
+      ui.restore();
+    }
+  });
+
+  it('does not track a question view when resume lands on the info form', () => {
+    const ui = mountQuiz({
+      answers: quiz.QUESTIONS.map(() => 0),
+      current: quiz.QUESTIONS.length,
+    });
+    try {
+      ui.init();
+      assert.deepEqual(ui.events(), []);
+    } finally {
+      ui.restore();
+    }
+  });
+
+  it('tracks the first question, the next question, and the same question again after Back', () => {
+    mock.timers.enable({ apis: ['setTimeout'] });
+    const ui = mountQuiz(null);
+    try {
+      ui.init();
+      ui.elements['#tq-start'].listeners.click[0]();
+      clickAnswer(ui, 0);
+      mock.timers.tick(220);
+      ui.elements['#tq-back'].listeners.click[0]();
+
+      const views = ui.events().filter((event) => event.name === 'tile_quiz_question_view');
+      assert.deepEqual(views, [
+        { name: 'tile_quiz_question_view', params: { question_index: 0 } },
+        { name: 'tile_quiz_question_view', params: { question_index: 1 } },
+        { name: 'tile_quiz_question_view', params: { question_index: 0 } },
+      ]);
+    } finally {
+      mock.timers.reset();
+      ui.restore();
+    }
+  });
+
+  it('tracks the question index and answer label when an answer is clicked', () => {
+    mock.timers.enable({ apis: ['setTimeout'] });
+    const ui = mountQuiz(null);
+    const answer = quiz.QUESTIONS[0].options[2];
+    try {
+      ui.init();
+      ui.elements['#tq-start'].listeners.click[0]();
+      clickAnswer(ui, 2);
+      const clicks = ui.events().filter((event) => event.name === 'tile_quiz_answer_click');
+      assert.deepEqual(clicks, [
+        {
+          name: 'tile_quiz_answer_click',
+          params: { question_index: 0, answer_index: 2, answer_label: answer.text },
+        },
+      ]);
+    } finally {
+      mock.timers.reset();
+      ui.restore();
+    }
   });
 });
