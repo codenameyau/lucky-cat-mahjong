@@ -11,7 +11,7 @@
        flush signals) and every tile a deal-in probability; the expected
        loss is subtracted from the discard's value, so bots fold when
        their hand is slow and an opponent looks ready.
-   The same analysis powers the human player's hint tips. */
+   The human player's hint tips come from js/mahjong-coach.js. */
 
 (function (root) {
   'use strict';
@@ -545,95 +545,6 @@
     };
   }
 
-  /* ------------------------------------------------------------------ *
-   * 9. Hints for the human player
-   * ------------------------------------------------------------------ */
-
-  function tileLabel(id) { return E.tileName(id); }
-
-  function shantenPhrase(s) {
-    if (s <= 0) return 'ready (one tile from winning)';
-    if (s === 1) return '1 tile from ready';
-    return s + ' tiles from ready';
-  }
-
-  function describeWaits(ready) {
-    return ready.waits.map(function (w) {
-      var faan = Math.max(w.ronFaan, w.tsumoFaan);
-      var note = w.ronOk ? faan + ' faan' : (w.tsumoOk ? w.tsumoFaan + ' faan, self-draw only' : 'under 3 faan');
-      return tileLabel(w.tile) + ' (' + w.left + ' left, ' + note + ')';
-    }).join(', ');
-  }
-
-  function threatLines(threats) {
-    var lines = [];
-    threats.forEach(function (t) {
-      if (t.ready < 0.45) return;
-      var why = t.flush ? ' and looks to be collecting ' + SUIT_LABELS[t.flush] : '';
-      lines.push(t.name + ' may be ready' + why + '. Play safe tiles, such as ones they already discarded.');
-    });
-    return lines;
-  }
-
-  function turnHint(game, seat, opts) {
-    var tips = [];
-    if (opts.win) {
-      return { kind: 'win', tips: ['You can win! This hand scores ' + opts.win.faan + ' faan. Press Win.'] };
-    }
-    var a = analyzeDiscards(game, seat);
-    var top = a.candidates[0];
-    var an = top.analysis;
-    if (opts.completeButShort) {
-      tips.push('Your hand is complete but only worth ' + opts.completeButShort.faan + ' faan. You need ' + game.settings.minFaan + ' to win, so keep building.');
-    }
-    if (opts.kongs.length) {
-      var kongPick = chooseTurnAction(game, seat, { kongs: opts.kongs });
-      if (kongPick.type === 'kong') tips.push('Declare a kong with ' + tileLabel(kongPick.tile) + ': you get a free replacement tile.');
-    }
-    var line = 'Discard ' + tileLabel(top.tile) + '. ';
-    if (an.ready && an.best && an.best.readyBest) {
-      line += 'You stay ready, waiting on ' + describeWaits(an.ready) + '.';
-    } else if (an.best && an.best.plan) {
-      line += 'You will be ' + shantenPhrase(an.best.shanten) + ' toward ' + an.best.plan.label +
-        ', with ' + Math.round(an.best.ukeire) + ' live tiles that help.';
-    }
-    tips.push(line);
-    if (an.best && an.best.plan && !an.best.readyBest) {
-      var f = an.best.plan.faan;
-      if (f < game.settings.minFaan - 0.25) {
-        tips.push('This hand is light on faan (about ' + Math.max(0, Math.floor(f)) + '). Look for a dragon or wind triplet, a flush, or all triplets to reach ' + game.settings.minFaan + '.');
-      } else if (/Flush/.test(an.best.plan.label)) {
-        tips.push('Going for ' + an.best.plan.label + ': keep ' + SUIT_LABELS[an.best.plan.suit] + (an.best.plan.id.indexOf('half') === 0 ? ' and honors' : '') + ', let the other suits go.');
-      }
-    }
-    var defensive = top.loss > 0 && a.candidates.some(function (cnd) { return cnd.loss > top.loss * 3 && cnd.loss > 2; });
-    tips = tips.concat(threatLines(a.threats));
-    if (defensive && top.util < 3) tips.push('Your hand is slow, so playing safe matters more than speed right now.');
-    return { kind: 'discard', tile: top.tile, tips: tips, candidates: a.candidates };
-  }
-
-  function claimHint(game, seat, opts) {
-    if (opts.win) {
-      return { kind: 'claim', decision: { type: 'win' }, tips: ['Win! Claiming ' + tileLabel(opts.tile) + ' gives you ' + opts.win.faan + ' faan.'] };
-    }
-    var dec = chooseClaim(game, seat, opts);
-    var tips = [];
-    if (opts.completeButShort) {
-      tips.push(tileLabel(opts.tile) + ' completes your hand, but it is only ' + opts.completeButShort.faan + ' faan (you need ' + game.settings.minFaan + ').');
-    }
-    if (dec.type === 'pass') {
-      tips.push('Pass. Claiming would not improve your hand enough' + (buildContext(game, seat).concealed ? ', and keeping it concealed is worth 1 faan.' : '.'));
-    } else {
-      var label = dec.type === 'chow' ? 'Chow (' + E.sortTiles(dec.tiles.concat([opts.tile])).map(tileLabel).join(', ') + ')' : dec.type.charAt(0).toUpperCase() + dec.type.slice(1);
-      var why = '';
-      var ti = E.tileIndex(opts.tile);
-      var ctx = buildContext(game, seat);
-      if (dec.type !== 'chow' && valueWeight(ctx, ti)) why = ' A ' + tileLabel(opts.tile) + ' triplet is worth faan.';
-      tips.push(label + ' is a good claim here. It speeds up your hand.' + why);
-    }
-    return { kind: 'claim', decision: dec, tips: tips };
-  }
-
   var api = {
     buildContext: buildContext,
     handUtility: handUtility,
@@ -646,8 +557,6 @@
     chooseClaim: chooseClaim,
     claimCandidates: claimCandidates,
     createBotAgent: createBotAgent,
-    turnHint: turnHint,
-    claimHint: claimHint,
   };
 
   if (typeof module !== 'undefined' && module.exports) {

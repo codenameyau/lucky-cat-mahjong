@@ -9,6 +9,7 @@
 
   var E = root.MahjongEngine;
   var B = root.MahjongBot;
+  var Coach = root.MahjongCoach;
 
   var SETTINGS_KEY = 'lcm-play-settings';
   var PREFS_KEY = 'lcm-play-prefs';
@@ -294,7 +295,7 @@
       return buf;
     }
 
-    function pluck(a, start, freq, gain, dur) {
+    function pluck(a, start, freq, gain, dur, dest) {
       dur = dur || 1.4;
       var src = a.createBufferSource();
       src.buffer = pluckBuffer(a, freq, dur);
@@ -304,7 +305,7 @@
       var g = a.createGain();
       g.gain.setValueAtTime(gain, start);
       g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-      src.connect(lp); lp.connect(g); g.connect(master);
+      src.connect(lp); lp.connect(g); g.connect(dest || master);
       src.start(start);
     }
 
@@ -370,6 +371,96 @@
           break;
       }
     };
+    /* Background music: a calm tune on plucked zither strings in G major
+       pentatonic over a soft pad, 4 phrases of 8 beats that loop, with small
+       variations each time round. Each phrase is scheduled a little ahead of
+       time so the loop never stutters. */
+    var BEAT = 60 / 64;
+    function midi(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+    // [root, melody as [beat, note, beats]] for each phrase.
+    var PHRASES = [
+      [43, [[0, 74, 1], [1, 76, 1], [2, 79, 2], [4, 76, 1], [5, 74, 1], [6, 71, 2]]],
+      [40, [[0, 76, 1], [1, 74, 1], [2, 71, 1], [3, 69, 1], [4, 71, 2.5], [7, 74, 1]]],
+      [45, [[0, 76, 1.5], [1.5, 79, 0.5], [2, 81, 2], [4, 79, 1], [5, 76, 1], [6, 74, 2]]],
+      [38, [[0, 71, 1], [1, 69, 1], [2, 67, 2], [4, 69, 1], [5, 71, 1], [6, 74, 1.5], [7.5, 67, 0.5]]],
+    ];
+    var music = { timer: null, bus: null, next: 0, count: 0 };
+
+    function pad(a, t, root, dur) {
+      var out = a.createGain();
+      out.gain.setValueAtTime(0.0001, t);
+      out.gain.exponentialRampToValueAtTime(0.05, t + 1.6);
+      out.gain.setValueAtTime(0.05, t + dur - 0.4);
+      out.gain.exponentialRampToValueAtTime(0.0001, t + dur + 1.6);
+      var lp = a.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 700;
+      lp.connect(out);
+      out.connect(music.bus);
+      [[root + 12, -4], [root + 19, 4], [root + 24, 0]].forEach(function (n) {
+        var o = a.createOscillator();
+        o.type = 'triangle';
+        o.frequency.value = midi(n[0]);
+        o.detune.value = n[1];
+        o.connect(lp);
+        o.start(t);
+        o.stop(t + dur + 1.8);
+      });
+    }
+
+    function schedulePhrase(a, t) {
+      var p = PHRASES[music.count % PHRASES.length];
+      var round = Math.floor(music.count / PHRASES.length);
+      var dur = 8 * BEAT;
+      pad(a, t, p[0], dur);
+      pluck(a, t, midi(p[0] + 12), 0.1, 2.4, music.bus);
+      pluck(a, t + 4 * BEAT, midi(p[0] + 19), 0.07, 2.2, music.bus);
+      p[1].forEach(function (n) {
+        var at = t + n[0] * BEAT + (Math.random() - 0.5) * 0.03;
+        pluck(a, at, midi(n[1]), 0.1 + Math.random() * 0.03, Math.min(2.4, n[2] * BEAT + 1), music.bus);
+        // Every other time round, a soft octave echo on longer notes.
+        if (round % 2 === 1 && n[2] >= 2) pluck(a, at + BEAT * 0.5, midi(n[1] + 12), 0.035, 1.6, music.bus);
+      });
+      if (music.count % PHRASES.length === 0) {
+        [[392, 1], [588, 0.4], [988, 0.15]].forEach(function (pr) {
+          var o = a.createOscillator();
+          var g = a.createGain();
+          o.frequency.value = pr[0];
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.03 * pr[1], t + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 3);
+          o.connect(g); g.connect(music.bus);
+          o.start(t); o.stop(t + 3.1);
+        });
+      }
+      music.count++;
+      return dur;
+    }
+
+    api.musicOn = true;
+    api.startMusic = function () {
+      if (!api.musicOn || music.timer) return;
+      var a = ctx();
+      if (!a) return;
+      music.bus = a.createGain();
+      music.bus.gain.value = 0.9;
+      music.bus.connect(master);
+      music.next = a.currentTime + 0.4;
+      var tick = function () {
+        while (music.next < a.currentTime + 1.5) music.next += schedulePhrase(a, music.next);
+      };
+      tick();
+      music.timer = setInterval(tick, 400);
+    };
+    api.stopMusic = function () {
+      if (music.timer) clearInterval(music.timer);
+      music.timer = null;
+      // Notes already scheduled fade out with their bus.
+      if (music.bus && ac) {
+        music.bus.gain.setTargetAtTime(0, ac.currentTime, 0.25);
+        music.bus = null;
+      }
+    };
     return api;
   }
 
@@ -411,6 +502,7 @@
     var ctx = canvas.getContext('2d');
     var prefs = readJson(PREFS_KEY, { sound: true });
     var sound = createSound(prefs.sound !== false);
+    sound.musicOn = prefs.music !== false;
     var reduceMotion = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     // W and H are the layout size. On short landscape screens the table is
@@ -459,10 +551,9 @@
       if (liveRegion) liveRegion.textContent = text;
     }
 
-    // Animation speed: 'normal', 'fast', or 'off' (skip animations and delays).
-    var SPEEDS = { normal: 1, fast: 0.45 };
+    // Animations: 'normal' (shown) or 'off' (skip animations and delays).
     function instantMode() { return settings.speed === 'off'; }
-    function speed(ms) { return reduceMotion ? 0 : ms * (SPEEDS[settings.speed] || 1); }
+    function speed(ms) { return reduceMotion ? 0 : ms; }
 
     /* ---------------- frame loop ---------------- */
 
@@ -583,11 +674,11 @@
       var tw = clamp(Math.min((W - 2 * pad) / 14.8, H * 0.085), 20, 60);
       var th = tw * TILE_ASPECT;
       var handY = H - pad - th - Math.max(2, tw * 0.08) - 4;
-      var mw = clamp(tw * 0.7, 16, 40);
+      var mw = tw; // melds and flowers match the hand
       var meldRowH = mw * TILE_ASPECT + 8;
       var meY = handY - meldRowH - 6;
       var actionsH = 44;
-      var hintH = ui.hints ? (W < 600 ? 66 : 54) : 0;
+      var hintH = ui.hints ? (W < 600 ? 70 : 60) : 0;
       // Short landscape screens put the action buttons in the meld row,
       // between your melds and your name, to leave room for the table.
       var actionsInRow = !portrait && H < 640;
@@ -791,8 +882,17 @@
       tipTile = sp ? sp.id : null;
       if (!sp) return;
       var label = E.tileName(sp.id);
+      // How many more could still show up: in the wall or someone's hidden hand.
+      var sub = '';
+      if (!E.isBonus(sp.id) && game && game.hand) {
+        var n = E.unseenCounts(game, 0)[E.tileIndex(sp.id)];
+        sub = n + ' left';
+      }
       ctx.font = 'bold 13px ' + FONT_BODY;
-      var w = ctx.measureText(label).width + 18, h = 26;
+      var w = ctx.measureText(label).width + 18;
+      ctx.font = '12px ' + FONT_BODY;
+      if (sub) w = Math.max(w, ctx.measureText(sub).width + 18);
+      var h = sub ? 42 : 26;
       var x = clamp((sp.x0 + sp.x1) / 2 - w / 2, 4, W - w - 4);
       var y = sp.y0 - h - 6;
       if (y < 4) y = sp.y1 + 6;
@@ -803,7 +903,8 @@
       ctx.fillStyle = 'rgba(26,26,26,0.92)';
       ctx.fill();
       ctx.restore();
-      text(label, x + w / 2, y + h / 2 + 1, { size: 13, weight: 'bold', align: 'center', color: COLORS.cream });
+      text(label, x + w / 2, sub ? y + 14 : y + h / 2 + 1, { size: 13, weight: 'bold', align: 'center', color: COLORS.cream });
+      if (sub) text(sub, x + w / 2, y + 30, { size: 12, align: 'center', color: COLORS.goldLight });
     }
 
     function render(t) {
@@ -961,7 +1062,8 @@
       // hand along their edge (a fresh draw sits a little apart, and the tile
       // they are considering lifts), melds and flowers in front of it.
       var f = L.oppFrames[seat];
-      var bw = clamp(Math.min(f.w / 14.7, (f.h - 6) * 0.6 / (TILE_ASPECT + 0.08)), 8, 38);
+      // One tile size for the hand and the meld row, so both rows must fit.
+      var bw = clamp(Math.min(f.w / 14.7, (f.h - 8) / (2 * (TILE_ASPECT + 0.08))), 8, 38);
       var count = oppConcealedCount(seat);
       var apart = ui.botDrawn[seat] && count > 0;
       // Center the hand along the area by the tiles actually held (a fresh
@@ -969,7 +1071,7 @@
       // player across centers the hand and meld row in their area; side
       // players keep the hand near their back edge, melds in front.
       var depth = bw * (TILE_ASPECT + 0.08);
-      var block = depth + 5 + bw * 0.86 * (TILE_ASPECT + 0.08);
+      var block = 2 * depth + 5;
       var edge = seat === 2 ? Math.max(1, (f.h - block) / 2) : Math.min(6, Math.max(1, (f.h - block) / 2));
       var backsY = f.h - edge - depth;
       var held = apart ? count - 1 : count;
@@ -981,7 +1083,7 @@
       var meldTilesN = items.filter(function (it) { return !it.gap; }).length;
       var gaps = items.length - meldTilesN;
       var flowersN = s.flowers.length;
-      var mw = clamp(Math.min(bw * 0.86, f.w / (meldTilesN + gaps * 0.35 + flowersN * 0.8 + 1.5)), 6, 30);
+      var mw = Math.min(bw, f.w / Math.max(1, meldTilesN + gaps * 0.35 + flowersN + 0.6));
       var meldY = backsY - mw * (TILE_ASPECT + 0.08) - 5;
 
       enterFrame(f);
@@ -995,10 +1097,10 @@
         mx += mw;
       });
       // Like a real table, melds then flowers run from the owner's left.
-      var fw = mw * 0.8;
+      var fw = mw;
       var fx = mx + (items.length ? mw * 0.35 : 0);
       s.flowers.forEach(function (id, k) {
-        drawTile(id, fx + k * fw, meldY + (mw - fw) * TILE_ASPECT, fw - 0.5, { shadow: false });
+        drawTile(id, fx + k * fw, meldY, fw - 0.5, { shadow: false });
       });
       ctx.restore();
 
@@ -1169,15 +1271,21 @@
       drawSeatHeader(0, W - pad - infoW, y + 2, infoW);
       var items = meldItems(0);
       var mx = pad;
+      // Same size as the hand; only shrinks if the row would run out of room.
+      var meldN = items.filter(function (it) { return !it.gap; }).length;
+      var gapsN = items.length - meldN;
+      var rowW = W - 2 * pad - infoW - 10;
+      var mw = Math.min(L.mw, rowW / Math.max(1, meldN + gapsN * 0.35 + s.flowers.length + 0.6));
+      var y0 = y + (L.mw - mw) * TILE_ASPECT;
       if (items.length) {
-        var end = flowRow(items, mx, y, W - 2 * pad - infoW - 10, L.mw);
-        mx = end.x + L.mw * 0.35;
+        var end = flowRow(items, mx, y0, rowW, mw);
+        mx = end.x + mw * 0.35;
       }
-      ui.meldAnchor[0] = { x: mx, y: y, w: L.mw, rot: 0 };
+      ui.meldAnchor[0] = { x: mx, y: y0, w: mw, rot: 0 };
       // Flowers sit after the melds, in the same row (away from your name).
-      var fw = L.mw * 0.8;
-      var fx = mx + (items.length ? L.mw * 0.2 : 0);
-      var fy = y + (L.mw - fw) * TILE_ASPECT;
+      var fw = mw;
+      var fx = mx + (items.length ? mw * 0.2 : 0);
+      var fy = y0;
       s.flowers.forEach(function (f, k) { drawTile(f, fx + k * (fw + 1), fy, fw, { shadow: false }); });
       ui.flowerAnchor[0] = { x: fx + s.flowers.length * (fw + 1), y: fy, w: fw, rot: 0 };
       ui.meRowFree = { x0: ui.flowerAnchor[0].x + 10, x1: W - pad - infoW - 10 };
@@ -1229,43 +1337,42 @@
         if (ui.notice && !ui.overlay && (ui.turnPrompt || ui.claimPrompt)) drawToast(ui.notice);
         return;
       }
-      var x = L.pad, y = L.hintY, w = W - 2 * L.pad, h = L.hintH;
+      var x = L.pad, w = W - 2 * L.pad;
       var lines = [];
       if (ui.notice) lines.push({ text: ui.notice, color: COLORS.goldLight });
-      if (ui.hint && ui.hint.tips) ui.hint.tips.forEach(function (tip) { lines.push({ text: tip, color: COLORS.cream }); });
+      // The first tip is the advice itself, in bold; the rest explain it.
+      if (ui.hint && ui.hint.tips) ui.hint.tips.forEach(function (tip, k) { lines.push({ text: tip, color: COLORS.cream, bold: k === 0 }); });
       if (!lines.length) lines.push({ text: 'Tips appear here on your turn and when you can claim a tile.', color: 'rgba(255,248,240,0.6)' });
-      ctx.save();
-      roundRect(ctx, x, y, w, h, 12);
-      ctx.fillStyle = 'rgba(0,0,0,0.32)';
-      ctx.fill();
-      ctx.restore();
-      var iconS = h - 14;
-      if (images.logo) {
-        var ih = iconS, iw = ih * (images.logo.width / images.logo.height);
-        ctx.drawImage(images.logo, x + 8, y + 7, Math.min(iw, 48), Math.min(ih, 48 / (iw / ih)));
-      }
-      var tx = x + 8 + Math.min(iconS, 48) + 8;
+      var iconS = Math.min(L.hintH - 14, 48);
+      var tx = x + 8 + iconS + 8;
       var tw = w - (tx - x) - 10;
       var size = W < 600 ? 12 : 13;
-      ctx.font = size + 'px ' + FONT_BODY;
       var out = [];
       lines.forEach(function (l) {
-        wrapText(ctx, l.text, tw).forEach(function (s) { out.push({ text: s, color: l.color }); });
+        ctx.font = (l.bold ? 'bold ' : '') + size + 'px ' + FONT_BODY;
+        wrapText(ctx, l.text, tw).forEach(function (s) { out.push({ text: s, color: l.color, bold: l.bold }); });
       });
       var lh = size + 3;
-      var maxLines = Math.floor((h - 8) / lh);
-      if (out.length > maxLines) {
-        out = out.slice(0, maxLines);
-        out[maxLines - 1].text = out[maxLines - 1].text.replace(/\s*\S*$/, '…');
+      // Show every line: a long tip grows the band upward over the table.
+      var h = Math.max(L.hintH, out.length * lh + 12);
+      var y = L.hintY + L.hintH - h;
+      ctx.save();
+      roundRect(ctx, x, y, w, h, 12);
+      ctx.fillStyle = h > L.hintH ? 'rgba(4,46,28,0.94)' : 'rgba(0,0,0,0.32)';
+      ctx.fill();
+      ctx.restore();
+      if (images.logo) {
+        var iw = iconS * (images.logo.width / images.logo.height);
+        ctx.drawImage(images.logo, x + 8, y + 7, Math.min(iw, 48), Math.min(iconS, 48 / (iw / iconS)));
       }
       var startY = y + h / 2 - (out.length * lh) / 2 + lh / 2;
       out.forEach(function (l, i) {
-        text(l.text, tx, startY + i * lh, { size: size, color: l.color });
+        text(l.text, tx, startY + i * lh, { size: size, color: l.color, weight: l.bold ? 'bold' : '' });
       });
     }
 
     function drawToast(msg) {
-      var size = W < 600 ? 12 : 13;
+      var size = W < 600 ? 14 : 16;
       ctx.font = size + 'px ' + FONT_BODY;
       var lines = wrapText(ctx, msg, Math.min(W - 40, 520));
       var w = Math.min(W - 24, Math.max.apply(null, lines.map(function (l) { return ctx.measureText(l).width; })) + 28);
@@ -1489,7 +1596,7 @@
       var lay;
       [{ rh: 26, tw: 40 }, { rh: 22, tw: 32 }, { rh: 19, tw: 26 }, { rh: 17, tw: 22 }].some(function (c) {
         var tw = isWin ? clamp((w - 24) / Math.max(units, 1), 14, c.tw) : 0;
-        var fw = Math.round(clamp(tw * 0.78, 16, 30));
+        var fw = tw; // bonus tiles match the hand
         var handH = isWin ? tw * TILE_ASPECT + 26 : 0;
         var flowerH = flowers.length ? fw * TILE_ASPECT + 14 : 0;
         var patH = isWin ? 24 + items.length * c.rh + 12 + 26 : 0;
@@ -1650,17 +1757,18 @@
       });
     }
 
-    var SPEED_LABELS = { normal: 'Normal', fast: 'Fast', off: 'Skip' };
-    var SPEED_ORDER = ['normal', 'fast', 'off'];
+    var SPEED_LABELS = { normal: 'Show', off: 'Skip' };
+    var SPEED_ORDER = ['normal', 'off'];
 
     function drawMenu() {
-      var r = panelRect(340, 332);
+      var r = panelRect(340, 382);
       drawPanelBg(r);
       text('Paused', r.x + r.w / 2, r.y + 36, { size: 24, family: FONT_HEAD, align: 'center', color: COLORS.red });
       var bx = r.x + 30, bw = r.w - 60, y = r.y + 62, step = 50;
       button('Resume', bx, y, bw, 40, function () { closeOverlay(); }, 'primary', 'm-resume'); y += step;
       button('Animations: ' + SPEED_LABELS[settings.speed || 'normal'], bx, y, bw, 40, cycleSpeed, 'light', 'm-speed'); y += step;
       button(settings.walls ? 'Hide the walls' : 'Show the walls', bx, y, bw, 40, toggleWalls, 'light', 'm-walls'); y += step;
+      button(sound.musicOn ? 'Music: On' : 'Music: Off', bx, y, bw, 40, toggleMusic, 'light', 'm-music'); y += step;
       button('Quit game', bx, y, bw, 40, function () { quit(); }, 'light', 'm-quit');
       var modeLine = (settings.mode === 'practice' ? 'Practice mode' : 'Payout mode') + ' · ' + (settings.spicy === 'half' ? 'Half spicy' : 'Full spicy');
       text(modeLine, r.x + r.w / 2, r.y + r.h - 18, { size: 12, align: 'center', color: COLORS.muted });
@@ -1746,11 +1854,23 @@
       track('play_toggle_hints', { hints: ui.hints ? 'on' : 'off' });
     }
 
+    function savePrefs() {
+      writeJson(PREFS_KEY, { sound: sound.enabled, music: sound.musicOn });
+    }
+
     function toggleSound() {
       sound.enabled = !sound.enabled;
-      writeJson(PREFS_KEY, { sound: sound.enabled });
-      if (sound.enabled) sound.play('select');
+      savePrefs();
+      if (sound.enabled) { sound.play('select'); sound.startMusic(); } else sound.stopMusic();
       requestRender();
+    }
+
+    function toggleMusic() {
+      sound.musicOn = !sound.musicOn;
+      savePrefs();
+      if (sound.musicOn) sound.startMusic(); else sound.stopMusic();
+      requestRender();
+      track('play_toggle_music', { music: sound.musicOn ? 'on' : 'off' });
     }
 
     function quit() {
@@ -1781,9 +1901,10 @@
     }
 
     function noteForChoice(cand, top) {
-      if (cand.loss > top.loss + 0.05 && cand.loss > 0.08) return E.tileName(cand.tile) + ' looks dangerous: an opponent close to winning may be waiting on it.';
-      if (cand.shanten > top.shanten) return 'Discarding ' + E.tileName(cand.tile) + ' moves you further from ready. Tap it again to discard anyway.';
-      return E.tileName(cand.tile) + ' is playable, but ' + E.tileName(top.tile) + ' keeps more ways to improve.';
+      var again = ' Tap it again to throw it anyway.';
+      if (cand.loss > top.loss + 0.05 && cand.loss > 0.08) return 'Careful: an opponent close to winning may want ' + E.tileName(cand.tile) + '.' + again;
+      if (cand.shanten > top.shanten) return E.tileName(cand.tile) + ' takes you further from winning.' + again;
+      return E.tileName(cand.tile) + ' is OK, but ' + E.tileName(top.tile) + ' is better.' + again;
     }
 
     function discardSelected() {
@@ -1818,8 +1939,8 @@
 
     function refreshHint() {
       if (!ui.hints || !game || !game.hand) { ui.hint = null; return; }
-      if (ui.turnPrompt) ui.hint = B.turnHint(game, 0, ui.turnPrompt.opts);
-      else if (ui.claimPrompt) ui.hint = B.claimHint(game, 0, ui.claimPrompt.opts);
+      if (ui.turnPrompt) ui.hint = Coach.turnHint(game, 0, ui.turnPrompt.opts);
+      else if (ui.claimPrompt) ui.hint = Coach.claimHint(game, 0, ui.claimPrompt.opts);
     }
 
     function hitTest(x, y) {
@@ -1836,6 +1957,7 @@
     }
 
     function onPointerDown(e) {
+      sound.startMusic(); // no-op once playing; covers browsers that block audio until a tap
       var p = pointerPos(e);
       var r = hitTest(p.x, p.y);
       if (!r) {
@@ -1933,9 +2055,10 @@
 
     function seatBannerPos(seat) {
       if (seat === 0) return { x: W / 2, y: L.actionsY + L.actionsH / 2, rot: 0 };
-      var r = L.opp[seat];
-      // Opponents' banners face them, like their tiles.
-      return { x: r.x + r.w / 2, y: r.y + r.h * 0.6, rot: SEAT_ANGLE[seat] };
+      // Opponents' banners sit in the middle of their tiles and face them.
+      var f = L.oppFrames[seat];
+      var mid = toScreen(f, f.w / 2, f.h / 2);
+      return { x: mid.x, y: mid.y, rot: SEAT_ANGLE[seat] };
     }
 
     function confetti(cx, cy, n, coins) {
@@ -2242,12 +2365,14 @@
 
     return {
       start: function () {
+        sound.startMusic();
         play().catch(function (err) {
           if (root.console) console.error(err);
         });
       },
       destroy: function () {
         destroyed = true;
+        sound.stopMusic();
         root.removeEventListener('resize', onResize);
         root.removeEventListener('keydown', onKey);
         canvas.removeEventListener('pointerdown', onPointerDown);
@@ -2277,7 +2402,7 @@
       spicy: get('spicy', saved.spicy || 'full'),
       mode: get('mode', saved.mode || 'payout'),
       hints: get('hints', saved.hints === false ? 'off' : 'on') === 'on',
-      speed: get('speed', saved.speed || 'normal'),
+      speed: get('speed', saved.speed) === 'off' ? 'off' : 'normal', // an old 'fast' setting shows animations
       walls: get('walls', saved.walls === false ? 'off' : 'on') === 'on',
     };
   }

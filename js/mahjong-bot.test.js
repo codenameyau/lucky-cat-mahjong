@@ -103,27 +103,6 @@ describe('bot decisions', () => {
   });
 });
 
-describe('hints', () => {
-  it('suggests a discard from the hand and explains it', () => {
-    const game = table({ seats: [{ hand: ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'dr', 'dr', 'c5', 'c6', 'd9'] }] });
-    const hint = B.turnHint(game, 0, { kongs: [] });
-    assert.equal(hint.tile, 'd9');
-    assert.ok(hint.tips.some((t) => /Discard Nine Circle/.test(t)));
-    assert.ok(hint.tips.some((t) => /waiting on/.test(t)));
-  });
-
-  it('tells the player to win and explains when to pass', () => {
-    const game = table({ seats: [{ hand: ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'dr', 'dr', 'c5', 'c6'] }] });
-    const winOpts = E.claimOptions(game, 0, 'c4', 2, false);
-    assert.ok(winOpts.win);
-    assert.match(B.claimHint(game, 0, winOpts).tips[0], /^Win!/);
-    const chowOpts = E.claimOptions(game, 0, 'c3', 3, false);
-    const hint = B.claimHint(game, 0, chowOpts);
-    assert.equal(hint.decision.type, 'pass');
-    assert.match(hint.tips.join(' '), /concealed is worth 1 faan/);
-  });
-});
-
 describe('bot strength', () => {
   // Baseline: discards purely for shanten and live tiles, never claims.
   function efficiencyAgent() {
