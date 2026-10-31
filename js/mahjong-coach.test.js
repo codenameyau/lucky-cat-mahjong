@@ -26,7 +26,7 @@ const meld = (type, tile) => {
   const tiles = type === 'chow' ? [tile, E.tileId(i + 1), E.tileId(i + 2)] : Array(3).fill(tile);
   return { type, tiles, concealed: false, from: 2 };
 };
-const text = (hint) => [hint.action].concat(hint.tips).join(' ');
+const text = (hint) => [hint.action].concat(hint.tips).join(' ').replace(/[\u0001\u0002]/g, '');
 
 describe('coach: discards', () => {
   const mixed = ['c2', 'c3', 'c4', 'd4', 'd5', 'd6', 'b3', 'b4', 'b6', 'b7', 'd8', 'd8', 'c9', 'dr'];
