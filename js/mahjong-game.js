@@ -538,7 +538,6 @@
       botDrawn: [false, false, false, false], // bot's fresh draw sits apart
       botDiscardFrom: [null, null, null, null],
       oppHand: [null, null, null, null],
-      teachTurns: 0,
       overlay: null,
       lastHandRects: [],
       meldAnchor: [null, null, null, null],
@@ -2276,10 +2275,6 @@
             ui.notice = opts.completeButShort
               ? 'Your hand is complete, but only ' + opts.completeButShort.faan + ' faan. You need ' + game.settings.minFaan + ' to win.'
               : (opts.win ? 'You can win with ' + opts.win.faan + ' faan!' : null);
-            if (!ui.notice && ui.teachTurns < 3) {
-              ui.teachTurns++;
-              ui.notice = 'Your turn: tap a tile to pick it, then tap it again (or press Discard) to throw it.';
-            }
             refreshHint();
             sound.play('turn');
             announce(opts.win ? 'You can win. Press Win, or pick a tile to discard.' : 'Your turn. Pick a tile to discard.');
