@@ -793,13 +793,14 @@
       regions.push({ x: x, y: y, w: w, h: h, onTap: onTap, id: id });
     }
 
-    function button(label, x, y, w, h, onTap, style, id) {
+    function button(label, x, y, w, h, onTap, style, id, picked) {
       style = style || 'light';
       var isHover = hover === id;
       var fills = {
         primary: isHover ? '#d62a47' : COLORS.red,
         gold: isHover ? '#ffb43c' : COLORS.gold,
         light: isHover ? '#ffffff' : 'rgba(255, 248, 240, 0.94)',
+        white: isHover ? '#ece6de' : '#ffffff',
         ghost: isHover ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)',
       };
       ctx.save();
@@ -808,7 +809,14 @@
       ctx.shadowOffsetY = 2;
       pill(x, y, w, h, fills[style], style === 'ghost' ? 'rgba(255,255,255,0.3)' : null);
       ctx.restore();
-      var color = style === 'light' ? COLORS.ink : COLORS.white;
+      if (picked) {
+        // A white button the coach recommends keeps its color and gets a gold ring.
+        roundRect(ctx, x - 2, y - 2, w + 4, h + 4, (h + 4) / 2);
+        ctx.strokeStyle = COLORS.gold;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+      var color = style === 'light' || style === 'white' ? COLORS.ink : COLORS.white;
       if (style === 'gold') color = COLORS.ink;
       var size = fitFont(ctx, label, w - 16, Math.min(16, h * 0.42), FONT_BODY, 'bold');
       text(label, x + w / 2, y + h / 2 + 1, { size: size, weight: 'bold', color: color, align: 'center' });
@@ -1613,7 +1621,7 @@
           var seq = E.sortTiles(pair.concat([c.tile])).map(function (id) { return E.rankOfIndex(E.tileIndex(id)); }).join('-');
           acts.push({ label: 'Chow ' + seq, style: 'primary', fn: function () { resolveClaim({ type: 'chow', tiles: pair }); } });
         });
-        acts.push({ label: 'Pass', style: 'light', fn: function () { resolveClaim({ type: 'pass' }); } });
+        acts.push({ label: 'Pass', style: 'white', fn: function () { resolveClaim({ type: 'pass' }); } });
       }
       if (!acts.length) { setButtonsOverName(false); return; }
       var h = 38;
@@ -1653,7 +1661,9 @@
       acts.forEach(function (a, i) {
         var id = 'act-' + i;
         var recommended = hintDecision && labelMatches(a.label, hintDecision);
-        button(a.label, x + i * (bw + gap), y, bw, h, a.fn, recommended ? 'gold' : a.style, id);
+        // Pass always stays white; a recommended Pass is ringed in gold instead.
+        var white = a.style === 'white';
+        button(a.label, x + i * (bw + gap), y, bw, h, a.fn, recommended && !white ? 'gold' : a.style, id, recommended && white);
       });
     }
 
