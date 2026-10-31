@@ -2256,17 +2256,20 @@
    * 5. Preview page wiring (settings form <-> table)
    * ------------------------------------------------------------------ */
 
-  function readForm(form) {
+  // Settings the form doesn't show (hints, animations, walls) keep whatever
+  // was last chosen from the in-game menu.
+  function readForm(form, saved) {
+    saved = saved || {};
     var get = function (name, fallback) {
       var el = form.querySelector('input[name="' + name + '"]:checked');
       return el ? el.value : fallback;
     };
     return {
-      spicy: get('spicy', 'full'),
-      mode: get('mode', 'payout'),
-      hints: get('hints', 'on') === 'on',
-      speed: get('speed', 'normal'),
-      walls: get('walls', 'on') === 'on',
+      spicy: get('spicy', saved.spicy || 'full'),
+      mode: get('mode', saved.mode || 'payout'),
+      hints: get('hints', saved.hints === false ? 'off' : 'on') === 'on',
+      speed: get('speed', saved.speed || 'normal'),
+      walls: get('walls', saved.walls === false ? 'off' : 'on') === 'on',
     };
   }
 
@@ -2317,7 +2320,7 @@
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      var settings = readForm(form);
+      var settings = readForm(form, readJson(SETTINGS_KEY, {}));
       writeJson(SETTINGS_KEY, settings);
       // ?instant=1 skips animations for this visit only (handy for testing).
       if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
