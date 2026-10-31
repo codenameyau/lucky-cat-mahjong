@@ -18,18 +18,20 @@ The hands, in the order they come up:
 - **Full flush.** One suit only, once that suit already makes up most of the hand and there is no honor meld. Worth 7 faan.
 - **All Triplets.** Sets and pairs, no chows, once the hand already has several of them.
 - **Concealed Triplets.** No melds yet, and at least two pungs already in hand.
-- **Seven Pairs.** See below. Worth 4 faan, and the hand must stay concealed.
-- **Thirteen Orphans.** When the concealed hand already holds eight or more terminal and honor tiles. A pair counts as two. A third copy of the same tile does not. Worth a limit, 13 faan. Nothing is claimed, and every other tile is discarded first.
-- **Nine Gates.** When one suit already holds eight tiles of the pattern 1112345678999 (three 1s, one each of 2 through 8, three 9s). Tiles beyond those counts, and every tile of another suit, do not count. Worth a limit, 13 faan. The hand stays concealed, and anything outside that suit is discarded first.
+- **Seven Pairs.** See below. Worth 4 faan, plus a flush when the pairs are all one suit (3 with honors, 7 without). The hand must stay concealed.
+- **Thirteen Orphans.** When the concealed hand already holds nine different terminals and honors (or eight and a pair), and none of the missing ones is used up. Worth a limit, 13 faan. Nothing is claimed, and every other tile is discarded first.
+- **Nine Gates.** When one suit already holds eleven tiles of the pattern 1112345678999 (three 1s, one each of 2 through 8, three 9s). Tiles beyond those counts, and every tile of another suit, do not count. Worth a limit, 13 faan. The hand stays concealed, and anything outside that suit is discarded first.
 - **A chicken hand** built on dragon and wind sets, when nothing above is close. It still needs another faan from flowers or from a dragon or wind pung.
 
 A ready hand is scored exactly. Each wait is checked against the real faan table, including waits that only win on a self-draw and waits that can never reach 3 faan.
 
 ## What gets discarded first
 
-When several discards are legal, they are taken in this order. A later group is used only when nothing in an earlier group can be thrown.
+When several discards are legal, they are taken in this order. A later group is used only when nothing in an earlier group can be thrown without leaving the hand further from ready. Keeping a pair or a dragon never costs a step: if every tile in an earlier group would slow the hand down, a tile from a later group that doesn't goes first.
 
-1. **Tiles from a suit you no longer need.** After you chow, a mixed hand cannot reach 3 faan, so the hand commits to the chow's suit (honors can stay, for a half flush). Every tile of another suit is thrown first, including pairs. This does not happen when the hand already has 2 faan from flowers (your own flower and season, or a complete set of four flowers or four seasons). It also does not happen when the open melds already cover two number suits.
+While the hand is folding (see Defense), safety decides instead, and this order only breaks ties between equally safe tiles. Breaking a safe pair is the right play then.
+
+1. **Tiles from a suit you no longer need.** After you chow, a mixed hand cannot reach 3 faan, so the hand commits to the chow's suit (honors can stay, for a half flush). Every tile of another suit is thrown first, including pairs. This does not happen when the hand has already banked 2 faan: from flowers (your own flower and season, or a complete set of four flowers or four seasons, which counts 2 in place of your own one), or from sets of dragons or of your own or the round wind, open or held concealed. It also does not happen when the open melds already cover two number suits.
 2. **A tile someone has already Punged or Konged**, when the hand does not need it. See below.
 3. **Ordinary tiles.** Singles and the spare tile from a triplet, chosen by which one leaves the hand closest to a good win.
 4. **Pairs.** A pair is kept until the tiles above are gone. Keeping it leaves a later pung, a chow, or Seven Pairs open.
@@ -51,25 +53,31 @@ While the hand is going for Seven Pairs, a single dragon can be thrown after the
 
 ## A punged tile
 
-Once any player has an open pung or kong of a tile, the last copy is safe against the whole table. Nobody can pung it, and the player who already has the set does not want it.
+Once any player has an open pung or kong of a tile, nobody can pung the last copy or wait on it as a pair.
+
+For an honor, that makes it completely safe: an honor can only be won as a pung or a pair. A number tile is safer but not safe, because it can still finish someone's chow. The last Five Bamboo can still complete a 4-6 or a 6-7.
 
 If throwing that tile leaves the hand as close to ready as the best other discard, and it is not itself a pair the hand is keeping, it is the first discard.
 
 ## Thirteen Orphans
 
-The hand switches to Thirteen Orphans when it is concealed and already holds eight or more tiles that are terminals or honors. One and nine of each suit, and all seven honors, are those tiles. Two of the same tile count as two. A third copy does not count, because the hand only needs one pair.
+The hand switches to Thirteen Orphans when it is concealed and already holds nine different terminals and honors. One and nine of each suit, and all seven honors, are those tiles. A pair of any of them also counts once, so eight different ones and a pair is enough too. A third copy does not count, because the hand only needs one pair. Nine means the hand is at most four tiles from ready.
+
+It is dropped if any terminal or honor the hand still lacks has all four copies on the table, because it can never be finished.
 
 Every tile that is not a terminal or an honor is discarded first. No chow, pung, or kong is taken. An open meld makes the hand impossible.
 
-Seven tiles is not enough. The recommendation starts at eight.
+Eight different tiles without a pair is not enough.
 
 ## Nine Gates
 
-Nine Gates is 1112345678999 in one suit, plus any one extra tile of that suit. The hand switches to it when one suit already contains eight of those tiles: up to three 1s, one each of 2 through 8, and up to three 9s. A second 5 does not count, because the pattern only needs one. A fourth 1 does not count either.
+Nine Gates is 1112345678999 in one suit, plus any one extra tile of that suit. The hand switches to it when one suit already contains eleven of those tiles: up to three 1s, one each of 2 through 8, and up to three 9s. A second 5 does not count, because the pattern only needs one. A fourth 1 does not count either.
 
-The suit with the most of those tiles is the one to build, once it has reached eight. Tiles of the other suits, honors, and spare copies are discarded first. No claim is taken. An open meld makes Nine Gates impossible.
+Short of eleven, the same tiles make a Full Flush (7 faan), which can still claim and doesn't have to throw spare copies. Going for Nine Gates earlier gives that up for a hand that is rarely finished.
 
-Seven of the pattern is not enough.
+The suit with the most of those tiles is the one to build, once it has reached eleven. Tiles of the other suits, honors, and spare copies are discarded first. No claim is taken. An open meld makes Nine Gates impossible.
+
+Ten of the pattern is not enough.
 
 If one hand qualifies for more than one of Seven Pairs, Thirteen Orphans, and Nine Gates, they play whichever of those is closer to ready.
 
@@ -83,7 +91,7 @@ The hand switches to Seven Pairs when all of these are true:
 
 Shedding one tile from a pung you currently hold does not count. The hand you have right now has to already be pairs. The next turn, if that pung is gone and five pairs remain, Seven Pairs starts then.
 
-On this plan every pair is kept, nothing is claimed, and singles are discarded first.
+On this plan every pair is kept, nothing is claimed, and singles are discarded first. When the pairs are all in one suit (with or without honors), the hand is also worth the flush, and the bot counts that.
 
 ## After you chow
 
@@ -99,9 +107,9 @@ Once the chow is down, tiles outside that suit are thrown first, as described ab
 
 ## Dragons, winds, and kongs as claims
 
-A pung of a dragon, or of your own wind, or of the round wind, is always taken, unless the hand is on Seven Pairs (a set cannot be part of that hand).
+A pung of a dragon, or of your own wind, or of the round wind, is always taken, unless the hand is on Seven Pairs, Thirteen Orphans, or Nine Gates (a set cannot be part of those hands). The one other exception is a hand that is already ready, when the pung would leave it further from ready and worth less than waiting. Then it is weighed like any other claim.
 
-An open kong early in the hand (more than 60 tiles left) is skipped unless the hand is already All Triplets. A concealed kong is declared when it does not break the hand. A kong draws a replacement tile.
+An open kong early in the hand (more than 60 tiles left) is skipped unless the hand is already All Triplets. A kong of a dragon or a scoring wind is the exception and is taken like the pung above. A concealed kong is declared when it does not break the hand. A kong draws a replacement tile.
 
 Other pungs and chows are taken only when the hand afterwards is clearly better than passing.
 
@@ -113,7 +121,7 @@ Defense takes over when someone is High or Extreme and this hand is still two or
 
 Against one opponent, a tile is safer in this order:
 
-1. A tile they, or anyone, have already punged or konged. This one is safe against the whole table.
+1. An honor that anyone has already punged or konged. This one is safe against the whole table. (A punged number tile only loses its pung and pair waits. It can still finish a chow.)
 2. A tile they have thrown since their last meld. Their current hand did not want it.
 3. An honor with three or more copies already visible. It is dead.
 4. A tile whose suji they have thrown. If they threw the 2, the 5 is safer, and the same three-away step in the other direction.
