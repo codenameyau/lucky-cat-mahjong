@@ -29,8 +29,8 @@
     white: '#ffffff',
   };
   var FONT_BODY = '"Avenir Medium", "Avenir Next Medium", Avenir, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-  // Headings, winds and banners; drawn bold (see text() and fitFont()).
-  var FONT_HEAD = '"Cinzel", Georgia, "Times New Roman", serif';
+  // The site's heading font (css/fonts.css), for headings, winds and banners.
+  var FONT_HEAD = '"KN Yuanmo SC", ' + FONT_BODY;
   var WIND_LETTERS = ['', 'E', 'S', 'W', 'N'];
 
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -80,7 +80,7 @@
     jobs.push(loadImage('/logo.png').then(function (img) { images.logo = img; }));
     if (document.fonts && document.fonts.load) {
       jobs.push(Promise.race([
-        document.fonts.load('bold 16px Cinzel').catch(function () {}),
+        document.fonts.load('16px "KN Yuanmo SC"').catch(function () {}),
         new Promise(function (resolve) { setTimeout(resolve, 1500); }),
       ]));
     }
@@ -395,7 +395,6 @@
   }
 
   function fitFont(ctx, text, maxW, size, family, weight) {
-    if (!weight && family === FONT_HEAD) weight = 'bold';
     var s = size;
     for (; s > 8; s--) {
       ctx.font = (weight || '') + ' ' + s + 'px ' + family;
@@ -720,8 +719,7 @@
 
     function text(str, x, y, opts) {
       opts = opts || {};
-      var weight = opts.weight || (opts.family === FONT_HEAD ? 'bold' : '');
-      ctx.font = weight + ' ' + (opts.size || 13) + 'px ' + (opts.family || FONT_BODY);
+      ctx.font = (opts.weight || '') + ' ' + (opts.size || 13) + 'px ' + (opts.family || FONT_BODY);
       ctx.fillStyle = opts.color || COLORS.white;
       ctx.textAlign = opts.align || 'left';
       ctx.textBaseline = opts.baseline || 'middle';
@@ -1374,7 +1372,7 @@
         ctx.translate(b.x, b.y);
         ctx.scale(scale, scale);
         var size = b.size || 30;
-        ctx.font = 'bold ' + size + 'px ' + FONT_HEAD;
+        ctx.font = size + 'px ' + FONT_HEAD;
         var tw = ctx.measureText(b.text).width;
         var bw = tw + size * 1.2, bh = size * 1.5;
         roundRect(ctx, -bw / 2, -bh / 2, bw, bh, bh / 2);
