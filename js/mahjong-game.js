@@ -1276,10 +1276,18 @@
       var x = L.pad, w = W - 2 * L.pad;
       var lines = [];
       var GRAY = 'rgba(255,248,240,0.5)';
-      if (ui.notice && !ui.overlay && (ui.turnPrompt || ui.claimPrompt)) lines.push({ text: ui.notice, color: COLORS.goldLight });
-      // The main action on its own line in bold gold; the rest as one paragraph.
       var note = ui.coach === 'on' ? ui.hint : ui.coach === 'feedback' ? ui.feedback : null;
-      if (note && note.action) lines.push({ text: note.action, color: COLORS.goldLight, bold: true });
+      var showNotice = ui.notice && !ui.overlay && (ui.turnPrompt || ui.claimPrompt);
+      // On a claim the question and the coach's answer share one line, such
+      // as "Claim One Circle? Chow 1-2-3 Circles."
+      var oneLine = showNotice && ui.claimPrompt && ui.coach === 'on' && note && note.action;
+      if (oneLine) {
+        lines.push({ text: ui.notice + ' ' + note.action, color: COLORS.goldLight, bold: true });
+      } else {
+        if (showNotice) lines.push({ text: ui.notice, color: COLORS.goldLight });
+        // The main action on its own line in bold gold; the rest as one paragraph.
+        if (note && note.action) lines.push({ text: note.action, color: COLORS.goldLight, bold: true });
+      }
       if (note && note.tips && note.tips.length) lines.push({ text: note.tips.join(' '), color: COLORS.cream });
       if (!note) {
         // Nothing to say right now: say what this box is for, in gray.
