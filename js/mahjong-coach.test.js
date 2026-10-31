@@ -125,3 +125,46 @@ describe('coach: claims', () => {
     assert.match(text(C.claimHint(game, 0, opts)), /^Win! Four Character finishes your hand/);
   });
 });
+
+describe('coach: feedback on your last move', () => {
+  const mixed = ['c2', 'c3', 'c4', 'd4', 'd5', 'd6', 'b3', 'b4', 'b6', 'b7', 'd8', 'd8', 'c9', 'dr'];
+
+  it('praises the coach\'s top discard and says why', () => {
+    const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
+    const fb = C.discardFeedback(hint, 'c9');
+    assert.equal(fb.action, 'Great discard.');
+    assert.match(fb.tips[0], /^Nine Character was the coach's top choice\. /);
+  });
+
+  it('says a discard slowed the hand and compares it with the coach\'s pick', () => {
+    const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
+    const fb = C.discardFeedback(hint, 'd5');
+    assert.equal(fb.action, 'That discard slows your hand.');
+    assert.match(fb.tips.join(' '), /The coach would have discarded Nine Character\./);
+    assert.match(fb.tips.join(' '), /Throwing Five Circle leaves you 2 tiles from ready, 1 tile further/);
+  });
+
+  it('returns nothing without a usable hint', () => {
+    assert.equal(C.discardFeedback(null, 'c9'), null);
+    assert.equal(C.discardFeedback({ kind: 'win', tips: [] }, 'c9'), null);
+  });
+
+  it('judges claims against what the coach would have done', () => {
+    const game = table({ seats: [{ hand: ['dr', 'dr', 'c2', 'c3', 'c4', 'd6', 'd7', 'b2', 'b3', 'b7', 'b8', 'ws', 'wn'] }] });
+    const hint = C.claimHint(game, 0, E.claimOptions(game, 0, 'dr', 2, false));
+    assert.equal(C.claimFeedback(hint, { type: 'pung' }).action, 'Good call.');
+    const missed = C.claimFeedback(hint, { type: 'pass' });
+    assert.equal(missed.action, 'The coach would have called Pung.');
+    assert.match(missed.tips[0], /^You passed\. /);
+  });
+
+  it('notes a claim the coach would have passed on', () => {
+    const game = table({ seats: [{ hand: ['c2', 'c3', 'c6', 'c7', 'c8', 'd3', 'd4', 'd5', 'b5', 'b6', 'b2', 'b8', 'b8'] }] });
+    const opts = E.claimOptions(game, 0, 'c4', 3, false);
+    const hint = C.claimHint(game, 0, opts);
+    assert.equal(C.claimFeedback(hint, { type: 'pass' }).action, 'Good pass.');
+    const fb = C.claimFeedback(hint, { type: 'chow', tiles: opts.chows[0] });
+    assert.equal(fb.action, 'The coach would have passed.');
+    assert.match(fb.tips[0], /^You took the Chow\. /);
+  });
+});

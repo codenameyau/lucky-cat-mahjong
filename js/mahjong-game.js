@@ -435,7 +435,8 @@
     var tileSpots = [], tipsOn = true, mouse = null, tipTile = null;
 
     var ui = {
-      hints: !!settings.hints,
+      coach: settings.coach || 'on', // 'on' (advice), 'feedback' (notes on your last move) or 'off'
+      feedback: null, // the coach's note on your previous move
       turnSeat: null,
       selected: -1,
       turnPrompt: null,
@@ -840,6 +841,9 @@
       ctx.fillRect(0, 0, W, H);
     }
 
+    var COACH_LABELS = { on: 'Coach on', feedback: 'Feedback on', off: 'Coach off' };
+    var COACH_ORDER = ['on', 'feedback', 'off'];
+
     function drawTopBar() {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
       ctx.fillRect(0, 0, W, 42);
@@ -849,8 +853,8 @@
       var soundLabel = sound.enabled ? 'Sound on' : 'Sound off';
       var sw = W < 420 ? 76 : 92;
       button(soundLabel, right - sw, 7, sw, 28, toggleSound, 'ghost', 'sound');
-      var hw = W < 420 ? 72 : 88;
-      button(ui.hints ? 'Coach on' : 'Coach off', right - sw - hw - 6, 7, hw, 28, toggleHints, ui.hints ? 'gold' : 'ghost', 'hints');
+      var hw = W < 420 ? 88 : 106;
+      button(COACH_LABELS[ui.coach], right - sw - hw - 6, 7, hw, 28, cycleCoach, ui.coach === 'off' ? 'ghost' : 'gold', 'hints');
       if (game) {
         var label = E.WIND_NAMES[game.round] + ' round · Hand ' + game.handNumber;
         var maxW = right - sw - hw - 12 - (pad + 72);
@@ -1200,7 +1204,7 @@
       var tw = L.tw;
       var total = tiles.length * tw + (order.drawnSeparate ? tw * 0.4 : 0);
       var x0 = Math.max(pad, (W - total) / 2);
-      var hintTile = ui.hints && ui.hint && ui.hint.tile;
+      var hintTile = ui.coach === 'on' && ui.hint && ui.hint.tile;
       var hintUsed = false;
       ui.lastHandRects = [];
       if (active && !ui.overlay) {
@@ -1235,15 +1239,26 @@
     }
 
     function drawHintBand() {
-      // With the coach off, the bar's space stays empty apart from notes.
-      if (!ui.hints && !(ui.notice && !ui.overlay && (ui.turnPrompt || ui.claimPrompt))) return;
       var x = L.pad, w = W - 2 * L.pad;
       var lines = [];
-      if (ui.notice) lines.push({ text: ui.notice, color: COLORS.goldLight });
+      var GRAY = 'rgba(255,248,240,0.5)';
+      if (ui.notice && !ui.overlay && (ui.turnPrompt || ui.claimPrompt)) lines.push({ text: ui.notice, color: COLORS.goldLight });
       // The main action on its own line in bold gold; the rest as one paragraph.
-      if (ui.hint && ui.hint.action) lines.push({ text: ui.hint.action, color: COLORS.goldLight, bold: true });
-      if (ui.hint && ui.hint.tips && ui.hint.tips.length) lines.push({ text: ui.hint.tips.join(' '), color: COLORS.cream });
-      if (!lines.length && ui.hints) lines.push({ text: 'The coach gives advice here on your turn and when you can claim a tile.', color: 'rgba(255,248,240,0.6)' });
+      var note = ui.coach === 'on' ? ui.hint : ui.coach === 'feedback' ? ui.feedback : null;
+      if (note && note.action) lines.push({ text: note.action, color: COLORS.goldLight, bold: true });
+      if (note && note.tips && note.tips.length) lines.push({ text: note.tips.join(' '), color: COLORS.cream });
+      if (!note) {
+        // Nothing to say right now: say what this box is for, in gray.
+        if (ui.coach === 'off') {
+          lines.push({ text: 'The coach is off.', color: GRAY, bold: true });
+          lines.push({ text: 'Click the Coach button at the top to turn it on and get advice on every move, or switch it to Feedback to learn from the moves you\'ve made.', color: GRAY });
+        } else if (ui.coach === 'feedback') {
+          lines.push({ text: 'Feedback is on.', color: GRAY, bold: true });
+          lines.push({ text: 'After you make a move, the coach will tell you how it went so you can learn from it.', color: GRAY });
+        } else {
+          lines.push({ text: 'The coach gives advice here on your turn and when you can claim a tile.', color: GRAY });
+        }
+      }
       var iconS = Math.min(L.hintH - 14, 48);
       var tx = x + 8 + iconS + 8;
       var tw = w - (tx - x) - 10;
@@ -1359,7 +1374,7 @@
       if (claimTile) {
         drawTile(claimTile, x - lead, rowY + (L.actionsH - ctw * TILE_ASPECT) / 2, ctw, { glow: COLORS.gold });
       }
-      var hintDecision = ui.hints && ui.hint && ui.hint.decision;
+      var hintDecision = ui.coach === 'on' && ui.hint && ui.hint.decision;
       acts.forEach(function (a, i) {
         var id = 'act-' + i;
         var recommended = hintDecision && labelMatches(a.label, hintDecision);
@@ -1762,12 +1777,13 @@
       requestRender();
     }
 
-    function toggleHints() {
-      ui.hints = !ui.hints;
-      saveSetting('hints', ui.hints);
+    function cycleCoach() {
+      var next = COACH_ORDER[(COACH_ORDER.indexOf(ui.coach) + 1) % COACH_ORDER.length];
+      ui.coach = next;
+      saveSetting('coach', next);
       refreshHint();
       requestRender();
-      track('play_toggle_hints', { hints: ui.hints ? 'on' : 'off' });
+      track('play_set_coach', { coach: next });
     }
 
     function toggleSound() {
@@ -1792,7 +1808,7 @@
       ui.selected = idx;
       sound.play('select');
       var picked = myHandOrder().tiles[idx];
-      if (picked && ui.hints && ui.hint && ui.hint.candidates) {
+      if (picked && ui.coach === 'on' && ui.hint && ui.hint.candidates) {
         var cand = ui.hint.candidates.filter(function (c) { return c.tile === picked; })[0];
         var top = ui.hint.candidates[0];
         if (cand && cand.tile !== top.tile) {
@@ -1823,6 +1839,10 @@
     function resolveTurn(action) {
       var p = ui.turnPrompt;
       if (!p) return;
+      // Training mode: judge the move against what the coach would have done.
+      if (ui.coach === 'feedback' && ui.hint && action.type === 'discard') {
+        ui.feedback = Coach.discardFeedback(ui.hint, action.tile) || ui.feedback;
+      }
       ui.turnPrompt = null;
       ui.selected = -1;
       ui.hint = null;
@@ -1834,6 +1854,9 @@
     function resolveClaim(decision) {
       var p = ui.claimPrompt;
       if (!p) return;
+      if (ui.coach === 'feedback' && ui.hint) {
+        ui.feedback = Coach.claimFeedback(ui.hint, decision) || ui.feedback;
+      }
       ui.claimPrompt = null;
       ui.hint = null;
       ui.notice = null;
@@ -1842,7 +1865,8 @@
     }
 
     function refreshHint() {
-      if (!ui.hints || !game || !game.hand) { ui.hint = null; return; }
+      // In Feedback mode the advice is worked out (to judge your move) but not shown.
+      if (ui.coach === 'off' || !game || !game.hand) { ui.hint = null; return; }
       if (ui.turnPrompt) ui.hint = Coach.turnHint(game, 0, ui.turnPrompt.opts);
       else if (ui.claimPrompt) ui.hint = Coach.claimHint(game, 0, ui.claimPrompt.opts);
     }
@@ -2018,6 +2042,7 @@
         ui.selected = -1;
         ui.notice = null;
         ui.hint = null;
+        ui.feedback = null;
         L = computeLayout();
         announce('Hand ' + game.handNumber + '. ' + (game.dealer === 0 ? 'You are' : game.players[game.dealer].name + ' is') + ' the dealer.');
         requestRender();
@@ -2243,7 +2268,7 @@
       game = E.createGame({ spicy: settings.spicy, mode: settings.mode });
       var agents = [humanAgent(), botAgent(), botAgent(), botAgent()];
       track('play_start', {
-        spicy: settings.spicy, mode: settings.mode, hints: settings.hints ? 'on' : 'off',
+        spicy: settings.spicy, mode: settings.mode, coach: settings.coach,
         speed: settings.speed,
       });
       while (!destroyed) {
@@ -2315,7 +2340,7 @@
    * 5. Preview page wiring (settings form <-> table)
    * ------------------------------------------------------------------ */
 
-  // Settings the form doesn't show (hints, animations) keep whatever
+  // Settings the form doesn't show (coach, animations) keep whatever
   // was last chosen from the in-game menu.
   function readForm(form, saved) {
     saved = saved || {};
@@ -2326,7 +2351,8 @@
     return {
       spicy: get('spicy', saved.spicy || 'full'),
       mode: get('mode', saved.mode || 'payout'),
-      hints: get('hints', saved.hints === false ? 'off' : 'on') === 'on',
+      // Older saves had a hints on/off flag.
+      coach: saved.coach || (saved.hints === false ? 'off' : 'on'),
       speed: get('speed', saved.speed) === 'off' ? 'off' : 'normal', // an old 'fast' setting shows animations
     };
   }
@@ -2338,7 +2364,6 @@
     };
     if (saved.spicy) set('spicy', saved.spicy);
     if (saved.mode) set('mode', saved.mode);
-    if (saved.hints !== undefined) set('hints', saved.hints ? 'on' : 'off');
     if (saved.speed) set('speed', saved.speed);
   }
 

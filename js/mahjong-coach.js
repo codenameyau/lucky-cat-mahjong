@@ -528,7 +528,11 @@
     // 4. What goes next if the next draw doesn't help.
     if (next) tips.push('If your next draw doesn\'t help, let ' + E.tileName(next.tile) + ' go.');
 
-    return lead({ kind: 'discard', tile: pick.tile, tips: tips, candidates: list }, kongAt !== undefined ? kongAt : discardAt);
+    var worry = threats.filter(function (t) { return t.level >= 2; }).sort(function (a, b) { return b.level - a.level; })[0];
+    return lead({
+      kind: 'discard', tile: pick.tile, tips: tips, candidates: list,
+      why: why, threatName: worry ? worry.name : null,
+    }, kongAt !== undefined ? kongAt : discardAt);
   }
 
   function chowLabel(pair, tile) {
@@ -642,7 +646,73 @@
     return lead({ kind: 'claim', decision: { type: 'pass' }, tips: tips.concat(after(stay, c)) }, tips.length - 1);
   }
 
-  var api = { turnHint: turnHint, claimHint: claimHint, rankDiscards: rankDiscards, routesFor: routesFor, look: look };
+  /* ------------------------------------------------------------------ *
+   * 6. Feedback on the move you just made (training mode)
+   * ------------------------------------------------------------------ */
+
+  function stepsWords(shanten) {
+    if (shanten <= 0) return 'ready';
+    return shanten === 1 ? '1 tile from ready' : shanten + ' tiles from ready';
+  }
+
+  // `hint` is what turnHint said before you moved; `tile` is what you threw.
+  function discardFeedback(hint, tile) {
+    if (!hint || !hint.candidates || !hint.candidates.length) return null;
+    var top = hint.candidates[0];
+    var chosen = hint.candidates.filter(function (c) { return c.tile === tile; })[0];
+    if (!chosen) return null;
+    var gap = top.score - chosen.score;
+    var mine = E.tileName(tile), best = E.tileName(top.tile);
+    var great = chosen.tile === top.tile || gap <= 0.002;
+    var slows = chosen.shanten > top.shanten;
+    var risky = chosen.loss >= 0.035 && chosen.loss > top.loss * 1.5 + 0.01;
+    var good = gap <= Math.max(0.003, Math.abs(top.score) * 0.15);
+
+    if (great) {
+      return { kind: 'feedback', action: 'Great discard.', tips: [chosen.tile === top.tile
+        ? (mine + ' was the coach\'s top choice. ' + (hint.why || '')).trim()
+        : mine + ' is about as good as the coach\'s pick, ' + best + '.'] };
+    }
+    var tips = ['The coach would have discarded ' + best + '. ' + (hint.why || '')];
+    var action;
+    if (slows) {
+      action = 'That discard slows your hand.';
+      var more = chosen.shanten - top.shanten;
+      tips.push('Throwing ' + mine + ' leaves you ' + stepsWords(chosen.shanten) + ', ' + more + (more === 1 ? ' tile' : ' tiles') + ' further than the coach\'s discard.');
+    } else if (risky) {
+      action = 'That discard was risky.';
+      tips.push('Throwing ' + mine + ' was risky because ' + (hint.threatName ? hint.threatName + ' looks close to winning.' : 'an opponent may be waiting on it.'));
+    } else if (good) {
+      action = 'Good discard.';
+      tips.push('Both work, but the coach rates ' + best + ' a little higher.');
+    } else {
+      action = 'There was a better discard.';
+      tips.push('Throwing ' + mine + ' keeps fewer ways to improve your hand.');
+    }
+    return { kind: 'feedback', action: action, tips: tips.map(function (t) { return t.trim(); }) };
+  }
+
+  function claimName(decision) {
+    return decision.type === 'chow' ? 'Chow' : decision.type.charAt(0).toUpperCase() + decision.type.slice(1);
+  }
+
+  // `hint` is what claimHint said before you chose; `decision` is what you did.
+  function claimFeedback(hint, decision) {
+    if (!hint || !hint.decision || !decision || decision.type === 'win') return null;
+    var coachType = hint.decision.type;
+    var same = coachType === decision.type &&
+      (decision.type !== 'chow' || !hint.decision.tiles || decision.tiles.join() === hint.decision.tiles.join());
+    var reason = hint.tips[0] || '';
+    var coachSays = (hint.action || '').replace(/[.!]$/, '');
+    if (same) {
+      return { kind: 'feedback', action: decision.type === 'pass' ? 'Good pass.' : 'Good call.', tips: [reason].filter(Boolean) };
+    }
+    var did = decision.type === 'pass' ? 'You passed.' : 'You took the ' + claimName(decision) + '.';
+    var action = coachType === 'pass' ? 'The coach would have passed.' : 'The coach would have called ' + coachSays + '.';
+    return { kind: 'feedback', action: action, tips: [did + ' ' + reason] };
+  }
+
+  var api = { discardFeedback: discardFeedback, claimFeedback: claimFeedback, turnHint: turnHint, claimHint: claimHint, rankDiscards: rankDiscards, routesFor: routesFor, look: look };
   if (node) module.exports = api;
   else root.MahjongCoach = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
