@@ -474,12 +474,21 @@
       root.requestAnimationFrame(frame);
     }
 
+    var lastFrameAt = 0; // when the last frame was drawn
+    var MAX_STEP = 48; // the most an animation advances in one frame (ms)
+
     function frame() {
       frameRequested = false;
       if (destroyed) return;
       var t = now();
+      lastFrameAt = t;
+      // Animations advance by a capped step per frame, so a hitch (a slow
+      // phone, a heavy turn calculation) stretches a flight out instead of
+      // letting the next frame jump it to the end and skip it.
       anims = anims.filter(function (a) {
-        var p = a.dur ? clamp((t - a.start) / a.dur, 0, 1) : 1;
+        a.elapsed += Math.min(t - a.last, MAX_STEP);
+        a.last = t;
+        var p = a.dur ? clamp(a.elapsed / a.dur, 0, 1) : 1;
         a.step(a.ease ? a.ease(p) : p, p);
         if (p >= 1) { a.done(); return false; }
         return true;
@@ -498,18 +507,22 @@
       }
       return new Promise(function (resolve) {
         if (destroyed) return;
-        var a = { start: now(), dur: speed(dur), step: step, ease: ease, done: resolve };
+        var a = { elapsed: 0, last: now(), dur: speed(dur), step: step, ease: ease, done: resolve };
         anims.push(a);
         requestRender();
-        // Finish even if animation frames stop (e.g. a hidden tab).
-        setTimeout(function () {
+        // Finish anyway if animation frames have really stopped (a hidden
+        // tab); while frames are running the animation plays out in full.
+        var guard = function () {
           var at = anims.indexOf(a);
           if (at === -1 || destroyed) return;
+          var stopped = (root.document && root.document.hidden) || now() - lastFrameAt > 800;
+          if (!stopped) { setTimeout(guard, 300); return; }
           anims.splice(at, 1);
           a.step(1, 1);
           a.done();
           requestRender();
-        }, a.dur + 250);
+        };
+        setTimeout(guard, a.dur + 250);
       });
     }
 
