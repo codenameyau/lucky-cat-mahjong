@@ -576,7 +576,7 @@
 
     function computeLayout() {
       var pad = W < 600 ? 6 : 14;
-      var topH = 42;
+      var topH = 42 + 6; // top bar plus a little breathing room below it
       var portrait = W < 700 || W < H * 0.9;
       var tw = clamp(Math.min((W - 2 * pad) / 14.8, H * 0.085), 20, 60);
       var th = tw * TILE_ASPECT;
