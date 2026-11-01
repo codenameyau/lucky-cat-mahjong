@@ -671,7 +671,8 @@
 
       var sideW = portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
       var topPanelH = portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
-      var sideHead = portrait ? 48 : 26; // portrait: name, strategy and points on three lines
+      // Narrow side seats (drawOppHeader's compact header) stack name, strategy and points.
+      var sideHead = portrait || sideW < 120 ? 48 : 26;
       var topHead = 24;
       var opp = [];
       opp[3] = { x: ox + pad, y: topH, w: sideW, h: bandTop - topH - gap };
@@ -1173,6 +1174,8 @@
       assign.appendChild(h);
       var box = document.createElement('div');
       box.className = 'rules-family strategies-assign';
+      box.appendChild(assignRow('Coach and feedback', strategySelect('strategy-coach', ui.strategies.coach, false, setCoachStrategy),
+        'The coach\'s tips and feedback follow this strategy.'));
       [1, 2, 3].forEach(function (seat) {
         var choice = seatChoice(seat);
         var note = choice === 'random' ? 'Playing ' + Strategies.get(ui.strategies.seats[seat]).name + ' this game.' : '';
@@ -1180,8 +1183,6 @@
           setSeatStrategy(seat, id);
         }), note));
       });
-      box.appendChild(assignRow('Coach and feedback', strategySelect('strategy-coach', ui.strategies.coach, false, setCoachStrategy),
-        'The coach\'s tips and feedback follow this strategy.'));
       assign.appendChild(box);
       body.appendChild(assign);
 

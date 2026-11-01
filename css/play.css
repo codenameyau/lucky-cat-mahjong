@@ -391,7 +391,7 @@ html.is-playing body {
 }
 
 /* Strategies sheet: the same look as the rules sheet. */
-.strategies-sheet { width: min(900px, calc(100vw - 32px)); }
+.strategies-sheet { width: min(1000px, calc(100vw - 32px)); }
 
 .strategies-assign { padding: 8px 12px; }
 
