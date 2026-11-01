@@ -18,6 +18,7 @@
 
   var SUIT_NAME = { c: 'Characters', d: 'Circles', b: 'Bamboo' };
   var COUNT_WORDS = ['No', 'One', 'Two', 'Three', 'Four'];
+  var LAST_WALL = 36; // fewer tiles than this left: the last wall
 
   function name(i) { return E.tileName(E.tileId(i)); }
   function plural(i) { return name(i) + 's'; }
@@ -401,10 +402,16 @@
     var route = pick.plan && pick.plan.route;
     var buildingLimit = route && (route.id === 'orphans' || route.id === 'gates');
     var pungSafe = B.isPungTile(v.game, pick.index) && c[pick.index] < 2;
+    // "Play safe" is only said on the last wall, when a win is unlikely:
+    // under 16 tiles left and not ready, or under 36 and 2+ tiles from ready.
+    // Other defensive picks just say why the tile goes.
+    var bestShanten = Math.min.apply(null, list.map(function (x) { return x.shanten; }));
+    var wallLeft = v.ctx.wallLeft;
+    var hopeless = (wallLeft < 16 && bestShanten >= 1) || (wallLeft < LAST_WALL && bestShanten >= 2);
     var why = pungSafe
       ? pungedReason(pick.index)
-      : (defending
-        ? 'Play safe, ' + (v.ctx.wallLeft < 16 ? 'the wall is nearly gone.' : 'someone is close to winning.')
+      : (defending && hopeless
+        ? 'Play safe. The wall is nearly gone and a win is unlikely.'
         : (pick.ready && pick.shanten === 0 && !buildingLimit ? 'It leaves you ready.' : whyDiscard(v, c, pick, route)));
     var discardAt = tips.length;
     var readyPick = !pungSafe && !defending && pick.ready && pick.shanten === 0 && !buildingLimit;

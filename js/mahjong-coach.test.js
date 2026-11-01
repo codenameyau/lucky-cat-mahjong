@@ -152,6 +152,22 @@ describe('coach: discards', () => {
     assert.ok(['d1', 'd9', 'wn'].includes(hint.tile), 'discarded ' + hint.tile);
     assert.match(text(hint), /\w+ \(3 melds, Bamboo\) is Extreme/);
   });
+
+  it('says "Play safe" only on the last wall, when a win is unlikely', () => {
+    const hand = ['c2', 'c3', 'c4', 'd4', 'd5', 'd6', 'c6', 'c7', 'b5', 'b9', 'd9', 'd1', 'we', 'wn'];
+    const at = (wallLeft) => table({
+      seats: [
+        { hand },
+        { hand: ['b4', 'b4', 'b6', 'b7'], melds: [meld('pung', 'b1'), meld('chow', 'b2'), meld('pung', 'b9')], discards: ['d9', 'c5', 'd1', 'wn'] },
+      ],
+      wallLeft,
+    });
+    // Folding early against an Extreme player: no "Play safe", no "close to winning".
+    const early = text(C.turnHint(at(80), 0, { kongs: [] }));
+    assert.doesNotMatch(early, /Play safe|close to winning/);
+    // Two from ready with the last wall under way: now it says so.
+    assert.match(text(C.turnHint(at(30), 0, { kongs: [] })), /Play safe\. The wall is nearly gone and a win is unlikely\./);
+  });
 });
 
 describe('coach: all triplets', () => {
