@@ -3,14 +3,18 @@
    The bots decide. This module says that same decision in plain words:
    what to do and why, how far the hand is from ready and which plan it is,
    how dangerous the opponents look, and which tile goes next. It does not
-   keep a second route or a second claim rule. */
+   keep a second route or a second claim rule.
+
+   forStrategy(bot) returns this same coach speaking for another strategy
+   (js/mahjong-strategies.js); the default speaks for claude-cat. */
 
 (function (root) {
   'use strict';
 
   var node = typeof module !== 'undefined' && module.exports;
   var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var B = node ? require('./mahjong-bot.js') : root.MahjongBot;
+  var DEFAULT_BOT = node ? require('./mahjong-bot.js') : root.MahjongBot;
+  var B = DEFAULT_BOT;
 
   var SUIT_NAME = { c: 'Characters', d: 'Circles', b: 'Bamboo' };
   var COUNT_WORDS = ['No', 'One', 'Two', 'Three', 'Four'];
@@ -62,10 +66,11 @@
     else if (id.slice(0, 5) === 'full-') id = 'full';
     else if (id === 'plain') id = 'mixed';
     var keep = null;
-    if (id === 'half') keep = function (j) { return E.suitOfIndex(j) === suit || j >= 27; };
+    if (plan.keep) keep = plan.keep;
+    else if (id === 'half') keep = function (j) { return E.suitOfIndex(j) === suit || j >= 27; };
     else if (id === 'full') keep = function (j) { return E.suitOfIndex(j) === suit; };
     else if (id === 'straights') keep = function (j) { return j < 27; };
-    return { id: id, suit: suit, faan: plan.faan, keep: keep };
+    return { id: id, suit: suit, faan: plan.faan, keep: keep, label: plan.label, reason: plan.reason };
   }
 
   function described(analysis) {
@@ -105,6 +110,7 @@
       };
     });
     out.defense = found.defense;
+    out.folding = found.folding;
     out.threats = found.threats;
     return out;
   }
@@ -172,6 +178,7 @@
       return COUNT_WORDS[out] + ' are out, so it can\'t make a set.';
     }
     if (route && route.keep && !route.keep(i)) {
+      if (route.reason) return route.reason;
       if (route.id === 'straights') return 'Honors break All Sequences.';
       var suit = SUIT_NAME[route.suit];
       return route.id === 'half' ? 'Not ' + suit + ' or an honor.' : 'Not ' + suit + '.';
@@ -193,6 +200,11 @@
     'concealed all sequences',
     'concealed triplets',
     'thirteen orphans',
+    'small four winds',
+    'big four winds',
+    'mixed orphans',
+    'all terminals',
+    'all honors',
     'all sequences',
     'all triplets',
     'seven pairs',
@@ -255,6 +267,9 @@
     if (r.id === 'pairs') return 'Seven Pairs. Don\'t claim';
     if (r.id === 'orphans') return 'Thirteen Orphans. Don\'t claim';
     if (r.id === 'gates') return 'Nine Gates in ' + SUIT_NAME[r.suit] + '. Don\'t claim';
+    if (r.id === 'winds') return 'Big or Small Four Winds. Keep every honor';
+    if (r.id === 'honors') return 'All Honors. Pung your honor pairs';
+    if (r.id === 'terminals') return 'All Terminals, or Mixed Orphans with honors';
     for (var i = 27; i < 34; i++) {
       if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) return (/^[AEIOU]/.test(name(i)) ? 'an ' : 'a ') + name(i) + ' set (' + honorWorth(v, i) + ' faan). Pung it if it\'s thrown';
     }
@@ -368,7 +383,10 @@
     var threats = list.threats;
     var pick = list[0];
     var offenseTop = list.slice().sort(function (a, b) { return b.offense - a.offense; })[0];
-    var defending = list.defense > 1.25 && offenseTop.tile !== pick.tile;
+    // claude-cat's discard order only bends to its value read, so any gap
+    // from the top offense pick is defense. Other strategies keep their own
+    // order (a target's tiles first), so only their folding counts.
+    var defending = (B.id === 'claude-cat' ? list.defense > 1.25 : list.folding) && offenseTop.tile !== pick.tile;
     var tips = [];
 
     if (opts.completeButShort) {
@@ -605,6 +623,22 @@
     discardFeedback: discardFeedback, claimFeedback: claimFeedback, turnHint: turnHint, claimHint: claimHint,
     rankDiscards: rankDiscards, look: look, highlightPatterns: highlightPatterns,
   };
+
+  // The same coach, saying what `bot` (a strategy from createStrategy)
+  // would do. Calls are synchronous, so the bot is swapped in for each call.
+  function forStrategy(bot) {
+    var out = { strategy: bot && bot.id };
+    Object.keys(api).forEach(function (k) {
+      var f = api[k];
+      out[k] = function () {
+        var prev = B;
+        B = bot || DEFAULT_BOT;
+        try { return f.apply(null, arguments); } finally { B = prev; }
+      };
+    });
+    return out;
+  }
+  api.forStrategy = forStrategy;
   if (node) module.exports = api;
   else root.MahjongCoach = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

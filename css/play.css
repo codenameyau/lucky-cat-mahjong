@@ -390,6 +390,106 @@ html.is-playing body {
   .rules-families--flat .rules-family { grid-template-columns: 1fr; }
 }
 
+/* Strategies sheet: the same look as the rules sheet. */
+.strategies-sheet { width: min(900px, calc(100vw - 32px)); }
+
+.strategies-assign { padding: 8px 12px; }
+
+.strategies-assign-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(160px, 220px) 1.4fr;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 5px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.strategies-assign-row:first-child { border-top: 0; }
+
+.strategies-assign-label {
+  font-weight: bold;
+  font-size: 0.86rem;
+}
+
+.strategies-select {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 210, 122, 0.6);
+  border-radius: 8px;
+  background: #FFF8F0;
+  color: #1A1A1A;
+  font: inherit;
+  font-size: 0.86rem;
+}
+
+.strategies-assign-note {
+  font-size: 0.76rem;
+  color: rgba(255, 248, 240, 0.7);
+}
+
+.strategies-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.strategies-card { padding: 8px 12px 10px; }
+
+.strategies-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.strategies-card .strategies-card-name {
+  margin: 0;
+  font-family: "KN Yuanmo SC", var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: normal;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #ffd27a;
+}
+
+.strategies-card-id {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #C41E3A;
+  color: #fff;
+  font-size: 0.72rem;
+}
+
+.strategies-card-who {
+  margin: 2px 0 6px;
+  font-size: 0.76rem;
+  color: #EE6A80;
+}
+
+.strategies-card-summary {
+  margin: 0 0 6px;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.strategies-card-more summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #ffd27a;
+}
+
+.strategies-card-more p {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: rgba(255, 248, 240, 0.85);
+}
+
+@media (max-width: 600px) {
+  .strategies-assign-row { grid-template-columns: 1fr; }
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
