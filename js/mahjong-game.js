@@ -1172,10 +1172,11 @@
       if (pts) text(pts, x + w, y + r + 1, { size: 13, weight: 'bold', color: COLORS.goldLight, align: 'right' });
     }
 
-    function meldTiles(m) {
-      return m.tiles.map(function (id, i) {
-        var back = m.concealed && (i === 0 || i === 3);
-        return { id: id, back: back };
+    // A concealed kong lies fully face down during the hand (it still counts
+    // as concealed); the end-of-hand summary turns it face up to show the score.
+    function meldTiles(m, reveal) {
+      return m.tiles.map(function (id) {
+        return { id: id, back: !!m.concealed && !reveal };
       });
     }
 
@@ -1954,7 +1955,7 @@
       var all = [];
       res.melds.forEach(function (m) {
         if (all.length) all.push({ gap: true });
-        meldTiles(m).forEach(function (it) { all.push(it); });
+        meldTiles(m, true).forEach(function (it) { all.push(it); });
       });
       if (res.concealed.length) {
         if (all.length) all.push({ gap: true });
@@ -2647,7 +2648,10 @@
         sound.play('kong');
         var pos = declarationPos(d.seat);
         banner('Kong!', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 24 });
-        announce((d.seat === 0 ? 'You declare' : game.players[d.seat].name + ' declares') + ' a kong of ' + E.tileName(d.tile) + '.');
+        // An opponent's concealed kong stays hidden, from screen readers too.
+        var hiddenKong = d.kind === 'concealed' && d.seat !== 0;
+        announce((d.seat === 0 ? 'You declare' : game.players[d.seat].name + ' declares') +
+          (hiddenKong ? ' a concealed kong.' : ' a ' + (d.kind === 'concealed' ? 'concealed ' : '') + 'kong of ' + E.tileName(d.tile) + '.'));
         return sleep(650);
       },
       win: function (res) {
