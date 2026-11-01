@@ -53,7 +53,7 @@ While the hand is folding (see Defense), safety decides instead, and this order 
 
 One hand changes this order:
 
-- **All Triplets** (or Concealed Triplets) keeps every pair and every pung. Both wait behind any single, and a finished pung waits behind a pair.
+- **All Triplets** (or Concealed Triplets) keeps every pair and every pung. Both wait behind any single, and a finished pung waits behind a pair. Within each group, the tile with the fewest copies left (not yet seen by you) goes first, and the tiles with the most left are kept, because they're the ones that can still become sets. A risky tile still waits. Near the end of the hand, safety comes first and then how many are left.
 
 ## Pairs
 
@@ -147,7 +147,7 @@ Against one opponent, a tile is safer in this order:
 6. A tile they threw earlier in the hand.
 7. Everything else. A fresh honor, or a middle tile of the suit they are collecting, is the most dangerous.
 
-A flush read makes their suit more dangerous and the other two suits safer. A wait with three or more copies already visible is worth little. A wait with only one copy left is treated as nearly dead.
+A flush read makes their suit more dangerous and the other two suits safer. Near the end of the hand (fewer than 32 tiles left), a suit an opponent has chowed in is more dangerous too: they're building in it. A wait with three or more copies already visible is worth little. A wait with only one copy left is treated as nearly dead.
 
 ## What the coach adds
 

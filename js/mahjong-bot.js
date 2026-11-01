@@ -53,7 +53,8 @@
     : root.MahjongEngine;
 
   var DRAGONS = [31, 32, 33];
-  var EARLY_WALL = 60; // more tiles than this left in the wall is the early part of the hand
+  var EARLY_WALL = 60;
+  var LATE_WALL = 32; // fewer tiles than this left is the end of the hand // more tiles than this left in the wall is the early part of the hand
   var SUIT_LABELS = { c: 'Characters', d: 'Circles', b: 'Bamboos' };
   var ESTIMATE_FAAN_CAP = 10;
   var VALUE_SLOPE = 0.6; // value of each faan above the minimum
@@ -136,7 +137,10 @@
   //   lateFold: extra weight on safety once the wall is under lateFoldWall
   //     tiles and the hand is still 2 or more tiles from ready (unlikely to win).
   // Chosen by simulation for the most points per hand (see the playbook doc).
-  var T = { valuePower: 1, defenseScale: 1.5, lateFold: 1.5, lateFoldWall: 45 };
+  //   tripletsLive: on All Triplets, throw the tile with fewest copies left.
+  //   chowSuitLate: near the end, how much more dangerous each chow an
+  //     opponent has in a suit makes that suit's tiles.
+  var T = { valuePower: 1, defenseScale: 1.5, lateFold: 1.5, lateFoldWall: 45, tripletsLive: true, chowSuitLate: 0.5 };
 
   function setTuning(next) {
     Object.keys(next || {}).forEach(function (k) { T[k] = next[k]; });
@@ -785,6 +789,10 @@
         discarded: discarded,
         since: since,
         suji: suji,
+        chows: s.melds.reduce(function (m, x) {
+          if (x.type === 'chow') { var su = meldSuit(x); m[su] = (m[su] || 0) + 1; }
+          return m;
+        }, {}),
         windIndex: 26 + wind,
         unseen: unseenMe,
       });
@@ -827,6 +835,11 @@
       chance = seq * 0.025 + (unseen[i] / 3) * 0.018;
       if (r >= 2 && r <= 6) chance *= 1.1; // middle tiles connect the most
     }
+    // Near the end, a suit an opponent has chowed in is one they're
+    // building: its tiles are more likely to finish their hand.
+    if (i < 27 && threat.chows[E.suitOfIndex(i)] && game.hand.wall.length < LATE_WALL) {
+      chance *= 1 + T.chowSuitLate * threat.chows[E.suitOfIndex(i)];
+    }
     if (threat.since[E.tileId(i)]) chance *= 0.15;
     else if (threat.discarded[E.tileId(i)]) chance *= 0.5;
     if (threat.flush) {
@@ -864,6 +877,32 @@
     // Unlikely to win: late, and still two or more tiles from ready.
     if (T.lateFold !== 1 && shanten >= 2 && ctx.wallLeft < T.lateFoldWall) w *= T.lateFold;
     return w;
+  }
+
+  // How risky a discard is, in four steps (safe, low, some, risky).
+  function riskStep(loss) {
+    return loss < 0.002 ? 0 : loss < 0.012 ? 1 : loss < 0.035 ? 2 : 3;
+  }
+
+  // All Triplets needs more copies of the tiles it holds, so within each
+  // discard group the tile with the fewest copies left (unseen by this seat)
+  // goes first and the liveliest are kept. A risky tile always waits, and
+  // near the end of the hand every step of risk comes first, then how many
+  // are left.
+  function tripletsOrder(out, ctx) {
+    var lead = out[0] && out[0].analysis.best;
+    var plan = lead && lead.plan;
+    if (!plan || (plan.id !== 'triplets' && plan.id !== 'concealed-triplets') || lead.readyBest) return out;
+    var late = ctx.wallLeft < LATE_WALL;
+    return out.map(function (x, k) { return { x: x, k: k }; }).sort(function (a, b) {
+      if (a.x.tier !== b.x.tier) return a.x.tier - b.x.tier;
+      var ra = riskStep(a.x.loss), rb = riskStep(b.x.loss);
+      if (!late) { ra = ra === 3 ? 1 : 0; rb = rb === 3 ? 1 : 0; }
+      if (ra !== rb) return ra - rb;
+      var ua = ctx.unseen[a.x.index], ub = ctx.unseen[b.x.index];
+      if (ua !== ub) return ua - ub;
+      return a.k - b.k;
+    }).map(function (o) { return o.x; });
   }
 
   /* ------------------------------------------------------------------ *
@@ -925,6 +964,7 @@
       if (a.priority !== b.priority) return a.priority - b.priority;
       return E.isTerminalOrHonorIndex(b.index) - E.isTerminalOrHonorIndex(a.index);
     });
+    if (!folding && T.tripletsLive) out = tripletsOrder(out, ctx);
     return { ctx: ctx, candidates: out, threats: threats, defense: weight, folding: folding };
   }
 
@@ -1085,6 +1125,7 @@
     deadTile: deadTile,
     chowCommitment: chowCommitment,
     suitCommitment: suitCommitment,
+    riskStep: riskStep,
     chaseSevenPairs: chaseSevenPairs,
     syncHandPlans: syncHandPlans,
     specialPlan: specialPlan,
