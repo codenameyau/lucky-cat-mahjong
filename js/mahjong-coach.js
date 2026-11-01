@@ -151,6 +151,13 @@
     if (B.isPungTile(v.game, i) && c[i] < 2) {
       return pungedReason(i);
     }
+    if (route && (route.id === 'triplets' || route.id === 'concealed-triplets') && c[i] <= 2) {
+      var left = v.unseen[i];
+      // All Triplets needs more copies, so the tile with fewest left goes.
+      if (left === 0) return 'None are left, so it can never become a set.';
+      if (left === 1) return 'Only one is left, so it\'s the least likely to become a set.';
+      return 'It has the fewest copies left of your tiles.';
+    }
     if (route && route.id === 'pairs' && c[i] === 1) {
       return 'Seven Pairs keeps pairs, so singles go.';
     }

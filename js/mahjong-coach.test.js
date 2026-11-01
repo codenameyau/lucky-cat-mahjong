@@ -154,6 +154,16 @@ describe('coach: discards', () => {
   });
 });
 
+describe('coach: all triplets', () => {
+  it('says why the tile with the fewest left goes', () => {
+    const hand = ['c2', 'c2', 'd5', 'd5', 'ws', 'ws', 'c7', 'd9', 'b3', 'dg', 'dg'];
+    const game = table({ seats: [{ hand, melds: [meld('pung', 'b8')] }, { discards: ['d9', 'd9'] }] });
+    const hint = C.turnHint(game, 0, { kongs: [] });
+    assert.equal(hint.tile, 'd9');
+    assert.match(text(hint), /Only one is left, so it's the least likely to become a set/);
+  });
+});
+
 describe('coach: claims', () => {
   it('passes on a chow that would end a concealed runs hand', () => {
     const hand = ['c2', 'c3', 'c6', 'c7', 'c8', 'd3', 'd4', 'd5', 'b5', 'b6', 'b2', 'b8', 'b8'];

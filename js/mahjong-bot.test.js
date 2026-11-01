@@ -417,6 +417,30 @@ describe('going for one suit', () => {
   });
 });
 
+describe('all triplets keeps the live tiles', () => {
+  it('throws the tile with the fewest copies left first', () => {
+    // Pung of Eight Bamboo; two Nine Circles and a Seven Character are already out.
+    const hand = ['c2', 'c2', 'd5', 'd5', 'ws', 'ws', 'c7', 'd9', 'b3', 'dg', 'dg'];
+    const game = table({
+      seats: [{ hand, melds: [meld('pung', 'b8')] }, { discards: ['d9', 'd9'] }, { discards: ['c7'] }],
+      wallLeft: 70,
+    });
+    const order = B.analyzeDiscards(game, 0).candidates.map((x) => x.tile);
+    assert.equal(order[0], 'd9');
+    assert.ok(order.indexOf('c7') < order.indexOf('b3'), order.join(' '));
+  });
+
+  it('near the end, counts a suit an opponent chowed as more dangerous', () => {
+    const seats = [{}, { melds: [meld('chow', 'b2')] }];
+    const early = table({ seats, wallLeft: 70 });
+    const late = table({ seats, wallLeft: 20 });
+    const i = E.tileIndex('b6');
+    const tEarly = B.opponentThreats(early, 0).find((t) => t.seat === 1);
+    const tLate = B.opponentThreats(late, 0).find((t) => t.seat === 1);
+    assert.ok(B.waitChance(late, tLate, i) > B.waitChance(early, tEarly, i) * 1.3);
+  });
+});
+
 describe('bot strength', () => {
   // Baseline: discards purely for shanten and live tiles, never claims.
   function efficiencyAgent() {
