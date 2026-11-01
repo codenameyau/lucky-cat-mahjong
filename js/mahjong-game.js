@@ -2582,7 +2582,6 @@
 
     function noteForChoice(cand, top) {
       var again = ' Tap it again to throw it anyway.';
-      if (cand.loss > top.loss + 0.05 && cand.loss > 0.08) return 'Be careful, an opponent close to winning may want ' + E.tileName(cand.tile) + '.' + again;
       if (cand.shanten > top.shanten) return E.tileName(cand.tile) + ' takes you further from winning.' + again;
       return E.tileName(cand.tile) + ' is OK, but ' + E.tileName(top.tile) + ' is better.' + again;
     }
