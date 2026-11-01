@@ -144,6 +144,10 @@
     if (v.committedSuit && i < 27 && E.suitOfIndex(i) !== v.committedSuit) {
       return 'You chowed ' + SUIT_NAME[v.committedSuit] + ', so other suits are dead weight.';
     }
+    var oneSuit = B.suitCommitment(v.ctx, c);
+    if (oneSuit && i < 27 && E.suitOfIndex(i) !== oneSuit) {
+      return 'You\'re going for ' + SUIT_NAME[oneSuit] + ', so other suits go first.';
+    }
     if (B.isPungTile(v.game, i) && c[i] < 2) {
       return pungedReason(i);
     }

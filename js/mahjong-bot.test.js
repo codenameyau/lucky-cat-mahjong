@@ -394,6 +394,29 @@ describe('chows and committing to a suit', () => {
   });
 });
 
+describe('going for one suit', () => {
+  it('throws other suits first once the hand is clearly one suit', () => {
+    // Nine Circles and an honor: the Characters go before any Circle.
+    const hand = ['c1', 'c2', 'c8', 'c9', 'd3', 'd5', 'd5', 'd6', 'd6', 'd7', 'd8', 'd8', 'd9', 'ww'];
+    const game = table({ seats: [{ hand }] });
+    assert.equal(B.suitCommitment(B.buildContext(game, 0), E.countsOf(hand)), 'd');
+    const pick = B.chooseTurnAction(game, 0, noKongs).tile;
+    assert.ok(['c1', 'c2', 'c8', 'c9'].includes(pick), 'discarded ' + pick);
+  });
+
+  it('counts sets already made toward the suit', () => {
+    const hand = ['d2', 'd3', 'd4', 'd6', 'd7', 'b2', 'b5', 'dr', 'dr', 'c9', 'c1'];
+    const game = table({ seats: [{ hand, melds: [meld('pung', 'd9')] }] });
+    assert.equal(B.suitCommitment(B.buildContext(game, 0), E.countsOf(hand)), 'd');
+  });
+
+  it('does not commit a hand spread across suits', () => {
+    const hand = ['c2', 'c3', 'c4', 'd5', 'd6', 'd7', 'b4', 'b5', 'b6', 'b7', 'd2', 'd2', 'we', 'dr'];
+    const game = table({ seats: [{ hand }] });
+    assert.equal(B.suitCommitment(B.buildContext(game, 0), E.countsOf(hand)), null);
+  });
+});
+
 describe('bot strength', () => {
   // Baseline: discards purely for shanten and live tiles, never claims.
   function efficiencyAgent() {

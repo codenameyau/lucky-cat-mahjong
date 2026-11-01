@@ -248,6 +248,29 @@
     return suits.length === 1 ? suits[0] : null;
   }
 
+  // The suit the hand is clearly going for, if any: after a chow, the chow's
+  // suit; otherwise one suit holding at least 8 of the hand's tiles and, with
+  // the honors, at least 10 (sets already made count). Tiles of the other two
+  // suits are then thrown first.
+  function suitCommitment(ctx, counts) {
+    var chow = chowCommitment(ctx);
+    if (chow) return chow;
+    var other = Object.keys(ctx.meldSuits).filter(function (k) { return k !== 'z'; });
+    if (other.length > 1) return null;
+    var setsIn = function (fits) {
+      return ctx.melds.filter(function (m) { return fits(E.tileIndex(m.tiles[0])); }).length * 3;
+    };
+    var honors = countWhere(counts, function (i) { return i >= 27; }) + setsIn(function (i) { return i >= 27; });
+    for (var s = 0; s < 3; s++) {
+      var su = SUIT_LETTERS[s];
+      if (other.length && other[0] !== su) continue;
+      var inSuit = function (i) { return i < 27 && E.suitOfIndex(i) === su; };
+      var n = countWhere(counts, inSuit) + setsIn(inSuit);
+      if (n >= 8 && n + honors >= 10) return su;
+    }
+    return null;
+  }
+
   // Exact concealed pairs, and whether a concealed pung or kong is in hand.
   function concealedShape(c) {
     var pairs = 0;
@@ -444,7 +467,7 @@
     var locked = ctx.lockedSpecial;
     if (locked && locked.kind === 'orphans') return isOrphanIndex(i) ? 4 : 0;
     if (locked && locked.kind === 'gates') return gatesTileNeeded(counts, locked.gates.start, i) ? 4 : 0;
-    var committed = chowCommitment(ctx, counts);
+    var committed = suitCommitment(ctx, counts);
     if (committed && i < 27 && E.suitOfIndex(i) !== committed) return 0;
     if (isPungTile(game, i) && counts[i] < 2 && candidate.shanten <= bestShanten) return 1;
     var best = candidate.analysis && candidate.analysis.best;
@@ -883,7 +906,7 @@
     weight *= T.defenseScale;
     // After a chow, tiles of other suits are worthless: they go first, ahead
     // of honors and chow-suit tiles that tie with them on value.
-    var committed = chowCommitment(ctx, c);
+    var committed = suitCommitment(ctx, c);
     out.forEach(function (x) {
       x.score = x.util - weight * x.loss;
       if (committed && x.index < 27 && E.suitOfIndex(x.index) !== committed) x.score += 0.004;
@@ -1061,6 +1084,7 @@
     handValue: handValue,
     deadTile: deadTile,
     chowCommitment: chowCommitment,
+    suitCommitment: suitCommitment,
     chaseSevenPairs: chaseSevenPairs,
     syncHandPlans: syncHandPlans,
     specialPlan: specialPlan,
