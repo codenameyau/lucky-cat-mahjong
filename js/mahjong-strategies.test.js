@@ -101,8 +101,18 @@ describe('lucky-cat opening targets', () => {
     assert.deepEqual([t.id, t.suit], ['full', 'b']);
   });
 
-  it('reads All Triplets from 1 to 3 pairs', () => {
-    assert.equal(targetOf(['c2', 'c2', 'd5', 'd6', 'd7', 'b1', 'b4', 'b8', 'c5', 'c8', 'we', 'ws', 'dr']).id, 'triplets');
+  it('reads Concealed Triplets from 1 to 3 sets in hand, in its main suit', () => {
+    const t = targetOf(['c2', 'c2', 'c2', 'd5', 'd6', 'd7', 'b1', 'b4', 'b8', 'c5', 'c8', 'we', 'dr']);
+    assert.deepEqual([t.id, t.suit], ['triplets', 'c']);
+    // Pairs alone don't make it.
+    assert.notEqual(targetOf(['c2', 'c2', 'd5', 'd5', 'd7', 'b1', 'b4', 'b8', 'c5', 'c8', 'we', 'ws', 'dr']).id, 'triplets');
+  });
+
+  it('throws a single of another suit first on Concealed Triplets', () => {
+    const hand = ['c2', 'c2', 'c2', 'c4', 'c5', 'dr', 'dr', 'we', 'ws', 'c9', 'b4', 'd6', 'b7', 'd9'];
+    const game = table({ seats: [null, { hand }] });
+    assert.equal(L.targetFor(game, 1).id, 'triplets');
+    assert.ok(['b4', 'd6', 'b7', 'd9'].includes(L.chooseTurnAction(game, 1, { kongs: [] }).tile));
   });
 
   it('reads a Half Flush from one main suit and honors', () => {

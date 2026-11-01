@@ -130,8 +130,10 @@
       dead: function (r, t) { return hasSuitedMeld(r.ctx, t.suit); },
     },
     {
-      id: 'triplets', name: 'All Triplets',
-      fits: function (r) { return r.pairs >= 1 && r.pairs <= 3; },
+      // Sets already in hand: build Concealed Triplets, then All Triplets or
+      // Seven Pairs, in one suit and honors where it can.
+      id: 'triplets', name: 'Concealed Triplets',
+      fits: function (r) { return r.sets >= 1 && r.sets <= 3; },
       dead: function (r) { return r.ctx.hasChow; },
     },
     {
@@ -164,15 +166,18 @@
   function readHand(c, ctx) {
     var all = allCounts(c, ctx);
     var by = suitTotals(all);
-    var pairs = 0;
-    for (var i = 0; i < 34; i++) if (all[i] >= 2) pairs++;
+    var pairs = 0, sets = 0;
+    for (var i = 0; i < 34; i++) {
+      if (all[i] >= 2) pairs++;
+      if (all[i] >= 3) sets++;
+    }
     var gates = null;
     SUITS.forEach(function (su, s) {
       var progress = B.nineGatesProgress(all, s * 9);
       if (progress >= 7 && (!gates || progress > gates.progress)) gates = { suit: su, start: s * 9, progress: progress };
     });
     return {
-      c: c, ctx: ctx, all: all, by: by, top: topSuit(by), pairs: pairs, gates: gates,
+      c: c, ctx: ctx, all: all, by: by, top: topSuit(by), pairs: pairs, sets: sets, gates: gates,
       orphanKinds: ORPHANS.filter(function (k) { return all[k] > 0; }).length,
       winds: sum(all, WINDS),
       terminals: sum(all, TERMINALS),
@@ -187,7 +192,7 @@
       if (K.skip.indexOf(t.id) !== -1 || !t.fits(r)) continue;
       var out = { id: t.id, rank: t.rank, name: t.name };
       if (t.id === 'gates') { out.suit = r.gates.suit; out.start = r.gates.start; }
-      if (t.id === 'full' || t.id === 'half') out.suit = r.top;
+      if (t.id === 'full' || t.id === 'half' || t.id === 'triplets') out.suit = r.top;
       return out;
     }
     return null;
@@ -399,10 +404,26 @@
       case 'half':
         out = flushPlans(c, ctx, su, base, W, 1).concat(tripletsPlans(c, ctx, base, 0.8));
         break;
-      case 'triplets':
-        out = weigh(B.basePlans(c, ctx), function (p) { return p.id === 'triplets' || p.id === 'concealed-triplets'; }, W);
-        if (!out.some(function (p) { return p.id === 'triplets'; })) out = out.concat(tripletsPlans(c, ctx, base, W));
+      case 'triplets': {
+        // Concealed Triplets first, then All Triplets or Seven Pairs, and all
+        // of them better in one suit with honors.
+        out = weigh(tripletsPlans(c, ctx, base, W * 0.9), function (p) { return p.id === 'concealed-triplets'; }, W);
+        var inHalf = function (j) { return suitOf(j) === su || j >= 27; };
+        if (!ctx.hasChow && !hasSuitedMeld(ctx, su)) {
+          var kept = B.restrict(c, inHalf);
+          out.push(plan({
+            id: 'triplets', label: 'All Triplets', counts: kept, shantenFn: E.tripletsShanten,
+            faan: base + F.allTriplets + F.halfFlush + B.handYaku(ctx, kept), open: true, weight: W,
+          }));
+        }
+        if (!ctx.declared) {
+          var sp = B.makeSpecialPlan('pairs', c, ctx);
+          sp.weight = W * 0.9;
+          out.push(sp);
+        }
+        out = out.concat(flushPlans(c, ctx, su, base, 1, 0.8));
         break;
+      }
       case 'sequences':
         out = weigh(B.basePlans(c, ctx), function (p) { return p.id === 'straights'; }, W);
         break;
@@ -426,7 +447,7 @@
    * ------------------------------------------------------------------ */
 
   var FAMILY = {
-    triplets: ['triplets', 'concealed-triplets'],
+    triplets: ['triplets', 'concealed-triplets', 'pairs'],
     pairs: ['pairs'],
     sequences: ['straights'],
   };
@@ -435,7 +456,7 @@
     var best = cand.analysis && cand.analysis.best;
     var id = best && best.plan && best.plan.id;
     if (!id) return false;
-    if (t.id === 'half') return id === 'half-' + t.suit;
+    if (t.id === 'half' || t.id === 'triplets') { if (id === 'half-' + t.suit) return true; }
     return (FAMILY[t.id] || []).indexOf(id) !== -1;
   }
 
@@ -464,6 +485,9 @@
     if (t.id === 'pairs') return pair ? 6 : 2;
     // Hands of sets keep every pair and pung, the pung longest.
     if (['triplets', 'terminals', 'honors', 'winds'].indexOf(t.id) !== -1 && counts[i] >= 2) return counts[i] >= 3 ? 6 : 5;
+    // Concealed Triplets sticks to one suit and honors where it can: a
+    // single of another suit goes first.
+    if (t.id === 'triplets' && i < 27 && suitOf(i) !== t.suit) return 1;
     if (i >= 27 && t.id !== 'sequences') {
       var shown = B.revealedCopies(game, i);
       var value = B.valueWeight(ctx, i) > 0;
