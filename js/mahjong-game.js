@@ -460,6 +460,9 @@
       botDiscardFrom: [null, null, null, null],
       oppHand: [null, null, null, null],
       overlay: null,
+      revealHands: false, // after See hands, every concealed hand is face up
+      heldSummary: null, // the results panel, while those hands stay open
+      youIcon: null, // where your person icon was drawn, so See results can sit beside it
       lastHandRects: [],
       meldAnchor: [null, null, null, null],
       backAnchor: [null, null, null, null],
@@ -561,7 +564,7 @@
 
     function fitPondTile(zw, zh, n) {
       var best = 8;
-      for (var pw = 48; pw >= 8; pw -= 0.5) {
+      for (var pw = 56; pw >= 8; pw -= 0.5) {
         var cols = Math.floor(zw / (pw + TILE_GAP));
         if (cols < 1) continue;
         var rows = Math.ceil(n / cols);
@@ -667,7 +670,8 @@
 
       // Discard zones form a cross around the center info box.
       var zones = [];
-      var sideFrac = 0.26, midFrac = 0.3;
+      // The top and bottom rows are a little deeper so each discard can be larger.
+      var sideFrac = 0.26, midFrac = 0.34;
       zones[2] = { x: inner.x + inner.w * sideFrac, y: inner.y + 2, w: inner.w * (1 - 2 * sideFrac), h: inner.h * midFrac - 2 };
       zones[0] = { x: inner.x + inner.w * sideFrac, y: inner.y + inner.h * (1 - midFrac), w: inner.w * (1 - 2 * sideFrac), h: inner.h * midFrac - 2 };
       zones[3] = { x: inner.x + 2, y: inner.y + 2, w: inner.w * sideFrac - 6, h: inner.h - 4 };
@@ -697,7 +701,7 @@
       if (game && game.hand) {
         game.hand.seats.forEach(function (st) { maxDiscards = Math.max(maxDiscards, st.discards.length + 2); });
       }
-      var pw = 48;
+      var pw = 56;
       zoneFrames.forEach(function (f) { pw = Math.min(pw, fitPondTile(f.w, f.h, maxDiscards)); });
       return {
         pad: pad, topH: topH, portrait: portrait, ox: ox, tableW: tableW, history: history,
@@ -892,6 +896,7 @@
       drawHintBand();
       drawCoachHistory();
       drawActions();
+      drawSeeResults();
       tipsOn = false; // tiles in flight, banners and effects get no tooltip
       drawFlights();
       drawBanners(t);
@@ -1168,7 +1173,9 @@
       var nameSize = fitFont(ctx, name, w - 2 * r - 8 - ptsW - iconS - ICON_GAP, 14, FONT_BODY, 'bold');
       text(name, x + 2 * r + 6, y + r + 1, { size: nameSize, weight: 'bold', color: COLORS.cream });
       ctx.font = 'bold ' + nameSize + 'px ' + FONT_BODY;
-      playerIcon(seat, x + 2 * r + 6 + ctx.measureText(name).width + ICON_GAP, y + r, iconS);
+      var iconX = x + 2 * r + 6 + ctx.measureText(name).width + ICON_GAP;
+      playerIcon(seat, iconX, y + r, iconS);
+      if (seat === 0) ui.youIcon = { x: iconX, y: y + r, s: iconS, rowRight: x + w };
       if (pts) text(pts, x + w, y + r + 1, { size: 13, weight: 'bold', color: COLORS.goldLight, align: 'right' });
     }
 
@@ -1178,6 +1185,14 @@
       return m.tiles.map(function (id) {
         return { id: id, back: !!m.concealed && !reveal };
       });
+    }
+
+    // Concealed tiles to show once a hand is over. A discard win's tile is
+    // claimed out of the pond, so the winner's row comes from the result.
+    function revealedConcealed(seat) {
+      var res = ui.heldSummary && ui.heldSummary.result;
+      if (res && res.type === 'win' && seat === res.winner && res.concealed) return res.concealed.slice();
+      return E.sortTiles(game.hand.seats[seat].hand.slice());
     }
 
     // Lays tiles left-to-right, wrapping inside `w`; returns the next y.
@@ -1202,7 +1217,7 @@
       melds.forEach(function (m, i) {
         if (i >= melds.length - hidden) return;
         if (items.length) items.push({ gap: true });
-        meldTiles(m).forEach(function (x) { items.push(x); });
+        meldTiles(m, ui.revealHands).forEach(function (x) { items.push(x); });
       });
       return items;
     }
@@ -1263,8 +1278,9 @@
         (f.h - 8) / (2 * (TILE_ASPECT + 0.08))
       ), 8, 33);
       var mw = bw; // melds and flowers are exactly the size of the hand's tiles
-      var count = oppConcealedCount(seat);
-      var apart = ui.botDrawn[seat] && count > 0;
+      var faceUp = ui.revealHands ? revealedConcealed(seat) : null;
+      var count = faceUp ? faceUp.length : oppConcealedCount(seat);
+      var apart = !faceUp && ui.botDrawn[seat] && count > 0;
       // Center the hand along the area by the tiles actually held (a fresh
       // draw hangs off the end so the hand doesn't jump every turn). The
       // player across centers the hand and meld row in their area; side
@@ -1283,7 +1299,8 @@
 
       enterFrame(f);
       for (var i = 0; i < count; i++) {
-        drawTile(null, backX(i), backsY - (i === lift ? bw * 0.38 : 0), bw, { back: true, shadow: false });
+        if (faceUp) drawTile(faceUp[i], backX(i), backsY, bw, { shadow: false });
+        else drawTile(null, backX(i), backsY - (i === lift ? bw * 0.38 : 0), bw, { back: true, shadow: false });
       }
       var mx = 0;
       items.forEach(function (it) {
@@ -1384,6 +1401,7 @@
     var HAND_SLIDE_MS = 260;
 
     function myHandOrder() {
+      if (ui.revealHands) return { tiles: revealedConcealed(0), drawnSeparate: false };
       var s = game.hand.seats[0];
       var drawn = game.hand.drawnTile;
       var showDrawn = ui.turnPrompt && drawn && game.hand.turn === 0 && game.hand.canSelfDraw && s.hand.indexOf(drawn) !== -1;
@@ -2149,7 +2167,20 @@
       }
       var label = game.over ? 'See results' : 'Next hand';
       var firstRegion = regions.length;
-      button(label, cx - 80, r.y + r.h - 62, 160, 42, function () { closeOverlay(); }, 'primary', 'next');
+      var gap = 12;
+      var handsW = 140;
+      var nextW = 156;
+      var row = handsW + gap + nextW;
+      if (row > w) {
+        handsW = Math.floor(handsW * w / row);
+        nextW = Math.floor(nextW * w / row);
+        row = handsW + gap + nextW;
+      }
+      var bx = cx - row / 2;
+      var by = r.y + r.h - 62;
+      // See hands leaves this panel without dealing. Next hand is the only way on.
+      button('See hands', bx, by, handsW, 42, seeHands, 'light', 'see-hands');
+      button(label, bx + handsW + gap, by, nextW, 42, function () { closeOverlay(); }, 'primary', 'next');
       ctx.restore();
       regions.slice(firstRegion).forEach(function (g) {
         g.x = W / 2 + (g.x - W / 2) * k;
@@ -2228,13 +2259,56 @@
 
     function closeOverlay() {
       var o = ui.overlay;
+      var leavingSummary = o && o.type !== 'menu' && overlayResolve;
       ui.overlay = o && o.previous ? o.previous : null;
+      if (leavingSummary) {
+        ui.revealHands = false;
+        ui.heldSummary = null;
+      }
       requestRender();
-      if (o && o.type !== 'menu' && overlayResolve) {
+      if (leavingSummary) {
         var r = overlayResolve;
         overlayResolve = null;
         r();
       }
+    }
+
+    // Look at the table with every hand face up. The next hand waits.
+    function seeHands() {
+      var o = ui.overlay;
+      if (!o || o.type !== 'summary') return;
+      ui.heldSummary = o;
+      ui.revealHands = true;
+      ui.botLift = null;
+      ui.overlay = null;
+      announce('All four hands are face up.');
+      requestRender();
+    }
+
+    function seeResults() {
+      if (!ui.heldSummary || ui.overlay) return;
+      ui.overlay = ui.heldSummary;
+      requestRender();
+    }
+
+    function drawSeeResults() {
+      var icon = ui.youIcon;
+      if (!ui.revealHands || ui.overlay || !icon) return;
+      var bh = 36;
+      var gap = 8;
+      var pts = settings.mode === 'payout' ? fmt(game.players[0].points) : '';
+      ctx.font = 'bold 13px ' + FONT_BODY;
+      var ptsW = pts ? ctx.measureText(pts).width + 10 : 0;
+      var x = icon.x + icon.s + gap;
+      var bw = Math.min(132, icon.rowRight - ptsW - x);
+      // A narrow row has no room on the icon's right, so sit just left of your name.
+      if (bw < 96) {
+        var infoW = clamp(L.tableW * 0.3, 130, 240);
+        var nameX = L.ox + L.tableW - L.pad - infoW;
+        bw = Math.min(132, Math.max(96, nameX - L.pad - gap));
+        x = nameX - gap - bw;
+      }
+      button('See results', x, icon.y - bh / 2, bw, bh, seeResults, 'primary', 'see-results');
     }
 
     function openMenu() {
@@ -2429,6 +2503,10 @@
       if (e.key === 'Escape') { openMenu(); e.preventDefault(); return; }
       if (ui.overlay) {
         if (e.key === 'Enter' && ui.overlay.type === 'summary') { closeOverlay(); e.preventDefault(); }
+        return;
+      }
+      if (ui.revealHands) {
+        if (e.key === 'Enter' || e.key === ' ') { seeResults(); e.preventDefault(); }
         return;
       }
       if (ui.turnPrompt) {
