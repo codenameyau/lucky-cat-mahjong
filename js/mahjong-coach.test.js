@@ -124,7 +124,7 @@ describe('coach: discards', () => {
     const hand = ['b2', 'b3', 'b4', 'b5', 'b6', 'b6', 'b7', 'b8', 'b8', 'dr', 'dr', 'c5', 'd7', 'ws'];
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
     assert.ok(['c5', 'd7'].includes(hint.tile), 'discarded ' + hint.tile);
-    assert.match(text(hint), /Not Bamboo/);
+    assert.match(text(hint), /You're going for Bamboo, so other suits go first/);
     assert.match(text(hint), /(Half|Full) Flush in Bamboo/);
   });
 
