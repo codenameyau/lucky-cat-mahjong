@@ -295,3 +295,28 @@ describe('coach: after a chow', () => {
     assert.match(text(hint), /Stay concealed, and save chows for a ready hand or a flush/);
   });
 });
+
+describe('coach: risk words need a reason', () => {
+  const C2 = require('./mahjong-coach.js');
+
+  it('never calls a tile risky at a quiet table', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const game = table({ seed });
+      game.hand.seats[0].hand.push(game.hand.wall.shift());
+      const hint = C2.turnHint(game, 0, { kongs: [] });
+      assert.doesNotMatch(text(hint), /risky|some risk|Hold /, 'seed ' + seed);
+    }
+  });
+
+  it('names what makes a tile risky', () => {
+    const extreme = { hand: ['b4', 'b4', 'b6', 'b7'], melds: [meld('pung', 'b1'), meld('chow', 'b2'), meld('pung', 'b9')], discards: ['d9', 'c5', 'd1', 'wn'] };
+    const game = table({ seats: [{ hand: ['c2', 'c3', 'c4', 'd4', 'd5', 'd6', 'c6', 'c7', 'b5', 'b8', 'd9', 'd1', 'we', 'wn'] }, extreme], wallLeft: 60 });
+    const list = C2.rankDiscards(C2.look(game, 0), game.hand.seats[0].hand);
+    const b5 = list.find((x) => x.tile === 'b5');
+    assert.match(b5.evidence, /melds are all Bamboo/);
+    // A tile they already threw is never risky.
+    assert.equal(list.find((x) => x.tile === 'd9').evidence, null);
+    const said = text(C2.turnHint(game, 0, { kongs: [] }));
+    if (/risky|some risk/.test(said)) assert.match(said, /: \w+('s melds are all| has 3 melds)/);
+  });
+});

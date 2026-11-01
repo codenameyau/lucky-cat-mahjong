@@ -108,6 +108,7 @@
         priority: x.priority, shanten: x.shanten, plan: described(x.analysis),
         ready: ready && ready.waits && ready.waits.length ? ready : null,
         lone: neighbors(full, x.index) === 0,
+        evidence: riskEvidence(v, found.threats, x.index),
       };
     });
     out.defense = found.defense;
@@ -312,6 +313,26 @@
     return '';
   }
 
+  // What the table shows that makes a tile dangerous, in words, or null.
+  // Only these count: a High or Extreme player whose melds are all in the
+  // tile's suit, or a player with 3 melds down who hasn't thrown the tile
+  // (a live one). A tile any read marks safer never counts.
+  function riskEvidence(v, threats, i) {
+    if (B.deadTile(v.game, i)) return null;
+    var id = E.tileId(i);
+    var list = threats.filter(function (t) { return t.level >= 2; }).sort(function (a, b) { return b.level - a.level; });
+    for (var k = 0; k < list.length; k++) {
+      var t = list[k];
+      if (safetyReason(v, t, i)) continue;
+      if (i < 27 && t.flush && t.melds >= 1 && E.suitOfIndex(i) === t.flush) {
+        return t.name + '\'s melds are all ' + SUIT_NAME[t.flush];
+      }
+      var live = i >= 27 ? v.unseen[i] >= 2 : v.unseen[i] >= 1;
+      if (t.melds >= 3 && live) return t.name + ' has 3 melds down and hasn\'t thrown one';
+    }
+    return null;
+  }
+
   // "Grace is Extreme (3 melds, Bamboo). Rosa (1 meld), Tak and Bo are High."
   function threatSentence(list) {
     var levels = [];
@@ -332,18 +353,24 @@
   function defenseLine(v, threats, pick, list) {
     var shown = threats.filter(function (t) { return t.level >= 1; }).sort(function (a, b) { return b.level - a.level; });
     var word = dangerWord(pick.loss);
-    if (!shown.length) return pick.loss >= 0.035 ? E.tileName(pick.tile) + ' is ' + word + '.' : '';
+    var tile = E.tileName(pick.tile);
+    // Risk is an estimate, so a tile is only called risky with a reason the
+    // table shows (riskEvidence). A quiet table never has one.
+    if (!shown.length) return '';
     var top = shown[0];
-    // Quiet tables (only Medium threats) get a word on the tile, nothing more.
-    if (top.level < 2) return pick.loss >= 0.012 ? E.tileName(pick.tile) + ' is ' + word + '.' : '';
+    if (top.level < 2) return pick.evidence ? tile + ' is ' + word + ': ' + pick.evidence + '.' : '';
     // Sorted worst first, so Extreme players are named before High ones.
-    var line = threatSentence(shown.filter(function (t) { return t.level >= 2; })) + ' ' + E.tileName(pick.tile) + ' is ' + word;
-    var why = pick.loss < 0.012 ? safetyReason(v, top, pick.index) : '';
-    if (why) line += ', ' + why;
-    line += '.';
-    var worst = list.slice().sort(function (a, b) { return b.loss - a.loss; })[0];
-    if (worst && worst.tile !== pick.tile && worst.loss > pick.loss * 2 && worst.loss >= 0.012) {
-      line += ' Hold ' + E.tileName(worst.tile) + '.';
+    var line = threatSentence(shown.filter(function (t) { return t.level >= 2; }));
+    if (pick.loss < 0.012) {
+      var why = safetyReason(v, top, pick.index);
+      line += ' ' + tile + ' is ' + word + (why ? ', ' + why : '') + '.';
+    } else if (pick.evidence) {
+      line += ' ' + tile + ' is ' + word + ': ' + pick.evidence + '.';
+    }
+    var worst = list.filter(function (x) { return x.evidence && x.tile !== pick.tile; })
+      .sort(function (a, b) { return b.loss - a.loss; })[0];
+    if (worst && worst.loss > pick.loss * 2 && worst.loss >= 0.012) {
+      line += ' Hold ' + E.tileName(worst.tile) + ': ' + worst.evidence + '.';
     }
     return line;
   }
@@ -579,7 +606,8 @@
     var mine = E.tileName(tile), best = E.tileName(top.tile);
     var great = chosen.tile === top.tile || gap <= 0.002;
     var slows = chosen.shanten > top.shanten;
-    var risky = chosen.loss >= 0.035 && chosen.loss > top.loss * 1.5 + 0.01;
+    // Only called risky when the table shows why (see riskEvidence).
+    var risky = chosen.loss >= 0.035 && chosen.loss > top.loss * 1.5 + 0.01 && !!chosen.evidence;
     var good = gap <= Math.max(0.003, Math.abs(top.score) * 0.15);
 
     if (great) {
@@ -595,7 +623,7 @@
       tips.push(mine + ' leaves you ' + stepsWords(chosen.shanten) + ', ' + more + ' more than ' + best + '.');
     } else if (risky) {
       action = 'That discard was risky.';
-      tips.push(hint.threatName ? hint.threatName + ' looks close to winning.' : 'Someone may be waiting on it.');
+      tips.push(chosen.evidence + '.');
     } else if (good) {
       action = 'Good discard.';
       tips = ['Both work, but ' + best + ' is slightly better.'];
