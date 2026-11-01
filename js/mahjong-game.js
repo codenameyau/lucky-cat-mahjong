@@ -2,17 +2,22 @@
    Rendering is on demand (only while something animates or changes);
    tile faces are pre-rendered once per size into sprite canvases.
    Game rules live in mahjong-engine.js, bots and hints in mahjong-bot.js,
-   scoring in points.js. */
+   the bot strategies each seat and the coach can use in
+   mahjong-strategies.js, scoring in points.js. */
 
 (function (root) {
   'use strict';
 
   var E = root.MahjongEngine;
-  var B = root.MahjongBot;
   var Coach = root.MahjongCoach;
+  var Strategies = root.MahjongStrategies;
 
   var SETTINGS_KEY = 'lcm-play-settings';
   var PREFS_KEY = 'lcm-play-prefs';
+  // { seats: { 1: id, 2: id, 3: id }, coach: id }. A bot seat with nothing
+  // saved gets a random strategy each game.
+  var STRATEGIES_KEY = 'lcm-play-strategies';
+  var SEAT_SIDES = ['', 'on your right', 'across', 'on your left'];
   var TILE_ASPECT = 1.4;
   var TILE_GAP = 4;
 
@@ -51,6 +56,25 @@
   }
   function writeJson(key, value) {
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+  }
+
+  // Saved strategy choices, keeping only ids that still exist.
+  function readStrategies() {
+    var saved = readJson(STRATEGIES_KEY, {}) || {};
+    var seats = {};
+    [1, 2, 3].forEach(function (k) {
+      var id = saved.seats && saved.seats[k];
+      if (Strategies.has(id)) seats[k] = id;
+    });
+    return { seats: seats, coach: Strategies.has(saved.coach) ? saved.coach : null };
+  }
+
+  // This game's strategy for each bot seat (saved, or random) and the coach's.
+  function pickStrategies() {
+    var saved = readStrategies();
+    var seats = [null];
+    for (var k = 1; k <= 3; k++) seats.push(saved.seats[k] || Strategies.randomId());
+    return { seats: seats, coach: saved.coach || Strategies.DEFAULT_COACH };
   }
 
   function track(name, params) {
@@ -468,6 +492,7 @@
       backAnchor: [null, null, null, null],
       flowerAnchor: [null, null, null, null],
       stats: { hands: 0, wins: 0, best: null, dealIns: 0 },
+      strategies: pickStrategies(),
     };
 
     function announce(text) {
@@ -646,7 +671,7 @@
 
       var sideW = portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
       var topPanelH = portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
-      var sideHead = portrait ? 36 : 26;
+      var sideHead = portrait ? 48 : 26; // portrait: name, strategy and points on three lines
       var topHead = 24;
       var opp = [];
       opp[3] = { x: ox + pad, y: topH, w: sideW, h: bandTop - topH - gap };
@@ -1075,6 +1100,188 @@
       return !!(dlg && dlg.open);
     }
 
+    /* ---------------- strategies sheet ---------------- */
+
+    function strategiesSheet() {
+      return document.getElementById('strategies-sheet');
+    }
+
+    function coachFor() {
+      return Coach.forStrategy(Strategies.get(ui.strategies.coach).bot);
+    }
+
+    // A seat's choice: 'random' unless one was saved.
+    function seatChoice(seat) {
+      var saved = readStrategies();
+      return saved.seats[seat] || 'random';
+    }
+
+    function playerLabel(seat) {
+      var name = game ? game.players[seat].name : 'Bot ' + seat;
+      return name + ' (' + SEAT_SIDES[seat] + ')';
+    }
+
+    function strategySelect(id, value, withRandom, onPick) {
+      var sel = document.createElement('select');
+      sel.id = id;
+      sel.className = 'strategies-select';
+      if (withRandom) {
+        var any = document.createElement('option');
+        any.value = 'random';
+        any.textContent = 'Random each game';
+        sel.appendChild(any);
+      }
+      Strategies.list().forEach(function (s) {
+        var o = document.createElement('option');
+        o.value = s.id;
+        o.textContent = s.name;
+        sel.appendChild(o);
+      });
+      sel.value = value;
+      sel.addEventListener('change', function () { onPick(sel.value); });
+      return sel;
+    }
+
+    function assignRow(labelText, control, note) {
+      var row = document.createElement('div');
+      row.className = 'strategies-assign-row';
+      var label = document.createElement('label');
+      label.className = 'strategies-assign-label';
+      label.htmlFor = control.id;
+      label.textContent = labelText;
+      row.appendChild(label);
+      row.appendChild(control);
+      if (note) {
+        var n = document.createElement('span');
+        n.className = 'strategies-assign-note';
+        n.textContent = note;
+        row.appendChild(n);
+      }
+      return row;
+    }
+
+    function buildStrategies() {
+      var body = document.getElementById('strategies-sheet-body');
+      if (!body) return;
+      body.innerHTML = '';
+
+      var assign = document.createElement('section');
+      assign.className = 'rules-section';
+      var h = document.createElement('h3');
+      h.className = 'rules-section-title';
+      h.textContent = 'Who plays what';
+      assign.appendChild(h);
+      var box = document.createElement('div');
+      box.className = 'rules-family strategies-assign';
+      [1, 2, 3].forEach(function (seat) {
+        var choice = seatChoice(seat);
+        var note = choice === 'random' ? 'Playing ' + Strategies.get(ui.strategies.seats[seat]).name + ' this game.' : '';
+        box.appendChild(assignRow(playerLabel(seat), strategySelect('strategy-seat-' + seat, choice, true, function (id) {
+          setSeatStrategy(seat, id);
+        }), note));
+      });
+      box.appendChild(assignRow('Coach and feedback', strategySelect('strategy-coach', ui.strategies.coach, false, setCoachStrategy),
+        'The coach\'s tips and feedback follow this strategy.'));
+      assign.appendChild(box);
+      body.appendChild(assign);
+
+      var about = document.createElement('section');
+      about.className = 'rules-section';
+      var h2 = document.createElement('h3');
+      h2.className = 'rules-section-title';
+      h2.textContent = 'The strategies';
+      about.appendChild(h2);
+      var grid = document.createElement('div');
+      grid.className = 'strategies-cards';
+      Strategies.list().forEach(function (s) {
+        var card = document.createElement('article');
+        card.className = 'rules-family strategies-card';
+        var head = document.createElement('div');
+        head.className = 'strategies-card-head';
+        var name = document.createElement('h4');
+        name.className = 'strategies-card-name';
+        name.textContent = s.name;
+        var id = document.createElement('code');
+        id.className = 'strategies-card-id';
+        id.textContent = s.id;
+        head.appendChild(name);
+        head.appendChild(id);
+        card.appendChild(head);
+        var used = [1, 2, 3].filter(function (seat) { return ui.strategies.seats[seat] === s.id; })
+          .map(function (seat) { return game ? game.players[seat].name : 'Bot ' + seat; });
+        if (ui.strategies.coach === s.id) used.push('the coach');
+        var who = document.createElement('p');
+        who.className = 'strategies-card-who';
+        who.textContent = used.length ? 'Used by ' + listWords(used) + '.' : 'Not in use this game.';
+        card.appendChild(who);
+        var sum = document.createElement('p');
+        sum.className = 'strategies-card-summary';
+        sum.textContent = s.summary;
+        card.appendChild(sum);
+        var more = document.createElement('details');
+        more.className = 'strategies-card-more';
+        var label = document.createElement('summary');
+        label.textContent = 'How it plays';
+        more.appendChild(label);
+        s.details.forEach(function (t) {
+          var p = document.createElement('p');
+          p.textContent = t;
+          more.appendChild(p);
+        });
+        card.appendChild(more);
+        grid.appendChild(card);
+      });
+      about.appendChild(grid);
+      body.appendChild(about);
+    }
+
+    function listWords(list) {
+      return list.length > 1 ? list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1] : list[0];
+    }
+
+    function setSeatStrategy(seat, id) {
+      var saved = readStrategies();
+      if (id === 'random') delete saved.seats[seat];
+      else {
+        saved.seats[seat] = id;
+        ui.strategies.seats[seat] = id; // takes over from the bot's next move
+      }
+      writeJson(STRATEGIES_KEY, saved);
+      track('play_set_strategy', { seat: seat, strategy: id });
+      buildStrategies();
+      requestRender();
+    }
+
+    function setCoachStrategy(id) {
+      var saved = readStrategies();
+      saved.coach = id;
+      ui.strategies.coach = id;
+      writeJson(STRATEGIES_KEY, saved);
+      track('play_set_coach_strategy', { strategy: id });
+      refreshHint();
+      buildStrategies();
+      requestRender();
+    }
+
+    function openStrategies() {
+      var dlg = strategiesSheet();
+      if (!dlg || dlg.open) return;
+      buildStrategies();
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+      track('play_open_strategies', {});
+    }
+
+    function closeStrategies() {
+      var dlg = strategiesSheet();
+      if (!dlg || !dlg.open) return;
+      if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
+    }
+
+    function strategiesOpen() {
+      var dlg = strategiesSheet();
+      return !!(dlg && dlg.open);
+    }
+
     var COACH_LABELS = { on: 'Coach on', feedback: 'Feedback on', off: 'Coach off' };
     var COACH_ORDER = ['on', 'feedback', 'off'];
 
@@ -1085,15 +1292,17 @@
       button('Menu', pad, 7, 64, 28, openMenu, 'ghost', 'menu');
       var right = W - pad;
       var soundLabel = sound.enabled ? 'Sound on' : 'Sound off';
-      var sw = W < 420 ? 76 : 92;
+      var sw = W < 420 ? 66 : 92;
       button(soundLabel, right - sw, 7, sw, 28, toggleSound, 'ghost', 'sound');
-      var hw = W < 420 ? 88 : 106;
+      var hw = W < 420 ? 84 : 106;
       button(COACH_LABELS[ui.coach], right - sw - hw - 6, 7, hw, 28, cycleCoach, ui.coach === 'off' ? 'ghost' : 'gold', 'hints');
-      var rw = W < 420 ? 58 : 68;
+      var rw = W < 420 ? 50 : 68;
       button('Rules', right - sw - hw - rw - 12, 7, rw, 28, openRules, 'ghost', 'rules');
+      var stw = W < 420 ? 70 : 96;
+      button('Strategies', right - sw - hw - rw - stw - 18, 7, stw, 28, openStrategies, 'ghost', 'strategies');
       if (game) {
         var label = E.WIND_NAMES[game.round] + ' round · Hand ' + game.handNumber;
-        var maxW = right - sw - hw - rw - 18 - (pad + 72);
+        var maxW = right - sw - hw - rw - stw - 24 - (pad + 72);
         // Phones have no room beside the buttons; the round wind still shows
         // in the middle of the table.
         if (maxW >= 90) {
@@ -1113,9 +1322,16 @@
       text(WIND_LETTERS[wind], x, y + 1, { size: Math.round(r * 1.05), family: FONT_HEAD, align: 'center', color: isDealer ? COLORS.white : COLORS.ink });
     }
 
-    function seatTitle(seat) {
+    // Bots carry their strategy's name: "Mei · Lucky Cat". Narrow seats put
+    // it on a line of its own (strategyName), so the title is the name alone.
+    function seatTitle(seat, nameOnly) {
       var p = game.players[seat];
-      return p.name;
+      if (p.isHuman || nameOnly) return p.name;
+      return p.name + ' · ' + strategyName(seat);
+    }
+
+    function strategyName(seat) {
+      return Strategies.get(ui.strategies.seats[seat]).name;
     }
 
     // A small robot (computer players) or person (human players) icon, drawn
@@ -1231,11 +1447,14 @@
       }
       var rad = 8;
       windBadge(seat, r.x + 4 + rad, r.y + 4 + rad, rad);
-      var name = seatTitle(seat);
+      var name = seatTitle(seat, true);
       var size = fitFont(ctx, name, r.w - 2 * rad - 12 - 13 - ICON_GAP, 12, FONT_BODY, 'bold');
       text(name, r.x + 2 * rad + 8, r.y + 4 + rad + 1, { size: size, weight: 'bold', color: COLORS.cream });
       ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
       playerIcon(seat, r.x + 2 * rad + 8 + ctx.measureText(name).width + ICON_GAP, r.y + 4 + rad, 13);
+      var strat = strategyName(seat);
+      var ss = fitFont(ctx, strat, r.w - 8, 10, FONT_BODY, 'bold');
+      text(strat, r.x + 4, r.y + 4 + 2 * rad + 7, { size: ss, weight: 'bold', color: COLORS.goldLight });
       if (pts) text(pts, r.x + r.w / 2, r.y + r.h - 7, { size: 11, weight: 'bold', align: 'center', color: COLORS.goldLight });
     }
 
@@ -2409,8 +2628,9 @@
     function refreshHint() {
       // In Feedback mode the advice is worked out (to judge your move) but not shown.
       if (ui.coach === 'off' || !game || !game.hand) { ui.hint = null; return; }
-      if (ui.turnPrompt) ui.hint = Coach.turnHint(game, 0, ui.turnPrompt.opts);
-      else if (ui.claimPrompt) ui.hint = Coach.claimHint(game, 0, ui.claimPrompt.opts);
+      var coach = coachFor();
+      if (ui.turnPrompt) ui.hint = coach.turnHint(game, 0, ui.turnPrompt.opts);
+      else if (ui.claimPrompt) ui.hint = coach.claimHint(game, 0, ui.claimPrompt.opts);
       if (ui.coach === 'on') rememberCoach(ui.hint, 'hint');
     }
 
@@ -2499,7 +2719,7 @@
 
     function onKey(e) {
       if (destroyed) return;
-      if (rulesOpen()) return; // the rules sheet handles its own keys (Escape closes it)
+      if (rulesOpen() || strategiesOpen()) return; // the sheets handle their own keys (Escape closes them)
       if (e.key === 'Escape') { openMenu(); e.preventDefault(); return; }
       if (ui.overlay) {
         if (e.key === 'Enter' && ui.overlay.type === 'summary') { closeOverlay(); e.preventDefault(); }
@@ -2783,10 +3003,16 @@
       return E.sortTiles(rest).indexOf(tile);
     }
 
+    // A bot plays whatever strategy its seat has now, so a change in the
+    // Strategies sheet takes effect on its next move.
+    function botFor(seat) {
+      return Strategies.get(ui.strategies.seats[seat]).bot;
+    }
+
     function botAgent() {
       return {
         turn: function (g, seat, opts) {
-          var action = B.chooseTurnAction(g, seat, opts);
+          var action = botFor(seat).chooseTurnAction(g, seat, opts);
           if (instantMode()) return Promise.resolve(action);
           var n = g.hand.seats[seat].hand.length;
           var think = 560 + Math.random() * 520;
@@ -2812,7 +3038,7 @@
           });
         },
         claim: function (g, seat, opts) {
-          var decision = B.chooseClaim(g, seat, opts);
+          var decision = botFor(seat).chooseClaim(g, seat, opts);
           if (instantMode()) return Promise.resolve(decision);
           return sleep(decision.type === 'pass' ? 50 : 420).then(function () { return decision; });
         },
@@ -2868,13 +3094,15 @@
       await loadAssets();
       spriteCache = {};
       game = E.createGame({ spicy: settings.spicy, mode: settings.mode });
+      ui.strategies = pickStrategies();
       ui.coachLog = [];
       ui.coachScroll = 0;
       ui.coachStick = true;
       var agents = [humanAgent(), botAgent(), botAgent(), botAgent()];
       track('play_start', {
         spicy: settings.spicy, mode: settings.mode, coach: settings.coach,
-        speed: settings.speed,
+        speed: settings.speed, coach_strategy: ui.strategies.coach,
+        strategies: ui.strategies.seats.slice(1).join(','),
       });
       while (!destroyed) {
         var res = await E.runHand(game, agents, uiBridge);
@@ -2914,6 +3142,13 @@
       dlg.querySelector('.rules-sheet-close').addEventListener('click', closeRules);
       // A click on the dimmed area outside the sheet closes it too.
       dlg.addEventListener('click', function (e) { if (e.target === dlg) closeRules(); });
+      dlg.addEventListener('close', function () { canvas.focus(); });
+    })();
+    (function () {
+      var dlg = strategiesSheet();
+      if (!dlg) return;
+      dlg.querySelector('.rules-sheet-close').addEventListener('click', closeStrategies);
+      dlg.addEventListener('click', function (e) { if (e.target === dlg) closeStrategies(); });
       dlg.addEventListener('close', function () { canvas.focus(); });
     })();
     canvas.addEventListener('pointerdown', onPointerDown);

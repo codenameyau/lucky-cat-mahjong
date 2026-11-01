@@ -1,6 +1,6 @@
-# How the coach and the bots play
+# claude-cat: how the coach and the bots play
 
-This is the playbook for the Play Mahjong coach and the three bots. They follow the same rules. The coach says the choice in plain words. The bots play it.
+This is the playbook for the **claude-cat** strategy (`js/mahjong-bot.js`), the original bot logic. Any bot seat can play it, and the coach can follow it (pick it in the Strategies sheet). The coach says the choice in plain words. The bots play it. The other strategies are listed in [the strategies README](README.md).
 
 Both only use what that seat can see: its own hand and flowers, every open meld, the discard pond, and how many tiles are left in the wall. They do not see the other hands or the tiles still in the wall.
 

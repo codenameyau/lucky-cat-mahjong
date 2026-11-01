@@ -43,7 +43,12 @@
      The keep-pairs and keep-dragons orders never cost a step toward ready,
      and while folding, safety decides and they only break ties.
    The coach in js/mahjong-coach.js says this same decision in words. It
-   does not keep a second plan of its own. */
+   does not keep a second plan of its own.
+
+   This is the "claude-cat" strategy. Other strategies (js/mahjong-lucky-cat.js)
+   reuse this same machinery through createStrategy(def): `def.hooks` swaps in
+   their own plans, discard order, claims and reads, and `def.tuning` their
+   own knobs. See docs/strategies/. */
 
 (function (root) {
   'use strict';
@@ -103,6 +108,7 @@
     ctx.turn = s.discards.length;
     ctx.slope = valueSlope(game, seat);
     ctx.isDealer = seat === game.dealer;
+    if (H.context) H.context(ctx, game, seat);
     return ctx;
   }
 
@@ -136,15 +142,27 @@
   //   defenseScale: how much more than that to weigh deal-in risk.
   //   lateFold: extra weight on safety once the wall is under lateFoldWall
   //     tiles and the hand is still 2 or more tiles from ready (unlikely to win).
-  // Chosen by simulation for the most points per hand (see the playbook doc).
+  // Chosen by simulation for the most points per hand (see docs/strategies/claude-cat.md).
   //   tripletsLive: on All Triplets, throw the tile with fewest copies left.
   //   chowSuitLate: near the end, how much more dangerous each chow an
   //     opponent has in a suit makes that suit's tiles.
-  var T = { valuePower: 1, defenseScale: 1.5, lateFold: 1.5, lateFoldWall: 45, tripletsLive: true, chowSuitLate: 0.5 };
+  var BASE_TUNING = { valuePower: 1, defenseScale: 1.5, lateFold: 1.5, lateFoldWall: 45, tripletsLive: true, chowSuitLate: 0.5 };
+  var DEFAULT_T = copy(BASE_TUNING);
+  var T = DEFAULT_T;
+
+  // The strategy's hooks (see createStrategy). The default strategy has none.
+  var NO_HOOKS = {};
+  var H = NO_HOOKS;
+
+  function copy(o) {
+    var out = {};
+    Object.keys(o || {}).forEach(function (k) { out[k] = o[k]; });
+    return out;
+  }
 
   function setTuning(next) {
-    Object.keys(next || {}).forEach(function (k) { T[k] = next[k]; });
-    return T;
+    Object.keys(next || {}).forEach(function (k) { DEFAULT_T[k] = next[k]; });
+    return DEFAULT_T;
   }
 
   // Payout of `f` faan relative to a 3-faan hand, on the full-spicy table
@@ -422,6 +440,7 @@
   }
 
   function specialPlan(ctx, counts) {
+    if (H.plans) return null; // a strategy with its own plans picks these itself
     var spec = ctx.lockedSpecial || pickSpecial(counts, ctx);
     if (!spec) return null;
     return makeSpecialPlan(spec.kind, counts, ctx, spec.gates);
@@ -467,6 +486,10 @@
   // All Triplets keeps every pair and every pung: those wait behind any
   // single, and a finished pung waits behind a pair.
   function discardPriority(game, ctx, counts, candidate, bestShanten) {
+    if (H.priority) {
+      var own = H.priority(game, ctx, counts, candidate, bestShanten);
+      if (own !== null && own !== undefined) return own;
+    }
     var i = candidate.index;
     var locked = ctx.lockedSpecial;
     if (locked && locked.kind === 'orphans') return isOrphanIndex(i) ? 4 : 0;
@@ -498,6 +521,10 @@
 
   // Candidate plans for a 13-tile (waiting to draw) concealed portion.
   function plansFor(c, ctx) {
+    return H.plans ? H.plans(c, ctx) : basePlans(c, ctx);
+  }
+
+  function basePlans(c, ctx) {
     var special = specialPlan(ctx, c);
     if (special) return [special];
     var base = baseFaan(ctx) + (ctx.concealed ? 1 : 0);
@@ -660,6 +687,7 @@
     }
     // Axis B: a wait with at most one live tile is close to dead.
     if (tsumo <= 1) value *= 0.5;
+    if (H.readyValue) value = H.readyValue(value, details, c, ctx);
     var best = 0;
     details.forEach(function (d) { if (d.left && d.ronOk) best = Math.max(best, d.ronFaan); });
     return { value: value, waits: details, live: tsumo + ron / 1.5, bestFaan: best };
@@ -680,8 +708,9 @@
       var u = ukeire(pc, p.shantenFn, ctx.declared, ctx.unseen, s);
       var chance = finishChance(ctx, s, u.total, p.open);
       var util = handValue(p.faan + SELF_DRAW_CHANCE, ctx.slope) * 1.8 * chance;
-      var entry = { plan: p, shanten: s, planShanten: s, ukeire: u.total, ukeireTiles: u.tiles, util: util };
-      if (!best || util > best.util) best = entry;
+      // A strategy can prefer a plan (plan.weight) without inflating its value.
+      var entry = { plan: p, shanten: s, planShanten: s, ukeire: u.total, ukeireTiles: u.tiles, util: util, pick: util * (p.weight || 1) };
+      if (!best || entry.pick > best.pick) best = entry;
     });
     var ready = null;
     if (shantenAll === 0) {
@@ -797,6 +826,7 @@
         unseen: unseenMe,
       });
     }
+    if (H.threats) H.threats(out, game, seat);
     return out;
   }
 
@@ -848,6 +878,7 @@
       else if (fs === 'z') chance *= 1.3;
       else chance *= 0.15;
     }
+    if (H.waitChance) chance = H.waitChance(chance, game, threat, i);
     return Math.min(chance, 0.6);
   }
 
@@ -862,6 +893,7 @@
     threats.forEach(function (t) {
       loss += t.ready * waitChance(game, t, i) * t.payment;
     });
+    if (H.extraLoss) loss += H.extraLoss(game, threats, i);
     return loss;
   }
 
@@ -876,6 +908,7 @@
     if (ctx.wallLeft < 16 && !(shanten === 0 && readyFaan >= 5)) w *= 1.7;
     // Unlikely to win: late, and still two or more tiles from ready.
     if (T.lateFold !== 1 && shanten >= 2 && ctx.wallLeft < T.lateFoldWall) w *= T.lateFold;
+    if (H.defense) w = H.defense(w, ctx, threats, shanten, readyFaan);
     return w;
   }
 
@@ -911,7 +944,7 @@
 
   function syncHandPlans(ctx, counts) {
     ctx.blockSevenPairs = concealedShape(counts).hasSet;
-    ctx.lockedSpecial = pickSpecial(counts, ctx);
+    ctx.lockedSpecial = H.plans ? null : pickSpecial(counts, ctx);
   }
 
   function analyzeDiscards(game, seat, ctxOverride, handOverride) {
@@ -952,7 +985,9 @@
       x.priority = discardPriority(game, ctx, c, x, bestShanten);
       // Keeping a pair or a dragon never costs a step toward ready: a discard
       // that leaves the hand slower waits behind every one that doesn't.
-      x.tier = x.priority === 0 || x.shanten <= bestShanten ? x.priority : 10 + x.priority;
+      // (A strategy's group below 0 goes first whatever it costs, but unlike
+      // 0 it doesn't override folding.)
+      x.tier = x.priority <= 0 || x.shanten <= bestShanten ? x.priority : 10 + x.priority;
     });
     out.sort(function (a, b) {
       // Off-suit tiles after a chow always go first, even while folding
@@ -1047,6 +1082,10 @@
     if (!opts.pung && !opts.kong && !opts.chows.length) return { decision: { type: 'pass' }, found: null };
     var res = claimCandidates(game, seat, opts);
     var ctx = buildContext(game, seat);
+    if (H.claim) {
+      var mine = H.claim(res, ctx, game, seat, opts);
+      if (mine) return { decision: mine, found: res };
+    }
     var ti = E.tileIndex(opts.tile);
     var stayPlan = res.stay.best && res.stay.best.plan;
     var lockedShape = stayPlan && (stayPlan.id === 'pairs' || stayPlan.id === 'orphans' || stayPlan.id === 'gates');
@@ -1101,18 +1140,85 @@
   }
 
   function createBotAgent(options) {
-    options = options || {};
+    var bot = (options && options.strategy) || api;
     return {
       turn: function (game, seat, opts) {
-        return Promise.resolve(chooseTurnAction(game, seat, opts));
+        return Promise.resolve(bot.chooseTurnAction(game, seat, opts));
       },
       claim: function (game, seat, opts) {
-        return Promise.resolve(chooseClaim(game, seat, opts));
+        return Promise.resolve(bot.chooseClaim(game, seat, opts));
       },
     };
   }
 
+  /* ------------------------------------------------------------------ *
+   * 9. Strategies
+   *    createStrategy(def) returns this same API, run with def.hooks and
+   *    its own copy of the tuning knobs. Every call is synchronous, so the
+   *    hooks are swapped in for the call and restored after it.
+   *    Hooks (all optional):
+   *      context(ctx, game, seat)        add the strategy's own reads to ctx
+   *      plans(c, ctx) -> [plan]         the hands to aim for (basePlans is
+   *                                      claude-cat's list); plan.weight
+   *                                      scales a plan's value
+   *      priority(game, ctx, counts, candidate, bestShanten) -> group
+   *                                      the discard order (lower goes first;
+   *                                      below 0 goes first unless folding)
+   *      readyValue(value, waits, c, ctx) -> value
+   *      threats(list, game, seat)       add reads to each opponent
+   *      waitChance(chance, game, threat, i) -> chance
+   *      extraLoss(game, threats, i) -> loss  e.g. feeding a claim
+   *      defense(weight, ctx, threats, shanten, readyFaan) -> weight
+   *      claim(found, ctx, game, seat, opts) -> decision
+   *    priority and claim may return null to use claude-cat's choice.
+   * ------------------------------------------------------------------ */
+
+  function createStrategy(def) {
+    def = def || {};
+    var hooks = def.hooks || NO_HOOKS;
+    var tuning = copy(BASE_TUNING);
+    Object.keys(def.tuning || {}).forEach(function (k) { tuning[k] = def.tuning[k]; });
+    var out = { id: def.id };
+    Object.keys(api).forEach(function (k) {
+      var f = api[k];
+      if (typeof f !== 'function' || k === 'createStrategy') { out[k] = f; return; }
+      out[k] = function () {
+        var prevH = H, prevT = T;
+        H = hooks;
+        T = tuning;
+        try { return f.apply(null, arguments); } finally { H = prevH; T = prevT; }
+      };
+    });
+    out.setTuning = function (next) {
+      Object.keys(next || {}).forEach(function (k) { tuning[k] = next[k]; });
+      return tuning;
+    };
+    out.tuning = tuning;
+    out.createBotAgent = function () { return createBotAgent({ strategy: out }); };
+    return out;
+  }
+
   var api = {
+    id: 'claude-cat',
+    createStrategy: createStrategy,
+    basePlans: basePlans,
+    makeSpecialPlan: makeSpecialPlan,
+    baseFaan: baseFaan,
+    handYaku: handYaku,
+    restrict: restrict,
+    countWhere: countWhere,
+    concealedShape: concealedShape,
+    orphanProgress: orphanProgress,
+    orphansAlive: orphansAlive,
+    nineGatesProgress: nineGatesProgress,
+    nineGatesShanten: nineGatesShanten,
+    gatesTileNeeded: gatesTileNeeded,
+    pairsFlush: pairsFlush,
+    ukeire: ukeire,
+    finishChance: finishChance,
+    valueSlope: valueSlope,
+    withMeld: withMeld,
+    chowWorthIt: chowWorthIt,
     buildContext: buildContext,
     valueWeight: valueWeight,
     handUtility: handUtility,

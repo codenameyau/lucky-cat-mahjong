@@ -112,6 +112,16 @@
         <div id="rules-sheet-body" class="rules-sheet-body"></div>
       </div>
     </dialog>
+    <dialog id="strategies-sheet" class="rules-sheet strategies-sheet" aria-labelledby="strategies-sheet-title">
+      <div class="rules-sheet-inner">
+        <header class="rules-sheet-head">
+          <h2 id="strategies-sheet-title">Strategies</h2>
+          <button type="button" class="rules-sheet-close" aria-label="Close the strategies">Close</button>
+        </header>
+        <p class="rules-sheet-intro">Each bot plays one strategy. Pick one for each seat, or leave it random, and pick which one the coach follows. Your picks are saved for the next game.</p>
+        <div id="strategies-sheet-body" class="rules-sheet-body"></div>
+      </div>
+    </dialog>
   </div>
 
   <footer class="site-footer">
@@ -132,6 +142,8 @@
   <script src="/js/points.js" defer></script>
   <script src="/js/mahjong-engine.js" defer></script>
   <script src="/js/mahjong-bot.js" defer></script>
+  <script src="/js/mahjong-lucky-cat.js" defer></script>
+  <script src="/js/mahjong-strategies.js" defer></script>
   <script src="/js/mahjong-coach.js" defer></script>
   <script src="/js/mahjong-rules.js" defer></script>
   <script src="/js/mahjong-game.js" defer></script>
