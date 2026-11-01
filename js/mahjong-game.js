@@ -587,15 +587,16 @@
       requestRender();
     }
 
+    // Every player's discards sit in rows of 8, and the tiles are sized so
+    // 3 rows fit (24 discards). A longer hand adds a row and shrinks them.
+    var POND_COLS = 8;
+    var POND_ROWS = 3;
+
     function fitPondTile(zw, zh, n) {
-      var best = 8;
-      for (var pw = 56; pw >= 8; pw -= 0.5) {
-        var cols = Math.floor(zw / (pw + TILE_GAP));
-        if (cols < 1) continue;
-        var rows = Math.ceil(n / cols);
-        if (rows * (pw * TILE_ASPECT + TILE_GAP) <= zh) { best = pw; break; }
-      }
-      return best;
+      var rows = Math.max(POND_ROWS, Math.ceil(n / POND_COLS));
+      var byW = zw / POND_COLS - TILE_GAP;
+      var byH = ((zh - 2) / rows - TILE_GAP) / TILE_ASPECT;
+      return clamp(Math.min(byW, byH), 8, 56);
     }
 
     // Like a real table: opponents sit left, across and right, and each
@@ -706,14 +707,36 @@
         x: inner.x + inner.w * sideFrac + 4, y: inner.y + inner.h * midFrac + 2,
         w: inner.w * (1 - 2 * sideFrac) - 8, h: inner.h * (1 - 2 * midFrac) - 4,
       };
+      // A phone's table is narrow, so the cross would leave each side pond
+      // too shallow for 3 rows. There the top and bottom ponds span the
+      // full width, and the side ponds share the band between them with a
+      // slim center box.
+      if (portrait) {
+        var centerW = 52;
+        var sideDepth = (inner.w - centerW - 12) / 2;
+        var rowsH = function (p) { return POND_ROWS * (p * TILE_ASPECT + TILE_GAP) + 4; };
+        var pwFit = Math.min((inner.w - 4) / POND_COLS - TILE_GAP, ((sideDepth - 2) / POND_ROWS - TILE_GAP) / TILE_ASPECT);
+        // The side ponds' 8 columns run down the band between top and bottom.
+        while (pwFit > 8 && inner.h - 2 * rowsH(pwFit) < POND_COLS * (pwFit + TILE_GAP) + 8) pwFit -= 0.5;
+        var bandH = rowsH(pwFit);
+        zones[2] = { x: inner.x + 2, y: inner.y + 2, w: inner.w - 4, h: bandH };
+        zones[0] = { x: inner.x + 2, y: inner.y + inner.h - bandH - 2, w: inner.w - 4, h: bandH };
+        var midY = inner.y + bandH + 6, midH = inner.h - 2 * bandH - 12;
+        zones[3] = { x: inner.x + 2, y: midY, w: sideDepth, h: midH };
+        zones[1] = { x: inner.x + inner.w - sideDepth - 2, y: midY, w: sideDepth, h: midH };
+        center = { x: inner.x + sideDepth + 6, y: midY, w: inner.w - 2 * sideDepth - 12, h: midH };
+      }
       // A little smaller than the gap between the discard areas, kept centered.
       var shrink = 0.85;
-      center.x += center.w * (1 - shrink) / 2;
+      // (A phone's center box is already as narrow as it can be.)
+      if (!portrait) {
+        center.x += center.w * (1 - shrink) / 2;
+        center.w *= shrink;
+      }
       center.y += center.h * (1 - shrink) / 2;
-      center.w *= shrink;
       center.h *= shrink;
       // The middle plaque is wide on a landscape table; narrow it and keep it centered.
-      var narrow = 0.68;
+      var narrow = portrait ? 1 : 0.68;
       center.x += center.w * (1 - narrow) / 2;
       center.w *= narrow;
       var history = historyW ? {
@@ -723,9 +746,9 @@
         h: H - topH - pad,
       } : null;
       var zoneFrames = zones.map(function (z, k) { return makeFrame(z, k); });
-      var maxDiscards = 20;
+      var maxDiscards = POND_COLS * POND_ROWS;
       if (game && game.hand) {
-        game.hand.seats.forEach(function (st) { maxDiscards = Math.max(maxDiscards, st.discards.length + 2); });
+        game.hand.seats.forEach(function (st) { maxDiscards = Math.max(maxDiscards, st.discards.length + 1); });
       }
       var pw = 56;
       zoneFrames.forEach(function (f) { pw = Math.min(pw, fitPondTile(f.w, f.h, maxDiscards)); });
@@ -743,7 +766,7 @@
       var f = L.zoneFrames[seat];
       var pw = L.pw;
       var ph = pw * TILE_ASPECT + TILE_GAP;
-      var cols = Math.max(1, Math.floor(f.w / (pw + TILE_GAP)));
+      var cols = POND_COLS;
       var gridW = cols * (pw + TILE_GAP);
       return { x: (f.w - gridW) / 2 + (idx % cols) * (pw + TILE_GAP), y: 2 + Math.floor(idx / cols) * ph, w: pw };
     }
@@ -3183,6 +3206,7 @@
       get game() { return game; },
       get ui() { return ui; },
       get spots() { return tileSpots; }, // face-up tile boxes from the last frame (debugging)
+      get layout() { return L; }, // the table's current layout (debugging)
       // Exposed for debugging in the browser console.
       declare: function (seat, label, color) {
         var p = declarationPos(seat);
