@@ -587,7 +587,7 @@
       var topPanelH = portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
       // Narrow side seats (drawOppHeader's compact header) stack name, strategy and points.
       var sideHead = portrait || sideW < 120 ? 54 : 34;
-      var topHead = 24;
+      var topHead = 30; // the name row, with a little room below it
       var opp = [];
       opp[3] = { x: ox + pad, y: topH, w: sideW, h: bandTop - topH - gap };
       opp[1] = { x: ox + tableW - pad - sideW, y: topH, w: sideW, h: bandTop - topH - gap };
@@ -1381,8 +1381,9 @@
       // The side players' headers get a little room above them; the player
       // across keeps theirs at the bottom of their box.
       var top = seat === 2 ? 0 : 6;
+      var bottom = seat === 2 ? 6 : 0;
       if (!compact) {
-        drawSeatHeader(seat, r.x + 8, r.y + top + (r.h - top - 22) / 2, r.w - 16);
+        drawSeatHeader(seat, r.x + 8, r.y + top + (r.h - top - bottom - 22) / 2, r.w - 16);
         return;
       }
       var rad = 8;
@@ -1404,21 +1405,27 @@
       return Math.max(0, n - ui.hide.backs[seat]);
     }
 
-    function drawOpponent(seat, t) {
-      var r = L.opp[seat];
-      var s = game.hand.seats[seat];
-      var active = ui.turnSeat === seat;
+    // A player's box. Whose turn it is shows as a faint gold tint and a
+    // thin outline that slowly breathes, enough to find without pulling
+    // the eye away from the table.
+    function drawSeatBox(r, active, t) {
       ctx.save();
       roundRect(ctx, r.x, r.y, r.w, r.h, 12);
-      ctx.fillStyle = active ? 'rgba(244,160,32,0.16)' : 'rgba(0,0,0,0.16)';
+      ctx.fillStyle = active ? 'rgba(244,160,32,0.07)' : 'rgba(0,0,0,0.16)';
       ctx.fill();
       if (active) {
-        ctx.strokeStyle = 'rgba(244,160,32,' + (0.65 + 0.3 * Math.sin(t / 220)) + ')';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'rgba(244,160,32,' + (0.32 + 0.1 * Math.sin(t / 600)) + ')';
+        ctx.lineWidth = 1.5;
         ctx.stroke();
         requestRender();
       }
       ctx.restore();
+    }
+
+    function drawOpponent(seat, t) {
+      var r = L.opp[seat];
+      var s = game.hand.seats[seat];
+      drawSeatBox(r, ui.turnSeat === seat, t);
       drawOppHeader(seat, r.head);
 
       // Drawn in the seat's rotated frame, facing its owner: the concealed
@@ -1591,19 +1598,8 @@
       var y = L.meY;
       var active = ui.turnSeat === 0;
 
-      // Your box, like the other players': gold while it's your turn.
-      var box = L.meBox;
-      ctx.save();
-      roundRect(ctx, box.x, box.y, box.w, box.h, 12);
-      ctx.fillStyle = active ? 'rgba(244,160,32,0.16)' : 'rgba(0,0,0,0.16)';
-      ctx.fill();
-      if (active) {
-        ctx.strokeStyle = 'rgba(244,160,32,' + (0.65 + 0.3 * Math.sin(t / 220)) + ')';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        requestRender();
-      }
-      ctx.restore();
+      // Your box, like the other players'.
+      drawSeatBox(L.meBox, active, t);
 
       // Info + melds row.
       var left = L.ox;

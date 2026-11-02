@@ -30,7 +30,8 @@
         of another suit goes first, even while folding. With 7 or more tiles
         of one suit (sets count), the other suits go first the same way,
         unless the hand is going for Concealed Straights: then the honors go
-        first instead (but while folding, safety decides). (Seven Pairs, Thirteen Orphans, Nine Gates and the
+        first instead, all but one honor pair, which can be the hand's pair
+        (but while folding, safety decides). (Seven Pairs, Thirteen Orphans, Nine Gates and the
         hands of honors or terminals need their tiles from every suit, so
         they keep their own order.)
      F. keep pairs. Break one only after every non-pair is gone.
@@ -300,14 +301,27 @@
     return best;
   }
 
+  // On Concealed Straights the hand keeps at most one honor pair, as its
+  // pair (eyes); every other honor goes. A dragon or scoring-wind pair is
+  // kept ahead of another. Returns that pair's index, or null.
+  function keptHonorPair(counts, ctx) {
+    var best = null;
+    for (var i = 27; i < 34; i++) {
+      if (counts[i] !== 2) continue;
+      if (best === null || valueWeight(ctx, i) > valueWeight(ctx, best)) best = i;
+    }
+    return best;
+  }
+
   // The discard rules every strategy follows, ahead of its own order: after
   // a chow, or with most of the hand in one suit, other suits go first
-  // (group 0: even while folding). On Concealed Straights, honors go first
-  // (group -1: while folding, safety decides). Null when neither applies.
+  // (group 0: even while folding). On Concealed Straights, every honor but
+  // one pair goes first (group -1: while folding, safety decides). Null
+  // when neither applies.
   function sharedPriority(ctx, counts, candidate) {
     var i = candidate.index;
     var lead = ctx.leadPlan;
-    if (lead && lead.id === 'straights' && !ctx.hasChow) return i >= 27 ? -1 : null;
+    if (lead && lead.id === 'straights' && !ctx.hasChow) return i >= 27 && i !== keptHonorPair(counts, ctx) ? -1 : null;
     var committed = suitCommitment(ctx, counts);
     if (committed && i < 27 && E.suitOfIndex(i) !== committed) return 0;
     return null;
@@ -530,19 +544,21 @@
     }
 
     plans.push({ id: 'plain', label: 'a standard hand', counts: c, shantenFn: E.standardShanten, faan: base + yaku, open: true });
-    // Concealed Straights: runs only. Honors are discarded, and nothing
-    // is claimed, because either one breaks the hand.
+    // Concealed Straights: runs only, and nothing claimed. Honors are
+    // discarded, except one honor pair, which can be the hand's pair (it
+    // then scores Concealed but not All Sequences).
     // (Not while the hand holds a set of honors, which can never be thrown
     // away to make an all-runs hand.)
     var honorSet = false;
     for (var hs = 27; hs < 34; hs++) if (c[hs] >= 3) honorSet = true;
     if (!ctx.declared && !honorSet) {
+      var eyes = keptHonorPair(c, ctx);
       plans.push({
         id: 'straights',
         label: 'Concealed Straights',
-        counts: restrict(c, function (i) { return i < 27; }),
+        counts: restrict(c, function (i) { return i < 27 || i === eyes; }),
         shantenFn: E.standardShanten,
-        faan: base + 1,
+        faan: base + (eyes === null ? 1 : 0),
         open: false,
       });
     }
@@ -1200,6 +1216,7 @@
     withMeld: withMeld,
     chowAllowed: chowAllowed,
     sharedPriority: sharedPriority,
+    keptHonorPair: keptHonorPair,
     buildContext: buildContext,
     valueWeight: valueWeight,
     handUtility: handUtility,

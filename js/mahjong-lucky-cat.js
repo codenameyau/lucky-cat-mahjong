@@ -478,7 +478,10 @@
     // otherwise the hand has pivoted, and the shared order applies.
     if (!def.hard && !leading(t, cand)) return null;
     var keep = keepFor(t);
-    if (keep && !keep(i)) return def.hard ? -1 : 1;
+    // Concealed Straights may keep one honor pair as its pair (MahjongBot's
+    // shared rule picks which).
+    var eyes = t.id === 'sequences' && i === B.keptHonorPair(counts, ctx);
+    if (keep && !keep(i) && !eyes) return def.hard ? -1 : 1;
     if (t.id === 'gates' && !B.gatesTileNeeded(counts, t.start, i)) return 1;
     if (B.isPungTile(game, i) && counts[i] < 2 && cand.shanten <= bestShanten) return 1;
     // Seven Pairs keeps pairs and lets a third copy go.

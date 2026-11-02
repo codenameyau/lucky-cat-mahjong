@@ -51,7 +51,7 @@ Group 1 and the Concealed Straights rule are shared by every strategy (`js/mahjo
 4. **Pairs.** A pair is kept until the tiles above are gone. Keeping it leaves a later pung, a chow, or Seven Pairs open.
 5. **A dragon that none of the table has shown yet.** This is kept even longer than a normal pair.
 
-**Concealed Straights throws honors first.** While the hand in the lead is Concealed Straights, every honor goes before any number tile, even a dragon or a pair of them, since an honor can't be part of the hand. While folding, safety decides instead.
+**Concealed Straights throws honors first.** While the hand in the lead is Concealed Straights, every honor goes before any number tile, even a dragon, except one honor pair: the hand only needs a pair, so one honor pair can stay as it (a dragon or scoring-wind pair before another). Any other honor pair goes too. A hand finished with an honor pair still scores Concealed, but not All Sequences, which allows no honors at all, so it's worth a faan less. While folding, safety decides instead.
 
 **Honors early in the hand.** While more than 60 tiles are left in the wall, an honor that can still become a set (fewer than two copies on the table) is one of the hand's most valuable tiles. A single one waits like a pair (group 4). A dragon, or your own or the round's wind, waits longer still (group 5), and a pair of them longest. Honors are only let go early once two copies are out, or when the hand is on Seven Pairs, which only needs its pairs.
 

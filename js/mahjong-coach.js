@@ -254,11 +254,14 @@
   function targetText(v, plan, c, nextOut) {
     var r = plan.route;
     if (r.id === 'straights') {
-      // Every bot throws honors first on this hand (MahjongBot's shared rule).
+      // Every bot throws honors first on this hand, all but one honor pair
+      // (MahjongBot's shared rule).
+      var eyes = B.keptHonorPair(c, v.ctx);
       var honors = 0;
-      for (var h = 27; h < 34; h++) if (h !== nextOut) honors += c[h] || 0;
-      return 'Concealed Straights' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' +
-        (honors ? '. Throw your honors first' : '');
+      for (var h = 27; h < 34; h++) if (h !== nextOut && h !== eyes) honors += c[h] || 0;
+      var keepPair = eyes !== null ? '. Keep your ' + name(eyes) + ' pair as the pair' : '';
+      return 'Concealed Straights' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' + keepPair +
+        (honors ? (eyes !== null ? ', and throw your other honors first' : '. Throw your honors first') : '');
     }
     if (r.id === 'half') return 'Half Flush in ' + SUIT_NAME[r.suit];
     if (r.id === 'full') return 'Full Flush in ' + SUIT_NAME[r.suit];

@@ -172,6 +172,28 @@ describe('lucky-cat decisions', () => {
   });
 });
 
+describe('Concealed Straights keeps one honor pair', () => {
+  const noKongs = { kongs: [] };
+  it('throws every other honor first and keeps the pair', () => {
+    const hand = ['c2', 'c3', 'c4', 'd5', 'd6', 'd7', 'b3', 'b4', 'b6', 'b7', 'wn', 'wn', 'ws', 'dg'];
+    const game = table({ seats: [{ hand }], wallLeft: 80 });
+    const a = L.analyzeDiscards(game, 0);
+    assert.equal(a.ctx.leadPlan.id, 'straights');
+    const order = a.candidates.map((x) => x.tile);
+    assert.deepEqual(order.slice(0, 2).sort(), ['dg', 'ws']);
+    assert.ok(order.indexOf('wn') > 2, order.join(' '));
+    const hint = Coach.forStrategy(L).turnHint(game, 0, noKongs);
+    assert.match(hint.tips.join(' '), /Keep your North Wind pair as the pair\./);
+    assert.match(hint.tips.join(' '), /Green Dragon goes next/);
+  });
+
+  it('keeps a dragon or scoring-wind pair ahead of another honor pair', () => {
+    const counts = E.countsOf(['wn', 'wn', 'dr', 'dr', 'c2']);
+    const ctx = B.buildContext(table({ seats: [{ hand: ['c2'] }] }), 0);
+    assert.equal(B.keptHonorPair(counts, ctx), E.tileIndex('dr'));
+  });
+});
+
 describe('coach for a strategy', () => {
   it('speaks for the strategy it is given', () => {
     const hand = ['we', 'we', 'ws', 'ws', 'dr', 'dr', 'dg', 'dg', 'dw', 'c5', 'd4', 'b6', 'ww', 'wn'];

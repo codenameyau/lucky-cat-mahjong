@@ -21,7 +21,7 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 All strategies are built on the shared foundation in `js/mahjong-bot.js` (`MahjongBot`): shanten, live tiles, the exact score of every wait, the threat model, the claim options, and the principles every bot follows:
 
 - **One suit.** After a chow, keep that suit and the honors: every tile of another suit goes first, even while folding. With 7 or more tiles of one suit (sets count, and more than any other suit), the other suits go first the same way. Hands that need their tiles from every suit or a fixed shape (Seven Pairs, Thirteen Orphans, Nine Gates, All Terminals, All Honors, Four Winds) keep their own order.
-- **Concealed Straights throws honors first**, ahead of any number tile, while it's the hand in the lead (while folding, safety decides).
+- **Concealed Straights throws honors first**, ahead of any number tile, while it's the hand in the lead, keeping only one honor pair as the hand's pair (while folding, safety decides). An honor pair costs the All Sequences faan, so the hand is weighed with one less.
 - **Keep pairs and unseen dragons**, and throw a tile someone has punged when the hand doesn't need it. Keeping them never costs a step toward ready.
 - **Claims.** Seven Pairs, Thirteen Orphans, Nine Gates and Concealed Straights claim nothing (Concealed Straights still pungs a dragon or scoring wind). A dragon or scoring wind is always punged otherwise, unless that breaks a ready hand. A chow must get the hand closer to ready and still be able to reach 3 faan.
 
