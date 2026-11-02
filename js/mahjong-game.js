@@ -48,6 +48,31 @@
   function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
   function signed(n) { return (n > 0 ? '+' : n < 0 ? '−' : '±') + fmt(Math.abs(n)); }
 
+  // Asks for a save file, checks it (MahjongEngine.checkSave), and hands
+  // it to onLoad, or a reason it can't be loaded to onError.
+  function chooseSaveFile(onLoad, onError) {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json,.json';
+    input.addEventListener('change', function () {
+      var file = input.files && input.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        var data = null;
+        try { data = JSON.parse(String(reader.result)); } catch (err) { data = null; }
+        E.checkSave(data).then(function (check) {
+          if (!check.ok) { track('play_load_failed', {}); onError(check.reason); return; }
+          track('play_load', { version: data.version });
+          onLoad(data);
+        }, function () { onError('This browser can\'t load games.'); });
+      };
+      reader.onerror = function () { onError('That file couldn\'t be read.'); };
+      reader.readAsText(file);
+    });
+    input.click();
+  }
+
   function readJson(key, fallback) {
     try {
       var raw = localStorage.getItem(key);
@@ -206,11 +231,12 @@
 
   /* ------------------------------------------------------------------ *
    * 2. Sound
-   *    Short recorded clips from Kenney's Casino Audio and Interface Sounds
-   *    packs (CC0, kenney.nl), trimmed to mono WAV in /assets/sounds/.
-   *    Tiles are poker chips: a chip laid down is a discard, a stack of
-   *    them is a claim, and a quick ripple of chips laid down is every
-   *    hand tipping face up.
+   *    Short recorded clips from Kenney's Casino Audio, Impact Sounds and
+   *    Interface Sounds packs (CC0, kenney.nl), trimmed to mono WAV in
+   *    /assets/sounds/. Nearly every sound is something physical on the
+   *    table: tiles are poker chips (laid down for a discard, stacked for a
+   *    claim), the big moments are mining-pick hits, and the rest are
+   *    knocks on wood. Flowers keep a soft glass chime.
    * ------------------------------------------------------------------ */
 
   var SOUND_DIR = '/assets/sounds/';
@@ -222,6 +248,8 @@
     // One sound for every discard: the duller chip, the closest to a
     // mahjong tile landing on the table.
     discard: { clips: ['tile-discard'], gain: 0.85 },
+    // Picking up a tile: chips handled. A flower: a soft glass chime
+    // (glass_001 from Kenney's Interface Sounds), the one bell on the table.
     select: { clips: ['tile-select'], gain: 0.2 },
     flower: { clips: ['flower'], gain: 0.4 },
     // Claims are big moments, and each has its own heavy hit (a different
@@ -242,13 +270,20 @@
       clips: ['impact-kong'], gain: 1,
       then: [['impact-kong', 0.12, 0.7, 0.8], ['tile-claim-2', 0.03, 0.7], ['tile-kong', 0.16, 0.6], ['tile-discard', 0.28, 0.6, 0.85]],
     },
-    turn: { clips: ['turn'], gain: 0.25 },
-    win: { clips: ['win'], gain: 0.6, then: [['tile-claim-2', 0, 0.5]] },
-    otherwin: { clips: ['other-win'], gain: 0.45 },
-    lose: { clips: ['lose'], gain: 0.5 },
-    drawgame: { clips: ['draw-game'], gain: 0.45 },
+    // Your turn: a light knock on the table.
+    turn: { clips: ['turn'], gain: 0.3 },
+    // Your win: a heavy wooden hit and a mining hit as the chips stack up.
+    win: { clips: ['win'], gain: 0.7, then: [['impact-pung', 0.04, 0.55], ['tile-claim-2', 0.06, 0.6]] },
+    // Someone else's win: a medium wooden hit and their chips.
+    otherwin: { clips: ['other-win'], gain: 0.55, then: [['tile-claim-1', 0.04, 0.45]] },
+    // You paid for the win: a dull, soft thud.
+    lose: { clips: ['lose'], gain: 0.6 },
+    // The wall ran out: a wooden plank set down, and the chips stirred.
+    drawgame: { clips: ['draw-game'], gain: 0.55, then: [['tile-draw', 0.05, 0.4]] },
     // Show hands: impactMining_003, the whole clip, untrimmed.
     flip: { clips: ['tiles-reveal'], gain: 0.9 },
+    // Next hand: impactMining_004, trimmed like the claims.
+    next: { clips: ['impact-next'], gain: 0.85 },
   };
 
   // Background music: CC BY 4.0 tracks by Kevin MacLeod (incompetech.com),
@@ -493,6 +528,7 @@
       restartArmed: 0, // when Restart game was first tapped in the menu
       replaying: false, // a loaded hand is being played again up to your next move
       menuNote: null, // a line in the menu after saving or a failed load
+      windFlash: 0, // 1 to 0 as your wind badge flashes after copying the seed
       turnSeat: null,
       selected: -1,
       turnPrompt: null,
@@ -918,8 +954,9 @@
       }
     }
 
-    function addRegion(x, y, w, h, onTap, id) {
-      regions.push({ x: x, y: y, w: w, h: h, onTap: onTap, id: id });
+    // `plain` regions respond to taps but keep the arrow cursor.
+    function addRegion(x, y, w, h, onTap, id, plain) {
+      regions.push({ x: x, y: y, w: w, h: h, onTap: onTap, id: id, plain: !!plain });
     }
 
     function button(label, x, y, w, h, onTap, style, id, picked) {
@@ -1321,7 +1358,7 @@
         more.appendChild(label);
         s.details.forEach(function (t) {
           var p = document.createElement('p');
-          p.textContent = t;
+          appendHandNames(p, t);
           more.appendChild(p);
         });
         card.appendChild(more);
@@ -1329,6 +1366,19 @@
       });
       about.appendChild(grid);
       body.appendChild(about);
+    }
+
+    // Text with its hand names (the coach's list) in red spans.
+    function appendHandNames(el, value) {
+      Coach.highlightPatterns(value).split('\u0002').forEach(function (part) {
+        var at = part.indexOf('\u0001');
+        el.appendChild(document.createTextNode(at < 0 ? part : part.slice(0, at)));
+        if (at < 0) return;
+        var span = document.createElement('span');
+        span.className = 'strategies-hand';
+        span.textContent = part.slice(at + 1);
+        el.appendChild(span);
+      });
     }
 
     function listWords(list) {
@@ -1496,6 +1546,25 @@
       var r = 11;
       var iconS = 15;
       windBadge(seat, x + r, y + r, r);
+      if (seat === 0) {
+        addRegion(x, y, 2 * r, 2 * r, copySeed, 'my-wind', true);
+        // The flash after copying the seed: the badge lights up gold, and a
+        // ring spreads out as it fades.
+        var f = ui.windFlash;
+        if (f > 0) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(x + r, y + r, r, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(244,160,32,' + (0.75 * f).toFixed(3) + ')';
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(x + r, y + r, r * (1 + 0.7 * (1 - f)), 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(255,210,122,' + f.toFixed(3) + ')';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
       var name = seatTitle(seat);
       var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
       ctx.font = 'bold 13px ' + FONT_BODY;
@@ -2056,6 +2125,19 @@
       return entries;
     }
 
+    // Tapping your wind badge quietly copies the current hand's seed (the
+    // number its wall is shuffled from, as in a save file, with your seat
+    // and the round: MahjongEngine.handSeedText): no message, and
+    // the badge keeps the normal arrow cursor. The badge flashes once it's
+    // copied.
+    function copySeed() {
+      if (!game || !game.hand || !root.navigator || !navigator.clipboard || !navigator.clipboard.writeText) return;
+      navigator.clipboard.writeText(E.handSeedText(game, 0)).then(function () {
+        if (destroyed) return;
+        animate(520, function (e) { ui.windFlash = 1 - e; });
+      }, function () {});
+    }
+
     // Older notes start at the top and later ones follow downward.
     function drawCoachHistory() {
       var r = L.history;
@@ -2562,7 +2644,7 @@
       var by = r.y + r.h - 62;
       // Show hands leaves this panel without dealing. Next hand is the only way on.
       button('Show hands', bx, by, handsW, 42, showHands, 'white', 'show-hands');
-      button(label, bx + handsW + gap, by, nextW, 42, function () { closeOverlay(); }, 'primary', 'next');
+      button(label, bx + handsW + gap, by, nextW, 42, nextHand, 'primary', 'next');
       ctx.restore();
       regions.slice(firstRegion).forEach(function (g) {
         g.x = W / 2 + (g.x - W / 2) * k;
@@ -2585,7 +2667,7 @@
           else noteLines.push(word);
         });
       }
-      var r = panelRect(340, 368 + noteLines.length * 16 + (note ? 8 : 0));
+      var r = panelRect(340, 386 + noteLines.length * 16 + (note ? 8 : 0));
       drawPanelBg(r);
       text('Paused', r.x + r.w / 2, r.y + 36, { size: 24, family: FONT_HEAD, align: 'center', color: COLORS.red });
       var bx = r.x + 30, bw = r.w - 60, y = r.y + 62, step = 50;
@@ -2604,11 +2686,11 @@
       var lineW = ctx.measureText(line).width;
       ctx.font = 'bold 10px ' + FONT_BODY;
       var badgeW = ctx.measureText('BETA').width + 12, badgeH = 16;
-      var lx = r.x + (r.w - lineW - 6 - badgeW) / 2, ly = r.y + r.h - 36;
+      var lx = r.x + (r.w - lineW - 6 - badgeW) / 2, ly = r.y + r.h - 48;
       text(line, lx, ly, { size: 12, color: COLORS.muted });
       pill(lx + lineW + 6, ly - badgeH / 2, badgeW, badgeH, COLORS.red);
       text('BETA', lx + lineW + 6 + badgeW / 2, ly + 1, { size: 10, weight: 'bold', align: 'center', color: COLORS.white });
-      text('Built by Jorge Yau Lee, developer, mahjong instructor', r.x + r.w / 2, r.y + r.h - 17, { size: 12, align: 'center', color: COLORS.muted });
+      text('Built by Jorge Yau, developer, mahjong instructor', r.x + r.w / 2, r.y + r.h - 22, { size: 12, align: 'center', color: COLORS.muted });
     }
 
     /* ---------------- saving and loading ---------------- */
@@ -2663,26 +2745,7 @@
     }
 
     function loadGame() {
-      var input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'application/json,.json';
-      input.addEventListener('change', function () {
-        var file = input.files && input.files[0];
-        if (!file) return;
-        var reader = new FileReader();
-        reader.onload = function () {
-          var data = null;
-          try { data = JSON.parse(String(reader.result)); } catch (err) { data = null; }
-          E.checkSave(data).then(function (check) {
-            if (!check.ok) { setMenuNote(check.reason, true); track('play_load_failed', {}); return; }
-            track('play_load', { version: data.version });
-            callbacks.load(data);
-          }, function () { setMenuNote('This browser can\'t load games.', true); });
-        };
-        reader.onerror = function () { setMenuNote('That file couldn\'t be read.', true); };
-        reader.readAsText(file);
-      });
-      input.click();
+      chooseSaveFile(callbacks.load, function (reason) { setMenuNote(reason, true); });
     }
 
     // Restarting throws the match away, so it takes a second tap.
@@ -2758,13 +2821,23 @@
     function showHands() {
       var o = ui.overlay;
       if (!o || o.type !== 'summary') return;
+      // Back from See results the hands are already face up, so no sound.
+      var already = ui.revealHands;
       ui.heldSummary = o;
       ui.revealHands = true;
       ui.botLift = null;
       ui.overlay = null;
-      sound.play('flip');
-      announce('All four hands are face up.');
+      if (!already) {
+        sound.play('flip');
+        announce('All four hands are face up.');
+      }
       requestRender();
+    }
+
+    // Leaves the summary for the next deal, with its own mining hit.
+    function nextHand() {
+      sound.play('next');
+      closeOverlay();
     }
 
     function seeResults() {
@@ -2970,7 +3043,7 @@
       }
       var r = hitTest(p.x, p.y);
       var id = r ? r.id : null;
-      canvas.style.cursor = r ? 'pointer' : 'default';
+      canvas.style.cursor = r && !r.plain ? 'pointer' : 'default';
       mouse = p;
       var sp = spotAt(p);
       if (id !== hover || (sp ? sp.id : null) !== tipTile) { hover = id; requestRender(); }
@@ -2990,7 +3063,7 @@
       if (rulesOpen() || strategiesOpen()) return; // the sheets handle their own keys (Escape closes them)
       if (e.key === 'Escape') { openMenu(); e.preventDefault(); return; }
       if (ui.overlay) {
-        if (e.key === 'Enter' && ui.overlay.type === 'summary') { closeOverlay(); e.preventDefault(); }
+        if (e.key === 'Enter' && ui.overlay.type === 'summary') { nextHand(); e.preventDefault(); }
         return;
       }
       if (ui.revealHands) {
@@ -3565,6 +3638,24 @@
       saved.spicy = 'full';
       writeJson(SETTINGS_KEY, saved);
     });
+
+    // Load game, beside Start game: plays on from a save file.
+    var loadBtn = document.getElementById('play-load');
+    var loadNote = document.getElementById('play-load-note');
+    if (loadBtn) {
+      loadBtn.addEventListener('click', function () {
+        if (loadNote) loadNote.hidden = true;
+        chooseSaveFile(function (data) {
+          var settings = readForm(form, readJson(SETTINGS_KEY, {}));
+          if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
+          open(Object.assign(settings, { mode: data.payload.game.settings.mode }), data);
+        }, function (reason) {
+          if (!loadNote) return;
+          loadNote.textContent = reason;
+          loadNote.hidden = false;
+        });
+      });
+    }
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();

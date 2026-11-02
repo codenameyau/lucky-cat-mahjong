@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.2.7';
+  var GAME_VERSION = '0.5.5';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -1030,6 +1030,42 @@
   }
 
   /* ------------------------------------------------------------------ *
+   * 7c. Hand seeds
+   *    The text your wind badge copies: the hand's seed, then your seat
+   *    wind and the round wind as letters ("458555827-SE": South seat,
+   *    East round). The Points Guide calculator deals your starting hand
+   *    from it (dealtHand).
+   * ------------------------------------------------------------------ */
+
+  var WIND_LETTERS = ['', 'E', 'S', 'W', 'N'];
+
+  function handSeedText(game, seat) {
+    return (game.hand.seed >>> 0) + '-' + WIND_LETTERS[seatWind(game, seat)] + WIND_LETTERS[game.round];
+  }
+
+  // { seed, seat, round } (winds 1-4), or null if `text` isn't a hand seed.
+  function parseHandSeed(text) {
+    var m = /^\s*(\d{1,10})-([ESWN])([ESWN])\s*$/i.exec(String(text || ''));
+    if (!m || +m[1] > 4294967295) return null;
+    return {
+      seed: +m[1],
+      seat: WIND_LETTERS.indexOf(m[2].toUpperCase()),
+      round: WIND_LETTERS.indexOf(m[3].toUpperCase()),
+    };
+  }
+
+  // The starting hand dealt from `seed` to the seat with wind `seat`
+  // (1 East, the dealer, with 14 tiles), after every seat's flowers are
+  // replaced in turn from the dealer, as runHand does: { hand, flowers }.
+  function dealtHand(seed, seat) {
+    var game = { handNumber: 0, dealer: 0, rng: createRng(1) };
+    startHand(game, seed);
+    for (var k = 0; k < 4; k++) replaceFlowers(game, k);
+    var s = game.hand.seats[seat - 1];
+    return { hand: sortTiles(s.hand.slice()), flowers: s.flowers.slice() };
+  }
+
+  /* ------------------------------------------------------------------ *
    * 8. Visible information (what a seat may legally know)
    * ------------------------------------------------------------------ */
 
@@ -1084,6 +1120,9 @@
     shanten: shanten,
     winningTiles: winningTiles,
     createGame: createGame,
+    handSeedText: handSeedText,
+    parseHandSeed: parseHandSeed,
+    dealtHand: dealtHand,
     GAME_VERSION: GAME_VERSION,
     SAVE_APP: SAVE_APP,
     saveCompatibility: saveCompatibility,

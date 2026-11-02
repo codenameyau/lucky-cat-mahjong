@@ -487,6 +487,18 @@ html.hide-extra-chinese .result-cn {
   border: 1px dashed rgba(0, 0, 0, 0.1);
 }
 
+.hand-placeholder--paste {
+  flex-direction: column;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+.hand-placeholder-note {
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
 .hand-tiles {
   position: relative;
   display: flex;
