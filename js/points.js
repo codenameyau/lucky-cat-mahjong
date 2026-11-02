@@ -1315,6 +1315,33 @@
     }
   }
 
+  // Reads the clipboard, and if it holds a hand seed (what tapping your wind
+  // badge on the Play page copies, e.g. "458555827-SE"), shows the starting
+  // hand dealt to you from it, with your flowers, seat wind and round wind.
+  // Anything else on the clipboard is ignored.
+  function pasteHandSeed() {
+    var E = window.MahjongEngine;
+    var clip = navigator.clipboard;
+    if (!E || !clip || !clip.readText) return;
+    clip.readText().then(function (value) {
+      var parsed = E.parseHandSeed(value);
+      if (!parsed) return;
+      var dealt = E.dealtHand(parsed.seed, parsed.seat);
+      hand = dealt.hand;
+      flowers = dealt.flowers;
+      syncHandLayoutFromArrays();
+      var seatEl = document.getElementById('opt-seat');
+      var roundEl = document.getElementById('opt-round');
+      if (seatEl) seatEl.value = String(parsed.seat);
+      if (roundEl) roundEl.value = String(parsed.round);
+      var noFlowers = document.getElementById('opt-no-flowers');
+      if (noFlowers) noFlowers.checked = !flowers.length;
+      clearActiveExample();
+      clearHandHighlight();
+      update();
+    }, function () {});
+  }
+
   function syncHandTiles(body, pieces) {
     var placeholderText = 'Click random, show examples, or add tiles to make a hand and see its score';
 
@@ -1324,8 +1351,15 @@
       var ph = body.querySelector('.hand-placeholder');
       if (!ph) {
         ph = document.createElement('p');
-        ph.className = 'hand-placeholder';
+        ph.className = 'hand-placeholder hand-placeholder--paste';
         ph.textContent = placeholderText;
+        // Tapping it pastes a hand seed from the Play page (see pasteHandSeed).
+        ph.setAttribute('role', 'button');
+        ph.tabIndex = 0;
+        ph.addEventListener('click', pasteHandSeed);
+        ph.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pasteHandSeed(); }
+        });
         body.appendChild(ph);
       }
       return;

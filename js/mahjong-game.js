@@ -2112,12 +2112,13 @@
     }
 
     // Tapping your wind badge quietly copies the current hand's seed (the
-    // number its wall is shuffled from, as in a save file): no message, and
+    // number its wall is shuffled from, as in a save file, with your seat
+    // and the round: MahjongEngine.handSeedText): no message, and
     // the badge keeps the normal arrow cursor. The badge flashes once it's
     // copied.
     function copySeed() {
       if (!game || !game.hand || !root.navigator || !navigator.clipboard || !navigator.clipboard.writeText) return;
-      navigator.clipboard.writeText(String(game.hand.seed)).then(function () {
+      navigator.clipboard.writeText(E.handSeedText(game, 0)).then(function () {
         if (destroyed) return;
         animate(520, function (e) { ui.windFlash = 1 - e; });
       }, function () {});
