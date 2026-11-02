@@ -284,7 +284,7 @@
     var out = null;
     var raw = {}; // fetched bytes, decoded once there's an audio context
     var buffers = {};
-    var api = { enabled: enabled };
+    var api = { enabled: enabled, musicEnabled: true };
 
     // The files are small (a quarter MB in all), so fetch them up front;
     // the browser only lets audio start after a tap, when ctx() runs.
@@ -366,16 +366,17 @@
         music.el.addEventListener('error', function () { if (music.on) playTrack(nextTrack()); });
       }
       music.el.src = MUSIC_DIR + track.file;
-      if (music.on && api.enabled) {
+      if (music.on && api.enabled && api.musicEnabled) {
         var p = music.el.play();
         if (p && p.catch) p.catch(function () {}); // waits for a tap if the browser blocks it
       }
     }
 
-    // music(true) starts or resumes it (if sound is on), music(false) pauses.
+    // music(true) starts or resumes it (if sound and music are on),
+    // music(false) pauses.
     api.music = function (on) {
       music.on = !!on;
-      if (!music.on || !api.enabled) {
+      if (!music.on || !api.enabled || !api.musicEnabled) {
         if (music.el) music.el.pause();
         return;
       }
@@ -442,6 +443,7 @@
     var ctx = canvas.getContext('2d');
     var prefs = readJson(PREFS_KEY, { sound: true });
     var sound = createSound(prefs.sound !== false);
+    sound.musicEnabled = prefs.music !== false;
     var reduceMotion = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     // W and H are the layout size. On short landscape screens the table is
@@ -1348,6 +1350,14 @@
     }
 
     var COACH_LABELS = { on: 'Coach on', feedback: 'Feedback on', off: 'Coach off' };
+    // The Sound button cycles: effects and music, effects only, nothing.
+    var SOUND_LABELS = { on: 'Sound on', nomusic: 'Music off', off: 'Sound off' };
+    var SOUND_ORDER = ['on', 'nomusic', 'off'];
+
+    function soundMode() {
+      if (!sound.enabled) return 'off';
+      return sound.musicEnabled ? 'on' : 'nomusic';
+    }
     var COACH_ORDER = ['on', 'feedback', 'off'];
 
     function drawTopBar() {
@@ -1356,7 +1366,7 @@
       var pad = L ? L.pad : 8;
       button('Menu', pad, 7, 64, 28, openMenu, 'ghost', 'menu');
       var right = W - pad;
-      var soundLabel = sound.enabled ? 'Sound on' : 'Sound off';
+      var soundLabel = SOUND_LABELS[soundMode()];
       var sw = W < 420 ? 66 : 92;
       button(soundLabel, right - sw, 7, sw, 28, toggleSound, 'ghost', 'sound');
       var hw = W < 420 ? 84 : 106;
@@ -2655,10 +2665,11 @@
     }
 
     function toggleSound() {
-      sound.enabled = !sound.enabled;
-      writeJson(PREFS_KEY, { sound: sound.enabled });
-      // The Sound button turns the music on and off with the effects.
-      sound.music(sound.enabled);
+      var next = SOUND_ORDER[(SOUND_ORDER.indexOf(soundMode()) + 1) % SOUND_ORDER.length];
+      sound.enabled = next !== 'off';
+      sound.musicEnabled = next === 'on';
+      writeJson(PREFS_KEY, { sound: sound.enabled, music: sound.musicEnabled });
+      sound.music(true); // plays or pauses to match
       if (sound.enabled) sound.play('select');
       requestRender();
     }
