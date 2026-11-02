@@ -231,12 +231,12 @@
 
   /* ------------------------------------------------------------------ *
    * 2. Sound
-   *    Short recorded clips from Kenney's Casino Audio and Impact Sounds
-   *    packs (CC0, kenney.nl), trimmed to mono WAV in /assets/sounds/.
-   *    Every sound is something physical on the table: tiles are poker
-   *    chips (laid down for a discard, stacked for a claim), the big
-   *    moments are mining-pick hits, and the rest are knocks on wood. No
-   *    chimes or electronic tones.
+   *    Short recorded clips from Kenney's Casino Audio, Impact Sounds and
+   *    Interface Sounds packs (CC0, kenney.nl), trimmed to mono WAV in
+   *    /assets/sounds/. Nearly every sound is something physical on the
+   *    table: tiles are poker chips (laid down for a discard, stacked for a
+   *    claim), the big moments are mining-pick hits, and the rest are
+   *    knocks on wood. Flowers keep a soft glass chime.
    * ------------------------------------------------------------------ */
 
   var SOUND_DIR = '/assets/sounds/';
@@ -248,9 +248,10 @@
     // One sound for every discard: the duller chip, the closest to a
     // mahjong tile landing on the table.
     discard: { clips: ['tile-discard'], gain: 0.85 },
-    // Picking up a tile: chips handled. A flower set aside: a chip laid down.
+    // Picking up a tile: chips handled. A flower: a soft glass chime
+    // (glass_001 from Kenney's Interface Sounds), the one bell on the table.
     select: { clips: ['tile-select'], gain: 0.2 },
-    flower: { clips: ['flower'], gain: 0.5 },
+    flower: { clips: ['flower'], gain: 0.4 },
     // Claims are big moments, and each has its own heavy hit (a different
     // impactMining clip from Kenney's Impact Sounds pack) under the chips:
     // chow: impactMining_001, the brightest, then the run's chips settle;

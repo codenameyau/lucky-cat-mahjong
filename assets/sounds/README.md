@@ -1,6 +1,6 @@
 # Play Mahjong sound effects
 
-Short clips from two [Kenney](https://kenney.nl) packs, all released under
+Short clips from three [Kenney](https://kenney.nl) packs, all released under
 [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (public domain;
 credit is appreciated, not required). Each was trimmed of leading silence,
 faded out, normalized and saved as 32 kHz mono 16-bit WAV, so a tile click
@@ -14,7 +14,7 @@ plays with no delay. The cues that use them are `CUES` in `js/mahjong-game.js`.
 | `tile-claim-2.wav` | `chips-stack-3` | Casino Audio |
 | `tile-kong.wav` | `chips-collide-1` | Casino Audio |
 | `tile-select.wav` | `chips-handle-1` | Casino Audio |
-| `flower.wav` | `chip-lay-1` | Casino Audio |
+| `flower.wav` | `glass_001` | [Interface Sounds](https://kenney.nl/assets/interface-sounds) |
 | `turn.wav` | `impactWood_light_000` | [Impact Sounds](https://kenney.nl/assets/impact-sounds) |
 | `win.wav` | `impactWood_heavy_000` | Impact Sounds |
 | `other-win.wav` | `impactWood_medium_000` | Impact Sounds |
@@ -26,5 +26,5 @@ plays with no delay. The cues that use them are `CUES` in `js/mahjong-game.js`.
 | `tiles-reveal.wav` | `impactMining_003`, the whole clip (Show hands), only converted to mono WAV | Impact Sounds |
 | `impact-next.wav` | `impactMining_004` (Next hand) | Impact Sounds |
 
-Every sound is something physical on the table (chips, wood, mining-pick
-hits); there are no chimes or electronic tones.
+Every sound but the flower's soft glass chime is something physical on the
+table (chips, wood, mining-pick hits); there are no electronic tones.
