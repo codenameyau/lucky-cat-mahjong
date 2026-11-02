@@ -224,24 +224,23 @@
     discard: { clips: ['tile-discard'], gain: 0.85 },
     select: { clips: ['tile-select'], gain: 0.2 },
     flower: { clips: ['flower'], gain: 0.4 },
-    // Claims are big moments, and each sounds different (impacts from
-    // Kenney's Impact Sounds pack under the chips):
-    // chow: three quick wooden knocks climbing in pitch, a run snapping
-    // together, then the chips settle;
+    // Claims are big moments, and each has its own heavy hit (a different
+    // impactMining clip from Kenney's Impact Sounds pack) under the chips:
+    // chow: the brightest hit, then the run's chips settle;
     chow: {
-      clips: ['impact-wood'], gain: 0.8,
-      then: [['impact-wood', 0.09, 0.8, 1.15], ['impact-wood', 0.18, 0.9, 1.32], ['tile-claim-1', 0.2, 0.7]],
+      clips: ['impact-chow'], gain: 0.9,
+      then: [['tile-claim-1', 0.03, 0.7]],
     },
-    // pung: a heavy slam with the three tiles stacked on top;
+    // pung: a fuller hit with the three tiles stacked on top;
     pung: {
-      clips: ['impact-punch'], gain: 0.95,
+      clips: ['impact-pung'], gain: 0.95,
       then: [['tile-claim-2', 0.02, 0.75], ['tile-discard', 0.04, 0.6, 0.9]],
     },
-    // kong: the biggest, a struck bell ringing over a slam while four
+    // kong: the deepest hit, struck twice (the second lower) while four
     // tiles stack.
     kong: {
-      clips: ['impact-bell'], gain: 0.7,
-      then: [['impact-punch', 0, 0.85, 0.85], ['tile-claim-2', 0.03, 0.7], ['tile-kong', 0.16, 0.6], ['tile-discard', 0.28, 0.6, 0.85]],
+      clips: ['impact-kong'], gain: 1,
+      then: [['impact-kong', 0.12, 0.7, 0.8], ['tile-claim-2', 0.03, 0.7], ['tile-kong', 0.16, 0.6], ['tile-discard', 0.28, 0.6, 0.85]],
     },
     turn: { clips: ['turn'], gain: 0.25 },
     win: { clips: ['win'], gain: 0.6, then: [['tile-claim-2', 0, 0.5]] },

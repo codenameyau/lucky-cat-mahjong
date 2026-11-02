@@ -20,6 +20,6 @@ plays with no delay. The cues that use them are `CUES` in `js/mahjong-game.js`.
 | `other-win.wav` | `confirmation_002` | Interface Sounds |
 | `lose.wav` | `minimize_003` | Interface Sounds |
 | `draw-game.wav` | `close_002` | Interface Sounds |
-| `impact-wood.wav` | `impactWood_heavy_002` (chow) | [Impact Sounds](https://kenney.nl/assets/impact-sounds) |
-| `impact-punch.wav` | `impactPunch_heavy_000` (pung, kong) | Impact Sounds |
-| `impact-bell.wav` | `impactBell_heavy_000` (kong) | Impact Sounds |
+| `impact-chow.wav` | `impactMining_001` | [Impact Sounds](https://kenney.nl/assets/impact-sounds) |
+| `impact-pung.wav` | `impactMining_000` | Impact Sounds |
+| `impact-kong.wav` | `impactMining_004` | Impact Sounds |
