@@ -157,7 +157,7 @@ A flush read makes their suit more dangerous and the other two suits safer. Near
 
 ## What the coach adds
 
-The coach does not choose for itself. It says the bot's decision in four parts: what to do and why, how far the hand is from ready and which hand it is building, how dangerous the opponents look, and which tile goes next if the draw does not help.
+The coach does not choose for itself. It says the bot's decision in three parts: what to do and why, how far the hand is from ready and which hand it is building, and how dangerous the opponents look. It doesn't say which tile to drop after this one.
 
 It only says "Play safe" on the last wall, when a win is unlikely: fewer than 16 tiles left and the hand not ready, or fewer than 36 left and two or more tiles from ready. A safe pick earlier in the hand is explained like any other discard.
 

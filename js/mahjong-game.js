@@ -2520,10 +2520,10 @@
       drawPanelBg(r);
       text('Paused', r.x + r.w / 2, r.y + 36, { size: 24, family: FONT_HEAD, align: 'center', color: COLORS.red });
       var bx = r.x + 30, bw = r.w - 60, y = r.y + 62, step = 50;
-      button('Resume', bx, y, bw, 40, function () { closeOverlay(); }, 'primary', 'm-resume'); y += step;
+      button('Resume', bx, y, bw, 40, function () { closeOverlay(); }, 'white', 'm-resume'); y += step;
       var armed = ui.restartArmed && now() - ui.restartArmed < 5000;
-      button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, 40, restartGame, armed ? 'gold' : 'light', 'm-restart'); y += step;
-      button('Quit game', bx, y, bw, 40, function () { quit(); }, 'light', 'm-quit');
+      button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, 40, restartGame, armed ? 'gold' : 'white', 'm-restart'); y += step;
+      button('Quit game', bx, y, bw, 40, function () { quit(); }, 'white', 'm-quit');
       var modeLine = (settings.mode === 'practice' ? 'Practice mode' : 'Payout mode') + ' · ' + (settings.spicy === 'half' ? 'Half spicy' : 'Full spicy');
       text(modeLine, r.x + r.w / 2, r.y + r.h - 18, { size: 12, align: 'center', color: COLORS.muted });
     }

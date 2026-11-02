@@ -183,8 +183,7 @@ describe('Concealed Straights keeps one honor pair', () => {
     assert.deepEqual(order.slice(0, 2).sort(), ['dg', 'ws']);
     assert.ok(order.indexOf('wn') > 2, order.join(' '));
     const hint = Coach.forStrategy(L).turnHint(game, 0, noKongs);
-    assert.match(hint.tips.join(' '), /Keep your North Wind pair as the pair\./);
-    assert.match(hint.tips.join(' '), /Green Dragon goes next/);
+    assert.match(hint.tips.join(' '), /Keep your North Wind pair as the pair, and throw your other honors first/);
   });
 
   it('keeps a dragon or scoring-wind pair ahead of another honor pair', () => {

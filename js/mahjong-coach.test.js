@@ -67,8 +67,8 @@ describe('coach: discards', () => {
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
     assert.equal(hint.tile, 'ws');
     assert.match(text(hint), /Triplets/);
-    assert.match(text(hint), /Red Dragon goes next/);
-    assert.doesNotMatch(text(hint), /(Two Character|Five Circle|Eight Bamboo) goes next/);
+    // Hints don't say which tile to drop after this one.
+    assert.doesNotMatch(text(hint), /goes next/);
   });
 
   it('aims for seven pairs once the hand has more than four concealed pairs and no pung', () => {

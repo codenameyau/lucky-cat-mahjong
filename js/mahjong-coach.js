@@ -2,7 +2,7 @@
 
    The bots decide. This module says that same decision in plain words:
    what to do and why, how far the hand is from ready and which plan it is,
-   how dangerous the opponents look, and which tile goes next. It does not
+   and how dangerous the opponents look. It does not
    keep a second route or a second claim rule.
 
    forStrategy(bot) returns this same coach speaking for another strategy
@@ -423,8 +423,8 @@
   }
 
   /* ------------------------------------------------------------------ *
-   * 5. Hints: 1) what to do, 2) where the hand stands, 3) the threats,
-   *    4) what goes next if the draw doesn't help.
+   * 5. Hints: 1) what to do, 2) where the hand stands, 3) the threats.
+   *    (They don't say which tile to drop after this one.)
    * ------------------------------------------------------------------ */
 
   function turnHint(game, seat, opts) {
@@ -471,16 +471,10 @@
     // A ready discard is explained by the wait that follows.
     tips.push('Discard ' + E.tileName(pick.tile) + '.' + (readyPick ? '' : ' ' + why));
 
-    // 2. Where the hand stands (and, for 4, what goes next).
+    // 2. Where the hand stands.
     var cAfter = c.slice();
     cAfter[pick.index]--;
     var isReady = pick.ready && pick.shanten === 0 && !buildingLimit;
-    var next = null;
-    if (!isReady) {
-      var rest = hand.slice();
-      rest.splice(rest.indexOf(pick.tile), 1);
-      next = rankDiscards(v, rest)[0];
-    }
     if (isReady) {
       var wins = pick.ready.waits.filter(function (w) { return w.ronOk; }).map(function (w) { return w.ronFaan; });
       var state = 'Ready, waiting on ' + waitsText(pick.ready) + (wins.length ? ' for ' + Math.min.apply(null, wins) + '+ faan.' : '.');
@@ -489,7 +483,7 @@
       if (liveLeft <= 1) notes.push('Almost none left, so switch waits if you can.');
       tips.push(state + (notes.length ? ' ' + notes.join(' ') : ''));
     } else if (pick.plan) {
-      var line = stepsText(buildingLimit ? pick.plan.shanten : pick.shanten) + '. Aim for ' + targetText(v, pick.plan, cAfter, next && next.index) + '.';
+      var line = stepsText(buildingLimit ? pick.plan.shanten : pick.shanten) + '. Aim for ' + targetText(v, pick.plan, cAfter, null) + '.';
       if (route.faan < min - 0.25) line += ' Short of ' + min + ' faan, so look for a flush, All Triplets or a dragon or wind set.';
       else if (!defending) { var phase = phaseText(v, threats); if (phase) line += ' ' + phase; }
       tips.push(line);
@@ -498,9 +492,6 @@
     // 3. Threats and how safe the discard is.
     var defense = defenseLine(v, threats, pick, list);
     if (defense) tips.push(defense);
-
-    // 4. What goes next if the next draw doesn't help.
-    if (next) tips.push(E.tileName(next.tile) + ' goes next.');
 
     var worry = threats.filter(function (t) { return t.level >= 2; }).sort(function (a, b) { return b.level - a.level; })[0];
     return lead({
