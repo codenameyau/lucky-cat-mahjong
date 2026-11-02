@@ -2619,7 +2619,7 @@
           else noteLines.push(word);
         });
       }
-      var r = panelRect(340, 368 + noteLines.length * 16 + (note ? 8 : 0));
+      var r = panelRect(340, 386 + noteLines.length * 16 + (note ? 8 : 0));
       drawPanelBg(r);
       text('Paused', r.x + r.w / 2, r.y + 36, { size: 24, family: FONT_HEAD, align: 'center', color: COLORS.red });
       var bx = r.x + 30, bw = r.w - 60, y = r.y + 62, step = 50;
@@ -2638,11 +2638,11 @@
       var lineW = ctx.measureText(line).width;
       ctx.font = 'bold 10px ' + FONT_BODY;
       var badgeW = ctx.measureText('BETA').width + 12, badgeH = 16;
-      var lx = r.x + (r.w - lineW - 6 - badgeW) / 2, ly = r.y + r.h - 36;
+      var lx = r.x + (r.w - lineW - 6 - badgeW) / 2, ly = r.y + r.h - 48;
       text(line, lx, ly, { size: 12, color: COLORS.muted });
       pill(lx + lineW + 6, ly - badgeH / 2, badgeW, badgeH, COLORS.red);
       text('BETA', lx + lineW + 6 + badgeW / 2, ly + 1, { size: 10, weight: 'bold', align: 'center', color: COLORS.white });
-      text('Built by Jorge Yau Lee, developer, mahjong instructor', r.x + r.w / 2, r.y + r.h - 17, { size: 12, align: 'center', color: COLORS.muted });
+      text('Built by Jorge Yau Lee, developer, mahjong instructor', r.x + r.w / 2, r.y + r.h - 22, { size: 12, align: 'center', color: COLORS.muted });
     }
 
     /* ---------------- saving and loading ---------------- */
