@@ -10,8 +10,9 @@
        (or eight and a pair), all still live, it plays Thirteen Orphans.
        With eleven tiles of a suit's 1112345678999 skeleton, it plays Nine
        Gates. Once locked in, every tile the hand can't use goes first.
-       Otherwise it weighs the usual hands (MahjongBot.basePlans) and builds
-       whichever is worth the most.
+       Otherwise it weighs the usual hands (MahjongBot.basePlans, with
+       their upgrades: Mixed Orphans, All Terminals, All Honors, Three
+       Dragons, Four Winds) and builds whichever is worth the most.
      - Chows. A chow gives up the hand's concealed faan and shows what it's
        doing, so it takes one only when it makes the hand ready, builds the
        flush it is already going for (early, only one tile from ready),
@@ -83,9 +84,13 @@
     ctx.lockedSpecial = pickSpecial(counts, ctx);
   }
 
+  // Seven Pairs also weighs its terminal-and-honor upgrades (Mixed
+  // Orphans, All Honors, All Terminals); the usual hands weigh theirs in
+  // MahjongBot.basePlans.
   function plans(c, ctx) {
     var special = specialPlan(ctx, c);
-    return special ? [special] : B.basePlans(c, ctx);
+    if (!special) return B.basePlans(c, ctx);
+    return special.id === 'pairs' ? [special].concat(B.pairsUpgrades(c, ctx)) : [special];
   }
 
   // Thirteen Orphans and Nine Gates throw every tile they can't use first.

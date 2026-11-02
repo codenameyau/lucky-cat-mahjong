@@ -449,6 +449,15 @@
         out = B.basePlans(c, ctx);
         if (B.chaseSevenPairs(c, ctx)) out.push(B.makeSpecialPlan('pairs', c, ctx));
     }
+    // Softer targets also weigh the bigger hands the same tiles can make
+    // (MahjongBot.upgradePlans); the hard ones already are one.
+    if (!def.hard || t.id === 'full') {
+      var have = {};
+      out.forEach(function (p) { have[p.id] = true; });
+      var more = t.id === 'pairs' ? B.pairsUpgrades(c, ctx) : B.upgradePlans(c, ctx);
+      if (t.id === 'full') more = more.filter(function (p) { return !p.keep; });
+      more.forEach(function (p) { if (!have[p.id]) out.push(p); });
+    }
     var keep = keepFor(t), reason = reasonFor(t);
     out.forEach(function (p) {
       if (keep && !p.keep && (p.id === t.id || p.id === t.id + '-' + su || (t.id === 'sequences' && p.id === 'straights'))) {

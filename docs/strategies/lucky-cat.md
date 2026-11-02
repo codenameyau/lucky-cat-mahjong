@@ -62,6 +62,10 @@ A ready hand is scored wait by wait, by discard and by self-draw, with Concealed
 - the hand can kong (a concealed pung with the fourth copy live, or an open pung it can add to). Win by Kong adds a faan.
 - fewer than 17 tiles are left (more under 9). Win on the Last Tile adds a faan.
 
+### Bigger hands from the same tiles
+
+The softer targets (and the default) also weigh the special hands the same tiles can still make, as the shared rules in `js/mahjong-bot.js` do: Mixed Orphans on All Triplets, All Terminals, All Honors, Small and Big Three Dragons, Small and Big Four Winds, and Seven Pairs in Mixed Orphans, All Honors or All Terminals. While one is within a step, its tiles wait behind tiles it can't use, unless no copy is left to finish them.
+
 ## What gets discarded first
 
 1. **The other suits, after a chow or with 7 or more tiles of one suit.** A mixed hand can't reach 3 faan once a chow is open, so every tile of another suit goes first, even while folding. The same goes once 7 or more of the hand's tiles (sets count) are in one suit, more than any other, unless the hand is on Seven Pairs, Thirteen Orphans, Nine Gates, All Terminals, All Honors or Four Winds, or on Concealed Straights, which throws honors first instead (keeping one honor pair, if it has one, as the hand's pair). These are the shared rules every strategy follows.
