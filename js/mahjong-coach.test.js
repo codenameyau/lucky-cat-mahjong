@@ -302,9 +302,10 @@ describe('coach: after a chow', () => {
     assert.match(text(hint), /Aim for (Half|Full) Flush in Bamboo/);
   });
 
-  it('commits to the chow suit even when the hand holds 2 faan of flowers', () => {
-    // East seat: f1 and s1 are its own flower and season.
-    assert.equal(C.look(chowed(['f1', 's1']), 0).committedSuit, 'b');
+  it('does not commit to the chow suit when flowers give all but one faan', () => {
+    // East seat: f1 and s1 are its own flower and season (2 faan), and All
+    // Sequences can still add the third.
+    assert.equal(C.look(chowed(['f1', 's1']), 0).committedSuit, null);
     assert.equal(C.look(chowed(), 0).committedSuit, 'b');
   });
 

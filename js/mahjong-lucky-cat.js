@@ -239,7 +239,8 @@
   }
 
   // A seat or round wind (set or live pair), or a seat flower or season, is
-  // faan already in hand: play for speed.
+  // faan already in hand: play for speed. So are flowers and sets that give
+  // all but one faan of the minimum (MahjongBot.cheapWin).
   function hasQuickFaan(game, seat, c, ctx) {
     var mine = 26 + ctx.seatWind, round = 26 + ctx.round;
     var all = allCounts(c, ctx);
@@ -247,7 +248,7 @@
       return all[i] >= 3 || (all[i] === 2 && ctx.unseen[i] >= 1);
     });
     var flower = ctx.flowers.some(function (f) { return f === 'f' + ctx.seatWind || f === 's' + ctx.seatWind; });
-    return wind || flower;
+    return wind || flower || B.cheapWin(ctx);
   }
 
   /* ------------------------------------------------------------------ *

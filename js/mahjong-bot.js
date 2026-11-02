@@ -344,14 +344,30 @@
     return group('f') + group('s');
   }
 
-  // Once you've exposed a chow, a hand of mixed suits can't reach the 3-faan
-  // minimum (it has given up Concealed, and All Sequences needs 3 faan from
-  // somewhere else), so the way forward is a flush in the chow's suit and
-  // every tile of another suit is worth nothing. This holds for every chow
-  // hand; only open melds in two number suits (where no flush is left) don't
-  // commit. Returns that suit, or null.
+  // Faan a hand is sure of however it finishes: its flowers and seasons
+  // (or No Flowers) and the dragon or scoring-wind sets already shown
+  // (baseFaan). A cheap hand wins when that already reaches the minimum,
+  // or falls one short while every meld is a chow: All Sequences (runs, no
+  // honors) still adds the last faan, off a discard too. (With a pung down
+  // only a self-draw could, which isn't enough to build on.)
+  function cheapWin(ctx) {
+    var min = ctx.game.settings.minFaan;
+    var sure = baseFaan(ctx);
+    if (sure >= min) return true;
+    var runsOnly = ctx.melds.every(function (m) { return m.type === 'chow'; });
+    return sure >= min - 1 && runsOnly;
+  }
+
+  // Once you've exposed a chow, a hand of mixed suits usually can't reach
+  // the 3-faan minimum (it has given up Concealed, and All Sequences needs
+  // the rest from somewhere else), so the way forward is a flush in the
+  // chow's suit and every tile of another suit is worth nothing. Not when
+  // flowers and sets already give all but one faan (cheapWin): then a mixed
+  // hand still wins. Open melds in two number suits (where no flush is
+  // left) don't commit either. Returns that suit, or null.
   function chowCommitment(ctx) {
     if (!ctx.hasChow) return null;
+    if (cheapWin(ctx)) return null;
     var suits = Object.keys(ctx.meldSuits).filter(function (k) { return k !== 'z'; });
     return suits.length === 1 ? suits[0] : null;
   }
@@ -638,6 +654,15 @@
     }
 
     plans.push({ id: 'plain', label: 'a standard hand', counts: c, shantenFn: E.standardShanten, faan: base + yaku, open: true });
+    // After chows (and no sets), All Sequences is still a faan: runs only,
+    // no honors. With flowers that's often the last faan a hand needs.
+    var allChows = ctx.declared > 0 && ctx.melds.every(function (m) { return m.type === 'chow'; });
+    if (allChows) {
+      plans.push({
+        id: 'runs', label: 'All Sequences', counts: restrict(c, function (i) { return i < 27; }),
+        shantenFn: E.standardShanten, faan: base + 1, open: true,
+      });
+    }
     // Concealed Straights: runs only, and nothing claimed. Honors are
     // discarded, except one honor pair, which can be the hand's pair (it
     // then scores Concealed but not All Sequences).
@@ -1337,6 +1362,7 @@
     handValue: handValue,
     deadTile: deadTile,
     chowCommitment: chowCommitment,
+    cheapWin: cheapWin,
     suitCommitment: suitCommitment,
     riskStep: riskStep,
     chaseSevenPairs: chaseSevenPairs,

@@ -367,14 +367,39 @@ describe('chows and committing to a suit', () => {
     assert.ok(['c5', 'd7', 'c2', 'd3'].includes(pick), 'discarded ' + pick);
   });
 
-  it('commits to the chow\'s suit whatever flowers the hand holds', () => {
+  it('commits to the chow\'s suit unless flowers give all but one faan', () => {
     const plain = afterChow({});
     assert.equal(B.chowCommitment(B.buildContext(plain, 1)), 'b');
-    // Seat 1 is South (wind 2): its flower and season are f2 and s2 and make 2 faan.
+    // Seat 1 is South (wind 2): its flower and season are f2 and s2 and make
+    // 2 faan, so All Sequences or a self-draw is enough: no flush needed.
     const rich = afterChow({});
     rich.hand.seats[1].flowers = ['f2', 's2'];
-    assert.equal(B.flowerPoints(B.buildContext(rich, 1)), 2);
-    assert.equal(B.chowCommitment(B.buildContext(rich, 1)), 'b');
+    const ctx = B.buildContext(rich, 1);
+    assert.equal(B.flowerPoints(ctx), 2);
+    assert.equal(B.cheapWin(ctx), true);
+    assert.equal(B.chowCommitment(ctx), null);
+    // Other seats' flowers are worth nothing, so they don't count.
+    const other = afterChow({});
+    other.hand.seats[1].flowers = ['f1', 's3'];
+    assert.equal(B.chowCommitment(B.buildContext(other, 1)), 'b');
+  });
+
+  it('builds an open All Sequences hand when flowers make it 3 faan', () => {
+    // A Characters chow and runs in every suit.
+    const at = (flowers) => table({ seats: [null, {
+      hand: ['c5', 'c6', 'd3', 'd4', 'd5', 'b6', 'b7', 'b8', 'd8', 'd8', 'wn'],
+      melds: [{ type: 'chow', tiles: ['c1', 'c2', 'c3'], concealed: false, from: 0 }],
+      flowers,
+    }] });
+    // No flowers: only a Characters flush can reach 3 faan.
+    const bare = B.analyzeDiscards(at([]), 1);
+    assert.equal(B.chowCommitment(bare.ctx), 'c');
+    assert.ok(!/^c/.test(bare.candidates[0].tile), 'threw ' + bare.candidates[0].tile);
+    // Seat flower and season: All Sequences is the third faan, honors go.
+    const rich = B.analyzeDiscards(at(['f2', 's2']), 1);
+    assert.equal(B.chowCommitment(rich.ctx), null);
+    assert.equal(rich.ctx.leadPlan.id, 'runs');
+    assert.equal(rich.candidates[0].tile, 'wn');
   });
 
   it('does not commit when the open melds already span two suits', () => {

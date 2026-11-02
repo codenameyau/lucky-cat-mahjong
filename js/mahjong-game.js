@@ -1066,12 +1066,8 @@
             var faan = F[r.key];
             var limit = faan >= F.thirteenOrphans;
             row.innerHTML = '<div class="rules-row-text"><div class="rules-name"></div><div class="rules-desc"></div></div><div class="rules-faan"></div>';
-            var nm = row.querySelector('.rules-name');
-            nm.textContent = r.name;
-            var cn = document.createElement('span');
-            cn.className = 'rules-cn';
-            cn.textContent = r.cn;
-            nm.appendChild(cn);
+            // English names only (the Chinese names stay in the rule data).
+            row.querySelector('.rules-name').textContent = r.name;
             row.querySelector('.rules-desc').textContent = r.desc;
             var pill = row.querySelector('.rules-faan');
             pill.textContent = limit ? 'Limit' : faan + ' faan';

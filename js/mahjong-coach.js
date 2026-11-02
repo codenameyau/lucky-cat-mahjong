@@ -56,7 +56,7 @@
     if (plan.keep) keep = plan.keep;
     else if (id === 'half') keep = function (j) { return E.suitOfIndex(j) === suit || j >= 27; };
     else if (id === 'full') keep = function (j) { return E.suitOfIndex(j) === suit; };
-    else if (id === 'straights') keep = function (j) { return j < 27; };
+    else if (id === 'straights' || id === 'runs') keep = function (j) { return j < 27; };
     return { id: id, suit: suit, faan: plan.faan, keep: keep, label: plan.label, reason: plan.reason };
   }
 
@@ -285,6 +285,7 @@
     if (r.id === 'winds') return 'Big or Small Four Winds. Keep every honor';
     if (r.id === 'honors') return 'All Honors. Pung your honor pairs';
     if (r.id === 'terminals') return 'All Terminals, or Mixed Orphans with honors';
+    if (r.id === 'runs') return 'All Sequences: chows only, no honors';
     for (var i = 27; i < 34; i++) {
       if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) return (/^[AEIOU]/.test(name(i)) ? 'an ' : 'a ') + name(i) + ' set (' + honorWorth(v, i) + ' faan). Pung it if it\'s thrown';
     }
@@ -484,7 +485,11 @@
       tips.push(state + (notes.length ? ' ' + notes.join(' ') : ''));
     } else if (pick.plan) {
       var line = stepsText(buildingLimit ? pick.plan.shanten : pick.shanten) + '. Aim for ' + targetText(v, pick.plan, cAfter, null) + '.';
-      if (route.faan < min - 0.25) line += ' Short of ' + min + ' faan, so look for a flush, All Triplets or a dragon or wind set.';
+      var sure = B.baseFaan(v.ctx);
+      if (route.faan < min - 0.25 && B.cheapWin(v.ctx)) {
+        // Flowers (and sets) already give all but the last faan.
+        line += ' Your flowers and sets give ' + sure + ' faan, so one more wins: a self-draw, All Sequences, or a dragon or wind set.';
+      } else if (route.faan < min - 0.25) line += ' Short of ' + min + ' faan, so look for a flush, All Triplets or a dragon or wind set.';
       else if (!defending) { var phase = phaseText(v, threats); if (phase) line += ' ' + phase; }
       tips.push(line);
     }

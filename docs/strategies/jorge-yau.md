@@ -129,6 +129,8 @@ A chow that does not get you closer is passed. A Concealed Straights hand is not
 
 Once the chow is down, tiles outside that suit are thrown first, as described above.
 
+**Flowers count toward 3 faan.** A hand's flowers and seasons (your own flower and season are 1 faan each, all four of a kind 2, none at all 1) and any dragon or scoring-wind set already shown are faan it's sure of. When those already reach the minimum, or fall one short while every meld is a chow (All Sequences, runs and no honors, can add the last faan off a discard), the hand is a cheap win: a chow doesn't force a flush, an open All Sequences hand is weighed as a plan, and the hand plays for speed. jorge-yau then takes a chow that leaves the hand within two tiles of ready, at any point in the hand, and the coach says so ("Your flowers and sets give 2 faan, so one more wins").
+
 ## Dragons, winds, and kongs as claims
 
 A pung of a dragon, or of your own wind, or of the round wind, is always taken, unless the hand is on Seven Pairs, Thirteen Orphans, or Nine Gates (a set cannot be part of those hands). The one other exception is a hand that is already ready, when the pung would leave it further from ready and worth less than waiting. Then it is weighed like any other claim.
