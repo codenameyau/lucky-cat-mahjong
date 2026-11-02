@@ -25,7 +25,7 @@ For each possible discard they score the hand that would be left, and they keep 
 The hands, in the order they come up:
 
 - **A standard hand.** Four sets and a pair. A concealed hand is worth an extra faan.
-- **Concealed All Sequences.** A concealed hand of runs, with no honors and no claims (not while the hand holds a set of honors, which can't be thrown away). The concealed faan plus All Sequences is most of the way to 3, and flowers make up the rest. A pung of a dragon, or of your own wind, or of the round wind, is still taken. Any other claim is passed.
+- **Concealed Straights.** A concealed hand of runs, with no honors and no claims (not while the hand holds a set of honors, which can't be thrown away). The concealed faan plus All Sequences is most of the way to 3, and flowers make up the rest. A pung of a dragon, or of your own wind, or of the round wind, is still taken. Any other claim is passed.
 - **Half flush.** One suit plus honors, once that suit (with honors, counting sets already made) makes up most of the hand and no meld is in another suit. Worth 3 faan on top of whatever the honors add.
 - **Full flush.** One suit only, once that suit already makes up most of the hand and there is no honor meld. Worth 7 faan.
 - **All Triplets.** Sets and pairs, no chows, once the hand already has several of them.
@@ -119,7 +119,7 @@ A chow gives up the concealed-hand faan and shows what you are doing, so it is t
 - it builds the flush the hand is already collecting and leaves you within two tiles of ready (within one tile while more than 60 tiles are left in the wall, since early on there's still time to draw the tile instead), or
 - it is late in the hand (around the ninth discard, or under 48 tiles left in the wall) and it still leaves you within two tiles of ready.
 
-A chow that does not get you closer is passed. A Concealed All Sequences hand is not chowed or punged, except for a dragon or a wind that scores.
+A chow that does not get you closer is passed. A Concealed Straights hand is not chowed or punged, except for a dragon or a wind that scores.
 
 Once the chow is down, tiles outside that suit are thrown first, as described above.
 

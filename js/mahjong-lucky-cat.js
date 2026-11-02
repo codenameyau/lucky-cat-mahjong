@@ -6,12 +6,12 @@
      - Target. From the opening hand it picks one hand to aim for, in a fixed
        order (TARGETS below): Thirteen Orphans, Nine Gates, Four Winds, All
        Terminals, honors, Seven Pairs, Full Flush, All Triplets, Half Flush,
-       Concealed All Sequences. Each turn the current hand is read again; a
+       Concealed Straights. Each turn the current hand is read again; a
        stronger target replaces it, and a target that can no longer be made
        gives way. The target's plans are preferred (K.targetWeight), so the
        hand only pivots when a backup is clearly better.
      - Discards. Tiles the target can't use go first. Pairs and live honors
-       wait, except on Concealed All Sequences, which drops honors first.
+       wait, except on Concealed Straights, which drops honors first.
      - Fast hands. With a scoring wind (seat or round) or a seat flower, the
        hand already has faan, so it plays for speed instead of size.
      - Claims. Stay concealed. Early chows only for a flush in that suit;
@@ -145,7 +145,7 @@
       dead: function (r, t) { return hasSuitedMeld(r.ctx, t.suit); },
     },
     {
-      id: 'sequences', name: 'Concealed All Sequences',
+      id: 'sequences', name: 'Concealed Straights',
       fits: function (r) {
         var suited = r.by.c + r.by.d + r.by.b;
         var used = SUITS.map(function (s) { return r.by[s]; }).filter(function (n) { return n >= 2; });

@@ -30,8 +30,8 @@ const text = (hint) => [hint.action].concat(hint.tips).join(' ').replace(/[\u000
 
 describe('highlightPatterns', () => {
   it('marks hand pattern names without their faan, and leaves "your target is" alone', () => {
-    const s = C.highlightPatterns('Your target is Concealed All Sequences. A flush, all triplets or Thirteen Orphans.');
-    assert.equal(s, 'Your target is \u0001Concealed All Sequences\u0002. A flush, \u0001all triplets\u0002 or \u0001Thirteen Orphans\u0002.');
+    const s = C.highlightPatterns('Your target is Concealed Straights. A flush, all triplets or Thirteen Orphans.');
+    assert.equal(s, 'Your target is \u0001Concealed Straights\u0002. A flush, \u0001all triplets\u0002 or \u0001Thirteen Orphans\u0002.');
     assert.equal(C.highlightPatterns('Half Flush in Bamboo'), '\u0001Half Flush\u0002 in Bamboo');
     // A faan written after a hand name is dropped; it's on the Rules sheet.
     assert.equal(C.highlightPatterns('Half Flush (3 faan) in Bamboo'), '\u0001Half Flush\u0002 in Bamboo');

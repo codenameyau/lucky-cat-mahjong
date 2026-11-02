@@ -202,7 +202,7 @@ describe('expert playbook', () => {
     assert.ok(B.dealInLoss(game, threats, E.tileIndex('b5')) > 0);
   });
 
-  it('plays concealed all sequences and throws the stray honors', () => {
+  it('plays concealed straights and throws the stray honors', () => {
     const hand = ['c2', 'c3', 'c4', 'c6', 'c7', 'd3', 'd4', 'd5', 'b5', 'b6', 'b8', 'b8', 'ww', 'wn'];
     const game = table({ seats: [{ hand }] });
     const top = B.analyzeDiscards(game, 0).candidates[0];

@@ -39,7 +39,7 @@
         and a pair), all still live, play Thirteen Orphans. With eleven
         tiles of a suit's 1112345678999 skeleton, play Nine Gates. A
         concealed hand of runs, with no honors and no claims, plays
-        Concealed All Sequences.
+        Concealed Straights.
      The keep-pairs and keep-dragons orders never cost a step toward ready,
      and while folding, safety decides and they only break ties.
    The coach in js/mahjong-coach.js says this same decision in words. It
@@ -553,7 +553,7 @@
     }
 
     plans.push({ id: 'plain', label: 'a standard hand', counts: c, shantenFn: E.standardShanten, faan: base + yaku, open: true });
-    // Concealed All Sequences: runs only. Honors are discarded, and nothing
+    // Concealed Straights: runs only. Honors are discarded, and nothing
     // is claimed, because either one breaks the hand.
     // (Not while the hand holds a set of honors, which can never be thrown
     // away to make an all-runs hand.)
@@ -562,7 +562,7 @@
     if (!ctx.declared && !honorSet) {
       plans.push({
         id: 'straights',
-        label: 'Concealed All Sequences',
+        label: 'Concealed Straights',
         counts: restrict(c, function (i) { return i < 27; }),
         shantenFn: E.standardShanten,
         faan: base + 1,
@@ -1100,7 +1100,7 @@
         after.analysis.shanten > 0 && after.score < res.passScore;
       if (!breaksReady) return { decision: { type: take }, found: res };
     }
-    // Any other claim breaks Concealed All Sequences.
+    // Any other claim breaks Concealed Straights.
     if (stayPlan && stayPlan.id === 'straights') return { decision: { type: 'pass' }, found: res };
     var options = res.options.filter(function (o) {
       return o.decision.type !== 'chow' || chowWorthIt(o, res, ctx, game);

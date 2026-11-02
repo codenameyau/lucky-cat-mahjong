@@ -120,7 +120,7 @@ describe('lucky-cat opening targets', () => {
     assert.deepEqual([t.id, t.suit], ['half', 'c']);
   });
 
-  it('reads Concealed All Sequences from evenly mixed suits', () => {
+  it('reads Concealed Straights from evenly mixed suits', () => {
     assert.equal(targetOf(['c1', 'c3', 'c5', 'c7', 'd2', 'd4', 'd6', 'd8', 'b3', 'b5', 'b7', 'b9', 'we']).id, 'sequences');
   });
 

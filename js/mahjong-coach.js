@@ -199,7 +199,7 @@
   // Hand-pattern names are wrapped in invisible markers so the game can draw
   // them in the brand red. Their faan is on the Rules sheet, not in the tips.
   var HAND_PATTERNS = [
-    'concealed all sequences',
+    'concealed straights',
     'concealed triplets',
     'thirteen orphans',
     'small four winds',
@@ -259,7 +259,7 @@
     var r = plan.route;
     if (r.id === 'straights') {
       var keep = liveValueSingles(v, c).filter(function (i) { return i !== nextOut; });
-      return 'Concealed All Sequences' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' +
+      return 'Concealed Straights' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' +
         (keep.length ? '. Keep the ' + listNames(keep) + ' in case ' + (keep.length > 1 ? 'one pairs' : 'it pairs') : '');
     }
     if (r.id === 'half') return 'Half Flush in ' + SUIT_NAME[r.suit];
