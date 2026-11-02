@@ -151,7 +151,8 @@ describe('coach: discards', () => {
     // Folding against an Extreme Bamboo flush: a tile East has already thrown
     // is the safest. (The punged Nine Bamboo could still finish a 7-8 chow.)
     assert.ok(['d1', 'd9', 'wn'].includes(hint.tile), 'discarded ' + hint.tile);
-    assert.match(text(hint), /\w+ \(3 melds, Bamboo\) is Extreme/);
+    assert.match(text(hint), /\w+ has three melds down, all Bamboo\./);
+    assert.doesNotMatch(text(hint), /\b(High|Extreme|Medium)\b/);
   });
 
   it('says "Play safe" only on the last wall, when a win is unlikely', () => {

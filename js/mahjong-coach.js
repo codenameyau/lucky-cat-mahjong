@@ -311,9 +311,25 @@
     return '';
   }
 
+  // The one number suit a player's open melds are in, and whether honors
+  // are among them: "all Bamboo", "Bamboo and honors", "all honors", or ''
+  // when the melds cover two suits. Read from the melds themselves, not the
+  // bots' flush estimate.
+  function meldSuitText(game, seat) {
+    var suits = {}, honors = false;
+    game.hand.seats[seat].melds.forEach(function (m) {
+      var i = E.tileIndex(m.tiles[0]);
+      if (i >= 27) honors = true; else suits[E.suitOfIndex(i)] = true;
+    });
+    var nums = Object.keys(suits);
+    if (nums.length === 1) return honors ? SUIT_NAME[nums[0]] + ' and honors' : 'all ' + SUIT_NAME[nums[0]];
+    if (!nums.length && honors) return 'all honors';
+    return '';
+  }
+
   // What the table shows that makes a tile dangerous, in words, or null.
   // Only these count: a High or Extreme player whose melds are all in the
-  // tile's suit, or a player with 3 melds down who hasn't thrown the tile
+  // tile's suit (with or without honors), or a player with 3 melds down who hasn't thrown the tile
   // (a live one). A tile any read marks safer never counts.
   function riskEvidence(v, threats, i) {
     if (B.deadTile(v.game, i)) return null;
@@ -322,8 +338,9 @@
     for (var k = 0; k < list.length; k++) {
       var t = list[k];
       if (safetyReason(v, t, i)) continue;
-      if (i < 27 && t.flush && t.melds >= 1 && E.suitOfIndex(i) === t.flush) {
-        return t.name + '\'s melds are all ' + SUIT_NAME[t.flush];
+      var suitText = t.melds >= 1 ? meldSuitText(v.game, t.seat) : '';
+      if (i < 27 && suitText && suitText.indexOf(SUIT_NAME[E.suitOfIndex(i)]) !== -1) {
+        return t.name + '\'s melds are ' + suitText;
       }
       var live = i >= 27 ? v.unseen[i] >= 2 : v.unseen[i] >= 1;
       if (t.melds >= 3 && live) return t.name + ' has 3 melds down and hasn\'t thrown one';
@@ -331,20 +348,15 @@
     return null;
   }
 
-  // "Grace is Extreme (3 melds, Bamboo). Rosa (1 meld), Tak and Bo are High."
-  function threatSentence(list) {
-    var levels = [];
-    var byLevel = {};
-    list.forEach(function (t) {
-      if (!byLevel[t.levelName]) { byLevel[t.levelName] = []; levels.push(t.levelName); }
-      var bits = [];
-      if (t.melds) bits.push(t.melds + (t.melds === 1 ? ' meld' : ' melds'));
-      if (t.flush) bits.push(SUIT_NAME[t.flush]);
-      byLevel[t.levelName].push(t.name + (bits.length ? ' (' + bits.join(', ') + ')' : ''));
-    });
-    return levels.map(function (lv) {
-      var names = byLevel[lv];
-      return (names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] + ' are ' : names[0] + ' is ') + lv + '.';
+  // What the table shows about the players worth watching, in plain words:
+  // "Grace has three melds down, all Bamboo." The threat level itself (High,
+  // Extreme) is the bots' estimate, not something you can see, so it isn't
+  // named, and a player with no melds isn't mentioned at all.
+  function threatSentence(game, list) {
+    return list.filter(function (t) { return t.melds; }).map(function (t) {
+      var suitText = meldSuitText(game, t.seat);
+      return t.name + ' has ' + COUNT_WORDS[Math.min(t.melds, 4)].toLowerCase() + (t.melds === 1 ? ' meld' : ' melds') + ' down' +
+        (suitText ? ', ' + suitText : '') + '.';
     }).join(' ');
   }
 
@@ -358,17 +370,18 @@
     var top = shown[0];
     if (top.level < 2) return pick.evidence ? tile + ' is ' + word + ': ' + pick.evidence + '.' : '';
     // Sorted worst first, so Extreme players are named before High ones.
-    var line = threatSentence(shown.filter(function (t) { return t.level >= 2; }));
+    var line = threatSentence(v.game, shown.filter(function (t) { return t.level >= 2; }));
+    var add = function (more) { line += (line ? ' ' : '') + more; };
     if (pick.loss < 0.012) {
       var why = safetyReason(v, top, pick.index);
-      line += ' ' + tile + ' is ' + word + (why ? ', ' + why : '') + '.';
+      add(tile + ' is ' + word + (why ? ', ' + why : '') + '.');
     } else if (pick.evidence) {
-      line += ' ' + tile + ' is ' + word + ': ' + pick.evidence + '.';
+      add(tile + ' is ' + word + ': ' + pick.evidence + '.');
     }
     var worst = list.filter(function (x) { return x.evidence && x.tile !== pick.tile; })
       .sort(function (a, b) { return b.loss - a.loss; })[0];
     if (worst && worst.loss > pick.loss * 2 && worst.loss >= 0.012) {
-      line += ' Hold ' + E.tileName(worst.tile) + ': ' + worst.evidence + '.';
+      add('Hold ' + E.tileName(worst.tile) + ': ' + worst.evidence + '.');
     }
     return line;
   }

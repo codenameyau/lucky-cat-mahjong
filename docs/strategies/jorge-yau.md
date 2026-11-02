@@ -157,8 +157,10 @@ A flush read makes their suit more dangerous and the other two suits safer. Near
 
 The coach does not choose for itself. It says the bot's decision in four parts: what to do and why, how far the hand is from ready and which hand it is building, how dangerous the opponents look, and which tile goes next if the draw does not help.
 
-It only says "Play safe" on the last wall, when a win is unlikely: fewer than 16 tiles left and the hand not ready, or fewer than 36 left and two or more tiles from ready. A safe pick earlier in the hand is explained like any other discard, and the threats line says who is dangerous.
+It only says "Play safe" on the last wall, when a win is unlikely: fewer than 16 tiles left and the hand not ready, or fewer than 36 left and two or more tiles from ready. A safe pick earlier in the hand is explained like any other discard.
 
-It only calls a tile risky (or says "Hold" a tile, or calls your discard risky in feedback) when the table shows why, and it says the reason: a High or Extreme player's melds are all in that tile's suit ("Grace's melds are all Bamboo"), or a player with 3 melds down hasn't thrown it ("Grace has 3 melds down and hasn't thrown one"). A tile any safety read covers (thrown since their meld, suji, kabe, three out, another suit than their flush) never counts. Without that, it says nothing about risk.
+The threats line says only what you can see on the table: who has melds down and what suit they're in ("Grace has three melds down, all Bamboo."). The Low, Medium, High and Extreme levels above are the bots' own estimate, so the coach never names them, and a player with no melds isn't mentioned, however late it is.
+
+It only calls a tile risky (or says "Hold" a tile, or calls your discard risky in feedback) when the table shows why, and it says the reason: a High or Extreme player's melds are all in that tile's suit, with or without honors ("Grace's melds are all Bamboo", "Grace's melds are Bamboo and honors"), or a player with 3 melds down hasn't thrown it ("Grace has 3 melds down and hasn't thrown one"). A tile any safety read covers (thrown since their meld, suji, kabe, three out, another suit than their flush) never counts. Without that, it says nothing about risk.
 
 **Feedback on** does not tell you the tile first. After you discard or claim, it compares that move with the one above and says whether it was the coach's choice, close, slow, or risky. **Coach off** leaves the bar in place and asks you to turn the coach on.
