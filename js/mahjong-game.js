@@ -824,21 +824,28 @@
       var handRows = phonePortrait ? 2 : 1;
       var depth = function (w) { return Math.max(2, w * 0.08); };
 
+      // Phones leave the coach out with the coach off (its bar upright, its
+      // column sideways), so the table gets the room. Desktop keeps the bar.
+      var coachShown = desktop || ui.coach !== 'off';
+
       // Your section: the table's width on desktop and on a landscape phone
       // (the board takes the left two thirds there, the coach the rest),
       // the full width on a portrait phone.
-      var historyGap = desktop ? 14 : landscape ? 8 : 0;
+      var historyGap = desktop ? 14 : landscape && coachShown ? 8 : 0;
       var ox = 0;
       var tableW = W;
       if (desktop) tableW = Math.min(Math.round((W - historyGap - pad) * 2 / 3), Math.round(H * 1.1));
-      if (landscape) tableW = Math.round((W - historyGap - pad) * 2 / 3);
+      if (landscape && coachShown) tableW = Math.round((W - historyGap - pad) * 2 / 3);
       var meX = ox, meW = phonePortrait ? W : tableW;
 
       // Hand tiles: one row of 14 across your section, or two rows of 7 on a
       // portrait phone (bigger tiles, easier to tap).
+      // (A landscape phone sizes them for the two-thirds board even with the
+      // coach off: bigger tiles there would take height from the discards.)
+      var tileRowW = landscape ? Math.round((W - 8 - pad) * 2 / 3) : meW;
       var tw = handRows === 2
         ? clamp((meW - 2 * pad - 16 - 6 * TILE_GAP) / 7.5 * PORTRAIT_SHRINK, 18, Math.min(62, H * 0.064))
-        : clamp(((meW - 2 * pad - 13 * TILE_GAP) / 14.8) * 0.88, 18, Math.min(124, H * (landscape ? 0.085 : 0.114)));
+        : clamp(((tileRowW - 2 * pad - 13 * TILE_GAP) / 14.8) * 0.88, 18, Math.min(124, H * (landscape ? 0.085 : 0.114)));
       var th = tw * TILE_ASPECT;
       var handY = H - pad - th - depth(tw) - 4; // the bottom row
       var handTop = handY - (handRows - 1) * (th + HAND_ROW_GAP);
@@ -863,15 +870,17 @@
       var hintH = 0;
       var room = meBox.y - 6 - topH - 6; // table and bar together
       if (desktop) hintH = 84;
-      if (phonePortrait) hintH = clamp(room - Math.min(tableW - 2 * pad, room - 72), 72, 118);
+      if (phonePortrait && coachShown) hintH = clamp(room - Math.min(tableW - 2 * pad, room - 72), 72, 118);
       var hintY = meBox.y - hintH - 6;
       var bandTop = hintH ? hintY : meBox.y;
       var gap = 6;
 
       // The coach's column takes what's left on desktop and on a landscape phone.
-      var historyW = desktop || landscape ? W - pad - historyGap - tableW : 0;
+      var historyW = desktop || (landscape && coachShown) ? W - pad - historyGap - tableW : 0;
       // Ponds and side seats go narrow on a phone's narrow table.
-      var portrait = !desktop && (tableW < 700 || tableW < (bandTop - topH) * 0.9);
+      // (A landscape phone keeps the phone sizes even when the coach is off
+      // and the table spans the screen: its height is what's short.)
+      var portrait = !desktop && (landscape || tableW < 700 || tableW < (bandTop - topH) * 0.9);
 
       // A portrait phone's side seats only hold a column of tile backs, so
       // they're slim and the discards get the room.
@@ -2971,6 +2980,7 @@
       ui.coach = next;
       saveSetting('coach', next);
       refreshHint();
+      L = computeLayout(); // phones show or hide the coach's bar or column
       requestRender();
       track('play_set_coach', { coach: next });
     }
