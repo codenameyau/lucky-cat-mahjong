@@ -2760,12 +2760,16 @@
     function showHands() {
       var o = ui.overlay;
       if (!o || o.type !== 'summary') return;
+      // Back from See results the hands are already face up, so no sound.
+      var already = ui.revealHands;
       ui.heldSummary = o;
       ui.revealHands = true;
       ui.botLift = null;
       ui.overlay = null;
-      sound.play('flip');
-      announce('All four hands are face up.');
+      if (!already) {
+        sound.play('flip');
+        announce('All four hands are face up.');
+      }
       requestRender();
     }
 
