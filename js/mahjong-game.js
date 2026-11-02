@@ -772,12 +772,15 @@
       var handRows = phonePortrait ? 2 : 1;
       var depth = function (w) { return Math.max(2, w * 0.08); };
 
-      // Your section: full width on phones, the table's width on desktop.
+      // Your section: the table's width on desktop and on a landscape phone
+      // (the board takes the left two thirds there, the coach the rest),
+      // the full width on a portrait phone.
       var historyGap = desktop ? 14 : landscape ? 8 : 0;
       var ox = 0;
       var tableW = W;
       if (desktop) tableW = Math.min(Math.round((W - historyGap - pad) * 2 / 3), Math.round(H * 1.1));
-      var meX = ox, meW = desktop ? tableW : W;
+      if (landscape) tableW = Math.round((W - historyGap - pad) * 2 / 3);
+      var meX = ox, meW = phonePortrait ? W : tableW;
 
       // Hand tiles: one row of 14 across your section, or two rows of 7 on a
       // portrait phone (bigger tiles, easier to tap).
@@ -813,14 +816,8 @@
       var bandTop = hintH ? hintY : meBox.y;
       var gap = 6;
 
-      // A landscape phone: the table on the left half, the coach's column
-      // on the right half.
-      var historyW = 0;
-      if (desktop) historyW = W - pad - historyGap - tableW;
-      if (landscape) {
-        historyW = Math.round(W / 2) - pad;
-        tableW = W - pad - historyGap - historyW;
-      }
+      // The coach's column takes what's left on desktop and on a landscape phone.
+      var historyW = desktop || landscape ? W - pad - historyGap - tableW : 0;
       // Ponds and side seats go narrow on a phone's narrow table.
       var portrait = !desktop && (tableW < 700 || tableW < (bandTop - topH) * 0.9);
 
@@ -893,13 +890,12 @@
       var narrow = portrait ? 1 : 0.68;
       center.x += center.w * (1 - narrow) / 2;
       center.w *= narrow;
-      // Desktop: the column runs the full height. Landscape phone: it stops
-      // above your section, which runs along the whole bottom.
+      // The coach's column runs the full height, beside your section too.
       var history = historyW ? {
         x: ox + tableW + historyGap,
         y: topH,
         w: historyW,
-        h: (landscape ? bandTop - gap : H - pad) - topH,
+        h: H - pad - topH,
       } : null;
       var zoneFrames = zones.map(function (z, k) { return makeFrame(z, k); });
       var maxDiscards = POND_COLS * POND_ROWS;
@@ -3677,8 +3673,60 @@
       root.__lcmTable = table;
     }
 
+    // Phones held sideways play fullscreen. Browsers only allow it from a
+    // tap, so the first tap in the game while sideways enters it (iPhone
+    // Safari has no fullscreen for pages; added to the home screen, the
+    // page opens fullscreen there instead). Turning back upright, or
+    // quitting, leaves the fullscreen it entered. Leaving it yourself while
+    // sideways keeps it off until the phone is turned upright again.
+    var autoFullscreen = false;
+    var declinedFullscreen = false;
+    function phoneSideways() {
+      var coarse = root.matchMedia && root.matchMedia('(pointer: coarse)').matches;
+      return coarse && root.innerWidth > root.innerHeight && root.innerHeight < 600;
+    }
+    function fullscreenElement() {
+      return document.fullscreenElement || document.webkitFullscreenElement || null;
+    }
+    function leaveAutoFullscreen() {
+      if (!autoFullscreen) return;
+      autoFullscreen = false;
+      var exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (fullscreenElement() && exit) {
+        var p = exit.call(document);
+        if (p && p.catch) p.catch(function () {});
+      }
+    }
+    function enterFullscreenOnTap() {
+      if (stage.hidden || declinedFullscreen || fullscreenElement() || !phoneSideways()) return;
+      var el = document.documentElement;
+      var req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (!req) return;
+      try {
+        var p = req.call(el, { navigationUI: 'hide' });
+        autoFullscreen = true;
+        if (p && p.catch) p.catch(function () { autoFullscreen = false; });
+      } catch (e) {}
+    }
+    document.addEventListener('pointerup', enterFullscreenOnTap, true);
+    function onFullscreenChange() {
+      if (!fullscreenElement() && autoFullscreen) {
+        autoFullscreen = false;
+        if (phoneSideways()) declinedFullscreen = true;
+      }
+    }
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+    root.addEventListener('resize', function () {
+      if (root.innerHeight > root.innerWidth) {
+        declinedFullscreen = false;
+        leaveAutoFullscreen();
+      }
+    });
+
     // Quitting ends the game, so a refresh starts at the menu again.
     function close() {
+      leaveAutoFullscreen();
       if (table) table.destroy();
       table = null;
       removeJson(AUTOSAVE_KEY);
