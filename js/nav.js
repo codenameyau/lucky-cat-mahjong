@@ -31,7 +31,8 @@
     var path = normalizePath(window.location.pathname);
     if (href.indexOf('/#') === 0) return path === '/';
     var linkPath = normalizePath(href.split('#')[0]);
-    return path === linkPath;
+    // A section's link stays highlighted on its sub-pages too (a quiz tile's page).
+    return path === linkPath || (linkPath !== '/' && path.indexOf(linkPath + '/') === 0);
   }
 
   function renderListItems(links) {
