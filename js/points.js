@@ -1315,31 +1315,65 @@
     }
   }
 
-  // Reads the clipboard, and if it holds a hand seed (what tapping your wind
-  // badge on the Play page copies, e.g. "458555827-SE"), shows the starting
-  // hand dealt to you from it, with your flowers, seat wind and round wind.
-  // Anything else on the clipboard is ignored.
-  function pasteHandSeed() {
+  // Hand seeds: what tapping your wind badge on the Play page copies (e.g.
+  // "458555827-SE"). Pasting one (Cmd/Ctrl+V anywhere on the page, or
+  // tapping the empty hand's text, which reads the clipboard where the
+  // browser allows it) shows the starting hand dealt to you, with your
+  // flowers, seat wind and round wind.
+  var PASTE_KEYS = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '') ? '\u2318V' : 'Ctrl+V';
+
+  // A line under the empty hand's text, for a moment.
+  function placeholderNote(message) {
+    var ph = document.querySelector('.hand-placeholder--paste');
+    if (!ph) return;
+    var note = ph.querySelector('.hand-placeholder-note');
+    if (!note) {
+      note = document.createElement('span');
+      note.className = 'hand-placeholder-note';
+      ph.appendChild(note);
+    }
+    note.textContent = message;
+    clearTimeout(placeholderNote.timer);
+    placeholderNote.timer = setTimeout(function () { if (note.parentNode) note.remove(); }, 5000);
+  }
+
+  // Loads the hand for a hand seed's text; false if it isn't one.
+  function loadHandSeed(value) {
     var E = window.MahjongEngine;
+    var parsed = E && E.parseHandSeed(value);
+    if (!parsed) return false;
+    var dealt = E.dealtHand(parsed.seed, parsed.seat);
+    hand = dealt.hand;
+    flowers = dealt.flowers;
+    syncHandLayoutFromArrays();
+    var seatEl = document.getElementById('opt-seat');
+    var roundEl = document.getElementById('opt-round');
+    if (seatEl) seatEl.value = String(parsed.seat);
+    if (roundEl) roundEl.value = String(parsed.round);
+    var noFlowers = document.getElementById('opt-no-flowers');
+    if (noFlowers) noFlowers.checked = !flowers.length;
+    clearActiveExample();
+    clearHandHighlight();
+    update();
+    return true;
+  }
+
+  function pasteHandSeed() {
     var clip = navigator.clipboard;
-    if (!E || !clip || !clip.readText) return;
+    var askToPaste = function () { placeholderNote('Press ' + PASTE_KEYS + ' to paste your hand seed.'); };
+    if (!clip || !clip.readText) { askToPaste(); return; }
     clip.readText().then(function (value) {
-      var parsed = E.parseHandSeed(value);
-      if (!parsed) return;
-      var dealt = E.dealtHand(parsed.seed, parsed.seat);
-      hand = dealt.hand;
-      flowers = dealt.flowers;
-      syncHandLayoutFromArrays();
-      var seatEl = document.getElementById('opt-seat');
-      var roundEl = document.getElementById('opt-round');
-      if (seatEl) seatEl.value = String(parsed.seat);
-      if (roundEl) roundEl.value = String(parsed.round);
-      var noFlowers = document.getElementById('opt-no-flowers');
-      if (noFlowers) noFlowers.checked = !flowers.length;
-      clearActiveExample();
-      clearHandHighlight();
-      update();
-    }, function () {});
+      if (!loadHandSeed(value)) placeholderNote('That isn\'t a hand seed. Tap your wind in the game to copy one.');
+    }, askToPaste);
+  }
+
+  // Cmd/Ctrl+V on the page (outside a text field) pastes a hand seed.
+  function onPasteHandSeed(e) {
+    var t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    var value = e.clipboardData && e.clipboardData.getData('text');
+    if (loadHandSeed(value)) { e.preventDefault(); return; }
+    if (value) placeholderNote('That isn\'t a hand seed. Tap your wind in the game to copy one.');
   }
 
   function syncHandTiles(body, pieces) {
@@ -2575,6 +2609,7 @@
     loadCalculatorFromQuery();
     update();
     urlSyncEnabled = true;
+    document.addEventListener('paste', onPasteHandSeed);
   }
 
   var scoringApi = {
