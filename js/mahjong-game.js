@@ -851,8 +851,10 @@
       // (A landscape phone sizes them for the two-thirds board even with the
       // coach off: bigger tiles there would take height from the discards.)
       var tileRowW = landscape ? Math.round((W - 8 - pad) * 2 / 3) : meW;
+      // (Upright, the tiles nearly touch, so they can be as big as the width allows.)
+      var handGap = phonePortrait ? 1 : TILE_GAP;
       var tw = phonePortrait
-        ? (meW - 2 * pad - 12 - 13 * TILE_GAP) / 14
+        ? (meW - 2 * pad - 6 - 13 * handGap) / 14
         : clamp(((tileRowW - 2 * pad - 13 * TILE_GAP) / 14.8) * 0.88, 18, Math.min(124, H * (landscape ? 0.085 : 0.114)));
       // A landscape phone draws your hand (and so your melds) a little smaller, for the table.
       if (landscape) tw *= PHONE_HAND_SCALE;
@@ -880,7 +882,8 @@
       var hintH = 0;
       var room = meBox.y - 6 - topH - 6; // table and bar together
       if (desktop) hintH = 84;
-      if (phonePortrait && coachShown) hintH = clamp(room - Math.min(tableW - 2 * pad, room - 72), 72, 118);
+      // (Upright, the coach's bar stays shorter than your section.)
+      if (phonePortrait && coachShown) hintH = clamp(room - Math.min(tableW - 2 * pad, room - 72), 72, 80);
       var hintY = meBox.y - hintH - 6;
       var bandTop = hintH ? hintY : meBox.y;
       var gap = 6;
@@ -973,7 +976,7 @@
       return {
         pad: pad, topH: topH, portrait: portrait, ox: ox, tableW: tableW, history: history,
         desktop: desktop, landscape: landscape, phonePortrait: phonePortrait, meX: meX, meW: meW,
-        tw: tw, th: th, handY: handY, handRows: handRows, mw: mw, meY: meY, meldRowH: meldRowH, meBox: meBox,
+        tw: tw, th: th, handGap: handGap, handY: handY, handRows: handRows, mw: mw, meY: meY, meldRowH: meldRowH, meBox: meBox,
         actionsY: actionsY, actionsH: actionsH, actionsInRow: actionsInRow, hintY: hintY, hintH: hintH,
         opp: opp, oppFrames: oppFrames, pond: pond, inner: inner, zones: zones, zoneFrames: zoneFrames,
         center: center, pw: pw, maxDiscards: maxDiscards, pondCols: pondCols,
@@ -1986,7 +1989,7 @@
     // desktop). A fresh draw sits at the end, in line with the others.
     function handSpan(count, tileW) {
       if (count <= 0) return 0;
-      return count * tileW + (count - 1) * TILE_GAP;
+      return count * tileW + (count - 1) * L.handGap;
     }
 
     function handLeft(count) {
@@ -1998,7 +2001,7 @@
 
     // Where each of `count` hand tiles sits: [{ x, y }].
     function handPositions(count) {
-      var step = L.tw + TILE_GAP;
+      var step = L.tw + L.handGap;
       var rows = L.handRows === 2 && count > 1 ? 2 : 1;
       var per = Math.ceil(count / rows);
       var out = [];
