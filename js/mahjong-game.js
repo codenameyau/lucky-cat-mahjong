@@ -898,11 +898,13 @@
       // seats are only one tile deep and the discards get the room; the
       // player across spans the whole table, above the side seats.
       var sideW = phonePortrait ? 46 : landscape ? LANDSCAPE_SIDE_W : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
-      var topPanelH = !desktop ? 70 : portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
+      var topPanelH = !desktop ? 62 : portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
       // Narrow side seats (drawOppHeader's compact header) stack name, strategy and points.
       // (On a phone: the badge and icon, and the points under them.)
-      var sideHead = !desktop ? 40 : portrait || sideW < 120 ? 54 : 34;
-      var topHead = desktop ? 30 : 26; // the name row, with a little room below it
+      // (On a phone opponents show only their points, in payout games.)
+      var phoneHead = settings.mode === 'payout' ? 18 : 4;
+      var sideHead = !desktop ? phoneHead : portrait || sideW < 120 ? 54 : 34;
+      var topHead = desktop ? 30 : phoneHead; // the name row, with a little room below it
       var opp = [];
       var sideTop = desktop ? topH : topH + topPanelH + gap;
       var sideBottom = landscape ? H - Math.max(4, pad / 2) : bandTop - gap;
@@ -1742,6 +1744,11 @@
     function drawOppHeader(seat, r) {
       var compact = r.w < 120;
       var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
+      // A phone shows only the opponent's points: no name, wind or robot.
+      if (!namesShown()) {
+        if (pts) text(pts, r.x + r.w / 2, r.y + r.h / 2 + 1, { size: 11, weight: 'bold', align: 'center', color: COLORS.goldLight });
+        return;
+      }
       // The side players' headers get a little room above them; the player
       // across keeps theirs at the bottom of their box.
       var top = seat === 2 ? 0 : 6;
