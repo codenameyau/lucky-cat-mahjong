@@ -29,6 +29,14 @@
 
   var WIND_NAMES = ['', 'East', 'South', 'West', 'North'];
   var WIND_CN = ['', '東', '南', '西', '北'];
+  // The game's version (semantic versioning). Saved games carry it, and
+  // load into any version with the same major number (see
+  // saveCompatibility). Bump it with every change to the game: patch for
+  // fixes, minor for features, major for changes that older saves can't
+  // load into.
+  var GAME_VERSION = '0.2.7';
+  var SAVE_APP = 'lucky-cat-mahjong';
+
   var START_POINTS = 2000;
   var MIN_FAAN = 3;
 
@@ -68,13 +76,15 @@
   // Small seeded PRNG (mulberry32) so tests and replays are deterministic.
   function createRng(seed) {
     var a = (seed >>> 0) || 1;
-    return function () {
+    var rng = function () {
       a = (a + 0x6D2B79F5) >>> 0;
       var t = a;
       t = Math.imul(t ^ (t >>> 15), t | 1);
       t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
+    rng.state = function (v) { if (v !== undefined) a = v >>> 0; return a; };
+    return rng;
   }
 
   function shuffle(arr, rng) {
@@ -289,13 +299,25 @@
     return ((seat - game.dealer + 4) % 4) + 1;
   }
 
-  function startHand(game) {
+  // Each hand's wall comes from its own seed (hand.seed), so a saved game
+  // needs only that number to deal the hand again. Pass `seed` to deal a
+  // particular hand. Otherwise the seed is the game generator's state, and
+  // the generator moves on past the wall (the same walls as drawing them
+  // from the game's generator directly).
+  function startHand(game, seed) {
     game.handNumber++;
-    var wall = buildWall(game.rng);
+    var given = seed !== undefined && seed !== null;
+    if (!given) seed = game.rng.state();
+    seed = seed >>> 0;
+    var handRng = createRng(seed);
+    var wall = buildWall(handRng);
+    if (!given) game.rng.state(handRng.state());
     var seats = [0, 1, 2, 3].map(function () {
       return { hand: [], melds: [], flowers: [], discards: [] };
     });
     var h = {
+      seed: seed,
+      moves: [], // the human player's decisions this hand, in order (see runHand)
       wall: wall,
       seats: seats,
       turn: game.dealer,
@@ -690,6 +712,17 @@
     return flowers.length;
   }
 
+  // Whether a claim decision is one of the options offered.
+  function claimAllowed(o, d) {
+    if (d.type === 'pass') return true;
+    if (d.type === 'win' || d.type === 'pung' || d.type === 'kong') return !!o[d.type];
+    if (d.type === 'chow') {
+      var want = (d.tiles || []).slice().sort().join();
+      return (o.chows || []).some(function (pair) { return pair.slice().sort().join() === want; });
+    }
+    return false;
+  }
+
   async function resolveClaims(game, agents, ui, tile, from, robbing) {
     var options = [];
     for (var k = 1; k <= 3; k++) {
@@ -724,8 +757,9 @@
       var humanMax = hu.opts.win ? 3 : (hu.opts.pung || hu.opts.kong) ? 2 : 1;
       var botRank = botBest ? CLAIM_RANK[botBest.decision.type] : 0;
       if (humanMax < botRank || (humanMax === botRank && botBest.order < hu.order)) continue;
-      var hd = await agents[hu.seat].claim(game, hu.seat, hu.opts);
-      decisions.push({ seat: hu.seat, order: hu.order, decision: hd || { type: 'pass' } });
+      var hd = await agents[hu.seat].claim(game, hu.seat, hu.opts) || { type: 'pass' };
+      if (!claimAllowed(hu.opts, hd)) throw new Error('illegal claim ' + hd.type);
+      decisions.push({ seat: hu.seat, order: hu.order, decision: hd });
     }
     var winner = best(decisions);
     if (!winner) return null;
@@ -733,8 +767,54 @@
     return winner;
   }
 
-  async function runHand(game, agents, ui) {
-    startHand(game);
+  // Plays one hand. Every decision a human player makes is recorded in
+  // hand.moves, so the hand can be played again from its seed: with
+  // opts.seed and opts.replay (those moves), the hand is dealt from the
+  // seed, the bots play as they did, and the human's moves are taken from
+  // the list with no events sent to the ui. When the list runs out,
+  // opts.onReplayEnd() is called and the hand goes on live.
+  async function runHand(game, agents, ui, opts) {
+    opts = opts || {};
+    var queue = (opts.replay || []).slice();
+    var replaying = !!opts.replay;
+    var liveUi = ui;
+    ui = { emit: function (name, data) { return replaying ? Promise.resolve() : emit(liveUi, name, data); } };
+    function endReplay() {
+      if (!replaying) return;
+      replaying = false;
+      if (opts.onReplayEnd) opts.onReplayEnd();
+    }
+    function ask(seat, kind, gameArg, opts2) {
+      var agent = realAgents[seat];
+      if (!game.players[seat].isHuman) return agent[kind](gameArg, seat, opts2);
+      if (replaying && queue.length) {
+        var move = queue.shift();
+        if (move.k !== kind) throw new Error('saved move doesn\'t fit the hand');
+        game.hand.moves.push(move);
+        return Promise.resolve(move.d);
+      }
+      endReplay();
+      return Promise.resolve(agent[kind](gameArg, seat, opts2)).then(function (d) {
+        game.hand.moves.push({ k: kind, d: d });
+        return d;
+      });
+    }
+    var realAgents = agents;
+    agents = [0, 1, 2, 3].map(function (seat) {
+      return {
+        turn: function (g, s, o) { return ask(seat, 'turn', g, o); },
+        claim: function (g, s, o) { return ask(seat, 'claim', g, o); },
+      };
+    });
+    startHand(game, opts.seed);
+    // A hand that ends while replaying still ends the replay.
+    var res = await playHand(game, agents, ui);
+    endReplay();
+    return res;
+  }
+
+  // The hand itself, from the deal to a win or a drawn hand.
+  async function playHand(game, agents, ui) {
     var h = game.hand;
     await emit(ui, 'handStart', {});
 
@@ -775,6 +855,7 @@
       while (!discarded) {
         var topts = turnOptions(game, cur);
         var action = await agents[cur].turn(game, cur, topts);
+        if (!action || (action.type === 'win' && !topts.win)) throw new Error('illegal turn action');
         if (action.type === 'win' && topts.win) {
           var resW = settleWin(game, cur, null, h.drawnTile, topts.win, 'selfDraw');
           await emit(ui, 'win', resW);
@@ -846,6 +927,109 @@
   }
 
   /* ------------------------------------------------------------------ *
+   * 7b. Saving and loading
+   *    A save holds no hidden tiles: the game between hands (players,
+   *    points, dealer, round), and for a hand in progress only its seed
+   *    and your own moves. Loading deals the hand from the seed and plays
+   *    it again (runHand with opts.replay). The file is signed (an HMAC of
+   *    its contents), so a changed or damaged file won't load.
+   * ------------------------------------------------------------------ */
+
+  // The signing key ships with the page, so this catches corruption and
+  // casual edits, not a determined cheat.
+  var SAVE_KEY = 'lucky-cat-mahjong/save/v1/8f3c1e9a5b7d4f60a2c9e1b3d5f7a9c1';
+
+  function parseVersion(v) {
+    var m = /^(\d+)\.(\d+)\.(\d+)$/.exec(String(v || ''));
+    return m ? [+m[1], +m[2], +m[3]] : null;
+  }
+
+  // Whether a save written by `version` loads into this one: any minor or
+  // patch version of the same major version does. Returns { ok, reason }.
+  function saveCompatibility(version) {
+    var have = parseVersion(GAME_VERSION);
+    var got = parseVersion(version);
+    if (!got) return { ok: false, reason: 'This file has no game version, so it can\'t be loaded.' };
+    if (got[0] > have[0]) return { ok: false, reason: 'Saved by version ' + version + ', newer than this game (' + GAME_VERSION + '). Reload the page to update.' };
+    if (got[0] !== have[0]) return { ok: false, reason: 'Saved by version ' + version + ', which doesn\'t load in version ' + GAME_VERSION + '.' };
+    return { ok: true, reason: null };
+  }
+
+  // The game as it stood when the current hand began, plus that hand's
+  // seed and your moves in it (none between hands).
+  function gameRecord(game) {
+    var h = game.hand;
+    var playing = !!(h && !h.result);
+    return {
+      settings: game.settings,
+      players: game.players.map(function (p) { return { name: p.name, isHuman: p.isHuman, points: p.points }; }),
+      spareNames: game.spareNames,
+      round: game.round,
+      dealer: game.dealer,
+      firstDealer: game.firstDealer,
+      handNumber: playing ? game.handNumber - 1 : game.handNumber,
+      dealerRepeat: game.dealerRepeat,
+      over: game.over,
+      hand: playing ? { seed: h.seed, moves: h.moves.slice() } : null,
+    };
+  }
+
+  // A game from gameRecord's data, with a fresh generator for later hands.
+  // Play `record.hand` with runHand(game, agents, ui, { seed, replay }).
+  function restoreGame(record) {
+    var r = record || {};
+    var ok = Array.isArray(r.players) && r.players.length === 4 && r.settings &&
+      [r.round, r.dealer, r.firstDealer, r.handNumber, r.dealerRepeat].every(function (n) { return typeof n === 'number'; }) &&
+      (!r.hand || (typeof r.hand.seed === 'number' && Array.isArray(r.hand.moves)));
+    if (!ok) throw new Error('not a saved game');
+    var game = createGame({ spicy: r.settings.spicy, mode: r.settings.mode, startPoints: r.settings.startPoints });
+    game.players = r.players.map(function (p) { return { name: String(p.name), isHuman: !!p.isHuman, points: +p.points }; });
+    game.spareNames = (r.spareNames || []).slice();
+    game.round = r.round;
+    game.dealer = r.dealer;
+    game.firstDealer = r.firstDealer;
+    game.handNumber = r.handNumber;
+    game.dealerRepeat = r.dealerRepeat;
+    game.over = !!r.over;
+    return game;
+  }
+
+  function hex(buf) {
+    return Array.prototype.map.call(new Uint8Array(buf), function (b) { return (b < 16 ? '0' : '') + b.toString(16); }).join('');
+  }
+
+  // HMAC-SHA256 of a save's app, version and payload, as hex.
+  async function saveSignature(file) {
+    var subtle = root.crypto && root.crypto.subtle;
+    if (!subtle) throw new Error('saving needs a browser with Web Crypto');
+    var enc = new TextEncoder();
+    var key = await subtle.importKey('raw', enc.encode(SAVE_KEY), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    var body = file.app + '|' + file.version + '|' + JSON.stringify(file.payload);
+    return hex(await subtle.sign('HMAC', key, enc.encode(body)));
+  }
+
+  // A signed save file for `payload` (gameRecord's data under `game`, and
+  // anything else the table keeps).
+  async function makeSave(payload) {
+    var file = { app: SAVE_APP, version: GAME_VERSION, payload: payload };
+    file.signature = await saveSignature(file);
+    return file;
+  }
+
+  // Checks a save file. Returns { ok, reason }.
+  async function checkSave(file) {
+    if (!file || file.app !== SAVE_APP || !file.payload || !file.payload.game) {
+      return { ok: false, reason: 'That isn\'t a Lucky Cat Mahjong save file.' };
+    }
+    var compat = saveCompatibility(file.version);
+    if (!compat.ok) return compat;
+    var sig = await saveSignature(file);
+    if (sig !== file.signature) return { ok: false, reason: 'That save file was changed or damaged, so it can\'t be loaded.' };
+    try { restoreGame(file.payload.game); } catch (err) { return { ok: false, reason: 'That save file is damaged, so it can\'t be loaded.' }; }
+    return { ok: true, reason: null };
+  }
+
+  /* ------------------------------------------------------------------ *
    * 8. Visible information (what a seat may legally know)
    * ------------------------------------------------------------------ */
 
@@ -900,6 +1084,13 @@
     shanten: shanten,
     winningTiles: winningTiles,
     createGame: createGame,
+    GAME_VERSION: GAME_VERSION,
+    SAVE_APP: SAVE_APP,
+    saveCompatibility: saveCompatibility,
+    gameRecord: gameRecord,
+    restoreGame: restoreGame,
+    makeSave: makeSave,
+    checkSave: checkSave,
     startHand: startHand,
     seatWind: seatWind,
     wallCount: wallCount,

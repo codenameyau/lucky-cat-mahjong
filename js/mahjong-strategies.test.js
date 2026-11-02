@@ -328,3 +328,88 @@ describe('both strategies: special-hand upgrades', () => {
     assert.match([hint.action].concat(hint.tips).join(' '), /Discard Nine Character\. None are left/);
   });
 });
+
+describe('saving and loading a game', () => {
+  // Seat 0 plays as the human (its moves are recorded); the others are bots.
+  const agents = () => [B.createBotAgent(), L.createBotAgent(), B.createBotAgent(), L.createBotAgent()];
+  const summary = (res) => JSON.stringify([res.type, res.winner, res.payer, res.deltas, res.concealed]);
+  const newGame = () => {
+    const game = E.createGame({ seed: 4242, mode: 'payout' });
+    assert.equal(game.players[0].isHuman, true);
+    return game;
+  };
+  // Plays a hand, keeping the save record after every discard.
+  async function playSaving(game) {
+    const records = [];
+    const ui = { emit: (name) => { if (name === 'discard') records.push(JSON.stringify(E.gameRecord(game))); } };
+    const res = await E.runHand(game, agents(), ui);
+    return { res, records };
+  }
+
+  it('deals a hand again from its seed and replays your moves to the same result', async () => {
+    const game = newGame();
+    const first = await playSaving(game);
+    const mid = first.records.filter((r) => JSON.parse(r).hand.moves.length > 0);
+    assert.ok(mid.length > 4);
+    for (const at of [mid[0], mid[Math.floor(mid.length / 2)], mid[mid.length - 1]]) {
+      const record = JSON.parse(at);
+      const restored = E.restoreGame(record);
+      let ended = 0;
+      const res = await E.runHand(restored, agents(), {}, { seed: record.hand.seed, replay: record.hand.moves, onReplayEnd: () => ended++ });
+      assert.equal(summary(res), summary(first.res));
+      assert.equal(ended, 1);
+      assert.deepEqual(restored.players.map((p) => p.points), game.players.map((p) => p.points));
+      assert.equal(restored.handNumber, game.handNumber);
+    }
+  });
+
+  it('keeps the same walls as before hands had their own seeds', () => {
+    const a = E.createGame({ seed: 99 });
+    const b = E.createGame({ seed: 99 });
+    E.startHand(a);
+    const wall = E.buildWall(b.rng);
+    assert.deepEqual(a.hand.wall.concat([]).length, 144 - 53);
+    assert.equal(wall.slice(53).join(), a.hand.wall.join());
+    E.startHand(a, a.hand.seed);
+    assert.equal(wall.slice(53).join(), a.hand.wall.join());
+  });
+
+  it('saves no hidden tiles: only the hand\'s seed and your moves', async () => {
+    const game = newGame();
+    const { records } = await playSaving(game);
+    const record = JSON.parse(records[records.length - 1]);
+    assert.deepEqual(Object.keys(record.hand).sort(), ['moves', 'seed']);
+    assert.ok(!/"wall"|"discards"|"flowers"/.test(records[records.length - 1]));
+    assert.ok(record.hand.moves.every((m) => m.k === 'turn' || m.k === 'claim'));
+  });
+
+  it('refuses a replayed move the hand doesn\'t allow', async () => {
+    const game = newGame();
+    const { records } = await playSaving(game);
+    const record = JSON.parse(records.find((r) => JSON.parse(r).hand.moves.length > 0));
+    record.hand.moves[0] = { k: 'turn', d: { type: 'discard', tile: 'zz' } };
+    await assert.rejects(E.runHand(E.restoreGame(record), agents(), {}, { seed: record.hand.seed, replay: record.hand.moves }));
+  });
+
+  it('signs saves, and refuses changed, foreign or incompatible ones', async () => {
+    const game = newGame();
+    await playSaving(game);
+    const file = await E.makeSave({ game: E.gameRecord(game) });
+    assert.equal(file.version, E.GAME_VERSION);
+    assert.match(file.signature, /^[0-9a-f]{64}$/);
+    assert.deepEqual(await E.checkSave(JSON.parse(JSON.stringify(file))), { ok: true, reason: null });
+    const edited = JSON.parse(JSON.stringify(file));
+    edited.payload.game.players[0].points += 1000;
+    assert.match((await E.checkSave(edited)).reason, /changed or damaged/);
+    assert.match((await E.checkSave({ app: 'other', payload: {} })).reason, /isn't a Lucky Cat Mahjong save/);
+    assert.match((await E.checkSave(Object.assign({}, file, { version: '1.0.0' }))).reason, /newer/);
+  });
+
+  it('loads saves from any minor or patch version of the same major version', () => {
+    assert.equal(E.GAME_VERSION, '0.2.7');
+    for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
+    assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
+    assert.equal(E.saveCompatibility('0.1').ok, false);
+    assert.throws(() => E.restoreGame({ players: [] }), /not a saved game/);
+  });
+});

@@ -454,7 +454,9 @@
    * 4. The table app
    * ------------------------------------------------------------------ */
 
-  function createTable(canvas, liveRegion, settings, callbacks) {
+  // `saved` (optional) is a checked save file (MahjongEngine.checkSave) to
+  // play on from.
+  function createTable(canvas, liveRegion, settings, callbacks, saved) {
     var ctx = canvas.getContext('2d');
     var prefs = readJson(PREFS_KEY, { sound: true });
     var sound = createSound(prefs.sound !== false);
@@ -489,6 +491,8 @@
       handSig: '',   // what the hand looked like when the slots were last matched
       handLayout: '',
       restartArmed: 0, // when Restart game was first tapped in the menu
+      replaying: false, // a loaded hand is being played again up to your next move
+      menuNote: null, // a line in the menu after saving or a failed load
       turnSeat: null,
       selected: -1,
       turnPrompt: null,
@@ -522,7 +526,7 @@
     }
 
     // Animations: 'normal' (shown) or 'off' (skip animations and delays).
-    function instantMode() { return settings.speed === 'off'; }
+    function instantMode() { return settings.speed === 'off' || ui.replaying; }
     function speed(ms) { return reduceMotion ? 0 : ms; }
 
     /* ---------------- frame loop ---------------- */
@@ -585,11 +589,22 @@
       });
     }
 
+    // While the menu is open the table waits, so the bots don't play on
+    // behind it (and a save is the game as you left it).
+    function menuOpen() {
+      return !!(ui.overlay && ui.overlay.type === 'menu');
+    }
+
     function sleep(ms) {
       if (instantMode()) return destroyed ? new Promise(function () {}) : Promise.resolve();
       return new Promise(function (resolve) {
         if (destroyed) return;
-        setTimeout(function () { if (!destroyed) resolve(); }, reduceMotion ? Math.min(ms, 120) : speed(ms));
+        var done = function () {
+          if (destroyed) return;
+          if (menuOpen()) { setTimeout(done, 150); return; }
+          resolve();
+        };
+        setTimeout(done, reduceMotion ? Math.min(ms, 120) : speed(ms));
       });
     }
 
@@ -2559,16 +2574,115 @@
 
 
     function drawMenu() {
-      var r = panelRect(340, 282);
+      var note = ui.menuNote;
+      // The note wraps onto as many lines as it needs, under the buttons.
+      var noteLines = [];
+      if (note) {
+        ctx.font = 'bold 12px ' + FONT_BODY;
+        note.text.split(' ').forEach(function (word) {
+          var last = noteLines[noteLines.length - 1];
+          if (last !== undefined && ctx.measureText(last + ' ' + word).width <= 340 - 40) noteLines[noteLines.length - 1] = last + ' ' + word;
+          else noteLines.push(word);
+        });
+      }
+      var r = panelRect(340, 368 + noteLines.length * 16 + (note ? 8 : 0));
       drawPanelBg(r);
       text('Paused', r.x + r.w / 2, r.y + 36, { size: 24, family: FONT_HEAD, align: 'center', color: COLORS.red });
       var bx = r.x + 30, bw = r.w - 60, y = r.y + 62, step = 50;
-      button('Resume', bx, y, bw, 40, function () { closeOverlay(); }, 'white', 'm-resume'); y += step;
+      button('Resume', bx, y, bw, 40, function () { closeOverlay(); }, 'primary', 'm-resume'); y += step;
       var armed = ui.restartArmed && now() - ui.restartArmed < 5000;
       button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, 40, restartGame, armed ? 'gold' : 'white', 'm-restart'); y += step;
+      button('Save game', bx, y, bw, 40, saveGame, 'white', 'm-save'); y += step;
+      button('Load game', bx, y, bw, 40, loadGame, 'white', 'm-load'); y += step;
       button('Quit game', bx, y, bw, 40, function () { quit(); }, 'white', 'm-quit');
-      var modeLine = (settings.mode === 'practice' ? 'Practice mode' : 'Payout mode') + ' · ' + (settings.spicy === 'half' ? 'Half spicy' : 'Full spicy');
-      text(modeLine, r.x + r.w / 2, r.y + r.h - 18, { size: 12, align: 'center', color: COLORS.muted });
+      noteLines.forEach(function (lineText, k) {
+        text(lineText, r.x + r.w / 2, y + 58 + k * 16, { size: 12, weight: 'bold', align: 'center', color: note.error ? COLORS.red : COLORS.green });
+      });
+      // Mode and version, with a Beta badge.
+      var line = (settings.mode === 'practice' ? 'Practice mode' : 'Payout mode') + ' · v' + E.GAME_VERSION;
+      ctx.font = '12px ' + FONT_BODY;
+      var lineW = ctx.measureText(line).width;
+      ctx.font = 'bold 10px ' + FONT_BODY;
+      var badgeW = ctx.measureText('BETA').width + 12, badgeH = 16;
+      var lx = r.x + (r.w - lineW - 6 - badgeW) / 2, ly = r.y + r.h - 36;
+      text(line, lx, ly, { size: 12, color: COLORS.muted });
+      pill(lx + lineW + 6, ly - badgeH / 2, badgeW, badgeH, COLORS.red);
+      text('BETA', lx + lineW + 6 + badgeW / 2, ly + 1, { size: 10, weight: 'bold', align: 'center', color: COLORS.white });
+      text('Built by Jorge Yau Lee, developer, mahjong instructor', r.x + r.w / 2, r.y + r.h - 17, { size: 12, align: 'center', color: COLORS.muted });
+    }
+
+    /* ---------------- saving and loading ---------------- */
+
+    // A save holds no hidden tiles: the game as the hand began, the hand's
+    // seed and your moves (MahjongEngine.gameRecord), plus the table's own
+    // strategies, stats and coach history. It is signed, and loading deals
+    // the hand from its seed and plays it again up to your next move.
+    function savePayload() {
+      return {
+        savedAt: new Date().toISOString(),
+        game: E.gameRecord(game),
+        strategies: ui.strategies,
+        stats: ui.stats,
+        coachLog: ui.coachLog || [],
+      };
+    }
+
+    function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+    // play-lucky-cat-mahjong-20261102-143005.json (local time)
+    function saveFileName(d) {
+      return 'play-lucky-cat-mahjong-' + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) +
+        '-' + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds()) + '.json';
+    }
+
+    function setMenuNote(textLine, error) {
+      ui.menuNote = { text: textLine, error: !!error };
+      requestRender();
+    }
+
+    function saveGame() {
+      if (!game || ui.replaying) { setMenuNote('Nothing to save yet. Try again in a moment.', true); return; }
+      var d = new Date();
+      E.makeSave(savePayload()).then(function (data) { download(data, d); }, function () {
+        setMenuNote('This browser can\'t save games.', true);
+      });
+    }
+
+    function download(data, d) {
+      var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = saveFileName(d);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      track('play_save', { version: E.GAME_VERSION });
+      setMenuNote('Saved ' + a.download + '.');
+    }
+
+    function loadGame() {
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json,.json';
+      input.addEventListener('change', function () {
+        var file = input.files && input.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+          var data = null;
+          try { data = JSON.parse(String(reader.result)); } catch (err) { data = null; }
+          E.checkSave(data).then(function (check) {
+            if (!check.ok) { setMenuNote(check.reason, true); track('play_load_failed', {}); return; }
+            track('play_load', { version: data.version });
+            callbacks.load(data);
+          }, function () { setMenuNote('This browser can\'t load games.', true); });
+        };
+        reader.onerror = function () { setMenuNote('That file couldn\'t be read.', true); };
+        reader.readAsText(file);
+      });
+      input.click();
     }
 
     // Restarting throws the match away, so it takes a second tap.
@@ -2683,6 +2797,7 @@
 
     function openMenu() {
       if (ui.overlay && ui.overlay.type === 'menu') { closeOverlay(); return; }
+      ui.menuNote = null;
       ui.overlay = { type: 'menu', previous: ui.overlay };
       requestRender();
     }
@@ -3233,22 +3348,56 @@
       if (res.type === 'win' && res.payer === 0) st.dealIns++;
     }
 
+    // The loaded hand has caught up: draw the table as it stands.
+    function replayDone() {
+      ui.replaying = false;
+      ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], drawn: false };
+      ui.botDrawn = [false, false, false, false];
+      // A seat holding a fresh draw shows it apart.
+      game.hand.seats.forEach(function (s, k) { if (k && s.hand.length % 3 === 2) ui.botDrawn[k] = true; });
+      ui.botLift = null;
+      L = computeLayout();
+      announce('Game loaded. Hand ' + game.handNumber + '.');
+      requestRender();
+    }
+
     async function play() {
       await loadAssets();
       spriteCache = {};
-      game = E.createGame({ spicy: settings.spicy, mode: settings.mode });
-      ui.strategies = pickStrategies();
-      ui.coachLog = [];
       ui.coachScroll = 0;
       ui.coachStick = true;
+      var replay = null;
+      if (saved) {
+        // A loaded game: the same players, strategies and coach history,
+        // and the hand in progress dealt again and played up to your move.
+        var p = saved.payload;
+        game = E.restoreGame(p.game);
+        ui.strategies = p.strategies;
+        ui.stats = p.stats || ui.stats;
+        ui.coachLog = p.coachLog || [];
+        if (p.game.hand) {
+          ui.replaying = true;
+          replay = { seed: p.game.hand.seed, replay: p.game.hand.moves, onReplayEnd: replayDone };
+        }
+      } else {
+        game = E.createGame({ spicy: settings.spicy, mode: settings.mode });
+        ui.strategies = pickStrategies();
+        ui.coachLog = [];
+      }
       var agents = [humanAgent(), botAgent(), botAgent(), botAgent()];
-      track('play_start', {
+      track(saved ? 'play_resume' : 'play_start', {
         spicy: settings.spicy, mode: settings.mode, coach: settings.coach,
         speed: settings.speed, coach_strategy: ui.strategies.coach,
         strategies: ui.strategies.seats.slice(1).join(','),
       });
+      if (game.over) {
+        ui.overlay = { type: 'gameover' };
+        requestRender();
+        return;
+      }
       while (!destroyed) {
-        var res = await E.runHand(game, agents, uiBridge);
+        var res = await E.runHand(game, agents, uiBridge, replay);
+        replay = null;
         if (destroyed) return;
         recordStats(res);
         ui.turnSeat = null;
@@ -3381,14 +3530,18 @@
     loadAssets();
 
     var table = null;
-    function open(settings) {
+    function open(settings, saved) {
       stage.hidden = false;
       document.documentElement.classList.add('is-playing');
       if (table) table.destroy();
       table = createTable(canvas, live, settings, {
         quit: close,
         restart: function () { open(settings); },
-      });
+        // A loaded game plays in its own mode; the rest of your settings stay.
+        load: function (data) {
+          open(Object.assign({}, settings, { mode: data.payload.game.settings.mode }), data);
+        },
+      }, saved);
       table.start();
       canvas.focus();
       root.__lcmTable = table;
