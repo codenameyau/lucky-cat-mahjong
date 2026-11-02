@@ -28,6 +28,8 @@ The hands, in the order they come up:
 - **Concealed Straights.** A concealed hand of runs, with no honors and no claims (not while the hand holds a set of honors, which can't be thrown away). While it's the hand in the lead, every honor goes first. The concealed faan plus All Sequences is most of the way to 3, and flowers make up the rest. A pung of a dragon, or of your own wind, or of the round wind, is still taken. Any other claim is passed.
 - **Half flush.** One suit plus honors, once that suit (with honors, counting sets already made) makes up most of the hand and no meld is in another suit. Worth 3 faan on top of whatever the honors add.
 - **Full flush.** One suit only, once that suit already makes up most of the hand and there is no honor meld. Worth 7 faan.
+
+**Watch the player before you.** The player on your left is the only one whose discards you can chow. After six discards, a suit they've barely thrown (or the one suit their melds are in) is the one they're collecting, and the suit they've thrown most is the one they're feeding. When the suit they're collecting is about even with another of yours (six or more, within a tile), the hand stays out of theirs and builds the other flush instead, from six tiles: they won't throw what you'd need, and they'd claim it first. Between two close suits otherwise, the one they're feeding wins. The coach says so ("Kwan is collecting Bamboo, so stay out of it").
 - **All Triplets.** Sets and pairs, no chows, once the hand already has several of them.
 - **Concealed Triplets.** No melds yet, and at least two pungs already in hand.
 - **Seven Pairs.** See below. Worth 4 faan, plus a flush when the pairs are all one suit (3 with honors, 7 without). The hand must stay concealed.
@@ -51,7 +53,7 @@ Group 1 and the Concealed Straights rule are shared by every strategy (`js/mahjo
 4. **Pairs.** A pair is kept until the tiles above are gone. Keeping it leaves a later pung, a chow, or Seven Pairs open.
 5. **A dragon that none of the table has shown yet.** This is kept even longer than a normal pair.
 
-**Concealed Straights throws honors first.** While the hand in the lead is Concealed Straights, every honor goes before any number tile, even a dragon or a pair of them, since an honor can't be part of the hand. While folding, safety decides instead.
+**Concealed Straights throws honors first.** While the hand in the lead is Concealed Straights, every honor goes before any number tile, even a dragon, except one honor pair: the hand only needs a pair, so one honor pair can stay as it (a dragon or scoring-wind pair before another). Any other honor pair goes too. A hand finished with an honor pair still scores Concealed, but not All Sequences, which allows no honors at all, so it's worth a faan less. While folding, safety decides instead.
 
 **Honors early in the hand.** While more than 60 tiles are left in the wall, an honor that can still become a set (fewer than two copies on the table) is one of the hand's most valuable tiles. A single one waits like a pair (group 4). A dragon, or your own or the round's wind, waits longer still (group 5), and a pair of them longest. Honors are only let go early once two copies are out, or when the hand is on Seven Pairs, which only needs its pairs.
 
@@ -155,10 +157,12 @@ A flush read makes their suit more dangerous and the other two suits safer. Near
 
 ## What the coach adds
 
-The coach does not choose for itself. It says the bot's decision in four parts: what to do and why, how far the hand is from ready and which hand it is building, how dangerous the opponents look, and which tile goes next if the draw does not help.
+The coach does not choose for itself. It says the bot's decision in three parts: what to do and why, how far the hand is from ready and which hand it is building, and how dangerous the opponents look. It doesn't say which tile to drop after this one.
 
-It only says "Play safe" on the last wall, when a win is unlikely: fewer than 16 tiles left and the hand not ready, or fewer than 36 left and two or more tiles from ready. A safe pick earlier in the hand is explained like any other discard, and the threats line says who is dangerous.
+It only says "Play safe" on the last wall, when a win is unlikely: fewer than 16 tiles left and the hand not ready, or fewer than 36 left and two or more tiles from ready. A safe pick earlier in the hand is explained like any other discard.
 
-It only calls a tile risky (or says "Hold" a tile, or calls your discard risky in feedback) when the table shows why, and it says the reason: a High or Extreme player's melds are all in that tile's suit ("Grace's melds are all Bamboo"), or a player with 3 melds down hasn't thrown it ("Grace has 3 melds down and hasn't thrown one"). A tile any safety read covers (thrown since their meld, suji, kabe, three out, another suit than their flush) never counts. Without that, it says nothing about risk.
+The threats line says only what you can see on the table: who has melds down and what suit they're in ("Grace has three melds down, all Bamboo."). The Low, Medium, High and Extreme levels above are the bots' own estimate, so the coach never names them, and a player with no melds isn't mentioned, however late it is.
+
+It only calls a tile risky (or says "Hold" a tile, or calls your discard risky in feedback) when the table shows why, and it says the reason: a High or Extreme player's melds are all in that tile's suit, with or without honors ("Grace's melds are all Bamboo", "Grace's melds are Bamboo and honors"), or a player with 3 melds down hasn't thrown it ("Grace has 3 melds down and hasn't thrown one"). A tile any safety read covers (thrown since their meld, suji, kabe, three out, another suit than their flush) never counts. Without that, it says nothing about risk.
 
 **Feedback on** does not tell you the tile first. After you discard or claim, it compares that move with the one above and says whether it was the coach's choice, close, slow, or risky. **Coach off** leaves the bar in place and asks you to turn the coach on.

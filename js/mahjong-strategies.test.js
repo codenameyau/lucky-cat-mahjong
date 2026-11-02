@@ -172,6 +172,55 @@ describe('lucky-cat decisions', () => {
   });
 });
 
+describe('Concealed Straights keeps one honor pair', () => {
+  const noKongs = { kongs: [] };
+  it('throws every other honor first and keeps the pair', () => {
+    const hand = ['c2', 'c3', 'c4', 'd5', 'd6', 'd7', 'b3', 'b4', 'b6', 'b7', 'wn', 'wn', 'ws', 'dg'];
+    const game = table({ seats: [{ hand }], wallLeft: 80 });
+    const a = L.analyzeDiscards(game, 0);
+    assert.equal(a.ctx.leadPlan.id, 'straights');
+    const order = a.candidates.map((x) => x.tile);
+    assert.deepEqual(order.slice(0, 2).sort(), ['dg', 'ws']);
+    assert.ok(order.indexOf('wn') > 2, order.join(' '));
+    const hint = Coach.forStrategy(L).turnHint(game, 0, noKongs);
+    assert.match(hint.tips.join(' '), /Keep your North Wind pair as the pair, and throw your other honors first/);
+  });
+
+  it('keeps a dragon or scoring-wind pair ahead of another honor pair', () => {
+    const counts = E.countsOf(['wn', 'wn', 'dr', 'dr', 'c2']);
+    const ctx = B.buildContext(table({ seats: [{ hand: ['c2'] }] }), 0);
+    assert.equal(B.keptHonorPair(counts, ctx), E.tileIndex('dr'));
+  });
+});
+
+describe('the player before you decides a close flush suit', () => {
+  // Seven Bamboo and six Circles: about even.
+  const hand = ['b2', 'b3', 'b4', 'b6', 'b7', 'b8', 'b9', 'd2', 'd3', 'd5', 'd6', 'd8', 'd9', 'c5'];
+  // Seat 3 (on your left) has thrown no Bamboo and mostly Circles.
+  const keepsBamboo = ['d1', 'd9', 'd5', 'c1', 'c9', 'wn', 'd5'];
+  const at = (discards) => table({ seats: [{ hand }, {}, {}, { discards }], wallLeft: 70 });
+
+  it('reads the suit they keep and the suit they throw', () => {
+    const read = B.leftRead(at(keepsBamboo), 0);
+    assert.deepEqual(read, { seat: 3, keeps: 'b', feeds: 'd' });
+    assert.deepEqual(B.leftRead(at([]), 0), { seat: 3, keeps: null, feeds: null });
+  });
+
+  it('jorge-yau builds the suit they feed instead of the one they keep', () => {
+    assert.equal(B.analyzeDiscards(at([]), 0).ctx.leadPlan.id, 'full-b');
+    const a = B.analyzeDiscards(at(keepsBamboo), 0);
+    assert.equal(a.ctx.leadPlan.id, 'full-d');
+    assert.ok(!/^d/.test(a.candidates[0].tile), 'kept the Circles, threw ' + a.candidates[0].tile);
+    const hint = Coach.turnHint(at(keepsBamboo), 0, { kongs: [] });
+    assert.match(hint.tips.join(' '), /is collecting Bamboo, so stay out of it/);
+  });
+
+  it('lucky-cat gives up a Bamboo flush target', () => {
+    assert.equal(L.targetFor(at([]), 0).suit, 'b');
+    assert.notEqual(L.targetFor(at(keepsBamboo), 0).suit, 'b');
+  });
+});
+
 describe('coach for a strategy', () => {
   it('speaks for the strategy it is given', () => {
     const hand = ['we', 'we', 'ws', 'ws', 'dr', 'dr', 'dg', 'dg', 'dw', 'c5', 'd4', 'b6', 'ww', 'wn'];

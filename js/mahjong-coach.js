@@ -2,7 +2,7 @@
 
    The bots decide. This module says that same decision in plain words:
    what to do and why, how far the hand is from ready and which plan it is,
-   how dangerous the opponents look, and which tile goes next. It does not
+   and how dangerous the opponents look. It does not
    keep a second route or a second claim rule.
 
    forStrategy(bot) returns this same coach speaking for another strategy
@@ -148,9 +148,19 @@
     if (route && (route.id === 'triplets' || route.id === 'concealed-triplets') && c[i] <= 2) {
       var left = v.unseen[i];
       // All Triplets needs more copies, so the tile with fewest left goes.
+      // Say so only when it's true: compare it with the other tiles held the
+      // same way (singles with singles, pairs with pairs).
       if (left === 0) return 'None are left, so it can never become a set.';
-      if (left === 1) return 'Only one is left, so it\'s the least likely to become a set.';
-      return 'It has the fewest copies left of your tiles.';
+      var fewest = true, others = 0;
+      for (var j = 0; j < 34; j++) {
+        if (j === i || c[j] !== c[i]) continue;
+        others++;
+        if (v.unseen[j] <= left) fewest = false;
+      }
+      var kind = c[i] === 2 ? 'pair' : 'single';
+      var count = left === 1 ? 'Only one is left' : COUNT_WORDS[left] + ' are left';
+      if (others && fewest) return count + ', fewer than any other ' + kind + ' you hold, so it\'s the least likely to become a set.';
+      if (left === 1) return 'Only one is left, so it\'s unlikely to become a set.';
     }
     if (route && route.id === 'pairs' && c[i] === 1) {
       return 'Seven Pairs keeps pairs, so singles go.';
@@ -241,17 +251,32 @@
     return shanten === 1 ? '1 tile from ready' : shanten + ' tiles from ready';
   }
 
+  // Why a flush is in this suit, when the player before you decided it:
+  // they're collecting another suit you nearly chose, or throwing this one.
+  function leftNote(v, suit) {
+    var read = v.ctx.leftRead;
+    if (!read) return '';
+    var who = v.game.players[read.seat].name;
+    var avoid = B.avoidSuit(E.countsOf(v.game.hand.seats[v.seat].hand), v.ctx);
+    if (avoid && avoid !== suit) return '. ' + who + ' is collecting ' + SUIT_NAME[avoid] + ', so stay out of it';
+    if (read.feeds === suit) return '. ' + who + ' is throwing ' + SUIT_NAME[suit] + ', so you can chow them';
+    return '';
+  }
+
   function targetText(v, plan, c, nextOut) {
     var r = plan.route;
     if (r.id === 'straights') {
-      // Every bot throws honors first on this hand (MahjongBot's shared rule).
+      // Every bot throws honors first on this hand, all but one honor pair
+      // (MahjongBot's shared rule).
+      var eyes = B.keptHonorPair(c, v.ctx);
       var honors = 0;
-      for (var h = 27; h < 34; h++) if (h !== nextOut) honors += c[h] || 0;
-      return 'Concealed Straights' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' +
-        (honors ? '. Throw your honors first' : '');
+      for (var h = 27; h < 34; h++) if (h !== nextOut && h !== eyes) honors += c[h] || 0;
+      var keepPair = eyes !== null ? '. Keep your ' + name(eyes) + ' pair as the pair' : '';
+      return 'Concealed Straights' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' + keepPair +
+        (honors ? (eyes !== null ? ', and throw your other honors first' : '. Throw your honors first') : '');
     }
-    if (r.id === 'half') return 'Half Flush in ' + SUIT_NAME[r.suit];
-    if (r.id === 'full') return 'Full Flush in ' + SUIT_NAME[r.suit];
+    if (r.id === 'half') return 'Half Flush in ' + SUIT_NAME[r.suit] + leftNote(v, r.suit);
+    if (r.id === 'full') return 'Full Flush in ' + SUIT_NAME[r.suit] + leftNote(v, r.suit);
     if (r.id === 'triplets') return 'All Triplets. Pung your pairs';
     if (r.id === 'concealed-triplets') return 'Concealed Triplets. Don\'t claim';
     if (r.id === 'pairs') return 'Seven Pairs. Don\'t claim';
@@ -301,9 +326,25 @@
     return '';
   }
 
+  // The one number suit a player's open melds are in, and whether honors
+  // are among them: "all Bamboo", "Bamboo and honors", "all honors", or ''
+  // when the melds cover two suits. Read from the melds themselves, not the
+  // bots' flush estimate.
+  function meldSuitText(game, seat) {
+    var suits = {}, honors = false;
+    game.hand.seats[seat].melds.forEach(function (m) {
+      var i = E.tileIndex(m.tiles[0]);
+      if (i >= 27) honors = true; else suits[E.suitOfIndex(i)] = true;
+    });
+    var nums = Object.keys(suits);
+    if (nums.length === 1) return honors ? SUIT_NAME[nums[0]] + ' and honors' : 'all ' + SUIT_NAME[nums[0]];
+    if (!nums.length && honors) return 'all honors';
+    return '';
+  }
+
   // What the table shows that makes a tile dangerous, in words, or null.
   // Only these count: a High or Extreme player whose melds are all in the
-  // tile's suit, or a player with 3 melds down who hasn't thrown the tile
+  // tile's suit (with or without honors), or a player with 3 melds down who hasn't thrown the tile
   // (a live one). A tile any read marks safer never counts.
   function riskEvidence(v, threats, i) {
     if (B.deadTile(v.game, i)) return null;
@@ -312,8 +353,9 @@
     for (var k = 0; k < list.length; k++) {
       var t = list[k];
       if (safetyReason(v, t, i)) continue;
-      if (i < 27 && t.flush && t.melds >= 1 && E.suitOfIndex(i) === t.flush) {
-        return t.name + '\'s melds are all ' + SUIT_NAME[t.flush];
+      var suitText = t.melds >= 1 ? meldSuitText(v.game, t.seat) : '';
+      if (i < 27 && suitText && suitText.indexOf(SUIT_NAME[E.suitOfIndex(i)]) !== -1) {
+        return t.name + '\'s melds are ' + suitText;
       }
       var live = i >= 27 ? v.unseen[i] >= 2 : v.unseen[i] >= 1;
       if (t.melds >= 3 && live) return t.name + ' has 3 melds down and hasn\'t thrown one';
@@ -321,20 +363,15 @@
     return null;
   }
 
-  // "Grace is Extreme (3 melds, Bamboo). Rosa (1 meld), Tak and Bo are High."
-  function threatSentence(list) {
-    var levels = [];
-    var byLevel = {};
-    list.forEach(function (t) {
-      if (!byLevel[t.levelName]) { byLevel[t.levelName] = []; levels.push(t.levelName); }
-      var bits = [];
-      if (t.melds) bits.push(t.melds + (t.melds === 1 ? ' meld' : ' melds'));
-      if (t.flush) bits.push(SUIT_NAME[t.flush]);
-      byLevel[t.levelName].push(t.name + (bits.length ? ' (' + bits.join(', ') + ')' : ''));
-    });
-    return levels.map(function (lv) {
-      var names = byLevel[lv];
-      return (names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] + ' are ' : names[0] + ' is ') + lv + '.';
+  // What the table shows about the players worth watching, in plain words:
+  // "Grace has three melds down, all Bamboo." The threat level itself (High,
+  // Extreme) is the bots' estimate, not something you can see, so it isn't
+  // named, and a player with no melds isn't mentioned at all.
+  function threatSentence(game, list) {
+    return list.filter(function (t) { return t.melds; }).map(function (t) {
+      var suitText = meldSuitText(game, t.seat);
+      return t.name + ' has ' + COUNT_WORDS[Math.min(t.melds, 4)].toLowerCase() + (t.melds === 1 ? ' meld' : ' melds') + ' down' +
+        (suitText ? ', ' + suitText : '') + '.';
     }).join(' ');
   }
 
@@ -348,17 +385,18 @@
     var top = shown[0];
     if (top.level < 2) return pick.evidence ? tile + ' is ' + word + ': ' + pick.evidence + '.' : '';
     // Sorted worst first, so Extreme players are named before High ones.
-    var line = threatSentence(shown.filter(function (t) { return t.level >= 2; }));
+    var line = threatSentence(v.game, shown.filter(function (t) { return t.level >= 2; }));
+    var add = function (more) { line += (line ? ' ' : '') + more; };
     if (pick.loss < 0.012) {
       var why = safetyReason(v, top, pick.index);
-      line += ' ' + tile + ' is ' + word + (why ? ', ' + why : '') + '.';
+      add(tile + ' is ' + word + (why ? ', ' + why : '') + '.');
     } else if (pick.evidence) {
-      line += ' ' + tile + ' is ' + word + ': ' + pick.evidence + '.';
+      add(tile + ' is ' + word + ': ' + pick.evidence + '.');
     }
     var worst = list.filter(function (x) { return x.evidence && x.tile !== pick.tile; })
       .sort(function (a, b) { return b.loss - a.loss; })[0];
     if (worst && worst.loss > pick.loss * 2 && worst.loss >= 0.012) {
-      line += ' Hold ' + E.tileName(worst.tile) + ': ' + worst.evidence + '.';
+      add('Hold ' + E.tileName(worst.tile) + ': ' + worst.evidence + '.');
     }
     return line;
   }
@@ -385,8 +423,8 @@
   }
 
   /* ------------------------------------------------------------------ *
-   * 5. Hints: 1) what to do, 2) where the hand stands, 3) the threats,
-   *    4) what goes next if the draw doesn't help.
+   * 5. Hints: 1) what to do, 2) where the hand stands, 3) the threats.
+   *    (They don't say which tile to drop after this one.)
    * ------------------------------------------------------------------ */
 
   function turnHint(game, seat, opts) {
@@ -433,16 +471,10 @@
     // A ready discard is explained by the wait that follows.
     tips.push('Discard ' + E.tileName(pick.tile) + '.' + (readyPick ? '' : ' ' + why));
 
-    // 2. Where the hand stands (and, for 4, what goes next).
+    // 2. Where the hand stands.
     var cAfter = c.slice();
     cAfter[pick.index]--;
     var isReady = pick.ready && pick.shanten === 0 && !buildingLimit;
-    var next = null;
-    if (!isReady) {
-      var rest = hand.slice();
-      rest.splice(rest.indexOf(pick.tile), 1);
-      next = rankDiscards(v, rest)[0];
-    }
     if (isReady) {
       var wins = pick.ready.waits.filter(function (w) { return w.ronOk; }).map(function (w) { return w.ronFaan; });
       var state = 'Ready, waiting on ' + waitsText(pick.ready) + (wins.length ? ' for ' + Math.min.apply(null, wins) + '+ faan.' : '.');
@@ -451,7 +483,7 @@
       if (liveLeft <= 1) notes.push('Almost none left, so switch waits if you can.');
       tips.push(state + (notes.length ? ' ' + notes.join(' ') : ''));
     } else if (pick.plan) {
-      var line = stepsText(buildingLimit ? pick.plan.shanten : pick.shanten) + '. Aim for ' + targetText(v, pick.plan, cAfter, next && next.index) + '.';
+      var line = stepsText(buildingLimit ? pick.plan.shanten : pick.shanten) + '. Aim for ' + targetText(v, pick.plan, cAfter, null) + '.';
       if (route.faan < min - 0.25) line += ' Short of ' + min + ' faan, so look for a flush, All Triplets or a dragon or wind set.';
       else if (!defending) { var phase = phaseText(v, threats); if (phase) line += ' ' + phase; }
       tips.push(line);
@@ -460,9 +492,6 @@
     // 3. Threats and how safe the discard is.
     var defense = defenseLine(v, threats, pick, list);
     if (defense) tips.push(defense);
-
-    // 4. What goes next if the next draw doesn't help.
-    if (next) tips.push(E.tileName(next.tile) + ' goes next.');
 
     var worry = threats.filter(function (t) { return t.level >= 2; }).sort(function (a, b) { return b.level - a.level; })[0];
     return lead({
@@ -537,7 +566,8 @@
           '. Aim for ' + targetText(v, plan, counts) + '.' + short);
       }
       var shown = threats.filter(function (t) { return t.level >= 2; });
-      if (shown.length) lines.push(threatSentence(shown));
+      var said = threatSentence(v.game, shown);
+      if (said) lines.push(said);
       return lines;
     }
 

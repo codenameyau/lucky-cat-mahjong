@@ -80,8 +80,14 @@
     return by;
   }
 
-  function topSuit(by) {
-    return SUITS.slice().sort(function (a, b) { return by[b] - by[a]; })[0];
+  // The suit with the most tiles. When the next suit is within a tile of
+  // it, the left player's read decides (MahjongBot.leftRead): stay out of
+  // the suit they keep, and take the one they're throwing.
+  function topSuit(by, read) {
+    var order = SUITS.slice().sort(function (a, b) { return by[b] - by[a]; });
+    var top = order[0], next = order[1];
+    if (read && by[next] >= by[top] - 1 && next !== read.keeps && (top === read.keeps || next === read.feeds)) return next;
+    return top;
   }
 
   function hasSuitedMeld(ctx, except) {
@@ -178,7 +184,7 @@
       if (progress >= 7 && (!gates || progress > gates.progress)) gates = { suit: su, start: s * 9, progress: progress };
     });
     return {
-      c: c, ctx: ctx, all: all, by: by, top: topSuit(by), pairs: pairs, sets: sets, gates: gates,
+      c: c, ctx: ctx, all: all, by: by, top: topSuit(by, ctx.leftRead), pairs: pairs, sets: sets, gates: gates,
       orphanKinds: ORPHANS.filter(function (k) { return all[k] > 0; }).length,
       winds: sum(all, WINDS),
       terminals: sum(all, TERMINALS),
@@ -186,14 +192,21 @@
     };
   }
 
+  // One-suit targets: a flush, or Nine Gates (a flush with a shape).
+  var ONE_SUIT = ['gates', 'full', 'half'];
+
   function classify(c, ctx) {
     var r = readHand(c, ctx);
+    // The suit the left player is collecting, when another is about even
+    // (MahjongBot.avoidSuit): no flush target there.
+    var avoid = B.avoidSuit(c, ctx);
     for (var k = 0; k < TARGETS.length; k++) {
       var t = TARGETS[k];
       if (K.skip.indexOf(t.id) !== -1 || !t.fits(r)) continue;
       var out = { id: t.id, rank: t.rank, name: t.name };
       if (t.id === 'gates') { out.suit = r.gates.suit; out.start = r.gates.start; }
       if (t.id === 'full' || t.id === 'half' || t.id === 'triplets') out.suit = r.top;
+      if (avoid && ONE_SUIT.indexOf(t.id) !== -1 && out.suit === avoid) continue;
       return out;
     }
     return null;
@@ -218,7 +231,10 @@
     var held = opening.target;
     var heldDef = held && TARGET_BY_ID[held.id];
     var r = readHand(c, ctx);
-    if (!held || heldDef.dead(r, held) || now.rank < held.rank) opening.target = now;
+    // A flush target in the suit the left player turns out to be collecting
+    // gives way too.
+    var avoided = held && ONE_SUIT.indexOf(held.id) !== -1 && held.suit === B.avoidSuit(c, ctx);
+    if (!held || heldDef.dead(r, held) || avoided || now.rank < held.rank) opening.target = now;
     return opening.target;
   }
 
@@ -478,7 +494,10 @@
     // otherwise the hand has pivoted, and the shared order applies.
     if (!def.hard && !leading(t, cand)) return null;
     var keep = keepFor(t);
-    if (keep && !keep(i)) return def.hard ? -1 : 1;
+    // Concealed Straights may keep one honor pair as its pair (MahjongBot's
+    // shared rule picks which).
+    var eyes = t.id === 'sequences' && i === B.keptHonorPair(counts, ctx);
+    if (keep && !keep(i) && !eyes) return def.hard ? -1 : 1;
     if (t.id === 'gates' && !B.gatesTileNeeded(counts, t.start, i)) return 1;
     if (B.isPungTile(game, i) && counts[i] < 2 && cand.shanten <= bestShanten) return 1;
     // Seven Pairs keeps pairs and lets a third copy go.

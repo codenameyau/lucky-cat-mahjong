@@ -30,7 +30,8 @@
         of another suit goes first, even while folding. With 7 or more tiles
         of one suit (sets count), the other suits go first the same way,
         unless the hand is going for Concealed Straights: then the honors go
-        first instead (but while folding, safety decides). (Seven Pairs, Thirteen Orphans, Nine Gates and the
+        first instead, all but one honor pair, which can be the hand's pair
+        (but while folding, safety decides). (Seven Pairs, Thirteen Orphans, Nine Gates and the
         hands of honors or terminals need their tiles from every suit, so
         they keep their own order.)
      F. keep pairs. Break one only after every non-pair is gone.
@@ -40,6 +41,11 @@
         punged number tile can still finish a chow.
      H. Seven Pairs, Thirteen Orphans, Nine Gates and Concealed Straights
         claim nothing but a scoring honor (Concealed Straights only).
+     I. the player before you (on your left, the only one you can chow
+        from) shows the suit they're collecting and the one they're
+        feeding. A flush in the suit they collect is left alone when
+        another of yours is about even with it; between close suits, the
+        one they feed wins (leftRead, avoidSuit, suitLean).
      The keep-pairs and keep-dragons orders never cost a step toward ready,
      and while folding, safety decides and they only break ties.
 
@@ -85,6 +91,85 @@
     return w;
   }
 
+  // The player before you (on your left: the only one whose discards you
+  // can chow). After six discards their pond says which suit they're
+  // collecting (`keeps`: at most a tenth of their discards while they've
+  // thrown at least two of each other suit, or the one suit their melds
+  // are in) and which they're giving away (`feeds`: the suit they've
+  // thrown the most, three or more and more than any other).
+  function leftRead(game, seat) {
+    var o = (seat + 3) % 4;
+    var s = game.hand.seats[o];
+    var n = s.discards.length;
+    var by = { c: 0, d: 0, b: 0 };
+    s.discards.forEach(function (d) {
+      var su = E.suitOfIndex(E.tileIndex(d.tile));
+      if (by[su] !== undefined) by[su]++;
+    });
+    var meldSuits = {};
+    s.melds.forEach(function (m) { var su = meldSuit(m); if (su !== 'z') meldSuits[su] = true; });
+    var inMelds = Object.keys(meldSuits);
+    var keeps = inMelds.length === 1 ? inMelds[0] : null;
+    if (!keeps && !inMelds.length && n >= 6) {
+      SUIT_LETTERS.forEach(function (su) {
+        var others = SUIT_LETTERS.filter(function (x) { return x !== su; });
+        if (by[su] <= Math.floor(n * 0.1) && others.every(function (x) { return by[x] >= 2; })) keeps = su;
+      });
+    }
+    var feeds = null;
+    if (n >= 6) {
+      var top = 0, tie = false;
+      SUIT_LETTERS.forEach(function (su) {
+        if (su === keeps) return;
+        if (by[su] > top) { top = by[su]; feeds = su; tie = false; } else if (by[su] === top) tie = true;
+      });
+      if (tie || top < 3) feeds = null;
+    }
+    return { seat: o, keeps: keeps, feeds: feeds };
+  }
+
+  // Tiles per number suit, counting sets already made (3 each).
+  function suitCounts(counts, ctx) {
+    var out = {};
+    SUIT_LETTERS.forEach(function (su) {
+      var inSuit = function (i) { return i < 27 && E.suitOfIndex(i) === su; };
+      out[su] = countWhere(counts, inSuit) +
+        ctx.melds.filter(function (m) { return inSuit(E.tileIndex(m.tiles[0])); }).length * 3;
+    });
+    return out;
+  }
+
+  // The suit to stay out of: the one the left player is collecting, when
+  // another of your suits is about even with it (six or more, within a
+  // tile). They won't throw its tiles, and they'd claim what you need.
+  // Read from the whole hand before a discard, so every discard is weighed
+  // against the same choice.
+  function avoidSuit(counts, ctx) {
+    var read = ctx.leftRead;
+    if (!read || !read.keeps) return null;
+    var n = suitCounts(counts, ctx);
+    if (n[read.keeps] < 6) return null;
+    var other = SUIT_LETTERS.some(function (su) {
+      return su !== read.keeps && n[su] >= 6 && n[su] >= n[read.keeps] - 1;
+    });
+    return other ? read.keeps : null;
+  }
+
+  // How much to prefer a flush plan in one suit over another, given the
+  // left player's read: their suit is one to stay out of (they'll keep its
+  // tiles), and the suit they throw is one they'll feed you. Only the
+  // choice between close plans changes; a plan's value doesn't. Together
+  // they're worth about a tile (a step toward ready is ~2.4x), so between
+  // two suits a tile apart, the read decides.
+  var LEAN_AWAY = 0.6, LEAN_TOWARD = 1.5;
+  function suitLean(plan, ctx) {
+    var read = ctx.leftRead;
+    if (!read || !plan.suit || !/^(half|full)-/.test(plan.id)) return 1;
+    if (plan.suit === read.keeps) return LEAN_AWAY;
+    if (plan.suit === read.feeds) return LEAN_TOWARD;
+    return 1;
+  }
+
   function buildContext(game, seat) {
     var s = game.hand.seats[seat];
     var melds = s.melds;
@@ -108,6 +193,7 @@
     ctx.turn = s.discards.length;
     ctx.slope = valueSlope(game, seat);
     ctx.isDealer = seat === game.dealer;
+    ctx.leftRead = leftRead(game, seat);
     if (H.context) H.context(ctx, game, seat);
     return ctx;
   }
@@ -287,27 +373,49 @@
     if (lead && (lead.id === 'straights' || MIXED_PLANS.indexOf(lead.id) !== -1)) return null;
     var other = Object.keys(ctx.meldSuits).filter(function (k) { return k !== 'z'; });
     if (other.length > 1) return null;
-    var best = null, bestN = 0, tie = false;
+    var best = null, bestN = 0, tie = false, bySuit = {};
     for (var s = 0; s < 3; s++) {
       var su = SUIT_LETTERS[s];
       var inSuit = function (i) { return i < 27 && E.suitOfIndex(i) === su; };
       var n = countWhere(counts, inSuit) +
         ctx.melds.filter(function (m) { return inSuit(E.tileIndex(m.tiles[0])); }).length * 3;
+      bySuit[su] = n;
       if (n > bestN) { best = su; bestN = n; tie = false; } else if (n === bestN) tie = true;
+    }
+    // Two suits about even (within a tile): the flush the hand is building
+    // decides, which leans away from the suit the left player keeps.
+    var leadSuit = lead && /^(half|full)-/.test(lead.id) ? lead.suit : null;
+    if (leadSuit && bestN >= SUIT_MAJORITY && bySuit[leadSuit] >= SUIT_MAJORITY - 1 && bySuit[leadSuit] >= bestN - 1) {
+      best = leadSuit;
+      bestN = bySuit[leadSuit];
+      tie = false;
     }
     if (!best || tie || bestN < SUIT_MAJORITY) return null;
     if (other.length && other[0] !== best) return null;
     return best;
   }
 
+  // On Concealed Straights the hand keeps at most one honor pair, as its
+  // pair (eyes); every other honor goes. A dragon or scoring-wind pair is
+  // kept ahead of another. Returns that pair's index, or null.
+  function keptHonorPair(counts, ctx) {
+    var best = null;
+    for (var i = 27; i < 34; i++) {
+      if (counts[i] !== 2) continue;
+      if (best === null || valueWeight(ctx, i) > valueWeight(ctx, best)) best = i;
+    }
+    return best;
+  }
+
   // The discard rules every strategy follows, ahead of its own order: after
   // a chow, or with most of the hand in one suit, other suits go first
-  // (group 0: even while folding). On Concealed Straights, honors go first
-  // (group -1: while folding, safety decides). Null when neither applies.
+  // (group 0: even while folding). On Concealed Straights, every honor but
+  // one pair goes first (group -1: while folding, safety decides). Null
+  // when neither applies.
   function sharedPriority(ctx, counts, candidate) {
     var i = candidate.index;
     var lead = ctx.leadPlan;
-    if (lead && lead.id === 'straights' && !ctx.hasChow) return i >= 27 ? -1 : null;
+    if (lead && lead.id === 'straights' && !ctx.hasChow) return i >= 27 && i !== keptHonorPair(counts, ctx) ? -1 : null;
     var committed = suitCommitment(ctx, counts);
     if (committed && i < 27 && E.suitOfIndex(i) !== committed) return 0;
     return null;
@@ -530,32 +638,43 @@
     }
 
     plans.push({ id: 'plain', label: 'a standard hand', counts: c, shantenFn: E.standardShanten, faan: base + yaku, open: true });
-    // Concealed Straights: runs only. Honors are discarded, and nothing
-    // is claimed, because either one breaks the hand.
+    // Concealed Straights: runs only, and nothing claimed. Honors are
+    // discarded, except one honor pair, which can be the hand's pair (it
+    // then scores Concealed but not All Sequences).
     // (Not while the hand holds a set of honors, which can never be thrown
     // away to make an all-runs hand.)
     var honorSet = false;
     for (var hs = 27; hs < 34; hs++) if (c[hs] >= 3) honorSet = true;
     if (!ctx.declared && !honorSet) {
+      var eyes = keptHonorPair(c, ctx);
       plans.push({
         id: 'straights',
         label: 'Concealed Straights',
-        counts: restrict(c, function (i) { return i < 27; }),
+        counts: restrict(c, function (i) { return i < 27 || i === eyes; }),
         shantenFn: E.standardShanten,
-        faan: base + 1,
+        faan: base + (eyes === null ? 1 : 0),
         open: false,
       });
     }
 
+    // Sets already made count toward "most of the hand" (3 tiles each).
+    var setTiles = function (fits) {
+      return ctx.melds.filter(function (m) { return fits(E.tileIndex(m.tiles[0])); }).length * 3;
+    };
+    var suitN = suitCounts(c, ctx);
+    var topN = Math.max(suitN.c, suitN.d, suitN.b);
+    // The left player's read (leftRead): no flush in the suit they're
+    // collecting when another is about even (avoidSuit), and the other
+    // suit, or the one they're throwing, counts from six tiles when close.
+    var read = ctx.leftRead;
+    var avoid = ctx.avoidSuit !== undefined ? ctx.avoidSuit : avoidSuit(c, ctx);
+    var close = function (su) { return suitN[su] >= 6 && suitN[su] >= topN - 1; };
     ['c', 'd', 'b'].forEach(function (su) {
       var offSuit = Object.keys(ctx.meldSuits).some(function (k) { return k !== su && k !== 'z'; });
-      if (offSuit) return;
+      if (offSuit || su === avoid) return;
       var inHalf = function (i) { return E.suitOfIndex(i) === su || i >= 27; };
       var inFull = function (i) { return E.suitOfIndex(i) === su; };
-      // Sets already made count toward "most of the hand" (3 tiles each).
-      var setTiles = function (fits) {
-        return ctx.melds.filter(function (m) { return fits(E.tileIndex(m.tiles[0])); }).length * 3;
-      };
+      var min = close(su) && (avoid || (read && read.feeds === su)) ? 6 : 7;
       if (countWhere(c, inHalf) + setTiles(inHalf) >= 7) {
         plans.push({
           id: 'half-' + su, suit: su, label: 'a Half Flush in ' + SUIT_LABELS[su],
@@ -563,7 +682,7 @@
           faan: base + 3 + handYaku(ctx, restrict(c, inHalf)), open: true,
         });
       }
-      if (!ctx.meldSuits.z && countWhere(c, inFull) + setTiles(inFull) >= 7) {
+      if (!ctx.meldSuits.z && countWhere(c, inFull) + setTiles(inFull) >= min) {
         plans.push({
           id: 'full-' + su, suit: su, label: 'a Full Flush in ' + SUIT_LABELS[su],
           counts: restrict(c, inFull), shantenFn: E.standardShanten,
@@ -686,7 +805,7 @@
       var chance = finishChance(ctx, s, u.total, p.open);
       var util = handValue(p.faan + SELF_DRAW_CHANCE, ctx.slope) * 1.8 * chance;
       // A strategy can prefer a plan (plan.weight) without inflating its value.
-      var entry = { plan: p, shanten: s, planShanten: s, ukeire: u.total, ukeireTiles: u.tiles, util: util, pick: util * (p.weight || 1) };
+      var entry = { plan: p, shanten: s, planShanten: s, ukeire: u.total, ukeireTiles: u.tiles, util: util, pick: util * (p.weight || 1) * suitLean(p, ctx) };
       if (!best || entry.pick > best.pick) best = entry;
     });
     var ready = null;
@@ -921,6 +1040,7 @@
 
   function syncHandPlans(ctx, counts) {
     ctx.blockSevenPairs = concealedShape(counts).hasSet;
+    ctx.avoidSuit = avoidSuit(counts, ctx);
     if (H.hand) H.hand(ctx, counts);
   }
 
@@ -961,7 +1081,9 @@
     // suit that tie with them on value.
     var committed = suitCommitment(ctx, c);
     out.forEach(function (x) {
-      x.score = x.util - weight * x.loss;
+      // The left player's read leans the offense toward the flush they feed
+      // and away from the one they keep (suitLean); safety is unchanged.
+      x.score = x.util * suitLean((x.analysis.best && x.analysis.best.plan) || {}, ctx) - weight * x.loss;
       if (committed && x.index < 27 && E.suitOfIndex(x.index) !== committed) x.score += 0.004;
       x.priority = discardPriority(game, ctx, c, x, bestShanten);
       // Keeping a pair or a dragon never costs a step toward ready: a discard
@@ -1200,6 +1322,10 @@
     withMeld: withMeld,
     chowAllowed: chowAllowed,
     sharedPriority: sharedPriority,
+    keptHonorPair: keptHonorPair,
+    leftRead: leftRead,
+    avoidSuit: avoidSuit,
+    suitLean: suitLean,
     buildContext: buildContext,
     valueWeight: valueWeight,
     handUtility: handUtility,

@@ -165,7 +165,9 @@
       c.lineWidth = Math.max(0.8, w * 0.04);
       roundRect(c, w * 0.12, w * 0.12, w * 0.76, h - w * 0.24, r * 0.6);
       c.stroke();
-      if (images.logo && w >= 14) {
+      // Phones draw small tile backs, but on a sharp screen there are
+      // still plenty of pixels for the logo.
+      if (images.logo && w * dpr >= 18) {
         var lw = w * 0.62;
         var lh = lw * (images.logo.height / images.logo.width || 1);
         c.globalAlpha = 0.95;
@@ -196,25 +198,117 @@
         c.fillText(id, w / 2, h / 2);
       }
     }
-    spriteCache[key] = cv;
+    // A tile drawn before its picture (or the logo) has loaded is not
+    // kept, so it's redrawn properly once the image arrives.
+    if (back ? images.logo : images[id]) spriteCache[key] = cv;
     return cv;
   }
 
   /* ------------------------------------------------------------------ *
-   * 2. Sound (synthesized with WebAudio; no audio files to download)
+   * 2. Sound
+   *    Short recorded clips from Kenney's Casino Audio and Interface Sounds
+   *    packs (CC0, kenney.nl), trimmed to mono WAV in /assets/sounds/.
+   *    Tiles are poker chips: a chip laid down is a discard, a stack of
+   *    them is a claim, and a quick ripple of chips laid down is every
+   *    hand tipping face up.
    * ------------------------------------------------------------------ */
 
-  // Tile sounds are layered "clacks": a crisp noise tick, a few short
-  // inharmonic partials (the ring of a bone/resin tile), and a soft table
-  // thud. Musical cues use plucked-string notes (Karplus-Strong) on a
-  // pentatonic scale and a soft gong, instead of plain beeps.
-  var NOTE = { G4: 392, A4: 440, C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880 };
+  var SOUND_DIR = '/assets/sounds/';
+  // Each cue plays one of its clips (picked at random, so repeats differ),
+  // at `gain`, and any `then` clips [name, delay in seconds, gain, pitch]
+  // after it. `vary` nudges the pitch a little each time.
+  var CUES = {
+    draw: { clips: ['tile-draw'], gain: 0.3, vary: true },
+    // One sound for every discard: the duller chip, the closest to a
+    // mahjong tile landing on the table.
+    discard: { clips: ['tile-discard'], gain: 0.85 },
+    select: { clips: ['tile-select'], gain: 0.2 },
+    flower: { clips: ['flower'], gain: 0.4 },
+    // Claims are big moments, and each has its own heavy hit (a different
+    // impactMining clip from Kenney's Impact Sounds pack) under the chips:
+    // chow: impactMining_001, the brightest, then the run's chips settle;
+    chow: {
+      clips: ['impact-chow'], gain: 0.9,
+      then: [['tile-claim-1', 0.03, 0.7]],
+    },
+    // pung: impactMining_000, a fuller hit with the three tiles on top;
+    pung: {
+      clips: ['impact-pung'], gain: 0.95,
+      then: [['tile-claim-2', 0.02, 0.75], ['tile-discard', 0.04, 0.6, 0.9]],
+    },
+    // kong: impactMining_002, struck twice (the second lower) while four
+    // tiles stack.
+    kong: {
+      clips: ['impact-kong'], gain: 1,
+      then: [['impact-kong', 0.12, 0.7, 0.8], ['tile-claim-2', 0.03, 0.7], ['tile-kong', 0.16, 0.6], ['tile-discard', 0.28, 0.6, 0.85]],
+    },
+    turn: { clips: ['turn'], gain: 0.25 },
+    win: { clips: ['win'], gain: 0.6, then: [['tile-claim-2', 0, 0.5]] },
+    otherwin: { clips: ['other-win'], gain: 0.45 },
+    lose: { clips: ['lose'], gain: 0.5 },
+    drawgame: { clips: ['draw-game'], gain: 0.45 },
+    // Show hands: impactMining_003, the whole clip, untrimmed.
+    flip: { clips: ['tiles-reveal'], gain: 0.9 },
+  };
+
+  // Background music: CC BY 4.0 tracks by Kevin MacLeod (incompetech.com),
+  // re-encoded to 96 kbps AAC in /assets/music/. The credit is on the play
+  // page and in /assets/music/README.md.
+  var MUSIC_DIR = '/assets/music/';
+  var MUSIC_VOLUME = 0.22;
+  var MUSIC = [
+    { file: 'guzheng-city.m4a', title: 'Guzheng City' },
+    { file: 'shenyang.m4a', title: 'Shenyang' },
+    { file: 'ripples.m4a', title: 'Ripples' },
+  ];
+
+  function shuffle(list) {
+    for (var i = list.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = list[i]; list[i] = list[j]; list[j] = t;
+    }
+    return list;
+  }
+
+  function cueClips() {
+    var names = {};
+    Object.keys(CUES).forEach(function (k) {
+      CUES[k].clips.forEach(function (n) { names[n] = true; });
+      (CUES[k].then || []).forEach(function (x) { names[x[0]] = true; });
+    });
+    return Object.keys(names);
+  }
 
   function createSound(enabled) {
     var ac = null;
-    var master = null;
-    var plucks = {};
+    var out = null;
+    var raw = {}; // fetched bytes, decoded once there's an audio context
+    var buffers = {};
     var api = { enabled: enabled };
+
+    // The files are small (a quarter MB in all), so fetch them up front;
+    // the browser only lets audio start after a tap, when ctx() runs.
+    function fetchAll() {
+      if (!root.fetch) return;
+      cueClips().forEach(function (name) {
+        if (raw[name] || buffers[name]) return;
+        raw[name] = root.fetch(SOUND_DIR + name + '.wav')
+          .then(function (r) { return r.ok ? r.arrayBuffer() : null; })
+          .catch(function () { return null; });
+      });
+    }
+
+    function decodeAll(a) {
+      Object.keys(raw).forEach(function (name) {
+        var pending = raw[name];
+        delete raw[name];
+        pending.then(function (bytes) {
+          if (!bytes) return;
+          // The callback form also works in older Safari.
+          a.decodeAudioData(bytes, function (buf) { buffers[name] = buf; }, function () {});
+        });
+      });
+    }
 
     function ctx() {
       if (!api.enabled) return null;
@@ -222,188 +316,91 @@
         var AC = root.AudioContext || root.webkitAudioContext;
         if (!AC) return null;
         ac = new AC();
-        master = ac.createDynamicsCompressor();
-        master.threshold.value = -14;
-        master.ratio.value = 3;
-        var out = ac.createGain();
+        out = ac.createGain();
         out.gain.value = 0.9;
-        master.connect(out);
         out.connect(ac.destination);
+        fetchAll();
+        decodeAll(ac);
       }
       if (ac.state === 'suspended') ac.resume();
       return ac;
     }
 
-    function env(a, start, peak, dur, attack) {
-      var g = a.createGain();
-      g.gain.setValueAtTime(0.0001, start);
-      g.gain.exponentialRampToValueAtTime(peak, start + (attack || 0.002));
-      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-      g.connect(master);
-      return g;
-    }
-
-    function partial(a, start, freq, gain, dur) {
-      var o = a.createOscillator();
-      o.type = 'sine';
-      o.frequency.setValueAtTime(freq, start);
-      o.connect(env(a, start, gain, dur));
-      o.start(start);
-      o.stop(start + dur + 0.02);
-    }
-
-    // Tile impacts are modal: a few short, decaying resonances plus a tiny
-    // noise transient. A handful of variants per kind are rendered once and
-    // replayed with slight pitch changes so no two hits sound identical.
-    var IMPACTS = {
-      // Tile striking tile: hard, bright and very short.
-      click: { dur: 0.07, spread: 0.12, tick: 0.5, thump: 0, modes: [[2450, 0.016, 1], [3900, 0.011, 0.75], [5600, 0.007, 0.5], [7900, 0.004, 0.3]] },
-      // Tile set down on the felt-covered table: duller and lower.
-      thock: { dur: 0.1, spread: 0.1, tick: 0.25, thump: 0.6, modes: [[820, 0.022, 0.7], [1500, 0.016, 1], [2650, 0.01, 0.55], [4300, 0.005, 0.25]] },
-    };
-    var banks = {};
-
-    function makeImpact(a, spec) {
-      var sr = a.sampleRate;
-      var len = Math.floor(sr * spec.dur);
-      var buf = a.createBuffer(1, len, sr);
-      var y = buf.getChannelData(0);
-      var modes = spec.modes.map(function (m) {
-        return {
-          w: 2 * Math.PI * m[0] * (1 + (Math.random() - 0.5) * 2 * spec.spread),
-          d: m[1] * (0.8 + Math.random() * 0.4),
-          g: m[2] * (0.7 + Math.random() * 0.6),
-          ph: Math.random() * Math.PI * 2,
-        };
-      });
-      var low = 0, peak = 0;
-      for (var i = 0; i < len; i++) {
-        var t = i / sr;
-        var v = 0;
-        for (var k = 0; k < modes.length; k++) v += modes[k].g * Math.exp(-t / modes[k].d) * Math.sin(modes[k].w * t + modes[k].ph);
-        var n = Math.random() * 2 - 1;
-        v += spec.tick * n * Math.exp(-t / 0.0012);
-        low += (n - low) * 0.06;
-        v += spec.thump * low * 3 * Math.exp(-t / 0.01);
-        y[i] = v;
-        if (Math.abs(v) > peak) peak = Math.abs(v);
-      }
-      for (var j = 0; j < len; j++) y[j] *= 0.9 / peak;
-      return buf;
-    }
-
-    function impact(a, start, kind, gain, rate) {
-      var bank = banks[kind];
-      if (!bank) {
-        bank = banks[kind] = [];
-        for (var i = 0; i < 6; i++) bank.push(makeImpact(a, IMPACTS[kind]));
-      }
+    function clip(a, name, at, gain, vary, pitch) {
+      var buf = buffers[name];
+      if (!buf) return;
       var src = a.createBufferSource();
-      src.buffer = bank[Math.floor(Math.random() * bank.length)];
-      src.playbackRate.value = (rate || 1) * (0.94 + Math.random() * 0.12);
+      src.buffer = buf;
+      src.playbackRate.value = (pitch || 1) * (vary ? 0.95 + Math.random() * 0.1 : 1);
       var g = a.createGain();
       g.gain.value = gain;
       src.connect(g);
-      g.connect(master);
-      src.start(start);
+      g.connect(out);
+      src.start(at);
     }
 
-    // Tile against tile.
-    function clack(a, start, gain, pitch) { impact(a, start, 'click', gain, pitch); }
-    // Tile put down on the table.
-    function thock(a, start, gain, pitch) { impact(a, start, 'thock', gain, pitch); }
+    // Background music: the tracks in MUSIC, shuffled, one after another
+    // in a loop (reshuffled each time round, never the same track twice in
+    // a row). It plays while sound is on and the game is open, and pauses
+    // while the tab is hidden.
+    var music = { el: null, order: [], at: -1, on: false };
 
-    function pluckBuffer(a, freq, dur) {
-      var key = Math.round(freq) + ':' + dur;
-      if (plucks[key]) return plucks[key];
-      var sr = a.sampleRate;
-      var len = Math.floor(sr * dur);
-      var buf = a.createBuffer(1, len, sr);
-      var y = buf.getChannelData(0);
-      var n = Math.max(2, Math.round(sr / freq));
-      for (var i = 0; i < n; i++) y[i] = Math.random() * 2 - 1;
-      for (var k = 1; k < n; k++) y[k] = (y[k] + y[k - 1]) * 0.5; // soften the attack
-      for (var m = n; m < len; m++) y[m] = 0.4985 * (y[m - n] + y[m - n + 1]);
-      plucks[key] = buf;
-      return buf;
-    }
-
-    function pluck(a, start, freq, gain, dur) {
-      dur = dur || 1.4;
-      var src = a.createBufferSource();
-      src.buffer = pluckBuffer(a, freq, dur);
-      var lp = a.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.value = 3200;
-      var g = a.createGain();
-      g.gain.setValueAtTime(gain, start);
-      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-      src.connect(lp); lp.connect(g); g.connect(master);
-      src.start(start);
-    }
-
-    function gong(a, start, gain) {
-      [[98, 1], [151, 0.6], [207, 0.45], [283, 0.3], [392, 0.15]].forEach(function (pr, k) {
-        partial(a, start + k * 0.004, pr[0], gain * pr[1], 2.6 - k * 0.3);
-      });
-    }
-
-    api.play = function (name, opt) {
-      var a = ctx();
-      if (!a) return;
-      var t = a.currentTime + 0.01;
-      switch (name) {
-        case 'draw':
-          clack(a, t, 0.2, 1.05);
-          break;
-        case 'discard':
-          thock(a, t, 0.75, 1);
-          clack(a, t + 0.022, 0.22, 1);
-          break;
-        case 'select':
-          clack(a, t, 0.06, 1.2);
-          break;
-        case 'flower':
-          pluck(a, t, NOTE.G5, 0.22, 1.2);
-          pluck(a, t + 0.09, NOTE.E5, 0.18, 1.2);
-          break;
-        case 'claim':
-          thock(a, t, 0.45, 0.95);
-          clack(a, t + 0.05, 0.4, 1);
-          pluck(a, t + 0.04, NOTE.A4, 0.26);
-          pluck(a, t + 0.12, NOTE.D5, 0.22);
-          break;
-        case 'kong':
-          for (var k = 0; k < 4; k++) {
-            thock(a, t + k * 0.055, 0.32, 1);
-            clack(a, t + k * 0.055 + 0.01, 0.3, 0.95 + k * 0.03);
-          }
-          pluck(a, t + 0.08, NOTE.G4, 0.26);
-          pluck(a, t + 0.2, NOTE.D5, 0.24);
-          break;
-        case 'turn':
-          pluck(a, t, NOTE.E5, 0.13, 0.9);
-          break;
-        case 'win':
-          gong(a, t, 0.32);
-          [NOTE.G4, NOTE.A4, NOTE.C5, NOTE.D5, NOTE.E5, NOTE.G5, NOTE.A5].forEach(function (f, n) {
-            pluck(a, t + 0.05 + n * 0.09, f, 0.24, 1.8);
-          });
-          break;
-        case 'otherwin':
-          gong(a, t, 0.22);
-          pluck(a, t + 0.05, NOTE.D5, 0.2, 1.6);
-          pluck(a, t + 0.17, NOTE.G4, 0.18, 1.6);
-          break;
-        case 'lose':
-          [NOTE.E5, NOTE.D5, NOTE.A4, NOTE.G4].forEach(function (f, n) { pluck(a, t + n * 0.17, f, 0.2, 1.6); });
-          break;
-        case 'drawgame':
-          pluck(a, t, NOTE.D5, 0.2, 1.4);
-          pluck(a, t + 0.22, NOTE.A4, 0.2, 1.6);
-          break;
+    function nextTrack() {
+      if (music.at + 1 >= music.order.length) {
+        var last = music.order[music.order.length - 1];
+        music.order = shuffle(MUSIC.slice());
+        if (music.order.length > 1 && music.order[0] === last) music.order.push(music.order.shift());
+        music.at = -1;
       }
+      music.at++;
+      return music.order[music.at];
+    }
+
+    function playTrack(track) {
+      if (!music.el) {
+        if (!root.Audio) return;
+        music.el = new root.Audio();
+        music.el.volume = MUSIC_VOLUME;
+        music.el.addEventListener('ended', function () { playTrack(nextTrack()); });
+        // A track that can't load is skipped.
+        music.el.addEventListener('error', function () { if (music.on) playTrack(nextTrack()); });
+      }
+      music.el.src = MUSIC_DIR + track.file;
+      if (music.on && api.enabled) {
+        var p = music.el.play();
+        if (p && p.catch) p.catch(function () {}); // waits for a tap if the browser blocks it
+      }
+    }
+
+    // music(true) starts or resumes it (if sound is on), music(false) pauses.
+    api.music = function (on) {
+      music.on = !!on;
+      if (!music.on || !api.enabled) {
+        if (music.el) music.el.pause();
+        return;
+      }
+      if (!music.el || !music.el.src) { playTrack(nextTrack()); return; }
+      var p = music.el.play();
+      if (p && p.catch) p.catch(function () {});
     };
+
+    api.stopMusic = function () {
+      api.music(false);
+      if (music.el) { music.el.removeAttribute('src'); music.el.load(); }
+      music.el = null;
+      music.at = music.order.length; // the next start reshuffles
+    };
+
+    api.play = function (name) {
+      var cue = CUES[name];
+      var a = cue && ctx();
+      if (!a) return;
+      var t = a.currentTime + 0.005;
+      clip(a, cue.clips[Math.floor(Math.random() * cue.clips.length)], t, cue.gain, cue.vary);
+      (cue.then || []).forEach(function (x) { clip(a, x[0], t + x[1], x[2], cue.vary, x[3]); });
+    };
+
+    if (enabled) fetchAll();
     return api;
   }
 
@@ -491,7 +488,7 @@
       botDiscardFrom: [null, null, null, null],
       oppHand: [null, null, null, null],
       overlay: null,
-      revealHands: false, // after See hands, every concealed hand is face up
+      revealHands: false, // after Show hands, every concealed hand is face up
       heldSummary: null, // the results panel, while those hands stay open
       youIcon: null, // where your person icon was drawn, so See results can sit beside it
       lastHandRects: [],
@@ -636,52 +633,86 @@
       return { x: c.x - w / 2, y: c.y - w * TILE_ASPECT / 2, w: w, rot: f.a };
     }
 
+    // Three layouts:
+    //   desktop: the table and your hand on the left, the coach's column on
+    //     the right, and the coach's bar above your hand;
+    //   phone landscape: a square table with the coach's column beside it,
+    //     your hand along the whole bottom, no bar;
+    //   phone portrait: the table, the coach's bar, then your hand in two
+    //     rows, no column.
+    // The table (the other players and the discards) is kept as close to
+    // square as the screen allows; spare room goes to the coach.
+    var HAND_ROW_GAP = 6;
+
     function computeLayout() {
       var pad = W < 600 ? 6 : 14;
       var topH = 42 + 6; // top bar plus a little breathing room below it
-      var portrait = W < 700 || W < H * 0.9;
       // Short landscape phones are laid out taller than the screen, so W can
       // look like a desktop. The coach column follows the real screen.
       var desktop = cssW >= 980 && cssW >= cssH * 0.9;
-      // Desktop gives the table and hand two thirds of the screen.
-      // The coach column keeps the other third.
-      var historyGap = desktop ? 14 : 0;
+      var landscape = !desktop && W > H;
+      var phonePortrait = !desktop && !landscape;
+      var handRows = phonePortrait ? 2 : 1;
+      var depth = function (w) { return Math.max(2, w * 0.08); };
+
+      // Your section: full width on phones, the table's width on desktop.
+      var historyGap = desktop ? 14 : landscape ? 8 : 0;
       var ox = 0;
       var tableW = W;
-      var historyW = 0;
-      if (desktop) {
-        var split = W - historyGap - pad;
-        tableW = Math.round(split * 2 / 3);
-        historyW = split - tableW;
-      }
-      // A little smaller than a row that fills the table, so the center
-      // keeps the room and the discards stay easy to see. The gaps between
-      // tiles are reserved before the size is chosen.
-      var tw = clamp(((tableW - 2 * pad - 13 * TILE_GAP) / 14.8) * 0.88, 18, Math.min(124, H * 0.114));
+      if (desktop) tableW = Math.min(Math.round((W - historyGap - pad) * 2 / 3), Math.round(H * 1.1));
+      var meX = ox, meW = desktop ? tableW : W;
+
+      // Hand tiles: one row of 14 across your section, or two rows of 7 on a
+      // portrait phone (bigger tiles, easier to tap).
+      var tw = handRows === 2
+        ? clamp((meW - 2 * pad - 16 - 6 * TILE_GAP) / 7.5, 18, Math.min(72, H * 0.075))
+        : clamp(((meW - 2 * pad - 13 * TILE_GAP) / 14.8) * 0.88, 18, Math.min(124, H * (landscape ? 0.085 : 0.114)));
       var th = tw * TILE_ASPECT;
-      var handY = H - pad - th - Math.max(2, tw * 0.08) - 4;
-      var mw = tw; // melds and flowers match the hand
+      var handY = H - pad - th - depth(tw) - 4; // the bottom row
+      var handTop = handY - (handRows - 1) * (th + HAND_ROW_GAP);
+      var mw = handRows === 2 ? tw * 0.8 : tw; // melds and flowers
       var meldRowH = mw * TILE_ASPECT + 8;
-      var meY = handY - meldRowH - 6;
+      var meY = handTop - meldRowH - 6;
       var actionsH = 44;
-      // On a desktop the bar keeps its space even when the coach is off, so
-      // toggling it never moves the table. It fits the action line plus a
-      // four-line paragraph. On a phone the words stay hidden and the
-      // recommended tile is marked in the hand, so the table keeps the room.
-      var hintH = desktop ? 84 : 0;
       // Action buttons sit in the meld row, between your melds and your
       // name, so the table gets the room.
       var actionsInRow = true;
       var actionsY = meY + (meldRowH - actionsH) / 2;
-      var hintY = meY - hintH - 4;
-      var bandTop = hintY;
+      // Your section sits in its own box, like the other players', with a
+      // little room above your name and melds.
+      var meBoxPad = 8;
+      var meBox = { x: meX + pad, y: meY - meBoxPad, w: meW - 2 * pad, h: H - Math.max(4, pad / 2) - (meY - meBoxPad) };
+
+      // The coach's bar above your section: a fixed height on desktop (it
+      // fits the action line and a four-line paragraph, and keeps its space
+      // when the coach is off, so toggling it never moves the table); on a
+      // portrait phone whatever is left once the table is about square.
+      // Landscape phones show the coach in the column instead.
+      var hintH = 0;
+      var room = meBox.y - 6 - topH - 6; // table and bar together
+      if (desktop) hintH = 84;
+      if (phonePortrait) hintH = clamp(room - Math.min(tableW - 2 * pad, room - 72), 72, 150);
+      var hintY = meBox.y - hintH - 6;
+      var bandTop = hintH ? hintY : meBox.y;
       var gap = 6;
+
+      // A landscape phone: the table as wide as it is tall (a little wider
+      // if the screen allows), the coach's column beside it.
+      var historyW = 0;
+      if (desktop) historyW = W - pad - historyGap - tableW;
+      if (landscape) {
+        var boardH = bandTop - gap - topH;
+        tableW = clamp(Math.round(boardH * 1.25), 300, Math.round((W - pad) * 0.62));
+        historyW = W - pad - historyGap - tableW;
+      }
+      // Ponds and side seats go narrow on a phone's narrow table.
+      var portrait = !desktop && (tableW < 700 || tableW < (bandTop - topH) * 0.9);
 
       var sideW = portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
       var topPanelH = portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
       // Narrow side seats (drawOppHeader's compact header) stack name, strategy and points.
-      var sideHead = portrait || sideW < 120 ? 48 : 26;
-      var topHead = 24;
+      var sideHead = portrait || sideW < 120 ? 54 : 34;
+      var topHead = 30; // the name row, with a little room below it
       var opp = [];
       opp[3] = { x: ox + pad, y: topH, w: sideW, h: bandTop - topH - gap };
       opp[1] = { x: ox + tableW - pad - sideW, y: topH, w: sideW, h: bandTop - topH - gap };
@@ -746,11 +777,13 @@
       var narrow = portrait ? 1 : 0.68;
       center.x += center.w * (1 - narrow) / 2;
       center.w *= narrow;
+      // Desktop: the column runs the full height. Landscape phone: it stops
+      // above your section, which runs along the whole bottom.
       var history = historyW ? {
-        x: tableW + historyGap,
+        x: ox + tableW + historyGap,
         y: topH,
         w: historyW,
-        h: H - topH - pad,
+        h: (landscape ? bandTop - gap : H - pad) - topH,
       } : null;
       var zoneFrames = zones.map(function (z, k) { return makeFrame(z, k); });
       var maxDiscards = POND_COLS * POND_ROWS;
@@ -761,7 +794,8 @@
       zoneFrames.forEach(function (f) { pw = Math.min(pw, fitPondTile(f.w, f.h, maxDiscards)); });
       return {
         pad: pad, topH: topH, portrait: portrait, ox: ox, tableW: tableW, history: history,
-        tw: tw, th: th, handY: handY, mw: mw, meY: meY, meldRowH: meldRowH,
+        desktop: desktop, landscape: landscape, phonePortrait: phonePortrait, meX: meX, meW: meW,
+        tw: tw, th: th, handY: handY, handRows: handRows, mw: mw, meY: meY, meldRowH: meldRowH, meBox: meBox,
         actionsY: actionsY, actionsH: actionsH, actionsInRow: actionsInRow, hintY: hintY, hintH: hintH,
         opp: opp, oppFrames: oppFrames, pond: pond, inner: inner, zones: zones, zoneFrames: zoneFrames,
         center: center, pw: pw, maxDiscards: maxDiscards,
@@ -1472,20 +1506,25 @@
     function drawOppHeader(seat, r) {
       var compact = r.w < 120;
       var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
+      // The side players' headers get a little room above them; the player
+      // across keeps theirs at the bottom of their box.
+      var top = seat === 2 ? 0 : 6;
+      var bottom = seat === 2 ? 6 : 0;
       if (!compact) {
-        drawSeatHeader(seat, r.x + 8, r.y + (r.h - 22) / 2, r.w - 16);
+        drawSeatHeader(seat, r.x + 8, r.y + top + (r.h - top - bottom - 22) / 2, r.w - 16);
         return;
       }
       var rad = 8;
-      windBadge(seat, r.x + 4 + rad, r.y + 4 + rad, rad);
+      var by = r.y + 4 + top + rad;
+      windBadge(seat, r.x + 4 + rad, by, rad);
       var name = seatTitle(seat, true);
       var size = fitFont(ctx, name, r.w - 2 * rad - 12 - 13 - ICON_GAP, 12, FONT_BODY, 'bold');
-      text(name, r.x + 2 * rad + 8, r.y + 4 + rad + 1, { size: size, weight: 'bold', color: COLORS.cream });
+      text(name, r.x + 2 * rad + 8, by + 1, { size: size, weight: 'bold', color: COLORS.cream });
       ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
-      playerIcon(seat, r.x + 2 * rad + 8 + ctx.measureText(name).width + ICON_GAP, r.y + 4 + rad, 13);
+      playerIcon(seat, r.x + 2 * rad + 8 + ctx.measureText(name).width + ICON_GAP, by, 13);
       var strat = strategyName(seat);
       var ss = fitFont(ctx, strat, r.w - 8, 10, FONT_BODY, 'bold');
-      text(strat, r.x + 4, r.y + 4 + 2 * rad + 7, { size: ss, weight: 'bold', color: COLORS.goldLight });
+      text(strat, r.x + 4, by + rad + 7, { size: ss, weight: 'bold', color: COLORS.goldLight });
       if (pts) text(pts, r.x + r.w / 2, r.y + r.h - 7, { size: 11, weight: 'bold', align: 'center', color: COLORS.goldLight });
     }
 
@@ -1494,21 +1533,27 @@
       return Math.max(0, n - ui.hide.backs[seat]);
     }
 
-    function drawOpponent(seat, t) {
-      var r = L.opp[seat];
-      var s = game.hand.seats[seat];
-      var active = ui.turnSeat === seat;
+    // A player's box. Whose turn it is shows as a faint gold tint and a
+    // thin outline that slowly breathes, enough to find without pulling
+    // the eye away from the table.
+    function drawSeatBox(r, active, t) {
       ctx.save();
       roundRect(ctx, r.x, r.y, r.w, r.h, 12);
-      ctx.fillStyle = active ? 'rgba(244,160,32,0.16)' : 'rgba(0,0,0,0.16)';
+      ctx.fillStyle = active ? 'rgba(244,160,32,0.07)' : 'rgba(0,0,0,0.16)';
       ctx.fill();
       if (active) {
-        ctx.strokeStyle = 'rgba(244,160,32,' + (0.65 + 0.3 * Math.sin(t / 220)) + ')';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'rgba(244,160,32,' + (0.32 + 0.1 * Math.sin(t / 600)) + ')';
+        ctx.lineWidth = 1.5;
         ctx.stroke();
         requestRender();
       }
       ctx.restore();
+    }
+
+    function drawOpponent(seat, t) {
+      var r = L.opp[seat];
+      var s = game.hand.seats[seat];
+      drawSeatBox(r, ui.turnSeat === seat, t);
       drawOppHeader(seat, r.head);
 
       // Drawn in the seat's rotated frame, facing its owner: the concealed
@@ -1662,7 +1707,9 @@
       return { tiles: order, drawnSeparate: !!showDrawn };
     }
 
-    // The hand is one row across the game area, which is the left two thirds on desktop.
+    // The hand is one row across your section (the left two thirds on
+    // desktop), or two rows on a portrait phone: the first half on top, the
+    // rest (and a fresh draw, set a little apart) below.
     function handSpan(count, tileW, drawnSeparate) {
       if (count <= 0) return 0;
       return count * tileW + (count - 1) * TILE_GAP + (drawnSeparate ? tileW * 0.4 : 0);
@@ -1670,9 +1717,30 @@
 
     function handLeft(count, drawnSeparate) {
       var total = handSpan(count, L.tw, drawnSeparate);
-      var span = L.tableW;
-      if (total >= span - 2 * L.pad) return L.ox + L.pad;
-      return L.ox + Math.max(L.pad, (span - total) / 2);
+      var span = L.meW;
+      if (total >= span - 2 * L.pad) return L.meX + L.pad;
+      return L.meX + Math.max(L.pad, (span - total) / 2);
+    }
+
+    // Where each of `count` hand tiles sits: [{ x, y }].
+    function handPositions(count, drawnSeparate) {
+      var step = L.tw + TILE_GAP;
+      var rows = L.handRows === 2 && count > 1 ? 2 : 1;
+      var per = Math.ceil(count / rows);
+      var out = [];
+      for (var r = 0; r < rows; r++) {
+        var start = r * per;
+        var n = Math.min(per, count - start);
+        var sep = drawnSeparate && start + n === count;
+        var left = handLeft(n, sep);
+        var y = L.handY - (rows - 1 - r) * (L.th + HAND_ROW_GAP);
+        for (var k = 0; k < n; k++) out.push({ x: left + k * step + (sep && k === n - 1 ? L.tw * 0.4 : 0), y: y });
+      }
+      return out;
+    }
+
+    function lerpPos(a, b, e) {
+      return { x: a.x + (b.x - a.x) * e, y: a.y + (b.y - a.y) * e };
     }
 
     function drawMe(t) {
@@ -1681,18 +1749,21 @@
       var y = L.meY;
       var active = ui.turnSeat === 0;
 
+      // Your box, like the other players'.
+      drawSeatBox(L.meBox, active, t);
+
       // Info + melds row.
-      var left = L.ox;
-      var rightEdge = L.ox + L.tableW;
-      var infoW = clamp(L.tableW * 0.3, 130, 240);
+      var left = L.meX;
+      var rightEdge = L.meX + L.meW;
+      var infoW = clamp(L.meW * 0.3, 130, 240);
       // Your name steps aside while action buttons need its spot.
-      if (!ui.buttonsOverName) drawSeatHeader(0, rightEdge - pad - infoW, y + 2, infoW);
+      if (!ui.buttonsOverName) drawSeatHeader(0, rightEdge - pad - infoW - 4, y + 4, infoW);
       var items = meldItems(0);
-      var mx = left + pad;
+      var mx = left + pad + 8; // inside your box
       // Same size as the hand; only shrinks if the row would run out of room.
       var meldN = items.filter(function (it) { return !it.gap; }).length;
       var gapsN = items.length - meldN;
-      var rowW = L.tableW - 2 * pad - infoW - 10;
+      var rowW = L.meW - 2 * pad - infoW - 18;
       var tileN = meldN + s.flowers.length;
       var mw = Math.min(L.mw, (rowW - Math.max(0, tileN - 1) * TILE_GAP) / Math.max(1, tileN + gapsN * 0.35 + 0.6));
       var y0 = y + (L.mw - mw) * TILE_ASPECT;
@@ -1718,9 +1789,6 @@
       var count = tiles.length;
       if (ui.hide.drawn && order.drawnSeparate) count = Math.min(count, tiles.length - 1);
       var tw = L.tw;
-      var step = tw + TILE_GAP;
-      var total = handSpan(tiles.length, tw, order.drawnSeparate);
-      var x0 = handLeft(tiles.length, order.drawnSeparate);
       var hintTile = ui.coach === 'on' && ui.hint && ui.hint.tile;
       var hintUsed = false;
       ui.lastHandRects = [];
@@ -1728,10 +1796,8 @@
       // Where each tile belongs, and which tile was where: when the hand
       // re-sorts (a drawn tile merging in, tiles leaving for a claim) every
       // tile slides from its old place to its new one.
-      var targets = tiles.map(function (tid, k) {
-        return x0 + k * step + (order.drawnSeparate && k === tiles.length - 1 ? tw * 0.4 : 0);
-      });
-      var layoutKey = [tw, W, H].join(':');
+      var targets = handPositions(tiles.length, order.drawnSeparate);
+      var layoutKey = [tw, W, H, L.handRows].join(':');
       var sig = tiles.join(',') + '|' + (order.drawnSeparate ? 1 : 0);
       if (ui.handSig !== sig || ui.handLayout !== layoutKey) {
         var snap = ui.handLayout !== layoutKey; // a resize repositions without sliding
@@ -1741,17 +1807,17 @@
           var best = -1, bestD = Infinity;
           for (var q = 0; q < pool.length; q++) {
             if (pool[q] && pool[q].id === tid) {
-              var dd = Math.abs(pool[q].to - targets[k]);
+              var dd = Math.abs(pool[q].to.x - targets[k].x) + Math.abs(pool[q].to.y - targets[k].y);
               if (dd < bestD) { bestD = dd; best = q; }
             }
           }
           var from = targets[k];
           if (best >= 0 && !snap) {
             var o = pool[best];
-            from = o.from + (o.to - o.from) * ui.handSlide; // where it is right now
+            from = lerpPos(o.from, o.to, ui.handSlide); // where it is right now
           }
           if (best >= 0) pool[best] = null;
-          if (Math.abs(from - targets[k]) > 0.5) moved = true;
+          if (Math.abs(from.x - targets[k].x) + Math.abs(from.y - targets[k].y) > 0.5) moved = true;
           return { id: tid, from: from, to: targets[k] };
         });
         ui.handSig = sig;
@@ -1759,9 +1825,12 @@
         ui.handSlide = moved ? 0 : 1;
         if (moved) animate(HAND_SLIDE_MS, function (e) { ui.handSlide = e; }, easeInOut);
       }
-      if (active && !ui.overlay) {
+      if (active && !ui.overlay && targets.length) {
+        var bx0 = Infinity, bx1 = -Infinity;
+        targets.forEach(function (p) { bx0 = Math.min(bx0, p.x); bx1 = Math.max(bx1, p.x + tw); });
+        var by0 = targets[0].y;
         ctx.save();
-        roundRect(ctx, x0 - 6, L.handY - 8, total + 12, L.th + 16, 12);
+        roundRect(ctx, bx0 - 6, by0 - 8, bx1 - bx0 + 12, L.handY + L.th - by0 + 16, 12);
         ctx.fillStyle = 'rgba(244,160,32,0.14)';
         ctx.fill();
         ctx.restore();
@@ -1769,7 +1838,8 @@
       for (var i = 0; i < count; i++) {
         var id = tiles[i];
         var slot = ui.handSlots[i];
-        var x = slot.from + (slot.to - slot.from) * ui.handSlide;
+        var pos = lerpPos(slot.from, slot.to, ui.handSlide);
+        var x = pos.x;
         var lift = 0;
         if (i === ui.selected) lift = tw * 0.32;
         else if (hover === 'hand-' + i && ui.turnPrompt) lift = tw * 0.12;
@@ -1781,8 +1851,8 @@
         }
         var claimable = ui.claimPrompt && ui.claimPrompt.highlight && ui.claimPrompt.highlight.indexOf(id) !== -1;
         // Tiles a pung or chow would use get a red border.
-        drawTile(id, x, L.handY - lift, tw, { glow: glow || (claimable ? COLORS.red : null) });
-        var rect = { x: x, y: L.handY - lift, w: tw, h: L.th, id: id, index: i };
+        drawTile(id, x, pos.y - lift, tw, { glow: glow || (claimable ? COLORS.red : null) });
+        var rect = { x: x, y: pos.y - lift, w: tw, h: L.th, id: id, index: i };
         ui.lastHandRects.push(rect);
         if (ui.turnPrompt) {
           (function (idx) {
@@ -1921,6 +1991,8 @@
 
     // The note on the table is still current, so the panel lists only earlier ones.
     function pastCoachEntries() {
+      // Without the bar (a landscape phone), the column shows the live note too.
+      if (!L.hintH) return ui.coachLog;
       var live = coachPlain(ui.coach === 'on' ? ui.hint : ui.coach === 'feedback' ? ui.feedback : null);
       var entries = ui.coachLog;
       if (!live || !entries.length) return entries;
@@ -2069,15 +2141,15 @@
       var claimTile = ui.claimPrompt ? ui.claimPrompt.opts.tile : null;
       var ctw = claimTile ? Math.min(30, (L.actionsH - 4) / TILE_ASPECT) : 0;
       var lead = claimTile ? ctw + 10 : 0;
-      var x0 = L.ox + L.pad, x1 = L.ox + L.tableW - L.pad, rowY = L.actionsY;
+      var x0 = L.meX + L.pad, x1 = L.meX + L.meW - L.pad, rowY = L.actionsY;
       var free = ui.meRowFree;
       var cover = null;
       if (L.actionsInRow && free) {
         if (free.x1 - free.x0 - lead >= acts.length * (60 + gap)) { x0 = free.x0; x1 = free.x1; }
-        else if (L.ox + L.tableW - L.pad - free.x0 - lead >= acts.length * (60 + gap)) {
+        else if (L.meX + L.meW - L.pad - free.x0 - lead >= acts.length * (60 + gap)) {
           // Not enough room beside your name: use the rest of the row and
           // cover the name while the buttons are up.
-          x0 = free.x0; x1 = L.ox + L.tableW - L.pad;
+          x0 = free.x0; x1 = L.meX + L.meW - L.pad;
           cover = { x: free.x1, w: x1 - free.x1 };
         } else {
           // Still too many (lots of melds and chow choices): float them over the coach's bar.
@@ -2433,8 +2505,8 @@
       }
       var bx = cx - row / 2;
       var by = r.y + r.h - 62;
-      // See hands leaves this panel without dealing. Next hand is the only way on.
-      button('See hands', bx, by, handsW, 42, seeHands, 'light', 'see-hands');
+      // Show hands leaves this panel without dealing. Next hand is the only way on.
+      button('Show hands', bx, by, handsW, 42, showHands, 'white', 'show-hands');
       button(label, bx + handsW + gap, by, nextW, 42, function () { closeOverlay(); }, 'primary', 'next');
       ctx.restore();
       regions.slice(firstRegion).forEach(function (g) {
@@ -2451,10 +2523,10 @@
       drawPanelBg(r);
       text('Paused', r.x + r.w / 2, r.y + 36, { size: 24, family: FONT_HEAD, align: 'center', color: COLORS.red });
       var bx = r.x + 30, bw = r.w - 60, y = r.y + 62, step = 50;
-      button('Resume', bx, y, bw, 40, function () { closeOverlay(); }, 'primary', 'm-resume'); y += step;
+      button('Resume', bx, y, bw, 40, function () { closeOverlay(); }, 'white', 'm-resume'); y += step;
       var armed = ui.restartArmed && now() - ui.restartArmed < 5000;
-      button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, 40, restartGame, armed ? 'gold' : 'light', 'm-restart'); y += step;
-      button('Quit game', bx, y, bw, 40, function () { quit(); }, 'light', 'm-quit');
+      button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, 40, restartGame, armed ? 'gold' : 'white', 'm-restart'); y += step;
+      button('Quit game', bx, y, bw, 40, function () { quit(); }, 'white', 'm-quit');
       var modeLine = (settings.mode === 'practice' ? 'Practice mode' : 'Payout mode') + ' · ' + (settings.spicy === 'half' ? 'Half spicy' : 'Full spicy');
       text(modeLine, r.x + r.w / 2, r.y + r.h - 18, { size: 12, align: 'center', color: COLORS.muted });
     }
@@ -2529,13 +2601,14 @@
     }
 
     // Look at the table with every hand face up. The next hand waits.
-    function seeHands() {
+    function showHands() {
       var o = ui.overlay;
       if (!o || o.type !== 'summary') return;
       ui.heldSummary = o;
       ui.revealHands = true;
       ui.botLift = null;
       ui.overlay = null;
+      sound.play('flip');
       announce('All four hands are face up.');
       requestRender();
     }
@@ -2558,8 +2631,8 @@
       var bw = Math.min(132, icon.rowRight - ptsW - x);
       // A narrow row has no room on the icon's right, so sit just left of your name.
       if (bw < 96) {
-        var infoW = clamp(L.tableW * 0.3, 130, 240);
-        var nameX = L.ox + L.tableW - L.pad - infoW;
+        var infoW = clamp(L.meW * 0.3, 130, 240);
+        var nameX = L.meX + L.meW - L.pad - infoW;
         bw = Math.min(132, Math.max(96, nameX - L.pad - gap));
         x = nameX - gap - bw;
       }
@@ -2584,6 +2657,8 @@
     function toggleSound() {
       sound.enabled = !sound.enabled;
       writeJson(PREFS_KEY, { sound: sound.enabled });
+      // The Sound button turns the music on and off with the effects.
+      sound.music(sound.enabled);
       if (sound.enabled) sound.play('select');
       requestRender();
     }
@@ -2783,7 +2858,7 @@
 
     function seatAnchor(seat) {
       if (seat === 0) {
-        return { x: L.ox + L.tableW / 2 - L.tw / 2, y: L.handY, w: L.tw, rot: 0 };
+        return { x: L.meX + L.meW / 2 - L.tw / 2, y: L.handY, w: L.tw, rot: 0 };
       }
       var a = ui.backAnchor[seat];
       if (a) return a;
@@ -2845,27 +2920,17 @@
       requestRender();
     }
 
-    // Where a declaration banner goes. Opponents' banners face them and sit
-    // on their tiles, except the player across: theirs is upright for you and
-    // sits in the empty stretch of their name row, clear of their tiles.
+    // Where a declaration banner goes: in the middle of that player's tiles.
+    // Side players' banners face them; the player across gets an upright one,
+    // so it reads the right way up for you.
     function declarationPos(seat) {
-      if (seat !== 2) return seatBannerPos(seat);
-      var r = L.opp[2];
-      var rad = 11;
-      ctx.font = 'bold 14px ' + FONT_BODY;
-      var left = r.x + 8 + 2 * rad + 6 + ctx.measureText(seatTitle(2)).width + ICON_GAP + 15 + 10;
-      var pts = settings.mode === 'payout' ? fmt(game.players[2].points) : '';
-      ctx.font = 'bold 13px ' + FONT_BODY;
-      var right = r.x + r.w - 8 - (pts ? ctx.measureText(pts).width : 0) - 10;
-      return {
-        x: r.x + r.w / 2, y: r.head.y + r.head.h / 2, rot: 0,
-        maxW: Math.max(40, right - left), span: [left, right],
-        maxH: r.head.h + 4, // stays on their player area, in the name strip
-      };
+      var pos = seatBannerPos(seat);
+      if (seat === 2) pos.rot = 0;
+      return pos;
     }
 
     function seatBannerPos(seat) {
-      if (seat === 0) return { x: L.ox + L.tableW / 2, y: L.actionsY + L.actionsH / 2, rot: 0 };
+      if (seat === 0) return { x: L.meX + L.meW / 2, y: L.actionsY + L.actionsH / 2, rot: 0 };
       // Opponents' banners sit in the middle of their tiles and face them.
       var f = L.oppFrames[seat];
       var mid = toScreen(f, f.w / 2, f.h / 2);
@@ -2916,8 +2981,8 @@
         if (d.seat === 0) {
           ui.hide.drawn = true;
           var order = myHandOrder();
-          var x0 = handLeft(order.tiles.length, true);
-          var to = { x: x0 + (order.tiles.length - 1) * (L.tw + TILE_GAP) + L.tw * 0.4, y: L.handY, w: L.tw, rot: 0 };
+          var spot = handPositions(order.tiles.length, true)[order.tiles.length - 1] || { x: L.meX + L.meW / 2, y: L.handY };
+          var to = { x: spot.x, y: spot.y, w: L.tw, rot: 0 };
           return fly(d.tile, from, to, 300, { arc: 20 }).then(function () { ui.hide.drawn = false; requestRender(); });
         }
         ui.hide.backs[d.seat] = 1;
@@ -2956,7 +3021,7 @@
         });
       },
       claim: function (d) {
-        sound.play(d.type === 'kong' ? 'kong' : 'claim');
+        sound.play(d.type); // chow, pung or kong, each its own sound
         var words = { chow: 'Chow!', pung: 'Pung!', kong: 'Kong!' };
         var pos = declarationPos(d.seat);
         banner(words[d.type], pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 24 });
@@ -3170,6 +3235,9 @@
 
     var onResize = function () { resize(); };
     root.addEventListener('resize', onResize);
+    // The music pauses while the tab is in the background.
+    var onVisibility = function () { sound.music(!document.hidden); };
+    document.addEventListener('visibilitychange', onVisibility);
     root.addEventListener('keydown', onKey);
     (function () {
       var dlg = rulesSheet();
@@ -3198,12 +3266,15 @@
 
     return {
       start: function () {
+        sound.music(true);
         play().catch(function (err) {
           if (root.console) console.error(err);
         });
       },
       destroy: function () {
         destroyed = true;
+        sound.stopMusic();
+        document.removeEventListener('visibilitychange', onVisibility);
         root.removeEventListener('resize', onResize);
         root.removeEventListener('keydown', onKey);
         canvas.removeEventListener('pointerdown', onPointerDown);

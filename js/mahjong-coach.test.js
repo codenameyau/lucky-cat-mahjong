@@ -67,8 +67,8 @@ describe('coach: discards', () => {
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
     assert.equal(hint.tile, 'ws');
     assert.match(text(hint), /Triplets/);
-    assert.match(text(hint), /Red Dragon goes next/);
-    assert.doesNotMatch(text(hint), /(Two Character|Five Circle|Eight Bamboo) goes next/);
+    // Hints don't say which tile to drop after this one.
+    assert.doesNotMatch(text(hint), /goes next/);
   });
 
   it('aims for seven pairs once the hand has more than four concealed pairs and no pung', () => {
@@ -151,7 +151,8 @@ describe('coach: discards', () => {
     // Folding against an Extreme Bamboo flush: a tile East has already thrown
     // is the safest. (The punged Nine Bamboo could still finish a 7-8 chow.)
     assert.ok(['d1', 'd9', 'wn'].includes(hint.tile), 'discarded ' + hint.tile);
-    assert.match(text(hint), /\w+ \(3 melds, Bamboo\) is Extreme/);
+    assert.match(text(hint), /\w+ has three melds down, all Bamboo\./);
+    assert.doesNotMatch(text(hint), /\b(High|Extreme|Medium)\b/);
   });
 
   it('says "Play safe" only on the last wall, when a win is unlikely', () => {
@@ -177,7 +178,14 @@ describe('coach: all triplets', () => {
     const game = table({ seats: [{ hand, melds: [meld('pung', 'b8')] }, { discards: ['d9', 'd9'] }] });
     const hint = C.turnHint(game, 0, { kongs: [] });
     assert.equal(hint.tile, 'd9');
-    assert.match(text(hint), /Only one is left, so it's the least likely to become a set/);
+    assert.match(text(hint), /Only one is left, fewer than any other single you hold, so it's the least likely to become a set/);
+  });
+
+  it('never calls a tile the fewest left when another tile has as few', () => {
+    // Every single still has three copies out: no "fewest" claim.
+    const hand = ['c2', 'c2', 'd5', 'd5', 'ws', 'ws', 'c7', 'd9', 'b3', 'dg', 'dg'];
+    const hint = C.turnHint(table({ seats: [{ hand, melds: [meld('pung', 'b8')] }] }), 0, { kongs: [] });
+    assert.doesNotMatch(text(hint), /fewest|fewer than any other|least likely/);
   });
 });
 
@@ -190,6 +198,17 @@ describe('coach: claims', () => {
     const hint = C.claimHint(game, 0, opts);
     assert.equal(hint.decision.type, 'pass');
     assert.match(text(hint), /concealed/);
+  });
+
+  it('describes a threatening player by their melds on a claim', () => {
+    const hand = ['c2', 'c3', 'c6', 'c7', 'c8', 'd3', 'd4', 'd5', 'b5', 'b6', 'b2', 'd8', 'd8'];
+    const game = table({
+      seats: [{ hand }, {}, {}, { melds: [meld('pung', 'b1'), meld('chow', 'b2'), meld('pung', 'b9')] }],
+    });
+    const opts = E.claimOptions(game, 0, 'c4', 3, false);
+    assert.ok(opts.chows.length);
+    const hint = C.claimHint(game, 0, opts);
+    assert.match(text(hint), /\w+ has three melds down, all Bamboo\./);
   });
 
   it('always pungs a dragon pair', () => {
