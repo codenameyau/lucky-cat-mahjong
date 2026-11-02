@@ -215,8 +215,8 @@
 
   var SOUND_DIR = '/assets/sounds/';
   // Each cue plays one of its clips (picked at random, so repeats differ),
-  // at `gain`, and any `then` clips [name, delay in seconds, gain] after it.
-  // `vary` nudges the pitch a little each time.
+  // at `gain`, and any `then` clips [name, delay in seconds, gain, pitch]
+  // after it. `vary` nudges the pitch a little each time.
   var CUES = {
     draw: { clips: ['tile-draw'], gain: 0.3, vary: true },
     // One sound for every discard: the duller chip, the closest to a
@@ -224,8 +224,25 @@
     discard: { clips: ['tile-discard'], gain: 0.85 },
     select: { clips: ['tile-select'], gain: 0.2 },
     flower: { clips: ['flower'], gain: 0.4 },
-    claim: { clips: ['tile-claim-1'], gain: 0.7, vary: true, then: [['tile-claim-2', 0.05, 0.55]] },
-    kong: { clips: ['tile-claim-2'], gain: 0.7, then: [['tile-kong', 0.14, 0.6], ['tile-discard', 0.26, 0.6]] },
+    // Claims are big moments, and each sounds different (impacts from
+    // Kenney's Impact Sounds pack under the chips):
+    // chow: three quick wooden knocks climbing in pitch, a run snapping
+    // together, then the chips settle;
+    chow: {
+      clips: ['impact-wood'], gain: 0.8,
+      then: [['impact-wood', 0.09, 0.8, 1.15], ['impact-wood', 0.18, 0.9, 1.32], ['tile-claim-1', 0.2, 0.7]],
+    },
+    // pung: a heavy slam with the three tiles stacked on top;
+    pung: {
+      clips: ['impact-punch'], gain: 0.95,
+      then: [['tile-claim-2', 0.02, 0.75], ['tile-discard', 0.04, 0.6, 0.9]],
+    },
+    // kong: the biggest, a struck bell ringing over a slam while four
+    // tiles stack.
+    kong: {
+      clips: ['impact-bell'], gain: 0.7,
+      then: [['impact-punch', 0, 0.85, 0.85], ['tile-claim-2', 0.03, 0.7], ['tile-kong', 0.16, 0.6], ['tile-discard', 0.28, 0.6, 0.85]],
+    },
     turn: { clips: ['turn'], gain: 0.25 },
     win: { clips: ['win'], gain: 0.6, then: [['tile-claim-2', 0, 0.5]] },
     otherwin: { clips: ['other-win'], gain: 0.45 },
@@ -323,12 +340,12 @@
       return ac;
     }
 
-    function clip(a, name, at, gain, vary) {
+    function clip(a, name, at, gain, vary, pitch) {
       var buf = buffers[name];
       if (!buf) return;
       var src = a.createBufferSource();
       src.buffer = buf;
-      if (vary) src.playbackRate.value = 0.95 + Math.random() * 0.1;
+      src.playbackRate.value = (pitch || 1) * (vary ? 0.95 + Math.random() * 0.1 : 1);
       var g = a.createGain();
       g.gain.value = gain;
       src.connect(g);
@@ -394,7 +411,7 @@
       if (!a) return;
       var t = a.currentTime + 0.005;
       clip(a, cue.clips[Math.floor(Math.random() * cue.clips.length)], t, cue.gain, cue.vary);
-      (cue.then || []).forEach(function (x) { clip(a, x[0], t + x[1], x[2], cue.vary); });
+      (cue.then || []).forEach(function (x) { clip(a, x[0], t + x[1], x[2], cue.vary, x[3]); });
     };
 
     if (enabled) fetchAll();
@@ -3018,7 +3035,7 @@
         });
       },
       claim: function (d) {
-        sound.play(d.type === 'kong' ? 'kong' : 'claim');
+        sound.play(d.type); // chow, pung or kong, each its own sound
         var words = { chow: 'Chow!', pung: 'Pung!', kong: 'Kong!' };
         var pos = declarationPos(d.seat);
         banner(words[d.type], pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 24 });
