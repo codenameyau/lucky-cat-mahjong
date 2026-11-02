@@ -177,7 +177,14 @@ describe('coach: all triplets', () => {
     const game = table({ seats: [{ hand, melds: [meld('pung', 'b8')] }, { discards: ['d9', 'd9'] }] });
     const hint = C.turnHint(game, 0, { kongs: [] });
     assert.equal(hint.tile, 'd9');
-    assert.match(text(hint), /Only one is left, so it's the least likely to become a set/);
+    assert.match(text(hint), /Only one is left, fewer than any other single you hold, so it's the least likely to become a set/);
+  });
+
+  it('never calls a tile the fewest left when another tile has as few', () => {
+    // Every single still has three copies out: no "fewest" claim.
+    const hand = ['c2', 'c2', 'd5', 'd5', 'ws', 'ws', 'c7', 'd9', 'b3', 'dg', 'dg'];
+    const hint = C.turnHint(table({ seats: [{ hand, melds: [meld('pung', 'b8')] }] }), 0, { kongs: [] });
+    assert.doesNotMatch(text(hint), /fewest|fewer than any other|least likely/);
   });
 });
 

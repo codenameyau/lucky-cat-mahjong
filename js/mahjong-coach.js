@@ -148,9 +148,19 @@
     if (route && (route.id === 'triplets' || route.id === 'concealed-triplets') && c[i] <= 2) {
       var left = v.unseen[i];
       // All Triplets needs more copies, so the tile with fewest left goes.
+      // Say so only when it's true: compare it with the other tiles held the
+      // same way (singles with singles, pairs with pairs).
       if (left === 0) return 'None are left, so it can never become a set.';
-      if (left === 1) return 'Only one is left, so it\'s the least likely to become a set.';
-      return 'It has the fewest copies left of your tiles.';
+      var fewest = true, others = 0;
+      for (var j = 0; j < 34; j++) {
+        if (j === i || c[j] !== c[i]) continue;
+        others++;
+        if (v.unseen[j] <= left) fewest = false;
+      }
+      var kind = c[i] === 2 ? 'pair' : 'single';
+      var count = left === 1 ? 'Only one is left' : COUNT_WORDS[left] + ' are left';
+      if (others && fewest) return count + ', fewer than any other ' + kind + ' you hold, so it\'s the least likely to become a set.';
+      if (left === 1) return 'Only one is left, so it\'s unlikely to become a set.';
     }
     if (route && route.id === 'pairs' && c[i] === 1) {
       return 'Seven Pairs keeps pairs, so singles go.';
