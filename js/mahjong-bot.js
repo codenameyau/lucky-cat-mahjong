@@ -599,7 +599,7 @@
     if (isPungTile(game, i) && counts[i] < 2 && candidate.shanten <= bestShanten) return 1;
     var best = candidate.analysis && candidate.analysis.best;
     var plan = best && best.plan;
-    if (plan && !best.readyBest && (plan.id === 'triplets' || plan.id === 'concealed-triplets') && counts[i] >= 2) {
+    if (plan && !best.readyBest && SETS_PLANS.indexOf(plan.id) !== -1 && counts[i] >= 2) {
       return counts[i] >= 3 ? 7 : 6;
     }
     // Early in the hand, an honor that can still become a set is one of the
@@ -729,7 +729,219 @@
       }
     }
 
+    return plans.concat(upgradePlans(c, ctx));
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 3b. Upgrades: bigger hands made of the same tiles
+   *    A hand of sets can often score more by keeping only certain tiles:
+   *    Mixed Orphans (terminals and honors, +1 on All Triplets), All
+   *    Terminals, All Honors, Small or Big Three Dragons, and Small or Big
+   *    Four Winds; Seven Pairs the same way. Each is a plan of its own, and
+   *    while one is within a step of the hand's best shape its tiles are
+   *    kept ahead of tiles it can't use (even with fewer copies left), unless
+   *    no copy is left to finish it (see upgradeOrder).
+   * ------------------------------------------------------------------ */
+
+  var TERMINALS = [0, 8, 9, 17, 18, 26];
+  var WINDS = [27, 28, 29, 30];
+  var LIMIT = 13;
+  var isTerminal = function (i) { return TERMINALS.indexOf(i) !== -1; };
+  var isHonor = function (i) { return i >= 27; };
+  var isDragon = function (i) { return DRAGONS.indexOf(i) !== -1; };
+  var isWind = function (i) { return WINDS.indexOf(i) !== -1; };
+
+  // A restricted plan can't be ready with fewer than 13 of its tiles.
+  function filled(fn) {
+    return function (c, declared) {
+      var held = 0;
+      for (var i = 0; i < 34; i++) held += c[i];
+      return Math.max(fn(c, declared), 3 * (4 - (declared || 0)) + 1 - held);
+    };
+  }
+
+  // Tiles held plus sets made, of the kind `fits` keeps.
+  function tilesOf(c, ctx, fits) {
+    var n = countWhere(c, fits);
+    ctx.melds.forEach(function (m) { if (fits(E.tileIndex(m.tiles[0]))) n += 3; });
+    return n;
+  }
+
+  // Held or melded copies of a tile (a set counts as three).
+  function setCount(c, ctx, i) {
+    var n = c[i];
+    ctx.melds.forEach(function (m) { if (m.type !== 'chow' && E.tileIndex(m.tiles[0]) === i) n = 3; });
+    return n;
+  }
+
+  // A tile a hand of sets can't finish: a single with no copy left, or a
+  // pair with no copy left while another pair can be the hand's pair.
+  function deadForSets(c, ctx, i, fits) {
+    if (c[i] >= 3 || ctx.unseen[i] > 0) return false;
+    if (c[i] === 1) return true;
+    for (var j = 0; j < 34; j++) if (j !== i && c[j] === 2 && fits(j)) return true;
+    return false;
+  }
+
+  function liveOnly(c, ctx, fits) {
+    var out = restrict(c, fits);
+    for (var i = 0; i < 34; i++) if (out[i] && deadForSets(out, ctx, i, fits)) out[i] = 0;
+    return out;
+  }
+
+  // Shanten for a hand that needs sets of particular honors (all of
+  // `group` but `pairs` as pungs, the rest as the pair) plus anything for
+  // the remaining sets. Infinity when a needed tile has run out.
+  function groupShanten(ctx, group, pungs, pair) {
+    var done = ctx.melds.filter(function (m) { return m.type !== 'chow' && group.indexOf(E.tileIndex(m.tiles[0])) !== -1; });
+    var doneIdx = done.map(function (m) { return E.tileIndex(m.tiles[0]); });
+    return function (c, declared) {
+      var open = group.filter(function (i) { return doneIdx.indexOf(i) === -1; })
+        .sort(function (a, b) { return c[b] - c[a]; });
+      var needPungs = pungs - doneIdx.length;
+      if (needPungs < 0 || needPungs > open.length) return Infinity;
+      var deficit = 0;
+      var rest = c.slice();
+      group.forEach(function (i) { rest[i] = 0; });
+      for (var k = 0; k < needPungs; k++) {
+        var i = open[k];
+        if (c[i] + ctx.unseen[i] < 3) return Infinity;
+        deficit += Math.max(0, 3 - c[i]);
+      }
+      if (pair) {
+        var p = open[needPungs];
+        if (p === undefined || c[p] + ctx.unseen[p] < 2) return Infinity;
+        deficit += Math.max(0, 2 - c[p]);
+        rest[p] = 2; // stands in for the pair, so the rest needs only sets
+      }
+      var sets = (declared || 0) + needPungs;
+      if (sets > 4) return Infinity;
+      return deficit + E.standardShanten(rest, sets);
+    };
+  }
+
+  // The upgrades this hand could still make, as plans.
+  function upgradePlans(c, ctx) {
+    var base = baseFaan(ctx) + (ctx.concealed ? 1 : 0);
+    var plans = [];
+    var meldsFit = function (fits) {
+      return ctx.melds.every(function (m) { return m.type !== 'chow' && fits(E.tileIndex(m.tiles[0])); });
+    };
+    var orphan = function (i) { return isTerminal(i) || isHonor(i); };
+    var pairsOf = function (fits) {
+      var n = ctx.declared;
+      for (var i = 0; i < 34; i++) if (fits(i) && c[i] >= 2) n++;
+      return n;
+    };
+    var setsPlan = function (id, label, fits, faan, reason, hint) {
+      var kept = liveOnly(c, ctx, fits);
+      plans.push({
+        id: id, label: label, counts: kept, shantenFn: filled(E.tripletsShanten),
+        faan: Math.min(LIMIT, faan(kept)), open: true, keep: fits, favors: fits, reason: reason, hint: hint, upgrade: true,
+      });
+    };
+    if (!ctx.hasChow) {
+      // (With no honors it's All Terminals; with no terminals, All Honors.)
+      var both = tilesOf(c, ctx, isHonor) > 0 && tilesOf(c, ctx, isTerminal) > 0;
+      if (meldsFit(orphan) && tilesOf(c, ctx, orphan) >= 8 && pairsOf(orphan) >= 2) {
+        if (both) {
+          setsPlan('mixed-orphans', 'Mixed Orphans', orphan, function (k) { return base + 3 + 1 + handYaku(ctx, k); },
+            'Mixed Orphans uses only 1s, 9s and honors.', 'keep your 1s, 9s and honors');
+        }
+      }
+      if (meldsFit(isTerminal) && tilesOf(c, ctx, isTerminal) >= 8 && pairsOf(isTerminal) >= 2) {
+        setsPlan('all-terminals', 'All Terminals', isTerminal, function () { return LIMIT; },
+          'All Terminals uses only 1s and 9s.', 'keep your 1s and 9s');
+      }
+      if (meldsFit(isHonor) && tilesOf(c, ctx, isHonor) >= 8 && pairsOf(isHonor) >= 2) {
+        setsPlan('all-honors', 'All Honors', isHonor, function (k) { return base + 10 + handYaku(ctx, k); },
+          'All Honors uses only honors.', 'keep your honors');
+      }
+    }
+    // Three Dragons and Four Winds: sets of those honors, the rest anything.
+    var groupPlan = function (id, label, group, pungs, pair, faan, hint) {
+      var fn = groupShanten(ctx, group, pungs, pair);
+      if (fn(c, ctx.declared) === Infinity) return;
+      plans.push({
+        id: id, label: label, counts: c, shantenFn: fn, faan: Math.min(LIMIT, faan), open: true,
+        favors: function (i) { return group.indexOf(i) !== -1; }, hint: hint, upgrade: true,
+      });
+    };
+    var have = function (group, n) {
+      return group.filter(function (i) { return setCount(c, ctx, i) >= n; }).length;
+    };
+    var windYaku = handYaku(ctx, restrict(c, isWind));
+    var dragonYaku = handYaku(ctx, restrict(c, isDragon));
+    var dragons = tilesOf(c, ctx, isDragon);
+    if (dragons >= 5 && have(DRAGONS, 2) >= 2) {
+      groupPlan('small-dragons', 'Small Three Dragons', DRAGONS, 2, true, base + 5 + windYaku, 'keep your dragons');
+    }
+    if (dragons >= 6 && have(DRAGONS, 2) === 3) {
+      groupPlan('big-dragons', 'Big Three Dragons', DRAGONS, 3, false, base + 8 + windYaku, 'pung all three dragons');
+    }
+    var winds = tilesOf(c, ctx, isWind);
+    if (winds >= 8 && have(WINDS, 2) >= 3) {
+      groupPlan('small-winds', 'Small Four Winds', WINDS, 3, true, base + 6 + dragonYaku, 'keep your winds');
+    }
+    if (winds >= 9 && have(WINDS, 2) === 4) {
+      groupPlan('big-winds', 'Big Four Winds', WINDS, 4, false, LIMIT, 'pung all four winds');
+    }
     return plans;
+  }
+
+  // Seven Pairs of terminals and honors: Mixed Orphans on top of the pairs,
+  // or a limit hand in honors alone or terminals alone.
+  function pairsUpgrades(c, ctx) {
+    if (ctx.declared) return [];
+    var out = [];
+    var pairs = function (fits) {
+      var n = 0;
+      for (var i = 0; i < 34; i++) if (fits(i) && c[i] >= 2) n++;
+      return n;
+    };
+    var add = function (id, label, fits, faan, reason, hint) {
+      if (countWhere(c, fits) < 8 || pairs(fits) < 3) return;
+      out.push({
+        id: id, label: label, counts: restrict(c, fits), shantenFn: filled(E.sevenPairsShanten),
+        faan: Math.min(LIMIT, faan), open: false, keep: fits, favors: fits, reason: reason, hint: hint, upgrade: true, pairs: true,
+      });
+    };
+    var orphan = function (i) { return isTerminal(i) || isHonor(i); };
+    add('pairs-orphans', 'Seven Pairs with Mixed Orphans', orphan, baseFaan(ctx) + 4 + 1,
+      'Mixed Orphans uses only 1s, 9s and honors.', 'pair your 1s, 9s and honors');
+    add('pairs-honors', 'Seven Pairs in All Honors', isHonor, LIMIT, 'All Honors uses only honors.', 'pair your honors');
+    add('pairs-terminals', 'Seven Pairs in All Terminals', isTerminal, LIMIT, 'All Terminals uses only 1s and 9s.', 'pair your 1s and 9s');
+    return out;
+  }
+
+  // The upgrade the hand still has (the biggest within a step of its best
+  // shape), from its 14 tiles. Null when there's none.
+  function liveUpgrade(c, ctx) {
+    var list = upgradePlans(c, ctx);
+    if (chaseSevenPairs(c, ctx)) list = list.concat(pairsUpgrades(c, ctx));
+    if (!list.length) return null;
+    var best = Math.min(E.standardShanten(c, ctx.declared), E.tripletsShanten(c, ctx.declared),
+      ctx.declared ? Infinity : E.sevenPairsShanten(c, 0));
+    var pick = null;
+    list.forEach(function (p) {
+      var s = p.shantenFn(p.counts, ctx.declared);
+      if (s > best + 1) return;
+      if (!pick || p.faan > pick.faan) pick = p;
+    });
+    return pick;
+  }
+
+  // While an upgrade is live, its tiles wait behind tiles it can't use
+  // (half a group), and a tile of it with no copy left to finish goes early.
+  function upgradeOrder(ctx, counts, i, group) {
+    var up = ctx.upgrade;
+    if (!up || group <= 0 || group >= 10 || !up.favors(i)) return group;
+    var lead = ctx.leadPlan && ctx.leadPlan.id;
+    if (lead === 'straights' || lead === 'runs') return group;
+    if (/^(half|full)-/.test(lead || '') && !isHonor(i)) return group;
+    var dead = up.pairs ? counts[i] === 1 && ctx.unseen[i] === 0 : deadForSets(counts, ctx, i, up.favors);
+    if (dead) return Math.min(group, 1);
+    return group + 0.5;
   }
 
   function ukeire(counts, shantenFn, declared, unseen, current) {
@@ -1043,10 +1255,11 @@
   // goes first and the liveliest are kept. A risky tile always waits, and
   // near the end of the hand every step of risk comes first, then how many
   // are left.
+  var SETS_PLANS = ['triplets', 'concealed-triplets', 'mixed-orphans', 'all-terminals', 'all-honors'];
   function tripletsOrder(out, ctx) {
     var lead = out[0] && out[0].analysis.best;
     var plan = lead && lead.plan;
-    if (!plan || (plan.id !== 'triplets' && plan.id !== 'concealed-triplets') || lead.readyBest) return out;
+    if (!plan || SETS_PLANS.indexOf(plan.id) === -1 || lead.readyBest) return out;
     var late = ctx.wallLeft < LATE_WALL;
     return out.map(function (x, k) { return { x: x, k: k }; }).sort(function (a, b) {
       if (a.x.tier !== b.x.tier) return a.x.tier - b.x.tier;
@@ -1067,6 +1280,7 @@
     ctx.blockSevenPairs = concealedShape(counts).hasSet;
     ctx.avoidSuit = avoidSuit(counts, ctx);
     if (H.hand) H.hand(ctx, counts);
+    ctx.upgrade = liveUpgrade(counts, ctx);
   }
 
   function analyzeDiscards(game, seat, ctxOverride, handOverride) {
@@ -1110,7 +1324,7 @@
       // and away from the one they keep (suitLean); safety is unchanged.
       x.score = x.util * suitLean((x.analysis.best && x.analysis.best.plan) || {}, ctx) - weight * x.loss;
       if (committed && x.index < 27 && E.suitOfIndex(x.index) !== committed) x.score += 0.004;
-      x.priority = discardPriority(game, ctx, c, x, bestShanten);
+      x.priority = upgradeOrder(ctx, c, x.index, discardPriority(game, ctx, c, x, bestShanten));
       // Keeping a pair or a dragon never costs a step toward ready: a discard
       // that leaves the hand slower waits behind every one that doesn't.
       // (A strategy's group below 0 goes first whatever it costs, but unlike
@@ -1363,6 +1577,11 @@
     deadTile: deadTile,
     chowCommitment: chowCommitment,
     cheapWin: cheapWin,
+    upgradePlans: upgradePlans,
+    pairsUpgrades: pairsUpgrades,
+    liveUpgrade: liveUpgrade,
+    upgradeOrder: upgradeOrder,
+    SETS_PLANS: SETS_PLANS,
     suitCommitment: suitCommitment,
     riskStep: riskStep,
     chaseSevenPairs: chaseSevenPairs,

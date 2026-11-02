@@ -57,7 +57,7 @@
     else if (id === 'half') keep = function (j) { return E.suitOfIndex(j) === suit || j >= 27; };
     else if (id === 'full') keep = function (j) { return E.suitOfIndex(j) === suit; };
     else if (id === 'straights' || id === 'runs') keep = function (j) { return j < 27; };
-    return { id: id, suit: suit, faan: plan.faan, keep: keep, label: plan.label, reason: plan.reason };
+    return { id: id, suit: suit, faan: plan.faan, keep: keep, label: plan.label, reason: plan.reason, hint: plan.hint };
   }
 
   function described(analysis) {
@@ -145,7 +145,17 @@
     if (B.isPungTile(v.game, i) && c[i] < 2) {
       return pungedReason(i);
     }
-    if (route && (route.id === 'triplets' || route.id === 'concealed-triplets') && c[i] <= 2) {
+    // A tile of the bigger hand in reach (MahjongBot.liveUpgrade) goes only
+    // when no copy is left to finish it.
+    var up = v.ctx.upgrade;
+    var upgradeTile = up && up.favors(i);
+    if (upgradeTile && c[i] <= 2 && v.unseen[i] === 0) {
+      return 'None are left, so it can\'t help ' + up.label + '.';
+    }
+    if (up && !upgradeTile && (!route || route.id !== up.id) && up.keep) {
+      return up.reason;
+    }
+    if (route && B.SETS_PLANS.indexOf(route.id) !== -1 && c[i] <= 2) {
       var left = v.unseen[i];
       // All Triplets needs more copies, so the tile with fewest left goes.
       // Say so only when it's true: compare it with the other tiles held the
@@ -198,6 +208,8 @@
     'concealed straights',
     'concealed triplets',
     'thirteen orphans',
+    'small three dragons',
+    'big three dragons',
     'small four winds',
     'big four winds',
     'mixed orphans',
@@ -286,10 +298,26 @@
     if (r.id === 'honors') return 'All Honors. Pung your honor pairs';
     if (r.id === 'terminals') return 'All Terminals, or Mixed Orphans with honors';
     if (r.id === 'runs') return 'All Sequences: chows only, no honors';
+    if (r.id === 'mixed-orphans') return 'Mixed Orphans on All Triplets. Keep only 1s, 9s and honors, and pung your pairs';
+    if (r.id === 'all-terminals') return 'All Terminals. Keep only 1s and 9s, and pung your pairs';
+    if (r.id === 'all-honors') return 'All Honors. Keep only honors, and pung your pairs';
+    if (r.id === 'small-dragons') return 'Small Three Dragons. Pung two dragons and pair the third';
+    if (r.id === 'big-dragons') return 'Big Three Dragons. Pung all three dragons';
+    if (r.id === 'small-winds') return 'Small Four Winds. Pung three winds and pair the fourth';
+    if (r.id === 'big-winds') return 'Big Four Winds. Pung all four winds';
+    if (/^pairs-/.test(r.id)) return r.label + '. Don\'t claim';
     for (var i = 27; i < 34; i++) {
       if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) return (/^[AEIOU]/.test(name(i)) ? 'an ' : 'a ') + name(i) + ' set (' + honorWorth(v, i) + ' faan). Pung it if it\'s thrown';
     }
     return 'a chicken hand';
+  }
+
+  // The bigger hand the same tiles can still make, when it isn't already
+  // the aim: name it, and what to keep for it.
+  function upgradeNote(v, route) {
+    var up = v.ctx.upgrade;
+    if (!up || (route && route.id === up.id)) return '';
+    return ' ' + up.label + ' is in reach, so aim for it too: ' + up.hint + '.';
   }
 
   // Axis A in words: early on there's room to build; late, finish fast.
@@ -491,6 +519,7 @@
         line += ' Your flowers and sets give ' + sure + ' faan, so one more wins: a self-draw, All Sequences, or a dragon or wind set.';
       } else if (route.faan < min - 0.25) line += ' Short of ' + min + ' faan, so look for a flush, All Triplets or a dragon or wind set.';
       else if (!defending) { var phase = phaseText(v, threats); if (phase) line += ' ' + phase; }
+      line += upgradeNote(v, route);
       tips.push(line);
     }
 

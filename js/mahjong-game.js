@@ -507,7 +507,8 @@
       overlay: null,
       revealHands: false, // after Show hands, every concealed hand is face up
       heldSummary: null, // the results panel, while those hands stay open
-      youIcon: null, // where your person icon was drawn, so See results can sit beside it
+      youIcon: null, // where your person icon was drawn
+      youHeader: null, // where your name was drawn, so See results can sit under it
       lastHandRects: [],
       meldAnchor: [null, null, null, null],
       backAnchor: [null, null, null, null],
@@ -1425,6 +1426,7 @@
     // A small robot (computer players) or person (human players) icon, drawn
     // with paths so it doesn't depend on any emoji font.
     var ICON_GAP = 5;
+    var SEE_RESULTS_W = 120; // the See results button under your name
     function playerIcon(seat, x, cy, s) {
       var human = game.players[seat].isHuman;
       var ink = COLORS.feltDark;
@@ -1464,6 +1466,15 @@
         ctx.fillRect(x + s * 0.32, cy + s * 0.24, s * 0.36, s * 0.07);
       }
       ctx.restore();
+    }
+
+    // The width your header needs (badge, name, icon and points), at most `max`.
+    function seatHeaderWidth(seat, max) {
+      var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
+      ctx.font = 'bold 13px ' + FONT_BODY;
+      var ptsW = pts ? ctx.measureText(pts).width + 6 : 0;
+      ctx.font = 'bold 14px ' + FONT_BODY;
+      return Math.min(max, 22 + 6 + ctx.measureText(seatTitle(seat)).width + ICON_GAP + 15 + ptsW + 4);
     }
 
     function drawSeatHeader(seat, x, y, w) {
@@ -1778,9 +1789,15 @@
       // Info + melds row.
       var left = L.meX;
       var rightEdge = L.meX + L.meW;
-      var infoW = clamp(L.meW * 0.3, 130, 240);
+      // Your name sits at the right edge of your box, as narrow as it can,
+      // so your melds and flowers get the rest of the row. See results goes
+      // under it at the end of the hand, so the column makes room for it.
+      var headW = seatHeaderWidth(0, clamp(L.meW * 0.3, 130, 240));
+      var infoW = headW;
+      if (ui.revealHands) infoW = seeResultsUnder() ? Math.max(headW, SEE_RESULTS_W) : headW + 6 + SEE_RESULTS_W;
+      ui.youHeader = { x: rightEdge - pad - 8 - headW, y: y + 4, w: headW, right: rightEdge - pad - 8 };
       // Your name steps aside while action buttons need its spot.
-      if (!ui.buttonsOverName) drawSeatHeader(0, rightEdge - pad - infoW - 4, y + 4, infoW);
+      if (!ui.buttonsOverName) drawSeatHeader(0, ui.youHeader.x, y + 4, headW);
       var items = meldItems(0);
       var mx = left + pad + 8; // inside your box
       // Same size as the hand; only shrinks if the row would run out of room.
@@ -1804,7 +1821,7 @@
         drawTile(f, fx + k * (fw + TILE_GAP), fy, fw, { shadow: false, glow: flowerGlow(s.flowers, myWind, f) });
       });
       ui.flowerAnchor[0] = { x: fx + s.flowers.length * (fw + TILE_GAP), y: fy, w: fw, rot: 0 };
-      ui.meRowFree = { x0: ui.flowerAnchor[0].x + 10, x1: rightEdge - pad - infoW - 10 };
+      ui.meRowFree = { x0: ui.flowerAnchor[0].x + 10, x1: rightEdge - pad - 8 - infoW - 10 };
 
       // Hand.
       var order = myHandOrder();
@@ -2642,24 +2659,26 @@
       requestRender();
     }
 
+    // Whether your row is tall enough for See results under your name
+    // (header 4 + 22, a 6 gap, and a 30-36 button); phones put it beside.
+    function seeResultsUnder() {
+      return L.meldRowH - 32 >= 30;
+    }
+
     function drawSeeResults() {
-      var icon = ui.youIcon;
-      if (!ui.revealHands || ui.overlay || !icon) return;
-      var bh = 36;
-      var gap = 8;
-      var pts = settings.mode === 'payout' ? fmt(game.players[0].points) : '';
-      ctx.font = 'bold 13px ' + FONT_BODY;
-      var ptsW = pts ? ctx.measureText(pts).width + 10 : 0;
-      var x = icon.x + icon.s + gap;
-      var bw = Math.min(132, icon.rowRight - ptsW - x);
-      // A narrow row has no room on the icon's right, so sit just left of your name.
-      if (bw < 96) {
-        var infoW = clamp(L.meW * 0.3, 130, 240);
-        var nameX = L.meX + L.meW - L.pad - infoW;
-        bw = Math.min(132, Math.max(96, nameX - L.pad - gap));
-        x = nameX - gap - bw;
+      var head = ui.youHeader;
+      if (!ui.revealHands || ui.overlay || !head) return;
+      var gap = 6;
+      var bw = SEE_RESULTS_W;
+      // Under your name, right-aligned with it. A short row (phones) has no
+      // room under it, so it sits just left of your name instead.
+      var top = head.y + 22 + gap;
+      var room = L.meY + L.meldRowH - top;
+      if (seeResultsUnder()) {
+        button('See results', head.right - bw, top, bw, Math.min(36, room), seeResults, 'primary', 'see-results');
+      } else {
+        button('See results', head.x - gap - bw, head.y + 11 - 15, bw, 30, seeResults, 'primary', 'see-results');
       }
-      button('See results', x, icon.y - bh / 2, bw, bh, seeResults, 'primary', 'see-results');
     }
 
     function openMenu() {

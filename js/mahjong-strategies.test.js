@@ -274,3 +274,57 @@ describe('competition', () => {
     await assert.rejects(C.runMatch({ lineup: ['lucky-cat', 'x', 'lucky-cat', 'lucky-cat'], deals: 1 }), /unknown strategy/);
   });
 });
+
+// Upgrades: bigger hands the same tiles can make (MahjongBot.upgradePlans).
+describe('both strategies: special-hand upgrades', () => {
+  // Pungs of 1 Character and North Wind, pairs of 9 Bamboo, 5 Circle and
+  // Green Dragon: All Triplets, with Mixed Orphans in reach.
+  const triplets = ['c1', 'c1', 'c1', 'wn', 'wn', 'wn', 'b9', 'b9', 'd5', 'd5', 'dg', 'dg', 'c9', 'd4'];
+  const order = (bot, game) => bot.analyzeDiscards(game, 1).candidates.map((x) => x.tile);
+
+  for (const [name, bot] of [['jorge-yau', B], ['lucky-cat', L]]) {
+    it(name + ' keeps a Mixed Orphans pair over a plain pair with more copies left', () => {
+      // One 9 Bamboo is out, so it has fewer left than the 5 Circle.
+      const game = table({ seats: [{ discards: ['b9'] }, { hand: triplets }] });
+      const found = bot.analyzeDiscards(game, 1);
+      assert.equal(found.ctx.upgrade.id, 'mixed-orphans');
+      const tiles = found.candidates.map((x) => x.tile);
+      assert.equal(tiles[0], 'd4');
+      assert.ok(tiles.indexOf('d5') < tiles.indexOf('b9'), tiles.join(' '));
+      assert.ok(tiles.indexOf('d4') < tiles.indexOf('c9'), tiles.join(' '));
+    });
+
+    it(name + ' throws an orphan with no copies left first', () => {
+      const game = table({ seats: [{ discards: ['c9', 'c9', 'c9'] }, { hand: triplets }] });
+      assert.equal(order(bot, game)[0], 'c9');
+    });
+
+    it(name + ' builds Small Three Dragons from two dragon pairs and a single', () => {
+      const hand = ['dr', 'dr', 'dg', 'dg', 'dw', 'c2', 'c3', 'c4', 'd6', 'd7', 'b1', 'b5', 'b9', 'we'];
+      const found = bot.analyzeDiscards(table({ seats: [null, { hand }] }), 1);
+      assert.equal(found.ctx.upgrade.id, 'small-dragons');
+      assert.ok(!['dr', 'dg', 'dw'].includes(found.candidates[0].tile));
+    });
+  }
+
+  it('jorge-yau plays Seven Pairs with Mixed Orphans when the pairs are 1s, 9s and honors', () => {
+    const hand = ['c1', 'c1', 'b9', 'b9', 'wn', 'wn', 'd9', 'd9', 'dr', 'dr', 'c5', 'b4', 'd3', 'ww'];
+    const found = B.analyzeDiscards(table({ seats: [null, { hand }] }), 1);
+    assert.equal(found.ctx.leadPlan.id, 'pairs-orphans');
+    assert.ok(['c5', 'b4', 'd3'].includes(found.candidates[0].tile));
+  });
+
+  it('the coach names the upgrade and says to aim for it', () => {
+    const game = table({ seats: [{ hand: triplets }] });
+    const hint = Coach.turnHint(game, 0, { kongs: [] });
+    const said = [hint.action].concat(hint.tips).join(' ').replace(/[\u0001\u0002]/g, '');
+    assert.match(said, /Discard Four Circle\. Mixed Orphans uses only 1s, 9s and honors\./);
+    assert.match(said, /Mixed Orphans is in reach, so aim for it too: keep your 1s, 9s and honors\./);
+  });
+
+  it('the coach says to throw an upgrade tile with none left', () => {
+    const game = table({ seats: [{ hand: ['c1', 'c1', 'c1', 'wn', 'wn', 'wn', 'b9', 'b9', 'd5', 'd5', 'dg', 'dg', 'c9', 'b4'] }, { discards: ['c9', 'c9', 'c9'] }] });
+    const hint = Coach.turnHint(game, 0, { kongs: [] });
+    assert.match([hint.action].concat(hint.tips).join(' '), /Discard Nine Character\. None are left/);
+  });
+});
