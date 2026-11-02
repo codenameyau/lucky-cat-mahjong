@@ -76,10 +76,10 @@ A static website for the Lucky Cat Mahjong club, with content managed through [P
 Serve the site locally (requires a local server for JSON data loading):
 
 ```bash
-python3 -m http.server 8080
+python3 scripts/serve.py 8080
 ```
 
-Then open [localhost:8080](http://localhost:8080).
+Then open [localhost:8080](http://localhost:8080). This is `python3 -m http.server` that tells the browser not to cache anything, so a reload always picks up every changed script together.
 
 Find your host machine's ip address to preview on your mobile device on the same network.
 ```
@@ -93,7 +93,7 @@ For example [192.168.1.155:8080](http://192.168.1.155:8080).
 
 ## Tests
 
-The Hong Kong scoring calculator (`js/points.js`), the Play game's engine, bots and coach (`js/mahjong-engine.js`, `js/mahjong-jorge-yau.js`, `js/mahjong-coach.js`), homepage renderer (`js/main.js`), community page (`js/community.js`), tile quiz (`js/tile-quiz.js`), and media formatter (`scripts/format-media-lib.js`) have unit tests using Node's built-in test runner. Requires **Node.js 18+**.
+The Hong Kong scoring calculator (`js/points.js`), the Play game's engine, bots and coach (`js/mahjong-engine.js`, `js/mahjong-bot.js` and its strategies, `js/mahjong-coach.js`), homepage renderer (`js/main.js`), community page (`js/community.js`), tile quiz (`js/tile-quiz.js`), and media formatter (`scripts/format-media-lib.js`) have unit tests using Node's built-in test runner. Requires **Node.js 18+**.
 
 ```bash
 npm test
@@ -175,6 +175,7 @@ Navigation links (`data/nav.json`) and site styles (`css/`) are edited directly 
 │   ├── mahjong-coach.test.js
 │   └── mahjong-game.js     # Play: canvas table, animation, sound
 ├── scripts/
+│   ├── serve.py            # Local dev server that turns off caching
 │   ├── format-media.js     # CLI: optimize media/ images and sync community.json
 │   ├── format-media-lib.js # Shared image-formatting logic
 │   └── format-media.test.js

@@ -1805,14 +1805,19 @@
       // On a claim the question and the coach's answer share one line, such
       // as "Claim One Circle? Chow 1-2-3 Circles."
       var oneLine = showNotice && ui.claimPrompt && ui.coach === 'on' && note && note.action;
+      // The note on a tile you've selected to throw ("... is OK, but ...")
+      // goes last, on its own line, after the coach's hint.
+      var choiceNote = showNotice && ui.turnPrompt && ui.selected >= 0;
       if (oneLine) {
         lines.push({ text: ui.notice + ' ' + note.action, color: COLORS.goldLight, bold: true });
       } else {
-        if (showNotice) lines.push({ text: ui.notice, color: COLORS.goldLight });
+        if (showNotice && !choiceNote) lines.push({ text: ui.notice, color: COLORS.goldLight });
         // The main action on its own line in bold gold; the rest as one paragraph.
         if (note && note.action) lines.push({ text: note.action, color: COLORS.goldLight, bold: true });
       }
       if (note && note.tips && note.tips.length) lines.push({ text: note.tips.join(' '), color: COLORS.cream });
+      if (choiceNote && note) lines.push({ text: ui.notice, color: COLORS.goldLight });
+      if (choiceNote && !note) lines.push({ text: ui.notice, color: COLORS.goldLight });
       if (!note) {
         // Nothing to say right now: say what this box is for, in gray.
         if (ui.coach === 'off') {
