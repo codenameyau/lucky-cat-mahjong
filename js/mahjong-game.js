@@ -249,6 +249,8 @@
     drawgame: { clips: ['draw-game'], gain: 0.45 },
     // Show hands: impactMining_003, the whole clip, untrimmed.
     flip: { clips: ['tiles-reveal'], gain: 0.9 },
+    // Next hand: impactMining_004, trimmed like the claims.
+    next: { clips: ['impact-next'], gain: 0.85 },
   };
 
   // Background music: CC BY 4.0 tracks by Kevin MacLeod (incompetech.com),
@@ -2562,7 +2564,7 @@
       var by = r.y + r.h - 62;
       // Show hands leaves this panel without dealing. Next hand is the only way on.
       button('Show hands', bx, by, handsW, 42, showHands, 'white', 'show-hands');
-      button(label, bx + handsW + gap, by, nextW, 42, function () { closeOverlay(); }, 'primary', 'next');
+      button(label, bx + handsW + gap, by, nextW, 42, nextHand, 'primary', 'next');
       ctx.restore();
       regions.slice(firstRegion).forEach(function (g) {
         g.x = W / 2 + (g.x - W / 2) * k;
@@ -2765,6 +2767,12 @@
       sound.play('flip');
       announce('All four hands are face up.');
       requestRender();
+    }
+
+    // Leaves the summary for the next deal, with its own mining hit.
+    function nextHand() {
+      sound.play('next');
+      closeOverlay();
     }
 
     function seeResults() {
@@ -2990,7 +2998,7 @@
       if (rulesOpen() || strategiesOpen()) return; // the sheets handle their own keys (Escape closes them)
       if (e.key === 'Escape') { openMenu(); e.preventDefault(); return; }
       if (ui.overlay) {
-        if (e.key === 'Enter' && ui.overlay.type === 'summary') { closeOverlay(); e.preventDefault(); }
+        if (e.key === 'Enter' && ui.overlay.type === 'summary') { nextHand(); e.preventDefault(); }
         return;
       }
       if (ui.revealHands) {
