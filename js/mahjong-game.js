@@ -527,7 +527,6 @@
       restartArmed: 0, // when Restart game was first tapped in the menu
       replaying: false, // a loaded hand is being played again up to your next move
       menuNote: null, // a line in the menu after saving or a failed load
-      seedCopied: 0, // when Copy hand seed last copied (the button says Copied! briefly)
       turnSeat: null,
       selected: -1,
       turnPrompt: null,
@@ -855,13 +854,6 @@
         w: historyW,
         h: (landscape ? bandTop - gap : H - pad) - topH,
       } : null;
-      // Desktop: a tools section under the coach (Copy hand seed).
-      var tools = null;
-      if (desktop && history) {
-        var toolsH = 60;
-        history.h -= toolsH + historyGap;
-        tools = { x: history.x, y: history.y + history.h + historyGap, w: history.w, h: toolsH };
-      }
       var zoneFrames = zones.map(function (z, k) { return makeFrame(z, k); });
       var maxDiscards = POND_COLS * POND_ROWS;
       if (game && game.hand) {
@@ -870,7 +862,7 @@
       var pw = 56;
       zoneFrames.forEach(function (f) { pw = Math.min(pw, fitPondTile(f.w, f.h, maxDiscards)); });
       return {
-        pad: pad, topH: topH, portrait: portrait, ox: ox, tableW: tableW, history: history, tools: tools,
+        pad: pad, topH: topH, portrait: portrait, ox: ox, tableW: tableW, history: history,
         desktop: desktop, landscape: landscape, phonePortrait: phonePortrait, meX: meX, meW: meW,
         tw: tw, th: th, handY: handY, handRows: handRows, mw: mw, meY: meY, meldRowH: meldRowH, meBox: meBox,
         actionsY: actionsY, actionsH: actionsH, actionsInRow: actionsInRow, hintY: hintY, hintH: hintH,
@@ -960,8 +952,9 @@
       }
     }
 
-    function addRegion(x, y, w, h, onTap, id) {
-      regions.push({ x: x, y: y, w: w, h: h, onTap: onTap, id: id });
+    // `plain` regions respond to taps but keep the arrow cursor.
+    function addRegion(x, y, w, h, onTap, id, plain) {
+      regions.push({ x: x, y: y, w: w, h: h, onTap: onTap, id: id, plain: !!plain });
     }
 
     function button(label, x, y, w, h, onTap, style, id, picked) {
@@ -1062,7 +1055,6 @@
       drawMe(t);
       drawHintBand();
       drawCoachHistory();
-      drawTools();
       drawActions();
       drawSeeResults();
       tipsOn = false; // tiles in flight, banners and effects get no tooltip
@@ -1539,6 +1531,7 @@
       var r = 11;
       var iconS = 15;
       windBadge(seat, x + r, y + r, r);
+      if (seat === 0) addRegion(x, y, 2 * r, 2 * r, copySeed, 'my-wind', true);
       var name = seatTitle(seat);
       var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
       ctx.font = 'bold 13px ' + FONT_BODY;
@@ -2099,34 +2092,12 @@
       return entries;
     }
 
-    // Desktop's section under the coach: copy the current hand's seed (the
-    // number its wall is shuffled from, as in a save file).
-    function drawTools() {
-      var r = L.tools;
-      if (!r) return;
-      ctx.save();
-      roundRect(ctx, r.x, r.y, r.w, r.h, 12);
-      ctx.fillStyle = 'rgba(0,0,0,0.28)';
-      ctx.fill();
-      ctx.restore();
-      var copied = ui.seedCopied && now() - ui.seedCopied < 1600;
-      var bw = Math.min(200, r.w - 28), bh = 36;
-      button(copied ? 'Copied!' : 'Copy hand seed', r.x + 14, r.y + (r.h - bh) / 2, bw, bh, copySeed, copied ? 'gold' : 'white', 'copy-seed');
-    }
-
+    // Tapping your wind badge quietly copies the current hand's seed (the
+    // number its wall is shuffled from, as in a save file): no message, and
+    // the badge keeps the normal arrow cursor.
     function copySeed() {
-      if (!game || !game.hand) return;
-      var value = String(game.hand.seed);
-      var done = function () {
-        ui.seedCopied = now();
-        track('play_copy_seed', {});
-        announce('Hand seed copied.');
-        requestRender();
-        setTimeout(function () { if (!destroyed) requestRender(); }, 1700);
-      };
-      if (root.navigator && navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(value).then(done, function () { announce('Couldn\'t copy the seed.'); });
-      }
+      if (!game || !game.hand || !root.navigator || !navigator.clipboard || !navigator.clipboard.writeText) return;
+      navigator.clipboard.writeText(String(game.hand.seed)).catch(function () {});
     }
 
     // Older notes start at the top and later ones follow downward.
@@ -3034,7 +3005,7 @@
       }
       var r = hitTest(p.x, p.y);
       var id = r ? r.id : null;
-      canvas.style.cursor = r ? 'pointer' : 'default';
+      canvas.style.cursor = r && !r.plain ? 'pointer' : 'default';
       mouse = p;
       var sp = spotAt(p);
       if (id !== hover || (sp ? sp.id : null) !== tipTile) { hover = id; requestRender(); }
