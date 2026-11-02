@@ -1926,7 +1926,7 @@
       ctx.fillStyle = 'rgba(0,0,0,0.28)';
       ctx.fill();
       ctx.restore();
-      text('Coach', r.x + 14, r.y + 20, { size: 16, weight: 'bold', family: FONT_HEAD, color: COLORS.cream });
+      text('Coach ' + Strategies.get(ui.strategies.coach).name, r.x + 14, r.y + 20, { size: 16, weight: 'bold', family: FONT_HEAD, color: COLORS.cream });
 
       var viewX = r.x + 10;
       var viewY = r.y + 36;
