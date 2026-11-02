@@ -308,8 +308,8 @@
     drawgame: { clips: ['draw-game'], gain: 0.55, then: [['tile-draw', 0.05, 0.4]] },
     // Show hands: impactMining_003, the whole clip, untrimmed.
     flip: { clips: ['tiles-reveal'], gain: 0.9 },
-    // Next hand: impactMining_004, trimmed like the claims.
-    next: { clips: ['impact-next'], gain: 0.85 },
+    // Next hand: a gong (impactBell_heavy_000), the whole ring.
+    next: { clips: ['gong'], gain: 0.7 },
   };
 
   // Background music: CC BY 4.0 tracks by Kevin MacLeod (incompetech.com),
@@ -2938,7 +2938,7 @@
       requestRender();
     }
 
-    // Leaves the summary for the next deal, with its own mining hit.
+    // Leaves the summary for the next deal, with a gong.
     function nextHand() {
       sound.play('next');
       closeOverlay();
