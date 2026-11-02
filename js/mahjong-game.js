@@ -215,32 +215,52 @@
   // `vary` nudges the pitch a little each time.
   var CUES = {
     draw: { clips: ['tile-draw'], gain: 0.3, vary: true },
-    discard: { clips: ['tile-discard-1', 'tile-discard-2', 'tile-discard-3'], gain: 0.8, vary: true },
+    // One sound for every discard: the duller chip, the closest to a
+    // mahjong tile landing on the table.
+    discard: { clips: ['tile-discard'], gain: 0.85 },
     select: { clips: ['tile-select'], gain: 0.2 },
     flower: { clips: ['flower'], gain: 0.4 },
     claim: { clips: ['tile-claim-1'], gain: 0.7, vary: true, then: [['tile-claim-2', 0.05, 0.55]] },
-    kong: { clips: ['tile-claim-2'], gain: 0.7, then: [['tile-kong', 0.14, 0.6], ['tile-discard-3', 0.26, 0.6]] },
+    kong: { clips: ['tile-claim-2'], gain: 0.7, then: [['tile-kong', 0.14, 0.6], ['tile-discard', 0.26, 0.6]] },
     turn: { clips: ['turn'], gain: 0.25 },
     win: { clips: ['win'], gain: 0.6, then: [['tile-claim-2', 0, 0.5]] },
     otherwin: { clips: ['other-win'], gain: 0.45 },
     lose: { clips: ['lose'], gain: 0.5 },
     drawgame: { clips: ['draw-game'], gain: 0.45 },
-    flip: { clips: ['tile-discard-1'], gain: 0.45, vary: true, then: revealRipple() },
+    flip: { clips: ['tile-discard'], gain: 0.45, vary: true, then: revealRipple() },
   };
 
   // Show hands: the other three hands tip face up one after another, each
   // a quick run of tiles laid down, and they settle with a soft stack.
   function revealRipple() {
-    var names = ['tile-discard-1', 'tile-discard-2', 'tile-discard-3'];
     var out = [];
     for (var row = 0; row < 3; row++) {
       for (var n = 0; n < 6; n++) {
         if (!row && !n) continue; // the cue's first clip
-        out.push([names[(row + n) % 3], row * 0.2 + n * 0.035, 0.32 + n * 0.03]);
+        out.push(['tile-discard', row * 0.2 + n * 0.035, 0.32 + n * 0.03]);
       }
     }
     out.push(['tile-claim-2', 0.62, 0.35]);
     return out;
+  }
+
+  // Background music: CC BY 4.0 tracks by Kevin MacLeod (incompetech.com),
+  // re-encoded to 96 kbps AAC in /assets/music/. The credit is on the play
+  // page and in /assets/music/README.md.
+  var MUSIC_DIR = '/assets/music/';
+  var MUSIC_VOLUME = 0.22;
+  var MUSIC = [
+    { file: 'guzheng-city.m4a', title: 'Guzheng City' },
+    { file: 'shenyang.m4a', title: 'Shenyang' },
+    { file: 'ripples.m4a', title: 'Ripples' },
+  ];
+
+  function shuffle(list) {
+    for (var i = list.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = list[i]; list[i] = list[j]; list[j] = t;
+    }
+    return list;
   }
 
   function cueClips() {
@@ -311,6 +331,58 @@
       g.connect(out);
       src.start(at);
     }
+
+    // Background music: the tracks in MUSIC, shuffled, one after another
+    // in a loop (reshuffled each time round, never the same track twice in
+    // a row). It plays while sound is on and the game is open, and pauses
+    // while the tab is hidden.
+    var music = { el: null, order: [], at: -1, on: false };
+
+    function nextTrack() {
+      if (music.at + 1 >= music.order.length) {
+        var last = music.order[music.order.length - 1];
+        music.order = shuffle(MUSIC.slice());
+        if (music.order.length > 1 && music.order[0] === last) music.order.push(music.order.shift());
+        music.at = -1;
+      }
+      music.at++;
+      return music.order[music.at];
+    }
+
+    function playTrack(track) {
+      if (!music.el) {
+        if (!root.Audio) return;
+        music.el = new root.Audio();
+        music.el.volume = MUSIC_VOLUME;
+        music.el.addEventListener('ended', function () { playTrack(nextTrack()); });
+        // A track that can't load is skipped.
+        music.el.addEventListener('error', function () { if (music.on) playTrack(nextTrack()); });
+      }
+      music.el.src = MUSIC_DIR + track.file;
+      if (music.on && api.enabled) {
+        var p = music.el.play();
+        if (p && p.catch) p.catch(function () {}); // waits for a tap if the browser blocks it
+      }
+    }
+
+    // music(true) starts or resumes it (if sound is on), music(false) pauses.
+    api.music = function (on) {
+      music.on = !!on;
+      if (!music.on || !api.enabled) {
+        if (music.el) music.el.pause();
+        return;
+      }
+      if (!music.el || !music.el.src) { playTrack(nextTrack()); return; }
+      var p = music.el.play();
+      if (p && p.catch) p.catch(function () {});
+    };
+
+    api.stopMusic = function () {
+      api.music(false);
+      if (music.el) { music.el.removeAttribute('src'); music.el.load(); }
+      music.el = null;
+      music.at = music.order.length; // the next start reshuffles
+    };
 
     api.play = function (name) {
       var cue = CUES[name];
@@ -2521,6 +2593,8 @@
     function toggleSound() {
       sound.enabled = !sound.enabled;
       writeJson(PREFS_KEY, { sound: sound.enabled });
+      // The Sound button turns the music on and off with the effects.
+      sound.music(sound.enabled);
       if (sound.enabled) sound.play('select');
       requestRender();
     }
@@ -3097,6 +3171,9 @@
 
     var onResize = function () { resize(); };
     root.addEventListener('resize', onResize);
+    // The music pauses while the tab is in the background.
+    var onVisibility = function () { sound.music(!document.hidden); };
+    document.addEventListener('visibilitychange', onVisibility);
     root.addEventListener('keydown', onKey);
     (function () {
       var dlg = rulesSheet();
@@ -3125,12 +3202,15 @@
 
     return {
       start: function () {
+        sound.music(true);
         play().catch(function (err) {
           if (root.console) console.error(err);
         });
       },
       destroy: function () {
         destroyed = true;
+        sound.stopMusic();
+        document.removeEventListener('visibilitychange', onVisibility);
         root.removeEventListener('resize', onResize);
         root.removeEventListener('keydown', onKey);
         canvas.removeEventListener('pointerdown', onPointerDown);

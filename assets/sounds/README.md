@@ -8,7 +8,7 @@ plays with no delay. The cues that use them are `CUES` in `js/mahjong-game.js`.
 
 | File | Source clip | Pack |
 | --- | --- | --- |
-| `tile-discard-1.wav`, `-2`, `-3` | `chip-lay-1`, `-2`, `-3` | [Casino Audio](https://kenney.nl/assets/casino-audio) |
+| `tile-discard.wav` | `chip-lay-3` (the duller, thump-like one) | [Casino Audio](https://kenney.nl/assets/casino-audio) |
 | `tile-draw.wav` | `chips-collide-2` | Casino Audio |
 | `tile-claim-1.wav` | `chips-stack-1` | Casino Audio |
 | `tile-claim-2.wav` | `chips-stack-3` | Casino Audio |
