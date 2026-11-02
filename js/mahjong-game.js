@@ -461,7 +461,11 @@
       if (p && p.catch) p.catch(function () {});
     };
 
+    // For good: the table is closing.
     api.stopMusic = function () {
+      if (root.document) {
+        UNLOCK_EVENTS.forEach(function (type) { root.document.removeEventListener(type, unlock, true); });
+      }
       api.music(false);
       if (music.el) { music.el.removeAttribute('src'); music.el.load(); }
       music.el = null;
@@ -476,6 +480,21 @@
       clip(a, cue.clips[Math.floor(Math.random() * cue.clips.length)], t, cue.gain, cue.vary);
       (cue.then || []).forEach(function (x) { clip(a, x[0], t + x[1], x[2], cue.vary, x[3]); });
     };
+
+    // Browsers only start audio after a tap or key press, so music started
+    // without one (the game resuming after a refresh) is silent. The first
+    // tap or key then wakes the audio and plays a random song, if music
+    // should be playing and isn't.
+    function unlock() {
+      if (ac && ac.state === 'suspended') ac.resume();
+      if (!music.on || !api.enabled || !api.musicEnabled) return;
+      if (music.el && !music.el.paused) return;
+      playTrack(nextTrack());
+    }
+    var UNLOCK_EVENTS = ['pointerdown', 'keydown', 'touchend'];
+    if (root.document) {
+      UNLOCK_EVENTS.forEach(function (type) { root.document.addEventListener(type, unlock, true); });
+    }
 
     if (enabled) fetchAll();
     return api;
