@@ -23,3 +23,4 @@ plays with no delay. The cues that use them are `CUES` in `js/mahjong-game.js`.
 | `impact-chow.wav` | `impactMining_001` | [Impact Sounds](https://kenney.nl/assets/impact-sounds) |
 | `impact-pung.wav` | `impactMining_000` | Impact Sounds |
 | `impact-kong.wav` | `impactMining_002` | Impact Sounds |
+| `tiles-reveal.wav` | `impactMining_003`, the whole clip (Show hands), only converted to mono WAV | Impact Sounds |

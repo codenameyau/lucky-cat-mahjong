@@ -247,22 +247,9 @@
     otherwin: { clips: ['other-win'], gain: 0.45 },
     lose: { clips: ['lose'], gain: 0.5 },
     drawgame: { clips: ['draw-game'], gain: 0.45 },
-    flip: { clips: ['tile-discard'], gain: 0.45, vary: true, then: revealRipple() },
+    // Show hands: impactMining_003, the whole clip, untrimmed.
+    flip: { clips: ['tiles-reveal'], gain: 0.9 },
   };
-
-  // Show hands: the other three hands tip face up one after another, each
-  // a quick run of tiles laid down, and they settle with a soft stack.
-  function revealRipple() {
-    var out = [];
-    for (var row = 0; row < 3; row++) {
-      for (var n = 0; n < 6; n++) {
-        if (!row && !n) continue; // the cue's first clip
-        out.push(['tile-discard', row * 0.2 + n * 0.035, 0.32 + n * 0.03]);
-      }
-    }
-    out.push(['tile-claim-2', 0.62, 0.35]);
-    return out;
-  }
 
   // Background music: CC BY 4.0 tracks by Kevin MacLeod (incompetech.com),
   // re-encoded to 96 kbps AAC in /assets/music/. The credit is on the play
