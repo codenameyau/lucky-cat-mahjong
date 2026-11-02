@@ -527,6 +527,7 @@
       restartArmed: 0, // when Restart game was first tapped in the menu
       replaying: false, // a loaded hand is being played again up to your next move
       menuNote: null, // a line in the menu after saving or a failed load
+      windFlash: 0, // 1 to 0 as your wind badge flashes after copying the seed
       turnSeat: null,
       selected: -1,
       turnPrompt: null,
@@ -1531,7 +1532,25 @@
       var r = 11;
       var iconS = 15;
       windBadge(seat, x + r, y + r, r);
-      if (seat === 0) addRegion(x, y, 2 * r, 2 * r, copySeed, 'my-wind', true);
+      if (seat === 0) {
+        addRegion(x, y, 2 * r, 2 * r, copySeed, 'my-wind', true);
+        // The flash after copying the seed: the badge lights up gold, and a
+        // ring spreads out as it fades.
+        var f = ui.windFlash;
+        if (f > 0) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(x + r, y + r, r, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(244,160,32,' + (0.75 * f).toFixed(3) + ')';
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(x + r, y + r, r * (1 + 0.7 * (1 - f)), 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(255,210,122,' + f.toFixed(3) + ')';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
       var name = seatTitle(seat);
       var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
       ctx.font = 'bold 13px ' + FONT_BODY;
@@ -2094,10 +2113,14 @@
 
     // Tapping your wind badge quietly copies the current hand's seed (the
     // number its wall is shuffled from, as in a save file): no message, and
-    // the badge keeps the normal arrow cursor.
+    // the badge keeps the normal arrow cursor. The badge flashes once it's
+    // copied.
     function copySeed() {
       if (!game || !game.hand || !root.navigator || !navigator.clipboard || !navigator.clipboard.writeText) return;
-      navigator.clipboard.writeText(String(game.hand.seed)).catch(function () {});
+      navigator.clipboard.writeText(String(game.hand.seed)).then(function () {
+        if (destroyed) return;
+        animate(520, function (e) { ui.windFlash = 1 - e; });
+      }, function () {});
     }
 
     // Older notes start at the top and later ones follow downward.
