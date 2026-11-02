@@ -17,7 +17,9 @@
   var STRATEGIES = [
     {
       id: 'lucky-cat',
-      name: 'Lucky Cat',
+      // Players see the names swapped from the ids: this one plays as
+      // "Jorge Yau", and jorge-yau (the coach's default) as "Lucky Cat".
+      name: 'Jorge Yau',
       bot: L,
       summary: 'Reads the opening hand, picks one hand to build and sticks to it. Stays concealed, and stops feeding the table when it can\'t win.',
       details: [
@@ -31,7 +33,7 @@
     },
     {
       id: 'jorge-yau',
-      name: 'Jorge Yau',
+      name: 'Lucky Cat',
       bot: J,
       summary: 'Weighs every discard by expected points: how fast each hand can finish, what it pays, and the risk of dealing in.',
       details: [

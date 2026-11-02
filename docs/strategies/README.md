@@ -2,17 +2,19 @@
 
 Every bot at the Play Mahjong table plays a named strategy, and the coach follows one too. The **Strategies** button in the top bar describes each strategy and assigns them: one per bot seat, and one for the coach's tips and feedback.
 
-| Strategy | File | Playbook |
-| --- | --- | --- |
-| (shared foundation) | `js/mahjong-bot.js` | the rules below |
-| `lucky-cat` | `js/mahjong-lucky-cat.js` | [lucky-cat.md](lucky-cat.md) |
-| `jorge-yau` | `js/mahjong-jorge-yau.js` | [jorge-yau.md](jorge-yau.md) |
+| Strategy | Name players see | File | Playbook |
+| --- | --- | --- | --- |
+| (shared foundation) | | `js/mahjong-bot.js` | the rules below |
+| `lucky-cat` | Jorge Yau | `js/mahjong-lucky-cat.js` | [lucky-cat.md](lucky-cat.md) |
+| `jorge-yau` | Lucky Cat | `js/mahjong-jorge-yau.js` | [jorge-yau.md](jorge-yau.md) |
+
+The names players see are swapped from the ids: the `jorge-yau` strategy (the coach's default, which weighs every discard by expected points) is shown as "Lucky Cat", and `lucky-cat` (which picks a target hand and sticks to it) as "Jorge Yau". The ids, files and saved choices keep their old names.
 
 ## Which strategy plays where
 
 - Picks are saved in `localStorage` under `lcm-play-strategies`, as `{ "seats": { "1": id, "2": id, "3": id }, "coach": id }`. Seat 1 is on your right, 2 across, 3 on your left.
 - A bot seat with nothing saved plays a random strategy, picked again each game. "Random each game" in the sheet clears the saved pick.
-- The coach (tips and feedback) defaults to `jorge-yau`.
+- The coach (tips and feedback) defaults to `jorge-yau`, shown as "Coach Lucky Cat".
 - A change takes effect on the bot's next move, in the game you're playing.
 - Each bot's name on the table shows its strategy: "Mei · Lucky Cat".
 
