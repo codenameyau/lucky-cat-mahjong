@@ -560,7 +560,8 @@
           '. Aim for ' + targetText(v, plan, counts) + '.' + short);
       }
       var shown = threats.filter(function (t) { return t.level >= 2; });
-      if (shown.length) lines.push(threatSentence(shown));
+      var said = threatSentence(v.game, shown);
+      if (said) lines.push(said);
       return lines;
     }
 

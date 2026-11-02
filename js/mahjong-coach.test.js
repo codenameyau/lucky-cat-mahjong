@@ -200,6 +200,17 @@ describe('coach: claims', () => {
     assert.match(text(hint), /concealed/);
   });
 
+  it('describes a threatening player by their melds on a claim', () => {
+    const hand = ['c2', 'c3', 'c6', 'c7', 'c8', 'd3', 'd4', 'd5', 'b5', 'b6', 'b2', 'd8', 'd8'];
+    const game = table({
+      seats: [{ hand }, {}, {}, { melds: [meld('pung', 'b1'), meld('chow', 'b2'), meld('pung', 'b9')] }],
+    });
+    const opts = E.claimOptions(game, 0, 'c4', 3, false);
+    assert.ok(opts.chows.length);
+    const hint = C.claimHint(game, 0, opts);
+    assert.match(text(hint), /\w+ has three melds down, all Bamboo\./);
+  });
+
   it('always pungs a dragon pair', () => {
     const hand = ['dr', 'dr', 'c2', 'c3', 'c4', 'd6', 'd7', 'b2', 'b3', 'b7', 'b8', 'ws', 'wn'];
     const game = table({ seats: [{ hand }] });

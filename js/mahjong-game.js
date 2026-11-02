@@ -402,6 +402,17 @@
           pluck(a, t, NOTE.D5, 0.2, 1.4);
           pluck(a, t + 0.22, NOTE.A4, 0.2, 1.6);
           break;
+        case 'flip':
+          // Every hand turned face up: each opponent's row of tiles tips over
+          // in a quick ripple, one row after another.
+          for (var row = 0; row < 3; row++) {
+            for (var n = 0; n < 9; n++) {
+              var at = t + row * 0.16 + n * 0.024 + Math.random() * 0.006;
+              clack(a, at, 0.07 + n * 0.006, 1.08 + n * 0.012);
+              if (n % 3 === 2) thock(a, at + 0.008, 0.12, 1.1);
+            }
+          }
+          break;
       }
     };
     return api;
@@ -491,7 +502,7 @@
       botDiscardFrom: [null, null, null, null],
       oppHand: [null, null, null, null],
       overlay: null,
-      revealHands: false, // after See hands, every concealed hand is face up
+      revealHands: false, // after Show hands, every concealed hand is face up
       heldSummary: null, // the results panel, while those hands stay open
       youIcon: null, // where your person icon was drawn, so See results can sit beside it
       lastHandRects: [],
@@ -2433,8 +2444,8 @@
       }
       var bx = cx - row / 2;
       var by = r.y + r.h - 62;
-      // See hands leaves this panel without dealing. Next hand is the only way on.
-      button('See hands', bx, by, handsW, 42, seeHands, 'light', 'see-hands');
+      // Show hands leaves this panel without dealing. Next hand is the only way on.
+      button('Show hands', bx, by, handsW, 42, showHands, 'white', 'show-hands');
       button(label, bx + handsW + gap, by, nextW, 42, function () { closeOverlay(); }, 'primary', 'next');
       ctx.restore();
       regions.slice(firstRegion).forEach(function (g) {
@@ -2529,13 +2540,14 @@
     }
 
     // Look at the table with every hand face up. The next hand waits.
-    function seeHands() {
+    function showHands() {
       var o = ui.overlay;
       if (!o || o.type !== 'summary') return;
       ui.heldSummary = o;
       ui.revealHands = true;
       ui.botLift = null;
       ui.overlay = null;
+      sound.play('flip');
       announce('All four hands are face up.');
       requestRender();
     }
