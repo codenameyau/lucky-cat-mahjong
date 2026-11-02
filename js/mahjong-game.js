@@ -2677,7 +2677,7 @@
       text(line, lx, ly, { size: 12, color: COLORS.muted });
       pill(lx + lineW + 6, ly - badgeH / 2, badgeW, badgeH, COLORS.red);
       text('BETA', lx + lineW + 6 + badgeW / 2, ly + 1, { size: 10, weight: 'bold', align: 'center', color: COLORS.white });
-      text('Built by Jorge Yau Lee, developer, mahjong instructor', r.x + r.w / 2, r.y + r.h - 22, { size: 12, align: 'center', color: COLORS.muted });
+      text('Built by Jorge Yau, developer, mahjong instructor', r.x + r.w / 2, r.y + r.h - 22, { size: 12, align: 'center', color: COLORS.muted });
     }
 
     /* ---------------- saving and loading ---------------- */

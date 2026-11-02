@@ -196,7 +196,7 @@ Navigation links (`data/nav.json`) and site styles (`css/`) are edited directly 
 
 ## Credits
 
-Built by Jorge Yau Lee, developer, mahjong instructor. [Source code on GitHub](https://github.com/codenameyau/lucky-cat-mahjong).
+Built by Jorge Yau, developer, mahjong instructor. [Source code on GitHub](https://github.com/codenameyau/lucky-cat-mahjong).
 
 Music: "Guzheng City", "Shenyang" and "Ripples" by Kevin MacLeod ([incompetech.com](https://incompetech.com)), licensed under [Creative Commons: By Attribution 4.0](https://creativecommons.org/licenses/by/4.0/). The tracks in `assets/music/` were re-encoded to AAC and are otherwise unchanged. Details in [assets/music/README.md](assets/music/README.md).
 
