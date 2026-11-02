@@ -765,6 +765,8 @@
     var PORTRAIT_SHRINK = 0.85;
     // And phones draw it this much smaller again (both ways round).
     var PHONE_HAND_SCALE = 0.9;
+    // Opponents' hidden tiles on a phone, against their melds and flowers.
+    var PHONE_BACK_SCALE = 0.6;
 
     // Discard areas for a pond: a cross around the center box, or (`strip`,
     // for a narrow table) top and bottom ponds across the full width with
@@ -889,8 +891,10 @@
 
       // Phones' side seats only hold a column of tile backs, so they're
       // slim and the discards get the room.
-      var sideW = phonePortrait ? clamp(tableW * 0.1, 38, 88) : landscape ? 60 : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
-      var topPanelH = landscape ? 64 : phonePortrait ? 62 : portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
+      // (Wide and tall enough for opponents' melds and flowers at about 16:
+      // their hidden tiles are drawn smaller, PHONE_BACK_SCALE.)
+      var sideW = phonePortrait ? 52 : landscape ? 60 : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
+      var topPanelH = !desktop ? 74 : portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
       // Narrow side seats (drawOppHeader's compact header) stack name, strategy and points.
       // (On a phone: the badge and icon, and the points under them.)
       var sideHead = !desktop ? 40 : portrait || sideW < 120 ? 54 : 34;
@@ -1795,13 +1799,17 @@
       var flowersN = s.flowers.length;
       var meldUnits = meldTilesN + gaps * 0.35 + flowersN + 0.6;
       var tileN = meldTilesN + flowersN;
-      var bw = clamp(Math.min(
-        (f.w - 13 * TILE_GAP) / 14.7,
-        (f.w - Math.max(0, tileN - 1) * TILE_GAP) / Math.max(1, meldUnits),
-        (f.h - 8) / (2 * (TILE_ASPECT + 0.08))
-      ), 8, 33);
-      var mw = bw; // melds and flowers are exactly the size of the hand's tiles
       var faceUp = ui.revealHands ? revealedConcealed(seat) : null;
+      // On a phone the hand's backs are drawn smaller than the melds and
+      // flowers (enough to count them), so what matters stays readable in
+      // a slim seat. Face up at the end of the hand, both rows are one size.
+      var backScale = L.desktop || faceUp ? 1 : PHONE_BACK_SCALE;
+      var mw = clamp(Math.min(
+        (f.w - 13 * TILE_GAP) / 14.7 / backScale,
+        (f.w - Math.max(0, tileN - 1) * TILE_GAP) / Math.max(1, meldUnits),
+        (f.h - 8) / ((1 + backScale) * (TILE_ASPECT + 0.08))
+      ), 8, 33);
+      var bw = mw * backScale; // the hand's tiles
       var count = faceUp ? faceUp.length : oppConcealedCount(seat);
       var apart = !faceUp && ui.botDrawn[seat] && count > 0;
       // Center the hand along the area by the tiles actually held (a fresh
@@ -1809,7 +1817,7 @@
       // player across centers the hand and meld row in their area; side
       // players keep the hand near their back edge, melds in front.
       var depth = bw * (TILE_ASPECT + 0.08);
-      var block = 2 * depth + 5;
+      var block = depth + mw * (TILE_ASPECT + 0.08) + 5;
       var edge = seat === 2 ? Math.max(1, (f.h - block) / 2) : Math.min(6, Math.max(1, (f.h - block) / 2));
       var backsY = f.h - edge - depth;
       var held = apart ? count - 1 : count;
