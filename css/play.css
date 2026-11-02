@@ -506,6 +506,12 @@ html.is-playing body {
   color: rgba(255, 248, 240, 0.85);
 }
 
+/* Hand names, in the coach's red for the dark sheet. */
+.strategies-hand {
+  color: #EE6A80;
+  font-weight: 600;
+}
+
 @media (max-width: 600px) {
   .strategies-assign-row { grid-template-columns: 1fr; }
 }

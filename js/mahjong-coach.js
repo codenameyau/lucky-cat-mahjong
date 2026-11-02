@@ -212,6 +212,7 @@
     'big three dragons',
     'small four winds',
     'big four winds',
+    'four winds',
     'mixed orphans',
     'all terminals',
     'all honors',

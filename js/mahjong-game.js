@@ -1358,7 +1358,7 @@
         more.appendChild(label);
         s.details.forEach(function (t) {
           var p = document.createElement('p');
-          p.textContent = t;
+          appendHandNames(p, t);
           more.appendChild(p);
         });
         card.appendChild(more);
@@ -1366,6 +1366,19 @@
       });
       about.appendChild(grid);
       body.appendChild(about);
+    }
+
+    // Text with its hand names (the coach's list) in red spans.
+    function appendHandNames(el, value) {
+      Coach.highlightPatterns(value).split('\u0002').forEach(function (part) {
+        var at = part.indexOf('\u0001');
+        el.appendChild(document.createTextNode(at < 0 ? part : part.slice(0, at)));
+        if (at < 0) return;
+        var span = document.createElement('span');
+        span.className = 'strategies-hand';
+        span.textContent = part.slice(at + 1);
+        el.appendChild(span);
+      });
     }
 
     function listWords(list) {
