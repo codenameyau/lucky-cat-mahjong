@@ -760,9 +760,11 @@
     // The table (the other players and the discards) is kept as close to
     // square as the screen allows; spare room goes to the coach.
     var HAND_ROW_GAP = 6;
-    // On a portrait phone your own tiles (hand and discards) are drawn this
-    // much smaller than they could be, so the table has more room.
+    // On a portrait phone your hand is drawn this much smaller than it could
+    // be, so the table has more room (discards are all one size).
     var PORTRAIT_SHRINK = 0.85;
+    // And phones draw it this much smaller again (both ways round).
+    var PHONE_HAND_SCALE = 0.9;
 
     // Discard areas for a pond: a cross around the center box, or (`strip`,
     // for a narrow table) top and bottom ponds across the full width with
@@ -847,6 +849,8 @@
       var tw = handRows === 2
         ? clamp((meW - 2 * pad - 16 - 6 * TILE_GAP) / 7.5 * PORTRAIT_SHRINK, 18, Math.min(62, H * 0.064))
         : clamp(((tileRowW - 2 * pad - 13 * TILE_GAP) / 14.8) * 0.88, 18, Math.min(124, H * (landscape ? 0.085 : 0.114)));
+      // Phones draw your hand (and so your melds) a little smaller, for the table.
+      if (!desktop) tw *= PHONE_HAND_SCALE;
       var th = tw * TILE_ASPECT;
       var handY = H - pad - th - depth(tw) - 4; // the bottom row
       var handTop = handY - (handRows - 1) * (th + HAND_ROW_GAP);
@@ -885,11 +889,12 @@
 
       // Phones' side seats only hold a column of tile backs, so they're
       // slim and the discards get the room.
-      var sideW = phonePortrait ? clamp(tableW * 0.125, 46, 88) : landscape ? 60 : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
-      var topPanelH = landscape ? 64 : portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
+      var sideW = phonePortrait ? clamp(tableW * 0.1, 38, 88) : landscape ? 60 : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
+      var topPanelH = landscape ? 64 : phonePortrait ? 62 : portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
       // Narrow side seats (drawOppHeader's compact header) stack name, strategy and points.
-      var sideHead = portrait || sideW < 120 ? 54 : 34;
-      var topHead = 30; // the name row, with a little room below it
+      // (On a phone: the badge and icon, and the points under them.)
+      var sideHead = !desktop ? 40 : portrait || sideW < 120 ? 54 : 34;
+      var topHead = desktop ? 30 : 26; // the name row, with a little room below it
       var opp = [];
       opp[3] = { x: ox + pad, y: topH, w: sideW, h: bandTop - topH - gap };
       opp[1] = { x: ox + tableW - pad - sideW, y: topH, w: sideW, h: bandTop - topH - gap };
@@ -965,7 +970,7 @@
     // Discards fill rows starting next to the center, moving toward the owner.
     function pondSlotLocal(seat, idx) {
       var f = L.zoneFrames[seat];
-      var pw = seat === 0 && L.phonePortrait ? L.pw * PORTRAIT_SHRINK : L.pw;
+      var pw = L.pw; // every pond's discards are the same size
       var ph = pw * TILE_ASPECT + TILE_GAP;
       var cols = L.pondCols || POND_COLS;
       var gridW = cols * (pw + TILE_GAP);
@@ -1624,12 +1629,19 @@
     }
 
     // The width your header needs (badge, name, icon and points), at most `max`.
+    // Phones leave the players' names out (each seat keeps its wind badge,
+    // icon and points), so the table gets the room.
+    function namesShown() {
+      return !L || L.desktop;
+    }
+
     function seatHeaderWidth(seat, max) {
       var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
       ctx.font = 'bold 13px ' + FONT_BODY;
       var ptsW = pts ? ctx.measureText(pts).width + 6 : 0;
       ctx.font = 'bold 14px ' + FONT_BODY;
-      return Math.min(max, 22 + 6 + ctx.measureText(seatTitle(seat)).width + ICON_GAP + 15 + ptsW + 4);
+      var nameW = namesShown() ? ctx.measureText(seatTitle(seat)).width + ICON_GAP : 0;
+      return Math.min(max, 22 + 6 + nameW + 15 + ptsW + 4);
     }
 
     function drawSeatHeader(seat, x, y, w) {
@@ -1655,14 +1667,17 @@
           ctx.restore();
         }
       }
-      var name = seatTitle(seat);
       var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
       ctx.font = 'bold 13px ' + FONT_BODY;
       var ptsW = pts ? ctx.measureText(pts).width + 6 : 0;
-      var nameSize = fitFont(ctx, name, w - 2 * r - 8 - ptsW - iconS - ICON_GAP, 14, FONT_BODY, 'bold');
-      text(name, x + 2 * r + 6, y + r + 1, { size: nameSize, weight: 'bold', color: COLORS.cream });
-      ctx.font = 'bold ' + nameSize + 'px ' + FONT_BODY;
-      var iconX = x + 2 * r + 6 + ctx.measureText(name).width + ICON_GAP;
+      var iconX = x + 2 * r + 6;
+      if (namesShown()) {
+        var name = seatTitle(seat);
+        var nameSize = fitFont(ctx, name, w - 2 * r - 8 - ptsW - iconS - ICON_GAP, 14, FONT_BODY, 'bold');
+        text(name, x + 2 * r + 6, y + r + 1, { size: nameSize, weight: 'bold', color: COLORS.cream });
+        ctx.font = 'bold ' + nameSize + 'px ' + FONT_BODY;
+        iconX += ctx.measureText(name).width + ICON_GAP;
+      }
       playerIcon(seat, iconX, y + r, iconS);
       if (seat === 0) ui.youIcon = { x: iconX, y: y + r, s: iconS, rowRight: x + w };
       if (pts) text(pts, x + w, y + r + 1, { size: 13, weight: 'bold', color: COLORS.goldLight, align: 'right' });
@@ -1728,11 +1743,16 @@
       var rad = 8;
       var by = r.y + 4 + top + rad;
       windBadge(seat, r.x + 4 + rad, by, rad);
-      var name = seatTitle(seat);
-      var size = fitFont(ctx, name, r.w - 2 * rad - 12 - 13 - ICON_GAP, 12, FONT_BODY, 'bold');
-      text(name, r.x + 2 * rad + 8, by + 1, { size: size, weight: 'bold', color: COLORS.cream });
-      ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
-      playerIcon(seat, r.x + 2 * rad + 8 + ctx.measureText(name).width + ICON_GAP, by, 13);
+      var iconX = r.x + 2 * rad + 8;
+      if (namesShown()) {
+        var name = seatTitle(seat);
+        var size = fitFont(ctx, name, r.w - 2 * rad - 12 - 13 - ICON_GAP, 12, FONT_BODY, 'bold');
+        text(name, iconX, by + 1, { size: size, weight: 'bold', color: COLORS.cream });
+        ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
+        iconX += ctx.measureText(name).width + ICON_GAP;
+      }
+      // (A seat too slim for it leaves the robot out; every opponent is a bot.)
+      if (iconX + 13 <= r.x + r.w - 2) playerIcon(seat, iconX, by, 13);
       if (pts) text(pts, r.x + r.w / 2, r.y + r.h - 7, { size: 11, weight: 'bold', align: 'center', color: COLORS.goldLight });
     }
 
