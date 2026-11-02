@@ -11,7 +11,7 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 
 - Picks are saved in `localStorage` under `lcm-play-strategies`, as `{ "seats": { "1": id, "2": id, "3": id }, "coach": id }`. Seat 1 is on your right, 2 across, 3 on your left.
 - A bot seat with nothing saved plays a random strategy, picked again each game. "Random each game" in the sheet clears the saved pick.
-- The coach (tips and feedback) defaults to `lucky-cat`.
+- The coach (tips and feedback) defaults to `jorge-yau`.
 - A change takes effect on the bot's next move, in the game you're playing.
 - Each bot's name on the table shows its strategy: "Mei · Lucky Cat".
 

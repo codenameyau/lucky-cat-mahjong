@@ -44,7 +44,7 @@
     },
   ];
 
-  var DEFAULT_COACH = 'lucky-cat';
+  var DEFAULT_COACH = 'jorge-yau';
   var BY_ID = {};
   STRATEGIES.forEach(function (s) { BY_ID[s.id] = s; });
 

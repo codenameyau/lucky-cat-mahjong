@@ -35,9 +35,9 @@ function targetOf(hand, extra) {
 }
 
 describe('strategy registry', () => {
-  it('lists lucky-cat and jorge-yau, with lucky-cat as the coach default', () => {
+  it('lists lucky-cat and jorge-yau, with jorge-yau as the coach default', () => {
     assert.deepEqual(S.ids(), ['lucky-cat', 'jorge-yau']);
-    assert.equal(S.DEFAULT_COACH, 'lucky-cat');
+    assert.equal(S.DEFAULT_COACH, 'jorge-yau');
     assert.equal(S.get('jorge-yau').bot, B);
     assert.equal(S.get('lucky-cat').bot, L);
     S.list().forEach((s) => {
@@ -47,7 +47,7 @@ describe('strategy registry', () => {
 
   it('falls back to the default for an unknown id', () => {
     assert.equal(S.has('nope'), false);
-    assert.equal(S.get('nope').id, 'lucky-cat');
+    assert.equal(S.get('nope').id, 'jorge-yau');
   });
 
   it('picks a random strategy from the list', () => {

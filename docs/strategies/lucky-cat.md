@@ -1,6 +1,6 @@
 # lucky-cat: how it plays
 
-This is the playbook for the **lucky-cat** strategy (`js/mahjong-lucky-cat.js`). The coach follows it by default, and any bot seat can play it (see the Strategies sheet).
+This is the playbook for the **lucky-cat** strategy (`js/mahjong-lucky-cat.js`). Any bot seat can play it, and the coach can follow it (pick it in the Strategies sheet).
 
 lucky-cat runs on the same engine as [jorge-yau](jorge-yau.md). It counts tiles from ready and live tiles the same way, scores every wait of a ready hand exactly, and reads opponents' threat levels the same way. What changes is how it picks a hand, the order it throws tiles, when it claims, when it gives up, and how it reads the other players.
 
