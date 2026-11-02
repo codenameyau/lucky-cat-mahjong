@@ -197,3 +197,7 @@ Navigation links (`data/nav.json`) and site styles (`css/`) are edited directly 
 ## Credits
 
 Mahjong tile artwork in `tiles/` comes from the public-domain (CC0) [samoheen/mahjong-tiles](https://github.com/samoheen/mahjong-tiles) project.
+
+Background music on the Play page (`assets/music/`): "Guzheng City", "Shenyang" and "Ripples" by Kevin MacLeod ([incompetech.com](https://incompetech.com)), licensed under [Creative Commons: By Attribution 4.0](https://creativecommons.org/licenses/by/4.0/). The tracks were re-encoded to AAC and are otherwise unchanged. Details in [assets/music/README.md](assets/music/README.md).
+
+Sound effects on the Play page (`assets/sounds/`) are clips from [Kenney](https://kenney.nl)'s [Casino Audio](https://kenney.nl/assets/casino-audio), [Interface Sounds](https://kenney.nl/assets/interface-sounds) and [Impact Sounds](https://kenney.nl/assets/impact-sounds) packs, released under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). They were trimmed and converted to WAV. Which clip each file comes from is listed in [assets/sounds/README.md](assets/sounds/README.md).
