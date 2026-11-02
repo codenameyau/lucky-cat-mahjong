@@ -827,9 +827,9 @@
       var handRows = phonePortrait ? 2 : 1;
       var depth = function (w) { return Math.max(2, w * 0.08); };
 
-      // Phones leave the coach out with the coach off (its bar upright, its
-      // column sideways), so the table gets the room. Desktop keeps the bar.
-      var coachShown = desktop || ui.coach !== 'off';
+      // An upright phone leaves the coach's bar out with the coach off, so
+      // the table gets the room. Desktop and sideways phones keep theirs.
+      var coachShown = desktop || landscape || ui.coach !== 'off';
 
       // Your section: the table's width on desktop and on a landscape phone
       // (the board takes the left two thirds there, the coach the rest),
