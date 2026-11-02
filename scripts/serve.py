@@ -16,7 +16,14 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
 
+class Server(http.server.ThreadingHTTPServer):
+    # The play page opens ~30 connections at once (scripts, sounds, fonts);
+    # the default backlog of 5 drops some, and a page missing a script
+    # can't start the game.
+    request_queue_size = 128
+
+
 if __name__ == '__main__':
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
     os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-    http.server.ThreadingHTTPServer(('', port), NoCacheHandler).serve_forever()
+    Server(('', port), NoCacheHandler).serve_forever()

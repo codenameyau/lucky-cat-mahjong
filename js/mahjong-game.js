@@ -308,8 +308,8 @@
     drawgame: { clips: ['draw-game'], gain: 0.55, then: [['tile-draw', 0.05, 0.4]] },
     // Show hands: impactMining_003, the whole clip, untrimmed.
     flip: { clips: ['tiles-reveal'], gain: 0.9 },
-    // Next hand: impactMining_004, trimmed like the claims.
-    next: { clips: ['impact-next'], gain: 0.85 },
+    // Next hand: a gong (impactBell_heavy_000), the whole ring.
+    next: { clips: ['gong'], gain: 0.7 },
   };
 
   // Background music: CC BY 4.0 tracks by Kevin MacLeod (incompetech.com),
@@ -562,6 +562,7 @@
     // Face-up tiles drawn this frame (screen boxes) and the mouse position,
     // for the tile-name tooltip.
     var tileSpots = [], tipsOn = true, mouse = null, tipTile = null;
+    var lastTouch = false; // the last press was a finger: no hover, so the selected tile gets the tip
 
     var ui = {
       coach: settings.coach || 'on', // 'on' (advice), 'feedback' (notes on your last move) or 'off'
@@ -709,10 +710,12 @@
     // 3 rows fit (24 discards). A longer hand adds a row and shrinks them.
     var POND_COLS = 8;
     var POND_ROWS = 3;
+    var PHONE_POND_CAPACITY = 8;
 
-    function fitPondTile(zw, zh, n) {
-      var rows = Math.max(POND_ROWS, Math.ceil(n / POND_COLS));
-      var byW = zw / POND_COLS - TILE_GAP;
+    function fitPondTile(zw, zh, n, cols) {
+      cols = cols || POND_COLS;
+      var rows = Math.max(1, Math.ceil(n / cols));
+      var byW = zw / cols - TILE_GAP;
       var byH = ((zh - 2) / rows - TILE_GAP) / TILE_ASPECT;
       return clamp(Math.min(byW, byH), 8, 56);
     }
@@ -757,9 +760,59 @@
     // The table (the other players and the discards) is kept as close to
     // square as the screen allows; spare room goes to the coach.
     var HAND_ROW_GAP = 6;
-    // On a portrait phone your own tiles (hand and discards) are drawn this
-    // much smaller than they could be, so the table has more room.
-    var PORTRAIT_SHRINK = 0.85;
+    // A landscape phone draws your hand this much smaller than it could be,
+    // so the table has more room.
+    var PHONE_HAND_SCALE = 0.9;
+
+    // Discard areas for a pond: a cross around the center box, or (`strip`,
+    // for a narrow table) top and bottom ponds across the full width with
+    // the side ponds in the band between them and a slim center box.
+    // `cols` tiles to a row, and enough rows to hold `capacity` discards.
+    // `midFrac` is how deep the cross's top and bottom ponds are.
+    function pondZones(inner, strip, cols, midFrac, capacity) {
+      var rows = Math.max(1, Math.ceil((capacity || POND_COLS * POND_ROWS) / cols));
+      var zones = [];
+      // The top and bottom rows are a little deeper so each discard can be larger.
+      var sideFrac = 0.26;
+      midFrac = midFrac || 0.34;
+      zones[2] = { x: inner.x + inner.w * sideFrac, y: inner.y + 2, w: inner.w * (1 - 2 * sideFrac), h: inner.h * midFrac - 2 };
+      zones[0] = { x: inner.x + inner.w * sideFrac, y: inner.y + inner.h * (1 - midFrac), w: inner.w * (1 - 2 * sideFrac), h: inner.h * midFrac - 2 };
+      zones[3] = { x: inner.x + 2, y: inner.y + 2, w: inner.w * sideFrac - 6, h: inner.h - 4 };
+      zones[1] = { x: inner.x + inner.w * (1 - sideFrac) + 4, y: inner.y + 2, w: inner.w * sideFrac - 6, h: inner.h - 4 };
+      var center = {
+        x: inner.x + inner.w * sideFrac + 4, y: inner.y + inner.h * midFrac + 2,
+        w: inner.w * (1 - 2 * sideFrac) - 8, h: inner.h * (1 - 2 * midFrac) - 4,
+      };
+      if (strip) {
+        var centerW = 52;
+        var sideDepth = (inner.w - centerW - 12) / 2;
+        var rowsH = function (p) { return rows * (p * TILE_ASPECT + TILE_GAP) + 4; };
+        var pwFit = Math.min((inner.w - 4) / cols - TILE_GAP, ((sideDepth - 2) / rows - TILE_GAP) / TILE_ASPECT);
+        // The side ponds' columns run down the band between top and bottom.
+        while (pwFit > 8 && inner.h - 2 * rowsH(pwFit) < cols * (pwFit + TILE_GAP) + 8) pwFit -= 0.5;
+        var bandH = rowsH(pwFit);
+        zones[2] = { x: inner.x + 2, y: inner.y + 2, w: inner.w - 4, h: bandH };
+        zones[0] = { x: inner.x + 2, y: inner.y + inner.h - bandH - 2, w: inner.w - 4, h: bandH };
+        var midY = inner.y + bandH + 6, midH = inner.h - 2 * bandH - 12;
+        zones[3] = { x: inner.x + 2, y: midY, w: sideDepth, h: midH };
+        zones[1] = { x: inner.x + inner.w - sideDepth - 2, y: midY, w: sideDepth, h: midH };
+        center = { x: inner.x + sideDepth + 6, y: midY, w: inner.w - 2 * sideDepth - 12, h: midH };
+      }
+      // A little smaller than the gap between the discard areas, kept centered.
+      var shrink = 0.85;
+      // (The strip's center box is already as narrow as it can be.)
+      if (!strip) {
+        center.x += center.w * (1 - shrink) / 2;
+        center.w *= shrink;
+      }
+      center.y += center.h * (1 - shrink) / 2;
+      center.h *= shrink;
+      // The middle plaque is wide in the cross; narrow it and keep it centered.
+      var narrow = strip ? 1 : 0.68;
+      center.x += center.w * (1 - narrow) / 2;
+      center.w *= narrow;
+      return { zones: zones, center: center };
+    }
 
     function computeLayout() {
       var pad = W < 600 ? 6 : 14;
@@ -769,25 +822,46 @@
       var desktop = cssW >= 980 && cssW >= cssH * 0.9;
       var landscape = !desktop && W > H;
       var phonePortrait = !desktop && !landscape;
-      var handRows = phonePortrait ? 2 : 1;
+      var handRows = 1;
       var depth = function (w) { return Math.max(2, w * 0.08); };
 
-      // Your section: full width on phones, the table's width on desktop.
-      var historyGap = desktop ? 14 : landscape ? 8 : 0;
+      // An upright phone leaves the coach's bar out with the coach off, so
+      // the table gets the room. Desktop and sideways phones keep theirs.
+      var coachShown = desktop || landscape || ui.coach !== 'off';
+
+      // Your section: the table's width on desktop and on a landscape phone
+      // (the board takes the left two thirds there, the coach the rest),
+      // the full width on a portrait phone.
+      var historyGap = desktop ? 14 : landscape && coachShown ? 8 : 0;
       var ox = 0;
       var tableW = W;
       if (desktop) tableW = Math.min(Math.round((W - historyGap - pad) * 2 / 3), Math.round(H * 1.1));
-      var meX = ox, meW = desktop ? tableW : W;
+      if (landscape && coachShown) tableW = Math.round((W - historyGap - pad) * 2 / 3);
+      var meX = ox, meW = phonePortrait ? W : tableW;
+      // A landscape phone's side seats run the full height (their tiles in
+      // one row need the length), so your section sits between them.
+      var LANDSCAPE_SIDE_W = 48;
+      if (landscape) {
+        meX = ox + LANDSCAPE_SIDE_W + 6;
+        meW = tableW - 2 * (LANDSCAPE_SIDE_W + 6);
+      }
 
-      // Hand tiles: one row of 14 across your section, or two rows of 7 on a
-      // portrait phone (bigger tiles, easier to tap).
-      var tw = handRows === 2
-        ? clamp((meW - 2 * pad - 16 - 6 * TILE_GAP) / 7.5 * PORTRAIT_SHRINK, 18, Math.min(62, H * 0.064))
-        : clamp(((meW - 2 * pad - 13 * TILE_GAP) / 14.8) * 0.88, 18, Math.min(124, H * (landscape ? 0.085 : 0.114)));
+      // Hand tiles: one row of 14 across your section. A portrait phone
+      // uses its whole width for them (they're narrow there).
+      // (A landscape phone sizes them for the two-thirds board even with the
+      // coach off: bigger tiles there would take height from the discards.)
+      var tileRowW = landscape ? Math.round((W - 8 - pad) * 2 / 3) : meW;
+      // (Upright, the tiles nearly touch, so they can be as big as the width allows.)
+      var handGap = phonePortrait ? 1 : TILE_GAP;
+      var tw = phonePortrait
+        ? (meW - 2 * pad - 6 - 13 * handGap) / 14
+        : clamp(((tileRowW - 2 * pad - 13 * TILE_GAP) / 14.8) * 0.88, 18, Math.min(124, H * (landscape ? 0.085 : 0.114)));
+      // A landscape phone draws your hand (and so your melds) a little smaller, for the table.
+      if (landscape) tw *= PHONE_HAND_SCALE;
       var th = tw * TILE_ASPECT;
       var handY = H - pad - th - depth(tw) - 4; // the bottom row
       var handTop = handY - (handRows - 1) * (th + HAND_ROW_GAP);
-      var mw = handRows === 2 ? tw * 0.8 : tw; // melds and flowers
+      var mw = tw; // melds and flowers
       var meldRowH = mw * TILE_ASPECT + 8;
       var meY = handTop - meldRowH - 6;
       var actionsH = 44;
@@ -808,33 +882,41 @@
       var hintH = 0;
       var room = meBox.y - 6 - topH - 6; // table and bar together
       if (desktop) hintH = 84;
-      if (phonePortrait) hintH = clamp(room - Math.min(tableW - 2 * pad, room - 72), 72, 150);
+      // (Upright, the coach's bar stays shorter than your section.)
+      if (phonePortrait && coachShown) hintH = clamp(room - Math.min(tableW - 2 * pad, room - 72), 72, 80);
       var hintY = meBox.y - hintH - 6;
       var bandTop = hintH ? hintY : meBox.y;
       var gap = 6;
 
-      // A landscape phone: the table on the left half, the coach's column
-      // on the right half.
-      var historyW = 0;
-      if (desktop) historyW = W - pad - historyGap - tableW;
-      if (landscape) {
-        historyW = Math.round(W / 2) - pad;
-        tableW = W - pad - historyGap - historyW;
-      }
+      // The coach's column takes what's left on desktop and on a landscape phone.
+      var historyW = desktop || (landscape && coachShown) ? W - pad - historyGap - tableW : 0;
       // Ponds and side seats go narrow on a phone's narrow table.
-      var portrait = !desktop && (tableW < 700 || tableW < (bandTop - topH) * 0.9);
+      // (A landscape phone keeps the phone sizes even when the coach is off
+      // and the table spans the screen: its height is what's short.)
+      var portrait = !desktop && (landscape || tableW < 700 || tableW < (bandTop - topH) * 0.9);
 
-      var sideW = portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
-      var topPanelH = portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
+      // On a phone each opponent's tiles are one row (drawOpponent), so the
+      // seats are only one tile deep and the discards get the room.
+      var sideW = phonePortrait ? 46 : landscape ? LANDSCAPE_SIDE_W : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
+      var topPanelH = !desktop ? 62 : portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
       // Narrow side seats (drawOppHeader's compact header) stack name, strategy and points.
-      var sideHead = portrait || sideW < 120 ? 54 : 34;
-      var topHead = 30; // the name row, with a little room below it
+      // (On a phone: the badge and icon, and the points under them.)
+      // (On a phone opponents show only their points, in payout games.)
+      var phoneHead = settings.mode === 'payout' ? 18 : 4;
+      var sideHead = !desktop ? phoneHead : portrait || sideW < 120 ? 54 : 34;
+      var topHead = desktop ? 30 : phoneHead; // the name row, with a little room below it
       var opp = [];
-      opp[3] = { x: ox + pad, y: topH, w: sideW, h: bandTop - topH - gap };
-      opp[1] = { x: ox + tableW - pad - sideW, y: topH, w: sideW, h: bandTop - topH - gap };
+      // An upright phone's player across spans the table, above the side
+      // seats; sideways the side seats run the full height instead, with the
+      // player across between them.
+      var acrossSpans = phonePortrait;
+      var sideTop = acrossSpans ? topH + topPanelH + gap : topH;
+      var sideBottom = landscape ? H - Math.max(4, pad / 2) : bandTop - gap;
+      opp[3] = { x: ox + pad, y: sideTop, w: sideW, h: sideBottom - sideTop };
+      opp[1] = { x: ox + tableW - pad - sideW, y: sideTop, w: sideW, h: sideBottom - sideTop };
       var mid = ox + pad + sideW + gap;
       var pondW = tableW - 2 * (pad + sideW + gap);
-      opp[2] = { x: mid, y: topH, w: pondW, h: topPanelH };
+      opp[2] = acrossSpans ? { x: ox + pad, y: topH, w: tableW - 2 * pad, h: topPanelH } : { x: mid, y: topH, w: pondW, h: topPanelH };
       [1, 3].forEach(function (k) {
         var r = opp[k];
         r.head = { x: r.x, y: r.y, w: r.w, h: sideHead };
@@ -849,81 +931,64 @@
 
       var inner = pond;
 
-      // Discard zones form a cross around the center info box.
-      var zones = [];
-      // The top and bottom rows are a little deeper so each discard can be larger.
-      var sideFrac = 0.26, midFrac = 0.34;
-      zones[2] = { x: inner.x + inner.w * sideFrac, y: inner.y + 2, w: inner.w * (1 - 2 * sideFrac), h: inner.h * midFrac - 2 };
-      zones[0] = { x: inner.x + inner.w * sideFrac, y: inner.y + inner.h * (1 - midFrac), w: inner.w * (1 - 2 * sideFrac), h: inner.h * midFrac - 2 };
-      zones[3] = { x: inner.x + 2, y: inner.y + 2, w: inner.w * sideFrac - 6, h: inner.h - 4 };
-      zones[1] = { x: inner.x + inner.w * (1 - sideFrac) + 4, y: inner.y + 2, w: inner.w * sideFrac - 6, h: inner.h - 4 };
-      var center = {
-        x: inner.x + inner.w * sideFrac + 4, y: inner.y + inner.h * midFrac + 2,
-        w: inner.w * (1 - 2 * sideFrac) - 8, h: inner.h * (1 - 2 * midFrac) - 4,
-      };
-      // A phone's table is narrow, so the cross would leave each side pond
-      // too shallow for 3 rows. There the top and bottom ponds span the
-      // full width, and the side ponds share the band between them with a
-      // slim center box.
-      if (portrait) {
-        var centerW = 52;
-        var sideDepth = (inner.w - centerW - 12) / 2;
-        var rowsH = function (p) { return POND_ROWS * (p * TILE_ASPECT + TILE_GAP) + 4; };
-        var pwFit = Math.min((inner.w - 4) / POND_COLS - TILE_GAP, ((sideDepth - 2) / POND_ROWS - TILE_GAP) / TILE_ASPECT);
-        // The side ponds' 8 columns run down the band between top and bottom.
-        while (pwFit > 8 && inner.h - 2 * rowsH(pwFit) < POND_COLS * (pwFit + TILE_GAP) + 8) pwFit -= 0.5;
-        var bandH = rowsH(pwFit);
-        zones[2] = { x: inner.x + 2, y: inner.y + 2, w: inner.w - 4, h: bandH };
-        zones[0] = { x: inner.x + 2, y: inner.y + inner.h - bandH - 2, w: inner.w - 4, h: bandH };
-        var midY = inner.y + bandH + 6, midH = inner.h - 2 * bandH - 12;
-        zones[3] = { x: inner.x + 2, y: midY, w: sideDepth, h: midH };
-        zones[1] = { x: inner.x + inner.w - sideDepth - 2, y: midY, w: sideDepth, h: midH };
-        center = { x: inner.x + sideDepth + 6, y: midY, w: inner.w - 2 * sideDepth - 12, h: midH };
+      // Each pond is planned to hold this many discards: 24 on desktop, 8 on
+      // a phone so its discards draw close to twice as large. A pond that
+      // runs past it re-fits them smaller (with a full pond, about the size
+      // they were before).
+      var maxDiscards = desktop ? POND_COLS * POND_ROWS : PHONE_POND_CAPACITY;
+      if (game && game.hand) {
+        game.hand.seats.forEach(function (st) { maxDiscards = Math.max(maxDiscards, st.discards.length + 1); });
       }
-      // A little smaller than the gap between the discard areas, kept centered.
-      var shrink = 0.85;
-      // (A phone's center box is already as narrow as it can be.)
-      if (!portrait) {
-        center.x += center.w * (1 - shrink) / 2;
-        center.w *= shrink;
+      // The discard areas. Desktop: a cross around the center box, 8
+      // columns of 3 rows each. Phones try the cross (with deeper top and
+      // bottom ponds, while the center box keeps room for the wind and the
+      // tile count) and the narrow-table layout, with 8 down to 5 columns
+      // (deeper rows to hold as many), and keep whichever draws the
+      // discards largest.
+      var options = [{ strip: portrait, cols: POND_COLS }];
+      if (!desktop) {
+        options = [];
+        [8, 7, 6, 5, 4].forEach(function (cols) {
+          options.push({ strip: true, cols: cols });
+          [0.34, 0.37, 0.4, 0.43, 0.46].forEach(function (m) { options.push({ strip: false, cols: cols, mid: m }); });
+        });
       }
-      center.y += center.h * (1 - shrink) / 2;
-      center.h *= shrink;
-      // The middle plaque is wide on a landscape table; narrow it and keep it centered.
-      var narrow = portrait ? 1 : 0.68;
-      center.x += center.w * (1 - narrow) / 2;
-      center.w *= narrow;
-      // Desktop: the column runs the full height. Landscape phone: it stops
-      // above your section, which runs along the whole bottom.
+      var CENTER_MIN_H = 40;
+      var best = null;
+      options.forEach(function (o) {
+        var z = pondZones(pond, o.strip, o.cols, o.mid, maxDiscards);
+        if (!desktop && !o.strip && z.center.h < CENTER_MIN_H) return;
+        var frames = z.zones.map(function (zone, k) { return makeFrame(zone, k); });
+        var size = 56;
+        frames.forEach(function (f) { size = Math.min(size, fitPondTile(f.w, f.h, maxDiscards, o.cols)); });
+        if (!best || size > best.pw + 0.01) best = { pw: size, zones: z.zones, center: z.center, frames: frames, cols: o.cols };
+      });
+      var inner = pond;
+      var zones = best.zones, center = best.center, zoneFrames = best.frames, pw = best.pw, pondCols = best.cols;
+      // The coach's column runs the full height, beside your section too.
       var history = historyW ? {
         x: ox + tableW + historyGap,
         y: topH,
         w: historyW,
-        h: (landscape ? bandTop - gap : H - pad) - topH,
+        h: H - pad - topH,
       } : null;
-      var zoneFrames = zones.map(function (z, k) { return makeFrame(z, k); });
-      var maxDiscards = POND_COLS * POND_ROWS;
-      if (game && game.hand) {
-        game.hand.seats.forEach(function (st) { maxDiscards = Math.max(maxDiscards, st.discards.length + 1); });
-      }
-      var pw = 56;
-      zoneFrames.forEach(function (f) { pw = Math.min(pw, fitPondTile(f.w, f.h, maxDiscards)); });
+
       return {
         pad: pad, topH: topH, portrait: portrait, ox: ox, tableW: tableW, history: history,
         desktop: desktop, landscape: landscape, phonePortrait: phonePortrait, meX: meX, meW: meW,
-        tw: tw, th: th, handY: handY, handRows: handRows, mw: mw, meY: meY, meldRowH: meldRowH, meBox: meBox,
+        tw: tw, th: th, handGap: handGap, handY: handY, handRows: handRows, mw: mw, meY: meY, meldRowH: meldRowH, meBox: meBox,
         actionsY: actionsY, actionsH: actionsH, actionsInRow: actionsInRow, hintY: hintY, hintH: hintH,
         opp: opp, oppFrames: oppFrames, pond: pond, inner: inner, zones: zones, zoneFrames: zoneFrames,
-        center: center, pw: pw, maxDiscards: maxDiscards,
+        center: center, pw: pw, maxDiscards: maxDiscards, pondCols: pondCols,
       };
     }
 
     // Discards fill rows starting next to the center, moving toward the owner.
     function pondSlotLocal(seat, idx) {
       var f = L.zoneFrames[seat];
-      var pw = seat === 0 && L.phonePortrait ? L.pw * PORTRAIT_SHRINK : L.pw;
+      var pw = L.pw; // every pond's discards are the same size
       var ph = pw * TILE_ASPECT + TILE_GAP;
-      var cols = POND_COLS;
+      var cols = L.pondCols || POND_COLS;
       var gridW = cols * (pw + TILE_GAP);
       return { x: (f.w - gridW) / 2 + (idx % cols) * (pw + TILE_GAP), y: 2 + Math.floor(idx / cols) * ph, w: pw };
     }
@@ -962,7 +1027,9 @@
         roundRect(ctx, x + 1, y + 2, w, h, w * 0.13);
         ctx.fill();
       }
-      if (id && !opts.back && tipsOn) recordSpot(id, x, y, w, h);
+      // A face-down tile has no tip, except your own (opts.peek: your
+      // concealed kong, whose tiles you know).
+      if (id && (!opts.back || opts.peek) && tipsOn) recordSpot(id, x, y, w, h);
       ctx.drawImage(sp, x, y, w, h);
       if (opts.glow) {
         ctx.strokeStyle = opts.glow;
@@ -1059,6 +1126,11 @@
 
     function drawTileTip() {
       var sp = spotAt(mouse);
+      // On a touch screen the tile you've selected (tapped once) gets the tip.
+      if (!sp && lastTouch && ui.selected >= 0 && ui.turnPrompt) {
+        var r = ui.lastHandRects[ui.selected];
+        if (r) sp = { id: r.id, x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h };
+      }
       tipTile = sp ? sp.id : null;
       if (!sp) return;
       var label = E.tileName(sp.id);
@@ -1489,6 +1561,14 @@
       ctx.fillRect(0, 0, W, 42);
       var pad = L ? L.pad : 8;
       button('Menu', pad, 7, 64, 28, openMenu, 'ghost', 'menu');
+      // A sideways phone gets a Full screen button beside Menu.
+      var left = pad + 72;
+      if (L && L.landscape && callbacks.fullscreen) {
+        var fsOn = callbacks.isFullscreen && callbacks.isFullscreen();
+        var fsW = 112;
+        button(fsOn ? 'Exit full screen' : 'Full screen', left, 7, fsW, 28, callbacks.fullscreen, 'ghost', 'fullscreen');
+        left += fsW + 6;
+      }
       var right = W - pad;
       var soundLabel = SOUND_LABELS[soundMode()];
       var sw = W < 420 ? 66 : 92;
@@ -1501,12 +1581,12 @@
       button('Strategies', right - sw - hw - rw - stw - 18, 7, stw, 28, openStrategies, 'ghost', 'strategies');
       if (game) {
         var label = E.WIND_NAMES[game.round] + ' round · Hand ' + game.handNumber;
-        var maxW = right - sw - hw - rw - stw - 24 - (pad + 72);
+        var maxW = right - sw - hw - rw - stw - 24 - left;
         // Phones have no room beside the buttons; the round wind still shows
         // in the middle of the table.
         if (maxW >= 90) {
           var size = fitFont(ctx, label, maxW, 15, FONT_HEAD);
-          text(label, pad + 72 + maxW / 2, 22, { size: size, family: FONT_HEAD, align: 'center', color: COLORS.cream });
+          text(label, left + maxW / 2, 22, { size: size, family: FONT_HEAD, align: 'center', color: COLORS.cream });
         }
       }
     }
@@ -1573,12 +1653,19 @@
     }
 
     // The width your header needs (badge, name, icon and points), at most `max`.
+    // Phones leave the players' names out (each seat keeps its wind badge,
+    // icon and points), so the table gets the room.
+    function namesShown() {
+      return !L || L.desktop;
+    }
+
     function seatHeaderWidth(seat, max) {
       var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
       ctx.font = 'bold 13px ' + FONT_BODY;
       var ptsW = pts ? ctx.measureText(pts).width + 6 : 0;
       ctx.font = 'bold 14px ' + FONT_BODY;
-      return Math.min(max, 22 + 6 + ctx.measureText(seatTitle(seat)).width + ICON_GAP + 15 + ptsW + 4);
+      var nameW = namesShown() ? ctx.measureText(seatTitle(seat)).width + ICON_GAP : 0;
+      return Math.min(max, 22 + 6 + nameW + 15 + ptsW + 4);
     }
 
     function drawSeatHeader(seat, x, y, w) {
@@ -1604,14 +1691,17 @@
           ctx.restore();
         }
       }
-      var name = seatTitle(seat);
       var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
       ctx.font = 'bold 13px ' + FONT_BODY;
       var ptsW = pts ? ctx.measureText(pts).width + 6 : 0;
-      var nameSize = fitFont(ctx, name, w - 2 * r - 8 - ptsW - iconS - ICON_GAP, 14, FONT_BODY, 'bold');
-      text(name, x + 2 * r + 6, y + r + 1, { size: nameSize, weight: 'bold', color: COLORS.cream });
-      ctx.font = 'bold ' + nameSize + 'px ' + FONT_BODY;
-      var iconX = x + 2 * r + 6 + ctx.measureText(name).width + ICON_GAP;
+      var iconX = x + 2 * r + 6;
+      if (namesShown()) {
+        var name = seatTitle(seat);
+        var nameSize = fitFont(ctx, name, w - 2 * r - 8 - ptsW - iconS - ICON_GAP, 14, FONT_BODY, 'bold');
+        text(name, x + 2 * r + 6, y + r + 1, { size: nameSize, weight: 'bold', color: COLORS.cream });
+        ctx.font = 'bold ' + nameSize + 'px ' + FONT_BODY;
+        iconX += ctx.measureText(name).width + ICON_GAP;
+      }
       playerIcon(seat, iconX, y + r, iconS);
       if (seat === 0) ui.youIcon = { x: iconX, y: y + r, s: iconS, rowRight: x + w };
       if (pts) text(pts, x + w, y + r + 1, { size: 13, weight: 'bold', color: COLORS.goldLight, align: 'right' });
@@ -1642,7 +1732,7 @@
       items.forEach(function (it) {
         if (it.gap) { cx += tw * 0.35; return; }
         if (cx + drawn > x + w + 0.5) { cx = x; cy += th; }
-        drawTile(it.id, cx, cy, drawn, { back: it.back, shadow: false, glow: it.glow });
+        drawTile(it.id, cx, cy, drawn, { back: it.back, peek: it.peek, shadow: false, glow: it.glow });
         cx += drawn + TILE_GAP;
       });
       return { x: cx, y: cy, bottom: cy + th };
@@ -1655,7 +1745,10 @@
       melds.forEach(function (m, i) {
         if (i >= melds.length - hidden) return;
         if (items.length) items.push({ gap: true });
-        meldTiles(m, ui.revealHands).forEach(function (x) { items.push(x); });
+        meldTiles(m, ui.revealHands).forEach(function (x) {
+          if (seat === 0) x.peek = true; // your concealed kong still shows its tip
+          items.push(x);
+        });
       });
       return items;
     }
@@ -1663,6 +1756,11 @@
     function drawOppHeader(seat, r) {
       var compact = r.w < 120;
       var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
+      // A phone shows only the opponent's points: no name, wind or robot.
+      if (!namesShown()) {
+        if (pts) text(pts, r.x + r.w / 2, r.y + r.h / 2 + 1, { size: 11, weight: 'bold', align: 'center', color: COLORS.goldLight });
+        return;
+      }
       // The side players' headers get a little room above them; the player
       // across keeps theirs at the bottom of their box.
       var top = seat === 2 ? 0 : 6;
@@ -1674,11 +1772,16 @@
       var rad = 8;
       var by = r.y + 4 + top + rad;
       windBadge(seat, r.x + 4 + rad, by, rad);
-      var name = seatTitle(seat);
-      var size = fitFont(ctx, name, r.w - 2 * rad - 12 - 13 - ICON_GAP, 12, FONT_BODY, 'bold');
-      text(name, r.x + 2 * rad + 8, by + 1, { size: size, weight: 'bold', color: COLORS.cream });
-      ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
-      playerIcon(seat, r.x + 2 * rad + 8 + ctx.measureText(name).width + ICON_GAP, by, 13);
+      var iconX = r.x + 2 * rad + 8;
+      if (namesShown()) {
+        var name = seatTitle(seat);
+        var size = fitFont(ctx, name, r.w - 2 * rad - 12 - 13 - ICON_GAP, 12, FONT_BODY, 'bold');
+        text(name, iconX, by + 1, { size: size, weight: 'bold', color: COLORS.cream });
+        ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
+        iconX += ctx.measureText(name).width + ICON_GAP;
+      }
+      // (A seat too slim for it leaves the robot out; every opponent is a bot.)
+      if (iconX + 13 <= r.x + r.w - 2) playerIcon(seat, iconX, by, 13);
       if (pts) text(pts, r.x + r.w / 2, r.y + r.h - 7, { size: 11, weight: 'bold', align: 'center', color: COLORS.goldLight });
     }
 
@@ -1710,48 +1813,69 @@
       drawSeatBox(r, ui.turnSeat === seat, t);
       drawOppHeader(seat, r.head);
 
-      // Drawn in the seat's rotated frame, facing its owner: the concealed
-      // hand along their edge (a fresh draw sits a little apart, and the tile
-      // they are considering lifts), melds and flowers in front of it.
+      // Drawn in the seat's rotated frame, facing its owner. On desktop the
+      // concealed hand runs along their edge (a fresh draw sits a little
+      // apart, and the tile they are considering lifts), with melds and
+      // flowers in front of it. On a phone it's all one row, so the tiles
+      // can be larger: melds and flowers from the owner's left, then the
+      // concealed hand.
       var f = L.oppFrames[seat];
-      // One tile size for the hand and the meld row, so both rows must fit.
       var items = meldItems(seat);
       var meldTilesN = items.filter(function (it) { return !it.gap; }).length;
       var gaps = items.length - meldTilesN;
       var flowersN = s.flowers.length;
-      var meldUnits = meldTilesN + gaps * 0.35 + flowersN + 0.6;
       var tileN = meldTilesN + flowersN;
-      var bw = clamp(Math.min(
-        (f.w - 13 * TILE_GAP) / 14.7,
-        (f.w - Math.max(0, tileN - 1) * TILE_GAP) / Math.max(1, meldUnits),
-        (f.h - 8) / (2 * (TILE_ASPECT + 0.08))
-      ), 8, 33);
-      var mw = bw; // melds and flowers are exactly the size of the hand's tiles
       var faceUp = ui.revealHands ? revealedConcealed(seat) : null;
       var count = faceUp ? faceUp.length : oppConcealedCount(seat);
       var apart = !faceUp && ui.botDrawn[seat] && count > 0;
-      // Center the hand along the area by the tiles actually held (a fresh
-      // draw hangs off the end so the hand doesn't jump every turn). The
-      // player across centers the hand and meld row in their area; side
-      // players keep the hand near their back edge, melds in front.
-      var depth = bw * (TILE_ASPECT + 0.08);
-      var block = 2 * depth + 5;
-      var edge = seat === 2 ? Math.max(1, (f.h - block) / 2) : Math.min(6, Math.max(1, (f.h - block) / 2));
-      var backsY = f.h - edge - depth;
-      var held = apart ? count - 1 : count;
+      var oneRow = !L.desktop;
+      var mw, bw, backsY, meldY, bx0, mx0;
+      var rowDepth = function (w) { return w * (TILE_ASPECT + 0.08); };
+      if (oneRow) {
+        var split = tileN && count ? 0.6 : 0; // room between the melds and the hand
+        var units = count + (apart ? 0.4 : 0) + meldTilesN + gaps * 0.35 + flowersN + split;
+        var tilesInRow = count + tileN;
+        mw = clamp(Math.min(
+          (f.h - 8) / (TILE_ASPECT + 0.08),
+          (f.w - Math.max(0, tilesInRow - 1) * TILE_GAP) / Math.max(1, units)
+        ), 8, 40);
+        bw = mw;
+        var rowW = units * mw + Math.max(0, tilesInRow - 1) * TILE_GAP;
+        mx0 = Math.max(0, (f.w - rowW) / 2);
+        backsY = meldY = (f.h - rowDepth(mw)) / 2;
+        var meldsW = tileN ? (meldTilesN + gaps * 0.35 + flowersN) * mw + (tileN - 1) * TILE_GAP + TILE_GAP : 0;
+        bx0 = mx0 + meldsW + split * mw;
+      } else {
+        // One tile size for the hand and the meld row, so both rows must fit.
+        var meldUnits = meldTilesN + gaps * 0.35 + flowersN + 0.6;
+        mw = clamp(Math.min(
+          (f.w - 13 * TILE_GAP) / 14.7,
+          (f.w - Math.max(0, tileN - 1) * TILE_GAP) / Math.max(1, meldUnits),
+          (f.h - 8) / (2 * rowDepth(1))
+        ), 8, 33);
+        bw = mw;
+        // Center the hand along the area by the tiles actually held (a fresh
+        // draw hangs off the end so the hand doesn't jump every turn). The
+        // player across centers the hand and meld row in their area; side
+        // players keep the hand near their back edge, melds in front.
+        var block = 2 * rowDepth(bw) + 5;
+        var edge = seat === 2 ? Math.max(1, (f.h - block) / 2) : Math.min(6, Math.max(1, (f.h - block) / 2));
+        backsY = f.h - edge - rowDepth(bw);
+        var held = apart ? count - 1 : count;
+        bx0 = (f.w - (held > 0 ? held * bw + (held - 1) * TILE_GAP : 0)) / 2;
+        meldY = backsY - rowDepth(mw) - 5;
+        mx0 = 0;
+      }
       var pitch = bw + TILE_GAP;
-      var bx0 = (f.w - (held > 0 ? held * bw + (held - 1) * TILE_GAP : 0)) / 2;
       var lift = ui.botLift && ui.botLift.seat === seat ? ui.botLift.index : -1;
       var backX = function (i) { return bx0 + i * pitch + (apart && i === count - 1 ? bw * 0.4 : 0); };
-
-      var meldY = backsY - mw * (TILE_ASPECT + 0.08) - 5;
 
       enterFrame(f);
       for (var i = 0; i < count; i++) {
         if (faceUp) drawTile(faceUp[i], backX(i), backsY, bw, { shadow: false });
         else drawTile(null, backX(i), backsY - (i === lift ? bw * 0.38 : 0), bw, { back: true, shadow: false });
       }
-      var mx = 0;
+      var mx = mx0;
       items.forEach(function (it) {
         if (it.gap) { mx += mw * 0.35; return; }
         drawTile(it.id, mx, meldY, mw, { back: it.back, shadow: false });
@@ -1759,7 +1883,7 @@
       });
       // Like a real table, melds then flowers run from the owner's left.
       var fw = mw;
-      var fx = mx + (items.length ? mw * 0.35 : 0);
+      var fx = mx + (items.length && !oneRow ? mw * 0.35 : 0);
       var wind = E.seatWind(game, seat);
       s.flowers.forEach(function (id, k) {
         drawTile(id, fx + k * (fw + TILE_GAP), meldY, fw, { shadow: false, glow: flowerGlow(s.flowers, wind, id) });
@@ -1862,33 +1986,31 @@
     }
 
     // The hand is one row across your section (the left two thirds on
-    // desktop), or two rows on a portrait phone: the first half on top, the
-    // rest (and a fresh draw, set a little apart) below.
-    function handSpan(count, tileW, drawnSeparate) {
+    // desktop). A fresh draw sits at the end, in line with the others.
+    function handSpan(count, tileW) {
       if (count <= 0) return 0;
-      return count * tileW + (count - 1) * TILE_GAP + (drawnSeparate ? tileW * 0.4 : 0);
+      return count * tileW + (count - 1) * L.handGap;
     }
 
-    function handLeft(count, drawnSeparate) {
-      var total = handSpan(count, L.tw, drawnSeparate);
+    function handLeft(count) {
+      var total = handSpan(count, L.tw);
       var span = L.meW;
       if (total >= span - 2 * L.pad) return L.meX + L.pad;
       return L.meX + Math.max(L.pad, (span - total) / 2);
     }
 
     // Where each of `count` hand tiles sits: [{ x, y }].
-    function handPositions(count, drawnSeparate) {
-      var step = L.tw + TILE_GAP;
+    function handPositions(count) {
+      var step = L.tw + L.handGap;
       var rows = L.handRows === 2 && count > 1 ? 2 : 1;
       var per = Math.ceil(count / rows);
       var out = [];
       for (var r = 0; r < rows; r++) {
         var start = r * per;
         var n = Math.min(per, count - start);
-        var sep = drawnSeparate && start + n === count;
-        var left = handLeft(n, sep);
+        var left = handLeft(n);
         var y = L.handY - (rows - 1 - r) * (L.th + HAND_ROW_GAP);
-        for (var k = 0; k < n; k++) out.push({ x: left + k * step + (sep && k === n - 1 ? L.tw * 0.4 : 0), y: y });
+        for (var k = 0; k < n; k++) out.push({ x: left + k * step, y: y });
       }
       return out;
     }
@@ -2063,7 +2185,7 @@
       var iconS = Math.min(L.hintH - 14, 48);
       var tx = x + 8 + iconS + 8;
       var tw = w - (tx - x) - 10;
-      var size = L.tableW < 600 ? 12 : 13;
+      var size = !L.desktop ? 11 : L.tableW < 600 ? 12 : 13; // smaller on a phone
       var out = [];
       lines.forEach(function (l) {
         ctx.font = (l.bold ? 'bold ' : '') + size + 'px ' + FONT_BODY;
@@ -2189,7 +2311,7 @@
       var viewY = r.y + 36;
       var viewW = r.w - 20;
       var viewH = r.h - 46;
-      var size = r.w > 520 ? 15 : 13;
+      var size = !L.desktop ? 11 : r.w > 520 ? 15 : 13; // smaller on a phone
       var lh = size + 4;
       var avatar = 32;
       var textPad = 8 + avatar + 8;
@@ -2885,7 +3007,7 @@
       requestRender();
     }
 
-    // Leaves the summary for the next deal, with its own mining hit.
+    // Leaves the summary for the next deal, with a gong.
     function nextHand() {
       sound.play('next');
       closeOverlay();
@@ -2931,6 +3053,7 @@
       ui.coach = next;
       saveSetting('coach', next);
       refreshHint();
+      L = computeLayout(); // phones show or hide the coach's bar or column
       requestRender();
       track('play_set_coach', { coach: next });
     }
@@ -3059,6 +3182,7 @@
     }
 
     function onPointerDown(e) {
+      lastTouch = !!e.pointerType && e.pointerType !== 'mouse';
       var p = pointerPos(e);
       if (historyAt(p)) {
         if (ui.coachScrollMax > 0) {
@@ -3667,6 +3791,8 @@
       table = createTable(canvas, live, settings, {
         quit: close,
         restart: function () { open(settings); },
+        fullscreen: toggleFullscreen,
+        isFullscreen: function () { return !!fullscreenElement(); },
         // A loaded game plays in its own mode; the rest of your settings stay.
         load: function (data) {
           open(Object.assign({}, settings, { mode: data.payload.game.settings.mode }), data);
@@ -3675,10 +3801,120 @@
       table.start();
       canvas.focus();
       root.__lcmTable = table;
+      hideToolbar();
     }
+
+    // Phones held sideways play fullscreen. Browsers only allow it from a
+    // tap, so the first tap in the game while sideways enters it (iPhone
+    // Safari has no fullscreen for pages; added to the home screen, the
+    // page opens fullscreen there instead). Turning back upright, or
+    // quitting, leaves the fullscreen it entered. Leaving it yourself while
+    // sideways keeps it off until the phone is turned upright again.
+    var autoFullscreen = false;
+    var declinedFullscreen = false;
+    var fullscreenPending = false; // one request at a time (a tap on Full screen fires both)
+    function phoneSideways() {
+      var coarse = root.matchMedia && root.matchMedia('(pointer: coarse)').matches;
+      return coarse && root.innerWidth > root.innerHeight && root.innerHeight < 600;
+    }
+    function fullscreenElement() {
+      return document.fullscreenElement || document.webkitFullscreenElement || null;
+    }
+    function leaveAutoFullscreen() {
+      if (!autoFullscreen) return;
+      autoFullscreen = false;
+      var exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (fullscreenElement() && exit) {
+        var p = exit.call(document);
+        if (p && p.catch) p.catch(function () {});
+      }
+    }
+    function enterFullscreenOnTap() {
+      if (stage.hidden || declinedFullscreen || fullscreenPending || fullscreenElement() || !phoneSideways()) return;
+      requestFullscreen();
+    }
+    function requestFullscreen() {
+      var el = document.documentElement;
+      var req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (!req) return;
+      try {
+        var p = req.call(el, { navigationUI: 'hide' });
+        autoFullscreen = true;
+        fullscreenPending = !!(p && p.then);
+        setTimeout(function () { fullscreenPending = false; }, 3000); // in case it never settles
+        if (p && p.then) {
+          p.then(function () { fullscreenPending = false; hideToolbar(); }, function () { fullscreenPending = false; autoFullscreen = false; });
+        }
+      } catch (e) { fullscreenPending = false; }
+    }
+    // Sideways, also ask the browser to hide its toolbar: the page gets
+    // room to scroll (.is-sideways: a pixel past the full screen height)
+    // and is scrolled to the bottom of it, which mobile browsers answer by
+    // tucking the address bar away so the game fills the screen. No tap
+    // needed.
+    // (Instantly: the site scrolls smoothly, and a smooth scroll can be
+    // dropped while the page is still settling.) Back to the top first, so
+    // the scroll down always happens even if the page was already there.
+    function scrollToY(y) {
+      try { root.scrollTo({ top: y, left: 0, behavior: 'instant' }); } catch (e) { root.scrollTo(0, y); }
+    }
+    function nudgeScroll() {
+      if (stage.hidden || !phoneSideways()) return;
+      var de = document.documentElement;
+      var max = Math.max(1, de.scrollHeight - root.innerHeight);
+      scrollToY(0);
+      setTimeout(function () { scrollToY(max); }, 20);
+    }
+    // Repeats as a rotation settles (phones resize in steps as the toolbar moves).
+    function hideToolbar() {
+      var sideways = !stage.hidden && phoneSideways();
+      document.documentElement.classList.toggle('is-sideways', sideways);
+      if (!sideways) return;
+      [60, 300, 700, 1200].forEach(function (ms) { setTimeout(nudgeScroll, ms); });
+    }
+    document.addEventListener('pointerup', function () { if (!stage.hidden && phoneSideways()) nudgeScroll(); }, true);
+    root.addEventListener('orientationchange', hideToolbar);
+    if (root.screen && root.screen.orientation && root.screen.orientation.addEventListener) {
+      root.screen.orientation.addEventListener('change', hideToolbar);
+    }
+    // The Full screen button (sideways phones): in or out of fullscreen,
+    // and the toolbar tucked away either way (iPhone Safari has no page
+    // fullscreen, so there it's the toolbar only).
+    function toggleFullscreen() {
+      if (fullscreenElement()) {
+        var exit = document.exitFullscreen || document.webkitExitFullscreen;
+        autoFullscreen = false;
+        declinedFullscreen = true;
+        if (exit) { var px = exit.call(document); if (px && px.catch) px.catch(function () {}); }
+        return;
+      }
+      declinedFullscreen = false;
+      if (!fullscreenPending) requestFullscreen();
+      hideToolbar();
+    }
+    document.addEventListener('pointerup', enterFullscreenOnTap, true);
+    function onFullscreenChange() {
+      if (!fullscreenElement() && autoFullscreen) {
+        autoFullscreen = false;
+        if (phoneSideways()) declinedFullscreen = true;
+      }
+    }
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+    root.addEventListener('resize', function () {
+      if (root.innerHeight > root.innerWidth) {
+        declinedFullscreen = false;
+        leaveAutoFullscreen();
+      }
+      // Only when it changes, so the toolbar showing again (a resize) doesn't loop.
+      var was = document.documentElement.classList.contains('is-sideways');
+      if (was !== (!stage.hidden && phoneSideways())) hideToolbar();
+    });
 
     // Quitting ends the game, so a refresh starts at the menu again.
     function close() {
+      leaveAutoFullscreen();
+      document.documentElement.classList.remove('is-sideways');
       if (table) table.destroy();
       table = null;
       removeJson(AUTOSAVE_KEY);

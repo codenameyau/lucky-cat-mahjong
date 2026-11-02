@@ -24,7 +24,7 @@ plays with no delay. The cues that use them are `CUES` in `js/mahjong-game.js`.
 | `impact-pung.wav` | `impactMining_000` | Impact Sounds |
 | `impact-kong.wav` | `impactMining_002` | Impact Sounds |
 | `tiles-reveal.wav` | `impactMining_003`, the whole clip (Show hands), only converted to mono WAV | Impact Sounds |
-| `impact-next.wav` | `impactMining_004` (Next hand) | Impact Sounds |
+| `gong.wav` | `impactBell_heavy_000`, the whole ring (Next hand) | Impact Sounds |
 
 Every sound but the flower's soft glass chime is something physical on the
 table (chips, wood, mining-pick hits); there are no electronic tones.
