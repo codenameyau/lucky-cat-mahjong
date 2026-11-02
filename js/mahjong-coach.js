@@ -483,7 +483,7 @@
       if (liveLeft <= 1) notes.push('Almost none left, so switch waits if you can.');
       tips.push(state + (notes.length ? ' ' + notes.join(' ') : ''));
     } else if (pick.plan) {
-      var line = stepsText(buildingLimit ? pick.plan.shanten : pick.shanten) + '. Lock in ' + targetText(v, pick.plan, cAfter, null) + '.';
+      var line = stepsText(buildingLimit ? pick.plan.shanten : pick.shanten) + '. Aim for ' + targetText(v, pick.plan, cAfter, null) + '.';
       if (route.faan < min - 0.25) line += ' Short of ' + min + ' faan, so look for a flush, All Triplets or a dragon or wind set.';
       else if (!defending) { var phase = phaseText(v, threats); if (phase) line += ' ' + phase; }
       tips.push(line);
@@ -563,7 +563,7 @@
       } else if (plan) {
         var short = plan.route.faan < min - 0.25 ? ' Still short of ' + min + ' faan.' : '';
         lines.push((discard ? 'Then discard ' + E.tileName(discard) + '. ' : '') + stepsText(plan.shanten) +
-          '. Lock in ' + targetText(v, plan, counts) + '.' + short);
+          '. Aim for ' + targetText(v, plan, counts) + '.' + short);
       }
       var shown = threats.filter(function (t) { return t.level >= 2; });
       var said = threatSentence(v.game, shown);
