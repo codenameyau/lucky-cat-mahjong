@@ -255,7 +255,9 @@
   // re-encoded to 96 kbps AAC in /assets/music/. The credit is on the play
   // page and in /assets/music/README.md.
   var MUSIC_DIR = '/assets/music/';
-  var MUSIC_VOLUME = 0.22;
+  // Quiet under the effects. Applied through Web Audio (see playTrack):
+  // iPhones ignore an audio element's own volume and play it at full.
+  var MUSIC_VOLUME = 0.18;
   var MUSIC = [
     { file: 'guzheng-city.m4a', title: 'Guzheng City' },
     { file: 'shenyang.m4a', title: 'Shenyang' },
@@ -284,7 +286,7 @@
     var out = null;
     var raw = {}; // fetched bytes, decoded once there's an audio context
     var buffers = {};
-    var api = { enabled: enabled };
+    var api = { enabled: enabled, musicEnabled: true };
 
     // The files are small (a quarter MB in all), so fetch them up front;
     // the browser only lets audio start after a tap, when ctx() runs.
@@ -315,6 +317,9 @@
       if (!ac) {
         var AC = root.AudioContext || root.webkitAudioContext;
         if (!AC) return null;
+        // iOS mutes Web Audio when the ring/silent switch is on, but not
+        // media; 'playback' lets the effects play like the music does.
+        try { if (root.navigator && root.navigator.audioSession) root.navigator.audioSession.type = 'playback'; } catch (e) {}
         ac = new AC();
         out = ac.createGain();
         out.gain.value = 0.9;
@@ -360,22 +365,33 @@
       if (!music.el) {
         if (!root.Audio) return;
         music.el = new root.Audio();
-        music.el.volume = MUSIC_VOLUME;
+        // Route the music through Web Audio so its volume holds on phones
+        // (iOS ignores the element's volume); fall back to that volume.
+        var a = ctx();
+        if (a && a.createMediaElementSource) {
+          var g = a.createGain();
+          g.gain.value = MUSIC_VOLUME;
+          a.createMediaElementSource(music.el).connect(g);
+          g.connect(a.destination);
+        } else {
+          music.el.volume = MUSIC_VOLUME;
+        }
         music.el.addEventListener('ended', function () { playTrack(nextTrack()); });
         // A track that can't load is skipped.
         music.el.addEventListener('error', function () { if (music.on) playTrack(nextTrack()); });
       }
       music.el.src = MUSIC_DIR + track.file;
-      if (music.on && api.enabled) {
+      if (music.on && api.enabled && api.musicEnabled) {
         var p = music.el.play();
         if (p && p.catch) p.catch(function () {}); // waits for a tap if the browser blocks it
       }
     }
 
-    // music(true) starts or resumes it (if sound is on), music(false) pauses.
+    // music(true) starts or resumes it (if sound and music are on),
+    // music(false) pauses.
     api.music = function (on) {
       music.on = !!on;
-      if (!music.on || !api.enabled) {
+      if (!music.on || !api.enabled || !api.musicEnabled) {
         if (music.el) music.el.pause();
         return;
       }
@@ -442,6 +458,7 @@
     var ctx = canvas.getContext('2d');
     var prefs = readJson(PREFS_KEY, { sound: true });
     var sound = createSound(prefs.sound !== false);
+    sound.musicEnabled = prefs.music !== false;
     var reduceMotion = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     // W and H are the layout size. On short landscape screens the table is
@@ -643,6 +660,9 @@
     // The table (the other players and the discards) is kept as close to
     // square as the screen allows; spare room goes to the coach.
     var HAND_ROW_GAP = 6;
+    // On a portrait phone your own tiles (hand and discards) are drawn this
+    // much smaller than they could be, so the table has more room.
+    var PORTRAIT_SHRINK = 0.85;
 
     function computeLayout() {
       var pad = W < 600 ? 6 : 14;
@@ -665,7 +685,7 @@
       // Hand tiles: one row of 14 across your section, or two rows of 7 on a
       // portrait phone (bigger tiles, easier to tap).
       var tw = handRows === 2
-        ? clamp((meW - 2 * pad - 16 - 6 * TILE_GAP) / 7.5, 18, Math.min(72, H * 0.075))
+        ? clamp((meW - 2 * pad - 16 - 6 * TILE_GAP) / 7.5 * PORTRAIT_SHRINK, 18, Math.min(62, H * 0.064))
         : clamp(((meW - 2 * pad - 13 * TILE_GAP) / 14.8) * 0.88, 18, Math.min(124, H * (landscape ? 0.085 : 0.114)));
       var th = tw * TILE_ASPECT;
       var handY = H - pad - th - depth(tw) - 4; // the bottom row
@@ -696,14 +716,13 @@
       var bandTop = hintH ? hintY : meBox.y;
       var gap = 6;
 
-      // A landscape phone: the table as wide as it is tall (a little wider
-      // if the screen allows), the coach's column beside it.
+      // A landscape phone: the table on the left half, the coach's column
+      // on the right half.
       var historyW = 0;
       if (desktop) historyW = W - pad - historyGap - tableW;
       if (landscape) {
-        var boardH = bandTop - gap - topH;
-        tableW = clamp(Math.round(boardH * 1.25), 300, Math.round((W - pad) * 0.62));
-        historyW = W - pad - historyGap - tableW;
+        historyW = Math.round(W / 2) - pad;
+        tableW = W - pad - historyGap - historyW;
       }
       // Ponds and side seats go narrow on a phone's narrow table.
       var portrait = !desktop && (tableW < 700 || tableW < (bandTop - topH) * 0.9);
@@ -805,7 +824,7 @@
     // Discards fill rows starting next to the center, moving toward the owner.
     function pondSlotLocal(seat, idx) {
       var f = L.zoneFrames[seat];
-      var pw = L.pw;
+      var pw = seat === 0 && L.phonePortrait ? L.pw * PORTRAIT_SHRINK : L.pw;
       var ph = pw * TILE_ASPECT + TILE_GAP;
       var cols = POND_COLS;
       var gridW = cols * (pw + TILE_GAP);
@@ -1047,12 +1066,8 @@
             var faan = F[r.key];
             var limit = faan >= F.thirteenOrphans;
             row.innerHTML = '<div class="rules-row-text"><div class="rules-name"></div><div class="rules-desc"></div></div><div class="rules-faan"></div>';
-            var nm = row.querySelector('.rules-name');
-            nm.textContent = r.name;
-            var cn = document.createElement('span');
-            cn.className = 'rules-cn';
-            cn.textContent = r.cn;
-            nm.appendChild(cn);
+            // English names only (the Chinese names stay in the rule data).
+            row.querySelector('.rules-name').textContent = r.name;
             row.querySelector('.rules-desc').textContent = r.desc;
             var pill = row.querySelector('.rules-faan');
             pill.textContent = limit ? 'Limit' : faan + ' faan';
@@ -1348,6 +1363,14 @@
     }
 
     var COACH_LABELS = { on: 'Coach on', feedback: 'Feedback on', off: 'Coach off' };
+    // The Sound button cycles: effects and music, effects only, nothing.
+    var SOUND_LABELS = { on: 'Sound on', nomusic: 'Music off', off: 'Sound off' };
+    var SOUND_ORDER = ['on', 'nomusic', 'off'];
+
+    function soundMode() {
+      if (!sound.enabled) return 'off';
+      return sound.musicEnabled ? 'on' : 'nomusic';
+    }
     var COACH_ORDER = ['on', 'feedback', 'off'];
 
     function drawTopBar() {
@@ -1356,7 +1379,7 @@
       var pad = L ? L.pad : 8;
       button('Menu', pad, 7, 64, 28, openMenu, 'ghost', 'menu');
       var right = W - pad;
-      var soundLabel = sound.enabled ? 'Sound on' : 'Sound off';
+      var soundLabel = SOUND_LABELS[soundMode()];
       var sw = W < 420 ? 66 : 92;
       button(soundLabel, right - sw, 7, sw, 28, toggleSound, 'ghost', 'sound');
       var hw = W < 420 ? 84 : 106;
@@ -2655,10 +2678,11 @@
     }
 
     function toggleSound() {
-      sound.enabled = !sound.enabled;
-      writeJson(PREFS_KEY, { sound: sound.enabled });
-      // The Sound button turns the music on and off with the effects.
-      sound.music(sound.enabled);
+      var next = SOUND_ORDER[(SOUND_ORDER.indexOf(soundMode()) + 1) % SOUND_ORDER.length];
+      sound.enabled = next !== 'off';
+      sound.musicEnabled = next === 'on';
+      writeJson(PREFS_KEY, { sound: sound.enabled, music: sound.musicEnabled });
+      sound.music(true); // plays or pauses to match
       if (sound.enabled) sound.play('select');
       requestRender();
     }

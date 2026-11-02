@@ -14,8 +14,9 @@
        whichever is worth the most.
      - Chows. A chow gives up the hand's concealed faan and shows what it's
        doing, so it takes one only when it makes the hand ready, builds the
-       flush it is already going for (early, only one tile from ready), or
-       late in the hand saves a step.
+       flush it is already going for (early, only one tile from ready),
+       late in the hand saves a step, or the hand's flowers and sets already
+       give all but one faan (then within two tiles of ready).
    The playbook is written out in docs/strategies/jorge-yau.md. */
 
 (function (root) {
@@ -104,6 +105,9 @@
     var an = o.analysis;
     var after = an.shanten, before = res.stay.shanten;
     if (after === 0) return true;
+    // Flowers and sets already give all but one faan: a quick hand wins,
+    // so a chow that brings it within two tiles of ready is worth it.
+    if (B.cheapWin(ctx) && after <= 2) return true;
     var plan = an.best && an.best.plan;
     var flushPlan = /^(half|full)/.test(plan.id);
     // Early in the hand there's time to draw the tile instead, so a flush

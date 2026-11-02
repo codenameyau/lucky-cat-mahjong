@@ -51,6 +51,8 @@ When the hand already holds faan, lucky-cat plays for speed instead of size:
 - a set of its own seat wind or the round wind (or a pair of it with a copy still live), or
 - its own seat flower or season.
 
+Flowers and sets that leave the hand one faan short of the minimum (while it has only chows down), or already at it, count as a fast hand too (see [the shared rules](README.md#adding-a-strategy)).
+
 Then the softer targets lose their preference, a finished hand is valued more than a bigger one (as jorge-yau does late in the hand), and chows that get the hand within two tiles of ready are allowed. The limit-hand targets (Thirteen Orphans, Nine Gates, Four Winds, All Terminals, All Honors) and Full Flush don't change.
 
 ### Other ways to reach 3 faan

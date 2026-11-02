@@ -283,13 +283,6 @@ html.is-playing body {
   color: #FFF8F0;
 }
 
-.rules-name .rules-cn {
-  margin-left: 6px;
-  font-weight: normal;
-  font-size: 0.78rem;
-  color: #EE6A80;
-}
-
 .rules-desc {
   font-size: 0.74rem;
   line-height: 1.25;
