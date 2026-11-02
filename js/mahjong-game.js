@@ -17,6 +17,9 @@
   // { seats: { 1: id, 2: id, 3: id }, coach: id }. A bot seat with nothing
   // saved gets a random strategy each game.
   var STRATEGIES_KEY = 'lcm-play-strategies';
+  // The game in progress, kept as you play in the same signed form as a save
+  // file, so a refresh picks it up (cleared by Quit game).
+  var AUTOSAVE_KEY = 'lcm-play-autosave';
   var SEAT_SIDES = ['', 'on your right', 'across', 'on your left'];
   var TILE_ASPECT = 1.4;
   var TILE_GAP = 4;
@@ -81,6 +84,10 @@
   }
   function writeJson(key, value) {
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+  }
+
+  function removeJson(key) {
+    try { localStorage.removeItem(key); } catch (e) {}
   }
 
   // Strategies saved under an older id.
@@ -2728,6 +2735,21 @@
       };
     }
 
+    // Keeps the game in local storage as it goes (AUTOSAVE_KEY): after the
+    // events of each move, at the start of each hand and between hands.
+    // Not while a loaded hand is being played again.
+    var autosaveTimer = null;
+    function autosave() {
+      if (!game || ui.replaying || destroyed) return;
+      clearTimeout(autosaveTimer);
+      autosaveTimer = setTimeout(function () {
+        if (!game || ui.replaying || destroyed) return;
+        E.makeSave(savePayload()).then(function (data) {
+          if (!destroyed) writeJson(AUTOSAVE_KEY, data);
+        }, function () {});
+      }, 250);
+    }
+
     function pad2(n) { return (n < 10 ? '0' : '') + n; }
 
     // play-lucky-cat-mahjong-20261102-143005.json (local time)
@@ -3337,6 +3359,7 @@
         var h = handlers[name];
         var out = h ? h(data) : null;
         requestRender();
+        autosave();
         return out || Promise.resolve();
       },
     };
@@ -3490,6 +3513,7 @@
         requestRender();
         return;
       }
+      autosave();
       while (!destroyed) {
         var res = await E.runHand(game, agents, uiBridge, replay);
         replay = null;
@@ -3508,6 +3532,7 @@
           }
         }
         if (res.roundAdvanced && !extra) extra = 'The round wind is now ' + E.WIND_NAMES[game.round] + '.';
+        autosave(); // between hands: a refresh deals the next one
         await showOverlay({ type: 'summary', result: res, extra: extra });
         if (game.over) {
           track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins });
@@ -3642,9 +3667,11 @@
       root.__lcmTable = table;
     }
 
+    // Quitting ends the game, so a refresh starts at the menu again.
     function close() {
       if (table) table.destroy();
       table = null;
+      removeJson(AUTOSAVE_KEY);
       stage.hidden = true;
       document.documentElement.classList.remove('is-playing');
       var start = document.getElementById('play-start');
@@ -3687,6 +3714,19 @@
       if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
       open(settings);
     });
+
+    // A game left running (refreshed, or the tab closed) picks up where it
+    // was, if its autosave still checks out.
+    var autosaved = readJson(AUTOSAVE_KEY, null);
+    if (autosaved && E.checkSave) {
+      E.checkSave(autosaved).then(function (check) {
+        if (!check.ok) { removeJson(AUTOSAVE_KEY); return; }
+        if (table) return; // a game was started meanwhile
+        var settings = readForm(form, readJson(SETTINGS_KEY, {}));
+        if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
+        open(Object.assign(settings, { mode: autosaved.payload.game.settings.mode }), autosaved);
+      }, function () {});
+    }
   }
 
   var api = { createTable: createTable, init: init };
