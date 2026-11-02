@@ -1912,21 +1912,21 @@
 
     // The hand is one row across your section (the left two thirds on
     // desktop), or two rows on a portrait phone: the first half on top, the
-    // rest (and a fresh draw, set a little apart) below.
-    function handSpan(count, tileW, drawnSeparate) {
+    // rest below. A fresh draw sits at the end, in line with the others.
+    function handSpan(count, tileW) {
       if (count <= 0) return 0;
-      return count * tileW + (count - 1) * TILE_GAP + (drawnSeparate ? tileW * 0.4 : 0);
+      return count * tileW + (count - 1) * TILE_GAP;
     }
 
-    function handLeft(count, drawnSeparate) {
-      var total = handSpan(count, L.tw, drawnSeparate);
+    function handLeft(count) {
+      var total = handSpan(count, L.tw);
       var span = L.meW;
       if (total >= span - 2 * L.pad) return L.meX + L.pad;
       return L.meX + Math.max(L.pad, (span - total) / 2);
     }
 
     // Where each of `count` hand tiles sits: [{ x, y }].
-    function handPositions(count, drawnSeparate) {
+    function handPositions(count) {
       var step = L.tw + TILE_GAP;
       var rows = L.handRows === 2 && count > 1 ? 2 : 1;
       var per = Math.ceil(count / rows);
@@ -1934,10 +1934,9 @@
       for (var r = 0; r < rows; r++) {
         var start = r * per;
         var n = Math.min(per, count - start);
-        var sep = drawnSeparate && start + n === count;
-        var left = handLeft(n, sep);
+        var left = handLeft(n);
         var y = L.handY - (rows - 1 - r) * (L.th + HAND_ROW_GAP);
-        for (var k = 0; k < n; k++) out.push({ x: left + k * step + (sep && k === n - 1 ? L.tw * 0.4 : 0), y: y });
+        for (var k = 0; k < n; k++) out.push({ x: left + k * step, y: y });
       }
       return out;
     }
