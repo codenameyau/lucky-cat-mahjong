@@ -842,7 +842,7 @@
       var meX = ox, meW = phonePortrait ? W : tableW;
       // A landscape phone's side seats run the full height (their tiles in
       // one row need the length), so your section sits between them.
-      var LANDSCAPE_SIDE_W = 42;
+      var LANDSCAPE_SIDE_W = 48;
       if (landscape) {
         meX = ox + LANDSCAPE_SIDE_W + 6;
         meW = tableW - 2 * (LANDSCAPE_SIDE_W + 6);
@@ -895,8 +895,7 @@
       var portrait = !desktop && (landscape || tableW < 700 || tableW < (bandTop - topH) * 0.9);
 
       // On a phone each opponent's tiles are one row (drawOpponent), so the
-      // seats are only one tile deep and the discards get the room; the
-      // player across spans the whole table, above the side seats.
+      // seats are only one tile deep and the discards get the room.
       var sideW = phonePortrait ? 46 : landscape ? LANDSCAPE_SIDE_W : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
       var topPanelH = !desktop ? 62 : portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
       // Narrow side seats (drawOppHeader's compact header) stack name, strategy and points.
@@ -906,13 +905,17 @@
       var sideHead = !desktop ? phoneHead : portrait || sideW < 120 ? 54 : 34;
       var topHead = desktop ? 30 : phoneHead; // the name row, with a little room below it
       var opp = [];
-      var sideTop = desktop ? topH : topH + topPanelH + gap;
+      // An upright phone's player across spans the table, above the side
+      // seats; sideways the side seats run the full height instead, with the
+      // player across between them.
+      var acrossSpans = phonePortrait;
+      var sideTop = acrossSpans ? topH + topPanelH + gap : topH;
       var sideBottom = landscape ? H - Math.max(4, pad / 2) : bandTop - gap;
       opp[3] = { x: ox + pad, y: sideTop, w: sideW, h: sideBottom - sideTop };
       opp[1] = { x: ox + tableW - pad - sideW, y: sideTop, w: sideW, h: sideBottom - sideTop };
       var mid = ox + pad + sideW + gap;
       var pondW = tableW - 2 * (pad + sideW + gap);
-      opp[2] = desktop ? { x: mid, y: topH, w: pondW, h: topPanelH } : { x: ox + pad, y: topH, w: tableW - 2 * pad, h: topPanelH };
+      opp[2] = acrossSpans ? { x: ox + pad, y: topH, w: tableW - 2 * pad, h: topPanelH } : { x: mid, y: topH, w: pondW, h: topPanelH };
       [1, 3].forEach(function (k) {
         var r = opp[k];
         r.head = { x: r.x, y: r.y, w: r.w, h: sideHead };
