@@ -196,6 +196,8 @@ Navigation links (`data/nav.json`) and site styles (`css/`) are edited directly 
 
 ## Credits
 
+Built by Jorge Yau Lee, developer. The source is on [GitHub](https://github.com/codenameyau/lucky-cat-mahjong).
+
 Mahjong tile artwork in `tiles/` comes from the public-domain (CC0) [samoheen/mahjong-tiles](https://github.com/samoheen/mahjong-tiles) project.
 
 Background music on the Play page (`assets/music/`): "Guzheng City", "Shenyang" and "Ripples" by Kevin MacLeod ([incompetech.com](https://incompetech.com)), licensed under [Creative Commons: By Attribution 4.0](https://creativecommons.org/licenses/by/4.0/). The tracks were re-encoded to AAC and are otherwise unchanged. Details in [assets/music/README.md](assets/music/README.md).
