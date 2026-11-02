@@ -2,19 +2,19 @@
 
 Every bot at the Play Mahjong table plays a named strategy, and the coach follows one too. The **Strategies** button in the top bar describes each strategy and assigns them: one per bot seat, and one for the coach's tips and feedback.
 
-| Strategy | Name players see | File | Playbook |
+| Strategy | Name | File | Playbook |
 | --- | --- | --- | --- |
 | (shared foundation) | | `js/mahjong-bot.js` | the rules below |
-| `lucky-cat` | Jorge Yau | `js/mahjong-lucky-cat.js` | [lucky-cat.md](lucky-cat.md) |
-| `jorge-yau` | Lucky Cat | `js/mahjong-jorge-yau.js` | [jorge-yau.md](jorge-yau.md) |
+| `lucky-cat` | Lucky Cat | `js/mahjong-lucky-cat.js` | [lucky-cat.md](lucky-cat.md) |
+| `jorge-yau` | Jorge Yau | `js/mahjong-jorge-yau.js` | [jorge-yau.md](jorge-yau.md) |
 
-The names players see are swapped from the ids: the `jorge-yau` strategy (the coach's default, which weighs every discard by expected points) is shown as "Lucky Cat", and `lucky-cat` (which picks a target hand and sticks to it) as "Jorge Yau". The ids, files and saved choices keep their old names.
+Before version 0.6.0 the two ids were the other way round; saved choices and save files from then are converted when they're read.
 
 ## Which strategy plays where
 
 - Picks are saved in `localStorage` under `lcm-play-strategies`, as `{ "seats": { "1": id, "2": id, "3": id }, "coach": id }`. Seat 1 is on your right, 2 across, 3 on your left.
 - A bot seat with nothing saved plays a random strategy, picked again each game. "Random each game" in the sheet clears the saved pick.
-- The coach (tips and feedback) defaults to `jorge-yau`, shown as "Coach Lucky Cat".
+- The coach (tips and feedback) defaults to `lucky-cat` ("Coach Lucky Cat").
 - A change takes effect on the bot's next move, in the game you're playing.
 - Each bot's name on the table shows its strategy: "Mei · Lucky Cat".
 
@@ -48,7 +48,7 @@ var bot = MahjongBot.createStrategy({
 });
 ```
 
-Every hook is optional. A strategy with none plays the shared foundation alone: the usual hands (standard, Concealed Straights, the flushes, All Triplets), no Seven Pairs, Thirteen Orphans or Nine Gates, and any chow the shared rule allows. jorge-yau (`js/mahjong-jorge-yau.js`) is a short example: it adds the special hands and its chow timing. The hooks are listed in section 9 of `js/mahjong-bot.js`. Each strategy keeps its own copy of the tuning knobs (`bot.setTuning`), so changing one never changes another.
+Every hook is optional. A strategy with none plays the shared foundation alone: the usual hands (standard, Concealed Straights, the flushes, All Triplets), no Seven Pairs, Thirteen Orphans or Nine Gates, and any chow the shared rule allows. lucky-cat (`js/mahjong-lucky-cat.js`) is a short example: it adds the special hands and its chow timing. The hooks are listed in section 9 of `js/mahjong-bot.js`. Each strategy keeps its own copy of the tuning knobs (`bot.setTuning`), so changing one never changes another.
 
 Then:
 
@@ -69,7 +69,7 @@ Strategies play each other over many deals. Each deal is played four times, with
 
 | Option | Default | |
 | --- | --- | --- |
-| `--lineup a,b,c,d` | `lucky-cat,jorge-yau,lucky-cat,jorge-yau` | Strategy per seat |
+| `--lineup a,b,c,d` | `jorge-yau,lucky-cat,jorge-yau,lucky-cat` | Strategy per seat |
 | `--deals N` | 250 | Deals; each is played 4 times |
 | `--seed N` | 1 | First deal's seed. The same seed plays the same deals |
 | `--workers N` | CPU cores − 1 | Worker threads |
@@ -83,6 +83,6 @@ It reports, for each strategy:
 - **Dealt in**: how often it threw the winning tile, and the points it paid for that. Also the points it paid when someone else self-drew.
 - **Average faan** and average points of a win, the biggest win, and limit hands.
 - **Concealed wins**, the average turn of a win, and chows, pungs and kongs per hand.
-- **Net points against** each other strategy, the patterns most common in its wins, and, for lucky-cat, how often it opened on each target.
+- **Net points against** each other strategy, the patterns most common in its wins, and, for jorge-yau, how often it opened on each target.
 
 Points per hand are noisy: one limit hand on a self-draw moves 24,576 points. At 1,000 deals (4,000 hands) a difference under about 15 points per hand is within the noise. Win and deal-in rates settle much sooner. The library is `js/mahjong-competition.js` (`runMatch`, `mergeReports`, `formatReport`) if you want to script your own comparisons.

@@ -6,14 +6,14 @@
    keep a second route or a second claim rule.
 
    forStrategy(bot) returns this same coach speaking for another strategy
-   (js/mahjong-strategies.js); the default speaks for jorge-yau. */
+   (js/mahjong-strategies.js); the default speaks for lucky-cat. */
 
 (function (root) {
   'use strict';
 
   var node = typeof module !== 'undefined' && module.exports;
   var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var DEFAULT_BOT = node ? require('./mahjong-jorge-yau.js') : root.MahjongJorgeYau;
+  var DEFAULT_BOT = node ? require('./mahjong-lucky-cat.js') : root.MahjongLuckyCat;
   var B = DEFAULT_BOT;
 
   var SUIT_NAME = { c: 'Characters', d: 'Circles', b: 'Bamboo' };
@@ -467,10 +467,10 @@
     var threats = list.threats;
     var pick = list[0];
     var offenseTop = list.slice().sort(function (a, b) { return b.offense - a.offense; })[0];
-    // jorge-yau's discard order only bends to its value read, so any gap
+    // lucky-cat's discard order only bends to its value read, so any gap
     // from the top offense pick is defense. Other strategies keep their own
     // order (a target's tiles first), so only their folding counts.
-    var defending = (B.id === 'jorge-yau' ? list.defense > 1.25 : list.folding) && offenseTop.tile !== pick.tile;
+    var defending = (B.id === 'lucky-cat' ? list.defense > 1.25 : list.folding) && offenseTop.tile !== pick.tile;
     var tips = [];
 
     if (opts.completeButShort) {

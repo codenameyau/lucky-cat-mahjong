@@ -3,8 +3,8 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
 const E = require('./mahjong-engine.js');
-const B = require('./mahjong-jorge-yau.js');
-const L = require('./mahjong-lucky-cat.js');
+const B = require('./mahjong-lucky-cat.js');
+const L = require('./mahjong-jorge-yau.js');
 const S = require('./mahjong-strategies.js');
 const Coach = require('./mahjong-coach.js');
 const C = require('./mahjong-competition.js');
@@ -35,13 +35,13 @@ function targetOf(hand, extra) {
 }
 
 describe('strategy registry', () => {
-  it('lists lucky-cat and jorge-yau, with jorge-yau as the coach default', () => {
-    assert.deepEqual(S.ids(), ['lucky-cat', 'jorge-yau']);
-    assert.equal(S.DEFAULT_COACH, 'jorge-yau');
-    assert.equal(S.get('jorge-yau').bot, B);
-    assert.equal(S.get('lucky-cat').bot, L);
-    assert.equal(S.get('jorge-yau').bot.id, 'jorge-yau');
+  it('lists jorge-yau and lucky-cat, with lucky-cat as the coach default', () => {
+    assert.deepEqual(S.ids(), ['jorge-yau', 'lucky-cat']);
+    assert.equal(S.DEFAULT_COACH, 'lucky-cat');
+    assert.equal(S.get('lucky-cat').bot, B);
+    assert.equal(S.get('jorge-yau').bot, L);
     assert.equal(S.get('lucky-cat').bot.id, 'lucky-cat');
+    assert.equal(S.get('jorge-yau').bot.id, 'jorge-yau');
     S.list().forEach((s) => {
       assert.ok(s.name && s.summary && s.details.length, s.id + ' has words for the sheet');
     });
@@ -49,17 +49,17 @@ describe('strategy registry', () => {
 
   it('falls back to the default for an unknown id', () => {
     assert.equal(S.has('nope'), false);
-    assert.equal(S.get('nope').id, 'jorge-yau');
+    assert.equal(S.get('nope').id, 'lucky-cat');
   });
 
   it('picks a random strategy from the list', () => {
-    assert.equal(S.randomId(() => 0), 'lucky-cat');
-    assert.equal(S.randomId(() => 0.99), 'jorge-yau');
+    assert.equal(S.randomId(() => 0), 'jorge-yau');
+    assert.equal(S.randomId(() => 0.99), 'lucky-cat');
   });
 
   it('makes agents that play a full hand', async () => {
     const game = E.createGame({ seed: 3, humanSeat: false, dealer: 0 });
-    const agents = ['lucky-cat', 'jorge-yau', 'lucky-cat', 'jorge-yau'].map(S.createAgent);
+    const agents = ['jorge-yau', 'lucky-cat', 'jorge-yau', 'lucky-cat'].map(S.createAgent);
     const res = await E.runHand(game, agents);
     assert.ok(res.type === 'win' || res.type === 'draw');
   });
@@ -72,7 +72,7 @@ describe('strategy registry', () => {
   });
 });
 
-describe('lucky-cat opening targets', () => {
+describe('jorge-yau opening targets', () => {
   it('reads Thirteen Orphans from 8 different terminals and honors', () => {
     assert.equal(targetOf(['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'c2', 'c3', 'd4', 'd5', 'b6']).id, 'orphans');
   });
@@ -143,7 +143,7 @@ describe('lucky-cat opening targets', () => {
   });
 });
 
-describe('lucky-cat decisions', () => {
+describe('jorge-yau decisions', () => {
   it('throws a tile the honors hand can\'t use first', () => {
     const hand = ['we', 'we', 'ws', 'ws', 'dr', 'dr', 'dg', 'dg', 'dw', 'c5', 'd4', 'b6', 'ww', 'wn'];
     const game = table({ seats: [null, { hand }] });
@@ -206,7 +206,7 @@ describe('the player before you decides a close flush suit', () => {
     assert.deepEqual(B.leftRead(at([]), 0), { seat: 3, keeps: null, feeds: null });
   });
 
-  it('jorge-yau builds the suit they feed instead of the one they keep', () => {
+  it('lucky-cat builds the suit they feed instead of the one they keep', () => {
     assert.equal(B.analyzeDiscards(at([]), 0).ctx.leadPlan.id, 'full-b');
     const a = B.analyzeDiscards(at(keepsBamboo), 0);
     assert.equal(a.ctx.leadPlan.id, 'full-d');
@@ -215,7 +215,7 @@ describe('the player before you decides a close flush suit', () => {
     assert.match(hint.tips.join(' '), /is collecting Bamboo, so stay out of it/);
   });
 
-  it('lucky-cat gives up a Bamboo flush target', () => {
+  it('jorge-yau gives up a Bamboo flush target', () => {
     assert.equal(L.targetFor(at([]), 0).suit, 'b');
     assert.notEqual(L.targetFor(at(keepsBamboo), 0).suit, 'b');
   });
@@ -229,18 +229,18 @@ describe('coach for a strategy', () => {
     assert.equal(lucky.tile, L.chooseTurnAction(game, 0, { kongs: [] }).tile);
     const claude = Coach.forStrategy(B).turnHint(game, 0, { kongs: [] });
     assert.equal(claude.tile, B.chooseTurnAction(game, 0, { kongs: [] }).tile);
-    // The default coach is still jorge-yau's.
+    // The default coach is still lucky-cat's.
     assert.equal(Coach.turnHint(game, 0, { kongs: [] }).tile, claude.tile);
   });
 });
 
 describe('competition', () => {
   it('adds up every seat by strategy, rotated through the seats', async () => {
-    const report = await C.runMatch({ lineup: ['lucky-cat', 'jorge-yau', 'lucky-cat', 'jorge-yau'], deals: 2, seed: 5 });
+    const report = await C.runMatch({ lineup: ['jorge-yau', 'lucky-cat', 'jorge-yau', 'lucky-cat'], deals: 2, seed: 5 });
     assert.equal(report.deals, 2);
     assert.equal(report.hands, 8);
-    const lucky = report.strategies['lucky-cat'];
-    const claude = report.strategies['jorge-yau'];
+    const lucky = report.strategies['jorge-yau'];
+    const claude = report.strategies['lucky-cat'];
     assert.equal(lucky.hands, 16);
     assert.equal(claude.hands, 16);
     // Points only move between players.
@@ -254,14 +254,14 @@ describe('competition', () => {
   });
 
   it('plays the same deals the same way for the same seed', async () => {
-    const opts = { lineup: ['lucky-cat', 'jorge-yau', 'jorge-yau', 'jorge-yau'], deals: 1, seed: 9 };
+    const opts = { lineup: ['jorge-yau', 'lucky-cat', 'lucky-cat', 'lucky-cat'], deals: 1, seed: 9 };
     const a = await C.runMatch(opts);
     const b = await C.runMatch(opts);
     assert.deepEqual(a.strategies, b.strategies);
   });
 
   it('merges reports from split runs', async () => {
-    const lineup = ['lucky-cat', 'jorge-yau', 'lucky-cat', 'jorge-yau'];
+    const lineup = ['jorge-yau', 'lucky-cat', 'jorge-yau', 'lucky-cat'];
     const a = await C.runMatch({ lineup, deals: 1, seed: 1 });
     const b = await C.runMatch({ lineup, deals: 1, seed: 2 });
     const both = await C.runMatch({ lineup, deals: 2, seed: 1 });
@@ -271,7 +271,7 @@ describe('competition', () => {
   });
 
   it('rejects an unknown strategy', async () => {
-    await assert.rejects(C.runMatch({ lineup: ['lucky-cat', 'x', 'lucky-cat', 'lucky-cat'], deals: 1 }), /unknown strategy/);
+    await assert.rejects(C.runMatch({ lineup: ['jorge-yau', 'x', 'jorge-yau', 'jorge-yau'], deals: 1 }), /unknown strategy/);
   });
 });
 
@@ -282,7 +282,7 @@ describe('both strategies: special-hand upgrades', () => {
   const triplets = ['c1', 'c1', 'c1', 'wn', 'wn', 'wn', 'b9', 'b9', 'd5', 'd5', 'dg', 'dg', 'c9', 'd4'];
   const order = (bot, game) => bot.analyzeDiscards(game, 1).candidates.map((x) => x.tile);
 
-  for (const [name, bot] of [['jorge-yau', B], ['lucky-cat', L]]) {
+  for (const [name, bot] of [['lucky-cat', B], ['jorge-yau', L]]) {
     it(name + ' keeps a Mixed Orphans pair over a plain pair with more copies left', () => {
       // One 9 Bamboo is out, so it has fewer left than the 5 Circle.
       const game = table({ seats: [{ discards: ['b9'] }, { hand: triplets }] });
@@ -307,7 +307,7 @@ describe('both strategies: special-hand upgrades', () => {
     });
   }
 
-  it('jorge-yau plays Seven Pairs with Mixed Orphans when the pairs are 1s, 9s and honors', () => {
+  it('lucky-cat plays Seven Pairs with Mixed Orphans when the pairs are 1s, 9s and honors', () => {
     const hand = ['c1', 'c1', 'b9', 'b9', 'wn', 'wn', 'd9', 'd9', 'dr', 'dr', 'c5', 'b4', 'd3', 'ww'];
     const found = B.analyzeDiscards(table({ seats: [null, { hand }] }), 1);
     assert.equal(found.ctx.leadPlan.id, 'pairs-orphans');
@@ -422,7 +422,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.5.5');
+    assert.equal(E.GAME_VERSION, '0.6.0');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);

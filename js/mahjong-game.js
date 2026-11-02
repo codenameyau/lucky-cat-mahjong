@@ -84,12 +84,31 @@
   }
 
   // Strategies saved under an older id.
-  var RENAMED_STRATEGIES = { 'claude-cat': 'jorge-yau' };
+  var RENAMED_STRATEGIES = { 'claude-cat': 'lucky-cat' };
+  // Before 0.6.0 the lucky-cat and jorge-yau ids were the other way round.
+  // Saved choices from then have no `v`; saves from then are older than
+  // SWAPPED_BEFORE.
+  var SWAPPED_STRATEGIES = { 'lucky-cat': 'jorge-yau', 'jorge-yau': 'lucky-cat' };
+  var SWAPPED_BEFORE = [0, 6, 0];
+
+  function swapOldIds(list) {
+    return list.map(function (id) { return SWAPPED_STRATEGIES[id] || id; });
+  }
+
+  function savedBeforeSwap(version) {
+    var v = String(version || '').split('.').map(Number);
+    for (var k = 0; k < 3; k++) {
+      if ((v[k] || 0) !== SWAPPED_BEFORE[k]) return (v[k] || 0) < SWAPPED_BEFORE[k];
+    }
+    return false;
+  }
 
   // Saved strategy choices, keeping only ids that still exist.
   function readStrategies() {
     var saved = readJson(STRATEGIES_KEY, {}) || {};
+    var old = saved.v !== 2;
     function current(id) {
+      if (old && SWAPPED_STRATEGIES[id]) id = SWAPPED_STRATEGIES[id];
       id = RENAMED_STRATEGIES[id] || id;
       return Strategies.has(id) ? id : null;
     }
@@ -98,7 +117,7 @@
       var id = current(saved.seats && saved.seats[k]);
       if (id) seats[k] = id;
     });
-    return { seats: seats, coach: current(saved.coach) };
+    return { v: 2, seats: seats, coach: current(saved.coach) };
   }
 
   // This game's strategy for each bot seat (saved, or random) and the coach's.
@@ -3446,6 +3465,9 @@
         var p = saved.payload;
         game = E.restoreGame(p.game);
         ui.strategies = p.strategies;
+        if (savedBeforeSwap(saved.version)) {
+          ui.strategies = { seats: swapOldIds(p.strategies.seats), coach: swapOldIds([p.strategies.coach])[0] };
+        }
         ui.stats = p.stats || ui.stats;
         ui.coachLog = p.coachLog || [];
         if (p.game.hand) {
