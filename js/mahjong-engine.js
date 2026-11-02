@@ -30,11 +30,11 @@
   var WIND_NAMES = ['', 'East', 'South', 'West', 'North'];
   var WIND_CN = ['', '東', '南', '西', '北'];
   // The game's version (semantic versioning). Saved games carry it, and
-  // only load into a compatible version (see saveCompatibility). Bump it
-  // with every change to the game: patch for fixes, minor for features or
-  // anything that changes saved games (while below 1.0), major for
-  // breaking changes after 1.0.
-  var GAME_VERSION = '0.1.0';
+  // load into any version with the same major number (see
+  // saveCompatibility). Bump it with every change to the game: patch for
+  // fixes, minor for features, major for changes that older saves can't
+  // load into.
+  var GAME_VERSION = '0.1.1';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -906,18 +906,14 @@
     return m ? [+m[1], +m[2], +m[3]] : null;
   }
 
-  // Whether a save written by `version` loads into this one: same major
-  // version (below 1.0, same minor too, since 0.x minor versions may change
-  // the save), and not newer than this game. Returns { ok, reason }.
+  // Whether a save written by `version` loads into this one: any minor or
+  // patch version of the same major version does. Returns { ok, reason }.
   function saveCompatibility(version) {
     var have = parseVersion(GAME_VERSION);
     var got = parseVersion(version);
     if (!got) return { ok: false, reason: 'This file has no game version, so it can\'t be loaded.' };
-    var newer = got[0] > have[0] || (got[0] === have[0] && (got[1] > have[1] || (got[1] === have[1] && got[2] > have[2])));
-    if (newer) return { ok: false, reason: 'Saved by version ' + version + ', newer than this game (' + GAME_VERSION + '). Reload the page to update.' };
-    if (got[0] !== have[0] || (have[0] === 0 && got[1] !== have[1])) {
-      return { ok: false, reason: 'Saved by version ' + version + ', which doesn\'t load in version ' + GAME_VERSION + '.' };
-    }
+    if (got[0] > have[0]) return { ok: false, reason: 'Saved by version ' + version + ', newer than this game (' + GAME_VERSION + '). Reload the page to update.' };
+    if (got[0] !== have[0]) return { ok: false, reason: 'Saved by version ' + version + ', which doesn\'t load in version ' + GAME_VERSION + '.' };
     return { ok: true, reason: null };
   }
 
