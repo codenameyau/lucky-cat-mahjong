@@ -710,10 +710,11 @@
     // 3 rows fit (24 discards). A longer hand adds a row and shrinks them.
     var POND_COLS = 8;
     var POND_ROWS = 3;
+    var PHONE_POND_CAPACITY = 8;
 
     function fitPondTile(zw, zh, n, cols) {
       cols = cols || POND_COLS;
-      var rows = Math.max(POND_ROWS, Math.ceil(n / cols));
+      var rows = Math.max(1, Math.ceil(n / cols));
       var byW = zw / cols - TILE_GAP;
       var byH = ((zh - 2) / rows - TILE_GAP) / TILE_ASPECT;
       return clamp(Math.min(byW, byH), 8, 56);
@@ -766,10 +767,10 @@
     // Discard areas for a pond: a cross around the center box, or (`strip`,
     // for a narrow table) top and bottom ponds across the full width with
     // the side ponds in the band between them and a slim center box.
-    // `cols` tiles to a row; rows deepen so each holds POND_COLS x POND_ROWS.
+    // `cols` tiles to a row, and enough rows to hold `capacity` discards.
     // `midFrac` is how deep the cross's top and bottom ponds are.
-    function pondZones(inner, strip, cols, midFrac) {
-      var rows = Math.max(POND_ROWS, Math.ceil(POND_COLS * POND_ROWS / cols));
+    function pondZones(inner, strip, cols, midFrac, capacity) {
+      var rows = Math.max(1, Math.ceil((capacity || POND_COLS * POND_ROWS) / cols));
       var zones = [];
       // The top and bottom rows are a little deeper so each discard can be larger.
       var sideFrac = 0.26;
@@ -882,10 +883,10 @@
       // and the table spans the screen: its height is what's short.)
       var portrait = !desktop && (landscape || tableW < 700 || tableW < (bandTop - topH) * 0.9);
 
-      // A portrait phone's side seats only hold a column of tile backs, so
-      // they're slim and the discards get the room.
-      var sideW = phonePortrait ? clamp(tableW * 0.125, 46, 88) : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
-      var topPanelH = portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
+      // Phones' side seats only hold a column of tile backs, so they're
+      // slim and the discards get the room.
+      var sideW = phonePortrait ? clamp(tableW * 0.125, 46, 88) : landscape ? 60 : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
+      var topPanelH = landscape ? 64 : portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
       // Narrow side seats (drawOppHeader's compact header) stack name, strategy and points.
       var sideHead = portrait || sideW < 120 ? 54 : 34;
       var topHead = 30; // the name row, with a little room below it
@@ -909,7 +910,11 @@
 
       var inner = pond;
 
-      var maxDiscards = POND_COLS * POND_ROWS;
+      // Each pond is planned to hold this many discards: 24 on desktop, 8 on
+      // a phone so its discards draw close to twice as large. A pond that
+      // runs past it re-fits them smaller (with a full pond, about the size
+      // they were before).
+      var maxDiscards = desktop ? POND_COLS * POND_ROWS : PHONE_POND_CAPACITY;
       if (game && game.hand) {
         game.hand.seats.forEach(function (st) { maxDiscards = Math.max(maxDiscards, st.discards.length + 1); });
       }
@@ -922,15 +927,15 @@
       var options = [{ strip: portrait, cols: POND_COLS }];
       if (!desktop) {
         options = [];
-        [8, 7, 6, 5].forEach(function (cols) {
+        [8, 7, 6, 5, 4].forEach(function (cols) {
           options.push({ strip: true, cols: cols });
-          [0.34, 0.37, 0.4, 0.43].forEach(function (m) { options.push({ strip: false, cols: cols, mid: m }); });
+          [0.34, 0.37, 0.4, 0.43, 0.46].forEach(function (m) { options.push({ strip: false, cols: cols, mid: m }); });
         });
       }
-      var CENTER_MIN_H = 46;
+      var CENTER_MIN_H = 40;
       var best = null;
       options.forEach(function (o) {
-        var z = pondZones(pond, o.strip, o.cols, o.mid);
+        var z = pondZones(pond, o.strip, o.cols, o.mid, maxDiscards);
         if (!desktop && !o.strip && z.center.h < CENTER_MIN_H) return;
         var frames = z.zones.map(function (zone, k) { return makeFrame(zone, k); });
         var size = 56;
