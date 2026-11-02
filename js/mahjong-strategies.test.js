@@ -421,8 +421,24 @@ describe('saving and loading a game', () => {
     assert.deepEqual(E.parseHandSeed(' 12-nw '), { seed: 12, seat: 4, round: 3 });
   });
 
+  it('signs the same without Web Crypto (plain http on a phone), so saves load either way', async () => {
+    const game = newGame();
+    await playSaving(game);
+    const payload = { game: E.gameRecord(game) };
+    const withCrypto = await E.makeSave(payload);
+    const real = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+    Object.defineProperty(globalThis, 'crypto', { value: undefined, configurable: true, writable: true });
+    try {
+      const without = await E.makeSave(payload);
+      assert.equal(without.signature, withCrypto.signature);
+      assert.deepEqual(await E.checkSave(JSON.parse(JSON.stringify(withCrypto))), { ok: true, reason: null });
+    } finally {
+      Object.defineProperty(globalThis, 'crypto', real);
+    }
+  });
+
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.9.1');
+    assert.equal(E.GAME_VERSION, '0.9.2');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
