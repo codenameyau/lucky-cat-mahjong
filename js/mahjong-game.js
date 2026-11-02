@@ -660,6 +660,9 @@
     // The table (the other players and the discards) is kept as close to
     // square as the screen allows; spare room goes to the coach.
     var HAND_ROW_GAP = 6;
+    // On a portrait phone your own tiles (hand and discards) are drawn this
+    // much smaller than they could be, so the table has more room.
+    var PORTRAIT_SHRINK = 0.85;
 
     function computeLayout() {
       var pad = W < 600 ? 6 : 14;
@@ -682,7 +685,7 @@
       // Hand tiles: one row of 14 across your section, or two rows of 7 on a
       // portrait phone (bigger tiles, easier to tap).
       var tw = handRows === 2
-        ? clamp((meW - 2 * pad - 16 - 6 * TILE_GAP) / 7.5, 18, Math.min(72, H * 0.075))
+        ? clamp((meW - 2 * pad - 16 - 6 * TILE_GAP) / 7.5 * PORTRAIT_SHRINK, 18, Math.min(62, H * 0.064))
         : clamp(((meW - 2 * pad - 13 * TILE_GAP) / 14.8) * 0.88, 18, Math.min(124, H * (landscape ? 0.085 : 0.114)));
       var th = tw * TILE_ASPECT;
       var handY = H - pad - th - depth(tw) - 4; // the bottom row
@@ -713,14 +716,13 @@
       var bandTop = hintH ? hintY : meBox.y;
       var gap = 6;
 
-      // A landscape phone: the table as wide as it is tall (a little wider
-      // if the screen allows), the coach's column beside it.
+      // A landscape phone: the table on the left half, the coach's column
+      // on the right half.
       var historyW = 0;
       if (desktop) historyW = W - pad - historyGap - tableW;
       if (landscape) {
-        var boardH = bandTop - gap - topH;
-        tableW = clamp(Math.round(boardH * 1.25), 300, Math.round((W - pad) * 0.62));
-        historyW = W - pad - historyGap - tableW;
+        historyW = Math.round(W / 2) - pad;
+        tableW = W - pad - historyGap - historyW;
       }
       // Ponds and side seats go narrow on a phone's narrow table.
       var portrait = !desktop && (tableW < 700 || tableW < (bandTop - topH) * 0.9);
@@ -822,7 +824,7 @@
     // Discards fill rows starting next to the center, moving toward the owner.
     function pondSlotLocal(seat, idx) {
       var f = L.zoneFrames[seat];
-      var pw = L.pw;
+      var pw = seat === 0 && L.phonePortrait ? L.pw * PORTRAIT_SHRINK : L.pw;
       var ph = pw * TILE_ASPECT + TILE_GAP;
       var cols = POND_COLS;
       var gridW = cols * (pw + TILE_GAP);
