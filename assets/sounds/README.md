@@ -13,7 +13,6 @@ plays with no delay. The cues that use them are `CUES` in `js/mahjong-game.js`.
 | `tile-claim-1.wav` | `chips-stack-1` | Casino Audio |
 | `tile-claim-2.wav` | `chips-stack-3` | Casino Audio |
 | `tile-kong.wav` | `chips-collide-1` | Casino Audio |
-| `tiles-reveal.wav` | `card-fan-1` | Casino Audio |
 | `tile-select.wav` | `click_001` | [Interface Sounds](https://kenney.nl/assets/interface-sounds) |
 | `flower.wav` | `glass_001` | Interface Sounds |
 | `turn.wav` | `pluck_002` | Interface Sounds |

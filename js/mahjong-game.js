@@ -205,7 +205,8 @@
    *    Short recorded clips from Kenney's Casino Audio and Interface Sounds
    *    packs (CC0, kenney.nl), trimmed to mono WAV in /assets/sounds/.
    *    Tiles are poker chips: a chip laid down is a discard, a stack of
-   *    them is a claim, and a fanned deck is every hand turning face up.
+   *    them is a claim, and a quick ripple of chips laid down is every
+   *    hand tipping face up.
    * ------------------------------------------------------------------ */
 
   var SOUND_DIR = '/assets/sounds/';
@@ -224,8 +225,23 @@
     otherwin: { clips: ['other-win'], gain: 0.45 },
     lose: { clips: ['lose'], gain: 0.5 },
     drawgame: { clips: ['draw-game'], gain: 0.45 },
-    flip: { clips: ['tiles-reveal'], gain: 0.8 },
+    flip: { clips: ['tile-discard-1'], gain: 0.45, vary: true, then: revealRipple() },
   };
+
+  // Show hands: the other three hands tip face up one after another, each
+  // a quick run of tiles laid down, and they settle with a soft stack.
+  function revealRipple() {
+    var names = ['tile-discard-1', 'tile-discard-2', 'tile-discard-3'];
+    var out = [];
+    for (var row = 0; row < 3; row++) {
+      for (var n = 0; n < 6; n++) {
+        if (!row && !n) continue; // the cue's first clip
+        out.push([names[(row + n) % 3], row * 0.2 + n * 0.035, 0.32 + n * 0.03]);
+      }
+    }
+    out.push(['tile-claim-2', 0.62, 0.35]);
+    return out;
+  }
 
   function cueClips() {
     var names = {};
