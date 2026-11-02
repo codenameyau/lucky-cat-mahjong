@@ -2185,7 +2185,7 @@
       var iconS = Math.min(L.hintH - 14, 48);
       var tx = x + 8 + iconS + 8;
       var tw = w - (tx - x) - 10;
-      var size = L.tableW < 600 ? 12 : 13;
+      var size = !L.desktop ? 11 : L.tableW < 600 ? 12 : 13; // smaller on a phone
       var out = [];
       lines.forEach(function (l) {
         ctx.font = (l.bold ? 'bold ' : '') + size + 'px ' + FONT_BODY;
@@ -2311,7 +2311,7 @@
       var viewY = r.y + 36;
       var viewW = r.w - 20;
       var viewH = r.h - 46;
-      var size = r.w > 520 ? 15 : 13;
+      var size = !L.desktop ? 11 : r.w > 520 ? 15 : 13; // smaller on a phone
       var lh = size + 4;
       var avatar = 32;
       var textPad = 8 + avatar + 8;
