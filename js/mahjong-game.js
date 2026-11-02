@@ -2845,23 +2845,13 @@
       requestRender();
     }
 
-    // Where a declaration banner goes. Opponents' banners face them and sit
-    // on their tiles, except the player across: theirs is upright for you and
-    // sits in the empty stretch of their name row, clear of their tiles.
+    // Where a declaration banner goes: in the middle of that player's tiles.
+    // Side players' banners face them; the player across gets an upright one,
+    // so it reads the right way up for you.
     function declarationPos(seat) {
-      if (seat !== 2) return seatBannerPos(seat);
-      var r = L.opp[2];
-      var rad = 11;
-      ctx.font = 'bold 14px ' + FONT_BODY;
-      var left = r.x + 8 + 2 * rad + 6 + ctx.measureText(seatTitle(2)).width + ICON_GAP + 15 + 10;
-      var pts = settings.mode === 'payout' ? fmt(game.players[2].points) : '';
-      ctx.font = 'bold 13px ' + FONT_BODY;
-      var right = r.x + r.w - 8 - (pts ? ctx.measureText(pts).width : 0) - 10;
-      return {
-        x: r.x + r.w / 2, y: r.head.y + r.head.h / 2, rot: 0,
-        maxW: Math.max(40, right - left), span: [left, right],
-        maxH: r.head.h + 4, // stays on their player area, in the name strip
-      };
+      var pos = seatBannerPos(seat);
+      if (seat === 2) pos.rot = 0;
+      return pos;
     }
 
     function seatBannerPos(seat) {
