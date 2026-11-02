@@ -299,7 +299,7 @@ describe('coach: after a chow', () => {
 
   it('only goes for a flush in the chow\'s suit', () => {
     const hint = C.turnHint(chowed(), 0, { kongs: [] });
-    assert.match(text(hint), /Aim for (Half|Full) Flush in Bamboo/);
+    assert.match(text(hint), /Lock in (Half|Full) Flush in Bamboo/);
   });
 
   it('commits to the chow suit even when the hand holds 2 faan of flowers', () => {
