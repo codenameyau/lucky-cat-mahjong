@@ -22,4 +22,4 @@ plays with no delay. The cues that use them are `CUES` in `js/mahjong-game.js`.
 | `draw-game.wav` | `close_002` | Interface Sounds |
 | `impact-chow.wav` | `impactMining_001` | [Impact Sounds](https://kenney.nl/assets/impact-sounds) |
 | `impact-pung.wav` | `impactMining_000` | Impact Sounds |
-| `impact-kong.wav` | `impactMining_004` | Impact Sounds |
+| `impact-kong.wav` | `impactMining_002` | Impact Sounds |

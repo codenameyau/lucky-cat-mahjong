@@ -226,17 +226,17 @@
     flower: { clips: ['flower'], gain: 0.4 },
     // Claims are big moments, and each has its own heavy hit (a different
     // impactMining clip from Kenney's Impact Sounds pack) under the chips:
-    // chow: the brightest hit, then the run's chips settle;
+    // chow: impactMining_001, the brightest, then the run's chips settle;
     chow: {
       clips: ['impact-chow'], gain: 0.9,
       then: [['tile-claim-1', 0.03, 0.7]],
     },
-    // pung: a fuller hit with the three tiles stacked on top;
+    // pung: impactMining_000, a fuller hit with the three tiles on top;
     pung: {
       clips: ['impact-pung'], gain: 0.95,
       then: [['tile-claim-2', 0.02, 0.75], ['tile-discard', 0.04, 0.6, 0.9]],
     },
-    // kong: the deepest hit, struck twice (the second lower) while four
+    // kong: impactMining_002, struck twice (the second lower) while four
     // tiles stack.
     kong: {
       clips: ['impact-kong'], gain: 1,
