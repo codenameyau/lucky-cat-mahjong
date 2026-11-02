@@ -212,13 +212,13 @@
     return null;
   }
 
-  // Each seat's opening read, kept for the hand. It lives on the hand
-  // (hand.botMemory) so a saved game resumes with the same reads.
+  // Each seat's opening read, kept for the hand (keyed by the hand object).
+  var openings = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+
   function remember(game, seat, make) {
-    var h = game.hand;
-    if (!h) return make();
-    var mem = h.botMemory || (h.botMemory = {});
-    var bySeat = mem.luckyCat || (mem.luckyCat = {});
+    if (!openings || !game.hand) return make();
+    var bySeat = openings.get(game.hand);
+    if (!bySeat) { bySeat = {}; openings.set(game.hand, bySeat); }
     if (!bySeat[seat]) bySeat[seat] = make();
     return bySeat[seat];
   }

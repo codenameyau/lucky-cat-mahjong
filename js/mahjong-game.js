@@ -454,7 +454,8 @@
    * 4. The table app
    * ------------------------------------------------------------------ */
 
-  // `saved` (optional) is a save file's contents (see saveFile) to resume.
+  // `saved` (optional) is a checked save file (MahjongEngine.checkSave) to
+  // play on from.
   function createTable(canvas, liveRegion, settings, callbacks, saved) {
     var ctx = canvas.getContext('2d');
     var prefs = readJson(PREFS_KEY, { sound: true });
@@ -490,7 +491,7 @@
       handSig: '',   // what the hand looked like when the slots were last matched
       handLayout: '',
       restartArmed: 0, // when Restart game was first tapped in the menu
-      lastSave: null, // the game at its latest checkpoint, ready to download (saveFile)
+      replaying: false, // a loaded hand is being played again up to your next move
       menuNote: null, // a line in the menu after saving or a failed load
       turnSeat: null,
       selected: -1,
@@ -525,7 +526,7 @@
     }
 
     // Animations: 'normal' (shown) or 'off' (skip animations and delays).
-    function instantMode() { return settings.speed === 'off'; }
+    function instantMode() { return settings.speed === 'off' || ui.replaying; }
     function speed(ms) { return reduceMotion ? 0 : ms; }
 
     /* ---------------- frame loop ---------------- */
@@ -2611,19 +2612,17 @@
 
     /* ---------------- saving and loading ---------------- */
 
-    // The whole game at its latest checkpoint (a seat about to act, a
-    // discard about to be claimed, or between hands), with the version
-    // that wrote it. Loading it resumes from exactly there.
-    function snapshot() {
-      ui.lastSave = {
-        app: E.SAVE_APP,
-        version: E.GAME_VERSION,
+    // A save holds no hidden tiles: the game as the hand began, the hand's
+    // seed and your moves (MahjongEngine.gameRecord), plus the table's own
+    // strategies, stats and coach history. It is signed, and loading deals
+    // the hand from its seed and plays it again up to your next move.
+    function savePayload() {
+      return {
         savedAt: new Date().toISOString(),
-        settings: { mode: settings.mode, spicy: settings.spicy },
-        strategies: JSON.parse(JSON.stringify(ui.strategies)),
-        stats: JSON.parse(JSON.stringify(ui.stats)),
-        coachLog: JSON.parse(JSON.stringify(ui.coachLog || [])),
-        game: E.exportGame(game),
+        game: E.gameRecord(game),
+        strategies: ui.strategies,
+        stats: ui.stats,
+        coachLog: ui.coachLog || [],
       };
     }
 
@@ -2641,9 +2640,14 @@
     }
 
     function saveGame() {
-      if (!ui.lastSave) { setMenuNote('Nothing to save yet. Try again in a moment.', true); return; }
+      if (!game || ui.replaying) { setMenuNote('Nothing to save yet. Try again in a moment.', true); return; }
       var d = new Date();
-      var data = Object.assign({}, ui.lastSave, { savedAt: d.toISOString() });
+      E.makeSave(savePayload()).then(function (data) { download(data, d); }, function () {
+        setMenuNote('This browser can\'t save games.', true);
+      });
+    }
+
+    function download(data, d) {
       var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
@@ -2657,15 +2661,6 @@
       setMenuNote('Saved ' + a.download + '.');
     }
 
-    // Checks a save file's contents; returns an error message, or null.
-    function saveProblem(data) {
-      if (!data || data.app !== E.SAVE_APP || !data.game) return 'That isn\'t a Lucky Cat Mahjong save file.';
-      var compat = E.saveCompatibility(data.version);
-      if (!compat.ok) return compat.reason;
-      try { E.importGame(data.game); } catch (err) { return 'That save file is damaged, so it can\'t be loaded.'; }
-      return null;
-    }
-
     function loadGame() {
       var input = document.createElement('input');
       input.type = 'file';
@@ -2677,10 +2672,11 @@
         reader.onload = function () {
           var data = null;
           try { data = JSON.parse(String(reader.result)); } catch (err) { data = null; }
-          var problem = saveProblem(data);
-          if (problem) { setMenuNote(problem, true); track('play_load_failed', {}); return; }
-          track('play_load', { version: data.version });
-          callbacks.load(data);
+          E.checkSave(data).then(function (check) {
+            if (!check.ok) { setMenuNote(check.reason, true); track('play_load_failed', {}); return; }
+            track('play_load', { version: data.version });
+            callbacks.load(data);
+          }, function () { setMenuNote('This browser can\'t load games.', true); });
         };
         reader.onerror = function () { setMenuNote('That file couldn\'t be read.', true); };
         reader.readAsText(file);
@@ -3118,17 +3114,9 @@
     /* ---------------- engine events ---------------- */
 
     var handlers = {
-      handStart: function (d) {
+      handStart: function () {
         ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], drawn: false };
         ui.botDrawn = [false, false, false, false];
-        if (d && d.resumed) {
-          // A loaded hand: a seat holding a fresh draw shows it apart.
-          game.hand.seats.forEach(function (s, k) { if (k && s.hand.length % 3 === 2) ui.botDrawn[k] = true; });
-          L = computeLayout();
-          announce('Game loaded. Hand ' + game.handNumber + '.');
-          requestRender();
-          return sleep(300);
-        }
         ui.botLift = null;
         ui.turnSeat = null;
         ui.selected = -1;
@@ -3258,7 +3246,6 @@
         requestRender();
         return out || Promise.resolve();
       },
-      checkpoint: function () { snapshot(); },
     };
 
     /* ---------------- agents ---------------- */
@@ -3360,20 +3347,37 @@
       if (res.type === 'win' && res.payer === 0) st.dealIns++;
     }
 
+    // The loaded hand has caught up: draw the table as it stands.
+    function replayDone() {
+      ui.replaying = false;
+      ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], drawn: false };
+      ui.botDrawn = [false, false, false, false];
+      // A seat holding a fresh draw shows it apart.
+      game.hand.seats.forEach(function (s, k) { if (k && s.hand.length % 3 === 2) ui.botDrawn[k] = true; });
+      ui.botLift = null;
+      L = computeLayout();
+      announce('Game loaded. Hand ' + game.handNumber + '.');
+      requestRender();
+    }
+
     async function play() {
       await loadAssets();
       spriteCache = {};
       ui.coachScroll = 0;
       ui.coachStick = true;
-      var resume = false;
+      var replay = null;
       if (saved) {
-        // A loaded game: the same players, strategies, coach history and
-        // hand, picked up at its last checkpoint.
-        game = E.importGame(saved.game);
-        ui.strategies = saved.strategies;
-        ui.stats = saved.stats || ui.stats;
-        ui.coachLog = saved.coachLog || [];
-        resume = E.handInProgress(game);
+        // A loaded game: the same players, strategies and coach history,
+        // and the hand in progress dealt again and played up to your move.
+        var p = saved.payload;
+        game = E.restoreGame(p.game);
+        ui.strategies = p.strategies;
+        ui.stats = p.stats || ui.stats;
+        ui.coachLog = p.coachLog || [];
+        if (p.game.hand) {
+          ui.replaying = true;
+          replay = { seed: p.game.hand.seed, replay: p.game.hand.moves, onReplayEnd: replayDone };
+        }
       } else {
         game = E.createGame({ spicy: settings.spicy, mode: settings.mode });
         ui.strategies = pickStrategies();
@@ -3390,10 +3394,9 @@
         requestRender();
         return;
       }
-      snapshot();
       while (!destroyed) {
-        var res = await E.runHand(game, agents, uiBridge, resume ? { resume: true } : null);
-        resume = false;
+        var res = await E.runHand(game, agents, uiBridge, replay);
+        replay = null;
         if (destroyed) return;
         recordStats(res);
         ui.turnSeat = null;
@@ -3409,7 +3412,6 @@
           }
         }
         if (res.roundAdvanced && !extra) extra = 'The round wind is now ' + E.WIND_NAMES[game.round] + '.';
-        snapshot(); // between hands: loading deals the next one
         await showOverlay({ type: 'summary', result: res, extra: extra });
         if (game.over) {
           track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins });
@@ -3536,7 +3538,7 @@
         restart: function () { open(settings); },
         // A loaded game plays in its own mode; the rest of your settings stay.
         load: function (data) {
-          open(Object.assign({}, settings, { mode: data.game.settings.mode }), data);
+          open(Object.assign({}, settings, { mode: data.payload.game.settings.mode }), data);
         },
       }, saved);
       table.start();
