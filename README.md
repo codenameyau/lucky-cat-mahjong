@@ -196,10 +196,10 @@ Navigation links (`data/nav.json`) and site styles (`css/`) are edited directly 
 
 ## Credits
 
-Built by Jorge Yau Lee, developer. The source is on [GitHub](https://github.com/codenameyau/lucky-cat-mahjong).
+Built by Jorge Yau Lee, developer. [Source code](https://github.com/codenameyau/lucky-cat-mahjong) on GitHub.
 
-Mahjong tile artwork in `tiles/` comes from the public-domain (CC0) [samoheen/mahjong-tiles](https://github.com/samoheen/mahjong-tiles) project.
+Music: "Guzheng City", "Shenyang" and "Ripples" by Kevin MacLeod ([incompetech.com](https://incompetech.com)), licensed under [Creative Commons: By Attribution 4.0](https://creativecommons.org/licenses/by/4.0/). The tracks in `assets/music/` were re-encoded to AAC and are otherwise unchanged. Details in [assets/music/README.md](assets/music/README.md).
 
-Background music on the Play page (`assets/music/`): "Guzheng City", "Shenyang" and "Ripples" by Kevin MacLeod ([incompetech.com](https://incompetech.com)), licensed under [Creative Commons: By Attribution 4.0](https://creativecommons.org/licenses/by/4.0/). The tracks were re-encoded to AAC and are otherwise unchanged. Details in [assets/music/README.md](assets/music/README.md).
+Sound effects by [Kenney](https://kenney.nl), from the [Casino Audio](https://kenney.nl/assets/casino-audio), [Interface Sounds](https://kenney.nl/assets/interface-sounds) and [Impact Sounds](https://kenney.nl/assets/impact-sounds) packs, released under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). The clips in `assets/sounds/` were trimmed and converted to WAV. Which clip each file comes from is listed in [assets/sounds/README.md](assets/sounds/README.md).
 
-Sound effects on the Play page (`assets/sounds/`) are clips from [Kenney](https://kenney.nl)'s [Casino Audio](https://kenney.nl/assets/casino-audio), [Interface Sounds](https://kenney.nl/assets/interface-sounds) and [Impact Sounds](https://kenney.nl/assets/impact-sounds) packs, released under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). They were trimmed and converted to WAV. Which clip each file comes from is listed in [assets/sounds/README.md](assets/sounds/README.md).
+Tile artwork in `tiles/` from [samoheen/mahjong-tiles](https://github.com/samoheen/mahjong-tiles), released under [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
