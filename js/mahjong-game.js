@@ -710,9 +710,10 @@
     var POND_COLS = 8;
     var POND_ROWS = 3;
 
-    function fitPondTile(zw, zh, n) {
-      var rows = Math.max(POND_ROWS, Math.ceil(n / POND_COLS));
-      var byW = zw / POND_COLS - TILE_GAP;
+    function fitPondTile(zw, zh, n, cols) {
+      cols = cols || POND_COLS;
+      var rows = Math.max(POND_ROWS, Math.ceil(n / cols));
+      var byW = zw / cols - TILE_GAP;
       var byH = ((zh - 2) / rows - TILE_GAP) / TILE_ASPECT;
       return clamp(Math.min(byW, byH), 8, 56);
     }
@@ -760,6 +761,56 @@
     // On a portrait phone your own tiles (hand and discards) are drawn this
     // much smaller than they could be, so the table has more room.
     var PORTRAIT_SHRINK = 0.85;
+
+    // Discard areas for a pond: a cross around the center box, or (`strip`,
+    // for a narrow table) top and bottom ponds across the full width with
+    // the side ponds in the band between them and a slim center box.
+    // `cols` tiles to a row; rows deepen so each holds POND_COLS x POND_ROWS.
+    // `midFrac` is how deep the cross's top and bottom ponds are.
+    function pondZones(inner, strip, cols, midFrac) {
+      var rows = Math.max(POND_ROWS, Math.ceil(POND_COLS * POND_ROWS / cols));
+      var zones = [];
+      // The top and bottom rows are a little deeper so each discard can be larger.
+      var sideFrac = 0.26;
+      midFrac = midFrac || 0.34;
+      zones[2] = { x: inner.x + inner.w * sideFrac, y: inner.y + 2, w: inner.w * (1 - 2 * sideFrac), h: inner.h * midFrac - 2 };
+      zones[0] = { x: inner.x + inner.w * sideFrac, y: inner.y + inner.h * (1 - midFrac), w: inner.w * (1 - 2 * sideFrac), h: inner.h * midFrac - 2 };
+      zones[3] = { x: inner.x + 2, y: inner.y + 2, w: inner.w * sideFrac - 6, h: inner.h - 4 };
+      zones[1] = { x: inner.x + inner.w * (1 - sideFrac) + 4, y: inner.y + 2, w: inner.w * sideFrac - 6, h: inner.h - 4 };
+      var center = {
+        x: inner.x + inner.w * sideFrac + 4, y: inner.y + inner.h * midFrac + 2,
+        w: inner.w * (1 - 2 * sideFrac) - 8, h: inner.h * (1 - 2 * midFrac) - 4,
+      };
+      if (strip) {
+        var centerW = 52;
+        var sideDepth = (inner.w - centerW - 12) / 2;
+        var rowsH = function (p) { return rows * (p * TILE_ASPECT + TILE_GAP) + 4; };
+        var pwFit = Math.min((inner.w - 4) / cols - TILE_GAP, ((sideDepth - 2) / rows - TILE_GAP) / TILE_ASPECT);
+        // The side ponds' columns run down the band between top and bottom.
+        while (pwFit > 8 && inner.h - 2 * rowsH(pwFit) < cols * (pwFit + TILE_GAP) + 8) pwFit -= 0.5;
+        var bandH = rowsH(pwFit);
+        zones[2] = { x: inner.x + 2, y: inner.y + 2, w: inner.w - 4, h: bandH };
+        zones[0] = { x: inner.x + 2, y: inner.y + inner.h - bandH - 2, w: inner.w - 4, h: bandH };
+        var midY = inner.y + bandH + 6, midH = inner.h - 2 * bandH - 12;
+        zones[3] = { x: inner.x + 2, y: midY, w: sideDepth, h: midH };
+        zones[1] = { x: inner.x + inner.w - sideDepth - 2, y: midY, w: sideDepth, h: midH };
+        center = { x: inner.x + sideDepth + 6, y: midY, w: inner.w - 2 * sideDepth - 12, h: midH };
+      }
+      // A little smaller than the gap between the discard areas, kept centered.
+      var shrink = 0.85;
+      // (The strip's center box is already as narrow as it can be.)
+      if (!strip) {
+        center.x += center.w * (1 - shrink) / 2;
+        center.w *= shrink;
+      }
+      center.y += center.h * (1 - shrink) / 2;
+      center.h *= shrink;
+      // The middle plaque is wide in the cross; narrow it and keep it centered.
+      var narrow = strip ? 1 : 0.68;
+      center.x += center.w * (1 - narrow) / 2;
+      center.w *= narrow;
+      return { zones: zones, center: center };
+    }
 
     function computeLayout() {
       var pad = W < 600 ? 6 : 14;
@@ -811,7 +862,7 @@
       var hintH = 0;
       var room = meBox.y - 6 - topH - 6; // table and bar together
       if (desktop) hintH = 84;
-      if (phonePortrait) hintH = clamp(room - Math.min(tableW - 2 * pad, room - 72), 72, 150);
+      if (phonePortrait) hintH = clamp(room - Math.min(tableW - 2 * pad, room - 72), 72, 118);
       var hintY = meBox.y - hintH - 6;
       var bandTop = hintH ? hintY : meBox.y;
       var gap = 6;
@@ -821,7 +872,9 @@
       // Ponds and side seats go narrow on a phone's narrow table.
       var portrait = !desktop && (tableW < 700 || tableW < (bandTop - topH) * 0.9);
 
-      var sideW = portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
+      // A portrait phone's side seats only hold a column of tile backs, so
+      // they're slim and the discards get the room.
+      var sideW = phonePortrait ? clamp(tableW * 0.125, 46, 88) : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
       var topPanelH = portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
       // Narrow side seats (drawOppHeader's compact header) stack name, strategy and points.
       var sideHead = portrait || sideW < 120 ? 54 : 34;
@@ -846,50 +899,36 @@
 
       var inner = pond;
 
-      // Discard zones form a cross around the center info box.
-      var zones = [];
-      // The top and bottom rows are a little deeper so each discard can be larger.
-      var sideFrac = 0.26, midFrac = 0.34;
-      zones[2] = { x: inner.x + inner.w * sideFrac, y: inner.y + 2, w: inner.w * (1 - 2 * sideFrac), h: inner.h * midFrac - 2 };
-      zones[0] = { x: inner.x + inner.w * sideFrac, y: inner.y + inner.h * (1 - midFrac), w: inner.w * (1 - 2 * sideFrac), h: inner.h * midFrac - 2 };
-      zones[3] = { x: inner.x + 2, y: inner.y + 2, w: inner.w * sideFrac - 6, h: inner.h - 4 };
-      zones[1] = { x: inner.x + inner.w * (1 - sideFrac) + 4, y: inner.y + 2, w: inner.w * sideFrac - 6, h: inner.h - 4 };
-      var center = {
-        x: inner.x + inner.w * sideFrac + 4, y: inner.y + inner.h * midFrac + 2,
-        w: inner.w * (1 - 2 * sideFrac) - 8, h: inner.h * (1 - 2 * midFrac) - 4,
-      };
-      // A phone's table is narrow, so the cross would leave each side pond
-      // too shallow for 3 rows. There the top and bottom ponds span the
-      // full width, and the side ponds share the band between them with a
-      // slim center box.
-      if (portrait) {
-        var centerW = 52;
-        var sideDepth = (inner.w - centerW - 12) / 2;
-        var rowsH = function (p) { return POND_ROWS * (p * TILE_ASPECT + TILE_GAP) + 4; };
-        var pwFit = Math.min((inner.w - 4) / POND_COLS - TILE_GAP, ((sideDepth - 2) / POND_ROWS - TILE_GAP) / TILE_ASPECT);
-        // The side ponds' 8 columns run down the band between top and bottom.
-        while (pwFit > 8 && inner.h - 2 * rowsH(pwFit) < POND_COLS * (pwFit + TILE_GAP) + 8) pwFit -= 0.5;
-        var bandH = rowsH(pwFit);
-        zones[2] = { x: inner.x + 2, y: inner.y + 2, w: inner.w - 4, h: bandH };
-        zones[0] = { x: inner.x + 2, y: inner.y + inner.h - bandH - 2, w: inner.w - 4, h: bandH };
-        var midY = inner.y + bandH + 6, midH = inner.h - 2 * bandH - 12;
-        zones[3] = { x: inner.x + 2, y: midY, w: sideDepth, h: midH };
-        zones[1] = { x: inner.x + inner.w - sideDepth - 2, y: midY, w: sideDepth, h: midH };
-        center = { x: inner.x + sideDepth + 6, y: midY, w: inner.w - 2 * sideDepth - 12, h: midH };
+      var maxDiscards = POND_COLS * POND_ROWS;
+      if (game && game.hand) {
+        game.hand.seats.forEach(function (st) { maxDiscards = Math.max(maxDiscards, st.discards.length + 1); });
       }
-      // A little smaller than the gap between the discard areas, kept centered.
-      var shrink = 0.85;
-      // (A phone's center box is already as narrow as it can be.)
-      if (!portrait) {
-        center.x += center.w * (1 - shrink) / 2;
-        center.w *= shrink;
+      // The discard areas. Desktop: a cross around the center box, 8
+      // columns of 3 rows each. Phones try the cross (with deeper top and
+      // bottom ponds, while the center box keeps room for the wind and the
+      // tile count) and the narrow-table layout, with 8 down to 5 columns
+      // (deeper rows to hold as many), and keep whichever draws the
+      // discards largest.
+      var options = [{ strip: portrait, cols: POND_COLS }];
+      if (!desktop) {
+        options = [];
+        [8, 7, 6, 5].forEach(function (cols) {
+          options.push({ strip: true, cols: cols });
+          [0.34, 0.37, 0.4, 0.43].forEach(function (m) { options.push({ strip: false, cols: cols, mid: m }); });
+        });
       }
-      center.y += center.h * (1 - shrink) / 2;
-      center.h *= shrink;
-      // The middle plaque is wide on a landscape table; narrow it and keep it centered.
-      var narrow = portrait ? 1 : 0.68;
-      center.x += center.w * (1 - narrow) / 2;
-      center.w *= narrow;
+      var CENTER_MIN_H = 46;
+      var best = null;
+      options.forEach(function (o) {
+        var z = pondZones(pond, o.strip, o.cols, o.mid);
+        if (!desktop && !o.strip && z.center.h < CENTER_MIN_H) return;
+        var frames = z.zones.map(function (zone, k) { return makeFrame(zone, k); });
+        var size = 56;
+        frames.forEach(function (f) { size = Math.min(size, fitPondTile(f.w, f.h, maxDiscards, o.cols)); });
+        if (!best || size > best.pw + 0.01) best = { pw: size, zones: z.zones, center: z.center, frames: frames, cols: o.cols };
+      });
+      var inner = pond;
+      var zones = best.zones, center = best.center, zoneFrames = best.frames, pw = best.pw, pondCols = best.cols;
       // The coach's column runs the full height, beside your section too.
       var history = historyW ? {
         x: ox + tableW + historyGap,
@@ -897,20 +936,14 @@
         w: historyW,
         h: H - pad - topH,
       } : null;
-      var zoneFrames = zones.map(function (z, k) { return makeFrame(z, k); });
-      var maxDiscards = POND_COLS * POND_ROWS;
-      if (game && game.hand) {
-        game.hand.seats.forEach(function (st) { maxDiscards = Math.max(maxDiscards, st.discards.length + 1); });
-      }
-      var pw = 56;
-      zoneFrames.forEach(function (f) { pw = Math.min(pw, fitPondTile(f.w, f.h, maxDiscards)); });
+
       return {
         pad: pad, topH: topH, portrait: portrait, ox: ox, tableW: tableW, history: history,
         desktop: desktop, landscape: landscape, phonePortrait: phonePortrait, meX: meX, meW: meW,
         tw: tw, th: th, handY: handY, handRows: handRows, mw: mw, meY: meY, meldRowH: meldRowH, meBox: meBox,
         actionsY: actionsY, actionsH: actionsH, actionsInRow: actionsInRow, hintY: hintY, hintH: hintH,
         opp: opp, oppFrames: oppFrames, pond: pond, inner: inner, zones: zones, zoneFrames: zoneFrames,
-        center: center, pw: pw, maxDiscards: maxDiscards,
+        center: center, pw: pw, maxDiscards: maxDiscards, pondCols: pondCols,
       };
     }
 
@@ -919,7 +952,7 @@
       var f = L.zoneFrames[seat];
       var pw = seat === 0 && L.phonePortrait ? L.pw * PORTRAIT_SHRINK : L.pw;
       var ph = pw * TILE_ASPECT + TILE_GAP;
-      var cols = POND_COLS;
+      var cols = L.pondCols || POND_COLS;
       var gridW = cols * (pw + TILE_GAP);
       return { x: (f.w - gridW) / 2 + (idx % cols) * (pw + TILE_GAP), y: 2 + Math.floor(idx / cols) * ph, w: pw };
     }
@@ -3671,6 +3704,7 @@
       table.start();
       canvas.focus();
       root.__lcmTable = table;
+      hideToolbar();
     }
 
     // Phones held sideways play fullscreen. Browsers only allow it from a
@@ -3708,6 +3742,23 @@
         if (p && p.catch) p.catch(function () { autoFullscreen = false; });
       } catch (e) {}
     }
+    // Sideways, also ask the browser to hide its toolbar: the page gets a
+    // pixel of room (.is-sideways) and is scrolled by it, which mobile
+    // browsers answer by tucking the address bar away. No tap needed.
+    // (Instantly: the site scrolls smoothly, and a smooth scroll can be
+    // dropped while the page is still settling.)
+    function nudgeScroll() {
+      try { root.scrollTo({ top: 1, left: 0, behavior: 'instant' }); } catch (e) { root.scrollTo(0, 1); }
+    }
+    function hideToolbar() {
+      var sideways = !stage.hidden && phoneSideways();
+      document.documentElement.classList.toggle('is-sideways', sideways);
+      if (!sideways) return;
+      setTimeout(nudgeScroll, 60);
+      setTimeout(nudgeScroll, 400); // after the rotation settles
+    }
+    document.addEventListener('pointerup', function () { if (!stage.hidden && phoneSideways()) nudgeScroll(); }, true);
+    root.addEventListener('orientationchange', hideToolbar);
     document.addEventListener('pointerup', enterFullscreenOnTap, true);
     function onFullscreenChange() {
       if (!fullscreenElement() && autoFullscreen) {
@@ -3722,11 +3773,15 @@
         declinedFullscreen = false;
         leaveAutoFullscreen();
       }
+      // Only when it changes, so the toolbar showing again (a resize) doesn't loop.
+      var was = document.documentElement.classList.contains('is-sideways');
+      if (was !== (!stage.hidden && phoneSideways())) hideToolbar();
     });
 
     // Quitting ends the game, so a refresh starts at the menu again.
     function close() {
       leaveAutoFullscreen();
+      document.documentElement.classList.remove('is-sideways');
       if (table) table.destroy();
       table = null;
       removeJson(AUTOSAVE_KEY);

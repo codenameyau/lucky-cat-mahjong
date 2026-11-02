@@ -195,6 +195,18 @@ html.is-playing body {
   overscroll-behavior: none;
 }
 
+/* A phone held sideways: the page is one pixel taller than the screen, so
+   scrolling it by that pixel makes the browser hide its toolbar (the game
+   itself is fixed and doesn't move). */
+html.is-playing.is-sideways {
+  overflow-y: auto;
+}
+
+html.is-playing.is-sideways body {
+  height: calc(100vh + 1px);
+  overflow: hidden;
+}
+
 .rules-sheet {
   width: min(1180px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
