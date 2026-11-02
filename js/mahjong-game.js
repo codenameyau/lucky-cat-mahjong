@@ -1560,6 +1560,14 @@
       ctx.fillRect(0, 0, W, 42);
       var pad = L ? L.pad : 8;
       button('Menu', pad, 7, 64, 28, openMenu, 'ghost', 'menu');
+      // A sideways phone gets a Full screen button beside Menu.
+      var left = pad + 72;
+      if (L && L.landscape && callbacks.fullscreen) {
+        var fsOn = callbacks.isFullscreen && callbacks.isFullscreen();
+        var fsW = 112;
+        button(fsOn ? 'Exit full screen' : 'Full screen', left, 7, fsW, 28, callbacks.fullscreen, 'ghost', 'fullscreen');
+        left += fsW + 6;
+      }
       var right = W - pad;
       var soundLabel = SOUND_LABELS[soundMode()];
       var sw = W < 420 ? 66 : 92;
@@ -1572,12 +1580,12 @@
       button('Strategies', right - sw - hw - rw - stw - 18, 7, stw, 28, openStrategies, 'ghost', 'strategies');
       if (game) {
         var label = E.WIND_NAMES[game.round] + ' round · Hand ' + game.handNumber;
-        var maxW = right - sw - hw - rw - stw - 24 - (pad + 72);
+        var maxW = right - sw - hw - rw - stw - 24 - left;
         // Phones have no room beside the buttons; the round wind still shows
         // in the middle of the table.
         if (maxW >= 90) {
           var size = fitFont(ctx, label, maxW, 15, FONT_HEAD);
-          text(label, pad + 72 + maxW / 2, 22, { size: size, family: FONT_HEAD, align: 'center', color: COLORS.cream });
+          text(label, left + maxW / 2, 22, { size: size, family: FONT_HEAD, align: 'center', color: COLORS.cream });
         }
       }
     }
@@ -3783,6 +3791,8 @@
       table = createTable(canvas, live, settings, {
         quit: close,
         restart: function () { open(settings); },
+        fullscreen: toggleFullscreen,
+        isFullscreen: function () { return !!fullscreenElement(); },
         // A loaded game plays in its own mode; the rest of your settings stay.
         load: function (data) {
           open(Object.assign({}, settings, { mode: data.payload.game.settings.mode }), data);
@@ -3802,6 +3812,7 @@
     // sideways keeps it off until the phone is turned upright again.
     var autoFullscreen = false;
     var declinedFullscreen = false;
+    var fullscreenPending = false; // one request at a time (a tap on Full screen fires both)
     function phoneSideways() {
       var coarse = root.matchMedia && root.matchMedia('(pointer: coarse)').matches;
       return coarse && root.innerWidth > root.innerHeight && root.innerHeight < 600;
@@ -3819,15 +3830,22 @@
       }
     }
     function enterFullscreenOnTap() {
-      if (stage.hidden || declinedFullscreen || fullscreenElement() || !phoneSideways()) return;
+      if (stage.hidden || declinedFullscreen || fullscreenPending || fullscreenElement() || !phoneSideways()) return;
+      requestFullscreen();
+    }
+    function requestFullscreen() {
       var el = document.documentElement;
       var req = el.requestFullscreen || el.webkitRequestFullscreen;
       if (!req) return;
       try {
         var p = req.call(el, { navigationUI: 'hide' });
         autoFullscreen = true;
-        if (p && p.catch) p.catch(function () { autoFullscreen = false; });
-      } catch (e) {}
+        fullscreenPending = !!(p && p.then);
+        setTimeout(function () { fullscreenPending = false; }, 3000); // in case it never settles
+        if (p && p.then) {
+          p.then(function () { fullscreenPending = false; hideToolbar(); }, function () { fullscreenPending = false; autoFullscreen = false; });
+        }
+      } catch (e) { fullscreenPending = false; }
     }
     // Sideways, also ask the browser to hide its toolbar: the page gets
     // room to scroll (.is-sideways: a pixel past the full screen height)
@@ -3858,6 +3876,21 @@
     root.addEventListener('orientationchange', hideToolbar);
     if (root.screen && root.screen.orientation && root.screen.orientation.addEventListener) {
       root.screen.orientation.addEventListener('change', hideToolbar);
+    }
+    // The Full screen button (sideways phones): in or out of fullscreen,
+    // and the toolbar tucked away either way (iPhone Safari has no page
+    // fullscreen, so there it's the toolbar only).
+    function toggleFullscreen() {
+      if (fullscreenElement()) {
+        var exit = document.exitFullscreen || document.webkitExitFullscreen;
+        autoFullscreen = false;
+        declinedFullscreen = true;
+        if (exit) { var px = exit.call(document); if (px && px.catch) px.catch(function () {}); }
+        return;
+      }
+      declinedFullscreen = false;
+      if (!fullscreenPending) requestFullscreen();
+      hideToolbar();
     }
     document.addEventListener('pointerup', enterFullscreenOnTap, true);
     function onFullscreenChange() {
