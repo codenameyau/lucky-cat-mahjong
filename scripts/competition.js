@@ -4,11 +4,11 @@
    points, wins, self-draws, deal-ins and more (js/mahjong-competition.js).
 
    npm run compete -- --deals 1000
-   npm run compete -- --lineup lucky-cat,claude-cat,lucky-cat,claude-cat --deals 500 --seed 7
+   npm run compete -- --lineup lucky-cat,jorge-yau,lucky-cat,jorge-yau --deals 500 --seed 7
    npm run compete -- --deals 2000 --json results.json
 
    Options:
-     --lineup a,b,c,d  strategy per seat (default: lucky-cat vs claude-cat, alternating)
+     --lineup a,b,c,d  strategy per seat (default: lucky-cat vs jorge-yau, alternating)
      --deals N         deals to play; each is played 4 times, once per rotation (default 250)
      --seed N          first deal's seed (default 1)
      --workers N       worker threads (default: CPU cores - 1)
@@ -49,7 +49,7 @@ async function main() {
     S.list().forEach((s) => console.log(s.id.padEnd(14) + s.summary));
     return;
   }
-  const lineup = args.lineup ? String(args.lineup).split(',') : ['lucky-cat', 'claude-cat', 'lucky-cat', 'claude-cat'];
+  const lineup = args.lineup ? String(args.lineup).split(',') : ['lucky-cat', 'jorge-yau', 'lucky-cat', 'jorge-yau'];
   if (lineup.length !== 4) throw new Error('--lineup needs four strategy ids, one per seat');
   lineup.forEach((id) => { if (!S.has(id)) throw new Error('unknown strategy ' + id + ' (have: ' + S.ids().join(', ') + ')'); });
   const deals = Math.max(1, parseInt(args.deals || 250, 10));

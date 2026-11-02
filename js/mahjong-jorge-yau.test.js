@@ -3,7 +3,8 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
 const E = require('./mahjong-engine.js');
-const B = require('./mahjong-bot.js');
+const B = require('./mahjong-jorge-yau.js');
+const MahjongBot = require('./mahjong-bot.js');
 
 function table(opts) {
   const game = E.createGame({ seed: opts.seed || 11, humanSeat: false, dealer: opts.dealer || 0 });
@@ -159,10 +160,10 @@ describe('expert playbook', () => {
     assert.ok(['c4', 'c7'].includes(pick), 'discarded ' + pick);
   });
 
-  it('holds an unrevealed dragon when another tile also leaves the hand ready', () => {
+  it('on Concealed Straights, throws a dragon even when another tile also leaves the hand ready', () => {
     const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'b2', 'dr'];
     const game = table({ seats: [{ hand }] });
-    assert.equal(B.chooseTurnAction(game, 0, noKongs).tile, 'b2');
+    assert.equal(B.chooseTurnAction(game, 0, noKongs).tile, 'dr');
   });
 
   it('treats a punged honor as dead and throws a punged tile the hand does not need', () => {
@@ -173,13 +174,22 @@ describe('expert playbook', () => {
     assert.equal(B.chooseTurnAction(game, 0, noKongs).tile, 'b2');
   });
 
-  it('keeps live honors early in the hand, even in a concealed sequence hand', () => {
+  it('throws honors first on Concealed Straights, even early', () => {
     const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd6', 'd7', 'b2', 'b3', 'dr'];
     const game = table({ seats: [{ hand }], wallLeft: 80 });
-    assert.notEqual(B.analyzeDiscards(game, 0).candidates[0].tile, 'dr');
-    // A guest wind is kept early too, as long as it can still become a set.
+    const a = B.analyzeDiscards(game, 0);
+    assert.equal(a.ctx.leadPlan.id, 'straights');
+    assert.equal(a.candidates[0].tile, 'dr');
     const wind = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd6', 'd7', 'b2', 'b3', 'wn'];
-    assert.notEqual(B.analyzeDiscards(table({ seats: [{ hand: wind }], wallLeft: 80 }), 0).candidates[0].tile, 'wn');
+    assert.equal(B.analyzeDiscards(table({ seats: [{ hand: wind }], wallLeft: 80 }), 0).candidates[0].tile, 'wn');
+  });
+
+  it('keeps a live dragon early in a hand that can\'t be Concealed Straights', () => {
+    // A set of East Winds rules out an all-runs hand.
+    const hand = ['c2', 'c3', 'c4', 'd4', 'd5', 'd6', 'b3', 'b4', 'b6', 'we', 'we', 'we', 'c9', 'dr'];
+    const a = B.analyzeDiscards(table({ seats: [{ hand }] }), 0);
+    assert.notEqual(a.ctx.leadPlan.id, 'straights');
+    assert.notEqual(a.candidates[0].tile, 'dr');
   });
 
   it('lets an early honor go once two copies are out', () => {
@@ -202,7 +212,7 @@ describe('expert playbook', () => {
     assert.ok(B.dealInLoss(game, threats, E.tileIndex('b5')) > 0);
   });
 
-  it('plays concealed all sequences and throws the stray honors', () => {
+  it('plays concealed straights and throws the stray honors', () => {
     const hand = ['c2', 'c3', 'c4', 'c6', 'c7', 'd3', 'd4', 'd5', 'b5', 'b6', 'b8', 'b8', 'ww', 'wn'];
     const game = table({ seats: [{ hand }] });
     const top = B.analyzeDiscards(game, 0).candidates[0];
@@ -408,6 +418,20 @@ describe('going for one suit', () => {
     const hand = ['d2', 'd3', 'd4', 'd6', 'd7', 'b2', 'b5', 'dr', 'dr', 'c9', 'c1'];
     const game = table({ seats: [{ hand, melds: [meld('pung', 'd9')] }] });
     assert.equal(B.suitCommitment(B.buildContext(game, 0), E.countsOf(hand)), 'd');
+  });
+
+  it('commits with 7 tiles of one suit and throws the other suits before honors', () => {
+    const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'd2', 'd5', 'b3', 'b7', 'wn', 'dr', 'b9'];
+    const game = table({ seats: [{ hand }] });
+    assert.equal(B.suitCommitment(B.buildContext(game, 0), E.countsOf(hand)), 'c');
+    const order = B.analyzeDiscards(game, 0).candidates.map((x) => x.tile);
+    ['d2', 'd5', 'b3', 'b7', 'b9'].forEach((t) => assert.ok(order.indexOf(t) < order.indexOf('wn'), order.join(' ')));
+  });
+
+  it('is the same for every strategy, with no hooks at all', () => {
+    const plain = MahjongBot.createStrategy({ id: 'plain' });
+    const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'd2', 'd5', 'b3', 'b7', 'wn', 'dr', 'b9'];
+    assert.ok(['d2', 'd5', 'b3', 'b7', 'b9'].includes(plain.chooseTurnAction(table({ seats: [{ hand }] }), 0, noKongs).tile));
   });
 
   it('does not commit a hand spread across suits', () => {

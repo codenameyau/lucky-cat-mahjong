@@ -1,4 +1,4 @@
-/* Bot opponents and hint analysis for the Play game.
+/* The shared foundation every bot strategy is built on (MahjongBot).
 
    Every decision is an expected-value estimate built from information the
    seat could legally see (own tiles, the pond, exposed melds, wall count):
@@ -11,7 +11,7 @@
        flush signals) and every tile a deal-in probability; the expected
        loss is subtracted from the discard's value, so bots fold when
        their hand is slow and an opponent looks ready.
-   On top of that, the expert playbook:
+   On top of that, the principles every strategy shares:
      A. speed vs value: early on, bigger hands are worth chasing; mid and
         late game, or when an opponent shows a big hand, speed matters more.
      B. dead waits (3+ copies visible) are worth little; middle tiles keep
@@ -23,32 +23,32 @@
         suji, kabe (a neighbor with all 4 visible), then everything else,
         with fresh honors and middle tiles the most dangerous.
      D. with under 16 tiles left in the wall, play safe unless already ready
-        with a big hand; Chow only when it clearly gets closer to ready, and
-        early in the hand only for a ready hand or a flush one tile from
-        ready; Pung dragons and own/round winds freely; a kong is fine at
-        any point.
-     E. keep pairs. Break one only after every non-pair is gone, unless a
-        chow has committed the hand to one suit: pairs in the other suits
-        are discarded with those suits.
-     F. keep dragons until at least one copy is already visible. A tile
+        with a big hand. Pung dragons and own/round winds freely; a kong is
+        fine at any point. A chow must get the hand closer to ready and
+        still able to reach the minimum faan.
+     E. one suit. After a chow, keep that suit and the honors: every tile
+        of another suit goes first, even while folding. With 7 or more tiles
+        of one suit (sets count), the other suits go first the same way,
+        unless the hand is going for Concealed Straights: then the honors go
+        first instead (but while folding, safety decides). (Seven Pairs, Thirteen Orphans, Nine Gates and the
+        hands of honors or terminals need their tiles from every suit, so
+        they keep their own order.)
+     F. keep pairs. Break one only after every non-pair is gone.
+     G. keep dragons until at least one copy is already visible. A tile
         someone has Punged or Konged is the first discard when the hand
         does not need it. A punged honor is safe for the whole table; a
         punged number tile can still finish a chow.
-     G. with more than four concealed pairs and no pung or kong, play
-        Seven Pairs. With nine different terminals and honors (or eight
-        and a pair), all still live, play Thirteen Orphans. With eleven
-        tiles of a suit's 1112345678999 skeleton, play Nine Gates. A
-        concealed hand of runs, with no honors and no claims, plays
-        Concealed All Sequences.
+     H. Seven Pairs, Thirteen Orphans, Nine Gates and Concealed Straights
+        claim nothing but a scoring honor (Concealed Straights only).
      The keep-pairs and keep-dragons orders never cost a step toward ready,
      and while folding, safety decides and they only break ties.
-   The coach in js/mahjong-coach.js says this same decision in words. It
-   does not keep a second plan of its own.
 
-   This is the "claude-cat" strategy. Other strategies (js/mahjong-lucky-cat.js)
-   reuse this same machinery through createStrategy(def): `def.hooks` swaps in
-   their own plans, discard order, claims and reads, and `def.tuning` their
-   own knobs. See docs/strategies/. */
+   A strategy is createStrategy(def): `def.hooks` adds its own plans,
+   discard order, claims and reads, and `def.tuning` its own knobs (section
+   9). jorge-yau (js/mahjong-jorge-yau.js) and lucky-cat
+   (js/mahjong-lucky-cat.js) are built this way. The coach in
+   js/mahjong-coach.js says a strategy's decision in words. See
+   docs/strategies/. */
 
 (function (root) {
   'use strict';
@@ -142,7 +142,7 @@
   //   defenseScale: how much more than that to weigh deal-in risk.
   //   lateFold: extra weight on safety once the wall is under lateFoldWall
   //     tiles and the hand is still 2 or more tiles from ready (unlikely to win).
-  // Chosen by simulation for the most points per hand (see docs/strategies/claude-cat.md).
+  // Chosen by simulation for the most points per hand (see docs/strategies/jorge-yau.md).
   //   tripletsLive: on All Triplets, throw the tile with fewest copies left.
   //   chowSuitLate: near the end, how much more dangerous each chow an
   //     opponent has in a suit makes that suit's tiles.
@@ -270,26 +270,46 @@
     return suits.length === 1 ? suits[0] : null;
   }
 
+  // Hands that need their tiles from more than one suit, or a fixed shape:
+  // the one-suit rule leaves their discard order alone.
+  var MIXED_PLANS = ['pairs', 'orphans', 'gates', 'terminals', 'honors', 'winds'];
+  var SUIT_MAJORITY = 7;
+
   // The suit the hand is clearly going for, if any: after a chow, the chow's
-  // suit; otherwise one suit holding at least 8 of the hand's tiles and, with
-  // the honors, at least 10 (sets already made count). Tiles of the other two
-  // suits are then thrown first.
+  // suit; otherwise one suit holding 7 or more of the hand's tiles, more than
+  // any other suit (sets already made count). Tiles of the other two suits
+  // are then thrown first. Not while the hand is going for Concealed
+  // Straights (it drops honors instead) or a hand in MIXED_PLANS.
   function suitCommitment(ctx, counts) {
     var chow = chowCommitment(ctx);
     if (chow) return chow;
+    var lead = ctx.leadPlan;
+    if (lead && (lead.id === 'straights' || MIXED_PLANS.indexOf(lead.id) !== -1)) return null;
     var other = Object.keys(ctx.meldSuits).filter(function (k) { return k !== 'z'; });
     if (other.length > 1) return null;
-    var setsIn = function (fits) {
-      return ctx.melds.filter(function (m) { return fits(E.tileIndex(m.tiles[0])); }).length * 3;
-    };
-    var honors = countWhere(counts, function (i) { return i >= 27; }) + setsIn(function (i) { return i >= 27; });
+    var best = null, bestN = 0, tie = false;
     for (var s = 0; s < 3; s++) {
       var su = SUIT_LETTERS[s];
-      if (other.length && other[0] !== su) continue;
       var inSuit = function (i) { return i < 27 && E.suitOfIndex(i) === su; };
-      var n = countWhere(counts, inSuit) + setsIn(inSuit);
-      if (n >= 8 && n + honors >= 10) return su;
+      var n = countWhere(counts, inSuit) +
+        ctx.melds.filter(function (m) { return inSuit(E.tileIndex(m.tiles[0])); }).length * 3;
+      if (n > bestN) { best = su; bestN = n; tie = false; } else if (n === bestN) tie = true;
     }
+    if (!best || tie || bestN < SUIT_MAJORITY) return null;
+    if (other.length && other[0] !== best) return null;
+    return best;
+  }
+
+  // The discard rules every strategy follows, ahead of its own order: after
+  // a chow, or with most of the hand in one suit, other suits go first
+  // (group 0: even while folding). On Concealed Straights, honors go first
+  // (group -1: while folding, safety decides). Null when neither applies.
+  function sharedPriority(ctx, counts, candidate) {
+    var i = candidate.index;
+    var lead = ctx.leadPlan;
+    if (lead && lead.id === 'straights' && !ctx.hasChow) return i >= 27 ? -1 : null;
+    var committed = suitCommitment(ctx, counts);
+    if (committed && i < 27 && E.suitOfIndex(i) !== committed) return 0;
     return null;
   }
 
@@ -318,12 +338,6 @@
 
   var ORPHAN_INDEXES = [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33];
   var GATES_NEED = [3, 1, 1, 1, 1, 1, 1, 1, 3];
-  // Thirteen Orphans starts at 9 (nine different terminals and honors, or
-  // eight and a pair). Nine Gates starts at 11 of its 13 tiles: short of that
-  // a Full Flush keeps the same tiles and can still claim, so it's the better
-  // plan.
-  var ORPHANS_MIN = 9;
-  var GATES_MIN = 11;
   var SUIT_LETTERS = ['c', 'd', 'b'];
 
   function isOrphanIndex(i) {
@@ -350,18 +364,6 @@
     var n = 0;
     for (var r = 0; r < 9; r++) n += Math.min(c[start + r] || 0, GATES_NEED[r]);
     return n;
-  }
-
-  // The suit whose 1112345678999 skeleton already has 8 tiles, if any.
-  function bestNineGates(c) {
-    var best = null;
-    for (var s = 0; s < 3; s++) {
-      var progress = nineGatesProgress(c, s * 9);
-      if (progress >= GATES_MIN && (!best || progress > best.progress)) {
-        best = { suit: SUIT_LETTERS[s], start: s * 9, progress: progress };
-      }
-    }
-    return best;
   }
 
   function nineGatesShanten(start) {
@@ -422,30 +424,6 @@
     return honors ? 3 : 7;
   }
 
-  // Seven Pairs, Thirteen Orphans, or Nine Gates, whichever is closer.
-  function pickSpecial(c, ctx) {
-    if (ctx.declared) return null;
-    var list = [];
-    if (chaseSevenPairs(c, ctx)) list.push({ kind: 'pairs', faan: baseFaan(ctx) + 4 + pairsFlush(c), shantenFn: E.sevenPairsShanten });
-    if (orphanProgress(c) >= ORPHANS_MIN && orphansAlive(c, ctx)) list.push({ kind: 'orphans', faan: 13, shantenFn: E.orphansShanten });
-    var gates = bestNineGates(c);
-    if (gates) list.push({ kind: 'gates', gates: gates, faan: 13, shantenFn: nineGatesShanten(gates.start) });
-    var best = null;
-    list.forEach(function (item) {
-      var s = item.shantenFn(c, ctx.declared || 0);
-      if (s === Infinity) return;
-      if (!best || s < best.s || (s === best.s && item.faan > best.faan)) best = { s: s, item: item };
-    });
-    return best ? best.item : null;
-  }
-
-  function specialPlan(ctx, counts) {
-    if (H.plans) return null; // a strategy with its own plans picks these itself
-    var spec = ctx.lockedSpecial || pickSpecial(counts, ctx);
-    if (!spec) return null;
-    return makeSpecialPlan(spec.kind, counts, ctx, spec.gates);
-  }
-
   // Copies already on the table: the pond, and every open meld.
   function revealedCopies(game, i) {
     var n = 0;
@@ -479,23 +457,21 @@
     return false;
   }
 
-  // Lower is thrown first. Off-suit tiles after a committing chow go before
-  // everything. Then a punged tile the hand does not need. Then ordinary
-  // tiles. Pairs wait. An unrevealed dragon waits longer still, unless the
-  // hand is chasing Seven Pairs and that dragon is only a single.
-  // All Triplets keeps every pair and every pung: those wait behind any
-  // single, and a finished pung waits behind a pair.
+  // Lower is thrown first. The shared one-suit rules (sharedPriority) come
+  // before everything, then the strategy's own order (H.priority), then
+  // this one: a punged tile the hand does not need, ordinary tiles, pairs,
+  // and an unrevealed dragon longer still, unless the hand is chasing Seven
+  // Pairs and that dragon is only a single. All Triplets keeps every pair
+  // and every pung: those wait behind any single, and a finished pung waits
+  // behind a pair.
   function discardPriority(game, ctx, counts, candidate, bestShanten) {
+    var shared = sharedPriority(ctx, counts, candidate);
+    if (shared !== null) return shared;
     if (H.priority) {
       var own = H.priority(game, ctx, counts, candidate, bestShanten);
       if (own !== null && own !== undefined) return own;
     }
     var i = candidate.index;
-    var locked = ctx.lockedSpecial;
-    if (locked && locked.kind === 'orphans') return isOrphanIndex(i) ? 4 : 0;
-    if (locked && locked.kind === 'gates') return gatesTileNeeded(counts, locked.gates.start, i) ? 4 : 0;
-    var committed = suitCommitment(ctx, counts);
-    if (committed && i < 27 && E.suitOfIndex(i) !== committed) return 0;
     if (isPungTile(game, i) && counts[i] < 2 && candidate.shanten <= bestShanten) return 1;
     var best = candidate.analysis && candidate.analysis.best;
     var plan = best && best.plan;
@@ -524,9 +500,10 @@
     return H.plans ? H.plans(c, ctx) : basePlans(c, ctx);
   }
 
+  // The usual hands: standard, Concealed Straights, the flushes and All
+  // Triplets. (Seven Pairs, Thirteen Orphans and Nine Gates are up to each
+  // strategy: see makeSpecialPlan.)
   function basePlans(c, ctx) {
-    var special = specialPlan(ctx, c);
-    if (special) return [special];
     var base = baseFaan(ctx) + (ctx.concealed ? 1 : 0);
     var yaku = handYaku(ctx, c);
     var plans = [];
@@ -553,7 +530,7 @@
     }
 
     plans.push({ id: 'plain', label: 'a standard hand', counts: c, shantenFn: E.standardShanten, faan: base + yaku, open: true });
-    // Concealed All Sequences: runs only. Honors are discarded, and nothing
+    // Concealed Straights: runs only. Honors are discarded, and nothing
     // is claimed, because either one breaks the hand.
     // (Not while the hand holds a set of honors, which can never be thrown
     // away to make an all-runs hand.)
@@ -562,7 +539,7 @@
     if (!ctx.declared && !honorSet) {
       plans.push({
         id: 'straights',
-        label: 'Concealed All Sequences',
+        label: 'Concealed Straights',
         counts: restrict(c, function (i) { return i < 27; }),
         shantenFn: E.standardShanten,
         faan: base + 1,
@@ -944,7 +921,7 @@
 
   function syncHandPlans(ctx, counts) {
     ctx.blockSevenPairs = concealedShape(counts).hasSet;
-    ctx.lockedSpecial = H.plans ? null : pickSpecial(counts, ctx);
+    if (H.hand) H.hand(ctx, counts);
   }
 
   function analyzeDiscards(game, seat, ctxOverride, handOverride) {
@@ -970,14 +947,18 @@
       });
     }
     var bestShanten = Math.min.apply(null, out.map(function (x) { return x.shanten; }));
+    // The hand the best discard builds toward, for the shared one-suit rules.
+    var lead = out.reduce(function (m, x) { return !m || x.util > m.util ? x : m; }, null);
+    ctx.leadPlan = (lead && lead.analysis.best && lead.analysis.best.plan) || null;
     var readyFaan = out.reduce(function (m, x) { return Math.max(m, x.analysis.ready ? x.analysis.ready.bestFaan : 0); }, 0);
     var weight = defenseWeight(ctx, threats, bestShanten, readyFaan);
     // Folding: safety decides, and the keep-pairs and keep-dragons orders
     // only break ties (a safe pair is the right tile to break).
     var folding = weight > (ctx.isDealer ? 0.9 : 1);
     weight *= T.defenseScale;
-    // After a chow, tiles of other suits are worthless: they go first, ahead
-    // of honors and chow-suit tiles that tie with them on value.
+    // After a chow (or with most of the hand in one suit), tiles of other
+    // suits are worthless: they go first, ahead of honors and tiles of that
+    // suit that tie with them on value.
     var committed = suitCommitment(ctx, c);
     out.forEach(function (x) {
       x.score = x.util - weight * x.loss;
@@ -1100,10 +1081,11 @@
         after.analysis.shanten > 0 && after.score < res.passScore;
       if (!breaksReady) return { decision: { type: take }, found: res };
     }
-    // Any other claim breaks Concealed All Sequences.
+    // Any other claim breaks Concealed Straights.
     if (stayPlan && stayPlan.id === 'straights') return { decision: { type: 'pass' }, found: res };
     var options = res.options.filter(function (o) {
-      return o.decision.type !== 'chow' || chowWorthIt(o, res, ctx, game);
+      if (o.decision.type !== 'chow') return true;
+      return chowAllowed(o, res, game) && (!H.chowOk || H.chowOk(o, res, ctx, game));
     });
     var top = options[0];
     var bar = top && top.decision.type === 'chow' ? 1.2 : 1.04;
@@ -1115,28 +1097,18 @@
     return decideClaim(game, seat, opts).decision;
   }
 
-  // A chow gives up the hand's concealed faan and shows what you're doing, so
-  // take one only when it is necessary or helps a lot: it makes the hand
-  // ready for a winning faan count, or it builds the flush the hand is
-  // already going for, or it's late and gets you meaningfully closer.
-  function chowWorthIt(o, res, ctx, game) {
+  // Every chow must get the hand closer to ready and leave it able to reach
+  // the minimum faan (a chow that makes it ready must win for the minimum).
+  // A strategy adds when it's worth it with H.chowOk.
+  function chowAllowed(o, res, game) {
     var an = o.analysis;
     if (!an) return false;
     var after = an.shanten, before = res.stay.shanten;
     if (after >= before) return false;
     var min = game.settings.minFaan;
-    var plan = an.best && an.best.plan;
-    // After the chow the hand must still be able to reach the minimum.
     if (after === 0) return !!(an.ready && an.ready.bestFaan >= min);
-    if (!plan || plan.faan < min - 0.25) return false;
-    var flushPlan = /^(half|full)/.test(plan.id);
-    // Early in the hand (over 60 tiles left) there's time to draw the tile
-    // instead, so a flush chow must leave the hand within one tile of ready.
-    var early = ctx.wallLeft > 60;
-    if (flushPlan && after <= (early ? 1 : 2)) return true;
-    // Late in the hand, a chow that saves a step is worth the cost.
-    var late = ctx.turn >= 9 || ctx.wallLeft < 48;
-    return late && before - after >= 1 && after <= 2;
+    var plan = an.best && an.best.plan;
+    return !!plan && plan.faan >= min - 0.25;
   }
 
   function createBotAgent(options) {
@@ -1158,19 +1130,26 @@
    *    hooks are swapped in for the call and restored after it.
    *    Hooks (all optional):
    *      context(ctx, game, seat)        add the strategy's own reads to ctx
+   *      hand(ctx, counts)               read the 14-tile hand before its
+   *                                      discards are weighed
    *      plans(c, ctx) -> [plan]         the hands to aim for (basePlans is
-   *                                      claude-cat's list); plan.weight
-   *                                      scales a plan's value
+   *                                      the usual list); plan.weight
+   *                                      prefers a plan without changing
+   *                                      its value
    *      priority(game, ctx, counts, candidate, bestShanten) -> group
-   *                                      the discard order (lower goes first;
+   *                                      the discard order after the shared
+   *                                      one-suit rules (lower goes first;
    *                                      below 0 goes first unless folding)
    *      readyValue(value, waits, c, ctx) -> value
    *      threats(list, game, seat)       add reads to each opponent
    *      waitChance(chance, game, threat, i) -> chance
    *      extraLoss(game, threats, i) -> loss  e.g. feeding a claim
    *      defense(weight, ctx, threats, shanten, readyFaan) -> weight
+   *      chowOk(option, found, ctx, game) -> bool
+   *                                      whether a chow that chowAllowed
+   *                                      passes is worth taking
    *      claim(found, ctx, game, seat, opts) -> decision
-   *    priority and claim may return null to use claude-cat's choice.
+   *    priority and claim may return null to use the shared choice.
    * ------------------------------------------------------------------ */
 
   function createStrategy(def) {
@@ -1180,6 +1159,7 @@
     Object.keys(def.tuning || {}).forEach(function (k) { tuning[k] = def.tuning[k]; });
     var out = { id: def.id };
     Object.keys(api).forEach(function (k) {
+      if (k === 'id') return;
       var f = api[k];
       if (typeof f !== 'function' || k === 'createStrategy') { out[k] = f; return; }
       out[k] = function () {
@@ -1199,7 +1179,7 @@
   }
 
   var api = {
-    id: 'claude-cat',
+    id: 'base',
     createStrategy: createStrategy,
     basePlans: basePlans,
     makeSpecialPlan: makeSpecialPlan,
@@ -1218,7 +1198,8 @@
     finishChance: finishChance,
     valueSlope: valueSlope,
     withMeld: withMeld,
-    chowWorthIt: chowWorthIt,
+    chowAllowed: chowAllowed,
+    sharedPriority: sharedPriority,
     buildContext: buildContext,
     valueWeight: valueWeight,
     handUtility: handUtility,
@@ -1233,8 +1214,9 @@
     suitCommitment: suitCommitment,
     riskStep: riskStep,
     chaseSevenPairs: chaseSevenPairs,
+    isOrphanIndex: isOrphanIndex,
+    ORPHAN_INDEXES: ORPHAN_INDEXES,
     syncHandPlans: syncHandPlans,
-    specialPlan: specialPlan,
     revealedCopies: revealedCopies,
     isPungTile: isPungTile,
     discardPriority: discardPriority,

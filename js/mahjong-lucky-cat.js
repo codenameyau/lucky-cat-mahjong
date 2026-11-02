@@ -1,17 +1,18 @@
 /* The "lucky-cat" bot strategy.
 
-   It plays on the same machinery as claude-cat (js/mahjong-bot.js: shanten,
-   live tiles, exact scoring of ready hands, the threat model), but picks
-   its hand differently and plays it differently:
+   It plays the shared foundation in js/mahjong-bot.js (shanten, live
+   tiles, exact scoring of ready hands, the threat model, and the one-suit
+   rules every bot follows), but picks its hand differently and plays it
+   differently:
      - Target. From the opening hand it picks one hand to aim for, in a fixed
        order (TARGETS below): Thirteen Orphans, Nine Gates, Four Winds, All
        Terminals, honors, Seven Pairs, Full Flush, All Triplets, Half Flush,
-       Concealed All Sequences. Each turn the current hand is read again; a
+       Concealed Straights. Each turn the current hand is read again; a
        stronger target replaces it, and a target that can no longer be made
        gives way. The target's plans are preferred (K.targetWeight), so the
        hand only pivots when a backup is clearly better.
      - Discards. Tiles the target can't use go first. Pairs and live honors
-       wait, except on Concealed All Sequences, which drops honors first.
+       wait, except on Concealed Straights, which drops honors first.
      - Fast hands. With a scoring wind (seat or round) or a seat flower, the
        hand already has faan, so it plays for speed instead of size.
      - Claims. Stay concealed. Early chows only for a flush in that suit;
@@ -50,7 +51,7 @@
   //   feed: weight on feeding claims (chow tiles, fresh honors)
   //   reads: read opponents' hands from their discards
   //   skip: target ids to leave out of the read (to measure each one)
-  //   ownClaims, ownDiscards: false uses claude-cat's claims or discard order
+  //   ownClaims, ownDiscards: false uses jorge-yau's claims or discard order
   var TUNING = { targetWeight: 1.5, giveUpWall: 40, giveUpDefense: 1.6, feed: 1, reads: true, skip: [], ownClaims: true, ownDiscards: true };
   var K = TUNING; // replaced by the strategy's own copy below
 
@@ -145,7 +146,7 @@
       dead: function (r, t) { return hasSuitedMeld(r.ctx, t.suit); },
     },
     {
-      id: 'sequences', name: 'Concealed All Sequences',
+      id: 'sequences', name: 'Concealed Straights',
       fits: function (r) {
         var suited = r.by.c + r.by.d + r.by.b;
         var used = SUITS.map(function (s) { return r.by[s]; }).filter(function (n) { return n >= 2; });
@@ -353,7 +354,7 @@
   // plain hand, weighed lightly, so the hand can always be finished.
   function plans(c, ctx) {
     var t = ctx.target || { id: 'standard' };
-    // After a chow only that suit's flush is left: claude-cat's plans already say so.
+    // After a chow only that suit's flush is left: the usual plans already say so.
     if (B.chowCommitment(ctx)) return B.basePlans(c, ctx);
     var def = TARGET_BY_ID[t.id];
     var W = ctx.fast && !def.hard ? 1 : K.targetWeight;
@@ -460,22 +461,21 @@
     return (FAMILY[t.id] || []).indexOf(id) !== -1;
   }
 
-  // Lower goes first: 0 other suits after a chow (even while folding), -1
-  // off-target tiles for a hard target, 1 off-target for a softer target and tiles someone
-  // punged, 2 ordinary tiles, 3 pairs, 4-6 live honors and sets the target
-  // keeps. Unlikely to win late, the order only breaks ties (safety decides).
+  // Lower goes first, after the shared one-suit rules (MahjongBot's group
+  // 0): -1 off-target tiles for a hard target, 1 off-target for a softer
+  // target and tiles someone punged, 2 ordinary tiles, 3 pairs, 4-6 live
+  // honors and sets the target keeps. Unlikely to win late, the order only
+  // breaks ties (safety decides).
   function priority(game, ctx, counts, cand, bestShanten) {
     if (!K.ownDiscards) return null;
     var i = cand.index;
     var t = ctx.target || { id: 'standard' };
     var def = TARGET_BY_ID[t.id];
-    var committed = B.chowCommitment(ctx);
-    if (committed && i < 27 && suitOf(i) !== committed) return 0;
     var givingUp = ctx.wallLeft < K.giveUpWall && bestShanten >= 2;
     var pair = counts[i] === 2;
     if (givingUp) return pair ? 3 : 2;
     // A softer target sets the order only while its plan is the one ahead;
-    // otherwise the hand has pivoted, and claude-cat's order applies.
+    // otherwise the hand has pivoted, and the shared order applies.
     if (!def.hard && !leading(t, cand)) return null;
     var keep = keepFor(t);
     if (keep && !keep(i)) return def.hard ? -1 : 1;
@@ -618,14 +618,9 @@
   }
 
   function chowOk(o, res, ctx, game, c, tileSuit) {
-    var an = o.analysis;
-    if (!an) return false;
-    var after = an.shanten, before = res.stay.shanten;
-    if (after >= before) return false;
-    var min = game.settings.minFaan;
-    if (after === 0) return !!(an.ready && an.ready.bestFaan >= min);
-    var p = an.best && an.best.plan;
-    if (!p || p.faan < min - 0.25) return false;
+    if (!B.chowAllowed(o, res, game)) return false;
+    var after = o.analysis.shanten;
+    if (after === 0) return true;
     var t = ctx.target || {};
     // Never chow into a suit the hand barely holds.
     var held = suitHeld(ctx, c, tileSuit) + 1;

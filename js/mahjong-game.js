@@ -1,7 +1,7 @@
 /* Play page: the Hong Kong mahjong table, drawn on a single <canvas>.
    Rendering is on demand (only while something animates or changes);
    tile faces are pre-rendered once per size into sprite canvases.
-   Game rules live in mahjong-engine.js, bots and hints in mahjong-bot.js,
+   Game rules live in mahjong-engine.js, bots and hints in mahjong-bot.js and its strategies,
    the bot strategies each seat and the coach can use in
    mahjong-strategies.js, scoring in points.js. */
 
@@ -58,15 +58,22 @@
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
   }
 
+  // Strategies saved under an older id.
+  var RENAMED_STRATEGIES = { 'claude-cat': 'jorge-yau' };
+
   // Saved strategy choices, keeping only ids that still exist.
   function readStrategies() {
     var saved = readJson(STRATEGIES_KEY, {}) || {};
+    function current(id) {
+      id = RENAMED_STRATEGIES[id] || id;
+      return Strategies.has(id) ? id : null;
+    }
     var seats = {};
     [1, 2, 3].forEach(function (k) {
-      var id = saved.seats && saved.seats[k];
-      if (Strategies.has(id)) seats[k] = id;
+      var id = current(saved.seats && saved.seats[k]);
+      if (id) seats[k] = id;
     });
-    return { seats: seats, coach: Strategies.has(saved.coach) ? saved.coach : null };
+    return { seats: seats, coach: current(saved.coach) };
   }
 
   // This game's strategy for each bot seat (saved, or random) and the coach's.
@@ -587,15 +594,16 @@
       requestRender();
     }
 
+    // Every player's discards sit in rows of 8, and the tiles are sized so
+    // 3 rows fit (24 discards). A longer hand adds a row and shrinks them.
+    var POND_COLS = 8;
+    var POND_ROWS = 3;
+
     function fitPondTile(zw, zh, n) {
-      var best = 8;
-      for (var pw = 56; pw >= 8; pw -= 0.5) {
-        var cols = Math.floor(zw / (pw + TILE_GAP));
-        if (cols < 1) continue;
-        var rows = Math.ceil(n / cols);
-        if (rows * (pw * TILE_ASPECT + TILE_GAP) <= zh) { best = pw; break; }
-      }
-      return best;
+      var rows = Math.max(POND_ROWS, Math.ceil(n / POND_COLS));
+      var byW = zw / POND_COLS - TILE_GAP;
+      var byH = ((zh - 2) / rows - TILE_GAP) / TILE_ASPECT;
+      return clamp(Math.min(byW, byH), 8, 56);
     }
 
     // Like a real table: opponents sit left, across and right, and each
@@ -671,7 +679,8 @@
 
       var sideW = portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
       var topPanelH = portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
-      var sideHead = portrait ? 48 : 26; // portrait: name, strategy and points on three lines
+      // Narrow side seats (drawOppHeader's compact header) stack name, strategy and points.
+      var sideHead = portrait || sideW < 120 ? 48 : 26;
       var topHead = 24;
       var opp = [];
       opp[3] = { x: ox + pad, y: topH, w: sideW, h: bandTop - topH - gap };
@@ -705,14 +714,36 @@
         x: inner.x + inner.w * sideFrac + 4, y: inner.y + inner.h * midFrac + 2,
         w: inner.w * (1 - 2 * sideFrac) - 8, h: inner.h * (1 - 2 * midFrac) - 4,
       };
+      // A phone's table is narrow, so the cross would leave each side pond
+      // too shallow for 3 rows. There the top and bottom ponds span the
+      // full width, and the side ponds share the band between them with a
+      // slim center box.
+      if (portrait) {
+        var centerW = 52;
+        var sideDepth = (inner.w - centerW - 12) / 2;
+        var rowsH = function (p) { return POND_ROWS * (p * TILE_ASPECT + TILE_GAP) + 4; };
+        var pwFit = Math.min((inner.w - 4) / POND_COLS - TILE_GAP, ((sideDepth - 2) / POND_ROWS - TILE_GAP) / TILE_ASPECT);
+        // The side ponds' 8 columns run down the band between top and bottom.
+        while (pwFit > 8 && inner.h - 2 * rowsH(pwFit) < POND_COLS * (pwFit + TILE_GAP) + 8) pwFit -= 0.5;
+        var bandH = rowsH(pwFit);
+        zones[2] = { x: inner.x + 2, y: inner.y + 2, w: inner.w - 4, h: bandH };
+        zones[0] = { x: inner.x + 2, y: inner.y + inner.h - bandH - 2, w: inner.w - 4, h: bandH };
+        var midY = inner.y + bandH + 6, midH = inner.h - 2 * bandH - 12;
+        zones[3] = { x: inner.x + 2, y: midY, w: sideDepth, h: midH };
+        zones[1] = { x: inner.x + inner.w - sideDepth - 2, y: midY, w: sideDepth, h: midH };
+        center = { x: inner.x + sideDepth + 6, y: midY, w: inner.w - 2 * sideDepth - 12, h: midH };
+      }
       // A little smaller than the gap between the discard areas, kept centered.
       var shrink = 0.85;
-      center.x += center.w * (1 - shrink) / 2;
+      // (A phone's center box is already as narrow as it can be.)
+      if (!portrait) {
+        center.x += center.w * (1 - shrink) / 2;
+        center.w *= shrink;
+      }
       center.y += center.h * (1 - shrink) / 2;
-      center.w *= shrink;
       center.h *= shrink;
       // The middle plaque is wide on a landscape table; narrow it and keep it centered.
-      var narrow = 0.68;
+      var narrow = portrait ? 1 : 0.68;
       center.x += center.w * (1 - narrow) / 2;
       center.w *= narrow;
       var history = historyW ? {
@@ -722,9 +753,9 @@
         h: H - topH - pad,
       } : null;
       var zoneFrames = zones.map(function (z, k) { return makeFrame(z, k); });
-      var maxDiscards = 20;
+      var maxDiscards = POND_COLS * POND_ROWS;
       if (game && game.hand) {
-        game.hand.seats.forEach(function (st) { maxDiscards = Math.max(maxDiscards, st.discards.length + 2); });
+        game.hand.seats.forEach(function (st) { maxDiscards = Math.max(maxDiscards, st.discards.length + 1); });
       }
       var pw = 56;
       zoneFrames.forEach(function (f) { pw = Math.min(pw, fitPondTile(f.w, f.h, maxDiscards)); });
@@ -742,7 +773,7 @@
       var f = L.zoneFrames[seat];
       var pw = L.pw;
       var ph = pw * TILE_ASPECT + TILE_GAP;
-      var cols = Math.max(1, Math.floor(f.w / (pw + TILE_GAP)));
+      var cols = POND_COLS;
       var gridW = cols * (pw + TILE_GAP);
       return { x: (f.w - gridW) / 2 + (idx % cols) * (pw + TILE_GAP), y: 2 + Math.floor(idx / cols) * ph, w: pw };
     }
@@ -1173,6 +1204,8 @@
       assign.appendChild(h);
       var box = document.createElement('div');
       box.className = 'rules-family strategies-assign';
+      box.appendChild(assignRow('Coach and feedback', strategySelect('strategy-coach', ui.strategies.coach, false, setCoachStrategy),
+        'The coach\'s tips and feedback follow this strategy.'));
       [1, 2, 3].forEach(function (seat) {
         var choice = seatChoice(seat);
         var note = choice === 'random' ? 'Playing ' + Strategies.get(ui.strategies.seats[seat]).name + ' this game.' : '';
@@ -1180,8 +1213,6 @@
           setSeatStrategy(seat, id);
         }), note));
       });
-      box.appendChild(assignRow('Coach and feedback', strategySelect('strategy-coach', ui.strategies.coach, false, setCoachStrategy),
-        'The coach\'s tips and feedback follow this strategy.'));
       assign.appendChild(box);
       body.appendChild(assign);
 
@@ -1774,14 +1805,19 @@
       // On a claim the question and the coach's answer share one line, such
       // as "Claim One Circle? Chow 1-2-3 Circles."
       var oneLine = showNotice && ui.claimPrompt && ui.coach === 'on' && note && note.action;
+      // The note on a tile you've selected to throw ("... is OK, but ...")
+      // goes last, on its own line, after the coach's hint.
+      var choiceNote = showNotice && ui.turnPrompt && ui.selected >= 0;
       if (oneLine) {
         lines.push({ text: ui.notice + ' ' + note.action, color: COLORS.goldLight, bold: true });
       } else {
-        if (showNotice) lines.push({ text: ui.notice, color: COLORS.goldLight });
+        if (showNotice && !choiceNote) lines.push({ text: ui.notice, color: COLORS.goldLight });
         // The main action on its own line in bold gold; the rest as one paragraph.
         if (note && note.action) lines.push({ text: note.action, color: COLORS.goldLight, bold: true });
       }
       if (note && note.tips && note.tips.length) lines.push({ text: note.tips.join(' '), color: COLORS.cream });
+      if (choiceNote && note) lines.push({ text: ui.notice, color: COLORS.goldLight });
+      if (choiceNote && !note) lines.push({ text: ui.notice, color: COLORS.goldLight });
       if (!note) {
         // Nothing to say right now: say what this box is for, in gray.
         if (ui.coach === 'off') {
@@ -1902,7 +1938,7 @@
       ctx.fillStyle = 'rgba(0,0,0,0.28)';
       ctx.fill();
       ctx.restore();
-      text('Coach', r.x + 14, r.y + 20, { size: 16, weight: 'bold', family: FONT_HEAD, color: COLORS.cream });
+      text('Coach ' + Strategies.get(ui.strategies.coach).name, r.x + 14, r.y + 20, { size: 16, weight: 'bold', family: FONT_HEAD, color: COLORS.cream });
 
       var viewX = r.x + 10;
       var viewY = r.y + 36;
@@ -2581,7 +2617,6 @@
 
     function noteForChoice(cand, top) {
       var again = ' Tap it again to throw it anyway.';
-      if (cand.loss > top.loss + 0.05 && cand.loss > 0.08) return 'Be careful, an opponent close to winning may want ' + E.tileName(cand.tile) + '.' + again;
       if (cand.shanten > top.shanten) return E.tileName(cand.tile) + ' takes you further from winning.' + again;
       return E.tileName(cand.tile) + ' is OK, but ' + E.tileName(top.tile) + ' is better.' + again;
     }
@@ -3183,6 +3218,7 @@
       get game() { return game; },
       get ui() { return ui; },
       get spots() { return tileSpots; }, // face-up tile boxes from the last frame (debugging)
+      get layout() { return L; }, // the table's current layout (debugging)
       // Exposed for debugging in the browser console.
       declare: function (seat, label, color) {
         var p = declarationPos(seat);

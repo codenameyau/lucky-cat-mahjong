@@ -1,6 +1,6 @@
-# claude-cat: how the coach and the bots play
+# jorge-yau: how the coach and the bots play
 
-This is the playbook for the **claude-cat** strategy (`js/mahjong-bot.js`), the original bot logic. Any bot seat can play it, and the coach can follow it (pick it in the Strategies sheet). The coach says the choice in plain words. The bots play it. The other strategies are listed in [the strategies README](README.md).
+This is the playbook for the **jorge-yau** strategy (`js/mahjong-jorge-yau.js`), the original bot logic. Most of it is the shared foundation every strategy is built on (`js/mahjong-bot.js`): the value model, defense, the one-suit discard rules, keeping pairs and dragons, and the claims every bot takes or passes. What jorge-yau adds on top is when it switches to Seven Pairs, Thirteen Orphans or Nine Gates (and how it discards on them), and when a chow is worth taking. The coach follows it by default, and any bot seat can play it (see the Strategies sheet). The coach says the choice in plain words. The bots play it. The other strategies are listed in [the strategies README](README.md).
 
 Both only use what that seat can see: its own hand and flowers, every open meld, the discard pond, and how many tiles are left in the wall. They do not see the other hands or the tiles still in the wall.
 
@@ -25,7 +25,7 @@ For each possible discard they score the hand that would be left, and they keep 
 The hands, in the order they come up:
 
 - **A standard hand.** Four sets and a pair. A concealed hand is worth an extra faan.
-- **Concealed All Sequences.** A concealed hand of runs, with no honors and no claims (not while the hand holds a set of honors, which can't be thrown away). The concealed faan plus All Sequences is most of the way to 3, and flowers make up the rest. A pung of a dragon, or of your own wind, or of the round wind, is still taken. Any other claim is passed.
+- **Concealed Straights.** A concealed hand of runs, with no honors and no claims (not while the hand holds a set of honors, which can't be thrown away). While it's the hand in the lead, every honor goes first. The concealed faan plus All Sequences is most of the way to 3, and flowers make up the rest. A pung of a dragon, or of your own wind, or of the round wind, is still taken. Any other claim is passed.
 - **Half flush.** One suit plus honors, once that suit (with honors, counting sets already made) makes up most of the hand and no meld is in another suit. Worth 3 faan on top of whatever the honors add.
 - **Full flush.** One suit only, once that suit already makes up most of the hand and there is no honor meld. Worth 7 faan.
 - **All Triplets.** Sets and pairs, no chows, once the hand already has several of them.
@@ -41,13 +41,17 @@ A ready hand is scored exactly. Each wait is checked against the real faan table
 
 When several discards are legal, they are taken in this order. A later group is used only when nothing in an earlier group can be thrown without leaving the hand further from ready. Keeping a pair or a dragon never costs a step: if every tile in an earlier group would slow the hand down, a tile from a later group that doesn't goes first.
 
-While the hand is folding (see Defense), safety decides instead, and this order only breaks ties between equally safe tiles. The one exception is group 1 below: after a chow, tiles of other suits still go first. Breaking a safe pair is the right play then.
+While the hand is folding (see Defense), safety decides instead, and this order only breaks ties between equally safe tiles. The one exception is group 1 below: tiles of other suits still go first. Breaking a safe pair is the right play then.
 
-1. **Tiles from a suit you no longer need.** Once the hand is clearly going for one suit (at least 8 of its tiles in that suit and at least 10 counting honors, with sets already made counting), every number tile of the other two suits is thrown first. After you chow, a mixed hand cannot reach 3 faan, so the hand commits to the chow's suit (honors can stay, for a half flush). Every tile of another suit is thrown first, including pairs, every time, whatever faan the hand already has from flowers or honor sets. Even while folding, these go first (the safest of them first). The only exception is when the open melds already cover two number suits, since no flush is possible then.
+Group 1 and the Concealed Straights rule are shared by every strategy (`js/mahjong-bot.js`), and come before a strategy's own order.
+
+1. **Tiles from a suit you no longer need.** Once the hand holds 7 or more tiles of one suit, more than any other suit (sets already made count), every number tile of the other two suits is thrown first. Honors stay, for a half flush. This doesn't apply while the hand is going for Concealed Straights (below), or for a hand that needs its tiles from every suit or a fixed shape: Seven Pairs, Thirteen Orphans, Nine Gates. After you chow, a mixed hand cannot reach 3 faan, so the hand commits to the chow's suit (honors can stay, for a half flush). Every tile of another suit is thrown first, including pairs, every time, whatever faan the hand already has from flowers or honor sets. Even while folding, these go first (the safest of them first). The only exception is when the open melds already cover two number suits, since no flush is possible then.
 2. **A tile someone has already Punged or Konged**, when the hand does not need it. See below.
 3. **Ordinary tiles.** Singles and the spare tile from a triplet, chosen by which one leaves the hand closest to a good win.
 4. **Pairs.** A pair is kept until the tiles above are gone. Keeping it leaves a later pung, a chow, or Seven Pairs open.
 5. **A dragon that none of the table has shown yet.** This is kept even longer than a normal pair.
+
+**Concealed Straights throws honors first.** While the hand in the lead is Concealed Straights, every honor goes before any number tile, even a dragon or a pair of them, since an honor can't be part of the hand. While folding, safety decides instead.
 
 **Honors early in the hand.** While more than 60 tiles are left in the wall, an honor that can still become a set (fewer than two copies on the table) is one of the hand's most valuable tiles. A single one waits like a pair (group 4). A dragon, or your own or the round's wind, waits longer still (group 5), and a pair of them longest. Honors are only let go early once two copies are out, or when the hand is on Seven Pairs, which only needs its pairs.
 
@@ -63,7 +67,7 @@ The exception is the chow above. Once the hand is committed to one suit, pairs i
 
 ## Dragons
 
-Red, Green, and White Dragon are kept until at least one copy of that dragon is already on the table, either in the pond or in an open meld. Until then they are not a discard if anything else can be thrown.
+Red, Green, and White Dragon are kept until at least one copy of that dragon is already on the table, either in the pond or in an open meld. Until then they are not a discard if anything else can be thrown. The exception is Concealed Straights, which throws honors first.
 
 After one copy is visible, a dragon is considered like any other tile. A pair of them is still kept under the pair rule. A single dragon is let go once two copies are already out, because it can no longer become a pung. Winds follow that same "two are out" rule. Dragons do not: one visible copy is enough to consider discarding a dragon, and two visible copies is when a single dragon is given up.
 
@@ -119,7 +123,7 @@ A chow gives up the concealed-hand faan and shows what you are doing, so it is t
 - it builds the flush the hand is already collecting and leaves you within two tiles of ready (within one tile while more than 60 tiles are left in the wall, since early on there's still time to draw the tile instead), or
 - it is late in the hand (around the ninth discard, or under 48 tiles left in the wall) and it still leaves you within two tiles of ready.
 
-A chow that does not get you closer is passed. A Concealed All Sequences hand is not chowed or punged, except for a dragon or a wind that scores.
+A chow that does not get you closer is passed. A Concealed Straights hand is not chowed or punged, except for a dragon or a wind that scores.
 
 Once the chow is down, tiles outside that suit are thrown first, as described above.
 
@@ -152,5 +156,9 @@ A flush read makes their suit more dangerous and the other two suits safer. Near
 ## What the coach adds
 
 The coach does not choose for itself. It says the bot's decision in four parts: what to do and why, how far the hand is from ready and which hand it is building, how dangerous the opponents look, and which tile goes next if the draw does not help.
+
+It only says "Play safe" on the last wall, when a win is unlikely: fewer than 16 tiles left and the hand not ready, or fewer than 36 left and two or more tiles from ready. A safe pick earlier in the hand is explained like any other discard, and the threats line says who is dangerous.
+
+It only calls a tile risky (or says "Hold" a tile, or calls your discard risky in feedback) when the table shows why, and it says the reason: a High or Extreme player's melds are all in that tile's suit ("Grace's melds are all Bamboo"), or a player with 3 melds down hasn't thrown it ("Grace has 3 melds down and hasn't thrown one"). A tile any safety read covers (thrown since their meld, suji, kabe, three out, another suit than their flush) never counts. Without that, it says nothing about risk.
 
 **Feedback on** does not tell you the tile first. After you discard or claim, it compares that move with the one above and says whether it was the coach's choice, close, slow, or risky. **Coach off** leaves the bar in place and asks you to turn the coach on.

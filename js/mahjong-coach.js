@@ -6,18 +6,19 @@
    keep a second route or a second claim rule.
 
    forStrategy(bot) returns this same coach speaking for another strategy
-   (js/mahjong-strategies.js); the default speaks for claude-cat. */
+   (js/mahjong-strategies.js); the default speaks for jorge-yau. */
 
 (function (root) {
   'use strict';
 
   var node = typeof module !== 'undefined' && module.exports;
   var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var DEFAULT_BOT = node ? require('./mahjong-bot.js') : root.MahjongBot;
+  var DEFAULT_BOT = node ? require('./mahjong-jorge-yau.js') : root.MahjongJorgeYau;
   var B = DEFAULT_BOT;
 
   var SUIT_NAME = { c: 'Characters', d: 'Circles', b: 'Bamboo' };
   var COUNT_WORDS = ['No', 'One', 'Two', 'Three', 'Four'];
+  var LAST_WALL = 36; // fewer tiles than this left: the last wall
 
   function name(i) { return E.tileName(E.tileId(i)); }
   function plural(i) { return name(i) + 's'; }
@@ -42,20 +43,6 @@
   /* ------------------------------------------------------------------ *
    * 2. Routes to 3 faan (for a hand waiting to draw)
    * ------------------------------------------------------------------ */
-
-  // Dragons and own/round winds held alone that can still pair up.
-  function liveValueSingles(v, c) {
-    var out = [];
-    for (var i = 27; i < 34; i++) {
-      if (c[i] === 1 && honorWorth(v, i) && B.revealedCopies(v.game, i) <= 1) out.push(i);
-    }
-    return out;
-  }
-
-  function listNames(ids) {
-    var names = ids.map(name);
-    return names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
-  }
 
   // The bot's plan, in the names the sentences below already use.
   function routeOf(plan) {
@@ -107,6 +94,7 @@
         priority: x.priority, shanten: x.shanten, plan: described(x.analysis),
         ready: ready && ready.waits && ready.waits.length ? ready : null,
         lone: neighbors(full, x.index) === 0,
+        evidence: riskEvidence(v, found.threats, x.index),
       };
     });
     out.defense = found.defense;
@@ -197,7 +185,7 @@
   // Hand-pattern names are wrapped in invisible markers so the game can draw
   // them in the brand red. Their faan is on the Rules sheet, not in the tips.
   var HAND_PATTERNS = [
-    'concealed all sequences',
+    'concealed straights',
     'concealed triplets',
     'thirteen orphans',
     'small four winds',
@@ -256,9 +244,11 @@
   function targetText(v, plan, c, nextOut) {
     var r = plan.route;
     if (r.id === 'straights') {
-      var keep = liveValueSingles(v, c).filter(function (i) { return i !== nextOut; });
-      return 'Concealed All Sequences' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' +
-        (keep.length ? '. Keep the ' + listNames(keep) + ' in case ' + (keep.length > 1 ? 'one pairs' : 'it pairs') : '');
+      // Every bot throws honors first on this hand (MahjongBot's shared rule).
+      var honors = 0;
+      for (var h = 27; h < 34; h++) if (h !== nextOut) honors += c[h] || 0;
+      return 'Concealed Straights' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' +
+        (honors ? '. Throw your honors first' : '');
     }
     if (r.id === 'half') return 'Half Flush in ' + SUIT_NAME[r.suit];
     if (r.id === 'full') return 'Full Flush in ' + SUIT_NAME[r.suit];
@@ -311,6 +301,26 @@
     return '';
   }
 
+  // What the table shows that makes a tile dangerous, in words, or null.
+  // Only these count: a High or Extreme player whose melds are all in the
+  // tile's suit, or a player with 3 melds down who hasn't thrown the tile
+  // (a live one). A tile any read marks safer never counts.
+  function riskEvidence(v, threats, i) {
+    if (B.deadTile(v.game, i)) return null;
+    var id = E.tileId(i);
+    var list = threats.filter(function (t) { return t.level >= 2; }).sort(function (a, b) { return b.level - a.level; });
+    for (var k = 0; k < list.length; k++) {
+      var t = list[k];
+      if (safetyReason(v, t, i)) continue;
+      if (i < 27 && t.flush && t.melds >= 1 && E.suitOfIndex(i) === t.flush) {
+        return t.name + '\'s melds are all ' + SUIT_NAME[t.flush];
+      }
+      var live = i >= 27 ? v.unseen[i] >= 2 : v.unseen[i] >= 1;
+      if (t.melds >= 3 && live) return t.name + ' has 3 melds down and hasn\'t thrown one';
+    }
+    return null;
+  }
+
   // "Grace is Extreme (3 melds, Bamboo). Rosa (1 meld), Tak and Bo are High."
   function threatSentence(list) {
     var levels = [];
@@ -331,18 +341,24 @@
   function defenseLine(v, threats, pick, list) {
     var shown = threats.filter(function (t) { return t.level >= 1; }).sort(function (a, b) { return b.level - a.level; });
     var word = dangerWord(pick.loss);
-    if (!shown.length) return pick.loss >= 0.035 ? E.tileName(pick.tile) + ' is ' + word + '.' : '';
+    var tile = E.tileName(pick.tile);
+    // Risk is an estimate, so a tile is only called risky with a reason the
+    // table shows (riskEvidence). A quiet table never has one.
+    if (!shown.length) return '';
     var top = shown[0];
-    // Quiet tables (only Medium threats) get a word on the tile, nothing more.
-    if (top.level < 2) return pick.loss >= 0.012 ? E.tileName(pick.tile) + ' is ' + word + '.' : '';
+    if (top.level < 2) return pick.evidence ? tile + ' is ' + word + ': ' + pick.evidence + '.' : '';
     // Sorted worst first, so Extreme players are named before High ones.
-    var line = threatSentence(shown.filter(function (t) { return t.level >= 2; })) + ' ' + E.tileName(pick.tile) + ' is ' + word;
-    var why = pick.loss < 0.012 ? safetyReason(v, top, pick.index) : '';
-    if (why) line += ', ' + why;
-    line += '.';
-    var worst = list.slice().sort(function (a, b) { return b.loss - a.loss; })[0];
-    if (worst && worst.tile !== pick.tile && worst.loss > pick.loss * 2 && worst.loss >= 0.012) {
-      line += ' Hold ' + E.tileName(worst.tile) + '.';
+    var line = threatSentence(shown.filter(function (t) { return t.level >= 2; }));
+    if (pick.loss < 0.012) {
+      var why = safetyReason(v, top, pick.index);
+      line += ' ' + tile + ' is ' + word + (why ? ', ' + why : '') + '.';
+    } else if (pick.evidence) {
+      line += ' ' + tile + ' is ' + word + ': ' + pick.evidence + '.';
+    }
+    var worst = list.filter(function (x) { return x.evidence && x.tile !== pick.tile; })
+      .sort(function (a, b) { return b.loss - a.loss; })[0];
+    if (worst && worst.loss > pick.loss * 2 && worst.loss >= 0.012) {
+      line += ' Hold ' + E.tileName(worst.tile) + ': ' + worst.evidence + '.';
     }
     return line;
   }
@@ -383,10 +399,10 @@
     var threats = list.threats;
     var pick = list[0];
     var offenseTop = list.slice().sort(function (a, b) { return b.offense - a.offense; })[0];
-    // claude-cat's discard order only bends to its value read, so any gap
+    // jorge-yau's discard order only bends to its value read, so any gap
     // from the top offense pick is defense. Other strategies keep their own
     // order (a target's tiles first), so only their folding counts.
-    var defending = (B.id === 'claude-cat' ? list.defense > 1.25 : list.folding) && offenseTop.tile !== pick.tile;
+    var defending = (B.id === 'jorge-yau' ? list.defense > 1.25 : list.folding) && offenseTop.tile !== pick.tile;
     var tips = [];
 
     if (opts.completeButShort) {
@@ -401,10 +417,16 @@
     var route = pick.plan && pick.plan.route;
     var buildingLimit = route && (route.id === 'orphans' || route.id === 'gates');
     var pungSafe = B.isPungTile(v.game, pick.index) && c[pick.index] < 2;
+    // "Play safe" is only said on the last wall, when a win is unlikely:
+    // under 16 tiles left and not ready, or under 36 and 2+ tiles from ready.
+    // Other defensive picks just say why the tile goes.
+    var bestShanten = Math.min.apply(null, list.map(function (x) { return x.shanten; }));
+    var wallLeft = v.ctx.wallLeft;
+    var hopeless = (wallLeft < 16 && bestShanten >= 1) || (wallLeft < LAST_WALL && bestShanten >= 2);
     var why = pungSafe
       ? pungedReason(pick.index)
-      : (defending
-        ? 'Play safe, ' + (v.ctx.wallLeft < 16 ? 'the wall is nearly gone.' : 'someone is close to winning.')
+      : (defending && hopeless
+        ? 'Play safe. The wall is nearly gone and a win is unlikely.'
         : (pick.ready && pick.shanten === 0 && !buildingLimit ? 'It leaves you ready.' : whyDiscard(v, c, pick, route)));
     var discardAt = tips.length;
     var readyPick = !pungSafe && !defending && pick.ready && pick.shanten === 0 && !buildingLimit;
@@ -572,7 +594,8 @@
     var mine = E.tileName(tile), best = E.tileName(top.tile);
     var great = chosen.tile === top.tile || gap <= 0.002;
     var slows = chosen.shanten > top.shanten;
-    var risky = chosen.loss >= 0.035 && chosen.loss > top.loss * 1.5 + 0.01;
+    // Only called risky when the table shows why (see riskEvidence).
+    var risky = chosen.loss >= 0.035 && chosen.loss > top.loss * 1.5 + 0.01 && !!chosen.evidence;
     var good = gap <= Math.max(0.003, Math.abs(top.score) * 0.15);
 
     if (great) {
@@ -588,7 +611,7 @@
       tips.push(mine + ' leaves you ' + stepsWords(chosen.shanten) + ', ' + more + ' more than ' + best + '.');
     } else if (risky) {
       action = 'That discard was risky.';
-      tips.push(hint.threatName ? hint.threatName + ' looks close to winning.' : 'Someone may be waiting on it.');
+      tips.push(chosen.evidence + '.');
     } else if (good) {
       action = 'Good discard.';
       tips = ['Both work, but ' + best + ' is slightly better.'];

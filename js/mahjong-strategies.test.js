@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
 const E = require('./mahjong-engine.js');
-const B = require('./mahjong-bot.js');
+const B = require('./mahjong-jorge-yau.js');
 const L = require('./mahjong-lucky-cat.js');
 const S = require('./mahjong-strategies.js');
 const Coach = require('./mahjong-coach.js');
@@ -35,11 +35,13 @@ function targetOf(hand, extra) {
 }
 
 describe('strategy registry', () => {
-  it('lists lucky-cat and claude-cat, with lucky-cat as the coach default', () => {
-    assert.deepEqual(S.ids(), ['lucky-cat', 'claude-cat']);
-    assert.equal(S.DEFAULT_COACH, 'lucky-cat');
-    assert.equal(S.get('claude-cat').bot, B);
+  it('lists lucky-cat and jorge-yau, with jorge-yau as the coach default', () => {
+    assert.deepEqual(S.ids(), ['lucky-cat', 'jorge-yau']);
+    assert.equal(S.DEFAULT_COACH, 'jorge-yau');
+    assert.equal(S.get('jorge-yau').bot, B);
     assert.equal(S.get('lucky-cat').bot, L);
+    assert.equal(S.get('jorge-yau').bot.id, 'jorge-yau');
+    assert.equal(S.get('lucky-cat').bot.id, 'lucky-cat');
     S.list().forEach((s) => {
       assert.ok(s.name && s.summary && s.details.length, s.id + ' has words for the sheet');
     });
@@ -47,17 +49,17 @@ describe('strategy registry', () => {
 
   it('falls back to the default for an unknown id', () => {
     assert.equal(S.has('nope'), false);
-    assert.equal(S.get('nope').id, 'lucky-cat');
+    assert.equal(S.get('nope').id, 'jorge-yau');
   });
 
   it('picks a random strategy from the list', () => {
     assert.equal(S.randomId(() => 0), 'lucky-cat');
-    assert.equal(S.randomId(() => 0.99), 'claude-cat');
+    assert.equal(S.randomId(() => 0.99), 'jorge-yau');
   });
 
   it('makes agents that play a full hand', async () => {
     const game = E.createGame({ seed: 3, humanSeat: false, dealer: 0 });
-    const agents = ['lucky-cat', 'claude-cat', 'lucky-cat', 'claude-cat'].map(S.createAgent);
+    const agents = ['lucky-cat', 'jorge-yau', 'lucky-cat', 'jorge-yau'].map(S.createAgent);
     const res = await E.runHand(game, agents);
     assert.ok(res.type === 'win' || res.type === 'draw');
   });
@@ -120,7 +122,7 @@ describe('lucky-cat opening targets', () => {
     assert.deepEqual([t.id, t.suit], ['half', 'c']);
   });
 
-  it('reads Concealed All Sequences from evenly mixed suits', () => {
+  it('reads Concealed Straights from evenly mixed suits', () => {
     assert.equal(targetOf(['c1', 'c3', 'c5', 'c7', 'd2', 'd4', 'd6', 'd8', 'b3', 'b5', 'b7', 'b9', 'we']).id, 'sequences');
   });
 
@@ -178,18 +180,18 @@ describe('coach for a strategy', () => {
     assert.equal(lucky.tile, L.chooseTurnAction(game, 0, { kongs: [] }).tile);
     const claude = Coach.forStrategy(B).turnHint(game, 0, { kongs: [] });
     assert.equal(claude.tile, B.chooseTurnAction(game, 0, { kongs: [] }).tile);
-    // The default coach is still claude-cat's.
+    // The default coach is still jorge-yau's.
     assert.equal(Coach.turnHint(game, 0, { kongs: [] }).tile, claude.tile);
   });
 });
 
 describe('competition', () => {
   it('adds up every seat by strategy, rotated through the seats', async () => {
-    const report = await C.runMatch({ lineup: ['lucky-cat', 'claude-cat', 'lucky-cat', 'claude-cat'], deals: 2, seed: 5 });
+    const report = await C.runMatch({ lineup: ['lucky-cat', 'jorge-yau', 'lucky-cat', 'jorge-yau'], deals: 2, seed: 5 });
     assert.equal(report.deals, 2);
     assert.equal(report.hands, 8);
     const lucky = report.strategies['lucky-cat'];
-    const claude = report.strategies['claude-cat'];
+    const claude = report.strategies['jorge-yau'];
     assert.equal(lucky.hands, 16);
     assert.equal(claude.hands, 16);
     // Points only move between players.
@@ -203,14 +205,14 @@ describe('competition', () => {
   });
 
   it('plays the same deals the same way for the same seed', async () => {
-    const opts = { lineup: ['lucky-cat', 'claude-cat', 'claude-cat', 'claude-cat'], deals: 1, seed: 9 };
+    const opts = { lineup: ['lucky-cat', 'jorge-yau', 'jorge-yau', 'jorge-yau'], deals: 1, seed: 9 };
     const a = await C.runMatch(opts);
     const b = await C.runMatch(opts);
     assert.deepEqual(a.strategies, b.strategies);
   });
 
   it('merges reports from split runs', async () => {
-    const lineup = ['lucky-cat', 'claude-cat', 'lucky-cat', 'claude-cat'];
+    const lineup = ['lucky-cat', 'jorge-yau', 'lucky-cat', 'jorge-yau'];
     const a = await C.runMatch({ lineup, deals: 1, seed: 1 });
     const b = await C.runMatch({ lineup, deals: 1, seed: 2 });
     const both = await C.runMatch({ lineup, deals: 2, seed: 1 });

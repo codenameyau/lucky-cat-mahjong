@@ -6,8 +6,8 @@
    strategy plays every seat of the same tiles and luck mostly cancels out.
 
    runMatch({ lineup, deals, seed, rotate, onHand }) -> Promise<report>
-     lineup: four strategy ids by seat, e.g. ['lucky-cat', 'claude-cat',
-             'lucky-cat', 'claude-cat'].
+     lineup: four strategy ids by seat, e.g. ['lucky-cat', 'jorge-yau',
+             'lucky-cat', 'jorge-yau'].
    mergeReports(a, b) adds two reports (for runs split across workers).
    formatReport(report) is the table the CLI prints (scripts/competition.js). */
 

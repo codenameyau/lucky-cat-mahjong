@@ -30,8 +30,8 @@ const text = (hint) => [hint.action].concat(hint.tips).join(' ').replace(/[\u000
 
 describe('highlightPatterns', () => {
   it('marks hand pattern names without their faan, and leaves "your target is" alone', () => {
-    const s = C.highlightPatterns('Your target is Concealed All Sequences. A flush, all triplets or Thirteen Orphans.');
-    assert.equal(s, 'Your target is \u0001Concealed All Sequences\u0002. A flush, \u0001all triplets\u0002 or \u0001Thirteen Orphans\u0002.');
+    const s = C.highlightPatterns('Your target is Concealed Straights. A flush, all triplets or Thirteen Orphans.');
+    assert.equal(s, 'Your target is \u0001Concealed Straights\u0002. A flush, \u0001all triplets\u0002 or \u0001Thirteen Orphans\u0002.');
     assert.equal(C.highlightPatterns('Half Flush in Bamboo'), '\u0001Half Flush\u0002 in Bamboo');
     // A faan written after a hand name is dropped; it's on the Rules sheet.
     assert.equal(C.highlightPatterns('Half Flush (3 faan) in Bamboo'), '\u0001Half Flush\u0002 in Bamboo');
@@ -48,10 +48,10 @@ describe('coach: discards', () => {
     assert.ok(['c4', 'c7'].includes(hint.tile), 'discarded ' + hint.tile);
   });
 
-  it('holds an unrevealed dragon when another tile also leaves the hand ready', () => {
+  it('on Concealed Straights, drops a dragon even when another tile also leaves the hand ready', () => {
     const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'b2', 'dr'];
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
-    assert.equal(hint.tile, 'b2');
+    assert.equal(hint.tile, 'dr');
   });
 
   it('drops a punged tile first when the hand does not need it', () => {
@@ -98,10 +98,11 @@ describe('coach: discards', () => {
     assert.doesNotMatch(text(hint), /Seven Pairs/);
   });
 
-  it('keeps a live dragon early and throws a lone terminal instead', () => {
+  it('on Concealed Straights, throws a live dragon before a lone terminal', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
-    assert.equal(hint.tile, 'c9');
-    assert.equal(hint.action, 'Discard Nine Character.');
+    assert.equal(hint.tile, 'dr');
+    assert.equal(hint.action, 'Discard Red Dragon.');
+    assert.match(text(hint), /Honors break All Sequences\./);
   });
 
   it('lets the dragon go once two are already out', () => {
@@ -151,6 +152,22 @@ describe('coach: discards', () => {
     // is the safest. (The punged Nine Bamboo could still finish a 7-8 chow.)
     assert.ok(['d1', 'd9', 'wn'].includes(hint.tile), 'discarded ' + hint.tile);
     assert.match(text(hint), /\w+ \(3 melds, Bamboo\) is Extreme/);
+  });
+
+  it('says "Play safe" only on the last wall, when a win is unlikely', () => {
+    const hand = ['c2', 'c3', 'c4', 'd4', 'd5', 'd6', 'c6', 'c7', 'b5', 'b9', 'd9', 'd1', 'we', 'wn'];
+    const at = (wallLeft) => table({
+      seats: [
+        { hand },
+        { hand: ['b4', 'b4', 'b6', 'b7'], melds: [meld('pung', 'b1'), meld('chow', 'b2'), meld('pung', 'b9')], discards: ['d9', 'c5', 'd1', 'wn'] },
+      ],
+      wallLeft,
+    });
+    // Folding early against an Extreme player: no "Play safe", no "close to winning".
+    const early = text(C.turnHint(at(80), 0, { kongs: [] }));
+    assert.doesNotMatch(early, /Play safe|close to winning/);
+    // Two from ready with the last wall under way: now it says so.
+    assert.match(text(C.turnHint(at(30), 0, { kongs: [] })), /Play safe\. The wall is nearly gone and a win is unlikely\./);
   });
 });
 
@@ -208,17 +225,17 @@ describe('coach: feedback on your last move', () => {
 
   it('praises the coach\'s top discard and says why', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
-    const fb = C.discardFeedback(hint, 'c9');
+    const fb = C.discardFeedback(hint, 'dr');
     assert.equal(fb.action, 'Great discard.');
-    assert.match(fb.tips[0], /^Nine Character was the top choice\. /);
+    assert.match(fb.tips[0], /^Red Dragon was the top choice\. /);
   });
 
   it('says a discard slowed the hand and compares it with the coach\'s pick', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
     const fb = C.discardFeedback(hint, 'd5');
     assert.equal(fb.action, 'That discard slows your hand.');
-    assert.match(fb.tips.join(' '), /The coach picks Nine Character\./);
-    assert.match(fb.tips.join(' '), /Five Circle leaves you 2 tiles from ready, 1 more than Nine Character/);
+    assert.match(fb.tips.join(' '), /The coach picks Red Dragon\./);
+    assert.match(fb.tips.join(' '), /Five Circle leaves you 2 tiles from ready, 1 more than Red Dragon/);
   });
 
   it('returns nothing without a usable hint', () => {
@@ -277,5 +294,30 @@ describe('coach: after a chow', () => {
     const hint = C.claimHint(game, 0, E.claimOptions(game, 0, 'c4', 3, false));
     assert.equal(hint.decision.type, 'pass');
     assert.match(text(hint), /Stay concealed, and save chows for a ready hand or a flush/);
+  });
+});
+
+describe('coach: risk words need a reason', () => {
+  const C2 = require('./mahjong-coach.js');
+
+  it('never calls a tile risky at a quiet table', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const game = table({ seed });
+      game.hand.seats[0].hand.push(game.hand.wall.shift());
+      const hint = C2.turnHint(game, 0, { kongs: [] });
+      assert.doesNotMatch(text(hint), /risky|some risk|Hold /, 'seed ' + seed);
+    }
+  });
+
+  it('names what makes a tile risky', () => {
+    const extreme = { hand: ['b4', 'b4', 'b6', 'b7'], melds: [meld('pung', 'b1'), meld('chow', 'b2'), meld('pung', 'b9')], discards: ['d9', 'c5', 'd1', 'wn'] };
+    const game = table({ seats: [{ hand: ['c2', 'c3', 'c4', 'd4', 'd5', 'd6', 'c6', 'c7', 'b5', 'b8', 'd9', 'd1', 'we', 'wn'] }, extreme], wallLeft: 60 });
+    const list = C2.rankDiscards(C2.look(game, 0), game.hand.seats[0].hand);
+    const b5 = list.find((x) => x.tile === 'b5');
+    assert.match(b5.evidence, /melds are all Bamboo/);
+    // A tile they already threw is never risky.
+    assert.equal(list.find((x) => x.tile === 'd9').evidence, null);
+    const said = text(C2.turnHint(game, 0, { kongs: [] }));
+    if (/risky|some risk/.test(said)) assert.match(said, /: \w+('s melds are all| has 3 melds)/);
   });
 });
