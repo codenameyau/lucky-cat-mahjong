@@ -201,20 +201,71 @@
   }
 
   /* ------------------------------------------------------------------ *
-   * 2. Sound (synthesized with WebAudio; no audio files to download)
+   * 2. Sound
+   *    Short recorded clips from Kenney's Casino Audio and Interface Sounds
+   *    packs (CC0, kenney.nl), trimmed to mono WAV in /assets/sounds/.
+   *    Tiles are poker chips: a chip laid down is a discard, a stack of
+   *    them is a claim, and a fanned deck is every hand turning face up.
    * ------------------------------------------------------------------ */
 
-  // Tile sounds are layered "clacks": a crisp noise tick, a few short
-  // inharmonic partials (the ring of a bone/resin tile), and a soft table
-  // thud. Musical cues use plucked-string notes (Karplus-Strong) on a
-  // pentatonic scale and a soft gong, instead of plain beeps.
-  var NOTE = { G4: 392, A4: 440, C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880 };
+  var SOUND_DIR = '/assets/sounds/';
+  // Each cue plays one of its clips (picked at random, so repeats differ),
+  // at `gain`, and any `then` clips [name, delay in seconds, gain] after it.
+  // `vary` nudges the pitch a little each time.
+  var CUES = {
+    draw: { clips: ['tile-draw'], gain: 0.3, vary: true },
+    discard: { clips: ['tile-discard-1', 'tile-discard-2', 'tile-discard-3'], gain: 0.8, vary: true },
+    select: { clips: ['tile-select'], gain: 0.2 },
+    flower: { clips: ['flower'], gain: 0.4 },
+    claim: { clips: ['tile-claim-1'], gain: 0.7, vary: true, then: [['tile-claim-2', 0.05, 0.55]] },
+    kong: { clips: ['tile-claim-2'], gain: 0.7, then: [['tile-kong', 0.14, 0.6], ['tile-discard-3', 0.26, 0.6]] },
+    turn: { clips: ['turn'], gain: 0.25 },
+    win: { clips: ['win'], gain: 0.6, then: [['tile-claim-2', 0, 0.5]] },
+    otherwin: { clips: ['other-win'], gain: 0.45 },
+    lose: { clips: ['lose'], gain: 0.5 },
+    drawgame: { clips: ['draw-game'], gain: 0.45 },
+    flip: { clips: ['tiles-reveal'], gain: 0.8 },
+  };
+
+  function cueClips() {
+    var names = {};
+    Object.keys(CUES).forEach(function (k) {
+      CUES[k].clips.forEach(function (n) { names[n] = true; });
+      (CUES[k].then || []).forEach(function (x) { names[x[0]] = true; });
+    });
+    return Object.keys(names);
+  }
 
   function createSound(enabled) {
     var ac = null;
-    var master = null;
-    var plucks = {};
+    var out = null;
+    var raw = {}; // fetched bytes, decoded once there's an audio context
+    var buffers = {};
     var api = { enabled: enabled };
+
+    // The files are small (a quarter MB in all), so fetch them up front;
+    // the browser only lets audio start after a tap, when ctx() runs.
+    function fetchAll() {
+      if (!root.fetch) return;
+      cueClips().forEach(function (name) {
+        if (raw[name] || buffers[name]) return;
+        raw[name] = root.fetch(SOUND_DIR + name + '.wav')
+          .then(function (r) { return r.ok ? r.arrayBuffer() : null; })
+          .catch(function () { return null; });
+      });
+    }
+
+    function decodeAll(a) {
+      Object.keys(raw).forEach(function (name) {
+        var pending = raw[name];
+        delete raw[name];
+        pending.then(function (bytes) {
+          if (!bytes) return;
+          // The callback form also works in older Safari.
+          a.decodeAudioData(bytes, function (buf) { buffers[name] = buf; }, function () {});
+        });
+      });
+    }
 
     function ctx() {
       if (!api.enabled) return null;
@@ -222,199 +273,39 @@
         var AC = root.AudioContext || root.webkitAudioContext;
         if (!AC) return null;
         ac = new AC();
-        master = ac.createDynamicsCompressor();
-        master.threshold.value = -14;
-        master.ratio.value = 3;
-        var out = ac.createGain();
+        out = ac.createGain();
         out.gain.value = 0.9;
-        master.connect(out);
         out.connect(ac.destination);
+        fetchAll();
+        decodeAll(ac);
       }
       if (ac.state === 'suspended') ac.resume();
       return ac;
     }
 
-    function env(a, start, peak, dur, attack) {
-      var g = a.createGain();
-      g.gain.setValueAtTime(0.0001, start);
-      g.gain.exponentialRampToValueAtTime(peak, start + (attack || 0.002));
-      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-      g.connect(master);
-      return g;
-    }
-
-    function partial(a, start, freq, gain, dur) {
-      var o = a.createOscillator();
-      o.type = 'sine';
-      o.frequency.setValueAtTime(freq, start);
-      o.connect(env(a, start, gain, dur));
-      o.start(start);
-      o.stop(start + dur + 0.02);
-    }
-
-    // Tile impacts are modal: a few short, decaying resonances plus a tiny
-    // noise transient. A handful of variants per kind are rendered once and
-    // replayed with slight pitch changes so no two hits sound identical.
-    var IMPACTS = {
-      // Tile striking tile: hard, bright and very short.
-      click: { dur: 0.07, spread: 0.12, tick: 0.5, thump: 0, modes: [[2450, 0.016, 1], [3900, 0.011, 0.75], [5600, 0.007, 0.5], [7900, 0.004, 0.3]] },
-      // Tile set down on the felt-covered table: duller and lower.
-      thock: { dur: 0.1, spread: 0.1, tick: 0.25, thump: 0.6, modes: [[820, 0.022, 0.7], [1500, 0.016, 1], [2650, 0.01, 0.55], [4300, 0.005, 0.25]] },
-    };
-    var banks = {};
-
-    function makeImpact(a, spec) {
-      var sr = a.sampleRate;
-      var len = Math.floor(sr * spec.dur);
-      var buf = a.createBuffer(1, len, sr);
-      var y = buf.getChannelData(0);
-      var modes = spec.modes.map(function (m) {
-        return {
-          w: 2 * Math.PI * m[0] * (1 + (Math.random() - 0.5) * 2 * spec.spread),
-          d: m[1] * (0.8 + Math.random() * 0.4),
-          g: m[2] * (0.7 + Math.random() * 0.6),
-          ph: Math.random() * Math.PI * 2,
-        };
-      });
-      var low = 0, peak = 0;
-      for (var i = 0; i < len; i++) {
-        var t = i / sr;
-        var v = 0;
-        for (var k = 0; k < modes.length; k++) v += modes[k].g * Math.exp(-t / modes[k].d) * Math.sin(modes[k].w * t + modes[k].ph);
-        var n = Math.random() * 2 - 1;
-        v += spec.tick * n * Math.exp(-t / 0.0012);
-        low += (n - low) * 0.06;
-        v += spec.thump * low * 3 * Math.exp(-t / 0.01);
-        y[i] = v;
-        if (Math.abs(v) > peak) peak = Math.abs(v);
-      }
-      for (var j = 0; j < len; j++) y[j] *= 0.9 / peak;
-      return buf;
-    }
-
-    function impact(a, start, kind, gain, rate) {
-      var bank = banks[kind];
-      if (!bank) {
-        bank = banks[kind] = [];
-        for (var i = 0; i < 6; i++) bank.push(makeImpact(a, IMPACTS[kind]));
-      }
+    function clip(a, name, at, gain, vary) {
+      var buf = buffers[name];
+      if (!buf) return;
       var src = a.createBufferSource();
-      src.buffer = bank[Math.floor(Math.random() * bank.length)];
-      src.playbackRate.value = (rate || 1) * (0.94 + Math.random() * 0.12);
+      src.buffer = buf;
+      if (vary) src.playbackRate.value = 0.95 + Math.random() * 0.1;
       var g = a.createGain();
       g.gain.value = gain;
       src.connect(g);
-      g.connect(master);
-      src.start(start);
+      g.connect(out);
+      src.start(at);
     }
 
-    // Tile against tile.
-    function clack(a, start, gain, pitch) { impact(a, start, 'click', gain, pitch); }
-    // Tile put down on the table.
-    function thock(a, start, gain, pitch) { impact(a, start, 'thock', gain, pitch); }
-
-    function pluckBuffer(a, freq, dur) {
-      var key = Math.round(freq) + ':' + dur;
-      if (plucks[key]) return plucks[key];
-      var sr = a.sampleRate;
-      var len = Math.floor(sr * dur);
-      var buf = a.createBuffer(1, len, sr);
-      var y = buf.getChannelData(0);
-      var n = Math.max(2, Math.round(sr / freq));
-      for (var i = 0; i < n; i++) y[i] = Math.random() * 2 - 1;
-      for (var k = 1; k < n; k++) y[k] = (y[k] + y[k - 1]) * 0.5; // soften the attack
-      for (var m = n; m < len; m++) y[m] = 0.4985 * (y[m - n] + y[m - n + 1]);
-      plucks[key] = buf;
-      return buf;
-    }
-
-    function pluck(a, start, freq, gain, dur) {
-      dur = dur || 1.4;
-      var src = a.createBufferSource();
-      src.buffer = pluckBuffer(a, freq, dur);
-      var lp = a.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.value = 3200;
-      var g = a.createGain();
-      g.gain.setValueAtTime(gain, start);
-      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-      src.connect(lp); lp.connect(g); g.connect(master);
-      src.start(start);
-    }
-
-    function gong(a, start, gain) {
-      [[98, 1], [151, 0.6], [207, 0.45], [283, 0.3], [392, 0.15]].forEach(function (pr, k) {
-        partial(a, start + k * 0.004, pr[0], gain * pr[1], 2.6 - k * 0.3);
-      });
-    }
-
-    api.play = function (name, opt) {
-      var a = ctx();
+    api.play = function (name) {
+      var cue = CUES[name];
+      var a = cue && ctx();
       if (!a) return;
-      var t = a.currentTime + 0.01;
-      switch (name) {
-        case 'draw':
-          clack(a, t, 0.2, 1.05);
-          break;
-        case 'discard':
-          thock(a, t, 0.75, 1);
-          clack(a, t + 0.022, 0.22, 1);
-          break;
-        case 'select':
-          clack(a, t, 0.06, 1.2);
-          break;
-        case 'flower':
-          pluck(a, t, NOTE.G5, 0.22, 1.2);
-          pluck(a, t + 0.09, NOTE.E5, 0.18, 1.2);
-          break;
-        case 'claim':
-          thock(a, t, 0.45, 0.95);
-          clack(a, t + 0.05, 0.4, 1);
-          pluck(a, t + 0.04, NOTE.A4, 0.26);
-          pluck(a, t + 0.12, NOTE.D5, 0.22);
-          break;
-        case 'kong':
-          for (var k = 0; k < 4; k++) {
-            thock(a, t + k * 0.055, 0.32, 1);
-            clack(a, t + k * 0.055 + 0.01, 0.3, 0.95 + k * 0.03);
-          }
-          pluck(a, t + 0.08, NOTE.G4, 0.26);
-          pluck(a, t + 0.2, NOTE.D5, 0.24);
-          break;
-        case 'turn':
-          pluck(a, t, NOTE.E5, 0.13, 0.9);
-          break;
-        case 'win':
-          gong(a, t, 0.32);
-          [NOTE.G4, NOTE.A4, NOTE.C5, NOTE.D5, NOTE.E5, NOTE.G5, NOTE.A5].forEach(function (f, n) {
-            pluck(a, t + 0.05 + n * 0.09, f, 0.24, 1.8);
-          });
-          break;
-        case 'otherwin':
-          gong(a, t, 0.22);
-          pluck(a, t + 0.05, NOTE.D5, 0.2, 1.6);
-          pluck(a, t + 0.17, NOTE.G4, 0.18, 1.6);
-          break;
-        case 'lose':
-          [NOTE.E5, NOTE.D5, NOTE.A4, NOTE.G4].forEach(function (f, n) { pluck(a, t + n * 0.17, f, 0.2, 1.6); });
-          break;
-        case 'drawgame':
-          pluck(a, t, NOTE.D5, 0.2, 1.4);
-          pluck(a, t + 0.22, NOTE.A4, 0.2, 1.6);
-          break;
-        case 'flip':
-          // Every hand turned face up: each opponent's row of tiles tips over
-          // in a quick ripple, one row after another.
-          for (var row = 0; row < 3; row++) {
-            for (var n = 0; n < 9; n++) {
-              var at = t + row * 0.16 + n * 0.024 + Math.random() * 0.006;
-              clack(a, at, 0.07 + n * 0.006, 1.08 + n * 0.012);
-              if (n % 3 === 2) thock(a, at + 0.008, 0.12, 1.1);
-            }
-          }
-          break;
-      }
+      var t = a.currentTime + 0.005;
+      clip(a, cue.clips[Math.floor(Math.random() * cue.clips.length)], t, cue.gain, cue.vary);
+      (cue.then || []).forEach(function (x) { clip(a, x[0], t + x[1], x[2], cue.vary); });
     };
+
+    if (enabled) fetchAll();
     return api;
   }
 
@@ -684,14 +575,18 @@
       // name, so the table gets the room.
       var actionsInRow = true;
       var actionsY = meY + (meldRowH - actionsH) / 2;
-      var hintY = meY - hintH - 4;
+      // Your section sits in its own box, like the other players', with a
+      // little room above your name and melds.
+      var meBoxPad = 8;
+      var meBox = { x: ox + pad, y: meY - meBoxPad, w: tableW - 2 * pad, h: H - Math.max(4, pad / 2) - (meY - meBoxPad) };
+      var hintY = meBox.y - hintH - 6;
       var bandTop = hintY;
       var gap = 6;
 
       var sideW = portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
       var topPanelH = portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
       // Narrow side seats (drawOppHeader's compact header) stack name, strategy and points.
-      var sideHead = portrait || sideW < 120 ? 48 : 26;
+      var sideHead = portrait || sideW < 120 ? 54 : 34;
       var topHead = 24;
       var opp = [];
       opp[3] = { x: ox + pad, y: topH, w: sideW, h: bandTop - topH - gap };
@@ -772,7 +667,7 @@
       zoneFrames.forEach(function (f) { pw = Math.min(pw, fitPondTile(f.w, f.h, maxDiscards)); });
       return {
         pad: pad, topH: topH, portrait: portrait, ox: ox, tableW: tableW, history: history,
-        tw: tw, th: th, handY: handY, mw: mw, meY: meY, meldRowH: meldRowH,
+        tw: tw, th: th, handY: handY, mw: mw, meY: meY, meldRowH: meldRowH, meBox: meBox,
         actionsY: actionsY, actionsH: actionsH, actionsInRow: actionsInRow, hintY: hintY, hintH: hintH,
         opp: opp, oppFrames: oppFrames, pond: pond, inner: inner, zones: zones, zoneFrames: zoneFrames,
         center: center, pw: pw, maxDiscards: maxDiscards,
@@ -1483,20 +1378,24 @@
     function drawOppHeader(seat, r) {
       var compact = r.w < 120;
       var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
+      // The side players' headers get a little room above them; the player
+      // across keeps theirs at the bottom of their box.
+      var top = seat === 2 ? 0 : 6;
       if (!compact) {
-        drawSeatHeader(seat, r.x + 8, r.y + (r.h - 22) / 2, r.w - 16);
+        drawSeatHeader(seat, r.x + 8, r.y + top + (r.h - top - 22) / 2, r.w - 16);
         return;
       }
       var rad = 8;
-      windBadge(seat, r.x + 4 + rad, r.y + 4 + rad, rad);
+      var by = r.y + 4 + top + rad;
+      windBadge(seat, r.x + 4 + rad, by, rad);
       var name = seatTitle(seat, true);
       var size = fitFont(ctx, name, r.w - 2 * rad - 12 - 13 - ICON_GAP, 12, FONT_BODY, 'bold');
-      text(name, r.x + 2 * rad + 8, r.y + 4 + rad + 1, { size: size, weight: 'bold', color: COLORS.cream });
+      text(name, r.x + 2 * rad + 8, by + 1, { size: size, weight: 'bold', color: COLORS.cream });
       ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
-      playerIcon(seat, r.x + 2 * rad + 8 + ctx.measureText(name).width + ICON_GAP, r.y + 4 + rad, 13);
+      playerIcon(seat, r.x + 2 * rad + 8 + ctx.measureText(name).width + ICON_GAP, by, 13);
       var strat = strategyName(seat);
       var ss = fitFont(ctx, strat, r.w - 8, 10, FONT_BODY, 'bold');
-      text(strat, r.x + 4, r.y + 4 + 2 * rad + 7, { size: ss, weight: 'bold', color: COLORS.goldLight });
+      text(strat, r.x + 4, by + rad + 7, { size: ss, weight: 'bold', color: COLORS.goldLight });
       if (pts) text(pts, r.x + r.w / 2, r.y + r.h - 7, { size: 11, weight: 'bold', align: 'center', color: COLORS.goldLight });
     }
 
@@ -1692,18 +1591,32 @@
       var y = L.meY;
       var active = ui.turnSeat === 0;
 
+      // Your box, like the other players': gold while it's your turn.
+      var box = L.meBox;
+      ctx.save();
+      roundRect(ctx, box.x, box.y, box.w, box.h, 12);
+      ctx.fillStyle = active ? 'rgba(244,160,32,0.16)' : 'rgba(0,0,0,0.16)';
+      ctx.fill();
+      if (active) {
+        ctx.strokeStyle = 'rgba(244,160,32,' + (0.65 + 0.3 * Math.sin(t / 220)) + ')';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        requestRender();
+      }
+      ctx.restore();
+
       // Info + melds row.
       var left = L.ox;
       var rightEdge = L.ox + L.tableW;
       var infoW = clamp(L.tableW * 0.3, 130, 240);
       // Your name steps aside while action buttons need its spot.
-      if (!ui.buttonsOverName) drawSeatHeader(0, rightEdge - pad - infoW, y + 2, infoW);
+      if (!ui.buttonsOverName) drawSeatHeader(0, rightEdge - pad - infoW - 4, y + 4, infoW);
       var items = meldItems(0);
-      var mx = left + pad;
+      var mx = left + pad + 8; // inside your box
       // Same size as the hand; only shrinks if the row would run out of room.
       var meldN = items.filter(function (it) { return !it.gap; }).length;
       var gapsN = items.length - meldN;
-      var rowW = L.tableW - 2 * pad - infoW - 10;
+      var rowW = L.tableW - 2 * pad - infoW - 18;
       var tileN = meldN + s.flowers.length;
       var mw = Math.min(L.mw, (rowW - Math.max(0, tileN - 1) * TILE_GAP) / Math.max(1, tileN + gapsN * 0.35 + 0.6));
       var y0 = y + (L.mw - mw) * TILE_ASPECT;
