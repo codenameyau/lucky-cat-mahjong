@@ -328,3 +328,44 @@ describe('both strategies: special-hand upgrades', () => {
     assert.match([hint.action].concat(hint.tips).join(' '), /Discard Nine Character\. None are left/);
   });
 });
+
+describe('saving and loading a game', () => {
+  const agents = () => [L.createBotAgent(), B.createBotAgent(), L.createBotAgent(), B.createBotAgent()];
+  // Plays `hands` hands, saving at every checkpoint; returns the saves and results.
+  async function play(game, hands, opts) {
+    const saves = [];
+    const results = [];
+    const ui = { checkpoint: (g) => saves.push(JSON.stringify(E.exportGame(g))) };
+    for (let i = 0; i < hands; i++) {
+      results.push(await E.runHand(game, agents(), ui, i === 0 ? opts : undefined));
+      saves.push(JSON.stringify(E.exportGame(game)));
+    }
+    return { saves, results };
+  }
+  const summary = (res) => JSON.stringify([res.type, res.winner, res.deltas, res.concealed]);
+
+  it('resumes a hand saved mid-turn or mid-claim to the same result, and deals the same next hand', async () => {
+    const game = E.createGame({ seed: 4242, humanSeat: false, mode: 'payout' });
+    const first = await play(game, 2);
+    const mid = first.saves.slice(10, first.saves.length).filter((s) => JSON.parse(s).handNumber === 1 && JSON.parse(s).hand.phase.step !== 'done');
+    for (const at of [mid[0], mid[Math.floor(mid.length / 2)], mid[mid.length - 2]]) {
+      const restored = E.importGame(JSON.parse(at));
+      assert.ok(E.handInProgress(restored));
+      const again = await play(restored, 2, { resume: true });
+      assert.equal(summary(again.results[0]), summary(first.results[0]));
+      assert.equal(summary(again.results[1]), summary(first.results[1]));
+      assert.deepEqual(restored.players.map((p) => p.points), game.players.map((p) => p.points));
+    }
+  });
+
+  it('loads saves from this version, and refuses newer or incompatible ones', () => {
+    assert.equal(E.GAME_VERSION, '0.1.0');
+    assert.equal(E.saveCompatibility('0.1.0').ok, true);
+    assert.equal(E.saveCompatibility('0.2.0').ok, false);
+    assert.match(E.saveCompatibility('0.1.1').reason, /newer/);
+    assert.equal(E.saveCompatibility('1.0.0').ok, false);
+    assert.equal(E.saveCompatibility('0.0.9').ok, false);
+    assert.equal(E.saveCompatibility(undefined).ok, false);
+    assert.throws(() => E.importGame({ players: [] }), /not a saved game/);
+  });
+});

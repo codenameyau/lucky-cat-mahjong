@@ -29,6 +29,14 @@
 
   var WIND_NAMES = ['', 'East', 'South', 'West', 'North'];
   var WIND_CN = ['', '東', '南', '西', '北'];
+  // The game's version (semantic versioning). Saved games carry it, and
+  // only load into a compatible version (see saveCompatibility). Bump it
+  // with every change to the game: patch for fixes, minor for features or
+  // anything that changes saved games (while below 1.0), major for
+  // breaking changes after 1.0.
+  var GAME_VERSION = '0.1.0';
+  var SAVE_APP = 'lucky-cat-mahjong';
+
   var START_POINTS = 2000;
   var MIN_FAAN = 3;
 
@@ -66,15 +74,19 @@
   }
 
   // Small seeded PRNG (mulberry32) so tests and replays are deterministic.
+  // Its state can be read and set, so a saved game deals the same walls.
   function createRng(seed) {
     var a = (seed >>> 0) || 1;
-    return function () {
+    var rng = function () {
       a = (a + 0x6D2B79F5) >>> 0;
       var t = a;
       t = Math.imul(t ^ (t >>> 15), t | 1);
       t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
+    rng.getState = function () { return a; };
+    rng.setState = function (v) { a = v >>> 0; };
+    return rng;
   }
 
   function shuffle(arr, rng) {
@@ -626,6 +638,7 @@
     }
     game.history.push(result);
     game.hand.result = result;
+    game.hand.phase = { step: 'done' };
   }
 
   // A bot that runs out of points leaves; a new opponent takes the seat.
@@ -733,88 +746,47 @@
     return winner;
   }
 
-  async function runHand(game, agents, ui) {
-    startHand(game);
-    var h = game.hand;
-    await emit(ui, 'handStart', {});
+  // Plays one hand. With opts.resume, picks up a hand restored from a save
+  // (importGame) at its last checkpoint (hand.phase) instead of dealing.
+  // At each checkpoint (a seat about to choose its turn action, or a
+  // discard about to be claimed) the hand is consistent and ui.checkpoint,
+  // if given, is called so the game can be saved there.
+  async function runHand(game, agents, ui, opts) {
+    var resume = opts && opts.resume && game.hand && game.hand.phase;
+    var h;
+    var cur;
+    var claimTile = null;
+    if (resume) {
+      h = game.hand;
+      cur = resume.seat;
+      if (resume.step === 'claims') claimTile = resume.tile;
+      await emit(ui, 'handStart', { resumed: true });
+    } else {
+      startHand(game);
+      h = game.hand;
+      await emit(ui, 'handStart', {});
 
-    for (var k = 0; k < 4; k++) {
-      var seat0 = (game.dealer + k) % 4;
-      await handleFlowers(game, seat0, ui);
-    }
-    for (var f = 0; f < 4; f++) {
-      var fw = flowerWinCheck(game, (game.dealer + f) % 4);
-      if (fw) return finishFlowerWin(game, (game.dealer + f) % 4, fw, ui);
+      for (var k = 0; k < 4; k++) {
+        var seat0 = (game.dealer + k) % 4;
+        await handleFlowers(game, seat0, ui);
+      }
+      for (var f = 0; f < 4; f++) {
+        var fw = flowerWinCheck(game, (game.dealer + f) % 4);
+        if (fw) return finishFlowerWin(game, (game.dealer + f) % 4, fw, ui);
+      }
+      cur = game.dealer;
     }
 
-    var cur = game.dealer;
     var needDraw = false;
     for (;;) {
-      h.turn = cur;
-      await emit(ui, 'turn', { seat: cur });
-      if (needDraw) {
-        if (!h.wall.length) {
-          var dr = settleDraw(game);
-          await emit(ui, 'drawGame', dr);
-          return dr;
-        }
-        var fromBack = h.kongChain > 0;
-        var t = drawTile(game, cur, fromBack);
-        h.drawnTile = t;
-        await emit(ui, 'draw', { seat: cur, tile: t, replacement: fromBack });
-        if (await handleFlowers(game, cur, ui)) {
-          h.drawnTile = h.seats[cur].hand[h.seats[cur].hand.length - 1];
-          var fw2 = flowerWinCheck(game, cur);
-          if (fw2) return finishFlowerWin(game, cur, fw2, ui);
-        }
-      }
-      needDraw = true;
-
-      // Own-turn actions: win, kongs (each followed by a replacement draw), then discard.
       var discarded = null;
-      while (!discarded) {
-        var topts = turnOptions(game, cur);
-        var action = await agents[cur].turn(game, cur, topts);
-        if (action.type === 'win' && topts.win) {
-          var resW = settleWin(game, cur, null, h.drawnTile, topts.win, 'selfDraw');
-          await emit(ui, 'win', resW);
-          return resW;
-        }
-        if (action.type === 'kong') {
-          var kong = topts.kongs.filter(function (x) { return x.tile === action.tile; })[0];
-          if (!kong) throw new Error('illegal kong ' + action.tile);
-          if (kong.kind === 'added') {
-            await emit(ui, 'kongAttempt', { seat: cur, tile: kong.tile });
-            var rob = await resolveClaims(game, agents, ui, kong.tile, cur, true);
-            if (rob && rob.decision.type === 'win') {
-              removeTiles(h.seats[cur].hand, [kong.tile]);
-              var resR = settleWin(game, rob.seat, cur, kong.tile, rob.opts.win, 'robKong');
-              await emit(ui, 'win', resR);
-              return resR;
-            }
-          }
-          applyKong(game, cur, kong);
-          await emit(ui, 'kong', { seat: cur, tile: kong.tile, kind: kong.kind });
-          if (!h.wall.length) {
-            var dr2 = settleDraw(game);
-            await emit(ui, 'drawGame', dr2);
-            return dr2;
-          }
-          var rep = drawTile(game, cur, true);
-          h.drawnTile = rep;
-          await emit(ui, 'draw', { seat: cur, tile: rep, replacement: true });
-          if (await handleFlowers(game, cur, ui)) {
-            h.drawnTile = h.seats[cur].hand[h.seats[cur].hand.length - 1];
-            var fw3 = flowerWinCheck(game, cur);
-            if (fw3) return finishFlowerWin(game, cur, fw3, ui);
-          }
-          continue;
-        }
-        var tile = action.tile;
-        if (h.seats[cur].hand.indexOf(tile) === -1) throw new Error('illegal discard ' + tile);
-        applyDiscard(game, cur, tile);
-        discarded = tile;
-        await emit(ui, 'discard', { seat: cur, tile: tile });
+      if (claimTile) {
+        // Resumed with a discard on the table: straight to its claims.
+        discarded = claimTile;
+        claimTile = null;
+      } else {
+        discarded = await playTurn();
+        if (discarded && discarded.result) return discarded.result;
       }
 
       var claim = await resolveClaims(game, agents, ui, discarded, cur, false);
@@ -830,12 +802,89 @@
         cur = claim.seat;
         if (claim.decision.type === 'kong') {
           h.kongChain = 1;
+          needDraw = true;
         } else {
           needDraw = false;
         }
         continue;
       }
       cur = (cur + 1) % 4;
+      needDraw = true;
+    }
+
+    // One seat's turn: draw if due, then win, kong or discard. Returns the
+    // discarded tile, or { result } when the hand ends.
+    async function playTurn() {
+      h.turn = cur;
+      await emit(ui, 'turn', { seat: cur });
+      if (needDraw) {
+        if (!h.wall.length) {
+          var dr = settleDraw(game);
+          await emit(ui, 'drawGame', dr);
+          return { result: dr };
+        }
+        var fromBack = h.kongChain > 0;
+        var t = drawTile(game, cur, fromBack);
+        h.drawnTile = t;
+        await emit(ui, 'draw', { seat: cur, tile: t, replacement: fromBack });
+        if (await handleFlowers(game, cur, ui)) {
+          h.drawnTile = h.seats[cur].hand[h.seats[cur].hand.length - 1];
+          var fw2 = flowerWinCheck(game, cur);
+          if (fw2) return { result: await finishFlowerWin(game, cur, fw2, ui) };
+        }
+      }
+
+      // Own-turn actions: win, kongs (each followed by a replacement draw), then discard.
+      var discarded = null;
+      while (!discarded) {
+        h.phase = { step: 'turn', seat: cur };
+        if (ui && ui.checkpoint) ui.checkpoint(game);
+        var topts = turnOptions(game, cur);
+        var action = await agents[cur].turn(game, cur, topts);
+        if (action.type === 'win' && topts.win) {
+          var resW = settleWin(game, cur, null, h.drawnTile, topts.win, 'selfDraw');
+          await emit(ui, 'win', resW);
+          return { result: resW };
+        }
+        if (action.type === 'kong') {
+          var kong = topts.kongs.filter(function (x) { return x.tile === action.tile; })[0];
+          if (!kong) throw new Error('illegal kong ' + action.tile);
+          if (kong.kind === 'added') {
+            await emit(ui, 'kongAttempt', { seat: cur, tile: kong.tile });
+            var rob = await resolveClaims(game, agents, ui, kong.tile, cur, true);
+            if (rob && rob.decision.type === 'win') {
+              removeTiles(h.seats[cur].hand, [kong.tile]);
+              var resR = settleWin(game, rob.seat, cur, kong.tile, rob.opts.win, 'robKong');
+              await emit(ui, 'win', resR);
+              return { result: resR };
+            }
+          }
+          applyKong(game, cur, kong);
+          await emit(ui, 'kong', { seat: cur, tile: kong.tile, kind: kong.kind });
+          if (!h.wall.length) {
+            var dr2 = settleDraw(game);
+            await emit(ui, 'drawGame', dr2);
+            return { result: dr2 };
+          }
+          var rep = drawTile(game, cur, true);
+          h.drawnTile = rep;
+          await emit(ui, 'draw', { seat: cur, tile: rep, replacement: true });
+          if (await handleFlowers(game, cur, ui)) {
+            h.drawnTile = h.seats[cur].hand[h.seats[cur].hand.length - 1];
+            var fw3 = flowerWinCheck(game, cur);
+            if (fw3) return { result: await finishFlowerWin(game, cur, fw3, ui) };
+          }
+          continue;
+        }
+        var tile = action.tile;
+        if (h.seats[cur].hand.indexOf(tile) === -1) throw new Error('illegal discard ' + tile);
+        applyDiscard(game, cur, tile);
+        discarded = tile;
+        h.phase = { step: 'claims', seat: cur, tile: tile };
+        if (ui && ui.checkpoint) ui.checkpoint(game);
+        await emit(ui, 'discard', { seat: cur, tile: tile });
+      }
+      return discarded;
     }
   }
 
@@ -843,6 +892,61 @@
     var res = settleWin(game, seat, fw.payer, null, fw.score, 'flowers');
     await emit(ui, 'win', res);
     return res;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 7b. Saving and loading
+   *    A save is plain JSON: the whole game (every player, the hand in
+   *    progress with its wall, and the history), the random generator's
+   *    state, and the version that wrote it.
+   * ------------------------------------------------------------------ */
+
+  function parseVersion(v) {
+    var m = /^(\d+)\.(\d+)\.(\d+)$/.exec(String(v || ''));
+    return m ? [+m[1], +m[2], +m[3]] : null;
+  }
+
+  // Whether a save written by `version` loads into this one: same major
+  // version (below 1.0, same minor too, since 0.x minor versions may change
+  // the save), and not newer than this game. Returns { ok, reason }.
+  function saveCompatibility(version) {
+    var have = parseVersion(GAME_VERSION);
+    var got = parseVersion(version);
+    if (!got) return { ok: false, reason: 'This file has no game version, so it can\'t be loaded.' };
+    var newer = got[0] > have[0] || (got[0] === have[0] && (got[1] > have[1] || (got[1] === have[1] && got[2] > have[2])));
+    if (newer) return { ok: false, reason: 'Saved by version ' + version + ', newer than this game (' + GAME_VERSION + '). Reload the page to update.' };
+    if (got[0] !== have[0] || (have[0] === 0 && got[1] !== have[1])) {
+      return { ok: false, reason: 'Saved by version ' + version + ', which doesn\'t load in version ' + GAME_VERSION + '.' };
+    }
+    return { ok: true, reason: null };
+  }
+
+  // The game as JSON-safe data (the generator becomes its state).
+  function exportGame(game) {
+    var out = {};
+    Object.keys(game).forEach(function (k) { if (k !== 'rng') out[k] = game[k]; });
+    out = JSON.parse(JSON.stringify(out));
+    out.rngState = game.rng.getState();
+    return out;
+  }
+
+  // A game from exportGame's data, ready to play on (runHand with
+  // { resume: true } continues a hand that was in progress).
+  function importGame(data) {
+    if (!data || !Array.isArray(data.players) || data.players.length !== 4 || typeof data.rngState !== 'number') {
+      throw new Error('not a saved game');
+    }
+    var game = JSON.parse(JSON.stringify(data));
+    delete game.rngState;
+    game.rng = createRng(1);
+    game.rng.setState(data.rngState);
+    return game;
+  }
+
+  // Whether the restored game has a hand to pick up where it stopped.
+  function handInProgress(game) {
+    var p = game.hand && game.hand.phase;
+    return !!(p && p.step !== 'done' && !game.hand.result);
   }
 
   /* ------------------------------------------------------------------ *
@@ -900,6 +1004,12 @@
     shanten: shanten,
     winningTiles: winningTiles,
     createGame: createGame,
+    GAME_VERSION: GAME_VERSION,
+    SAVE_APP: SAVE_APP,
+    saveCompatibility: saveCompatibility,
+    exportGame: exportGame,
+    importGame: importGame,
+    handInProgress: handInProgress,
     startHand: startHand,
     seatWind: seatWind,
     wallCount: wallCount,

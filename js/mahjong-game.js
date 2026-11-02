@@ -454,7 +454,8 @@
    * 4. The table app
    * ------------------------------------------------------------------ */
 
-  function createTable(canvas, liveRegion, settings, callbacks) {
+  // `saved` (optional) is a save file's contents (see saveFile) to resume.
+  function createTable(canvas, liveRegion, settings, callbacks, saved) {
     var ctx = canvas.getContext('2d');
     var prefs = readJson(PREFS_KEY, { sound: true });
     var sound = createSound(prefs.sound !== false);
@@ -489,6 +490,8 @@
       handSig: '',   // what the hand looked like when the slots were last matched
       handLayout: '',
       restartArmed: 0, // when Restart game was first tapped in the menu
+      lastSave: null, // the game at its latest checkpoint, ready to download (saveFile)
+      menuNote: null, // a line in the menu after saving or a failed load
       turnSeat: null,
       selected: -1,
       turnPrompt: null,
@@ -585,11 +588,22 @@
       });
     }
 
+    // While the menu is open the table waits, so the bots don't play on
+    // behind it (and a save is the game as you left it).
+    function menuOpen() {
+      return !!(ui.overlay && ui.overlay.type === 'menu');
+    }
+
     function sleep(ms) {
       if (instantMode()) return destroyed ? new Promise(function () {}) : Promise.resolve();
       return new Promise(function (resolve) {
         if (destroyed) return;
-        setTimeout(function () { if (!destroyed) resolve(); }, reduceMotion ? Math.min(ms, 120) : speed(ms));
+        var done = function () {
+          if (destroyed) return;
+          if (menuOpen()) { setTimeout(done, 150); return; }
+          resolve();
+        };
+        setTimeout(done, reduceMotion ? Math.min(ms, 120) : speed(ms));
       });
     }
 
@@ -2559,16 +2573,119 @@
 
 
     function drawMenu() {
-      var r = panelRect(340, 282);
+      var note = ui.menuNote;
+      // The note wraps onto as many lines as it needs, under the buttons.
+      var noteLines = [];
+      if (note) {
+        ctx.font = 'bold 12px ' + FONT_BODY;
+        note.text.split(' ').forEach(function (word) {
+          var last = noteLines[noteLines.length - 1];
+          if (last !== undefined && ctx.measureText(last + ' ' + word).width <= 340 - 40) noteLines[noteLines.length - 1] = last + ' ' + word;
+          else noteLines.push(word);
+        });
+      }
+      var r = panelRect(340, 350 + noteLines.length * 16 + (note ? 8 : 0));
       drawPanelBg(r);
       text('Paused', r.x + r.w / 2, r.y + 36, { size: 24, family: FONT_HEAD, align: 'center', color: COLORS.red });
       var bx = r.x + 30, bw = r.w - 60, y = r.y + 62, step = 50;
       button('Resume', bx, y, bw, 40, function () { closeOverlay(); }, 'white', 'm-resume'); y += step;
       var armed = ui.restartArmed && now() - ui.restartArmed < 5000;
       button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, 40, restartGame, armed ? 'gold' : 'white', 'm-restart'); y += step;
+      button('Save game', bx, y, bw, 40, saveGame, 'white', 'm-save'); y += step;
+      button('Load game', bx, y, bw, 40, loadGame, 'white', 'm-load'); y += step;
       button('Quit game', bx, y, bw, 40, function () { quit(); }, 'white', 'm-quit');
-      var modeLine = (settings.mode === 'practice' ? 'Practice mode' : 'Payout mode') + ' · ' + (settings.spicy === 'half' ? 'Half spicy' : 'Full spicy');
-      text(modeLine, r.x + r.w / 2, r.y + r.h - 18, { size: 12, align: 'center', color: COLORS.muted });
+      noteLines.forEach(function (lineText, k) {
+        text(lineText, r.x + r.w / 2, y + 58 + k * 16, { size: 12, weight: 'bold', align: 'center', color: note.error ? COLORS.red : COLORS.green });
+      });
+      // Mode and version, with a Beta badge.
+      var line = (settings.mode === 'practice' ? 'Practice mode' : 'Payout mode') + ' · v' + E.GAME_VERSION;
+      ctx.font = '12px ' + FONT_BODY;
+      var lineW = ctx.measureText(line).width;
+      ctx.font = 'bold 10px ' + FONT_BODY;
+      var badgeW = ctx.measureText('BETA').width + 12, badgeH = 16;
+      var lx = r.x + (r.w - lineW - 6 - badgeW) / 2, ly = r.y + r.h - 18;
+      text(line, lx, ly, { size: 12, color: COLORS.muted });
+      pill(lx + lineW + 6, ly - badgeH / 2, badgeW, badgeH, COLORS.red);
+      text('BETA', lx + lineW + 6 + badgeW / 2, ly + 1, { size: 10, weight: 'bold', align: 'center', color: COLORS.white });
+    }
+
+    /* ---------------- saving and loading ---------------- */
+
+    // The whole game at its latest checkpoint (a seat about to act, a
+    // discard about to be claimed, or between hands), with the version
+    // that wrote it. Loading it resumes from exactly there.
+    function snapshot() {
+      ui.lastSave = {
+        app: E.SAVE_APP,
+        version: E.GAME_VERSION,
+        savedAt: new Date().toISOString(),
+        settings: { mode: settings.mode, spicy: settings.spicy },
+        strategies: JSON.parse(JSON.stringify(ui.strategies)),
+        stats: JSON.parse(JSON.stringify(ui.stats)),
+        coachLog: JSON.parse(JSON.stringify(ui.coachLog || [])),
+        game: E.exportGame(game),
+      };
+    }
+
+    function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+    // play-lucky-cat-mahjong-20261102-143005.json (local time)
+    function saveFileName(d) {
+      return 'play-lucky-cat-mahjong-' + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) +
+        '-' + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds()) + '.json';
+    }
+
+    function setMenuNote(textLine, error) {
+      ui.menuNote = { text: textLine, error: !!error };
+      requestRender();
+    }
+
+    function saveGame() {
+      if (!ui.lastSave) { setMenuNote('Nothing to save yet. Try again in a moment.', true); return; }
+      var d = new Date();
+      var data = Object.assign({}, ui.lastSave, { savedAt: d.toISOString() });
+      var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = saveFileName(d);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      track('play_save', { version: E.GAME_VERSION });
+      setMenuNote('Saved ' + a.download + '.');
+    }
+
+    // Checks a save file's contents; returns an error message, or null.
+    function saveProblem(data) {
+      if (!data || data.app !== E.SAVE_APP || !data.game) return 'That isn\'t a Lucky Cat Mahjong save file.';
+      var compat = E.saveCompatibility(data.version);
+      if (!compat.ok) return compat.reason;
+      try { E.importGame(data.game); } catch (err) { return 'That save file is damaged, so it can\'t be loaded.'; }
+      return null;
+    }
+
+    function loadGame() {
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json,.json';
+      input.addEventListener('change', function () {
+        var file = input.files && input.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+          var data = null;
+          try { data = JSON.parse(String(reader.result)); } catch (err) { data = null; }
+          var problem = saveProblem(data);
+          if (problem) { setMenuNote(problem, true); track('play_load_failed', {}); return; }
+          track('play_load', { version: data.version });
+          callbacks.load(data);
+        };
+        reader.onerror = function () { setMenuNote('That file couldn\'t be read.', true); };
+        reader.readAsText(file);
+      });
+      input.click();
     }
 
     // Restarting throws the match away, so it takes a second tap.
@@ -2683,6 +2800,7 @@
 
     function openMenu() {
       if (ui.overlay && ui.overlay.type === 'menu') { closeOverlay(); return; }
+      ui.menuNote = null;
       ui.overlay = { type: 'menu', previous: ui.overlay };
       requestRender();
     }
@@ -3000,9 +3118,17 @@
     /* ---------------- engine events ---------------- */
 
     var handlers = {
-      handStart: function () {
+      handStart: function (d) {
         ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], drawn: false };
         ui.botDrawn = [false, false, false, false];
+        if (d && d.resumed) {
+          // A loaded hand: a seat holding a fresh draw shows it apart.
+          game.hand.seats.forEach(function (s, k) { if (k && s.hand.length % 3 === 2) ui.botDrawn[k] = true; });
+          L = computeLayout();
+          announce('Game loaded. Hand ' + game.handNumber + '.');
+          requestRender();
+          return sleep(300);
+        }
         ui.botLift = null;
         ui.turnSeat = null;
         ui.selected = -1;
@@ -3132,6 +3258,7 @@
         requestRender();
         return out || Promise.resolve();
       },
+      checkpoint: function () { snapshot(); },
     };
 
     /* ---------------- agents ---------------- */
@@ -3236,19 +3363,37 @@
     async function play() {
       await loadAssets();
       spriteCache = {};
-      game = E.createGame({ spicy: settings.spicy, mode: settings.mode });
-      ui.strategies = pickStrategies();
-      ui.coachLog = [];
       ui.coachScroll = 0;
       ui.coachStick = true;
+      var resume = false;
+      if (saved) {
+        // A loaded game: the same players, strategies, coach history and
+        // hand, picked up at its last checkpoint.
+        game = E.importGame(saved.game);
+        ui.strategies = saved.strategies;
+        ui.stats = saved.stats || ui.stats;
+        ui.coachLog = saved.coachLog || [];
+        resume = E.handInProgress(game);
+      } else {
+        game = E.createGame({ spicy: settings.spicy, mode: settings.mode });
+        ui.strategies = pickStrategies();
+        ui.coachLog = [];
+      }
       var agents = [humanAgent(), botAgent(), botAgent(), botAgent()];
-      track('play_start', {
+      track(saved ? 'play_resume' : 'play_start', {
         spicy: settings.spicy, mode: settings.mode, coach: settings.coach,
         speed: settings.speed, coach_strategy: ui.strategies.coach,
         strategies: ui.strategies.seats.slice(1).join(','),
       });
+      if (game.over) {
+        ui.overlay = { type: 'gameover' };
+        requestRender();
+        return;
+      }
+      snapshot();
       while (!destroyed) {
-        var res = await E.runHand(game, agents, uiBridge);
+        var res = await E.runHand(game, agents, uiBridge, resume ? { resume: true } : null);
+        resume = false;
         if (destroyed) return;
         recordStats(res);
         ui.turnSeat = null;
@@ -3264,6 +3409,7 @@
           }
         }
         if (res.roundAdvanced && !extra) extra = 'The round wind is now ' + E.WIND_NAMES[game.round] + '.';
+        snapshot(); // between hands: loading deals the next one
         await showOverlay({ type: 'summary', result: res, extra: extra });
         if (game.over) {
           track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins });
@@ -3381,14 +3527,18 @@
     loadAssets();
 
     var table = null;
-    function open(settings) {
+    function open(settings, saved) {
       stage.hidden = false;
       document.documentElement.classList.add('is-playing');
       if (table) table.destroy();
       table = createTable(canvas, live, settings, {
         quit: close,
         restart: function () { open(settings); },
-      });
+        // A loaded game plays in its own mode; the rest of your settings stay.
+        load: function (data) {
+          open(Object.assign({}, settings, { mode: data.game.settings.mode }), data);
+        },
+      }, saved);
       table.start();
       canvas.focus();
       root.__lcmTable = table;
