@@ -765,8 +765,6 @@
     var PORTRAIT_SHRINK = 0.85;
     // And phones draw it this much smaller again (both ways round).
     var PHONE_HAND_SCALE = 0.9;
-    // Opponents' hidden tiles on a phone, against their melds and flowers.
-    var PHONE_BACK_SCALE = 0.6;
 
     // Discard areas for a pond: a cross around the center box, or (`strip`,
     // for a narrow table) top and bottom ponds across the full width with
@@ -842,6 +840,13 @@
       if (desktop) tableW = Math.min(Math.round((W - historyGap - pad) * 2 / 3), Math.round(H * 1.1));
       if (landscape && coachShown) tableW = Math.round((W - historyGap - pad) * 2 / 3);
       var meX = ox, meW = phonePortrait ? W : tableW;
+      // A landscape phone's side seats run the full height (their tiles in
+      // one row need the length), so your section sits between them.
+      var LANDSCAPE_SIDE_W = 42;
+      if (landscape) {
+        meX = ox + LANDSCAPE_SIDE_W + 6;
+        meW = tableW - 2 * (LANDSCAPE_SIDE_W + 6);
+      }
 
       // Hand tiles: one row of 14 across your section, or two rows of 7 on a
       // portrait phone (bigger tiles, easier to tap).
@@ -889,22 +894,23 @@
       // and the table spans the screen: its height is what's short.)
       var portrait = !desktop && (landscape || tableW < 700 || tableW < (bandTop - topH) * 0.9);
 
-      // Phones' side seats only hold a column of tile backs, so they're
-      // slim and the discards get the room.
-      // (Wide and tall enough for opponents' melds and flowers at about 16:
-      // their hidden tiles are drawn smaller, PHONE_BACK_SCALE.)
-      var sideW = phonePortrait ? 52 : landscape ? 60 : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
-      var topPanelH = !desktop ? 74 : portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
+      // On a phone each opponent's tiles are one row (drawOpponent), so the
+      // seats are only one tile deep and the discards get the room; the
+      // player across spans the whole table, above the side seats.
+      var sideW = phonePortrait ? 46 : landscape ? LANDSCAPE_SIDE_W : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
+      var topPanelH = !desktop ? 70 : portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
       // Narrow side seats (drawOppHeader's compact header) stack name, strategy and points.
       // (On a phone: the badge and icon, and the points under them.)
       var sideHead = !desktop ? 40 : portrait || sideW < 120 ? 54 : 34;
       var topHead = desktop ? 30 : 26; // the name row, with a little room below it
       var opp = [];
-      opp[3] = { x: ox + pad, y: topH, w: sideW, h: bandTop - topH - gap };
-      opp[1] = { x: ox + tableW - pad - sideW, y: topH, w: sideW, h: bandTop - topH - gap };
+      var sideTop = desktop ? topH : topH + topPanelH + gap;
+      var sideBottom = landscape ? H - Math.max(4, pad / 2) : bandTop - gap;
+      opp[3] = { x: ox + pad, y: sideTop, w: sideW, h: sideBottom - sideTop };
+      opp[1] = { x: ox + tableW - pad - sideW, y: sideTop, w: sideW, h: sideBottom - sideTop };
       var mid = ox + pad + sideW + gap;
       var pondW = tableW - 2 * (pad + sideW + gap);
-      opp[2] = { x: mid, y: topH, w: pondW, h: topPanelH };
+      opp[2] = desktop ? { x: mid, y: topH, w: pondW, h: topPanelH } : { x: ox + pad, y: topH, w: tableW - 2 * pad, h: topPanelH };
       [1, 3].forEach(function (k) {
         var r = opp[k];
         r.head = { x: r.x, y: r.y, w: r.w, h: sideHead };
@@ -1788,52 +1794,69 @@
       drawSeatBox(r, ui.turnSeat === seat, t);
       drawOppHeader(seat, r.head);
 
-      // Drawn in the seat's rotated frame, facing its owner: the concealed
-      // hand along their edge (a fresh draw sits a little apart, and the tile
-      // they are considering lifts), melds and flowers in front of it.
+      // Drawn in the seat's rotated frame, facing its owner. On desktop the
+      // concealed hand runs along their edge (a fresh draw sits a little
+      // apart, and the tile they are considering lifts), with melds and
+      // flowers in front of it. On a phone it's all one row, so the tiles
+      // can be larger: melds and flowers from the owner's left, then the
+      // concealed hand.
       var f = L.oppFrames[seat];
-      // One tile size for the hand and the meld row, so both rows must fit.
       var items = meldItems(seat);
       var meldTilesN = items.filter(function (it) { return !it.gap; }).length;
       var gaps = items.length - meldTilesN;
       var flowersN = s.flowers.length;
-      var meldUnits = meldTilesN + gaps * 0.35 + flowersN + 0.6;
       var tileN = meldTilesN + flowersN;
       var faceUp = ui.revealHands ? revealedConcealed(seat) : null;
-      // On a phone the hand's backs are drawn smaller than the melds and
-      // flowers (enough to count them), so what matters stays readable in
-      // a slim seat. Face up at the end of the hand, both rows are one size.
-      var backScale = L.desktop || faceUp ? 1 : PHONE_BACK_SCALE;
-      var mw = clamp(Math.min(
-        (f.w - 13 * TILE_GAP) / 14.7 / backScale,
-        (f.w - Math.max(0, tileN - 1) * TILE_GAP) / Math.max(1, meldUnits),
-        (f.h - 8) / ((1 + backScale) * (TILE_ASPECT + 0.08))
-      ), 8, 33);
-      var bw = mw * backScale; // the hand's tiles
       var count = faceUp ? faceUp.length : oppConcealedCount(seat);
       var apart = !faceUp && ui.botDrawn[seat] && count > 0;
-      // Center the hand along the area by the tiles actually held (a fresh
-      // draw hangs off the end so the hand doesn't jump every turn). The
-      // player across centers the hand and meld row in their area; side
-      // players keep the hand near their back edge, melds in front.
-      var depth = bw * (TILE_ASPECT + 0.08);
-      var block = depth + mw * (TILE_ASPECT + 0.08) + 5;
-      var edge = seat === 2 ? Math.max(1, (f.h - block) / 2) : Math.min(6, Math.max(1, (f.h - block) / 2));
-      var backsY = f.h - edge - depth;
-      var held = apart ? count - 1 : count;
+      var oneRow = !L.desktop;
+      var mw, bw, backsY, meldY, bx0, mx0;
+      var rowDepth = function (w) { return w * (TILE_ASPECT + 0.08); };
+      if (oneRow) {
+        var split = tileN && count ? 0.6 : 0; // room between the melds and the hand
+        var units = count + (apart ? 0.4 : 0) + meldTilesN + gaps * 0.35 + flowersN + split;
+        var tilesInRow = count + tileN;
+        mw = clamp(Math.min(
+          (f.h - 8) / (TILE_ASPECT + 0.08),
+          (f.w - Math.max(0, tilesInRow - 1) * TILE_GAP) / Math.max(1, units)
+        ), 8, 40);
+        bw = mw;
+        var rowW = units * mw + Math.max(0, tilesInRow - 1) * TILE_GAP;
+        mx0 = Math.max(0, (f.w - rowW) / 2);
+        backsY = meldY = (f.h - rowDepth(mw)) / 2;
+        var meldsW = tileN ? (meldTilesN + gaps * 0.35 + flowersN) * mw + (tileN - 1) * TILE_GAP + TILE_GAP : 0;
+        bx0 = mx0 + meldsW + split * mw;
+      } else {
+        // One tile size for the hand and the meld row, so both rows must fit.
+        var meldUnits = meldTilesN + gaps * 0.35 + flowersN + 0.6;
+        mw = clamp(Math.min(
+          (f.w - 13 * TILE_GAP) / 14.7,
+          (f.w - Math.max(0, tileN - 1) * TILE_GAP) / Math.max(1, meldUnits),
+          (f.h - 8) / (2 * rowDepth(1))
+        ), 8, 33);
+        bw = mw;
+        // Center the hand along the area by the tiles actually held (a fresh
+        // draw hangs off the end so the hand doesn't jump every turn). The
+        // player across centers the hand and meld row in their area; side
+        // players keep the hand near their back edge, melds in front.
+        var block = 2 * rowDepth(bw) + 5;
+        var edge = seat === 2 ? Math.max(1, (f.h - block) / 2) : Math.min(6, Math.max(1, (f.h - block) / 2));
+        backsY = f.h - edge - rowDepth(bw);
+        var held = apart ? count - 1 : count;
+        bx0 = (f.w - (held > 0 ? held * bw + (held - 1) * TILE_GAP : 0)) / 2;
+        meldY = backsY - rowDepth(mw) - 5;
+        mx0 = 0;
+      }
       var pitch = bw + TILE_GAP;
-      var bx0 = (f.w - (held > 0 ? held * bw + (held - 1) * TILE_GAP : 0)) / 2;
       var lift = ui.botLift && ui.botLift.seat === seat ? ui.botLift.index : -1;
       var backX = function (i) { return bx0 + i * pitch + (apart && i === count - 1 ? bw * 0.4 : 0); };
-
-      var meldY = backsY - mw * (TILE_ASPECT + 0.08) - 5;
 
       enterFrame(f);
       for (var i = 0; i < count; i++) {
         if (faceUp) drawTile(faceUp[i], backX(i), backsY, bw, { shadow: false });
         else drawTile(null, backX(i), backsY - (i === lift ? bw * 0.38 : 0), bw, { back: true, shadow: false });
       }
-      var mx = 0;
+      var mx = mx0;
       items.forEach(function (it) {
         if (it.gap) { mx += mw * 0.35; return; }
         drawTile(it.id, mx, meldY, mw, { back: it.back, shadow: false });
@@ -1841,7 +1864,7 @@
       });
       // Like a real table, melds then flowers run from the owner's left.
       var fw = mw;
-      var fx = mx + (items.length ? mw * 0.35 : 0);
+      var fx = mx + (items.length && !oneRow ? mw * 0.35 : 0);
       var wind = E.seatWind(game, seat);
       s.flowers.forEach(function (id, k) {
         drawTile(id, fx + k * (fw + TILE_GAP), meldY, fw, { shadow: false, glow: flowerGlow(s.flowers, wind, id) });
