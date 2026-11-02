@@ -132,12 +132,6 @@
   margin: 0 0 0.75rem;
 }
 
-.play-credits {
-  margin: 1rem 0 0;
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
-}
-
 .play-rules ul {
   margin: 0;
   padding-left: 1.2rem;

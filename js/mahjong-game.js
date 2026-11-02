@@ -165,7 +165,9 @@
       c.lineWidth = Math.max(0.8, w * 0.04);
       roundRect(c, w * 0.12, w * 0.12, w * 0.76, h - w * 0.24, r * 0.6);
       c.stroke();
-      if (images.logo && w >= 14) {
+      // Phones draw small tile backs, but on a sharp screen there are
+      // still plenty of pixels for the logo.
+      if (images.logo && w * dpr >= 18) {
         var lw = w * 0.62;
         var lh = lw * (images.logo.height / images.logo.width || 1);
         c.globalAlpha = 0.95;
@@ -196,7 +198,9 @@
         c.fillText(id, w / 2, h / 2);
       }
     }
-    spriteCache[key] = cv;
+    // A tile drawn before its picture (or the logo) has loaded is not
+    // kept, so it's redrawn properly once the image arrives.
+    if (back ? images.logo : images[id]) spriteCache[key] = cv;
     return cv;
   }
 
@@ -626,39 +630,47 @@
       return { x: c.x - w / 2, y: c.y - w * TILE_ASPECT / 2, w: w, rot: f.a };
     }
 
+    // Three layouts:
+    //   desktop: the table and your hand on the left, the coach's column on
+    //     the right, and the coach's bar above your hand;
+    //   phone landscape: a square table with the coach's column beside it,
+    //     your hand along the whole bottom, no bar;
+    //   phone portrait: the table, the coach's bar, then your hand in two
+    //     rows, no column.
+    // The table (the other players and the discards) is kept as close to
+    // square as the screen allows; spare room goes to the coach.
+    var HAND_ROW_GAP = 6;
+
     function computeLayout() {
       var pad = W < 600 ? 6 : 14;
       var topH = 42 + 6; // top bar plus a little breathing room below it
-      var portrait = W < 700 || W < H * 0.9;
       // Short landscape phones are laid out taller than the screen, so W can
       // look like a desktop. The coach column follows the real screen.
       var desktop = cssW >= 980 && cssW >= cssH * 0.9;
-      // Desktop gives the table and hand two thirds of the screen.
-      // The coach column keeps the other third.
-      var historyGap = desktop ? 14 : 0;
+      var landscape = !desktop && W > H;
+      var phonePortrait = !desktop && !landscape;
+      var handRows = phonePortrait ? 2 : 1;
+      var depth = function (w) { return Math.max(2, w * 0.08); };
+
+      // Your section: full width on phones, the table's width on desktop.
+      var historyGap = desktop ? 14 : landscape ? 8 : 0;
       var ox = 0;
       var tableW = W;
-      var historyW = 0;
-      if (desktop) {
-        var split = W - historyGap - pad;
-        tableW = Math.round(split * 2 / 3);
-        historyW = split - tableW;
-      }
-      // A little smaller than a row that fills the table, so the center
-      // keeps the room and the discards stay easy to see. The gaps between
-      // tiles are reserved before the size is chosen.
-      var tw = clamp(((tableW - 2 * pad - 13 * TILE_GAP) / 14.8) * 0.88, 18, Math.min(124, H * 0.114));
+      if (desktop) tableW = Math.min(Math.round((W - historyGap - pad) * 2 / 3), Math.round(H * 1.1));
+      var meX = ox, meW = desktop ? tableW : W;
+
+      // Hand tiles: one row of 14 across your section, or two rows of 7 on a
+      // portrait phone (bigger tiles, easier to tap).
+      var tw = handRows === 2
+        ? clamp((meW - 2 * pad - 16 - 6 * TILE_GAP) / 7.5, 18, Math.min(72, H * 0.075))
+        : clamp(((meW - 2 * pad - 13 * TILE_GAP) / 14.8) * 0.88, 18, Math.min(124, H * (landscape ? 0.085 : 0.114)));
       var th = tw * TILE_ASPECT;
-      var handY = H - pad - th - Math.max(2, tw * 0.08) - 4;
-      var mw = tw; // melds and flowers match the hand
+      var handY = H - pad - th - depth(tw) - 4; // the bottom row
+      var handTop = handY - (handRows - 1) * (th + HAND_ROW_GAP);
+      var mw = handRows === 2 ? tw * 0.8 : tw; // melds and flowers
       var meldRowH = mw * TILE_ASPECT + 8;
-      var meY = handY - meldRowH - 6;
+      var meY = handTop - meldRowH - 6;
       var actionsH = 44;
-      // On a desktop the bar keeps its space even when the coach is off, so
-      // toggling it never moves the table. It fits the action line plus a
-      // four-line paragraph. On a phone the words stay hidden and the
-      // recommended tile is marked in the hand, so the table keeps the room.
-      var hintH = desktop ? 84 : 0;
       // Action buttons sit in the meld row, between your melds and your
       // name, so the table gets the room.
       var actionsInRow = true;
@@ -666,10 +678,32 @@
       // Your section sits in its own box, like the other players', with a
       // little room above your name and melds.
       var meBoxPad = 8;
-      var meBox = { x: ox + pad, y: meY - meBoxPad, w: tableW - 2 * pad, h: H - Math.max(4, pad / 2) - (meY - meBoxPad) };
+      var meBox = { x: meX + pad, y: meY - meBoxPad, w: meW - 2 * pad, h: H - Math.max(4, pad / 2) - (meY - meBoxPad) };
+
+      // The coach's bar above your section: a fixed height on desktop (it
+      // fits the action line and a four-line paragraph, and keeps its space
+      // when the coach is off, so toggling it never moves the table); on a
+      // portrait phone whatever is left once the table is about square.
+      // Landscape phones show the coach in the column instead.
+      var hintH = 0;
+      var room = meBox.y - 6 - topH - 6; // table and bar together
+      if (desktop) hintH = 84;
+      if (phonePortrait) hintH = clamp(room - Math.min(tableW - 2 * pad, room - 72), 72, 150);
       var hintY = meBox.y - hintH - 6;
-      var bandTop = hintY;
+      var bandTop = hintH ? hintY : meBox.y;
       var gap = 6;
+
+      // A landscape phone: the table as wide as it is tall (a little wider
+      // if the screen allows), the coach's column beside it.
+      var historyW = 0;
+      if (desktop) historyW = W - pad - historyGap - tableW;
+      if (landscape) {
+        var boardH = bandTop - gap - topH;
+        tableW = clamp(Math.round(boardH * 1.25), 300, Math.round((W - pad) * 0.62));
+        historyW = W - pad - historyGap - tableW;
+      }
+      // Ponds and side seats go narrow on a phone's narrow table.
+      var portrait = !desktop && (tableW < 700 || tableW < (bandTop - topH) * 0.9);
 
       var sideW = portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
       var topPanelH = portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
@@ -740,11 +774,13 @@
       var narrow = portrait ? 1 : 0.68;
       center.x += center.w * (1 - narrow) / 2;
       center.w *= narrow;
+      // Desktop: the column runs the full height. Landscape phone: it stops
+      // above your section, which runs along the whole bottom.
       var history = historyW ? {
-        x: tableW + historyGap,
+        x: ox + tableW + historyGap,
         y: topH,
         w: historyW,
-        h: H - topH - pad,
+        h: (landscape ? bandTop - gap : H - pad) - topH,
       } : null;
       var zoneFrames = zones.map(function (z, k) { return makeFrame(z, k); });
       var maxDiscards = POND_COLS * POND_ROWS;
@@ -755,7 +791,8 @@
       zoneFrames.forEach(function (f) { pw = Math.min(pw, fitPondTile(f.w, f.h, maxDiscards)); });
       return {
         pad: pad, topH: topH, portrait: portrait, ox: ox, tableW: tableW, history: history,
-        tw: tw, th: th, handY: handY, mw: mw, meY: meY, meldRowH: meldRowH, meBox: meBox,
+        desktop: desktop, landscape: landscape, phonePortrait: phonePortrait, meX: meX, meW: meW,
+        tw: tw, th: th, handY: handY, handRows: handRows, mw: mw, meY: meY, meldRowH: meldRowH, meBox: meBox,
         actionsY: actionsY, actionsH: actionsH, actionsInRow: actionsInRow, hintY: hintY, hintH: hintH,
         opp: opp, oppFrames: oppFrames, pond: pond, inner: inner, zones: zones, zoneFrames: zoneFrames,
         center: center, pw: pw, maxDiscards: maxDiscards,
@@ -1667,7 +1704,9 @@
       return { tiles: order, drawnSeparate: !!showDrawn };
     }
 
-    // The hand is one row across the game area, which is the left two thirds on desktop.
+    // The hand is one row across your section (the left two thirds on
+    // desktop), or two rows on a portrait phone: the first half on top, the
+    // rest (and a fresh draw, set a little apart) below.
     function handSpan(count, tileW, drawnSeparate) {
       if (count <= 0) return 0;
       return count * tileW + (count - 1) * TILE_GAP + (drawnSeparate ? tileW * 0.4 : 0);
@@ -1675,9 +1714,30 @@
 
     function handLeft(count, drawnSeparate) {
       var total = handSpan(count, L.tw, drawnSeparate);
-      var span = L.tableW;
-      if (total >= span - 2 * L.pad) return L.ox + L.pad;
-      return L.ox + Math.max(L.pad, (span - total) / 2);
+      var span = L.meW;
+      if (total >= span - 2 * L.pad) return L.meX + L.pad;
+      return L.meX + Math.max(L.pad, (span - total) / 2);
+    }
+
+    // Where each of `count` hand tiles sits: [{ x, y }].
+    function handPositions(count, drawnSeparate) {
+      var step = L.tw + TILE_GAP;
+      var rows = L.handRows === 2 && count > 1 ? 2 : 1;
+      var per = Math.ceil(count / rows);
+      var out = [];
+      for (var r = 0; r < rows; r++) {
+        var start = r * per;
+        var n = Math.min(per, count - start);
+        var sep = drawnSeparate && start + n === count;
+        var left = handLeft(n, sep);
+        var y = L.handY - (rows - 1 - r) * (L.th + HAND_ROW_GAP);
+        for (var k = 0; k < n; k++) out.push({ x: left + k * step + (sep && k === n - 1 ? L.tw * 0.4 : 0), y: y });
+      }
+      return out;
+    }
+
+    function lerpPos(a, b, e) {
+      return { x: a.x + (b.x - a.x) * e, y: a.y + (b.y - a.y) * e };
     }
 
     function drawMe(t) {
@@ -1690,9 +1750,9 @@
       drawSeatBox(L.meBox, active, t);
 
       // Info + melds row.
-      var left = L.ox;
-      var rightEdge = L.ox + L.tableW;
-      var infoW = clamp(L.tableW * 0.3, 130, 240);
+      var left = L.meX;
+      var rightEdge = L.meX + L.meW;
+      var infoW = clamp(L.meW * 0.3, 130, 240);
       // Your name steps aside while action buttons need its spot.
       if (!ui.buttonsOverName) drawSeatHeader(0, rightEdge - pad - infoW - 4, y + 4, infoW);
       var items = meldItems(0);
@@ -1700,7 +1760,7 @@
       // Same size as the hand; only shrinks if the row would run out of room.
       var meldN = items.filter(function (it) { return !it.gap; }).length;
       var gapsN = items.length - meldN;
-      var rowW = L.tableW - 2 * pad - infoW - 18;
+      var rowW = L.meW - 2 * pad - infoW - 18;
       var tileN = meldN + s.flowers.length;
       var mw = Math.min(L.mw, (rowW - Math.max(0, tileN - 1) * TILE_GAP) / Math.max(1, tileN + gapsN * 0.35 + 0.6));
       var y0 = y + (L.mw - mw) * TILE_ASPECT;
@@ -1726,9 +1786,6 @@
       var count = tiles.length;
       if (ui.hide.drawn && order.drawnSeparate) count = Math.min(count, tiles.length - 1);
       var tw = L.tw;
-      var step = tw + TILE_GAP;
-      var total = handSpan(tiles.length, tw, order.drawnSeparate);
-      var x0 = handLeft(tiles.length, order.drawnSeparate);
       var hintTile = ui.coach === 'on' && ui.hint && ui.hint.tile;
       var hintUsed = false;
       ui.lastHandRects = [];
@@ -1736,10 +1793,8 @@
       // Where each tile belongs, and which tile was where: when the hand
       // re-sorts (a drawn tile merging in, tiles leaving for a claim) every
       // tile slides from its old place to its new one.
-      var targets = tiles.map(function (tid, k) {
-        return x0 + k * step + (order.drawnSeparate && k === tiles.length - 1 ? tw * 0.4 : 0);
-      });
-      var layoutKey = [tw, W, H].join(':');
+      var targets = handPositions(tiles.length, order.drawnSeparate);
+      var layoutKey = [tw, W, H, L.handRows].join(':');
       var sig = tiles.join(',') + '|' + (order.drawnSeparate ? 1 : 0);
       if (ui.handSig !== sig || ui.handLayout !== layoutKey) {
         var snap = ui.handLayout !== layoutKey; // a resize repositions without sliding
@@ -1749,17 +1804,17 @@
           var best = -1, bestD = Infinity;
           for (var q = 0; q < pool.length; q++) {
             if (pool[q] && pool[q].id === tid) {
-              var dd = Math.abs(pool[q].to - targets[k]);
+              var dd = Math.abs(pool[q].to.x - targets[k].x) + Math.abs(pool[q].to.y - targets[k].y);
               if (dd < bestD) { bestD = dd; best = q; }
             }
           }
           var from = targets[k];
           if (best >= 0 && !snap) {
             var o = pool[best];
-            from = o.from + (o.to - o.from) * ui.handSlide; // where it is right now
+            from = lerpPos(o.from, o.to, ui.handSlide); // where it is right now
           }
           if (best >= 0) pool[best] = null;
-          if (Math.abs(from - targets[k]) > 0.5) moved = true;
+          if (Math.abs(from.x - targets[k].x) + Math.abs(from.y - targets[k].y) > 0.5) moved = true;
           return { id: tid, from: from, to: targets[k] };
         });
         ui.handSig = sig;
@@ -1767,9 +1822,12 @@
         ui.handSlide = moved ? 0 : 1;
         if (moved) animate(HAND_SLIDE_MS, function (e) { ui.handSlide = e; }, easeInOut);
       }
-      if (active && !ui.overlay) {
+      if (active && !ui.overlay && targets.length) {
+        var bx0 = Infinity, bx1 = -Infinity;
+        targets.forEach(function (p) { bx0 = Math.min(bx0, p.x); bx1 = Math.max(bx1, p.x + tw); });
+        var by0 = targets[0].y;
         ctx.save();
-        roundRect(ctx, x0 - 6, L.handY - 8, total + 12, L.th + 16, 12);
+        roundRect(ctx, bx0 - 6, by0 - 8, bx1 - bx0 + 12, L.handY + L.th - by0 + 16, 12);
         ctx.fillStyle = 'rgba(244,160,32,0.14)';
         ctx.fill();
         ctx.restore();
@@ -1777,7 +1835,8 @@
       for (var i = 0; i < count; i++) {
         var id = tiles[i];
         var slot = ui.handSlots[i];
-        var x = slot.from + (slot.to - slot.from) * ui.handSlide;
+        var pos = lerpPos(slot.from, slot.to, ui.handSlide);
+        var x = pos.x;
         var lift = 0;
         if (i === ui.selected) lift = tw * 0.32;
         else if (hover === 'hand-' + i && ui.turnPrompt) lift = tw * 0.12;
@@ -1789,8 +1848,8 @@
         }
         var claimable = ui.claimPrompt && ui.claimPrompt.highlight && ui.claimPrompt.highlight.indexOf(id) !== -1;
         // Tiles a pung or chow would use get a red border.
-        drawTile(id, x, L.handY - lift, tw, { glow: glow || (claimable ? COLORS.red : null) });
-        var rect = { x: x, y: L.handY - lift, w: tw, h: L.th, id: id, index: i };
+        drawTile(id, x, pos.y - lift, tw, { glow: glow || (claimable ? COLORS.red : null) });
+        var rect = { x: x, y: pos.y - lift, w: tw, h: L.th, id: id, index: i };
         ui.lastHandRects.push(rect);
         if (ui.turnPrompt) {
           (function (idx) {
@@ -1929,6 +1988,8 @@
 
     // The note on the table is still current, so the panel lists only earlier ones.
     function pastCoachEntries() {
+      // Without the bar (a landscape phone), the column shows the live note too.
+      if (!L.hintH) return ui.coachLog;
       var live = coachPlain(ui.coach === 'on' ? ui.hint : ui.coach === 'feedback' ? ui.feedback : null);
       var entries = ui.coachLog;
       if (!live || !entries.length) return entries;
@@ -2077,15 +2138,15 @@
       var claimTile = ui.claimPrompt ? ui.claimPrompt.opts.tile : null;
       var ctw = claimTile ? Math.min(30, (L.actionsH - 4) / TILE_ASPECT) : 0;
       var lead = claimTile ? ctw + 10 : 0;
-      var x0 = L.ox + L.pad, x1 = L.ox + L.tableW - L.pad, rowY = L.actionsY;
+      var x0 = L.meX + L.pad, x1 = L.meX + L.meW - L.pad, rowY = L.actionsY;
       var free = ui.meRowFree;
       var cover = null;
       if (L.actionsInRow && free) {
         if (free.x1 - free.x0 - lead >= acts.length * (60 + gap)) { x0 = free.x0; x1 = free.x1; }
-        else if (L.ox + L.tableW - L.pad - free.x0 - lead >= acts.length * (60 + gap)) {
+        else if (L.meX + L.meW - L.pad - free.x0 - lead >= acts.length * (60 + gap)) {
           // Not enough room beside your name: use the rest of the row and
           // cover the name while the buttons are up.
-          x0 = free.x0; x1 = L.ox + L.tableW - L.pad;
+          x0 = free.x0; x1 = L.meX + L.meW - L.pad;
           cover = { x: free.x1, w: x1 - free.x1 };
         } else {
           // Still too many (lots of melds and chow choices): float them over the coach's bar.
@@ -2567,8 +2628,8 @@
       var bw = Math.min(132, icon.rowRight - ptsW - x);
       // A narrow row has no room on the icon's right, so sit just left of your name.
       if (bw < 96) {
-        var infoW = clamp(L.tableW * 0.3, 130, 240);
-        var nameX = L.ox + L.tableW - L.pad - infoW;
+        var infoW = clamp(L.meW * 0.3, 130, 240);
+        var nameX = L.meX + L.meW - L.pad - infoW;
         bw = Math.min(132, Math.max(96, nameX - L.pad - gap));
         x = nameX - gap - bw;
       }
@@ -2794,7 +2855,7 @@
 
     function seatAnchor(seat) {
       if (seat === 0) {
-        return { x: L.ox + L.tableW / 2 - L.tw / 2, y: L.handY, w: L.tw, rot: 0 };
+        return { x: L.meX + L.meW / 2 - L.tw / 2, y: L.handY, w: L.tw, rot: 0 };
       }
       var a = ui.backAnchor[seat];
       if (a) return a;
@@ -2866,7 +2927,7 @@
     }
 
     function seatBannerPos(seat) {
-      if (seat === 0) return { x: L.ox + L.tableW / 2, y: L.actionsY + L.actionsH / 2, rot: 0 };
+      if (seat === 0) return { x: L.meX + L.meW / 2, y: L.actionsY + L.actionsH / 2, rot: 0 };
       // Opponents' banners sit in the middle of their tiles and face them.
       var f = L.oppFrames[seat];
       var mid = toScreen(f, f.w / 2, f.h / 2);
@@ -2917,8 +2978,8 @@
         if (d.seat === 0) {
           ui.hide.drawn = true;
           var order = myHandOrder();
-          var x0 = handLeft(order.tiles.length, true);
-          var to = { x: x0 + (order.tiles.length - 1) * (L.tw + TILE_GAP) + L.tw * 0.4, y: L.handY, w: L.tw, rot: 0 };
+          var spot = handPositions(order.tiles.length, true)[order.tiles.length - 1] || { x: L.meX + L.meW / 2, y: L.handY };
+          var to = { x: spot.x, y: spot.y, w: L.tw, rot: 0 };
           return fly(d.tile, from, to, 300, { arc: 20 }).then(function () { ui.hide.drawn = false; requestRender(); });
         }
         ui.hide.backs[d.seat] = 1;
