@@ -562,6 +562,7 @@
     // Face-up tiles drawn this frame (screen boxes) and the mouse position,
     // for the tile-name tooltip.
     var tileSpots = [], tipsOn = true, mouse = null, tipTile = null;
+    var lastTouch = false; // the last press was a finger: no hover, so the selected tile gets the tip
 
     var ui = {
       coach: settings.coach || 'on', // 'on' (advice), 'feedback' (notes on your last move) or 'off'
@@ -991,7 +992,9 @@
         roundRect(ctx, x + 1, y + 2, w, h, w * 0.13);
         ctx.fill();
       }
-      if (id && !opts.back && tipsOn) recordSpot(id, x, y, w, h);
+      // A face-down tile has no tip, except your own (opts.peek: your
+      // concealed kong, whose tiles you know).
+      if (id && (!opts.back || opts.peek) && tipsOn) recordSpot(id, x, y, w, h);
       ctx.drawImage(sp, x, y, w, h);
       if (opts.glow) {
         ctx.strokeStyle = opts.glow;
@@ -1088,6 +1091,11 @@
 
     function drawTileTip() {
       var sp = spotAt(mouse);
+      // On a touch screen the tile you've selected (tapped once) gets the tip.
+      if (!sp && lastTouch && ui.selected >= 0 && ui.turnPrompt) {
+        var r = ui.lastHandRects[ui.selected];
+        if (r) sp = { id: r.id, x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h };
+      }
       tipTile = sp ? sp.id : null;
       if (!sp) return;
       var label = E.tileName(sp.id);
@@ -1671,7 +1679,7 @@
       items.forEach(function (it) {
         if (it.gap) { cx += tw * 0.35; return; }
         if (cx + drawn > x + w + 0.5) { cx = x; cy += th; }
-        drawTile(it.id, cx, cy, drawn, { back: it.back, shadow: false, glow: it.glow });
+        drawTile(it.id, cx, cy, drawn, { back: it.back, peek: it.peek, shadow: false, glow: it.glow });
         cx += drawn + TILE_GAP;
       });
       return { x: cx, y: cy, bottom: cy + th };
@@ -1684,7 +1692,10 @@
       melds.forEach(function (m, i) {
         if (i >= melds.length - hidden) return;
         if (items.length) items.push({ gap: true });
-        meldTiles(m, ui.revealHands).forEach(function (x) { items.push(x); });
+        meldTiles(m, ui.revealHands).forEach(function (x) {
+          if (seat === 0) x.peek = true; // your concealed kong still shows its tip
+          items.push(x);
+        });
       });
       return items;
     }
@@ -3088,6 +3099,7 @@
     }
 
     function onPointerDown(e) {
+      lastTouch = !!e.pointerType && e.pointerType !== 'mouse';
       var p = pointerPos(e);
       if (historyAt(p)) {
         if (ui.coachScrollMax > 0) {
