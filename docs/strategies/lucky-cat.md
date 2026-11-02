@@ -26,6 +26,8 @@ At its first decision of the hand, lucky-cat reads the opening tiles and picks a
 
 "Different" in row 1 means kinds, not copies: Thirteen Orphans needs one of each, so a pair of East Winds counts once there. A pair still counts toward the hand's one pair. In row 8, pairs alone don't count: the hand needs a set already.
 
+A flush target (Full Flush, Half Flush or Nine Gates) is never set in the suit the player on your left is collecting when another of your suits is about even with it (six or more, within a tile). The next target that fits is taken instead, and a held flush target in that suit gives way once their discards show it. When two suits are within a tile, the one they're throwing is the main suit. See [the shared rules](README.md#adding-a-strategy).
+
 ### Changing target
 
 Each turn the current hand is read again with the same table:

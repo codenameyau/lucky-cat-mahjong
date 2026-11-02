@@ -28,6 +28,8 @@ The hands, in the order they come up:
 - **Concealed Straights.** A concealed hand of runs, with no honors and no claims (not while the hand holds a set of honors, which can't be thrown away). While it's the hand in the lead, every honor goes first. The concealed faan plus All Sequences is most of the way to 3, and flowers make up the rest. A pung of a dragon, or of your own wind, or of the round wind, is still taken. Any other claim is passed.
 - **Half flush.** One suit plus honors, once that suit (with honors, counting sets already made) makes up most of the hand and no meld is in another suit. Worth 3 faan on top of whatever the honors add.
 - **Full flush.** One suit only, once that suit already makes up most of the hand and there is no honor meld. Worth 7 faan.
+
+**Watch the player before you.** The player on your left is the only one whose discards you can chow. After six discards, a suit they've barely thrown (or the one suit their melds are in) is the one they're collecting, and the suit they've thrown most is the one they're feeding. When the suit they're collecting is about even with another of yours (six or more, within a tile), the hand stays out of theirs and builds the other flush instead, from six tiles: they won't throw what you'd need, and they'd claim it first. Between two close suits otherwise, the one they're feeding wins. The coach says so ("Kwan is collecting Bamboo, so stay out of it").
 - **All Triplets.** Sets and pairs, no chows, once the hand already has several of them.
 - **Concealed Triplets.** No melds yet, and at least two pungs already in hand.
 - **Seven Pairs.** See below. Worth 4 faan, plus a flush when the pairs are all one suit (3 with honors, 7 without). The hand must stay concealed.

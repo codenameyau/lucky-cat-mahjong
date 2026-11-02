@@ -251,6 +251,18 @@
     return shanten === 1 ? '1 tile from ready' : shanten + ' tiles from ready';
   }
 
+  // Why a flush is in this suit, when the player before you decided it:
+  // they're collecting another suit you nearly chose, or throwing this one.
+  function leftNote(v, suit) {
+    var read = v.ctx.leftRead;
+    if (!read) return '';
+    var who = v.game.players[read.seat].name;
+    var avoid = B.avoidSuit(E.countsOf(v.game.hand.seats[v.seat].hand), v.ctx);
+    if (avoid && avoid !== suit) return '. ' + who + ' is collecting ' + SUIT_NAME[avoid] + ', so stay out of it';
+    if (read.feeds === suit) return '. ' + who + ' is throwing ' + SUIT_NAME[suit] + ', so you can chow them';
+    return '';
+  }
+
   function targetText(v, plan, c, nextOut) {
     var r = plan.route;
     if (r.id === 'straights') {
@@ -263,8 +275,8 @@
       return 'Concealed Straights' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' + keepPair +
         (honors ? (eyes !== null ? ', and throw your other honors first' : '. Throw your honors first') : '');
     }
-    if (r.id === 'half') return 'Half Flush in ' + SUIT_NAME[r.suit];
-    if (r.id === 'full') return 'Full Flush in ' + SUIT_NAME[r.suit];
+    if (r.id === 'half') return 'Half Flush in ' + SUIT_NAME[r.suit] + leftNote(v, r.suit);
+    if (r.id === 'full') return 'Full Flush in ' + SUIT_NAME[r.suit] + leftNote(v, r.suit);
     if (r.id === 'triplets') return 'All Triplets. Pung your pairs';
     if (r.id === 'concealed-triplets') return 'Concealed Triplets. Don\'t claim';
     if (r.id === 'pairs') return 'Seven Pairs. Don\'t claim';
