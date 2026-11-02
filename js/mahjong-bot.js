@@ -51,8 +51,8 @@
 
    A strategy is createStrategy(def): `def.hooks` adds its own plans,
    discard order, claims and reads, and `def.tuning` its own knobs (section
-   9). jorge-yau (js/mahjong-jorge-yau.js) and lucky-cat
-   (js/mahjong-lucky-cat.js) are built this way. The coach in
+   9). lucky-cat (js/mahjong-lucky-cat.js) and jorge-yau
+   (js/mahjong-jorge-yau.js) are built this way. The coach in
    js/mahjong-coach.js says a strategy's decision in words. See
    docs/strategies/. */
 
@@ -228,7 +228,7 @@
   //   defenseScale: how much more than that to weigh deal-in risk.
   //   lateFold: extra weight on safety once the wall is under lateFoldWall
   //     tiles and the hand is still 2 or more tiles from ready (unlikely to win).
-  // Chosen by simulation for the most points per hand (see docs/strategies/jorge-yau.md).
+  // Chosen by simulation for the most points per hand (see docs/strategies/lucky-cat.md).
   //   tripletsLive: on All Triplets, throw the tile with fewest copies left.
   //   chowSuitLate: near the end, how much more dangerous each chow an
   //     opponent has in a suit makes that suit's tiles.
