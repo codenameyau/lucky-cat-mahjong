@@ -3742,23 +3742,36 @@
         if (p && p.catch) p.catch(function () { autoFullscreen = false; });
       } catch (e) {}
     }
-    // Sideways, also ask the browser to hide its toolbar: the page gets a
-    // pixel of room (.is-sideways) and is scrolled by it, which mobile
-    // browsers answer by tucking the address bar away. No tap needed.
+    // Sideways, also ask the browser to hide its toolbar: the page gets
+    // room to scroll (.is-sideways: a pixel past the full screen height)
+    // and is scrolled to the bottom of it, which mobile browsers answer by
+    // tucking the address bar away so the game fills the screen. No tap
+    // needed.
     // (Instantly: the site scrolls smoothly, and a smooth scroll can be
-    // dropped while the page is still settling.)
-    function nudgeScroll() {
-      try { root.scrollTo({ top: 1, left: 0, behavior: 'instant' }); } catch (e) { root.scrollTo(0, 1); }
+    // dropped while the page is still settling.) Back to the top first, so
+    // the scroll down always happens even if the page was already there.
+    function scrollToY(y) {
+      try { root.scrollTo({ top: y, left: 0, behavior: 'instant' }); } catch (e) { root.scrollTo(0, y); }
     }
+    function nudgeScroll() {
+      if (stage.hidden || !phoneSideways()) return;
+      var de = document.documentElement;
+      var max = Math.max(1, de.scrollHeight - root.innerHeight);
+      scrollToY(0);
+      setTimeout(function () { scrollToY(max); }, 20);
+    }
+    // Repeats as a rotation settles (phones resize in steps as the toolbar moves).
     function hideToolbar() {
       var sideways = !stage.hidden && phoneSideways();
       document.documentElement.classList.toggle('is-sideways', sideways);
       if (!sideways) return;
-      setTimeout(nudgeScroll, 60);
-      setTimeout(nudgeScroll, 400); // after the rotation settles
+      [60, 300, 700, 1200].forEach(function (ms) { setTimeout(nudgeScroll, ms); });
     }
     document.addEventListener('pointerup', function () { if (!stage.hidden && phoneSideways()) nudgeScroll(); }, true);
     root.addEventListener('orientationchange', hideToolbar);
+    if (root.screen && root.screen.orientation && root.screen.orientation.addEventListener) {
+      root.screen.orientation.addEventListener('change', hideToolbar);
+    }
     document.addEventListener('pointerup', enterFullscreenOnTap, true);
     function onFullscreenChange() {
       if (!fullscreenElement() && autoFullscreen) {
