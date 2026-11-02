@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.6.0';
+  var GAME_VERSION = '0.7.3';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -257,7 +257,11 @@
    * 3. Game + hand state
    * ------------------------------------------------------------------ */
 
-  var BOT_NAMES = ['Mei', 'Kwan', 'Lulu', 'Wing', 'Rosa', 'Tak', 'Bo', 'Ming', 'Grace', 'Hugo', 'Pearl', 'Jade'];
+  // Bot names: twelve, the first seven players who have won an
+  // invitational tournament. Three sit at the table; the rest take over
+  // busted seats. (Keep it at twelve: the shuffle draws from the game's
+  // generator, so seeded games deal the same walls.)
+  var BOT_NAMES = ['Vivien', 'Jackie', 'Jon', 'Donald', 'Katie', 'Kristie', 'Thomas', 'Mei', 'Kwan', 'Lulu', 'Wing', 'Rosa'];
 
   function createGame(options) {
     options = options || {};

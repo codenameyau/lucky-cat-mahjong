@@ -17,6 +17,9 @@
   // { seats: { 1: id, 2: id, 3: id }, coach: id }. A bot seat with nothing
   // saved gets a random strategy each game.
   var STRATEGIES_KEY = 'lcm-play-strategies';
+  // The game in progress, kept as you play in the same signed form as a save
+  // file, so a refresh picks it up (cleared by Quit game).
+  var AUTOSAVE_KEY = 'lcm-play-autosave';
   var SEAT_SIDES = ['', 'on your right', 'across', 'on your left'];
   var TILE_ASPECT = 1.4;
   var TILE_GAP = 4;
@@ -81,6 +84,10 @@
   }
   function writeJson(key, value) {
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+  }
+
+  function removeJson(key) {
+    try { localStorage.removeItem(key); } catch (e) {}
   }
 
   // Strategies saved under an older id.
@@ -454,7 +461,11 @@
       if (p && p.catch) p.catch(function () {});
     };
 
+    // For good: the table is closing.
     api.stopMusic = function () {
+      if (root.document) {
+        UNLOCK_EVENTS.forEach(function (type) { root.document.removeEventListener(type, unlock, true); });
+      }
       api.music(false);
       if (music.el) { music.el.removeAttribute('src'); music.el.load(); }
       music.el = null;
@@ -469,6 +480,21 @@
       clip(a, cue.clips[Math.floor(Math.random() * cue.clips.length)], t, cue.gain, cue.vary);
       (cue.then || []).forEach(function (x) { clip(a, x[0], t + x[1], x[2], cue.vary, x[3]); });
     };
+
+    // Browsers only start audio after a tap or key press, so music started
+    // without one (the game resuming after a refresh) is silent. The first
+    // tap or key then wakes the audio and plays a random song, if music
+    // should be playing and isn't.
+    function unlock() {
+      if (ac && ac.state === 'suspended') ac.resume();
+      if (!music.on || !api.enabled || !api.musicEnabled) return;
+      if (music.el && !music.el.paused) return;
+      playTrack(nextTrack());
+    }
+    var UNLOCK_EVENTS = ['pointerdown', 'keydown', 'touchend'];
+    if (root.document) {
+      UNLOCK_EVENTS.forEach(function (type) { root.document.addEventListener(type, unlock, true); });
+    }
 
     if (enabled) fetchAll();
     return api;
@@ -1495,16 +1521,10 @@
       text(WIND_LETTERS[wind], x, y + 1, { size: Math.round(r * 1.05), family: FONT_HEAD, align: 'center', color: isDealer ? COLORS.white : COLORS.ink });
     }
 
-    // Bots carry their strategy's name: "Mei · Lucky Cat". Narrow seats put
-    // it on a line of its own (strategyName), so the title is the name alone.
-    function seatTitle(seat, nameOnly) {
-      var p = game.players[seat];
-      if (p.isHuman || nameOnly) return p.name;
-      return p.name + ' · ' + strategyName(seat);
-    }
-
-    function strategyName(seat) {
-      return Strategies.get(ui.strategies.seats[seat]).name;
+    // A seat shows the player's name only; which strategy each bot plays is
+    // on the Strategies sheet.
+    function seatTitle(seat) {
+      return game.players[seat].name;
     }
 
     // A small robot (computer players) or person (human players) icon, drawn
@@ -1654,14 +1674,11 @@
       var rad = 8;
       var by = r.y + 4 + top + rad;
       windBadge(seat, r.x + 4 + rad, by, rad);
-      var name = seatTitle(seat, true);
+      var name = seatTitle(seat);
       var size = fitFont(ctx, name, r.w - 2 * rad - 12 - 13 - ICON_GAP, 12, FONT_BODY, 'bold');
       text(name, r.x + 2 * rad + 8, by + 1, { size: size, weight: 'bold', color: COLORS.cream });
       ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
       playerIcon(seat, r.x + 2 * rad + 8 + ctx.measureText(name).width + ICON_GAP, by, 13);
-      var strat = strategyName(seat);
-      var ss = fitFont(ctx, strat, r.w - 8, 10, FONT_BODY, 'bold');
-      text(strat, r.x + 4, by + rad + 7, { size: ss, weight: 'bold', color: COLORS.goldLight });
       if (pts) text(pts, r.x + r.w / 2, r.y + r.h - 7, { size: 11, weight: 'bold', align: 'center', color: COLORS.goldLight });
     }
 
@@ -2728,6 +2745,21 @@
       };
     }
 
+    // Keeps the game in local storage as it goes (AUTOSAVE_KEY): after the
+    // events of each move, at the start of each hand and between hands.
+    // Not while a loaded hand is being played again.
+    var autosaveTimer = null;
+    function autosave() {
+      if (!game || ui.replaying || destroyed) return;
+      clearTimeout(autosaveTimer);
+      autosaveTimer = setTimeout(function () {
+        if (!game || ui.replaying || destroyed) return;
+        E.makeSave(savePayload()).then(function (data) {
+          if (!destroyed) writeJson(AUTOSAVE_KEY, data);
+        }, function () {});
+      }, 250);
+    }
+
     function pad2(n) { return (n < 10 ? '0' : '') + n; }
 
     // play-lucky-cat-mahjong-20261102-143005.json (local time)
@@ -3337,6 +3369,7 @@
         var h = handlers[name];
         var out = h ? h(data) : null;
         requestRender();
+        autosave();
         return out || Promise.resolve();
       },
     };
@@ -3490,6 +3523,7 @@
         requestRender();
         return;
       }
+      autosave();
       while (!destroyed) {
         var res = await E.runHand(game, agents, uiBridge, replay);
         replay = null;
@@ -3508,6 +3542,7 @@
           }
         }
         if (res.roundAdvanced && !extra) extra = 'The round wind is now ' + E.WIND_NAMES[game.round] + '.';
+        autosave(); // between hands: a refresh deals the next one
         await showOverlay({ type: 'summary', result: res, extra: extra });
         if (game.over) {
           track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins });
@@ -3642,9 +3677,11 @@
       root.__lcmTable = table;
     }
 
+    // Quitting ends the game, so a refresh starts at the menu again.
     function close() {
       if (table) table.destroy();
       table = null;
+      removeJson(AUTOSAVE_KEY);
       stage.hidden = true;
       document.documentElement.classList.remove('is-playing');
       var start = document.getElementById('play-start');
@@ -3687,6 +3724,19 @@
       if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
       open(settings);
     });
+
+    // A game left running (refreshed, or the tab closed) picks up where it
+    // was, if its autosave still checks out.
+    var autosaved = readJson(AUTOSAVE_KEY, null);
+    if (autosaved && E.checkSave) {
+      E.checkSave(autosaved).then(function (check) {
+        if (!check.ok) { removeJson(AUTOSAVE_KEY); return; }
+        if (table) return; // a game was started meanwhile
+        var settings = readForm(form, readJson(SETTINGS_KEY, {}));
+        if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
+        open(Object.assign(settings, { mode: autosaved.payload.game.settings.mode }), autosaved);
+      }, function () {});
+    }
   }
 
   var api = { createTable: createTable, init: init };
