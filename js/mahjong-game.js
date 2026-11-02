@@ -255,7 +255,9 @@
   // re-encoded to 96 kbps AAC in /assets/music/. The credit is on the play
   // page and in /assets/music/README.md.
   var MUSIC_DIR = '/assets/music/';
-  var MUSIC_VOLUME = 0.22;
+  // Quiet under the effects. Applied through Web Audio (see playTrack):
+  // iPhones ignore an audio element's own volume and play it at full.
+  var MUSIC_VOLUME = 0.18;
   var MUSIC = [
     { file: 'guzheng-city.m4a', title: 'Guzheng City' },
     { file: 'shenyang.m4a', title: 'Shenyang' },
@@ -315,6 +317,9 @@
       if (!ac) {
         var AC = root.AudioContext || root.webkitAudioContext;
         if (!AC) return null;
+        // iOS mutes Web Audio when the ring/silent switch is on, but not
+        // media; 'playback' lets the effects play like the music does.
+        try { if (root.navigator && root.navigator.audioSession) root.navigator.audioSession.type = 'playback'; } catch (e) {}
         ac = new AC();
         out = ac.createGain();
         out.gain.value = 0.9;
@@ -360,7 +365,17 @@
       if (!music.el) {
         if (!root.Audio) return;
         music.el = new root.Audio();
-        music.el.volume = MUSIC_VOLUME;
+        // Route the music through Web Audio so its volume holds on phones
+        // (iOS ignores the element's volume); fall back to that volume.
+        var a = ctx();
+        if (a && a.createMediaElementSource) {
+          var g = a.createGain();
+          g.gain.value = MUSIC_VOLUME;
+          a.createMediaElementSource(music.el).connect(g);
+          g.connect(a.destination);
+        } else {
+          music.el.volume = MUSIC_VOLUME;
+        }
         music.el.addEventListener('ended', function () { playTrack(nextTrack()); });
         // A track that can't load is skipped.
         music.el.addEventListener('error', function () { if (music.on) playTrack(nextTrack()); });
