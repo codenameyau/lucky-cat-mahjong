@@ -1502,16 +1502,10 @@
       text(WIND_LETTERS[wind], x, y + 1, { size: Math.round(r * 1.05), family: FONT_HEAD, align: 'center', color: isDealer ? COLORS.white : COLORS.ink });
     }
 
-    // Bots carry their strategy's name: "Mei · Lucky Cat". Narrow seats put
-    // it on a line of its own (strategyName), so the title is the name alone.
-    function seatTitle(seat, nameOnly) {
-      var p = game.players[seat];
-      if (p.isHuman || nameOnly) return p.name;
-      return p.name + ' · ' + strategyName(seat);
-    }
-
-    function strategyName(seat) {
-      return Strategies.get(ui.strategies.seats[seat]).name;
+    // A seat shows the player's name only; which strategy each bot plays is
+    // on the Strategies sheet.
+    function seatTitle(seat) {
+      return game.players[seat].name;
     }
 
     // A small robot (computer players) or person (human players) icon, drawn
@@ -1661,14 +1655,11 @@
       var rad = 8;
       var by = r.y + 4 + top + rad;
       windBadge(seat, r.x + 4 + rad, by, rad);
-      var name = seatTitle(seat, true);
+      var name = seatTitle(seat);
       var size = fitFont(ctx, name, r.w - 2 * rad - 12 - 13 - ICON_GAP, 12, FONT_BODY, 'bold');
       text(name, r.x + 2 * rad + 8, by + 1, { size: size, weight: 'bold', color: COLORS.cream });
       ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
       playerIcon(seat, r.x + 2 * rad + 8 + ctx.measureText(name).width + ICON_GAP, by, 13);
-      var strat = strategyName(seat);
-      var ss = fitFont(ctx, strat, r.w - 8, 10, FONT_BODY, 'bold');
-      text(strat, r.x + 4, by + rad + 7, { size: ss, weight: 'bold', color: COLORS.goldLight });
       if (pts) text(pts, r.x + r.w / 2, r.y + r.h - 7, { size: 11, weight: 'bold', align: 'center', color: COLORS.goldLight });
     }
 
