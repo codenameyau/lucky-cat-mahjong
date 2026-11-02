@@ -40,6 +40,8 @@ describe('strategy registry', () => {
     assert.equal(S.DEFAULT_COACH, 'jorge-yau');
     assert.equal(S.get('jorge-yau').bot, B);
     assert.equal(S.get('lucky-cat').bot, L);
+    assert.equal(S.get('jorge-yau').bot.id, 'jorge-yau');
+    assert.equal(S.get('lucky-cat').bot.id, 'lucky-cat');
     S.list().forEach((s) => {
       assert.ok(s.name && s.summary && s.details.length, s.id + ' has words for the sheet');
     });

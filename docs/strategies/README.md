@@ -4,6 +4,7 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 
 | Strategy | File | Playbook |
 | --- | --- | --- |
+| (shared foundation) | `js/mahjong-bot.js` | the rules below |
 | `lucky-cat` | `js/mahjong-lucky-cat.js` | [lucky-cat.md](lucky-cat.md) |
 | `jorge-yau` | `js/mahjong-jorge-yau.js` | [jorge-yau.md](jorge-yau.md) |
 
@@ -17,27 +18,36 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 
 ## Adding a strategy
 
-All strategies share the engine in `js/mahjong-jorge-yau.js`: shanten, live tiles, the exact score of every wait, the threat model and the claim options. A strategy changes how that engine decides through hooks:
+All strategies are built on the shared foundation in `js/mahjong-bot.js` (`MahjongBot`): shanten, live tiles, the exact score of every wait, the threat model, the claim options, and the principles every bot follows:
+
+- **One suit.** After a chow, keep that suit and the honors: every tile of another suit goes first, even while folding. With 7 or more tiles of one suit (sets count, and more than any other suit), the other suits go first the same way. Hands that need their tiles from every suit or a fixed shape (Seven Pairs, Thirteen Orphans, Nine Gates, All Terminals, All Honors, Four Winds) keep their own order.
+- **Concealed Straights throws honors first**, ahead of any number tile, while it's the hand in the lead (while folding, safety decides).
+- **Keep pairs and unseen dragons**, and throw a tile someone has punged when the hand doesn't need it. Keeping them never costs a step toward ready.
+- **Claims.** Seven Pairs, Thirteen Orphans, Nine Gates and Concealed Straights claim nothing (Concealed Straights still pungs a dragon or scoring wind). A dragon or scoring wind is always punged otherwise, unless that breaks a ready hand. A chow must get the hand closer to ready and still be able to reach 3 faan.
+
+These come before a strategy's own choices. A strategy adds to that foundation through hooks:
 
 ```js
 var bot = MahjongBot.createStrategy({
   id: 'my-cat',
   hooks: {
     context: function (ctx, game, seat) { /* add your own reads to ctx */ },
-    plans: function (c, ctx) { /* the hands to aim for; MahjongBot.basePlans(c, ctx) is jorge-yau's list */ },
-    priority: function (game, ctx, counts, candidate, bestShanten) { /* discard group, lower first; null = jorge-yau's */ },
-    claim: function (found, ctx, game, seat, opts) { /* { type: 'pass' | 'pung' | 'kong' | 'chow', ... }; null = jorge-yau's */ },
+    hand: function (ctx, counts) { /* read the 14-tile hand before its discards are weighed */ },
+    plans: function (c, ctx) { /* the hands to aim for; MahjongBot.basePlans(c, ctx) is the usual list */ },
+    priority: function (game, ctx, counts, candidate, bestShanten) { /* discard group after the shared rules, lower first; null = the shared order */ },
+    chowOk: function (option, found, ctx, game) { /* whether a chow the shared rule allows is worth it */ },
+    claim: function (found, ctx, game, seat, opts) { /* { type: 'pass' | 'pung' | 'kong' | 'chow', ... }; null = the shared claims */ },
     // also: readyValue, threats, waitChance, extraLoss, defense
   },
   tuning: { defenseScale: 1.5 },
 });
 ```
 
-Every hook is optional, and a strategy with none plays exactly like jorge-yau. The hooks are listed in section 9 of `js/mahjong-jorge-yau.js`. Each strategy keeps its own copy of the tuning knobs (`bot.setTuning`), so changing one never changes another.
+Every hook is optional. A strategy with none plays the shared foundation alone: the usual hands (standard, Concealed Straights, the flushes, All Triplets), no Seven Pairs, Thirteen Orphans or Nine Gates, and any chow the shared rule allows. jorge-yau (`js/mahjong-jorge-yau.js`) is a short example: it adds the special hands and its chow timing. The hooks are listed in section 9 of `js/mahjong-bot.js`. Each strategy keeps its own copy of the tuning knobs (`bot.setTuning`), so changing one never changes another.
 
 Then:
 
-1. Load its script in `play-mahjong/index.html` after `mahjong-jorge-yau.js` and before `mahjong-strategies.js`.
+1. Load its script in `play-mahjong/index.html` after `mahjong-bot.js` and before `mahjong-strategies.js`.
 2. Add an entry to `STRATEGIES` in `js/mahjong-strategies.js` with its `id`, `name`, `bot`, a one-line `summary` and a few `details` paragraphs for the Strategies sheet.
 3. Write its playbook here.
 4. Play it against the others (below).

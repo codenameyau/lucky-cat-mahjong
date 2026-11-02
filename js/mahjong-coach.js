@@ -13,7 +13,7 @@
 
   var node = typeof module !== 'undefined' && module.exports;
   var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var DEFAULT_BOT = node ? require('./mahjong-jorge-yau.js') : root.MahjongBot;
+  var DEFAULT_BOT = node ? require('./mahjong-jorge-yau.js') : root.MahjongJorgeYau;
   var B = DEFAULT_BOT;
 
   var SUIT_NAME = { c: 'Characters', d: 'Circles', b: 'Bamboo' };
@@ -43,20 +43,6 @@
   /* ------------------------------------------------------------------ *
    * 2. Routes to 3 faan (for a hand waiting to draw)
    * ------------------------------------------------------------------ */
-
-  // Dragons and own/round winds held alone that can still pair up.
-  function liveValueSingles(v, c) {
-    var out = [];
-    for (var i = 27; i < 34; i++) {
-      if (c[i] === 1 && honorWorth(v, i) && B.revealedCopies(v.game, i) <= 1) out.push(i);
-    }
-    return out;
-  }
-
-  function listNames(ids) {
-    var names = ids.map(name);
-    return names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
-  }
 
   // The bot's plan, in the names the sentences below already use.
   function routeOf(plan) {
@@ -258,9 +244,11 @@
   function targetText(v, plan, c, nextOut) {
     var r = plan.route;
     if (r.id === 'straights') {
-      var keep = liveValueSingles(v, c).filter(function (i) { return i !== nextOut; });
+      // Every bot throws honors first on this hand (MahjongBot's shared rule).
+      var honors = 0;
+      for (var h = 27; h < 34; h++) if (h !== nextOut) honors += c[h] || 0;
       return 'Concealed Straights' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' +
-        (keep.length ? '. Keep the ' + listNames(keep) + ' in case ' + (keep.length > 1 ? 'one pairs' : 'it pairs') : '');
+        (honors ? '. Throw your honors first' : '');
     }
     if (r.id === 'half') return 'Half Flush in ' + SUIT_NAME[r.suit];
     if (r.id === 'full') return 'Full Flush in ' + SUIT_NAME[r.suit];

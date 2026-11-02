@@ -48,10 +48,10 @@ describe('coach: discards', () => {
     assert.ok(['c4', 'c7'].includes(hint.tile), 'discarded ' + hint.tile);
   });
 
-  it('holds an unrevealed dragon when another tile also leaves the hand ready', () => {
+  it('on Concealed Straights, drops a dragon even when another tile also leaves the hand ready', () => {
     const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'b2', 'dr'];
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
-    assert.equal(hint.tile, 'b2');
+    assert.equal(hint.tile, 'dr');
   });
 
   it('drops a punged tile first when the hand does not need it', () => {
@@ -98,10 +98,11 @@ describe('coach: discards', () => {
     assert.doesNotMatch(text(hint), /Seven Pairs/);
   });
 
-  it('keeps a live dragon early and throws a lone terminal instead', () => {
+  it('on Concealed Straights, throws a live dragon before a lone terminal', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
-    assert.equal(hint.tile, 'c9');
-    assert.equal(hint.action, 'Discard Nine Character.');
+    assert.equal(hint.tile, 'dr');
+    assert.equal(hint.action, 'Discard Red Dragon.');
+    assert.match(text(hint), /Honors break All Sequences\./);
   });
 
   it('lets the dragon go once two are already out', () => {
@@ -224,17 +225,17 @@ describe('coach: feedback on your last move', () => {
 
   it('praises the coach\'s top discard and says why', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
-    const fb = C.discardFeedback(hint, 'c9');
+    const fb = C.discardFeedback(hint, 'dr');
     assert.equal(fb.action, 'Great discard.');
-    assert.match(fb.tips[0], /^Nine Character was the top choice\. /);
+    assert.match(fb.tips[0], /^Red Dragon was the top choice\. /);
   });
 
   it('says a discard slowed the hand and compares it with the coach\'s pick', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
     const fb = C.discardFeedback(hint, 'd5');
     assert.equal(fb.action, 'That discard slows your hand.');
-    assert.match(fb.tips.join(' '), /The coach picks Nine Character\./);
-    assert.match(fb.tips.join(' '), /Five Circle leaves you 2 tiles from ready, 1 more than Nine Character/);
+    assert.match(fb.tips.join(' '), /The coach picks Red Dragon\./);
+    assert.match(fb.tips.join(' '), /Five Circle leaves you 2 tiles from ready, 1 more than Red Dragon/);
   });
 
   it('returns nothing without a usable hint', () => {

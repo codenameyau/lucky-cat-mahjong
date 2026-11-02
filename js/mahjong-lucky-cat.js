@@ -1,8 +1,9 @@
 /* The "lucky-cat" bot strategy.
 
-   It plays on the same machinery as jorge-yau (js/mahjong-jorge-yau.js: shanten,
-   live tiles, exact scoring of ready hands, the threat model), but picks
-   its hand differently and plays it differently:
+   It plays the shared foundation in js/mahjong-bot.js (shanten, live
+   tiles, exact scoring of ready hands, the threat model, and the one-suit
+   rules every bot follows), but picks its hand differently and plays it
+   differently:
      - Target. From the opening hand it picks one hand to aim for, in a fixed
        order (TARGETS below): Thirteen Orphans, Nine Gates, Four Winds, All
        Terminals, honors, Seven Pairs, Full Flush, All Triplets, Half Flush,
@@ -29,7 +30,7 @@
 
   var node = typeof module !== 'undefined' && module.exports;
   var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var B = node ? require('./mahjong-jorge-yau.js') : root.MahjongBot;
+  var B = node ? require('./mahjong-bot.js') : root.MahjongBot;
   var F = E.HKScoring.FAAN;
 
   var SUITS = ['c', 'd', 'b'];
@@ -353,7 +354,7 @@
   // plain hand, weighed lightly, so the hand can always be finished.
   function plans(c, ctx) {
     var t = ctx.target || { id: 'standard' };
-    // After a chow only that suit's flush is left: jorge-yau's plans already say so.
+    // After a chow only that suit's flush is left: the usual plans already say so.
     if (B.chowCommitment(ctx)) return B.basePlans(c, ctx);
     var def = TARGET_BY_ID[t.id];
     var W = ctx.fast && !def.hard ? 1 : K.targetWeight;
@@ -460,22 +461,21 @@
     return (FAMILY[t.id] || []).indexOf(id) !== -1;
   }
 
-  // Lower goes first: 0 other suits after a chow (even while folding), -1
-  // off-target tiles for a hard target, 1 off-target for a softer target and tiles someone
-  // punged, 2 ordinary tiles, 3 pairs, 4-6 live honors and sets the target
-  // keeps. Unlikely to win late, the order only breaks ties (safety decides).
+  // Lower goes first, after the shared one-suit rules (MahjongBot's group
+  // 0): -1 off-target tiles for a hard target, 1 off-target for a softer
+  // target and tiles someone punged, 2 ordinary tiles, 3 pairs, 4-6 live
+  // honors and sets the target keeps. Unlikely to win late, the order only
+  // breaks ties (safety decides).
   function priority(game, ctx, counts, cand, bestShanten) {
     if (!K.ownDiscards) return null;
     var i = cand.index;
     var t = ctx.target || { id: 'standard' };
     var def = TARGET_BY_ID[t.id];
-    var committed = B.chowCommitment(ctx);
-    if (committed && i < 27 && suitOf(i) !== committed) return 0;
     var givingUp = ctx.wallLeft < K.giveUpWall && bestShanten >= 2;
     var pair = counts[i] === 2;
     if (givingUp) return pair ? 3 : 2;
     // A softer target sets the order only while its plan is the one ahead;
-    // otherwise the hand has pivoted, and jorge-yau's order applies.
+    // otherwise the hand has pivoted, and the shared order applies.
     if (!def.hard && !leading(t, cand)) return null;
     var keep = keepFor(t);
     if (keep && !keep(i)) return def.hard ? -1 : 1;
@@ -618,14 +618,9 @@
   }
 
   function chowOk(o, res, ctx, game, c, tileSuit) {
-    var an = o.analysis;
-    if (!an) return false;
-    var after = an.shanten, before = res.stay.shanten;
-    if (after >= before) return false;
-    var min = game.settings.minFaan;
-    if (after === 0) return !!(an.ready && an.ready.bestFaan >= min);
-    var p = an.best && an.best.plan;
-    if (!p || p.faan < min - 0.25) return false;
+    if (!B.chowAllowed(o, res, game)) return false;
+    var after = o.analysis.shanten;
+    if (after === 0) return true;
     var t = ctx.target || {};
     // Never chow into a suit the hand barely holds.
     var held = suitHeld(ctx, c, tileSuit) + 1;

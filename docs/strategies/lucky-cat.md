@@ -2,7 +2,7 @@
 
 This is the playbook for the **lucky-cat** strategy (`js/mahjong-lucky-cat.js`). Any bot seat can play it, and the coach can follow it (pick it in the Strategies sheet).
 
-lucky-cat runs on the same engine as [jorge-yau](jorge-yau.md). It counts tiles from ready and live tiles the same way, scores every wait of a ready hand exactly, and reads opponents' threat levels the same way. What changes is how it picks a hand, the order it throws tiles, when it claims, when it gives up, and how it reads the other players.
+lucky-cat runs on the same shared foundation as [jorge-yau](jorge-yau.md) (`js/mahjong-bot.js`). It counts tiles from ready and live tiles the same way, scores every wait of a ready hand exactly, and reads opponents' threat levels the same way. What changes is how it picks a hand, the order it throws tiles, when it claims, when it gives up, and how it reads the other players.
 
 Like every bot, it only uses what its seat can see: its own hand and flowers, every open meld, the discards, and how many tiles are left in the wall.
 
@@ -38,7 +38,7 @@ Each turn the current hand is read again with the same table:
   - All Terminals and All Honors after a chow.
   - Full and Half Flush once a set of another suit is open.
   - Concealed Straights once it claims.
-- **Backups.** The target's hands are preferred over the backups (1.5 times), but the hand switches when a backup is clearly closer to a good win. A pivot on the softer targets (Concealed Triplets, Seven Pairs, Half Flush, All Sequences) also hands the discard order back to jorge-yau's. The hand keeps a target's discards only while that target's hand is the one in the lead.
+- **Backups.** The target's hands are preferred over the backups (1.5 times), but the hand switches when a backup is clearly closer to a good win. A pivot on the softer targets (Concealed Triplets, Seven Pairs, Half Flush, All Sequences) also hands the discard order back to the shared one. The hand keeps a target's discards only while that target's hand is the one in the lead.
 
 Choosing a backup doesn't make it worth more. The value of a hand is still its real payout times its chance to finish, so defense weighs against the true value.
 
@@ -60,7 +60,7 @@ A ready hand is scored wait by wait, by discard and by self-draw, with Concealed
 
 ## What gets discarded first
 
-1. **After a chow, the other suits.** A mixed hand can't reach 3 faan once a chow is open, so every tile of another suit goes first, even while folding. This is jorge-yau's rule.
+1. **The other suits, after a chow or with 7 or more tiles of one suit.** A mixed hand can't reach 3 faan once a chow is open, so every tile of another suit goes first, even while folding. The same goes once 7 or more of the hand's tiles (sets count) are in one suit, more than any other, unless the hand is on Seven Pairs, Thirteen Orphans, Nine Gates, All Terminals, All Honors or Four Winds, or on Concealed Straights, which throws honors first instead. These are the shared rules every strategy follows.
 2. **Tiles the target can't use.** For the limit-hand targets and the flushes, these go first even if they cost a step toward ready, because the target needs every slot: number tiles on Four Winds and All Honors, middle tiles on All Terminals, non-orphans on Thirteen Orphans, other suits and honors on Nine Gates and Full Flush. For the softer targets they go first only when they don't cost a step: other suits on a Half Flush, and honors on Concealed Straights.
 3. **A tile someone has punged**, when the hand doesn't need it. On Nine Gates, spare copies beyond the 1112345678999 go here too.
 4. **Ordinary tiles.**
@@ -123,11 +123,13 @@ One tile from ready with fewer than 20 tiles left, safety counts 1.3 times more.
 | `feed` | 1 | Weight on feeding chows and fresh honors |
 | `reads` | true | Read opponents' hands from their discards |
 | `skip` | [] | Targets to leave out of the read (to measure each one) |
-| `ownClaims`, `ownDiscards` | true | false uses jorge-yau's claims or discard order |
+| `ownClaims`, `ownDiscards` | true | false uses the shared claims or discard order |
 
 ## Results
 
 Two lucky-cat bots against two jorge-yau bots, 2,000 deals each played in all four seat rotations (8,000 hands, `npm run compete -- --deals 2000 --seed 20261101`):
+
+These were measured before the shared one-suit rule moved down to 7 tiles and Concealed Straights started throwing honors first, so both strategies may play a little differently now.
 
 | | lucky-cat | jorge-yau |
 | --- | --- | --- |

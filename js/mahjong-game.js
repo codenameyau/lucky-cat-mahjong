@@ -1,7 +1,7 @@
 /* Play page: the Hong Kong mahjong table, drawn on a single <canvas>.
    Rendering is on demand (only while something animates or changes);
    tile faces are pre-rendered once per size into sprite canvases.
-   Game rules live in mahjong-engine.js, bots and hints in mahjong-jorge-yau.js,
+   Game rules live in mahjong-engine.js, bots and hints in mahjong-bot.js and its strategies,
    the bot strategies each seat and the coach can use in
    mahjong-strategies.js, scoring in points.js. */
 

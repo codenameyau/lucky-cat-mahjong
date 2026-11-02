@@ -1,7 +1,7 @@
 /* Bot strategies for the Play game: the list the Strategies sheet shows,
    which strategy each bot seat and the coach use, and how to make an agent
-   for one. A strategy is a bot API from MahjongBot.createStrategy (or
-   MahjongBot itself, which is jorge-yau).
+   for one. A strategy is a bot API from MahjongBot.createStrategy, built on
+   the shared foundation in js/mahjong-bot.js.
 
    To add one: build it with MahjongBot.createStrategy({ id, hooks, tuning }),
    load its script before this one, and add an entry to STRATEGIES. The
@@ -11,7 +11,7 @@
   'use strict';
 
   var node = typeof module !== 'undefined' && module.exports;
-  var B = node ? require('./mahjong-jorge-yau.js') : root.MahjongBot;
+  var J = node ? require('./mahjong-jorge-yau.js') : root.MahjongJorgeYau;
   var L = node ? require('./mahjong-lucky-cat.js') : root.MahjongLuckyCat;
 
   var STRATEGIES = [
@@ -32,7 +32,7 @@
     {
       id: 'jorge-yau',
       name: 'Jorge Yau',
-      bot: B,
+      bot: J,
       summary: 'Weighs every discard by expected points: how fast each hand can finish, what it pays, and the risk of dealing in.',
       details: [
         'For every possible discard it scores the hand that would be left: how many tiles from ready, how many tiles still improve it, and what the finished hand pays. A ready hand is scored exactly, wait by wait.',
