@@ -48,6 +48,31 @@
   function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
   function signed(n) { return (n > 0 ? '+' : n < 0 ? '−' : '±') + fmt(Math.abs(n)); }
 
+  // Asks for a save file, checks it (MahjongEngine.checkSave), and hands
+  // it to onLoad, or a reason it can't be loaded to onError.
+  function chooseSaveFile(onLoad, onError) {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json,.json';
+    input.addEventListener('change', function () {
+      var file = input.files && input.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        var data = null;
+        try { data = JSON.parse(String(reader.result)); } catch (err) { data = null; }
+        E.checkSave(data).then(function (check) {
+          if (!check.ok) { track('play_load_failed', {}); onError(check.reason); return; }
+          track('play_load', { version: data.version });
+          onLoad(data);
+        }, function () { onError('This browser can\'t load games.'); });
+      };
+      reader.onerror = function () { onError('That file couldn\'t be read.'); };
+      reader.readAsText(file);
+    });
+    input.click();
+  }
+
   function readJson(key, fallback) {
     try {
       var raw = localStorage.getItem(key);
@@ -2672,26 +2697,7 @@
     }
 
     function loadGame() {
-      var input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'application/json,.json';
-      input.addEventListener('change', function () {
-        var file = input.files && input.files[0];
-        if (!file) return;
-        var reader = new FileReader();
-        reader.onload = function () {
-          var data = null;
-          try { data = JSON.parse(String(reader.result)); } catch (err) { data = null; }
-          E.checkSave(data).then(function (check) {
-            if (!check.ok) { setMenuNote(check.reason, true); track('play_load_failed', {}); return; }
-            track('play_load', { version: data.version });
-            callbacks.load(data);
-          }, function () { setMenuNote('This browser can\'t load games.', true); });
-        };
-        reader.onerror = function () { setMenuNote('That file couldn\'t be read.', true); };
-        reader.readAsText(file);
-      });
-      input.click();
+      chooseSaveFile(callbacks.load, function (reason) { setMenuNote(reason, true); });
     }
 
     // Restarting throws the match away, so it takes a second tap.
@@ -3584,6 +3590,24 @@
       saved.spicy = 'full';
       writeJson(SETTINGS_KEY, saved);
     });
+
+    // Load game, beside Start game: plays on from a save file.
+    var loadBtn = document.getElementById('play-load');
+    var loadNote = document.getElementById('play-load-note');
+    if (loadBtn) {
+      loadBtn.addEventListener('click', function () {
+        if (loadNote) loadNote.hidden = true;
+        chooseSaveFile(function (data) {
+          var settings = readForm(form, readJson(SETTINGS_KEY, {}));
+          if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
+          open(Object.assign(settings, { mode: data.payload.game.settings.mode }), data);
+        }, function (reason) {
+          if (!loadNote) return;
+          loadNote.textContent = reason;
+          loadNote.hidden = false;
+        });
+      });
+    }
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();

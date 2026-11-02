@@ -117,12 +117,39 @@
   outline-offset: 2px;
 }
 
+.play-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
 .play-start {
-  justify-self: center;
-  min-width: 220px;
+  min-width: 200px;
   justify-content: center;
   font-size: 1.1rem;
-  margin-top: 0.5rem;
+}
+
+/* Load game: white beside the red Start game. */
+.btn-white {
+  background: #fff;
+  color: var(--color-text);
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.btn-white:hover {
+  background: #f6f1ea;
+  color: var(--color-text);
+}
+
+.play-load-note {
+  margin: 0;
+  text-align: center;
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: 0.9rem;
 }
 
 .play-rules h2 {
