@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
 const E = require('./mahjong-engine.js');
-const B = require('./mahjong-bot.js');
+const B = require('./mahjong-jorge-yau.js');
 const { createScoringApi } = require('./points.harness.js');
 
 const c = (ids) => E.countsOf(ids);

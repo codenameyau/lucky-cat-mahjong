@@ -5,7 +5,7 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 | Strategy | File | Playbook |
 | --- | --- | --- |
 | `lucky-cat` | `js/mahjong-lucky-cat.js` | [lucky-cat.md](lucky-cat.md) |
-| `jorge-yau` | `js/mahjong-bot.js` | [jorge-yau.md](jorge-yau.md) |
+| `jorge-yau` | `js/mahjong-jorge-yau.js` | [jorge-yau.md](jorge-yau.md) |
 
 ## Which strategy plays where
 
@@ -17,7 +17,7 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 
 ## Adding a strategy
 
-All strategies share the engine in `js/mahjong-bot.js`: shanten, live tiles, the exact score of every wait, the threat model and the claim options. A strategy changes how that engine decides through hooks:
+All strategies share the engine in `js/mahjong-jorge-yau.js`: shanten, live tiles, the exact score of every wait, the threat model and the claim options. A strategy changes how that engine decides through hooks:
 
 ```js
 var bot = MahjongBot.createStrategy({
@@ -33,11 +33,11 @@ var bot = MahjongBot.createStrategy({
 });
 ```
 
-Every hook is optional, and a strategy with none plays exactly like jorge-yau. The hooks are listed in section 9 of `js/mahjong-bot.js`. Each strategy keeps its own copy of the tuning knobs (`bot.setTuning`), so changing one never changes another.
+Every hook is optional, and a strategy with none plays exactly like jorge-yau. The hooks are listed in section 9 of `js/mahjong-jorge-yau.js`. Each strategy keeps its own copy of the tuning knobs (`bot.setTuning`), so changing one never changes another.
 
 Then:
 
-1. Load its script in `play-mahjong/index.html` after `mahjong-bot.js` and before `mahjong-strategies.js`.
+1. Load its script in `play-mahjong/index.html` after `mahjong-jorge-yau.js` and before `mahjong-strategies.js`.
 2. Add an entry to `STRATEGIES` in `js/mahjong-strategies.js` with its `id`, `name`, `bot`, a one-line `summary` and a few `details` paragraphs for the Strategies sheet.
 3. Write its playbook here.
 4. Play it against the others (below).

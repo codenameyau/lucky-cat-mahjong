@@ -13,7 +13,7 @@
 
   var node = typeof module !== 'undefined' && module.exports;
   var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var DEFAULT_BOT = node ? require('./mahjong-bot.js') : root.MahjongBot;
+  var DEFAULT_BOT = node ? require('./mahjong-jorge-yau.js') : root.MahjongBot;
   var B = DEFAULT_BOT;
 
   var SUIT_NAME = { c: 'Characters', d: 'Circles', b: 'Bamboo' };

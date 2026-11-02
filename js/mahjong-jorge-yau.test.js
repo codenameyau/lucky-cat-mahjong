@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
 const E = require('./mahjong-engine.js');
-const B = require('./mahjong-bot.js');
+const B = require('./mahjong-jorge-yau.js');
 
 function table(opts) {
   const game = E.createGame({ seed: opts.seed || 11, humanSeat: false, dealer: opts.dealer || 0 });

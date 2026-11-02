@@ -11,7 +11,7 @@
   'use strict';
 
   var node = typeof module !== 'undefined' && module.exports;
-  var B = node ? require('./mahjong-bot.js') : root.MahjongBot;
+  var B = node ? require('./mahjong-jorge-yau.js') : root.MahjongBot;
   var L = node ? require('./mahjong-lucky-cat.js') : root.MahjongLuckyCat;
 
   var STRATEGIES = [

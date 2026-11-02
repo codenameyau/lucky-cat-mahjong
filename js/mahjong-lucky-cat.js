@@ -1,6 +1,6 @@
 /* The "lucky-cat" bot strategy.
 
-   It plays on the same machinery as jorge-yau (js/mahjong-bot.js: shanten,
+   It plays on the same machinery as jorge-yau (js/mahjong-jorge-yau.js: shanten,
    live tiles, exact scoring of ready hands, the threat model), but picks
    its hand differently and plays it differently:
      - Target. From the opening hand it picks one hand to aim for, in a fixed
@@ -29,7 +29,7 @@
 
   var node = typeof module !== 'undefined' && module.exports;
   var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var B = node ? require('./mahjong-bot.js') : root.MahjongBot;
+  var B = node ? require('./mahjong-jorge-yau.js') : root.MahjongBot;
   var F = E.HKScoring.FAAN;
 
   var SUITS = ['c', 'd', 'b'];
