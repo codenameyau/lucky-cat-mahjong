@@ -45,7 +45,7 @@
    The coach in js/mahjong-coach.js says this same decision in words. It
    does not keep a second plan of its own.
 
-   This is the "claude-cat" strategy. Other strategies (js/mahjong-lucky-cat.js)
+   This is the "jorge-yau" strategy. Other strategies (js/mahjong-lucky-cat.js)
    reuse this same machinery through createStrategy(def): `def.hooks` swaps in
    their own plans, discard order, claims and reads, and `def.tuning` their
    own knobs. See docs/strategies/. */
@@ -142,7 +142,7 @@
   //   defenseScale: how much more than that to weigh deal-in risk.
   //   lateFold: extra weight on safety once the wall is under lateFoldWall
   //     tiles and the hand is still 2 or more tiles from ready (unlikely to win).
-  // Chosen by simulation for the most points per hand (see docs/strategies/claude-cat.md).
+  // Chosen by simulation for the most points per hand (see docs/strategies/jorge-yau.md).
   //   tripletsLive: on All Triplets, throw the tile with fewest copies left.
   //   chowSuitLate: near the end, how much more dangerous each chow an
   //     opponent has in a suit makes that suit's tiles.
@@ -1159,7 +1159,7 @@
    *    Hooks (all optional):
    *      context(ctx, game, seat)        add the strategy's own reads to ctx
    *      plans(c, ctx) -> [plan]         the hands to aim for (basePlans is
-   *                                      claude-cat's list); plan.weight
+   *                                      jorge-yau's list); plan.weight
    *                                      scales a plan's value
    *      priority(game, ctx, counts, candidate, bestShanten) -> group
    *                                      the discard order (lower goes first;
@@ -1170,7 +1170,7 @@
    *      extraLoss(game, threats, i) -> loss  e.g. feeding a claim
    *      defense(weight, ctx, threats, shanten, readyFaan) -> weight
    *      claim(found, ctx, game, seat, opts) -> decision
-   *    priority and claim may return null to use claude-cat's choice.
+   *    priority and claim may return null to use jorge-yau's choice.
    * ------------------------------------------------------------------ */
 
   function createStrategy(def) {
@@ -1199,7 +1199,7 @@
   }
 
   var api = {
-    id: 'claude-cat',
+    id: 'jorge-yau',
     createStrategy: createStrategy,
     basePlans: basePlans,
     makeSpecialPlan: makeSpecialPlan,

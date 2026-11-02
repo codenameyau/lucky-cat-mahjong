@@ -1,7 +1,7 @@
 /* Bot strategies for the Play game: the list the Strategies sheet shows,
    which strategy each bot seat and the coach use, and how to make an agent
    for one. A strategy is a bot API from MahjongBot.createStrategy (or
-   MahjongBot itself, which is claude-cat).
+   MahjongBot itself, which is jorge-yau).
 
    To add one: build it with MahjongBot.createStrategy({ id, hooks, tuning }),
    load its script before this one, and add an entry to STRATEGIES. The
@@ -30,8 +30,8 @@
       doc: 'docs/strategies/lucky-cat.md',
     },
     {
-      id: 'claude-cat',
-      name: 'Claude Cat',
+      id: 'jorge-yau',
+      name: 'Jorge Yau',
       bot: B,
       summary: 'Weighs every discard by expected points: how fast each hand can finish, what it pays, and the risk of dealing in.',
       details: [
@@ -40,7 +40,7 @@
         'It keeps pairs and unseen dragons, throws other suits first once it commits to one, and chows only for a ready hand, a flush, or late in the hand. Dragons and scoring winds are always punged.',
         'Each opponent gets a threat level from their melds and discards. When someone looks close and the hand is slow, or the wall is nearly gone, safety decides the discard.',
       ],
-      doc: 'docs/strategies/claude-cat.md',
+      doc: 'docs/strategies/jorge-yau.md',
     },
   ];
 

@@ -58,15 +58,22 @@
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
   }
 
+  // Strategies saved under an older id.
+  var RENAMED_STRATEGIES = { 'claude-cat': 'jorge-yau' };
+
   // Saved strategy choices, keeping only ids that still exist.
   function readStrategies() {
     var saved = readJson(STRATEGIES_KEY, {}) || {};
+    function current(id) {
+      id = RENAMED_STRATEGIES[id] || id;
+      return Strategies.has(id) ? id : null;
+    }
     var seats = {};
     [1, 2, 3].forEach(function (k) {
-      var id = saved.seats && saved.seats[k];
-      if (Strategies.has(id)) seats[k] = id;
+      var id = current(saved.seats && saved.seats[k]);
+      if (id) seats[k] = id;
     });
-    return { seats: seats, coach: Strategies.has(saved.coach) ? saved.coach : null };
+    return { seats: seats, coach: current(saved.coach) };
   }
 
   // This game's strategy for each bot seat (saved, or random) and the coach's.

@@ -6,7 +6,7 @@
    keep a second route or a second claim rule.
 
    forStrategy(bot) returns this same coach speaking for another strategy
-   (js/mahjong-strategies.js); the default speaks for claude-cat. */
+   (js/mahjong-strategies.js); the default speaks for jorge-yau. */
 
 (function (root) {
   'use strict';
@@ -411,10 +411,10 @@
     var threats = list.threats;
     var pick = list[0];
     var offenseTop = list.slice().sort(function (a, b) { return b.offense - a.offense; })[0];
-    // claude-cat's discard order only bends to its value read, so any gap
+    // jorge-yau's discard order only bends to its value read, so any gap
     // from the top offense pick is defense. Other strategies keep their own
     // order (a target's tiles first), so only their folding counts.
-    var defending = (B.id === 'claude-cat' ? list.defense > 1.25 : list.folding) && offenseTop.tile !== pick.tile;
+    var defending = (B.id === 'jorge-yau' ? list.defense > 1.25 : list.folding) && offenseTop.tile !== pick.tile;
     var tips = [];
 
     if (opts.completeButShort) {

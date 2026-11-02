@@ -5,7 +5,7 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 | Strategy | File | Playbook |
 | --- | --- | --- |
 | `lucky-cat` | `js/mahjong-lucky-cat.js` | [lucky-cat.md](lucky-cat.md) |
-| `claude-cat` | `js/mahjong-bot.js` | [claude-cat.md](claude-cat.md) |
+| `jorge-yau` | `js/mahjong-bot.js` | [jorge-yau.md](jorge-yau.md) |
 
 ## Which strategy plays where
 
@@ -24,16 +24,16 @@ var bot = MahjongBot.createStrategy({
   id: 'my-cat',
   hooks: {
     context: function (ctx, game, seat) { /* add your own reads to ctx */ },
-    plans: function (c, ctx) { /* the hands to aim for; MahjongBot.basePlans(c, ctx) is claude-cat's list */ },
-    priority: function (game, ctx, counts, candidate, bestShanten) { /* discard group, lower first; null = claude-cat's */ },
-    claim: function (found, ctx, game, seat, opts) { /* { type: 'pass' | 'pung' | 'kong' | 'chow', ... }; null = claude-cat's */ },
+    plans: function (c, ctx) { /* the hands to aim for; MahjongBot.basePlans(c, ctx) is jorge-yau's list */ },
+    priority: function (game, ctx, counts, candidate, bestShanten) { /* discard group, lower first; null = jorge-yau's */ },
+    claim: function (found, ctx, game, seat, opts) { /* { type: 'pass' | 'pung' | 'kong' | 'chow', ... }; null = jorge-yau's */ },
     // also: readyValue, threats, waitChance, extraLoss, defense
   },
   tuning: { defenseScale: 1.5 },
 });
 ```
 
-Every hook is optional, and a strategy with none plays exactly like claude-cat. The hooks are listed in section 9 of `js/mahjong-bot.js`. Each strategy keeps its own copy of the tuning knobs (`bot.setTuning`), so changing one never changes another.
+Every hook is optional, and a strategy with none plays exactly like jorge-yau. The hooks are listed in section 9 of `js/mahjong-bot.js`. Each strategy keeps its own copy of the tuning knobs (`bot.setTuning`), so changing one never changes another.
 
 Then:
 
@@ -54,7 +54,7 @@ Strategies play each other over many deals. Each deal is played four times, with
 
 | Option | Default | |
 | --- | --- | --- |
-| `--lineup a,b,c,d` | `lucky-cat,claude-cat,lucky-cat,claude-cat` | Strategy per seat |
+| `--lineup a,b,c,d` | `lucky-cat,jorge-yau,lucky-cat,jorge-yau` | Strategy per seat |
 | `--deals N` | 250 | Deals; each is played 4 times |
 | `--seed N` | 1 | First deal's seed. The same seed plays the same deals |
 | `--workers N` | CPU cores − 1 | Worker threads |

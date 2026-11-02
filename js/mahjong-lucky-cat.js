@@ -1,6 +1,6 @@
 /* The "lucky-cat" bot strategy.
 
-   It plays on the same machinery as claude-cat (js/mahjong-bot.js: shanten,
+   It plays on the same machinery as jorge-yau (js/mahjong-bot.js: shanten,
    live tiles, exact scoring of ready hands, the threat model), but picks
    its hand differently and plays it differently:
      - Target. From the opening hand it picks one hand to aim for, in a fixed
@@ -50,7 +50,7 @@
   //   feed: weight on feeding claims (chow tiles, fresh honors)
   //   reads: read opponents' hands from their discards
   //   skip: target ids to leave out of the read (to measure each one)
-  //   ownClaims, ownDiscards: false uses claude-cat's claims or discard order
+  //   ownClaims, ownDiscards: false uses jorge-yau's claims or discard order
   var TUNING = { targetWeight: 1.5, giveUpWall: 40, giveUpDefense: 1.6, feed: 1, reads: true, skip: [], ownClaims: true, ownDiscards: true };
   var K = TUNING; // replaced by the strategy's own copy below
 
@@ -353,7 +353,7 @@
   // plain hand, weighed lightly, so the hand can always be finished.
   function plans(c, ctx) {
     var t = ctx.target || { id: 'standard' };
-    // After a chow only that suit's flush is left: claude-cat's plans already say so.
+    // After a chow only that suit's flush is left: jorge-yau's plans already say so.
     if (B.chowCommitment(ctx)) return B.basePlans(c, ctx);
     var def = TARGET_BY_ID[t.id];
     var W = ctx.fast && !def.hard ? 1 : K.targetWeight;
@@ -475,7 +475,7 @@
     var pair = counts[i] === 2;
     if (givingUp) return pair ? 3 : 2;
     // A softer target sets the order only while its plan is the one ahead;
-    // otherwise the hand has pivoted, and claude-cat's order applies.
+    // otherwise the hand has pivoted, and jorge-yau's order applies.
     if (!def.hard && !leading(t, cand)) return null;
     var keep = keepFor(t);
     if (keep && !keep(i)) return def.hard ? -1 : 1;
