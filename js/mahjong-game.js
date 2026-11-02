@@ -206,11 +206,12 @@
 
   /* ------------------------------------------------------------------ *
    * 2. Sound
-   *    Short recorded clips from Kenney's Casino Audio and Interface Sounds
+   *    Short recorded clips from Kenney's Casino Audio and Impact Sounds
    *    packs (CC0, kenney.nl), trimmed to mono WAV in /assets/sounds/.
-   *    Tiles are poker chips: a chip laid down is a discard, a stack of
-   *    them is a claim, and a quick ripple of chips laid down is every
-   *    hand tipping face up.
+   *    Every sound is something physical on the table: tiles are poker
+   *    chips (laid down for a discard, stacked for a claim), the big
+   *    moments are mining-pick hits, and the rest are knocks on wood. No
+   *    chimes or electronic tones.
    * ------------------------------------------------------------------ */
 
   var SOUND_DIR = '/assets/sounds/';
@@ -222,8 +223,9 @@
     // One sound for every discard: the duller chip, the closest to a
     // mahjong tile landing on the table.
     discard: { clips: ['tile-discard'], gain: 0.85 },
+    // Picking up a tile: chips handled. A flower set aside: a chip laid down.
     select: { clips: ['tile-select'], gain: 0.2 },
-    flower: { clips: ['flower'], gain: 0.4 },
+    flower: { clips: ['flower'], gain: 0.5 },
     // Claims are big moments, and each has its own heavy hit (a different
     // impactMining clip from Kenney's Impact Sounds pack) under the chips:
     // chow: impactMining_001, the brightest, then the run's chips settle;
@@ -242,11 +244,16 @@
       clips: ['impact-kong'], gain: 1,
       then: [['impact-kong', 0.12, 0.7, 0.8], ['tile-claim-2', 0.03, 0.7], ['tile-kong', 0.16, 0.6], ['tile-discard', 0.28, 0.6, 0.85]],
     },
-    turn: { clips: ['turn'], gain: 0.25 },
-    win: { clips: ['win'], gain: 0.6, then: [['tile-claim-2', 0, 0.5]] },
-    otherwin: { clips: ['other-win'], gain: 0.45 },
-    lose: { clips: ['lose'], gain: 0.5 },
-    drawgame: { clips: ['draw-game'], gain: 0.45 },
+    // Your turn: a light knock on the table.
+    turn: { clips: ['turn'], gain: 0.3 },
+    // Your win: a heavy wooden hit and a mining hit as the chips stack up.
+    win: { clips: ['win'], gain: 0.7, then: [['impact-pung', 0.04, 0.55], ['tile-claim-2', 0.06, 0.6]] },
+    // Someone else's win: a medium wooden hit and their chips.
+    otherwin: { clips: ['other-win'], gain: 0.55, then: [['tile-claim-1', 0.04, 0.45]] },
+    // You paid for the win: a dull, soft thud.
+    lose: { clips: ['lose'], gain: 0.6 },
+    // The wall ran out: a wooden plank set down, and the chips stirred.
+    drawgame: { clips: ['draw-game'], gain: 0.55, then: [['tile-draw', 0.05, 0.4]] },
     // Show hands: impactMining_003, the whole clip, untrimmed.
     flip: { clips: ['tiles-reveal'], gain: 0.9 },
     // Next hand: impactMining_004, trimmed like the claims.
