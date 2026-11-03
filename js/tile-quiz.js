@@ -1067,13 +1067,17 @@
       return lines;
     }
 
-    function loadSvgImage(svg) {
+    function loadUrlImage(src) {
       return new Promise(function (resolve, reject) {
         var img = new Image();
         img.onload = function () { resolve(img); };
         img.onerror = reject;
-        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+        img.src = src;
       });
+    }
+
+    function loadSvgImage(svg) {
+      return loadUrlImage('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg));
     }
 
     function hexToRgba(hex, alpha) {
@@ -1099,7 +1103,10 @@
         : Promise.resolve();
       var artW = 440;
 
-      return Promise.all([fontsReady, loadSvgImage(root.LuckyCatTileArt.render(tile.id, { width: artW }))]).then(function (loaded) {
+      return Promise.all([
+        fontsReady,
+        loadSvgImage(root.LuckyCatTileArt.render(tile.id, { width: artW })),
+      ]).then(function (loaded) {
         var img = loaded[1];
         var artH = Math.round(artW * 1.25);
         var artTop = 560;
@@ -1144,18 +1151,20 @@
           y += 50;
         });
 
-        // Shrink the description until it fits above the footer.
+        // Shrink the description until it fits above the footer, with a clear gap
+        // before the question. The paragraph starts a little higher than the tagline gap.
         var footerY = 1560;
-        var maxBottom = footerY - 48;
+        var maxBottom = footerY - 120;
+        var descShift = -24;
         var size = 32;
         var lines;
         do {
           ctx.font = '500 ' + size + 'px ' + body;
           lines = wrapLines(ctx, tile.description, W - PAD * 2);
           size -= 2;
-        } while (y + 20 + lines.length * (size + 2) * 1.45 > maxBottom && size > 22);
+        } while (y + descShift + lines.length * (size + 2) * 1.45 > maxBottom && size > 22);
         var lineHeight = (size + 2) * 1.45;
-        y += 20;
+        y += descShift;
         ctx.textAlign = 'left';
         ctx.fillStyle = '#3D3D3D';
         lines.forEach(function (line) {
@@ -1223,6 +1232,13 @@
         markSavedAnswer();
         show('question');
       });
+      var skip = $('#tq-info-skip');
+      var host = root.location && root.location.hostname;
+      var local = host === 'localhost' || host === '127.0.0.1' || /^192\.168\.\d+\.\d+$/.test(host);
+      if (skip && local) {
+        skip.hidden = false;
+        skip.addEventListener('click', function () { reveal(Promise.resolve()); });
+      }
       $('#tq-download').addEventListener('click', downloadImage);
       $('#tq-hero-cta').addEventListener('click', startQuiz);
       $('#tq-share').addEventListener('click', shareLink);
