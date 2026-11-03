@@ -1166,6 +1166,8 @@
       drawFelt();
       if (!game || !game.hand) {
         drawTopBar();
+        // (A finished game restored after a refresh has no hand to draw.)
+        if (ui.overlay) drawOverlay(t);
         return;
       }
       drawTopBar();
@@ -2839,7 +2841,7 @@
         text(lineText, r.x + r.w / 2, y + 58 + k * 16, { size: 12, weight: 'bold', align: 'center', color: note.error ? COLORS.red : COLORS.green });
       });
       // Mode and version, with a Beta badge.
-      var line = (settings.mode === 'practice' ? 'Practice mode' : 'Payout mode') + ' · v' + E.GAME_VERSION;
+      var line = (settings.mode === 'practice' ? 'Practice mode' : 'Full game') + ' · v' + E.GAME_VERSION;
       ctx.font = '12px ' + FONT_BODY;
       var lineW = ctx.measureText(line).width;
       ctx.font = 'bold 10px ' + FONT_BODY;
@@ -2942,22 +2944,32 @@
     }
 
     function drawGameOver() {
-      var r = panelRect(440, 330);
+      var r = panelRect(440, 420);
       drawPanelBg(r);
       var st = ui.stats;
+      var standings = E.finalStandings(game);
+      var mine = standings.filter(function (row) { return row.seat === 0; })[0];
+      var shared = standings.filter(function (row) { return row.place === mine.place; }).length > 1;
+      var place = ['1st', '2nd', '3rd', '4th'][mine.place - 1];
       text('Game over', r.x + r.w / 2, r.y + 40, { size: 28, family: FONT_HEAD, align: 'center', color: COLORS.red });
-      text('You ran out of points.', r.x + r.w / 2, r.y + 72, { size: 15, align: 'center', color: COLORS.ink });
-      var lines = [
+      text((shared ? 'You tied for ' : 'You finished ') + place + '.', r.x + r.w / 2, r.y + 72, { size: 15, align: 'center', color: COLORS.ink });
+      var y = r.y + 106;
+      standings.forEach(function (row) {
+        var color = row.seat === 0 ? COLORS.red : COLORS.ink;
+        text(row.place + '.  ' + row.name, r.x + 40, y, { size: 16, weight: 'bold', color: color });
+        text(fmt(row.points), r.x + r.w - 40, y, { size: 16, weight: 'bold', align: 'right', color: color });
+        y += 28;
+      });
+      y += 12;
+      [
         ['Hands played', String(st.hands)],
         ['Hands you won', String(st.wins)],
         ['Times you dealt in', String(st.dealIns)],
         ['Your biggest hand', st.best ? st.best + ' faan' : '—'],
-      ];
-      var y = r.y + 108;
-      lines.forEach(function (l) {
-        text(l[0], r.x + 40, y, { size: 15, color: COLORS.muted });
-        text(l[1], r.x + r.w - 40, y, { size: 15, weight: 'bold', align: 'right', color: COLORS.ink });
-        y += 28;
+      ].forEach(function (l) {
+        text(l[0], r.x + 40, y, { size: 14, color: COLORS.muted });
+        text(l[1], r.x + r.w - 40, y, { size: 14, weight: 'bold', align: 'right', color: COLORS.ink });
+        y += 24;
       });
       var bw = (r.w - 70) / 2;
       button('Play again', r.x + 25, r.y + r.h - 62, bw, 42, function () { callbacks.restart(); }, 'primary', 'go-again');
@@ -3659,13 +3671,8 @@
           faan: res.type === 'win' ? res.score.faan : 0,
         });
         var extra = null;
-        if (!game.over && settings.mode === 'payout') {
-          var joined = E.replaceBustedBots(game);
-          if (joined.length) {
-            extra = joined.map(function (j) { return j.left + ' is out of points; ' + j.joined + ' takes the seat.'; }).join(' ');
-          }
-        }
-        if (res.roundAdvanced && !extra) extra = 'The round wind is now ' + E.WIND_NAMES[game.round] + '.';
+        if (res.roundAdvanced) extra = 'The round wind is now ' + E.WIND_NAMES[game.round] + '.';
+        if (game.over) extra = 'That was the last deal of the game.';
         autosave(); // between hands: a refresh deals the next one
         await showOverlay({ type: 'summary', result: res, extra: extra });
         if (game.over) {
