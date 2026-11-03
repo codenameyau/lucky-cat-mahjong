@@ -333,7 +333,7 @@
     },
     shoppingBags: function () {
       // Two tapered paper bags with folded tops, hanging from the right hand
-      // (the tip of the resting arm): both rope handles meet in its fist.
+      // (the tip of the resting arm), where both rope handles meet.
       return '<path d="M175 194 C172 186 169 180 168 177 C173 178 185 184 190 194" fill="none" ' + stroke(2.5) + '/>' +
         '<path d="M170 192 H195 L198 227 Q198 230 195 230 H170 Q167 230 167 227Z" fill="#FF8FB1" ' + stroke(2.5) + '/>' +
         '<path d="M169.5 199 H195.5" fill="none" stroke="#E0648C" stroke-width="2.5"/>' +
@@ -341,8 +341,7 @@
         '<path d="M149 200 C155 190 163 181 167 177 C169 182 168 192 166 200" fill="none" ' + stroke(2.5) + '/>' +
         '<path d="M146 198 H171 L174 231 Q174 234 171 234 H146 Q143 234 143 231Z" fill="#FFD23F" ' + stroke(2.5) + '/>' +
         '<path d="M145.5 205 H171.5" fill="none" stroke="#E0B23A" stroke-width="2.5"/>' +
-        sparkle(158, 220, 6, '#fff') +
-        '<circle cx="167" cy="176" r="6.5" fill="' + FACE + '" ' + stroke(3) + '/>';
+        sparkle(158, 220, 6, '#fff');
     },
     boba: function () {
       return '<rect x="174" y="132" width="5" height="26" rx="2" fill="' + RED + '" ' + stroke(1.5) + ' transform="rotate(12 176 145)"/>' +
