@@ -310,7 +310,7 @@
     for (var i = 27; i < 34; i++) {
       if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) return (/^[AEIOU]/.test(name(i)) ? 'an ' : 'a ') + name(i) + ' set (' + honorWorth(v, i) + ' faan). Pung it if it\'s thrown';
     }
-    return 'a chicken hand';
+    return r.faan >= v.game.settings.minFaan ? 'a chicken hand' : 'a dragon or wind set';
   }
 
   // The bigger hand the same tiles can still make, when it isn't already

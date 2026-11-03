@@ -48,10 +48,25 @@ describe('coach: discards', () => {
     assert.ok(['c4', 'c7'].includes(hint.tile), 'discarded ' + hint.tile);
   });
 
-  it('on Concealed Straights, drops a dragon even when another tile also leaves the hand ready', () => {
+  it('never drops a lone dragon nobody has shown, even to get ready', () => {
     const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'b2', 'dr'];
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
+    assert.notEqual(hint.tile, 'dr');
+  });
+
+  it('drops a lone dragon once a copy is showing', () => {
+    const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'b2', 'dr'];
+    const hint = C.turnHint(table({ seats: [{ hand }, { discards: ['dr'] }] }), 0, { kongs: [] });
     assert.equal(hint.tile, 'dr');
+  });
+
+  it('never says to aim for a chicken hand short of the minimum', () => {
+    // Open melds in two suits, one a chow: no flush or All Triplets is left.
+    const hand = ['c2', 'c3', 'd5', 'd7', 'b2', 'b9', 'ws', 'wn', 'c9'];
+    const game = table({ seats: [{ hand, melds: [meld('chow', 'c4'), meld('pung', 'b5')] }] });
+    const said = text(C.turnHint(game, 0, { kongs: [] }));
+    assert.doesNotMatch(said, /chicken/i);
+    assert.match(said, /Aim for a dragon or wind set/);
   });
 
   it('drops a punged tile first when the hand does not need it', () => {
@@ -229,7 +244,7 @@ describe('coach: claims', () => {
   it('chows into a flush it is building', () => {
     // Already open (Red Dragon punged), so the chow gives up nothing.
     const hand = ['b1', 'b2', 'b4', 'b5', 'b6', 'b8', 'b8', 'dg', 'ws', 'ws'];
-    const game = table({ seats: [{ hand, melds: [meld('pung', 'dr')] }] });
+    const game = table({ seats: [{ hand, melds: [meld('pung', 'dr')] }, { discards: ['dg'] }] });
     const opts = E.claimOptions(game, 0, 'b3', 3, false);
     const hint = C.claimHint(game, 0, opts);
     assert.equal(hint.decision.type, 'chow');

@@ -160,10 +160,39 @@ describe('expert playbook', () => {
     assert.ok(['c4', 'c7'].includes(pick), 'discarded ' + pick);
   });
 
-  it('on Concealed Straights, throws a dragon even when another tile also leaves the hand ready', () => {
+  it('never throws a lone dragon nobody has shown, even to get ready or while folding', () => {
     const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'b2', 'dr'];
-    const game = table({ seats: [{ hand }] });
-    assert.equal(B.chooseTurnAction(game, 0, noKongs).tile, 'dr');
+    assert.notEqual(B.chooseTurnAction(table({ seats: [{ hand }] }), 0, noKongs).tile, 'dr');
+    const late = table({ seats: [{ hand }], wallLeft: 8 });
+    assert.notEqual(B.chooseTurnAction(late, 0, noKongs).tile, 'dr');
+    // A pair isn't lone, and a copy on the table means it's no longer unseen.
+    const shown = table({ seats: [{ hand }, { discards: ['dr'] }] });
+    assert.equal(B.chooseTurnAction(shown, 0, noKongs).tile, 'dr');
+  });
+
+  it('throws a lone dragon only when nothing else is left to throw', () => {
+    const game = table({ seats: [{ hand: ['dr', 'dg'], melds: [meld('pung', 'c2'), meld('pung', 'c5'), meld('pung', 'd5'), meld('pung', 'b8')] }] });
+    assert.ok(['dr', 'dg'].includes(B.chooseTurnAction(game, 0, noKongs).tile));
+  });
+
+  it('drops the plain hand as a plan until it already has the minimum faan', () => {
+    const c = E.countsOf(['c2', 'c3', 'c4', 'c7', 'c8', 'd2', 'd3', 'd9', 'b2', 'b5', 'b6', 'b9', 'wn']);
+    const plainIn = (game) => MahjongBot.basePlans(c, B.buildContext(game, 0)).map((p) => p);
+    const short = table({ seats: [{ hand: [] }] });
+    const ctxShort = B.buildContext(short, 0);
+    assert.equal(MahjongBot.aimablePlans(plainIn(short), c, ctxShort).some((p) => p.id === 'plain'), false);
+    // Both own-seat flowers and seasons, all four of a kind: 3 faan or more before the tiles.
+    const rich = table({ seats: [{ hand: [], flowers: ['f1', 'f2', 'f3', 'f4', 's1', 's2', 's3', 's4'] }] });
+    const ctxRich = B.buildContext(rich, 0);
+    assert.equal(MahjongBot.aimablePlans(plainIn(rich), c, ctxRich).some((p) => p.id === 'plain'), true);
+  });
+
+  it('turns to a flush or All Triplets when the plain hand was all it had', () => {
+    const c = E.countsOf(['c2', 'c3', 'c4', 'c7', 'c8', 'd2', 'd3', 'b5', 'b6', 'wn']);
+    const game = table({ seats: [{ hand: [], melds: [meld('pung', 'c9')] }] });
+    const ctx = B.buildContext(game, 0);
+    const ids = MahjongBot.aimablePlans([{ id: 'plain', counts: c, shantenFn: E.standardShanten, faan: 1 }], c, ctx).map((p) => p.id);
+    assert.deepEqual(ids, ['half-c', 'triplets']);
   });
 
   it('treats a punged honor as dead and throws a punged tile the hand does not need', () => {
@@ -225,12 +254,12 @@ describe('expert playbook', () => {
   });
 
   it('keeps pairs and pungs while going for all triplets', () => {
-    // Two pungs, three pairs, and two dragon singles. Breaking a pung is the
-    // old recommendation; a single is the tile that can actually go.
+    // Two pungs, three pairs, and two dragon singles. The dragons stay, so a
+    // pair goes, not a finished pung.
     const dragons = table({ seats: [{ hand: ['c2', 'c2', 'c2', 'd5', 'd5', 'd5', 'b8', 'b8', 'wn', 'wn', 'we', 'we', 'dr', 'dg'] }] });
     const loose = B.analyzeDiscards(dragons, 0).candidates[0];
     assert.ok(['triplets', 'concealed-triplets'].includes(loose.analysis.best.plan.id));
-    assert.ok(['dr', 'dg'].includes(loose.tile), 'discarded ' + loose.tile);
+    assert.ok(['b8', 'wn', 'we'].includes(loose.tile), 'discarded ' + loose.tile);
 
     // No singles left: throw from a pair, not from a finished pung.
     const pairs = table({ seats: [{ hand: ['c2', 'c2', 'c2', 'd5', 'd5', 'd5', 'b8', 'b8', 'wn', 'wn', 'we', 'we', 'ws', 'ws'] }] });
