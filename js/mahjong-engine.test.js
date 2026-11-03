@@ -193,30 +193,72 @@ describe('settlement', () => {
     assert.deepEqual(E.payments(practice, 2, null, 16), [0, 0, 0, 0]);
   });
 
-  it('keeps the deal on a dealer win or draw, and advances the round wind', () => {
-    const game = E.createGame({ seed: 3, humanSeat: false, dealer: 0 });
+  const win = (game, seat) => {
+    E.startHand(game);
+    E.settleWin(game, seat, null, null, { faan: 3, points: 8, items: [] }, 'selfDraw');
+  };
+  const draw = (game) => {
     E.startHand(game);
     E.settleDraw(game);
+  };
+
+  it('in a full game keeps the deal only on a dealer win, and advances the round wind', () => {
+    const game = E.createGame({ seed: 3, humanSeat: false, dealer: 0 });
+    win(game, 0);
     assert.equal(game.dealer, 0);
-    for (let k = 1; k <= 4; k++) {
-      E.startHand(game);
-      E.settleWin(game, (game.dealer + 1) % 4, null, null, { faan: 3, points: 8, items: [] }, 'selfDraw');
-    }
+    draw(game);
+    assert.equal(game.dealer, 1);
+    win(game, 3);
+    assert.equal(game.dealer, 2);
+    win(game, 0);
+    assert.equal(game.dealer, 3);
+    assert.equal(game.round, 1);
+    win(game, 1);
     assert.equal(game.dealer, 0);
     assert.equal(game.round, 2);
   });
 
-  it('ends the game when the human runs out, and replaces bots that bust', () => {
+  it('in practice a drawn hand keeps the deal, and the rounds never end', () => {
+    const game = E.createGame({ seed: 3, humanSeat: false, dealer: 0, mode: 'practice' });
+    draw(game);
+    assert.equal(game.dealer, 0);
+    for (let k = 0; k < 20; k++) win(game, (game.dealer + 1) % 4);
+    assert.equal(game.over, false);
+    assert.equal(game.round, 2);
+  });
+
+  it('ends a full game after 16 dealer rotations, with extra hands for dealer wins', () => {
+    const game = E.createGame({ seed: 5, humanSeat: false, dealer: 2 });
+    win(game, 2); // the dealer wins, so this hand doesn't count as a rotation
+    for (let k = 1; k <= 16; k++) {
+      assert.equal(game.over, false, 'rotation ' + k);
+      assert.equal(game.round, Math.ceil(k / 4));
+      win(game, (game.dealer + 1) % 4);
+    }
+    assert.equal(game.over, true);
+    assert.equal(game.round, 4);
+    assert.equal(game.handNumber, 17);
+  });
+
+  it('does not end a full game when someone goes negative', () => {
     const game = E.createGame({ seed: 4, dealer: 0 });
     game.players[0].points = 10;
     game.players[2].points = 10;
-    E.startHand(game);
-    E.settleWin(game, 1, null, null, { faan: 4, points: 16, items: [] }, 'selfDraw');
-    assert.equal(game.over, true);
-    const joined = E.replaceBustedBots(game);
-    assert.equal(joined.length, 1);
-    assert.equal(joined[0].seat, 2);
-    assert.equal(game.players[2].points, E.START_POINTS);
+    const names = game.players.map((p) => p.name);
+    win(game, 1);
+    assert.equal(game.over, false);
+    assert.equal(game.players[0].points, 2);
+    win(game, 3);
+    assert.equal(game.over, false);
+    assert.equal(game.players[0].points, -6);
+    assert.equal(game.players[2].points, -6);
+    assert.deepEqual(game.players.map((p) => p.name), names);
+  });
+
+  it('ranks the final standings, with ties sharing a place', () => {
+    const game = E.createGame({ seed: 6, dealer: 0 });
+    [2100, -40, 2100, 1800].forEach((n, k) => { game.players[k].points = n; });
+    assert.deepEqual(E.finalStandings(game).map((r) => [r.seat, r.place]), [[0, 1], [2, 1], [3, 3], [1, 4]]);
   });
 });
 

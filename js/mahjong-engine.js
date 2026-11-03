@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.12.3';
+  var GAME_VERSION = '0.13.1';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -258,9 +258,9 @@
    * ------------------------------------------------------------------ */
 
   // Bot names: twelve, the first seven players who have won an
-  // invitational tournament. Three sit at the table; the rest take over
-  // busted seats. (Keep it at twelve: the shuffle draws from the game's
-  // generator, so seeded games deal the same walls.)
+  // invitational tournament. Three sit at the table each game. (Keep it at
+  // twelve: the shuffle draws from the game's generator, so seeded games
+  // deal the same walls.)
   var BOT_NAMES = ['Vivien', 'Jackie', 'Jon', 'Donald', 'Katie', 'Kristie', 'Thomas', 'Mei', 'Kwan', 'Lulu', 'Wing', 'Rosa'];
 
   function createGame(options) {
@@ -287,7 +287,6 @@
       seed: seed,
       rng: rng,
       players: players,
-      spareNames: names.slice(3),
       round: 1,
       dealer: dealer,
       firstDealer: dealer,
@@ -626,8 +625,13 @@
     for (var i = 0; i < 4; i++) game.players[i].points += result.deltas[i];
     result.after = game.players.map(function (p) { return p.points; });
 
-    // Dealer keeps the deal on a win or a drawn hand; otherwise it passes on.
-    var dealerKeeps = result.type === 'draw' || result.winner === game.dealer;
+    // A full game (settings.mode 'payout') is four rounds, each dealer in
+    // turn: a dealer who wins deals again, and anything else passes the
+    // deal on, so at least 16 hands. It ends when the deal comes back round
+    // after the last round; points can go negative. Practice runs on without
+    // end, and a drawn hand keeps the deal there too.
+    var fullGame = game.settings.mode === 'payout';
+    var dealerKeeps = result.winner === game.dealer || (!fullGame && result.type === 'draw');
     result.dealerKeeps = dealerKeeps;
     if (dealerKeeps) {
       game.dealerRepeat++;
@@ -635,18 +639,11 @@
       game.dealerRepeat = 0;
       game.dealer = (game.dealer + 1) % 4;
       if (game.dealer === game.firstDealer) {
-        game.round = game.round % 4 + 1;
-        result.roundAdvanced = true;
-      }
-    }
-
-    result.busted = [];
-    if (game.settings.mode === 'payout') {
-      for (var p = 0; p < 4; p++) {
-        if (game.players[p].points > 0) continue;
-        result.busted.push(p);
-        if (game.players[p].isHuman) {
+        if (fullGame && game.round >= 4) {
           game.over = true;
+        } else {
+          game.round = game.round % 4 + 1;
+          result.roundAdvanced = true;
         }
       }
     }
@@ -654,19 +651,16 @@
     game.hand.result = result;
   }
 
-  // A bot that runs out of points leaves; a new opponent takes the seat.
-  function replaceBustedBots(game) {
-    var joined = [];
-    for (var p = 0; p < 4; p++) {
-      var pl = game.players[p];
-      if (pl.isHuman || pl.points > 0) continue;
-      var name = game.spareNames.shift() || ('Guest ' + (game.handNumber + p));
-      game.spareNames.push(pl.name);
-      joined.push({ seat: p, left: pl.name, joined: name });
-      pl.name = name;
-      pl.points = game.settings.startPoints;
-    }
-    return joined;
+  // The players from most points to fewest, with their places (a tie
+  // shares a place): [{ seat, name, points, place }].
+  function finalStandings(game) {
+    var list = game.players.map(function (p, seat) {
+      return { seat: seat, name: p.name, points: p.points };
+    }).sort(function (a, b) { return b.points - a.points; });
+    list.forEach(function (row, k) {
+      row.place = k && list[k - 1].points === row.points ? list[k - 1].place : k + 1;
+    });
+    return list;
   }
 
   /* ------------------------------------------------------------------ *
@@ -967,7 +961,6 @@
     return {
       settings: game.settings,
       players: game.players.map(function (p) { return { name: p.name, isHuman: p.isHuman, points: p.points }; }),
-      spareNames: game.spareNames,
       round: game.round,
       dealer: game.dealer,
       firstDealer: game.firstDealer,
@@ -988,7 +981,6 @@
     if (!ok) throw new Error('not a saved game');
     var game = createGame({ spicy: r.settings.spicy, mode: r.settings.mode, startPoints: r.settings.startPoints });
     game.players = r.players.map(function (p) { return { name: String(p.name), isHuman: !!p.isHuman, points: +p.points }; });
-    game.spareNames = (r.spareNames || []).slice();
     game.round = r.round;
     game.dealer = r.dealer;
     game.firstDealer = r.firstDealer;
@@ -1215,7 +1207,7 @@
     payments: payments,
     settleWin: settleWin,
     settleDraw: settleDraw,
-    replaceBustedBots: replaceBustedBots,
+    finalStandings: finalStandings,
     runHand: runHand,
     visibleCounts: visibleCounts,
     unseenCounts: unseenCounts,
