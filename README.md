@@ -241,7 +241,7 @@ Like a real table, each opponent's hand, melds and discards face that player, an
 | --- | --- | --- |
 | **Desktop** | Table and your hand | A column down the right, and a bar above your hand that keeps its space when the coach is off, so toggling never moves the table |
 | **Phone sideways** | The left two thirds (short screens are laid out at 520px tall and scaled to fit) | A column on the right third, from the top bar to the bottom, which stays when the coach is off |
-| **Phone upright** | Your hand is one row across the full width | A bar between the table and your hand, hidden when the coach is off |
+| **Phone upright** | Your hand is two rows, split in half | A bar between the table and your hand, hidden when the coach is off |
 
 On phones:
 

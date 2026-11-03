@@ -785,6 +785,9 @@
     // A landscape phone draws your hand this much smaller than it could be,
     // so the table has more room.
     var PHONE_HAND_SCALE = 0.9;
+    // A portrait phone's hand tiles are at most this wide, as a share of the
+    // screen's height, so the two rows leave the table its room.
+    var PORTRAIT_HAND_H = 0.05;
 
     // Discard areas for a pond: a cross around the center box, or (`strip`,
     // for a narrow table) top and bottom ponds across the full width with
@@ -844,7 +847,7 @@
       var desktop = cssW >= 980 && cssW >= cssH * 0.9;
       var landscape = !desktop && W > H;
       var phonePortrait = !desktop && !landscape;
-      var handRows = 1;
+      var handRows = phonePortrait ? 2 : 1;
       var depth = function (w) { return Math.max(2, w * 0.08); };
 
       // An upright phone leaves the coach's bar out with the coach off, so
@@ -868,22 +871,24 @@
         meW = tableW - 2 * (LANDSCAPE_SIDE_W + 6);
       }
 
-      // Hand tiles: one row of 14 across your section. A portrait phone
-      // uses its whole width for them (they're narrow there).
+      // Hand tiles: one row of 14 across your section, or two rows of 7 on a
+      // portrait phone, as wide as the screen unless that's too tall.
       // (A landscape phone sizes them for the two-thirds board even with the
       // coach off: bigger tiles there would take height from the discards.)
       var tileRowW = landscape ? Math.round((W - 8 - pad) * 2 / 3) : meW;
       // (Upright, the tiles nearly touch, so they can be as big as the width allows.)
       var handGap = phonePortrait ? 1 : TILE_GAP;
       var tw = phonePortrait
-        ? (meW - 2 * pad - 6 - 13 * handGap) / 14
+        ? Math.min((meW - 2 * pad - 6 - 6 * handGap) / 7, H * PORTRAIT_HAND_H)
         : clamp(((tileRowW - 2 * pad - 13 * TILE_GAP) / 14.8) * 0.88, 18, Math.min(124, H * (landscape ? 0.085 : 0.114)));
       // A landscape phone draws your hand (and so your melds) a little smaller, for the table.
       if (landscape) tw *= PHONE_HAND_SCALE;
       var th = tw * TILE_ASPECT;
       var handY = H - pad - th - depth(tw) - 4; // the bottom row
       var handTop = handY - (handRows - 1) * (th + HAND_ROW_GAP);
-      var mw = tw; // melds and flowers
+      // Melds and flowers: a portrait phone keeps them to a row of 14, so
+      // they fit beside your name.
+      var mw = phonePortrait ? (meW - 2 * pad - 6 - 13 * handGap) / 14 : tw;
       var meldRowH = mw * TILE_ASPECT + 8;
       var meY = handTop - meldRowH - 6;
       var actionsH = 44;
@@ -2014,7 +2019,8 @@
     }
 
     // The hand is one row across your section (the left two thirds on
-    // desktop). A fresh draw sits at the end, in line with the others.
+    // desktop), or two rows on a portrait phone: the first half on top, the
+    // rest below. A fresh draw sits at the end, in line with the others.
     function handSpan(count, tileW) {
       if (count <= 0) return 0;
       return count * tileW + (count - 1) * L.handGap;
