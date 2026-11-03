@@ -12,28 +12,28 @@
   var CJK_FONT = "'KN Yuanmo SC','PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC',sans-serif";
 
   var ART = {
-    'one-bamboo': { back: '#3FA34D', symbol: 'bird', eyes: 'sparkle', mouth: 'open', arms: 'wave', acc: ['bubble'] },
-    'nine-bamboo': { back: '#2E7D5B', symbol: 'bamboo9', eyes: 'dot', mouth: 'smile', arms: 'rest', acc: ['squareGlasses', 'clipboard'] },
-    'one-character': { back: '#E0B23A', symbol: 'char1', eyes: 'sparkle', mouth: 'smirk', arms: 'cheer', acc: ['crown'] },
-    'nine-character': { back: '#E66A9A', symbol: 'char9', eyes: 'star', mouth: 'open', arms: 'rest', acc: ['shoppingBags'] },
-    'one-dot': { back: '#E8964A', symbol: 'dot1', eyes: 'happy', mouth: 'cat', arms: 'rest', acc: ['boba'] },
-    'nine-dot': { back: '#5C6BC0', symbol: 'dot9', eyes: 'spiral', mouth: 'wobble', arms: 'rest', acc: ['sweat', 'thoughtCloud'] },
-    'green-dragon': { back: '#1F8A4C', symbol: 'greenDragon', eyes: 'money', mouth: 'open', arms: 'rest', acc: ['moneyBag'] },
-    'red-dragon': { back: '#C41E3A', symbol: 'redDragon', eyes: 'none', mouth: 'smirk', arms: 'cheer', acc: ['shades', 'sparkles'] },
-    'white-dragon': { back: '#7FA7D9', symbol: 'whiteDragon', eyes: 'calm', mouth: 'smile', arms: 'rest', acc: ['clawClip', 'sparkles'] },
-    'east-wind': { back: '#F4A020', symbol: 'east', eyes: 'sparkle', mouth: 'open', arms: 'cheer', acc: ['sunHalo'] },
-    'south-wind': { back: '#D99A5B', symbol: 'south', eyes: 'happy', mouth: 'tongue', arms: 'cheer', acc: ['dogEars'] },
-    'west-wind': { back: '#F27C6B', symbol: 'west', eyes: 'heart', mouth: 'smile', arms: 'rest', acc: ['hearts'] },
-    'north-wind': { back: '#4A7FC1', symbol: 'north', eyes: 'half', mouth: 'flat', arms: 'rest', acc: ['headphones', 'snowflake'] },
-    'spring': { back: '#F49AB5', symbol: 'spring', eyes: 'sparkle', mouth: 'open', arms: 'wave', acc: ['flowerCrown'] },
-    'summer': { back: '#2BB3C0', symbol: 'summer', eyes: 'wink', mouth: 'tongue', arms: 'wave', acc: ['sunHat'] },
-    'autumn': { back: '#C8642E', symbol: 'autumn', eyes: 'happy', mouth: 'cat', arms: 'rest', acc: ['scarf', 'coffee'] },
-    'winter': { back: '#6C8EDB', symbol: 'winter', eyes: 'sleepy', mouth: 'o', arms: 'rest', acc: ['beanie', 'zzz'] },
-    'plum-blossom': { back: '#D94A6B', symbol: 'plum', eyes: 'sparkle', mouth: 'smile', arms: 'cheer', acc: ['bandaid', 'sparkles'] },
-    'orchid': { back: '#A578D6', symbol: 'orchid', eyes: 'lashes', mouth: 'smile', arms: 'rest', acc: ['bow'] },
-    'chrysanthemum': { back: '#D9A521', symbol: 'chrysanthemum', eyes: 'happy', mouth: 'smile', arms: 'rest', acc: ['roundGlasses', 'teacup'] },
-    'bamboo': { back: '#5FA83A', symbol: 'bambooFlower', eyes: 'panda', mouth: 'cat', arms: 'rest', acc: ['pandaEars', 'bambooStick'] },
-    'blank-tile': { back: '#B9B2A6', symbol: 'blank', eyes: 'dot', mouth: 'flat', arms: 'rest', acc: ['sweat', 'question'] },
+    'one-bamboo': { back: '#3FA34D', symbol: 'bird', eyes: 'sparkle', mouth: 'open', acc: ['bubble'] },
+    'nine-bamboo': { back: '#2E7D5B', symbol: 'bamboo9', eyes: 'dot', mouth: 'smile', acc: ['squareGlasses', 'clipboard'] },
+    'one-character': { back: '#E0B23A', symbol: 'char1', eyes: 'sparkle', mouth: 'smirk', acc: ['crown'] },
+    'nine-character': { back: '#E66A9A', symbol: 'char9', eyes: 'star', mouth: 'open', acc: ['shoppingBags'] },
+    'one-dot': { back: '#E8964A', symbol: 'dot1', eyes: 'happy', mouth: 'cat', acc: ['boba'] },
+    'nine-dot': { back: '#5C6BC0', symbol: 'dot9', eyes: 'spiral', mouth: 'wobble', acc: ['sweat', 'thoughtCloud'] },
+    'green-dragon': { back: '#1F8A4C', symbol: 'greenDragon', eyes: 'money', mouth: 'open', acc: ['moneyBag'] },
+    'red-dragon': { back: '#C41E3A', symbol: 'redDragon', eyes: 'none', mouth: 'smirk', acc: ['shades', 'sparkles'] },
+    'white-dragon': { back: '#7FA7D9', symbol: 'whiteDragon', eyes: 'calm', mouth: 'smile', acc: ['clawClip', 'sparkles'] },
+    'east-wind': { back: '#F4A020', symbol: 'east', eyes: 'sparkle', mouth: 'open', acc: ['sunHalo'] },
+    'south-wind': { back: '#D99A5B', symbol: 'south', eyes: 'happy', mouth: 'tongue', acc: ['dogEars'] },
+    'west-wind': { back: '#F27C6B', symbol: 'west', eyes: 'heart', mouth: 'smile', acc: ['hearts'] },
+    'north-wind': { back: '#4A7FC1', symbol: 'north', eyes: 'half', mouth: 'flat', acc: ['headphones', 'snowflake'] },
+    'spring': { back: '#F49AB5', symbol: 'spring', eyes: 'sparkle', mouth: 'open', acc: ['flowerCrown'] },
+    'summer': { back: '#2BB3C0', symbol: 'summer', eyes: 'wink', mouth: 'tongue', acc: ['sunHat'] },
+    'autumn': { back: '#C8642E', symbol: 'autumn', eyes: 'happy', mouth: 'cat', acc: ['scarf', 'coffee'] },
+    'winter': { back: '#6C8EDB', symbol: 'winter', eyes: 'sleepy', mouth: 'o', acc: ['beanie', 'zzz'] },
+    'plum-blossom': { back: '#D94A6B', symbol: 'plum', eyes: 'sparkle', mouth: 'smile', acc: ['bandaid', 'sparkles'] },
+    'orchid': { back: '#A578D6', symbol: 'orchid', eyes: 'lashes', mouth: 'smile', acc: ['bow'] },
+    'chrysanthemum': { back: '#D9A521', symbol: 'chrysanthemum', eyes: 'happy', mouth: 'smile', acc: ['roundGlasses', 'teacup'] },
+    'bamboo': { back: '#5FA83A', symbol: 'bambooFlower', eyes: 'panda', mouth: 'cat', acc: ['pandaEars', 'bambooStick'] },
+    'blank-tile': { back: '#B9B2A6', symbol: 'blank', eyes: 'dot', mouth: 'flat', acc: ['sweat', 'question'] },
   };
 
   var BACK_ACCESSORIES = { sunHalo: true, pandaEars: true, dogEars: true, headphonesBand: true };
@@ -305,10 +305,8 @@
     return '<ellipse ' + attrs({ cx: cx, cy: cy, rx: 10, ry: 16, fill: fill, transform: 'rotate(' + rot + ' ' + cx + ' ' + cy + ')' }) + ' ' + stroke(3.5) + '/>';
   }
 
-  function arms(pose) {
-    var left = pose === 'cheer' ? arm(34, 116, -35, FACE) : arm(40, 164, 25, FACE);
-    var right = pose === 'cheer' || pose === 'wave' ? arm(166, 116, 35, FACE) : arm(160, 164, -25, FACE);
-    return left + right;
+  function arms() {
+    return arm(40, 164, 25, FACE) + arm(160, 164, -25, FACE);
   }
 
   var ACCESSORIES = {
@@ -494,7 +492,7 @@
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 250"' + size + ' class="' + (opts.className || 'tile-art') + '" ' + a11y + '>' + label +
       '<ellipse cx="100" cy="236" rx="60" ry="8" fill="rgba(59,42,32,0.14)"/>' +
       renderAccessories(spec.acc, true) +
-      arms(spec.arms) +
+      arms() +
       '<ellipse cx="76" cy="220" rx="15" ry="10" fill="' + spec.back + '" ' + stroke(3.5) + '/>' +
       '<ellipse cx="124" cy="220" rx="15" ry="10" fill="' + spec.back + '" ' + stroke(3.5) + '/>' +
       '<rect x="40" y="34" width="120" height="180" rx="26" fill="' + spec.back + '" ' + stroke(4) + '/>' +
