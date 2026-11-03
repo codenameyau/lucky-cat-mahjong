@@ -356,15 +356,12 @@
         '<path d="M164 20 q4 -8 8 0 t8 0 q-6 6 -10 0 q-4 -4 -2 4" fill="none" stroke="' + RED + '" stroke-width="2" stroke-linecap="round"/>';
     },
     moneyBag: function () {
-      // Round cloth sack, tied with a bow, and one coin in the other hand.
-      return '<ellipse cx="174" cy="196" rx="24" ry="22" fill="#F0D48A" ' + stroke(2.5) + '/>' +
-        '<path d="M160 184 C158 172 164 164 174 162 C184 164 190 172 188 184Z" fill="#F0D48A" ' + stroke(2.5) + '/>' +
-        '<path d="M162 182 Q174 190 186 182" fill="none" stroke="#C9A24A" stroke-width="2.5" stroke-linecap="round"/>' +
-        '<ellipse cx="164" cy="170" rx="8" ry="5" transform="rotate(-28 164 170)" fill="#E2BE62" ' + stroke(2) + '/>' +
-        '<ellipse cx="184" cy="170" rx="8" ry="5" transform="rotate(28 184 170)" fill="#E2BE62" ' + stroke(2) + '/>' +
-        '<circle cx="174" cy="174" r="3.2" fill="#C9A24A" ' + stroke(1.6) + '/>' +
-        '<path d="M170 176 L164 186 M178 176 L184 186" fill="none" ' + stroke(2) + '/>' +
-        '<text x="174" y="204" font-size="20" font-weight="800" text-anchor="middle" fill="' + GREEN + '" font-family="Arial,sans-serif">$</text>' +
+      // A pear-shaped sack, cinched at the neck with a ruffled top, and one
+      // coin in the other hand.
+      return '<path d="M165 173 C150 182 147 196 148 206 C149 218 160 222 172 222 C184 222 195 218 196 206 C197 196 194 182 179 173Z" fill="#F0D48A" ' + stroke(2.5) + '/>' +
+        '<path d="M165 172 C160 166 157 160 159 154 Q163 158 166 153 Q169 158 172 153 Q175 158 178 153 Q181 158 185 154 C187 160 184 166 179 172Z" fill="#E2BE62" ' + stroke(2.5) + '/>' +
+        '<rect x="162" y="169" width="20" height="6" rx="3" fill="#C9A24A" ' + stroke(2) + '/>' +
+        '<text x="172" y="208" font-size="26" font-weight="800" text-anchor="middle" fill="' + GREEN + '" font-family="Arial,sans-serif">$</text>' +
         coin(32, 184, 11, '#FFD23F');
     },
     shades: function () {
