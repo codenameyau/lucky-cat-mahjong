@@ -2973,7 +2973,7 @@
       });
       var bw = (r.w - 70) / 2;
       button('Play again', r.x + 25, r.y + r.h - 62, bw, 42, function () { callbacks.restart(); }, 'primary', 'go-again');
-      button('Settings', r.x + 45 + bw, r.y + r.h - 62, bw, 42, function () { quit(); }, 'light', 'go-settings');
+      button('Quit', r.x + 45 + bw, r.y + r.h - 62, bw, 42, function () { quit(); }, 'light', 'go-quit');
     }
 
     var overlayResolve = null;
