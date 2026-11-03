@@ -60,7 +60,7 @@ function positionOf(game) {
     wallLeft: h.wall.length,
     hand: h.seats[0].hand.slice(), // as held: the coach breaks ties by this order
     scalars,
-    seats: h.seats.map((s) => ({ melds: s.melds, flowers: s.flowers, discards: s.discards })),
+    seats: JSON.parse(JSON.stringify(h.seats.map((s) => ({ melds: s.melds, flowers: s.flowers, discards: s.discards })))),
   };
 }
 
