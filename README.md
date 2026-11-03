@@ -80,7 +80,23 @@ A static website for the Lucky Cat Mahjong club at [luckycatmahjong.com](https:/
 - Completion is a signed record in `localStorage` (the answers, the tile they score to, and a signature over both), so hand-adding a value doesn't unlock it. It's a deterrent only: anyone who reads the code can forge one
 - Changing the questions invalidates old records, so players retake the quiz to unlock again
 
-**Analytics events** — `tile_quiz_start`, `tile_quiz_complete`, `tile_quiz_submit`, `tile_quiz_share` (with `method`), and `tile_quiz_view_shared`, each with a `tile` parameter
+**Analytics events**
+
+| Event | Parameters |
+| --- | --- |
+| `tile_quiz_start`, `tile_quiz_submit_click`, `tile_quiz_info_back_click` | |
+| `tile_quiz_start_click` | `location` |
+| `tile_quiz_question_view`, `tile_quiz_back_click` | `question_index` |
+| `tile_quiz_answer_click` | `question_index`, `answer_index`, `answer_label` |
+| `tile_quiz_skill_click` | `skill_level` |
+| `tile_quiz_complete`, `tile_quiz_view_shared`, `tile_quiz_locked_view` | `tile` |
+| `tile_quiz_submit` | `tile`, `skill_level` |
+| `tile_quiz_share_click`, `tile_quiz_download_click` | `tile` |
+| `tile_quiz_share` | `tile`, `method` |
+| `tile_quiz_gallery_click`, `tile_quiz_relation_click`, `tile_quiz_returning_click` | `tile` |
+| `tile_quiz_cta_click` | `link` |
+
+Name, Instagram and zip code are never sent as events. Header clicks are `nav_click` (`link`, `page`) and `nav_toggle_click` (`page`), on every page.
 
 ### Play Hong Kong mahjong (`/play-mahjong/`)
 
@@ -251,13 +267,22 @@ Background music is three CC BY 4.0 tracks by Kevin MacLeod (Guzheng City, Sheny
 
 #### Analytics events
 
+Every button outside the hand itself is tracked. Discards and claims at the table aren't.
+
 | Event | Parameters |
 | --- | --- |
 | `play_start`, `play_resume` | `spicy`, `mode`, `coach`, `speed`, `coach_strategy`, `strategies` |
 | `play_hand_end` | `result`, `faan` |
 | `play_game_over` | `hands`, `wins` |
 | `play_save`, `play_load` | `version` |
-| `play_load_failed`, `play_restart`, `play_open_rules`, `play_open_strategies` | |
+| `play_start_click`, `play_mode_select` | `mode` |
+| `play_load_click`, `play_load_failed`, `play_restart`, `play_copy_seed` | |
+| `play_open_rules`, `play_close_rules`, `play_open_strategies`, `play_close_strategies` | |
+| `play_menu_open`, `play_menu_resume_click`, `play_menu_restart_click`, `play_menu_save_click`, `play_menu_load_click`, `play_menu_quit_click` | |
+| `play_fullscreen_click`, `play_show_hands_click`, `play_next_hand_click`, `play_see_results_click`, `play_again_click`, `play_end_quit_click` | |
+| `play_rule_click` | `hand` |
+| `play_credit_click` | `link` |
+| `play_set_sound` | `sound` |
 | `play_set_coach` | `coach` |
 | `play_set_strategy` | `seat`, `strategy` |
 | `play_set_coach_strategy` | `strategy` |

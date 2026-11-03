@@ -123,6 +123,11 @@
     });
   }
 
+  function trackNav(name, params) {
+    params.page = window.location.pathname;
+    if (typeof window.gtag === 'function') window.gtag('event', name, params);
+  }
+
   function setupMenu(header) {
     var toggle = document.querySelector('.nav-toggle');
     var links = document.querySelector('.nav-links');
@@ -131,6 +136,12 @@
 
     toggle.addEventListener('click', function () {
       setMobileNavOpen(header, links, toggle, !links.classList.contains('open'));
+      trackNav('nav_toggle_click', {});
+    });
+
+    document.addEventListener('click', function (e) {
+      var link = e.target.closest('.nav-link, .header-brand');
+      if (link) trackNav('nav_click', { link: link.textContent.trim() || 'Home' });
     });
 
     window.addEventListener('resize', function () {

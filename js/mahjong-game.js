@@ -139,6 +139,23 @@
     if (typeof root.gtag === 'function') root.gtag('event', name, params || {});
   }
 
+  // The event for a click on each of the table's buttons, by button id. Coach,
+  // Rules and Strategies have their own, and discards and claims aren't tracked.
+  var BUTTON_EVENTS = {
+    menu: 'play_menu_open',
+    fullscreen: 'play_fullscreen_click',
+    'show-hands': 'play_show_hands_click',
+    next: 'play_next_hand_click',
+    'see-results': 'play_see_results_click',
+    'm-resume': 'play_menu_resume_click',
+    'm-restart': 'play_menu_restart_click',
+    'm-save': 'play_menu_save_click',
+    'm-load': 'play_menu_load_click',
+    'm-quit': 'play_menu_quit_click',
+    'go-again': 'play_again_click',
+    'go-quit': 'play_end_quit_click',
+  };
+
   /* ------------------------------------------------------------------ *
    * 1. Assets and tile sprites
    * ------------------------------------------------------------------ */
@@ -1098,7 +1115,8 @@
       if (style === 'gold') color = COLORS.ink;
       var size = fitFont(ctx, label, w - 16, Math.min(16, h * 0.42), FONT_BODY, 'bold');
       text(label, x + w / 2, y + h / 2 + 1, { size: size, weight: 'bold', color: color, align: 'center' });
-      addRegion(x, y, w, h, onTap, id);
+      var event = BUTTON_EVENTS[id];
+      addRegion(x, y, w, h, event ? function () { track(event, {}); onTap(); } : onTap, id);
     }
 
     /* ---------------- render ---------------- */
@@ -1252,6 +1270,7 @@
               row.addEventListener('mouseenter', show);
               row.addEventListener('focus', show);
               row.addEventListener('click', show);
+              row.addEventListener('click', function () { track('play_rule_click', { hand: r.name }); });
               row.addEventListener('mouseleave', hideRuleExample);
               row.addEventListener('blur', hideRuleExample);
             }
@@ -1345,6 +1364,7 @@
       var dlg = rulesSheet();
       if (!dlg || !dlg.open) return;
       if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
+      track('play_close_rules', {});
     }
 
     function rulesOpen() {
@@ -1540,6 +1560,7 @@
       var dlg = strategiesSheet();
       if (!dlg || !dlg.open) return;
       if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
+      track('play_close_strategies', {});
     }
 
     function strategiesOpen() {
@@ -2292,6 +2313,7 @@
     // copied.
     function copySeed() {
       if (!game || !game.hand || !root.navigator || !navigator.clipboard || !navigator.clipboard.writeText) return;
+      track('play_copy_seed', {});
       navigator.clipboard.writeText(E.handSeedText(game, 0)).then(function () {
         if (destroyed) return;
         animate(520, function (e) { ui.windFlash = 1 - e; });
@@ -3078,6 +3100,7 @@
       sound.music(true); // plays or pauses to match
       if (sound.enabled) sound.play('select');
       requestRender();
+      track('play_set_sound', { sound: next });
     }
 
     function quit() {
@@ -3939,13 +3962,23 @@
       saved.mode = now.mode;
       saved.spicy = 'full';
       writeJson(SETTINGS_KEY, saved);
+      track('play_mode_select', { mode: now.mode });
     });
+
+    var credits = document.querySelector('.play-credits');
+    if (credits) {
+      credits.addEventListener('click', function (e) {
+        var link = e.target.closest('a');
+        if (link) track('play_credit_click', { link: link.textContent });
+      });
+    }
 
     // Load game, beside Start game: plays on from a save file.
     var loadBtn = document.getElementById('play-load');
     var loadNote = document.getElementById('play-load-note');
     if (loadBtn) {
       loadBtn.addEventListener('click', function () {
+        track('play_load_click', {});
         if (loadNote) loadNote.hidden = true;
         chooseSaveFile(function (data) {
           var settings = readForm(form, readJson(SETTINGS_KEY, {}));
@@ -3963,6 +3996,7 @@
       e.preventDefault();
       var settings = readForm(form, readJson(SETTINGS_KEY, {}));
       writeJson(SETTINGS_KEY, settings);
+      track('play_start_click', { mode: settings.mode });
       // ?instant=1 skips animations for this visit only, to speed up testing.
       if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
       open(settings);

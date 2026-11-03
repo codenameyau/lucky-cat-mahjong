@@ -921,6 +921,7 @@
 
     function onInfoSubmit(e) {
       e.preventDefault();
+      track('tile_quiz_submit_click');
       clearErrors();
       var profile = readProfile();
       var errors = validateProfile(profile);
@@ -1212,8 +1213,14 @@
     }
 
     function bind() {
-      $('#tq-start').addEventListener('click', startQuiz);
-      $('#tq-back').addEventListener('click', goBack);
+      $('#tq-start').addEventListener('click', function () {
+        track('tile_quiz_start_click', { location: 'intro' });
+        startQuiz();
+      });
+      $('#tq-back').addEventListener('click', function () {
+        track('tile_quiz_back_click', { question_index: current });
+        goBack();
+      });
       $('#tq-options').addEventListener('click', function (e) {
         var btn = e.target.closest('.tq-option');
         if (btn) choose(Number(btn.dataset.index));
@@ -1225,7 +1232,12 @@
         this.classList.remove('is-fresh');
       });
       $('#tq-info-form').addEventListener('submit', onInfoSubmit);
+      // The skill level is the only field tracked: the rest is personal.
+      $('#tq-info-form').addEventListener('change', function (e) {
+        if (e.target.name === 'skill') track('tile_quiz_skill_click', { skill_level: e.target.value });
+      });
       $('#tq-info-back').addEventListener('click', function () {
+        track('tile_quiz_info_back_click');
         current = QUESTIONS.length - 1;
         saveProgress();
         renderQuestion();
@@ -1239,9 +1251,30 @@
         skip.hidden = false;
         skip.addEventListener('click', function () { reveal(Promise.resolve()); });
       }
-      $('#tq-download').addEventListener('click', downloadImage);
-      $('#tq-hero-cta').addEventListener('click', startQuiz);
-      $('#tq-share').addEventListener('click', shareLink);
+      $('#tq-download').addEventListener('click', function () {
+        track('tile_quiz_download_click', { tile: resultTile.id });
+        downloadImage();
+      });
+      $('#tq-hero-cta').addEventListener('click', function () {
+        track('tile_quiz_start_click', { location: 'tile_page' });
+        startQuiz();
+      });
+      $('#tq-share').addEventListener('click', function () {
+        track('tile_quiz_share_click', { tile: resultTile.id });
+        shareLink();
+      });
+      if (doc.addEventListener) doc.addEventListener('click', trackLink);
+    }
+
+    // Links to other tiles, by the tile's own path, and out of the quiz.
+    function trackLink(e) {
+      var link = e.target.closest('a');
+      if (!link) return;
+      var tile = link.pathname.split('/').filter(Boolean).pop();
+      if (link.closest('.tq-gallery-item')) track('tile_quiz_gallery_click', { tile: tile });
+      else if (link.closest('.tq-relation-link')) track('tile_quiz_relation_click', { tile: tile });
+      else if (link.closest('#tq-returning')) track('tile_quiz_returning_click', { tile: tile });
+      else if (link.closest('.tq-cta')) track('tile_quiz_cta_click', { link: link.textContent });
     }
 
     function init() {
