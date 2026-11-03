@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.13.2';
+  var GAME_VERSION = '0.13.3';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -625,13 +625,13 @@
     for (var i = 0; i < 4; i++) game.players[i].points += result.deltas[i];
     result.after = game.players.map(function (p) { return p.points; });
 
-    // A full game (settings.mode 'payout') is four rounds, each dealer in
-    // turn: a dealer who wins deals again, and anything else passes the
-    // deal on, so at least 16 hands. It ends when the deal comes back round
-    // after the last round; points can go negative. Practice runs on without
-    // end, and a drawn hand keeps the deal there too.
+    // A dealer who wins deals again, and anything else, a drawn hand too,
+    // passes the deal on. A full game (settings.mode 'payout') is four rounds,
+    // each dealer in turn, so at least 16 hands. It ends when the deal comes
+    // back round after the last round; points can go negative. Practice runs
+    // on without end.
     var fullGame = game.settings.mode === 'payout';
-    var dealerKeeps = result.winner === game.dealer || (!fullGame && result.type === 'draw');
+    var dealerKeeps = result.winner === game.dealer;
     result.dealerKeeps = dealerKeeps;
     if (dealerKeeps) {
       game.dealerRepeat++;

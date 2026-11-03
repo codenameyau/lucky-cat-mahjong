@@ -2673,7 +2673,7 @@
         }
       } else {
         title = 'Draw game';
-        sub = 'The wall ran out with no winner. The dealer keeps the deal.';
+        sub = 'The wall ran out with no winner. The deal passes to the next player.';
       }
       text(title, cx, y, { size: fitFont(ctx, title, w, 26, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.red });
       y += 15 + 18;

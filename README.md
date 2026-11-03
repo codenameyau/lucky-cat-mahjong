@@ -88,8 +88,9 @@ A free game against three bots, with a coach. The game's current version is `GAM
 
 #### Game modes
 
-- **Practice** (the default) — No points or payouts, only each hand's faan. It runs on without end, and the dealer keeps the deal after a win or a drawn hand
-- **Full game** — Everyone starts with 2,000 points and plays 4 rounds and 16 dealer rotations, so at least 16 hands. A dealer who wins deals again, and anything else passes the deal on. Points can go negative without ending the game, and it closes with the final standings
+- **Practice** (the default) — No points or payouts, only each hand's faan. It runs on without end
+- **Full game** — Everyone starts with 2,000 points and plays 4 rounds and 16 dealer rotations, so at least 16 hands. Points can go negative without ending the game, and it closes with the final standings
+- **The deal** — In both modes, a dealer who wins deals again, and anything else, a drawn hand too, passes the deal on
 - **Payouts** always use the **full spicy** table
 - **The in-game menu** has Resume, Restart game (a second tap confirms), Save game, Load game and Quit game. The end-of-game screen offers Quit
 
