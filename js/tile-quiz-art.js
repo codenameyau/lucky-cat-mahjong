@@ -334,11 +334,16 @@
         '<circle cx="120" cy="27" r="3" fill="#3FA34D" ' + stroke(1.5) + '/>';
     },
     shoppingBags: function () {
-      return '<path d="M168 156 Q168 144 175 144 Q182 144 182 156" fill="none" ' + stroke(2.5) + '/>' +
-        '<rect x="162" y="154" width="26" height="30" rx="3" fill="#FF8FB1" ' + stroke(2.5) + '/>' +
-        '<path d="M150 170 Q150 162 155 162 Q160 162 160 170" fill="none" ' + stroke(2.5) + '/>' +
-        '<rect x="145" y="168" width="20" height="22" rx="3" fill="#FFD23F" ' + stroke(2.5) + '/>' +
-        sparkle(175, 168, 5, '#fff');
+      // Two tapered paper bags with folded tops and rope handles, standing
+      // on the ground beside the tile.
+      return '<path d="M170 160 Q170 145 178 145 Q186 145 186 160" fill="none" ' + stroke(2.5) + '/>' +
+        '<path d="M161 158 H195 L198 216 Q198 219 195 219 H161 Q158 219 158 216Z" fill="#FF8FB1" ' + stroke(2.5) + '/>' +
+        '<path d="M160.5 167 H195.5" fill="none" stroke="#E0648C" stroke-width="2.5"/>' +
+        sparkle(188, 183, 6, '#fff') +
+        '<path d="M155 182 Q155 168 163 168 Q171 168 171 182" fill="none" ' + stroke(2.5) + '/>' +
+        '<path d="M148 180 H178 L181 220 Q181 223 178 223 H148 Q145 223 145 220Z" fill="#FFD23F" ' + stroke(2.5) + '/>' +
+        '<path d="M147.5 188 H178.5" fill="none" stroke="#E0B23A" stroke-width="2.5"/>' +
+        sparkle(163, 206, 7, '#fff');
     },
     boba: function () {
       return '<rect x="174" y="132" width="5" height="26" rx="2" fill="' + RED + '" ' + stroke(1.5) + ' transform="rotate(12 176 145)"/>' +
