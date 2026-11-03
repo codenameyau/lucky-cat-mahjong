@@ -1353,22 +1353,26 @@
     return loss < 0.002 ? 0 : loss < 0.012 ? 1 : loss < 0.035 ? 2 : 3;
   }
 
-  // All Triplets needs more copies of the tiles it holds, so within each
-  // discard group the tile with the fewest copies left (unseen by this seat)
-  // goes first and the liveliest are kept. A risky tile always waits, and
-  // near the end of the hand every step of risk comes first, then how many
-  // are left.
+  // All Triplets needs more copies of the tiles it holds, so the tiles least
+  // likely to become a set go first: singles (two copies short) before pairs
+  // (one short, and able to pung) before finished sets, and within each the
+  // one with the fewest copies left (unseen by this seat). That decides ahead
+  // of a step toward a plainer hand and of risk. Tiles a strategy throws
+  // whatever else is true (group 0 or below) still go first, tiles a bigger
+  // hand wants still wait, and a discard that leaves the hand ready stays on top.
   var SETS_PLANS = ['triplets', 'concealed-triplets', 'mixed-orphans', 'all-terminals', 'all-honors'];
-  function tripletsOrder(out, ctx) {
+  function tripletsOrder(out, ctx, counts) {
     var lead = out[0] && out[0].analysis.best;
     var plan = lead && lead.plan;
     if (!plan || SETS_PLANS.indexOf(plan.id) === -1 || lead.readyBest) return out;
-    var late = ctx.wallLeft < LATE_WALL;
+    if (out.some(function (x) { return x.shanten === 0; })) return out;
+    var forced = function (x) { return x.priority <= 0 ? x.priority : 1; };
+    var favored = function (x) { return x.priority % 1 ? 1 : 0; }; // upgradeOrder's half step
     return out.map(function (x, k) { return { x: x, k: k }; }).sort(function (a, b) {
-      if (a.x.tier !== b.x.tier) return a.x.tier - b.x.tier;
-      var ra = riskStep(a.x.loss), rb = riskStep(b.x.loss);
-      if (!late) { ra = ra === 3 ? 1 : 0; rb = rb === 3 ? 1 : 0; }
-      if (ra !== rb) return ra - rb;
+      if (forced(a.x) !== forced(b.x)) return forced(a.x) - forced(b.x);
+      if (favored(a.x) !== favored(b.x)) return favored(a.x) - favored(b.x);
+      var na = Math.min(counts[a.x.index], 3), nb = Math.min(counts[b.x.index], 3);
+      if (na !== nb) return na - nb;
       var ua = ctx.unseen[a.x.index], ub = ctx.unseen[b.x.index];
       if (ua !== ub) return ua - ub;
       return a.k - b.k;
@@ -1448,7 +1452,7 @@
       if (a.priority !== b.priority) return a.priority - b.priority;
       return E.isTerminalOrHonorIndex(b.index) - E.isTerminalOrHonorIndex(a.index);
     });
-    if (!folding && T.tripletsLive) out = tripletsOrder(out, ctx);
+    if (!folding && T.tripletsLive) out = tripletsOrder(out, ctx, c);
     // A lone dragon nobody has shown goes last of all, unless throwing it
     // leaves the hand ready: then the usual order decides.
     var isLone = function (x) { return x.shanten > 0 && loneDragon(game, c, x.index); };

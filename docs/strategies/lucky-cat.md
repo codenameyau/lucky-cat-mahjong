@@ -61,7 +61,7 @@ Group 1 and the Concealed Straights rule are shared by every strategy (`js/mahjo
 Two things change this order:
 
 - **A bigger hand from the same tiles.** On a target, or whenever one of these hands is in the lead, a tile of it with no copy left goes first, then the tiles it can't use, even when that costs a step, and its live tiles wait. A ready hand isn't broken for one, and a hand with too few draws left to fill one drops it. While folding, safety still decides.
-- **All Triplets** (or Concealed Triplets) keeps every pair and every pung. Both wait behind any single, and a finished pung waits behind a pair. Within each group, the tile with the fewest copies left (not yet seen by you) goes first, and the tiles with the most left are kept, because they're the ones that can still become sets. A risky tile still waits. Near the end of the hand, safety comes first and then how many are left.
+- **All Triplets** (or Concealed Triplets) keeps every pair and every pung. Both wait behind any single, and a finished pung waits behind a pair. Within each group, the tile with the fewest copies left (not yet seen by you) goes first, and the tiles with the most left are kept, because they're the ones that can still become sets. So a single with three left goes before a pair with one left: the pair is only one copy short and can pung. This comes ahead of the tile's kind, of a step toward a plainer hand and of risk. A discard that leaves the hand ready stays on top, tiles a bigger hand wants still wait, and while folding, safety decides.
 
 ## Pairs
 

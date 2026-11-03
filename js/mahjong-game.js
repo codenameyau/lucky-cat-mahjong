@@ -561,7 +561,7 @@
     var ctx = canvas.getContext('2d');
     var prefs = readJson(PREFS_KEY, { sound: true });
     var sound = createSound(prefs.sound !== false);
-    sound.musicEnabled = prefs.music !== false;
+    sound.musicEnabled = sound.enabled;
     var reduceMotion = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     // W and H are the layout size. On short landscape screens the table is
@@ -809,7 +809,8 @@
         w: inner.w * (1 - 2 * sideFrac) - 8, h: inner.h * (1 - 2 * midFrac) - 4,
       };
       if (strip) {
-        var centerW = 52;
+        // Wide enough that the wind letter isn't tight against the sides.
+        var centerW = 64;
         var sideDepth = (inner.w - centerW - 12) / 2;
         var rowsH = function (p) { return rows * (p * TILE_ASPECT + TILE_GAP) + 4; };
         var pwFit = Math.min((inner.w - 4) / cols - TILE_GAP, ((sideDepth - 2) / rows - TILE_GAP) / TILE_ASPECT);
@@ -1240,8 +1241,8 @@
       var intro = document.createElement('p');
       intro.className = 'rules-sheet-intro';
       intro.textContent = 'Win with four sets (pungs, kongs or chows) and a pair, worth at least ' + E.MIN_FAAN +
-        ' faan. Add up every pattern your hand has, but in each family count only the highest. A hand is capped at ' +
-        F.thirteenOrphans + ' faan, a limit hand.';
+        ' faan. Add up every pattern your hand has, but in each family count only the highest. A limit hand is worth ' +
+        F.thirteenOrphans + ' faan.';
       body.parentNode.insertBefore(intro, body);
       root.MahjongRules.RULES.forEach(function (section) {
         var sec = document.createElement('section');
@@ -1272,17 +1273,32 @@
             var pill = row.querySelector('.rules-faan');
             pill.textContent = limit ? 'Limit' : faan + ' faan';
             if (limit) pill.classList.add('rules-faan--limit');
-            // Hover (or tap, or focus) shows an example hand.
-            if (section.preview !== false) {
+            // Hover (or tap, or focus) shows an example hand. Once it is open,
+            // a click on this same rule closes it. A touch's opening tap does
+            // not: the press starts before the example is shown.
+            if (section.preview !== false && r.preview !== false) {
               row.classList.add('rules-row--example');
               row.tabIndex = 0;
               var show = function () { showRuleExample(row, r, pill.textContent); };
-              row.addEventListener('mouseenter', show);
-              row.addEventListener('focus', show);
-              row.addEventListener('click', show);
-              row.addEventListener('click', function () { track('play_rule_click', { hand: r.name }); });
-              row.addEventListener('mouseleave', hideRuleExample);
-              row.addEventListener('blur', hideRuleExample);
+              var fromMouse = true;
+              var openBeforePress = false;
+              row.addEventListener('pointerdown', function (e) {
+                fromMouse = e.pointerType === 'mouse';
+                openBeforePress = openExampleRow === row;
+              });
+              row.addEventListener('mouseenter', function () { if (fromMouse || !openBeforePress) show(); });
+              row.addEventListener('focus', function () { if (fromMouse || !openBeforePress) show(); });
+              row.addEventListener('click', function () {
+                track('play_rule_click', { hand: r.name });
+                if (fromMouse ? openExampleRow === row : openBeforePress) { hideRuleExample(); return; }
+                show();
+              });
+              row.addEventListener('mouseleave', function (e) {
+                if (exampleCardHas(e.relatedTarget)) return;
+                openBeforePress = false;
+                hideRuleExample();
+              });
+              row.addEventListener('blur', function () { if (!exampleCardPressed) hideRuleExample(); });
             }
             box.appendChild(row);
           });
@@ -1301,6 +1317,35 @@
       return img;
     }
 
+    // Which rule's example is on screen, so a second click can close it.
+    var openExampleRow = null;
+    var exampleCardPressed = false;
+
+    function exampleCardHas(node) {
+      var dlg = rulesSheet();
+      var card = dlg && dlg.querySelector('.rules-example');
+      return !!(card && node && (node === card || card.contains(node)));
+    }
+
+    // A meld or pair the pattern needs, as opposed to tiles that only complete the hand.
+    function patternSet(key, set, example) {
+      var id = set[0];
+      var dragons = id === 'dr' || id === 'dg' || id === 'dw';
+      var winds = id === 'we' || id === 'ws' || id === 'ww' || id === 'wn';
+      if (key === 'allKongs') return set.length === 4;
+      if (key === 'dragonPung' || key === 'greatDragons') return dragons && set.length >= 3;
+      if (key === 'smallDragons') return dragons;
+      if (key === 'greatWinds') return winds && set.length >= 3;
+      if (key === 'smallWinds') return winds;
+      if (key === 'yakuWind') {
+        var windOf = { 1: 'we', 2: 'ws', 3: 'ww', 4: 'wn' };
+        var seat = example.seat || 2;
+        var round = example.round || 1;
+        return set.length >= 3 && (id === windOf[seat] || id === windOf[round]);
+      }
+      return true;
+    }
+
     // A card beside the row with the example hand as tiles.
     function showRuleExample(row, r, faanLabel) {
       var dlg = rulesSheet();
@@ -1309,8 +1354,22 @@
         card = document.createElement('div');
         card.className = 'rules-example';
         card.setAttribute('role', 'tooltip');
+        card.addEventListener('pointerdown', function (e) {
+          e.stopPropagation();
+          exampleCardPressed = true;
+        });
+        card.addEventListener('click', function (e) {
+          e.stopPropagation();
+          exampleCardPressed = false;
+          hideRuleExample();
+        });
+        card.addEventListener('mouseleave', function (e) {
+          if (openExampleRow && e.relatedTarget && openExampleRow.contains(e.relatedTarget)) return;
+          hideRuleExample();
+        });
         dlg.appendChild(card);
       }
+      openExampleRow = row;
       var ex = r.example;
       card.innerHTML = '';
       var head = document.createElement('div');
@@ -1322,23 +1381,37 @@
       card.appendChild(head);
       var tiles = document.createElement('div');
       tiles.className = 'rules-example-tiles';
-      var open = ex.open || [];
-      ex.sets.forEach(function (set, k) {
-        var g = document.createElement('span');
-        g.className = 'rules-set' + (open.indexOf(k) !== -1 ? ' rules-set--open' : '');
-        set.forEach(function (id) { g.appendChild(tileImg(id)); });
-        tiles.appendChild(g);
-      });
+      // Flower hands show only the bonus tiles. No Flowers shows none.
+      var flowersOnly = r.key === 'noFlowers' || r.key === 'seatFlower' || r.key === 'seatSeason' ||
+        r.key === 'allFlowers' || r.key === 'allSeasons' || r.key === 'sevenFlowers' || r.key === 'eightFlowers';
+      if (!flowersOnly) {
+        ex.sets.forEach(function (set) {
+          var cls = 'rules-set' + (patternSet(r.key, set, ex) ? ' rules-set--open' : '');
+          // These two hands are one run of 14, so show them on two even rows.
+          var twoRows = (r.key === 'nineGates' || r.key === 'thirteenOrphans') && set.length > 1;
+          var parts = twoRows ? [set.slice(0, Math.ceil(set.length / 2)), set.slice(Math.ceil(set.length / 2))] : [set];
+          parts.forEach(function (ids, i) {
+            if (i) {
+              var br = document.createElement('span');
+              br.className = 'rules-example-break';
+              tiles.appendChild(br);
+            }
+            var g = document.createElement('span');
+            g.className = cls;
+            ids.forEach(function (id) { g.appendChild(tileImg(id)); });
+            tiles.appendChild(g);
+          });
+        });
+      }
       if (ex.flowers && ex.flowers.length) {
         var fl = document.createElement('span');
-        fl.className = 'rules-set rules-set--flowers';
+        fl.className = 'rules-set' + (flowersOnly ? ' rules-set--open' : ' rules-set--flowers');
         ex.flowers.forEach(function (id) { fl.appendChild(tileImg(id)); });
         tiles.appendChild(fl);
       }
-      card.appendChild(tiles);
+      if (tiles.childNodes.length) card.appendChild(tiles);
       var notes = [];
       if (ex.note) notes.push(ex.note);
-      if (open.length) notes.push('Sets underlined in red were claimed.');
       if (notes.length) {
         var p = document.createElement('p');
         p.className = 'rules-example-note';
@@ -1350,13 +1423,15 @@
       var dr = dlg.getBoundingClientRect(), rr = row.getBoundingClientRect();
       var w = card.offsetWidth, h = card.offsetHeight;
       var left = Math.min(Math.max(8, rr.left - dr.left), dr.width - w - 8);
-      var top = rr.bottom - dr.top + 4;
-      if (top + h > dr.height - 8) top = rr.top - dr.top - h - 4;
+      // Overlap the row by a hair so the pointer can move onto the card.
+      var top = rr.bottom - dr.top - 2;
+      if (top + h > dr.height - 8) top = rr.top - dr.top - h + 2;
       card.style.left = left + 'px';
       card.style.top = (top + dlg.scrollTop) + 'px';
     }
 
     function hideRuleExample() {
+      openExampleRow = null;
       var dlg = rulesSheet();
       var card = dlg && dlg.querySelector('.rules-example');
       if (card) card.style.display = 'none';
@@ -1579,13 +1654,12 @@
     }
 
     var COACH_LABELS = { on: 'Coach on', feedback: 'Feedback on', off: 'Coach off' };
-    // The Sound button cycles: effects and music, effects only, nothing.
-    var SOUND_LABELS = { on: 'Sound on', nomusic: 'Music off', off: 'Sound off' };
-    var SOUND_ORDER = ['on', 'nomusic', 'off'];
+    // The Sound button toggles effects and music together.
+    var SOUND_LABELS = { on: 'Sound on', off: 'Sound off' };
+    var SOUND_ORDER = ['on', 'off'];
 
     function soundMode() {
-      if (!sound.enabled) return 'off';
-      return sound.musicEnabled ? 'on' : 'nomusic';
+      return sound.enabled ? 'on' : 'off';
     }
     var COACH_ORDER = ['on', 'feedback', 'off'];
 
@@ -2465,7 +2539,7 @@
         var o = ui.turnPrompt.opts;
         if (o.win) acts.push({ label: winButtonLabel(o.win), style: 'gold', fn: function () { resolveTurn({ type: 'win' }); } });
         o.kongs.forEach(function (k) {
-          acts.push({ label: 'Kong ' + shortName(k.tile), style: 'primary', fn: function () { resolveTurn({ type: 'kong', tile: k.tile }); } });
+          acts.push({ label: 'Kong', style: 'primary', fn: function () { resolveTurn({ type: 'kong', tile: k.tile }); } });
         });
         if (ui.selected >= 0) {
           acts.push({ label: 'Discard', style: 'light', fn: function () { discardSelected(); } });
@@ -3147,8 +3221,8 @@
     function toggleSound() {
       var next = SOUND_ORDER[(SOUND_ORDER.indexOf(soundMode()) + 1) % SOUND_ORDER.length];
       sound.enabled = next !== 'off';
-      sound.musicEnabled = next === 'on';
-      writeJson(PREFS_KEY, { sound: sound.enabled, music: sound.musicEnabled });
+      sound.musicEnabled = sound.enabled;
+      writeJson(PREFS_KEY, { sound: sound.enabled, music: sound.enabled });
       sound.music(true); // plays or pauses to match
       if (sound.enabled) sound.play('select');
       requestRender();
@@ -3541,10 +3615,8 @@
           return sleep(380);
         });
       },
-      kongAttempt: function (d) {
-        var pos = declarationPos(d.seat);
-        banner('Kong?', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 20, dur: 700 });
-        return sleep(300);
+      kongAttempt: function () {
+        // An added kong can still be robbed. No banner here: "Kong?" was flashing before "Kong!".
       },
       kong: function (d) {
         sound.play('kong');

@@ -15,7 +15,7 @@ A static website for the Lucky Cat Mahjong club at [luckycatmahjong.com](https:/
   - Playing: [Game modes](#game-modes) · [Rules and scoring](#rules-and-scoring) · [Saving and resuming](#saving-and-resuming) · [Hand seeds](#hand-seeds)
   - Bots and coach: [Strategies](#strategies) · [Bots](#bots) · [Coach](#coach) · [Bot competition](#bot-competition) · [Hand review and feedback](#hand-review-and-feedback)
   - Table: [Table and layouts](#table-and-layouts) · [Sound and music](#sound-and-music)
-  - For developers: [Analytics events](#analytics-events) · [Testing tip](#testing-tip)
+  - For developers: [Analytics events](docs/analytics.md) · [Testing tip](#testing-tip)
 - [Other pages](#other)
 
 **Working on the site**
@@ -42,9 +42,6 @@ A static website for the Lucky Cat Mahjong club at [luckycatmahjong.com](https:/
 - **Multi-paragraph copy** — About and CTA body text support paragraphs (leave a blank line in the CMS to start a new paragraph)
 - **Social proof** — Editable testimonials section and hero "stats" band to build trust
 - **Floating mobile contact bar** — "Email Us" + "Message Us" buttons pinned to the bottom on phones
-- **Analytics events** — Each CTA fires two Google Analytics 4 events (both with a `location` parameter):
-  - a **unique** event so it can be tracked individually: `book_session_hero`, `book_session_submit`, `instagram_message_hero`, `instagram_message_mobilebar`, `instagram_message_quotenote`, `instagram_profile_header`, `instagram_profile_cta`, `email_click_cta`, `email_click_mobilebar`, `email_click_quotenote`
-  - a **unified** channel event so totals are easy to read across the whole site — `email_click` (every email action, including the booking form), `instagram_message` (every Instagram DM action), and `instagram_profile` (every Instagram profile/follow click). The unified events include a `source_event` parameter identifying which specific CTA fired it.
 - **Services** — Private lessons, workshops, and business collaborations
 - **Editable rates** — Pricing table managed via Pages CMS
 - **Instagram** — Links to [@luckycat.mahjong](https://www.instagram.com/luckycat.mahjong/)
@@ -102,26 +99,6 @@ A static website for the Lucky Cat Mahjong club at [luckycatmahjong.com](https:/
 - The "Meet the whole set" gallery shows and links every tile, but a tile's full reading only opens for visitors who have finished the quiz. Anyone else who opens a tile link is sent to the quiz with a note naming that tile. Link previews are unaffected
 - Completion is a signed record in `localStorage` (the answers, the tile they score to, and a signature over both), so hand-adding a value doesn't unlock it. It's a deterrent only: anyone who reads the code can forge one
 - Changing the questions invalidates old records, so players retake the quiz to unlock again
-
-**Analytics events**
-
-| Event | Parameters |
-| --- | --- |
-| `tile_quiz_start`, `tile_quiz_submit_click`, `tile_quiz_info_back_click` | |
-| `tile_quiz_start_click` | `location` |
-| `tile_quiz_question_view`, `tile_quiz_back_click` | `question_index` |
-| `tile_quiz_answer_click`, plus one per answer: `tile_quiz_q1_a1` to `tile_quiz_q12_a4` | `question_index`, `answer_index`, `answer_label` |
-| `tile_quiz_skill_click` | `skill_level` |
-| `tile_quiz_complete`, `tile_quiz_view_shared`, `tile_quiz_locked_view` | `tile` |
-| `tile_quiz_submit` | `tile`, `skill_level` |
-| `tile_quiz_share_click`, `tile_quiz_download_click` | `tile` |
-| `tile_quiz_share` | `tile`, `method` |
-| `tile_quiz_gallery_click`, `tile_quiz_relation_click`, `tile_quiz_returning_click` | `tile` |
-| `tile_quiz_cta_click` | `link` |
-
-Each answer's own event counts how often it was clicked, with no GA4 setup needed. The numbers count from 1 in the order of `QUESTIONS` in `js/tile-quiz.js`, so `tile_quiz_q1_a3` is the first question's third answer. Going back and answering again counts as another click.
-
-Name, Instagram and zip code are never sent as events. Header clicks are `nav_click` (`link`, `page`) and `nav_toggle_click` (`page`), on every page.
 
 ### Play Hong Kong mahjong (`/play-mahjong/`)
 
@@ -265,7 +242,7 @@ Playing at the table:
 
 #### Sound and music
 
-The Sound button cycles Sound on (effects and music), Music off (effects only) and Sound off, and remembers the choice.
+The Sound button toggles Sound on (effects and music) and Sound off, and remembers the choice.
 
 Sound effects are short CC0 clips from Kenney's packs, played with WebAudio (`assets/sounds/`, credits in its README). All are physical table sounds except the flower's soft chime.
 
@@ -295,28 +272,6 @@ Background music is three CC BY 4.0 tracks by Kevin MacLeod (Guzheng City, Sheny
 #### Hand review and feedback
 
 `npm run review -- 3764864992-EE` replays a hand from its seed and shows the coach's advice each turn. Add `--turn N` for its reasoning and `--keep` or `--drop` to save feedback on a turn. Saved cases live in `docs/strategies/feedback.json`, and `npm test` holds the coach to the ones marked fixed. More in [docs/strategies/README.md](docs/strategies/README.md#reviewing-a-hand-and-teaching-the-coach).
-
-#### Analytics events
-
-Every button outside the hand itself is tracked. Discards and claims at the table aren't.
-
-| Event | Parameters |
-| --- | --- |
-| `play_start`, `play_resume` | `spicy`, `mode`, `coach`, `speed`, `coach_strategy`, `strategies` |
-| `play_hand_end` | `result`, `faan` |
-| `play_game_over` | `hands`, `wins` |
-| `play_save`, `play_load` | `version` |
-| `play_start_click`, `play_mode_select` | `mode` |
-| `play_load_click`, `play_load_failed`, `play_restart`, `play_copy_seed` | |
-| `play_open_rules`, `play_close_rules`, `play_open_strategies`, `play_close_strategies` | |
-| `play_menu_open`, `play_menu_resume_click`, `play_menu_restart_click`, `play_menu_save_click`, `play_menu_load_click`, `play_menu_quit_click` | |
-| `play_fullscreen_click`, `play_show_hands_click`, `play_next_hand_click`, `play_see_results_click`, `play_again_click`, `play_end_quit_click` | |
-| `play_rule_click` | `hand` |
-| `play_credit_click` | `link` |
-| `play_set_sound` | `sound` |
-| `play_set_coach` | `coach` |
-| `play_set_strategy` | `seat`, `strategy` |
-| `play_set_coach_strategy` | `strategy` |
 
 #### Testing tip
 
@@ -460,7 +415,9 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── review-lib.js       # Shared review logic (tested)
 │   ├── generate-guide.js   # Printable rules booklet PDF
 │   └── licensing-agreement.js # Licensing agreement PDF
-├── docs/strategies/        # Bot and coach playbooks, and feedback.json
+├── docs/
+│   ├── analytics.md        # Google Analytics events
+│   └── strategies/         # Bot and coach playbooks, and feedback.json
 ├── assets/                 # Music, sounds, PDFs and images
 ├── package.json            # npm scripts
 ├── tiles/                  # Hong Kong mahjong tile SVGs (CC0, see credit below)

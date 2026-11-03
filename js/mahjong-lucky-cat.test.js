@@ -517,6 +517,22 @@ describe('all triplets keeps the live tiles', () => {
     assert.ok(order.indexOf('c7') < order.indexOf('b3'), order.join(' '));
   });
 
+  it('counts copies left ahead of what kind of tile it is', () => {
+    // A single wind with two left goes before number singles with three left.
+    const hand = ['c2', 'c2', 'd5', 'd5', 'ws', 'ws', 'c7', 'we', 'b3', 'dg', 'dg'];
+    const game = table({ seats: [{ hand, melds: [meld('pung', 'b8')] }, { discards: ['we'] }], wallLeft: 70 });
+    assert.equal(B.analyzeDiscards(game, 0).candidates[0].tile, 'we');
+  });
+
+  it('counts copies held too: a single goes before a pair with fewer left', () => {
+    const hand = ['c2', 'c2', 'd5', 'd5', 'ws', 'ws', 'c7', 'd9', 'b3', 'dg', 'dg'];
+    const game = table({ seats: [{ hand, melds: [meld('pung', 'b8')] }, { discards: ['d5'] }], wallLeft: 70 });
+    const order = B.analyzeDiscards(game, 0).candidates.map((x) => x.tile);
+    ['c7', 'd9', 'b3'].forEach((t) => assert.ok(order.indexOf(t) < order.indexOf('d5'), order.join(' ')));
+    // Among pairs, the one with the fewest left comes first.
+    assert.ok(order.indexOf('d5') < order.indexOf('c2'), order.join(' '));
+  });
+
   it('near the end, counts a suit an opponent chowed as more dangerous', () => {
     const seats = [{}, { melds: [meld('chow', 'b2')] }];
     const early = table({ seats, wallLeft: 70 });
