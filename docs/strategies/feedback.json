@@ -1,0 +1,263 @@
+[
+  {
+    "id": "3764864992-EE-t11-dr",
+    "seed": "3764864992-EE",
+    "moves": [
+      "d1",
+      "c1",
+      "d9",
+      "dg",
+      "d2",
+      "c4",
+      "we",
+      "c8",
+      "ws",
+      "we"
+    ],
+    "turn": 11,
+    "coach": "jorge-yau",
+    "keep": [
+      "dr"
+    ],
+    "drop": [],
+    "note": "Keep a Red Dragon with all 3 others still out, even on Concealed Straights",
+    "status": "open",
+    "position": {
+      "round": 1,
+      "dealer": 0,
+      "wallLeft": 48,
+      "hand": [
+        "b8",
+        "b2",
+        "c7",
+        "c6",
+        "d4",
+        "b2",
+        "dr",
+        "b7",
+        "d2",
+        "c1",
+        "c1",
+        "d9",
+        "d1",
+        "c9"
+      ],
+      "scalars": {
+        "turn": 0,
+        "discardCount": 40,
+        "claimsMade": 1,
+        "kongChain": 0,
+        "drawnTile": "c9",
+        "canSelfDraw": true,
+        "backDrawn": 4
+      },
+      "seats": [
+        {
+          "melds": [],
+          "flowers": [
+            "f3"
+          ],
+          "discards": [
+            {
+              "tile": "d1",
+              "claimed": false
+            },
+            {
+              "tile": "c1",
+              "claimed": false
+            },
+            {
+              "tile": "d9",
+              "claimed": false
+            },
+            {
+              "tile": "dg",
+              "claimed": false
+            },
+            {
+              "tile": "d2",
+              "claimed": false
+            },
+            {
+              "tile": "c4",
+              "claimed": false
+            },
+            {
+              "tile": "we",
+              "claimed": false
+            },
+            {
+              "tile": "c8",
+              "claimed": false
+            },
+            {
+              "tile": "ws",
+              "claimed": false
+            },
+            {
+              "tile": "we",
+              "claimed": false
+            }
+          ]
+        },
+        {
+          "melds": [],
+          "flowers": [
+            "f4"
+          ],
+          "discards": [
+            {
+              "tile": "dg",
+              "claimed": false
+            },
+            {
+              "tile": "d1",
+              "claimed": false
+            },
+            {
+              "tile": "c9",
+              "claimed": false
+            },
+            {
+              "tile": "c2",
+              "claimed": false
+            },
+            {
+              "tile": "d2",
+              "claimed": false
+            },
+            {
+              "tile": "c8",
+              "claimed": false
+            },
+            {
+              "tile": "c4",
+              "claimed": false
+            },
+            {
+              "tile": "d8",
+              "claimed": false
+            },
+            {
+              "tile": "c4",
+              "claimed": false
+            },
+            {
+              "tile": "c7",
+              "claimed": false
+            }
+          ]
+        },
+        {
+          "melds": [],
+          "flowers": [
+            "s4"
+          ],
+          "discards": [
+            {
+              "tile": "dw",
+              "claimed": true
+            },
+            {
+              "tile": "b1",
+              "claimed": false
+            },
+            {
+              "tile": "c8",
+              "claimed": false
+            },
+            {
+              "tile": "c2",
+              "claimed": false
+            },
+            {
+              "tile": "d8",
+              "claimed": false
+            },
+            {
+              "tile": "ws",
+              "claimed": false
+            },
+            {
+              "tile": "ww",
+              "claimed": false
+            },
+            {
+              "tile": "c3",
+              "claimed": false
+            },
+            {
+              "tile": "b2",
+              "claimed": false
+            },
+            {
+              "tile": "b2",
+              "claimed": false
+            }
+          ]
+        },
+        {
+          "melds": [
+            {
+              "type": "pung",
+              "tiles": [
+                "dw",
+                "dw",
+                "dw"
+              ],
+              "from": 2,
+              "claimed": "dw",
+              "concealed": false,
+              "at": 0
+            }
+          ],
+          "flowers": [
+            "s3"
+          ],
+          "discards": [
+            {
+              "tile": "d1",
+              "claimed": false
+            },
+            {
+              "tile": "d4",
+              "claimed": false
+            },
+            {
+              "tile": "b8",
+              "claimed": false
+            },
+            {
+              "tile": "b3",
+              "claimed": false
+            },
+            {
+              "tile": "ww",
+              "claimed": false
+            },
+            {
+              "tile": "c3",
+              "claimed": false
+            },
+            {
+              "tile": "d5",
+              "claimed": false
+            },
+            {
+              "tile": "d3",
+              "claimed": false
+            },
+            {
+              "tile": "c4",
+              "claimed": false
+            },
+            {
+              "tile": "d5",
+              "claimed": false
+            }
+          ]
+        }
+      ]
+    }
+  }
+]
