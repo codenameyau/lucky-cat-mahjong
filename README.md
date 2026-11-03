@@ -199,7 +199,7 @@ Every decision is an expected-value estimate from information the seat could leg
 **Discards**
 
 - Once a chow is exposed (or 7 or more tiles are in one suit), every tile of another suit is thrown first, even while folding, since a mixed-suit hand can no longer reach 3 faan. The exception: when flowers and seasons already give all but one faan, an open All Sequences or a quick self-draw wins, and the bots play for speed
-- A Concealed Straights hand throws its honors first, all but one honor pair
+- A Concealed Straights hand throws its honors first, all but one honor pair and any dragon nobody has shown (unless throwing it leaves the hand ready)
 - A flush stays out of the suit the player on your left is collecting when another suit is about even, and between close suits takes the one they're throwing
 - Keeping pairs and dragons never costs a step toward ready, and while folding, safety decides
 
@@ -219,7 +219,7 @@ What it plays for:
 
 - Picks a route to 3 faan: Concealed Straights for hands spread across suits, a Half or Full Flush, All Triplets, Seven Pairs, or sets of dragons and winds
 - Names a bigger hand in reach, such as All Terminals, and says to aim for it
-- Throws what the route doesn't use. Keeps a lone honor while it can still become a set, and lets it go once two are out (Concealed Straights throws honors first instead)
+- Throws what the route doesn't use. Keeps a lone honor while it can still become a set, and lets it go once two are out (Concealed Straights throws honors first instead, but keeps a dragon nobody has shown)
 - Plays tiles a threatening opponent already threw
 - Pungs dragons and its own or the round's wind, unless the hand's target can't use them, and won't break a concealed runs hand for a claim
 

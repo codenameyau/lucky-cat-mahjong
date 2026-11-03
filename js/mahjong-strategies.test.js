@@ -175,12 +175,12 @@ describe('jorge-yau decisions', () => {
 describe('Concealed Straights keeps one honor pair', () => {
   const noKongs = { kongs: [] };
   it('throws every other honor first and keeps the pair', () => {
-    const hand = ['c2', 'c3', 'c4', 'd5', 'd6', 'd7', 'b3', 'b4', 'b6', 'b7', 'wn', 'wn', 'ws', 'dg'];
+    const hand = ['c2', 'c3', 'c4', 'd5', 'd6', 'd7', 'b3', 'b4', 'b6', 'b7', 'wn', 'wn', 'ws', 'ww'];
     const game = table({ seats: [{ hand }], wallLeft: 80 });
     const a = L.analyzeDiscards(game, 0);
     assert.equal(a.ctx.leadPlan.id, 'straights');
     const order = a.candidates.map((x) => x.tile);
-    assert.deepEqual(order.slice(0, 2).sort(), ['dg', 'ws']);
+    assert.deepEqual(order.slice(0, 2).sort(), ['ws', 'ww']);
     assert.ok(order.indexOf('wn') > 2, order.join(' '));
     const hint = Coach.forStrategy(L).turnHint(game, 0, noKongs);
     assert.match(hint.tips.join(' '), /Keep your North Wind pair as the pair, and throw your other honors first/);
@@ -489,7 +489,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.14.1');
+    assert.equal(E.GAME_VERSION, '0.14.2');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);

@@ -98,10 +98,16 @@ describe('coach: discards', () => {
     assert.doesNotMatch(text(hint), /Seven Pairs/);
   });
 
-  it('on Concealed Straights, throws a live dragon before a lone terminal', () => {
+  it('on Concealed Straights, keeps a dragon nobody has shown', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
+    assert.notEqual(hint.tile, 'dr');
+    assert.doesNotMatch(text(hint), /Throw your honors first/);
+  });
+
+  it('on Concealed Straights, lets the dragon go once one is out', () => {
+    const game = table({ seats: [{ hand: mixed }, { discards: ['dr'] }] });
+    const hint = C.turnHint(game, 0, { kongs: [] });
     assert.equal(hint.tile, 'dr');
-    assert.equal(hint.action, 'Discard Red Dragon.');
     assert.match(text(hint), /Honors break All Sequences\./);
   });
 
@@ -243,14 +249,14 @@ describe('coach: feedback on your last move', () => {
   const mixed = ['c2', 'c3', 'c4', 'd4', 'd5', 'd6', 'b3', 'b4', 'b6', 'b7', 'd8', 'd8', 'c9', 'dr'];
 
   it('praises the coach\'s top discard and says why', () => {
-    const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
+    const hint = C.turnHint(table({ seats: [{ hand: mixed }, { discards: ['dr'] }] }), 0, { kongs: [] });
     const fb = C.discardFeedback(hint, 'dr');
     assert.equal(fb.action, 'Great discard.');
     assert.match(fb.tips[0], /^Red Dragon was the top choice\. /);
   });
 
   it('says a discard slowed the hand and compares it with the coach\'s pick', () => {
-    const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
+    const hint = C.turnHint(table({ seats: [{ hand: mixed }, { discards: ['dr'] }] }), 0, { kongs: [] });
     const fb = C.discardFeedback(hint, 'd5');
     assert.equal(fb.action, 'That discard slows your hand.');
     assert.match(fb.tips.join(' '), /The coach picks Red Dragon\./);
