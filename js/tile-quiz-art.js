@@ -167,7 +167,12 @@
       return '<rect x="66" y="44" width="68" height="80" rx="8" fill="none" stroke="#1E39CD" stroke-width="6"/>' +
         '<rect x="75" y="53" width="50" height="62" rx="4" fill="none" stroke="#1E39CD" stroke-width="2.5"/>';
     },
-    east: function () { return cjk('東', 100, 110, 70, NAVY); },
+    // KN Yuanmo SC has no 東 (only the simplified 东), so it's drawn by hand
+    // in the font's heavy, blocky style to match 南, 西 and 北.
+    east: function () {
+      return '<path d="M68 56 H132 V65 H105 V68 H126 V97 H112 L133 114 H120 L105 101 V114 H95 V101 L80 114 H67 L88 97 H74 V68 H95 V65 H68Z" fill="' + NAVY + '"/>' +
+        '<path d="M83 75 H95 V79 H83Z M105 75 H117 V79 H105Z M83 86 H95 V90 H83Z M105 86 H117 V90 H105Z" fill="' + FACE + '"/>';
+    },
     south: function () { return cjk('南', 100, 110, 70, NAVY); },
     west: function () { return cjk('西', 100, 110, 70, NAVY); },
     north: function () { return cjk('北', 100, 110, 70, NAVY); },
