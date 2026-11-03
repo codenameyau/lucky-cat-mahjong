@@ -1,13 +1,17 @@
 # Lucky Cat Mahjong
 
-A static website for the Lucky Cat Mahjong club, with content managed through [Pages CMS](https://pagescms.org).
+A static website for the Lucky Cat Mahjong club at [luckycatmahjong.com](https://luckycatmahjong.com), with content managed through [Pages CMS](https://pagescms.org).
+
+- [Features](#features): [Homepage](#homepage), [Points Guide](#hong-kong-mahjong-points-guide-hong-kong-mahjong-scoring), [Community](#community-page-community), [Events](#events-page-events), [Quiz](#which-mahjong-tile-are-you-quiz-which-mahjong-tiles-are-you), [Play](#play-hong-kong-mahjong-play-mahjong)
+- [Local preview](#local-preview), [Tests](#tests), [Other scripts](#other-scripts)
+- [Editing content](#editing-content-with-pages-cms), [Deploy](#deploy-to-github-pages), [Project structure](#project-structure), [Credits](#credits)
 
 ## Features
 
 ### Homepage
 
 - **Logo & branding** — Uses `logo.png` / `logo.webp` with a red-forward color palette matching the Lucky Cat brand
-- **Shared site navigation** — Sticky header across all pages (Our Services, Points Guide, Community, Events) with a mobile hamburger menu; links load from `data/nav.json`
+- **Shared site navigation** — Sticky header across all pages (Home, Community, Events, Points Guide, Personality Quiz, Play Mahjong) with a mobile hamburger menu; links load from `data/nav.json`
 - **Conversion-focused CTAs** — Hero and closing calls-to-action drive emails and Instagram messages
 - **"Book a session" form** — Static lead form that builds a pre-filled email (no backend needed); a direct email/Instagram link sits beneath it
 - **Direct Instagram message links** — "Message us" buttons open straight into a DM via `ig.me/m/<handle>`
@@ -16,7 +20,7 @@ A static website for the Lucky Cat Mahjong club, with content managed through [P
 - **Social proof** — Editable testimonials section and hero "stats" band to build trust
 - **Floating mobile contact bar** — "Email Us" + "Message Us" buttons pinned to the bottom on phones
 - **Analytics events** — Each CTA fires two Google Analytics 4 events (both with a `location` parameter):
-  - a **unique** event so it can be tracked individually — `book_session_hero`, `book_session_submit`, `instagram_message_hero`, `instagram_message_mobilebar`, `instagram_message_quotenote`, `instagram_profile_header`, `instagram_profile_cta`, `email_click_cta`, `email_click_mobilebar`, `email_click_quotenote`
+  - a **unique** event so it can be tracked individually: `book_session_hero`, `book_session_submit`, `instagram_message_hero`, `instagram_message_mobilebar`, `instagram_message_quotenote`, `instagram_profile_header`, `instagram_profile_cta`, `email_click_cta`, `email_click_mobilebar`, `email_click_quotenote`
   - a **unified** channel event so totals are easy to read across the whole site — `email_click` (every email action, including the booking form), `instagram_message` (every Instagram DM action), and `instagram_profile` (every Instagram profile/follow click). The unified events include a `source_event` parameter identifying which specific CTA fired it.
 - **Services** — Private lessons, workshops, and business collaborations
 - **Editable rates** — Pricing table managed via Pages CMS
@@ -28,6 +32,7 @@ A static website for the Lucky Cat Mahjong club, with content managed through [P
 - **Automatic scoring** — Detects patterns, counts faan, and converts to chip payouts with **full spicy** or **half spicy** tables
 - **Example hands** — One-click presets from chicken hands through limit hands (Thirteen Orphans, Four Winds, Nine Gates, etc.)
 - **Shareable hands** — "Share Hand" encodes the current hand and options into the URL so you can send a scored hand to friends
+- **Hand seeds from the game** — Paste a hand seed copied from the Play page (Cmd/Ctrl+V anywhere on the page, or tap the empty hand's text where the browser allows reading the clipboard) to see the starting hand dealt to you, with your flowers, seat wind and round wind
 - **Scoring reference** — Beginner-friendly guide sections covering how scoring works, every way to score, special/limit hands, and tile basics
 - **SEO** — Structured data (Article, FAQ, Breadcrumb) and keyword-rich meta tags for discoverability
 
@@ -39,37 +44,259 @@ A static website for the Lucky Cat Mahjong club, with content managed through [P
 - **Desktop lightbox** — Click any photo on larger screens to browse full-size in a keyboard-navigable viewer
 - **Image pipeline** — `npm run format-media` converts uploaded JPG/PNG to WebP, resizes for the web, and syncs paths back into `data/community.json`
 
+### Events page (`/events/`)
+
+- **Upcoming events and tickets** — A Ticket Tailor widget lists upcoming events and tournaments and sells tickets, so this page isn't edited through the CMS
+
 ### "Which Mahjong Tile Are You?" quiz (`/which-mahjong-tiles-are-you/`)
 
-- **Personality quiz** — 12 questions match players to one of 22 tiles: the 13 orphans, the 8 flowers & seasons, and the blank tile. Quiz copy and scoring live in `js/tile-quiz.js`
+**The quiz**
+
+- **Personality quiz** — 12 questions match players to one of 22 tiles: the 13 orphans, the 8 flowers & seasons, and the blank tile. Copy and scoring live in `js/tile-quiz.js`
 - **Besties and enemies** — Every result names the tile's mahjong bestie and enemy
 - **Chibi tile art** — Each tile is a hand-built inline SVG character (`js/tile-quiz-art.js`), no image files needed
-- **Lead capture** — Before the result is revealed, first-time players enter name, Instagram, zip code, and skill level, which is posted straight to the "Which mahjong tile are you?" Google Form, including the tile they got (`FORM_FIELDS` in `js/tile-quiz.js` holds the entry IDs). The form's "Result" dropdown options must match each tile's `name` exactly, or Google rejects the submission
-- **Progress survives a refresh** — Answers and the current question are saved to `localStorage` as you go, so reloading mid-quiz returns to the same question (or the info form if every question is answered); progress clears once the result is revealed
-- **One submission per browser** — The submission and latest result are kept in `localStorage`; retakes skip the form and never re-submit
-- **Shareable results** — Every tile has its own link (`/which-mahjong-tiles-are-you/red-dragon/`) whose link preview uses that tile's image instead of the Lucky Cat logo (the quiz page itself keeps the logo). That link is a small page with the tile's preview tags that redirects to the quiz (`?tile=red-dragon`), and the quiz then puts the tile link back in the address bar, so sharing from the browser gets the tile preview too. Old `?tile=` links still open the right tile. Results have a share-link button (native share sheet, or copies the link) and a "Download image" button that renders a 1080×1350 (4:5) card with the tile's description
-- **Generated tile pages** — The per-tile redirect pages and their 1200×630 preview images are generated by `npm run generate-tile-pages` (uses Puppeteer, falling back to your installed Chrome; `--pages` skips the images). Re-run it after changing a tile's name, title, tagline or art; `npm test` fails if a page is out of date. Edits to the quiz page itself don't need a re-run
-- **Tile details unlock after the quiz** — The "Meet the whole set" gallery shows and links every tile, but a tile's full reading only opens for visitors who have finished the quiz; anyone else who opens a tile link (including a shared one) is sent to the quiz with a note naming that tile. Completion is a signed record in `localStorage` (the answers, the tile they score to, and a signature over both), so hand-adding a value doesn't unlock it. It's a deterrent only: anyone who reads the code can forge one. Changing the questions invalidates old records, so players retake the quiz to unlock again. Link previews are unaffected
-- **Analytics events** — `tile_quiz_start`, `tile_quiz_complete`, `tile_quiz_submit`, `tile_quiz_share` (with `method`), and `tile_quiz_view_shared`, each with a `tile` parameter
+- **Progress survives a refresh** — Answers and the current question are saved to `localStorage`, so reloading returns to the same question (or the info form if every question is answered). Progress clears once the result is revealed
+
+**Lead capture**
+
+- First-time players enter name, Instagram, zip code and skill level before the result is revealed. It posts straight to the "Which mahjong tile are you?" Google Form, including the tile they got (`FORM_FIELDS` in `js/tile-quiz.js` holds the entry IDs)
+- The form's "Result" dropdown options must match each tile's `name` exactly, or Google rejects the submission
+- The submission and latest result are kept in `localStorage`, so retakes skip the form and never re-submit
+
+**Sharing**
+
+- Every tile has its own link (`/which-mahjong-tiles-are-you/red-dragon/`) whose link preview uses that tile's image instead of the Lucky Cat logo
+- That link is a small page with the tile's preview tags that redirects to the quiz (`?tile=red-dragon`). The quiz then puts the tile link back in the address bar, so sharing from the browser gets the tile preview too. Old `?tile=` links still work
+- Results have a share-link button (native share sheet, or copies the link) and a "Download image" button that renders a 1080×1350 (4:5) card with the tile's description
+
+**Generated tile pages**
+
+- `npm run generate-tile-pages` generates the per-tile redirect pages and their 1200×630 preview images. It uses Puppeteer, falling back to your installed Chrome; `--pages` skips the images
+- Re-run it after changing a tile's name, title, tagline or art. `npm test` fails if a page is out of date. Edits to the quiz page itself don't need a re-run
+
+**Tile details unlock after the quiz**
+
+- The "Meet the whole set" gallery shows and links every tile, but a tile's full reading only opens for visitors who have finished the quiz. Anyone else who opens a tile link is sent to the quiz with a note naming that tile. Link previews are unaffected
+- Completion is a signed record in `localStorage` (the answers, the tile they score to, and a signature over both), so hand-adding a value doesn't unlock it. It's a deterrent only: anyone who reads the code can forge one
+- Changing the questions invalidates old records, so players retake the quiz to unlock again
+
+**Analytics events**
+
+| Event | Parameters |
+| --- | --- |
+| `tile_quiz_start`, `tile_quiz_submit_click`, `tile_quiz_info_back_click` | |
+| `tile_quiz_start_click` | `location` |
+| `tile_quiz_question_view`, `tile_quiz_back_click` | `question_index` |
+| `tile_quiz_answer_click`, plus one per answer: `tile_quiz_q1_a1` to `tile_quiz_q12_a4` | `question_index`, `answer_index`, `answer_label` |
+| `tile_quiz_skill_click` | `skill_level` |
+| `tile_quiz_complete`, `tile_quiz_view_shared`, `tile_quiz_locked_view` | `tile` |
+| `tile_quiz_submit` | `tile`, `skill_level` |
+| `tile_quiz_share_click`, `tile_quiz_download_click` | `tile` |
+| `tile_quiz_share` | `tile`, `method` |
+| `tile_quiz_gallery_click`, `tile_quiz_relation_click`, `tile_quiz_returning_click` | `tile` |
+| `tile_quiz_cta_click` | `link` |
+
+Each answer's own event counts how often it was clicked, with no GA4 setup needed. The numbers count from 1 in the order of `QUESTIONS` in `js/tile-quiz.js`, so `tile_quiz_q1_a3` is the first question's third answer. Going back and answering again counts as another click.
+
+Name, Instagram and zip code are never sent as events. Header clicks are `nav_click` (`link`, `page`) and `nav_toggle_click` (`page`), on every page.
 
 ### Play Hong Kong mahjong (`/play-mahjong/`)
 
-- **Coach and bot playbook** — The hands, discards, safety reads, and claims the coach and the bots follow are written out per strategy in `docs/strategies/`: `jorge-yau.md` and `lucky-cat.md`.
-- **Strategies** (`js/mahjong-strategies.js`) — Every bot plays a named strategy, shown on the Strategies sheet (the table shows only the player's name). The **Strategies** button in the top bar opens a sheet that describes each one and lets you pick a strategy for each bot seat and for the coach (tips and feedback). Picks are saved in `localStorage` (`lcm-play-strategies`); a bot seat with nothing saved plays a random strategy each game, and the coach defaults to lucky-cat. **jorge-yau** (`js/mahjong-jorge-yau.js`) reads the opening hand and builds toward one target hand; **lucky-cat** (`js/mahjong-lucky-cat.js`) is the original expected-value bot. Every strategy is built on the shared foundation in `js/mahjong-bot.js` with `MahjongBot.createStrategy({ id, hooks, tuning })`; see `docs/strategies/README.md`.
-- **Saving and resuming** — Save game in the menu downloads `play-lucky-cat-mahjong-<timestamp>.json`, and Load game (in the menu or beside Start game) plays on from it. A save holds no hidden tiles: the game as the current hand began, that hand's seed and your own moves; loading deals the hand from the seed and replays it. Files are signed (HMAC-SHA256), so an edited or damaged file won't load, and they load into any version with the same major number (`GAME_VERSION` in `js/mahjong-engine.js`, semver). The game in progress is also kept in local storage the same way, so refreshing the page or reopening the tab picks it up; Quit game clears it.
-- **Bot competition** — `npm run compete -- --deals 1000` plays strategies against each other over thousands of hands (each deal once per seat rotation, split across worker threads) and prints each strategy's points per hand, wins, self-draws, deal-ins, points paid, average faan, limit hands, concealed wins, claims per hand, the patterns in its wins and its net points against each other strategy. `--lineup a,b,c,d` sets the seats, `--json file` saves the full report (`js/mahjong-competition.js`, `scripts/competition.js`).
-- **Settings preview** — **Practice** mode is the default (no points or payouts, only each hand's faan). **Full game** starts everyone with 2,000 points and plays 4 rounds and 16 dealer rotations, so at least 16 hands: a dealer who wins deals again, and anything else passes the deal on. Points can go negative without ending the game, and it closes with the final standings. Payouts always use the **full spicy** table. The coach and sound are set from the buttons in the top bar (the coach starts on). The Coach button cycles three ways, Coach on, Feedback on and Coach off. Choices are remembered in `localStorage` as soon as you change them. The in-game menu has **Restart game**, which takes a second tap to confirm
-- **Same rules as the calculator** — Hands are scored by `HKScoring.scoreHand` in `js/points.js`, the calculator's own pattern detection, faan counting and payout tables, so the game and the calculator always agree. 3 faan minimum to win. On a self-draw every opponent pays the base points; on a discard (or robbed kong) only the discarder pays, as the scoring guide describes. Heavenly and Earthly hands, robbing the kong, win by kong/double kong, last tile, flowers and seasons (including Seven Robbing One and Eight Immortals) are all handled. The dealer keeps the deal after a win or a drawn hand, and the round wind moves on once everyone has dealt. A bot that runs out of points is replaced by a new opponent
-- **Engine** (`js/mahjong-engine.js`) — Wall, dealing, flower replacement, draws, claims with HK priority (win > pung/kong > chow, chow only from the left), kongs with replacement draws, settlement, and a fast suit-by-suit shanten solver
-- **Bots** (`js/mahjong-bot.js`, the shared foundation, and a file per strategy) — Every decision is an expected-value estimate from information the seat could legally see. Offense weighs shanten and live improving tiles for each plan (plain hand, half/full flush, all triplets, seven pairs, thirteen orphans) against the faan that plan is likely to reach; ready hands are valued exactly by scoring every wait with `points.js`, so bots know which waits can actually clear 3 faan. Defense estimates each opponent's chance of being ready (melds, turn, flush reading) and every tile's deal-in risk, so bots fold slow hands against a likely winner. Claims compare the hand's value with and without the meld On top of that they follow an expert playbook: bigger hands are worth more early and speed matters more late or against a big hand; dead waits (3+ copies visible) count for little; each opponent gets a Low/Medium/High/Extreme threat level from melds, one-suit signals and turn count, and defense takes over when someone is High or Extreme and the hand is slow, or when under 16 tiles remain; tile safety follows tiles thrown since the opponent's last meld, dead honors, suji and kabe; chows only when they are necessary or help a lot (they make a winning hand ready, or build the flush the hand is already going for, or save a step late in the hand), and once a chow is exposed (or 7 or more tiles are in one suit) every tile of another suit is treated as worthless and thrown first, since a mixed-suit hand can no longer reach 3 faan (unless flowers and seasons already give all but one faan: then an open All Sequences or a quick self-draw wins, and the bots play for speed), always, even while folding; a Concealed Straights hand throws its honors first, all but one honor pair; dragons and own/round winds are always Punged (unless that breaks a ready hand worth more), early chows need a ready hand or a flush one tile from ready, while a kong is fine at any point; a flush stays out of the suit the player on your left is collecting when another suit is about even, and between close suits takes the one they're throwing; keeping pairs and dragons never costs a step toward ready, and while folding, safety decides; a punged honor is dead, but a punged number tile can still finish a chow. The full playbook is in `docs/strategies/lucky-cat.md`. They play for the most points, not the most wins: a hand is valued at its real payout (each faan doubles it), deal-in risk is weighed 1.5 times as heavily, and a slow hand late in the wall folds. Over thousands of paired simulated hands this scored about 13 points a hand more than valuing hands on a compressed scale, with fewer wins and 14% fewer deal-ins.
-- **Coach** (`js/mahjong-coach.js`) — A coach that thinks like an experienced Hong Kong player and explains itself in plain words: it picks a route to 3 faan (Concealed Straights for hands spread across suits, a Half or Full Flush, All Triplets, Seven Pairs, or sets of dragons and winds), throws what the route doesn't use, keeps a lone honor while it can still become a set and lets it go once two are out (Concealed Straights throws honors first instead), plays tiles a threatening opponent already threw, always Pungs dragons and its own or the round's wind, and won't break a concealed runs hand for a claim. Moves are checked against the bots' tuned hand values; over 4,000 simulated hands, following the coach plays about as well as the bots (within the noise of the test). Hand names such as All Sequences or Half Flush are drawn in red, without their faan. A **Rules** button in the top bar opens a one-page rule sheet, styled like the table, listing every hand and its faan (read from the scoring table in `points.js`). Each tip is short and follows the same order: what to do and why, in a few words; where the hand stands (tiles from ready and the target hand with its faan, plus a note when it's late or someone shows a big hand); the players worth watching, in what the table shows ("Grace has three melds down, all Bamboo."), never the bots' internal threat level and how safe the discard is. It doesn't say which tile to drop after this one. Long tips grow the tip bar instead of being cut off. **Feedback on** is a training mode: instead of telling you what to do, the coach reviews your previous move once you've made it (a great, good, slowing or risky discard, or a good or missed claim) by comparing it with what it would have done, and says why. **Coach off** keeps the box, in gray, with a prompt to turn the coach on. Cycle the modes from the top bar
-- **Canvas table** (`js/mahjong-game.js`) — The whole table is one `<canvas>` that only redraws while something changes or animates, with tile faces pre-rendered per size from the `tiles/` SVGs. Headings, wind letters and banners use the site's heading font (KN Yuanmo SC), and the game's own text is in English. Like a real table, each opponent's hand, melds and discards face that player (the player across is upside-down, the side players are turned 90°), and every player's melds and flowers run from their own left. There are three layouts, and each keeps the table (the other players and the discards) as close to square as the screen allows, giving the spare room to the coach. On desktop the coach's column runs down the right and its bar sits above your hand. On a phone held sideways the board (the table and your hand) takes the left two thirds and the coach's column the right third, from the top bar to the bottom, with no bar (short landscape screens are laid out at 520px tall and scaled down to fit); a Full screen button beside Menu (and the first tap) goes fullscreen and tucks the browser's toolbar away where the browser allows it (not iPhone Safari, though the page opens fullscreen from the home screen), and turning upright leaves it. On a phone held upright there's no column: the coach's bar sits between the table and your hand, and your hand is one row across the full width. On phones the players' names are left out (opponents show only their points; your seat keeps its wind badge), each opponent's tiles (hidden hand, melds and flowers) are one row so they can be larger, upright the player across spans the whole table above the side seats, sideways the side seats run the full height beside the player across and your section, every discard is the same size, and each pond is planned for 8 discards so they draw large. Coach on and Feedback on work the same in all three. Action buttons sit in your meld row (your name steps aside if they need the room), and on desktop the coach's bar keeps its space when the coach is off, so toggling it never moves the table; on an upright phone, Coach off hides the coach's bar and gives the table the room (sideways, the coach's column stays). Bots visibly take turns: the drawn tile set apart, a few tiles lifted while deciding, and the discard flipping face up as it flies to the pond. Drawn tiles fly out of the center box, which shows the round wind and how many tiles are left. Sound effects are short CC0 clips from Kenney's Casino Audio, Impact Sounds and Interface Sounds packs, physical table sounds except the flower's soft chime (`assets/sounds/`, credits in its README), played with WebAudio: one dull chip thump for every discard; for claims, a different heavy mining-pick hit for chow, pung and kong (the kong struck twice), each under a chip stack; a heavy mining-pick hit when Show hands turns every hand face up, a gong for Next hand, a soft glass chime for each flower, a light knock on wood for your turn, heavy wooden hits with chips for wins, a dull thud when you pay, and a plank set down for a drawn hand. Background music is three CC BY 4.0 tracks by Kevin MacLeod (incompetech.com: Guzheng City, Shenyang, Ripples, in `assets/music/`, credited on the play page), shuffled and looped while the game is open; the Sound button cycles Sound on (effects and music), Music off (effects only) and Sound off, and remembers the choice. Computer players have a small robot icon beside their name and the human player a person icon. When your hand re-sorts (a drawn tile merging in after a discard, tiles leaving for a claim) every tile slides from its old place to its new one. Hovering a face-up tile with a mouse (or your own concealed kong) shows its English name and how many are left unseen; on a touch screen the tile you've selected shows the same. Keyboard play (arrows, Enter, Esc), and an end-of-hand summary showing the winning hand, every pattern with its faan, the total, base points, and each player's payout
-- **Analytics events** — `play_start` (`spicy`, `mode`, `coach`, `speed`, `coach_strategy`, `strategies`), `play_hand_end` (`result`, `faan`), `play_set_coach`, `play_set_strategy` (`seat`, `strategy`), `play_set_coach_strategy` (`strategy`), `play_restart`, `play_open_rules`, `play_open_strategies`, `play_game_over`
-- **Testing tip** — Animations are always on for players. Add `?instant=1` to the page URL to skip them for that visit, which makes testing much faster
+A free game against three bots, with a coach. The game's current version is `GAME_VERSION` in `js/mahjong-engine.js` (semver), shown in the in-game menu.
+
+#### Game modes
+
+- **Practice** (the default) — No points or payouts, only each hand's faan. It runs on without end
+- **Full game** — Everyone starts with 2,000 points and plays 4 rounds and 16 dealer rotations, so at least 16 hands. Points can go negative without ending the game, and it closes with the final standings
+- **The deal** — In both modes, a dealer who wins deals again, and anything else, a drawn hand too, passes the deal on
+- **Payouts** always use the **full spicy** table
+- **The in-game menu** has Resume, Restart game (a second tap confirms), Save game, Load game and Quit game. The end-of-game screen offers Quit
+
+#### Rules and scoring
+
+Hands are scored by `HKScoring.scoreHand` in `js/points.js`, the calculator's own pattern detection, faan counting and payout tables, so the game and the calculator always agree.
+
+- 3 faan minimum to win
+- On a self-draw every opponent pays the base points. On a discard (or robbed kong) only the discarder pays
+- Handled: Heavenly and Earthly hands, robbing the kong, win by kong/double kong, last tile, flowers and seasons (including Seven Robbing One and Eight Immortals)
+- The round wind moves on once everyone has dealt
+- A **Rules** button in the top bar opens a one-page sheet listing every hand and its faan, with an example (`js/mahjong-rules.js`, faan read from `points.js`)
+
+#### Saving and resuming
+
+- **Save game** downloads `play-lucky-cat-mahjong-<timestamp>.json`. **Load game** (in the menu or beside Start game) plays on from it
+- **No hidden tiles in a save** — It holds the game as the current hand began, that hand's seed and your own moves. Loading deals the hand from the seed and replays it
+- **Signed** — Files are signed (HMAC-SHA256), so an edited or damaged file won't load
+- **Compatible across versions** — Saves load into any version with the same major number
+- **Refresh-safe** — The game in progress is kept in local storage the same way, so refreshing or reopening the tab picks it up. Quit game clears it
+
+#### Hand seeds
+
+Tap your wind badge to silently copy the current hand's seed (like `919942249-NE`: the shuffle number, your seat wind, the round wind). The badge flashes to confirm. Paste the seed into the Points Guide to see that starting hand.
+
+#### Strategies
+
+Every bot plays a named strategy, built on the shared foundation in `js/mahjong-bot.js` with `MahjongBot.createStrategy({ id, hooks, tuning })`.
+
+| Strategy | File | Style | Playbook |
+| --- | --- | --- | --- |
+| **lucky-cat** | `js/mahjong-lucky-cat.js` | The original expected-value bot | [lucky-cat.md](docs/strategies/lucky-cat.md) |
+| **jorge-yau** | `js/mahjong-jorge-yau.js` | Reads the opening hand and builds toward one target hand | [jorge-yau.md](docs/strategies/jorge-yau.md) |
+
+- The **Strategies** button in the top bar (`js/mahjong-strategies.js`) describes each one and lets you pick a strategy for each bot seat and for the coach
+- Picks are saved in `localStorage` (`lcm-play-strategies`). A bot seat with nothing saved plays a random strategy each game, and the coach defaults to lucky-cat
+- The table shows only the player's name, not their strategy
+- How to add a strategy, and the rules they all share, are in [docs/strategies/README.md](docs/strategies/README.md)
+
+#### Bots
+
+Every decision is an expected-value estimate from information the seat could legally see. They play for the most points, not the most wins. The full playbook is in [docs/strategies/lucky-cat.md](docs/strategies/lucky-cat.md).
+
+**Offense**
+
+- Weighs shanten and live improving tiles for each plan (plain hand, half/full flush, all triplets, seven pairs, thirteen orphans) against the faan that plan is likely to reach
+- Ready hands are valued exactly by scoring every wait with `points.js`, so bots know which waits can actually clear 3 faan. Dead waits (3+ copies visible) count for little
+- Bigger hands are worth more early, and speed matters more late or against a big hand
+- A hand is valued at its real payout (each faan doubles it), and a slow hand late in the wall folds
+- A big hand of only certain tiles (10 faan or more, like All Terminals) becomes the hand's target from up to three steps away, while the wall and its live tiles can still finish it. Tiles it can't use go first, and its own tiles stay unless no copy is left to finish them
+
+**Defense**
+
+- Each opponent gets a Low/Medium/High/Extreme threat level from melds, one-suit signals and turn count
+- Defense takes over when someone is High or Extreme and the hand is slow, or when under 16 tiles remain
+- Tile safety follows tiles thrown since the opponent's last meld, dead honors, suji and kabe. A punged honor is dead, but a punged number tile can still finish a chow
+- Deal-in risk is weighed 1.5 times as heavily as the payout alone would suggest
+
+**Claims**
+
+- Claims compare the hand's value with and without the meld
+- Dragons and own/round winds are always punged, unless that breaks a ready hand worth more or the hand's target can't use them. A kong is fine at any point
+- Chows only when they are necessary or help a lot: they make a winning hand ready, build the flush the hand is already going for, or save a step late in the hand. Early chows need a ready hand or a flush one tile from ready
+
+**Discards**
+
+- Once a chow is exposed (or 7 or more tiles are in one suit), every tile of another suit is thrown first, even while folding, since a mixed-suit hand can no longer reach 3 faan. The exception: when flowers and seasons already give all but one faan, an open All Sequences or a quick self-draw wins, and the bots play for speed
+- A Concealed Straights hand throws its honors first, all but one honor pair
+- A flush stays out of the suit the player on your left is collecting when another suit is about even, and between close suits takes the one they're throwing
+- Keeping pairs and dragons never costs a step toward ready, and while folding, safety decides
+
+Over thousands of paired simulated hands, valuing hands at their real payout scored about 13 points a hand more than a compressed scale, with fewer wins and 14% fewer deal-ins.
+
+#### Coach
+
+`js/mahjong-coach.js` thinks like an experienced Hong Kong player and explains itself in plain words. Moves are checked against the bots' tuned hand values. Over 4,000 simulated hands, following the coach played about as well as the bots (within the noise of the test).
+
+The Coach button in the top bar cycles three modes, and all of them work in every layout:
+
+- **Coach on** — Says what to do and why
+- **Feedback on** — A training mode. After you move, it reviews your previous move (a great, good, slowing or risky discard, or a good or missed claim) against what it would have done, and says why
+- **Coach off** — The box stays, in gray, with a prompt to turn the coach on. On an upright phone the bar is hidden and the table gets the room
+
+What it plays for:
+
+- Picks a route to 3 faan: Concealed Straights for hands spread across suits, a Half or Full Flush, All Triplets, Seven Pairs, or sets of dragons and winds
+- Names a bigger hand in reach, such as All Terminals, and says to aim for it
+- Throws what the route doesn't use. Keeps a lone honor while it can still become a set, and lets it go once two are out (Concealed Straights throws honors first instead)
+- Plays tiles a threatening opponent already threw
+- Pungs dragons and its own or the round's wind, unless the hand's target can't use them, and won't break a concealed runs hand for a claim
+
+How each tip reads, always in this order:
+
+1. What to do and why, in a few words
+2. Where the hand stands: tiles from ready and the target hand with its faan, plus a note when it's late or someone shows a big hand
+3. The players worth watching, in what the table shows ("Grace has three melds down, all Bamboo."), never the bots' internal threat level, and how safe the discard is
+
+It doesn't say which tile to drop after this one. Hand names are drawn in red, without their faan. Long tips grow the tip bar instead of being cut off.
+
+#### Table and layouts
+
+The whole table is one `<canvas>` (`js/mahjong-game.js`) that only redraws while something changes or animates, with tile faces pre-rendered per size from the `tiles/` SVGs. Headings use the site's heading font (KN Yuanmo SC), and the game's own text is in English.
+
+Like a real table, each opponent's hand, melds and discards face that player, and every player's melds and flowers run from their own left. Each layout keeps the table as close to square as the screen allows, giving the spare room to the coach.
+
+| Layout | Board | Coach |
+| --- | --- | --- |
+| **Desktop** | Table and your hand | A column down the right, and a bar above your hand that keeps its space when the coach is off, so toggling never moves the table |
+| **Phone sideways** | The left two thirds (short screens are laid out at 520px tall and scaled to fit) | A column on the right third, from the top bar to the bottom, which stays when the coach is off |
+| **Phone upright** | Your hand is one row across the full width | A bar between the table and your hand, hidden when the coach is off |
+
+On phones:
+
+- Names are left out: opponents show only their points, and your seat keeps its wind badge
+- Each opponent's tiles (hidden hand, melds and flowers) are one row, so they can be larger
+- Upright, the player across spans the whole table above the side seats. Sideways, the side seats run the full height beside the player across and your section
+- Every discard is the same size, and each pond is planned for 8 discards so they draw large
+- Sideways, a Full screen button beside Menu (and the first tap) goes fullscreen and tucks the browser's toolbar away where the browser allows it. iPhone Safari doesn't, though the page opens fullscreen from the home screen. Turning upright leaves fullscreen
+
+Playing at the table:
+
+- Bots visibly take turns: the drawn tile set apart, a few tiles lifted while deciding, and the discard flipping face up as it flies to the pond
+- Drawn tiles fly out of the center box, which shows the round wind and how many tiles are left
+- Action buttons sit in your meld row, and your name steps aside if they need the room
+- When your hand re-sorts, every tile slides from its old place to its new one
+- Computer players have a small robot icon and the human player a person icon
+- Hovering a face-up tile with a mouse (or your own concealed kong) shows its English name and how many are left unseen. On a touch screen the tile you've selected shows the same
+- Keyboard play works (arrows, Enter, Esc)
+- The end-of-hand summary shows the winning hand, every pattern with its faan, the total, base points, and each player's payout
+
+#### Sound and music
+
+The Sound button cycles Sound on (effects and music), Music off (effects only) and Sound off, and remembers the choice.
+
+Sound effects are short CC0 clips from Kenney's packs, played with WebAudio (`assets/sounds/`, credits in its README). All are physical table sounds except the flower's soft chime.
+
+| Moment | Sound |
+| --- | --- |
+| Discard | A dull chip thump |
+| Chow, pung, kong | A different heavy mining-pick hit for each (the kong struck twice), under a chip stack |
+| Show hands | A heavy mining-pick hit |
+| Next hand | A gong |
+| Flower | A soft glass chime |
+| Your turn | A light knock on wood |
+| Win | Heavy wooden hits with chips |
+| You pay | A dull thud |
+| Drawn hand | A plank set down |
+
+Background music is three CC BY 4.0 tracks by Kevin MacLeod (Guzheng City, Shenyang, Ripples, in `assets/music/`, credited on the play page), shuffled and looped while the game is open.
+
+#### Bot competition
+
+`npm run compete -- --deals 1000` plays strategies against each other, each deal once per seat rotation, split across worker threads.
+
+- `--lineup a,b,c,d` sets the seats, and `--json file` saves the full report
+- It prints each strategy's points per hand, wins, self-draws, deal-ins, points paid, average faan, limit hands, concealed wins, claims per hand, the patterns in its wins and its net points against each other strategy
+- Code: `js/mahjong-competition.js`, `scripts/competition.js`. More in [docs/strategies/README.md](docs/strategies/README.md#competition)
+
+#### Analytics events
+
+Every button outside the hand itself is tracked. Discards and claims at the table aren't.
+
+| Event | Parameters |
+| --- | --- |
+| `play_start`, `play_resume` | `spicy`, `mode`, `coach`, `speed`, `coach_strategy`, `strategies` |
+| `play_hand_end` | `result`, `faan` |
+| `play_game_over` | `hands`, `wins` |
+| `play_save`, `play_load` | `version` |
+| `play_start_click`, `play_mode_select` | `mode` |
+| `play_load_click`, `play_load_failed`, `play_restart`, `play_copy_seed` | |
+| `play_open_rules`, `play_close_rules`, `play_open_strategies`, `play_close_strategies` | |
+| `play_menu_open`, `play_menu_resume_click`, `play_menu_restart_click`, `play_menu_save_click`, `play_menu_load_click`, `play_menu_quit_click` | |
+| `play_fullscreen_click`, `play_show_hands_click`, `play_next_hand_click`, `play_see_results_click`, `play_again_click`, `play_end_quit_click` | |
+| `play_rule_click` | `hand` |
+| `play_credit_click` | `link` |
+| `play_set_sound` | `sound` |
+| `play_set_coach` | `coach` |
+| `play_set_strategy` | `seat`, `strategy` |
+| `play_set_coach_strategy` | `strategy` |
+
+#### Testing tip
+
+Animations are always on for players. Add `?instant=1` to the page URL to skip them for that visit, which makes testing much faster.
 
 ### Other
 
 - **Custom 404 page** — On-brand "page not found" screen with mahjong tile artwork
+- **Old Points Guide URL** — `/hong-kong-mahjong-points/` redirects to `/hong-kong-mahjong-scoring/`
 - **Sitemap & robots** — `sitemap.xml` and `robots.txt` for search engines
 
 ## Local preview
@@ -94,15 +321,24 @@ For example [192.168.1.155:8080](http://192.168.1.155:8080).
 
 ## Tests
 
-The Hong Kong scoring calculator (`js/points.js`), the Play game's engine, bots and coach (`js/mahjong-engine.js`, `js/mahjong-bot.js` and its strategies, `js/mahjong-coach.js`), homepage renderer (`js/main.js`), community page (`js/community.js`), tile quiz (`js/tile-quiz.js`), and media formatter (`scripts/format-media-lib.js`) have unit tests using Node's built-in test runner. Requires **Node.js 18+**.
+Unit tests use Node's built-in test runner and require **Node.js 18+**. GitHub Actions runs them on pushes and pull requests to `master`.
 
 ```bash
 npm test
 ```
 
-This runs `node --test` over the `js/*.test.js` files listed in `package.json` plus the script tests. The game tests check that `scoreHand` matches the calculator, cover legal claims, payouts and dealer rotation, play full bot hands to check that every tile is accounted for, and include a fixed-seed strength check of the bots against a tile-efficiency baseline. Harnesses in `js/points.harness.js` and `js/main.harness.js` load each script in a mocked browser environment so scoring logic and CMS rendering can be tested without opening the page.
+This runs `node --test` over the test files listed in `package.json`:
 
-## Media formatting
+- **Scoring calculator** — `js/points.js`
+- **Play game** — the engine, bots, strategies, coach and rule sheet. These check that `scoreHand` matches the calculator, cover legal claims, payouts and dealer rotation, play full bot hands to check that every tile is accounted for, and include a fixed-seed strength check of the bots against a tile-efficiency baseline
+- **Site** — the homepage renderer, community page, tile quiz and generated tile pages
+- **Scripts** — the media formatter
+
+Harnesses in `js/points.harness.js` and `js/main.harness.js` load each script in a mocked browser environment, so scoring logic and CMS rendering can be tested without opening the page.
+
+## Other scripts
+
+### Media formatting
 
 After uploading event photos through Pages CMS into `media/`, run:
 
@@ -111,6 +347,11 @@ npm run format-media
 ```
 
 This optimizes images to WebP (max 2000px wide, 2:3 aspect crop) and updates photo paths in `data/community.json` when new dated folders are processed. Requires `npm install` once for the `sharp` dependency.
+
+### Print and PDF
+
+- `npm run generate-guide` renders the printable rules booklet to PDF (`scripts/generate-guide.js`)
+- `npm run licensing-agreement` renders the licensing agreement to PDF (`scripts/licensing-agreement.js`)
 
 ## Editing content with Pages CMS
 
@@ -126,61 +367,70 @@ This optimizes images to WebP (max 2000px wide, 2:3 aspect crop) and updates pho
 
 Changes save directly to the JSON files in `data/` and deploy with your next push.
 
-Navigation links (`data/nav.json`) and site styles (`css/`) are edited directly in the repo.
+Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are edited directly in the repo.
 
 ## Deploy to GitHub Pages
 
 1. Push this repo to GitHub
 2. Go to **Settings → Pages**
 3. Set **Source** to **Deploy from a branch**
-4. Choose the `main` branch and `/ (root)` folder
-5. Save — your site will be live at `https://<username>.github.io/lucky-cat-mahjong/`
+4. Choose the `master` branch and `/ (root)` folder
+5. Save. The `CNAME` file serves the site at `luckycatmahjong.com`
 
 ## Project structure
 
 ```
 ├── .pages.yml              # Pages CMS configuration
+├── CNAME                   # Custom domain
 ├── index.html              # Homepage
-├── community/
-│   └── index.html          # Community event recaps
-├── hong-kong-mahjong-scoring/
-│   └── index.html          # Scoring guide + interactive Points Guide
-├── play-mahjong/
-│   └── index.html          # Play page: settings preview + canvas game
+├── community/              # Community event recaps
+├── events/                 # Upcoming events and tickets
+├── hong-kong-mahjong-scoring/ # Scoring guide + interactive Points Guide
+├── hong-kong-mahjong-points/  # Old URL, redirects to the Points Guide
+├── which-mahjong-tiles-are-you/ # Tile quiz + a generated page per tile
+├── play-mahjong/           # Play page: start screen + canvas game
 ├── 404.html                # Custom not-found page
 ├── logo.png / logo.webp    # Club logo
 ├── css/
 │   ├── styles.css          # Shared styles and design tokens
 │   ├── community.css       # Community page styles
+│   ├── events.css          # Events page styles
 │   ├── points.css          # Points Guide styles
+│   ├── tile-quiz.css       # Tile quiz styles
 │   ├── play.css            # Play page styles
 │   ├── 404.css             # 404 page styles
 │   └── fonts.css           # Web font (KN Yuanmo SC)
-├── js/
-│   ├── main.js             # Loads CMS data and renders the home page
+├── js/                     # Each has a *.test.js beside it where noted below
+│   ├── main.js             # Loads CMS data and renders the home page (tested)
 │   ├── main.harness.js     # Test harness for the homepage renderer
-│   ├── main.test.js        # Homepage unit tests
 │   ├── nav.js              # Shared header nav (loads data/nav.json)
-│   ├── community.js        # Community page renderer
-│   ├── community.test.js   # Community page unit tests
-│   ├── points.js           # Tile data, reference, and the faan calculator
+│   ├── canonical-redirect.js # Sends /path/index.html to /path/
+│   ├── community.js        # Community page renderer (tested)
+│   ├── points.js           # Tile data, reference, and the faan calculator (tested)
 │   ├── points.harness.js   # Test harness for the scoring calculator
-│   ├── points.test.js      # Scoring calculator unit tests
-│   ├── mahjong-engine.js   # Play: rules engine, shanten, claims, settlement
-│   ├── mahjong-engine.test.js
+│   ├── tile-quiz.js        # Quiz copy, scoring and page (tested)
+│   ├── tile-quiz-art.js    # Quiz tile characters as inline SVG
+│   ├── mahjong-engine.js   # Play: rules engine, shanten, claims, settlement (tested)
 │   ├── mahjong-bot.js      # Play: bot engine and the rules every strategy shares
-│   ├── mahjong-lucky-cat.js # Play: the lucky-cat strategy
-│   ├── mahjong-lucky-cat.test.js
+│   ├── mahjong-lucky-cat.js # Play: the lucky-cat strategy (tested)
 │   ├── mahjong-jorge-yau.js # Play: the jorge-yau strategy
-│   ├── mahjong-coach.js    # Play: the coach
-│   ├── mahjong-coach.test.js
+│   ├── mahjong-strategies.js # Play: strategy list and the Strategies sheet (tested)
+│   ├── mahjong-competition.js # Play: strategies against each other
+│   ├── mahjong-coach.js    # Play: the coach (tested)
+│   ├── mahjong-rules.js    # Play: the Rules sheet (tested)
 │   └── mahjong-game.js     # Play: canvas table, animation, sound
 ├── scripts/
 │   ├── serve.py            # Local dev server that turns off caching
 │   ├── format-media.js     # CLI: optimize media/ images and sync community.json
-│   ├── format-media-lib.js # Shared image-formatting logic
-│   └── format-media.test.js
-├── package.json            # npm scripts (test, format-media)
+│   ├── format-media-lib.js # Shared image-formatting logic (tested)
+│   ├── generate-tile-pages.js # Quiz: per-tile pages and preview images
+│   ├── tile-pages-lib.js   # Shared tile-page logic (tested)
+│   ├── competition.js      # CLI: npm run compete
+│   ├── generate-guide.js   # Printable rules booklet PDF
+│   └── licensing-agreement.js # Licensing agreement PDF
+├── docs/strategies/        # Bot and coach playbooks
+├── assets/                 # Music, sounds, PDFs and images
+├── package.json            # npm scripts
 ├── tiles/                  # Hong Kong mahjong tile SVGs (CC0, see credit below)
 ├── data/
 │   ├── site.json           # Site settings, copy & hero stats

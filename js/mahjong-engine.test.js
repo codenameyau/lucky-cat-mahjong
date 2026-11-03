@@ -218,10 +218,12 @@ describe('settlement', () => {
     assert.equal(game.round, 2);
   });
 
-  it('in practice a drawn hand keeps the deal, and the rounds never end', () => {
+  it('in practice keeps the deal only on a dealer win, and the rounds never end', () => {
     const game = E.createGame({ seed: 3, humanSeat: false, dealer: 0, mode: 'practice' });
-    draw(game);
+    win(game, 0);
     assert.equal(game.dealer, 0);
+    draw(game);
+    assert.equal(game.dealer, 1);
     for (let k = 0; k < 20; k++) win(game, (game.dealer + 1) % 4);
     assert.equal(game.over, false);
     assert.equal(game.round, 2);
