@@ -994,10 +994,10 @@
   // can still be made it becomes the hand's target (see upgradeOrder). Not
   // once the hand is ready, late in the wall, or with too few of its tiles
   // live. Strategies with targets of their own (ctx.target, ctx.lockedSpecial)
-  // already commit.
+  // already commit, and one that won't leave a ready hand sets ctx.holdsReady.
   var HARD_FAAN = 10, HARD_REACH = 3, STEP_IN_FAAN = 1.25;
   function isHardTarget(p, s, best, c, ctx) {
-    if (!p.keep || p.faan < HARD_FAAN || ctx.target || ctx.lockedSpecial) return false;
+    if (!p.keep || p.faan < HARD_FAAN || ctx.target || ctx.lockedSpecial || ctx.holdsReady) return false;
     if (s === Infinity || s > best + HARD_REACH || ctx.drawsLeft < 2 * s) return false;
     if (best <= 0 && s > 1) return false;
     var sets = 0, pairs = 0;
@@ -1140,7 +1140,7 @@
       if (p.upgrade && ctx.drawsLeft < 2 * s) return;
       var pc = p.counts.slice();
       var u = ukeire(pc, p.shantenFn, ctx.declared, ctx.unseen, s);
-      var chance = finishChance(ctx, s, u.total, p.open);
+      var chance = H.finishChance ? H.finishChance(ctx, s, u, p, pc) : finishChance(ctx, s, u.total, p.open);
       var util = handValue(p.faan + SELF_DRAW_CHANCE, ctx.slope) * 1.8 * chance;
       // A strategy can prefer a plan (plan.weight) without inflating its value.
       var entry = { plan: p, shanten: s, planShanten: s, ukeire: u.total, ukeireTiles: u.tiles, util: util, pick: util * (p.weight || 1) * suitLean(p, ctx) };
@@ -1624,6 +1624,9 @@
    *                                      the discard order after the shared
    *                                      one-suit rules (lower goes first;
    *                                      below 0 goes first unless folding)
+   *      finishChance(ctx, s, ukeire, plan, counts) -> chance
+   *                                      the odds of finishing a plan, in
+   *                                      place of the shared estimate
    *      readyValue(value, waits, c, ctx) -> value
    *      threats(list, game, seat)       add reads to each opponent
    *      waitChance(chance, game, threat, i) -> chance

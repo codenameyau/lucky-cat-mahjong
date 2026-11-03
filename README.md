@@ -140,7 +140,7 @@ Every bot plays a named strategy, built on the shared foundation in `js/mahjong-
 
 | Strategy | File | Style | Playbook |
 | --- | --- | --- | --- |
-| **lucky-cat** | `js/mahjong-lucky-cat.js` | The original expected-value bot | [lucky-cat.md](docs/strategies/lucky-cat.md) |
+| **lucky-cat** | `js/mahjong-lucky-cat.js` | Tracks every discard and plays the odds to the fastest 3-faan win | [lucky-cat.md](docs/strategies/lucky-cat.md) |
 | **jorge-yau** | `js/mahjong-jorge-yau.js` | Reads the opening hand and builds toward one target hand | [jorge-yau.md](docs/strategies/jorge-yau.md) |
 
 - The **Strategies** button in the top bar (`js/mahjong-strategies.js`) describes each one and lets you pick a strategy for each bot seat and for the coach
@@ -150,14 +150,14 @@ Every bot plays a named strategy, built on the shared foundation in `js/mahjong-
 
 #### Bots
 
-Every decision is an expected-value estimate from information the seat could legally see. They play for the most points, not the most wins. The full playbook is in [docs/strategies/lucky-cat.md](docs/strategies/lucky-cat.md).
+Every decision is an expected-value estimate from information the seat could legally see. Jorge Yau plays for the most points. Lucky Cat tracks every discard by who threw it and plays the odds to the fastest 3-faan win. The full playbook is in [docs/strategies/lucky-cat.md](docs/strategies/lucky-cat.md).
 
 **Offense**
 
 - Weighs shanten and live improving tiles for each plan (plain hand, half/full flush, all triplets, seven pairs, thirteen orphans) against the faan that plan is likely to reach
 - Ready hands are valued exactly by scoring every wait with `points.js`, so bots know which waits can actually clear 3 faan. Dead waits (3+ copies visible) count for little
 - Bigger hands are worth more early, and speed matters more late or against a big hand
-- A hand is valued at its real payout (each faan doubles it), and a slow hand late in the wall folds
+- A hand is valued at its real payout (each faan doubles it), except on Lucky Cat, where a win at the minimum comes first. A slow hand late in the wall folds
 - A big hand of only certain tiles (10 faan or more, like All Terminals) becomes the hand's target from up to three steps away, while the wall and its live tiles can still finish it. Tiles it can't use go first, and its own tiles stay unless no copy is left to finish them
 
 **Defense**

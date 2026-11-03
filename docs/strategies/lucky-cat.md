@@ -1,26 +1,48 @@
 # lucky-cat: how the coach and the bots play
 
-This is the playbook for the **lucky-cat** strategy (`js/mahjong-lucky-cat.js`), the original bot logic. Most of it is the shared foundation every strategy is built on (`js/mahjong-bot.js`): the value model, defense, the one-suit discard rules, keeping pairs and dragons, and the claims every bot takes or passes. What lucky-cat adds on top is when it switches to Seven Pairs, Thirteen Orphans or Nine Gates (and how it discards on them), and when a chow is worth taking. The coach follows it by default, and any bot seat can play it (see the Strategies sheet). The coach says the choice in plain words. The bots play it. The other strategies are listed in [the strategies README](README.md).
+This is the playbook for the **lucky-cat** strategy (`js/mahjong-lucky-cat.js`), the original bot logic. Most of it is the shared foundation every strategy is built on (`js/mahjong-bot.js`): the value model, defense, the one-suit discard rules, keeping pairs and dragons, and the claims every bot takes or passes. What lucky-cat adds on top is tracking the whole table to find the fastest win, when it switches to Seven Pairs, Thirteen Orphans or Nine Gates (and how it discards on them), and when a chow is worth taking. The coach follows it by default, and any bot seat can play it (see the Strategies sheet). The coach says the choice in plain words. The bots play it. The other strategies are listed in [the strategies README](README.md).
 
 Both only use what that seat can see: its own hand and flowers, every open meld, the discard pond, and how many tiles are left in the wall. They do not see the other hands or the tiles still in the wall.
 
 A winning hand needs at least 3 faan. On a self-draw, every opponent pays. On a discard, only the player who threw the winning tile pays.
 
-## Playing for points, not wins
+## Winning first
 
-The goal is the most points over many hands, not the most wins. Payouts double with every faan (3 faan pays 8, 7 faan pays 128, 10 faan pays 1,024), so a hand is valued at its real payout. A 7-faan hand is worth 16 three-faan wins, and a big hand you might deal into costs that much too.
+The goal is the fastest win at the 3-faan minimum, with as few points lost as possible along the way. A faan above the minimum counts for much less than its payout (`valuePower` 0.35 in place of 1), so a bigger hand has to be close to as fast. A 7-faan hand counts about 2.6 times a 3-faan hand here, not 16 times. A ready hand that can win is not broken for a bigger one.
 
-Three things follow:
+This replaces the older aim of the most points over many hands. See Tracking the table for how the odds are worked out.
 
-- **Bigger hands are worth building.** A concealed hand, a flush, or a dragon set adds a faan, and each faan doubles the payout. Staying concealed is often worth more than a chow that gets you one tile closer.
-- **Defense counts more.** The risk of dealing in is weighed 1.5 times as heavily as before, because the hands you would pay for are the big ones.
-- **Fold when you're unlikely to win.** With fewer than 45 tiles left and the hand still two or more tiles from ready, safety is weighed 1.5 times more again.
+Late in the hand, safety still takes over:
 
-This was chosen by simulation. Each strategy played thousands of paired deals in one seat against three of the previous bots, with the previous bot playing the same deals in that seat for comparison. Across three rounds (25,000 hands for the main setting), valuing hands by their payout scored about 13 to 17 more points per hand than the old compressed scale, with about 20% fewer wins and 14% fewer deal-ins. Extra defense and the late fold added a little more and dealt in least, so they were kept.
+- **Fold when you're unlikely to win.** With fewer than 45 tiles left and the hand still two or more tiles from ready, safety is weighed 1.5 times more.
+- **Stop feeding.** See Tracking the table.
+
+## Tracking the table
+
+Every turn, lucky-cat reads the whole table again from what its seat can see: every discard and who threw it, every open meld, its own tiles, and how many tiles are left in the wall. It never reads the wall's order or another player's concealed tiles, and a test checks that shuffling those changes nothing.
+
+**What each opponent wants.** Each tile gets a score for each opponent, starting at 1:
+
+- **A tile they threw** counts for much less, especially one thrown since their last meld. Its neighbors and its suji (three away) count for a little less.
+- **A tile someone else threw that they let go by** counts for less, more so for an honor, since they'd usually pung a pair of one.
+- **The suit they keep** counts for more, and the suit they throw most counts for less. Their melds' one suit counts for the most.
+- **Honors that score for them** count for more, and an honor with fewer than two copies left counts for less.
+
+**Noticing a pivot.** After eight discards, it compares the first half with the second half. If they barely threw a suit and now throw it often, or the reverse, they've changed hands. From then on it trusts only the later discards for their suit, and what they threw before the change says less.
+
+**Where the tiles are.** Each unseen copy is either in the wall or in a hand. The more an opponent wants a tile, the less likely its copies are in the wall. The less they want it, the more likely they are to throw it next.
+
+**The odds of finishing.** For each hand it could aim for, it works out how likely a go-around is to bring a tile that helps: its own draw, or a discard it could claim (a pung from anyone, a chow only from the player before it, and a win from anyone). It then runs the race a go-around at a time: the hand needs its remaining steps before the wall runs out or someone else wins, and the chance someone else wins comes from how close each opponent looks. Steps after the next one aren't known yet, so a wide hand further away doesn't beat a closer one.
+
+Because this runs for every hand on every turn, it switches as soon as another hand has better odds. It also rates a ready hand's wait this way, so a wait everyone is holding counts for less than its count says.
+
+**Feeding.** A tile an opponent would claim moves their hand along even when it doesn't win. It costs more the more they want it, the closer they look, and the later it is: 0.3 times the cost with more than 60 tiles left, up to 1.5 times with fewer than 16. The next player can also chow, so tiles they want cost them more.
+
+**Limits.** The want scores and rates are hand-set estimates, not exact probabilities. The hand also keeps the shared rules in this playbook, like keeping pairs and a lone unseen dragon, even where the odds alone would throw them.
 
 ## Hands they aim for
 
-For each possible discard they score the hand that would be left, and they keep the hand that is closest to a win worth playing. Early in the hand, a bigger hand is worth building. Later, or when someone is showing a big hand, finishing first matters more.
+For each possible discard they score the hand that would be left, and they keep the hand with the best odds of a win worth playing. Early in the hand, a bigger hand counts for a little more. Later, or when someone is showing a big hand, it counts for less.
 
 The hands, in the order they come up:
 
@@ -164,6 +186,8 @@ A flush read makes their suit more dangerous and the other two suits safer. Near
 The coach does not choose for itself. It says the bot's decision in three parts: what to do and why, how far the hand is from ready and which hand it is building, and how dangerous the opponents look. It doesn't say which tile to drop after this one.
 
 It only says "Play safe" on the last wall, when a win is unlikely: fewer than 16 tiles left and the hand not ready, or fewer than 36 left and two or more tiles from ready. A safe pick earlier in the hand is explained like any other discard.
+
+When it bears on the hand, the coach also says what the tracker read from the discards: someone collecting a suit you hold a lot of ("Grace is collecting Bamboo, so stay out of it") or one your hand is building ("Grace is collecting Bamboo too, so those tiles will be slow"), or someone changing hands ("Grace has switched out of Bamboo").
 
 The threats line says only what you can see on the table: who has melds down and what suit they're in ("Grace has three melds down, all Bamboo."). The Low, Medium, High and Extreme levels above are the bots' own estimate, so the coach never names them, and a player with no melds isn't mentioned, however late it is.
 
