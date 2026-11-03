@@ -276,8 +276,9 @@ Sound effects are short CC0 clips from Kenney's packs, played with WebAudio (`as
 | Next hand | A gong |
 | Flower | A soft glass chime |
 | Your turn | A light knock on wood |
-| Win | Heavy wooden hits with chips |
-| You pay | A dull thud |
+| You win | Poker chips, a pile collected and stacked |
+| Someone else wins | A medium wooden hit with chips |
+| You pay | Poker chips, a few pushed across |
 | Drawn hand | A plank set down |
 
 Background music is three CC BY 4.0 tracks by Kevin MacLeod (Guzheng City, Shenyang, Ripples, in `assets/music/`, credited on the play page), shuffled and looped while the game is open.
