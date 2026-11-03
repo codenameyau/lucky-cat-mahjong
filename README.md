@@ -314,7 +314,7 @@ npm test
 This runs `node --test` over the test files listed in `package.json`:
 
 - **Scoring calculator** — `js/points.js`
-- **Play game** — the engine, bots, strategies, coach and rule sheet. These check that `scoreHand` matches the calculator, cover legal claims, payouts and dealer rotation, play full bot hands to check that every tile is accounted for, and include a fixed-seed strength check of the bots against a tile-efficiency baseline
+- **Play game** — the engine, bots, strategies, coach and rule sheet. These check that `scoreHand` matches the calculator, cover legal claims, payouts and dealer rotation and play full bot hands to check that every tile is accounted for
 - **Site** — the homepage renderer, community page, tile quiz and generated tile pages
 - **Scripts** — the media formatter and hand review
 - **Coach feedback** — every case in `docs/strategies/feedback.json` marked fixed
