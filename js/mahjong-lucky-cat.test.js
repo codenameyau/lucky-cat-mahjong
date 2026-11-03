@@ -179,7 +179,9 @@ describe('expert playbook', () => {
     const game = table({ seats: [{ hand }], wallLeft: 80 });
     const a = B.analyzeDiscards(game, 0);
     assert.equal(a.ctx.leadPlan.id, 'straights');
-    assert.equal(a.candidates[0].tile, 'dr');
+    assert.notEqual(a.candidates[0].tile, 'dr'); // a dragon nobody has shown stays
+    const shown = table({ seats: [{ hand }, { discards: ['dr'] }], wallLeft: 80 });
+    assert.equal(B.analyzeDiscards(shown, 0).candidates[0].tile, 'dr');
     const wind = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd6', 'd7', 'b2', 'b3', 'wn'];
     assert.equal(B.analyzeDiscards(table({ seats: [{ hand: wind }], wallLeft: 80 }), 0).candidates[0].tile, 'wn');
   });

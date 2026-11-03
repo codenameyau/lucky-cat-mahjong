@@ -507,6 +507,7 @@
     // Concealed Straights may keep one honor pair as its pair (MahjongBot's
     // shared rule picks which).
     var eyes = t.id === 'sequences' && i === B.keptHonorPair(counts, ctx);
+    if (t.id === 'sequences' && !eyes && B.holdsDragon(game, i, cand.shanten)) return 4;
     if (keep && !keep(i) && !eyes) return def.hard ? -1 : 1;
     if (t.id === 'gates' && !B.gatesTileNeeded(counts, t.start, i)) return 1;
     if (B.isPungTile(game, i) && counts[i] < 2 && cand.shanten <= bestShanten) return 1;

@@ -13,7 +13,7 @@ A static website for the Lucky Cat Mahjong club at [luckycatmahjong.com](https:/
 - [Personality quiz](#which-mahjong-tile-are-you-quiz-which-mahjong-tiles-are-you)
 - [Play Mahjong](#play-hong-kong-mahjong-play-mahjong)
   - Playing: [Game modes](#game-modes) · [Rules and scoring](#rules-and-scoring) · [Saving and resuming](#saving-and-resuming) · [Hand seeds](#hand-seeds)
-  - Bots and coach: [Strategies](#strategies) · [Bots](#bots) · [Coach](#coach) · [Bot competition](#bot-competition)
+  - Bots and coach: [Strategies](#strategies) · [Bots](#bots) · [Coach](#coach) · [Bot competition](#bot-competition) · [Hand review and feedback](#hand-review-and-feedback)
   - Table: [Table and layouts](#table-and-layouts) · [Sound and music](#sound-and-music)
   - For developers: [Analytics events](#analytics-events) · [Testing tip](#testing-tip)
 - [Other pages](#other)
@@ -199,7 +199,7 @@ Every decision is an expected-value estimate from information the seat could leg
 **Discards**
 
 - Once a chow is exposed (or 7 or more tiles are in one suit), every tile of another suit is thrown first, even while folding, since a mixed-suit hand can no longer reach 3 faan. The exception: when flowers and seasons already give all but one faan, an open All Sequences or a quick self-draw wins, and the bots play for speed
-- A Concealed Straights hand throws its honors first, all but one honor pair
+- A Concealed Straights hand throws its honors first, all but one honor pair and any dragon nobody has shown (unless throwing it leaves the hand ready)
 - A flush stays out of the suit the player on your left is collecting when another suit is about even, and between close suits takes the one they're throwing
 - Keeping pairs and dragons never costs a step toward ready, and while folding, safety decides
 
@@ -219,7 +219,7 @@ What it plays for:
 
 - Picks a route to 3 faan: Concealed Straights for hands spread across suits, a Half or Full Flush, All Triplets, Seven Pairs, or sets of dragons and winds
 - Names a bigger hand in reach, such as All Terminals, and says to aim for it
-- Throws what the route doesn't use. Keeps a lone honor while it can still become a set, and lets it go once two are out (Concealed Straights throws honors first instead)
+- Throws what the route doesn't use. Keeps a lone honor while it can still become a set, and lets it go once two are out (Concealed Straights throws honors first instead, but keeps a dragon nobody has shown)
 - Plays tiles a threatening opponent already threw
 - Pungs dragons and its own or the round's wind, unless the hand's target can't use them, and won't break a concealed runs hand for a claim
 
@@ -291,6 +291,10 @@ Background music is three CC BY 4.0 tracks by Kevin MacLeod (Guzheng City, Sheny
 - It prints each strategy's points per hand, wins, self-draws, deal-ins, points paid, average faan, limit hands, concealed wins, claims per hand, the patterns in its wins and its net points against each other strategy
 - Code: `js/mahjong-competition.js`, `scripts/competition.js`. More in [docs/strategies/README.md](docs/strategies/README.md#competition)
 
+#### Hand review and feedback
+
+`npm run review -- 3764864992-EE` replays a hand from its seed and shows the coach's advice each turn. Add `--turn N` for its reasoning and `--keep` or `--drop` to save feedback on a turn. Saved cases live in `docs/strategies/feedback.json`, and `npm test` holds the coach to the ones marked fixed. More in [docs/strategies/README.md](docs/strategies/README.md#reviewing-a-hand-and-teaching-the-coach).
+
 #### Analytics events
 
 Every button outside the hand itself is tracked. Discards and claims at the table aren't.
@@ -356,7 +360,8 @@ This runs `node --test` over the test files listed in `package.json`:
 - **Scoring calculator** — `js/points.js`
 - **Play game** — the engine, bots, strategies, coach and rule sheet. These check that `scoreHand` matches the calculator, cover legal claims, payouts and dealer rotation, play full bot hands to check that every tile is accounted for, and include a fixed-seed strength check of the bots against a tile-efficiency baseline
 - **Site** — the homepage renderer, community page, tile quiz and generated tile pages
-- **Scripts** — the media formatter
+- **Scripts** — the media formatter and hand review
+- **Coach feedback** — every case in `docs/strategies/feedback.json` marked fixed
 
 Harnesses in `js/points.harness.js` and `js/main.harness.js` load each script in a mocked browser environment, so scoring logic and CMS rendering can be tested without opening the page.
 
@@ -450,9 +455,11 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── generate-tile-pages.js # Quiz: per-tile pages and preview images
 │   ├── tile-pages-lib.js   # Shared tile-page logic (tested)
 │   ├── competition.js      # CLI: npm run compete
+│   ├── review.js           # CLI: npm run review, replay a seed and give feedback
+│   ├── review-lib.js       # Shared review logic (tested)
 │   ├── generate-guide.js   # Printable rules booklet PDF
 │   └── licensing-agreement.js # Licensing agreement PDF
-├── docs/strategies/        # Bot and coach playbooks
+├── docs/strategies/        # Bot and coach playbooks, and feedback.json
 ├── assets/                 # Music, sounds, PDFs and images
 ├── package.json            # npm scripts
 ├── tiles/                  # Hong Kong mahjong tile SVGs (CC0, see credit below)

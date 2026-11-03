@@ -25,7 +25,7 @@ All strategies are built on the shared foundation in `js/mahjong-bot.js` (`Mahjo
 - **Flowers count toward 3 faan.** A hand's flowers and seasons (your own flower and season are 1 faan each, all four of a kind 2, none at all 1) and any dragon or scoring-wind set already shown are faan it's sure of. When those already reach the minimum, or fall one short while every meld is a chow (All Sequences, runs and no honors, can add the last faan off a discard), the hand is a cheap win: a chow doesn't force a flush, an open All Sequences hand is weighed as a plan, and the hand plays for speed.
 - **Bigger hands from the same tiles.** A hand of sets also weighs the special hands its tiles can still make: Mixed Orphans (only 1s, 9s and honors, 1 faan on top of All Triplets), All Terminals, All Honors, Small and Big Three Dragons, Small and Big Four Winds, and on Seven Pairs, the pairs in Mixed Orphans, All Honors or All Terminals. While one is within a step of the hand's best shape, its tiles are kept ahead of tiles it can't use, even a pair with fewer copies left than another pair; a tile of it with no copy left to finish it (a single, or a pair when another pair can be the hand's pair) goes early instead. The coach names it ("Mixed Orphans is in reach, so aim for it too: keep your 1s, 9s and honors") and says when a tile goes because none are left. A big hand of only certain tiles (10 faan or more, like All Terminals) can count from up to three steps away, while the wall and its live tiles can still finish it, and a hand not already set on a target or a special hand of its strategy's makes it the hand's target. On a target, or whenever one of these hands is in the lead, a tile of it with no copy left goes first, then the tiles it can't use, even at a step's cost, and its live tiles wait. A hand with too few draws left to fill one drops it, and a ready hand isn't broken for one.
 - **One suit.** After a chow (unless flowers make it a cheap win), keep that suit and the honors: every tile of another suit goes first, even while folding. With 7 or more tiles of one suit (sets count, and more than any other suit), the other suits go first the same way. Hands that need their tiles from every suit or a fixed shape (Seven Pairs, Thirteen Orphans, Nine Gates, All Terminals, All Honors, Four Winds) keep their own order.
-- **Concealed Straights throws honors first**, ahead of any number tile, while it's the hand in the lead, keeping only one honor pair as the hand's pair (while folding, safety decides). An honor pair costs the All Sequences faan, so the hand is weighed with one less.
+- **Concealed Straights throws honors first**, ahead of any number tile, while it's the hand in the lead, keeping only one honor pair as the hand's pair and any dragon nobody has shown, unless throwing that dragon leaves the hand ready (while folding, safety decides). An honor pair costs the All Sequences faan, so the hand is weighed with one less.
 - **Keep pairs and unseen dragons**, and throw a tile someone has punged when the hand doesn't need it. Keeping them never costs a step toward ready.
 - **Watch the player before you.** The player on your left is the only one whose discards you can chow. After six discards, a suit they've barely thrown (or the one suit their melds are in) is the one they're collecting, and the suit they've thrown most is the one they're feeding. When the suit they're collecting is about even with another of yours (six or more, within a tile), the hand stays out of theirs and builds the other flush instead, from six tiles: they won't throw what you'd need, and they'd claim it first. Between two close suits otherwise, the one they're feeding wins.
 - **Claims.** Seven Pairs, Thirteen Orphans, Nine Gates and Concealed Straights claim nothing (Concealed Straights still pungs a dragon or scoring wind). A dragon or scoring wind is always punged otherwise, unless that breaks a ready hand. On a target (see above), only a pung or kong of a tile it uses is taken, and no chow. A chow must get the hand closer to ready and still be able to reach 3 faan.
@@ -58,6 +58,36 @@ Then:
 4. Play it against the others (below).
 
 The coach speaks for any strategy through `MahjongCoach.forStrategy(bot)`. It names the plan the strategy picked, using `plan.label`, and for a tile the plan doesn't use it gives `plan.reason`.
+
+## Reviewing a hand, and teaching the coach
+
+`npm run review` replays a hand from its seed in under a second and shows what the coach said on each of your turns. Tap your wind badge in the game to copy a hand's seed.
+
+| Command | |
+| --- | --- |
+| `npm run review -- 3764864992-EE` | Every turn, following the coach |
+| `npm run review -- 3764864992-EE --moves d1,c1,pung` | Your moves first, then the coach. Tiles are discards, and a claim is passed unless the next move names it (`pung`, `chow`, `kong`, `win`) |
+| `npm run review -- 3764864992-EE --moves d1,c1 --turn 3` | That turn's reasoning: every tile's discard group, steps from ready, copies left, score and plan |
+| `npm run review -- --save game.json` | The exact hand from a Save game file, with its moves and the other seats' strategies |
+| `npm run review -- 3764864992-EE --find dr --left 3` | Plays the hand many ways to find turns where the coach throws that tile, with the `--moves` to get there |
+
+The seed alone doesn't say what the other seats play, and their claims change who draws what. Use `--lineup a,b,c`, or a save file for an exact hand.
+
+**Giving feedback.** Add `--keep` (tiles it shouldn't throw) or `--drop` (tiles it should have), with a reason:
+
+```bash
+npm run review -- 3764864992-EE --moves d1,c1 --turn 3 --keep dr --drop c4 --note "Keep a dragon nobody has shown"
+```
+
+That saves the turn to [feedback.json](feedback.json) as an `open` case. A case holds only what that seat could see, so it still reads the same after a change to how the other seats play.
+
+**Learning from it.** The coach and bots don't change themselves. `npm run review -- --check` lists every case and why the coach chose as it did, which is the to-do list for improving the rules in `js/mahjong-bot.js` or a strategy:
+
+- `open`: the coach still chooses otherwise. Tests don't fail on these.
+- `NOW PASSES`: a change fixed it. `npm run review -- --check --update` marks it `fixed`.
+- `fixed`: `npm test` fails if the coach goes back to its old choice, so what it learned stays learned.
+
+A rule that fixes one case can hurt elsewhere, so measure a bigger change with the competition below.
 
 ## Competition
 

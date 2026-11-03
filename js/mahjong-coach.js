@@ -280,10 +280,10 @@
     var r = plan.route;
     if (r.id === 'straights') {
       // Every bot throws honors first on this hand, all but one honor pair
-      // (MahjongBot's shared rule).
+      // and a dragon nobody has shown (MahjongBot's shared rule).
       var eyes = B.keptHonorPair(c, v.ctx);
       var honors = 0;
-      for (var h = 27; h < 34; h++) if (h !== nextOut && h !== eyes) honors += c[h] || 0;
+      for (var h = 27; h < 34; h++) if (h !== nextOut && h !== eyes && !B.holdsDragon(v.game, h, 1)) honors += c[h] || 0;
       var keepPair = eyes !== null ? '. Keep your ' + name(eyes) + ' pair as the pair' : '';
       return 'Concealed Straights' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' + keepPair +
         (honors ? (eyes !== null ? ', and throw your other honors first' : '. Throw your honors first') : '');

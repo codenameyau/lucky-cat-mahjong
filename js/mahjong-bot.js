@@ -423,15 +423,23 @@
     return best;
   }
 
+  // A dragon nobody has shown can still become a set worth a faan, so
+  // Concealed Straights holds on to it, unless throwing it leaves the hand ready.
+  function holdsDragon(game, i, shanten) {
+    return DRAGONS.indexOf(i) !== -1 && revealedCopies(game, i) === 0 && shanten > 0;
+  }
+
   // The discard rules every strategy follows, ahead of its own order: after
   // a chow, or with most of the hand in one suit, other suits go first
   // (group 0: even while folding). On Concealed Straights, every honor but
-  // one pair goes first (group -1: while folding, safety decides). Null
-  // when neither applies.
-  function sharedPriority(ctx, counts, candidate) {
+  // one pair and a dragon nobody has shown goes first (group -1: while
+  // folding, safety decides). Null when neither applies.
+  function sharedPriority(game, ctx, counts, candidate) {
     var i = candidate.index;
     var lead = ctx.leadPlan;
-    if (lead && lead.id === 'straights' && !ctx.hasChow) return i >= 27 && i !== keptHonorPair(counts, ctx) ? -1 : null;
+    if (lead && lead.id === 'straights' && !ctx.hasChow) {
+      return i >= 27 && i !== keptHonorPair(counts, ctx) && !holdsDragon(game, i, candidate.shanten) ? -1 : null;
+    }
     var committed = suitCommitment(ctx, counts);
     if (committed && i < 27 && E.suitOfIndex(i) !== committed) return 0;
     return null;
@@ -589,7 +597,7 @@
   // and every pung: those wait behind any single, and a finished pung waits
   // behind a pair.
   function discardPriority(game, ctx, counts, candidate, bestShanten) {
-    var shared = sharedPriority(ctx, counts, candidate);
+    var shared = sharedPriority(game, ctx, counts, candidate);
     if (shared !== null) return shared;
     if (H.priority) {
       var own = H.priority(game, ctx, counts, candidate, bestShanten);
@@ -1619,6 +1627,7 @@
     chowAllowed: chowAllowed,
     sharedPriority: sharedPriority,
     keptHonorPair: keptHonorPair,
+    holdsDragon: holdsDragon,
     leftRead: leftRead,
     avoidSuit: avoidSuit,
     suitLean: suitLean,
