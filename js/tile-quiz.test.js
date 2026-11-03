@@ -435,9 +435,17 @@ describe('quiz analytics', () => {
           params: { question_index: 0, answer_index: 2, answer_label: answer.text },
         },
       ]);
+      const own = ui.events().filter((event) => event.name === 'tile_quiz_q1_a3');
+      assert.deepEqual(own.map((event) => event.params), [clicks[0].params]);
     } finally {
       mock.timers.reset();
       ui.restore();
     }
+  });
+
+  it('gives every answer its own valid event name', () => {
+    const names = quiz.QUESTIONS.flatMap((q, i) => q.options.map((_, j) => quiz.answerEventName(i, j)));
+    assert.equal(new Set(names).size, names.length);
+    for (const name of names) assert.match(name, /^[a-z][a-z0-9_]{0,39}$/);
   });
 });

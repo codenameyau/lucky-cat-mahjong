@@ -87,7 +87,7 @@ A static website for the Lucky Cat Mahjong club at [luckycatmahjong.com](https:/
 | `tile_quiz_start`, `tile_quiz_submit_click`, `tile_quiz_info_back_click` | |
 | `tile_quiz_start_click` | `location` |
 | `tile_quiz_question_view`, `tile_quiz_back_click` | `question_index` |
-| `tile_quiz_answer_click` | `question_index`, `answer_index`, `answer_label` |
+| `tile_quiz_answer_click`, plus one per answer: `tile_quiz_q1_a1` to `tile_quiz_q12_a4` | `question_index`, `answer_index`, `answer_label` |
 | `tile_quiz_skill_click` | `skill_level` |
 | `tile_quiz_complete`, `tile_quiz_view_shared`, `tile_quiz_locked_view` | `tile` |
 | `tile_quiz_submit` | `tile`, `skill_level` |
@@ -95,6 +95,8 @@ A static website for the Lucky Cat Mahjong club at [luckycatmahjong.com](https:/
 | `tile_quiz_share` | `tile`, `method` |
 | `tile_quiz_gallery_click`, `tile_quiz_relation_click`, `tile_quiz_returning_click` | `tile` |
 | `tile_quiz_cta_click` | `link` |
+
+Each answer's own event counts how often it was clicked, with no GA4 setup needed. The numbers count from 1 in the order of `QUESTIONS` in `js/tile-quiz.js`, so `tile_quiz_q1_a3` is the first question's third answer. Going back and answering again counts as another click.
 
 Name, Instagram and zip code are never sent as events. Header clicks are `nav_click` (`link`, `page`) and `nav_toggle_click` (`page`), on every page.
 

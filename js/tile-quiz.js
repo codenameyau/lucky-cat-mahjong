@@ -670,6 +670,12 @@
       .replace(/"/g, '&quot;');
   }
 
+  // An event of its own for each answer, so GA counts them without a custom
+  // dimension: question 1's third answer is tile_quiz_q1_a3.
+  function answerEventName(questionIndex, answerIndex) {
+    return 'tile_quiz_q' + (questionIndex + 1) + '_a' + (answerIndex + 1);
+  }
+
   function track(name, params) {
     if (typeof root.gtag === 'function') root.gtag('event', name, params || {});
   }
@@ -833,11 +839,9 @@
 
     function choose(index) {
       var option = QUESTIONS[current].options[index];
-      track('tile_quiz_answer_click', {
-        question_index: current,
-        answer_index: index,
-        answer_label: option.text,
-      });
+      var clicked = { question_index: current, answer_index: index, answer_label: option.text };
+      track('tile_quiz_answer_click', clicked);
+      track(answerEventName(current, index), clicked);
       answers[current] = index;
       var buttons = doc.querySelectorAll('.tq-option');
       buttons.forEach(function (b) { b.classList.toggle('is-selected', Number(b.dataset.index) === index); });
@@ -1310,6 +1314,7 @@
   var api = {
     TILES: TILES,
     QUESTIONS: QUESTIONS,
+    answerEventName: answerEventName,
     FORM_FIELDS: FORM_FIELDS,
     SKILL_LEVELS: SKILL_LEVELS,
     getTile: getTile,
