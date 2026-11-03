@@ -12,28 +12,28 @@
   var CJK_FONT = "'KN Yuanmo SC','PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC',sans-serif";
 
   var ART = {
-    'one-bamboo': { back: '#3FA34D', symbol: 'bird', eyes: 'sparkle', mouth: 'open', arms: 'wave', acc: ['bubble'] },
-    'nine-bamboo': { back: '#2E7D5B', symbol: 'bamboo9', eyes: 'dot', mouth: 'smile', arms: 'rest', acc: ['squareGlasses', 'clipboard'] },
-    'one-character': { back: '#E0B23A', symbol: 'char1', eyes: 'sparkle', mouth: 'smirk', arms: 'cheer', acc: ['crown'] },
-    'nine-character': { back: '#E66A9A', symbol: 'char9', eyes: 'star', mouth: 'open', arms: 'rest', acc: ['shoppingBags'] },
-    'one-dot': { back: '#E8964A', symbol: 'dot1', eyes: 'happy', mouth: 'cat', arms: 'rest', acc: ['boba'] },
-    'nine-dot': { back: '#5C6BC0', symbol: 'dot9', eyes: 'spiral', mouth: 'wobble', arms: 'rest', acc: ['sweat', 'thoughtCloud'] },
-    'green-dragon': { back: '#1F8A4C', symbol: 'greenDragon', eyes: 'money', mouth: 'open', arms: 'rest', acc: ['moneyBag'] },
-    'red-dragon': { back: '#C41E3A', symbol: 'redDragon', eyes: 'none', mouth: 'smirk', arms: 'cheer', acc: ['shades', 'sparkles'] },
-    'white-dragon': { back: '#7FA7D9', symbol: 'whiteDragon', eyes: 'calm', mouth: 'smile', arms: 'rest', acc: ['clawClip', 'sparkles'] },
-    'east-wind': { back: '#F4A020', symbol: 'east', eyes: 'sparkle', mouth: 'open', arms: 'cheer', acc: ['sunHalo'] },
-    'south-wind': { back: '#D99A5B', symbol: 'south', eyes: 'happy', mouth: 'tongue', arms: 'cheer', acc: ['dogEars'] },
-    'west-wind': { back: '#F27C6B', symbol: 'west', eyes: 'heart', mouth: 'smile', arms: 'rest', acc: ['hearts'] },
-    'north-wind': { back: '#4A7FC1', symbol: 'north', eyes: 'half', mouth: 'flat', arms: 'rest', acc: ['headphones', 'snowflake'] },
-    'spring': { back: '#F49AB5', symbol: 'spring', eyes: 'sparkle', mouth: 'open', arms: 'wave', acc: ['flowerCrown'] },
-    'summer': { back: '#2BB3C0', symbol: 'summer', eyes: 'wink', mouth: 'tongue', arms: 'wave', acc: ['sunHat'] },
-    'autumn': { back: '#C8642E', symbol: 'autumn', eyes: 'happy', mouth: 'cat', arms: 'rest', acc: ['scarf', 'coffee'] },
-    'winter': { back: '#6C8EDB', symbol: 'winter', eyes: 'sleepy', mouth: 'o', arms: 'rest', acc: ['beanie', 'zzz'] },
-    'plum-blossom': { back: '#D94A6B', symbol: 'plum', eyes: 'sparkle', mouth: 'smile', arms: 'cheer', acc: ['bandaid', 'sparkles'] },
-    'orchid': { back: '#A578D6', symbol: 'orchid', eyes: 'lashes', mouth: 'smile', arms: 'rest', acc: ['bow'] },
-    'chrysanthemum': { back: '#D9A521', symbol: 'chrysanthemum', eyes: 'happy', mouth: 'smile', arms: 'rest', acc: ['roundGlasses', 'teacup'] },
-    'bamboo': { back: '#5FA83A', symbol: 'bambooFlower', eyes: 'panda', mouth: 'cat', arms: 'rest', acc: ['pandaEars', 'bambooStick'] },
-    'blank-tile': { back: '#B9B2A6', symbol: 'blank', eyes: 'dot', mouth: 'flat', arms: 'rest', acc: ['sweat', 'question'] },
+    'one-bamboo': { back: '#3FA34D', symbol: 'bird', eyes: 'sparkle', mouth: 'open', acc: ['bubble'] },
+    'nine-bamboo': { back: '#2E7D5B', symbol: 'bamboo9', eyes: 'dot', mouth: 'smile', acc: ['squareGlasses', 'clipboard'] },
+    'one-character': { back: '#E0B23A', symbol: 'char1', eyes: 'sparkle', mouth: 'smirk', acc: ['crown'] },
+    'nine-character': { back: '#E66A9A', symbol: 'char9', eyes: 'star', mouth: 'open', acc: ['shoppingBags'] },
+    'one-dot': { back: '#E8964A', symbol: 'dot1', eyes: 'happy', mouth: 'cat', acc: ['boba'] },
+    'nine-dot': { back: '#5C6BC0', symbol: 'dot9', eyes: 'spiral', mouth: 'wobble', acc: ['sweat', 'thoughtCloud'] },
+    'green-dragon': { back: '#1F8A4C', symbol: 'greenDragon', eyes: 'money', mouth: 'open', acc: ['moneyBag'] },
+    'red-dragon': { back: '#C41E3A', symbol: 'redDragon', eyes: 'none', mouth: 'smirk', acc: ['shades', 'sparkles'] },
+    'white-dragon': { back: '#7FA7D9', symbol: 'whiteDragon', eyes: 'calm', mouth: 'smile', acc: ['clawClip', 'sparkles'] },
+    'east-wind': { back: '#F4A020', symbol: 'east', eyes: 'sparkle', mouth: 'open', acc: ['sunHalo'] },
+    'south-wind': { back: '#D99A5B', symbol: 'south', eyes: 'happy', mouth: 'tongue', acc: ['dogEars'] },
+    'west-wind': { back: '#F27C6B', symbol: 'west', eyes: 'heart', mouth: 'smile', acc: ['hearts'] },
+    'north-wind': { back: '#4A7FC1', symbol: 'north', eyes: 'half', mouth: 'flat', acc: ['headphones', 'snowflake'] },
+    'spring': { back: '#F49AB5', symbol: 'spring', eyes: 'sparkle', mouth: 'open', acc: ['flowerCrown'] },
+    'summer': { back: '#2BB3C0', symbol: 'summer', eyes: 'wink', mouth: 'tongue', acc: ['sunHat'] },
+    'autumn': { back: '#C8642E', symbol: 'autumn', eyes: 'happy', mouth: 'cat', acc: ['scarf', 'coffee'] },
+    'winter': { back: '#6C8EDB', symbol: 'winter', eyes: 'sleepy', mouth: 'o', acc: ['beanie', 'zzz'] },
+    'plum-blossom': { back: '#D94A6B', symbol: 'plum', eyes: 'sparkle', mouth: 'smile', acc: ['bandaid', 'sparkles'] },
+    'orchid': { back: '#A578D6', symbol: 'orchid', eyes: 'lashes', mouth: 'smile', acc: ['bow'] },
+    'chrysanthemum': { back: '#D9A521', symbol: 'chrysanthemum', eyes: 'happy', mouth: 'smile', acc: ['roundGlasses', 'teacup'] },
+    'bamboo': { back: '#5FA83A', symbol: 'bambooFlower', eyes: 'panda', mouth: 'cat', acc: ['pandaEars', 'bambooStick'] },
+    'blank-tile': { back: '#B9B2A6', symbol: 'blank', eyes: 'dot', mouth: 'flat', acc: ['sweat', 'question'] },
   };
 
   var BACK_ACCESSORIES = { sunHalo: true, pandaEars: true, dogEars: true, headphonesBand: true };
@@ -167,7 +167,12 @@
       return '<rect x="66" y="44" width="68" height="80" rx="8" fill="none" stroke="#1E39CD" stroke-width="6"/>' +
         '<rect x="75" y="53" width="50" height="62" rx="4" fill="none" stroke="#1E39CD" stroke-width="2.5"/>';
     },
-    east: function () { return cjk('東', 100, 110, 70, NAVY); },
+    // KN Yuanmo SC has no 東 (only the simplified 东), so it's drawn by hand
+    // in the font's heavy, blocky style to match 南, 西 and 北.
+    east: function () {
+      return '<path d="M68 56 H132 V65 H105 V68 H126 V97 H112 L133 114 H120 L105 101 V114 H95 V101 L80 114 H67 L88 97 H74 V68 H95 V65 H68Z" fill="' + NAVY + '"/>' +
+        '<path d="M83 75 H95 V79 H83Z M105 75 H117 V79 H105Z M83 86 H95 V90 H83Z M105 86 H117 V90 H105Z" fill="' + FACE + '"/>';
+    },
     south: function () { return cjk('南', 100, 110, 70, NAVY); },
     west: function () { return cjk('西', 100, 110, 70, NAVY); },
     north: function () { return cjk('北', 100, 110, 70, NAVY); },
@@ -305,10 +310,8 @@
     return '<ellipse ' + attrs({ cx: cx, cy: cy, rx: 10, ry: 16, fill: fill, transform: 'rotate(' + rot + ' ' + cx + ' ' + cy + ')' }) + ' ' + stroke(3.5) + '/>';
   }
 
-  function arms(pose) {
-    var left = pose === 'cheer' ? arm(34, 116, -35, FACE) : arm(40, 164, 25, FACE);
-    var right = pose === 'cheer' || pose === 'wave' ? arm(166, 116, 35, FACE) : arm(160, 164, -25, FACE);
-    return left + right;
+  function arms() {
+    return arm(40, 164, 25, FACE) + arm(160, 164, -25, FACE);
   }
 
   var ACCESSORIES = {
@@ -334,11 +337,16 @@
         '<circle cx="120" cy="27" r="3" fill="#3FA34D" ' + stroke(1.5) + '/>';
     },
     shoppingBags: function () {
-      return '<path d="M168 156 Q168 144 175 144 Q182 144 182 156" fill="none" ' + stroke(2.5) + '/>' +
-        '<rect x="162" y="154" width="26" height="30" rx="3" fill="#FF8FB1" ' + stroke(2.5) + '/>' +
-        '<path d="M150 170 Q150 162 155 162 Q160 162 160 170" fill="none" ' + stroke(2.5) + '/>' +
-        '<rect x="145" y="168" width="20" height="22" rx="3" fill="#FFD23F" ' + stroke(2.5) + '/>' +
-        sparkle(175, 168, 5, '#fff');
+      // Two tapered paper bags with folded tops, hanging from the right hand
+      // (the tip of the resting arm), where both rope handles meet.
+      return '<path d="M175 194 C172 186 169 180 168 177 C173 178 185 184 190 194" fill="none" ' + stroke(2.5) + '/>' +
+        '<path d="M170 192 H195 L198 227 Q198 230 195 230 H170 Q167 230 167 227Z" fill="#FF8FB1" ' + stroke(2.5) + '/>' +
+        '<path d="M169.5 199 H195.5" fill="none" stroke="#E0648C" stroke-width="2.5"/>' +
+        sparkle(188, 214, 5, '#fff') +
+        '<path d="M149 200 C155 190 163 181 167 177 C169 182 168 192 166 200" fill="none" ' + stroke(2.5) + '/>' +
+        '<path d="M146 198 H171 L174 231 Q174 234 171 234 H146 Q143 234 143 231Z" fill="#FFD23F" ' + stroke(2.5) + '/>' +
+        '<path d="M145.5 205 H171.5" fill="none" stroke="#E0B23A" stroke-width="2.5"/>' +
+        sparkle(158, 220, 6, '#fff');
     },
     boba: function () {
       return '<rect x="174" y="132" width="5" height="26" rx="2" fill="' + RED + '" ' + stroke(1.5) + ' transform="rotate(12 176 145)"/>' +
@@ -353,18 +361,15 @@
     thoughtCloud: function () {
       return '<circle cx="146" cy="30" r="4" fill="#fff" ' + stroke(2) + '/>' +
         '<path d="M156 22 Q150 8 164 6 Q172 -4 184 6 Q198 8 192 22 Q196 34 182 34 Q172 40 164 32 Q150 34 156 22Z" fill="#fff" ' + stroke(2.5) + '/>' +
-        '<path d="M164 20 q4 -8 8 0 t8 0 q-6 6 -10 0 q-4 -4 -2 4" fill="none" stroke="' + RED + '" stroke-width="2" stroke-linecap="round"/>';
+        '<path d="M173 18 a2 2 0 0 1 4 0 a4 4 0 0 1 -8 0 a6 6 0 0 1 12 0 a8 8 0 0 1 -16 0 a10 10 0 0 1 20 0" fill="none" stroke="' + RED + '" stroke-width="2.5" stroke-linecap="round"/>';
     },
     moneyBag: function () {
-      // Round cloth sack, tied with a bow, and one coin in the other hand.
-      return '<ellipse cx="174" cy="196" rx="24" ry="22" fill="#F0D48A" ' + stroke(2.5) + '/>' +
-        '<path d="M160 184 C158 172 164 164 174 162 C184 164 190 172 188 184Z" fill="#F0D48A" ' + stroke(2.5) + '/>' +
-        '<path d="M162 182 Q174 190 186 182" fill="none" stroke="#C9A24A" stroke-width="2.5" stroke-linecap="round"/>' +
-        '<ellipse cx="164" cy="170" rx="8" ry="5" transform="rotate(-28 164 170)" fill="#E2BE62" ' + stroke(2) + '/>' +
-        '<ellipse cx="184" cy="170" rx="8" ry="5" transform="rotate(28 184 170)" fill="#E2BE62" ' + stroke(2) + '/>' +
-        '<circle cx="174" cy="174" r="3.2" fill="#C9A24A" ' + stroke(1.6) + '/>' +
-        '<path d="M170 176 L164 186 M178 176 L184 186" fill="none" ' + stroke(2) + '/>' +
-        '<text x="174" y="204" font-size="20" font-weight="800" text-anchor="middle" fill="' + GREEN + '" font-family="Arial,sans-serif">$</text>' +
+      // A pear-shaped sack, cinched at the neck with a ruffled top, and one
+      // coin in the other hand.
+      return '<path d="M165 173 C150 182 147 196 148 206 C149 218 160 222 172 222 C184 222 195 218 196 206 C197 196 194 182 179 173Z" fill="#F0D48A" ' + stroke(2.5) + '/>' +
+        '<path d="M165 172 C160 166 157 160 159 154 Q163 158 166 153 Q169 158 172 153 Q175 158 178 153 Q181 158 185 154 C187 160 184 166 179 172Z" fill="#E2BE62" ' + stroke(2.5) + '/>' +
+        '<rect x="162" y="169" width="20" height="6" rx="3" fill="#C9A24A" ' + stroke(2) + '/>' +
+        '<text x="172" y="208" font-size="26" font-weight="800" text-anchor="middle" fill="' + GREEN + '" font-family="Arial,sans-serif">$</text>' +
         coin(32, 184, 11, '#FFD23F');
     },
     shades: function () {
@@ -492,7 +497,7 @@
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 250"' + size + ' class="' + (opts.className || 'tile-art') + '" ' + a11y + '>' + label +
       '<ellipse cx="100" cy="236" rx="60" ry="8" fill="rgba(59,42,32,0.14)"/>' +
       renderAccessories(spec.acc, true) +
-      arms(spec.arms) +
+      arms() +
       '<ellipse cx="76" cy="220" rx="15" ry="10" fill="' + spec.back + '" ' + stroke(3.5) + '/>' +
       '<ellipse cx="124" cy="220" rx="15" ry="10" fill="' + spec.back + '" ' + stroke(3.5) + '/>' +
       '<rect x="40" y="34" width="120" height="180" rx="26" fill="' + spec.back + '" ' + stroke(4) + '/>' +
