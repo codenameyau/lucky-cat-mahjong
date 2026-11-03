@@ -315,12 +315,12 @@
     },
     // Your turn: a light knock on the table.
     turn: { clips: ['turn'], gain: 0.3 },
-    // Your win: a heavy wooden hit and a mining hit as the chips stack up.
-    win: { clips: ['win'], gain: 0.7, then: [['impact-pung', 0.04, 0.55], ['tile-claim-2', 0.06, 0.6]] },
+    // Your win: poker chips, a pile of them collected and stacked.
+    win: { clips: ['tile-claim-2'], gain: 0.9, then: [['tile-kong', 0.08, 0.8], ['tile-claim-1', 0.2, 0.8]] },
     // Someone else's win: a medium wooden hit and their chips.
     otherwin: { clips: ['other-win'], gain: 0.55, then: [['tile-claim-1', 0.04, 0.45]] },
-    // You paid for the win: a dull, soft thud.
-    lose: { clips: ['lose'], gain: 0.6 },
+    // You paid for the win: poker chips, a few pushed across.
+    lose: { clips: ['tile-claim-1'], gain: 0.8, then: [['tile-kong', 0.08, 0.7], ['tile-claim-1', 0.16, 0.6]] },
     // The wall ran out: a wooden plank set down, and the chips stirred.
     drawgame: { clips: ['draw-game'], gain: 0.55, then: [['tile-draw', 0.05, 0.4]] },
     // Show hands: impactMining_003, the whole clip, untrimmed.

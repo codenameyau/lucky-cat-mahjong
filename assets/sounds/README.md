@@ -16,9 +16,7 @@ plays with no delay. The cues that use them are `CUES` in `js/mahjong-game.js`.
 | `tile-select.wav` | `chips-handle-1` | Casino Audio |
 | `flower.wav` | `glass_001` | [Interface Sounds](https://kenney.nl/assets/interface-sounds) |
 | `turn.wav` | `impactWood_light_000` | [Impact Sounds](https://kenney.nl/assets/impact-sounds) |
-| `win.wav` | `impactWood_heavy_000` | Impact Sounds |
 | `other-win.wav` | `impactWood_medium_000` | Impact Sounds |
-| `lose.wav` | `impactSoft_heavy_000` | Impact Sounds |
 | `draw-game.wav` | `impactPlank_medium_000` | Impact Sounds |
 | `impact-chow.wav` | `impactMining_001` | Impact Sounds |
 | `impact-pung.wav` | `impactMining_000` | Impact Sounds |
