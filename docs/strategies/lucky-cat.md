@@ -36,7 +36,7 @@ The hands, in the order they come up:
 - **Thirteen Orphans.** When the concealed hand already holds nine different terminals and honors (or eight and a pair), and none of the missing ones is used up. Worth a limit, 13 faan. Nothing is claimed, and every other tile is discarded first.
 - **Nine Gates.** When one suit already holds eleven tiles of the pattern 1112345678999 (three 1s, one each of 2 through 8, three 9s). Tiles beyond those counts, and every tile of another suit, do not count. Worth a limit, 13 faan. The hand stays concealed, and anything outside that suit is discarded first.
 - **Bigger hands from the same tiles.** All Triplets also weighs Mixed Orphans (only 1s, 9s and honors, 1 more faan), All Terminals and All Honors; a hand with dragon or wind pairs weighs Small and Big Three Dragons and Small and Big Four Winds; Seven Pairs weighs its pairs in Mixed Orphans, All Honors or All Terminals. While one is within a step of the hand's best shape, its tiles are kept ahead of tiles it can't use, even a pair with fewer copies left, unless no copy is left to finish it. The coach names it and says to aim for it. A big hand of only certain tiles (10 faan or more, like All Terminals) can count from up to three steps away, while the wall and its live tiles can still finish it: it becomes the hand's target, the plan it's on and the one the coach names. See What gets discarded first for its order.
-- **A chicken hand** built on dragon and wind sets, when nothing above is close. It still needs another faan from flowers or from a dragon or wind pung.
+- **A plain hand**, only once it already has 3 faan from flowers, sets and the like. It's never the aim short of that (see the shared rules in [the README](README.md)).
 
 A ready hand is scored exactly. Each wait is checked against the real faan table, including waits that only win on a self-draw and waits that can never reach 3 faan.
 
@@ -61,7 +61,7 @@ Group 1 and the Concealed Straights rule are shared by every strategy (`js/mahjo
 Two things change this order:
 
 - **A bigger hand from the same tiles.** On a target, or whenever one of these hands is in the lead, a tile of it with no copy left goes first, then the tiles it can't use, even when that costs a step, and its live tiles wait. A ready hand isn't broken for one, and a hand with too few draws left to fill one drops it. While folding, safety still decides.
-- **All Triplets** (or Concealed Triplets) keeps every pair and every pung. Both wait behind any single, and a finished pung waits behind a pair. Within each group, the tile with the fewest copies left (not yet seen by you) goes first, and the tiles with the most left are kept, because they're the ones that can still become sets. A risky tile still waits. Near the end of the hand, safety comes first and then how many are left.
+- **All Triplets** (or Concealed Triplets) keeps every pair and every pung. Both wait behind any single, and a finished pung waits behind a pair. Within each group, the tile with the fewest copies left (not yet seen by you) goes first, and the tiles with the most left are kept, because they're the ones that can still become sets. So a single with three left goes before a pair with one left: the pair is only one copy short and can pung. This comes ahead of the tile's kind, of a step toward a plainer hand and of risk. A discard that leaves the hand ready stays on top, tiles a bigger hand wants still wait, and while folding, safety decides.
 
 ## Pairs
 

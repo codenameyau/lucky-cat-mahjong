@@ -1016,9 +1016,8 @@
       }).join('');
     }
 
-    function shareText(tile, isMine) {
-      return (isMine ? 'I\'m the ' : 'You\'re giving ') + tile.name + ': ' + tile.title + ' ' + tile.emoji +
-        '\nWhich mahjong tile are you?';
+    function shareText(tile) {
+      return 'You\'re giving ' + tile.name + ' energy ' + tile.emoji + '.\nWhich mahjong tile are you?';
     }
 
     function currentShareUrl() {
@@ -1046,9 +1045,8 @@
     }
 
     function shareLink() {
-      var isMine = $('#tq-result').getAttribute('data-mine') === 'true';
       if (root.navigator.share) {
-        root.navigator.share({ title: 'Which Mahjong Tile Are You?', text: shareText(resultTile, isMine), url: currentShareUrl() })
+        root.navigator.share({ title: 'Which Mahjong Tile Are You?', text: shareText(resultTile), url: currentShareUrl() })
           .then(function () { track('tile_quiz_share', { method: 'native', tile: resultTile.id }); })
           .catch(function () {});
       } else {

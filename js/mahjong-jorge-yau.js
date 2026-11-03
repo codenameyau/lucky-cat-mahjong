@@ -368,7 +368,8 @@
   }
 
   // Plans for the current target, with its backups. Every list ends with the
-  // plain hand, weighed lightly, so the hand can always be finished.
+  // plain hand, weighed lightly, which MahjongBot.aimablePlans takes back out
+  // unless it already has the minimum faan.
   function plans(c, ctx) {
     var t = ctx.target || { id: 'standard' };
     // After a chow only that suit's flush is left: the usual plans already say so.

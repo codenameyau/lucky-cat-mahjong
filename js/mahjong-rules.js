@@ -18,8 +18,10 @@
   var RUNS = [['c2', 'c3', 'c4'], ['d5', 'd6', 'd7'], ['b4', 'b5', 'b6'], ['b7', 'b8', 'b9'], ['d2', 'd2']];
   var KONG_RUNS = [['c2', 'c3', 'c4'], ['d5', 'd6', 'd7'], ['b4', 'b5', 'b6'], ['dw', 'dw', 'dw', 'dw'], ['d2', 'd2']];
 
-  function rule(name, cn, key, desc, example) {
-    return { name: name, cn: cn, key: key, desc: desc, example: example };
+  function rule(name, cn, key, desc, example, preview) {
+    var row = { name: name, cn: cn, key: key, desc: desc, example: example };
+    if (preview === false) row.preview = false;
+    return row;
   }
 
   var RULES = [
@@ -43,7 +45,7 @@
         }),
         rule('Concealed Triplets', '坎坎糊', 'allConcealedTriplets', 'Four concealed pungs and a pair', {
           sets: [['c2', 'c2', 'c2'], ['d5', 'd5', 'd5'], ['b8', 'b8', 'b8'], ['ws', 'ws', 'ws'], ['d2', 'd2']],
-          flags: { selfDraw: true }, note: 'Nothing claimed.',
+          flags: { selfDraw: true }, note: 'All triplets were self drawn and not claimed from discards.',
         }),
         rule('Four Quads', '十八羅漢', 'allKongs', 'Four kongs and a pair', {
           sets: [['c2', 'c2', 'c2', 'c2'], ['d5', 'd5', 'd5', 'd5'], ['b8', 'b8', 'b8', 'b8'], ['ws', 'ws', 'ws', 'ws'], ['d2', 'd2']], open: [0, 1, 2, 3],
@@ -58,18 +60,20 @@
         }),
         rule('Nine Gates', '九蓮寶燈', 'nineGates', '1112345678999 in one suit, plus one', {
           sets: [['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'c5', 'c5', 'c6', 'c7', 'c8', 'c9', 'c9', 'c9']],
-          note: 'The extra Five could have been any Character.',
+          note: 'Must be concealed. The pair can be any tile in that suit.',
         }),
       ] },
       { title: 'Terminals', rows: [
         rule('Mixed Orphans', '混老頭', 'mixedOrphans', 'Only 1s, 9s and honors', {
           sets: [['c1', 'c1', 'c1'], ['d9', 'd9', 'd9'], ['we', 'we', 'we'], ['dr', 'dr', 'dr'], ['b1', 'b1']], open: [0],
+          note: 'Gains +3 faan for all triplets.',
         }),
         rule('All Terminals', '清老頭', 'allTerminals', 'Only 1s and 9s', {
           sets: [['c1', 'c1', 'c1'], ['c9', 'c9', 'c9'], ['d1', 'd1', 'd1'], ['d9', 'd9', 'd9'], ['b1', 'b1']], open: [0],
         }),
         rule('Thirteen Orphans', '十三么', 'thirteenOrphans', 'Every 1, 9 and honor, plus a pair', {
           sets: [['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'ww', 'wn', 'dg', 'dw', 'dr', 'dr']],
+          note: 'The pair can be any tile in the example.',
         }),
       ] },
       { title: 'Dragons', rows: [
@@ -128,12 +132,12 @@
     ] },
     { title: 'Flowers & Seasons', families: [
       { rows: [
-        rule('No Flowers', '無花', 'noFlowers', 'No flowers or seasons', { sets: RUNS, open: [0], flowers: [] }),
+        rule('No Flowers', '無花', 'noFlowers', 'No flowers or seasons', { sets: RUNS, open: [0], flowers: [] }, false),
         rule('Seat Flower', '正花', 'seatFlower', 'Your own flower', {
-          sets: RUNS, open: [0], flowers: ['f2', 's3'], note: 'Orchid is South\'s flower.',
+          sets: RUNS, open: [0], flowers: ['f2'], seat: SOUTH, note: 'Orchid is South\'s flower.',
         }),
         rule('Seat Season', '正季', 'seatSeason', 'Your own season', {
-          sets: RUNS, open: [0], flowers: ['s2', 'f4'], note: 'Summer is South\'s season.',
+          sets: RUNS, open: [0], flowers: ['s2'], seat: SOUTH, note: 'Summer is South\'s season.',
         }),
         rule('Four Flowers', '四花齊', 'allFlowers', 'All four flowers, in place of the seat one', {
           sets: RUNS, open: [0], flowers: ['f1', 'f2', 'f3', 'f4'],

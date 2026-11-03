@@ -166,6 +166,13 @@
   gap: 0.45rem;
 }
 
+/* Avenir Medium has no bold face, so a phone and a desktop were drawing
+   <strong> differently. The system face has a real bold on both. */
+.play-rules strong {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 700;
+}
+
 /* Full-screen table */
 .play-stage {
   position: fixed;
@@ -363,7 +370,7 @@ html.is-playing.is-sideways body {
   border-radius: 12px;
   background: #0a3d27;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  pointer-events: none;
+  cursor: pointer;
 }
 
 .rules-example-head {
@@ -396,6 +403,8 @@ html.is-playing.is-sideways body {
 
 .rules-set--open { border-bottom-color: #C41E3A; }
 
+.rules-example-break { flex-basis: 100%; height: 0; }
+
 .rules-set--flowers { margin-left: 6px; }
 
 .rules-tile {
@@ -424,10 +433,10 @@ html.is-playing.is-sideways body {
 
 @media (max-width: 600px), (pointer: coarse) and (max-height: 599px) {
   .rules-sheet {
-    max-height: calc(100dvh - 96px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   }
 
-  .rules-sheet-inner { padding: 28px 22px 36px; }
+  .rules-sheet-inner { padding: 16px 22px 18px; }
 }
 
 /* Strategies sheet: the same look as the rules sheet. */

@@ -35,7 +35,9 @@
         hands of honors or terminals need their tiles from every suit, so
         they keep their own order.)
      F. keep pairs. Break one only after every non-pair is gone.
-     G. keep dragons until at least one copy is already visible. A tile
+     G. keep dragons until at least one copy is already visible. A lone
+        dragon with all three other copies unseen is never thrown, even
+        while folding, unless that leaves the hand ready (loneDragon). A tile
         someone has Punged or Konged is the first discard when the hand
         does not need it. A punged honor is safe for the whole table; a
         punged number tile can still finish a chow.
@@ -46,7 +48,9 @@
         feeding. A flush in the suit they collect is left alone when
         another of yours is about even with it; between close suits, the
         one they feed wins (leftRead, avoidSuit, suitLean).
-     The keep-pairs and keep-dragons orders never cost a step toward ready,
+     J. never aim for a chicken hand: a plain hand is only a plan once it
+        has the minimum faan already (aimablePlans).
+     Apart from the lone dragon, the keep-pairs and keep-dragons orders never cost a step toward ready,
      and while folding, safety decides and they only break ties.
 
    A strategy is createStrategy(def): `def.hooks` adds its own plans,
@@ -429,6 +433,12 @@
     return DRAGONS.indexOf(i) !== -1 && revealedCopies(game, i) === 0 && shanten > 0;
   }
 
+  // A single dragon with the other three copies still unseen: the most
+  // versatile tile in the game, so it's only thrown to make the hand ready.
+  function loneDragon(game, counts, i) {
+    return DRAGONS.indexOf(i) !== -1 && counts[i] === 1 && revealedCopies(game, i) === 0;
+  }
+
   // The discard rules every strategy follows, ahead of its own order: after
   // a chow, or with most of the hand in one suit, other suits go first
   // (group 0: even while folding). On Concealed Straights, every honor but
@@ -629,7 +639,44 @@
 
   // Candidate plans for a 13-tile (waiting to draw) concealed portion.
   function plansFor(c, ctx) {
-    return H.plans ? H.plans(c, ctx) : basePlans(c, ctx);
+    return aimablePlans(H.plans ? H.plans(c, ctx) : basePlans(c, ctx), c, ctx);
+  }
+
+  // No strategy aims for a chicken hand: the plain hand only stays a plan
+  // once flowers, sets and the like already give it the minimum faan. If
+  // nothing else can be finished, a flush or All Triplets takes its place.
+  // (With melds that rule those out too, the plain hand is all that's left.)
+  function aimablePlans(plans, c, ctx) {
+    var min = ctx.game.settings.minFaan;
+    var scoring = plans.filter(function (p) { return p.id !== 'plain' || p.faan >= min; });
+    if (scoring.length === plans.length) return plans;
+    var finishable = function (p) { return !p.upgrade && p.shantenFn(p.counts, ctx.declared) !== Infinity; };
+    if (scoring.some(finishable)) return scoring;
+    var forced = scoringPlans(c, ctx);
+    return forced.length ? scoring.concat(forced) : plans;
+  }
+
+  // The flush in the hand's best open suit, and All Triplets, however far off.
+  function scoringPlans(c, ctx) {
+    var base = baseFaan(ctx) + (ctx.concealed ? 1 : 0);
+    var out = [];
+    var suitN = suitCounts(c, ctx);
+    var open = ['c', 'd', 'b'].filter(function (su) {
+      return !Object.keys(ctx.meldSuits).some(function (k) { return k !== su && k !== 'z'; });
+    });
+    if (open.length) {
+      var su = open.reduce(function (m, x) { return suitN[x] > suitN[m] ? x : m; }, open[0]);
+      var kept = restrict(c, function (i) { return E.suitOfIndex(i) === su || i >= 27; });
+      out.push({
+        id: 'half-' + su, suit: su, label: 'a Half Flush in ' + SUIT_LABELS[su],
+        counts: kept, shantenFn: E.standardShanten,
+        faan: base + 3 + handYaku(ctx, kept), open: true,
+      });
+    }
+    if (!ctx.hasChow) {
+      out.push({ id: 'triplets', label: 'All Triplets', counts: c, shantenFn: E.tripletsShanten, faan: base + 3 + handYaku(ctx, c), open: true });
+    }
+    return out;
   }
 
   // The usual hands: standard, Concealed Straights, the flushes and All
@@ -1306,22 +1353,26 @@
     return loss < 0.002 ? 0 : loss < 0.012 ? 1 : loss < 0.035 ? 2 : 3;
   }
 
-  // All Triplets needs more copies of the tiles it holds, so within each
-  // discard group the tile with the fewest copies left (unseen by this seat)
-  // goes first and the liveliest are kept. A risky tile always waits, and
-  // near the end of the hand every step of risk comes first, then how many
-  // are left.
+  // All Triplets needs more copies of the tiles it holds, so the tiles least
+  // likely to become a set go first: singles (two copies short) before pairs
+  // (one short, and able to pung) before finished sets, and within each the
+  // one with the fewest copies left (unseen by this seat). That decides ahead
+  // of a step toward a plainer hand and of risk. Tiles a strategy throws
+  // whatever else is true (group 0 or below) still go first, tiles a bigger
+  // hand wants still wait, and a discard that leaves the hand ready stays on top.
   var SETS_PLANS = ['triplets', 'concealed-triplets', 'mixed-orphans', 'all-terminals', 'all-honors'];
-  function tripletsOrder(out, ctx) {
+  function tripletsOrder(out, ctx, counts) {
     var lead = out[0] && out[0].analysis.best;
     var plan = lead && lead.plan;
     if (!plan || SETS_PLANS.indexOf(plan.id) === -1 || lead.readyBest) return out;
-    var late = ctx.wallLeft < LATE_WALL;
+    if (out.some(function (x) { return x.shanten === 0; })) return out;
+    var forced = function (x) { return x.priority <= 0 ? x.priority : 1; };
+    var favored = function (x) { return x.priority % 1 ? 1 : 0; }; // upgradeOrder's half step
     return out.map(function (x, k) { return { x: x, k: k }; }).sort(function (a, b) {
-      if (a.x.tier !== b.x.tier) return a.x.tier - b.x.tier;
-      var ra = riskStep(a.x.loss), rb = riskStep(b.x.loss);
-      if (!late) { ra = ra === 3 ? 1 : 0; rb = rb === 3 ? 1 : 0; }
-      if (ra !== rb) return ra - rb;
+      if (forced(a.x) !== forced(b.x)) return forced(a.x) - forced(b.x);
+      if (favored(a.x) !== favored(b.x)) return favored(a.x) - favored(b.x);
+      var na = Math.min(counts[a.x.index], 3), nb = Math.min(counts[b.x.index], 3);
+      if (na !== nb) return na - nb;
       var ua = ctx.unseen[a.x.index], ub = ctx.unseen[b.x.index];
       if (ua !== ub) return ua - ub;
       return a.k - b.k;
@@ -1386,7 +1437,10 @@
       // that leaves the hand slower waits behind every one that doesn't.
       // (A strategy's group below 0 goes first whatever it costs, but unlike
       // 0 it doesn't override folding.)
-      x.tier = x.priority <= 0 || x.shanten <= bestShanten ? x.priority : 10 + x.priority;
+      // (Nor does a finished set a hand of sets is built on go ahead of a pair.)
+      var best = x.analysis.best;
+      var breaksSet = c[x.index] >= 3 && best && best.plan && !best.readyBest && SETS_PLANS.indexOf(best.plan.id) !== -1;
+      x.tier = x.priority <= 0 || (x.shanten <= bestShanten && !breaksSet) ? x.priority : 10 + x.priority;
     });
     out.sort(function (a, b) {
       // Off-suit tiles after a chow always go first, even while folding
@@ -1398,7 +1452,11 @@
       if (a.priority !== b.priority) return a.priority - b.priority;
       return E.isTerminalOrHonorIndex(b.index) - E.isTerminalOrHonorIndex(a.index);
     });
-    if (!folding && T.tripletsLive) out = tripletsOrder(out, ctx);
+    if (!folding && T.tripletsLive) out = tripletsOrder(out, ctx, c);
+    // A lone dragon nobody has shown goes last of all, unless throwing it
+    // leaves the hand ready: then the usual order decides.
+    var isLone = function (x) { return x.shanten > 0 && loneDragon(game, c, x.index); };
+    out = out.filter(function (x) { return !isLone(x); }).concat(out.filter(isLone));
     return { ctx: ctx, candidates: out, threats: threats, defense: weight, folding: folding };
   }
 
@@ -1628,6 +1686,8 @@
     sharedPriority: sharedPriority,
     keptHonorPair: keptHonorPair,
     holdsDragon: holdsDragon,
+    loneDragon: loneDragon,
+    aimablePlans: aimablePlans,
     leftRead: leftRead,
     avoidSuit: avoidSuit,
     suitLean: suitLean,

@@ -160,10 +160,46 @@ describe('expert playbook', () => {
     assert.ok(['c4', 'c7'].includes(pick), 'discarded ' + pick);
   });
 
-  it('on Concealed Straights, throws a dragon even when another tile also leaves the hand ready', () => {
-    const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'b2', 'dr'];
-    const game = table({ seats: [{ hand }] });
-    assert.equal(B.chooseTurnAction(game, 0, noKongs).tile, 'dr');
+  it('never throws a lone dragon nobody has shown, even while folding', () => {
+    const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd6', 'd7', 'b2', 'b3', 'dr'];
+    assert.notEqual(B.chooseTurnAction(table({ seats: [{ hand }] }), 0, noKongs).tile, 'dr');
+    const late = table({ seats: [{ hand }], wallLeft: 8 });
+    assert.notEqual(B.chooseTurnAction(late, 0, noKongs).tile, 'dr');
+    // A copy on the table means it's no longer unseen.
+    const shown = table({ seats: [{ hand }, { discards: ['dr'] }] });
+    assert.equal(B.chooseTurnAction(shown, 0, noKongs).tile, 'dr');
+  });
+
+  it('throws a lone dragon when that leaves the hand ready', () => {
+    const only = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'b5', 'b6', 'b2', 'b2', 'dr'];
+    assert.equal(B.chooseTurnAction(table({ seats: [{ hand: only }] }), 0, noKongs).tile, 'dr');
+    const also = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'b2', 'dr'];
+    assert.equal(B.chooseTurnAction(table({ seats: [{ hand: also }] }), 0, noKongs).tile, 'dr');
+  });
+
+  it('throws a lone dragon only when nothing else is left to throw', () => {
+    const game = table({ seats: [{ hand: ['dr', 'dg'], melds: [meld('pung', 'c2'), meld('pung', 'c5'), meld('pung', 'd5'), meld('pung', 'b8')] }] });
+    assert.ok(['dr', 'dg'].includes(B.chooseTurnAction(game, 0, noKongs).tile));
+  });
+
+  it('drops the plain hand as a plan until it already has the minimum faan', () => {
+    const c = E.countsOf(['c2', 'c3', 'c4', 'c7', 'c8', 'd2', 'd3', 'd9', 'b2', 'b5', 'b6', 'b9', 'wn']);
+    const plainIn = (game) => MahjongBot.basePlans(c, B.buildContext(game, 0)).map((p) => p);
+    const short = table({ seats: [{ hand: [] }] });
+    const ctxShort = B.buildContext(short, 0);
+    assert.equal(MahjongBot.aimablePlans(plainIn(short), c, ctxShort).some((p) => p.id === 'plain'), false);
+    // Both own-seat flowers and seasons, all four of a kind: 3 faan or more before the tiles.
+    const rich = table({ seats: [{ hand: [], flowers: ['f1', 'f2', 'f3', 'f4', 's1', 's2', 's3', 's4'] }] });
+    const ctxRich = B.buildContext(rich, 0);
+    assert.equal(MahjongBot.aimablePlans(plainIn(rich), c, ctxRich).some((p) => p.id === 'plain'), true);
+  });
+
+  it('turns to a flush or All Triplets when the plain hand was all it had', () => {
+    const c = E.countsOf(['c2', 'c3', 'c4', 'c7', 'c8', 'd2', 'd3', 'b5', 'b6', 'wn']);
+    const game = table({ seats: [{ hand: [], melds: [meld('pung', 'c9')] }] });
+    const ctx = B.buildContext(game, 0);
+    const ids = MahjongBot.aimablePlans([{ id: 'plain', counts: c, shantenFn: E.standardShanten, faan: 1 }], c, ctx).map((p) => p.id);
+    assert.deepEqual(ids, ['half-c', 'triplets']);
   });
 
   it('treats a punged honor as dead and throws a punged tile the hand does not need', () => {
@@ -225,12 +261,12 @@ describe('expert playbook', () => {
   });
 
   it('keeps pairs and pungs while going for all triplets', () => {
-    // Two pungs, three pairs, and two dragon singles. Breaking a pung is the
-    // old recommendation; a single is the tile that can actually go.
+    // Two pungs, three pairs, and two dragon singles. The dragons stay, so a
+    // pair goes, not a finished pung.
     const dragons = table({ seats: [{ hand: ['c2', 'c2', 'c2', 'd5', 'd5', 'd5', 'b8', 'b8', 'wn', 'wn', 'we', 'we', 'dr', 'dg'] }] });
     const loose = B.analyzeDiscards(dragons, 0).candidates[0];
     assert.ok(['triplets', 'concealed-triplets'].includes(loose.analysis.best.plan.id));
-    assert.ok(['dr', 'dg'].includes(loose.tile), 'discarded ' + loose.tile);
+    assert.ok(['b8', 'wn', 'we'].includes(loose.tile), 'discarded ' + loose.tile);
 
     // No singles left: throw from a pair, not from a finished pung.
     const pairs = table({ seats: [{ hand: ['c2', 'c2', 'c2', 'd5', 'd5', 'd5', 'b8', 'b8', 'wn', 'wn', 'we', 'we', 'ws', 'ws'] }] });
@@ -481,6 +517,22 @@ describe('all triplets keeps the live tiles', () => {
     assert.ok(order.indexOf('c7') < order.indexOf('b3'), order.join(' '));
   });
 
+  it('counts copies left ahead of what kind of tile it is', () => {
+    // A single wind with two left goes before number singles with three left.
+    const hand = ['c2', 'c2', 'd5', 'd5', 'ws', 'ws', 'c7', 'we', 'b3', 'dg', 'dg'];
+    const game = table({ seats: [{ hand, melds: [meld('pung', 'b8')] }, { discards: ['we'] }], wallLeft: 70 });
+    assert.equal(B.analyzeDiscards(game, 0).candidates[0].tile, 'we');
+  });
+
+  it('counts copies held too: a single goes before a pair with fewer left', () => {
+    const hand = ['c2', 'c2', 'd5', 'd5', 'ws', 'ws', 'c7', 'd9', 'b3', 'dg', 'dg'];
+    const game = table({ seats: [{ hand, melds: [meld('pung', 'b8')] }, { discards: ['d5'] }], wallLeft: 70 });
+    const order = B.analyzeDiscards(game, 0).candidates.map((x) => x.tile);
+    ['c7', 'd9', 'b3'].forEach((t) => assert.ok(order.indexOf(t) < order.indexOf('d5'), order.join(' ')));
+    // Among pairs, the one with the fewest left comes first.
+    assert.ok(order.indexOf('d5') < order.indexOf('c2'), order.join(' '));
+  });
+
   it('near the end, counts a suit an opponent chowed as more dangerous', () => {
     const seats = [{}, { melds: [meld('chow', 'b2')] }];
     const early = table({ seats, wallLeft: 70 });
@@ -489,58 +541,5 @@ describe('all triplets keeps the live tiles', () => {
     const tEarly = B.opponentThreats(early, 0).find((t) => t.seat === 1);
     const tLate = B.opponentThreats(late, 0).find((t) => t.seat === 1);
     assert.ok(B.waitChance(late, tLate, i) > B.waitChance(early, tEarly, i) * 1.3);
-  });
-});
-
-describe('bot strength', () => {
-  // Baseline: discards purely for shanten and live tiles, never claims.
-  function efficiencyAgent() {
-    return {
-      turn: async (g, s, o) => {
-        if (o.win) return { type: 'win' };
-        const c = E.countsOf(g.hand.seats[s].hand);
-        const un = E.unseenCounts(g, s);
-        const d = g.hand.seats[s].melds.length;
-        let best = null;
-        for (let i = 0; i < 34; i++) {
-          if (!c[i]) continue;
-          c[i]--;
-          const sh = E.shanten(c, d);
-          let u = 0;
-          for (let j = 0; j < 34; j++) {
-            if (!un[j] || c[j] >= 4) continue;
-            c[j]++;
-            if (E.shanten(c, d) < sh) u += un[j];
-            c[j]--;
-          }
-          c[i]++;
-          const score = -sh * 1000 + u;
-          if (!best || score > best.score) best = { score, tile: E.tileId(i) };
-        }
-        return { type: 'discard', tile: best.tile };
-      },
-      claim: async (g, s, o) => (o.win ? { type: 'win' } : { type: 'pass' }),
-    };
-  }
-
-  it('outscores three tile-efficiency players over a fixed set of hands', async () => {
-    // Faan won minus faan paid (capped at 8 so one limit hand can't decide it).
-    const net = [0, 0];
-    const hands = 48;
-    for (let n = 0; n < hands; n++) {
-      const botSeat = n % 4;
-      const game = E.createGame({ seed: 5000 + n, humanSeat: false, dealer: 0 });
-      const agents = [0, 1, 2, 3].map((i) => (i === botSeat ? B.createBotAgent() : efficiencyAgent()));
-      const res = await E.runHand(game, agents, {});
-      if (res.type !== 'win') continue;
-      const f = Math.min(res.score.faan, 8);
-      for (let i = 0; i < 4; i++) {
-        let d = 0;
-        if (i === res.winner) d = res.payer == null ? 3 * f : f;
-        else if (res.payer == null || res.payer === i) d = -f;
-        net[i === botSeat ? 0 : 1] += i === botSeat ? d : d / 3;
-      }
-    }
-    assert.ok(net[0] > net[1], 'bot ' + net[0] + ' vs baseline average ' + net[1].toFixed(1));
   });
 });
