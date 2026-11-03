@@ -315,8 +315,12 @@
     },
     // Your turn: a light knock on the table.
     turn: { clips: ['turn'], gain: 0.3 },
-    // Your win: poker chips, a pile of them collected and stacked.
-    win: { clips: ['tile-claim-2'], gain: 0.9, then: [['tile-kong', 0.08, 0.8], ['tile-claim-1', 0.2, 0.8]] },
+    // Your win: impactMining_000 (the pung's hit), louder and struck again
+    // lower, then the pot's chips. Bigger than a pung, same kind of hit.
+    win: {
+      clips: ['impact-pung'], gain: 1,
+      then: [['impact-pung', 0.18, 0.8, 0.78], ['tile-claim-2', 0.08, 0.7], ['tile-kong', 0.2, 0.6]],
+    },
     // Someone else's win: a medium wooden hit and their chips.
     otherwin: { clips: ['other-win'], gain: 0.55, then: [['tile-claim-1', 0.04, 0.45]] },
     // You paid for the win: poker chips, a few pushed across.
@@ -611,7 +615,8 @@
       revealHands: false, // after Show hands, every concealed hand is face up
       heldSummary: null, // the results panel, while those hands stay open
       youIcon: null, // where your person icon was drawn
-      youHeader: null, // where your name was drawn, so See results can sit under it
+      youHeader: null, // where your name was drawn, so See results can sit under it when there is no coach box
+      coachBox: null, // the coach's bar, once drawn, so See results can sit at its right edge
       lastHandRects: [],
       meldAnchor: [null, null, null, null],
       backAnchor: [null, null, null, null],
@@ -1633,7 +1638,7 @@
     // A small robot (computer players) or person (human players) icon, drawn
     // with paths so it doesn't depend on any emoji font.
     var ICON_GAP = 5;
-    var SEE_RESULTS_W = 120; // the See results button under your name
+    var SEE_RESULTS_W = 120; // the See results button at the right of the coach box
     function playerIcon(seat, x, cy, s) {
       var human = game.players[seat].isHuman;
       var ink = COLORS.feltDark;
@@ -2055,11 +2060,11 @@
       var left = L.meX;
       var rightEdge = L.meX + L.meW;
       // Your name sits at the right edge of your box, as narrow as it can,
-      // so your melds and flowers get the rest of the row. See results goes
-      // under it at the end of the hand, so the column makes room for it.
+      // so your melds and flowers get the rest of the row. See results only
+      // needs room here when there is no coach box to hold it.
       var headW = seatHeaderWidth(0, clamp(L.meW * 0.3, 130, 240));
       var infoW = headW;
-      if (ui.revealHands) infoW = seeResultsUnder() ? Math.max(headW, SEE_RESULTS_W) : headW + 6 + SEE_RESULTS_W;
+      if (ui.revealHands && seeResultsHome() === 'name') infoW = seeResultsUnder() ? Math.max(headW, SEE_RESULTS_W) : headW + 6 + SEE_RESULTS_W;
       ui.youHeader = { x: rightEdge - pad - 8 - headW, y: y + 4, w: headW, right: rightEdge - pad - 8 };
       // Your name steps aside while action buttons need its spot.
       if (!ui.buttonsOverName) drawSeatHeader(0, ui.youHeader.x, y + 4, headW);
@@ -2168,6 +2173,7 @@
     }
 
     function drawHintBand() {
+      ui.coachBox = null;
       if (!L.hintH) return;
       var x = L.ox + L.pad, w = L.tableW - 2 * L.pad;
       var lines = [];
@@ -2207,7 +2213,9 @@
       }
       var iconS = Math.min(L.hintH - 14, 48);
       var tx = x + 8 + iconS + 8;
-      var tw = w - (tx - x) - 10;
+      // See results sits at the right of this box after a hand, so the note stops short of it.
+      var reserve = ui.revealHands && !ui.overlay && seeResultsHome() === 'bar' ? Math.min(SEE_RESULTS_W, w * 0.45) + 18 : 0;
+      var tw = w - (tx - x) - 10 - reserve;
       var size = !L.desktop ? 11 : L.tableW < 600 ? 12 : 13; // smaller on a phone
       var out = [];
       lines.forEach(function (l) {
@@ -2235,6 +2243,7 @@
       // Show every line: a long tip grows the band upward over the table.
       var h = Math.max(L.hintH, out.length * lh + 12);
       var y = L.hintY + L.hintH - h;
+      ui.coachBox = { x: x, y: y, w: w, h: h };
       ctx.save();
       roundRect(ctx, x, y, w, h, 12);
       ctx.fillStyle = h > L.hintH ? 'rgba(4,46,28,0.94)' : 'rgba(0,0,0,0.32)';
@@ -2329,7 +2338,10 @@
       ctx.fillStyle = 'rgba(0,0,0,0.28)';
       ctx.fill();
       ctx.restore();
-      text('Coach ' + Strategies.get(ui.strategies.coach).name, r.x + 14, r.y + 20, { size: 16, weight: 'bold', family: FONT_HEAD, color: COLORS.cream });
+      var coachTitle = 'Coach ' + Strategies.get(ui.strategies.coach).name;
+      var titleMax = r.w - 28;
+      if (ui.revealHands && !ui.overlay && seeResultsHome() === 'column') titleMax -= Math.min(SEE_RESULTS_W, r.w - 24) + 8;
+      text(coachTitle, r.x + 14, r.y + 20, { size: fitFont(ctx, coachTitle, Math.max(40, titleMax), 16, FONT_HEAD, 'bold'), weight: 'bold', family: FONT_HEAD, color: COLORS.cream });
 
       var viewX = r.x + 10;
       var viewY = r.y + 36;
@@ -3053,6 +3065,15 @@
       requestRender();
     }
 
+    // Where See results goes while the hands are face up: the coach's column
+    // (the box on the right), else the right edge of the coach's bar, else
+    // beside your name when the coach is hidden.
+    function seeResultsHome() {
+      if (L.history) return 'column';
+      if (L.hintH) return 'bar';
+      return 'name';
+    }
+
     // Whether your row is tall enough for See results under your name
     // (header 4 + 22, a 6 gap, and a 30-36 button); phones put it beside.
     function seeResultsUnder() {
@@ -3060,10 +3081,25 @@
     }
 
     function drawSeeResults() {
-      var head = ui.youHeader;
-      if (!ui.revealHands || ui.overlay || !head) return;
-      var gap = 6;
+      if (!ui.revealHands || ui.overlay) return;
+      var home = seeResultsHome();
       var bw = SEE_RESULTS_W;
+      if (home === 'column') {
+        var col = L.history;
+        bw = Math.min(bw, col.w - 24);
+        button('See results', col.x + col.w - 10 - bw, col.y + 5, bw, 28, seeResults, 'primary', 'see-results');
+        return;
+      }
+      if (home === 'bar' && ui.coachBox) {
+        var box = ui.coachBox;
+        bw = Math.min(bw, box.w * 0.45);
+        var bh = Math.min(36, Math.max(28, box.h - 16));
+        button('See results', box.x + box.w - 12 - bw, box.y + (box.h - bh) / 2, bw, bh, seeResults, 'primary', 'see-results');
+        return;
+      }
+      var head = ui.youHeader;
+      if (!head) return;
+      var gap = 6;
       // Under your name, right-aligned with it. A short row (phones) has no
       // room under it, so it sits just left of your name instead.
       var top = head.y + 22 + gap;
@@ -3216,9 +3252,21 @@
       scrollHistory(ui.coachScroll + dy);
     }
 
+    function seeResultsHit(p) {
+      if (!p || !ui.revealHands || ui.overlay) return null;
+      var r = hitTest(p.x, p.y);
+      return r && r.id === 'see-results' ? r : null;
+    }
+
     function onPointerDown(e) {
       lastTouch = !!e.pointerType && e.pointerType !== 'mouse';
       var p = pointerPos(e);
+      var see = seeResultsHit(p);
+      if (see) {
+        e.preventDefault();
+        see.onTap();
+        return;
+      }
       if (historyAt(p)) {
         if (ui.coachScrollMax > 0) {
           historyDrag = { y: p.y, scroll: ui.coachScroll, id: e.pointerId };
@@ -3245,7 +3293,7 @@
       }
       if (e.pointerType && e.pointerType !== 'mouse') return;
       var p = pointerPos(e);
-      if (historyAt(p)) {
+      if (historyAt(p) && !seeResultsHit(p)) {
         canvas.style.cursor = ui.coachScrollMax > 0 ? 'grab' : 'default';
         mouse = p;
         if (hover) { hover = null; requestRender(); }
