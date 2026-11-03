@@ -2,9 +2,32 @@
 
 A static website for the Lucky Cat Mahjong club at [luckycatmahjong.com](https://luckycatmahjong.com), with content managed through [Pages CMS](https://pagescms.org).
 
-- [Features](#features): [Homepage](#homepage), [Points Guide](#hong-kong-mahjong-points-guide-hong-kong-mahjong-scoring), [Community](#community-page-community), [Events](#events-page-events), [Quiz](#which-mahjong-tile-are-you-quiz-which-mahjong-tiles-are-you), [Play](#play-hong-kong-mahjong-play-mahjong)
-- [Local preview](#local-preview), [Tests](#tests), [Other scripts](#other-scripts)
-- [Editing content](#editing-content-with-pages-cms), [Deploy](#deploy-to-github-pages), [Project structure](#project-structure), [Credits](#credits)
+## Contents
+
+**Site pages**
+
+- [Homepage](#homepage)
+- [Points Guide](#hong-kong-mahjong-points-guide-hong-kong-mahjong-scoring)
+- [Community](#community-page-community)
+- [Events](#events-page-events)
+- [Personality quiz](#which-mahjong-tile-are-you-quiz-which-mahjong-tiles-are-you)
+- [Play Mahjong](#play-hong-kong-mahjong-play-mahjong)
+  - Playing: [Game modes](#game-modes) · [Rules and scoring](#rules-and-scoring) · [Saving and resuming](#saving-and-resuming) · [Hand seeds](#hand-seeds)
+  - Bots and coach: [Strategies](#strategies) · [Bots](#bots) · [Coach](#coach) · [Bot competition](#bot-competition)
+  - Table: [Table and layouts](#table-and-layouts) · [Sound and music](#sound-and-music)
+  - For developers: [Analytics events](#analytics-events) · [Testing tip](#testing-tip)
+- [Other pages](#other)
+
+**Working on the site**
+
+- [Local preview](#local-preview)
+- [Tests](#tests)
+- [Other scripts](#other-scripts): [Media formatting](#media-formatting) · [Print and PDF](#print-and-pdf)
+- [Editing content with Pages CMS](#editing-content-with-pages-cms)
+- [Deploy to GitHub Pages](#deploy-to-github-pages)
+- [Project structure](#project-structure)
+
+**[Credits](#credits)**
 
 ## Features
 
