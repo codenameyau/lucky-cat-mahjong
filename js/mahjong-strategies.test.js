@@ -198,7 +198,9 @@ describe('the player before you decides a close flush suit', () => {
   const hand = ['b2', 'b3', 'b4', 'b6', 'b7', 'b8', 'b9', 'd2', 'd3', 'd5', 'd6', 'd8', 'd9', 'c5'];
   // Seat 3 (on your left) has thrown no Bamboo and mostly Circles.
   const keepsBamboo = ['d1', 'd9', 'd5', 'c1', 'c9', 'wn', 'd5'];
-  const at = (discards) => table({ seats: [{ hand }, {}, {}, { discards }], wallLeft: 70 });
+  // A flower that isn't this seat's: Concealed Straights would fall short of
+  // 3 faan, so the choice is between the two flushes.
+  const at = (discards) => table({ seats: [{ hand, flowers: ['f4'] }, {}, {}, { discards }], wallLeft: 70 });
 
   it('reads the suit they keep and the suit they throw', () => {
     const read = B.leftRead(at(keepsBamboo), 0);
@@ -206,13 +208,20 @@ describe('the player before you decides a close flush suit', () => {
     assert.deepEqual(B.leftRead(at([]), 0), { seat: 3, keeps: null, feeds: null });
   });
 
-  it('lucky-cat builds the suit they feed instead of the one they keep', () => {
+  it('lucky-cat leaves the suit they keep for a faster hand', () => {
     assert.equal(B.analyzeDiscards(at([]), 0).ctx.leadPlan.id, 'full-b');
     const a = B.analyzeDiscards(at(keepsBamboo), 0);
-    assert.equal(a.ctx.leadPlan.id, 'full-d');
-    assert.ok(!/^d/.test(a.candidates[0].tile), 'kept the Circles, threw ' + a.candidates[0].tile);
+    assert.notEqual(a.ctx.leadPlan.id, 'full-b');
     const hint = Coach.turnHint(at(keepsBamboo), 0, { kongs: [] });
     assert.match(hint.tips.join(' '), /is collecting Bamboo, so stay out of it/);
+    assert.equal(hint.tips.join(' ').split('is collecting Bamboo').length, 2);
+  });
+
+  it('the lucky-cat coach says when an opponent changes hands', () => {
+    const game = table({ seats: [{ hand: ['c2', 'c3', 'c4', 'c6', 'c7', 'd2', 'd3', 'd5', 'd6', 'wn', 'we', 'ws', 'b5', 'b9'] }, { discards: ['c1', 'd1', 'c2', 'd2', 'b2', 'b3', 'b7', 'b8'] }], wallLeft: 60 });
+    const lucky = Coach.forStrategy(B).turnHint(game, 0, { kongs: [] });
+    assert.match(lucky.tips.join(' '), /has switched out of Bamboo\./);
+    assert.doesNotMatch(Coach.forStrategy(L).turnHint(game, 0, { kongs: [] }).tips.join(' '), /has switched out/);
   });
 
   it('jorge-yau gives up a Bamboo flush target', () => {
@@ -489,7 +498,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.15.2');
+    assert.equal(E.GAME_VERSION, '0.16.0');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);

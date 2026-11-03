@@ -543,3 +543,81 @@ describe('all triplets keeps the live tiles', () => {
     assert.ok(B.waitChance(late, tLate, i) > B.waitChance(early, tEarly, i) * 1.3);
   });
 });
+
+describe('tracking the table', () => {
+  const quiet = (discards, extra) => table({ seats: [{ hand: ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'd2', 'd3', 'd4', 'd7', 'd8', 'b5', 'b5'] }, Object.assign({ discards }, extra)] });
+  const read = (game) => B.readTable(game, 0, E.unseenCounts(game, 0));
+  const seat1 = (game) => read(game).seats.find((r) => r.seat === 1);
+  const at = (t) => E.tileIndex(t);
+
+  it('reads a tile thrown as less wanted, and its suji a little', () => {
+    const r = seat1(quiet(['c5']));
+    assert.ok(r.want[at('c5')] < r.want[at('b5')]);
+    assert.ok(r.want[at('c8')] < r.want[at('b8')]);
+  });
+
+  it('reads a tile they let go by from another player as less wanted', () => {
+    const game = table({ seats: [{ hand: ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'd2', 'd3', 'd4', 'd7', 'd8', 'b5', 'b5'] }, {}, { discards: ['dr'] }] });
+    const r = seat1(game);
+    assert.ok(r.want[at('dr')] < r.want[at('dg')]);
+  });
+
+  it('reads what every opponent collects, not only the player before you', () => {
+    const r = seat1(quiet(['c1', 'c9', 'd1', 'd9', 'c2', 'd8']));
+    assert.equal(r.collecting, 'b');
+    assert.ok(r.want[at('b5')] > r.want[at('c5')]);
+  });
+
+  it('notices a player changing hands', () => {
+    assert.equal(seat1(quiet(['c1', 'd1', 'c2', 'd2', 'b2', 'b3', 'b7', 'b8'])).pivot.from, 'b');
+    assert.equal(seat1(quiet(['c1', 'd1', 'b2', 'c2', 'd2', 'b3', 'c8', 'd8'])).pivot, null);
+  });
+
+  it('expects fewer copies in the wall of a suit someone is holding', () => {
+    const t = read(quiet(['c1', 'c9', 'd1', 'd9', 'c2', 'd8']));
+    assert.ok(t.inWall[at('b6')] < t.inWall[at('c6')]);
+  });
+
+  it('counts a closer hand ahead of a wider one further away', () => {
+    assert.ok(B.raceOdds(0.2, 3, 18, 0.03) > B.raceOdds(0.35, 4, 18, 0.03));
+    assert.ok(B.raceOdds(0.2, 1, 18, 0.03) > B.raceOdds(0.2, 1, 6, 0.03));
+    assert.ok(B.raceOdds(0.2, 1, 18, 0.03) > B.raceOdds(0.2, 1, 18, 0.2));
+  });
+
+  it('values a wait less when an opponent is collecting its suit', () => {
+    const hand = ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'd2', 'd3', 'd4', 'd7', 'd8', 'b5', 'b5'];
+    const value = (seat) => {
+      const game = table({ seats: [{ hand }, seat] });
+      return B.readyValue(E.countsOf(hand), B.buildContext(game, 0)).value;
+    };
+    const throwing = value({ discards: ['d1', 'd2', 'd3', 'd5', 'c5', 'd4'] });
+    const keeping = value({ melds: [meld('pung', 'd1'), meld('pung', 'd5')], discards: ['c5', 'c9', 'b1', 'b9', 'c7', 'b3'] });
+    assert.ok(keeping < throwing, keeping + ' vs ' + throwing);
+  });
+
+  it('counts feeding as worse the later it is, and only for a tile they want', () => {
+    const at2 = (wallLeft) => table({ seats: [{ hand: ['b5', 'b6', 'c1'] }, { melds: [meld('pung', 'b1')], discards: ['c5', 'c8', 'd1'] }], wallLeft });
+    const loss = (wallLeft, tile) => {
+      const game = at2(wallLeft);
+      return B.feedLoss(game, B.opponentThreats(game, 0), E.tileIndex(tile));
+    };
+    assert.ok(loss(12, 'b5') > loss(70, 'b5'));
+    assert.ok(loss(12, 'b5') > loss(12, 'c5'));
+  });
+
+  it('never reads the wall order or another player\'s concealed tiles', () => {
+    const seats = (a, b) => [
+      { hand: ['c1', 'c2', 'c3', 'c5', 'c7', 'd2', 'd4', 'd6', 'b3', 'b4', 'b8', 'we', 'dr', 'dr'] },
+      { hand: a, discards: ['b1', 'c9', 'wn'] },
+      { hand: b, discards: ['d9', 'ws', 'b9'] },
+      { discards: ['c8', 'd1', 'b2'] },
+    ];
+    const one = ['c4', 'c4', 'd5', 'd5', 'b5', 'b5', 'b6', 'b6', 'c6', 'c6', 'd7', 'd7', 'dg'];
+    const two = ['we', 'we', 'dw', 'dw', 'b7', 'b7', 'd8', 'd8', 'c2', 'c2', 'd3', 'd3', 'ww'];
+    const a = table({ seats: seats(one, two), wallLeft: 50 });
+    const b = table({ seats: seats(two, one), wallLeft: 50 });
+    b.hand.wall.reverse();
+    const view = (g) => B.analyzeDiscards(g, 0).candidates.map((x) => [x.tile, x.util, x.loss, x.score]);
+    assert.deepEqual(view(a), view(b));
+  });
+});

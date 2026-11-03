@@ -321,6 +321,35 @@
     return ' ' + up.label + ' is in reach, so aim for it too: ' + up.hint + '.';
   }
 
+  // What the table tracker read from the discards, when it bears on this hand:
+  // someone collecting a suit you hold a lot of, or changing hands. Only a
+  // strategy that tracks the table has ctx.track.
+  function tableNote(v, route, line) {
+    var track = v.ctx.track;
+    if (!track) return '';
+    var c = E.countsOf(v.game.hand.seats[v.seat].hand);
+    var held = function (su) {
+      var n = 0;
+      for (var i = 0; i < 27; i++) if (E.suitOfIndex(i) === su) n += c[i];
+      return n;
+    };
+    var note = '';
+    track.seats.forEach(function (r) {
+      var who = v.game.players[r.seat].name;
+      if (note || line.indexOf(who + ' is collecting') !== -1) return;
+      var su = r.collecting;
+      if (su && route && route.suit === su) note = who + ' is collecting ' + SUIT_NAME[su] + ' too, so those tiles will be slow.';
+      else if (su && held(su) >= 6) note = who + ' is collecting ' + SUIT_NAME[su] + ', so stay out of it.';
+    });
+    if (note) return ' ' + note;
+    track.seats.forEach(function (r) {
+      if (note || !r.pivot) return;
+      var who = v.game.players[r.seat].name;
+      note = r.pivot.from ? who + ' has switched out of ' + SUIT_NAME[r.pivot.from] + '.' : who + ' has started keeping ' + SUIT_NAME[r.pivot.to] + '.';
+    });
+    return note ? ' ' + note : '';
+  }
+
   // Axis A in words: early on there's room to build; late, finish fast.
   function phaseText(v, threats) {
     var big = threats.some(function (t) { return t.level >= 2 && t.faan >= 5; });
@@ -493,7 +522,7 @@
     var hopeless = (wallLeft < 16 && bestShanten >= 1) || (wallLeft < LAST_WALL && bestShanten >= 2);
     var why = pungSafe
       ? pungedReason(pick.index)
-      : (defending && hopeless
+      : ((defending || list.folding) && hopeless
         ? 'Play safe. The wall is nearly gone and a win is unlikely.'
         : (pick.ready && pick.shanten === 0 && !buildingLimit ? 'It leaves you ready.' : whyDiscard(v, c, pick, route)));
     var discardAt = tips.length;
@@ -521,6 +550,7 @@
       } else if (route.faan < min - 0.25) line += ' Short of ' + min + ' faan, so look for a flush, All Triplets or a dragon or wind set.';
       else if (!defending) { var phase = phaseText(v, threats); if (phase) line += ' ' + phase; }
       line += upgradeNote(v, route);
+      line += tableNote(v, route, line);
       tips.push(line);
     }
 
