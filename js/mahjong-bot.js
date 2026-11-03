@@ -914,7 +914,7 @@
     return out;
   }
 
-  // The upgrade the hand still has (the biggest within a step of its best
+  // The upgrade the hand still has (the best within a step of its best
   // shape), from its 14 tiles. Null when there's none.
   function liveUpgrade(c, ctx) {
     var list = upgradePlans(c, ctx);
@@ -922,26 +922,70 @@
     if (!list.length) return null;
     var best = Math.min(E.standardShanten(c, ctx.declared), E.tripletsShanten(c, ctx.declared),
       ctx.declared ? Infinity : E.sevenPairsShanten(c, 0));
-    var pick = null;
+    var pick = null, pickValue = -Infinity;
     list.forEach(function (p) {
       var s = p.shantenFn(p.counts, ctx.declared);
-      if (s > best + 1) return;
-      if (!pick || p.faan > pick.faan) pick = p;
+      p.hard = isHardTarget(p, s, best, c, ctx);
+      if (s > best + (p.hard ? HARD_REACH : 1)) return;
+      // Each faan doubles the payout; each step away is worth about 0.42x.
+      var value = p.faan - STEP_IN_FAAN * s;
+      if (value > pickValue) { pick = p; pickValue = value; }
     });
     return pick;
   }
 
+  // A big hand made of only certain tiles (All Terminals, All Honors) is
+  // worth playing for from further away than a small upgrade, so while one
+  // can still be made it becomes the hand's target (see upgradeOrder). Not
+  // once the hand is ready, late in the wall, or with too few of its tiles
+  // live. Strategies with targets of their own (ctx.target, ctx.lockedSpecial)
+  // already commit.
+  var HARD_FAAN = 10, HARD_REACH = 3, STEP_IN_FAAN = 1.25;
+  function isHardTarget(p, s, best, c, ctx) {
+    if (!p.keep || p.faan < HARD_FAAN || ctx.target || ctx.lockedSpecial) return false;
+    if (s === Infinity || s > best + HARD_REACH || ctx.drawsLeft < 2 * s) return false;
+    if (best <= 0 && s > 1) return false;
+    var sets = 0, pairs = 0;
+    for (var i = 0; i < 34; i++) {
+      if (!p.keep(i)) continue;
+      var n = c[i] + ctx.unseen[i];
+      if (n >= 3) sets++;
+      if (n >= 2) pairs++;
+    }
+    if (p.pairs) return pairs >= 7;
+    return sets >= 4 - ctx.declared && pairs >= 5 - ctx.declared;
+  }
+
+  // The restricted hand the discards serve: a big one the hand has set out
+  // for, or any the best discard is already building toward.
+  function discardTarget(ctx) {
+    var up = ctx.upgrade, lead = ctx.leadPlan;
+    if (up && up.hard) return up;
+    return lead && lead.upgrade && lead.keep && !ctx.leadReady ? lead : null;
+  }
+
   // While an upgrade is live, its tiles wait behind tiles it can't use
   // (half a group), and a tile of it with no copy left to finish goes early.
+  // A target (discardTarget) is stricter: its dead tiles go first, then the
+  // tiles it can't use, even at a step's cost, and its live tiles wait.
   function upgradeOrder(ctx, counts, i, group) {
+    var target = discardTarget(ctx);
+    if (target) {
+      if (!target.keep(i)) return Math.min(group, -1);
+      if (isDeadFor(target, counts, ctx, i)) return -2;
+      return Math.max(group, 1) + 0.5;
+    }
     var up = ctx.upgrade;
     if (!up || group <= 0 || group >= 10 || !up.favors(i)) return group;
     var lead = ctx.leadPlan && ctx.leadPlan.id;
     if (lead === 'straights' || lead === 'runs') return group;
     if (/^(half|full)-/.test(lead || '') && !isHonor(i)) return group;
-    var dead = up.pairs ? counts[i] === 1 && ctx.unseen[i] === 0 : deadForSets(counts, ctx, i, up.favors);
-    if (dead) return Math.min(group, 1);
+    if (isDeadFor(up, counts, ctx, i)) return Math.min(group, 1);
     return group + 0.5;
+  }
+
+  function isDeadFor(plan, counts, ctx, i) {
+    return plan.pairs ? counts[i] === 1 && ctx.unseen[i] === 0 : deadForSets(counts, ctx, i, plan.favors);
   }
 
   function ukeire(counts, shantenFn, declared, unseen, current) {
@@ -1037,12 +1081,16 @@
     plans.forEach(function (p) {
       var s = p.shantenFn(p.counts, ctx.declared);
       if (s === Infinity) return;
+      // Too few draws left to fill an upgrade: it isn't a plan any more.
+      if (p.upgrade && ctx.drawsLeft < 2 * s) return;
       var pc = p.counts.slice();
       var u = ukeire(pc, p.shantenFn, ctx.declared, ctx.unseen, s);
       var chance = finishChance(ctx, s, u.total, p.open);
       var util = handValue(p.faan + SELF_DRAW_CHANCE, ctx.slope) * 1.8 * chance;
       // A strategy can prefer a plan (plan.weight) without inflating its value.
       var entry = { plan: p, shanten: s, planShanten: s, ukeire: u.total, ukeireTiles: u.tiles, util: util, pick: util * (p.weight || 1) * suitLean(p, ctx) };
+      // The hand's target (isHardTarget) is the plan it's on, whatever else pays now.
+      if (ctx.upgrade && ctx.upgrade.hard && ctx.upgrade.id === p.id) entry.pick = Infinity;
       if (!best || entry.pick > best.pick) best = entry;
     });
     var ready = null;
@@ -1309,6 +1357,7 @@
     // The hand the best discard builds toward, for the shared one-suit rules.
     var lead = out.reduce(function (m, x) { return !m || x.util > m.util ? x : m; }, null);
     ctx.leadPlan = (lead && lead.analysis.best && lead.analysis.best.plan) || null;
+    ctx.leadReady = !!(lead && lead.analysis.best && lead.analysis.best.readyBest);
     var readyFaan = out.reduce(function (m, x) { return Math.max(m, x.analysis.ready ? x.analysis.ready.bestFaan : 0); }, 0);
     var weight = defenseWeight(ctx, threats, bestShanten, readyFaan);
     // Folding: safety decides, and the keep-pairs and keep-dragons orders
@@ -1429,6 +1478,14 @@
       if (mine) return { decision: mine, found: res };
     }
     var ti = E.tileIndex(opts.tile);
+    // On a target (isHardTarget), claim only what it uses.
+    var target = liveUpgrade(E.countsOf(game.hand.seats[seat].hand), ctx);
+    if (target && target.hard) {
+      if (!target.keep(ti)) return { decision: { type: 'pass' }, found: res };
+      if (opts.kong) return { decision: { type: 'kong' }, found: res };
+      if (opts.pung && !target.pairs) return { decision: { type: 'pung' }, found: res };
+      return { decision: { type: 'pass' }, found: res };
+    }
     var stayPlan = res.stay.best && res.stay.best.plan;
     var lockedShape = stayPlan && (stayPlan.id === 'pairs' || stayPlan.id === 'orphans' || stayPlan.id === 'gates');
     // A dragon, or your own or the round wind, is taken even out of a
@@ -1581,6 +1638,7 @@
     pairsUpgrades: pairsUpgrades,
     liveUpgrade: liveUpgrade,
     upgradeOrder: upgradeOrder,
+    isHardTarget: isHardTarget,
     SETS_PLANS: SETS_PLANS,
     suitCommitment: suitCommitment,
     riskStep: riskStep,

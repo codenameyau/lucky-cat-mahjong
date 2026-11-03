@@ -329,6 +329,57 @@ describe('both strategies: special-hand upgrades', () => {
   });
 });
 
+describe('a big hand in reach keeps its tiles', () => {
+  // From hand seed 919942249-NE: eight terminals, All Terminals five steps away.
+  const SEED_TURNS = [
+    ['c1', 'c2', 'c3', 'c3', 'c5', 'd1', 'd1', 'd5', 'd9', 'b1', 'b8', 'b9', 'b9', 'b9'],
+    ['c1', 'c2', 'c3', 'c3', 'c5', 'c8', 'd1', 'd1', 'd5', 'd9', 'b1', 'b9', 'b9', 'b9'],
+  ];
+  const terminal = (t) => /^[cdb][19]$/.test(t);
+  const plainText = (hint) => [hint.action].concat(hint.tips).join(' ').replace(/[\u0001\u0002]/g, '');
+
+  for (const [name, bot] of [['lucky-cat', B], ['jorge-yau', L]]) {
+    it(name + ' throws every other tile before a terminal', () => {
+      for (const hand of SEED_TURNS) {
+        const found = bot.analyzeDiscards(table({ seats: [null, { hand }] }), 1);
+        const order = found.candidates.map((x) => x.tile);
+        const firstKept = order.findIndex(terminal);
+        assert.equal(firstKept, order.filter((t) => !terminal(t)).length, order.join(' '));
+      }
+    });
+  }
+
+  it('the coach aims for All Terminals and recommends a non-terminal', () => {
+    for (const hand of SEED_TURNS) {
+      const said = plainText(Coach.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] }));
+      assert.match(said, /Aim for All Terminals/);
+      assert.ok(!/Discard (One|Nine) /.test(said), said);
+    }
+  });
+
+  it('a terminal with no copies left to finish goes, and a late hand stops chasing it', () => {
+    const hand = SEED_TURNS[0];
+    const dead = table({ seats: [{ discards: ['d9', 'd9', 'd9'] }, { hand }] });
+    assert.equal(B.analyzeDiscards(dead, 1).candidates[0].tile, 'd9');
+    const late = B.analyzeDiscards(table({ wallLeft: 12, seats: [null, { hand }] }), 1);
+    assert.ok(!late.ctx.upgrade);
+    assert.notEqual((late.ctx.leadPlan || {}).id, 'all-terminals');
+  });
+
+  it('stays with a ready hand instead of breaking it', () => {
+    const hand = ['c1', 'c1', 'c1', 'd1', 'd1', 'd2', 'd3', 'd4', 'b9', 'b9', 'b9', 'c9', 'c9', 'd8'];
+    const top = B.analyzeDiscards(table({ seats: [null, { hand }] }), 1).candidates[0];
+    assert.equal(top.shanten, 0);
+  });
+
+  it('claims only what the target uses', () => {
+    const hand = SEED_TURNS[0].filter((t) => t !== 'b8');
+    const game = table({ seats: [null, { hand }] });
+    assert.deepEqual(B.chooseClaim(game, 1, { tile: 'd1', pung: true, kong: false, chows: [] }), { type: 'pung' });
+    assert.deepEqual(B.chooseClaim(game, 1, { tile: 'c4', pung: false, kong: false, chows: [['c3', 'c5']] }), { type: 'pass' });
+  });
+});
+
 describe('saving and loading a game', () => {
   // Seat 0 plays as the human (its moves are recorded); the others are bots.
   const agents = () => [B.createBotAgent(), L.createBotAgent(), B.createBotAgent(), L.createBotAgent()];
@@ -438,7 +489,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.13.1');
+    assert.equal(E.GAME_VERSION, '0.13.2');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
