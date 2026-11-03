@@ -422,6 +422,14 @@ html.is-playing.is-sideways body {
   .rules-families--flat .rules-family { grid-template-columns: 1fr; }
 }
 
+@media (max-width: 600px), (pointer: coarse) and (max-height: 599px) {
+  .rules-sheet {
+    max-height: calc(100dvh - 96px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  }
+
+  .rules-sheet-inner { padding: 28px 22px 36px; }
+}
+
 /* Strategies sheet: the same look as the rules sheet. */
 .strategies-sheet { width: min(1000px, calc(100vw - 32px)); }
 
