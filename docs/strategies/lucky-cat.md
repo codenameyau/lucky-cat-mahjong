@@ -35,7 +35,7 @@ The hands, in the order they come up:
 - **Seven Pairs.** See below. Worth 4 faan, plus a flush when the pairs are all one suit (3 with honors, 7 without). The hand must stay concealed.
 - **Thirteen Orphans.** When the concealed hand already holds nine different terminals and honors (or eight and a pair), and none of the missing ones is used up. Worth a limit, 13 faan. Nothing is claimed, and every other tile is discarded first.
 - **Nine Gates.** When one suit already holds eleven tiles of the pattern 1112345678999 (three 1s, one each of 2 through 8, three 9s). Tiles beyond those counts, and every tile of another suit, do not count. Worth a limit, 13 faan. The hand stays concealed, and anything outside that suit is discarded first.
-- **Bigger hands from the same tiles.** All Triplets also weighs Mixed Orphans (only 1s, 9s and honors, 1 more faan), All Terminals and All Honors; a hand with dragon or wind pairs weighs Small and Big Three Dragons and Small and Big Four Winds; Seven Pairs weighs its pairs in Mixed Orphans, All Honors or All Terminals. While one is within a step of the hand's best shape, its tiles are kept ahead of tiles it can't use, even a pair with fewer copies left, unless no copy is left to finish it. The coach names it and says to aim for it. A big hand of only certain tiles (10 faan or more, like All Terminals) counts from up to three steps away while the wall and its live tiles can still finish it: it becomes the hand's target, its tiles aren't thrown even when another tile costs a step, and claims it can't use are passed.
+- **Bigger hands from the same tiles.** All Triplets also weighs Mixed Orphans (only 1s, 9s and honors, 1 more faan), All Terminals and All Honors; a hand with dragon or wind pairs weighs Small and Big Three Dragons and Small and Big Four Winds; Seven Pairs weighs its pairs in Mixed Orphans, All Honors or All Terminals. While one is within a step of the hand's best shape, its tiles are kept ahead of tiles it can't use, even a pair with fewer copies left, unless no copy is left to finish it. The coach names it and says to aim for it. A big hand of only certain tiles (10 faan or more, like All Terminals) can count from up to three steps away, while the wall and its live tiles can still finish it: it becomes the hand's target, the plan it's on and the one the coach names. See What gets discarded first for its order.
 - **A chicken hand** built on dragon and wind sets, when nothing above is close. It still needs another faan from flowers or from a dragon or wind pung.
 
 A ready hand is scored exactly. Each wait is checked against the real faan table, including waits that only win on a self-draw and waits that can never reach 3 faan.
@@ -58,8 +58,9 @@ Group 1 and the Concealed Straights rule are shared by every strategy (`js/mahjo
 
 **Honors early in the hand.** While more than 60 tiles are left in the wall, an honor that can still become a set (fewer than two copies on the table) is one of the hand's most valuable tiles. A single one waits like a pair (group 4). A dragon, or your own or the round's wind, waits longer still (group 5), and a pair of them longest. Honors are only let go early once two copies are out, or when the hand is on Seven Pairs, which only needs its pairs.
 
-One hand changes this order:
+Two things change this order:
 
+- **A bigger hand from the same tiles.** On a target, or whenever one of these hands is in the lead, a tile of it with no copy left goes first, then the tiles it can't use, even when that costs a step, and its live tiles wait. A ready hand isn't broken for one, and a hand with too few draws left to fill one drops it. While folding, safety still decides.
 - **All Triplets** (or Concealed Triplets) keeps every pair and every pung. Both wait behind any single, and a finished pung waits behind a pair. Within each group, the tile with the fewest copies left (not yet seen by you) goes first, and the tiles with the most left are kept, because they're the ones that can still become sets. A risky tile still waits. Near the end of the hand, safety comes first and then how many are left.
 
 ## Pairs
@@ -134,7 +135,7 @@ Once the chow is down, tiles outside that suit are thrown first, as described ab
 
 ## Dragons, winds, and kongs as claims
 
-A pung of a dragon, or of your own wind, or of the round wind, is always taken, unless the hand is on Seven Pairs, Thirteen Orphans, or Nine Gates (a set cannot be part of those hands). The one other exception is a hand that is already ready, when the pung would leave it further from ready and worth less than waiting. Then it is weighed like any other claim.
+A pung of a dragon, or of your own wind, or of the round wind, is always taken, unless the hand is on Seven Pairs, Thirteen Orphans, or Nine Gates (a set cannot be part of those hands), or its target can't use the tile. On a target, only a pung or kong of a tile it uses is taken, and no chow. The one other exception is a hand that is already ready, when the pung would leave it further from ready and worth less than waiting. Then it is weighed like any other claim.
 
 A kong is fine at any point in the hand, early or late. It draws a free replacement tile, so it is taken whenever the hand is no worse for it. A kong of a dragon or a scoring wind is taken like the pung above. Early chows are the ones to avoid (see After you chow). A concealed kong is declared when it does not break the hand. A kong draws a replacement tile.
 
@@ -168,4 +169,4 @@ The threats line says only what you can see on the table: who has melds down and
 
 It only calls a tile risky (or says "Hold" a tile, or calls your discard risky in feedback) when the table shows why, and it says the reason: a High or Extreme player's melds are all in that tile's suit, with or without honors ("Grace's melds are all Bamboo", "Grace's melds are Bamboo and honors"), or a player with 3 melds down hasn't thrown it ("Grace has 3 melds down and hasn't thrown one"). A tile any safety read covers (thrown since their meld, suji, kabe, three out, another suit than their flush) never counts. Without that, it says nothing about risk.
 
-**Feedback on** does not tell you the tile first. After you discard or claim, it compares that move with the one above and says whether it was the coach's choice, close, slow, or risky. **Coach off** leaves the bar in place and asks you to turn the coach on.
+**Feedback on** does not tell you the tile first. After you discard or claim, it compares that move with the one above and says whether it was the coach's choice, close, slow, or risky. **Coach off** leaves the bar in place, in gray, and asks you to turn the coach on (on an upright phone the bar is hidden instead).

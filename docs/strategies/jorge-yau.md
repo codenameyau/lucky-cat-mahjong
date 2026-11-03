@@ -64,7 +64,7 @@ A ready hand is scored wait by wait, by discard and by self-draw, with Concealed
 
 ### Bigger hands from the same tiles
 
-The softer targets (and the default) also weigh the special hands the same tiles can still make, as the shared rules in `js/mahjong-bot.js` do: Mixed Orphans on All Triplets, All Terminals, All Honors, Small and Big Three Dragons, Small and Big Four Winds, and Seven Pairs in Mixed Orphans, All Honors or All Terminals. While one is within a step, its tiles wait behind tiles it can't use, unless no copy is left to finish them.
+The softer targets (and the default) also weigh the special hands the same tiles can still make, as the shared rules in `js/mahjong-bot.js` do: Mixed Orphans on All Triplets, All Terminals, All Honors, Small and Big Three Dragons, Small and Big Four Winds, and Seven Pairs in Mixed Orphans, All Honors or All Terminals. While one is within a step, its tiles wait behind tiles it can't use, unless no copy is left to finish them. Once one is the hand in the lead, the tiles it can't use go first even at a step's cost, as on any target. The three-step reach in the shared rules only applies to a hand with no target of its own (row 11 above).
 
 ## What gets discarded first
 
@@ -137,7 +137,7 @@ One tile from ready with fewer than 20 tiles left, safety counts 1.3 times more.
 
 Two jorge-yau bots against two lucky-cat bots, 2,000 deals each played in all four seat rotations (8,000 hands, `npm run compete -- --deals 2000 --seed 20261101`):
 
-These were measured before the shared one-suit rule moved down to 7 tiles and Concealed Straights started throwing honors first, so both strategies may play a little differently now.
+These were measured before the shared one-suit rule moved down to 7 tiles, Concealed Straights started throwing honors first and big hands became targets, so both strategies may play a little differently now.
 
 | | jorge-yau | lucky-cat |
 | --- | --- | --- |
