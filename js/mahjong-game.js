@@ -3183,9 +3183,8 @@
     }
 
     function noteForChoice(cand, top) {
-      var again = ' Tap it again to throw it anyway.';
-      if (cand.shanten > top.shanten) return E.tileName(cand.tile) + ' takes you further from winning.' + again;
-      return E.tileName(cand.tile) + ' is OK, but ' + E.tileName(top.tile) + ' is better.' + again;
+      if (cand.shanten > top.shanten) return E.tileName(cand.tile) + ' takes you further from winning.';
+      return E.tileName(cand.tile) + ' is OK, but ' + E.tileName(top.tile) + ' is better.';
     }
 
     function discardSelected() {
