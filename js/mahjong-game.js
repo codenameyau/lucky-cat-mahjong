@@ -2193,7 +2193,7 @@
       // as "Claim One Circle? Chow 1-2-3 Circles."
       var oneLine = showNotice && ui.claimPrompt && ui.coach === 'on' && note && note.action;
       // The note on a tile you've selected to throw ("... is OK, but ...")
-      // goes last, on its own line, after the coach's hint.
+      // goes last, running on from the coach's hint in its own color.
       var choiceNote = showNotice && ui.turnPrompt && ui.selected >= 0;
       if (oneLine) {
         lines.push({ text: ui.notice + ' ' + note.action, color: COLORS.goldLight, bold: true });
@@ -2202,9 +2202,13 @@
         // The main action on its own line in bold gold; the rest as one paragraph.
         if (note && note.action) lines.push({ text: note.action, color: COLORS.goldLight, bold: true });
       }
-      if (note && note.tips && note.tips.length) lines.push({ text: note.tips.join(' '), color: COLORS.cream });
-      if (choiceNote && note) lines.push({ text: ui.notice, color: COLORS.goldLight });
-      if (choiceNote && !note) lines.push({ text: ui.notice, color: COLORS.goldLight });
+      var tips = note && note.tips && note.tips.length ? note.tips.join(' ') : '';
+      if (tips && choiceNote) {
+        lines.push({ text: tips + ' ' + ui.notice, color: COLORS.cream, tailFrom: coachPieces(tips).plain.length + 1, tailColor: COLORS.goldLight });
+      } else {
+        if (tips) lines.push({ text: tips, color: COLORS.cream });
+        if (choiceNote) lines.push({ text: ui.notice, color: COLORS.goldLight });
+      }
       if (!note) {
         // Nothing to say right now: say what this box is for, in gray.
         if (ui.coach === 'off') {
@@ -2234,14 +2238,20 @@
           var at = plain.indexOf(ln, cursor);
           cursor = at + ln.length;
           var segs = [], pos = at;
+          // Plain text in the line's color, or its tail's from tailFrom on.
+          var pushPlain = function (a, b) {
+            var split = l.tailColor ? clamp(l.tailFrom, a, b) : b;
+            if (split > a) segs.push({ text: plain.slice(a, split), color: l.color });
+            if (b > split) segs.push({ text: plain.slice(split, b), color: l.tailColor });
+          };
           red.forEach(function (r) {
             var a = Math.max(r[0], at), b = Math.min(r[1], at + ln.length);
             if (b <= a) return;
-            if (a > pos) segs.push({ text: plain.slice(pos, a), color: l.color });
+            if (a > pos) pushPlain(pos, a);
             segs.push({ text: plain.slice(a, b), color: COLORS.redLight });
             pos = b;
           });
-          if (pos < at + ln.length) segs.push({ text: plain.slice(pos, at + ln.length), color: l.color });
+          if (pos < at + ln.length) pushPlain(pos, at + ln.length);
           out.push({ segs: segs, bold: l.bold });
         });
       });
