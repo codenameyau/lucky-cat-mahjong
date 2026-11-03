@@ -36,8 +36,8 @@
         they keep their own order.)
      F. keep pairs. Break one only after every non-pair is gone.
      G. keep dragons until at least one copy is already visible. A lone
-        dragon with all three other copies unseen is never thrown, whatever
-        the hand or the table looks like (loneDragon). A tile
+        dragon with all three other copies unseen is never thrown, even
+        while folding, unless that leaves the hand ready (loneDragon). A tile
         someone has Punged or Konged is the first discard when the hand
         does not need it. A punged honor is safe for the whole table; a
         punged number tile can still finish a chow.
@@ -434,7 +434,7 @@
   }
 
   // A single dragon with the other three copies still unseen: the most
-  // versatile tile in the game, so it's never the tile to throw.
+  // versatile tile in the game, so it's only thrown to make the hand ready.
   function loneDragon(game, counts, i) {
     return DRAGONS.indexOf(i) !== -1 && counts[i] === 1 && revealedCopies(game, i) === 0;
   }
@@ -1449,8 +1449,9 @@
       return E.isTerminalOrHonorIndex(b.index) - E.isTerminalOrHonorIndex(a.index);
     });
     if (!folding && T.tripletsLive) out = tripletsOrder(out, ctx);
-    // A lone dragon nobody has shown goes last of all, whatever else is true.
-    var isLone = function (x) { return loneDragon(game, c, x.index); };
+    // A lone dragon nobody has shown goes last of all, unless throwing it
+    // leaves the hand ready: then the usual order decides.
+    var isLone = function (x) { return x.shanten > 0 && loneDragon(game, c, x.index); };
     out = out.filter(function (x) { return !isLone(x); }).concat(out.filter(isLone));
     return { ctx: ctx, candidates: out, threats: threats, defense: weight, folding: folding };
   }

@@ -201,7 +201,7 @@ Every decision is an expected-value estimate from information the seat could leg
 - Once a chow is exposed (or 7 or more tiles are in one suit), every tile of another suit is thrown first, even while folding, since a mixed-suit hand can no longer reach 3 faan. The exception: when flowers and seasons already give all but one faan, an open All Sequences or a quick self-draw wins, and the bots play for speed
 - A Concealed Straights hand throws its honors first, all but one honor pair and any dragon nobody has shown (unless throwing it leaves the hand ready)
 - A flush stays out of the suit the player on your left is collecting when another suit is about even, and between close suits takes the one they're throwing
-- Keeping pairs and dragons never costs a step toward ready, and while folding, safety decides. The exception is a lone dragon with the other three copies unseen, which is never thrown, whatever it costs
+- Keeping pairs and dragons never costs a step toward ready, and while folding, safety decides. The exception is a lone dragon with the other three copies unseen, which stays even at a step's cost, unless throwing it leaves the hand ready
 - No strategy aims for a chicken hand unless it already has 3 faan from flowers, sets and the like
 
 Over thousands of paired simulated hands, valuing hands at their real payout scored about 13 points a hand more than a compressed scale, with fewer wins and 14% fewer deal-ins.

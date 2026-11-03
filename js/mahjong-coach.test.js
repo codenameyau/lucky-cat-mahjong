@@ -48,10 +48,11 @@ describe('coach: discards', () => {
     assert.ok(['c4', 'c7'].includes(hint.tile), 'discarded ' + hint.tile);
   });
 
-  it('never drops a lone dragon nobody has shown, even to get ready', () => {
-    const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'b2', 'dr'];
-    const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
-    assert.notEqual(hint.tile, 'dr');
+  it('never drops a lone dragon nobody has shown, unless that leaves the hand ready', () => {
+    const slow = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd6', 'd7', 'b2', 'b3', 'dr'];
+    assert.notEqual(C.turnHint(table({ seats: [{ hand: slow }] }), 0, { kongs: [] }).tile, 'dr');
+    const ready = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'b5', 'b6', 'b2', 'b2', 'dr'];
+    assert.equal(C.turnHint(table({ seats: [{ hand: ready }] }), 0, { kongs: [] }).tile, 'dr');
   });
 
   it('drops a lone dragon once a copy is showing', () => {
@@ -244,7 +245,7 @@ describe('coach: claims', () => {
   it('chows into a flush it is building', () => {
     // Already open (Red Dragon punged), so the chow gives up nothing.
     const hand = ['b1', 'b2', 'b4', 'b5', 'b6', 'b8', 'b8', 'dg', 'ws', 'ws'];
-    const game = table({ seats: [{ hand, melds: [meld('pung', 'dr')] }, { discards: ['dg'] }] });
+    const game = table({ seats: [{ hand, melds: [meld('pung', 'dr')] }] });
     const opts = E.claimOptions(game, 0, 'b3', 3, false);
     const hint = C.claimHint(game, 0, opts);
     assert.equal(hint.decision.type, 'chow');

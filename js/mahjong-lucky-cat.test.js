@@ -160,14 +160,21 @@ describe('expert playbook', () => {
     assert.ok(['c4', 'c7'].includes(pick), 'discarded ' + pick);
   });
 
-  it('never throws a lone dragon nobody has shown, even to get ready or while folding', () => {
-    const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'b2', 'dr'];
+  it('never throws a lone dragon nobody has shown, even while folding', () => {
+    const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd6', 'd7', 'b2', 'b3', 'dr'];
     assert.notEqual(B.chooseTurnAction(table({ seats: [{ hand }] }), 0, noKongs).tile, 'dr');
     const late = table({ seats: [{ hand }], wallLeft: 8 });
     assert.notEqual(B.chooseTurnAction(late, 0, noKongs).tile, 'dr');
-    // A pair isn't lone, and a copy on the table means it's no longer unseen.
+    // A copy on the table means it's no longer unseen.
     const shown = table({ seats: [{ hand }, { discards: ['dr'] }] });
     assert.equal(B.chooseTurnAction(shown, 0, noKongs).tile, 'dr');
+  });
+
+  it('throws a lone dragon when that leaves the hand ready', () => {
+    const only = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'b5', 'b6', 'b2', 'b2', 'dr'];
+    assert.equal(B.chooseTurnAction(table({ seats: [{ hand: only }] }), 0, noKongs).tile, 'dr');
+    const also = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'b2', 'dr'];
+    assert.equal(B.chooseTurnAction(table({ seats: [{ hand: also }] }), 0, noKongs).tile, 'dr');
   });
 
   it('throws a lone dragon only when nothing else is left to throw', () => {
