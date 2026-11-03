@@ -356,7 +356,7 @@
     thoughtCloud: function () {
       return '<circle cx="146" cy="30" r="4" fill="#fff" ' + stroke(2) + '/>' +
         '<path d="M156 22 Q150 8 164 6 Q172 -4 184 6 Q198 8 192 22 Q196 34 182 34 Q172 40 164 32 Q150 34 156 22Z" fill="#fff" ' + stroke(2.5) + '/>' +
-        '<path d="M164 20 q4 -8 8 0 t8 0 q-6 6 -10 0 q-4 -4 -2 4" fill="none" stroke="' + RED + '" stroke-width="2" stroke-linecap="round"/>';
+        '<path d="M173 18 a2 2 0 0 1 4 0 a4 4 0 0 1 -8 0 a6 6 0 0 1 12 0 a8 8 0 0 1 -16 0 a10 10 0 0 1 20 0" fill="none" stroke="' + RED + '" stroke-width="2.5" stroke-linecap="round"/>';
     },
     moneyBag: function () {
       // A pear-shaped sack, cinched at the neck with a ruffled top, and one
