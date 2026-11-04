@@ -56,4 +56,4 @@ Defense is shared with the other bots (see [lucky-cat.md](lucky-cat.md#defense))
 
 ## How it does
 
-This is a character, not the strongest bot. In a check of 300 hands, one only-orphans seat against three lucky-cat bots won 7 hands (2.3%), 4 of them Thirteen Orphans. Five of the seven wins were limit hands or close to it. On average it gave up Thirteen Orphans around its ninth discard, and in about 1 hand in 7 it never did.
+It wins least and scored most in the four-strategy competition (see [the results](README.md#results-with-all-four-strategies)): 1.7% of hands, about 41 points a hand. Limit hands pay so much that 178 of them in 24,000 hands carried its total, so its score swings widely from run to run. It deals in about 3 times for every win.

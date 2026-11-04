@@ -14,6 +14,7 @@
   var L = node ? require('./mahjong-lucky-cat.js') : root.MahjongLuckyCat;
   var J = node ? require('./mahjong-jorge-yau.js') : root.MahjongJorgeYau;
   var O = node ? require('./mahjong-only-orphans.js') : root.MahjongOnlyOrphans;
+  var D = node ? require('./mahjong-dishonor.js') : root.MahjongDishonor;
 
   var STRATEGIES = [
     {
@@ -57,6 +58,19 @@
         'Only if none of those can be finished does it play the usual hands. It defends like the other bots, and when it folds, safety decides among the tiles it can spare.',
       ],
       doc: 'docs/strategies/only-orphans.md',
+    },
+    {
+      id: 'dishonor',
+      name: 'Dishonor',
+      bot: D,
+      summary: 'Throws every honor first. Goes for Concealed Straights and a self-draw, or locks into a Full Flush with 7 or more tiles of one suit.',
+      details: [
+        'Every honor goes first, dragons and pairs included, even while folding. The only exception is a discard that leaves the hand ready to win.',
+        'With no suit at 7 tiles, it plays Concealed Straights: runs only, nothing claimed, aiming to win on a self-draw. It takes a win off a discard when the hand has the faan for it.',
+        'Once one suit has 7 or more tiles, on the opening hand or later, it locks into a Full Flush in that suit. Other suits go next, right after the honors, and it starts chowing and punging in that suit whenever that brings it closer to ready.',
+        'Apart from those orders, it defends like the other bots.',
+      ],
+      doc: 'docs/strategies/dishonor.md',
     },
   ];
 

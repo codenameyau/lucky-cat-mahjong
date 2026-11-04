@@ -1488,6 +1488,7 @@
     // leaves the hand ready: then the usual order decides.
     var isLone = function (x) { return x.shanten > 0 && loneDragon(game, c, x.index); };
     out = out.filter(function (x) { return !isLone(x); }).concat(out.filter(isLone));
+    if (H.finalOrder) out = H.finalOrder(out, ctx, c);
     return { ctx: ctx, candidates: out, threats: threats, defense: weight, folding: folding };
   }
 
@@ -1665,6 +1666,9 @@
    *      extraLoss(game, threats, i) -> loss  e.g. feeding a claim
    *      defense(weight, ctx, threats, shanten, readyFaan) -> weight
    *      kongOk(kong, ctx) -> bool       whether the hand can use this kong
+   *      finalOrder(candidates, ctx, counts) -> candidates
+   *                                      the last word on the discard order,
+   *                                      ahead of every shared rule
    *      chowOk(option, found, ctx, game) -> bool
    *                                      whether a chow that chowAllowed
    *                                      passes is worth taking
