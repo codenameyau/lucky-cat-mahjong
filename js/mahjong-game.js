@@ -21,6 +21,9 @@
   // The one saved game on this device, signed (HMAC-SHA256). Each turn writes
   // it; Resume game reads it. Quit leaves it.
   var AUTOSAVE_KEY = 'lcm-play-autosave';
+  // localStorage is about 5MB. The coach log is what grows with every move,
+  // so a save keeps the newest notes and leaves the rest behind.
+  var COACH_LOG_SAVE = 100;
   var SEAT_SIDES = ['', 'your right', 'across', 'your left'];
   var TILE_ASPECT = 1.4;
   var TILE_GAP = 4;
@@ -1670,18 +1673,39 @@
       return sel;
     }
 
-    function assignRow(labelText, control, playing) {
+    var ASSIGN_ICON = {
+      user: '<circle cx="8" cy="4.4" r="2.3" fill="currentColor"/><path d="M2.1 14.4c.4-3.5 2.3-5.2 5.9-5.2s5.5 1.7 5.9 5.2z" fill="currentColor"/>',
+      bot: '<path d="M8 3.1V1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="1.15" r="0.85" fill="currentColor"/><rect x="0.5" y="6.1" width="1.5" height="2.5" rx="0.4" fill="currentColor"/><rect x="14" y="6.1" width="1.5" height="2.5" rx="0.4" fill="currentColor"/><rect x="2.3" y="3.5" width="11.4" height="10.2" rx="2.2" fill="currentColor"/><circle cx="6.2" cy="7.8" r="0.95" fill="#074029"/><circle cx="9.8" cy="7.8" r="0.95" fill="#074029"/><rect x="5.7" y="10.5" width="4.6" height="1" rx="0.4" fill="#074029"/>',
+    };
+
+    function assignIcon(kind) {
+      var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 16 16');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.classList.add('strategies-assign-icon');
+      svg.innerHTML = ASSIGN_ICON[kind];
+      return svg;
+    }
+
+    function playingNow(id) {
+      return 'Playing ' + Strategies.get(id).name;
+    }
+
+    function assignRow(labelText, control, playing, icon) {
       var row = document.createElement('div');
       row.className = 'strategies-assign-row';
       var label = document.createElement('label');
       label.className = 'strategies-assign-label';
       label.htmlFor = control.id;
-      label.textContent = labelText;
+      var who = document.createElement('span');
+      who.className = 'strategies-assign-who';
+      if (icon) who.appendChild(assignIcon(icon));
+      who.appendChild(document.createTextNode(labelText));
+      label.appendChild(who);
       if (playing) {
         var now = document.createElement('span');
         now.className = 'strategies-assign-playing';
         now.textContent = playing;
-        label.appendChild(document.createTextNode(' '));
         label.appendChild(now);
       }
       row.appendChild(label);
@@ -1704,12 +1728,12 @@
       assign.appendChild(h);
       var box = document.createElement('div');
       box.className = 'rules-family strategies-assign';
-      box.appendChild(assignRow('Coach and feedback', strategySelect('strategy-coach', ui.strategies.coach, false, setCoachStrategy)));
+      box.appendChild(assignRow('Coach', strategySelect('strategy-coach', ui.strategies.coach, false, setCoachStrategy), playingNow(ui.strategies.coach), 'user'));
       [1, 2, 3].forEach(function (seat) {
         var choice = seatChoice(seat);
         box.appendChild(assignRow(playerLabel(seat), strategySelect('strategy-seat-' + seat, choice, true, function (id) {
           setSeatStrategy(seat, id);
-        }), 'Playing ' + Strategies.get(ui.strategies.seats[seat]).name));
+        }), playingNow(ui.strategies.seats[seat]), 'bot'));
       });
       assign.appendChild(box);
       body.appendChild(assign);
@@ -2527,21 +2551,25 @@
       // The note on a tile you've selected to throw ("... is OK, but ...")
       // goes last, running on from the coach's hint in its own color.
       var choiceNote = showNotice && ui.turnPrompt && ui.selected >= 0;
-      if (oneLine) {
+      // A win is one bold sentence. The coach's copy is that same sentence.
+      var declaring = ui.notice && ui.notice.indexOf('Mahjong!') === 0;
+      if (declaring) {
+        lines.push({ text: ui.notice, color: COLORS.goldLight, bold: true, nowrap: true });
+      } else if (oneLine) {
         lines.push({ text: ui.notice + ' ' + note.action, color: COLORS.goldLight, bold: true });
       } else {
         if (showNotice && !choiceNote) lines.push({ text: ui.notice, color: COLORS.goldLight });
         // The main action on its own line in bold gold; the rest as one paragraph.
         if (note && note.action) lines.push({ text: note.action, color: COLORS.goldLight, bold: true });
       }
-      var tips = note && note.tips && note.tips.length ? note.tips.join(' ') : '';
+      var tips = declaring ? '' : (note && note.tips && note.tips.length ? note.tips.join(' ') : '');
       if (tips && choiceNote) {
         lines.push({ text: tips + ' ' + ui.notice, color: COLORS.cream, tailFrom: coachPieces(tips).plain.length + 1, tailColor: COLORS.goldLight });
       } else {
         if (tips) lines.push({ text: tips, color: COLORS.cream });
-        if (choiceNote) lines.push({ text: ui.notice, color: COLORS.goldLight });
+        if (choiceNote && !declaring) lines.push({ text: ui.notice, color: COLORS.goldLight });
       }
-      if (!note) {
+      if (!note && !declaring) {
         // Nothing to say right now: say what this box is for, in gray.
         if (ui.coach === 'off') {
           lines.push({ text: 'The coach is off.', color: GRAY, bold: true });
@@ -2565,12 +2593,14 @@
       var size = !L.desktop ? 11 : L.tableW < 600 ? 12 : 13; // smaller on a phone
       var out = [];
       lines.forEach(function (l) {
-        ctx.font = (l.bold ? 'bold ' : '') + size + 'px ' + FONT_BODY;
+        var lineSize = l.nowrap ? fitFont(ctx, coachPieces(l.text).plain, tw, size, FONT_BODY, 'bold') : size;
+        ctx.font = (l.bold ? 'bold ' : '') + lineSize + 'px ' + FONT_BODY;
         // Hand-pattern names and their faan, such as All Triplets (3 faan), are red.
         var piece = coachPieces(l.text, l.color);
         var plain = piece.plain, red = piece.red;
         var cursor = 0;
-        wrapText(ctx, plain, tw).forEach(function (ln) {
+        var chunks = l.nowrap ? [plain] : wrapText(ctx, plain, tw);
+        chunks.forEach(function (ln) {
           var at = plain.indexOf(ln, cursor);
           cursor = at + ln.length;
           var segs = [], pos = at;
@@ -2588,10 +2618,10 @@
             pos = b;
           });
           if (pos < at + ln.length) pushPlain(pos, at + ln.length);
-          out.push({ segs: segs, bold: l.bold });
+          out.push({ segs: segs, bold: l.bold, size: lineSize });
         });
       });
-      var lh = size + 3;
+      var lh = (out.length === 1 && out[0].size ? out[0].size : size) + 3;
       // Show every line: a long tip grows the band upward over the table.
       var h = Math.max(L.hintH, out.length * lh + 12);
       var y = L.hintY + L.hintH - h;
@@ -2610,8 +2640,8 @@
       out.forEach(function (l, i) {
         var cx = tx;
         l.segs.forEach(function (sg) {
-          text(sg.text, cx, startY + i * lh, { size: size, color: sg.color, weight: l.bold ? 'bold' : '' });
-          ctx.font = (l.bold ? 'bold ' : '') + size + 'px ' + FONT_BODY;
+          text(sg.text, cx, startY + i * lh, { size: l.size || size, color: sg.color, weight: l.bold ? 'bold' : '' });
+          ctx.font = (l.bold ? 'bold ' : '') + (l.size || size) + 'px ' + FONT_BODY;
           cx += ctx.measureText(sg.text).width;
         });
       });
@@ -3231,15 +3261,15 @@
 
     // A save holds no hidden tiles: the game as the hand began, the hand's
     // seed and your moves (MahjongEngine.gameRecord), plus the table's own
-    // strategies, stats and coach history. It is signed, and resuming deals
-    // the hand from its seed and plays it again up to your next move.
+    // strategies, stats and the newest coach notes. It is signed, and resuming
+    // deals the hand from its seed and plays it again up to your next move.
     function savePayload() {
       return {
         savedAt: new Date().toISOString(),
         game: E.gameRecord(game),
         strategies: ui.strategies,
         stats: ui.stats,
-        coachLog: ui.coachLog || [],
+        coachLog: (ui.coachLog || []).slice(-COACH_LOG_SAVE),
       };
     }
 
@@ -4046,9 +4076,9 @@
             var lessonLine = settings.lesson && ui.hint && ui.hint.action;
             ui.notice = lessonLine ? null : (opts.completeButShort
               ? 'Your hand is complete, but only ' + opts.completeButShort.faan + ' faan. You need ' + game.settings.minFaan + ' to win.'
-              : (opts.win ? 'You can win by self-draw with ' + opts.win.faan + ' faan!' : null));
+              : (opts.win ? coachFor().turnHint(game, 0, opts).action : null));
             sound.play('turn');
-            announce(lessonLine || (opts.win ? 'You can win by self-draw. Press Win, or pick a tile to discard.' : 'Your turn. Pick a tile to discard.'));
+            announce(lessonLine || ui.notice || 'Your turn. Pick a tile to discard.');
             requestRender();
           });
         },
@@ -4061,7 +4091,7 @@
             refreshHint();
             var lessonLine = settings.lesson && ui.hint && ui.hint.action;
             ui.notice = lessonLine ? null : (opts.win
-              ? 'You can win on ' + E.tileName(opts.tile) + ' for ' + opts.win.faan + ' faan!'
+              ? coachFor().claimHint(game, 0, opts).action
               : (opts.completeButShort ? E.tileName(opts.tile) + ' completes your hand, but only for ' + opts.completeButShort.faan + ' faan.' : 'Claim ' + E.tileName(opts.tile) + '?'));
             sound.play('turn');
             announce(lessonLine || ui.notice);
