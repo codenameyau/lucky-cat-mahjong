@@ -546,6 +546,10 @@ html.is-playing.is-sideways body {
   gap: 10px;
 }
 
+@media (min-width: 601px) {
+  .strategies-cards { grid-template-columns: 1fr 1fr; }
+}
+
 .strategies-card { padding: 8px 12px 10px; }
 
 .strategies-card-head {
