@@ -4351,6 +4351,7 @@
       document.documentElement.classList.toggle('play-has-save', !!on);
       if (resumeBtn) resumeBtn.hidden = !on;
       if (learnBtn) learnBtn.hidden = on;
+      if (startBtn) startBtn.textContent = on ? 'Start new game' : 'Start game';
       paintPlayActions();
     }
 
