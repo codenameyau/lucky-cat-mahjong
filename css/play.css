@@ -167,7 +167,7 @@ html.play-settled .play-actions .btn {
 
 /* Start is marked primary in the markup. A stored game paints Resume red
    and this button white before that class is rewritten. */
-html.play-has-save:not(.play-settled) #play-start {
+html.play-has-save:not(.play-settled):not(.play-new-first) #play-start {
   background: #fff;
   color: var(--color-text);
   border-color: rgba(0, 0, 0, 0.12);
@@ -175,13 +175,13 @@ html.play-has-save:not(.play-settled) #play-start {
   filter: none;
 }
 
-html.play-has-save:not(.play-settled) #play-start:hover {
+html.play-has-save:not(.play-settled):not(.play-new-first) #play-start:hover {
   background: #f6f1ea;
   color: var(--color-text);
   filter: none;
 }
 
-html.play-has-save:not(.play-settled) #play-resume {
+html.play-has-save:not(.play-settled):not(.play-new-first) #play-resume {
   background: var(--color-primary);
   color: #fff;
   border-color: transparent;

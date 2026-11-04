@@ -4454,6 +4454,7 @@
         document.documentElement.classList.add('play-mode-' + now.mode);
       }
       track('play_mode_select', { mode: now.mode });
+      paintPlayActions();
     });
 
     var credits = document.querySelector('.play-credits');
@@ -4468,10 +4469,26 @@
     var startBtn = document.getElementById('play-start');
     var learnBtn = document.getElementById('play-learn');
 
+    // On mobile, a saved game in the other mode puts Start new game first:
+    // Resume wouldn't open the mode you just picked.
+    var phoneActions = root.matchMedia ? root.matchMedia('(max-width: 600px), (pointer: coarse) and (max-height: 599px)') : null;
+    function newGameFirst() {
+      if (!phoneActions || !phoneActions.matches || !resumeBtn || resumeBtn.hidden) return false;
+      var stored = readJson(AUTOSAVE_KEY, null);
+      var mode = stored && stored.payload && stored.payload.game && stored.payload.game.settings && stored.payload.game.settings.mode;
+      return !!mode && mode !== readForm(form, readJson(SETTINGS_KEY, {})).mode;
+    }
+
     // The first button on the page is the red one. The rest are white.
     function paintPlayActions() {
       var seen = false;
-      [resumeBtn, startBtn, learnBtn].forEach(function (btn) {
+      var startFirst = newGameFirst();
+      document.documentElement.classList.toggle('play-new-first', startFirst);
+      if (resumeBtn && startBtn) {
+        if (startFirst) startBtn.parentNode.insertBefore(startBtn, resumeBtn);
+        else resumeBtn.parentNode.insertBefore(resumeBtn, startBtn);
+      }
+      (startFirst ? [startBtn, resumeBtn, learnBtn] : [resumeBtn, startBtn, learnBtn]).forEach(function (btn) {
         if (!btn) return;
         var primary = !seen && !btn.hidden;
         if (!btn.hidden) seen = true;
@@ -4488,6 +4505,8 @@
       if (startBtn) startBtn.textContent = on ? 'Start new game' : 'Start game';
       paintPlayActions();
     }
+
+    if (phoneActions && phoneActions.addEventListener) phoneActions.addEventListener('change', paintPlayActions);
 
     function settlePlayForm() {
       document.documentElement.classList.add('play-settled');
