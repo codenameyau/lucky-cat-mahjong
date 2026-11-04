@@ -555,7 +555,7 @@ html.is-playing.is-sideways body {
   font-size: 0.86rem;
 }
 
-/* What a computer is playing this game: beside its name on a phone, under it on desktop. */
+/* What a computer is playing this game: at the right of its row on a phone, under its name on desktop. */
 .strategies-assign-playing {
   font-size: 0.78rem;
   font-weight: normal;
@@ -564,6 +564,20 @@ html.is-playing.is-sideways body {
 
 @media (min-width: 601px) {
   .strategies-assign-playing { display: block; }
+}
+
+@media (max-width: 600px) {
+  .strategies-assign-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .strategies-assign-playing {
+    flex: none;
+    text-align: right;
+  }
 }
 
 .strategies-select {
