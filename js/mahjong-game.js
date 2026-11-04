@@ -18,8 +18,8 @@
   // { seats: { 1: id, 2: id, 3: id }, coach: id }. A bot seat with nothing
   // saved gets a random strategy each game.
   var STRATEGIES_KEY = 'lcm-play-strategies';
-  // The game in progress, kept as you play in the same signed form as a save
-  // file, so a refresh picks it up (cleared by Quit game).
+  // The one saved game on this device, signed (HMAC-SHA256). Each turn writes
+  // it; Resume game reads it. Quit leaves it.
   var AUTOSAVE_KEY = 'lcm-play-autosave';
   var SEAT_SIDES = ['', 'on your right', 'across', 'on your left'];
   var TILE_ASPECT = 1.4;
@@ -51,31 +51,6 @@
   function easeBack(t) { var c = 1.7; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
   function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
   function signed(n) { return (n > 0 ? '+' : n < 0 ? '−' : '±') + fmt(Math.abs(n)); }
-
-  // Asks for a save file, checks it (MahjongEngine.checkSave), and hands
-  // it to onLoad, or a reason it can't be loaded to onError.
-  function chooseSaveFile(onLoad, onError) {
-    var input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json,.json';
-    input.addEventListener('change', function () {
-      var file = input.files && input.files[0];
-      if (!file) return;
-      var reader = new FileReader();
-      reader.onload = function () {
-        var data = null;
-        try { data = JSON.parse(String(reader.result)); } catch (err) { data = null; }
-        E.checkSave(data).then(function (check) {
-          if (!check.ok) { track('play_load_failed', {}); onError(check.reason); return; }
-          track('play_load', { version: data.version });
-          onLoad(data);
-        }, function () { onError('This browser can\'t load games.'); });
-      };
-      reader.onerror = function () { onError('That file couldn\'t be read.'); };
-      reader.readAsText(file);
-    });
-    input.click();
-  }
 
   function readJson(key, fallback) {
     try {
@@ -150,8 +125,6 @@
     'see-results': 'play_see_results_click',
     'm-resume': 'play_menu_resume_click',
     'm-restart': 'play_menu_restart_click',
-    'm-save': 'play_menu_save_click',
-    'm-load': 'play_menu_load_click',
     'm-quit': 'play_menu_quit_click',
     'go-again': 'play_again_click',
     'go-quit': 'play_end_quit_click',
@@ -596,7 +569,6 @@
       handLayout: '',
       restartArmed: 0, // when Restart game was first tapped in the menu
       replaying: false, // a loaded hand is being played again up to your next move
-      menuNote: null, // a line in the menu after saving or a failed load
       windFlash: 0, // 1 to 0 as your wind badge flashes after copying the seed
       turnSeat: null,
       selected: -1,
@@ -3051,30 +3023,14 @@
 
 
     function drawMenu() {
-      var note = ui.menuNote;
-      // The note wraps onto as many lines as it needs, under the buttons.
-      var noteLines = [];
-      if (note) {
-        ctx.font = 'bold 12px ' + FONT_BODY;
-        note.text.split(' ').forEach(function (word) {
-          var last = noteLines[noteLines.length - 1];
-          if (last !== undefined && ctx.measureText(last + ' ' + word).width <= 340 - 40) noteLines[noteLines.length - 1] = last + ' ' + word;
-          else noteLines.push(word);
-        });
-      }
-      var r = panelRect(340, 386 + noteLines.length * 16 + (note ? 8 : 0));
+      var r = panelRect(340, 286);
       drawPanelBg(r);
       text('Paused', r.x + r.w / 2, r.y + 36, { size: 24, family: FONT_HEAD, align: 'center', color: COLORS.red });
       var bx = r.x + 30, bw = r.w - 60, y = r.y + 62, step = 50;
       button('Resume', bx, y, bw, 40, function () { closeOverlay(); }, 'primary', 'm-resume'); y += step;
       var armed = ui.restartArmed && now() - ui.restartArmed < 5000;
       button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, 40, restartGame, armed ? 'gold' : 'white', 'm-restart'); y += step;
-      button('Save game', bx, y, bw, 40, saveGame, 'white', 'm-save'); y += step;
-      button('Load game', bx, y, bw, 40, loadGame, 'white', 'm-load'); y += step;
       button('Quit game', bx, y, bw, 40, function () { quit(); }, 'white', 'm-quit');
-      noteLines.forEach(function (lineText, k) {
-        text(lineText, r.x + r.w / 2, y + 58 + k * 16, { size: 12, weight: 'bold', align: 'center', color: note.error ? COLORS.red : COLORS.green });
-      });
       // Mode and version, with a Beta badge.
       var line = (settings.lesson ? 'Learn to play' : settings.mode === 'practice' ? 'Practice mode' : 'Full game') + ' · v' + E.GAME_VERSION;
       ctx.font = '12px ' + FONT_BODY;
@@ -3092,7 +3048,7 @@
 
     // A save holds no hidden tiles: the game as the hand began, the hand's
     // seed and your moves (MahjongEngine.gameRecord), plus the table's own
-    // strategies, stats and coach history. It is signed, and loading deals
+    // strategies, stats and coach history. It is signed, and resuming deals
     // the hand from its seed and plays it again up to your next move.
     function savePayload() {
       return {
@@ -3118,46 +3074,6 @@
           if (!destroyed) writeJson(AUTOSAVE_KEY, data);
         }, function () {});
       }, 250);
-    }
-
-    function pad2(n) { return (n < 10 ? '0' : '') + n; }
-
-    // play-lucky-cat-mahjong-20261102-143005.json (local time)
-    function saveFileName(d) {
-      return 'play-lucky-cat-mahjong-' + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) +
-        '-' + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds()) + '.json';
-    }
-
-    function setMenuNote(textLine, error) {
-      ui.menuNote = { text: textLine, error: !!error };
-      requestRender();
-    }
-
-    function saveGame() {
-      if (settings.lesson) { setMenuNote('This lesson starts over from the beginning, so it isn\'t saved.', true); return; }
-      if (!game || ui.replaying) { setMenuNote('Nothing to save yet. Try again in a moment.', true); return; }
-      var d = new Date();
-      E.makeSave(savePayload()).then(function (data) { download(data, d); }, function () {
-        setMenuNote('This browser can\'t save games.', true);
-      });
-    }
-
-    function download(data, d) {
-      var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = saveFileName(d);
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-      track('play_save', { version: E.GAME_VERSION });
-      setMenuNote('Saved ' + a.download + '.');
-    }
-
-    function loadGame() {
-      chooseSaveFile(callbacks.load, function (reason) { setMenuNote(reason, true); });
     }
 
     // Restarting throws the match away, so it takes a second tap.
@@ -3324,7 +3240,6 @@
 
     function openMenu() {
       if (ui.overlay && ui.overlay.type === 'menu') { closeOverlay(); return; }
-      ui.menuNote = null;
       ui.overlay = { type: 'menu', previous: ui.overlay };
       requestRender();
     }
@@ -4025,7 +3940,6 @@
         if (settings.lesson) {
           Lesson.prepare(game);
           ui.coach = 'on';
-          removeJson(AUTOSAVE_KEY);
         }
         ui.strategies = pickStrategies();
         ui.coachLog = [];
@@ -4181,6 +4095,8 @@
 
     var table = null;
     function open(settings, saved) {
+      // A new game takes the save slot. A lesson leaves a saved game alone.
+      if (!saved && !settings.lesson) removeJson(AUTOSAVE_KEY);
       stage.hidden = false;
       document.documentElement.classList.add('is-playing');
       if (table) table.destroy();
@@ -4189,10 +4105,6 @@
         restart: function () { open(settings); },
         fullscreen: toggleFullscreen,
         isFullscreen: function () { return !!fullscreenElement(); },
-        // A loaded game plays in its own mode; the rest of your settings stay.
-        load: function (data) {
-          open(Object.assign({}, settings, { mode: data.payload.game.settings.mode }), data);
-        },
       }, saved);
       table.start();
       canvas.focus();
@@ -4307,17 +4219,17 @@
       if (was !== (!stage.hidden && phoneSideways())) hideToolbar();
     });
 
-    // Quitting ends the game, so a refresh starts at the menu again.
+    // Quitting leaves the table. The saved game stays, so Resume game can
+    // bring it back.
     function close() {
       leaveAutoFullscreen();
       document.documentElement.classList.remove('is-sideways');
       if (table) table.destroy();
       table = null;
-      removeJson(AUTOSAVE_KEY);
+      // Paint Resume and the mode while the table still covers the page.
+      revealResume(true);
       stage.hidden = true;
       document.documentElement.classList.remove('is-playing');
-      var start = document.getElementById('play-start');
-      if (start) start.focus();
     }
 
     // Remember the last Payout/Practice choice as soon as it changes.
@@ -4328,6 +4240,10 @@
       saved.mode = now.mode;
       saved.spicy = 'full';
       writeJson(SETTINGS_KEY, saved);
+      document.documentElement.classList.remove('play-mode-practice', 'play-mode-payout');
+      if (now.mode === 'practice' || now.mode === 'payout') {
+        document.documentElement.classList.add('play-mode-' + now.mode);
+      }
       track('play_mode_select', { mode: now.mode });
     });
 
@@ -4339,27 +4255,104 @@
       });
     }
 
-    // Load game, beside Start game: plays on from a save file.
-    var loadBtn = document.getElementById('play-load');
-    var loadNote = document.getElementById('play-load-note');
-    if (loadBtn) {
-      loadBtn.addEventListener('click', function () {
-        track('play_load_click', {});
-        if (loadNote) loadNote.hidden = true;
-        chooseSaveFile(function (data) {
-          var settings = readForm(form, readJson(SETTINGS_KEY, {}));
-          if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
-          open(Object.assign(settings, { mode: data.payload.game.settings.mode }), data);
-        }, function (reason) {
-          if (!loadNote) return;
-          loadNote.textContent = reason;
-          loadNote.hidden = false;
-        });
+    var resumeBtn = document.getElementById('play-resume');
+    var startBtn = document.getElementById('play-start');
+    var learnBtn = document.getElementById('play-learn');
+
+    // The first button on the page is the red one. The rest are white.
+    function paintPlayActions() {
+      var seen = false;
+      [resumeBtn, startBtn, learnBtn].forEach(function (btn) {
+        if (!btn) return;
+        var primary = !seen && !btn.hidden;
+        if (!btn.hidden) seen = true;
+        btn.classList.toggle('btn-primary', primary);
+        btn.classList.toggle('btn-white', !primary);
       });
     }
 
-    // Learn to play, beside Load game: one fixed hand the coach walks you through.
-    var learnBtn = document.getElementById('play-learn');
+    // A stored game shows Resume and hides Learn. Otherwise Start leads.
+    function showSavedGame(on) {
+      document.documentElement.classList.toggle('play-has-save', !!on);
+      if (resumeBtn) resumeBtn.hidden = !on;
+      if (learnBtn) learnBtn.hidden = on;
+      paintPlayActions();
+    }
+
+    function settlePlayForm() {
+      document.documentElement.classList.add('play-settled');
+    }
+
+    function pageSettings() {
+      var settings = readForm(form, readJson(SETTINGS_KEY, {}));
+      if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
+      return settings;
+    }
+
+    function startFresh() {
+      open(pageSettings());
+    }
+
+    // The signature covers the save. A changed one is thrown out and a new
+    // game starts in its place.
+    function resumeOrNew() {
+      var data = readJson(AUTOSAVE_KEY, null);
+      var settings = pageSettings();
+      var beginNew = function () {
+        removeJson(AUTOSAVE_KEY);
+        showSavedGame(false);
+        open(settings);
+      };
+      if (!data || !E.checkSave) { beginNew(); return; }
+      E.checkSave(data).then(function (check) {
+        if (!check.ok) { beginNew(); return; }
+        open(Object.assign(settings, { mode: data.payload.game.settings.mode }), data);
+      }, beginNew);
+    }
+
+    function revealResume(fromQuit) {
+      var stored = readJson(AUTOSAVE_KEY, null);
+      var looksSaved = !!(stored && stored.payload && stored.payload.game);
+      if (!stored || !E.checkSave) {
+        showSavedGame(false);
+        settlePlayForm();
+        if (fromQuit && startBtn) startBtn.focus();
+        return;
+      }
+      // Show the stored game before the signature check, so the page doesn't
+      // flash Start as the red button while that check runs.
+      showSavedGame(looksSaved);
+      E.checkSave(stored).then(function (check) {
+        if (table) { settlePlayForm(); return; }
+        if (check.ok) {
+          showSavedGame(true);
+          settlePlayForm();
+          if (fromQuit && resumeBtn) resumeBtn.focus();
+          return;
+        }
+        showSavedGame(false);
+        settlePlayForm();
+        // A newer game wrote this. Leave it. A changed signature is discarded.
+        if (/newer than this game|doesn't load in version|no game version/.test(check.reason || '')) return;
+        removeJson(AUTOSAVE_KEY);
+        startFresh();
+      }, function () {
+        if (table) { settlePlayForm(); return; }
+        removeJson(AUTOSAVE_KEY);
+        showSavedGame(false);
+        settlePlayForm();
+        startFresh();
+      });
+    }
+
+    if (resumeBtn) {
+      resumeBtn.addEventListener('click', function () {
+        track('play_resume_click', {});
+        resumeOrNew();
+      });
+    }
+
+    // Learn to play, beside the game buttons: one fixed hand the coach walks you through.
     if (learnBtn) {
       learnBtn.addEventListener('click', function () {
         track('play_learn_click', {});
@@ -4382,18 +4375,8 @@
       open(settings);
     });
 
-    // A game left running (refreshed, or the tab closed) picks up where it
-    // was, if its autosave still checks out.
-    var autosaved = readJson(AUTOSAVE_KEY, null);
-    if (autosaved && E.checkSave) {
-      E.checkSave(autosaved).then(function (check) {
-        if (!check.ok) { removeJson(AUTOSAVE_KEY); return; }
-        if (table) return; // a game was started meanwhile
-        var settings = readForm(form, readJson(SETTINGS_KEY, {}));
-        if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
-        open(Object.assign(settings, { mode: autosaved.payload.game.settings.mode }), autosaved);
-      }, function () {});
-    }
+    // A stored game offers Resume. A changed signature starts a new game.
+    revealResume();
   }
 
   var api = { createTable: createTable, init: init };

@@ -92,6 +92,9 @@
   border: 2px solid rgba(0, 0, 0, 0.1);
   border-radius: var(--radius);
   padding: 0.7rem 0.85rem;
+}
+
+html.play-settled .play-option span {
   transition: border-color 0.15s, background 0.15s, transform 0.15s;
 }
 
@@ -112,6 +115,18 @@
   background: rgba(var(--color-primary-rgb), 0.06);
 }
 
+/* Until the saved choice is on the inputs, keep the stored mode on screen.
+   Practice is checked in the markup, so a saved Full game would flash red first. */
+html.play-mode-payout:not(.play-settled) .play-option input[value="practice"] + span {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: transparent;
+}
+
+html.play-mode-payout:not(.play-settled) .play-option input[value="payout"] + span {
+  border-color: var(--color-primary);
+  background: rgba(var(--color-primary-rgb), 0.06);
+}
+
 .play-option input:focus-visible + span {
   outline: 3px solid rgba(var(--color-secondary-rgb), 0.7);
   outline-offset: 2px;
@@ -119,19 +134,61 @@
 
 .play-actions {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
   gap: 0.75rem;
   margin-top: 0.5rem;
 }
 
+/* .btn sets display, which otherwise keeps a hidden button in the row. */
+.play-actions > [hidden] {
+  display: none;
+}
+
+/* Resume and Learn swap from the class set in the head, before the buttons exist. */
+#play-resume { display: none; }
+
+html.play-has-save #play-resume { display: inline-flex; }
+
+html.play-has-save #play-learn { display: none; }
+
 .play-start {
-  min-width: 200px;
+  flex: 1 1 0;
+  min-width: 0;
   justify-content: center;
   font-size: 1.1rem;
 }
 
-/* Load game: white beside the red Start game. */
+/* Color settles from storage before the first frame. Transitions wait so
+   that correction doesn't fade a red Start into white. */
+.play-actions .btn { transition: none; }
+
+html.play-settled .play-actions .btn {
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+/* Start is marked primary in the markup. A stored game paints Resume red
+   and this button white before that class is rewritten. */
+html.play-has-save:not(.play-settled) #play-start {
+  background: #fff;
+  color: var(--color-text);
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  filter: none;
+}
+
+html.play-has-save:not(.play-settled) #play-start:hover {
+  background: #f6f1ea;
+  color: var(--color-text);
+  filter: none;
+}
+
+html.play-has-save:not(.play-settled) #play-resume {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 16px rgba(var(--color-primary-rgb), 0.3);
+}
+
+/* A secondary action beside the red one. */
 .btn-white {
   background: #fff;
   color: var(--color-text);
@@ -142,14 +199,6 @@
 .btn-white:hover {
   background: #f6f1ea;
   color: var(--color-text);
-}
-
-.play-load-note {
-  margin: 0;
-  text-align: center;
-  color: var(--color-primary);
-  font-weight: 600;
-  font-size: 0.9rem;
 }
 
 .play-rules h2 {
@@ -562,4 +611,6 @@ html.is-playing.is-sideways body {
   .play-rules { padding: 1.4rem 1.1rem; }
   .play-options,
   .play-options--3 { grid-template-columns: 1fr; }
+  .play-actions { flex-direction: column; }
+  .play-start { flex: none; width: 100%; }
 }

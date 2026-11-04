@@ -70,7 +70,7 @@ The coach speaks for any strategy through `MahjongCoach.forStrategy(bot)`. It na
 | `npm run review -- 3764864992-EE` | Every turn, following the coach |
 | `npm run review -- 3764864992-EE --moves d1,c1,pung` | Your moves first, then the coach. Tiles are discards, and a claim is passed unless the next move names it (`pung`, `chow`, `kong`, `win`) |
 | `npm run review -- 3764864992-EE --moves d1,c1 --turn 3` | That turn's reasoning: every tile's discard group, steps from ready, copies left, score and plan |
-| `npm run review -- --save game.json` | The exact hand from a Save game file, with its moves and the other seats' strategies |
+| `npm run review -- --save game.json` | The exact hand from a save file, with its moves and the other seats' strategies |
 | `npm run review -- 3764864992-EE --find dr --left 3` | Plays the hand many ways to find turns where the coach throws that tile, with the `--moves` to get there |
 
 The seed alone doesn't say what the other seats play, and their claims change who draws what. Use `--lineup a,b,c`, or a save file for an exact hand.

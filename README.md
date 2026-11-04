@@ -106,12 +106,12 @@ A free game against three bots, with a coach. The game's current version is `GAM
 
 #### Game modes
 
-- **Learn to play** — The button beside Load game. One fixed East hand. The coach names each move, and only that move plays: your flower, a Bamboo chow, a Bamboo pung, a kong on that pung, concealed tiles against exposed ones, then a win by taking East Wind for a Half Flush
+- **Learn to play** — The button beside Start game. It stays hidden while a game is saved. One fixed East hand. The coach names each move, and only that move plays: your flower, a Bamboo chow, a Bamboo pung, a kong on that pung, concealed tiles against exposed ones, then a win by taking East Wind for a Half Flush
 - **Practice** (the default) — No points or payouts, only each hand's faan. It runs on without end
 - **Full game** — Everyone starts with 2,000 points and plays 4 rounds and 16 dealer rotations, so at least 16 hands. Points can go negative without ending the game, and it closes with the final standings
 - **The deal** — In both modes, a dealer who wins deals again, and anything else, a drawn hand too, passes the deal on
 - **Payouts** always use the **full spicy** table
-- **The in-game menu** has Resume, Restart game (a second tap confirms), Save game, Load game and Quit game. The end-of-game screen offers Quit
+- **The in-game menu** has Resume, Restart game (a second tap confirms) and Quit game. The end-of-game screen offers Quit
 
 #### Rules and scoring
 
@@ -125,11 +125,11 @@ Hands are scored by `HKScoring.scoreHand` in `js/points.js`, the calculator's ow
 
 #### Saving and resuming
 
-- **Save game** downloads `play-lucky-cat-mahjong-<timestamp>.json`. **Load game** (in the menu or beside Start game) plays on from it
-- **No hidden tiles in a save** — It holds the game as the current hand began, that hand's seed and your own moves. Loading deals the hand from the seed and replays it
-- **Signed** — Files are signed (HMAC-SHA256), so an edited or damaged file won't load
+- **Autosave** — After each move the game is stored in this browser. **Resume game** continues it and is the main button while a save is there. Resume stays hidden when nothing is saved, and **Start game** is the main button then
+- **No hidden tiles in a save** — It holds the game as the current hand began, that hand's seed and your own moves. Resuming deals the hand from the seed and replays it
+- **Signed** — The save is signed (HMAC-SHA256). A changed or damaged save is discarded and a new game starts
 - **Compatible across versions** — Saves load into any version with the same major number
-- **Refresh-safe** — The game in progress is kept in local storage the same way, so refreshing or reopening the tab picks it up. Quit game clears it
+- **Quit leaves the save** — Start game begins a new one and replaces it. A lesson does not
 
 #### Hand seeds
 
