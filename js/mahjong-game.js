@@ -24,6 +24,7 @@
   var SEAT_SIDES = ['', 'your right', 'across', 'your left'];
   var TILE_ASPECT = 1.4;
   var TILE_GAP = 4;
+  var ACTIONS_LIFT = 6; // the Discard, Pung, Pass and other action buttons sit this far above their row's center
 
   var COLORS = {
     felt: '#0b5a39',
@@ -2789,6 +2790,7 @@
         }
       }
       setButtonsOverName(!!cover);
+      rowY -= ACTIONS_LIFT;
       var maxW = x1 - x0 - lead;
       ctx.font = 'bold 15px ' + FONT_BODY;
       var labelW = acts.reduce(function (m, a) { return Math.max(m, ctx.measureText(a.label).width + 28); }, 0);
