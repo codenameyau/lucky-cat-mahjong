@@ -1910,6 +1910,7 @@
     var PHONE_POINTS_PX = 10, PHONE_SCORE_ICON = 12; // points beside your hand on a phone
     var PHONE_NAME_PX = 9, PHONE_NAME_W = 28; // the names above them
     var PHONE_SCORE_MARGIN = 37; // the screen's edge to your hand, upright in a full game
+    var PHONE_SCORE_SHIFT = 3; // names and points sit this far out from the margin's middle
     var SEE_RESULTS_W = 120; // See results, in the coach bar above your avatar
     function playerIcon(seat, x, cy, s, color) {
       var human = game.players[seat].isHuman;
@@ -2503,14 +2504,15 @@
       }
       var rowW = 7 * L.tw + 6 * L.handGap;
       var rowLeft = L.meX + (L.meW - rowW) / 2;
-      var leftX = (L.meBox.x + rowLeft) / 2, rightX = (rowLeft + rowW + boxRight) / 2;
+      var leftX = (L.meBox.x + rowLeft) / 2 - PHONE_SCORE_SHIFT, rightX = (rowLeft + rowW + boxRight) / 2 + PHONE_SCORE_SHIFT;
       var topY = L.handY - HAND_ROW_GAP - L.th / 2, bottomY = L.handY + L.th / 2;
       [[2, leftX, topY], [3, leftX, bottomY], [1, rightX, topY], [0, rightX, bottomY]].forEach(function (spot) {
-        // The avatar of the player whose turn it is matches the points.
-        playerIcon(spot[0], spot[1] - PHONE_SCORE_ICON / 2, spot[2] - 13, PHONE_SCORE_ICON, ui.turnSeat === spot[0] ? COLORS.goldLight : null);
+        // The name and avatar of the player whose turn it is match the points.
+        var turnColor = ui.turnSeat === spot[0] ? COLORS.goldLight : COLORS.cream;
+        playerIcon(spot[0], spot[1] - PHONE_SCORE_ICON / 2, spot[2] - 13, PHONE_SCORE_ICON, turnColor);
         var name = seatTitle(spot[0]);
         var nameSize = fitFont(ctx, name, PHONE_NAME_W, PHONE_NAME_PX, FONT_BODY, 'bold');
-        text(name, spot[1], spot[2] - 1, { size: nameSize, weight: 'bold', align: 'center', color: COLORS.goldLight });
+        text(name, spot[1], spot[2] - 1, { size: nameSize, weight: 'bold', align: 'center', color: turnColor });
         text(fmt(game.players[spot[0]].points), spot[1], spot[2] + 11, { size: PHONE_POINTS_PX, weight: 'bold', align: 'center', color: COLORS.goldLight });
       });
     }
