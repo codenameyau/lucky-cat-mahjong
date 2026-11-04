@@ -509,6 +509,21 @@ html.is-playing.is-sideways body {
 /* Strategies sheet: the same look as the rules sheet. */
 .strategies-sheet { width: min(1000px, calc(100vw - 32px)); }
 
+.strategies-beta {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #C41E3A;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
 .strategies-assign {
   display: grid;
   grid-template-columns: 1fr;
