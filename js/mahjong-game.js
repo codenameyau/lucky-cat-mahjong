@@ -1633,7 +1633,7 @@
       return sel;
     }
 
-    function assignRow(labelText, control, note) {
+    function assignRow(labelText, control) {
       var row = document.createElement('div');
       row.className = 'strategies-assign-row';
       var label = document.createElement('label');
@@ -1642,12 +1642,6 @@
       label.textContent = labelText;
       row.appendChild(label);
       row.appendChild(control);
-      if (note) {
-        var n = document.createElement('span');
-        n.className = 'strategies-assign-note';
-        n.textContent = note;
-        row.appendChild(n);
-      }
       return row;
     }
 
@@ -1664,14 +1658,12 @@
       assign.appendChild(h);
       var box = document.createElement('div');
       box.className = 'rules-family strategies-assign';
-      box.appendChild(assignRow('Coach and feedback', strategySelect('strategy-coach', ui.strategies.coach, false, setCoachStrategy),
-        'The coach\'s tips and feedback follow this strategy.'));
+      box.appendChild(assignRow('Coach and feedback', strategySelect('strategy-coach', ui.strategies.coach, false, setCoachStrategy)));
       [1, 2, 3].forEach(function (seat) {
         var choice = seatChoice(seat);
-        var note = choice === 'random' ? 'Playing ' + Strategies.get(ui.strategies.seats[seat]).name + ' this game.' : '';
         box.appendChild(assignRow(playerLabel(seat), strategySelect('strategy-seat-' + seat, choice, true, function (id) {
           setSeatStrategy(seat, id);
-        }), note));
+        })));
       });
       assign.appendChild(box);
       body.appendChild(assign);
@@ -1680,7 +1672,7 @@
       about.className = 'rules-section';
       var h2 = document.createElement('h3');
       h2.className = 'rules-section-title';
-      h2.textContent = 'The strategies';
+      h2.textContent = 'Strategies';
       about.appendChild(h2);
       var grid = document.createElement('div');
       grid.className = 'strategies-cards';

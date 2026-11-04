@@ -498,11 +498,15 @@ html.is-playing.is-sideways body {
 /* Strategies sheet: the same look as the rules sheet. */
 .strategies-sheet { width: min(1000px, calc(100vw - 32px)); }
 
-.strategies-assign { padding: 8px 12px; }
+.strategies-assign {
+  display: grid;
+  grid-template-columns: 1fr;
+  padding: 8px 12px;
+}
 
 .strategies-assign-row {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(160px, 220px) 1.4fr;
+  grid-template-columns: minmax(150px, 1fr) minmax(160px, 1fr);
   align-items: center;
   gap: 4px 12px;
   padding: 5px 0;
@@ -510,6 +514,15 @@ html.is-playing.is-sideways body {
 }
 
 .strategies-assign-row:first-child { border-top: 0; }
+
+@media (min-width: 601px) {
+  .strategies-assign {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 28px;
+  }
+
+  .strategies-assign-row { border-top: 0; }
+}
 
 .strategies-assign-label {
   font-weight: bold;
@@ -525,11 +538,6 @@ html.is-playing.is-sideways body {
   color: #1A1A1A;
   font: inherit;
   font-size: 0.86rem;
-}
-
-.strategies-assign-note {
-  font-size: 0.76rem;
-  color: rgba(255, 248, 240, 0.7);
 }
 
 .strategies-cards {
