@@ -257,6 +257,39 @@ describe('settlement', () => {
     assert.deepEqual(game.players.map((p) => p.name), names);
   });
 
+  it('records the winner\'s faan and the points each seat gained or lost', () => {
+    const game = E.createGame({ seed: 1, humanSeat: false });
+    E.startHand(game);
+    const selfDraw = E.settleWin(game, 2, null, null, { faan: 4, points: 16, items: [] }, 'selfDraw');
+    assert.deepEqual(E.resultsRow(selfDraw), {
+      hand: 1,
+      draw: false,
+      faan: [0, 0, 4, 0],
+      points: [-16, -16, 48, -16],
+    });
+    E.startHand(game);
+    const discard = E.settleWin(game, 0, 3, 'c1', { faan: 3, points: 8, items: [] }, 'discard');
+    assert.deepEqual(E.resultsRow(discard), {
+      hand: 2,
+      draw: false,
+      faan: [3, 0, 0, 0],
+      points: [8, 0, 0, -8],
+    });
+    E.startHand(game);
+    const drawn = E.settleDraw(game);
+    assert.deepEqual(E.resultsRow(drawn), {
+      hand: 3,
+      draw: true,
+      faan: [0, 0, 0, 0],
+      points: [0, 0, 0, 0],
+    });
+    const practice = E.createGame({ seed: 1, mode: 'practice', humanSeat: false });
+    E.startHand(practice);
+    const quiet = E.settleWin(practice, 1, null, null, { faan: 6, points: 32, items: [] }, 'selfDraw');
+    assert.deepEqual(E.resultsRow(quiet).faan, [0, 6, 0, 0]);
+    assert.deepEqual(E.resultsRow(quiet).points, [0, 0, 0, 0]);
+  });
+
   it('ranks the final standings, with ties sharing a place', () => {
     const game = E.createGame({ seed: 6, dealer: 0 });
     [2100, -40, 2100, 1800].forEach((n, k) => { game.players[k].points = n; });

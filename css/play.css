@@ -564,7 +564,7 @@ html.is-playing.is-sideways body {
 
 .strategies-assign-who {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 6px;
   min-width: 0;
 }
@@ -719,6 +719,76 @@ html.is-playing.is-sideways body {
 @media (max-width: 600px) {
   .strategies-assign-row { grid-template-columns: 1fr; }
 }
+
+/* Results: the same sheet as the rules, with one row per finished hand. */
+.results-sheet { width: min(720px, calc(100vw - 32px)); }
+
+.results-empty {
+  margin: 8px 0 4px;
+  color: rgba(255, 248, 240, 0.75);
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.results-table th,
+.results-table td {
+  padding: 8px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: center;
+  vertical-align: middle;
+  font-size: 0.86rem;
+  font-weight: normal;
+}
+
+.results-table thead th {
+  position: sticky;
+  top: 0;
+  background: #074029;
+  color: #ffd27a;
+  font-size: 0.78rem;
+  font-weight: bold;
+}
+
+.results-player {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+}
+
+.results-avatar {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.results-table tbody th {
+  color: #fff8f0;
+  font-weight: bold;
+}
+
+.results-draw {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: normal;
+  color: rgba(255, 248, 240, 0.6);
+}
+
+.results-faan,
+.results-points { display: block; }
+
+.results-faan { color: rgba(255, 248, 240, 0.7); }
+
+.results-faan--scored { color: #fff8f0; font-weight: bold; }
+
+.results-points { color: rgba(255, 248, 240, 0.55); }
+
+.results-points--gain { color: #ffd27a; font-weight: bold; }
+
+.results-points--loss { color: #EE6A80; font-weight: bold; }
 
 .visually-hidden {
   position: absolute;

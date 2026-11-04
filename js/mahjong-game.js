@@ -565,6 +565,7 @@
     var regions = [];
     var hover = null;
     var historyDrag = null;
+    var resultsDrag = null;
     // Face-up tiles drawn this frame (screen boxes) and the mouse position,
     // for the tile-name tooltip.
     var tileSpots = [], tipsOn = true, mouse = null, tipTile = null;
@@ -591,6 +592,10 @@
       coachScroll: 0,
       coachStick: true, // follow the newest note until the player scrolls up
       coachScrollMax: 0,
+      results: [], // one row per finished hand: faan and points for each seat
+      resultsScroll: 0,
+      resultsStick: true, // follow the newest hand until the player scrolls up
+      resultsScrollMax: 0,
       notice: null,
       hide: { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null },
       botLift: null, // { seat, index } tile a bot is considering
@@ -1046,7 +1051,9 @@
       var inner = pond;
       var zones = best.zones, center = best.center, zoneFrames = best.frames, pw = best.pw, pondCols = best.cols;
       // The coach's column runs from the top player's panel down to the
-      // bottom of yours, so those three edges line up.
+      // bottom of yours, so those three edges line up. On a desktop the
+      // results table takes a third of the screen (a third shorter than
+      // half) and the coach keeps the rest, with room left to read a note.
       var historyBottom = meBox.y + meBox.h;
       var history = historyW ? {
         x: ox + tableW + historyGap,
@@ -1054,12 +1061,26 @@
         w: historyW,
         h: historyBottom - opp[2].y,
       } : null;
+      var results = null;
+      if (desktop && history) {
+        var resultsGap = 8;
+        var coachMin = 140;
+        var resultsH = Math.round(H / 3);
+        var room = history.h - resultsGap;
+        // A short window can't give the table a third of the screen and still
+        // leave the coach a note, so the two share the column.
+        if (room < coachMin + 96) resultsH = Math.max(48, Math.round(room * 0.55));
+        else if (resultsH > room - coachMin) resultsH = room - coachMin;
+        results = { x: history.x, y: history.y, w: history.w, h: resultsH };
+        history = { x: history.x, y: history.y + resultsH + resultsGap, w: history.w, h: room - resultsH };
+      }
 
       return {
         pad: pad, topH: topH, portrait: portrait, ox: ox, tableW: tableW, history: history,
         desktop: desktop, landscape: landscape, phonePortrait: phonePortrait, meX: meX, meW: meW,
         tw: tw, th: th, handGap: handGap, handY: handY, handRows: handRows, mw: mw, meY: meY, meldRowH: meldRowH, meBox: meBox,
         actionsY: actionsY, actionsH: actionsH, actionsInRow: actionsInRow, hintY: hintY, hintH: hintH,
+        results: results,
         opp: opp, oppFrames: oppFrames, oppTile: oppTile, pond: pond, inner: inner, zones: zones, zoneFrames: zoneFrames,
         center: center, pw: pw, maxDiscards: maxDiscards, pondCols: pondCols,
       };
@@ -1291,6 +1312,7 @@
       [1, 2, 3].forEach(function (s) { drawOpponent(s, t); });
       drawMe(t);
       drawHintBand();
+      drawResults();
       drawCoachHistory();
       drawActions();
       drawSeeResults();
@@ -1678,12 +1700,16 @@
       bot: '<path d="M8 3.1V1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="1.15" r="0.85" fill="currentColor"/><rect x="0.5" y="6.1" width="1.5" height="2.5" rx="0.4" fill="currentColor"/><rect x="14" y="6.1" width="1.5" height="2.5" rx="0.4" fill="currentColor"/><rect x="2.3" y="3.5" width="11.4" height="10.2" rx="2.2" fill="currentColor"/><circle cx="6.2" cy="7.8" r="0.95" fill="#074029"/><circle cx="9.8" cy="7.8" r="0.95" fill="#074029"/><rect x="5.7" y="10.5" width="4.6" height="1" rx="0.4" fill="#074029"/>',
     };
 
+    // The drawings stop short of the view box. Drop each one so its lowest
+    // point is the box's bottom, and that bottom can share the name's baseline.
+    var ICON_DROP = { user: 1.6, bot: 2.3 };
+
     function assignIcon(kind) {
       var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('viewBox', '0 0 16 16');
       svg.setAttribute('aria-hidden', 'true');
       svg.classList.add('strategies-assign-icon');
-      svg.innerHTML = ASSIGN_ICON[kind];
+      svg.innerHTML = '<g transform="translate(0 ' + ICON_DROP[kind] + ')">' + ASSIGN_ICON[kind] + '</g>';
       return svg;
     }
 
@@ -1865,6 +1891,115 @@
       return !!(dlg && dlg.open);
     }
 
+    /* ---------------- results sheet (phones) ---------------- */
+
+    function resultsSheet() {
+      return document.getElementById('results-sheet');
+    }
+
+    // Faan on one line, points on the next. Zero points read as 0, not ±0.
+    function resultLines(row, seat) {
+      var faan = row.faan[seat] || 0;
+      var points = row.points[seat] || 0;
+      return {
+        faan: (faan > 0 ? '+' : '') + faan + ' faan',
+        points: points ? signed(points) : '0',
+        scored: faan > 0,
+        gain: points > 0,
+        loss: points < 0,
+      };
+    }
+
+    function fillResults() {
+      var body = document.getElementById('results-sheet-body');
+      if (!body) return;
+      while (body.firstChild) body.removeChild(body.firstChild);
+      if (!ui.results.length) {
+        var empty = document.createElement('p');
+        empty.className = 'results-empty';
+        empty.textContent = 'Finished hands show up here.';
+        body.appendChild(empty);
+        return;
+      }
+      var table = document.createElement('table');
+      table.className = 'results-table';
+      var caption = document.createElement('caption');
+      caption.className = 'visually-hidden';
+      caption.textContent = 'Faan and points each player gained or lost, one row per hand.';
+      table.appendChild(caption);
+      var thead = document.createElement('thead');
+      var head = document.createElement('tr');
+      var handHead = document.createElement('th');
+      handHead.scope = 'col';
+      handHead.textContent = 'Hand';
+      head.appendChild(handHead);
+      [0, 1, 2, 3].forEach(function (seat) {
+        var th = document.createElement('th');
+        th.scope = 'col';
+        var who = document.createElement('span');
+        who.className = 'results-player';
+        var avatar = assignIcon(game.players[seat].isHuman ? 'user' : 'bot');
+        avatar.classList.remove('strategies-assign-icon');
+        avatar.classList.add('results-avatar');
+        who.appendChild(document.createTextNode(seatTitle(seat)));
+        who.appendChild(avatar);
+        th.appendChild(who);
+        head.appendChild(th);
+      });
+      thead.appendChild(head);
+      table.appendChild(thead);
+      var tbody = document.createElement('tbody');
+      ui.results.forEach(function (row) {
+        var tr = document.createElement('tr');
+        var hand = document.createElement('th');
+        hand.scope = 'row';
+        hand.textContent = String(row.hand);
+        if (row.draw) {
+          var draw = document.createElement('span');
+          draw.className = 'results-draw';
+          draw.textContent = 'Draw';
+          hand.appendChild(draw);
+        }
+        tr.appendChild(hand);
+        for (var seat = 0; seat < 4; seat++) {
+          var lines = resultLines(row, seat);
+          var td = document.createElement('td');
+          var faan = document.createElement('span');
+          faan.className = 'results-faan' + (lines.scored ? ' results-faan--scored' : '');
+          faan.textContent = lines.faan;
+          var pts = document.createElement('span');
+          pts.className = 'results-points' + (lines.gain ? ' results-points--gain' : lines.loss ? ' results-points--loss' : '');
+          pts.textContent = lines.points;
+          td.appendChild(faan);
+          td.appendChild(pts);
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      body.appendChild(table);
+    }
+
+    function openResults() {
+      var dlg = resultsSheet();
+      if (!dlg || dlg.open || !game) return;
+      fillResults();
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+      track('play_open_results', {});
+    }
+
+    function closeResults() {
+      var dlg = resultsSheet();
+      if (!dlg || !dlg.open) return;
+      if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
+      track('play_close_results', {});
+    }
+
+    function resultsOpen() {
+      var dlg = resultsSheet();
+      return !!(dlg && dlg.open);
+    }
+
     var COACH_LABELS = { on: 'Coach on', feedback: 'Feedback on', off: 'Coach off' };
     // The Sound button toggles effects and music together.
     var SOUND_LABELS = { on: 'Sound on', off: 'Sound off' };
@@ -1934,6 +2069,19 @@
     var PHONE_NAME_PX = 8, PHONE_NAME_W = 28; // the names above them
     var PHONE_SCORE_INSET = 22; // the middle of each stack, in from the table's corner
     var SEE_RESULTS_W = 120; // See results, in the coach bar above your avatar
+    // cy is the middle the paths are drawn around. A person ends lower than
+    // a robot, so each is lifted until its feet share one line.
+    function iconCy(seat, bottom, s) {
+      var feet = game.players[seat].isHuman ? 0.5 : 0.4;
+      return bottom - s * feet;
+    }
+
+    // The name is drawn from its middle. This is the lowest painted pixel.
+    function paintedBottom(name, y) {
+      ctx.textBaseline = 'middle';
+      return y + (ctx.measureText(name).actualBoundingBoxDescent || 0);
+    }
+
     function playerIcon(seat, x, cy, s, color) {
       var human = game.players[seat].isHuman;
       var ink = COLORS.feltDark;
@@ -2026,6 +2174,7 @@
       var ptsW = pts ? ctx.measureText(pts).width : 0;
       var scoreGap = SCORE_GAP;
       var iconX = x + 2 * r + 6;
+      var iconY = y + r;
       if (namesShown()) {
         var name = seatTitle(seat);
         var nameRoom = w - (iconX - x) - ICON_GAP - iconS - (pts ? scoreGap + ptsW : 0) - 2;
@@ -2033,8 +2182,9 @@
         text(name, x + 2 * r + 6, y + r + 1, { size: nameSize, weight: 'bold', color: COLORS.cream });
         ctx.font = 'bold ' + nameSize + 'px ' + FONT_BODY;
         iconX += ctx.measureText(name).width + ICON_GAP;
+        iconY = iconCy(seat, paintedBottom(name, y + r + 1), iconS);
       }
-      playerIcon(seat, iconX, y + r, iconS);
+      playerIcon(seat, iconX, iconY, iconS);
       var scoreX = iconX + iconS + scoreGap;
       if (pts) text(pts, scoreX, y + r + 1, { size: ptsPx, weight: 'bold', color: COLORS.goldLight });
       var mark = { iconX: iconX, iconRight: iconX + iconS, scoreX: scoreX, y: y + r, hasScore: !!pts };
@@ -2711,6 +2861,94 @@
       }, function () {});
     }
 
+    function deltaColor(n) {
+      if (n > 0) return COLORS.goldLight;
+      if (n < 0) return COLORS.redLight;
+      return 'rgba(255,248,240,0.55)';
+    }
+
+    // Finished hands, above the coach. The newest row stays in view until
+    // the player scrolls up.
+    function drawResults() {
+      var r = L.results;
+      if (!r) return;
+      ctx.save();
+      roundRect(ctx, r.x, r.y, r.w, r.h, 6);
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.fill();
+      ctx.restore();
+      text('Results', r.x + 14, r.y + 18, { size: 14, weight: 'bold', family: FONT_HEAD, color: COLORS.cream });
+
+      var pad = 10;
+      var handW = 44;
+      var viewX = r.x + pad;
+      var viewW = r.w - pad * 2;
+      var playerW = (viewW - handW) / 4;
+      var headerY = r.y + 40;
+      text('Hand', viewX + handW / 2, headerY, { size: 11, weight: 'bold', align: 'center', color: COLORS.goldLight });
+      for (var seat = 0; seat < 4; seat++) {
+        var name = seatTitle(seat);
+        var iconS = 13;
+        var nameMax = playerW - 6 - iconS - 4;
+        var nameSize = fitFont(ctx, name, Math.max(24, nameMax), 12, FONT_BODY, 'bold');
+        ctx.font = 'bold ' + nameSize + 'px ' + FONT_BODY;
+        var nameW = ctx.measureText(name).width;
+        var left = viewX + handW + playerW * seat + (playerW - nameW - iconS - 4) / 2;
+        text(name, left, headerY, { size: nameSize, weight: 'bold', color: COLORS.goldLight });
+        playerIcon(seat, left + nameW + 4, iconCy(seat, paintedBottom(name, headerY), iconS), iconS, COLORS.goldLight);
+      }
+
+      var bodyY = r.y + 54;
+      var bodyH = r.h - 62;
+      var rowH = 36;
+      var rows = ui.results;
+      var contentH = rows.length * rowH;
+      ui.resultsScrollMax = Math.max(0, contentH - bodyH);
+      if (ui.resultsStick) ui.resultsScroll = ui.resultsScrollMax;
+      ui.resultsScroll = clamp(ui.resultsScroll, 0, ui.resultsScrollMax);
+      var scrollW = ui.resultsScrollMax > 0 ? 8 : 0;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(viewX, bodyY, viewW, bodyH);
+      ctx.clip();
+      if (!rows.length) {
+        var empty = 'Finished hands show up here.';
+        var emptySize = fitFont(ctx, empty, viewW - 8, 13, FONT_BODY);
+        text(empty, viewX + 4, bodyY + 16, { size: emptySize, color: 'rgba(255,248,240,0.5)' });
+      }
+      var y = bodyY - ui.resultsScroll;
+      rows.forEach(function (row) {
+        if (y + rowH >= bodyY && y <= bodyY + bodyH) {
+          roundRect(ctx, viewX, y + 1, viewW - scrollW, rowH - 2, 3);
+          ctx.fillStyle = 'rgba(0,0,0,0.18)';
+          ctx.fill();
+          var mid = y + rowH / 2;
+          text(String(row.hand), viewX + handW / 2, row.draw ? mid - 6 : mid, { size: 13, weight: 'bold', align: 'center', color: COLORS.cream });
+          if (row.draw) text('Draw', viewX + handW / 2, mid + 8, { size: 10, align: 'center', color: 'rgba(255,248,240,0.6)' });
+          for (var s = 0; s < 4; s++) {
+            var lines = resultLines(row, s);
+            var cx = viewX + handW + playerW * s + playerW / 2;
+            var faanSize = fitFont(ctx, lines.faan, playerW - 4, 11, FONT_BODY, lines.scored ? 'bold' : '');
+            text(lines.faan, cx, mid - 7, { size: faanSize, weight: lines.scored ? 'bold' : '', align: 'center', color: lines.scored ? COLORS.cream : 'rgba(255,248,240,0.55)' });
+            var pointSize = fitFont(ctx, lines.points, playerW - 4, 12, FONT_BODY, 'bold');
+            text(lines.points, cx, mid + 8, { size: pointSize, weight: 'bold', align: 'center', color: deltaColor(row.points[s]) });
+          }
+        }
+        y += rowH;
+      });
+      ctx.restore();
+
+      if (ui.resultsScrollMax > 0) {
+        var trackX = r.x + r.w - 8;
+        var thumbH = Math.max(28, bodyH * (bodyH / (bodyH + ui.resultsScrollMax)));
+        var thumbY = bodyY + (bodyH - thumbH) * (ui.resultsScroll / ui.resultsScrollMax);
+        roundRect(ctx, trackX, thumbY, 4, thumbH, 2);
+        ctx.fillStyle = 'rgba(255,248,240,0.45)';
+        ctx.fill();
+      }
+    }
+
     // Older notes start at the top and later ones follow downward.
     function drawCoachHistory() {
       var r = L.history;
@@ -3261,16 +3499,39 @@
 
     // A save holds no hidden tiles: the game as the hand began, the hand's
     // seed and your moves (MahjongEngine.gameRecord), plus the table's own
-    // strategies, stats and the newest coach notes. It is signed, and resuming
-    // deals the hand from its seed and plays it again up to your next move.
+    // strategies, stats, finished-hand results and the newest coach notes.
+    // It is signed, and resuming deals the hand from its seed and plays it
+    // again up to your next move.
     function savePayload() {
       return {
         savedAt: new Date().toISOString(),
         game: E.gameRecord(game),
         strategies: ui.strategies,
         stats: ui.stats,
+        results: ui.results,
         coachLog: (ui.coachLog || []).slice(-COACH_LOG_SAVE),
       };
+    }
+
+    function keptResults(list) {
+      if (!Array.isArray(list)) return [];
+      return list.filter(function (row) {
+        return row && typeof row.hand === 'number' && row.faan && row.faan.length === 4 && row.points && row.points.length === 4;
+      }).map(function (row) {
+        return {
+          hand: row.hand,
+          draw: !!row.draw,
+          faan: [0, 1, 2, 3].map(function (i) { return +row.faan[i] || 0; }),
+          points: [0, 1, 2, 3].map(function (i) { return +row.points[i] || 0; }),
+        };
+      });
+    }
+
+    function rememberResult(res) {
+      var row = E.resultsRow(res);
+      if (ui.results.some(function (have) { return have.hand === row.hand; })) return;
+      ui.results.push(row);
+      ui.resultsStick = true;
     }
 
     // Keeps the game in local storage as it goes (AUTOSAVE_KEY): after the
@@ -3608,16 +3869,41 @@
       return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
     }
 
+    function resultsAt(p) {
+      var r = L && L.results;
+      if (!r || !p) return false;
+      return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+    }
+
+    // The discard board, which on a phone opens the results.
+    function pondAt(p) {
+      var r = L && L.pond;
+      if (!r || !p || L.desktop) return false;
+      return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+    }
+
     function scrollHistory(next) {
       ui.coachScroll = clamp(next, 0, ui.coachScrollMax);
       ui.coachStick = ui.coachScroll >= ui.coachScrollMax - 12;
       requestRender();
     }
 
+    function scrollResults(next) {
+      ui.resultsScroll = clamp(next, 0, ui.resultsScrollMax);
+      ui.resultsStick = ui.resultsScroll >= ui.resultsScrollMax - 12;
+      requestRender();
+    }
+
     function onWheel(e) {
-      if (!historyAt(pointerPos(e)) || ui.coachScrollMax <= 0) return;
-      e.preventDefault();
+      var p = pointerPos(e);
       var dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      if (resultsAt(p) && ui.resultsScrollMax > 0) {
+        e.preventDefault();
+        scrollResults(ui.resultsScroll + dy);
+        return;
+      }
+      if (!historyAt(p) || ui.coachScrollMax <= 0) return;
+      e.preventDefault();
       scrollHistory(ui.coachScroll + dy);
     }
 
@@ -3636,6 +3922,14 @@
         see.onTap();
         return;
       }
+      if (resultsAt(p)) {
+        if (ui.resultsScrollMax > 0) {
+          resultsDrag = { y: p.y, scroll: ui.resultsScroll, id: e.pointerId };
+          if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
+        }
+        e.preventDefault();
+        return;
+      }
       if (historyAt(p)) {
         if (ui.coachScrollMax > 0) {
           historyDrag = { y: p.y, scroll: ui.coachScroll, id: e.pointerId };
@@ -3645,6 +3939,12 @@
         return;
       }
       var r = hitTest(p.x, p.y);
+      if (!r && pondAt(p) && !ui.overlay) {
+        if (ui.selected >= 0) { ui.selected = -1; ui.notice = null; }
+        openResults();
+        e.preventDefault();
+        return;
+      }
       if (!r) {
         if (ui.selected >= 0 && !ui.overlay) { ui.selected = -1; ui.notice = null; requestRender(); }
         return;
@@ -3654,6 +3954,12 @@
     }
 
     function onPointerMove(e) {
+      if (resultsDrag && e.pointerId === resultsDrag.id) {
+        var draggedResults = pointerPos(e);
+        scrollResults(resultsDrag.scroll + (resultsDrag.y - draggedResults.y));
+        canvas.style.cursor = 'grabbing';
+        return;
+      }
       if (historyDrag && e.pointerId === historyDrag.id) {
         var dragged = pointerPos(e);
         scrollHistory(historyDrag.scroll + (historyDrag.y - dragged.y));
@@ -3662,15 +3968,16 @@
       }
       if (e.pointerType && e.pointerType !== 'mouse') return;
       var p = pointerPos(e);
-      if (historyAt(p) && !seeResultsHit(p)) {
-        canvas.style.cursor = ui.coachScrollMax > 0 ? 'grab' : 'default';
+      if ((resultsAt(p) || historyAt(p)) && !seeResultsHit(p)) {
+        var scrolling = resultsAt(p) ? ui.resultsScrollMax > 0 : ui.coachScrollMax > 0;
+        canvas.style.cursor = scrolling ? 'grab' : 'default';
         mouse = p;
         if (hover || tipSeat !== null) { hover = null; requestRender(); }
         return;
       }
       var r = hitTest(p.x, p.y);
       var id = r ? r.id : null;
-      canvas.style.cursor = r && !r.plain ? 'pointer' : 'default';
+      canvas.style.cursor = r && !r.plain ? 'pointer' : (!r && pondAt(p) && !ui.overlay ? 'pointer' : 'default');
       mouse = p;
       var sp = spotAt(p);
       var seatSp = seatSpotAt(p);
@@ -3678,6 +3985,7 @@
     }
 
     function onPointerUp(e) {
+      if (resultsDrag && e.pointerId === resultsDrag.id) resultsDrag = null;
       if (historyDrag && e.pointerId === historyDrag.id) historyDrag = null;
     }
 
@@ -3688,7 +3996,7 @@
 
     function onKey(e) {
       if (destroyed) return;
-      if (rulesOpen() || strategiesOpen()) return; // the sheets handle their own keys (Escape closes them)
+      if (rulesOpen() || strategiesOpen() || resultsOpen()) return; // the sheets handle their own keys (Escape closes them)
       if (e.key === 'Escape') { openMenu(); e.preventDefault(); return; }
       if (ui.overlay) {
         if (e.key === 'Enter' && ui.overlay.type === 'summary') { nextHand(); e.preventDefault(); }
@@ -4144,6 +4452,7 @@
           ui.strategies = { seats: swapOldIds(p.strategies.seats), coach: swapOldIds([p.strategies.coach])[0] };
         }
         ui.stats = p.stats || ui.stats;
+        ui.results = keptResults(p.results);
         ui.coachLog = p.coachLog || [];
         if (p.game.hand) {
           ui.replaying = true;
@@ -4179,6 +4488,7 @@
         replay = null;
         if (destroyed) return;
         recordStats(res);
+        rememberResult(res);
         ui.turnSeat = null;
         track('play_hand_end', {
           result: res.type === 'draw' ? 'draw' : res.winner === 0 ? 'win' : 'loss',
@@ -4224,6 +4534,13 @@
       if (!dlg) return;
       dlg.querySelector('.rules-sheet-close').addEventListener('click', closeStrategies);
       dlg.addEventListener('click', function (e) { if (e.target === dlg) closeStrategies(); });
+      dlg.addEventListener('close', function () { canvas.focus(); });
+    })();
+    (function () {
+      var dlg = resultsSheet();
+      if (!dlg) return;
+      dlg.querySelector('.rules-sheet-close').addEventListener('click', closeResults);
+      dlg.addEventListener('click', function (e) { if (e.target === dlg) closeResults(); });
       dlg.addEventListener('close', function () { canvas.focus(); });
     })();
     canvas.addEventListener('pointerdown', onPointerDown);
