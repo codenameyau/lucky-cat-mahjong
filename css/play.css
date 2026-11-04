@@ -245,6 +245,17 @@ html.play-has-save:not(.play-settled) #play-resume {
 
 .play-canvas:focus { outline: none; }
 
+/* Refreshing the game: hide the page until the table opens. The animation
+   shows it anyway if the game's script never gets there. */
+html.play-reopening body {
+  visibility: hidden;
+  animation: play-reopen-reveal 0s 3s forwards;
+}
+
+@keyframes play-reopen-reveal {
+  to { visibility: visible; }
+}
+
 html.is-playing,
 html.is-playing body {
   overflow: hidden;

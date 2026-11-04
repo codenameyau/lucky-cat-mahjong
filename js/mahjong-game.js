@@ -4186,11 +4186,31 @@
     applySaved(form, readJson(SETTINGS_KEY, {}));
     loadAssets();
 
+    // ?opened=1 says the table is open, so refreshing comes back to the game.
+    // A lesson isn't saved, so it doesn't set it.
+    function isOpenedUrl() {
+      return /[?&]opened=1(&|$)/.test(root.location.search);
+    }
+
+    function markOpened(on) {
+      if (!root.history || !root.history.replaceState) return;
+      var url = new URL(root.location.href);
+      if (on) url.searchParams.set('opened', '1');
+      else url.searchParams.delete('opened');
+      root.history.replaceState(null, '', url);
+    }
+
+    function pageReady() {
+      document.documentElement.classList.remove('play-reopening');
+    }
+
     var table = null;
     function open(settings, saved) {
       // A new game takes the save slot. A lesson leaves a saved game alone.
       if (!saved && !settings.lesson) removeJson(AUTOSAVE_KEY);
+      markOpened(!settings.lesson);
       stage.hidden = false;
+      pageReady();
       document.documentElement.classList.add('is-playing');
       if (table) table.destroy();
       table = createTable(canvas, live, settings, {
@@ -4315,6 +4335,7 @@
     // Quitting leaves the table. The saved game stays, so Resume game can
     // bring it back.
     function close() {
+      markOpened(false);
       leaveAutoFullscreen();
       document.documentElement.classList.remove('is-sideways');
       if (table) table.destroy();
@@ -4469,8 +4490,27 @@
       open(settings);
     });
 
+    // Refreshing the game goes back into it. With no game to go back to, or a
+    // save that doesn't load, the page shows as usual.
+    function reopenGame() {
+      var stored = readJson(AUTOSAVE_KEY, null);
+      var offerPage = function () {
+        markOpened(false);
+        pageReady();
+        revealResume();
+      };
+      if (!stored || !stored.payload || !stored.payload.game || !E.checkSave) { offerPage(); return; }
+      E.checkSave(stored).then(function (check) {
+        if (!check.ok) { offerPage(); return; }
+        showSavedGame(true);
+        settlePlayForm();
+        open(Object.assign(pageSettings(), { mode: stored.payload.game.settings.mode }), stored);
+      }, offerPage);
+    }
+
     // A stored game offers Resume. A changed signature starts a new game.
-    revealResume();
+    if (isOpenedUrl()) reopenGame();
+    else revealResume();
   }
 
   var api = { createTable: createTable, init: init };
