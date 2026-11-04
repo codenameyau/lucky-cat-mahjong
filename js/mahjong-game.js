@@ -768,6 +768,7 @@
     // The table (the other players and the discards) is kept as close to
     // square as the screen allows; spare room goes to the coach.
     var HAND_ROW_GAP = 6;
+    var TOP_PANEL_TRIM = 6; // how much shorter the top player's panel is than its tiles alone would make it
     var SIDE_HEAD_TOP = 4; // on desktop, room above the side players' names
     // A landscape phone draws your hand this much smaller than it could be,
     // so the table has more room.
@@ -942,10 +943,10 @@
         var lengthFit = (sideRun - 13 * TILE_GAP) / 14;
         var depthFit = (sideW - 16) / (2 * depthUnit);
         var oppFit = clamp(Math.min(lengthFit, depthFit), 8, 72);
-        topPanelH = Math.ceil(oppFit * 2 * depthUnit + 16);
+        topPanelH = Math.ceil(oppFit * 2 * depthUnit + 16) - TOP_PANEL_TRIM;
       } else {
         sideW = phonePortrait ? 46 : landscape ? LANDSCAPE_SIDE_W : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
-        topPanelH = 62;
+        topPanelH = 62 - TOP_PANEL_TRIM;
         sideHead = phoneHead;
         topHead = phoneHead;
       }
@@ -985,7 +986,8 @@
         var shared = 72;
         [1, 2, 3].forEach(function (k) {
           var fr = oppFrames[k];
-          shared = Math.min(shared, (fr.w - 13 * TILE_GAP) / 14, (fr.h - 10) / (2 * depthUnit));
+          // (The top seat is trimmed, so it fits the same tile with less room spare.)
+          shared = Math.min(shared, (fr.w - 13 * TILE_GAP) / 14, (fr.h - (k === 2 ? 10 - TOP_PANEL_TRIM : 10)) / (2 * depthUnit));
         });
         oppTile = clamp(shared, 8, 72);
       }
