@@ -1898,6 +1898,11 @@
     }
 
     // Faan on one line, points on the next. Zero points read as 0, not ±0.
+    // Practice never pays, so the points line would only ever say 0.
+    function showsPoints() {
+      return settings.mode !== 'practice';
+    }
+
     function resultLines(row, seat) {
       var faan = row.faan[seat] || 0;
       var points = row.points[seat] || 0;
@@ -1908,6 +1913,18 @@
         gain: points > 0,
         loss: points < 0,
       };
+    }
+
+    function resultsTotal() {
+      var faan = [0, 0, 0, 0];
+      var points = [0, 0, 0, 0];
+      ui.results.forEach(function (row) {
+        for (var seat = 0; seat < 4; seat++) {
+          faan[seat] += row.faan[seat] || 0;
+          points[seat] += row.points[seat] || 0;
+        }
+      });
+      return { faan: faan, points: points };
     }
 
     function fillResults() {
@@ -1925,7 +1942,9 @@
       table.className = 'results-table';
       var caption = document.createElement('caption');
       caption.className = 'visually-hidden';
-      caption.textContent = 'Faan and points each player gained or lost, one row per hand.';
+      caption.textContent = showsPoints()
+        ? 'Faan and points each player gained or lost, one row per hand.'
+        : 'Faan each player scored, one row per hand.';
       table.appendChild(caption);
       var thead = document.createElement('thead');
       var head = document.createElement('tr');
@@ -1948,6 +1967,25 @@
       });
       thead.appendChild(head);
       table.appendChild(thead);
+      function resultCells(row) {
+        var cells = [];
+        for (var seat = 0; seat < 4; seat++) {
+          var lines = resultLines(row, seat);
+          var td = document.createElement('td');
+          var faan = document.createElement('span');
+          faan.className = 'results-faan' + (lines.scored ? ' results-faan--scored' : '');
+          faan.textContent = lines.faan;
+          td.appendChild(faan);
+          if (showsPoints()) {
+            var pts = document.createElement('span');
+            pts.className = 'results-points' + (lines.gain ? ' results-points--gain' : lines.loss ? ' results-points--loss' : '');
+            pts.textContent = lines.points;
+            td.appendChild(pts);
+          }
+          cells.push(td);
+        }
+        return cells;
+      }
       var tbody = document.createElement('tbody');
       ui.results.forEach(function (row) {
         var tr = document.createElement('tr');
@@ -1961,22 +1999,20 @@
           hand.appendChild(draw);
         }
         tr.appendChild(hand);
-        for (var seat = 0; seat < 4; seat++) {
-          var lines = resultLines(row, seat);
-          var td = document.createElement('td');
-          var faan = document.createElement('span');
-          faan.className = 'results-faan' + (lines.scored ? ' results-faan--scored' : '');
-          faan.textContent = lines.faan;
-          var pts = document.createElement('span');
-          pts.className = 'results-points' + (lines.gain ? ' results-points--gain' : lines.loss ? ' results-points--loss' : '');
-          pts.textContent = lines.points;
-          td.appendChild(faan);
-          td.appendChild(pts);
-          tr.appendChild(td);
-        }
+        resultCells(row).forEach(function (td) { tr.appendChild(td); });
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
+      var foot = document.createElement('tfoot');
+      var totalRow = document.createElement('tr');
+      totalRow.className = 'results-total';
+      var totalHead = document.createElement('th');
+      totalHead.scope = 'row';
+      totalHead.textContent = 'Total';
+      totalRow.appendChild(totalHead);
+      resultCells(resultsTotal()).forEach(function (td) { totalRow.appendChild(td); });
+      foot.appendChild(totalRow);
+      table.appendChild(foot);
       body.appendChild(table);
     }
 
@@ -2902,11 +2938,32 @@
       var bodyH = r.h - 62;
       var rowH = 36;
       var rows = ui.results;
-      var contentH = rows.length * rowH;
+      var pay = showsPoints();
+      var contentH = (rows.length + (rows.length ? 1 : 0)) * rowH;
       ui.resultsScrollMax = Math.max(0, contentH - bodyH);
       if (ui.resultsStick) ui.resultsScroll = ui.resultsScrollMax;
       ui.resultsScroll = clamp(ui.resultsScroll, 0, ui.resultsScrollMax);
       var scrollW = ui.resultsScrollMax > 0 ? 8 : 0;
+
+      function drawResultRow(row, y, label, isDraw, isTotal) {
+        if (y + rowH < bodyY || y > bodyY + bodyH) return;
+        roundRect(ctx, viewX, y + 1, viewW - scrollW, rowH - 2, 3);
+        ctx.fillStyle = isTotal ? 'rgba(0,0,0,0.34)' : 'rgba(0,0,0,0.18)';
+        ctx.fill();
+        var mid = y + rowH / 2;
+        var labelSize = fitFont(ctx, label, handW - 4, 13, FONT_BODY, 'bold');
+        text(label, viewX + handW / 2, isDraw ? mid - 6 : mid, { size: labelSize, weight: 'bold', align: 'center', color: isTotal ? COLORS.goldLight : COLORS.cream });
+        if (isDraw) text('Draw', viewX + handW / 2, mid + 8, { size: 10, align: 'center', color: 'rgba(255,248,240,0.6)' });
+        for (var s = 0; s < 4; s++) {
+          var lines = resultLines(row, s);
+          var cx = viewX + handW + playerW * s + playerW / 2;
+          var faanSize = fitFont(ctx, lines.faan, playerW - 4, 11, FONT_BODY, lines.scored ? 'bold' : '');
+          text(lines.faan, cx, pay ? mid - 7 : mid, { size: faanSize, weight: lines.scored ? 'bold' : '', align: 'center', color: lines.scored ? COLORS.cream : 'rgba(255,248,240,0.55)' });
+          if (!pay) continue;
+          var pointSize = fitFont(ctx, lines.points, playerW - 4, 12, FONT_BODY, 'bold');
+          text(lines.points, cx, mid + 8, { size: pointSize, weight: 'bold', align: 'center', color: deltaColor(row.points[s]) });
+        }
+      }
 
       ctx.save();
       ctx.beginPath();
@@ -2919,24 +2976,10 @@
       }
       var y = bodyY - ui.resultsScroll;
       rows.forEach(function (row) {
-        if (y + rowH >= bodyY && y <= bodyY + bodyH) {
-          roundRect(ctx, viewX, y + 1, viewW - scrollW, rowH - 2, 3);
-          ctx.fillStyle = 'rgba(0,0,0,0.18)';
-          ctx.fill();
-          var mid = y + rowH / 2;
-          text(String(row.hand), viewX + handW / 2, row.draw ? mid - 6 : mid, { size: 13, weight: 'bold', align: 'center', color: COLORS.cream });
-          if (row.draw) text('Draw', viewX + handW / 2, mid + 8, { size: 10, align: 'center', color: 'rgba(255,248,240,0.6)' });
-          for (var s = 0; s < 4; s++) {
-            var lines = resultLines(row, s);
-            var cx = viewX + handW + playerW * s + playerW / 2;
-            var faanSize = fitFont(ctx, lines.faan, playerW - 4, 11, FONT_BODY, lines.scored ? 'bold' : '');
-            text(lines.faan, cx, mid - 7, { size: faanSize, weight: lines.scored ? 'bold' : '', align: 'center', color: lines.scored ? COLORS.cream : 'rgba(255,248,240,0.55)' });
-            var pointSize = fitFont(ctx, lines.points, playerW - 4, 12, FONT_BODY, 'bold');
-            text(lines.points, cx, mid + 8, { size: pointSize, weight: 'bold', align: 'center', color: deltaColor(row.points[s]) });
-          }
-        }
+        drawResultRow(row, y, String(row.hand), row.draw, false);
         y += rowH;
       });
+      if (rows.length) drawResultRow(resultsTotal(), y, 'Total', false, true);
       ctx.restore();
 
       if (ui.resultsScrollMax > 0) {
