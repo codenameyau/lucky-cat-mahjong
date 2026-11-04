@@ -19,6 +19,8 @@ Late in the hand, safety still takes over:
 
 ## Tracking the table
 
+Every strategy now shares these reads, the discards, wants and feeding (see the [shared foundation](README.md)). What stays lucky-cat's alone is the race: it plays out the odds of finishing turn by turn, and leans hardest on keeping tiles with the most copies left.
+
 Every turn, lucky-cat reads the whole table again from what its seat can see: every discard and who threw it, every open meld, its own tiles, and how many tiles are left in the wall. It never reads the wall's order or another player's concealed tiles, and a test checks that shuffling those changes nothing.
 
 **What each opponent wants.** Each tile gets a score for each opponent, starting at 1:

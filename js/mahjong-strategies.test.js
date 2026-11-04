@@ -247,11 +247,11 @@ describe('the player before you decides a close flush suit', () => {
     assert.equal(hint.tips.join(' ').split('is collecting Bamboo').length, 2);
   });
 
-  it('the lucky-cat coach says when an opponent changes hands', () => {
+  it('every coach says when an opponent changes hands', () => {
     const game = table({ seats: [{ hand: ['c2', 'c3', 'c4', 'c6', 'c7', 'd2', 'd3', 'd5', 'd6', 'wn', 'we', 'ws', 'b5', 'b9'] }, { discards: ['c1', 'd1', 'c2', 'd2', 'b2', 'b3', 'b7', 'b8'] }], wallLeft: 60 });
     const lucky = Coach.forStrategy(B).turnHint(game, 0, { kongs: [] });
     assert.match(lucky.tips.join(' '), /has switched out of Bamboo\./);
-    assert.doesNotMatch(Coach.forStrategy(L).turnHint(game, 0, { kongs: [] }).tips.join(' '), /has switched out/);
+    assert.match(Coach.forStrategy(L).turnHint(game, 0, { kongs: [] }).tips.join(' '), /has switched out of Bamboo\./);
   });
 
   it('jorge-yau gives up a Bamboo flush target', () => {
@@ -528,7 +528,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.19.53');
+    assert.equal(E.GAME_VERSION, '0.20.0');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
@@ -716,3 +716,99 @@ describe('dishonor', () => {
   });
 });
 
+describe('ready means the hand can win, and dragons stay', () => {
+  const Base = require('./mahjong-bot.js');
+  const bots = { base: Base, 'jorge-yau': L, 'lucky-cat': B, 'only-orphans': S.get('only-orphans').bot };
+  const short = {
+    seats: [{ hand: ['c8', 'b5', 'c8', 'c3', 'd8', 'c8', 'dg', 'b3', 'c2', 'd8', 'c1'], melds: [pung('wn')] }],
+    round: 'e',
+  };
+
+  it('keeps a lone dragon when throwing it only makes a hand under the minimum', () => {
+    for (const bot of [Base, L, B]) {
+      assert.notEqual(bot.chooseTurnAction(table(short), 0, { kongs: [] }).tile, 'dg');
+    }
+  });
+
+  it('does not call a shape under the minimum ready', () => {
+    for (const bot of [Base, L, B]) {
+      const text = Coach.forStrategy(bot).turnHint(table(short), 0, { kongs: [] }).tips.join(' ');
+      assert.doesNotMatch(text, /Ready, waiting on|It leaves you ready/);
+    }
+  });
+
+  it('holds to it through real hands', async () => {
+    for (const bot of Object.values(bots)) {
+      const coach = Coach.forStrategy(bot);
+      const agent = () => {
+        const base = bot.createBotAgent();
+        return {
+          claim: (g, seat, o) => base.claim(g, seat, o),
+          turn: async (g, seat, o) => {
+            const action = await base.turn(g, seat, o);
+            if (o.win) return action;
+            const c = E.countsOf(g.hand.seats[seat].hand);
+            const ctx = bot.buildContext(g, seat);
+            const canWin = (i) => {
+              const after = c.slice();
+              after[i]--;
+              return E.shanten(after, ctx.declared) === 0 && Base.winsWhenReady(bot.readyValue(after, ctx));
+            };
+            const hint = coach.turnHint(g, seat, { kongs: [] });
+            if (hint.tile && /Ready, waiting on|It leaves you ready/.test(hint.tips.join(' '))) {
+              assert.ok(canWin(E.tileIndex(hint.tile)), hint.tips.join(' '));
+            }
+            if (action.type === 'discard') {
+              const i = E.tileIndex(action.tile);
+              if (i >= 31 && c[i] === 1 && E.unseenCounts(g, seat)[i] === 3) {
+                assert.ok(canWin(i) || c.every((n, j) => !n || j === i), g.hand.seats[seat].hand.join(' '));
+              }
+            }
+            return action;
+          },
+        };
+      };
+      for (let n = 0; n < 4; n++) {
+        const game = E.createGame({ seed: 7100 + n, humanSeat: false, dealer: n });
+        await E.runHand(game, [agent(), agent(), agent(), agent()], {});
+      }
+    }
+  });
+});
+
+describe('every strategy reads the table', () => {
+  const Base = require('./mahjong-bot.js');
+  const collector = { discards: ['c1', 'c9', 'd1', 'd9', 'c2', 'd8'] };
+
+  it('tracks each opponent, for all of them', () => {
+    for (const bot of [Base, L, B, S.get('only-orphans').bot]) {
+      const ctx = bot.buildContext(table({ seats: [null, collector], wallLeft: 60 }), 0);
+      assert.equal(ctx.track.seats.length, 3);
+      assert.equal(ctx.track.seats[0].collecting, 'b');
+    }
+  });
+
+  it('feeding a tile someone collects costs more, for all of them', () => {
+    const game = table({ seats: [null, collector], wallLeft: 30 });
+    for (const bot of [Base, L, B]) {
+      const threats = bot.opponentThreats(game, 0);
+      assert.ok(bot.feedLoss(game, threats, E.tileIndex('b5')) > bot.feedLoss(game, threats, E.tileIndex('c5')));
+    }
+  });
+
+  it('between close discards, keeps the tile with more copies left', () => {
+    const hand = ['c2', 'c3', 'c4', 'd2', 'd3', 'd4', 'b2', 'b3', 'b4', 'c6', 'c6', 'we', 'ws', 'wn'];
+    const seen = { discards: ['we', 'we', 'we'] };
+    const list = B.analyzeDiscards(table({ seats: [{ hand }, seen], wallLeft: 70 }), 0).candidates;
+    const at = (t) => list.findIndex((x) => x.tile === t);
+    assert.ok(at('we') < at('ws'));
+  });
+
+  it('reads your own discards: a suit you keep is favored, one you left is not', () => {
+    const plan = (suit) => ({ id: 'full-' + suit, suit });
+    const ctx = Base.buildContext(table({ seats: [{ discards: ['c1', 'c2', 'c3', 'we', 'd5'] }] }), 0);
+    ctx.leftRead = null;
+    assert.ok(Base.suitLean(plan('b'), ctx) > 1);
+    assert.ok(Base.suitLean(plan('c'), ctx) < 1);
+  });
+});

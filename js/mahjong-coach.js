@@ -342,6 +342,10 @@
       return n;
     };
     var note = '';
+    var own = v.ctx.ownRead;
+    if (own && own.n >= 4 && route && route.suit && (route.id === 'half' || route.id === 'full') && own.by[route.suit] / own.n <= 0.1) {
+      note = 'You\'ve kept your ' + SUIT_NAME[route.suit] + ' so far, so stay on it.';
+    }
     track.seats.forEach(function (r) {
       var who = v.game.players[r.seat].name;
       if (note || line.indexOf(who + ' is collecting') !== -1) return;
@@ -574,7 +578,9 @@
       if (liveLeft <= 1) notes.push('Almost none left, so switch waits if you can.');
       tips.push(state + (notes.length ? ' ' + notes.join(' ') : ''));
     } else if (pick.plan) {
-      var line = stepsText(buildingLimit ? pick.plan.shanten : pick.shanten) + '. Aim for ' + targetText(v, pick.plan, cAfter, null) + '.';
+      var line = stepsText(pick.plan ? pick.plan.shanten : pick.shanten) + '. Aim for ' + targetText(v, pick.plan, cAfter, null) + '.';
+      // A complete shape that doesn't score isn't ready, so say why.
+      if (pick.ready) line = 'Complete, but under ' + min + ' faan. ' + line;
       var sure = B.baseFaan(v.ctx);
       if (route.faan < min - 0.25 && B.cheapWin(v.ctx)) {
         // Flowers (and sets) already give all but the last faan.
