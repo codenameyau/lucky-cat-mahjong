@@ -106,6 +106,7 @@ A free game against three bots, with a coach. The game's current version is `GAM
 
 #### Game modes
 
+- **Learn to play** — The button beside Load game. One fixed East hand. The coach names each move, and only that move plays: your flower, a Bamboo chow, a Bamboo pung, a kong on that pung, concealed tiles against exposed ones, then a win by taking East Wind for a Half Flush
 - **Practice** (the default) — No points or payouts, only each hand's faan. It runs on without end
 - **Full game** — Everyone starts with 2,000 points and plays 4 rounds and 16 dealer rotations, so at least 16 hands. Points can go negative without ending the game, and it closes with the final standings
 - **The deal** — In both modes, a dealer who wins deals again, and anything else, a drawn hand too, passes the deal on

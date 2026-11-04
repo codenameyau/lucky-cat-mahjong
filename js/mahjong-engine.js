@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.16.0';
+  var GAME_VERSION = '0.17.0';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -313,7 +313,8 @@
     if (!given) seed = game.rng.state();
     seed = seed >>> 0;
     var handRng = createRng(seed);
-    var wall = buildWall(handRng);
+    // A lesson deals a fixed wall (game.fixedWall) instead of shuffling.
+    var wall = game.fixedWall ? game.fixedWall.slice() : buildWall(handRng);
     if (!given) game.rng.state(handRng.state());
     var seats = [0, 1, 2, 3].map(function () {
       return { hand: [], melds: [], flowers: [], discards: [] };
