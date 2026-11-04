@@ -585,7 +585,7 @@
       notice: null,
       hide: { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null },
       botLift: null, // { seat, index } tile a bot is considering
-      botDrawn: [false, false, false, false], // bot's fresh draw sits apart
+      botDrawn: [false, false, false, false], // a bot is holding a fresh draw
       winInHand: null, // a discard win's tile, flying into the winner's hand then glowing there
       botDiscardFrom: [null, null, null, null],
       oppHand: [null, null, null, null],
@@ -2095,7 +2095,7 @@
       // and a tile they are considering lifts without leaving the row), with
       // melds and flowers in front of it. On a phone it's all one row, so the
       // tiles can be larger: melds and flowers from the owner's left, then the
-      // concealed hand. A phone still sets a fresh draw a little apart.
+      // concealed hand. A fresh draw stays in the row there too.
       var f = L.oppFrames[seat];
       var items = meldItems(seat);
       var meldTilesN = items.filter(function (it) { return !it.gap; }).length;
@@ -2105,12 +2105,11 @@
       var faceUp = ui.revealHands ? revealedConcealed(seat) : null;
       var count = faceUp ? faceUp.length : oppConcealedCount(seat);
       var oneRow = !L.desktop;
-      var apart = oneRow && !faceUp && ui.botDrawn[seat] && count > 0;
       var mw, bw, backsY, meldY, bx0, mx0;
       var rowDepth = function (w) { return w * (TILE_ASPECT + 0.08); };
       if (oneRow) {
         var split = tileN && count ? 0.6 : 0; // room between the melds and the hand
-        var units = count + (apart ? 0.4 : 0) + meldTilesN + gaps * 0.35 + flowersN + split;
+        var units = count + meldTilesN + gaps * 0.35 + flowersN + split;
         var tilesInRow = count + tileN;
         mw = clamp(Math.min(
           (f.h - 8) / (TILE_ASPECT + 0.08),
@@ -2155,7 +2154,7 @@
           if (far > f.h - 1) liftBy = Math.max(0, backsY + rowDepth(bw) - (f.h - 1));
         }
       }
-      var backX = function (i) { return bx0 + i * pitch + (apart && i === count - 1 ? bw * 0.4 : 0); };
+      var backX = function (i) { return bx0 + i * pitch; };
 
       enterFrame(f);
       for (var i = 0; i < count; i++) {
@@ -2164,7 +2163,7 @@
       }
       // A discard win sits face up at the end of an opponent's row once it lands.
       if (ui.winInHand && ui.winInHand.seat === seat && ui.winInHand.landed && !faceUp) {
-        var winX = bx0 + count * pitch + (apart ? bw * 0.4 : 0);
+        var winX = bx0 + count * pitch;
         drawTile(ui.winInHand.tile, winX, backsY, bw, { shadow: false, glow: COLORS.gold });
       }
       var mx = mx0 + (oneRow ? 5 : 0);
@@ -2191,7 +2190,7 @@
       }
 
       ui.oppHand[seat] = { f: f, backX: backX, backsY: backsY, bw: bw, mw: mw, meldY: meldY, bx0: bx0, count: count, liftBy: lift >= 0 ? liftBy : 0 };
-      ui.backAnchor[seat] = localPose(f, bx0 + count * pitch + (apart ? bw * 0.4 : 0), backsY, bw);
+      ui.backAnchor[seat] = localPose(f, bx0 + count * pitch, backsY, bw);
       ui.meldAnchor[seat] = localPose(f, mx + (items.length ? mw * 0.35 : 0), meldY, mw);
       ui.flowerAnchor[seat] = localPose(f, fx + flowerShown * (fw + TILE_GAP), meldY, fw);
     }
@@ -4034,7 +4033,7 @@
       ui.replaying = false;
       ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null };
       ui.botDrawn = [false, false, false, false];
-      // A seat holding a fresh draw shows it apart.
+      // A seat with a tile too many is holding a fresh draw.
       game.hand.seats.forEach(function (s, k) { if (k && s.hand.length % 3 === 2) ui.botDrawn[k] = true; });
       ui.botLift = null;
       L = computeLayout();
