@@ -2474,7 +2474,7 @@
         var myPts = fmt(game.players[0].points);
         ctx.font = 'bold ' + PHONE_POINTS_PX + 'px ' + FONT_BODY;
         var ptsW = ctx.measureText(myPts).width + 6, ptsH = PHONE_POINTS_PX + 4;
-        var ptsX = L.meBox.x + L.meBox.w - 1 - ptsW, ptsY = L.handY + L.th - ptsH;
+        var ptsX = L.meBox.x + L.meBox.w - 5 - ptsW, ptsY = L.handY + L.th - ptsH;
         roundRect(ctx, ptsX, ptsY, ptsW, ptsH, 4);
         ctx.fillStyle = COLORS.feltDark;
         ctx.fill();
