@@ -27,6 +27,7 @@
   // On an upright phone: between your hand's tiles, and between the computers'
   // tiles and your own exposed tiles.
   var PHONE_HAND_GAP = 5, PHONE_TILE_GAP = 2;
+  var MELD_GAP = 0.12; // extra space between exposed melds, in tile widths, on top of the tile gap
   var OPP_ROW_GAP = 4; // on desktop, between a computer's exposed tiles and their hand
   var ACTIONS_LIFT = 6; // the Discard, Pung, Pass and other action buttons sit this far above their row's center
 
@@ -2034,7 +2035,7 @@
       var drawn = drawW || tw;
       var th = drawn * TILE_ASPECT + TILE_GAP;
       items.forEach(function (it) {
-        if (it.gap) { cx += tw * 0.35; return; }
+        if (it.gap) { cx += tw * MELD_GAP; return; }
         if (cx + drawn > x + w + 0.5) { cx = x; cy += th; }
         drawTile(it.id, cx, cy, drawn, { back: it.back, peek: it.peek, shadow: false, glow: it.glow });
         cx += drawn + tileGap();
@@ -2118,7 +2119,7 @@
       var rowDepth = function (w) { return w * (TILE_ASPECT + 0.08); };
       if (oneRow) {
         var split = tileN && count ? 0.6 : 0; // room between the melds and the hand
-        var units = count + meldTilesN + gaps * 0.35 + flowersN + split;
+        var units = count + meldTilesN + gaps * MELD_GAP + flowersN + split;
         var tilesInRow = count + tileN;
         mw = clamp(Math.min(
           (f.h - 8) / (TILE_ASPECT + 0.08),
@@ -2128,7 +2129,7 @@
         var rowW = units * mw + Math.max(0, tilesInRow - 1) * gapT;
         mx0 = Math.max(0, (f.w - rowW) / 2);
         backsY = meldY = (f.h - rowDepth(mw)) / 2;
-        var meldsW = tileN ? (meldTilesN + gaps * 0.35 + flowersN) * mw + (tileN - 1) * gapT + gapT : 0;
+        var meldsW = tileN ? (meldTilesN + gaps * MELD_GAP + flowersN) * mw + (tileN - 1) * gapT + gapT : 0;
         bx0 = mx0 + meldsW + split * mw;
       } else {
         // Every opponent shares one size for the concealed hand and the
@@ -2177,7 +2178,7 @@
       }
       var mx = mx0 + (oneRow ? 5 : 0);
       items.forEach(function (it) {
-        if (it.gap) { mx += mw * 0.35; return; }
+        if (it.gap) { mx += mw * MELD_GAP; return; }
         drawTile(it.id, mx, meldY, mw, { back: it.back, shadow: false });
         mx += mw + gapT;
       });
@@ -2362,7 +2363,7 @@
       var gapsN = items.length - meldN;
       var rowW = L.meW - 2 * pad - infoW - 18;
       var tileN = meldN + s.flowers.length;
-      var mw = Math.min(L.mw, (rowW - Math.max(0, tileN - 1) * tileGap()) / Math.max(1, tileN + gapsN * 0.35 + 0.6));
+      var mw = Math.min(L.mw, (rowW - Math.max(0, tileN - 1) * tileGap()) / Math.max(1, tileN + gapsN * MELD_GAP + 0.6));
       var y0 = y + (L.mw - mw) * TILE_ASPECT;
       if (items.length) {
         var end = flowRow(items, mx, y0, rowW, mw, mw);
