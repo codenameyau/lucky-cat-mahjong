@@ -768,7 +768,7 @@
     // The table (the other players and the discards) is kept as close to
     // square as the screen allows; spare room goes to the coach.
     var HAND_ROW_GAP = 6;
-    var ONE_ROW_TILES = 8, ONE_ROW_GAP = 3;
+    var ONE_ROW_TILES = 8;
     // A landscape phone draws your hand this much smaller than it could be,
     // so the table has more room.
     var PHONE_HAND_SCALE = 0.9;
@@ -2306,40 +2306,30 @@
     // The hand is one row across your section (the left two thirds on
     // desktop), or two rows on a portrait phone: the first half on top, the
     // rest below. A fresh draw sits at the end, in line with the others.
-    // The size of `count` hand tiles. On an upright phone, 8 or fewer sit in one
-    // row, as big as the width and the two rows' height allow. The size comes
-    // from the most tiles the hand can hold (8, 5 or 2), so it doesn't change
-    // between drawing and discarding. Eight only get bigger with less of a gap.
-    function handSize(count) {
-      if (L.handRows !== 2) return { tw: L.tw, th: L.th, gap: L.handGap, rows: 1 };
-      if (count > ONE_ROW_TILES) return { tw: L.tw, th: L.th, gap: L.handGap, rows: count > 1 ? 2 : 1 };
-      var slots = count % 3 === 2 ? count : count + 1;
-      var gap = slots === ONE_ROW_TILES ? ONE_ROW_GAP : L.handGap;
-      var fit = (L.meW - 2 * L.pad - 6 - (slots - 1) * gap) / slots;
-      var tw = Math.max(L.tw, Math.min(fit, (2 * L.th + HAND_ROW_GAP) / TILE_ASPECT));
-      return { tw: tw, th: tw * TILE_ASPECT, gap: gap, rows: 1 };
-    }
-
-    function handLeft(count, size) {
-      var total = count > 0 ? count * size.tw + (count - 1) * size.gap : 0;
+    function handLeft(count, gap) {
+      var total = count > 0 ? count * L.tw + (count - 1) * gap : 0;
       var span = L.meW;
       if (total >= span - 2 * L.pad) return L.meX + L.pad;
       return L.meX + Math.max(L.pad, (span - total) / 2);
     }
 
-    // Where each of `count` hand tiles sits: [{ x, y }]. One row sits at the
-    // bottom of the hand's space, so the table doesn't move when it changes.
+    // Where each of `count` hand tiles sits: [{ x, y }]. Tiles keep one size
+    // all game. On an upright phone, 8 or fewer sit in the bottom row, a little
+    // closer together if the screen is too narrow for them.
     function handPositions(count) {
-      var size = handSize(count);
-      var step = size.tw + size.gap;
-      var rows = size.rows;
+      var rows = L.handRows === 2 && count > ONE_ROW_TILES ? 2 : 1;
+      var gap = L.handGap;
+      if (L.handRows === 2 && rows === 1 && count > 1) {
+        gap = Math.max(1, Math.min(gap, (L.meW - 2 * L.pad - 6 - count * L.tw) / (count - 1)));
+      }
+      var step = L.tw + gap;
       var per = Math.ceil(count / rows);
       var out = [];
       for (var r = 0; r < rows; r++) {
         var start = r * per;
         var n = Math.min(per, count - start);
-        var left = handLeft(n, size);
-        var y = rows === 1 ? L.handY + L.th - size.th : L.handY - (rows - 1 - r) * (L.th + HAND_ROW_GAP);
+        var left = handLeft(n, gap);
+        var y = L.handY - (rows - 1 - r) * (L.th + HAND_ROW_GAP);
         for (var k = 0; k < n; k++) out.push({ x: left + k * step, y: y });
       }
       return out;
@@ -2404,8 +2394,7 @@
       var tiles = order.tiles;
       var count = tiles.length;
       if (ui.hide.drawn && order.drawnSeparate) count = Math.min(count, tiles.length - 1);
-      var size = handSize(tiles.length);
-      var tw = size.tw;
+      var tw = L.tw;
       var hintTile = ui.coach === 'on' && ui.hint && ui.hint.tile;
       var hintUsed = false;
       ui.lastHandRects = [];
@@ -2461,8 +2450,8 @@
         var pos = lerpPos(slot.from, slot.to, ui.handSlide);
         var x = pos.x;
         var lift = 0;
-        if (i === ui.selected) lift = L.tw * 0.32;
-        else if (hover === 'hand-' + i && ui.turnPrompt) lift = L.tw * 0.12;
+        if (i === ui.selected) lift = tw * 0.32;
+        else if (hover === 'hand-' + i && ui.turnPrompt) lift = tw * 0.12;
         var glow = null;
         if (hintTile && !hintUsed && id === hintTile && ui.turnPrompt) {
           // Glow the rightmost copy so it matches the drawn tile when relevant.
@@ -2475,7 +2464,7 @@
         if (i === order.winAt) glow = COLORS.gold;
         // Tiles a pung or chow would use get a red border.
         drawTile(id, x + shakeDx('tile', i), pos.y - lift, tw, { glow: glow || (claimable ? COLORS.red : null) });
-        var rect = { x: x, y: pos.y - lift, w: tw, h: size.th, id: id, index: i };
+        var rect = { x: x, y: pos.y - lift, w: tw, h: L.th, id: id, index: i };
         ui.lastHandRects.push(rect);
         if (ui.turnPrompt) {
           (function (idx) {
@@ -3670,7 +3659,7 @@
       if (seat === 0) {
         var tiles = E.sortTiles(game.hand.seats[0].hand.concat([tile]));
         var spot = handPositions(tiles.length)[tiles.lastIndexOf(tile)];
-        return { x: spot.x, y: spot.y, w: handSize(tiles.length).tw, rot: 0 };
+        return { x: spot.x, y: spot.y, w: L.tw, rot: 0 };
       }
       return ui.backAnchor[seat] || seatAnchor(seat);
     }
@@ -3811,7 +3800,7 @@
           var n = order.tiles.length;
           var at = d.replacement ? order.tiles.lastIndexOf(d.tile) : n - 1;
           var spot = handPositions(n, d.replacement ? false : true)[at >= 0 ? at : n - 1] || { x: L.meX + L.meW / 2, y: L.handY };
-          var to = { x: spot.x, y: spot.y, w: handSize(n).tw, rot: 0 };
+          var to = { x: spot.x, y: spot.y, w: L.tw, rot: 0 };
           return fly(d.tile, from, to, 300, { arc: 20 }).then(function () {
             ui.hide.drawn = false;
             if (d.replacement) ui.hide.tile = null;
