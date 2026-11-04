@@ -1904,7 +1904,7 @@
     var SCORE_GAP = 6; // between the avatar and the score
     var PHONE_POINTS_PX = 9, PHONE_SCORE_ICON = 10; // points on the table on a phone
     var PHONE_NAME_PX = 8, PHONE_NAME_W = 28; // the names above them
-    var PHONE_SCORE_INSET = 18; // the middle of each stack, in from the table's corner
+    var PHONE_SCORE_INSET = 22; // the middle of each stack, in from the table's corner
     var SEE_RESULTS_W = 120; // See results, in the coach bar above your avatar
     function playerIcon(seat, x, cy, s, color) {
       var human = game.players[seat].isHuman;
@@ -2225,7 +2225,7 @@
     function drawPhoneScores() {
       var p = L.pond;
       var leftX = p.x + PHONE_SCORE_INSET, rightX = p.x + p.w - PHONE_SCORE_INSET;
-      var topY = p.y + 17, bottomY = p.y + p.h - 17;
+      var topY = p.y + 21, bottomY = p.y + p.h - 21;
       [[2, leftX, topY], [3, leftX, bottomY], [1, rightX, topY], [0, rightX, bottomY]].forEach(function (spot) {
         var color = ui.turnSeat === spot[0] ? COLORS.goldLight : COLORS.cream;
         playerIcon(spot[0], spot[1] - PHONE_SCORE_ICON / 2, spot[2] - 10, PHONE_SCORE_ICON, color);
