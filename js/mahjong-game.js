@@ -1902,6 +1902,7 @@
     // with paths so it doesn't depend on any emoji font.
     var ICON_GAP = 5;
     var SCORE_GAP = 6; // between the avatar and the score
+    var PHONE_POINTS_PX = 11, POINTS_UNDER_GAP = 2; // your points under your avatar on a phone
     var SEE_RESULTS_W = 120; // See results, in the coach bar above your avatar
     function playerIcon(seat, x, cy, s) {
       var human = game.players[seat].isHuman;
@@ -1960,7 +1961,10 @@
       // Badge, name, icon, then the score beside the icon.
       var content = 22 + 6 + nameW + (namesShown() ? ICON_GAP : 0) + 15 + (pts ? SCORE_GAP + ptsW : 0) + 2;
       // (On a phone your points sit under the row instead.)
-      if (seat === 0 && !L.desktop) content = Math.max(22 + 6 + 15 + 2, ptsW + 2);
+      if (seat === 0 && !L.desktop) {
+        ctx.font = 'bold ' + PHONE_POINTS_PX + 'px ' + FONT_BODY;
+        content = Math.max(22 + 6 + 15 + 2, (pts ? ctx.measureText(pts).width : 0) + 2);
+      }
       return Math.min(max, content);
     }
 
@@ -1968,7 +1972,11 @@
       var r = small ? 8 : 11;
       var iconS = small ? 13 : 15;
       var namePx = small ? 13 : 14;
-      var ptsPx = 13;
+      var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
+      // On a phone your points sit under your wind and avatar, smaller, to
+      // leave your row for your melds.
+      var ptsUnder = seat === 0 && !L.desktop && !!pts;
+      var ptsPx = ptsUnder ? PHONE_POINTS_PX : 13;
       windBadge(seat, x + r, y + r, r);
       if (seat === 0) {
         addRegion(x, y, 2 * r, 2 * r, copySeed, 'my-wind', true);
@@ -1989,7 +1997,6 @@
           ctx.restore();
         }
       }
-      var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
       ctx.font = 'bold ' + ptsPx + 'px ' + FONT_BODY;
       var ptsW = pts ? ctx.measureText(pts).width : 0;
       var scoreGap = SCORE_GAP;
@@ -2004,12 +2011,9 @@
       }
       playerIcon(seat, iconX, y + r, iconS);
       var scoreX = iconX + iconS + scoreGap;
-      // On a phone your points sit under your wind and avatar, to leave your
-      // row for your melds.
-      var ptsUnder = seat === 0 && !L.desktop && !!pts;
       if (ptsUnder) {
         var rowMid = (x + iconX + iconS) / 2;
-        text(pts, Math.min(rowMid, iconX + iconS - ptsW / 2), y + 2 * r + 9, { size: ptsPx, weight: 'bold', align: 'center', color: COLORS.goldLight });
+        text(pts, Math.min(rowMid, iconX + iconS - ptsW / 2), y + 2 * r + POINTS_UNDER_GAP + ptsPx / 2, { size: ptsPx, weight: 'bold', align: 'center', color: COLORS.goldLight });
       } else if (pts) text(pts, scoreX, y + r + 1, { size: ptsPx, weight: 'bold', color: COLORS.goldLight });
       var mark = { iconX: iconX, iconRight: iconX + iconS, scoreX: scoreX, y: y + r, hasScore: !!pts };
       ui.headerMark[seat] = mark;
@@ -2359,9 +2363,15 @@
       var headW = seatHeaderWidth(0, clamp(L.meW * 0.3, 130, 240));
       var infoW = headW;
       if (ui.revealHands && seeResultsHome() === 'name') infoW = seeResultsUnder() ? Math.max(headW, SEE_RESULTS_W) : headW + 6 + SEE_RESULTS_W;
-      ui.youHeader = { x: rightEdge - pad - 8 - headW, y: y + 4, w: headW, right: rightEdge - pad - 8 };
+      // On a phone your wind, avatar and points are centered on your exposed tiles.
+      var headY = y + 4;
+      if (!L.desktop) {
+        var stackH = 22 + (settings.mode === 'payout' ? POINTS_UNDER_GAP + PHONE_POINTS_PX : 0);
+        headY = y + (L.mw * TILE_ASPECT - stackH) / 2;
+      }
+      ui.youHeader = { x: rightEdge - pad - 8 - headW, y: headY, w: headW, right: rightEdge - pad - 8 };
       // Your name steps aside while action buttons need its spot.
-      if (!ui.buttonsOverName) drawSeatHeader(0, ui.youHeader.x, y + 4, headW);
+      if (!ui.buttonsOverName) drawSeatHeader(0, ui.youHeader.x, headY, headW);
       var items = meldItems(0);
       var mx = left + pad + 8 + 5; // inside your box, toward the center of your row
       // Same size as the hand; only shrinks if the row would run out of room.
