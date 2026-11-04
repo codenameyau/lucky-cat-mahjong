@@ -1908,8 +1908,10 @@
       var human = game.players[seat].isHuman;
       var ink = COLORS.feltDark;
       ctx.save();
-      ctx.fillStyle = COLORS.cream;
-      ctx.strokeStyle = COLORS.cream;
+      // On a phone, the avatar of the player whose turn it is turns gold.
+      var color = !L.desktop && ui.turnSeat === seat ? COLORS.gold : COLORS.cream;
+      ctx.fillStyle = color;
+      ctx.strokeStyle = color;
       ctx.lineWidth = Math.max(1, s * 0.09);
       ctx.lineCap = 'round';
       if (human) {
