@@ -315,8 +315,9 @@
     },
     // Your turn: a light knock on the table.
     turn: { clips: ['turn'], gain: 0.3 },
-    // Your win: impactMining_000 (the pung's hit), louder and struck again
-    // lower, then the pot's chips. Bigger than a pung, same kind of hit.
+    // A win, whoever takes it, including a self-draw: impactMining_000 (the
+    // pung's hit), louder and struck again lower, then the pot's chips.
+    // Bigger than a pung, same kind of hit.
     win: {
       clips: ['impact-pung'], gain: 1,
       then: [['impact-pung', 0.18, 0.8, 0.78], ['tile-claim-2', 0.08, 0.7], ['tile-kong', 0.2, 0.6]],
@@ -325,12 +326,12 @@
     otherwin: { clips: ['other-win'], gain: 0.55, then: [['tile-claim-1', 0.04, 0.45]] },
     // You paid for the win: poker chips, a few pushed across.
     lose: { clips: ['tile-claim-1'], gain: 0.8, then: [['tile-kong', 0.08, 0.7], ['tile-claim-1', 0.16, 0.6]] },
-    // The wall ran out: a wooden plank set down, and the chips stirred.
-    drawgame: { clips: ['draw-game'], gain: 0.55, then: [['tile-draw', 0.05, 0.4]] },
+    // The wall ran out: the bell (impactBell_heavy_000), the whole ring.
+    drawgame: { clips: ['gong'], gain: 0.7 },
     // Show hands: impactMining_003, the whole clip, untrimmed.
     flip: { clips: ['tiles-reveal'], gain: 0.9 },
-    // Next hand: a gong (impactBell_heavy_000), the whole ring.
-    next: { clips: ['gong'], gain: 0.7 },
+    // Next hand: the same mining hit as a win (impactMining_000).
+    next: { clips: ['impact-pung'], gain: 1 },
   };
 
   // Background music: CC BY 4.0 tracks by Kevin MacLeod (incompetech.com),
@@ -3224,7 +3225,7 @@
       requestRender();
     }
 
-    // Leaves the summary for the next deal, with a gong.
+    // Leaves the summary for the next deal, with the mining hit.
     function nextHand() {
       sound.play('next');
       closeOverlay();
@@ -3745,12 +3746,11 @@
         if (res.how === 'flowers') label = 'Flower win!';
         var mine = res.winner === 0;
         banner(label, cx, cy, { size: 34, dur: 1700, color: mine ? COLORS.gold : COLORS.red, textColor: mine ? COLORS.ink : COLORS.white, sub: (mine ? 'You' : game.players[res.winner].name) + ' · ' + res.score.faan + ' faan' });
+        sound.play('win');
         if (mine) {
-          sound.play('win');
           confetti(cx, cy, 140, false);
           confetti(cx, cy, 50, true);
         } else {
-          sound.play(res.payer === 0 ? 'lose' : 'otherwin');
           confetti(cx, cy, 40, true);
         }
         announce((mine ? 'You win' : game.players[res.winner].name + ' wins') + ' with ' + res.score.faan + ' faan.');
