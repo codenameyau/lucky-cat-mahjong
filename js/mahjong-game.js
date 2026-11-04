@@ -921,7 +921,7 @@
       // On a phone each opponent's tiles are one row (drawOpponent), so the
       // seats are only one tile deep and the discards get the room.
       // (On a phone opponents show only their points, in payout games.)
-      var phoneHead = settings.mode === 'payout' ? 14 : 4; // a computer's points on a phone
+      var phoneHead = 4; // a phone shows no name or points on the computers' seats
       var sideW, topPanelH, sideHead, topHead;
       var sideRun = 0;
       if (desktop) {
@@ -970,7 +970,7 @@
       // keep the name along the bottom, where the seat is only one tile deep.
       opp[2].head = desktop
         ? { x: opp[2].x, y: opp[2].y, w: opp[2].w, h: 0 }
-        : { x: opp[2].x, y: opp[2].y + opp[2].h - topHead - 1, w: opp[2].w, h: topHead };
+        : { x: opp[2].x, y: opp[2].y + opp[2].h - topHead, w: opp[2].w, h: topHead };
       opp[2].tiles = desktop
         ? { x: opp[2].x + 3, y: opp[2].y + 3, w: opp[2].w - 6, h: opp[2].h - 6 }
         : { x: opp[2].x + 3, y: opp[2].y + 3, w: opp[2].w - 6, h: opp[2].h - topHead - 3 };
@@ -1902,8 +1902,7 @@
     // with paths so it doesn't depend on any emoji font.
     var ICON_GAP = 5;
     var SCORE_GAP = 6; // between the avatar and the score
-    var PHONE_POINTS_PX = 11; // everyone's points on a phone
-    var POINTS_UNDER_GAP = 2; // your points under your avatar on a phone
+    var PHONE_POINTS_PX = 11, PHONE_POINTS_W = 34; // your points beside your hand on a phone
     var SEE_RESULTS_W = 120; // See results, in the coach bar above your avatar
     function playerIcon(seat, x, cy, s) {
       var human = game.players[seat].isHuman;
@@ -1961,11 +1960,8 @@
       var nameW = namesShown() ? ctx.measureText(seatTitle(seat)).width : 0;
       // Badge, name, icon, then the score beside the icon.
       var content = 22 + 6 + nameW + (namesShown() ? ICON_GAP : 0) + 15 + (pts ? SCORE_GAP + ptsW : 0) + 2;
-      // (On a phone your points sit under the row instead.)
-      if (seat === 0 && !L.desktop) {
-        ctx.font = 'bold ' + PHONE_POINTS_PX + 'px ' + FONT_BODY;
-        content = Math.max(22 + 6 + 15 + 2, (pts ? ctx.measureText(pts).width : 0) + 2);
-      }
+      // (On a phone your points sit by your hand instead.)
+      if (seat === 0 && !L.desktop) content = 22 + 6 + 15 + 2;
       return Math.min(max, content);
     }
 
@@ -1973,11 +1969,9 @@
       var r = small ? 8 : 11;
       var iconS = small ? 13 : 15;
       var namePx = small ? 13 : 14;
-      var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
-      // On a phone your points sit under your wind and avatar, smaller, to
-      // leave your row for your melds.
-      var ptsUnder = seat === 0 && !L.desktop && !!pts;
-      var ptsPx = ptsUnder ? PHONE_POINTS_PX : 13;
+      // (On a phone your points sit at the bottom right of your hand instead.)
+      var pts = settings.mode === 'payout' && L.desktop ? fmt(game.players[seat].points) : '';
+      var ptsPx = 13;
       windBadge(seat, x + r, y + r, r);
       if (seat === 0) {
         addRegion(x, y, 2 * r, 2 * r, copySeed, 'my-wind', true);
@@ -2012,13 +2006,10 @@
       }
       playerIcon(seat, iconX, y + r, iconS);
       var scoreX = iconX + iconS + scoreGap;
-      if (ptsUnder) {
-        var rowMid = (x + iconX + iconS) / 2;
-        text(pts, Math.min(rowMid, iconX + iconS - ptsW / 2), y + 2 * r + POINTS_UNDER_GAP + ptsPx / 2, { size: ptsPx, weight: 'bold', align: 'center', color: COLORS.goldLight });
-      } else if (pts) text(pts, scoreX, y + r + 1, { size: ptsPx, weight: 'bold', color: COLORS.goldLight });
+      if (pts) text(pts, scoreX, y + r + 1, { size: ptsPx, weight: 'bold', color: COLORS.goldLight });
       var mark = { iconX: iconX, iconRight: iconX + iconS, scoreX: scoreX, y: y + r, hasScore: !!pts };
       ui.headerMark[seat] = mark;
-      if (seat === 0) ui.youIcon = { x: iconX, y: y + r, s: iconS, rowRight: pts && !ptsUnder ? scoreX + ptsW : scoreX };
+      if (seat === 0) ui.youIcon = { x: iconX, y: y + r, s: iconS, rowRight: pts ? scoreX + ptsW : scoreX };
       else if (!settings.lesson) seatSpots.push({ seat: seat, x0: x, y0: y, x1: pts ? scoreX + ptsW : iconX + iconS, y1: y + 2 * r });
     }
 
@@ -2074,12 +2065,8 @@
     }
 
     function drawOppHeader(seat, r) {
-      // A phone shows only a computer's points: no name, wind or robot.
-      if (!namesShown()) {
-        var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
-        if (pts) text(pts, r.x + r.w / 2, r.y + r.h / 2 + 1, { size: PHONE_POINTS_PX, weight: 'bold', align: 'center', color: COLORS.goldLight });
-        return;
-      }
+      // A phone shows no name, wind, robot or points for a computer.
+      if (!namesShown()) return;
       // Name, icon, then the score on one line, even when the seat is narrow.
       var row = 16;
       drawSeatHeader(seat, r.x + 6, r.y + Math.max(1, (r.h - row) / 2), Math.max(40, r.w - 12), true);
@@ -2321,7 +2308,8 @@
     // rest below. A fresh draw sits at the end, in line with the others.
     function handLeft(count) {
       var total = count > 0 ? count * L.tw + (count - 1) * L.handGap : 0;
-      var span = L.meW;
+      // On a phone in a full game, the hand leaves room for your points.
+      var span = L.meW - (!L.desktop && settings.mode === 'payout' ? PHONE_POINTS_W : 0);
       if (total >= span - 2 * L.pad) return L.meX + L.pad;
       return L.meX + Math.max(L.pad, (span - total) / 2);
     }
@@ -2364,12 +2352,8 @@
       var headW = seatHeaderWidth(0, clamp(L.meW * 0.3, 130, 240));
       var infoW = headW;
       if (ui.revealHands && seeResultsHome() === 'name') infoW = seeResultsUnder() ? Math.max(headW, SEE_RESULTS_W) : headW + 6 + SEE_RESULTS_W;
-      // On a phone your wind, avatar and points are centered on your exposed tiles.
-      var headY = y + 4;
-      if (!L.desktop) {
-        var stackH = 22 + (settings.mode === 'payout' ? POINTS_UNDER_GAP + PHONE_POINTS_PX : 0);
-        headY = y + (L.mw * TILE_ASPECT - stackH) / 2;
-      }
+      // On a phone your wind and avatar are centered on your exposed tiles.
+      var headY = L.desktop ? y + 4 : y + (L.mw * TILE_ASPECT - 22) / 2;
       ui.youHeader = { x: rightEdge - pad - 8 - headW, y: headY, w: headW, right: rightEdge - pad - 8 };
       // Your name steps aside while action buttons need its spot.
       if (!ui.buttonsOverName) drawSeatHeader(0, ui.youHeader.x, headY, headW);
@@ -2484,6 +2468,9 @@
             addRegion(rect.x, rect.y, rect.w, rect.h + lift, function () { tapHandTile(idx); }, 'hand-' + idx);
           })(i);
         }
+      }
+      if (!L.desktop && settings.mode === 'payout') {
+        text(fmt(game.players[0].points), L.meBox.x + L.meBox.w - 6, L.handY + L.th - PHONE_POINTS_PX / 2, { size: PHONE_POINTS_PX, weight: 'bold', align: 'right', color: COLORS.goldLight });
       }
     }
 
