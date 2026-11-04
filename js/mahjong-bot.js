@@ -385,10 +385,12 @@
   // suit; otherwise one suit holding 7 or more of the hand's tiles, more than
   // any other suit (sets already made count). Tiles of the other two suits
   // are then thrown first. Not while the hand is going for Concealed
-  // Straights (it drops honors instead) or a hand in MIXED_PLANS.
+  // Straights (it drops honors instead), a hand in MIXED_PLANS, or a strategy's
+  // own hand of 1s, 9s and honors (ctx.mixedHand).
   function suitCommitment(ctx, counts) {
     var chow = chowCommitment(ctx);
     if (chow) return chow;
+    if (ctx.mixedHand) return null;
     var lead = ctx.leadPlan;
     if (lead && (lead.id === 'straights' || MIXED_PLANS.indexOf(lead.id) !== -1)) return null;
     var other = Object.keys(ctx.meldSuits).filter(function (k) { return k !== 'z'; });
@@ -893,10 +895,13 @@
     };
   }
 
-  // The upgrades this hand could still make, as plans.
-  function upgradePlans(c, ctx) {
+  // Mixed Orphans, All Terminals and All Honors as triplets. As a bigger hand
+  // from the same tiles, each needs eight of its tiles and two pairs already;
+  // with `any`, a strategy that sets out for them gets them from any hand.
+  function setUpgrades(c, ctx, any) {
     var base = baseFaan(ctx) + (ctx.concealed ? 1 : 0);
     var plans = [];
+    if (ctx.hasChow) return plans;
     var meldsFit = function (fits) {
       return ctx.melds.every(function (m) { return m.type !== 'chow' && fits(E.tileIndex(m.tiles[0])); });
     };
@@ -906,6 +911,9 @@
       for (var i = 0; i < 34; i++) if (fits(i) && c[i] >= 2) n++;
       return n;
     };
+    var fitsHand = function (fits) {
+      return meldsFit(fits) && (any || (tilesOf(c, ctx, fits) >= 8 && pairsOf(fits) >= 2));
+    };
     var setsPlan = function (id, label, fits, faan, reason, hint) {
       var kept = liveOnly(c, ctx, fits);
       plans.push({
@@ -913,24 +921,27 @@
         faan: Math.min(LIMIT, faan(kept)), open: true, keep: fits, favors: fits, reason: reason, hint: hint, upgrade: true,
       });
     };
-    if (!ctx.hasChow) {
-      // (With no honors it's All Terminals; with no terminals, All Honors.)
-      var both = tilesOf(c, ctx, isHonor) > 0 && tilesOf(c, ctx, isTerminal) > 0;
-      if (meldsFit(orphan) && tilesOf(c, ctx, orphan) >= 8 && pairsOf(orphan) >= 2) {
-        if (both) {
-          setsPlan('mixed-orphans', 'Mixed Orphans', orphan, function (k) { return base + 3 + 1 + handYaku(ctx, k); },
-            'Mixed Orphans uses only 1s, 9s and honors.', 'keep your 1s, 9s and honors');
-        }
-      }
-      if (meldsFit(isTerminal) && tilesOf(c, ctx, isTerminal) >= 8 && pairsOf(isTerminal) >= 2) {
-        setsPlan('all-terminals', 'All Terminals', isTerminal, function () { return LIMIT; },
-          'All Terminals uses only 1s and 9s.', 'keep your 1s and 9s');
-      }
-      if (meldsFit(isHonor) && tilesOf(c, ctx, isHonor) >= 8 && pairsOf(isHonor) >= 2) {
-        setsPlan('all-honors', 'All Honors', isHonor, function (k) { return base + 10 + handYaku(ctx, k); },
-          'All Honors uses only honors.', 'keep your honors');
-      }
+    // (With no honors it's All Terminals; with no terminals, All Honors.)
+    var both = tilesOf(c, ctx, isHonor) > 0 && tilesOf(c, ctx, isTerminal) > 0;
+    if (fitsHand(orphan) && both) {
+      setsPlan('mixed-orphans', 'Mixed Orphans', orphan, function (k) { return base + 3 + 1 + handYaku(ctx, k); },
+        'Mixed Orphans uses only 1s, 9s and honors.', 'keep your 1s, 9s and honors');
     }
+    if (fitsHand(isTerminal)) {
+      setsPlan('all-terminals', 'All Terminals', isTerminal, function () { return LIMIT; },
+        'All Terminals uses only 1s and 9s.', 'keep your 1s and 9s');
+    }
+    if (fitsHand(isHonor)) {
+      setsPlan('all-honors', 'All Honors', isHonor, function (k) { return base + 10 + handYaku(ctx, k); },
+        'All Honors uses only honors.', 'keep your honors');
+    }
+    return plans;
+  }
+
+  // The upgrades this hand could still make, as plans.
+  function upgradePlans(c, ctx) {
+    var base = baseFaan(ctx) + (ctx.concealed ? 1 : 0);
+    var plans = setUpgrades(c, ctx);
     // Three Dragons and Four Winds: sets of those honors, the rest anything.
     var groupPlan = function (id, label, group, pungs, pair, faan, hint) {
       var fn = groupShanten(ctx, group, pungs, pair);
@@ -963,8 +974,9 @@
   }
 
   // Seven Pairs of terminals and honors: Mixed Orphans on top of the pairs,
-  // or a limit hand in honors alone or terminals alone.
-  function pairsUpgrades(c, ctx) {
+  // or a limit hand in honors alone or terminals alone. As with setUpgrades,
+  // `any` drops what they need in hand already.
+  function pairsUpgrades(c, ctx, any) {
     if (ctx.declared) return [];
     var out = [];
     var pairs = function (fits) {
@@ -973,7 +985,7 @@
       return n;
     };
     var add = function (id, label, fits, faan, reason, hint) {
-      if (countWhere(c, fits) < 8 || pairs(fits) < 3) return;
+      if (!any && (countWhere(c, fits) < 8 || pairs(fits) < 3)) return;
       out.push({
         id: id, label: label, counts: restrict(c, fits), shantenFn: filled(E.sevenPairsShanten),
         faan: Math.min(LIMIT, faan), open: false, keep: fits, favors: fits, reason: reason, hint: hint, upgrade: true, pairs: true,
@@ -1154,8 +1166,9 @@
     plans.forEach(function (p) {
       var s = p.shantenFn(p.counts, ctx.declared);
       if (s === Infinity) return;
-      // Too few draws left to fill an upgrade: it isn't a plan any more.
-      if (p.upgrade && ctx.drawsLeft < 2 * s) return;
+      // Too few draws left to fill an upgrade: it isn't a plan any more
+      // (unless it's the only kind of hand a strategy plays: plan.committed).
+      if (p.upgrade && !p.committed && ctx.drawsLeft < 2 * s) return;
       var pc = p.counts.slice();
       var u = ukeire(pc, p.shantenFn, ctx.declared, ctx.unseen, s);
       var chance = H.finishChance ? H.finishChance(ctx, s, u, p, pc) : finishChance(ctx, s, u.total, p.open);
@@ -1475,6 +1488,7 @@
     // leaves the hand ready: then the usual order decides.
     var isLone = function (x) { return x.shanten > 0 && loneDragon(game, c, x.index); };
     out = out.filter(function (x) { return !isLone(x); }).concat(out.filter(isLone));
+    if (H.finalOrder) out = H.finalOrder(out, ctx, c);
     return { ctx: ctx, candidates: out, threats: threats, defense: weight, folding: folding };
   }
 
@@ -1489,6 +1503,7 @@
     var ctx = analysis.ctx;
     for (var k = 0; k < opts.kongs.length; k++) {
       var kong = opts.kongs[k];
+      if (H.kongOk && !H.kongOk(kong, ctx)) continue;
       var i = E.tileIndex(kong.tile);
       var c = E.countsOf(game.hand.seats[seat].hand);
       var util;
@@ -1650,6 +1665,10 @@
    *      waitChance(chance, game, threat, i) -> chance
    *      extraLoss(game, threats, i) -> loss  e.g. feeding a claim
    *      defense(weight, ctx, threats, shanten, readyFaan) -> weight
+   *      kongOk(kong, ctx) -> bool       whether the hand can use this kong
+   *      finalOrder(candidates, ctx, counts) -> candidates
+   *                                      the last word on the discard order,
+   *                                      ahead of every shared rule
    *      chowOk(option, found, ctx, game) -> bool
    *                                      whether a chow that chowAllowed
    *                                      passes is worth taking
@@ -1726,6 +1745,7 @@
     chowCommitment: chowCommitment,
     cheapWin: cheapWin,
     upgradePlans: upgradePlans,
+    setUpgrades: setUpgrades,
     pairsUpgrades: pairsUpgrades,
     liveUpgrade: liveUpgrade,
     upgradeOrder: upgradeOrder,

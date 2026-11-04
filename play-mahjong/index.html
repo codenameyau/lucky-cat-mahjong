@@ -46,6 +46,11 @@
       } catch (e) {}
       root.classList.add('play-mode-' + mode);
       if (hasSave) root.classList.add('play-has-save');
+      if (hasSave && save.payload.game.settings && save.payload.game.settings.mode !== mode &&
+          window.matchMedia && matchMedia('(max-width: 600px), (pointer: coarse) and (max-height: 599px)').matches) {
+        root.classList.add('play-new-first');
+      }
+      if (hasSave && /[?&]opened=1(&|$)/.test(location.search)) root.classList.add('play-reopening');
     })();
   </script>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-B514HH987M"></script>
@@ -133,7 +138,9 @@
           if (learn) learn.hidden = hasSave;
           if (start) start.textContent = hasSave ? 'Start new game' : 'Start game';
           var seen = false;
-          [resume, start, learn].forEach(function (btn) {
+          var startFirst = document.documentElement.classList.contains('play-new-first');
+          if (startFirst && start && resume) start.parentNode.insertBefore(start, resume);
+          (startFirst ? [start, resume, learn] : [resume, start, learn]).forEach(function (btn) {
             if (!btn) return;
             var primary = !seen && !btn.hidden;
             if (!btn.hidden) seen = true;
@@ -180,10 +187,10 @@
     <dialog id="strategies-sheet" class="rules-sheet strategies-sheet" aria-labelledby="strategies-sheet-title">
       <div class="rules-sheet-inner">
         <header class="rules-sheet-head">
-          <h2 id="strategies-sheet-title">Strategies</h2>
+          <h2 id="strategies-sheet-title">Strategies <span class="strategies-beta">Beta</span></h2>
           <button type="button" class="rules-sheet-close" aria-label="Close the strategies">Close</button>
         </header>
-        <p class="rules-sheet-intro">Your choices are saved.</p>
+        <p class="rules-sheet-intro">Assign a strategy to the coach or to any of the computer players. Your choices are saved.</p>
         <div id="strategies-sheet-body" class="rules-sheet-body"></div>
       </div>
     </dialog>
@@ -209,6 +216,8 @@
   <script src="/js/mahjong-bot.js" defer></script>
   <script src="/js/mahjong-lucky-cat.js" defer></script>
   <script src="/js/mahjong-jorge-yau.js" defer></script>
+  <script src="/js/mahjong-only-orphans.js" defer></script>
+  <script src="/js/mahjong-dishonor.js" defer></script>
   <script src="/js/mahjong-strategies.js" defer></script>
   <script src="/js/mahjong-coach.js" defer></script>
   <script src="/js/mahjong-lesson.js" defer></script>

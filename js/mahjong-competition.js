@@ -20,6 +20,7 @@
 
   var START = 1e9; // nobody busts, so every deal is played in full
   var LIMIT = 13;
+  var FAST_TURN = 10;
 
   function emptyStats() {
     return {
@@ -40,6 +41,8 @@
       limitWins: 0,      // wins of 13 faan
       concealedWins: 0,  // wins with no claimed meld
       winTurns: 0,       // own discards before the win, summed
+      fastWins: 0,       // wins within FAST_TURN of the seat's own discards
+      pointsSquared: 0,  // of each hand's net, for how sure the average is
       chows: 0,
       pungs: 0,
       kongs: 0,
@@ -100,6 +103,7 @@
       var mine = res.deltas[seat];
       st.hands++;
       st.points += mine;
+      st.pointsSquared += mine * mine;
       st.chows += counts[seat].chows;
       st.pungs += counts[seat].pungs;
       st.kongs += counts[seat].kongs;
@@ -118,6 +122,7 @@
         else if (res.how === 'flowers') st.flowerWins++;
         if (res.melds.every(function (m) { return m.concealed; })) st.concealedWins++;
         st.winTurns += game.hand.seats[seat].discards.length;
+        if (game.hand.seats[seat].discards.length <= FAST_TURN) st.fastWins++;
         (res.score.items || []).forEach(function (it) {
           st.patterns[it.name] = (st.patterns[it.name] || 0) + 1;
         });
@@ -188,9 +193,15 @@
   // Rates and averages for one strategy's totals.
   function summarize(st) {
     var per = function (n, d) { return d ? n / d : 0; };
+    var mean = per(st.points, st.hands);
     return {
       hands: st.hands,
-      pointsPerHand: per(st.points, st.hands),
+      pointsPerHand: mean,
+      // How far the average could be from luck alone (95%, treating hands as independent).
+      pointsMargin: st.hands ? 1.96 * Math.sqrt(Math.max(0, per(st.pointsSquared, st.hands) - mean * mean) / st.hands) : 0,
+      winMargin: st.hands ? 1.96 * Math.sqrt(per(st.wins, st.hands) * (1 - per(st.wins, st.hands)) / st.hands) : 0,
+      fastWinRate: per(st.fastWins, st.hands),
+      dealInsPerWin: per(st.dealIns, st.wins),
       winRate: per(st.wins, st.hands),
       selfDrawRate: per(st.selfDraws, st.hands),
       selfDrawShare: per(st.selfDraws, st.wins),
@@ -218,15 +229,17 @@
   function formatReport(report) {
     var ids = Object.keys(report.strategies);
     var rows = [
-      ['Points per hand', function (s, t) { return num(t.pointsPerHand); }],
+      ['Points per hand', function (s, t) { return num(t.pointsPerHand) + ' (+/- ' + num(t.pointsMargin) + ')'; }],
       ['Net points', function (s) { return Math.round(s.points).toLocaleString('en-US'); }],
-      ['Wins', function (s, t) { return s.wins + ' (' + pct(t.winRate) + ')'; }],
+      ['Wins', function (s, t) { return s.wins + ' (' + pct(t.winRate) + ' +/- ' + pct(t.winMargin) + ')'; }],
+      ['Wins by own turn ' + FAST_TURN, function (s, t) { return s.fastWins + ' (' + pct(t.fastWinRate) + ')'; }],
       ['Self-draws', function (s, t) { return s.selfDraws + ' (' + pct(t.selfDrawShare) + ' of wins)'; }],
       ['Wins off a discard', function (s) { return s.discardWins; }],
       ['Robbed kongs / flowers', function (s) { return s.robKongWins + ' / ' + s.flowerWins; }],
       ['Dealt in (gave the winning tile)', function (s, t) { return s.dealIns + ' (' + pct(t.dealInRate) + ')'; }],
       ['Points paid dealing in', function (s, t) { return Math.round(s.dealInPoints).toLocaleString('en-US') + ' (avg ' + num(t.avgDealInPoints, 0) + ')'; }],
       ['Points paid to self-draws', function (s) { return Math.round(s.selfDrawPaid).toLocaleString('en-US'); }],
+      ['Deal-ins per win', function (s, t) { return num(t.dealInsPerWin, 2); }],
       ['Average faan of a win', function (s, t) { return num(t.avgFaan, 2); }],
       ['Average points of a win', function (s, t) { return num(t.avgWinPoints, 0); }],
       ['Biggest win (faan)', function (s) { return s.maxFaan; }],

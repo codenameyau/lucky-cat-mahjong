@@ -13,6 +13,8 @@
   var node = typeof module !== 'undefined' && module.exports;
   var L = node ? require('./mahjong-lucky-cat.js') : root.MahjongLuckyCat;
   var J = node ? require('./mahjong-jorge-yau.js') : root.MahjongJorgeYau;
+  var O = node ? require('./mahjong-only-orphans.js') : root.MahjongOnlyOrphans;
+  var D = node ? require('./mahjong-dishonor.js') : root.MahjongDishonor;
 
   var STRATEGIES = [
     {
@@ -43,6 +45,32 @@
         'Each opponent gets a threat level from their melds and discards. A tile they\'d claim costs a little early and much more late, so it stops feeding them near the end. When someone looks close and the hand is slow, or the wall is nearly gone, safety decides the discard.',
       ],
       doc: 'docs/strategies/lucky-cat.md',
+    },
+    {
+      id: 'only-orphans',
+      name: 'Only Orphans',
+      bot: O,
+      summary: 'Goes for Thirteen Orphans every hand. When that has little chance left, it pivots to a hand of only 1s, 9s and honors.',
+      details: [
+        'It throws every tile that isn\'t a 1, a 9 or an honor first, and claims nothing. It stays on Thirteen Orphans for at least its first six discards, however far away the hand is.',
+        'It gives up when a tile it needs has run out, or when the chance of finishing falls under about 1 in 1,000.',
+        'Then it pivots to whichever has the best odds for what it pays: Mixed Orphans, Seven Pairs with Mixed Orphans, or All Terminals or All Honors, as triplets or as pairs. Triplets pung any tile they keep. Pairs claim nothing.',
+        'Only if none of those can be finished does it play the usual hands. It defends like the other bots, and when it folds, safety decides among the tiles it can spare.',
+      ],
+      doc: 'docs/strategies/only-orphans.md',
+    },
+    {
+      id: 'dishonor',
+      name: 'Dishonor',
+      bot: D,
+      summary: 'Throws every honor first. Goes for Concealed Straights and a self-draw, or locks into a Full Flush with 7 or more tiles of one suit.',
+      details: [
+        'Every honor goes first, dragons and pairs included, even while folding. The only exception is a discard that leaves the hand ready to win.',
+        'With no suit at 7 tiles, it plays Concealed Straights: runs only, nothing claimed, aiming to win on a self-draw. It takes a win off a discard when the hand has the faan for it.',
+        'Once one suit has 7 or more tiles, on the opening hand or later, it locks into a Full Flush in that suit. Other suits go next, right after the honors, and it starts chowing and punging in that suit whenever that brings it closer to ready.',
+        'Apart from those orders, it defends like the other bots.',
+      ],
+      doc: 'docs/strategies/dishonor.md',
     },
   ];
 

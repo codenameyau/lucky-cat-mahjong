@@ -11,7 +11,7 @@
 .play-card,
 .play-rules {
   background: var(--color-surface);
-  border-radius: 20px;
+  border-radius: 10px;
   box-shadow: var(--shadow-lg);
   padding: 2rem;
 }
@@ -90,7 +90,7 @@
   display: block;
   height: 100%;
   border: 2px solid rgba(0, 0, 0, 0.1);
-  border-radius: var(--radius);
+  border-radius: calc(var(--radius) / 2);
   padding: 0.7rem 0.85rem;
 }
 
@@ -165,9 +165,14 @@ html.play-settled .play-actions .btn {
   transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
 }
 
+/* On mobile these two swap colors when the game mode changes: no fade between them. */
+@media (max-width: 600px), (pointer: coarse) and (max-height: 599px) {
+  html.play-settled .play-actions .btn { transition: none; }
+}
+
 /* Start is marked primary in the markup. A stored game paints Resume red
    and this button white before that class is rewritten. */
-html.play-has-save:not(.play-settled) #play-start {
+html.play-has-save:not(.play-settled):not(.play-new-first) #play-start {
   background: #fff;
   color: var(--color-text);
   border-color: rgba(0, 0, 0, 0.12);
@@ -175,13 +180,13 @@ html.play-has-save:not(.play-settled) #play-start {
   filter: none;
 }
 
-html.play-has-save:not(.play-settled) #play-start:hover {
+html.play-has-save:not(.play-settled):not(.play-new-first) #play-start:hover {
   background: #f6f1ea;
   color: var(--color-text);
   filter: none;
 }
 
-html.play-has-save:not(.play-settled) #play-resume {
+html.play-has-save:not(.play-settled):not(.play-new-first) #play-resume {
   background: var(--color-primary);
   color: #fff;
   border-color: transparent;
@@ -245,6 +250,17 @@ html.play-has-save:not(.play-settled) #play-resume {
 
 .play-canvas:focus { outline: none; }
 
+/* Refreshing the game: hide the page until the table opens. The animation
+   shows it anyway if the game's script never gets there. */
+html.play-reopening body {
+  visibility: hidden;
+  animation: play-reopen-reveal 0s 3s forwards;
+}
+
+@keyframes play-reopen-reveal {
+  to { visibility: visible; }
+}
+
 html.is-playing,
 html.is-playing body {
   overflow: hidden;
@@ -268,7 +284,7 @@ html.is-playing.is-sideways body {
   max-height: calc(100vh - 32px);
   padding: 0;
   border: 2px solid #F4A020;
-  border-radius: 16px;
+  border-radius: 8px;
   background: radial-gradient(circle at 50% 35%, #127048, #074029 75%);
   color: #FFF8F0;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
@@ -346,7 +362,7 @@ html.is-playing.is-sideways body {
 .rules-family {
   padding: 6px 12px 4px;
   border-top: 3px solid #C41E3A;
-  border-radius: 10px;
+  border-radius: 5px;
   background: rgba(0, 0, 0, 0.26);
 }
 
@@ -403,7 +419,7 @@ html.is-playing.is-sideways body {
   color: #1A1A1A;
 }
 
-.rules-row--example { cursor: pointer; border-radius: 6px; }
+.rules-row--example { cursor: pointer; border-radius: 3px; }
 .rules-row--example:focus { outline: none; }
 .rules-row--example:focus-visible {
   outline: 2px solid #ffd27a;
@@ -419,7 +435,7 @@ html.is-playing.is-sideways body {
   max-width: min(560px, calc(100% - 16px));
   padding: 10px 12px;
   border: 2px solid #C41E3A;
-  border-radius: 12px;
+  border-radius: 6px;
   background: #0a3d27;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   cursor: pointer;
@@ -485,6 +501,8 @@ html.is-playing.is-sideways body {
 @media (max-width: 600px) {
   .rules-families,
   .rules-families--flat .rules-family { grid-template-columns: 1fr; }
+
+  .rules-example { max-width: calc(100% - 26px); }
 }
 
 @media (max-width: 600px), (pointer: coarse) and (max-height: 599px) {
@@ -497,6 +515,21 @@ html.is-playing.is-sideways body {
 
 /* Strategies sheet: the same look as the rules sheet. */
 .strategies-sheet { width: min(1000px, calc(100vw - 32px)); }
+
+.strategies-beta {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #C41E3A;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
 
 .strategies-assign {
   display: grid;
@@ -529,6 +562,31 @@ html.is-playing.is-sideways body {
   font-size: 0.86rem;
 }
 
+/* What a computer is playing this game: at the right of its row on a phone, under its name on desktop. */
+.strategies-assign-playing {
+  font-size: 0.78rem;
+  font-weight: normal;
+  color: rgba(255, 248, 240, 0.62);
+}
+
+@media (min-width: 601px) {
+  .strategies-assign-playing { display: block; }
+}
+
+@media (max-width: 600px) {
+  .strategies-assign-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .strategies-assign-playing {
+    flex: none;
+    text-align: right;
+  }
+}
+
 .strategies-select {
   width: 100%;
   padding: 5px 8px;
@@ -540,10 +598,53 @@ html.is-playing.is-sideways body {
   font-size: 0.86rem;
 }
 
+.strategies-about-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.strategies-details-toggle {
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: bold;
+  color: #ffd27a;
+}
+
+/* A caret: down to expand, up to collapse. */
+.strategies-details-toggle::after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.strategies-details-toggle[aria-expanded="true"]::after {
+  transform: translateY(1px) rotate(-135deg);
+}
+
+.strategies-details-toggle:focus-visible {
+  outline: 2px solid #ffd27a;
+  outline-offset: 2px;
+}
+
 .strategies-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 10px;
+}
+
+@media (min-width: 601px) {
+  .strategies-cards { grid-template-columns: 1fr 1fr; }
 }
 
 .strategies-card { padding: 8px 12px 10px; }
@@ -585,12 +686,9 @@ html.is-playing.is-sideways body {
   line-height: 1.35;
 }
 
-.strategies-card-more summary {
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: bold;
-  color: #ffd27a;
-}
+.strategies-card-more { display: none; }
+
+.strategies-cards.is-showing-details .strategies-card-more { display: block; }
 
 .strategies-card-more p {
   margin: 6px 0 0;

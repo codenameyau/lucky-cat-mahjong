@@ -7,6 +7,8 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 | (shared foundation) | | `js/mahjong-bot.js` | the rules below |
 | `lucky-cat` | Lucky Cat | `js/mahjong-lucky-cat.js` | [lucky-cat.md](lucky-cat.md) |
 | `jorge-yau` | Jorge Yau | `js/mahjong-jorge-yau.js` | [jorge-yau.md](jorge-yau.md) |
+| `only-orphans` | Only Orphans | `js/mahjong-only-orphans.js` | [only-orphans.md](only-orphans.md) |
+| `dishonor` | Dishonor | `js/mahjong-dishonor.js` | [dishonor.md](dishonor.md) |
 
 Before version 0.6.0 the two ids were the other way round; saved choices and save files from then are converted when they're read.
 
@@ -16,7 +18,7 @@ Before version 0.6.0 the two ids were the other way round; saved choices and sav
 - A bot seat with nothing saved plays a random strategy, picked again each game. "Random each game" in the sheet clears the saved pick.
 - The coach (tips and feedback) defaults to `lucky-cat` ("Coach Lucky Cat").
 - A change takes effect on the bot's next move, in the game you're playing.
-- The table shows only each player's name; which strategy each bot plays is on the Strategies sheet.
+- The table shows only each player's name. Which strategy each bot plays is on the Strategies sheet, and on desktop in a tooltip when you hover over their name.
 
 ## Adding a strategy
 
@@ -44,7 +46,7 @@ var bot = MahjongBot.createStrategy({
     priority: function (game, ctx, counts, candidate, bestShanten) { /* discard group after the shared rules, lower first; null = the shared order */ },
     chowOk: function (option, found, ctx, game) { /* whether a chow the shared rule allows is worth it */ },
     claim: function (found, ctx, game, seat, opts) { /* { type: 'pass' | 'pung' | 'kong' | 'chow', ... }; null = the shared claims */ },
-    // also: readyValue, threats, waitChance, extraLoss, defense
+    // also: finishChance, finalOrder, kongOk, readyValue, threats, waitChance, extraLoss, defense
   },
   tuning: { defenseScale: 1.5 },
 });
@@ -118,3 +120,28 @@ It reports, for each strategy:
 - **Net points against** each other strategy, the patterns most common in its wins, and, for jorge-yau, how often it opened on each target.
 
 Points per hand are noisy: one limit hand on a self-draw moves 24,576 points. At 1,000 deals (4,000 hands) a difference under about 15 points per hand is within the noise. Win and deal-in rates settle much sooner. The library is `js/mahjong-competition.js` (`runMatch`, `mergeReports`, `formatReport`) if you want to script your own comparisons.
+
+## Results with all four strategies
+
+At version 0.19.0, one of each strategy sat at the table for 24,000 hands: 1,000 deals in each of the 6 seating orders, each deal played once per seat rotation. 49.7% of hands had no winner.
+
+| | only-orphans | jorge-yau | lucky-cat | dishonor |
+| --- | ---: | ---: | ---: | ---: |
+| Points per hand | 41.3 (± 17.0) | 29.7 (± 15.4) | -26.9 (± 11.6) | -44.0 (± 10.0) |
+| Wins | 1.7% | 10.6% | 22.4% | 15.6% |
+| Wins by own turn 10 | 0.1% | 1.9% | 4.0% | 2.7% |
+| Share of wins by self-draw | 25.4% | 41.0% | 48.3% | 53.8% |
+| Dealt in | 5.2% | 7.3% | 5.1% | 8.6% |
+| Deal-ins per win | 2.99 | 0.69 | 0.23 | 0.55 |
+| Average faan of a win | 8.78 | 5.76 | 4.27 | 4.90 |
+| Average points of a win | 5,479 | 885 | 206 | 272 |
+| Limit hands | 178 | 89 | 47 | 0 |
+
+The ± is a 95% range that treats hands as independent. only-orphans and jorge-yau are too close to separate on points, and so are lucky-cat and dishonor, but the first pair is clearly ahead of the second. only-orphans ranged from 13 to 85 points a hand across seating orders, so limit hands drive its result.
+
+To play one seating order:
+
+```bash
+npm run compete -- --lineup dishonor,jorge-yau,lucky-cat,only-orphans --deals 1000 --seed 200000
+```
+

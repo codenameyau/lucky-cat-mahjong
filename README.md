@@ -126,6 +126,9 @@ Hands are scored by `HKScoring.scoreHand` in `js/points.js`, the calculator's ow
 #### Saving and resuming
 
 - **Autosave** — After each move the game is stored in this browser. **Resume game** continues it and is the main button while a save is there, and the other button says **Start new game**. Resume stays hidden when nothing is saved, and **Start game** is the main button then
+- **Switching modes on mobile** — When the selected mode isn't the saved game's, **Start new game** moves first and turns red, and **Resume game** moves second
+- **Refreshing** — While a game is open, the page's URL has `?opened=1`, so refreshing goes straight back to the game. Quitting removes it. A lesson isn't saved, so it doesn't set it, and without a save that loads the page shows as usual
+- **Back** — While a game or lesson is open, the browser's Back button returns to the Play page, and the game stays saved. Forward goes back into a saved game
 - **No hidden tiles in a save** — It holds the game as the current hand began, that hand's seed and your own moves. Resuming deals the hand from the seed and replays it
 - **Signed** — The save is signed (HMAC-SHA256). A changed or damaged save is discarded and a new game starts
 - **Compatible across versions** — Saves load into any version with the same major number
@@ -143,10 +146,12 @@ Every bot plays a named strategy, built on the shared foundation in `js/mahjong-
 | --- | --- | --- | --- |
 | **lucky-cat** | `js/mahjong-lucky-cat.js` | Tracks every discard and plays the odds to the fastest 3-faan win | [lucky-cat.md](docs/strategies/lucky-cat.md) |
 | **jorge-yau** | `js/mahjong-jorge-yau.js` | Reads the opening hand and builds toward one target hand | [jorge-yau.md](docs/strategies/jorge-yau.md) |
+| **only-orphans** | `js/mahjong-only-orphans.js` | Goes for Thirteen Orphans every hand, then pivots to a hand of 1s, 9s and honors | [only-orphans.md](docs/strategies/only-orphans.md) |
+| **dishonor** | `js/mahjong-dishonor.js` | Throws every honor first, for Concealed Straights or a locked Full Flush | [dishonor.md](docs/strategies/dishonor.md) |
 
 - The **Strategies** button in the top bar (`js/mahjong-strategies.js`) describes each one and lets you pick a strategy for each bot seat and for the coach
 - Picks are saved in `localStorage` (`lcm-play-strategies`). A bot seat with nothing saved plays a random strategy each game, and the coach defaults to lucky-cat
-- The table shows only the player's name, not their strategy
+- The table shows only the player's name. On desktop, hovering over a computer player's name shows their strategy
 - How to add a strategy, and the rules they all share, are in [docs/strategies/README.md](docs/strategies/README.md)
 
 #### Bots
@@ -214,7 +219,7 @@ It doesn't say which tile to drop after this one. Hand names are drawn in red, w
 
 The whole table is one `<canvas>` (`js/mahjong-game.js`) that only redraws while something changes or animates, with tile faces pre-rendered per size from the `tiles/` SVGs. Headings use the site's heading font (KN Yuanmo SC), and the game's own text is in English.
 
-Like a real table, each opponent's hand, melds and discards face that player, and every player's melds and flowers run from their own left. Each layout keeps the table as close to square as the screen allows, giving the spare room to the coach.
+Like a real table, each opponent's hand, melds and discards face that player, and every player's flowers and then melds run from their own left. Each layout keeps the table as close to square as the screen allows, giving the spare room to the coach.
 
 | Layout | Board | Coach |
 | --- | --- | --- |
@@ -224,7 +229,7 @@ Like a real table, each opponent's hand, melds and discards face that player, an
 
 On phones:
 
-- Names are left out: opponents show only their points, and your seat keeps its wind badge
+- Names are left out, and your seat keeps its wind badge. In a full game, each player's avatar, name and points sit in a corner of the discard table: the player across at top left, on your left at bottom left, on your right at top right, and you at bottom right. The current player's are yellow and the rest white
 - Each opponent's tiles (hidden hand, melds and flowers) are one row, so they can be larger
 - Upright, the player across spans the whole table above the side seats. Sideways, the side seats run the full height beside the player across and your section
 - Every discard is the same size, and each pond is planned for 8 discards so they draw large

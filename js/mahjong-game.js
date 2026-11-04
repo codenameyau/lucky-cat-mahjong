@@ -21,9 +21,16 @@
   // The one saved game on this device, signed (HMAC-SHA256). Each turn writes
   // it; Resume game reads it. Quit leaves it.
   var AUTOSAVE_KEY = 'lcm-play-autosave';
-  var SEAT_SIDES = ['', 'on your right', 'across', 'on your left'];
+  var SEAT_SIDES = ['', 'your right', 'across', 'your left'];
   var TILE_ASPECT = 1.4;
   var TILE_GAP = 4;
+  // On an upright phone: between your hand's tiles, and between the computers'
+  // tiles and your own exposed tiles.
+  var PHONE_HAND_GAP = 5, PHONE_TILE_GAP = 2;
+  var MELD_GAP = 0.12; // extra space between exposed melds, in tile widths, on top of the tile gap
+  var FLOWER_GAP = 0.05; // the same, between a player's flowers and their melds
+  var OPP_ROW_GAP = 4; // on desktop, between a computer's exposed tiles and their hand
+  var ACTIONS_LIFT = 6; // the Discard, Pung, Pass and other action buttons sit this far above their row's center
 
   var COLORS = {
     felt: '#0b5a39',
@@ -558,6 +565,8 @@
     // Face-up tiles drawn this frame (screen boxes) and the mouse position,
     // for the tile-name tooltip.
     var tileSpots = [], tipsOn = true, mouse = null, tipTile = null;
+    // The computer players' name rows, for the strategy tooltip.
+    var seatSpots = [], tipSeat = null;
     var lastTouch = false; // the last press was a finger: no hover, so the selected tile gets the tip
 
     var ui = {
@@ -582,7 +591,7 @@
       notice: null,
       hide: { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null },
       botLift: null, // { seat, index } tile a bot is considering
-      botDrawn: [false, false, false, false], // bot's fresh draw sits apart
+      botDrawn: [false, false, false, false], // a bot is holding a fresh draw
       winInHand: null, // a discard win's tile, flying into the winner's hand then glowing there
       botDiscardFrom: [null, null, null, null],
       oppHand: [null, null, null, null],
@@ -759,6 +768,8 @@
     // The table (the other players and the discards) is kept as close to
     // square as the screen allows; spare room goes to the coach.
     var HAND_ROW_GAP = 6;
+    var TOP_PANEL_TRIM = 6; // how much shorter the top player's panel is than its tiles alone would make it
+    var SIDE_HEAD_TOP = 4; // on desktop, room above the side players' names
     // A landscape phone draws your hand this much smaller than it could be,
     // so the table has more room.
     var PHONE_HAND_SCALE = 0.9;
@@ -864,8 +875,7 @@
       // (A landscape phone sizes them for the two-thirds board even with the
       // coach off: bigger tiles there would take height from the discards.)
       var tileRowW = landscape ? Math.round((W - 8 - pad) * 2 / 3) : meW;
-      // (Upright, the tiles nearly touch, so they can be as big as the width allows.)
-      var handGap = phonePortrait ? 1 : TILE_GAP;
+      var handGap = phonePortrait ? PHONE_HAND_GAP : TILE_GAP;
       var tw = phonePortrait
         ? Math.min((meW - 2 * pad - 6 - 6 * handGap) / 7, H * PORTRAIT_HAND_H)
         : clamp(((tileRowW - 2 * pad - 13 * TILE_GAP) / 14.8) * 0.88, 18, Math.min(124, H * (landscape ? 0.085 : 0.114)));
@@ -876,7 +886,7 @@
       var handTop = handY - (handRows - 1) * (th + HAND_ROW_GAP);
       // Melds and flowers: a portrait phone keeps them to a row of 14, so
       // they fit beside your name.
-      var mw = phonePortrait ? (meW - 2 * pad - 6 - 13 * handGap) / 14 : tw;
+      var mw = phonePortrait ? (meW - 2 * pad - 19) / 14 : tw;
       var meldRowH = mw * TILE_ASPECT + 8;
       var meY = handTop - meldRowH - 6;
       var actionsH = 44;
@@ -913,7 +923,7 @@
       // On a phone each opponent's tiles are one row (drawOpponent), so the
       // seats are only one tile deep and the discards get the room.
       // (On a phone opponents show only their points, in payout games.)
-      var phoneHead = settings.mode === 'payout' ? 18 : 4;
+      var phoneHead = 4; // a phone shows no name or points on the computers' seats
       var sideW, topPanelH, sideHead, topHead;
       var sideRun = 0;
       if (desktop) {
@@ -921,7 +931,7 @@
         // and the meld row; the rest of that band belongs to the discards.
         // The across player's name sits on the exposed row, so that panel
         // has no header band.
-        sideHead = 20;
+        sideHead = 20 + SIDE_HEAD_TOP;
         topHead = 0;
         sideRun = Math.max(40, (bandTop - gap) - topH - sideHead - 3);
         var depthUnit = TILE_ASPECT + 0.08;
@@ -933,10 +943,11 @@
         var lengthFit = (sideRun - 13 * TILE_GAP) / 14;
         var depthFit = (sideW - 16) / (2 * depthUnit);
         var oppFit = clamp(Math.min(lengthFit, depthFit), 8, 72);
-        topPanelH = Math.ceil(oppFit * 2 * depthUnit + 16);
+        topPanelH = Math.ceil(oppFit * 2 * depthUnit + 16) - TOP_PANEL_TRIM;
       } else {
         sideW = phonePortrait ? 46 : landscape ? LANDSCAPE_SIDE_W : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
-        topPanelH = 62;
+        // Every opponent's panel is the same depth.
+        topPanelH = sideW;
         sideHead = phoneHead;
         topHead = phoneHead;
       }
@@ -976,7 +987,8 @@
         var shared = 72;
         [1, 2, 3].forEach(function (k) {
           var fr = oppFrames[k];
-          shared = Math.min(shared, (fr.w - 13 * TILE_GAP) / 14, (fr.h - 10) / (2 * depthUnit));
+          // (The top seat is trimmed, so it fits the same tile with less room spare.)
+          shared = Math.min(shared, (fr.w - 13 * TILE_GAP) / 14, (fr.h - (k === 2 ? 10 - TOP_PANEL_TRIM : 10)) / (2 * depthUnit));
         });
         oppTile = clamp(shared, 8, 72);
       }
@@ -1100,7 +1112,8 @@
       ctx.drawImage(sp, x, y, w, h);
       if (opts.glow) {
         ctx.strokeStyle = opts.glow;
-        ctx.lineWidth = Math.max(2, w * 0.07);
+        // Red marks a tile a claim would use. Every other highlight is a thinner yellow.
+        ctx.lineWidth = opts.glow === COLORS.red ? Math.max(2, w * 0.07) : Math.max(2, w * 0.07 - 1);
         roundRect(ctx, x - 1, y - 1, w + 2, w * TILE_ASPECT + 2, w * 0.15);
         ctx.stroke();
       }
@@ -1220,6 +1233,25 @@
         var n = E.unseenCounts(game, 0)[E.tileIndex(sp.id)];
         sub = n + ' left';
       }
+      drawTip(label, sub, sp);
+    }
+
+    function seatSpotAt(p) {
+      if (!p) return null;
+      return seatSpots.filter(function (sp) {
+        return p.x >= sp.x0 && p.x <= sp.x1 && p.y >= sp.y0 && p.y <= sp.y1;
+      })[0] || null;
+    }
+
+    // Hovering a computer player's name shows the strategy they play. Only a
+    // mouse gets here, so it's desktop only. Lesson bots play a fixed script.
+    function drawSeatTip() {
+      var sp = seatSpotAt(mouse);
+      tipSeat = sp ? sp.seat : null;
+      if (sp) drawTip('Strategy: ' + Strategies.get(ui.strategies.seats[sp.seat]).name, '', sp);
+    }
+
+    function drawTip(label, sub, sp) {
       ctx.font = 'bold 13px ' + FONT_BODY;
       var w = ctx.measureText(label).width + 18;
       ctx.font = '12px ' + FONT_BODY;
@@ -1231,7 +1263,7 @@
       ctx.save();
       ctx.shadowColor = 'rgba(0,0,0,0.3)';
       ctx.shadowBlur = 8;
-      roundRect(ctx, x, y, w, h, 8);
+      roundRect(ctx, x, y, w, h, 4);
       ctx.fillStyle = 'rgba(26,26,26,0.92)';
       ctx.fill();
       ctx.restore();
@@ -1242,6 +1274,7 @@
     function render(t) {
       regions = [];
       tileSpots = [];
+      seatSpots = [];
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       drawFelt();
       if (!game || !game.hand) {
@@ -1265,9 +1298,11 @@
       tipsOn = true;
       if (ui.overlay) {
         tileSpots = []; // only the overlay's own tiles are under the mouse
+        seatSpots = [];
         drawOverlay(t);
       }
       drawTileTip();
+      drawSeatTip();
     }
 
     function drawFelt() {
@@ -1539,7 +1574,9 @@
       } else {
         card.style.zIndex = '';
         card.style.transform = 'none';
-        var touchLeft = Math.min(Math.max(8, rr.left - dr.left), dr.width - w - 8);
+        // On a phone it stops 10px further from the sheet's right edge (css/play.css).
+        var rightGap = root.matchMedia && root.matchMedia('(max-width: 600px)').matches ? 18 : 8;
+        var touchLeft = Math.min(Math.max(8, rr.left - dr.left), dr.width - w - rightGap);
         var touchTop = rr.bottom - dr.top - 2;
         if (touchTop + h > dr.height - 8) touchTop = rr.top - dr.top - h + 2;
         card.style.left = touchLeft + 'px';
@@ -1633,17 +1670,26 @@
       return sel;
     }
 
-    function assignRow(labelText, control) {
+    function assignRow(labelText, control, playing) {
       var row = document.createElement('div');
       row.className = 'strategies-assign-row';
       var label = document.createElement('label');
       label.className = 'strategies-assign-label';
       label.htmlFor = control.id;
       label.textContent = labelText;
+      if (playing) {
+        var now = document.createElement('span');
+        now.className = 'strategies-assign-playing';
+        now.textContent = playing;
+        label.appendChild(document.createTextNode(' '));
+        label.appendChild(now);
+      }
       row.appendChild(label);
       row.appendChild(control);
       return row;
     }
+
+    var strategyDetailsOpen = false;
 
     function buildStrategies() {
       var body = document.getElementById('strategies-sheet-body');
@@ -1663,19 +1709,38 @@
         var choice = seatChoice(seat);
         box.appendChild(assignRow(playerLabel(seat), strategySelect('strategy-seat-' + seat, choice, true, function (id) {
           setSeatStrategy(seat, id);
-        })));
+        }), 'Playing ' + Strategies.get(ui.strategies.seats[seat]).name));
       });
       assign.appendChild(box);
       body.appendChild(assign);
 
       var about = document.createElement('section');
       about.className = 'rules-section';
+      var aboutHead = document.createElement('div');
+      aboutHead.className = 'strategies-about-head';
       var h2 = document.createElement('h3');
       h2.className = 'rules-section-title';
       h2.textContent = 'Strategies';
-      about.appendChild(h2);
+      aboutHead.appendChild(h2);
+      var toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.id = 'strategies-details-toggle';
+      toggle.className = 'strategies-details-toggle';
+      aboutHead.appendChild(toggle);
+      about.appendChild(aboutHead);
       var grid = document.createElement('div');
       grid.className = 'strategies-cards';
+      // One link shows or hides every strategy's details.
+      var showDetails = function () {
+        grid.classList.toggle('is-showing-details', strategyDetailsOpen);
+        toggle.textContent = strategyDetailsOpen ? 'Hide details' : 'See details';
+        toggle.setAttribute('aria-expanded', strategyDetailsOpen ? 'true' : 'false');
+      };
+      toggle.addEventListener('click', function () {
+        strategyDetailsOpen = !strategyDetailsOpen;
+        showDetails();
+      });
+      showDetails();
       Strategies.list().forEach(function (s) {
         var card = document.createElement('article');
         card.className = 'rules-family strategies-card';
@@ -1701,11 +1766,8 @@
         sum.className = 'strategies-card-summary';
         sum.textContent = s.summary;
         card.appendChild(sum);
-        var more = document.createElement('details');
+        var more = document.createElement('div');
         more.className = 'strategies-card-more';
-        var label = document.createElement('summary');
-        label.textContent = 'How it plays';
-        more.appendChild(label);
         s.details.forEach(function (t) {
           var p = document.createElement('p');
           appendHandNames(p, t);
@@ -1834,8 +1896,8 @@
       text(WIND_LETTERS[wind], x, y + 1, { size: Math.round(r * 1.05), family: FONT_HEAD, align: 'center', color: isDealer ? COLORS.white : COLORS.ink });
     }
 
-    // A seat shows the player's name only; which strategy each bot plays is
-    // on the Strategies sheet.
+    // A seat shows the player's name only. Their strategy is in the tooltip
+    // on that name and on the Strategies sheet.
     function seatTitle(seat) {
       return game.players[seat].name;
     }
@@ -1844,13 +1906,16 @@
     // with paths so it doesn't depend on any emoji font.
     var ICON_GAP = 5;
     var SCORE_GAP = 6; // between the avatar and the score
+    var PHONE_POINTS_PX = 9, PHONE_SCORE_ICON = 10; // points on the table on a phone
+    var PHONE_NAME_PX = 8, PHONE_NAME_W = 28; // the names above them
+    var PHONE_SCORE_INSET = 22; // the middle of each stack, in from the table's corner
     var SEE_RESULTS_W = 120; // See results, in the coach bar above your avatar
-    function playerIcon(seat, x, cy, s) {
+    function playerIcon(seat, x, cy, s, color) {
       var human = game.players[seat].isHuman;
       var ink = COLORS.feltDark;
       ctx.save();
-      ctx.fillStyle = COLORS.cream;
-      ctx.strokeStyle = COLORS.cream;
+      ctx.fillStyle = color || COLORS.cream;
+      ctx.strokeStyle = color || COLORS.cream;
       ctx.lineWidth = Math.max(1, s * 0.09);
       ctx.lineCap = 'round';
       if (human) {
@@ -1901,6 +1966,8 @@
       var nameW = namesShown() ? ctx.measureText(seatTitle(seat)).width : 0;
       // Badge, name, icon, then the score beside the icon.
       var content = 22 + 6 + nameW + (namesShown() ? ICON_GAP : 0) + 15 + (pts ? SCORE_GAP + ptsW : 0) + 2;
+      // (On a phone your points sit by your hand instead.)
+      if (seat === 0 && !L.desktop) content = 22 + 6 + 15 + 2;
       return Math.min(max, content);
     }
 
@@ -1908,6 +1975,8 @@
       var r = small ? 8 : 11;
       var iconS = small ? 13 : 15;
       var namePx = small ? 13 : 14;
+      // (On a phone your points sit at the bottom right of your hand instead.)
+      var pts = settings.mode === 'payout' && L.desktop ? fmt(game.players[seat].points) : '';
       var ptsPx = 13;
       windBadge(seat, x + r, y + r, r);
       if (seat === 0) {
@@ -1929,7 +1998,6 @@
           ctx.restore();
         }
       }
-      var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
       ctx.font = 'bold ' + ptsPx + 'px ' + FONT_BODY;
       var ptsW = pts ? ctx.measureText(pts).width : 0;
       var scoreGap = SCORE_GAP;
@@ -1948,6 +2016,7 @@
       var mark = { iconX: iconX, iconRight: iconX + iconS, scoreX: scoreX, y: y + r, hasScore: !!pts };
       ui.headerMark[seat] = mark;
       if (seat === 0) ui.youIcon = { x: iconX, y: y + r, s: iconS, rowRight: pts ? scoreX + ptsW : scoreX };
+      else if (!settings.lesson) seatSpots.push({ seat: seat, x0: x, y0: y, x1: pts ? scoreX + ptsW : iconX + iconS, y1: y + 2 * r });
     }
 
     // A concealed kong lies fully face down during the hand (it still counts
@@ -1966,6 +2035,11 @@
       return E.sortTiles(game.hand.seats[seat].hand.slice());
     }
 
+    // Between the computers' tiles, and between your own exposed tiles.
+    function tileGap() {
+      return L && L.phonePortrait ? PHONE_TILE_GAP : TILE_GAP;
+    }
+
     // Lays tiles left-to-right, wrapping inside `w`; returns the next y.
     // `tw` is each tile's slot; `drawW` (default the same) is how wide it is drawn.
     function flowRow(items, x, y, w, tw, drawW) {
@@ -1973,10 +2047,10 @@
       var drawn = drawW || tw;
       var th = drawn * TILE_ASPECT + TILE_GAP;
       items.forEach(function (it) {
-        if (it.gap) { cx += tw * 0.35; return; }
+        if (it.gap) { cx += tw * MELD_GAP; return; }
         if (cx + drawn > x + w + 0.5) { cx = x; cy += th; }
         drawTile(it.id, cx, cy, drawn, { back: it.back, peek: it.peek, shadow: false, glow: it.glow });
-        cx += drawn + TILE_GAP;
+        cx += drawn + tileGap();
       });
       return { x: cx, y: cy, bottom: cy + th };
     }
@@ -1997,15 +2071,11 @@
     }
 
     function drawOppHeader(seat, r) {
-      var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
-      // A phone shows only the opponent's points: no name, wind or robot.
-      if (!namesShown()) {
-        if (pts) text(pts, r.x + r.w / 2, r.y + r.h / 2 + 1, { size: 13, weight: 'bold', align: 'center', color: COLORS.goldLight });
-        return;
-      }
+      // A phone shows no name, wind, robot or points for a computer.
+      if (!namesShown()) return;
       // Name, icon, then the score on one line, even when the seat is narrow.
       var row = 16;
-      drawSeatHeader(seat, r.x + 6, r.y + Math.max(1, (r.h - row) / 2), Math.max(40, r.w - 12), true);
+      drawSeatHeader(seat, r.x + 6, r.y + SIDE_HEAD_TOP + Math.max(1, (r.h - SIDE_HEAD_TOP - row) / 2), Math.max(40, r.w - 12), true);
     }
 
     function oppConcealedCount(seat) {
@@ -2018,7 +2088,7 @@
     // the eye away from the table.
     function drawSeatBox(r, active, t) {
       ctx.save();
-      roundRect(ctx, r.x, r.y, r.w, r.h, 12);
+      roundRect(ctx, r.x, r.y, r.w, r.h, 6);
       ctx.fillStyle = active ? 'rgba(244,160,32,0.07)' : 'rgba(0,0,0,0.16)';
       ctx.fill();
       if (active) {
@@ -2028,6 +2098,22 @@
         requestRender();
       }
       ctx.restore();
+    }
+
+    // The largest tile that fits this opponent's one row on a phone.
+    function oppRowFit(seat) {
+      var f = L.oppFrames[seat], s = game.hand.seats[seat];
+      var items = meldItems(seat);
+      var meldN = items.filter(function (it) { return !it.gap; }).length;
+      var flowersN = s.flowers.length;
+      var count = ui.revealHands ? revealedConcealed(seat).length : oppConcealedCount(seat);
+      var gaps = items.length - meldN + (flowersN && meldN ? 1 : 0);
+      var tileN = meldN + flowersN;
+      var units = count + meldN + gaps * MELD_GAP + flowersN + (tileN && count ? 0.6 : 0);
+      return clamp(Math.min(
+        (f.h - 8) / (TILE_ASPECT + 0.08),
+        (f.w - Math.max(0, count + tileN - 1) * tileGap()) / Math.max(1, units)
+      ), 8, 40);
     }
 
     function drawOpponent(seat, t) {
@@ -2041,52 +2127,50 @@
       // concealed hand runs along their edge (a fresh draw stays in the row,
       // and a tile they are considering lifts without leaving the row), with
       // melds and flowers in front of it. On a phone it's all one row, so the
-      // tiles can be larger: melds and flowers from the owner's left, then the
-      // concealed hand. A phone still sets a fresh draw a little apart.
+      // tiles can be larger: flowers and melds from the owner's left, then the
+      // concealed hand. A fresh draw stays in the row there too.
       var f = L.oppFrames[seat];
+      var gapT = tileGap();
       var items = meldItems(seat);
       var meldTilesN = items.filter(function (it) { return !it.gap; }).length;
-      var gaps = items.length - meldTilesN;
       var flowersN = s.flowers.length;
+      var gaps = items.length - meldTilesN + (flowersN && meldTilesN ? 1 : 0);
       var tileN = meldTilesN + flowersN;
       var faceUp = ui.revealHands ? revealedConcealed(seat) : null;
       var count = faceUp ? faceUp.length : oppConcealedCount(seat);
       var oneRow = !L.desktop;
-      var apart = oneRow && !faceUp && ui.botDrawn[seat] && count > 0;
       var mw, bw, backsY, meldY, bx0, mx0;
       var rowDepth = function (w) { return w * (TILE_ASPECT + 0.08); };
       if (oneRow) {
         var split = tileN && count ? 0.6 : 0; // room between the melds and the hand
-        var units = count + (apart ? 0.4 : 0) + meldTilesN + gaps * 0.35 + flowersN + split;
+        var units = count + meldTilesN + gaps * MELD_GAP + flowersN + split;
         var tilesInRow = count + tileN;
-        mw = clamp(Math.min(
-          (f.h - 8) / (TILE_ASPECT + 0.08),
-          (f.w - Math.max(0, tilesInRow - 1) * TILE_GAP) / Math.max(1, units)
-        ), 8, 40);
+        // Every opponent's tiles are one size: whatever fits the tightest seat.
+        mw = Math.min(oppRowFit(1), oppRowFit(2), oppRowFit(3));
         bw = mw;
-        var rowW = units * mw + Math.max(0, tilesInRow - 1) * TILE_GAP;
+        var rowW = units * mw + Math.max(0, tilesInRow - 1) * gapT;
         mx0 = Math.max(0, (f.w - rowW) / 2);
         backsY = meldY = (f.h - rowDepth(mw)) / 2;
-        var meldsW = tileN ? (meldTilesN + gaps * 0.35 + flowersN) * mw + (tileN - 1) * TILE_GAP + TILE_GAP : 0;
+        var meldsW = tileN ? (meldTilesN + gaps * MELD_GAP + flowersN) * mw + (tileN - 1) * gapT + gapT : 0;
         bx0 = mx0 + meldsW + split * mw;
       } else {
         // Every opponent shares one size for the concealed hand and the
         // exposed tiles. A seat with more melds does not shrink on its own.
         mw = L.oppTile;
         bw = mw;
-        // The rows sit against the back edge, 1px apart. Spare depth stays
-        // in front of the melds, so nothing empty sits above the hand.
-        var block = 2 * rowDepth(bw) + 1;
+        // The rows sit against the back edge, a small gap apart. Spare depth
+        // stays in front of the melds, so nothing empty sits above the hand.
+        var block = 2 * rowDepth(bw) + OPP_ROW_GAP;
         var edge = Math.min(4, Math.max(1, (f.h - block) / 2));
         backsY = f.h - edge - rowDepth(bw);
-        var span = count > 0 ? count * bw + Math.max(0, count - 1) * TILE_GAP : 0;
+        var span = count > 0 ? count * bw + Math.max(0, count - 1) * gapT : 0;
         bx0 = (f.w - span) / 2;
-        meldY = backsY - rowDepth(mw) - 1;
+        meldY = backsY - rowDepth(mw) - OPP_ROW_GAP;
         // Exposed tiles start at the owner's left. This brings them toward
         // the center of that player's row.
         mx0 = 5;
       }
-      var pitch = bw + TILE_GAP;
+      var pitch = bw + gapT;
       var lift = ui.botLift && ui.botLift.seat === seat ? ui.botLift.index : -1;
       // A lifted tile moves toward the table, not past the seat's back edge
       // and not sideways past the ends of the row.
@@ -2102,7 +2186,7 @@
           if (far > f.h - 1) liftBy = Math.max(0, backsY + rowDepth(bw) - (f.h - 1));
         }
       }
-      var backX = function (i) { return bx0 + i * pitch + (apart && i === count - 1 ? bw * 0.4 : 0); };
+      var backX = function (i) { return bx0 + i * pitch; };
 
       enterFrame(f);
       for (var i = 0; i < count; i++) {
@@ -2111,24 +2195,25 @@
       }
       // A discard win sits face up at the end of an opponent's row once it lands.
       if (ui.winInHand && ui.winInHand.seat === seat && ui.winInHand.landed && !faceUp) {
-        var winX = bx0 + count * pitch + (apart ? bw * 0.4 : 0);
+        var winX = bx0 + count * pitch;
         drawTile(ui.winInHand.tile, winX, backsY, bw, { shadow: false, glow: COLORS.gold });
       }
-      var mx = mx0 + (oneRow ? 5 : 0);
-      items.forEach(function (it) {
-        if (it.gap) { mx += mw * 0.35; return; }
-        drawTile(it.id, mx, meldY, mw, { back: it.back, shadow: false });
-        mx += mw + TILE_GAP;
-      });
-      // Like a real table, melds then flowers run from the owner's left.
+      // Flowers, then melds, run from the owner's left. A flower on its way
+      // already has its place, so the melds don't jump when it lands.
       var fw = mw;
-      var fx = mx + (items.length && !oneRow ? mw * 0.35 : 0);
+      var fx = mx0 + (oneRow ? 5 : 0);
       var wind = E.seatWind(game, seat);
       var flowerShown = Math.max(0, s.flowers.length - (ui.hide.flower[seat] || 0));
       for (var fk = 0; fk < flowerShown; fk++) {
         var fid = s.flowers[fk];
-        drawTile(fid, fx + fk * (fw + TILE_GAP), meldY, fw, { shadow: false, glow: flowerGlow(s.flowers, wind, fid) });
+        drawTile(fid, fx + fk * (fw + gapT), meldY, fw, { shadow: false, glow: flowerGlow(s.flowers, wind, fid) });
       }
+      var mx = fx + flowersN * (fw + gapT) + (flowersN && items.length ? mw * FLOWER_GAP : 0);
+      items.forEach(function (it) {
+        if (it.gap) { mx += mw * MELD_GAP; return; }
+        drawTile(it.id, mx, meldY, mw, { back: it.back, shadow: false });
+        mx += mw + gapT;
+      });
       ctx.restore();
 
       if (L.desktop && seat === 2) {
@@ -2138,9 +2223,9 @@
       }
 
       ui.oppHand[seat] = { f: f, backX: backX, backsY: backsY, bw: bw, mw: mw, meldY: meldY, bx0: bx0, count: count, liftBy: lift >= 0 ? liftBy : 0 };
-      ui.backAnchor[seat] = localPose(f, bx0 + count * pitch + (apart ? bw * 0.4 : 0), backsY, bw);
-      ui.meldAnchor[seat] = localPose(f, mx + (items.length ? mw * 0.35 : 0), meldY, mw);
-      ui.flowerAnchor[seat] = localPose(f, fx + flowerShown * (fw + TILE_GAP), meldY, fw);
+      ui.backAnchor[seat] = localPose(f, bx0 + count * pitch, backsY, bw);
+      ui.meldAnchor[seat] = localPose(f, mx + (items.length ? mw * MELD_GAP : flowersN ? mw * FLOWER_GAP : 0), meldY, mw);
+      ui.flowerAnchor[seat] = localPose(f, fx + flowerShown * (fw + gapT), meldY, fw);
     }
 
     /* ---------------- where drawn tiles come from ---------------- */
@@ -2151,10 +2236,28 @@
       return { x: c.x + c.w / 2 - 10, y: c.y + c.h / 2 - 14, w: 20, rot: 0 };
     }
 
+    // On a phone in a full game, each player's avatar, name and points sit in a
+    // corner of the discard table: the player across at top left, on your left
+    // at bottom left, on your right at top right, and you at bottom right.
+    // Everything's white, except the player whose turn it is, in yellow.
+    function drawPhoneScores() {
+      var p = L.pond;
+      var leftX = p.x + PHONE_SCORE_INSET, rightX = p.x + p.w - PHONE_SCORE_INSET;
+      var topY = p.y + 21, bottomY = p.y + p.h - 21;
+      [[2, leftX, topY], [3, leftX, bottomY], [1, rightX, topY], [0, rightX, bottomY]].forEach(function (spot) {
+        var color = ui.turnSeat === spot[0] ? COLORS.goldLight : COLORS.cream;
+        playerIcon(spot[0], spot[1] - PHONE_SCORE_ICON / 2, spot[2] - 10, PHONE_SCORE_ICON, color);
+        var name = seatTitle(spot[0]);
+        var nameSize = fitFont(ctx, name, PHONE_NAME_W, PHONE_NAME_PX, FONT_BODY, 'bold');
+        text(name, spot[1], spot[2] - 1, { size: nameSize, weight: 'bold', align: 'center', color: color });
+        text(fmt(game.players[spot[0]].points), spot[1], spot[2] + 8, { size: PHONE_POINTS_PX, weight: 'bold', align: 'center', color: color });
+      });
+    }
+
     function drawPond(t) {
       var p = L.pond;
       ctx.save();
-      roundRect(ctx, p.x, p.y, p.w, p.h, 16);
+      roundRect(ctx, p.x, p.y, p.w, p.h, 8);
       ctx.fillStyle = 'rgba(0,0,0,0.12)';
       ctx.fill();
       ctx.restore();
@@ -2190,9 +2293,11 @@
         ctx.restore();
       }
 
+      if (!L.desktop && settings.mode === 'payout') drawPhoneScores();
+
       var c = L.center;
       ctx.save();
-      roundRect(ctx, c.x, c.y, c.w, c.h, 12);
+      roundRect(ctx, c.x, c.y, c.w, c.h, 6);
       ctx.fillStyle = 'rgba(0,0,0,0.2)';
       ctx.fill();
       ctx.restore();
@@ -2241,13 +2346,8 @@
     // The hand is one row across your section (the left two thirds on
     // desktop), or two rows on a portrait phone: the first half on top, the
     // rest below. A fresh draw sits at the end, in line with the others.
-    function handSpan(count, tileW) {
-      if (count <= 0) return 0;
-      return count * tileW + (count - 1) * L.handGap;
-    }
-
     function handLeft(count) {
-      var total = handSpan(count, L.tw);
+      var total = count > 0 ? count * L.tw + (count - 1) * L.handGap : 0;
       var span = L.meW;
       if (total >= span - 2 * L.pad) return L.meX + L.pad;
       return L.meX + Math.max(L.pad, (span - total) / 2);
@@ -2291,35 +2391,39 @@
       var headW = seatHeaderWidth(0, clamp(L.meW * 0.3, 130, 240));
       var infoW = headW;
       if (ui.revealHands && seeResultsHome() === 'name') infoW = seeResultsUnder() ? Math.max(headW, SEE_RESULTS_W) : headW + 6 + SEE_RESULTS_W;
-      ui.youHeader = { x: rightEdge - pad - 8 - headW, y: y + 4, w: headW, right: rightEdge - pad - 8 };
+      // On a phone your wind and avatar are centered on your exposed tiles.
+      var headY = L.desktop ? y + 4 : y + (L.mw * TILE_ASPECT - 22) / 2;
+      ui.youHeader = { x: rightEdge - pad - 8 - headW, y: headY, w: headW, right: rightEdge - pad - 8 };
       // Your name steps aside while action buttons need its spot.
-      if (!ui.buttonsOverName) drawSeatHeader(0, ui.youHeader.x, y + 4, headW);
+      if (!ui.buttonsOverName) drawSeatHeader(0, ui.youHeader.x, headY, headW);
       var items = meldItems(0);
       var mx = left + pad + 8 + 5; // inside your box, toward the center of your row
       // Same size as the hand; only shrinks if the row would run out of room.
       var meldN = items.filter(function (it) { return !it.gap; }).length;
-      var gapsN = items.length - meldN;
+      var gapsN = items.length - meldN + (meldN && s.flowers.length ? 1 : 0);
       var rowW = L.meW - 2 * pad - infoW - 18;
       var tileN = meldN + s.flowers.length;
-      var mw = Math.min(L.mw, (rowW - Math.max(0, tileN - 1) * TILE_GAP) / Math.max(1, tileN + gapsN * 0.35 + 0.6));
+      var mw = Math.min(L.mw, (rowW - Math.max(0, tileN - 1) * tileGap()) / Math.max(1, tileN + gapsN * MELD_GAP + 0.6));
       var y0 = y + (L.mw - mw) * TILE_ASPECT;
-      if (items.length) {
-        var end = flowRow(items, mx, y0, rowW, mw, mw);
-        mx = end.x + mw * 0.35;
-      }
-      ui.meldAnchor[0] = { x: mx, y: y0, w: mw, rot: 0 };
-      // Flowers sit after the melds, in the same row (away from your name).
+      // Flowers come first, then the melds, away from your name. A flower on
+      // its way already has its place, so the melds don't jump when it lands.
       var fw = mw;
-      var fx = mx + (items.length ? mw * 0.2 : 0);
-      var fy = y0;
+      var fx = mx;
       var myWind = E.seatWind(game, 0);
       var flowerShown = Math.max(0, s.flowers.length - (ui.hide.flower[0] || 0));
       for (var fk = 0; fk < flowerShown; fk++) {
         var fid = s.flowers[fk];
-        drawTile(fid, fx + fk * (fw + TILE_GAP), fy, fw, { shadow: false, glow: flowerGlow(s.flowers, myWind, fid) });
+        drawTile(fid, fx + fk * (fw + tileGap()), y0, fw, { shadow: false, glow: flowerGlow(s.flowers, myWind, fid) });
       }
-      ui.flowerAnchor[0] = { x: fx + flowerShown * (fw + TILE_GAP), y: fy, w: fw, rot: 0 };
-      ui.meRowFree = { x0: ui.flowerAnchor[0].x + 10, x1: rightEdge - pad - 8 - infoW - 10 };
+      ui.flowerAnchor[0] = { x: fx + flowerShown * (fw + tileGap()), y: y0, w: fw, rot: 0 };
+      mx = fx + s.flowers.length * (fw + tileGap());
+      if (s.flowers.length) mx += mw * FLOWER_GAP;
+      if (items.length) {
+        var end = flowRow(items, mx, y0, rowW - (mx - fx), mw, mw);
+        mx = end.x + mw * MELD_GAP;
+      }
+      ui.meldAnchor[0] = { x: mx, y: y0, w: mw, rot: 0 };
+      ui.meRowFree = { x0: mx + 10, x1: rightEdge - pad - 8 - infoW - 10 };
 
       // Hand.
       var order = myHandOrder();
@@ -2370,7 +2474,7 @@
         targets.forEach(function (p) { bx0 = Math.min(bx0, p.x); bx1 = Math.max(bx1, p.x + tw); });
         var by0 = targets[0].y;
         ctx.save();
-        roundRect(ctx, bx0 - 6, by0 - 8, bx1 - bx0 + 12, L.handY + L.th - by0 + 16, 12);
+        roundRect(ctx, bx0 - 6, by0 - 8, bx1 - bx0 + 12, L.handY + L.th - by0 + 16, 6);
         ctx.fillStyle = 'rgba(244,160,32,0.14)';
         ctx.fill();
         ctx.restore();
@@ -2493,7 +2597,7 @@
       var y = L.hintY + L.hintH - h;
       ui.coachBox = { x: x, y: y, w: w, h: h };
       ctx.save();
-      roundRect(ctx, x, y, w, h, 12);
+      roundRect(ctx, x, y, w, h, 6);
       ctx.fillStyle = h > L.hintH ? 'rgba(4,46,28,0.94)' : 'rgba(0,0,0,0.32)';
       ctx.fill();
       ctx.restore();
@@ -2582,7 +2686,7 @@
       var r = L.history;
       if (!r) return;
       ctx.save();
-      roundRect(ctx, r.x, r.y, r.w, r.h, 12);
+      roundRect(ctx, r.x, r.y, r.w, r.h, 6);
       ctx.fillStyle = 'rgba(0,0,0,0.28)';
       ctx.fill();
       ctx.restore();
@@ -2651,7 +2755,7 @@
       }
       var y = viewY - ui.coachScroll;
       blocks.forEach(function (b) {
-        roundRect(ctx, viewX, y, viewW - (ui.coachScrollMax > 0 ? 8 : 0), b.h, 8);
+        roundRect(ctx, viewX, y, viewW - (ui.coachScrollMax > 0 ? 8 : 0), b.h, 4);
         ctx.fillStyle = 'rgba(0,0,0,0.22)';
         ctx.fill();
         if (images.logo) {
@@ -2737,6 +2841,7 @@
         }
       }
       setButtonsOverName(!!cover);
+      rowY -= ACTIONS_LIFT;
       var maxW = x1 - x0 - lead;
       ctx.font = 'bold 15px ' + FONT_BODY;
       var labelW = acts.reduce(function (m, a) { return Math.max(m, ctx.measureText(a.label).width + 28); }, 0);
@@ -2861,7 +2966,7 @@
       ctx.save();
       ctx.shadowColor = 'rgba(0,0,0,0.4)';
       ctx.shadowBlur = 30;
-      roundRect(ctx, r.x, r.y, r.w, r.h, 18);
+      roundRect(ctx, r.x, r.y, r.w, r.h, 9);
       ctx.fillStyle = COLORS.cream;
       ctx.fill();
       ctx.restore();
@@ -2897,6 +3002,8 @@
       text(str.toUpperCase(), x, y, { size: 11, weight: 'bold', color: COLORS.muted });
     }
 
+    var SUMMARY_PAD = 24; // above the title and below the buttons
+
     function drawSummary(o) {
       var res = o.result;
       var isWin = res.type === 'win';
@@ -2925,7 +3032,8 @@
         var patH = isWin ? 24 + items.length * c.rh + 12 + 26 : 0;
         var payH = showPay ? 24 + 22 + 4 * c.rh : 0;
         var bodyH = wide ? Math.max(patH, payH) : patH + (payH ? payH + 18 : 0);
-        var h = 24 + 30 + 22 + (isWin ? 14 : 0) + handH + flowerH + (isWin ? 18 : 0) + bodyH + (o.extra ? 28 : 0) + 78;
+        // The title and its line, then a gap above the buttons and the same room below them as above the title.
+        var h = SUMMARY_PAD + 68 + (isWin ? 14 : 0) + handH + flowerH + (isWin ? 18 : 0) + bodyH + (o.extra ? 28 : 0) + 58 + SUMMARY_PAD;
         lay = { rh: c.rh, tw: tw, fw: fw, h: h };
         return h <= H - 24;
       });
@@ -2942,7 +3050,7 @@
       drawPanelBg(r, true);
       var x = r.x + pad;
       var cx = r.x + r.w / 2;
-      var y = r.y + 24 + 15;
+      var y = r.y + SUMMARY_PAD + 10; // the title's letters start at the padding
 
       var title, sub;
       if (isWin) {
@@ -2966,7 +3074,7 @@
         // The hand sits on its own felt strip; the winning tile gets a gold caret.
         var tw = lay.tw, th = tw * TILE_ASPECT;
         var stripH = th + 26;
-        roundRect(ctx, x, y, w, stripH, 12);
+        roundRect(ctx, x, y, w, stripH, 6);
         ctx.fillStyle = COLORS.felt;
         ctx.fill();
         var span = 0;
@@ -3016,7 +3124,7 @@
         items.forEach(function (it, i) {
           if (i % 2 === 0) {
             ctx.fillStyle = 'rgba(0,0,0,0.035)';
-            roundRect(ctx, colX - 8, y, colW + 16, rh, 6);
+            roundRect(ctx, colX - 8, y, colW + 16, rh, 3);
             ctx.fill();
           }
           var my = y + rh / 2;
@@ -3054,7 +3162,7 @@
             var my2 = y + rh / 2;
             if (p === res.winner) {
               ctx.fillStyle = 'rgba(244,160,32,0.16)';
-              roundRect(ctx, colX - 8, y, colW + 16, rh, 6);
+              roundRect(ctx, colX - 8, y, colW + 16, rh, 3);
               ctx.fill();
             }
             var name = (p === 0 ? 'You' : game.players[p].name);
@@ -3068,8 +3176,8 @@
         y = bottom;
       }
       if (o.extra) {
-        var ey = y + 18;
-        text(o.extra, cx, ey, { size: fitFont(ctx, o.extra, w, 13, FONT_BODY), align: 'center', color: COLORS.muted });
+        var ey = y + 16;
+        text(o.extra, cx, ey, { size: fitFont(ctx, o.extra, w, 13, FONT_BODY, 'bold'), weight: 'bold', align: 'center', color: COLORS.red });
       }
       var label = settings.lesson ? 'Done' : (game.over ? 'See results' : 'Next hand');
       var firstRegion = regions.length;
@@ -3083,7 +3191,7 @@
         row = handsW + gap + nextW;
       }
       var bx = cx - row / 2;
-      var by = r.y + r.h - 62;
+      var by = r.y + r.h - SUMMARY_PAD - 42;
       // Show hands leaves this panel without dealing. Next hand is the only way on.
       button('Show hands', bx, by, handsW, 42, showHands, 'white', 'show-hands');
       button(label, bx + handsW + gap, by, nextW, 42, nextHand, 'primary', 'next');
@@ -3527,7 +3635,7 @@
       if (historyAt(p) && !seeResultsHit(p)) {
         canvas.style.cursor = ui.coachScrollMax > 0 ? 'grab' : 'default';
         mouse = p;
-        if (hover) { hover = null; requestRender(); }
+        if (hover || tipSeat !== null) { hover = null; requestRender(); }
         return;
       }
       var r = hitTest(p.x, p.y);
@@ -3535,7 +3643,8 @@
       canvas.style.cursor = r && !r.plain ? 'pointer' : 'default';
       mouse = p;
       var sp = spotAt(p);
-      if (id !== hover || (sp ? sp.id : null) !== tipTile) { hover = id; requestRender(); }
+      var seatSp = seatSpotAt(p);
+      if (id !== hover || (sp ? sp.id : null) !== tipTile || (seatSp ? seatSp.seat : null) !== tipSeat) { hover = id; requestRender(); }
     }
 
     function onPointerUp(e) {
@@ -3544,7 +3653,7 @@
 
     function onPointerLeave() {
       mouse = null;
-      if (tipTile || hover) { hover = null; requestRender(); }
+      if (tipTile || hover || tipSeat !== null) { hover = null; requestRender(); }
     }
 
     function onKey(e) {
@@ -3979,9 +4088,11 @@
       ui.replaying = false;
       ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null };
       ui.botDrawn = [false, false, false, false];
-      // A seat holding a fresh draw shows it apart.
+      // A seat with a tile too many is holding a fresh draw.
       game.hand.seats.forEach(function (s, k) { if (k && s.hand.length % 3 === 2) ui.botDrawn[k] = true; });
       ui.botLift = null;
+      // The replay is silent, so this is whose turn it is now: their board glows.
+      ui.turnSeat = game.hand.turn;
       L = computeLayout();
       announce('Game loaded. Hand ' + game.handNumber + '.');
       requestRender();
@@ -4168,11 +4279,55 @@
     applySaved(form, readJson(SETTINGS_KEY, {}));
     loadAssets();
 
+    // ?opened=1 says the table is open, so refreshing comes back to the game.
+    // A lesson isn't saved, so it doesn't set it.
+    function isOpenedUrl() {
+      return /[?&]opened=1(&|$)/.test(root.location.search);
+    }
+
+    function gameUrl(on) {
+      var url = new URL(root.location.href);
+      if (on) url.searchParams.set('opened', '1');
+      else url.searchParams.delete('opened');
+      return url;
+    }
+
+    function inGameEntry() {
+      return !!(root.history.state && root.history.state.lcmGame);
+    }
+
+    // The open table is its own history entry, so Back returns to this page.
+    // A link straight to ?opened=1 gets this page's entry put under it first.
+    function enterGameHistory(opened) {
+      if (!root.history || !root.history.pushState) return;
+      var state = { lcmGame: true };
+      if (inGameEntry()) { root.history.replaceState(state, '', gameUrl(opened)); return; }
+      if (isOpenedUrl()) root.history.replaceState(null, '', gameUrl(false));
+      root.history.pushState(state, '', gameUrl(opened));
+    }
+
+    function clearOpenedUrl() {
+      if (root.history && root.history.replaceState) root.history.replaceState(null, '', gameUrl(false));
+    }
+
+    // Quit steps back over the table's entry, so Back doesn't show this page twice.
+    function leaveGameHistory() {
+      if (!root.history) return;
+      if (inGameEntry()) root.history.back();
+      else clearOpenedUrl();
+    }
+
+    function pageReady() {
+      document.documentElement.classList.remove('play-reopening');
+    }
+
     var table = null;
     function open(settings, saved) {
       // A new game takes the save slot. A lesson leaves a saved game alone.
       if (!saved && !settings.lesson) removeJson(AUTOSAVE_KEY);
+      enterGameHistory(!settings.lesson);
       stage.hidden = false;
+      pageReady();
       document.documentElement.classList.add('is-playing');
       if (table) table.destroy();
       table = createTable(canvas, live, settings, {
@@ -4297,6 +4452,11 @@
     // Quitting leaves the table. The saved game stays, so Resume game can
     // bring it back.
     function close() {
+      leaveGameHistory();
+      leaveTable();
+    }
+
+    function leaveTable() {
       leaveAutoFullscreen();
       document.documentElement.classList.remove('is-sideways');
       if (table) table.destroy();
@@ -4320,6 +4480,7 @@
         document.documentElement.classList.add('play-mode-' + now.mode);
       }
       track('play_mode_select', { mode: now.mode });
+      paintPlayActions();
     });
 
     var credits = document.querySelector('.play-credits');
@@ -4334,10 +4495,26 @@
     var startBtn = document.getElementById('play-start');
     var learnBtn = document.getElementById('play-learn');
 
+    // On mobile, a saved game in the other mode puts Start new game first:
+    // Resume wouldn't open the mode you just picked.
+    var phoneActions = root.matchMedia ? root.matchMedia('(max-width: 600px), (pointer: coarse) and (max-height: 599px)') : null;
+    function newGameFirst() {
+      if (!phoneActions || !phoneActions.matches || !resumeBtn || resumeBtn.hidden) return false;
+      var stored = readJson(AUTOSAVE_KEY, null);
+      var mode = stored && stored.payload && stored.payload.game && stored.payload.game.settings && stored.payload.game.settings.mode;
+      return !!mode && mode !== readForm(form, readJson(SETTINGS_KEY, {})).mode;
+    }
+
     // The first button on the page is the red one. The rest are white.
     function paintPlayActions() {
       var seen = false;
-      [resumeBtn, startBtn, learnBtn].forEach(function (btn) {
+      var startFirst = newGameFirst();
+      document.documentElement.classList.toggle('play-new-first', startFirst);
+      if (resumeBtn && startBtn) {
+        if (startFirst) startBtn.parentNode.insertBefore(startBtn, resumeBtn);
+        else resumeBtn.parentNode.insertBefore(resumeBtn, startBtn);
+      }
+      (startFirst ? [startBtn, resumeBtn, learnBtn] : [resumeBtn, startBtn, learnBtn]).forEach(function (btn) {
         if (!btn) return;
         var primary = !seen && !btn.hidden;
         if (!btn.hidden) seen = true;
@@ -4354,6 +4531,8 @@
       if (startBtn) startBtn.textContent = on ? 'Start new game' : 'Start game';
       paintPlayActions();
     }
+
+    if (phoneActions && phoneActions.addEventListener) phoneActions.addEventListener('change', paintPlayActions);
 
     function settlePlayForm() {
       document.documentElement.classList.add('play-settled');
@@ -4451,8 +4630,35 @@
       open(settings);
     });
 
+    // Refreshing the game goes back into it. With no game to go back to, or a
+    // save that doesn't load, the page shows as usual.
+    function reopenGame() {
+      var stored = readJson(AUTOSAVE_KEY, null);
+      var offerPage = function () {
+        clearOpenedUrl();
+        pageReady();
+        revealResume();
+      };
+      if (!stored || !stored.payload || !stored.payload.game || !E.checkSave) { offerPage(); return; }
+      E.checkSave(stored).then(function (check) {
+        if (!check.ok) { offerPage(); return; }
+        showSavedGame(true);
+        settlePlayForm();
+        open(Object.assign(pageSettings(), { mode: stored.payload.game.settings.mode }), stored);
+      }, offerPage);
+    }
+
     // A stored game offers Resume. A changed signature starts a new game.
-    revealResume();
+    if (isOpenedUrl()) reopenGame();
+    else revealResume();
+
+    // Back leaves the table for this page, and Forward returns to the game.
+    root.addEventListener('popstate', function () {
+      if (table && !inGameEntry()) {
+        document.querySelectorAll('dialog.rules-sheet[open]').forEach(function (dlg) { dlg.close(); });
+        leaveTable();
+      } else if (!table && inGameEntry() && isOpenedUrl()) reopenGame();
+    });
   }
 
   var api = { createTable: createTable, init: init };
