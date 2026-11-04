@@ -4248,12 +4248,36 @@
       return /[?&]opened=1(&|$)/.test(root.location.search);
     }
 
-    function markOpened(on) {
-      if (!root.history || !root.history.replaceState) return;
+    function gameUrl(on) {
       var url = new URL(root.location.href);
       if (on) url.searchParams.set('opened', '1');
       else url.searchParams.delete('opened');
-      root.history.replaceState(null, '', url);
+      return url;
+    }
+
+    function inGameEntry() {
+      return !!(root.history.state && root.history.state.lcmGame);
+    }
+
+    // The open table is its own history entry, so Back returns to this page.
+    // A link straight to ?opened=1 gets this page's entry put under it first.
+    function enterGameHistory(opened) {
+      if (!root.history || !root.history.pushState) return;
+      var state = { lcmGame: true };
+      if (inGameEntry()) { root.history.replaceState(state, '', gameUrl(opened)); return; }
+      if (isOpenedUrl()) root.history.replaceState(null, '', gameUrl(false));
+      root.history.pushState(state, '', gameUrl(opened));
+    }
+
+    function clearOpenedUrl() {
+      if (root.history && root.history.replaceState) root.history.replaceState(null, '', gameUrl(false));
+    }
+
+    // Quit steps back over the table's entry, so Back doesn't show this page twice.
+    function leaveGameHistory() {
+      if (!root.history) return;
+      if (inGameEntry()) root.history.back();
+      else clearOpenedUrl();
     }
 
     function pageReady() {
@@ -4264,7 +4288,7 @@
     function open(settings, saved) {
       // A new game takes the save slot. A lesson leaves a saved game alone.
       if (!saved && !settings.lesson) removeJson(AUTOSAVE_KEY);
-      markOpened(!settings.lesson);
+      enterGameHistory(!settings.lesson);
       stage.hidden = false;
       pageReady();
       document.documentElement.classList.add('is-playing');
@@ -4391,7 +4415,11 @@
     // Quitting leaves the table. The saved game stays, so Resume game can
     // bring it back.
     function close() {
-      markOpened(false);
+      leaveGameHistory();
+      leaveTable();
+    }
+
+    function leaveTable() {
       leaveAutoFullscreen();
       document.documentElement.classList.remove('is-sideways');
       if (table) table.destroy();
@@ -4551,7 +4579,7 @@
     function reopenGame() {
       var stored = readJson(AUTOSAVE_KEY, null);
       var offerPage = function () {
-        markOpened(false);
+        clearOpenedUrl();
         pageReady();
         revealResume();
       };
@@ -4567,6 +4595,14 @@
     // A stored game offers Resume. A changed signature starts a new game.
     if (isOpenedUrl()) reopenGame();
     else revealResume();
+
+    // Back leaves the table for this page, and Forward returns to the game.
+    root.addEventListener('popstate', function () {
+      if (table && !inGameEntry()) {
+        document.querySelectorAll('dialog.rules-sheet[open]').forEach(function (dlg) { dlg.close(); });
+        leaveTable();
+      } else if (!table && inGameEntry() && isOpenedUrl()) reopenGame();
+    });
   }
 
   var api = { createTable: createTable, init: init };
