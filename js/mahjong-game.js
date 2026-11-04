@@ -2984,6 +2984,8 @@
       text(str.toUpperCase(), x, y, { size: 11, weight: 'bold', color: COLORS.muted });
     }
 
+    var SUMMARY_PAD = 24; // above the title and below the buttons
+
     function drawSummary(o) {
       var res = o.result;
       var isWin = res.type === 'win';
@@ -3012,7 +3014,8 @@
         var patH = isWin ? 24 + items.length * c.rh + 12 + 26 : 0;
         var payH = showPay ? 24 + 22 + 4 * c.rh : 0;
         var bodyH = wide ? Math.max(patH, payH) : patH + (payH ? payH + 18 : 0);
-        var h = 24 + 30 + 22 + (isWin ? 14 : 0) + handH + flowerH + (isWin ? 18 : 0) + bodyH + (o.extra ? 28 : 0) + 78;
+        // The title and its line, then a gap above the buttons and the same room below them as above the title.
+        var h = SUMMARY_PAD + 68 + (isWin ? 14 : 0) + handH + flowerH + (isWin ? 18 : 0) + bodyH + (o.extra ? 28 : 0) + 58 + SUMMARY_PAD;
         lay = { rh: c.rh, tw: tw, fw: fw, h: h };
         return h <= H - 24;
       });
@@ -3029,7 +3032,7 @@
       drawPanelBg(r, true);
       var x = r.x + pad;
       var cx = r.x + r.w / 2;
-      var y = r.y + 24 + 15;
+      var y = r.y + SUMMARY_PAD + 10; // the title's letters start at the padding
 
       var title, sub;
       if (isWin) {
@@ -3155,7 +3158,7 @@
         y = bottom;
       }
       if (o.extra) {
-        var ey = y + 18;
+        var ey = y + 16;
         text(o.extra, cx, ey, { size: fitFont(ctx, o.extra, w, 13, FONT_BODY), align: 'center', color: COLORS.muted });
       }
       var label = settings.lesson ? 'Done' : (game.over ? 'See results' : 'Next hand');
@@ -3170,7 +3173,7 @@
         row = handsW + gap + nextW;
       }
       var bx = cx - row / 2;
-      var by = r.y + r.h - 62;
+      var by = r.y + r.h - SUMMARY_PAD - 42;
       // Show hands leaves this panel without dealing. Next hand is the only way on.
       button('Show hands', bx, by, handsW, 42, showHands, 'white', 'show-hands');
       button(label, bx + handsW + gap, by, nextW, 42, nextHand, 'primary', 'next');
