@@ -1902,7 +1902,7 @@
     // with paths so it doesn't depend on any emoji font.
     var ICON_GAP = 5;
     var SCORE_GAP = 6; // between the avatar and the score
-    var PHONE_POINTS_PX = 11, PHONE_POINTS_W = 34; // your points beside your hand on a phone
+    var PHONE_POINTS_PX = 10; // your points beside your hand on a phone
     var SEE_RESULTS_W = 120; // See results, in the coach bar above your avatar
     function playerIcon(seat, x, cy, s) {
       var human = game.players[seat].isHuman;
@@ -2308,8 +2308,7 @@
     // rest below. A fresh draw sits at the end, in line with the others.
     function handLeft(count) {
       var total = count > 0 ? count * L.tw + (count - 1) * L.handGap : 0;
-      // On a phone in a full game, the hand leaves room for your points.
-      var span = L.meW - (!L.desktop && settings.mode === 'payout' ? PHONE_POINTS_W : 0);
+      var span = L.meW;
       if (total >= span - 2 * L.pad) return L.meX + L.pad;
       return L.meX + Math.max(L.pad, (span - total) / 2);
     }
@@ -2470,7 +2469,16 @@
         }
       }
       if (!L.desktop && settings.mode === 'payout') {
-        text(fmt(game.players[0].points), L.meBox.x + L.meBox.w - 6, L.handY + L.th - PHONE_POINTS_PX / 2, { size: PHONE_POINTS_PX, weight: 'bold', align: 'right', color: COLORS.goldLight });
+        // The centered hand leaves about this much room, so a dark backing
+        // keeps your points readable where they reach the last tile.
+        var myPts = fmt(game.players[0].points);
+        ctx.font = 'bold ' + PHONE_POINTS_PX + 'px ' + FONT_BODY;
+        var ptsW = ctx.measureText(myPts).width + 6, ptsH = PHONE_POINTS_PX + 4;
+        var ptsX = L.meBox.x + L.meBox.w - 1 - ptsW, ptsY = L.handY + L.th - ptsH;
+        roundRect(ctx, ptsX, ptsY, ptsW, ptsH, 4);
+        ctx.fillStyle = COLORS.feltDark;
+        ctx.fill();
+        text(myPts, ptsX + ptsW / 2, ptsY + ptsH / 2 + 0.5, { size: PHONE_POINTS_PX, weight: 'bold', align: 'center', color: COLORS.goldLight });
       }
     }
 
