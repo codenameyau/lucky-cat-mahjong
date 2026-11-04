@@ -606,7 +606,7 @@
       coachStick: true, // follow the newest note until the player scrolls up
       coachScrollMax: 0,
       notice: null,
-      hide: { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], drawn: false },
+      hide: { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null },
       botLift: null, // { seat, index } tile a bot is considering
       botDrawn: [false, false, false, false], // bot's fresh draw sits apart
       botDiscardFrom: [null, null, null, null],
@@ -838,6 +838,16 @@
       var narrow = strip ? 1 : 0.68;
       center.x += center.w * (1 - narrow) / 2;
       center.w *= narrow;
+      // The wind and the turn arrow read as a square, so the long side
+      // comes in to meet the short one.
+      var side = Math.min(center.w, center.h);
+      center.x += (center.w - side) / 2;
+      center.y += (center.h - side) / 2;
+      center.w = side;
+      center.h = side;
+      // A little room on each side so the turn arrow sits clear of the wind.
+      center.x -= 6;
+      center.w += 12;
       return { zones: zones, center: center };
     }
 
@@ -1833,9 +1843,9 @@
 
     function drawSeatHeader(seat, x, y, w, small) {
       var r = small ? 8 : 11;
-      var iconS = small ? 11 : 15;
-      var namePx = small ? 11 : 14;
-      var ptsPx = small ? 11 : 13;
+      var iconS = small ? 13 : 15;
+      var namePx = small ? 13 : 14;
+      var ptsPx = 13;
       windBadge(seat, x + r, y + r, r);
       if (seat === 0) {
         addRegion(x, y, 2 * r, 2 * r, copySeed, 'my-wind', true);
@@ -1927,7 +1937,7 @@
       var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
       // A phone shows only the opponent's points: no name, wind or robot.
       if (!namesShown()) {
-        if (pts) text(pts, r.x + r.w / 2, r.y + r.h / 2 + 1, { size: 11, weight: 'bold', align: 'center', color: COLORS.goldLight });
+        if (pts) text(pts, r.x + r.w / 2, r.y + r.h / 2 + 1, { size: 13, weight: 'bold', align: 'center', color: COLORS.goldLight });
         return;
       }
       // Name, icon, then the score on one line, even when the seat is narrow.
@@ -2046,21 +2056,23 @@
       var fw = mw;
       var fx = mx + (items.length && !oneRow ? mw * 0.35 : 0);
       var wind = E.seatWind(game, seat);
-      s.flowers.forEach(function (id, k) {
-        drawTile(id, fx + k * (fw + TILE_GAP), meldY, fw, { shadow: false, glow: flowerGlow(s.flowers, wind, id) });
-      });
+      var flowerShown = Math.max(0, s.flowers.length - (ui.hide.flower[seat] || 0));
+      for (var fk = 0; fk < flowerShown; fk++) {
+        var fid = s.flowers[fk];
+        drawTile(fid, fx + fk * (fw + TILE_GAP), meldY, fw, { shadow: false, glow: flowerGlow(s.flowers, wind, fid) });
+      }
       ctx.restore();
 
       if (L.desktop && seat === 2) {
         var faceMid = meldY + mw * TILE_ASPECT / 2;
         var left = toScreen(f, f.w, faceMid);
-        drawSeatHeader(seat, left.x + 8, left.y - 8, Math.min(210, Math.max(80, f.w * 0.36)), true);
+        drawSeatHeader(seat, left.x + 8, left.y + 2, Math.min(210, Math.max(80, f.w * 0.36)), true);
       }
 
       ui.oppHand[seat] = { f: f, backX: backX, backsY: backsY, bw: bw, mw: mw, meldY: meldY, bx0: bx0, count: count, liftBy: lift >= 0 ? liftBy : 0 };
       ui.backAnchor[seat] = localPose(f, bx0 + count * pitch + (apart ? bw * 0.4 : 0), backsY, bw);
       ui.meldAnchor[seat] = localPose(f, mx + (items.length ? mw * 0.35 : 0), meldY, mw);
-      ui.flowerAnchor[seat] = localPose(f, fx + flowersN * (fw + TILE_GAP), meldY, fw);
+      ui.flowerAnchor[seat] = localPose(f, fx + flowerShown * (fw + TILE_GAP), meldY, fw);
     }
 
     /* ---------------- where drawn tiles come from ---------------- */
@@ -2227,10 +2239,12 @@
       var fx = mx + (items.length ? mw * 0.2 : 0);
       var fy = y0;
       var myWind = E.seatWind(game, 0);
-      s.flowers.forEach(function (f, k) {
-        drawTile(f, fx + k * (fw + TILE_GAP), fy, fw, { shadow: false, glow: flowerGlow(s.flowers, myWind, f) });
-      });
-      ui.flowerAnchor[0] = { x: fx + s.flowers.length * (fw + TILE_GAP), y: fy, w: fw, rot: 0 };
+      var flowerShown = Math.max(0, s.flowers.length - (ui.hide.flower[0] || 0));
+      for (var fk = 0; fk < flowerShown; fk++) {
+        var fid = s.flowers[fk];
+        drawTile(fid, fx + fk * (fw + TILE_GAP), fy, fw, { shadow: false, glow: flowerGlow(s.flowers, myWind, fid) });
+      }
+      ui.flowerAnchor[0] = { x: fx + flowerShown * (fw + TILE_GAP), y: fy, w: fw, rot: 0 };
       ui.meRowFree = { x0: ui.flowerAnchor[0].x + 10, x1: rightEdge - pad - 8 - infoW - 10 };
 
       // Hand.
@@ -2285,6 +2299,7 @@
         ctx.fill();
         ctx.restore();
       }
+      var heldAt = ui.hide.tile ? tiles.lastIndexOf(ui.hide.tile) : -1;
       for (var i = 0; i < count; i++) {
         var id = tiles[i];
         var slot = ui.handSlots[i];
@@ -2300,6 +2315,8 @@
           if (i === lastCopy) { glow = COLORS.gold; hintUsed = true; }
         }
         var claimable = ui.claimPrompt && ui.claimPrompt.highlight && ui.claimPrompt.highlight.indexOf(id) !== -1;
+        // A replacement still in flight keeps its spot empty until it lands.
+        if (i === heldAt) continue;
         // Tiles a pung or chow would use get a red border.
         drawTile(id, x, pos.y - lift, tw, { glow: glow || (claimable ? COLORS.red : null) });
         var rect = { x: x, y: pos.y - lift, w: tw, h: L.th, id: id, index: i };
@@ -3570,9 +3587,10 @@
       requestRender();
     }
 
-    // Where a declaration banner goes: in the middle of that player's tiles.
-    // Side players' banners face them; the player across gets an upright one,
-    // so it reads the right way up for you.
+    // Where a declaration banner goes: the center of that player's exposed
+    // row, both along the row and across it. Side players' banners face
+    // them; the player across gets an upright one, so it reads the right
+    // way up for you.
     function declarationPos(seat) {
       var pos = seatBannerPos(seat);
       if (seat === 2) pos.rot = 0;
@@ -3580,10 +3598,15 @@
     }
 
     function seatBannerPos(seat) {
-      if (seat === 0) return { x: L.meX + L.meW / 2, y: L.actionsY + L.actionsH / 2, rot: 0 };
-      // Opponents' banners sit in the middle of their tiles and face them.
+      if (seat === 0) {
+        // Centered on your hand. The name sits to the right of the meld row,
+        // so the middle of that row is left of the tiles.
+        return { x: L.meX + L.meW / 2, y: L.meY + L.mw * TILE_ASPECT / 2, rot: 0 };
+      }
       var f = L.oppFrames[seat];
-      var mid = toScreen(f, f.w / 2, f.h / 2);
+      var hand = ui.oppHand[seat];
+      var localY = hand ? hand.meldY + hand.mw * TILE_ASPECT / 2 : f.h * 0.28;
+      var mid = toScreen(f, f.w / 2, localY);
       return { x: mid.x, y: mid.y, rot: SEAT_ANGLE[seat] };
     }
 
@@ -3608,7 +3631,7 @@
 
     var handlers = {
       handStart: function () {
-        ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], drawn: false };
+        ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null };
         ui.botDrawn = [false, false, false, false];
         ui.botLift = null;
         ui.turnSeat = null;
@@ -3630,10 +3653,17 @@
         var from = drawOrigin();
         if (d.seat === 0) {
           ui.hide.drawn = true;
+          if (d.replacement) ui.hide.tile = d.tile;
           var order = myHandOrder();
-          var spot = handPositions(order.tiles.length, true)[order.tiles.length - 1] || { x: L.meX + L.meW / 2, y: L.handY };
+          var n = order.tiles.length;
+          var at = d.replacement ? order.tiles.lastIndexOf(d.tile) : n - 1;
+          var spot = handPositions(n, d.replacement ? false : true)[at >= 0 ? at : n - 1] || { x: L.meX + L.meW / 2, y: L.handY };
           var to = { x: spot.x, y: spot.y, w: L.tw, rot: 0 };
-          return fly(d.tile, from, to, 300, { arc: 20 }).then(function () { ui.hide.drawn = false; requestRender(); });
+          return fly(d.tile, from, to, 300, { arc: 20 }).then(function () {
+            ui.hide.drawn = false;
+            if (d.replacement) ui.hide.tile = null;
+            requestRender();
+          });
         }
         ui.hide.backs[d.seat] = 1;
         ui.botDrawn[d.seat] = false;
@@ -3647,9 +3677,15 @@
       flower: function (d) {
         sound.play('flower');
         var pos = declarationPos(d.seat);
-        banner(d.seat === 0 ? 'Flower!' : 'Flower', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 18, color: COLORS.green, dur: 800 });
+        banner(d.seat === 0 ? 'Flower!' : 'Flower', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 24, color: COLORS.green, dur: 800 });
         announce((d.seat === 0 ? 'You' : game.players[d.seat].name) + ' reveals ' + E.tileName(d.tile) + '.');
-        return sleep(380);
+        var to = ui.flowerAnchor[d.seat] || seatAnchor(d.seat);
+        var from = seatAnchor(d.seat);
+        ui.hide.flower[d.seat] = (ui.hide.flower[d.seat] || 0) + 1;
+        return fly(d.tile, from, to, 280, { arc: 18 }).then(function () {
+          ui.hide.flower[d.seat] = Math.max(0, (ui.hide.flower[d.seat] || 1) - 1);
+          requestRender();
+        });
       },
       discard: function (d) {
         var list = game.hand.seats[d.seat].discards.filter(function (x) { return !x.claimed; });
@@ -3674,7 +3710,7 @@
         sound.play(d.type); // chow, pung or kong, each its own sound
         var words = { chow: 'Chow!', pung: 'Pung!', kong: 'Kong!' };
         var pos = declarationPos(d.seat);
-        banner(words[d.type], pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 24 });
+        banner(words[d.type], pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 32 });
         var list = game.hand.seats[d.from].discards.filter(function (x) { return !x.claimed; });
         var from = pondPose(d.from, list.length);
         var to = ui.meldAnchor[d.seat] || seatAnchor(d.seat);
@@ -3693,7 +3729,7 @@
       kong: function (d) {
         sound.play('kong');
         var pos = declarationPos(d.seat);
-        banner('Kong!', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 24 });
+        banner('Kong!', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 32 });
         // An opponent's concealed kong stays hidden, from screen readers too.
         var hiddenKong = d.kind === 'concealed' && d.seat !== 0;
         announce((d.seat === 0 ? 'You declare' : game.players[d.seat].name + ' declares') +
@@ -3842,7 +3878,7 @@
     // The loaded hand has caught up: draw the table as it stands.
     function replayDone() {
       ui.replaying = false;
-      ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], drawn: false };
+      ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null };
       ui.botDrawn = [false, false, false, false];
       // A seat holding a fresh draw shows it apart.
       game.hand.seats.forEach(function (s, k) { if (k && s.hand.length % 3 === 2) ui.botDrawn[k] = true; });
@@ -3976,7 +4012,7 @@
       // Exposed for debugging in the browser console.
       declare: function (seat, label, color) {
         var p = declarationPos(seat);
-        banner(label, p.x, p.y, { rot: p.rot, maxW: p.maxW, span: p.span, maxH: p.maxH, size: 24, dur: 6000, color: color });
+        banner(label, p.x, p.y, { rot: p.rot, maxW: p.maxW, span: p.span, maxH: p.maxH, size: 32, dur: 6000, color: color });
       },
     };
   }
