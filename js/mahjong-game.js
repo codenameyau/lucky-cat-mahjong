@@ -921,7 +921,7 @@
       // On a phone each opponent's tiles are one row (drawOpponent), so the
       // seats are only one tile deep and the discards get the room.
       // (On a phone opponents show only their points, in payout games.)
-      var phoneHead = settings.mode === 'payout' ? 18 : 4;
+      var phoneHead = 4; // a phone shows no name or points on the computers' seats
       var sideW, topPanelH, sideHead, topHead;
       var sideRun = 0;
       if (desktop) {
@@ -944,11 +944,9 @@
         topPanelH = Math.ceil(oppFit * 2 * depthUnit + 16);
       } else {
         sideW = phonePortrait ? 46 : landscape ? LANDSCAPE_SIDE_W : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
-        // In a full game the player across has their points above their row.
-        var acrossPts = settings.mode === 'payout';
-        topPanelH = acrossPts ? 58 : 62;
+        topPanelH = 62;
         sideHead = phoneHead;
-        topHead = acrossPts ? 14 : phoneHead;
+        topHead = phoneHead;
       }
       var opp = [];
       // An upright phone's player across spans the table, above the side
@@ -972,10 +970,10 @@
       // keep the name along the bottom, where the seat is only one tile deep.
       opp[2].head = desktop
         ? { x: opp[2].x, y: opp[2].y, w: opp[2].w, h: 0 }
-        : { x: opp[2].x, y: opp[2].y + 2, w: opp[2].w, h: topHead };
+        : { x: opp[2].x, y: opp[2].y + opp[2].h - topHead, w: opp[2].w, h: topHead };
       opp[2].tiles = desktop
         ? { x: opp[2].x + 3, y: opp[2].y + 3, w: opp[2].w - 6, h: opp[2].h - 6 }
-        : { x: opp[2].x + 3, y: opp[2].y + 2 + topHead, w: opp[2].w - 6, h: opp[2].h - topHead - 5 };
+        : { x: opp[2].x + 3, y: opp[2].y + 3, w: opp[2].w - 6, h: opp[2].h - topHead - 3 };
       var oppFrames = [];
       [1, 2, 3].forEach(function (k) { oppFrames[k] = makeFrame(opp[k].tiles, k); });
       // One tile size for every opponent's concealed hand and exposed tiles.
@@ -1904,8 +1902,7 @@
     // with paths so it doesn't depend on any emoji font.
     var ICON_GAP = 5;
     var SCORE_GAP = 6; // between the avatar and the score
-    var PHONE_POINTS_PX = 11; // everyone's points on a phone
-    var POINTS_UNDER_GAP = 2; // your points under your avatar on a phone
+    var PHONE_POINTS_PX = 11, POINTS_UNDER_GAP = 2; // your points under your avatar on a phone
     var SEE_RESULTS_W = 120; // See results, in the coach bar above your avatar
     function playerIcon(seat, x, cy, s) {
       var human = game.players[seat].isHuman;
@@ -2076,12 +2073,8 @@
     }
 
     function drawOppHeader(seat, r) {
-      var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
-      // A phone shows only the opponent's points: no name, wind or robot.
-      if (!namesShown()) {
-        if (pts) text(pts, r.x + r.w / 2, r.y + r.h / 2 + 1, { size: PHONE_POINTS_PX, weight: 'bold', align: 'center', color: COLORS.goldLight });
-        return;
-      }
+      // A phone shows no name, wind, robot or points for a computer.
+      if (!namesShown()) return;
       // Name, icon, then the score on one line, even when the seat is narrow.
       var row = 16;
       drawSeatHeader(seat, r.x + 6, r.y + Math.max(1, (r.h - row) / 2), Math.max(40, r.w - 12), true);
