@@ -790,6 +790,14 @@ html.is-playing.is-sideways body {
 
 .results-points--loss { color: #EE6A80; font-weight: bold; }
 
+.results-total th,
+.results-total td {
+  border-top: 1px solid rgba(255, 210, 122, 0.4);
+  border-bottom: 0;
+}
+
+.results-total th { color: #ffd27a; }
+
 .visually-hidden {
   position: absolute;
   width: 1px;
