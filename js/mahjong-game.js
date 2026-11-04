@@ -2507,8 +2507,8 @@
       var leftX = (L.meBox.x + rowLeft) / 2 - PHONE_SCORE_SHIFT, rightX = (rowLeft + rowW + boxRight) / 2 + PHONE_SCORE_SHIFT;
       var topY = L.handY - HAND_ROW_GAP - L.th / 2, bottomY = L.handY + L.th / 2;
       [[2, leftX, topY], [3, leftX, bottomY], [1, rightX, topY], [0, rightX, bottomY]].forEach(function (spot) {
-        // The name and avatar of the player whose turn it is turn gold.
-        var turnColor = ui.turnSeat === spot[0] ? COLORS.gold : COLORS.cream;
+        // The name and avatar of the player whose turn it is turn red.
+        var turnColor = ui.turnSeat === spot[0] ? COLORS.redLight : COLORS.cream;
         playerIcon(spot[0], spot[1] - PHONE_SCORE_ICON / 2, spot[2] - 13, PHONE_SCORE_ICON, turnColor);
         var name = seatTitle(spot[0]);
         var nameSize = fitFont(ctx, name, PHONE_NAME_W, PHONE_NAME_PX, FONT_BODY, 'bold');
