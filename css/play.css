@@ -564,7 +564,7 @@ html.is-playing.is-sideways body {
 
 .strategies-assign-who {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 6px;
   min-width: 0;
 }
@@ -754,7 +754,7 @@ html.is-playing.is-sideways body {
 
 .results-player {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: center;
   gap: 4px;
 }

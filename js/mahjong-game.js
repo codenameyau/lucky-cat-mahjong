@@ -1700,12 +1700,16 @@
       bot: '<path d="M8 3.1V1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="1.15" r="0.85" fill="currentColor"/><rect x="0.5" y="6.1" width="1.5" height="2.5" rx="0.4" fill="currentColor"/><rect x="14" y="6.1" width="1.5" height="2.5" rx="0.4" fill="currentColor"/><rect x="2.3" y="3.5" width="11.4" height="10.2" rx="2.2" fill="currentColor"/><circle cx="6.2" cy="7.8" r="0.95" fill="#074029"/><circle cx="9.8" cy="7.8" r="0.95" fill="#074029"/><rect x="5.7" y="10.5" width="4.6" height="1" rx="0.4" fill="#074029"/>',
     };
 
+    // The drawings stop short of the view box. Drop each one so its lowest
+    // point is the box's bottom, and that bottom can share the name's baseline.
+    var ICON_DROP = { user: 1.6, bot: 2.3 };
+
     function assignIcon(kind) {
       var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('viewBox', '0 0 16 16');
       svg.setAttribute('aria-hidden', 'true');
       svg.classList.add('strategies-assign-icon');
-      svg.innerHTML = ASSIGN_ICON[kind];
+      svg.innerHTML = '<g transform="translate(0 ' + ICON_DROP[kind] + ')">' + ASSIGN_ICON[kind] + '</g>';
       return svg;
     }
 
@@ -2065,6 +2069,19 @@
     var PHONE_NAME_PX = 8, PHONE_NAME_W = 28; // the names above them
     var PHONE_SCORE_INSET = 22; // the middle of each stack, in from the table's corner
     var SEE_RESULTS_W = 120; // See results, in the coach bar above your avatar
+    // cy is the middle the paths are drawn around. A person ends lower than
+    // a robot, so each is lifted until its feet share one line.
+    function iconCy(seat, bottom, s) {
+      var feet = game.players[seat].isHuman ? 0.5 : 0.4;
+      return bottom - s * feet;
+    }
+
+    // The name is drawn from its middle. This is the lowest painted pixel.
+    function paintedBottom(name, y) {
+      ctx.textBaseline = 'middle';
+      return y + (ctx.measureText(name).actualBoundingBoxDescent || 0);
+    }
+
     function playerIcon(seat, x, cy, s, color) {
       var human = game.players[seat].isHuman;
       var ink = COLORS.feltDark;
@@ -2157,6 +2174,7 @@
       var ptsW = pts ? ctx.measureText(pts).width : 0;
       var scoreGap = SCORE_GAP;
       var iconX = x + 2 * r + 6;
+      var iconY = y + r;
       if (namesShown()) {
         var name = seatTitle(seat);
         var nameRoom = w - (iconX - x) - ICON_GAP - iconS - (pts ? scoreGap + ptsW : 0) - 2;
@@ -2164,8 +2182,9 @@
         text(name, x + 2 * r + 6, y + r + 1, { size: nameSize, weight: 'bold', color: COLORS.cream });
         ctx.font = 'bold ' + nameSize + 'px ' + FONT_BODY;
         iconX += ctx.measureText(name).width + ICON_GAP;
+        iconY = iconCy(seat, paintedBottom(name, y + r + 1), iconS);
       }
-      playerIcon(seat, iconX, y + r, iconS);
+      playerIcon(seat, iconX, iconY, iconS);
       var scoreX = iconX + iconS + scoreGap;
       if (pts) text(pts, scoreX, y + r + 1, { size: ptsPx, weight: 'bold', color: COLORS.goldLight });
       var mark = { iconX: iconX, iconRight: iconX + iconS, scoreX: scoreX, y: y + r, hasScore: !!pts };
@@ -2876,7 +2895,7 @@
         var nameW = ctx.measureText(name).width;
         var left = viewX + handW + playerW * seat + (playerW - nameW - iconS - 4) / 2;
         text(name, left, headerY, { size: nameSize, weight: 'bold', color: COLORS.goldLight });
-        playerIcon(seat, left + nameW + 4, headerY, iconS, COLORS.goldLight);
+        playerIcon(seat, left + nameW + 4, iconCy(seat, paintedBottom(name, headerY), iconS), iconS, COLORS.goldLight);
       }
 
       var bodyY = r.y + 54;
