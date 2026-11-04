@@ -1904,14 +1904,12 @@
     var SCORE_GAP = 6; // between the avatar and the score
     var PHONE_POINTS_PX = 10, PHONE_SCORE_ICON = 12; // points beside your hand on a phone
     var SEE_RESULTS_W = 120; // See results, in the coach bar above your avatar
-    function playerIcon(seat, x, cy, s) {
+    function playerIcon(seat, x, cy, s, color) {
       var human = game.players[seat].isHuman;
       var ink = COLORS.feltDark;
       ctx.save();
-      // On a phone, the avatar of the player whose turn it is matches the points.
-      var color = !L.desktop && ui.turnSeat === seat ? COLORS.goldLight : COLORS.cream;
-      ctx.fillStyle = color;
-      ctx.strokeStyle = color;
+      ctx.fillStyle = color || COLORS.cream;
+      ctx.strokeStyle = color || COLORS.cream;
       ctx.lineWidth = Math.max(1, s * 0.09);
       ctx.lineCap = 'round';
       if (human) {
@@ -2501,7 +2499,8 @@
       var leftX = (L.meBox.x + rowLeft) / 2, rightX = (rowLeft + rowW + boxRight) / 2;
       var topY = L.handY - HAND_ROW_GAP - L.th / 2, bottomY = L.handY + L.th / 2;
       [[2, leftX, topY], [3, leftX, bottomY], [1, rightX, topY], [0, rightX, bottomY]].forEach(function (spot) {
-        playerIcon(spot[0], spot[1] - PHONE_SCORE_ICON / 2, spot[2] - 8, PHONE_SCORE_ICON);
+        // The avatar of the player whose turn it is matches the points.
+        playerIcon(spot[0], spot[1] - PHONE_SCORE_ICON / 2, spot[2] - 8, PHONE_SCORE_ICON, ui.turnSeat === spot[0] ? COLORS.goldLight : null);
         drawPhoneScore(spot[0], null, spot[1], spot[2] + 1);
       });
     }
