@@ -946,7 +946,8 @@
         topPanelH = Math.ceil(oppFit * 2 * depthUnit + 16) - TOP_PANEL_TRIM;
       } else {
         sideW = phonePortrait ? 46 : landscape ? LANDSCAPE_SIDE_W : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
-        topPanelH = 62 - TOP_PANEL_TRIM;
+        // Every opponent's panel is the same depth.
+        topPanelH = sideW;
         sideHead = phoneHead;
         topHead = phoneHead;
       }
@@ -2099,6 +2100,22 @@
       ctx.restore();
     }
 
+    // The largest tile that fits this opponent's one row on a phone.
+    function oppRowFit(seat) {
+      var f = L.oppFrames[seat], s = game.hand.seats[seat];
+      var items = meldItems(seat);
+      var meldN = items.filter(function (it) { return !it.gap; }).length;
+      var flowersN = s.flowers.length;
+      var count = ui.revealHands ? revealedConcealed(seat).length : oppConcealedCount(seat);
+      var gaps = items.length - meldN + (flowersN && meldN ? 1 : 0);
+      var tileN = meldN + flowersN;
+      var units = count + meldN + gaps * MELD_GAP + flowersN + (tileN && count ? 0.6 : 0);
+      return clamp(Math.min(
+        (f.h - 8) / (TILE_ASPECT + 0.08),
+        (f.w - Math.max(0, count + tileN - 1) * tileGap()) / Math.max(1, units)
+      ), 8, 40);
+    }
+
     function drawOpponent(seat, t) {
       var r = L.opp[seat];
       var s = game.hand.seats[seat];
@@ -2128,10 +2145,8 @@
         var split = tileN && count ? 0.6 : 0; // room between the melds and the hand
         var units = count + meldTilesN + gaps * MELD_GAP + flowersN + split;
         var tilesInRow = count + tileN;
-        mw = clamp(Math.min(
-          (f.h - 8) / (TILE_ASPECT + 0.08),
-          (f.w - Math.max(0, tilesInRow - 1) * gapT) / Math.max(1, units)
-        ), 8, 40);
+        // Every opponent's tiles are one size: whatever fits the tightest seat.
+        mw = Math.min(oppRowFit(1), oppRowFit(2), oppRowFit(3));
         bw = mw;
         var rowW = units * mw + Math.max(0, tilesInRow - 1) * gapT;
         mx0 = Math.max(0, (f.w - rowW) / 2);
