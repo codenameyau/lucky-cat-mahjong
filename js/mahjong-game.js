@@ -558,6 +558,8 @@
     // Face-up tiles drawn this frame (screen boxes) and the mouse position,
     // for the tile-name tooltip.
     var tileSpots = [], tipsOn = true, mouse = null, tipTile = null;
+    // The computer players' name rows, for the strategy tooltip.
+    var seatSpots = [], tipSeat = null;
     var lastTouch = false; // the last press was a finger: no hover, so the selected tile gets the tip
 
     var ui = {
@@ -1220,6 +1222,25 @@
         var n = E.unseenCounts(game, 0)[E.tileIndex(sp.id)];
         sub = n + ' left';
       }
+      drawTip(label, sub, sp);
+    }
+
+    function seatSpotAt(p) {
+      if (!p) return null;
+      return seatSpots.filter(function (sp) {
+        return p.x >= sp.x0 && p.x <= sp.x1 && p.y >= sp.y0 && p.y <= sp.y1;
+      })[0] || null;
+    }
+
+    // Hovering a computer player's name shows the strategy they play. Only a
+    // mouse gets here, so it's desktop only. Lesson bots play a fixed script.
+    function drawSeatTip() {
+      var sp = seatSpotAt(mouse);
+      tipSeat = sp ? sp.seat : null;
+      if (sp) drawTip('Strategy: ' + Strategies.get(ui.strategies.seats[sp.seat]).name, '', sp);
+    }
+
+    function drawTip(label, sub, sp) {
       ctx.font = 'bold 13px ' + FONT_BODY;
       var w = ctx.measureText(label).width + 18;
       ctx.font = '12px ' + FONT_BODY;
@@ -1242,6 +1263,7 @@
     function render(t) {
       regions = [];
       tileSpots = [];
+      seatSpots = [];
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       drawFelt();
       if (!game || !game.hand) {
@@ -1265,9 +1287,11 @@
       tipsOn = true;
       if (ui.overlay) {
         tileSpots = []; // only the overlay's own tiles are under the mouse
+        seatSpots = [];
         drawOverlay(t);
       }
       drawTileTip();
+      drawSeatTip();
     }
 
     function drawFelt() {
@@ -1852,8 +1876,8 @@
       text(WIND_LETTERS[wind], x, y + 1, { size: Math.round(r * 1.05), family: FONT_HEAD, align: 'center', color: isDealer ? COLORS.white : COLORS.ink });
     }
 
-    // A seat shows the player's name only; which strategy each bot plays is
-    // on the Strategies sheet.
+    // A seat shows the player's name only. Their strategy is in the tooltip
+    // on that name and on the Strategies sheet.
     function seatTitle(seat) {
       return game.players[seat].name;
     }
@@ -1966,6 +1990,7 @@
       var mark = { iconX: iconX, iconRight: iconX + iconS, scoreX: scoreX, y: y + r, hasScore: !!pts };
       ui.headerMark[seat] = mark;
       if (seat === 0) ui.youIcon = { x: iconX, y: y + r, s: iconS, rowRight: pts ? scoreX + ptsW : scoreX };
+      else if (!settings.lesson) seatSpots.push({ seat: seat, x0: x, y0: y, x1: pts ? scoreX + ptsW : iconX + iconS, y1: y + 2 * r });
     }
 
     // A concealed kong lies fully face down during the hand (it still counts
@@ -3545,7 +3570,7 @@
       if (historyAt(p) && !seeResultsHit(p)) {
         canvas.style.cursor = ui.coachScrollMax > 0 ? 'grab' : 'default';
         mouse = p;
-        if (hover) { hover = null; requestRender(); }
+        if (hover || tipSeat !== null) { hover = null; requestRender(); }
         return;
       }
       var r = hitTest(p.x, p.y);
@@ -3553,7 +3578,8 @@
       canvas.style.cursor = r && !r.plain ? 'pointer' : 'default';
       mouse = p;
       var sp = spotAt(p);
-      if (id !== hover || (sp ? sp.id : null) !== tipTile) { hover = id; requestRender(); }
+      var seatSp = seatSpotAt(p);
+      if (id !== hover || (sp ? sp.id : null) !== tipTile || (seatSp ? seatSp.seat : null) !== tipSeat) { hover = id; requestRender(); }
     }
 
     function onPointerUp(e) {
@@ -3562,7 +3588,7 @@
 
     function onPointerLeave() {
       mouse = null;
-      if (tipTile || hover) { hover = null; requestRender(); }
+      if (tipTile || hover || tipSeat !== null) { hover = null; requestRender(); }
     }
 
     function onKey(e) {

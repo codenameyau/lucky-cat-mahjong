@@ -18,7 +18,7 @@ Before version 0.6.0 the two ids were the other way round; saved choices and sav
 - A bot seat with nothing saved plays a random strategy, picked again each game. "Random each game" in the sheet clears the saved pick.
 - The coach (tips and feedback) defaults to `lucky-cat` ("Coach Lucky Cat").
 - A change takes effect on the bot's next move, in the game you're playing.
-- The table shows only each player's name; which strategy each bot plays is on the Strategies sheet.
+- The table shows only each player's name. Which strategy each bot plays is on the Strategies sheet, and on desktop in a tooltip when you hover over their name.
 
 ## Adding a strategy
 

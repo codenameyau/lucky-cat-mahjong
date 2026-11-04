@@ -149,7 +149,7 @@ Every bot plays a named strategy, built on the shared foundation in `js/mahjong-
 
 - The **Strategies** button in the top bar (`js/mahjong-strategies.js`) describes each one and lets you pick a strategy for each bot seat and for the coach
 - Picks are saved in `localStorage` (`lcm-play-strategies`). A bot seat with nothing saved plays a random strategy each game, and the coach defaults to lucky-cat
-- The table shows only the player's name, not their strategy
+- The table shows only the player's name. On desktop, hovering over a computer player's name shows their strategy
 - How to add a strategy, and the rules they all share, are in [docs/strategies/README.md](docs/strategies/README.md)
 
 #### Bots
