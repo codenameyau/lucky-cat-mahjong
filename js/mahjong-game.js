@@ -4063,6 +4063,8 @@
       // A seat with a tile too many is holding a fresh draw.
       game.hand.seats.forEach(function (s, k) { if (k && s.hand.length % 3 === 2) ui.botDrawn[k] = true; });
       ui.botLift = null;
+      // The replay is silent, so this is whose turn it is now: their board glows.
+      ui.turnSeat = game.hand.turn;
       L = computeLayout();
       announce('Game loaded. Hand ' + game.handNumber + '.');
       requestRender();
