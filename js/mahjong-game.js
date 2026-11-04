@@ -768,7 +768,6 @@
     // The table (the other players and the discards) is kept as close to
     // square as the screen allows; spare room goes to the coach.
     var HAND_ROW_GAP = 6;
-    var ONE_ROW_TILES = 8;
     // A landscape phone draws your hand this much smaller than it could be,
     // so the table has more room.
     var PHONE_HAND_SCALE = 0.9;
@@ -2306,29 +2305,23 @@
     // The hand is one row across your section (the left two thirds on
     // desktop), or two rows on a portrait phone: the first half on top, the
     // rest below. A fresh draw sits at the end, in line with the others.
-    function handLeft(count, gap) {
-      var total = count > 0 ? count * L.tw + (count - 1) * gap : 0;
+    function handLeft(count) {
+      var total = count > 0 ? count * L.tw + (count - 1) * L.handGap : 0;
       var span = L.meW;
       if (total >= span - 2 * L.pad) return L.meX + L.pad;
       return L.meX + Math.max(L.pad, (span - total) / 2);
     }
 
-    // Where each of `count` hand tiles sits: [{ x, y }]. Tiles keep one size
-    // all game. On an upright phone, 8 or fewer sit in the bottom row, a little
-    // closer together if the screen is too narrow for them.
+    // Where each of `count` hand tiles sits: [{ x, y }].
     function handPositions(count) {
-      var rows = L.handRows === 2 && count > ONE_ROW_TILES ? 2 : 1;
-      var gap = L.handGap;
-      if (L.handRows === 2 && rows === 1 && count > 1) {
-        gap = Math.max(1, Math.min(gap, (L.meW - 2 * L.pad - 6 - count * L.tw) / (count - 1)));
-      }
-      var step = L.tw + gap;
+      var step = L.tw + L.handGap;
+      var rows = L.handRows === 2 && count > 1 ? 2 : 1;
       var per = Math.ceil(count / rows);
       var out = [];
       for (var r = 0; r < rows; r++) {
         var start = r * per;
         var n = Math.min(per, count - start);
-        var left = handLeft(n, gap);
+        var left = handLeft(n);
         var y = L.handY - (rows - 1 - r) * (L.th + HAND_ROW_GAP);
         for (var k = 0; k < n; k++) out.push({ x: left + k * step, y: y });
       }
