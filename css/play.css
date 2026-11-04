@@ -11,7 +11,7 @@
 .play-card,
 .play-rules {
   background: var(--color-surface);
-  border-radius: 20px;
+  border-radius: 10px;
   box-shadow: var(--shadow-lg);
   padding: 2rem;
 }
@@ -90,7 +90,7 @@
   display: block;
   height: 100%;
   border: 2px solid rgba(0, 0, 0, 0.1);
-  border-radius: var(--radius);
+  border-radius: calc(var(--radius) / 2);
   padding: 0.7rem 0.85rem;
 }
 
@@ -284,7 +284,7 @@ html.is-playing.is-sideways body {
   max-height: calc(100vh - 32px);
   padding: 0;
   border: 2px solid #F4A020;
-  border-radius: 16px;
+  border-radius: 8px;
   background: radial-gradient(circle at 50% 35%, #127048, #074029 75%);
   color: #FFF8F0;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
@@ -362,7 +362,7 @@ html.is-playing.is-sideways body {
 .rules-family {
   padding: 6px 12px 4px;
   border-top: 3px solid #C41E3A;
-  border-radius: 10px;
+  border-radius: 5px;
   background: rgba(0, 0, 0, 0.26);
 }
 
@@ -419,7 +419,7 @@ html.is-playing.is-sideways body {
   color: #1A1A1A;
 }
 
-.rules-row--example { cursor: pointer; border-radius: 6px; }
+.rules-row--example { cursor: pointer; border-radius: 3px; }
 .rules-row--example:focus { outline: none; }
 .rules-row--example:focus-visible {
   outline: 2px solid #ffd27a;
@@ -435,7 +435,7 @@ html.is-playing.is-sideways body {
   max-width: min(560px, calc(100% - 16px));
   padding: 10px 12px;
   border: 2px solid #C41E3A;
-  border-radius: 12px;
+  border-radius: 6px;
   background: #0a3d27;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   cursor: pointer;

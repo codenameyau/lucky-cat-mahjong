@@ -1259,7 +1259,7 @@
       ctx.save();
       ctx.shadowColor = 'rgba(0,0,0,0.3)';
       ctx.shadowBlur = 8;
-      roundRect(ctx, x, y, w, h, 8);
+      roundRect(ctx, x, y, w, h, 4);
       ctx.fillStyle = 'rgba(26,26,26,0.92)';
       ctx.fill();
       ctx.restore();
@@ -2084,7 +2084,7 @@
     // the eye away from the table.
     function drawSeatBox(r, active, t) {
       ctx.save();
-      roundRect(ctx, r.x, r.y, r.w, r.h, 12);
+      roundRect(ctx, r.x, r.y, r.w, r.h, 6);
       ctx.fillStyle = active ? 'rgba(244,160,32,0.07)' : 'rgba(0,0,0,0.16)';
       ctx.fill();
       if (active) {
@@ -2239,7 +2239,7 @@
     function drawPond(t) {
       var p = L.pond;
       ctx.save();
-      roundRect(ctx, p.x, p.y, p.w, p.h, 16);
+      roundRect(ctx, p.x, p.y, p.w, p.h, 8);
       ctx.fillStyle = 'rgba(0,0,0,0.12)';
       ctx.fill();
       ctx.restore();
@@ -2279,7 +2279,7 @@
 
       var c = L.center;
       ctx.save();
-      roundRect(ctx, c.x, c.y, c.w, c.h, 12);
+      roundRect(ctx, c.x, c.y, c.w, c.h, 6);
       ctx.fillStyle = 'rgba(0,0,0,0.2)';
       ctx.fill();
       ctx.restore();
@@ -2456,7 +2456,7 @@
         targets.forEach(function (p) { bx0 = Math.min(bx0, p.x); bx1 = Math.max(bx1, p.x + tw); });
         var by0 = targets[0].y;
         ctx.save();
-        roundRect(ctx, bx0 - 6, by0 - 8, bx1 - bx0 + 12, L.handY + L.th - by0 + 16, 12);
+        roundRect(ctx, bx0 - 6, by0 - 8, bx1 - bx0 + 12, L.handY + L.th - by0 + 16, 6);
         ctx.fillStyle = 'rgba(244,160,32,0.14)';
         ctx.fill();
         ctx.restore();
@@ -2579,7 +2579,7 @@
       var y = L.hintY + L.hintH - h;
       ui.coachBox = { x: x, y: y, w: w, h: h };
       ctx.save();
-      roundRect(ctx, x, y, w, h, 12);
+      roundRect(ctx, x, y, w, h, 6);
       ctx.fillStyle = h > L.hintH ? 'rgba(4,46,28,0.94)' : 'rgba(0,0,0,0.32)';
       ctx.fill();
       ctx.restore();
@@ -2668,7 +2668,7 @@
       var r = L.history;
       if (!r) return;
       ctx.save();
-      roundRect(ctx, r.x, r.y, r.w, r.h, 12);
+      roundRect(ctx, r.x, r.y, r.w, r.h, 6);
       ctx.fillStyle = 'rgba(0,0,0,0.28)';
       ctx.fill();
       ctx.restore();
@@ -2737,7 +2737,7 @@
       }
       var y = viewY - ui.coachScroll;
       blocks.forEach(function (b) {
-        roundRect(ctx, viewX, y, viewW - (ui.coachScrollMax > 0 ? 8 : 0), b.h, 8);
+        roundRect(ctx, viewX, y, viewW - (ui.coachScrollMax > 0 ? 8 : 0), b.h, 4);
         ctx.fillStyle = 'rgba(0,0,0,0.22)';
         ctx.fill();
         if (images.logo) {
@@ -2948,7 +2948,7 @@
       ctx.save();
       ctx.shadowColor = 'rgba(0,0,0,0.4)';
       ctx.shadowBlur = 30;
-      roundRect(ctx, r.x, r.y, r.w, r.h, 18);
+      roundRect(ctx, r.x, r.y, r.w, r.h, 9);
       ctx.fillStyle = COLORS.cream;
       ctx.fill();
       ctx.restore();
@@ -3053,7 +3053,7 @@
         // The hand sits on its own felt strip; the winning tile gets a gold caret.
         var tw = lay.tw, th = tw * TILE_ASPECT;
         var stripH = th + 26;
-        roundRect(ctx, x, y, w, stripH, 12);
+        roundRect(ctx, x, y, w, stripH, 6);
         ctx.fillStyle = COLORS.felt;
         ctx.fill();
         var span = 0;
@@ -3103,7 +3103,7 @@
         items.forEach(function (it, i) {
           if (i % 2 === 0) {
             ctx.fillStyle = 'rgba(0,0,0,0.035)';
-            roundRect(ctx, colX - 8, y, colW + 16, rh, 6);
+            roundRect(ctx, colX - 8, y, colW + 16, rh, 3);
             ctx.fill();
           }
           var my = y + rh / 2;
@@ -3141,7 +3141,7 @@
             var my2 = y + rh / 2;
             if (p === res.winner) {
               ctx.fillStyle = 'rgba(244,160,32,0.16)';
-              roundRect(ctx, colX - 8, y, colW + 16, rh, 6);
+              roundRect(ctx, colX - 8, y, colW + 16, rh, 3);
               ctx.fill();
             }
             var name = (p === 0 ? 'You' : game.players[p].name);
