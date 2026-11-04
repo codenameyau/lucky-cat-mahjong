@@ -875,12 +875,7 @@
       var tileRowW = landscape ? Math.round((W - 8 - pad) * 2 / 3) : meW;
       var handGap = phonePortrait ? PHONE_HAND_GAP : TILE_GAP;
       var tw = phonePortrait
-        ? Math.min(
-          (meW - 2 * pad - 6 - 6 * handGap) / 7,
-          H * PORTRAIT_HAND_H,
-          // In a full game, room beside the rows for everyone's name and points.
-          settings.mode === 'payout' ? (meW - 2 * PHONE_SCORE_MARGIN - 6 * handGap) / 7 : Infinity
-        )
+        ? Math.min((meW - 2 * pad - 6 - 6 * handGap) / 7, H * PORTRAIT_HAND_H)
         : clamp(((tileRowW - 2 * pad - 13 * TILE_GAP) / 14.8) * 0.88, 18, Math.min(124, H * (landscape ? 0.085 : 0.114)));
       // A landscape phone draws your hand (and so your melds) a little smaller, for the table.
       if (landscape) tw *= PHONE_HAND_SCALE;
@@ -1907,10 +1902,9 @@
     // with paths so it doesn't depend on any emoji font.
     var ICON_GAP = 5;
     var SCORE_GAP = 6; // between the avatar and the score
-    var PHONE_POINTS_PX = 10, PHONE_SCORE_ICON = 12; // points beside your hand on a phone
+    var PHONE_POINTS_PX = 10, PHONE_SCORE_ICON = 12; // points on the table on a phone
     var PHONE_NAME_PX = 9, PHONE_NAME_W = 28; // the names above them
-    var PHONE_SCORE_MARGIN = 37; // the screen's edge to your hand, upright in a full game
-    var PHONE_SCORE_SHIFT = 3; // names and points sit this far out from the margin's middle
+    var PHONE_SCORE_INSET = 20; // the middle of each stack, in from the table's corner
     var SEE_RESULTS_W = 120; // See results, in the coach bar above your avatar
     function playerIcon(seat, x, cy, s, color) {
       var human = game.players[seat].isHuman;
@@ -2224,6 +2218,24 @@
       return { x: c.x + c.w / 2 - 10, y: c.y + c.h / 2 - 14, w: 20, rot: 0 };
     }
 
+    // On a phone in a full game, each player's avatar, name and points sit in a
+    // corner of the discard table: the player across at top left, on your left
+    // at bottom left, on your right at top right, and you at bottom right.
+    // Everything's white, except the player whose turn it is, in yellow.
+    function drawPhoneScores() {
+      var p = L.pond;
+      var leftX = p.x + PHONE_SCORE_INSET, rightX = p.x + p.w - PHONE_SCORE_INSET;
+      var topY = p.y + 21, bottomY = p.y + p.h - 21;
+      [[2, leftX, topY], [3, leftX, bottomY], [1, rightX, topY], [0, rightX, bottomY]].forEach(function (spot) {
+        var color = ui.turnSeat === spot[0] ? COLORS.goldLight : COLORS.cream;
+        playerIcon(spot[0], spot[1] - PHONE_SCORE_ICON / 2, spot[2] - 13, PHONE_SCORE_ICON, color);
+        var name = seatTitle(spot[0]);
+        var nameSize = fitFont(ctx, name, PHONE_NAME_W, PHONE_NAME_PX, FONT_BODY, 'bold');
+        text(name, spot[1], spot[2] - 1, { size: nameSize, weight: 'bold', align: 'center', color: color });
+        text(fmt(game.players[spot[0]].points), spot[1], spot[2] + 11, { size: PHONE_POINTS_PX, weight: 'bold', align: 'center', color: color });
+      });
+    }
+
     function drawPond(t) {
       var p = L.pond;
       ctx.save();
@@ -2262,6 +2274,8 @@
         }
         ctx.restore();
       }
+
+      if (!L.desktop && settings.mode === 'payout') drawPhoneScores();
 
       var c = L.center;
       ctx.save();
@@ -2476,45 +2490,6 @@
           })(i);
         }
       }
-      if (!L.desktop && settings.mode === 'payout') drawPhoneScores();
-    }
-
-    // A player's points on a phone, on a dark backing so they stay readable
-    // where they reach a tile.
-    function drawPhoneScore(seat, right, centerX, y) {
-      var label = fmt(game.players[seat].points);
-      ctx.font = 'bold ' + PHONE_POINTS_PX + 'px ' + FONT_BODY;
-      var w = ctx.measureText(label).width + 4, h = PHONE_POINTS_PX + 4;
-      var x = right !== null ? right - w : centerX - w / 2;
-      roundRect(ctx, x, y, w, h, 4);
-      ctx.fillStyle = COLORS.feltDark;
-      ctx.fill();
-      text(label, x + w / 2, y + h / 2 + 0.5, { size: PHONE_POINTS_PX, weight: 'bold', align: 'center', color: ui.turnSeat === seat ? COLORS.goldLight : COLORS.cream });
-    }
-
-    // Upright, everyone's points sit in the margins beside your two rows, each
-    // under their name and a bot or person icon: the player across and on your left down the
-    // left side, the player on your right and you down the right side.
-    // Sideways there's no room for four, so only yours shows.
-    function drawPhoneScores() {
-      var boxRight = L.meBox.x + L.meBox.w;
-      if (!L.phonePortrait) {
-        drawPhoneScore(0, boxRight - 5, null, L.handY + L.th - PHONE_POINTS_PX - 4);
-        return;
-      }
-      var rowW = 7 * L.tw + 6 * L.handGap;
-      var rowLeft = L.meX + (L.meW - rowW) / 2;
-      var leftX = (L.meBox.x + rowLeft) / 2 - PHONE_SCORE_SHIFT, rightX = (rowLeft + rowW + boxRight) / 2 + PHONE_SCORE_SHIFT;
-      var topY = L.handY - HAND_ROW_GAP - L.th / 2, bottomY = L.handY + L.th / 2;
-      [[2, leftX, topY], [3, leftX, bottomY], [1, rightX, topY], [0, rightX, bottomY]].forEach(function (spot) {
-        // Everything's white, except the player whose turn it is, in yellow.
-        var turnColor = ui.turnSeat === spot[0] ? COLORS.goldLight : COLORS.cream;
-        playerIcon(spot[0], spot[1] - PHONE_SCORE_ICON / 2, spot[2] - 13, PHONE_SCORE_ICON, turnColor);
-        var name = seatTitle(spot[0]);
-        var nameSize = fitFont(ctx, name, PHONE_NAME_W, PHONE_NAME_PX, FONT_BODY, 'bold');
-        text(name, spot[1], spot[2] - 1, { size: nameSize, weight: 'bold', align: 'center', color: turnColor });
-        text(fmt(game.players[spot[0]].points), spot[1], spot[2] + 11, { size: PHONE_POINTS_PX, weight: 'bold', align: 'center', color: turnColor });
-      });
     }
 
     function drawHintBand() {
