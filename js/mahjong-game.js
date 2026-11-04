@@ -27,6 +27,7 @@
   // On an upright phone: between your hand's tiles, and between the computers'
   // tiles and your own exposed tiles.
   var PHONE_HAND_GAP = 5, PHONE_TILE_GAP = 2;
+  var OPP_ROW_GAP = 4; // on desktop, between a computer's exposed tiles and their hand
   var ACTIONS_LIFT = 6; // the Discard, Pung, Pass and other action buttons sit this far above their row's center
 
   var COLORS = {
@@ -2134,14 +2135,14 @@
         // exposed tiles. A seat with more melds does not shrink on its own.
         mw = L.oppTile;
         bw = mw;
-        // The rows sit against the back edge, 1px apart. Spare depth stays
-        // in front of the melds, so nothing empty sits above the hand.
-        var block = 2 * rowDepth(bw) + 1;
+        // The rows sit against the back edge, a small gap apart. Spare depth
+        // stays in front of the melds, so nothing empty sits above the hand.
+        var block = 2 * rowDepth(bw) + OPP_ROW_GAP;
         var edge = Math.min(4, Math.max(1, (f.h - block) / 2));
         backsY = f.h - edge - rowDepth(bw);
         var span = count > 0 ? count * bw + Math.max(0, count - 1) * gapT : 0;
         bx0 = (f.w - span) / 2;
-        meldY = backsY - rowDepth(mw) - 1;
+        meldY = backsY - rowDepth(mw) - OPP_ROW_GAP;
         // Exposed tiles start at the owner's left. This brings them toward
         // the center of that player's row.
         mx0 = 5;
