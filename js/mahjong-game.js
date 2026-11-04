@@ -1657,13 +1657,20 @@
       return sel;
     }
 
-    function assignRow(labelText, control) {
+    function assignRow(labelText, control, playing) {
       var row = document.createElement('div');
       row.className = 'strategies-assign-row';
       var label = document.createElement('label');
       label.className = 'strategies-assign-label';
       label.htmlFor = control.id;
       label.textContent = labelText;
+      if (playing) {
+        var now = document.createElement('span');
+        now.className = 'strategies-assign-playing';
+        now.textContent = playing;
+        label.appendChild(document.createTextNode(' '));
+        label.appendChild(now);
+      }
       row.appendChild(label);
       row.appendChild(control);
       return row;
@@ -1689,7 +1696,7 @@
         var choice = seatChoice(seat);
         box.appendChild(assignRow(playerLabel(seat), strategySelect('strategy-seat-' + seat, choice, true, function (id) {
           setSeatStrategy(seat, id);
-        })));
+        }), 'Playing ' + Strategies.get(ui.strategies.seats[seat]).name));
       });
       assign.appendChild(box);
       body.appendChild(assign);

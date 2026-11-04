@@ -555,6 +555,17 @@ html.is-playing.is-sideways body {
   font-size: 0.86rem;
 }
 
+/* What a computer is playing this game: beside its name on a phone, under it on desktop. */
+.strategies-assign-playing {
+  font-size: 0.78rem;
+  font-weight: normal;
+  color: rgba(255, 248, 240, 0.62);
+}
+
+@media (min-width: 601px) {
+  .strategies-assign-playing { display: block; }
+}
+
 .strategies-select {
   width: 100%;
   padding: 5px 8px;
