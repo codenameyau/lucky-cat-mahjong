@@ -172,6 +172,36 @@ describe('jorge-yau decisions', () => {
   });
 });
 
+describe('a pair stays until a chow of another suit closes All Triplets', () => {
+  // Pung of 1 Character, then a lone 3 Bamboo beside a pair of 8 Bamboo.
+  // Seed 2510433994 reaches this shape. Both coaches were throwing the pair.
+  const hand = ['c2', 'c4', 'c4', 'c7', 'c7', 'd5', 'd7', 'b3', 'b8', 'b8', 'dr'];
+  function seat(melds) {
+    return table({ seats: [{ hand: hand, melds: melds }] });
+  }
+  function order(bot, game) {
+    return bot.analyzeDiscards(game, 0).candidates.map((c) => c.tile);
+  }
+
+  it('throws the single before the pair, for both coaches', () => {
+    const game = seat([pung('c1')]);
+    [B, L].forEach((bot) => {
+      const tiles = order(bot, game);
+      assert.notEqual(tiles[0], 'b8', bot.id);
+      assert.ok(tiles.indexOf('b3') < tiles.indexOf('b8'), bot.id + ' ' + tiles.join(' '));
+    });
+  });
+
+  it('lets the pair go with the other suit once a different suit has been chowed', () => {
+    const chow = { type: 'chow', tiles: ['c2', 'c3', 'c4'], concealed: false, from: 3 };
+    const game = seat([chow]);
+    [B, L].forEach((bot) => {
+      const b8 = bot.analyzeDiscards(game, 0).candidates.find((c) => c.tile === 'b8');
+      assert.equal(b8.priority, 0, bot.id);
+    });
+  });
+});
+
 describe('Concealed Straights keeps one honor pair', () => {
   const noKongs = { kongs: [] };
   it('throws every other honor first and keeps the pair', () => {

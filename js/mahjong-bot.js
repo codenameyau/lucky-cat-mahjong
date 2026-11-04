@@ -439,11 +439,26 @@
     return DRAGONS.indexOf(i) !== -1 && counts[i] === 1 && revealedCopies(game, i) === 0;
   }
 
+  // A chow in some other suit has already given up All Triplets, so this
+  // pair is no longer an eye you can pivot with. No such chow, and the pair
+  // stays until the singles are gone.
+  function chowOfAnotherSuit(ctx, i) {
+    if (i >= 27) return false;
+    var suit = E.suitOfIndex(i);
+    return ctx.melds.some(function (m) {
+      if (m.type !== 'chow') return false;
+      return E.suitOfIndex(E.tileIndex(m.tiles[0])) !== suit;
+    });
+  }
+
   // The discard rules every strategy follows, ahead of its own order: after
   // a chow, or with most of the hand in one suit, other suits go first
-  // (group 0: even while folding). On Concealed Straights, every honor but
-  // one pair and a dragon nobody has shown goes first (group -1: while
-  // folding, safety decides). Null when neither applies.
+  // (group 0: even while folding). A pair of another suit waits behind those
+  // singles: it is still an eye, and a pung if the hand pivots to All
+  // Triplets, unless a chow of a different suit has closed that hand. On
+  // Concealed Straights, every honor but one pair and a dragon nobody has
+  // shown goes first (group -1: while folding, safety decides). Null when
+  // neither applies.
   function sharedPriority(game, ctx, counts, candidate) {
     var i = candidate.index;
     var lead = ctx.leadPlan;
@@ -451,7 +466,10 @@
       return i >= 27 && i !== keptHonorPair(counts, ctx) && !holdsDragon(game, i, candidate.shanten) ? -1 : null;
     }
     var committed = suitCommitment(ctx, counts);
-    if (committed && i < 27 && E.suitOfIndex(i) !== committed) return 0;
+    if (committed && i < 27 && E.suitOfIndex(i) !== committed) {
+      if (counts[i] === 2 && !chowOfAnotherSuit(ctx, i)) return null;
+      return 0;
+    }
     return null;
   }
 
@@ -1688,6 +1706,7 @@
     chowAllowed: chowAllowed,
     sharedPriority: sharedPriority,
     keptHonorPair: keptHonorPair,
+    chowOfAnotherSuit: chowOfAnotherSuit,
     holdsDragon: holdsDragon,
     loneDragon: loneDragon,
     aimablePlans: aimablePlans,

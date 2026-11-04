@@ -509,7 +509,14 @@
     // shared rule picks which).
     var eyes = t.id === 'sequences' && i === B.keptHonorPair(counts, ctx);
     if (t.id === 'sequences' && !eyes && B.holdsDragon(game, i, cand.shanten)) return 4;
-    if (keep && !keep(i) && !eyes) return def.hard ? -1 : 1;
+    // Off-target singles go at 1. A pair sits just behind them (1.25): it is
+    // still an eye, and a pung if the hand pivots to All Triplets, so it
+    // waits until those singles are gone. A hard target has no use for it,
+    // and a chow of another suit has already closed All Triplets.
+    if (keep && !keep(i) && !eyes) {
+      if (pair && i < 27 && !def.hard && !B.chowOfAnotherSuit(ctx, i)) return 1.25;
+      return def.hard ? -1 : 1;
+    }
     if (t.id === 'gates' && !B.gatesTileNeeded(counts, t.start, i)) return 1;
     if (B.isPungTile(game, i) && counts[i] < 2 && cand.shanten <= bestShanten) return 1;
     // Seven Pairs keeps pairs and lets a third copy go.

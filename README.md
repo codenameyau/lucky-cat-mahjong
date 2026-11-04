@@ -251,13 +251,11 @@ Sound effects are short CC0 clips from Kenney's packs, played with WebAudio (`as
 | Discard | A dull chip thump |
 | Chow, pung, kong | A different heavy mining-pick hit for each (the kong struck twice), under a chip stack |
 | Show hands | A heavy mining-pick hit |
-| Next hand | A gong |
+| Next hand | A heavy mining-pick hit |
 | Flower | A soft glass chime |
 | Your turn | A light knock on wood |
-| You win | Poker chips, a pile collected and stacked |
-| Someone else wins | A medium wooden hit with chips |
-| You pay | Poker chips, a few pushed across |
-| Drawn hand | A plank set down |
+| Win, whoever takes it | A heavy mining-pick hit, struck again, then the pot's chips |
+| Drawn hand | A bell |
 
 Background music is three CC BY 4.0 tracks by Kevin MacLeod (Guzheng City, Shenyang, Ripples, in `assets/music/`, credited on the play page), shuffled and looped while the game is open.
 

@@ -720,7 +720,6 @@
       var rep = game.hand.wall.pop();
       game.hand.backDrawn++;
       s.hand.push(rep);
-      game.hand.drawnTile = rep;
       await emit(ui, 'draw', { seat: seat, tile: rep, replacement: true });
     }
     return n;
