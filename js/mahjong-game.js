@@ -1109,7 +1109,7 @@
       if (opts.glow) {
         ctx.strokeStyle = opts.glow;
         // Red marks a tile a claim would use. Every other highlight is a thinner yellow.
-        ctx.lineWidth = opts.glow === COLORS.red ? Math.max(2, w * 0.07) : Math.max(1, w * 0.07 - 2);
+        ctx.lineWidth = opts.glow === COLORS.red ? Math.max(2, w * 0.07) : Math.max(2, w * 0.07 - 1);
         roundRect(ctx, x - 1, y - 1, w + 2, w * TILE_ASPECT + 2, w * 0.15);
         ctx.stroke();
       }
