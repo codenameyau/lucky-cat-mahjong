@@ -131,6 +131,7 @@
           var learn = document.getElementById('play-learn');
           if (resume) resume.hidden = !hasSave;
           if (learn) learn.hidden = hasSave;
+          if (start) start.textContent = hasSave ? 'Start new game' : 'Start game';
           var seen = false;
           [resume, start, learn].forEach(function (btn) {
             if (!btn) return;
