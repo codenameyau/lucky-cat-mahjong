@@ -1937,8 +1937,8 @@
         var avatar = assignIcon(game.players[seat].isHuman ? 'user' : 'bot');
         avatar.classList.remove('strategies-assign-icon');
         avatar.classList.add('results-avatar');
-        who.appendChild(avatar);
         who.appendChild(document.createTextNode(seatTitle(seat)));
+        who.appendChild(avatar);
         th.appendChild(who);
         head.appendChild(th);
       });
@@ -2875,8 +2875,8 @@
         ctx.font = 'bold ' + nameSize + 'px ' + FONT_BODY;
         var nameW = ctx.measureText(name).width;
         var left = viewX + handW + playerW * seat + (playerW - nameW - iconS - 4) / 2;
-        playerIcon(seat, left, headerY, iconS, COLORS.goldLight);
-        text(name, left + iconS + 4, headerY, { size: nameSize, weight: 'bold', color: COLORS.goldLight });
+        text(name, left, headerY, { size: nameSize, weight: 'bold', color: COLORS.goldLight });
+        playerIcon(seat, left + nameW + 4, headerY, iconS, COLORS.goldLight);
       }
 
       var bodyY = r.y + 54;
