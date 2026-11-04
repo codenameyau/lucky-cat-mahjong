@@ -768,6 +768,7 @@
     // The table (the other players and the discards) is kept as close to
     // square as the screen allows; spare room goes to the coach.
     var HAND_ROW_GAP = 6;
+    var SIDE_HEAD_TOP = 4; // on desktop, room above the side players' names
     // A landscape phone draws your hand this much smaller than it could be,
     // so the table has more room.
     var PHONE_HAND_SCALE = 0.9;
@@ -929,7 +930,7 @@
         // and the meld row; the rest of that band belongs to the discards.
         // The across player's name sits on the exposed row, so that panel
         // has no header band.
-        sideHead = 20;
+        sideHead = 20 + SIDE_HEAD_TOP;
         topHead = 0;
         sideRun = Math.max(40, (bandTop - gap) - topH - sideHead - 3);
         var depthUnit = TILE_ASPECT + 0.08;
@@ -2071,7 +2072,7 @@
       if (!namesShown()) return;
       // Name, icon, then the score on one line, even when the seat is narrow.
       var row = 16;
-      drawSeatHeader(seat, r.x + 6, r.y + Math.max(1, (r.h - row) / 2), Math.max(40, r.w - 12), true);
+      drawSeatHeader(seat, r.x + 6, r.y + SIDE_HEAD_TOP + Math.max(1, (r.h - SIDE_HEAD_TOP - row) / 2), Math.max(40, r.w - 12), true);
     }
 
     function oppConcealedCount(seat) {
@@ -3159,7 +3160,7 @@
       }
       if (o.extra) {
         var ey = y + 16;
-        text(o.extra, cx, ey, { size: fitFont(ctx, o.extra, w, 13, FONT_BODY), align: 'center', color: COLORS.muted });
+        text(o.extra, cx, ey, { size: fitFont(ctx, o.extra, w, 13, FONT_BODY, 'bold'), weight: 'bold', align: 'center', color: COLORS.red });
       }
       var label = settings.lesson ? 'Done' : (game.over ? 'See results' : 'Next hand');
       var firstRegion = regions.length;
