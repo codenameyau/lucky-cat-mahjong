@@ -1903,6 +1903,7 @@
     var ICON_GAP = 5;
     var SCORE_GAP = 6; // between the avatar and the score
     var PHONE_POINTS_PX = 10, PHONE_SCORE_ICON = 12; // points beside your hand on a phone
+    var PHONE_NAME_PX = 9, PHONE_NAME_W = 24; // the names above them
     var SEE_RESULTS_W = 120; // See results, in the coach bar above your avatar
     function playerIcon(seat, x, cy, s, color) {
       var human = game.players[seat].isHuman;
@@ -2485,7 +2486,7 @@
     }
 
     // Upright, everyone's points sit in the margins beside your two rows, each
-    // under a bot or person icon: the player across and on your left down the
+    // under their name and a bot or person icon: the player across and on your left down the
     // left side, the player on your right and you down the right side.
     // Sideways there's no room for four, so only yours shows.
     function drawPhoneScores() {
@@ -2500,8 +2501,19 @@
       var topY = L.handY - HAND_ROW_GAP - L.th / 2, bottomY = L.handY + L.th / 2;
       [[2, leftX, topY], [3, leftX, bottomY], [1, rightX, topY], [0, rightX, bottomY]].forEach(function (spot) {
         // The avatar of the player whose turn it is matches the points.
-        playerIcon(spot[0], spot[1] - PHONE_SCORE_ICON / 2, spot[2] - 8, PHONE_SCORE_ICON, ui.turnSeat === spot[0] ? COLORS.goldLight : null);
-        drawPhoneScore(spot[0], null, spot[1], spot[2] + 1);
+        playerIcon(spot[0], spot[1] - PHONE_SCORE_ICON / 2, spot[2] - 13, PHONE_SCORE_ICON, ui.turnSeat === spot[0] ? COLORS.goldLight : null);
+        // Name and points share a dark backing, so they stay readable where a
+        // long name reaches a tile.
+        var name = seatTitle(spot[0]), label = fmt(game.players[spot[0]].points);
+        var nameSize = fitFont(ctx, name, PHONE_NAME_W, PHONE_NAME_PX, FONT_BODY, 'bold');
+        var nameW = ctx.measureText(name).width;
+        ctx.font = 'bold ' + PHONE_POINTS_PX + 'px ' + FONT_BODY;
+        var w = Math.max(nameW, ctx.measureText(label).width) + 4;
+        roundRect(ctx, spot[1] - w / 2, spot[2] - 7, w, 25, 4);
+        ctx.fillStyle = COLORS.feltDark;
+        ctx.fill();
+        text(name, spot[1], spot[2] - 1, { size: nameSize, weight: 'bold', align: 'center', color: COLORS.cream });
+        text(label, spot[1], spot[2] + 11, { size: PHONE_POINTS_PX, weight: 'bold', align: 'center', color: COLORS.goldLight });
       });
     }
 

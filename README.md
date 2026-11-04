@@ -229,7 +229,7 @@ Like a real table, each opponent's hand, melds and discards face that player, an
 
 On phones:
 
-- Names are left out, and your seat keeps its wind badge. In a full game, everyone's points sit beside your hand under a bot or person icon: the player across and on your left down the left side, the player on your right and you down the right side. Sideways, only your points show
+- Names are left out, and your seat keeps its wind badge. In a full game, everyone's points sit beside your hand under their name and a bot or person icon: the player across and on your left down the left side, the player on your right and you down the right side. Sideways, only your points show
 - Each opponent's tiles (hidden hand, melds and flowers) are one row, so they can be larger
 - Upright, the player across spans the whole table above the side seats. Sideways, the side seats run the full height beside the player across and your section
 - Every discard is the same size, and each pond is planned for 8 discards so they draw large
