@@ -606,7 +606,7 @@
       coachStick: true, // follow the newest note until the player scrolls up
       coachScrollMax: 0,
       notice: null,
-      hide: { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], drawn: false },
+      hide: { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null },
       botLift: null, // { seat, index } tile a bot is considering
       botDrawn: [false, false, false, false], // bot's fresh draw sits apart
       botDiscardFrom: [null, null, null, null],
@@ -615,8 +615,9 @@
       revealHands: false, // after Show hands, every concealed hand is face up
       heldSummary: null, // the results panel, while those hands stay open
       youIcon: null, // where your person icon was drawn
+      headerMark: [null, null, null, null], // name row: icon and where the score sits beside it
       youHeader: null, // where your name was drawn, so See results can sit under it when there is no coach box
-      coachBox: null, // the coach's bar, once drawn, so See results can sit at its right edge
+      coachBox: null, // the coach's bar, once drawn, so See results can sit above your avatar
       lastHandRects: [],
       meldAnchor: [null, null, null, null],
       backAnchor: [null, null, null, null],
@@ -837,6 +838,16 @@
       var narrow = strip ? 1 : 0.68;
       center.x += center.w * (1 - narrow) / 2;
       center.w *= narrow;
+      // The wind and the turn arrow read as a square, so the long side
+      // comes in to meet the short one.
+      var side = Math.min(center.w, center.h);
+      center.x += (center.w - side) / 2;
+      center.y += (center.h - side) / 2;
+      center.w = side;
+      center.h = side;
+      // A little room on each side so the turn arrow sits clear of the wind.
+      center.x -= 6;
+      center.w += 12;
       return { zones: zones, center: center };
     }
 
@@ -925,14 +936,34 @@
 
       // On a phone each opponent's tiles are one row (drawOpponent), so the
       // seats are only one tile deep and the discards get the room.
-      var sideW = phonePortrait ? 46 : landscape ? LANDSCAPE_SIDE_W : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
-      var topPanelH = !desktop ? 62 : portrait ? clamp(H * 0.11, 72, 100) : clamp(H * 0.16, 92, 132);
-      // Narrow side seats (drawOppHeader's compact header) stack name, strategy and points.
-      // (On a phone: the badge and icon, and the points under them.)
       // (On a phone opponents show only their points, in payout games.)
       var phoneHead = settings.mode === 'payout' ? 18 : 4;
-      var sideHead = !desktop ? phoneHead : portrait || sideW < 120 ? 54 : 34;
-      var topHead = desktop ? 30 : phoneHead; // the name row, with a little room below it
+      var sideW, topPanelH, sideHead, topHead;
+      var sideRun = 0;
+      if (desktop) {
+        // Names are one short row. The seats are only as deep as the hand
+        // and the meld row; the rest of that band belongs to the discards.
+        // The across player's name sits on the exposed row, so that panel
+        // has no header band.
+        sideHead = 20;
+        topHead = 0;
+        sideRun = Math.max(40, (bandTop - gap) - topH - sideHead - 3);
+        var depthUnit = TILE_ASPECT + 0.08;
+        var lengthTile = clamp((sideRun - 13 * TILE_GAP) / 14.7, 8, 52);
+        var tileRows = lengthTile * depthUnit * 2;
+        sideW = clamp(Math.ceil(tileRows + 16), 120, 200) + 10;
+        // The extra width is split by the hand and the exposed row, and the
+        // across seat is made just as deep so every opponent tile matches.
+        var lengthFit = (sideRun - 13 * TILE_GAP) / 14;
+        var depthFit = (sideW - 16) / (2 * depthUnit);
+        var oppFit = clamp(Math.min(lengthFit, depthFit), 8, 72);
+        topPanelH = Math.ceil(oppFit * 2 * depthUnit + 16);
+      } else {
+        sideW = phonePortrait ? 46 : landscape ? LANDSCAPE_SIDE_W : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
+        topPanelH = 62;
+        sideHead = phoneHead;
+        topHead = phoneHead;
+      }
       var opp = [];
       // An upright phone's player across spans the table, above the side
       // seats; sideways the side seats run the full height instead, with the
@@ -950,10 +981,29 @@
         r.head = { x: r.x, y: r.y, w: r.w, h: sideHead };
         r.tiles = { x: r.x + 3, y: r.y + sideHead, w: r.w - 6, h: r.h - sideHead - 3 };
       });
-      opp[2].head = { x: opp[2].x, y: opp[2].y + opp[2].h - topHead, w: opp[2].w, h: topHead };
-      opp[2].tiles = { x: opp[2].x + 3, y: opp[2].y + 3, w: opp[2].w - 6, h: opp[2].h - topHead - 3 };
+      // Desktop: the across player's name shares the exposed-tile row, so the
+      // tile area fills the panel and the hand sits on the back edge. Phones
+      // keep the name along the bottom, where the seat is only one tile deep.
+      opp[2].head = desktop
+        ? { x: opp[2].x, y: opp[2].y, w: opp[2].w, h: 0 }
+        : { x: opp[2].x, y: opp[2].y + opp[2].h - topHead, w: opp[2].w, h: topHead };
+      opp[2].tiles = desktop
+        ? { x: opp[2].x + 3, y: opp[2].y + 3, w: opp[2].w - 6, h: opp[2].h - 6 }
+        : { x: opp[2].x + 3, y: opp[2].y + 3, w: opp[2].w - 6, h: opp[2].h - topHead - 3 };
       var oppFrames = [];
       [1, 2, 3].forEach(function (k) { oppFrames[k] = makeFrame(opp[k].tiles, k); });
+      // One tile size for every opponent's concealed hand and exposed tiles.
+      // Meld counts do not shrink a single seat. The narrowest seat sets it.
+      var oppTile = 0;
+      if (desktop) {
+        var depthUnit = TILE_ASPECT + 0.08;
+        var shared = 72;
+        [1, 2, 3].forEach(function (k) {
+          var fr = oppFrames[k];
+          shared = Math.min(shared, (fr.w - 13 * TILE_GAP) / 14, (fr.h - 10) / (2 * depthUnit));
+        });
+        oppTile = clamp(shared, 8, 72);
+      }
 
       var pond = { x: mid, y: topH + topPanelH + gap, w: pondW, h: Math.max(60, bandTop - (topH + topPanelH + 2 * gap)) };
 
@@ -974,7 +1024,18 @@
       // (deeper rows to hold as many), and keep whichever draws the
       // discards largest.
       var options = [{ strip: portrait, cols: POND_COLS }];
-      if (!desktop) {
+      if (desktop) {
+        // Top and bottom ponds are the short side. Deepen them until a
+        // discard is as large as the side ponds allow, so the spare felt
+        // becomes tile.
+        var sideDepth = pond.w * 0.26 - 6;
+        var fromSide = ((sideDepth - 2) / POND_ROWS - TILE_GAP) / TILE_ASPECT;
+        var fromTopW = pond.w * (1 - 2 * 0.26) / POND_COLS - TILE_GAP;
+        var target = clamp(Math.min(fromSide, fromTopW), 8, 56);
+        var zh = POND_ROWS * (target * TILE_ASPECT + TILE_GAP) + 2;
+        var mid = clamp((zh + 2) / Math.max(1, pond.h), 0.34, 0.42);
+        options = [{ strip: false, cols: POND_COLS, mid: mid }];
+      } else {
         options = [];
         [8, 7, 6, 5, 4].forEach(function (cols) {
           options.push({ strip: true, cols: cols });
@@ -993,12 +1054,14 @@
       });
       var inner = pond;
       var zones = best.zones, center = best.center, zoneFrames = best.frames, pw = best.pw, pondCols = best.cols;
-      // The coach's column runs the full height, beside your section too.
+      // The coach's column runs from the top player's panel down to the
+      // bottom of yours, so those three edges line up.
+      var historyBottom = meBox.y + meBox.h;
       var history = historyW ? {
         x: ox + tableW + historyGap,
-        y: topH,
+        y: opp[2].y,
         w: historyW,
-        h: H - pad - topH,
+        h: historyBottom - opp[2].y,
       } : null;
 
       return {
@@ -1006,7 +1069,7 @@
         desktop: desktop, landscape: landscape, phonePortrait: phonePortrait, meX: meX, meW: meW,
         tw: tw, th: th, handGap: handGap, handY: handY, handRows: handRows, mw: mw, meY: meY, meldRowH: meldRowH, meBox: meBox,
         actionsY: actionsY, actionsH: actionsH, actionsInRow: actionsInRow, hintY: hintY, hintH: hintH,
-        opp: opp, oppFrames: oppFrames, pond: pond, inner: inner, zones: zones, zoneFrames: zoneFrames,
+        opp: opp, oppFrames: oppFrames, oppTile: oppTile, pond: pond, inner: inner, zones: zones, zoneFrames: zoneFrames,
         center: center, pw: pw, maxDiscards: maxDiscards, pondCols: pondCols,
       };
     }
@@ -1717,7 +1780,8 @@
     // A small robot (computer players) or person (human players) icon, drawn
     // with paths so it doesn't depend on any emoji font.
     var ICON_GAP = 5;
-    var SEE_RESULTS_W = 120; // the See results button at the right of the coach box
+    var SCORE_GAP = 6; // between the avatar and the score
+    var SEE_RESULTS_W = 120; // See results, in the coach bar above your avatar
     function playerIcon(seat, x, cy, s) {
       var human = game.players[seat].isHuman;
       var ink = COLORS.feltDark;
@@ -1769,15 +1833,19 @@
     function seatHeaderWidth(seat, max) {
       var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
       ctx.font = 'bold 13px ' + FONT_BODY;
-      var ptsW = pts ? ctx.measureText(pts).width + 6 : 0;
+      var ptsW = pts ? ctx.measureText(pts).width : 0;
       ctx.font = 'bold 14px ' + FONT_BODY;
-      var nameW = namesShown() ? ctx.measureText(seatTitle(seat)).width + ICON_GAP : 0;
-      return Math.min(max, 22 + 6 + nameW + 15 + ptsW + 4);
+      var nameW = namesShown() ? ctx.measureText(seatTitle(seat)).width : 0;
+      // Badge, name, icon, then the score beside the icon.
+      var content = 22 + 6 + nameW + (namesShown() ? ICON_GAP : 0) + 15 + (pts ? SCORE_GAP + ptsW : 0) + 2;
+      return Math.min(max, content);
     }
 
-    function drawSeatHeader(seat, x, y, w) {
-      var r = 11;
-      var iconS = 15;
+    function drawSeatHeader(seat, x, y, w, small) {
+      var r = small ? 8 : 11;
+      var iconS = small ? 13 : 15;
+      var namePx = small ? 13 : 14;
+      var ptsPx = 13;
       windBadge(seat, x + r, y + r, r);
       if (seat === 0) {
         addRegion(x, y, 2 * r, 2 * r, copySeed, 'my-wind', true);
@@ -1799,19 +1867,24 @@
         }
       }
       var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
-      ctx.font = 'bold 13px ' + FONT_BODY;
-      var ptsW = pts ? ctx.measureText(pts).width + 6 : 0;
+      ctx.font = 'bold ' + ptsPx + 'px ' + FONT_BODY;
+      var ptsW = pts ? ctx.measureText(pts).width : 0;
+      var scoreGap = SCORE_GAP;
       var iconX = x + 2 * r + 6;
       if (namesShown()) {
         var name = seatTitle(seat);
-        var nameSize = fitFont(ctx, name, w - 2 * r - 8 - ptsW - iconS - ICON_GAP, 14, FONT_BODY, 'bold');
+        var nameRoom = w - (iconX - x) - ICON_GAP - iconS - (pts ? scoreGap + ptsW : 0) - 2;
+        var nameSize = fitFont(ctx, name, nameRoom, namePx, FONT_BODY, 'bold');
         text(name, x + 2 * r + 6, y + r + 1, { size: nameSize, weight: 'bold', color: COLORS.cream });
         ctx.font = 'bold ' + nameSize + 'px ' + FONT_BODY;
         iconX += ctx.measureText(name).width + ICON_GAP;
       }
       playerIcon(seat, iconX, y + r, iconS);
-      if (seat === 0) ui.youIcon = { x: iconX, y: y + r, s: iconS, rowRight: x + w };
-      if (pts) text(pts, x + w, y + r + 1, { size: 13, weight: 'bold', color: COLORS.goldLight, align: 'right' });
+      var scoreX = iconX + iconS + scoreGap;
+      if (pts) text(pts, scoreX, y + r + 1, { size: ptsPx, weight: 'bold', color: COLORS.goldLight });
+      var mark = { iconX: iconX, iconRight: iconX + iconS, scoreX: scoreX, y: y + r, hasScore: !!pts };
+      ui.headerMark[seat] = mark;
+      if (seat === 0) ui.youIcon = { x: iconX, y: y + r, s: iconS, rowRight: pts ? scoreX + ptsW : scoreX };
     }
 
     // A concealed kong lies fully face down during the hand (it still counts
@@ -1861,35 +1934,15 @@
     }
 
     function drawOppHeader(seat, r) {
-      var compact = r.w < 120;
       var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
       // A phone shows only the opponent's points: no name, wind or robot.
       if (!namesShown()) {
-        if (pts) text(pts, r.x + r.w / 2, r.y + r.h / 2 + 1, { size: 11, weight: 'bold', align: 'center', color: COLORS.goldLight });
+        if (pts) text(pts, r.x + r.w / 2, r.y + r.h / 2 + 1, { size: 13, weight: 'bold', align: 'center', color: COLORS.goldLight });
         return;
       }
-      // The side players' headers get a little room above them; the player
-      // across keeps theirs at the bottom of their box.
-      var top = seat === 2 ? 0 : 6;
-      var bottom = seat === 2 ? 6 : 0;
-      if (!compact) {
-        drawSeatHeader(seat, r.x + 8, r.y + top + (r.h - top - bottom - 22) / 2, r.w - 16);
-        return;
-      }
-      var rad = 8;
-      var by = r.y + 4 + top + rad;
-      windBadge(seat, r.x + 4 + rad, by, rad);
-      var iconX = r.x + 2 * rad + 8;
-      if (namesShown()) {
-        var name = seatTitle(seat);
-        var size = fitFont(ctx, name, r.w - 2 * rad - 12 - 13 - ICON_GAP, 12, FONT_BODY, 'bold');
-        text(name, iconX, by + 1, { size: size, weight: 'bold', color: COLORS.cream });
-        ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
-        iconX += ctx.measureText(name).width + ICON_GAP;
-      }
-      // (A seat too slim for it leaves the robot out; every opponent is a bot.)
-      if (iconX + 13 <= r.x + r.w - 2) playerIcon(seat, iconX, by, 13);
-      if (pts) text(pts, r.x + r.w / 2, r.y + r.h - 7, { size: 11, weight: 'bold', align: 'center', color: COLORS.goldLight });
+      // Name, icon, then the score on one line, even when the seat is narrow.
+      var row = 16;
+      drawSeatHeader(seat, r.x + 6, r.y + Math.max(1, (r.h - row) / 2), Math.max(40, r.w - 12), true);
     }
 
     function oppConcealedCount(seat) {
@@ -1918,14 +1971,15 @@
       var r = L.opp[seat];
       var s = game.hand.seats[seat];
       drawSeatBox(r, ui.turnSeat === seat, t);
-      drawOppHeader(seat, r.head);
+      // The across player's name is drawn on the exposed row, after the tiles.
+      if (!(L.desktop && seat === 2)) drawOppHeader(seat, r.head);
 
       // Drawn in the seat's rotated frame, facing its owner. On desktop the
-      // concealed hand runs along their edge (a fresh draw sits a little
-      // apart, and the tile they are considering lifts), with melds and
-      // flowers in front of it. On a phone it's all one row, so the tiles
-      // can be larger: melds and flowers from the owner's left, then the
-      // concealed hand.
+      // concealed hand runs along their edge (a fresh draw stays in the row,
+      // and a tile they are considering lifts without leaving the row), with
+      // melds and flowers in front of it. On a phone it's all one row, so the
+      // tiles can be larger: melds and flowers from the owner's left, then the
+      // concealed hand. A phone still sets a fresh draw a little apart.
       var f = L.oppFrames[seat];
       var items = meldItems(seat);
       var meldTilesN = items.filter(function (it) { return !it.gap; }).length;
@@ -1934,8 +1988,8 @@
       var tileN = meldTilesN + flowersN;
       var faceUp = ui.revealHands ? revealedConcealed(seat) : null;
       var count = faceUp ? faceUp.length : oppConcealedCount(seat);
-      var apart = !faceUp && ui.botDrawn[seat] && count > 0;
       var oneRow = !L.desktop;
+      var apart = oneRow && !faceUp && ui.botDrawn[seat] && count > 0;
       var mw, bw, backsY, meldY, bx0, mx0;
       var rowDepth = function (w) { return w * (TILE_ASPECT + 0.08); };
       if (oneRow) {
@@ -1953,36 +2007,46 @@
         var meldsW = tileN ? (meldTilesN + gaps * 0.35 + flowersN) * mw + (tileN - 1) * TILE_GAP + TILE_GAP : 0;
         bx0 = mx0 + meldsW + split * mw;
       } else {
-        // One tile size for the hand and the meld row, so both rows must fit.
-        var meldUnits = meldTilesN + gaps * 0.35 + flowersN + 0.6;
-        mw = clamp(Math.min(
-          (f.w - 13 * TILE_GAP) / 14.7,
-          (f.w - Math.max(0, tileN - 1) * TILE_GAP) / Math.max(1, meldUnits),
-          (f.h - 8) / (2 * rowDepth(1))
-        ), 8, 33);
+        // Every opponent shares one size for the concealed hand and the
+        // exposed tiles. A seat with more melds does not shrink on its own.
+        mw = L.oppTile;
         bw = mw;
-        // Center the hand along the area by the tiles actually held (a fresh
-        // draw hangs off the end so the hand doesn't jump every turn). The
-        // player across centers the hand and meld row in their area; side
-        // players keep the hand near their back edge, melds in front.
-        var block = 2 * rowDepth(bw) + 5;
-        var edge = seat === 2 ? Math.max(1, (f.h - block) / 2) : Math.min(6, Math.max(1, (f.h - block) / 2));
+        // The rows sit against the back edge, 1px apart. Spare depth stays
+        // in front of the melds, so nothing empty sits above the hand.
+        var block = 2 * rowDepth(bw) + 1;
+        var edge = Math.min(4, Math.max(1, (f.h - block) / 2));
         backsY = f.h - edge - rowDepth(bw);
-        var held = apart ? count - 1 : count;
-        bx0 = (f.w - (held > 0 ? held * bw + (held - 1) * TILE_GAP : 0)) / 2;
-        meldY = backsY - rowDepth(mw) - 5;
-        mx0 = 0;
+        var span = count > 0 ? count * bw + Math.max(0, count - 1) * TILE_GAP : 0;
+        bx0 = (f.w - span) / 2;
+        meldY = backsY - rowDepth(mw) - 1;
+        // Exposed tiles start at the owner's left. This brings them toward
+        // the center of that player's row.
+        mx0 = 5;
       }
       var pitch = bw + TILE_GAP;
       var lift = ui.botLift && ui.botLift.seat === seat ? ui.botLift.index : -1;
+      // A lifted tile moves toward the table, not past the seat's back edge
+      // and not sideways past the ends of the row.
+      var liftBy = 0;
+      if (lift >= 0) {
+        if (oneRow) liftBy = bw * 0.38;
+        else {
+          // Toward the table, but only through the gap in front of the hand,
+          // so the tile stays clear of the exposed row and inside the seat.
+          var gapInFront = Math.max(0, backsY - (meldY + rowDepth(mw)));
+          liftBy = Math.min(bw * 0.22, gapInFront, Math.max(0, backsY));
+          var far = backsY - liftBy + rowDepth(bw);
+          if (far > f.h - 1) liftBy = Math.max(0, backsY + rowDepth(bw) - (f.h - 1));
+        }
+      }
       var backX = function (i) { return bx0 + i * pitch + (apart && i === count - 1 ? bw * 0.4 : 0); };
 
       enterFrame(f);
       for (var i = 0; i < count; i++) {
         if (faceUp) drawTile(faceUp[i], backX(i), backsY, bw, { shadow: false });
-        else drawTile(null, backX(i), backsY - (i === lift ? bw * 0.38 : 0), bw, { back: true, shadow: false });
+        else drawTile(null, backX(i), backsY - (i === lift ? liftBy : 0), bw, { back: true, shadow: false });
       }
-      var mx = mx0;
+      var mx = mx0 + (oneRow ? 5 : 0);
       items.forEach(function (it) {
         if (it.gap) { mx += mw * 0.35; return; }
         drawTile(it.id, mx, meldY, mw, { back: it.back, shadow: false });
@@ -1992,15 +2056,23 @@
       var fw = mw;
       var fx = mx + (items.length && !oneRow ? mw * 0.35 : 0);
       var wind = E.seatWind(game, seat);
-      s.flowers.forEach(function (id, k) {
-        drawTile(id, fx + k * (fw + TILE_GAP), meldY, fw, { shadow: false, glow: flowerGlow(s.flowers, wind, id) });
-      });
+      var flowerShown = Math.max(0, s.flowers.length - (ui.hide.flower[seat] || 0));
+      for (var fk = 0; fk < flowerShown; fk++) {
+        var fid = s.flowers[fk];
+        drawTile(fid, fx + fk * (fw + TILE_GAP), meldY, fw, { shadow: false, glow: flowerGlow(s.flowers, wind, fid) });
+      }
       ctx.restore();
 
-      ui.oppHand[seat] = { f: f, backX: backX, backsY: backsY, bw: bw };
-      ui.backAnchor[seat] = localPose(f, bx0 + count * pitch + bw * 0.4, backsY, bw);
+      if (L.desktop && seat === 2) {
+        var faceMid = meldY + mw * TILE_ASPECT / 2;
+        var left = toScreen(f, f.w, faceMid);
+        drawSeatHeader(seat, left.x + 8, left.y + 2, Math.min(210, Math.max(80, f.w * 0.36)), true);
+      }
+
+      ui.oppHand[seat] = { f: f, backX: backX, backsY: backsY, bw: bw, mw: mw, meldY: meldY, bx0: bx0, count: count, liftBy: lift >= 0 ? liftBy : 0 };
+      ui.backAnchor[seat] = localPose(f, bx0 + count * pitch + (apart ? bw * 0.4 : 0), backsY, bw);
       ui.meldAnchor[seat] = localPose(f, mx + (items.length ? mw * 0.35 : 0), meldY, mw);
-      ui.flowerAnchor[seat] = localPose(f, fx + flowersN * (fw + TILE_GAP), meldY, fw);
+      ui.flowerAnchor[seat] = localPose(f, fx + flowerShown * (fw + TILE_GAP), meldY, fw);
     }
 
     /* ---------------- where drawn tiles come from ---------------- */
@@ -2149,7 +2221,7 @@
       // Your name steps aside while action buttons need its spot.
       if (!ui.buttonsOverName) drawSeatHeader(0, ui.youHeader.x, y + 4, headW);
       var items = meldItems(0);
-      var mx = left + pad + 8; // inside your box
+      var mx = left + pad + 8 + 5; // inside your box, toward the center of your row
       // Same size as the hand; only shrinks if the row would run out of room.
       var meldN = items.filter(function (it) { return !it.gap; }).length;
       var gapsN = items.length - meldN;
@@ -2167,10 +2239,12 @@
       var fx = mx + (items.length ? mw * 0.2 : 0);
       var fy = y0;
       var myWind = E.seatWind(game, 0);
-      s.flowers.forEach(function (f, k) {
-        drawTile(f, fx + k * (fw + TILE_GAP), fy, fw, { shadow: false, glow: flowerGlow(s.flowers, myWind, f) });
-      });
-      ui.flowerAnchor[0] = { x: fx + s.flowers.length * (fw + TILE_GAP), y: fy, w: fw, rot: 0 };
+      var flowerShown = Math.max(0, s.flowers.length - (ui.hide.flower[0] || 0));
+      for (var fk = 0; fk < flowerShown; fk++) {
+        var fid = s.flowers[fk];
+        drawTile(fid, fx + fk * (fw + TILE_GAP), fy, fw, { shadow: false, glow: flowerGlow(s.flowers, myWind, fid) });
+      }
+      ui.flowerAnchor[0] = { x: fx + flowerShown * (fw + TILE_GAP), y: fy, w: fw, rot: 0 };
       ui.meRowFree = { x0: ui.flowerAnchor[0].x + 10, x1: rightEdge - pad - 8 - infoW - 10 };
 
       // Hand.
@@ -2225,6 +2299,7 @@
         ctx.fill();
         ctx.restore();
       }
+      var heldAt = ui.hide.tile ? tiles.lastIndexOf(ui.hide.tile) : -1;
       for (var i = 0; i < count; i++) {
         var id = tiles[i];
         var slot = ui.handSlots[i];
@@ -2240,6 +2315,8 @@
           if (i === lastCopy) { glow = COLORS.gold; hintUsed = true; }
         }
         var claimable = ui.claimPrompt && ui.claimPrompt.highlight && ui.claimPrompt.highlight.indexOf(id) !== -1;
+        // A replacement still in flight keeps its spot empty until it lands.
+        if (i === heldAt) continue;
         // Tiles a pung or chow would use get a red border.
         drawTile(id, x, pos.y - lift, tw, { glow: glow || (claimable ? COLORS.red : null) });
         var rect = { x: x, y: pos.y - lift, w: tw, h: L.th, id: id, index: i };
@@ -2297,8 +2374,12 @@
       }
       var iconS = Math.min(L.hintH - 14, 48);
       var tx = x + 8 + iconS + 8;
-      // See results sits at the right of this box after a hand, so the note stops short of it.
-      var reserve = ui.revealHands && !ui.overlay && seeResultsHome() === 'bar' ? Math.min(SEE_RESULTS_W, w * 0.45) + 18 : 0;
+      // See results sits above your avatar, to the right of this note, so the note stops short of it.
+      var reserve = 0;
+      if (ui.revealHands && !ui.overlay && seeResultsHome() === 'bar') {
+        var spot = seeResultsBarPlace({ x: x, y: 0, w: w, h: L.hintH });
+        reserve = x + w - spot.x + 8;
+      }
       var tw = w - (tx - x) - 10 - reserve;
       var size = !L.desktop ? 11 : L.tableW < 600 ? 12 : 13; // smaller on a phone
       var out = [];
@@ -2431,13 +2512,13 @@
       var coachTitle = 'Coach ' + Strategies.get(ui.strategies.coach).name;
       var titleMax = r.w - 28;
       if (ui.revealHands && !ui.overlay && seeResultsHome() === 'column') titleMax -= Math.min(SEE_RESULTS_W, r.w - 24) + 8;
-      text(coachTitle, r.x + 14, r.y + 20, { size: fitFont(ctx, coachTitle, Math.max(40, titleMax), 16, FONT_HEAD, 'bold'), weight: 'bold', family: FONT_HEAD, color: COLORS.cream });
+      text(coachTitle, r.x + 14, r.y + 20, { size: fitFont(ctx, coachTitle, Math.max(40, titleMax), 14, FONT_HEAD, 'bold'), weight: 'bold', family: FONT_HEAD, color: COLORS.cream });
 
       var viewX = r.x + 10;
       var viewY = r.y + 36;
       var viewW = r.w - 20;
       var viewH = r.h - 46;
-      var size = !L.desktop ? 11 : r.w > 520 ? 15 : 13; // smaller on a phone
+      var size = !L.desktop ? 12 : r.w > 520 ? 13 : 12;
       var lh = size + 4;
       var avatar = 32;
       var textPad = 8 + avatar + 8;
@@ -3155,13 +3236,23 @@
       requestRender();
     }
 
-    // Where See results goes while the hands are face up: the coach's column
-    // (the box on the right), else the right edge of the coach's bar, else
-    // beside your name when the coach is hidden.
+    // Where See results goes while the hands are face up: the coach's bar,
+    // directly above your avatar. The column only when there is no bar
+    // (a landscape phone). Beside your name when the coach is hidden.
     function seeResultsHome() {
-      if (L.history) return 'column';
       if (L.hintH) return 'bar';
+      if (L.history) return 'column';
       return 'name';
+    }
+
+    // The button in the coach bar, centered on your avatar and kept inside the bar.
+    function seeResultsBarPlace(box) {
+      var bw = Math.min(SEE_RESULTS_W, box.w * 0.45);
+      var bh = Math.min(36, Math.max(28, box.h - 16));
+      var icon = ui.youIcon;
+      var cx = icon ? icon.x + icon.s / 2 : box.x + box.w - 12 - bw / 2;
+      var bx = clamp(cx - bw / 2, box.x + 8, box.x + box.w - 8 - bw);
+      return { x: bx, y: box.y + (box.h - bh) / 2, w: bw, h: bh };
     }
 
     // Whether your row is tall enough for See results under your name
@@ -3177,14 +3268,12 @@
       if (home === 'column') {
         var col = L.history;
         bw = Math.min(bw, col.w - 24);
-        button('See results', col.x + col.w - 10 - bw, col.y + 5, bw, 28, seeResults, 'primary', 'see-results');
+        button('See results', col.x + col.w - 10 - bw, col.y + 5, bw, 28, seeResults, 'primary', 'see-results', true);
         return;
       }
       if (home === 'bar' && ui.coachBox) {
-        var box = ui.coachBox;
-        bw = Math.min(bw, box.w * 0.45);
-        var bh = Math.min(36, Math.max(28, box.h - 16));
-        button('See results', box.x + box.w - 12 - bw, box.y + (box.h - bh) / 2, bw, bh, seeResults, 'primary', 'see-results');
+        var place = seeResultsBarPlace(ui.coachBox);
+        button('See results', place.x, place.y, place.w, place.h, seeResults, 'primary', 'see-results', true);
         return;
       }
       var head = ui.youHeader;
@@ -3195,9 +3284,9 @@
       var top = head.y + 22 + gap;
       var room = L.meY + L.meldRowH - top;
       if (seeResultsUnder()) {
-        button('See results', head.right - bw, top, bw, Math.min(36, room), seeResults, 'primary', 'see-results');
+        button('See results', head.right - bw, top, bw, Math.min(36, room), seeResults, 'primary', 'see-results', true);
       } else {
-        button('See results', head.x - gap - bw, head.y + 11 - 15, bw, 30, seeResults, 'primary', 'see-results');
+        button('See results', head.x - gap - bw, head.y + 11 - 15, bw, 30, seeResults, 'primary', 'see-results', true);
       }
     }
 
@@ -3498,9 +3587,10 @@
       requestRender();
     }
 
-    // Where a declaration banner goes: in the middle of that player's tiles.
-    // Side players' banners face them; the player across gets an upright one,
-    // so it reads the right way up for you.
+    // Where a declaration banner goes: the center of that player's exposed
+    // row, both along the row and across it. Side players' banners face
+    // them; the player across gets an upright one, so it reads the right
+    // way up for you.
     function declarationPos(seat) {
       var pos = seatBannerPos(seat);
       if (seat === 2) pos.rot = 0;
@@ -3508,10 +3598,15 @@
     }
 
     function seatBannerPos(seat) {
-      if (seat === 0) return { x: L.meX + L.meW / 2, y: L.actionsY + L.actionsH / 2, rot: 0 };
-      // Opponents' banners sit in the middle of their tiles and face them.
+      if (seat === 0) {
+        // Centered on your hand. The name sits to the right of the meld row,
+        // so the middle of that row is left of the tiles.
+        return { x: L.meX + L.meW / 2, y: L.meY + L.mw * TILE_ASPECT / 2, rot: 0 };
+      }
       var f = L.oppFrames[seat];
-      var mid = toScreen(f, f.w / 2, f.h / 2);
+      var hand = ui.oppHand[seat];
+      var localY = hand ? hand.meldY + hand.mw * TILE_ASPECT / 2 : f.h * 0.28;
+      var mid = toScreen(f, f.w / 2, localY);
       return { x: mid.x, y: mid.y, rot: SEAT_ANGLE[seat] };
     }
 
@@ -3536,7 +3631,7 @@
 
     var handlers = {
       handStart: function () {
-        ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], drawn: false };
+        ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null };
         ui.botDrawn = [false, false, false, false];
         ui.botLift = null;
         ui.turnSeat = null;
@@ -3558,10 +3653,17 @@
         var from = drawOrigin();
         if (d.seat === 0) {
           ui.hide.drawn = true;
+          if (d.replacement) ui.hide.tile = d.tile;
           var order = myHandOrder();
-          var spot = handPositions(order.tiles.length, true)[order.tiles.length - 1] || { x: L.meX + L.meW / 2, y: L.handY };
+          var n = order.tiles.length;
+          var at = d.replacement ? order.tiles.lastIndexOf(d.tile) : n - 1;
+          var spot = handPositions(n, d.replacement ? false : true)[at >= 0 ? at : n - 1] || { x: L.meX + L.meW / 2, y: L.handY };
           var to = { x: spot.x, y: spot.y, w: L.tw, rot: 0 };
-          return fly(d.tile, from, to, 300, { arc: 20 }).then(function () { ui.hide.drawn = false; requestRender(); });
+          return fly(d.tile, from, to, 300, { arc: 20 }).then(function () {
+            ui.hide.drawn = false;
+            if (d.replacement) ui.hide.tile = null;
+            requestRender();
+          });
         }
         ui.hide.backs[d.seat] = 1;
         ui.botDrawn[d.seat] = false;
@@ -3575,9 +3677,15 @@
       flower: function (d) {
         sound.play('flower');
         var pos = declarationPos(d.seat);
-        banner(d.seat === 0 ? 'Flower!' : 'Flower', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 18, color: COLORS.green, dur: 800 });
+        banner(d.seat === 0 ? 'Flower!' : 'Flower', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 24, color: COLORS.green, dur: 800 });
         announce((d.seat === 0 ? 'You' : game.players[d.seat].name) + ' reveals ' + E.tileName(d.tile) + '.');
-        return sleep(380);
+        var to = ui.flowerAnchor[d.seat] || seatAnchor(d.seat);
+        var from = seatAnchor(d.seat);
+        ui.hide.flower[d.seat] = (ui.hide.flower[d.seat] || 0) + 1;
+        return fly(d.tile, from, to, 280, { arc: 18 }).then(function () {
+          ui.hide.flower[d.seat] = Math.max(0, (ui.hide.flower[d.seat] || 1) - 1);
+          requestRender();
+        });
       },
       discard: function (d) {
         var list = game.hand.seats[d.seat].discards.filter(function (x) { return !x.claimed; });
@@ -3602,7 +3710,7 @@
         sound.play(d.type); // chow, pung or kong, each its own sound
         var words = { chow: 'Chow!', pung: 'Pung!', kong: 'Kong!' };
         var pos = declarationPos(d.seat);
-        banner(words[d.type], pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 24 });
+        banner(words[d.type], pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 32 });
         var list = game.hand.seats[d.from].discards.filter(function (x) { return !x.claimed; });
         var from = pondPose(d.from, list.length);
         var to = ui.meldAnchor[d.seat] || seatAnchor(d.seat);
@@ -3621,7 +3729,7 @@
       kong: function (d) {
         sound.play('kong');
         var pos = declarationPos(d.seat);
-        banner('Kong!', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 24 });
+        banner('Kong!', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 32 });
         // An opponent's concealed kong stays hidden, from screen readers too.
         var hiddenKong = d.kind === 'concealed' && d.seat !== 0;
         announce((d.seat === 0 ? 'You declare' : game.players[d.seat].name + ' declares') +
@@ -3770,7 +3878,7 @@
     // The loaded hand has caught up: draw the table as it stands.
     function replayDone() {
       ui.replaying = false;
-      ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], drawn: false };
+      ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null };
       ui.botDrawn = [false, false, false, false];
       // A seat holding a fresh draw shows it apart.
       game.hand.seats.forEach(function (s, k) { if (k && s.hand.length % 3 === 2) ui.botDrawn[k] = true; });
@@ -3904,7 +4012,7 @@
       // Exposed for debugging in the browser console.
       declare: function (seat, label, color) {
         var p = declarationPos(seat);
-        banner(label, p.x, p.y, { rot: p.rot, maxW: p.maxW, span: p.span, maxH: p.maxH, size: 24, dur: 6000, color: color });
+        banner(label, p.x, p.y, { rot: p.rot, maxW: p.maxW, span: p.span, maxH: p.maxH, size: 32, dur: 6000, color: color });
       },
     };
   }

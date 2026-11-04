@@ -701,13 +701,29 @@
     return { score: score, payer: payer };
   }
 
+  // One flower, then the tile that replaces it, then the next flower.
+  // A replacement that is itself a flower waits its turn.
   async function handleFlowers(game, seat, ui) {
-    var flowers = [];
-    replaceFlowers(game, seat, function (f) { flowers.push(f); });
-    for (var i = 0; i < flowers.length; i++) {
-      await emit(ui, 'flower', { seat: seat, tile: flowers[i] });
+    var n = 0;
+    var s = game.hand.seats[seat];
+    for (;;) {
+      var idx = -1;
+      for (var i = 0; i < s.hand.length; i++) {
+        if (isBonus(s.hand[i])) { idx = i; break; }
+      }
+      if (idx === -1) break;
+      var f = s.hand.splice(idx, 1)[0];
+      s.flowers.push(f);
+      await emit(ui, 'flower', { seat: seat, tile: f });
+      n++;
+      if (!game.hand.wall.length) break;
+      var rep = game.hand.wall.pop();
+      game.hand.backDrawn++;
+      s.hand.push(rep);
+      game.hand.drawnTile = rep;
+      await emit(ui, 'draw', { seat: seat, tile: rep, replacement: true });
     }
-    return flowers.length;
+    return n;
   }
 
   // Whether a claim decision is one of the options offered.
