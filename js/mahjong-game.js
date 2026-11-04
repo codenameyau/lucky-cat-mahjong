@@ -768,7 +768,6 @@
     // The table (the other players and the discards) is kept as close to
     // square as the screen allows; spare room goes to the coach.
     var HAND_ROW_GAP = 6;
-    var ACROSS_POINTS_W = 40; // on a phone, beside the row of the player across
     // A landscape phone draws your hand this much smaller than it could be,
     // so the table has more room.
     var PHONE_HAND_SCALE = 0.9;
@@ -923,7 +922,7 @@
       // seats are only one tile deep and the discards get the room.
       // (On a phone opponents show only their points, in payout games.)
       var phoneHead = settings.mode === 'payout' ? 18 : 4;
-      var sideW, topPanelH, sideHead, topHead, acrossPtsW = 0;
+      var sideW, topPanelH, sideHead, topHead;
       var sideRun = 0;
       if (desktop) {
         // Names are one short row. The seats are only as deep as the hand
@@ -945,12 +944,11 @@
         topPanelH = Math.ceil(oppFit * 2 * depthUnit + 16);
       } else {
         sideW = phonePortrait ? 46 : landscape ? LANDSCAPE_SIDE_W : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
-        // In a full game the player across has their points beside their row,
-        // not under it, so their seat gives that band to the table.
-        acrossPtsW = settings.mode === 'payout' ? ACROSS_POINTS_W : 0;
-        topPanelH = acrossPtsW ? 48 : 62;
+        // In a full game the player across has their points above their row.
+        var acrossPts = settings.mode === 'payout';
+        topPanelH = acrossPts ? 58 : 62;
         sideHead = phoneHead;
-        topHead = acrossPtsW ? 0 : phoneHead;
+        topHead = acrossPts ? 14 : phoneHead;
       }
       var opp = [];
       // An upright phone's player across spans the table, above the side
@@ -974,12 +972,10 @@
       // keep the name along the bottom, where the seat is only one tile deep.
       opp[2].head = desktop
         ? { x: opp[2].x, y: opp[2].y, w: opp[2].w, h: 0 }
-        : acrossPtsW
-          ? { x: opp[2].x, y: opp[2].y, w: acrossPtsW, h: opp[2].h }
-          : { x: opp[2].x, y: opp[2].y + opp[2].h - topHead, w: opp[2].w, h: topHead };
+        : { x: opp[2].x, y: opp[2].y + 2, w: opp[2].w, h: topHead };
       opp[2].tiles = desktop
         ? { x: opp[2].x + 3, y: opp[2].y + 3, w: opp[2].w - 6, h: opp[2].h - 6 }
-        : { x: opp[2].x + 3 + acrossPtsW, y: opp[2].y + 3, w: opp[2].w - 6 - acrossPtsW, h: opp[2].h - Math.max(3, topHead) - 3 };
+        : { x: opp[2].x + 3, y: opp[2].y + 2 + topHead, w: opp[2].w - 6, h: opp[2].h - topHead - 5 };
       var oppFrames = [];
       [1, 2, 3].forEach(function (k) { oppFrames[k] = makeFrame(opp[k].tiles, k); });
       // One tile size for every opponent's concealed hand and exposed tiles.
@@ -1908,7 +1904,8 @@
     // with paths so it doesn't depend on any emoji font.
     var ICON_GAP = 5;
     var SCORE_GAP = 6; // between the avatar and the score
-    var PHONE_POINTS_PX = 11, POINTS_UNDER_GAP = 2; // your points under your avatar on a phone
+    var PHONE_POINTS_PX = 11; // everyone's points on a phone
+    var POINTS_UNDER_GAP = 2; // your points under your avatar on a phone
     var SEE_RESULTS_W = 120; // See results, in the coach bar above your avatar
     function playerIcon(seat, x, cy, s) {
       var human = game.players[seat].isHuman;
@@ -2082,7 +2079,7 @@
       var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
       // A phone shows only the opponent's points: no name, wind or robot.
       if (!namesShown()) {
-        if (pts) text(pts, r.x + r.w / 2, r.y + r.h / 2 + 1, { size: 13, weight: 'bold', align: 'center', color: COLORS.goldLight });
+        if (pts) text(pts, r.x + r.w / 2, r.y + r.h / 2 + 1, { size: PHONE_POINTS_PX, weight: 'bold', align: 'center', color: COLORS.goldLight });
         return;
       }
       // Name, icon, then the score on one line, even when the seat is narrow.
