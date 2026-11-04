@@ -7,6 +7,7 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 | (shared foundation) | | `js/mahjong-bot.js` | the rules below |
 | `lucky-cat` | Lucky Cat | `js/mahjong-lucky-cat.js` | [lucky-cat.md](lucky-cat.md) |
 | `jorge-yau` | Jorge Yau | `js/mahjong-jorge-yau.js` | [jorge-yau.md](jorge-yau.md) |
+| `only-orphans` | Only Orphans | `js/mahjong-only-orphans.js` | [only-orphans.md](only-orphans.md) |
 
 Before version 0.6.0 the two ids were the other way round; saved choices and save files from then are converted when they're read.
 
@@ -44,7 +45,7 @@ var bot = MahjongBot.createStrategy({
     priority: function (game, ctx, counts, candidate, bestShanten) { /* discard group after the shared rules, lower first; null = the shared order */ },
     chowOk: function (option, found, ctx, game) { /* whether a chow the shared rule allows is worth it */ },
     claim: function (found, ctx, game, seat, opts) { /* { type: 'pass' | 'pung' | 'kong' | 'chow', ... }; null = the shared claims */ },
-    // also: readyValue, threats, waitChance, extraLoss, defense
+    // also: finishChance, kongOk, readyValue, threats, waitChance, extraLoss, defense
   },
   tuning: { defenseScale: 1.5 },
 });

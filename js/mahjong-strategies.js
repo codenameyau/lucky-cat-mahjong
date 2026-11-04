@@ -13,6 +13,7 @@
   var node = typeof module !== 'undefined' && module.exports;
   var L = node ? require('./mahjong-lucky-cat.js') : root.MahjongLuckyCat;
   var J = node ? require('./mahjong-jorge-yau.js') : root.MahjongJorgeYau;
+  var O = node ? require('./mahjong-only-orphans.js') : root.MahjongOnlyOrphans;
 
   var STRATEGIES = [
     {
@@ -43,6 +44,19 @@
         'Each opponent gets a threat level from their melds and discards. A tile they\'d claim costs a little early and much more late, so it stops feeding them near the end. When someone looks close and the hand is slow, or the wall is nearly gone, safety decides the discard.',
       ],
       doc: 'docs/strategies/lucky-cat.md',
+    },
+    {
+      id: 'only-orphans',
+      name: 'Only Orphans',
+      bot: O,
+      summary: 'Goes for Thirteen Orphans every hand. When that has little chance left, it pivots to a hand of only 1s, 9s and honors.',
+      details: [
+        'It throws every tile that isn\'t a 1, a 9 or an honor first, and claims nothing. It stays on Thirteen Orphans for at least its first six discards, however far away the hand is.',
+        'It gives up when a tile it needs has run out, or when the chance of finishing falls under about 1 in 1,000.',
+        'Then it pivots to whichever has the best odds for what it pays: Mixed Orphans, Seven Pairs with Mixed Orphans, or All Terminals or All Honors, as triplets or as pairs. Triplets pung any tile they keep. Pairs claim nothing.',
+        'Only if none of those can be finished does it play the usual hands. It defends like the other bots, and when it folds, safety decides among the tiles it can spare.',
+      ],
+      doc: 'docs/strategies/only-orphans.md',
     },
   ];
 
