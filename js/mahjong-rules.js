@@ -63,7 +63,7 @@
           note: 'Must be concealed. The pair can be any tile in that suit.',
         }),
       ] },
-      { title: 'Terminals', rows: [
+      { title: 'Majors', rows: [
         rule('Mixed Orphans', '混老頭', 'mixedOrphans', 'Only 1s, 9s and honors', {
           sets: [['c1', 'c1', 'c1'], ['d9', 'd9', 'd9'], ['we', 'we', 'we'], ['dr', 'dr', 'dr'], ['b1', 'b1']], open: [0],
           note: 'Gains +3 faan for all triplets.',

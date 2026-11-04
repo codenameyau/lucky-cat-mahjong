@@ -652,6 +652,25 @@
     game.hand.result = result;
   }
 
+  // One finished hand for the results table. Faan belongs to the winner;
+  // everyone else scored none. Points are what each seat paid or collected.
+  // The tiles stay out of this, so a save can keep the table without a hand.
+  function resultsRow(result) {
+    var faan = [0, 0, 0, 0];
+    var points = [0, 0, 0, 0];
+    var deltas = result && result.deltas;
+    if (deltas) {
+      for (var i = 0; i < 4; i++) points[i] = deltas[i] || 0;
+    }
+    if (result && result.type === 'win' && result.score) faan[result.winner] = result.score.faan || 0;
+    return {
+      hand: result ? result.handNumber : 0,
+      draw: !result || result.type !== 'win',
+      faan: faan,
+      points: points,
+    };
+  }
+
   // The players from most points to fewest, with their places (a tie
   // shares a place): [{ seat, name, points, place }].
   function finalStandings(game) {
@@ -1223,6 +1242,7 @@
     payments: payments,
     settleWin: settleWin,
     settleDraw: settleDraw,
+    resultsRow: resultsRow,
     finalStandings: finalStandings,
     runHand: runHand,
     visibleCounts: visibleCounts,
