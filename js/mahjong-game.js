@@ -1563,7 +1563,9 @@
       } else {
         card.style.zIndex = '';
         card.style.transform = 'none';
-        var touchLeft = Math.min(Math.max(8, rr.left - dr.left), dr.width - w - 8);
+        // On a phone it stops 10px further from the sheet's right edge (css/play.css).
+        var rightGap = root.matchMedia && root.matchMedia('(max-width: 600px)').matches ? 18 : 8;
+        var touchLeft = Math.min(Math.max(8, rr.left - dr.left), dr.width - w - rightGap);
         var touchTop = rr.bottom - dr.top - 2;
         if (touchTop + h > dr.height - 8) touchTop = rr.top - dr.top - h + 2;
         card.style.left = touchLeft + 'px';

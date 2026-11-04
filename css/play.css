@@ -496,6 +496,8 @@ html.is-playing.is-sideways body {
 @media (max-width: 600px) {
   .rules-families,
   .rules-families--flat .rules-family { grid-template-columns: 1fr; }
+
+  .rules-example { max-width: calc(100% - 26px); }
 }
 
 @media (max-width: 600px), (pointer: coarse) and (max-height: 599px) {
