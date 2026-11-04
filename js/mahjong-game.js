@@ -970,10 +970,10 @@
       // keep the name along the bottom, where the seat is only one tile deep.
       opp[2].head = desktop
         ? { x: opp[2].x, y: opp[2].y, w: opp[2].w, h: 0 }
-        : { x: opp[2].x, y: opp[2].y + 2, w: opp[2].w, h: topHead };
+        : { x: opp[2].x, y: opp[2].y + opp[2].h - topHead - 1, w: opp[2].w, h: topHead };
       opp[2].tiles = desktop
         ? { x: opp[2].x + 3, y: opp[2].y + 3, w: opp[2].w - 6, h: opp[2].h - 6 }
-        : { x: opp[2].x + 3, y: opp[2].y + 3 + (topHead > 4 ? topHead - 1 : 0), w: opp[2].w - 6, h: opp[2].h - 3 - (topHead > 4 ? topHead + 2 : topHead) };
+        : { x: opp[2].x + 3, y: opp[2].y + 3, w: opp[2].w - 6, h: opp[2].h - topHead - 3 };
       var oppFrames = [];
       [1, 2, 3].forEach(function (k) { oppFrames[k] = makeFrame(opp[k].tiles, k); });
       // One tile size for every opponent's concealed hand and exposed tiles.
