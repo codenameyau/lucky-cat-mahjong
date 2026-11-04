@@ -403,9 +403,12 @@ html.is-playing.is-sideways body {
   color: #1A1A1A;
 }
 
-.rules-row--example { cursor: help; border-radius: 6px; }
-.rules-row--example:hover,
-.rules-row--example:focus { background: rgba(196, 30, 58, 0.22); outline: none; }
+.rules-row--example { cursor: pointer; border-radius: 6px; }
+.rules-row--example:focus { outline: none; }
+.rules-row--example:focus-visible {
+  outline: 2px solid #ffd27a;
+  outline-offset: 2px;
+}
 
 .rules-sheet { position: fixed; }
 
@@ -420,6 +423,10 @@ html.is-playing.is-sideways body {
   background: #0a3d27;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rules-example { cursor: default; }
 }
 
 .rules-example-head {

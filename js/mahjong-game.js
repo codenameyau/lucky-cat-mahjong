@@ -1291,8 +1291,8 @@
       var F = E.HKScoring.FAAN;
       var intro = document.createElement('p');
       intro.className = 'rules-sheet-intro';
-      intro.textContent = 'Win with four sets (pungs, kongs or chows) and a pair, worth at least ' + E.MIN_FAAN +
-        ' faan. Add up every pattern your hand has, but in each family count only the highest. A limit hand is worth ' +
+      intro.textContent = 'Win with four sets and a pair, worth at least ' + E.MIN_FAAN +
+        ' faan. Add up every pattern your hand has, but only count the highest faan per group. A limit hand is worth ' +
         F.thirteenOrphans + ' faan.';
       body.parentNode.insertBefore(intro, body);
       root.MahjongRules.RULES.forEach(function (section) {
@@ -1324,32 +1324,56 @@
             var pill = row.querySelector('.rules-faan');
             pill.textContent = limit ? 'Limit' : faan + ' faan';
             if (limit) pill.classList.add('rules-faan--limit');
-            // Hover (or tap, or focus) shows an example hand. Once it is open,
-            // a click on this same rule closes it. A touch's opening tap does
-            // not: the press starts before the example is shown.
+            // Desktop: hover or click opens the example above the pattern, and
+            // leaving it hides the example. Touch still opens from the press,
+            // and that first tap does not also close it.
             if (section.preview !== false && r.preview !== false) {
               row.classList.add('rules-row--example');
               row.tabIndex = 0;
+              row.setAttribute('role', 'button');
+              row.setAttribute('aria-expanded', 'false');
               var show = function () { showRuleExample(row, r, pill.textContent); };
               var fromMouse = true;
               var openBeforePress = false;
               row.addEventListener('pointerdown', function (e) {
+                if (desktopRules()) return;
                 fromMouse = e.pointerType === 'mouse';
                 openBeforePress = openExampleRow === row;
               });
-              row.addEventListener('mouseenter', function () { if (fromMouse || !openBeforePress) show(); });
-              row.addEventListener('focus', function () { if (fromMouse || !openBeforePress) show(); });
+              row.addEventListener('mouseenter', function () {
+                if (desktopRules()) { show(); return; }
+                if (fromMouse || !openBeforePress) show();
+              });
+              row.addEventListener('focus', function () {
+                if (desktopRules()) return;
+                if (fromMouse || !openBeforePress) show();
+              });
               row.addEventListener('click', function () {
                 track('play_rule_click', { hand: r.name });
+                if (desktopRules()) { show(); return; }
                 if (fromMouse ? openExampleRow === row : openBeforePress) { hideRuleExample(); return; }
                 show();
               });
+              row.addEventListener('keydown', function (e) {
+                if (!desktopRules() || (e.key !== 'Enter' && e.key !== ' ')) return;
+                e.preventDefault();
+                if (openExampleRow === row) hideRuleExample();
+                else show();
+              });
               row.addEventListener('mouseleave', function (e) {
+                if (desktopRules()) {
+                  if (exampleCardHas(e.relatedTarget)) return;
+                  if (openExampleRow === row) hideRuleExample();
+                  return;
+                }
                 if (exampleCardHas(e.relatedTarget)) return;
                 openBeforePress = false;
                 hideRuleExample();
               });
-              row.addEventListener('blur', function () { if (!exampleCardPressed) hideRuleExample(); });
+              row.addEventListener('blur', function () {
+                if (desktopRules()) return;
+                if (!exampleCardPressed) hideRuleExample();
+              });
             }
             box.appendChild(row);
           });
@@ -1358,6 +1382,28 @@
         sec.appendChild(grid);
         body.appendChild(sec);
       });
+      // One listener for the sheet: a click that isn't the open pattern or its
+      // card puts the example away. The backdrop click still closes the sheet.
+      rulesSheet().addEventListener('click', function (e) {
+        if (!desktopRules() || !openExampleRow) return;
+        if (openExampleRow.contains(e.target) || exampleCardHas(e.target)) return;
+        hideRuleExample();
+      });
+      // Where the pointer was last, so the example can enter from that side.
+      rulesSheet().addEventListener('pointermove', function (e) {
+        if (pointerTravel.ready) {
+          pointerTravel.dx = e.clientX - pointerTravel.x;
+          pointerTravel.dy = e.clientY - pointerTravel.y;
+        }
+        pointerTravel.x = e.clientX;
+        pointerTravel.y = e.clientY;
+        pointerTravel.ready = true;
+      });
+    }
+
+    // A finger still follows the touch path. Desktop uses hover and click.
+    function desktopRules() {
+      return !!(root.matchMedia && root.matchMedia('(hover: hover) and (pointer: fine)').matches);
     }
 
     function tileImg(id) {
@@ -1371,6 +1417,7 @@
     // Which rule's example is on screen, so a second click can close it.
     var openExampleRow = null;
     var exampleCardPressed = false;
+    var pointerTravel = { x: 0, y: 0, dx: 0, dy: 0, ready: false };
 
     function exampleCardHas(node) {
       var dlg = rulesSheet();
@@ -1397,7 +1444,7 @@
       return true;
     }
 
-    // A card beside the row with the example hand as tiles.
+    // The example hand. On a desktop it sits in the middle of the sheet.
     function showRuleExample(row, r, faanLabel) {
       var dlg = rulesSheet();
       var card = dlg.querySelector('.rules-example');
@@ -1411,8 +1458,12 @@
         });
         card.addEventListener('click', function (e) {
           e.stopPropagation();
+          if (desktopRules()) return;
           exampleCardPressed = false;
           hideRuleExample();
+        });
+        card.addEventListener('mouseenter', function () {
+          if (desktopRules()) hideRuleExample();
         });
         card.addEventListener('mouseleave', function (e) {
           if (openExampleRow && e.relatedTarget && openExampleRow.contains(e.relatedTarget)) return;
@@ -1421,6 +1472,7 @@
         dlg.appendChild(card);
       }
       openExampleRow = row;
+      row.setAttribute('aria-expanded', 'true');
       var ex = r.example;
       card.innerHTML = '';
       var head = document.createElement('div');
@@ -1438,8 +1490,8 @@
       if (!flowersOnly) {
         ex.sets.forEach(function (set) {
           var cls = 'rules-set' + (patternSet(r.key, set, ex) ? ' rules-set--open' : '');
-          // These two hands are one run of 14, so show them on two even rows.
-          var twoRows = (r.key === 'nineGates' || r.key === 'thirteenOrphans') && set.length > 1;
+          // A phone shows these 14-tile hands on two even rows. Desktop fits the whole hand on one.
+          var twoRows = !desktopRules() && (r.key === 'nineGates' || r.key === 'thirteenOrphans') && set.length > 1;
           var parts = twoRows ? [set.slice(0, Math.ceil(set.length / 2)), set.slice(Math.ceil(set.length / 2))] : [set];
           parts.forEach(function (ids, i) {
             if (i) {
@@ -1469,19 +1521,50 @@
         p.textContent = notes.join(' ');
         card.appendChild(p);
       }
-      // Place it below the row, or above when there's no room, inside the sheet.
       card.style.display = 'block';
-      var dr = dlg.getBoundingClientRect(), rr = row.getBoundingClientRect();
       var w = card.offsetWidth, h = card.offsetHeight;
-      var left = Math.min(Math.max(8, rr.left - dr.left), dr.width - w - 8);
-      // Overlap the row by a hair so the pointer can move onto the card.
-      var top = rr.bottom - dr.top - 2;
-      if (top + h > dr.height - 8) top = rr.top - dr.top - h + 2;
-      card.style.left = left + 'px';
-      card.style.top = (top + dlg.scrollTop) + 'px';
+      var dr = dlg.getBoundingClientRect(), rr = row.getBoundingClientRect();
+      if (desktopRules()) {
+        // Just above the pattern, overlapping it by a hair so the pointer can
+        // move onto the card. It slides in from the side the pointer came from.
+        card.style.zIndex = '2147483647';
+        var anchor = pointerTravel.ready ? pointerTravel.x - dr.left : rr.left - dr.left + rr.width / 2;
+        var left = anchor - w / 2;
+        left = Math.max(8, Math.min(left, dlg.clientWidth - w - 8));
+        var top = rr.top - dr.top + dlg.scrollTop - h + 2;
+        if (top < dlg.scrollTop + 8) top = rr.bottom - dr.top + dlg.scrollTop - 2;
+        card.style.left = left + 'px';
+        card.style.top = top + 'px';
+        slideExampleFromPointer(card);
+      } else {
+        card.style.zIndex = '';
+        card.style.transform = 'none';
+        var touchLeft = Math.min(Math.max(8, rr.left - dr.left), dr.width - w - 8);
+        var touchTop = rr.bottom - dr.top - 2;
+        if (touchTop + h > dr.height - 8) touchTop = rr.top - dr.top - h + 2;
+        card.style.left = touchLeft + 'px';
+        card.style.top = (touchTop + dlg.scrollTop) + 'px';
+      }
+    }
+
+    function slideExampleFromPointer(card) {
+      var reduce = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var dx = pointerTravel.dx, dy = pointerTravel.dy;
+      var mag = Math.hypot(dx, dy);
+      if (reduce || mag < 1) {
+        card.style.transition = 'none';
+        card.style.transform = 'none';
+        return;
+      }
+      card.style.transition = 'none';
+      card.style.transform = 'translate(' + (-dx / mag * 36) + 'px,' + (-dy / mag * 20) + 'px)';
+      card.offsetWidth;
+      card.style.transition = 'transform 0.16s ease-out';
+      card.style.transform = 'translate(0, 0)';
     }
 
     function hideRuleExample() {
+      if (openExampleRow) openExampleRow.setAttribute('aria-expanded', 'false');
       openExampleRow = null;
       var dlg = rulesSheet();
       var card = dlg && dlg.querySelector('.rules-example');
