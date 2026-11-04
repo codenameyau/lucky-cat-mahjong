@@ -257,7 +257,22 @@ describe('coach: claims', () => {
     const game = table({ seats: [{ hand }] });
     const opts = E.claimOptions(game, 0, 'c4', 2, false);
     assert.ok(opts.win);
-    assert.match(text(C.claimHint(game, 0, opts)), /^Win! Four Character finishes your hand/);
+    const said = C.claimHint(game, 0, opts);
+    assert.deepEqual(said.tips, []);
+    assert.match(said.action, /^Mahjong! Win on Four Character with Half Flush for \d+ faan!$/);
+    assert.match(C.highlightPatterns(said.action), /\u0001Half Flush\u0002/);
+  });
+
+  it('says a self-draw win in one sentence and names the hand', () => {
+    const tiles = ['c2', 'c3', 'c4', 'd5', 'd6', 'd7', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9', 'd2', 'd2'];
+    const game = table({ seats: [{ hand: tiles }] });
+    game.hand.canSelfDraw = true;
+    const opts = E.turnOptions(game, 0);
+    assert.ok(opts.win);
+    const said = C.turnHint(game, 0, opts);
+    assert.deepEqual(said.tips, []);
+    assert.equal(said.action, 'Mahjong! Win by self-draw with All Sequences for ' + opts.win.faan + ' faan!');
+    assert.match(C.highlightPatterns(said.action), /\u0001All Sequences\u0002/);
   });
 });
 

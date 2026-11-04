@@ -205,9 +205,17 @@
   // Hand-pattern names are wrapped in invisible markers so the game can draw
   // them in the brand red. Their faan is on the Rules sheet, not in the tips.
   var HAND_PATTERNS = [
+    'eight immortals crossing the sea',
+    'seven robbing one',
+    'seat and round wind',
     'concealed straights',
     'concealed triplets',
     'thirteen orphans',
+    'dragon triplet',
+    'dragon quad',
+    'four quads',
+    'seat wind',
+    'round wind',
     'small three dragons',
     'big three dragons',
     'small four winds',
@@ -486,9 +494,33 @@
    *    (They don't say which tile to drop after this one.)
    * ------------------------------------------------------------------ */
 
+  // Situational bonuses and flowers are how the hand was won, not the pattern.
+  var NOT_A_PATTERN = {
+    'Self-Draw': 1, 'Concealed': 1, 'Win on Last Tile': 1, 'Robbing the Kong': 1,
+    'Win by Kong': 1, 'Win by Double Kong': 1, 'Heavenly Hand': 1, 'Earthly Hand': 1,
+    'No Flowers': 1, 'Seat Flower': 1, 'Seat Season': 1, 'Four Flowers': 1, 'Four Seasons': 1,
+  };
+
+  function handPatternPhrase(win) {
+    var names = [];
+    (win.items || []).forEach(function (it) {
+      if (it && it.name && !NOT_A_PATTERN[it.name]) names.push(it.name);
+    });
+    if (names.length <= 1) return names[0] || '';
+    if (names.length === 2) return names[0] + ' and ' + names[1];
+    return names.slice(0, -1).join(', ') + ', and ' + names[names.length - 1];
+  }
+
+  // One sentence. The pattern names are drawn bold red by the table.
+  function winDeclaration(win, how) {
+    var pattern = handPatternPhrase(win);
+    if (pattern) return 'Mahjong! Win ' + how + ' with ' + pattern + ' for ' + win.faan + ' faan!';
+    return 'Mahjong! Win ' + how + ' with ' + win.faan + ' faan!';
+  }
+
   function turnHint(game, seat, opts) {
     var min = game.settings.minFaan;
-    if (opts.win) return { kind: 'win', action: 'Win!', tips: ['Tap Win to score ' + opts.win.faan + ' faan.'] };
+    if (opts.win) return { kind: 'win', action: winDeclaration(opts.win, 'by self-draw'), tips: [] };
     var v = look(game, seat);
     var hand = game.hand.seats[seat].hand;
     var c = E.countsOf(hand);
@@ -574,7 +606,8 @@
   function claimHint(game, seat, opts) {
     var min = game.settings.minFaan;
     if (opts.win) {
-      return { kind: 'claim', decision: { type: 'win' }, action: 'Win!', tips: [E.tileName(opts.tile) + ' finishes your hand for ' + opts.win.faan + ' faan.'] };
+      var how = opts.robKong ? 'by robbing the kong' : 'on ' + E.tileName(opts.tile);
+      return { kind: 'claim', decision: { type: 'win' }, action: winDeclaration(opts.win, how), tips: [] };
     }
     var v = look(game, seat);
     var hand = game.hand.seats[seat].hand;
@@ -728,7 +761,7 @@
     var same = coachType === decision.type &&
       (decision.type !== 'chow' || !hint.decision.tiles || decision.tiles.join() === hint.decision.tiles.join());
     var reason = hint.tips[0] || '';
-    var coachSays = (hint.action || '').replace(/[.!]$/, '');
+    var coachSays = hint.decision.type === 'win' ? 'Win' : (hint.action || '').replace(/[.!]$/, '');
     if (same) {
       return { kind: 'feedback', action: decision.type === 'pass' ? 'Good pass.' : 'Good call.', tips: [reason].filter(Boolean) };
     }

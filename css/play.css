@@ -562,7 +562,20 @@ html.is-playing.is-sideways body {
   font-size: 0.86rem;
 }
 
-/* What a computer is playing this game: at the right of its row on a phone, under its name on desktop. */
+.strategies-assign-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.strategies-assign-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+/* What this seat is playing: at the right of its row on a phone, under its name on desktop. */
 .strategies-assign-playing {
   font-size: 0.78rem;
   font-weight: normal;
