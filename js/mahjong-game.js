@@ -768,6 +768,7 @@
     // The table (the other players and the discards) is kept as close to
     // square as the screen allows; spare room goes to the coach.
     var HAND_ROW_GAP = 6;
+    var ACROSS_POINTS_W = 40; // on a phone, beside the row of the player across
     // A landscape phone draws your hand this much smaller than it could be,
     // so the table has more room.
     var PHONE_HAND_SCALE = 0.9;
@@ -922,7 +923,7 @@
       // seats are only one tile deep and the discards get the room.
       // (On a phone opponents show only their points, in payout games.)
       var phoneHead = settings.mode === 'payout' ? 18 : 4;
-      var sideW, topPanelH, sideHead, topHead;
+      var sideW, topPanelH, sideHead, topHead, acrossPtsW = 0;
       var sideRun = 0;
       if (desktop) {
         // Names are one short row. The seats are only as deep as the hand
@@ -944,9 +945,12 @@
         topPanelH = Math.ceil(oppFit * 2 * depthUnit + 16);
       } else {
         sideW = phonePortrait ? 46 : landscape ? LANDSCAPE_SIDE_W : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
-        topPanelH = 62;
+        // In a full game the player across has their points beside their row,
+        // not under it, so their seat gives that band to the table.
+        acrossPtsW = settings.mode === 'payout' ? ACROSS_POINTS_W : 0;
+        topPanelH = acrossPtsW ? 48 : 62;
         sideHead = phoneHead;
-        topHead = phoneHead;
+        topHead = acrossPtsW ? 0 : phoneHead;
       }
       var opp = [];
       // An upright phone's player across spans the table, above the side
@@ -970,10 +974,12 @@
       // keep the name along the bottom, where the seat is only one tile deep.
       opp[2].head = desktop
         ? { x: opp[2].x, y: opp[2].y, w: opp[2].w, h: 0 }
-        : { x: opp[2].x, y: opp[2].y + opp[2].h - topHead, w: opp[2].w, h: topHead };
+        : acrossPtsW
+          ? { x: opp[2].x, y: opp[2].y, w: acrossPtsW, h: opp[2].h }
+          : { x: opp[2].x, y: opp[2].y + opp[2].h - topHead, w: opp[2].w, h: topHead };
       opp[2].tiles = desktop
         ? { x: opp[2].x + 3, y: opp[2].y + 3, w: opp[2].w - 6, h: opp[2].h - 6 }
-        : { x: opp[2].x + 3, y: opp[2].y + 3, w: opp[2].w - 6, h: opp[2].h - topHead - 3 };
+        : { x: opp[2].x + 3 + acrossPtsW, y: opp[2].y + 3, w: opp[2].w - 6 - acrossPtsW, h: opp[2].h - Math.max(3, topHead) - 3 };
       var oppFrames = [];
       [1, 2, 3].forEach(function (k) { oppFrames[k] = makeFrame(opp[k].tiles, k); });
       // One tile size for every opponent's concealed hand and exposed tiles.
