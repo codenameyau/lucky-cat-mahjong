@@ -540,6 +540,31 @@ html.is-playing.is-sideways body {
   font-size: 0.86rem;
 }
 
+.strategies-about-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.strategies-details-toggle {
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: bold;
+  color: #ffd27a;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.strategies-details-toggle:focus-visible {
+  outline: 2px solid #ffd27a;
+  outline-offset: 2px;
+}
+
 .strategies-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -589,12 +614,9 @@ html.is-playing.is-sideways body {
   line-height: 1.35;
 }
 
-.strategies-card-more summary {
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: bold;
-  color: #ffd27a;
-}
+.strategies-card-more { display: none; }
+
+.strategies-cards.is-showing-details .strategies-card-more { display: block; }
 
 .strategies-card-more p {
   margin: 6px 0 0;

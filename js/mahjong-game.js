@@ -1645,6 +1645,8 @@
       return row;
     }
 
+    var strategyDetailsOpen = false;
+
     function buildStrategies() {
       var body = document.getElementById('strategies-sheet-body');
       if (!body) return;
@@ -1670,12 +1672,31 @@
 
       var about = document.createElement('section');
       about.className = 'rules-section';
+      var aboutHead = document.createElement('div');
+      aboutHead.className = 'strategies-about-head';
       var h2 = document.createElement('h3');
       h2.className = 'rules-section-title';
       h2.textContent = 'Strategies';
-      about.appendChild(h2);
+      aboutHead.appendChild(h2);
+      var toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.id = 'strategies-details-toggle';
+      toggle.className = 'strategies-details-toggle';
+      aboutHead.appendChild(toggle);
+      about.appendChild(aboutHead);
       var grid = document.createElement('div');
       grid.className = 'strategies-cards';
+      // One link shows or hides every strategy's details.
+      var showDetails = function () {
+        grid.classList.toggle('is-showing-details', strategyDetailsOpen);
+        toggle.textContent = strategyDetailsOpen ? 'Hide details' : 'See details';
+        toggle.setAttribute('aria-expanded', strategyDetailsOpen ? 'true' : 'false');
+      };
+      toggle.addEventListener('click', function () {
+        strategyDetailsOpen = !strategyDetailsOpen;
+        showDetails();
+      });
+      showDetails();
       Strategies.list().forEach(function (s) {
         var card = document.createElement('article');
         card.className = 'rules-family strategies-card';
@@ -1701,11 +1722,8 @@
         sum.className = 'strategies-card-summary';
         sum.textContent = s.summary;
         card.appendChild(sum);
-        var more = document.createElement('details');
+        var more = document.createElement('div');
         more.className = 'strategies-card-more';
-        var label = document.createElement('summary');
-        label.textContent = 'How it plays';
-        more.appendChild(label);
         s.details.forEach(function (t) {
           var p = document.createElement('p');
           appendHandNames(p, t);
