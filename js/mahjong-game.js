@@ -1902,7 +1902,7 @@
     // with paths so it doesn't depend on any emoji font.
     var ICON_GAP = 5;
     var SCORE_GAP = 6; // between the avatar and the score
-    var PHONE_POINTS_PX = 10; // your points beside your hand on a phone
+    var PHONE_POINTS_PX = 10, PHONE_SCORE_ICON = 12; // points beside your hand on a phone
     var SEE_RESULTS_W = 120; // See results, in the coach bar above your avatar
     function playerIcon(seat, x, cy, s) {
       var human = game.players[seat].isHuman;
@@ -2468,18 +2468,40 @@
           })(i);
         }
       }
-      if (!L.desktop && settings.mode === 'payout') {
-        // The centered hand leaves about this much room, so a dark backing
-        // keeps your points readable where they reach the last tile.
-        var myPts = fmt(game.players[0].points);
-        ctx.font = 'bold ' + PHONE_POINTS_PX + 'px ' + FONT_BODY;
-        var ptsW = ctx.measureText(myPts).width + 6, ptsH = PHONE_POINTS_PX + 4;
-        var ptsX = L.meBox.x + L.meBox.w - 5 - ptsW, ptsY = L.handY + L.th - ptsH;
-        roundRect(ctx, ptsX, ptsY, ptsW, ptsH, 4);
-        ctx.fillStyle = COLORS.feltDark;
-        ctx.fill();
-        text(myPts, ptsX + ptsW / 2, ptsY + ptsH / 2 + 0.5, { size: PHONE_POINTS_PX, weight: 'bold', align: 'center', color: COLORS.goldLight });
+      if (!L.desktop && settings.mode === 'payout') drawPhoneScores();
+    }
+
+    // A player's points on a phone, on a dark backing so they stay readable
+    // where they reach a tile.
+    function drawPhoneScore(seat, right, centerX, y) {
+      var label = fmt(game.players[seat].points);
+      ctx.font = 'bold ' + PHONE_POINTS_PX + 'px ' + FONT_BODY;
+      var w = ctx.measureText(label).width + 4, h = PHONE_POINTS_PX + 4;
+      var x = right !== null ? right - w : centerX - w / 2;
+      roundRect(ctx, x, y, w, h, 4);
+      ctx.fillStyle = COLORS.feltDark;
+      ctx.fill();
+      text(label, x + w / 2, y + h / 2 + 0.5, { size: PHONE_POINTS_PX, weight: 'bold', align: 'center', color: COLORS.goldLight });
+    }
+
+    // Upright, everyone's points sit in the margins beside your two rows, each
+    // under a bot or person icon: the player across and on your left down the
+    // left side, the player on your right and you down the right side.
+    // Sideways there's no room for four, so only yours shows.
+    function drawPhoneScores() {
+      var boxRight = L.meBox.x + L.meBox.w;
+      if (!L.phonePortrait) {
+        drawPhoneScore(0, boxRight - 5, null, L.handY + L.th - PHONE_POINTS_PX - 4);
+        return;
       }
+      var rowW = 7 * L.tw + 6 * L.handGap;
+      var rowLeft = L.meX + (L.meW - rowW) / 2;
+      var leftX = (L.meBox.x + rowLeft) / 2, rightX = (rowLeft + rowW + boxRight) / 2;
+      var topY = L.handY - HAND_ROW_GAP - L.th / 2, bottomY = L.handY + L.th / 2;
+      [[2, leftX, topY], [3, leftX, bottomY], [1, rightX, topY], [0, rightX, bottomY]].forEach(function (spot) {
+        playerIcon(spot[0], spot[1] - PHONE_SCORE_ICON / 2, spot[2] - 8, PHONE_SCORE_ICON);
+        drawPhoneScore(spot[0], null, spot[1], spot[2] + 1);
+      });
     }
 
     function drawHintBand() {
