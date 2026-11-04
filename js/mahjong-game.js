@@ -11,6 +11,7 @@
   var E = root.MahjongEngine;
   var Coach = root.MahjongCoach;
   var Strategies = root.MahjongStrategies;
+  var Lesson = root.MahjongLesson;
 
   var SETTINGS_KEY = 'lcm-play-settings';
   var PREFS_KEY = 'lcm-play-prefs';
@@ -610,6 +611,7 @@
       hide: { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null },
       botLift: null, // { seat, index } tile a bot is considering
       botDrawn: [false, false, false, false], // bot's fresh draw sits apart
+      winInHand: null, // a discard win's tile, flying into the winner's hand then glowing there
       botDiscardFrom: [null, null, null, null],
       oppHand: [null, null, null, null],
       overlay: null,
@@ -664,8 +666,9 @@
       });
       particles = particles.filter(function (p) { return t - p.born < p.life; });
       banners = banners.filter(function (b) { return t - b.start < b.dur; });
+      if (ui.shake && t - ui.shake.start >= SHAKE_MS) ui.shake = null;
       render(t);
-      if (anims.length || particles.length || banners.length) requestRender();
+      if (anims.length || particles.length || banners.length || ui.shake) requestRender();
     }
 
     function animate(dur, step, ease) {
@@ -1163,9 +1166,20 @@
       regions.push({ x: x, y: y, w: w, h: h, onTap: onTap, id: id, plain: !!plain });
     }
 
+    // A refused lesson move wiggles the tile or button that was used.
+    var SHAKE_MS = 480;
+    function shakeDx(kind, key) {
+      if (!ui.shake || ui.shake.kind !== kind || ui.shake.key !== key) return 0;
+      var p = (now() - ui.shake.start) / SHAKE_MS;
+      if (p < 0 || p >= 1) return 0;
+      return Math.sin(p * Math.PI * 5) * (1 - p) * 18;
+    }
+
     function button(label, x, y, w, h, onTap, style, id, picked) {
       style = style || 'light';
       var isHover = hover === id;
+      var dx = shakeDx('button', id);
+      if (dx) { ctx.save(); ctx.translate(dx, 0); }
       var fills = {
         primary: isHover ? '#d62a47' : COLORS.red,
         gold: isHover ? '#ffb43c' : COLORS.gold,
@@ -1190,6 +1204,7 @@
       if (style === 'gold') color = COLORS.ink;
       var size = fitFont(ctx, label, w - 16, Math.min(16, h * 0.42), FONT_BODY, 'bold');
       text(label, x + w / 2, y + h / 2 + 1, { size: size, weight: 'bold', color: color, align: 'center' });
+      if (dx) ctx.restore();
       var event = BUTTON_EVENTS[id];
       addRegion(x, y, w, h, event ? function () { track(event, {}); onTap(); } : onTap, id);
     }
@@ -2047,6 +2062,11 @@
         if (faceUp) drawTile(faceUp[i], backX(i), backsY, bw, { shadow: false });
         else drawTile(null, backX(i), backsY - (i === lift ? liftBy : 0), bw, { back: true, shadow: false });
       }
+      // A discard win sits face up at the end of an opponent's row once it lands.
+      if (ui.winInHand && ui.winInHand.seat === seat && ui.winInHand.landed && !faceUp) {
+        var winX = bx0 + count * pitch + (apart ? bw * 0.4 : 0);
+        drawTile(ui.winInHand.tile, winX, backsY, bw, { shadow: false, glow: COLORS.gold });
+      }
       var mx = mx0 + (oneRow ? 5 : 0);
       items.forEach(function (it) {
         if (it.gap) { mx += mw * 0.35; return; }
@@ -2156,6 +2176,12 @@
     function myHandOrder() {
       if (ui.revealHands) return { tiles: revealedConcealed(0), drawnSeparate: false };
       var s = game.hand.seats[0];
+      // A discard win joins the row in sorted order. The copy stays hidden
+      // until the flight from the pond lands.
+      if (ui.winInHand && ui.winInHand.seat === 0) {
+        var won = E.sortTiles(s.hand.concat([ui.winInHand.tile]));
+        return { tiles: won, drawnSeparate: false, winAt: won.lastIndexOf(ui.winInHand.tile) };
+      }
       var drawn = game.hand.drawnTile;
       var showDrawn = ui.turnPrompt && drawn && game.hand.turn === 0 && game.hand.canSelfDraw && s.hand.indexOf(drawn) !== -1;
       var rest = s.hand.slice();
@@ -2269,6 +2295,8 @@
         var pool = (ui.handSlots || []).slice();
         var moved = false;
         ui.handSlots = tiles.map(function (tid, k) {
+          // The tile just taken has no previous place in the row.
+          if (k === order.winAt) return { id: tid, from: targets[k], to: targets[k] };
           var best = -1, bestD = Infinity;
           for (var q = 0; q < pool.length; q++) {
             if (pool[q] && pool[q].id === tid) {
@@ -2316,10 +2344,11 @@
           if (i === lastCopy) { glow = COLORS.gold; hintUsed = true; }
         }
         var claimable = ui.claimPrompt && ui.claimPrompt.highlight && ui.claimPrompt.highlight.indexOf(id) !== -1;
-        // A replacement still in flight keeps its spot empty until it lands.
-        if (i === heldAt) continue;
+        // A replacement, or the winning discard, keeps its spot empty until it lands.
+        if (i === heldAt || (i === order.winAt && ui.winInHand && !ui.winInHand.landed)) continue;
+        if (i === order.winAt) glow = COLORS.gold;
         // Tiles a pung or chow would use get a red border.
-        drawTile(id, x, pos.y - lift, tw, { glow: glow || (claimable ? COLORS.red : null) });
+        drawTile(id, x + shakeDx('tile', i), pos.y - lift, tw, { glow: glow || (claimable ? COLORS.red : null) });
         var rect = { x: x, y: pos.y - lift, w: tw, h: L.th, id: id, index: i };
         ui.lastHandRects.push(rect);
         if (ui.turnPrompt) {
@@ -2619,23 +2648,23 @@
       var acts = [];
       if (ui.turnPrompt) {
         var o = ui.turnPrompt.opts;
-        if (o.win) acts.push({ label: winButtonLabel(o.win), style: 'gold', fn: function () { resolveTurn({ type: 'win' }); } });
+        if (o.win) acts.push({ id: 'win', label: winButtonLabel(o.win), style: 'gold', fn: function () { resolveTurn({ type: 'win' }); } });
         o.kongs.forEach(function (k) {
-          acts.push({ label: 'Kong', style: 'primary', fn: function () { resolveTurn({ type: 'kong', tile: k.tile }); } });
+          acts.push({ id: 'kong-' + k.tile, label: 'Kong', style: 'primary', fn: function () { resolveTurn({ type: 'kong', tile: k.tile }); } });
         });
         if (ui.selected >= 0) {
-          acts.push({ label: 'Discard', style: 'light', fn: function () { discardSelected(); } });
+          acts.push({ id: 'discard', label: 'Discard', style: 'light', fn: function () { discardSelected(true); } });
         }
       } else if (ui.claimPrompt) {
         var c = ui.claimPrompt.opts;
-        if (c.win) acts.push({ label: winButtonLabel(c.win), style: 'gold', fn: function () { resolveClaim({ type: 'win' }); } });
-        if (c.kong) acts.push({ label: 'Kong', style: 'primary', fn: function () { resolveClaim({ type: 'kong' }); } });
-        if (c.pung) acts.push({ label: 'Pung', style: 'primary', fn: function () { resolveClaim({ type: 'pung' }); } });
+        if (c.win) acts.push({ id: 'win', label: winButtonLabel(c.win), style: 'gold', fn: function () { resolveClaim({ type: 'win' }); } });
+        if (c.kong) acts.push({ id: 'kong-' + c.tile, label: 'Kong', style: 'primary', fn: function () { resolveClaim({ type: 'kong' }); } });
+        if (c.pung) acts.push({ id: 'pung', label: 'Pung', style: 'primary', fn: function () { resolveClaim({ type: 'pung' }); } });
         c.chows.forEach(function (pair) {
           var seq = E.sortTiles(pair.concat([c.tile])).map(function (id) { return E.rankOfIndex(E.tileIndex(id)); }).join('-');
-          acts.push({ label: 'Chow ' + seq, style: 'primary', fn: function () { resolveClaim({ type: 'chow', tiles: pair }); } });
+          acts.push({ id: 'chow-' + seq, label: 'Chow ' + seq, style: 'primary', fn: function () { resolveClaim({ type: 'chow', tiles: pair }); } });
         });
-        acts.push({ label: 'Pass', style: 'white', fn: function () { resolveClaim({ type: 'pass' }); } });
+        acts.push({ id: 'pass', label: 'Pass', style: 'white', fn: function () { resolveClaim({ type: 'pass' }); } });
       }
       if (!acts.length) { setButtonsOverName(false); return; }
       var h = 38;
@@ -2673,7 +2702,7 @@
       }
       var hintDecision = ui.coach === 'on' && ui.hint && ui.hint.decision;
       acts.forEach(function (a, i) {
-        var id = 'act-' + i;
+        var id = a.id || ('act-' + i);
         var recommended = hintDecision && labelMatches(a.label, hintDecision);
         button(a.label, x + i * (bw + gap), y, bw, h, a.fn, a.style, id, recommended);
       });
@@ -2706,7 +2735,7 @@
           var up = f.p >= 0.5;
           drawTile(up ? f.id : null, f.x, f.y, f.w, { back: !up, rot: f.rot || 0, scaleX: Math.abs(1 - 2 * f.p) });
         } else {
-          drawTile(f.id, f.x, f.y, f.w, { back: f.back, rot: f.rot || 0 });
+          drawTile(f.id, f.x, f.y, f.w, { back: f.back, rot: f.rot || 0, glow: f.glow });
         }
       });
     }
@@ -2995,7 +3024,7 @@
         var ey = y + 18;
         text(o.extra, cx, ey, { size: fitFont(ctx, o.extra, w, 13, FONT_BODY), align: 'center', color: COLORS.muted });
       }
-      var label = game.over ? 'See results' : 'Next hand';
+      var label = settings.lesson ? 'Done' : (game.over ? 'See results' : 'Next hand');
       var firstRegion = regions.length;
       var gap = 12;
       var handsW = 140;
@@ -3047,7 +3076,7 @@
         text(lineText, r.x + r.w / 2, y + 58 + k * 16, { size: 12, weight: 'bold', align: 'center', color: note.error ? COLORS.red : COLORS.green });
       });
       // Mode and version, with a Beta badge.
-      var line = (settings.mode === 'practice' ? 'Practice mode' : 'Full game') + ' · v' + E.GAME_VERSION;
+      var line = (settings.lesson ? 'Learn to play' : settings.mode === 'practice' ? 'Practice mode' : 'Full game') + ' · v' + E.GAME_VERSION;
       ctx.font = '12px ' + FONT_BODY;
       var lineW = ctx.measureText(line).width;
       ctx.font = 'bold 10px ' + FONT_BODY;
@@ -3080,6 +3109,7 @@
     // Not while a loaded hand is being played again.
     var autosaveTimer = null;
     function autosave() {
+      if (settings.lesson) return;
       if (!game || ui.replaying || destroyed) return;
       clearTimeout(autosaveTimer);
       autosaveTimer = setTimeout(function () {
@@ -3104,6 +3134,7 @@
     }
 
     function saveGame() {
+      if (settings.lesson) { setMenuNote('This lesson starts over from the beginning, so it isn\'t saved.', true); return; }
       if (!game || ui.replaying) { setMenuNote('Nothing to save yet. Try again in a moment.', true); return; }
       var d = new Date();
       E.makeSave(savePayload()).then(function (data) { download(data, d); }, function () {
@@ -3299,6 +3330,7 @@
     }
 
     function cycleCoach() {
+      if (settings.lesson) return;
       var next = COACH_ORDER[(COACH_ORDER.indexOf(ui.coach) + 1) % COACH_ORDER.length];
       ui.coach = next;
       saveSetting('coach', next);
@@ -3351,18 +3383,41 @@
       return E.tileName(cand.tile) + ' is OK, but ' + E.tileName(top.tile) + ' is better.';
     }
 
-    function discardSelected() {
+    function discardSelected(fromButton) {
       if (!ui.turnPrompt || ui.selected < 0) return;
       var tile = myHandOrder().tiles[ui.selected];
       if (!tile) return;
       var rect = ui.lastHandRects[ui.selected];
       ui.discardFrom = rect ? { x: rect.x, y: rect.y, w: rect.w, rot: 0 } : null;
-      resolveTurn({ type: 'discard', tile: tile });
+      var target = fromButton ? { kind: 'button', key: 'discard' } : { kind: 'tile', index: ui.selected };
+      resolveTurn({ type: 'discard', tile: tile }, target);
     }
 
-    function resolveTurn(action) {
+    // The lesson plays one fixed hand. A refused click shakes that tile or button.
+    function lessonTarget(decision, target) {
+      if (target) return { kind: target.kind, key: target.key != null ? target.key : target.index };
+      if (decision.type === 'discard') return { kind: 'tile', index: ui.selected };
+      if (decision.type === 'chow' && ui.claimPrompt) {
+        var seq = E.sortTiles(decision.tiles.concat([ui.claimPrompt.opts.tile])).map(function (id) { return E.rankOfIndex(E.tileIndex(id)); }).join('-');
+        return { kind: 'button', key: 'chow-' + seq };
+      }
+      if (decision.type === 'kong') return { kind: 'button', key: 'kong-' + decision.tile };
+      return { kind: 'button', key: decision.type };
+    }
+
+    function lessonAllows(kind, decision, target) {
+      if (!settings.lesson) return true;
+      if (Lesson.accept(game, 0, kind, decision)) return true;
+      var where = lessonTarget(decision, target);
+      ui.shake = { kind: where.kind, key: where.key, start: now() };
+      requestRender();
+      return false;
+    }
+
+    function resolveTurn(action, target) {
       var p = ui.turnPrompt;
       if (!p) return;
+      if (!lessonAllows('turn', action, target)) return;
       // Training mode: judge the move against what the coach would have done.
       if (ui.coach === 'feedback' && ui.hint && action.type === 'discard') {
         ui.feedback = Coach.discardFeedback(ui.hint, action.tile) || ui.feedback;
@@ -3379,6 +3434,7 @@
     function resolveClaim(decision) {
       var p = ui.claimPrompt;
       if (!p) return;
+      if (!lessonAllows('claim', decision)) return;
       if (ui.coach === 'feedback' && ui.hint) {
         ui.feedback = Coach.claimFeedback(ui.hint, decision) || ui.feedback;
         rememberCoach(ui.feedback, 'feedback');
@@ -3391,6 +3447,12 @@
     }
 
     function refreshHint() {
+      if (settings.lesson && game && game.hand) {
+        ui.coach = 'on';
+        ui.hint = Lesson.hint(game);
+        if (ui.hint) rememberCoach(ui.hint, 'hint');
+        return;
+      }
       // In Feedback mode the advice is worked out (to judge your move) but not shown.
       if (ui.coach === 'off' || !game || !game.hand) { ui.hint = null; return; }
       var coach = coachFor();
@@ -3524,6 +3586,24 @@
 
     /* ---------------- animation helpers ---------------- */
 
+    // Where a just-claimed discard was sitting. Claiming removes it from the
+    // pond, so its old slot is the one just past the tiles still showing.
+    function claimedDiscardPose(seat) {
+      var list = game.hand.seats[seat].discards.filter(function (d) { return !d.claimed; });
+      return pondPose(seat, list.length);
+    }
+
+    // Where that tile belongs once it joins the hand: sorted into yours,
+    // or at the end of an opponent's concealed row.
+    function winningHandPose(seat, tile) {
+      if (seat === 0) {
+        var tiles = E.sortTiles(game.hand.seats[0].hand.concat([tile]));
+        var spot = handPositions(tiles.length)[tiles.lastIndexOf(tile)];
+        return { x: spot.x, y: spot.y, w: L.tw, rot: 0 };
+      }
+      return ui.backAnchor[seat] || seatAnchor(seat);
+    }
+
     function seatAnchor(seat) {
       if (seat === 0) {
         return { x: L.meX + L.meW / 2 - L.tw / 2, y: L.handY, w: L.tw, rot: 0 };
@@ -3546,7 +3626,7 @@
       opts = opts || {};
       var r0 = from.rot || 0;
       var dr = turnBetween(r0, to.rot || 0);
-      var f = { id: id, back: !!opts.back, flip: !!opts.flip, p: 0, x: from.x, y: from.y, w: from.w, rot: r0 };
+      var f = { id: id, back: !!opts.back, flip: !!opts.flip, glow: opts.glow || null, p: 0, x: from.x, y: from.y, w: from.w, rot: r0 };
       flights.push(f);
       var arc = opts.arc !== undefined ? opts.arc : 30;
       return animate(dur, function (p) {
@@ -3635,6 +3715,7 @@
         ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null };
         ui.botDrawn = [false, false, false, false];
         ui.botLift = null;
+        ui.winInHand = null;
         ui.turnSeat = null;
         ui.selected = -1;
         ui.notice = null;
@@ -3740,21 +3821,32 @@
       win: function (res) {
         ui.turnPrompt = null;
         ui.claimPrompt = null;
-        var c = L.center;
-        var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
-        var label = res.how === 'selfDraw' ? 'Self-draw!' : 'Win!';
-        if (res.how === 'flowers') label = 'Flower win!';
-        var mine = res.winner === 0;
-        banner(label, cx, cy, { size: 34, dur: 1700, color: mine ? COLORS.gold : COLORS.red, textColor: mine ? COLORS.ink : COLORS.white, sub: (mine ? 'You' : game.players[res.winner].name) + ' · ' + res.score.faan + ' faan' });
-        sound.play('win');
-        if (mine) {
-          confetti(cx, cy, 140, false);
-          confetti(cx, cy, 50, true);
-        } else {
-          confetti(cx, cy, 40, true);
-        }
-        announce((mine ? 'You win' : game.players[res.winner].name + ' wins') + ' with ' + res.score.faan + ' faan.');
-        return sleep(1500);
+        var celebrate = function () {
+          var c = L.center;
+          var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
+          var label = res.how === 'selfDraw' ? 'Self-draw!' : 'Win!';
+          if (res.how === 'flowers') label = 'Flower win!';
+          var mine = res.winner === 0;
+          banner(label, cx, cy, { size: 34, dur: 1700, color: mine ? COLORS.gold : COLORS.red, textColor: mine ? COLORS.ink : COLORS.white, sub: (mine ? 'You' : game.players[res.winner].name) + ' · ' + res.score.faan + ' faan' });
+          sound.play('win');
+          if (mine) {
+            confetti(cx, cy, 140, false);
+            confetti(cx, cy, 50, true);
+          } else {
+            confetti(cx, cy, 40, true);
+          }
+          announce((mine ? 'You win' : game.players[res.winner].name + ' wins') + ' with ' + res.score.faan + ' faan.');
+          return sleep(1500);
+        };
+        // The winning discard leaves the pond and joins the winner's hand
+        // before the banner. Self-draw already holds the tile.
+        if (res.how !== 'discard' || !res.tile || res.payer == null) return celebrate();
+        ui.winInHand = { seat: res.winner, tile: res.tile, landed: false };
+        return fly(res.tile, claimedDiscardPose(res.payer), winningHandPose(res.winner, res.tile), 420, { arc: 36, glow: COLORS.gold }).then(function () {
+          if (ui.winInHand) ui.winInHand.landed = true;
+          requestRender();
+          return celebrate();
+        });
       },
       drawGame: function () {
         sound.play('drawgame');
@@ -3830,18 +3922,34 @@
       };
     }
 
+    function lessonAgent() {
+      return {
+        turn: function (g, seat) {
+          var action = Lesson.take(g, seat, 'turn');
+          if (instantMode()) return Promise.resolve(action);
+          return sleep(640).then(function () { return action; });
+        },
+        claim: function (g, seat) {
+          var decision = Lesson.take(g, seat, 'claim');
+          if (instantMode()) return Promise.resolve(decision);
+          return sleep(420).then(function () { return decision; });
+        },
+      };
+    }
+
     function humanAgent() {
       return {
         turn: function (g, seat, opts) {
           return new Promise(function (resolve) {
             ui.turnPrompt = { opts: opts, resolve: resolve };
             ui.selected = -1;
-            ui.notice = opts.completeButShort
-              ? 'Your hand is complete, but only ' + opts.completeButShort.faan + ' faan. You need ' + game.settings.minFaan + ' to win.'
-              : (opts.win ? 'You can win by self-draw with ' + opts.win.faan + ' faan!' : null);
             refreshHint();
+            var lessonLine = settings.lesson && ui.hint && ui.hint.action;
+            ui.notice = lessonLine ? null : (opts.completeButShort
+              ? 'Your hand is complete, but only ' + opts.completeButShort.faan + ' faan. You need ' + game.settings.minFaan + ' to win.'
+              : (opts.win ? 'You can win by self-draw with ' + opts.win.faan + ' faan!' : null));
             sound.play('turn');
-            announce(opts.win ? 'You can win by self-draw. Press Win, or pick a tile to discard.' : 'Your turn. Pick a tile to discard.');
+            announce(lessonLine || (opts.win ? 'You can win by self-draw. Press Win, or pick a tile to discard.' : 'Your turn. Pick a tile to discard.'));
             requestRender();
           });
         },
@@ -3851,12 +3959,13 @@
             if (opts.pung || opts.kong) highlight.push(opts.tile);
             opts.chows.forEach(function (p) { highlight = highlight.concat(p); });
             ui.claimPrompt = { opts: opts, resolve: resolve, highlight: highlight };
-            ui.notice = opts.win
-              ? 'You can win on ' + E.tileName(opts.tile) + ' for ' + opts.win.faan + ' faan!'
-              : (opts.completeButShort ? E.tileName(opts.tile) + ' completes your hand, but only for ' + opts.completeButShort.faan + ' faan.' : 'Claim ' + E.tileName(opts.tile) + '?');
             refreshHint();
+            var lessonLine = settings.lesson && ui.hint && ui.hint.action;
+            ui.notice = lessonLine ? null : (opts.win
+              ? 'You can win on ' + E.tileName(opts.tile) + ' for ' + opts.win.faan + ' faan!'
+              : (opts.completeButShort ? E.tileName(opts.tile) + ' completes your hand, but only for ' + opts.completeButShort.faan + ' faan.' : 'Claim ' + E.tileName(opts.tile) + '?'));
             sound.play('turn');
-            announce(ui.notice);
+            announce(lessonLine || ui.notice);
             requestRender();
           });
         },
@@ -3910,11 +4019,20 @@
           replay = { seed: p.game.hand.seed, replay: p.game.hand.moves, onReplayEnd: replayDone };
         }
       } else {
-        game = E.createGame({ spicy: settings.spicy, mode: settings.mode });
+        var created = { spicy: settings.spicy, mode: settings.mode };
+        if (settings.lesson) created.dealer = 0;
+        game = E.createGame(created);
+        if (settings.lesson) {
+          Lesson.prepare(game);
+          ui.coach = 'on';
+          removeJson(AUTOSAVE_KEY);
+        }
         ui.strategies = pickStrategies();
         ui.coachLog = [];
       }
-      var agents = [humanAgent(), botAgent(), botAgent(), botAgent()];
+      var agents = settings.lesson
+        ? [humanAgent(), lessonAgent(), lessonAgent(), lessonAgent()]
+        : [humanAgent(), botAgent(), botAgent(), botAgent()];
       track(saved ? 'play_resume' : 'play_start', {
         spicy: settings.spicy, mode: settings.mode, coach: settings.coach,
         speed: settings.speed, coach_strategy: ui.strategies.coach,
@@ -3937,10 +4055,15 @@
           faan: res.type === 'win' ? res.score.faan : 0,
         });
         var extra = null;
-        if (res.roundAdvanced) extra = 'The round wind is now ' + E.WIND_NAMES[game.round] + '.';
+        if (settings.lesson && res.type === 'win' && res.winner === 0) extra = 'You won a Half Flush on East Wind.';
+        else if (res.roundAdvanced) extra = 'The round wind is now ' + E.WIND_NAMES[game.round] + '.';
         if (game.over) extra = 'That was the last deal of the game.';
         autosave(); // between hands: a refresh deals the next one
         await showOverlay({ type: 'summary', result: res, extra: extra });
+        if (settings.lesson) {
+          callbacks.quit();
+          return;
+        }
         if (game.over) {
           track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins });
           ui.overlay = { type: 'gameover' };
@@ -4232,6 +4355,20 @@
           loadNote.textContent = reason;
           loadNote.hidden = false;
         });
+      });
+    }
+
+    // Learn to play, beside Load game: one fixed hand the coach walks you through.
+    var learnBtn = document.getElementById('play-learn');
+    if (learnBtn) {
+      learnBtn.addEventListener('click', function () {
+        track('play_learn_click', {});
+        var settings = readForm(form, readJson(SETTINGS_KEY, {}));
+        settings.mode = 'practice';
+        settings.lesson = true;
+        settings.spicy = 'full';
+        if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
+        open(settings);
       });
     }
 
