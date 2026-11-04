@@ -25,7 +25,7 @@
         'Each turn it reads the hand again. A stronger target replaces the old one, and when a target can\'t be made it pivots: Seven Pairs to Concealed Triplets to All Triplets, Concealed Triplets to All Triplets or Seven Pairs, Full Flush to Half Flush, Four Winds to All Honors, and Thirteen Orphans to Seven Pairs with Mixed Orphans.',
         'With a seat or round wind, or a seat flower, the hand already has faan, so it plays for speed. It also counts wins off the last tile and off a kong toward the 3-faan minimum.',
         'It keeps the hand concealed. Early chows only build a flush in that suit, and never into a suit it holds few tiles of. Pungs are fine early.',
-        'It reads every opponent\'s discards for the hand they\'re on: the suit they keep, the honors they hold, or a hand of runs. Late in the wall, if it is still two or more tiles from ready, it stops building and stops feeding: no chow tiles to the next player, no fresh dragons or winds.',
+        'It reads every opponent\'s discards for the hand they\'re on: the suit they keep, the honors they hold, or a hand of sequences. Late in the wall, if it is still two or more tiles from ready, it stops building and stops feeding: no chow tiles to the next player, no fresh dragons or winds.',
       ],
       doc: 'docs/strategies/jorge-yau.md',
     },

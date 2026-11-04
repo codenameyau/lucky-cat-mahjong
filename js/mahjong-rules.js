@@ -14,7 +14,7 @@
 
   var SOUTH = 2;
   var EAST = 1;
-  // A plain hand of runs, the base for the situational examples.
+  // A plain hand of sequences, the base for the situational examples.
   var RUNS = [['c2', 'c3', 'c4'], ['d5', 'd6', 'd7'], ['b4', 'b5', 'b6'], ['b7', 'b8', 'b9'], ['d2', 'd2']];
   var KONG_RUNS = [['c2', 'c3', 'c4'], ['d5', 'd6', 'd7'], ['b4', 'b5', 'b6'], ['dw', 'dw', 'dw', 'dw'], ['d2', 'd2']];
 
@@ -29,7 +29,7 @@
       { title: 'Basics', rows: [
         rule('Chicken Hand', '雞糊', 'chicken', 'Four sets and a pair, nothing else', {
           sets: [['c2', 'c3', 'c4'], ['d5', 'd6', 'd7'], ['d8', 'd8', 'd8'], ['b7', 'b8', 'b9'], ['c5', 'c5']], open: [2],
-          flowers: ['f1'], note: 'Mixed suits, runs and a set, with one set claimed.',
+          flowers: ['f1'], note: 'Mixed suits, sequences and a set, with one set claimed.',
         }),
         rule('All Sequences', '平糊', 'allSequences', 'Four chows and a pair, no honors', { sets: RUNS }),
         rule('Seven Pairs', '七對子', 'sevenPairs', 'Seven different pairs, concealed', {

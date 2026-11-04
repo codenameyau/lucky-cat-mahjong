@@ -18,8 +18,8 @@
   // { seats: { 1: id, 2: id, 3: id }, coach: id }. A bot seat with nothing
   // saved gets a random strategy each game.
   var STRATEGIES_KEY = 'lcm-play-strategies';
-  // The game in progress, kept as you play in the same signed form as a save
-  // file, so a refresh picks it up (cleared by Quit game).
+  // The one saved game on this device, signed (HMAC-SHA256). Each turn writes
+  // it; Resume game reads it. Quit leaves it.
   var AUTOSAVE_KEY = 'lcm-play-autosave';
   var SEAT_SIDES = ['', 'on your right', 'across', 'on your left'];
   var TILE_ASPECT = 1.4;
@@ -51,31 +51,6 @@
   function easeBack(t) { var c = 1.7; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
   function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
   function signed(n) { return (n > 0 ? '+' : n < 0 ? '−' : '±') + fmt(Math.abs(n)); }
-
-  // Asks for a save file, checks it (MahjongEngine.checkSave), and hands
-  // it to onLoad, or a reason it can't be loaded to onError.
-  function chooseSaveFile(onLoad, onError) {
-    var input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json,.json';
-    input.addEventListener('change', function () {
-      var file = input.files && input.files[0];
-      if (!file) return;
-      var reader = new FileReader();
-      reader.onload = function () {
-        var data = null;
-        try { data = JSON.parse(String(reader.result)); } catch (err) { data = null; }
-        E.checkSave(data).then(function (check) {
-          if (!check.ok) { track('play_load_failed', {}); onError(check.reason); return; }
-          track('play_load', { version: data.version });
-          onLoad(data);
-        }, function () { onError('This browser can\'t load games.'); });
-      };
-      reader.onerror = function () { onError('That file couldn\'t be read.'); };
-      reader.readAsText(file);
-    });
-    input.click();
-  }
 
   function readJson(key, fallback) {
     try {
@@ -150,8 +125,6 @@
     'see-results': 'play_see_results_click',
     'm-resume': 'play_menu_resume_click',
     'm-restart': 'play_menu_restart_click',
-    'm-save': 'play_menu_save_click',
-    'm-load': 'play_menu_load_click',
     'm-quit': 'play_menu_quit_click',
     'go-again': 'play_again_click',
     'go-quit': 'play_end_quit_click',
@@ -596,7 +569,6 @@
       handLayout: '',
       restartArmed: 0, // when Restart game was first tapped in the menu
       replaying: false, // a loaded hand is being played again up to your next move
-      menuNote: null, // a line in the menu after saving or a failed load
       windFlash: 0, // 1 to 0 as your wind badge flashes after copying the seed
       turnSeat: null,
       selected: -1,
@@ -1319,8 +1291,8 @@
       var F = E.HKScoring.FAAN;
       var intro = document.createElement('p');
       intro.className = 'rules-sheet-intro';
-      intro.textContent = 'Win with four sets (pungs, kongs or chows) and a pair, worth at least ' + E.MIN_FAAN +
-        ' faan. Add up every pattern your hand has, but in each family count only the highest. A limit hand is worth ' +
+      intro.textContent = 'Win with four sets and a pair, worth at least ' + E.MIN_FAAN +
+        ' faan. Add up every pattern your hand has, but only count the highest faan per group. A limit hand is worth ' +
         F.thirteenOrphans + ' faan.';
       body.parentNode.insertBefore(intro, body);
       root.MahjongRules.RULES.forEach(function (section) {
@@ -1352,32 +1324,56 @@
             var pill = row.querySelector('.rules-faan');
             pill.textContent = limit ? 'Limit' : faan + ' faan';
             if (limit) pill.classList.add('rules-faan--limit');
-            // Hover (or tap, or focus) shows an example hand. Once it is open,
-            // a click on this same rule closes it. A touch's opening tap does
-            // not: the press starts before the example is shown.
+            // Desktop: hover or click opens the example above the pattern, and
+            // leaving it hides the example. Touch still opens from the press,
+            // and that first tap does not also close it.
             if (section.preview !== false && r.preview !== false) {
               row.classList.add('rules-row--example');
               row.tabIndex = 0;
+              row.setAttribute('role', 'button');
+              row.setAttribute('aria-expanded', 'false');
               var show = function () { showRuleExample(row, r, pill.textContent); };
               var fromMouse = true;
               var openBeforePress = false;
               row.addEventListener('pointerdown', function (e) {
+                if (desktopRules()) return;
                 fromMouse = e.pointerType === 'mouse';
                 openBeforePress = openExampleRow === row;
               });
-              row.addEventListener('mouseenter', function () { if (fromMouse || !openBeforePress) show(); });
-              row.addEventListener('focus', function () { if (fromMouse || !openBeforePress) show(); });
+              row.addEventListener('mouseenter', function () {
+                if (desktopRules()) { show(); return; }
+                if (fromMouse || !openBeforePress) show();
+              });
+              row.addEventListener('focus', function () {
+                if (desktopRules()) return;
+                if (fromMouse || !openBeforePress) show();
+              });
               row.addEventListener('click', function () {
                 track('play_rule_click', { hand: r.name });
+                if (desktopRules()) { show(); return; }
                 if (fromMouse ? openExampleRow === row : openBeforePress) { hideRuleExample(); return; }
                 show();
               });
+              row.addEventListener('keydown', function (e) {
+                if (!desktopRules() || (e.key !== 'Enter' && e.key !== ' ')) return;
+                e.preventDefault();
+                if (openExampleRow === row) hideRuleExample();
+                else show();
+              });
               row.addEventListener('mouseleave', function (e) {
+                if (desktopRules()) {
+                  if (exampleCardHas(e.relatedTarget)) return;
+                  if (openExampleRow === row) hideRuleExample();
+                  return;
+                }
                 if (exampleCardHas(e.relatedTarget)) return;
                 openBeforePress = false;
                 hideRuleExample();
               });
-              row.addEventListener('blur', function () { if (!exampleCardPressed) hideRuleExample(); });
+              row.addEventListener('blur', function () {
+                if (desktopRules()) return;
+                if (!exampleCardPressed) hideRuleExample();
+              });
             }
             box.appendChild(row);
           });
@@ -1386,6 +1382,28 @@
         sec.appendChild(grid);
         body.appendChild(sec);
       });
+      // One listener for the sheet: a click that isn't the open pattern or its
+      // card puts the example away. The backdrop click still closes the sheet.
+      rulesSheet().addEventListener('click', function (e) {
+        if (!desktopRules() || !openExampleRow) return;
+        if (openExampleRow.contains(e.target) || exampleCardHas(e.target)) return;
+        hideRuleExample();
+      });
+      // Where the pointer was last, so the example can enter from that side.
+      rulesSheet().addEventListener('pointermove', function (e) {
+        if (pointerTravel.ready) {
+          pointerTravel.dx = e.clientX - pointerTravel.x;
+          pointerTravel.dy = e.clientY - pointerTravel.y;
+        }
+        pointerTravel.x = e.clientX;
+        pointerTravel.y = e.clientY;
+        pointerTravel.ready = true;
+      });
+    }
+
+    // A finger still follows the touch path. Desktop uses hover and click.
+    function desktopRules() {
+      return !!(root.matchMedia && root.matchMedia('(hover: hover) and (pointer: fine)').matches);
     }
 
     function tileImg(id) {
@@ -1399,6 +1417,7 @@
     // Which rule's example is on screen, so a second click can close it.
     var openExampleRow = null;
     var exampleCardPressed = false;
+    var pointerTravel = { x: 0, y: 0, dx: 0, dy: 0, ready: false };
 
     function exampleCardHas(node) {
       var dlg = rulesSheet();
@@ -1425,7 +1444,7 @@
       return true;
     }
 
-    // A card beside the row with the example hand as tiles.
+    // The example hand. On a desktop it sits in the middle of the sheet.
     function showRuleExample(row, r, faanLabel) {
       var dlg = rulesSheet();
       var card = dlg.querySelector('.rules-example');
@@ -1439,8 +1458,12 @@
         });
         card.addEventListener('click', function (e) {
           e.stopPropagation();
+          if (desktopRules()) return;
           exampleCardPressed = false;
           hideRuleExample();
+        });
+        card.addEventListener('mouseenter', function () {
+          if (desktopRules()) hideRuleExample();
         });
         card.addEventListener('mouseleave', function (e) {
           if (openExampleRow && e.relatedTarget && openExampleRow.contains(e.relatedTarget)) return;
@@ -1449,6 +1472,7 @@
         dlg.appendChild(card);
       }
       openExampleRow = row;
+      row.setAttribute('aria-expanded', 'true');
       var ex = r.example;
       card.innerHTML = '';
       var head = document.createElement('div');
@@ -1466,8 +1490,8 @@
       if (!flowersOnly) {
         ex.sets.forEach(function (set) {
           var cls = 'rules-set' + (patternSet(r.key, set, ex) ? ' rules-set--open' : '');
-          // These two hands are one run of 14, so show them on two even rows.
-          var twoRows = (r.key === 'nineGates' || r.key === 'thirteenOrphans') && set.length > 1;
+          // A phone shows these 14-tile hands on two even rows. Desktop fits the whole hand on one.
+          var twoRows = !desktopRules() && (r.key === 'nineGates' || r.key === 'thirteenOrphans') && set.length > 1;
           var parts = twoRows ? [set.slice(0, Math.ceil(set.length / 2)), set.slice(Math.ceil(set.length / 2))] : [set];
           parts.forEach(function (ids, i) {
             if (i) {
@@ -1497,19 +1521,50 @@
         p.textContent = notes.join(' ');
         card.appendChild(p);
       }
-      // Place it below the row, or above when there's no room, inside the sheet.
       card.style.display = 'block';
-      var dr = dlg.getBoundingClientRect(), rr = row.getBoundingClientRect();
       var w = card.offsetWidth, h = card.offsetHeight;
-      var left = Math.min(Math.max(8, rr.left - dr.left), dr.width - w - 8);
-      // Overlap the row by a hair so the pointer can move onto the card.
-      var top = rr.bottom - dr.top - 2;
-      if (top + h > dr.height - 8) top = rr.top - dr.top - h + 2;
-      card.style.left = left + 'px';
-      card.style.top = (top + dlg.scrollTop) + 'px';
+      var dr = dlg.getBoundingClientRect(), rr = row.getBoundingClientRect();
+      if (desktopRules()) {
+        // Just above the pattern, overlapping it by a hair so the pointer can
+        // move onto the card. It slides in from the side the pointer came from.
+        card.style.zIndex = '2147483647';
+        var anchor = pointerTravel.ready ? pointerTravel.x - dr.left : rr.left - dr.left + rr.width / 2;
+        var left = anchor - w / 2;
+        left = Math.max(8, Math.min(left, dlg.clientWidth - w - 8));
+        var top = rr.top - dr.top + dlg.scrollTop - h + 2;
+        if (top < dlg.scrollTop + 8) top = rr.bottom - dr.top + dlg.scrollTop - 2;
+        card.style.left = left + 'px';
+        card.style.top = top + 'px';
+        slideExampleFromPointer(card);
+      } else {
+        card.style.zIndex = '';
+        card.style.transform = 'none';
+        var touchLeft = Math.min(Math.max(8, rr.left - dr.left), dr.width - w - 8);
+        var touchTop = rr.bottom - dr.top - 2;
+        if (touchTop + h > dr.height - 8) touchTop = rr.top - dr.top - h + 2;
+        card.style.left = touchLeft + 'px';
+        card.style.top = (touchTop + dlg.scrollTop) + 'px';
+      }
+    }
+
+    function slideExampleFromPointer(card) {
+      var reduce = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var dx = pointerTravel.dx, dy = pointerTravel.dy;
+      var mag = Math.hypot(dx, dy);
+      if (reduce || mag < 1) {
+        card.style.transition = 'none';
+        card.style.transform = 'none';
+        return;
+      }
+      card.style.transition = 'none';
+      card.style.transform = 'translate(' + (-dx / mag * 36) + 'px,' + (-dy / mag * 20) + 'px)';
+      card.offsetWidth;
+      card.style.transition = 'transform 0.16s ease-out';
+      card.style.transform = 'translate(0, 0)';
     }
 
     function hideRuleExample() {
+      if (openExampleRow) openExampleRow.setAttribute('aria-expanded', 'false');
       openExampleRow = null;
       var dlg = rulesSheet();
       var card = dlg && dlg.querySelector('.rules-example');
@@ -1578,7 +1633,7 @@
       return sel;
     }
 
-    function assignRow(labelText, control, note) {
+    function assignRow(labelText, control) {
       var row = document.createElement('div');
       row.className = 'strategies-assign-row';
       var label = document.createElement('label');
@@ -1587,12 +1642,6 @@
       label.textContent = labelText;
       row.appendChild(label);
       row.appendChild(control);
-      if (note) {
-        var n = document.createElement('span');
-        n.className = 'strategies-assign-note';
-        n.textContent = note;
-        row.appendChild(n);
-      }
       return row;
     }
 
@@ -1609,14 +1658,12 @@
       assign.appendChild(h);
       var box = document.createElement('div');
       box.className = 'rules-family strategies-assign';
-      box.appendChild(assignRow('Coach and feedback', strategySelect('strategy-coach', ui.strategies.coach, false, setCoachStrategy),
-        'The coach\'s tips and feedback follow this strategy.'));
+      box.appendChild(assignRow('Coach and feedback', strategySelect('strategy-coach', ui.strategies.coach, false, setCoachStrategy)));
       [1, 2, 3].forEach(function (seat) {
         var choice = seatChoice(seat);
-        var note = choice === 'random' ? 'Playing ' + Strategies.get(ui.strategies.seats[seat]).name + ' this game.' : '';
         box.appendChild(assignRow(playerLabel(seat), strategySelect('strategy-seat-' + seat, choice, true, function (id) {
           setSeatStrategy(seat, id);
-        }), note));
+        })));
       });
       assign.appendChild(box);
       body.appendChild(assign);
@@ -1625,7 +1672,7 @@
       about.className = 'rules-section';
       var h2 = document.createElement('h3');
       h2.className = 'rules-section-title';
-      h2.textContent = 'The strategies';
+      h2.textContent = 'Strategies';
       about.appendChild(h2);
       var grid = document.createElement('div');
       grid.className = 'strategies-cards';
@@ -3051,30 +3098,14 @@
 
 
     function drawMenu() {
-      var note = ui.menuNote;
-      // The note wraps onto as many lines as it needs, under the buttons.
-      var noteLines = [];
-      if (note) {
-        ctx.font = 'bold 12px ' + FONT_BODY;
-        note.text.split(' ').forEach(function (word) {
-          var last = noteLines[noteLines.length - 1];
-          if (last !== undefined && ctx.measureText(last + ' ' + word).width <= 340 - 40) noteLines[noteLines.length - 1] = last + ' ' + word;
-          else noteLines.push(word);
-        });
-      }
-      var r = panelRect(340, 386 + noteLines.length * 16 + (note ? 8 : 0));
+      var r = panelRect(340, 286);
       drawPanelBg(r);
       text('Paused', r.x + r.w / 2, r.y + 36, { size: 24, family: FONT_HEAD, align: 'center', color: COLORS.red });
       var bx = r.x + 30, bw = r.w - 60, y = r.y + 62, step = 50;
       button('Resume', bx, y, bw, 40, function () { closeOverlay(); }, 'primary', 'm-resume'); y += step;
       var armed = ui.restartArmed && now() - ui.restartArmed < 5000;
       button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, 40, restartGame, armed ? 'gold' : 'white', 'm-restart'); y += step;
-      button('Save game', bx, y, bw, 40, saveGame, 'white', 'm-save'); y += step;
-      button('Load game', bx, y, bw, 40, loadGame, 'white', 'm-load'); y += step;
       button('Quit game', bx, y, bw, 40, function () { quit(); }, 'white', 'm-quit');
-      noteLines.forEach(function (lineText, k) {
-        text(lineText, r.x + r.w / 2, y + 58 + k * 16, { size: 12, weight: 'bold', align: 'center', color: note.error ? COLORS.red : COLORS.green });
-      });
       // Mode and version, with a Beta badge.
       var line = (settings.lesson ? 'Learn to play' : settings.mode === 'practice' ? 'Practice mode' : 'Full game') + ' · v' + E.GAME_VERSION;
       ctx.font = '12px ' + FONT_BODY;
@@ -3092,7 +3123,7 @@
 
     // A save holds no hidden tiles: the game as the hand began, the hand's
     // seed and your moves (MahjongEngine.gameRecord), plus the table's own
-    // strategies, stats and coach history. It is signed, and loading deals
+    // strategies, stats and coach history. It is signed, and resuming deals
     // the hand from its seed and plays it again up to your next move.
     function savePayload() {
       return {
@@ -3118,46 +3149,6 @@
           if (!destroyed) writeJson(AUTOSAVE_KEY, data);
         }, function () {});
       }, 250);
-    }
-
-    function pad2(n) { return (n < 10 ? '0' : '') + n; }
-
-    // play-lucky-cat-mahjong-20261102-143005.json (local time)
-    function saveFileName(d) {
-      return 'play-lucky-cat-mahjong-' + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) +
-        '-' + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds()) + '.json';
-    }
-
-    function setMenuNote(textLine, error) {
-      ui.menuNote = { text: textLine, error: !!error };
-      requestRender();
-    }
-
-    function saveGame() {
-      if (settings.lesson) { setMenuNote('This lesson starts over from the beginning, so it isn\'t saved.', true); return; }
-      if (!game || ui.replaying) { setMenuNote('Nothing to save yet. Try again in a moment.', true); return; }
-      var d = new Date();
-      E.makeSave(savePayload()).then(function (data) { download(data, d); }, function () {
-        setMenuNote('This browser can\'t save games.', true);
-      });
-    }
-
-    function download(data, d) {
-      var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = saveFileName(d);
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-      track('play_save', { version: E.GAME_VERSION });
-      setMenuNote('Saved ' + a.download + '.');
-    }
-
-    function loadGame() {
-      chooseSaveFile(callbacks.load, function (reason) { setMenuNote(reason, true); });
     }
 
     // Restarting throws the match away, so it takes a second tap.
@@ -3324,7 +3315,6 @@
 
     function openMenu() {
       if (ui.overlay && ui.overlay.type === 'menu') { closeOverlay(); return; }
-      ui.menuNote = null;
       ui.overlay = { type: 'menu', previous: ui.overlay };
       requestRender();
     }
@@ -4025,7 +4015,6 @@
         if (settings.lesson) {
           Lesson.prepare(game);
           ui.coach = 'on';
-          removeJson(AUTOSAVE_KEY);
         }
         ui.strategies = pickStrategies();
         ui.coachLog = [];
@@ -4181,6 +4170,8 @@
 
     var table = null;
     function open(settings, saved) {
+      // A new game takes the save slot. A lesson leaves a saved game alone.
+      if (!saved && !settings.lesson) removeJson(AUTOSAVE_KEY);
       stage.hidden = false;
       document.documentElement.classList.add('is-playing');
       if (table) table.destroy();
@@ -4189,10 +4180,6 @@
         restart: function () { open(settings); },
         fullscreen: toggleFullscreen,
         isFullscreen: function () { return !!fullscreenElement(); },
-        // A loaded game plays in its own mode; the rest of your settings stay.
-        load: function (data) {
-          open(Object.assign({}, settings, { mode: data.payload.game.settings.mode }), data);
-        },
       }, saved);
       table.start();
       canvas.focus();
@@ -4307,17 +4294,17 @@
       if (was !== (!stage.hidden && phoneSideways())) hideToolbar();
     });
 
-    // Quitting ends the game, so a refresh starts at the menu again.
+    // Quitting leaves the table. The saved game stays, so Resume game can
+    // bring it back.
     function close() {
       leaveAutoFullscreen();
       document.documentElement.classList.remove('is-sideways');
       if (table) table.destroy();
       table = null;
-      removeJson(AUTOSAVE_KEY);
+      // Paint Resume and the mode while the table still covers the page.
+      revealResume(true);
       stage.hidden = true;
       document.documentElement.classList.remove('is-playing');
-      var start = document.getElementById('play-start');
-      if (start) start.focus();
     }
 
     // Remember the last Payout/Practice choice as soon as it changes.
@@ -4328,6 +4315,10 @@
       saved.mode = now.mode;
       saved.spicy = 'full';
       writeJson(SETTINGS_KEY, saved);
+      document.documentElement.classList.remove('play-mode-practice', 'play-mode-payout');
+      if (now.mode === 'practice' || now.mode === 'payout') {
+        document.documentElement.classList.add('play-mode-' + now.mode);
+      }
       track('play_mode_select', { mode: now.mode });
     });
 
@@ -4339,27 +4330,104 @@
       });
     }
 
-    // Load game, beside Start game: plays on from a save file.
-    var loadBtn = document.getElementById('play-load');
-    var loadNote = document.getElementById('play-load-note');
-    if (loadBtn) {
-      loadBtn.addEventListener('click', function () {
-        track('play_load_click', {});
-        if (loadNote) loadNote.hidden = true;
-        chooseSaveFile(function (data) {
-          var settings = readForm(form, readJson(SETTINGS_KEY, {}));
-          if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
-          open(Object.assign(settings, { mode: data.payload.game.settings.mode }), data);
-        }, function (reason) {
-          if (!loadNote) return;
-          loadNote.textContent = reason;
-          loadNote.hidden = false;
-        });
+    var resumeBtn = document.getElementById('play-resume');
+    var startBtn = document.getElementById('play-start');
+    var learnBtn = document.getElementById('play-learn');
+
+    // The first button on the page is the red one. The rest are white.
+    function paintPlayActions() {
+      var seen = false;
+      [resumeBtn, startBtn, learnBtn].forEach(function (btn) {
+        if (!btn) return;
+        var primary = !seen && !btn.hidden;
+        if (!btn.hidden) seen = true;
+        btn.classList.toggle('btn-primary', primary);
+        btn.classList.toggle('btn-white', !primary);
       });
     }
 
-    // Learn to play, beside Load game: one fixed hand the coach walks you through.
-    var learnBtn = document.getElementById('play-learn');
+    // A stored game shows Resume and hides Learn. Otherwise Start leads.
+    function showSavedGame(on) {
+      document.documentElement.classList.toggle('play-has-save', !!on);
+      if (resumeBtn) resumeBtn.hidden = !on;
+      if (learnBtn) learnBtn.hidden = on;
+      paintPlayActions();
+    }
+
+    function settlePlayForm() {
+      document.documentElement.classList.add('play-settled');
+    }
+
+    function pageSettings() {
+      var settings = readForm(form, readJson(SETTINGS_KEY, {}));
+      if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
+      return settings;
+    }
+
+    function startFresh() {
+      open(pageSettings());
+    }
+
+    // The signature covers the save. A changed one is thrown out and a new
+    // game starts in its place.
+    function resumeOrNew() {
+      var data = readJson(AUTOSAVE_KEY, null);
+      var settings = pageSettings();
+      var beginNew = function () {
+        removeJson(AUTOSAVE_KEY);
+        showSavedGame(false);
+        open(settings);
+      };
+      if (!data || !E.checkSave) { beginNew(); return; }
+      E.checkSave(data).then(function (check) {
+        if (!check.ok) { beginNew(); return; }
+        open(Object.assign(settings, { mode: data.payload.game.settings.mode }), data);
+      }, beginNew);
+    }
+
+    function revealResume(fromQuit) {
+      var stored = readJson(AUTOSAVE_KEY, null);
+      var looksSaved = !!(stored && stored.payload && stored.payload.game);
+      if (!stored || !E.checkSave) {
+        showSavedGame(false);
+        settlePlayForm();
+        if (fromQuit && startBtn) startBtn.focus();
+        return;
+      }
+      // Show the stored game before the signature check, so the page doesn't
+      // flash Start as the red button while that check runs.
+      showSavedGame(looksSaved);
+      E.checkSave(stored).then(function (check) {
+        if (table) { settlePlayForm(); return; }
+        if (check.ok) {
+          showSavedGame(true);
+          settlePlayForm();
+          if (fromQuit && resumeBtn) resumeBtn.focus();
+          return;
+        }
+        showSavedGame(false);
+        settlePlayForm();
+        // A newer game wrote this. Leave it. A changed signature is discarded.
+        if (/newer than this game|doesn't load in version|no game version/.test(check.reason || '')) return;
+        removeJson(AUTOSAVE_KEY);
+        startFresh();
+      }, function () {
+        if (table) { settlePlayForm(); return; }
+        removeJson(AUTOSAVE_KEY);
+        showSavedGame(false);
+        settlePlayForm();
+        startFresh();
+      });
+    }
+
+    if (resumeBtn) {
+      resumeBtn.addEventListener('click', function () {
+        track('play_resume_click', {});
+        resumeOrNew();
+      });
+    }
+
+    // Learn to play, beside the game buttons: one fixed hand the coach walks you through.
     if (learnBtn) {
       learnBtn.addEventListener('click', function () {
         track('play_learn_click', {});
@@ -4382,18 +4450,8 @@
       open(settings);
     });
 
-    // A game left running (refreshed, or the tab closed) picks up where it
-    // was, if its autosave still checks out.
-    var autosaved = readJson(AUTOSAVE_KEY, null);
-    if (autosaved && E.checkSave) {
-      E.checkSave(autosaved).then(function (check) {
-        if (!check.ok) { removeJson(AUTOSAVE_KEY); return; }
-        if (table) return; // a game was started meanwhile
-        var settings = readForm(form, readJson(SETTINGS_KEY, {}));
-        if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
-        open(Object.assign(settings, { mode: autosaved.payload.game.settings.mode }), autosaved);
-      }, function () {});
-    }
+    // A stored game offers Resume. A changed signature starts a new game.
+    revealResume();
   }
 
   var api = { createTable: createTable, init: init };

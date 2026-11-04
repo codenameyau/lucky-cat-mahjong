@@ -31,6 +31,23 @@
   <link rel="stylesheet" href="/css/fonts.css">
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="stylesheet" href="/css/play.css">
+  <script>
+    // Class the first paint. The form's default is Practice and a red Start,
+    // and a script after the buttons is already too late to stop that flash.
+    (function () {
+      var root = document.documentElement;
+      var mode = 'practice';
+      var hasSave = false;
+      try {
+        var settings = JSON.parse(localStorage.getItem('lcm-play-settings') || 'null');
+        if (settings && settings.mode === 'payout') mode = 'payout';
+        var save = JSON.parse(localStorage.getItem('lcm-play-autosave') || 'null');
+        hasSave = !!(save && save.payload && save.payload.game);
+      } catch (e) {}
+      root.classList.add('play-mode-' + mode);
+      if (hasSave) root.classList.add('play-has-save');
+    })();
+  </script>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-B514HH987M"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -88,12 +105,42 @@
         </fieldset>
 
         <div class="play-actions">
+          <button type="button" class="btn btn-white play-start" id="play-resume">Resume game</button>
           <button type="submit" class="btn btn-primary play-start" id="play-start">Start game</button>
-          <button type="button" class="btn btn-white play-start" id="play-load">Load game</button>
           <button type="button" class="btn btn-white play-start" id="play-learn">Learn to play</button>
         </div>
-        <p class="play-load-note" id="play-load-note" role="alert" hidden></p>
       </form>
+      <script>
+        // Paint the saved mode and buttons before the first frame. The deferred
+        // game script checks the signature afterwards and only corrects a bad save.
+        (function () {
+          function read(key) {
+            try { return JSON.parse(localStorage.getItem(key)); }
+            catch (e) { return null; }
+          }
+          var form = document.getElementById('play-settings');
+          var settings = read('lcm-play-settings') || {};
+          if (settings.mode === 'practice' || settings.mode === 'payout') {
+            var radio = form.querySelector('input[name="mode"][value="' + settings.mode + '"]');
+            if (radio) radio.checked = true;
+          }
+          var save = read('lcm-play-autosave');
+          var hasSave = !!(save && save.payload && save.payload.game);
+          var resume = document.getElementById('play-resume');
+          var start = document.getElementById('play-start');
+          var learn = document.getElementById('play-learn');
+          if (resume) resume.hidden = !hasSave;
+          if (learn) learn.hidden = hasSave;
+          var seen = false;
+          [resume, start, learn].forEach(function (btn) {
+            if (!btn) return;
+            var primary = !seen && !btn.hidden;
+            if (!btn.hidden) seen = true;
+            btn.classList.toggle('btn-primary', primary);
+            btn.classList.toggle('btn-white', !primary);
+          });
+        })();
+      </script>
     </section>
 
     <section class="play-rules" aria-labelledby="play-rules-title">
