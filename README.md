@@ -217,7 +217,7 @@ It doesn't say which tile to drop after this one. Hand names are drawn in red, w
 
 The whole table is one `<canvas>` (`js/mahjong-game.js`) that only redraws while something changes or animates, with tile faces pre-rendered per size from the `tiles/` SVGs. Headings use the site's heading font (KN Yuanmo SC), and the game's own text is in English.
 
-Like a real table, each opponent's hand, melds and discards face that player, and every player's melds and flowers run from their own left. Each layout keeps the table as close to square as the screen allows, giving the spare room to the coach.
+Like a real table, each opponent's hand, melds and discards face that player, and every player's flowers and then melds run from their own left. Each layout keeps the table as close to square as the screen allows, giving the spare room to the coach.
 
 | Layout | Board | Coach |
 | --- | --- | --- |

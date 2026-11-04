@@ -28,6 +28,7 @@
   // tiles and your own exposed tiles.
   var PHONE_HAND_GAP = 5, PHONE_TILE_GAP = 2;
   var MELD_GAP = 0.12; // extra space between exposed melds, in tile widths, on top of the tile gap
+  var FLOWER_GAP = 0.05; // the same, between a player's flowers and their melds
   var OPP_ROW_GAP = 4; // on desktop, between a computer's exposed tiles and their hand
   var ACTIONS_LIFT = 6; // the Discard, Pung, Pass and other action buttons sit this far above their row's center
 
@@ -2103,14 +2104,14 @@
       // concealed hand runs along their edge (a fresh draw stays in the row,
       // and a tile they are considering lifts without leaving the row), with
       // melds and flowers in front of it. On a phone it's all one row, so the
-      // tiles can be larger: melds and flowers from the owner's left, then the
+      // tiles can be larger: flowers and melds from the owner's left, then the
       // concealed hand. A fresh draw stays in the row there too.
       var f = L.oppFrames[seat];
       var gapT = tileGap();
       var items = meldItems(seat);
       var meldTilesN = items.filter(function (it) { return !it.gap; }).length;
-      var gaps = items.length - meldTilesN;
       var flowersN = s.flowers.length;
+      var gaps = items.length - meldTilesN + (flowersN && meldTilesN ? 1 : 0);
       var tileN = meldTilesN + flowersN;
       var faceUp = ui.revealHands ? revealedConcealed(seat) : null;
       var count = faceUp ? faceUp.length : oppConcealedCount(seat);
@@ -2176,21 +2177,22 @@
         var winX = bx0 + count * pitch;
         drawTile(ui.winInHand.tile, winX, backsY, bw, { shadow: false, glow: COLORS.gold });
       }
-      var mx = mx0 + (oneRow ? 5 : 0);
-      items.forEach(function (it) {
-        if (it.gap) { mx += mw * MELD_GAP; return; }
-        drawTile(it.id, mx, meldY, mw, { back: it.back, shadow: false });
-        mx += mw + gapT;
-      });
-      // Like a real table, melds then flowers run from the owner's left.
+      // Flowers, then melds, run from the owner's left. A flower on its way
+      // already has its place, so the melds don't jump when it lands.
       var fw = mw;
-      var fx = mx + (items.length && !oneRow ? mw * 0.35 : 0);
+      var fx = mx0 + (oneRow ? 5 : 0);
       var wind = E.seatWind(game, seat);
       var flowerShown = Math.max(0, s.flowers.length - (ui.hide.flower[seat] || 0));
       for (var fk = 0; fk < flowerShown; fk++) {
         var fid = s.flowers[fk];
         drawTile(fid, fx + fk * (fw + gapT), meldY, fw, { shadow: false, glow: flowerGlow(s.flowers, wind, fid) });
       }
+      var mx = fx + flowersN * (fw + gapT) + (flowersN && items.length ? mw * FLOWER_GAP : 0);
+      items.forEach(function (it) {
+        if (it.gap) { mx += mw * MELD_GAP; return; }
+        drawTile(it.id, mx, meldY, mw, { back: it.back, shadow: false });
+        mx += mw + gapT;
+      });
       ctx.restore();
 
       if (L.desktop && seat === 2) {
@@ -2201,7 +2203,7 @@
 
       ui.oppHand[seat] = { f: f, backX: backX, backsY: backsY, bw: bw, mw: mw, meldY: meldY, bx0: bx0, count: count, liftBy: lift >= 0 ? liftBy : 0 };
       ui.backAnchor[seat] = localPose(f, bx0 + count * pitch, backsY, bw);
-      ui.meldAnchor[seat] = localPose(f, mx + (items.length ? mw * 0.35 : 0), meldY, mw);
+      ui.meldAnchor[seat] = localPose(f, mx + (items.length ? mw * MELD_GAP : flowersN ? mw * FLOWER_GAP : 0), meldY, mw);
       ui.flowerAnchor[seat] = localPose(f, fx + flowerShown * (fw + gapT), meldY, fw);
     }
 
@@ -2360,28 +2362,30 @@
       var mx = left + pad + 8 + 5; // inside your box, toward the center of your row
       // Same size as the hand; only shrinks if the row would run out of room.
       var meldN = items.filter(function (it) { return !it.gap; }).length;
-      var gapsN = items.length - meldN;
+      var gapsN = items.length - meldN + (meldN && s.flowers.length ? 1 : 0);
       var rowW = L.meW - 2 * pad - infoW - 18;
       var tileN = meldN + s.flowers.length;
       var mw = Math.min(L.mw, (rowW - Math.max(0, tileN - 1) * tileGap()) / Math.max(1, tileN + gapsN * MELD_GAP + 0.6));
       var y0 = y + (L.mw - mw) * TILE_ASPECT;
-      if (items.length) {
-        var end = flowRow(items, mx, y0, rowW, mw, mw);
-        mx = end.x + mw * 0.35;
-      }
-      ui.meldAnchor[0] = { x: mx, y: y0, w: mw, rot: 0 };
-      // Flowers sit after the melds, in the same row (away from your name).
+      // Flowers come first, then the melds, away from your name. A flower on
+      // its way already has its place, so the melds don't jump when it lands.
       var fw = mw;
-      var fx = mx + (items.length ? mw * 0.2 : 0);
-      var fy = y0;
+      var fx = mx;
       var myWind = E.seatWind(game, 0);
       var flowerShown = Math.max(0, s.flowers.length - (ui.hide.flower[0] || 0));
       for (var fk = 0; fk < flowerShown; fk++) {
         var fid = s.flowers[fk];
-        drawTile(fid, fx + fk * (fw + tileGap()), fy, fw, { shadow: false, glow: flowerGlow(s.flowers, myWind, fid) });
+        drawTile(fid, fx + fk * (fw + tileGap()), y0, fw, { shadow: false, glow: flowerGlow(s.flowers, myWind, fid) });
       }
-      ui.flowerAnchor[0] = { x: fx + flowerShown * (fw + tileGap()), y: fy, w: fw, rot: 0 };
-      ui.meRowFree = { x0: ui.flowerAnchor[0].x + 10, x1: rightEdge - pad - 8 - infoW - 10 };
+      ui.flowerAnchor[0] = { x: fx + flowerShown * (fw + tileGap()), y: y0, w: fw, rot: 0 };
+      mx = fx + s.flowers.length * (fw + tileGap());
+      if (s.flowers.length) mx += mw * FLOWER_GAP;
+      if (items.length) {
+        var end = flowRow(items, mx, y0, rowW - (mx - fx), mw, mw);
+        mx = end.x + mw * MELD_GAP;
+      }
+      ui.meldAnchor[0] = { x: mx, y: y0, w: mw, rot: 0 };
+      ui.meRowFree = { x0: mx + 10, x1: rightEdge - pad - 8 - infoW - 10 };
 
       // Hand.
       var order = myHandOrder();
