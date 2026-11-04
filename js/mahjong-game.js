@@ -1958,6 +1958,8 @@
       var nameW = namesShown() ? ctx.measureText(seatTitle(seat)).width : 0;
       // Badge, name, icon, then the score beside the icon.
       var content = 22 + 6 + nameW + (namesShown() ? ICON_GAP : 0) + 15 + (pts ? SCORE_GAP + ptsW : 0) + 2;
+      // (On a phone your points sit under the row instead.)
+      if (seat === 0 && !L.desktop) content = Math.max(22 + 6 + 15 + 2, ptsW + 2);
       return Math.min(max, content);
     }
 
@@ -2001,10 +2003,16 @@
       }
       playerIcon(seat, iconX, y + r, iconS);
       var scoreX = iconX + iconS + scoreGap;
-      if (pts) text(pts, scoreX, y + r + 1, { size: ptsPx, weight: 'bold', color: COLORS.goldLight });
+      // On a phone your points sit under your wind and avatar, to leave your
+      // row for your melds.
+      var ptsUnder = seat === 0 && !L.desktop && !!pts;
+      if (ptsUnder) {
+        var rowMid = (x + iconX + iconS) / 2;
+        text(pts, Math.min(rowMid, iconX + iconS - ptsW / 2), y + 2 * r + 9, { size: ptsPx, weight: 'bold', align: 'center', color: COLORS.goldLight });
+      } else if (pts) text(pts, scoreX, y + r + 1, { size: ptsPx, weight: 'bold', color: COLORS.goldLight });
       var mark = { iconX: iconX, iconRight: iconX + iconS, scoreX: scoreX, y: y + r, hasScore: !!pts };
       ui.headerMark[seat] = mark;
-      if (seat === 0) ui.youIcon = { x: iconX, y: y + r, s: iconS, rowRight: pts ? scoreX + ptsW : scoreX };
+      if (seat === 0) ui.youIcon = { x: iconX, y: y + r, s: iconS, rowRight: pts && !ptsUnder ? scoreX + ptsW : scoreX };
       else if (!settings.lesson) seatSpots.push({ seat: seat, x0: x, y0: y, x1: pts ? scoreX + ptsW : iconX + iconS, y1: y + 2 * r });
     }
 
