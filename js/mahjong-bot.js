@@ -168,10 +168,33 @@
   var LEAN_AWAY = 0.6, LEAN_TOWARD = 1.5;
   function suitLean(plan, ctx) {
     var read = ctx.leftRead;
-    if (!read || !plan.suit || !/^(half|full)-/.test(plan.id)) return 1;
-    if (plan.suit === read.keeps) return LEAN_AWAY;
-    if (plan.suit === read.feeds) return LEAN_TOWARD;
-    return 1;
+    var lean = ownLean(plan, ctx);
+    if (!read || !plan.suit || !/^(half|full)-/.test(plan.id)) return lean;
+    if (plan.suit === read.keeps) return lean * LEAN_AWAY;
+    if (plan.suit === read.feeds) return lean * LEAN_TOWARD;
+    return lean;
+  }
+
+  // What your own discards say you're building. After four, a suit you've
+  // barely thrown is a suit you're keeping, a suit you've thrown a lot of is
+  // one you've left, and honors going out point to a hand of runs.
+  var OWN_KEEP = 1.25, OWN_LEFT = 0.75, OWN_RUNS = 1.15;
+  function readOwnDiscards(list) {
+    var by = { c: 0, d: 0, b: 0, z: 0 };
+    list.forEach(function (d) {
+      var i = E.tileIndex(d.tile);
+      by[i < 27 ? E.suitOfIndex(i) : 'z']++;
+    });
+    return { n: list.length, by: by };
+  }
+
+  function ownLean(plan, ctx) {
+    var own = ctx.ownRead;
+    if (!own || own.n < 4) return 1;
+    if (plan.id === 'straights') return own.by.z / own.n >= 0.4 ? OWN_RUNS : 1;
+    if (!plan.suit || !/^(half|full)-/.test(plan.id)) return 1;
+    var share = own.by[plan.suit] / own.n;
+    return share <= 0.1 ? OWN_KEEP : share >= 0.4 ? OWN_LEFT : 1;
   }
 
   function buildContext(game, seat) {
@@ -198,6 +221,11 @@
     ctx.slope = valueSlope(game, seat);
     ctx.isDealer = seat === game.dealer;
     ctx.leftRead = leftRead(game, seat);
+    ctx.ownRead = readOwnDiscards(s.discards);
+    ctx.track = readTable(game, seat, ctx.unseen);
+    ctx.hazard = 1 - opponentThreats(game, seat).reduce(function (m, t) {
+      return m * (1 - t.ready * WIN_PER_TURN);
+    }, 1);
     if (H.context) H.context(ctx, game, seat);
     return ctx;
   }
@@ -236,7 +264,7 @@
   //   tripletsLive: on All Triplets, throw the tile with fewest copies left.
   //   chowSuitLate: near the end, how much more dangerous each chow an
   //     opponent has in a suit makes that suit's tiles.
-  var BASE_TUNING = { valuePower: 1, defenseScale: 1.5, lateFold: 1.5, lateFoldWall: 45, tripletsLive: true, chowSuitLate: 0.5 };
+  var BASE_TUNING = { valuePower: 1, defenseScale: 1.5, lateFold: 1.5, lateFoldWall: 45, tripletsLive: true, chowSuitLate: 0.5, keepLive: 0.01 };
   var DEFAULT_T = copy(BASE_TUNING);
   var T = DEFAULT_T;
 
@@ -1088,13 +1116,263 @@
     return { total: total, tiles: tiles };
   }
 
-  // Chance to finish: expected draws to win vs the draws left in the wall.
-  // Open plans also improve from claims.
-  function finishChance(ctx, s, u, open) {
-    var n = ctx.unseenTotal;
-    var expected = n / (Math.max(u, 0.5) * (open ? 1.33 : 1));
+  /* ------------------------------------------------------------------ *
+   * 2b. Tracking the table (every strategy)
+   *    Everything here comes from what this seat can see: the discards and
+   *    who threw them, open melds, its own tiles and the size of the wall.
+   * ------------------------------------------------------------------ */
+
+  var WANT_MIN = 0.05, WANT_MAX = 4;
+  // How much a tile they threw, or passed on, says they don't want it.
+  var THROWN_SINCE_MELD = 0.2, THROWN = 0.4, THROWN_BEFORE_PIVOT = 0.65;
+  var PASSED_HONOR = 0.45, PASSED_NUMBER = 0.8;
+  // A thrown tile also says a little about its neighbors and its suji.
+  var NEAR = { 1: 0.85, 2: 0.9, 3: 0.75 };
+  var WIN_PER_TURN = 0.22; // chance a ready opponent wins in a go-around
+  var CLAIM_ODDS = 0.9;    // another seat with priority sometimes takes it first
+  // A step after the next one: typically this likely a go-around, and only a
+  // little better for a hand that's wide right now.
+  var LATER_RATE = 0.06, LATER_SHARE = 0.15, HIGHEST_RATE = 0.9;
+  // Feeding a claim costs more the less of the hand is left to answer it.
+  var FEED_COST = 0.012, FEED_CHOW = 0.6, FEED_PUNG = 0.25;
+
+  function suitOf(i) { return i < 27 ? E.suitOfIndex(i) : 'z'; }
+
+  function shares(list) {
+    var by = { c: 0, d: 0, b: 0 }, total = 0;
+    list.forEach(function (d) {
+      var su = suitOf(E.tileIndex(d.tile));
+      if (by[su] !== undefined) { by[su]++; total++; }
+    });
+    SUIT_LETTERS.forEach(function (su) { by[su] = total ? by[su] / total : 1 / 3; });
+    return by;
+  }
+
+  // A suit they kept for the first half of their discards and throw now, or
+  // the reverse: they've changed hands, and what they threw early says less.
+  function readPivot(list) {
+    var n = list.length;
+    if (n < 8) return null;
+    var half = Math.floor(n / 2);
+    var early = shares(list.slice(0, half)), late = shares(list.slice(half));
+    var pivot = null;
+    SUIT_LETTERS.forEach(function (su) {
+      if (early[su] <= 0.15 && late[su] >= 0.4) pivot = { from: su, to: null, at: half };
+    });
+    SUIT_LETTERS.forEach(function (su) {
+      if (early[su] >= 0.4 && late[su] <= 0.1) {
+        if (pivot) pivot.to = su; else pivot = { from: null, to: su, at: half };
+      }
+    });
+    return pivot;
+  }
+
+  // The suit they're building: their melds' one suit, or one they've barely
+  // thrown after six discards.
+  function readCollecting(s, recent) {
+    var inMelds = {};
+    s.melds.forEach(function (m) {
+      var su = suitOf(E.tileIndex(m.tiles[0]));
+      if (su !== 'z') inMelds[su] = true;
+    });
+    var suits = Object.keys(inMelds);
+    if (suits.length) return suits.length === 1 ? suits[0] : null;
+    if (s.discards.length < 6) return null;
+    var low = SUIT_LETTERS.filter(function (su) { return recent[su] <= 0.1; });
+    return low.length === 1 ? low[0] : null;
+  }
+
+  // Middle tiles going out in their last four discards: they've stopped
+  // needing them, so their hand is further along than its melds show.
+  function readPace(list) {
+    if (list.length < 6) return 1;
+    var middle = list.slice(-4).filter(function (d) {
+      var i = E.tileIndex(d.tile);
+      return i < 27 && i % 9 >= 2 && i % 9 <= 6;
+    }).length;
+    return 0.85 + 0.12 * middle;
+  }
+
+  // How much one opponent wants each tile, where 1 is no read either way.
+  function readSeat(game, o, unseen) {
+    var s = game.hand.seats[o];
+    var list = s.discards;
+    var n = list.length;
+    var pivot = readPivot(list);
+    var recent = shares(list.slice(pivot ? pivot.at : 0));
+    var collecting = readCollecting(s, recent);
+    var lastMeld = s.melds.reduce(function (m, x) { return Math.max(m, x.at || 0); }, 0);
+    var want = [];
+    var windIndex = 26 + E.seatWind(game, o);
+    for (var i = 0; i < 34; i++) {
+      var w = 1;
+      if (i < 27) {
+        var share = recent[E.suitOfIndex(i)];
+        if (n >= 4) w *= share < 0.12 ? 1.7 : share < 0.25 ? 1.25 : share > 0.5 ? 0.6 : share > 0.38 ? 0.8 : 1;
+        var r = i % 9;
+        w *= r >= 2 && r <= 6 ? 1.1 : r === 0 || r === 8 ? 0.85 : 1;
+        if (collecting) w *= E.suitOfIndex(i) === collecting ? 2 : 0.5;
+      } else {
+        if (DRAGONS.indexOf(i) !== -1 || i === windIndex || i === 26 + game.round) w *= 1.25;
+        if (unseen[i] < 2) w *= 0.4;
+        if (collecting) w *= 1.2;
+      }
+      want.push(w);
+    }
+    // A tile thrown counts once, by its most telling copy.
+    var seen = {};
+    list.forEach(function (d, idx) {
+      var i = E.tileIndex(d.tile);
+      var f = idx >= lastMeld && s.melds.length ? THROWN_SINCE_MELD : pivot && idx < pivot.at ? THROWN_BEFORE_PIVOT : THROWN;
+      seen[i] = Math.min(seen[i] || 1, f);
+    });
+    Object.keys(seen).forEach(function (key) {
+      var i = +key;
+      want[i] *= seen[i];
+      if (i >= 27) return;
+      [-3, -2, -1, 1, 2, 3].forEach(function (d) {
+        var j = i + d;
+        if (j >= 0 && j < 27 && Math.floor(j / 9) === Math.floor(i / 9)) want[j] *= NEAR[Math.abs(d)];
+      });
+    });
+    // A copy someone else threw that they let go by: they don't hold a pair
+    // of it (or didn't then).
+    var passed = {};
+    game.hand.seats.forEach(function (other, k) {
+      if (k === o) return;
+      other.discards.forEach(function (d) { if (!d.claimed) passed[E.tileIndex(d.tile)] = true; });
+    });
+    Object.keys(passed).forEach(function (key) {
+      want[+key] *= +key >= 27 ? PASSED_HONOR : PASSED_NUMBER;
+    });
+    for (var t = 0; t < 34; t++) {
+      want[t] = unseen[t] ? Math.max(WANT_MIN, Math.min(WANT_MAX, want[t])) : WANT_MIN;
+    }
+    // The chance their next discard is each tile: a copy they don't want
+    // comes out sooner than one they do.
+    var weight = want.map(function (w, i) { return unseen[i] / w; });
+    var total = weight.reduce(function (a, b) { return a + b; }, 0) || 1;
+    return {
+      seat: o,
+      want: want,
+      out: weight.map(function (w) { return w / total; }),
+      hidden: Math.max(1, 13 - 3 * s.melds.length),
+      collecting: collecting,
+      pivot: pivot,
+      pace: readPace(list),
+    };
+  }
+
+  // Every opponent's read, and the chance each unseen copy is still in the
+  // wall rather than in a hand that wants it. The wall's order is never read.
+  function readTable(game, seat, unseen) {
+    var seats = [];
+    for (var o = 0; o < 4; o++) if (o !== seat) seats.push(readSeat(game, o, unseen));
+    var wall = Math.max(1, game.hand.wall.length);
+    var inWall = [];
+    for (var i = 0; i < 34; i++) {
+      var held = seats.reduce(function (m, r) { return m + r.hidden * r.want[i]; }, 0);
+      inWall.push(wall / (wall + held));
+    }
+    return { seats: seats, inWall: inWall, wall: wall, left: (seat + 3) % 4, next: (seat + 1) % 4 };
+  }
+
+  // The chance a go-around brings one of these tiles: this seat's draw, or a
+  // discard it may claim (`claimable(i, opponentSeat)`).
+  function arrivalRate(ctx, tiles, claimable) {
+    var track = ctx.track;
+    var draw = 0, miss = 1;
+    tiles.forEach(function (i) {
+      draw += ctx.unseen[i] * track.inWall[i] / track.wall;
+      track.seats.forEach(function (r) {
+        if (claimable(i, r.seat)) miss *= 1 - r.out[i] * CLAIM_ODDS;
+      });
+    });
+    return 1 - miss * (1 - Math.min(draw, 1));
+  }
+
+  // The odds of making s + 1 more steps before the wall runs out or someone
+  // else wins, a go-around at a time. Only the next step's rate is known, so
+  // a hand that is wide now but many steps away doesn't beat a closer one.
+  function raceOdds(rate, s, turns, hazard) {
+    var steps = s + 1;
+    var at = [];
+    for (var k = 0; k <= steps; k++) at.push(0);
+    at[steps] = 1;
+    var won = 0;
+    var n = Math.max(1, Math.round(turns));
+    for (var t = 0; t < n; t++) {
+      for (var left = 1; left <= steps; left++) {
+        var r = left === steps ? rate : LATER_RATE + LATER_SHARE * rate;
+        var move = at[left] * Math.min(HIGHEST_RATE, r);
+        at[left] -= move;
+        if (left === 1) won += move; else at[left - 1] += move;
+      }
+      for (var j = 1; j <= steps; j++) at[j] *= 1 - hazard;
+    }
+    return won;
+  }
+
+  function liveOuts(ctx, u) {
+    var inWall = ctx.track.inWall;
+    var mean = inWall.reduce(function (m, x) { return m + x; }, 0) / inWall.length;
+    return u.tiles.reduce(function (m, i) { return m + ctx.unseen[i] * inWall[i] / mean; }, 0);
+  }
+
+  // The odds of finishing a plan: expected draws to win against the draws left,
+  // counting a tile the others are collecting as fewer outs. Open plans also
+  // improve from claims. (T.race plays out the race itself, turn by turn.)
+  function finishChance(ctx, s, u, plan, counts) {
+    if (!T.race) {
+      var outs = liveOuts(ctx, u);
+      var expected = ctx.unseenTotal / (Math.max(outs, 0.5) * (plan.open ? 1.33 : 1));
+      return ctx.drawsLeft / (ctx.drawsLeft + expected) * Math.pow(STEP, s) * COMPETITION;
+    }
+    var left = ctx.track.left;
+    var noChow = SETS_PLANS.indexOf(plan.id) !== -1;
+    var rate = arrivalRate(ctx, u.tiles, function (i, o) {
+      if (s === 0) return true; // any discard wins
+      if (!plan.open) return false;
+      if (counts[i] >= 2) return true;
+      return !noChow && o === left && i < 27 && hasNeighbor(counts, i);
+    });
+    return raceOdds(rate, s, ctx.drawsLeft, ctx.hazard);
+  }
+
+  function hasNeighbor(counts, i) {
+    for (var d = -2; d <= 2; d++) {
+      var j = i + d;
+      if (d && j >= 0 && j < 27 && Math.floor(j / 9) === Math.floor(i / 9) && counts[j]) return true;
+    }
+    return false;
+  }
+
+  // A ready hand's exact value, with its odds taken from where its waits
+  // really are: one everybody is holding is worth less than its count says.
+  function readyOdds(value, waits, ctx) {
+    var usable = waits.filter(function (w) { return w.left && (w.ronOk || w.tsumoOk); });
+    if (!T.race || !usable.length) return value;
+    var q = usable.reduce(function (m, w) {
+      return m + (w.tsumoOk ? w.left : 0) + (w.ronOk ? w.left * 1.5 : 0);
+    }, 0) / ctx.unseenTotal;
     var t = ctx.drawsLeft;
-    return t / (t + expected) * Math.pow(STEP, s) * COMPETITION;
+    var estimate = t / (t + 1 / q) * 0.7; // what the shared value assumed
+    var ron = {};
+    usable.forEach(function (w) { if (w.ronOk) ron[E.tileIndex(w.tile)] = true; });
+    var rate = arrivalRate(ctx, usable.filter(function (w) { return w.tsumoOk || w.ronOk; }).map(function (w) { return E.tileIndex(w.tile); }), function (i) { return !!ron[i]; });
+    return value * raceOdds(rate, 0, t, ctx.hazard) / estimate;
+  }
+
+  // Feeding: a tile an opponent would claim moves their hand along even if it
+  // doesn't win. It's a small cost early and a big one at the end of the hand.
+  function feedLoss(game, list, i) {
+    var wall = game.hand.wall.length;
+    var phase = wall > 60 ? 0.3 : wall > 32 ? 0.6 : wall > 16 ? 1 : 1.5;
+    return list.reduce(function (sum, t) {
+      var eager = Math.max(0, t.want[i] - 1);
+      var claim = (t.isNext && i < 27 ? FEED_CHOW : 0) + (t.unseen[i] >= 2 ? FEED_PUNG : 0);
+      return sum + FEED_COST * phase * eager * claim * (1 + 2 * t.ready);
+    }, 0);
   }
 
   /* ------------------------------------------------------------------ *
@@ -1149,6 +1427,7 @@
     }
     // Axis B: a wait with at most one live tile is close to dead.
     if (tsumo <= 1) value *= 0.5;
+    value = readyOdds(value, details, ctx);
     if (H.readyValue) value = H.readyValue(value, details, c, ctx);
     var best = 0;
     details.forEach(function (d) { if (d.left && d.ronOk) best = Math.max(best, d.ronFaan); });
@@ -1158,6 +1437,18 @@
   /* ------------------------------------------------------------------ *
    * 5. Hand utility (expected points from a waiting-to-draw hand)
    * ------------------------------------------------------------------ */
+
+  // A wait that isn't used up and scores the minimum, by discard or self-draw.
+  function winsWhenReady(ready) {
+    return !!ready && ready.waits.some(function (w) { return w.left && (w.ronOk || w.tsumoOk); });
+  }
+
+  // Steps for ranking a discard. A complete shape worth under the minimum
+  // isn't ready: it's as far off as the hand that would score.
+  function stepsToWin(shape, best, ready) {
+    if (shape > 0 || winsWhenReady(ready)) return shape;
+    return best && best.plan && !best.readyBest ? Math.max(1, best.planShanten) : 1;
+  }
 
   function handUtility(c, ctx) {
     var plans = plansFor(c, ctx);
@@ -1171,7 +1462,7 @@
       if (p.upgrade && !p.committed && ctx.drawsLeft < 2 * s) return;
       var pc = p.counts.slice();
       var u = ukeire(pc, p.shantenFn, ctx.declared, ctx.unseen, s);
-      var chance = H.finishChance ? H.finishChance(ctx, s, u, p, pc) : finishChance(ctx, s, u.total, p.open);
+      var chance = H.finishChance ? H.finishChance(ctx, s, u, p, pc) : finishChance(ctx, s, u, p, pc);
       var util = handValue(p.faan + SELF_DRAW_CHANCE, ctx.slope) * 1.8 * chance;
       // A strategy can prefer a plan (plan.weight) without inflating its value.
       var entry = { plan: p, shanten: s, planShanten: s, ukeire: u.total, ukeireTiles: u.tiles, util: util, pick: util * (p.weight || 1) * suitLean(p, ctx) };
@@ -1182,7 +1473,7 @@
     var ready = null;
     if (shantenAll === 0) {
       ready = readyValue(c, ctx);
-      if (ready && (!best || ready.value >= best.util)) {
+      if (winsWhenReady(ready) && (!best || ready.value >= best.util)) {
         best = {
           plan: best ? best.plan : null,
           shanten: 0,
@@ -1197,7 +1488,8 @@
     return {
       util: best ? best.util : 0,
       best: best,
-      shanten: shantenAll,
+      shanten: stepsToWin(shantenAll, best, ready),
+      shapeShanten: shantenAll,
       plainShanten: plainS,
       ready: ready,
     };
@@ -1293,6 +1585,14 @@
         unseen: unseenMe,
       });
     }
+    out.forEach(function (t) {
+      var read = readSeat(game, t.seat, unseenMe);
+      t.want = read.want;
+      t.pivot = read.pivot;
+      t.collecting = read.collecting;
+      t.isNext = t.seat === (seat + 1) % 4;
+      t.ready = Math.min(0.93, t.ready * read.pace);
+    });
     if (H.threats) H.threats(out, game, seat);
     return out;
   }
@@ -1345,6 +1645,8 @@
       else if (fs === 'z') chance *= 1.3;
       else chance *= 0.15;
     }
+    // Waiting on a tile is more likely the more they want it.
+    chance *= Math.pow(threat.want[i], 0.6);
     if (H.waitChance) chance = H.waitChance(chance, game, threat, i);
     return Math.min(chance, 0.6);
   }
@@ -1360,6 +1662,7 @@
     threats.forEach(function (t) {
       loss += t.ready * waitChance(game, t, i) * t.payment;
     });
+    loss += feedLoss(game, threats, i);
     if (H.extraLoss) loss += H.extraLoss(game, threats, i);
     return loss;
   }
@@ -1458,11 +1761,14 @@
     // suits are worthless: they go first, ahead of honors and tiles of that
     // suit that tie with them on value.
     var committed = suitCommitment(ctx, c);
+    var topUtil = out.reduce(function (m, x) { return Math.max(m, x.util); }, 0);
     out.forEach(function (x) {
       // The left player's read leans the offense toward the flush they feed
       // and away from the one they keep (suitLean); safety is unchanged.
       x.score = x.util * suitLean((x.analysis.best && x.analysis.best.plan) || {}, ctx) - weight * x.loss;
       if (committed && x.index < 27 && E.suitOfIndex(x.index) !== committed) x.score += 0.004;
+      // Between close discards, keep the tile with the most copies still out there.
+      if (!folding) x.score -= T.keepLive * topUtil * ctx.unseen[x.index];
       x.priority = upgradeOrder(ctx, c, x.index, discardPriority(game, ctx, c, x, bestShanten));
       // Keeping a pair or a dragon never costs a step toward ready: a discard
       // that leaves the hand slower waits behind every one that doesn't.
@@ -1486,6 +1792,7 @@
     if (!folding && T.tripletsLive) out = tripletsOrder(out, ctx, c);
     // A lone dragon nobody has shown goes last of all, unless throwing it
     // leaves the hand ready: then the usual order decides.
+    // (Ready means it can really win: see stepsToWin.)
     var isLone = function (x) { return x.shanten > 0 && loneDragon(game, c, x.index); };
     out = out.filter(function (x) { return !isLone(x); }).concat(out.filter(isLone));
     if (H.finalOrder) out = H.finalOrder(out, ctx, c);
@@ -1720,6 +2027,10 @@
     pairsFlush: pairsFlush,
     ukeire: ukeire,
     finishChance: finishChance,
+    winsWhenReady: winsWhenReady,
+    readTable: readTable,
+    raceOdds: raceOdds,
+    feedLoss: feedLoss,
     valueSlope: valueSlope,
     withMeld: withMeld,
     chowAllowed: chowAllowed,
