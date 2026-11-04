@@ -582,8 +582,22 @@ html.is-playing.is-sideways body {
   font-size: 0.86rem;
   font-weight: bold;
   color: #ffd27a;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+}
+
+/* A caret: down to expand, up to collapse. */
+.strategies-details-toggle::after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.strategies-details-toggle[aria-expanded="true"]::after {
+  transform: translateY(1px) rotate(-135deg);
 }
 
 .strategies-details-toggle:focus-visible {
