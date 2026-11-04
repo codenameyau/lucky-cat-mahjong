@@ -24,6 +24,9 @@
   var SEAT_SIDES = ['', 'your right', 'across', 'your left'];
   var TILE_ASPECT = 1.4;
   var TILE_GAP = 4;
+  // On an upright phone: between your hand's tiles, and between the computers'
+  // tiles and your own exposed tiles.
+  var PHONE_HAND_GAP = 5, PHONE_TILE_GAP = 2;
   var ACTIONS_LIFT = 6; // the Discard, Pung, Pass and other action buttons sit this far above their row's center
 
   var COLORS = {
@@ -867,8 +870,7 @@
       // (A landscape phone sizes them for the two-thirds board even with the
       // coach off: bigger tiles there would take height from the discards.)
       var tileRowW = landscape ? Math.round((W - 8 - pad) * 2 / 3) : meW;
-      // (Upright, the tiles nearly touch, so they can be as big as the width allows.)
-      var handGap = phonePortrait ? 1 : TILE_GAP;
+      var handGap = phonePortrait ? PHONE_HAND_GAP : TILE_GAP;
       var tw = phonePortrait
         ? Math.min((meW - 2 * pad - 6 - 6 * handGap) / 7, H * PORTRAIT_HAND_H)
         : clamp(((tileRowW - 2 * pad - 13 * TILE_GAP) / 14.8) * 0.88, 18, Math.min(124, H * (landscape ? 0.085 : 0.114)));
@@ -879,7 +881,7 @@
       var handTop = handY - (handRows - 1) * (th + HAND_ROW_GAP);
       // Melds and flowers: a portrait phone keeps them to a row of 14, so
       // they fit beside your name.
-      var mw = phonePortrait ? (meW - 2 * pad - 6 - 13 * handGap) / 14 : tw;
+      var mw = phonePortrait ? (meW - 2 * pad - 19) / 14 : tw;
       var meldRowH = mw * TILE_ASPECT + 8;
       var meY = handTop - meldRowH - 6;
       var actionsH = 44;
@@ -2019,6 +2021,11 @@
       return E.sortTiles(game.hand.seats[seat].hand.slice());
     }
 
+    // Between the computers' tiles, and between your own exposed tiles.
+    function tileGap() {
+      return L && L.phonePortrait ? PHONE_TILE_GAP : TILE_GAP;
+    }
+
     // Lays tiles left-to-right, wrapping inside `w`; returns the next y.
     // `tw` is each tile's slot; `drawW` (default the same) is how wide it is drawn.
     function flowRow(items, x, y, w, tw, drawW) {
@@ -2029,7 +2036,7 @@
         if (it.gap) { cx += tw * 0.35; return; }
         if (cx + drawn > x + w + 0.5) { cx = x; cy += th; }
         drawTile(it.id, cx, cy, drawn, { back: it.back, peek: it.peek, shadow: false, glow: it.glow });
-        cx += drawn + TILE_GAP;
+        cx += drawn + tileGap();
       });
       return { x: cx, y: cy, bottom: cy + th };
     }
@@ -2097,6 +2104,7 @@
       // tiles can be larger: melds and flowers from the owner's left, then the
       // concealed hand. A fresh draw stays in the row there too.
       var f = L.oppFrames[seat];
+      var gapT = tileGap();
       var items = meldItems(seat);
       var meldTilesN = items.filter(function (it) { return !it.gap; }).length;
       var gaps = items.length - meldTilesN;
@@ -2113,13 +2121,13 @@
         var tilesInRow = count + tileN;
         mw = clamp(Math.min(
           (f.h - 8) / (TILE_ASPECT + 0.08),
-          (f.w - Math.max(0, tilesInRow - 1) * TILE_GAP) / Math.max(1, units)
+          (f.w - Math.max(0, tilesInRow - 1) * gapT) / Math.max(1, units)
         ), 8, 40);
         bw = mw;
-        var rowW = units * mw + Math.max(0, tilesInRow - 1) * TILE_GAP;
+        var rowW = units * mw + Math.max(0, tilesInRow - 1) * gapT;
         mx0 = Math.max(0, (f.w - rowW) / 2);
         backsY = meldY = (f.h - rowDepth(mw)) / 2;
-        var meldsW = tileN ? (meldTilesN + gaps * 0.35 + flowersN) * mw + (tileN - 1) * TILE_GAP + TILE_GAP : 0;
+        var meldsW = tileN ? (meldTilesN + gaps * 0.35 + flowersN) * mw + (tileN - 1) * gapT + gapT : 0;
         bx0 = mx0 + meldsW + split * mw;
       } else {
         // Every opponent shares one size for the concealed hand and the
@@ -2131,14 +2139,14 @@
         var block = 2 * rowDepth(bw) + 1;
         var edge = Math.min(4, Math.max(1, (f.h - block) / 2));
         backsY = f.h - edge - rowDepth(bw);
-        var span = count > 0 ? count * bw + Math.max(0, count - 1) * TILE_GAP : 0;
+        var span = count > 0 ? count * bw + Math.max(0, count - 1) * gapT : 0;
         bx0 = (f.w - span) / 2;
         meldY = backsY - rowDepth(mw) - 1;
         // Exposed tiles start at the owner's left. This brings them toward
         // the center of that player's row.
         mx0 = 5;
       }
-      var pitch = bw + TILE_GAP;
+      var pitch = bw + gapT;
       var lift = ui.botLift && ui.botLift.seat === seat ? ui.botLift.index : -1;
       // A lifted tile moves toward the table, not past the seat's back edge
       // and not sideways past the ends of the row.
@@ -2170,7 +2178,7 @@
       items.forEach(function (it) {
         if (it.gap) { mx += mw * 0.35; return; }
         drawTile(it.id, mx, meldY, mw, { back: it.back, shadow: false });
-        mx += mw + TILE_GAP;
+        mx += mw + gapT;
       });
       // Like a real table, melds then flowers run from the owner's left.
       var fw = mw;
@@ -2179,7 +2187,7 @@
       var flowerShown = Math.max(0, s.flowers.length - (ui.hide.flower[seat] || 0));
       for (var fk = 0; fk < flowerShown; fk++) {
         var fid = s.flowers[fk];
-        drawTile(fid, fx + fk * (fw + TILE_GAP), meldY, fw, { shadow: false, glow: flowerGlow(s.flowers, wind, fid) });
+        drawTile(fid, fx + fk * (fw + gapT), meldY, fw, { shadow: false, glow: flowerGlow(s.flowers, wind, fid) });
       }
       ctx.restore();
 
@@ -2192,7 +2200,7 @@
       ui.oppHand[seat] = { f: f, backX: backX, backsY: backsY, bw: bw, mw: mw, meldY: meldY, bx0: bx0, count: count, liftBy: lift >= 0 ? liftBy : 0 };
       ui.backAnchor[seat] = localPose(f, bx0 + count * pitch, backsY, bw);
       ui.meldAnchor[seat] = localPose(f, mx + (items.length ? mw * 0.35 : 0), meldY, mw);
-      ui.flowerAnchor[seat] = localPose(f, fx + flowerShown * (fw + TILE_GAP), meldY, fw);
+      ui.flowerAnchor[seat] = localPose(f, fx + flowerShown * (fw + gapT), meldY, fw);
     }
 
     /* ---------------- where drawn tiles come from ---------------- */
@@ -2353,7 +2361,7 @@
       var gapsN = items.length - meldN;
       var rowW = L.meW - 2 * pad - infoW - 18;
       var tileN = meldN + s.flowers.length;
-      var mw = Math.min(L.mw, (rowW - Math.max(0, tileN - 1) * TILE_GAP) / Math.max(1, tileN + gapsN * 0.35 + 0.6));
+      var mw = Math.min(L.mw, (rowW - Math.max(0, tileN - 1) * tileGap()) / Math.max(1, tileN + gapsN * 0.35 + 0.6));
       var y0 = y + (L.mw - mw) * TILE_ASPECT;
       if (items.length) {
         var end = flowRow(items, mx, y0, rowW, mw, mw);
@@ -2368,9 +2376,9 @@
       var flowerShown = Math.max(0, s.flowers.length - (ui.hide.flower[0] || 0));
       for (var fk = 0; fk < flowerShown; fk++) {
         var fid = s.flowers[fk];
-        drawTile(fid, fx + fk * (fw + TILE_GAP), fy, fw, { shadow: false, glow: flowerGlow(s.flowers, myWind, fid) });
+        drawTile(fid, fx + fk * (fw + tileGap()), fy, fw, { shadow: false, glow: flowerGlow(s.flowers, myWind, fid) });
       }
-      ui.flowerAnchor[0] = { x: fx + flowerShown * (fw + TILE_GAP), y: fy, w: fw, rot: 0 };
+      ui.flowerAnchor[0] = { x: fx + flowerShown * (fw + tileGap()), y: fy, w: fw, rot: 0 };
       ui.meRowFree = { x0: ui.flowerAnchor[0].x + 10, x1: rightEdge - pad - 8 - infoW - 10 };
 
       // Hand.
