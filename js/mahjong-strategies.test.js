@@ -486,7 +486,7 @@ describe('a big hand in reach keeps its tiles', () => {
   it('the coach aims for All Terminals and recommends a non-terminal', () => {
     for (const hand of SEED_TURNS) {
       const said = plainText(Coach.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] }));
-      assert.match(said, /Aim for All Terminals/);
+      assert.match(said, /Go for All Terminals/);
       assert.ok(!/Discard (One|Nine) /.test(said), said);
     }
   });
