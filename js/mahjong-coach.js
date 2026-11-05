@@ -342,8 +342,17 @@
       return n;
     };
     var note = '';
+    var after = v.ctx.afterRead;
+    if (after && after.keeps) {
+      var nextName = v.game.players[after.seat].name;
+      var leftKeeps = v.ctx.leftRead && v.ctx.leftRead.keeps === after.keeps;
+      if (!leftKeeps && held(after.keeps) >= 4 && line.indexOf(nextName + ' is collecting') === -1) {
+        note = nextName + ' is collecting ' + SUIT_NAME[after.keeps] +
+          (after.locked ? ', and their chow locks that suit' : '') + ', so keep it.';
+      }
+    }
     var own = v.ctx.ownRead;
-    if (own && own.n >= 4 && route && route.suit && (route.id === 'half' || route.id === 'full') && own.by[route.suit] / own.n <= 0.1) {
+    if (!note && own && own.n >= 4 && route && route.suit && (route.id === 'half' || route.id === 'full') && own.by[route.suit] / own.n <= 0.1) {
       note = 'You\'ve kept your ' + SUIT_NAME[route.suit] + ' so far, so stay on it.';
     }
     track.seats.forEach(function (r) {
@@ -576,7 +585,8 @@
       var notes = readyNotes(pick.ready, min);
       var liveLeft = pick.ready.waits.reduce(function (n, w) { return n + w.left; }, 0);
       if (liveLeft <= 1) notes.push('Almost none left, so switch waits if you can.');
-      tips.push(state + (notes.length ? ' ' + notes.join(' ') : ''));
+      var keptSuit = v.ctx.afterRead && route && route.suit === v.ctx.afterRead.keeps ? tableNote(v, route, state) : '';
+      tips.push(state + (notes.length ? ' ' + notes.join(' ') : '') + keptSuit);
     } else if (pick.plan) {
       var line = stepsText(pick.plan ? pick.plan.shanten : pick.shanten) + '. Aim for ' + targetText(v, pick.plan, cAfter, null) + '.';
       // A complete shape that doesn't score isn't ready, so say why.
