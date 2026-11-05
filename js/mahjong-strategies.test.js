@@ -36,7 +36,7 @@ function targetOf(hand, extra) {
 
 describe('strategy registry', () => {
   it('lists every strategy, with lucky-cat as the coach default', () => {
-    assert.deepEqual(S.ids(), ['jorge-yau', 'lucky-cat', 'only-orphans', 'dishonor']);
+    assert.deepEqual(S.ids(), ['jorge-yau', 'lucky-cat', 'only-orphans', 'no-defense']);
     assert.equal(S.DEFAULT_COACH, 'lucky-cat');
     assert.equal(S.get('lucky-cat').bot, B);
     assert.equal(S.get('jorge-yau').bot, L);
@@ -54,7 +54,7 @@ describe('strategy registry', () => {
 
   it('picks a random strategy from the list', () => {
     assert.equal(S.randomId(() => 0), 'jorge-yau');
-    assert.equal(S.randomId(() => 0.99), 'dishonor');
+    assert.equal(S.randomId(() => 0.99), 'no-defense');
   });
 
   it('makes agents that play a full hand', async () => {
@@ -587,7 +587,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.20.1');
+    assert.equal(E.GAME_VERSION, '0.21.0');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
@@ -685,91 +685,147 @@ describe('only-orphans', () => {
   });
 });
 
-describe('dishonor', () => {
-  const D = require('./mahjong-dishonor.js');
+describe('no-defense', () => {
+  const N = require('./mahjong-no-defense.js');
   const mixed = ['c2', 'c3', 'c4', 'd4', 'd5', 'd7', 'b3', 'b4', 'b8', 'c7', 'dr', 'dr', 'we', 'd1'];
-  const flush = ['b1', 'b2', 'b3', 'b5', 'b6', 'b8', 'b9', 'c2', 'c7', 'd4', 'd8', 'dr', 'wn', 'we'];
-  const first = (hand, extra) => D.analyzeDiscards(table(Object.assign({ seats: [{ hand }] }, extra)), 0);
+  const flush = ['b1', 'b2', 'b3', 'b5', 'b6', 'b8', 'b9', 'b9', 'c2', 'c7', 'd4', 'dr', 'wn', 'we'];
+  const order = (game) => N.analyzeDiscards(game, 0).candidates.map((x) => x.tile);
+  const tileOf = (game) => N.chooseTurnAction(game, 0, { kongs: [] }).tile;
+  const others = (tile) => [null, { discards: [tile, tile] }, { discards: [tile] }];
+  const eight = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8'].map((t) => ({ tile: t, claimed: false }));
 
-  it('throws every honor first, even a lone dragon nobody has shown or a pair', () => {
-    const lone = mixed.slice();
-    lone[11] = 'c8';
-    assert.equal(first(lone).candidates[0].index >= 27, true);
-    assert.equal(first(lone).candidates[1].index >= 27, true);
-    const a = first(mixed);
-    assert.ok(a.candidates.slice(0, 2).every((x) => x.index >= 27), a.candidates.slice(0, 2).map((x) => x.tile).join());
+  it('keeps honors behind number tiles, and honor pairs longest', () => {
+    const list = order(table({ seats: [{ hand: mixed }] }));
+    assert.ok(E.tileIndex(list[0]) < 27);
+    assert.ok(list.indexOf('we') > list.indexOf('d1'));
+    assert.equal(list[list.length - 1], 'dr');
   });
 
-  it('keeps honors first while folding', () => {
-    const game = table({
-      seats: [
-        { hand: mixed },
-        { melds: [{ type: 'pung', tiles: ['b1', 'b1', 'b1'], concealed: false, from: 2 }, { type: 'pung', tiles: ['b5', 'b5', 'b5'], concealed: false, from: 2 }, { type: 'pung', tiles: ['b9', 'b9', 'b9'], concealed: false, from: 2 }] },
-      ],
-      wallLeft: 12,
-    });
-    const a = D.analyzeDiscards(game, 0);
-    assert.ok(a.folding);
-    assert.ok(a.candidates[0].index >= 27);
+  it('throws a lone honor first once the other three are on the table', () => {
+    const seats = others('we');
+    seats[0] = { hand: mixed };
+    assert.equal(tileOf(table({ seats })), 'we');
   });
 
-  it('plays Concealed Straights and claims nothing with no suit at 7', () => {
-    const a = first(mixed);
-    assert.equal(D.lockedSuit(E.countsOf(mixed), a.ctx), null);
-    assert.equal(a.candidates[0].analysis.best.plan.id, 'straights');
-    const hand = mixed.slice(0, 13);
-    const game = table({ seats: [{ hand }] });
-    assert.deepEqual(D.chooseClaim(game, 0, { tile: 'dr', pung: true, kong: false, chows: [] }), { type: 'pass' });
-    assert.deepEqual(D.chooseClaim(game, 0, { tile: 'd6', pung: false, kong: false, chows: [['d4', 'd5'], ['d5', 'd7']] }), { type: 'pass' });
-    assert.deepEqual(D.chooseClaim(game, 0, { tile: 'd6', win: { faan: 3 }, pung: false, kong: false, chows: [] }), { type: 'win' });
+  it('counts a pung of that honor as on the table', () => {
+    assert.equal(tileOf(table({ seats: [{ hand: mixed }, { melds: [pung('we')] }] })), 'we');
   });
 
-  it('locks into a suit with 7 tiles: honors, then other suits, then that suit', () => {
-    const a = first(flush);
-    assert.equal(D.lockedSuit(E.countsOf(flush), a.ctx), 'b');
-    assert.equal(a.candidates[0].analysis.best.plan.id, 'full-b');
-    const kinds = a.candidates.map((x) => (x.index >= 27 ? 'h' : E.suitOfIndex(x.index) === 'b' ? 'b' : 'o')).join('');
-    assert.match(kinds, /^h+o+b+$/);
+  it('keeps a lone dragon with three copies left behind number tiles', () => {
+    const hand = ['c2', 'c3', 'c4', 'd4', 'd5', 'd7', 'b3', 'b4', 'b8', 'c7', 'dg', 'dr', 'we', 'd1'];
+    const list = order(table({ seats: [{ hand }] }));
+    assert.ok(list.indexOf('dr') > list.indexOf('we'));
+    assert.ok(list.indexOf('dr') > list.indexOf('c7'));
   });
 
-  it('once locked, chows and pungs in its suit and passes the rest', () => {
+  it('never folds and ignores what a discard feeds', () => {
+    const threat = { melds: [pung('b5'), pung('b6'), pung('b7')], discards: ['c1', 'c9', 'd1', 'd9', 'c2', 'd8'] };
+    const a = N.analyzeDiscards(table({ seats: [{ hand: mixed }, threat, threat, threat], wallLeft: 10 }), 0);
+    assert.equal(a.folding, false);
+    assert.equal(a.defense, 0);
+  });
+
+  it('locks onto a Full Flush with 8 tiles, and throws other suits, then honors', () => {
+    const list = order(table({ seats: [{ hand: flush }] }));
+    assert.deepEqual(list.slice(0, 3).sort(), ['c2', 'c7', 'd4']);
+    assert.deepEqual(list.slice(3, 6).sort(), ['dr', 'we', 'wn']);
+    assert.ok(list.slice(6).every((t) => t[0] === 'b'));
+  });
+
+  it('does not lock with 7 tiles, or for the first time after turn 8', () => {
+    const seven = ['b1', 'b2', 'b3', 'b5', 'b6', 'b8', 'b9', 'c2', 'c7', 'd4', 'd8', 'dr', 'wn', 'we'];
+    const game = table({ seats: [{ hand: seven }] });
+    N.analyzeDiscards(game, 0);
+    assert.equal(game.hand.seats[0].noDefenseLock, null);
+    game.hand.seats[0].hand = flush.slice();
+    game.hand.seats[0].discards = eight;
+    N.analyzeDiscards(game, 0);
+    assert.equal(game.hand.seats[0].noDefenseLock, null);
+  });
+
+  it('keeps a lock past turn 8', () => {
+    const game = table({ seats: [{ hand: flush }] });
+    N.analyzeDiscards(game, 0);
+    assert.equal(game.hand.seats[0].noDefenseLock, 'full-b');
+    game.hand.seats[0].discards = eight;
+    N.analyzeDiscards(game, 0);
+    assert.equal(game.hand.seats[0].noDefenseLock, 'full-b');
+  });
+
+  it('reads the lock again after a saved game comes back', () => {
+    const game = table({ seats: [{ hand: flush }] });
+    game.hand.seats[0].discards = eight;
+    N.analyzeDiscards(game, 0);
+    assert.equal(game.hand.seats[0].noDefenseLock, 'full-b');
+  });
+
+  it('weighing a claim leaves the lock alone', () => {
+    const game = table({ seats: [{ hand: flush.slice(0, 13) }] });
+    game.hand.seats[0].noDefenseLock = 'full-b';
+    N.chooseClaim(game, 0, { tile: 'b9', pung: true, kong: false, chows: [] });
+    assert.equal(game.hand.seats[0].noDefenseLock, 'full-b');
+  });
+
+  it('drops a lock when the hand can no longer be won', () => {
+    const game = table({ seats: [{ hand: flush }] });
+    N.analyzeDiscards(game, 0);
+    game.hand.seats[0].melds = [pung('c5')];
+    N.analyzeDiscards(game, 0);
+    assert.equal(game.hand.seats[0].noDefenseLock, null);
+  });
+
+  it('locks onto Thirteen Orphans from 8 of its tiles', () => {
+    const orphans = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'c2', 'c5', 'd4', 'd6', 'b5', 'b7'];
+    const game = table({ seats: [{ hand: orphans }] });
+    N.analyzeDiscards(game, 0);
+    assert.equal(game.hand.seats[0].noDefenseLock, 'orphans');
+  });
+
+  it('on a lock, claims only that hand\'s tiles', () => {
     const hand = flush.slice(0, 13);
     const game = table({ seats: [{ hand }] });
-    assert.equal(D.chooseClaim(game, 0, { tile: 'b4', pung: false, kong: false, chows: [['b2', 'b3'], ['b5', 'b6']] }).type, 'chow');
-    assert.equal(D.chooseClaim(game, 0, { tile: 'b5', pung: false, kong: false, chows: [] }).type, 'pass');
-    assert.equal(D.chooseClaim(game, 0, { tile: 'c3', pung: false, kong: false, chows: [['c2', 'c4']] }).type, 'pass');
-    const paired = ['b1', 'b1', 'b2', 'b3', 'b5', 'b6', 'b8', 'b9', 'c2', 'c7', 'd4', 'dr', 'wn'];
-    assert.equal(D.chooseClaim(table({ seats: [{ hand: paired }] }), 0, { tile: 'b1', pung: true, kong: false, chows: [] }).type, 'pung');
+    game.hand.seats[0].noDefenseLock = 'full-b';
+    assert.deepEqual(N.chooseClaim(game, 0, { tile: 'c7', pung: false, kong: false, chows: [['c6', 'c8']] }), { type: 'pass' });
+    assert.equal(N.chooseClaim(game, 0, { tile: 'b9', pung: true, kong: false, chows: [] }).type, 'pung');
   });
 
-  it('lets a tile other than an honor go when that leaves the hand ready', () => {
-    const hand = ['c1', 'c2', 'c3', 'd4', 'd5', 'd6', 'b2', 'b3', 'b4', 'c6', 'c7', 'dr', 'dr', 'b9'];
-    const game = table({ seats: [{ hand, flowers: ['f1'] }] });
-    const top = D.analyzeDiscards(game, 0).candidates[0];
-    assert.equal(top.tile, 'b9');
-    assert.equal(top.shanten, 0);
-  });
-
-  it('declares a kong only in its locked suit', () => {
-    assert.equal(D.kongOk({ tile: 'c5' }, { lockSuit: 'c' }), true);
-    assert.equal(D.kongOk({ tile: 'd5' }, { lockSuit: 'c' }), false);
-    assert.equal(D.kongOk({ tile: 'dr' }, { lockSuit: 'c' }), false);
-    assert.equal(D.kongOk({ tile: 'c5' }, { lockSuit: null }), false);
-    const hand = ['c5', 'c5', 'c5', 'c5', 'd1', 'd2', 'd3', 'd7', 'd8', 'b1', 'b2', 'b9', 'wn', 'we'];
-    const game = table({ seats: [{ hand }] });
-    assert.equal(D.chooseTurnAction(game, 0, E.turnOptions(game, 0)).type, 'discard');
+  it('claims what brings an unlocked hand closer', () => {
+    const hand = ['c2', 'c3', 'c4', 'c6', 'c7', 'c9', 'c9', 'dr', 'dr', 'dr', 'd2', 'b6', 'we'];
+    const pick = N.chooseClaim(table({ seats: [{ hand }] }), 0, { tile: 'c5', pung: false, kong: false, chows: [['c6', 'c7']] });
+    assert.equal(pick.type, 'chow');
   });
 
   it('the coach names the hand it is on', () => {
-    const coach = Coach.forStrategy(D);
-    assert.match(coach.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] }).tips.join(' '), /Concealed Straights/);
-    assert.match(coach.turnHint(table({ seats: [{ hand: flush }] }), 0, { kongs: [] }).tips.join(' '), /Full Flush in Bamboo/);
+    const text = Coach.forStrategy(N).turnHint(table({ seats: [{ hand: flush }] }), 0, { kongs: [] }).tips.join(' ');
+    assert.match(text, /Full Flush in Bamboo/);
   });
 
-  it('plays full hands against the other strategies', async () => {
-    for (let n = 0; n < 8; n++) {
+  it('holds to its rules through real hands', async () => {
+    const coach = Coach.forStrategy(N);
+    const agent = () => {
+      const base = N.createBotAgent();
+      return {
+        claim: (g, seat, o) => base.claim(g, seat, o),
+        turn: async (g, seat, o) => {
+          const lockBefore = g.hand.seats[seat].noDefenseLock;
+          const action = await base.turn(g, seat, o);
+          if (o.win || action.type !== 'discard') return action;
+          const c = E.countsOf(g.hand.seats[seat].hand);
+          const ctx = N.buildContext(g, seat);
+          const i = E.tileIndex(action.tile);
+          const dead = [];
+          for (let t = 27; t < 34; t++) if (c[t] === 1 && ctx.unseen[t] === 0) dead.push(t);
+          const lock = g.hand.seats[seat].noDefenseLock;
+          if (dead.length && lock !== 'orphans') assert.ok(dead.includes(i), g.hand.seats[seat].hand.join(' '));
+          assert.equal(typeof coach.turnHint(g, seat, { kongs: [] }).tile, 'string');
+          assert.ok(!lock || lock === lockBefore || ctx.turn <= 8, 'locked after turn 8');
+          return action;
+        },
+      };
+    };
+    for (let n = 0; n < 6; n++) {
       const game = E.createGame({ seed: 32000 + n, humanSeat: false, dealer: 0 });
-      const res = await E.runHand(game, ['dishonor', 'lucky-cat', 'only-orphans', 'jorge-yau'].map((id) => S.createAgent(id)), {});
+      const res = await E.runHand(game, [agent(), S.createAgent('lucky-cat'), S.createAgent('only-orphans'), S.createAgent('jorge-yau')], {});
       assert.ok(res.type === 'win' || res.type === 'draw', res.type);
     }
   });
