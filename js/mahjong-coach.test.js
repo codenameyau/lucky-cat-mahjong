@@ -149,6 +149,7 @@ describe('coach: discards', () => {
     assert.ok(['c5', 'd7'].includes(hint.tile), 'discarded ' + hint.tile);
     assert.match(text(hint), /You're going for Bamboo, so other suits go first/);
     assert.match(text(hint), /(Half|Full) Flush in Bamboo/);
+    assert.doesNotMatch(text(hint), /tile(?:s)? from ready|Ready, waiting on/);
   });
 
   it('names the waits when the discard leaves the hand ready', () => {
@@ -156,6 +157,7 @@ describe('coach: discards', () => {
     const hint = C.turnHint(table({ seats: [{ hand, flowers: ['f1'] }] }), 0, { kongs: [] });
     assert.equal(hint.tile, 'd9');
     assert.match(hint.tips[0], /^Ready, waiting on .*Four Character.*Seven Character/);
+    assert.doesNotMatch(text(hint), /tile(?:s)? from ready/);
   });
 
   it('plays a tile the threatening player already threw', () => {
@@ -220,6 +222,7 @@ describe('coach: claims', () => {
     const hint = C.claimHint(game, 0, opts);
     assert.equal(hint.decision.type, 'pass');
     assert.match(text(hint), /concealed/);
+    assert.doesNotMatch(text(hint), /tile(?:s)? from ready|Ready, waiting on/);
   });
 
   it('describes a threatening player by their melds on a claim', () => {
@@ -250,6 +253,15 @@ describe('coach: claims', () => {
     const hint = C.claimHint(game, 0, opts);
     assert.equal(hint.decision.type, 'chow');
     assert.match(text(hint), /^Chow 1-2-3 Bamboo\. It builds your (Half|Full) Flush in Bamboo/);
+  });
+
+  it('passes a chow until the suit already has 7 tiles', () => {
+    const hand = ['b1', 'b2', 'b5', 'b6', 'b7', 'ww', 'ww', 'we', 'we', 'c9'];
+    const game = table({ seats: [{ hand, melds: [meld('pung', 'dr')] }] });
+    const hint = C.claimHint(game, 0, E.claimOptions(game, 0, 'b3', 3, false));
+    assert.equal(hint.decision.type, 'pass');
+    assert.match(text(hint), /7 Bamboo/);
+    assert.doesNotMatch(text(hint), /^Chow/);
   });
 
   it('tells you to win when you can', () => {

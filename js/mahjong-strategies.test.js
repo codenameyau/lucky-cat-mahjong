@@ -36,7 +36,7 @@ function targetOf(hand, extra) {
 
 describe('strategy registry', () => {
   it('lists every strategy, with lucky-cat as the coach default', () => {
-    assert.deepEqual(S.ids(), ['jorge-yau', 'lucky-cat', 'only-orphans', 'no-defense']);
+    assert.deepEqual(S.ids(), ['jorge-yau', 'lucky-cat', 'only-orphans', 'no-defense', 'base']);
     assert.equal(S.DEFAULT_COACH, 'lucky-cat');
     assert.equal(S.get('lucky-cat').bot, B);
     assert.equal(S.get('jorge-yau').bot, L);
@@ -54,7 +54,7 @@ describe('strategy registry', () => {
 
   it('picks a random strategy from the list', () => {
     assert.equal(S.randomId(() => 0), 'jorge-yau');
-    assert.equal(S.randomId(() => 0.99), 'no-defense');
+    assert.equal(S.randomId(() => 0.99), 'base');
   });
 
   it('makes agents that play a full hand', async () => {
@@ -216,6 +216,21 @@ describe('Concealed Straights keeps one honor pair', () => {
     assert.match(hint.tips.join(' '), /Keep your North Wind pair as the pair, and throw your other honors first/);
   });
 
+  it('keeps a finished straight and a lone dragon', () => {
+    // 36529946-NE, North to play: 5-6-7 dots is already a straight and South
+    // is the pair, but the white dragon has three copies left, so it stays.
+    const hand = ['b7', 'b8', 'b9', 'b9', 'c3', 'c5', 'c6', 'c6', 'd5', 'd6', 'd7', 'dw', 'ws', 'ws'];
+    const game = table({ seats: [{ hand }], wallLeft: 70 });
+    const bots = [require('./mahjong-bot.js'), B, L, require('./mahjong-no-defense.js')];
+    bots.forEach((bot) => {
+      const top = bot.analyzeDiscards(game, 0).candidates[0];
+      assert.equal(bot.analyzeDiscards(game, 0).ctx.leadPlan.id, 'straights', bot.id);
+      assert.ok(!['dw', 'd5', 'd6', 'd7'].includes(top.tile), bot.id + ' threw ' + top.tile);
+    });
+    const hint = Coach.turnHint(game, 0, noKongs);
+    assert.equal(hint.tile, 'b9');
+  });
+
   it('keeps a dragon or scoring-wind pair ahead of another honor pair', () => {
     const counts = E.countsOf(['wn', 'wn', 'dr', 'dr', 'c2']);
     const ctx = B.buildContext(table({ seats: [{ hand: ['c2'] }] }), 0);
@@ -257,6 +272,26 @@ describe('the player before you decides a close flush suit', () => {
   it('jorge-yau gives up a Bamboo flush target', () => {
     assert.equal(L.targetFor(at([]), 0).suit, 'b');
     assert.notEqual(L.targetFor(at(keepsBamboo), 0).suit, 'b');
+  });
+});
+
+describe('a flush keeps a dragon pair', () => {
+  // 2902793872-WE, once the next player has shown they are collecting
+  // Characters. The hand already has a red dragon pair; Four and Six
+  // Character are the short chain in the other suit.
+  const hand = ['c4', 'c6', 'b1', 'b3', 'b4', 'b6', 'b6', 'b7', 'b7', 'b8', 'dw', 'dg', 'dr', 'dr'];
+  const game = table({
+    seats: [{ hand }, { discards: ['d6', 'd9', 'b6', 'b8', 'd3', 'd7'] }],
+    wallLeft: 60,
+  });
+
+  it('throws that chain instead of the red dragon', () => {
+    const found = L.analyzeDiscards(game, 0);
+    assert.equal(found.ctx.leadPlan.id, 'full-b');
+    assert.ok(found.candidates[0].tile === 'c4' || found.candidates[0].tile === 'c6', found.candidates[0].tile);
+    const hint = Coach.forStrategy(L).turnHint(game, 0, { kongs: [] });
+    assert.equal(hint.tile, found.candidates[0].tile);
+    assert.match(hint.action, /^Discard (Four|Six) Character/);
   });
 });
 
@@ -587,7 +622,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.21.5');
+    assert.equal(E.GAME_VERSION, '0.22.1');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
@@ -725,11 +760,12 @@ describe('no-defense', () => {
     assert.equal(a.defense, 0);
   });
 
-  it('locks onto a Full Flush with 8 tiles, and throws other suits, then honors', () => {
+  it('locks onto a Full Flush with 8 tiles, and throws other suits, then honors, keeping a lone dragon', () => {
     const list = order(table({ seats: [{ hand: flush }] }));
     assert.deepEqual(list.slice(0, 3).sort(), ['c2', 'c7', 'd4']);
-    assert.deepEqual(list.slice(3, 6).sort(), ['dr', 'we', 'wn']);
-    assert.ok(list.slice(6).every((t) => t[0] === 'b'));
+    assert.deepEqual(list.slice(3, 5).sort(), ['we', 'wn']);
+    assert.ok(list.slice(5, -1).every((t) => t[0] === 'b'));
+    assert.equal(list[list.length - 1], 'dr');
   });
 
   it('does not lock with 7 tiles, or for the first time after turn 8', () => {
@@ -831,31 +867,121 @@ describe('no-defense', () => {
   });
 });
 
+describe('sticking to a plan', () => {
+  const Base = require('./mahjong-bot.js');
+  const three = ['b1', 'b9', 'd1'].map((tile) => ({ tile, claimed: false }));
+  const hand = ['c2', 'c3', 'c4', 'c6', 'c7', 'c8', 'c9', 'dr', 'dr', 'd5', 'd6', 'b4', 'b5', 'we'];
+  const planOf = (bot, game) => bot.analyzeDiscards(game, 0).candidates[0].analysis.best.plan.id;
+  const memoOf = (game, id) => game.hand.seats[0].planMemo[id];
+
+  it('stays open for its first 3 discards, then commits', () => {
+    const game = table({ seats: [{ hand }], wallLeft: 70 });
+    Base.analyzeDiscards(game, 0);
+    assert.equal(memoOf(game, 'base').now, null);
+    const later = table({ seats: [{ hand, discards: three }], wallLeft: 70 });
+    const plan = planOf(Base, later);
+    assert.equal(memoOf(later, 'base').now, Base.planFamily(plan));
+  });
+
+  it('keeps the plan when a better one is only a little closer', () => {
+    const near = ['c2', 'c3', 'c4', 'c6', 'c7', 'c8', 'c9', 'c9', 'd4', 'd5', 'd6', 'b4', 'b5', 'b6'];
+    const free = table({ seats: [{ hand: near, discards: three }], wallLeft: 70 });
+    assert.equal(Base.planFamily(planOf(Base, free)), 'flush-c');
+    const game = table({ seats: [{ hand: near, discards: three }], wallLeft: 70 });
+    game.hand.seats[0].planMemo = { base: { turn: -1, base: null, now: 'runs', left: {}, pivot: null } };
+    assert.equal(Base.planFamily(planOf(Base, game)), 'runs');
+    assert.equal(Base.planPivot(game, 0), null);
+  });
+
+  it('pivots for a hand worth more that is not behind', () => {
+    const game = table({ seats: [{ hand, discards: three }], wallLeft: 70 });
+    game.hand.seats[0].planMemo = { base: { turn: -1, base: null, now: 'runs', left: {}, pivot: null } };
+    assert.equal(Base.planFamily(planOf(Base, game)), 'flush-c');
+    assert.deepEqual(Base.planPivot(game, 0), { turn: 3, from: 'runs', why: 'points' });
+  });
+
+  it('pivots when the plan can no longer be made, and says so', () => {
+    const game = table({ seats: [{ hand, discards: three }], wallLeft: 70 });
+    planOf(Base, game);
+    game.hand.seats[0].planMemo.base.now = 'not-a-plan';
+    game.hand.seats[0].planMemo.base.turn = -1;
+    const plan = planOf(Base, game);
+    assert.notEqual(plan, 'not-a-plan');
+    assert.deepEqual(Base.planPivot(game, 0), { turn: 3, from: 'not-a-plan', why: 'gone' });
+    assert.equal(memoOf(game, 'base').left['not-a-plan'], 3);
+  });
+
+  it('needs more to come back to a hand it left', () => {
+    const game = table({ seats: [{ hand, discards: three }], wallLeft: 70 });
+    game.hand.seats[0].planMemo = { base: { turn: -1, base: null, now: 'runs', left: { 'flush-c': 1 }, pivot: null } };
+    const plan = planOf(Base, game);
+    assert.equal(Base.planFamily(plan), 'runs');
+  });
+
+  it('weighing a claim leaves the plan alone', () => {
+    const game = table({ seats: [{ hand: hand.slice(0, 13), discards: three }], wallLeft: 70 });
+    Base.chooseClaim(game, 0, { tile: 'c5', pung: false, kong: false, chows: [['c6', 'c7']] });
+    assert.equal(!game.hand.seats[0].planMemo || !game.hand.seats[0].planMemo.base || memoOf(game, 'base').turn === -1, true);
+  });
+
+  it('counts hands built from the same tiles as one plan', () => {
+    assert.equal(Base.planFamily('half-c'), Base.planFamily('full-c'));
+    assert.notEqual(Base.planFamily('half-c'), Base.planFamily('half-b'));
+    assert.equal(Base.planFamily('triplets'), Base.planFamily('concealed-triplets'));
+    assert.equal(Base.planFamily('plain'), Base.planFamily('straights'));
+    assert.equal(Base.planFamily('all-honors'), Base.planFamily('mixed-orphans'));
+    assert.equal(Base.planFamily('pairs'), Base.planFamily('pairs-honors'));
+    assert.equal(Base.planFamily('orphans'), 'orphans');
+  });
+
+  it('every strategy keeps its own record', () => {
+    const game = table({ seats: [{ hand, discards: three }], wallLeft: 70 });
+    Base.analyzeDiscards(game, 0);
+    B.analyzeDiscards(game, 0);
+    assert.ok(memoOf(game, 'base') && memoOf(game, 'lucky-cat'));
+  });
+
+  it('plays as a strategy of its own', async () => {
+    assert.equal(S.get('base').bot, Base);
+    for (let n = 0; n < 4; n++) {
+      const game = E.createGame({ seed: 7700 + n, humanSeat: false, dealer: n });
+      const res = await E.runHand(game, ['base', 'lucky-cat', 'jorge-yau', 'base'].map((id) => S.createAgent(id)), {});
+      assert.ok(res.type === 'win' || res.type === 'draw', res.type);
+    }
+  });
+});
+
 describe('the coach says when its hand changes', () => {
   const hint = (game, bot) => Coach.forStrategy(bot || B).turnHint(game, 0, { kongs: [] }).tips.join(' ');
-  const mixed = ['c1', 'c2', 'c3', 'c5', 'c7', 'c9', 'c9', 'd2', 'd5', 'b3', 'b6', 'b8', 'we', 'ws'];
+  const honors = ['we', 'we', 'we', 'ws', 'ws', 'ws', 'wn', 'wn', 'c2', 'c5', 'd3', 'd7', 'b4', 'b8'];
   const flush = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'c9', 'd2', 'b3', 'we', 'ws'];
+  const mixed = ['c2', 'c3', 'c4', 'd4', 'd5', 'd6', 'b3', 'b4', 'b6', 'b7', 'b8', 'c7', 'd1', 'we'];
+  const three = ['b1', 'b9', 'd1'].map((tile) => ({ tile, claimed: false }));
   const play = (game, tile) => game.hand.seats[0].discards.push({ tile, claimed: false });
+  const start = (hand) => table({ seats: [{ hand, discards: three }], wallLeft: 70 });
 
-  it('says nothing on its first turn, or while the hand stays the same', () => {
-    const game = table({ seats: [{ hand: flush }], wallLeft: 70 });
+  it('says nothing in the first discards, or while the hand stays the same', () => {
+    const open = table({ seats: [{ hand: mixed }], wallLeft: 70 });
+    hint(open);
+    play(open, 'b1');
+    open.hand.seats[0].hand = flush;
+    assert.doesNotMatch(hint(open), /Pivoting from/);
+    const game = start(flush);
     assert.doesNotMatch(hint(game), /Pivoting from/);
     play(game, 'we');
     assert.doesNotMatch(hint(game), /Pivoting from/);
   });
 
   it('names both hands and why', () => {
-    const game = table({ seats: [{ hand: mixed }], wallLeft: 70 });
-    const before = hint(game);
+    const game = start(mixed);
+    assert.doesNotMatch(hint(game), /Pivoting from/);
     play(game, 'we');
     game.hand.seats[0].hand = flush;
-    const after = hint(game);
-    assert.doesNotMatch(before, /Pivoting from/);
-    assert.match(after, /Pivoting from .+ to Full Flush in Characters: [^.]+\./);
+    assert.match(hint(game), /Pivoting from .+ to Full Flush in Characters: it's worth \d+ faan, and the old hand \d+\./);
   });
 
   it('says it once a turn, however often the hint is asked for', () => {
-    const game = table({ seats: [{ hand: mixed }], wallLeft: 70 });
+    const game = start(mixed);
     hint(game);
     play(game, 'we');
     game.hand.seats[0].hand = flush;
@@ -866,7 +992,7 @@ describe('the coach says when its hand changes', () => {
   });
 
   it('keeps each coach to its own hand', () => {
-    const game = table({ seats: [{ hand: flush }], wallLeft: 70 });
+    const game = start(flush);
     hint(game, B);
     play(game, 'we');
     assert.doesNotMatch(hint(game, L), /Pivoting from/);
@@ -923,6 +1049,70 @@ describe('the isolated tile in the shortest suit goes first', () => {
     assert.equal(Base.chooseTurnAction(game, 0, { kongs: [] }).tile, 'd1');
   });
 
+  it('in the suit you hold least, throws the tile that connects the least', () => {
+    // Circles is the short suit. The 4 sits farther from the 2-3 than the 2 does.
+    // Five Bamboo touches nothing, so a fully-isolated rule throws that instead.
+    const loose = ['d2', 'd3', 'd6', 'b1', 'b2', 'b5', 'b8', 'b9', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7'];
+    const game = table({ seats: [{ hand: loose }], wallLeft: 70 });
+    assert.equal(Base.chooseTurnAction(game, 0, { kongs: [] }).tile, 'd6');
+    const text = Coach.forStrategy(Base).turnHint(game, 0, { kongs: [] }).tips.join(' ');
+    assert.match(text, /Nothing connects to it, and Circles is your shortest suit/);
+  });
+
+  it('throws a terminal of the shortest suit before a tile that connects less', () => {
+    const loose = ['d1', 'd2', 'd4', 'b1', 'b2', 'b5', 'b8', 'b9', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7'];
+    const game = table({ seats: [{ hand: loose }], wallLeft: 70 });
+    assert.equal(Base.chooseTurnAction(game, 0, { kongs: [] }).tile, 'd1');
+    const text = Coach.forStrategy(Base).turnHint(game, 0, { kongs: [] }).tips.join(' ');
+    assert.match(text, /Circles is your shortest suit, so its terminal goes first/);
+  });
+
+  it('keeps a short-suit terminal once seven other majors belong to all terminals, mixed orphans, or thirteen orphans', () => {
+    // Bamboo is the short suit, so its 1 would go first. Eight majors (the 1s, 9s and honors)
+    // make it part of Mixed Orphans, so the loose 2 goes instead.
+    const mixed = ['d1', 'd2', 'd4', 'b1', 'b9', 'we', 'ws', 'ww', 'wn', 'dg', 'c2', 'c3', 'c4', 'c5'];
+    const game = table({ seats: [{ hand: mixed }], wallLeft: 70 });
+    assert.equal(Base.chooseTurnAction(game, 0, { kongs: [] }).tile, 'd2');
+
+    const terminals = ['d1', 'd9', 'd9', 'b1', 'b1', 'b9', 'c1', 'c1', 'c9', 'd4', 'd5', 'b5', 'c4', 'c5'];
+    const tile = Base.chooseTurnAction(table({ seats: [{ hand: terminals }], wallLeft: 70 }), 0, { kongs: [] }).tile;
+    assert.ok(['d4', 'd5', 'b5', 'c4', 'c5'].includes(tile), tile);
+
+    const thirteen = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'ww', 'wn', 'dw', 'dg', 'dr', 'dr'];
+    assert.equal(B.chooseTurnAction(table({ seats: [{ hand: thirteen }], wallLeft: 70 }), 0, { kongs: [] }).tile, 'dr');
+  });
+
+  it('still throws a short-suit terminal when the hand has fewer than 7 other majors', () => {
+    const early = ['d1', 'we', 'ws', 'ww', 'wn', 'dg', 'dr', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8'];
+    const game = table({ seats: [{ hand: early }], wallLeft: 70 });
+    assert.equal(Base.chooseTurnAction(game, 0, { kongs: [] }).tile, 'd1');
+    assert.equal(B.chooseTurnAction(game, 0, { kongs: [] }).tile, 'd1');
+  });
+
+  it('throws a shortest-suit tile before a terminal of the longest suit', () => {
+    // Circles is shortest, and 2-3-5 is not a finished straight. One and Nine
+    // Bamboo are terminals of the longest suit. A middle Bamboo can still go
+    // first. The circles go before either terminal.
+    const hand = ['d2', 'd3', 'd5', 'b1', 'b3', 'b4', 'b5', 'b6', 'b9', 'c3', 'c4', 'c5', 'c6', 'c7'];
+    const game = table({ seats: [{ hand }], wallLeft: 70 });
+    const list = Base.analyzeDiscards(game, 0).candidates;
+    const at = (id) => list.findIndex((x) => x.tile === id);
+    assert.ok(!['b1', 'b9'].includes(list[0].tile), list[0].tile);
+    ['d2', 'd3', 'd5'].forEach((tile) => {
+      assert.ok(at(tile) < at('b9'), tile);
+      assert.ok(at(tile) < at('b1'), tile);
+    });
+  });
+
+  it('keeps a terminal that is paired or already a straight', () => {
+    const pair = ['d1', 'd1', 'd6', 'b2', 'b3', 'b4', 'b5', 'b6', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7'];
+    assert.equal(Base.chooseTurnAction(table({ seats: [{ hand: pair }], wallLeft: 70 }), 0, { kongs: [] }).tile, 'd6');
+    const straight = ['d1', 'd2', 'd3', 'd7', 'b2', 'b3', 'b4', 'b5', 'b6', 'c2', 'c3', 'c4', 'c5', 'c6'];
+    assert.equal(Base.chooseTurnAction(table({ seats: [{ hand: straight }], wallLeft: 70 }), 0, { kongs: [] }).tile, 'd7');
+    const otherEnd = ['d4', 'd7', 'd8', 'd9', 'b2', 'b3', 'b4', 'b5', 'b6', 'c2', 'c3', 'c4', 'c5', 'c6'];
+    assert.equal(Base.chooseTurnAction(table({ seats: [{ hand: otherEnd }], wallLeft: 70 }), 0, { kongs: [] }).tile, 'd4');
+  });
+
   it('still takes a discard that leaves the hand ready first', () => {
     const ready = ['d1', 'c2', 'c3', 'c4', 'c6', 'c7', 'c8', 'dr', 'dr', 'dr', 'b5', 'b6', 'b7', 'b7'];
     const game = table({ seats: [{ hand: ready }], wallLeft: 70 });
@@ -939,7 +1129,7 @@ describe('the isolated tile in the shortest suit goes first', () => {
 
 describe('ready means the hand can win, and dragons stay', () => {
   const Base = require('./mahjong-bot.js');
-  const bots = { base: Base, 'jorge-yau': L, 'lucky-cat': B, 'only-orphans': S.get('only-orphans').bot };
+  const bots = { base: Base, 'jorge-yau': L, 'lucky-cat': B, 'only-orphans': S.get('only-orphans').bot, 'no-defense': S.get('no-defense').bot };
   const short = {
     seats: [{ hand: ['c8', 'b5', 'c8', 'c3', 'd8', 'c8', 'dg', 'b3', 'c2', 'd8', 'c1'], melds: [pung('wn')] }],
     round: 'e',
@@ -949,6 +1139,20 @@ describe('ready means the hand can win, and dragons stay', () => {
     for (const bot of [Base, L, B]) {
       assert.notEqual(bot.chooseTurnAction(table(short), 0, { kongs: [] }).tile, 'dg');
     }
+  });
+
+  it('keeps a lone dragon on Concealed Straights, even with an honor pair kept', () => {
+    const hand = ['c1', 'c6', 'c7', 'c8', 'd1', 'd4', 'd9', 'b2', 'b2', 'b8', 'we', 'we', 'dg', 'dr'];
+    for (const bot of Object.values(bots)) {
+      const tile = bot.chooseTurnAction(table({ seats: [{ hand }] }), 0, { kongs: [] }).tile;
+      assert.ok(tile !== 'dg' && tile !== 'dr', bot.id + ' threw ' + tile);
+    }
+  });
+
+  it('keeps a lone dragon on a No Defense lock', () => {
+    const hand = ['b1', 'b2', 'b3', 'b5', 'b6', 'b8', 'b9', 'b9', 'b4', 'b4', 'b7', 'b7', 'wn', 'dr'];
+    const list = bots['no-defense'].analyzeDiscards(table({ seats: [{ hand }] }), 0).candidates;
+    assert.equal(list[list.length - 1].tile, 'dr');
   });
 
   it('does not call a shape under the minimum ready', () => {
@@ -982,7 +1186,10 @@ describe('ready means the hand can win, and dragons stay', () => {
             if (action.type === 'discard') {
               const i = E.tileIndex(action.tile);
               if (i >= 31 && c[i] === 1 && E.unseenCounts(g, seat)[i] === 3) {
-                assert.ok(canWin(i) || c.every((n, j) => !n || j === i), g.hand.seats[seat].hand.join(' '));
+                const lead = bot.analyzeDiscards(g, seat).ctx.leadPlan;
+                const eyes = Base.keptHonorPair(c, ctx);
+                const spare = lead && lead.id === 'straights' && eyes !== null && eyes !== i;
+                assert.ok(canWin(i) || spare || c.every((n, j) => !n || j === i), g.hand.seats[seat].hand.join(' '));
               }
             }
             return action;

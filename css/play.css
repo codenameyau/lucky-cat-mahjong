@@ -747,7 +747,7 @@ html.is-playing.is-sideways body {
   position: sticky;
   top: 0;
   background: #074029;
-  color: #ffd27a;
+  color: #ffffff;
   font-size: 0.78rem;
   font-weight: bold;
 }
@@ -766,7 +766,7 @@ html.is-playing.is-sideways body {
 }
 
 .results-table tbody th {
-  color: #fff8f0;
+  color: #ffffff;
   font-weight: bold;
 }
 
@@ -774,7 +774,7 @@ html.is-playing.is-sideways body {
   display: block;
   font-size: 0.72rem;
   font-weight: normal;
-  color: rgba(255, 248, 240, 0.6);
+  color: #ffffff;
 }
 
 .results-faan,
@@ -783,6 +783,8 @@ html.is-playing.is-sideways body {
 .results-faan { color: rgba(255, 248, 240, 0.7); }
 
 .results-faan--scored { color: #fff8f0; font-weight: bold; }
+
+.results-faan--loss { color: #EE6A80; font-weight: bold; }
 
 .results-points { color: rgba(255, 248, 240, 0.55); }
 
@@ -796,7 +798,7 @@ html.is-playing.is-sideways body {
   border-bottom: 0;
 }
 
-.results-total th { color: #ffd27a; }
+.results-total th { color: #ffffff; }
 
 .visually-hidden {
   position: absolute;

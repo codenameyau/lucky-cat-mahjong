@@ -465,6 +465,27 @@ describe('chows and committing to a suit', () => {
     assert.ok(opts.chows.length);
     assert.equal(B.chooseClaim(game, 0, opts).type, 'chow');
   });
+
+  it('chows a suit only when the hand and melds already hold 7 of it', () => {
+    const kong = (tile) => ({ type: 'kong', tiles: [tile, tile, tile, tile], concealed: false, from: 2 });
+    const claim = (bot, hand, melds) => {
+      const game = table({ seats: [{ hand, melds }], wallLeft: 60 });
+      return bot.chooseClaim(game, 0, E.claimOptions(game, 0, 'b3', 3, false)).type;
+    };
+    const open = [meld('pung', 'dr')];
+    const five = ['b1', 'b2', 'b5', 'b6', 'b7', 'ww', 'ww', 'we', 'we', 'c9'];
+    const seven = ['b1', 'b2', 'b4', 'b5', 'b6', 'b7', 'b8', 'ww', 'ww', 'we'];
+    // Five Bamboo is not enough, even when the chow leaves a winning wait.
+    assert.equal(claim(MahjongBot, five, open), 'pass');
+    assert.equal(claim(B, five, open), 'pass');
+    assert.equal(claim(MahjongBot, seven, open), 'chow');
+    assert.equal(claim(B, seven, open), 'chow');
+    // A kong's fourth tile does not count: 3 in hand + a kong is 6, 4 in hand + a kong is 7.
+    assert.equal(claim(MahjongBot, ['b1', 'b2', 'b4', 'ww', 'ww', 'we', 'c2', 'd5'], [kong('b9')]), 'pass');
+    assert.equal(claim(B, ['b1', 'b2', 'b4', 'ww', 'ww', 'we', 'c2', 'd5'], [kong('b9')]), 'pass');
+    assert.equal(claim(MahjongBot, ['b1', 'b2', 'b4', 'b6', 'ww', 'ww', 'we', 'c2'], [kong('b9')]), 'chow');
+    assert.equal(claim(B, ['b1', 'b2', 'b4', 'b6', 'ww', 'ww', 'we', 'c2'], [kong('b9')]), 'chow');
+  });
 });
 
 describe('going for one suit', () => {

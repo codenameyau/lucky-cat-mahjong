@@ -25,7 +25,9 @@
      D. with under 16 tiles left in the wall, play safe unless already ready
         with a big hand. Pung dragons and own/round winds freely; a kong is
         fine at any point. A chow must get the hand closer to ready and
-        still able to reach the minimum faan.
+        still able to reach the minimum faan, and only in a suit you
+        already hold 7 of, counting the hand and each meld as 3 (a kong's
+        fourth tile does not count).
      E. one suit. After a chow, keep that suit and the honors: every tile
         of another suit goes first, even while folding. With 7 or more tiles
         of one suit (sets count), the other suits go first the same way,
@@ -37,8 +39,10 @@
      F. keep pairs. Break one only after every non-pair is gone.
      G. keep dragons until at least one copy is already visible. A lone
         dragon with all three other copies unseen is never thrown, even
-        while folding, unless that leaves the hand ready (loneDragon). A tile
-        someone has Punged or Konged is the first discard when the hand
+        while folding, unless that leaves the hand ready (loneDragon).
+        A pair of them stays on a flush while another suit still has a
+        tile to throw (keepDragonPair). A tile someone has Punged or
+        Konged is the first discard when the hand
         does not need it. A punged honor is safe for the whole table; a
         punged number tile can still finish a chow.
      H. Seven Pairs, Thirteen Orphans, Nine Gates and Concealed Straights
@@ -55,6 +59,15 @@
         locks that suit at once (afterRead). Their suit is not fed. Each
         chow or pung they show holds it longer, and when the hand can use
         it the flush pivots onto it. Late, the tile that wins for them waits.
+     L. among the suits you hold the fewest of, a loose terminal goes
+        first, then the tile that connects the least (shortSuitDiscard).
+        A pair or triplet of that terminal stays, and so does a 1 or 9
+        already in a 1-2-3 or 7-8-9. It also stays when it belongs to
+        All Terminals, Mixed Orphans or Thirteen Orphans and the hand
+        already holds 7 other majors (1s, 9s and honors). A tile of the
+        shortest suit goes before a 1 or 9 of the longest suit. A ready
+        discard and a risky one stay with the usual order, and while
+        folding, safety decides.
      Apart from the lone dragon, the keep-pairs and keep-dragons orders never cost a step toward ready,
      and while folding, safety decides and they only break ties.
 
@@ -275,6 +288,7 @@
     ctx.unseenTotal = ctx.unseen.reduce(function (a, b) { return a + b; }, 0) || 1;
     ctx.drawsLeft = Math.max(1, ctx.wallLeft / 4);
     ctx.turn = s.discards.length;
+    ctx.commit = readCommit(s);
     ctx.slope = valueSlope(game, seat);
     ctx.isDealer = seat === game.dealer;
     ctx.leftRead = leftRead(game, seat);
@@ -467,6 +481,21 @@
   var MIXED_PLANS = ['pairs', 'orphans', 'gates', 'terminals', 'honors', 'winds'];
   var SUIT_MAJORITY = 7;
 
+  // Tiles of one suit already yours: the hand, plus 3 for each meld of it.
+  // A kong's fourth tile is not counted.
+  function suitHeld(ctx, counts, su) {
+    var n = countWhere(counts, function (i) { return i < 27 && E.suitOfIndex(i) === su; });
+    ctx.melds.forEach(function (m) {
+      var ti = E.tileIndex(m.tiles[0]);
+      if (ti < 27 && E.suitOfIndex(ti) === su) n += 3;
+    });
+    return n;
+  }
+
+  function chowSuitReady(ctx, counts, su) {
+    return suitHeld(ctx, counts, su) >= SUIT_MAJORITY;
+  }
+
   // The suit the hand is clearly going for, if any: after a chow, the chow's
   // suit; otherwise one suit holding 7 or more of the hand's tiles, more than
   // any other suit (sets already made count). Tiles of the other two suits
@@ -484,9 +513,7 @@
     var best = null, bestN = 0, tie = false, bySuit = {};
     for (var s = 0; s < 3; s++) {
       var su = SUIT_LETTERS[s];
-      var inSuit = function (i) { return i < 27 && E.suitOfIndex(i) === su; };
-      var n = countWhere(counts, inSuit) +
-        ctx.melds.filter(function (m) { return inSuit(E.tileIndex(m.tiles[0])); }).length * 3;
+      var n = suitHeld(ctx, counts, su);
       bySuit[su] = n;
       if (n > bestN) { best = su; bestN = n; tie = false; } else if (n === bestN) tie = true;
     }
@@ -515,8 +542,8 @@
     return best;
   }
 
-  // A dragon nobody has shown can still become a set worth a faan, so
-  // Concealed Straights holds on to it, unless throwing it leaves the hand ready.
+  // A dragon nobody has shown can still become the pair, so Concealed
+  // Straights holds it until an honor pair is already kept.
   function holdsDragon(game, i, shanten) {
     return DRAGONS.indexOf(i) !== -1 && revealedCopies(game, i) === 0 && shanten > 0;
   }
@@ -551,7 +578,8 @@
     var i = candidate.index;
     var lead = ctx.leadPlan;
     if (lead && lead.id === 'straights' && !ctx.hasChow) {
-      return i >= 27 && i !== keptHonorPair(counts, ctx) && !holdsDragon(game, i, candidate.shanten) ? -1 : null;
+      var eyes = keptHonorPair(counts, ctx);
+      return i >= 27 && i !== eyes && !holdsDragon(game, i, candidate.shanten) ? -1 : null;
     }
     var committed = suitCommitment(ctx, counts);
     if (committed && i < 27 && E.suitOfIndex(i) !== committed) {
@@ -744,8 +772,20 @@
   }
 
   // Candidate plans for a 13-tile (waiting to draw) concealed portion.
+  // The base bot's own hands: the usual ones, and Seven Pairs when it's close.
+  function foundationPlans(c, ctx) {
+    var list = basePlans(c, ctx);
+    if (chaseSevenPairs(c, ctx)) list.push(makeSpecialPlan('pairs', c, ctx));
+    return list;
+  }
+
   function plansFor(c, ctx) {
-    return aimablePlans(H.plans ? H.plans(c, ctx) : basePlans(c, ctx), c, ctx);
+    var list = aimablePlans(H.plans ? H.plans(c, ctx) : foundationPlans(c, ctx), c, ctx);
+    // The plan the hand committed to stays on the table until it's justified
+    // to leave it, whatever else a strategy's list reaches for this turn.
+    var key = ctx.commit && ctx.commit.key;
+    if (!key || T.ownPlans || ctx.planFixed || list.some(function (p) { return planFamily(p.id) === key; })) return list;
+    return list.concat(plansOfFamily(c, ctx, key));
   }
 
   // No strategy aims for a chicken hand: the plain hand only stays a plan
@@ -1509,9 +1549,154 @@
     return best && best.plan && !best.readyBest ? Math.max(1, best.planShanten) : 1;
   }
 
+  /* ------------------------------------------------------------------ *
+   * 5a. Sticking to a plan
+   *     For its first 3 discards a hand keeps its options open. After that
+   *     it commits to the plan it's on and pivots only for a reason: more
+   *     points without falling behind, or a plan that has become hopeless
+   *     while another has real odds. A plan it has left needs more to come
+   *     back to. The record is per seat and per strategy, for this hand.
+   * ------------------------------------------------------------------ */
+
+  var COMMIT_TURN = 3, PIVOT_MARGIN = 1.1, HOPELESS_STEPS = 2, HOPELESS_RATIO = 3, BACKUP_SHARE = 0.12;
+
+  // Hands built from the same tiles are one plan: moving from a Half Flush to
+  // a Full Flush in that suit refines the hand, it doesn't change direction.
+  function planFamily(id) {
+    if (/^(half|full)-/.test(id)) return 'flush-' + id.slice(5);
+    if (id === 'half' || id === 'full') return 'flush';
+    if (id === 'triplets' || id === 'concealed-triplets') return 'sets';
+    if (id === 'plain' || id === 'runs' || id === 'straights' || id === 'sequences') return 'runs';
+    if (id === 'pairs' || /^pairs-/.test(id)) return 'pairs';
+    if (id === 'mixed-orphans' || id === 'all-terminals' || id === 'all-honors') return 'majors';
+    if (/-dragons$/.test(id)) return 'dragons';
+    if (/-winds$/.test(id)) return 'winds';
+    return id;
+  }
+
+  function planMemo(seatState) {
+    var byBot = seatState.planMemo || (seatState.planMemo = {});
+    var id = T.id || 'base';
+    return byBot[id] || (byBot[id] = { turn: -1, base: null, now: null, left: {}, pivot: null });
+  }
+
+  // The plan this turn is measured against. (The turn's own first read has
+  // already moved `now`, so a second read this turn still uses `base`.)
+  function readCommit(seatState) {
+    var memo = planMemo(seatState);
+    return { key: memo.turn === seatState.discards.length ? memo.base : memo.now, left: memo.left };
+  }
+
+  function updateCommit(seatState, pick, folding) {
+    var memo = planMemo(seatState);
+    var turn = seatState.discards.length;
+    if (memo.turn !== turn) { memo.base = memo.now; memo.turn = turn; }
+    if (folding || !pick) return;
+    var best = pick.analysis.best;
+    var plan = best && best.plan;
+    if (!plan || turn < COMMIT_TURN) return;
+    var family = planFamily(plan.id);
+    memo.now = family;
+    if (memo.base && memo.base !== family) {
+      memo.left[memo.base] = turn;
+      memo.pivot = { turn: turn, from: memo.base, why: best.pivotWhy || 'gone' };
+    } else if (memo.pivot && memo.pivot.turn === turn) {
+      memo.pivot = null;
+    }
+  }
+
+  // The pivot this hand made on this turn: { from, why }, or null.
+  function planPivot(game, seat) {
+    var seatState = game.hand.seats[seat];
+    var memo = planMemo(seatState);
+    return memo.pivot && memo.pivot.turn === seatState.discards.length ? memo.pivot : null;
+  }
+
+  function leftPlan(ctx, key) {
+    return !!(ctx.commit && ctx.commit.left[key] !== undefined);
+  }
+
+  // Why `alt` may replace the committed `cur`: 'hopeless', 'points', or null.
+  function pivotWhy(alt, cur, ctx) {
+    // No tile helps it, there aren't the draws left to fill it, or it has
+    // fallen well behind a hand with far better odds.
+    if (cur.ukeire === 0 || cur.planShanten + 1 > ctx.drawsLeft * 1.5) return 'hopeless';
+    if (alt.planShanten + HOPELESS_STEPS <= cur.planShanten && alt.chance >= cur.chance * HOPELESS_RATIO) return 'hopeless';
+    var back = leftPlan(ctx, planFamily(alt.plan.id));
+    if (alt.pick === Infinity && !back) return 'points';
+    var more = alt.plan.faan >= cur.plan.faan + (back ? 2 : 1);
+    var near = alt.planShanten <= cur.planShanten + (back ? 0 : 1);
+    return more && near && alt.pick > cur.pick * PIVOT_MARGIN ? 'points' : null;
+  }
+
+  // The committed plan if it's still alive and nothing justifies leaving it.
+  function chooseEntry(entries, ctx) {
+    var key = ctx.commit && ctx.commit.key;
+    var own = key ? entries.filter(function (e) { return planFamily(e.plan.id) === key; }) : [];
+    var cur = own.reduce(function (m, e) { return !m || e.pick > m.pick ? e : m; }, null);
+    var best = cur;
+    if (cur) {
+      entries.forEach(function (e) {
+        if (own.indexOf(e) !== -1) return;
+        var why = pivotWhy(e, cur, ctx);
+        if (why && e.pick > best.pick) { best = e; best.pivotWhy = why; }
+      });
+      return best;
+    }
+    entries.forEach(function (e) { if (!best || e.pick > best.pick) best = e; });
+    // (A strategy that lists its own plans has given up on this one.)
+    if (best && key) best.pivotWhy = T.ownPlans ? 'hopeless' : 'gone';
+    return best;
+  }
+
+  // The other plans these tiles could still become, worst first left out:
+  // a discard that keeps them alive leaves somewhere to go.
+  function backupValue(entries, best) {
+    var others = entries.filter(function (e) { return e !== best && e.pick !== Infinity; })
+      .map(function (e) { return e.util; })
+      .sort(function (a, b) { return b - a; });
+    return (others[0] || 0) + (others[1] || 0);
+  }
+
+  // The plans of this family, when a strategy's list for this hand left them out.
+  function plansOfFamily(c, ctx, id) {
+    var pool = basePlans(c, ctx).concat(scoringPlans(c, ctx), setUpgrades(c, ctx, true), pairsUpgrades(c, ctx, true), upgradePlans(c, ctx));
+    // A flush keeps going below the tiles that would first suggest it, unless
+    // a meld in another suit has ruled it out.
+    var su = /^flush-/.test(id) ? id.slice(6) : null;
+    if (su && !Object.keys(ctx.meldSuits).some(function (k) { return k !== su && k !== 'z'; })) {
+      var kept = restrict(c, function (i) { return E.suitOfIndex(i) === su || i >= 27; });
+      pool.push({
+        id: 'half-' + su, suit: su, label: 'a Half Flush in ' + SUIT_LABELS[su], counts: kept, shantenFn: E.standardShanten,
+        faan: baseFaan(ctx) + (ctx.concealed ? 1 : 0) + 3 + handYaku(ctx, kept), open: true,
+      });
+    }
+    if (!ctx.declared) {
+      pool.push(makeSpecialPlan('pairs', c, ctx));
+      if (orphansAlive(c, ctx)) pool.push(makeSpecialPlan('orphans', c, ctx));
+    }
+    var min = ctx.game.settings.minFaan;
+    return pool.filter(function (p) {
+      return planFamily(p.id) === id && (p.id !== 'plain' || p.faan >= min) && p.shantenFn(p.counts, ctx.declared) !== Infinity;
+    });
+  }
+
+  // A special hand a strategy reaches for must be a justified pivot too.
+  function gateSpecial(ctx, counts) {
+    var locked = ctx.lockedSpecial;
+    var key = ctx.commit && ctx.commit.key;
+    if (!locked || !key || T.ownPlans || ctx.planFixed || planFamily(locked.kind) === key) return;
+    var cur = plansOfFamily(counts, ctx, key)[0];
+    if (!cur) return;
+    var plan = makeSpecialPlan(locked.kind, counts, ctx, locked.gates);
+    var alt = { plan: plan, planShanten: plan.shantenFn(plan.counts, ctx.declared), pick: 1, chance: 1 };
+    var now = { plan: cur, planShanten: cur.shantenFn(cur.counts, ctx.declared), pick: 0, chance: 1, ukeire: 1 };
+    if (!pivotWhy(alt, now, ctx)) ctx.lockedSpecial = null;
+  }
+
   function handUtility(c, ctx) {
     var plans = plansFor(c, ctx);
-    var best = null;
+    var entries = [];
     var shantenAll = E.shanten(c, ctx.declared);
     plans.forEach(function (p) {
       var s = p.shantenFn(p.counts, ctx.declared);
@@ -1524,11 +1709,13 @@
       var chance = H.finishChance ? H.finishChance(ctx, s, u, p, pc) : finishChance(ctx, s, u, p, pc);
       var util = handValue(p.faan + SELF_DRAW_CHANCE, ctx.slope) * 1.8 * chance;
       // A strategy can prefer a plan (plan.weight) without inflating its value.
-      var entry = { plan: p, shanten: s, planShanten: s, ukeire: u.total, ukeireTiles: u.tiles, util: util, pick: util * (p.weight || 1) * suitLean(p, ctx) };
+      var entry = { plan: p, shanten: s, planShanten: s, ukeire: u.total, ukeireTiles: u.tiles, util: util, chance: chance, pick: util * (p.weight || 1) * suitLean(p, ctx) };
       // The hand's target (isHardTarget) is the plan it's on, whatever else pays now.
       if (ctx.upgrade && ctx.upgrade.hard && ctx.upgrade.id === p.id) entry.pick = Infinity;
-      if (!best || entry.pick > best.pick) best = entry;
+      entries.push(entry);
     });
+    var best = chooseEntry(entries, ctx);
+    var backup = backupValue(entries, best);
     var ready = null;
     if (shantenAll === 0) {
       ready = readyValue(c, ctx);
@@ -1540,6 +1727,7 @@
           ukeire: ready.live,
           util: ready.value,
           readyBest: true,
+          pivotWhy: best ? best.pivotWhy : null,
         };
       }
     }
@@ -1547,6 +1735,7 @@
     return {
       util: best ? best.util : 0,
       best: best,
+      backup: backup,
       shanten: stepsToWin(shantenAll, best, ready),
       shapeShanten: shantenAll,
       plainShanten: plainS,
@@ -1804,12 +1993,168 @@
     });
   }
 
-  // Among discards the rest of the order rates alike, the isolated tile in
-  // the suit with the fewest tiles goes first. Not a discard that leaves the
-  // hand ready, where the better wait decides, and not a risky one.
-  function isolatedRank(x, counts, suitN) {
-    if (x.shanten <= 0 || riskStep(x.loss) >= 3 || !isolatedTile(counts, x.index)) return Infinity;
-    return suitN[E.suitOfIndex(x.index)];
+  // How this single connects to the rest of its suit. Fewer tiles within 2
+  // ranks is more disconnected; the same number, the farther neighbor is.
+  function linkRank(counts, i) {
+    var r = i % 9, near = 0, gap = 9;
+    [-2, -1, 1, 2].forEach(function (d) {
+      if (r + d < 0 || r + d > 8 || !counts[i + d]) return;
+      near += counts[i + d];
+      if (Math.abs(d) < gap) gap = Math.abs(d);
+    });
+    return near * 16 - gap;
+  }
+
+  // The number suits held the least, counting tiles in hand.
+  function leastSuits(counts) {
+    var n = { c: 0, d: 0, b: 0 };
+    for (var i = 0; i < 27; i++) if (counts[i]) n[E.suitOfIndex(i)] += counts[i];
+    var min = Infinity;
+    SUIT_LETTERS.forEach(function (su) { if (n[su] && n[su] < min) min = n[su]; });
+    var least = {};
+    SUIT_LETTERS.forEach(function (su) { if (n[su] === min) least[su] = true; });
+    return least;
+  }
+
+  // A single 1 or 9 that is not already the end of a 1-2-3 or 7-8-9.
+  // A pair or triplet is not loose, and neither is that finished straight.
+  function looseTerminal(counts, i) {
+    if (i >= 27 || counts[i] !== 1) return false;
+    var r = i % 9;
+    if (r !== 0 && r !== 8) return false;
+    var base = i - r;
+    if (r === 0 && counts[base + 1] && counts[base + 2]) return false;
+    if (r === 8 && counts[base + 6] && counts[base + 7]) return false;
+    return true;
+  }
+
+  function majorTiles(counts) {
+    var n = 0;
+    for (var i = 0; i < 34; i++) if (counts[i] && isOrphanIndex(i)) n += counts[i];
+    return n;
+  }
+
+  // A loose 1 or 9 stays put once it is part of All Terminals, Mixed
+  // Orphans or Thirteen Orphans and 7 other majors (1s, 9s, honors) are
+  // already in the hand. All Honors still throws a terminal.
+  function keepsLooseTerminal(counts, i, plan) {
+    if (!looseTerminal(counts, i) || majorTiles(counts) - 1 < 7) return false;
+    var id = plan && plan.id;
+    if (id === 'all-honors' || id === 'pairs-honors') return false;
+    if (id === 'orphans' || id === 'mixed-orphans' || id === 'all-terminals' || id === 'pairs-orphans' || id === 'pairs-terminals') return true;
+    var terminals = 0, honors = 0;
+    for (var j = 0; j < 34; j++) {
+      if (!counts[j]) continue;
+      if (j >= 27) honors += counts[j];
+      else if (isOrphanIndex(j)) terminals += counts[j];
+    }
+    return terminals >= 8 || (terminals >= 1 && honors >= 1 && terminals + honors >= 8);
+  }
+
+  // Loose terminals of the short suit go ahead of a tile that merely
+  // connects less, unless the hand is keeping that terminal. Everything
+  // else is ordered by how little it connects.
+  function shortSuitRank(counts, i, plan) {
+    return linkRank(counts, i) - (!keepsLooseTerminal(counts, i, plan) && looseTerminal(counts, i) ? 1000 : 0);
+  }
+
+  // A single in a suit you hold the least of, and no other single there
+  // is a better short-suit discard. The discard order uses it only when
+  // the tile isn't the one that leaves the hand ready, and isn't a risky deal-in.
+  // Removing this copy would break a 3-tile straight already in the hand.
+  function breaksFinishedStraight(counts, i) {
+    if (i >= 27 || counts[i] !== 1) return false;
+    var r = i % 9;
+    var base = i - r;
+    var starts = [];
+    if (r >= 2) starts.push(r - 2);
+    if (r >= 1 && r <= 7) starts.push(r - 1);
+    if (r <= 6) starts.push(r);
+    for (var w = 0; w < starts.length; w++) {
+      var s = starts[w];
+      if (counts[base + s] && counts[base + s + 1] && counts[base + s + 2]) return true;
+    }
+    return false;
+  }
+
+  function shortSuitDiscard(counts, i, plan) {
+    if (i >= 27 || counts[i] !== 1 || keepsLooseTerminal(counts, i, plan)) return false;
+    if (plan && plan.id === 'straights' && breaksFinishedStraight(counts, i)) return false;
+    var least = leastSuits(counts);
+    if (!least[E.suitOfIndex(i)]) return false;
+    var mine = shortSuitRank(counts, i, plan);
+    for (var j = 0; j < 27; j++) {
+      if (j === i || counts[j] !== 1 || !least[E.suitOfIndex(j)] || keepsLooseTerminal(counts, j, plan)) continue;
+      if (shortSuitRank(counts, j, plan) < mine) return false;
+    }
+    return true;
+  }
+
+  // The number suits held the most.
+  function longestSuits(counts) {
+    var n = { c: 0, d: 0, b: 0 };
+    for (var i = 0; i < 27; i++) if (counts[i]) n[E.suitOfIndex(i)] += counts[i];
+    var max = 0;
+    SUIT_LETTERS.forEach(function (su) { if (n[su] > max) max = n[su]; });
+    var longest = {};
+    SUIT_LETTERS.forEach(function (su) { if (n[su] && n[su] === max) longest[su] = true; });
+    return longest;
+  }
+
+  // A 1 or 9, including a pair or one already in a straight.
+  function rankTerminal(i) {
+    return i < 27 && (i % 9 === 0 || i % 9 === 8);
+  }
+
+  // Tiles of the shortest suit go before a 1 or 9 of the longest suit.
+  // A discard that leaves the hand ready is left to the usual order.
+  function shortBeforeLongTerminal(counts, a, b) {
+    if ((a.shanten <= 0) !== (b.shanten <= 0)) return 0;
+    var least = leastSuits(counts);
+    var longest = longestSuits(counts);
+    var role = function (x) {
+      if (x.index >= 27) return '';
+      var su = E.suitOfIndex(x.index);
+      if (least[su] && !longest[su]) return 'short';
+      if (longest[su] && !least[su] && rankTerminal(x.index)) return 'longTerminal';
+      return '';
+    };
+    var ra = role(a), rb = role(b);
+    if (ra === 'short' && rb === 'longTerminal') return -1;
+    if (rb === 'short' && ra === 'longTerminal') return 1;
+    return 0;
+  }
+
+  function flushLead(plan) {
+    return !!(plan && /^(full|half)-/.test(plan.id));
+  }
+
+  // A flush scores no dragon, but a pair of them is worth more than the
+  // short chain in another suit. The player after you can hold that chain
+  // back, and folding would rather throw the safe pair. Keep the pair
+  // unless breaking it is what leaves the hand ready.
+  function keepDragonPair(out, ctx, counts) {
+    if (!out.length || !flushLead(ctx.leadPlan)) return out;
+    var top = out[0];
+    if (top.shanten <= 0 || DRAGONS.indexOf(top.index) === -1 || counts[top.index] !== 2) return out;
+    var suit = ctx.leadPlan.suit;
+    var least = leastSuits(counts);
+    var best = null, bestRank = 0;
+    for (var k = 1; k < out.length; k++) {
+      var x = out[k];
+      if (x.index >= 27) continue;
+      var su = E.suitOfIndex(x.index);
+      if (su === suit || !least[su]) continue;
+      var rank = shortSuitRank(counts, x.index, ctx.leadPlan);
+      if (!best || rank < bestRank) { best = x; bestRank = rank; }
+    }
+    if (!best) return out;
+    return [best].concat(out.filter(function (x) { return x !== best; }));
+  }
+
+  function disconnectRank(x, counts, plan) {
+    if (x.shanten <= 0 || riskStep(x.loss) >= 3 || !shortSuitDiscard(counts, x.index, plan)) return null;
+    return shortSuitRank(counts, x.index, plan);
   }
 
   /* ------------------------------------------------------------------ *
@@ -1820,6 +2165,7 @@
     ctx.blockSevenPairs = concealedShape(counts).hasSet;
     ctx.avoidSuit = avoidSuit(counts, ctx);
     if (H.hand) H.hand(ctx, counts);
+    gateSpecial(ctx, counts);
     ctx.upgrade = liveUpgrade(counts, ctx);
   }
 
@@ -1870,6 +2216,8 @@
       // The left player's read leans the offense toward the flush they feed
       // and away from the one they keep (suitLean); safety is unchanged.
       x.score = x.util * suitLean((x.analysis.best && x.analysis.best.plan) || {}, ctx) - weight * x.loss;
+      // Between close discards, keep the backup plans alive.
+      if (!folding) x.score += BACKUP_SHARE * x.analysis.backup;
       if (committed && x.index < 27 && E.suitOfIndex(x.index) !== committed) x.score += 0.004;
       // Between close discards, keep the tile with the most copies still out there.
       if (!folding) x.score -= T.keepLive * topUtil * ctx.unseen[x.index];
@@ -1895,28 +2243,52 @@
       var breaksSet = c[x.index] >= 3 && best && best.plan && !best.readyBest && SETS_PLANS.indexOf(best.plan.id) !== -1;
       x.tier = x.priority <= 0 || (x.shanten <= bestShanten && !breaksSet) ? x.priority : 10 + x.priority;
     });
-    var suitN = suitCounts(c, ctx);
     out.sort(function (a, b) {
       // Off-suit tiles after a chow always go first, even while folding
       // (then the safest of them goes).
       var offA = a.priority === 0, offB = b.priority === 0;
       if (offA !== offB) return offA ? -1 : 1;
-      if (!folding && a.tier !== b.tier) return a.tier - b.tier;
+      // Concealed Straights keeps a tile that already completes a straight.
+      // Once a discard leaves the hand ready, the usual order decides.
+      if (!folding && ctx.leadPlan && ctx.leadPlan.id === 'straights' && a.shanten > 0 && b.shanten > 0) {
+        var straightA = breaksFinishedStraight(c, a.index);
+        var straightB = breaksFinishedStraight(c, b.index);
+        if (straightA !== straightB) return straightA ? 1 : -1;
+      }
       if (!folding) {
-        var aloneA = isolatedRank(a, c, suitN), aloneB = isolatedRank(b, c, suitN);
-        if (aloneA !== aloneB) return aloneA - aloneB;
+        var suitOrder = shortBeforeLongTerminal(c, a, b);
+        if (suitOrder) return suitOrder;
+      }
+      if (!folding && a.tier !== b.tier) return a.tier - b.tier;
+      // A terminal the orphan hands still need waits behind the other tiles.
+      if (!folding && a.tier === b.tier) {
+        var keepA = keepsLooseTerminal(c, a.index, ctx.leadPlan);
+        var keepB = keepsLooseTerminal(c, b.index, ctx.leadPlan);
+        if (keepA !== keepB) return keepA ? 1 : -1;
+      }
+      // In the suits held least, the tile that connects the least goes first.
+      if (!folding) {
+        var aloneA = disconnectRank(a, c, ctx.leadPlan), aloneB = disconnectRank(b, c, ctx.leadPlan);
+        if (aloneA !== aloneB) {
+          if (aloneA === null) return 1;
+          if (aloneB === null) return -1;
+          return aloneA - aloneB;
+        }
       }
       if (b.score !== a.score) return b.score - a.score;
       if (a.priority !== b.priority) return a.priority - b.priority;
       return E.isTerminalOrHonorIndex(b.index) - E.isTerminalOrHonorIndex(a.index);
     });
     if (!folding && T.tripletsLive) out = tripletsOrder(out, ctx, c);
-    // A lone dragon nobody has shown goes last of all, unless throwing it
-    // leaves the hand ready: then the usual order decides.
-    // (Ready means it can really win: see stepsToWin.)
+    // A lone dragon nobody has shown goes last of all, on every hand, unless
+    // throwing it leaves the hand ready to win (see stepsToWin).
     var isLone = function (x) { return x.shanten > 0 && loneDragon(game, c, x.index); };
     out = out.filter(function (x) { return !isLone(x); }).concat(out.filter(isLone));
     if (H.finalOrder) out = H.finalOrder(out, ctx, c);
+    out = keepDragonPair(out, ctx, c);
+    // Only the hand really held moves the plan: a claim being weighed doesn't.
+    var seatNow = game.hand.seats[seat];
+    if (hand === seatNow.hand && ctx.melds === seatNow.melds) updateCommit(seatNow, out[0], folding);
     return { ctx: ctx, candidates: out, threats: threats, defense: weight, folding: folding };
   }
 
@@ -2029,8 +2401,9 @@
     // Any other claim breaks Concealed Straights.
     if (stayPlan && stayPlan.id === 'straights') return { decision: { type: 'pass' }, found: res };
     var options = res.options.filter(function (o) {
+      if (!claimKeepsPlan(o, res, ctx)) return false;
       if (o.decision.type !== 'chow') return true;
-      return chowAllowed(o, res, game) && (!H.chowOk || H.chowOk(o, res, ctx, game));
+      return chowAllowed(o, res, game, ctx) && (!H.chowOk || H.chowOk(o, res, ctx, game));
     });
     var top = options[0];
     var bar = top && top.decision.type === 'chow' ? 1.2 : 1.04;
@@ -2042,12 +2415,29 @@
     return decideClaim(game, seat, opts).decision;
   }
 
+  // A claim that leaves the committed plan is a pivot, so it needs a reason,
+  // unless it makes the hand ready to win.
+  function claimKeepsPlan(o, res, ctx) {
+    var key = ctx.commit && ctx.commit.key;
+    var cur = res.stay.best;
+    var next = o.analysis && o.analysis.best;
+    if (!key || !cur || !next || !next.plan || cur.readyBest) return true;
+    if (planFamily(cur.plan.id) !== key || planFamily(next.plan.id) === key) return true;
+    if (o.analysis.shanten === 0) return true;
+    return !next.readyBest && !!pivotWhy(next, cur, ctx);
+  }
+
   // Every chow must get the hand closer to ready and leave it able to reach
   // the minimum faan (a chow that makes it ready must win for the minimum).
-  // A strategy adds when it's worth it with H.chowOk.
-  function chowAllowed(o, res, game) {
+  // The suit must already have 7 tiles in the hand and melds. A strategy
+  // adds when it's worth it with H.chowOk.
+  function chowAllowed(o, res, game, ctx) {
     var an = o.analysis;
     if (!an) return false;
+    if (ctx && o.decision && o.decision.tiles) {
+      var su = E.suitOfIndex(E.tileIndex(o.decision.tiles[0]));
+      if (!chowSuitReady(ctx, E.countsOf(game.hand.seats[ctx.seat].hand), su)) return false;
+    }
     var after = an.shanten, before = res.stay.shanten;
     if (after >= before) return false;
     var min = game.settings.minFaan;
@@ -2109,6 +2499,7 @@
     var hooks = def.hooks || NO_HOOKS;
     var tuning = copy(BASE_TUNING);
     Object.keys(def.tuning || {}).forEach(function (k) { tuning[k] = def.tuning[k]; });
+    tuning.id = def.id;
     var out = { id: def.id };
     Object.keys(api).forEach(function (k) {
       if (k === 'id') return;
@@ -2149,7 +2540,13 @@
     ukeire: ukeire,
     finishChance: finishChance,
     winsWhenReady: winsWhenReady,
+    planPivot: planPivot,
+    planFamily: planFamily,
+    leftPlan: leftPlan,
     isolatedTile: isolatedTile,
+    looseTerminal: looseTerminal,
+    shortSuitDiscard: shortSuitDiscard,
+    breaksFinishedStraight: breaksFinishedStraight,
     suitCounts: suitCounts,
     readTable: readTable,
     raceOdds: raceOdds,
@@ -2157,6 +2554,7 @@
     valueSlope: valueSlope,
     withMeld: withMeld,
     chowAllowed: chowAllowed,
+    chowSuitReady: chowSuitReady,
     sharedPriority: sharedPriority,
     keptHonorPair: keptHonorPair,
     chowOfAnotherSuit: chowOfAnotherSuit,

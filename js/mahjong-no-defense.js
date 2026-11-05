@@ -145,8 +145,8 @@
   }
 
   // The lock lives on this hand's seat, so it lasts past the eighth turn. A
-  // saved game replays its moves without the bots, so it comes back unread,
-  // and the lock is read again from the tiles held.
+  // saved game replays the bots' turns, which rebuilds theirs. The coach isn't
+  // replayed, so your own hand comes back unread and is read again from its tiles.
   function savedLock(ctx) {
     return handById(ctx.game.hand.seats[ctx.seat].noDefenseLock);
   }
@@ -181,6 +181,7 @@
     ctx.lock = updateLock(counts, ctx);
     // Faster-looking hands don't pull it off a lock or its own read.
     ctx.lockedSpecial = ctx.lock ? { kind: ctx.lock.id } : null;
+    ctx.planFixed = !!ctx.lock;
   }
 
   // (A claim's choice is weighed from the 13 tiles, without hand() first.)
@@ -213,6 +214,8 @@
   function lockRank(x, c, ctx, lock) {
     var i = x.index;
     if (lock.id !== 'orphans' && deadHonor(c, ctx, i)) return 0;
+    // A lone dragon nobody has shown outlasts even the hand's own tiles.
+    if (B.loneDragon(ctx.game, c, i) && !winsNow(x)) return 5;
     var dead = lock.sets && c[i] === 1 && ctx.unseen[i] === 0;
     if (!lock.fits(i) || dead) {
       if (winsNow(x)) return 1;
@@ -225,10 +228,21 @@
     var i = x.index;
     if (deadHonor(c, ctx, i)) return 0;
     if (winsNow(x)) return 1;
-    if (!isHonor(i)) return x.shanten <= bestSteps ? 2 : 4;
+    if (B.loneDragon(ctx.game, c, i)) return 8;
+    var straights = ctx.leadPlan && ctx.leadPlan.id === 'straights';
+    var eyes = straights ? B.keptHonorPair(c, ctx) : null;
+    // The pair is already kept, so every other honor goes before a number
+    // tile. A finished straight waits behind a loose tile.
+    if (straights && eyes !== null && i >= 27 && i !== eyes) return 2;
+    if (!isHonor(i)) {
+      var rank = x.shanten <= bestSteps ? 2 : 4;
+      if (straights && eyes !== null) rank += 1;
+      if (straights && B.breaksFinishedStraight(c, i)) rank += 2;
+      return rank;
+    }
     if (c[i] >= 3) return 7;
     if (c[i] === 2) return 6;
-    return B.loneDragon(ctx.game, c, i) ? 5 : 3;
+    return 3;
   }
 
   // Lone honors with fewer copies left go first, and ones that score last.

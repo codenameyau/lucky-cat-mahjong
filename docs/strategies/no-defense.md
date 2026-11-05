@@ -13,8 +13,8 @@ Without a lock, from first to go to last to go:
 3. Number tiles that cost no step toward ready.
 4. Lone honors, with the fewest copies left going first and honors that score going last.
 5. Number tiles that cost a step.
-6. A lone dragon with all three other copies unseen.
-7. Honor pairs, then honor sets.
+6. Honor pairs, then honor sets.
+7. A lone dragon with all three other copies unseen, which goes only if throwing it leaves a hand that can win.
 
 Honors wait behind everything that costs nothing, but a lone honor goes before a number tile that would cost a step. Keeping it there would slow the hand down.
 
@@ -34,12 +34,12 @@ On any of its first 8 turns, it checks for 8 tiles of a hand worth 7 faan or mor
 
 If more than one qualifies, it takes the highest of faan less 1.25 for each step away. Half Flush and Seven Pairs alone are worth less than 7, so they don't lock.
 
-Once locked, other number tiles go first, then honors outside the hand. The hand's own tiles go only when nothing else is left. A win that's offered is always taken, even on a smaller hand than the one it locked onto. The exceptions to keeping the tiles:
+Once locked, other number tiles go first, then honors outside the hand. The hand's own tiles go only when nothing else is left, except that a lone dragon with three copies left outlasts them too. A win that's offered is always taken, even on a smaller hand than the one it locked onto. The exceptions to keeping the tiles:
 
 - A lone honor with no copies left still goes first, unless the hand is Thirteen Orphans, which needs it.
 - On a hand of sets, a lone tile with no copies left goes along with the tiles outside the hand.
 
-The lock ends only when the hand can't be won: it has fewer than 8 of the tiles, a meld rules it out, no tile would help, or the wall is too short. It can lock again on a later turn only within the first 8. A saved game doesn't record the lock, so after a reload it's read again from the tiles held, and past turn 8 that can differ from the original read.
+The lock ends only when the hand can't be won: it has fewer than 8 of the tiles, a meld rules it out, no tile would help, or the wall is too short. It can lock again on a later turn only within the first 8. A saved game replays the bots' turns, so they come back on the same lock. The coach's read of your own hand isn't saved, so after a reload it's read again from your tiles, and past turn 8 that can differ.
 
 ## Claims
 

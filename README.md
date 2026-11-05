@@ -148,6 +148,7 @@ Every bot plays a named strategy, built on the shared foundation in `js/mahjong-
 | **jorge-yau** | `js/mahjong-jorge-yau.js` | Reads the opening hand and builds toward one target hand | [jorge-yau.md](docs/strategies/jorge-yau.md) |
 | **only-orphans** | `js/mahjong-only-orphans.js` | Goes for Thirteen Orphans every hand, then pivots to a hand of 1s, 9s and honors | [only-orphans.md](docs/strategies/only-orphans.md) |
 | **no-defense** | `js/mahjong-no-defense.js` | Never folds or minds what it feeds, keeps honors, and locks onto a hand worth 7 faan or more | [no-defense.md](docs/strategies/no-defense.md) |
+| **base** | `js/mahjong-bot.js` | Plays the fundamentals: keeps options wide, commits to a plan, and pivots only with a reason | [shared rules](docs/strategies/README.md) |
 
 - The **Strategies** button in the top bar (`js/mahjong-strategies.js`) describes each one and lets you pick a strategy for each bot seat and for the coach
 - Picks are saved in `localStorage` (`lcm-play-strategies`). A bot seat with nothing saved plays a random strategy each game, and the coach defaults to lucky-cat
