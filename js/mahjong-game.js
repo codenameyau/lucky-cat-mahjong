@@ -591,6 +591,7 @@
     var regions = [];
     var hover = null;
     var historyDrag = null;
+    var resultsDrag = null;
     // Face-up tiles drawn this frame (screen boxes) and the mouse position,
     // for the tile-name tooltip.
     var tileSpots = [], tipsOn = true, mouse = null, tipTile = null;
@@ -632,6 +633,7 @@
       oppHand: [null, null, null, null],
       overlay: null,
       revealHands: false, // after Show hands, every concealed hand is face up
+      resultsOpen: false, // the end-of-game results sheet is up
       heldSummary: null, // the results panel, while those hands stay open
       youIcon: null, // where your person icon was drawn
       headerMark: [null, null, null, null], // name row: icon and where the score sits beside it
@@ -1120,8 +1122,9 @@
       var inner = pond;
       var zones = best.zones, center = best.center, zoneFrames = best.frames, pw = best.pw, pondCols = best.cols;
       // The coach's column runs from the top player's panel down to the
-      // bottom of yours, so those three edges line up. Results are not
-      // parked here: they open from the center square.
+      // bottom of yours, so those three edges line up. On a desktop the
+      // results table takes the top of that column and the coach keeps the
+      // rest. Playback leaves the column to the coach.
       var historyBottom = meBox.y + meBox.h;
       var history = historyW ? {
         x: ox + tableW + historyGap,
@@ -1130,6 +1133,24 @@
         h: historyBottom - opp[2].y,
       } : null;
       var results = null;
+      if (desktop && history && !settings.playback && !settings.review) {
+        if (ui.coach === 'off') {
+          // The coach's notes and the recommendations are hidden, so the
+          // results take the column.
+          results = { x: history.x, y: history.y, w: history.w, h: history.h };
+          history = null;
+        } else {
+          var resultsGap = 8;
+          var coachMin = 140;
+          // A bit under a third of the screen, so the coach below it has the room.
+          var resultsH = Math.round(H / 3.5);
+          var room = history.h - resultsGap;
+          if (room < coachMin + 96) resultsH = Math.max(48, Math.round(room * 0.46));
+          else if (resultsH > room - coachMin) resultsH = room - coachMin;
+          results = { x: history.x, y: history.y, w: history.w, h: resultsH };
+          history = { x: history.x, y: history.y + resultsH + resultsGap, w: history.w, h: room - resultsH };
+        }
+      }
 
       return {
         pad: pad, topH: topH, portrait: portrait, ox: ox, tableW: tableW, history: history,
@@ -1410,7 +1431,12 @@
       if (!game || !game.hand) {
         drawTopBar();
         if (settings.playback) drawPlaybackPrompt();
-        // (A finished game restored after a refresh has no hand to draw.)
+        // A finished hand restored on its results has no tiles to draw.
+        // The scoring column and the coach notes stay beside that panel.
+        if (ui.overlay && ui.overlay.type === 'summary') {
+          drawResults();
+          drawCoachHistory();
+        }
         if (ui.overlay) drawOverlay(t);
         return;
       }
@@ -1419,6 +1445,7 @@
       [1, 2, 3].forEach(function (s) { drawOpponent(s, t); });
       drawMe(t);
       drawHintBand();
+      drawResults();
       drawCoachHistory();
       drawStrategyPanel();
       drawActions();
@@ -2003,7 +2030,8 @@
     }
 
     /* ---------------- results sheet ---------------- */
-    // Opened from the center square on the table. The side column is the coach.
+    // The desktop column shows the same rows. This sheet opens from the
+    // center square, and at the end of a full game.
 
     function resultsSheet() {
       return document.getElementById('results-sheet');
@@ -2018,13 +2046,16 @@
     function resultLines(row, seat) {
       var faan = row.faan[seat] || 0;
       var points = row.points[seat] || 0;
+      // A full game's total is the score, starting from the opening stake.
+      var stake = row.stake || 0;
+      var delta = stake ? points - stake : points;
       return {
         faan: (faan ? signed(faan) : '0') + ' faan',
-        points: points ? signed(points) : '0',
+        points: stake ? (points < 0 ? '−' + fmt(-points) : fmt(points)) : (points ? signed(points) : '0'),
         scored: faan > 0,
         faanLoss: faan < 0,
-        gain: points > 0,
-        loss: points < 0,
+        gain: delta > 0,
+        loss: delta < 0,
       };
     }
 
@@ -2037,7 +2068,14 @@
           points[seat] += row.points[seat] || 0;
         }
       });
-      return { faan: faan, points: points };
+      // Full game: everyone is dealt 2,000, then each hand's points are added.
+      var stake = 0;
+      if (showsPoints()) {
+        var opening = game && game.settings && game.settings.startPoints;
+        stake = typeof opening === 'number' ? opening : E.START_POINTS;
+        for (var seat = 0; seat < 4; seat++) points[seat] += stake;
+      }
+      return { faan: faan, points: points, stake: stake };
     }
 
     function fillResults() {
@@ -2056,8 +2094,9 @@
       table.className = 'results-table';
       var caption = document.createElement('caption');
       caption.className = 'visually-hidden';
+      var total = resultsTotal();
       caption.textContent = showsPoints()
-        ? 'Faan and points each player gained or lost, one row per hand.'
+        ? 'Faan and points each player gained or lost, one row per hand. The total starts each player at ' + fmt(total.stake) + '.'
         : 'Faan each player gained or lost, one row per hand.';
       table.appendChild(caption);
       var thead = document.createElement('thead');
@@ -2124,7 +2163,7 @@
       totalHead.scope = 'row';
       totalHead.textContent = 'Total';
       totalRow.appendChild(totalHead);
-      resultCells(resultsTotal()).forEach(function (td) { totalRow.appendChild(td); });
+      resultCells(total).forEach(function (td) { totalRow.appendChild(td); });
       foot.appendChild(totalRow);
       table.appendChild(foot);
       body.appendChild(table);
@@ -2147,16 +2186,26 @@
 
     // The hand just finished, or a replay already saved from it.
     function appendReplayButton(body) {
-      if (!game || !game.over || (!currentReplay() && !storedReplay())) return;
+      if (!game || !game.over) return;
       var row = document.createElement('div');
       row.className = 'results-actions';
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'results-replay';
-      btn.textContent = 'View replay';
-      btn.addEventListener('click', viewReplay);
-      row.appendChild(btn);
-      body.appendChild(row);
+      if (game.hand) {
+        var hands = document.createElement('button');
+        hands.type = 'button';
+        hands.className = 'results-hands';
+        hands.textContent = 'See hands';
+        hands.addEventListener('click', seeMatchHands);
+        row.appendChild(hands);
+      }
+      if (currentReplay() || storedReplay()) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'results-replay';
+        btn.textContent = 'View replay';
+        btn.addEventListener('click', viewReplay);
+        row.appendChild(btn);
+      }
+      if (row.childNodes.length) body.appendChild(row);
     }
 
     // The playback page is another document, so the file has to outlive this one.
@@ -2181,14 +2230,69 @@
       return url.pathname + url.search;
     }
 
+    // A discard or robbed-kong win is not in the concealed hand. Remember it
+    // so See hands can put that tile back.
+    function noteFinishedWin() {
+      var trace = game.hand && game.hand.trace;
+      if (!trace) return;
+      var win = null;
+      for (var i = trace.length - 1; i >= 0; i--) if (trace[i].a === 'win') { win = trace[i]; break; }
+      if (!win) return;
+      if (!game.hand.review) game.hand.review = { mark: null, win: win };
+      else if (!game.hand.review.win) game.hand.review.win = win;
+    }
+
+    // The results sheet of a finished match keeps a signed playback, so a
+    // refresh can put that hand back on the table.
+    function saveMatchPlayback() {
+      if (!game || !game.over || settings.playback) return;
+      noteFinishedWin();
+      var file = currentReplay();
+      if (file) writeJson(REPLAY_KEY, file);
+    }
+
+    // The dealt hand, played to its last move. The save itself keeps no tiles.
+    function showFinalMatch() {
+      if (!game || !game.over) return false;
+      if (game.hand) { noteFinishedWin(); return true; }
+      var stored = storedReplay();
+      if (!stored) return false;
+      try {
+        var played = E.playbackGame(stored.payload);
+        if (!played || !played.hand) return false;
+        game.hand = played.hand;
+        return true;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    // While this is true, closing the sheet (to look at the hands) is not
+    // leaving the results page.
+    var resultsStay = false;
+
+    function markResultsOpen(open) {
+      if (!game || !game.over || settings.playback) return;
+      ui.resultsOpen = !!open;
+      if (root.history && root.history.replaceState) {
+        var url = new URL(root.location.href);
+        if (open) url.searchParams.set('results', '1');
+        else url.searchParams.delete('results');
+        root.history.replaceState(root.history.state, '', url.pathname + url.search);
+      }
+      autosave(true);
+    }
+
     function openResults() {
       var dlg = resultsSheet();
       // The game-over standings sit under this sheet, so they must not block it.
       if (!dlg || dlg.open || !game) return;
       if (ui.overlay && ui.overlay.type !== 'gameover') return;
       pinnedTip = null;
+      if (game.over) saveMatchPlayback();
       fillResults();
       if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+      if (game.over) markResultsOpen(true);
       track('play_open_results', {});
     }
 
@@ -3779,9 +3883,10 @@
       }
       var bx = cx - row / 2;
       var by = r.y + r.h - SUMMARY_PAD - 42;
-      // Show hands leaves this panel without dealing. Next hand is the only way on.
-      button('Show hands', bx, by, handsW, 42, showHands, 'white', 'show-hands');
-      button(label, bx + handsW + gap, by, nextW, 42, nextHand, 'primary', 'next');
+      // Show hands leaves this panel without dealing, and only while the
+      // finished hand is still on the table. Next hand is the only way on.
+      if (game && game.hand) button('Show hands', bx, by, handsW, 42, showHands, 'white', 'show-hands');
+      button(label, game && game.hand ? bx + handsW + gap : cx - nextW / 2, by, nextW, 42, nextHand, 'primary', 'next');
       ctx.restore();
       regions.slice(firstRegion).forEach(function (g) {
         g.x = W / 2 + (g.x - W / 2) * k;
@@ -3818,9 +3923,12 @@
 
     // A save holds no hidden tiles: the game as the hand began, the hand's
     // seed and your moves (MahjongEngine.gameRecord), plus the table's own
-    // strategies, stats, finished-hand results and the newest coach notes.
-    // It is signed, and resuming deals the hand from its seed and plays it
-    // again up to your next move.
+    // strategies, stats and finished-hand results. The coach's notes are
+    // not stored. Resuming works them out again from the hand.
+    // While the hand's results are up, it also keeps that panel, so a
+    // refresh shows it again and deals the next hand only after Next hand.
+    // It is signed, and resuming a hand in progress deals it from its seed
+    // and plays it again up to your next move.
     function savePayload() {
       return {
         savedAt: new Date().toISOString(),
@@ -3828,7 +3936,53 @@
         strategies: ui.strategies,
         stats: ui.stats,
         results: ui.results,
-        coachLog: (ui.coachLog || []).slice(-COACH_LOG_SAVE),
+        summary: pendingSummary,
+        resultsOpen: !!ui.resultsOpen,
+      };
+    }
+
+    // The results panel, as stored. A win keeps the tiles, patterns and
+    // payouts that panel draws. Anything else is dropped, and a refresh
+    // then deals the next hand as before.
+    function keptSummary(raw) {
+      if (!raw || !raw.result) return null;
+      var res = raw.result;
+      var extra = typeof raw.extra === 'string' ? raw.extra : null;
+      if (res.type === 'draw') return { result: { type: 'draw' }, extra: extra };
+      if (res.type !== 'win' || typeof res.winner !== 'number' || res.winner < 0 || res.winner > 3) return null;
+      if (!res.score || !Array.isArray(res.score.items)) return null;
+      var hows = { discard: 1, selfDraw: 1, robKong: 1, flowers: 1 };
+      var tiles = function (list) {
+        return Array.isArray(list) ? list.filter(function (id) { return typeof id === 'string'; }) : [];
+      };
+      var nums = function (list) {
+        return [0, 1, 2, 3].map(function (i) { return Array.isArray(list) ? +list[i] || 0 : 0; });
+      };
+      return {
+        result: {
+          type: 'win',
+          winner: res.winner,
+          payer: typeof res.payer === 'number' && res.payer >= 0 && res.payer <= 3 ? res.payer : null,
+          tile: typeof res.tile === 'string' ? res.tile : null,
+          how: hows[res.how] ? res.how : 'discard',
+          score: {
+            faan: +res.score.faan || 0,
+            points: +res.score.points || 0,
+            items: res.score.items.filter(function (it) { return it && typeof it.name === 'string'; }).map(function (it) {
+              return { name: it.name, faan: +it.faan || 0 };
+            }),
+          },
+          deltas: nums(res.deltas),
+          after: nums(res.after),
+          concealed: tiles(res.concealed),
+          melds: Array.isArray(res.melds) ? res.melds.filter(function (m) { return m && typeof m.type === 'string'; }).map(function (m) {
+            return { type: m.type, tiles: tiles(m.tiles), concealed: !!m.concealed };
+          }) : [],
+          flowers: tiles(res.flowers),
+          seatWind: +res.seatWind || 1,
+          round: +res.round || 1,
+        },
+        extra: extra,
       };
     }
 
@@ -3853,20 +4007,33 @@
       ui.resultsStick = true;
     }
 
-    // Keeps the game in local storage as it goes (AUTOSAVE_KEY): after the
-    // events of each move, at the start of each hand and between hands.
-    // Not while a loaded hand is being played again.
+    // Keeps the game in local storage as it goes (AUTOSAVE_KEY): after each
+    // move, and when a hand's results go up. Not while a loaded hand is
+    // being played again. A newer save drops one that is still being signed,
+    // so leaving the results can't be overwritten by the copy taken while
+    // they were up.
     var autosaveTimer = null;
-    function autosave() {
+    var autosaveGen = 0;
+    var pendingSummary = null;
+    function autosave(immediate) {
       if (settings.lesson || settings.playback) return;
       if (!game || ui.replaying || destroyed) return;
       clearTimeout(autosaveTimer);
-      autosaveTimer = setTimeout(function () {
-        if (!game || ui.replaying || destroyed) return;
+      // The win and the draw fire as soon as the hand is finished. Saving
+      // then stores no hand and no summary, and a refresh deals the next
+      // one. Leave the last move's save in place. The results are saved
+      // once the summary is stored, and the next hand's save is the one
+      // after Next hand.
+      if (!immediate && game.hand && game.hand.result && !pendingSummary) return;
+      var gen = ++autosaveGen;
+      var write = function () {
+        if (gen !== autosaveGen || !game || ui.replaying || destroyed) return;
         E.makeSave(savePayload()).then(function (data) {
-          if (!destroyed) writeJson(AUTOSAVE_KEY, data);
+          if (gen === autosaveGen && !destroyed) writeJson(AUTOSAVE_KEY, data);
         }, function () {});
-      }, 250);
+      };
+      if (immediate) write();
+      else autosaveTimer = setTimeout(write, 250);
     }
 
     // Restarting throws the match away, so it takes a second tap.
@@ -3973,8 +4140,31 @@
     }
 
     function seeResults() {
-      if (!ui.heldSummary || ui.overlay) return;
-      ui.overlay = ui.heldSummary;
+      if (ui.heldSummary && !ui.overlay) {
+        ui.overlay = ui.heldSummary;
+        requestRender();
+        return;
+      }
+      if (game && game.over) {
+        ui.revealHands = false;
+        ui.overlay = { type: 'gameover' };
+        openResults();
+        requestRender();
+      }
+    }
+
+    // Face-up hands of the finished match. See results brings the sheet back.
+    function seeMatchHands() {
+      if (!game || !game.hand || !game.over) return;
+      noteFinishedWin();
+      resultsStay = true;
+      var dlg = resultsSheet();
+      if (dlg && dlg.open) { if (dlg.close) dlg.close(); else dlg.removeAttribute('open'); }
+      ui.overlay = null;
+      ui.revealHands = true;
+      ui.botLift = null;
+      sound.play('flip');
+      announce('All four hands are face up.');
       requestRender();
     }
 
@@ -4202,8 +4392,115 @@
       return { x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom };
     }
 
+    function deltaColor(n) {
+      if (n > 0) return COLORS.goldLight;
+      if (n < 0) return COLORS.redLight;
+      return 'rgba(255,248,240,0.55)';
+    }
+
+    // Finished hands, above the coach. The newest row stays in view until
+    // the player scrolls up.
+    function drawResults() {
+      var r = L.results;
+      if (!r) return;
+      ctx.save();
+      roundRect(ctx, r.x, r.y, r.w, r.h, 6);
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.fill();
+      ctx.restore();
+      text('Results', r.x + 14, r.y + 18, { size: 14, weight: 'bold', family: FONT_HEAD, color: COLORS.cream });
+
+      var pad = 10;
+      var handW = 44;
+      var viewX = r.x + pad;
+      var viewW = r.w - pad * 2;
+      var playerW = (viewW - handW) / 4;
+      var headerY = r.y + 40;
+      text('Hand', viewX + handW / 2, headerY, { size: 11, weight: 'bold', align: 'center', color: COLORS.white });
+      for (var seat = 0; seat < 4; seat++) {
+        var name = seatTitle(seat);
+        var iconS = 13;
+        var nameMax = playerW - 6 - iconS - 4;
+        var nameSize = fitFont(ctx, name, Math.max(24, nameMax), 12, FONT_BODY, 'bold');
+        ctx.font = 'bold ' + nameSize + 'px ' + FONT_BODY;
+        var nameW = ctx.measureText(name).width;
+        var left = viewX + handW + playerW * seat + (playerW - nameW - iconS - 4) / 2;
+        text(name, left, headerY, { size: nameSize, weight: 'bold', color: COLORS.white });
+        playerIcon(seat, left + nameW + 4, iconCy(seat, paintedBottom(name, headerY), iconS), iconS, COLORS.white);
+      }
+
+      var bodyY = r.y + 54;
+      var bodyH = r.h - 62;
+      var rowH = 36;
+      var rows = ui.results;
+      var pay = showsPoints();
+      var contentH = (rows.length + (rows.length ? 1 : 0)) * rowH;
+      ui.resultsScrollMax = Math.max(0, contentH - bodyH);
+      if (ui.resultsStick) ui.resultsScroll = ui.resultsScrollMax;
+      ui.resultsScroll = clamp(ui.resultsScroll, 0, ui.resultsScrollMax);
+      var scrollW = ui.resultsScrollMax > 0 ? 8 : 0;
+
+      function drawResultRow(row, y, label, isDraw, isTotal) {
+        if (y + rowH < bodyY || y > bodyY + bodyH) return;
+        roundRect(ctx, viewX, y + 1, viewW - scrollW, rowH - 2, 3);
+        ctx.fillStyle = isTotal ? 'rgba(0,0,0,0.34)' : 'rgba(0,0,0,0.18)';
+        ctx.fill();
+        var mid = y + rowH / 2;
+        var labelSize = fitFont(ctx, label, handW - 4, 13, FONT_BODY, 'bold');
+        text(label, viewX + handW / 2, isDraw ? mid - 6 : mid, { size: labelSize, weight: 'bold', align: 'center', color: COLORS.white });
+        if (isDraw) text('Draw', viewX + handW / 2, mid + 8, { size: 10, align: 'center', color: COLORS.white });
+        for (var s = 0; s < 4; s++) {
+          var lines = resultLines(row, s);
+          var cx = viewX + handW + playerW * s + playerW / 2;
+          var faanSize = fitFont(ctx, lines.faan, playerW - 4, 11, FONT_BODY, lines.scored || lines.faanLoss ? 'bold' : '');
+          text(lines.faan, cx, pay ? mid - 7 : mid, {
+            size: faanSize,
+            weight: lines.scored || lines.faanLoss ? 'bold' : '',
+            align: 'center',
+            color: lines.faanLoss ? COLORS.redLight : lines.scored ? COLORS.cream : 'rgba(255,248,240,0.55)',
+          });
+          if (!pay) continue;
+          var pointSize = fitFont(ctx, lines.points, playerW - 4, 12, FONT_BODY, 'bold');
+          var pointDelta = row.stake ? row.points[s] - row.stake : row.points[s];
+          text(lines.points, cx, mid + 8, { size: pointSize, weight: 'bold', align: 'center', color: deltaColor(pointDelta) });
+        }
+      }
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(viewX, bodyY, viewW, bodyH);
+      ctx.clip();
+      if (!rows.length) {
+        var empty = 'Finished hands show up here.';
+        var emptySize = fitFont(ctx, empty, viewW - 8, 13, FONT_BODY);
+        text(empty, viewX + 4, bodyY + 16, { size: emptySize, color: 'rgba(255,248,240,0.5)' });
+      }
+      var y = bodyY - ui.resultsScroll;
+      rows.forEach(function (row) {
+        drawResultRow(row, y, String(row.hand), row.draw, false);
+        y += rowH;
+      });
+      if (rows.length) drawResultRow(resultsTotal(), y, 'Total', false, true);
+      ctx.restore();
+
+      if (ui.resultsScrollMax > 0) {
+        var trackX = r.x + r.w - 8;
+        var thumbH = Math.max(28, bodyH * (bodyH / (bodyH + ui.resultsScrollMax)));
+        var thumbY = bodyY + (bodyH - thumbH) * (ui.resultsScroll / ui.resultsScrollMax);
+        roundRect(ctx, trackX, thumbY, 4, thumbH, 2);
+        ctx.fillStyle = 'rgba(255,248,240,0.45)';
+        ctx.fill();
+      }
+    }
+
     function historyAt(p) {
       var r = L && L.history;
+      if (!r || !p) return false;
+      return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+    }
+
+    function resultsAt(p) {
+      var r = L && L.results;
       if (!r || !p) return false;
       return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
     }
@@ -4214,9 +4511,20 @@
       requestRender();
     }
 
+    function scrollResults(next) {
+      ui.resultsScroll = clamp(next, 0, ui.resultsScrollMax);
+      ui.resultsStick = ui.resultsScroll >= ui.resultsScrollMax - 12;
+      requestRender();
+    }
+
     function onWheel(e) {
       var p = pointerPos(e);
       var dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      if (resultsAt(p) && ui.resultsScrollMax > 0) {
+        e.preventDefault();
+        scrollResults(ui.resultsScroll + dy);
+        return;
+      }
       if (!historyAt(p) || ui.coachScrollMax <= 0) return;
       e.preventDefault();
       scrollHistory(ui.coachScroll + dy);
@@ -4243,6 +4551,14 @@
       if (see) {
         e.preventDefault();
         see.onTap();
+        return;
+      }
+      if (resultsAt(p)) {
+        if (ui.resultsScrollMax > 0) {
+          resultsDrag = { y: p.y, scroll: ui.resultsScroll, id: e.pointerId };
+          if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
+        }
+        e.preventDefault();
         return;
       }
       if (historyAt(p)) {
@@ -4276,6 +4592,12 @@
         canvas.style.cursor = 'pointer';
         return;
       }
+      if (resultsDrag && e.pointerId === resultsDrag.id) {
+        var draggedResults = pointerPos(e);
+        scrollResults(resultsDrag.scroll + (resultsDrag.y - draggedResults.y));
+        canvas.style.cursor = 'grabbing';
+        return;
+      }
       if (historyDrag && e.pointerId === historyDrag.id) {
         var dragged = pointerPos(e);
         scrollHistory(historyDrag.scroll + (historyDrag.y - dragged.y));
@@ -4284,8 +4606,8 @@
       }
       if (e.pointerType && e.pointerType !== 'mouse') return;
       var p = pointerPos(e);
-      if (historyAt(p) && !seeResultsHit(p)) {
-        canvas.style.cursor = ui.coachScrollMax > 0 ? 'grab' : 'default';
+      if ((resultsAt(p) || historyAt(p)) && !seeResultsHit(p)) {
+        canvas.style.cursor = (resultsAt(p) ? ui.resultsScrollMax > 0 : ui.coachScrollMax > 0) ? 'grab' : 'default';
         mouse = p;
         if (hover || tipSeat !== null) { hover = null; requestRender(); }
         return;
@@ -4304,6 +4626,7 @@
         reviewScrub = 0;
         announce(reviewSpoken());
       }
+      if (resultsDrag && e.pointerId === resultsDrag.id) resultsDrag = null;
       if (historyDrag && e.pointerId === historyDrag.id) historyDrag = null;
     }
 
@@ -5389,6 +5712,9 @@
         ui.stats = p.stats || ui.stats;
         ui.results = keptResults(p.results);
         ui.coachLog = p.coachLog || [];
+        pendingSummary = p.game.hand ? null : keptSummary(p.summary);
+        ui.resultsOpen = !!p.resultsOpen;
+        ui.coachLog = [];
         if (p.game.hand) {
           ui.replaying = true;
           replay = { seed: p.game.hand.seed, replay: p.game.hand.moves, onReplayEnd: replayDone };
@@ -5412,14 +5738,36 @@
         speed: settings.speed, coach_strategy: ui.strategies.coach,
         strategies: ui.strategies.seats.slice(1).join(','),
       });
-      var showSavedResults = consumeResultsRequest();
-      if (game.over) {
+      var showSavedResults = consumeResultsRequest() || !!ui.resultsOpen;
+      if (game.over && !pendingSummary) {
+        showFinalMatch();
         ui.overlay = { type: 'gameover' };
+        L = computeLayout();
         requestRender();
         if (showSavedResults) openResults();
         return;
       }
       autosave();
+      if (pendingSummary) {
+        var held = pendingSummary;
+        await showOverlay({ type: 'summary', result: held.result, extra: held.extra });
+        if (destroyed) return;
+        pendingSummary = null;
+        autosave(true); // Next hand was pressed: this is the next deal
+        if (settings.lesson) {
+          callbacks.quit();
+          return;
+        }
+        if (game.over) {
+          track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins });
+          showFinalMatch();
+          L = computeLayout();
+          ui.overlay = { type: 'gameover' };
+          requestRender();
+          openResults();
+          return;
+        }
+      }
       while (!destroyed) {
         var res = await E.runHand(game, agents, uiBridge, replay);
         replay = null;
@@ -5435,14 +5783,20 @@
         if (settings.lesson && res.type === 'win' && res.winner === 0) extra = 'You won a Half Flush on East Wind.';
         else if (res.roundAdvanced) extra = 'The round wind is now ' + E.WIND_NAMES[game.round] + '.';
         if (game.over) extra = 'That was the last deal of the game.';
-        autosave(); // between hands: a refresh deals the next one
+        pendingSummary = keptSummary({ result: res, extra: extra });
+        autosave(true); // a refresh returns to these results until Next hand
         await showOverlay({ type: 'summary', result: res, extra: extra });
+        if (destroyed) return;
+        pendingSummary = null;
+        autosave(true); // Next hand was pressed: this is the next deal
         if (settings.lesson) {
           callbacks.quit();
           return;
         }
         if (game.over) {
           track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins });
+          showFinalMatch();
+          L = computeLayout();
           ui.overlay = { type: 'gameover' };
           requestRender();
           openResults();
@@ -5494,7 +5848,11 @@
       if (!dlg) return;
       dlg.querySelector('.rules-sheet-close').addEventListener('click', closeResults);
       dlg.addEventListener('click', function (e) { if (e.target === dlg) closeResults(); });
-      dlg.addEventListener('close', function () { canvas.focus(); });
+      dlg.addEventListener('close', function () {
+        canvas.focus();
+        if (resultsStay) { resultsStay = false; return; }
+        markResultsOpen(false);
+      });
     })();
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);

@@ -730,17 +730,38 @@ html.is-playing.is-sideways body {
   color: rgba(255, 248, 240, 0.75);
 }
 
-.results-actions { margin: 8px 0 2px; }
+.results-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 2px;
+}
 
+.results-hands,
 .results-replay {
   padding: 8px 18px;
   border: 0;
   border-radius: 999px;
-  background: #F4A020;
-  color: #1A1A1A;
   font: inherit;
   font-weight: bold;
   cursor: pointer;
+}
+
+.results-hands {
+  background: #fff8f0;
+  color: #1a1a1a;
+}
+
+.results-hands:hover { filter: brightness(0.97); }
+
+.results-hands:focus-visible {
+  outline: 2px solid #ffd27a;
+  outline-offset: 2px;
+}
+
+.results-replay {
+  background: #F4A020;
+  color: #1A1A1A;
 }
 
 .results-replay:hover { filter: brightness(1.05); }
