@@ -50,6 +50,11 @@
         one they feed wins (leftRead, avoidSuit, suitLean).
      J. never aim for a chicken hand: a plain hand is only a plan once it
         has the minimum faan already (aimablePlans).
+     K. the player after you (on your right, the only one who can chow
+        your discard) is read by the fifth discard, and a chow of theirs
+        locks that suit at once (afterRead). Their suit is not fed. Each
+        chow or pung they show holds it longer, and when the hand can use
+        it the flush pivots onto it. Late, the tile that wins for them waits.
      Apart from the lone dragon, the keep-pairs and keep-dragons orders never cost a step toward ready,
      and while folding, safety decides and they only break ties.
 
@@ -132,6 +137,50 @@
     return { seat: o, keeps: keeps, feeds: feeds };
   }
 
+  // The player after you (on your right: the only one who can chow your
+  // discard). A chow in one number suit locks that suit immediately: they
+  // need it to win. Otherwise, by the fifth discard, a suit they haven't
+  // thrown while the others have gone is the one they're keeping. Each
+  // chow or pung of that suit (`melds`) holds it more tightly.
+  function afterRead(game, seat) {
+    var o = (seat + 1) % 4;
+    var s = game.hand.seats[o];
+    var n = s.discards.length;
+    var by = { c: 0, d: 0, b: 0 };
+    s.discards.forEach(function (d) {
+      var su = E.suitOfIndex(E.tileIndex(d.tile));
+      if (by[su] !== undefined) by[su]++;
+    });
+    var danger = { c: 0, d: 0, b: 0 };
+    var chowSuits = {};
+    s.melds.forEach(function (m) {
+      var su = meldSuit(m);
+      if (su === 'z') return;
+      danger[su]++;
+      if (m.type === 'chow') chowSuits[su] = true;
+    });
+    var chowList = Object.keys(chowSuits);
+    var numberSuits = SUIT_LETTERS.filter(function (su) { return danger[su]; });
+    var keeps = null;
+    var locked = false;
+    if (chowList.length === 1 && numberSuits.length === 1) {
+      keeps = chowList[0];
+      locked = true;
+    }
+    if (!keeps && numberSuits.length <= 1 && n >= 5) {
+      SUIT_LETTERS.forEach(function (su) {
+        if (keeps) return;
+        if (numberSuits.length && numberSuits[0] !== su) return;
+        var others = SUIT_LETTERS.filter(function (x) { return x !== su; });
+        var otherThrown = others.reduce(function (m, x) { return m + by[x]; }, 0);
+        var clear = by[su] === 0 && otherThrown >= 3 && others.some(function (x) { return by[x] >= 2; });
+        var sixth = n >= 6 && by[su] <= Math.floor(n * 0.1) && others.every(function (x) { return by[x] >= 2; });
+        if (clear || sixth) keeps = su;
+      });
+    }
+    return { seat: o, keeps: keeps, locked: locked, melds: keeps ? danger[keeps] : 0 };
+  }
+
   // Tiles per number suit, counting sets already made (3 each).
   function suitCounts(counts, ctx) {
     var out = {};
@@ -167,11 +216,19 @@
   // two suits a tile apart, the read decides.
   var LEAN_AWAY = 0.6, LEAN_TOWARD = 1.5;
   function suitLean(plan, ctx) {
-    var read = ctx.leftRead;
     var lean = ownLean(plan, ctx);
-    if (!read || !plan.suit || !/^(half|full)-/.test(plan.id)) return lean;
-    if (plan.suit === read.keeps) return lean * LEAN_AWAY;
-    if (plan.suit === read.feeds) return lean * LEAN_TOWARD;
+    if (!plan.suit || !/^(half|full)-/.test(plan.id)) return lean;
+    var read = ctx.leftRead;
+    if (read) {
+      if (plan.suit === read.keeps) lean *= LEAN_AWAY;
+      else if (plan.suit === read.feeds) lean *= LEAN_TOWARD;
+    }
+    // The player after you can chow this suit, so a flush in it is a way
+    // to keep the tiles. It never overrides the left player's suit.
+    var after = ctx.afterRead;
+    if (after && after.keeps === plan.suit && (!read || read.keeps !== plan.suit)) {
+      lean *= 1 + 0.2 * (1 + after.melds) + (after.locked ? 0.25 : 0);
+    }
     return lean;
   }
 
@@ -221,6 +278,7 @@
     ctx.slope = valueSlope(game, seat);
     ctx.isDealer = seat === game.dealer;
     ctx.leftRead = leftRead(game, seat);
+    ctx.afterRead = afterRead(game, seat);
     ctx.ownRead = readOwnDiscards(s.discards);
     ctx.track = readTable(game, seat, ctx.unseen);
     ctx.hazard = 1 - opponentThreats(game, seat).reduce(function (m, t) {
@@ -802,7 +860,8 @@
       if (offSuit || su === avoid) return;
       var inHalf = function (i) { return E.suitOfIndex(i) === su || i >= 27; };
       var inFull = function (i) { return E.suitOfIndex(i) === su; };
-      var min = close(su) && (avoid || (read && read.feeds === su)) ? 6 : 7;
+      var afterKeep = ctx.afterRead && ctx.afterRead.keeps === su;
+      var min = close(su) && (avoid || (read && read.feeds === su) || afterKeep) ? 6 : 7;
       if (countWhere(c, inHalf) + setTiles(inHalf) >= 7) {
         plans.push({
           id: 'half-' + su, suit: su, label: 'a Half Flush in ' + SUIT_LABELS[su],
@@ -1591,6 +1650,21 @@
       t.pivot = read.pivot;
       t.collecting = read.collecting;
       t.isNext = t.seat === (seat + 1) % 4;
+      if (t.isNext) {
+        var after = afterRead(game, seat);
+        t.afterKeeps = after.keeps;
+        t.afterLocked = after.locked;
+        t.afterMelds = after.melds;
+        // A suit the sixth-discard read hasn't named yet still counts from
+        // the fifth, and every chow or pung of it makes those tiles hotter.
+        if (after.keeps) {
+          var boost = 1 + 0.35 * after.melds + (after.locked ? 0.25 : 0);
+          if (t.collecting !== after.keeps) boost += 0.45;
+          for (var w = 0; w < 27; w++) {
+            if (E.suitOfIndex(w) === after.keeps) t.want[w] = Math.min(WANT_MAX, t.want[w] * boost);
+          }
+        }
+      }
       t.ready = Math.min(0.93, t.ready * read.pace);
     });
     if (H.threats) H.threats(out, game, seat);
@@ -1633,9 +1707,16 @@
       if (r >= 2 && r <= 6) chance *= 1.1; // middle tiles connect the most
     }
     // Near the end, a suit an opponent has chowed in is one they're
-    // building: its tiles are more likely to finish their hand.
-    if (i < 27 && threat.chows[E.suitOfIndex(i)] && game.hand.wall.length < LATE_WALL) {
-      chance *= 1 + T.chowSuitLate * threat.chows[E.suitOfIndex(i)];
+    // building: its tiles are more likely to finish their hand. The player
+    // after you is the same once a chow locks the suit, and each further
+    // meld (a pung as well as a chow) makes the winning tile likelier.
+    if (i < 27 && game.hand.wall.length < LATE_WALL) {
+      var suLate = E.suitOfIndex(i);
+      var named = threat.chows[suLate] || 0;
+      if (threat.isNext && threat.afterKeeps === suLate) {
+        named = Math.max(named, threat.afterMelds || 0, threat.afterLocked ? 1 : 0);
+      }
+      if (named) chance *= 1 + T.chowSuitLate * named + (threat.isNext && threat.afterLocked ? 0.35 : 0);
     }
     if (threat.since[E.tileId(i)]) chance *= 0.15;
     else if (threat.discarded[E.tileId(i)]) chance *= 0.5;
@@ -1748,7 +1829,12 @@
     }
     var bestShanten = Math.min.apply(null, out.map(function (x) { return x.shanten; }));
     // The hand the best discard builds toward, for the shared one-suit rules.
-    var lead = out.reduce(function (m, x) { return !m || x.util > m.util ? x : m; }, null);
+    // suitLean is part of which discard is best: the player after you can
+    // pull a close flush onto the suit they need, so those tiles stay.
+    var leaned = function (x) {
+      return x.util * suitLean((x.analysis.best && x.analysis.best.plan) || {}, ctx);
+    };
+    var lead = out.reduce(function (m, x) { return !m || leaned(x) > leaned(m) ? x : m; }, null);
     ctx.leadPlan = (lead && lead.analysis.best && lead.analysis.best.plan) || null;
     ctx.leadReady = !!(lead && lead.analysis.best && lead.analysis.best.readyBest);
     var readyFaan = out.reduce(function (m, x) { return Math.max(m, x.analysis.ready ? x.analysis.ready.bestFaan : 0); }, 0);
@@ -1770,6 +1856,18 @@
       // Between close discards, keep the tile with the most copies still out there.
       if (!folding) x.score -= T.keepLive * topUtil * ctx.unseen[x.index];
       x.priority = upgradeOrder(ctx, c, x.index, discardPriority(game, ctx, c, x, bestShanten));
+      // Their suit is kept, more so with every meld they show and at the
+      // end of the hand, unless this discard is already building that suit.
+      var after = ctx.afterRead;
+      var plan = x.analysis.best && x.analysis.best.plan;
+      if (after && after.keeps && x.index < 27 && E.suitOfIndex(x.index) === after.keeps && !(plan && plan.suit === after.keeps)) {
+        var hold = 5 + after.melds + (after.locked ? 1 : 0);
+        if (ctx.wallLeft < LATE_WALL) hold += 2;
+        if (x.priority < hold) x.priority = hold;
+        var pressure = 0.006 * (1 + after.melds) * (after.locked ? 1.5 : 1);
+        if (ctx.wallLeft < LATE_WALL) pressure *= 2;
+        x.score -= pressure;
+      }
       // Keeping a pair or a dragon never costs a step toward ready: a discard
       // that leaves the hand slower waits behind every one that doesn't.
       // (A strategy's group below 0 goes first whatever it costs, but unlike
@@ -2041,6 +2139,7 @@
     loneDragon: loneDragon,
     aimablePlans: aimablePlans,
     leftRead: leftRead,
+    afterRead: afterRead,
     avoidSuit: avoidSuit,
     suitLean: suitLean,
     buildContext: buildContext,

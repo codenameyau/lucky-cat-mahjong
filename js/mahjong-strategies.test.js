@@ -260,6 +260,65 @@ describe('the player before you decides a close flush suit', () => {
   });
 });
 
+describe('the player after you is not fed the suit they need', () => {
+  const Base = require('./mahjong-bot.js');
+  const chow = (tiles) => ({ type: 'chow', tiles, concealed: false, from: 0 });
+  const bambooChow = chow(['b2', 'b3', 'b4']);
+  const bambooPung = { type: 'pung', tiles: ['b6', 'b6', 'b6'], concealed: false, from: 2 };
+  // Eight Dots, so the two spare tiles are both off that suit.
+  const hand = ['d2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9', 'c9', 'b9', 'we', 'ws', 'wn', 'dr'];
+  const five = ['c1', 'c9', 'd1', 'd4', 'wn'];
+  const wantBamboo = (discards) => {
+    const threats = Base.opponentThreats(table({ seats: [null, { discards }], wallLeft: 55 }), 0);
+    return threats.find((t) => t.seat === 1).want[E.tileIndex('b5')];
+  };
+
+  it('reads their suit by the fifth discard, and a chow locks it at once', () => {
+    assert.equal(Base.afterRead(table({ seats: [null, { discards: five.slice(0, 4) }] }), 0).keeps, null);
+    const read = Base.afterRead(table({ seats: [null, { discards: five }] }), 0);
+    assert.equal(read.seat, 1);
+    assert.equal(read.keeps, 'b');
+    assert.equal(read.locked, false);
+    assert.ok(wantBamboo(five) > wantBamboo(five.slice(0, 4)) * 1.3);
+    const locked = Base.afterRead(table({ seats: [null, { melds: [bambooChow] }] }), 0);
+    assert.deepEqual(
+      { keeps: locked.keeps, locked: locked.locked, melds: locked.melds },
+      { keeps: 'b', locked: true, melds: 1 },
+    );
+    const more = Base.afterRead(table({ seats: [null, { melds: [bambooChow, bambooPung] }] }), 0);
+    assert.equal(more.melds, 2);
+    assert.equal(more.locked, true);
+    const split = Base.afterRead(table({ seats: [null, { melds: [bambooChow, chow(['d2', 'd3', 'd4'])] }] }), 0);
+    assert.equal(split.keeps, null);
+  });
+
+  it('holds their suit behind another suit, and a pung holds it longer', () => {
+    const analyzed = (melds) => Base.analyzeDiscards(table({ seats: [{ hand }, { melds }], wallLeft: 50 }), 0);
+    const list = analyzed([bambooChow]).candidates;
+    assert.ok(list.findIndex((x) => x.tile === 'c9') < list.findIndex((x) => x.tile === 'b9'));
+    const pri = (melds) => analyzed(melds).candidates.find((x) => x.tile === 'b9').priority;
+    assert.ok(pri([bambooChow, bambooPung]) > pri([bambooChow]));
+  });
+
+  it('late, a safer tile goes before the suit they are winning on', () => {
+    const late = Base.analyzeDiscards(table({ seats: [{ hand }, { melds: [bambooChow] }], wallLeft: 20 }), 0).candidates;
+    assert.ok(late.findIndex((x) => x.tile === 'wn') < late.findIndex((x) => x.tile === 'b9'));
+  });
+
+  it('pivots onto their suit when the hand can use it', () => {
+    const even = ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7'];
+    const open = { hand: even, flowers: ['f4'] };
+    const chased = Base.analyzeDiscards(table({ seats: [open, { melds: [bambooChow] }] }), 0);
+    const top = chased.candidates[0];
+    assert.equal(E.suitOfIndex(E.tileIndex(top.tile)), 'd');
+    assert.equal(top.analysis.best.plan.suit, 'b');
+    assert.match(
+      Coach.turnHint(table({ seats: [open, { melds: [bambooChow] }] }), 0, { kongs: [] }).tips.join(' '),
+      /chow locks that suit, so keep it/,
+    );
+  });
+});
+
 describe('coach for a strategy', () => {
   it('speaks for the strategy it is given', () => {
     const hand = ['we', 'we', 'ws', 'ws', 'dr', 'dr', 'dg', 'dg', 'dw', 'c5', 'd4', 'b6', 'ww', 'wn'];
@@ -528,7 +587,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.20.0');
+    assert.equal(E.GAME_VERSION, '0.20.1');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
