@@ -499,6 +499,10 @@ describe('playback seed', () => {
     edited.moves = file.moves - 1;
     assert.match(E.checkPlayback(edited).reason, /changed or damaged/);
     assert.match(E.checkPlayback(E.playbackText(game, { seat: 0 })).reason, /isn't a playback file/);
+    const copied = E.checkPlayback(file.payload.handSeed + '\n' + JSON.stringify(file));
+    assert.equal(copied.ok, true);
+    assert.equal(copied.record.handSeed, file.payload.handSeed);
+    assert.equal(copied.record.actions.length, file.moves);
     const full = JSON.parse(JSON.stringify(checked.record));
     delete full.moves;
     const capped = JSON.parse(JSON.stringify(checked.record));

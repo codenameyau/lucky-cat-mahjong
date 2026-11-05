@@ -1287,11 +1287,21 @@
   }
 
   // { ok, reason, record }. `record.moves` is the last step the table may show.
+  // A signed file, or that file with its hand seed on the line above it.
+  function playbackFileFrom(input) {
+    if (input && typeof input === 'object') return input;
+    var raw = String(input || '').trim();
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch (e) {}
+    var nl = raw.indexOf('\n');
+    if (nl === -1 || !parseHandSeed(raw.slice(0, nl))) return null;
+    try { return JSON.parse(raw.slice(nl + 1)); } catch (e2) { return null; }
+  }
+
   function checkPlayback(input) {
-    var file = input;
-    if (typeof input === 'string') {
-      try { file = JSON.parse(String(input).trim()); }
-      catch (e) { return { ok: false, reason: 'That isn\'t a playback file. Upload a JSON playback file.' }; }
+    var file = playbackFileFrom(input);
+    if (typeof input === 'string' && !file) {
+      return { ok: false, reason: 'That isn\'t a playback file. Upload a JSON playback file.' };
     }
     if (!file || file.app !== PLAYBACK_APP || !file.payload) {
       return { ok: false, reason: 'That isn\'t a playback file. Upload a JSON playback file.' };
