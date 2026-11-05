@@ -298,8 +298,12 @@
     };
   }
 
+  function windOf(dealer, seat) {
+    return ((seat - dealer + 4) % 4) + 1;
+  }
+
   function seatWind(game, seat) {
-    return ((seat - game.dealer + 4) % 4) + 1;
+    return windOf(game.dealer, seat);
   }
 
   // Each hand's wall comes from its own seed (hand.seed), so a saved game
@@ -321,7 +325,12 @@
     });
     var h = {
       seed: seed,
+      // Winds as this hand was dealt. The deal can pass on before the hand
+      // object is replaced, and a playback seed still has to name these.
+      dealer: game.dealer,
+      round: game.round,
       moves: [], // the human player's decisions this hand, in order (see runHand)
+      trace: [], // every seat's draws, discards, and claims, for a playback seed
       wall: wall,
       seats: seats,
       turn: game.dealer,
@@ -719,6 +728,10 @@
     return Promise.resolve(ui.emit(name, data));
   }
 
+  function logAction(game, ev) {
+    if (game.hand && game.hand.trace) game.hand.trace.push(ev);
+  }
+
   function flowerWinCheck(game, seat) {
     var n = game.hand.seats[seat].flowers.length;
     if (n < 7) return null;
@@ -755,12 +768,14 @@
       var f = s.hand.splice(idx, 1)[0];
       s.flowers.push(f);
       await emit(ui, 'flower', { seat: seat, tile: f });
+      logAction(game, { a: 'flower', s: seat, t: f });
       n++;
       if (!game.hand.wall.length) break;
       var rep = game.hand.wall.pop();
       game.hand.backDrawn++;
       s.hand.push(rep);
       await emit(ui, 'draw', { seat: seat, tile: rep, replacement: true });
+      logAction(game, { a: 'draw', s: seat, t: rep, k: 'flower' });
     }
     return n;
   }
@@ -888,6 +903,7 @@
       if (needDraw) {
         if (!h.wall.length) {
           var dr = settleDraw(game);
+          logAction(game, { a: 'drawGame' });
           await emit(ui, 'drawGame', dr);
           return dr;
         }
@@ -895,6 +911,7 @@
         var t = drawTile(game, cur, fromBack);
         h.drawnTile = t;
         await emit(ui, 'draw', { seat: cur, tile: t, replacement: fromBack });
+        logAction(game, { a: 'draw', s: cur, t: t, k: fromBack ? 'kong' : 'wall' });
         if (await handleFlowers(game, cur, ui)) {
           h.drawnTile = h.seats[cur].hand[h.seats[cur].hand.length - 1];
           var fw2 = flowerWinCheck(game, cur);
@@ -911,6 +928,7 @@
         if (!action || (action.type === 'win' && !topts.win)) throw new Error('illegal turn action');
         if (action.type === 'win' && topts.win) {
           var resW = settleWin(game, cur, null, h.drawnTile, topts.win, 'selfDraw');
+          logAction(game, { a: 'win', s: cur, how: 'selfDraw', t: h.drawnTile });
           await emit(ui, 'win', resW);
           return resW;
         }
@@ -923,14 +941,17 @@
             if (rob && rob.decision.type === 'win') {
               removeTiles(h.seats[cur].hand, [kong.tile]);
               var resR = settleWin(game, rob.seat, cur, kong.tile, rob.opts.win, 'robKong');
+              logAction(game, { a: 'win', s: rob.seat, how: 'robKong', t: kong.tile, from: cur });
               await emit(ui, 'win', resR);
               return resR;
             }
           }
           applyKong(game, cur, kong);
+          logAction(game, { a: 'kong', s: cur, t: kong.tile, k: kong.kind });
           await emit(ui, 'kong', { seat: cur, tile: kong.tile, kind: kong.kind });
           if (!h.wall.length) {
             var dr2 = settleDraw(game);
+            logAction(game, { a: 'drawGame' });
             await emit(ui, 'drawGame', dr2);
             return dr2;
           }
@@ -948,6 +969,7 @@
         if (h.seats[cur].hand.indexOf(tile) === -1) throw new Error('illegal discard ' + tile);
         applyDiscard(game, cur, tile);
         discarded = tile;
+        logAction(game, { a: 'discard', s: cur, t: tile });
         await emit(ui, 'discard', { seat: cur, tile: tile });
       }
 
@@ -955,10 +977,15 @@
       if (claim && claim.decision.type === 'win') {
         markLastDiscardClaimed(game);
         var resD = settleWin(game, claim.seat, cur, discarded, claim.opts.win, 'discard');
+        logAction(game, { a: 'win', s: claim.seat, how: 'discard', t: discarded, from: cur });
         await emit(ui, 'win', resD);
         return resD;
       }
       if (claim) {
+        logAction(game, {
+          a: 'claim', s: claim.seat, from: cur, t: discarded, c: claim.decision.type,
+          tiles: claim.decision.tiles ? claim.decision.tiles.slice() : null,
+        });
         var meld = applyClaim(game, claim.seat, claim.decision);
         await emit(ui, 'claim', { seat: claim.seat, from: cur, type: claim.decision.type, meld: meld, tile: discarded });
         cur = claim.seat;
@@ -975,6 +1002,7 @@
 
   async function finishFlowerWin(game, seat, fw, ui) {
     var res = settleWin(game, seat, fw.payer, null, fw.score, 'flowers');
+    logAction(game, { a: 'win', s: seat, how: 'flowers' });
     await emit(ui, 'win', res);
     return res;
   }
@@ -1146,12 +1174,16 @@
   }
 
   /* ------------------------------------------------------------------ *
-   * 7c. Hand seeds
-   *    The text your wind badge copies: the hand's seed, then your seat
-   *    wind and the round wind as letters ("458555827-SE": South seat,
-   *    East round). The Points Guide calculator deals your starting hand
-   *    from it (dealtHand).
+   * 7c. Hand seeds and playback
+   *    A hand seed is the shuffle number plus your seat wind and the
+   *    round wind ("458555827-SE"). The Points Guide deals your starting
+   *    hand from it (dealtHand).
+   *    The wind badge stores a playback file: that record, signed with
+   *    the same HMAC as a save, so a changed file won't play. `moves` is
+   *    how far the table may go.
    * ------------------------------------------------------------------ */
+
+  var PLAYBACK_APP = 'lucky-cat-mahjong-playback';
 
   var WIND_LETTERS = ['', 'E', 'S', 'W', 'N'];
 
@@ -1179,6 +1211,230 @@
     for (var k = 0; k < 4; k++) replaceFlowers(game, k);
     var s = game.hand.seats[seat - 1];
     return { hand: sortTiles(s.hand.slice()), flowers: s.flowers.slice() };
+  }
+
+  function playbackRecord(game, info) {
+    info = info || {};
+    if (!game || !game.hand) return null;
+    var seat = info.seat || 0;
+    var dealer = game.hand.dealer != null ? game.hand.dealer : game.dealer;
+    var round = game.hand.round != null ? game.hand.round : game.round;
+    var head = (game.hand.seed >>> 0) + '-' + WIND_LETTERS[windOf(dealer, seat)] + WIND_LETTERS[round];
+    var winds = parseHandSeed(head);
+    var strategies = info.strategies || [];
+    var actions = game.hand.trace.slice();
+    return {
+      v: 1,
+      handSeed: head,
+      seed: game.hand.seed >>> 0,
+      seat: winds.seat,
+      round: winds.round,
+      dealer: dealer,
+      handNumber: game.handNumber,
+      moves: actions.length,
+      players: game.players.map(function (p, i) {
+        var s = game.hand.seats[i];
+        var row = {
+          name: p.name,
+          wind: windOf(dealer, i),
+          hand: s.hand.slice(),
+          flowers: s.flowers.slice(),
+          melds: s.melds.map(function (m) {
+            return { type: m.type, tiles: m.tiles.slice(), from: m.from == null ? null : m.from, concealed: !!m.concealed };
+          }),
+          discards: s.discards.map(function (d) { return { tile: d.tile, claimed: !!d.claimed }; }),
+        };
+        if (strategies[i]) row.strategy = strategies[i];
+        return row;
+      }),
+      actions: actions,
+    };
+  }
+
+  function playbackText(game, info) {
+    var rec = playbackRecord(game, info);
+    if (!rec) return '';
+    return rec.handSeed + '\n' + JSON.stringify(rec);
+  }
+
+  // HMAC-SHA256 of the file's app, version, move count, and payload.
+  // The plain implementation matches Web Crypto, and works on plain http.
+  function playbackBody(file) {
+    return file.app + '|' + file.version + '|' + file.moves + '|' + JSON.stringify(file.payload);
+  }
+
+  function playbackSign(file) {
+    var enc = new TextEncoder();
+    return hex(hmacSha256(enc.encode(SAVE_KEY), enc.encode(playbackBody(file))));
+  }
+
+  function makePlayback(game, info) {
+    var payload = playbackRecord(game, info);
+    if (!payload) return null;
+    var file = { app: PLAYBACK_APP, version: GAME_VERSION, moves: payload.moves, payload: payload };
+    file.signature = playbackSign(file);
+    return file;
+  }
+
+  function playbackShape(rec) {
+    if (!rec || rec.v !== 1 || !Array.isArray(rec.actions) || !Array.isArray(rec.players) || rec.players.length !== 4) return false;
+    if (!rec.players.every(function (p) { return p && Array.isArray(p.hand); })) return false;
+    var winds = parseHandSeed((rec.seed >>> 0) + '-' + WIND_LETTERS[rec.seat] + WIND_LETTERS[rec.round]);
+    return !!(winds && winds.seed === rec.seed && winds.seat === rec.seat && winds.round === rec.round);
+  }
+
+  // { ok, reason, record }. `record.moves` is the last step the table may show.
+  function checkPlayback(input) {
+    var file = input;
+    if (typeof input === 'string') {
+      try { file = JSON.parse(String(input).trim()); }
+      catch (e) { return { ok: false, reason: 'That isn\'t a playback file. Upload a JSON playback file.' }; }
+    }
+    if (!file || file.app !== PLAYBACK_APP || !file.payload) {
+      return { ok: false, reason: 'That isn\'t a playback file. Upload a JSON playback file.' };
+    }
+    var compat = saveCompatibility(file.version);
+    if (!compat.ok) return { ok: false, reason: compat.reason };
+    if (!playbackShape(file.payload) || playbackSign(file) !== file.signature) {
+      return { ok: false, reason: 'That playback was changed or damaged, so it can\'t be played.' };
+    }
+    if (file.payload.actions.length !== file.moves || (file.payload.moves != null && file.payload.moves !== file.moves)) {
+      return { ok: false, reason: 'That playback was changed or damaged, so it can\'t be played.' };
+    }
+    var rec = JSON.parse(JSON.stringify(file.payload));
+    rec.moves = file.moves;
+    rec.actions = rec.actions.slice(0, file.moves);
+    return { ok: true, reason: null, record: rec };
+  }
+
+  function parsePlayback(text) {
+    var raw = String(text || '').trim();
+    var nl = raw.indexOf('\n');
+    if (nl === -1) return null;
+    var winds = parseHandSeed(raw.slice(0, nl));
+    if (!winds) return null;
+    var rec;
+    try { rec = JSON.parse(raw.slice(nl + 1)); } catch (e) { return null; }
+    if (!rec || rec.v !== 1 || rec.seed !== winds.seed || rec.seat !== winds.seat || rec.round !== winds.round) return null;
+    if (!Array.isArray(rec.actions) || !Array.isArray(rec.players) || rec.players.length !== 4) return null;
+    if (!rec.players.every(function (p) { return p && Array.isArray(p.hand); })) return null;
+    return rec;
+  }
+
+  function playbackWho(rec, seat) {
+    var p = rec.players[seat];
+    if (!p) return 'Seat ' + (seat + 1);
+    var wind = WIND_NAMES[p.wind] || ('Seat ' + (seat + 1));
+    return p.name ? wind + ' (' + p.name + ')' : wind;
+  }
+
+  function playbackLines(rec) {
+    if (!rec || !Array.isArray(rec.actions)) return [];
+    return rec.actions.map(function (ev) {
+      var who = playbackWho(rec, ev.s);
+      if (ev.a === 'flower') return who + ' sets aside ' + tileName(ev.t) + '.';
+      if (ev.a === 'draw') return who + ' draws ' + tileName(ev.t) + (ev.k && ev.k !== 'wall' ? ' as a replacement.' : '.');
+      if (ev.a === 'discard') return who + ' discards ' + tileName(ev.t) + '.';
+      if (ev.a === 'claim') {
+        var verb = ev.c === 'chow' ? 'chows' : ev.c === 'kong' ? 'kongs' : 'pungs';
+        var tiles = ev.c === 'chow' ? sortTiles((ev.tiles || []).concat([ev.t])).map(tileName).join(', ') : tileName(ev.t);
+        return who + ' ' + verb + ' ' + tiles + ' from ' + playbackWho(rec, ev.from) + '.';
+      }
+      if (ev.a === 'kong') {
+        return ev.k === 'added'
+          ? who + ' adds a ' + tileName(ev.t) + ' to the pung.'
+          : who + ' declares a concealed kong of ' + tileName(ev.t) + '.';
+      }
+      if (ev.a === 'win') {
+        if (ev.how === 'flowers') return who + ' wins with flowers.';
+        if (ev.how === 'selfDraw') return who + ' wins by self-draw on ' + tileName(ev.t) + '.';
+        if (ev.how === 'robKong') return who + ' wins by robbing the kong of ' + tileName(ev.t) + ' from ' + playbackWho(rec, ev.from) + '.';
+        return who + ' wins on ' + tileName(ev.t) + ' from ' + playbackWho(rec, ev.from) + '.';
+      }
+      if (ev.a === 'drawGame') return 'The wall is empty. Draw game.';
+      return 'Move.';
+    });
+  }
+
+  // One recorded action, applied the same way the hand played it.
+  // Returns { mark, win } for the table to highlight. Throws if the wall
+  // or a hand doesn't hold the tile the record names.
+  function applyPlaybackAction(game, ev) {
+    var h = game.hand;
+    var s = h.seats[ev.s];
+    if (ev.a === 'flower') {
+      var at = s.hand.indexOf(ev.t);
+      if (at < 0) throw new Error('playback flower missing ' + ev.t);
+      s.hand.splice(at, 1);
+      s.flowers.push(ev.t);
+      h.turn = ev.s;
+      return { mark: { seat: ev.s, tile: ev.t, where: 'flower' } };
+    }
+    if (ev.a === 'draw') {
+      var t = drawTile(game, ev.s, ev.k === 'flower' || ev.k === 'kong');
+      if (t !== ev.t) throw new Error('playback draw diverged');
+      h.drawnTile = t;
+      h.turn = ev.s;
+      return { mark: { seat: ev.s, tile: t, where: 'hand' } };
+    }
+    if (ev.a === 'discard') {
+      applyDiscard(game, ev.s, ev.t);
+      h.turn = ev.s;
+      return { mark: { seat: ev.s, tile: ev.t, where: 'pond' } };
+    }
+    if (ev.a === 'claim') {
+      applyClaim(game, ev.s, { type: ev.c, tiles: ev.tiles });
+      h.turn = ev.s;
+      return { mark: { seat: ev.s, tile: ev.t, where: 'meld' } };
+    }
+    if (ev.a === 'kong') {
+      applyKong(game, ev.s, { tile: ev.t, kind: ev.k });
+      h.turn = ev.s;
+      return { mark: { seat: ev.s, tile: ev.t, where: 'meld' } };
+    }
+    if (ev.a === 'win') {
+      if (ev.how === 'robKong') removeTiles(h.seats[ev.from].hand, [ev.t]);
+      else if (ev.how === 'discard') markLastDiscardClaimed(game);
+      h.turn = ev.s;
+      return { mark: ev.t ? { seat: ev.s, tile: ev.t, where: 'hand' } : null, win: ev };
+    }
+    if (ev.a === 'drawGame') return { mark: null };
+    throw new Error('playback action ' + ev.a);
+  }
+
+  // The dealt hand after the first `step` actions (every action, when
+  // step is left out). The same object the table draws.
+  function playbackGame(rec, step) {
+    if (!rec || !Array.isArray(rec.actions) || !Array.isArray(rec.players)) return null;
+    var game = createGame({
+      seed: 1,
+      dealer: rec.dealer,
+      mode: 'practice',
+      humanName: rec.players[0] && rec.players[0].name,
+    });
+    rec.players.forEach(function (p, i) {
+      game.players[i].name = p.name;
+      game.players[i].isHuman = i === 0;
+    });
+    game.dealer = rec.dealer;
+    game.firstDealer = rec.dealer;
+    game.round = rec.round;
+    game.handNumber = (rec.handNumber || 1) - 1;
+    startHand(game, rec.seed);
+    var limit = rec.actions.length;
+    if (typeof rec.moves === 'number' && rec.moves >= 0) limit = Math.min(limit, rec.moves);
+    var n = step == null ? limit : step;
+    if (n < 0) n = 0;
+    if (n > limit) n = limit;
+    var mark = null;
+    var win = null;
+    for (var i = 0; i < n; i++) {
+      var applied = applyPlaybackAction(game, rec.actions[i]);
+      mark = applied.mark || null;
+      if (applied.win) win = applied.win;
+    }
+    game.hand.review = { mark: n ? mark : null, win: win };
+    return game;
   }
 
   /* ------------------------------------------------------------------ *
@@ -1240,6 +1496,13 @@
     handSeedText: handSeedText,
     parseHandSeed: parseHandSeed,
     dealtHand: dealtHand,
+    playbackText: playbackText,
+    makePlayback: makePlayback,
+    checkPlayback: checkPlayback,
+    parsePlayback: parsePlayback,
+    playbackLines: playbackLines,
+    playbackGame: playbackGame,
+    applyPlaybackAction: applyPlaybackAction,
     GAME_VERSION: GAME_VERSION,
     SAVE_APP: SAVE_APP,
     saveCompatibility: saveCompatibility,

@@ -52,7 +52,7 @@ A static website for the Lucky Cat Mahjong club at [luckycatmahjong.com](https:/
 - **Automatic scoring** — Detects patterns, counts faan, and converts to chip payouts with **full spicy** or **half spicy** tables
 - **Example hands** — One-click presets from chicken hands through limit hands (Thirteen Orphans, Four Winds, Nine Gates, etc.)
 - **Shareable hands** — "Share Hand" encodes the current hand and options into the URL so you can send a scored hand to friends
-- **Hand seeds from the game** — Paste a hand seed copied from the Play page (Cmd/Ctrl+V anywhere on the page, or tap the empty hand's text where the browser allows reading the clipboard) to see the starting hand dealt to you, with your flowers, seat wind and round wind
+- **Hand seeds from the game** — Paste a playback file, or a hand seed such as `919942249-NE` (Cmd/Ctrl+V anywhere on the page, or tap the empty hand's text where the browser allows reading the clipboard) to see the starting hand dealt to you, with your flowers, seat wind and round wind
 - **Scoring reference** — Beginner-friendly guide sections covering how scoring works, every way to score, special/limit hands, and tile basics
 - **SEO** — Structured data (Article, FAQ, Breadcrumb) and keyword-rich meta tags for discoverability
 
