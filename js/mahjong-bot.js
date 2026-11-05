@@ -2169,6 +2169,14 @@
     ctx.upgrade = liveUpgrade(counts, ctx);
   }
 
+  // Getting to ready is the biggest thing a discard does. Whatever the other
+  // orders say, a discard that leaves the hand ready (a tile that wins) goes
+  // ahead of every one that doesn't. The order within each group is kept.
+  function readyFirst(list) {
+    var isReady = function (x) { return x.shanten === 0 && !!(x.analysis && x.analysis.ready && x.analysis.ready.waits && x.analysis.ready.waits.length); };
+    return list.filter(isReady).concat(list.filter(function (x) { return !isReady(x); }));
+  }
+
   function analyzeDiscards(game, seat, ctxOverride, handOverride) {
     var ctx = ctxOverride || buildContext(game, seat);
     var hand = handOverride || game.hand.seats[seat].hand;
@@ -2286,6 +2294,7 @@
     out = out.filter(function (x) { return !isLone(x); }).concat(out.filter(isLone));
     if (H.finalOrder) out = H.finalOrder(out, ctx, c);
     out = keepDragonPair(out, ctx, c);
+    out = readyFirst(out);
     // Only the hand really held moves the plan: a claim being weighed doesn't.
     var seatNow = game.hand.seats[seat];
     if (hand === seatNow.hand && ctx.melds === seatNow.melds) updateCommit(seatNow, out[0], folding);

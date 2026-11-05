@@ -24,6 +24,9 @@
   // The signed playback the wind badge and View replay save. The playback
   // page opens it on its own.
   var REPLAY_KEY = 'lcm-play-replay';
+  // Each strategy's hints for the game in progress: { v: 1, lists: { id: [note, ...] } }.
+  // A new game overwrites it. Switching the coach only picks which list shows.
+  var HINTS_KEY = 'lcm-play-hints';
   var PLAYBACK_EMPTY = 'Upload a JSON file with a playback.';
   var SEAT_SIDES = ['', 'your right', 'across', 'your left'];
   var TILE_ASPECT = 1.4;
@@ -577,7 +580,7 @@
     var reviewScrub = 0; // pointer id while the move bar is being dragged
     var reviewBar = null; // where the move bar was drawn, in layout units
     var reviewNote = null; // why the empty table is waiting, when a paste failed
-    var reviewCoach = null; // one walk of the hand, so the side panel can keep this coach's notes
+    var reviewCoaches = {}; // by strategy id: one walk of the hand each, so a coach who follows your discards keeps that streak
     var reviewCoachTimer = null;
     var destroyed = false;
     var frameRequested = false;
@@ -614,7 +617,9 @@
       turnPrompt: null,
       claimPrompt: null,
       hint: null,
-      coachLog: [], // past hints and feedback, oldest first; the live note is not listed
+      hintLists: {}, // by strategy id: every hint and feedback note it gave this game, oldest first (HINTS_KEY)
+      hintsAll: {}, // by strategy id: the hint for the move in front of you
+      coachLog: [], // playback only: the shown coach's notes up to the move on the table
       coachScroll: 0,
       coachStick: true, // follow the newest note until the player scrolls up
       coachScrollMax: 0,
@@ -2003,7 +2008,9 @@
       ui.strategies.coach = id;
       writeJson(STRATEGIES_KEY, saved);
       track('play_set_coach_strategy', { strategy: id });
-      refreshHint();
+      // Only which list shows changes. Every strategy has kept its own.
+      if (ui.hint && !settings.lesson && ui.coach !== 'off') ui.hint = ui.hintsAll[id] || ui.hint;
+      ui.coachStick = true;
       buildStrategies();
       requestRender();
     }
@@ -2253,13 +2260,23 @@
     // The dealt hand, played to its last move. The save itself keeps no tiles.
     function showFinalMatch() {
       if (!game || !game.over) return false;
+      return restoreFinishedHand();
+    }
+
+    // The hand that just finished, put back on the table after a refresh from
+    // the playback saved when it ended, so Show hands works on its summary.
+    function restoreFinishedHand() {
+      if (!game) return false;
       if (game.hand) { noteFinishedWin(); return true; }
       var stored = storedReplay();
-      if (!stored) return false;
+      if (!stored || stored.payload.handNumber !== game.handNumber) return false;
       try {
         var played = E.playbackGame(stored.payload);
         if (!played || !played.hand) return false;
         game.hand = played.hand;
+        // This hand is only put back to look at. It is not a hand in progress,
+        // so a save must not store it as one (a second refresh would play it on).
+        restoredHand = played.hand;
         return true;
       } catch (err) {
         return false;
@@ -3184,13 +3201,55 @@
     }
 
     // Your own moves in this hand, counted 1, 2, 3 (one note per move).
-    function handMoveNumber(hand) {
-      return ui.coachLog.filter(function (e) { return e.hand === hand; }).length + 1;
+    function handMoveNumber(list, hand) {
+      return list.filter(function (e) { return e.hand === hand; }).length + 1;
     }
 
-    function rememberCoach(note, kind) {
+    function hintList(id) {
+      return ui.hintLists[id] || (ui.hintLists[id] = []);
+    }
+
+    function saveHints() {
+      if (settings.lesson || settings.playback || settings.review) return;
+      writeJson(HINTS_KEY, { v: 1, lists: ui.hintLists });
+    }
+
+    // The stored lists, as long as every note in them reads back whole.
+    function keptHints(raw) {
+      var out = {};
+      if (!raw || raw.v !== 1 || !raw.lists || typeof raw.lists !== 'object') return out;
+      Strategies.ids().forEach(function (id) {
+        var list = raw.lists[id];
+        if (!Array.isArray(list)) return;
+        out[id] = list.filter(function (e) {
+          return e && (e.kind === 'hint' || e.kind === 'feedback') && typeof e.action === 'string'
+            && typeof e.detail === 'string' && typeof e.move === 'number' && typeof e.hand === 'number';
+        }).slice(-200);
+      });
+      return out;
+    }
+
+    // The advice from every strategy for the move in front of you.
+    function hintsForAll(kind, opts) {
+      var out = {};
+      Strategies.ids().forEach(function (id) {
+        var coach = Coach.forStrategy(Strategies.get(id).bot);
+        try { out[id] = kind === 'turn' ? coach.turnHint(game, 0, opts) : coach.claimHint(game, 0, opts); }
+        catch (err) { out[id] = null; }
+      });
+      return out;
+    }
+
+    // Puts a note on each strategy's own list. `notes` is by strategy id.
+    function rememberAll(notes, kind) {
+      Strategies.ids().forEach(function (id) { rememberCoach(notes[id], kind, id); });
+      saveHints();
+    }
+
+    function rememberCoach(note, kind, id) {
       var plain = coachPlain(note);
       if (!plain) return;
+      var list = hintList(id || ui.strategies.coach);
       var hand = game ? game.handNumber : 1; // cleared when the next hand is dealt
       // The same suggestion, with "N tiles from ready" moved to the end.
       function sameAdvice(detail) {
@@ -3199,21 +3258,21 @@
         };
         return norm(detail) === norm(plain.detail);
       }
-      var last = ui.coachLog[ui.coachLog.length - 1];
+      var last = list[list.length - 1];
       if (last && last.kind === kind && last.hand === hand && last.action === plain.action && sameAdvice(last.detail)) {
         if (last.detail !== plain.detail) {
           last.detail = plain.detail;
           ui.coachStick = true;
         }
-        var prev = ui.coachLog[ui.coachLog.length - 2];
+        var prev = list[list.length - 2];
         if (prev && prev.kind === kind && prev.hand === hand && prev.action === plain.action && sameAdvice(prev.detail)) {
-          ui.coachLog.splice(ui.coachLog.length - 2, 1);
+          list.splice(list.length - 2, 1);
           ui.coachStick = true;
         }
         return;
       }
-      ui.coachLog.push({ kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber(hand), hand: hand });
-      if (ui.coachLog.length > 200) ui.coachLog.shift(); // a whole hand's worth
+      list.push({ kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber(list, hand), hand: hand });
+      if (list.length > 200) list.shift();
       ui.coachStick = true;
     }
 
@@ -3222,10 +3281,12 @@
       // Playback lists every note up to the move on the table. The live caption
       // is the move itself, not a coach note, so it must not hide the latest one.
       if (settings.review) return ui.coachLog;
+      // The shown coach's list, for this hand. The panel is this hand only.
+      var hand = game ? game.handNumber : 1;
+      var entries = hintList(ui.strategies.coach).filter(function (e) { return e.hand === hand; });
       // Without the bar (a landscape phone), the column shows the live note too.
-      if (!L.hintH) return ui.coachLog;
+      if (!L.hintH) return entries;
       var live = coachPlain(ui.coach === 'on' ? ui.hint : ui.coach === 'feedback' ? ui.feedback : null);
-      var entries = ui.coachLog;
       if (!live || !entries.length) return entries;
       var last = entries[entries.length - 1];
       // Move 1 of a hand stays in the panel, in yellow, even while that note is still on the table.
@@ -3261,7 +3322,7 @@
 
     // Tapping your wind badge copies the signed playback. Its hand seed is
     // payload.handSeed. The playback page also keeps that file, and opens it
-    // on its own. No message. The badge flashes once the copy is done.
+    // on its own. No message. The badge flashes on the click.
     function copySeed() {
       if (!game || !game.hand) return;
       var seats = ui.strategies && ui.strategies.seats;
@@ -3272,9 +3333,10 @@
       if (!file || !file.payload || !file.payload.handSeed) return;
       writeJson(REPLAY_KEY, file);
       track('play_copy_seed', {});
-      copyText(JSON.stringify(file)).then(function () {
-        if (!destroyed) animate(520, function (e) { ui.windFlash = 1 - e; });
-      }, function () {});
+      // The click saves the playback and flashes the badge. The copy to the
+      // clipboard is a bonus: a browser that refuses it still saved the game.
+      animate(520, function (e) { ui.windFlash = 1 - e; });
+      copyText(JSON.stringify(file)).then(function () {}, function () {});
     }
 
     // Older notes start at the top and later ones follow downward.
@@ -3346,7 +3408,7 @@
       if (!blocks.length) {
         ctx.font = size + 'px ' + FONT_BODY;
         var empty = settings.review
-          ? (reviewCoach && reviewCoach.index < reviewStep ? 'Reading your moves...' : 'Feedback on your moves shows here.')
+          ? (reviewCoaches[ui.strategies.coach] && reviewCoaches[ui.strategies.coach].index < reviewStep ? 'Reading your moves...' : 'Feedback on your moves shows here.')
           : 'Hints and feedback will collect here.';
         wrapText(ctx, empty, viewW - 8).forEach(function (ln, i) {
           text(ln, viewX + 4, viewY + 14 + i * lh, { size: size, color: 'rgba(255,248,240,0.5)' });
@@ -3486,6 +3548,12 @@
           return { id: s.id, name: s.name, tile: null, action: null };
         });
       }
+      // A winning hand is the one recommendation, whatever each strategy would throw.
+      var canWin = (ui.turnPrompt && ui.turnPrompt.opts && ui.turnPrompt.opts.win)
+        || (ui.claimPrompt && ui.claimPrompt.opts && ui.claimPrompt.opts.win);
+      if (canWin) {
+        return Strategies.list().map(function (s) { return { id: s.id, name: s.name, tile: null, action: 'Win' }; });
+      }
       var sig = liveDiscardSignature();
       if (livePicks && livePicks.sig === sig) return livePicks.rows;
       var offer = claimOffer();
@@ -3508,8 +3576,8 @@
       ctx.fillStyle = 'rgba(0,0,0,0.32)';
       ctx.fill();
       ctx.restore();
-      text('Recommendations', p.x + 14, p.y + 18, {
-        size: fitFont(ctx, 'Recommendations', Math.max(40, p.w - 28), 14, FONT_HEAD, 'bold'),
+      text('Recommendation', p.x + 14, p.y + 18, {
+        size: fitFont(ctx, 'Recommendation', Math.max(40, p.w - 28), 14, FONT_HEAD, 'bold'),
         weight: 'bold', family: FONT_HEAD, color: COLORS.cream,
       });
       var rows = settings.review ? reviewStrategyRows() : liveStrategyRows();
@@ -3517,6 +3585,7 @@
       var gap = 8;
       var colW = (p.w - gap * (rows.length + 1)) / rows.length;
       var nameH = 22;
+      var topPad = 8; // above the strategy name, like the 8 under the tile
       var headH = 34;
       var y = p.y + headH;
       var h = Math.max(36, p.h - headH - 8);
@@ -3535,12 +3604,12 @@
         }
         ctx.restore();
         var label = row.name;
-        text(label, x + colW / 2, y + nameH / 2 + 2, {
+        text(label, x + colW / 2, y + topPad + nameH / 2 + 2, {
           size: fitFont(ctx, label, colW - 12, 14, FONT_BODY, 'bold'),
           weight: 'bold', align: 'center',
           color: on ? COLORS.gold : COLORS.cream,
         });
-        var tileRoom = h - nameH - 8;
+        var tileRoom = h - topPad - nameH - 8;
         var color = on ? COLORS.gold : COLORS.cream;
         if (row.action) {
           var maxW = Math.max(24, colW - 10);
@@ -3548,19 +3617,35 @@
           var lines = ctx.measureText(row.action).width <= maxW ? [row.action] : wrapText(ctx, row.action, maxW);
           var size = lines.length > 1 ? 13 : 15;
           var lh = size + 3;
-          var start = y + nameH + (tileRoom - lines.length * lh) / 2 + lh / 2;
+          var start = y + topPad + nameH + (tileRoom - lines.length * lh) / 2 + lh / 2;
           lines.forEach(function (ln, n) {
             text(ln, x + colW / 2, start + n * lh, { size: size, weight: 'bold', align: 'center', color: color });
           });
         } else {
-          var fit = Math.min(colW - 16, tileRoom / TILE_ASPECT);
+          var labelH = 22; // "Discard" under the tile, with 4px above it
+          var fit = Math.min(colW - 16, (tileRoom - labelH) / TILE_ASPECT);
           var tw = fit * 0.84;
           if (row.tile && tw >= 16) {
             var tx = x + (colW - tw) / 2;
-            var ty = y + nameH + (tileRoom - tw * TILE_ASPECT) / 2;
+            var ty = y + topPad + nameH + (tileRoom - labelH - tw * TILE_ASPECT) / 2;
             drawTile(row.tile, tx, ty, tw, { glow: on ? COLORS.gold : null });
+            text('Discard', x + colW / 2, ty + tw * TILE_ASPECT + labelH / 2 + 4, {
+              size: fitFont(ctx, 'Discard', colW - 12, 13, FONT_BODY, 'bold'),
+              weight: 'bold', align: 'center', color: on ? COLORS.gold : COLORS.cream,
+            });
+          } else if (ui.coach === 'feedback' && !settings.review) {
+            // Feedback looks back, so before your discard there is nothing to show.
+            var waiting = 'Discard tile for feedback';
+            var wmax = Math.max(24, colW - 12);
+            ctx.font = '13px ' + FONT_BODY;
+            var wlines = wrapText(ctx, waiting, wmax);
+            var wlh = 16;
+            var wstart = y + topPad + nameH + (tileRoom - wlines.length * wlh) / 2 + wlh / 2;
+            wlines.forEach(function (ln, n) {
+              text(ln, x + colW / 2, wstart + n * wlh, { size: 13, align: 'center', color: 'rgba(255,248,240,0.6)' });
+            });
           } else {
-            text('—', x + colW / 2, y + nameH + tileRoom / 2, { size: 16, align: 'center', color: COLORS.cream });
+            text('—', x + colW / 2, y + topPad + nameH + tileRoom / 2, { size: 16, align: 'center', color: COLORS.cream });
           }
         }
         addRegion(x, y, colW, h, function () { chooseCoach(row.id); }, 'strategy-' + row.id);
@@ -3611,7 +3696,14 @@
       var free = ui.meRowFree;
       var cover = null;
       if (L.actionsInRow && free) {
-        if (free.x1 - free.x0 - lead >= buttonsW) { x0 = free.x0; x1 = free.x1; }
+        if (free.x1 - free.x0 - lead >= buttonsW) {
+          // Centered on your whole row when nothing there collides with them
+          // (your name sits to one side); otherwise centered in the room left.
+          var midX = (L.meX + L.pad + L.meX + L.meW - L.pad) / 2;
+          var groupW = buttonsW + lead;
+          if (midX - groupW / 2 >= free.x0 && midX + groupW / 2 <= free.x1) { x0 = L.meX + L.pad; x1 = L.meX + L.meW - L.pad; }
+          else { x0 = free.x0; x1 = free.x1; }
+        }
         else if (L.meX + L.meW - L.pad - free.x0 - lead >= buttonsW) {
           // Not enough room beside your name: use the rest of the row and
           // cover the name while the buttons are up.
@@ -4032,9 +4124,15 @@
     // It is signed, and resuming a hand in progress deals it from its seed
     // and plays it again up to your next move.
     function savePayload() {
+      var record = E.gameRecord(game);
+      if (restoredHand && game.hand === restoredHand) {
+        // game.handNumber was already counted when this hand finished.
+        record.hand = null;
+        record.handNumber = game.handNumber;
+      }
       return {
         savedAt: new Date().toISOString(),
-        game: E.gameRecord(game),
+        game: record,
         strategies: ui.strategies,
         stats: ui.stats,
         results: ui.results,
@@ -4114,6 +4212,7 @@
     // being played again. A newer save drops one that is still being signed,
     // so leaving the results can't be overwritten by the copy taken while
     // they were up.
+    var restoredHand = null; // a finished hand put back after a refresh, only for looking at
     var autosaveTimer = null;
     var autosaveGen = 0;
     var pendingSummary = null;
@@ -4444,7 +4543,7 @@
       }
       if (ui.coach === 'feedback' && ui.hint && action.type === 'discard') {
         ui.feedback = Coach.discardFeedback(ui.hint, action.tile) || ui.feedback;
-        rememberCoach(ui.feedback, 'feedback');
+        rememberAll(feedbackForAll(function (hint) { return Coach.discardFeedback(hint, action.tile); }), 'feedback');
       }
       ui.turnPrompt = null;
       ui.selected = -1;
@@ -4460,7 +4559,17 @@
       if (!lessonAllows('claim', decision)) return;
       if (ui.coach === 'feedback' && ui.hint) {
         ui.feedback = Coach.claimFeedback(ui.hint, decision) || ui.feedback;
-        rememberCoach(ui.feedback, 'feedback');
+        rememberAll(feedbackForAll(function (hint) { return Coach.claimFeedback(hint, decision); }), 'feedback');
+      }
+      if (ui.coach === 'feedback') {
+        // What each strategy would have done with this tile, shown after your call.
+        ui.feedbackDiscards = Strategies.list().map(function (s) {
+          var pick = strategyChoice(s.bot, null, p.opts);
+          return { id: s.id, name: s.name, tile: null, action: pick.action };
+        });
+        // A pung, chow or kong is followed at once by your discard, which
+        // should not wipe these before they are read.
+        ui.feedbackFromClaim = decision.type !== 'pass';
       }
       ui.claimPrompt = null;
       ui.hint = null;
@@ -4469,23 +4578,36 @@
       p.resolve(decision);
     }
 
-    // The same note the coach would have given, before this saved move.
+    // What each strategy says about your move, from the hints it gave for it.
+    function feedbackForAll(judge) {
+      var out = {};
+      Strategies.ids().forEach(function (id) {
+        var hint = ui.hintsAll[id];
+        out[id] = hint ? judge(hint) : null;
+      });
+      return out;
+    }
+
+    // The same notes the strategies would have given, before this saved move.
     function rebuildCoachNote(kind, opts, decision) {
       if (settings.lesson || ui.coach === 'off' || !game || !game.hand || !decision) return;
-      var coach = coachFor();
-      var hint = kind === 'turn' ? coach.turnHint(game, 0, opts) : kind === 'claim' ? coach.claimHint(game, 0, opts) : null;
+      if (kind !== 'turn' && kind !== 'claim') return;
+      var all = hintsForAll(kind, opts);
+      var hint = all[ui.strategies.coach];
       if (!hint) return;
-      if (ui.coach === 'on') rememberCoach(hint, 'hint');
+      ui.hintsAll = all;
+      if (ui.coach === 'on') rememberAll(all, 'hint');
       if (kind === 'turn' && decision.type === 'discard' && hint.tile) {
-        coach.noteDiscard(game, 0, hint.tile, decision.tile);
+        coachFor().noteDiscard(game, 0, hint.tile, decision.tile);
       }
       if (ui.coach !== 'feedback') return;
-      var fb = kind === 'turn'
-        ? (decision.type === 'discard' ? Coach.discardFeedback(hint, decision.tile) : null)
-        : Coach.claimFeedback(hint, decision);
-      if (!fb) return;
-      ui.feedback = fb;
-      rememberCoach(fb, 'feedback');
+      var judge = kind === 'turn'
+        ? function (h) { return decision.type === 'discard' ? Coach.discardFeedback(h, decision.tile) : null; }
+        : function (h) { return Coach.claimFeedback(h, decision); };
+      var notes = feedbackForAll(judge);
+      if (!notes[ui.strategies.coach]) return;
+      ui.feedback = notes[ui.strategies.coach];
+      rememberAll(notes, 'feedback');
     }
 
     function refreshHint() {
@@ -4496,11 +4618,13 @@
         return;
       }
       // In Feedback mode the advice is worked out (to judge your move) but not shown.
-      if (ui.coach === 'off' || !game || !game.hand) { ui.hint = null; return; }
-      var coach = coachFor();
-      if (ui.turnPrompt) ui.hint = coach.turnHint(game, 0, ui.turnPrompt.opts);
-      else if (ui.claimPrompt) ui.hint = coach.claimHint(game, 0, ui.claimPrompt.opts);
-      if (ui.coach === 'on') rememberCoach(ui.hint, 'hint');
+      if (ui.coach === 'off' || !game || !game.hand) { ui.hint = null; ui.hintsAll = {}; return; }
+      var kind = ui.turnPrompt ? 'turn' : ui.claimPrompt ? 'claim' : null;
+      if (!kind) return;
+      // Every strategy works out its advice, and each keeps its own list.
+      ui.hintsAll = hintsForAll(kind, (ui.turnPrompt || ui.claimPrompt).opts);
+      ui.hint = ui.hintsAll[ui.strategies.coach];
+      if (ui.coach === 'on') rememberAll(ui.hintsAll, 'hint');
     }
 
     function hitTest(x, y) {
@@ -4935,8 +5059,8 @@
         ui.hint = null;
         ui.feedback = null;
         ui.feedbackDiscards = null;
-        // The panel is this hand only. A save does not keep it.
-        ui.coachLog = [];
+        // The panel is this hand only; the lists keep every hand of the game.
+        ui.hintsAll = {};
         ui.coachScroll = 0;
         ui.coachStick = true;
         L = computeLayout();
@@ -5166,6 +5290,10 @@
           return new Promise(function (resolve) {
             ui.turnPrompt = { opts: opts, resolve: resolve };
             ui.selected = -1;
+            // Feedback looks back, so your turn starts with it empty, except the
+            // discard that follows a claim, which keeps the claim's feedback.
+            if (ui.feedbackFromClaim) ui.feedbackFromClaim = false;
+            else ui.feedbackDiscards = null;
             refreshHint();
             var lessonLine = settings.lesson && ui.hint && ui.hint.action;
             ui.notice = lessonLine ? null : (opts.completeButShort
@@ -5182,6 +5310,8 @@
             if (opts.pung || opts.kong) highlight.push(opts.tile);
             opts.chows.forEach(function (p) { highlight = highlight.concat(p); });
             ui.claimPrompt = { opts: opts, resolve: resolve, highlight: highlight };
+            ui.feedbackDiscards = null;
+            ui.feedbackFromClaim = false;
             refreshHint();
             var lessonLine = settings.lesson && ui.hint && ui.hint.action;
             ui.notice = lessonLine ? null : (opts.win
@@ -5332,67 +5462,75 @@
       else setCoachStrategy(id);
     }
 
-    // Playback only. The saved coach in a real game stays as it was.
+    // Playback only. The saved coach in a real game stays as it was. Every
+    // strategy keeps its own notes, so this only changes which list shows.
     function setReviewCoach(id) {
       if (!Strategies.has(id)) return;
       if (ui.strategies.coach === id) { requestRender(); return; }
       ui.strategies.coach = id;
-      resetReviewCoach();
       ensureReviewNotes(reviewStep);
+      ui.coachStick = true;
       requestRender();
     }
 
     function resetReviewCoach() {
-      reviewCoach = null;
+      reviewCoaches = {};
       if (reviewCoachTimer) { clearTimeout(reviewCoachTimer); reviewCoachTimer = null; }
       ui.coachLog = [];
     }
 
-    // Walks the recording on one game, so a coach who follows your discards
-    // keeps that streak. A couple of notes per turn, then the rest follow.
+    // Walks the recording once for each strategy, each on its own game, so a
+    // coach who follows your discards keeps that streak. A couple of notes per
+    // turn, then the rest follow.
     function ensureReviewNotes(upto) {
       if (!settings.review || destroyed) return;
-      var id = (ui.strategies && ui.strategies.coach) || Strategies.DEFAULT_COACH;
-      if (!reviewCoach || reviewCoach.id !== id) {
-        var built;
-        try { built = E.playbackGame(settings.review, 0); } catch (err) { built = null; }
-        if (!built) return;
-        reviewCoach = { id: id, game: built, index: 0, notes: [] };
-      }
-      var coach = Coach.forStrategy(Strategies.get(id).bot);
       var actions = settings.review.actions;
       var limit = reviewMoves();
       var target = Math.max(0, Math.min(upto == null ? limit : upto, limit));
-      var hints = 0;
-      while (reviewCoach.index < target) {
-        var ev = actions[reviewCoach.index];
-        var note = null;
-        try { note = reviewFeedback(coach, reviewCoach.game, ev, reviewCoach.index + 1); }
-        catch (err) { note = null; }
-        if (note) {
-          reviewCoach.notes.push(note);
-          hints++;
+      var more = false;
+      // The shown coach goes first, so its notes are there before the rest.
+      var shown = (ui.strategies && ui.strategies.coach) || Strategies.DEFAULT_COACH;
+      var order = [shown].concat(Strategies.ids().filter(function (id) { return id !== shown; }));
+      order.forEach(function (id) {
+        var walk = reviewCoaches[id];
+        if (!walk) {
+          var built;
+          try { built = E.playbackGame(settings.review, 0); } catch (err) { built = null; }
+          if (!built) return;
+          walk = reviewCoaches[id] = { id: id, game: built, index: 0, discards: 0, notes: [] };
         }
-        try { E.applyPlaybackAction(reviewCoach.game, ev); }
-        catch (err) { reviewCoach.index = actions.length; break; }
-        reviewCoach.index++;
-        if (hints >= 2 && reviewCoach.index < target) {
-          if (!reviewCoachTimer) {
-            reviewCoachTimer = setTimeout(function () {
-              reviewCoachTimer = null;
-              if (destroyed || !settings.review) return;
-              ensureReviewNotes(reviewStep);
-              requestRender();
-            }, 0);
+        var coach = Coach.forStrategy(Strategies.get(id).bot);
+        var hints = 0;
+        while (walk.index < target) {
+          var ev = actions[walk.index];
+          var note = null;
+          try { note = reviewFeedback(coach, walk.game, ev, walk.index + 1, walk.discards + 1); }
+          catch (err) { note = null; }
+          if (note) {
+            walk.notes.push(note);
+            hints++;
           }
-          break;
+          try { E.applyPlaybackAction(walk.game, ev); }
+          catch (err) { walk.index = actions.length; break; }
+          if (ev && ev.s === 0 && ev.a === 'discard') walk.discards++; // one discard is one move
+          walk.index++;
+          if (hints >= 2 && walk.index < target) { more = true; break; }
         }
+      });
+      if (more && !reviewCoachTimer) {
+        reviewCoachTimer = setTimeout(function () {
+          reviewCoachTimer = null;
+          if (destroyed || !settings.review) return;
+          ensureReviewNotes(reviewStep);
+          requestRender();
+        }, 0);
       }
-      ui.coachLog = reviewCoach.notes.filter(function (n) { return n.step <= reviewStep; });
+      var mine = reviewCoaches[shown];
+      ui.coachLog = mine ? mine.notes.filter(function (n) { return n.step <= reviewStep; }) : [];
     }
 
     // What this coach says about your discard, call, or kong, before it happens.
-    function reviewFeedback(coach, game, ev, step) {
+    function reviewFeedback(coach, game, ev, step, move) {
       if (!ev || ev.s !== 0) return null;
       var hint = null;
       var fb = null;
@@ -5419,7 +5557,7 @@
         action: fb.action,
         detail: (fb.tips || []).filter(Boolean).join(' '),
         hand: settings.review.handNumber || 1,
-        move: step,
+        move: move,
         step: step,
       };
     }
@@ -5845,10 +5983,16 @@
         }
         ui.stats = p.stats || ui.stats;
         ui.results = keptResults(p.results);
-        ui.coachLog = p.coachLog || [];
         pendingSummary = p.game.hand ? null : keptSummary(p.summary);
         ui.resultsOpen = !!p.resultsOpen;
-        ui.coachLog = [];
+        // Earlier hands' hints come back from storage. The hand in progress is
+        // played again below, which gives its hints again.
+        ui.hintLists = keptHints(readJson(HINTS_KEY, null));
+        if (p.game.hand) {
+          Object.keys(ui.hintLists).forEach(function (id) {
+            ui.hintLists[id] = ui.hintLists[id].filter(function (e) { return e.hand !== game.handNumber; });
+          });
+        }
         if (p.game.hand) {
           ui.replaying = true;
           replay = { seed: p.game.hand.seed, replay: p.game.hand.moves, onReplayEnd: replayDone };
@@ -5862,7 +6006,8 @@
           ui.coach = 'on';
         }
         ui.strategies = pickStrategies();
-        ui.coachLog = [];
+        ui.hintLists = {};
+        if (!settings.lesson && !settings.playback) writeJson(HINTS_KEY, { v: 1, lists: {} }); // a new game overwrites the last one's hints
       }
       var agents = settings.lesson
         ? [humanAgent(), lessonAgent(), lessonAgent(), lessonAgent()]
@@ -5872,6 +6017,7 @@
         speed: settings.speed, coach_strategy: ui.strategies.coach,
         strategies: ui.strategies.seats.slice(1).join(','),
       });
+      if (pendingSummary) restoreFinishedHand();
       var showSavedResults = consumeResultsRequest() || !!ui.resultsOpen;
       if (game.over && !pendingSummary) {
         showFinalMatch();
@@ -5918,6 +6064,10 @@
         else if (res.roundAdvanced) extra = 'The round wind is now ' + E.WIND_NAMES[game.round] + '.';
         if (game.over) extra = 'That was the last deal of the game.';
         pendingSummary = keptSummary({ result: res, extra: extra });
+        if (!settings.lesson) { // a refresh puts this hand back for Show hands
+          var finished = currentReplay();
+          if (finished) writeJson(REPLAY_KEY, finished);
+        }
         autosave(true); // a refresh returns to these results until Next hand
         await showOverlay({ type: 'summary', result: res, extra: extra });
         if (destroyed) return;

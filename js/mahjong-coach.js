@@ -391,7 +391,13 @@
     var before = plan.shantenFn(base, declared || 0);
     var more = base.slice();
     more[index] = (more[index] || 0) + 1;
-    return plan.shantenFn(more, declared || 0) < before;
+    if (plan.shantenFn(more, declared || 0) < before) return true;
+    // A tile that is already part of the plan counts too: a drawn set (three
+    // dragons) gains nothing from a fourth, but throwing one breaks the plan.
+    if (!(base[index] > 0)) return false;
+    var fewer = base.slice();
+    fewer[index]--;
+    return plan.shantenFn(fewer, declared || 0) > before;
   }
 
   // A flush in a suit the bot has already given up on. Two discards can
@@ -730,7 +736,16 @@
     var list = rankDiscards(v, hand);
     var drift = playerDrift(game, seat);
     var followed = drift ? playerPlan(v, c, drift.thrown) : null;
-    if (followed) list = orderForPlan(list, followed, v.ctx.declared);
+    if (followed) {
+      list = orderForPlan(list, followed, v.ctx.declared);
+      // Following your plan never beats a discard that leaves the hand ready.
+      var readyAt = list.filter(function (x) { return x.shanten === 0 && x.ready; });
+      if (readyAt.length && !list[0].ready) {
+        var reordered = readyAt.concat(list.filter(function (x) { return readyAt.indexOf(x) === -1; }));
+        reordered.defense = list.defense; reordered.folding = list.folding; reordered.threats = list.threats;
+        list = reordered;
+      }
+    }
     var threats = list.threats;
     var pick = list[0];
     var offenseTop = list.slice().sort(function (a, b) { return b.offense - a.offense; })[0];
