@@ -234,7 +234,10 @@
     // A flush target in the suit the left player turns out to be collecting
     // gives way too.
     var avoided = held && ONE_SUIT.indexOf(held.id) !== -1 && held.suit === B.avoidSuit(c, ctx);
-    if (!held || heldDef.dead(r, held) || avoided || now.rank < held.rank) opening.target = now;
+    // Past the opening discards, only a limit hand is worth leaving a live
+    // target for.
+    var stronger = now.rank < held.rank && (ctx.turn < 3 || TARGET_BY_ID[now.id].hard);
+    if (!held || heldDef.dead(r, held) || avoided || stronger) opening.target = now;
     return opening.target;
   }
 
@@ -723,6 +726,9 @@
     tuning: TUNING,
   });
   K = bot.tuning;
+  // Its target holds until it's dead or a stronger one appears, so the plans
+  // it lists are the only ones to weigh.
+  K.ownPlans = true;
   bot.classify = classify;
   bot.TARGETS = TARGETS;
   bot.targetFor = function (game, seat) { return bot.buildContext(game, seat).target; };

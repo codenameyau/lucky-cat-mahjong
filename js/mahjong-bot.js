@@ -39,8 +39,10 @@
      F. keep pairs. Break one only after every non-pair is gone.
      G. keep dragons until at least one copy is already visible. A lone
         dragon with all three other copies unseen is never thrown, even
-        while folding, unless that leaves the hand ready (loneDragon). A tile
-        someone has Punged or Konged is the first discard when the hand
+        while folding, unless that leaves the hand ready (loneDragon).
+        A pair of them stays on a flush while another suit still has a
+        tile to throw (keepDragonPair). A tile someone has Punged or
+        Konged is the first discard when the hand
         does not need it. A punged honor is safe for the whole table; a
         punged number tile can still finish a chow.
      H. Seven Pairs, Thirteen Orphans, Nine Gates and Concealed Straights
@@ -771,14 +773,20 @@
   }
 
   // Candidate plans for a 13-tile (waiting to draw) concealed portion.
+  // The base bot's own hands: the usual ones, and Seven Pairs when it's close.
+  function foundationPlans(c, ctx) {
+    var list = basePlans(c, ctx);
+    if (chaseSevenPairs(c, ctx)) list.push(makeSpecialPlan('pairs', c, ctx));
+    return list;
+  }
+
   function plansFor(c, ctx) {
-    var list = aimablePlans(H.plans ? H.plans(c, ctx) : basePlans(c, ctx), c, ctx);
+    var list = aimablePlans(H.plans ? H.plans(c, ctx) : foundationPlans(c, ctx), c, ctx);
     // The plan the hand committed to stays on the table until it's justified
     // to leave it, whatever else a strategy's list reaches for this turn.
     var key = ctx.commit && ctx.commit.key;
-    if (!key || T.ownPlans || ctx.planFixed || list.some(function (p) { return p.id === key; })) return list;
-    var kept = planById(c, ctx, key);
-    return kept ? list.concat(kept) : list;
+    if (!key || T.ownPlans || ctx.planFixed || list.some(function (p) { return planFamily(p.id) === key; })) return list;
+    return list.concat(plansOfFamily(c, ctx, key));
   }
 
   // No strategy aims for a chicken hand: the plain hand only stays a plan
@@ -1551,11 +1559,26 @@
    *     back to. The record is per seat and per strategy, for this hand.
    * ------------------------------------------------------------------ */
 
-  var COMMIT_TURN = 3, PIVOT_MARGIN = 1.1, HOPELESS_CHANCE = 0.05, HOPELESS_RATIO = 2, BACKUP_SHARE = 0.12;
+  var COMMIT_TURN = 3, PIVOT_MARGIN = 1.1, HOPELESS_STEPS = 2, HOPELESS_RATIO = 3, BACKUP_SHARE = 0.12;
+
+  // Hands built from the same tiles are one plan: moving from a Half Flush to
+  // a Full Flush in that suit refines the hand, it doesn't change direction.
+  function planFamily(id) {
+    if (/^(half|full)-/.test(id)) return 'flush-' + id.slice(5);
+    if (id === 'half' || id === 'full') return 'flush';
+    if (id === 'triplets' || id === 'concealed-triplets') return 'sets';
+    if (id === 'plain' || id === 'runs' || id === 'straights' || id === 'sequences') return 'runs';
+    if (id === 'pairs' || /^pairs-/.test(id)) return 'pairs';
+    if (id === 'mixed-orphans' || id === 'all-terminals' || id === 'all-honors') return 'majors';
+    if (/-dragons$/.test(id)) return 'dragons';
+    if (/-winds$/.test(id)) return 'winds';
+    return id;
+  }
 
   function planMemo(seatState) {
     var byBot = seatState.planMemo || (seatState.planMemo = {});
-    return byBot[T.id] || (byBot[T.id] = { turn: -1, base: null, now: null, left: {}, pivot: null });
+    var id = T.id || 'base';
+    return byBot[id] || (byBot[id] = { turn: -1, base: null, now: null, left: {}, pivot: null });
   }
 
   // The plan this turn is measured against. (The turn's own first read has
@@ -1573,8 +1596,9 @@
     var best = pick.analysis.best;
     var plan = best && best.plan;
     if (!plan || turn < COMMIT_TURN) return;
-    memo.now = plan.id;
-    if (memo.base && memo.base !== plan.id) {
+    var family = planFamily(plan.id);
+    memo.now = family;
+    if (memo.base && memo.base !== family) {
       memo.left[memo.base] = turn;
       memo.pivot = { turn: turn, from: memo.base, why: best.pivotWhy || 'gone' };
     } else if (memo.pivot && memo.pivot.turn === turn) {
@@ -1595,9 +1619,11 @@
 
   // Why `alt` may replace the committed `cur`: 'hopeless', 'points', or null.
   function pivotWhy(alt, cur, ctx) {
-    if (cur.ukeire === 0 || cur.planShanten + 1 > ctx.wallLeft) return 'hopeless';
-    if (cur.chance < HOPELESS_CHANCE && alt.chance >= cur.chance * HOPELESS_RATIO) return 'hopeless';
-    var back = leftPlan(ctx, alt.plan.id);
+    // No tile helps it, there aren't the draws left to fill it, or it has
+    // fallen well behind a hand with far better odds.
+    if (cur.ukeire === 0 || cur.planShanten + 1 > ctx.drawsLeft * 1.5) return 'hopeless';
+    if (alt.planShanten + HOPELESS_STEPS <= cur.planShanten && alt.chance >= cur.chance * HOPELESS_RATIO) return 'hopeless';
+    var back = leftPlan(ctx, planFamily(alt.plan.id));
     if (alt.pick === Infinity && !back) return 'points';
     var more = alt.plan.faan >= cur.plan.faan + (back ? 2 : 1);
     var near = alt.planShanten <= cur.planShanten + (back ? 0 : 1);
@@ -1607,18 +1633,20 @@
   // The committed plan if it's still alive and nothing justifies leaving it.
   function chooseEntry(entries, ctx) {
     var key = ctx.commit && ctx.commit.key;
-    var cur = key ? entries.filter(function (e) { return e.plan.id === key; })[0] : null;
+    var own = key ? entries.filter(function (e) { return planFamily(e.plan.id) === key; }) : [];
+    var cur = own.reduce(function (m, e) { return !m || e.pick > m.pick ? e : m; }, null);
     var best = cur;
     if (cur) {
       entries.forEach(function (e) {
-        if (e === cur) return;
+        if (own.indexOf(e) !== -1) return;
         var why = pivotWhy(e, cur, ctx);
         if (why && e.pick > best.pick) { best = e; best.pivotWhy = why; }
       });
       return best;
     }
     entries.forEach(function (e) { if (!best || e.pick > best.pick) best = e; });
-    if (best && key) best.pivotWhy = 'gone';
+    // (A strategy that lists its own plans has given up on this one.)
+    if (best && key) best.pivotWhy = T.ownPlans ? 'hopeless' : 'gone';
     return best;
   }
 
@@ -1631,30 +1659,39 @@
     return (others[0] || 0) + (others[1] || 0);
   }
 
-  // The plan with this id, when a strategy's list for this hand left it out.
-  function planById(c, ctx, id) {
-    var pool = basePlans(c, ctx).concat(setUpgrades(c, ctx, true), pairsUpgrades(c, ctx, true), upgradePlans(c, ctx));
+  // The plans of this family, when a strategy's list for this hand left them out.
+  function plansOfFamily(c, ctx, id) {
+    var pool = basePlans(c, ctx).concat(scoringPlans(c, ctx), setUpgrades(c, ctx, true), pairsUpgrades(c, ctx, true), upgradePlans(c, ctx));
+    // A flush keeps going below the tiles that would first suggest it, unless
+    // a meld in another suit has ruled it out.
+    var su = /^flush-/.test(id) ? id.slice(6) : null;
+    if (su && !Object.keys(ctx.meldSuits).some(function (k) { return k !== su && k !== 'z'; })) {
+      var kept = restrict(c, function (i) { return E.suitOfIndex(i) === su || i >= 27; });
+      pool.push({
+        id: 'half-' + su, suit: su, label: 'a Half Flush in ' + SUIT_LABELS[su], counts: kept, shantenFn: E.standardShanten,
+        faan: baseFaan(ctx) + (ctx.concealed ? 1 : 0) + 3 + handYaku(ctx, kept), open: true,
+      });
+    }
     if (!ctx.declared) {
       pool.push(makeSpecialPlan('pairs', c, ctx));
       if (orphansAlive(c, ctx)) pool.push(makeSpecialPlan('orphans', c, ctx));
     }
     var min = ctx.game.settings.minFaan;
     return pool.filter(function (p) {
-      return p.id === id && (p.id !== 'plain' || p.faan >= min) && p.shantenFn(p.counts, ctx.declared) !== Infinity;
-    })[0] || null;
+      return planFamily(p.id) === id && (p.id !== 'plain' || p.faan >= min) && p.shantenFn(p.counts, ctx.declared) !== Infinity;
+    });
   }
 
   // A special hand a strategy reaches for must be a justified pivot too.
   function gateSpecial(ctx, counts) {
     var locked = ctx.lockedSpecial;
     var key = ctx.commit && ctx.commit.key;
-    if (!locked || !key || T.ownPlans || ctx.planFixed || locked.kind === key) return;
-    var cur = planById(counts, ctx, key);
+    if (!locked || !key || T.ownPlans || ctx.planFixed || planFamily(locked.kind) === key) return;
+    var cur = plansOfFamily(counts, ctx, key)[0];
     if (!cur) return;
     var plan = makeSpecialPlan(locked.kind, counts, ctx, locked.gates);
-    var alt = { plan: plan, planShanten: plan.shantenFn(plan.counts, ctx.declared), pick: Infinity, chance: 1 };
+    var alt = { plan: plan, planShanten: plan.shantenFn(plan.counts, ctx.declared), pick: 1, chance: 1 };
     var now = { plan: cur, planShanten: cur.shantenFn(cur.counts, ctx.declared), pick: 0, chance: 1, ukeire: 1 };
-    alt.pick = 1;
     if (!pivotWhy(alt, now, ctx)) ctx.lockedSpecial = null;
   }
 
@@ -2089,6 +2126,33 @@
     return 0;
   }
 
+  function flushLead(plan) {
+    return !!(plan && /^(full|half)-/.test(plan.id));
+  }
+
+  // A flush scores no dragon, but a pair of them is worth more than the
+  // short chain in another suit. The player after you can hold that chain
+  // back, and folding would rather throw the safe pair. Keep the pair
+  // unless breaking it is what leaves the hand ready.
+  function keepDragonPair(out, ctx, counts) {
+    if (!out.length || !flushLead(ctx.leadPlan)) return out;
+    var top = out[0];
+    if (top.shanten <= 0 || DRAGONS.indexOf(top.index) === -1 || counts[top.index] !== 2) return out;
+    var suit = ctx.leadPlan.suit;
+    var least = leastSuits(counts);
+    var best = null, bestRank = 0;
+    for (var k = 1; k < out.length; k++) {
+      var x = out[k];
+      if (x.index >= 27) continue;
+      var su = E.suitOfIndex(x.index);
+      if (su === suit || !least[su]) continue;
+      var rank = shortSuitRank(counts, x.index, ctx.leadPlan);
+      if (!best || rank < bestRank) { best = x; bestRank = rank; }
+    }
+    if (!best) return out;
+    return [best].concat(out.filter(function (x) { return x !== best; }));
+  }
+
   function disconnectRank(x, counts, plan) {
     if (x.shanten <= 0 || riskStep(x.loss) >= 3 || !shortSuitDiscard(counts, x.index, plan)) return null;
     return shortSuitRank(counts, x.index, plan);
@@ -2227,6 +2291,7 @@
     };
     out = out.filter(function (x) { return !isLone(x); }).concat(out.filter(isLone));
     if (H.finalOrder) out = H.finalOrder(out, ctx, c);
+    out = keepDragonPair(out, ctx, c);
     // Only the hand really held moves the plan: a claim being weighed doesn't.
     var seatNow = game.hand.seats[seat];
     if (hand === seatNow.hand && ctx.melds === seatNow.melds) updateCommit(seatNow, out[0], folding);
@@ -2362,7 +2427,8 @@
     var key = ctx.commit && ctx.commit.key;
     var cur = res.stay.best;
     var next = o.analysis && o.analysis.best;
-    if (!key || !cur || !next || !next.plan || cur.readyBest || cur.plan.id !== key || next.plan.id === key) return true;
+    if (!key || !cur || !next || !next.plan || cur.readyBest) return true;
+    if (planFamily(cur.plan.id) !== key || planFamily(next.plan.id) === key) return true;
     if (o.analysis.shanten === 0) return true;
     return !next.readyBest && !!pivotWhy(next, cur, ctx);
   }
@@ -2481,6 +2547,7 @@
     finishChance: finishChance,
     winsWhenReady: winsWhenReady,
     planPivot: planPivot,
+    planFamily: planFamily,
     leftPlan: leftPlan,
     isolatedTile: isolatedTile,
     looseTerminal: looseTerminal,

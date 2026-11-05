@@ -145,8 +145,8 @@
   }
 
   // The lock lives on this hand's seat, so it lasts past the eighth turn. A
-  // saved game replays its moves without the bots, so it comes back unread,
-  // and the lock is read again from the tiles held.
+  // saved game replays the bots' turns, which rebuilds theirs. The coach isn't
+  // replayed, so your own hand comes back unread and is read again from its tiles.
   function savedLock(ctx) {
     return handById(ctx.game.hand.seats[ctx.seat].noDefenseLock);
   }
@@ -181,6 +181,7 @@
     ctx.lock = updateLock(counts, ctx);
     // Faster-looking hands don't pull it off a lock or its own read.
     ctx.lockedSpecial = ctx.lock ? { kind: ctx.lock.id } : null;
+    ctx.planFixed = !!ctx.lock;
   }
 
   // (A claim's choice is weighed from the 13 tiles, without hand() first.)

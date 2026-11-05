@@ -66,6 +66,8 @@
 
   function stillOrphans(c, ctx) {
     if (ctx.declared || !B.orphansAlive(c, ctx)) return false;
+    // Once it has given up on Thirteen Orphans, it doesn't come back.
+    if (B.leftPlan(ctx, 'orphans')) return false;
     if (ctx.turn < HOLD_TURNS) return true;
     return handOdds(c, ctx) >= GIVE_UP_ODDS;
   }
@@ -140,7 +142,7 @@
     id: 'only-orphans',
     // A limit hand counts for much more than Mixed Orphans, but not so much
     // that it's chosen from many steps further away.
-    tuning: { valuePower: 0.5 },
+    tuning: { valuePower: 0.5, ownPlans: true },
     hooks: {
       hand: hand,
       plans: plans,

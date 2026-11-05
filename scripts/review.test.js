@@ -50,9 +50,9 @@ describe('reviewing a hand from its seed', () => {
   });
 
   it('finds a turn where the coach throws a tile', async () => {
-    const hits = await R.find(SPEC, 'd1', 1);
+    const hits = await R.find(SPEC, 'dg', 1);
     assert.equal(hits[0].number, 1);
-    assert.equal(hits[0].top, 'd1');
+    assert.equal(hits[0].top, 'dg');
   });
 });
 

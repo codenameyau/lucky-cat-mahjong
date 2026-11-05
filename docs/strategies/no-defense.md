@@ -39,7 +39,7 @@ Once locked, other number tiles go first, then honors outside the hand. The hand
 - A lone honor with no copies left still goes first, unless the hand is Thirteen Orphans, which needs it.
 - On a hand of sets, a lone tile with no copies left goes along with the tiles outside the hand.
 
-The lock ends only when the hand can't be won: it has fewer than 8 of the tiles, a meld rules it out, no tile would help, or the wall is too short. It can lock again on a later turn only within the first 8. A saved game doesn't record the lock, so after a reload it's read again from the tiles held, and past turn 8 that can differ from the original read.
+The lock ends only when the hand can't be won: it has fewer than 8 of the tiles, a meld rules it out, no tile would help, or the wall is too short. It can lock again on a later turn only within the first 8. A saved game replays the bots' turns, so they come back on the same lock. The coach's read of your own hand isn't saved, so after a reload it's read again from your tiles, and past turn 8 that can differ.
 
 ## Claims
 

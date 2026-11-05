@@ -354,13 +354,8 @@
     return Math.round(f);
   }
 
-  function stepsWordsFor(s) {
-    return s <= 0 ? 'ready' : s === 1 ? '1 tile from ready' : s + ' tiles from ready';
-  }
-
   // Why the hand changed, from what's true now about the hand it left.
-  function pivotReason(v, prev, now, cAfter) {
-    var min = v.game.settings.minFaan;
+  function pivotReason(v, prev, now, cAfter, why) {
     var melds = v.game.hand.seats[v.seat].melds;
     if (v.ctx.lock) return 'you hold 8 or more of its tiles, so it\'s worth keeping them';
     var old = B.plansFor(cAfter, v.ctx).filter(function (p) { return routeKey(routeOf(p)) === prev.key; })[0];
@@ -369,23 +364,17 @@
       return 'your ' + melds[melds.length - 1].type + ' rules out the old hand';
     }
     if (old && oldSteps === Infinity) return 'the old hand can\'t be finished now';
+    var oldFaan = old ? old.faan : prev.faan;
+    if (why !== 'gone' && now.faan > oldFaan) {
+      return 'it\'s worth ' + roundFaan(now.faan) + ' faan, and the old hand ' + roundFaan(oldFaan);
+    }
     var track = v.ctx.track;
     var rival = prev.suit && track && track.seats.filter(function (r) { return r.collecting === prev.suit; })[0];
     if (rival && now.suit !== prev.suit) {
-      return v.game.players[rival.seat].name + ' is collecting ' + SUIT_NAME[prev.suit] + ', so those tiles will be slow';
+      return v.game.players[rival.seat].name + ' is collecting ' + SUIT_NAME[prev.suit] + ', so the old hand has little chance left';
     }
-    var oldFaan = old ? old.faan : prev.faan;
-    if (oldFaan < min - 0.25 && now.faan >= min - 0.25) {
-      if (prev.key === 'straights' && oldFaan + 1 >= min - 0.25) return 'the old hand needs a self-draw to reach ' + min + ' faan';
-      return 'the old hand only scores ' + roundFaan(oldFaan) + ' faan, short of ' + min;
-    }
-    if (now.steps < oldSteps) return 'it\'s ' + stepsWordsFor(now.steps) + ', and the old hand is ' + stepsWordsFor(oldSteps);
-    if (now.faan > oldFaan) return 'it\'s worth ' + roundFaan(now.faan) + ' faan, and the old hand ' + roundFaan(oldFaan);
-    // (The hands of only certain tiles count their outs differently.)
-    var limited = /^(all-|mixed-orphans|pairs-)/;
-    var oldLive = old ? B.ukeire(old.counts, old.shantenFn, v.ctx.declared, v.ctx.unseen, oldSteps).total : prev.live;
-    if (now.live > oldLive && !limited.test(now.key) && !limited.test(prev.key)) return now.live + ' unseen tiles help it, and ' + oldLive + ' help the old hand';
-    return 'the odds of finishing it are better now';
+    if (why === 'gone') return 'the old hand can\'t be finished now';
+    return 'the old hand has little chance left, and this one has better odds';
   }
 
   // One sentence when the coach's hand changes from last turn, with the reason.
@@ -405,8 +394,10 @@
     if (rec.turn !== turn) { rec.prev = rec.now; rec.turn = turn; }
     rec.now = now;
     var prev = rec.prev;
-    if (!prev || prev.key === now.key) return '';
-    return ' Pivoting from ' + prev.name + ' to ' + now.name + ': ' + pivotReason(v, prev, now, cAfter) + '.';
+    // Only a real pivot: the first discards keep their options open.
+    var pivot = B.planPivot(v.game, v.seat);
+    if (!prev || !pivot || prev.key === now.key) return '';
+    return ' Pivoting from ' + prev.name + ' to ' + now.name + ': ' + pivotReason(v, prev, now, cAfter, pivot.why) + '.';
   }
 
   // What the table tracker read from the discards, when it bears on this hand:
@@ -662,7 +653,7 @@
     var cAfter = c.slice();
     cAfter[pick.index]--;
     // Folding, the discard isn't building anything, so the hand hasn't changed.
-    var shifted = defending || list.folding ? '' : pivotNote(v, pick.plan, cAfter);
+    var shifted = list.folding ? '' : pivotNote(v, pick.plan, cAfter);
     if (canWin) {
       var wins = winning.filter(function (w) { return w.ronOk; }).map(function (w) { return w.ronFaan; });
       var state = 'Ready, waiting on ' + waitsText(pick.ready) + (wins.length ? ' for ' + Math.min.apply(null, wins) + '+ faan.' : '.');
