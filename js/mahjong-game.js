@@ -552,7 +552,11 @@
     // W and H are the layout size. On short landscape screens the table is
     // laid out taller and scaled down to fit (zoom < 1); dpr then includes
     // that zoom so everything still renders sharp.
-    var W = 0, H = 0, dpr = 1, zoom = 1, cssW = 0, cssH = 0;
+    // A pane smaller than the table's fixed parts (a hidden one measures 0)
+    // is still laid out at the minimum and clipped, because below that the
+    // seats overrun the table and the pond's size goes negative.
+    var MIN_LAYOUT_W = 200, MIN_LAYOUT_H = 300;
+    var W = MIN_LAYOUT_W, H = MIN_LAYOUT_H, dpr = 1, zoom = 1, cssW = 0, cssH = 0;
     var MIN_LANDSCAPE_H = 520;
     var L = null;
     var game = null;
@@ -711,10 +715,10 @@
     function resize() {
       var rect = canvas.getBoundingClientRect();
       var deviceDpr = Math.min(root.devicePixelRatio || 1, 2.5);
-      var nextZoom = rect.width > rect.height && rect.height < MIN_LANDSCAPE_H ? rect.height / MIN_LANDSCAPE_H : 1;
+      var nextZoom = rect.width > rect.height && rect.height > 0 && rect.height < MIN_LANDSCAPE_H ? rect.height / MIN_LANDSCAPE_H : 1;
       if (rect.width === cssW && rect.height === cssH && deviceDpr * nextZoom === dpr) return;
       cssW = rect.width; cssH = rect.height; zoom = nextZoom;
-      W = cssW / zoom; H = cssH / zoom; dpr = deviceDpr * zoom;
+      W = Math.max(MIN_LAYOUT_W, cssW / zoom); H = Math.max(MIN_LAYOUT_H, cssH / zoom); dpr = deviceDpr * zoom;
       canvas.width = Math.round(cssW * deviceDpr);
       canvas.height = Math.round(cssH * deviceDpr);
       spriteCache = {};
