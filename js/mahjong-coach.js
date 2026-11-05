@@ -296,13 +296,13 @@
   function targetText(v, plan, c, nextOut) {
     var r = plan.route;
     if (r.id === 'straights') {
-      // Every bot throws honors first on this hand, all but one honor pair.
-      // A dragon nobody has shown stays only while that pair is not chosen yet.
+      // Every bot throws honors first on this hand, all but one honor pair
+      // and a dragon nobody has shown.
       var eyes = B.keptHonorPair(c, v.ctx);
       var honors = 0;
       for (var h = 27; h < 34; h++) {
         if (h === nextOut || h === eyes) continue;
-        if (eyes === null && B.holdsDragon(v.game, h, 1)) continue;
+        if (B.holdsDragon(v.game, h, 1)) continue;
         honors += c[h] || 0;
       }
       var keepPair = eyes !== null ? '. Keep your ' + name(eyes) + ' pair as the pair' : '';

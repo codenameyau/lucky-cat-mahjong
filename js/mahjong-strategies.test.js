@@ -216,20 +216,19 @@ describe('Concealed Straights keeps one honor pair', () => {
     assert.match(hint.tips.join(' '), /Keep your North Wind pair as the pair, and throw your other honors first/);
   });
 
-  it('keeps a finished straight and throws the extra dragon', () => {
-    // 36529946-NE, North to play: 5-6-7 dots is already a straight, and
-    // South is the pair, so the white dragon is the honor to throw.
+  it('keeps a finished straight and a lone dragon', () => {
+    // 36529946-NE, North to play: 5-6-7 dots is already a straight and South
+    // is the pair, but the white dragon has three copies left, so it stays.
     const hand = ['b7', 'b8', 'b9', 'b9', 'c3', 'c5', 'c6', 'c6', 'd5', 'd6', 'd7', 'dw', 'ws', 'ws'];
     const game = table({ seats: [{ hand }], wallLeft: 70 });
     const bots = [require('./mahjong-bot.js'), B, L, require('./mahjong-no-defense.js')];
     bots.forEach((bot) => {
       const top = bot.analyzeDiscards(game, 0).candidates[0];
       assert.equal(bot.analyzeDiscards(game, 0).ctx.leadPlan.id, 'straights', bot.id);
-      assert.equal(top.tile, 'dw', bot.id);
+      assert.ok(!['dw', 'd5', 'd6', 'd7'].includes(top.tile), bot.id + ' threw ' + top.tile);
     });
     const hint = Coach.turnHint(game, 0, noKongs);
-    assert.equal(hint.tile, 'dw');
-    assert.match(hint.tips.join(' '), /Honors break All Sequences/);
+    assert.equal(hint.tile, 'b9');
   });
 
   it('keeps a dragon or scoring-wind pair ahead of another honor pair', () => {
@@ -623,7 +622,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.22.0');
+    assert.equal(E.GAME_VERSION, '0.22.1');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
@@ -761,11 +760,12 @@ describe('no-defense', () => {
     assert.equal(a.defense, 0);
   });
 
-  it('locks onto a Full Flush with 8 tiles, and throws other suits, then honors', () => {
+  it('locks onto a Full Flush with 8 tiles, and throws other suits, then honors, keeping a lone dragon', () => {
     const list = order(table({ seats: [{ hand: flush }] }));
     assert.deepEqual(list.slice(0, 3).sort(), ['c2', 'c7', 'd4']);
-    assert.deepEqual(list.slice(3, 6).sort(), ['dr', 'we', 'wn']);
-    assert.ok(list.slice(6).every((t) => t[0] === 'b'));
+    assert.deepEqual(list.slice(3, 5).sort(), ['we', 'wn']);
+    assert.ok(list.slice(5, -1).every((t) => t[0] === 'b'));
+    assert.equal(list[list.length - 1], 'dr');
   });
 
   it('does not lock with 7 tiles, or for the first time after turn 8', () => {
@@ -1129,7 +1129,7 @@ describe('the isolated tile in the shortest suit goes first', () => {
 
 describe('ready means the hand can win, and dragons stay', () => {
   const Base = require('./mahjong-bot.js');
-  const bots = { base: Base, 'jorge-yau': L, 'lucky-cat': B, 'only-orphans': S.get('only-orphans').bot };
+  const bots = { base: Base, 'jorge-yau': L, 'lucky-cat': B, 'only-orphans': S.get('only-orphans').bot, 'no-defense': S.get('no-defense').bot };
   const short = {
     seats: [{ hand: ['c8', 'b5', 'c8', 'c3', 'd8', 'c8', 'dg', 'b3', 'c2', 'd8', 'c1'], melds: [pung('wn')] }],
     round: 'e',
@@ -1139,6 +1139,20 @@ describe('ready means the hand can win, and dragons stay', () => {
     for (const bot of [Base, L, B]) {
       assert.notEqual(bot.chooseTurnAction(table(short), 0, { kongs: [] }).tile, 'dg');
     }
+  });
+
+  it('keeps a lone dragon on Concealed Straights, even with an honor pair kept', () => {
+    const hand = ['c1', 'c6', 'c7', 'c8', 'd1', 'd4', 'd9', 'b2', 'b2', 'b8', 'we', 'we', 'dg', 'dr'];
+    for (const bot of Object.values(bots)) {
+      const tile = bot.chooseTurnAction(table({ seats: [{ hand }] }), 0, { kongs: [] }).tile;
+      assert.ok(tile !== 'dg' && tile !== 'dr', bot.id + ' threw ' + tile);
+    }
+  });
+
+  it('keeps a lone dragon on a No Defense lock', () => {
+    const hand = ['b1', 'b2', 'b3', 'b5', 'b6', 'b8', 'b9', 'b9', 'b4', 'b4', 'b7', 'b7', 'wn', 'dr'];
+    const list = bots['no-defense'].analyzeDiscards(table({ seats: [{ hand }] }), 0).candidates;
+    assert.equal(list[list.length - 1].tile, 'dr');
   });
 
   it('does not call a shape under the minimum ready', () => {

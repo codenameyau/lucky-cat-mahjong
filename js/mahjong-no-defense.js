@@ -214,6 +214,8 @@
   function lockRank(x, c, ctx, lock) {
     var i = x.index;
     if (lock.id !== 'orphans' && deadHonor(c, ctx, i)) return 0;
+    // A lone dragon nobody has shown outlasts even the hand's own tiles.
+    if (B.loneDragon(ctx.game, c, i) && !winsNow(x)) return 5;
     var dead = lock.sets && c[i] === 1 && ctx.unseen[i] === 0;
     if (!lock.fits(i) || dead) {
       if (winsNow(x)) return 1;
@@ -226,10 +228,11 @@
     var i = x.index;
     if (deadHonor(c, ctx, i)) return 0;
     if (winsNow(x)) return 1;
+    if (B.loneDragon(ctx.game, c, i)) return 8;
     var straights = ctx.leadPlan && ctx.leadPlan.id === 'straights';
     var eyes = straights ? B.keptHonorPair(c, ctx) : null;
-    // The pair is already kept, so every other honor, dragon included, goes
-    // before a number tile. A finished straight waits behind a loose tile.
+    // The pair is already kept, so every other honor goes before a number
+    // tile. A finished straight waits behind a loose tile.
     if (straights && eyes !== null && i >= 27 && i !== eyes) return 2;
     if (!isHonor(i)) {
       var rank = x.shanten <= bestSteps ? 2 : 4;
@@ -239,7 +242,7 @@
     }
     if (c[i] >= 3) return 7;
     if (c[i] === 2) return 6;
-    return B.loneDragon(ctx.game, c, i) ? 5 : 3;
+    return 3;
   }
 
   // Lone honors with fewer copies left go first, and ones that score last.

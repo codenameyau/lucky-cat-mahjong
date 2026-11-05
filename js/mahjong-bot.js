@@ -571,16 +571,15 @@
   // (group 0: even while folding). A pair of another suit waits behind those
   // singles: it is still an eye, and a pung if the hand pivots to All
   // Triplets, unless a chow of a different suit has closed that hand. On
-  // Concealed Straights, every honor but one pair goes first (group -1:
-  // while folding, safety decides). A dragon nobody has shown stays only
-  // while no honor pair is kept yet. Null when neither applies.
+  // Concealed Straights, every honor but one pair and a dragon nobody has
+  // shown goes first (group -1: while folding, safety decides). Null when
+  // neither applies.
   function sharedPriority(game, ctx, counts, candidate) {
     var i = candidate.index;
     var lead = ctx.leadPlan;
     if (lead && lead.id === 'straights' && !ctx.hasChow) {
       var eyes = keptHonorPair(counts, ctx);
-      var savingDragon = eyes === null && holdsDragon(game, i, candidate.shanten);
-      return i >= 27 && i !== eyes && !savingDragon ? -1 : null;
+      return i >= 27 && i !== eyes && !holdsDragon(game, i, candidate.shanten) ? -1 : null;
     }
     var committed = suitCommitment(ctx, counts);
     if (committed && i < 27 && E.suitOfIndex(i) !== committed) {
@@ -2281,14 +2280,9 @@
       return E.isTerminalOrHonorIndex(b.index) - E.isTerminalOrHonorIndex(a.index);
     });
     if (!folding && T.tripletsLive) out = tripletsOrder(out, ctx, c);
-    // A lone dragon nobody has shown goes last of all, unless throwing it
-    // leaves the hand ready, or Concealed Straights already has its honor
-    // pair: then the dragon is just another honor.
-    // (Ready means it can really win: see stepsToWin.)
-    var pairKept = ctx.leadPlan && ctx.leadPlan.id === 'straights' && keptHonorPair(c, ctx) !== null;
-    var isLone = function (x) {
-      return x.shanten > 0 && loneDragon(game, c, x.index) && !pairKept;
-    };
+    // A lone dragon nobody has shown goes last of all, on every hand, unless
+    // throwing it leaves the hand ready to win (see stepsToWin).
+    var isLone = function (x) { return x.shanten > 0 && loneDragon(game, c, x.index); };
     out = out.filter(function (x) { return !isLone(x); }).concat(out.filter(isLone));
     if (H.finalOrder) out = H.finalOrder(out, ctx, c);
     out = keepDragonPair(out, ctx, c);
