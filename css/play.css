@@ -548,6 +548,8 @@ html.is-playing.is-sideways body {
 
 .strategies-assign-row:first-child { border-top: 0; }
 
+.strategies-assign-row--read { grid-template-columns: 1fr; }
+
 @media (min-width: 601px) {
   .strategies-assign {
     grid-template-columns: 1fr 1fr;
@@ -726,6 +728,26 @@ html.is-playing.is-sideways body {
 .results-empty {
   margin: 8px 0 4px;
   color: rgba(255, 248, 240, 0.75);
+}
+
+.results-actions { margin: 8px 0 2px; }
+
+.results-replay {
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #F4A020;
+  color: #1A1A1A;
+  font: inherit;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.results-replay:hover { filter: brightness(1.05); }
+
+.results-replay:focus-visible {
+  outline: 2px solid #ffd27a;
+  outline-offset: 2px;
 }
 
 .results-table {

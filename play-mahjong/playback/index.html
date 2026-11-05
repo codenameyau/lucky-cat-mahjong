@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en-US" class="is-playing">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Playback | Lucky Cat Mahjong</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="stylesheet" href="/css/fonts.css">
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/play.css">
+</head>
+<body>
+  <div id="play-stage" class="play-stage">
+    <canvas id="play-canvas" class="play-canvas" tabindex="0" role="application" aria-label="Mahjong replay. A playback saved from your wind opens on its own. Upload, in the center, reads a JSON playback file. Command+V or Ctrl+V pastes one too. Strategies, Rules, and Sound sit at the top right. The hand then plays through the moves in that file. Recommendations, under the coach column, shows each strategy and the tile it would discard. Click one to make it the coach. The coach on the right is titled Coach and that strategy, and comments on your moves. Space pauses. Left and right arrows step one move. Drag the bar to a move. Back, when this replay was opened from a finished game, returns to that game's results. Escape clears the hand."></canvas>
+    <p id="play-live" class="visually-hidden" aria-live="polite"></p>
+    <dialog id="rules-sheet" class="rules-sheet" aria-labelledby="rules-sheet-title">
+      <div class="rules-sheet-inner">
+        <header class="rules-sheet-head">
+          <h2 id="rules-sheet-title">Rules</h2>
+          <button type="button" class="rules-sheet-close" aria-label="Close the rules">Close</button>
+        </header>
+        <div id="rules-sheet-body" class="rules-sheet-body"></div>
+      </div>
+    </dialog>
+    <dialog id="strategies-sheet" class="rules-sheet strategies-sheet" aria-labelledby="strategies-sheet-title">
+      <div class="rules-sheet-inner">
+        <header class="rules-sheet-head">
+          <h2 id="strategies-sheet-title">Strategies <span class="strategies-beta">Beta</span></h2>
+          <button type="button" class="rules-sheet-close" aria-label="Close the strategies">Close</button>
+        </header>
+        <p class="rules-sheet-intro">How each strategy chooses a discard. The coach is the one named on the side panel.</p>
+        <div id="strategies-sheet-body" class="rules-sheet-body"></div>
+      </div>
+    </dialog>
+  </div>
+
+  <script src="/js/points.js" defer></script>
+  <script src="/js/mahjong-engine.js" defer></script>
+  <script src="/js/mahjong-bot.js" defer></script>
+  <script src="/js/mahjong-lucky-cat.js" defer></script>
+  <script src="/js/mahjong-jorge-yau.js" defer></script>
+  <script src="/js/mahjong-only-orphans.js" defer></script>
+  <script src="/js/mahjong-no-defense.js" defer></script>
+  <script src="/js/mahjong-strategies.js" defer></script>
+  <script src="/js/mahjong-coach.js" defer></script>
+  <script src="/js/mahjong-lesson.js" defer></script>
+  <script src="/js/mahjong-rules.js" defer></script>
+  <script src="/js/mahjong-game.js" defer></script>
+  <script src="/js/playback-page.js" defer></script>
+</body>
+</html>

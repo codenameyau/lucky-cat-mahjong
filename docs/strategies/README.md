@@ -78,7 +78,7 @@ The coach speaks for any strategy through `MahjongCoach.forStrategy(bot)`. It na
 
 ## Reviewing a hand, and teaching the coach
 
-`npm run review` replays a hand from its seed in under a second and shows what the coach said on each of your turns. Tap your wind badge in the game to copy a hand's seed.
+`npm run review` replays a hand from its seed in under a second and shows what the coach said on each of your turns. Tap your wind badge in the game to save a playback. Its `handSeed` is the hand seed this command takes.
 
 | Command | |
 | --- | --- |

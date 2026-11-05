@@ -136,7 +136,7 @@ Hands are scored by `HKScoring.scoreHand` in `js/points.js`, the calculator's ow
 
 #### Hand seeds
 
-Tap your wind badge to silently copy the current hand's seed (like `919942249-NE`: the shuffle number, your seat wind, the round wind). The badge flashes to confirm. Paste the seed into the Points Guide to see that starting hand.
+Tap your wind badge to save a playback. The badge flashes to confirm. The file is signed (HMAC-SHA256). It holds the hand seed (`handSeed`, such as `919942249-NE`: the shuffle number, your seat wind, the round wind), every draw, discard, and claim so far, and each player's hand at that moment. Open `/play-mahjong/playback/` and that saved hand plays. With none saved, Upload in the center reads a JSON playback file. Command+V or Ctrl+V pastes one too. A changed or damaged file won't play. The hand plays on the table, and the bar stops at the last move in the file. Recommendations, under the coach column and as tall as your hand, shows the tile each strategy would discard. The same panel sits beside your hand in a game. Click one to make it the coach. The side panel is titled Coach and that strategy. At the end of a full game, Results has View replay, which opens that last hand here. Back returns to those results. The Points Guide still reads the file, or just the hand seed, as that starting hand.
 
 #### Strategies
 
@@ -280,7 +280,7 @@ Background music is three CC BY 4.0 tracks by Kevin MacLeod (Guzheng City, Sheny
 
 #### Testing tip
 
-Animations are always on for players. Add `?instant=1` to the page URL to skip them for that visit, which makes testing much faster.
+Animations are always on for players. Add `?instant=1` to the page URL to skip them for that visit, which makes testing much faster. Add `sound=0` to turn sound and music off for that visit, or `sound=1` to turn them on. With no `sound` parameter, the Sound button's saved choice is used. Always set `sound=0` while testing programmatically, so the run stays quiet.
 
 ### Other
 
