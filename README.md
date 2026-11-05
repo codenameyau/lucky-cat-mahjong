@@ -126,7 +126,7 @@ Hands are scored by `HKScoring.scoreHand` in `js/points.js`, the calculator's ow
 #### Saving and resuming
 
 - **Autosave** — After each move the game is stored in this browser. **Resume game** continues it and is the main button while a save is there, and the other button says **Start new game**. Resume stays hidden when nothing is saved, and **Start game** is the main button then
-- **Switching modes on mobile** — When the selected mode isn't the saved game's, **Start new game** moves first and turns red, and **Resume game** moves second
+- **Switching modes** — When the selected mode isn't the saved game's, **Start new game** moves first and turns red, and **Resume game** moves second
 - **Refreshing** — While a game is open, the page's URL has `?opened=1`, so refreshing goes straight back to the game. Quitting removes it. A lesson isn't saved, so it doesn't set it, and without a save that loads the page shows as usual
 - **Back** — While a game or lesson is open, the browser's Back button returns to the Play page, and the game stays saved. Forward goes back into a saved game
 - **No hidden tiles in a save** — It holds the game as the current hand began, that hand's seed and your own moves. Resuming deals the hand from the seed and replays it

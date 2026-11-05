@@ -46,8 +46,7 @@
       } catch (e) {}
       root.classList.add('play-mode-' + mode);
       if (hasSave) root.classList.add('play-has-save');
-      if (hasSave && save.payload.game.settings && save.payload.game.settings.mode !== mode &&
-          window.matchMedia && matchMedia('(max-width: 600px), (pointer: coarse) and (max-height: 599px)').matches) {
+      if (hasSave && save.payload.game.settings && save.payload.game.settings.mode !== mode) {
         root.classList.add('play-new-first');
       }
       if (hasSave && /[?&]opened=1(&|$)/.test(location.search)) root.classList.add('play-reopening');
