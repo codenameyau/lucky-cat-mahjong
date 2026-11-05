@@ -195,6 +195,11 @@
     if (c[i] === 2) return 'One pair too many.';
     if (pick.lone) {
       if (i >= 27) return 'A lone honor worth no faan to you.';
+      var held = B.suitCounts(c, v.ctx);
+      var su = E.suitOfIndex(i);
+      if (Object.keys(held).every(function (k) { return held[su] <= held[k]; })) {
+        return 'Nothing connects to it, and ' + SUIT_NAME[su] + ' is your shortest suit.';
+      }
       return E.isTerminalOrHonorIndex(i) ? 'A lone terminal, the hardest to use.' : 'Nothing connects to it.';
     }
     var r = i % 9;

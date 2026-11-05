@@ -1794,6 +1794,24 @@
     }).map(function (o) { return o.x; });
   }
 
+  // A number tile with no other tile of its suit within 2 ranks: in 1, 4 and
+  // 5 of a suit, the 1. It can't join a run until two more tiles arrive.
+  function isolatedTile(counts, i) {
+    if (i >= 27 || counts[i] !== 1) return false;
+    var r = i % 9;
+    return [-2, -1, 1, 2].every(function (d) {
+      return r + d < 0 || r + d > 8 || !counts[i + d];
+    });
+  }
+
+  // Among discards the rest of the order rates alike, the isolated tile in
+  // the suit with the fewest tiles goes first. Not a discard that leaves the
+  // hand ready, where the better wait decides, and not a risky one.
+  function isolatedRank(x, counts, suitN) {
+    if (x.shanten <= 0 || riskStep(x.loss) >= 3 || !isolatedTile(counts, x.index)) return Infinity;
+    return suitN[E.suitOfIndex(x.index)];
+  }
+
   /* ------------------------------------------------------------------ *
    * 7. Discard analysis (14 tiles in hand)
    * ------------------------------------------------------------------ */
@@ -1877,12 +1895,17 @@
       var breaksSet = c[x.index] >= 3 && best && best.plan && !best.readyBest && SETS_PLANS.indexOf(best.plan.id) !== -1;
       x.tier = x.priority <= 0 || (x.shanten <= bestShanten && !breaksSet) ? x.priority : 10 + x.priority;
     });
+    var suitN = suitCounts(c, ctx);
     out.sort(function (a, b) {
       // Off-suit tiles after a chow always go first, even while folding
       // (then the safest of them goes).
       var offA = a.priority === 0, offB = b.priority === 0;
       if (offA !== offB) return offA ? -1 : 1;
       if (!folding && a.tier !== b.tier) return a.tier - b.tier;
+      if (!folding) {
+        var aloneA = isolatedRank(a, c, suitN), aloneB = isolatedRank(b, c, suitN);
+        if (aloneA !== aloneB) return aloneA - aloneB;
+      }
       if (b.score !== a.score) return b.score - a.score;
       if (a.priority !== b.priority) return a.priority - b.priority;
       return E.isTerminalOrHonorIndex(b.index) - E.isTerminalOrHonorIndex(a.index);
@@ -2126,6 +2149,8 @@
     ukeire: ukeire,
     finishChance: finishChance,
     winsWhenReady: winsWhenReady,
+    isolatedTile: isolatedTile,
+    suitCounts: suitCounts,
     readTable: readTable,
     raceOdds: raceOdds,
     feedLoss: feedLoss,
