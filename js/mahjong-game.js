@@ -3231,19 +3231,48 @@
       return entries;
     }
 
-    // Tapping your wind badge stores a signed playback. The playback page
-    // opens it on its own. No message. The badge flashes once it is stored.
+    // Copies `text` during the click. The clipboard API needs a secure page;
+    // the fallback covers plain http, where a phone on the local network is.
+    function copyText(text) {
+      var fallback = function () {
+        return new Promise(function (resolve, reject) {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed';
+          ta.style.top = '0';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          var ok = false;
+          try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+          document.body.removeChild(ta);
+          if (canvas && canvas.focus) canvas.focus();
+          ok ? resolve() : reject(new Error('copy failed'));
+        });
+      };
+      var clip = root.navigator && navigator.clipboard && navigator.clipboard.writeText;
+      if (!clip) return fallback();
+      return navigator.clipboard.writeText(text).catch(fallback);
+    }
+
+    // Tapping your wind badge copies the signed playback. Its hand seed is
+    // payload.handSeed. The playback page also keeps that file, and opens it
+    // on its own. No message. The badge flashes once the copy is done.
     function copySeed() {
       if (!game || !game.hand) return;
-      var file = E.makePlayback(game, {
-        seat: 0,
-        strategies: ui.strategies && ui.strategies.seats ? ui.strategies.seats.slice() : [],
-      });
-      if (!file) return;
+      var seats = ui.strategies && ui.strategies.seats;
+      var file;
+      try {
+        file = E.makePlayback(game, { seat: 0, strategies: Array.isArray(seats) ? seats.slice() : [] });
+      } catch (err) { return; }
+      if (!file || !file.payload || !file.payload.handSeed) return;
       writeJson(REPLAY_KEY, file);
-      if (!readJson(REPLAY_KEY, null)) return;
       track('play_copy_seed', {});
-      if (!destroyed) animate(520, function (e) { ui.windFlash = 1 - e; });
+      copyText(JSON.stringify(file)).then(function () {
+        if (!destroyed) animate(520, function (e) { ui.windFlash = 1 - e; });
+      }, function () {});
     }
 
     // Older notes start at the top and later ones follow downward.
