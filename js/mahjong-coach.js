@@ -329,6 +329,73 @@
     return ' ' + up.label + ' is in reach, so aim for it too: ' + up.hint + '.';
   }
 
+  // The hand each coach last named, per seat, so it can say when that changes.
+  // (A hint can be asked for twice in a turn, so `prev` stays until the next.)
+  var LAST_HAND = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+
+  function routeKey(route) {
+    return route.id + (route.suit || '');
+  }
+
+  function roundFaan(f) {
+    return Math.round(f);
+  }
+
+  function stepsWordsFor(s) {
+    return s <= 0 ? 'ready' : s === 1 ? '1 tile from ready' : s + ' tiles from ready';
+  }
+
+  // Why the hand changed, from what's true now about the hand it left.
+  function pivotReason(v, prev, now, cAfter) {
+    var min = v.game.settings.minFaan;
+    var melds = v.game.hand.seats[v.seat].melds;
+    if (v.ctx.lock) return 'you hold 8 or more of its tiles, so it\'s worth keeping them';
+    var old = B.plansFor(cAfter, v.ctx).filter(function (p) { return routeKey(routeOf(p)) === prev.key; })[0];
+    var oldSteps = old ? old.shantenFn(old.counts, v.ctx.declared) : prev.steps;
+    if (melds.length > prev.melds && (!old || oldSteps === Infinity)) {
+      return 'your ' + melds[melds.length - 1].type + ' rules out the old hand';
+    }
+    if (old && oldSteps === Infinity) return 'the old hand can\'t be finished now';
+    var track = v.ctx.track;
+    var rival = prev.suit && track && track.seats.filter(function (r) { return r.collecting === prev.suit; })[0];
+    if (rival && now.suit !== prev.suit) {
+      return v.game.players[rival.seat].name + ' is collecting ' + SUIT_NAME[prev.suit] + ', so those tiles will be slow';
+    }
+    var oldFaan = old ? old.faan : prev.faan;
+    if (oldFaan < min - 0.25 && now.faan >= min - 0.25) {
+      if (prev.key === 'straights' && oldFaan + 1 >= min - 0.25) return 'the old hand needs a self-draw to reach ' + min + ' faan';
+      return 'the old hand only scores ' + roundFaan(oldFaan) + ' faan, short of ' + min;
+    }
+    if (now.steps < oldSteps) return 'it\'s ' + stepsWordsFor(now.steps) + ', and the old hand is ' + stepsWordsFor(oldSteps);
+    if (now.faan > oldFaan) return 'it\'s worth ' + roundFaan(now.faan) + ' faan, and the old hand ' + roundFaan(oldFaan);
+    // (The hands of only certain tiles count their outs differently.)
+    var limited = /^(all-|mixed-orphans|pairs-)/;
+    var oldLive = old ? B.ukeire(old.counts, old.shantenFn, v.ctx.declared, v.ctx.unseen, oldSteps).total : prev.live;
+    if (now.live > oldLive && !limited.test(now.key) && !limited.test(prev.key)) return now.live + ' unseen tiles help it, and ' + oldLive + ' help the old hand';
+    return 'the odds of finishing it are better now';
+  }
+
+  // One sentence when the coach's hand changes from last turn, with the reason.
+  function pivotNote(v, plan, cAfter) {
+    var seat = v.game.hand.seats[v.seat];
+    if (!LAST_HAND || !plan) return '';
+    var route = plan.route;
+    var now = {
+      key: routeKey(route), suit: route.suit, faan: route.faan, steps: plan.shanten, live: plan.live,
+      melds: seat.melds.length, name: targetText(v, plan, cAfter, null).split(/[.:]/)[0],
+    };
+    var byBot = LAST_HAND.get(seat);
+    if (!byBot) LAST_HAND.set(seat, byBot = {});
+    var rec = byBot[B.id];
+    var turn = seat.discards.length;
+    if (!rec) { byBot[B.id] = { turn: turn, now: now, prev: null }; return ''; }
+    if (rec.turn !== turn) { rec.prev = rec.now; rec.turn = turn; }
+    rec.now = now;
+    var prev = rec.prev;
+    if (!prev || prev.key === now.key) return '';
+    return ' Pivoting from ' + prev.name + ' to ' + now.name + ': ' + pivotReason(v, prev, now, cAfter) + '.';
+  }
+
   // What the table tracker read from the discards, when it bears on this hand:
   // someone collecting a suit you hold a lot of, or changing hands. Only a
   // strategy that tracks the table has ctx.track.
@@ -366,7 +433,9 @@
     track.seats.forEach(function (r) {
       if (note || !r.pivot) return;
       var who = v.game.players[r.seat].name;
-      note = r.pivot.from ? who + ' has switched out of ' + SUIT_NAME[r.pivot.from] + '.' : who + ' has started keeping ' + SUIT_NAME[r.pivot.to] + '.';
+      note = r.pivot.from
+        ? who + ' has pivoted out of ' + SUIT_NAME[r.pivot.from] + ': they kept it early and are throwing it now.'
+        : who + ' has started keeping ' + SUIT_NAME[r.pivot.to] + ': they threw it early and have stopped.';
     });
     return note ? ' ' + note : '';
   }
@@ -579,6 +648,8 @@
     var cAfter = c.slice();
     cAfter[pick.index]--;
     var isReady = pick.ready && pick.shanten === 0 && !buildingLimit;
+    // Folding, the discard isn't building anything, so the hand hasn't changed.
+    var shifted = defending || list.folding ? '' : pivotNote(v, pick.plan, cAfter);
     if (isReady) {
       var wins = pick.ready.waits.filter(function (w) { return w.ronOk; }).map(function (w) { return w.ronFaan; });
       var state = 'Ready, waiting on ' + waitsText(pick.ready) + (wins.length ? ' for ' + Math.min.apply(null, wins) + '+ faan.' : '.');
@@ -586,9 +657,10 @@
       var liveLeft = pick.ready.waits.reduce(function (n, w) { return n + w.left; }, 0);
       if (liveLeft <= 1) notes.push('Almost none left, so switch waits if you can.');
       var keptSuit = v.ctx.afterRead && route && route.suit === v.ctx.afterRead.keeps ? tableNote(v, route, state) : '';
-      tips.push(state + (notes.length ? ' ' + notes.join(' ') : '') + keptSuit);
+      tips.push(state + (shifted ? shifted : '') + (notes.length ? ' ' + notes.join(' ') : '') + keptSuit);
     } else if (pick.plan) {
       var line = stepsText(pick.plan ? pick.plan.shanten : pick.shanten) + '. Aim for ' + targetText(v, pick.plan, cAfter, null) + '.';
+      line += shifted;
       // A complete shape that doesn't score isn't ready, so say why.
       if (pick.ready) line = 'Complete, but under ' + min + ' faan. ' + line;
       var sure = B.baseFaan(v.ctx);
