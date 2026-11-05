@@ -441,9 +441,7 @@
   }
 
   // Axis A in words: early on there's room to build; late, finish fast.
-  function phaseText(v, threats) {
-    var big = threats.some(function (t) { return t.level >= 2 && t.faan >= 5; });
-    if (big) return 'Someone shows a big hand, so play for speed.';
+  function phaseText(v) {
     if (v.ctx.turn >= 10 || v.ctx.wallLeft < 32) return 'It\'s late, so finish fast.';
     return '';
   }
@@ -668,7 +666,7 @@
         // Flowers (and sets) already give all but the last faan.
         line += ' Your flowers and sets give ' + sure + ' faan, so one more wins: a self-draw, All Sequences, or a dragon or wind set.';
       } else if (route.faan < min - 0.25) line += ' Short of ' + min + ' faan, so look for a flush, All Triplets or a dragon or wind set.';
-      else if (!defending) { var phase = phaseText(v, threats); if (phase) line += ' ' + phase; }
+      else if (!defending) { var phase = phaseText(v); if (phase) line += ' ' + phase; }
       line += upgradeNote(v, route);
       line += tableNote(v, route, line);
       tips.push(line);
