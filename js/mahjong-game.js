@@ -601,6 +601,7 @@
     var ui = {
       coach: settings.coach || 'on', // 'on' (advice), 'feedback' (notes on your last move) or 'off'
       feedback: null, // the coach's note on your previous move
+      feedbackDiscards: null, // the tile each strategy would have thrown on your last discard
       handSlots: [], // each hand tile's slide from where it was to where it belongs
       handSlide: 1,  // 0..1 progress of that slide
       handSig: '',   // what the hand looked like when the slots were last matched
@@ -873,10 +874,11 @@
     }
 
     function computeLayout() {
-      // Recommendations sit under the coach column, as wide as that column
-      // and as tall as your hand, in a game and in playback. A phone with
-      // no column keeps the strip under the table instead.
-      if ((settings.review || (game && game.hand)) && !layoutNesting) {
+      // Each strategy's discard sits under the coach column, as wide as that
+      // column and as tall as your hand, in a game and in playback. A phone
+      // with no column keeps the strip under the table instead. The coach
+      // being off hides it, along with the coach's notes.
+      if ((settings.review || (game && game.hand && ui.coach !== 'off')) && !layoutNesting) {
         var full = H;
         layoutNesting = true;
         try {
@@ -921,9 +923,9 @@
       var handRows = phonePortrait ? 2 : 1;
       var depth = function (w) { return Math.max(2, w * 0.08); };
 
-      // An upright phone leaves the coach's bar out with the coach off, so
-      // the table gets the room. Desktop and sideways phones keep theirs.
-      var coachShown = desktop || landscape || ui.coach !== 'off';
+      // Desktop keeps the column so the results stay put. A phone drops the
+      // coach's bar and column while the coach is off, and the table takes that room.
+      var coachShown = desktop || ui.coach !== 'off';
 
       // Your section: the table's width on desktop and on a landscape phone
       // (the board takes the left two thirds there, the coach the rest),
@@ -3418,40 +3420,86 @@
       return rows;
     }
 
-    // What you are about to throw, so a copied hand can be read without
-    // moving the coach's plan on the real tiles.
+    // The chow, pung, kong, or pass on the table right now.
+    function claimOffer() {
+      return ui.claimPrompt && ui.claimPrompt.opts;
+    }
+
+    function claimText(decision, opts) {
+      if (!decision) return null;
+      if (decision.type === 'chow') {
+        var seq = E.sortTiles((decision.tiles || []).concat([opts.tile])).map(function (id) {
+          return E.rankOfIndex(E.tileIndex(id));
+        }).join('-');
+        return 'Chow ' + seq;
+      }
+      if (decision.type === 'pung') return 'Pung';
+      if (decision.type === 'kong') return kongLabel(opts && opts.tile);
+      if (decision.type === 'pass') return 'Pass';
+      if (decision.type === 'win') return 'Win';
+      return null;
+    }
+
+    // What you are about to throw, or the claim in front of you, so a copied
+    // hand can be read without moving the coach's plan on the real tiles.
     function liveDiscardSignature() {
       if (!game || !game.hand) return '';
       var seat = game.hand.seats[0];
-      if (seat.hand.length % 3 !== 2) return '';
-      return seat.hand.join(',') + '|'
+      var offer = claimOffer();
+      if (!offer && seat.hand.length % 3 !== 2) return '';
+      var body = seat.hand.join(',') + '|'
         + seat.melds.map(function (m) { return m.type + m.tiles.join(''); }).join(';') + '|'
         + game.hand.wall.length + '|'
         + game.hand.seats.map(function (s) {
           return s.discards.map(function (d) { return d.tile; }).join('');
         }).join('/');
+      if (!offer) return 'discard|' + body;
+      var chows = (offer.chows || []).map(function (pair) { return pair.join(','); }).join(';');
+      return 'claim|' + offer.tile + '|' + (offer.pung ? 1 : 0) + (offer.kong ? 1 : 0) + (offer.win ? 1 : 0) + '|' + chows + '|' + body;
+    }
+
+    function strategyChoice(bot, handCopy, offer) {
+      try {
+        if (offer) return { tile: null, action: claimText(bot.chooseClaim(game, 0, offer), offer) };
+        if (!handCopy) return { tile: null, action: null };
+        var found = bot.analyzeDiscards(game, 0, null, handCopy);
+        var top = found && found.candidates && found.candidates[0];
+        return { tile: top ? top.tile : null, action: null };
+      } catch (err) {
+        return { tile: null, action: null };
+      }
+    }
+
+    // The tile each strategy would throw from the hand you have right now.
+    function strategyDiscardRows() {
+      var handCopy = game.hand.seats[0].hand.slice();
+      return Strategies.list().map(function (s) {
+        var pick = strategyChoice(s.bot, handCopy, null);
+        return { id: s.id, name: s.name, tile: pick.tile, action: null };
+      });
     }
 
     function liveStrategyRows() {
+      // Feedback looks back at the discard you just made, not at the next one.
+      if (ui.coach === 'feedback') {
+        return ui.feedbackDiscards || Strategies.list().map(function (s) {
+          return { id: s.id, name: s.name, tile: null, action: null };
+        });
+      }
       var sig = liveDiscardSignature();
       if (livePicks && livePicks.sig === sig) return livePicks.rows;
-      var sourceHand = sig ? game.hand.seats[0].hand.slice() : null;
+      var offer = claimOffer();
+      var sourceHand = !offer && sig ? game.hand.seats[0].hand.slice() : null;
       var rows = Strategies.list().map(function (s) {
-        var tile = null;
-        if (sourceHand) {
-          try {
-            var found = s.bot.analyzeDiscards(game, 0, null, sourceHand);
-            var top = found && found.candidates && found.candidates[0];
-            tile = top ? top.tile : null;
-          } catch (err) { tile = null; }
-        }
-        return { id: s.id, name: s.name, tile: tile };
+        var pick = strategyChoice(s.bot, sourceHand, offer);
+        return { id: s.id, name: s.name, tile: pick.tile, action: pick.action };
       });
       livePicks = { sig: sig, rows: rows };
       return rows;
     }
 
-    // Every strategy, and the tile it would discard. Clicking one makes it the coach.
+    // Every strategy, and the tile it would discard, or the claim it would make.
+    // Clicking one makes it the coach.
     function drawStrategyPanel() {
       var p = L.strategyPanel;
       if (!p || !(settings.review || (game && game.hand))) return;
@@ -3460,9 +3508,8 @@
       ctx.fillStyle = 'rgba(0,0,0,0.32)';
       ctx.fill();
       ctx.restore();
-      var headH = 28;
-      text('Recommendations', p.x + 12, p.y + headH / 2 + 1, {
-        size: fitFont(ctx, 'Recommendations', Math.max(40, p.w - 24), 14, FONT_HEAD, 'bold'),
+      text('Recommendations', p.x + 14, p.y + 18, {
+        size: fitFont(ctx, 'Recommendations', Math.max(40, p.w - 28), 14, FONT_HEAD, 'bold'),
         weight: 'bold', family: FONT_HEAD, color: COLORS.cream,
       });
       var rows = settings.review ? reviewStrategyRows() : liveStrategyRows();
@@ -3470,6 +3517,7 @@
       var gap = 8;
       var colW = (p.w - gap * (rows.length + 1)) / rows.length;
       var nameH = 22;
+      var headH = 34;
       var y = p.y + headH;
       var h = Math.max(36, p.h - headH - 8);
       rows.forEach(function (row, i) {
@@ -3493,13 +3541,27 @@
           color: on ? COLORS.gold : COLORS.cream,
         });
         var tileRoom = h - nameH - 8;
-        var tw = Math.min(colW - 16, tileRoom / TILE_ASPECT);
-        if (row.tile && tw >= 16) {
-          var tx = x + (colW - tw) / 2;
-          var ty = y + nameH + (tileRoom - tw * TILE_ASPECT) / 2;
-          drawTile(row.tile, tx, ty, tw, { glow: on ? COLORS.gold : null });
+        var color = on ? COLORS.gold : COLORS.cream;
+        if (row.action) {
+          var maxW = Math.max(24, colW - 10);
+          ctx.font = 'bold 15px ' + FONT_BODY;
+          var lines = ctx.measureText(row.action).width <= maxW ? [row.action] : wrapText(ctx, row.action, maxW);
+          var size = lines.length > 1 ? 13 : 15;
+          var lh = size + 3;
+          var start = y + nameH + (tileRoom - lines.length * lh) / 2 + lh / 2;
+          lines.forEach(function (ln, n) {
+            text(ln, x + colW / 2, start + n * lh, { size: size, weight: 'bold', align: 'center', color: color });
+          });
         } else {
-          text('—', x + colW / 2, y + nameH + tileRoom / 2, { size: 16, align: 'center', color: COLORS.cream });
+          var fit = Math.min(colW - 16, tileRoom / TILE_ASPECT);
+          var tw = fit * 0.84;
+          if (row.tile && tw >= 16) {
+            var tx = x + (colW - tw) / 2;
+            var ty = y + nameH + (tileRoom - tw * TILE_ASPECT) / 2;
+            drawTile(row.tile, tx, ty, tw, { glow: on ? COLORS.gold : null });
+          } else {
+            text('—', x + colW / 2, y + nameH + tileRoom / 2, { size: 16, align: 'center', color: COLORS.cream });
+          }
         }
         addRegion(x, y, colW, h, function () { chooseCoach(row.id); }, 'strategy-' + row.id);
       });
@@ -4376,6 +4438,9 @@
       // Training mode: judge the move against what the coach would have done.
       if (!settings.lesson && ui.coach !== 'off' && action.type === 'discard' && ui.hint && ui.hint.tile) {
         coachFor().noteDiscard(game, 0, ui.hint.tile, action.tile);
+      }
+      if (action.type === 'discard' && game && game.hand) {
+        ui.feedbackDiscards = strategyDiscardRows();
       }
       if (ui.coach === 'feedback' && ui.hint && action.type === 'discard') {
         ui.feedback = Coach.discardFeedback(ui.hint, action.tile) || ui.feedback;
