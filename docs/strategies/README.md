@@ -9,7 +9,7 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 | `jorge-yau` | Jorge Yau | `js/mahjong-jorge-yau.js` | [jorge-yau.md](jorge-yau.md) |
 | `only-orphans` | Only Orphans | `js/mahjong-only-orphans.js` | [only-orphans.md](only-orphans.md) |
 | `no-defense` | No Defense | `js/mahjong-no-defense.js` | [no-defense.md](no-defense.md) |
-| `base` | Base Bot | `js/mahjong-bot.js` | [base.md](base.md) |
+| `base` | Base Bot | `js/mahjong-bot.js` | The shared rules below |
 
 Before version 0.6.0 the two ids were the other way round; saved choices and save files from then are converted when they're read.
 
@@ -35,8 +35,13 @@ All strategies are built on the shared foundation in `js/mahjong-bot.js` (`Mahjo
 - **Read your own hand.** After four discards, a suit you've barely thrown counts for more as a flush, a suit you've thrown a lot of counts for less, and honors going out lean toward straights.
 - **Keep the tiles with the most copies left.** Between close discards, the tile with fewer copies unseen goes first. lucky-cat weighs this most.
 - **Throw the isolated tile in your shortest suit.** Between discards rated alike, a number tile with no other tile of its suit within 2 ranks goes first, the one in the suit with the fewest tiles: in 1, 4 and 5 of a suit, the 1. A strategy's own order, keeping a hand of sets by copies left, and folding all come first, and it doesn't apply to a discard that leaves the hand ready or a risky one.
-- **Stick to a plan.** After its first 3 discards, a hand commits to its plan and pivots only when the plan is gone, for more points without falling behind, or when it has become hopeless. Coming back to a hand it left takes more. See [base.md](base.md).
-- **Keep backups alive.** Between close discards, it keeps the tiles that leave other plans possible.
+- **Stick to a plan.** For its first 3 discards, a hand keeps its options open. From the fourth, it commits to the hand it's on and pivots only for one of three reasons:
+  - The plan is gone: a meld or the tiles on the table rule it out.
+  - More points: the new hand is worth at least 1 more faan, is no more than 1 step further from ready, and rates at least 10% higher.
+  - The plan is hopeless: no tile helps it, there aren't the draws left to fill it, or another hand is at least 2 tiles closer with at least 3 times the odds.
+
+  Coming back to a hand it left needs 2 more faan and no extra steps, unless the current plan has become hopeless. A claim that leaves the plan needs one of the same reasons, unless it makes the hand ready to win. Hands built from the same tiles count as one plan, so moving between them isn't a pivot: a Half Flush and a Full Flush in one suit, All Triplets and Concealed Triplets, a plain hand and Concealed Straights, the hands of 1s, 9s and honors, and the Seven Pairs hands. A saved game replays the bots' turns, so they come back on the same plans. The coach's record for your own hand isn't saved, so after a reload it commits again from what you hold.
+- **Keep backups alive.** Between close discards, it adds 12% of the value of the two best other plans those tiles could still become, so a discard that leaves a backup possible stays ahead.
 - **Never aim for a chicken hand.** The plain hand is a plan only once it already has 3 faan from flowers, sets and the like. Short of that, the hand aims for something that scores. If nothing else can be finished, that's a Half Flush in its best suit or All Triplets, and with melds that rule both out, a dragon or wind set.
 - **Keep pairs and unseen dragons**, and throw a tile someone has punged when the hand doesn't need it. Apart from the lone dragon, keeping them never costs a step toward ready.
 - **Watch the player before you.** The player on your left is the only one whose discards you can chow. After six discards, a suit they've barely thrown (or the one suit their melds are in) is the one they're collecting, and the suit they've thrown most is the one they're feeding. When the suit they're collecting is about even with another of yours (six or more, within a tile), the hand stays out of theirs and builds the other flush instead, from six tiles: they won't throw what you'd need, and they'd claim it first. Between two close suits otherwise, the one they're feeding wins.

@@ -86,7 +86,7 @@
         'Between close discards it keeps the tiles that leave a backup plan alive, and the tiles with the most copies left.',
         'It never aims for a hand under 3 faan, keeps pairs and unseen dragons, and defends when an opponent looks close and its own hand is far off.',
       ],
-      doc: 'docs/strategies/base.md',
+      doc: 'docs/strategies/README.md',
     },
   ];
 
