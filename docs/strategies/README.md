@@ -8,7 +8,7 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 | `lucky-cat` | Lucky Cat | `js/mahjong-lucky-cat.js` | [lucky-cat.md](lucky-cat.md) |
 | `jorge-yau` | Jorge Yau | `js/mahjong-jorge-yau.js` | [jorge-yau.md](jorge-yau.md) |
 | `only-orphans` | Only Orphans | `js/mahjong-only-orphans.js` | [only-orphans.md](only-orphans.md) |
-| `dishonor` | Dishonor | `js/mahjong-dishonor.js` | [dishonor.md](dishonor.md) |
+| `no-defense` | No Defense | `js/mahjong-no-defense.js` | [no-defense.md](no-defense.md) |
 
 Before version 0.6.0 the two ids were the other way round; saved choices and save files from then are converted when they're read.
 
@@ -125,9 +125,9 @@ It reports, for each strategy:
 
 Points per hand are noisy: one limit hand on a self-draw moves 24,576 points. At 1,000 deals (4,000 hands) a difference under about 15 points per hand is within the noise. Win and deal-in rates settle much sooner. The library is `js/mahjong-competition.js` (`runMatch`, `mergeReports`, `formatReport`) if you want to script your own comparisons.
 
-## Results with all four strategies
+## Earlier results
 
-At version 0.19.0, one of each strategy sat at the table for 24,000 hands: 1,000 deals in each of the 6 seating orders, each deal played once per seat rotation. 49.7% of hands had no winner.
+These predate no-defense and include dishonor, a strategy that has since been removed. At version 0.19.0, one of each strategy sat at the table for 24,000 hands: 1,000 deals in each of the 6 seating orders, each deal played once per seat rotation. 49.7% of hands had no winner.
 
 | | only-orphans | jorge-yau | lucky-cat | dishonor |
 | --- | ---: | ---: | ---: | ---: |
@@ -146,6 +146,6 @@ The ± is a 95% range that treats hands as independent. only-orphans and jorge-y
 To play one seating order:
 
 ```bash
-npm run compete -- --lineup dishonor,jorge-yau,lucky-cat,only-orphans --deals 1000 --seed 200000
+npm run compete -- --lineup no-defense,jorge-yau,lucky-cat,only-orphans --deals 1000 --seed 200000
 ```
 

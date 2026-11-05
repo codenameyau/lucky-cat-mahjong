@@ -14,7 +14,7 @@
   var L = node ? require('./mahjong-lucky-cat.js') : root.MahjongLuckyCat;
   var J = node ? require('./mahjong-jorge-yau.js') : root.MahjongJorgeYau;
   var O = node ? require('./mahjong-only-orphans.js') : root.MahjongOnlyOrphans;
-  var D = node ? require('./mahjong-dishonor.js') : root.MahjongDishonor;
+  var N = node ? require('./mahjong-no-defense.js') : root.MahjongNoDefense;
 
   var STRATEGIES = [
     {
@@ -60,17 +60,18 @@
       doc: 'docs/strategies/only-orphans.md',
     },
     {
-      id: 'dishonor',
-      name: 'Dishonor',
-      bot: D,
-      summary: 'Throws every honor first. Goes for Concealed Straights and a self-draw, or locks into a Full Flush with 7 or more tiles of one suit.',
+      id: 'no-defense',
+      name: 'No Defense',
+      bot: N,
+      summary: 'Never folds and never minds what it feeds. Builds the fastest hand it can, keeps honors as long as possible, and locks onto a hand worth 7 faan or more when it has 8 of the tiles.',
       details: [
-        'Every honor goes first, dragons and pairs included, even while folding. The only exception is a discard that leaves the hand ready to win.',
-        'With no suit at 7 tiles, it plays Concealed Straights: runs only, nothing claimed, aiming to win on a self-draw. It takes a win off a discard when the hand has the faan for it.',
-        'Once one suit has 7 or more tiles, on the opening hand or later, it locks into a Full Flush in that suit. Other suits go next, right after the honors, and it starts chowing and punging in that suit whenever that brings it closer to ready.',
-        'Apart from those orders, it defends like the other bots.',
+        'It takes no account of what a discard might feed, and it never folds, however late or however close an opponent looks.',
+        'It keeps honors as long as it can. Number tiles that cost no step go first, then lone honors, and honor pairs stay longest. The exception is a discard that leaves the hand able to win.',
+        'A lone honor with the other three copies on the table goes first of all, since it can never be used.',
+        'With 8 tiles of a hand worth 7 faan or more within its first 8 turns, it locks onto that hand: a Full Flush, Thirteen Orphans, Nine Gates, All Honors, All Terminals, Four Winds, Three Dragons or Mixed Orphans. It keeps those tiles until the hand can\'t be won.',
+        'It claims anything that brings the hand closer and can still reach 3 faan. On a lock, it claims only that hand\'s tiles.',
       ],
-      doc: 'docs/strategies/dishonor.md',
+      doc: 'docs/strategies/no-defense.md',
     },
   ];
 
