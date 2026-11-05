@@ -393,7 +393,7 @@
     rec.now = now;
     var prev = rec.prev;
     if (!prev || prev.key === now.key) return '';
-    return ' Switching from ' + prev.name + ' to ' + now.name + ': ' + pivotReason(v, prev, now, cAfter) + '.';
+    return ' Pivoting from ' + prev.name + ' to ' + now.name + ': ' + pivotReason(v, prev, now, cAfter) + '.';
   }
 
   // What the table tracker read from the discards, when it bears on this hand:
@@ -434,7 +434,7 @@
       if (note || !r.pivot) return;
       var who = v.game.players[r.seat].name;
       note = r.pivot.from
-        ? who + ' has switched out of ' + SUIT_NAME[r.pivot.from] + ': they kept it early and are throwing it now.'
+        ? who + ' has pivoted out of ' + SUIT_NAME[r.pivot.from] + ': they kept it early and are throwing it now.'
         : who + ' has started keeping ' + SUIT_NAME[r.pivot.to] + ': they threw it early and have stopped.';
     });
     return note ? ' ' + note : '';
