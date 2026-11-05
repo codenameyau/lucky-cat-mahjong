@@ -210,7 +210,7 @@ What it plays for:
 How each tip reads, always in this order:
 
 1. What to do and why, in a few words
-2. Where the hand stands: tiles from ready and the target hand with its faan, plus a note when it's late or someone shows a big hand
+2. Where the hand stands: tiles from ready and the target hand with its faan, plus a note when it's late
 3. The players worth watching, in what the table shows ("Grace has three melds down, all Bamboo."), never the bots' internal threat level, and how safe the discard is
 
 It doesn't say which tile to drop after this one. Hand names are drawn in red, without their faan. Long tips grow the tip bar instead of being cut off.

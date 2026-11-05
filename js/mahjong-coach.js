@@ -195,6 +195,11 @@
     if (c[i] === 2) return 'One pair too many.';
     if (pick.lone) {
       if (i >= 27) return 'A lone honor worth no faan to you.';
+      var held = B.suitCounts(c, v.ctx);
+      var su = E.suitOfIndex(i);
+      if (Object.keys(held).every(function (k) { return held[su] <= held[k]; })) {
+        return 'Nothing connects to it, and ' + SUIT_NAME[su] + ' is your shortest suit.';
+      }
       return E.isTerminalOrHonorIndex(i) ? 'A lone terminal, the hardest to use.' : 'Nothing connects to it.';
     }
     var r = i % 9;
@@ -441,9 +446,7 @@
   }
 
   // Axis A in words: early on there's room to build; late, finish fast.
-  function phaseText(v, threats) {
-    var big = threats.some(function (t) { return t.level >= 2 && t.faan >= 5; });
-    if (big) return 'Someone shows a big hand, so play for speed.';
+  function phaseText(v) {
     if (v.ctx.turn >= 10 || v.ctx.wallLeft < 32) return 'It\'s late, so finish fast.';
     return '';
   }
@@ -668,7 +671,7 @@
         // Flowers (and sets) already give all but the last faan.
         line += ' Your flowers and sets give ' + sure + ' faan, so one more wins: a self-draw, All Sequences, or a dragon or wind set.';
       } else if (route.faan < min - 0.25) line += ' Short of ' + min + ' faan, so look for a flush, All Triplets or a dragon or wind set.';
-      else if (!defending) { var phase = phaseText(v, threats); if (phase) line += ' ' + phase; }
+      else if (!defending) { var phase = phaseText(v); if (phase) line += ' ' + phase; }
       line += upgradeNote(v, route);
       line += tableNote(v, route, line);
       tips.push(line);

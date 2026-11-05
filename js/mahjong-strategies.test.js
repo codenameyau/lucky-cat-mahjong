@@ -587,7 +587,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.21.3');
+    assert.equal(E.GAME_VERSION, '0.21.5');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
@@ -893,6 +893,47 @@ describe('the coach says when its hand changes', () => {
         await E.runHand(game, [agent(), agent(), agent(), agent()], {});
       }
     }
+  });
+});
+
+describe('the isolated tile in the shortest suit goes first', () => {
+  const Base = require('./mahjong-bot.js');
+  const every = [Base, L, B, S.get('no-defense').bot];
+  const hand = ['d1', 'd4', 'd5', 'c2', 'c3', 'c4', 'c6', 'c7', 'c8', 'b2', 'b3', 'b4', 'b6', 'b7'];
+
+  it('finds a tile with nothing within 2 ranks', () => {
+    const c = E.countsOf(hand);
+    assert.equal(Base.isolatedTile(c, E.tileIndex('d1')), true);
+    assert.equal(Base.isolatedTile(c, E.tileIndex('d4')), false);
+    assert.equal(Base.isolatedTile(E.countsOf(['d1', 'd3']), E.tileIndex('d1')), false);
+    assert.equal(Base.isolatedTile(E.countsOf(['d1', 'd1', 'd4']), E.tileIndex('d1')), false);
+    assert.equal(Base.isolatedTile(E.countsOf(['we']), E.tileIndex('we')), false);
+  });
+
+  it('throws the 1 from 1, 4 and 5 of a suit, in every strategy', () => {
+    for (const bot of every) {
+      const game = table({ seats: [{ hand }], wallLeft: 70 });
+      assert.equal(bot.chooseTurnAction(game, 0, { kongs: [] }).tile, 'd1', bot.id);
+    }
+  });
+
+  it('takes the isolated tile from the shorter suit', () => {
+    const two = ['d1', 'd5', 'd6', 'b1', 'b5', 'b6', 'b7', 'c2', 'c3', 'c4', 'c6', 'c7', 'c8', 'c9'];
+    const game = table({ seats: [{ hand: two }], wallLeft: 70 });
+    assert.equal(Base.chooseTurnAction(game, 0, { kongs: [] }).tile, 'd1');
+  });
+
+  it('still takes a discard that leaves the hand ready first', () => {
+    const ready = ['d1', 'c2', 'c3', 'c4', 'c6', 'c7', 'c8', 'dr', 'dr', 'dr', 'b5', 'b6', 'b7', 'b7'];
+    const game = table({ seats: [{ hand: ready }], wallLeft: 70 });
+    const pick = Base.analyzeDiscards(game, 0).candidates[0];
+    assert.equal(pick.shanten, 0);
+  });
+
+  it('the coach says why', () => {
+    const game = table({ seats: [{ hand }], wallLeft: 70 });
+    const text = Coach.forStrategy(Base).turnHint(game, 0, { kongs: [] }).tips.join(' ');
+    assert.match(text, /Nothing connects to it, and Circles is your shortest suit\./);
   });
 });
 
