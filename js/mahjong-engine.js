@@ -858,6 +858,8 @@
       if (replaying && queue.length) {
         var move = queue.shift();
         if (move.k !== kind) throw new Error('saved move doesn\'t fit the hand');
+        // The table rebuilds the coach's notes here. The move is still unplayed.
+        if (liveUi && typeof liveUi.replayDecision === 'function') liveUi.replayDecision(kind, opts2, move.d);
         game.hand.moves.push(move);
         return Promise.resolve(move.d);
       }

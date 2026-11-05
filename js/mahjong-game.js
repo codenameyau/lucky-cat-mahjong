@@ -25,9 +25,6 @@
   // page opens it on its own.
   var REPLAY_KEY = 'lcm-play-replay';
   var PLAYBACK_EMPTY = 'Upload a JSON file with a playback.';
-  // localStorage is about 5MB. The coach log is what grows with every move,
-  // so a save keeps the newest notes and leaves the rest behind.
-  var COACH_LOG_SAVE = 100;
   var SEAT_SIDES = ['', 'your right', 'across', 'your left'];
   var TILE_ASPECT = 1.4;
   var TILE_GAP = 4;
@@ -3192,7 +3189,7 @@
     function rememberCoach(note, kind) {
       var plain = coachPlain(note);
       if (!plain) return;
-      var hand = game ? game.handNumber : 1; // the log runs across the whole game
+      var hand = game ? game.handNumber : 1; // cleared when the next hand is dealt
       // The same suggestion, with "N tiles from ready" moved to the end.
       function sameAdvice(detail) {
         var norm = function (s) {
@@ -4364,6 +4361,25 @@
       p.resolve(decision);
     }
 
+    // The same note the coach would have given, before this saved move.
+    function rebuildCoachNote(kind, opts, decision) {
+      if (settings.lesson || ui.coach === 'off' || !game || !game.hand || !decision) return;
+      var coach = coachFor();
+      var hint = kind === 'turn' ? coach.turnHint(game, 0, opts) : kind === 'claim' ? coach.claimHint(game, 0, opts) : null;
+      if (!hint) return;
+      if (ui.coach === 'on') rememberCoach(hint, 'hint');
+      if (kind === 'turn' && decision.type === 'discard' && hint.tile) {
+        coach.noteDiscard(game, 0, hint.tile, decision.tile);
+      }
+      if (ui.coach !== 'feedback') return;
+      var fb = kind === 'turn'
+        ? (decision.type === 'discard' ? Coach.discardFeedback(hint, decision.tile) : null)
+        : Coach.claimFeedback(hint, decision);
+      if (!fb) return;
+      ui.feedback = fb;
+      rememberCoach(fb, 'feedback');
+    }
+
     function refreshHint() {
       if (settings.lesson && game && game.hand) {
         ui.coach = 'on';
@@ -4810,6 +4826,11 @@
         ui.notice = null;
         ui.hint = null;
         ui.feedback = null;
+        ui.feedbackDiscards = null;
+        // The panel is this hand only. A save does not keep it.
+        ui.coachLog = [];
+        ui.coachScroll = 0;
+        ui.coachStick = true;
         L = computeLayout();
         announce('Hand ' + game.handNumber + '. ' + (game.dealer === 0 ? 'You are' : game.players[game.dealer].name + ' is') + ' the dealer.');
         requestRender();
@@ -4954,6 +4975,11 @@
         requestRender();
         autosave();
         return out || Promise.resolve();
+      },
+      // A resumed hand plays again up to your next move, with no events.
+      // The coach's notes are worked out again at each of those moves.
+      replayDecision: function (kind, opts, decision) {
+        try { rebuildCoachNote(kind, opts, decision); } catch (err) {}
       },
     };
 

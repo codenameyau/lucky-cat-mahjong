@@ -129,7 +129,7 @@ Hands are scored by `HKScoring.scoreHand` in `js/points.js`, the calculator's ow
 - **Switching modes** — When the selected mode isn't the saved game's, **Start new game** moves first and turns red, and **Resume game** moves second
 - **Refreshing** — While a game is open, the page's URL has `?opened=1`, so refreshing goes straight back to the game. On a finished hand's results, it stays on that hand until Next hand. Quitting removes it. A lesson isn't saved, so it doesn't set it, and without a save that loads the page shows as usual
 - **Back** — While a game or lesson is open, the browser's Back button returns to the Play page, and the game stays saved. Forward goes back into a saved game
-- **No hidden tiles in a save** — It holds the game as the current hand began, that hand's seed and your own moves. Resuming deals the hand from the seed and replays it
+- **No hidden tiles in a save** — It holds the game as the current hand began, that hand's seed and your own moves. Resuming deals the hand from the seed and replays it. The coach's notes are not stored. Resuming works them out again, and a new hand starts with an empty coach panel
 - **Signed** — The save is signed (HMAC-SHA256). A changed or damaged save is discarded and a new game starts
 - **Compatible across versions** — Saves load into any version with the same major number
 - **Quit leaves the save** — Start new game replaces it. A lesson does not

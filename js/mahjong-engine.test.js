@@ -408,6 +408,44 @@ describe('playback seed', () => {
     assert.deepEqual(after.players.map((p) => p.hand), before.players.map((p) => p.hand));
   });
 
+  it('asks the table to rebuild each replayed decision before that move is played', async () => {
+    const game = E.createGame({ seed: 11, dealer: 0 });
+    let saved = null;
+    const play = () => ({
+      turn: (g, seat) => {
+        if (seat === 0 && !saved && g.hand.moves.length === 2) saved = E.gameRecord(g);
+        return { type: 'discard', tile: g.hand.seats[seat].hand[0] };
+      },
+      claim: () => ({ type: 'pass' }),
+    });
+    await E.runHand(game, [0, 1, 2, 3].map(play), {});
+    const restored = E.restoreGame(saved);
+    const seen = [];
+    await assert.rejects(E.runHand(restored, [0, 1, 2, 3].map(() => ({
+      turn: (g, seat) => {
+        if (seat === 0) throw new Error('past the snapshot');
+        return { type: 'discard', tile: g.hand.seats[seat].hand[0] };
+      },
+      claim: () => ({ type: 'pass' }),
+    })), {
+      replayDecision(kind, opts, decision) {
+        const hand = restored.hand.seats[0].hand;
+        seen.push({ kind, decision, stillHeld: !decision.tile || hand.includes(decision.tile), opts: !!opts });
+      },
+    }, {
+      seed: saved.hand.seed,
+      replay: saved.hand.moves,
+    }), /past the snapshot/);
+    assert.equal(seen.length, saved.hand.moves.length);
+    assert.ok(seen.length >= 2);
+    seen.forEach((row, i) => {
+      assert.equal(row.kind, saved.hand.moves[i].k);
+      assert.deepEqual(row.decision, saved.hand.moves[i].d);
+      assert.equal(row.stillHeld, true);
+      assert.equal(row.opts, true);
+    });
+  });
+
   it('rebuilds the table at every move', async () => {
     const game = E.createGame({ seed: 11, humanSeat: false, dealer: 0 });
     const agents = [0, 1, 2, 3].map(() => ({
