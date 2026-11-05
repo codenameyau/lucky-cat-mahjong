@@ -36,12 +36,13 @@ function targetOf(hand, extra) {
 
 describe('strategy registry', () => {
   it('lists every strategy, with lucky-cat as the coach default', () => {
-    assert.deepEqual(S.ids(), ['jorge-yau', 'lucky-cat', 'only-orphans', 'no-defense', 'base']);
+    assert.deepEqual(S.ids(), ['jorge-yau', 'lucky-cat', 'only-orphans', 'no-defense']);
     assert.equal(S.DEFAULT_COACH, 'lucky-cat');
     assert.equal(S.get('lucky-cat').bot, B);
     assert.equal(S.get('jorge-yau').bot, L);
     assert.equal(S.get('lucky-cat').bot.id, 'lucky-cat');
     assert.equal(S.get('jorge-yau').bot.id, 'jorge-yau');
+    assert.equal(S.has('base'), false);
     S.list().forEach((s) => {
       assert.ok(s.name && s.summary && s.details.length, s.id + ' has words for the sheet');
     });
@@ -54,7 +55,7 @@ describe('strategy registry', () => {
 
   it('picks a random strategy from the list', () => {
     assert.equal(S.randomId(() => 0), 'jorge-yau');
-    assert.equal(S.randomId(() => 0.99), 'base');
+    assert.equal(S.randomId(() => 0.99), 'no-defense');
   });
 
   it('makes agents that play a full hand', async () => {
@@ -485,7 +486,7 @@ describe('a big hand in reach keeps its tiles', () => {
   it('the coach aims for All Terminals and recommends a non-terminal', () => {
     for (const hand of SEED_TURNS) {
       const said = plainText(Coach.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] }));
-      assert.match(said, /Aim for All Terminals/);
+      assert.match(said, /Go for All Terminals/);
       assert.ok(!/Discard (One|Nine) /.test(said), said);
     }
   });
@@ -939,15 +940,6 @@ describe('sticking to a plan', () => {
     Base.analyzeDiscards(game, 0);
     B.analyzeDiscards(game, 0);
     assert.ok(memoOf(game, 'base') && memoOf(game, 'lucky-cat'));
-  });
-
-  it('plays as a strategy of its own', async () => {
-    assert.equal(S.get('base').bot, Base);
-    for (let n = 0; n < 4; n++) {
-      const game = E.createGame({ seed: 7700 + n, humanSeat: false, dealer: n });
-      const res = await E.runHand(game, ['base', 'lucky-cat', 'jorge-yau', 'base'].map((id) => S.createAgent(id)), {});
-      assert.ok(res.type === 'win' || res.type === 'draw', res.type);
-    }
   });
 });
 

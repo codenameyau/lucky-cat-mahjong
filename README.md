@@ -52,7 +52,7 @@ A static website for the Lucky Cat Mahjong club at [luckycatmahjong.com](https:/
 - **Automatic scoring** — Detects patterns, counts faan, and converts to chip payouts with **full spicy** or **half spicy** tables
 - **Example hands** — One-click presets from chicken hands through limit hands (Thirteen Orphans, Four Winds, Nine Gates, etc.)
 - **Shareable hands** — "Share Hand" encodes the current hand and options into the URL so you can send a scored hand to friends
-- **Hand seeds from the game** — Paste a hand seed copied from the Play page (Cmd/Ctrl+V anywhere on the page, or tap the empty hand's text where the browser allows reading the clipboard) to see the starting hand dealt to you, with your flowers, seat wind and round wind
+- **Hand seeds from the game** — Paste a playback file, or a hand seed such as `919942249-NE` (Cmd/Ctrl+V anywhere on the page, or tap the empty hand's text where the browser allows reading the clipboard) to see the starting hand dealt to you, with your flowers, seat wind and round wind
 - **Scoring reference** — Beginner-friendly guide sections covering how scoring works, every way to score, special/limit hands, and tile basics
 - **SEO** — Structured data (Article, FAQ, Breadcrumb) and keyword-rich meta tags for discoverability
 
@@ -125,18 +125,18 @@ Hands are scored by `HKScoring.scoreHand` in `js/points.js`, the calculator's ow
 
 #### Saving and resuming
 
-- **Autosave** — After each move the game is stored in this browser. **Resume game** continues it and is the main button while a save is there, and the other button says **Start new game**. Resume stays hidden when nothing is saved, and **Start game** is the main button then
-- **Switching modes on mobile** — When the selected mode isn't the saved game's, **Start new game** moves first and turns red, and **Resume game** moves second
-- **Refreshing** — While a game is open, the page's URL has `?opened=1`, so refreshing goes straight back to the game. Quitting removes it. A lesson isn't saved, so it doesn't set it, and without a save that loads the page shows as usual
+- **Autosave** — After each move the game is stored in this browser. A finished hand stays saved as that hand until Next hand; the next hand is saved only once Next hand is pressed. **Resume game** continues it and is the main button while a save is there, and the other button says **Start new game**. Resume stays hidden when nothing is saved, and **Start game** is the main button then
+- **Switching modes** — When the selected mode isn't the saved game's, **Start new game** moves first and turns red, and **Resume game** moves second
+- **Refreshing** — While a game is open, the page's URL has `?opened=1`, so refreshing goes straight back to the game. On a finished hand's results, it stays on that hand until Next hand. Quitting removes it. A lesson isn't saved, so it doesn't set it, and without a save that loads the page shows as usual
 - **Back** — While a game or lesson is open, the browser's Back button returns to the Play page, and the game stays saved. Forward goes back into a saved game
-- **No hidden tiles in a save** — It holds the game as the current hand began, that hand's seed and your own moves. Resuming deals the hand from the seed and replays it
+- **No hidden tiles in a save** — It holds the game as the current hand began, that hand's seed and your own moves. Resuming deals the hand from the seed and replays it. The coach's notes are not stored. Resuming works them out again, and a new hand starts with an empty coach panel
 - **Signed** — The save is signed (HMAC-SHA256). A changed or damaged save is discarded and a new game starts
 - **Compatible across versions** — Saves load into any version with the same major number
 - **Quit leaves the save** — Start new game replaces it. A lesson does not
 
 #### Hand seeds
 
-Tap your wind badge to silently copy the current hand's seed (like `919942249-NE`: the shuffle number, your seat wind, the round wind). The badge flashes to confirm. Paste the seed into the Points Guide to see that starting hand.
+Tap your wind badge to copy the signed playback. The badge flashes once the copy is done. The same file stays on this device, so the playback page opens it. The file is signed (HMAC-SHA256). It holds the hand seed (`handSeed`, such as `919942249-NE`: the shuffle number, your seat wind, the round wind), every draw, discard, and claim so far, and each player's hand at that moment. Open `/play-mahjong/playback/` and that saved hand plays. With none saved, Upload in the center reads a JSON playback file. Command+V or Ctrl+V pastes one too. A changed or damaged file won't play. The hand plays on the table, and the bar stops at the last move in the file. A panel under the coach column, as tall as your hand and headed Recommendations, shows the tile each strategy would discard, and what it would chow, pung, kong, or pass. The same panel sits beside your hand while the coach is on. Feedback instead shows the tile each strategy would have discarded after you throw one. Both that panel and the coach's notes hide when the coach is off. Click one to make it the coach. The side panel is titled Coach and that strategy. At the end of a full game, Results saves that playback and has View replay, which opens the last hand here, and See hands, which turns the finished hands face up. A refresh on that results page keeps the table as the hand ended. Back returns to those results. The Points Guide still reads the file, or just the hand seed, as that starting hand.
 
 #### Strategies
 
@@ -148,7 +148,6 @@ Every bot plays a named strategy, built on the shared foundation in `js/mahjong-
 | **jorge-yau** | `js/mahjong-jorge-yau.js` | Reads the opening hand and builds toward one target hand | [jorge-yau.md](docs/strategies/jorge-yau.md) |
 | **only-orphans** | `js/mahjong-only-orphans.js` | Goes for Thirteen Orphans every hand, then pivots to a hand of 1s, 9s and honors | [only-orphans.md](docs/strategies/only-orphans.md) |
 | **no-defense** | `js/mahjong-no-defense.js` | Never folds or minds what it feeds, keeps honors, and locks onto a hand worth 7 faan or more | [no-defense.md](docs/strategies/no-defense.md) |
-| **base** | `js/mahjong-bot.js` | Plays the fundamentals: keeps options wide, commits to a plan, and pivots only with a reason | [shared rules](docs/strategies/README.md) |
 
 - The **Strategies** button in the top bar (`js/mahjong-strategies.js`) describes each one and lets you pick a strategy for each bot seat and for the coach
 - Picks are saved in `localStorage` (`lcm-play-strategies`). A bot seat with nothing saved plays a random strategy each game, and the coach defaults to lucky-cat
@@ -224,7 +223,7 @@ Like a real table, each opponent's hand, melds and discards face that player, an
 
 | Layout | Board | Coach |
 | --- | --- | --- |
-| **Desktop** | Table and your hand | A column down the right, and a bar above your hand that keeps its space when the coach is off, so toggling never moves the table |
+| **Desktop** | Table and your hand | A column down the right. Its top lists each finished hand's faan, and points in a full game. The total starts each player at 2,000 and adds each hand. Below that, the coach, and a bar above your hand that keeps its space when the coach is off, so toggling never moves the table |
 | **Phone sideways** | The left two thirds (short screens are laid out at 520px tall and scaled to fit) | A column on the right third, from the top bar to the bottom, which stays when the coach is off |
 | **Phone upright** | Your hand is two rows, split in half | A bar between the table and your hand, hidden when the coach is off |
 
@@ -240,7 +239,7 @@ Playing at the table:
 
 - Bots visibly take turns: the drawn tile set apart, a few tiles lifted while deciding, and the discard flipping face up as it flies to the pond
 - Drawn tiles fly out of the center box, which shows the round wind and how many tiles are left
-- Action buttons sit in your meld row, and your name steps aside if they need the room
+- Action buttons sit in your meld row, only as wide as their labels, and your name steps aside if they need the room
 - When your hand re-sorts, every tile slides from its old place to its new one
 - Computer players have a small robot icon and the human player a person icon
 - Hovering a face-up tile with a mouse (or your own concealed kong) shows its English name and how many are left unseen. On a touch screen the tile you've selected shows the same
@@ -280,7 +279,7 @@ Background music is three CC BY 4.0 tracks by Kevin MacLeod (Guzheng City, Sheny
 
 #### Testing tip
 
-Animations are always on for players. Add `?instant=1` to the page URL to skip them for that visit, which makes testing much faster.
+Animations are always on for players. Add `?instant=1` to the page URL to skip them for that visit, which makes testing much faster. Add `sound=0` to turn sound and music off for that visit, or `sound=1` to turn them on. With no `sound` parameter, the Sound button's saved choice is used. Always set `sound=0` while testing programmatically, so the run stays quiet.
 
 ### Other
 

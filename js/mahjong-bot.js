@@ -772,7 +772,7 @@
   }
 
   // Candidate plans for a 13-tile (waiting to draw) concealed portion.
-  // The base bot's own hands: the usual ones, and Seven Pairs when it's close.
+  // The shared foundation's hands: the usual ones, and Seven Pairs when it's close.
   function foundationPlans(c, ctx) {
     var list = basePlans(c, ctx);
     if (chaseSevenPairs(c, ctx)) list.push(makeSpecialPlan('pairs', c, ctx));

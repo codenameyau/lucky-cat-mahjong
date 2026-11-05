@@ -339,3 +339,216 @@ describe('full hands with four bots', () => {
     }
   });
 });
+
+describe('playback seed', () => {
+  function discarders() {
+    return [0, 1, 2, 3].map(() => ({
+      turn: (g, seat) => ({ type: 'discard', tile: g.hand.seats[seat].hand[0] }),
+      claim: () => ({ type: 'pass' }),
+    }));
+  }
+
+  it('encodes the deal, every action, and every hand', async () => {
+    const game = E.createGame({ seed: 11, humanSeat: false, dealer: 0 });
+    const seen = [];
+    const ui = { emit: (name, data) => { if (name === 'discard') seen.push(data.seat + ':' + data.tile); } };
+    await E.runHand(game, discarders(), ui);
+    const text = E.playbackText(game, { seat: 0, strategies: [null, 'lucky-cat', 'base', 'jorge-yau'] });
+    assert.equal(text.split('\n')[0], E.handSeedText(game, 0).replace(/[ESWN][ESWN]$/, 'EE'));
+    const rec = E.parsePlayback(text);
+    assert.equal(rec.seed, game.hand.seed >>> 0);
+    assert.deepEqual(rec.actions.filter((a) => a.a === 'discard').map((a) => a.s + ':' + a.t), seen);
+    assert.ok(seen.some((row) => !row.startsWith('0:')), 'bot discards are in the seed');
+    rec.players.forEach((p, i) => {
+      assert.deepEqual(p.hand, game.hand.seats[i].hand);
+      assert.deepEqual(p.flowers, game.hand.seats[i].flowers);
+    });
+    assert.equal(rec.players[1].strategy, 'lucky-cat');
+    const lines = E.playbackLines(rec);
+    assert.equal(lines.length, rec.actions.length);
+    const first = rec.actions.find((a) => a.a === 'discard');
+    assert.match(lines[rec.actions.indexOf(first)], new RegExp(E.tileName(first.t)));
+    assert.match(lines[rec.actions.indexOf(first)], new RegExp(rec.players[first.s].name));
+    assert.equal(E.parsePlayback('nope'), null);
+    assert.equal(E.parsePlayback(E.handSeedText(game, 0)), null);
+  });
+
+  it('rebuilds that log when a saved hand is played back to the same moment', async () => {
+    const game = E.createGame({ seed: 11, dealer: 0 });
+    let saved = null;
+    let snapshot = null;
+    const play = () => ({
+      turn: (g, seat) => {
+        if (seat === 0 && !saved && g.hand.moves.length === 2) {
+          saved = E.gameRecord(g);
+          snapshot = E.playbackText(g, { seat: 0 });
+        }
+        return { type: 'discard', tile: g.hand.seats[seat].hand[0] };
+      },
+      claim: () => ({ type: 'pass' }),
+    });
+    await E.runHand(game, [0, 1, 2, 3].map(play), {});
+    const restored = E.restoreGame(saved);
+    let resumed = null;
+    const again = [0, 1, 2, 3].map((seat) => ({
+      turn: (g, s) => {
+        if (s === 0) throw new Error('past the snapshot');
+        return { type: 'discard', tile: g.hand.seats[s].hand[0] };
+      },
+      claim: () => ({ type: 'pass' }),
+    }));
+    await assert.rejects(E.runHand(restored, again, {}, {
+      seed: saved.hand.seed,
+      replay: saved.hand.moves,
+      onReplayEnd: () => { resumed = E.playbackText(restored, { seat: 0 }); },
+    }), /past the snapshot/);
+    const before = E.parsePlayback(snapshot);
+    const after = E.parsePlayback(resumed);
+    assert.deepEqual(after.actions, before.actions);
+    assert.deepEqual(after.players.map((p) => p.hand), before.players.map((p) => p.hand));
+  });
+
+  it('asks the table to rebuild each replayed decision before that move is played', async () => {
+    const game = E.createGame({ seed: 11, dealer: 0 });
+    let saved = null;
+    const play = () => ({
+      turn: (g, seat) => {
+        if (seat === 0 && !saved && g.hand.moves.length === 2) saved = E.gameRecord(g);
+        return { type: 'discard', tile: g.hand.seats[seat].hand[0] };
+      },
+      claim: () => ({ type: 'pass' }),
+    });
+    await E.runHand(game, [0, 1, 2, 3].map(play), {});
+    const restored = E.restoreGame(saved);
+    const seen = [];
+    await assert.rejects(E.runHand(restored, [0, 1, 2, 3].map(() => ({
+      turn: (g, seat) => {
+        if (seat === 0) throw new Error('past the snapshot');
+        return { type: 'discard', tile: g.hand.seats[seat].hand[0] };
+      },
+      claim: () => ({ type: 'pass' }),
+    })), {
+      replayDecision(kind, opts, decision) {
+        const hand = restored.hand.seats[0].hand;
+        seen.push({ kind, decision, stillHeld: !decision.tile || hand.includes(decision.tile), opts: !!opts });
+      },
+    }, {
+      seed: saved.hand.seed,
+      replay: saved.hand.moves,
+    }), /past the snapshot/);
+    assert.equal(seen.length, saved.hand.moves.length);
+    assert.ok(seen.length >= 2);
+    seen.forEach((row, i) => {
+      assert.equal(row.kind, saved.hand.moves[i].k);
+      assert.deepEqual(row.decision, saved.hand.moves[i].d);
+      assert.equal(row.stillHeld, true);
+      assert.equal(row.opts, true);
+    });
+  });
+
+  it('rebuilds the table at every move', async () => {
+    const game = E.createGame({ seed: 11, humanSeat: false, dealer: 0 });
+    const agents = [0, 1, 2, 3].map(() => ({
+      turn: (g, seat, opts) => {
+        if (opts.kongs && opts.kongs[0]) return { type: 'kong', tile: opts.kongs[0].tile };
+        return { type: 'discard', tile: g.hand.seats[seat].hand[0] };
+      },
+      claim: (g, seat, opts) => {
+        if (opts.kong) return { type: 'kong' };
+        if (opts.pung) return { type: 'pung' };
+        if (opts.chows && opts.chows[0]) return { type: 'chow', tiles: opts.chows[0] };
+        return { type: 'pass' };
+      },
+    }));
+    await E.runHand(game, agents, {});
+    const rec = E.parsePlayback(E.playbackText(game, { seat: 0, strategies: [null, 'lucky-cat', 'base', 'jorge-yau'] }));
+    assert.ok(rec.actions.some((a) => a.a === 'claim' || a.a === 'kong'), 'the hand makes a meld');
+    for (let i = 0; i <= rec.actions.length; i++) E.playbackGame(rec, i);
+    const deal = E.playbackGame(rec, 0);
+    assert.equal(deal.dealer, rec.dealer);
+    assert.equal(deal.round, rec.round);
+    assert.equal(deal.handNumber, rec.handNumber);
+    assert.equal(deal.players[2].name, rec.players[2].name);
+    assert.equal(deal.hand.seats[rec.dealer].hand.length, 14);
+    assert.equal(deal.hand.seats[(rec.dealer + 1) % 4].hand.length, 13);
+    assert.ok(deal.hand.seats.every((s) => s.discards.length === 0 && s.melds.length === 0));
+    const at = rec.actions.findIndex((a) => a.a === 'discard');
+    const ev = rec.actions[at];
+    const before = E.playbackGame(rec, at);
+    const after = E.playbackGame(rec, at + 1);
+    const thrown = after.hand.seats[ev.s].discards;
+    assert.equal(thrown.length, before.hand.seats[ev.s].discards.length + 1);
+    assert.equal(thrown[thrown.length - 1].tile, ev.t);
+    assert.equal(after.hand.review.mark.where, 'pond');
+    const end = E.playbackGame(rec);
+    rec.players.forEach((p, i) => {
+      const s = end.hand.seats[i];
+      assert.deepEqual(s.hand, p.hand);
+      assert.deepEqual(s.flowers, p.flowers);
+      assert.deepEqual(s.melds.map((m) => ({
+        type: m.type, tiles: m.tiles, from: m.from == null ? null : m.from, concealed: !!m.concealed,
+      })), p.melds);
+      assert.deepEqual(s.discards.map((d) => ({ tile: d.tile, claimed: !!d.claimed })), p.discards);
+    });
+  });
+
+  it('replays the tile drawn to replace a kong', async () => {
+    const game = E.createGame({ seed: 15, humanSeat: false, dealer: 0 });
+    const agents = [0, 1, 2, 3].map(() => ({
+      turn: (g, seat, opts) => {
+        if (opts.kongs && opts.kongs[0]) return { type: 'kong', tile: opts.kongs[0].tile };
+        return { type: 'discard', tile: g.hand.seats[seat].hand[0] };
+      },
+      claim: (g, seat, opts) => {
+        if (opts.kong) return { type: 'kong' };
+        if (opts.pung) return { type: 'pung' };
+        return { type: 'pass' };
+      },
+    }));
+    await E.runHand(game, agents, {});
+    const rec = E.parsePlayback(E.playbackText(game, { seat: 0 }));
+    const at = rec.actions.findIndex((a) => a.a === 'kong');
+    assert.ok(at >= 0, 'the hand declares a kong');
+    assert.equal(rec.actions[at + 1].a, 'draw');
+    assert.equal(rec.actions[at + 1].k, 'kong');
+    assert.equal(rec.actions[at + 1].s, rec.actions[at].s);
+    for (let i = 0; i <= rec.actions.length; i++) E.playbackGame(rec, i);
+    const end = E.playbackGame(rec);
+    rec.players.forEach((p, i) => {
+      assert.deepEqual(end.hand.seats[i].hand, p.hand);
+    });
+  });
+
+  it('signs a playback file and stops at the moves it names', async () => {
+    const game = E.createGame({ seed: 11, humanSeat: false, dealer: 0 });
+    await E.runHand(game, discarders(), {});
+    const file = E.makePlayback(game, { seat: 0 });
+    assert.equal(file.moves, file.payload.actions.length);
+    assert.equal(file.payload.handSeed, file.payload.seed + '-EE');
+    assert.match(file.signature, /^[0-9a-f]{64}$/);
+    const checked = E.checkPlayback(JSON.stringify(file, null, 2));
+    assert.equal(checked.ok, true);
+    assert.equal(checked.record.moves, file.moves);
+    const edited = JSON.parse(JSON.stringify(file));
+    edited.payload.actions.push({ a: 'drawGame' });
+    edited.moves = edited.payload.actions.length;
+    assert.match(E.checkPlayback(edited).reason, /changed or damaged/);
+    edited.payload.actions.pop();
+    edited.moves = file.moves - 1;
+    assert.match(E.checkPlayback(edited).reason, /changed or damaged/);
+    assert.match(E.checkPlayback(E.playbackText(game, { seat: 0 })).reason, /isn't a playback file/);
+    const copied = E.checkPlayback(file.payload.handSeed + '\n' + JSON.stringify(file));
+    assert.equal(copied.ok, true);
+    assert.equal(copied.record.handSeed, file.payload.handSeed);
+    assert.equal(copied.record.actions.length, file.moves);
+    const full = JSON.parse(JSON.stringify(checked.record));
+    delete full.moves;
+    const capped = JSON.parse(JSON.stringify(checked.record));
+    capped.moves = 2;
+    const snap = (g) => g.hand.seats.map((s) => ({
+      hand: s.hand, flowers: s.flowers, discards: s.discards.map((d) => d.tile),
+    }));
+    assert.deepEqual(snap(E.playbackGame(capped)), snap(E.playbackGame(full, 2)));
+    assert.notDeepEqual(snap(E.playbackGame(capped)), snap(E.playbackGame(full)));
+  });
+});

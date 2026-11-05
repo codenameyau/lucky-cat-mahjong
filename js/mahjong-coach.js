@@ -3,8 +3,9 @@
    The bots decide. This module says that same decision in plain words:
    what to do and why, which plan it is, and when the hand is
    actually waiting on a winning tile.
-   and how dangerous the opponents look. It does not
-   keep a second route or a second claim rule.
+   and how dangerous the opponents look. It keeps the bot's route,
+   unless the player throws something else twice in a row: then the
+   hints follow the hand those discards point to.
 
    forStrategy(bot) returns this same coach speaking for another strategy
    (js/mahjong-strategies.js); the default speaks for lucky-cat. */
@@ -142,7 +143,7 @@
     }
     var oneSuit = B.suitCommitment(v.ctx, c);
     if (oneSuit && i < 27 && E.suitOfIndex(i) !== oneSuit) {
-      return 'You\'re going for ' + SUIT_NAME[oneSuit] + ', so other suits go first.';
+      return 'Go for ' + SUIT_NAME[oneSuit] + ', so other suits go first.';
     }
     if (B.isPungTile(v.game, i) && c[i] < 2) {
       return pungedReason(i);
@@ -345,6 +346,123 @@
   // The hand each coach last named, per seat, so it can say when that changes.
   // (A hint can be asked for twice in a turn, so `prev` stays until the next.)
   var LAST_HAND = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+
+  // Discards the player threw instead of the recommended tile, per game.
+  // Two in a row means the next hints follow the hand those discards point to.
+  var PLAYER_AIM = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+
+  function aimBag(game) {
+    if (!PLAYER_AIM || !game) return null;
+    var bag = PLAYER_AIM.get(game);
+    if (!bag) { bag = {}; PLAYER_AIM.set(game, bag); }
+    return bag;
+  }
+
+  function noteDiscard(game, seat, recommended, thrown) {
+    var bag = aimBag(game);
+    if (!bag || !game.hand || !recommended || !thrown) return;
+    var handNo = game.handNumber || 0;
+    var row = bag[seat];
+    if (!row || row.hand !== handNo) row = bag[seat] = { hand: handNo, streak: 0, thrown: [] };
+    // Taking the named discard before the hand has switched clears the streak.
+    // After it has switched, taking that discard confirms the hand.
+    if (thrown === recommended) {
+      if (row.streak < 2) { row.streak = 0; row.thrown = []; }
+      return;
+    }
+    row.streak++;
+    row.thrown.push(thrown);
+  }
+
+  function playerDrift(game, seat) {
+    var bag = aimBag(game);
+    var row = bag && bag[seat];
+    if (!row || row.hand !== (game.handNumber || 0) || row.streak < 2) return null;
+    return row;
+  }
+
+  // A plan claims a tile when that tile belongs to it, whether or not it is
+  // still in the hand. Thrown tiles the plan claims are evidence against it.
+  function planClaims(plan, index, declared) {
+    var route = routeOf(plan);
+    if (route && route.keep) return !!route.keep(index);
+    var base = plan.counts;
+    if (!base) return false;
+    var before = plan.shantenFn(base, declared || 0);
+    var more = base.slice();
+    more[index] = (more[index] || 0) + 1;
+    return plan.shantenFn(more, declared || 0) < before;
+  }
+
+  // A flush in a suit the bot has already given up on. Two discards can
+  // still show the player wants it, before that suit is long enough to
+  // be one of the bot's own plans.
+  function flushPlans(counts, ctx) {
+    var out = [];
+    var melds = ctx.meldSuits || {};
+    ['c', 'd', 'b'].forEach(function (su) {
+      var blocked = Object.keys(melds).some(function (k) { return k !== su && k !== 'z'; });
+      if (blocked) return;
+      var n = 0;
+      for (var i = 0; i < 27; i++) if (E.suitOfIndex(i) === su) n += counts[i] || 0;
+      if (!n) return;
+      var half = counts.slice(), full = counts.slice();
+      for (var j = 0; j < 34; j++) {
+        var inSuit = j < 27 && E.suitOfIndex(j) === su;
+        if (!inSuit) full[j] = 0;
+        if (!inSuit && j < 27) half[j] = 0;
+      }
+      out.push({ id: 'half-' + su, suit: su, counts: half, shantenFn: E.standardShanten, faan: 3 });
+      if (!melds.z) out.push({ id: 'full-' + su, suit: su, counts: full, shantenFn: E.standardShanten, faan: 7 });
+    });
+    return out;
+  }
+
+  function playerPlan(v, counts, thrown) {
+    var declared = v.ctx.declared;
+    var seen = {};
+    var plans = B.plansFor(counts, v.ctx).concat(flushPlans(counts, v.ctx)).filter(function (p) {
+      if (p.upgrade || seen[p.id]) return false;
+      seen[p.id] = true;
+      return p.shantenFn(p.counts, declared) !== Infinity;
+    });
+    var best = null, bestScore = 0;
+    plans.forEach(function (plan) {
+      var score = 0;
+      thrown.forEach(function (tile) {
+        score += planClaims(plan, E.tileIndex(tile), declared) ? -5 : 4;
+      });
+      for (var i = 0; i < 34; i++) {
+        if (counts[i] && planClaims(plan, i, declared)) score += counts[i];
+      }
+      if (score > bestScore || (score === bestScore && best && plan.faan > best.faan)) {
+        best = plan;
+        bestScore = score;
+      }
+    });
+    return bestScore > 0 ? best : null;
+  }
+
+  function orderForPlan(list, plan, declared) {
+    var off = [], on = [];
+    list.forEach(function (x) {
+      (planClaims(plan, x.index, declared) ? on : off).push(x);
+    });
+    if (!off.length) return list;
+    var out = off.concat(on);
+    out.defense = list.defense;
+    out.folding = list.folding;
+    out.threats = list.threats;
+    return out;
+  }
+
+  function playerDiscardWhy(plan, pick) {
+    var route = routeOf(plan);
+    if (route && route.suit && pick.index < 27 && E.suitOfIndex(pick.index) !== route.suit) {
+      return 'You\'re going for ' + SUIT_NAME[route.suit] + ', so other suits go first.';
+    }
+    return 'It doesn\'t help the hand you\'re going for.';
+  }
 
   function routeKey(route) {
     return route.id + (route.suit || '');
@@ -610,6 +728,9 @@
     var hand = game.hand.seats[seat].hand;
     var c = E.countsOf(hand);
     var list = rankDiscards(v, hand);
+    var drift = playerDrift(game, seat);
+    var followed = drift ? playerPlan(v, c, drift.thrown) : null;
+    if (followed) list = orderForPlan(list, followed, v.ctx.declared);
     var threats = list.threats;
     var pick = list[0];
     var offenseTop = list.slice().sort(function (a, b) { return b.offense - a.offense; })[0];
@@ -641,9 +762,11 @@
     var canWin = winning.length > 0 && pick.shanten === 0 && !buildingLimit;
     var why = pungSafe
       ? pungedReason(pick.index)
-      : ((defending || list.folding) && hopeless
-        ? 'Play safe. The wall is nearly gone and a win is unlikely.'
-        : (canWin ? 'It leaves you ready.' : whyDiscard(v, c, pick, route)));
+      : (followed && !canWin
+        ? playerDiscardWhy(followed, pick)
+        : ((defending || list.folding) && hopeless
+          ? 'Play safe. The wall is nearly gone and a win is unlikely.'
+          : (canWin ? 'It leaves you ready.' : whyDiscard(v, c, pick, route))));
     var discardAt = tips.length;
     var readyPick = !pungSafe && !defending && canWin;
     // A ready discard is explained by the wait that follows.
@@ -653,7 +776,7 @@
     var cAfter = c.slice();
     cAfter[pick.index]--;
     // Folding, the discard isn't building anything, so the hand hasn't changed.
-    var shifted = list.folding ? '' : pivotNote(v, pick.plan, cAfter);
+    var shifted = list.folding || followed ? '' : pivotNote(v, pick.plan, cAfter);
     if (canWin) {
       var wins = winning.filter(function (w) { return w.ronOk; }).map(function (w) { return w.ronFaan; });
       var state = 'Ready, waiting on ' + waitsText(pick.ready) + (wins.length ? ' for ' + Math.min.apply(null, wins) + '+ faan.' : '.');
@@ -662,19 +785,21 @@
       if (liveLeft <= 1) notes.push('Almost none left, so switch waits if you can.');
       var keptSuit = v.ctx.afterRead && route && route.suit === v.ctx.afterRead.keeps ? tableNote(v, route, state) : '';
       tips.push(state + (shifted ? shifted : '') + (notes.length ? ' ' + notes.join(' ') : '') + keptSuit);
-    } else if (pick.plan) {
-      var line = 'Aim for ' + targetText(v, pick.plan, cAfter, null) + '.';
+    } else if (pick.plan || followed) {
+      var spoken = followed ? { route: routeOf(followed) } : pick.plan;
+      var speak = spoken.route;
+      var line = (followed ? 'You\'re going for ' : 'Go for ') + targetText(v, spoken, cAfter, null) + '.';
       line += shifted;
       // A complete shape that doesn't score isn't ready, so say why.
       if (pick.ready) line = 'Complete, but under ' + min + ' faan. ' + line;
       var sure = B.baseFaan(v.ctx);
-      if (route.faan < min - 0.25 && B.cheapWin(v.ctx)) {
+      if (speak && speak.faan < min - 0.25 && B.cheapWin(v.ctx)) {
         // Flowers (and sets) already give all but the last faan.
         line += ' Your flowers and sets give ' + sure + ' faan, so one more wins: a self-draw, All Sequences, or a dragon or wind set.';
-      } else if (route.faan < min - 0.25) line += ' Short of ' + min + ' faan, so look for a flush, All Triplets or a dragon or wind set.';
+      } else if (speak && speak.faan < min - 0.25) line += ' Short of ' + min + ' faan, so look for a flush, All Triplets or a dragon or wind set.';
       else if (!defending) { var phase = phaseText(v); if (phase) line += ' ' + phase; }
-      line += upgradeNote(v, route);
-      line += tableNote(v, route, line);
+      if (!followed) line += upgradeNote(v, route);
+      line += tableNote(v, speak, line);
       tips.push(line);
     }
 
@@ -704,6 +829,8 @@
     var v = look(game, seat);
     var hand = game.hand.seats[seat].hand;
     var c = E.countsOf(hand);
+    var drift = playerDrift(game, seat);
+    var followed = drift ? playerPlan(v, c, drift.thrown) : null;
     var ti = E.tileIndex(opts.tile);
     var decided = B.decideClaim(game, seat, opts);
     var found = decided.found;
@@ -750,6 +877,15 @@
     function after(plan, counts, discard, named, ready) {
       var lines = [];
       var waiting = winningWaits(ready);
+      if (followed && !waiting.length) {
+        if (discard && !planClaims(followed, E.tileIndex(discard), v.ctx.declared)) discard = null;
+        if (discard) lines.push('Then discard ' + E.tileName(discard) + '.');
+        lines.push('You\'re going for ' + targetText(v, { route: routeOf(followed) }, counts) + '.');
+        var shown = threats.filter(function (t) { return t.level >= 2; });
+        var said = threatSentence(v.game, shown);
+        if (said) lines.push(said);
+        return lines;
+      }
       if (waiting.length) {
         if (discard) lines.push('Then discard ' + E.tileName(discard) + '.');
         var faan = waiting.filter(function (w) { return w.ronOk; }).map(function (w) { return w.ronFaan; });
@@ -759,7 +895,7 @@
       } else if (plan) {
         var short = plan.route.faan < min - 0.25 ? ' Still short of ' + min + ' faan.' : '';
         lines.push((discard ? 'Then discard ' + E.tileName(discard) + '. ' : '') +
-          'Aim for ' + targetText(v, plan, counts) + '.' + short);
+          'Go for ' + targetText(v, plan, counts) + '.' + short);
       }
       var shown = threats.filter(function (t) { return t.level >= 2; });
       var said = threatSentence(v.game, shown);
@@ -767,6 +903,10 @@
       return lines;
     }
 
+    if (followed && dec.type !== 'pass' && !planClaims(followed, ti, v.ctx.declared)) {
+      tips.push('Pass. It doesn\'t help the hand you\'re going for.');
+      return lead({ kind: 'claim', decision: { type: 'pass' }, tips: tips.concat(after(stay, c, null, false, found.stay && found.stay.ready)) }, tips.length - 1);
+    }
     if (taken && ti >= 27 && honorWorth(v, ti) && dec.type !== 'chow') {
       var honorCall = spoken(taken);
       tips.push(honorCall.label + '! A ' + E.tileName(opts.tile) + ' set is ' + honorWorth(v, ti) + ' faan.');
@@ -774,6 +914,10 @@
     }
     if (taken) {
       var call = spoken(taken);
+      if (followed) {
+        tips.push(call.label + '. It helps the hand you\'re going for.');
+        return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(call.plan, call.counts, call.discard, true, call.ready)) }, tips.length - 1);
+      }
       var route = call.plan.route;
       var fits = route.id === 'half' || route.id === 'full'
         ? 'It builds your ' + (route.id === 'full' ? 'Full Flush' : 'Half Flush') + ' in ' + SUIT_NAME[route.suit]
@@ -873,7 +1017,8 @@
   }
 
   var api = {
-    discardFeedback: discardFeedback, claimFeedback: claimFeedback, turnHint: turnHint, claimHint: claimHint,
+    discardFeedback: discardFeedback, claimFeedback: claimFeedback, noteDiscard: noteDiscard,
+    turnHint: turnHint, claimHint: claimHint,
     rankDiscards: rankDiscards, look: look, highlightPatterns: highlightPatterns,
   };
 

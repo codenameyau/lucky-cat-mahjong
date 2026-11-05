@@ -46,8 +46,7 @@
       } catch (e) {}
       root.classList.add('play-mode-' + mode);
       if (hasSave) root.classList.add('play-has-save');
-      if (hasSave && save.payload.game.settings && save.payload.game.settings.mode !== mode &&
-          window.matchMedia && matchMedia('(max-width: 600px), (pointer: coarse) and (max-height: 599px)').matches) {
+      if (hasSave && save.payload.game.settings && save.payload.game.settings.mode !== mode) {
         root.classList.add('play-new-first');
       }
       if (hasSave && /[?&]opened=1(&|$)/.test(location.search)) root.classList.add('play-reopening');
@@ -173,7 +172,7 @@
   </main>
 
   <div id="play-stage" class="play-stage" hidden>
-    <canvas id="play-canvas" class="play-canvas" tabindex="0" role="application" aria-label="Mahjong table. Pick a tile with the arrow keys, Enter to discard, Escape for the menu."></canvas>
+    <canvas id="play-canvas" class="play-canvas" tabindex="0" role="application" aria-label="Mahjong table. With the coach on, a panel beside your hand, headed Recommendations, shows the tile each strategy would discard, and what it would chow, pung, kong, or pass. Feedback shows the tile each strategy would have discarded after you throw one. Both panels hide when the coach is off. Click one to make it the coach. Pick a tile with the arrow keys, Enter to discard, Escape for the menu."></canvas>
     <p id="play-live" class="visually-hidden" aria-live="polite"></p>
     <dialog id="rules-sheet" class="rules-sheet" aria-labelledby="rules-sheet-title">
       <div class="rules-sheet-inner">

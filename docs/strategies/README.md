@@ -9,7 +9,6 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 | `jorge-yau` | Jorge Yau | `js/mahjong-jorge-yau.js` | [jorge-yau.md](jorge-yau.md) |
 | `only-orphans` | Only Orphans | `js/mahjong-only-orphans.js` | [only-orphans.md](only-orphans.md) |
 | `no-defense` | No Defense | `js/mahjong-no-defense.js` | [no-defense.md](no-defense.md) |
-| `base` | Base Bot | `js/mahjong-bot.js` | The shared rules below |
 
 Before version 0.6.0 the two ids were the other way round; saved choices and save files from then are converted when they're read.
 
@@ -78,7 +77,7 @@ The coach speaks for any strategy through `MahjongCoach.forStrategy(bot)`. It na
 
 ## Reviewing a hand, and teaching the coach
 
-`npm run review` replays a hand from its seed in under a second and shows what the coach said on each of your turns. Tap your wind badge in the game to copy a hand's seed.
+`npm run review` replays a hand from its seed in under a second and shows what the coach said on each of your turns. Tap your wind badge in the game to save a playback. Its `handSeed` is the hand seed this command takes.
 
 | Command | |
 | --- | --- |

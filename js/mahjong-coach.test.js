@@ -67,7 +67,7 @@ describe('coach: discards', () => {
     const game = table({ seats: [{ hand, melds: [meld('chow', 'c4'), meld('pung', 'b5')] }] });
     const said = text(C.turnHint(game, 0, { kongs: [] }));
     assert.doesNotMatch(said, /chicken/i);
-    assert.match(said, /Aim for a dragon or wind set/);
+    assert.match(said, /Go for a dragon or wind set/);
   });
 
   it('drops a punged tile first when the hand does not need it', () => {
@@ -147,7 +147,7 @@ describe('coach: discards', () => {
     const hand = ['b2', 'b3', 'b4', 'b5', 'b6', 'b6', 'b7', 'b8', 'b8', 'dr', 'dr', 'c5', 'd7', 'ws'];
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
     assert.ok(['c5', 'd7'].includes(hint.tile), 'discarded ' + hint.tile);
-    assert.match(text(hint), /You're going for Bamboo, so other suits go first/);
+    assert.match(text(hint), /Go for Bamboo, so other suits go first/);
     assert.match(text(hint), /(Half|Full) Flush in Bamboo/);
     assert.doesNotMatch(text(hint), /tile(?:s)? from ready|Ready, waiting on/);
   });
@@ -348,7 +348,7 @@ describe('coach: after a chow', () => {
 
   it('only goes for a flush in the chow\'s suit', () => {
     const hint = C.turnHint(chowed(), 0, { kongs: [] });
-    assert.match(text(hint), /Aim for (Half|Full) Flush in Bamboo/);
+    assert.match(text(hint), /Go for (Half|Full) Flush in Bamboo/);
   });
 
   it('does not commit to the chow suit when flowers give all but one faan', () => {
@@ -363,6 +363,82 @@ describe('coach: after a chow', () => {
     const hint = C.claimHint(game, 0, E.claimOptions(game, 0, 'c4', 3, false));
     assert.equal(hint.decision.type, 'pass');
     assert.match(text(hint), /Stay concealed, and save chows for a ready hand or a flush/);
+  });
+});
+
+describe('coach: a player who ignores the discard', () => {
+  // Eight Characters and a Bamboo run. The coach keeps Characters and
+  // throws the Bamboo. Two Character discards in a row say otherwise.
+  const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'b6', 'b7', 'b8', 'b9', 'ws', 'we'];
+
+  function drop(game, tile) {
+    const seat = game.hand.seats[0];
+    const at = seat.hand.indexOf(tile);
+    seat.hand.splice(at, 1);
+    seat.discards.push({ tile: tile, claimed: false });
+  }
+
+  it('says Go for the hand it recommends', () => {
+    const hint = C.turnHint(table({ seats: [{ hand: hand }] }), 0, { kongs: [] });
+    assert.equal(hint.tile, 'b9');
+    assert.match(text(hint), /Go for /);
+    assert.doesNotMatch(text(hint), /You're going for/);
+  });
+
+  it('keeps its own plan after one discard against its advice', () => {
+    const game = table({ seats: [{ hand: hand }] });
+    const hint = C.turnHint(game, 0, { kongs: [] });
+    C.noteDiscard(game, 0, hint.tile, 'c9');
+    drop(game, 'c9');
+    const next = C.turnHint(game, 0, { kongs: [] });
+    assert.doesNotMatch(text(next), /You're going for/);
+    assert.match(text(next), /Go for /);
+  });
+
+  it('follows the hand those discards point to after two in a row', () => {
+    const game = table({ seats: [{ hand: hand }] });
+    let hint = C.turnHint(game, 0, { kongs: [] });
+    C.noteDiscard(game, 0, hint.tile, 'c9');
+    drop(game, 'c9');
+    hint = C.turnHint(game, 0, { kongs: [] });
+    assert.notEqual(hint.tile, 'c8');
+    C.noteDiscard(game, 0, hint.tile, 'c8');
+    drop(game, 'c8');
+    const next = C.turnHint(game, 0, { kongs: [] });
+    const said = text(next);
+    assert.match(said, /You're going for .*Bamboo/);
+    assert.doesNotMatch(said, /\bGo for /);
+    assert.ok(!['b6', 'b7', 'b8', 'b9'].includes(next.tile), next.tile);
+  });
+
+  it('stays on that hand after you take the discard it names', () => {
+    const game = table({ seats: [{ hand: hand }] });
+    let hint = C.turnHint(game, 0, { kongs: [] });
+    C.noteDiscard(game, 0, hint.tile, 'c9');
+    drop(game, 'c9');
+    hint = C.turnHint(game, 0, { kongs: [] });
+    C.noteDiscard(game, 0, hint.tile, 'c8');
+    drop(game, 'c8');
+    hint = C.turnHint(game, 0, { kongs: [] });
+    C.noteDiscard(game, 0, hint.tile, hint.tile);
+    drop(game, hint.tile);
+    const next = C.turnHint(game, 0, { kongs: [] });
+    assert.match(text(next), /You're going for .*Bamboo/);
+    assert.ok(!['b6', 'b7', 'b8', 'b9', 'ws', 'we'].includes(next.tile), next.tile);
+  });
+
+  it('names that hand on a claim, instead of the one it first recommended', () => {
+    const game = table({ seats: [{ hand: hand }] });
+    let hint = C.turnHint(game, 0, { kongs: [] });
+    C.noteDiscard(game, 0, hint.tile, 'c9');
+    drop(game, 'c9');
+    hint = C.turnHint(game, 0, { kongs: [] });
+    C.noteDiscard(game, 0, hint.tile, 'c8');
+    drop(game, 'c8');
+    const claim = C.claimHint(game, 0, E.claimOptions(game, 0, 'c1', 3, false));
+    assert.equal(claim.decision.type, 'pass');
+    assert.match(text(claim), /You're going for .*Bamboo/);
+    assert.doesNotMatch(text(claim), /\bGo for /);
   });
 });
 

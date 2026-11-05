@@ -1315,11 +1315,11 @@
     }
   }
 
-  // Hand seeds: what tapping your wind badge on the Play page copies (e.g.
-  // "458555827-SE"). Pasting one (Cmd/Ctrl+V anywhere on the page, or
-  // tapping the empty hand's text, which reads the clipboard where the
-  // browser allows it) shows the starting hand dealt to you, with your
-  // flowers, seat wind and round wind.
+  // Hand seeds ("458555827-SE"), a signed playback file, or the first line
+  // of an older playback seed. Pasting one (Cmd/Ctrl+V anywhere on
+  // the page, or tapping the empty hand's text, which reads the clipboard
+  // where the browser allows it) shows the starting hand dealt to you,
+  // with your flowers, seat wind and round wind.
   var PASTE_KEYS = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '') ? '\u2318V' : 'Ctrl+V';
 
   // A line under the empty hand's text, for a moment.
@@ -1337,10 +1337,20 @@
     placeholderNote.timer = setTimeout(function () { if (note.parentNode) note.remove(); }, 5000);
   }
 
-  // Loads the hand for a hand seed's text; false if it isn't one.
+  // Loads the hand for a hand seed, a signed playback file, or an older
+  // playback seed (its first line is the hand seed). False if it isn't any.
   function loadHandSeed(value) {
     var E = window.MahjongEngine;
-    var parsed = E && E.parseHandSeed(value);
+    if (!E) return false;
+    var parsed = E.parseHandSeed(value);
+    if (!parsed && E.checkPlayback) {
+      var checked = E.checkPlayback(value);
+      if (checked.ok) parsed = { seed: checked.record.seed, seat: checked.record.seat, round: checked.record.round };
+    }
+    if (!parsed && E.parsePlayback) {
+      var play = E.parsePlayback(value);
+      if (play) parsed = { seed: play.seed, seat: play.seat, round: play.round };
+    }
     if (!parsed) return false;
     var dealt = E.dealtHand(parsed.seed, parsed.seat);
     hand = dealt.hand;
@@ -1363,7 +1373,7 @@
     var askToPaste = function () { placeholderNote('Press ' + PASTE_KEYS + ' to paste your hand seed.'); };
     if (!clip || !clip.readText) { askToPaste(); return; }
     clip.readText().then(function (value) {
-      if (!loadHandSeed(value)) placeholderNote('That isn\'t a hand seed. Tap your wind in the game to copy one.');
+      if (!loadHandSeed(value)) placeholderNote('That isn\'t a hand seed or a playback file.');
     }, askToPaste);
   }
 
@@ -1373,7 +1383,7 @@
     if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
     var value = e.clipboardData && e.clipboardData.getData('text');
     if (loadHandSeed(value)) { e.preventDefault(); return; }
-    if (value) placeholderNote('That isn\'t a hand seed. Tap your wind in the game to copy one.');
+    if (value) placeholderNote('That isn\'t a hand seed or a playback file.');
   }
 
   function syncHandTiles(body, pieces) {

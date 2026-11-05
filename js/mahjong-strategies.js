@@ -15,7 +15,6 @@
   var J = node ? require('./mahjong-jorge-yau.js') : root.MahjongJorgeYau;
   var O = node ? require('./mahjong-only-orphans.js') : root.MahjongOnlyOrphans;
   var N = node ? require('./mahjong-no-defense.js') : root.MahjongNoDefense;
-  var F = node ? require('./mahjong-bot.js') : root.MahjongBot;
 
   var STRATEGIES = [
     {
@@ -73,20 +72,6 @@
         'It claims anything that brings the hand closer and can still reach 3 faan. On a lock, it claims only that hand\'s tiles.',
       ],
       doc: 'docs/strategies/no-defense.md',
-    },
-    {
-      id: 'base',
-      name: 'Base Bot',
-      bot: F,
-      summary: 'Plays the fundamentals every other strategy builds on. Keeps its options wide early, commits to a plan, and pivots only for more points or when the plan looks hopeless.',
-      details: [
-        'For its first 3 discards it keeps its options open, holding the tiles that leave the most hands possible.',
-        'Then it commits to the hand it\'s on and sticks to it. It pivots only for a hand worth more that isn\'t far behind, or when the plan has little chance left and another has real odds.',
-        'A hand it has left needs a stronger reason to come back to, so it doesn\'t go back and forth.',
-        'Between close discards it keeps the tiles that leave a backup plan alive, and the tiles with the most copies left.',
-        'It never aims for a hand under 3 faan, keeps pairs and unseen dragons, and defends when an opponent looks close and its own hand is far off.',
-      ],
-      doc: 'docs/strategies/README.md',
     },
   ];
 
