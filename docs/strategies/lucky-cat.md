@@ -191,6 +191,8 @@ It only says "Play safe" on the last wall, when a win is unlikely: fewer than 16
 
 When it bears on the hand, the coach also says what the tracker read from the discards: someone collecting a suit you hold a lot of ("Grace is collecting Bamboo, so stay out of it") or one your hand is building ("Grace is collecting Bamboo too, so those tiles will be slow"), or someone changing hands ("Grace has switched out of Bamboo").
 
+When the hand it's building changes from last turn, it says so and why ("Switching from Half Flush in Bamboo to Concealed Straights: it's 2 tiles from ready, and the old hand is 4 tiles from ready."). A read of an opponent changing hands gives the reason too ("Grace has switched out of Bamboo: they kept it early and are throwing it now."). That read only uses their discards, never their hidden tiles.
+
 The threats line says only what you can see on the table: who has melds down and what suit they're in ("Grace has three melds down, all Bamboo."). The Low, Medium, High and Extreme levels above are the bots' own estimate, so the coach never names them, and a player with no melds isn't mentioned, however late it is.
 
 It only calls a tile risky (or says "Hold" a tile, or calls your discard risky in feedback) when the table shows why, and it says the reason: a High or Extreme player's melds are all in that tile's suit, with or without honors ("Grace's melds are all Bamboo", "Grace's melds are Bamboo and honors"), or a player with 3 melds down hasn't thrown it ("Grace has 3 melds down and hasn't thrown one"). A tile any safety read covers (thrown since their meld, suji, kabe, three out, another suit than their flush) never counts. Without that, it says nothing about risk.

@@ -250,8 +250,8 @@ describe('the player before you decides a close flush suit', () => {
   it('every coach says when an opponent changes hands', () => {
     const game = table({ seats: [{ hand: ['c2', 'c3', 'c4', 'c6', 'c7', 'd2', 'd3', 'd5', 'd6', 'wn', 'we', 'ws', 'b5', 'b9'] }, { discards: ['c1', 'd1', 'c2', 'd2', 'b2', 'b3', 'b7', 'b8'] }], wallLeft: 60 });
     const lucky = Coach.forStrategy(B).turnHint(game, 0, { kongs: [] });
-    assert.match(lucky.tips.join(' '), /has switched out of Bamboo\./);
-    assert.match(Coach.forStrategy(L).turnHint(game, 0, { kongs: [] }).tips.join(' '), /has switched out of Bamboo\./);
+    assert.match(lucky.tips.join(' '), /has switched out of Bamboo: they kept it early and are throwing it now\./);
+    assert.match(Coach.forStrategy(L).turnHint(game, 0, { kongs: [] }).tips.join(' '), /has switched out of Bamboo: they kept it early and are throwing it now\./);
   });
 
   it('jorge-yau gives up a Bamboo flush target', () => {
@@ -587,7 +587,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.21.1');
+    assert.equal(E.GAME_VERSION, '0.21.2');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
@@ -827,6 +827,71 @@ describe('no-defense', () => {
       const game = E.createGame({ seed: 32000 + n, humanSeat: false, dealer: 0 });
       const res = await E.runHand(game, [agent(), S.createAgent('lucky-cat'), S.createAgent('only-orphans'), S.createAgent('jorge-yau')], {});
       assert.ok(res.type === 'win' || res.type === 'draw', res.type);
+    }
+  });
+});
+
+describe('the coach says when its hand changes', () => {
+  const hint = (game, bot) => Coach.forStrategy(bot || B).turnHint(game, 0, { kongs: [] }).tips.join(' ');
+  const mixed = ['c1', 'c2', 'c3', 'c5', 'c7', 'c9', 'c9', 'd2', 'd5', 'b3', 'b6', 'b8', 'we', 'ws'];
+  const flush = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'c9', 'd2', 'b3', 'we', 'ws'];
+  const play = (game, tile) => game.hand.seats[0].discards.push({ tile, claimed: false });
+
+  it('says nothing on its first turn, or while the hand stays the same', () => {
+    const game = table({ seats: [{ hand: flush }], wallLeft: 70 });
+    assert.doesNotMatch(hint(game), /Switching from/);
+    play(game, 'we');
+    assert.doesNotMatch(hint(game), /Switching from/);
+  });
+
+  it('names both hands and why', () => {
+    const game = table({ seats: [{ hand: mixed }], wallLeft: 70 });
+    const before = hint(game);
+    play(game, 'we');
+    game.hand.seats[0].hand = flush;
+    const after = hint(game);
+    assert.doesNotMatch(before, /Switching from/);
+    assert.match(after, /Switching from .+ to Full Flush in Characters: [^.]+\./);
+  });
+
+  it('says it once a turn, however often the hint is asked for', () => {
+    const game = table({ seats: [{ hand: mixed }], wallLeft: 70 });
+    hint(game);
+    play(game, 'we');
+    game.hand.seats[0].hand = flush;
+    const first = hint(game);
+    assert.equal(hint(game), first);
+    play(game, 'ws');
+    assert.doesNotMatch(hint(game), /Switching from/);
+  });
+
+  it('keeps each coach to its own hand', () => {
+    const game = table({ seats: [{ hand: flush }], wallLeft: 70 });
+    hint(game, B);
+    play(game, 'we');
+    assert.doesNotMatch(hint(game, L), /Switching from/);
+  });
+
+  it('gives a reason on every change through real hands', async () => {
+    for (const id of S.ids()) {
+      const bot = S.get(id).bot;
+      const agent = () => {
+        const base = bot.createBotAgent();
+        return {
+          claim: (g, seat, o) => base.claim(g, seat, o),
+          turn: async (g, seat, o) => {
+            const text = Coach.forStrategy(bot).turnHint(g, seat, o).tips.join(' ');
+            const said = text.match(/Switching from .*?: [^.]+\./g) || [];
+            assert.equal(said.length, (text.match(/Switching from/g) || []).length, text);
+            assert.doesNotMatch(said.join(' '), /undefined|NaN|Infinity/);
+            return base.turn(g, seat, o);
+          },
+        };
+      };
+      for (let n = 0; n < 3; n++) {
+        const game = E.createGame({ seed: 8800 + n, humanSeat: false, dealer: n });
+        await E.runHand(game, [agent(), agent(), agent(), agent()], {});
+      }
     }
   });
 });
