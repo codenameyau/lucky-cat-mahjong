@@ -9,7 +9,7 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 | `jorge-yau` | Jorge Yau | `js/mahjong-jorge-yau.js` | [jorge-yau.md](jorge-yau.md) |
 | `only-orphans` | Only Orphans | `js/mahjong-only-orphans.js` | [only-orphans.md](only-orphans.md) |
 | `no-defense` | No Defense | `js/mahjong-no-defense.js` | [no-defense.md](no-defense.md) |
-| `base` | Base Bot | `js/mahjong-bot.js` | The shared rules below |
+| `base` | Fundamentals | `js/mahjong-bot.js` | The shared rules below |
 
 Before version 0.6.0 the two ids were the other way round; saved choices and save files from then are converted when they're read.
 

@@ -76,7 +76,7 @@
     },
     {
       id: 'base',
-      name: 'Base Bot',
+      name: 'Fundamentals',
       bot: F,
       summary: 'Plays the fundamentals every other strategy builds on. Keeps its options wide early, commits to a plan, and pivots only for more points or when the plan looks hopeless.',
       details: [
