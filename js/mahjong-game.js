@@ -3489,7 +3489,7 @@
         var o = ui.turnPrompt.opts;
         if (o.win) acts.push({ id: 'win', label: winButtonLabel(o.win), style: 'gold', fn: function () { resolveTurn({ type: 'win' }); } });
         o.kongs.forEach(function (k) {
-          acts.push({ id: 'kong-' + k.tile, label: 'Kong', style: 'primary', fn: function () { resolveTurn({ type: 'kong', tile: k.tile }); } });
+          acts.push({ id: 'kong-' + k.tile, label: kongLabel(k.tile), style: 'primary', fn: function () { resolveTurn({ type: 'kong', tile: k.tile }); } });
         });
         if (ui.selected >= 0) {
           acts.push({ id: 'discard', label: 'Discard', style: 'light', fn: function () { discardSelected(true); } });
@@ -3497,7 +3497,7 @@
       } else if (ui.claimPrompt) {
         var c = ui.claimPrompt.opts;
         if (c.win) acts.push({ id: 'win', label: winButtonLabel(c.win), style: 'gold', fn: function () { resolveClaim({ type: 'win' }); } });
-        if (c.kong) acts.push({ id: 'kong-' + c.tile, label: 'Kong', style: 'primary', fn: function () { resolveClaim({ type: 'kong' }); } });
+        if (c.kong) acts.push({ id: 'kong-' + c.tile, label: kongLabel(c.tile), style: 'primary', fn: function () { resolveClaim({ type: 'kong' }); } });
         if (c.pung) acts.push({ id: 'pung', label: 'Pung', style: 'primary', fn: function () { resolveClaim({ type: 'pung' }); } });
         c.chows.forEach(function (pair) {
           var seq = E.sortTiles(pair.concat([c.tile])).map(function (id) { return E.rankOfIndex(E.tileIndex(id)); }).join('-');
@@ -3512,12 +3512,16 @@
       var claimTile = ui.claimPrompt ? ui.claimPrompt.opts.tile : null;
       var ctw = claimTile ? Math.min(30, (L.actionsH - 4) / TILE_ASPECT) : 0;
       var lead = claimTile ? ctw + 10 : 0;
+      ctx.font = 'bold 15px ' + FONT_BODY;
+      // Each button is only as wide as its label.
+      var widths = acts.map(function (a) { return Math.ceil(ctx.measureText(a.label).width) + 28; });
+      var buttonsW = widths.reduce(function (sum, w) { return sum + w; }, 0) + gap * (acts.length - 1);
       var x0 = L.meX + L.pad, x1 = L.meX + L.meW - L.pad, rowY = L.actionsY;
       var free = ui.meRowFree;
       var cover = null;
       if (L.actionsInRow && free) {
-        if (free.x1 - free.x0 - lead >= acts.length * (60 + gap)) { x0 = free.x0; x1 = free.x1; }
-        else if (L.meX + L.meW - L.pad - free.x0 - lead >= acts.length * (60 + gap)) {
+        if (free.x1 - free.x0 - lead >= buttonsW) { x0 = free.x0; x1 = free.x1; }
+        else if (L.meX + L.meW - L.pad - free.x0 - lead >= buttonsW) {
           // Not enough room beside your name: use the rest of the row and
           // cover the name while the buttons are up.
           x0 = free.x0; x1 = L.meX + L.meW - L.pad;
@@ -3531,20 +3535,24 @@
       setButtonsOverName(!!cover);
       rowY -= ACTIONS_LIFT;
       var maxW = x1 - x0 - lead;
-      ctx.font = 'bold 15px ' + FONT_BODY;
-      var labelW = acts.reduce(function (m, a) { return Math.max(m, ctx.measureText(a.label).width + 28); }, 0);
-      var bw = clamp((maxW - gap * (acts.length - 1)) / acts.length, 60, Math.max(150, Math.min(260, labelW)));
-      var total = acts.length * bw + (acts.length - 1) * gap;
-      var x = x0 + (x1 - x0 - total - lead) / 2 + lead;
+      if (buttonsW > maxW) {
+        var inner = buttonsW - gap * (acts.length - 1);
+        var scale = inner > 0 ? (maxW - gap * (acts.length - 1)) / inner : 1;
+        widths = widths.map(function (w) { return Math.max(36, w * scale); });
+        buttonsW = widths.reduce(function (sum, w) { return sum + w; }, 0) + gap * (acts.length - 1);
+      }
+      var x = x0 + (x1 - x0 - buttonsW - lead) / 2 + lead;
       var y = rowY + (L.actionsH - h) / 2;
       if (claimTile) {
         drawTile(claimTile, x - lead, rowY + (L.actionsH - ctw * TILE_ASPECT) / 2, ctw, { glow: COLORS.red });
       }
       var hintDecision = ui.coach === 'on' && ui.hint && ui.hint.decision;
+      var cursor = x;
       acts.forEach(function (a, i) {
         var id = a.id || ('act-' + i);
         var recommended = hintDecision && labelMatches(a.label, hintDecision);
-        button(a.label, x + i * (bw + gap), y, bw, h, a.fn, a.style, id, recommended);
+        button(a.label, cursor, y, widths[i], h, a.fn, a.style, id, recommended);
+        cursor += widths[i] + gap;
       });
     }
 
@@ -3562,10 +3570,16 @@
       return l.indexOf(decision.type) === 0;
     }
 
+    // Two characters: the rank, then the suit. 9C, 5D, 3B, EW, RD.
     function shortName(id) {
       var i = E.tileIndex(id);
-      if (E.isHonorIndex(i)) return E.tileName(id).replace(' Wind', '').replace(' Dragon', '');
-      return E.rankOfIndex(i) + ' ' + { c: 'Char', d: 'Circ', b: 'Bam' }[E.suitOfIndex(i)];
+      if (i < 27) return E.rankOfIndex(i) + { c: 'C', d: 'D', b: 'B' }[E.suitOfIndex(i)];
+      return { we: 'EW', ws: 'SW', ww: 'WW', wn: 'NW', dw: 'WD', dg: 'GD', dr: 'RD' }[id] || '';
+    }
+
+    function kongLabel(id) {
+      var code = shortName(id);
+      return code ? 'Kong ' + code : 'Kong';
     }
 
     function drawFlights() {

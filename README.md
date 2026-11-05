@@ -239,7 +239,7 @@ Playing at the table:
 
 - Bots visibly take turns: the drawn tile set apart, a few tiles lifted while deciding, and the discard flipping face up as it flies to the pond
 - Drawn tiles fly out of the center box, which shows the round wind and how many tiles are left
-- Action buttons sit in your meld row, and your name steps aside if they need the room
+- Action buttons sit in your meld row, only as wide as their labels, and your name steps aside if they need the room
 - When your hand re-sorts, every tile slides from its old place to its new one
 - Computer players have a small robot icon and the human player a person icon
 - Hovering a face-up tile with a mouse (or your own concealed kong) shows its English name and how many are left unseen. On a touch screen the tile you've selected shows the same
