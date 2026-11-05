@@ -656,7 +656,7 @@
   }
 
   function chowOk(o, res, ctx, game, c, tileSuit) {
-    if (!B.chowAllowed(o, res, game)) return false;
+    if (!B.chowAllowed(o, res, game, ctx)) return false;
     var after = o.analysis.shanten;
     if (after === 0) return true;
     var t = ctx.target || {};

@@ -1,7 +1,8 @@
 /* Hint coach for the Play game.
 
    The bots decide. This module says that same decision in plain words:
-   what to do and why, how far the hand is from ready and which plan it is,
+   what to do and why, which plan it is, and when the hand is
+   actually waiting on a winning tile.
    and how dangerous the opponents look. It does not
    keep a second route or a second claim rule.
 
@@ -94,6 +95,7 @@
         priority: x.priority, shanten: x.shanten, plan: described(x.analysis),
         ready: ready && ready.waits && ready.waits.length ? ready : null,
         lone: neighbors(full, x.index) === 0,
+        shortSuit: B.shortSuitDiscard(full, x.index, found.ctx.leadPlan),
         evidence: riskEvidence(v, found.threats, x.index),
       };
     });
@@ -113,9 +115,9 @@
   }
 
   function waitsText(ready) {
-    var live = ready.waits.filter(function (w) { return w.left > 0; });
-    var list = (live.length ? live : ready.waits).map(function (w) { return name(E.tileIndex(w.tile)); });
-    var left = ready.waits.reduce(function (n, w) { return n + w.left; }, 0);
+    var live = winningWaits(ready);
+    var list = live.map(function (w) { return name(E.tileIndex(w.tile)); });
+    var left = live.reduce(function (n, w) { return n + w.left; }, 0);
     var tiles = list.length > 1 ? list.slice(0, -1).join(', ') + ' or ' + list[list.length - 1] : list[0];
     return tiles + ' (' + left + ' left)';
   }
@@ -193,13 +195,14 @@
     }
     if (c[i] >= 3) return route && route.id === 'pairs' ? 'Seven Pairs uses only two of each.' : 'A spare from your three.';
     if (c[i] === 2) return 'One pair too many.';
+    if (pick.shortSuit && i < 27) {
+      var su = E.suitOfIndex(i);
+      if (neighbors(c, i) === 0) return 'Nothing connects to it, and ' + SUIT_NAME[su] + ' is your shortest suit.';
+      if (B.looseTerminal(c, i)) return SUIT_NAME[su] + ' is your shortest suit, so its terminal goes first.';
+      return SUIT_NAME[su] + ' is your shortest suit, and it connects the least.';
+    }
     if (pick.lone) {
       if (i >= 27) return 'A lone honor worth no faan to you.';
-      var held = B.suitCounts(c, v.ctx);
-      var su = E.suitOfIndex(i);
-      if (Object.keys(held).every(function (k) { return held[su] <= held[k]; })) {
-        return 'Nothing connects to it, and ' + SUIT_NAME[su] + ' is your shortest suit.';
-      }
       return E.isTerminalOrHonorIndex(i) ? 'A lone terminal, the hardest to use.' : 'Nothing connects to it.';
     }
     var r = i % 9;
@@ -272,9 +275,10 @@
     return out + raw.slice(cursor);
   }
 
-  function stepsText(shanten) {
-    if (shanten <= 0) return 'Ready';
-    return shanten === 1 ? '1 tile from ready' : shanten + ' tiles from ready';
+  // A wait only counts when a tile still out there wins the hand.
+  function winningWaits(ready) {
+    if (!ready || !ready.waits) return [];
+    return ready.waits.filter(function (w) { return w.left > 0 && (w.ronOk || w.tsumoOk); });
   }
 
   // Why a flush is in this suit, when the player before you decided it:
@@ -292,11 +296,15 @@
   function targetText(v, plan, c, nextOut) {
     var r = plan.route;
     if (r.id === 'straights') {
-      // Every bot throws honors first on this hand, all but one honor pair
-      // and a dragon nobody has shown (MahjongBot's shared rule).
+      // Every bot throws honors first on this hand, all but one honor pair.
+      // A dragon nobody has shown stays only while that pair is not chosen yet.
       var eyes = B.keptHonorPair(c, v.ctx);
       var honors = 0;
-      for (var h = 27; h < 34; h++) if (h !== nextOut && h !== eyes && !B.holdsDragon(v.game, h, 1)) honors += c[h] || 0;
+      for (var h = 27; h < 34; h++) {
+        if (h === nextOut || h === eyes) continue;
+        if (eyes === null && B.holdsDragon(v.game, h, 1)) continue;
+        honors += c[h] || 0;
+      }
       var keepPair = eyes !== null ? '. Keep your ' + name(eyes) + ' pair as the pair' : '';
       return 'Concealed Straights' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' + keepPair +
         (honors ? (eyes !== null ? ', and throw your other honors first' : '. Throw your honors first') : '');
@@ -576,7 +584,8 @@
 
   /* ------------------------------------------------------------------ *
    * 5. Hints: 1) what to do, 2) where the hand stands, 3) the threats.
-   *    (They don't say which tile to drop after this one.)
+   *    A hand that is not waiting on a winning tile does not get a
+   *    "tiles from ready" count. (They don't say which tile to drop next.)
    * ------------------------------------------------------------------ */
 
   // Situational bonuses and flowers are how the hand was won, not the pattern.
@@ -637,32 +646,33 @@
     var bestShanten = Math.min.apply(null, list.map(function (x) { return x.shanten; }));
     var wallLeft = v.ctx.wallLeft;
     var hopeless = (wallLeft < 16 && bestShanten >= 1) || (wallLeft < LAST_WALL && bestShanten >= 2);
+    var winning = winningWaits(pick.ready);
+    var canWin = winning.length > 0 && pick.shanten === 0 && !buildingLimit;
     var why = pungSafe
       ? pungedReason(pick.index)
       : ((defending || list.folding) && hopeless
         ? 'Play safe. The wall is nearly gone and a win is unlikely.'
-        : (pick.ready && pick.shanten === 0 && !buildingLimit ? 'It leaves you ready.' : whyDiscard(v, c, pick, route)));
+        : (canWin ? 'It leaves you ready.' : whyDiscard(v, c, pick, route)));
     var discardAt = tips.length;
-    var readyPick = !pungSafe && !defending && pick.ready && pick.shanten === 0 && !buildingLimit;
+    var readyPick = !pungSafe && !defending && canWin;
     // A ready discard is explained by the wait that follows.
     tips.push('Discard ' + E.tileName(pick.tile) + '.' + (readyPick ? '' : ' ' + why));
 
     // 2. Where the hand stands.
     var cAfter = c.slice();
     cAfter[pick.index]--;
-    var isReady = pick.ready && pick.shanten === 0 && !buildingLimit;
     // Folding, the discard isn't building anything, so the hand hasn't changed.
     var shifted = defending || list.folding ? '' : pivotNote(v, pick.plan, cAfter);
-    if (isReady) {
-      var wins = pick.ready.waits.filter(function (w) { return w.ronOk; }).map(function (w) { return w.ronFaan; });
+    if (canWin) {
+      var wins = winning.filter(function (w) { return w.ronOk; }).map(function (w) { return w.ronFaan; });
       var state = 'Ready, waiting on ' + waitsText(pick.ready) + (wins.length ? ' for ' + Math.min.apply(null, wins) + '+ faan.' : '.');
       var notes = readyNotes(pick.ready, min);
-      var liveLeft = pick.ready.waits.reduce(function (n, w) { return n + w.left; }, 0);
+      var liveLeft = winning.reduce(function (n, w) { return n + w.left; }, 0);
       if (liveLeft <= 1) notes.push('Almost none left, so switch waits if you can.');
       var keptSuit = v.ctx.afterRead && route && route.suit === v.ctx.afterRead.keeps ? tableNote(v, route, state) : '';
       tips.push(state + (shifted ? shifted : '') + (notes.length ? ' ' + notes.join(' ') : '') + keptSuit);
     } else if (pick.plan) {
-      var line = stepsText(pick.plan ? pick.plan.shanten : pick.shanten) + '. Aim for ' + targetText(v, pick.plan, cAfter, null) + '.';
+      var line = 'Aim for ' + targetText(v, pick.plan, cAfter, null) + '.';
       line += shifted;
       // A complete shape that doesn't score isn't ready, so say why.
       if (pick.ready) line = 'Complete, but under ' + min + ' faan. ' + line;
@@ -740,19 +750,25 @@
         discard: option.discard,
         counts: without(used.concat(option.discard ? [option.discard] : [])),
         faan: option.analysis.best && option.analysis.best.plan ? option.analysis.best.plan.faan : 0,
+        ready: option.analysis.ready,
       };
     }
 
     // Where the hand stands afterwards, and the threats. On a pass this is
     // the hand as it is; on a claim it is the hand after the call and its discard.
-    function after(plan, counts, discard, named) {
+    function after(plan, counts, discard, named, ready) {
       var lines = [];
-      if (plan && named) {
-        lines.push((discard ? 'Then discard ' + E.tileName(discard) + '. ' : '') + stepsText(plan.shanten) + '.');
+      var waiting = winningWaits(ready);
+      if (waiting.length) {
+        if (discard) lines.push('Then discard ' + E.tileName(discard) + '.');
+        var faan = waiting.filter(function (w) { return w.ronOk; }).map(function (w) { return w.ronFaan; });
+        lines.push('Ready, waiting on ' + waitsText(ready) + (faan.length ? ' for ' + Math.min.apply(null, faan) + '+ faan.' : '.'));
+      } else if (plan && named) {
+        if (discard) lines.push('Then discard ' + E.tileName(discard) + '.');
       } else if (plan) {
         var short = plan.route.faan < min - 0.25 ? ' Still short of ' + min + ' faan.' : '';
-        lines.push((discard ? 'Then discard ' + E.tileName(discard) + '. ' : '') + stepsText(plan.shanten) +
-          '. Aim for ' + targetText(v, plan, counts) + '.' + short);
+        lines.push((discard ? 'Then discard ' + E.tileName(discard) + '. ' : '') +
+          'Aim for ' + targetText(v, plan, counts) + '.' + short);
       }
       var shown = threats.filter(function (t) { return t.level >= 2; });
       var said = threatSentence(v.game, shown);
@@ -763,7 +779,7 @@
     if (taken && ti >= 27 && honorWorth(v, ti) && dec.type !== 'chow') {
       var honorCall = spoken(taken);
       tips.push(honorCall.label + '! A ' + E.tileName(opts.tile) + ' set is ' + honorWorth(v, ti) + ' faan.');
-      return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(honorCall.plan, honorCall.counts, honorCall.discard)) }, tips.length - 1);
+      return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(honorCall.plan, honorCall.counts, honorCall.discard, false, honorCall.ready)) }, tips.length - 1);
     }
     if (taken) {
       var call = spoken(taken);
@@ -775,11 +791,15 @@
           : 'It speeds up your hand';
       tips.push(call.label + '. ' + fits + (call.faan >= min ? ', about ' + faanWord(call.faan) + '.' : '.'));
       var named = route.id !== 'plain' && route.id !== 'mixed' && /builds/.test(fits);
-      return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(call.plan, call.counts, call.discard, named)) }, tips.length - 1);
+      return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(call.plan, call.counts, call.discard, named, call.ready)) }, tips.length - 1);
     }
 
     var chowOnly = found.options.every(function (o) { return o.decision.type === 'chow'; });
-    if (chowOnly && bestFaan >= min) {
+    var tileSuit = ti < 27 ? E.suitOfIndex(ti) : null;
+    var shortSuit = tileSuit && opts.chows.length && !B.chowSuitReady(v.ctx, c, tileSuit);
+    if (shortSuit && chowOnly && bestFaan >= min && !v.concealed) {
+      tips.push('Pass. Hold 7 ' + SUIT_NAME[tileSuit] + ' before you chow that suit.');
+    } else if (chowOnly && bestFaan >= min) {
       tips.push(v.concealed
         ? 'Pass. Stay concealed, and save chows for a ready hand or a flush.'
         : 'Pass. Save chows for a ready hand or a flush.');
@@ -791,7 +811,7 @@
     } else {
       tips.push('Pass. It doesn\'t help enough.');
     }
-    return lead({ kind: 'claim', decision: { type: 'pass' }, tips: tips.concat(after(stay, c)) }, tips.length - 1);
+    return lead({ kind: 'claim', decision: { type: 'pass' }, tips: tips.concat(after(stay, c, null, false, found.stay && found.stay.ready)) }, tips.length - 1);
   }
 
   /* ------------------------------------------------------------------ *

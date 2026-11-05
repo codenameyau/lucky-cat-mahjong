@@ -652,8 +652,10 @@
     game.hand.result = result;
   }
 
-  // One finished hand for the results table. Faan belongs to the winner;
-  // everyone else scored none. Points are what each seat paid or collected.
+  // One finished hand for the results table. In a payout game, faan is the
+  // winning hand's value and points are what each seat paid or collected.
+  // Practice pays nothing, so the same hand's faan moves instead: the
+  // discarder pays it, and a self-draw collects it from every other seat.
   // The tiles stay out of this, so a save can keep the table without a hand.
   function resultsRow(result) {
     var faan = [0, 0, 0, 0];
@@ -662,7 +664,25 @@
     if (deltas) {
       for (var i = 0; i < 4; i++) points[i] = deltas[i] || 0;
     }
-    if (result && result.type === 'win' && result.score) faan[result.winner] = result.score.faan || 0;
+    if (result && result.type === 'win' && result.score) {
+      var n = result.score.faan || 0;
+      var paid = points.some(function (d) { return d; });
+      if (!paid && n) {
+        var payer = result.payer;
+        if (payer === null || payer === undefined) {
+          for (var s = 0; s < 4; s++) {
+            if (s === result.winner) continue;
+            faan[s] -= n;
+            faan[result.winner] += n;
+          }
+        } else {
+          faan[result.winner] += n;
+          faan[payer] -= n;
+        }
+      } else if (n) {
+        faan[result.winner] = n;
+      }
+    }
     return {
       hand: result ? result.handNumber : 0,
       draw: !result || result.type !== 'win',

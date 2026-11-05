@@ -225,7 +225,17 @@
     var i = x.index;
     if (deadHonor(c, ctx, i)) return 0;
     if (winsNow(x)) return 1;
-    if (!isHonor(i)) return x.shanten <= bestSteps ? 2 : 4;
+    var straights = ctx.leadPlan && ctx.leadPlan.id === 'straights';
+    var eyes = straights ? B.keptHonorPair(c, ctx) : null;
+    // The pair is already kept, so every other honor, dragon included, goes
+    // before a number tile. A finished straight waits behind a loose tile.
+    if (straights && eyes !== null && i >= 27 && i !== eyes) return 2;
+    if (!isHonor(i)) {
+      var rank = x.shanten <= bestSteps ? 2 : 4;
+      if (straights && eyes !== null) rank += 1;
+      if (straights && B.breaksFinishedStraight(c, i)) rank += 2;
+      return rank;
+    }
     if (c[i] >= 3) return 7;
     if (c[i] === 2) return 6;
     return B.loneDragon(ctx.game, c, i) ? 5 : 3;

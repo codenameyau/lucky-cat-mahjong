@@ -216,6 +216,22 @@ describe('Concealed Straights keeps one honor pair', () => {
     assert.match(hint.tips.join(' '), /Keep your North Wind pair as the pair, and throw your other honors first/);
   });
 
+  it('keeps a finished straight and throws the extra dragon', () => {
+    // 36529946-NE, North to play: 5-6-7 dots is already a straight, and
+    // South is the pair, so the white dragon is the honor to throw.
+    const hand = ['b7', 'b8', 'b9', 'b9', 'c3', 'c5', 'c6', 'c6', 'd5', 'd6', 'd7', 'dw', 'ws', 'ws'];
+    const game = table({ seats: [{ hand }], wallLeft: 70 });
+    const bots = [require('./mahjong-bot.js'), B, L, require('./mahjong-no-defense.js')];
+    bots.forEach((bot) => {
+      const top = bot.analyzeDiscards(game, 0).candidates[0];
+      assert.equal(bot.analyzeDiscards(game, 0).ctx.leadPlan.id, 'straights', bot.id);
+      assert.equal(top.tile, 'dw', bot.id);
+    });
+    const hint = Coach.turnHint(game, 0, noKongs);
+    assert.equal(hint.tile, 'dw');
+    assert.match(hint.tips.join(' '), /Honors break All Sequences/);
+  });
+
   it('keeps a dragon or scoring-wind pair ahead of another honor pair', () => {
     const counts = E.countsOf(['wn', 'wn', 'dr', 'dr', 'c2']);
     const ctx = B.buildContext(table({ seats: [{ hand: ['c2'] }] }), 0);
@@ -923,6 +939,70 @@ describe('the isolated tile in the shortest suit goes first', () => {
     assert.equal(Base.chooseTurnAction(game, 0, { kongs: [] }).tile, 'd1');
   });
 
+  it('in the suit you hold least, throws the tile that connects the least', () => {
+    // Circles is the short suit. The 4 sits farther from the 2-3 than the 2 does.
+    // Five Bamboo touches nothing, so a fully-isolated rule throws that instead.
+    const loose = ['d2', 'd3', 'd6', 'b1', 'b2', 'b5', 'b8', 'b9', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7'];
+    const game = table({ seats: [{ hand: loose }], wallLeft: 70 });
+    assert.equal(Base.chooseTurnAction(game, 0, { kongs: [] }).tile, 'd6');
+    const text = Coach.forStrategy(Base).turnHint(game, 0, { kongs: [] }).tips.join(' ');
+    assert.match(text, /Nothing connects to it, and Circles is your shortest suit/);
+  });
+
+  it('throws a terminal of the shortest suit before a tile that connects less', () => {
+    const loose = ['d1', 'd2', 'd4', 'b1', 'b2', 'b5', 'b8', 'b9', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7'];
+    const game = table({ seats: [{ hand: loose }], wallLeft: 70 });
+    assert.equal(Base.chooseTurnAction(game, 0, { kongs: [] }).tile, 'd1');
+    const text = Coach.forStrategy(Base).turnHint(game, 0, { kongs: [] }).tips.join(' ');
+    assert.match(text, /Circles is your shortest suit, so its terminal goes first/);
+  });
+
+  it('keeps a short-suit terminal once seven other majors belong to all terminals, mixed orphans, or thirteen orphans', () => {
+    // Bamboo is the short suit, so its 1 would go first. Eight majors (the 1s, 9s and honors)
+    // make it part of Mixed Orphans, so the loose 2 goes instead.
+    const mixed = ['d1', 'd2', 'd4', 'b1', 'b9', 'we', 'ws', 'ww', 'wn', 'dg', 'c2', 'c3', 'c4', 'c5'];
+    const game = table({ seats: [{ hand: mixed }], wallLeft: 70 });
+    assert.equal(Base.chooseTurnAction(game, 0, { kongs: [] }).tile, 'd2');
+
+    const terminals = ['d1', 'd9', 'd9', 'b1', 'b1', 'b9', 'c1', 'c1', 'c9', 'd4', 'd5', 'b5', 'c4', 'c5'];
+    const tile = Base.chooseTurnAction(table({ seats: [{ hand: terminals }], wallLeft: 70 }), 0, { kongs: [] }).tile;
+    assert.ok(['d4', 'd5', 'b5', 'c4', 'c5'].includes(tile), tile);
+
+    const thirteen = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'ww', 'wn', 'dw', 'dg', 'dr', 'dr'];
+    assert.equal(B.chooseTurnAction(table({ seats: [{ hand: thirteen }], wallLeft: 70 }), 0, { kongs: [] }).tile, 'dr');
+  });
+
+  it('still throws a short-suit terminal when the hand has fewer than 7 other majors', () => {
+    const early = ['d1', 'we', 'ws', 'ww', 'wn', 'dg', 'dr', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8'];
+    const game = table({ seats: [{ hand: early }], wallLeft: 70 });
+    assert.equal(Base.chooseTurnAction(game, 0, { kongs: [] }).tile, 'd1');
+    assert.equal(B.chooseTurnAction(game, 0, { kongs: [] }).tile, 'd1');
+  });
+
+  it('throws a shortest-suit tile before a terminal of the longest suit', () => {
+    // Circles is shortest, and 2-3-5 is not a finished straight. One and Nine
+    // Bamboo are terminals of the longest suit. A middle Bamboo can still go
+    // first. The circles go before either terminal.
+    const hand = ['d2', 'd3', 'd5', 'b1', 'b3', 'b4', 'b5', 'b6', 'b9', 'c3', 'c4', 'c5', 'c6', 'c7'];
+    const game = table({ seats: [{ hand }], wallLeft: 70 });
+    const list = Base.analyzeDiscards(game, 0).candidates;
+    const at = (id) => list.findIndex((x) => x.tile === id);
+    assert.ok(!['b1', 'b9'].includes(list[0].tile), list[0].tile);
+    ['d2', 'd3', 'd5'].forEach((tile) => {
+      assert.ok(at(tile) < at('b9'), tile);
+      assert.ok(at(tile) < at('b1'), tile);
+    });
+  });
+
+  it('keeps a terminal that is paired or already a straight', () => {
+    const pair = ['d1', 'd1', 'd6', 'b2', 'b3', 'b4', 'b5', 'b6', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7'];
+    assert.equal(Base.chooseTurnAction(table({ seats: [{ hand: pair }], wallLeft: 70 }), 0, { kongs: [] }).tile, 'd6');
+    const straight = ['d1', 'd2', 'd3', 'd7', 'b2', 'b3', 'b4', 'b5', 'b6', 'c2', 'c3', 'c4', 'c5', 'c6'];
+    assert.equal(Base.chooseTurnAction(table({ seats: [{ hand: straight }], wallLeft: 70 }), 0, { kongs: [] }).tile, 'd7');
+    const otherEnd = ['d4', 'd7', 'd8', 'd9', 'b2', 'b3', 'b4', 'b5', 'b6', 'c2', 'c3', 'c4', 'c5', 'c6'];
+    assert.equal(Base.chooseTurnAction(table({ seats: [{ hand: otherEnd }], wallLeft: 70 }), 0, { kongs: [] }).tile, 'd4');
+  });
+
   it('still takes a discard that leaves the hand ready first', () => {
     const ready = ['d1', 'c2', 'c3', 'c4', 'c6', 'c7', 'c8', 'dr', 'dr', 'dr', 'b5', 'b6', 'b7', 'b7'];
     const game = table({ seats: [{ hand: ready }], wallLeft: 70 });
@@ -982,7 +1062,10 @@ describe('ready means the hand can win, and dragons stay', () => {
             if (action.type === 'discard') {
               const i = E.tileIndex(action.tile);
               if (i >= 31 && c[i] === 1 && E.unseenCounts(g, seat)[i] === 3) {
-                assert.ok(canWin(i) || c.every((n, j) => !n || j === i), g.hand.seats[seat].hand.join(' '));
+                const lead = bot.analyzeDiscards(g, seat).ctx.leadPlan;
+                const eyes = Base.keptHonorPair(c, ctx);
+                const spare = lead && lead.id === 'straights' && eyes !== null && eyes !== i;
+                assert.ok(canWin(i) || spare || c.every((n, j) => !n || j === i), g.hand.seats[seat].hand.join(' '));
               }
             }
             return action;
