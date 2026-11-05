@@ -454,6 +454,33 @@ describe('playback seed', () => {
     });
   });
 
+  it('replays the tile drawn to replace a kong', async () => {
+    const game = E.createGame({ seed: 15, humanSeat: false, dealer: 0 });
+    const agents = [0, 1, 2, 3].map(() => ({
+      turn: (g, seat, opts) => {
+        if (opts.kongs && opts.kongs[0]) return { type: 'kong', tile: opts.kongs[0].tile };
+        return { type: 'discard', tile: g.hand.seats[seat].hand[0] };
+      },
+      claim: (g, seat, opts) => {
+        if (opts.kong) return { type: 'kong' };
+        if (opts.pung) return { type: 'pung' };
+        return { type: 'pass' };
+      },
+    }));
+    await E.runHand(game, agents, {});
+    const rec = E.parsePlayback(E.playbackText(game, { seat: 0 }));
+    const at = rec.actions.findIndex((a) => a.a === 'kong');
+    assert.ok(at >= 0, 'the hand declares a kong');
+    assert.equal(rec.actions[at + 1].a, 'draw');
+    assert.equal(rec.actions[at + 1].k, 'kong');
+    assert.equal(rec.actions[at + 1].s, rec.actions[at].s);
+    for (let i = 0; i <= rec.actions.length; i++) E.playbackGame(rec, i);
+    const end = E.playbackGame(rec);
+    rec.players.forEach((p, i) => {
+      assert.deepEqual(end.hand.seats[i].hand, p.hand);
+    });
+  });
+
   it('signs a playback file and stops at the moves it names', async () => {
     const game = E.createGame({ seed: 11, humanSeat: false, dealer: 0 });
     await E.runHand(game, discarders(), {});

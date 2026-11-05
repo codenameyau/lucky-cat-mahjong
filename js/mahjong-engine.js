@@ -958,6 +958,9 @@
           var rep = drawTile(game, cur, true);
           h.drawnTile = rep;
           await emit(ui, 'draw', { seat: cur, tile: rep, replacement: true });
+          // A claim kong's replacement is drawn on the next turn. This one
+          // is drawn here, and the replay has to take the same tile.
+          logAction(game, { a: 'draw', s: cur, t: rep, k: 'kong' });
           if (await handleFlowers(game, cur, ui)) {
             h.drawnTile = h.seats[cur].hand[h.seats[cur].hand.length - 1];
             var fw3 = flowerWinCheck(game, cur);
