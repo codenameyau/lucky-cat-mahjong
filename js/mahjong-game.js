@@ -162,6 +162,16 @@
   var images = {};
   var assetsReady = null;
 
+  function loadScript(src) {
+    return new Promise(function (resolve) {
+      var el = document.createElement('script');
+      el.src = src;
+      el.onload = resolve;
+      el.onerror = resolve; // like an image, a miss must not stop the game starting
+      document.head.appendChild(el);
+    });
+  }
+
   function loadImage(src) {
     return new Promise(function (resolve) {
       var img = new Image();
@@ -179,6 +189,9 @@
       return loadImage('/tiles/' + E.HKScoring.TILE_BY_ID[id].file).then(function (img) { images[id] = img; });
     });
     jobs.push(loadImage('/logo.png').then(function (img) { images.logo = img; }));
+    // Neural Cat's weights are the page's biggest script. The menu does not
+    // need them, so they load here, before a strategy first builds its model.
+    if (!root.MahjongMLWeights) jobs.push(loadScript('/js/mahjong-ml-weights.js'));
     if (document.fonts && document.fonts.load) {
       jobs.push(Promise.race([
         document.fonts.load('16px "KN Yuanmo SC"').catch(function () {}),

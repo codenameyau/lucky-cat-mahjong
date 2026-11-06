@@ -123,7 +123,10 @@
 
   function create(options) {
     options = options || {};
-    var model = options.model || (options.weights ? M.createModel(options.weights) : defaultModel());
+    // The shipped weights are a large file the Play page loads after its
+    // scripts, so the default model is built on first use, not here.
+    var chosen = options.model || (options.weights ? M.createModel(options.weights) : null);
+    function getModel() { return chosen || (chosen = defaultModel()); }
     var temperature = options.temperature || 0;
     var epsilon = options.epsilon || 0;
     var rng = options.rng || Math.random;
@@ -155,7 +158,7 @@
       out.forEach(function (x, k) {
         if (fast && k >= k0) return; // only the ones it picks from
         x.features = F.encode(state, x.index, x.analysis, x.loss);
-        x.ml = model.ev(x.features);
+        x.ml = getModel().ev(x.features);
         x.ml.order = k; // where the foundation put it
       });
       out.forEach(function (x, j) { if (x.ml) x.ml.choice = j < k0; }); // among the discards the model picks from
@@ -165,11 +168,11 @@
       if (k) ranked.unshift(ranked.splice(k, 1)[0]);
       if (!ranked[0].ml) { // a random discard the fast mode didn't read
         ranked[0].features = F.encode(state, ranked[0].index, ranked[0].analysis, ranked[0].loss);
-        ranked[0].ml = model.ev(ranked[0].features);
+        ranked[0].ml = getModel().ev(ranked[0].features);
         ranked[0].ml.order = out.indexOf(ranked[0]);
         ranked[0].ml.choice = false;
       }
-      ranked[0].ml.why = fast ? [] : explain(model, ranked[0], ranked[1]);
+      ranked[0].ml.why = fast ? [] : explain(getModel(), ranked[0], ranked[1]);
       ranked[0].ml.best = Math.max.apply(null, out.slice(0, k0).map(function (x) { return x.ml.ev; }));
       ranked.forEach(function (x, j) { if (j > 1) delete x.features; });
       return ranked;
@@ -185,7 +188,7 @@
     bot.base = base ? base.id : 'base';
 
     function read(x) {
-      var ml = model.ev(x);
+      var ml = getModel().ev(x);
       ml.features = x;
       return ml;
     }
@@ -256,8 +259,8 @@
     };
     bot.chooseTurnAction = function (game, seat, opts) { return bot.kongChoice(game, seat, opts).decision; };
     // (createBotAgent plays these: it calls bot.chooseTurnAction and bot.chooseClaim.)
-    bot.model = model;
-    bot.explain = function (a, b) { return explain(model, a, b); };
+    Object.defineProperty(bot, 'model', { get: getModel, enumerable: true });
+    bot.explain = function (a, b) { return explain(getModel(), a, b); };
     return bot;
   }
 
