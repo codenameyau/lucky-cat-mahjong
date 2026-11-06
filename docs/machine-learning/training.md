@@ -10,6 +10,25 @@ python3 -m venv ml/.venv && ml/.venv/bin/pip install -r ml/requirements.txt   # 
 
 Training uses the Apple GPU (MPS) when there is one, else CUDA, else the CPU. Simulations use every CPU core but one.
 
+`npm run ml:check-gpu` says which GPU PyTorch sees and runs a few training steps on it.
+
+### Windows with an NVIDIA GPU
+
+Install [Node.js](https://nodejs.org) 24+ (`ml:generate` needs `Float16Array`), [Python](https://www.python.org/downloads/) 3.10+ (tick "Add python.exe to PATH") and the latest [NVIDIA driver](https://www.nvidia.com/Download/index.aspx). Then, from the repository root in PowerShell:
+
+```powershell
+npm install
+powershell -ExecutionPolicy Bypass -File ml\setup-windows.ps1
+```
+
+The script makes `ml\.venv` and installs PyTorch from PyTorch's CUDA index, since a plain `pip install torch` on Windows gets the CPU-only build. It reads the card's compute capability with `nvidia-smi`. A Titan RTX (Turing, 7.5) gets current PyTorch. A Titan V, Xp or X (Volta or Pascal) gets PyTorch 2.7 with CUDA 12.6, the last build that runs on them. `-Index cu128` picks the index yourself. At the end it runs `ml\check_gpu.py`, which should print the card's name.
+
+Every `npm run ml:*` command then works as written: the scripts find `ml\.venv\Scripts\python.exe` on Windows and `ml/.venv/bin/python` elsewhere.
+
+- **GPU** (training): a Titan has 12 to 24 GB, so `--device-bytes 8e9` keeps up to 8 GB of data on the card instead of sending it a batch at a time.
+- **CPU** (simulation): `ml:generate`, `ml:league` and `compete` use every core but one. On an i9 that's the slow part, and it goes faster with more threads. Pass `--workers N` to leave cores free for other work.
+- Keep the repository on a local drive. A folder synced by OneDrive slows the data writes, and antivirus scanning of `ml\data` can too. Exclude that folder if generation is slow.
+
 ## How the models were trained
 
 | Stage | Command | Opponents | Learns | Result |
@@ -90,7 +109,7 @@ npm run ml:train -- --data ml/data/league-1 ml/data/league-2 --name my-model --i
 | `--weight-decay`, `--dropout` | 1e-4, 0.1 | Regularisation |
 | `--patience` | 4 | Epochs without improvement before stopping |
 | `--limit N` | all | Use at most N positions |
-| `--device` | auto | `mps`, `cuda` or `cpu` |
+| `--device` | auto | `mps`, `cuda` (or `cuda:1` for a second GPU) or `cpu` |
 | `--ship` | off | Also write the game's weights |
 
 On an M-series GPU, an epoch over about 1.7 million positions takes about 10 seconds, so a league round's training takes a few minutes. Simulating the hands is the slow part.
