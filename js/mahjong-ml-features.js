@@ -17,6 +17,11 @@
      index: the tile index (0-33) thrown. analysis is handUtility of the
      13 tiles kept, and loss is dealInLoss of the tile; both are worked
      out when not given.
+   encodeWaiting(state, index, loss?) -> Float32Array(SIZE)
+     a position waiting for a tile (after passing a claim, or after a kong):
+     prepare's counts are the tiles held, and index is the tile last thrown.
+   prepare's counts (optional) are the tiles held, for a hand being weighed
+     (a claim): by default the seat's real hand.
    GROUPS: the named feature ranges, for explaining a choice. */
 
 (function (root) {
@@ -62,12 +67,12 @@
   }
 
   // The parts of the position every discard of this turn shares.
-  function prepare(game, seat, ctx, threats, bot) {
+  function prepare(game, seat, ctx, threats, bot, counts) {
     var b = bot || B;
     ctx = ctx || b.buildContext(game, seat);
     threats = threats || b.opponentThreats(game, seat);
     var s = game.hand.seats[seat];
-    var counts = E.countsOf(s.hand);
+    counts = counts ? counts.slice() : E.countsOf(s.hand);
     if (!ctx.mlSynced) { b.syncHandPlans(ctx, counts); ctx.mlSynced = true; }
     var opponents = [];
     for (var k = 1; k <= 3; k++) {
@@ -81,7 +86,7 @@
     }
     return {
       game: game, seat: seat, ctx: ctx, threats: threats, counts: counts, bot: b,
-      own: meldTileCounts(s.melds, false), opponents: opponents,
+      own: meldTileCounts(ctx.melds, false), opponents: opponents,
       flowerFaan: b.flowerPoints(ctx),
     };
   }
@@ -231,6 +236,17 @@
     return x;
   }
 
+  // A position waiting for the next tile, with no tile of its own to throw:
+  // after passing a claim, or after a kong before its replacement tile. The
+  // counts given to prepare are the tiles held, and `index` stands in for the
+  // tile thrown (the seat's last discard), which no one can claim now.
+  function encodeWaiting(state, index, loss) {
+    var c = state.counts.slice();
+    var analysis = state.bot.handUtility(c, state.ctx);
+    state.counts[index]++;
+    try { return encode(state, index, analysis, loss || 0); } finally { state.counts[index]--; }
+  }
+
   function sevenPairs(c) {
     var pairs = 0, kinds = 0;
     for (var i = 0; i < 34; i++) {
@@ -256,6 +272,7 @@
     LAYOUT: LAYOUT,
     prepare: prepare,
     encode: encode,
+    encodeWaiting: encodeWaiting,
   };
 
   if (node) module.exports = api;

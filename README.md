@@ -2,6 +2,11 @@
 
 A static website for the Lucky Cat Mahjong club at [luckycatmahjong.com](https://luckycatmahjong.com), with content managed through [Pages CMS](https://pagescms.org).
 
+The learned bot, Neural Cat, is on Hugging Face:
+
+- **Model**: [huggingface.co/codenameyau/lucky-cat-mahjong](https://huggingface.co/codenameyau/lucky-cat-mahjong)
+- **Training data**: [huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games](https://huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games)
+
 ## Contents
 
 **Site pages**
@@ -13,7 +18,7 @@ A static website for the Lucky Cat Mahjong club at [luckycatmahjong.com](https:/
 - [Personality quiz](#which-mahjong-tile-are-you-quiz-which-mahjong-tiles-are-you)
 - [Play Mahjong](#play-hong-kong-mahjong-play-mahjong)
   - Playing: [Game modes](#game-modes) · [Rules and scoring](#rules-and-scoring) · [Saving and resuming](#saving-and-resuming) · [Hand seeds](#hand-seeds)
-  - Bots and coach: [Strategies](#strategies) · [Bots](#bots) · [Coach](#coach) · [Bot competition](#bot-competition) · [Hand review and feedback](#hand-review-and-feedback)
+  - Bots and coach: [Strategies](#strategies) · [Bots](#bots) · [Coach](#coach) · [Bot competition](#bot-competition) · [Neural Cat training and models](#neural-cat-training-and-models) · [Hand review and feedback](#hand-review-and-feedback)
   - Table: [Table and layouts](#table-and-layouts) · [Sound and music](#sound-and-music)
   - For developers: [Analytics events](docs/analytics.md) · [Testing tip](#testing-tip)
 - [Other pages](#other)
@@ -141,13 +146,13 @@ Tap your wind badge to copy the signed playback. The badge flashes once the copy
 #### Strategies
 
 Every bot plays a named strategy, built on the shared foundation in `js/mahjong-bot.js` with `MahjongBot.createStrategy({ id, hooks, tuning })`.
-
 | Strategy | File | Style | Playbook |
+
 | --- | --- | --- | --- |
 | **lucky-cat** | `js/mahjong-lucky-cat.js` | Tracks every discard and plays the odds to the fastest 3-faan win | [lucky-cat.md](docs/strategies/lucky-cat.md) |
 | **jorge-yau** | `js/mahjong-jorge-yau.js` | Reads the opening hand and builds toward one target hand, attacks with no defense until it's slow late, and locks onto a hand worth 7 faan or more | [jorge-yau.md](docs/strategies/jorge-yau.md) |
 | **only-orphans** | `js/mahjong-only-orphans.js` | Goes for Thirteen Orphans every hand, then pivots to a hand of 1s, 9s and honors | [only-orphans.md](docs/strategies/only-orphans.md) |
-| **neural-cat** | `js/mahjong-ml.js` | Plays Jorge Yau's hands, and a neural network trained on simulated games picks the discard worth the most points on average | [neural-cat.md](docs/strategies/neural-cat.md) |
+| **neural-cat** | `js/mahjong-ml.js` | Plays Jorge Yau's hands, and a neural network trained on simulated games picks the discard, claim or kong worth the most points on average | [neural-cat.md](docs/strategies/neural-cat.md) |
 
 - The **Strategies** button in the top bar (`js/mahjong-strategies.js`) describes each one and shows who plays which
 - The coach's pick is saved in `localStorage` (`lcm-play-strategies`), and the coach defaults to lucky-cat. The computer players are never saved: each plays a random strategy every game
@@ -273,6 +278,24 @@ Background music is three CC BY 4.0 tracks by Kevin MacLeod (Guzheng City, Sheny
 - `--lineup a,b,c,d` sets the seats, and `--json file` saves the full report
 - It prints each strategy's points per hand, wins, self-draws, deal-ins, points paid, average faan, limit hands, concealed wins, claims per hand, the patterns in its wins and its net points against each other strategy
 - Code: `js/mahjong-competition.js`, `scripts/competition.js`. More in [docs/strategies/README.md](docs/strategies/README.md#competition)
+
+#### Neural Cat training and models
+
+Neural Cat's network is trained on simulated hands; the playbook, with every step and result, is [docs/strategies/neural-cat.md](docs/strategies/neural-cat.md).
+
+- **Models**: [huggingface.co/codenameyau/lucky-cat-mahjong](https://huggingface.co/codenameyau/lucky-cat-mahjong). `neural-cat/neural-cat.json` is the model the game ships (the same file as `js/mahjong-ml-weights.js`), and `neural-cat/models/` holds every model that became the best, with a model card of the results
+- **Training data**: [huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games](https://huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games). Every set the models trained on, from the bootstrap to each league round, in the format `npm run ml:generate` writes, with a dataset card that explains it
+- **Fair play**: the models see only what their seat can see, never the wall or another hand. `js/mahjong-fair-play.test.js` checks it for every strategy
+
+| Command | What it does |
+| --- | --- |
+| `npm run ml:generate` | Plays simulated hands across worker threads and writes training data to `ml/data/<name>/` |
+| `npm run ml:train` | Trains a model on that data with PyTorch (`ml/train.py`; set up with `python3 -m venv ml/.venv && ml/.venv/bin/pip install -r ml/requirements.txt`) and checks the JS model gives the same outputs. `--ship` writes `js/mahjong-ml-weights.js` |
+| `npm run ml:league` | The league: rounds of models playing only other models, each new model kept and shipped if it beats the best head to head. State in `ml/league/` |
+| `npm run ml:hf -- --repo codenameyau/lucky-cat-mahjong` | Uploads each new best model and the model card to Hugging Face. `--watch` keeps going until the league is done |
+| `npm run ml:hf-data -- --repo codenameyau/lucky-cat-mahjong-games` | Uploads the training data to the Hugging Face dataset. `--watch` adds each league round as it finishes |
+
+Uploads go over git and SSH, so your SSH key must be on your Hugging Face account, the repos must already exist, and the data needs [Git LFS](https://git-lfs.com) (`brew install git-lfs`). Local data, models and upload copies (`ml/data/`, `ml/models/`, `ml/hf/`) aren't committed.
 
 #### Hand review and feedback
 

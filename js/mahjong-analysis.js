@@ -140,7 +140,7 @@
 
   function describeTile(c, d) {
     var rank = d % 9, suit = d < 27;
-    if (c[d] >= 3) return 'breaks up a set';
+    if (c[d] >= 3) return 'breaks up a meld';
     if (c[d] === 2) return 'breaks a pair';
     if (!suit) return d >= 31 ? 'a lone dragon' : 'a lone wind';
     var near = [-2, -1, 1, 2].some(function (k) { return rank + k >= 0 && rank + k <= 8 && c[d + k]; });
@@ -234,14 +234,17 @@
     if (mine.good.length) {
       var helpers = names(mine.good);
       var inWall = mine.live, inHands = mine.held;
-      var tail = inWall + ' ' + (inWall === 1 ? 'is' : 'are') + ' still in the wall' + (inHands ? ' and ' + inHands + ' sit' + (inHands === 1 ? 's' : '') + ' in other hands' : '') + '.';
-      line.push((mine.eff === 0 ? 'You are waiting on ' : 'Tiles that help: ') + helpers + '. ' + tail);
+      var held = inHands ? ' (' + inHands + ' in other hands)' : '';
+      var tail = inWall === 0 ? 'None are left in the wall' + held + '.'
+        : inWall + ' ' + (inWall === 1 ? 'is' : 'are') + ' still in the wall' + held + '.';
+      var dead = mine.eff === 0 && mine.ready && inWall === 0;
+      line.push((mine.eff === 0 ? 'You are waiting on ' : 'Tiles that help: ') + helpers + '. ' + (dead ? '' : tail));
       if (mine.eff === 0 && mine.ready) {
         var kinds = mine.ready.waits.length;
         var topFaan = mine.ready.waits.reduce(function (n, w) { return Math.max(n, w.ron, w.tsumo); }, 0);
-        line.push(kinds >= 2 ? 'Waiting on ' + kinds + ' different tiles is the strong kind of wait.' : 'A one-tile wait is thin: nothing else helps, so check how many copies are left.');
+        if (dead) line.push('None are left in the wall' + held + ', so this wait is dead: change it when a draw lets you.');
+        else line.push(kinds >= 2 ? 'Waiting on ' + kinds + ' different tiles is the strong kind of wait.' : 'A one-tile wait is thin: only one kind of tile wins.');
         line.push('It scores up to ' + faanText(topFaan) + '.');
-        if (mine.live === 0) line.push('Every copy is already out of the wall, so this wait is dead.');
       }
     } else if (mine.eff === 1.5 && mine.ready) {
       line.push('The shape is complete but would only score ' + faanText(mine.ready.short) + ', and the minimum is ' + minFaan(game) + '. Add a faan before you count on this hand.');
@@ -249,11 +252,13 @@
     // The others' hands.
     if (ready.length) {
       var r = ready[0];
-      line.push(who(game, r.seat) + ' ' + (ready.length > 1 ? 'and ' + (ready.length - 1) + ' more were' : 'was') + ' ready' + (ready.length === 1 ? ' on ' + names(r.waits.map(function (w) { return w.i; })) : '') + ', and ' + tn(d) + ' was not one of the tiles.');
+      var readyNames = ready.map(function (x) { return who(game, x.seat); });
+      var whoReady = readyNames.length > 1 ? readyNames.slice(0, -1).join(', ') + ' and ' + readyNames[readyNames.length - 1] + ' were' : readyNames[0] + ' was';
+      line.push(whoReady + ' ready' + (ready.length === 1 ? ' on ' + names(r.waits.map(function (w) { return w.i; })) : '') + ', and ' + tn(d) + ' was not one of the tiles.');
       var risky = rated.filter(function (x) { return x.index !== d && winnersOn(game, seat, E.tileId(x.index)).length; })[0];
       if (risky && risky.eff <= mine.eff + 0.5) line.push('Throwing ' + tn(risky.index) + ' instead would have lost.');
     }
-    if (!losing && ctx.prev && ctx.prev.lastSteps != null && mine.eff > ctx.prev.lastSteps) line.push('(That is a step backward from last turn.)');
+    if (!losing && ctx.prev && ctx.prev.lastSteps != null && mine.eff > ctx.prev.lastSteps) line.push('That is a step back from last turn.');
     return { action: action, detail: line.join(' '), after: mine.eff, waitKey: mine.eff === 0 ? mine.good.join(',') : '' };
   }
 
@@ -428,14 +433,31 @@
    * 4. Walking a recording
    * ------------------------------------------------------------------ */
 
+  // A note fits four lines on a phone: the action and the detail together
+  // at most MAX_TEXT characters. Sentences go from the end until it fits.
+  var MAX_TEXT = 400;
+
+  function fitDetail(action, detail) {
+    var room = MAX_TEXT - action.length - 1;
+    if (detail.length <= room) return detail;
+    var parts = detail.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [detail];
+    var out = '';
+    for (var k = 0; k < parts.length; k++) {
+      if ((out + parts[k]).trim().length > room) break;
+      out += parts[k];
+    }
+    return out.trim();
+  }
+
   function createAnalyst(rec) {
     var game = E.playbackGame(rec, 0);
     var state = { rec: rec, game: game, index: -1, discards: 0, notes: [], ctx: { ready: {}, prev: null }, done: !game };
 
     function add(note, step, move) {
       if (!note || !note.action) return;
+      var detail = fitDetail(note.action, note.detail || '');
       state.notes.push({
-        kind: 'analysis', action: note.action, detail: note.detail || '',
+        kind: 'analysis', action: note.action, detail: detail,
         hand: rec.handNumber || 1, move: move, step: step,
       });
     }

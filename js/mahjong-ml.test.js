@@ -27,10 +27,10 @@ describe('ML features', () => {
     assert.equal(F.SIZE, at);
   });
 
-  it('builds on jorge-yau, and with top 1 plays exactly like it', async () => {
+  it('builds on jorge-yau, and with top 1 and its claims plays exactly like it', async () => {
     const J = require('./mahjong-jorge-yau.js');
     assert.equal(ML.base, 'jorge-yau');
-    const one = ML.create({ topK: 1 });
+    const one = ML.create({ topK: 1, claims: false });
     for (let seed = 1; seed <= 2; seed++) {
       const play = (a) => {
         const game = E.createGame({ seed, humanSeat: false, dealer: 0, startPoints: 1e9 });
@@ -138,7 +138,7 @@ describe('Neural Cat strategy', () => {
     const Coach = require('./mahjong-coach.js');
     const game = dealt(29);
     const hint = Coach.forStrategy(ML).turnHint(game, 0, { win: null, kongs: [] });
-    const line = hint.tips.filter((t) => /^The model expects/.test(t))[0];
+    const line = hint.tips.filter((t) => /^The model expects /.test(t))[0];
     assert.ok(line, 'no model line in ' + JSON.stringify(hint.tips));
     assert.match(line, /to win/);
     assert.match(line, /to deal in/);
@@ -150,13 +150,67 @@ describe('Neural Cat strategy', () => {
     const hint = Coach.turnHint(game, 0, { win: null, kongs: [] });
     const top = Coach.discardFeedback(hint, hint.tile);
     assert.equal(top.action, 'Great discard.');
-    assert.ok(top.tips.some((t) => /^The model expects/.test(t)));
+    assert.ok(top.tips.some((t) => /^The model expects /.test(t)));
     const worst = hint.candidates.slice().sort((a, b) => a.ml.ev - b.ml.ev)[0];
     if (hint.candidates[0].ml.ev - worst.ml.ev > 20) {
       const fb = Coach.discardFeedback(hint, worst.tile);
       assert.notEqual(fb.action, 'Great discard.');
-      assert.ok(fb.tips.some((t) => /points from/.test(t)));
+      assert.ok(fb.tips.some((t) => /^The model expects /.test(t)));
     }
+  });
+
+  it('weighs claims and kongs in expected points, and the coach says so', async () => {
+    const Coach = require('./mahjong-coach.js').forStrategy(ML);
+    let claims = 0, kongs = 0;
+    const agent = {
+      turn(g, s, o) {
+        const r = ML.kongChoice(g, s, o);
+        if (r.choices) {
+          kongs++;
+          assert.equal(r.choices[0].decision.type, 'discard');
+          assert.equal(r.choices.length, o.kongs.length + 1);
+          assert.deepEqual(r.decision, r.choices[r.pick].decision);
+          // The model's pick is worth the most, or it's the foundation's.
+          const top = Math.max.apply(null, r.choices.map((x) => x.ml.ev));
+          assert.ok(r.pick === r.foundation || r.choices[r.pick].ml.ev === top);
+          if (kongs === 1) assert.ok(Coach.turnHint(g, s, o).tips.some((t) => /kong/.test(t) && /^On average, the model expects /.test(t)));
+        }
+        return Promise.resolve(r.decision);
+      },
+      claim(g, s, o) {
+        const d = ML.decideClaim(g, s, o);
+        const read = d.found && d.found.ml;
+        if (read) {
+          claims++;
+          assert.equal(read.choices[0].decision.type, 'pass');
+          assert.deepEqual(d.decision, read.choices[read.pick].decision);
+          const top = Math.max.apply(null, read.choices.map((x) => x.ml.ev));
+          assert.ok(read.pick === read.foundation || read.choices[read.pick].ml.ev === top);
+          read.choices.forEach((x) => assert.ok(Number.isFinite(x.ml.ev) && !x.ml.features));
+          if (claims === 1) {
+            const hint = Coach.claimHint(g, s, o);
+            assert.match(hint.model, /^On average, the model expects /);
+          }
+        }
+        return Promise.resolve(d.decision);
+      },
+    };
+    for (let seed = 1; seed <= 12 && !(claims && kongs); seed++) {
+      await E.runHand(E.createGame({ seed, humanSeat: false, dealer: seed % 4, startPoints: 1e9 }), [agent, agent, agent, agent]);
+    }
+    assert.ok(claims > 0 && kongs > 0, claims + ' claims, ' + kongs + ' kongs');
+  });
+
+  it('reads a passed claim from the tiles held, and only what the seat can see', () => {
+    const game = dealt(31);
+    const tile = game.hand.seats[1].hand[0];
+    const x = ML.waitingFeatures(ML, game, 0, 'pass', tile);
+    const g = F.GROUPS.hand;
+    const c = E.countsOf(game.hand.seats[0].hand);
+    for (let i = 0; i < 34; i++) assert.equal(x[g.start + i * 4], c[i] >= 1 ? 1 : 0);
+    game.hand.seats[2].hand.reverse();
+    game.hand.wall.reverse();
+    assert.deepEqual(Array.from(ML.waitingFeatures(ML, game, 0, 'pass', tile)), Array.from(x));
   });
 
   it('is on the Strategies sheet', () => {

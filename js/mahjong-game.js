@@ -121,6 +121,8 @@
     var saved = readStrategies();
     var seats = [null];
     for (var k = 1; k <= 3; k++) seats.push(Strategies.randomId());
+    // Rolled once, when a game starts, and kept for every hand of it.
+    Object.freeze(seats);
     return { seats: seats, coach: saved.coach || Strategies.DEFAULT_COACH };
   }
 
@@ -670,7 +672,7 @@
       backAnchor: [null, null, null, null],
       flowerAnchor: [null, null, null, null],
       stats: { hands: 0, wins: 0, best: null, dealIns: 0 },
-      strategies: pickStrategies(),
+      strategies: { seats: [null, null, null, null], coach: Strategies.DEFAULT_COACH }, // set once in start
     };
 
     function announce(text) {
@@ -1599,7 +1601,7 @@
       var F = E.HKScoring.FAAN;
       var intro = document.createElement('p');
       intro.className = 'rules-sheet-intro';
-      intro.textContent = 'Win with four sets and a pair, worth at least ' + E.MIN_FAAN +
+      intro.textContent = 'Win with four melds and the eyes (a pair), worth at least ' + E.MIN_FAAN +
         ' faan. Add up every pattern your hand has, but only count the highest faan per group. A limit hand is worth ' +
         F.thirteenOrphans + ' faan.';
       body.parentNode.insertBefore(intro, body);
@@ -2435,8 +2437,8 @@
           clusterX = dlX;
           // Back always goes to the game, however the playback was opened.
           button('Back', pad, 7, 64, 28, backToGame, 'ghost', 'review-back');
-          // The title is just "Playback", on a phone and on desktop.
-          var label = 'Playback';
+          // The title is "Playback Analysis", on a phone and on desktop.
+          var label = 'Playback Analysis';
           if (phoneBar) {
             // In the room between Back and the icons.
             var gapL = pad + 72, gapR = clusterX - 8;
@@ -5513,8 +5515,8 @@
       return E.sortTiles(rest).indexOf(tile);
     }
 
-    // A bot plays whatever strategy its seat has now, so a change in the
-    // Strategies sheet takes effect on its next move.
+    // A bot keeps its seat's strategy for the whole game. Only the coach's
+    // (the player's) can change.
     function botFor(seat) {
       return Strategies.get(ui.strategies.seats[seat]).bot;
     }

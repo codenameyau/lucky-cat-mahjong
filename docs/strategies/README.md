@@ -7,8 +7,8 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 | (shared foundation) | | `js/mahjong-bot.js` | the rules below |
 | `lucky-cat` | Lucky Cat | `js/mahjong-lucky-cat.js` | [lucky-cat.md](lucky-cat.md) |
 | `jorge-yau` | Jorge Yau | `js/mahjong-jorge-yau.js` | [jorge-yau.md](jorge-yau.md) |
-| `only-orphans` | Only Orphans | `js/mahjong-only-orphans.js` | [only-orphans.md](only-orphans.md) |
 | `neural-cat` | Neural Cat | `js/mahjong-ml.js` | [neural-cat.md](neural-cat.md) |
+| `only-orphans` | Only Orphans | `js/mahjong-only-orphans.js` | [only-orphans.md](only-orphans.md) |
 
 Before version 0.6.0 the two ids were the other way round; saved choices and save files from then are converted when they're read.
 
@@ -16,7 +16,7 @@ Before version 0.6.0 the two ids were the other way round; saved choices and sav
 
 - Picks are saved in `localStorage` under `lcm-play-strategies`, as `{ "seats": { "1": id, "2": id, "3": id }, "coach": id }`. Seat 1 is on your right, 2 across, 3 on your left.
 - A bot seat with nothing saved plays a random strategy, picked again each game. "Random each game" in the sheet clears the saved pick.
-- The coach (tips and feedback) defaults to `jorge-yau` ("Coach Jorge Yau").
+- The coach (tips and feedback) defaults to `neural-cat` ("Coach Neural Cat").
 - A change takes effect on the bot's next move, in the game you're playing.
 - The table shows only each player's name. Which strategy each bot plays is on the Strategies sheet, and on desktop in a tooltip when you hover over their name.
 
@@ -77,7 +77,7 @@ The coach speaks for any strategy through `MahjongCoach.forStrategy(bot)`. It na
 
 ## Learned strategy
 
-`neural-cat` (`js/mahjong-ml.js`) lets a model trained on simulated hands pick the discard. It plays Jorge Yau's hooks (a strategy's `hooks` are on the bot, so another can build on them), which list and read every discard as usual, then the `rerank` hook (the last word, after every shared rule) scores the position each of the best three leaves in expected points: the chance of winning by self-draw or off a discard, of dealing in, and the faan of each, on the full-spicy payout table. Each candidate gets `ml` with those numbers, and the chosen one gets `ml.why`, the points each feature group (`hand`, `discard`, `table`, `context`, `speed`, `value`, `safety`) puts it ahead of the next best. Claims and kongs are Jorge Yau's. Its playbook, with training and results, is [neural-cat.md](neural-cat.md).
+`neural-cat` (`js/mahjong-ml.js`) lets a model trained on simulated hands pick the discard. It plays Jorge Yau's hooks (a strategy's `hooks` are on the bot, so another can build on them), which list and read every discard as usual, then the `rerank` hook (the last word, after every shared rule) scores the position each of the best three leaves in expected points: the chance of winning by self-draw or off a discard, of dealing in, and the faan of each, on the full-spicy payout table. Each candidate gets `ml` with those numbers, and the chosen one gets `ml.why`, the points each feature group (`hand`, `discard`, `table`, `context`, `speed`, `value`, `safety`) puts it ahead of the next best. Claims and kongs are weighed the same way (passing, each call and the discard after it, a kong before its replacement tile), and the model overrules Jorge Yau's call when its pick is worth more. Every strategy reads an opponent's melds through `shownMelds`, never which tile a concealed kong is, and `js/mahjong-fair-play.test.js` checks that no strategy's decisions change when the tiles its seat can't see are shuffled. Its playbook, with training and results, is [neural-cat.md](neural-cat.md).
 
 | File | |
 | --- | --- |

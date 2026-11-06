@@ -67,7 +67,7 @@ describe('coach: discards', () => {
     const game = table({ seats: [{ hand, melds: [meld('chow', 'c4'), meld('pung', 'b5')] }] });
     const said = text(C.turnHint(game, 0, { kongs: [] }));
     assert.doesNotMatch(said, /chicken/i);
-    assert.match(said, /Go for a dragon or wind set/);
+    assert.match(said, /Go for a dragon or wind meld/);
   });
 
   it('drops a punged tile first when the hand does not need it', () => {
@@ -131,7 +131,7 @@ describe('coach: discards', () => {
     const game = table({ seats: [{ hand: mixed }, { discards: ['dr'] }, { discards: ['dr'] }] });
     const hint = C.turnHint(game, 0, { kongs: [] });
     assert.equal(hint.tile, 'dr');
-    assert.match(text(hint), /Two are out, so it can't make a set/);
+    assert.match(text(hint), /Two are out, so it can't make a meld/);
   });
 
   it('plays concealed runs when the hand is spread across suits', () => {
@@ -160,6 +160,26 @@ describe('coach: discards', () => {
     assert.doesNotMatch(text(hint), /tile(?:s)? from ready/);
   });
 
+  it('names tiles that are dead for Seven Pairs: a single with no copy left', () => {
+    const hand = ['c1', 'c1', 'c5', 'c5', 'd2', 'd2', 'd7', 'd7', 'b3', 'b3', 'b9', 'b9', 'we', 'wn'];
+    const game = table({ seats: [{ hand }, { discards: ['we', 'we', 'we', 'wn', 'wn'] }, { discards: ['wn'] }] });
+    const hint = C.turnHint(game, 0, { kongs: [] });
+    assert.match(text(hint), /Dead for Seven Pairs: North Wind has no copy left to pair with/);
+    assert.doesNotMatch(text(hint), /Dead for Seven Pairs: .*Character/);
+  });
+
+  it('names an opponent\'s hand only when the table makes it near certain', () => {
+    const hand = ['c2', 'c3', 'c4', 'd4', 'd5', 'd6', 'c6', 'c7', 'b5', 'b9', 'd9', 'd1', 'we', 'wn'];
+    const base = [meld('pung', 'b1'), meld('chow', 'b2'), meld('pung', 'b9')];
+    const say = (melds, discards) => text(C.turnHint(table({ seats: [{ hand }, { hand: ['b4', 'b4', 'b6', 'b7'], melds, discards }], wallLeft: 30 }), 0, { kongs: [] }));
+    assert.match(say(base, ['d9', 'c5', 'd1', 'wn']), /almost certainly going for a Bamboo flush, so any Bamboo you throw is a likely deal-in/);
+    // One Bamboo thrown, or only two melds: not sure enough to say.
+    assert.doesNotMatch(say(base, ['b5', 'c5', 'd1', 'wn']), /almost certainly/);
+    assert.doesNotMatch(say(base.slice(0, 2), ['d9', 'c5']), /almost certainly/);
+    // Honors in the melds make it a Half Flush.
+    assert.match(say([meld('pung', 'b1'), meld('pung', 'dr'), meld('pung', 'b9')], ['d9', 'c5']), /a Bamboo Half Flush/);
+  });
+
   it('plays a tile the threatening player already threw', () => {
     // East (seat 1) shows three Bamboo melds and has thrown the Nine Circle.
     const hand = ['c2', 'c3', 'c4', 'd4', 'd5', 'd6', 'c6', 'c7', 'b5', 'b9', 'd9', 'd1', 'we', 'wn'];
@@ -175,7 +195,7 @@ describe('coach: discards', () => {
     // Folding against an Extreme Bamboo flush: a tile East has already thrown
     // is the safest. (The punged Nine Bamboo could still finish a 7-8 chow.)
     assert.ok(['d1', 'd9', 'wn'].includes(hint.tile), 'discarded ' + hint.tile);
-    assert.match(text(hint), /\w+ has three melds down, all Bamboo\./);
+    assert.match(text(hint), /\w+ is almost certainly going for a Bamboo flush/);
     assert.doesNotMatch(text(hint), /\b(High|Extreme|Medium)\b/);
   });
 
@@ -202,7 +222,7 @@ describe('coach: all triplets', () => {
     const game = table({ seats: [{ hand, melds: [meld('pung', 'b8')] }, { discards: ['d9', 'd9'] }] });
     const hint = C.turnHint(game, 0, { kongs: [] });
     assert.equal(hint.tile, 'd9');
-    assert.match(text(hint), /Only one is left, fewer than any other single you hold, so it's the least likely to become a set/);
+    assert.match(text(hint), /Only one is left, fewer than any other single you hold, so it's the least likely to become a meld/);
   });
 
   it('never calls a tile the fewest left when another tile has as few', () => {
@@ -233,7 +253,7 @@ describe('coach: claims', () => {
     const opts = E.claimOptions(game, 0, 'c4', 3, false);
     assert.ok(opts.chows.length);
     const hint = C.claimHint(game, 0, opts);
-    assert.match(text(hint), /\w+ has three melds down, all Bamboo\./);
+    assert.match(text(hint), /\w+ is almost certainly going for a Bamboo flush/);
   });
 
   it('always pungs a dragon pair', () => {
@@ -242,7 +262,7 @@ describe('coach: claims', () => {
     const opts = E.claimOptions(game, 0, 'dr', 2, false);
     const hint = C.claimHint(game, 0, opts);
     assert.equal(hint.decision.type, 'pung');
-    assert.match(text(hint), /^Pung! A Red Dragon set is 1 faan/);
+    assert.match(text(hint), /^Pung! A Red Dragon meld is 1 faan/);
   });
 
   it('chows into a flush it is building', () => {
@@ -459,7 +479,7 @@ describe('coach: risk words need a reason', () => {
     const game = table({ seats: [{ hand: ['c2', 'c3', 'c4', 'd4', 'd5', 'd6', 'c6', 'c7', 'b5', 'b8', 'd9', 'd1', 'we', 'wn'] }, extreme], wallLeft: 60 });
     const list = C2.rankDiscards(C2.look(game, 0), game.hand.seats[0].hand);
     const b5 = list.find((x) => x.tile === 'b5');
-    assert.match(b5.evidence, /melds are all Bamboo/);
+    assert.match(b5.evidence, /almost certainly going for a Bamboo flush/);
     // A tile they already threw is never risky.
     assert.equal(list.find((x) => x.tile === 'd9').evidence, null);
     const said = text(C2.turnHint(game, 0, { kongs: [] }));

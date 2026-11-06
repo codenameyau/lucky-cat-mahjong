@@ -17,7 +17,10 @@
      --deals N          deals to generate per round (default 20000)
      --keep N           rounds of data to train on (default 3)
      --eval-deals N     deals per evaluation, x4 seat rotations (default 1500)
-     --eval-seed N      the evaluation's first deal (default 900000) */
+     --eval-seed N      the evaluation's first deal (default 900000)
+     --dir DIR          where the state and log live (default ml/loop)
+     --prefix P         round names: P1, P2, ... (default s)
+     --data-seed N      round r's deals start at N + r * 100000 (default 2000000) */
 
 'use strict';
 
@@ -27,7 +30,8 @@ const { spawnSync } = require('node:child_process');
 const { ship } = require('./ship.js');
 
 const ROOT = path.join(__dirname, '..', '..');
-const STATE = path.join(ROOT, 'ml', 'loop', 'state.json');
+let DIR = path.join(ROOT, 'ml', 'loop');
+let STATE = path.join(DIR, 'state.json');
 const EVAL_LINEUP = 'neural-cat,jorge-yau,lucky-cat,jorge-yau';
 const POOL = 'neural-cat,neural-cat,neural-cat,jorge-yau,lucky-cat,only-orphans';
 
@@ -46,14 +50,14 @@ function parseArgs(argv) {
 function log(line) {
   const text = new Date().toISOString().slice(11, 19) + ' ' + line;
   console.log(text);
-  fs.appendFileSync(path.join(ROOT, 'ml', 'loop', 'loop.log'), text + '\n');
+  fs.appendFileSync(path.join(DIR, 'loop.log'), text + '\n');
 }
 
 function run(cmd, args) {
   log('$ ' + cmd + ' ' + args.join(' '));
   const res = spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   const out = (res.stdout || '') + (res.stderr || '');
-  fs.appendFileSync(path.join(ROOT, 'ml', 'loop', 'loop.log'), out + '\n');
+  fs.appendFileSync(path.join(DIR, 'loop.log'), out + '\n');
   if (res.status !== 0) throw new Error(cmd + ' failed:\n' + out.slice(-2000));
   return out;
 }
@@ -61,7 +65,7 @@ function run(cmd, args) {
 // Plays the evaluation deals with these weights; the score is neural-cat's
 // points per hand less jorge-yau's on the same deals.
 function evaluate(model, args, name) {
-  const json = path.join(ROOT, 'ml', 'loop', 'eval-' + name + '.json');
+  const json = path.join(DIR, 'eval-' + name + '.json');
   run('node', ['scripts/competition.js', '--lineup', EVAL_LINEUP, '--deals', String(args.evalDeals),
     '--seed', String(args.evalSeed), '--ml-weights', model, '--json', json]);
   const s = JSON.parse(fs.readFileSync(json, 'utf8')).summary;
@@ -83,12 +87,15 @@ function fmt(e) {
 
 function main() {
   const a = parseArgs(process.argv.slice(2));
+  if (a.dir) { DIR = path.resolve(String(a.dir)); STATE = path.join(DIR, 'state.json'); }
+  const prefix = a.prefix ? String(a.prefix) : 's';
   const args = {
     rounds: parseInt(a.rounds || 4, 10),
     deals: parseInt(a.deals || 20000, 10),
     keep: parseInt(a.keep || 3, 10),
     evalDeals: parseInt(a['eval-deals'] || 1500, 10),
     evalSeed: parseInt(a['eval-seed'] || 900000, 10),
+    dataSeed: parseInt(a['data-seed'] || 2000000, 10),
   };
   fs.mkdirSync(path.dirname(STATE), { recursive: true });
   let state = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : null;
@@ -104,12 +111,12 @@ function main() {
 
   for (let k = 0; k < args.rounds; k++) {
     const r = state.rounds.length + 1;
-    const name = 's' + r;
+    const name = prefix + r;
     const data = path.join('ml', 'data', name);
     log('Round ' + r + ': generating ' + args.deals + ' deals with ' + state.best.model);
     run('node', ['scripts/ml/generate.js', '--deals', String(args.deals), '--lineup', 'mix', '--pool', POOL,
       '--weights', state.best.model, '--temperature', '150', '--epsilon', '0.05', '--explore', '0.05',
-      '--sample', '0.3', '--seed', String(2000000 + r * 100000), '--out', data]);
+      '--sample', '0.3', '--seed', String(args.dataSeed + r * 100000), '--out', data]);
     const recent = state.rounds.map((x) => x.data).concat([data]).slice(-args.keep);
     log('Round ' + r + ': training ' + name + ' on ' + state.baseData.concat(recent).join(', '));
     run('ml/.venv/bin/python', ['ml/train.py', '--data'].concat(state.baseData, recent, ['--name', name,

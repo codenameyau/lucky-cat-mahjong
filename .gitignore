@@ -150,3 +150,6 @@ ml/data/
 ml/.venv/
 ml/models/
 ml/loop/
+ml/hf/
+ml/league/
+ml/loop5/

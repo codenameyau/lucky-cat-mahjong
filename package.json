@@ -6,13 +6,16 @@
     "format-json": "node scripts/format-media.js",
     "generate-guide": "node scripts/generate-guide.js",
     "licensing-agreement": "node scripts/licensing-agreement.js",
-    "test": "node --test js/analytics-local.test.js js/points.test.js js/main.test.js js/community.test.js js/tile-quiz.test.js js/mahjong-engine.test.js js/mahjong-lesson.test.js js/mahjong-lucky-cat.test.js js/mahjong-coach.test.js js/mahjong-analysis.test.js js/mahjong-strategies.test.js js/mahjong-rules.test.js js/mahjong-ml.test.js scripts/tile-pages.test.js scripts/format-media.test.js scripts/review.test.js",
+    "test": "node --test js/analytics-local.test.js js/points.test.js js/main.test.js js/community.test.js js/tile-quiz.test.js js/mahjong-engine.test.js js/mahjong-lesson.test.js js/mahjong-lucky-cat.test.js js/mahjong-coach.test.js js/mahjong-analysis.test.js js/mahjong-strategies.test.js js/mahjong-rules.test.js js/mahjong-ml.test.js js/mahjong-fair-play.test.js js/mahjong-coach-text.test.js scripts/tile-pages.test.js scripts/format-media.test.js scripts/review.test.js",
     "generate-tile-pages": "node scripts/generate-tile-pages.js",
     "compete": "node scripts/competition.js",
     "review": "node scripts/review.js",
     "ml:generate": "node scripts/ml/generate.js",
     "ml:train": "ml/.venv/bin/python ml/train.py",
-    "ml:loop": "node scripts/ml/loop.js"
+    "ml:loop": "node scripts/ml/loop.js",
+    "ml:league": "node scripts/ml/league.js",
+    "ml:hf": "node scripts/ml/hf-sync.js",
+    "ml:hf-data": "node scripts/ml/hf-data.js"
   },
   "devDependencies": {
     "puppeteer": "^25.3.0",

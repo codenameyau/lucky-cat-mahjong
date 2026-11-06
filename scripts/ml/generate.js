@@ -16,10 +16,12 @@
      --lineup ...     four strategy ids by seat, or "mix" (default): each
                       seat picks at random from --pool every deal
      --pool a,b,..    strategies for "mix" (default: every table strategy
-                      and neural-cat)
+                      and neural-cat); ml:<file> is an earlier model playing
+                      its best, so neural-cat can train against a league
      --sample P       chance each discard is recorded (default 0.3)
      --explore P      chance a rule bot's discard is swapped for a random
-                      one that costs no step toward ready (default 0.05)
+                      one that costs no step toward ready, and its claim
+                      choice for a random one (default 0.05)
      --top-k N        neural-cat picks among its foundation's best N (default 3)
      --weights FILE   neural-cat's weights (JSON); default: shipped or random
      --temperature T  neural-cat's exploration, in points (default 100)
@@ -29,7 +31,9 @@
 
    Writes, per worker, shard-N.features (float16, SIZE per sample) and
    shard-N.labels (16 bytes per sample: outcome, winFaan, payFaan, turn,
-   seat, strategy, wallLeft, explored as uint8; delta as float32; deal seed
+   seat, strategy, wallLeft, explored as uint8 (bit 1: a random choice; bit 2:
+   a position waiting for a tile, after a passed claim or a kong); delta as
+   float32; deal seed
    as uint32), and manifest.json describing both. */
 
 'use strict';
@@ -75,6 +79,7 @@ function noStepDiscards(hand, declared) {
 }
 
 function makeAgent(id, cfg) {
+  if (/^ml:/.test(id)) return { agent: cfg.models[id].createBotAgent(), rule: false };
   if (id !== ML_ID) return { agent: S.createAgent(id), rule: true };
   return { agent: cfg.mlBot.createBotAgent(), rule: false };
 }
@@ -84,7 +89,12 @@ async function runWorker(cfg) {
   const rng = E.createRng((cfg.seed * 2654435761) >>> 0);
   const weights = cfg.weightsFile ? JSON.parse(fs.readFileSync(cfg.weightsFile, 'utf8')) : null;
   // One copy of neural-cat for every seat that plays it (its calls are synchronous).
-  cfg.mlBot = ML.create({ model: weights ? M.createModel(weights) : ML.model, topK: cfg.topK, temperature: cfg.temperature, epsilon: cfg.epsilon, rng });
+  cfg.mlBot = ML.create({ model: weights ? M.createModel(weights) : ML.model, topK: cfg.topK, temperature: cfg.temperature, epsilon: cfg.epsilon, rng, fast: true });
+  // "ml:<file>" seats: earlier models, playing their best (a league).
+  cfg.models = {};
+  cfg.pool.concat(cfg.lineup === 'mix' ? [] : cfg.lineup).filter((id) => /^ml:/.test(id)).forEach((id) => {
+    if (!cfg.models[id]) cfg.models[id] = ML.create({ id, weights: JSON.parse(fs.readFileSync(path.resolve(id.slice(3)), 'utf8')), fast: true });
+  });
   const featFd = fs.openSync(path.join(cfg.out, 'shard-' + cfg.index + '.features'), 'w');
   const labelFd = fs.openSync(path.join(cfg.out, 'shard-' + cfg.index + '.labels'), 'w');
   let samples = 0, hands = 0;
@@ -99,6 +109,12 @@ async function runWorker(cfg) {
     const game = E.createGame({ seed: dealSeed, humanSeat: false, dealer: dealSeed % 4, startPoints: 1e9 });
     game.round = ((dealSeed >>> 2) % 4) + 1;
     const records = [];
+    // Waiting positions (a passed claim, a kong) are marked with 2 in `explored`.
+    const push = (g, s, id, x, explored) => records.push({
+      seat: s, strategy: strategies.indexOf(id), explored: explored | 2,
+      turn: g.hand.seats[s].discards.length, wallLeft: g.hand.wall.length, x,
+    });
+    const waiting = (g, s, id, kind, tile, explored) => push(g, s, id, ML.waitingFeatures(cfg.mlBot, g, s, kind, tile), explored);
     const agents = ids.map((id, seat) => {
       const made = makeAgent(id, cfg);
       return {
@@ -107,6 +123,12 @@ async function runWorker(cfg) {
           const keep = !opts.win && rng() < cfg.sample;
           const state = keep ? F.prepare(g, s, null, null, cfg.mlBot) : null;
           return made.agent.turn(g, s, opts).then((action) => {
+            if (action && action.type === 'kong') {
+              // The position after the kong, before its replacement tile.
+              const kong = opts.kongs.filter((k) => k.tile === action.tile)[0];
+              if (kong) waiting(g, s, id, kong.kind, kong.tile, 0);
+              return action;
+            }
             if (!action || action.type !== 'discard') return action;
             let explored = 0;
             if (made.rule && cfg.explore && rng() < cfg.explore) {
@@ -124,7 +146,25 @@ async function runWorker(cfg) {
             return action;
           });
         },
-        claim(g, s, opts) { return made.agent.claim(g, s, opts); },
+        claim(g, s, opts) {
+          const can = !opts.win && (opts.pung || opts.kong || opts.chows.length);
+          // Read before the choice moves anything.
+          const keep = can && rng() < cfg.sample;
+          const pass = keep ? ML.waitingFeatures(cfg.mlBot, g, s, 'pass', opts.tile) : null;
+          const kong = keep && opts.kong ? ML.waitingFeatures(cfg.mlBot, g, s, 'kong', opts.tile) : null;
+          return made.agent.claim(g, s, opts).then((d) => {
+            let explored = 0;
+            if (can && made.rule && cfg.explore && rng() < cfg.explore) {
+              const all = [{ type: 'pass' }].concat(opts.pung ? [{ type: 'pung' }] : [], opts.kong ? [{ type: 'kong' }] : [],
+                opts.chows.map((tiles) => ({ type: 'chow', tiles })));
+              const pick = all[Math.floor(rng() * all.length)];
+              if (pick.type !== d.type || (pick.tiles && (!d.tiles || pick.tiles.join() !== d.tiles.join()))) { d = pick; explored = 1; }
+            }
+            if (d && d.type === 'pass' && pass) push(g, s, id, pass, explored);
+            if (d && d.type === 'kong' && kong) push(g, s, id, kong, explored);
+            return d;
+          });
+        },
       };
     });
     const res = await E.runHand(game, agents);
@@ -181,11 +221,13 @@ function stamp() {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const known = S.ids().concat(S.has(ML_ID) && S.ids().indexOf(ML_ID) !== -1 ? [] : [ML_ID]);
-  const pool = args.pool ? String(args.pool).split(',') : known;
+  const pool = args.pool ? String(args.pool).split(',') : null;
   const lineup = !args.lineup || args.lineup === 'mix' ? 'mix' : String(args.lineup).split(',');
+  const models = (pool || []).concat(lineup === 'mix' ? [] : lineup).filter((id) => /^ml:/.test(id));
+  const known = S.ids().concat(S.ids().indexOf(ML_ID) !== -1 ? [] : [ML_ID])
+    .concat(models.filter((id, k) => models.indexOf(id) === k));
   if (lineup !== 'mix' && lineup.length !== 4) throw new Error('--lineup needs four strategy ids, or "mix"');
-  (lineup === 'mix' ? pool : lineup).forEach((id) => {
+  (lineup === 'mix' ? (pool || known) : lineup).forEach((id) => {
     if (known.indexOf(id) === -1) throw new Error('unknown strategy ' + id + ' (have: ' + known.join(', ') + ')');
   });
   const deals = Math.max(1, parseInt(args.deals || 1000, 10));
@@ -194,7 +236,7 @@ async function main() {
   const out = path.resolve(String(args.out || path.join('ml', 'data', stamp())));
   fs.mkdirSync(out, { recursive: true });
   const cfgBase = {
-    lineup, pool, out,
+    lineup, pool: pool || known, out,
     strategies: known,
     sample: args.sample !== undefined ? parseFloat(args.sample) : 0.3,
     explore: args.explore !== undefined ? parseFloat(args.explore) : 0.05,

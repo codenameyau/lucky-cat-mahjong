@@ -88,11 +88,25 @@
     if (layers[layers.length - 1].rows !== OUTPUTS) throw new Error('model must have ' + OUTPUTS + ' outputs');
     var widest = layers.reduce(function (m, l) { return Math.max(m, l.rows); }, 0);
     var bufA = new Float32Array(widest), bufB = new Float32Array(widest);
+    // The first layer by input, so the many zero features cost nothing.
+    var first = layers[0], firstT = new Float32Array(first.rows * first.cols);
+    for (var r0 = 0; r0 < first.rows; r0++) {
+      for (var c0 = 0; c0 < first.cols; c0++) firstT[c0 * first.rows + r0] = first.w[r0 * first.cols + c0];
+    }
 
     // The raw outputs for one feature vector.
     function forward(x) {
-      var input = x, out;
-      for (var k = 0; k < layers.length; k++) {
+      var input, out = bufA, rows = first.rows, r, c;
+      for (r = 0; r < rows; r++) out[r] = first.b[r];
+      for (c = 0; c < first.cols; c++) {
+        var v = x[c];
+        if (v === 0) continue;
+        var off0 = c * rows;
+        for (r = 0; r < rows; r++) out[r] += firstT[off0 + r] * v;
+      }
+      if (layers.length > 1) for (r = 0; r < rows; r++) if (out[r] < 0) out[r] = 0;
+      input = out;
+      for (var k = 1; k < layers.length; k++) {
         var l = layers[k], w = l.w, b = l.b, cols = l.cols;
         out = k % 2 ? bufB : bufA;
         var last = k === layers.length - 1;

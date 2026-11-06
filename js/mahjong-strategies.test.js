@@ -35,9 +35,9 @@ function targetOf(hand, extra) {
 }
 
 describe('strategy registry', () => {
-  it('lists every strategy, with jorge-yau as the coach default', () => {
-    assert.deepEqual(S.ids(), ['jorge-yau', 'lucky-cat', 'only-orphans', 'neural-cat']);
-    assert.equal(S.DEFAULT_COACH, 'jorge-yau');
+  it('lists every strategy, with neural-cat as the coach default', () => {
+    assert.deepEqual(S.ids(), ['jorge-yau', 'lucky-cat', 'neural-cat', 'only-orphans']);
+    assert.equal(S.DEFAULT_COACH, 'neural-cat');
     assert.equal(S.get('lucky-cat').bot, B);
     assert.equal(S.get('jorge-yau').bot, L);
     assert.equal(S.get('lucky-cat').bot.id, 'lucky-cat');
@@ -50,12 +50,12 @@ describe('strategy registry', () => {
 
   it('falls back to the default for an unknown id', () => {
     assert.equal(S.has('nope'), false);
-    assert.equal(S.get('nope').id, 'jorge-yau');
+    assert.equal(S.get('nope').id, 'neural-cat');
   });
 
   it('picks a random strategy from the list', () => {
     assert.equal(S.randomId(() => 0), 'jorge-yau');
-    assert.equal(S.randomId(() => 0.99), 'neural-cat');
+    assert.equal(S.randomId(() => 0.99), 'only-orphans');
   });
 
   it('makes agents that play a full hand', async () => {
@@ -214,7 +214,7 @@ describe('Concealed Straights keeps one honor pair', () => {
     assert.deepEqual(order.slice(0, 2).sort(), ['ws', 'ww']);
     assert.ok(order.indexOf('wn') > 2, order.join(' '));
     const hint = Coach.forStrategy(L).turnHint(game, 0, noKongs);
-    assert.match(hint.tips.join(' '), /Keep your North Wind pair as the pair, and throw your other honors first/);
+    assert.match(hint.tips.join(' '), /Keep your North Wind pair as the eyes, and throw your other honors first/);
   });
 
   it('keeps a finished straight and a lone dragon', () => {
@@ -623,7 +623,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.40.1');
+    assert.equal(E.GAME_VERSION, '0.42.0');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);

@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.40.1';
+  var GAME_VERSION = '0.42.0';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -179,7 +179,36 @@
     return out;
   }
 
+  // Whole hands come back again and again (every plan, every discard), so
+  // their answers are kept too, up to a limit.
+  // Keyed by two numbers (the counts in base 5, half the tiles each).
+  var handMemo = new Map();
+  var handMemoSize = 0;
+  var HAND_MEMO_MAX = 1000000;
+
   function standardShanten(c, declared) {
+    var d = declared || 0;
+    if (c.length !== 34 || d < 0 || d > 4) return solveStandard(c, declared);
+    var hi = 0, lo = 0, i, n;
+    for (i = 0; i < 17; i++) { n = c[i]; if (n > 4 || n < 0) return solveStandard(c, declared); hi = hi * 5 + n; }
+    for (i = 17; i < 34; i++) { n = c[i]; if (n > 4 || n < 0) return solveStandard(c, declared); lo = lo * 5 + n; }
+    lo = lo * 5 + d;
+    var inner = handMemo.get(hi);
+    if (inner) {
+      var hit = inner.get(lo);
+      if (hit !== undefined) return hit;
+    } else {
+      if (handMemoSize >= HAND_MEMO_MAX) { handMemo.clear(); handMemoSize = 0; }
+      inner = new Map();
+      handMemo.set(hi, inner);
+    }
+    var v = solveStandard(c, declared);
+    inner.set(lo, v);
+    handMemoSize++;
+    return v;
+  }
+
+  function solveStandard(c, declared) {
     var need = 4 - (declared || 0);
     var opts = [0];
     for (var s = 0; s < 4; s++) {

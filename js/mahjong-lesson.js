@@ -69,7 +69,7 @@
   var STEPS = [
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'c1' }, hint: say('Discard 1 Character.', 'c1', { type: 'discard' }, [
       'Plum is your flower, because you sit East. A flower sets aside, and you draw a replacement from the back of the wall. Your own flower scores a faan.',
-      'The three Red Dragons in your hand are concealed. Nobody sees them until you win. A set you claim is exposed, face up.',
+      'The three Red Dragons in your hand are concealed. Nobody sees them until you win. A meld you claim is exposed, face up.',
     ]) },
     { seat: 1, kind: 'turn', drawn: true },
     { seat: 2, kind: 'turn', drawn: true },
@@ -82,7 +82,7 @@
     ]) },
     { seat: 1, kind: 'turn', drawn: true },
     { seat: 0, kind: 'claim', action: { type: 'pung' }, hint: say('Pung 8 Bamboo.', 'b8', { type: 'pung' }, [
-      'A pung is three of a kind. You may take it from anyone. It stays exposed. The pair of 6 Bamboo is the pair you win with.',
+      'A pung is three of a kind. You may take it from anyone. It stays exposed. The pair of 6 Bamboo is your eyes, the pair every hand needs to win.',
     ]) },
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'c5' }, hint: say('Discard 5 Characters.', 'c5', { type: 'discard' }, [
       '5 Characters replaced your flower. It is not Bamboo or an honor, so it goes.',

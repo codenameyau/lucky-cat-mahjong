@@ -42,20 +42,27 @@ LABEL_DTYPE = np.dtype([
 
 
 def load(dirs, limit=None):
-    feats, labels, manifests = [], [], []
+    # Read straight into one array: the data can be most of the memory.
+    labels, manifests = [], []
     for d in dirs:
         with open(os.path.join(d, 'manifest.json')) as f:
             m = json.load(f)
-        manifests.append(m)
-        if feats and m['featureSize'] != manifests[0]['featureSize']:
+        if manifests and m['featureSize'] != manifests[0]['featureSize']:
             sys.exit('%s has %d features, %s has %d' % (d, m['featureSize'], dirs[0], manifests[0]['featureSize']))
+        m['dir'] = d
+        manifests.append(m)
+    size = manifests[0]['featureSize']
+    total = sum(s['samples'] for m in manifests for s in m['shards'])
+    x = np.empty((total, size), dtype=np.float16)
+    at = 0
+    for m in manifests:
         for s in m['shards']:
-            x = np.fromfile(os.path.join(d, s['features']), dtype=np.float16).reshape(-1, m['featureSize'])
-            y = np.fromfile(os.path.join(d, s['labels']), dtype=LABEL_DTYPE)
-            assert len(x) == len(y) == s['samples'], 'shard size mismatch in ' + d
-            feats.append(x)
+            n = s['samples']
+            x[at:at + n] = np.fromfile(os.path.join(m['dir'], s['features']), dtype=np.float16).reshape(-1, size)
+            y = np.fromfile(os.path.join(m['dir'], s['labels']), dtype=LABEL_DTYPE)
+            assert len(y) == n, 'shard size mismatch in ' + m['dir']
             labels.append(y)
-    x = np.concatenate(feats)
+            at += n
     y = np.concatenate(labels)
     if limit and len(x) > limit:
         idx = np.random.default_rng(0).choice(len(x), limit, replace=False)
@@ -99,15 +106,15 @@ def expected_points(out):
     return o[:, 0] * 3 * win_pts + o[:, 1] * win_pts - (o[:, 2] + o[:, 3]) * pay_pts
 
 
-def evaluate(model, x, yo, yw, yp, batch):
+def evaluate(model, fetch, count, yo, yw, yp, batch):
     model.eval()
     tot = np.zeros(3)
     n = 0
     evs = []
     correct = 0
     with torch.no_grad():
-        for i in range(0, len(x), batch):
-            out = model(x[i:i + batch].float())
+        for i in range(0, count, batch):
+            out = model(fetch(np.arange(i, min(count, i + batch))))
             lo, lw, lp = losses(out, yo[i:i + batch], yw[i:i + batch], yp[i:i + batch])
             k = len(out)
             tot += np.array([lo.item(), lw.item(), lp.item()]) * k
@@ -157,6 +164,7 @@ def main():
     ap.add_argument('--limit', type=int, default=0, help='use at most this many samples')
     ap.add_argument('--init', help='start from these weights (ml/models/<name>.json)')
     ap.add_argument('--device', default='auto')
+    ap.add_argument('--device-bytes', type=float, default=3e9, help='data bigger than this stays in memory, off the device')
     ap.add_argument('--ship', action='store_true', help='also write js/mahjong-ml-weights.js')
     args = ap.parse_args()
 
@@ -174,14 +182,25 @@ def main():
     # Hold out whole deals, so the same hand never sits on both sides.
     val = (y['dealSeed'].astype(np.uint64) * 2654435761 % 2**32) % 20 == 0
     to = lambda a, dt: torch.from_numpy(np.ascontiguousarray(a)).to(device=device, dtype=dt)
-    xt, xv = to(x[~val], torch.float16), to(x[val], torch.float16)
+    tr_rows, va_rows = np.nonzero(~val)[0], np.nonzero(val)[0]
+    n_train, n_val = len(tr_rows), len(va_rows)
+    # Small data goes to the device whole; big data stays in memory and goes
+    # over a batch at a time.
+    if x.nbytes <= args.device_bytes:
+        xt, xv = to(x[tr_rows], torch.float16), to(x[va_rows], torch.float16)
+        fetch_t = lambda pos: xt[torch.from_numpy(pos).to(device)].float()
+        fetch_v = lambda pos: xv[torch.from_numpy(pos).to(device)].float()
+    else:
+        fetch_t = lambda pos: torch.from_numpy(x[tr_rows[pos]]).to(device).float()
+        fetch_v = lambda pos: torch.from_numpy(x[va_rows[pos]]).to(device).float()
+        print('Data is %.1f GB: keeping it in memory, a batch at a time on the device' % (x.nbytes / 1e9))
     out_t, out_v = to(y['outcome'][~val], torch.long), to(y['outcome'][val], torch.long)
     win_t = to(np.clip(y['winFaan'][~val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
     win_v = to(np.clip(y['winFaan'][val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
     pay_t = to(np.clip(y['payFaan'][~val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
     pay_v = to(np.clip(y['payFaan'][val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
     delta_v = y['delta'][val]
-    print('Training on %d, validating on %d, on %s' % (len(xt), len(xv), device))
+    print('Training on %d, validating on %d, on %s' % (n_train, n_val, device))
 
     hidden = [int(h) for h in args.hidden.split(',') if h]
     model = Net(size, hidden, args.dropout).to(device)
@@ -201,12 +220,13 @@ def main():
     best, best_state, stale = math.inf, None, 0
     for epoch in range(args.epochs):
         t1 = time.time()
-        perm = torch.randperm(len(xt), device=device)
+        perm = np.random.default_rng(epoch).permutation(n_train)
         run = np.zeros(3)
         steps = 0
-        for i in range(0, len(xt), args.batch):
-            idx = perm[i:i + args.batch]
-            out = model(xt[idx].float())
+        for i in range(0, n_train, args.batch):
+            pos = np.sort(perm[i:i + args.batch])
+            idx = torch.from_numpy(pos).to(device)
+            out = model(fetch_t(pos))
             lo, lw, lp = losses(out, out_t[idx], win_t[idx], pay_t[idx])
             loss = lo + 0.5 * lw + 0.5 * lp
             opt.zero_grad()
@@ -215,7 +235,7 @@ def main():
             run += [lo.item(), lw.item(), lp.item()]
             steps += 1
         sched.step()
-        vl, evs, acc = evaluate(model, xv, out_v, win_v, pay_v, args.batch * 4)
+        vl, evs, acc = evaluate(model, fetch_v, n_val, out_v, win_v, pay_v, args.batch * 4)
         total = vl[0] + 0.5 * vl[1] + 0.5 * vl[2]
         with np.errstate(invalid='ignore', divide='ignore'):
             corr = float(np.corrcoef(evs, delta_v)[0, 1]) if len(evs) > 1 else 0.0
@@ -254,7 +274,7 @@ def main():
     print('Wrote %s (%.0f KB), best epoch %d, val loss %.4f' % (out_path, os.path.getsize(out_path) / 1024, meta['epoch'], meta['valLoss']))
 
     # The JS model must give the same outputs as this one (float16 weights).
-    sample = xv[:16].float()
+    sample = fetch_v(np.arange(min(16, n_val)))
     cpu = Net(size, hidden, 0)
     for lin, l in zip(cpu.linears(), weights['layers']):
         lin.weight.data = torch.from_numpy(np.frombuffer(base64.b64decode(l['w']), '<f2').astype(np.float32).reshape(l['rows'], l['cols']).copy())

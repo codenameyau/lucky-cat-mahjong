@@ -164,7 +164,7 @@
       // All Triplets needs more copies, so the tile with fewest left goes.
       // Say so only when it's true: compare it with the other tiles held the
       // same way (singles with singles, pairs with pairs).
-      if (left === 0) return 'None are left, so it can never become a set.';
+      if (left === 0) return 'None are left, so it can never become a meld.';
       var fewest = true, others = 0;
       for (var j = 0; j < 34; j++) {
         if (j === i || c[j] !== c[i]) continue;
@@ -173,8 +173,8 @@
       }
       var kind = c[i] === 2 ? 'pair' : 'single';
       var count = left === 1 ? 'Only one is left' : COUNT_WORDS[left] + ' are left';
-      if (others && fewest) return count + ', fewer than any other ' + kind + ' you hold, so it\'s the least likely to become a set.';
-      if (left === 1) return 'Only one is left, so it\'s unlikely to become a set.';
+      if (others && fewest) return count + ', fewer than any other ' + kind + ' you hold, so it\'s the least likely to become a meld.';
+      if (left === 1) return 'Only one is left, so it\'s unlikely to become a meld.';
     }
     if (route && route.id === 'pairs' && c[i] === 1) {
       return 'Seven Pairs keeps pairs, so singles go.';
@@ -187,7 +187,7 @@
     }
     if (i >= 27 && c[i] === 1 && B.revealedCopies(v.game, i) >= 2) {
       var out = B.revealedCopies(v.game, i);
-      return COUNT_WORDS[out] + ' are out, so it can\'t make a set.';
+      return COUNT_WORDS[out] + ' are out, so it can\'t make a meld.';
     }
     if (route && route.keep && !route.keep(i)) {
       if (route.reason) return route.reason;
@@ -196,7 +196,7 @@
       return route.id === 'half' ? 'Not ' + suit + ' or an honor.' : 'Not ' + suit + '.';
     }
     if (c[i] >= 3) return route && route.id === 'pairs' ? 'Seven Pairs uses only two of each.' : 'A spare from your three.';
-    if (c[i] === 2) return 'One pair too many.';
+    if (c[i] === 2) return 'You have too many pairs, and only one can be the eyes.';
     if (pick.shortSuit && i < 27) {
       var su = E.suitOfIndex(i);
       if (neighbors(c, i) === 0) return 'Nothing connects to it, and ' + SUIT_NAME[su] + ' is your shortest suit.';
@@ -307,7 +307,7 @@
         if (B.holdsDragon(v.game, h, 1)) continue;
         honors += c[h] || 0;
       }
-      var keepPair = eyes !== null ? '. Keep your ' + name(eyes) + ' pair as the pair' : '';
+      var keepPair = eyes !== null ? '. Keep your ' + name(eyes) + ' pair as the eyes' : '';
       return 'Concealed Straights' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' + keepPair +
         (honors ? (eyes !== null ? ', and throw your other honors first' : '. Throw your honors first') : '');
     }
@@ -325,15 +325,15 @@
     if (r.id === 'mixed-orphans') return 'Mixed Orphans on All Triplets. Keep only 1s, 9s and honors, and pung your pairs';
     if (r.id === 'all-terminals') return 'All Terminals. Keep only 1s and 9s, and pung your pairs';
     if (r.id === 'all-honors') return 'All Honors. Keep only honors, and pung your pairs';
-    if (r.id === 'small-dragons') return 'Small Three Dragons. Pung two dragons and pair the third';
+    if (r.id === 'small-dragons') return 'Small Three Dragons. Pung two dragons and make the third your eyes';
     if (r.id === 'big-dragons') return 'Big Three Dragons. Pung all three dragons';
-    if (r.id === 'small-winds') return 'Small Four Winds. Pung three winds and pair the fourth';
+    if (r.id === 'small-winds') return 'Small Four Winds. Pung three winds and make the fourth your eyes';
     if (r.id === 'big-winds') return 'Big Four Winds. Pung all four winds';
     if (/^pairs-/.test(r.id)) return r.label + '. Don\'t claim';
     for (var i = 27; i < 34; i++) {
-      if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) return (/^[AEIOU]/.test(name(i)) ? 'an ' : 'a ') + name(i) + ' set (' + honorWorth(v, i) + ' faan). Pung it if it\'s thrown';
+      if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) return (/^[AEIOU]/.test(name(i)) ? 'an ' : 'a ') + name(i) + ' meld (' + honorWorth(v, i) + ' faan). Pung it if it\'s thrown';
     }
-    return r.faan >= v.game.settings.minFaan ? 'a chicken hand' : 'a dragon or wind set';
+    return r.faan >= v.game.settings.minFaan ? 'a chicken hand' : 'a dragon or wind meld';
   }
 
   // The bigger hand the same tiles can still make, when it isn't already
@@ -342,6 +342,29 @@
     var up = v.ctx.upgrade;
     if (!up || (route && route.id === up.id)) return '';
     return ' ' + up.label + ' is in reach, so aim for it too: ' + up.hint + '.';
+  }
+
+  // Tiles in your hand that can no longer do their job for a hand of pairs or
+  // sets, because every copy that could finish them is already out. `c` is the
+  // hand after the discard; v.unseen counts copies no one has shown (yours are
+  // already out of it).
+  //   Seven Pairs: a single with no copy left can't be paired.
+  //   Triplets: a pair with no copy left can't be punged, and a single needs
+  //   two more.
+  function deadNote(v, route, c) {
+    if (!route || ['pairs', 'triplets', 'concealed-triplets'].indexOf(route.id) === -1) return '';
+    var pairs = route.id === 'pairs';
+    var dead = [];
+    for (var i = 0; i < 34; i++) {
+      if (!c[i]) continue;
+      var left = v.unseen[i];
+      if (pairs ? (c[i] === 1 && left === 0) : (c[i] === 2 ? left === 0 : c[i] === 1 && left < 2)) dead.push(i);
+    }
+    if (!dead.length) return '';
+    var names = dead.slice(0, 3).map(name);
+    var list = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
+    var what = pairs ? 'has no copy left to pair with' : 'can\'t become a meld';
+    return ' Dead for ' + (pairs ? 'Seven Pairs' : route.id === 'concealed-triplets' ? 'Concealed Triplets' : 'All Triplets') + ': ' + list + (dead.length > 3 ? ' and ' + (dead.length - 3) + ' more' : '') + (dead.length === 1 ? ' ' + what : ', ' + (pairs ? 'none have a copy left to pair with' : 'none can become a meld')) + '. Swap ' + (dead.length === 1 ? 'it' : 'them') + ' for a tile that can still finish.';
   }
 
   // The hand each coach last named, per seat, so it can say when that changes.
@@ -569,12 +592,6 @@
     return note ? ' ' + note : '';
   }
 
-  // Axis A in words: early on there's room to build; late, finish fast.
-  function phaseText(v) {
-    if (v.ctx.turn >= 10 || v.ctx.wallLeft < 32) return 'It\'s late, so finish fast.';
-    return '';
-  }
-
   function dangerWord(loss) {
     if (loss < 0.002) return 'safe';
     if (loss < 0.012) return 'low risk';
@@ -608,7 +625,10 @@
   // bots' flush estimate.
   function meldSuitText(game, seat) {
     var suits = {}, honors = false;
-    game.hand.seats[seat].melds.forEach(function (m) {
+    // Only shown melds: another player's concealed kong could be any tile.
+    var melds = game.hand.seats[seat].melds;
+    if (melds.some(function (m) { return m.concealed; })) return '';
+    melds.forEach(function (m) {
       var i = E.tileIndex(m.tiles[0]);
       if (i >= 27) honors = true; else suits[E.suitOfIndex(i)] = true;
     });
@@ -629,26 +649,53 @@
     for (var k = 0; k < list.length; k++) {
       var t = list[k];
       if (safetyReason(v, t, i)) continue;
-      var suitText = t.melds >= 1 ? meldSuitText(v.game, t.seat) : '';
-      if (i < 27 && suitText && suitText.indexOf(SUIT_NAME[E.suitOfIndex(i)]) !== -1) {
-        return t.name + '\'s melds are ' + suitText;
-      }
-      var live = i >= 27 ? v.unseen[i] >= 2 : v.unseen[i] >= 1;
-      if (t.melds >= 3 && live) return t.name + ' has 3 melds down and hasn\'t thrown one';
+      var sure = sureHand(v.game, t.seat);
+      if (i < 27 && sure && sure.suit === E.suitOfIndex(i)) return t.name + ' is almost certainly going for ' + sure.text;
     }
     return null;
   }
 
   // What the table shows about the players worth watching, in plain words:
-  // "Grace has three melds down, all Bamboo." The threat level itself (High,
-  // Extreme) is the bots' estimate, not something you can see, so it isn't
-  // named, and a player with no melds isn't mentioned at all.
+  // The hand an opponent is going for, only once the table makes it close to
+  // certain (checked over simulated games: these held in about 95% of hands or
+  // better). Said as a deduction, never as a restatement of their melds.
+  //   A flush: three or more melds in one suit (honors allowed) and not one
+  //   tile of that suit thrown.
+  //   All Triplets: four pungs or kongs, so the hand needs only a pair.
+  function sureHand(game, seat) {
+    var s = game.hand.seats[seat];
+    var melds = s.melds;
+    if (melds.length < 3) return null;
+    // A concealed kong could be any tile, so nothing about its suit is sure.
+    var hidden = melds.some(function (m) { return m.concealed; });
+    var suits = {}, honors = false;
+    melds.forEach(function (m) {
+      if (m.concealed) return;
+      var i = E.tileIndex(m.tiles[0]);
+      if (i >= 27) honors = true; else suits[E.suitOfIndex(i)] = true;
+    });
+    var nums = Object.keys(suits);
+    if (nums.length === 1 && !hidden) {
+      var su = nums[0];
+      var thrown = s.discards.filter(function (d) { return E.suitOfIndex(E.tileIndex(d.tile)) === su; }).length;
+      if (thrown === 0) {
+        return { suit: su, kind: 'flush', text: 'a ' + (honors ? SUIT_NAME[su] + ' Half Flush' : SUIT_NAME[su] + ' flush') };
+      }
+    }
+    if (melds.length >= 4 && melds.every(function (m) { return m.type !== 'chow'; })) {
+      return { suit: null, kind: 'triplets', text: 'All Triplets' };
+    }
+    return null;
+  }
+
   function threatSentence(game, list) {
-    return list.filter(function (t) { return t.melds; }).map(function (t) {
-      var suitText = meldSuitText(game, t.seat);
-      return t.name + ' has ' + COUNT_WORDS[Math.min(t.melds, 4)].toLowerCase() + (t.melds === 1 ? ' meld' : ' melds') + ' down' +
-        (suitText ? ', ' + suitText : '') + '.';
-    }).join(' ');
+    return list.map(function (t) {
+      var sure = sureHand(game, t.seat);
+      if (!sure) return '';
+      return sure.kind === 'flush'
+        ? t.name + ' is almost certainly going for ' + sure.text + ', so any ' + SUIT_NAME[sure.suit] + ' you throw is a likely deal-in.'
+        : t.name + ' is almost certainly going for All Triplets with four melds down: they are one tile from winning, so play very safe.';
+    }).filter(Boolean).join(' ');
   }
 
   function defenseLine(v, threats, pick, list) {
@@ -686,6 +733,55 @@
     return i >= 27
       ? 'Already Punged, so it\'s safe and useless to you.'
       : 'Already Punged, so nobody can Pung it.';
+  }
+
+  // Every hint and every piece of feedback fits four lines on a phone: at
+  // most MAX_TEXT characters, the action and the tips together. When there
+  // is more to say, the least useful tips go first: the last ones, then the
+  // model's line, then the first tip (the reason). Then sentences, from the end.
+  var MAX_TEXT = 400;
+
+  function plain(t) { return String(t || '').replace(/[\u0001\u0002]/g, ''); }
+
+  function textLength(h) {
+    return [h.action].concat(h.tips || []).map(plain).filter(Boolean).join(' ').length;
+  }
+
+  // Cut to whole sentences that fit in n characters.
+  function clip(t, n) {
+    if (plain(t).length <= n) return t;
+    var parts = String(t).match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [t];
+    var out = '';
+    for (var k = 0; k < parts.length; k++) {
+      if (plain(out + parts[k]).trim().length > n) break;
+      out += parts[k];
+    }
+    if (out.trim()) return out.trim();
+    var cut = plain(t).slice(0, n - 1);
+    return cut.slice(0, cut.lastIndexOf(' ') > 0 ? cut.lastIndexOf(' ') : cut.length) + '\u2026';
+  }
+
+  function fit(h) {
+    if (!h || !h.tips) return h;
+    var isModel = function (t) { return /^(On average, )?[Tt]he model expects /.test(plain(t)); };
+    while (textLength(h) > MAX_TEXT && h.tips.length) {
+      var drop = -1;
+      for (var k = h.tips.length - 1; k >= 1 && drop === -1; k--) if (!isModel(h.tips[k])) drop = k;
+      for (var j = h.tips.length - 1; j >= 1 && drop === -1; j--) drop = j;
+      if (drop === -1) {
+        // Only the reason is left: keep what fits of it.
+        var room = MAX_TEXT - plain(h.action).length - 1;
+        if (room > 40) h.tips[0] = clip(h.tips[0], room);
+        else h.tips.splice(0, 1);
+        if (textLength(h) <= MAX_TEXT) break;
+        if (h.tips.length) { h.tips.splice(0, 1); continue; }
+        break;
+      }
+      h.tips.splice(drop, 1);
+    }
+    if (textLength(h) > MAX_TEXT) h.action = clip(h.action, MAX_TEXT);
+    if (h.model && h.tips.indexOf(h.model) === -1) h.model = null;
+    return h;
   }
 
   function lead(hint, k) {
@@ -759,8 +855,11 @@
     if (opts.completeButShort) {
       tips.push('Complete, but only ' + opts.completeButShort.faan + ' faan. You need ' + min + '.');
     }
+    var kongRead = null;
     if (opts.kongs && opts.kongs.length) {
-      var kong = B.chooseTurnAction(game, seat, { kongs: opts.kongs });
+      // A learned strategy weighs each kong against the best discard.
+      kongRead = B.kongChoice ? B.kongChoice(game, seat, { kongs: opts.kongs }) : null;
+      var kong = kongRead ? kongRead.decision : B.chooseTurnAction(game, seat, { kongs: opts.kongs });
       if (kong.type === 'kong') { var kongAt = tips.length; tips.push('Kong ' + E.tileName(kong.tile) + '. You get a free tile.'); }
     }
 
@@ -806,14 +905,20 @@
       var speak = spoken.route;
       var line = (followed ? 'You\'re going for ' : 'Go for ') + targetText(v, spoken, cAfter, null) + '.';
       line += shifted;
+      line += deadNote(v, speak, cAfter);
       // A complete shape that doesn't score isn't ready, so say why.
       if (pick.ready) line = 'Complete, but under ' + min + ' faan. ' + line;
       var sure = B.baseFaan(v.ctx);
-      if (speak && speak.faan < min - 0.25 && B.cheapWin(v.ctx)) {
-        // Flowers (and sets) already give all but the last faan.
-        line += ' Your flowers and sets give ' + sure + ' faan, so one more wins: a self-draw, All Sequences, or a dragon or wind set.';
-      } else if (speak && speak.faan < min - 0.25) line += ' Short of ' + min + ' faan, so look for a flush, All Triplets or a dragon or wind set.';
-      else if (!defending) { var phase = phaseText(v); if (phase) line += ' ' + phase; }
+      // Concealed Straights says flowers make it 3, so they count here too.
+      var faanNow = speak ? speak.faan + (speak.id === 'straights' ? v.flowerFaan || 0 : 0) : 0;
+      var short = speak && faanNow < min - 0.25;
+      if (short && B.cheapWin(v.ctx)) {
+        // Flowers (and melds) already give all but the last faan.
+        line += ' Your flowers and melds give ' + sure + ' faan, so one more wins: a self-draw, All Sequences, or a dragon or wind meld.';
+      } else if (short) {
+        line += pick.ready ? ' To reach ' + min + ' faan, add a flush, All Triplets or a dragon or wind meld.'
+          : ' You\'re short of ' + min + ' faan, so add a flush, All Triplets or a dragon or wind meld.';
+      }
       if (!followed) line += upgradeNote(v, route);
       line += tableNote(v, speak, line);
       tips.push(line);
@@ -824,6 +929,10 @@
     if (defense) tips.push(defense);
 
     // 4. A learned strategy says what it expects, and why this tile.
+    // With a kong on offer, that choice comes first: when there isn't room
+    // for both, the discard's line goes.
+    var kongLine = kongModelLine(kongRead);
+    if (kongLine) tips.push(kongLine);
     var learned = modelLine(list, pick);
     if (learned) tips.push(learned);
 
@@ -846,6 +955,18 @@
     return (r > 0 ? '+' : r < 0 ? '\u2212' : '') + Math.abs(r).toLocaleString('en-US');
   }
 
+  // A number of points always says so: "+23 points", never "+23" alone.
+  function pointsWord(n) {
+    return pointsText(n) + (Math.abs(Math.round(n)) === 1 ? ' point' : ' points');
+  }
+
+  // "an 8% chance to win", "a 12% chance to win", "almost no chance to win".
+  function chance(p, what) {
+    if (p < 0.01) return 'almost no chance to ' + what;
+    var n = pct(p);
+    return (/^(8|11|18)(\D|$)|^8\d/.test(n) ? 'an ' : 'a ') + n + ' chance to ' + what;
+  }
+
   function pct(p) {
     var n = 100 * p;
     return (n < 1 && n > 0 ? '<1' : String(Math.round(n))) + '%';
@@ -854,17 +975,47 @@
   function modelLine(list, pick) {
     var m = pick && pick.ml;
     if (!m) return '';
-    var line = 'The model expects ' + pointsText(m.ev) + ' points from this: ' + pct(m.pWin) + ' to win';
-    if (m.pWin >= 0.005) line += ' (about ' + Math.round(m.avgWin).toLocaleString('en-US') + ' points, ' + m.winFaan.toFixed(1) + ' faan)';
-    line += ', ' + pct(m.pDealIn) + ' to deal in.';
+    var line = 'The model expects ' + pointsWord(m.ev) + ' on average from this discard, with ' + chance(m.pWin, 'win') +
+      (m.pWin >= 0.005 ? ' (about ' + Math.round(m.avgWin).toLocaleString('en-US') + ' points)' : '') +
+      ' and ' + chance(m.pDealIn, 'deal in') + '.';
     var next = list.filter(function (x) { return x !== pick && x.ml && x.ml.choice !== false; })
       .sort(function (a, b) { return b.ml.ev - a.ml.ev; })[0];
-    if (next) line += ' Next best ' + E.tileName(next.tile) + ', ' + pointsText(next.ml.ev) + '.';
+    if (next) line += ' Next best discard is ' + E.tileName(next.tile) + ': ' + pointsWord(next.ml.ev) + '.';
     var why = (m.why || []).filter(function (g) { return g.points >= 1; }).slice(0, 2);
-    if (why.length) {
-      line += ' Ahead on ' + why.map(function (g) { return (GROUP_WORDS[g.group] || g.group) + ' (' + pointsText(g.points) + ')'; }).join(' and ') + '.';
+    if (why.length) line += ' This one comes out ahead on ' + why.map(function (g) { return GROUP_WORDS[g.group] || g.group; }).join(' and on ') + '.';
+    return line;
+  }
+
+  // What a learned strategy expects from each choice of a claim or a kong
+  // (read: { choices: [{ decision, ml }], pick, foundation }), said as
+  // "if you ...": "if you pass", "if you chow 3-4-5", "if you kong Red Dragon".
+  function ifYou(decision, tile) {
+    if (decision.type === 'pass') return 'if you pass';
+    if (decision.type === 'discard') return 'if you skip the kong';
+    if (decision.type === 'chow') {
+      var tiles = E.sortTiles(decision.tiles.concat([tile]));
+      return 'if you chow ' + tiles.map(function (id) { return E.rankOfIndex(E.tileIndex(id)); }).join('-');
+    }
+    return 'if you ' + decision.type + (decision.tile ? ' ' + E.tileName(decision.tile) : '');
+  }
+
+  function choicesLine(read, tile) {
+    if (!read || !read.choices || read.choices.length < 2) return '';
+    var pick = read.choices[read.pick];
+    var ranked = [pick].concat(read.choices.filter(function (x) { return x !== pick; })
+      .sort(function (a, b) { return b.ml.ev - a.ml.ev; }).slice(0, 2));
+    var said = ranked.map(function (x) { return pointsWord(x.ml.ev) + ' ' + ifYou(x.decision, tile); });
+    var line = 'On average, the model expects ' + said[0] +
+      (said.length > 2 ? ', ' + said.slice(1, -1).join(', ') + ', and ' + said[said.length - 1] : ' and ' + said[1]) + '. ' +
+      'That gives ' + chance(pick.ml.pWin, 'win') + ' and ' + chance(pick.ml.pDealIn, 'deal in') + '.';
+    if (read.pick !== read.foundation) {
+      line += ' The usual call here would be to ' + ifYou(read.choices[read.foundation].decision, tile).replace(/^if you /, '') + ', but the model expects less from it.';
     }
     return line;
+  }
+
+  function kongModelLine(read) {
+    return choicesLine(read, null);
   }
 
   function chowLabel(pair, tile) {
@@ -873,7 +1024,18 @@
     return 'Chow ' + tiles.map(function (id) { return E.rankOfIndex(E.tileIndex(id)); }).join('-') + ' ' + SUIT_NAME[su];
   }
 
+  var lastClaim = null; // what the strategy decided, for the model line
+
   function claimHint(game, seat, opts) {
+    lastClaim = null;
+    var hint = claimAdvice(game, seat, opts);
+    var read = lastClaim && lastClaim.found && lastClaim.found.ml;
+    var line = choicesLine(read, opts.tile);
+    if (line) { hint.tips.push(line); hint.model = line; }
+    return hint;
+  }
+
+  function claimAdvice(game, seat, opts) {
     var min = game.settings.minFaan;
     if (opts.win) {
       var how = opts.robKong ? 'by robbing the kong' : 'on ' + E.tileName(opts.tile);
@@ -886,6 +1048,7 @@
     var followed = drift ? playerPlan(v, c, drift.thrown) : null;
     var ti = E.tileIndex(opts.tile);
     var decided = B.decideClaim(game, seat, opts);
+    lastClaim = decided;
     var found = decided.found;
     var dec = decided.decision;
     var stay = found ? described(found.stay) : null;
@@ -962,7 +1125,7 @@
     }
     if (taken && ti >= 27 && honorWorth(v, ti) && dec.type !== 'chow') {
       var honorCall = spoken(taken);
-      tips.push(honorCall.label + '! A ' + E.tileName(opts.tile) + ' set is ' + honorWorth(v, ti) + ' faan.');
+      tips.push(honorCall.label + '! A ' + E.tileName(opts.tile) + ' meld is ' + honorWorth(v, ti) + ' faan.');
       return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(honorCall.plan, honorCall.counts, honorCall.discard, false, honorCall.ready)) }, tips.length - 1);
     }
     if (taken) {
@@ -1050,6 +1213,14 @@
     return { kind: 'feedback', action: action, tips: tips.map(function (t) { return t.trim(); }) };
   }
 
+  // How the two discards' chances differ, when they differ by a point or more.
+  function odds(best, a, b) {
+    var parts = [];
+    if (Math.abs(a.pWin - b.pWin) >= 0.01) parts.push('its chance to win is ' + pct(a.pWin) + ' against your ' + pct(b.pWin));
+    if (Math.abs(a.pDealIn - b.pDealIn) >= 0.01) parts.push('its chance to deal in is ' + pct(a.pDealIn) + ' against your ' + pct(b.pDealIn));
+    return parts.length ? ' With ' + best + ', ' + parts.join(', and ') + '.' : '';
+  }
+
   // A learned strategy weighs discards in expected points, so feedback
   // compares those.
   function modelFeedback(hint, top, chosen, mine, best) {
@@ -1062,9 +1233,8 @@
       return { kind: 'feedback', action: 'Great discard.', tips: tips };
     }
     var out = ['The coach picks ' + best + '. ' + (hint.why || '')];
-    out.push('The model expects ' + pointsText(top.ml.ev) + ' points from ' + best + ' and ' + pointsText(chosen.ml.ev) +
-      ' from ' + mine + ': ' + pct(top.ml.pWin) + ' against ' + pct(chosen.ml.pWin) + ' to win, ' +
-      pct(top.ml.pDealIn) + ' against ' + pct(chosen.ml.pDealIn) + ' to deal in.');
+    out.push('The model expects ' + pointsWord(top.ml.ev) + ' on average from ' + best + ', and ' + pointsWord(chosen.ml.ev) +
+      ' from ' + mine + '.' + odds(best, top.ml, chosen.ml));
     var action = chosen.shanten > top.shanten ? 'That discard slows your hand.'
       : chosen.ml.pDealIn > top.ml.pDealIn + 0.02 ? 'That discard was risky.'
       : diff <= Math.max(20, Math.abs(top.ml.ev) * 0.1) ? 'Good discard.' : 'There was a better discard.';
@@ -1091,9 +1261,13 @@
     return { kind: 'feedback', action: action, tips: [did + ' ' + reason] };
   }
 
+  function fitted(f) {
+    return function () { return fit(f.apply(null, arguments)); };
+  }
+
   var api = {
-    discardFeedback: discardFeedback, claimFeedback: claimFeedback, noteDiscard: noteDiscard,
-    turnHint: turnHint, claimHint: claimHint,
+    discardFeedback: fitted(discardFeedback), claimFeedback: fitted(claimFeedback), noteDiscard: noteDiscard,
+    turnHint: fitted(turnHint), claimHint: fitted(claimHint), MAX_TEXT: MAX_TEXT, fit: fit,
     rankDiscards: rankDiscards, look: look, highlightPatterns: highlightPatterns,
   };
 
@@ -1103,6 +1277,7 @@
     var out = { strategy: bot && bot.id };
     Object.keys(api).forEach(function (k) {
       var f = api[k];
+      if (typeof f !== 'function' || k === 'fit') { out[k] = f; return; }
       out[k] = function () {
         var prev = B;
         B = bot || DEFAULT_BOT;

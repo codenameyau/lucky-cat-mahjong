@@ -27,9 +27,9 @@
   var RULES = [
     { title: 'Hand Patterns', families: [
       { title: 'Basics', rows: [
-        rule('Chicken Hand', '雞糊', 'chicken', 'Four sets and a pair, nothing else', {
+        rule('Chicken Hand', '雞糊', 'chicken', 'Four melds and the eyes, nothing else', {
           sets: [['c2', 'c3', 'c4'], ['d5', 'd6', 'd7'], ['d8', 'd8', 'd8'], ['b7', 'b8', 'b9'], ['c5', 'c5']], open: [2],
-          flowers: ['f1'], note: 'Mixed suits, sequences and a set, with one set claimed.',
+          flowers: ['f1'], note: 'Mixed suits, chows and a pung, with one meld claimed.',
         }),
         rule('All Sequences', '平糊', 'allSequences', 'Four chows and a pair, no honors', { sets: RUNS }),
         rule('Seven Pairs', '七對子', 'sevenPairs', 'Seven different pairs, concealed', {
@@ -80,22 +80,22 @@
         rule('Dragon Set', '箭刻', 'dragonPung', 'Each pung or kong of a dragon', {
           sets: [['c2', 'c3', 'c4'], ['d5', 'd6', 'd7'], ['b4', 'b5', 'b6'], ['dr', 'dr', 'dr'], ['c8', 'c8']], open: [3],
         }),
-        rule('Small Three Dragons', '小三元', 'smallDragons', 'Two dragon sets and a dragon pair', {
+        rule('Small Three Dragons', '小三元', 'smallDragons', 'Two dragon melds, and a dragon pair as the eyes', {
           sets: [['dr', 'dr', 'dr'], ['dg', 'dg', 'dg'], ['c2', 'c3', 'c4'], ['d5', 'd6', 'd7'], ['dw', 'dw']], open: [0],
         }),
-        rule('Big Three Dragons', '大三元', 'greatDragons', 'A set of every dragon', {
+        rule('Big Three Dragons', '大三元', 'greatDragons', 'A pung or kong of every dragon', {
           sets: [['dr', 'dr', 'dr'], ['dg', 'dg', 'dg'], ['dw', 'dw', 'dw'], ['c2', 'c3', 'c4'], ['d5', 'd5']], open: [0],
         }),
       ] },
       { title: 'Winds', rows: [
-        rule('Seat or Round Wind', '門風 / 圈風', 'yakuWind', 'Each set of your wind or the round\'s', {
+        rule('Seat or Round Wind', '門風 / 圈風', 'yakuWind', 'Each pung or kong of your wind or the round\'s', {
           sets: [['c2', 'c3', 'c4'], ['d5', 'd6', 'd7'], ['b4', 'b5', 'b6'], ['ws', 'ws', 'ws'], ['c8', 'c8']], open: [3],
           note: 'South is your seat wind.',
         }),
-        rule('Small Four Winds', '小四喜', 'smallWinds', 'Three wind sets and a wind pair', {
+        rule('Small Four Winds', '小四喜', 'smallWinds', 'Three wind melds, and a wind pair as the eyes', {
           sets: [['we', 'we', 'we'], ['ws', 'ws', 'ws'], ['ww', 'ww', 'ww'], ['c2', 'c3', 'c4'], ['wn', 'wn']], open: [0],
         }),
-        rule('Big Four Winds', '大四喜', 'greatWinds', 'A set of every wind', {
+        rule('Big Four Winds', '大四喜', 'greatWinds', 'A pung or kong of every wind', {
           sets: [['we', 'we', 'we'], ['ws', 'ws', 'ws'], ['ww', 'ww', 'ww'], ['wn', 'wn', 'wn'], ['c8', 'c8']], open: [0],
         }),
       ] },
@@ -106,7 +106,7 @@
         rule('Self-Draw', '自摸', 'selfDraw', 'You draw the winning tile', {
           sets: RUNS, open: [0], flags: { selfDraw: true }, note: 'You drew the last Two Circle from the wall.',
         }),
-        rule('Concealed', '門前清', 'concealed', 'No claimed sets', {
+        rule('Concealed', '門前清', 'concealed', 'No claimed melds', {
           sets: RUNS, note: 'Nothing claimed before the winning tile.',
         }),
         rule('Win on Last Tile', '海底撈月', 'lastTile', 'Win on the wall\'s last tile', {
