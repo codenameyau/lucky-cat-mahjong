@@ -317,7 +317,9 @@ html.is-playing.is-sideways body {
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
   font: inherit;
-  font-weight: bold;
+  font-family: "KN Yuanmo SC", var(--font-body);
+  font-size: 0.92rem;
+  font-weight: normal;
   cursor: pointer;
 }
 
@@ -615,8 +617,9 @@ html.is-playing.is-sideways body {
   background: none;
   cursor: pointer;
   font: inherit;
+  font-family: "KN Yuanmo SC", var(--font-body);
   font-size: 0.86rem;
-  font-weight: bold;
+  font-weight: normal;
   color: #ffd27a;
 }
 
@@ -732,13 +735,15 @@ html.is-playing.is-sideways body {
   border: 0;
   border-radius: 999px;
   font: inherit;
-  font-weight: bold;
+  font-family: "KN Yuanmo SC", var(--font-body);
+  font-size: 0.92rem;
+  font-weight: normal;
   cursor: pointer;
 }
 
 .results-hands {
   background: #fff8f0;
-  color: #1a1a1a;
+  color: #3a3a3a;
 }
 
 .results-hands:hover { filter: brightness(0.97); }
@@ -750,7 +755,7 @@ html.is-playing.is-sideways body {
 
 .results-replay {
   background: #F4A020;
-  color: #1A1A1A;
+  color: #3a3a3a;
 }
 
 .results-replay:hover { filter: brightness(1.05); }
