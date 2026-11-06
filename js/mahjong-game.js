@@ -597,8 +597,8 @@
     var reviewBar = null; // where the move bar was drawn, in layout units
     var reviewNote = null; // why the empty table is waiting, when a paste failed
     var playbackLooked = false; // the page has looked for a stored playback
-    var loadStartedAt = now(); // the skeleton only shows if loading takes longer than SKELETON_AFTER_MS
-    var SKELETON_AFTER_MS = 250;
+    var loadStartedAt = now(); // the skeleton only shows if loading takes longer than skeletonAfterMs()
+    function skeletonAfterMs() { return 250; }
     var reviewCoaches = {}; // by strategy id: one walk of the hand each, so a coach who follows your discards keeps that streak
     var reviewCoachTimer = null;
     var destroyed = false;
@@ -1540,7 +1540,7 @@
         // Only once the stored playback has been looked for: while the page is
         // still loading, the table stays empty instead of flashing the upload prompt.
         if (settings.playback ? playbackLooked : false) drawPlaybackPrompt();
-        else if ((settings.playback || !game) && t - loadStartedAt > SKELETON_AFTER_MS) drawSkeleton(t);
+        else if ((settings.playback || !game) && t - loadStartedAt > skeletonAfterMs()) drawSkeleton(t);
         // A finished hand restored on its results has no tiles to draw.
         // The scoring column and the coach notes stay beside that panel.
         if (ui.overlay && ui.overlay.type === 'summary') {
@@ -1629,6 +1629,13 @@
             var pill = row.querySelector('.rules-faan');
             pill.textContent = limit ? 'Limit' : faan + ' faan';
             if (limit) pill.classList.add('rules-faan--limit');
+            if (!(section.preview !== false && r.preview !== false)) {
+              // A pattern with no example still clicks.
+              row.addEventListener('click', function () {
+                sound.play('select');
+                track('play_rule_click', { hand: r.name });
+              });
+            }
             // Desktop: hover or click opens the example above the pattern, and
             // leaving it hides the example. Touch still opens from the press,
             // and that first tap does not also close it.
@@ -3447,6 +3454,7 @@
     // press the table reacts to, so it is tried again there.
     var pendingCopy = null;
     function onCanvasClick() {
+      // Phones only open the file picker from the click itself, not the pointer-up before it.
       if (!pendingCopy) return;
       var text = pendingCopy;
       pendingCopy = null;
@@ -5645,13 +5653,39 @@
     }
 
     var replayFileInput = null;
+    var pendingUpload = false;
     function uploadReplay() {
       sound.play('select'); // the click
+      // The press only asks for it. The picker opens when the finger lifts (pointerup,
+      // touchend or click, whichever comes first), since phones refuse it from a press.
+      pendingUpload = true;
+      var stop = function () {
+        document.removeEventListener('pointerup', go, true);
+        document.removeEventListener('touchend', go, true);
+        document.removeEventListener('click', go, true);
+        clearTimeout(timer);
+        pendingUpload = false;
+      };
+      var go = function () {
+        if (!pendingUpload) { stop(); return; }
+        stop();
+        openReplayPicker();
+      };
+      var timer = setTimeout(stop, 3000);
+      document.addEventListener('pointerup', go, true);
+      document.addEventListener('touchend', go, true);
+      document.addEventListener('click', go, true);
+    }
+
+    function openReplayPicker() {
       if (!replayFileInput) {
         var input = document.createElement('input');
         input.type = 'file';
-        input.accept = 'application/json,.json';
-        input.hidden = true;
+        // Json first, and plain text too: a phone can save the download as .txt, and the text is checked on load.
+        input.accept = 'application/json,.json,text/plain,.txt';
+        input.hidden = true; // not drawn at all, so nothing shows behind the picker
+        input.tabIndex = -1;
+        input.setAttribute('aria-hidden', 'true');
         input.addEventListener('change', function () {
           var picked = input.files && input.files[0];
           input.value = '';
@@ -5896,10 +5930,10 @@
       var stops = [0], mine = [false], melds = [false], claims = [false], discards = 0;
       var limit = reviewMoves();
       var meld = false; // you exposed a meld since the last stop
-      var claim = false; // anyone did a chow, pung or kong since the last stop
+      var claim = false; // you did a chow, pung or kong since the last stop
       for (var i = 0; i < limit; i++) {
         var ev = rec.actions[i];
-        if (ev.a === 'claim' || ev.a === 'kong') claim = true;
+        if (ev.s === 0 && (ev.a === 'claim' || ev.a === 'kong')) claim = true;
         if (ev.s === 0 && (ev.a === 'claim' || (ev.a === 'kong' && ev.k === 'added'))) meld = true;
         if (ev.a === 'discard') { stops.push(i + 1); mine.push(ev.s === 0); melds.push(meld); claims.push(claim); meld = false; claim = false; discards++; }
       }
@@ -6253,7 +6287,7 @@
         }
         ctx.beginPath();
         ctx.arc(dx, cy, called ? (exposed ? 2.8 : 3.8) : mine ? 3 : 1.5, 0, Math.PI * 2);
-        // A red dot is a chow, pung or kong by any player.
+        // A red dot is a chow, pung or kong by you, not the computers.
         ctx.fillStyle = called ? COLORS.red : mine ? COLORS.cream : (done ? 'rgba(90,50,0,0.55)' : 'rgba(255,248,240,0.55)');
         ctx.fill();
         if (called && !exposed) {
@@ -6622,7 +6656,7 @@
 
     async function play() {
       // A quick load shows nothing extra; a slow one shows the skeleton after a moment.
-      setTimeout(function () { if (!destroyed) requestRender(); }, SKELETON_AFTER_MS + 30);
+      setTimeout(function () { if (!destroyed) requestRender(); }, skeletonAfterMs() + 30);
       if (settings.playback) {
         await loadAssets();
         if (destroyed) return;
