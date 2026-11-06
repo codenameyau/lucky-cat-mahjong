@@ -6,6 +6,7 @@ The learned bot, Neural Cat, is on Hugging Face:
 
 - **Model**: [huggingface.co/codenameyau/lucky-cat-mahjong](https://huggingface.co/codenameyau/lucky-cat-mahjong)
 - **Training data**: [huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games](https://huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games)
+- **How it works**: [docs/machine-learning](docs/machine-learning/README.md)
 
 ## Contents
 
@@ -20,7 +21,7 @@ The learned bot, Neural Cat, is on Hugging Face:
   - Playing: [Game modes](#game-modes) · [Rules and scoring](#rules-and-scoring) · [Saving and resuming](#saving-and-resuming) · [Hand seeds](#hand-seeds)
   - Bots and coach: [Strategies](#strategies) · [Bots](#bots) · [Coach](#coach) · [Bot competition](#bot-competition) · [Neural Cat training and models](#neural-cat-training-and-models) · [Hand review and feedback](#hand-review-and-feedback)
   - Table: [Table and layouts](#table-and-layouts) · [Sound and music](#sound-and-music)
-  - For developers: [Analytics events](docs/analytics.md) · [Testing tip](#testing-tip)
+  - For developers: [Machine learning](docs/machine-learning/README.md) · [Analytics](docs/analytics/README.md) · [Testing tip](#testing-tip)
 - [Other pages](#other)
 
 **Working on the site**
@@ -31,6 +32,7 @@ The learned bot, Neural Cat, is on Hugging Face:
 - [Editing content with Pages CMS](#editing-content-with-pages-cms)
 - [Deploy to GitHub Pages](#deploy-to-github-pages)
 - [Project structure](#project-structure)
+- [Documentation](docs/README.md): [Machine learning](docs/machine-learning/README.md) · [Analytics](docs/analytics/README.md) · [Strategies](docs/strategies/README.md)
 
 **[Credits](#credits)**
 
@@ -281,7 +283,7 @@ Background music is three CC BY 4.0 tracks by Kevin MacLeod (Guzheng City, Sheny
 
 #### Neural Cat training and models
 
-Neural Cat's network is trained on simulated hands; the playbook, with every step and result, is [docs/strategies/neural-cat.md](docs/strategies/neural-cat.md).
+Neural Cat's network is trained on simulated hands. How the whole AI layer works (features, model, decisions, training, the league, fair play, Hugging Face) is in [docs/machine-learning](docs/machine-learning/README.md), and the strategy's playbook, with every result, is [docs/strategies/neural-cat.md](docs/strategies/neural-cat.md).
 
 - **Models**: [huggingface.co/codenameyau/lucky-cat-mahjong](https://huggingface.co/codenameyau/lucky-cat-mahjong). `neural-cat/neural-cat.json` is the model the game ships (the same file as `js/mahjong-ml-weights.js`), and `neural-cat/models/` holds every model that became the best, with a model card of the results
 - **Training data**: [huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games](https://huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games). Every set the models trained on, from the bootstrap to each league round, in the format `npm run ml:generate` writes, with a dataset card that explains it
@@ -427,6 +429,12 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── mahjong-bot.js      # Play: bot engine and the rules every strategy shares
 │   ├── mahjong-lucky-cat.js # Play: the lucky-cat strategy (tested)
 │   ├── mahjong-jorge-yau.js # Play: the jorge-yau strategy
+│   ├── mahjong-only-orphans.js # Play: the only-orphans strategy
+│   ├── mahjong-ml.js       # Play: Neural Cat, the learned strategy (tested)
+│   ├── mahjong-ml-features.js # Play: what the model sees of a position
+│   ├── mahjong-ml-model.js # Play: the neural network, in plain JS
+│   ├── mahjong-ml-weights.js # Play: the shipped model (generated)
+│   ├── mahjong-analysis.js # Playback: the face-up table read (tested)
 │   ├── mahjong-strategies.js # Play: strategy list and the Strategies sheet (tested)
 │   ├── mahjong-competition.js # Play: strategies against each other
 │   ├── mahjong-coach.js    # Play: the coach (tested)
@@ -439,12 +447,16 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── generate-tile-pages.js # Quiz: per-tile pages and preview images
 │   ├── tile-pages-lib.js   # Shared tile-page logic (tested)
 │   ├── competition.js      # CLI: npm run compete
+│   ├── ml/                 # Neural Cat: data, self-play, the league, Hugging Face uploads
 │   ├── review.js           # CLI: npm run review, replay a seed and give feedback
 │   ├── review-lib.js       # Shared review logic (tested)
 │   ├── generate-guide.js   # Printable rules booklet PDF
 │   └── licensing-agreement.js # Licensing agreement PDF
+├── ml/                     # train.py and requirements.txt (local data, models and the venv are gitignored)
 ├── docs/
-│   ├── analytics.md        # Google Analytics events
+│   ├── README.md           # Index of the docs
+│   ├── analytics/          # Google Analytics setup, privacy and every event
+│   ├── machine-learning/   # Neural Cat: features, model, decisions, training, fair play, Hugging Face
 │   └── strategies/         # Bot and coach playbooks, and feedback.json
 ├── assets/                 # Music, sounds, PDFs and images
 ├── package.json            # npm scripts
