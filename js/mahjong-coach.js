@@ -980,8 +980,7 @@
     var m = pick && pick.ml;
     if (!m) return '';
     var line = 'The model expects ' + pointsWord(m.ev) + ' on average from this discard, with ' + chance(m.pWin, 'win') +
-      (m.pWin >= 0.005 ? ' (about ' + Math.round(m.avgWin).toLocaleString('en-US') + ' points)' : '') +
-      ' and ' + chance(m.pDealIn, 'deal in') + '.';
+      (m.pWin >= 0.01 ? ' (about ' + Math.round(m.avgWin).toLocaleString('en-US') + ' points)' : '') + '.';
     var next = list.filter(function (x) { return x !== pick && x.ml && x.ml.choice !== false; })
       .sort(function (a, b) { return b.ml.ev - a.ml.ev; })[0];
     if (next) line += ' Next best discard is ' + E.tileName(next.tile) + ': ' + pointsWord(next.ml.ev) + '.';
@@ -1011,7 +1010,7 @@
     var said = ranked.map(function (x) { return pointsWord(x.ml.ev) + ' ' + ifYou(x.decision, tile); });
     var line = 'On average, the model expects ' + said[0] +
       (said.length > 2 ? ', ' + said.slice(1, -1).join(', ') + ', and ' + said[said.length - 1] : ' and ' + said[1]) + '. ' +
-      'That gives ' + chance(pick.ml.pWin, 'win') + ' and ' + chance(pick.ml.pDealIn, 'deal in') + '.';
+      'That gives ' + chance(pick.ml.pWin, 'win') + '.';
     if (read.pick !== read.foundation) {
       line += ' The usual call here would be to ' + ifYou(read.choices[read.foundation].decision, tile).replace(/^if you /, '') + ', but the model expects less from it.';
     }
@@ -1217,12 +1216,10 @@
     return { kind: 'feedback', action: action, tips: tips.map(function (t) { return t.trim(); }) };
   }
 
-  // How the two discards' chances differ, when they differ by a point or more.
+  // How the two discards' chances to win differ, when they differ by a point or more.
   function odds(best, a, b) {
-    var parts = [];
-    if (Math.abs(a.pWin - b.pWin) >= 0.01) parts.push('its chance to win is ' + pct(a.pWin) + ' against your ' + pct(b.pWin));
-    if (Math.abs(a.pDealIn - b.pDealIn) >= 0.01) parts.push('its chance to deal in is ' + pct(a.pDealIn) + ' against your ' + pct(b.pDealIn));
-    return parts.length ? ' With ' + best + ', ' + parts.join(', and ') + '.' : '';
+    if (Math.abs(a.pWin - b.pWin) < 0.01) return '';
+    return ' With ' + best + ', your chance to win is ' + pct(a.pWin) + ' instead of ' + pct(b.pWin) + '.';
   }
 
   // A learned strategy weighs discards in expected points, so feedback

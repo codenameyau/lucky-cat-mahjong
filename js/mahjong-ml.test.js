@@ -141,7 +141,7 @@ describe('Neural Cat strategy', () => {
     const line = hint.tips.filter((t) => /^The model expects /.test(t))[0];
     assert.ok(line, 'no model line in ' + JSON.stringify(hint.tips));
     assert.match(line, /to win/);
-    assert.match(line, /to deal in/);
+    assert.doesNotMatch(line, /deal in/);
   });
 
   it('gives feedback in expected points', () => {
