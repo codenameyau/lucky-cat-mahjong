@@ -44,4 +44,26 @@ A change to the features (`FEATURE_VERSION`, `SIZE`) needs new data and a new mo
 
 ## Results
 
-(Filled in after each round.)
+Each round plays the same evaluation deals (1,500 × 4 seat rotations, from deal 900000) at a table of `neural-cat, jorge-yau, lucky-cat, jorge-yau`. The score is Neural Cat's points per hand less Jorge Yau's on those deals. A round's model is kept only if it beats the best so far.
+
+| Model | Trained from | Score | Neural Cat | Jorge Yau | Wins | Deal-ins | Kept |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| j0 | bootstrap, rule bots' data | +17.1 | | | | | start |
+| s1 | j0 | +61.4 | +46.6 | −14.8 | 10.0% | 7.3% | yes |
+| s2 | s1 | +34.6 | +30.0 | −4.6 | 10.1% | 7.6% | no |
+| s3 | s1 | +52.3 | +38.3 | −14.0 | 9.1% | 7.9% | no |
+| s4 | s1 | +42.5 | +33.1 | −9.4 | 9.7% | 8.1% | no |
+| s5 | s1 | +76.0 | +53.9 | −22.1 | 10.4% | 7.5% | yes, shipped |
+| s6 | s5 | +50.2 | +36.4 | −13.8 | 9.7% | 7.2% | no |
+
+Keeping the best of several noisy scores flatters the winner, so the top three were replayed on fresh deals (1,500 × 4 rotations, from deal 1300000):
+
+| Model | Score | Neural Cat | Jorge Yau | Lucky Cat | Wins | Deal-ins | Average win |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| s5 | +48.5 | +38.4 | −10.0 | −18.4 | 10.7% | 7.6% | 731 |
+| s1 | +22.3 | +18.5 | −3.8 | −11.0 | 10.1% | 7.2% | 705 |
+| s3 | +7.9 | +14.8 | +6.9 | −28.6 | 9.4% | 7.3% | 666 |
+
+s5 is the shipped model (1.86M training positions, `js/mahjong-ml-weights.js`). Neural Cat wins less often than Jorge Yau (about 10.5% of hands against about 14%), but its wins are worth about two and a half times as much (731 points against 292), and it comes out ahead on points. The score is noisy: about ±40 points per hand on one evaluation.
+
+Run more rounds with `npm run ml:loop -- --rounds 4`. It picks up from `ml/loop/state.json`.
