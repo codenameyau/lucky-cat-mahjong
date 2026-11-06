@@ -285,7 +285,6 @@ Animations are always on for players. Add `?instant=1` to the page URL to skip t
 ### Other
 
 - **Custom 404 page** — On-brand "page not found" screen with mahjong tile artwork
-- **Old Points Guide URL** — `/hong-kong-mahjong-points/` redirects to `/hong-kong-mahjong-scoring/`
 - **Sitemap & robots** — `sitemap.xml` and `robots.txt` for search engines
 
 ## Local preview
@@ -376,7 +375,6 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 ├── community/              # Community event recaps
 ├── events/                 # Upcoming events and tickets
 ├── hong-kong-mahjong-scoring/ # Scoring guide + interactive Points Guide
-├── hong-kong-mahjong-points/  # Old URL, redirects to the Points Guide
 ├── which-mahjong-tiles-are-you/ # Tile quiz + a generated page per tile
 ├── play-mahjong/           # Play page: start screen + canvas game
 ├── 404.html                # Custom not-found page
