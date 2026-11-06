@@ -722,49 +722,6 @@ html.is-playing.is-sideways body {
   color: rgba(255, 248, 240, 0.75);
 }
 
-.results-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 12px 0 2px;
-}
-
-.results-hands,
-.results-replay {
-  padding: 8px 18px;
-  border: 0;
-  border-radius: 999px;
-  font: inherit;
-  font-family: "KN Yuanmo SC", var(--font-body);
-  font-size: 0.92rem;
-  font-weight: normal;
-  cursor: pointer;
-}
-
-.results-hands {
-  background: #fff8f0;
-  color: #3a3a3a;
-}
-
-.results-hands:hover { filter: brightness(0.97); }
-
-.results-hands:focus-visible {
-  outline: 2px solid #ffd27a;
-  outline-offset: 2px;
-}
-
-.results-replay {
-  background: #F4A020;
-  color: #3a3a3a;
-}
-
-.results-replay:hover { filter: brightness(1.05); }
-
-.results-replay:focus-visible {
-  outline: 2px solid #ffd27a;
-  outline-offset: 2px;
-}
-
 .results-table {
   width: 100%;
   border-collapse: collapse;
@@ -848,8 +805,6 @@ html.is-playing.is-sideways body {
   .results-draw { font-size: 0.62rem; }
   .results-avatar { width: 11px; height: 11px; }
   .results-player { gap: 3px; }
-  .results-hands,
-  .results-replay { font-size: 0.8rem; }
   .results-empty { font-size: 0.85rem; }
   .results-sheet .rules-sheet-head h2 { font-size: 1.3rem; }
   .results-sheet .rules-sheet-close { padding: 4px 12px; font-size: 0.8rem; }
