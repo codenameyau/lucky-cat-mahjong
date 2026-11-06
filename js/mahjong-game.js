@@ -138,6 +138,7 @@
     next: 'play_next_hand_click',
     'see-results': 'play_see_results_click',
     'm-resume': 'play_menu_resume_click',
+    'm-close': 'play_menu_resume_click',
     'm-restart': 'play_menu_restart_click',
     'm-quit': 'play_menu_quit_click',
     'go-again': 'play_again_click',
@@ -146,6 +147,8 @@
     'review-prev': 'play_playback_prev_click',
     'review-next': 'play_playback_next_click',
     'review-back': 'play_playback_back_click',
+    'review-download': 'play_playback_download_click',
+    'review-open': 'play_playback_upload_click',
     'review-upload': 'play_playback_upload_click',
   };
 
@@ -588,6 +591,8 @@
     var reviewBar = null; // where the move bar was drawn, in layout units
     var reviewNote = null; // why the empty table is waiting, when a paste failed
     var playbackLooked = false; // the page has looked for a stored playback
+    var loadStartedAt = now(); // the skeleton only shows if loading takes longer than SKELETON_AFTER_MS
+    var SKELETON_AFTER_MS = 250;
     var reviewCoaches = {}; // by strategy id: one walk of the hand each, so a coach who follows your discards keeps that streak
     var reviewCoachTimer = null;
     var destroyed = false;
@@ -1301,10 +1306,14 @@
         ctx.lineWidth = 3;
         ctx.stroke();
       }
-      var color = style === 'light' || style === 'white' ? COLORS.ink : COLORS.white;
-      if (style === 'gold') color = COLORS.ink;
-      var size = fitFont(ctx, label, w - 16, Math.min(16, h * 0.42), FONT_BODY, 'bold');
-      text(label, x + w / 2, y + h / 2 + 1, { size: size, weight: 'bold', color: color, align: 'center' });
+      // A touch smaller, and dark text a little softer than black, so the pixel
+      // font (which has only one weight) reads lighter on a button. White text
+      // stays pure white.
+      var dark = style === 'light' || style === 'white' || style === 'gold';
+      var color = dark ? '#3a3a3a' : COLORS.white;
+      // Buttons use the game's own font, the one on its titles.
+      var size = fitFont(ctx, label, w - 16, Math.min(15, h * 0.39), FONT_HEAD);
+      text(label, x + w / 2, y + h / 2 + 1, { size: size, family: FONT_HEAD, color: color, align: 'center' });
       if (dx) ctx.restore();
       var event = BUTTON_EVENTS[id];
       addRegion(x, y, w, h, event ? function () { track(event, {}); onTap(); } : onTap, id);
@@ -1463,7 +1472,7 @@
       if (settings.playback) {
         var padTop = skeletonLayout ? skeletonLayout.pad : 8;
         pill(padTop, 7, 64, 28, 'rgba(255,255,255,0.12)', 'rgba(255,255,255,0.3)');
-        text('Back', padTop + 32, 22, { size: 13, weight: 'bold', align: 'center', color: COLORS.white });
+        text('Back', padTop + 32, 22, { size: 13, family: FONT_HEAD, align: 'center', color: COLORS.white });
       }
       var real = L;
       L = skeletonLayout;
@@ -1505,8 +1514,9 @@
         if (L.center) bone(L.center.x + 4, L.center.y, L.center.w - 8, L.center.h, 10);
         if (L.hintH) bone(L.ox + L.pad, L.hintY, L.tableW - 2 * L.pad, L.hintH, 6);
         if (L.meBox) bone(L.meBox.x, L.meBox.y, L.meBox.w, L.meBox.h);
-        // Your hand: a row of tile-sized blocks, where the tiles will sit.
-        handPositions(13).forEach(function (pos) { bone(pos.x, pos.y, L.tw, L.th, Math.max(2, L.tw * 0.13)); });
+        // Your hand: tile-sized blocks where the tiles will sit. 14 gives a phone's
+        // two rows seven each, and one long row on desktop.
+        handPositions(14).forEach(function (pos) { bone(pos.x, pos.y, L.tw, L.th, Math.max(2, L.tw * 0.13)); });
       } finally {
         L = real;
       }
@@ -1524,7 +1534,7 @@
         // Only once the stored playback has been looked for: while the page is
         // still loading, the table stays empty instead of flashing the upload prompt.
         if (settings.playback ? playbackLooked : false) drawPlaybackPrompt();
-        else if (settings.playback || !game) drawSkeleton(t);
+        else if ((settings.playback || !game) && t - loadStartedAt > SKELETON_AFTER_MS) drawSkeleton(t);
         // A finished hand restored on its results has no tiles to draw.
         // The scoring column and the coach notes stay beside that panel.
         if (ui.overlay && ui.overlay.type === 'summary') {
@@ -2394,38 +2404,60 @@
       ctx.fillRect(0, 0, W, 42);
       var pad = L ? L.pad : 8;
       if (settings.playback) {
-        var phoneBar = W < 600; // on a phone the bar is just Close or Back, the title, and Sound
+        // The playback bar is Back, the title, Download and Sound. Strategies and
+        // Rules aren't here.
+        var phoneBar = W < 600;
         var sw = W < 420 ? 66 : 92;
-        var rw = W < 420 ? 50 : 68;
-        var stw = W < 420 ? 70 : 96;
         var right = W - pad;
         var soundX = right - sw;
         button(SOUND_LABELS[soundMode()], soundX, 7, sw, 28, toggleSound, 'ghost', 'sound');
-        var stratX = soundX;
-        if (!phoneBar) {
-          var rulesX = soundX - 6 - rw;
-          button('Rules', rulesX, 7, rw, 28, openRules, 'ghost', 'rules');
-          stratX = rulesX - 6 - stw;
-          button('Strategies', stratX, 7, stw, 28, openStrategies, 'ghost', 'strategies');
-        }
+        var clusterX = soundX; // the left edge of the buttons on the right
         if (settings.review) {
+          // Download, then Upload (opens a downloaded file), then Sound.
+          var vpW = phoneBar ? 34 : 92;
+          var vpX = soundX - 6 - vpW;
+          var dlW = phoneBar ? 34 : 92;
+          var dlX = vpX - 6 - dlW;
+          button(phoneBar ? '' : 'Upload', vpX, 7, vpW, 28, uploadReplay, 'ghost', 'review-open');
+          button(phoneBar ? '' : 'Download', dlX, 7, dlW, 28, downloadReplay, 'ghost', 'review-download');
+          if (phoneBar) {
+            // Small icons drawn here so they need no font: an arrow down onto a
+            // tray (download) and an arrow up out of one (open a file).
+            ctx.save();
+            ctx.strokeStyle = COLORS.white;
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            var ax = dlX + dlW / 2, ay = 21;
+            ctx.beginPath();
+            ctx.moveTo(ax, ay - 8); ctx.lineTo(ax, ay + 3);
+            ctx.moveTo(ax - 4.5, ay - 1.5); ctx.lineTo(ax, ay + 3); ctx.lineTo(ax + 4.5, ay - 1.5);
+            ctx.moveTo(ax - 6, ay + 7); ctx.lineTo(ax + 6, ay + 7);
+            ctx.stroke();
+            var bx2 = vpX + vpW / 2;
+            ctx.beginPath();
+            ctx.moveTo(bx2, ay + 3); ctx.lineTo(bx2, ay - 8);
+            ctx.moveTo(bx2 - 4.5, ay - 3.5); ctx.lineTo(bx2, ay - 8); ctx.lineTo(bx2 + 4.5, ay - 3.5);
+            ctx.moveTo(bx2 - 6, ay + 7); ctx.lineTo(bx2 + 6, ay + 7);
+            ctx.stroke();
+            ctx.restore();
+          }
+          clusterX = dlX;
           // Back always goes to the game, however the playback was opened.
           button('Back', pad, 7, 64, 28, backToGame, 'ghost', 'review-back');
-          var where = reviewStep ? ('Move ' + reviewMoveNo(reviewStep) + ' of ' + reviewStops().discards) : 'Deal';
-          var label = game && game.hand
-            ? E.WIND_NAMES[game.round] + ' round · Hand ' + game.handNumber + ' · ' + where
-            : 'Playback';
+          // The title is just "Playback", on a phone and on desktop.
+          var label = 'Playback';
           if (phoneBar) {
-            // Centered on the bar: as wide as fits between the buttons on both sides.
-            var half = Math.min(W / 2 - (pad + 72), soundX - 12 - W / 2);
-            if (half >= 45) {
-              text(label, W / 2, 22, { size: fitFont(ctx, label, half * 2, 15, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.cream });
+            // In the room between Back and the icons.
+            var gapL = pad + 72, gapR = clusterX - 8;
+            if (gapR - gapL >= 60) {
+              text(label, (gapL + gapR) / 2, 22, { size: fitFont(ctx, label, gapR - gapL, 14, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.cream });
             }
           } else {
-            var left = pad + 72;
-            var room = stratX - 12 - left;
-            if (room >= 90) {
-              text(label, left + room / 2, 22, { size: fitFont(ctx, label, room, 15, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.cream });
+            // Centered on the bar, as wide as fits between the buttons on both sides.
+            var half = Math.min(W / 2 - (pad + 72), clusterX - 10 - W / 2);
+            if (half >= 45) {
+              text(label, W / 2, 22, { size: fitFont(ctx, label, half * 2, 15, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.cream });
             }
           }
         }
@@ -4072,6 +4104,8 @@
       // Very short screens (landscape phones) shrink the whole panel to fit.
       var k = Math.min(1, (H - 24) / lay.h);
       var r = { x: (W - pw) / 2, y: (H - lay.h) / 2, w: pw, h: lay.h };
+      // Where the panel really is once it has been scaled to fit, for a click outside it.
+      ui.overlayBox = { x: W / 2 + (r.x - W / 2) * k, y: H / 2 + (r.y - H / 2) * k, w: r.w * k, h: r.h * k };
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(0, 0, W, H);
       ctx.save();
@@ -4269,26 +4303,33 @@
     }
 
 
+    // The pause menu, in the look of the Results window: the deep green sheet
+    // with a gold edge, a gold title at the left and a Close button at the right.
     function drawMenu() {
-      var r = panelRect(340, 286);
-      drawPanelBg(r);
-      text('Paused', r.x + r.w / 2, r.y + 36, { size: 24, family: FONT_HEAD, align: 'center', color: COLORS.red });
-      var bx = r.x + 30, bw = r.w - 60, y = r.y + 62, step = 50;
-      button('Resume', bx, y, bw, 40, function () { closeOverlay(); }, 'primary', 'm-resume'); y += step;
+      var r = panelRect(360, 308);
+      ui.overlayBox = r;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(0, 0, W, H);
+      drawSheetBg(r);
+      var px = r.x + 22;
+      text('Menu', px, r.y + 36, { size: 28, family: FONT_HEAD, align: 'left', color: COLORS.goldLight });
+      button('Close', r.x + r.w - 22 - 64, r.y + 22, 64, 28, function () { sound.play('select'); closeOverlay(); }, 'ghost', 'm-close');
+      var bx = px, bw = r.w - 44, y = r.y + 70, step = 52;
+      button('Resume', bx, y, bw, 42, function () { sound.play('select'); closeOverlay(); }, 'primary', 'm-resume'); y += step;
       var armed = ui.restartArmed && now() - ui.restartArmed < 5000;
-      button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, 40, restartGame, armed ? 'gold' : 'white', 'm-restart'); y += step;
-      button('Quit game', bx, y, bw, 40, function () { quit(); }, 'white', 'm-quit');
+      button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, 42, function () { sound.play('select'); restartGame(); }, armed ? 'gold' : 'white', 'm-restart'); y += step;
+      button('Quit game', bx, y, bw, 42, function () { sound.play('select'); quit(); }, 'white', 'm-quit');
       // Mode and version, with a Beta badge.
       var line = (settings.lesson ? 'Learn to play' : settings.mode === 'practice' ? 'Practice mode' : 'Full game') + ' · v' + E.GAME_VERSION;
       ctx.font = '12px ' + FONT_BODY;
       var lineW = ctx.measureText(line).width;
       ctx.font = 'bold 10px ' + FONT_BODY;
       var badgeW = ctx.measureText('BETA').width + 12, badgeH = 16;
-      var lx = r.x + (r.w - lineW - 6 - badgeW) / 2, ly = r.y + r.h - 48;
-      text(line, lx, ly, { size: 12, color: COLORS.muted });
+      var lx = r.x + (r.w - lineW - 6 - badgeW) / 2, ly = r.y + r.h - 46;
+      text(line, lx, ly, { size: 12, color: 'rgba(255,248,240,0.7)' });
       pill(lx + lineW + 6, ly - badgeH / 2, badgeW, badgeH, COLORS.red);
       text('BETA', lx + lineW + 6 + badgeW / 2, ly + 1, { size: 10, weight: 'bold', align: 'center', color: COLORS.white });
-      text('Built by Jorge Yau, developer, mahjong instructor', r.x + r.w / 2, r.y + r.h - 22, { size: 12, align: 'center', color: COLORS.muted });
+      text('Built by Jorge Yau, developer, mahjong instructor', r.x + r.w / 2, r.y + r.h - 22, { size: 12, align: 'center', color: 'rgba(255,248,240,0.55)' });
     }
 
     /* ---------------- saving and loading ---------------- */
@@ -4437,6 +4478,7 @@
 
     function drawGameOver() {
       var r = panelRect(440, 474);
+      ui.overlayBox = r;
       drawPanelBg(r);
       var st = ui.stats;
       var standings = E.finalStandings(game);
@@ -4479,6 +4521,20 @@
       });
     }
 
+    // A click on the dimmed table outside a modal puts it away. The pause menu
+    // closes. The hand summary and the game-over panel step aside to the table
+    // with every hand face up (their See results button brings them back), so a
+    // stray click never deals the next hand.
+    function dismissOverlay() {
+      var o = ui.overlay;
+      if (!o) return false;
+      if (o.type === 'menu') { closeOverlay(); return true; }
+      if (settings.lesson || !game || !game.hand) return false;
+      if (o.type === 'summary') { showHands(true); return true; }
+      if (o.type === 'gameover') { seeMatchHands(); return true; }
+      return false;
+    }
+
     function closeOverlay() {
       var o = ui.overlay;
       var leavingSummary = o && o.type !== 'menu' && overlayResolve;
@@ -4496,7 +4552,7 @@
     }
 
     // Look at the table with every hand face up. The next hand waits.
-    function showHands() {
+    function showHands(clickedOut) {
       var o = ui.overlay;
       if (!o || o.type !== 'summary') return;
       var already = ui.revealHands;
@@ -4506,7 +4562,7 @@
       ui.overlay = null;
       // The first time is the mining hit. Coming back to See hands after See
       // results is a plain click.
-      sound.play(already ? 'select' : 'flip');
+      sound.play(clickedOut === true || already ? 'select' : 'flip');
       if (!already) announce('All four hands are face up.');
       requestRender();
     }
@@ -4603,6 +4659,7 @@
     }
 
     function openMenu() {
+      sound.play('select'); // the click
       if (ui.overlay && ui.overlay.type === 'menu') { closeOverlay(); return; }
       ui.overlay = { type: 'menu', previous: ui.overlay };
       requestRender();
@@ -4971,6 +5028,9 @@
       lastTouch = !!e.pointerType && e.pointerType !== 'mouse';
       if (lastTouch) mouse = null;
       var p = pointerPos(e);
+      if (ui.overlay && ui.overlayBox && !boxHas(ui.overlayBox, p.x, p.y)) {
+        if (dismissOverlay()) { e.preventDefault(); return; }
+      }
       if (settings.review && reviewBarHit(p)) {
         reviewScrub = e.pointerId;
         if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
@@ -5567,6 +5627,26 @@
       button('Upload', (W - bw) / 2, by, bw, bh, uploadReplay, 'gold', 'review-upload');
     }
 
+    // Saves the playback on screen as a JSON file named with the time, such as
+    // lucky-cat-mahjong-playback-2026-11-05-1430.json. It is the same signed
+    // file the page opens from Upload or a paste.
+    function downloadReplay() {
+      var file = readJson(REPLAY_KEY, null);
+      if (!file || !file.payload) return;
+      var d = new Date();
+      function two(n) { return (n < 10 ? '0' : '') + n; }
+      var stamp = d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) + '-' + two(d.getHours()) + two(d.getMinutes());
+      var blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'lucky-cat-mahjong-playback-' + stamp + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    }
+
     var replayFileInput = null;
     function uploadReplay() {
       if (!replayFileInput) {
@@ -6041,7 +6121,7 @@
           ctx.fill();
           ctx.restore();
         }
-        text(v + 'x', bx + sbw / 2, gy + sbh / 2 + 1, { size: 12, weight: 'bold', align: 'center', color: on ? COLORS.ink : COLORS.cream });
+        text(v + 'x', bx + sbw / 2, gy + sbh / 2 + 1, { size: 12, family: FONT_HEAD, align: 'center', color: on ? COLORS.ink : COLORS.cream });
         addRegion(bx, gy, sbw, sbh, function () { setReviewSpeed(v); }, 'review-speed-' + v);
       });
     }
@@ -6359,6 +6439,8 @@
     }
 
     async function play() {
+      // A quick load shows nothing extra; a slow one shows the skeleton after a moment.
+      setTimeout(function () { if (!destroyed) requestRender(); }, SKELETON_AFTER_MS + 30);
       if (settings.playback) {
         await loadAssets();
         if (destroyed) return;
