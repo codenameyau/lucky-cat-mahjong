@@ -91,11 +91,68 @@ function readmeText(old, section) {
   return (old && old.trim() ? old.trimEnd() + '\n\n' : HEADER) + part + '\n';
 }
 
+
+// How a model did in its evaluation against the best before it: the same
+// deals, so the two are measured against each other (ml/league/eval-<name>-vs-best.json).
+function headToHead(state, r) {
+  const where = path.join(ROOT, 'ml', 'league', 'eval-' + r.name + '-vs-best.json');
+  if (!fs.existsSync(where)) return null;
+  const report = JSON.parse(fs.readFileSync(where, 'utf8')).report;
+  const find = (model) => report.strategies[Object.keys(report.strategies).find((k) => k.endsWith(path.basename(model)))];
+  const a = find(r.model);
+  const b = find(r.against);
+  if (!a || !b) return null;
+  const read = (x) => ({
+    hands: x.hands, wins: x.wins, dealIns: x.dealIns, limits: x.limitWins, concealed: x.concealedWins,
+    avgWin: x.wins ? x.wonPoints / x.wins : 0, winRate: x.wins / x.hands, dealInRate: x.dealIns / x.hands,
+  });
+  return { deals: report.deals, mine: read(a), theirs: read(b) };
+}
+
+function readMeta(file) {
+  try { return JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8')).meta || {}; } catch (err) { return {}; }
+}
+
+// What the newest best improved, from its evaluation and training details.
+function latestBest(state) {
+  const r = state.rounds.filter((x) => x.kept).pop();
+  if (!r || r.against === state.anchor && !r.vsBest) return '';
+  const prev = path.basename(r.against, '.json');
+  const num = (n) => Math.round(n).toLocaleString('en-US');
+  const mine = readMeta(r.model);
+  const before = readMeta(r.against);
+  const lines = [];
+  const margin = r.vsBest.margin;
+  const clear = margin ? Math.abs(r.vsBest.score) > margin : null;
+  lines.push('- **Head to head:** ' + signed(r.vsBest.score) + ' points a hand against ' + prev + (margin ? ' (± ' + margin.toFixed(0) + ', 95%)' : '') +
+    (clear === false ? ', within the noise of one evaluation' : clear ? ', a lead beyond the noise' : '') + '.');
+  const h = headToHead(state, r);
+  if (h) {
+    const m = h.mine, t = h.theirs;
+    const change = (a, b) => (b ? (a >= b ? '+' : '−') + Math.abs(100 * (a - b) / b).toFixed(0) + '%' : '');
+    lines.push('- **Where the points come from** (' + num(h.deals) + ' new deals, ' + r.name + ' against ' + prev + ' on the same hands): its average win pays ' + num(m.avgWin) +
+      ' points against ' + num(t.avgWin) + ' (' + change(m.avgWin, t.avgWin) + '), it wins ' + pct(m.winRate) + ' of hands against ' + pct(t.winRate) +
+      ', deals in on ' + pct(m.dealInRate) + ' against ' + pct(t.dealInRate) + ', and wins a limit hand ' + num(m.limits) + ' times against ' + num(t.limits) + '.');
+  }
+  if (mine.valOutcomeAcc) {
+    lines.push('- **How well it reads a hand:** on positions it was not trained on it names how the hand ends ' + pct(mine.valOutcomeAcc) + ' of the time' +
+      (before.valOutcomeAcc ? ' (' + prev + ': ' + pct(before.valOutcomeAcc) : '') +
+      (before.valOutcomeAcc && state.anchor ? ', s5: ' + pct(readMeta(state.anchor).valOutcomeAcc) : '') + (before.valOutcomeAcc ? ')' : '') +
+      ', and its outcome loss is ' + (mine.valOutcomeLoss || 0).toFixed(3) + (before.valOutcomeLoss ? ' (' + prev + ': ' + before.valOutcomeLoss.toFixed(3) + ')' : '') + '.');
+  }
+  if (mine.samples) {
+    lines.push('- **Trained on** ' + num(mine.samples) + ' positions from ' + (mine.data ? mine.data.length : '') + ' league rounds' +
+      (before.samples ? ' (' + prev + ': ' + num(before.samples) + ')' : '') + ', starting from ' + prev + '.');
+  }
+  return '### What ' + r.name + ' improved\n\n' + lines.join('\n') + '\n';
+}
+
 function modelCard(repo, state, uploaded) {
   const best = path.basename(state.best, '.json');
   const kept = state.rounds.filter((r) => r.kept);
-  const rows = state.rounds.map((r) => '| ' + r.name + ' | ' + path.basename(r.against, '.json') + ' | ' + signed(r.vsBest.score) +
-    ' points | ' + signed(r.vsAnchor.score) + ' points | ' + pct(r.vsBest.winRate) + ' | ' + pct(r.vsBest.dealInRate) + ' | ' +
+  const score = (e) => (e ? signed(e.score) + ' points' + (e.margin ? ' \u00b1 ' + e.margin.toFixed(0) : '') : '\u2014');
+  const rows = state.rounds.map((r) => '| ' + r.name + ' | ' + path.basename(r.against, '.json') + ' | ' + score(r.vsBest) +
+    ' | ' + score(r.vsAnchor) + ' | ' + pct(r.vsBest.winRate) + ' | ' + pct(r.vsBest.dealInRate) + ' | ' +
     Math.round(r.vsBest.avgWinPoints || 0).toLocaleString('en-US') + ' points | ' + (r.kept ? 'yes' : 'no') + ' |');
   const done = state.rounds.length;
   return `## Neural Cat (\`neural-cat/\`)
@@ -120,9 +177,10 @@ Neural Cat is a learned strategy in the game. A small neural network scores each
 
 The data is public: [codenameyau/lucky-cat-mahjong-games](https://huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games). Trained with PyTorch on an Apple GPU. Each position is labelled with how its hand really ended: the only thing from the future it learns from, and only in training.
 
+${latestBest(state)}
 ### League results
 
-Points a hand (the model's points a hand less its opponent's) against the best model of its round, and against s5 (the model that shipped before the league), on the same deals:
+Points a hand (the model's points a hand less its opponent's), with a 95% margin where measured, against the best model of its round, and against s5 (the model that shipped before the league), on the same deals:
 
 | Model | Played against | vs best | vs s5 | Wins | Deal-ins | Average win | Kept |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
@@ -173,7 +231,7 @@ function sync(args) {
     if (git(dir, ['diff', '--cached', '--quiet'], true).status === 0) return;
     const msg = r
       ? 'Add ' + r.name + ', the new best: ' + signed(r.vsBest.score) + ' points a hand against ' + path.basename(r.against, '.json') +
-        (r.against === state.anchor ? '' : ', ' + signed(r.vsAnchor.score) + ' against ' + path.basename(state.anchor, '.json'))
+        (r.against === state.anchor || !r.vsAnchor ? '' : ', ' + signed(r.vsAnchor.score) + ' against ' + path.basename(state.anchor, '.json'))
       : firstTime ? 'Add Neural Cat s5 and the model card' : 'Update the model card';
     git(dir, ['commit', '-q', '-m', msg + '\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>']);
     git(dir, ['push', '-q', 'origin', 'HEAD']);
@@ -205,4 +263,8 @@ function main() {
   setTimeout(tick, args.every);
 }
 
-try { main(); } catch (err) { console.error(err.message); process.exit(1); }
+if (require.main === module) {
+  try { main(); } catch (err) { console.error(err.message); process.exit(1); }
+}
+
+module.exports = { modelCard, latestBest, headToHead };

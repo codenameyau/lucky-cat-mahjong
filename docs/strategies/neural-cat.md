@@ -79,7 +79,38 @@ Simulations play in fast mode (`create({ fast: true })`): the same choices, but 
 
 ### League (claims and kongs, against other models)
 
-(Filled in when the league finishes.)
+Every seat is a Neural Cat model. Each round trains a model from the best so far on the last four rounds' hands, then plays it head to head against the best before it (two seats each, every seat rotation, on deals no round has played). The score is the model's points a hand less its opponent's, with a 95% margin where measured. A model is kept only if it scores more. The league is still running, so this is the state after round 7; the [model card](https://huggingface.co/codenameyau/lucky-cat-mahjong) is rebuilt from the same results on every upload.
+
+| Model | Played against | vs best | vs s5 | Wins | Deal-ins | Average win | Kept |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| L1 | s5 | +62.5 points | +62.5 points | 9.3% | 6.2% | 1,675 points | yes |
+| L2 | L1 | +28.3 points | +68.4 points | 8.6% | 5.4% | 1,672 points | yes |
+| L3 | L2 | +16.4 points | +95.7 points | 8.5% | 5.6% | 1,537 points | yes |
+| L4 | L3 | +14.8 points | +0.0 points | 8.7% | 5.6% | 1,808 points | yes |
+| L5 | L4 | −3.5 points | +0.3 points | 8.6% | 5.5% | 1,708 points | no |
+| L6 | L4 | +7.9 points ± 30 | not measured | 8.3% | 5.4% | 1,781 points | yes |
+| L7 | L6 | +41.1 points ± 33 | not measured | 8.1% | 5.1% | 2,069 points | yes, shipped |
+
+Rounds 1 to 5 used 2,000-deal evaluations, which swing by about ±50 points a hand, so only L1's gain over s5 is clearly more than noise there. Rounds 6 and 7 used 6,000 deals (about ±30).
+
+#### What L7 improved
+
+L7 is the model the game ships. It replaces L3, which shipped before it. Against L6, its direct predecessor, on 6,000 new deals (each deal played from every seat, L7 and L6 two seats each):
+
+| | L7 | L6 |
+| --- | ---: | ---: |
+| Points a hand (L7 less L6) | **+41.1 ± 33** | |
+| Average win | **2,069 points** | 1,682 points |
+| Hands won | 8.1% | 8.2% |
+| Deal-ins | **5.1%** | 5.4% |
+| Limit hands won | **400** | 340 |
+
+- **Bigger wins, not more of them.** L7 wins about as often as L6 but each win pays 23% more, and it wins 18% more limit hands. Its edge comes from choosing the high-value hand over the quick one, the tradeoff the expected-points score exists to make.
+- **A little safer.** It deals in on 5.1% of hands against 5.4%.
+- **A better read of the hand.** On positions held out of training it names how the hand ends correctly 73.3% of the time, against 73.0% for L6, 70.6% for L3 and 68.6% for s5, and its outcome loss falls from 0.905 to 0.896.
+- **More data.** It trained on 3,994,461 positions from seven league rounds, against 1,692,560 from three for L3.
+
+How much to trust it: +41.1 is only just beyond its ±33 margin, and L6's own win over L4 (+7.9 ± 30) was within noise, so each step is small. The steady gains are in the held-out accuracy, which rises with almost every model (s5 68.6%, L3 70.6%, L4 71.8%, L5 72.6%, L6 73.0%, L7 73.3%), and the average win. L7 was not measured against s5 or the rule bots, so there is no number yet for how far it is ahead of L3 head to head. L7's weights ship in `js/mahjong-ml-weights.js`, and the model and its results are on [Hugging Face](https://huggingface.co/codenameyau/lucky-cat-mahjong).
 
 ### Self-play against the rule bots (discards only)
 
