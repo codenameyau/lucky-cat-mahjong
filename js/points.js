@@ -67,7 +67,7 @@
     { id: 'f1', file: '39-plum.svg', name: 'Plum', marking: '梅' },
     { id: 'f2', file: '40-orchid.svg', name: 'Orchid', marking: '蘭' },
     { id: 'f3', file: '41-chrysanthemum.svg', name: 'Chrysanthe-mum', marking: '菊' },
-    { id: 'f4', file: '42-bamboo.svg', name: 'Bamboo Flower', marking: '竹' },
+    { id: 'f4', file: '42-bamboo.svg', name: 'Bamboo', marking: '竹' },
   ].forEach(function (t) {
     TILES.push({ id: t.id, file: t.file, group: 'flowers', suit: 'f', name: t.name, marking: t.marking });
   });

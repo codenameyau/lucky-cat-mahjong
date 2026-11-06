@@ -54,5 +54,4 @@ Every button outside the hand itself is tracked. Discards and claims at the tabl
 | `play_credit_click` | `link` |
 | `play_set_sound` | `sound` |
 | `play_set_coach` | `coach` |
-| `play_set_strategy` | `seat`, `strategy` |
 | `play_set_coach_strategy` | `strategy` |

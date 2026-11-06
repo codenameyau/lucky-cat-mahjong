@@ -149,8 +149,8 @@ Every bot plays a named strategy, built on the shared foundation in `js/mahjong-
 | **only-orphans** | `js/mahjong-only-orphans.js` | Goes for Thirteen Orphans every hand, then pivots to a hand of 1s, 9s and honors | [only-orphans.md](docs/strategies/only-orphans.md) |
 | **no-defense** | `js/mahjong-no-defense.js` | Never folds or minds what it feeds, keeps honors, and locks onto a hand worth 7 faan or more | [no-defense.md](docs/strategies/no-defense.md) |
 
-- The **Strategies** button in the top bar (`js/mahjong-strategies.js`) describes each one and lets you pick a strategy for each bot seat and for the coach
-- Picks are saved in `localStorage` (`lcm-play-strategies`). A bot seat with nothing saved plays a random strategy each game, and the coach defaults to lucky-cat
+- The **Strategies** button in the top bar (`js/mahjong-strategies.js`) describes each one and shows who plays which
+- The coach's pick is saved in `localStorage` (`lcm-play-strategies`), and the coach defaults to lucky-cat. The computer players are never saved: each plays a random strategy every game
 - Every strategy keeps its own list of hints as a game goes on, saved in `localStorage` (`lcm-play-hints`). Clicking a recommendation only switches which list the coach panel shows, so the move count doesn't change. A new game overwrites the saved hints
 - The table shows only the player's name. On desktop, hovering over a computer player's name shows their strategy
 - How to add a strategy, and the rules they all share, are in [docs/strategies/README.md](docs/strategies/README.md)
