@@ -145,3 +145,8 @@ vite.config.ts.timestamp-*
 
 # Training data for the learned strategy (npm run ml:generate)
 ml/data/
+# The learned strategy's Python environment and trained models (the shipped
+# copy is js/mahjong-ml-weights.js)
+ml/.venv/
+ml/models/
+ml/loop/

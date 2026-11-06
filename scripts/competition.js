@@ -13,6 +13,7 @@
      --seed N          first deal's seed (default 1)
      --workers N       worker threads (default: CPU cores - 1)
      --json FILE       also write the full report as JSON
+     --ml-weights FILE neural-cat plays these weights (ml/models/<name>.json)
      --list            list the strategies and exit */
 
 'use strict';
@@ -25,7 +26,14 @@ const { Worker, isMainThread, parentPort, workerData } = require('node:worker_th
 const C = require('../js/mahjong-competition.js');
 const S = require('../js/mahjong-strategies.js');
 
+// neural-cat with other weights than the shipped ones (--ml-weights).
+function useMlWeights(file) {
+  const ML = require('../js/mahjong-ml.js');
+  S.get('neural-cat').bot = ML.create({ weights: JSON.parse(fs.readFileSync(file, 'utf8')) });
+}
+
 if (!isMainThread) {
+  if (workerData.mlWeights) useMlWeights(workerData.mlWeights);
   C.runMatch(workerData).then((report) => parentPort.postMessage(report));
   return;
 }
@@ -47,6 +55,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.list) {
     S.list().forEach((s) => console.log(s.id.padEnd(14) + s.summary));
+    S.labIds().forEach((id) => console.log(id.padEnd(14) + '(lab) ' + S.get(id).summary));
     return;
   }
   const lineup = args.lineup ? String(args.lineup).split(',') : ['jorge-yau', 'lucky-cat', 'jorge-yau', 'lucky-cat'];
@@ -65,7 +74,8 @@ async function main() {
     const count = Math.min(per, deals - first);
     if (count <= 0) break;
     jobs.push(new Promise((resolve, reject) => {
-      const worker = new Worker(__filename, { workerData: { lineup, deals: count, seed: seed + first } });
+      const mlWeights = args['ml-weights'] ? path.resolve(String(args['ml-weights'])) : null;
+      const worker = new Worker(__filename, { workerData: { lineup, deals: count, seed: seed + first, mlWeights } });
       worker.once('message', resolve);
       worker.once('error', reject);
     }));

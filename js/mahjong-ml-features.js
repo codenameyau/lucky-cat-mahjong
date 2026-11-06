@@ -9,8 +9,10 @@
    Only what the seat can see goes in: its own hand, every discard and
    shown meld, and counts of hidden tiles. Never the wall or another hand.
 
-   prepare(game, seat, ctx?, threats?) -> state   the parts shared by every
-                                                  discard of this turn
+   prepare(game, seat, ctx?, threats?, bot?) -> state  the parts shared by
+     every discard of this turn. bot is the strategy whose foundation reads
+     the position (default the shared one): training and play must use the
+     same one, neural-cat's (js/mahjong-ml.js).
    encode(state, index, analysis?, loss?) -> Float32Array(SIZE)
      index: the tile index (0-33) thrown. analysis is handUtility of the
      13 tiles kept, and loss is dealInLoss of the tile; both are worked
@@ -24,7 +26,7 @@
   var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
   var B = node ? require('./mahjong-bot.js') : root.MahjongBot;
 
-  var FEATURE_VERSION = 1;
+  var FEATURE_VERSION = 2;
   var DRAGONS = [31, 32, 33];
   var FAMILIES = ['runs', 'sets', 'pairs', 'majors', 'dragons', 'winds', 'orphans', 'gates', 'flush', 'standard'];
   var SUITS = ['c', 'd', 'b'];
@@ -60,12 +62,13 @@
   }
 
   // The parts of the position every discard of this turn shares.
-  function prepare(game, seat, ctx, threats) {
-    ctx = ctx || B.buildContext(game, seat);
-    threats = threats || B.opponentThreats(game, seat);
+  function prepare(game, seat, ctx, threats, bot) {
+    var b = bot || B;
+    ctx = ctx || b.buildContext(game, seat);
+    threats = threats || b.opponentThreats(game, seat);
     var s = game.hand.seats[seat];
     var counts = E.countsOf(s.hand);
-    if (!ctx.mlSynced) { B.syncHandPlans(ctx, counts); ctx.mlSynced = true; }
+    if (!ctx.mlSynced) { b.syncHandPlans(ctx, counts); ctx.mlSynced = true; }
     var opponents = [];
     for (var k = 1; k <= 3; k++) {
       var o = (seat + k) % 4;
@@ -77,19 +80,19 @@
       opponents.push({ seat: o, seatState: os, discards: disc, melds: shown, threat: threat });
     }
     return {
-      game: game, seat: seat, ctx: ctx, threats: threats, counts: counts,
+      game: game, seat: seat, ctx: ctx, threats: threats, counts: counts, bot: b,
       own: meldTileCounts(s.melds, false), opponents: opponents,
-      flowerFaan: B.flowerPoints(ctx),
+      flowerFaan: b.flowerPoints(ctx),
     };
   }
 
   function encode(state, index, analysis, loss) {
     var x = new Float32Array(SIZE);
-    var game = state.game, ctx = state.ctx, seat = state.seat;
+    var game = state.game, ctx = state.ctx, b = state.bot;
     var c = state.counts.slice();
     c[index]--;
-    if (!analysis) analysis = B.handUtility(c, ctx);
-    if (loss == null) loss = B.dealInLoss(game, state.threats, index);
+    if (!analysis) analysis = b.handUtility(c, ctx);
+    if (loss == null) loss = b.dealInLoss(game, state.threats, index);
     var p, i, k;
 
     // Hand: the 13 tiles kept, as "at least n copies".
@@ -182,7 +185,7 @@
     p = GROUPS.value.start;
     var plan = best.plan || null;
     if (plan) {
-      var fam = B.planFamily(plan.id);
+      var fam = b.planFamily(plan.id);
       var famKey = /^flush/.test(fam) ? 'flush' : fam;
       var fi = FAMILIES.indexOf(famKey);
       x[p + (fi === -1 ? FAMILIES.length - 1 : fi)] = 1; // 10
@@ -205,24 +208,24 @@
     for (i = 0; i < 34; i++) {
       if (c[i] >= 2) nPairs++;
       if (c[i] >= 3) nSets++;
-      if (i >= 27 && c[i] >= 2 && B.valueWeight(ctx, i)) valueHonors++;
+      if (i >= 27 && c[i] >= 2 && b.valueWeight(ctx, i)) valueHonors++;
     }
     x[p + 27] = nPairs / 7;
     x[p + 28] = nSets / 4;
     x[p + 29] = valueHonors / 3;
-    x[p + 30] = clip(B.baseFaan(ctx), 0, 13) / 13;
-    x[p + 31] = B.cheapWin(ctx) ? 1 : 0;
+    x[p + 30] = clip(b.baseFaan(ctx), 0, 13) / 13;
+    x[p + 31] = b.cheapWin(ctx) ? 1 : 0;
 
     // Safety: how likely this tile wins for someone.
     p = GROUPS.safety.start;
     x[p] = log1(loss * 10) / 3;
-    x[p + 1] = B.deadTile(game, index) ? 1 : 0;
+    x[p + 1] = b.deadTile(game, index) ? 1 : 0;
     state.opponents.forEach(function (op, k2) {
       var t = op.threat;
       if (!t) return;
       x[p + 2 + k2] = t.discarded[E.tileId(index)] ? 1 : 0; // they threw it: safe against them
       x[p + 5 + k2] = t.since[E.tileId(index)] ? 1 : 0;
-      x[p + 8 + k2] = t.ready * B.waitChance(game, t, index);
+      x[p + 8 + k2] = t.ready * b.waitChance(game, t, index);
     });
     x[p + 11] = state.threats.reduce(function (m, t) { return Math.max(m, t.level); }, 0) / 3;
     return x;

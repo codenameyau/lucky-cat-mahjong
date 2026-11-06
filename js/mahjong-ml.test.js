@@ -27,6 +27,19 @@ describe('ML features', () => {
     assert.equal(F.SIZE, at);
   });
 
+  it('builds on jorge-yau, and with top 1 plays exactly like it', async () => {
+    const J = require('./mahjong-jorge-yau.js');
+    assert.equal(ML.base, 'jorge-yau');
+    const one = ML.create({ topK: 1 });
+    for (let seed = 1; seed <= 2; seed++) {
+      const play = (a) => {
+        const game = E.createGame({ seed, humanSeat: false, dealer: 0, startPoints: 1e9 });
+        return E.runHand(game, [a, J.createBotAgent(), J.createBotAgent(), J.createBotAgent()]).then(() => game.hand.seats[0].discards.map((d) => d.tile).join());
+      };
+      assert.equal(await play(one.createBotAgent()), await play(J.createBotAgent()));
+    }
+  });
+
   it('reads only what the seat can see', () => {
     const a = dealt(7);
     const b = dealt(7);
@@ -44,7 +57,7 @@ describe('ML features', () => {
     const game = dealt(11);
     const bot = ML.create({ model: M.randomModel(3) });
     const top = bot.analyzeDiscards(game, 0).candidates[0];
-    const fresh = F.encode(F.prepare(game, 0), top.index);
+    const fresh = F.encode(F.prepare(game, 0, null, null, bot), top.index);
     assert.deepEqual(Array.from(top.features), Array.from(fresh));
   });
 
@@ -83,6 +96,14 @@ describe('ML model', () => {
     assert.throws(() => M.createModel(w), /features/);
   });
 
+  it('ships trained weights for these features', () => {
+    const W = require('./mahjong-ml-weights.js');
+    assert.equal(W.featureSize, F.SIZE);
+    assert.equal(W.featureVersion, F.FEATURE_VERSION);
+    assert.ok(!ML.model.meta.random, 'neural-cat should load the shipped weights');
+    assert.equal(ML.model.meta.name, W.meta.name);
+  });
+
   it('values a self-draw at three payments', () => {
     const p = { outcome: { winSelf: 1, winDiscard: 0, dealIn: 0, otherSelf: 0, otherWin: 0, draw: 0 }, winFaan: M.FAAN.map((f) => (f === 5 ? 1 : 0)), payFaan: M.FAAN.map(() => 1 / 11) };
     assert.equal(M.summarize(p).ev, 3 * 32);
@@ -93,8 +114,11 @@ describe('Neural Cat strategy', () => {
   it('throws the discard the model values most, and says why', () => {
     const game = dealt(23);
     const res = ML.analyzeDiscards(game, 0);
-    const evs = res.candidates.map((x) => x.ml.ev);
+    // Among the foundation's best three, the model's favourite goes first.
+    const evs = res.candidates.slice(0, 3).map((x) => x.ml.ev);
     assert.deepEqual(evs, evs.slice().sort((a, b) => b - a));
+    const free = ML.create({ model: ML.model, topK: 0 }).analyzeDiscards(dealt(23), 0).candidates.map((x) => x.ml.ev);
+    assert.deepEqual(free, free.slice().sort((a, b) => b - a));
     const why = res.candidates[0].ml.why;
     assert.equal(why.length, Object.keys(F.GROUPS).length);
     assert.deepEqual(ML.chooseTurnAction(game, 0, { win: null, kongs: [] }), { type: 'discard', tile: res.candidates[0].tile });
@@ -110,7 +134,34 @@ describe('Neural Cat strategy', () => {
     }
   });
 
-  it('is not offered at the table until it is trained', () => {
-    assert.ok(!S.has('neural-cat'));
+  it('has the coach say what the model expects', () => {
+    const Coach = require('./mahjong-coach.js');
+    const game = dealt(29);
+    const hint = Coach.forStrategy(ML).turnHint(game, 0, { win: null, kongs: [] });
+    const line = hint.tips.filter((t) => /^The model expects/.test(t))[0];
+    assert.ok(line, 'no model line in ' + JSON.stringify(hint.tips));
+    assert.match(line, /to win/);
+    assert.match(line, /to deal in/);
+  });
+
+  it('gives feedback in expected points', () => {
+    const Coach = require('./mahjong-coach.js').forStrategy(ML);
+    const game = dealt(29);
+    const hint = Coach.turnHint(game, 0, { win: null, kongs: [] });
+    const top = Coach.discardFeedback(hint, hint.tile);
+    assert.equal(top.action, 'Great discard.');
+    assert.ok(top.tips.some((t) => /^The model expects/.test(t)));
+    const worst = hint.candidates.slice().sort((a, b) => a.ml.ev - b.ml.ev)[0];
+    if (hint.candidates[0].ml.ev - worst.ml.ev > 20) {
+      const fb = Coach.discardFeedback(hint, worst.tile);
+      assert.notEqual(fb.action, 'Great discard.');
+      assert.ok(fb.tips.some((t) => /points from/.test(t)));
+    }
+  });
+
+  it('is on the Strategies sheet', () => {
+    assert.ok(S.ids().indexOf('neural-cat') !== -1);
+    assert.ok(!S.isLab('neural-cat'));
+    assert.equal(S.get('neural-cat').bot, ML);
   });
 });

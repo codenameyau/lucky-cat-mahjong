@@ -2,9 +2,9 @@
 /* Training data for the learned strategy (js/mahjong-ml.js).
 
    Plays deals across worker threads and records discards: the features of
-   the position each discard left (js/mahjong-ml-features.js), labelled
-   with how the hand ended for that seat. Every seat is recorded, whatever
-   strategy it plays.
+   the position each discard left (js/mahjong-ml-features.js), read through
+   neural-cat's own foundation as in play, and labelled with how the hand
+   ended for that seat. Every seat is recorded, whatever strategy it plays.
 
    npm run ml:generate -- --deals 2000
    npm run ml:generate -- --deals 50000 --lineup mix --explore 0.1 --out ml/data/r1
@@ -20,6 +20,7 @@
      --sample P       chance each discard is recorded (default 0.3)
      --explore P      chance a rule bot's discard is swapped for a random
                       one that costs no step toward ready (default 0.05)
+     --top-k N        neural-cat picks among its foundation's best N (default 3)
      --weights FILE   neural-cat's weights (JSON); default: shipped or random
      --temperature T  neural-cat's exploration, in points (default 100)
      --epsilon P      neural-cat's random discards (default 0.05)
@@ -83,7 +84,7 @@ async function runWorker(cfg) {
   const rng = E.createRng((cfg.seed * 2654435761) >>> 0);
   const weights = cfg.weightsFile ? JSON.parse(fs.readFileSync(cfg.weightsFile, 'utf8')) : null;
   // One copy of neural-cat for every seat that plays it (its calls are synchronous).
-  cfg.mlBot = ML.create({ model: weights ? M.createModel(weights) : ML.model, temperature: cfg.temperature, epsilon: cfg.epsilon, rng });
+  cfg.mlBot = ML.create({ model: weights ? M.createModel(weights) : ML.model, topK: cfg.topK, temperature: cfg.temperature, epsilon: cfg.epsilon, rng });
   const featFd = fs.openSync(path.join(cfg.out, 'shard-' + cfg.index + '.features'), 'w');
   const labelFd = fs.openSync(path.join(cfg.out, 'shard-' + cfg.index + '.labels'), 'w');
   let samples = 0, hands = 0;
@@ -104,7 +105,7 @@ async function runWorker(cfg) {
         turn(g, s, opts) {
           // Read the position before the bot moves (its plan memo moves after).
           const keep = !opts.win && rng() < cfg.sample;
-          const state = keep ? F.prepare(g, s) : null;
+          const state = keep ? F.prepare(g, s, null, null, cfg.mlBot) : null;
           return made.agent.turn(g, s, opts).then((action) => {
             if (!action || action.type !== 'discard') return action;
             let explored = 0;
@@ -180,7 +181,7 @@ function stamp() {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const known = S.ids().concat([ML_ID]);
+  const known = S.ids().concat(S.has(ML_ID) && S.ids().indexOf(ML_ID) !== -1 ? [] : [ML_ID]);
   const pool = args.pool ? String(args.pool).split(',') : known;
   const lineup = !args.lineup || args.lineup === 'mix' ? 'mix' : String(args.lineup).split(',');
   if (lineup !== 'mix' && lineup.length !== 4) throw new Error('--lineup needs four strategy ids, or "mix"');
@@ -199,6 +200,7 @@ async function main() {
     explore: args.explore !== undefined ? parseFloat(args.explore) : 0.05,
     temperature: args.temperature !== undefined ? parseFloat(args.temperature) : 100,
     epsilon: args.epsilon !== undefined ? parseFloat(args.epsilon) : 0.05,
+    topK: args['top-k'] !== undefined ? parseInt(args['top-k'], 10) : undefined,
     weightsFile: args.weights ? path.resolve(String(args.weights)) : null,
   };
 

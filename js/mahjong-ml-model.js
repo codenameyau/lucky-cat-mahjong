@@ -12,7 +12,8 @@
    and big wins both count.
 
    Weights are { featureVersion, featureSize, layers: [{ rows, cols, w, b }] }
-   with w (rows x cols, row-major) and b as base64 float32, or plain arrays.
+   with w (rows x cols, row-major) and b as base64 float32 (or float16 with
+   dtype: 'f16', as ml/train.py exports them), or plain arrays.
    The last layer has OUTPUTS rows. createModel(weights) or randomModel(seed). */
 
 (function (root) {
@@ -29,7 +30,15 @@
 
   function points(f) { return 8 * Math.pow(2, Math.min(f, 13) - 3); }
 
-  function fromBase64(s) {
+  // Half-precision floats (as the trained weights ship) to float32.
+  function halfToFloat(h) {
+    var sign = h & 0x8000 ? -1 : 1, exp = (h >> 10) & 0x1f, frac = h & 0x3ff;
+    if (exp === 0) return sign * Math.pow(2, -14) * (frac / 1024);
+    if (exp === 31) return frac ? NaN : sign * Infinity;
+    return sign * Math.pow(2, exp - 15) * (1 + frac / 1024);
+  }
+
+  function fromBase64(s, dtype) {
     var bytes;
     if (typeof Buffer !== 'undefined') bytes = new Uint8Array(Buffer.from(s, 'base64'));
     else {
@@ -37,7 +46,12 @@
       bytes = new Uint8Array(bin.length);
       for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     }
-    return new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4);
+    if (dtype === 'f16') {
+      var n = bytes.byteLength / 2, out = new Float32Array(n);
+      for (var j = 0; j < n; j++) out[j] = halfToFloat(bytes[2 * j] | (bytes[2 * j + 1] << 8));
+      return out;
+    }
+    return new Float32Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
   }
 
   function toBase64(arr) {
@@ -48,9 +62,9 @@
     return btoa(bin);
   }
 
-  function floats(v) {
+  function floats(v, dtype) {
     if (v instanceof Float32Array) return v;
-    if (typeof v === 'string') return fromBase64(v);
+    if (typeof v === 'string') return fromBase64(v, dtype);
     return Float32Array.from(v);
   }
 
@@ -64,11 +78,12 @@
   }
 
   function createModel(weights) {
-    if (weights.featureSize !== F.SIZE) {
-      throw new Error('model expects ' + weights.featureSize + ' features, have ' + F.SIZE);
+    if (weights.featureSize !== F.SIZE || weights.featureVersion !== F.FEATURE_VERSION) {
+      throw new Error('model expects ' + weights.featureSize + ' features (version ' + weights.featureVersion +
+        '), have ' + F.SIZE + ' (version ' + F.FEATURE_VERSION + ')');
     }
     var layers = weights.layers.map(function (l) {
-      return { rows: l.rows, cols: l.cols, w: floats(l.w), b: floats(l.b) };
+      return { rows: l.rows, cols: l.cols, w: floats(l.w, weights.dtype), b: floats(l.b, weights.dtype) };
     });
     if (layers[layers.length - 1].rows !== OUTPUTS) throw new Error('model must have ' + OUTPUTS + ' outputs');
     var widest = layers.reduce(function (m, l) { return Math.max(m, l.rows); }, 0);

@@ -98,6 +98,7 @@
         lone: neighbors(full, x.index) === 0,
         shortSuit: B.shortSuitDiscard(full, x.index, found.ctx.leadPlan),
         evidence: riskEvidence(v, found.threats, x.index),
+        ml: x.ml || null, // a learned strategy's read (js/mahjong-ml.js)
       };
     });
     out.defense = found.defense;
@@ -822,11 +823,48 @@
     var defense = defenseLine(v, threats, pick, list);
     if (defense) tips.push(defense);
 
+    // 4. A learned strategy says what it expects, and why this tile.
+    var learned = modelLine(list, pick);
+    if (learned) tips.push(learned);
+
     var worry = threats.filter(function (t) { return t.level >= 2; }).sort(function (a, b) { return b.level - a.level; })[0];
     return lead({
       kind: 'discard', tile: pick.tile, tips: tips, candidates: list,
-      why: why, threatName: worry ? worry.name : null,
+      why: why, threatName: worry ? worry.name : null, model: learned || null,
     }, kongAt !== undefined ? kongAt : discardAt);
+  }
+
+  // What a learned strategy (js/mahjong-ml.js) expects from the discard, in
+  // points, and the feature groups that put it ahead of the next best.
+  var GROUP_WORDS = {
+    hand: 'the tiles you keep', discard: 'the tile itself', table: 'what the table shows',
+    context: 'the wall and your seat', speed: 'speed', value: 'hand value', safety: 'safety',
+  };
+
+  function pointsText(n) {
+    var r = Math.round(n);
+    return (r > 0 ? '+' : r < 0 ? '\u2212' : '') + Math.abs(r).toLocaleString('en-US');
+  }
+
+  function pct(p) {
+    var n = 100 * p;
+    return (n < 1 && n > 0 ? '<1' : String(Math.round(n))) + '%';
+  }
+
+  function modelLine(list, pick) {
+    var m = pick && pick.ml;
+    if (!m) return '';
+    var line = 'The model expects ' + pointsText(m.ev) + ' points from this: ' + pct(m.pWin) + ' to win';
+    if (m.pWin >= 0.005) line += ' (about ' + Math.round(m.avgWin).toLocaleString('en-US') + ' points, ' + m.winFaan.toFixed(1) + ' faan)';
+    line += ', ' + pct(m.pDealIn) + ' to deal in.';
+    var next = list.filter(function (x) { return x !== pick && x.ml && x.ml.choice !== false; })
+      .sort(function (a, b) { return b.ml.ev - a.ml.ev; })[0];
+    if (next) line += ' Next best ' + E.tileName(next.tile) + ', ' + pointsText(next.ml.ev) + '.';
+    var why = (m.why || []).filter(function (g) { return g.points >= 1; }).slice(0, 2);
+    if (why.length) {
+      line += ' Ahead on ' + why.map(function (g) { return (GROUP_WORDS[g.group] || g.group) + ' (' + pointsText(g.points) + ')'; }).join(' and ') + '.';
+    }
+    return line;
   }
 
   function chowLabel(pair, tile) {
@@ -979,8 +1017,9 @@
     var top = hint.candidates[0];
     var chosen = hint.candidates.filter(function (c) { return c.tile === tile; })[0];
     if (!chosen) return null;
-    var gap = top.score - chosen.score;
     var mine = E.tileName(tile), best = E.tileName(top.tile);
+    if (top.ml && chosen.ml) return modelFeedback(hint, top, chosen, mine, best);
+    var gap = top.score - chosen.score;
     var great = chosen.tile === top.tile || gap <= 0.002;
     var slows = chosen.shanten > top.shanten;
     // Only called risky when the table shows why (see riskEvidence).
@@ -1009,6 +1048,27 @@
       tips.push(mine + ' leaves fewer ways to improve.');
     }
     return { kind: 'feedback', action: action, tips: tips.map(function (t) { return t.trim(); }) };
+  }
+
+  // A learned strategy weighs discards in expected points, so feedback
+  // compares those.
+  function modelFeedback(hint, top, chosen, mine, best) {
+    var diff = top.ml.ev - chosen.ml.ev;
+    if (chosen.tile === top.tile || diff <= Math.max(5, Math.abs(top.ml.ev) * 0.03)) {
+      var tips = [chosen.tile === top.tile
+        ? (mine + ' was the top choice. ' + (hint.why || '')).trim()
+        : mine + ' is as good as ' + best + '.'];
+      if (chosen.tile === top.tile && hint.model) tips.push(hint.model);
+      return { kind: 'feedback', action: 'Great discard.', tips: tips };
+    }
+    var out = ['The coach picks ' + best + '. ' + (hint.why || '')];
+    out.push('The model expects ' + pointsText(top.ml.ev) + ' points from ' + best + ' and ' + pointsText(chosen.ml.ev) +
+      ' from ' + mine + ': ' + pct(top.ml.pWin) + ' against ' + pct(chosen.ml.pWin) + ' to win, ' +
+      pct(top.ml.pDealIn) + ' against ' + pct(chosen.ml.pDealIn) + ' to deal in.');
+    var action = chosen.shanten > top.shanten ? 'That discard slows your hand.'
+      : chosen.ml.pDealIn > top.ml.pDealIn + 0.02 ? 'That discard was risky.'
+      : diff <= Math.max(20, Math.abs(top.ml.ev) * 0.1) ? 'Good discard.' : 'There was a better discard.';
+    return { kind: 'feedback', action: action, tips: out.map(function (t) { return t.trim(); }) };
   }
 
   function claimName(decision) {

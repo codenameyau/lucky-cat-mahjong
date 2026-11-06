@@ -36,7 +36,7 @@ function targetOf(hand, extra) {
 
 describe('strategy registry', () => {
   it('lists every strategy, with jorge-yau as the coach default', () => {
-    assert.deepEqual(S.ids(), ['jorge-yau', 'lucky-cat', 'only-orphans']);
+    assert.deepEqual(S.ids(), ['jorge-yau', 'lucky-cat', 'only-orphans', 'neural-cat']);
     assert.equal(S.DEFAULT_COACH, 'jorge-yau');
     assert.equal(S.get('lucky-cat').bot, B);
     assert.equal(S.get('jorge-yau').bot, L);
@@ -55,7 +55,7 @@ describe('strategy registry', () => {
 
   it('picks a random strategy from the list', () => {
     assert.equal(S.randomId(() => 0), 'jorge-yau');
-    assert.equal(S.randomId(() => 0.99), 'only-orphans');
+    assert.equal(S.randomId(() => 0.99), 'neural-cat');
   });
 
   it('makes agents that play a full hand', async () => {
@@ -623,7 +623,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.38.3');
+    assert.equal(E.GAME_VERSION, '0.40.0');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);

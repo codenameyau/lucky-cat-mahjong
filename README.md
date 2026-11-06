@@ -147,6 +147,7 @@ Every bot plays a named strategy, built on the shared foundation in `js/mahjong-
 | **lucky-cat** | `js/mahjong-lucky-cat.js` | Tracks every discard and plays the odds to the fastest 3-faan win | [lucky-cat.md](docs/strategies/lucky-cat.md) |
 | **jorge-yau** | `js/mahjong-jorge-yau.js` | Reads the opening hand and builds toward one target hand, attacks with no defense until it's slow late, and locks onto a hand worth 7 faan or more | [jorge-yau.md](docs/strategies/jorge-yau.md) |
 | **only-orphans** | `js/mahjong-only-orphans.js` | Goes for Thirteen Orphans every hand, then pivots to a hand of 1s, 9s and honors | [only-orphans.md](docs/strategies/only-orphans.md) |
+| **neural-cat** | `js/mahjong-ml.js` | Plays Jorge Yau's hands, and a neural network trained on simulated games picks the discard worth the most points on average | [neural-cat.md](docs/strategies/neural-cat.md) |
 
 - The **Strategies** button in the top bar (`js/mahjong-strategies.js`) describes each one and shows who plays which
 - The coach's pick is saved in `localStorage` (`lcm-play-strategies`), and the coach defaults to lucky-cat. The computer players are never saved: each plays a random strategy every game
@@ -210,8 +211,8 @@ What it plays for:
 How each tip reads, always in this order:
 
 1. What to do and why, in a few words
-2. Where the hand stands: tiles from ready and the target hand with its faan, plus a note when it's late
-3. The players worth watching, in what the table shows ("Grace has three melds down, all Bamboo."), never the bots' internal threat level, and how safe the discard is
+2. Where the hand stands: tiles from ready and the target hand with its faan, and when you aim for Seven Pairs, All Triplets or Concealed Triplets, the tiles in your hand that are dead for it because every copy that could finish them is out (a single with no copy left to pair, a pair that can't become a pung)
+3. The players worth watching, as a deduction, and only once it is close to certain (three melds in one suit with none of that suit thrown, or four pungs: each held in 95% or more of simulated hands), such as "Grace is almost certainly going for a Bamboo flush, so any Bamboo you throw is a likely deal-in." It never restates what you can see or how many melds they have or the bots' internal threat level, and how safe the discard is
 
 It doesn't say which tile to drop after this one. Hand names are drawn in red, without their faan. Long tips grow the tip bar instead of being cut off.
 

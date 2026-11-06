@@ -2533,6 +2533,7 @@
       return tuning;
     };
     out.tuning = tuning;
+    out.hooks = hooks; // so another strategy can build on this one
     out.createBotAgent = function () { return createBotAgent({ strategy: out }); };
     return out;
   }

@@ -14,6 +14,7 @@
   var L = node ? require('./mahjong-lucky-cat.js') : root.MahjongLuckyCat;
   var J = node ? require('./mahjong-jorge-yau.js') : root.MahjongJorgeYau;
   var O = node ? require('./mahjong-only-orphans.js') : root.MahjongOnlyOrphans;
+  var N = node ? require('./mahjong-ml.js') : root.MahjongML;
 
   var STRATEGIES = [
     {
@@ -62,13 +63,38 @@
     },
   ];
 
+  // Neural Cat, the learned strategy. A page that doesn't load its scripts
+  // (js/mahjong-ml*.js) leaves it out.
+  if (N) {
+    STRATEGIES.push({
+      id: 'neural-cat',
+      name: 'Neural Cat',
+      bot: N,
+      summary: 'Plays Jorge Yau\'s hands, but a neural network trained on simulated games picks the discard worth the most points on average: wins that come often and wins that pay big both count.',
+      details: [
+        'It reads the hand the way Jorge Yau does: the target hand, the plans it can still make, steps from ready, live tiles, and how risky each tile is.',
+        'Then a neural network trained on hundreds of thousands of simulated hands looks at Jorge Yau\'s three best discards and predicts how the hand ends after each: the chance to win by self-draw or off a discard, the chance to deal in, and how many faan each would be.',
+        'Those make one number, the points the discard is worth on average, and the discard worth the most goes. A quick small win and a slower big one are weighed on the same scale.',
+        'The coach says what the model expects (the chance to win, how much, the chance to deal in) and which parts of the position put its pick ahead: speed, hand value, safety, what the table shows.',
+        'Claims and kongs are Jorge Yau\'s.',
+      ],
+      doc: 'docs/strategies/neural-cat.md',
+    });
+  }
+
+  // Lab strategies: playable by id (npm run compete, npm run review, a
+  // saved pick) but not on the Strategies sheet or in the random seats.
+  var LAB = [];
+
   var DEFAULT_COACH = 'jorge-yau';
   var BY_ID = {};
-  STRATEGIES.forEach(function (s) { BY_ID[s.id] = s; });
+  STRATEGIES.concat(LAB).forEach(function (s) { BY_ID[s.id] = s; });
 
   function list() { return STRATEGIES.slice(); }
   function ids() { return STRATEGIES.map(function (s) { return s.id; }); }
   function has(id) { return !!BY_ID[id]; }
+  function isLab(id) { return !!(BY_ID[id] && BY_ID[id].lab); }
+  function labIds() { return LAB.map(function (s) { return s.id; }); }
 
   // The strategy with this id, or the default one.
   function get(id) { return BY_ID[id] || BY_ID[DEFAULT_COACH]; }
@@ -89,6 +115,8 @@
     list: list,
     ids: ids,
     has: has,
+    isLab: isLab,
+    labIds: labIds,
     get: get,
     randomId: randomId,
     createAgent: createAgent,

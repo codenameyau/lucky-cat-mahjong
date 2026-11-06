@@ -10,7 +10,9 @@
     "generate-tile-pages": "node scripts/generate-tile-pages.js",
     "compete": "node scripts/competition.js",
     "review": "node scripts/review.js",
-    "ml:generate": "node scripts/ml/generate.js"
+    "ml:generate": "node scripts/ml/generate.js",
+    "ml:train": "ml/.venv/bin/python ml/train.py",
+    "ml:loop": "node scripts/ml/loop.js"
   },
   "devDependencies": {
     "puppeteer": "^25.3.0",
