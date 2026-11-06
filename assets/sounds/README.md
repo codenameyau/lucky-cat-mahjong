@@ -26,3 +26,7 @@ plays with no delay. The cues that use them are `CUES` in `js/mahjong-game.js`.
 
 Every sound but the flower's soft glass chime is something physical on the
 table (chips, wood, mining-pick hits); there are no electronic tones.
+
+The playback's Previous button (and the left arrow) uses `tile-claim-1` then `tile-draw` played lower, and Next
+(and the right arrow) uses `tile-draw` then `tile-claim-1`, so they need no files of their own: all of them come
+from the Casino Audio pack, like the draw sound.

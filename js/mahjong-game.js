@@ -284,6 +284,12 @@
   // after it. `vary` nudges the pitch a little each time.
   var CUES = {
     draw: { clips: ['tile-draw'], gain: 0.3, vary: true },
+    // Previous on the playback: the draw's own chip clip (Casino Audio) played
+    // lower, with chips settling just before it, as if the tile were going back.
+    back: { clips: ['tile-claim-1'], gain: 0.45, then: [['tile-draw', 0.04, 0.4, 0.8]] },
+    // Next: the same two chip clips the other way round, the draw first and
+    // the chips settling after it.
+    forward: { clips: ['tile-draw'], gain: 0.45, then: [['tile-claim-1', 0.05, 0.35, 1.1]] },
     // One sound for every discard: the duller chip, the closest to a
     // mahjong tile landing on the table.
     discard: { clips: ['tile-discard'], gain: 0.85 },
@@ -2154,7 +2160,6 @@
         empty.className = 'results-empty';
         empty.textContent = 'Finished hands show up here.';
         body.appendChild(empty);
-        appendReplayButton(body);
         return;
       }
       var table = document.createElement('table');
@@ -2234,7 +2239,6 @@
       foot.appendChild(totalRow);
       table.appendChild(foot);
       body.appendChild(table);
-      appendReplayButton(body);
     }
 
     function currentReplay() {
@@ -2253,30 +2257,6 @@
       var stored = readJson(REPLAY_KEY, null);
       var check = stored && E.checkPlayback(stored);
       return check && check.ok ? stored : null;
-    }
-
-    // The hand just finished, or a replay already saved from it.
-    function appendReplayButton(body) {
-      if (!game) return;
-      var row = document.createElement('div');
-      row.className = 'results-actions';
-      if (game.over && game.hand) {
-        var hands = document.createElement('button');
-        hands.type = 'button';
-        hands.className = 'results-hands';
-        hands.textContent = 'See hands';
-        hands.addEventListener('click', function () { track('play_see_hands_click', {}); seeMatchHands(); });
-        row.appendChild(hands);
-      }
-      if (currentReplay() || storedReplay()) {
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'results-replay';
-        btn.textContent = 'View playback';
-        btn.addEventListener('click', viewReplay);
-        row.appendChild(btn);
-      }
-      if (row.childNodes.length) body.appendChild(row);
     }
 
     // The playback page is another document, so the file has to outlive this one.
@@ -3462,17 +3442,32 @@
     // Tapping your wind badge copies the signed playback. Its hand seed is
     // payload.handSeed. The playback page also keeps that file, and opens it
     // on its own. No message. The badge flashes on the click.
+    // The playback JSON the badge could not copy at the press itself. Some browsers
+    // (Safari) only allow the clipboard from a click, which comes just after the
+    // press the table reacts to, so it is tried again there.
+    var pendingCopy = null;
+    function onCanvasClick() {
+      if (!pendingCopy) return;
+      var text = pendingCopy;
+      pendingCopy = null;
+      copyText(text).then(function () {}, function () {});
+    }
+
     function copySeed() {
       if (!game || !game.hand) return;
-      var file;
-      try { file = currentReplay() || storedReplay(); } catch (err) { return; }
+      var fresh, file;
+      try {
+        fresh = currentReplay(); // this hand as it stands now
+        file = fresh || storedReplay();
+      } catch (err) { return; }
       if (!file || !file.payload || !file.payload.handSeed) return;
-      if (currentReplay()) writeJson(REPLAY_KEY, file);
+      // Saved first, so the playback page has it whether or not the copy works.
+      if (fresh) writeJson(REPLAY_KEY, file);
       track('play_copy_seed', {});
-      // The click saves the playback and flashes the badge. The copy to the
-      // clipboard is a bonus: a browser that refuses it still saved the game.
       animate(520, function (e) { ui.windFlash = 1 - e; });
-      copyText(JSON.stringify(file)).then(function () {}, function () {});
+      var json = JSON.stringify(file);
+      pendingCopy = json;
+      copyText(json).then(function () { pendingCopy = null; }, function () { /* tried again on the click */ });
     }
 
     // Older notes start at the top and later ones follow downward.
@@ -5131,11 +5126,12 @@
       if (rulesOpen() || strategiesOpen() || resultsOpen()) return; // the sheets handle their own keys (Escape closes them)
       if (settings.playback && !settings.review) return;
       if (settings.review) {
-        if (e.key === 'ArrowLeft') { stepReview(-1); e.preventDefault(); }
-        else if (e.key === 'ArrowRight') { stepReview(1); e.preventDefault(); }
+        // The keys press the same buttons, so they click, squeeze and glow too.
+        if (e.key === 'ArrowLeft') { sound.play('back'); pressButton('review-prev'); stepReview(-1); e.preventDefault(); }
+        else if (e.key === 'ArrowRight') { sound.play('forward'); pressButton('review-next'); stepReview(1); e.preventDefault(); }
         else if (e.key === 'Home') { jumpReview(0); e.preventDefault(); }
         else if (e.key === 'End') { jumpReview(reviewMoves()); e.preventDefault(); }
-        else if (e.key === ' ') { toggleReviewPlay(); e.preventDefault(); }
+        else if (e.key === ' ') { sound.play('select'); pressButton('review-play'); toggleReviewPlay(); e.preventDefault(); }
         else if (e.key === 'Escape') { quit(); e.preventDefault(); }
         return;
       }
@@ -5633,6 +5629,7 @@
     function downloadReplay() {
       var file = readJson(REPLAY_KEY, null);
       if (!file || !file.payload) return;
+      sound.play('select'); // the click
       var d = new Date();
       function two(n) { return (n < 10 ? '0' : '') + n; }
       var stamp = d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) + '-' + two(d.getHours()) + two(d.getMinutes());
@@ -5649,6 +5646,7 @@
 
     var replayFileInput = null;
     function uploadReplay() {
+      sound.play('select'); // the click
       if (!replayFileInput) {
         var input = document.createElement('input');
         input.type = 'file';
@@ -5895,16 +5893,18 @@
     function reviewStops() {
       var rec = settings.review;
       if (reviewStopsFor && reviewStopsFor.rec === rec) return reviewStopsFor;
-      var stops = [0], mine = [false], melds = [false], discards = 0;
+      var stops = [0], mine = [false], melds = [false], claims = [false], discards = 0;
       var limit = reviewMoves();
       var meld = false; // you exposed a meld since the last stop
+      var claim = false; // anyone did a chow, pung or kong since the last stop
       for (var i = 0; i < limit; i++) {
         var ev = rec.actions[i];
+        if (ev.a === 'claim' || ev.a === 'kong') claim = true;
         if (ev.s === 0 && (ev.a === 'claim' || (ev.a === 'kong' && ev.k === 'added'))) meld = true;
-        if (ev.a === 'discard') { stops.push(i + 1); mine.push(ev.s === 0); melds.push(meld); meld = false; discards++; }
+        if (ev.a === 'discard') { stops.push(i + 1); mine.push(ev.s === 0); melds.push(meld); claims.push(claim); meld = false; claim = false; discards++; }
       }
-      if (limit > 0 && stops[stops.length - 1] !== limit) { stops.push(limit); mine.push(false); melds.push(meld); }
-      reviewStopsFor = { rec: rec, stops: stops, mine: mine, melds: melds, discards: discards };
+      if (limit > 0 && stops[stops.length - 1] !== limit) { stops.push(limit); mine.push(false); melds.push(meld); claims.push(claim); }
+      reviewStopsFor = { rec: rec, stops: stops, mine: mine, melds: melds, claims: claims, discards: discards };
       return reviewStopsFor;
     }
 
@@ -5954,7 +5954,7 @@
     }
 
     // One move is long enough to read. A reduced-motion visit waits longer.
-    function reviewPace() { return (reduceMotion ? 1900 : 1100) / reviewSpeed; }
+    function reviewPace() { return (reduceMotion ? 2400 : 1500) / reviewSpeed; }
 
     function setReviewSpeed(v) {
       track('play_playback_speed', { speed: v });
@@ -6021,6 +6021,7 @@
 
     function jumpReview(step, quiet) {
       stopReviewPlay();
+      reviewSeq++; // cancels a move still being played out
       step = clamp(step, 0, reviewMoves());
       if (step === reviewStep) return;
       var prev = reviewStep;
@@ -6047,6 +6048,46 @@
       drawReviewButtons({ x0: x + padX, x1: x + w - padX, y: top + barH + gap, h: btnH });
     }
 
+    // A pressed playback button: 1 right after the press, down to 0 over 260 ms.
+    var pressedButton = null;
+    function pressButton(id) {
+      pressedButton = { id: id, at: now() };
+      requestRender();
+    }
+    function pressAmount(id) {
+      if (!pressedButton || pressedButton.id !== id) return 0;
+      var age = now() - pressedButton.at;
+      if (age >= 260) { pressedButton = null; return 0; }
+      requestRender(); // keep drawing until it settles
+      return 1 - age / 260;
+    }
+
+    // The playback buttons' icons, drawn here so they need no font. `s` is the
+    // icon's height.
+    function drawTransportIcon(kind, cx, cy, s, color) {
+      var h = s / 2, w = s * 0.55;
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      if (kind === 'play') {
+        ctx.moveTo(cx - w * 0.7, cy - h); ctx.lineTo(cx + w * 0.9, cy); ctx.lineTo(cx - w * 0.7, cy + h);
+      } else if (kind === 'pause') {
+        var bw2 = s * 0.2;
+        ctx.rect(cx - bw2 * 1.6, cy - h, bw2, s);
+        ctx.rect(cx + bw2 * 0.6, cy - h, bw2, s);
+      } else if (kind === 'prev') {
+        // A bar on the left and a triangle pointing left.
+        ctx.rect(cx - w * 1.05, cy - h, s * 0.16, s);
+        ctx.moveTo(cx + w * 0.9, cy - h); ctx.lineTo(cx - w * 0.6, cy); ctx.lineTo(cx + w * 0.9, cy + h);
+      } else if (kind === 'next') {
+        ctx.rect(cx + w * 1.05 - s * 0.16, cy - h, s * 0.16, s);
+        ctx.moveTo(cx - w * 0.9, cy - h); ctx.lineTo(cx + w * 0.6, cy); ctx.lineTo(cx - w * 0.9, cy + h);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
     // One row: what happened (small, white) on the left, the transport buttons,
     // and the speed control at the right end.
     function drawReviewButtons(slot) {
@@ -6056,9 +6097,13 @@
       var sbw = W < 420 ? 30 : 36;
       var groupW = sbw * speeds.length;
       var rowW = slot.x1 - slot.x0;
-      if (reviewStep > 0) acts.push({ id: 'review-prev', label: 'Previous', style: 'white', fn: function () { stepReview(-1); } });
-      acts.push({ id: 'review-play', label: reviewPlaying ? 'Pause' : 'Play', style: 'gold', fn: toggleReviewPlay });
-      if (reviewStep < n) acts.push({ id: 'review-next', label: 'Next', style: 'white', fn: function () { stepReview(1); } });
+      // Icons, not words: a triangle with a bar for Previous and Next, a triangle
+      // for Play and two bars for Pause.
+      // All three always show. Previous is dimmed and does nothing at the start,
+      // and Next at the end. Play still works at the end: it starts over.
+      acts.push({ id: 'review-prev', icon: 'prev', style: 'white', off: reviewStep <= 0, fn: function () { sound.play('back'); pressButton('review-prev'); stepReview(-1); } });
+      acts.push({ id: 'review-play', icon: reviewPlaying ? 'pause' : 'play', style: 'gold', fn: function () { sound.play('select'); pressButton('review-play'); toggleReviewPlay(); } });
+      acts.push({ id: 'review-next', icon: 'next', style: 'white', off: reviewStep >= n, fn: function () { sound.play('forward'); pressButton('review-next'); stepReview(1); } });
       var gap = 6;
       var bw = rowW >= 560 ? 84 : 66;
       // The buttons sit in the middle of the row, with the caption and the speed
@@ -6101,7 +6146,28 @@
         });
       }
       acts.forEach(function (a, i) {
-        button(a.label, bx0 + i * (bw + gap), slot.y, bw, slot.h, a.fn, a.style, a.id);
+        var ax = bx0 + i * (bw + gap);
+        var cx = ax + bw / 2, cy = slot.y + slot.h / 2;
+        // A press squeezes the button and lets it spring back, with a quick glow.
+        var press = pressAmount(a.id);
+        ctx.save();
+        if (press > 0) {
+          var squeeze = 1 - 0.12 * Math.sin(Math.PI * (1 - press)) ;
+          ctx.translate(cx, cy);
+          ctx.scale(squeeze, squeeze);
+          ctx.translate(-cx, -cy);
+        }
+        if (a.off) ctx.globalAlpha = 0.35;
+        button('', ax, slot.y, bw, slot.h, a.fn, a.style, a.id);
+        if (press > 0) {
+          ctx.save();
+          ctx.globalAlpha = 0.5 * press;
+          pill(ax, slot.y, bw, slot.h, COLORS.goldLight, null);
+          ctx.restore();
+        }
+        drawTransportIcon(a.icon, cx, cy, Math.min(18, slot.h * 0.5), '#3a3a3a');
+        ctx.restore();
+        if (a.off) regions.pop(); // a dimmed button can't be pressed
       });
       var sbh = Math.min(slot.h, 28);
       var gy = slot.y + (slot.h - sbh) / 2;
@@ -6122,13 +6188,14 @@
           ctx.restore();
         }
         text(v + 'x', bx + sbw / 2, gy + sbh / 2 + 1, { size: 12, family: FONT_HEAD, align: 'center', color: on ? COLORS.ink : COLORS.cream });
-        addRegion(bx, gy, sbw, sbh, function () { setReviewSpeed(v); }, 'review-speed-' + v);
+        addRegion(bx, gy, sbw, sbh, function () { sound.play('select'); setReviewSpeed(v); }, 'review-speed-' + v);
       });
     }
 
     // The progress bar: a light groove with a gold fill, a dot for every move
-    // (a bigger one for your own discards, a yellow one for a meld you exposed), and a round handle. Hovering shows
-    // what happened at that move.
+    // (a bigger one for your own discards, a red one for any chow, pung or kong,
+    // inside a yellow circle when it is your own meld), and a round handle.
+    // Hovering shows what happened at that move.
     function drawReviewBar(slot) {
       var info = reviewStops();
       var stops = info.stops;
@@ -6170,17 +6237,32 @@
       for (var i = 1; i < stops.length; i++) {
         var mine = info.mine[i];
         var exposed = info.melds[i];
-        if (gapPx < 7 && !mine && !exposed) continue;
+        var called = info.claims[i];
+        if (gapPx < 7 && !mine && !exposed && !called) continue;
         var dx = x + i / segs * w;
         var done = i <= at;
-        ctx.beginPath();
-        ctx.arc(dx, cy, exposed ? 4.6 : mine ? 3 : 1.5, 0, Math.PI * 2);
-        // A yellow circle is a meld you exposed (a pung, chow or kong).
-        ctx.fillStyle = exposed ? '#FFE14D' : mine ? COLORS.cream : (done ? 'rgba(90,50,0,0.55)' : 'rgba(255,248,240,0.55)');
-        ctx.fill();
-        if (exposed || mine) {
+        if (exposed) {
+          // A meld you exposed: a larger yellow circle behind the red dot.
+          ctx.beginPath();
+          ctx.arc(dx, cy, 5.2, 0, Math.PI * 2);
+          ctx.fillStyle = '#FFE14D';
+          ctx.fill();
           ctx.lineWidth = 1.2;
-          ctx.strokeStyle = exposed ? '#8a5200' : (done ? COLORS.gold : 'rgba(255,255,255,0.7)');
+          ctx.strokeStyle = '#8a5200';
+          ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.arc(dx, cy, called ? (exposed ? 2.8 : 3.8) : mine ? 3 : 1.5, 0, Math.PI * 2);
+        // A red dot is a chow, pung or kong by any player.
+        ctx.fillStyle = called ? COLORS.red : mine ? COLORS.cream : (done ? 'rgba(90,50,0,0.55)' : 'rgba(255,248,240,0.55)');
+        ctx.fill();
+        if (called && !exposed) {
+          ctx.lineWidth = 1.2;
+          ctx.strokeStyle = COLORS.cream;
+          ctx.stroke();
+        } else if (mine && !called) {
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = done ? COLORS.gold : 'rgba(255,255,255,0.7)';
           ctx.stroke();
         }
       }
@@ -6296,6 +6378,53 @@
       banner(label, pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: size || 32 });
     }
 
+    // Where the tile of an action sits now, measured with that action applied:
+    // the start of its flight when the action is played backwards.
+    function reviewReverseFrom(ev) {
+      var seat = ev.s;
+      if (ev.a === 'discard') {
+        var n = game.hand.seats[seat].discards.filter(function (d) { return !d.claimed; }).length;
+        return { from: pondPose(seat, Math.max(0, n - 1)) };
+      }
+      if (ev.a === 'draw') return { from: reviewSortedPose(seat, ev.t) };
+      if (ev.a === 'flower') return { from: ui.flowerAnchor[seat] || seatAnchor(seat) };
+      if (ev.a === 'claim') return { from: ui.meldAnchor[seat] || seatAnchor(seat) };
+      return null; // a kong declaration, a win and a drawn game have no flight
+    }
+
+    // The same move in reverse, once the earlier state is on the table: the
+    // discard flies back to the hand, a draw back to the wall, a claimed tile back
+    // to the pond, a flower back into the hand.
+    function reviewPlayReverse(ev, rev) {
+      var token = reviewMotion;
+      var seat = ev.s;
+      function finish() {
+        if (token !== reviewMotion) return;
+        ui.hide.pond[0] = ui.hide.pond[1] = ui.hide.pond[2] = ui.hide.pond[3] = 0;
+        ui.hide.tile = null;
+        ui.hide.hand = null;
+        requestRender();
+      }
+      if (ev.a === 'discard' || ev.a === 'flower') {
+        ui.hide.tile = ev.t;
+        ui.hide.hand = seat;
+        fly(ev.t, rev.from, reviewHandPose(seat, ev.t), seat === 0 ? 260 : 380, { arc: 26, glow: COLORS.gold }).then(finish);
+        return;
+      }
+      if (ev.a === 'draw') {
+        fly(ev.t, rev.from, drawOrigin(), 300, { arc: 20, glow: COLORS.gold }).then(finish);
+        return;
+      }
+      if (ev.a === 'claim') {
+        var list = game.hand.seats[ev.from] ? game.hand.seats[ev.from].discards : [];
+        var idx = -1;
+        for (var i = 0; i < list.length; i++) if (!list[i].claimed && list[i].tile === ev.t) idx = i;
+        var live = list.filter(function (d) { return !d.claimed; }).length;
+        ui.hide.pond[ev.from] = 1;
+        fly(ev.t, rev.from, pondPose(ev.from, idx >= 0 ? idx : Math.max(0, live - 1)), 320, { arc: 34, glow: COLORS.gold }).then(finish);
+      }
+    }
+
     // The flight, banner, and sound for the move that just landed on the table.
     function reviewPlayMotion(ev, motion) {
       var token = reviewMotion;
@@ -6375,10 +6504,14 @@
 
     // Puts the recorded hand on the table after `reviewStep` moves.
     // False when that move doesn't match the deal, and the table stays put.
-    function showReviewStep(quiet, animated) {
+    function showReviewStep(quiet, animated, reverseEv) {
       if (settings.review && reviewStep > reviewMoves()) reviewStep = reviewMoves();
       var motion = null;
       var ev = null;
+      // Going back one action plays it in reverse: where the tile is now, measured
+      // on the table as it stands, before the earlier state is drawn.
+      var revFrom = null;
+      if (reverseEv && speed(280) > 0 && game && game.hand && settings.review) revFrom = reviewReverseFrom(reverseEv);
       // One step forward plays the same flight the table uses. A jump snaps.
       if (animated && speed(280) > 0 && reviewStep === reviewShown + 1 && game && game.hand && settings.review) {
         ev = settings.review.actions[reviewShown];
@@ -6391,7 +6524,7 @@
         return false;
       }
       if (!built) return false;
-      if (motion && ev) {
+      if ((motion && ev) || revFrom) {
         clearReviewFlights();
         reviewSnapHand = false;
       } else {
@@ -6414,6 +6547,7 @@
       L = computeLayout();
       ensureReviewNotes(reviewStep);
       if (motion && ev) reviewPlayMotion(ev, motion);
+      if (revFrom) reviewPlayReverse(reverseEv, revFrom);
       reviewShown = reviewStep;
       if (!quiet) announce(reviewSpoken());
       requestRender();
@@ -6429,13 +6563,61 @@
       if (to < 0 || to >= stops.length) return;
       var next = stops[to];
       var prev = reviewStep;
-      // Going forward, the draws and claims land at once and the discard flies.
+      reviewSeq++; // a new step or jump cancels a move still being played out
+      // Going forward, each action of the move plays in turn: the draw flies in
+      // and the hand rearranges, then any claim, then the discard flies out.
+      if (d > 0 && next - prev > 1 && !instantMode() && !reduceMotion) {
+        playMoveSteps(prev, next, reviewSeq);
+        return;
+      }
+      // Going back plays the move in reverse, the last action first.
+      if (d < 0 && prev - next >= 1 && !instantMode() && !reduceMotion) {
+        playMoveStepsBack(prev, next, reviewSeq);
+        return;
+      }
+      // Without animation (or when jumping) the move lands at once.
       if (d > 0 && next - prev > 1) {
         reviewStep = next - 1;
         if (!showReviewStep(true)) { reviewStep = prev; return; }
       }
       reviewStep = next;
       if (!showReviewStep(false, d > 0)) reviewStep = prev;
+    }
+
+    // One move, action by action, each with its own flight. Stops if a newer
+    // step or jump has started.
+    var reviewSeq = 0;
+    async function playMoveStepsBack(from, to, seq) {
+      var rec = settings.review;
+      for (var st = from; st > to; st--) {
+        if (seq !== reviewSeq || destroyed || settings.review !== rec) return;
+        var ev = rec.actions[st - 1];
+        var last = st - 1 === to;
+        var before = reviewStep;
+        reviewStep = st - 1;
+        if (!showReviewStep(!last, true, ev)) { reviewStep = before; return; }
+        if (!last) {
+          var wait = ev && (ev.a === 'claim' || ev.a === 'kong') ? 520 : 340;
+          await sleep(wait / reviewSpeed);
+        }
+      }
+    }
+
+    async function playMoveSteps(from, to, seq) {
+      var rec = settings.review;
+      for (var st = from + 1; st <= to; st++) {
+        if (seq !== reviewSeq || destroyed || settings.review !== rec) return;
+        var ev = rec.actions[st - 1];
+        var last = st === to;
+        var before = reviewStep;
+        reviewStep = st;
+        if (!showReviewStep(!last, true)) { reviewStep = before; return; }
+        if (!last) {
+          // Long enough to watch the tile fly, shorter at a faster speed.
+          var wait = ev && (ev.a === 'claim' || ev.a === 'kong') ? 520 : 340;
+          await sleep(wait / reviewSpeed);
+        }
+      }
     }
 
     async function play() {
@@ -6641,6 +6823,7 @@
       });
     })();
     canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('click', onCanvasClick);
     canvas.addEventListener('pointermove', onPointerMove);
     canvas.addEventListener('pointerup', onPointerUp);
     canvas.addEventListener('pointercancel', onPointerUp);
@@ -6668,6 +6851,7 @@
         root.removeEventListener('resize', onResize);
         root.removeEventListener('keydown', onKey);
         canvas.removeEventListener('pointerdown', onPointerDown);
+        canvas.removeEventListener('click', onCanvasClick);
         canvas.removeEventListener('pointermove', onPointerMove);
         canvas.removeEventListener('pointerup', onPointerUp);
         canvas.removeEventListener('pointercancel', onPointerUp);
