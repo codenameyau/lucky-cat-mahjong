@@ -162,6 +162,16 @@
   var images = {};
   var assetsReady = null;
 
+  function loadScript(src) {
+    return new Promise(function (resolve) {
+      var el = document.createElement('script');
+      el.src = src;
+      el.onload = resolve;
+      el.onerror = resolve; // like an image, a miss must not stop the game starting
+      document.head.appendChild(el);
+    });
+  }
+
   function loadImage(src) {
     return new Promise(function (resolve) {
       var img = new Image();
@@ -179,6 +189,9 @@
       return loadImage('/tiles/' + E.HKScoring.TILE_BY_ID[id].file).then(function (img) { images[id] = img; });
     });
     jobs.push(loadImage('/logo.png').then(function (img) { images.logo = img; }));
+    // Neural Cat's weights are the page's biggest script. The menu does not
+    // need them, so they load here, before a strategy first builds its model.
+    if (!root.MahjongMLWeights) jobs.push(loadScript('/js/mahjong-ml-weights.js'));
     if (document.fonts && document.fonts.load) {
       jobs.push(Promise.race([
         document.fonts.load('16px "KN Yuanmo SC"').catch(function () {}),
@@ -2334,6 +2347,11 @@
         // This hand is only put back to look at. It is not a hand in progress,
         // so a save must not store it as one (a second refresh would play it on).
         restoredHand = played.hand;
+        // The table was laid out before this hand existed, for the 8 discards
+        // a phone's ponds plan for, so a long hand would draw its discards
+        // far too large. Fit them to the hand that is here.
+        L = computeLayout();
+        requestRender();
         return true;
       } catch (err) {
         return false;
@@ -2962,13 +2980,38 @@
       var gw = rad * 1.8, gh = gw * TILE_ASPECT; // the character alone, so a good size
       var visH = gh * 0.716; // the SVG's character fills about this much of its height
       var leftLabel = game.hand.wall.length + ' tiles left';
-      var leftSize = fitFont(ctx, leftLabel, c.w - 10, clamp(c.h * 0.15, 10, 13), FONT_BODY);
+      var leftSize = fitFont(ctx, leftLabel, c.w - 22, clamp(c.h * 0.15, 10, 13), FONT_BODY); // clear of the side arrows
       var textGap = 3;
       var top = cy - (visH + textGap + leftSize) / 2;
       var glyphY = top + visH / 2;
       var windGlyph = windGlyphSprite(['', 'we', 'ws', 'ww', 'wn'][game.round], gw, gh);
       if (windGlyph) ctx.drawImage(windGlyph, cx - gw / 2, glyphY - gh / 2, gw, gh);
       text(leftLabel, cx, top + visH + textGap + leftSize / 2, { size: leftSize, align: 'center', color: COLORS.cream });
+
+      // Arrow toward whose turn it is, on the plaque's edge nearest that seat.
+      // A soft rounded gold point whose glow breathes with the seat's outline.
+      if (ui.turnSeat !== null && !ui.overlay) {
+        var ang = [Math.PI / 2, 0, -Math.PI / 2, Math.PI][ui.turnSeat];
+        var dist = ui.turnSeat % 2 === 0 ? c.h / 2 - 3 : c.w / 2 - 3; // on the plaque's edge, clear of the text
+        var breathe = 0.5 + 0.5 * Math.sin(now() / 600);
+        ctx.save();
+        ctx.translate(cx + Math.cos(ang) * dist, cy + Math.sin(ang) * dist);
+        ctx.rotate(ang);
+        ctx.beginPath();
+        ctx.moveTo(4.5, 0); ctx.lineTo(-3, -5); ctx.lineTo(-3, 5); ctx.closePath();
+        var tip = ctx.createLinearGradient(-3, 0, 4.5, 0);
+        tip.addColorStop(0, COLORS.gold);
+        tip.addColorStop(1, COLORS.goldLight);
+        ctx.shadowColor = 'rgba(244,160,32,' + (0.45 + 0.35 * breathe) + ')';
+        ctx.shadowBlur = 4 + 3 * breathe;
+        ctx.fillStyle = tip;
+        ctx.strokeStyle = tip;
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 1.5; // rounds the three corners
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
     // A tile SVG's character (the file holds only the character) painted gold,
