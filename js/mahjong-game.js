@@ -3236,46 +3236,47 @@
       // In Feedback the Chow and Pass buttons already name the tile, so
       // "Claim Five Bamboo?" adds nothing. Win and short-hand notices stay.
       if (ui.coach === 'feedback' && ui.claimPrompt && ui.notice && ui.notice.indexOf('Claim ') === 0) showNotice = false;
-      // On a claim the question and the coach's answer share one line, such
-      // as "Claim One Circle? Chow 1-2-3 Circles."
-      var oneLine = showNotice && ui.claimPrompt && ui.coach === 'on' && note && note.action;
       // The note on a tile you've selected to throw ("... is OK, but ...")
       // goes last, running on from the coach's hint in its own color.
       var choiceNote = showNotice && ui.turnPrompt && ui.selected >= 0;
       // A win is one bold sentence. The coach's copy is that same sentence.
       var declaring = ui.notice && ui.notice.indexOf('Mahjong!') === 0;
+      // Everything the box says is one paragraph, run on in order with no line
+      // breaks: the question or notice, the coach's action in gold, the tips,
+      // how to discard on your first move in white, and the note on a selected
+      // tile in gold. A win is one bold sentence on its own.
+      var tips = declaring ? '' : (note && note.tips && note.tips.length ? note.tips.join(' ') : '');
+      // Your first move of a game also says how to discard.
+      var firstMove = !settings.lesson && ui.coach === 'on' && ui.turnPrompt && game && game.handNumber === 1 && !game.hand.seats[0].discards.length;
+      var parts = [];
       if (declaring) {
         lines.push({ text: ui.notice, color: COLORS.goldLight, bold: true, nowrap: true });
-      } else if (oneLine) {
-        lines.push({ text: ui.notice + ' ' + note.action, color: COLORS.goldLight, bold: true });
       } else {
-        if (showNotice && !choiceNote) lines.push({ text: ui.notice, color: COLORS.goldLight });
-        // The main action on its own line in bold gold; the rest as one paragraph.
-        if (note && note.action) lines.push({ text: note.action, color: COLORS.goldLight, bold: true });
-      }
-      var tips = declaring ? '' : (note && note.tips && note.tips.length ? note.tips.join(' ') : '');
-      // Your first move of a game also says how to discard, in bold white.
-      var firstMove = !settings.lesson && ui.coach === 'on' && ui.turnPrompt && game && game.handNumber === 1 && !game.hand.seats[0].discards.length;
-      if (tips && choiceNote) {
-        lines.push({ text: tips + ' ' + ui.notice, color: COLORS.cream, tailFrom: coachPieces(tips).plain.length + 1, tailColor: COLORS.goldLight });
-      } else {
-        if (tips) lines.push({ text: tips, color: COLORS.cream });
-        if (choiceNote && !declaring) lines.push({ text: ui.notice, color: COLORS.goldLight });
-      }
-      if (firstMove && !declaring && note && note.action) {
-        lines.push({ text: TAP_TWICE, color: COLORS.white, bold: true });
-      }
-      if (!note && !declaring) {
-        // Nothing to say right now: say what this box is for, in gray.
-        if (ui.coach === 'off') {
-          lines.push({ text: 'The coach is off.', color: GRAY, bold: true });
-          lines.push({ text: 'Click the Coach button at the top to turn it on and get advice on every move, or switch it to Feedback to learn from the moves you\'ve made.', color: GRAY });
-        } else if (ui.coach === 'feedback') {
-          lines.push({ text: 'Feedback is on.', color: GRAY, bold: true });
-          lines.push({ text: 'After you make a move, the coach will tell you how it went so you can learn from it. ' + TAP_TWICE, color: GRAY });
-        } else {
-          lines.push({ text: 'The coach gives advice here on your turn and when you can claim a tile.', color: GRAY });
+        if (showNotice && !choiceNote) parts.push({ text: ui.notice, color: COLORS.goldLight });
+        if (note && note.action) parts.push({ text: note.action, color: COLORS.goldLight });
+        if (tips) parts.push({ text: tips, color: COLORS.cream });
+        if (firstMove && note && note.action) parts.push({ text: TAP_TWICE, color: COLORS.white });
+        if (choiceNote) parts.push({ text: ui.notice, color: COLORS.goldLight });
+        if (!note) {
+          // Nothing to say right now: say what this box is for, in gray.
+          if (ui.coach === 'off') {
+            parts.push({ text: 'The coach is off. Click the Coach button at the top to turn it on and get advice on every move, or switch it to Feedback to learn from the moves you\'ve made.', color: GRAY });
+          } else if (ui.coach === 'feedback') {
+            parts.push({ text: 'Feedback is on. After you make a move, the coach will tell you how it went so you can learn from it. ' + TAP_TWICE, color: GRAY });
+          } else {
+            parts.push({ text: 'The coach gives advice here on your turn and when you can claim a tile.', color: GRAY });
+          }
         }
+      }
+      if (parts.length) {
+        var runs = [], joined = '', plainAt = 0;
+        parts.forEach(function (pt, k) {
+          if (k) { joined += ' '; plainAt += 1; }
+          runs.push({ from: plainAt, color: pt.color }); // plain-text positions, so hand-name marks don't shift them
+          joined += pt.text;
+          plainAt += coachPieces(pt.text).plain.length;
+        });
+        lines.push({ text: joined, color: parts[0].color, runs: runs });
       }
       var iconS = Math.min(L.hintH - 14, 48);
       var tx = x + 8 + iconS + 8;
@@ -3302,11 +3303,16 @@
             var at = plain.indexOf(ln, cursor);
             cursor = at + ln.length;
             var segs = [], pos = at;
-            // Plain text in the line's color, or its tail's from tailFrom on.
+            // Plain text in the line's color, changing to a run's color from where it starts.
             var pushPlain = function (a, b) {
-              var split = l.tailColor ? clamp(l.tailFrom, a, b) : b;
-              if (split > a) segs.push({ text: plain.slice(a, split), color: l.color });
-              if (b > split) segs.push({ text: plain.slice(split, b), color: l.tailColor });
+              var cuts = (l.runs || []).map(function (r) { return r.from; }).filter(function (c) { return c > a && c < b; });
+              var from = a;
+              cuts.concat([b]).forEach(function (cut) {
+                var color = l.color;
+                (l.runs || []).forEach(function (r) { if (r.from <= from) color = r.color; });
+                if (cut > from) segs.push({ text: plain.slice(from, cut), color: color });
+                from = cut;
+              });
             };
             red.forEach(function (r) {
               var a = Math.max(r[0], at), b = Math.min(r[1], at + ln.length);
