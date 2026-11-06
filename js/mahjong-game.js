@@ -4313,12 +4313,12 @@
       drawSheetBg(r);
       var px = r.x + 22;
       text('Menu', px, r.y + 36, { size: 28, family: FONT_HEAD, align: 'left', color: COLORS.goldLight });
-      button('Close', r.x + r.w - 22 - 64, r.y + 22, 64, 28, function () { closeOverlay(); }, 'ghost', 'm-close');
+      button('Close', r.x + r.w - 22 - 64, r.y + 22, 64, 28, function () { sound.play('select'); closeOverlay(); }, 'ghost', 'm-close');
       var bx = px, bw = r.w - 44, y = r.y + 70, step = 52;
-      button('Resume', bx, y, bw, 42, function () { closeOverlay(); }, 'primary', 'm-resume'); y += step;
+      button('Resume', bx, y, bw, 42, function () { sound.play('select'); closeOverlay(); }, 'primary', 'm-resume'); y += step;
       var armed = ui.restartArmed && now() - ui.restartArmed < 5000;
-      button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, 42, restartGame, armed ? 'gold' : 'white', 'm-restart'); y += step;
-      button('Quit game', bx, y, bw, 42, function () { quit(); }, 'white', 'm-quit');
+      button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, 42, function () { sound.play('select'); restartGame(); }, armed ? 'gold' : 'white', 'm-restart'); y += step;
+      button('Quit game', bx, y, bw, 42, function () { sound.play('select'); quit(); }, 'white', 'm-quit');
       // Mode and version, with a Beta badge.
       var line = (settings.lesson ? 'Learn to play' : settings.mode === 'practice' ? 'Practice mode' : 'Full game') + ' · v' + E.GAME_VERSION;
       ctx.font = '12px ' + FONT_BODY;
@@ -4659,6 +4659,7 @@
     }
 
     function openMenu() {
+      sound.play('select'); // the click
       if (ui.overlay && ui.overlay.type === 'menu') { closeOverlay(); return; }
       ui.overlay = { type: 'menu', previous: ui.overlay };
       requestRender();
