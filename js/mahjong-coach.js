@@ -144,7 +144,8 @@
     }
     var oneSuit = B.suitCommitment(v.ctx, c);
     if (oneSuit && i < 27 && E.suitOfIndex(i) !== oneSuit) {
-      return 'Go for ' + SUIT_NAME[oneSuit] + ', so other suits go first.';
+      // The plan line names the flush, so this one only says why the tile goes.
+      return 'Your hand is keeping ' + SUIT_NAME[oneSuit] + ', so other suits go first.';
     }
     if (B.isPungTile(v.game, i) && c[i] < 2) {
       return pungedReason(i);
@@ -489,7 +490,7 @@
   function playerDiscardWhy(plan, pick) {
     var route = routeOf(plan);
     if (route && route.suit && pick.index < 27 && E.suitOfIndex(pick.index) !== route.suit) {
-      return 'You\'re going for ' + SUIT_NAME[route.suit] + ', so other suits go first.';
+      return 'Your hand is keeping ' + SUIT_NAME[route.suit] + ', so other suits go first.';
     }
     return 'It doesn\'t help the hand you\'re going for.';
   }
@@ -551,7 +552,9 @@
   // What the table tracker read from the discards, when it bears on this hand:
   // someone collecting a suit you hold a lot of, or changing hands. Only a
   // strategy that tracks the table has ctx.track.
-  function tableNote(v, route, line) {
+  // `said` is what the hint already says before this line, so a note that
+  // repeats it is left out.
+  function tableNote(v, route, line, said) {
     var track = v.ctx.track;
     if (!track) return '';
     var c = E.countsOf(v.game.hand.seats[v.seat].hand);
@@ -571,7 +574,8 @@
       }
     }
     var own = v.ctx.ownRead;
-    if (!note && own && own.n >= 4 && route && route.suit && (route.id === 'half' || route.id === 'full') && own.by[route.suit] / own.n <= 0.1) {
+    var keeping = route && route.suit && (said || '').indexOf('keeping ' + SUIT_NAME[route.suit]) !== -1;
+    if (!note && !keeping && own && own.n >= 4 && route && route.suit && (route.id === 'half' || route.id === 'full') && own.by[route.suit] / own.n <= 0.1) {
       note = 'You\'ve kept your ' + SUIT_NAME[route.suit] + ' so far, so stay on it.';
     }
     track.seats.forEach(function (r) {
@@ -920,7 +924,7 @@
           : ' You\'re short of ' + min + ' faan, so add a flush, All Triplets or a dragon or wind meld.';
       }
       if (!followed) line += upgradeNote(v, route);
-      line += tableNote(v, speak, line);
+      line += tableNote(v, speak, line, tips.join(' '));
       tips.push(line);
     }
 
