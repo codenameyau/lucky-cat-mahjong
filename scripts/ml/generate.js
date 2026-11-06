@@ -1,0 +1,307 @@
+#!/usr/bin/env node
+/* Training data for the learned strategy (js/mahjong-ml.js).
+
+   Plays deals across worker threads and records discards: the features of
+   the position each discard left (js/mahjong-ml-features.js), read through
+   neural-cat's own foundation as in play, and labelled with how the hand
+   ended for that seat. Every seat is recorded, whatever strategy it plays.
+
+   npm run ml:generate -- --deals 2000
+   npm run ml:generate -- --deals 50000 --lineup mix --explore 0.1 --out ml/data/r1
+   npm run ml:generate -- --lineup neural-cat,jorge-yau,lucky-cat,neural-cat --weights ml/models/r1.json --temperature 150
+
+   Options:
+     --deals N        deals to play (default 1000)
+     --seed N         first deal's seed (default 1)
+     --lineup ...     four strategy ids by seat, or "mix" (default): each
+                      seat picks at random from --pool every deal
+     --pool a,b,..    strategies for "mix" (default: every table strategy
+                      and neural-cat); ml:<file> is an earlier model playing
+                      its best, so neural-cat can train against a league
+     --sample P       chance each discard is recorded (default 0.3)
+     --explore P      chance a rule bot's discard is swapped for a random
+                      one that costs no step toward ready, and its claim
+                      choice for a random one (default 0.05)
+     --top-k N        neural-cat picks among its foundation's best N (default 3)
+     --weights FILE   neural-cat's weights (JSON); default: shipped or random
+     --temperature T  neural-cat's exploration, in points (default 100)
+     --epsilon P      neural-cat's random discards (default 0.05)
+     --workers N      worker threads (default: CPU cores - 1)
+     --out DIR        where to write (default ml/data/<date-time>)
+
+   Writes, per worker, shard-N.features (float16, SIZE per sample) and
+   shard-N.labels (16 bytes per sample: outcome, winFaan, payFaan, turn,
+   seat, strategy, wallLeft, explored as uint8 (bit 1: a random choice; bit 2:
+   a position waiting for a tile, after a passed claim or a kong); delta as
+   float32; deal seed
+   as uint32), and manifest.json describing both. */
+
+'use strict';
+
+const os = require('node:os');
+const fs = require('node:fs');
+const path = require('node:path');
+const { Worker, isMainThread, parentPort, workerData } = require('node:worker_threads');
+
+const E = require('../../js/mahjong-engine.js');
+const S = require('../../js/mahjong-strategies.js');
+const F = require('../../js/mahjong-ml-features.js');
+const M = require('../../js/mahjong-ml-model.js');
+const ML = require('../../js/mahjong-ml.js');
+
+const LABEL_BYTES = 16;
+const OUTCOMES = M.OUTCOMES;
+const ML_ID = 'neural-cat';
+
+// Which outcome the hand had for `seat` (an index into OUTCOMES).
+function outcomeFor(res, seat) {
+  if (res.type !== 'win') return 5;
+  const selfPaid = res.payer === null || res.payer === undefined;
+  if (res.winner === seat) return selfPaid ? 0 : 1;
+  if (res.payer === seat) return 2;
+  return selfPaid ? 3 : 4;
+}
+
+function faanOf(res) { return Math.max(3, Math.min(13, (res.score && res.score.faan) || 3)); }
+
+// The discards that cost no step toward ready, for exploring.
+function noStepDiscards(hand, declared) {
+  const c = E.countsOf(hand);
+  let best = Infinity, out = [];
+  for (let i = 0; i < 34; i++) {
+    if (!c[i]) continue;
+    c[i]--;
+    const s = E.shanten(c, declared);
+    c[i]++;
+    if (s < best) { best = s; out = [i]; } else if (s === best) out.push(i);
+  }
+  return out;
+}
+
+function makeAgent(id, cfg) {
+  if (/^ml:/.test(id)) return { agent: cfg.models[id].createBotAgent(), rule: false };
+  if (id !== ML_ID) return { agent: S.createAgent(id), rule: true };
+  return { agent: cfg.mlBot.createBotAgent(), rule: false };
+}
+
+async function runWorker(cfg) {
+  const strategies = cfg.strategies;
+  const rng = E.createRng((cfg.seed * 2654435761) >>> 0);
+  const weights = cfg.weightsFile ? JSON.parse(fs.readFileSync(cfg.weightsFile, 'utf8')) : null;
+  // One copy of neural-cat for every seat that plays it (its calls are synchronous).
+  cfg.mlBot = ML.create({ model: weights ? M.createModel(weights) : ML.model, topK: cfg.topK, temperature: cfg.temperature, epsilon: cfg.epsilon, rng, fast: true });
+  // "ml:<file>" seats: earlier models, playing their best (a league).
+  cfg.models = {};
+  cfg.pool.concat(cfg.lineup === 'mix' ? [] : cfg.lineup).filter((id) => /^ml:/.test(id)).forEach((id) => {
+    if (!cfg.models[id]) cfg.models[id] = ML.create({ id, weights: JSON.parse(fs.readFileSync(path.resolve(id.slice(3)), 'utf8')), fast: true });
+  });
+  const featFd = fs.openSync(path.join(cfg.out, 'shard-' + cfg.index + '.features'), 'w');
+  const labelFd = fs.openSync(path.join(cfg.out, 'shard-' + cfg.index + '.labels'), 'w');
+  let samples = 0, hands = 0;
+  const outcomes = OUTCOMES.map(() => 0);
+  const t0 = Date.now();
+
+  for (let d = 0; d < cfg.deals; d++) {
+    const dealSeed = (cfg.seed + d) >>> 0;
+    const ids = cfg.lineup === 'mix'
+      ? [0, 1, 2, 3].map(() => cfg.pool[Math.floor(rng() * cfg.pool.length)])
+      : cfg.lineup;
+    const game = E.createGame({ seed: dealSeed, humanSeat: false, dealer: dealSeed % 4, startPoints: 1e9 });
+    game.round = ((dealSeed >>> 2) % 4) + 1;
+    const records = [];
+    // Waiting positions (a passed claim, a kong) are marked with 2 in `explored`.
+    const push = (g, s, id, x, explored) => records.push({
+      seat: s, strategy: strategies.indexOf(id), explored: explored | 2,
+      turn: g.hand.seats[s].discards.length, wallLeft: g.hand.wall.length, x,
+    });
+    const waiting = (g, s, id, kind, tile, explored) => push(g, s, id, ML.waitingFeatures(cfg.mlBot, g, s, kind, tile), explored);
+    const agents = ids.map((id, seat) => {
+      const made = makeAgent(id, cfg);
+      return {
+        turn(g, s, opts) {
+          // Read the position before the bot moves (its plan memo moves after).
+          const keep = !opts.win && rng() < cfg.sample;
+          const state = keep ? F.prepare(g, s, null, null, cfg.mlBot) : null;
+          return made.agent.turn(g, s, opts).then((action) => {
+            if (action && action.type === 'kong') {
+              // The position after the kong, before its replacement tile.
+              const kong = opts.kongs.filter((k) => k.tile === action.tile)[0];
+              if (kong) waiting(g, s, id, kong.kind, kong.tile, 0);
+              return action;
+            }
+            if (!action || action.type !== 'discard') return action;
+            let explored = 0;
+            if (made.rule && cfg.explore && rng() < cfg.explore) {
+              const pool = noStepDiscards(g.hand.seats[s].hand, g.hand.seats[s].melds.length);
+              const i = pool[Math.floor(rng() * pool.length)];
+              if (E.tileId(i) !== action.tile) { action = { type: 'discard', tile: E.tileId(i) }; explored = 1; }
+            }
+            if (state) {
+              records.push({
+                seat: s, strategy: strategies.indexOf(id), explored,
+                turn: g.hand.seats[s].discards.length, wallLeft: g.hand.wall.length,
+                x: F.encode(state, E.tileIndex(action.tile)),
+              });
+            }
+            return action;
+          });
+        },
+        claim(g, s, opts) {
+          const can = !opts.win && (opts.pung || opts.kong || opts.chows.length);
+          // Read before the choice moves anything.
+          const keep = can && rng() < cfg.sample;
+          const pass = keep ? ML.waitingFeatures(cfg.mlBot, g, s, 'pass', opts.tile) : null;
+          const kong = keep && opts.kong ? ML.waitingFeatures(cfg.mlBot, g, s, 'kong', opts.tile) : null;
+          return made.agent.claim(g, s, opts).then((d) => {
+            let explored = 0;
+            if (can && made.rule && cfg.explore && rng() < cfg.explore) {
+              const all = [{ type: 'pass' }].concat(opts.pung ? [{ type: 'pung' }] : [], opts.kong ? [{ type: 'kong' }] : [],
+                opts.chows.map((tiles) => ({ type: 'chow', tiles })));
+              const pick = all[Math.floor(rng() * all.length)];
+              if (pick.type !== d.type || (pick.tiles && (!d.tiles || pick.tiles.join() !== d.tiles.join()))) { d = pick; explored = 1; }
+            }
+            if (d && d.type === 'pass' && pass) push(g, s, id, pass, explored);
+            if (d && d.type === 'kong' && kong) push(g, s, id, kong, explored);
+            return d;
+          });
+        },
+      };
+    });
+    const res = await E.runHand(game, agents);
+    hands++;
+    if (!records.length) continue;
+    const feats = new Float16Array(records.length * F.SIZE);
+    const labels = Buffer.alloc(records.length * LABEL_BYTES);
+    records.forEach((r, k) => {
+      feats.set(r.x, k * F.SIZE);
+      const o = outcomeFor(res, r.seat);
+      outcomes[o]++;
+      const off = k * LABEL_BYTES;
+      labels.writeUInt8(o, off);
+      labels.writeUInt8(o === 0 || o === 1 ? faanOf(res) : 0, off + 1);
+      labels.writeUInt8(o === 2 || o === 3 ? faanOf(res) : 0, off + 2);
+      labels.writeUInt8(Math.min(255, r.turn), off + 3);
+      labels.writeUInt8(r.seat, off + 4);
+      labels.writeUInt8(r.strategy, off + 5);
+      labels.writeUInt8(Math.min(255, r.wallLeft), off + 6);
+      labels.writeUInt8(r.explored, off + 7);
+      labels.writeFloatLE(res.deltas[r.seat], off + 8);
+      labels.writeUInt32LE(dealSeed, off + 12);
+    });
+    fs.writeSync(featFd, new Uint8Array(feats.buffer));
+    fs.writeSync(labelFd, labels);
+    samples += records.length;
+    if (cfg.progress && (d + 1) % cfg.progress === 0) parentPort.postMessage({ progress: d + 1, index: cfg.index });
+  }
+  fs.closeSync(featFd);
+  fs.closeSync(labelFd);
+  return { index: cfg.index, deals: cfg.deals, hands, samples, outcomes, ms: Date.now() - t0 };
+}
+
+if (!isMainThread) {
+  runWorker(workerData).then((r) => parentPort.postMessage({ done: r }));
+  return;
+}
+
+function parseArgs(argv) {
+  const out = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (!a.startsWith('--')) continue;
+    const next = argv[i + 1];
+    if (next === undefined || next.startsWith('--')) out[a.slice(2)] = true;
+    else { out[a.slice(2)] = next; i++; }
+  }
+  return out;
+}
+
+function stamp() {
+  return new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
+}
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2));
+  const pool = args.pool ? String(args.pool).split(',') : null;
+  const lineup = !args.lineup || args.lineup === 'mix' ? 'mix' : String(args.lineup).split(',');
+  const models = (pool || []).concat(lineup === 'mix' ? [] : lineup).filter((id) => /^ml:/.test(id));
+  const known = S.ids().concat(S.ids().indexOf(ML_ID) !== -1 ? [] : [ML_ID])
+    .concat(models.filter((id, k) => models.indexOf(id) === k));
+  if (lineup !== 'mix' && lineup.length !== 4) throw new Error('--lineup needs four strategy ids, or "mix"');
+  (lineup === 'mix' ? (pool || known) : lineup).forEach((id) => {
+    if (known.indexOf(id) === -1) throw new Error('unknown strategy ' + id + ' (have: ' + known.join(', ') + ')');
+  });
+  const deals = Math.max(1, parseInt(args.deals || 1000, 10));
+  const seed = parseInt(args.seed || 1, 10);
+  const workers = Math.max(1, Math.min(deals, parseInt(args.workers || Math.max(1, os.cpus().length - 1), 10)));
+  const out = path.resolve(String(args.out || path.join('ml', 'data', stamp())));
+  fs.mkdirSync(out, { recursive: true });
+  const cfgBase = {
+    lineup, pool: pool || known, out,
+    strategies: known,
+    sample: args.sample !== undefined ? parseFloat(args.sample) : 0.3,
+    explore: args.explore !== undefined ? parseFloat(args.explore) : 0.05,
+    temperature: args.temperature !== undefined ? parseFloat(args.temperature) : 100,
+    epsilon: args.epsilon !== undefined ? parseFloat(args.epsilon) : 0.05,
+    topK: args['top-k'] !== undefined ? parseInt(args['top-k'], 10) : undefined,
+    weightsFile: args.weights ? path.resolve(String(args.weights)) : null,
+  };
+
+  console.log('Playing ' + deals + ' deals on ' + workers + ' worker' + (workers > 1 ? 's' : '') + ' into ' + out);
+  const t0 = Date.now();
+  const per = Math.ceil(deals / workers);
+  const progress = new Array(workers).fill(0);
+  let lastLog = 0;
+  const jobs = [];
+  for (let w = 0; w < workers; w++) {
+    const first = w * per;
+    const count = Math.min(per, deals - first);
+    if (count <= 0) break;
+    const cfg = Object.assign({}, cfgBase, { index: w, deals: count, seed: seed + first, progress: 50 });
+    jobs.push(new Promise((resolve, reject) => {
+      const worker = new Worker(__filename, { workerData: cfg });
+      worker.on('message', (m) => {
+        if (m.done) return resolve(m.done);
+        progress[m.index] = m.progress;
+        const done = progress.reduce((a, b) => a + b, 0);
+        if (Date.now() - lastLog > 10000) {
+          lastLog = Date.now();
+          const rate = done / ((Date.now() - t0) / 1000);
+          console.log('  ' + done + '/' + deals + ' deals, ' + rate.toFixed(1) + '/s, about ' + Math.round((deals - done) / rate) + 's left');
+        }
+      });
+      worker.once('error', reject);
+    }));
+  }
+  const shards = await Promise.all(jobs);
+  const total = shards.reduce((a, s) => a + s.samples, 0);
+  const outcomes = OUTCOMES.map((_, i) => shards.reduce((a, s) => a + s.outcomes[i], 0));
+  const manifest = {
+    featureVersion: F.FEATURE_VERSION,
+    featureSize: F.SIZE,
+    featureDtype: 'float16',
+    groups: F.GROUPS,
+    labelBytes: LABEL_BYTES,
+    labelFields: [
+      ['outcome', 'u8'], ['winFaan', 'u8'], ['payFaan', 'u8'], ['turn', 'u8'],
+      ['seat', 'u8'], ['strategy', 'u8'], ['wallLeft', 'u8'], ['explored', 'u8'],
+      ['delta', 'f32'], ['dealSeed', 'u32'],
+    ],
+    outcomes: OUTCOMES,
+    strategies: known,
+    gameVersion: E.GAME_VERSION,
+    config: { deals, seed, lineup, pool, sample: cfgBase.sample, explore: cfgBase.explore, temperature: cfgBase.temperature, epsilon: cfgBase.epsilon, weights: cfgBase.weightsFile },
+    shards: shards.map((s) => ({ features: 'shard-' + s.index + '.features', labels: 'shard-' + s.index + '.labels', samples: s.samples, deals: s.deals })),
+    samples: total,
+    ms: Date.now() - t0,
+  };
+  fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+  const secs = (Date.now() - t0) / 1000;
+  console.log('Wrote ' + total + ' samples from ' + deals + ' deals in ' + secs.toFixed(1) + 's (' + (deals / secs).toFixed(1) + ' deals/s)');
+  console.log('Outcomes: ' + OUTCOMES.map((k, i) => k + ' ' + (100 * outcomes[i] / Math.max(1, total)).toFixed(1) + '%').join(', '));
+  console.log('Size: ' + ((total * (F.SIZE * 2 + LABEL_BYTES)) / 1e6).toFixed(1) + ' MB');
+}
+
+main().catch((err) => {
+  console.error(err.stack || err.message || err);
+  process.exit(1);
+});

@@ -56,4 +56,4 @@ Defense is shared with the other bots (see [lucky-cat.md](lucky-cat.md#defense))
 
 ## How it does
 
-It wins least and scored most in the four-strategy competition (see [the results](README.md#results-with-all-four-strategies)): 1.7% of hands, about 41 points a hand. Limit hands pay so much that 178 of them in 24,000 hands carried its total, so its score swings widely from run to run. It deals in about 3 times for every win.
+It wins least and scored most in the four-strategy competition (see [the results](README.md#earlier-results)): 1.7% of hands, about 41 points a hand. Limit hands pay so much that 178 of them in 24,000 hands carried its total, so its score swings widely from run to run. It deals in about 3 times for every win.

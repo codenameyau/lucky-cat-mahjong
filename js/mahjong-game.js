@@ -10,6 +10,7 @@
 
   var E = root.MahjongEngine;
   var Coach = root.MahjongCoach;
+  var Analysis = root.MahjongAnalysis;
   var Strategies = root.MahjongStrategies;
   var Lesson = root.MahjongLesson;
 
@@ -82,7 +83,7 @@
   }
 
   // Strategies saved under an older id.
-  var RENAMED_STRATEGIES = { 'claude-cat': 'lucky-cat' };
+  var RENAMED_STRATEGIES = { 'claude-cat': 'lucky-cat', 'no-defense': 'jorge-yau' };
   // Before 0.6.0 the lucky-cat and jorge-yau ids were the other way round.
   // Saved choices from then have no `v`; saves from then are older than
   // SWAPPED_BEFORE.
@@ -120,6 +121,8 @@
     var saved = readStrategies();
     var seats = [null];
     for (var k = 1; k <= 3; k++) seats.push(Strategies.randomId());
+    // Rolled once, when a game starts, and kept for every hand of it.
+    Object.freeze(seats);
     return { seats: seats, coach: saved.coach || Strategies.DEFAULT_COACH };
   }
 
@@ -601,6 +604,7 @@
     function skeletonAfterMs() { return 250; }
     var reviewCoaches = {}; // by strategy id: one walk of the hand each, so a coach who follows your discards keeps that streak
     var reviewCoachTimer = null;
+    var reviewAnalyst = null; // reads the whole table for the coach panel
     var destroyed = false;
     var frameRequested = false;
     var anims = [];
@@ -610,6 +614,7 @@
     var regions = [];
     var hover = null;
     var historyDrag = null;
+    var historyTap = null; // a press on a coach note in playback: it jumps there if it wasn't a drag
     var resultsDrag = null;
     // Face-up tiles drawn this frame (screen boxes) and the mouse position,
     // for the tile-name tooltip.
@@ -667,7 +672,7 @@
       backAnchor: [null, null, null, null],
       flowerAnchor: [null, null, null, null],
       stats: { hands: 0, wins: 0, best: null, dealIns: 0 },
-      strategies: pickStrategies(),
+      strategies: { seats: [null, null, null, null], coach: Strategies.DEFAULT_COACH }, // set once in start
     };
 
     function announce(text) {
@@ -1596,7 +1601,7 @@
       var F = E.HKScoring.FAAN;
       var intro = document.createElement('p');
       intro.className = 'rules-sheet-intro';
-      intro.textContent = 'Win with four sets and a pair, worth at least ' + E.MIN_FAAN +
+      intro.textContent = 'Win with four melds and the eyes (a pair), worth at least ' + E.MIN_FAAN +
         ' faan. Add up every pattern your hand has, but only count the highest faan per group. A limit hand is worth ' +
         F.thirteenOrphans + ' faan.';
       body.parentNode.insertBefore(intro, body);
@@ -2432,8 +2437,8 @@
           clusterX = dlX;
           // Back always goes to the game, however the playback was opened.
           button('Back', pad, 7, 64, 28, backToGame, 'ghost', 'review-back');
-          // The title is just "Playback", on a phone and on desktop.
-          var label = 'Playback';
+          // The title is "Playback Analysis", on a phone and on desktop.
+          var label = 'Playback Analysis';
           if (phoneBar) {
             // In the room between Back and the icons.
             var gapL = pad + 72, gapR = clusterX - 8;
@@ -3554,7 +3559,11 @@
         });
       }
       var y = viewY - ui.coachScroll;
+      ui.coachHits = [];
       blocks.forEach(function (b) {
+        if (settings.review && typeof b.entry.step === 'number') {
+          ui.coachHits.push({ x: viewX, y: Math.max(y, viewY), w: viewW, h: Math.min(y + b.h, viewY + viewH) - Math.max(y, viewY), step: b.entry.step });
+        }
         roundRect(ctx, viewX, y, viewW - (ui.coachScrollMax > 0 ? 8 : 0), b.h, 4);
         ctx.fillStyle = 'rgba(0,0,0,0.22)';
         ctx.fill();
@@ -5056,6 +5065,7 @@
         return;
       }
       if (historyAt(p)) {
+        historyTap = settings.review ? { x: p.x, y: p.y, id: e.pointerId, step: coachNoteAt(p) } : null;
         if (ui.coachScrollMax > 0) {
           historyDrag = { y: p.y, scroll: ui.coachScroll, id: e.pointerId };
           if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
@@ -5101,7 +5111,8 @@
       if (e.pointerType && e.pointerType !== 'mouse') return;
       var p = pointerPos(e);
       if ((resultsAt(p) || historyAt(p)) && !seeResultsHit(p)) {
-        canvas.style.cursor = (resultsAt(p) ? ui.resultsScrollMax > 0 : ui.coachScrollMax > 0) ? 'grab' : 'default';
+        canvas.style.cursor = !resultsAt(p) && settings.review && coachNoteAt(p) !== null ? 'pointer'
+          : (resultsAt(p) ? ui.resultsScrollMax > 0 : ui.coachScrollMax > 0) ? 'grab' : 'default';
         mouse = p;
         if (hover || tipSeat !== null) { hover = null; requestRender(); }
         return;
@@ -5115,7 +5126,36 @@
       if (id !== hover || (sp ? sp.id : null) !== tipTile || (seatSp ? seatSp.seat : null) !== tipSeat) { hover = id; requestRender(); }
     }
 
+    // The move a coach note is about, under this point (playback).
+    function coachNoteAt(p) {
+      var hits = ui.coachHits || [];
+      for (var i = 0; i < hits.length; i++) {
+        var h = hits[i];
+        if (h.h > 0 && p.x >= h.x && p.x <= h.x + h.w && p.y >= h.y && p.y <= h.y + h.h) return h.step;
+      }
+      return null;
+    }
+
+    // Takes you to the move on the progress bar that a coach note is about.
+    function jumpToNote(step) {
+      var stops = reviewStops().stops;
+      var at = stops[stops.length - 1];
+      for (var i = 0; i < stops.length; i++) { if (stops[i] >= step) { at = stops[i]; break; } }
+      sound.play('select');
+      track('play_playback_coach_note_click', {});
+      jumpReview(at);
+      ensureReviewNotes(reviewStep);
+      ui.coachStick = true;
+      requestRender();
+    }
+
     function onPointerUp(e) {
+      if (historyTap && e.pointerId === historyTap.id) {
+        var tap = historyTap;
+        historyTap = null;
+        var up = pointerPos(e);
+        if (tap.step !== null && up && Math.abs(up.x - tap.x) < 8 && Math.abs(up.y - tap.y) < 8) jumpToNote(tap.step);
+      }
       if (reviewScrub && e.pointerId === reviewScrub) {
         reviewScrub = 0;
         announce(reviewSpoken());
@@ -5475,8 +5515,8 @@
       return E.sortTiles(rest).indexOf(tile);
     }
 
-    // A bot plays whatever strategy its seat has now, so a change in the
-    // Strategies sheet takes effect on its next move.
+    // A bot keeps its seat's strategy for the whole game. Only the coach's
+    // (the player's) can change.
     function botFor(seat) {
       return Strategies.get(ui.strategies.seats[seat]).bot;
     }
@@ -5825,6 +5865,7 @@
 
     function resetReviewCoach() {
       reviewCoaches = {};
+      reviewAnalyst = null;
       if (reviewCoachTimer) { clearTimeout(reviewCoachTimer); reviewCoachTimer = null; }
       ui.coachLog = [];
     }
@@ -5867,6 +5908,15 @@
           if (hints >= 2 && walk.index < target) { more = true; break; }
         }
       });
+      // The table read: every hand face up, so it can say what you could not see.
+      var table = [];
+      if (Analysis) {
+        try {
+          if (!reviewAnalyst) reviewAnalyst = Analysis.createAnalyst(settings.review);
+          if (reviewAnalyst.run(target, 10)) more = true;
+          table = reviewAnalyst.notes();
+        } catch (err) { table = []; }
+      }
       if (more && !reviewCoachTimer) {
         reviewCoachTimer = setTimeout(function () {
           reviewCoachTimer = null;
@@ -5876,7 +5926,10 @@
         }, 0);
       }
       var mine = reviewCoaches[shown];
-      ui.coachLog = mine ? mine.notes.filter(function (n) { return n.step <= reviewStep; }) : [];
+      var coachNotes = mine ? mine.notes : [];
+      ui.coachLog = coachNotes.concat(table).filter(function (n) { return n.step <= reviewStep; }).map(function (n, k) {
+        return { n: n, k: k };
+      }).sort(function (a, b) { return a.n.step - b.n.step || a.k - b.k; }).map(function (o) { return o.n; });
     }
 
     // What this coach says about your discard, call, or kong, before it happens.

@@ -105,6 +105,13 @@
     return E.suitOfIndex(E.tileIndex(m.tiles[0]));
   }
 
+  // Another player's melds as the table sees them. A concealed kong is known
+  // to be there (it counts as a meld), but not which tile it is: reading an
+  // opponent goes through this, never s.melds.
+  function shownMelds(s) {
+    return s.melds.filter(function (m) { return !m.concealed; });
+  }
+
   function valueWeight(ctx, i) {
     var w = 0;
     if (DRAGONS.indexOf(i) !== -1) w += 1;
@@ -129,7 +136,7 @@
       if (by[su] !== undefined) by[su]++;
     });
     var meldSuits = {};
-    s.melds.forEach(function (m) { var su = meldSuit(m); if (su !== 'z') meldSuits[su] = true; });
+    shownMelds(s).forEach(function (m) { var su = meldSuit(m); if (su !== 'z') meldSuits[su] = true; });
     var inMelds = Object.keys(meldSuits);
     var keeps = inMelds.length === 1 ? inMelds[0] : null;
     if (!keeps && !inMelds.length && n >= 6) {
@@ -166,7 +173,7 @@
     });
     var danger = { c: 0, d: 0, b: 0 };
     var chowSuits = {};
-    s.melds.forEach(function (m) {
+    shownMelds(s).forEach(function (m) {
       var su = meldSuit(m);
       if (su === 'z') return;
       danger[su]++;
@@ -379,7 +386,7 @@
     var slope = turn <= 5 ? 0.75 : turn <= 9 ? 0.6 : 0.45;
     var bigThreat = game.hand.seats.some(function (o, k) {
       if (k === seat) return false;
-      return o.melds.length >= 2 && o.melds.some(function (m) {
+      return o.melds.length >= 2 && shownMelds(o).some(function (m) {
         var i = E.tileIndex(m.tiles[0]);
         return m.type !== 'chow' && i >= 27;
       });
@@ -1270,7 +1277,7 @@
   // thrown after six discards.
   function readCollecting(s, recent) {
     var inMelds = {};
-    s.melds.forEach(function (m) {
+    shownMelds(s).forEach(function (m) {
       var su = suitOf(E.tileIndex(m.tiles[0]));
       if (su !== 'z') inMelds[su] = true;
     });
@@ -1771,7 +1778,7 @@
       // thrown means a flush.
       var flush = null;
       var suitsInMelds = {};
-      s.melds.forEach(function (m) { suitsInMelds[meldSuit(m)] = true; });
+      shownMelds(s).forEach(function (m) { suitsInMelds[meldSuit(m)] = true; });
       var numSuits = Object.keys(suitsInMelds).filter(function (x) { return x !== 'z'; });
       if (k >= 1 && numSuits.length === 1) flush = numSuits[0];
       if (!flush && n >= 6) {
@@ -1789,9 +1796,9 @@
       p = Math.min(0.93, p);
 
       var f = 3;
-      if (flush) f += (s.melds.some(function (m) { return meldSuit(m) === 'z'; }) ? 3 : 4);
+      if (flush) f += (shownMelds(s).some(function (m) { return meldSuit(m) === 'z'; }) ? 3 : 4);
       var wind = E.seatWind(game, o);
-      s.melds.forEach(function (m) {
+      shownMelds(s).forEach(function (m) {
         if (m.type === 'chow') return;
         var i = E.tileIndex(m.tiles[0]);
         if (DRAGONS.indexOf(i) !== -1) f += 1;
@@ -2214,6 +2221,7 @@
     // Folding: safety decides, and the keep-pairs and keep-dragons orders
     // only break ties (a safe pair is the right tile to break).
     var folding = weight > (ctx.isDealer ? 0.9 : 1);
+    ctx.folding = folding; // for a strategy's finalOrder
     weight *= T.defenseScale;
     // After a chow (or with most of the hand in one suit), tiles of other
     // suits are worthless: they go first, ahead of honors and tiles of that
@@ -2295,6 +2303,8 @@
     if (H.finalOrder) out = H.finalOrder(out, ctx, c);
     out = keepDragonPair(out, ctx, c);
     out = readyFirst(out);
+    // A strategy's last word, after every shared rule (a learned model).
+    if (H.rerank) out = H.rerank(out, ctx, c, game, seat, threats, folding) || out;
     // Only the hand really held moves the plan: a claim being weighed doesn't.
     var seatNow = game.hand.seats[seat];
     if (hand === seatNow.hand && ctx.melds === seatNow.melds) updateCommit(seatNow, out[0], folding);
@@ -2348,7 +2358,7 @@
       h1.splice(h1.indexOf(tile), 1);
       h1.splice(h1.indexOf(tile), 1);
       var b1 = bestAfter(h1, withMeld(ctx, { type: 'pung', tiles: [tile, tile, tile], concealed: false }));
-      if (b1) out.push({ decision: { type: 'pung' }, score: b1.score, discard: b1.tile, analysis: b1.analysis });
+      if (b1) out.push({ decision: { type: 'pung' }, score: b1.score, discard: b1.tile, analysis: b1.analysis, ml: b1.ml || null });
     }
     if (opts.kong) {
       var ck = c.slice();
@@ -2364,7 +2374,7 @@
       h2.splice(h2.indexOf(pair[1]), 1);
       var tiles = E.sortTiles(pair.concat([tile]));
       var b2 = bestAfter(h2, withMeld(ctx, { type: 'chow', tiles: tiles, concealed: false }));
-      if (b2) out.push({ decision: { type: 'chow', tiles: pair }, score: b2.score, discard: b2.tile, analysis: b2.analysis });
+      if (b2) out.push({ decision: { type: 'chow', tiles: pair }, score: b2.score, discard: b2.tile, analysis: b2.analysis, ml: b2.ml || null });
     });
 
     var stay = handUtility(c, ctx);
@@ -2500,6 +2510,10 @@
    *                                      whether a chow that chowAllowed
    *                                      passes is worth taking
    *      claim(found, ctx, game, seat, opts) -> decision
+   *      rerank(candidates, ctx, counts, game, seat, threats, folding)
+   *                                      -> candidates
+   *                                      the final discard order, after
+   *                                      every shared rule and finalOrder
    *    priority and claim may return null to use the shared choice.
    * ------------------------------------------------------------------ */
 
@@ -2526,6 +2540,7 @@
       return tuning;
     };
     out.tuning = tuning;
+    out.hooks = hooks; // so another strategy can build on this one
     out.createBotAgent = function () { return createBotAgent({ strategy: out }); };
     return out;
   }

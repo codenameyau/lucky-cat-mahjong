@@ -2,6 +2,12 @@
 
 A static website for the Lucky Cat Mahjong club at [luckycatmahjong.com](https://luckycatmahjong.com), with content managed through [Pages CMS](https://pagescms.org).
 
+The learned bot, Neural Cat, is on Hugging Face:
+
+- **Model**: [huggingface.co/codenameyau/lucky-cat-mahjong](https://huggingface.co/codenameyau/lucky-cat-mahjong)
+- **Training data**: [huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games](https://huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games)
+- **How it works**: [docs/machine-learning](docs/machine-learning/README.md)
+
 ## Contents
 
 **Site pages**
@@ -13,9 +19,9 @@ A static website for the Lucky Cat Mahjong club at [luckycatmahjong.com](https:/
 - [Personality quiz](#which-mahjong-tile-are-you-quiz-which-mahjong-tiles-are-you)
 - [Play Mahjong](#play-hong-kong-mahjong-play-mahjong)
   - Playing: [Game modes](#game-modes) · [Rules and scoring](#rules-and-scoring) · [Saving and resuming](#saving-and-resuming) · [Hand seeds](#hand-seeds)
-  - Bots and coach: [Strategies](#strategies) · [Bots](#bots) · [Coach](#coach) · [Bot competition](#bot-competition) · [Hand review and feedback](#hand-review-and-feedback)
+  - Bots and coach: [Strategies](#strategies) · [Bots](#bots) · [Coach](#coach) · [Bot competition](#bot-competition) · [Neural Cat training and models](#neural-cat-training-and-models) · [Hand review and feedback](#hand-review-and-feedback)
   - Table: [Table and layouts](#table-and-layouts) · [Sound and music](#sound-and-music)
-  - For developers: [Analytics events](docs/analytics.md) · [Testing tip](#testing-tip)
+  - For developers: [Machine learning](docs/machine-learning/README.md) · [Analytics](docs/analytics/README.md) · [Testing tip](#testing-tip)
 - [Other pages](#other)
 
 **Working on the site**
@@ -26,6 +32,7 @@ A static website for the Lucky Cat Mahjong club at [luckycatmahjong.com](https:/
 - [Editing content with Pages CMS](#editing-content-with-pages-cms)
 - [Deploy to GitHub Pages](#deploy-to-github-pages)
 - [Project structure](#project-structure)
+- [Documentation](docs/README.md): [Machine learning](docs/machine-learning/README.md) · [Analytics](docs/analytics/README.md) · [Strategies](docs/strategies/README.md)
 
 **[Credits](#credits)**
 
@@ -136,18 +143,18 @@ Hands are scored by `HKScoring.scoreHand` in `js/points.js`, the calculator's ow
 
 #### Hand seeds
 
-Tap your wind badge to copy the signed playback. The badge flashes once the copy is done. The same file stays on this device, so the playback page opens it. The file is signed (HMAC-SHA256). It holds the hand seed (`handSeed`, such as `919942249-NE`: the shuffle number, your seat wind, the round wind), every draw, discard, and claim so far, and each player's hand at that moment. Open `/play-mahjong/playback/` and that saved hand opens on the deal, paused. Press Play to watch it. With none saved, Upload in the center reads a JSON playback file. Command+V or Ctrl+V pastes one too. A changed or damaged file won't play. The hand plays on the table, and the bar stops at the last move in the file. A move is one discard, by any player, so Move 4 of 49 counts discards only. Draws, flowers and claims come with the move they lead to. Download saves the playback as a JSON file named with the time, such as `lucky-cat-mahjong-playback-2026-11-05-1430.json`. Upload, beside it, opens a downloaded file and plays it. The icon buttons (previous, play or pause, next) step through the moves, with previous and next dimmed at the ends. Each move plays action by action (draws, flowers, chow, pung and kong, discards), previous plays it in reverse, and a red dot on the progress bar marks every chow, pung and kong, the speed buttons beside them play at 0.5x, 1x or 2x (the choice is kept in `lcm-play-prefs`), and the progress bar shows a dot for each move (a larger one for your own discards, a yellow circle where you exposed a meld). Hover it to see what happened there, and click or drag it to jump. A panel under the coach column, as tall as your hand and headed Strategies (a phone has no heading), shows the tile each strategy would discard, and what it would chow, pung, kong, or pass. The same panel sits beside your hand while the coach is on. Feedback instead shows the tile each strategy would have discarded after you throw one. Both that panel and the coach's notes hide when the coach is off. Click one to make it the coach. The side panel is titled Coach and that strategy. At the end of a full game, Results saves that playback. View playback is on each hand's summary, and opens that hand here. A refresh on that results page keeps the table as the hand ended. Back returns to those results. The Points Guide still reads the file, or just the hand seed, as that starting hand.
+Tap your wind badge to copy the signed playback. The badge flashes once the copy is done. The same file stays on this device, so the playback page opens it. The file is signed (HMAC-SHA256). It holds the hand seed (`handSeed`, such as `919942249-NE`: the shuffle number, your seat wind, the round wind), every draw, discard, and claim so far, and each player's hand at that moment. Open `/play-mahjong/playback/` and that saved hand opens on the deal, paused. Press Play to watch it. With none saved, Upload in the center reads a JSON playback file. Command+V or Ctrl+V pastes one too. A changed or damaged file won't play. The hand plays on the table, and the bar stops at the last move in the file. A move is one discard, by any player, so Move 4 of 49 counts discards only. Draws, flowers and claims come with the move they lead to. Download saves the playback as a JSON file named with the time, such as `lucky-cat-mahjong-playback-2026-11-05-1430.json`. Upload, beside it, opens a downloaded file and plays it. The icon buttons (previous, play or pause, next) step through the moves, with previous and next dimmed at the ends. Each move plays action by action (draws, flowers, chow, pung and kong, discards), previous plays it in reverse, and a red dot on the progress bar marks every chow, pung and kong, the speed buttons beside them play at 0.5x, 1x or 2x (the choice is kept in `lcm-play-prefs`), and the progress bar shows a dot for each move (a larger one for your own discards, a yellow circle where you exposed a meld). Hover it to see what happened there, and click or drag it to jump. A panel under the coach column, as tall as your hand and headed Strategies (a phone has no heading), shows the tile each strategy would discard, and what it would chow, pung, kong, or pass. The same panel sits beside your hand while the coach is on. Feedback instead shows the tile each strategy would have discarded after you throw one. The coach's column also carries a table read from `js/mahjong-analysis.js`, written with every hand face up: how many of the tiles that help you are really left in the wall and how many sit in other hands, a discard that was a step slower or left fewer outs, a discard that dealt in (and whether a safe tile existed), who is ready and on what with which of your tiles would win for them, a win you passed on, a call that would have made you ready, what each call did to the hand, and how the hand ended. Click any coach note to jump the progress bar to the move it is about. Both that panel and the coach's notes hide when the coach is off. Click one to make it the coach. The side panel is titled Coach and that strategy. At the end of a full game, Results saves that playback. View playback is on each hand's summary, and opens that hand here. A refresh on that results page keeps the table as the hand ended. Back returns to those results. The Points Guide still reads the file, or just the hand seed, as that starting hand.
 
 #### Strategies
 
 Every bot plays a named strategy, built on the shared foundation in `js/mahjong-bot.js` with `MahjongBot.createStrategy({ id, hooks, tuning })`.
-
 | Strategy | File | Style | Playbook |
+
 | --- | --- | --- | --- |
 | **lucky-cat** | `js/mahjong-lucky-cat.js` | Tracks every discard and plays the odds to the fastest 3-faan win | [lucky-cat.md](docs/strategies/lucky-cat.md) |
-| **jorge-yau** | `js/mahjong-jorge-yau.js` | Reads the opening hand and builds toward one target hand | [jorge-yau.md](docs/strategies/jorge-yau.md) |
+| **jorge-yau** | `js/mahjong-jorge-yau.js` | Reads the opening hand and builds toward one target hand, attacks with no defense until it's slow late, and locks onto a hand worth 7 faan or more | [jorge-yau.md](docs/strategies/jorge-yau.md) |
 | **only-orphans** | `js/mahjong-only-orphans.js` | Goes for Thirteen Orphans every hand, then pivots to a hand of 1s, 9s and honors | [only-orphans.md](docs/strategies/only-orphans.md) |
-| **no-defense** | `js/mahjong-no-defense.js` | Never folds or minds what it feeds, keeps honors, and locks onto a hand worth 7 faan or more | [no-defense.md](docs/strategies/no-defense.md) |
+| **neural-cat** | `js/mahjong-ml.js` | Plays Jorge Yau's hands, and a neural network trained on simulated games picks the discard, claim or kong worth the most points on average | [neural-cat.md](docs/strategies/neural-cat.md) |
 
 - The **Strategies** button in the top bar (`js/mahjong-strategies.js`) describes each one and shows who plays which
 - The coach's pick is saved in `localStorage` (`lcm-play-strategies`), and the coach defaults to lucky-cat. The computer players are never saved: each plays a random strategy every game
@@ -211,8 +218,8 @@ What it plays for:
 How each tip reads, always in this order:
 
 1. What to do and why, in a few words
-2. Where the hand stands: tiles from ready and the target hand with its faan, plus a note when it's late
-3. The players worth watching, in what the table shows ("Grace has three melds down, all Bamboo."), never the bots' internal threat level, and how safe the discard is
+2. Where the hand stands: tiles from ready and the target hand with its faan, and when you aim for Seven Pairs, All Triplets or Concealed Triplets, the tiles in your hand that are dead for it because every copy that could finish them is out (a single with no copy left to pair, a pair that can't become a pung)
+3. The players worth watching, as a deduction, and only once it is close to certain (three melds in one suit with none of that suit thrown, or four pungs: each held in 95% or more of simulated hands), such as "Grace is almost certainly going for a Bamboo flush, so any Bamboo you throw is a likely deal-in." It never restates what you can see or how many melds they have or the bots' internal threat level, and how safe the discard is
 
 It doesn't say which tile to drop after this one. Hand names are drawn in red, without their faan. Long tips grow the tip bar instead of being cut off.
 
@@ -273,6 +280,24 @@ Background music is three CC BY 4.0 tracks by Kevin MacLeod (Guzheng City, Sheny
 - `--lineup a,b,c,d` sets the seats, and `--json file` saves the full report
 - It prints each strategy's points per hand, wins, self-draws, deal-ins, points paid, average faan, limit hands, concealed wins, claims per hand, the patterns in its wins and its net points against each other strategy
 - Code: `js/mahjong-competition.js`, `scripts/competition.js`. More in [docs/strategies/README.md](docs/strategies/README.md#competition)
+
+#### Neural Cat training and models
+
+Neural Cat's network is trained on simulated hands. How the whole AI layer works (features, model, decisions, training, the league, fair play, Hugging Face) is in [docs/machine-learning](docs/machine-learning/README.md), and the strategy's playbook, with every result, is [docs/strategies/neural-cat.md](docs/strategies/neural-cat.md).
+
+- **Models**: [huggingface.co/codenameyau/lucky-cat-mahjong](https://huggingface.co/codenameyau/lucky-cat-mahjong). `neural-cat/neural-cat.json` is the model the game ships (the same file as `js/mahjong-ml-weights.js`), and `neural-cat/models/` holds every model that became the best, with a model card of the results
+- **Training data**: [huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games](https://huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games). Every set the models trained on, from the bootstrap to each league round, in the format `npm run ml:generate` writes, with a dataset card that explains it
+- **Fair play**: the models see only what their seat can see, never the wall or another hand. `js/mahjong-fair-play.test.js` checks it for every strategy
+
+| Command | What it does |
+| --- | --- |
+| `npm run ml:generate` | Plays simulated hands across worker threads and writes training data to `ml/data/<name>/` |
+| `npm run ml:train` | Trains a model on that data with PyTorch (`ml/train.py`; set up with `python3 -m venv ml/.venv && ml/.venv/bin/pip install -r ml/requirements.txt`) and checks the JS model gives the same outputs. `--ship` writes `js/mahjong-ml-weights.js` |
+| `npm run ml:league` | The league: rounds of models playing only other models, each new model kept and shipped if it beats the best head to head. State in `ml/league/` |
+| `npm run ml:hf -- --repo codenameyau/lucky-cat-mahjong` | Uploads each new best model and the model card to Hugging Face. `--watch` keeps going until the league is done |
+| `npm run ml:hf-data -- --repo codenameyau/lucky-cat-mahjong-games` | Uploads the training data to the Hugging Face dataset. `--watch` adds each league round as it finishes |
+
+Uploads go over git and SSH, so your SSH key must be on your Hugging Face account, the repos must already exist, and the data needs [Git LFS](https://git-lfs.com) (`brew install git-lfs`). Local data, models and upload copies (`ml/data/`, `ml/models/`, `ml/hf/`) aren't committed.
 
 #### Hand review and feedback
 
@@ -402,6 +427,12 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── mahjong-bot.js      # Play: bot engine and the rules every strategy shares
 │   ├── mahjong-lucky-cat.js # Play: the lucky-cat strategy (tested)
 │   ├── mahjong-jorge-yau.js # Play: the jorge-yau strategy
+│   ├── mahjong-only-orphans.js # Play: the only-orphans strategy
+│   ├── mahjong-ml.js       # Play: Neural Cat, the learned strategy (tested)
+│   ├── mahjong-ml-features.js # Play: what the model sees of a position
+│   ├── mahjong-ml-model.js # Play: the neural network, in plain JS
+│   ├── mahjong-ml-weights.js # Play: the shipped model (generated)
+│   ├── mahjong-analysis.js # Playback: the face-up table read (tested)
 │   ├── mahjong-strategies.js # Play: strategy list and the Strategies sheet (tested)
 │   ├── mahjong-competition.js # Play: strategies against each other
 │   ├── mahjong-coach.js    # Play: the coach (tested)
@@ -414,12 +445,16 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── generate-tile-pages.js # Quiz: per-tile pages and preview images
 │   ├── tile-pages-lib.js   # Shared tile-page logic (tested)
 │   ├── competition.js      # CLI: npm run compete
+│   ├── ml/                 # Neural Cat: data, self-play, the league, Hugging Face uploads
 │   ├── review.js           # CLI: npm run review, replay a seed and give feedback
 │   ├── review-lib.js       # Shared review logic (tested)
 │   ├── generate-guide.js   # Printable rules booklet PDF
 │   └── licensing-agreement.js # Licensing agreement PDF
+├── ml/                     # train.py and requirements.txt (local data, models and the venv are gitignored)
 ├── docs/
-│   ├── analytics.md        # Google Analytics events
+│   ├── README.md           # Index of the docs
+│   ├── analytics/          # Google Analytics setup, privacy and every event
+│   ├── machine-learning/   # Neural Cat: features, model, decisions, training, fair play, Hugging Face
 │   └── strategies/         # Bot and coach playbooks, and feedback.json
 ├── assets/                 # Music, sounds, PDFs and images
 ├── package.json            # npm scripts

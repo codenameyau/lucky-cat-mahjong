@@ -14,20 +14,22 @@
   var L = node ? require('./mahjong-lucky-cat.js') : root.MahjongLuckyCat;
   var J = node ? require('./mahjong-jorge-yau.js') : root.MahjongJorgeYau;
   var O = node ? require('./mahjong-only-orphans.js') : root.MahjongOnlyOrphans;
-  var N = node ? require('./mahjong-no-defense.js') : root.MahjongNoDefense;
+  var N = node ? require('./mahjong-ml.js') : root.MahjongML;
 
   var STRATEGIES = [
     {
       id: 'jorge-yau',
       name: 'Jorge Yau',
       bot: J,
-      summary: 'Reads the opening hand, picks one hand to build and pivots strategically. Stays concealed, and stops feeding the table when it can\'t win.',
+      summary: 'Reads the opening hand, picks one hand to build and pivots. Attacks with no defense, keeps honors, and locks onto a hand worth 7 faan or more. Only plays safe late, when it is far from winning.',
       details: [
         'It looks at the opening hand and picks a target, in this order: Thirteen Orphans, Nine Gates, Four Winds, All Terminals, All Honors, Seven Pairs, Full Flush, Concealed Triplets, Half Flush and Concealed Straights. Tiles the target can\'t use go first.',
         'Each turn it reads the hand again. A stronger target replaces the old one, and when a target can\'t be made it pivots: Seven Pairs to Concealed Triplets to All Triplets, Concealed Triplets to All Triplets or Seven Pairs, Full Flush to Half Flush, Four Winds to All Honors, and Thirteen Orphans to Seven Pairs with Mixed Orphans.',
         'With a seat or round wind, or a seat flower, the hand already has faan, so it plays for speed. It also counts wins off the last tile and off a kong toward the 3-faan minimum.',
-        'It keeps the hand concealed. Early chows only build a flush in that suit, and never into a suit it holds few tiles of. Pungs are fine early.',
-        'It reads every opponent\'s discards for the hand they\'re on: the suit they keep, the honors they hold, or a hand of sequences. Late in the wall, if it is still two or more tiles from ready, it stops building and stops feeding: no chow tiles to the next player, no fresh dragons or winds.',
+        'With 8 tiles of a hand worth 7 faan or more within its first 8 turns (a Full Flush, Thirteen Orphans, Nine Gates, All Honors, All Terminals, Four Winds, Three Dragons or Mixed Orphans), it locks onto that hand and keeps those tiles until the hand can\'t be won.',
+        'It keeps honors as long as it can. Number tiles that cost no step go first, then lone honors, and honor pairs stay longest. A lone honor with the other three copies on the table goes first of all.',
+        'It claims any chow, pung or kong that brings the hand closer and can still reach 3 faan. On a lock, it claims only that hand\'s tiles.',
+        'It plays no defense: it never folds and doesn\'t mind what it feeds. The one exception is late in the wall, when it is still two or more tiles from ready and holds no lock. Then it stops building, plays safe and stops feeding chow tiles and fresh honors, using its reads of what each opponent is collecting.',
       ],
       doc: 'docs/strategies/jorge-yau.md',
     },
@@ -59,29 +61,50 @@
       ],
       doc: 'docs/strategies/only-orphans.md',
     },
-    {
-      id: 'no-defense',
-      name: 'No Defense',
-      bot: N,
-      summary: 'Never folds and never minds what it feeds. Builds the fastest hand it can, keeps honors as long as possible, and locks onto a hand worth 7 faan or more when it has 8 of the tiles.',
-      details: [
-        'It takes no account of what a discard might feed, and it never folds, however late or however close an opponent looks.',
-        'It keeps honors as long as it can. Number tiles that cost no step go first, then lone honors, and honor pairs stay longest. The exception is a discard that leaves the hand able to win.',
-        'A lone honor with the other three copies on the table goes first of all, since it can never be used.',
-        'With 8 tiles of a hand worth 7 faan or more within its first 8 turns, it locks onto that hand: a Full Flush, Thirteen Orphans, Nine Gates, All Honors, All Terminals, Four Winds, Three Dragons or Mixed Orphans. It keeps those tiles until the hand can\'t be won.',
-        'It claims anything that brings the hand closer and can still reach 3 faan. On a lock, it claims only that hand\'s tiles.',
-      ],
-      doc: 'docs/strategies/no-defense.md',
-    },
   ];
 
-  var DEFAULT_COACH = 'lucky-cat';
+  // Neural Cat, the learned strategy. A page that doesn't load its scripts
+  // (js/mahjong-ml*.js) leaves it out.
+  if (N) {
+    // Listed before Only Orphans.
+    STRATEGIES.splice(2, 0, {
+      id: 'neural-cat',
+      name: 'Neural Cat',
+      bot: N,
+      summary: 'Plays Jorge Yau\'s hands, but a neural network trained on simulated games picks the discard worth the most points on average: wins that come often and wins that pay big both count.',
+      details: [
+        'It reads the hand the way Jorge Yau does: the target hand, the plans it can still make, steps from ready, live tiles, and how risky each tile is.',
+        'Then a neural network trained on simulated hands, most of them against other Neural Cat models, looks at Jorge Yau\'s three best discards and predicts how the hand ends after each: the chance to win by self-draw or off a discard, the chance to deal in, and how many faan each would be.',
+        'Those make one number, the points the discard is worth on average, and the discard worth the most goes. A quick small win and a slower big one are weighed on the same scale.',
+        'The coach says, in points, what the model expects from its pick and the next best, its chance to win and how much, and which parts of the position put its pick ahead: speed, hand value, safety, what the table shows.',
+        'Claims and kongs are weighed the same way: passing, each pung, chow or kong and the best discard after it, each scored in points. When the model\'s pick is worth more than Jorge Yau\'s call, the model\'s goes, and the coach shows the points for each choice.',
+        'It plays fair: it sees only what its seat can see, the same as you. Never the wall, another player\'s hand, or which tile a concealed kong is.',
+      ],
+      doc: 'docs/strategies/neural-cat.md',
+    });
+  }
+
+  // Lab strategies: playable by id (npm run compete, npm run review, a
+  // saved pick) but not on the Strategies sheet or in the random seats.
+  var LAB = [];
+
+  var DEFAULT_COACH = N ? 'neural-cat' : 'jorge-yau'; // Neural Cat, where its scripts load
   var BY_ID = {};
-  STRATEGIES.forEach(function (s) { BY_ID[s.id] = s; });
+  STRATEGIES.concat(LAB).forEach(function (s) { BY_ID[s.id] = s; });
 
   function list() { return STRATEGIES.slice(); }
   function ids() { return STRATEGIES.map(function (s) { return s.id; }); }
   function has(id) { return !!BY_ID[id]; }
+  function isLab(id) { return !!(BY_ID[id] && BY_ID[id].lab); }
+  function labIds() { return LAB.map(function (s) { return s.id; }); }
+  // Adds a lab strategy at run time, e.g. Neural Cat with other weights
+  // ("ml:<file>" in npm run compete).
+  function addLab(entry) {
+    entry.lab = true;
+    if (!BY_ID[entry.id]) LAB.push(entry);
+    BY_ID[entry.id] = entry;
+    return entry;
+  }
 
   // The strategy with this id, or the default one.
   function get(id) { return BY_ID[id] || BY_ID[DEFAULT_COACH]; }
@@ -102,6 +125,9 @@
     list: list,
     ids: ids,
     has: has,
+    isLab: isLab,
+    labIds: labIds,
+    addLab: addLab,
     get: get,
     randomId: randomId,
     createAgent: createAgent,

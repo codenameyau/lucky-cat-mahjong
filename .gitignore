@@ -142,3 +142,14 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Training data for the learned strategy (npm run ml:generate)
+ml/data/
+# The learned strategy's Python environment and trained models (the shipped
+# copy is js/mahjong-ml-weights.js)
+ml/.venv/
+ml/models/
+ml/loop/
+ml/hf/
+ml/league/
+ml/loop5/

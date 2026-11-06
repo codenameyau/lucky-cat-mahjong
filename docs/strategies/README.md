@@ -7,8 +7,8 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 | (shared foundation) | | `js/mahjong-bot.js` | the rules below |
 | `lucky-cat` | Lucky Cat | `js/mahjong-lucky-cat.js` | [lucky-cat.md](lucky-cat.md) |
 | `jorge-yau` | Jorge Yau | `js/mahjong-jorge-yau.js` | [jorge-yau.md](jorge-yau.md) |
+| `neural-cat` | Neural Cat | `js/mahjong-ml.js` | [neural-cat.md](neural-cat.md) |
 | `only-orphans` | Only Orphans | `js/mahjong-only-orphans.js` | [only-orphans.md](only-orphans.md) |
-| `no-defense` | No Defense | `js/mahjong-no-defense.js` | [no-defense.md](no-defense.md) |
 
 Before version 0.6.0 the two ids were the other way round; saved choices and save files from then are converted when they're read.
 
@@ -16,7 +16,7 @@ Before version 0.6.0 the two ids were the other way round; saved choices and sav
 
 - Picks are saved in `localStorage` under `lcm-play-strategies`, as `{ "seats": { "1": id, "2": id, "3": id }, "coach": id }`. Seat 1 is on your right, 2 across, 3 on your left.
 - A bot seat with nothing saved plays a random strategy, picked again each game. "Random each game" in the sheet clears the saved pick.
-- The coach (tips and feedback) defaults to `lucky-cat` ("Coach Lucky Cat").
+- The coach (tips and feedback) defaults to `neural-cat` ("Coach Neural Cat").
 - A change takes effect on the bot's next move, in the game you're playing.
 - The table shows only each player's name. Which strategy each bot plays is on the Strategies sheet, and on desktop in a tooltip when you hover over their name.
 
@@ -58,7 +58,7 @@ var bot = MahjongBot.createStrategy({
     priority: function (game, ctx, counts, candidate, bestShanten) { /* discard group after the shared rules, lower first; null = the shared order */ },
     chowOk: function (option, found, ctx, game) { /* whether a chow the shared rule allows is worth it */ },
     claim: function (found, ctx, game, seat, opts) { /* { type: 'pass' | 'pung' | 'kong' | 'chow', ... }; null = the shared claims */ },
-    // also: finishChance, finalOrder, kongOk, readyValue, threats, waitChance, extraLoss, defense
+    // also: finishChance, finalOrder, rerank, kongOk, readyValue, threats, waitChance, extraLoss, defense
   },
   tuning: { defenseScale: 1.5 },
 });
@@ -74,6 +74,26 @@ Then:
 4. Play it against the others (below).
 
 The coach speaks for any strategy through `MahjongCoach.forStrategy(bot)`. It names the plan the strategy picked, using `plan.label`, and for a tile the plan doesn't use it gives `plan.reason`.
+
+## Learned strategy
+
+`neural-cat` (`js/mahjong-ml.js`) lets a model trained on simulated hands pick the discard. It plays Jorge Yau's hooks (a strategy's `hooks` are on the bot, so another can build on them), which list and read every discard as usual, then the `rerank` hook (the last word, after every shared rule) scores the position each of the best three leaves in expected points: the chance of winning by self-draw or off a discard, of dealing in, and the faan of each, on the full-spicy payout table. Each candidate gets `ml` with those numbers, and the chosen one gets `ml.why`, the points each feature group (`hand`, `discard`, `table`, `context`, `speed`, `value`, `safety`) puts it ahead of the next best. Claims and kongs are weighed the same way (passing, each call and the discard after it, a kong before its replacement tile), and the model overrules Jorge Yau's call when its pick is worth more. Every strategy reads an opponent's melds through `shownMelds`, never which tile a concealed kong is, and `js/mahjong-fair-play.test.js` checks that no strategy's decisions change when the tiles its seat can't see are shuffled. Its playbook, with training and results, is [neural-cat.md](neural-cat.md), and the whole AI layer is documented in [docs/machine-learning](../machine-learning/README.md).
+
+| File | |
+| --- | --- |
+| `js/mahjong-ml-features.js` | The features of one discard, from what the seat can see. Training and play share it |
+| `js/mahjong-ml-model.js` | The network, in plain JS, and expected points from its prediction |
+| `js/mahjong-ml.js` | The strategy, with `create({ temperature, epsilon })` for exploring copies |
+| `scripts/ml/generate.js` | Training data from simulated deals (`npm run ml:generate`) |
+| `scripts/ml/loop.js` | Self-play rounds: generate, train, evaluate, ship the best (`npm run ml:loop`) |
+| `ml/train.py` | Trains the model in PyTorch and ships it to `js/mahjong-ml-weights.js` (`npm run ml:train`) |
+
+```bash
+npm run ml:generate -- --deals 2000 --lineup mix --out ml/data/r0
+npm run ml:train -- --data ml/data/r0 --name r0 --ship
+```
+
+Every seat's discards are recorded, whatever strategy it plays, with how the hand ended for that seat. Data goes to `ml/data/` (not committed).
 
 ## Reviewing a hand, and teaching the coach
 
@@ -135,7 +155,7 @@ Points per hand are noisy: one limit hand on a self-draw moves 24,576 points. At
 
 ## Earlier results
 
-These predate no-defense and include dishonor, a strategy that has since been removed. At version 0.19.0, one of each strategy sat at the table for 24,000 hands: 1,000 deals in each of the 6 seating orders, each deal played once per seat rotation. 49.7% of hands had no winner.
+These predate the 0.38.0 merge of no-defense into jorge-yau and include dishonor, a strategy that has since been removed. At version 0.19.0, one of each strategy sat at the table for 24,000 hands: 1,000 deals in each of the 6 seating orders, each deal played once per seat rotation. 49.7% of hands had no winner.
 
 | | only-orphans | jorge-yau | lucky-cat | dishonor |
 | --- | ---: | ---: | ---: | ---: |
@@ -154,6 +174,6 @@ The ± is a 95% range that treats hands as independent. only-orphans and jorge-y
 To play one seating order:
 
 ```bash
-npm run compete -- --lineup no-defense,jorge-yau,lucky-cat,only-orphans --deals 1000 --seed 200000
+npm run compete -- --lineup jorge-yau,jorge-yau,lucky-cat,only-orphans --deals 1000 --seed 200000
 ```
 
