@@ -843,6 +843,25 @@ html.is-playing.is-sideways body {
 
 .results-total th { color: #ffffff; }
 
+/* The results table is smaller on a phone so four players and a total fit without crowding. */
+@media (max-width: 600px) {
+  .results-table th,
+  .results-table td {
+    padding: 6px 3px;
+    font-size: 0.72rem;
+  }
+  .results-table thead th { font-size: 0.66rem; }
+  .results-draw { font-size: 0.62rem; }
+  .results-avatar { width: 11px; height: 11px; }
+  .results-player { gap: 3px; }
+  .results-hands,
+  .results-replay { font-size: 0.8rem; }
+  .results-empty { font-size: 0.85rem; }
+  .results-sheet .rules-sheet-head h2 { font-size: 1.3rem; }
+  .results-sheet .rules-sheet-close { padding: 4px 12px; font-size: 0.8rem; }
+  .results-sheet .rules-sheet-inner { padding: 12px 14px 14px; }
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

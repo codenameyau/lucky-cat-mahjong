@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.23.12';
+  var GAME_VERSION = '0.25.6';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -1339,8 +1339,9 @@
   function playbackWho(rec, seat) {
     var p = rec.players[seat];
     if (!p) return 'Seat ' + (seat + 1);
-    var wind = WIND_NAMES[p.wind] || ('Seat ' + (seat + 1));
-    return p.name ? wind + ' (' + p.name + ')' : wind;
+    // The player's name, or their wind when the file has none.
+    if (p.name) return p.name;
+    return WIND_NAMES[p.wind] || ('Seat ' + (seat + 1));
   }
 
   function playbackLines(rec) {

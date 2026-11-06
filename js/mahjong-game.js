@@ -577,6 +577,8 @@
     var layoutNesting = false; // computeLayout is measuring the strategy panel's height
     var reviewPlaying = false;
     var reviewTimer = null;
+    var reviewSpeed = [0.5, 1, 2].indexOf(prefs.speed) !== -1 ? prefs.speed : 1; // playback speed: 0.5, 1 or 2, kept in PREFS_KEY
+    var reviewStopsFor = null; // { rec, stops, mine, discards }: the steps a move lands on
     var reviewScrub = 0; // pointer id while the move bar is being dragged
     var reviewBar = null; // where the move bar was drawn, in layout units
     var reviewNote = null; // why the empty table is waiting, when a paste failed
@@ -906,12 +908,14 @@
           for (var pass = 0; pass < 5; pass++) {
             H = Math.max(320, full - reserve - (reserve ? 8 : 0));
             fallback = computeLayout();
-            var next = Math.round(fallback.meBox.h);
+            var next = Math.round(Math.min(fallback.meBox.h, 70)); // the strip's height, see below
             if (next === reserve) break;
             reserve = next;
           }
-          var panelH = fallback.meBox.h;
-          fallback.strategyPanel = { x: fallback.pad, y: full - panelH, w: W - 2 * fallback.pad, h: panelH };
+          // A phone's strip holds one row of boxes, so it only needs what they do,
+          // not the height of your two-row hand.
+          var panelH = Math.min(fallback.meBox.h, 70);
+          fallback.strategyPanel = { x: fallback.pad, y: full - panelH, w: W - 2 * fallback.pad, h: panelH, phone: true };
           return fallback;
         } finally {
           H = full;
@@ -1466,6 +1470,7 @@
       }
       drawTileTip();
       drawSeatTip();
+      drawStrategyToast();
     }
 
     function drawFelt() {
@@ -2352,8 +2357,7 @@
         if (settings.review) {
           if (settings.replayBack) button('Back', pad, 7, 64, 28, backToGame, 'ghost', 'review-back');
           else button('Close', pad, 7, 64, 28, quit, 'ghost', 'review-close');
-          var n = reviewMoves();
-          var where = reviewStep ? ('Move ' + reviewStep + ' of ' + n) : 'Deal';
+          var where = reviewStep ? ('Move ' + reviewMoveNo(reviewStep) + ' of ' + reviewStops().discards) : 'Deal';
           var label = game && game.hand
             ? E.WIND_NAMES[game.round] + ' round · Hand ' + game.handNumber + ' · ' + where
             : 'Playback';
@@ -3121,45 +3125,54 @@
         reserve = x + w - spot.x + 8;
       }
       var tw = w - (tx - x) - 10 - reserve;
-      var size = !L.desktop ? 11 : L.tableW < 600 ? 12 : 13; // smaller on a phone
-      var out = [];
-      lines.forEach(function (l) {
-        var lineSize = l.nowrap ? fitFont(ctx, coachPieces(l.text).plain, tw, size, FONT_BODY, 'bold') : size;
-        ctx.font = (l.bold ? 'bold ' : '') + lineSize + 'px ' + FONT_BODY;
-        // Hand-pattern names and their faan, such as All Triplets (3 faan), are red.
-        var piece = coachPieces(l.text, l.color);
-        var plain = piece.plain, red = piece.red;
-        var cursor = 0;
-        var chunks = l.nowrap ? [plain] : wrapText(ctx, plain, tw);
-        chunks.forEach(function (ln) {
-          var at = plain.indexOf(ln, cursor);
-          cursor = at + ln.length;
-          var segs = [], pos = at;
-          // Plain text in the line's color, or its tail's from tailFrom on.
-          var pushPlain = function (a, b) {
-            var split = l.tailColor ? clamp(l.tailFrom, a, b) : b;
-            if (split > a) segs.push({ text: plain.slice(a, split), color: l.color });
-            if (b > split) segs.push({ text: plain.slice(split, b), color: l.tailColor });
-          };
-          red.forEach(function (r) {
-            var a = Math.max(r[0], at), b = Math.min(r[1], at + ln.length);
-            if (b <= a) return;
-            if (a > pos) pushPlain(pos, a);
-            segs.push({ text: plain.slice(a, b), color: COLORS.redLight });
-            pos = b;
+      var baseSize = !L.desktop ? 11 : L.tableW < 600 ? 12 : 13; // smaller on a phone
+      // The box keeps its height. A longer note shrinks the text until it fits.
+      function layout(size) {
+        var out = [];
+        lines.forEach(function (l) {
+          var lineSize = l.nowrap ? fitFont(ctx, coachPieces(l.text).plain, tw, size, FONT_BODY, 'bold') : size;
+          ctx.font = (l.bold ? 'bold ' : '') + lineSize + 'px ' + FONT_BODY;
+          // Hand-pattern names and their faan, such as All Triplets (3 faan), are red.
+          var piece = coachPieces(l.text, l.color);
+          var plain = piece.plain, red = piece.red;
+          var cursor = 0;
+          var chunks = l.nowrap ? [plain] : wrapText(ctx, plain, tw);
+          chunks.forEach(function (ln) {
+            var at = plain.indexOf(ln, cursor);
+            cursor = at + ln.length;
+            var segs = [], pos = at;
+            // Plain text in the line's color, or its tail's from tailFrom on.
+            var pushPlain = function (a, b) {
+              var split = l.tailColor ? clamp(l.tailFrom, a, b) : b;
+              if (split > a) segs.push({ text: plain.slice(a, split), color: l.color });
+              if (b > split) segs.push({ text: plain.slice(split, b), color: l.tailColor });
+            };
+            red.forEach(function (r) {
+              var a = Math.max(r[0], at), b = Math.min(r[1], at + ln.length);
+              if (b <= a) return;
+              if (a > pos) pushPlain(pos, a);
+              segs.push({ text: plain.slice(a, b), color: COLORS.redLight });
+              pos = b;
+            });
+            if (pos < at + ln.length) pushPlain(pos, at + ln.length);
+            out.push({ segs: segs, bold: l.bold, size: lineSize });
           });
-          if (pos < at + ln.length) pushPlain(pos, at + ln.length);
-          out.push({ segs: segs, bold: l.bold, size: lineSize });
         });
-      });
-      var lh = (out.length === 1 && out[0].size ? out[0].size : size) + 3;
-      // Show every line: a long tip grows the band upward over the table.
-      var h = Math.max(L.hintH, out.length * lh + 12);
-      var y = L.hintY + L.hintH - h;
+        return out;
+      }
+      var size = baseSize, out, lh;
+      for (;;) {
+        out = layout(size);
+        lh = (out.length === 1 && out[0].size ? out[0].size : size) + 3;
+        if (out.length * lh + 12 <= L.hintH || size <= 8) break;
+        size -= 0.5;
+      }
+      var h = L.hintH;
+      var y = L.hintY;
       ui.coachBox = { x: x, y: y, w: w, h: h };
       ctx.save();
       roundRect(ctx, x, y, w, h, 6);
-      ctx.fillStyle = h > L.hintH ? 'rgba(4,46,28,0.94)' : 'rgba(0,0,0,0.32)';
+      ctx.fillStyle = 'rgba(0,0,0,0.32)';
       ctx.fill();
       ctx.restore();
       if (images.logo) {
@@ -3450,23 +3463,31 @@
       }
     }
 
-    // The hand each strategy would throw from: the one on the table when you
-    // are about to discard, or the one just before your discard.
-    function reviewDiscardSource() {
+    // The step each strategy's discard is read from: the hand on the table
+    // when you are about to discard, else the one just before your latest
+    // discard (or your first one, if you haven't discarded yet), so the boxes
+    // always show a tile, as they do in a game.
+    function reviewSourceStep() {
       if (!settings.review || !game || !game.hand) return null;
-      var step = reviewStep;
-      if (!(game && game.hand && game.hand.seats[0].hand.length % 3 === 2)) {
-        var ev = reviewStep > 0 ? settings.review.actions[reviewStep - 1] : null;
-        if (!ev || ev.a !== 'discard' || ev.s !== 0) return null;
-        step = reviewStep - 1;
+      if (game.hand.seats[0].hand.length % 3 === 2) return reviewStep;
+      var actions = settings.review.actions;
+      var limit = reviewMoves();
+      for (var i = Math.min(reviewStep, limit) - 1; i >= 0; i--) {
+        if (actions[i].a === 'discard' && actions[i].s === 0) return i;
       }
-      try { return E.playbackGame(settings.review, step); }
-      catch (err) { return null; }
+      for (var j = Math.max(0, reviewStep); j < limit; j++) {
+        if (actions[j].a === 'discard' && actions[j].s === 0) return j;
+      }
+      return null;
     }
 
     function reviewStrategyRows() {
-      if (reviewPicks && reviewPicks.step === reviewStep) return reviewPicks.rows;
-      var source = reviewDiscardSource();
+      var at = reviewSourceStep();
+      if (reviewPicks && reviewPicks.step === at) return reviewPicks.rows;
+      var source = null;
+      if (at !== null) {
+        try { source = E.playbackGame(settings.review, at); } catch (err) { source = null; }
+      }
       var rows = Strategies.list().map(function (s) {
         var tile = null;
         if (source) {
@@ -3478,7 +3499,7 @@
         }
         return { id: s.id, name: s.name, tile: tile };
       });
-      reviewPicks = { step: reviewStep, rows: rows };
+      reviewPicks = { step: at, rows: rows };
       return rows;
     }
 
@@ -3576,19 +3597,23 @@
       ctx.fillStyle = 'rgba(0,0,0,0.32)';
       ctx.fill();
       ctx.restore();
-      text('Recommendation', p.x + 14, p.y + 18, {
-        size: fitFont(ctx, 'Recommendation', Math.max(40, p.w - 28), 14, FONT_HEAD, 'bold'),
-        weight: 'bold', family: FONT_HEAD, color: COLORS.cream,
-      });
+      var strip = !!p.phone; // the phone strip has no heading
+      var small = strip || p.h < 150; // the strip and the half-height column panel
+      if (!strip) {
+        text('Strategies', p.x + 14, p.y + (small ? 14 : 18), {
+          size: fitFont(ctx, 'Strategies', Math.max(40, p.w - 28), small ? 12 : 14, FONT_HEAD, 'bold'),
+          weight: 'bold', family: FONT_HEAD, color: COLORS.cream,
+        });
+      }
       var rows = settings.review ? reviewStrategyRows() : liveStrategyRows();
       if (!rows.length) return;
       var gap = 8;
       var colW = (p.w - gap * (rows.length + 1)) / rows.length;
-      var nameH = 22;
-      var topPad = 8; // above the strategy name, like the 8 under the tile
-      var headH = 34;
+      var nameH = strip ? 14 : small ? 16 : 22;
+      var topPad = strip ? 3 : small ? 4 : 8; // above the strategy name, like the pad under the tile
+      var headH = strip ? 4 : small ? 24 : 34;
       var y = p.y + headH;
-      var h = Math.max(36, p.h - headH - 8);
+      var h = Math.max(36, p.h - headH - (strip ? 4 : small ? 5 : 8));
       rows.forEach(function (row, i) {
         var x = p.x + gap + i * (colW + gap);
         var on = row.id === ui.strategies.coach;
@@ -3605,47 +3630,51 @@
         ctx.restore();
         var label = row.name;
         text(label, x + colW / 2, y + topPad + nameH / 2 + 2, {
-          size: fitFont(ctx, label, colW - 12, 14, FONT_BODY, 'bold'),
+          size: fitFont(ctx, label, colW - 12, strip ? 11 : small ? 12 : 14, FONT_BODY, 'bold'),
           weight: 'bold', align: 'center',
           color: on ? COLORS.gold : COLORS.cream,
         });
-        var tileRoom = h - topPad - nameH - 8;
+        var tileRoom = h - topPad - nameH - (strip ? 3 : small ? 4 : 8);
         var color = on ? COLORS.gold : COLORS.cream;
         if (row.action) {
           var maxW = Math.max(24, colW - 10);
-          ctx.font = 'bold 15px ' + FONT_BODY;
+          var one = strip ? 10 : small ? 13 : 15, many = strip ? 10 : small ? 12 : 13; // on a phone every line but the name is 10
+          ctx.font = 'bold ' + one + 'px ' + FONT_BODY;
           var lines = ctx.measureText(row.action).width <= maxW ? [row.action] : wrapText(ctx, row.action, maxW);
-          var size = lines.length > 1 ? 13 : 15;
+          var size = lines.length > 1 ? many : one;
           var lh = size + 3;
           var start = y + topPad + nameH + (tileRoom - lines.length * lh) / 2 + lh / 2;
           lines.forEach(function (ln, n) {
             text(ln, x + colW / 2, start + n * lh, { size: size, weight: 'bold', align: 'center', color: color });
           });
         } else {
-          var labelH = 22; // "Discard" under the tile, with 4px above it
+          var labelH = strip ? 12 : small ? 15 : 22; // "Discard" under the tile, with a little above it
           var fit = Math.min(colW - 16, (tileRoom - labelH) / TILE_ASPECT);
           var tw = fit * 0.84;
           if (row.tile && tw >= 16) {
             var tx = x + (colW - tw) / 2;
             var ty = y + topPad + nameH + (tileRoom - labelH - tw * TILE_ASPECT) / 2;
             drawTile(row.tile, tx, ty, tw, { glow: on ? COLORS.gold : null });
-            text('Discard', x + colW / 2, ty + tw * TILE_ASPECT + labelH / 2 + 4, {
-              size: fitFont(ctx, 'Discard', colW - 12, 13, FONT_BODY, 'bold'),
-              weight: 'bold', align: 'center', color: on ? COLORS.gold : COLORS.cream,
+            // Feedback looks back at the discard you made, so it says Discarded.
+            var tileWord = ui.coach === 'feedback' && !settings.review ? 'Discarded' : 'Discard';
+            text(tileWord, x + colW / 2, ty + tw * TILE_ASPECT + labelH / 2 + 4, {
+              size: fitFont(ctx, tileWord, colW - 12, strip ? 10 : small ? 11 : 13, FONT_BODY, strip ? '' : 'bold'),
+              weight: strip ? '' : 'bold', align: 'center', color: on ? COLORS.gold : COLORS.cream,
             });
           } else if (ui.coach === 'feedback' && !settings.review) {
             // Feedback looks back, so before your discard there is nothing to show.
             var waiting = 'Discard tile for feedback';
             var wmax = Math.max(24, colW - 12);
-            ctx.font = '13px ' + FONT_BODY;
+            var wsize = strip ? 10 : 13;
+            ctx.font = wsize + 'px ' + FONT_BODY;
             var wlines = wrapText(ctx, waiting, wmax);
-            var wlh = 16;
+            var wlh = wsize + 3;
             var wstart = y + topPad + nameH + (tileRoom - wlines.length * wlh) / 2 + wlh / 2;
             wlines.forEach(function (ln, n) {
-              text(ln, x + colW / 2, wstart + n * wlh, { size: 13, align: 'center', color: 'rgba(255,248,240,0.6)' });
+              text(ln, x + colW / 2, wstart + n * wlh, { size: wsize, align: 'center', color: 'rgba(255,248,240,0.6)' });
             });
           } else {
-            text('—', x + colW / 2, y + topPad + nameH + tileRoom / 2, { size: 16, align: 'center', color: COLORS.cream });
+            text('—', x + colW / 2, y + topPad + nameH + tileRoom / 2, { size: strip ? 10 : 16, align: 'center', color: COLORS.cream });
           }
         }
         addRegion(x, y, colW, h, function () { chooseCoach(row.id); }, 'strategy-' + row.id);
@@ -3682,15 +3711,16 @@
         acts.push({ id: 'pass', label: 'Pass', style: 'white', fn: function () { resolveClaim({ type: 'pass' }); } });
       }
       if (!acts.length) { setButtonsOverName(false); return; }
-      var h = 38;
-      var gap = 8;
+      var phone = W < 600; // smaller buttons on a phone
+      var h = phone ? 30 : 38;
+      var gap = phone ? 6 : 8;
       // When claiming, show the tile that is up for grabs beside the buttons.
       var claimTile = ui.claimPrompt ? ui.claimPrompt.opts.tile : null;
-      var ctw = claimTile ? Math.min(30, (L.actionsH - 4) / TILE_ASPECT) : 0;
+      var ctw = claimTile ? Math.min(phone ? 24 : 30, (L.actionsH - 4) / TILE_ASPECT) : 0;
       var lead = claimTile ? ctw + 10 : 0;
-      ctx.font = 'bold 15px ' + FONT_BODY;
+      ctx.font = 'bold ' + (phone ? 12 : 15) + 'px ' + FONT_BODY;
       // Each button is only as wide as its label.
-      var widths = acts.map(function (a) { return Math.ceil(ctx.measureText(a.label).width) + 28; });
+      var widths = acts.map(function (a) { return Math.ceil(ctx.measureText(a.label).width) + (phone ? 20 : 28); });
       var buttonsW = widths.reduce(function (sum, w) { return sum + w; }, 0) + gap * (acts.length - 1);
       var x0 = L.meX + L.pad, x1 = L.meX + L.meW - L.pad, rowY = L.actionsY;
       var free = ui.meRowFree;
@@ -4444,7 +4474,9 @@
       var next = SOUND_ORDER[(SOUND_ORDER.indexOf(soundMode()) + 1) % SOUND_ORDER.length];
       sound.enabled = next !== 'off';
       sound.musicEnabled = sound.enabled;
-      writeJson(PREFS_KEY, { sound: sound.enabled, music: sound.enabled });
+      prefs.sound = sound.enabled;
+      prefs.music = sound.enabled;
+      writeJson(PREFS_KEY, prefs);
       sound.music(true); // plays or pauses to match
       if (sound.enabled) sound.play('select');
       requestRender();
@@ -5457,7 +5489,55 @@
 
     // A recommendation chooses the coach. Playback keeps that choice for this
     // visit. A game saves it with the other strategy choices.
+    // On a phone there is no hover, so picking a strategy says so for a second.
+    var strategyToastTimer = null;
+    function showStrategyToast(id) {
+      ui.strategyToast = 'Selected strategy: ' + Strategies.get(id).name;
+      ui.strategyToastAt = now();
+      if (strategyToastTimer) clearTimeout(strategyToastTimer);
+      strategyToastTimer = setTimeout(function () {
+        strategyToastTimer = null;
+        ui.strategyToast = null;
+        if (!destroyed) requestRender();
+      }, 1000);
+      requestRender();
+    }
+
+    function drawStrategyToast() {
+      var p = L && L.strategyPanel;
+      if (!ui.strategyToast || !p) return;
+      // A quick fade and rise in, a hold, then a longer fade out, all inside the second.
+      var age = now() - ui.strategyToastAt;
+      var FADE_IN = 160, FADE_OUT = 340, TOTAL = 1000;
+      var alpha = age < FADE_IN ? easeInOut(age / FADE_IN)
+        : age > TOTAL - FADE_OUT ? easeInOut(Math.max(0, (TOTAL - age) / FADE_OUT)) : 1;
+      var rise = age < FADE_IN ? (1 - alpha) * 8 : 0;
+      if (age < TOTAL) requestRender(); // keep drawing while it fades
+      if (alpha <= 0) return;
+      var label = ui.strategyToast;
+      var size = fitFont(ctx, label, Math.max(80, W - 40), 14, FONT_BODY, 'bold');
+      ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
+      var w = Math.min(ctx.measureText(label).width + 28, W - 16);
+      var h = 30;
+      var x = clamp(p.x + p.w / 2 - w / 2, 8, W - w - 8);
+      var y = p.y - h - 8 + rise;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowBlur = 8;
+      roundRect(ctx, x, y, w, h, 8);
+      ctx.fillStyle = 'rgba(20,20,20,0.94)';
+      ctx.fill();
+      ctx.restore();
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      text(label, x + w / 2, y + h / 2 + 1, { size: size, weight: 'bold', align: 'center', color: COLORS.cream });
+      ctx.restore();
+    }
+
     function chooseCoach(id) {
+      sound.play('select'); // the same tick as picking a tile
+      if (W < 600 || lastTouch) showStrategyToast(id);
       if (settings.review) setReviewCoach(id);
       else setCoachStrategy(id);
     }
@@ -5512,7 +5592,7 @@
           }
           try { E.applyPlaybackAction(walk.game, ev); }
           catch (err) { walk.index = actions.length; break; }
-          if (ev && ev.s === 0 && ev.a === 'discard') walk.discards++; // one discard is one move
+          if (ev && ev.a === 'discard') walk.discards++; // one discard is one move, anyone's
           walk.index++;
           if (hints >= 2 && walk.index < target) { more = true; break; }
         }
@@ -5571,10 +5651,54 @@
       return null;
     }
 
-    function reviewCaption() {
-      if (!reviewStep) return 'The deal.';
+    // A move is one discard. The stops are the deal, the step after each
+    // discard, and the last step of the file when something follows the last
+    // discard (a win, say). Draws, flowers and claims belong to the move they lead to.
+    function reviewStops() {
+      var rec = settings.review;
+      if (reviewStopsFor && reviewStopsFor.rec === rec) return reviewStopsFor;
+      var stops = [0], mine = [false], melds = [false], discards = 0;
+      var limit = reviewMoves();
+      var meld = false; // you exposed a meld since the last stop
+      for (var i = 0; i < limit; i++) {
+        var ev = rec.actions[i];
+        if (ev.s === 0 && (ev.a === 'claim' || (ev.a === 'kong' && ev.k === 'added'))) meld = true;
+        if (ev.a === 'discard') { stops.push(i + 1); mine.push(ev.s === 0); melds.push(meld); meld = false; discards++; }
+      }
+      if (limit > 0 && stops[stops.length - 1] !== limit) { stops.push(limit); mine.push(false); melds.push(meld); }
+      reviewStopsFor = { rec: rec, stops: stops, mine: mine, melds: melds, discards: discards };
+      return reviewStopsFor;
+    }
+
+    // The last stop at or before this step.
+    function reviewStopIndex(step) {
+      var stops = reviewStops().stops, at = 0;
+      for (var i = 0; i < stops.length; i++) if (stops[i] <= step) at = i;
+      return at;
+    }
+
+    // Which move a step is on: discards so far (the closing step is not a move).
+    function reviewMoveNo(step) {
+      return Math.min(reviewStopIndex(step), reviewStops().discards);
+    }
+
+    // What happened to reach a stop: claims and the discard, without the draws.
+    function reviewCaptionAt(step) {
+      if (!step) return 'The deal.';
+      var idx = reviewStopIndex(step);
+      var from = reviewStops().stops[Math.max(0, idx - 1)];
       var lines = E.playbackLines(settings.review);
-      return lines[reviewStep - 1] || 'The deal.';
+      var parts = [];
+      for (var i = from; i < step; i++) {
+        var ev = settings.review.actions[i];
+        if (ev && (ev.a === 'draw' || ev.a === 'flower') && step - from > 1) continue;
+        if (lines[i]) parts.push(lines[i]);
+      }
+      return parts.join(' ') || 'The deal.';
+    }
+
+    function reviewCaption() {
+      return reviewCaptionAt(reviewStep);
     }
 
     // How far this signed file may play. Never past the move count it names.
@@ -5587,13 +5711,21 @@
     }
 
     function reviewSpoken() {
-      var n = reviewMoves();
       if (!reviewStep) return 'The deal.';
-      return 'Move ' + reviewStep + ' of ' + n + '. ' + reviewCaption();
+      return 'Move ' + reviewMoveNo(reviewStep) + ' of ' + reviewStops().discards + '. ' + reviewCaption();
     }
 
     // One move is long enough to read. A reduced-motion visit waits longer.
-    function reviewPace() { return reduceMotion ? 1600 : 800; }
+    function reviewPace() { return (reduceMotion ? 1900 : 1100) / reviewSpeed; }
+
+    function setReviewSpeed(v) {
+      reviewSpeed = v;
+      prefs.speed = v;
+      writeJson(PREFS_KEY, prefs);
+      announce('Speed ' + v + 'x.');
+      if (reviewPlaying) scheduleReview();
+      requestRender();
+    }
 
     function stopReviewPlay() {
       reviewPlaying = false;
@@ -5642,9 +5774,9 @@
 
     // The move under a point on the bar. The deal is the left end.
     function reviewStepAt(px) {
-      var n = reviewMoves();
-      if (!reviewBar || !reviewBar.w || !n) return 0;
-      return clamp(Math.round((px - reviewBar.x) / reviewBar.w * n), 0, n);
+      var stops = reviewStops().stops;
+      if (!reviewBar || !reviewBar.w || stops.length < 2) return 0;
+      return stops[clamp(Math.round((px - reviewBar.x) / reviewBar.w * (stops.length - 1)), 0, stops.length - 1)];
     }
 
     function jumpReview(step, quiet) {
@@ -5656,7 +5788,7 @@
       if (!showReviewStep(quiet)) reviewStep = prev;
     }
 
-    // The coach's bar holds the move, the progress bar, and Previous / Play / Next.
+    // The coach's bar holds what happened, the speed, the progress bar, and the transport buttons.
     function drawReviewCoachBox() {
       var x = L.ox + L.pad, w = L.tableW - 2 * L.pad, y = L.hintY, h = L.hintH;
       ui.coachBox = { x: x, y: y, w: w, h: h };
@@ -5666,68 +5798,186 @@
       ctx.fill();
       ctx.restore();
       var padX = 14;
-      var captionH = 20, barH = 10, btnH = 32, gap = 6;
-      var stack = captionH + gap + barH + gap + btnH;
-      if (stack > h - 8) btnH = Math.max(26, h - 8 - captionH - barH - gap * 2);
-      stack = captionH + gap + barH + gap + btnH;
+      var barH = 14, btnH = 34, gap = 10;
+      var stack = barH + gap + btnH;
+      if (stack > h - 8) btnH = Math.max(26, h - 8 - barH - gap);
+      stack = barH + gap + btnH;
       var top = y + Math.max(4, (h - stack) / 2);
-      var caption = reviewCaption();
-      var captionSize = fitFont(ctx, caption, w - padX * 2, 15, FONT_BODY, 'bold');
-      text(caption, x + padX, top + captionH / 2, { size: captionSize, weight: 'bold', color: COLORS.goldLight });
-      drawReviewBar({ x: x + padX, y: top + captionH + gap, w: w - padX * 2, h: barH });
-      drawReviewButtons({ x0: x + padX, x1: x + w - padX, y: top + captionH + gap + barH + gap, h: btnH });
+      drawReviewBar({ x: x + padX, y: top, w: w - padX * 2, h: barH });
+      drawReviewButtons({ x0: x + padX, x1: x + w - padX, y: top + barH + gap, h: btnH });
     }
 
+    // One row: what happened (small, white) on the left, the transport buttons,
+    // and the speed control at the right end.
     function drawReviewButtons(slot) {
       var n = reviewMoves();
       var acts = [];
+      var speeds = [0.5, 1, 2];
+      var sbw = W < 420 ? 30 : 36;
+      var groupW = sbw * speeds.length;
+      var rowW = slot.x1 - slot.x0;
       if (reviewStep > 0) acts.push({ id: 'review-prev', label: 'Previous', style: 'white', fn: function () { stepReview(-1); } });
       acts.push({ id: 'review-play', label: reviewPlaying ? 'Pause' : 'Play', style: 'gold', fn: toggleReviewPlay });
       if (reviewStep < n) acts.push({ id: 'review-next', label: 'Next', style: 'white', fn: function () { stepReview(1); } });
-      var gap = 8;
-      var bw = 108;
-      var room = slot.x1 - slot.x0;
+      var gap = 6;
+      var bw = rowW >= 560 ? 84 : 66;
+      // The buttons sit in the middle of the row, with the caption and the speed
+      // control sharing the room on either side. A phone has no room for that:
+      // there the buttons sit at the right, next to the speed control, and the
+      // caption keeps the left.
+      var phone = rowW < 440;
       var total = acts.length * bw + (acts.length - 1) * gap;
-      if (total > room) {
-        bw = Math.max(64, (room - gap * (acts.length - 1)) / acts.length);
-        total = acts.length * bw + (acts.length - 1) * gap;
+      var bx0, captionW;
+      if (phone) {
+        var fitPhone = rowW - groupW - 12 - 96 - 10; // the caption keeps about 96
+        if (total > fitPhone) {
+          bw = Math.max(44, (fitPhone - (acts.length - 1) * gap) / acts.length);
+          total = acts.length * bw + (acts.length - 1) * gap;
+        }
+        bx0 = slot.x1 - groupW - 12 - total;
+        captionW = bx0 - slot.x0 - 10;
+      } else {
+        var side = Math.max(groupW, 110) + 10;
+        var fitW = rowW - 2 * side;
+        if (total > fitW) {
+          bw = Math.max(46, (fitW - (acts.length - 1) * gap) / acts.length);
+          total = acts.length * bw + (acts.length - 1) * gap;
+        }
+        bx0 = slot.x0 + (rowW - total) / 2;
+        captionW = bx0 - slot.x0 - 10;
       }
-      var x = slot.x0 + (room - total) / 2;
+      var caption = reviewCaption();
+      // Up to three lines at 14, then smaller until it fits.
+      var size = phone ? 13 : 14, lines;
+      for (; size >= 11; size--) {
+        ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
+        lines = wrapText(ctx, caption, captionW);
+        if (lines.length <= 3) break;
+      }
+      lines = lines.slice(0, 3);
+      var lh = size + 2;
+      lines.forEach(function (ln, i) {
+        text(ln, slot.x0, slot.y + slot.h / 2 + (i - (lines.length - 1) / 2) * lh + 1, { size: size, weight: 'bold', color: COLORS.cream });
+      });
       acts.forEach(function (a, i) {
-        button(a.label, x + i * (bw + gap), slot.y, bw, slot.h, a.fn, a.style, a.id);
+        button(a.label, bx0 + i * (bw + gap), slot.y, bw, slot.h, a.fn, a.style, a.id);
+      });
+      var sbh = Math.min(slot.h, 28);
+      var gx = slot.x1 - groupW, gy = slot.y + (slot.h - sbh) / 2;
+      ctx.save();
+      roundRect(ctx, gx, gy, groupW, sbh, sbh / 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      ctx.fill();
+      ctx.restore();
+      speeds.forEach(function (v, i) {
+        var on = reviewSpeed === v;
+        var hot = hover === 'review-speed-' + v;
+        var bx = gx + i * sbw;
+        if (on || hot) {
+          ctx.save();
+          roundRect(ctx, bx + 2, gy + 2, sbw - 4, sbh - 4, (sbh - 4) / 2);
+          ctx.fillStyle = on ? COLORS.gold : 'rgba(255,255,255,0.2)';
+          ctx.fill();
+          ctx.restore();
+        }
+        text(v + 'x', bx + sbw / 2, gy + sbh / 2 + 1, { size: 12, weight: 'bold', align: 'center', color: on ? COLORS.ink : COLORS.cream });
+        addRegion(bx, gy, sbw, sbh, function () { setReviewSpeed(v); }, 'review-speed-' + v);
       });
     }
 
-    // A tick for every move, filled up to the one on the table.
+    // The progress bar: a light groove with a gold fill, a dot for every move
+    // (a bigger one for your own discards, a yellow one for a meld you exposed), and a round handle. Hovering shows
+    // what happened at that move.
     function drawReviewBar(slot) {
-      var n = reviewMoves();
+      var info = reviewStops();
+      var stops = info.stops;
+      var segs = Math.max(1, stops.length - 1);
       var x = slot.x, y = slot.y, w = slot.w, h = slot.h;
       reviewBar = { x: x, y: y, w: w, h: h };
-      roundRect(ctx, x, y, w, h, h / 2);
-      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      var live = hover === 'review-bar' || !!reviewScrub;
+      var at = reviewStopIndex(reviewStep);
+      var cy = y + h / 2;
+      var trackH = live ? 10 : 8;
+      var ty = cy - trackH / 2;
+      // The groove.
+      ctx.save();
+      roundRect(ctx, x, ty, w, trackH, trackH / 2);
+      var groove = ctx.createLinearGradient(0, ty, 0, ty + trackH);
+      groove.addColorStop(0, 'rgba(255,248,240,0.30)');
+      groove.addColorStop(1, 'rgba(255,248,240,0.16)');
+      ctx.fillStyle = groove;
       ctx.fill();
-      var seg = n ? w / n : w;
-      if (reviewStep > 0 && n) {
+      ctx.restore();
+      // The fill, up to the move on the table.
+      var fx = x + at / segs * w;
+      if (at > 0) {
         ctx.save();
-        roundRect(ctx, x, y, Math.min(w, Math.max(h, seg * reviewStep)), h, h / 2);
-        ctx.fillStyle = (hover === 'review-bar' || reviewScrub) ? '#ffb43c' : COLORS.gold;
+        roundRect(ctx, x, ty, Math.max(trackH, fx - x), trackH, trackH / 2);
+        var grad = ctx.createLinearGradient(x, 0, x + w, 0);
+        grad.addColorStop(0, '#e08a10');
+        grad.addColorStop(1, COLORS.goldLight);
+        ctx.fillStyle = grad;
+        ctx.fill();
+        // A soft highlight along the top of the fill.
+        roundRect(ctx, x + 2, ty + 1.5, Math.max(0, fx - x - 4), 2, 1);
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
         ctx.fill();
         ctx.restore();
       }
-      if (n > 1 && seg >= 4) {
-        ctx.save();
+      // A dot for each move, when they are far enough apart to read.
+      var gapPx = w / segs;
+      for (var i = 1; i < stops.length; i++) {
+        var mine = info.mine[i];
+        var exposed = info.melds[i];
+        if (gapPx < 7 && !mine && !exposed) continue;
+        var dx = x + i / segs * w;
+        var done = i <= at;
         ctx.beginPath();
-        roundRect(ctx, x, y, w, h, h / 2);
-        ctx.clip();
-        ctx.fillStyle = 'rgba(255,248,240,0.45)';
-        for (var i = 1; i < n; i++) ctx.fillRect(x + i * seg - 0.5, y, 1, h);
-        ctx.restore();
+        ctx.arc(dx, cy, exposed ? 4.6 : mine ? 3 : 1.5, 0, Math.PI * 2);
+        // A yellow circle is a meld you exposed (a pung, chow or kong).
+        ctx.fillStyle = exposed ? '#FFE14D' : mine ? COLORS.cream : (done ? 'rgba(90,50,0,0.55)' : 'rgba(255,248,240,0.55)');
+        ctx.fill();
+        if (exposed || mine) {
+          ctx.lineWidth = 1.2;
+          ctx.strokeStyle = exposed ? '#8a5200' : (done ? COLORS.gold : 'rgba(255,255,255,0.7)');
+          ctx.stroke();
+        }
       }
-      var hx = clamp(x + (n ? reviewStep / n * w : 0), x + 6, x + w - 6);
+      // The handle.
+      var hx = clamp(fx, x + 7, x + w - 7);
+      var hr = live ? 8.5 : 7;
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.45)';
+      ctx.shadowBlur = 5;
+      ctx.shadowOffsetY = 1;
       ctx.beginPath();
-      ctx.arc(hx, y + h / 2, 7, 0, Math.PI * 2);
+      ctx.arc(hx, cy, hr, 0, Math.PI * 2);
       ctx.fillStyle = COLORS.cream;
       ctx.fill();
+      ctx.restore();
+      ctx.beginPath();
+      ctx.arc(hx, cy, hr - 3, 0, Math.PI * 2);
+      ctx.fillStyle = COLORS.gold;
+      ctx.fill();
+      // What is at the point under the pointer.
+      if (live && mouse && mouse.x >= x - 4 && mouse.x <= x + w + 4) {
+        var hoverStep = reviewStepAt(mouse.x);
+        var idx = reviewStopIndex(hoverStep);
+        var label = (hoverStep ? 'Move ' + reviewMoveNo(hoverStep) + ' · ' : '') + reviewCaptionAt(hoverStep);
+        var size = 12;
+        ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
+        var tw = Math.min(ctx.measureText(label).width + 16, Math.max(80, W - 16));
+        var px = clamp(x + idx / segs * w - tw / 2, 4, W - tw - 4);
+        var py = y - 30;
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+        ctx.shadowBlur = 6;
+        roundRect(ctx, px, py, tw, 22, 6);
+        ctx.fillStyle = 'rgba(20,20,20,0.92)';
+        ctx.fill();
+        ctx.restore();
+        text(label, px + tw / 2, py + 12, { size: fitFont(ctx, label, tw - 12, size, FONT_BODY, 'bold'), weight: 'bold', align: 'center', color: COLORS.cream });
+      }
       addRegion(x, y - 4, w, h + 8, function () {}, 'review-bar');
     }
 
@@ -5931,12 +6181,20 @@
 
     function stepReview(d, keepPlaying) {
       if (!keepPlaying) stopReviewPlay();
-      var n = reviewMoves();
-      var next = reviewStep + d;
-      if (next < 0 || next > n) return;
+      var stops = reviewStops().stops;
+      var at = reviewStopIndex(reviewStep);
+      // Off a stop (never by the buttons) going back lands on the one it is past.
+      var to = d < 0 && stops[at] < reviewStep ? at : at + d;
+      if (to < 0 || to >= stops.length) return;
+      var next = stops[to];
       var prev = reviewStep;
+      // Going forward, the draws and claims land at once and the discard flies.
+      if (d > 0 && next - prev > 1) {
+        reviewStep = next - 1;
+        if (!showReviewStep(true)) { reviewStep = prev; return; }
+      }
       reviewStep = next;
-      if (!showReviewStep(false, d === 1)) reviewStep = prev;
+      if (!showReviewStep(false, d > 0)) reviewStep = prev;
     }
 
     async function play() {
@@ -6158,6 +6416,7 @@
       },
       destroy: function () {
         destroyed = true;
+        if (strategyToastTimer) clearTimeout(strategyToastTimer);
         stopReviewPlay();
         if (reviewCoachTimer) { clearTimeout(reviewCoachTimer); reviewCoachTimer = null; }
         sound.stopMusic();
