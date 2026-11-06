@@ -2,6 +2,8 @@
 
 `neural-cat` (`js/mahjong-ml.js`) is a learned strategy. It has no playbook of rules. A model trained on simulated deals picks the discard, and whether to claim or kong. Choose it on the Strategies sheet for a seat or the coach, like any other strategy.
 
+This is the strategy's playbook: how it plays and every result. How the whole AI layer is built (features, the network, decisions, training, the league, fair play and Hugging Face) is in [docs/machine-learning](../machine-learning/README.md).
+
 ## How it chooses
 
 1. It plays Jorge Yau's hooks and tuning on the shared foundation (`js/mahjong-bot.js`), which list every discard in Jorge Yau's order and read each one: steps from ready, live tiles, the best plan and its faan, the backup plans, and the deal-in risk of the tile. With `topK: 1` it plays exactly like Jorge Yau.
