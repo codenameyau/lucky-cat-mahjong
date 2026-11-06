@@ -14,20 +14,21 @@
   var L = node ? require('./mahjong-lucky-cat.js') : root.MahjongLuckyCat;
   var J = node ? require('./mahjong-jorge-yau.js') : root.MahjongJorgeYau;
   var O = node ? require('./mahjong-only-orphans.js') : root.MahjongOnlyOrphans;
-  var N = node ? require('./mahjong-no-defense.js') : root.MahjongNoDefense;
 
   var STRATEGIES = [
     {
       id: 'jorge-yau',
       name: 'Jorge Yau',
       bot: J,
-      summary: 'Reads the opening hand, picks one hand to build and pivots strategically. Stays concealed, and stops feeding the table when it can\'t win.',
+      summary: 'Reads the opening hand, picks one hand to build and pivots. Attacks with no defense, keeps honors, and locks onto a hand worth 7 faan or more. Only plays safe late, when it is far from winning.',
       details: [
         'It looks at the opening hand and picks a target, in this order: Thirteen Orphans, Nine Gates, Four Winds, All Terminals, All Honors, Seven Pairs, Full Flush, Concealed Triplets, Half Flush and Concealed Straights. Tiles the target can\'t use go first.',
         'Each turn it reads the hand again. A stronger target replaces the old one, and when a target can\'t be made it pivots: Seven Pairs to Concealed Triplets to All Triplets, Concealed Triplets to All Triplets or Seven Pairs, Full Flush to Half Flush, Four Winds to All Honors, and Thirteen Orphans to Seven Pairs with Mixed Orphans.',
         'With a seat or round wind, or a seat flower, the hand already has faan, so it plays for speed. It also counts wins off the last tile and off a kong toward the 3-faan minimum.',
-        'It keeps the hand concealed. Early chows only build a flush in that suit, and never into a suit it holds few tiles of. Pungs are fine early.',
-        'It reads every opponent\'s discards for the hand they\'re on: the suit they keep, the honors they hold, or a hand of sequences. Late in the wall, if it is still two or more tiles from ready, it stops building and stops feeding: no chow tiles to the next player, no fresh dragons or winds.',
+        'With 8 tiles of a hand worth 7 faan or more within its first 8 turns (a Full Flush, Thirteen Orphans, Nine Gates, All Honors, All Terminals, Four Winds, Three Dragons or Mixed Orphans), it locks onto that hand and keeps those tiles until the hand can\'t be won.',
+        'It keeps honors as long as it can. Number tiles that cost no step go first, then lone honors, and honor pairs stay longest. A lone honor with the other three copies on the table goes first of all.',
+        'It claims any chow, pung or kong that brings the hand closer and can still reach 3 faan. On a lock, it claims only that hand\'s tiles.',
+        'It plays no defense: it never folds and doesn\'t mind what it feeds. The one exception is late in the wall, when it is still two or more tiles from ready and holds no lock. Then it stops building, plays safe and stops feeding chow tiles and fresh honors, using its reads of what each opponent is collecting.',
       ],
       doc: 'docs/strategies/jorge-yau.md',
     },
@@ -59,23 +60,9 @@
       ],
       doc: 'docs/strategies/only-orphans.md',
     },
-    {
-      id: 'no-defense',
-      name: 'No Defense',
-      bot: N,
-      summary: 'Never folds and never minds what it feeds. Builds the fastest hand it can, keeps honors as long as possible, and locks onto a hand worth 7 faan or more when it has 8 of the tiles.',
-      details: [
-        'It takes no account of what a discard might feed, and it never folds, however late or however close an opponent looks.',
-        'It keeps honors as long as it can. Number tiles that cost no step go first, then lone honors, and honor pairs stay longest. The exception is a discard that leaves the hand able to win.',
-        'A lone honor with the other three copies on the table goes first of all, since it can never be used.',
-        'With 8 tiles of a hand worth 7 faan or more within its first 8 turns, it locks onto that hand: a Full Flush, Thirteen Orphans, Nine Gates, All Honors, All Terminals, Four Winds, Three Dragons or Mixed Orphans. It keeps those tiles until the hand can\'t be won.',
-        'It claims anything that brings the hand closer and can still reach 3 faan. On a lock, it claims only that hand\'s tiles.',
-      ],
-      doc: 'docs/strategies/no-defense.md',
-    },
   ];
 
-  var DEFAULT_COACH = 'lucky-cat';
+  var DEFAULT_COACH = 'jorge-yau';
   var BY_ID = {};
   STRATEGIES.forEach(function (s) { BY_ID[s.id] = s; });
 

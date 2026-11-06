@@ -35,9 +35,9 @@ function targetOf(hand, extra) {
 }
 
 describe('strategy registry', () => {
-  it('lists every strategy, with lucky-cat as the coach default', () => {
-    assert.deepEqual(S.ids(), ['jorge-yau', 'lucky-cat', 'only-orphans', 'no-defense']);
-    assert.equal(S.DEFAULT_COACH, 'lucky-cat');
+  it('lists every strategy, with jorge-yau as the coach default', () => {
+    assert.deepEqual(S.ids(), ['jorge-yau', 'lucky-cat', 'only-orphans']);
+    assert.equal(S.DEFAULT_COACH, 'jorge-yau');
     assert.equal(S.get('lucky-cat').bot, B);
     assert.equal(S.get('jorge-yau').bot, L);
     assert.equal(S.get('lucky-cat').bot.id, 'lucky-cat');
@@ -50,12 +50,12 @@ describe('strategy registry', () => {
 
   it('falls back to the default for an unknown id', () => {
     assert.equal(S.has('nope'), false);
-    assert.equal(S.get('nope').id, 'lucky-cat');
+    assert.equal(S.get('nope').id, 'jorge-yau');
   });
 
   it('picks a random strategy from the list', () => {
     assert.equal(S.randomId(() => 0), 'jorge-yau');
-    assert.equal(S.randomId(() => 0.99), 'no-defense');
+    assert.equal(S.randomId(() => 0.99), 'only-orphans');
   });
 
   it('makes agents that play a full hand', async () => {
@@ -222,7 +222,7 @@ describe('Concealed Straights keeps one honor pair', () => {
     // is the pair, but the white dragon has three copies left, so it stays.
     const hand = ['b7', 'b8', 'b9', 'b9', 'c3', 'c5', 'c6', 'c6', 'd5', 'd6', 'd7', 'dw', 'ws', 'ws'];
     const game = table({ seats: [{ hand }], wallLeft: 70 });
-    const bots = [require('./mahjong-bot.js'), B, L, require('./mahjong-no-defense.js')];
+    const bots = [require('./mahjong-bot.js'), B, L];
     bots.forEach((bot) => {
       const top = bot.analyzeDiscards(game, 0).candidates[0];
       assert.equal(bot.analyzeDiscards(game, 0).ctx.leadPlan.id, 'straights', bot.id);
@@ -623,7 +623,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.37.14');
+    assert.equal(E.GAME_VERSION, '0.38.1');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
@@ -721,8 +721,8 @@ describe('only-orphans', () => {
   });
 });
 
-describe('no-defense', () => {
-  const N = require('./mahjong-no-defense.js');
+describe('jorge-yau attack, big-hand lock and late defense', () => {
+  const N = L;
   const mixed = ['c2', 'c3', 'c4', 'd4', 'd5', 'd7', 'b3', 'b4', 'b8', 'c7', 'dr', 'dr', 'we', 'd1'];
   const flush = ['b1', 'b2', 'b3', 'b5', 'b6', 'b8', 'b9', 'b9', 'c2', 'c7', 'd4', 'dr', 'wn', 'we'];
   const order = (game) => N.analyzeDiscards(game, 0).candidates.map((x) => x.tile);
@@ -754,11 +754,22 @@ describe('no-defense', () => {
     assert.ok(list.indexOf('dr') > list.indexOf('c7'));
   });
 
-  it('never folds and ignores what a discard feeds', () => {
-    const threat = { melds: [pung('b5'), pung('b6'), pung('b7')], discards: ['c1', 'c9', 'd1', 'd9', 'c2', 'd8'] };
-    const a = N.analyzeDiscards(table({ seats: [{ hand: mixed }, threat, threat, threat], wallLeft: 10 }), 0);
+  const threat = { melds: [pung('b5'), pung('b6'), pung('b7')], discards: ['c1', 'c9', 'd1', 'd9', 'c2', 'd8'] };
+
+  it('plays no defense while the wall is long, however high the threat', () => {
+    const a = N.analyzeDiscards(table({ seats: [{ hand: mixed }, threat, threat, threat], wallLeft: 80 }), 0);
     assert.equal(a.folding, false);
     assert.equal(a.defense, 0);
+  });
+
+  it('plays safe only when it is late and still 2 or more from ready', () => {
+    const a = N.analyzeDiscards(table({ seats: [{ hand: mixed }, threat, threat, threat], wallLeft: 10 }), 0);
+    assert.equal(a.folding, true);
+  });
+
+  it('never folds on a locked hand, even late', () => {
+    const a = N.analyzeDiscards(table({ seats: [{ hand: flush }, threat, threat, threat], wallLeft: 30 }), 0);
+    assert.equal(a.folding, false);
   });
 
   it('locks onto a Full Flush with 8 tiles, and throws other suits, then honors, keeping a lone dragon', () => {
@@ -773,34 +784,34 @@ describe('no-defense', () => {
     const seven = ['b1', 'b2', 'b3', 'b5', 'b6', 'b8', 'b9', 'c2', 'c7', 'd4', 'd8', 'dr', 'wn', 'we'];
     const game = table({ seats: [{ hand: seven }] });
     N.analyzeDiscards(game, 0);
-    assert.equal(game.hand.seats[0].noDefenseLock, null);
+    assert.equal(game.hand.seats[0].bigHandLock, null);
     game.hand.seats[0].hand = flush.slice();
     game.hand.seats[0].discards = eight;
     N.analyzeDiscards(game, 0);
-    assert.equal(game.hand.seats[0].noDefenseLock, null);
+    assert.equal(game.hand.seats[0].bigHandLock, null);
   });
 
   it('keeps a lock past turn 8', () => {
     const game = table({ seats: [{ hand: flush }] });
     N.analyzeDiscards(game, 0);
-    assert.equal(game.hand.seats[0].noDefenseLock, 'full-b');
+    assert.equal(game.hand.seats[0].bigHandLock, 'full-b');
     game.hand.seats[0].discards = eight;
     N.analyzeDiscards(game, 0);
-    assert.equal(game.hand.seats[0].noDefenseLock, 'full-b');
+    assert.equal(game.hand.seats[0].bigHandLock, 'full-b');
   });
 
   it('reads the lock again after a saved game comes back', () => {
     const game = table({ seats: [{ hand: flush }] });
     game.hand.seats[0].discards = eight;
     N.analyzeDiscards(game, 0);
-    assert.equal(game.hand.seats[0].noDefenseLock, 'full-b');
+    assert.equal(game.hand.seats[0].bigHandLock, 'full-b');
   });
 
   it('weighing a claim leaves the lock alone', () => {
     const game = table({ seats: [{ hand: flush.slice(0, 13) }] });
-    game.hand.seats[0].noDefenseLock = 'full-b';
+    game.hand.seats[0].bigHandLock = 'full-b';
     N.chooseClaim(game, 0, { tile: 'b9', pung: true, kong: false, chows: [] });
-    assert.equal(game.hand.seats[0].noDefenseLock, 'full-b');
+    assert.equal(game.hand.seats[0].bigHandLock, 'full-b');
   });
 
   it('drops a lock when the hand can no longer be won', () => {
@@ -808,20 +819,20 @@ describe('no-defense', () => {
     N.analyzeDiscards(game, 0);
     game.hand.seats[0].melds = [pung('c5')];
     N.analyzeDiscards(game, 0);
-    assert.equal(game.hand.seats[0].noDefenseLock, null);
+    assert.equal(game.hand.seats[0].bigHandLock, null);
   });
 
   it('locks onto Thirteen Orphans from 8 of its tiles', () => {
     const orphans = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'c2', 'c5', 'd4', 'd6', 'b5', 'b7'];
     const game = table({ seats: [{ hand: orphans }] });
     N.analyzeDiscards(game, 0);
-    assert.equal(game.hand.seats[0].noDefenseLock, 'orphans');
+    assert.equal(game.hand.seats[0].bigHandLock, 'orphans');
   });
 
   it('on a lock, claims only that hand\'s tiles', () => {
     const hand = flush.slice(0, 13);
     const game = table({ seats: [{ hand }] });
-    game.hand.seats[0].noDefenseLock = 'full-b';
+    game.hand.seats[0].bigHandLock = 'full-b';
     assert.deepEqual(N.chooseClaim(game, 0, { tile: 'c7', pung: false, kong: false, chows: [['c6', 'c8']] }), { type: 'pass' });
     assert.equal(N.chooseClaim(game, 0, { tile: 'b9', pung: true, kong: false, chows: [] }).type, 'pung');
   });
@@ -844,7 +855,7 @@ describe('no-defense', () => {
       return {
         claim: (g, seat, o) => base.claim(g, seat, o),
         turn: async (g, seat, o) => {
-          const lockBefore = g.hand.seats[seat].noDefenseLock;
+          const lockBefore = g.hand.seats[seat].bigHandLock;
           const action = await base.turn(g, seat, o);
           if (o.win || action.type !== 'discard') return action;
           const c = E.countsOf(g.hand.seats[seat].hand);
@@ -852,7 +863,7 @@ describe('no-defense', () => {
           const i = E.tileIndex(action.tile);
           const dead = [];
           for (let t = 27; t < 34; t++) if (c[t] === 1 && ctx.unseen[t] === 0) dead.push(t);
-          const lock = g.hand.seats[seat].noDefenseLock;
+          const lock = g.hand.seats[seat].bigHandLock;
           if (dead.length && lock !== 'orphans') assert.ok(dead.includes(i), g.hand.seats[seat].hand.join(' '));
           assert.equal(typeof coach.turnHint(g, seat, { kongs: [] }).tile, 'string');
           assert.ok(!lock || lock === lockBefore || ctx.turn <= 8, 'locked after turn 8');
@@ -1016,7 +1027,7 @@ describe('the coach says when its hand changes', () => {
 
 describe('the isolated tile in the shortest suit goes first', () => {
   const Base = require('./mahjong-bot.js');
-  const every = [Base, L, B, S.get('no-defense').bot];
+  const every = [Base, L, B];
   const hand = ['d1', 'd4', 'd5', 'c2', 'c3', 'c4', 'c6', 'c7', 'c8', 'b2', 'b3', 'b4', 'b6', 'b7'];
 
   it('finds a tile with nothing within 2 ranks', () => {
@@ -1121,7 +1132,7 @@ describe('the isolated tile in the shortest suit goes first', () => {
 
 describe('ready means the hand can win, and dragons stay', () => {
   const Base = require('./mahjong-bot.js');
-  const bots = { base: Base, 'jorge-yau': L, 'lucky-cat': B, 'only-orphans': S.get('only-orphans').bot, 'no-defense': S.get('no-defense').bot };
+  const bots = { base: Base, 'jorge-yau': L, 'lucky-cat': B, 'only-orphans': S.get('only-orphans').bot };
   const short = {
     seats: [{ hand: ['c8', 'b5', 'c8', 'c3', 'd8', 'c8', 'dg', 'b3', 'c2', 'd8', 'c1'], melds: [pung('wn')] }],
     round: 'e',
@@ -1141,9 +1152,9 @@ describe('ready means the hand can win, and dragons stay', () => {
     }
   });
 
-  it('keeps a lone dragon on a No Defense lock', () => {
+  it('keeps a lone dragon on a big-hand lock', () => {
     const hand = ['b1', 'b2', 'b3', 'b5', 'b6', 'b8', 'b9', 'b9', 'b4', 'b4', 'b7', 'b7', 'wn', 'dr'];
-    const list = bots['no-defense'].analyzeDiscards(table({ seats: [{ hand }] }), 0).candidates;
+    const list = L.analyzeDiscards(table({ seats: [{ hand }] }), 0).candidates;
     assert.equal(list[list.length - 1].tile, 'dr');
   });
 

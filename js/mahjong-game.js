@@ -10,6 +10,7 @@
 
   var E = root.MahjongEngine;
   var Coach = root.MahjongCoach;
+  var Analysis = root.MahjongAnalysis;
   var Strategies = root.MahjongStrategies;
   var Lesson = root.MahjongLesson;
 
@@ -82,7 +83,7 @@
   }
 
   // Strategies saved under an older id.
-  var RENAMED_STRATEGIES = { 'claude-cat': 'lucky-cat' };
+  var RENAMED_STRATEGIES = { 'claude-cat': 'lucky-cat', 'no-defense': 'jorge-yau' };
   // Before 0.6.0 the lucky-cat and jorge-yau ids were the other way round.
   // Saved choices from then have no `v`; saves from then are older than
   // SWAPPED_BEFORE.
@@ -601,6 +602,7 @@
     function skeletonAfterMs() { return 250; }
     var reviewCoaches = {}; // by strategy id: one walk of the hand each, so a coach who follows your discards keeps that streak
     var reviewCoachTimer = null;
+    var reviewAnalyst = null; // reads the whole table for the coach panel
     var destroyed = false;
     var frameRequested = false;
     var anims = [];
@@ -5825,6 +5827,7 @@
 
     function resetReviewCoach() {
       reviewCoaches = {};
+      reviewAnalyst = null;
       if (reviewCoachTimer) { clearTimeout(reviewCoachTimer); reviewCoachTimer = null; }
       ui.coachLog = [];
     }
@@ -5867,6 +5870,15 @@
           if (hints >= 2 && walk.index < target) { more = true; break; }
         }
       });
+      // The table read: every hand face up, so it can say what you could not see.
+      var table = [];
+      if (Analysis) {
+        try {
+          if (!reviewAnalyst) reviewAnalyst = Analysis.createAnalyst(settings.review);
+          if (reviewAnalyst.run(target, 10)) more = true;
+          table = reviewAnalyst.notes();
+        } catch (err) { table = []; }
+      }
       if (more && !reviewCoachTimer) {
         reviewCoachTimer = setTimeout(function () {
           reviewCoachTimer = null;
@@ -5876,7 +5888,10 @@
         }, 0);
       }
       var mine = reviewCoaches[shown];
-      ui.coachLog = mine ? mine.notes.filter(function (n) { return n.step <= reviewStep; }) : [];
+      var coachNotes = mine ? mine.notes : [];
+      ui.coachLog = coachNotes.concat(table).filter(function (n) { return n.step <= reviewStep; }).map(function (n, k) {
+        return { n: n, k: k };
+      }).sort(function (a, b) { return a.n.step - b.n.step || a.k - b.k; }).map(function (o) { return o.n; });
     }
 
     // What this coach says about your discard, call, or kong, before it happens.

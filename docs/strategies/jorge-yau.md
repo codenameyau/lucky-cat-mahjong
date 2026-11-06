@@ -2,6 +2,8 @@
 
 This is the playbook for the **jorge-yau** strategy (`js/mahjong-jorge-yau.js`). Any bot seat can play it, and the coach can follow it (pick it in the Strategies sheet).
 
+jorge-yau also holds what the old no-defense strategy did (merged in 0.38.0): it attacks with no defense, keeps honors, claims anything that gets closer, and locks onto a hand worth 7 faan or more. It only plays safe late, when it is far from winning. Those parts are in [Attack, and when it plays safe](#attack-and-when-it-plays-safe) below, and where they differ from the rest of this page, they win.
+
 jorge-yau runs on the same shared foundation as [lucky-cat](lucky-cat.md) (`js/mahjong-bot.js`). It counts tiles from ready and live tiles the same way, scores every wait of a ready hand exactly, and reads opponents' threat levels the same way. What changes is how it picks a hand, the order it throws tiles, when it claims, when it gives up, and how it reads the other players.
 
 Like every bot, it only uses what its seat can see: its own hand and flowers, every open meld, the discards, and how many tiles are left in the wall.
@@ -89,6 +91,30 @@ The softer targets (and the default) also weigh the special hands the same tiles
   - be late (fewer than 48 tiles left, or after the ninth discard) and leave the hand one tile from ready.
 
   It never chows into a suit it holds fewer than five tiles of (counting the chow), and the chow has to beat passing by 15%.
+
+## Attack, and when it plays safe
+
+This section is from the no-defense strategy, which was merged into jorge-yau. It replaces the discard order, claims and defense described elsewhere on this page, except where noted.
+
+**No defense.** It never folds and takes no account of what a discard might feed, with one exception: with fewer than 40 tiles left, still 2 or more tiles from ready and no big hand locked, it plays safe as described in "When to give up" and "Not feeding the table". A locked hand never plays safe.
+
+**Discards.** Without a lock, from first to go to last to go:
+
+1. A lone honor with the other three copies on the table (discarded or in a meld).
+2. A discard that leaves the hand able to win for the minimum, whatever the tile.
+3. Number tiles that cost no step toward ready.
+4. Lone honors, the fewest copies left first and honors that score last.
+5. Number tiles that cost a step.
+6. Honor pairs, then honor sets.
+7. A lone dragon with all three other copies unseen, which goes only if throwing it leaves a hand that can win.
+
+When the target's order would differ, this order decides, and the target's order only breaks ties.
+
+**Locking onto a big hand.** On any of its first 8 turns, it checks for 8 tiles of a hand worth 7 faan or more (melds count as 3 tiles): a Full Flush or Nine Gates (one suit), Thirteen Orphans (one of each kind plus a pair), All Honors, All Terminals or Mixed Orphans (as sets or pairs), Four Winds, or Three Dragons. If more than one qualifies it takes the most faan less 1.25 for each step away. Half Flush and Seven Pairs are worth less than 7, so they don't lock.
+
+Once locked, other number tiles go first, then honors outside the hand, and the hand's own tiles last. A win that is offered is always taken, even on a smaller hand. The lock ends only when the hand can't be won, and it can lock again only within the first 8 turns. A saved game replays the bots' turns, so they come back on the same lock. The lock replaces the target's plans while it holds.
+
+**Claims.** It takes any chow, pung or kong that brings the hand closer and can still reach 3 faan. With a lock, it claims only that hand's tiles. Thirteen Orphans and hands of pairs claim nothing but a win. This replaces the "stay concealed" claim rules.
 
 ## Reading the other players
 

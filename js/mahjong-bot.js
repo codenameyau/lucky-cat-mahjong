@@ -2214,6 +2214,7 @@
     // Folding: safety decides, and the keep-pairs and keep-dragons orders
     // only break ties (a safe pair is the right tile to break).
     var folding = weight > (ctx.isDealer ? 0.9 : 1);
+    ctx.folding = folding; // for a strategy's finalOrder
     weight *= T.defenseScale;
     // After a chow (or with most of the hand in one suit), tiles of other
     // suits are worthless: they go first, ahead of honors and tiles of that

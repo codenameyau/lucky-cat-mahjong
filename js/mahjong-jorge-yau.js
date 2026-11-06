@@ -41,6 +41,21 @@
   var DRAGONS = [31, 32, 33];
   var LIMIT = 13;
 
+  var LOCK_TILES = 8, LOCK_FAAN = 7, LOCK_TURNS = 8, STEP_IN_FAAN = 1.25;
+
+  function isWind(i) { return i >= 27 && i < 31; }
+  function isDragon(i) { return i >= 31; }
+  function inSuit(su) {
+    return function (i) { return i < 27 && E.suitOfIndex(i) === su; };
+  }
+
+  // Tiles held plus melds made, of the kind `fits` keeps.
+  function tilesOf(c, ctx, fits) {
+    return ctx.melds.reduce(function (n, m) {
+      return n + (fits(E.tileIndex(m.tiles[0])) ? 3 : 0);
+    }, B.countWhere(c, fits));
+  }
+
   var EARLY_WALL = 60;
 
   // Jorge Yau's knobs, kept with the strategy's tuning (bot.setTuning) so
@@ -566,6 +581,138 @@
   }
 
   /* ------------------------------------------------------------------ *
+   * 1b. Locking onto a big hand
+   * ------------------------------------------------------------------ */
+
+  function suitHand(su) {
+    var fits = inSuit(su);
+    return {
+      id: 'full-' + su, fits: fits, tiles: function (c, ctx) { return tilesOf(c, ctx, fits); },
+      plans: function (c, ctx) {
+        if (ctx.melds.some(function (m) { return !fits(E.tileIndex(m.tiles[0])); })) return [];
+        var out = [{
+          id: 'full-' + su, suit: su, label: 'a Full Flush in ' + SUIT_LABELS[su],
+          counts: B.restrict(c, fits), shantenFn: E.standardShanten,
+          faan: B.baseFaan(ctx) + (ctx.concealed ? 1 : 0) + 7, open: true,
+        }];
+        var start = SUITS.indexOf(su) * 9;
+        if (!ctx.declared && B.nineGatesProgress(c, start) >= LOCK_TILES) {
+          out.push(B.makeSpecialPlan('gates', c, ctx, { suit: su, start: start }));
+        }
+        return out;
+      },
+    };
+  }
+
+  // Hands of sets or pairs, from the shared bigger hands. (A set of any tile
+  // these keep is one more tile of the hand.)
+  function setsHand(id, fits, ids) {
+    return {
+      id: id, fits: fits, sets: true, tiles: function (c, ctx) { return tilesOf(c, ctx, fits); },
+      plans: function (c, ctx) {
+        return B.setUpgrades(c, ctx, true).concat(B.pairsUpgrades(c, ctx, true)).filter(function (p) {
+          return ids.indexOf(p.id) !== -1;
+        });
+      },
+    };
+  }
+
+  function groupHand(id, fits, ids) {
+    return {
+      id: id, fits: fits, sets: true, tiles: function (c, ctx) { return tilesOf(c, ctx, fits); },
+      plans: function (c, ctx) {
+        return B.upgradePlans(c, ctx).filter(function (p) { return ids.indexOf(p.id) !== -1; });
+      },
+    };
+  }
+
+  var ORPHAN_HAND = {
+    id: 'orphans', fits: isOrphan,
+    // Thirteen Orphans uses one of each kind, and one pair.
+    tiles: function (c) {
+      var kinds = 0, pair = 0;
+      for (var i = 0; i < 34; i++) {
+        if (!isOrphan(i) || !c[i]) continue;
+        kinds++;
+        if (c[i] >= 2) pair = 1;
+      }
+      return kinds + pair;
+    },
+    plans: function (c, ctx) {
+      return !ctx.declared && B.orphansAlive(c, ctx) ? [B.makeSpecialPlan('orphans', c, ctx)] : [];
+    },
+  };
+
+  var HANDS = SUITS.map(suitHand).concat([
+    ORPHAN_HAND,
+    setsHand('all-honors', isHonor, ['all-honors', 'pairs-honors']),
+    setsHand('all-terminals', isTerminal, ['all-terminals', 'pairs-terminals']),
+    setsHand('mixed-orphans', isOrphan, ['mixed-orphans', 'pairs-orphans']),
+    groupHand('winds', isWind, ['small-winds', 'big-winds']),
+    groupHand('dragons', isDragon, ['small-dragons', 'big-dragons']),
+  ]);
+
+  function handById(id) {
+    return HANDS.filter(function (h) { return h.id === id; })[0] || null;
+  }
+
+  // How far off and how much it's worth, counting only plans worth 7 or more.
+  function measure(hand, c, ctx) {
+    var out = { steps: Infinity, faan: 0, outs: 0 };
+    hand.plans(c, ctx).forEach(function (p) {
+      if (p.faan < LOCK_FAAN) return;
+      var s = p.shantenFn(p.counts, ctx.declared);
+      if (s === Infinity) return;
+      out.faan = Math.max(out.faan, p.faan);
+      if (s < out.steps) out.steps = s;
+      out.outs += s < 0 ? 1 : B.ukeire(p.counts, p.shantenFn, ctx.declared, ctx.unseen, s).total;
+    });
+    return out;
+  }
+
+  // Still possible: 8 of its tiles, one that helps left, and enough wall.
+  function stillPossible(hand, c, ctx) {
+    var m = measure(hand, c, ctx);
+    return hand.tiles(c, ctx) >= LOCK_TILES && m.steps !== Infinity && m.outs > 0 && m.steps < ctx.wallLeft;
+  }
+
+  // The best hand this one qualifies for: the most faan, less each step away.
+  function pickLock(c, ctx) {
+    var best = null, bestValue = -Infinity;
+    HANDS.forEach(function (hand) {
+      if (hand.tiles(c, ctx) < LOCK_TILES || !stillPossible(hand, c, ctx)) return;
+      var m = measure(hand, c, ctx);
+      var value = m.faan - STEP_IN_FAAN * m.steps;
+      if (value > bestValue) { best = hand; bestValue = value; }
+    });
+    return best;
+  }
+
+  // The lock lives on this hand's seat, so it lasts past the eighth turn. A
+  // saved game replays the bots' turns, which rebuilds theirs. The coach isn't
+  // replayed, so your own hand comes back unread and is read again from its tiles.
+  function savedLock(ctx) {
+    return handById(ctx.game.hand.seats[ctx.seat].bigHandLock);
+  }
+
+  // A claim being weighed looks at a hand that hasn't happened yet.
+  function isActualHand(c, ctx) {
+    var seat = ctx.game.hand.seats[ctx.seat];
+    return ctx.melds === seat.melds && E.countsOf(seat.hand).every(function (n, i) { return n === c[i]; });
+  }
+
+  // Decided from the 14 tiles, before any discard.
+  function updateLock(c, ctx) {
+    if (!isActualHand(c, ctx)) return savedLock(ctx);
+    var seat = ctx.game.hand.seats[ctx.seat];
+    var lock = savedLock(ctx);
+    if (lock && !stillPossible(lock, c, ctx)) lock = null;
+    if (!lock && (ctx.turn < LOCK_TURNS || seat.bigHandLock === undefined)) lock = pickLock(c, ctx);
+    seat.bigHandLock = lock ? lock.id : null;
+    return lock;
+  }
+
+  /* ------------------------------------------------------------------ *
    * 5. Hooks: reading opponents and not feeding them
    * ------------------------------------------------------------------ */
 
@@ -638,73 +785,129 @@
     return feed * K.feed * (late ? 1 : 0.3);
   }
 
-  // Late, and still 2 or more from ready: stop building and play safe.
+  // No defense, until the hand is slow: late, and still 2 or more from ready,
+  // with no big hand locked. Then it stops building and plays safe.
   function defense(w, ctx, list, shanten) {
-    if (ctx.wallLeft < K.giveUpWall && shanten >= 2) w *= K.giveUpDefense;
-    else if (ctx.wallLeft < 20 && shanten >= 1) w *= 1.3;
-    return w;
+    if (ctx.lock) return 0;
+    if (ctx.wallLeft < K.giveUpWall && shanten >= 2) return w * K.giveUpDefense;
+    return 0;
   }
 
   /* ------------------------------------------------------------------ *
-   * 6. Hooks: claims
+   * 6. Hooks: attack, claims, with defense only when slow
    * ------------------------------------------------------------------ */
 
-  var CONCEALED_ONLY = ['orphans', 'gates', 'pairs', 'sequences'];
-
-  function suitHeld(ctx, c, su) {
-    var n = 0;
-    for (var i = 0; i < 27; i++) if (suitOf(i) === su) n += c[i];
-    ctx.melds.forEach(function (m) { if (suitOf(E.tileIndex(m.tiles[0])) === su) n += 3; });
-    return n;
+  function lockHand(ctx, counts) {
+    ctx.lock = updateLock(counts, ctx);
+    // Faster-looking hands don't pull it off a lock or its own read.
+    ctx.lockedSpecial = ctx.lock ? { kind: ctx.lock.id } : null;
+    ctx.planFixed = !!ctx.lock;
   }
 
-  function chowOk(o, res, ctx, game, c, tileSuit) {
-    if (!B.chowAllowed(o, res, game, ctx)) return false;
-    var after = o.analysis.shanten;
-    if (after === 0) return true;
-    var t = ctx.target || {};
-    // Never chow into a suit the hand barely holds.
-    var held = suitHeld(ctx, c, tileSuit) + 1;
-    if (held < 5) return false;
-    var flushHere = (t.id === 'full' || t.id === 'half') && t.suit === tileSuit;
-    if (flushHere && after <= 2) return true;
-    if (ctx.fast && after <= 2) return true;
-    var late = ctx.wallLeft < 48 || ctx.turn >= 9;
-    return late && after <= 1;
+  // (A claim's choice is weighed from the 13 tiles, without hand() first.)
+  function withLock(basePlans) {
+    return function (c, ctx) {
+      var lock = ctx.lock !== undefined ? ctx.lock : savedLock(ctx);
+      if (lock) {
+        var own = lock.plans(c, ctx).filter(function (p) {
+          return p.faan >= LOCK_FAAN && p.shantenFn(p.counts, ctx.declared) !== Infinity;
+        });
+        if (own.length) return own;
+      }
+      return basePlans(c, ctx);
+    };
   }
 
-  function claim(res, ctx, game, seat, opts) {
+  function winsNow(x) {
+    return x.shanten === 0 && B.winsWhenReady(x.analysis.ready);
+  }
+
+  // A lone honor with the other three copies on the table can never be used.
+  function deadHonor(c, ctx, i) {
+    return isHonor(i) && c[i] === 1 && ctx.unseen[i] === 0;
+  }
+
+  function lockRank(x, c, ctx, lock) {
+    var i = x.index;
+    if (lock.id !== 'orphans' && deadHonor(c, ctx, i)) return 0;
+    // A lone dragon nobody has shown outlasts even the hand's own tiles.
+    if (B.loneDragon(ctx.game, c, i) && !winsNow(x)) return 5;
+    var dead = lock.sets && c[i] === 1 && ctx.unseen[i] === 0;
+    if (!lock.fits(i) || dead) {
+      if (winsNow(x)) return 1;
+      return isHonor(i) ? 3 : 2;
+    }
+    return 4;
+  }
+
+  function freeRank(x, c, ctx, bestSteps) {
+    var i = x.index;
+    if (deadHonor(c, ctx, i)) return 0;
+    if (winsNow(x)) return 1;
+    if (B.loneDragon(ctx.game, c, i)) return 8;
+    var straights = ctx.leadPlan && ctx.leadPlan.id === 'straights';
+    var eyes = straights ? B.keptHonorPair(c, ctx) : null;
+    // The pair is already kept, so every other honor goes before a number
+    // tile. A finished straight waits behind a loose tile.
+    if (straights && eyes !== null && i >= 27 && i !== eyes) return 2;
+    if (!isHonor(i)) {
+      var rank = x.shanten <= bestSteps ? 2 : 4;
+      if (straights && eyes !== null) rank += 1;
+      if (straights && B.breaksFinishedStraight(c, i)) rank += 2;
+      return rank;
+    }
+    if (c[i] >= 3) return 7;
+    if (c[i] === 2) return 6;
+    return 3;
+  }
+
+  // Lone honors with fewer copies left go first, and ones that score last.
+  function honorOrder(a, b, ctx) {
+    if (a.index < 27 || b.index < 27) return 0;
+    return ctx.unseen[a.index] - ctx.unseen[b.index] ||
+      B.valueWeight(ctx, a.index) - B.valueWeight(ctx, b.index);
+  }
+
+  function bigFinalOrder(out, ctx, c) {
+    // Folding, safety decides.
+    if (ctx.folding || !K.ownDiscards) return out;
+    var lock = ctx.lock;
+    var bestSteps = Math.min.apply(null, out.map(function (x) { return x.shanten; }));
+    var rank = function (x) { return lock ? lockRank(x, c, ctx, lock) : freeRank(x, c, ctx, bestSteps); };
+    return out.map(function (x, k) { return { x: x, k: k, r: rank(x) }; }).sort(function (a, b) {
+      return a.r - b.r || honorOrder(a.x, b.x, ctx) || a.k - b.k;
+    }).map(function (o) { return o.x; });
+  }
+
+  function planSteps(analysis) {
+    var best = analysis && analysis.best;
+    return best && best.planShanten !== undefined ? best.planShanten : Infinity;
+  }
+
+  // Takes any claim that moves the hand closer and can still score. On a lock,
+  // only a claim of that hand's tiles that moves it closer.
+  function bigClaim(res, ctx, game, seat, opts) {
     if (!K.ownClaims) return null;
-    var pass = { type: 'pass' };
-    if (!res.options.length) return pass;
-    var t = ctx.target || { id: 'standard' };
-    var c = E.countsOf(game.hand.seats[seat].hand);
-    var ti = E.tileIndex(opts.tile);
-    var givingUp = ctx.wallLeft < K.giveUpWall && res.stay.shanten >= 2;
-    if (CONCEALED_ONLY.indexOf(t.id) !== -1 && !givingUp) {
-      // Concealed hands claim nothing, except a scoring honor for the
-      // sequences hand once it's slow.
-      if (!(t.id === 'sequences' && ti >= 27 && B.valueWeight(ctx, ti) && res.stay.shanten >= 3)) return pass;
-    }
-    // A dragon or a scoring wind is faan in hand; a hand of honors takes any honor.
-    var honorHand = t.id === 'winds' || t.id === 'honors' || t.id === 'terminals';
-    if (ti >= 27 && (opts.pung || opts.kong) && (B.valueWeight(ctx, ti) || honorHand)) {
-      var take = opts.kong ? 'kong' : 'pung';
-      var after = res.options.filter(function (o) { return o.decision.type === take; })[0];
-      var breaksReady = res.stay.shanten === 0 && after && after.analysis && after.analysis.shanten > 0 && after.score < res.passScore;
-      if (!breaksReady) return { type: take };
-    }
-    var tileSuit = suitOf(ti);
-    var options = res.options.filter(function (o) {
-      if (o.decision.type !== 'chow') return true;
-      return chowOk(o, res, ctx, game, c, tileSuit);
+    var lock = savedLock(ctx);
+    if (lock && !lock.fits(E.tileIndex(opts.tile))) return { type: 'pass' };
+    var min = game.settings.minFaan;
+    var now = res.stay.shanten, pick = null;
+    res.options.forEach(function (o) {
+      var an = o.analysis;
+      var plan = an && an.best && an.best.plan;
+      if (!an || an.shanten >= now) return;
+      if (an.shanten !== 0 && !(plan && plan.faan >= min)) return;
+      if (lock && planSteps(an) >= planSteps(res.stay)) return;
+      if (!pick || an.shanten < pick.analysis.shanten ||
+        (an.shanten === pick.analysis.shanten && an.util > pick.analysis.util)) pick = o;
     });
-    var top = options[0];
-    if (!top) return pass;
-    var bar = top.decision.type === 'chow' ? 1.15 : 1.0;
-    if (top.score > res.passScore * bar + 0.005) return top.decision;
-    return pass;
+    return pick ? pick.decision : { type: 'pass' };
   }
+
+  function bigKongOk(kong, ctx) {
+    return !ctx.lock || (ctx.lock.fits(E.tileIndex(kong.tile)) && ctx.lock.id !== 'orphans');
+  }
+
 
   /* ------------------------------------------------------------------ *
    * 7. The strategy
@@ -714,14 +917,17 @@
     id: 'jorge-yau',
     hooks: {
       context: context,
-      plans: plans,
+      hand: lockHand,
+      plans: withLock(plans),
       priority: priority,
       readyValue: readyValue,
       threats: threats,
       waitChance: waitChance,
       extraLoss: extraLoss,
       defense: defense,
-      claim: claim,
+      finalOrder: bigFinalOrder,
+      claim: bigClaim,
+      kongOk: bigKongOk,
     },
     tuning: TUNING,
   });

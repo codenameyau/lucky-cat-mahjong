@@ -8,7 +8,6 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 | `lucky-cat` | Lucky Cat | `js/mahjong-lucky-cat.js` | [lucky-cat.md](lucky-cat.md) |
 | `jorge-yau` | Jorge Yau | `js/mahjong-jorge-yau.js` | [jorge-yau.md](jorge-yau.md) |
 | `only-orphans` | Only Orphans | `js/mahjong-only-orphans.js` | [only-orphans.md](only-orphans.md) |
-| `no-defense` | No Defense | `js/mahjong-no-defense.js` | [no-defense.md](no-defense.md) |
 
 Before version 0.6.0 the two ids were the other way round; saved choices and save files from then are converted when they're read.
 
@@ -16,7 +15,7 @@ Before version 0.6.0 the two ids were the other way round; saved choices and sav
 
 - Picks are saved in `localStorage` under `lcm-play-strategies`, as `{ "seats": { "1": id, "2": id, "3": id }, "coach": id }`. Seat 1 is on your right, 2 across, 3 on your left.
 - A bot seat with nothing saved plays a random strategy, picked again each game. "Random each game" in the sheet clears the saved pick.
-- The coach (tips and feedback) defaults to `lucky-cat` ("Coach Lucky Cat").
+- The coach (tips and feedback) defaults to `jorge-yau` ("Coach Jorge Yau").
 - A change takes effect on the bot's next move, in the game you're playing.
 - The table shows only each player's name. Which strategy each bot plays is on the Strategies sheet, and on desktop in a tooltip when you hover over their name.
 
@@ -135,7 +134,7 @@ Points per hand are noisy: one limit hand on a self-draw moves 24,576 points. At
 
 ## Earlier results
 
-These predate no-defense and include dishonor, a strategy that has since been removed. At version 0.19.0, one of each strategy sat at the table for 24,000 hands: 1,000 deals in each of the 6 seating orders, each deal played once per seat rotation. 49.7% of hands had no winner.
+These predate the 0.38.0 merge of no-defense into jorge-yau and include dishonor, a strategy that has since been removed. At version 0.19.0, one of each strategy sat at the table for 24,000 hands: 1,000 deals in each of the 6 seating orders, each deal played once per seat rotation. 49.7% of hands had no winner.
 
 | | only-orphans | jorge-yau | lucky-cat | dishonor |
 | --- | ---: | ---: | ---: | ---: |
@@ -154,6 +153,6 @@ The ± is a 95% range that treats hands as independent. only-orphans and jorge-y
 To play one seating order:
 
 ```bash
-npm run compete -- --lineup no-defense,jorge-yau,lucky-cat,only-orphans --deals 1000 --seed 200000
+npm run compete -- --lineup jorge-yau,jorge-yau,lucky-cat,only-orphans --deals 1000 --seed 200000
 ```
 
