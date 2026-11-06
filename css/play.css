@@ -602,17 +602,6 @@ html.is-playing.is-sideways body {
   }
 }
 
-.strategies-select {
-  width: 100%;
-  padding: 5px 8px;
-  border: 1px solid rgba(255, 210, 122, 0.6);
-  border-radius: 8px;
-  background: #FFF8F0;
-  color: #1A1A1A;
-  font: inherit;
-  font-size: 0.86rem;
-}
-
 .strategies-about-head {
   display: flex;
   align-items: center;

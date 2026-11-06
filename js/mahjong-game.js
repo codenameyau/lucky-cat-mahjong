@@ -15,8 +15,8 @@
 
   var SETTINGS_KEY = 'lcm-play-settings';
   var PREFS_KEY = 'lcm-play-prefs';
-  // { seats: { 1: id, 2: id, 3: id }, coach: id }. A bot seat with nothing
-  // saved gets a random strategy each game.
+  // { coach: id }. The computer players are not saved: each gets a random
+  // strategy every game.
   var STRATEGIES_KEY = 'lcm-play-strategies';
   // The one saved game on this device, signed (HMAC-SHA256). Each turn writes
   // it; Resume game reads it. Quit leaves it.
@@ -58,6 +58,7 @@
   // The site's heading font (css/fonts.css), for headings, winds and banners.
   var FONT_HEAD = '"KN Yuanmo SC", ' + FONT_BODY;
   var WIND_LETTERS = ['', 'E', 'S', 'W', 'N'];
+  var TAP_TWICE = 'Tap a tile twice to discard it.';
 
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function now() { return (root.performance && performance.now) ? performance.now() : Date.now(); }
@@ -100,7 +101,7 @@
     return false;
   }
 
-  // Saved strategy choices, keeping only ids that still exist.
+  // The saved coach strategy, if its id still exists.
   function readStrategies() {
     var saved = readJson(STRATEGIES_KEY, {}) || {};
     var old = saved.v !== 2;
@@ -109,19 +110,16 @@
       id = RENAMED_STRATEGIES[id] || id;
       return Strategies.has(id) ? id : null;
     }
-    var seats = {};
-    [1, 2, 3].forEach(function (k) {
-      var id = current(saved.seats && saved.seats[k]);
-      if (id) seats[k] = id;
-    });
-    return { v: 2, seats: seats, coach: current(saved.coach) };
+    // Only the coach's strategy is kept. Computer players get a random one
+    // each game, so any seat choice an older version saved is ignored.
+    return { v: 2, seats: {}, coach: current(saved.coach) };
   }
 
-  // This game's strategy for each bot seat (saved, or random) and the coach's.
+  // This game's strategy for each bot seat (always random) and the coach's (saved).
   function pickStrategies() {
     var saved = readStrategies();
     var seats = [null];
-    for (var k = 1; k <= 3; k++) seats.push(saved.seats[k] || Strategies.randomId());
+    for (var k = 1; k <= 3; k++) seats.push(Strategies.randomId());
     return { seats: seats, coach: saved.coach || Strategies.DEFAULT_COACH };
   }
 
@@ -606,7 +604,8 @@
     var ui = {
       coach: settings.coach || 'on', // 'on' (advice), 'feedback' (notes on your last move) or 'off'
       feedback: null, // the coach's note on your previous move
-      feedbackDiscards: null, // the tile each strategy would have thrown on your last discard
+      feedbackDiscards: null, // what each strategy would have done on your last discard or claim
+      feedbackKind: null, // 'discard' or 'claim': which of those the boxes show
       handSlots: [], // each hand tile's slide from where it was to where it belongs
       handSlide: 1,  // 0..1 progress of that slide
       handSig: '',   // what the hand looked like when the slots were last matched
@@ -906,15 +905,15 @@
         layoutNesting = true;
         try {
           for (var pass = 0; pass < 5; pass++) {
-            H = Math.max(320, full - reserve - (reserve ? 8 : 0));
+            H = Math.max(320, full - reserve); // no extra gap above the strip
             fallback = computeLayout();
-            var next = Math.round(Math.min(fallback.meBox.h, 70)); // the strip's height, see below
+            var next = Math.round(Math.min(fallback.meBox.h, 78)); // the strip's height, see below
             if (next === reserve) break;
             reserve = next;
           }
           // A phone's strip holds one row of boxes, so it only needs what they do,
           // not the height of your two-row hand.
-          var panelH = Math.min(fallback.meBox.h, 70);
+          var panelH = Math.min(fallback.meBox.h, 78);
           fallback.strategyPanel = { x: fallback.pad, y: full - panelH, w: W - 2 * fallback.pad, h: panelH, phone: true };
           return fallback;
         } finally {
@@ -1330,8 +1329,8 @@
       return !!(box && x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h);
     }
 
-    // A face-up discard, or a tile in an opponent's seat (a meld, a flower,
-    // or a hand turned up at the end). Your own hand is tapped to play it.
+    // A face-up discard, a tile in an opponent's seat (a meld, a flower, or a
+    // hand turned up at the end), or one of your own melds or flowers.
     function tableTipSpot(p) {
       var sp = spotAt(p);
       if (!sp || !sp.id || !L) return null;
@@ -1339,6 +1338,12 @@
       if (boxHas(L.center, x, y)) return null;
       if (boxHas(L.pond, x, y)) return sp;
       for (var s = 1; s < 4; s++) if (boxHas(L.opp[s], x, y)) return sp;
+      // Your own exposed tiles: melds and flowers. The tiles of your concealed
+      // hand are tapped to play them, so they stay out.
+      if (boxHas(L.meBox, x, y)) {
+        var inHand = (ui.lastHandRects || []).some(function (r) { return r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h; });
+        if (!inHand) return sp;
+      }
       return null;
     }
 
@@ -1370,8 +1375,9 @@
       if (!sp) return false;
       var x = (sp.x0 + sp.x1) / 2, y = (sp.y0 + sp.y1) / 2;
       var same = pinnedTip && pinnedTip.id === sp.id && Math.abs(pinnedTip.x - x) < 2 && Math.abs(pinnedTip.y - y) < 2;
-      if (same) pinnedTip = null;
+      if (same) pinnedTip = null; // putting it away is silent
       else {
+        sound.play('select'); // showing the tip
         pinnedTip = { id: sp.id, x: x, y: y };
         var tip = tileTipText(sp.id);
         announce(tip.label + (tip.sub ? ', ' + tip.sub : '') + '.');
@@ -1552,6 +1558,7 @@
                 if (fromMouse || !openBeforePress) show();
               });
               row.addEventListener('click', function () {
+                sound.play('select'); // opening or putting away an example
                 track('play_rule_click', { hand: r.name });
                 if (desktopRules()) { show(); return; }
                 if (fromMouse ? openExampleRow === row : openBeforePress) { hideRuleExample(); return; }
@@ -1590,6 +1597,7 @@
       rulesSheet().addEventListener('click', function (e) {
         if (!desktopRules() || !openExampleRow) return;
         if (openExampleRow.contains(e.target) || exampleCardHas(e.target)) return;
+        sound.play('select'); // a click elsewhere puts the example away
         hideRuleExample();
       });
       // Where the pointer was last, so the example can enter from that side.
@@ -1779,6 +1787,7 @@
     function openRules() {
       var dlg = rulesSheet();
       if (!dlg || dlg.open) return;
+      sound.play('select'); // the click
       buildRules();
       if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
       track('play_open_rules', {});
@@ -1806,36 +1815,9 @@
       return Coach.forStrategy(Strategies.get(ui.strategies.coach).bot);
     }
 
-    // A seat's choice: 'random' unless one was saved.
-    function seatChoice(seat) {
-      var saved = readStrategies();
-      return saved.seats[seat] || 'random';
-    }
-
     function playerLabel(seat) {
       var name = game ? game.players[seat].name : 'Bot ' + seat;
       return name + ' (' + SEAT_SIDES[seat] + ')';
-    }
-
-    function strategySelect(id, value, withRandom, onPick) {
-      var sel = document.createElement('select');
-      sel.id = id;
-      sel.className = 'strategies-select';
-      if (withRandom) {
-        var any = document.createElement('option');
-        any.value = 'random';
-        any.textContent = 'Random each game';
-        sel.appendChild(any);
-      }
-      Strategies.list().forEach(function (s) {
-        var o = document.createElement('option');
-        o.value = s.id;
-        o.textContent = s.name;
-        sel.appendChild(o);
-      });
-      sel.value = value;
-      sel.addEventListener('change', function () { onPick(sel.value); });
-      return sel;
     }
 
     var ASSIGN_ICON = {
@@ -1860,12 +1842,11 @@
       return 'Playing ' + Strategies.get(id).name;
     }
 
-    function assignRow(labelText, control, playing, icon) {
+    function assignRow(labelText, playing, icon) {
       var row = document.createElement('div');
       row.className = 'strategies-assign-row';
       var label = document.createElement('label');
       label.className = 'strategies-assign-label';
-      if (control) label.htmlFor = control.id;
       var who = document.createElement('span');
       who.className = 'strategies-assign-who';
       if (icon) who.appendChild(assignIcon(icon));
@@ -1878,8 +1859,7 @@
         label.appendChild(now);
       }
       row.appendChild(label);
-      if (control) row.appendChild(control);
-      else row.classList.add('strategies-assign-row--read');
+      row.classList.add('strategies-assign-row--read');
       return row;
     }
 
@@ -1898,15 +1878,11 @@
       assign.appendChild(h);
       var box = document.createElement('div');
       box.className = 'rules-family strategies-assign';
-      // Playback already chooses the coach on the table. These menus would
-      // rewrite the saved game choices, so the sheet only shows who is playing.
-      var readOnly = !!settings.playback;
-      box.appendChild(assignRow('Coach', readOnly ? null : strategySelect('strategy-coach', ui.strategies.coach, false, setCoachStrategy), playingNow(ui.strategies.coach), 'user'));
+      // The sheet only shows who is playing what. The coach is picked on the
+      // table, and each computer player gets a random strategy every game.
+      box.appendChild(assignRow('Coach', playingNow(ui.strategies.coach), 'user'));
       [1, 2, 3].forEach(function (seat) {
-        var choice = seatChoice(seat);
-        box.appendChild(assignRow(playerLabel(seat), readOnly ? null : strategySelect('strategy-seat-' + seat, choice, true, function (id) {
-          setSeatStrategy(seat, id);
-        }), playingNow(ui.strategies.seats[seat]), 'bot'));
+        box.appendChild(assignRow(playerLabel(seat), playingNow(ui.strategies.seats[seat]), 'bot'));
       });
       assign.appendChild(box);
       body.appendChild(assign);
@@ -1934,6 +1910,7 @@
         toggle.setAttribute('aria-expanded', strategyDetailsOpen ? 'true' : 'false');
       };
       toggle.addEventListener('click', function () {
+        sound.play('select'); // See details or Hide details
         strategyDetailsOpen = !strategyDetailsOpen;
         showDetails();
       });
@@ -1994,19 +1971,6 @@
       return list.length > 1 ? list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1] : list[0];
     }
 
-    function setSeatStrategy(seat, id) {
-      var saved = readStrategies();
-      if (id === 'random') delete saved.seats[seat];
-      else {
-        saved.seats[seat] = id;
-        ui.strategies.seats[seat] = id; // takes over from the bot's next move
-      }
-      writeJson(STRATEGIES_KEY, saved);
-      track('play_set_strategy', { seat: seat, strategy: id });
-      buildStrategies();
-      requestRender();
-    }
-
     function setCoachStrategy(id) {
       var saved = readStrategies();
       saved.coach = id;
@@ -2023,6 +1987,7 @@
     function openStrategies() {
       var dlg = strategiesSheet();
       if (!dlg || dlg.open) return;
+      sound.play('select'); // the click
       buildStrategies();
       if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
       track('play_open_strategies', {});
@@ -2822,6 +2787,10 @@
         // doesn't cover it as the hand goes on. Turned back upright so every
         // wind reads the same way for the player.
         var ws = clamp(Math.min(f.w, f.h) * 0.42, 14, 46);
+        // On a phone the four winds are one size: the smallest any pile allows.
+        if (W < 600) {
+          ws = Math.min.apply(null, L.zoneFrames.map(function (zf) { return clamp(Math.min(zf.w, zf.h) * 0.42, 14, 46); }));
+        }
         ctx.save();
         ctx.translate(f.w / 2, f.h - ws * 0.5 - 2);
         ctx.rotate(-f.a);
@@ -2847,35 +2816,58 @@
 
       if (!L.desktop && settings.mode === 'payout') drawPhoneScores();
 
-      var c = L.center;
+      var c0 = L.center;
+      var c = { x: c0.x + 4, y: c0.y, w: c0.w - 8, h: c0.h }; // a few pixels narrower than the layout's square
+      var lit = hover === 'center';
+      // The plaque: a soft dark panel with a fine gold edge.
       ctx.save();
-      roundRect(ctx, c.x, c.y, c.w, c.h, 6);
-      ctx.fillStyle = hover === 'center' ? 'rgba(244,160,32,0.22)' : 'rgba(0,0,0,0.2)';
+      roundRect(ctx, c.x, c.y, c.w, c.h, 10);
+      var plaque = ctx.createLinearGradient(0, c.y, 0, c.y + c.h);
+      plaque.addColorStop(0, lit ? 'rgba(244,160,32,0.30)' : 'rgba(0,0,0,0.30)');
+      plaque.addColorStop(1, lit ? 'rgba(244,160,32,0.18)' : 'rgba(0,0,0,0.16)');
+      ctx.fillStyle = plaque;
       ctx.fill();
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = lit ? 'rgba(255,210,122,0.8)' : 'rgba(255,210,122,0.32)';
+      ctx.stroke();
       ctx.restore();
-      // Results open from this square only: the wind, the tiles left, and
-      // whose turn it is. A discard tile keeps its own tap, for the tip.
-      if (!ui.overlay && !settings.review) addRegion(c.x, c.y, c.w, c.h, openResults, 'center');
+      // Results open from this square only: the wind and the tiles left. A
+      // discard tile keeps its own tap, for the tip.
+      if (!ui.overlay && !settings.review) addRegion(c.x, c.y, c.w, c.h, function () { sound.play('select'); openResults(); }, 'center');
       var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
-      var big = clamp(c.h * 0.42, 14, 40);
-      text(WIND_LETTERS[game.round], cx, cy - big * 0.32, { size: big, family: FONT_HEAD, align: 'center', color: COLORS.goldLight });
+      // The round wind, as its tile's character, with the tiles left close under
+      // it. The two sit as one group in the middle of the panel.
+      var rad = clamp(c.h * 0.25, 11, 26);
+      var gw = rad * 1.8, gh = gw * TILE_ASPECT; // the character alone, so a good size
+      var visH = gh * 0.716; // the SVG's character fills about this much of its height
       var leftLabel = game.hand.wall.length + ' tiles left';
-      var leftSize = fitFont(ctx, leftLabel, c.w - 8, clamp(c.h * 0.16, 10, 14), FONT_BODY);
-      text(leftLabel, cx, cy + big * 0.55, { size: leftSize, align: 'center', color: COLORS.cream });
+      var leftSize = fitFont(ctx, leftLabel, c.w - 10, clamp(c.h * 0.15, 10, 13), FONT_BODY);
+      var textGap = 3;
+      var top = cy - (visH + textGap + leftSize) / 2;
+      var glyphY = top + visH / 2;
+      var windGlyph = windGlyphSprite(['', 'we', 'ws', 'ww', 'wn'][game.round], gw, gh);
+      if (windGlyph) ctx.drawImage(windGlyph, cx - gw / 2, glyphY - gh / 2, gw, gh);
+      text(leftLabel, cx, top + visH + textGap + leftSize / 2, { size: leftSize, align: 'center', color: COLORS.cream });
+    }
 
-      // Arrow toward whose turn it is.
-      if (ui.turnSeat !== null && !ui.overlay) {
-        var ang = [Math.PI / 2, 0, -Math.PI / 2, Math.PI][ui.turnSeat];
-        var dist = ui.turnSeat % 2 === 0 ? c.h / 2 - 6 : c.w / 2 - 6;
-        ctx.save();
-        ctx.translate(cx + Math.cos(ang) * dist, cy + Math.sin(ang) * dist);
-        ctx.rotate(ang);
-        ctx.beginPath();
-        ctx.moveTo(5, 0); ctx.lineTo(-4, -6); ctx.lineTo(-4, 6); ctx.closePath();
-        ctx.fillStyle = COLORS.gold;
-        ctx.fill();
-        ctx.restore();
-      }
+    // A tile SVG's character (the file holds only the character) painted gold,
+    // at this size. Kept per wind and size, so it is drawn once.
+    var glyphCache = {};
+    function windGlyphSprite(id, w, h) {
+      var img = images[id];
+      if (!img || !id) return null;
+      var key = id + '|' + Math.round(w * dpr) + '|' + dpr;
+      if (glyphCache[key]) return glyphCache[key];
+      var cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.ceil(w * dpr));
+      cv.height = Math.max(1, Math.ceil(h * dpr));
+      var g = cv.getContext('2d');
+      g.drawImage(img, 0, 0, cv.width, cv.height);
+      g.globalCompositeOperation = 'source-in';
+      g.fillStyle = COLORS.goldLight; // gold, to read on the dark panel
+      g.fillRect(0, 0, cv.width, cv.height);
+      glyphCache[key] = cv;
+      return cv;
     }
 
     var HAND_SLIDE_MS = 260;
@@ -3098,11 +3090,16 @@
         if (note && note.action) lines.push({ text: note.action, color: COLORS.goldLight, bold: true });
       }
       var tips = declaring ? '' : (note && note.tips && note.tips.length ? note.tips.join(' ') : '');
+      // Your first move of a game also says how to discard, in bold white.
+      var firstMove = !settings.lesson && ui.coach === 'on' && ui.turnPrompt && game && game.handNumber === 1 && !game.hand.seats[0].discards.length;
       if (tips && choiceNote) {
         lines.push({ text: tips + ' ' + ui.notice, color: COLORS.cream, tailFrom: coachPieces(tips).plain.length + 1, tailColor: COLORS.goldLight });
       } else {
         if (tips) lines.push({ text: tips, color: COLORS.cream });
         if (choiceNote && !declaring) lines.push({ text: ui.notice, color: COLORS.goldLight });
+      }
+      if (firstMove && !declaring && note && note.action) {
+        lines.push({ text: TAP_TWICE, color: COLORS.white, bold: true });
       }
       if (!note && !declaring) {
         // Nothing to say right now: say what this box is for, in gray.
@@ -3111,7 +3108,7 @@
           lines.push({ text: 'Click the Coach button at the top to turn it on and get advice on every move, or switch it to Feedback to learn from the moves you\'ve made.', color: GRAY });
         } else if (ui.coach === 'feedback') {
           lines.push({ text: 'Feedback is on.', color: GRAY, bold: true });
-          lines.push({ text: 'After you make a move, the coach will tell you how it went so you can learn from it.', color: GRAY });
+          lines.push({ text: 'After you make a move, the coach will tell you how it went so you can learn from it. ' + TAP_TWICE, color: GRAY });
         } else {
           lines.push({ text: 'The coach gives advice here on your turn and when you can claim a tile.', color: GRAY });
         }
@@ -3654,11 +3651,9 @@
           if (row.tile && tw >= 16) {
             var tx = x + (colW - tw) / 2;
             var ty = y + topPad + nameH + (tileRoom - labelH - tw * TILE_ASPECT) / 2;
-            drawTile(row.tile, tx, ty, tw, { glow: on ? COLORS.gold : null });
-            // Feedback looks back at the discard you made, so it says Discarded.
-            var tileWord = ui.coach === 'feedback' && !settings.review ? 'Discarded' : 'Discard';
-            text(tileWord, x + colW / 2, ty + tw * TILE_ASPECT + labelH / 2 + 4, {
-              size: fitFont(ctx, tileWord, colW - 12, strip ? 10 : small ? 11 : 13, FONT_BODY, strip ? '' : 'bold'),
+            drawTile(row.tile, tx, ty, tw);
+            text('Discard', x + colW / 2, ty + tw * TILE_ASPECT + labelH / 2 + 4, {
+              size: fitFont(ctx, 'Discard', colW - 12, strip ? 10 : small ? 11 : 13, FONT_BODY, strip ? '' : 'bold'),
               weight: strip ? '' : 'bold', align: 'center', color: on ? COLORS.gold : COLORS.cream,
             });
           } else if (ui.coach === 'feedback' && !settings.review) {
@@ -3887,6 +3882,25 @@
       ctx.restore();
     }
 
+    // The green sheet the Results window uses: a deep green with a gold edge.
+    function drawSheetBg(r) {
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.55)';
+      ctx.shadowBlur = 40;
+      ctx.shadowOffsetY = 18;
+      roundRect(ctx, r.x, r.y, r.w, r.h, 8);
+      var g = ctx.createRadialGradient(r.x + r.w / 2, r.y + r.h * 0.35, 10, r.x + r.w / 2, r.y + r.h * 0.35, Math.max(r.w, r.h) * 0.75);
+      g.addColorStop(0, '#127048');
+      g.addColorStop(1, '#074029');
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.restore();
+      roundRect(ctx, r.x, r.y, r.w, r.h, 8);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = COLORS.gold;
+      ctx.stroke();
+    }
+
     function drawOverlay(t) {
       var o = ui.overlay;
       if (o.type === 'summary') drawSummary(o);
@@ -3914,7 +3928,7 @@
     }
 
     function sectionLabel(str, x, y) {
-      text(str.toUpperCase(), x, y, { size: 11, weight: 'bold', color: COLORS.muted });
+      text(str.toUpperCase(), x, y, { size: 11, weight: 'bold', color: 'rgba(255,248,240,0.6)' });
     }
 
     var SUMMARY_PAD = 24; // above the title and below the buttons
@@ -3956,13 +3970,13 @@
       // Very short screens (landscape phones) shrink the whole panel to fit.
       var k = Math.min(1, (H - 24) / lay.h);
       var r = { x: (W - pw) / 2, y: (H - lay.h) / 2, w: pw, h: lay.h };
-      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(0, 0, W, H);
       ctx.save();
       ctx.translate(W / 2, H / 2);
       ctx.scale(k, k);
       ctx.translate(-W / 2, -H / 2);
-      drawPanelBg(r, true);
+      drawSheetBg(r);
       var x = r.x + pad;
       var cx = r.x + r.w / 2;
       var y = r.y + SUMMARY_PAD + 10; // the title's letters start at the padding
@@ -3980,9 +3994,9 @@
         title = 'Draw game';
         sub = 'The wall ran out with no winner. The deal passes to the next player.';
       }
-      text(title, cx, y, { size: fitFont(ctx, title, w, 26, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.red });
+      text(title, cx, y, { size: fitFont(ctx, title, w, 26, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.goldLight });
       y += 15 + 18;
-      text(sub, cx, y, { size: fitFont(ctx, sub, w, 13, FONT_BODY), align: 'center', color: COLORS.muted });
+      text(sub, cx, y, { size: fitFont(ctx, sub, w, 13, FONT_BODY), align: 'center', color: 'rgba(255,248,240,0.75)' });
       y += 11 + 14;
 
       if (isWin) {
@@ -3990,7 +4004,7 @@
         var tw = lay.tw, th = tw * TILE_ASPECT;
         var stripH = th + 26;
         roundRect(ctx, x, y, w, stripH, 6);
-        ctx.fillStyle = COLORS.felt;
+        ctx.fillStyle = 'rgba(0,0,0,0.28)';
         ctx.fill();
         var span = 0;
         hand.forEach(function (it) { span += it.gap ? tw * 0.3 : tw + TILE_GAP; });
@@ -4038,7 +4052,7 @@
         y += 24;
         items.forEach(function (it, i) {
           if (i % 2 === 0) {
-            ctx.fillStyle = 'rgba(0,0,0,0.035)';
+            ctx.fillStyle = 'rgba(255,255,255,0.05)';
             roundRect(ctx, colX - 8, y, colW + 16, rh, 3);
             ctx.fill();
           }
@@ -4047,18 +4061,18 @@
           ctx.font = 'bold 15px ' + FONT_BODY;
           var faanW = ctx.measureText(faanLabel).width + 12;
           var ns = fitFont(ctx, it.name, colW - faanW - 40, 15, FONT_BODY);
-          text(it.name, colX, my, { size: ns, color: COLORS.ink });
+          text(it.name, colX, my, { size: ns, color: COLORS.cream });
           ctx.font = ns + 'px ' + FONT_BODY;
-          text(faanLabel, colX + colW, my, { size: 15, weight: 'bold', align: 'right', color: it.faan ? COLORS.ink : COLORS.muted });
+          text(faanLabel, colX + colW, my, { size: 15, weight: 'bold', align: 'right', color: it.faan ? COLORS.cream : 'rgba(255,248,240,0.55)' });
           y += rh;
         });
         y += 6;
-        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.fillStyle = 'rgba(255,210,122,0.4)';
         ctx.fillRect(colX, y, colW, 1);
         y += 6;
         var totalLabel = res.score.faan >= 13 ? res.score.faan + ' faan · limit' : res.score.faan + ' faan';
-        text('Total', colX, y + 13, { size: 17, weight: 'bold', color: COLORS.ink });
-        text(totalLabel, colX + colW, y + 13, { size: 17, weight: 'bold', align: 'right', color: COLORS.red });
+        text('Total', colX, y + 13, { size: 17, weight: 'bold', color: COLORS.white });
+        text(totalLabel, colX + colW, y + 13, { size: 17, weight: 'bold', align: 'right', color: COLORS.goldLight });
         y += 26;
         var bottom = y;
 
@@ -4070,7 +4084,7 @@
           var how = res.payer === null || res.payer === undefined
             ? 'Self-draw: everyone pays ' + fmt(base)
             : (res.payer === 0 ? 'You pay ' : game.players[res.payer].name + ' pays ') + fmt(base);
-          text(how, colX, y + 7, { size: fitFont(ctx, how, colW, 13, FONT_BODY), color: COLORS.muted });
+          text(how, colX, y + 7, { size: fitFont(ctx, how, colW, 13, FONT_BODY), color: 'rgba(255,248,240,0.7)' });
           y += 22;
           for (var p = 0; p < 4; p++) {
             var d = res.deltas[p];
@@ -4081,9 +4095,9 @@
               ctx.fill();
             }
             var name = (p === 0 ? 'You' : game.players[p].name);
-            text(name, colX, my2, { size: fitFont(ctx, name, colW * 0.5, 15, FONT_BODY, p === 0 ? 'bold' : ''), weight: p === 0 ? 'bold' : '', color: COLORS.ink });
-            text(signed(d), colX + colW * 0.7, my2, { size: 15, weight: 'bold', align: 'right', color: d > 0 ? COLORS.green : d < 0 ? COLORS.red : COLORS.muted });
-            text(fmt(res.after[p]), colX + colW, my2, { size: 15, align: 'right', color: COLORS.muted });
+            text(name, colX, my2, { size: fitFont(ctx, name, colW * 0.5, 15, FONT_BODY, p === 0 ? 'bold' : ''), weight: p === 0 ? 'bold' : '', color: COLORS.cream });
+            text(signed(d), colX + colW * 0.7, my2, { size: 15, weight: 'bold', align: 'right', color: d > 0 ? COLORS.goldLight : d < 0 ? COLORS.redLight : 'rgba(255,248,240,0.55)' });
+            text(fmt(res.after[p]), colX + colW, my2, { size: 15, align: 'right', color: 'rgba(255,248,240,0.55)' });
             y += rh;
           }
           bottom = Math.max(bottom, y);
@@ -4092,7 +4106,7 @@
       }
       if (o.extra) {
         var ey = y + 16;
-        text(o.extra, cx, ey, { size: fitFont(ctx, o.extra, w, 13, FONT_BODY, 'bold'), weight: 'bold', align: 'center', color: COLORS.red });
+        text(o.extra, cx, ey, { size: fitFont(ctx, o.extra, w, 13, FONT_BODY, 'bold'), weight: 'bold', align: 'center', color: COLORS.goldLight });
       }
       var label = settings.lesson ? 'Done' : (game.over ? 'See results' : 'Next hand');
       var firstRegion = regions.length;
@@ -4461,6 +4475,7 @@
 
     function cycleCoach() {
       if (settings.lesson) return;
+      sound.play('select'); // the click
       var next = COACH_ORDER[(COACH_ORDER.indexOf(ui.coach) + 1) % COACH_ORDER.length];
       ui.coach = next;
       saveSetting('coach', next);
@@ -4572,6 +4587,7 @@
       }
       if (action.type === 'discard' && game && game.hand) {
         ui.feedbackDiscards = strategyDiscardRows();
+        ui.feedbackKind = 'discard';
       }
       if (ui.coach === 'feedback' && ui.hint && action.type === 'discard') {
         ui.feedback = Coach.discardFeedback(ui.hint, action.tile) || ui.feedback;
@@ -4599,9 +4615,9 @@
           var pick = strategyChoice(s.bot, null, p.opts);
           return { id: s.id, name: s.name, tile: null, action: pick.action };
         });
-        // A pung, chow or kong is followed at once by your discard, which
-        // should not wipe these before they are read.
-        ui.feedbackFromClaim = decision.type !== 'pass';
+        // These stay after a chow, pung, kong or pass until your next move's
+        // feedback replaces them.
+        ui.feedbackKind = 'claim';
       }
       ui.claimPrompt = null;
       ui.hint = null;
@@ -5091,6 +5107,7 @@
         ui.hint = null;
         ui.feedback = null;
         ui.feedbackDiscards = null;
+        ui.feedbackKind = null;
         // The panel is this hand only; the lists keep every hand of the game.
         ui.hintsAll = {};
         ui.coachScroll = 0;
@@ -5316,16 +5333,22 @@
       };
     }
 
+    function clearDiscardFeedback() {
+      if (ui.feedbackKind === 'discard') {
+        ui.feedbackDiscards = null;
+        ui.feedbackKind = null;
+      }
+    }
+
     function humanAgent() {
       return {
         turn: function (g, seat, opts) {
           return new Promise(function (resolve) {
             ui.turnPrompt = { opts: opts, resolve: resolve };
             ui.selected = -1;
-            // Feedback looks back, so your turn starts with it empty, except the
-            // discard that follows a claim, which keeps the claim's feedback.
-            if (ui.feedbackFromClaim) ui.feedbackFromClaim = false;
-            else ui.feedbackDiscards = null;
+            // Feedback on a discard clears when your next turn starts. Feedback on
+            // a claim stays until your next move.
+            clearDiscardFeedback();
             refreshHint();
             var lessonLine = settings.lesson && ui.hint && ui.hint.action;
             ui.notice = lessonLine ? null : (opts.completeButShort
@@ -5342,8 +5365,7 @@
             if (opts.pung || opts.kong) highlight.push(opts.tile);
             opts.chows.forEach(function (p) { highlight = highlight.concat(p); });
             ui.claimPrompt = { opts: opts, resolve: resolve, highlight: highlight };
-            ui.feedbackDiscards = null;
-            ui.feedbackFromClaim = false;
+            clearDiscardFeedback();
             refreshHint();
             var lessonLine = settings.lesson && ui.hint && ui.hint.action;
             ui.notice = lessonLine ? null : (opts.win
