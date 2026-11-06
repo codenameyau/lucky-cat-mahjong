@@ -561,6 +561,31 @@
     return lines;
   }
 
+  // Like wrapText, for a paragraph where some words are bold: each word is
+  // measured in its own weight (weightAt gives it from the word's position).
+  function wrapRuns(ctx, text, maxW, weightAt, size) {
+    var lines = [];
+    var line = '', width = 0, at = 0;
+    function wide(word, pos) {
+      ctx.font = (weightAt(pos) ? 'bold ' : '') + size + 'px ' + FONT_BODY;
+      return ctx.measureText(word).width;
+    }
+    String(text).split(' ').forEach(function (w) {
+      var gap = line ? wide(' ', at - 1) : 0;
+      var ww = wide(w, at);
+      if (line && width + gap + ww > maxW) {
+        lines.push(line);
+        line = w; width = ww;
+      } else {
+        line = line ? line + ' ' + w : w;
+        width += gap + ww;
+      }
+      at += w.length + 1;
+    });
+    if (line) lines.push(line);
+    return lines;
+  }
+
   function fitFont(ctx, text, maxW, size, family, weight) {
     var s = size;
     for (; s > 8; s--) {
@@ -3236,47 +3261,56 @@
       // In Feedback the Chow and Pass buttons already name the tile, so
       // "Claim Five Bamboo?" adds nothing. Win and short-hand notices stay.
       if (ui.coach === 'feedback' && ui.claimPrompt && ui.notice && ui.notice.indexOf('Claim ') === 0) showNotice = false;
-      // On a claim the question and the coach's answer share one line, such
-      // as "Claim One Circle? Chow 1-2-3 Circles."
-      var oneLine = showNotice && ui.claimPrompt && ui.coach === 'on' && note && note.action;
       // The note on a tile you've selected to throw ("... is OK, but ...")
       // goes last, running on from the coach's hint in its own color.
       var choiceNote = showNotice && ui.turnPrompt && ui.selected >= 0;
       // A win is one bold sentence. The coach's copy is that same sentence.
       var declaring = ui.notice && ui.notice.indexOf('Mahjong!') === 0;
+      // The coach's action (with a question before it on a claim) is the first
+      // line, in bold gold. Everything else is one paragraph run on in order
+      // with no line breaks: the tips, how to discard on your first move in
+      // bold white, and the note on a selected tile in gold. A win is one bold
+      // sentence on its own.
+      var tips = declaring ? '' : (note && note.tips && note.tips.length ? note.tips.join(' ') : '');
+      // Your first move of a game also says how to discard.
+      var firstMove = !settings.lesson && ui.coach === 'on' && ui.turnPrompt && game && game.handNumber === 1 && !game.hand.seats[0].discards.length;
+      var parts = [], head = [];
       if (declaring) {
         lines.push({ text: ui.notice, color: COLORS.goldLight, bold: true, nowrap: true });
-      } else if (oneLine) {
-        lines.push({ text: ui.notice + ' ' + note.action, color: COLORS.goldLight, bold: true });
       } else {
-        if (showNotice && !choiceNote) lines.push({ text: ui.notice, color: COLORS.goldLight });
-        // The main action on its own line in bold gold; the rest as one paragraph.
-        if (note && note.action) lines.push({ text: note.action, color: COLORS.goldLight, bold: true });
-      }
-      var tips = declaring ? '' : (note && note.tips && note.tips.length ? note.tips.join(' ') : '');
-      // Your first move of a game also says how to discard, in bold white.
-      var firstMove = !settings.lesson && ui.coach === 'on' && ui.turnPrompt && game && game.handNumber === 1 && !game.hand.seats[0].discards.length;
-      if (tips && choiceNote) {
-        lines.push({ text: tips + ' ' + ui.notice, color: COLORS.cream, tailFrom: coachPieces(tips).plain.length + 1, tailColor: COLORS.goldLight });
-      } else {
-        if (tips) lines.push({ text: tips, color: COLORS.cream });
-        if (choiceNote && !declaring) lines.push({ text: ui.notice, color: COLORS.goldLight });
-      }
-      if (firstMove && !declaring && note && note.action) {
-        lines.push({ text: TAP_TWICE, color: COLORS.white, bold: true });
-      }
-      if (!note && !declaring) {
-        // Nothing to say right now: say what this box is for, in gray.
-        if (ui.coach === 'off') {
-          lines.push({ text: 'The coach is off.', color: GRAY, bold: true });
-          lines.push({ text: 'Click the Coach button at the top to turn it on and get advice on every move, or switch it to Feedback to learn from the moves you\'ve made.', color: GRAY });
-        } else if (ui.coach === 'feedback') {
-          lines.push({ text: 'Feedback is on.', color: GRAY, bold: true });
-          lines.push({ text: 'After you make a move, the coach will tell you how it went so you can learn from it. ' + TAP_TWICE, color: GRAY });
-        } else {
-          lines.push({ text: 'The coach gives advice here on your turn and when you can claim a tile.', color: GRAY });
+        // On a claim the question and the coach's answer are both bold, such as "Claim One Circle? Chow 1-2-3 Circles."
+        var claimAsk = showNotice && ui.claimPrompt && ui.coach === 'on' && note && note.action;
+        if (showNotice && !choiceNote) head.push({ text: ui.notice, color: COLORS.goldLight, bold: !!claimAsk });
+        if (note && note.action) head.push({ text: note.action, color: COLORS.goldLight, bold: true });
+        if (tips) parts.push({ text: tips, color: COLORS.cream });
+        if (firstMove && note && note.action) parts.push({ text: TAP_TWICE, color: COLORS.white, bold: true });
+        if (choiceNote) parts.push({ text: ui.notice, color: COLORS.goldLight });
+        if (!note) {
+          // Nothing to say right now: say what this box is for, in gray.
+          if (ui.coach === 'off') {
+            parts.push({ text: 'The coach is off. Click the Coach button at the top to turn it on and get advice on every move, or switch it to Feedback to learn from the moves you\'ve made.', color: GRAY });
+          } else if (ui.coach === 'feedback') {
+            parts.push({ text: 'Feedback is on. After you make a move, the coach will tell you how it went so you can learn from it.', color: GRAY });
+            parts.push({ text: TAP_TWICE, color: GRAY, bold: true });
+          } else {
+            parts.push({ text: 'The coach gives advice here on your turn and when you can claim a tile.', color: GRAY });
+          }
         }
       }
+      // Parts run on as one line or paragraph, each keeping its color and weight.
+      function pushRun(list) {
+        if (!list.length) return;
+        var runs = [], joined = '', plainAt = 0;
+        list.forEach(function (pt, k) {
+          if (k) { joined += ' '; plainAt += 1; }
+          runs.push({ from: plainAt, color: pt.color, bold: !!pt.bold }); // plain-text positions, so hand-name marks don't shift them
+          joined += pt.text;
+          plainAt += coachPieces(pt.text).plain.length;
+        });
+        lines.push({ text: joined, color: list[0].color, runs: runs });
+      }
+      pushRun(head);
+      pushRun(parts);
       var iconS = Math.min(L.hintH - 14, 48);
       var tx = x + 8 + iconS + 8;
       // See results sits above your avatar, to the right of this note, so the note stops short of it.
@@ -3297,22 +3331,32 @@
           var piece = coachPieces(l.text, l.color);
           var plain = piece.plain, red = piece.red;
           var cursor = 0;
-          var chunks = l.nowrap ? [plain] : wrapText(ctx, plain, tw);
+          var runAt = function (pos) {
+            var run = null;
+            (l.runs || []).forEach(function (r) { if (r.from <= pos) run = r; });
+            return run;
+          };
+          var weightAt = function (pos) { var r = runAt(pos); return r ? r.bold : !!l.bold; };
+          var chunks = l.nowrap ? [plain] : l.runs ? wrapRuns(ctx, plain, tw, weightAt, lineSize) : wrapText(ctx, plain, tw);
           chunks.forEach(function (ln) {
             var at = plain.indexOf(ln, cursor);
             cursor = at + ln.length;
             var segs = [], pos = at;
-            // Plain text in the line's color, or its tail's from tailFrom on.
+            // Plain text in the line's color, changing to a run's color from where it starts.
             var pushPlain = function (a, b) {
-              var split = l.tailColor ? clamp(l.tailFrom, a, b) : b;
-              if (split > a) segs.push({ text: plain.slice(a, split), color: l.color });
-              if (b > split) segs.push({ text: plain.slice(split, b), color: l.tailColor });
+              var cuts = (l.runs || []).map(function (r) { return r.from; }).filter(function (c) { return c > a && c < b; });
+              var from = a;
+              cuts.concat([b]).forEach(function (cut) {
+                var run = runAt(from);
+                if (cut > from) segs.push({ text: plain.slice(from, cut), color: run ? run.color : l.color, bold: weightAt(from) });
+                from = cut;
+              });
             };
             red.forEach(function (r) {
               var a = Math.max(r[0], at), b = Math.min(r[1], at + ln.length);
               if (b <= a) return;
               if (a > pos) pushPlain(pos, a);
-              segs.push({ text: plain.slice(a, b), color: COLORS.redLight });
+              segs.push({ text: plain.slice(a, b), color: COLORS.redLight, bold: weightAt(a) });
               pos = b;
             });
             if (pos < at + ln.length) pushPlain(pos, at + ln.length);
@@ -3345,8 +3389,9 @@
       out.forEach(function (l, i) {
         var cx = tx;
         l.segs.forEach(function (sg) {
-          text(sg.text, cx, startY + i * lh, { size: l.size || size, color: sg.color, weight: l.bold ? 'bold' : '' });
-          ctx.font = (l.bold ? 'bold ' : '') + (l.size || size) + 'px ' + FONT_BODY;
+          var bold = sg.bold !== undefined ? sg.bold : l.bold;
+          text(sg.text, cx, startY + i * lh, { size: l.size || size, color: sg.color, weight: bold ? 'bold' : '' });
+          ctx.font = (bold ? 'bold ' : '') + (l.size || size) + 'px ' + FONT_BODY;
           cx += ctx.measureText(sg.text).width;
         });
       });
