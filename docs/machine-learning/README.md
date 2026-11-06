@@ -18,6 +18,7 @@ In the game, the model runs in the browser in plain JavaScript, with no ML serve
 | [Decisions](decisions.md) | How Neural Cat picks discards, claims and kongs, how it explains them, and what the coach says |
 | [Training](training.md) | Generating data, training, self-play, the league, competitions, and every command and option |
 | [Fair play](fair-play.md) | How the models are kept from seeing the wall or another hand, and the test that checks it |
+| [Iterations](iterations.md) | How each Neural Cat model was made and how it plays differently from the one before it |
 | [Hugging Face](hugging-face.md) | Where the models and data live, and how they're uploaded |
 
 ## Quick start
