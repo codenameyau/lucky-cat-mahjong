@@ -58,6 +58,7 @@
   // The site's heading font (css/fonts.css), for headings, winds and banners.
   var FONT_HEAD = '"KN Yuanmo SC", ' + FONT_BODY;
   var WIND_LETTERS = ['', 'E', 'S', 'W', 'N'];
+  var TAP_TWICE = 'Tap a tile twice to discard it.';
 
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function now() { return (root.performance && performance.now) ? performance.now() : Date.now(); }
@@ -606,7 +607,8 @@
     var ui = {
       coach: settings.coach || 'on', // 'on' (advice), 'feedback' (notes on your last move) or 'off'
       feedback: null, // the coach's note on your previous move
-      feedbackDiscards: null, // the tile each strategy would have thrown on your last discard
+      feedbackDiscards: null, // what each strategy would have done on your last discard or claim
+      feedbackKind: null, // 'discard' or 'claim': which of those the boxes show
       handSlots: [], // each hand tile's slide from where it was to where it belongs
       handSlide: 1,  // 0..1 progress of that slide
       handSig: '',   // what the hand looked like when the slots were last matched
@@ -2822,6 +2824,10 @@
         // doesn't cover it as the hand goes on. Turned back upright so every
         // wind reads the same way for the player.
         var ws = clamp(Math.min(f.w, f.h) * 0.42, 14, 46);
+        // On a phone the four winds are one size: the smallest any pile allows.
+        if (W < 600) {
+          ws = Math.min.apply(null, L.zoneFrames.map(function (zf) { return clamp(Math.min(zf.w, zf.h) * 0.42, 14, 46); }));
+        }
         ctx.save();
         ctx.translate(f.w / 2, f.h - ws * 0.5 - 2);
         ctx.rotate(-f.a);
@@ -2847,35 +2853,58 @@
 
       if (!L.desktop && settings.mode === 'payout') drawPhoneScores();
 
-      var c = L.center;
+      var c0 = L.center;
+      var c = { x: c0.x + 4, y: c0.y, w: c0.w - 8, h: c0.h }; // a few pixels narrower than the layout's square
+      var lit = hover === 'center';
+      // The plaque: a soft dark panel with a fine gold edge.
       ctx.save();
-      roundRect(ctx, c.x, c.y, c.w, c.h, 6);
-      ctx.fillStyle = hover === 'center' ? 'rgba(244,160,32,0.22)' : 'rgba(0,0,0,0.2)';
+      roundRect(ctx, c.x, c.y, c.w, c.h, 10);
+      var plaque = ctx.createLinearGradient(0, c.y, 0, c.y + c.h);
+      plaque.addColorStop(0, lit ? 'rgba(244,160,32,0.30)' : 'rgba(0,0,0,0.30)');
+      plaque.addColorStop(1, lit ? 'rgba(244,160,32,0.18)' : 'rgba(0,0,0,0.16)');
+      ctx.fillStyle = plaque;
       ctx.fill();
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = lit ? 'rgba(255,210,122,0.8)' : 'rgba(255,210,122,0.32)';
+      ctx.stroke();
       ctx.restore();
-      // Results open from this square only: the wind, the tiles left, and
-      // whose turn it is. A discard tile keeps its own tap, for the tip.
+      // Results open from this square only: the wind and the tiles left. A
+      // discard tile keeps its own tap, for the tip.
       if (!ui.overlay && !settings.review) addRegion(c.x, c.y, c.w, c.h, openResults, 'center');
       var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
-      var big = clamp(c.h * 0.42, 14, 40);
-      text(WIND_LETTERS[game.round], cx, cy - big * 0.32, { size: big, family: FONT_HEAD, align: 'center', color: COLORS.goldLight });
+      // The round wind, as its tile's character, with the tiles left close under
+      // it. The two sit as one group in the middle of the panel.
+      var rad = clamp(c.h * 0.25, 11, 26);
+      var gw = rad * 1.8, gh = gw * TILE_ASPECT; // the character alone, so a good size
+      var visH = gh * 0.716; // the SVG's character fills about this much of its height
       var leftLabel = game.hand.wall.length + ' tiles left';
-      var leftSize = fitFont(ctx, leftLabel, c.w - 8, clamp(c.h * 0.16, 10, 14), FONT_BODY);
-      text(leftLabel, cx, cy + big * 0.55, { size: leftSize, align: 'center', color: COLORS.cream });
+      var leftSize = fitFont(ctx, leftLabel, c.w - 10, clamp(c.h * 0.15, 10, 13), FONT_BODY);
+      var textGap = 3;
+      var top = cy - (visH + textGap + leftSize) / 2;
+      var glyphY = top + visH / 2;
+      var windGlyph = windGlyphSprite(['', 'we', 'ws', 'ww', 'wn'][game.round], gw, gh);
+      if (windGlyph) ctx.drawImage(windGlyph, cx - gw / 2, glyphY - gh / 2, gw, gh);
+      text(leftLabel, cx, top + visH + textGap + leftSize / 2, { size: leftSize, align: 'center', color: COLORS.cream });
+    }
 
-      // Arrow toward whose turn it is.
-      if (ui.turnSeat !== null && !ui.overlay) {
-        var ang = [Math.PI / 2, 0, -Math.PI / 2, Math.PI][ui.turnSeat];
-        var dist = ui.turnSeat % 2 === 0 ? c.h / 2 - 6 : c.w / 2 - 6;
-        ctx.save();
-        ctx.translate(cx + Math.cos(ang) * dist, cy + Math.sin(ang) * dist);
-        ctx.rotate(ang);
-        ctx.beginPath();
-        ctx.moveTo(5, 0); ctx.lineTo(-4, -6); ctx.lineTo(-4, 6); ctx.closePath();
-        ctx.fillStyle = COLORS.gold;
-        ctx.fill();
-        ctx.restore();
-      }
+    // A tile SVG's character (the file holds only the character) painted gold,
+    // at this size. Kept per wind and size, so it is drawn once.
+    var glyphCache = {};
+    function windGlyphSprite(id, w, h) {
+      var img = images[id];
+      if (!img || !id) return null;
+      var key = id + '|' + Math.round(w * dpr) + '|' + dpr;
+      if (glyphCache[key]) return glyphCache[key];
+      var cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.ceil(w * dpr));
+      cv.height = Math.max(1, Math.ceil(h * dpr));
+      var g = cv.getContext('2d');
+      g.drawImage(img, 0, 0, cv.width, cv.height);
+      g.globalCompositeOperation = 'source-in';
+      g.fillStyle = COLORS.goldLight; // gold, to read on the dark panel
+      g.fillRect(0, 0, cv.width, cv.height);
+      glyphCache[key] = cv;
+      return cv;
     }
 
     var HAND_SLIDE_MS = 260;
@@ -3098,11 +3127,16 @@
         if (note && note.action) lines.push({ text: note.action, color: COLORS.goldLight, bold: true });
       }
       var tips = declaring ? '' : (note && note.tips && note.tips.length ? note.tips.join(' ') : '');
+      // Your first move of a game also says how to discard, in bold white.
+      var firstMove = !settings.lesson && ui.coach === 'on' && ui.turnPrompt && game && game.handNumber === 1 && !game.hand.seats[0].discards.length;
       if (tips && choiceNote) {
         lines.push({ text: tips + ' ' + ui.notice, color: COLORS.cream, tailFrom: coachPieces(tips).plain.length + 1, tailColor: COLORS.goldLight });
       } else {
         if (tips) lines.push({ text: tips, color: COLORS.cream });
         if (choiceNote && !declaring) lines.push({ text: ui.notice, color: COLORS.goldLight });
+      }
+      if (firstMove && !declaring && note && note.action) {
+        lines.push({ text: TAP_TWICE, color: COLORS.white, bold: true });
       }
       if (!note && !declaring) {
         // Nothing to say right now: say what this box is for, in gray.
@@ -3111,7 +3145,7 @@
           lines.push({ text: 'Click the Coach button at the top to turn it on and get advice on every move, or switch it to Feedback to learn from the moves you\'ve made.', color: GRAY });
         } else if (ui.coach === 'feedback') {
           lines.push({ text: 'Feedback is on.', color: GRAY, bold: true });
-          lines.push({ text: 'After you make a move, the coach will tell you how it went so you can learn from it.', color: GRAY });
+          lines.push({ text: 'After you make a move, the coach will tell you how it went so you can learn from it. ' + TAP_TWICE, color: GRAY });
         } else {
           lines.push({ text: 'The coach gives advice here on your turn and when you can claim a tile.', color: GRAY });
         }
@@ -3654,11 +3688,9 @@
           if (row.tile && tw >= 16) {
             var tx = x + (colW - tw) / 2;
             var ty = y + topPad + nameH + (tileRoom - labelH - tw * TILE_ASPECT) / 2;
-            drawTile(row.tile, tx, ty, tw, { glow: on ? COLORS.gold : null });
-            // Feedback looks back at the discard you made, so it says Discarded.
-            var tileWord = ui.coach === 'feedback' && !settings.review ? 'Discarded' : 'Discard';
-            text(tileWord, x + colW / 2, ty + tw * TILE_ASPECT + labelH / 2 + 4, {
-              size: fitFont(ctx, tileWord, colW - 12, strip ? 10 : small ? 11 : 13, FONT_BODY, strip ? '' : 'bold'),
+            drawTile(row.tile, tx, ty, tw);
+            text('Discard', x + colW / 2, ty + tw * TILE_ASPECT + labelH / 2 + 4, {
+              size: fitFont(ctx, 'Discard', colW - 12, strip ? 10 : small ? 11 : 13, FONT_BODY, strip ? '' : 'bold'),
               weight: strip ? '' : 'bold', align: 'center', color: on ? COLORS.gold : COLORS.cream,
             });
           } else if (ui.coach === 'feedback' && !settings.review) {
@@ -4572,6 +4604,7 @@
       }
       if (action.type === 'discard' && game && game.hand) {
         ui.feedbackDiscards = strategyDiscardRows();
+        ui.feedbackKind = 'discard';
       }
       if (ui.coach === 'feedback' && ui.hint && action.type === 'discard') {
         ui.feedback = Coach.discardFeedback(ui.hint, action.tile) || ui.feedback;
@@ -4599,9 +4632,9 @@
           var pick = strategyChoice(s.bot, null, p.opts);
           return { id: s.id, name: s.name, tile: null, action: pick.action };
         });
-        // A pung, chow or kong is followed at once by your discard, which
-        // should not wipe these before they are read.
-        ui.feedbackFromClaim = decision.type !== 'pass';
+        // These stay after a chow, pung, kong or pass until your next move's
+        // feedback replaces them.
+        ui.feedbackKind = 'claim';
       }
       ui.claimPrompt = null;
       ui.hint = null;
@@ -5091,6 +5124,7 @@
         ui.hint = null;
         ui.feedback = null;
         ui.feedbackDiscards = null;
+        ui.feedbackKind = null;
         // The panel is this hand only; the lists keep every hand of the game.
         ui.hintsAll = {};
         ui.coachScroll = 0;
@@ -5316,16 +5350,22 @@
       };
     }
 
+    function clearDiscardFeedback() {
+      if (ui.feedbackKind === 'discard') {
+        ui.feedbackDiscards = null;
+        ui.feedbackKind = null;
+      }
+    }
+
     function humanAgent() {
       return {
         turn: function (g, seat, opts) {
           return new Promise(function (resolve) {
             ui.turnPrompt = { opts: opts, resolve: resolve };
             ui.selected = -1;
-            // Feedback looks back, so your turn starts with it empty, except the
-            // discard that follows a claim, which keeps the claim's feedback.
-            if (ui.feedbackFromClaim) ui.feedbackFromClaim = false;
-            else ui.feedbackDiscards = null;
+            // Feedback on a discard clears when your next turn starts. Feedback on
+            // a claim stays until your next move.
+            clearDiscardFeedback();
             refreshHint();
             var lessonLine = settings.lesson && ui.hint && ui.hint.action;
             ui.notice = lessonLine ? null : (opts.completeButShort
@@ -5342,8 +5382,7 @@
             if (opts.pung || opts.kong) highlight.push(opts.tile);
             opts.chows.forEach(function (p) { highlight = highlight.concat(p); });
             ui.claimPrompt = { opts: opts, resolve: resolve, highlight: highlight };
-            ui.feedbackDiscards = null;
-            ui.feedbackFromClaim = false;
+            clearDiscardFeedback();
             refreshHint();
             var lessonLine = settings.lesson && ui.hint && ui.hint.action;
             ui.notice = lessonLine ? null : (opts.win
