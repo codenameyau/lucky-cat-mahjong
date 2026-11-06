@@ -54,7 +54,7 @@ Every button is tracked except the tiles and the buttons that play a move (Win, 
 | `play_fullscreen_click`, `play_show_hands_click`, `play_next_hand_click`, `play_see_results_click`, `play_again_click`, `play_end_quit_click` | |
 | `play_end_results_click`, `play_view_replay`, `play_strategy_details_click` | `open` (details only) |
 | `play_playback_prev_click`, `play_playback_next_click`, `play_playback_play_click`, `play_playback_pause_click` | |
-| `play_playback_back_click`, `play_playback_upload_click`, `play_playback_download_click` | |
+| `play_playback_back_click`, `play_playback_upload_click`, `play_playback_download_click`, `play_playback_coach_note_click` | |
 | `play_playback_speed` | `speed` |
 | `play_rule_click` | `hand` |
 | `play_credit_click` | `link` |

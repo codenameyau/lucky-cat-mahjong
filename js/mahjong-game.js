@@ -612,6 +612,7 @@
     var regions = [];
     var hover = null;
     var historyDrag = null;
+    var historyTap = null; // a press on a coach note in playback: it jumps there if it wasn't a drag
     var resultsDrag = null;
     // Face-up tiles drawn this frame (screen boxes) and the mouse position,
     // for the tile-name tooltip.
@@ -3556,7 +3557,11 @@
         });
       }
       var y = viewY - ui.coachScroll;
+      ui.coachHits = [];
       blocks.forEach(function (b) {
+        if (settings.review && typeof b.entry.step === 'number') {
+          ui.coachHits.push({ x: viewX, y: Math.max(y, viewY), w: viewW, h: Math.min(y + b.h, viewY + viewH) - Math.max(y, viewY), step: b.entry.step });
+        }
         roundRect(ctx, viewX, y, viewW - (ui.coachScrollMax > 0 ? 8 : 0), b.h, 4);
         ctx.fillStyle = 'rgba(0,0,0,0.22)';
         ctx.fill();
@@ -5058,6 +5063,7 @@
         return;
       }
       if (historyAt(p)) {
+        historyTap = settings.review ? { x: p.x, y: p.y, id: e.pointerId, step: coachNoteAt(p) } : null;
         if (ui.coachScrollMax > 0) {
           historyDrag = { y: p.y, scroll: ui.coachScroll, id: e.pointerId };
           if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
@@ -5103,7 +5109,8 @@
       if (e.pointerType && e.pointerType !== 'mouse') return;
       var p = pointerPos(e);
       if ((resultsAt(p) || historyAt(p)) && !seeResultsHit(p)) {
-        canvas.style.cursor = (resultsAt(p) ? ui.resultsScrollMax > 0 : ui.coachScrollMax > 0) ? 'grab' : 'default';
+        canvas.style.cursor = !resultsAt(p) && settings.review && coachNoteAt(p) !== null ? 'pointer'
+          : (resultsAt(p) ? ui.resultsScrollMax > 0 : ui.coachScrollMax > 0) ? 'grab' : 'default';
         mouse = p;
         if (hover || tipSeat !== null) { hover = null; requestRender(); }
         return;
@@ -5117,7 +5124,36 @@
       if (id !== hover || (sp ? sp.id : null) !== tipTile || (seatSp ? seatSp.seat : null) !== tipSeat) { hover = id; requestRender(); }
     }
 
+    // The move a coach note is about, under this point (playback).
+    function coachNoteAt(p) {
+      var hits = ui.coachHits || [];
+      for (var i = 0; i < hits.length; i++) {
+        var h = hits[i];
+        if (h.h > 0 && p.x >= h.x && p.x <= h.x + h.w && p.y >= h.y && p.y <= h.y + h.h) return h.step;
+      }
+      return null;
+    }
+
+    // Takes you to the move on the progress bar that a coach note is about.
+    function jumpToNote(step) {
+      var stops = reviewStops().stops;
+      var at = stops[stops.length - 1];
+      for (var i = 0; i < stops.length; i++) { if (stops[i] >= step) { at = stops[i]; break; } }
+      sound.play('select');
+      track('play_playback_coach_note_click', {});
+      jumpReview(at);
+      ensureReviewNotes(reviewStep);
+      ui.coachStick = true;
+      requestRender();
+    }
+
     function onPointerUp(e) {
+      if (historyTap && e.pointerId === historyTap.id) {
+        var tap = historyTap;
+        historyTap = null;
+        var up = pointerPos(e);
+        if (tap.step !== null && up && Math.abs(up.x - tap.x) < 8 && Math.abs(up.y - tap.y) < 8) jumpToNote(tap.step);
+      }
       if (reviewScrub && e.pointerId === reviewScrub) {
         reviewScrub = 0;
         announce(reviewSpoken());
