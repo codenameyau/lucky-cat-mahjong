@@ -2,7 +2,7 @@
 // each hint, piece of feedback or note fits four lines on a phone (at most
 // 400 characters, the action and the detail together), and says "meld",
 // never "set", "eyes" for the pair a hand wins with, and what a plus or
-// minus number counts ("-9 points", never "-9").
+// minus number counts ("-9 points" or "-9 score", never "-9").
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
@@ -19,8 +19,8 @@ function checkText(t, where) {
   assert.ok(t.length <= MAX, where + ' is ' + t.length + ' characters: ' + t);
   assert.doesNotMatch(t, /\bsets?\b/i, where + ' says "set": ' + t);
   assert.doesNotMatch(t, /\bas the pair\b|\bthe pair you win\b/i, where + ' should say "eyes": ' + t);
-  // A plus or minus number always says what it counts: "-9 points", never "-9".
-  assert.doesNotMatch(t, /(?:[+\u2212]|(?:^|\s)-)\d[\d,.]*(?![\d,.]*(?:\s+points?\b|\s+faan\b|%))/, where + ' has a number with no unit: ' + t);
+  // A plus or minus number always says what it counts: "-9 points" or "-9 score", never "-9".
+  assert.doesNotMatch(t, /(?:[+\u2212]|(?:^|\s)-)\d[\d,.]*(?![\d,.]*(?:\s+points?\b|\s+score\b|\s+faan\b|%))/, where + ' has a number with no unit: ' + t);
 }
 
 describe('coach text', () => {
@@ -73,10 +73,10 @@ describe('coach text', () => {
 
   it('cuts a long hint to whole tips, keeping the action and the model line', () => {
     const long = 'This tip is long enough that a few of them will not fit together in one hint. ';
-    const h = C.fit({ action: 'Discard Red Dragon.', tips: [long, long + long, long, 'The model expects +40 points on average from this discard.', long], model: 'The model expects +40 points on average from this discard.' });
+    const h = C.fit({ action: 'Discard Red Dragon.', tips: [long, long + long, long, 'The model expects +40 score on average from this discard.', long], model: 'The model expects +40 score on average from this discard.' });
     assert.ok(words(h).length <= MAX);
     assert.equal(h.action, 'Discard Red Dragon.');
     assert.equal(h.tips[0], long);
-    assert.ok(h.tips.indexOf('The model expects +40 points on average from this discard.') !== -1);
+    assert.ok(h.tips.indexOf('The model expects +40 score on average from this discard.') !== -1);
   });
 });
