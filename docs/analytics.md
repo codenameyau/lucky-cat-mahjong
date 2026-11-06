@@ -2,6 +2,8 @@
 
 Google Analytics 4 events fired by the site. Name, Instagram and zip code are never sent.
 
+Nothing is sent from `localhost`, `127.x.x.x`, `192.168.x.x`, `10.x.x.x`, `172.16-31.x.x` or a `.local` name: on those addresses the page never loads Google Analytics and `gtag` does nothing, so testing adds no events. Every page that loads it (including the playback page) has the same check, and `js/analytics-local.test.js` guards it.
+
 ## Homepage
 
 Each call to action fires two events, both with a `location` parameter:
@@ -38,7 +40,7 @@ Each answer's own event counts how often it was clicked, with no GA4 setup neede
 
 ## Play Mahjong
 
-Every button outside the hand itself is tracked. Discards and claims at the table aren't.
+Every button is tracked except the tiles and the buttons that play a move (Win, Kong, Pung, Chow, Pass and Discard).
 
 | Event | Parameters |
 | --- | --- |
@@ -50,6 +52,10 @@ Every button outside the hand itself is tracked. Discards and claims at the tabl
 | `play_open_rules`, `play_close_rules`, `play_open_strategies`, `play_close_strategies` | |
 | `play_menu_open`, `play_menu_resume_click`, `play_menu_restart_click`, `play_menu_quit_click` | |
 | `play_fullscreen_click`, `play_show_hands_click`, `play_next_hand_click`, `play_see_results_click`, `play_again_click`, `play_end_quit_click` | |
+| `play_end_results_click`, `play_see_hands_click`, `play_view_replay`, `play_strategy_details_click` | `open` (details only) |
+| `play_playback_prev_click`, `play_playback_next_click`, `play_playback_play_click`, `play_playback_pause_click` | |
+| `play_playback_back_click`, `play_playback_upload_click` | |
+| `play_playback_speed` | `speed` |
 | `play_rule_click` | `hand` |
 | `play_credit_click` | `link` |
 | `play_set_sound` | `sound` |
