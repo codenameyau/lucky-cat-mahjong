@@ -142,3 +142,6 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Training data for the learned strategy (npm run ml:generate)
+ml/data/

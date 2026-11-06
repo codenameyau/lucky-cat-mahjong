@@ -57,7 +57,7 @@ var bot = MahjongBot.createStrategy({
     priority: function (game, ctx, counts, candidate, bestShanten) { /* discard group after the shared rules, lower first; null = the shared order */ },
     chowOk: function (option, found, ctx, game) { /* whether a chow the shared rule allows is worth it */ },
     claim: function (found, ctx, game, seat, opts) { /* { type: 'pass' | 'pung' | 'kong' | 'chow', ... }; null = the shared claims */ },
-    // also: finishChance, finalOrder, kongOk, readyValue, threats, waitChance, extraLoss, defense
+    // also: finishChance, finalOrder, rerank, kongOk, readyValue, threats, waitChance, extraLoss, defense
   },
   tuning: { defenseScale: 1.5 },
 });
@@ -73,6 +73,23 @@ Then:
 4. Play it against the others (below).
 
 The coach speaks for any strategy through `MahjongCoach.forStrategy(bot)`. It names the plan the strategy picked, using `plan.label`, and for a tile the plan doesn't use it gives `plan.reason`.
+
+## Learned strategy (in progress)
+
+`neural-cat` (`js/mahjong-ml.js`) lets a model trained on simulated hands pick the discard. The foundation lists and reads every discard as usual, then the `rerank` hook (the last word, after every shared rule) scores the position each one leaves in expected points: the chance of winning by self-draw or off a discard, of dealing in, and the faan of each, on the full-spicy payout table. Each candidate gets `ml` with those numbers, and the chosen one gets `ml.why`, the points each feature group (`hand`, `discard`, `table`, `context`, `speed`, `value`, `safety`) puts it ahead of the next best. Claims and kongs follow the foundation.
+
+| File | |
+| --- | --- |
+| `js/mahjong-ml-features.js` | The features of one discard, from what the seat can see. Training and play share it |
+| `js/mahjong-ml-model.js` | The network, in plain JS, and expected points from its prediction |
+| `js/mahjong-ml.js` | The strategy, with `create({ temperature, epsilon })` for exploring copies |
+| `scripts/ml/generate.js` | Training data from simulated deals (`npm run ml:generate`) |
+
+```bash
+npm run ml:generate -- --deals 2000 --lineup mix --out ml/data/r0
+```
+
+Every seat's discards are recorded, whatever strategy it plays, with how the hand ended for that seat. Data goes to `ml/data/` (not committed). Until trained weights ship in `js/mahjong-ml-weights.js` the model is random, so `neural-cat` isn't on the Strategies sheet.
 
 ## Reviewing a hand, and teaching the coach
 

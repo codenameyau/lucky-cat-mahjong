@@ -2296,6 +2296,8 @@
     if (H.finalOrder) out = H.finalOrder(out, ctx, c);
     out = keepDragonPair(out, ctx, c);
     out = readyFirst(out);
+    // A strategy's last word, after every shared rule (a learned model).
+    if (H.rerank) out = H.rerank(out, ctx, c, game, seat, threats, folding) || out;
     // Only the hand really held moves the plan: a claim being weighed doesn't.
     var seatNow = game.hand.seats[seat];
     if (hand === seatNow.hand && ctx.melds === seatNow.melds) updateCommit(seatNow, out[0], folding);
@@ -2501,6 +2503,10 @@
    *                                      whether a chow that chowAllowed
    *                                      passes is worth taking
    *      claim(found, ctx, game, seat, opts) -> decision
+   *      rerank(candidates, ctx, counts, game, seat, threats, folding)
+   *                                      -> candidates
+   *                                      the final discard order, after
+   *                                      every shared rule and finalOrder
    *    priority and claim may return null to use the shared choice.
    * ------------------------------------------------------------------ */
 
