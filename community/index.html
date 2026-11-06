@@ -35,12 +35,21 @@
   <link rel="stylesheet" href="../css/styles.css">
   <link rel="stylesheet" href="../css/community.css">
 
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-B514HH987M"></script>
   <script>
+    // Google Analytics runs on the live site only. On localhost and private network
+    // addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x, .local) gtag does nothing, so
+    // testing never adds events.
     window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-B514HH987M');
+    var localHost = /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local)$/i.test(location.hostname);
+    function gtag(){ if (!localHost) dataLayer.push(arguments); }
+    if (!localHost) {
+      var gaScript = document.createElement('script');
+      gaScript.async = true;
+      gaScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-B514HH987M';
+      document.head.appendChild(gaScript);
+      gtag('js', new Date());
+      gtag('config', 'G-B514HH987M');
+    }
   </script>
 </head>
 <body>

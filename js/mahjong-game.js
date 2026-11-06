@@ -21,7 +21,7 @@
   // The one saved game on this device, signed (HMAC-SHA256). Each turn writes
   // it; Resume game reads it. Quit leaves it.
   var AUTOSAVE_KEY = 'lcm-play-autosave';
-  // The signed playback the wind badge and View replay save. The playback
+  // The signed playback the wind badge and View playback save. The playback
   // page opens it on its own.
   var REPLAY_KEY = 'lcm-play-replay';
   // Each strategy's hints for the game in progress: { v: 1, lists: { id: [note, ...] } }.
@@ -128,7 +128,9 @@
   }
 
   // The event for a click on each of the table's buttons, by button id. Coach,
-  // Rules and Strategies have their own, and discards and claims aren't tracked.
+  // Rules, Strategies and Sound have their own, and so do View playback and the
+  // playback speed. Tiles and the buttons that play a move (Win, Kong, Pung,
+  // Chow, Pass, Discard) are not tracked.
   var BUTTON_EVENTS = {
     menu: 'play_menu_open',
     fullscreen: 'play_fullscreen_click',
@@ -140,6 +142,11 @@
     'm-quit': 'play_menu_quit_click',
     'go-again': 'play_again_click',
     'go-quit': 'play_end_quit_click',
+    'go-results': 'play_end_results_click',
+    'review-prev': 'play_playback_prev_click',
+    'review-next': 'play_playback_next_click',
+    'review-back': 'play_playback_back_click',
+    'review-upload': 'play_playback_upload_click',
   };
 
   /* ------------------------------------------------------------------ *
@@ -580,6 +587,7 @@
     var reviewScrub = 0; // pointer id while the move bar is being dragged
     var reviewBar = null; // where the move bar was drawn, in layout units
     var reviewNote = null; // why the empty table is waiting, when a paste failed
+    var playbackLooked = false; // the page has looked for a stored playback
     var reviewCoaches = {}; // by strategy id: one walk of the hand each, so a coach who follows your discards keeps that streak
     var reviewCoachTimer = null;
     var destroyed = false;
@@ -1436,6 +1444,75 @@
       if (sub) text(sub, x + w / 2, y + 30, { size: 12, align: 'center', color: COLORS.goldLight });
     }
 
+    // Grey blocks where the table's parts will go, with a soft light sweeping
+    // across them, while the page loads the tiles and finds the playback.
+    var skeletonLayout = null, skeletonFor = null;
+    function drawSkeleton(t) {
+      if (!L) return;
+      // The layout the table will have once a playback is on it (with the
+      // strategy panel and the coach bar), worked out once per screen size.
+      if (skeletonFor !== L) {
+        var held = settings.review;
+        var wasLoaded = L;
+        settings.review = settings.review || true;
+        try { skeletonLayout = computeLayout(); } finally { settings.review = held; }
+        skeletonFor = wasLoaded;
+      }
+      // The playback bar's Back (or Close) button is already in place, so the
+      // bar looks the same before and after the playback loads. It does nothing yet.
+      if (settings.playback) {
+        var padTop = skeletonLayout ? skeletonLayout.pad : 8;
+        pill(padTop, 7, 64, 28, 'rgba(255,255,255,0.12)', 'rgba(255,255,255,0.3)');
+        text('Back', padTop + 32, 22, { size: 13, weight: 'bold', align: 'center', color: COLORS.white });
+      }
+      var real = L;
+      L = skeletonLayout;
+      var sweep = (t % 1500) / 1500;
+      function bone(x, y, w, h, r) {
+        if (!(w > 0 && h > 0)) return;
+        ctx.save();
+        roundRect(ctx, x, y, w, h, r == null ? 8 : r);
+        ctx.clip();
+        ctx.fillStyle = 'rgba(255,255,255,0.07)';
+        ctx.fillRect(x, y, w, h);
+        var gx = -W * 0.5 + sweep * (W * 2);
+        var g = ctx.createLinearGradient(gx, 0, gx + W * 0.45, 0);
+        g.addColorStop(0, 'rgba(255,255,255,0)');
+        g.addColorStop(0.5, 'rgba(255,255,255,0.09)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+        ctx.restore();
+      }
+      try {
+        // The scoring and coach columns, the panel under them, and the three other players.
+        if (L.results) bone(L.results.x, L.results.y, L.results.w, L.results.h);
+        if (L.history) bone(L.history.x, L.history.y, L.history.w, L.history.h);
+        if (L.strategyPanel) {
+          // The strategy panel and its four boxes, laid out as drawStrategyPanel does.
+          var sp = L.strategyPanel;
+          bone(sp.x, sp.y, sp.w, sp.h);
+          var strip = !!sp.phone, small = strip || sp.h < 150;
+          var headH = strip ? 4 : small ? 24 : 34;
+          var boxGap = 8;
+          var boxW = (sp.w - boxGap * 5) / 4;
+          var boxH = Math.max(36, sp.h - headH - (strip ? 4 : small ? 5 : 8));
+          if (!strip) bone(sp.x + 14, sp.y + (small ? 8 : 11), 84, 9, 4); // the heading
+          for (var bi = 0; bi < 4; bi++) bone(sp.x + boxGap + bi * (boxW + boxGap), sp.y + headH, boxW, boxH, 6);
+        }
+        [1, 2, 3].forEach(function (seat) { var o = L.opp[seat]; if (o) bone(o.x, o.y, o.w, o.h); });
+        if (L.pond) bone(L.pond.x, L.pond.y, L.pond.w, L.pond.h);
+        if (L.center) bone(L.center.x + 4, L.center.y, L.center.w - 8, L.center.h, 10);
+        if (L.hintH) bone(L.ox + L.pad, L.hintY, L.tableW - 2 * L.pad, L.hintH, 6);
+        if (L.meBox) bone(L.meBox.x, L.meBox.y, L.meBox.w, L.meBox.h);
+        // Your hand: a row of tile-sized blocks, where the tiles will sit.
+        handPositions(13).forEach(function (pos) { bone(pos.x, pos.y, L.tw, L.th, Math.max(2, L.tw * 0.13)); });
+      } finally {
+        L = real;
+      }
+      requestRender(); // keep the light moving until the table is ready
+    }
+
     function render(t) {
       regions = [];
       tileSpots = [];
@@ -1444,7 +1521,10 @@
       drawFelt();
       if (!game || !game.hand) {
         drawTopBar();
-        if (settings.playback) drawPlaybackPrompt();
+        // Only once the stored playback has been looked for: while the page is
+        // still loading, the table stays empty instead of flashing the upload prompt.
+        if (settings.playback ? playbackLooked : false) drawPlaybackPrompt();
+        else if (settings.playback || !game) drawSkeleton(t);
         // A finished hand restored on its results has no tiles to draw.
         // The scoring column and the coach notes stay beside that panel.
         if (ui.overlay && ui.overlay.type === 'summary') {
@@ -1912,6 +1992,7 @@
       toggle.addEventListener('click', function () {
         sound.play('select'); // See details or Hide details
         strategyDetailsOpen = !strategyDetailsOpen;
+        track('play_strategy_details_click', { open: strategyDetailsOpen });
         showDetails();
       });
       showDetails();
@@ -2147,7 +2228,11 @@
     }
 
     function currentReplay() {
-      if (!game || !game.hand || !game.hand.trace) return null;
+      // A hand with nothing recorded (one put back on the table after Back or a
+      // refresh, only to look at) has no playback of its own: the stored one is
+      // the real one, and an empty file must never replace it.
+      if (!game || !game.hand || !game.hand.trace || !game.hand.trace.length) return null;
+      if (restoredHand && game.hand === restoredHand) return null;
       return E.makePlayback(game, {
         seat: 0,
         strategies: ui.strategies && ui.strategies.seats ? ui.strategies.seats.slice() : [],
@@ -2162,22 +2247,22 @@
 
     // The hand just finished, or a replay already saved from it.
     function appendReplayButton(body) {
-      if (!game || !game.over) return;
+      if (!game) return;
       var row = document.createElement('div');
       row.className = 'results-actions';
-      if (game.hand) {
+      if (game.over && game.hand) {
         var hands = document.createElement('button');
         hands.type = 'button';
         hands.className = 'results-hands';
         hands.textContent = 'See hands';
-        hands.addEventListener('click', seeMatchHands);
+        hands.addEventListener('click', function () { track('play_see_hands_click', {}); seeMatchHands(); });
         row.appendChild(hands);
       }
       if (currentReplay() || storedReplay()) {
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'results-replay';
-        btn.textContent = 'View replay';
+        btn.textContent = 'View playback';
         btn.addEventListener('click', viewReplay);
         row.appendChild(btn);
       }
@@ -2309,27 +2394,39 @@
       ctx.fillRect(0, 0, W, 42);
       var pad = L ? L.pad : 8;
       if (settings.playback) {
+        var phoneBar = W < 600; // on a phone the bar is just Close or Back, the title, and Sound
         var sw = W < 420 ? 66 : 92;
         var rw = W < 420 ? 50 : 68;
         var stw = W < 420 ? 70 : 96;
         var right = W - pad;
         var soundX = right - sw;
         button(SOUND_LABELS[soundMode()], soundX, 7, sw, 28, toggleSound, 'ghost', 'sound');
-        var rulesX = soundX - 6 - rw;
-        button('Rules', rulesX, 7, rw, 28, openRules, 'ghost', 'rules');
-        var stratX = rulesX - 6 - stw;
-        button('Strategies', stratX, 7, stw, 28, openStrategies, 'ghost', 'strategies');
+        var stratX = soundX;
+        if (!phoneBar) {
+          var rulesX = soundX - 6 - rw;
+          button('Rules', rulesX, 7, rw, 28, openRules, 'ghost', 'rules');
+          stratX = rulesX - 6 - stw;
+          button('Strategies', stratX, 7, stw, 28, openStrategies, 'ghost', 'strategies');
+        }
         if (settings.review) {
-          if (settings.replayBack) button('Back', pad, 7, 64, 28, backToGame, 'ghost', 'review-back');
-          else button('Close', pad, 7, 64, 28, quit, 'ghost', 'review-close');
+          // Back always goes to the game, however the playback was opened.
+          button('Back', pad, 7, 64, 28, backToGame, 'ghost', 'review-back');
           var where = reviewStep ? ('Move ' + reviewMoveNo(reviewStep) + ' of ' + reviewStops().discards) : 'Deal';
           var label = game && game.hand
             ? E.WIND_NAMES[game.round] + ' round · Hand ' + game.handNumber + ' · ' + where
             : 'Playback';
-          var left = pad + 72;
-          var room = stratX - 12 - left;
-          if (room >= 90) {
-            text(label, left + room / 2, 22, { size: fitFont(ctx, label, room, 15, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.cream });
+          if (phoneBar) {
+            // Centered on the bar: as wide as fits between the buttons on both sides.
+            var half = Math.min(W / 2 - (pad + 72), soundX - 12 - W / 2);
+            if (half >= 45) {
+              text(label, W / 2, 22, { size: fitFont(ctx, label, half * 2, 15, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.cream });
+            }
+          } else {
+            var left = pad + 72;
+            var room = stratX - 12 - left;
+            if (room >= 90) {
+              text(label, left + room / 2, 22, { size: fitFont(ctx, label, room, 15, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.cream });
+            }
           }
         }
         return;
@@ -3335,13 +3432,10 @@
     // on its own. No message. The badge flashes on the click.
     function copySeed() {
       if (!game || !game.hand) return;
-      var seats = ui.strategies && ui.strategies.seats;
       var file;
-      try {
-        file = E.makePlayback(game, { seat: 0, strategies: Array.isArray(seats) ? seats.slice() : [] });
-      } catch (err) { return; }
+      try { file = currentReplay() || storedReplay(); } catch (err) { return; }
       if (!file || !file.payload || !file.payload.handSeed) return;
-      writeJson(REPLAY_KEY, file);
+      if (currentReplay()) writeJson(REPLAY_KEY, file);
       track('play_copy_seed', {});
       // The click saves the playback and flashes the badge. The copy to the
       // clipboard is a bonus: a browser that refuses it still saved the game.
@@ -3948,6 +4042,14 @@
       var pw = Math.min(maxW, W - 24);
       var pad = pw < 400 ? 16 : 24;
       var w = pw - 2 * pad;
+      // View playback opens this hand's playback. On a phone every button is
+      // the same size on its own row, Next hand first. Elsewhere they share a row.
+      if (o.hasPlayback === undefined) o.hasPlayback = !settings.lesson && !!(currentReplay() || storedReplay());
+      var phoneStack = W < 600;
+      var haveHand = !!(game && game.hand);
+      var buttonCount = 1 + (haveHand ? 1 : 0) + (o.hasPlayback ? 1 : 0);
+      var threeButtons = !phoneStack && o.hasPlayback && haveHand && w >= 490;
+      var playbackRow = phoneStack ? (buttonCount - 1) * 58 : (o.hasPlayback && !threeButtons ? 50 : 0);
       var colGap = 28;
       var colW = wide ? (w - colGap) / 2 : w;
 
@@ -3962,7 +4064,7 @@
         var payH = showPay ? 24 + 22 + 4 * c.rh : 0;
         var bodyH = wide ? Math.max(patH, payH) : patH + (payH ? payH + 18 : 0);
         // The title and its line, then a gap above the buttons and the same room below them as above the title.
-        var h = SUMMARY_PAD + 68 + (isWin ? 14 : 0) + handH + flowerH + (isWin ? 18 : 0) + bodyH + (o.extra ? 28 : 0) + 58 + SUMMARY_PAD;
+        var h = SUMMARY_PAD + 68 + (isWin ? 14 : 0) + handH + flowerH + (isWin ? 18 : 0) + bodyH + (o.extra ? 28 : 0) + 58 + playbackRow + SUMMARY_PAD;
         lay = { rh: c.rh, tw: tw, fw: fw, h: h };
         return h <= H - 24;
       });
@@ -4109,6 +4211,8 @@
         text(o.extra, cx, ey, { size: fitFont(ctx, o.extra, w, 13, FONT_BODY, 'bold'), weight: 'bold', align: 'center', color: COLORS.goldLight });
       }
       var label = settings.lesson ? 'Done' : (game.over ? 'See results' : 'Next hand');
+      // Show hands turns the hands face up; once they are, the button says See hands.
+      var handsLabel = ui.revealHands ? 'See hands' : 'Show hands';
       var firstRegion = regions.length;
       var gap = 12;
       var handsW = 140;
@@ -4119,12 +4223,42 @@
         nextW = Math.floor(nextW * w / row);
         row = handsW + gap + nextW;
       }
-      var bx = cx - row / 2;
       var by = r.y + r.h - SUMMARY_PAD - 42;
+      var playW = 150;
+      if (phoneStack) {
+        // One column, one size, with room between: Show hands, View playback,
+        // and Next hand last, at the bottom.
+        var stack = [];
+        if (haveHand) stack.push({ label: handsLabel, fn: showHands, style: 'white', id: 'show-hands' });
+        if (o.hasPlayback) stack.push({ label: 'View playback', fn: viewReplay, style: 'white', id: 'view-playback' });
+        stack.push({ label: label, fn: nextHand, style: 'primary', id: 'next' });
+        var sw = Math.min(w, 280);
+        stack.forEach(function (b, i) {
+          button(b.label, cx - sw / 2, by - (stack.length - 1 - i) * 58, sw, 42, b.fn, b.style, b.id);
+        });
+        ctx.restore();
+        regions.slice(firstRegion).forEach(function (g) {
+          g.x = W / 2 + (g.x - W / 2) * k;
+          g.y = H / 2 + (g.y - H / 2) * k;
+          g.w *= k;
+          g.h *= k;
+        });
+        return;
+      }
+      if (threeButtons) {
+        // Show hands and View playback are the same width, so Next hand is in the middle.
+        handsW = playW;
+        row = handsW + gap + nextW + gap + playW;
+      }
+      var bx = cx - row / 2;
+      var rowY = by - playbackRow; // the two main buttons, above the playback row when it is on its own
       // Show hands leaves this panel without dealing, and only while the
       // finished hand is still on the table. Next hand is the only way on.
-      if (game && game.hand) button('Show hands', bx, by, handsW, 42, showHands, 'white', 'show-hands');
-      button(label, game && game.hand ? bx + handsW + gap : cx - nextW / 2, by, nextW, 42, nextHand, 'primary', 'next');
+      var nx = bx;
+      if (game && game.hand) { button(handsLabel, nx, rowY, handsW, 42, showHands, 'white', 'show-hands'); nx += handsW + gap; }
+      button(label, game && game.hand ? nx : cx - nextW / 2, rowY, nextW, 42, nextHand, 'primary', 'next');
+      if (threeButtons) button('View playback', nx + nextW + gap, rowY, playW, 42, viewReplay, 'white', 'view-playback');
+      if (playbackRow) button('View playback', cx - 110, by, 220, 42, viewReplay, 'white', 'view-playback');
       ctx.restore();
       regions.slice(firstRegion).forEach(function (g) {
         g.x = W / 2 + (g.x - W / 2) * k;
@@ -4365,26 +4499,27 @@
     function showHands() {
       var o = ui.overlay;
       if (!o || o.type !== 'summary') return;
-      // Back from See results the hands are already face up, so no sound.
       var already = ui.revealHands;
       ui.heldSummary = o;
       ui.revealHands = true;
       ui.botLift = null;
       ui.overlay = null;
-      if (!already) {
-        sound.play('flip');
-        announce('All four hands are face up.');
-      }
+      // The first time is the mining hit. Coming back to See hands after See
+      // results is a plain click.
+      sound.play(already ? 'select' : 'flip');
+      if (!already) announce('All four hands are face up.');
       requestRender();
     }
 
     // Leaves the summary for the next deal, with the mining hit.
     function nextHand() {
-      sound.play('next');
+      // On the last hand the button reads See results, and that is a plain click.
+      sound.play(game && game.over && !settings.lesson ? 'select' : 'next');
       closeOverlay();
     }
 
     function seeResults() {
+      sound.play('select'); // the click
       if (ui.heldSummary && !ui.overlay) {
         ui.overlay = ui.heldSummary;
         requestRender();
@@ -5559,6 +5694,7 @@
 
     function chooseCoach(id) {
       sound.play('select'); // the same tick as picking a tile
+      if (settings.review) track('play_set_coach_strategy', { strategy: id, playback: true });
       if (W < 600 || lastTouch) showStrategyToast(id);
       if (settings.review) setReviewCoach(id);
       else setCoachStrategy(id);
@@ -5741,6 +5877,7 @@
     function reviewPace() { return (reduceMotion ? 1900 : 1100) / reviewSpeed; }
 
     function setReviewSpeed(v) {
+      track('play_playback_speed', { speed: v });
       reviewSpeed = v;
       prefs.speed = v;
       writeJson(PREFS_KEY, prefs);
@@ -5772,6 +5909,7 @@
     }
 
     function toggleReviewPlay() {
+      track(reviewPlaying ? 'play_playback_pause_click' : 'play_playback_play_click', {});
       if (reviewPlaying) {
         stopReviewPlay();
         announce('Paused.');
@@ -5844,20 +5982,20 @@
       var gap = 6;
       var bw = rowW >= 560 ? 84 : 66;
       // The buttons sit in the middle of the row, with the caption and the speed
-      // control sharing the room on either side. A phone has no room for that:
-      // there the buttons sit at the right, next to the speed control, and the
-      // caption keeps the left.
+      // control sharing the room on either side. A phone shows no caption (who
+      // did what is in the move itself): the buttons and the speed control sit
+      // together in the middle of the row.
       var phone = rowW < 440;
       var total = acts.length * bw + (acts.length - 1) * gap;
       var bx0, captionW;
+      var gx;
       if (phone) {
-        var fitPhone = rowW - groupW - 12 - 96 - 10; // the caption keeps about 96
-        if (total > fitPhone) {
-          bw = Math.max(44, (fitPhone - (acts.length - 1) * gap) / acts.length);
-          total = acts.length * bw + (acts.length - 1) * gap;
-        }
-        bx0 = slot.x1 - groupW - 12 - total;
-        captionW = bx0 - slot.x0 - 10;
+        var fitPhone = rowW - groupW - 12; // room for the buttons beside the speed control
+        bw = Math.max(44, Math.min(84, (fitPhone - (acts.length - 1) * gap) / acts.length));
+        total = acts.length * bw + (acts.length - 1) * gap;
+        bx0 = slot.x0 + (rowW - (total + 12 + groupW)) / 2;
+        gx = bx0 + total + 12;
+        captionW = 0;
       } else {
         var side = Math.max(groupW, 110) + 10;
         var fitW = rowW - 2 * side;
@@ -5867,25 +6005,26 @@
         }
         bx0 = slot.x0 + (rowW - total) / 2;
         captionW = bx0 - slot.x0 - 10;
+        gx = slot.x1 - groupW;
+        var caption = reviewCaption();
+        // Up to three lines at 14, then smaller until it fits.
+        var size = 14, lines;
+        for (; size >= 11; size--) {
+          ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
+          lines = wrapText(ctx, caption, captionW);
+          if (lines.length <= 3) break;
+        }
+        lines = lines.slice(0, 3);
+        var lh = size + 2;
+        lines.forEach(function (ln, i) {
+          text(ln, slot.x0, slot.y + slot.h / 2 + (i - (lines.length - 1) / 2) * lh + 1, { size: size, weight: 'bold', color: COLORS.cream });
+        });
       }
-      var caption = reviewCaption();
-      // Up to three lines at 14, then smaller until it fits.
-      var size = phone ? 13 : 14, lines;
-      for (; size >= 11; size--) {
-        ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
-        lines = wrapText(ctx, caption, captionW);
-        if (lines.length <= 3) break;
-      }
-      lines = lines.slice(0, 3);
-      var lh = size + 2;
-      lines.forEach(function (ln, i) {
-        text(ln, slot.x0, slot.y + slot.h / 2 + (i - (lines.length - 1) / 2) * lh + 1, { size: size, weight: 'bold', color: COLORS.cream });
-      });
       acts.forEach(function (a, i) {
         button(a.label, bx0 + i * (bw + gap), slot.y, bw, slot.h, a.fn, a.style, a.id);
       });
       var sbh = Math.min(slot.h, 28);
-      var gx = slot.x1 - groupW, gy = slot.y + (slot.h - sbh) / 2;
+      var gy = slot.y + (slot.h - sbh) / 2;
       ctx.save();
       roundRect(ctx, gx, gy, groupW, sbh, sbh / 2);
       ctx.fillStyle = 'rgba(255,255,255,0.1)';
@@ -6229,17 +6368,18 @@
           var check = stored ? E.checkPlayback(stored) : null;
           if (check && check.ok) {
             settings.review = check.record;
-            // Back belongs to View replay, which opens this page on purpose.
+            // Back belongs to View playback, which opens this page on purpose.
             if (settings.replayFromStorage) settings.replayBack = true;
           } else if (check && check.reason) {
             reviewNote = check.reason;
           }
         }
+        playbackLooked = true;
         if (settings.review) {
+          // The page opens on the deal and waits: the button says Play, and
+          // nothing moves until it is pressed.
           reviewStep = 0;
           showReviewStep();
-          reviewPlaying = true;
-          scheduleReview();
         } else {
           announce(reviewNote || PLAYBACK_EMPTY);
           requestRender();

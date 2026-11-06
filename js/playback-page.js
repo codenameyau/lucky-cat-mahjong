@@ -1,7 +1,7 @@
 /* Hidden playback page. The table is up immediately and plays the playback
    saved from a game. With none saved, Upload in the center reads a JSON
    file, and Command+V or Ctrl+V pastes one. ?replay=1 is the visit from
-   View replay, so Back can return there. */
+   View playback, so Back can return there. */
 (function () {
   'use strict';
 
