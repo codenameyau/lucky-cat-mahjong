@@ -959,9 +959,10 @@
     return (r > 0 ? '+' : r < 0 ? '\u2212' : '') + Math.abs(r).toLocaleString('en-US');
   }
 
-  // A number of points always says so: "+23 points", never "+23" alone.
+  // The model's expected value is a score, not a payout, so it says "+23 score",
+  // never "+23" alone and never "points" (which are what a win pays).
   function pointsWord(n) {
-    return pointsText(n) + (Math.abs(Math.round(n)) === 1 ? ' point' : ' points');
+    return pointsText(n) + ' score';
   }
 
   // "an 8% chance to win", "a 12% chance to win", "almost no chance to win".

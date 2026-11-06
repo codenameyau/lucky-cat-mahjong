@@ -87,8 +87,8 @@
         'It reads the hand the way Jorge Yau does: the target hand, the plans it can still make, steps from ready, live tiles, and how risky each tile is.',
         'Then ' + (version ? 'its neural network, model ' + version + ',' : 'a neural network') + ' trained on simulated hands, most of them against other Neural Cat models, looks at Jorge Yau\'s three best discards and predicts how the hand ends after each: the chance to win by self-draw or off a discard, the chance to deal in, and how many faan each would be.',
         'Those make one number, the points the discard is worth on average, and the discard worth the most goes. A quick small win and a slower big one are weighed on the same scale.',
-        'The coach says, in points, what the model expects from its pick and the next best, its chance to win and how much, and which parts of the position put its pick ahead: speed, hand value, safety, what the table shows.',
-        'Claims and kongs are weighed the same way: passing, each pung, chow or kong and the best discard after it, each scored in points. When the model\'s pick is worth more than Jorge Yau\'s call, the model\'s goes, and the coach shows the points for each choice.',
+        'The coach says, as a score, what the model expects from its pick and the next best, its chance to win and how much, and which parts of the position put its pick ahead: speed, hand value, safety, what the table shows.',
+        'Claims and kongs are weighed the same way: passing, each pung, chow or kong and the best discard after it, each given a score. When the model\'s pick is worth more than Jorge Yau\'s call, the model\'s goes, and the coach shows the score for each choice.',
         'It plays fair: it sees only what its seat can see, the same as you. Never the wall, another player\'s hand, or which tile a concealed kong is.',
         ];
       },
