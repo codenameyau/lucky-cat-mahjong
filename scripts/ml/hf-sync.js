@@ -113,10 +113,14 @@ function readMeta(file) {
   try { return JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8')).meta || {}; } catch (err) { return {}; }
 }
 
-// What the newest best improved, from its evaluation and training details.
+// What the newest bests improved (the last two), from their evaluations and
+// training details, newest first.
 function latestBest(state) {
-  const r = state.rounds.filter((x) => x.kept).pop();
-  if (!r || r.against === state.anchor && !r.vsBest) return '';
+  return state.rounds.filter((x) => x.kept && x.vsBest && x.against !== state.anchor).slice(-2).reverse()
+    .map((r) => improved(state, r)).join('\n');
+}
+
+function improved(state, r) {
   const prev = path.basename(r.against, '.json');
   const num = (n) => Math.round(n).toLocaleString('en-US');
   const mine = readMeta(r.model);
