@@ -28,6 +28,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { ship } = require('./ship.js');
+const { PYTHON } = require('./python.js');
 
 const ROOT = path.join(__dirname, '..', '..');
 let DIR = path.join(ROOT, 'ml', 'loop');
@@ -119,7 +120,7 @@ function main() {
       '--sample', '0.3', '--seed', String(args.dataSeed + r * 100000), '--out', data]);
     const recent = state.rounds.map((x) => x.data).concat([data]).slice(-args.keep);
     log('Round ' + r + ': training ' + name + ' on ' + state.baseData.concat(recent).join(', '));
-    run('ml/.venv/bin/python', ['ml/train.py', '--data'].concat(state.baseData, recent, ['--name', name,
+    run(PYTHON, ['ml/train.py', '--data'].concat(state.baseData, recent, ['--name', name,
       '--init', state.best.model, '--lr', '3e-4', '--epochs', '12', '--dropout', '0.2', '--weight-decay', '1e-3']));
     const model = path.join('ml', 'models', name + '.json');
     const e = evaluate(model, args, name);
