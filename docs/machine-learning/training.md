@@ -178,8 +178,8 @@ npm run ml:lab -- --strategy lucky-cat --rounds 10      # starts from the model 
 | Play arms | All of them | `winBonus` and `claimMargin` (it already picks among every allowed discard) | None (it plays its biggest share) |
 | Judged on | Head to head, two seats each: J = points + 5 × wins | One seat each against Neural Cat, Jorge Yau and Lucky Cat, on the same deals: the same J | Head to head, two seats each, points first: J = points + 0.5 × wins, and kept only if its points a hand beat the champion's by more than their standard error |
 | Baseline | | The rule-based Only Orphans plays the same deals every round | |
-| Data | `ml/data/lab-<n>` (and the league's `league-<n>`) | `ml/data/oolab-<n>` (and `orphans-<n>`) | `ml/data/lcpts-<n>` (only its own: the league's `lc<n>` hold only wins) |
-| Models | `N<round><letter>` | `OL<round><letter>` | `LP<round><letter>`, shipped as LC33, LC34, ... (LC21–LC32 came from the hands-won lab, `LL<round><letter>`) |
+| Data | `ml/data/lab-<n>` (and the league's `league-<n>`) | `ml/data/ootgt-<n>`, only its own under the targets (the fixed-family rounds were `oolab-<n>` and the league's `orphans-<n>`) | `ml/data/lcpts-<n>` (only its own: the league's `lc<n>` hold only wins) |
+| Models | `N<round><letter>` | `OT<round><letter>` (OL<round><letter> before the targets) | `LP<round><letter>`, shipped as LC33, LC34, ... (LC21–LC32 came from the hands-won lab, `LL<round><letter>`) |
 | State | `ml/lab/` | `ml/lab-only-orphans/` | `ml/lab-lucky-cat/` |
 
 A new champion ships at once to `js/mahjong-only-orphans-weights.js` or `js/mahjong-lucky-cat-weights.js`, and goes to the Hugging Face model repo's `only-orphans/` or `lucky-cat/` folder (`--no-upload` skips that, `--dry` ships nothing). Only Neural Cat's data is pruned.
