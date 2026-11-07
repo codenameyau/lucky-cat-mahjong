@@ -10,7 +10,7 @@ Every score here is **points a hand**: one player's average points per hand less
 
 | | Neural Cat | Lucky Cat |
 | --- | --- | --- |
-| In the game | **NC2** (league model L19) | **LC21** (lab model LL1a) |
+| In the game | **NC2** (league model L19) | **LC22** (lab model LL2b) |
 | What it is | A network that scores Jorge Yau's best choices in expected points | A network that makes every move itself, with no rules underneath |
 | What it plays for | Points: often and big wins on one scale | Wins: as many and as fast as it can |
 | Trained on | 950,000 league hands (stopped in round 19, at a plateau), and earlier rounds against the rule bots | 1,000,000 hands against its earlier selves and Neural Cat |
@@ -349,6 +349,13 @@ Against Neural Cat, over 1,000 deals each round:
 - **What it does differently.** Against lc20 over 20,000 deals, it wins 20.5% of its seats to 19.0%, in the same 16.7 discards a win and at the same 4.8 faan, and deals in a little less (14.0% against 14.3%). Against Neural Cat NC2 it wins 19.1% of hands to lc20's 18.3%.
 - **Reading.** One round against new opponents (Jorge Yau's rule-based play, and NC2) taught it something its own league couldn't, with the same network and learning rate as the league used. The gain is in how often it finishes a hand, not how fast or how big, so it's likely in which hands it chases and when it stops feeding others, not in speed. Its points against Neural Cat didn't move (−137 a hand): wins this small still lose to Neural Cat's bigger hands.
 - **Result.** J +1.5 (hands won) ± 0.39 at 95%, beyond its standard error: kept, and shipped as **lc21**. `sharp` matched it on the first 6,000 deals (+1.5). `long` was the same model as `finetune` until there's more than one lab round of data.
+
+### LC22 (lab model LL2b): only the newest games
+
+- **Thinking.** Round 2 played 50,000 hands with lc21 against lc18, lc19, lc20, Neural Cat and Jorge Yau, then tried three fine-tunes of lc21 on 318,444 winning moves: at 3x the learning rate (`finetune-fast`), at a third (`finetune-slow`), and on the last two rounds only (`recent`, here the same two lab rounds, with the league's older data left out).
+- **What it does differently.** Against lc21 over 20,000 new deals it wins 21.2% of its seats to 19.5%, in the same 16.6 discards a win, and deals in less (14.5% against 15.0%). Against Neural Cat NC2 it wins 20.7% of hands (lc21 19.1%), and loses 122 points a hand to it, against lc21's 137.
+- **Reading.** Two lab rounds in a row each gained about 1.5 points of win rate, after the league's last rounds gained less than half a point each. Both rounds' data came from tables with Jorge Yau and the newer Neural Cat in them, so the opponents, not a new kind of training, look like what changed. `finetune-slow` was almost as good (+1.6 on 20,000 deals), and `finetune-fast` was the weakest (+0.4 on 6,000), so smaller steps from the champion work best for Lucky Cat so far.
+- **Result.** J +1.7 ± 0.39: kept, and shipped as **lc22**.
 
 ## What the two show together
 

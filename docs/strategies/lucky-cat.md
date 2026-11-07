@@ -46,16 +46,18 @@ The league runs 20 rounds of 50,000 hands, a million hands in all. Its log and s
 
 | Release | Lab model | Against | Hands won | Discards per win | Deal-ins | Faan a win |
 |---|---|---|---|---|---|---|
-| **lc21** | LL1a (fine-tune of lc20 on round 1) | lc20, 20,000 deals | **20.5%** vs 19.0% (± 0.4) | 16.7 vs 16.7 | 14.0% vs 14.3% | 4.85 vs 4.82 |
+| lc21 | LL1a (fine-tune of lc20 on round 1) | lc20, 20,000 deals | **20.5%** vs 19.0% (± 0.4) | 16.7 vs 16.7 | 14.0% vs 14.3% | 4.85 vs 4.82 |
+| **lc22** | LL2b (fine-tune of lc21 on rounds 1–2 only) | lc21, 20,000 deals | **21.2%** vs 19.5% (± 0.4) | 16.6 vs 16.5 | 14.5% vs 15.0% | 4.91 vs 4.84 |
 
-lc21 and lc20 against Neural Cat NC2, over 5,000 deals in both seat orders:
+Each against Neural Cat NC2, over the same 5,000 deals in both seat orders:
 
 | | Hands won | Neural Cat wins | Points per hand |
 |---|---|---|---|
-| lc21 | **19.1%** | 9.8% | −137.1 |
+| lc22 | **20.7%** | 9.5% | **−122.3** |
+| lc21 | 19.1% | 9.8% | −137.1 |
 | lc20 | 18.3% | 9.8% | −137.7 |
 
-lc21 wins about 1.5 more hands in 100 than lc20 at its own table, and about 0.8 more against Neural Cat, at the same speed and size. Its points against Neural Cat don't move: it still wins small.
+Each lab champion wins about 1.5 more hands in 100 than the one before it at its own table, at the same speed and size. Against Neural Cat, lc22 wins 2.4 more hands in 100 than lc20 and loses about 15 points a hand less. It still loses points to Neural Cat: it wins small.
 
 ### The league
 
