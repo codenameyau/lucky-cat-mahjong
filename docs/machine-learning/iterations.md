@@ -306,6 +306,23 @@ Starting from NC2 (L19), on 50,000 deals against L14, L16, L17, s5, Jorge Yau, L
 - **Result.** The slow fine-tune, N2b, beat NC2 by **+8.1 ± 18.3** points a hand on 20,000 fresh deals, winning 9.0% against 8.4% with deal-ins down from 6.0% to 5.7%: **J +11.4**, beyond its standard error. It ships as **NC3**. The deeper network was even (+1.2 ± 17.5); `topK` 2 lost badly on 6,000 deals (−40.9: more, smaller wins); recent-data-only and the claim margin lost too.
 - **What the bot does differently.** It wins a little more often and deals in a little less, with wins about the same size (1,896 against 1,963 points): the same style as NC2, slightly sharper. The gain is in J, mostly from the extra wins; the points alone are within their margin.
 
+## Looking three discards ahead: tried, not shipped
+
+Not a new network: the same weights (NC2, LC20, O5), choosing differently. [What was built and the full numbers](decisions.md#looking-ahead-depth-tried-not-shipped).
+
+- **Thinking.** Each network reads only the position one discard leaves; its read guesses the rest of the hand from features (steps from ready, live tiles, the plan). Playing out the next two draws and discards replaces part of that guess with the tiles that could really come, weighted by the copies the seat hasn't seen, so it stays fair. Neural Cat and Only Orphans have a value, so their search is an expectimax with the network at the leaves; Lucky Cat has only a policy, so its policy prunes and short rollouts of its own moves give the value.
+- **What it did differently.** With the search, Neural Cat threw a different tile than its one-deep read on about 1 turn in 5, Lucky Cat on about 1 in 13, Only Orphans on 2 in 5. It kept the tiles that make a hand ready on a live wait.
+- **Result.** 3,000 deals each, depth 3 against depth-1 copies, then depth 1 in the same seat on the same deals:
+
+  | Model | Points a hand | Hands won |
+  | --- | ---: | ---: |
+  | Neural Cat | +9.8 ± 29.0 | +1.16 ± 0.50 points |
+  | Lucky Cat | −5.5 ± 6.2 | +1.79 ± 0.63 points |
+  | Only Orphans | +5.0 ± 32.2 | +0.30 ± 0.31 points |
+
+- **Reading.** For Neural Cat and Lucky Cat the gain is in how often they win, not in points, and Lucky Cat's wins got smaller. The search sees only the seat's own next draws, so it finishes close hands better and can't see the other players. At about 10 times the time a move, with points flat, it **wasn't shipped**: every model still plays one discard deep.
+- **Limits.** 3,000 deals rather than 20,000, against copies of the same model, with untuned search settings. A fair retry measures against the current models on 20,000 deals.
+
 ## Changes to the base logic during the league
 
 Neural Cat plays Jorge Yau's foundation, so improving Jorge Yau improves what Neural Cat chooses from. The league was restarted at round 6 on new base logic, and every round after it plays whatever the foundation is at the time.
