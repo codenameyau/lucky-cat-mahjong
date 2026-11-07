@@ -1647,9 +1647,20 @@
       return document.getElementById('rules-sheet');
     }
 
+    // The sheet's rows play this table's sounds and open its examples, so a
+    // sheet another table built (a playback view or game since closed) is
+    // built again for this one.
+    var rulesOwner = {};
     function buildRules() {
       var body = document.getElementById('rules-sheet-body');
-      if (!body || body.childElementCount) return;
+      if (!body) return;
+      if (body.childElementCount && body.lcmOwner === rulesOwner) return;
+      body.innerHTML = '';
+      var oldIntro = body.parentNode.querySelector('.rules-sheet-intro');
+      if (oldIntro) oldIntro.remove();
+      var oldCard = rulesSheet().querySelector('.rules-example');
+      if (oldCard) oldCard.remove();
+      body.lcmOwner = rulesOwner;
       var F = E.HKScoring.FAAN;
       var intro = document.createElement('p');
       intro.className = 'rules-sheet-intro';
@@ -1754,14 +1765,14 @@
       });
       // One listener for the sheet: a click that isn't the open pattern or its
       // card puts the example away. The backdrop click still closes the sheet.
-      rulesSheet().addEventListener('click', function (e) {
+      onSheet(rulesSheet(), 'click', function (e) {
         if (!desktopRules() || !openExampleRow) return;
         if (openExampleRow.contains(e.target) || exampleCardHas(e.target)) return;
         sound.play('select'); // a click elsewhere puts the example away
         hideRuleExample();
       });
       // Where the pointer was last, so the example can enter from that side.
-      rulesSheet().addEventListener('pointermove', function (e) {
+      onSheet(rulesSheet(), 'pointermove', function (e) {
         if (pointerTravel.ready) {
           pointerTravel.dx = e.clientX - pointerTravel.x;
           pointerTravel.dy = e.clientY - pointerTravel.y;
@@ -5144,12 +5155,27 @@
       return r && r.id === 'see-results' ? r : null;
     }
 
+    // A button of the open overlay (summary, game over) under this point.
+    function overlayButtonAt(p) {
+      if (!ui.overlay || !ui.overlayBox || !boxHas(ui.overlayBox, p.x, p.y)) return null;
+      var r = hitTest(p.x, p.y);
+      return r && boxHas(ui.overlayBox, r.x, r.y) ? r : null;
+    }
+
     function onPointerDown(e) {
       lastTouch = !!e.pointerType && e.pointerType !== 'mouse';
       if (lastTouch) mouse = null;
       var p = pointerPos(e);
       if (ui.overlay && ui.overlayBox && !boxHas(ui.overlayBox, p.x, p.y)) {
         if (dismissOverlay()) { e.preventDefault(); return; }
+      }
+      // An open summary sits over the coach column, so its buttons come first.
+      var overlayHit = overlayButtonAt(p);
+      if (overlayHit) {
+        pinnedTip = null;
+        e.preventDefault();
+        overlayHit.onTap();
+        return;
       }
       if (settings.review && reviewBarHit(p)) {
         reviewScrub = e.pointerId;
@@ -5218,7 +5244,7 @@
       }
       if (e.pointerType && e.pointerType !== 'mouse') return;
       var p = pointerPos(e);
-      if ((resultsAt(p) || historyAt(p)) && !seeResultsHit(p)) {
+      if ((resultsAt(p) || historyAt(p)) && !seeResultsHit(p) && !overlayButtonAt(p)) {
         canvas.style.cursor = !resultsAt(p) && settings.review && coachNoteAt(p) !== null ? 'pointer'
           : (resultsAt(p) ? ui.resultsScrollMax > 0 : ui.coachScrollMax > 0) ? 'grab' : 'default';
         mouse = p;
