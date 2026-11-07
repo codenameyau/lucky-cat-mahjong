@@ -192,6 +192,8 @@
     // Neural Cat's weights are the page's biggest script. The menu does not
     // need them, so they load here, before a strategy first builds its model.
     if (!root.MahjongMLWeights) jobs.push(loadScript('/js/mahjong-ml-weights.js'));
+    // Only Orphans' weights, the same way.
+    if (!root.MahjongOnlyOrphansWeights) jobs.push(loadScript('/js/mahjong-only-orphans-weights.js'));
     if (document.fonts && document.fonts.load) {
       jobs.push(Promise.race([
         document.fonts.load('16px "KN Yuanmo SC"').catch(function () {}),

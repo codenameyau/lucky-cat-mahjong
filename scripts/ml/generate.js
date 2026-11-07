@@ -28,6 +28,19 @@
      --epsilon P      neural-cat's random discards (default 0.05)
      --workers N      worker threads (default: CPU cores - 1)
      --out DIR        where to write (default ml/data/<date-time>)
+     --learner ID     the learned strategy being trained: neural-cat
+                      (default) or only-orphans. Its id in a lineup is the
+                      exploring copy (--weights, --temperature, --epsilon),
+                      every position is read through its foundation, and
+                      for only-orphans, oo:<file> is an earlier Only Orphans
+                      model playing its best (neural-cat is then the shipped
+                      Neural Cat, a table opponent)
+     --record a,b,..  record only the seats playing these strategies
+                      (default: every seat)
+   only-orphans-rules (the rule-based Only Orphans, the baseline) can sit at
+   any table too. */
+
+/*
 
    Writes, per worker, shard-N.features (float16, SIZE per sample) and
    shard-N.labels (16 bytes per sample: outcome, winFaan, payFaan, turn,
@@ -48,10 +61,18 @@ const S = require('../../js/mahjong-strategies.js');
 const F = require('../../js/mahjong-ml-features.js');
 const M = require('../../js/mahjong-ml-model.js');
 const ML = require('../../js/mahjong-ml.js');
+const OO = require('../../js/mahjong-only-orphans.js');
+const { addBaselines, MODEL_PREFIX } = require('./baselines/register.js');
 
 const LABEL_BYTES = 16;
 const OUTCOMES = M.OUTCOMES;
-const ML_ID = 'neural-cat';
+// The learned strategy each run trains: its exploring copy, the prefix of
+// its earlier models in a lineup, and how a copy is made.
+const LEARNERS = {
+  'neural-cat': { prefix: 'ml:', create: (o) => ML.create(o) },
+  'only-orphans': { prefix: MODEL_PREFIX, create: (o) => OO.create(o) },
+};
+addBaselines();
 
 // Which outcome the hand had for `seat` (an index into OUTCOMES).
 function outcomeFor(res, seat) {
@@ -78,23 +99,32 @@ function noStepDiscards(hand, declared) {
   return out;
 }
 
+// Learned seats (the exploring copy, earlier models) and the shipped Neural
+// Cat never get the rule bots' --explore swaps.
+const LEARNED = ['neural-cat', 'only-orphans'];
+
 function makeAgent(id, cfg) {
-  if (/^ml:/.test(id)) return { agent: cfg.models[id].createBotAgent(), rule: false };
-  if (id !== ML_ID) return { agent: S.createAgent(id), rule: true };
-  return { agent: cfg.mlBot.createBotAgent(), rule: false };
+  if (cfg.models[id]) return { agent: cfg.models[id].createBotAgent(), rule: false };
+  if (id === cfg.learner) return { agent: cfg.mlBot.createBotAgent(), rule: false };
+  return { agent: S.createAgent(id), rule: LEARNED.indexOf(id) === -1 };
 }
 
 async function runWorker(cfg) {
+  addBaselines();
   const strategies = cfg.strategies;
+  const L = LEARNERS[cfg.learner];
   const rng = E.createRng((cfg.seed * 2654435761) >>> 0);
   const weights = cfg.weightsFile ? JSON.parse(fs.readFileSync(cfg.weightsFile, 'utf8')) : null;
-  // One copy of neural-cat for every seat that plays it (its calls are synchronous).
-  cfg.mlBot = ML.create({ model: weights ? M.createModel(weights) : ML.model, topK: cfg.topK, temperature: cfg.temperature, epsilon: cfg.epsilon, rng, fast: true });
-  // "ml:<file>" seats: earlier models, playing their best (a league).
+  // One copy of the learner for every seat that plays it (its calls are
+  // synchronous). Every position is read through its foundation.
+  const shipped = cfg.learner === 'neural-cat' ? ML.model : OO.model;
+  cfg.mlBot = L.create({ model: weights ? M.createModel(weights) : shipped, topK: cfg.topK, temperature: cfg.temperature, epsilon: cfg.epsilon, rng, fast: true });
+  // Earlier models ("ml:<file>" or "oo:<file>"), playing their best (a league).
   cfg.models = {};
-  cfg.pool.concat(cfg.lineup === 'mix' ? [] : cfg.lineup).filter((id) => /^ml:/.test(id)).forEach((id) => {
-    if (!cfg.models[id]) cfg.models[id] = ML.create({ id, weights: JSON.parse(fs.readFileSync(path.resolve(id.slice(3)), 'utf8')), fast: true });
+  cfg.pool.concat(cfg.lineup === 'mix' ? [] : cfg.lineup).filter((id) => id.startsWith(L.prefix)).forEach((id) => {
+    if (!cfg.models[id]) cfg.models[id] = L.create({ id, weights: JSON.parse(fs.readFileSync(path.resolve(id.slice(L.prefix.length)), 'utf8')), fast: true });
   });
+  const recorded = (id) => !cfg.record || cfg.record.indexOf(id) !== -1;
   const featFd = fs.openSync(path.join(cfg.out, 'shard-' + cfg.index + '.features'), 'w');
   const labelFd = fs.openSync(path.join(cfg.out, 'shard-' + cfg.index + '.labels'), 'w');
   let samples = 0, hands = 0;
@@ -120,13 +150,13 @@ async function runWorker(cfg) {
       return {
         turn(g, s, opts) {
           // Read the position before the bot moves (its plan memo moves after).
-          const keep = !opts.win && rng() < cfg.sample;
+          const keep = !opts.win && recorded(id) && rng() < cfg.sample;
           const state = keep ? F.prepare(g, s, null, null, cfg.mlBot) : null;
           return made.agent.turn(g, s, opts).then((action) => {
             if (action && action.type === 'kong') {
               // The position after the kong, before its replacement tile.
               const kong = opts.kongs.filter((k) => k.tile === action.tile)[0];
-              if (kong) waiting(g, s, id, kong.kind, kong.tile, 0);
+              if (kong && recorded(id)) waiting(g, s, id, kong.kind, kong.tile, 0);
               return action;
             }
             if (!action || action.type !== 'discard') return action;
@@ -149,7 +179,7 @@ async function runWorker(cfg) {
         claim(g, s, opts) {
           const can = !opts.win && (opts.pung || opts.kong || opts.chows.length);
           // Read before the choice moves anything.
-          const keep = can && rng() < cfg.sample;
+          const keep = can && recorded(id) && rng() < cfg.sample;
           const pass = keep ? ML.waitingFeatures(cfg.mlBot, g, s, 'pass', opts.tile) : null;
           const kong = keep && opts.kong ? ML.waitingFeatures(cfg.mlBot, g, s, 'kong', opts.tile) : null;
           return made.agent.claim(g, s, opts).then((d) => {
@@ -221,11 +251,14 @@ function stamp() {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  const learner = String(args.learner || 'neural-cat');
+  if (!LEARNERS[learner]) throw new Error('unknown --learner ' + learner + ' (have: ' + Object.keys(LEARNERS).join(', ') + ')');
+  const prefix = LEARNERS[learner].prefix;
   const pool = args.pool ? String(args.pool).split(',') : null;
   const lineup = !args.lineup || args.lineup === 'mix' ? 'mix' : String(args.lineup).split(',');
-  const models = (pool || []).concat(lineup === 'mix' ? [] : lineup).filter((id) => /^ml:/.test(id));
-  const known = S.ids().concat(S.ids().indexOf(ML_ID) !== -1 ? [] : [ML_ID])
-    .concat(models.filter((id, k) => models.indexOf(id) === k));
+  const models = (pool || []).concat(lineup === 'mix' ? [] : lineup).filter((id) => id.startsWith(prefix));
+  const extra = [learner].concat(S.labIds(), models).filter((id) => S.ids().indexOf(id) === -1);
+  const known = S.ids().concat(extra.filter((id, k) => extra.indexOf(id) === k));
   if (lineup !== 'mix' && lineup.length !== 4) throw new Error('--lineup needs four strategy ids, or "mix"');
   (lineup === 'mix' ? (pool || known) : lineup).forEach((id) => {
     if (known.indexOf(id) === -1) throw new Error('unknown strategy ' + id + ' (have: ' + known.join(', ') + ')');
@@ -236,7 +269,8 @@ async function main() {
   const out = path.resolve(String(args.out || path.join('ml', 'data', stamp())));
   fs.mkdirSync(out, { recursive: true });
   const cfgBase = {
-    lineup, pool: pool || known, out,
+    lineup, pool: pool || S.ids(), out, learner,
+    record: args.record ? String(args.record).split(',') : null,
     strategies: known,
     sample: args.sample !== undefined ? parseFloat(args.sample) : 0.3,
     explore: args.explore !== undefined ? parseFloat(args.explore) : 0.05,
@@ -289,7 +323,8 @@ async function main() {
     outcomes: OUTCOMES,
     strategies: known,
     gameVersion: E.GAME_VERSION,
-    config: { deals, seed, lineup, pool, sample: cfgBase.sample, explore: cfgBase.explore, temperature: cfgBase.temperature, epsilon: cfgBase.epsilon, weights: cfgBase.weightsFile },
+    learner,
+    config: { deals, seed, lineup, pool, record: cfgBase.record, sample: cfgBase.sample, explore: cfgBase.explore, temperature: cfgBase.temperature, epsilon: cfgBase.epsilon, weights: cfgBase.weightsFile },
     shards: shards.map((s) => ({ features: 'shard-' + s.index + '.features', labels: 'shard-' + s.index + '.labels', samples: s.samples, deals: s.deals })),
     samples: total,
     ms: Date.now() - t0,

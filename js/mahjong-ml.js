@@ -34,6 +34,15 @@
                   (the same choices, for simulations)
      claimMargin  points the model's claim or kong choice must beat the
                   base strategy's by (default CLAIM_MARGIN)
+     allow        (candidates, ctx, counts, game) -> candidates: the discards
+                  the model may pick from (all of them with topK 0), ahead of
+                  the rest; exploring stays among them too (none: any)
+     claimOk      (option, opts) -> bool: the calls the model may weigh
+                  against passing
+     kongOk       (kong, game, seat) -> bool: the kongs it may weigh on its
+                  own turn
+     loadWeights  () -> weights: the default model's weights, in place of
+                  js/mahjong-ml-weights.js (another learned strategy's)
    Until trained weights ship in js/mahjong-ml-weights.js, the model is
    random and this strategy isn't offered at the table. */
 
@@ -59,8 +68,8 @@
     try { return require('./mahjong-ml-weights.js'); } catch (err) { return null; }
   }
 
-  function defaultModel() {
-    var w = shippedWeights();
+  function defaultModel(load) {
+    var w = load ? load() : shippedWeights();
     // Weights for older features can't be used: random until retrained.
     try { if (w) return M.createModel(w); } catch (err) { /* fall through */ }
     return M.randomModel(1);
@@ -126,7 +135,10 @@
     // The shipped weights are a large file the Play page loads after its
     // scripts, so the default model is built on first use, not here.
     var chosen = options.model || (options.weights ? M.createModel(options.weights) : null);
-    function getModel() { return chosen || (chosen = defaultModel()); }
+    function getModel() { return chosen || (chosen = defaultModel(options.loadWeights)); }
+    var allow = options.allow || null;
+    var claimOk = options.claimOk || null;
+    var kongAllowed = options.kongOk || null;
     var temperature = options.temperature || 0;
     var epsilon = options.epsilon || 0;
     var rng = options.rng || Math.random;
@@ -139,8 +151,9 @@
     // the discards the model picks from, by value (temperature).
     function pickIndex(ranked, k0) {
       if (epsilon && rng() < epsilon) {
-        var best = Math.min.apply(null, ranked.map(function (x) { return x.shanten; }));
-        var pool = ranked.filter(function (x) { return x.shanten <= best; });
+        var open = allow ? ranked.slice(0, k0) : ranked;
+        var best = Math.min.apply(null, open.map(function (x) { return x.shanten; }));
+        var pool = open.filter(function (x) { return x.shanten <= best; });
         return ranked.indexOf(pool[Math.floor(rng() * pool.length)]);
       }
       if (!temperature) return 0;
@@ -153,8 +166,17 @@
 
     function rerank(out, ctx, counts, game, seat, threats) {
       var state = F.prepare(game, seat, ctx, threats, bot, counts);
+      // Only the discards `allow` lets through are picked from; they go first.
+      var open = out.length;
+      if (allow) {
+        var ok = allow(out, ctx, counts, game) || [];
+        if (ok.length) {
+          out = ok.concat(out.filter(function (x) { return ok.indexOf(x) === -1; }));
+          open = ok.length;
+        }
+      }
       // The model picks among the foundation's best few; the rest keep its order.
-      var k0 = topK > 0 ? Math.min(topK, out.length) : out.length;
+      var k0 = topK > 0 ? Math.min(topK, open) : open;
       out.forEach(function (x, k) {
         if (fast && k >= k0) return; // only the ones it picks from
         x.features = F.encode(state, x.index, x.analysis, x.loss);
@@ -226,11 +248,17 @@
       if (!claims || !found || !found.options.length || d.decision.type === 'win') return d;
       var choices = [{ decision: { type: 'pass' }, ml: read(waitingFeatures(bot, game, seat, 'pass', opts.tile)) }];
       found.options.forEach(function (o) {
+        if (claimOk && !claimOk(o, opts)) return;
         var ml = o.decision.type === 'kong' ? read(waitingFeatures(bot, game, seat, 'kong', opts.tile)) : o.ml;
         if (!ml) return;
         if (ml.best != null) ml = Object.assign({}, ml, { ev: ml.best });
         choices.push({ decision: o.decision, discard: o.discard, ml: ml });
       });
+      // Nothing it may call: it passes.
+      if (claimOk && choices.length === 1) {
+        found.ml = finish(choices, 0, 0);
+        return { decision: { type: 'pass' }, found: found };
+      }
       var at = 0;
       choices.forEach(function (x, k) { if (sameDecision(x.decision, d.decision)) at = k; });
       var k = pickChoice(choices, at);
@@ -243,11 +271,12 @@
     var baseTurn = bot.chooseTurnAction;
     bot.kongChoice = function (game, seat, opts) {
       var d = baseTurn(game, seat, opts);
-      if (!claims || opts.win || !opts.kongs || !opts.kongs.length) return { decision: d, choices: null };
+      var kongs = opts.kongs && kongAllowed ? opts.kongs.filter(function (k) { return kongAllowed(k, game, seat); }) : opts.kongs;
+      if (!claims || opts.win || !kongs || !kongs.length) return { decision: d, choices: null };
       var keep = bot.analyzeDiscards(game, seat).candidates[0];
       var discard = d.type === 'discard' ? d : { type: 'discard', tile: keep.tile };
       var choices = [{ decision: discard, ml: Object.assign({}, keep.ml, { ev: keep.ml.best != null ? keep.ml.best : keep.ml.ev }) }];
-      opts.kongs.forEach(function (kong) {
+      kongs.forEach(function (kong) {
         choices.push({ decision: { type: 'kong', tile: kong.tile }, kind: kong.kind, ml: read(waitingFeatures(bot, game, seat, kong.kind, kong.tile)) });
       });
       var at = 0;

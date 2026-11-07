@@ -135,6 +135,14 @@ Each round:
 
 State and a log are in `ml/league/`. A stopped league picks up where it left off. A round of 50,000 hands takes about 30 minutes on an 8-core Mac, so 20 rounds take about 10 hours. One evaluation is noisy, about ±4 points a hand, so the results are confirmed on fresh deals when the league ends.
 
+## Only Orphans: `npm run ml:orphans`
+
+The learned [Only Orphans](../strategies/only-orphans.md) is trained the same way, by `scripts/ml/orphans.js`: a bootstrap round from the rule-based bot, then rounds of the best model exploring against Neural Cat, Jorge Yau, Lucky Cat and earlier Only Orphans models. Each round is ranked against the best model and against the rule-based bot (`scripts/ml/baselines/only-orphans-rules.js`), on the same deals. `--learner only-orphans` on `ml:generate` reads every position through its foundation, and `oo:<file>` seats one of its models. Progress is written to [only-orphans-training.md](../strategies/only-orphans-training.md) after every round.
+
+```bash
+npm run ml:orphans -- --rounds 20 --deals 50000
+```
+
 ## 5. Compete: `npm run compete`
 
 `scripts/competition.js` plays strategies against each other, each hand once per seat rotation, across worker threads:
