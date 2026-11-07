@@ -572,6 +572,13 @@ Only Orphans' models O1 to O5 were trained by its league ([only-orphans-training
 
 It wins two and a half times as often, with wins worth half as much: Concealed Triplets and Seven Pairs come in where Thirteen Orphans used to be chased to the end, and it deals in no more. The gain is just past the 95% margin.
 
+### OT1a: bigger hands inside the targets
+
+- **Thinking.** OL2c learned under the fixed families, so the lab started again with the targets (round 7 of the old lab was stopped, and its state moved to `ml/lab-only-orphans-fixed-families/`). It trains only on data played with the targets, because older positions were read through the old plans, and it names its models OT. Round 1 played 50,000 deals with OL2c against Neural Cat, Jorge Yau, Lucky Cat, O3 and O5. On 6,000 deals: `finetune` J +4.1, `recent` +4.1 (the same model, since only one round of data exists yet), `finetune-slow` +3.7, `winBonus+150` +1.7, `claimMargin+25` +0.5. With the targets, OL2c beat the rule-based bot by +64.8 ± 24.6 points a hand.
+- **What it does differently.** Against OL2c on the same 40,000 deals, both with the targets: it wins 2.8% of hands to 4.4% (4,543 wins to 7,052), each worth about 5,500 points to 3,200 (9.4 faan to 7.5). The wins it gives up are Seven Pairs (1,733 to 4,665). It wins more Concealed Triplets (961 to 578), dragon pungs (800 to 484) and All Triplets (369 to 259), and more limit hands (1,743 to 1,662), with Thirteen Orphans about level (1,347 to 1,419). It pungs more (0.10 a hand to 0.07) and kongs more (3,977 to 2,957). It deals in about as often (13.5% to 13.1%), for about the same points (28.0 a hand to 27.2).
+- **Reading.** The targets alone, with OL2c's weights, won many cheap Seven Pairs. Fine-tuned on its own games with them, the network's discards and claims keep more hands on the way to pungs, so the target settles on Concealed Triplets or triplets more often than Seven Pairs, which pays 4 faan. That is the "fewer, bigger hands" drift the fixed-family lab kept losing to, but here it wins. A Seven Pairs win was worth too little to pay for the pung hands it gave up.
+- **Result.** J +7.0 on 40,000 fresh deals (points +14.8 ± 9.3, paired), beyond its standard error: kept, and shipped as **OT1a**. Against the rule-based bot on those deals: +74.0 ± 9.7 points a hand (OL2c with the targets: +59.3). J counts wins too, and OT1a's fewer wins cost it 7.8 of the 14.8 points.
+
 ## Where the files are
 
 - Every model's weights are kept, in `ml/models/` and on [Hugging Face](https://huggingface.co/codenameyau/lucky-cat-mahjong), so any of them can play in `npm run compete` (`ml:ml/models/L8.json`).

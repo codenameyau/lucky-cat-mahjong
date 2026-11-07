@@ -414,6 +414,11 @@ const STRATEGIES = {
     // Points first: kept only when its points a hand beat the champion's by
     // more than their standard error (and J, with the wins, is ahead too).
     keep: (e) => e.points > e.margin / 2 && e.J > 0,
+    // One hand's points are mostly luck: on 20,000 deals the standard error is
+    // about 2.6 points a hand, so champions one standard error ahead of the
+    // last (LP3c, LP5a, LP8b) drifted on noise and none clearly beat lc32.
+    // 40,000 deals bring it to about 1.8. --full-deals still overrides it.
+    fullDeals: 40000,
     start() {
       const shipped = shippedModel('mahjong-lucky-cat-weights.js');
       const league = fs.existsSync(path.join(ROOT, 'ml', 'lucky', 'state.json')) ? readJson('ml/lucky/state.json') : null;

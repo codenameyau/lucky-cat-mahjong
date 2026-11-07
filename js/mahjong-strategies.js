@@ -82,6 +82,7 @@
           '1s, 9s and honors are the core of every target: they stay longest, and their pairs become the eyes or pungs. Tiles the target can\'t use go first, even late in the hand when it plays safe. On Seven Pairs and Concealed Triplets that means single tiles: pairs and pungs of any tile stay.',
           'It never chows. It pungs or kongs only a 1, a 9 or an honor, and only when the target is triplets of them. On Thirteen Orphans, the pairs hands and Concealed Triplets it claims nothing but the winning tile.',
           'The choices left to ' + (version ? 'its neural network, model ' + version + ',' : 'a neural network') + ' are which allowed tile goes and which allowed pungs and kongs to take. It weighs each by the score it expects on average, a score that counts the chance to win, how big the win would be and the chance of dealing in, and plays the best one. Dealing in is part of that score, so there is no separate rule for playing safe.',
+          'Compared with the model before it, it learned from its own games with the targets, and it bets on bigger hands inside them. It wins Seven Pairs far less often and Concealed Triplets and dragon pungs more often. It wins fewer hands, about 3 in 100 instead of 4, but each win is worth about 5,500 points instead of 3,200, and it deals in about as often.',
           'It learned from games against Neural Cat, Jorge Yau and Lucky Cat. It sees only what its seat can see.',
         ];
       },
