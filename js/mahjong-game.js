@@ -203,8 +203,9 @@
     'm-restart': 'play_menu_restart_click',
     'm-quit': 'play_menu_quit_click',
     'go-again': 'play_again_click',
-    'go-quit': 'play_end_quit_click',
     'go-results': 'play_end_results_click',
+    'go-quit': 'play_end_quit_click',
+    'go-close': 'play_end_close_click',
     'review-prev': 'play_playback_prev_click',
     'review-next': 'play_playback_next_click',
     'review-back': 'play_playback_back_click',
@@ -782,7 +783,9 @@
       meldAnchor: [null, null, null, null],
       backAnchor: [null, null, null, null],
       flowerAnchor: [null, null, null, null],
-      stats: { hands: 0, wins: 0, best: null, dealIns: 0 },
+      // dealIns: the times you discarded the winning tile. stays: the times the deal
+      // stayed with you (you won as dealer and dealt again).
+      stats: { hands: 0, wins: 0, best: null, dealIns: 0, stays: 0 },
       strategies: { seats: [null, null, null, null], coach: Strategies.DEFAULT_COACH }, // set once in start
     };
 
@@ -4765,7 +4768,7 @@
     // so leaving the results can't be overwritten by the copy taken while
     // they were up.
     var restoredHand = null; // a finished hand put back after a refresh, only for looking at
-    var shownFile = null; // the playback view's file (its row in the sheet says Showing now)
+    var shownFile = null; // the playback view's file (its row's Play button in the sheet has a red border)
     var autosaveTimer = null;
     var autosaveGen = 0;
     var pendingSummary = null;
@@ -4810,39 +4813,112 @@
       writeJson(SETTINGS_KEY, saved);
     }
 
+    // The strategy a seat played: a computer player's own, and for you the
+    // coach's (the Strategies sheet reads the same way: "Coach", then what it plays).
+    function gameOverStrategy(seat) {
+      var id = seat === 0 ? ui.strategies.coach : ui.strategies.seats[seat];
+      var name = id && Strategies.has(id) ? Strategies.get(id).name : '';
+      if (!name) return '';
+      return seat === 0 ? 'Coach \u00b7 ' + name : name;
+    }
+
+    // The game over window, in the look of the Results window: the deep green
+    // sheet with a gold edge, a gold title at the left and Close at the right.
+    // Each player has an avatar, their name, the strategy they played and
+    // their points; yours is highlighted.
     function drawGameOver() {
-      var r = panelRect(440, 474);
-      ui.overlayBox = r;
-      drawPanelBg(r);
       var st = ui.stats;
       var standings = E.finalStandings(game);
-      var mine = standings.filter(function (row) { return row.seat === 0; })[0];
-      var shared = standings.filter(function (row) { return row.place === mine.place; }).length > 1;
-      var place = ['1st', '2nd', '3rd', '4th'][mine.place - 1];
-      text('Game over', r.x + r.w / 2, r.y + 40, { size: 28, family: FONT_HEAD, align: 'center', color: COLORS.red });
-      text((shared ? 'You tied for ' : 'You finished ') + place + '.', r.x + r.w / 2, r.y + 72, { size: 15, align: 'center', color: COLORS.ink });
-      var y = r.y + 106;
-      standings.forEach(function (row) {
-        var color = row.seat === 0 ? COLORS.red : COLORS.ink;
-        text(row.place + '.  ' + row.name, r.x + 40, y, { size: 16, weight: 'bold', color: color });
-        text(fmt(row.points), r.x + r.w - 40, y, { size: 16, weight: 'bold', align: 'right', color: color });
-        y += 28;
-      });
-      y += 12;
-      [
+      var streak = longestWinStreak(ui.results);
+      var statLines = [
         ['Hands played', String(st.hands)],
+        ['Your biggest hand', st.best ? st.best + ' faan' : '\u2014'],
         ['Hands you won', String(st.wins)],
-        ['Times you dealt in', String(st.dealIns)],
-        ['Your biggest hand', st.best ? st.best + ' faan' : '—'],
-      ].forEach(function (l) {
-        text(l[0], r.x + 40, y, { size: 14, color: COLORS.muted });
-        text(l[1], r.x + r.w - 40, y, { size: 14, weight: 'bold', align: 'right', color: COLORS.ink });
-        y += 24;
+        ['Longest winning streak', streak ? streak + (streak === 1 ? ' hand' : ' hands') : '\u2014'],
+        ['Times you discarded the winning tile', String(st.dealIns || 0)],
+        ['Times you stayed dealer', String(st.stays || 0)],
+      ];
+      var PAD = 22, ROW = 50, STAT = 23, BTN = 42, BIG = 48;
+      var pw = Math.min(480, W - 24);
+      var standH = standings.length * ROW + 16;
+      var h = PAD + 34 + 14 + standH + 18 + 18 + statLines.length * STAT + 14 + BIG + 10 + BTN + PAD;
+      // A short screen (a phone held sideways) shrinks the whole window to fit.
+      var k = Math.min(1, (H - 24) / h);
+      var r = { x: (W - pw) / 2, y: (H - h) / 2, w: pw, h: h };
+      ui.overlayBox = { x: W / 2 + (r.x - W / 2) * k, y: H / 2 + (r.y - H / 2) * k, w: r.w * k, h: r.h * k };
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(0, 0, W, H);
+      var firstRegion = regions.length;
+      ctx.save();
+      ctx.translate(W / 2, H / 2);
+      ctx.scale(k, k);
+      ctx.translate(-W / 2, -H / 2);
+      drawSheetBg(r);
+      var px = r.x + PAD, innerW = r.w - 2 * PAD;
+      text('Game over', px, r.y + 36, { size: 28, family: FONT_HEAD, align: 'left', color: COLORS.goldLight });
+      button('Close', r.x + r.w - PAD - 64, r.y + PAD, 64, 28, seeMatchHands, 'ghost', 'go-close');
+
+      // The standings: a dark panel, a row for each player.
+      var sy = r.y + PAD + 34 + 14; // under the title; your place is the highlighted row
+      roundRect(ctx, px, sy, innerW, standH, 6);
+      ctx.fillStyle = 'rgba(0,0,0,0.26)';
+      ctx.fill();
+      standings.forEach(function (row, i) {
+        var ry = sy + 8 + i * ROW;
+        var cy = ry + ROW / 2;
+        var you = row.seat === 0;
+        if (you) {
+          roundRect(ctx, px + 6, ry + 2, innerW - 12, ROW - 4, 5);
+          ctx.fillStyle = 'rgba(244,160,32,0.2)';
+          ctx.fill();
+        }
+        var ink = you ? COLORS.goldLight : COLORS.cream;
+        text(row.place + '.', px + 18, cy + 1, { size: 15, weight: 'bold', color: you ? COLORS.goldLight : 'rgba(255,248,240,0.7)' });
+        // The avatar: the person or robot icon in a round badge.
+        var ax = px + 58;
+        ctx.beginPath();
+        ctx.arc(ax, cy, 16, 0, Math.PI * 2);
+        ctx.fillStyle = you ? 'rgba(255,210,122,0.25)' : 'rgba(255,248,240,0.12)';
+        ctx.fill();
+        playerIcon(row.seat, ax - 9, cy + 1, 18, ink);
+        var tx = px + 84;
+        var pointsText = fmt(row.points);
+        ctx.font = 'bold 16px ' + FONT_BODY;
+        var pointsW = ctx.measureText(pointsText).width;
+        var room = innerW - (tx - px) - pointsW - 28;
+        var strat = gameOverStrategy(row.seat);
+        var nameSize = fitFont(ctx, row.name, room, 16, FONT_BODY, 'bold');
+        text(row.name, tx, strat ? cy - 8 : cy + 1, { size: nameSize, weight: 'bold', color: ink });
+        if (strat) {
+          var stratSize = fitFont(ctx, strat, room, 12.5, FONT_BODY);
+          text(strat, tx, cy + 10, { size: stratSize, color: 'rgba(255,248,240,0.7)' });
+        }
+        text(pointsText, px + innerW - 16, cy + 1, { size: 16, weight: 'bold', align: 'right', color: ink });
       });
-      button('Results', r.x + 25, r.y + r.h - 120, r.w - 50, 42, openResults, 'white', 'go-results');
-      var bw = (r.w - 70) / 2;
-      button('Play again', r.x + 25, r.y + r.h - 68, bw, 42, function () { callbacks.restart(); }, 'primary', 'go-again');
-      button('Quit', r.x + 45 + bw, r.y + r.h - 68, bw, 42, function () { quit(); }, 'light', 'go-quit');
+
+      // How the game went.
+      var y = sy + standH + 18;
+      sectionLabel('Your game', px, y + 6);
+      y += 18;
+      statLines.forEach(function (l) {
+        y += STAT;
+        text(l[0], px, y - 6, { size: 14, color: 'rgba(255,248,240,0.7)' });
+        text(l[1], px + innerW, y - 6, { size: 14, weight: 'bold', align: 'right', color: COLORS.cream });
+      });
+
+      // Play again is the large red button on top; Results and Quit share the row under it.
+      var by = r.y + r.h - PAD - BTN;
+      var bw = (innerW - 12) / 2;
+      button('Play again', px, by - BIG - 10, innerW, BIG, function () { callbacks.restart(); }, 'primary', 'go-again');
+      button('Results', px, by, bw, BTN, openResults, 'white', 'go-results');
+      button('Quit', px + bw + 12, by, bw, BTN, function () { quit(); }, 'white', 'go-quit');
+      ctx.restore();
+      regions.slice(firstRegion).forEach(function (g) {
+        g.x = W / 2 + (g.x - W / 2) * k;
+        g.y = H / 2 + (g.y - H / 2) * k;
+        g.w *= k;
+        g.h *= k;
+      });
     }
 
     var overlayResolve = null;
@@ -4918,9 +4994,10 @@
         return;
       }
       if (game && game.over) {
+        // Only the game over window: its Results button opens the Results table.
         ui.revealHands = false;
         ui.overlay = { type: 'gameover' };
-        openResults();
+        saveMatchPlayback();
         requestRender();
       }
     }
@@ -5979,7 +6056,10 @@
         st.wins++;
         st.best = Math.max(st.best || 0, res.score.faan);
       }
-      if (res.type === 'win' && res.payer === 0) st.dealIns++;
+      // Your discard was the tile another player won on (a robbed kong isn't a discard).
+      if (res.type === 'win' && res.how === 'discard' && res.payer === 0) st.dealIns = (st.dealIns || 0) + 1;
+      // The dealer won, so the deal stays: one more time for you if you were that dealer.
+      if (res.dealerKeeps && res.winner === 0) st.stays = (st.stays || 0) + 1;
     }
 
     // The loaded hand has caught up: draw the table as it stands.
@@ -6169,7 +6249,7 @@
       var finishedAt = ended != null ? ended : (kind === 'upload' ? null : entry.savedAt);
       if (finished && finishedAt != null) times.push('Finished ' + lower(E.playbackWhen(finishedAt)));
       if (kind === 'upload' && entry.savedAt != null) times.push('Uploaded ' + lower(E.playbackWhen(entry.savedAt)));
-      when.textContent = [sum.hand].concat(times).filter(Boolean).join(' · ') + (showing ? ' · Showing now' : '');
+      when.textContent = [sum.hand].concat(times).filter(Boolean).join(' · ');
       info.appendChild(name);
       info.appendChild(when);
       li.appendChild(info);
@@ -6177,9 +6257,12 @@
       play.type = 'button';
       play.className = 'playbacks-btn playbacks-play';
       play.innerHTML = ICON_PLAY;
-      play.setAttribute('data-tip', 'Play');
       play.disabled = !check.ok;
-      play.setAttribute('aria-label', 'Play ' + sum.hand + ', ' + sum.result);
+      // The one on screen has a red border (css/play.css), and says so to a screen reader and in its tooltip.
+      play.classList.toggle('is-showing', !!showing);
+      play.setAttribute('data-tip', showing ? 'Playing now' : 'Play');
+      play.setAttribute('aria-label', (showing ? 'Playing now: ' : 'Play ') + sum.hand + ', ' + sum.result);
+      if (showing) play.setAttribute('aria-current', 'true');
       play.addEventListener('click', function () {
         sound.play('select');
         track('play_playback_list_play', { kind: kind });
@@ -7412,9 +7495,11 @@
           track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins });
           showFinalMatch();
           L = computeLayout();
+          // Only the game over window shows (not the Results table): its Results
+          // button opens that. The match's playback is kept for a refresh.
           ui.overlay = { type: 'gameover' };
+          saveMatchPlayback();
           requestRender();
-          openResults();
           return;
         }
       }
@@ -7451,9 +7536,11 @@
           track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins });
           showFinalMatch();
           L = computeLayout();
+          // Only the game over window shows (not the Results table): its Results
+          // button opens that. The match's playback is kept for a refresh.
           ui.overlay = { type: 'gameover' };
+          saveMatchPlayback();
           requestRender();
-          openResults();
           return;
         }
       }
@@ -7598,6 +7685,7 @@
       // Your wind badge's click (auto-play on localhost with the coach on; else copy the seed).
       clickMyWind: function () { if (!destroyed) onMyWind(); },
       get autoPlay() { return autoPlay; },
+      get stats() { return ui.stats; },
       // The menu's View playback, for this hand.
       viewPlayback: function () { if (!destroyed && !settings.playback) viewReplay(); },
       // The playback bar's View playback: the sheet of recent hands and the upload.
@@ -8017,6 +8105,22 @@
     });
   }
 
+  // The most hands you won in a row, read from the Results table's rows (a
+  // row where your faan is above 0 and it wasn't a draw is a win of yours). A
+  // hand you didn't win, a drawn hand too, ends the run. 0 when you won none.
+  function longestWinStreak(rows) {
+    var best = 0, run = 0;
+    (rows || []).slice().sort(function (a, b) { return a.hand - b.hand; }).forEach(function (row) {
+      if (row && !row.draw && row.faan && row.faan[0] > 0) {
+        run++;
+        if (run > best) best = run;
+      } else {
+        run = 0;
+      }
+    });
+    return best;
+  }
+
   // A development address: this computer, or a private network (a phone on
   // the local wifi, say). The same set the pages' analytics skip, so testing
   // adds no events: localhost, 127.x.x.x, ::1, 10.x.x.x, 192.168.x.x,
@@ -8026,7 +8130,7 @@
     return /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local|.+\.localhost|.+\.test)$/i.test(String(host || ''));
   }
 
-  var api = { createTable: createTable, init: init, isLocalHost: isLocalHost };
+  var api = { createTable: createTable, init: init, isLocalHost: isLocalHost, longestWinStreak: longestWinStreak };
   root.MahjongGame = api;
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

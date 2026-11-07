@@ -388,6 +388,101 @@ test('auto-play (the wind badge, with the coach on) is for local and private-net
   assert.match(GAME_SRC, /if \(autoPlay \|\| canAutoPlay\(\)\) \{ toggleAutoPlay\(\); return; \}\n      copySeed\(\);/);
 });
 
+test('the game over window uses the Results window\'s look, with each player\'s avatar and strategy', () => {
+  const fn = GAME_SRC.slice(GAME_SRC.indexOf('    function drawGameOver() {'), GAME_SRC.indexOf('    var overlayResolve = null;'));
+  // The Results look: the green sheet with a gold edge (as the pause menu draws it), a gold title at the left, Close at the right.
+  assert.match(fn, /drawSheetBg\(r\)/);
+  assert.doesNotMatch(fn, /drawPanelBg/, 'not the cream panel any more');
+  assert.match(fn, /text\('Game over', px, r\.y \+ 36, \{ size: 28, family: FONT_HEAD, align: 'left', color: COLORS\.goldLight \}\)/);
+  assert.match(fn, /button\('Close', [^\n]*seeMatchHands, 'ghost', 'go-close'\)/);
+  // No "You finished 2nd." line: your highlighted row in the standings says it.
+  assert.doesNotMatch(fn, /You finished|You tied for/);
+  // Each row: an avatar (the person or robot icon), the name, the strategy played, the points.
+  assert.match(fn, /playerIcon\(row\.seat,/);
+  assert.match(fn, /gameOverStrategy\(row\.seat\)/);
+  assert.match(fn, /fmt\(row\.points\)/);
+  // The same three buttons as before, and it shrinks to fit a short screen.
+  // Play again is the large primary button on top (full width, taller); Results and Quit share the row under it.
+  assert.match(fn, /button\('Play again', px, by - BIG - 10, innerW, BIG, [^\n]*'primary', 'go-again'\)/);
+  assert.match(fn, /button\('Results', px, by, bw, BTN, openResults, 'white', 'go-results'\)/);
+  assert.match(fn, /button\('Quit', px \+ bw \+ 12, by, bw, BTN, [^\n]*'white', 'go-quit'\)/);
+  assert.ok(fn.indexOf("'go-again'") < fn.indexOf("'go-results'") && fn.indexOf("'go-results'") < fn.indexOf("'go-quit'"), 'Play again, then Results, then Quit');
+  // See results at the end of the game shows only this window: nothing opens the Results table with it.
+  const endings = GAME_SRC.split("ui.overlay = { type: 'gameover' };").slice(1);
+  assert.equal(endings.length, 4, 'four places show the game over window');
+  endings.forEach((tail, i) => {
+    const next = tail.slice(0, tail.indexOf('return;') > 0 ? tail.indexOf('return;') : 300);
+    if (i === 0 || i === 1) return; // See results (checked below) and the refresh path, which reopens a Results table that was open
+    assert.doesNotMatch(next, /openResults\(\)/, 'the game-end flow does not open the Results table (' + i + ')');
+    assert.match(next, /saveMatchPlayback\(\)/, 'but still keeps the match\'s playback (' + i + ')');
+  });
+  const see = GAME_SRC.slice(GAME_SRC.indexOf('function seeResults()'), GAME_SRC.indexOf('function seeMatchHands()'));
+  assert.doesNotMatch(see, /openResults\(\)/, 'See results on the table shows only the game over window');
+  assert.match(see, /saveMatchPlayback\(\)/);
+  // A refresh that had the Results table open still reopens it.
+  assert.match(GAME_SRC, /if \(showSavedResults\) openResults\(\);/);
+  // It shrinks to fit a short screen.
+  assert.match(fn, /var k = Math\.min\(1, \(H - 24\) \/ h\)/);
+  // Your strategy is the coach's (as in the Strategies sheet); a computer player's is its own.
+  const src = /function gameOverStrategy\(seat\) \{[\s\S]*?\n    \}\n/.exec(GAME_SRC)[0];
+  const make = new Function('ui', 'Strategies', src + '; return gameOverStrategy;');
+  const strategies = { has: (id) => id !== 'gone', get: (id) => ({ name: { 'neural-cat': 'Neural Cat', 'lucky-cat': 'Lucky Cat' }[id] }) };
+  const f = make({ strategies: { coach: 'neural-cat', seats: [null, 'lucky-cat', 'gone', null] } }, strategies);
+  assert.equal(f(0), 'Coach \u00b7 Neural Cat');
+  assert.equal(f(1), 'Lucky Cat');
+  assert.equal(f(2), '', 'an unknown strategy shows nothing');
+  assert.equal(f(3), '', 'no strategy saved shows nothing');
+  // Close is counted.
+  assert.match(GAME_SRC, /'go-close': 'play_end_close_click'/);
+});
+
+test('the game over window shows the longest winning streak and the times you stayed dealer', () => {
+  const fn = GAME_SRC.slice(GAME_SRC.indexOf('    function drawGameOver() {'), GAME_SRC.indexOf('    var overlayResolve = null;'));
+  // The lines, in order: hands played, then your biggest hand, then the rest.
+  const labels = [...fn.matchAll(/^\s+\['([^']+)', /gm)].map((m) => m[1]);
+  assert.deepEqual(labels, ['Hands played', 'Your biggest hand', 'Hands you won', 'Longest winning streak', 'Times you discarded the winning tile', 'Times you stayed dealer']);
+  assert.match(fn, /\['Longest winning streak', streak \? streak \+ \(streak === 1 \? ' hand' : ' hands'\) : '\\u2014'\]/);
+  assert.match(fn, /\['Times you discarded the winning tile', String\(st\.dealIns \|\| 0\)\]/);
+  assert.match(fn, /\['Times you stayed dealer', String\(st\.stays \|\| 0\)\]/);
+  assert.doesNotMatch(GAME_SRC, /Times you dealt in/, 'renamed: it says what it counts');
+  // The longest run of hands you won, read from the Results table's rows.
+  const src = /function longestWinStreak\(rows\) \{[\s\S]*?\n  \}\n/.exec(GAME_SRC)[0];
+  const longest = new Function(src + '; return longestWinStreak;')();
+  const win = (hand) => ({ hand, draw: false, faan: [4, 0, 0, 0] });
+  const lose = (hand) => ({ hand, draw: false, faan: [0, 5, 0, 0] });
+  const paid = (hand) => ({ hand, draw: false, faan: [-3, 3, 0, 0] }); // Practice: you paid, so your faan is below 0
+  const draw = (hand) => ({ hand, draw: true, faan: [0, 0, 0, 0] });
+  assert.equal(longest([]), 0);
+  assert.equal(longest(undefined), 0);
+  assert.equal(longest([lose(1), draw(2), paid(3)]), 0, 'no wins, no streak');
+  assert.equal(longest([win(1), win(2), win(3)]), 3);
+  assert.equal(longest([win(1), win(2), lose(3), win(4), win(5), win(6), draw(7), win(8)]), 3, 'the longest run, not the last');
+  assert.equal(longest([win(1), draw(2), win(3)]), 1, 'a drawn hand ends a run');
+  assert.equal(longest([win(3), win(1), lose(2)]), 1, 'rows are taken in hand order');
+  // The count of times the deal stayed with you.
+  const rec = new Function('ui', /function recordStats\(res\) \{[\s\S]*?\n    \}\n/.exec(GAME_SRC)[0] + '; return recordStats;');
+  const ui = { stats: { hands: 0, wins: 0, best: null, dealIns: 0, stays: 0 } };
+  const record = rec(ui);
+  record({ type: 'win', winner: 0, dealerKeeps: true, score: { faan: 4 } });  // you won as dealer: the deal stays
+  record({ type: 'win', winner: 0, dealerKeeps: false, score: { faan: 5 } }); // you won, but you weren't the dealer
+  record({ type: 'win', winner: 2, dealerKeeps: true, score: { faan: 3 } });  // another dealer won and kept the deal
+  record({ type: 'draw' });
+  record({ type: 'win', winner: 0, dealerKeeps: true, score: { faan: 8 } });
+  assert.deepEqual([ui.stats.hands, ui.stats.wins, ui.stats.best, ui.stats.stays, ui.stats.dealIns], [5, 3, 8, 2, 0]);
+  // Times you discarded the winning tile: your discard was what someone else won on.
+  record({ type: 'win', winner: 3, payer: 0, how: 'discard', dealerKeeps: false, score: { faan: 3 } });
+  record({ type: 'win', winner: 1, payer: 0, how: 'discard', dealerKeeps: false, score: { faan: 4 } });
+  record({ type: 'win', winner: 1, payer: 2, how: 'discard', dealerKeeps: false, score: { faan: 4 } });  // someone else's discard
+  record({ type: 'win', winner: 1, payer: null, how: 'selfDraw', dealerKeeps: false, score: { faan: 4 } }); // a self-draw: no one discarded
+  record({ type: 'win', winner: 1, payer: 0, how: 'robKong', dealerKeeps: false, score: { faan: 4 } });   // you added to a kong: not a discard
+  assert.equal(ui.stats.dealIns, 2);
+  // An older save has no count yet: it starts at 0.
+  const old = { stats: { hands: 3, wins: 1, best: 4, dealIns: 1 } };
+  rec(old)({ type: 'win', winner: 0, dealerKeeps: true, score: { faan: 3 } });
+  assert.equal(old.stats.stays, 1);
+  assert.equal(old.stats.dealIns, 1, 'the old count carries on');
+});
+
 test('auto-play skips the flights and pauses, but still shows the declaration banners and win confetti', () => {
   assert.match(GAME_SRC, /function instantMode\(\) \{ return settings\.speed === 'off' \|\| ui\.replaying \|\| autoPlay; \}/);
   // Banners and confetti are not gated on auto-play.
@@ -483,7 +578,14 @@ test('the playback bar opens the View playback sheet, and its rows play, downloa
   assert.ok(row.indexOf('li.appendChild(play)') < row.indexOf('li.appendChild(copy)') && row.indexOf('li.appendChild(copy)') < row.indexOf('li.appendChild(down)'), 'Play, Copy hand seed, Download');
   // Download's tooltip is read after its disabled state is set.
   assert.ok(row.indexOf('down.disabled = ') < row.indexOf("down.setAttribute('data-tip'"), 'the tooltip knows if Download is disabled');
-  assert.match(row, /setAttribute\('aria-label', 'Play '/);
+  assert.match(row, /setAttribute\('aria-label', \(showing \? 'Playing now: ' : 'Play '\) \+ sum\.hand/);
+  // Whatever is on screen: its Play button has the red border, not the words "Showing now".
+  assert.match(row, /play\.classList\.toggle\('is-showing', !!showing\)/);
+  assert.match(row, /setAttribute\('data-tip', showing \? 'Playing now' : 'Play'\)/);
+  assert.match(row, /setAttribute\('aria-current', 'true'\)/);
+  assert.doesNotMatch(GAME_SRC, /Showing now/, 'the words are gone');
+  const css = fs.readFileSync(path.join(ROOT, 'css/play.css'), 'utf8');
+  assert.match(css, /\.playbacks-play\.is-showing \{\s*border: 3px solid #E5233F;\s*\}/, 'only the red border: no white ring round it');
   // A time nobody kept is left out, never shown as "earlier".
   assert.match(row, /finished && finishedAt != null\) times\.push\('Finished ' \+ lower\(E\.playbackWhen\(finishedAt\)\)\)/);
   assert.match(row, /kind === 'upload' && entry\.savedAt != null\) times\.push\('Uploaded ' \+ lower\(E\.playbackWhen\(entry\.savedAt\)\)\)/);

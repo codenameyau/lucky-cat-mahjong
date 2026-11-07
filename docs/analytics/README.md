@@ -128,7 +128,7 @@ Every button is tracked except the tiles and the buttons that play a move (Win, 
 | `play_menu_open`, `play_menu_resume_click`, `play_menu_restart_click`, `play_menu_quit_click` | The Menu and its buttons | |
 | `play_fullscreen_click`, `play_show_hands_click`, `play_next_hand_click`, `play_see_results_click` | Table buttons | |
 | `play_open_results`, `play_close_results` | The results sheet | |
-| `play_again_click`, `play_end_quit_click`, `play_end_results_click` | The end-of-game buttons | |
+| `play_again_click`, `play_end_quit_click`, `play_end_results_click`, `play_end_close_click` | The end-of-game buttons: Play again, Quit, Results, and Close (which steps aside to the table with every hand face up) | |
 | `play_open_rules`, `play_close_rules`, `play_rule_click` | The rules sheet; a rule row | `hand` (row only) |
 | `play_open_strategies`, `play_close_strategies`, `play_strategy_details_click` | The Strategies sheet; a strategy's details | `open` (details only) |
 | `play_credit_click` | A music or art credit link | `link` |
