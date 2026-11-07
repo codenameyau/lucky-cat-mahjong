@@ -370,14 +370,19 @@ const STRATEGIES = {
     },
   },
   'only-orphans': {
-    dir: 'lab-only-orphans', prefix: 'oolab', model: 'OL', trainArms: OO_TRAIN_ARMS, playArms: OO_PLAY_ARMS, folder: 'only-orphans',
+    // From the expected-points targets (#178) on, new names (OT models, ootgt
+    // data), so a fresh lab never overwrites the fixed-family rounds (OL<n>,
+    // oolab-<n>, state moved to ml/lab-only-orphans-fixed-families/).
+    dir: 'lab-only-orphans', prefix: 'ootgt', model: 'OT', trainArms: OO_TRAIN_ARMS, playArms: OO_PLAY_ARMS, folder: 'only-orphans',
     weights: 'mahjong-only-orphans-weights.js',
     // Its points swing more than the others' (a limit hand pays up to 24,576),
     // so its long evaluation plays twice the deals: a 95% margin of about
     // ±8 points a hand, paired, against ±15 on 20,000 deals unpaired.
     fullDeals: 40000,
-    // Training data in order: the Only Orphans league's rounds, then the lab's.
-    earlier: /^orphans-(\d+)$/, done: 'manifest.json',
+    // Training data: only the lab's own rounds under the targets. The league's
+    // (orphans-<n>) and the fixed-family lab's (oolab-<n>) positions were read
+    // through the old fixed-family plans, so they no longer match how it plays.
+    earlier: /^$/, done: 'manifest.json',
     start() {
       const shipped = shippedModel('mahjong-only-orphans-weights.js');
       const league = fs.existsSync(path.join(ROOT, 'ml', 'orphans', 'state.json')) ? readJson('ml/orphans/state.json') : null;
