@@ -6,7 +6,7 @@
 
 It reads the hand the way [Jorge Yau](jorge-yau.md) does, which narrows each decision to a few sound options. Its network then predicts how the hand ends after each one (win by self-draw or off a discard, deal in, and how many faan a win would be) and folds that into one score: what the option is worth on average. The highest score goes. Because a fast small win and a slow big one sit on the same scale, it can prefer a slower big hand over a fast small one when the numbers favor it.
 
-The style that results is bigger hands, fewer of them and fewer deal-ins, against [Lucky Cat](lucky-cat.md)'s many small wins. The coach shows the same reasoning: the score of its pick and the next best, its chance to win and what a win pays, and which parts of the position put its pick ahead. It sees only what its seat can see.
+The style that results is bigger hands and fewer deal-ins than [Lucky Cat](lucky-cat.md)'s many small wins. NC1 to NC3 wanted size most: about 9% of hands won, each worth about 1,900 points. Since NC4 it also leans toward winning, with a small bonus for the chance to win (`winBonus`, 150 points for a sure win): about 12% of hands won, each worth about 1,300 points, with deal-ins about the same. The coach shows the same reasoning: the score of its pick and the next best, its chance to win and what a win pays, and which parts of the position put its pick ahead. It sees only what its seat can see.
 
 This is the strategy's playbook: how it plays and every result. How the whole AI layer is built (features, the network, decisions, training, the league, fair play and Hugging Face) is in [docs/machine-learning](../machine-learning/README.md).
 
@@ -101,7 +101,7 @@ Rounds 1 to 5 used 2,000-deal evaluations, which swing by about ±50 points a ha
 
 #### What L7 improved
 
-The game now ships NC3, which is the lab model N2b (shipped models are named NC1, NC2 and so on; see [release names](../machine-learning/model.md); NC1 was L17 and NC2 was L19). How each was measured is in [iterations](../machine-learning/iterations.md). At the time of writing, L7 was the model the game shipped. It replaces L3, which shipped before it. Against L6, its direct predecessor, on 6,000 new deals (each deal played from every seat, L7 and L6 two seats each):
+The game now ships NC5, which is the lab model N4c (shipped models are named NC1, NC2 and so on; see [release names](../machine-learning/model.md); NC1 was L17, NC2 was L19, NC3 was N2b and NC4 was N3d). How each was measured is in [iterations](../machine-learning/iterations.md). At the time of writing, L7 was the model the game shipped. It replaces L3, which shipped before it. Against L6, its direct predecessor, on 6,000 new deals (each deal played from every seat, L7 and L6 two seats each):
 
 | | L7 | L6 |
 | --- | ---: | ---: |
@@ -121,6 +121,12 @@ How much to trust it: +41.1 is only just beyond its ±33 margin, and L6's own wi
 **Pairs.** Keeping a pair that can still become a pung over a single (the `keepPairs` knob) was tested against Jorge Yau without it, on the same 6,000 deals × 4 seat rotations. It won as often (about 15%) but with smaller hands (about 340 points a win against 430), and came out behind: throwing honors to keep pairs, −14.8 ± 17.6 points a hand; throwing only number tiles, −19.8 ± 17.6. Neither is a sure loss, but neither is a gain. Neural Cat with it was even (+2.2 ± 41.8). The knob stays off. Neural Cat sees how many pairs and sets it holds (the `value` features), so it keeps pairs where the hands it learned from say they pay.
 
 **Honors.** Jorge Yau with the honor order against Jorge Yau without it, on 6,000 deals × 4 rotations: +2.0 ± 17.7 points a hand, the same wins, deal-ins and size of win. It's a tie-break between honors held the same way, so it rarely changes a discard; it's on because it's the right order to keep honors in, and the coach can teach it.
+
+### What NC4 and NC5 think differently (lab rounds 3 and 4)
+
+- **NC4 (N3d): the same network, a different question.** Round 3's best experiment retrained nothing. It added `winBonus` 150 to the choice, so a discard is worth its expected points plus 150 points for each 100% of win chance. The fine-tunes and the deeper network lost; the wider choice (`topK` 4) won on 6,000 deals and was not re-judged. On 20,000 fresh deals against NC3 it won **12.2% of hands to 8.7%**, dealt in less (6.6% to 7.3%), and its average win fell from 1,853 to 1,347 points. Points a hand rose by only +7.5 ± 17.5, within the noise: the gain is in J (+25.3), from the extra wins. What it learned to prefer: a hand that is ready sooner over a bigger hand that is further away.
+- **NC5 (N4c): trained again on its newest games.** Round 4 fine-tuned NC4 on the last three rounds of data only (1.7 million positions), so the model learns from the way it plays now, not the way NC2 and NC3 played. On 20,000 fresh deals against NC4 it won 12.6% of hands to 11.4%, dealt in about the same (7.9% to 8.0%), and its wins were slightly smaller (1,220 against 1,275 points). Points a hand +4.9 ± 16.9, J +11.1: a small, real step beyond its standard error, not a new style. Its held-out accuracy (67.9%) can't be compared with NC3's (75.1%): it is measured on a different, harder mix of hands.
+- **What did not work.** In round 3 a fine-tune at a third of the learning rate, a plain fine-tune (+26.7 on 6,000 deals, then −10.3 on 20,000) and a deeper network lost. In round 4 a wider network from scratch, the 3× learning-rate fine-tune, lowering `winBonus` and a negative claim margin did not beat NC4. Every big number on 6,000 deals needed the 20,000-deal re-check.
 
 ### Self-play against the rule bots (discards only)
 

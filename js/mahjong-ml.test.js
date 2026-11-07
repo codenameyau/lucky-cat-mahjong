@@ -135,9 +135,12 @@ describe('Neural Cat strategy', () => {
     const game = dealt(23);
     const res = ML.analyzeDiscards(game, 0);
     // Among the foundation's best three, the model's favourite goes first.
-    const evs = res.candidates.slice(0, 3).map((x) => x.ml.ev);
+    // "Most" is the value the choice uses: expected points plus the win bonus
+    // (the weights' own play setting) for each 100% of win chance.
+    const bonus = (ML.model && ML.model.meta && ML.model.meta.play && ML.model.meta.play.winBonus) || 0;
+    const evs = res.candidates.slice(0, 3).map((x) => x.ml.ev + bonus * x.ml.pWin);
     assert.deepEqual(evs, evs.slice().sort((a, b) => b - a));
-    const free = ML.create({ model: ML.model, topK: 0 }).analyzeDiscards(dealt(23), 0).candidates.map((x) => x.ml.ev);
+    const free = ML.create({ model: ML.model, topK: 0, winBonus: 0 }).analyzeDiscards(dealt(23), 0).candidates.map((x) => x.ml.ev);
     assert.deepEqual(free, free.slice().sort((a, b) => b - a));
     const why = res.candidates[0].ml.why;
     assert.equal(why.length, Object.keys(F.GROUPS).length);
