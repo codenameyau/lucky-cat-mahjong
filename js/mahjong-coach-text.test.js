@@ -19,6 +19,8 @@ function checkText(t, where) {
   assert.ok(t.length <= MAX, where + ' is ' + t.length + ' characters: ' + t);
   assert.doesNotMatch(t, /\bsets?\b/i, where + ' says "set": ' + t);
   assert.doesNotMatch(t, /\bas the pair\b|\bthe pair you win\b/i, where + ' should say "eyes": ' + t);
+  // Holding many pairs is good (one is the eyes, the rest can become pungs).
+  assert.doesNotMatch(t, /too many pairs|one pair too many/i, where + ' calls pairs a problem: ' + t);
   // A plus or minus number always says what it counts: "-9 points" or "-9 score", never "-9".
   assert.doesNotMatch(t, /(?:[+\u2212]|(?:^|\s)-)\d[\d,.]*(?![\d,.]*(?:\s+points?\b|\s+score\b|\s+faan\b|%))/, where + ' has a number with no unit: ' + t);
 }

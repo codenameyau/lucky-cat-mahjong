@@ -2176,6 +2176,78 @@
     ctx.upgrade = liveUpgrade(counts, ctx);
   }
 
+  // Which honor to keep longest, for a tie between honors (T.honorOrder):
+  //   0  a wind worth nothing to you: neither your seat wind nor the round's
+  //   1  a wind worth 1 faan to you: your seat wind or the round wind
+  //   2  a dragon: 1 faan to anyone, so keeping it also denies the others
+  //   3  a wind worth 2 faan to you: your seat wind in its own round
+  // The lowest goes first.
+  function honorKeepRank(ctx, i) {
+    if (i < 27) return -1;
+    if (DRAGONS.indexOf(i) !== -1) return 2;
+    return (i === 26 + ctx.seatWind ? 1 : 0) + (i === 26 + ctx.round ? 1 : 0) === 2 ? 3
+      : (i === 26 + ctx.seatWind || i === 26 + ctx.round) ? 1 : 0;
+  }
+
+  // Among honors tied as discards (the same number held, the same number
+  // unseen, the same steps from ready), the one worth least by honorKeepRank
+  // goes first. Every other discard keeps its place.
+  function honorTieOrder(out, ctx, c) {
+    var groups = {};
+    out.forEach(function (x, k) {
+      if (x.index < 27) return;
+      var key = c[x.index] + ':' + ctx.unseen[x.index] + ':' + x.shanten + ':' + (x.analysis && x.analysis.ready ? 1 : 0);
+      (groups[key] = groups[key] || []).push(k);
+    });
+    var next = out.slice();
+    Object.keys(groups).forEach(function (key) {
+      var at = groups[key];
+      if (at.length < 2) return;
+      var tied = at.slice().sort(function (a, b) {
+        return honorKeepRank(ctx, out[a].index) - honorKeepRank(ctx, out[b].index) || a - b;
+      });
+      at.forEach(function (k, j) { next[k] = out[tied[j]]; });
+    });
+    return next;
+  }
+
+  // Pairs are worth keeping. With two or more, one is the eyes and the rest
+  // can become pungs or kongs, and a pung can be claimed from any player (a
+  // chow only from the one on your left), so a pair waiting on two copies
+  // comes more often than its count of live tiles says. When the top discard
+  // breaks a pair that can still become a pung, a single goes instead if it
+  // costs no speed: not a step from ready, not a ready hand, not much hand
+  // value (T.keepPairs, 0 to 1: how much value it may cost) and not much more
+  // risk (T.keepPairsRisk: the most the single's risk may be, times the pair's).
+  // Seven Pairs, Thirteen Orphans and Nine Gates keep their own order, and so
+  // does a lone dragon nobody has shown, which goes last whatever happens.
+  function keepPairs(out, ctx, c, game) {
+    var top = out[0];
+    if (!top || c[top.index] !== 2 || !(ctx.unseen[top.index] >= 1)) return out;
+    var plan = top.analysis && top.analysis.best && top.analysis.best.plan;
+    if (plan && (plan.id === 'pairs' || plan.id === 'orphans' || plan.id === 'gates' || /^pairs/.test(plan.id))) return out;
+    var pairs = 0;
+    for (var i = 0; i < 34; i++) if (c[i] >= 2) pairs++;
+    if (pairs < 2) return out;
+    var topReady = top.shanten === 0 && !!(top.analysis && top.analysis.ready);
+    var slack = typeof T.keepPairs === 'number' ? T.keepPairs : 0.15;
+    var risk = T.keepPairsRisk || 1.25; // how much more deal-in risk the single may carry
+    var swap = null;
+    for (var k = 1; k < out.length && !swap; k++) {
+      var x = out[k];
+      if (c[x.index] !== 1 || x.shanten > top.shanten) continue;
+      if (x.index >= 27 && !T.keepPairsHonors) continue; // honors that score are worth more than a pair
+      if (topReady && !(x.shanten === 0 && x.analysis && x.analysis.ready)) continue;
+      if (x.shanten > 0 && loneDragon(game, c, x.index)) continue;
+      if (x.util < top.util * (1 - slack)) continue;
+      if (x.loss > (top.loss + 0.002) * risk) continue;
+      swap = x;
+    }
+    if (!swap) return out;
+    swap.keptPair = top.index; // the pair it keeps, for the coach
+    return [swap].concat(out.filter(function (x) { return x !== swap; }));
+  }
+
   // Getting to ready is the biggest thing a discard does. Whatever the other
   // orders say, a discard that leaves the hand ready (a tile that wins) goes
   // ahead of every one that doesn't. The order within each group is kept.
@@ -2303,6 +2375,8 @@
     if (H.finalOrder) out = H.finalOrder(out, ctx, c);
     out = keepDragonPair(out, ctx, c);
     out = readyFirst(out);
+    if (T.keepPairs && !folding) out = keepPairs(out, ctx, c, game);
+    if (T.honorOrder && !folding) out = honorTieOrder(out, ctx, c);
     // A strategy's last word, after every shared rule (a learned model).
     if (H.rerank) out = H.rerank(out, ctx, c, game, seat, threats, folding) || out;
     // Only the hand really held moves the plan: a claim being weighed doesn't.
@@ -2581,6 +2655,12 @@
     chowSuitReady: chowSuitReady,
     sharedPriority: sharedPriority,
     keptHonorPair: keptHonorPair,
+    keepPairs: keepPairs,
+    honorKeepRank: honorKeepRank,
+    // The tuning of the strategy being played right now, so a strategy's
+    // hooks read the copy that's playing (a variant has its own).
+    currentTuning: function () { return T; },
+    honorTieOrder: honorTieOrder,
     chowOfAnotherSuit: chowOfAnotherSuit,
     holdsDragon: holdsDragon,
     loneDragon: loneDragon,

@@ -99,6 +99,7 @@
         shortSuit: B.shortSuitDiscard(full, x.index, found.ctx.leadPlan),
         evidence: riskEvidence(v, found.threats, x.index),
         ml: x.ml || null, // a learned strategy's read (js/mahjong-ml.js)
+        keptPair: x.keptPair != null ? x.keptPair : null, // a pair kept over this single (MahjongBot keepPairs)
       };
     });
     out.defense = found.defense;
@@ -135,6 +136,50 @@
       if (short.length) notes.push(short.map(function (w) { return name(E.tileIndex(w.tile)); }).join(' and ') + ' is under ' + min + ' faan.');
     }
     return notes;
+  }
+
+  // Why this honor goes before another one held the same way (as many in the
+  // hand, as many left): winds worth nothing go first, then your 1-faan
+  // winds, then dragons, and a wind worth 2 faan to you stays longest
+  // (MahjongBot.honorKeepRank).
+  function honorReason(v, c, i) {
+    var mine = B.honorKeepRank(v.ctx, i);
+    var kept = null;
+    for (var k = 27; k < 34; k++) {
+      if (k === i || c[k] !== c[i] || v.unseen[k] !== v.unseen[i]) continue;
+      var r = B.honorKeepRank(v.ctx, k);
+      if (r > mine && (!kept || r > kept.r)) kept = { k: k, r: r };
+    }
+    if (!kept) return '';
+    var what = mine === 0 ? name(i) + ' is worth nothing to you' : name(i) + ' is worth 1 faan to you';
+    if (kept.r === 3) return what + ', and your ' + name(kept.k) + ' is worth 2 faan, so it stays longest.';
+    if (kept.r === 2) return what + '. Your ' + name(kept.k) + ' scores for every player, so keeping it also keeps it from them.';
+    return what + ', and your ' + name(kept.k) + ' is worth 1 faan.';
+  }
+
+  // Why a pair is broken. Pairs are good to hold: one is the eyes, and each
+  // other one can become a pung, claimed from any player. So the coach says
+  // what makes this one the exception.
+  function pairReason(v, c, i) {
+    var left = v.unseen[i];
+    var pairs = 0;
+    for (var j = 0; j < 34; j++) if (c[j] >= 2) pairs++;
+    if (left === 0) {
+      return 'No ' + name(i) + ' is left, so this pair can\'t become a pung' + (pairs >= 2 ? ', and another pair can be the eyes.' : '.');
+    }
+    var declared = v.ctx.declared;
+    c[i]--;
+    var mine = E.shanten(c, declared);
+    c[i]++;
+    var single = false;
+    for (var k = 0; k < 34 && !single; k++) {
+      if (c[k] !== 1) continue;
+      c[k]--;
+      if (E.shanten(c, declared) <= mine) single = true;
+      c[k]++;
+    }
+    if (!single) return 'Every single you hold would slow the hand more, so this pair is the one to split.';
+    return 'Your other tiles are worth more to the hand right now than a pung of ' + name(i) + '.';
   }
 
   function whyDiscard(v, c, pick, route) {
@@ -196,8 +241,13 @@
       var suit = SUIT_NAME[route.suit];
       return route.id === 'half' ? 'Not ' + suit + ' or an honor.' : 'Not ' + suit + '.';
     }
+    var honor = i >= 27 ? honorReason(v, c, i) : '';
+    if (honor) return honor;
     if (c[i] >= 3) return route && route.id === 'pairs' ? 'Seven Pairs uses only two of each.' : 'A spare from your three.';
-    if (c[i] === 2) return 'You have too many pairs, and only one can be the eyes.';
+    if (c[i] === 2) return pairReason(v, c, i);
+    if (pick.keptPair != null && c[i] === 1) {
+      return 'Keep your ' + name(pick.keptPair) + ' pair: one pair is the eyes, and the others can become pungs.';
+    }
     if (pick.shortSuit && i < 27) {
       var su = E.suitOfIndex(i);
       if (neighbors(c, i) === 0) return 'Nothing connects to it, and ' + SUIT_NAME[su] + ' is your shortest suit.';
