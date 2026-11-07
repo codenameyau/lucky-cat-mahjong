@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.47.0';
+  var GAME_VERSION = '0.47.3';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -1373,6 +1373,24 @@
     return WIND_NAMES[p.wind] || ('Seat ' + (seat + 1));
   }
 
+  // The playback bar's caption for the steps from..step (one move): its
+  // claims and discard, without the draws. Before the first discard, the only
+  // steps are the players swapping out their flowers: 'Replacing flowers.'
+  // Step 0 is the deal.
+  function playbackCaption(rec, from, step, lines) {
+    if (!step || !rec || !Array.isArray(rec.actions)) return 'The deal.';
+    lines = lines || playbackLines(rec);
+    var parts = [];
+    var flowers = false;
+    for (var i = from; i < step; i++) {
+      var ev = rec.actions[i];
+      if (ev && ev.a === 'flower') flowers = true;
+      if (ev && (ev.a === 'draw' || ev.a === 'flower') && step - from > 1) continue;
+      if (lines[i]) parts.push(lines[i]);
+    }
+    return parts.join(' ') || (flowers ? 'Replacing flowers.' : 'The deal.');
+  }
+
   function playbackLines(rec) {
     if (!rec || !Array.isArray(rec.actions)) return [];
     return rec.actions.map(function (ev) {
@@ -1556,6 +1574,7 @@
     checkPlayback: checkPlayback,
     parsePlayback: parsePlayback,
     playbackLines: playbackLines,
+    playbackCaption: playbackCaption,
     playbackGame: playbackGame,
     playbackFinished: playbackFinished,
     applyPlaybackAction: applyPlaybackAction,

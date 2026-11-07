@@ -287,6 +287,48 @@ test('a refresh on ?playback=1 opens the playback view, and Back opens the saved
   assert.match(refreshed.browser.location.search, /results=1/);
 });
 
+test('a refresh of View playback on a hand in progress brings that hand back, not a stored or uploaded one', async () => {
+  const inProgress = JSON.stringify({ payload: { game: { settings: { mode: 'practice' }, hand: { seed: 7, moves: [] } } } });
+  const page = loadPage([
+    { url: 'http://localhost/playing-mahjong/', state: null },
+    { url: 'http://localhost/playing-mahjong/?playback=1', state: { lcmPlayback: true, lcmFromGame: true } },
+  ], { 'lcm-play-autosave': inProgress, 'lcm-play-replay': '"old"', 'lcm-play-upload': '"uploaded"' });
+  await page.flush();
+  assert.equal(page.made.length, 1, 'the game comes back first');
+  const game = page.made[0];
+  assert.equal(game.canvas, 'play-canvas');
+  assert.ok(game.saved, 'from its save');
+  assert.equal(game.settings.openPlayback, true, 'told to open its playback once the hand is back');
+  // The table, its hand replayed, opens View playback: on this same entry.
+  const entries = page.browser.entries().length;
+  game.callbacks.playback();
+  assert.equal(page.made.length, 2);
+  assert.equal(page.made[1].canvas, 'playback-canvas');
+  assert.equal(page.browser.entries().length, entries, 'no second playback entry');
+  // Back returns to that game.
+  page.made[1].callbacks.back();
+  assert.ok(page.made[1].destroyed);
+  assert.deepEqual(game.log, ['start', 'suspend', 'resume']);
+});
+
+test('a refresh while an upload shows keeps showing the upload', async () => {
+  const inProgress = JSON.stringify({ payload: { game: { settings: { mode: 'practice' }, hand: { seed: 7, moves: [] } } } });
+  const page = loadPage([
+    { url: 'http://localhost/playing-mahjong/', state: null },
+    { url: 'http://localhost/playing-mahjong/?playback=1', state: { lcmPlayback: true, lcmFromGame: true, lcmUpload: true } },
+  ], { 'lcm-play-autosave': inProgress });
+  assert.equal(page.made.length, 1);
+  assert.equal(page.made[0].canvas, 'playback-canvas', 'straight to the playback view, which reads the upload');
+});
+
+test('uploads have their own place, so they never replace the game\'s playback', () => {
+  assert.match(GAME_SRC, /var UPLOAD_KEY = 'lcm-play-upload'/);
+  const load = GAME_SRC.slice(GAME_SRC.indexOf('function loadPlaybackText'), GAME_SRC.indexOf('function onCanvasPaste'));
+  assert.match(load, /writeJson\(UPLOAD_KEY, file\)/);
+  assert.doesNotMatch(load, /keepReplay|REPLAY_KEY/, 'an upload never writes the game\'s playback');
+  assert.match(GAME_SRC, /viewState\.lcmUpload \? readJson\(UPLOAD_KEY, null\) : \(liveReplay \|\| readJson\(REPLAY_KEY, null\)\)/);
+});
+
 test('a link straight to ?playback=1 goes back to the game, or the options page with none', async () => {
   const page = loadPage('http://localhost/playing-mahjong/?playback=1');
   assert.equal(page.made.length, 1);

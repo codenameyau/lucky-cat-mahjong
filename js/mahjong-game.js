@@ -43,6 +43,10 @@
       liveReplay = file;
     }
   }
+  // A playback file you uploaded. It has a place of its own, so it never
+  // replaces the game's (REPLAY_KEY): View playback on the game always shows
+  // the game. A refresh while it shows brings it back.
+  var UPLOAD_KEY = 'lcm-play-upload';
   // Each strategy's hints for the game in progress: { v: 1, lists: { id: [note, ...] } }.
   // A new game overwrites it. Switching the coach only picks which list shows.
   var HINTS_KEY = 'lcm-play-hints';
@@ -2497,22 +2501,32 @@
       if (settings.playback) {
         // The playback bar is Back, the title, Download and Sound. Strategies and
         // Rules aren't here.
-        var phoneBar = W < 600;
+        // The title, "Playback Analysis", always shows, on a phone, a tablet
+        // and a desktop, with or without a hand loaded. Download and Upload
+        // keep their words only when that still leaves the title room;
+        // otherwise they are icons.
+        var TITLE = 'Playback Analysis';
+        var TITLE_ROOM = 150; // the width the title gets before the buttons turn to icons
         var sw = W < 420 ? 66 : 92;
         var right = W - pad;
         var soundX = right - sw;
         button(SOUND_LABELS[soundMode()], soundX, 7, sw, 28, toggleSound, 'ghost', 'sound');
+        // Back always goes to the game, however the playback was opened.
+        var backW = 64;
+        button('Back', pad, 7, backW, 28, function () { sound.play('select'); backToGame(); }, 'ghost', 'review-back');
+        var gapL = pad + backW + 8;
         var clusterX = soundX; // the left edge of the buttons on the right
         if (settings.review) {
           // Download, then Upload (opens a downloaded file), then Sound.
-          var vpW = phoneBar ? 34 : 92;
+          var words = W >= 600 && soundX - 6 - 92 - 6 - 92 - 8 - gapL >= TITLE_ROOM;
+          var vpW = words ? 92 : 34;
           var vpX = soundX - 6 - vpW;
-          var dlW = phoneBar ? 34 : 92;
+          var dlW = words ? 92 : 34;
           var dlX = vpX - 6 - dlW;
-          button(phoneBar ? '' : 'Upload', vpX, 7, vpW, 28, uploadReplay, 'ghost', 'review-open');
+          button(words ? 'Upload' : '', vpX, 7, vpW, 28, uploadReplay, 'ghost', 'review-open');
           var canSave = reviewFinished();
-          button(phoneBar ? '' : 'Download', dlX, 7, dlW, 28, downloadReplay, canSave ? 'ghost' : 'off', 'review-download');
-          if (phoneBar) {
+          button(words ? 'Download' : '', dlX, 7, dlW, 28, downloadReplay, canSave ? 'ghost' : 'off', 'review-download');
+          if (!words) {
             // Small icons drawn here so they need no font: an arrow down onto a
             // tray (download) and an arrow up out of one (open a file).
             ctx.save();
@@ -2537,24 +2551,12 @@
             ctx.restore();
           }
           clusterX = dlX;
-          // Back always goes to the game, however the playback was opened.
-          button('Back', pad, 7, 64, 28, backToGame, 'ghost', 'review-back');
-          // The title is "Playback Analysis", on a phone and on desktop.
-          var label = 'Playback Analysis';
-          if (phoneBar) {
-            // In the room between Back and the icons.
-            var gapL = pad + 72, gapR = clusterX - 8;
-            if (gapR - gapL >= 60) {
-              text(label, (gapL + gapR) / 2, 22, { size: fitFont(ctx, label, gapR - gapL, 14, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.cream });
-            }
-          } else {
-            // Centered on the bar, as wide as fits between the buttons on both sides.
-            var half = Math.min(W / 2 - (pad + 72), clusterX - 10 - W / 2);
-            if (half >= 45) {
-              text(label, W / 2, 22, { size: fitFont(ctx, label, half * 2, 15, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.cream });
-            }
-          }
         }
+        // Always centered between Back and the buttons on the right.
+        var gapR = clusterX - 8;
+        var titleX = (gapL + gapR) / 2;
+        var titleW = Math.max(1, gapR - gapL - 8);
+        text(TITLE, titleX, 22, { size: fitFont(ctx, TITLE, titleW, 15, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.cream });
         return;
       }
       button('Menu', pad, 7, 64, 28, openMenu, 'ghost', 'menu');
@@ -4595,6 +4597,7 @@
     // so leaving the results can't be overwritten by the copy taken while
     // they were up.
     var restoredHand = null; // a finished hand put back after a refresh, only for looking at
+    var shownFile = null; // the playback view's file: what Download saves
     var autosaveTimer = null;
     var autosaveGen = 0;
     var pendingSummary = null;
@@ -5812,6 +5815,11 @@
       L = computeLayout();
       announce('Game loaded. Hand ' + game.handNumber + '.');
       requestRender();
+      // A refresh of View playback: the hand is back on the table, so its playback opens again.
+      if (settings.openPlayback) {
+        settings.openPlayback = false;
+        viewReplay();
+      }
     }
 
     // The empty table, before a playback is stored, or after a file that didn't load.
@@ -5856,7 +5864,7 @@
 
     function downloadReplay() {
       if (!reviewFinished()) { announce('Download opens once the hand is finished.'); return; }
-      var file = readJson(REPLAY_KEY, null);
+      var file = shownFile || readJson(REPLAY_KEY, null);
       if (!file || !file.payload) return;
       sound.play('select'); // the click
       var d = new Date();
@@ -5934,7 +5942,14 @@
       var rec = checked.record;
       try {
         var file = typeof text === 'string' ? JSON.parse(text) : text;
-        if (file && file.payload) keepReplay(file);
+        if (file && file.payload) {
+          writeJson(UPLOAD_KEY, file);
+          shownFile = file;
+          // This view now shows an upload, so a refresh shows the upload too.
+          if (root.history && root.history.replaceState) {
+            root.history.replaceState(Object.assign({}, root.history.state || {}, { lcmUpload: true }), '');
+          }
+        }
       } catch (e) {}
       try { E.playbackGame(rec, 0); }
       catch (err) {
@@ -6193,16 +6208,8 @@
     // What happened to reach a stop: claims and the discard, without the draws.
     function reviewCaptionAt(step) {
       if (!step) return 'The deal.';
-      var idx = reviewStopIndex(step);
-      var from = reviewStops().stops[Math.max(0, idx - 1)];
-      var lines = E.playbackLines(settings.review);
-      var parts = [];
-      for (var i = from; i < step; i++) {
-        var ev = settings.review.actions[i];
-        if (ev && (ev.a === 'draw' || ev.a === 'flower') && step - from > 1) continue;
-        if (lines[i]) parts.push(lines[i]);
-      }
-      return parts.join(' ') || 'The deal.';
+      var from = reviewStops().stops[Math.max(0, reviewStopIndex(step) - 1)];
+      return E.playbackCaption(settings.review, from, step);
     }
 
     function reviewCaption() {
@@ -6898,7 +6905,11 @@
         if (destroyed) return;
         spriteCache = {};
         if (!settings.review) {
-          var stored = liveReplay || readJson(REPLAY_KEY, null);
+          // An upload shown in this view (a refresh), or else the game's own:
+          // the hand on the table (in memory), or its last finished hand.
+          var viewState = (root.history && root.history.state) || {};
+          var stored = viewState.lcmUpload ? readJson(UPLOAD_KEY, null) : (liveReplay || readJson(REPLAY_KEY, null));
+          shownFile = stored;
           var check = stored ? E.checkPlayback(stored) : null;
           if (check && check.ok) {
             settings.review = check.record;
@@ -6910,10 +6921,16 @@
         }
         playbackLooked = true;
         if (settings.review) {
-          // The page opens on the deal and waits: the button says Play, and
-          // nothing moves until it is pressed.
+          // The view opens on the deal and plays by itself; the button says
+          // Pause. A tab opened in the background waits until it is shown.
           reviewStep = 0;
           showReviewStep();
+          if (document.hidden) reviewPausedByHide = true;
+          else {
+            reviewPlaying = true;
+            scheduleReview();
+          }
+          requestRender();
         } else {
           announce(reviewNote || PLAYBACK_EMPTY);
           requestRender();
@@ -7150,6 +7167,8 @@
         requestRender();
       },
       get suspended() { return suspended; },
+      // The menu's View playback, for this hand.
+      viewPlayback: function () { if (!destroyed && !settings.playback) viewReplay(); },
       start: function () {
         sound.music(true);
         play().catch(function (err) {
@@ -7264,7 +7283,9 @@
       table = api.createTable(canvas, live, settings, {
         quit: close,
         restart: function () { open(settings); },
-        playback: function () { showPlayback(true); },
+        // Already on the playback's entry (a refresh brought the game back
+        // under it): no second entry.
+        playback: function () { showPlayback(!inPlaybackEntry()); },
         fullscreen: toggleFullscreen,
         isFullscreen: function () { return !!fullscreenElement(); },
       }, saved);
@@ -7286,13 +7307,28 @@
     }
 
     // The saved game, if its signature checks out. Otherwise a new game.
-    function resumeGame() {
+    // extra: settings for the table (openPlayback).
+    function resumeGame(extra) {
       var stored = readJson(AUTOSAVE_KEY, null);
       if (!stored || !stored.payload || !stored.payload.game || !E.checkSave) { startFresh(); return; }
       E.checkSave(stored).then(function (check) {
         if (!check.ok) { startFresh(); return; }
-        open(Object.assign(settingsNow(), { mode: stored.payload.game.settings.mode }), stored);
+        open(Object.assign(settingsNow(), { mode: stored.payload.game.settings.mode }, extra || {}), stored);
       }, startFresh);
+    }
+
+    // A refresh of View playback on a hand still being played. That hand's
+    // playback was never stored (it holds the whole deal), so the game comes
+    // back from its save, played up to the current move, and its playback
+    // opens again on this same entry: the hand on the table, not a stored or
+    // uploaded one.
+    function handInProgress() {
+      var stored = readJson(AUTOSAVE_KEY, null);
+      return !!(stored && stored.payload && stored.payload.game && stored.payload.game.hand);
+    }
+    function refreshedGamePlayback() {
+      var state = (root.history && root.history.state) || {};
+      return !!(state.lcmFromGame && !state.lcmUpload && handInProgress());
     }
 
     // Phones held sideways play fullscreen. Browsers only allow it from a
@@ -7529,7 +7565,8 @@
       goToOptions();
     }
 
-    if (hasParam('playback')) showPlayback(false);
+    if (hasParam('playback') && refreshedGamePlayback()) resumeGame({ openPlayback: true });
+    else if (hasParam('playback')) showPlayback(false);
     else if (hasParam('learn')) startLesson();
     else if (hasParam('new')) { dropParam('new'); startFresh(); }
     else resumeGame();
