@@ -795,9 +795,9 @@
     }
 
     // Animations: 'normal' (shown) or 'off' (skip animations and delays).
-    // Auto-play (the wind badge, on development addresses) skips them too:
-    // every flight, pause and bot delay. The declaration banners and the win
-    // confetti still show.
+    // Auto-play (the wind badge, on development addresses) skips every one of
+    // them: the flights, pauses and bot delays, and the declaration banners
+    // (Pung!, Flower! ...) and win confetti.
     function instantMode() { return settings.speed === 'off' || ui.replaying || autoPlay; }
     function speed(ms) { return reduceMotion ? 0 : ms; }
 
@@ -3681,14 +3681,15 @@
       copySeed();
     }
 
-    // Every flight in progress ends at once. Banners and confetti are left to
-    // finish on their own.
+    // Every flight in progress ends at once, and any banner or confetti on screen goes.
     function finishAnimations() {
       var running = anims.splice(0);
       running.forEach(function (a) {
         a.step(1, 1);
         a.done();
       });
+      banners.length = 0;
+      particles.length = 0;
       requestRender();
     }
 
@@ -5744,6 +5745,7 @@
     }
 
     function banner(textStr, x, y, opts) {
+      if (autoPlay) return; // auto-play shows no callouts
       opts = opts || {};
       var fitted = shrinkBanner(textStr, opts.size || 30, opts.maxW, opts.maxH);
       if (opts.span) {
@@ -5783,6 +5785,7 @@
     }
 
     function confetti(cx, cy, n, coins) {
+      if (autoPlay) return; // nor confetti
       var t = now();
       var palette = [COLORS.red, COLORS.gold, COLORS.goldLight, COLORS.green, '#ffffff'];
       for (var i = 0; i < n; i++) {

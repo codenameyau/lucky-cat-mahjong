@@ -573,19 +573,19 @@ test('the game over window shows the longest winning streak and the times you st
   assert.equal(old.stats.dealIns, 1, 'the old count carries on');
 });
 
-test('auto-play skips the flights and pauses, but still shows the declaration banners and win confetti', () => {
+test('auto-play skips every animation: the flights and pauses, and the declaration banners and win confetti', () => {
   assert.match(GAME_SRC, /function instantMode\(\) \{ return settings\.speed === 'off' \|\| ui\.replaying \|\| autoPlay; \}/);
-  // Banners and confetti are not gated on auto-play.
+  // No callouts and no confetti while it runs.
   const banner = GAME_SRC.slice(GAME_SRC.indexOf('function banner(textStr'), GAME_SRC.indexOf('function banner(textStr') + 200);
-  assert.doesNotMatch(banner, /autoPlay/, 'declaration banners still show');
+  assert.match(banner, /if \(autoPlay\) return;/, 'no declaration banners');
   const confetti = GAME_SRC.slice(GAME_SRC.indexOf('function confetti('), GAME_SRC.indexOf('function confetti(') + 120);
-  assert.doesNotMatch(confetti, /autoPlay/, 'win confetti still shows');
-  // Turning it on lands the flights in progress, and leaves banners and particles alone.
+  assert.match(confetti, /if \(autoPlay\) return;/, 'no win confetti');
+  // Turning it on lands the flights in progress, and clears any banner or particle on screen.
   assert.match(GAME_SRC, /if \(autoPlay\) finishAnimations\(\);/);
   const fin = GAME_SRC.slice(GAME_SRC.indexOf('function finishAnimations'), GAME_SRC.indexOf('function stopAutoPlay'));
   assert.match(fin, /anims\.splice\(0\)/);
   assert.match(fin, /a\.step\(1, 1\);\s+a\.done\(\);/);
-  assert.doesNotMatch(fin, /banners|particles/);
+  assert.match(fin, /banners\.length = 0;\s+particles\.length = 0;/);
   // The other animation gates (animate, sleep, the bots' thinking) all read instantMode.
   assert.match(GAME_SRC, /function animate\(dur, step, ease\) \{\n      if \(instantMode\(\)\)/);
   assert.match(GAME_SRC, /function sleep\(ms\) \{\n      if \(instantMode\(\)\)/);
