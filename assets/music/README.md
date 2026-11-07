@@ -2,8 +2,9 @@
 
 Three tracks by Kevin MacLeod ([incompetech.com](https://incompetech.com)),
 licensed under [Creative Commons: By Attribution 4.0](https://creativecommons.org/licenses/by/4.0/).
-They were re-encoded from the original MP3s to 96 kbps AAC (`.m4a`) to keep
-the site small; nothing else was changed. The game shuffles them and plays
+They were re-encoded from the original MP3s to 48 kbps HE-AAC (`.m4a`,
+made with `afconvert -f m4af -d aach -b 48000 -s 0`) to keep the site and the
+offline download small; nothing else was changed. The game shuffles them and plays
 them in a loop (`MUSIC` in `js/mahjong-game.js`).
 
 Credit, as shown on the play page:

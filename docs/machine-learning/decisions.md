@@ -10,6 +10,38 @@ Why only three: the first model chose among every discard, and it dealt in 12% o
 
 Every candidate it reads gets `ml`, with `ev`, `pWin`, `avgWin`, `winFaan` and the outcome odds. `ml.choice` says whether the model picked from it, and `ml.order` where Jorge Yau put it. The chosen one also gets `ml.best` (the most any of the three is worth) and `ml.why`.
 
+## Looking ahead (depth): tried, not shipped
+
+Every learned strategy reads one discard deep: the network scores the position each discard leaves. A three-discards-deep search was built and measured (version 0.45.0's cycle) and **not shipped**: the game, the models and the training tools still play depth 1. The code is kept on the local branch `worktree-agent-af26925f622b57282` (commit `e0c61b3`) if it's picked up again.
+
+**What was built.**
+
+- **Neural Cat and Only Orphans: an expectimax over the seat's own next draws.** The best 3 discards by the network's read are searched. Each draw is a chance node, weighted by the copies of each tile the seat **hasn't seen** (four of each, less its own hand and melds, every discard and every shown meld), so the wall and other hands are never read; the fair-play test was extended to the searched values.
+  - A drawn tile that wins ends the path with what the win pays.
+  - The 3 likeliest useful tiles (from the hand's plan) are played out, then the best 2 of up to 4 discards that keep the hand as close to ready, one level deeper.
+  - Any other tile counts as the same hand one go-around later.
+  - The network scores the end of each path. A path past a discard takes off that tile's deal-in cost, since its end position no longer prices that risk.
+  - Claims and kongs stayed one discard deep.
+- **Lucky Cat: the policy prunes, rollouts value.** Its network has no value head, so its 3 favourite discards were each played out over every kind of tile it could draw (weighted the same way), with its own favourite discard for 2 more discards and 4 more draws. A future was worth its chance to win soon (0.9 less for each draw waited), with the network's share breaking near-ties.
+- **Speed** (Node, on a machine busy with training): Neural Cat about 28 ms a move on average (60 ms at the 90th percentile, 184 ms at most, capped at 300 network reads) against about 3 ms at depth 1; Lucky Cat about 34 ms; Only Orphans about 26 ms. Not timed on a phone.
+
+**Results.** Each model played depth 3 in one seat against depth-1 copies of itself, every seat rotation, then the depth-1 copy in the same seat on the same 3,000 deals, so hands both play the same way cancel (Only Orphans played at its game table: Neural Cat, Jorge Yau and Lucky Cat). ± is a 95% margin.
+
+| Model | Points a hand, depth 3 − depth 1 | Hands won | Deal-ins | Average win |
+| --- | ---: | ---: | ---: | ---: |
+| Neural Cat (NC2) | +9.8 ± 29.0 | 9.66% vs 8.50% (+1.16 ± 0.50 points) | 5.67% vs 5.84% | 1,880 vs 1,825 |
+| Lucky Cat (LC20) | −5.5 ± 6.2 | 21.07% vs 19.28% (+1.79 ± 0.63 points) | 13.02% vs 13.62% | 106 vs 158 |
+| Only Orphans (O5) | +5.0 ± 32.2 | 2.47% vs 2.17% (+0.30 ± 0.31 points) | 10.13% vs 9.44% | 5,430 vs 5,476 |
+
+**Why it didn't ship.**
+
+- **The gain is in wins, not points.** Neural Cat and Lucky Cat both won clearly more hands, but neither scored measurably more points a hand, and Lucky Cat's wins got smaller (106 points against 158): the wrong way for a points-first goal. The search plays out only the seat's own next two draws, so it is best at finishing a hand that is already close, and blind to the other players' turns.
+- **Only Orphans** showed no clear gain at about 7 times the time a move.
+- **Cost.** About 10 times the time a move, on phones too, and the lab's evaluations would slow by about as much.
+- **Thin evidence.** 3,000 deals, not 20,000 (the machine was shared with the overnight lab), only against copies of the same model, with the search's settings set by reasoning, not tuned.
+
+**If it's tried again:** measure on 20,000 deals against the current models (NC3, LC32), head to head; tune the search's width and its deal-in weight; and try searching claims too.
+
 ## Claims
 
 When a tile is on offer, each choice is a position to compare:

@@ -1,0 +1,15 @@
+{
+  "name": "Lucky Cat Mahjong",
+  "short_name": "Lucky Cat",
+  "description": "Play Hong Kong mahjong with a coach, online or offline.",
+  "id": "/play-mahjong/",
+  "start_url": "/play-mahjong/",
+  "scope": "/play-mahjong/",
+  "display": "standalone",
+  "background_color": "#FFF8F0",
+  "theme_color": "#C41E3A",
+  "icons": [
+    { "src": "/assets/icons/app-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icons/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

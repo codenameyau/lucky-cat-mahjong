@@ -557,6 +557,11 @@
   function pivotReason(v, prev, now, cAfter, why) {
     var melds = v.game.hand.seats[v.seat].melds;
     if (v.ctx.lock) return 'you hold 8 or more of its tiles, so it\'s worth keeping them';
+    // A strategy that picks its target by expected points (Only Orphans) says so.
+    var target = B.targetOf && B.targetOf(v.game, v.seat);
+    if (target && target.from && target.at === v.game.hand.seats[v.seat].discards.length) {
+      return 'counting the odds of finishing each, it\'s now worth more points on average';
+    }
     var old = B.plansFor(cAfter, v.ctx).filter(function (p) { return routeKey(routeOf(p)) === prev.key; })[0];
     var oldSteps = old ? old.shantenFn(old.counts, v.ctx.declared) : prev.steps;
     if (melds.length > prev.melds && (!old || oldSteps === Infinity)) {
@@ -1027,8 +1032,9 @@
     return (n < 1 && n > 0 ? '<1' : String(Math.round(n))) + '%';
   }
 
-  // Lucky Cat's network (ml.policy: the share it gives each move) learned
-  // only from hands it won, so its line says how sure it is.
+  // Lucky Cat's network (ml.policy: the share it gives each move) has no
+  // score for a move, only a share learned from the points its hands paid,
+  // so its line says how sure it is.
   function policyLine(list, pick, m) {
     var line = 'Lucky Cat\'s network plays this discard ' + pct(m.policy) + ' of the time';
     var next = list.filter(function (x) { return x !== pick && x.ml; })
@@ -1219,7 +1225,13 @@
     var chowOnly = found.options.every(function (o) { return o.decision.type === 'chow'; });
     var tileSuit = ti < 27 ? E.suitOfIndex(ti) : null;
     var shortSuit = tileSuit && opts.chows.length && !B.chowSuitReady(v.ctx, c, tileSuit);
-    if (shortSuit && chowOnly && bestFaan >= min && !v.concealed) {
+    // A strategy with a target that claims nothing (Only Orphans) says so.
+    var target = B.targetOf && B.targetOf(game, seat);
+    if (target && target.id !== 'major-sets' && (opts.pung || opts.kong)) {
+      tips.push('Pass. Your target, ' + target.label + ', claims nothing but the winning tile.');
+    } else if (target && opts.chows.length && chowOnly) {
+      tips.push('Pass. Only Orphans never chows.');
+    } else if (shortSuit && chowOnly && bestFaan >= min && !v.concealed) {
       tips.push('Pass. Hold 7 ' + SUIT_NAME[tileSuit] + ' before you chow that suit.');
     } else if (chowOnly && bestFaan >= min) {
       tips.push(v.concealed

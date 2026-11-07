@@ -632,7 +632,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.44.20');
+    assert.equal(E.GAME_VERSION, '0.45.0');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
@@ -773,11 +773,12 @@ describe('only-orphans (learned)', () => {
     }
   });
 
-  it('declares no kong of a tile that is not a 1, a 9 or an honor', () => {
+  it('declares no kong of a tile that is not a 1, a 9 or an honor on Thirteen Orphans', () => {
     const hand = ['b5', 'b5', 'b5', 'b5', 'c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'ww', 'wn'];
     const game = table({ seats: [{ hand }] });
     for (const bot of bots) {
       for (let n = 0; n < 5; n++) assert.notEqual(bot.chooseTurnAction(game, 0, E.turnOptions(game, 0)).type, 'kong');
+      assert.equal(bot.targetOf(game, 0).id, 'orphans');
     }
   });
 
@@ -790,6 +791,105 @@ describe('only-orphans (learned)', () => {
   it('the coach gives a hint for it', () => {
     const tips = Coach.forStrategy(OO).turnHint(table({ seats: [{ hand: far }] }), 0, { kongs: [] }).tips;
     assert.ok(tips.length > 0);
+  });
+
+  describe('targets', () => {
+    const thirteen = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'dr', 'dg', 'c4', 'd5', 'b6', 'b7'];
+    const triplets = ['c2', 'c2', 'c2', 'd5', 'd5', 'd5', 'b7', 'b7', 'c8', 'c8', 'b3', 'd2', 'c5', 'b4'];
+    const pairs = ['c2', 'c2', 'd4', 'd4', 'b6', 'b6', 'c7', 'c7', 'd8', 'd8', 'b3', 'c5', 'd6', 'b9'];
+    // Every other copy of its pairs is on the table: they can be pairs, never pungs.
+    const gone = { discards: ['c2', 'c2', 'd4', 'd4', 'b6', 'b6', 'c7', 'c7', 'd8', 'd8'] };
+    const opened = { hand: ['d9', 'd9', 'we', 'we', 'dr', 'dr', 'b9', 'c4', 'b5', 'd6', 'b3'], melds: [{ type: 'pung', tiles: ['c1', 'c1', 'c1'], concealed: false, from: 2 }] };
+    const target = (game, bot) => { (bot || OO).chooseTurnAction(game, 0, { kongs: [] }); return (bot || OO).targetOf(game, 0); };
+    const explorer = () => OO.create({ model: M.randomModel(7), epsilon: 1 });
+
+    it('keeps its target until another is worth SWITCH times as much', () => {
+      const worth = { orphans: 1, 'major-sets': 0, 'major-pairs': 0, pairs: 0, 'concealed-triplets': 1.2 };
+      assert.equal(OO.pickTarget(worth, null), 'concealed-triplets');
+      assert.equal(OO.pickTarget(worth, 'orphans'), 'orphans');
+      assert.equal(OO.pickTarget(Object.assign({}, worth, { 'concealed-triplets': OO.SWITCH + 0.01 }), 'orphans'), 'concealed-triplets');
+      // A target that can't be made is left at once.
+      assert.equal(OO.pickTarget(Object.assign({}, worth, { orphans: 0 }), 'orphans'), 'concealed-triplets');
+    });
+
+    it('picks by expected points: Thirteen Orphans, Concealed Triplets, Seven Pairs or triplets of 1s, 9s and honors', () => {
+      assert.equal(target(table({ seats: [{ hand: thirteen }] })).id, 'orphans');
+      assert.equal(target(table({ seats: [{ hand: triplets }] })).id, 'concealed-triplets');
+      assert.equal(target(table({ seats: [{ hand: pairs }, gone] })).id, 'pairs');
+      assert.equal(target(table({ seats: [opened] })).id, 'major-sets');
+      const t = target(table({ seats: [{ hand: thirteen }] }));
+      assert.equal(t.label, 'Thirteen Orphans');
+      assert.ok(t.worth.orphans > OO.SWITCH * t.worth['concealed-triplets']);
+    });
+
+    it('reads it again as the tiles come in', () => {
+      const game = table({ seats: [{ hand: thirteen }] });
+      assert.equal(target(game).id, 'orphans');
+      game.hand.seats[0].hand = triplets.slice();
+      const t = target(game);
+      assert.equal(t.id, 'concealed-triplets');
+      assert.equal(t.from, 'orphans');
+    });
+
+    it('reads only what its seat can see', () => {
+      const game = table({ seats: [{ hand: triplets }] });
+      const before = target(game).worth;
+      // Another hand and the wall change; its read doesn't.
+      game.hand.seats[1].hand = ['c2', 'd5', 'b7', 'b7', 'c8', 'c8', 'c2', 'd5', 'b1', 'b1', 'b2', 'b2', 'b3'];
+      game.hand.wall = game.hand.wall.slice().reverse();
+      game.hand.seats[0]['ooTarget:only-orphans'] = null;
+      assert.deepEqual(target(game).worth, before);
+    });
+
+    it('on Seven Pairs and Concealed Triplets keeps pairs of any tile and throws a single first', () => {
+      for (const bot of bots) {
+        for (const game of [table({ seats: [{ hand: pairs }, gone] }), table({ seats: [{ hand: triplets }] })]) {
+          const c = E.countsOf(game.hand.seats[0].hand);
+          const d = bot.chooseTurnAction(game, 0, { kongs: [] });
+          const i = E.tileIndex(d.tile);
+          assert.ok(!E.isTerminalOrHonorIndex(i) && c[i] === 1, 'threw ' + d.tile);
+        }
+      }
+    });
+
+    it('claims nothing but the win on Seven Pairs, Concealed Triplets and Thirteen Orphans', () => {
+      const cases = [
+        [{ hand: ['c2', 'c2', 'c2', 'd5', 'd5', 'd5', 'b7', 'b7', 'dr', 'dr', 'b3', 'd2', 'c5'] }, 'dr'],
+        [{ hand: ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'dr', 'dr', 'c4', 'd5', 'b6'] }, 'dr'],
+      ];
+      for (const [seat, tile] of cases) {
+        const game = table({ seats: [seat] });
+        const bot = explorer();
+        for (let n = 0; n < 12; n++) assert.deepEqual(bot.chooseClaim(game, 0, { tile, pung: true, kong: false, chows: [] }), { type: 'pass' });
+        assert.deepEqual(bot.chooseClaim(game, 0, { tile, win: { faan: 13 }, pung: true, kong: false, chows: [] }), { type: 'win' });
+      }
+    });
+
+    it('the coach says why it passes a pung on Concealed Triplets', () => {
+      const game = table({ seats: [{ hand: ['c2', 'c2', 'c2', 'd5', 'd5', 'd5', 'b7', 'b7', 'dr', 'dr', 'b3', 'd2', 'c5'] }] });
+      const hint = Coach.forStrategy(OO).claimHint(game, 0, { tile: 'dr', pung: true, kong: false, chows: [] });
+      assert.equal(hint.decision.type, 'pass');
+      assert.ok(hint.tips.some((t) => /Your target, Concealed Triplets, claims nothing but the winning tile/.test(t)), hint.tips.join(' | '));
+    });
+
+    it('may pung a 1, a 9 or an honor on the triplets target', () => {
+      const game = table({ seats: [opened] });
+      const bot = explorer();
+      const seen = new Set();
+      for (let n = 0; n < 30; n++) seen.add(bot.chooseClaim(game, 0, { tile: 'dr', pung: true, kong: false, chows: [] }).type);
+      assert.ok(seen.has('pung'));
+      assert.equal(target(game, bot).id, 'major-sets');
+    });
+
+    it('may declare a concealed kong of any tile on Concealed Triplets', () => {
+      const hand = ['b5', 'b5', 'b5', 'b5', 'c3', 'c3', 'c3', 'd7', 'd7', 'b2', 'b2', 'c6', 'd4', 'b8'];
+      const game = table({ seats: [{ hand }] });
+      const bot = explorer();
+      const seen = new Set();
+      for (let n = 0; n < 30; n++) seen.add(bot.chooseTurnAction(game, 0, E.turnOptions(game, 0)).type);
+      assert.ok(seen.has('kong'));
+      assert.equal(bot.targetOf(game, 0).id, 'concealed-triplets');
+    });
   });
 
   it('plays full hands against the other strategies', async () => {

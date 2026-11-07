@@ -128,6 +128,35 @@ Neural Cat joined a third of the opponent seats from round 7, once lc6 won 11.9%
 
 Lucky Cat now wins nearly twice as many hands as Neural Cat, and wins in fewer discards. It still loses points to Neural Cat. Neural Cat's wins are worth about 8 faan to Lucky Cat's 4 to 5, and Neural Cat deals in less often. That is the trade Lucky Cat was built to make: more hands won, not more points.
 
+### Next: points first (trial model LP2b)
+
+The lab ran four rounds from LC20, 100,000 deals in all (state and log in `ml/lab-lucky-cat/`, not committed). Round 2's advantage-weighted imitation (`awr`, model LP2b) cleared the bar. This ran from LC20 at the same time as the lab rounds above, so LP2b didn't ship: LC32 stays in the game, and the lab's next Lucky Cat rounds start from LC32 with this points-first trainer and judge. Rounds 3 and 4 found nothing better, so the lab stopped there.
+
+| Round | Experiments (6,000 deals each, points a hand against the champion) | Best on 20,000 fresh deals | Kept |
+|---|---|---|---|
+| 1 | pg-2 +8.4, pg-fast −0.6, pg-sqrt −7.9 | pg-2: +2.3 ± 2.5 | no |
+| 2 | awr +8.0, pg-clip +2.4, pg-all −4.2, pg −3.5 | awr: **+6.9 ± 2.5** (pg-clip +5.4 ± 2.3) | **LP2b** |
+| 3 | awr +3.9, pg-clip +0.2, pg-2 −3.2, pg-wins −4.6 | awr: −4.2 ± 2.4 | no |
+| 4 | pg-wins −0.2, pg −0.5, pg-fast −4.1, pg-all −9.0 | none ahead | no |
+
+± is one standard error, deal by deal. LP2b replayed against LC20 on another 20,000 deals it had never played:
+
+| LP2b against | Points a hand | Hands won | Deal-ins | Average win |
+|---|---:|---:|---:|---:|
+| LC20 (lab, 20,000 deals) | **+6.9 ± 2.5** | 19.7% vs 19.5% | 13.9% vs 14.1% | 170 vs 147 |
+| LC20 (fresh, 20,000 deals) | **+4.0 ± 2.3** | 20.0% vs 19.4% | 14.0% vs 14.2% | 162 vs 151 |
+
+Against Jorge Yau, on the same 20,000 deals for both (two seats each):
+
+| | Points a hand against Jorge Yau | Hands won | Deal-ins | Average win |
+|---|---:|---:|---:|---:|
+| LC20 | −102.7 ± 5.2 | 15.2% vs 22.3% | 14.8% vs 9.9% | 153 vs 424 |
+| LP2b | −87.7 ± 4.9 | 15.2% vs 22.3% | 14.9% vs 10.1% | 166 vs 396 |
+
+- **It scores more without winning less.** Against LC20 its points rose by about 4 to 7 points a hand, with the same share of hands won: its wins are worth more (4.86 faan to 4.80, 160 to 170 points a win to about 150).
+- **It is still Lucky Cat.** The change is small: 100,000 hands of training, a tenth of the league's million. Jorge Yau still beats it by about 88 points a hand, mostly because Jorge Yau's wins are worth more than twice as much and it deals in about two-thirds as often.
+- **One hand's points are mostly luck.** A position barely predicts what a hand will pay (the critic explains well under 1% of it), so each step needs tens of thousands of hands, and most experiments were within the noise.
+
 ## What the coach says
 
 The coach's words about the hand (what to go for, the waits, the threats) come from the classic rules' reads. What to do is the network's move. Its line says how often the network plays that move, and the next most likely one, for example "Lucky Cat's network plays this discard 62% of the time. Next most likely is 5 Bamboo: 21% of the time." For a claim or a kong it gives the share of each choice: "Lucky Cat's network would pung Red Dragon 60% of the time, and pass 40% of the time." After your discard, it is a great discard when the network gives your tile at least 80% of its top pick's share.
