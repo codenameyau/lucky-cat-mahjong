@@ -1,28 +1,30 @@
-/* Offline: what the whole site needs with no connection, and how it is
+/* Offline: what the interactive pages need with no connection, and how it is
    cached. Shared by the service worker (/sw.js loads it with importScripts),
    the pages (js/offline.js) and the tests.
 
-   - ASSETS lists every page of the site and every file they load: the
-     options page (/play-mahjong/), the game (/playing-mahjong/) with its
-     lazily loaded model weights, sounds and music, and the rest of the site.
-     Tests check the list against the pages and the game's code, so a new
-     file can't be missed. Event photos (/media/) and PDFs aren't saved ahead:
-     they are kept once seen.
+   - Only the interactive pages are kept: the Points Guide
+     (/hong-kong-mahjong-scoring/), the options page (/play-mahjong/) and the
+     game (/playing-mahjong/), with every file they load, the game's lazily
+     loaded model weights, sounds and music included. ASSETS lists them all,
+     and tests check it against the pages and the game's code, so a new file
+     can't be missed.
+   - The worker answers only for those files (isSaved). Every other request,
+     the rest of the site included, goes to the network untouched and is
+     never saved.
+   - Online, a saved file is fetched from the network first, revalidated with
+     the server (cache: 'no-cache', so the browser's HTTP cache can't hand
+     back an old file either), and saved again. The saved copy answers only
+     when the network fails. No timeout: a slow connection waits for the
+     latest file rather than getting an old one.
    - Each version (VERSION, the game's GAME_VERSION) gets its own cache
      (cacheName). A new version's service worker fills its cache, then
-     deletes the older ones.
-   - Online, every request goes to the network first, revalidated with the
-     server (cache: 'no-cache', so the browser's HTTP cache can't hand back
-     an old file either), and the latest file is saved. The saved copy
-     answers only when the network fails. No timeout: a slow connection
-     waits for the latest file rather than getting an old one.
-   - Offline, a page that was never saved gets the saved 404 page. */
+     deletes the older ones. */
 
 (function (root) {
   'use strict';
 
   // The game's version (GAME_VERSION in js/mahjong-engine.js; a test keeps them equal).
-  var VERSION = '0.46.0';
+  var VERSION = '0.47.0';
   var CACHE_PREFIX = 'lcm-play-v';
   // The old Play offline button's flag (0.45.0 builds before offline became the default), cleaned up.
   var OLD_FLAG_CACHE = 'lcm-play-offline';
@@ -30,7 +32,6 @@
   var SW_URL = '/sw.js';
   // The game's own worker before the site had one, unregistered when found.
   var OLD_SCOPE = '/play-mahjong/';
-  var OFFLINE_PAGE = '/404.html';
 
   var TILES = [
     '01-white-dragon', '02-green-dragon', '03-red-dragon',
@@ -61,31 +62,21 @@
     'mahjong-analysis', 'mahjong-lesson', 'mahjong-rules', 'mahjong-game',
     // Loaded later by the game (loadAssets in mahjong-game.js).
     'mahjong-ml-weights', 'mahjong-only-orphans-weights', 'mahjong-lucky-cat-weights',
-    'offline-cache', 'offline',
-    // The rest of the site.
-    'main', 'community', 'play-options', 'tile-quiz', 'tile-quiz-art',
+    'offline-cache', 'offline', 'play-options',
   ];
 
-  var QUIZ_TILES = [
-    'autumn', 'bamboo', 'blank-tile', 'chrysanthemum', 'east-wind', 'green-dragon', 'nine-bamboo',
-    'nine-character', 'nine-dot', 'north-wind', 'one-bamboo', 'one-character', 'one-dot', 'orchid',
-    'plum-blossom', 'red-dragon', 'south-wind', 'spring', 'summer', 'west-wind', 'white-dragon', 'winter',
-  ];
-
+  // The interactive pages, the only ones kept offline: the Points Guide, the
+  // options page and the game. The rest of the site is left to the network.
   var PAGES = [
-    '/',
-    '/404.html',
-    '/community/',
-    '/events/',
     '/hong-kong-mahjong-scoring/',
     '/play-mahjong/',
     '/playing-mahjong/',
-    '/which-mahjong-tiles-are-you/',
-  ].concat(QUIZ_TILES.map(function (t) { return '/which-mahjong-tiles-are-you/' + t + '/'; }));
+  ];
 
-  var DATA = ['community', 'faq', 'nav', 'rates', 'services', 'site', 'testimonials'];
+  // The header's links (js/nav.js).
+  var DATA = ['nav'];
 
-  var STYLES = ['fonts', 'styles', 'play', '404', 'community', 'events', 'points', 'tile-quiz'];
+  var STYLES = ['fonts', 'styles', 'play', 'points'];
 
   var ASSETS = PAGES.concat([
     '/play-mahjong/manifest.webmanifest',
@@ -116,7 +107,7 @@
     return name === OLD_FLAG_CACHE || (name.indexOf(CACHE_PREFIX) === 0 && name !== cacheName(version));
   }
 
-  // The version the service worker was registered for: /sw.js?v=0.46.0.
+  // The version the service worker was registered for: /sw.js?v=0.47.0.
   function versionFromScriptUrl(href) {
     var m = /[?&]v=([^&#]+)/.exec(String(href));
     return m ? decodeURIComponent(m[1]) : null;
@@ -146,6 +137,13 @@
     var u = typeof url === 'string' ? new URL(url, 'https://x.invalid') : url;
     var path = u.pathname.replace(/\/index\.html$/i, '/');
     return path;
+  }
+
+  // One of the files kept offline (by its cache key). Nothing else is touched.
+  var SAVED = {};
+  ASSETS.forEach(function (p) { SAVED[p] = true; });
+  function isSaved(key) {
+    return SAVED[key] === true;
   }
 
   // A 206 for a media element's Range request, cut from the full cached file
@@ -229,8 +227,8 @@
     SCOPE: SCOPE,
     SW_URL: SW_URL,
     OLD_SCOPE: OLD_SCOPE,
-    OFFLINE_PAGE: OFFLINE_PAGE,
     PAGES: PAGES,
+    isSaved: isSaved,
     ASSETS: ASSETS,
     cacheName: cacheName,
     isStaleCache: isStaleCache,

@@ -62,33 +62,30 @@ describe('the offline file list', function () {
     });
   });
 
-  it('has every page of the site, and every file each page loads', function () {
-    const pages = sitePages();
-    assert.ok(pages.length >= 29, pages.length + ' pages');
-    assert.deepEqual(pages.map(pageUrl).sort(), C.PAGES.slice().sort());
-    pages.forEach(function (page) {
+  it('keeps only the interactive pages, and every file each of them loads', function () {
+    assert.deepEqual(C.PAGES.slice().sort(), ['/hong-kong-mahjong-scoring/', '/play-mahjong/', '/playing-mahjong/']);
+    C.PAGES.forEach(function (url) {
+      const page = url.replace(/^\//, '') + 'index.html';
       pageRefs(read(page), page).forEach(function (ref) {
-        // Event photos and PDFs are kept once seen, not saved ahead.
-        if (/^\/media\//.test(ref) || /\.pdf$/.test(ref)) return;
         assert.ok(listed.has(ref), page + ' loads ' + ref);
       });
     });
     assert.ok(pageRefs(read('playing-mahjong/index.html'), 'playing-mahjong/index.html').length > 10);
-    assert.ok(!listed.has('/play-mahjong/playback/'));
+    ['/', '/community/', '/events/', '/which-mahjong-tiles-are-you/', '/404.html', '/play-mahjong/playback/']
+      .forEach((p) => assert.ok(!listed.has(p), p + ' is not kept'));
   });
 
-  it('has the site\'s data files', function () {
-    fs.readdirSync(path.join(ROOT, 'data')).filter((f) => f.endsWith('.json')).forEach(function (f) {
-      assert.ok(listed.has('/data/' + f), f);
-    });
+  it('has the header\'s links', function () {
+    assert.ok(listed.has('/data/nav.json'));
+    assert.match(read('js/nav.js'), /\/data\/nav\.json/);
   });
 
-  it('is registered from every page that runs scripts', function () {
+  it('is registered from the interactive pages only', function () {
     sitePages().forEach(function (page) {
       const html = read(page);
-      if (!/<script src=/.test(html)) return; // the quiz's share pages only redirect
-      assert.match(html, /src="\/js\/offline-cache\.js"/, page);
-      assert.match(html, /src="\/js\/offline\.js"/, page);
+      const kept = C.PAGES.includes(pageUrl(page));
+      assert.equal(/src="\/js\/offline-cache\.js"/.test(html), kept, page);
+      assert.equal(/src="\/js\/offline\.js"/.test(html), kept, page);
     });
   });
 
@@ -118,7 +115,7 @@ describe('the offline file list', function () {
   });
 
   it('has the fonts the styles use and the manifest icons', function () {
-    fs.readdirSync(path.join(ROOT, 'css')).filter((f) => f.endsWith('.css')).map((f) => 'css/' + f).forEach(function (css) {
+    ['css/fonts.css', 'css/styles.css', 'css/play.css', 'css/points.css'].forEach(function (css) {
       const urls = read(css).match(/url\(["']?[^)"']+["']?\)/g) || [];
       urls.forEach(function (u) {
         const ref = u.replace(/^url\(["']?|["']?\)$/g, '');
@@ -304,10 +301,7 @@ describe('offline by default', function () {
     assert.doesNotMatch(old, /caches\.delete/, 'leaves the caches to /sw.js');
   });
 
-  it('shows the saved 404 page for a page that was never saved, offline', function () {
-    assert.ok(listed.has(C.OFFLINE_PAGE));
-    assert.match(read('sw.js'), /fromCache\(C\.OFFLINE_PAGE\)/);
-  });
+
 });
 
 // The real /sw.js, run on a fake worker global: what it answers, online and offline.
@@ -339,6 +333,7 @@ describe('the service worker', function () {
       const waits = [];
       const req = { url: ORIGIN + path, method: 'GET', mode: opts.navigate ? 'navigate' : 'cors', headers: new Headers(opts.headers || {}) };
       listeners.fetch({ request: req, respondWith: (p) => { answer = p; }, waitUntil: (p) => waits.push(p) });
+      if (!answer) return null;
       const res = await answer;
       await Promise.all(waits);
       return res;
@@ -359,7 +354,7 @@ describe('the service worker', function () {
     const w = loadWorker((u, i) => net(u, i));
     assert.equal(await (await w.request('/js/mahjong-game.js')).text(), 'old /js/mahjong-game.js');
     net = serve('new');
-    for (const p of ['/js/mahjong-game.js', '/playing-mahjong/', '/tiles/x.svg', '/assets/music/m.m4a', '/css/play.css']) {
+    for (const p of ['/js/mahjong-game.js', '/playing-mahjong/', '/tiles/01-white-dragon.svg', '/assets/music/ripples.m4a', '/css/play.css']) {
       assert.equal(await (await w.request(p)).text(), 'new ' + p, p);
     }
     assert.equal(await (await w.request('/playing-mahjong/?new=1', { navigate: true })).text(), 'new /playing-mahjong/');
@@ -368,49 +363,57 @@ describe('the service worker', function () {
   it('revalidates every request with the server, so the HTTP cache can\'t serve an old file', async function () {
     const seen = [];
     const w = loadWorker(async (u, init) => { seen.push(init.cache); return new Response('x'); });
-    await w.request('/js/a.js');
-    await w.request('/', { navigate: true });
-    await w.request('/tiles/x.svg');
+    await w.request('/js/mahjong-game.js');
+    await w.request('/play-mahjong/', { navigate: true });
+    await w.request('/tiles/01-white-dragon.svg');
     assert.deepEqual(seen, ['no-cache', 'no-cache', 'no-cache']);
   });
 
   it('waits for a slow network rather than serving an old saved copy', async function () {
     let net = serve('old');
     const w = loadWorker((u, i) => net(u, i));
-    await w.request('/js/a.js');
-    net = (u) => new Promise((r) => setTimeout(() => r(new Response('new /js/a.js')), 30));
-    assert.equal(await (await w.request('/js/a.js')).text(), 'new /js/a.js');
+    await w.request('/js/mahjong-game.js');
+    net = (u) => new Promise((r) => setTimeout(() => r(new Response('new /js/mahjong-game.js')), 30));
+    assert.equal(await (await w.request('/js/mahjong-game.js')).text(), 'new /js/mahjong-game.js');
   });
 
-  it('offline, answers with the saved copy, and the saved 404 page for a page never saved', async function () {
+  it('offline, answers with the saved copy', async function () {
     let net = serve('v1');
     const w = loadWorker((u, i) => net(u, i));
-    await w.request('/js/a.js');
-    await w.request('/404.html');
+    await w.request('/js/mahjong-game.js');
     await w.request('/playing-mahjong/', { navigate: true });
+    await w.request('/hong-kong-mahjong-scoring/', { navigate: true });
     net = down;
-    assert.equal(await (await w.request('/js/a.js')).text(), 'v1 /js/a.js');
+    assert.equal(await (await w.request('/js/mahjong-game.js')).text(), 'v1 /js/mahjong-game.js');
     assert.equal(await (await w.request('/playing-mahjong/?new=1', { navigate: true })).text(), 'v1 /playing-mahjong/');
-    assert.equal(await (await w.request('/never/', { navigate: true })).text(), 'v1 /404.html');
-    await assert.rejects(w.request('/never.js'));
+    assert.equal(await (await w.request('/hong-kong-mahjong-scoring/', { navigate: true })).text(), 'v1 /hong-kong-mahjong-scoring/');
+  });
+
+  it('leaves the rest of the site alone: not answered, not saved', async function () {
+    const w = loadWorker(serve('v1'));
+    for (const p of ['/', '/community/', '/events/', '/js/main.js', '/media/2026-03-15/a.webp', '/data/community.json']) {
+      assert.equal(await w.request(p, { navigate: p.endsWith('/') }), null, p + ' goes to the network untouched');
+    }
+    const saved = [...(await w.cs.keys())];
+    for (const name of saved) assert.equal((await (await w.cs.open(name)).keys()).length, 0);
   });
 
   it('a server error falls back to the saved copy; a 404 stays a 404', async function () {
     let net = serve('v1');
     const w = loadWorker((u, i) => net(u, i));
-    await w.request('/js/a.js');
+    await w.request('/js/mahjong-game.js');
     net = async () => new Response('oops', { status: 503 });
-    assert.equal(await (await w.request('/js/a.js')).text(), 'v1 /js/a.js');
+    assert.equal(await (await w.request('/js/mahjong-game.js')).text(), 'v1 /js/mahjong-game.js');
     net = async () => new Response('gone', { status: 404 });
-    assert.equal((await w.request('/js/a.js')).status, 404);
+    assert.equal((await w.request('/js/mahjong-game.js')).status, 404);
   });
 
   it('audio ranges: the network\'s own answer online, a slice of the saved file offline', async function () {
     let net = async () => new Response(new Uint8Array([0, 1, 2, 3, 4, 5]));
     const w = loadWorker((u, i) => net(u, i));
-    await w.request('/assets/music/m.m4a');
+    await w.request('/assets/music/ripples.m4a');
     net = down;
-    const res = await w.request('/assets/music/m.m4a', { headers: { range: 'bytes=2-3' } });
+    const res = await w.request('/assets/music/ripples.m4a', { headers: { range: 'bytes=2-3' } });
     assert.equal(res.status, 206);
     assert.deepEqual([...new Uint8Array(await res.arrayBuffer())], [2, 3]);
   });
@@ -418,8 +421,8 @@ describe('the service worker', function () {
   it('back online, a refresh fetches every saved file again', async function () {
     let net = serve('old');
     const w = loadWorker((u, i) => net(u, i));
-    await w.request('/js/a.js');
-    await w.request('/tiles/x.svg');
+    await w.request('/js/mahjong-game.js');
+    await w.request('/tiles/01-white-dragon.svg');
     net = serve('new');
     const replies = [];
     const waits = [];
@@ -428,8 +431,8 @@ describe('the service worker', function () {
     assert.equal(replies[0].type, 'refreshed');
     assert.equal(replies[0].updated, 2);
     net = down;
-    assert.equal(await (await w.request('/js/a.js')).text(), 'new /js/a.js');
-    assert.equal(await (await w.request('/tiles/x.svg')).text(), 'new /tiles/x.svg');
+    assert.equal(await (await w.request('/js/mahjong-game.js')).text(), 'new /js/mahjong-game.js');
+    assert.equal(await (await w.request('/tiles/01-white-dragon.svg')).text(), 'new /tiles/01-white-dragon.svg');
   });
 
   it('takes over at once, deletes older versions\' caches and tells open pages its version', async function () {

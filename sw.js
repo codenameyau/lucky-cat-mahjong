@@ -17,12 +17,10 @@
      (a 'refresh' message).
 
    Offline:
-   - Installing saves every page and every file they need
-     (js/offline-cache.js), so the site and the game work offline after one
-     visit. Event photos are kept as they're seen. For an update (an older
-     version's cache is here) the new version takes over only once all of it
-     is saved; if that fails, the old version stays, still network first.
-   - A page that was never saved gets the saved 404 page. */
+   - Installing saves the three pages and every file they need, so they work
+     offline after one visit. For an update (an older version's cache is
+     here) the new version takes over only once all of it is saved; if that
+     fails, the old version stays, still network first. */
 
 importScripts('/js/offline-cache.js');
 
@@ -127,12 +125,7 @@ importScripts('/js/offline-cache.js');
       return res.status >= 500 ? fromCache(key).then(function (cached) { return cached || res; }) : res;
     }, function () {
       return fromCache(key).then(function (cached) {
-        if (cached) return cached;
-        // A page that was never saved: the saved 404 page.
-        if (req.mode === 'navigate') {
-          return fromCache(C.OFFLINE_PAGE).then(function (page) { return page || Promise.reject(new Error('offline')); });
-        }
-        return Promise.reject(new Error('offline'));
+        return cached || Promise.reject(new Error('offline'));
       });
     });
   }
@@ -143,6 +136,8 @@ importScripts('/js/offline-cache.js');
     var url = new URL(req.url);
     if (url.origin !== self.location.origin) return;
     var key = C.cacheKey(url);
+    // Only the saved files: the rest of the site goes to the network untouched.
+    if (!C.isSaved(key)) return;
     var range = req.headers.get('range');
     if (range) {
       // Audio asks for byte ranges: the network's own answer, or, when it

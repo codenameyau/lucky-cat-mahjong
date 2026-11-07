@@ -519,6 +519,18 @@ describe('playback seed', () => {
     });
   });
 
+  it('says a playback is finished only once its hand has a result', async () => {
+    const game = E.createGame({ seed: 11, humanSeat: false, dealer: 0 });
+    await E.runHand(game, discarders(), {});
+    const rec = E.checkPlayback(E.makePlayback(game, { seat: 0 })).record;
+    assert.equal(E.playbackFinished(rec), true);
+    const early = JSON.parse(JSON.stringify(rec));
+    early.actions = early.actions.slice(0, Math.floor(early.actions.length / 2));
+    early.moves = early.actions.length;
+    assert.equal(E.playbackFinished(early), false, 'half the moves is a hand still being played');
+    assert.equal(E.playbackFinished(null), false);
+  });
+
   it('signs a playback file and stops at the moves it names', async () => {
     const game = E.createGame({ seed: 11, humanSeat: false, dealer: 0 });
     await E.runHand(game, discarders(), {});
