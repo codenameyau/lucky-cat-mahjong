@@ -18,6 +18,7 @@ Each candidate takes one seat at the game's table (Neural Cat, Jorge Yau, Lucky 
 | 2 | O5 | +28.4 ± 26 | deep +29.1, finetune-fast +8.8, claimMargin+25 +6.7, claimMargin−25 0.0, finetune-slow −6.6 | finetune-fast **+8.0** (points +6.7 ± 15.4), deep +7.1 | **OL2c kept, shipped** (+26.8 ± 14.8 against the baseline) |
 | 3 | OL2c | +42.0 ± 27 | deep +4.3, claimMargin+25 −1.2, finetune-fast −2.6, wide −3.2, winBonus+50 −22.3 | deep +1.2 (points +2.8 ± 15.0) | none kept |
 | 4 | OL2c | +23.4 ± 28 | claimMargin−25 +5.6, winBonus+150 +2.0, recent −0.4, finetune-slow −1.1, deep −18.2 | winBonus+150 +0.9, claimMargin−25 0.0 | none kept |
+| 5 | OL2c | +43.5 ± 27 | claimMargin+25 +3.4, finetune +1.6, claimMargin−25 0.0, wide −4.4, finetune-fast −13.7 | claimMargin+25 +4.9 (points +6.0 ± 15.5), finetune +1.9 | none kept |
 
 OL2c against O5 on the same 20,000 deals: wins 2.2% to 1.9%, deal-ins 11.1% to 11.1%, average win 6,005 to 6,662, Mixed Orphans 848 to 679, All Triplets 710 to 535, Thirteen Orphans 724 to 718, pungs 0.52 a hand to 0.48.
 

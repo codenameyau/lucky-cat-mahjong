@@ -102,6 +102,13 @@ def main():
     ap.add_argument('--hidden', help='hidden layer sizes, e.g. 512,256 (a new network: --init is ignored)')
     args = ap.parse_args()
     hidden = [int(v) for v in args.hidden.split(',')] if args.hidden else None
+    # A fine-tune keeps the shape of the model it starts from (lc30 and on
+    # can be wider than the original 256, 128).
+    init_hidden = None
+    if args.init and not hidden:
+        src = json.load(open(os.path.join(ROOT, args.init)))
+        if not (src.get('meta') or {}).get('random'):
+            init_hidden = [l['rows'] for l in src['layers'][:-1]]
 
     t0 = time.time()
     x, a, legal, w, size, version = load(args.data)
@@ -115,7 +122,7 @@ def main():
     torch.manual_seed(1)
     dev = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f'training on {dev}' + (f' ({torch.cuda.get_device_name(0)})' if dev == 'cuda' else ''))
-    net = Net(size, args.dropout, hidden)
+    net = Net(size, args.dropout, hidden or init_hidden)
     if args.init and hidden:
         print('a new ' + args.hidden + ' network: --init ' + args.init + ' ignored')
         with torch.no_grad():
@@ -196,7 +203,7 @@ def main():
         layers.append({'rows': l.out_features, 'cols': l.in_features, 'w': b64(l.weight.detach().numpy()), 'b': b64(l.bias.detach().numpy())})
     meta = {'name': args.name, 'trainedAt': time.strftime('%Y-%m-%d %H:%M'), 'samples': int(n), 'data': args.data,
             'init': None if hidden else args.init, 'validationLoss': best, 'negWeight': args.neg_weight,
-            'hidden': hidden or HIDDEN}
+            'hidden': hidden or init_hidden or HIDDEN}
     out = {'featureVersion': version, 'featureSize': size, 'dtype': 'f16', 'meta': meta, 'layers': layers}
     os.makedirs(os.path.join(ROOT, 'ml', 'models'), exist_ok=True)
     path = os.path.join(ROOT, 'ml', 'models', args.name + '.json')
