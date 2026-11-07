@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.48.1';
+  var GAME_VERSION = '0.48.2';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -688,6 +688,8 @@
     }
     game.history.push(result);
     game.hand.result = result;
+    // When the hand ended (ms), for its playback: a list says "Finished today, 2:30 PM".
+    game.hand.endedAt = Date.now();
   }
 
   // One finished hand for the results table. In a payout game, faan is the
@@ -1257,7 +1259,7 @@
     var winds = parseHandSeed(head);
     var strategies = info.strategies || [];
     var actions = game.hand.trace.slice();
-    return {
+    var out = {
       v: 1,
       handSeed: head,
       seed: game.hand.seed >>> 0,
@@ -1283,6 +1285,10 @@
       }),
       actions: actions,
     };
+    // A finished hand's file says when it ended. It's signed with the rest,
+    // so it can't be changed. Files from before have none.
+    if (game.hand.result && game.hand.endedAt) out.endedAt = game.hand.endedAt;
+    return out;
   }
 
   function playbackText(game, info) {

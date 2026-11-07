@@ -2554,11 +2554,11 @@
         // View playback (the sheet of recent hands and the upload: each row
         // there has its own Download), then Sound. Words when they leave the
         // title room, an icon when they don't.
-        var LIST_W = 120;
+        var LIST_W = 128;
         var words = W >= 600 && soundX - 6 - LIST_W - 8 - gapL >= TITLE_ROOM;
         var vpW = words ? LIST_W : 34;
         var vpX = soundX - 6 - vpW;
-        button(words ? 'View playback' : '', vpX, 7, vpW, 28, openPlaybacks, 'ghost', 'review-list');
+        button(words ? 'View playbacks' : '', vpX, 7, vpW, 28, openPlaybacks, 'ghost', 'review-list');
         clusterX = vpX;
         if (!words) {
           // A list, three rows each with a dot (your saved hands), drawn here so it needs no font.
@@ -5874,7 +5874,7 @@
           color: reviewNote ? COLORS.goldLight : COLORS.cream,
         });
       });
-      button('View playback', (W - bw) / 2, by, bw, bh, openPlaybacks, 'gold', 'review-list-center');
+      button('View playbacks', (W - bw) / 2, by, bw, bh, openPlaybacks, 'gold', 'review-list-center');
     }
 
     // Whether the playback on screen is of a finished hand. Only then are the
@@ -5926,6 +5926,10 @@
       if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
     }
 
+    // The row buttons are icons (their names are in aria-label and title).
+    var ICON_PLAY = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>';
+    var ICON_DOWNLOAD = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg>';
+
     function playbackRow(entry, mark, kind) {
       var li = document.createElement('li');
       li.className = 'playbacks-row';
@@ -5941,16 +5945,23 @@
       name.textContent = sum.result;
       var when = document.createElement('div');
       when.className = 'playbacks-when';
-      when.textContent = (sum.hand ? sum.hand + ' · ' : '') + (kind === 'upload' ? 'Uploaded ' : 'Saved ') +
-        E.playbackWhen(entry.savedAt).replace(/^(Today|Yesterday|Earlier)/, function (w) { return w.toLowerCase(); }) +
-        (showing ? ' · Showing now' : '');
+      // When the hand finished (the file's own time; an older file has none,
+      // so its saved time stands in), then for an upload when it was uploaded.
+      var lower = function (t) { return t.replace(/^(Today|Yesterday|Earlier)/, function (w) { return w.toLowerCase(); }); };
+      var ended = check.ok ? check.record.endedAt : null;
+      var finished = check.ok && E.playbackFinished(check.record);
+      var times = [];
+      if (finished) times.push('Finished ' + lower(E.playbackWhen(ended != null ? ended : (kind === 'upload' ? null : entry.savedAt))));
+      if (kind === 'upload') times.push('Uploaded ' + lower(E.playbackWhen(entry.savedAt)));
+      when.textContent = [sum.hand].concat(times).filter(Boolean).join(' · ') + (showing ? ' · Showing now' : '');
       info.appendChild(name);
       info.appendChild(when);
       li.appendChild(info);
       var play = document.createElement('button');
       play.type = 'button';
       play.className = 'playbacks-btn playbacks-play';
-      play.textContent = 'Play';
+      play.innerHTML = ICON_PLAY;
+      play.title = 'Play';
       play.disabled = !check.ok;
       play.setAttribute('aria-label', 'Play ' + sum.hand + ', ' + sum.result);
       play.addEventListener('click', function () {
@@ -5962,7 +5973,8 @@
       var down = document.createElement('button');
       down.type = 'button';
       down.className = 'playbacks-btn playbacks-download';
-      down.textContent = 'Download';
+      down.innerHTML = ICON_DOWNLOAD;
+      down.title = 'Download';
       // Only a finished hand's file is saved: an unfinished one holds the whole deal.
       down.disabled = !check.ok || !E.playbackFinished(check.record);
       down.setAttribute('aria-label', 'Download ' + sum.hand + ', ' + sum.result);

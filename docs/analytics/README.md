@@ -148,9 +148,9 @@ Every button is tracked except the tiles and the buttons that play a move (Win, 
 | `play_view_replay` | View playback of a hand | |
 | `play_playback_prev_click`, `play_playback_next_click`, `play_playback_play_click`, `play_playback_pause_click` | Step and play controls | |
 | `play_playback_speed` | The playback speed changes | `speed` |
-| `play_playback_back_click`, `play_playback_list_click` | Back, and View playback (the bar's button, or the one in the center with no hand loaded) | |
-| `play_playback_list_play`, `play_playback_list_download` | In the View playback sheet: Play or Download on a row | `kind`: `recent` or `upload` |
-| `play_playback_upload_click` | Upload playback, in the View playback sheet | |
+| `play_playback_back_click`, `play_playback_list_click` | Back, and View playbacks (the bar's button, or the one in the center with no hand loaded) | |
+| `play_playback_list_play`, `play_playback_list_download` | In the View playbacks sheet: Play or Download on a row | `kind`: `recent` or `upload` |
+| `play_playback_upload_click` | Upload playback, in the View playbacks sheet | |
 | `play_playback_coach_note_click` | A coach note, jumping to its move | |
 
 ## Testing

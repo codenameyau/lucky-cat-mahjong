@@ -362,14 +362,20 @@ test('the playback bar opens the View playback sheet, and its rows play, downloa
   const game = fs.readFileSync(path.join(ROOT, 'playing-mahjong/index.html'), 'utf8');
   assert.match(game, /<dialog id="playbacks-sheet"/);
   ['playbacks-recent', 'playbacks-uploaded', 'playbacks-upload'].forEach((id) => assert.match(game, new RegExp('id="' + id + '"')));
-  assert.match(GAME_SRC, /button\(words \? 'View playback' : '', vpX, 7, vpW, 28, openPlaybacks, 'ghost', 'review-list'\)/);
+  assert.match(GAME_SRC, /button\(words \? 'View playbacks' : '', vpX, 7, vpW, 28, openPlaybacks, 'ghost', 'review-list'\)/);
   assert.doesNotMatch(GAME_SRC, /'Upload'/, 'no Upload button on the bar');
   assert.doesNotMatch(GAME_SRC, /review-download|downloadReplay/, 'no Download button on the bar: each row in the sheet has its own');
-  assert.match(GAME_SRC, /button\('View playback', \(W - bw\) \/ 2, by, bw, bh, openPlaybacks/);
+  assert.match(GAME_SRC, /button\('View playbacks', \(W - bw\) \/ 2, by, bw, bh, openPlaybacks/);
+  assert.match(game, /<h2 id="playbacks-sheet-title">View playbacks<\/h2>/);
   const row = GAME_SRC.slice(GAME_SRC.indexOf('function playbackRow'), GAME_SRC.indexOf('function fillList'));
   assert.match(row, /loadPlaybackText\(entry\.file, mark\)/);
   assert.match(row, /saveFile\(entry\.file, entry\.savedAt\)/);
-  assert.match(row, /E\.playbackWhen\(entry\.savedAt\)/);
+  // Icon buttons, named for screen readers; each row says when its hand finished.
+  assert.match(row, /play\.innerHTML = ICON_PLAY/);
+  assert.match(row, /down\.innerHTML = ICON_DOWNLOAD/);
+  assert.match(row, /setAttribute\('aria-label', 'Play '/);
+  assert.match(row, /'Finished ' \+ lower\(E\.playbackWhen\(ended/);
+  assert.match(row, /'Uploaded ' \+ lower\(E\.playbackWhen\(entry\.savedAt\)\)/);
   const build = GAME_SRC.slice(GAME_SRC.indexOf('function buildPlaybacks'), GAME_SRC.indexOf('var replayFileInput'));
   assert.match(build, /up \? \[up\] : \[\]/, 'at most one uploaded row');
 });

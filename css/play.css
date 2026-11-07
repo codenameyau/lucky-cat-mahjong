@@ -529,7 +529,7 @@ html.is-playing.is-sideways body {
 }
 
 /* View playback sheet: recent hands and the upload, each a row with Play and Download. */
-.playbacks-sheet { width: min(560px, calc(100vw - 32px)); }
+.playbacks-sheet { width: min(680px, calc(100vw - 32px)); }
 
 .playbacks-heading {
   margin: 14px 0 6px;
@@ -616,11 +616,18 @@ html.is-playing.is-sideways body {
 
 .playbacks-upload:hover { background: #d8344f; }
 
-@media (max-width: 420px) {
-  .playbacks-row { flex-wrap: wrap; }
-  .playbacks-text { flex-basis: 100%; }
-  .playbacks-btn { flex: 1; }
+/* Play and Download are round icon buttons. */
+.playbacks-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
 }
+
+.playbacks-btn svg { display: block; }
+.playbacks-play svg { margin-left: 2px; } /* the triangle looks centered */
 
 /* Strategies sheet: the same look as the rules sheet. */
 .strategies-sheet { width: min(1000px, calc(100vw - 32px)); }

@@ -430,6 +430,18 @@ describe('playback seed', () => {
     assert.equal(E.playbackSummary(Object.assign({}, rec, { actions: rec.actions.slice(0, 3), moves: 3 })).result, 'Still being played');
   });
 
+  it('a finished hand\'s playback says when it ended, signed with the rest', async () => {
+    const game = E.createGame({ seed: 1, humanSeat: false, dealer: 0 });
+    const before = Date.now();
+    await E.runHand(game, discarders(), { emit() {} });
+    const file = E.makePlayback(game, { seat: 0 });
+    const rec = E.checkPlayback(file).record;
+    assert.ok(rec.endedAt >= before && rec.endedAt <= Date.now());
+    const changed = JSON.parse(JSON.stringify(file));
+    changed.payload.endedAt = 1;
+    assert.equal(E.checkPlayback(changed).ok, false, 'the time can\'t be changed');
+  });
+
   it('says when a playback was saved, for people', () => {
     const now = new Date(2026, 10, 7, 15, 0).getTime();
     assert.equal(E.playbackWhen(new Date(2026, 10, 7, 14, 30).getTime(), now), 'Today, 2:30 PM');
