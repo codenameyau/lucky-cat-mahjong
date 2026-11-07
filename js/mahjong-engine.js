@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.45.0';
+  var GAME_VERSION = '0.46.2';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -1449,6 +1449,16 @@
 
   // The dealt hand after the first `step` actions (every action, when
   // step is left out). The same object the table draws.
+  // Whether the hand in a playback was played to its end (a win or a draw).
+  // Only then may the table show every hand, or the file be saved: an
+  // unfinished hand's file holds the other players' tiles.
+  function playbackFinished(rec) {
+    if (!rec || !Array.isArray(rec.actions)) return false;
+    var limit = typeof rec.moves === 'number' && rec.moves >= 0 ? Math.min(rec.actions.length, rec.moves) : rec.actions.length;
+    var last = limit ? rec.actions[limit - 1] : null;
+    return !!last && (last.a === 'win' || last.a === 'drawGame');
+  }
+
   function playbackGame(rec, step) {
     if (!rec || !Array.isArray(rec.actions) || !Array.isArray(rec.players)) return null;
     var game = createGame({
@@ -1547,6 +1557,7 @@
     parsePlayback: parsePlayback,
     playbackLines: playbackLines,
     playbackGame: playbackGame,
+    playbackFinished: playbackFinished,
     applyPlaybackAction: applyPlaybackAction,
     GAME_VERSION: GAME_VERSION,
     SAVE_APP: SAVE_APP,

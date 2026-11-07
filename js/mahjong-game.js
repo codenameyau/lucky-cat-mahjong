@@ -22,9 +22,27 @@
   // The one saved game on this device, signed (HMAC-SHA256). Each turn writes
   // it; Resume game reads it. Quit leaves it.
   var AUTOSAVE_KEY = 'lcm-play-autosave';
-  // The signed playback the wind badge and View playback save. The playback
+  // The signed playback View playback and a finished hand save. The playback
   // page opens it on its own.
   var REPLAY_KEY = 'lcm-play-replay';
+  // The playback of a hand still being played. Its file holds the whole deal,
+  // so it is never written to storage: it lives here, for the playback view
+  // on this page, and goes when the page does.
+  var liveReplay = null;
+  // A file an older version stored for a hand not yet finished is dropped.
+  function dropUnfinishedStored() {
+    var stored = readJson(REPLAY_KEY, null);
+    if (stored && stored.payload && !E.playbackFinished(stored.payload)) removeJson(REPLAY_KEY);
+  }
+  function keepReplay(file) {
+    if (!file) return;
+    if (E.playbackFinished(file.payload || file)) {
+      liveReplay = null;
+      writeJson(REPLAY_KEY, file);
+    } else {
+      liveReplay = file;
+    }
+  }
   // Each strategy's hints for the game in progress: { v: 1, lists: { id: [note, ...] } }.
   // A new game overwrites it. Switching the coach only picks which list shows.
   var HINTS_KEY = 'lcm-play-hints';
@@ -617,6 +635,8 @@
   // play on from.
   function createTable(canvas, liveRegion, settings, callbacks, saved) {
     var ctx = canvas.getContext('2d');
+    if (!settings.playback) liveReplay = null; // a new game starts without the last one's unfinished playback
+    dropUnfinishedStored();
     var prefs = readJson(PREFS_KEY, { sound: true });
     // ?sound=0 and ?sound=1 cover this visit only, so a test can stay quiet
     // without changing the saved Sound button choice. No sound param keeps it.
@@ -1355,12 +1375,13 @@
         light: isHover ? '#ffffff' : 'rgba(255, 248, 240, 0.94)',
         white: isHover ? '#ece6de' : '#ffffff',
         ghost: isHover ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)',
+        off: 'rgba(255,255,255,0.05)',
       };
       ctx.save();
       ctx.shadowColor = 'rgba(0,0,0,0.25)';
-      ctx.shadowBlur = style === 'ghost' ? 0 : 8;
+      ctx.shadowBlur = style === 'ghost' || style === 'off' ? 0 : 8;
       ctx.shadowOffsetY = 2;
-      pill(x, y, w, h, fills[style], style === 'ghost' ? 'rgba(255,255,255,0.3)' : null);
+      pill(x, y, w, h, fills[style], style === 'ghost' ? 'rgba(255,255,255,0.3)' : style === 'off' ? 'rgba(255,255,255,0.12)' : null);
       ctx.restore();
       if (picked) {
         // The coach's recommended move keeps its own color and gets a gold ring.
@@ -1373,7 +1394,7 @@
       // font (which has only one weight) reads lighter on a button. White text
       // stays pure white.
       var dark = style === 'light' || style === 'white' || style === 'gold';
-      var color = dark ? '#3a3a3a' : COLORS.white;
+      var color = dark ? '#3a3a3a' : style === 'off' ? 'rgba(255,255,255,0.35)' : COLORS.white;
       // Buttons use the game's own font, the one on its titles.
       var size = fitFont(ctx, label, w - 16, Math.min(15, h * 0.39), FONT_HEAD);
       text(label, x + w / 2, y + h / 2 + 1, { size: size, family: FONT_HEAD, color: color, align: 'center' });
@@ -2328,6 +2349,13 @@
       });
     }
 
+    // The menu offers View playback for a hand with moves on the table, or one
+    // put back after a refresh whose playback is stored.
+    function menuHasPlayback() {
+      if (settings.lesson || settings.playback || !game || !game.hand) return false;
+      return !!currentReplay() || !!(restoredHand && game.hand === restoredHand && storedReplay());
+    }
+
     function storedReplay() {
       var stored = readJson(REPLAY_KEY, null);
       var check = stored && E.checkPlayback(stored);
@@ -2340,8 +2368,8 @@
     function viewReplay() {
       var file = currentReplay();
       if (file) {
-        writeJson(REPLAY_KEY, file);
-        if (!readJson(REPLAY_KEY, null)) return;
+        keepReplay(file);
+        if (!liveReplay && !readJson(REPLAY_KEY, null)) return;
       } else if (!storedReplay()) return;
       track('play_view_replay', {});
       if (callbacks.playback) { callbacks.playback(); return; }
@@ -2377,7 +2405,7 @@
       if (!game || !game.over || settings.playback) return;
       noteFinishedWin();
       var file = currentReplay();
-      if (file) writeJson(REPLAY_KEY, file);
+      if (file) keepReplay(file);
     }
 
     // The dealt hand, played to its last move. The save itself keeps no tiles.
@@ -2482,12 +2510,14 @@
           var dlW = phoneBar ? 34 : 92;
           var dlX = vpX - 6 - dlW;
           button(phoneBar ? '' : 'Upload', vpX, 7, vpW, 28, uploadReplay, 'ghost', 'review-open');
-          button(phoneBar ? '' : 'Download', dlX, 7, dlW, 28, downloadReplay, 'ghost', 'review-download');
+          var canSave = reviewFinished();
+          button(phoneBar ? '' : 'Download', dlX, 7, dlW, 28, downloadReplay, canSave ? 'ghost' : 'off', 'review-download');
           if (phoneBar) {
             // Small icons drawn here so they need no font: an arrow down onto a
             // tray (download) and an arrow up out of one (open a file).
             ctx.save();
             ctx.strokeStyle = COLORS.white;
+            ctx.globalAlpha = canSave ? 1 : 0.3;
             ctx.lineWidth = 2;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
@@ -2497,6 +2527,7 @@
             ctx.moveTo(ax - 4.5, ay - 1.5); ctx.lineTo(ax, ay + 3); ctx.lineTo(ax + 4.5, ay - 1.5);
             ctx.moveTo(ax - 6, ay + 7); ctx.lineTo(ax + 6, ay + 7);
             ctx.stroke();
+            ctx.globalAlpha = 1;
             var bx2 = vpX + vpW / 2;
             ctx.beginPath();
             ctx.moveTo(bx2, ay + 3); ctx.lineTo(bx2, ay - 8);
@@ -3567,10 +3598,9 @@
       return navigator.clipboard.writeText(text).catch(fallback);
     }
 
-    // Tapping your wind badge copies the signed playback. Its hand seed is
-    // payload.handSeed. The playback page also keeps that file, and opens it
-    // on its own. No message. The badge flashes on the click.
-    // The playback JSON the badge could not copy at the press itself. Some browsers
+    // Tapping your wind badge copies the hand seed (payload.handSeed, such as
+    // 919942249-NE), and nothing else. No message. The badge flashes on the click.
+    // The seed the badge could not copy at the press itself. Some browsers
     // (Safari) only allow the clipboard from a click, which comes just after the
     // press the table reacts to, so it is tried again there.
     var pendingCopy = null;
@@ -3584,19 +3614,16 @@
 
     function copySeed() {
       if (!game || !game.hand) return;
-      var fresh, file;
+      var file;
       try {
-        fresh = currentReplay(); // this hand as it stands now
-        file = fresh || storedReplay();
+        file = currentReplay() || storedReplay(); // this hand as it stands now
       } catch (err) { return; }
       if (!file || !file.payload || !file.payload.handSeed) return;
-      // Saved first, so the playback page has it whether or not the copy works.
-      if (fresh) writeJson(REPLAY_KEY, file);
       track('play_copy_seed', {});
       animate(520, function (e) { ui.windFlash = 1 - e; });
-      var json = JSON.stringify(file);
-      pendingCopy = json;
-      copyText(json).then(function () { pendingCopy = null; }, function () { /* tried again on the click */ });
+      var seed = String(file.payload.handSeed);
+      pendingCopy = seed;
+      copyText(seed).then(function () { pendingCopy = null; }, function () { /* tried again on the click */ });
     }
 
     // Older notes start at the top and later ones follow downward.
@@ -4434,7 +4461,9 @@
     // The pause menu, in the look of the Results window: the deep green sheet
     // with a gold edge, a gold title at the left and a Close button at the right.
     function drawMenu() {
-      var r = panelRect(360, 308);
+      // View playback sits under Resume once the hand has a move to look at.
+      var withPlayback = menuHasPlayback();
+      var r = panelRect(360, withPlayback ? 360 : 308);
       ui.overlayBox = r;
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(0, 0, W, H);
@@ -4443,12 +4472,13 @@
       text('Menu', px, r.y + 36, { size: 28, family: FONT_HEAD, align: 'left', color: COLORS.goldLight });
       button('Close', r.x + r.w - 22 - 64, r.y + 22, 64, 28, function () { sound.play('select'); closeOverlay(); }, 'ghost', 'm-close');
       // On a short screen (a phone held sideways) the buttons close up to fit.
-      var rows = 3;
+      var rows = withPlayback ? 4 : 3;
       var room = r.h - 70 - 64;
       var step = Math.max(34, Math.min(52, room / rows));
       var bh = Math.min(42, step - 6);
       var bx = px, bw = r.w - 44, y = r.y + 70;
       button('Resume', bx, y, bw, bh, function () { sound.play('select'); closeOverlay(); }, 'primary', 'm-resume'); y += step;
+      if (withPlayback) { button('View playback', bx, y, bw, bh, function () { sound.play('select'); closeOverlay(); viewReplay(); }, 'white', 'm-playback'); y += step; }
       var armed = ui.restartArmed && now() - ui.restartArmed < 5000;
       button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, bh, function () { sound.play('select'); restartGame(); }, armed ? 'gold' : 'white', 'm-restart'); y += step;
       button('Quit game', bx, y, bw, bh, function () { sound.play('select'); quit(); }, 'white', 'm-quit');
@@ -5813,7 +5843,19 @@
     // Saves the playback on screen as a JSON file named with the time, such as
     // lucky-cat-mahjong-playback-2026-11-05-1430.json. It is the same signed
     // file the page opens from Upload or a paste.
+    // Whether the playback on screen is of a finished hand. Only then are the
+    // other players' tiles face up and the file saveable; an unfinished hand
+    // plays back like the game, with their tiles concealed.
+    var finishedFor = null, finishedValue = false;
+    function reviewFinished() {
+      var rec = settings.review;
+      if (!rec) return false;
+      if (finishedFor !== rec) { finishedFor = rec; finishedValue = E.playbackFinished(rec); }
+      return finishedValue;
+    }
+
     function downloadReplay() {
+      if (!reviewFinished()) { announce('Download opens once the hand is finished.'); return; }
       var file = readJson(REPLAY_KEY, null);
       if (!file || !file.payload) return;
       sound.play('select'); // the click
@@ -5892,7 +5934,7 @@
       var rec = checked.record;
       try {
         var file = typeof text === 'string' ? JSON.parse(text) : text;
-        if (file && file.payload) writeJson(REPLAY_KEY, file);
+        if (file && file.payload) keepReplay(file);
       } catch (e) {}
       try { E.playbackGame(rec, 0); }
       catch (err) {
@@ -6048,8 +6090,10 @@
         }
       });
       // The table read: every hand face up, so it can say what you could not see.
+      // Only for a finished hand: on one still being played it would give away
+      // the other players' tiles, so just the coach's notes (what your seat saw) show.
       var table = [];
-      if (Analysis) {
+      if (Analysis && reviewFinished()) {
         try {
           if (!reviewAnalyst) reviewAnalyst = Analysis.createAnalyst(settings.review);
           if (reviewAnalyst.run(target, 10)) more = true;
@@ -6761,7 +6805,7 @@
       var seats = [null, null, null, null];
       settings.review.players.forEach(function (p, i) { if (p.strategy) seats[i] = p.strategy; });
       ui.strategies = { seats: seats, coach: ui.strategies.coach };
-      ui.revealHands = true;
+      ui.revealHands = reviewFinished();
       ui.coach = 'on';
       ui.turnPrompt = null;
       ui.claimPrompt = null;
@@ -6854,7 +6898,7 @@
         if (destroyed) return;
         spriteCache = {};
         if (!settings.review) {
-          var stored = readJson(REPLAY_KEY, null);
+          var stored = liveReplay || readJson(REPLAY_KEY, null);
           var check = stored ? E.checkPlayback(stored) : null;
           if (check && check.ok) {
             settings.review = check.record;
@@ -6976,7 +7020,7 @@
         pendingSummary = keptSummary({ result: res, extra: extra });
         if (!settings.lesson) { // a refresh puts this hand back for Show hands
           var finished = currentReplay();
-          if (finished) writeJson(REPLAY_KEY, finished);
+          if (finished) keepReplay(finished);
         }
         autosave(true); // a refresh returns to these results until Next hand
         await showOverlay({ type: 'summary', result: res, extra: extra });
