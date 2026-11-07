@@ -573,6 +573,20 @@ test('the game over window shows the longest winning streak and the times you st
   assert.equal(old.stats.dealIns, 1, 'the old count carries on');
 });
 
+test('auto-play plays none of the tile sounds; hand results, the click and music are kept', () => {
+  // Every cue is decided: a tile cue (silent in auto-play) or one of the kept ones. A new cue must be sorted.
+  const start = GAME_SRC.indexOf('var CUES = {');
+  const block = GAME_SRC.slice(start + 'var CUES = '.length, GAME_SRC.indexOf('\n  };', start) + 4);
+  const cues = Object.keys(new Function('return (' + block + ')')());
+  const tile = Object.keys(new Function('return (' + /var TILE_CUES = (\{[^}]*\});/.exec(GAME_SRC)[1] + ')')());
+  assert.deepEqual(tile.sort(), ['back', 'chow', 'discard', 'draw', 'flip', 'flower', 'forward', 'kong', 'pung', 'turn']);
+  assert.deepEqual(cues.filter((c) => !tile.includes(c)).sort(), ['drawgame', 'lose', 'next', 'otherwin', 'select', 'win'], 'the hand results, the next hand and the generic click stay audible');
+  assert.ok(tile.every((c) => cues.includes(c)), 'every tile cue exists');
+  // The sound player skips a cue the table calls quiet, and the table says so only while auto-play runs.
+  assert.match(GAME_SRC, /if \(api\.isQuiet && api\.isQuiet\(name\)\) return;/);
+  assert.match(GAME_SRC, /sound\.isQuiet = function \(name\) \{ return autoPlay && TILE_CUES\[name\] === 1; \};/);
+});
+
 test('auto-play skips every animation: the flights and pauses, and the declaration banners and win confetti', () => {
   assert.match(GAME_SRC, /function instantMode\(\) \{ return settings\.speed === 'off' \|\| ui\.replaying \|\| autoPlay; \}/);
   // No callouts and no confetti while it runs.

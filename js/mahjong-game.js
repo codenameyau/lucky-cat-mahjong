@@ -413,6 +413,12 @@
     next: { clips: ['impact-pung'], gain: 1 },
   };
 
+  // The cues for tiles being placed or acted on: draws, discards, a flower, the
+  // claims, the knock for your turn, and the reveal. Auto-play (the wind badge,
+  // on development addresses) plays none of them. The hand-result sounds (win,
+  // lose, the wall running out, next hand), the generic click and the music stay.
+  var TILE_CUES = { draw: 1, back: 1, forward: 1, discard: 1, flower: 1, chow: 1, pung: 1, kong: 1, turn: 1, flip: 1 };
+
   // Background music: CC BY 4.0 tracks by Kevin MacLeod (incompetech.com),
   // re-encoded to 96 kbps AAC in /assets/music/. The credit is on the play
   // page and in /assets/music/README.md.
@@ -584,8 +590,11 @@
       music.at = music.order.length; // the next start reshuffles
     };
 
+    // isQuiet(name): the table's say-so that a cue should not play right now.
+    api.isQuiet = null;
     api.play = function (name) {
       var cue = CUES[name];
+      if (api.isQuiet && api.isQuiet(name)) return;
       var a = cue && ctx();
       if (!a) return;
       var t = a.currentTime + 0.005;
@@ -683,6 +692,8 @@
     var soundParam = /[?&]sound=(0|1)(?:&|$)/.exec((root.location && root.location.search) || '');
     var soundOn = soundParam ? soundParam[1] === '1' : prefs.sound !== false;
     var sound = createSound(soundOn);
+    // Silent for the tile cues while auto-play runs (it follows the live state, so it can't stick on).
+    sound.isQuiet = function (name) { return autoPlay && TILE_CUES[name] === 1; };
     sound.musicEnabled = sound.enabled;
     var reduceMotion = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
