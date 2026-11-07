@@ -369,6 +369,9 @@ describe('playback seed', () => {
     const first = rec.actions.find((a) => a.a === 'discard');
     assert.match(lines[rec.actions.indexOf(first)], new RegExp(E.tileName(first.t)));
     assert.match(lines[rec.actions.indexOf(first)], new RegExp(rec.players[first.s].name));
+    // In the past tense: "You discarded Four Circle." or "Katie discarded ...".
+    assert.equal(lines[rec.actions.indexOf(first)], rec.players[first.s].name + ' discarded ' + E.tileName(first.t) + '.');
+    lines.forEach((l) => assert.doesNotMatch(l, / (discards|draws|wins|sets aside|chows|pungs|kongs|adds|declares) /));
     assert.equal(E.parsePlayback('nope'), null);
     assert.equal(E.parsePlayback(E.handSeedText(game, 0)), null);
   });
@@ -392,10 +395,126 @@ describe('playback seed', () => {
     const midway = Math.max(flowerAt + 1, 2);
     if (midway <= firstDiscard) assert.equal(E.playbackCaption(rec, 0, midway), 'Replacing flowers.');
     // The first move, up to and including its discard, names the discard.
-    assert.match(E.playbackCaption(rec, 0, firstDiscard + 1), /discards/);
+    assert.match(E.playbackCaption(rec, 0, firstDiscard + 1), / discarded /);
     // A deal with no flowers before its first discard still reads as the deal.
     const plain = { actions: [{ a: 'draw', s: 0, t: 'c1' }, { a: 'draw', s: 1, t: 'c2' }, { a: 'discard', s: 0, t: 'c1' }], players: rec.players };
     assert.equal(E.playbackCaption(plain, 0, 2), 'The deal.');
+  });
+
+  it('names a playback\'s winner and winning hand, scored the same as the game scored it', async () => {
+    require('./mahjong-bot.js'); require('./mahjong-lucky-cat.js'); require('./mahjong-jorge-yau.js');
+    const S = require('./mahjong-strategies.js');
+    let wins = 0;
+    for (let seed = 1; seed <= 12; seed++) {
+      const game = E.createGame({ seed, humanSeat: false, dealer: seed % 4 });
+      await E.runHand(game, [0, 1, 2, 3].map(() => S.createAgent('jorge-yau')), { emit() {} });
+      const r = game.hand.result;
+      const rec = E.checkPlayback(E.makePlayback(game, { seat: 0 })).record;
+      const sum = E.playbackSummary(rec);
+      assert.match(sum.hand, /^Hand \d+ · (East|South|West|North) round$/);
+      assert.match(sum.number, /^Hand \d+$/, 'the short form, for a row');
+      assert.equal(sum.hand, sum.number + sum.hand.slice(sum.number.length), 'the full form starts with it');
+      if (r.type !== 'win') {
+        assert.equal(E.playbackWinner(rec), null);
+        assert.equal(sum.result, 'No winner: the wall ran out');
+        continue;
+      }
+      wins++;
+      const w = E.playbackWinner(rec);
+      assert.equal(w.seat, r.winner, 'seed ' + seed);
+      assert.equal(w.faan, r.score.faan, 'seed ' + seed);
+      // Only the most important pattern: the one worth the most faan, not how it was won or the flowers.
+      assert.doesNotMatch(w.hand, / \+ /, 'one pattern only');
+      assert.doesNotMatch(w.hand, /Self-Draw|No Flowers|Seat Flower|Concealed$/);
+      const real = r.score.items.filter((it) => !['Self-Draw', 'Concealed', 'Win on Last Tile', 'Robbing the Kong', 'Win by Kong', 'Win by Double Kong', 'Heavenly Hand', 'Earthly Hand', 'No Flowers', 'Seat Flower', 'Seat Season', 'Four Flowers', 'Four Seasons', 'Seven Robbing One', 'Eight Immortals Crossing the Sea'].includes(it.name));
+      const best = Math.max(...(real.length ? real : r.score.items).map((it) => it.faan || 0));
+      assert.ok((real.length ? real : r.score.items).some((it) => it.name === w.hand && (it.faan || 0) === best), 'the highest-faan pattern: ' + w.hand);
+      assert.equal(w.patterns[0], w.hand);
+      assert.equal(sum.result.indexOf(w.name + ' won with ' + w.hand + ' · ' + w.faan + ' faan'), 0, sum.result);
+    }
+    assert.ok(wins >= 5, wins + ' wins');
+    const game = E.createGame({ seed: 1, humanSeat: false, dealer: 0 });
+    await E.runHand(game, discarders(), { emit() {} });
+    const rec = E.checkPlayback(E.makePlayback(game, { seat: 0 })).record;
+    assert.equal(E.playbackSummary(Object.assign({}, rec, { actions: rec.actions.slice(0, 3), moves: 3 })).result, 'Still being played');
+  });
+
+  it('a finished hand\'s playback says when it ended, signed with the rest', async () => {
+    const game = E.createGame({ seed: 1, humanSeat: false, dealer: 0 });
+    const before = Date.now();
+    await E.runHand(game, discarders(), { emit() {} });
+    const file = E.makePlayback(game, { seat: 0 });
+    const rec = E.checkPlayback(file).record;
+    assert.ok(rec.endedAt >= before && rec.endedAt <= Date.now());
+    const changed = JSON.parse(JSON.stringify(file));
+    changed.payload.endedAt = 1;
+    assert.equal(E.checkPlayback(changed).ok, false, 'the time can\'t be changed');
+  });
+
+  it('rebuilds a playback\'s result exactly as the game settled it (all but the payments)', async () => {
+    require('./mahjong-bot.js'); require('./mahjong-lucky-cat.js'); require('./mahjong-jorge-yau.js');
+    const S = require('./mahjong-strategies.js');
+    let wins = 0, draws = 0;
+    for (let seed = 1; seed <= 24; seed++) {
+      const game = E.createGame({ seed, humanSeat: false, dealer: seed % 4 });
+      await E.runHand(game, [0, 1, 2, 3].map((_, i) => S.createAgent(i % 2 ? 'lucky-cat' : 'jorge-yau')), { emit() {} });
+      const r = game.hand.result;
+      const p = E.playbackResult(E.checkPlayback(E.makePlayback(game, { seat: 0 })).record);
+      if (r.type === 'draw') { draws++; assert.equal(p.type, 'draw'); continue; }
+      wins++;
+      ['winner', 'payer', 'how', 'tile', 'concealed', 'melds', 'flowers', 'seatWind', 'round'].forEach((k) => {
+        assert.deepEqual(p[k], r[k], 'seed ' + seed + ': ' + k);
+      });
+      assert.deepEqual(p.score.items, r.score.items, 'seed ' + seed + ': the same patterns, Win on Last Tile included');
+      assert.equal(p.score.faan, r.score.faan);
+    }
+    assert.ok(wins >= 10, wins + ' wins');
+    const unfinished = E.checkPlayback(E.makePlayback((() => { const g = E.createGame({ seed: 1, humanSeat: false, dealer: 0 }); return g; })(), { seat: 0 }) || 'x');
+    assert.equal(unfinished.ok ? E.playbackResult(unfinished.record) : null, null);
+  });
+
+  it('says why a playback file failed its check: not a playback, a version it can\'t load, a signature that doesn\'t match, or damaged contents', async () => {
+    const game = E.createGame({ seed: 1, humanSeat: false, dealer: 0 });
+    await E.runHand(game, discarders(), { emit() {} });
+    const file = E.makePlayback(game, { seat: 0 });
+    assert.equal(E.checkPlayback(file).ok, true);
+    assert.equal(E.checkPlayback(file).code, null);
+    const copy = () => JSON.parse(JSON.stringify(file));
+    const edited = copy();
+    edited.payload.handNumber = 99; // changed after it was signed
+    assert.deepEqual([E.checkPlayback(edited).ok, E.checkPlayback(edited).code], [false, 'signature']);
+    const badSignature = copy();
+    badSignature.signature = 'f'.repeat(64);
+    assert.equal(E.checkPlayback(badSignature).code, 'signature');
+    const noSignature = copy();
+    delete noSignature.signature;
+    assert.equal(E.checkPlayback(noSignature).code, 'signature');
+    const newer = copy();
+    newer.version = '99.0.0';
+    assert.equal(E.checkPlayback(newer).code, 'version');
+    // A version failure says which way it is wrong, and names both versions.
+    const c = E.checkPlayback(newer);
+    assert.deepEqual([c.versionKind, c.fileVersion, c.gameVersion], ['newer', '99.0.0', E.GAME_VERSION]);
+    const unversioned = copy();
+    delete unversioned.version;
+    const u = E.checkPlayback(unversioned);
+    assert.deepEqual([u.code, u.versionKind, u.fileVersion], ['version', 'missing', null]);
+    assert.equal(E.saveCompatibility('0.0.1').ok, true, 'any minor or patch of the same major loads');
+    assert.equal(E.saveCompatibility('99.0.0').kind, 'newer');
+    assert.equal(E.checkPlayback('not json at all').code, 'notFile');
+    assert.equal(E.checkPlayback({ hello: 'world' }).code, 'notFile');
+    const broken = copy();
+    broken.payload.players = [];
+    assert.equal(E.checkPlayback(broken).code, 'damaged');
+  });
+
+  it('says when a playback was saved, for people', () => {
+    const now = new Date(2026, 10, 7, 15, 0).getTime();
+    assert.equal(E.playbackWhen(new Date(2026, 10, 7, 14, 30).getTime(), now), 'Today, 2:30 PM');
+    assert.equal(E.playbackWhen(new Date(2026, 10, 6, 9, 5).getTime(), now), 'Yesterday, 9:05 AM');
+    assert.equal(E.playbackWhen(new Date(2026, 10, 5, 14, 30).getTime(), now), 'Thu, Nov 5, 2:30 PM');
+    assert.equal(E.playbackWhen(new Date(2025, 11, 31, 8, 0).getTime(), now), 'Wed, Dec 31, 2025, 8:00 AM');
+    assert.equal(E.playbackWhen(null, now), 'Earlier');
   });
 
   it('rebuilds that log when a saved hand is played back to the same moment', async () => {

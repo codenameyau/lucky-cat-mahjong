@@ -528,6 +528,157 @@ html.is-playing.is-sideways body {
   .rules-sheet-inner { padding: 16px 22px 18px; }
 }
 
+/* View playback sheet: recent hands and the upload, each a row with Play and Download. */
+.playbacks-sheet { width: min(680px, calc(100vw - 32px)); }
+
+.playbacks-heading {
+  margin: 14px 0 6px;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #EE6A80;
+}
+
+.playbacks-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.playbacks-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 3px solid #C41E3A;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.26);
+}
+
+.playbacks-row.is-showing { border-top-color: #F4A020; }
+
+.playbacks-text { flex: 1; min-width: 0; }
+
+.playbacks-name {
+  font-weight: bold;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  color: #FFF8F0;
+}
+
+.playbacks-when {
+  font-size: 0.78rem;
+  color: rgba(255, 248, 240, 0.75);
+}
+
+.playbacks-empty {
+  padding: 8px 10px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.18);
+  font-size: 0.85rem;
+  color: rgba(255, 248, 240, 0.75);
+}
+
+.playbacks-btn,
+.playbacks-upload {
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font: inherit;
+  font-family: "KN Yuanmo SC", var(--font-body);
+  font-size: 0.85rem;
+  cursor: pointer;
+  flex: none;
+}
+
+.playbacks-play {
+  border-color: #ffd27a;
+  background: #F4A020;
+  color: #1A1A1A;
+}
+
+.playbacks-btn:hover:not(:disabled),
+.playbacks-upload:hover { background: rgba(255, 255, 255, 0.22); }
+.playbacks-play:hover:not(:disabled) { background: #ffd27a; }
+
+/* The playback on screen: its Play button is the same size as the others, with a white
+   border round the outside of it (a ring, so it takes no room from the button). */
+.playbacks-play.is-showing {
+  box-shadow: 0 0 0 3px #ffffff;
+}
+.playbacks-btn:disabled { opacity: 0.4; cursor: default; }
+
+.playbacks-upload {
+  display: block;
+  margin: 14px auto 0;
+  padding: 8px 22px;
+  border-color: #ffd27a;
+  background: #C41E3A;
+}
+
+.playbacks-upload:hover { background: #d8344f; }
+
+/* Play and Download are rounded-square icon buttons, each with a tooltip. */
+.playbacks-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 9px;
+}
+
+.playbacks-btn[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: #1A1A1A;
+  color: #FFF8F0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+  z-index: 2;
+}
+
+.playbacks-btn[data-tip]:hover::after,
+.playbacks-btn[data-tip]:focus-visible::after,
+.playbacks-btn.is-copied::after { opacity: 1; }
+
+/* Copy hand seed turns green with a check for a moment once it has copied. */
+.playbacks-btn.is-copied { border-color: #7bd88f; background: #1f6b3c; }
+
+/* The last button on a row keeps its tooltip inside the sheet. */
+.playbacks-btn:last-child[data-tip]::after { left: auto; right: 0; transform: none; }
+
+/* A disabled button still shows why on hover. */
+.playbacks-btn:disabled { pointer-events: auto; }
+
+.playbacks-btn svg { display: block; }
+.playbacks-play svg { margin-left: 2px; } /* the triangle looks centered */
+
+/* The popup for a playback that could not be uploaded. */
+.upload-error-sheet { width: min(480px, calc(100vw - 32px)); }
+
+.upload-error-lead {
+  margin: 4px 0 8px;
+  font-size: 1.05rem;
+  font-weight: bold;
+  color: #ffd27a;
+}
+
 /* Strategies sheet: the same look as the rules sheet. */
 .strategies-sheet { width: min(1000px, calc(100vw - 32px)); }
 
