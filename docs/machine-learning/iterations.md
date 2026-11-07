@@ -10,7 +10,7 @@ Every score here is **points a hand**: one player's average points per hand less
 
 | | Neural Cat | Lucky Cat |
 | --- | --- | --- |
-| In the game | **NC2** (league model L19) | **LC25** (lab model LL7b) |
+| In the game | **NC2** (league model L19) | **LC26** (lab model LL9b) |
 | What it is | A network that scores Jorge Yau's best choices in expected points | A network that makes every move itself, with no rules underneath |
 | What it plays for | Points: often and big wins on one scale | Wins: as many and as fast as it can |
 | Trained on | 950,000 league hands (stopped in round 19, at a plateau), and earlier rounds against the rule bots | 1,000,000 hands against its earlier selves and Neural Cat |
@@ -377,6 +377,13 @@ Against Neural Cat, over 1,000 deals each round:
 - **What it does differently.** Against lc24 directly over 20,000 new deals it wins 22.7% of hands to 20.8%, in about the same 16.2 discards a win, and deals in a little less (16.1% against 16.5%). Against lc20 over 10,000 deals it wins 24.7% to 17.3%. Against Neural Cat NC2 it wins 24.4% of hands, Neural Cat's lowest yet at 8.9%, and loses 89 points a hand to it (lc24: 98).
 - **Reading.** `sharp` has now won two of the three rounds it was tried: targets with less smoothing make the network commit to the move that won, and the gain held up against lc24 directly, not only against LL6c. Two rounds of fine-tuning in a row gained more than either alone, so a marginal champion is still a good place to train from, even if it isn't one to ship.
 - **Result.** J +1.3 ± 0.40 against LL6c, and +1.8 ± 0.40 against lc24: shipped as **lc25**.
+
+### LC26 (lab model LL9b): the same two-step again
+
+- **Thinking.** Round 8 played 50,000 hands with lc25 and tried `long` (now 8 rounds of data), `finetune` and `finetune-fast`, all about level on 6,000 deals (J +0.1 to +0.2). `long` (LL8a) beat lc25 by +0.8 ± 0.41 on 20,000 deals, but it was the better of the two picked for that test, and on a second 20,000 deals it was only +0.3: kept by the lab, not shipped. Round 9 played 50,000 hands with LL8a against LL5b, LL6c, LL7b, Neural Cat NC2 and Jorge Yau, then tried `recent`, `sharp` and `finetune-slow` (J +0.6 to +0.8 on 6,000 deals, +0.5 and +0.7 on 20,000 for the top two).
+- **What it does differently.** Against lc25 directly over 20,000 new deals it wins 22.9% of hands to 21.6%, in 16.0 discards a win, deals in a little less (16.5% to 16.9%), and wins slightly bigger (5.03 faan to 4.96). Against lc20 over 10,000 deals it wins 25.5% to 17.0%. Against Neural Cat NC2 it wins 25.3% of hands, holds Neural Cat to 8.5%, and loses 83 points a hand to it (lc25: 89).
+- **Reading.** The pattern from lc25 repeats: a round whose gain is too small to ship, then a `sharp` round on top of it, and together they clear the bar. Single rounds now gain under a point of win rate, so the lab can't tell a round's winner from noise on 6,000 deals (± 0.74); it takes the 20,000-deal tests and a check against the shipped release. `sharp` has won three of the four rounds it was tried.
+- **Result.** J +0.7 ± 0.41 against LL8a, and +1.2 ± 0.41 against lc25 on a separate 20,000 deals: shipped as **lc26**.
 
 ## Only Orphans
 
