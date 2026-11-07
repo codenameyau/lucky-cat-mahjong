@@ -208,7 +208,6 @@
     'review-prev': 'play_playback_prev_click',
     'review-next': 'play_playback_next_click',
     'review-back': 'play_playback_back_click',
-    'review-download': 'play_playback_download_click',
     'review-list': 'play_playback_list_click',
     'review-list-center': 'play_playback_list_click',
   };
@@ -2552,46 +2551,23 @@
         button('Back', pad, 7, backW, 28, function () { sound.play('select'); backToGame(); }, 'ghost', 'review-back');
         var gapL = pad + backW + 8;
         var clusterX = soundX; // the left edge of the buttons on the right
-        // View playback (the sheet of recent hands and the upload), Download
-        // (with a hand on screen), then Sound. Words when they leave the title
-        // room, icons when they don't.
-        var LIST_W = 120, DL_W = 92;
-        var hasHand = !!settings.review;
-        var wordsNeed = LIST_W + 6 + (hasHand ? DL_W + 6 : 0);
-        var words = W >= 600 && soundX - 6 - wordsNeed - 8 - gapL >= TITLE_ROOM;
+        // View playback (the sheet of recent hands and the upload: each row
+        // there has its own Download), then Sound. Words when they leave the
+        // title room, an icon when they don't.
+        var LIST_W = 120;
+        var words = W >= 600 && soundX - 6 - LIST_W - 8 - gapL >= TITLE_ROOM;
         var vpW = words ? LIST_W : 34;
         var vpX = soundX - 6 - vpW;
         button(words ? 'View playback' : '', vpX, 7, vpW, 28, openPlaybacks, 'ghost', 'review-list');
         clusterX = vpX;
-        var dlX = vpX, dlW = 0, canSave = false;
-        if (hasHand) {
-          dlW = words ? DL_W : 34;
-          dlX = vpX - 6 - dlW;
-          canSave = reviewFinished();
-          button(words ? 'Download' : '', dlX, 7, dlW, 28, downloadReplay, canSave ? 'ghost' : 'off', 'review-download');
-          clusterX = dlX;
-        }
         if (!words) {
-          // Small icons drawn here so they need no font.
+          // A list, three rows each with a dot (your saved hands), drawn here so it needs no font.
           ctx.save();
           ctx.strokeStyle = COLORS.white;
           ctx.fillStyle = COLORS.white;
           ctx.lineWidth = 2;
           ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
           var ay = 21;
-          if (hasHand) {
-            // Download: an arrow down onto a tray.
-            ctx.globalAlpha = canSave ? 1 : 0.3;
-            var ax = dlX + dlW / 2;
-            ctx.beginPath();
-            ctx.moveTo(ax, ay - 8); ctx.lineTo(ax, ay + 3);
-            ctx.moveTo(ax - 4.5, ay - 1.5); ctx.lineTo(ax, ay + 3); ctx.lineTo(ax + 4.5, ay - 1.5);
-            ctx.moveTo(ax - 6, ay + 7); ctx.lineTo(ax + 6, ay + 7);
-            ctx.stroke();
-            ctx.globalAlpha = 1;
-          }
-          // View playback: a list, three rows each with a dot (your saved hands).
           var lx = vpX + vpW / 2;
           ctx.beginPath();
           [-5, 0, 5].forEach(function (dy) {
@@ -4650,7 +4626,7 @@
     // so leaving the results can't be overwritten by the copy taken while
     // they were up.
     var restoredHand = null; // a finished hand put back after a refresh, only for looking at
-    var shownFile = null; // the playback view's file: what Download saves
+    var shownFile = null; // the playback view's file (its row in the sheet says Showing now)
     var autosaveTimer = null;
     var autosaveGen = 0;
     var pendingSummary = null;
@@ -5901,9 +5877,6 @@
       button('View playback', (W - bw) / 2, by, bw, bh, openPlaybacks, 'gold', 'review-list-center');
     }
 
-    // Saves the playback on screen as a JSON file named with the time, such as
-    // lucky-cat-mahjong-playback-2026-11-05-1430.json. It is the same signed
-    // file the page opens from Upload or a paste.
     // Whether the playback on screen is of a finished hand. Only then are the
     // other players' tiles face up and the file saveable; an unfinished hand
     // plays back like the game, with their tiles concealed.
@@ -5913,14 +5886,6 @@
       if (!rec) return false;
       if (finishedFor !== rec) { finishedFor = rec; finishedValue = E.playbackFinished(rec); }
       return finishedValue;
-    }
-
-    function downloadReplay() {
-      if (!reviewFinished()) { announce('Download opens once the hand is finished.'); return; }
-      var file = shownFile || readJson(REPLAY_KEY, null);
-      if (!file || !file.payload) return;
-      sound.play('select'); // the click
-      saveFile(file, null);
     }
 
     // The file as JSON, named with the time it was saved (or now), such as
