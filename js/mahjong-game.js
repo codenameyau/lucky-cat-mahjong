@@ -2497,22 +2497,32 @@
       if (settings.playback) {
         // The playback bar is Back, the title, Download and Sound. Strategies and
         // Rules aren't here.
-        var phoneBar = W < 600;
+        // The title, "Playback Analysis", always shows, on a phone, a tablet
+        // and a desktop, with or without a hand loaded. Download and Upload
+        // keep their words only when that still leaves the title room;
+        // otherwise they are icons.
+        var TITLE = 'Playback Analysis';
+        var TITLE_ROOM = 150; // the width the title gets before the buttons turn to icons
         var sw = W < 420 ? 66 : 92;
         var right = W - pad;
         var soundX = right - sw;
         button(SOUND_LABELS[soundMode()], soundX, 7, sw, 28, toggleSound, 'ghost', 'sound');
+        // Back always goes to the game, however the playback was opened.
+        var backW = 64;
+        button('Back', pad, 7, backW, 28, function () { sound.play('select'); backToGame(); }, 'ghost', 'review-back');
+        var gapL = pad + backW + 8;
         var clusterX = soundX; // the left edge of the buttons on the right
         if (settings.review) {
           // Download, then Upload (opens a downloaded file), then Sound.
-          var vpW = phoneBar ? 34 : 92;
+          var words = W >= 600 && soundX - 6 - 92 - 6 - 92 - 8 - gapL >= TITLE_ROOM;
+          var vpW = words ? 92 : 34;
           var vpX = soundX - 6 - vpW;
-          var dlW = phoneBar ? 34 : 92;
+          var dlW = words ? 92 : 34;
           var dlX = vpX - 6 - dlW;
-          button(phoneBar ? '' : 'Upload', vpX, 7, vpW, 28, uploadReplay, 'ghost', 'review-open');
+          button(words ? 'Upload' : '', vpX, 7, vpW, 28, uploadReplay, 'ghost', 'review-open');
           var canSave = reviewFinished();
-          button(phoneBar ? '' : 'Download', dlX, 7, dlW, 28, downloadReplay, canSave ? 'ghost' : 'off', 'review-download');
-          if (phoneBar) {
+          button(words ? 'Download' : '', dlX, 7, dlW, 28, downloadReplay, canSave ? 'ghost' : 'off', 'review-download');
+          if (!words) {
             // Small icons drawn here so they need no font: an arrow down onto a
             // tray (download) and an arrow up out of one (open a file).
             ctx.save();
@@ -2537,24 +2547,12 @@
             ctx.restore();
           }
           clusterX = dlX;
-          // Back always goes to the game, however the playback was opened.
-          button('Back', pad, 7, 64, 28, function () { sound.play('select'); backToGame(); }, 'ghost', 'review-back');
-          // The title is "Playback Analysis", on a phone and on desktop.
-          var label = 'Playback Analysis';
-          if (phoneBar) {
-            // In the room between Back and the icons.
-            var gapL = pad + 72, gapR = clusterX - 8;
-            if (gapR - gapL >= 60) {
-              text(label, (gapL + gapR) / 2, 22, { size: fitFont(ctx, label, gapR - gapL, 14, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.cream });
-            }
-          } else {
-            // Centered on the bar, as wide as fits between the buttons on both sides.
-            var half = Math.min(W / 2 - (pad + 72), clusterX - 10 - W / 2);
-            if (half >= 45) {
-              text(label, W / 2, 22, { size: fitFont(ctx, label, half * 2, 15, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.cream });
-            }
-          }
         }
+        // Always centered between Back and the buttons on the right.
+        var gapR = clusterX - 8;
+        var titleX = (gapL + gapR) / 2;
+        var titleW = Math.max(1, gapR - gapL - 8);
+        text(TITLE, titleX, 22, { size: fitFont(ctx, TITLE, titleW, 15, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.cream });
         return;
       }
       button('Menu', pad, 7, 64, 28, openMenu, 'ghost', 'menu');
@@ -6902,10 +6900,16 @@
         }
         playbackLooked = true;
         if (settings.review) {
-          // The page opens on the deal and waits: the button says Play, and
-          // nothing moves until it is pressed.
+          // The view opens on the deal and plays by itself; the button says
+          // Pause. A tab opened in the background waits until it is shown.
           reviewStep = 0;
           showReviewStep();
+          if (document.hidden) reviewPausedByHide = true;
+          else {
+            reviewPlaying = true;
+            scheduleReview();
+          }
+          requestRender();
         } else {
           announce(reviewNote || PLAYBACK_EMPTY);
           requestRender();
