@@ -300,7 +300,10 @@ const STRATEGIES = {
     judge: (c, champ, deals, seed, tag) => headToHead(c, champ, deals, seed, base(c) + '-' + tag),
     ship(file) {
       ship(path.join(ROOT, file));
-      return require(path.join(ROOT, 'js', 'mahjong-ml-weights.js')).meta.name;
+      // ship() reads the old weights through require() first, so drop that cached copy.
+      const out = path.join(ROOT, 'js', 'mahjong-ml-weights.js');
+      delete require.cache[require.resolve(out)];
+      return require(out).meta.name;
     },
   },
   'only-orphans': {

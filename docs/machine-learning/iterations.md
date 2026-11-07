@@ -10,7 +10,7 @@ Every score here is **points a hand**: one player's average points per hand less
 
 | | Neural Cat | Lucky Cat |
 | --- | --- | --- |
-| In the game | **NC2** (league model L19) | **LC20** (lc20) |
+| In the game | **NC3** (lab model N2b) | **LC20** (lc20) |
 | What it is | A network that scores Jorge Yau's best choices in expected points | A network that makes every move itself, with no rules underneath |
 | What it plays for | Points: often and big wins on one scale | Wins: as many and as fast as it can |
 | Trained on | 950,000 league hands (stopped in round 19, at a plateau), and earlier rounds against the rule bots | 1,000,000 hands against its earlier selves and Neural Cat |
@@ -291,6 +291,20 @@ NC1 (L17), 20,000 deals against each, every deal played from every seat, two sea
 - **L19 is better than NC1**, so the lab starts from it, shipped as NC2.
 
 The lab's rounds go below as they finish.
+
+### Lab round 1: nothing kept
+
+Starting from NC2 (L19), on 50,000 deals against L14, L16, L17, s5, Jorge Yau, LC20 and Lucky Cat Classic. Five experiments: three re-trainings (fine-tune at 3× the learning rate, fine-tune, a wider 512-256 network from scratch) and two play changes (`winBonus` 0 → 50, `topK` 3 → 5).
+
+- **`topK` 3 → 5 looked best on 6,000 deals** (+39.0 ± 35.6 points a hand: wins fell from 9.1% to 7.2%, but the average win rose from 1,883 to 2,759 points). On 20,000 fresh deals it fell to +12.7 ± 19.5, J +2.6: within the noise, rejected. Choosing among more of Jorge Yau's discards makes bigger, rarer wins, about even overall.
+- **The fast fine-tune** was −11.8 ± 18.2 on 20,000 deals: rejected.
+- **The wider network from scratch** was even (−1.2 ± 33.5 on 6,000 deals): one round of data isn't enough to train a bigger network from nothing.
+
+### Lab round 2 (NC3): a gentler fine-tune
+
+- **Thinking.** Round 1's fine-tunes moved too far, or not usefully. The bandit tried the other end: fine-tune at a third of the learning rate, plus a deeper network (512-256-128) from scratch, recent-data-only, `topK` 3 → 2 and `claimMargin` 0 → 25.
+- **Result.** The slow fine-tune, N2b, beat NC2 by **+8.1 ± 18.3** points a hand on 20,000 fresh deals, winning 9.0% against 8.4% with deal-ins down from 6.0% to 5.7%: **J +11.4**, beyond its standard error. It ships as **NC3**. The deeper network was even (+1.2 ± 17.5); `topK` 2 lost badly on 6,000 deals (−40.9: more, smaller wins); recent-data-only and the claim margin lost too.
+- **What the bot does differently.** It wins a little more often and deals in a little less, with wins about the same size (1,896 against 1,963 points): the same style as NC2, slightly sharper. The gain is in J, mostly from the extra wins; the points alone are within their margin.
 
 ## Changes to the base logic during the league
 
