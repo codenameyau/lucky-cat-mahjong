@@ -144,6 +144,7 @@
     'm-close': 'play_menu_resume_click',
     'm-restart': 'play_menu_restart_click',
     'm-quit': 'play_menu_quit_click',
+    'm-offline': 'play_menu_offline_click',
     'go-again': 'play_again_click',
     'go-quit': 'play_end_quit_click',
     'go-results': 'play_end_results_click',
@@ -4434,7 +4435,9 @@
     // The pause menu, in the look of the Results window: the deep green sheet
     // with a gold edge, a gold title at the left and a Close button at the right.
     function drawMenu() {
-      var r = panelRect(360, 308);
+      var offline = root.MahjongOffline;
+      // Play offline adds a button and a two-line status under it.
+      var r = panelRect(360, offline ? 384 : 308);
       ui.overlayBox = r;
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(0, 0, W, H);
@@ -4442,11 +4445,32 @@
       var px = r.x + 22;
       text('Menu', px, r.y + 36, { size: 28, family: FONT_HEAD, align: 'left', color: COLORS.goldLight });
       button('Close', r.x + r.w - 22 - 64, r.y + 22, 64, 28, function () { sound.play('select'); closeOverlay(); }, 'ghost', 'm-close');
-      var bx = px, bw = r.w - 44, y = r.y + 70, step = 52;
-      button('Resume', bx, y, bw, 42, function () { sound.play('select'); closeOverlay(); }, 'primary', 'm-resume'); y += step;
+      // On a short screen (a phone held sideways) the buttons close up to fit.
+      var rows = offline ? 4 : 3;
+      var room = r.h - 70 - 64 - (offline ? 34 : 0);
+      var step = Math.max(34, Math.min(52, room / rows));
+      var bh = Math.min(42, step - 6);
+      var bx = px, bw = r.w - 44, y = r.y + 70;
+      button('Resume', bx, y, bw, bh, function () { sound.play('select'); closeOverlay(); }, 'primary', 'm-resume'); y += step;
       var armed = ui.restartArmed && now() - ui.restartArmed < 5000;
-      button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, 42, function () { sound.play('select'); restartGame(); }, armed ? 'gold' : 'white', 'm-restart'); y += step;
-      button('Quit game', bx, y, bw, 42, function () { sound.play('select'); quit(); }, 'white', 'm-quit');
+      button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, bh, function () { sound.play('select'); restartGame(); }, armed ? 'gold' : 'white', 'm-restart'); y += step;
+      button('Quit game', bx, y, bw, bh, function () { sound.play('select'); quit(); }, 'white', 'm-quit');
+      if (offline) {
+        y += step;
+        var st = offline.state;
+        button(offline.label(), bx, y, bw, bh, function () {
+          sound.play('select');
+          if (st.status === 'saving') return;
+          offline.enable();
+        }, st.status === 'ready' ? 'gold' : 'white', 'm-offline');
+        ctx.font = '12px ' + FONT_BODY;
+        var tone = st.status === 'ready' ? COLORS.goldLight
+          : st.status === 'error' || st.status === 'unsupported' || st.status === 'partial' ? '#ffb3b3'
+          : 'rgba(255,248,240,0.8)';
+        wrapText(ctx, offline.message(), bw).slice(0, 2).forEach(function (line, i) {
+          text(line, r.x + r.w / 2, y + bh + 12 + i * 15, { size: 12, align: 'center', color: tone });
+        });
+      }
       // Mode and version, with a Beta badge.
       var line = (settings.lesson ? 'Learn to play' : settings.mode === 'practice' ? 'Practice mode' : 'Full game') + ' · v' + E.GAME_VERSION;
       ctx.font = '12px ' + FONT_BODY;
@@ -4790,6 +4814,8 @@
       sound.play('select'); // the click
       if (ui.overlay && ui.overlay.type === 'menu') { closeOverlay(); return; }
       ui.overlay = { type: 'menu', previous: ui.overlay };
+      // Play offline's status: what's saved, and its progress while saving.
+      if (root.MahjongOffline) root.MahjongOffline.check();
       requestRender();
     }
 
@@ -7016,6 +7042,10 @@
       sound.music(!document.hidden);
     };
     document.addEventListener('visibilitychange', onVisibility);
+    // The menu shows Play offline's progress as it saves.
+    var offlineUnsub = root.MahjongOffline ? root.MahjongOffline.subscribe(function () {
+      if (!destroyed && ui.overlay && ui.overlay.type === 'menu') requestRender();
+    }) : null;
     root.addEventListener('keydown', onKey);
     // The sheets belong to the page, and every table (a new game, the playback
     // view) adds its own listeners to them, so destroy() takes them off again:
@@ -7114,6 +7144,7 @@
         if (reviewCoachTimer) { clearTimeout(reviewCoachTimer); reviewCoachTimer = null; }
         sound.stopMusic();
         detachWindow();
+        if (offlineUnsub) offlineUnsub();
         sheetListeners.forEach(function (l) { l[0].removeEventListener(l[1], l[2]); });
         sheetListeners = [];
         canvas.removeEventListener('pointerdown', onPointerDown);
