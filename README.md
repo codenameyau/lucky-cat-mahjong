@@ -138,7 +138,7 @@ The interactive pages work offline after one visit: the Points Guide (`/hong-kon
 - **Full game** — Everyone starts with 2,000 points and plays 4 rounds and 16 dealer rotations, so at least 16 hands. Points can go negative without ending the game, and it closes with the final standings
 - **The deal** — In both modes, a dealer who wins deals again, and anything else, a drawn hand too, passes the deal on
 - **Payouts** always use the **full spicy** table
-- **The in-game menu** has Resume, View playback (once the hand has a move to look at), Restart game (a second tap confirms) and Quit game.
+- **The in-game menu** has Resume, Theme (green, blue or red; see the colour themes below), View playback (once the hand has a move to look at), Restart game (a second tap confirms) and Quit game.
 - **Game over** — The end-of-game window (Game over) is in the Results window's look: the green sheet with a gold edge, a gold title and Close at the top. It lists the four standings, each with the player's avatar (a person for you, a robot for the computer players), their name, the strategy they played (yours is the coach's, shown as *Coach · Neural Cat*) and their points, with yours highlighted, then your game's stats: hands played, your biggest hand, your fastest win (the fewest moves in a hand you won: your own discards plus the winning move, so a win on your 6th turn is *6 moves*; a dash if you won no hand), hands you won, your longest winning streak (the most hands you won in a row; a drawn hand ends it), the times you discarded the winning tile (another player won on your discard) and the times you stayed dealer (you won as dealer and the deal stayed with you). Play again is the large red button on top, with Results and Quit side by side below it. Pressing See results after the last hand (or on the table, after Close) shows only this window; its Results button opens the Results table. Close, or a click outside, steps aside to the table with every hand face up. Closing it makes no sound. On a development address, [auto-play](#auto-play-development-only) plays through to this window quickly
 
 #### Rules and scoring
@@ -173,7 +173,7 @@ Playback replays a hand move by move. It is a view of the game page, `/playing-m
 **Opening one**
 
 - **View playback** is on each hand's summary and in the Menu, and opens the hand being played or just finished.
-- **Saved playbacks**, on the playback bar (a list icon when its words would crowd the bar), opens a sheet of your five most recent finished hands, newest first, and the last playback you uploaded (one at most). With no hand loaded, a Saved playbacks button sits in the center of the table.
+- **Saved playbacks**, on the playback bar (a list icon when its words would crowd the bar), opens a sheet of your three most recent finished hands, newest first, and the last playback you uploaded (one at most). With no hand loaded, a Saved playbacks button sits in the center of the table.
   - Each row says who won with which hand and faan (only the most important pattern, the one worth the most faan, with the hand's total), such as *Katie won with Half Flush · 6 faan*. Below that is the hand number and when the hand finished, as a plain readable time: *Hand 3 · Today, 2:30 PM*. The finish time is inside the signed file; an older file without one shows when it was saved.
   - Three rounded-square icon buttons, each with a tooltip: **Play**, **Copy hand seed** (shows a check and "Copied" for a moment) and **Download**. The playback on screen has a white ring round its Play button.
   - **Upload playback**, at the bottom, closes the sheet and opens a file picker. The file plays and replaces the last upload. Command+V or Ctrl+V pastes a playback too.
@@ -320,6 +320,10 @@ Playing at the table:
 #### Sound and music
 
 The Sound button toggles Sound on (effects and music) and Sound off, and remembers the choice.
+
+Whose turn it is shows on that player's box as a gold tint and a gold outline with a soft glow that slowly pulses, clear enough to find at a glance without pulling the eye from the table. The wind plaque's arrow points the same way.
+
+The table has three colour themes: green (the original), blue and red. The Menu's **Theme** button cycles through them (Theme: Green, Theme: Blue, Theme: Red) and the choice is kept as `theme` in `lcm-play-prefs`. A script in the page head sets `data-theme` on `<html>` before the first paint, so there is no flash of green. The canvas colours (`THEMES` and `applyTheme` in `js/mahjong-game.js`) and the sheets' CSS variables (`--theme-light`, `--theme-dark`, `--theme-deep` in `css/play.css`) change together.
 
 Sound effects are short CC0 clips from Kenney's packs, played with WebAudio (`assets/sounds/`, credits in its README). All are physical table sounds except the flower's soft chime.
 

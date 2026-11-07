@@ -36,6 +36,11 @@
   <script>
     // The table covers the page from the first paint.
     document.documentElement.classList.add('is-playing');
+    // The colour theme (green, blue or red) from the saved game prefs, before the first paint.
+    try {
+      var t = JSON.parse(localStorage.getItem('lcm-play-prefs') || '{}').theme;
+      if (t === 'blue' || t === 'red') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
   </script>
   <script>
     // Google Analytics runs on the live site only. On localhost and private network
@@ -84,7 +89,7 @@
           <h2 id="playbacks-sheet-title">Saved playbacks</h2>
           <button type="button" class="rules-sheet-close" aria-label="Close Saved playbacks">Close</button>
         </header>
-        <p class="rules-sheet-intro">Your five most recent finished hands and your last upload are saved.</p>
+        <p class="rules-sheet-intro">Your three most recent finished hands and your last upload are saved.</p>
         <h3 class="playbacks-heading">Recent hands</h3>
         <ul id="playbacks-recent" class="playbacks-list"></ul>
         <h3 class="playbacks-heading">Uploaded</h3>
