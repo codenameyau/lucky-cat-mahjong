@@ -358,6 +358,16 @@ test('the View playback sheet keeps the three most recent hands, newest first, a
   assert.deepEqual(api.uploadedPlayback(), { savedAt: null, file: file(8, true) });
 });
 
+test('a playback that reaches its last move shows its results, with Watch again and Close', () => {
+  const step = GAME_SRC.slice(GAME_SRC.indexOf('function showReviewStep'), GAME_SRC.indexOf('function stepReview'));
+  assert.match(step, /reviewStep >= reviewMoves\(\) && reviewFinished\(\)/);
+  assert.match(step, /showPlaybackResult\(\)/);
+  assert.match(GAME_SRC, /ui\.overlay = \{ type: 'summary', result: res, hasPlayback: false, playback: true \}/);
+  assert.match(GAME_SRC, /var res = E\.playbackResult\(settings\.review\)/);
+  assert.match(GAME_SRC, /button\('Watch again'/);
+  assert.match(GAME_SRC, /button\('Close', cx/);
+});
+
 test('the playback bar opens the View playback sheet, and its rows play, download and upload', () => {
   const game = fs.readFileSync(path.join(ROOT, 'playing-mahjong/index.html'), 'utf8');
   assert.match(game, /<dialog id="playbacks-sheet"/);

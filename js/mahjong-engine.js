@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.48.2';
+  var GAME_VERSION = '0.49.0';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -1385,32 +1385,69 @@
     'Win by Double Kong', 'Heavenly Hand', 'Earthly Hand', 'No Flowers', 'Seat Flower', 'Seat Season',
     'Four Flowers', 'Four Seasons', 'Seven Robbing One', 'Eight Immortals Crossing the Sea'];
 
+  // A playback's ending as the game settled it: the same shape as runHand's
+  // result ({ type: 'win', winner, payer, tile, how, score, deltas,
+  // concealed, melds, flowers, seatWind, round, handNumber }, or
+  // { type: 'draw', ... }), scored again from the file as the hand stood when
+  // it ended. null when the hand isn't finished. The results card shows it.
+  function playbackResult(rec) {
+    if (!rec || !Array.isArray(rec.actions)) return null;
+    var limit = typeof rec.moves === 'number' && rec.moves >= 0 ? Math.min(rec.actions.length, rec.moves) : rec.actions.length;
+    var ev = limit ? rec.actions[limit - 1] : null;
+    if (!ev || (ev.a !== 'win' && ev.a !== 'drawGame')) return null;
+    var game;
+    try { game = playbackGame(rec, limit - 1); } catch (e) { return null; }
+    if (!game) return null;
+    var handNumber = rec.handNumber || game.handNumber;
+    if (ev.a === 'drawGame') return { type: 'draw', deltas: [0, 0, 0, 0], round: game.round, handNumber: handNumber };
+    var seat = ev.s;
+    var score = null, payer = null, tile = ev.t || null;
+    if (ev.how === 'flowers') {
+      var fw = flowerWinCheck(game, seat);
+      if (fw) { score = fw.score; payer = fw.payer; }
+      tile = null;
+    } else {
+      var self = ev.how === 'selfDraw';
+      // The same flags the game scored it with (Win on Last Tile, Earthly Hand, ...).
+      var flags = self ? selfDrawFlags(game, seat)
+        : ev.how === 'robKong' ? { robKong: true } : discardFlags(game, seat, ev.from);
+      score = scoreWin(game, seat, self ? null : ev.t, flags);
+      payer = self ? null : (ev.from != null ? ev.from : null);
+    }
+    if (!score || !score.valid) return null;
+    var s = game.hand.seats[seat];
+    return {
+      type: 'win',
+      winner: seat,
+      payer: payer,
+      tile: tile,
+      how: ev.how,
+      score: score,
+      deltas: payments(game, seat, payer, score.points),
+      concealed: sortTiles(s.hand.concat(tile && ev.how !== 'selfDraw' && ev.how !== 'flowers' ? [tile] : [])),
+      melds: s.melds.map(function (m) { return { type: m.type, tiles: m.tiles.slice(), concealed: m.concealed }; }),
+      flowers: s.flowers.slice(),
+      seatWind: seatWind(game, seat),
+      round: game.round,
+      handNumber: handNumber,
+    };
+  }
+
   // Who won a playback's hand and with which hand: { seat, name, how, hand,
-  // faan }, or null for a hand with no winner (or not finished). The hand is
-  // scored again from the file, as it stood when the winning tile came.
+  // faan }, or null for a hand with no winner (or not finished).
   function playbackWinner(rec) {
     if (!rec || !Array.isArray(rec.actions)) return null;
     var limit = typeof rec.moves === 'number' && rec.moves >= 0 ? Math.min(rec.actions.length, rec.moves) : rec.actions.length;
     var ev = limit ? rec.actions[limit - 1] : null;
     if (!ev || ev.a !== 'win') return null;
     var out = { seat: ev.s, name: playbackWho(rec, ev.s), how: ev.how, hand: null, faan: null };
-    if (ev.how === 'flowers') {
-      var g0 = playbackGame(rec, limit - 1);
-      var n = g0 ? g0.hand.seats[ev.s].flowers.length : 7;
-      out.hand = n >= 8 ? 'Eight Immortals Crossing the Sea' : 'Seven Robbing One';
-      return out;
+    var res = playbackResult(rec);
+    if (res && res.score) {
+      var items = res.score.items || [];
+      var patterns = items.filter(function (it) { return EXTRAS.indexOf(it.name) === -1; });
+      out.hand = (patterns.length ? patterns : items).map(function (it) { return it.name; }).join(' + ') || null;
+      out.faan = res.score.faan;
     }
-    try {
-      var game = playbackGame(rec, limit - 1);
-      var self = ev.how === 'selfDraw';
-      var flags = self ? selfDrawFlags(game, ev.s) : { robKong: ev.how === 'robKong' };
-      var score = scoreWin(game, ev.s, self ? null : ev.t, flags);
-      if (score && score.valid) {
-        var patterns = (score.items || []).filter(function (it) { return EXTRAS.indexOf(it.name) === -1; });
-        out.hand = (patterns.length ? patterns : score.items || []).map(function (it) { return it.name; }).join(' + ') || null;
-        out.faan = score.faan;
-      }
-    } catch (e) { /* the winner still shows */ }
     return out;
   }
 
@@ -1655,6 +1692,7 @@
     playbackCaption: playbackCaption,
     playbackSummary: playbackSummary,
     playbackWinner: playbackWinner,
+    playbackResult: playbackResult,
     playbackWhen: playbackWhen,
     playbackGame: playbackGame,
     playbackFinished: playbackFinished,

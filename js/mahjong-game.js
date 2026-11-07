@@ -4430,6 +4430,29 @@
         var ey = y + 16;
         text(o.extra, cx, ey, { size: fitFont(ctx, o.extra, w, 13, FONT_BODY, 'bold'), weight: 'bold', align: 'center', color: COLORS.goldLight });
       }
+      if (o.playback) {
+        // A playback's results: Watch again (from the deal), and Close (back
+        // to the table at the last move).
+        var firstP = regions.length;
+        var byP = r.y + r.h - SUMMARY_PAD - 42;
+        if (phoneStack) {
+          var swP = Math.min(w, 280);
+          button('Watch again', cx - swP / 2, byP - 58, swP, 42, function () { sound.play('select'); watchAgain(); }, 'white', 'review-again');
+          button('Close', cx - swP / 2, byP, swP, 42, function () { sound.play('select'); closeOverlay(); }, 'primary', 'review-result-close');
+        } else {
+          var bwP = Math.min(156, (w - 12) / 2);
+          button('Watch again', cx - bwP - 6, byP, bwP, 42, function () { sound.play('select'); watchAgain(); }, 'white', 'review-again');
+          button('Close', cx + 6, byP, bwP, 42, function () { sound.play('select'); closeOverlay(); }, 'primary', 'review-result-close');
+        }
+        ctx.restore();
+        regions.slice(firstP).forEach(function (g) {
+          g.x = W / 2 + (g.x - W / 2) * k;
+          g.y = H / 2 + (g.y - H / 2) * k;
+          g.w *= k;
+          g.h *= k;
+        });
+        return;
+      }
       var label = settings.lesson ? 'Done' : (game.over ? 'See results' : 'Next hand');
       // Show hands turns the hands face up; once they are, the button says See hands.
       var handsLabel = ui.revealHands ? 'See hands' : 'Show hands';
@@ -4724,6 +4747,7 @@
       var o = ui.overlay;
       if (!o) return false;
       if (o.type === 'menu') { closeOverlay(); return true; }
+      if (o.playback) { closeOverlay(); return true; } // a playback's results step aside to the table
       if (settings.lesson || !game || !game.hand) return false;
       if (o.type === 'summary') { showHands(true); return true; }
       if (o.type === 'gameover') { seeMatchHands(); return true; }
@@ -5372,8 +5396,14 @@
 
     function onKey(e) {
       if (destroyed) return;
-      if (rulesOpen() || strategiesOpen() || resultsOpen()) return; // the sheets handle their own keys (Escape closes them)
+      if (rulesOpen() || strategiesOpen() || resultsOpen() || playbacksOpen()) return; // the sheets handle their own keys (Escape closes them)
       if (settings.playback && !settings.review) return;
+      if (settings.review && ui.overlay && ui.overlay.type === 'summary') {
+        // The playback's results: Enter or Escape puts them away; Space watches it again.
+        if (e.key === 'Enter' || e.key === 'Escape') { sound.play('select'); closeOverlay(); e.preventDefault(); }
+        else if (e.key === ' ') { sound.play('select'); watchAgain(); e.preventDefault(); }
+        return;
+      }
       if (settings.review) {
         // The keys press the same buttons, so they click, squeeze and glow too.
         if (e.key === 'ArrowLeft') { sound.play('back'); pressButton('review-prev'); stepReview(-1); e.preventDefault(); }
@@ -5918,6 +5948,11 @@
       sound.play('select'); // the click
       buildPlaybacks();
       if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+    }
+
+    function playbacksOpen() {
+      var dlg = playbacksSheet();
+      return !!(dlg && dlg.open);
     }
 
     function closePlaybacks() {
@@ -6939,8 +6974,43 @@
       if (revFrom) reviewPlayReverse(reverseEv, revFrom);
       reviewShown = reviewStep;
       if (!quiet) announce(reviewSpoken());
+      // The last move of a finished hand: its results, as the game showed them,
+      // once the winning tile (or the last draw) has landed.
+      if (!quiet && reviewStep > 0 && reviewStep >= reviewMoves() && reviewFinished()) {
+        var at = reviewSeq;
+        setTimeout(function () {
+          if (destroyed || at !== reviewSeq || reviewStep < reviewMoves() || ui.overlay) return;
+          showPlaybackResult();
+        }, motion ? speed(700) : 0);
+      }
       requestRender();
       return true;
+    }
+
+    // The results card for the playback on screen: who won, the hand, its
+    // patterns and faan (the game's own card, without the payout).
+    function showPlaybackResult() {
+      var res = E.playbackResult(settings.review);
+      if (!res) return;
+      stopReviewPlay();
+      ui.overlay = { type: 'summary', result: res, hasPlayback: false, playback: true };
+      track('play_playback_results', { result: res.type === 'win' ? 'win' : 'draw' });
+      announce(res.type === 'win'
+        ? (res.winner === 0 ? 'You' : game.players[res.winner].name) + ' won with ' + res.score.faan + ' faan.'
+        : 'No winner: the wall ran out.');
+      requestRender();
+    }
+
+    // From the results: the hand again from the deal, playing.
+    function watchAgain() {
+      closeOverlay();
+      stopReviewPlay();
+      reviewSeq++;
+      reviewStep = 0;
+      if (!showReviewStep()) return;
+      reviewPlaying = true;
+      scheduleReview();
+      requestRender();
     }
 
     function stepReview(d, keepPlaying) {

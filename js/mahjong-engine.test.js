@@ -442,6 +442,28 @@ describe('playback seed', () => {
     assert.equal(E.checkPlayback(changed).ok, false, 'the time can\'t be changed');
   });
 
+  it('rebuilds a playback\'s result exactly as the game settled it (all but the payments)', async () => {
+    require('./mahjong-bot.js'); require('./mahjong-lucky-cat.js'); require('./mahjong-jorge-yau.js');
+    const S = require('./mahjong-strategies.js');
+    let wins = 0, draws = 0;
+    for (let seed = 1; seed <= 24; seed++) {
+      const game = E.createGame({ seed, humanSeat: false, dealer: seed % 4 });
+      await E.runHand(game, [0, 1, 2, 3].map((_, i) => S.createAgent(i % 2 ? 'lucky-cat' : 'jorge-yau')), { emit() {} });
+      const r = game.hand.result;
+      const p = E.playbackResult(E.checkPlayback(E.makePlayback(game, { seat: 0 })).record);
+      if (r.type === 'draw') { draws++; assert.equal(p.type, 'draw'); continue; }
+      wins++;
+      ['winner', 'payer', 'how', 'tile', 'concealed', 'melds', 'flowers', 'seatWind', 'round'].forEach((k) => {
+        assert.deepEqual(p[k], r[k], 'seed ' + seed + ': ' + k);
+      });
+      assert.deepEqual(p.score.items, r.score.items, 'seed ' + seed + ': the same patterns, Win on Last Tile included');
+      assert.equal(p.score.faan, r.score.faan);
+    }
+    assert.ok(wins >= 10, wins + ' wins');
+    const unfinished = E.checkPlayback(E.makePlayback((() => { const g = E.createGame({ seed: 1, humanSeat: false, dealer: 0 }); return g; })(), { seat: 0 }) || 'x');
+    assert.equal(unfinished.ok ? E.playbackResult(unfinished.record) : null, null);
+  });
+
   it('says when a playback was saved, for people', () => {
     const now = new Date(2026, 10, 7, 15, 0).getTime();
     assert.equal(E.playbackWhen(new Date(2026, 10, 7, 14, 30).getTime(), now), 'Today, 2:30 PM');
