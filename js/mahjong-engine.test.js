@@ -412,6 +412,8 @@ describe('playback seed', () => {
       const rec = E.checkPlayback(E.makePlayback(game, { seat: 0 })).record;
       const sum = E.playbackSummary(rec);
       assert.match(sum.hand, /^Hand \d+ · (East|South|West|North) round$/);
+      assert.match(sum.number, /^Hand \d+$/, 'the short form, for a row');
+      assert.equal(sum.hand, sum.number + sum.hand.slice(sum.number.length), 'the full form starts with it');
       if (r.type !== 'win') {
         assert.equal(E.playbackWinner(rec), null);
         assert.equal(sum.result, 'No winner: the wall ran out');

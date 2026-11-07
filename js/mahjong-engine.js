@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.54.0';
+  var GAME_VERSION = '0.55.0';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -1467,10 +1467,12 @@
 
   // A playback for a list: who won and with which hand, and which hand of
   // the game it was. { result: "Katie won with Full Flush · 10 faan",
-  // hand: "Hand 3 · East round" }.
+  // hand: "Hand 3 · East round", number: "Hand 3" } (`number` is the short
+  // form a row shows; `hand` has the round too, for a screen reader).
   function playbackSummary(rec) {
-    if (!rec || !Array.isArray(rec.actions)) return { result: 'A playback', hand: '' };
-    var hand = 'Hand ' + (rec.handNumber || 1) + ' · ' + (WIND_NAMES[rec.round] || 'East') + ' round';
+    if (!rec || !Array.isArray(rec.actions)) return { result: 'A playback', hand: '', number: '' };
+    var number = 'Hand ' + (rec.handNumber || 1);
+    var hand = number + ' · ' + (WIND_NAMES[rec.round] || 'East') + ' round';
     var limit = typeof rec.moves === 'number' && rec.moves >= 0 ? Math.min(rec.actions.length, rec.moves) : rec.actions.length;
     var last = limit ? rec.actions[limit - 1] : null;
     var result;
@@ -1483,7 +1485,7 @@
     } else {
       result = 'Still being played';
     }
-    return { result: result, hand: hand };
+    return { result: result, hand: hand, number: number };
   }
 
   // When a playback was saved, for people: "Today, 2:30 PM", "Yesterday,

@@ -785,7 +785,8 @@
       flowerAnchor: [null, null, null, null],
       // dealIns: the times you discarded the winning tile. stays: the times the deal
       // stayed with you (you won as dealer and dealt again).
-      stats: { hands: 0, wins: 0, best: null, dealIns: 0, stays: 0 },
+      // fastest: the fewest moves in a hand you won (your own discards, plus the winning move).
+      stats: { hands: 0, wins: 0, best: null, fastest: null, dealIns: 0, stays: 0 },
       strategies: { seats: [null, null, null, null], coach: Strategies.DEFAULT_COACH }, // set once in start
     };
 
@@ -4833,6 +4834,7 @@
       var statLines = [
         ['Hands played', String(st.hands)],
         ['Your biggest hand', st.best ? st.best + ' faan' : '\u2014'],
+        ['Fastest win', st.fastest == null ? '\u2014' : st.fastest + (st.fastest === 1 ? ' move' : ' moves')],
         ['Hands you won', String(st.wins)],
         ['Longest winning streak', streak ? streak + (streak === 1 ? ' hand' : ' hands') : '\u2014'],
         ['Times you discarded the winning tile', String(st.dealIns || 0)],
@@ -4841,7 +4843,8 @@
       var PAD = 22, ROW = 50, STAT = 23, BTN = 42, BIG = 48;
       var pw = Math.min(480, W - 24);
       var standH = standings.length * ROW + 16;
-      var h = PAD + 34 + 14 + standH + 18 + 18 + statLines.length * STAT + 14 + BIG + 10 + BTN + PAD;
+      var BEFORE_PLAY = 32; // room between the stats and Play again
+      var h = PAD + 34 + 14 + standH + 18 + 18 + statLines.length * STAT + BEFORE_PLAY + BIG + 10 + BTN + PAD;
       // A short screen (a phone held sideways) shrinks the whole window to fit.
       var k = Math.min(1, (H - 24) / h);
       var r = { x: (W - pw) / 2, y: (H - h) / 2, w: pw, h: h };
@@ -6092,6 +6095,10 @@
       if (res.type === 'win' && res.winner === 0) {
         st.wins++;
         st.best = Math.max(st.best || 0, res.score.faan);
+        // Your moves in that hand: each discard of yours, and the winning move (a win on your
+        // 6th turn is 6 moves, whether you drew the tile or took a discard).
+        var moves = 1 + ((game && game.hand && game.hand.trace) || []).filter(function (ev) { return ev.a === 'discard' && ev.s === 0; }).length;
+        st.fastest = st.fastest == null ? moves : Math.min(st.fastest, moves);
       }
       // Your discard was the tile another player won on (a robbed kong isn't a discard).
       if (res.type === 'win' && res.how === 'discard' && res.payer === 0) st.dealIns = (st.dealIns || 0) + 1;
@@ -6269,24 +6276,19 @@
       if (showing) li.classList.add('is-showing');
       var info = document.createElement('div');
       info.className = 'playbacks-text';
-      // Who won and with which hand, then which hand of the game and when it was saved.
-      var sum = check.ok ? E.playbackSummary(check.record) : { result: 'A playback that no longer plays', hand: '' };
+      // Who won and with which hand, then which hand of the game (no round) and when it finished.
+      var sum = check.ok ? E.playbackSummary(check.record) : { result: 'A playback that no longer plays', hand: '', number: '' };
       var name = document.createElement('div');
       name.className = 'playbacks-name';
       name.textContent = sum.result;
       var when = document.createElement('div');
       when.className = 'playbacks-when';
-      // When the hand finished (the file's own time; an older file has none,
-      // so its saved time stands in), then for an upload when it was uploaded.
-      var lower = function (t) { return t.replace(/^(Today|Yesterday|Earlier)/, function (w) { return w.toLowerCase(); }); };
+      // One timestamp, with no label, in words (Today, 2:30 PM): when the hand finished (the
+      // file's own time). A file from before that was recorded shows when it was saved or
+      // uploaded instead, and a time nobody kept isn't shown at all.
       var ended = check.ok ? check.record.endedAt : null;
-      var finished = check.ok && E.playbackFinished(check.record);
-      var times = [];
-      // A time nobody kept (a file from before times were) isn't shown at all.
-      var finishedAt = ended != null ? ended : (kind === 'upload' ? null : entry.savedAt);
-      if (finished && finishedAt != null) times.push('Finished ' + lower(E.playbackWhen(finishedAt)));
-      if (kind === 'upload' && entry.savedAt != null) times.push('Uploaded ' + lower(E.playbackWhen(entry.savedAt)));
-      when.textContent = [sum.hand].concat(times).filter(Boolean).join(' · ');
+      var stamp = ended != null ? ended : entry.savedAt;
+      when.textContent = [sum.number, stamp != null ? E.playbackWhen(stamp) : ''].filter(Boolean).join(' \u00b7 ');
       info.appendChild(name);
       info.appendChild(when);
       li.appendChild(info);

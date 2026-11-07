@@ -486,6 +486,10 @@ test('the game over window uses the Results window\'s look, with each player\'s 
   assert.match(see, /saveMatchPlayback\(\)/);
   // A refresh that had the Results table open still reopens it.
   assert.match(GAME_SRC, /if \(showSavedResults\) openResults\(\);/);
+  // Room between the stats and Play again (it was 14; now more, so the button doesn't crowd them).
+  const room = Number(/var BEFORE_PLAY = (\d+);/.exec(fn)[1]);
+  assert.ok(room >= 28, 'at least 28 px above Play again: ' + room);
+  assert.match(fn, /statLines\.length \* STAT \+ BEFORE_PLAY \+ BIG/);
   // It shrinks to fit a short screen.
   assert.match(fn, /var k = Math\.min\(1, \(H - 24\) \/ h\)/);
   // Your strategy is the coach's (as in the Strategies sheet); a computer player's is its own.
@@ -505,7 +509,8 @@ test('the game over window shows the longest winning streak and the times you st
   const fn = GAME_SRC.slice(GAME_SRC.indexOf('    function drawGameOver() {'), GAME_SRC.indexOf('    var overlayResolve = null;'));
   // The lines, in order: hands played, then your biggest hand, then the rest.
   const labels = [...fn.matchAll(/^\s+\['([^']+)', /gm)].map((m) => m[1]);
-  assert.deepEqual(labels, ['Hands played', 'Your biggest hand', 'Hands you won', 'Longest winning streak', 'Times you discarded the winning tile', 'Times you stayed dealer']);
+  assert.deepEqual(labels, ['Hands played', 'Your biggest hand', 'Fastest win', 'Hands you won', 'Longest winning streak', 'Times you discarded the winning tile', 'Times you stayed dealer']);
+  assert.match(fn, /\['Fastest win', st\.fastest == null \? '\\u2014' : st\.fastest \+ \(st\.fastest === 1 \? ' move' : ' moves'\)\]/, 'a dash when you won no hand');
   assert.match(fn, /\['Longest winning streak', streak \? streak \+ \(streak === 1 \? ' hand' : ' hands'\) : '\\u2014'\]/);
   assert.match(fn, /\['Times you discarded the winning tile', String\(st\.dealIns \|\| 0\)\]/);
   assert.match(fn, /\['Times you stayed dealer', String\(st\.stays \|\| 0\)\]/);
@@ -525,15 +530,33 @@ test('the game over window shows the longest winning streak and the times you st
   assert.equal(longest([win(1), draw(2), win(3)]), 1, 'a drawn hand ends a run');
   assert.equal(longest([win(3), win(1), lose(2)]), 1, 'rows are taken in hand order');
   // The count of times the deal stayed with you.
-  const rec = new Function('ui', /function recordStats\(res\) \{[\s\S]*?\n    \}\n/.exec(GAME_SRC)[0] + '; return recordStats;');
-  const ui = { stats: { hands: 0, wins: 0, best: null, dealIns: 0, stays: 0 } };
-  const record = rec(ui);
-  record({ type: 'win', winner: 0, dealerKeeps: true, score: { faan: 4 } });  // you won as dealer: the deal stays
-  record({ type: 'win', winner: 0, dealerKeeps: false, score: { faan: 5 } }); // you won, but you weren't the dealer
+  const recSrc = /function recordStats\(res\) \{[\s\S]*?\n    \}\n/.exec(GAME_SRC)[0];
+  const rec = (ui, game) => new Function('ui', 'game', recSrc + '; return recordStats;')(ui, game);
+  const ui = { stats: { hands: 0, wins: 0, best: null, fastest: null, dealIns: 0, stays: 0 } };
+  const game = { hand: { trace: [] } };
+  // Your moves in a hand: your own discards (the others' don't count), plus the winning move.
+  const hand = (mine, others) => {
+    game.hand.trace = [{ a: 'draw', s: 0 }, { a: 'flower', s: 1 }]
+      .concat(Array.from({ length: mine }, () => ({ a: 'discard', s: 0 })), Array.from({ length: others === undefined ? mine * 3 : others }, (_, i) => ({ a: 'discard', s: 1 + (i % 3) })), [{ a: 'win', s: 0 }]);
+  };
+  const record = rec(ui, game);
+  assert.equal(ui.stats.fastest, null, 'no win yet: a dash');
+  hand(9); record({ type: 'win', winner: 3, dealerKeeps: false, score: { faan: 3 } });  // someone else's win doesn't count
+  assert.equal(ui.stats.fastest, null);
+  hand(9); record({ type: 'win', winner: 0, dealerKeeps: true, score: { faan: 4 } });  // you won as dealer: the deal stays
+  assert.equal(ui.stats.fastest, 10, '9 discards of yours, then the winning move');
+  hand(5, 40); record({ type: 'win', winner: 0, dealerKeeps: false, score: { faan: 5 } }); // you won, but you weren't the dealer
+  assert.equal(ui.stats.fastest, 6, 'the fewest moves: 5 discards and the win; the others\' 40 discards don\'t count');
+  hand(12); record({ type: 'win', winner: 0, dealerKeeps: false, score: { faan: 3 } });
+  assert.equal(ui.stats.fastest, 6, 'a slower win does not replace it');
+  hand(0, 0); record({ type: 'win', winner: 0, dealerKeeps: false, score: { faan: 13 } }); // a win on the deal: the winning move alone
+  assert.equal(ui.stats.fastest, 1, 'one move');
+  hand(7); record({ type: 'draw' });
+  assert.equal(ui.stats.fastest, 1, 'a draw is not a win');
   record({ type: 'win', winner: 2, dealerKeeps: true, score: { faan: 3 } });  // another dealer won and kept the deal
   record({ type: 'draw' });
   record({ type: 'win', winner: 0, dealerKeeps: true, score: { faan: 8 } });
-  assert.deepEqual([ui.stats.hands, ui.stats.wins, ui.stats.best, ui.stats.stays, ui.stats.dealIns], [5, 3, 8, 2, 0]);
+  assert.deepEqual([ui.stats.hands, ui.stats.wins, ui.stats.best, ui.stats.stays, ui.stats.dealIns], [9, 5, 13, 2, 0]);
   // Times you discarded the winning tile: your discard was what someone else won on.
   record({ type: 'win', winner: 3, payer: 0, how: 'discard', dealerKeeps: false, score: { faan: 3 } });
   record({ type: 'win', winner: 1, payer: 0, how: 'discard', dealerKeeps: false, score: { faan: 4 } });
@@ -543,8 +566,10 @@ test('the game over window shows the longest winning streak and the times you st
   assert.equal(ui.stats.dealIns, 2);
   // An older save has no count yet: it starts at 0.
   const old = { stats: { hands: 3, wins: 1, best: 4, dealIns: 1 } };
-  rec(old)({ type: 'win', winner: 0, dealerKeeps: true, score: { faan: 3 } });
+  hand(7);
+  rec(old, game)({ type: 'win', winner: 0, dealerKeeps: true, score: { faan: 3 } });
   assert.equal(old.stats.stays, 1);
+  assert.equal(old.stats.fastest, 8, 'an older save has no fastest win yet: it starts from here');
   assert.equal(old.stats.dealIns, 1, 'the old count carries on');
 });
 
@@ -654,9 +679,14 @@ test('the playback bar opens the View playback sheet, and its rows play, downloa
   assert.match(css, /\.playbacks-play\.is-showing \{\s*box-shadow: 0 0 0 3px #ffffff;\s*\}/);
   const rule = /\.playbacks-play\.is-showing \{([^}]*)\}/.exec(css)[1];
   assert.doesNotMatch(rule, /border|width|height|padding|margin/, 'nothing that changes its size');
-  // A time nobody kept is left out, never shown as "earlier".
-  assert.match(row, /finished && finishedAt != null\) times\.push\('Finished ' \+ lower\(E\.playbackWhen\(finishedAt\)\)\)/);
-  assert.match(row, /kind === 'upload' && entry\.savedAt != null\) times\.push\('Uploaded ' \+ lower\(E\.playbackWhen\(entry\.savedAt\)\)\)/);
+  // One timestamp, no labels ("Finished", "Uploaded"): the hand's finish time, else the saved time; none if nobody kept one.
+  assert.match(row, /var stamp = ended != null \? ended : entry\.savedAt;/);
+  // The second line is the hand number and the time: no round ("East round").
+  assert.match(row, /\[sum\.number, stamp != null \? E\.playbackWhen\(stamp\) : ''\]/);
+  assert.doesNotMatch(row.slice(row.indexOf("var when = document"), row.indexOf('info.appendChild(name)')), /round/, 'the round is not in the line');
+  assert.match(row, /'Play ' \)? ?\+ sum\.hand|sum\.hand \+ ', '/, 'the screen-reader labels keep the full hand');
+  const stampLines = row.slice(row.indexOf("var when = document.createElement('div')"), row.indexOf('info.appendChild(name)'));
+  assert.doesNotMatch(stampLines.replace(/\/\/[^\n]*/g, ''), /'Finished|'Uploaded|times\.push|lower\(/, 'only the readable time, no labels');
   const build = GAME_SRC.slice(GAME_SRC.indexOf('function buildPlaybacks'), GAME_SRC.indexOf('var replayFileInput'));
   assert.match(build, /up \? \[up\] : \[\]/, 'at most one uploaded row');
 });
