@@ -385,6 +385,18 @@
     return Object.keys(names);
   }
 
+  // The sound files' bytes, fetched once for the page, so a second table (the
+  // playback view) has them without the network.
+  var clipBytes = {};
+  function fetchClip(name) {
+    if (!clipBytes[name]) {
+      clipBytes[name] = root.fetch(SOUND_DIR + name + '.wav')
+        .then(function (r) { return r.ok ? r.arrayBuffer() : null; })
+        .catch(function () { delete clipBytes[name]; return null; });
+    }
+    return clipBytes[name];
+  }
+
   function createSound(enabled) {
     var ac = null;
     var out = null;
@@ -398,9 +410,7 @@
       if (!root.fetch) return;
       cueClips().forEach(function (name) {
         if (raw[name] || buffers[name]) return;
-        raw[name] = root.fetch(SOUND_DIR + name + '.wav')
-          .then(function (r) { return r.ok ? r.arrayBuffer() : null; })
-          .catch(function () { return null; });
+        raw[name] = fetchClip(name);
       });
     }
 
@@ -410,8 +420,9 @@
         delete raw[name];
         pending.then(function (bytes) {
           if (!bytes) return;
-          // The callback form also works in older Safari.
-          a.decodeAudioData(bytes, function (buf) { buffers[name] = buf; }, function () {});
+          // The callback form also works in older Safari. Decoding takes the
+          // bytes it is given, so it gets a copy and the page keeps its own.
+          a.decodeAudioData(bytes.slice(0), function (buf) { buffers[name] = buf; }, function () {});
         });
       });
     }
@@ -1636,9 +1647,20 @@
       return document.getElementById('rules-sheet');
     }
 
+    // The sheet's rows play this table's sounds and open its examples, so a
+    // sheet another table built (a playback view or game since closed) is
+    // built again for this one.
+    var rulesOwner = {};
     function buildRules() {
       var body = document.getElementById('rules-sheet-body');
-      if (!body || body.childElementCount) return;
+      if (!body) return;
+      if (body.childElementCount && body.lcmOwner === rulesOwner) return;
+      body.innerHTML = '';
+      var oldIntro = body.parentNode.querySelector('.rules-sheet-intro');
+      if (oldIntro) oldIntro.remove();
+      var oldCard = rulesSheet().querySelector('.rules-example');
+      if (oldCard) oldCard.remove();
+      body.lcmOwner = rulesOwner;
       var F = E.HKScoring.FAAN;
       var intro = document.createElement('p');
       intro.className = 'rules-sheet-intro';
@@ -1743,14 +1765,14 @@
       });
       // One listener for the sheet: a click that isn't the open pattern or its
       // card puts the example away. The backdrop click still closes the sheet.
-      rulesSheet().addEventListener('click', function (e) {
+      onSheet(rulesSheet(), 'click', function (e) {
         if (!desktopRules() || !openExampleRow) return;
         if (openExampleRow.contains(e.target) || exampleCardHas(e.target)) return;
         sound.play('select'); // a click elsewhere puts the example away
         hideRuleExample();
       });
       // Where the pointer was last, so the example can enter from that side.
-      rulesSheet().addEventListener('pointermove', function (e) {
+      onSheet(rulesSheet(), 'pointermove', function (e) {
         if (pointerTravel.ready) {
           pointerTravel.dx = e.clientX - pointerTravel.x;
           pointerTravel.dy = e.clientY - pointerTravel.y;
@@ -2312,7 +2334,9 @@
       return check && check.ok ? stored : null;
     }
 
-    // The playback page is another document, so the file has to outlive this one.
+    // Playback is a view of the game page (?playback=1). It reads the file
+    // from storage, so a refresh there opens the same hand, and the game stays
+    // in memory under it: no page load, nothing fetched.
     function viewReplay() {
       var file = currentReplay();
       if (file) {
@@ -2320,7 +2344,8 @@
         if (!readJson(REPLAY_KEY, null)) return;
       } else if (!storedReplay()) return;
       track('play_view_replay', {});
-      root.location.assign(visitUrl('/play-mahjong/playback/', { replay: '1' }));
+      if (callbacks.playback) { callbacks.playback(); return; }
+      root.location.assign(visitUrl('/play-mahjong/', { playback: '1' }));
     }
 
     // Keep a quiet or instant visit quiet on the next page too.
@@ -4798,7 +4823,10 @@
       callbacks.quit();
     }
 
+    // The game page's playback view goes back in place. A table on its own
+    // (no page around it) loads the game page.
     function backToGame() {
+      if (callbacks.back) { callbacks.back(); return; }
       root.location.assign(visitUrl('/play-mahjong/', { opened: '1', results: '1' }));
     }
 
@@ -5127,12 +5155,27 @@
       return r && r.id === 'see-results' ? r : null;
     }
 
+    // A button of the open overlay (summary, game over) under this point.
+    function overlayButtonAt(p) {
+      if (!ui.overlay || !ui.overlayBox || !boxHas(ui.overlayBox, p.x, p.y)) return null;
+      var r = hitTest(p.x, p.y);
+      return r && boxHas(ui.overlayBox, r.x, r.y) ? r : null;
+    }
+
     function onPointerDown(e) {
       lastTouch = !!e.pointerType && e.pointerType !== 'mouse';
       if (lastTouch) mouse = null;
       var p = pointerPos(e);
       if (ui.overlay && ui.overlayBox && !boxHas(ui.overlayBox, p.x, p.y)) {
         if (dismissOverlay()) { e.preventDefault(); return; }
+      }
+      // An open summary sits over the coach column, so its buttons come first.
+      var overlayHit = overlayButtonAt(p);
+      if (overlayHit) {
+        pinnedTip = null;
+        e.preventDefault();
+        overlayHit.onTap();
+        return;
       }
       if (settings.review && reviewBarHit(p)) {
         reviewScrub = e.pointerId;
@@ -5201,7 +5244,7 @@
       }
       if (e.pointerType && e.pointerType !== 'mouse') return;
       var p = pointerPos(e);
-      if ((resultsAt(p) || historyAt(p)) && !seeResultsHit(p)) {
+      if ((resultsAt(p) || historyAt(p)) && !seeResultsHit(p) && !overlayButtonAt(p)) {
         canvas.style.cursor = !resultsAt(p) && settings.review && coachNoteAt(p) !== null ? 'pointer'
           : (resultsAt(p) ? ui.resultsScrollMax > 0 : ui.coachScrollMax > 0) ? 'grab' : 'default';
         mouse = p;
@@ -6974,27 +7017,35 @@
     };
     document.addEventListener('visibilitychange', onVisibility);
     root.addEventListener('keydown', onKey);
+    // The sheets belong to the page, and every table (a new game, the playback
+    // view) adds its own listeners to them, so destroy() takes them off again:
+    // [element, type, handler] for each.
+    var sheetListeners = [];
+    function onSheet(el, type, fn) {
+      el.addEventListener(type, fn);
+      sheetListeners.push([el, type, fn]);
+    }
     (function () {
       var dlg = rulesSheet();
       if (!dlg) return;
-      dlg.querySelector('.rules-sheet-close').addEventListener('click', closeRules);
+      onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeRules);
       // A click on the dimmed area outside the sheet closes it too.
-      dlg.addEventListener('click', function (e) { if (e.target === dlg) closeRules(); });
-      dlg.addEventListener('close', function () { canvas.focus(); });
+      onSheet(dlg, 'click', function (e) { if (e.target === dlg) closeRules(); });
+      onSheet(dlg, 'close', function () { canvas.focus(); });
     })();
     (function () {
       var dlg = strategiesSheet();
       if (!dlg) return;
-      dlg.querySelector('.rules-sheet-close').addEventListener('click', closeStrategies);
-      dlg.addEventListener('click', function (e) { if (e.target === dlg) closeStrategies(); });
-      dlg.addEventListener('close', function () { canvas.focus(); });
+      onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeStrategies);
+      onSheet(dlg, 'click', function (e) { if (e.target === dlg) closeStrategies(); });
+      onSheet(dlg, 'close', function () { canvas.focus(); });
     })();
     (function () {
       var dlg = resultsSheet();
       if (!dlg) return;
-      dlg.querySelector('.rules-sheet-close').addEventListener('click', closeResults);
-      dlg.addEventListener('click', function (e) { if (e.target === dlg) closeResults(); });
-      dlg.addEventListener('close', function () {
+      onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeResults);
+      onSheet(dlg, 'click', function (e) { if (e.target === dlg) closeResults(); });
+      onSheet(dlg, 'close', function () {
         canvas.focus();
         if (resultsStay) { resultsStay = false; return; }
         markResultsOpen(false);
@@ -7012,7 +7063,44 @@
     if (ro) ro.observe(canvas);
     resize();
 
+    // Set aside while the playback view covers this table: no keys, no
+    // resizes (a hidden canvas measures 0) and no music. The game itself
+    // stays as it is, so resume() carries on from exactly there.
+    var suspended = false;
+    function detachWindow() {
+      document.removeEventListener('visibilitychange', onVisibility);
+      root.removeEventListener('resize', onResize);
+      root.removeEventListener('keydown', onKey);
+      if (ro) ro.disconnect();
+    }
+
     return {
+      suspend: function () {
+        if (destroyed || suspended) return;
+        suspended = true;
+        detachWindow();
+        sound.music(false);
+      },
+      resume: function () {
+        if (destroyed || !suspended) return;
+        suspended = false;
+        // The playback view may have changed Sound or the playback speed.
+        // Take them, so this table never writes back an older choice.
+        var fresh = readJson(PREFS_KEY, null);
+        if (fresh) Object.keys(fresh).forEach(function (k) { prefs[k] = fresh[k]; });
+        if (!soundParam) {
+          sound.enabled = prefs.sound !== false;
+          sound.musicEnabled = sound.enabled;
+        }
+        document.addEventListener('visibilitychange', onVisibility);
+        root.addEventListener('resize', onResize);
+        root.addEventListener('keydown', onKey);
+        if (ro) ro.observe(canvas);
+        resize();
+        sound.music(!document.hidden);
+        requestRender();
+      },
+      get suspended() { return suspended; },
       start: function () {
         sound.music(true);
         play().catch(function (err) {
@@ -7025,9 +7113,9 @@
         stopReviewPlay();
         if (reviewCoachTimer) { clearTimeout(reviewCoachTimer); reviewCoachTimer = null; }
         sound.stopMusic();
-        document.removeEventListener('visibilitychange', onVisibility);
-        root.removeEventListener('resize', onResize);
-        root.removeEventListener('keydown', onKey);
+        detachWindow();
+        sheetListeners.forEach(function (l) { l[0].removeEventListener(l[1], l[2]); });
+        sheetListeners = [];
         canvas.removeEventListener('pointerdown', onPointerDown);
         canvas.removeEventListener('click', onCanvasClick);
         canvas.removeEventListener('pointermove', onPointerMove);
@@ -7037,7 +7125,6 @@
         canvas.removeEventListener('wheel', onWheel);
         canvas.removeEventListener('paste', onCanvasPaste);
         if (replayFileInput) { replayFileInput.remove(); replayFileInput = null; }
-        if (ro) ro.disconnect();
       },
       // Exposed for debugging in the browser console.
       get game() { return game; },
@@ -7133,18 +7220,21 @@
       document.documentElement.classList.remove('play-reopening');
     }
 
+    // Tables are made through the api, so a test can stand in for them.
     var table = null;
     function open(settings, saved) {
       // A new game takes the save slot. A lesson leaves a saved game alone.
       if (!saved && !settings.lesson) removeJson(AUTOSAVE_KEY);
+      closePlaybackView();
       enterGameHistory(!settings.lesson);
       stage.hidden = false;
       pageReady();
       document.documentElement.classList.add('is-playing');
       if (table) table.destroy();
-      table = createTable(canvas, live, settings, {
+      table = api.createTable(canvas, live, settings, {
         quit: close,
         restart: function () { open(settings); },
+        playback: function () { showPlayback(true); },
         fullscreen: toggleFullscreen,
         isFullscreen: function () { return !!fullscreenElement(); },
       }, saved);
@@ -7260,6 +7350,126 @@
       var was = document.documentElement.classList.contains('is-sideways');
       if (was !== (!stage.hidden && phoneSideways())) hideToolbar();
     });
+
+    /* The playback view: a second table on its own canvas in the same stage.
+       The game's table is only set aside under it (suspend), so going back
+       finds it exactly as it was. Nothing is loaded for it: the scripts, tiles
+       and sounds are the game's. ?playback=1 marks it, so a refresh opens the
+       same view, with the hand read from storage. Stepping through the moves
+       never touches the history, so Back always leaves the view. */
+    var playbackCanvas = document.getElementById('playback-canvas');
+    var playbackLive = document.getElementById('playback-live');
+    var playbackTable = null;
+    var strategiesIntro = document.querySelector('#strategies-sheet .rules-sheet-intro');
+    var gameStrategiesIntro = strategiesIntro ? strategiesIntro.textContent : '';
+    var PLAYBACK_STRATEGIES_INTRO = 'How each strategy chooses a discard. The coach is the one named on the side panel.';
+
+    function isPlaybackUrl() {
+      return /[?&]playback=1(&|$)/.test(root.location.search);
+    }
+
+    function playbackUrl(on) {
+      var url = new URL(root.location.href);
+      if (on) url.searchParams.set('playback', '1');
+      else url.searchParams.delete('playback');
+      return url;
+    }
+
+    function inPlaybackEntry() {
+      return !!(root.history.state && root.history.state.lcmPlayback);
+    }
+
+    function closeSheets() {
+      document.querySelectorAll('dialog.rules-sheet[open]').forEach(function (dlg) { dlg.close(); });
+    }
+
+    // fromGame: View playback on the open game. The view gets a history entry
+    // of its own over the game's, so Back (the button or the browser's) returns
+    // to the game. Otherwise (a refresh, a link, Forward) the entry is already here.
+    function showPlayback(fromGame) {
+      if (!playbackCanvas || !playbackLive) return;
+      if (fromGame && root.history && root.history.pushState) {
+        var state = Object.assign({}, root.history.state || {}, { lcmPlayback: true, lcmFromGame: true });
+        root.history.pushState(state, '', playbackUrl(true));
+      } else if (root.history && root.history.replaceState && !inPlaybackEntry()) {
+        root.history.replaceState(Object.assign({}, root.history.state || {}, { lcmPlayback: true }), '', playbackUrl(true));
+      }
+      if (playbackTable) return;
+      closeSheets();
+      if (table) table.suspend();
+      stage.hidden = false;
+      canvas.hidden = true;
+      playbackCanvas.hidden = false;
+      if (strategiesIntro) strategiesIntro.textContent = PLAYBACK_STRATEGIES_INTRO;
+      pageReady();
+      document.documentElement.classList.add('is-playing');
+      playbackTable = api.createTable(playbackCanvas, playbackLive, {
+        playback: true,
+        review: null,
+        replayFromStorage: true,
+        coach: 'on',
+        speed: 'normal',
+        spicy: 'full',
+        mode: 'practice',
+      }, { quit: function () {}, restart: function () {}, back: leavePlayback });
+      playbackTable.start();
+      playbackCanvas.focus();
+      root.__lcmPlayback = playbackTable;
+      hideToolbar();
+    }
+
+    // Takes the playback view down. The game's table, if any, comes back as it was.
+    function closePlaybackView() {
+      if (!playbackTable) return false;
+      closeSheets();
+      playbackTable.destroy();
+      playbackTable = null;
+      root.__lcmPlayback = null;
+      if (playbackCanvas) playbackCanvas.hidden = true;
+      canvas.hidden = false;
+      if (strategiesIntro) strategiesIntro.textContent = gameStrategiesIntro;
+      if (table) {
+        table.resume();
+        canvas.focus();
+      } else {
+        stage.hidden = true;
+        document.documentElement.classList.remove('is-playing');
+      }
+      return true;
+    }
+
+    // With no game in memory (playback opened by a refresh or a link), the
+    // saved game opens on its results, as it ended. With none, the page shows.
+    function reopenAfterPlayback() {
+      if (table) return;
+      if (readJson(AUTOSAVE_KEY, null)) {
+        var url = gameUrl(true);
+        url.searchParams.set('results', '1');
+        root.history.replaceState(Object.assign({}, root.history.state || {}, { lcmGame: true }), '', url);
+        reopenGame();
+      } else {
+        clearOpenedUrl();
+        pageReady();
+        revealResume();
+      }
+    }
+
+    // Back on the playback bar: always the game, never an earlier move.
+    function leavePlayback() {
+      if (inPlaybackEntry() && root.history.state.lcmFromGame) {
+        root.history.back(); // the game's own entry is under this one (popstate does the rest)
+        return;
+      }
+      // Opened straight on ?playback=1: this entry becomes the game's.
+      if (root.history && root.history.replaceState) {
+        var state = Object.assign({}, root.history.state || {});
+        delete state.lcmPlayback;
+        delete state.lcmFromGame;
+        root.history.replaceState(state, '', playbackUrl(false));
+      }
+      closePlaybackView();
+      reopenAfterPlayback();
+    }
 
     // Quitting leaves the table. The saved game stays, so Resume game can
     // bring it back.
@@ -7387,7 +7597,7 @@
       // flash Start as the red button while that check runs.
       showSavedGame(looksSaved);
       E.checkSave(stored).then(function (check) {
-        if (table) { settlePlayForm(); return; }
+        if (table || playbackTable) { settlePlayForm(); return; }
         if (check.ok) {
           showSavedGame(true);
           settlePlayForm();
@@ -7401,7 +7611,7 @@
         removeJson(AUTOSAVE_KEY);
         startFresh();
       }, function () {
-        if (table) { settlePlayForm(); return; }
+        if (table || playbackTable) { settlePlayForm(); return; }
         removeJson(AUTOSAVE_KEY);
         showSavedGame(false);
         settlePlayForm();
@@ -7458,13 +7668,25 @@
     }
 
     // A stored game offers Resume. A changed signature starts a new game.
-    if (isOpenedUrl()) reopenGame();
+    // ?playback=1 opens the playback view (the hand saved in storage).
+    if (isPlaybackUrl()) showPlayback(false);
+    else if (isOpenedUrl()) reopenGame();
     else revealResume();
 
     // Back leaves the table for this page, and Forward returns to the game.
+    // Back from playback returns to the game, and Forward to playback again.
     root.addEventListener('popstate', function () {
+      if (inPlaybackEntry() || isPlaybackUrl()) {
+        if (!playbackTable) showPlayback(false);
+        return;
+      }
+      if (closePlaybackView()) {
+        if (!table && inGameEntry() && isOpenedUrl()) reopenAfterPlayback();
+        else if (!table) revealResume();
+        return;
+      }
       if (table && !inGameEntry()) {
-        document.querySelectorAll('dialog.rules-sheet[open]').forEach(function (dlg) { dlg.close(); });
+        closeSheets();
         leaveTable();
       } else if (!table && inGameEntry() && isOpenedUrl()) reopenGame();
     });
