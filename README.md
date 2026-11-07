@@ -18,7 +18,7 @@ The learned bot, Neural Cat, is on Hugging Face:
 - [Events](#events-page-events)
 - [Personality quiz](#which-mahjong-tile-are-you-quiz-which-mahjong-tiles-are-you)
 - [Play Mahjong](#play-hong-kong-mahjong-play-mahjong)
-  - Playing: [Game modes](#game-modes) · [Rules and scoring](#rules-and-scoring) · [Saving and resuming](#saving-and-resuming) · [Hand seeds](#hand-seeds)
+  - Playing: [Game modes](#game-modes) · [Rules and scoring](#rules-and-scoring) · [Saving and resuming](#saving-and-resuming) · [Hand seeds](#hand-seeds) · [Playback](#playback) · [Auto-play](#auto-play-development-only)
   - Bots and coach: [Strategies](#strategies) · [Bots](#bots) · [Coach](#coach) · [Bot competition](#bot-competition) · [Neural Cat training and models](#neural-cat-training-and-models) · [Hand review and feedback](#hand-review-and-feedback)
   - Table: [Table and layouts](#table-and-layouts) · [Sound and music](#sound-and-music)
   - For developers: [Machine learning](docs/machine-learning/README.md) · [Analytics](docs/analytics/README.md) · [Testing tip](#testing-tip)
@@ -138,7 +138,8 @@ The interactive pages work offline after one visit: the Points Guide (`/hong-kon
 - **Full game** — Everyone starts with 2,000 points and plays 4 rounds and 16 dealer rotations, so at least 16 hands. Points can go negative without ending the game, and it closes with the final standings
 - **The deal** — In both modes, a dealer who wins deals again, and anything else, a drawn hand too, passes the deal on
 - **Payouts** always use the **full spicy** table
-- **The in-game menu** has Resume, Restart game (a second tap confirms) and Quit game. The end-of-game window (Game over) is in the Results window's look: the green sheet with a gold edge, a gold title and Close at the top. It lists the four standings, each with the player's avatar (a person for you, a robot for the computer players), their name, the strategy they played (yours is the coach's, shown as *Coach · Neural Cat*) and their points, with yours highlighted, then your game's stats: hands played, your biggest hand, your fastest win (the fewest moves in a hand you won: your own discards plus the winning move, so a win on your 6th turn is *6 moves*; a dash if you won no hand), hands you won, your longest winning streak (the most hands you won in a row; a drawn hand ends it), the times you discarded the winning tile (another player won on your discard) and the times you stayed dealer (you won as dealer and the deal stayed with you). Play again is the large red button on top, with Results and Quit side by side below it. Pressing See results after the last hand (or on the table, after Close) shows only this window; its Results button opens the Results table. Close, or a click outside, steps aside to the table with every hand face up. On a development address, auto-play (the wind badge) plays through to this window quickly
+- **The in-game menu** has Resume, View playback (once the hand has a move to look at), Restart game (a second tap confirms) and Quit game.
+- **Game over** — The end-of-game window (Game over) is in the Results window's look: the green sheet with a gold edge, a gold title and Close at the top. It lists the four standings, each with the player's avatar (a person for you, a robot for the computer players), their name, the strategy they played (yours is the coach's, shown as *Coach · Neural Cat*) and their points, with yours highlighted, then your game's stats: hands played, your biggest hand, your fastest win (the fewest moves in a hand you won: your own discards plus the winning move, so a win on your 6th turn is *6 moves*; a dash if you won no hand), hands you won, your longest winning streak (the most hands you won in a row; a drawn hand ends it), the times you discarded the winning tile (another player won on your discard) and the times you stayed dealer (you won as dealer and the deal stayed with you). Play again is the large red button on top, with Results and Quit side by side below it. Pressing See results after the last hand (or on the table, after Close) shows only this window; its Results button opens the Results table. Close, or a click outside, steps aside to the table with every hand face up. Closing it makes no sound. On a development address, [auto-play](#auto-play-development-only) plays through to this window quickly
 
 #### Rules and scoring
 
@@ -163,11 +164,49 @@ Hands are scored by `HKScoring.scoreHand` in `js/points.js`, the calculator's ow
 
 #### Hand seeds
 
-Tap your wind badge to copy the hand seed, such as `919942249-NE` (the shuffle number, your seat wind, the round wind). The badge flashes once the copy is done. A finished hand's playback stays on this device, so the playback page opens it; a hand still being played is kept in memory only. The playback file is signed (HMAC-SHA256). It holds the hand seed (`handSeed`, such as `919942249-NE`: the shuffle number, your seat wind, the round wind), every draw, discard, and claim so far, and each player's hand at that moment. Playback is a view of the game page, `/playing-mahjong/?playback=1`: the game page already has all its code, so it opens in place with no page load or network fetch, and the game waits under it as it was. That saved hand opens on the deal and plays by itself (Pause stops it). In the playback of a finished hand the opponents' tiles are face up; double-clicking (or double-tapping) an opponent's hand hides all their concealed tiles, and doing it again shows them. The choice is saved for playback (`showOpponents` in `lcm-play-prefs`). The playback of an unfinished hand always keeps their tiles concealed, and the double-click does nothing there. When it reaches its last move, the hand's results show, the same card the game showed (who won, the winning hand, its patterns and faan, without the payout), with **Watch again** (from the deal) and **Close** (back to the table at the last move; Enter or Escape too). The result is scored again from the file (`E.playbackResult`), with the same flags the game used, such as Win on Last Tile. A refresh on `?playback=1` opens it again. An uploaded file is kept in a place of its own (`lcm-play-upload`), so it never replaces the game's playback: View playback always shows the game, and a refresh of View playback on a hand still being played brings that hand back from the game's save and opens its playback again. A refresh while an upload shows keeps showing the upload. The top bar always shows the title, Playback Analysis, centered between Back and the buttons on the right, on a phone, a tablet or a desktop; Saved playbacks turns into a list icon when its words would crowd it. With none saved, Saved playbacks in the center opens the Saved playbacks sheet. Command+V or Ctrl+V pastes one too. A changed or damaged file won't play: if its signature doesn't match (or it isn't a playback at all, or comes from a version this game can't load), a popup says the playback could not be uploaded and why, and nothing from the file is kept; the playback on screen stays. The hand plays on the table, and the bar stops at the last move in the file. A move is one discard, by any player, so Move 4 of 49 counts discards only. Draws, flowers and claims come with the move they lead to. Download, on each row of the Saved playbacks sheet, saves that hand as a JSON file named with the time it was saved, such as `lucky-cat-mahjong-playback-2026-11-05-1430.json`; the playback bar has no Download button of its own. **Saved playbacks**, on the playback bar (a list icon on a phone), opens a sheet of your five most recent finished hands, newest first, and the last playback you uploaded (one at most). Each row says who won and with which hand and faan (such as *Katie won with Half Flush · 6 faan*: only the most important pattern, the one worth the most faan, with the hand's total), which hand of the game it was, and when that hand finished, as a plain readable time (*Today, 2:30 PM*, *Yesterday, 9:05 AM*, *Thu, Nov 5, 2:30 PM*), with no label. The finish time is in the playback file, signed with the rest. Its three rounded-square icon buttons, each with a tooltip, play the hand (a refresh keeps it on screen), copy its hand seed (the same text your wind badge copies; the button shows a check and "Copied" for a moment), and download its file. Upload playback, at the bottom, opens a downloaded file and plays it; it replaces the last upload. The sheet closes when you press it. A file that can't be uploaded opens an **Upload failed** popup instead. Its message depends on why: a signature that doesn't match (the file was changed or damaged), a file that isn't a playback, or an incompatible version, which names the file's version and this game's and says to reload the page when the file is newer. The recent hands are kept in `lcm-play-recent`, the upload in `lcm-play-upload`. The icon buttons (previous, play or pause, next) step through the moves, with previous and next dimmed at the ends. Each move plays action by action (draws, flowers, chow, pung and kong, discards), previous plays it in reverse, and a red dot on the progress bar marks every chow, pung and kong, the speed buttons beside them play at 0.5x, 1x or 2x (the choice is kept in `lcm-play-prefs`), and the progress bar shows a dot for each move (a larger one for your own discards, a yellow circle where you exposed a meld). Hover it to see what happened there, and click or drag it to jump. A panel under the coach column, as tall as your hand and headed Strategies (a phone has no heading), shows the tile each strategy would discard, and what it would chow, pung, kong, or pass. The same panel sits beside your hand while the coach is on. Feedback instead shows the tile each strategy would have discarded after you throw one. The coach's column also carries a table read from `js/mahjong-analysis.js`, written with every hand face up: how many of the tiles that help you are really left in the wall and how many sit in other hands, a discard that was a step slower or left fewer outs, a discard that dealt in (and whether a safe tile existed), who is ready and on what with which of your tiles would win for them, a win you passed on, a call that would have made you ready, what each call did to the hand, and how the hand ended. Click any coach note to jump the progress bar to the move it is about. Both that panel and the coach's notes hide when the coach is off. Click one to make it the coach. The side panel is titled Coach and that strategy. At the end of a full game, Results saves that playback. View playback is on each hand's summary, and opens that hand here. Stepping through moves adds no browser history, so Back (the button on the playback bar, or the browser's or phone's back) always returns to the game, exactly as it was. After a refresh on the playback, Back opens the saved game on that hand's results. The Points Guide still reads the file, or just the hand seed, as that starting hand.
+Tap your wind badge to copy the hand seed, such as `919942249-NE` (the shuffle number, your seat wind, the round wind). The badge flashes once the copy is done. The Points Guide reads a seed (or a whole playback file) as that starting hand.
+
+#### Playback
+
+Playback replays a hand move by move. It is a view of the game page, `/playing-mahjong/?playback=1`, so it opens in place with no page load or network fetch, and the game waits under it as it was.
+
+**Opening one**
+
+- **View playback** is on each hand's summary and in the Menu, and opens the hand being played or just finished.
+- **Saved playbacks**, on the playback bar (a list icon when its words would crowd the bar), opens a sheet of your five most recent finished hands, newest first, and the last playback you uploaded (one at most). With no hand loaded, a Saved playbacks button sits in the center of the table.
+  - Each row says who won with which hand and faan (only the most important pattern, the one worth the most faan, with the hand's total), such as *Katie won with Half Flush · 6 faan*. Below that is the hand number and when the hand finished, as a plain readable time: *Hand 3 · Today, 2:30 PM*. The finish time is inside the signed file; an older file without one shows when it was saved.
+  - Three rounded-square icon buttons, each with a tooltip: **Play**, **Copy hand seed** (shows a check and "Copied" for a moment) and **Download**. The playback on screen has a white ring round its Play button.
+  - **Upload playback**, at the bottom, closes the sheet and opens a file picker. The file plays and replaces the last upload. Command+V or Ctrl+V pastes a playback too.
+- **Download** saves that hand as JSON named with the time it was saved, such as `lucky-cat-mahjong-playback-2026-11-05-1430.json`. The playback bar has no Download button of its own.
+- **Upload failed.** A file that can't be uploaded opens a popup headed *Upload failed*, and nothing from it is kept; the playback on screen stays. The message says why: the signature doesn't match (the file was changed or damaged), its contents are damaged, it isn't a playback, or its version is incompatible (it names the file's version and this game's, and says to reload when the file is newer).
+
+**What is kept**
+
+- The recent hands are in `lcm-play-recent` and the upload in `lcm-play-upload`, so an upload never replaces the game's own playback: View playback always shows the game. Each hand joins the list when it finishes, in either mode (a lesson's hand is not kept).
+- A hand still being played is never written to storage, because its file holds the whole deal. A refresh of its playback brings the hand back from the game's save and opens the playback again. A refresh while an upload shows keeps showing it.
+- The file is signed (HMAC-SHA256). It holds the hand seed (`handSeed`), every draw, discard and claim so far, each player's hand at that moment, and when the hand finished (`endedAt`).
+
+**Watching**
+
+- It opens on the deal and plays by itself. The bar's icon buttons are previous, play or pause, and next, with previous and next dimmed at the ends. The speed buttons play at 0.5x, 1x or 2x (kept as `speed` in `lcm-play-prefs`).
+- A move is one discard, by any player, so *Move 4 of 49* counts discards only; draws, flowers and claims come with the move they lead to. Each move plays action by action, and previous plays it in reverse. Move lines are in the past tense (*You discarded Four Circle.*).
+- The progress bar has a dot for each move: a larger one for your own discards, a red dot for each chow, pung or kong you made, and a yellow circle where you exposed a meld. Hover it to see what happened there; click or drag it to jump.
+- **Opponents' tiles.** In a finished hand's playback every hand is face up. Double-clicking (or double-tapping) an opponent's hand hides all their concealed tiles, and doing it again shows them. The choice is kept as `showOpponents` in `lcm-play-prefs`. An unfinished hand's playback always keeps their tiles concealed, and the double-click does nothing there.
+- **The end.** At the last move the hand's results show, the same card the game showed (who won, the hand, its patterns and faan, without the payout), with **Watch again** (from the deal) and **Close** (back to the table at the last move; Enter or Escape too). The result is scored again from the file (`E.playbackResult`) with the flags the game used, such as Win on Last Tile.
+- The top bar shows the title, Playback Analysis, centered between Back and the buttons on the right, at every screen size.
+
+**The coach column**
+
+- A panel headed Strategies (no heading on a phone), as tall as your hand, shows the tile each strategy would discard, or what it would chow, pung, kong or pass. Click one to make it the coach; the side panel is titled Coach and that strategy. The same panel sits beside your hand in the game while the coach is on; in Feedback mode it shows what each strategy would have discarded after you throw.
+- The coach's notes carry a read from `js/mahjong-analysis.js`, written with every hand face up: how many of the tiles that help you are really left in the wall and how many sit in other hands, a discard that was a step slower or left fewer outs, a discard that dealt in (and whether a safe tile existed), who is ready and on what, a win you passed on, a call that would have made you ready, what each call did to the hand, and how the hand ended. Click a note to jump to its move. The panel and the notes hide when the coach is off.
+
+**Back**
+
+Stepping through moves adds no browser history, so Back (the bar's button, or the browser's or phone's back) always returns to the game as it was. After a refresh on the playback, Back opens the saved game on that hand's results.
 
 #### Auto-play (development only)
 
-On a development address (`localhost`, `127.x.x.x`, `192.168.x.x`, `10.x.x.x`, `172.16-31.x.x`, or a `.local`, `.localhost` or `.test` name, the same set the analytics skip), with the coach **on**, clicking your wind badge has the coach's strategy play your moves, each through the same buttons and animations as a click, hand after hand, until you click the badge again, turn the coach off, or the game ends. While it runs, the flights and pauses are skipped (tiles move at once, and the bots don't take their thinking time; whatever was mid-flight lands at once), so a hand takes a fraction of a second. The declaration banners (Pung, Flower and the other callouts) and the win confetti are skipped too, and any on screen when it starts are cleared. It also plays none of the tile sounds (draws, discards, flowers, claims, the knock for your turn, the reveal); the win, lose, wall-ran-out and next-hand sounds, the click and the music still play. A gold ring round the badge shows it's on. Auto-play is never kept: it is off whenever the game page loads, and a page the browser restores from its back/forward cache, or leaves, is switched off too. On a real host, with the coach off or feedback mode, in a lesson, and in a playback, the badge copies the hand seed as before. Phones on the local wifi count (`isLocalHost` in `js/mahjong-game.js`).
+On a development address (`localhost`, `127.x.x.x`, `192.168.x.x`, `10.x.x.x`, `172.16-31.x.x`, or a `.local`, `.localhost` or `.test` name, the same set the analytics skip), with the coach on or in Feedback mode, clicking your wind badge has the coach's strategy play your moves, each through the same buttons as a click, hand after hand, until you click the badge again, turn the coach off, or the game ends (it stops at the Game over window). While it runs, the flights and pauses are skipped (tiles move at once, and the bots don't take their thinking time; whatever was mid-flight lands at once), so a hand takes a fraction of a second. The declaration banners (Pung, Flower and the other callouts) and the win confetti are skipped too, and any on screen when it starts are cleared. It also plays none of the tile sounds (draws, discards, flowers, claims, the knock for your turn, the reveal); the win, wall-ran-out and next-hand sounds, the button click and the music still play. A gold ring round the badge shows it's on. Auto-play is never kept: it is off whenever the game page loads, and a page the browser restores from its back/forward cache, or leaves, is switched off too. On a real host, with the coach off, in a lesson, and in a playback, the badge copies the hand seed as before. Phones on the local wifi count (`isLocalHost` in `js/mahjong-game.js`).
 
 #### Strategies
 
@@ -294,6 +333,10 @@ Sound effects are short CC0 clips from Kenney's packs, played with WebAudio (`as
 | Your turn | A light knock on wood |
 | Win, whoever takes it | A heavy mining-pick hit, struck again, then the pot's chips |
 | Drawn hand | A bell |
+| Draw a tile | A light chip clack |
+| Playback: previous, next | The draw's chips, played backward and forward |
+| Playback: hide or show opponents' tiles | The show-hands hit |
+| Buttons | A soft chip click |
 
 Background music is three CC BY 4.0 tracks by Kevin MacLeod (Guzheng City, Shenyang, Ripples, in `assets/music/`, credited on the play page), shuffled and looped while the game is open.
 
@@ -430,7 +473,7 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 ├── which-mahjong-tiles-are-you/ # Tile quiz + a generated page per tile
 ├── play-mahjong/           # Play page: the game's options (mode, Start, Resume, Learn to play)
 ├── playing-mahjong/        # The game: canvas table and its playback view
-├── sw.js                   # The site's service worker: the whole site offline
+├── sw.js                   # Service worker: the Points Guide, the options page and the game offline
 ├── 404.html                # Custom not-found page
 ├── logo.png / logo.webp    # Club logo
 ├── css/
@@ -455,6 +498,9 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── mahjong-engine.js   # Play: rules engine, shanten, claims, settlement (tested)
 │   ├── mahjong-bot.js      # Play: bot engine and the rules every strategy shares
 │   ├── mahjong-lucky-cat.js # Play: the lucky-cat strategy (tested)
+│   ├── mahjong-lucky-cat-ml.js # Play: Lucky Cat's learned discards
+│   ├── mahjong-lucky-cat-net.js # Play: Lucky Cat's network, in plain JS
+│   ├── mahjong-lucky-cat-weights.js # Play: its shipped model (generated)
 │   ├── mahjong-jorge-yau.js # Play: the jorge-yau strategy
 │   ├── mahjong-only-orphans.js # Play: the only-orphans strategy (learned)
 │   ├── mahjong-only-orphans-weights.js # Play: its shipped model (generated)
@@ -467,6 +513,10 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── mahjong-competition.js # Play: strategies against each other
 │   ├── mahjong-coach.js    # Play: the coach (tested)
 │   ├── mahjong-rules.js    # Play: the Rules sheet (tested)
+│   ├── mahjong-lesson.js   # Play: Learn to play, the scripted lesson
+│   ├── play-options.js     # Options page: mode, Start, Resume, Learn to play
+│   ├── offline-cache.js    # Offline: the saved file list, version and cache logic (tested)
+│   ├── offline.js          # Offline: registers the service worker on the three pages
 │   └── mahjong-game.js     # Play: canvas table, animation, sound
 ├── scripts/
 │   ├── serve.py            # Local dev server that turns off caching
@@ -484,6 +534,7 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 ├── docs/
 │   ├── README.md           # Index of the docs
 │   ├── analytics/          # Google Analytics setup, privacy and every event
+│   ├── offline/            # The service worker and what works offline
 │   ├── machine-learning/   # Neural Cat: features, model, decisions, training, fair play, Hugging Face
 │   └── strategies/         # Bot and coach playbooks, and feedback.json
 ├── assets/                 # Music, sounds, PDFs and images
