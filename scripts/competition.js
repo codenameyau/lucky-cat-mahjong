@@ -16,6 +16,10 @@
      --seed N          first deal's seed (default 1)
      --workers N       worker threads (default: CPU cores - 1)
      --json FILE       also write the full report as JSON
+     --per-deal        with --json, also write the first seat's strategy's
+                       points on each deal (all its rotations added), in
+                       deal order, so two runs on the same deals can be
+                       compared deal by deal (perDeal in the JSON)
      --ml-weights FILE neural-cat plays these weights (ml/models/<name>.json)
      --ml-options JSON other options for neural-cat, e.g. '{"claims":false}'
      --variant N=B:JSON a player N: strategy B with other tuning, e.g.
@@ -86,7 +90,15 @@ if (!isMainThread) {
   addVariants(workerData.variants);
   addModels(workerData.lineup);
   useMl(workerData.mlWeights, workerData.mlOptions);
-  C.runMatch(workerData).then((report) => parentPort.postMessage(report));
+  // --per-deal: the first seat's strategy's points on each deal.
+  const perDeal = [];
+  const id = workerData.lineup[0];
+  let hand = 0;
+  const onHand = workerData.perDeal ? (res, ids) => {
+    if (hand++ % 4 === 0) perDeal.push(0);
+    ids.forEach((x, seat) => { if (x === id) perDeal[perDeal.length - 1] += res.deltas[seat]; });
+  } : null;
+  C.runMatch(Object.assign({}, workerData, { onHand })).then((report) => parentPort.postMessage(workerData.perDeal ? { report, perDeal } : report));
   return;
 }
 
@@ -131,12 +143,14 @@ async function main() {
     jobs.push(new Promise((resolve, reject) => {
       const mlWeights = args['ml-weights'] ? path.resolve(String(args['ml-weights'])) : null;
       const mlOptions = args['ml-options'] ? JSON.parse(String(args['ml-options'])) : null;
-      const worker = new Worker(__filename, { workerData: { lineup, deals: count, seed: seed + first, mlWeights, mlOptions, variants } });
+      const worker = new Worker(__filename, { workerData: { lineup, deals: count, seed: seed + first, mlWeights, mlOptions, variants, perDeal: !!args['per-deal'] } });
       worker.once('message', resolve);
       worker.once('error', reject);
     }));
   }
-  const reports = await Promise.all(jobs);
+  const results = await Promise.all(jobs);
+  const perDeal = args['per-deal'] ? [].concat(...results.map((x) => x.perDeal)) : null;
+  const reports = args['per-deal'] ? results.map((x) => x.report) : results;
   const report = reports.reduce((a, b) => C.mergeReports(a, b));
   report.ms = Date.now() - t0;
   console.log('');
@@ -145,7 +159,7 @@ async function main() {
     const file = path.resolve(String(args.json));
     const summary = {};
     Object.keys(report.strategies).forEach((id) => { summary[id] = C.summarize(report.strategies[id]); });
-    fs.writeFileSync(file, JSON.stringify({ seed, report, summary }, null, 2) + '\n');
+    fs.writeFileSync(file, JSON.stringify(Object.assign({ seed, report, summary }, perDeal ? { perDeal: { id: lineup[0], points: perDeal } } : {}), null, 2) + '\n');
     console.log('\nWrote ' + file);
   }
 }

@@ -438,8 +438,36 @@ Only Orphans keeps fixed rules (only 1s, 9s and honors, no chows) and lets a net
 
 - **Thinking.** Lab round 1, against NC1, the newer Jorge Yau and LC20, kept nothing: the wider network (`wide`) led on 6,000 deals but fell to J +5.1 on 20,000 (points +4.0 ± 15.6), within the noise. Round 2 played 50,000 hands with O5 against the game's new table (NC2, lc23, Jorge Yau) and O2 and O3, then tried a third of the learning rate (`finetune-slow`, J −6.6), a deeper network from scratch (`deep`, +29.1 on 6,000 deals, then +7.1 on 20,000, within the noise), three times the learning rate (`finetune-fast`), and claim margins of −25 and +25 (0.0 and +6.7). `finetune-fast` trained O5 on 3,457,210 positions from the league's five rounds and the lab's two.
 - **What it does differently.** Against O5 on the same 20,000 deals, it wins 2.2% of its hands to 1.9% (1,767 wins to 1,560) and deals in just as often (11.1%). The extra wins are Mixed Orphans in triplets: 848 Mixed Orphans to 679, and 710 All Triplets to 535, while Thirteen Orphans stayed level (724 to 718). It pungs more (0.52 a hand to 0.48), kongs more (5,458 to 5,106) and self-draws more (463 to 377). Each win is a little smaller (9.8 faan to 10.0, about 6,000 points to 6,700), but more wins add up to more points: 49.1 a hand to O5's 42.5.
-- **Reading.** A larger step from O5 on games against the stronger table taught it to take more orphan pungs and settle for the triplet hands earlier, where O5 kept chasing Thirteen Orphans. Deal-ins are still about 11% of hands, against the rule bot's 4.6%, so that's still where the next gains need to come from.
+- **Reading.** A larger step from O5 on games against the stronger table taught it to take more orphan pungs and settle for the triplet hands earlier, where O5 kept chasing Thirteen Orphans. It deals in on about 11% of hands, against the rule bot's 4.6%, but on cheap hands, so in points its deal-ins cost about the same as the rule bot's (see the plateau below).
 - **Result.** J +8.0 on 20,000 fresh deals (points +6.7 ± 15.4), beyond its standard error: kept, and shipped as **OL2c**. Against the rule-based bot on those deals: +26.8 ± 14.8 points a hand.
+
+### The plateau after OL2c (lab rounds 3 to 6)
+
+Four rounds in a row kept nothing, so the lab stopped to look at what it does badly.
+
+**The evidence.**
+
+| Round | Best on 6,000 deals | On 20,000 deals | OL2c against the rule bot (6,000 deals) |
+| ---: | --- | --- | ---: |
+| 3 | deep +4.3 | +1.2 (points +2.8 ± 15.0) | +42.0 ± 27 |
+| 4 | claimMargin−25 +5.6, winBonus+150 +2.0 | 0.0, +0.9 | +23.4 ± 28 |
+| 5 | claimMargin+25 +3.4, finetune +1.6 | +4.9 (points +6.0 ± 15.5), +1.9 | +43.5 ± 27 |
+| 6 | claimMargin+25 +7.0, finetune-slow +3.7 | +1.6, −6.5 | +29.8 ± 28 |
+
+- **The noise is wider than the gains.** On 20,000 deals the 95% margin was about ±15 points a hand. The candidates sent there averaged J +3.9 on their first 6,000 deals and +0.6 on the 20,000: picking the best of five on ±28 mostly picks luck. OL2c's own score against the rule bot swung from +23 to +44 between rounds, with nothing changed. A limit hand pays up to 24,576 points, so this strategy's points swing more than Neural Cat's.
+- **The margins ignored that both models play the same deals.** The lab added the two runs' margins as if they were independent. Measured deal by deal (OL2c against O5, 3,000 deals), the two runs correlate at 0.28, and the paired margin is about 15% narrower: ±30 against ±36. For a play setting that changes only a few choices, the gap is far bigger: on 300 deals, `winBonus+150` was ±5 paired, where the independent margin would be about ±60.
+- **One arm could never change anything.** A claim is the model's only when it's worth more than the base strategy's pass, so a negative claim margin never changes a choice. `claimMargin−25` played exactly like the champion all three times it was tried, and used a candidate's slot each time.
+- **Training drifts back to fewer, bigger hands.** All 12 networks trained in rounds 3 to 6 won fewer hands than OL2c (1.6–2.2% against 2.2–2.4%), with bigger average wins (5,900–8,400 points against 5,700–6,200), and lost: J −5.8 on average. That held even for `recent` in round 6, trained only on OL2c's own games, so it isn't the league's old data. OL2c had gained by going the other way: more wins, smaller.
+- **Deal-ins weren't the weak spot.** OL2c deals in more than twice as often as the rule bot (11.1% of hands against 4.6%), but on cheap hands (216 points each against 506), so its deal-ins cost about the same: 23.9 points a hand against 23.3. Its whole lead is in what it wins: 132.6 points a hand against the rule bot's 103.4. Lucky Cat's fix, training on each move that dealt in as a negative example, doesn't apply here either: Lucky Cat learns which move to copy, and this network already learns the chance of dealing in as one of its outcomes.
+
+**What changed** (`scripts/ml/lab.js`, Only Orphans only; `scripts/competition.js --per-deal`):
+
+1. **Paired margins.** Each Only Orphans evaluation writes its points on every deal, and the margin of a difference is read from the per-deal differences, for candidates, the champion and the rule bot alike.
+2. **40,000 deals for the long evaluation**, against 20,000. With pairing, the 95% margin is about ±8 points a hand, against ±15 before: a candidate needs about +4 to be kept, against +8.
+3. **`claimMargin−25` is gone**, replaced by `claimMargin+50`. `claimMargin+25`, the next step up, averaged J +3.0 over four tries and cut deal-ins each time.
+4. **A training arm against the drift**, `finetune-wins`: a fine-tune whose play then leans toward winning (winBonus +300). The lab's arm choice will show whether it pays.
+
+The lab's first round after the change is round 7, from OL2c.
 
 ## What the two show together
 
