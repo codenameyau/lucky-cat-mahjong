@@ -1,59 +1,47 @@
-# only-orphans: one hand, every hand
+# only-orphans: one family of hands, played by a model
 
-This is the playbook for the **only-orphans** strategy (`js/mahjong-only-orphans.js`). It goes for Thirteen Orphans on every hand and plays as long as that has a real chance. After that, it finishes on a hand made from the same 1s, 9s and honors. Any bot seat can play it, and the coach can follow it (pick it in the Strategies sheet).
+This is the playbook for the **only-orphans** strategy (`js/mahjong-only-orphans.js`). It only plays hands of 1s, 9s and honors. A neural network trained by self-play decides how, the same way [Neural Cat](neural-cat.md) plays its hands. Any bot seat can play it, and the coach can follow it (pick it in the Strategies sheet).
 
-It only uses what its seat can see, and it plays on the shared foundation in `js/mahjong-bot.js`, so it defends like the other bots and keeps the shared rules, like never throwing a lone dragon nobody has shown.
+It only uses what its seat can see, and it plays on the shared foundation in `js/mahjong-bot.js`, so it keeps the shared rules, like never throwing a lone dragon nobody has shown.
 
-## Thirteen Orphans
+Training progress, round by round: [only-orphans-training.md](only-orphans-training.md).
 
-From the first discard:
+## What stays fixed
 
-- Every tile that isn't a 1, a 9 or an honor goes first.
-- Spare copies of 1s, 9s and honors go next. One pair is kept, since the hand needs it.
-- Nothing is claimed, and no kong is declared. It still takes a win.
+These rules are what make it Only Orphans, so the model can't change them:
 
-## When it gives up
+- **Tiles that aren't 1s, 9s or honors always go first**, even when it plays safe. The model picks which of them goes.
+- **It never chows.** It only pungs or kongs a 1, a 9 or an honor, and only declares a kong of one. A win is always taken.
+- **The hands it reads** are Thirteen Orphans (while no meld is down and no tile it needs has run out), and Mixed Orphans, All Terminals and All Honors, as triplets or as pairs. The usual hands only come in if a meld somehow rules all of those out.
 
-It stops playing Thirteen Orphans in any of these cases:
+## What the model decides
 
-- **A tile it needs has run out.** All four copies of a missing 1, 9 or honor are on the table.
-- **The odds are too low.** After its first six discards, it gives up if its chance of finishing falls under about 1 in 1,000.
+Everything else, scored in expected points (the [model](../machine-learning/model.md) Neural Cat uses, with its own weights in `js/mahjong-only-orphans-weights.js`):
 
-The odds are worked out a go-around at a time from the copies still unseen and the tiles left in the wall. Each missing kind and the pair is one step. Once the hand is ready, its wait can also come from any of three discards.
+- **Which tile goes.** It reads the position each allowed discard leaves and throws the one worth the most. Once it holds only 1s, 9s and honors, every tile is allowed.
+- **When to give up on Thirteen Orphans, and for which hand.** The rule-based bot gave up on a fixed odds threshold after six discards. The model keeps or breaks the singles a Thirteen Orphans hand needs, and the pairs and triplets the other hands need, by what each is worth.
+- **Which pungs and kongs to take.** Passing and each call it may make are scored, and the best one is played.
+- **When to play safe.** Deal-in risk is part of every position it reads, so there is no separate folding rule beyond the shared foundation's order.
 
-| Kinds still missing, plus the pair | 84 left | 60 left | 45 left | 32 left | 20 left |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 7 | 1.4% | 0.57% | 0.14% | 0.01% | 0% |
-| 6 | 3.3% | 1.6% | 0.58% | 0.12% | 0% |
-| 5 | 7.2% | 4.3% | 2.1% | 0.74% | 0% |
-| 4 | 15% | 11% | 6.3% | 3.3% | 0.48% |
-| 3 | 30% | 24% | 17% | 12% | 4.3% |
+## How it is trained
 
-These are estimates. They don't count the chance that someone else wins first, so the real odds are lower.
+`npm run ml:orphans` (`scripts/ml/orphans.js`) trains it like the Neural Cat [league](../machine-learning/training.md#4-the-league-npm-run-mlleague), in rounds of 50,000 games:
 
-The check runs again every turn and keeps no memory, so a good draw can bring the hand back to Thirteen Orphans if it's still alive and hasn't declared a meld.
+1. **Bootstrap (round 1).** The rule-based bot plays about half the seats, exploring, against Neural Cat, Jorge Yau and Lucky Cat. Its positions are read through the learned strategy's foundation and labelled with how each hand ended. O1 is trained on them from scratch.
+2. **Play.** From round 2, the best model so far plays about half the seats, exploring (`--temperature 150`, `--epsilon 0.05`), against Neural Cat, Jorge Yau, Lucky Cat and up to two earlier models. Only its own seats are recorded, about 25% of their decisions.
+3. **Train.** A new model starts from the best one's weights and trains on the last 8 rounds of data (`--lr 3e-4`, dropout 0.2, weight decay 1e-3, up to 8 epochs).
+4. **Rank.** The new model, the best one, the model in the game and the rule-based bot each take one seat against Neural Cat, Jorge Yau and Lucky Cat, on the same 9,000 deals, each played from every seat, new deals every round. (Rounds 1 to 4 used 3,000 deals, which left a margin of about ±35 points a hand, wider than most differences between models.)
+5. **Keep and ship.** It becomes the best if it scores more points a hand than the best. A best that also beats the rule-based bot by more than the 95% margin, and scores more than the model in the game on the same deals, is a **milestone**: it ships to `js/mahjong-only-orphans-weights.js`, so the game plays it. Both are measured on the same deals because the opponents change when the game's other strategies do, and every score with them.
 
-## The hands it pivots to
+The features are read through this strategy's own hooks, not Neural Cat's, so its data and models can't be mixed with Neural Cat's.
 
-Each turn it weighs these and plays the one with the best odds for what it pays:
+## The rule-based baseline
 
-| Hand | Made of | Claims |
-| --- | --- | --- |
-| Mixed Orphans | Triplets of 1s, 9s and honors | Pungs and kongs of those tiles |
-| All Terminals | Triplets of 1s and 9s | Pungs and kongs of those tiles |
-| All Honors | Triplets of honors | Pungs and kongs of those tiles |
-| Seven Pairs with Mixed Orphans | Pairs of 1s, 9s and honors | None |
-| Seven Pairs in All Terminals | Pairs of 1s and 9s | None |
-| Seven Pairs in All Honors | Pairs of honors | None |
+The rule-based bot this strategy replaces is kept, out of the game, as the baseline every model is ranked against: `scripts/ml/baselines/only-orphans-rules.js`, the lab strategy `only-orphans-rules` in `npm run compete`. It played like this:
 
-A limit hand counts for more than Mixed Orphans, but `valuePower` 0.5 keeps it from being chosen from many steps further away.
+- **Thirteen Orphans first.** From the first discard, every tile that isn't a 1, a 9 or an honor goes first, then spare copies of 1s, 9s and honors (one pair is kept). Nothing is claimed, and no kong is declared.
+- **Giving up.** It stops playing Thirteen Orphans when all four copies of a tile it needs are on the table, or, after its first six discards, when its estimated chance of finishing falls under about 1 in 1,000. The odds are worked out a go-around at a time from the copies still unseen and the tiles left in the wall.
+- **Pivots.** Then it plays whichever of Mixed Orphans, All Terminals and All Honors, as triplets or as pairs, has the best odds for what it pays (`valuePower` 0.5). Triplets pung any tile they keep; pairs claim nothing.
+- **Defense.** Shared with the other bots ([lucky-cat.md](lucky-cat.md#defense)).
 
-It never chows. It stays on these hands even when too few draws are left to fill one, and then safety decides the discard. The usual hands are only a fallback if none of these can be made, which its own claims shouldn't allow.
-
-## Defense
-
-Defense is shared with the other bots (see [lucky-cat.md](lucky-cat.md#defense)). While it folds, tiles other than 1s, 9s and honors still go first, the safest of them first.
-
-## How it does
-
-It wins least and scored most in the four-strategy competition (see [the results](README.md#earlier-results)): 1.7% of hands, about 41 points a hand. Limit hands pay so much that 178 of them in 24,000 hands carried its total, so its score swings widely from run to run. It deals in about 3 times for every win.
+In the four-strategy competition it won least and scored most: 1.7% of hands, about 41 points a hand, carried by limit hands, so its score swings widely from run to run. It dealt in about 3 times for every win.

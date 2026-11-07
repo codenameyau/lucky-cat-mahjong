@@ -153,7 +153,7 @@ Every bot plays a named strategy, built on the shared foundation in `js/mahjong-
 | --- | --- | --- | --- |
 | **lucky-cat** | `js/mahjong-lucky-cat.js` | Tracks every discard and plays the odds to the fastest 3-faan win | [lucky-cat.md](docs/strategies/lucky-cat.md) |
 | **jorge-yau** | `js/mahjong-jorge-yau.js` | Reads the opening hand and builds toward one target hand, attacks with no defense until it's slow late, and locks onto a hand worth 7 faan or more | [jorge-yau.md](docs/strategies/jorge-yau.md) |
-| **only-orphans** | `js/mahjong-only-orphans.js` | Goes for Thirteen Orphans every hand, then pivots to a hand of 1s, 9s and honors | [only-orphans.md](docs/strategies/only-orphans.md) |
+| **only-orphans** | `js/mahjong-only-orphans.js` | Only plays hands of 1s, 9s and honors; a model trained by self-play decides how (`npm run ml:orphans`) | [only-orphans.md](docs/strategies/only-orphans.md) |
 | **neural-cat** | `js/mahjong-ml.js` | Plays Jorge Yau's hands, and a neural network trained on simulated games picks the discard, claim or kong worth the most points on average | [neural-cat.md](docs/strategies/neural-cat.md) |
 
 - The **Strategies** button in the top bar (`js/mahjong-strategies.js`) describes each one and shows who plays which
@@ -295,6 +295,7 @@ Neural Cat's network is trained on simulated hands. How the whole AI layer works
 | `npm run ml:train` | Trains a model on that data with PyTorch (`ml/train.py`; set up with `python3 -m venv ml/.venv && ml/.venv/bin/pip install -r ml/requirements.txt`; on Windows with an NVIDIA GPU, run `ml\setup-windows.ps1`, see [training](docs/machine-learning/training.md#windows-with-an-nvidia-gpu)) and checks the JS model gives the same outputs. `--ship` writes `js/mahjong-ml-weights.js` |
 | `npm run ml:lab` | The lab, how Neural Cat is trained now: each round plays 50,000 deals against varied opponents, tries several experiments (retraining, wider networks, how the model plays), keeps one only on a clear gain on 20,000 fresh deals, and learns which experiments pay. State in `ml/lab/` |
 | `npm run ml:league` | The league that came before the lab (it plateaued after L7). State in `ml/league/` |
+| `npm run ml:orphans` | Trains the learned Only Orphans in rounds of 50,000 games, ranked each round against the best model and the rule-based Only Orphans; milestones ship to `js/mahjong-only-orphans-weights.js`. Progress in [only-orphans-training.md](docs/strategies/only-orphans-training.md), state in `ml/orphans/` |
 | `npm run ml:hf -- --repo codenameyau/lucky-cat-mahjong` | Uploads each new best model and the model card to Hugging Face. `--watch` keeps going until the league is done |
 | `npm run ml:hf-data -- --repo codenameyau/lucky-cat-mahjong-games --publish` | Only when the maintainer explicitly asks: uploads the training data in use to the Hugging Face dataset and drops what no model uses. Without `--publish` it uploads nothing |
 | `node scripts/ml/prune-data.js --apply` | Moves training data no model uses from `ml/data/` to the Trash (the league does this after every round) |
@@ -429,7 +430,8 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── mahjong-bot.js      # Play: bot engine and the rules every strategy shares
 │   ├── mahjong-lucky-cat.js # Play: the lucky-cat strategy (tested)
 │   ├── mahjong-jorge-yau.js # Play: the jorge-yau strategy
-│   ├── mahjong-only-orphans.js # Play: the only-orphans strategy
+│   ├── mahjong-only-orphans.js # Play: the only-orphans strategy (learned)
+│   ├── mahjong-only-orphans-weights.js # Play: its shipped model (generated)
 │   ├── mahjong-ml.js       # Play: Neural Cat, the learned strategy (tested)
 │   ├── mahjong-ml-features.js # Play: what the model sees of a position
 │   ├── mahjong-ml-model.js # Play: the neural network, in plain JS

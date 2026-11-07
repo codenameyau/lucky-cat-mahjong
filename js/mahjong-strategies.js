@@ -72,13 +72,18 @@
       id: 'only-orphans',
       name: 'Only Orphans',
       bot: O,
-      summary: 'Goes for Thirteen Orphans every hand. When that has little chance left, it pivots to a hand of only 1s, 9s and honors.',
-      details: [
-        'It throws every tile that isn\'t a 1, a 9 or an honor first, and claims nothing. It stays on Thirteen Orphans for at least its first six discards, however far away the hand is.',
-        'It gives up when a tile it needs has run out, or when the chance of finishing falls under about 1 in 1,000.',
-        'Then it pivots to whichever has the best odds for what it pays: Mixed Orphans, Seven Pairs with Mixed Orphans, or All Terminals or All Honors, as triplets or as pairs. Triplets pung any tile they keep. Pairs claim nothing.',
-        'Only if none of those can be finished does it play the usual hands. It defends like the other bots, and when it folds, safety decides among the tiles it can spare.',
-      ],
+      get summary() {
+        return withModel(weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights'), 'Only plays hands of 1s, 9s and honors: Thirteen Orphans, Mixed Orphans, All Terminals and All Honors. A neural network trained on simulated games decides how.');
+      },
+      get details() {
+        var version = weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights');
+        return [
+          'It throws every tile that isn\'t a 1, a 9 or an honor first, even when it plays safe. It never chows, and it only pungs or kongs a 1, a 9 or an honor.',
+          'The hands it can play are Thirteen Orphans, Mixed Orphans, All Terminals and All Honors, as triplets or as pairs.',
+          'Everything else is up to ' + (version ? 'its neural network, model ' + version + ',' : 'a neural network') + ' trained on simulated hands against Neural Cat, Jorge Yau and Lucky Cat: which tile goes, when to give up on Thirteen Orphans and for which hand, which pungs and kongs to take, and when to play safe.',
+          'It scores each choice by the points it is worth on average and plays the best one, the same way Neural Cat does. It sees only what its seat can see.',
+        ];
+      },
       doc: 'docs/strategies/only-orphans.md',
     },
   ];

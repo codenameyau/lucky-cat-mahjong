@@ -6,7 +6,7 @@ The trained models are public on Hugging Face, so anyone can read the model card
 
 | Repo | Kind | What's in it |
 | --- | --- | --- |
-| [codenameyau/lucky-cat-mahjong](https://huggingface.co/codenameyau/lucky-cat-mahjong) | Model | `neural-cat/neural-cat.json`, the model the game ships; `neural-cat/models/<name>.json`, every model that became the best (and `s5.json`, the league's starting point); and the model card with the league's results |
+| [codenameyau/lucky-cat-mahjong](https://huggingface.co/codenameyau/lucky-cat-mahjong) | Model | `neural-cat/neural-cat.json`, the model the game ships; `neural-cat/models/<name>.json`, every model that became the best (and `s5.json`, the league's starting point); and the model card with the league's results. `only-orphans/only-orphans.json`, the Only Orphans model the game plays, and `only-orphans/models/<name>.json`, every Only Orphans milestone |
 | [codenameyau/lucky-cat-mahjong-games](https://huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games) | Dataset | `data/<set>/`: the positions of the sets in use (the ones the shipped model trained on and the league's training window), and the `manifest.json` of every set ever played, in the [format](training.md#data-format) `npm run ml:generate` writes, with a dataset card |
 
 The model repo is shared with any other learned strategy: each has its own folder and its own section of the README, between markers like `<!-- neural-cat:start -->` and `<!-- neural-cat:end -->`. The uploader rewrites only its own section.
@@ -23,6 +23,8 @@ Both uploaders push over git and SSH, with no access token:
 # Models: each model that became the best, as its own commit, with the model card.
 npm run ml:hf -- --repo codenameyau/lucky-cat-mahjong
 npm run ml:hf -- --repo codenameyau/lucky-cat-mahjong --watch        # keep going while the league runs
+npm run ml:hf -- --repo codenameyau/lucky-cat-mahjong --strategy only-orphans   # each Only Orphans milestone
+npm run ml:hf -- --repo codenameyau/lucky-cat-mahjong --strategy only-orphans --dry-run   # build it locally, push nothing
 
 # Data: only when the maintainer explicitly asks. Each finished set in use (one with a
 # manifest), with the dataset card. Sets no longer in use keep only their manifest, and the
@@ -32,13 +34,13 @@ npm run ml:hf-data -- --repo codenameyau/lucky-cat-mahjong-games --publish
 
 | Script | Options |
 | --- | --- |
-| `scripts/ml/hf-sync.js` | `--repo`, `--state` (default `ml/league/state.json`), `--folder` (default `neural-cat`), `--watch`, `--every SECONDS` (default 120) |
+| `scripts/ml/hf-sync.js` | `--repo`, `--strategy` (`neural-cat`, the default, or `only-orphans`), `--state` (default `ml/league/state.json`, or `ml/orphans/state.json` for Only Orphans), `--folder` (default: the strategy's id), `--watch`, `--every SECONDS` (default 120), `--dry-run` (commits in an empty local repo in the temp folder; no clone, no push) |
 | `scripts/ml/hf-data.js` | `--publish` (required; without it nothing is uploaded), `--repo`, `--sets a,b,...` (default j0, s1–s6 and every league round), `--window N` (league rounds kept, default 8), `--watch`, `--every SECONDS` (default 300) |
 | `scripts/ml/prune-data.js` | `--apply` (without it, only lists what would go), `--window N`, `--data DIR`, `--league DIR` |
 
 Both keep a clone in `ml/hf/` (gitignored). The data clone hard-links the shard files from `ml/data/` rather than copying them, so the data isn't stored twice. A league round still being played has no manifest yet, so `--watch` waits for it. Each `--watch` stops when the league's log says it's done.
 
-The model card is rebuilt from `ml/league/state.json` on every upload: the current best, how it plays, how it was trained, and a results table with every round's score against the best before it and against s5. The dataset card lists every set with its hands and positions, whether its positions are still there, the format, a short Python loader, and the `generate.js` command that plays each removed set again.
+The model card is rebuilt from `ml/league/state.json` on every upload: the current best, how it plays, how it was trained, and a results table with every round's score against the best before it and against s5. Only Orphans' section is rebuilt from `ml/orphans/state.json` the same way, with every round's score against the best and against the rule-based bot. Only its milestones (the models shipped to the game) are uploaded, and nothing goes up before the first one. The dataset card lists every set with its hands and positions, whether its positions are still there, the format, a short Python loader, and the `generate.js` command that plays each removed set again.
 
 ## What is kept
 

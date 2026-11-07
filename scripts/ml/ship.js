@@ -4,6 +4,7 @@
 
    node scripts/ml/ship.js ml/models/s3.json              (js/mahjong-ml-weights.js)
    node scripts/ml/ship.js ml/models/l3.json lucky-cat    (js/mahjong-lucky-cat-weights.js)
+   node scripts/ml/ship.js ml/models/O2.json only-orphans (js/mahjong-only-orphans-weights.js)
 
    Neural Cat's shipped models get a release name, NC1, NC2 and so on, which
    the game shows (easier to read than the league's L17). Each model that
@@ -20,6 +21,7 @@ const LN = require('../../js/mahjong-lucky-cat-net.js');
 
 const TARGETS = {
   'neural-cat': { file: 'mahjong-ml-weights.js', global: 'MahjongMLWeights', name: "Neural Cat's", model: M, by: 'scripts/ml/ship.js', release: 'NC' },
+  'only-orphans': { file: 'mahjong-only-orphans-weights.js', global: 'MahjongOnlyOrphansWeights', name: "Only Orphans'", model: M, by: 'scripts/ml/ship.js' },
   'lucky-cat': { file: 'mahjong-lucky-cat-weights.js', global: 'MahjongLuckyCatWeights', name: "Lucky Cat's", model: LN, by: 'scripts/ml/lucky.js league' },
 };
 
@@ -52,7 +54,9 @@ function ship(file, target) {
 }
 
 if (require.main === module) {
-  const out = ship(path.resolve(process.argv[2]), process.argv[3]);
+  // The target is the second argument (lucky-cat, only-orphans), or --strategy NAME.
+  const k = process.argv.indexOf('--strategy');
+  const out = ship(path.resolve(process.argv[2]), k === -1 ? process.argv[3] : process.argv[k + 1]);
   console.log('Shipped ' + out);
 }
 module.exports = { ship };

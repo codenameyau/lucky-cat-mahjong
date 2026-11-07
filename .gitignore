@@ -153,6 +153,7 @@ ml/loop/
 ml/hf/
 ml/league/
 ml/loop5/
+ml/orphans/
 
 # Tuning screens and rule-bot comparisons (npm run compete --json)
 ml/tune/

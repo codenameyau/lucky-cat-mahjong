@@ -43,10 +43,14 @@ function keptSets(window, leagueDir) {
   return keep;
 }
 
-// The sets in `dataDir` that are no longer in use.
+// Neural Cat's sets in `dataDir` that are no longer in use. Only its league
+// and lab rounds (league-<n>, lab-<n>) are ever candidates: the bootstrap and
+// self-play sets (j0, s1-s6) and other strategies' data (orphans-<n>) are
+// never touched.
 function unused(dataDir, keep) {
   if (!keep || !fs.existsSync(dataDir)) return [];
-  return fs.readdirSync(dataDir).filter((n) => fs.statSync(path.join(dataDir, n)).isDirectory() && !keep.has(n));
+  return fs.readdirSync(dataDir).filter((n) => /^(league|lab)-\d+$/.test(n) &&
+    fs.statSync(path.join(dataDir, n)).isDirectory() && !keep.has(n));
 }
 
 // Moves them to the Trash. Returns the names moved; with no Trash folder

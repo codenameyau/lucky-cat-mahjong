@@ -7,7 +7,8 @@ const A = require('./mahjong-analysis.js');
 
 async function recording(seed, dealer, passes) {
   const game = E.createGame({ seed, humanSeat: false, dealer });
-  const agents = ['only-orphans', 'jorge-yau', 'lucky-cat', 'jorge-yau'].map((id) => S.createAgent(id));
+  // Rule bots only, so the notes don't change when a learned model is retrained.
+  const agents = ['lucky-cat', 'jorge-yau', 'lucky-cat', 'jorge-yau'].map((id) => S.createAgent(id));
   if (passes) agents[0].claim = () => ({ type: 'pass' });
   await E.runHand(game, agents, {});
   return E.parsePlayback(E.playbackText(game, { seat: 0 }));

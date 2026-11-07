@@ -9,7 +9,9 @@
 
    Options:
      --lineup a,b,c,d  strategy per seat (default: jorge-yau vs lucky-cat, alternating);
-                       ml:<file> is Neural Cat with those weights
+                       ml:<file> is Neural Cat with those weights, oo:<file> Only
+                       Orphans with those, only-orphans-rules the rule-based
+                       Only Orphans (the baseline)
      --deals N         deals to play; each is played 4 times, once per rotation (default 250)
      --seed N          first deal's seed (default 1)
      --workers N       worker threads (default: CPU cores - 1)
@@ -67,7 +69,12 @@ function addVariants(list) {
 }
 
 // "ml:<file>" in a lineup: Neural Cat with those weights, as its own player.
+// "oo:<file>": Only Orphans with those weights; only-orphans-rules: the
+// rule-based Only Orphans (scripts/ml/baselines/).
 function addModels(lineup) {
+  const B = require('./ml/baselines/register.js');
+  B.addBaselines();
+  B.addOrphanModels(lineup);
   const ML = require('../js/mahjong-ml.js');
   lineup.filter((id) => /^ml:/.test(id) && !S.has(id)).forEach((id) => {
     const weights = JSON.parse(fs.readFileSync(path.resolve(id.slice(3)), 'utf8'));

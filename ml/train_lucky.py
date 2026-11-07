@@ -100,7 +100,8 @@ def main():
     n = len(a)
     print(f'{n} samples from {len(args.data)} rounds ({x.shape[1]} features)')
     torch.manual_seed(1)
-    dev = 'mps' if torch.backends.mps.is_available() else 'cpu'
+    dev = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f'training on {dev}' + (f' ({torch.cuda.get_device_name(0)})' if dev == 'cuda' else ''))
     net = Net(size, args.dropout)
     if args.init:
         init = json.load(open(os.path.join(ROOT, args.init)))

@@ -640,8 +640,8 @@ describe('saving and loading a game', () => {
   });
 });
 
-describe('only-orphans', () => {
-  const O = require('./mahjong-only-orphans.js');
+describe('only-orphans-rules (the baseline)', () => {
+  const O = require('../scripts/ml/baselines/only-orphans-rules.js');
   const far = ['c1', 'c9', 'd1', 'd9', 'we', 'dr', 'c4', 'c5', 'd4', 'd6', 'b3', 'b5', 'b7', 'd5'];
   const seven = ['c1', 'c9', 'd1', 'd9', 'b1', 'we', 'ws', 'dr', 'dg', 'c4', 'c5', 'd4', 'b5', 'b6'];
   const pung = (t) => ({ type: 'pung', tiles: [t, t, t], concealed: false, from: 2 });
@@ -723,7 +723,79 @@ describe('only-orphans', () => {
   it('plays full hands against the other strategies', async () => {
     for (let n = 0; n < 8; n++) {
       const game = E.createGame({ seed: 31000 + n, humanSeat: false, dealer: 0 });
-      const ids = ['only-orphans', 'lucky-cat', 'only-orphans', 'jorge-yau'];
+      const agents = [O.createBotAgent(), S.createAgent('lucky-cat'), O.createBotAgent(), S.createAgent('jorge-yau')];
+      const res = await E.runHand(game, agents, {});
+      assert.ok(res.type === 'win' || res.type === 'draw', res.type);
+    }
+  });
+});
+
+describe('only-orphans (learned)', () => {
+  const OO = require('./mahjong-only-orphans.js');
+  const M = require('./mahjong-ml-model.js');
+  const far = ['c1', 'c9', 'd1', 'd9', 'we', 'dr', 'c4', 'c5', 'd4', 'd6', 'b3', 'b5', 'b7', 'd5'];
+  const orphansOnly = ['c1', 'c1', 'd9', 'd9', 'we', 'we', 'dr', 'dr', 'b1', 'b9', 'ws', 'wn', 'c9', 'dg'];
+  // The fixed rules hold whatever the weights: the shipped model and random ones.
+  const bots = [OO, OO.create({ model: M.randomModel(3) }), OO.create({ model: M.randomModel(5), epsilon: 0.5, temperature: 300 })];
+
+  it('is the table strategy only-orphans', () => {
+    assert.equal(S.get('only-orphans').bot, OO);
+    assert.equal(OO.id, 'only-orphans');
+  });
+
+  it('throws a tile that is not a 1, a 9 or an honor while it holds one', () => {
+    for (const bot of bots) {
+      for (let n = 0; n < 5; n++) {
+        const d = bot.chooseTurnAction(table({ seats: [{ hand: far }] }), 0, { kongs: [] });
+        assert.equal(d.type, 'discard');
+        assert.ok(!E.isTerminalOrHonorIndex(E.tileIndex(d.tile)), 'threw ' + d.tile);
+      }
+    }
+  });
+
+  it('with only 1s, 9s and honors, throws one of them', () => {
+    for (const bot of bots) {
+      const d = bot.chooseTurnAction(table({ seats: [{ hand: orphansOnly }] }), 0, { kongs: [] });
+      assert.ok(E.isTerminalOrHonorIndex(E.tileIndex(d.tile)), 'threw ' + d.tile);
+    }
+  });
+
+  it('never chows, never claims a tile that is not a 1, a 9 or an honor, and takes a win', () => {
+    const hand = ['c1', 'c1', 'd9', 'd9', 'we', 'we', 'dr', 'dr', 'b1', 'c4', 'c6', 'b5', 'b5'];
+    const game = table({ seats: [{ hand }] });
+    for (const bot of bots) {
+      for (let n = 0; n < 5; n++) {
+        assert.deepEqual(bot.chooseClaim(game, 0, { tile: 'c5', pung: false, kong: false, chows: [['c4', 'c6']] }), { type: 'pass' });
+        assert.deepEqual(bot.chooseClaim(game, 0, { tile: 'b5', pung: true, kong: false, chows: [] }), { type: 'pass' });
+        assert.ok(['pass', 'pung'].includes(bot.chooseClaim(game, 0, { tile: 'dr', pung: true, kong: false, chows: [] }).type));
+      }
+      assert.deepEqual(bot.chooseClaim(game, 0, { tile: 'c1', win: { faan: 13 }, pung: false, kong: false, chows: [] }), { type: 'win' });
+    }
+  });
+
+  it('declares no kong of a tile that is not a 1, a 9 or an honor', () => {
+    const hand = ['b5', 'b5', 'b5', 'b5', 'c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'ww', 'wn'];
+    const game = table({ seats: [{ hand }] });
+    for (const bot of bots) {
+      for (let n = 0; n < 5; n++) assert.notEqual(bot.chooseTurnAction(game, 0, E.turnOptions(game, 0)).type, 'kong');
+    }
+  });
+
+  it('reads Thirteen Orphans beside the pivot hands, and only those', () => {
+    const ctx = OO.buildContext(table({ seats: [{ hand: far }] }), 0);
+    const ids = OO.plans(E.countsOf(far), ctx).map((p) => p.id);
+    assert.deepEqual(ids.slice().sort(), ['all-honors', 'all-terminals', 'mixed-orphans', 'orphans', 'pairs-honors', 'pairs-orphans', 'pairs-terminals']);
+  });
+
+  it('the coach gives a hint for it', () => {
+    const tips = Coach.forStrategy(OO).turnHint(table({ seats: [{ hand: far }] }), 0, { kongs: [] }).tips;
+    assert.ok(tips.length > 0);
+  });
+
+  it('plays full hands against the other strategies', async () => {
+    for (let n = 0; n < 8; n++) {
+      const game = E.createGame({ seed: 31000 + n, humanSeat: false, dealer: 0 });
+      const ids = ['only-orphans', 'lucky-cat', 'only-orphans', 'neural-cat'];
       const res = await E.runHand(game, ids.map((id) => S.createAgent(id)), {});
       assert.ok(res.type === 'win' || res.type === 'draw', res.type);
     }
