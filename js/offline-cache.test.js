@@ -37,11 +37,12 @@ describe('the offline file list', function () {
     });
   });
 
-  it('has every file the play page and the playback page load', function () {
+  it('has every file the play page and the old playback address load', function () {
+    // Playback is a view of the play page; /play-mahjong/playback/ only
+    // redirects there, so it loads little more than its icon.
+    assert.ok(pageRefs(read('play-mahjong/index.html')).length > 10);
     ['play-mahjong/index.html', 'play-mahjong/playback/index.html'].forEach(function (page) {
-      const refs = pageRefs(read(page));
-      assert.ok(refs.length > 10, page);
-      refs.forEach(function (ref) { assert.ok(listed.has(ref), page + ' loads ' + ref); });
+      pageRefs(read(page)).forEach(function (ref) { assert.ok(listed.has(ref), page + ' loads ' + ref); });
     });
     assert.ok(listed.has('/play-mahjong/'));
     assert.ok(listed.has('/play-mahjong/playback/'));
