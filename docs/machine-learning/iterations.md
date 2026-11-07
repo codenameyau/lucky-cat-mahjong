@@ -271,6 +271,7 @@ After the plateau, Neural Cat's training was rebuilt as the lab (`npm run ml:lab
 | Raise the ceiling | Experiments choose among more of Jorge Yau's discards (`topK`), add a bonus for the chance to win (`winBonus`), change the claim margin, and train wider (512, 256) and deeper (512, 256, 128) networks from scratch |
 | Vary the opponents | Each round's table mixes the champion with its last three predecessors, s5, Jorge Yau, LC20 and Lucky Cat Classic |
 | Learn from failures | Each experiment's results are kept, and the next round favours the experiments that have paid, while still trying the rest now and then |
+| Don't stall quietly | After 3 rounds with no new champion the lab escalates: bolder experiments, more exploration, and longer judging of close calls. After 6 it stops and says what it tried |
 
 New features (what the model can't yet see) need new data from scratch, so they're not an experiment yet. They're the next step if these stall.
 
@@ -282,8 +283,11 @@ NC1 (L17), 20,000 deals against each, every deal played from every seat, two sea
 | --- | ---: | ---: | ---: | ---: |
 | L19 | −20.5 ± 18.2 | 9.2% vs 8.5% | 5.7% vs 6.0% | 1,835 vs 2,091 |
 | L7 | +21.3 ± 18.0 | 8.8% vs 8.5% | 5.6% vs 5.5% | 1,910 vs 1,740 |
+| L11 | +18.2 ± 18.0 | 8.9% vs 8.5% | 5.8% vs 5.6% | 1,895 vs 1,848 |
+| s5 | +80.0 ± 17.6 | 8.7% vs 13.2% | 6.6% vs 7.0% | 1,996 vs 905 |
 
-- **The league did improve after L7**, by about 20 points a hand over ten rounds, too slowly for its 6,000-deal evaluations to see.
+- **The league did improve after L7**, by about 20 points a hand over ten rounds (NC1 beats L7 and L11 by about the same), too slowly for its 6,000-deal evaluations to see.
+- **The league as a whole is +80 points a hand past s5**, the model it started from. NC1 wins far fewer hands than s5 (8.7% against 13.2%) but its wins are more than twice as big.
 - **L19 is better than NC1**, so the lab starts from it, shipped as NC2.
 
 The lab's rounds go below as they finish.

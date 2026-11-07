@@ -48,6 +48,15 @@
         named NC2, NC3, ...), pushes its weights to the Hugging Face model
         repo, and moves Neural Cat training data no model uses to the Trash.
 
+   On a plateau the lab searches harder. After --bold-after (3) rounds with
+   no new champion: bold arms join (Neural Cat and Only Orphans: a wider
+   768, 384 network, topK+3, winBonus+300; Lucky Cat: a slow fine-tune on
+   14 rounds), the champion explores more in the round's deals, and a
+   candidate that is ahead but within the noise on 20,000 deals plays
+   30,000 more and is judged on all of them. After --stop-after (6) rounds
+   with no new champion the lab stops and logs a summary, rather than
+   spending the night on the same search.
+
    State is in ml/lab/state.json (Neural Cat), ml/lab-only-orphans/ or
    ml/lab-lucky-cat/ (resumable), the log in lab.log beside it.
 
@@ -63,13 +72,15 @@
      --deals N           deals generated per round (default 50000)
      --train N           training arms per round (default 3)
      --play N            play arms per round (default 2)
+     --bold-after N      rounds without a new champion before bold mode (default 3)
+     --stop-after N      rounds without a new champion before the lab stops (default 6)
      --start FILE        the first champion (default: the league's best, or
                          the model in the game)
      --no-upload         don't push new champions to Hugging Face
      --dir DIR           state and log (default ml/lab, ml/lab-<strategy>)
    For a quick check of the lab itself:
      --dry               no shipping, uploading or pruning
-     --quick-deals N, --full-deals N   smaller evaluations (6000, 20000)
+     --quick-deals N, --full-deals N, --extra-deals N   smaller evaluations (6000, 20000, 30000)
      --prefix NAME       the round's data set is ml/data/<NAME>-<round>
                          (default lab, oolab or lclab) */
 
@@ -103,6 +114,8 @@ const TRAIN_ARMS = {
   recent: { init: true, lr: 3e-4, epochs: 8, window: 3, about: 'fine-tune on the last 3 rounds only' },
   wide: { hidden: '512,256', lr: 1e-3, epochs: 14, window: 12, about: 'a wider network (512, 256), from scratch' },
   deep: { hidden: '512,256,128', lr: 1e-3, epochs: 14, window: 12, about: 'a deeper network (512, 256, 128), from scratch' },
+  // Bold arms join only after a plateau (see stale()).
+  wider: { hidden: '768,384', lr: 1e-3, epochs: 16, window: 14, bold: true, about: 'a much wider network (768, 384), from scratch' },
 };
 const PLAY_DEFAULTS = { topK: 3, winBonus: 0, claimMargin: 0 };
 const PLAY_ARMS = {
@@ -114,6 +127,8 @@ const PLAY_ARMS = {
   'winBonus-50': { key: 'winBonus', step: -50, min: 0, max: 2000 },
   'claimMargin+25': { key: 'claimMargin', step: 25, min: -200, max: 200 },
   'claimMargin-25': { key: 'claimMargin', step: -25, min: -200, max: 200 },
+  'topK+3': { key: 'topK', step: 3, min: 1, max: 12, bold: true },
+  'winBonus+300': { key: 'winBonus', step: 300, min: 0, max: 3000, bold: true },
 };
 // Only Orphans picks among every allowed discard (topK 0, fixed by the
 // strategy), so it has no topK arms.
@@ -129,7 +144,18 @@ const LC_TRAIN_ARMS = {
   recent: { init: true, lr: 1e-3, epochs: 6, window: 2, about: 'fine-tune on the last 2 rounds only' },
   sharp: { init: true, lr: 1e-3, epochs: 6, window: 6, smoothing: 0.01, about: 'fine-tune with sharper targets (smoothing 0.01)' },
   long: { init: true, lr: 1e-3, epochs: 6, window: 10, about: 'fine-tune on the last 10 rounds' },
+  'long-slow': { init: true, lr: 3e-4, epochs: 10, window: 14, bold: true, about: 'fine-tune slowly on the last 14 rounds' },
 };
+
+// The plateau: rounds since the champion last changed. After --bold-after
+// of them the lab searches harder (bold arms, more exploration, longer
+// judging of close calls); after --stop-after it stops.
+let EXTRA_DEALS = 30000;
+function stale(state) {
+  let n = 0;
+  for (let k = state.rounds.length - 1; k >= 0 && !state.rounds[k].shipped && !state.rounds[k].dryKept; k--) n++;
+  return n;
+}
 
 function parseArgs(argv) {
   const out = { _: [] };
@@ -267,7 +293,7 @@ const STRATEGIES = {
       const pool = opponents.map(() => 'neural-cat').concat(opponents);
       log('Round ' + r + ': ' + opts.deals + ' deals, champion ' + base(champ) + ' (' + JSON.stringify(playOf(champ)) + ') exploring against ' + opponents.map(short).join(', '));
       run('node', ['scripts/ml/generate.js', '--deals', String(opts.deals), '--lineup', 'mix', '--pool', pool.join(','),
-        '--weights', champ, '--temperature', '150', '--epsilon', '0.05', '--explore', '0',
+        '--weights', champ, '--temperature', opts.bold ? '300' : '150', '--epsilon', opts.bold ? '0.1' : '0.05', '--explore', '0',
         '--sample', '0.12', '--seed', String(DATA_SEED + r * 1000000), '--out', data]);
     },
     trainArgs: trainNetArgs,
@@ -292,7 +318,7 @@ const STRATEGIES = {
       const pool = ['only-orphans', 'only-orphans', 'only-orphans'].concat(OO_TABLE, members);
       log('Round ' + r + ': ' + opts.deals + ' deals, champion ' + base(champ) + ' (' + JSON.stringify(playOf(champ)) + ') exploring against ' + OO_TABLE.concat(members.map(short)).join(', '));
       run('node', ['scripts/ml/generate.js', '--learner', 'only-orphans', '--deals', String(opts.deals), '--lineup', 'mix', '--pool', pool.join(','),
-        '--weights', champ, '--temperature', '150', '--epsilon', '0.05', '--explore', '0', '--record', 'only-orphans',
+        '--weights', champ, '--temperature', opts.bold ? '300' : '150', '--epsilon', opts.bold ? '0.1' : '0.05', '--explore', '0', '--record', 'only-orphans',
         '--sample', '0.25', '--seed', String(DATA_SEED + r * 1000000), '--out', data]);
     },
     trainArgs: trainNetArgs,
@@ -324,7 +350,7 @@ const STRATEGIES = {
       const pool = selves.concat(['neural-cat', 'neural-cat', 'jorge-yau']);
       log('Round ' + r + ': ' + opts.deals + ' deals, champion ' + base(champ) + ' learning against ' + pool.map(short).join(', '));
       run('node', ['scripts/ml/lucky.js', 'generate', '--weights', champ, '--deals', String(opts.deals), '--out', data,
-        '--pool', pool.join(','), '--seed', String(DATA_SEED + r * 1000000), '--temperature', '1', '--learners', '2']);
+        '--pool', pool.join(','), '--seed', String(DATA_SEED + r * 1000000), '--temperature', opts.bold ? '1.5' : '1', '--learners', '2']);
     },
     trainArgs(spec, sets, name, champ) {
       const args = ['ml/train_lucky.py', '--data'].concat(sets, ['--name', name, '--lr', String(spec.lr), '--epochs', String(spec.epochs)]);
@@ -464,6 +490,9 @@ function upload(file, release) {
 function round(state, opts) {
   const r = state.rounds.length + 1;
   const champ = state.champion;
+  const quiet = stale(state);
+  const bold = opts.bold = quiet >= opts.boldAfter;
+  if (bold) log('Round ' + r + ': bold mode after ' + quiet + ' round' + (quiet === 1 ? '' : 's') + ' without a new champion: bold arms, more exploration, and ' + EXTRA_DEALS + ' more deals for close calls');
   const data = path.join('ml', 'data', PREFIX + '-' + r);
   // 1. Play: the champion exploring, against earlier champions and other styles.
   if (!fs.existsSync(path.join(ROOT, data, S.done))) S.generate(state, r, champ, data, opts);
@@ -474,8 +503,8 @@ function round(state, opts) {
   // 2. Experiments, chosen by what has worked.
   const letters = 'abcdefghij';
   const play = playOf(champ);
-  const trainArms = pickArms(state, Object.keys(S.trainArms), opts.train, () => true);
-  const playArms = pickArms(state, Object.keys(S.playArms), opts.play, (n) => playArmValue(play, n) !== null);
+  const trainArms = pickArms(state, Object.keys(S.trainArms), opts.train, (n) => bold || !S.trainArms[n].bold);
+  const playArms = pickArms(state, Object.keys(S.playArms), opts.play, (n) => (bold || !S.playArms[n].bold) && playArmValue(play, n) !== null);
   const candidates = [];
   trainArms.forEach((arm) => {
     try { candidates.push(train(state, r, letters[candidates.length], arm, sets)); } catch (err) {
@@ -505,7 +534,20 @@ function round(state, opts) {
   ahead.forEach((c) => {
     c.full = S.judge(c.file, champ, FULL_DEALS, FULL_SEED + r * 100000, 'full');
     c.kept = c.full.J > c.full.margin / 2;
-    log('Round ' + r + ': ' + c.name + ' on ' + FULL_DEALS + ' fresh deals: ' + fmt(c.full) + (c.kept ? ', beyond its standard error' : ', within the noise: rejected'));
+    const close = !c.kept && c.full.J > 0 && bold;
+    log('Round ' + r + ': ' + c.name + ' on ' + FULL_DEALS + ' fresh deals: ' + fmt(c.full) + (c.kept ? ', beyond its standard error' : close ? ', ahead but within the noise' : ', within the noise: rejected'));
+    if (close) {
+      // Bold mode: a close call plays 30,000 more deals and is judged on
+      // all of them, each run weighted by its precision.
+      const more = S.judge(c.file, champ, EXTRA_DEALS, FULL_SEED + r * 100000 + 50000, 'more');
+      const w1 = 1 / Math.pow(c.full.margin / 2, 2), w2 = 1 / Math.pow(more.margin / 2, 2);
+      const J = (c.full.J * w1 + more.J * w2) / (w1 + w2);
+      const se = 1 / Math.sqrt(w1 + w2);
+      c.full = Object.assign({}, more, { J, points: (c.full.points * w1 + more.points * w2) / (w1 + w2), margin: 2 * se, deals: FULL_DEALS + EXTRA_DEALS });
+      c.kept = J > se;
+      log('Round ' + r + ': ' + c.name + ' on ' + (FULL_DEALS + EXTRA_DEALS) + ' deals in all: J ' + signed(J) + ' \u00b1 ' + (2 * se).toFixed(1) +
+        (c.kept ? ', beyond its standard error' : ', still within the noise: rejected'));
+    }
   });
 
   // 4. Learn: every result goes to its arm.
@@ -513,7 +555,7 @@ function round(state, opts) {
   candidates.forEach((c) => record(state, c.arm, c.full ? c.full.J : c.quick.J, c === best));
 
   // 5. Ship a new champion.
-  const result = { round: r, data, champion: base(champ), champVsBaseline, candidates: candidates.map((c) => ({
+  const result = { round: r, data, champion: base(champ), bold, champVsBaseline, candidates: candidates.map((c) => ({
     name: c.name, arm: c.arm, about: c.about, quick: c.quick, full: c.full || null, kept: c === best,
   })) };
   if (best && S.baseline) {
@@ -528,7 +570,7 @@ function round(state, opts) {
   if (best) {
     state.champion = best.file;
     state.members.push(best.file);
-    if (opts.dry) { log('Round ' + r + ': ' + best.name + ' would be the new champion (dry run: not shipped)'); state.rounds.push(result); return result; }
+    if (opts.dry) { result.dryKept = true; log('Round ' + r + ': ' + best.name + ' would be the new champion (dry run: not shipped)'); state.rounds.push(result); return result; }
     const release = S.ship(best.file);
     result.shipped = release;
     log('Round ' + r + ': ' + best.name + ' is the new champion (' + best.arm + ', J ' + signed(best.full.J) + '), shipped as ' + release);
@@ -548,11 +590,13 @@ function round(state, opts) {
 }
 
 function report(state) {
-  console.log('Champion: ' + base(state.champion) + ' ' + JSON.stringify(playOf(state.champion)) + ', after ' + state.rounds.length + ' rounds (' + state.deals.toLocaleString('en-US') + ' deals)\n');
+  console.log('Champion: ' + base(state.champion) + ' ' + JSON.stringify(playOf(state.champion)) + ', after ' + state.rounds.length + ' rounds (' + state.deals.toLocaleString('en-US') + ' deals); ' +
+    stale(state) + ' round' + (stale(state) === 1 ? '' : 's') + ' since it last changed. Arms marked * join only in bold mode.\n');
   console.log('Arm               Tries  Kept  Average J  Results');
   Object.keys(S.trainArms).concat(Object.keys(S.playArms)).forEach((n) => {
     const a = state.arms[n];
-    console.log(n.padEnd(18) + String(a ? a.tries : 0).padStart(5) + String(a ? a.kept : 0).padStart(6) + (a && a.tries ? signed(a.sumJ / a.tries) : '').padStart(11) + '  ' + (a ? a.results.join(', ') : ''));
+    const spec = S.trainArms[n] || S.playArms[n];
+    console.log((n + (spec.bold ? ' *' : '')).padEnd(18) + String(a ? a.tries : 0).padStart(5) + String(a ? a.kept : 0).padStart(6) + (a && a.tries ? signed(a.sumJ / a.tries) : '').padStart(11) + '  ' + (a ? a.results.join(', ') : ''));
   });
 }
 
@@ -568,6 +612,7 @@ function main() {
   const cmd = a._[0] || 'run';
   if (a['quick-deals']) QUICK_DEALS = parseInt(a['quick-deals'], 10);
   if (a['full-deals']) FULL_DEALS = parseInt(a['full-deals'], 10);
+  if (a['extra-deals']) EXTRA_DEALS = parseInt(a['extra-deals'], 10);
 
   if (cmd === 'bench') {
     const model = String(a.model);
@@ -599,9 +644,17 @@ function main() {
     play: parseInt(a.play != null ? a.play : 2, 10),
     noUpload: !!a['no-upload'],
     dry: !!a.dry,
+    boldAfter: parseInt(a['bold-after'] || 3, 10),
+    stopAfter: parseInt(a['stop-after'] || 6, 10),
   };
   const rounds = parseInt(a.rounds || 10, 10);
   for (let k = 0; k < rounds; k++) {
+    if (stale(state) >= opts.stopAfter) {
+      const tried = Object.keys(state.arms).map((n) => n + ' ' + state.arms[n].tries + 'x (average J ' + signed(state.arms[n].sumJ / state.arms[n].tries) + ')').join(', ');
+      log('Stopping: ' + stale(state) + ' round' + (stale(state) === 1 ? '' : 's') + ' without a new champion, bold mode included. Champion ' + base(state.champion) + '. Tried: ' + tried +
+        '. Next: new features (what the model can\'t see yet), which need new data and a person to design them.');
+      break;
+    }
     round(state, opts);
     fs.writeFileSync(STATE, JSON.stringify(state, null, 2) + '\n');
   }

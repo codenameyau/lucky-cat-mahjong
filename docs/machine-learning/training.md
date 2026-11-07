@@ -148,9 +148,15 @@ Each round:
    Play arms keep the champion's network and change only how it plays. The settings ride in the weights as `meta.play` (`{ topK, winBonus, claimMargin }`), so a shipped model plays with its own; an option passed to `create()` still overrides them. Every candidate inherits the champion's settings, and play arms are relative to them, so after a change is kept the next round explores around it.
 3. **Judge** against the objective **J = points a hand + 5 × hands won (percentage points)**: the most points, with a point of win rate worth 5 points a hand. Each candidate plays the champion head to head (two seats each, every rotation) on 6,000 deals. The best two that are ahead play 20,000 fresh deals, and one is kept only if J beats the champion there by more than its standard error (about ±8 points a hand). Close calls are rejected, so the champion can't drift on noise.
 4. **Learn.** Each arm keeps its tries, results and how often it was kept. The next round picks arms by an upper confidence bound: the best average J, plus a bonus for arms tried less, untried arms first. Failing arms are tried less but never ruled out.
-5. **Ship.** A new champion ships at once (named NC2, NC3, ... by `scripts/ml/ship.js`), its weights go to the Hugging Face model repo (`--no-upload` skips that), and data no model uses goes to the Trash.
+5. **Escalate on a plateau.** After `--bold-after` (3) rounds with no new champion, the lab searches harder, and logs why:
+   - **Bold arms join:** for Neural Cat and Only Orphans, a much wider network (768, 384), `topK+3` and `winBonus+300`; for Lucky Cat, a slow fine-tune on the last 14 rounds. They're marked `*` in `npm run ml:lab -- report`.
+   - **The champion explores more** in the round's deals: temperature 300 and epsilon 0.1 (Lucky Cat: sampling temperature 1.5).
+   - **Close calls get more deals:** a candidate ahead but within the noise on 20,000 deals plays 30,000 more and is judged on all 50,000, each run weighted by its precision.
 
-State, every evaluation and a log are in `ml/lab/`. A stopped lab picks up where it left off. `--dry`, `--quick-deals`, `--full-deals` and `--prefix` run a small check of the lab without shipping or pruning.
+   After `--stop-after` (6) rounds with no new champion, the lab stops and logs what it tried, rather than spending the night on the same search. The next lever then is new features, which need a person to design them.
+6. **Ship.** A new champion ships at once (named NC2, NC3, ... by `scripts/ml/ship.js`), its weights go to the Hugging Face model repo (`--no-upload` skips that), and data no model uses goes to the Trash.
+
+State, every evaluation and a log are in `ml/lab/`. A stopped lab picks up where it left off. `--dry`, `--quick-deals`, `--full-deals`, `--extra-deals` and `--prefix` run a small check of the lab without shipping or pruning.
 
 ### The lab for Only Orphans and Lucky Cat: `--strategy`
 
