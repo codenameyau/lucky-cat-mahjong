@@ -337,7 +337,7 @@ async function league(a) {
       temperature: a.temperature || 1, learners: a.learners || 2, workers: a.workers });
     const recent = state.rounds.map((x) => x.data).concat([data]).slice(-keep);
     log('Round ' + r + ': training ' + name + ' on ' + recent.join(', '));
-    const tr = spawnSync(path.join(ROOT, 'ml', '.venv', 'bin', 'python'), ['ml/train_lucky.py', '--data'].concat(recent,
+    const tr = spawnSync(require('./python.js').PYTHON, ['ml/train_lucky.py', '--data'].concat(recent,
       ['--name', name, '--init', state.best.model, '--epochs', String(a.epochs || 6)]), { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 << 20 });
     fs.appendFileSync(LOG, (tr.stdout || '') + (tr.stderr || ''));
     if (tr.status !== 0) throw new Error('training failed:\n' + (tr.stderr || '').slice(-2000));

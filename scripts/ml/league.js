@@ -39,6 +39,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { ship } = require('./ship.js');
 const { prune } = require('./prune-data.js');
+const { PYTHON } = require('./python.js');
 
 const ROOT = path.join(__dirname, '..', '..');
 const DATA_SEED = 10000000; // round r's deals start at DATA_SEED + r * 1,000,000
@@ -136,7 +137,7 @@ function main() {
     state.deals += args.deals;
     const recent = state.rounds.map((x) => x.data).concat([data]).slice(-args.keep);
     log('Round ' + r + ': training ' + name + ' on ' + recent.join(', '));
-    run('ml/.venv/bin/python', ['ml/train.py', '--data'].concat(recent, ['--name', name, '--hidden', args.hidden,
+    run(PYTHON, ['ml/train.py', '--data'].concat(recent, ['--name', name, '--hidden', args.hidden,
       '--init', state.best, '--lr', '3e-4', '--epochs', '8', '--patience', '3', '--dropout', '0.2', '--weight-decay', '1e-3']));
     const model = path.join('ml', 'models', name + '.json');
     const seed = EVAL_SEED + r * 10000;

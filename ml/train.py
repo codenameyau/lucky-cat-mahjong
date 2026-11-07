@@ -160,6 +160,8 @@ def main():
     device = args.device
     if device == 'auto':
         device = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
+    if device.startswith('cuda'):
+        print('GPU: %s (%.0f GB)' % (torch.cuda.get_device_name(device), torch.cuda.get_device_properties(device).total_memory / 1e9))
     t0 = time.time()
     x, y, manifests = load(args.data, args.limit or None)
     size = manifests[0]['featureSize']
