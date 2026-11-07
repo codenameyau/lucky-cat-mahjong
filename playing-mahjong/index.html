@@ -78,6 +78,30 @@
         <div id="results-sheet-body" class="rules-sheet-body"></div>
       </div>
     </dialog>
+    <dialog id="playbacks-sheet" class="rules-sheet playbacks-sheet" aria-labelledby="playbacks-sheet-title">
+      <div class="rules-sheet-inner">
+        <header class="rules-sheet-head">
+          <h2 id="playbacks-sheet-title">Saved playbacks</h2>
+          <button type="button" class="rules-sheet-close" aria-label="Close Saved playbacks">Close</button>
+        </header>
+        <p class="rules-sheet-intro">Your five most recent finished hands and your last upload are saved.</p>
+        <h3 class="playbacks-heading">Recent hands</h3>
+        <ul id="playbacks-recent" class="playbacks-list"></ul>
+        <h3 class="playbacks-heading">Uploaded</h3>
+        <ul id="playbacks-uploaded" class="playbacks-list"></ul>
+        <button type="button" id="playbacks-upload" class="playbacks-upload">Upload playback</button>
+      </div>
+    </dialog>
+    <dialog id="upload-error-sheet" class="rules-sheet upload-error-sheet" role="alertdialog" aria-labelledby="upload-error-title" aria-describedby="upload-error-why">
+      <div class="rules-sheet-inner">
+        <header class="rules-sheet-head">
+          <h2 id="upload-error-title">Upload failed</h2>
+          <button type="button" class="rules-sheet-close" aria-label="Close">Close</button>
+        </header>
+        <p id="upload-error-lead" class="upload-error-lead">This playback could not be uploaded.</p>
+        <p id="upload-error-why" class="rules-sheet-intro"></p>
+      </div>
+    </dialog>
     <dialog id="strategies-sheet" class="rules-sheet strategies-sheet" aria-labelledby="strategies-sheet-title">
       <div class="rules-sheet-inner">
         <header class="rules-sheet-head">

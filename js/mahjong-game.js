@@ -38,19 +38,55 @@
     if (!file) return;
     if (E.playbackFinished(file.payload || file)) {
       liveReplay = null;
+      // The list first: before it existed, REPLAY_KEY held the last hand,
+      // which the list takes in as an earlier one.
+      addRecent(file);
       writeJson(REPLAY_KEY, file);
     } else {
       liveReplay = file;
     }
   }
-  // A playback file you uploaded. It has a place of its own, so it never
-  // replaces the game's (REPLAY_KEY): View playback on the game always shows
-  // the game. A refresh while it shows brings it back.
+  // A playback file you uploaded: { savedAt, file }, one at a time. It has a
+  // place of its own, so it never replaces the game's (REPLAY_KEY): View
+  // playback on the game always shows the game. A refresh while it shows
+  // brings it back.
   var UPLOAD_KEY = 'lcm-play-upload';
+  // The five most recent finished hands, newest first: [{ savedAt, file }].
+  // The View playback sheet lists them, each with Play and Download.
+  var RECENT_KEY = 'lcm-play-recent';
+  var RECENT_MAX = 5;
+  // One hand's playback, whoever saved it.
+  function playbackId(file) {
+    var p = file && file.payload;
+    return p ? p.handSeed + ':' + p.handNumber + ':' + file.moves : null;
+  }
+  function recentPlaybacks() {
+    var list = readJson(RECENT_KEY, null);
+    if (!Array.isArray(list)) {
+      // Before the list was kept: the one finished hand there was.
+      var last = readJson(REPLAY_KEY, null);
+      list = last && last.payload && E.playbackFinished(last.payload) ? [{ savedAt: null, file: last }] : [];
+    }
+    return list.filter(function (e) { return e && e.file && e.file.payload; }).slice(0, RECENT_MAX);
+  }
+  // A finished hand joins the front; a hand already listed keeps its place and time.
+  function addRecent(file) {
+    var id = playbackId(file);
+    var list = recentPlaybacks();
+    if (list.some(function (e) { return playbackId(e.file) === id; })) return;
+    list.unshift({ savedAt: Date.now(), file: file });
+    writeJson(RECENT_KEY, list.slice(0, RECENT_MAX));
+  }
+  function uploadedPlayback() {
+    var u = readJson(UPLOAD_KEY, null);
+    if (!u) return null;
+    if (u.payload) return { savedAt: null, file: u }; // kept before the time was
+    return u.file && u.file.payload ? u : null;
+  }
   // Each strategy's hints for the game in progress: { v: 1, lists: { id: [note, ...] } }.
   // A new game overwrites it. Switching the coach only picks which list shows.
   var HINTS_KEY = 'lcm-play-hints';
-  var PLAYBACK_EMPTY = 'Upload a JSON file with a playback.';
+  var PLAYBACK_EMPTY = 'Pick one of your recent hands, or upload a playback file.';
   var SEAT_SIDES = ['', 'your right', 'across', 'your left'];
   var TILE_ASPECT = 1.4;
   var TILE_GAP = 4;
@@ -167,14 +203,14 @@
     'm-restart': 'play_menu_restart_click',
     'm-quit': 'play_menu_quit_click',
     'go-again': 'play_again_click',
-    'go-quit': 'play_end_quit_click',
     'go-results': 'play_end_results_click',
+    'go-quit': 'play_end_quit_click',
+    'go-close': 'play_end_close_click',
     'review-prev': 'play_playback_prev_click',
     'review-next': 'play_playback_next_click',
     'review-back': 'play_playback_back_click',
-    'review-download': 'play_playback_download_click',
-    'review-open': 'play_playback_upload_click',
-    'review-upload': 'play_playback_upload_click',
+    'review-list': 'play_playback_list_click',
+    'review-list-center': 'play_playback_list_click',
   };
 
   /* ------------------------------------------------------------------ *
@@ -377,6 +413,12 @@
     next: { clips: ['impact-pung'], gain: 1 },
   };
 
+  // The cues for tiles being placed or acted on: draws, discards, a flower, the
+  // claims, the knock for your turn, and the reveal. Auto-play (the wind badge,
+  // on development addresses) plays none of them. The hand-result sounds (win,
+  // lose, the wall running out, next hand), the generic click and the music stay.
+  var TILE_CUES = { draw: 1, back: 1, forward: 1, discard: 1, flower: 1, chow: 1, pung: 1, kong: 1, turn: 1, flip: 1 };
+
   // Background music: CC BY 4.0 tracks by Kevin MacLeod (incompetech.com),
   // re-encoded to 96 kbps AAC in /assets/music/. The credit is on the play
   // page and in /assets/music/README.md.
@@ -548,8 +590,11 @@
       music.at = music.order.length; // the next start reshuffles
     };
 
+    // isQuiet(name): the table's say-so that a cue should not play right now.
+    api.isQuiet = null;
     api.play = function (name) {
       var cue = CUES[name];
+      if (api.isQuiet && api.isQuiet(name)) return;
       var a = cue && ctx();
       if (!a) return;
       var t = a.currentTime + 0.005;
@@ -647,6 +692,8 @@
     var soundParam = /[?&]sound=(0|1)(?:&|$)/.exec((root.location && root.location.search) || '');
     var soundOn = soundParam ? soundParam[1] === '1' : prefs.sound !== false;
     var sound = createSound(soundOn);
+    // Silent for the tile cues while auto-play runs (it follows the live state, so it can't stick on).
+    sound.isQuiet = function (name) { return autoPlay && TILE_CUES[name] === 1; };
     sound.musicEnabled = sound.enabled;
     var reduceMotion = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -747,7 +794,10 @@
       meldAnchor: [null, null, null, null],
       backAnchor: [null, null, null, null],
       flowerAnchor: [null, null, null, null],
-      stats: { hands: 0, wins: 0, best: null, dealIns: 0 },
+      // dealIns: the times you discarded the winning tile. stays: the times the deal
+      // stayed with you (you won as dealer and dealt again).
+      // fastest: the fewest moves in a hand you won (your own discards, plus the winning move).
+      stats: { hands: 0, wins: 0, best: null, fastest: null, dealIns: 0, stays: 0 },
       strategies: { seats: [null, null, null, null], coach: Strategies.DEFAULT_COACH }, // set once in start
     };
 
@@ -756,7 +806,10 @@
     }
 
     // Animations: 'normal' (shown) or 'off' (skip animations and delays).
-    function instantMode() { return settings.speed === 'off' || ui.replaying; }
+    // Auto-play (the wind badge, on development addresses) skips every one of
+    // them: the flights, pauses and bot delays, and the declaration banners
+    // (Pung!, Flower! ...) and win confetti.
+    function instantMode() { return settings.speed === 'off' || ui.replaying || autoPlay; }
     function speed(ms) { return reduceMotion ? 0 : ms; }
 
     /* ---------------- frame loop ---------------- */
@@ -2516,41 +2569,35 @@
         button('Back', pad, 7, backW, 28, function () { sound.play('select'); backToGame(); }, 'ghost', 'review-back');
         var gapL = pad + backW + 8;
         var clusterX = soundX; // the left edge of the buttons on the right
-        if (settings.review) {
-          // Download, then Upload (opens a downloaded file), then Sound.
-          var words = W >= 600 && soundX - 6 - 92 - 6 - 92 - 8 - gapL >= TITLE_ROOM;
-          var vpW = words ? 92 : 34;
-          var vpX = soundX - 6 - vpW;
-          var dlW = words ? 92 : 34;
-          var dlX = vpX - 6 - dlW;
-          button(words ? 'Upload' : '', vpX, 7, vpW, 28, uploadReplay, 'ghost', 'review-open');
-          var canSave = reviewFinished();
-          button(words ? 'Download' : '', dlX, 7, dlW, 28, downloadReplay, canSave ? 'ghost' : 'off', 'review-download');
-          if (!words) {
-            // Small icons drawn here so they need no font: an arrow down onto a
-            // tray (download) and an arrow up out of one (open a file).
-            ctx.save();
-            ctx.strokeStyle = COLORS.white;
-            ctx.globalAlpha = canSave ? 1 : 0.3;
-            ctx.lineWidth = 2;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            var ax = dlX + dlW / 2, ay = 21;
+        // View playback (the sheet of recent hands and the upload: each row
+        // there has its own Download), then Sound. Words when they leave the
+        // title room, an icon when they don't.
+        var LIST_W = 136;
+        var words = W >= 600 && soundX - 6 - LIST_W - 8 - gapL >= TITLE_ROOM;
+        var vpW = words ? LIST_W : 34;
+        var vpX = soundX - 6 - vpW;
+        button(words ? 'Saved playbacks' : '', vpX, 7, vpW, 28, openPlaybacks, 'ghost', 'review-list');
+        clusterX = vpX;
+        if (!words) {
+          // A list, three rows each with a dot (your saved hands), drawn here so it needs no font.
+          ctx.save();
+          ctx.strokeStyle = COLORS.white;
+          ctx.fillStyle = COLORS.white;
+          ctx.lineWidth = 2;
+          ctx.lineCap = 'round';
+          var ay = 21;
+          var lx = vpX + vpW / 2;
+          ctx.beginPath();
+          [-5, 0, 5].forEach(function (dy) {
+            ctx.moveTo(lx - 2, ay + dy); ctx.lineTo(lx + 7, ay + dy);
+          });
+          ctx.stroke();
+          [-5, 0, 5].forEach(function (dy) {
             ctx.beginPath();
-            ctx.moveTo(ax, ay - 8); ctx.lineTo(ax, ay + 3);
-            ctx.moveTo(ax - 4.5, ay - 1.5); ctx.lineTo(ax, ay + 3); ctx.lineTo(ax + 4.5, ay - 1.5);
-            ctx.moveTo(ax - 6, ay + 7); ctx.lineTo(ax + 6, ay + 7);
-            ctx.stroke();
-            ctx.globalAlpha = 1;
-            var bx2 = vpX + vpW / 2;
-            ctx.beginPath();
-            ctx.moveTo(bx2, ay + 3); ctx.lineTo(bx2, ay - 8);
-            ctx.moveTo(bx2 - 4.5, ay - 3.5); ctx.lineTo(bx2, ay - 8); ctx.lineTo(bx2 + 4.5, ay - 3.5);
-            ctx.moveTo(bx2 - 6, ay + 7); ctx.lineTo(bx2 + 6, ay + 7);
-            ctx.stroke();
-            ctx.restore();
-          }
-          clusterX = dlX;
+            ctx.arc(lx - 6, ay + dy, 1.6, 0, Math.PI * 2);
+            ctx.fill();
+          });
+          ctx.restore();
         }
         // Always centered between Back and the buttons on the right.
         var gapR = clusterX - 8;
@@ -2697,7 +2744,17 @@
       var ptsPx = 13;
       windBadge(seat, x + r, y + r, r);
       if (seat === 0 && !settings.review) {
-        addRegion(x, y, 2 * r, 2 * r, copySeed, 'my-wind', true);
+        addRegion(x, y, 2 * r, 2 * r, onMyWind, 'my-wind', true);
+        // Auto-play on (localhost): a steady gold ring round your wind.
+        if (autoPlay) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(x + r, y + r, r + 3, 0, Math.PI * 2);
+          ctx.strokeStyle = COLORS.gold;
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+          ctx.restore();
+        }
         // The flash after copying the seed: the badge lights up gold, and a
         // ring spreads out as it fades.
         var f = ui.windFlash;
@@ -3614,6 +3671,110 @@
       copyText(text).then(function () {}, function () {});
     }
 
+    /* Auto-play, for testing on localhost only: with the coach on, clicking
+       your wind badge has the coach's strategy play your moves (each one
+       through the same buttons and animations as a click), hand after hand,
+       until it is clicked again or the coach is turned off. Anywhere else,
+       and with the coach off, the badge copies the hand seed as usual. */
+    var autoPlay = false;
+    var autoTimer = null;
+    var autoAgents = {};
+    function localDev() {
+      return isLocalHost((root.location && root.location.hostname) || '');
+    }
+
+    function canAutoPlay() {
+      return localDev() && !settings.review && !settings.playback && !settings.lesson && ui.coach !== 'off';
+    }
+
+    function onMyWind() {
+      if (autoPlay || canAutoPlay()) { toggleAutoPlay(); return; }
+      copySeed();
+    }
+
+    // Every flight in progress ends at once, and any banner or confetti on screen goes.
+    function finishAnimations() {
+      var running = anims.splice(0);
+      running.forEach(function (a) {
+        a.step(1, 1);
+        a.done();
+      });
+      banners.length = 0;
+      particles.length = 0;
+      requestRender();
+    }
+
+    // Off, with nothing queued. Auto-play is never kept: it is off on every
+    // load, and a page the browser brings back from its frozen-page cache
+    // (Back) or sends away (pagehide) is switched off too.
+    function stopAutoPlay() {
+      var was = autoPlay;
+      autoPlay = false;
+      clearTimeout(autoTimer);
+      autoTimer = null;
+      if (was) requestRender();
+    }
+
+    function toggleAutoPlay() {
+      autoPlay = !autoPlay;
+      sound.play('select');
+      clearTimeout(autoTimer);
+      var coachName = Strategies.get(ui.strategies.coach).name;
+      announce(autoPlay ? 'Auto-play on: ' + coachName + ' plays your moves. Click your wind to stop.' : 'Auto-play off.');
+      track('play_autoplay', { on: autoPlay });
+      // Whatever is mid-flight lands now, so the first auto move isn't held up by it.
+      if (autoPlay) finishAnimations();
+      if (autoPlay) autoStep();
+      requestRender();
+    }
+
+    function coachAgent() {
+      var id = ui.strategies.coach;
+      if (!autoAgents[id]) autoAgents[id] = Strategies.createAgent(id);
+      return autoAgents[id];
+    }
+
+    // The next move, a moment after the prompt appears, so each one can be seen.
+    function autoStep() {
+      clearTimeout(autoTimer);
+      if (!autoPlay) return;
+      if (!canAutoPlay()) { autoPlay = false; announce('Auto-play off.'); requestRender(); return; }
+      autoTimer = setTimeout(autoMove, instantMode() ? 30 : 650);
+    }
+
+    function autoMove() {
+      autoTimer = null;
+      if (!autoPlay || destroyed || !game || !game.hand) return;
+      if (!canAutoPlay()) { autoPlay = false; requestRender(); return; }
+      // The hand's results: on to the next hand after a look (the last hand's end stops it).
+      if (ui.overlay && ui.overlay.type === 'summary' && !ui.overlay.playback) {
+        if (game.over) { autoPlay = false; requestRender(); return; }
+        autoTimer = setTimeout(function () {
+          if (autoPlay && ui.overlay && ui.overlay.type === 'summary') nextHand();
+        }, instantMode() ? 50 : 1800);
+        return;
+      }
+      if (ui.overlay) return; // the menu, say: wait for it to close
+      var turn = ui.turnPrompt, claim = ui.claimPrompt;
+      if (!turn && !claim) return;
+      var agent = coachAgent();
+      Promise.resolve(turn ? agent.turn(game, 0, turn.opts) : agent.claim(game, 0, claim.opts)).then(function (d) {
+        if (!autoPlay || destroyed || !d) return;
+        if (turn && ui.turnPrompt === turn) {
+          if (d.type === 'discard') {
+            var idx = myHandOrder().tiles.indexOf(d.tile);
+            if (idx < 0) return;
+            ui.selected = idx;
+            discardSelected(false);
+          } else {
+            resolveTurn(d);
+          }
+        } else if (claim && ui.claimPrompt === claim) {
+          resolveClaim(d);
+        }
+      }, function () {});
+    }
+
     function copySeed() {
       if (!game || !game.hand) return;
       var file;
@@ -4401,6 +4562,29 @@
         var ey = y + 16;
         text(o.extra, cx, ey, { size: fitFont(ctx, o.extra, w, 13, FONT_BODY, 'bold'), weight: 'bold', align: 'center', color: COLORS.goldLight });
       }
+      if (o.playback) {
+        // A playback's results: Watch again (from the deal), and Close (back
+        // to the table at the last move).
+        var firstP = regions.length;
+        var byP = r.y + r.h - SUMMARY_PAD - 42;
+        if (phoneStack) {
+          var swP = Math.min(w, 280);
+          button('Watch again', cx - swP / 2, byP - 58, swP, 42, function () { sound.play('select'); watchAgain(); }, 'white', 'review-again');
+          button('Close', cx - swP / 2, byP, swP, 42, function () { sound.play('select'); closeOverlay(); }, 'primary', 'review-result-close');
+        } else {
+          var bwP = Math.min(156, (w - 12) / 2);
+          button('Watch again', cx - bwP - 6, byP, bwP, 42, function () { sound.play('select'); watchAgain(); }, 'white', 'review-again');
+          button('Close', cx + 6, byP, bwP, 42, function () { sound.play('select'); closeOverlay(); }, 'primary', 'review-result-close');
+        }
+        ctx.restore();
+        regions.slice(firstP).forEach(function (g) {
+          g.x = W / 2 + (g.x - W / 2) * k;
+          g.y = H / 2 + (g.y - H / 2) * k;
+          g.w *= k;
+          g.h *= k;
+        });
+        return;
+      }
       var label = settings.lesson ? 'Done' : (game.over ? 'See results' : 'Next hand');
       // Show hands turns the hands face up; once they are, the button says See hands.
       var handsLabel = ui.revealHands ? 'See hands' : 'Show hands';
@@ -4597,7 +4781,7 @@
     // so leaving the results can't be overwritten by the copy taken while
     // they were up.
     var restoredHand = null; // a finished hand put back after a refresh, only for looking at
-    var shownFile = null; // the playback view's file: what Download saves
+    var shownFile = null; // the playback view's file (its row's Play button in the sheet has a white ring)
     var autosaveTimer = null;
     var autosaveGen = 0;
     var pendingSummary = null;
@@ -4642,39 +4826,114 @@
       writeJson(SETTINGS_KEY, saved);
     }
 
+    // The strategy a seat played: a computer player's own, and for you the
+    // coach's (the Strategies sheet reads the same way: "Coach", then what it plays).
+    function gameOverStrategy(seat) {
+      var id = seat === 0 ? ui.strategies.coach : ui.strategies.seats[seat];
+      var name = id && Strategies.has(id) ? Strategies.get(id).name : '';
+      if (!name) return '';
+      return seat === 0 ? 'Coach \u00b7 ' + name : name;
+    }
+
+    // The game over window, in the look of the Results window: the deep green
+    // sheet with a gold edge, a gold title at the left and Close at the right.
+    // Each player has an avatar, their name, the strategy they played and
+    // their points; yours is highlighted.
     function drawGameOver() {
-      var r = panelRect(440, 474);
-      ui.overlayBox = r;
-      drawPanelBg(r);
       var st = ui.stats;
       var standings = E.finalStandings(game);
-      var mine = standings.filter(function (row) { return row.seat === 0; })[0];
-      var shared = standings.filter(function (row) { return row.place === mine.place; }).length > 1;
-      var place = ['1st', '2nd', '3rd', '4th'][mine.place - 1];
-      text('Game over', r.x + r.w / 2, r.y + 40, { size: 28, family: FONT_HEAD, align: 'center', color: COLORS.red });
-      text((shared ? 'You tied for ' : 'You finished ') + place + '.', r.x + r.w / 2, r.y + 72, { size: 15, align: 'center', color: COLORS.ink });
-      var y = r.y + 106;
-      standings.forEach(function (row) {
-        var color = row.seat === 0 ? COLORS.red : COLORS.ink;
-        text(row.place + '.  ' + row.name, r.x + 40, y, { size: 16, weight: 'bold', color: color });
-        text(fmt(row.points), r.x + r.w - 40, y, { size: 16, weight: 'bold', align: 'right', color: color });
-        y += 28;
-      });
-      y += 12;
-      [
+      var streak = longestWinStreak(ui.results);
+      var statLines = [
         ['Hands played', String(st.hands)],
+        ['Your biggest hand', st.best ? st.best + ' faan' : '\u2014'],
+        ['Fastest win', st.fastest == null ? '\u2014' : st.fastest + (st.fastest === 1 ? ' move' : ' moves')],
         ['Hands you won', String(st.wins)],
-        ['Times you dealt in', String(st.dealIns)],
-        ['Your biggest hand', st.best ? st.best + ' faan' : '—'],
-      ].forEach(function (l) {
-        text(l[0], r.x + 40, y, { size: 14, color: COLORS.muted });
-        text(l[1], r.x + r.w - 40, y, { size: 14, weight: 'bold', align: 'right', color: COLORS.ink });
-        y += 24;
+        ['Longest winning streak', streak ? streak + (streak === 1 ? ' hand' : ' hands') : '\u2014'],
+        ['Times you discarded the winning tile', String(st.dealIns || 0)],
+        ['Times you stayed dealer', String(st.stays || 0)],
+      ];
+      var PAD = 22, ROW = 50, STAT = 23, BTN = 42, BIG = 48;
+      var pw = Math.min(480, W - 24);
+      var standH = standings.length * ROW + 16;
+      var BEFORE_PLAY = 32; // room between the stats and Play again
+      var h = PAD + 34 + 14 + standH + 18 + 18 + statLines.length * STAT + BEFORE_PLAY + BIG + 10 + BTN + PAD;
+      // A short screen (a phone held sideways) shrinks the whole window to fit.
+      var k = Math.min(1, (H - 24) / h);
+      var r = { x: (W - pw) / 2, y: (H - h) / 2, w: pw, h: h };
+      ui.overlayBox = { x: W / 2 + (r.x - W / 2) * k, y: H / 2 + (r.y - H / 2) * k, w: r.w * k, h: r.h * k };
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(0, 0, W, H);
+      var firstRegion = regions.length;
+      ctx.save();
+      ctx.translate(W / 2, H / 2);
+      ctx.scale(k, k);
+      ctx.translate(-W / 2, -H / 2);
+      drawSheetBg(r);
+      var px = r.x + PAD, innerW = r.w - 2 * PAD;
+      text('Game over', px, r.y + 36, { size: 28, family: FONT_HEAD, align: 'left', color: COLORS.goldLight });
+      button('Close', r.x + r.w - PAD - 64, r.y + PAD, 64, 28, seeMatchHands, 'ghost', 'go-close');
+
+      // The standings: a dark panel, a row for each player.
+      var sy = r.y + PAD + 34 + 14; // under the title; your place is the highlighted row
+      roundRect(ctx, px, sy, innerW, standH, 6);
+      ctx.fillStyle = 'rgba(0,0,0,0.26)';
+      ctx.fill();
+      standings.forEach(function (row, i) {
+        var ry = sy + 8 + i * ROW;
+        var cy = ry + ROW / 2;
+        var you = row.seat === 0;
+        if (you) {
+          roundRect(ctx, px + 6, ry + 2, innerW - 12, ROW - 4, 5);
+          ctx.fillStyle = 'rgba(244,160,32,0.2)';
+          ctx.fill();
+        }
+        var ink = you ? COLORS.goldLight : COLORS.cream;
+        text(row.place + '.', px + 18, cy + 1, { size: 15, weight: 'bold', color: you ? COLORS.goldLight : 'rgba(255,248,240,0.7)' });
+        // The avatar: the person or robot icon in a round badge.
+        var ax = px + 58;
+        ctx.beginPath();
+        ctx.arc(ax, cy, 16, 0, Math.PI * 2);
+        ctx.fillStyle = you ? 'rgba(255,210,122,0.25)' : 'rgba(255,248,240,0.12)';
+        ctx.fill();
+        playerIcon(row.seat, ax - 9, cy + 1, 18, ink);
+        var tx = px + 84;
+        var pointsText = fmt(row.points);
+        ctx.font = 'bold 16px ' + FONT_BODY;
+        var pointsW = ctx.measureText(pointsText).width;
+        var room = innerW - (tx - px) - pointsW - 28;
+        var strat = gameOverStrategy(row.seat);
+        var nameSize = fitFont(ctx, row.name, room, 16, FONT_BODY, 'bold');
+        text(row.name, tx, strat ? cy - 8 : cy + 1, { size: nameSize, weight: 'bold', color: ink });
+        if (strat) {
+          var stratSize = fitFont(ctx, strat, room, 12.5, FONT_BODY);
+          text(strat, tx, cy + 10, { size: stratSize, color: 'rgba(255,248,240,0.7)' });
+        }
+        text(pointsText, px + innerW - 16, cy + 1, { size: 16, weight: 'bold', align: 'right', color: ink });
       });
-      button('Results', r.x + 25, r.y + r.h - 120, r.w - 50, 42, openResults, 'white', 'go-results');
-      var bw = (r.w - 70) / 2;
-      button('Play again', r.x + 25, r.y + r.h - 68, bw, 42, function () { callbacks.restart(); }, 'primary', 'go-again');
-      button('Quit', r.x + 45 + bw, r.y + r.h - 68, bw, 42, function () { quit(); }, 'light', 'go-quit');
+
+      // How the game went.
+      var y = sy + standH + 18;
+      sectionLabel('Your game', px, y + 6);
+      y += 18;
+      statLines.forEach(function (l) {
+        y += STAT;
+        text(l[0], px, y - 6, { size: 14, color: 'rgba(255,248,240,0.7)' });
+        text(l[1], px + innerW, y - 6, { size: 14, weight: 'bold', align: 'right', color: COLORS.cream });
+      });
+
+      // Play again is the large red button on top; Results and Quit share the row under it.
+      var by = r.y + r.h - PAD - BTN;
+      var bw = (innerW - 12) / 2;
+      button('Play again', px, by - BIG - 10, innerW, BIG, function () { callbacks.restart(); }, 'primary', 'go-again');
+      button('Results', px, by, bw, BTN, openResults, 'white', 'go-results');
+      button('Quit', px + bw + 12, by, bw, BTN, function () { quit(); }, 'white', 'go-quit');
+      ctx.restore();
+      regions.slice(firstRegion).forEach(function (g) {
+        g.x = W / 2 + (g.x - W / 2) * k;
+        g.y = H / 2 + (g.y - H / 2) * k;
+        g.w *= k;
+        g.h *= k;
+      });
     }
 
     var overlayResolve = null;
@@ -4684,6 +4943,7 @@
         ui.overlay = o;
         overlayResolve = resolve;
         requestRender();
+        if (autoPlay) autoStep();
       });
     }
 
@@ -4695,6 +4955,7 @@
       var o = ui.overlay;
       if (!o) return false;
       if (o.type === 'menu') { closeOverlay(); return true; }
+      if (o.playback) { closeOverlay(); return true; } // a playback's results step aside to the table
       if (settings.lesson || !game || !game.hand) return false;
       if (o.type === 'summary') { showHands(true); return true; }
       if (o.type === 'gameover') { seeMatchHands(); return true; }
@@ -4748,9 +5009,10 @@
         return;
       }
       if (game && game.over) {
+        // Only the game over window: its Results button opens the Results table.
         ui.revealHands = false;
         ui.overlay = { type: 'gameover' };
-        openResults();
+        saveMatchPlayback();
         requestRender();
       }
     }
@@ -4765,7 +5027,7 @@
       ui.overlay = null;
       ui.revealHands = true;
       ui.botLift = null;
-      sound.play('flip');
+      // No sound: this is the game over window being closed or dismissed (Close, or a click outside).
       announce('All four hands are face up.');
       requestRender();
     }
@@ -4837,6 +5099,8 @@
       var next = COACH_ORDER[(COACH_ORDER.indexOf(ui.coach) + 1) % COACH_ORDER.length];
       ui.coach = next;
       saveSetting('coach', next);
+      // Auto-play follows the coach: turning it off stops it.
+      if (autoPlay && next === 'off') { autoPlay = false; clearTimeout(autoTimer); announce('Auto-play off.'); }
       refreshHint();
       L = computeLayout(); // phones show or hide the coach's bar or column
       requestRender();
@@ -5200,10 +5464,47 @@
       return r && boxHas(ui.overlayBox, r.x, r.y) ? r : null;
     }
 
+    // Playback: a double-click (or double-tap) on an opponent's hand hides or
+    // shows all their concealed tiles. The choice is kept for playback
+    // (prefs.showOpponents, in lcm-play-prefs). An unfinished hand's playback
+    // always keeps their tiles concealed, so the double-click does nothing there.
+    var lastHandTap = null;
+    function opponentSeatAt(p) {
+      for (var k = 1; k <= 3; k++) if (L && L.opp && boxHas(L.opp[k], p.x, p.y)) return k;
+      return 0;
+    }
+
+    // True when this press was the second of a double-tap on an opponent's seat.
+    function opponentHandsTap(p, e) {
+      var seat = opponentSeatAt(p);
+      if (!seat) { lastHandTap = null; return false; }
+      var t = e.timeStamp || now();
+      var prev = lastHandTap;
+      lastHandTap = { t: t, x: p.x, y: p.y, seat: seat };
+      if (!prev || prev.seat !== seat || t - prev.t > 420 || Math.abs(p.x - prev.x) + Math.abs(p.y - prev.y) > 40) return false;
+      lastHandTap = null;
+      if (!reviewFinished()) return false;
+      toggleOpponentHands();
+      return true;
+    }
+
+    function toggleOpponentHands() {
+      var shown = prefs.showOpponents === false; // hidden now, so this shows them
+      prefs.showOpponents = shown;
+      writeJson(PREFS_KEY, prefs);
+      ui.revealHands = reviewFinished() && shown;
+      ui.botLift = null;
+      sound.play('flip');
+      track('play_playback_toggle_hands', { shown: shown });
+      announce(shown ? 'Opponents\' hands are face up.' : 'Opponents\' hands are hidden.');
+      requestRender();
+    }
+
     function onPointerDown(e) {
       lastTouch = !!e.pointerType && e.pointerType !== 'mouse';
       if (lastTouch) mouse = null;
       var p = pointerPos(e);
+      if (settings.review && !ui.overlay && opponentHandsTap(p, e)) { e.preventDefault(); return; }
       if (ui.overlay && ui.overlayBox && !boxHas(ui.overlayBox, p.x, p.y)) {
         if (dismissOverlay()) { e.preventDefault(); return; }
       }
@@ -5343,8 +5644,14 @@
 
     function onKey(e) {
       if (destroyed) return;
-      if (rulesOpen() || strategiesOpen() || resultsOpen()) return; // the sheets handle their own keys (Escape closes them)
+      if (rulesOpen() || strategiesOpen() || resultsOpen() || playbacksOpen() || uploadErrorOpen()) return; // the sheets handle their own keys (Escape closes them)
       if (settings.playback && !settings.review) return;
+      if (settings.review && ui.overlay && ui.overlay.type === 'summary') {
+        // The playback's results: Enter or Escape puts them away; Space watches it again.
+        if (e.key === 'Enter' || e.key === 'Escape') { sound.play('select'); closeOverlay(); e.preventDefault(); }
+        else if (e.key === ' ') { sound.play('select'); watchAgain(); e.preventDefault(); }
+        return;
+      }
       if (settings.review) {
         // The keys press the same buttons, so they click, squeeze and glow too.
         if (e.key === 'ArrowLeft') { sound.play('back'); pressButton('review-prev'); stepReview(-1); e.preventDefault(); }
@@ -5449,6 +5756,7 @@
     }
 
     function banner(textStr, x, y, opts) {
+      if (autoPlay) return; // auto-play shows no callouts
       opts = opts || {};
       var fitted = shrinkBanner(textStr, opts.size || 30, opts.maxW, opts.maxH);
       if (opts.span) {
@@ -5488,6 +5796,7 @@
     }
 
     function confetti(cx, cy, n, coins) {
+      if (autoPlay) return; // nor confetti
       var t = now();
       var palette = [COLORS.red, COLORS.gold, COLORS.goldLight, COLORS.green, '#ffffff'];
       for (var i = 0; i < n; i++) {
@@ -5768,6 +6077,7 @@
             sound.play('turn');
             announce(lessonLine || ui.notice || 'Your turn. Pick a tile to discard.');
             requestRender();
+            if (autoPlay) autoStep();
           });
         },
         claim: function (g, seat, opts) {
@@ -5785,6 +6095,7 @@
             sound.play('turn');
             announce(lessonLine || ui.notice);
             requestRender();
+            if (autoPlay) autoStep();
           });
         },
       };
@@ -5798,8 +6109,15 @@
       if (res.type === 'win' && res.winner === 0) {
         st.wins++;
         st.best = Math.max(st.best || 0, res.score.faan);
+        // Your moves in that hand: each discard of yours, and the winning move (a win on your
+        // 6th turn is 6 moves, whether you drew the tile or took a discard).
+        var moves = 1 + ((game && game.hand && game.hand.trace) || []).filter(function (ev) { return ev.a === 'discard' && ev.s === 0; }).length;
+        st.fastest = st.fastest == null ? moves : Math.min(st.fastest, moves);
       }
-      if (res.type === 'win' && res.payer === 0) st.dealIns++;
+      // Your discard was the tile another player won on (a robbed kong isn't a discard).
+      if (res.type === 'win' && res.how === 'discard' && res.payer === 0) st.dealIns = (st.dealIns || 0) + 1;
+      // The dealer won, so the deal stays: one more time for you if you were that dealer.
+      if (res.dealerKeeps && res.winner === 0) st.stays = (st.stays || 0) + 1;
     }
 
     // The loaded hand has caught up: draw the table as it stands.
@@ -5845,12 +6163,9 @@
           color: reviewNote ? COLORS.goldLight : COLORS.cream,
         });
       });
-      button('Upload', (W - bw) / 2, by, bw, bh, uploadReplay, 'gold', 'review-upload');
+      button('Saved playbacks', (W - bw) / 2, by, bw, bh, openPlaybacks, 'gold', 'review-list-center');
     }
 
-    // Saves the playback on screen as a JSON file named with the time, such as
-    // lucky-cat-mahjong-playback-2026-11-05-1430.json. It is the same signed
-    // file the page opens from Upload or a paste.
     // Whether the playback on screen is of a finished hand. Only then are the
     // other players' tiles face up and the file saveable; an unfinished hand
     // plays back like the game, with their tiles concealed.
@@ -5862,12 +6177,10 @@
       return finishedValue;
     }
 
-    function downloadReplay() {
-      if (!reviewFinished()) { announce('Download opens once the hand is finished.'); return; }
-      var file = shownFile || readJson(REPLAY_KEY, null);
-      if (!file || !file.payload) return;
-      sound.play('select'); // the click
-      var d = new Date();
+    // The file as JSON, named with the time it was saved (or now), such as
+    // lucky-cat-mahjong-playback-2026-11-05-1430.json.
+    function saveFile(file, savedAt) {
+      var d = new Date(savedAt == null ? Date.now() : savedAt);
       function two(n) { return (n < 10 ? '0' : '') + n; }
       var stamp = d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) + '-' + two(d.getHours()) + two(d.getMinutes());
       var blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
@@ -5881,31 +6194,204 @@
       setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
     }
 
-    var replayFileInput = null;
-    var pendingUpload = false;
-    function uploadReplay() {
-      sound.play('select'); // the click
-      // The press only asks for it. The picker opens when the finger lifts (pointerup,
-      // touchend or click, whichever comes first), since phones refuse it from a press.
-      pendingUpload = true;
-      var stop = function () {
-        document.removeEventListener('pointerup', go, true);
-        document.removeEventListener('touchend', go, true);
-        document.removeEventListener('click', go, true);
-        clearTimeout(timer);
-        pendingUpload = false;
-      };
-      var go = function () {
-        if (!pendingUpload) { stop(); return; }
-        stop();
-        openReplayPicker();
-      };
-      var timer = setTimeout(stop, 3000);
-      document.addEventListener('pointerup', go, true);
-      document.addEventListener('touchend', go, true);
-      document.addEventListener('click', go, true);
+    /* The Saved playbacks sheet: your five most recent finished hands, each
+       with the time it was saved, Play and Download, then the one playback
+       you uploaded last (if any), and Upload playback. */
+    function playbacksSheet() {
+      return document.getElementById('playbacks-sheet');
     }
 
+    function openPlaybacks() {
+      var dlg = playbacksSheet();
+      if (!dlg || dlg.open) return;
+      sound.play('select'); // the click
+      buildPlaybacks();
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+    }
+
+    /* The popup for a playback that couldn't be uploaded (a file or a paste):
+       a signature that doesn't match, a file that isn't a playback, or one
+       from a version this game can't load. Nothing from the file is kept. */
+    // The line under the heading: this one is not about the file being bad, but
+    // about the version it was saved by.
+    var UPLOAD_LEADS = {
+      version: 'This playback is from an incompatible version of the game.',
+    };
+
+    // What to do about a version this game can't load, named with both versions.
+    function versionMessage(c) {
+      var file = c.fileVersion, game = c.gameVersion;
+      if (c.versionKind === 'newer') {
+        return 'It was saved by a newer version of the game (' + file + '), and this page is on ' + game + '. Reload the page to update, then upload it again.';
+      }
+      if (c.versionKind === 'older') {
+        return 'It was saved by an older version of the game (' + file + ') that this version (' + game + ') can\'t play.';
+      }
+      return 'It has no game version, so this version (' + game + ') can\'t tell whether it can be played.';
+    }
+
+    var UPLOAD_ERRORS = {
+      signature: 'Its signature doesn\'t match, so the file was changed or damaged after it was saved. Only a playback downloaded from this game, as it was saved, can be played.',
+      damaged: 'Its contents don\'t fit together, so the file was changed or damaged after it was saved.',
+      notFile: 'That isn\'t a playback file. Upload a JSON file downloaded from Saved playbacks.',
+    };
+
+    function uploadErrorSheet() {
+      return document.getElementById('upload-error-sheet');
+    }
+
+    function uploadErrorOpen() {
+      var dlg = uploadErrorSheet();
+      return !!(dlg && dlg.open);
+    }
+
+    function showUploadError(checked) {
+      var dlg = uploadErrorSheet();
+      var why = document.getElementById('upload-error-why');
+      if (!dlg) { announce('This playback could not be uploaded. ' + checked.reason); return; }
+      var lead = document.getElementById('upload-error-lead');
+      if (lead) lead.textContent = UPLOAD_LEADS[checked.code] || 'This playback could not be uploaded.';
+      if (why) why.textContent = checked.code === 'version' ? versionMessage(checked) : (UPLOAD_ERRORS[checked.code] || checked.reason);
+      closePlaybacks();
+      if (dlg.open) return;
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+    }
+
+    function closeUploadError() {
+      var dlg = uploadErrorSheet();
+      if (!dlg || !dlg.open) return;
+      sound.play('select'); // the click
+      if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
+    }
+
+    function playbacksOpen() {
+      var dlg = playbacksSheet();
+      return !!(dlg && dlg.open);
+    }
+
+    function closePlaybacks() {
+      var dlg = playbacksSheet();
+      if (!dlg || !dlg.open) return;
+      if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
+    }
+
+    // The row buttons are icons: their names are in aria-label, and a tooltip
+    // (data-tip, drawn by css/play.css) shows them on hover or keyboard focus.
+    var ICON_PLAY = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>';
+    var ICON_COPY = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15"/></svg>';
+    var ICON_CHECK = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+    var ICON_DOWNLOAD = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg>';
+
+    function playbackRow(entry, mark, kind) {
+      var li = document.createElement('li');
+      li.className = 'playbacks-row';
+      var check = E.checkPlayback(entry.file);
+      var showing = shownFile && playbackId(shownFile) === playbackId(entry.file);
+      if (showing) li.classList.add('is-showing');
+      var info = document.createElement('div');
+      info.className = 'playbacks-text';
+      // Who won and with which hand, then which hand of the game (no round) and when it finished.
+      var sum = check.ok ? E.playbackSummary(check.record) : { result: 'A playback that no longer plays', hand: '', number: '' };
+      var name = document.createElement('div');
+      name.className = 'playbacks-name';
+      name.textContent = sum.result;
+      var when = document.createElement('div');
+      when.className = 'playbacks-when';
+      // One timestamp, with no label, in words (Today, 2:30 PM): when the hand finished (the
+      // file's own time). A file from before that was recorded shows when it was saved or
+      // uploaded instead, and a time nobody kept isn't shown at all.
+      var ended = check.ok ? check.record.endedAt : null;
+      var stamp = ended != null ? ended : entry.savedAt;
+      when.textContent = [sum.number, stamp != null ? E.playbackWhen(stamp) : ''].filter(Boolean).join(' \u00b7 ');
+      info.appendChild(name);
+      info.appendChild(when);
+      li.appendChild(info);
+      var play = document.createElement('button');
+      play.type = 'button';
+      play.className = 'playbacks-btn playbacks-play';
+      play.innerHTML = ICON_PLAY;
+      play.disabled = !check.ok;
+      // The one on screen has a white ring round its button (css/play.css), and says so to a screen reader and in its tooltip.
+      play.classList.toggle('is-showing', !!showing);
+      play.setAttribute('data-tip', showing ? 'Playing now' : 'Play');
+      play.setAttribute('aria-label', (showing ? 'Playing now: ' : 'Play ') + sum.hand + ', ' + sum.result);
+      if (showing) play.setAttribute('aria-current', 'true');
+      play.addEventListener('click', function () {
+        sound.play('select');
+        track('play_playback_list_play', { kind: kind });
+        closePlaybacks();
+        loadPlaybackText(entry.file, mark);
+      });
+      // Copy hand seed, between Play and Download: the hand's seed (such as
+      // 919942249-NE) on the clipboard, the same text your wind badge copies.
+      var seedText = check.ok && entry.file.payload ? String(entry.file.payload.handSeed || '') : '';
+      var copy = document.createElement('button');
+      copy.type = 'button';
+      copy.className = 'playbacks-btn playbacks-copy';
+      copy.innerHTML = ICON_COPY;
+      copy.setAttribute('data-tip', 'Copy hand seed');
+      copy.disabled = !seedText;
+      copy.setAttribute('aria-label', 'Copy hand seed for ' + sum.hand + ', ' + sum.result);
+      var copiedTimer = null;
+      copy.addEventListener('click', function () {
+        sound.play('select');
+        track('play_playback_list_copy_seed', { kind: kind });
+        copyText(seedText).then(function () {
+          // "Copied" shows even without a hover (a phone), then goes back.
+          copy.classList.add('is-copied');
+          copy.innerHTML = ICON_CHECK;
+          copy.setAttribute('data-tip', 'Copied');
+          announce('Copied hand seed ' + seedText + '.');
+          clearTimeout(copiedTimer);
+          copiedTimer = setTimeout(function () {
+            copy.classList.remove('is-copied');
+            copy.innerHTML = ICON_COPY;
+            copy.setAttribute('data-tip', 'Copy hand seed');
+          }, 1500);
+        }, function () { announce('Could not copy the hand seed.'); });
+      });
+      var down = document.createElement('button');
+      down.type = 'button';
+      down.className = 'playbacks-btn playbacks-download';
+      down.innerHTML = ICON_DOWNLOAD;
+      // Only a finished hand's file is saved: an unfinished one holds the whole deal.
+      down.disabled = !check.ok || !E.playbackFinished(check.record);
+      down.setAttribute('data-tip', down.disabled ? 'Download opens once the hand is finished' : 'Download');
+      down.setAttribute('aria-label', 'Download ' + sum.hand + ', ' + sum.result);
+      down.addEventListener('click', function () {
+        sound.play('select');
+        track('play_playback_list_download', { kind: kind });
+        saveFile(entry.file, entry.savedAt);
+      });
+      li.appendChild(play);
+      li.appendChild(copy);
+      li.appendChild(down);
+      return li;
+    }
+
+    function fillList(el, entries, emptyText, markFor, kind) {
+      if (!el) return;
+      while (el.firstChild) el.removeChild(el.firstChild);
+      if (!entries.length) {
+        var empty = document.createElement('li');
+        empty.className = 'playbacks-empty';
+        empty.textContent = emptyText;
+        el.appendChild(empty);
+        return;
+      }
+      entries.forEach(function (e) { el.appendChild(playbackRow(e, markFor(e), kind)); });
+    }
+
+    function buildPlaybacks() {
+      fillList(document.getElementById('playbacks-recent'), recentPlaybacks(),
+        'No finished hands yet. Each hand you finish is kept here, the last five.',
+        function (e) { return { lcmRecent: playbackId(e.file) }; }, 'recent');
+      var up = uploadedPlayback();
+      fillList(document.getElementById('playbacks-uploaded'), up ? [up] : [],
+        'Nothing uploaded yet.', function () { return { lcmUpload: true }; }, 'upload');
+    }
+
+    var replayFileInput = null;
     function openReplayPicker() {
       if (!replayFileInput) {
         var input = document.createElement('input');
@@ -5931,11 +6417,16 @@
       replayFileInput.click();
     }
 
-    function loadPlaybackText(text) {
+    // A playback to show: a file uploaded or pasted (stored as the upload),
+    // or one picked from the View playback sheet (mark: { lcmRecent: id }).
+    // The mark rides in this view's history entry, so a refresh shows it again.
+    function loadPlaybackText(text, mark) {
       var checked = E.checkPlayback(text);
       if (!checked.ok) {
+        // Nothing is kept or shown: the playback on screen stays, and a popup says why.
         reviewNote = checked.reason;
-        announce(reviewNote);
+        track('play_playback_upload_failed', { code: checked.code || 'unknown' });
+        showUploadError(checked);
         requestRender();
         return;
       }
@@ -5943,11 +6434,15 @@
       try {
         var file = typeof text === 'string' ? JSON.parse(text) : text;
         if (file && file.payload) {
-          writeJson(UPLOAD_KEY, file);
+          if (!mark) writeJson(UPLOAD_KEY, { savedAt: Date.now(), file: file });
           shownFile = file;
-          // This view now shows an upload, so a refresh shows the upload too.
+          // What this view shows now, so a refresh shows it too.
           if (root.history && root.history.replaceState) {
-            root.history.replaceState(Object.assign({}, root.history.state || {}, { lcmUpload: true }), '');
+            var next = Object.assign({}, root.history.state || {});
+            delete next.lcmUpload;
+            delete next.lcmRecent;
+            Object.assign(next, mark || { lcmUpload: true });
+            root.history.replaceState(next, '');
           }
         }
       } catch (e) {}
@@ -6812,7 +7307,9 @@
       var seats = [null, null, null, null];
       settings.review.players.forEach(function (p, i) { if (p.strategy) seats[i] = p.strategy; });
       ui.strategies = { seats: seats, coach: ui.strategies.coach };
-      ui.revealHands = reviewFinished();
+      // A finished hand's playback shows every hand face up, unless you hid them (double-click an
+      // opponent's hand); an unfinished hand's opponents always stay concealed.
+      ui.revealHands = reviewFinished() && prefs.showOpponents !== false;
       ui.coach = 'on';
       ui.turnPrompt = null;
       ui.claimPrompt = null;
@@ -6827,8 +7324,43 @@
       if (revFrom) reviewPlayReverse(reverseEv, revFrom);
       reviewShown = reviewStep;
       if (!quiet) announce(reviewSpoken());
+      // The last move of a finished hand: its results, as the game showed them,
+      // once the winning tile (or the last draw) has landed.
+      if (!quiet && reviewStep > 0 && reviewStep >= reviewMoves() && reviewFinished()) {
+        var at = reviewSeq;
+        setTimeout(function () {
+          if (destroyed || at !== reviewSeq || reviewStep < reviewMoves() || ui.overlay) return;
+          showPlaybackResult();
+        }, motion ? speed(700) : 0);
+      }
       requestRender();
       return true;
+    }
+
+    // The results card for the playback on screen: who won, the hand, its
+    // patterns and faan (the game's own card, without the payout).
+    function showPlaybackResult() {
+      var res = E.playbackResult(settings.review);
+      if (!res) return;
+      stopReviewPlay();
+      ui.overlay = { type: 'summary', result: res, hasPlayback: false, playback: true };
+      track('play_playback_results', { result: res.type === 'win' ? 'win' : 'draw' });
+      announce(res.type === 'win'
+        ? (res.winner === 0 ? 'You' : game.players[res.winner].name) + ' won with ' + res.score.faan + ' faan.'
+        : 'No winner: the wall ran out.');
+      requestRender();
+    }
+
+    // From the results: the hand again from the deal, playing.
+    function watchAgain() {
+      closeOverlay();
+      stopReviewPlay();
+      reviewSeq++;
+      reviewStep = 0;
+      if (!showReviewStep()) return;
+      reviewPlaying = true;
+      scheduleReview();
+      requestRender();
     }
 
     function stepReview(d, keepPlaying) {
@@ -6908,7 +7440,12 @@
           // An upload shown in this view (a refresh), or else the game's own:
           // the hand on the table (in memory), or its last finished hand.
           var viewState = (root.history && root.history.state) || {};
-          var stored = viewState.lcmUpload ? readJson(UPLOAD_KEY, null) : (liveReplay || readJson(REPLAY_KEY, null));
+          var picked = null;
+          if (viewState.lcmUpload) picked = uploadedPlayback();
+          else if (viewState.lcmRecent) {
+            picked = recentPlaybacks().filter(function (e) { return playbackId(e.file) === viewState.lcmRecent; })[0] || null;
+          }
+          var stored = picked ? picked.file : (liveReplay || readJson(REPLAY_KEY, null));
           shownFile = stored;
           var check = stored ? E.checkPlayback(stored) : null;
           if (check && check.ok) {
@@ -7013,9 +7550,11 @@
           track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins });
           showFinalMatch();
           L = computeLayout();
+          // Only the game over window shows (not the Results table): its Results
+          // button opens that. The match's playback is kept for a refresh.
           ui.overlay = { type: 'gameover' };
+          saveMatchPlayback();
           requestRender();
-          openResults();
           return;
         }
       }
@@ -7052,9 +7591,11 @@
           track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins });
           showFinalMatch();
           L = computeLayout();
+          // Only the game over window shows (not the Results table): its Results
+          // button opens that. The match's playback is kept for a refresh.
           ui.overlay = { type: 'gameover' };
+          saveMatchPlayback();
           requestRender();
-          openResults();
           return;
         }
       }
@@ -7064,6 +7605,13 @@
 
     var onResize = function () { resize(); };
     root.addEventListener('resize', onResize);
+    // A page restored from the browser's frozen-page cache keeps its variables
+    // and timers, so auto-play would still be on; it never is after a load.
+    var onPageLife = function (e) {
+      if (e.type === 'pagehide' || e.persisted) stopAutoPlay();
+    };
+    root.addEventListener('pageshow', onPageLife);
+    root.addEventListener('pagehide', onPageLife);
     // The music pauses while the tab is in the background.
     var reviewPausedByHide = false;
     var onVisibility = function () {
@@ -7104,6 +7652,28 @@
       if (!dlg) return;
       onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeStrategies);
       onSheet(dlg, 'click', function (e) { if (e.target === dlg) closeStrategies(); });
+      onSheet(dlg, 'close', function () { canvas.focus(); });
+    })();
+    (function () {
+      var dlg = settings.playback ? playbacksSheet() : null;
+      if (!dlg) return;
+      onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closePlaybacks);
+      onSheet(dlg, 'click', function (e) { if (e.target === dlg) closePlaybacks(); });
+      onSheet(dlg, 'close', function () { canvas.focus(); });
+      var up = document.getElementById('playbacks-upload');
+      // A click on a page button may open the file picker straight away.
+      if (up) onSheet(up, 'click', function () {
+        sound.play('select');
+        track('play_playback_upload_click', {});
+        closePlaybacks();
+        openReplayPicker();
+      });
+    })();
+    (function () {
+      var dlg = settings.playback ? uploadErrorSheet() : null;
+      if (!dlg) return;
+      onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeUploadError);
+      onSheet(dlg, 'click', function (e) { if (e.target === dlg) closeUploadError(); });
       onSheet(dlg, 'close', function () { canvas.focus(); });
     })();
     (function () {
@@ -7167,8 +7737,14 @@
         requestRender();
       },
       get suspended() { return suspended; },
+      // Your wind badge's click (auto-play on localhost with the coach on; else copy the seed).
+      clickMyWind: function () { if (!destroyed) onMyWind(); },
+      get autoPlay() { return autoPlay; },
+      get stats() { return ui.stats; },
       // The menu's View playback, for this hand.
       viewPlayback: function () { if (!destroyed && !settings.playback) viewReplay(); },
+      // The playback bar's View playback: the sheet of recent hands and the upload.
+      openPlaybacks: function () { if (!destroyed && settings.playback) openPlaybacks(); },
       start: function () {
         sound.music(true);
         play().catch(function (err) {
@@ -7177,6 +7753,9 @@
       },
       destroy: function () {
         destroyed = true;
+        stopAutoPlay();
+        root.removeEventListener('pageshow', onPageLife);
+        root.removeEventListener('pagehide', onPageLife);
         if (strategyToastTimer) clearTimeout(strategyToastTimer);
         stopReviewPlay();
         if (reviewCoachTimer) { clearTimeout(reviewCoachTimer); reviewCoachTimer = null; }
@@ -7581,7 +8160,32 @@
     });
   }
 
-  var api = { createTable: createTable, init: init };
+  // The most hands you won in a row, read from the Results table's rows (a
+  // row where your faan is above 0 and it wasn't a draw is a win of yours). A
+  // hand you didn't win, a drawn hand too, ends the run. 0 when you won none.
+  function longestWinStreak(rows) {
+    var best = 0, run = 0;
+    (rows || []).slice().sort(function (a, b) { return a.hand - b.hand; }).forEach(function (row) {
+      if (row && !row.draw && row.faan && row.faan[0] > 0) {
+        run++;
+        if (run > best) best = run;
+      } else {
+        run = 0;
+      }
+    });
+    return best;
+  }
+
+  // A development address: this computer, or a private network (a phone on
+  // the local wifi, say). The same set the pages' analytics skip, so testing
+  // adds no events: localhost, 127.x.x.x, ::1, 10.x.x.x, 192.168.x.x,
+  // 172.16-31.x.x, and .local, .localhost and .test names. Auto-play is for
+  // these only.
+  function isLocalHost(host) {
+    return /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local|.+\.localhost|.+\.test)$/i.test(String(host || ''));
+  }
+
+  var api = { createTable: createTable, init: init, isLocalHost: isLocalHost, longestWinStreak: longestWinStreak };
   root.MahjongGame = api;
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

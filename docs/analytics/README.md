@@ -128,7 +128,7 @@ Every button is tracked except the tiles and the buttons that play a move (Win, 
 | `play_menu_open`, `play_menu_resume_click`, `play_menu_restart_click`, `play_menu_quit_click` | The Menu and its buttons | |
 | `play_fullscreen_click`, `play_show_hands_click`, `play_next_hand_click`, `play_see_results_click` | Table buttons | |
 | `play_open_results`, `play_close_results` | The results sheet | |
-| `play_again_click`, `play_end_quit_click`, `play_end_results_click` | The end-of-game buttons | |
+| `play_again_click`, `play_end_quit_click`, `play_end_results_click`, `play_end_close_click` | The end-of-game buttons: Play again, Quit, Results, and Close (which steps aside to the table with every hand face up) | |
 | `play_open_rules`, `play_close_rules`, `play_rule_click` | The rules sheet; a rule row | `hand` (row only) |
 | `play_open_strategies`, `play_close_strategies`, `play_strategy_details_click` | The Strategies sheet; a strategy's details | `open` (details only) |
 | `play_credit_click` | A music or art credit link | `link` |
@@ -148,7 +148,14 @@ Every button is tracked except the tiles and the buttons that play a move (Win, 
 | `play_view_replay` | View playback of a hand | |
 | `play_playback_prev_click`, `play_playback_next_click`, `play_playback_play_click`, `play_playback_pause_click` | Step and play controls | |
 | `play_playback_speed` | The playback speed changes | `speed` |
-| `play_playback_back_click`, `play_playback_upload_click`, `play_playback_download_click` | Back, Upload and Download | |
+| `play_playback_back_click`, `play_playback_list_click` | Back, and Saved playbacks (the bar's button, or the one in the center with no hand loaded) | |
+| `play_playback_list_play`, `play_playback_list_download` | In the Saved playbacks sheet: Play or Download on a row | `kind`: `recent` or `upload` |
+| `play_playback_upload_click` | Upload playback, in the Saved playbacks sheet | |
+| `play_playback_upload_failed` | An uploaded or pasted playback was rejected and the could-not-be-uploaded popup showed | `code`: `signature`, `damaged`, `notFile` or `version` |
+| `play_playback_toggle_hands` | A double-click on an opponent's hand in a finished hand's playback hid or showed their tiles | `shown`: true or false |
+| `play_playback_list_copy_seed` | Copy hand seed on a row of the Saved playbacks sheet | `kind`: `recent` or `upload` |
+| `play_autoplay` | Your wind badge turned auto-play on or off (development addresses only, which send no analytics) | `on`: true or false |
+| `play_playback_results` | A playback reached its last move and showed the hand's results | `result`: `win` or `draw` |
 | `play_playback_coach_note_click` | A coach note, jumping to its move | |
 
 ## Testing

@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.47.3';
+  var GAME_VERSION = '0.55.2';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -688,6 +688,8 @@
     }
     game.history.push(result);
     game.hand.result = result;
+    // When the hand ended (ms), for its playback: a list says "Finished today, 2:30 PM".
+    game.hand.endedAt = Date.now();
   }
 
   // One finished hand for the results table. In a payout game, faan is the
@@ -1060,14 +1062,18 @@
   }
 
   // Whether a save written by `version` loads into this one: any minor or
-  // patch version of the same major version does. Returns { ok, reason }.
+  // patch version of the same major version does. Returns { ok, reason, kind,
+  // fileVersion, gameVersion }; `kind` says what is wrong: 'missing' (no
+  // version), 'newer' or 'older' (another major version).
   function saveCompatibility(version) {
     var have = parseVersion(GAME_VERSION);
     var got = parseVersion(version);
-    if (!got) return { ok: false, reason: 'This file has no game version, so it can\'t be loaded.' };
-    if (got[0] > have[0]) return { ok: false, reason: 'Saved by version ' + version + ', newer than this game (' + GAME_VERSION + '). Reload the page to update.' };
-    if (got[0] !== have[0]) return { ok: false, reason: 'Saved by version ' + version + ', which doesn\'t load in version ' + GAME_VERSION + '.' };
-    return { ok: true, reason: null };
+    var info = { fileVersion: version == null ? null : String(version), gameVersion: GAME_VERSION };
+    function no(kind, reason) { return { ok: false, kind: kind, reason: reason, fileVersion: info.fileVersion, gameVersion: info.gameVersion }; }
+    if (!got) return no('missing', 'This file has no game version, so it can\'t be loaded.');
+    if (got[0] > have[0]) return no('newer', 'Saved by version ' + version + ', newer than this game (' + GAME_VERSION + '). Reload the page to update.');
+    if (got[0] !== have[0]) return no('older', 'Saved by version ' + version + ', which doesn\'t load in version ' + GAME_VERSION + '.');
+    return { ok: true, kind: null, reason: null, fileVersion: info.fileVersion, gameVersion: info.gameVersion };
   }
 
   // The game as it stood when the current hand began, plus that hand's
@@ -1257,7 +1263,7 @@
     var winds = parseHandSeed(head);
     var strategies = info.strategies || [];
     var actions = game.hand.trace.slice();
-    return {
+    var out = {
       v: 1,
       handSeed: head,
       seed: game.hand.seed >>> 0,
@@ -1283,6 +1289,10 @@
       }),
       actions: actions,
     };
+    // A finished hand's file says when it ended. It's signed with the rest,
+    // so it can't be changed. Files from before have none.
+    if (game.hand.result && game.hand.endedAt) out.endedAt = game.hand.endedAt;
+    return out;
   }
 
   function playbackText(game, info) {
@@ -1329,26 +1339,30 @@
     try { return JSON.parse(raw.slice(nl + 1)); } catch (e2) { return null; }
   }
 
+  // { ok, reason, code, record }. `code` says why a file failed: 'notFile'
+  // (not a playback file), 'version' (saved by a version this game can't
+  // load; versionKind, fileVersion and gameVersion say how), 'signature' (the HMAC signature doesn't match: the file was
+  // changed or damaged after it was saved) or 'damaged' (its contents don't
+  // fit together).
   function checkPlayback(input) {
     var file = playbackFileFrom(input);
-    if (typeof input === 'string' && !file) {
-      return { ok: false, reason: 'That isn\'t a playback file. Upload a JSON playback file.' };
-    }
-    if (!file || file.app !== PLAYBACK_APP || !file.payload) {
-      return { ok: false, reason: 'That isn\'t a playback file. Upload a JSON playback file.' };
-    }
+    var notFile = { ok: false, code: 'notFile', reason: 'That isn\'t a playback file. Upload a JSON playback file.' };
+    if (typeof input === 'string' && !file) return notFile;
+    if (!file || file.app !== PLAYBACK_APP || !file.payload) return notFile;
     var compat = saveCompatibility(file.version);
-    if (!compat.ok) return { ok: false, reason: compat.reason };
-    if (!playbackShape(file.payload) || playbackSign(file) !== file.signature) {
-      return { ok: false, reason: 'That playback was changed or damaged, so it can\'t be played.' };
+    if (!compat.ok) {
+      return { ok: false, code: 'version', versionKind: compat.kind, fileVersion: compat.fileVersion, gameVersion: compat.gameVersion, reason: compat.reason };
     }
+    var changed = 'That playback was changed or damaged, so it can\'t be played.';
+    if (!playbackShape(file.payload)) return { ok: false, code: 'damaged', reason: changed };
+    if (playbackSign(file) !== file.signature) return { ok: false, code: 'signature', reason: changed };
     if (file.payload.actions.length !== file.moves || (file.payload.moves != null && file.payload.moves !== file.moves)) {
-      return { ok: false, reason: 'That playback was changed or damaged, so it can\'t be played.' };
+      return { ok: false, code: 'damaged', reason: changed };
     }
     var rec = JSON.parse(JSON.stringify(file.payload));
     rec.moves = file.moves;
     rec.actions = rec.actions.slice(0, file.moves);
-    return { ok: true, reason: null, record: rec };
+    return { ok: true, reason: null, code: null, record: rec };
   }
 
   function parsePlayback(text) {
@@ -1373,6 +1387,123 @@
     return WIND_NAMES[p.wind] || ('Seat ' + (seat + 1));
   }
 
+  // What a win was scored for beyond the hand itself: how it was won, and
+  // flowers. The rest of a score's items are the hand's patterns.
+  var EXTRAS = ['Self-Draw', 'Concealed', 'Win on Last Tile', 'Robbing the Kong', 'Win by Kong',
+    'Win by Double Kong', 'Heavenly Hand', 'Earthly Hand', 'No Flowers', 'Seat Flower', 'Seat Season',
+    'Four Flowers', 'Four Seasons', 'Seven Robbing One', 'Eight Immortals Crossing the Sea'];
+
+  // A playback's ending as the game settled it: the same shape as runHand's
+  // result ({ type: 'win', winner, payer, tile, how, score, deltas,
+  // concealed, melds, flowers, seatWind, round, handNumber }, or
+  // { type: 'draw', ... }), scored again from the file as the hand stood when
+  // it ended. null when the hand isn't finished. The results card shows it.
+  function playbackResult(rec) {
+    if (!rec || !Array.isArray(rec.actions)) return null;
+    var limit = typeof rec.moves === 'number' && rec.moves >= 0 ? Math.min(rec.actions.length, rec.moves) : rec.actions.length;
+    var ev = limit ? rec.actions[limit - 1] : null;
+    if (!ev || (ev.a !== 'win' && ev.a !== 'drawGame')) return null;
+    var game;
+    try { game = playbackGame(rec, limit - 1); } catch (e) { return null; }
+    if (!game) return null;
+    var handNumber = rec.handNumber || game.handNumber;
+    if (ev.a === 'drawGame') return { type: 'draw', deltas: [0, 0, 0, 0], round: game.round, handNumber: handNumber };
+    var seat = ev.s;
+    var score = null, payer = null, tile = ev.t || null;
+    if (ev.how === 'flowers') {
+      var fw = flowerWinCheck(game, seat);
+      if (fw) { score = fw.score; payer = fw.payer; }
+      tile = null;
+    } else {
+      var self = ev.how === 'selfDraw';
+      // The same flags the game scored it with (Win on Last Tile, Earthly Hand, ...).
+      var flags = self ? selfDrawFlags(game, seat)
+        : ev.how === 'robKong' ? { robKong: true } : discardFlags(game, seat, ev.from);
+      score = scoreWin(game, seat, self ? null : ev.t, flags);
+      payer = self ? null : (ev.from != null ? ev.from : null);
+    }
+    if (!score || !score.valid) return null;
+    var s = game.hand.seats[seat];
+    return {
+      type: 'win',
+      winner: seat,
+      payer: payer,
+      tile: tile,
+      how: ev.how,
+      score: score,
+      deltas: payments(game, seat, payer, score.points),
+      concealed: sortTiles(s.hand.concat(tile && ev.how !== 'selfDraw' && ev.how !== 'flowers' ? [tile] : [])),
+      melds: s.melds.map(function (m) { return { type: m.type, tiles: m.tiles.slice(), concealed: m.concealed }; }),
+      flowers: s.flowers.slice(),
+      seatWind: seatWind(game, seat),
+      round: game.round,
+      handNumber: handNumber,
+    };
+  }
+
+  // Who won a playback's hand and with which hand: { seat, name, how, hand,
+  // patterns, faan }, or null for a hand with no winner (or not finished).
+  // `hand` is only the most important pattern, the one worth the most faan
+  // (the first of them on a tie), so it stays short: "Half Flush", not "Half
+  // Flush + Dragon Triplet". `patterns` has all of them, best first.
+  function playbackWinner(rec) {
+    if (!rec || !Array.isArray(rec.actions)) return null;
+    var limit = typeof rec.moves === 'number' && rec.moves >= 0 ? Math.min(rec.actions.length, rec.moves) : rec.actions.length;
+    var ev = limit ? rec.actions[limit - 1] : null;
+    if (!ev || ev.a !== 'win') return null;
+    var out = { seat: ev.s, name: playbackWho(rec, ev.s), how: ev.how, hand: null, patterns: [], faan: null };
+    var res = playbackResult(rec);
+    if (res && res.score) {
+      var items = res.score.items || [];
+      var patterns = items.filter(function (it) { return EXTRAS.indexOf(it.name) === -1; });
+      var ranked = (patterns.length ? patterns : items).map(function (it, i) { return { name: it.name, faan: it.faan || 0, at: i }; })
+        .sort(function (a, b) { return b.faan - a.faan || a.at - b.at; });
+      out.patterns = ranked.map(function (it) { return it.name; });
+      out.hand = out.patterns[0] || null;
+      out.faan = res.score.faan;
+    }
+    return out;
+  }
+
+  // A playback for a list: who won and with which hand, and which hand of
+  // the game it was. { result: "Katie won with Full Flush · 10 faan",
+  // hand: "Hand 3 · East round", number: "Hand 3" } (`number` is the short
+  // form a row shows; `hand` has the round too, for a screen reader).
+  function playbackSummary(rec) {
+    if (!rec || !Array.isArray(rec.actions)) return { result: 'A playback', hand: '', number: '' };
+    var number = 'Hand ' + (rec.handNumber || 1);
+    var hand = number + ' · ' + (WIND_NAMES[rec.round] || 'East') + ' round';
+    var limit = typeof rec.moves === 'number' && rec.moves >= 0 ? Math.min(rec.actions.length, rec.moves) : rec.actions.length;
+    var last = limit ? rec.actions[limit - 1] : null;
+    var result;
+    if (last && last.a === 'win') {
+      var w = playbackWinner(rec);
+      result = w.name + ' won' + (w.hand ? ' with ' + w.hand : '') + (w.faan != null ? ' · ' + w.faan + ' faan' : '') +
+        (w.how === 'selfDraw' ? ' (self\u2011draw)' : ''); // a hyphen that doesn't break the line
+    } else if (last && last.a === 'drawGame') {
+      result = 'No winner: the wall ran out';
+    } else {
+      result = 'Still being played';
+    }
+    return { result: result, hand: hand, number: number };
+  }
+
+  // When a playback was saved, for people: "Today, 2:30 PM", "Yesterday,
+  // 9:05 AM", "Wed, Nov 5, 2:30 PM". `now` is for tests. No time: "Earlier".
+  function playbackWhen(ms, now) {
+    if (ms == null || !isFinite(ms)) return 'Earlier';
+    var d = new Date(ms);
+    var today = new Date(now == null ? Date.now() : now);
+    var time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    var startOf = function (x) { return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(); };
+    var days = Math.round((startOf(today) - startOf(d)) / 86400000);
+    if (days === 0) return 'Today, ' + time;
+    if (days === 1) return 'Yesterday, ' + time;
+    var opts = { weekday: 'short', month: 'short', day: 'numeric' };
+    if (d.getFullYear() !== today.getFullYear()) opts.year = 'numeric';
+    return d.toLocaleDateString('en-US', opts) + ', ' + time;
+  }
+
   // The playback bar's caption for the steps from..step (one move): its
   // claims and discard, without the draws. Before the first discard, the only
   // steps are the players swapping out their flowers: 'Replacing flowers.'
@@ -1391,30 +1522,32 @@
     return parts.join(' ') || (flowers ? 'Replacing flowers.' : 'The deal.');
   }
 
+  // Each recorded action as a sentence in the past tense, such as "You
+  // discarded Four Circle." or "Katie won on South Wind from Lulu."
   function playbackLines(rec) {
     if (!rec || !Array.isArray(rec.actions)) return [];
     return rec.actions.map(function (ev) {
       var who = playbackWho(rec, ev.s);
-      if (ev.a === 'flower') return who + ' sets aside ' + tileName(ev.t) + '.';
-      if (ev.a === 'draw') return who + ' draws ' + tileName(ev.t) + (ev.k && ev.k !== 'wall' ? ' as a replacement.' : '.');
-      if (ev.a === 'discard') return who + ' discards ' + tileName(ev.t) + '.';
+      if (ev.a === 'flower') return who + ' set aside ' + tileName(ev.t) + '.';
+      if (ev.a === 'draw') return who + ' drew ' + tileName(ev.t) + (ev.k && ev.k !== 'wall' ? ' as a replacement.' : '.');
+      if (ev.a === 'discard') return who + ' discarded ' + tileName(ev.t) + '.';
       if (ev.a === 'claim') {
-        var verb = ev.c === 'chow' ? 'chows' : ev.c === 'kong' ? 'kongs' : 'pungs';
+        var verb = ev.c === 'chow' ? 'chowed' : ev.c === 'kong' ? 'konged' : 'punged';
         var tiles = ev.c === 'chow' ? sortTiles((ev.tiles || []).concat([ev.t])).map(tileName).join(', ') : tileName(ev.t);
         return who + ' ' + verb + ' ' + tiles + ' from ' + playbackWho(rec, ev.from) + '.';
       }
       if (ev.a === 'kong') {
         return ev.k === 'added'
-          ? who + ' adds a ' + tileName(ev.t) + ' to the pung.'
-          : who + ' declares a concealed kong of ' + tileName(ev.t) + '.';
+          ? who + ' added a ' + tileName(ev.t) + ' to the pung.'
+          : who + ' declared a concealed kong of ' + tileName(ev.t) + '.';
       }
       if (ev.a === 'win') {
-        if (ev.how === 'flowers') return who + ' wins with flowers.';
-        if (ev.how === 'selfDraw') return who + ' wins by self-draw on ' + tileName(ev.t) + '.';
-        if (ev.how === 'robKong') return who + ' wins by robbing the kong of ' + tileName(ev.t) + ' from ' + playbackWho(rec, ev.from) + '.';
-        return who + ' wins on ' + tileName(ev.t) + ' from ' + playbackWho(rec, ev.from) + '.';
+        if (ev.how === 'flowers') return who + ' won with flowers.';
+        if (ev.how === 'selfDraw') return who + ' won by self-draw on ' + tileName(ev.t) + '.';
+        if (ev.how === 'robKong') return who + ' won by robbing the kong of ' + tileName(ev.t) + ' from ' + playbackWho(rec, ev.from) + '.';
+        return who + ' won on ' + tileName(ev.t) + ' from ' + playbackWho(rec, ev.from) + '.';
       }
-      if (ev.a === 'drawGame') return 'The wall is empty. Draw game.';
+      if (ev.a === 'drawGame') return 'The wall ran out. Draw game.';
       return 'Move.';
     });
   }
@@ -1575,6 +1708,10 @@
     parsePlayback: parsePlayback,
     playbackLines: playbackLines,
     playbackCaption: playbackCaption,
+    playbackSummary: playbackSummary,
+    playbackWinner: playbackWinner,
+    playbackResult: playbackResult,
+    playbackWhen: playbackWhen,
     playbackGame: playbackGame,
     playbackFinished: playbackFinished,
     applyPlaybackAction: applyPlaybackAction,
