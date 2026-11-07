@@ -2538,7 +2538,7 @@
           }
           clusterX = dlX;
           // Back always goes to the game, however the playback was opened.
-          button('Back', pad, 7, 64, 28, backToGame, 'ghost', 'review-back');
+          button('Back', pad, 7, 64, 28, function () { sound.play('select'); backToGame(); }, 'ghost', 'review-back');
           // The title is "Playback Analysis", on a phone and on desktop.
           var label = 'Playback Analysis';
           if (phoneBar) {
@@ -6193,16 +6193,8 @@
     // What happened to reach a stop: claims and the discard, without the draws.
     function reviewCaptionAt(step) {
       if (!step) return 'The deal.';
-      var idx = reviewStopIndex(step);
-      var from = reviewStops().stops[Math.max(0, idx - 1)];
-      var lines = E.playbackLines(settings.review);
-      var parts = [];
-      for (var i = from; i < step; i++) {
-        var ev = settings.review.actions[i];
-        if (ev && (ev.a === 'draw' || ev.a === 'flower') && step - from > 1) continue;
-        if (lines[i]) parts.push(lines[i]);
-      }
-      return parts.join(' ') || 'The deal.';
+      var from = reviewStops().stops[Math.max(0, reviewStopIndex(step) - 1)];
+      return E.playbackCaption(settings.review, from, step);
     }
 
     function reviewCaption() {

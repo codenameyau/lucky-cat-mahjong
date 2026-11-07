@@ -373,6 +373,31 @@ describe('playback seed', () => {
     assert.equal(E.parsePlayback(E.handSeedText(game, 0)), null);
   });
 
+  it('captions the flower replacements before the first discard as Replacing flowers', async () => {
+    // A deal where someone starts with a flower.
+    let game = null;
+    for (let seed = 1; seed < 200 && !game; seed++) {
+      const g = E.createGame({ seed, humanSeat: false, dealer: 0 });
+      await E.runHand(g, discarders(), { emit() {} });
+      const rec = E.parsePlayback(E.playbackText(g, { seat: 0 }));
+      const firstDiscard = rec.actions.findIndex((a) => a.a === 'discard');
+      if (rec.actions.slice(0, firstDiscard).filter((a) => a.a === 'flower').length) game = rec;
+    }
+    assert.ok(game, 'a deal with an opening flower');
+    const rec = game;
+    const firstDiscard = rec.actions.findIndex((a) => a.a === 'discard');
+    assert.equal(E.playbackCaption(rec, 0, 0), 'The deal.');
+    // Partway through the opening replacements (more than one step from the deal).
+    const flowerAt = rec.actions.findIndex((a) => a.a === 'flower');
+    const midway = Math.max(flowerAt + 1, 2);
+    if (midway <= firstDiscard) assert.equal(E.playbackCaption(rec, 0, midway), 'Replacing flowers.');
+    // The first move, up to and including its discard, names the discard.
+    assert.match(E.playbackCaption(rec, 0, firstDiscard + 1), /discards/);
+    // A deal with no flowers before its first discard still reads as the deal.
+    const plain = { actions: [{ a: 'draw', s: 0, t: 'c1' }, { a: 'draw', s: 1, t: 'c2' }, { a: 'discard', s: 0, t: 'c1' }], players: rec.players };
+    assert.equal(E.playbackCaption(plain, 0, 2), 'The deal.');
+  });
+
   it('rebuilds that log when a saved hand is played back to the same moment', async () => {
     const game = E.createGame({ seed: 11, dealer: 0 });
     let saved = null;
