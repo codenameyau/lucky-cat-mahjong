@@ -22,7 +22,7 @@
   // The one saved game on this device, signed (HMAC-SHA256). Each turn writes
   // it; Resume game reads it. Quit leaves it.
   var AUTOSAVE_KEY = 'lcm-play-autosave';
-  // The signed playback the wind badge and View playback save. The playback
+  // The signed playback View playback and a finished hand save. The playback
   // page opens it on its own.
   var REPLAY_KEY = 'lcm-play-replay';
   // The playback of a hand still being played. Its file holds the whole deal,
@@ -3598,10 +3598,9 @@
       return navigator.clipboard.writeText(text).catch(fallback);
     }
 
-    // Tapping your wind badge copies the signed playback. Its hand seed is
-    // payload.handSeed. The playback page also keeps that file, and opens it
-    // on its own. No message. The badge flashes on the click.
-    // The playback JSON the badge could not copy at the press itself. Some browsers
+    // Tapping your wind badge copies the hand seed (payload.handSeed, such as
+    // 919942249-NE), and nothing else. No message. The badge flashes on the click.
+    // The seed the badge could not copy at the press itself. Some browsers
     // (Safari) only allow the clipboard from a click, which comes just after the
     // press the table reacts to, so it is tried again there.
     var pendingCopy = null;
@@ -3615,21 +3614,16 @@
 
     function copySeed() {
       if (!game || !game.hand) return;
-      var fresh, file;
+      var file;
       try {
-        fresh = currentReplay(); // this hand as it stands now
-        file = fresh || storedReplay();
+        file = currentReplay() || storedReplay(); // this hand as it stands now
       } catch (err) { return; }
       if (!file || !file.payload || !file.payload.handSeed) return;
-      // A hand still being played would copy the whole deal, every hand in it.
-      if (!E.playbackFinished(file.payload)) { announce('Copying the playback opens once the hand is finished.'); return; }
-      // Saved first, so the playback page has it whether or not the copy works.
-      if (fresh) keepReplay(file);
       track('play_copy_seed', {});
       animate(520, function (e) { ui.windFlash = 1 - e; });
-      var json = JSON.stringify(file);
-      pendingCopy = json;
-      copyText(json).then(function () { pendingCopy = null; }, function () { /* tried again on the click */ });
+      var seed = String(file.payload.handSeed);
+      pendingCopy = seed;
+      copyText(seed).then(function () { pendingCopy = null; }, function () { /* tried again on the click */ });
     }
 
     // Older notes start at the top and later ones follow downward.

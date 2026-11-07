@@ -97,7 +97,7 @@ Every seat's discards are recorded, whatever strategy it plays, with how the han
 
 ## Reviewing a hand, and teaching the coach
 
-`npm run review` replays a hand from its seed in under a second and shows what the coach said on each of your turns. Tap your wind badge in the game to save a playback. Its `handSeed` is the hand seed this command takes.
+`npm run review` replays a hand from its seed in under a second and shows what the coach said on each of your turns. Tap your wind badge in the game to copy the hand seed this command takes (its `handSeed`, such as `919942249-NE`).
 
 | Command | |
 | --- | --- |
