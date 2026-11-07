@@ -2,6 +2,10 @@
 
 This is the playbook for the **only-orphans** strategy (`js/mahjong-only-orphans.js`). It only plays hands of 1s, 9s and honors. A neural network trained by self-play decides how, the same way [Neural Cat](neural-cat.md) plays its hands. Any bot seat can play it, and the coach can follow it (pick it in the Strategies sheet).
 
+## How it thinks
+
+The rules fix the family of hands: every tile that isn't a 1, a 9 or an honor goes first, and it never chows. The hands it can reach are big (it wins about 2 hands in 100, each worth thousands of points), so the question is how long to keep chasing one. The network answers it with a score for each choice: the chance to win, how big the win would be and the chance of dealing in, folded into what the choice is worth on average. It plays the best one: which spare 1, 9 or honor goes, when to give up on Thirteen Orphans and for which hand, and which pungs and kongs to take. There is no separate rule for playing safe, because dealing in is already part of every score.
+
 It only uses what its seat can see, and it plays on the shared foundation in `js/mahjong-bot.js`, so it keeps the shared rules, like never throwing a lone dragon nobody has shown.
 
 Training progress, round by round: [only-orphans-training.md](only-orphans-training.md).
