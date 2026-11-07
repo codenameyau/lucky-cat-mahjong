@@ -95,7 +95,7 @@ Rounds 1 to 5 used 2,000-deal evaluations, which swing by about ±50 points a ha
 
 #### What L7 improved
 
-The game now ships NC1, which is L17 (shipped models are named NC1, NC2 and so on; see [release names](../machine-learning/model.md)). At the time of writing, L7 was the model the game shipped. It replaces L3, which shipped before it. Against L6, its direct predecessor, on 6,000 new deals (each deal played from every seat, L7 and L6 two seats each):
+The game now ships NC2, which is L19 (shipped models are named NC1, NC2 and so on; see [release names](../machine-learning/model.md); NC1 was L17). How each was measured is in [iterations](../machine-learning/iterations.md). At the time of writing, L7 was the model the game shipped. It replaces L3, which shipped before it. Against L6, its direct predecessor, on 6,000 new deals (each deal played from every seat, L7 and L6 two seats each):
 
 | | L7 | L6 |
 | --- | ---: | ---: |
