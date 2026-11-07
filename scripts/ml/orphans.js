@@ -13,13 +13,14 @@
         to --members earlier models playing their best. Only its own seats
         are recorded.
      2. train: a new model from the best, on the last --keep rounds of data.
-     3. rank: the new model, the best and the rule-based baseline each take
+     3. rank: the new model, the best, the model in the game and the
+        rule-based baseline each take
         one seat against Neural Cat, Jorge Yau and Lucky Cat, on the same
         --eval-deals deals (each rotated through every seat, new deals every
         round). The score is points a hand less the other's.
      4. keep: it becomes the best if it scored more than the best. A best that
         also beats the baseline by more than the margin, and by more than the
-        model in the game did, is a milestone: it is shipped to
+        model in the game on the same deals, is a milestone: it is shipped to
         js/mahjong-only-orphans-weights.js, so the game plays it.
    After every round the progress page (docs/strategies/only-orphans-training.md)
    is written again. With --publish, every round is committed, and from the
@@ -37,7 +38,7 @@
      --keep N         rounds of data to train on (default 8)
      --members N      earlier models at the table (default 2)
      --sample P       chance each decision is recorded (default 0.25)
-     --eval-deals N   deals per ranking, x4 seat rotations (default 3000)
+     --eval-deals N   deals per ranking, x4 seat rotations (default 9000)
      --publish        commit every round and push milestones to a pull request
      --dir DIR        state and log (default ml/orphans) */
 
@@ -148,7 +149,9 @@ function writeDoc(state) {
     '',
     '## Every round',
     '',
-    'Each model takes one seat against Neural Cat, Jorge Yau and Lucky Cat, on the same deals as the best model and the rule-based baseline (' + num(state.evalDeals) + ' deals, each played from every seat, new deals every round). Scores are points a hand, with the 95% margin. "Kept" means it beat the best and became the best. A milestone is a best that also beats the baseline: it ships to the game.',
+    'Each model takes one seat against Neural Cat, Jorge Yau and Lucky Cat, on the same deals as the best model, the model in the game and the rule-based baseline (' + num(state.evalDeals) + ' deals, each played from every seat, new deals every round; rounds 1 to 4 used 3,000). Scores are points a hand, with the 95% margin. "Kept" means it beat the best and became the best. A milestone is a best that also beats the baseline by more than the margin and scores more than the model in the game on the same deals: it ships to the game.',
+    '',
+    'The opponents are whatever the game seats: from round 4, Neural Cat NC1, Lucky Cat\'s network LC20 and the newer Jorge Yau (rounds 1 to 3 played the models and bots before them), so scores from different tables don\'t compare directly.',
     '',
     '| Round | Model | Trained on | vs best | vs baseline | Points a hand | Wins | Deal-ins | Average win | Limit hands | Thirteen Orphans | Pungs | Result |',
     '| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |',
@@ -277,7 +280,7 @@ function main() {
     keep: parseInt(a.keep || 8, 10),
     members: parseInt(a.members || 2, 10),
     sample: parseFloat(a.sample || 0.25),
-    evalDeals: parseInt(a['eval-deals'] || 3000, 10),
+    evalDeals: parseInt(a['eval-deals'] || 9000, 10),
     publish: !!a.publish,
   };
   let state = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : null;
@@ -323,12 +326,17 @@ function main() {
     const vsBaseline = versus(self, baseline);
     const vsBest = bestSeat ? versus(self, bestSeat) : null;
     const kept = !vsBest || vsBest.score > 0;
-    // A milestone beats the baseline by more than the margin, and by more
-    // than the model in the game did.
-    const shippedRound = state.rounds.filter((r) => r.model === state.shipped)[0];
-    const milestone = kept && vsBaseline.score > vsBaseline.margin &&
-      (!shippedRound || vsBaseline.score > shippedRound.vsBaseline.score);
-    const round = { n, name, data, model, samples: samplesOf(recent), deals: args.deals, self, baseline, best: bestSeat, vsBest, vsBaseline, against: state.best, kept, milestone };
+    // The model in the game, on the same deals (it's the best's seat when
+    // the best is the one shipped).
+    const shippedSeat = !state.shipped ? null : state.shipped === state.best ? bestSeat
+      : seat('oo:' + state.shipped, args.evalDeals, evalSeed, name + '-shipped');
+    const vsShipped = shippedSeat ? versus(self, shippedSeat) : null;
+    // A milestone beats the baseline by more than the margin, and scores
+    // more than the model in the game on the same deals. (Comparing against
+    // the shipped model's own ranking would mix tables: the opponents, and
+    // so every score, change when Neural Cat, Jorge Yau or Lucky Cat do.)
+    const milestone = kept && vsBaseline.score > vsBaseline.margin && (!vsShipped || vsShipped.score > 0);
+    const round = { n, name, data, model, samples: samplesOf(recent), deals: args.deals, evalDeals: args.evalDeals, self, baseline, best: bestSeat, shippedSeat, vsBest, vsShipped, vsBaseline, against: state.best, kept, milestone };
     log('Round ' + n + ': ' + name + ' ' + signed(self.pointsPerHand) + ' points a hand; against the best ' + vs(vsBest) + ', against the rule-based bot ' + vs(vsBaseline) +
       (milestone ? ' -> milestone' : kept ? ' -> new best' : ' -> kept ' + state.best));
     state.rounds.push(round);
