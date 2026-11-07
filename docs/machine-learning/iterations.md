@@ -10,7 +10,7 @@ Every score here is **points a hand**: one player's average points per hand less
 
 | | Neural Cat | Lucky Cat |
 | --- | --- | --- |
-| In the game | **NC2** (league model L19) | **LC30** (lab model LL19b) |
+| In the game | **NC2** (league model L19) | **LC31** (lab model LL22b) |
 | What it is | A network that scores Jorge Yau's best choices in expected points | A network that makes every move itself, with no rules underneath |
 | What it plays for | Points: often and big wins on one scale | Wins: as many and as fast as it can |
 | Trained on | 950,000 league hands (stopped in round 19, at a plateau), and earlier rounds against the rule bots | 1,000,000 hands against its earlier selves and Neural Cat |
@@ -422,6 +422,13 @@ Eighteen lab rounds took Lucky Cat from lc20 to lc29: 16.4% of hands to 27.2% wh
 - **What it does differently.** Against lc29 directly over a separate 20,000 deals it wins 23.2% of hands to 22.8%, in 15.6 discards a win to 15.7, with the same deal-ins (17.7%). Against lc20 over 10,000 deals it wins 27.7% to 16.0%. Against Neural Cat NC2 it wins 27.4% to 27.8% of hands over 15,000 deals, about what lc29 does, and loses about as many points.
 - **Reading.** A network twice as wide, trained once from scratch on 10 rounds, matched and slightly beat 19 rounds of fine-tuning. That points at the 256-128 network as part of the plateau. The deal-in fine-tunes cut deal-ins a little (17.4% to 17.7% for the strong one against lc29 on 10,000 deals) without winning more, so far. The wide network is now the champion, so the next rounds fine-tune it: the deal-in arms on it are the real test.
 - **Result.** J +0.6 ± 0.41 against lc29, confirmed at +0.5 ± 0.41 on a separate 20,000 deals: shipped as **lc30**.
+
+### LC31 (lab model LL22b): learning from its deal-ins
+
+- **Thinking.** With the trainer fixed to keep the wide network's shape, round 21 tried all three new arms on lc30, and all three beat it on 6,000 deals: `deal-ins` (weight 0.3) +1.4, `deal-ins-strong` (weight 1) +1.0, `wide` from scratch +0.9. `deal-ins-strong` (LL21c) won on 20,000 deals, +0.7, and on a separate 20,000 against lc30 it won 23.3% of hands to 22.8% and dealt in on 17.3% to 18.0%. Small, so it was held. Round 22 trained on from it: `deal-ins` (LL22b) +0.2, kept, and the two steps together shipped. Each fine-tune trained on 510,405 moves from the last two rounds, 24,995 of them moves that dealt in.
+- **What it does differently.** Against lc30 directly over a separate 20,000 deals it wins 23.6% of hands to 22.6%, in about the same 15.7 discards a win, and deals in on 17.5% of hands to 18.0%. Against lc20 over 10,000 deals it wins 28.0% to 15.9% and deals in on 14.8% to 18.2%. Against Neural Cat NC2 over 15,000 deals it wins 28.1% of hands to lc30's 27.7% and loses 75 points a hand to lc30's 80, both within the noise, and doesn't deal in less (13.5% to 13.2%).
+- **Reading.** The first change of the rebuild that does what it was built for: pushing down the moves that dealt in cut deal-ins against its own kind by half a point, beyond the noise, and the hands it stopped giving away became wins. Against Neural Cat it didn't, so far: Neural Cat's hands are slow and big and look different, and the moves that dealt in were mostly into other Lucky Cats (the learner takes two of the four seats in every training deal, and its earlier selves often a third). The `wide` network from scratch was level with the fine-tunes both rounds, so the 512-256 network now has room the old one didn't.
+- **Result.** J +0.7 and +0.2 on the lab's 20,000 deals, and +0.9 ± 0.41 against lc30 on a separate 20,000: shipped as **lc31**.
 
 ## Only Orphans
 
