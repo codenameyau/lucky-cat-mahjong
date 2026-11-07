@@ -798,3 +798,8 @@ test('colour themes: green, blue and red, cycled from the menu and kept in the g
   const html = fs.readFileSync(path.join(__dirname, '..', 'playing-mahjong/index.html'), 'utf8');
   assert.match(html, /data-theme/);
 });
+
+test('a phone has no Copy hand seed button on a saved playback', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'css/play.css'), 'utf8');
+  assert.match(css, /@media \(max-width: 600px\)[^{]*\{\s*\.playbacks-copy \{ display: none; \}/);
+});

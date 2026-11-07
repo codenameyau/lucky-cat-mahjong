@@ -665,6 +665,11 @@ html.is-playing.is-sideways body {
 .playbacks-btn[data-tip]:focus-visible::after,
 .playbacks-btn.is-copied::after { opacity: 1; }
 
+/* A phone has no Copy hand seed button on a saved playback: only Play and Download. */
+@media (max-width: 600px), (pointer: coarse) and (max-height: 599px) {
+  .playbacks-copy { display: none; }
+}
+
 /* Copy hand seed turns green with a check for a moment once it has copied. */
 .playbacks-btn.is-copied { border-color: #7bd88f; background: #1f6b3c; }
 
