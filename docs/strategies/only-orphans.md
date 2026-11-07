@@ -41,7 +41,7 @@ Everything else, scored in expected points (the [model](../machine-learning/mode
 - **Which pungs and kongs to take**, among the ones the target allows. Passing and each call it may make are scored, and the best one is played.
 - **When to play safe.** Deal-in risk is part of every position it reads, so there is no separate folding rule beyond the shared foundation's order.
 
-Before O6 (and with O5's weights) the model also decided when to give up on Thirteen Orphans: it kept or broke the singles a Thirteen Orphans hand needs by what each was worth, and could pung a 1, 9 or honor at any time. That is the target's job now.
+Before the targets, the model also decided when to give up on Thirteen Orphans: it kept or broke the singles a Thirteen Orphans hand needs by what each was worth, and could pung a 1, 9 or honor at any time. That is the target's job now. With O5's weights the targets scored +21.6 ± 21.5 points a hand more than the old rules on the same 20,000 deals, winning 5.0% of hands instead of 2.0%, with an average win of 2,907 points instead of 6,186 ([iterations](../machine-learning/iterations.md#only-orphans-targets-by-expected-points)).
 
 ## How it is trained
 

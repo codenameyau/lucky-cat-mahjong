@@ -11,6 +11,9 @@
      node scripts/ml/paired.js run --lineup oo:ml/models/O5.json,neural-cat,jorge-yau,lucky-cat \
        --deals 20000 --seed 93000000 --workers 3 --out ml/paired/O5.json [--root DIR]
 
+   --rotations 1 plays each deal once, the strategy in the first seat (the
+   dealer moves with the deal), for a quarter of the time.
+
    --root runs another copy of the game's code (a snapshot of the old
    version, say): its js/ and scripts/ml/baselines/.
 
@@ -52,12 +55,12 @@ function load(root, lineup) {
 }
 
 if (!isMainThread) {
-  const { root, lineup, deals, seed } = workerData;
+  const { root, lineup, deals, seed, rotations } = workerData;
   const C = load(root, lineup);
   const me = lineup[0];
   let row = null, batch = [], d = 0;
   C.runMatch({
-    lineup, deals, seed,
+    lineup, deals, seed, rotate: rotations !== 1,
     onHand(res, ids) {
       if (!row) row = [seed + d, 0, 0, 0, 0, 0, 0];
       const seat = ids.indexOf(me);
@@ -65,7 +68,7 @@ if (!isMainThread) {
       row[1] += res.deltas[seat];
       if (res.type !== 'draw' && res.winner === seat) { row[2]++; row[3] += res.deltas[seat]; row[5] += res.score.faan; }
       else if (res.type !== 'draw' && res.payer === seat && res.how !== 'flowers') row[4]++;
-      if (row[6] === 4) {
+      if (row[6] === rotations) {
         batch.push(row.slice(0, 6));
         row = null;
         d++;
@@ -86,12 +89,13 @@ async function runAll(a) {
   const seed = parseInt(a.seed || 93000000, 10);
   const workers = Math.max(1, Math.min(deals, parseInt(a.workers || Math.max(1, os.cpus().length - 1), 10)));
   const per = Math.ceil(deals / workers);
+  const rotations = parseInt(a.rotations || 4, 10) === 1 ? 1 : 4;
   const file = path.resolve(String(a.out));
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const t0 = Date.now();
   const rows = [];
   const save = (done) => {
-    const out = { lineup, seed, deals, root, done: !!done, ms: Date.now() - t0, rows: rows.slice().sort((x, y) => x[0] - y[0]) };
+    const out = { lineup, seed, deals, rotations, root, done: !!done, ms: Date.now() - t0, rows: rows.slice().sort((x, y) => x[0] - y[0]) };
     fs.writeFileSync(file + '.tmp', JSON.stringify(out));
     fs.renameSync(file + '.tmp', file);
     return out;
@@ -102,7 +106,7 @@ async function runAll(a) {
     const count = Math.min(per, deals - first);
     if (count <= 0) break;
     jobs.push(new Promise((resolve, reject) => {
-      const worker = new Worker(__filename, { workerData: { root, lineup, deals: count, seed: seed + first } });
+      const worker = new Worker(__filename, { workerData: { root, lineup, deals: count, seed: seed + first, rotations } });
       worker.on('message', (m) => {
         rows.push(...m.rows);
         if (m.done) resolve(); else save(false);
@@ -119,13 +123,14 @@ async function runAll(a) {
 
 function stats(run) {
   const n = run.rows.length;
+  const k = run.rotations || 4; // hands a deal
   let p = 0, p2 = 0, w = 0, won = 0, d = 0, f = 0;
   run.rows.forEach((r) => { p += r[1]; p2 += r[1] * r[1]; w += r[2]; won += r[3]; d += r[4]; f += r[5]; });
-  const mean = p / n; // points a deal (four hands)
+  const mean = p / n; // points a deal (k hands)
   const sd = Math.sqrt(Math.max(0, p2 / n - mean * mean));
   return {
-    deals: n, pointsPerHand: mean / 4, margin: 1.96 * sd / Math.sqrt(n) / 4,
-    winRate: w / (4 * n), avgWin: w ? won / w : 0, avgFaan: w ? f / w : 0, dealInRate: d / (4 * n),
+    deals: n, pointsPerHand: mean / k, margin: 1.96 * sd / Math.sqrt(n) / k,
+    winRate: w / (k * n), avgWin: w ? won / w : 0, avgFaan: w ? f / w : 0, dealInRate: d / (k * n),
   };
 }
 
@@ -138,18 +143,20 @@ function compare(fileA, fileB) {
   A.rows.forEach((r) => { if (bySeed.has(r[0])) { a.push(r); b.push(bySeed.get(r[0])); } });
   const n = a.length;
   if (!n) throw new Error('no deals in common');
+  const k = A.rotations || 4;
+  if ((B.rotations || 4) !== k) throw new Error('not the same seat rotations');
   let s = 0, s2 = 0, ws = 0, ws2 = 0;
   for (let i = 0; i < n; i++) {
-    const d = (a[i][1] - b[i][1]) / 4;
+    const d = (a[i][1] - b[i][1]) / k;
     s += d; s2 += d * d;
-    const dw = (a[i][2] - b[i][2]) / 4;
+    const dw = (a[i][2] - b[i][2]) / k;
     ws += dw; ws2 += dw * dw;
   }
   const mean = s / n;
   const margin = 1.96 * Math.sqrt(Math.max(0, s2 / n - mean * mean) / n);
   const wmean = ws / n;
   const wmargin = 1.96 * Math.sqrt(Math.max(0, ws2 / n - wmean * wmean) / n);
-  return { a: stats({ rows: a }), b: stats({ rows: b }), points: mean, margin, wins: wmean, winMargin: wmargin, deals: n };
+  return { a: stats({ rows: a, rotations: k }), b: stats({ rows: b, rotations: k }), points: mean, margin, wins: wmean, winMargin: wmargin, deals: n };
 }
 
 if (require.main === module) {

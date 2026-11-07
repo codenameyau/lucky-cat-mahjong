@@ -350,6 +350,26 @@ Against Neural Cat, over 1,000 deals each round:
 - **Play against strong opponents.** Neural Cat stalled against the fixed rule bots and moved again once it played other models in the league. Lucky Cat kept improving because each new version had to beat its own best.
 - **Noise is the main obstacle to telling models apart.** Most head-to-head results between neighbours are within ±30. Use 6,000 or more deals, record the margin, and replay any "best" on fresh deals.
 
+## Only Orphans: targets by expected points
+
+Only Orphans' models O1 to O5 were trained by its league ([only-orphans-training.md](../strategies/only-orphans-training.md)). Up to O5 the rules allowed only hands of 1s, 9s and honors (Thirteen Orphans, and Mixed Orphans, All Terminals and All Honors as triplets or pairs), and the model decided when to give up on Thirteen Orphans and could pung a 1, 9 or honor at any time.
+
+### The targets (rules, with O5's weights)
+
+**The thinking.** The scoring table pays Concealed Triplets 10 faan from any tiles (a limit hand when it is all 1s, 9s and honors) and Seven Pairs 4, and many deals that are hopeless for Thirteen Orphans hold several pairs. So the rules now pick a target each deal, and read it again every turn, from five: Thirteen Orphans, triplets of 1s, 9s and honors, pairs of 1s, 9s and honors, Seven Pairs, and Concealed Triplets. Each is worth its payout times its odds of finishing, played out a go-around at a time with the live tiles each step needs (`finishOdds` in `js/mahjong-only-orphans.js`); a hand keeps its target until another is worth 1.3 times as much. The first version used the foundation's one-step odds, which rated a hand five steps from Concealed Triplets as well as one whose later steps were as wide as its first; it was replaced before any evaluation. The target sets the fixed rules: tiles it can't use go first (on Seven Pairs and Concealed Triplets only single tiles, so their pairs and pungs of any tile stay), pungs of 1s, 9s and honors only on the triplets target, and nothing but the winning tile on the others.
+
+**What it does differently.** Paired on the same 20,000 deals, one seat against Neural Cat, Jorge Yau and Lucky Cat (each deal played once, the dealer moving with the deal: `node scripts/ml/paired.js`, seed 93000000):
+
+| | Old rules + O5 | New targets + O5 |
+| --- | ---: | ---: |
+| Points a hand | +38.5 ± 20.4 | +60.2 ± 22.5 |
+| Difference (paired) | | **+21.6 ± 21.5** |
+| Wins | 1.97% | 5.01% (+3.04 ± 0.31 points) |
+| Average win | 6,186 points (10.06 faan) | 2,907 points (7.20 faan) |
+| Deal-ins | 9.74% | 9.64% |
+
+It wins two and a half times as often, with wins worth half as much: Concealed Triplets and Seven Pairs come in where Thirteen Orphans used to be chased to the end, and it deals in no more. The gain is just past the 95% margin.
+
 ## Where the files are
 
 - Every model's weights are kept, in `ml/models/` and on [Hugging Face](https://huggingface.co/codenameyau/lucky-cat-mahjong), so any of them can play in `npm run compete` (`ml:ml/models/L8.json`).
