@@ -25,6 +25,24 @@
   // The signed playback the wind badge and View playback save. The playback
   // page opens it on its own.
   var REPLAY_KEY = 'lcm-play-replay';
+  // The playback of a hand still being played. Its file holds the whole deal,
+  // so it is never written to storage: it lives here, for the playback view
+  // on this page, and goes when the page does.
+  var liveReplay = null;
+  // A file an older version stored for a hand not yet finished is dropped.
+  function dropUnfinishedStored() {
+    var stored = readJson(REPLAY_KEY, null);
+    if (stored && stored.payload && !E.playbackFinished(stored.payload)) removeJson(REPLAY_KEY);
+  }
+  function keepReplay(file) {
+    if (!file) return;
+    if (E.playbackFinished(file.payload || file)) {
+      liveReplay = null;
+      writeJson(REPLAY_KEY, file);
+    } else {
+      liveReplay = file;
+    }
+  }
   // Each strategy's hints for the game in progress: { v: 1, lists: { id: [note, ...] } }.
   // A new game overwrites it. Switching the coach only picks which list shows.
   var HINTS_KEY = 'lcm-play-hints';
@@ -617,6 +635,8 @@
   // play on from.
   function createTable(canvas, liveRegion, settings, callbacks, saved) {
     var ctx = canvas.getContext('2d');
+    if (!settings.playback) liveReplay = null; // a new game starts without the last one's unfinished playback
+    dropUnfinishedStored();
     var prefs = readJson(PREFS_KEY, { sound: true });
     // ?sound=0 and ?sound=1 cover this visit only, so a test can stay quiet
     // without changing the saved Sound button choice. No sound param keeps it.
@@ -2348,8 +2368,8 @@
     function viewReplay() {
       var file = currentReplay();
       if (file) {
-        writeJson(REPLAY_KEY, file);
-        if (!readJson(REPLAY_KEY, null)) return;
+        keepReplay(file);
+        if (!liveReplay && !readJson(REPLAY_KEY, null)) return;
       } else if (!storedReplay()) return;
       track('play_view_replay', {});
       if (callbacks.playback) { callbacks.playback(); return; }
@@ -2385,7 +2405,7 @@
       if (!game || !game.over || settings.playback) return;
       noteFinishedWin();
       var file = currentReplay();
-      if (file) writeJson(REPLAY_KEY, file);
+      if (file) keepReplay(file);
     }
 
     // The dealt hand, played to its last move. The save itself keeps no tiles.
@@ -3601,8 +3621,10 @@
         file = fresh || storedReplay();
       } catch (err) { return; }
       if (!file || !file.payload || !file.payload.handSeed) return;
+      // A hand still being played would copy the whole deal, every hand in it.
+      if (!E.playbackFinished(file.payload)) { announce('Copying the playback opens once the hand is finished.'); return; }
       // Saved first, so the playback page has it whether or not the copy works.
-      if (fresh) writeJson(REPLAY_KEY, file);
+      if (fresh) keepReplay(file);
       track('play_copy_seed', {});
       animate(520, function (e) { ui.windFlash = 1 - e; });
       var json = JSON.stringify(file);
@@ -5918,7 +5940,7 @@
       var rec = checked.record;
       try {
         var file = typeof text === 'string' ? JSON.parse(text) : text;
-        if (file && file.payload) writeJson(REPLAY_KEY, file);
+        if (file && file.payload) keepReplay(file);
       } catch (e) {}
       try { E.playbackGame(rec, 0); }
       catch (err) {
@@ -6882,7 +6904,7 @@
         if (destroyed) return;
         spriteCache = {};
         if (!settings.review) {
-          var stored = readJson(REPLAY_KEY, null);
+          var stored = liveReplay || readJson(REPLAY_KEY, null);
           var check = stored ? E.checkPlayback(stored) : null;
           if (check && check.ok) {
             settings.review = check.record;
@@ -7004,7 +7026,7 @@
         pendingSummary = keptSummary({ result: res, extra: extra });
         if (!settings.lesson) { // a refresh puts this hand back for Show hands
           var finished = currentReplay();
-          if (finished) writeJson(REPLAY_KEY, finished);
+          if (finished) keepReplay(finished);
         }
         autosave(true); // a refresh returns to these results until Next hand
         await showOverlay({ type: 'summary', result: res, extra: extra });
