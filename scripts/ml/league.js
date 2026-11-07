@@ -135,7 +135,10 @@ function main() {
       '--weights', state.best, '--temperature', '150', '--epsilon', '0.05', '--explore', '0',
       '--sample', String(args.sample), '--seed', String(DATA_SEED + r * 1000000), '--out', data]);
     state.deals += args.deals;
-    const recent = state.rounds.map((x) => x.data).concat([data]).slice(-args.keep);
+    // The last --keep rounds' data on this machine: a set played elsewhere
+    // and never downloaded, or already pruned, is skipped.
+    const recent = state.rounds.map((x) => x.data).filter((d) => d && fs.existsSync(path.join(ROOT, d)))
+      .concat([data]).slice(-args.keep);
     log('Round ' + r + ': training ' + name + ' on ' + recent.join(', '));
     run(PYTHON, ['ml/train.py', '--data'].concat(recent, ['--name', name, '--hidden', args.hidden,
       '--init', state.best, '--lr', '3e-4', '--epochs', '8', '--patience', '3', '--dropout', '0.2', '--weight-decay', '1e-3']));
