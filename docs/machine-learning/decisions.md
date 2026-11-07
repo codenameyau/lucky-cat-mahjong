@@ -4,7 +4,7 @@
 
 ## Discards
 
-Jorge Yau's foundation lists every discard in its order. Neural Cat reads the position each of the **best three** leaves (`TOP_K` = 3) and plays the one worth the most. The rest keep Jorge Yau's order. With `topK: 1` it plays exactly like Jorge Yau, which a test checks.
+Jorge Yau's foundation lists every discard in its order. Neural Cat reads the position each of the **best three** leaves (`TOP_K` = 3, unless the model's own `meta.play.topK` says otherwise) and plays the one worth the most. The rest keep Jorge Yau's order. With `topK: 1` it plays exactly like Jorge Yau, which a test checks.
 
 Why only three: the first model chose among every discard, and it dealt in 12% of the time (3.5% wins). Trained only on the bots' own choices, it couldn't yet tell close discards apart or see safety well. Choosing among Jorge Yau's best three keeps the hand reading's judgment and lets the model decide between close calls.
 
@@ -63,12 +63,15 @@ const bot = ML.create({
   topK: 3,              // pick among the foundation's best K discards (0 = all)
   claims: true,         // false leaves claims and kongs to the base strategy
   claimMargin: 0,       // points the model's claim or kong must beat the base's by
+  winBonus: 0,          // points added per 100% of win chance when choosing (leans toward winning more often)
   temperature: 0,       // exploring: pick by exp(ev / temperature), in points
   epsilon: 0,           // exploring: chance of a random choice
   rng: Math.random,
   fast: false,          // simulations: read only the discards it picks from, skip `why`
 });
 ```
+
+`topK`, `claimMargin` and `winBonus` are play settings. Unless passed here, they come from the weights' own `meta.play` (the [lab](training.md#4-the-lab-npm-run-mllab) tunes and ships them with each model), then from the defaults. The coach always shows expected points, whatever the win bonus.
 
 `ML` itself is the shipped Neural Cat (the default model from `js/mahjong-ml-weights.js`). `ML.create`, `ML.explain`, `ML.waitingFeatures` and `ML.CLAIM_MARGIN` are on it too. If the shipped weights don't fit the features, it falls back to a random model and isn't offered at the table.
 
