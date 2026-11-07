@@ -152,6 +152,31 @@ Each round:
 
 State, every evaluation and a log are in `ml/lab/`. A stopped lab picks up where it left off. `--dry`, `--quick-deals`, `--full-deals` and `--prefix` run a small check of the lab without shipping or pruning.
 
+### The lab for Only Orphans and Lucky Cat: `--strategy`
+
+The same lab trains the learned Only Orphans and Lucky Cat's network, with the same experiments, the same two-step judging and the same rule: a champion is replaced only by a clear gain on 20,000 fresh deals.
+
+```bash
+npm run ml:lab -- --strategy only-orphans --rounds 10   # starts from the model in the game (or --start FILE)
+npm run ml:lab -- --strategy lucky-cat --rounds 10      # starts from the model in the game, LC20
+```
+
+| | Neural Cat | Only Orphans | Lucky Cat |
+| --- | --- | --- | --- |
+| Starts from | The league's best (NC1) | The model in the game | The model in the game (LC20) |
+| Plays against | Its last three champions, s5, Jorge Yau, Lucky Cat, Lucky Cat Classic | Neural Cat, Jorge Yau and Lucky Cat (the table the game seats it at), and its last two champions | Its last three champions, Neural Cat (two seats' worth) and Jorge Yau |
+| Records | Every seat's decisions (`--sample 0.12`) | Only its own seats (`--record only-orphans`, `--sample 0.25`) | The moves of every hand it wins (`scripts/ml/lucky.js generate`) |
+| Trains with | `ml/train.py` | `ml/train.py` | `ml/train_lucky.py` |
+| Training arms | All six above | All six above | `finetune` (1e-3), `finetune-slow` (3e-4), `finetune-fast` (3e-3), `recent` (2 sets), `long` (10 sets), `sharp` (smoothing 0.01) |
+| Play arms | All of them | `winBonus` and `claimMargin` (it already picks among every allowed discard) | None (it plays its biggest share) |
+| Judged on | Head to head, two seats each: J = points + 5 × wins | One seat each against Neural Cat, Jorge Yau and Lucky Cat, on the same deals: the same J | Head to head, two seats each: J = hands won (percentage points), its own objective |
+| Baseline | | The rule-based Only Orphans plays the same deals every round | |
+| Data | `ml/data/lab-<n>` (and the league's `league-<n>`) | `ml/data/oolab-<n>` (and `orphans-<n>`) | `ml/data/lclab-<n>` (and `lc<n>`) |
+| Models | `N<round><letter>` | `OL<round><letter>` | `LL<round><letter>` |
+| State | `ml/lab/` | `ml/lab-only-orphans/` | `ml/lab-lucky-cat/` |
+
+A new champion ships at once to `js/mahjong-only-orphans-weights.js` or `js/mahjong-lucky-cat-weights.js`, and goes to the Hugging Face model repo's `only-orphans/` or `lucky-cat/` folder. Only Neural Cat's data is pruned.
+
 ## The league (before the lab): `npm run ml:league`
 
 `scripts/ml/league.js` trains against models only:
