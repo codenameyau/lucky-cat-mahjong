@@ -1,4 +1,4 @@
-/* The play page's service worker, registered by js/play-offline.js as
+/* The play page's service worker, registered by js/play-offline.js for every player as
    /play-mahjong/sw.js?v=<GAME_VERSION>, so each version is a new worker with
    its own cache. Its scope is /play-mahjong/ (the game and its playback);
    the rest of the site is left alone.
@@ -8,9 +8,12 @@
      NETWORK_TIMEOUT_MS, the cached copy.
    - Media (tiles, sounds, music, fonts, images): cache first.
    - On localhost and other dev hosts everything is network first.
-   - With Play offline turned on, installing a new version saves every file
-     the game needs before it takes over; if that fails, the old version
-     stays (and keeps working offline). */
+   - Installing saves every file the game needs, for every player, so the
+     game plays offline after one visit. For an update (an older version's
+     cache is here) the new version takes over only once all of it is saved;
+     if that fails (offline, say), the old version stays and keeps working
+     offline. A first install keeps what it could save, and the page tops up
+     the rest when it's online. */
 
 importScripts('/js/offline-cache.js');
 
@@ -23,10 +26,10 @@ importScripts('/js/offline-cache.js');
   var LOCAL = C.isLocalHost(self.location.hostname);
 
   self.addEventListener('install', function (event) {
-    event.waitUntil(C.isEnabled(caches).then(function (on) {
-      if (!on) return caches.open(CACHE);
+    event.waitUntil(caches.keys().then(function (names) {
+      var update = names.some(function (n) { return n.indexOf(C.CACHE_PREFIX) === 0 && n !== CACHE; });
       return C.precache({ caches: caches, fetch: fetch.bind(self), version: VERSION }).then(function (res) {
-        if (!res.ok) throw new Error('Play offline: could not save ' + res.failed.join(', '));
+        if (!res.ok && update) throw new Error('Offline play: could not save ' + res.failed.join(', '));
       });
     }).then(function () { return self.skipWaiting(); }));
   });

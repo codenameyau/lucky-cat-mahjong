@@ -1,13 +1,12 @@
-/* Play offline, on the page: registers the service worker
-   (/play-mahjong/sw.js, see js/offline-cache.js) and backs the menu's
-   Play offline button.
+/* Offline play, on the page: registers the service worker
+   (/play-mahjong/sw.js, see js/offline-cache.js) for every player, with no
+   button to press.
 
-   The worker registers for everyone, so updates reach every player and the
-   pages they load stay cached. The button saves everything else the game
-   needs (model weights, sounds, music, the playback page), asks the browser
-   to keep it (navigator.storage.persist) and shows how it went. Once it is
-   on, each visit tops up anything missing, and a new version's worker saves
-   the whole game before it takes over. */
+   The worker saves every file the game needs (code, model weights, tiles,
+   sounds, music) when it installs, so after one visit the game loads and
+   plays with no connection. Online, code is fetched fresh each time, so the
+   latest JS runs. The page also tops up anything still missing, and when the
+   connection comes back it checks for a new worker and saves what's missing. */
 
 (function (root) {
   'use strict';
@@ -24,52 +23,9 @@
     return null;
   }
 
-  function isIOS() {
-    var ua = nav.userAgent || '';
-    return /iPad|iPhone|iPod/.test(ua) || (nav.platform === 'MacIntel' && nav.maxTouchPoints > 1);
-  }
-
-  function isStandalone() {
-    return nav.standalone === true || !!(root.matchMedia && root.matchMedia('(display-mode: standalone)').matches);
-  }
-
-  // The line under the menu's button. env: { ios, standalone }.
-  function message(state, env) {
-    env = env || {};
-    switch (state.status) {
-      case 'unsupported':
-        if (state.reason === 'file') return 'Play offline needs the game opened from luckycatmahjong.com, not from a file.';
-        if (state.reason === 'insecure') return 'Play offline needs a secure (https) connection.';
-        return 'This browser can\'t save the game for offline play.';
-      case 'checking': return 'Checking what\'s saved…';
-      case 'saving': return 'Saving… ' + (state.done || 0) + ' of ' + (state.total || 0) + ' files';
-      case 'ready':
-        return 'Ready to play offline.' + (env.ios && !env.standalone ? ' On iPhone, Add to Home Screen to keep it saved.' : '');
-      case 'partial': return 'Some files aren\'t saved yet. Connect to the internet to finish saving.';
-      case 'error': return 'Couldn\'t save — check your connection.';
-      default: return 'Save the game on this device to play with no connection.';
-    }
-  }
-
-  function label(state) {
-    if (state.status === 'saving') return 'Saving…';
-    if (state.status === 'ready') return 'Saved for offline';
-    return 'Play offline';
-  }
-
   var state = { status: 'idle' };
-  var listeners = [];
   var registration = null;
-
-  function set(next) {
-    state = next;
-    listeners.slice().forEach(function (fn) { try { fn(state); } catch (e) {} });
-  }
-
-  function subscribe(fn) {
-    listeners.push(fn);
-    return function () { listeners = listeners.filter(function (f) { return f !== fn; }); };
-  }
+  var saving = null;
 
   function version() {
     return root.MahjongEngine && root.MahjongEngine.GAME_VERSION;
@@ -81,87 +37,60 @@
     registration = nav.serviceWorker.register(C.scriptUrl(version()), { scope: C.SCOPE })
       .catch(function (err) {
         registration = null;
-        if (root.console) console.warn('Play offline: the service worker did not register.', err);
+        if (root.console) console.warn('Offline play: the service worker did not register.', err);
         return null;
       });
     return registration;
   }
 
-  function wait(ms) {
-    return new Promise(function (resolve) { setTimeout(resolve, ms); });
-  }
-
-  var saving = null;
-
-  // Saves every file (or only the missing ones) into this version's cache.
-  function save(onlyMissing) {
-    var why = unsupportedReason();
-    if (why) { set({ status: 'unsupported', reason: why }); return Promise.resolve(state); }
+  // Saves what this version's cache is still missing, when there's a connection.
+  function topUp() {
+    if (unsupportedReason()) { state = { status: 'unsupported', reason: unsupportedReason() }; return Promise.resolve(state); }
     if (saving) return saving;
-    var total = C.ASSETS.length;
-    set({ status: 'saving', done: 0, total: total });
-    if (nav.storage && nav.storage.persist) nav.storage.persist().catch(function () {});
-    saving = register().then(function (reg) {
-      if (!reg) throw new Error('no service worker');
-      // The worker has to be running to answer offline.
-      return Promise.race([nav.serviceWorker.ready, wait(15000)]);
-    }).then(function () {
-      return C.setEnabled(root.caches, true);
-    }).then(function () {
-      return C.precache({
-        caches: root.caches,
-        fetch: root.fetch.bind(root),
-        version: version(),
-        onlyMissing: onlyMissing,
-        onProgress: function (done) { set({ status: 'saving', done: done, total: total }); },
-      });
+    if (nav.onLine === false) return Promise.resolve(state);
+    saving = C.missing(root.caches, version()).then(function (left) {
+      if (!left.length) return { ok: true, failed: [] };
+      state = { status: 'saving' };
+      return C.precache({ caches: root.caches, fetch: root.fetch.bind(root), version: version(), onlyMissing: true });
     }).then(function (res) {
-      set(res.ok ? { status: 'ready' } : { status: nav.onLine === false ? 'partial' : 'error', failed: res.failed });
-    }, function () {
-      set({ status: 'error' });
-    }).then(function () {
-      saving = null;
+      state = res.ok ? { status: 'ready' } : { status: 'partial', failed: res.failed };
       return state;
-    });
+    }, function () {
+      state = { status: 'partial' };
+      return state;
+    }).then(function (s) { saving = null; return s; });
     return saving;
-  }
-
-  // What's saved now. With Play offline on and a connection, saves what's missing.
-  function check() {
-    var why = unsupportedReason();
-    if (why) { set({ status: 'unsupported', reason: why }); return Promise.resolve(state); }
-    if (saving) return saving;
-    if (state.status === 'idle') set({ status: 'checking' });
-    return C.isEnabled(root.caches).then(function (on) {
-      if (!on) { set({ status: 'idle' }); return state; }
-      return C.missing(root.caches, version()).then(function (left) {
-        if (!left.length) { set({ status: 'ready' }); return state; }
-        if (nav.onLine === false) { set({ status: 'partial' }); return state; }
-        return save(true);
-      });
-    }).catch(function () { set({ status: 'idle' }); return state; });
   }
 
   function init() {
     if (unsupportedReason()) return;
     // After the page has loaded, so the worker doesn't compete with the game's own files.
-    var go = function () { register().then(function (reg) { if (reg) check(); }); };
+    var go = function () {
+      register().then(function (reg) {
+        if (!reg) return;
+        // Ask the browser to keep the saved game (it may say no; nothing changes then).
+        if (nav.storage && nav.storage.persist) nav.storage.persist().catch(function () {});
+        topUp();
+      });
+    };
     if (root.document && root.document.readyState !== 'complete') root.addEventListener('load', go);
     else go();
+    // Back online: look for a newer worker, and save whatever is missing.
+    root.addEventListener('online', function () {
+      register().then(function (reg) {
+        if (!reg) return;
+        if (reg.update) reg.update().catch(function () {});
+        topUp();
+      });
+    });
   }
 
   var api = {
     get state() { return state; },
-    message: function (s) { return message(s || state, { ios: isIOS(), standalone: isStandalone() }); },
-    label: function (s) { return label(s || state); },
     supported: function () { return !unsupportedReason(); },
     unsupportedReason: unsupportedReason,
-    subscribe: subscribe,
     register: register,
-    check: check,
-    enable: function () { return save(false); },
-    _message: message,
-    _label: label,
+    topUp: topUp,
   };
   root.MahjongOffline = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

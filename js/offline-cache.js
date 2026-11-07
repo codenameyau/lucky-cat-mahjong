@@ -1,4 +1,4 @@
-/* Play offline: what the play page needs with no connection, and how it is
+/* Offline play: what the play page needs with no connection, and how it is
    cached. Shared by the service worker (/play-mahjong/sw.js loads it with
    importScripts), the page (js/play-offline.js) and the tests.
 
@@ -17,9 +17,8 @@
   'use strict';
 
   var CACHE_PREFIX = 'lcm-play-v';
-  // Not keyed by version: "the player turned on Play offline" outlives updates.
-  var FLAG_CACHE = 'lcm-play-offline';
-  var FLAG_KEY = '/play-mahjong/__offline__';
+  // The old Play offline button's flag (0.45.0 builds before offline became the default), cleaned up.
+  var OLD_FLAG_CACHE = 'lcm-play-offline';
   var SCOPE = '/play-mahjong/';
   var SW_URL = '/play-mahjong/sw.js';
   // A slow network falls back to the cached copy after this long.
@@ -87,7 +86,7 @@
 
   // Our caches from other versions, to delete once this one is in place.
   function isStaleCache(name, version) {
-    return name.indexOf(CACHE_PREFIX) === 0 && name !== cacheName(version);
+    return name === OLD_FLAG_CACHE || (name.indexOf(CACHE_PREFIX) === 0 && name !== cacheName(version));
   }
 
   // The version the service worker was registered for: /play-mahjong/sw.js?v=0.44.8.
@@ -148,17 +147,6 @@
     return !!res && res.status === 200 && (res.type === 'basic' || res.type === 'default');
   }
 
-  function setEnabled(cacheStorage, on) {
-    if (!on) return cacheStorage.delete(FLAG_CACHE);
-    return cacheStorage.open(FLAG_CACHE).then(function (c) { return c.put(FLAG_KEY, new Response('1')); });
-  }
-
-  function isEnabled(cacheStorage) {
-    return cacheStorage.open(FLAG_CACHE)
-      .then(function (c) { return c.match(FLAG_KEY); })
-      .then(function (r) { return !!r; }, function () { return false; });
-  }
-
   // The listed files the version's cache doesn't have yet.
   function missing(cacheStorage, version, assets) {
     assets = assets || ASSETS;
@@ -213,7 +201,7 @@
 
   var api = {
     CACHE_PREFIX: CACHE_PREFIX,
-    FLAG_CACHE: FLAG_CACHE,
+    OLD_FLAG_CACHE: OLD_FLAG_CACHE,
     SCOPE: SCOPE,
     SW_URL: SW_URL,
     NETWORK_TIMEOUT_MS: NETWORK_TIMEOUT_MS,
@@ -228,8 +216,6 @@
     cacheKey: cacheKey,
     rangeResponse: rangeResponse,
     cacheable: cacheable,
-    setEnabled: setEnabled,
-    isEnabled: isEnabled,
     missing: missing,
     precache: precache,
   };

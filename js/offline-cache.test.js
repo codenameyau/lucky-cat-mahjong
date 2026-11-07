@@ -96,10 +96,10 @@ describe('cache names and versions', function () {
     assert.equal(C.versionFromScriptUrl('/play-mahjong/sw.js'), null);
   });
 
-  it('deletes only our caches from other versions', function () {
+  it('deletes only our caches from other versions, and the old Play offline flag', function () {
     assert.equal(C.isStaleCache('lcm-play-v0.44.7', '0.44.8'), true);
     assert.equal(C.isStaleCache('lcm-play-v0.44.8', '0.44.8'), false);
-    assert.equal(C.isStaleCache(C.FLAG_CACHE, '0.44.8'), false);
+    assert.equal(C.isStaleCache(C.OLD_FLAG_CACHE, '0.44.8'), true);
     assert.equal(C.isStaleCache('someone-else', '0.44.8'), false);
   });
 
@@ -218,31 +218,24 @@ describe('precache', function () {
     assert.deepEqual(res.failed.sort(), ['/js/a.js', '/tiles/x.svg']);
   });
 
-  it('remembers that Play offline is on', async function () {
-    const cs = fakeCaches();
-    assert.equal(await C.isEnabled(cs), false);
-    await C.setEnabled(cs, true);
-    assert.equal(await C.isEnabled(cs), true);
-    await C.setEnabled(cs, false);
-    assert.equal(await C.isEnabled(cs), false);
-  });
 });
 
-describe('the menu status', function () {
-  it('says why it can not work here', function () {
-    assert.match(Offline._message({ status: 'unsupported', reason: 'file' }), /not from a file/);
-    assert.match(Offline._message({ status: 'unsupported', reason: 'browser' }), /can't save/);
+describe('offline by default', function () {
+  it('has no button: the menu has no Play offline, and the page registers the worker itself', function () {
+    const game = read('js/mahjong-game.js');
+    assert.ok(!/Play offline|MahjongOffline/.test(game));
     // In node there is no service worker and no web page.
     assert.equal(Offline.supported(), false);
+    assert.equal(Offline.unsupportedReason(), 'file');
   });
 
-  it('shows progress, the result, and Add to Home Screen on an iPhone', function () {
-    assert.equal(Offline._message({ status: 'saving', done: 3, total: 90 }), 'Saving… 3 of 90 files');
-    assert.equal(Offline._message({ status: 'ready' }), 'Ready to play offline.');
-    assert.match(Offline._message({ status: 'ready' }, { ios: true }), /Add to Home Screen/);
-    assert.equal(Offline._message({ status: 'ready' }, { ios: true, standalone: true }), 'Ready to play offline.');
-    assert.equal(Offline._message({ status: 'error' }), 'Couldn\'t save — check your connection.');
-    assert.equal(Offline._label({ status: 'ready' }), 'Saved for offline');
-    assert.equal(Offline._label({ status: 'idle' }), 'Play offline');
+  it('installs the whole game for everyone, and only an update must save it all', function () {
+    const sw = read('play-mahjong/sw.js');
+    assert.ok(!/isEnabled/.test(sw));
+    assert.match(sw, /if \(!res\.ok && update\) throw/);
+  });
+
+  it('tops up what is missing when it is back online', function () {
+    assert.match(read('js/play-offline.js'), /addEventListener\('online'/);
   });
 });
