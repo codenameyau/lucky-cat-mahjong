@@ -3674,6 +3674,17 @@
       copySeed();
     }
 
+    // Off, with nothing queued. Auto-play is never kept: it is off on every
+    // load, and a page the browser brings back from its frozen-page cache
+    // (Back) or sends away (pagehide) is switched off too.
+    function stopAutoPlay() {
+      var was = autoPlay;
+      autoPlay = false;
+      clearTimeout(autoTimer);
+      autoTimer = null;
+      if (was) requestRender();
+    }
+
     function toggleAutoPlay() {
       autoPlay = !autoPlay;
       sound.play('select');
@@ -7379,6 +7390,13 @@
 
     var onResize = function () { resize(); };
     root.addEventListener('resize', onResize);
+    // A page restored from the browser's frozen-page cache keeps its variables
+    // and timers, so auto-play would still be on; it never is after a load.
+    var onPageLife = function (e) {
+      if (e.type === 'pagehide' || e.persisted) stopAutoPlay();
+    };
+    root.addEventListener('pageshow', onPageLife);
+    root.addEventListener('pagehide', onPageLife);
     // The music pauses while the tab is in the background.
     var reviewPausedByHide = false;
     var onVisibility = function () {
@@ -7512,8 +7530,9 @@
       },
       destroy: function () {
         destroyed = true;
-        autoPlay = false;
-        clearTimeout(autoTimer);
+        stopAutoPlay();
+        root.removeEventListener('pageshow', onPageLife);
+        root.removeEventListener('pagehide', onPageLife);
         if (strategyToastTimer) clearTimeout(strategyToastTimer);
         stopReviewPlay();
         if (reviewCoachTimer) { clearTimeout(reviewCoachTimer); reviewCoachTimer = null; }

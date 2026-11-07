@@ -386,6 +386,21 @@ test('auto-play (the wind badge, with the coach on) is for local and private-net
   assert.match(GAME_SRC, /if \(autoPlay \|\| canAutoPlay\(\)\) \{ toggleAutoPlay\(\); return; \}\n      copySeed\(\);/);
 });
 
+test('auto-play is never kept: off on every load, and off when a frozen page is restored or left', () => {
+  assert.match(GAME_SRC, /var autoPlay = false;/, 'a plain variable, never stored');
+  const stores = GAME_SRC.match(/(writeJson|localStorage\.setItem|sessionStorage\.setItem)\([^)]*autoPlay/g);
+  assert.equal(stores, null, 'auto-play is not saved anywhere');
+  assert.match(GAME_SRC, /function stopAutoPlay\(\) \{/);
+  assert.match(GAME_SRC, /if \(e\.type === 'pagehide' \|\| e\.persisted\) stopAutoPlay\(\)/);
+  assert.match(GAME_SRC, /root\.addEventListener\('pageshow', onPageLife\)/);
+  assert.match(GAME_SRC, /root\.addEventListener\('pagehide', onPageLife\)/);
+  // And the table takes the listeners off again when it is destroyed.
+  const destroy = GAME_SRC.slice(GAME_SRC.indexOf('      destroy: function () {'), GAME_SRC.indexOf('      destroy: function () {') + 400);
+  assert.match(destroy, /stopAutoPlay\(\)/);
+  assert.match(destroy, /removeEventListener\('pageshow', onPageLife\)/);
+  assert.match(destroy, /removeEventListener\('pagehide', onPageLife\)/);
+});
+
 test('the playback bar opens the View playback sheet, and its rows play, download and upload', () => {
   const game = fs.readFileSync(path.join(ROOT, 'playing-mahjong/index.html'), 'utf8');
   assert.match(game, /<dialog id="playbacks-sheet"/);
