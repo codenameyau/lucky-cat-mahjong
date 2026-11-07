@@ -72,15 +72,15 @@
       name: 'Only Orphans',
       bot: O,
       get summary() {
-        return withModel(weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights'), 'Only plays hands of 1s, 9s and honors: Thirteen Orphans, Mixed Orphans, All Terminals and All Honors. A neural network decides how, betting on a few big hands over many small ones.');
+        return withModel(weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights'), 'Builds big hands on 1s, 9s and honors: Thirteen Orphans, their triplets or pairs, Concealed Triplets and Seven Pairs, whichever the deal is worth most. A neural network decides how, betting on a few big hands over many small ones.');
       },
       get details() {
         var version = weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights');
         return [
-          'It is committed to one family of hands. Every tile that isn\'t a 1, a 9 or an honor goes first, even late in the hand when it plays safe. It never chows, and it only pungs or kongs a 1, a 9 or an honor.',
-          'The hands it can play are Thirteen Orphans, Mixed Orphans, All Terminals and All Honors, as triplets or as pairs. They are big hands, so it wins rarely, about 2 hands in 100, and each win is worth thousands of points.',
-          'The choices left to ' + (version ? 'its neural network, model ' + version + ',' : 'a neural network') + ' are the ones that decide whether it gets there: which spare 1, 9 or honor goes, when to give up on Thirteen Orphans and for which hand, which pungs and kongs to take, and how long to keep chasing.',
-          'It weighs each choice by the score it expects on average, a score that counts the chance to win, how big the win would be and the chance of dealing in, and plays the best one. Dealing in is part of that score, so there is no separate rule for playing safe.',
+          'Each deal it picks a target and reads it again every turn: Thirteen Orphans, triplets of 1s, 9s and honors (Mixed Orphans, All Terminals, All Honors), the same as pairs, Seven Pairs, or Concealed Triplets of any tiles. It picks the one worth the most points on average: what the hand pays, times its odds of finishing from the tiles still live and the draws left. It changes target only when another is worth clearly more.',
+          '1s, 9s and honors are the core of every target: they stay longest, and their pairs become the eyes or pungs. Tiles the target can\'t use go first, even late in the hand when it plays safe. On Seven Pairs and Concealed Triplets that means single tiles: pairs and pungs of any tile stay.',
+          'It never chows. It pungs or kongs only a 1, a 9 or an honor, and only when the target is triplets of them. On Thirteen Orphans, the pairs hands and Concealed Triplets it claims nothing but the winning tile.',
+          'The choices left to ' + (version ? 'its neural network, model ' + version + ',' : 'a neural network') + ' are which allowed tile goes and which allowed pungs and kongs to take. It weighs each by the score it expects on average, a score that counts the chance to win, how big the win would be and the chance of dealing in, and plays the best one. Dealing in is part of that score, so there is no separate rule for playing safe.',
           'It learned from games against Neural Cat, Jorge Yau and Lucky Cat. It sees only what its seat can see.',
         ];
       },
