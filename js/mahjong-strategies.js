@@ -55,16 +55,15 @@
       name: 'Lucky Cat',
       bot: LC && LC.trained ? LC : L,
       get summary() {
-        return withModel(luckyModelName(), 'A neural network that taught itself to win. It started out playing at random, and over a million simulated hands against earlier versions of itself, and later Neural Cat, it learned from every hand it won. It plays to win as many hands as it can, as fast as it can.');
+        return withModel(luckyModelName(), 'A neural network that taught itself to win, with no rules built in. It plays the moves that won it hands before: fast, cheap wins, as often as it can get them.');
       },
       details: [
-        'Every move is the network\'s own: each discard, chow, pung, kong and pass. It isn\'t built on the rules the other strategies share, so it knows nothing about steps from ready, plans or threats beyond what it learned.',
-        'It sees only what its seat can see: its own tiles and melds, the discards, the melds others have shown, flowers, the winds and how many tiles are left. It never looks at the wall or another player\'s hand, and a test checks that shuffling those changes nothing it does.',
-        'The first version played at random. After each round of simulated hands, the moves of every hand it won were made more likely: the quicker the win, the more so, with a little extra for more faan. Hands it lost or drew taught it nothing.',
-        'Each new version plays tables of its earlier selves and replaces the best only when it wins more hands than the best at the same table. Neural Cat joined its opponents once it won regularly.',
-        'It wins often but small. Against Neural Cat it wins about 18% of hands to Neural Cat\'s 9%, but Neural Cat\'s bigger hands still score more points.',
-        'A win of 3 faan or more is always declared.',
-        'The coach says how often the network plays the move it picks, and the next most likely one. The hand\'s plans and waits come from the classic Lucky Cat rules, kept as Lucky Cat Classic for simulations and reviews.',
+        'It has no plan for a hand. Each turn it looks at what its seat can see (its tiles and melds, every discard, the melds and flowers others have shown, the winds and how many tiles are left) and the network gives every legal move a share. The biggest share is played.',
+        'That is true of every move: which tile goes, each chow, pung and kong, and whether to pass. It has no count of steps from ready, no target hand and no list of safe tiles. What looks like a plan is a habit the network found.',
+        'It learned only from its wins. It began by playing at random, and after each round of simulated hands the moves of every hand it won were made more likely, the quicker the win the more. Hands it lost or drew taught it nothing, so it takes the risks that won it hands before.',
+        'It values speed over size. It wins often and in few discards, mostly small hands of 4 to 5 faan, and it deals in more often than Neural Cat does. Against Neural Cat it wins about twice as many hands but scores fewer points, because Neural Cat\'s hands are worth more.',
+        'It never looks at the wall or another player\'s hand, and a test checks that shuffling those changes nothing it does. A win of 3 faan or more is always declared.',
+        'The coach says how often the network plays the move it picks, and the next most likely one. The words about the hand, such as its plans and waits, come from the classic Lucky Cat rules, kept as Lucky Cat Classic for simulations and reviews.',
       ],
       doc: 'docs/strategies/lucky-cat.md',
     },
@@ -73,15 +72,16 @@
       name: 'Only Orphans',
       bot: O,
       get summary() {
-        return withModel(weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights'), 'Only plays hands of 1s, 9s and honors: Thirteen Orphans, Mixed Orphans, All Terminals and All Honors. A neural network trained on simulated games decides how.');
+        return withModel(weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights'), 'Only plays hands of 1s, 9s and honors: Thirteen Orphans, Mixed Orphans, All Terminals and All Honors. A neural network decides how, betting on a few big hands over many small ones.');
       },
       get details() {
         var version = weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights');
         return [
-          'It throws every tile that isn\'t a 1, a 9 or an honor first, even when it plays safe. It never chows, and it only pungs or kongs a 1, a 9 or an honor.',
-          'The hands it can play are Thirteen Orphans, Mixed Orphans, All Terminals and All Honors, as triplets or as pairs.',
-          'Everything else is up to ' + (version ? 'its neural network, model ' + version + ',' : 'a neural network') + ' trained on simulated hands against Neural Cat, Jorge Yau and Lucky Cat: which tile goes, when to give up on Thirteen Orphans and for which hand, which pungs and kongs to take, and when to play safe.',
-          'It scores each choice by the points it is worth on average and plays the best one, the same way Neural Cat does. It sees only what its seat can see.',
+          'It is committed to one family of hands. Every tile that isn\'t a 1, a 9 or an honor goes first, even late in the hand when it plays safe. It never chows, and it only pungs or kongs a 1, a 9 or an honor.',
+          'The hands it can play are Thirteen Orphans, Mixed Orphans, All Terminals and All Honors, as triplets or as pairs. They are big hands, so it wins rarely, about 2 hands in 100, and each win is worth thousands of points.',
+          'The choices left to ' + (version ? 'its neural network, model ' + version + ',' : 'a neural network') + ' are the ones that decide whether it gets there: which spare 1, 9 or honor goes, when to give up on Thirteen Orphans and for which hand, which pungs and kongs to take, and how long to keep chasing.',
+          'It weighs each choice by the score it expects on average, a score that counts the chance to win, how big the win would be and the chance of dealing in, and plays the best one. Dealing in is part of that score, so there is no separate rule for playing safe.',
+          'It learned from games against Neural Cat, Jorge Yau and Lucky Cat. It sees only what its seat can see.',
         ];
       },
       doc: 'docs/strategies/only-orphans.md',
@@ -97,15 +97,16 @@
       name: 'Neural Cat',
       bot: N,
       get summary() {
-        return withModel(modelName(), 'Plays Jorge Yau\'s hands, but a neural network trained on simulated games picks the discard worth the most points on average: wins that come often and wins that pay big both count.');
+        return withModel(modelName(), 'Plays Jorge Yau\'s hands, but a neural network trained on simulated games chooses among its best options by what each is worth on average: wins that come often and wins that pay big both count.');
       },
       get details() {
         return [
-        'It reads the hand the way Jorge Yau does: the target hand, the plans it can still make, steps from ready, live tiles, and how risky each tile is.',
-        'Then its neural network, trained on simulated hands, most of them against other Neural Cat models, looks at Jorge Yau\'s three best discards and predicts how the hand ends after each: the chance to win by self-draw or off a discard, the chance to deal in, and how many faan each would be.',
-        'Those make one number, the points the discard is worth on average, and the discard worth the most goes. A quick small win and a slower big one are weighed on the same scale.',
-        'The coach says, as a score, what the model expects from its pick and the next best, its chance to win and how much, and which parts of the position put its pick ahead: speed, hand value, safety, what the table shows.',
-        'Claims and kongs are weighed the same way: passing, each pung, chow or kong and the best discard after it, each given a score. When the model\'s pick is worth more than Jorge Yau\'s call, the model\'s goes, and the coach shows the score for each choice.',
+        'It reads the hand the way Jorge Yau does: the target hand, the plans it can still make, steps from ready, live tiles, and how risky each tile is. That narrows each decision to a few sound options.',
+        'Its neural network, ' + (modelName() ? 'model ' + modelName() + ', ' : '') + 'then picks among them. It was trained on simulated hands, most of them played by earlier Neural Cat models, and for each option it predicts how the hand ends: the chance to win by self-draw or off a discard, the chance to deal in, and how many faan a win would be.',
+        'Those predictions make one score, what the option is worth on average, and the highest score goes. A quick small win and a slower big one are weighed on the same scale, so it can prefer a slower big hand over a fast small one when the numbers favor it.',
+        'It plays for bigger hands than Lucky Cat does. It wins less often, and its wins are worth much more. It also deals in less, because the chance of dealing in is part of every score.',
+        'Claims and kongs are weighed the same way: passing, each pung, chow or kong and the best discard after it. When the model\'s pick scores higher than Jorge Yau\'s call, the model\'s goes.',
+        'The coach says the score it expects from its pick and from the next best, its chance to win and how much a win pays, and which parts of the position put its pick ahead: speed, hand value, safety, what the table shows.',
         'It plays fair: it sees only what its seat can see, the same as you. Never the wall, another player\'s hand, or which tile a concealed kong is.',
         ];
       },
