@@ -10,7 +10,8 @@
    the game shows (easier to read than the league's L17). Each model that
    ships gets the next number, counted from the weights already shipped;
    shipping the same model again keeps its name. The training name stays in
-   meta.trainedName, and ml/models/ keeps the file under it. */
+   meta.trainedName, and ml/models/ keeps the file under it. Lucky Cat's
+   count on from its league's last, lc20: lc21, lc22 (shown as LC21). */
 
 'use strict';
 
@@ -22,7 +23,7 @@ const LN = require('../../js/mahjong-lucky-cat-net.js');
 const TARGETS = {
   'neural-cat': { file: 'mahjong-ml-weights.js', global: 'MahjongMLWeights', name: "Neural Cat's", model: M, by: 'scripts/ml/ship.js', release: 'NC' },
   'only-orphans': { file: 'mahjong-only-orphans-weights.js', global: 'MahjongOnlyOrphansWeights', name: "Only Orphans'", model: M, by: 'scripts/ml/ship.js' },
-  'lucky-cat': { file: 'mahjong-lucky-cat-weights.js', global: 'MahjongLuckyCatWeights', name: "Lucky Cat's", model: LN, by: 'scripts/ml/lucky.js league' },
+  'lucky-cat': { file: 'mahjong-lucky-cat-weights.js', global: 'MahjongLuckyCatWeights', name: "Lucky Cat's", model: LN, by: 'scripts/ml/ship.js', release: 'lc' },
 };
 
 // The release name for meta (e.g. NC2), from the weights shipped in `out`.

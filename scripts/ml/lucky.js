@@ -11,9 +11,18 @@
              each move that seat made is written out with a weight: more
              for a quicker win, a little more for more faan. Hands it
              doesn't win write nothing.
+             --returns records every hand instead, won or lost (the lab's
+             points-first training): each move a learner seat chose among
+             two or more (each kept with chance --sample, default 0.5),
+             with the points that seat scored in the hand, how the hand
+             ended for it, the share the move was played with, and the
+             hand it came from. ml/train_lucky.py --mode pg or awr learns
+             from those which moves led to more points.
    eval      plays the same deals with the strategies of --lineup in every
              seat order (each plays its best) and reports hands won,
-             how fast, and points.
+             how fast, and points. With two strategies it also reports the
+             paired points gap (the first's points a hand less the
+             second's, deal by deal) and its standard error.
    league    rounds of generate, train (ml/train_lucky.py), and eval of
              the new model against the best so far. The new model is kept
              when it wins more hands than the best at the same table; each
@@ -105,16 +114,24 @@ async function work(job) {
   const rng = E.createRng(job.seed + 7919);
   const learnerWeights = job.weights ? readWeights(job.weights) : N.zeroWeights();
   let buffers = [[], [], [], []];
+  const returns = !!job.returns;
+  const sample = job.sample == null ? 1 : job.sample;
+  const temp = job.temperature || 1;
   const learner = LC.create({
     weights: learnerWeights, temperature: job.temperature, rng, fast: true,
     onDecision: (d) => {
+      // Points-first data: only real choices, a share of them.
+      if (returns && (d.moves.length < 2 || rng() >= sample)) return;
       const legal = new Uint8Array(10);
       d.moves.forEach((m) => { legal[m.action >> 3] |= 1 << (m.action & 7); });
-      buffers[d.seat].push({ x: d.features, a: d.moves[d.pick].action, legal });
+      // The chance the move was played with (its share, at the temperature).
+      const z = d.moves.reduce((s, m) => s + Math.pow(m.p, 1 / temp), 0);
+      const p = Math.pow(d.moves[d.pick].p, 1 / temp) / z;
+      buffers[d.seat].push({ x: d.features, a: d.moves[d.pick].action, legal, p });
     },
   });
-  const rows = { x: [], a: [], legal: [], w: [] };
-  const stats = { deals: 0, learnerSeats: 0, learnerWins: 0, wins: 0, winDiscards: 0, winFaan: 0, dealIns: 0, samples: 0, byOpponent: {} };
+  const rows = { x: [], a: [], legal: [], w: [], r: [], p: [], o: [], h: [] };
+  const stats = { deals: 0, learnerSeats: 0, learnerWins: 0, wins: 0, winDiscards: 0, winFaan: 0, dealIns: 0, samples: 0, learnerPoints: 0, learnerWinPoints: 0, byOpponent: {} };
   for (let d = job.from; d < job.to; d++) {
     const game = E.createGame({ seed: job.seed + d, humanSeat: false, dealer: d % 4, startPoints: 1e9 });
     const pool = job.pool.length ? job.pool : ['lc:' + job.weights];
@@ -136,6 +153,27 @@ async function work(job) {
       if (res.type === 'win' && res.winner === seat) o.wins++;
     });
     if (res.type === 'win' && res.payer != null && ids[res.payer] === 'learn' && ids[res.winner] !== 'learn') stats.dealIns++;
+    learnerSeats.forEach((s) => { stats.learnerPoints += res.deltas[s] || 0; });
+    if (returns) {
+      // Every learner seat's moves, with what the hand paid that seat.
+      learnerSeats.forEach((s) => {
+        const won = res.type === 'win' && res.winner === s;
+        const outcome = won ? 0 : res.type === 'win' && res.payer === s ? 1 : res.type === 'win' ? 2 : 3;
+        if (won) {
+          stats.learnerWins++;
+          stats.winDiscards += game.hand.seats[s].discards.length;
+          stats.winFaan += (res.score && res.score.faan) || 0;
+          stats.learnerWinPoints += res.deltas[s];
+        }
+        if (!job.out) return;
+        const hand = d * 4 + s;
+        buffers[s].forEach((b) => {
+          rows.x.push(b.x); rows.a.push(b.a); rows.legal.push(b.legal); rows.w.push(1);
+          rows.r.push(res.deltas[s] || 0); rows.p.push(b.p); rows.o.push(outcome); rows.h.push(hand);
+        });
+      });
+      continue;
+    }
     if (res.type !== 'win' || ids[res.winner] !== 'learn') continue;
     const s = res.winner;
     const discards = game.hand.seats[s].discards.length;
@@ -143,6 +181,7 @@ async function work(job) {
     stats.learnerWins++;
     stats.winDiscards += discards;
     stats.winFaan += faan || 0;
+    stats.learnerWinPoints += res.deltas[s];
     if (!job.out) continue;
     const w = winWeight(discards, faan);
     buffers[s].forEach((b) => { rows.x.push(b.x); rows.a.push(b.a); rows.legal.push(b.legal); rows.w.push(w); });
@@ -159,6 +198,12 @@ async function work(job) {
     fs.writeFileSync(base + '.a.u1', Buffer.from(Uint8Array.from(rows.a)));
     fs.writeFileSync(base + '.m.u1', Buffer.from(legal));
     fs.writeFileSync(base + '.w.f4', Buffer.from(Float32Array.from(rows.w).buffer));
+    if (returns) {
+      fs.writeFileSync(base + '.r.f4', Buffer.from(Float32Array.from(rows.r).buffer));
+      fs.writeFileSync(base + '.p.f4', Buffer.from(Float32Array.from(rows.p).buffer));
+      fs.writeFileSync(base + '.o.u1', Buffer.from(Uint8Array.from(rows.o)));
+      fs.writeFileSync(base + '.h.u4', Buffer.from(Uint32Array.from(rows.h).buffer));
+    }
   }
   return stats;
 }
@@ -180,9 +225,9 @@ function floatToHalf(v) {
  * ------------------------------------------------------------------ */
 
 function merge(all) {
-  const out = { deals: 0, learnerSeats: 0, learnerWins: 0, wins: 0, winDiscards: 0, winFaan: 0, dealIns: 0, samples: 0, byOpponent: {} };
+  const out = { deals: 0, learnerSeats: 0, learnerWins: 0, wins: 0, winDiscards: 0, winFaan: 0, dealIns: 0, samples: 0, learnerPoints: 0, learnerWinPoints: 0, byOpponent: {} };
   all.forEach((s) => {
-    ['deals', 'learnerSeats', 'learnerWins', 'wins', 'winDiscards', 'winFaan', 'dealIns', 'samples'].forEach((k) => { out[k] += s[k]; });
+    ['deals', 'learnerSeats', 'learnerWins', 'wins', 'winDiscards', 'winFaan', 'dealIns', 'samples', 'learnerPoints', 'learnerWinPoints'].forEach((k) => { out[k] += s[k]; });
     Object.keys(s.byOpponent).forEach((id) => {
       const o = (out.byOpponent[id] = out.byOpponent[id] || { seats: 0, wins: 0 });
       o.seats += s.byOpponent[id].seats;
@@ -216,15 +261,19 @@ async function generate(a) {
   const job = {
     weights: a.weights || null, temperature: parseFloat(a.temperature || 1), seed: parseInt(a.seed || 7000000, 10),
     pool: a.pool ? String(a.pool).split(',') : [], learners: parseInt(a.learners || 2, 10), out,
+    returns: !!a.returns, sample: a.returns ? parseFloat(a.sample || 0.5) : 1,
   };
   const stats = await runJobs(job, parseInt(a.deals || 10000, 10), workerCount(a));
   stats.seconds = (Date.now() - t0) / 1000;
   stats.winRate = stats.learnerWins / Math.max(1, stats.learnerSeats);
   stats.avgWinDiscards = stats.winDiscards / Math.max(1, stats.learnerWins);
   stats.avgWinFaan = stats.winFaan / Math.max(1, stats.learnerWins);
-  if (out) fs.writeFileSync(path.join(out, 'meta.json'), JSON.stringify(Object.assign({ featureVersion: N.FEATURE_VERSION, featureSize: N.SIZE, job }, stats), null, 2) + '\n');
+  stats.pointsPerHand = stats.learnerPoints / Math.max(1, stats.learnerSeats);
+  stats.avgWinPoints = stats.learnerWinPoints / Math.max(1, stats.learnerWins);
+  if (out) fs.writeFileSync(path.join(out, 'meta.json'), JSON.stringify(Object.assign({ featureVersion: N.FEATURE_VERSION, featureSize: N.SIZE, returns: job.returns, job }, stats), null, 2) + '\n');
   console.log('generated ' + stats.deals + ' deals in ' + stats.seconds.toFixed(0) + 's: learner won ' + (100 * stats.winRate).toFixed(2) +
-    '% of its seats (' + stats.learnerWins + ' hands, ' + stats.avgWinDiscards.toFixed(1) + ' discards, ' + stats.avgWinFaan.toFixed(2) + ' faan), ' + stats.samples + ' samples');
+    '% of its seats (' + stats.learnerWins + ' hands, ' + stats.avgWinDiscards.toFixed(1) + ' discards, ' + stats.avgWinFaan.toFixed(2) + ' faan, ' +
+    Math.round(stats.avgWinPoints) + ' points a win), ' + stats.pointsPerHand.toFixed(1) + ' points a hand, ' + stats.samples + ' samples');
   return stats;
 }
 
@@ -235,25 +284,33 @@ async function generate(a) {
 async function evalWork(job) {
   const out = {};
   const rot = [[0, 1, 0, 1], [1, 0, 1, 0]];
+  // The paired gap: per deal, the first strategy's points a seat-hand less the second's.
+  const pair = { n: 0, sum: 0, sq: 0 };
+  const two = job.lineup.length === 2 && job.lineup[0] !== job.lineup[1];
   for (let d = job.from; d < job.to; d++) {
+    let gap = 0;
     for (const r of rot) {
       const ids = r.map((k) => job.lineup[k % job.lineup.length]);
       const game = E.createGame({ seed: job.seed + d, humanSeat: false, dealer: d % 4, startPoints: 1e9 });
       const res = await E.runHand(game, ids.map((id) => opponent(id).createBotAgent()));
       ids.forEach((id, s) => {
-        const o = (out[id] = out[id] || { seats: 0, wins: 0, points: 0, dealIns: 0, winDiscards: 0, winFaan: 0, selfDraws: 0 });
+        const o = (out[id] = out[id] || { seats: 0, wins: 0, points: 0, dealIns: 0, winDiscards: 0, winFaan: 0, selfDraws: 0, winPoints: 0 });
         o.seats++;
         o.points += res.deltas[s];
+        if (two) gap += (id === job.lineup[0] ? 1 : -1) * res.deltas[s] / 4;
         if (res.type !== 'win') return;
         if (res.winner === s) {
           o.wins++;
+          o.winPoints += res.deltas[s];
           o.winDiscards += game.hand.seats[s].discards.length;
           o.winFaan += (res.score && res.score.faan) || 0;
           if (res.how === 'selfDraw') o.selfDraws++;
         } else if (res.payer === s) o.dealIns++;
       });
     }
+    if (two) { pair.n++; pair.sum += gap; pair.sq += gap * gap; }
   }
+  if (two) out._pair = pair;
   return out;
 }
 
@@ -268,10 +325,18 @@ async function evaluate(a) {
     child.send(job);
   })));
   const sum = {};
+  const pair = { n: 0, sum: 0, sq: 0 };
   parts.forEach((p) => Object.keys(p).forEach((id) => {
-    const o = (sum[id] = sum[id] || { seats: 0, wins: 0, points: 0, dealIns: 0, winDiscards: 0, winFaan: 0, selfDraws: 0 });
+    if (id === '_pair') { pair.n += p[id].n; pair.sum += p[id].sum; pair.sq += p[id].sq; return; }
+    const o = (sum[id] = sum[id] || { seats: 0, wins: 0, points: 0, dealIns: 0, winDiscards: 0, winFaan: 0, selfDraws: 0, winPoints: 0 });
     Object.keys(p[id]).forEach((k) => { o[k] += p[id][k]; });
   }));
+  let paired = null;
+  if (pair.n > 1) {
+    const mean = pair.sum / pair.n;
+    const sd = Math.sqrt(Math.max(0, (pair.sq - pair.n * mean * mean) / (pair.n - 1)));
+    paired = { deals: pair.n, points: mean, standardError: sd / Math.sqrt(pair.n) };
+  }
   Object.keys(sum).forEach((id) => {
     const o = sum[id];
     o.winRate = o.wins / o.seats;
@@ -279,10 +344,12 @@ async function evaluate(a) {
     o.pointsPerHand = o.points / o.seats;
     o.avgWinDiscards = o.winDiscards / Math.max(1, o.wins);
     o.avgWinFaan = o.winFaan / Math.max(1, o.wins);
+    o.avgWinPoints = o.winPoints / Math.max(1, o.wins);
     console.log(id + ': won ' + (100 * o.winRate).toFixed(2) + '% of hands (' + o.avgWinDiscards.toFixed(1) + ' discards, ' +
-      o.avgWinFaan.toFixed(2) + ' faan), dealt in ' + (100 * o.dealInRate).toFixed(2) + '%, ' + o.pointsPerHand.toFixed(1) + ' points/hand');
+      o.avgWinFaan.toFixed(2) + ' faan), dealt in ' + (100 * o.dealInRate).toFixed(2) + '%, ' + o.pointsPerHand.toFixed(1) + ' points/hand, ' + Math.round(o.avgWinPoints) + ' points a win');
   });
-  if (a.json) fs.writeFileSync(path.resolve(ROOT, a.json), JSON.stringify({ lineup, deals, summary: sum }, null, 2) + '\n');
+  if (paired) console.log(lineup[0] + ' less ' + lineup[1] + ': ' + paired.points.toFixed(1) + ' ± ' + paired.standardError.toFixed(1) + ' points a hand (standard error, ' + paired.deals + ' deals)');
+  if (a.json) fs.writeFileSync(path.resolve(ROOT, a.json), JSON.stringify({ lineup, deals, summary: sum, paired }, null, 2) + '\n');
   return sum;
 }
 
