@@ -2554,11 +2554,11 @@
         // View playback (the sheet of recent hands and the upload: each row
         // there has its own Download), then Sound. Words when they leave the
         // title room, an icon when they don't.
-        var LIST_W = 128;
+        var LIST_W = 136;
         var words = W >= 600 && soundX - 6 - LIST_W - 8 - gapL >= TITLE_ROOM;
         var vpW = words ? LIST_W : 34;
         var vpX = soundX - 6 - vpW;
-        button(words ? 'View playbacks' : '', vpX, 7, vpW, 28, openPlaybacks, 'ghost', 'review-list');
+        button(words ? 'Saved playbacks' : '', vpX, 7, vpW, 28, openPlaybacks, 'ghost', 'review-list');
         clusterX = vpX;
         if (!words) {
           // A list, three rows each with a dot (your saved hands), drawn here so it needs no font.
@@ -5904,7 +5904,7 @@
           color: reviewNote ? COLORS.goldLight : COLORS.cream,
         });
       });
-      button('View playbacks', (W - bw) / 2, by, bw, bh, openPlaybacks, 'gold', 'review-list-center');
+      button('Saved playbacks', (W - bw) / 2, by, bw, bh, openPlaybacks, 'gold', 'review-list-center');
     }
 
     // Whether the playback on screen is of a finished hand. Only then are the
@@ -5961,7 +5961,8 @@
       if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
     }
 
-    // The row buttons are icons (their names are in aria-label and title).
+    // The row buttons are icons: their names are in aria-label, and a tooltip
+    // (data-tip, drawn by css/play.css) shows them on hover or keyboard focus.
     var ICON_PLAY = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>';
     var ICON_DOWNLOAD = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg>';
 
@@ -5996,7 +5997,7 @@
       play.type = 'button';
       play.className = 'playbacks-btn playbacks-play';
       play.innerHTML = ICON_PLAY;
-      play.title = 'Play';
+      play.setAttribute('data-tip', 'Play');
       play.disabled = !check.ok;
       play.setAttribute('aria-label', 'Play ' + sum.hand + ', ' + sum.result);
       play.addEventListener('click', function () {
@@ -6009,7 +6010,7 @@
       down.type = 'button';
       down.className = 'playbacks-btn playbacks-download';
       down.innerHTML = ICON_DOWNLOAD;
-      down.title = 'Download';
+      down.setAttribute('data-tip', down.disabled ? 'Download opens once the hand is finished' : 'Download');
       // Only a finished hand's file is saved: an unfinished one holds the whole deal.
       down.disabled = !check.ok || !E.playbackFinished(check.record);
       down.setAttribute('aria-label', 'Download ' + sum.hand + ', ' + sum.result);

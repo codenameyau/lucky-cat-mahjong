@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.49.0';
+  var GAME_VERSION = '0.49.1';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -1506,30 +1506,32 @@
     return parts.join(' ') || (flowers ? 'Replacing flowers.' : 'The deal.');
   }
 
+  // Each recorded action as a sentence in the past tense, such as "You
+  // discarded Four Circle." or "Katie won on South Wind from Lulu."
   function playbackLines(rec) {
     if (!rec || !Array.isArray(rec.actions)) return [];
     return rec.actions.map(function (ev) {
       var who = playbackWho(rec, ev.s);
-      if (ev.a === 'flower') return who + ' sets aside ' + tileName(ev.t) + '.';
-      if (ev.a === 'draw') return who + ' draws ' + tileName(ev.t) + (ev.k && ev.k !== 'wall' ? ' as a replacement.' : '.');
-      if (ev.a === 'discard') return who + ' discards ' + tileName(ev.t) + '.';
+      if (ev.a === 'flower') return who + ' set aside ' + tileName(ev.t) + '.';
+      if (ev.a === 'draw') return who + ' drew ' + tileName(ev.t) + (ev.k && ev.k !== 'wall' ? ' as a replacement.' : '.');
+      if (ev.a === 'discard') return who + ' discarded ' + tileName(ev.t) + '.';
       if (ev.a === 'claim') {
-        var verb = ev.c === 'chow' ? 'chows' : ev.c === 'kong' ? 'kongs' : 'pungs';
+        var verb = ev.c === 'chow' ? 'chowed' : ev.c === 'kong' ? 'konged' : 'punged';
         var tiles = ev.c === 'chow' ? sortTiles((ev.tiles || []).concat([ev.t])).map(tileName).join(', ') : tileName(ev.t);
         return who + ' ' + verb + ' ' + tiles + ' from ' + playbackWho(rec, ev.from) + '.';
       }
       if (ev.a === 'kong') {
         return ev.k === 'added'
-          ? who + ' adds a ' + tileName(ev.t) + ' to the pung.'
-          : who + ' declares a concealed kong of ' + tileName(ev.t) + '.';
+          ? who + ' added a ' + tileName(ev.t) + ' to the pung.'
+          : who + ' declared a concealed kong of ' + tileName(ev.t) + '.';
       }
       if (ev.a === 'win') {
-        if (ev.how === 'flowers') return who + ' wins with flowers.';
-        if (ev.how === 'selfDraw') return who + ' wins by self-draw on ' + tileName(ev.t) + '.';
-        if (ev.how === 'robKong') return who + ' wins by robbing the kong of ' + tileName(ev.t) + ' from ' + playbackWho(rec, ev.from) + '.';
-        return who + ' wins on ' + tileName(ev.t) + ' from ' + playbackWho(rec, ev.from) + '.';
+        if (ev.how === 'flowers') return who + ' won with flowers.';
+        if (ev.how === 'selfDraw') return who + ' won by self-draw on ' + tileName(ev.t) + '.';
+        if (ev.how === 'robKong') return who + ' won by robbing the kong of ' + tileName(ev.t) + ' from ' + playbackWho(rec, ev.from) + '.';
+        return who + ' won on ' + tileName(ev.t) + ' from ' + playbackWho(rec, ev.from) + '.';
       }
-      if (ev.a === 'drawGame') return 'The wall is empty. Draw game.';
+      if (ev.a === 'drawGame') return 'The wall ran out. Draw game.';
       return 'Move.';
     });
   }

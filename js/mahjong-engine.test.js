@@ -369,6 +369,9 @@ describe('playback seed', () => {
     const first = rec.actions.find((a) => a.a === 'discard');
     assert.match(lines[rec.actions.indexOf(first)], new RegExp(E.tileName(first.t)));
     assert.match(lines[rec.actions.indexOf(first)], new RegExp(rec.players[first.s].name));
+    // In the past tense: "You discarded Four Circle." or "Katie discarded ...".
+    assert.equal(lines[rec.actions.indexOf(first)], rec.players[first.s].name + ' discarded ' + E.tileName(first.t) + '.');
+    lines.forEach((l) => assert.doesNotMatch(l, / (discards|draws|wins|sets aside|chows|pungs|kongs|adds|declares) /));
     assert.equal(E.parsePlayback('nope'), null);
     assert.equal(E.parsePlayback(E.handSeedText(game, 0)), null);
   });
@@ -392,7 +395,7 @@ describe('playback seed', () => {
     const midway = Math.max(flowerAt + 1, 2);
     if (midway <= firstDiscard) assert.equal(E.playbackCaption(rec, 0, midway), 'Replacing flowers.');
     // The first move, up to and including its discard, names the discard.
-    assert.match(E.playbackCaption(rec, 0, firstDiscard + 1), /discards/);
+    assert.match(E.playbackCaption(rec, 0, firstDiscard + 1), / discarded /);
     // A deal with no flowers before its first discard still reads as the deal.
     const plain = { actions: [{ a: 'draw', s: 0, t: 'c1' }, { a: 'draw', s: 1, t: 'c2' }, { a: 'discard', s: 0, t: 'c1' }], players: rec.players };
     assert.equal(E.playbackCaption(plain, 0, 2), 'The deal.');

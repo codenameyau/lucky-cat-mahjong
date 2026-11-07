@@ -616,15 +616,45 @@ html.is-playing.is-sideways body {
 
 .playbacks-upload:hover { background: #d8344f; }
 
-/* Play and Download are round icon buttons. */
+/* Play and Download are rounded-square icon buttons, each with a tooltip. */
 .playbacks-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 40px;
   height: 40px;
   padding: 0;
+  border-radius: 9px;
 }
+
+.playbacks-btn[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: #1A1A1A;
+  color: #FFF8F0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+  z-index: 2;
+}
+
+.playbacks-btn[data-tip]:hover::after,
+.playbacks-btn[data-tip]:focus-visible::after { opacity: 1; }
+
+/* The last button on a row keeps its tooltip inside the sheet. */
+.playbacks-btn:last-child[data-tip]::after { left: auto; right: 0; transform: none; }
+
+/* A disabled button still shows why on hover. */
+.playbacks-btn:disabled { pointer-events: auto; }
 
 .playbacks-btn svg { display: block; }
 .playbacks-play svg { margin-left: 2px; } /* the triangle looks centered */
