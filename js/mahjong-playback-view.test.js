@@ -388,6 +388,71 @@ test('auto-play (the wind badge, with the coach on) is for local and private-net
   assert.match(GAME_SRC, /if \(autoPlay \|\| canAutoPlay\(\)\) \{ toggleAutoPlay\(\); return; \}\n      copySeed\(\);/);
 });
 
+test('playback: a double-click on an opponent\'s hand hides or shows their tiles, saved; an unfinished hand always keeps them concealed', () => {
+  // The decision: a double-tap (two presses close in time and place, on the same opponent's seat).
+  const tapSrc = GAME_SRC.slice(GAME_SRC.indexOf('    var lastHandTap = null;'), GAME_SRC.indexOf('    function toggleOpponentHands() {'));
+  const make = (finished) => {
+    const calls = [];
+    const L = { opp: [null, { x: 0, y: 0, w: 100, h: 400 }, { x: 150, y: 0, w: 500, h: 100 }, { x: 700, y: 0, w: 100, h: 400 }] };
+    const boxHas = (b, x, y) => !!(b && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
+    const fn = new Function('L', 'boxHas', 'now', 'reviewFinished', 'toggleOpponentHands', tapSrc + '; return opponentHandsTap;');
+    const tap = fn(L, boxHas, () => 0, () => finished, () => calls.push('toggle'));
+    return { tap, calls, press: (x, y, t) => tap({ x, y }, { timeStamp: t }) };
+  };
+  let h = make(true);
+  assert.equal(h.press(50, 200, 1000), false, 'one press is not a double-click');
+  assert.equal(h.press(52, 203, 1200), true, 'a second press close by, soon after, is');
+  assert.deepEqual(h.calls, ['toggle']);
+  assert.equal(h.press(50, 200, 1300), false, 'a third press starts a new pair');
+  h = make(true);
+  h.press(50, 200, 1000);
+  assert.equal(h.press(750, 200, 1100), false, 'another opponent\'s seat is not the same hand');
+  h = make(true);
+  h.press(50, 200, 1000);
+  assert.equal(h.press(50, 200, 1600), false, 'too slow');
+  h = make(true);
+  h.press(50, 100, 1000);
+  assert.equal(h.press(50, 300, 1100), false, 'too far apart');
+  h = make(true);
+  h.press(50, 200, 1000);
+  h.press(400, 600, 1100); // your own hand or the pond: not an opponent
+  assert.equal(h.press(50, 200, 1150), false, 'a press elsewhere in between starts over');
+  h = make(true);
+  h.press(400, 50, 1000);
+  assert.equal(h.press(400, 55, 1100), true, 'the across opponent counts too');
+  h = make(false); // an unfinished hand: always concealed, so nothing to toggle
+  h.press(50, 200, 1000);
+  assert.equal(h.press(50, 200, 1100), false);
+  assert.deepEqual(h.calls, []);
+
+  // The toggle: one saved preference for playback (hidden: false), applied to every opponent at once.
+  const toggleSrc = /function toggleOpponentHands\(\) \{[\s\S]*?\n    \}\n/.exec(GAME_SRC)[0];
+  const saved = [];
+  const ui = { revealHands: true, botLift: 5 };
+  const prefs = { sound: true };
+  const toggle = new Function('prefs', 'writeJson', 'PREFS_KEY', 'ui', 'reviewFinished', 'sound', 'track', 'announce', 'requestRender', toggleSrc + '; return toggleOpponentHands;')(
+    prefs, (k, v) => saved.push([k, JSON.stringify(v)]), 'lcm-play-prefs', ui, () => true, { play() {} }, () => {}, () => {}, () => {});
+  toggle();
+  assert.equal(prefs.showOpponents, false);
+  assert.equal(ui.revealHands, false, 'hidden');
+  assert.deepEqual(saved[0], ['lcm-play-prefs', '{"sound":true,"showOpponents":false}'], 'saved');
+  toggle();
+  assert.equal(prefs.showOpponents, true);
+  assert.equal(ui.revealHands, true, 'shown again');
+  // Where the playback decides: face up only for a finished hand, and only when not hidden.
+  assert.match(GAME_SRC, /ui\.revealHands = reviewFinished\(\) && prefs\.showOpponents !== false;/);
+  assert.match(GAME_SRC, /if \(settings\.review && !ui\.overlay && opponentHandsTap\(p, e\)\) \{ e\.preventDefault\(\); return; \}/);
+  assert.match(GAME_SRC, /if \(!reviewFinished\(\)\) return false;/, 'an unfinished hand\'s double-click does nothing');
+});
+
+test('closing or dismissing the game over window plays no sound', () => {
+  // Both paths (the Close button and a click outside) go through seeMatchHands, which is silent.
+  const body = GAME_SRC.slice(GAME_SRC.indexOf('function seeMatchHands()'), GAME_SRC.indexOf('// Where See results goes while the hands are face up'));
+  assert.doesNotMatch(body, /sound\.play/);
+  assert.match(GAME_SRC, /button\('Close', r\.x \+ r\.w - PAD - 64, r\.y \+ PAD, 64, 28, seeMatchHands, 'ghost', 'go-close'\)/, 'Close calls it directly, with no sound of its own');
+  assert.match(GAME_SRC, /if \(o\.type === 'gameover'\) \{ seeMatchHands\(\); return true; \}/, 'so does a click outside');
+});
+
 test('the game over window uses the Results window\'s look, with each player\'s avatar and strategy', () => {
   const fn = GAME_SRC.slice(GAME_SRC.indexOf('    function drawGameOver() {'), GAME_SRC.indexOf('    var overlayResolve = null;'));
   // The Results look: the green sheet with a gold edge (as the pause menu draws it), a gold title at the left, Close at the right.
@@ -579,13 +644,16 @@ test('the playback bar opens the View playback sheet, and its rows play, downloa
   // Download's tooltip is read after its disabled state is set.
   assert.ok(row.indexOf('down.disabled = ') < row.indexOf("down.setAttribute('data-tip'"), 'the tooltip knows if Download is disabled');
   assert.match(row, /setAttribute\('aria-label', \(showing \? 'Playing now: ' : 'Play '\) \+ sum\.hand/);
-  // Whatever is on screen: its Play button has the red border, not the words "Showing now".
+  // Whatever is on screen: its Play button has a white outer border, not the words "Showing now".
   assert.match(row, /play\.classList\.toggle\('is-showing', !!showing\)/);
   assert.match(row, /setAttribute\('data-tip', showing \? 'Playing now' : 'Play'\)/);
   assert.match(row, /setAttribute\('aria-current', 'true'\)/);
   assert.doesNotMatch(GAME_SRC, /Showing now/, 'the words are gone');
   const css = fs.readFileSync(path.join(ROOT, 'css/play.css'), 'utf8');
-  assert.match(css, /\.playbacks-play\.is-showing \{\s*border: 3px solid #E5233F;\s*\}/, 'only the red border: no white ring round it');
+  // A white ring outside the button (a box-shadow), so the button keeps the size of the others: no border change.
+  assert.match(css, /\.playbacks-play\.is-showing \{\s*box-shadow: 0 0 0 3px #ffffff;\s*\}/);
+  const rule = /\.playbacks-play\.is-showing \{([^}]*)\}/.exec(css)[1];
+  assert.doesNotMatch(rule, /border|width|height|padding|margin/, 'nothing that changes its size');
   // A time nobody kept is left out, never shown as "earlier".
   assert.match(row, /finished && finishedAt != null\) times\.push\('Finished ' \+ lower\(E\.playbackWhen\(finishedAt\)\)\)/);
   assert.match(row, /kind === 'upload' && entry\.savedAt != null\) times\.push\('Uploaded ' \+ lower\(E\.playbackWhen\(entry\.savedAt\)\)\)/);

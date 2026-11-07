@@ -605,9 +605,10 @@ html.is-playing.is-sideways body {
 .playbacks-upload:hover { background: rgba(255, 255, 255, 0.22); }
 .playbacks-play:hover:not(:disabled) { background: #ffd27a; }
 
-/* The playback on screen: its Play button has a red border, and nothing else round it. */
+/* The playback on screen: its Play button is the same size as the others, with a white
+   border round the outside of it (a ring, so it takes no room from the button). */
 .playbacks-play.is-showing {
-  border: 3px solid #E5233F;
+  box-shadow: 0 0 0 3px #ffffff;
 }
 .playbacks-btn:disabled { opacity: 0.4; cursor: default; }
 

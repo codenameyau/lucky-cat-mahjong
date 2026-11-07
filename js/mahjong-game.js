@@ -4768,7 +4768,7 @@
     // so leaving the results can't be overwritten by the copy taken while
     // they were up.
     var restoredHand = null; // a finished hand put back after a refresh, only for looking at
-    var shownFile = null; // the playback view's file (its row's Play button in the sheet has a red border)
+    var shownFile = null; // the playback view's file (its row's Play button in the sheet has a white ring)
     var autosaveTimer = null;
     var autosaveGen = 0;
     var pendingSummary = null;
@@ -5012,7 +5012,7 @@
       ui.overlay = null;
       ui.revealHands = true;
       ui.botLift = null;
-      sound.play('flip');
+      // No sound: this is the game over window being closed or dismissed (Close, or a click outside).
       announce('All four hands are face up.');
       requestRender();
     }
@@ -5449,10 +5449,47 @@
       return r && boxHas(ui.overlayBox, r.x, r.y) ? r : null;
     }
 
+    // Playback: a double-click (or double-tap) on an opponent's hand hides or
+    // shows all their concealed tiles. The choice is kept for playback
+    // (prefs.showOpponents, in lcm-play-prefs). An unfinished hand's playback
+    // always keeps their tiles concealed, so the double-click does nothing there.
+    var lastHandTap = null;
+    function opponentSeatAt(p) {
+      for (var k = 1; k <= 3; k++) if (L && L.opp && boxHas(L.opp[k], p.x, p.y)) return k;
+      return 0;
+    }
+
+    // True when this press was the second of a double-tap on an opponent's seat.
+    function opponentHandsTap(p, e) {
+      var seat = opponentSeatAt(p);
+      if (!seat) { lastHandTap = null; return false; }
+      var t = e.timeStamp || now();
+      var prev = lastHandTap;
+      lastHandTap = { t: t, x: p.x, y: p.y, seat: seat };
+      if (!prev || prev.seat !== seat || t - prev.t > 420 || Math.abs(p.x - prev.x) + Math.abs(p.y - prev.y) > 40) return false;
+      lastHandTap = null;
+      if (!reviewFinished()) return false;
+      toggleOpponentHands();
+      return true;
+    }
+
+    function toggleOpponentHands() {
+      var shown = prefs.showOpponents === false; // hidden now, so this shows them
+      prefs.showOpponents = shown;
+      writeJson(PREFS_KEY, prefs);
+      ui.revealHands = reviewFinished() && shown;
+      ui.botLift = null;
+      sound.play('flip');
+      track('play_playback_toggle_hands', { shown: shown });
+      announce(shown ? 'Opponents\' hands are face up.' : 'Opponents\' hands are hidden.');
+      requestRender();
+    }
+
     function onPointerDown(e) {
       lastTouch = !!e.pointerType && e.pointerType !== 'mouse';
       if (lastTouch) mouse = null;
       var p = pointerPos(e);
+      if (settings.review && !ui.overlay && opponentHandsTap(p, e)) { e.preventDefault(); return; }
       if (ui.overlay && ui.overlayBox && !boxHas(ui.overlayBox, p.x, p.y)) {
         if (dismissOverlay()) { e.preventDefault(); return; }
       }
@@ -6258,7 +6295,7 @@
       play.className = 'playbacks-btn playbacks-play';
       play.innerHTML = ICON_PLAY;
       play.disabled = !check.ok;
-      // The one on screen has a red border (css/play.css), and says so to a screen reader and in its tooltip.
+      // The one on screen has a white ring round its button (css/play.css), and says so to a screen reader and in its tooltip.
       play.classList.toggle('is-showing', !!showing);
       play.setAttribute('data-tip', showing ? 'Playing now' : 'Play');
       play.setAttribute('aria-label', (showing ? 'Playing now: ' : 'Play ') + sum.hand + ', ' + sum.result);
@@ -7254,7 +7291,9 @@
       var seats = [null, null, null, null];
       settings.review.players.forEach(function (p, i) { if (p.strategy) seats[i] = p.strategy; });
       ui.strategies = { seats: seats, coach: ui.strategies.coach };
-      ui.revealHands = reviewFinished();
+      // A finished hand's playback shows every hand face up, unless you hid them (double-click an
+      // opponent's hand); an unfinished hand's opponents always stay concealed.
+      ui.revealHands = reviewFinished() && prefs.showOpponents !== false;
       ui.coach = 'on';
       ui.turnPrompt = null;
       ui.claimPrompt = null;
