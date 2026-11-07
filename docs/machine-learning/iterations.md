@@ -10,7 +10,7 @@ Every score here is **points a hand**: one player's average points per hand less
 
 | | Neural Cat | Lucky Cat |
 | --- | --- | --- |
-| In the game | **NC1** (league model L17) | **LC20** (lc20) |
+| In the game | **NC2** (league model L19) | **LC20** (lc20) |
 | What it is | A network that scores Jorge Yau's best choices in expected points | A network that makes every move itself, with no rules underneath |
 | What it plays for | Points: often and big wins on one scale | Wins: as many and as fast as it can |
 | Trained on | 950,000 league hands (stopped in round 19, at a plateau), and earlier rounds against the rule bots | 1,000,000 hands against its earlier selves and Neural Cat |
@@ -182,10 +182,12 @@ Per hand dealt to a seat, from each model's evaluation (L1 against s5, the rule-
 - **What it does differently.** It won more often (9.2% against 8.8%) but smaller (1,768 against 1,940).
 - **Result.** −5.7 ± 32 against L17.
 
-## L19: trained, never judged
+## L19 (NC2): bigger wins again
 
-- **Thinking.** Started from L17, with s5, L11, L14 and L16 in the pool.
-- **Result.** The league was stopped while L19 played its evaluation against L17 (see [the plateau](#the-plateau-where-neural-cat-stands)), so it has no score. Its weights are kept in `ml/models/L19.json` and can still be benchmarked.
+- **Thinking.** Started from L17, on rounds 12–19 (4,647,945 positions), with s5, L11, L14 and L16 in the pool. Its held-out accuracy is the best yet (77.2%).
+- **What it does differently.** Against NC1 on 20,000 deals, its average win is 14% bigger (2,091 points against 1,835) while it wins slightly less often (8.5% against 9.2%) and deals in slightly more (6.0% against 5.7%).
+- **Result.** The league was stopped while L19 played its 6,000-deal evaluation, so the league never judged it. The 20,000-deal benchmark that followed did: **+20.5 ± 18.2** points a hand over NC1, J +17.0 against a standard error of about 9, a clear gain by the lab's rule. It ships as **NC2**, and the lab starts from it.
+- **Reading.** Stopping the league cost exactly the model it would have kept. A model's first evaluation is a coin flip at ±30; only a long one tells.
 
 ## The league overall
 
@@ -225,7 +227,7 @@ Every league round's score against the best before it, against s5 where that was
 
 ## The plateau: where Neural Cat stands
 
-The league was stopped during round 19 because Neural Cat had stopped improving. NC1 (L17) stays the shipped model. Since about L7, most of the apparent progress is noise.
+The league was stopped during round 19 because Neural Cat looked like it had stopped improving: since about L7, each round's step was too small to see. The long benchmark that followed showed it hadn't fully stopped: NC1 beats L7 by +21.3 ± 18.0, and L19 beats NC1 by +20.5 ± 18.2 and ships as NC2. Slow, real gains were hidden by noisy evaluations.
 
 ### The evidence
 
@@ -272,7 +274,19 @@ After the plateau, Neural Cat's training was rebuilt as the lab (`npm run ml:lab
 
 New features (what the model can't yet see) need new data from scratch, so they're not an experiment yet. They're the next step if these stall.
 
-The lab's results go below as rounds finish.
+### The benchmark
+
+NC1 (L17), 20,000 deals against each, every deal played from every seat, two seats each:
+
+| NC1 against | Points a hand | Hands won | Deal-ins | Average win |
+| --- | ---: | ---: | ---: | ---: |
+| L19 | −20.5 ± 18.2 | 9.2% vs 8.5% | 5.7% vs 6.0% | 1,835 vs 2,091 |
+| L7 | +21.3 ± 18.0 | 8.8% vs 8.5% | 5.6% vs 5.5% | 1,910 vs 1,740 |
+
+- **The league did improve after L7**, by about 20 points a hand over ten rounds, too slowly for its 6,000-deal evaluations to see.
+- **L19 is better than NC1**, so the lab starts from it, shipped as NC2.
+
+The lab's rounds go below as they finish.
 
 ## Changes to the base logic during the league
 
