@@ -1,74 +1,25 @@
 <!DOCTYPE html>
-<html lang="en-US" class="is-playing">
+<html lang="en-US">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Playback Analysis | Lucky Cat Mahjong</title>
   <meta name="robots" content="noindex">
+  <link rel="canonical" href="https://luckycatmahjong.com/play-mahjong/">
   <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
-  <link rel="stylesheet" href="/css/fonts.css">
-  <link rel="stylesheet" href="/css/styles.css">
-  <link rel="stylesheet" href="/css/play.css">
-
   <script>
-    // Google Analytics runs on the live site only. On localhost and private network
-    // addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x, .local) gtag does nothing, so
-    // testing never adds events.
-    window.dataLayer = window.dataLayer || [];
-    var localHost = /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local)$/i.test(location.hostname);
-    function gtag(){ if (!localHost) dataLayer.push(arguments); }
-    if (!localHost) {
-      var gaScript = document.createElement('script');
-      gaScript.async = true;
-      gaScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-B514HH987M';
-      document.head.appendChild(gaScript);
-      gtag('js', new Date());
-      gtag('config', 'G-B514HH987M');
-    }
+    // Playback is a view of the game page now (?playback=1), so old links and
+    // bookmarks land there. The rest of the query (sound, instant) comes along.
+    (function () {
+      var params = new URLSearchParams(location.search);
+      params.delete('replay');
+      params.set('playback', '1');
+      location.replace('/play-mahjong/?' + params.toString() + location.hash);
+    })();
   </script>
+  <noscript><meta http-equiv="refresh" content="0; url=/play-mahjong/?playback=1"></noscript>
 </head>
 <body>
-  <div id="play-stage" class="play-stage">
-    <canvas id="play-canvas" class="play-canvas" tabindex="0" role="application" aria-label="Mahjong replay. A playback saved from your wind opens on its own. Upload, in the center, reads a JSON playback file. Command+V or Ctrl+V pastes one too. Strategies, Rules, and Sound sit at the top right. The hand then plays through the moves in that file. A panel under the coach column, headed Strategies, shows the tile each strategy would discard. Click one to make it the coach. The coach on the right is titled Coach and that strategy, and comments on your moves. Space pauses. Left and right arrows step one move. Drag the bar to a move. Back, when this replay was opened from a finished game, returns to that game's results. Escape clears the hand."></canvas>
-    <p id="play-live" class="visually-hidden" aria-live="polite"></p>
-    <dialog id="rules-sheet" class="rules-sheet" aria-labelledby="rules-sheet-title">
-      <div class="rules-sheet-inner">
-        <header class="rules-sheet-head">
-          <h2 id="rules-sheet-title">Rules</h2>
-          <button type="button" class="rules-sheet-close" aria-label="Close the rules">Close</button>
-        </header>
-        <div id="rules-sheet-body" class="rules-sheet-body"></div>
-      </div>
-    </dialog>
-    <dialog id="strategies-sheet" class="rules-sheet strategies-sheet" aria-labelledby="strategies-sheet-title">
-      <div class="rules-sheet-inner">
-        <header class="rules-sheet-head">
-          <h2 id="strategies-sheet-title">Strategies <span class="strategies-beta">Beta</span></h2>
-          <button type="button" class="rules-sheet-close" aria-label="Close the strategies">Close</button>
-        </header>
-        <p class="rules-sheet-intro">How each strategy chooses a discard. The coach is the one named on the side panel.</p>
-        <div id="strategies-sheet-body" class="rules-sheet-body"></div>
-      </div>
-    </dialog>
-  </div>
-
-  <script src="/js/points.js" defer></script>
-  <script src="/js/mahjong-engine.js" defer></script>
-  <script src="/js/mahjong-bot.js" defer></script>
-  <script src="/js/mahjong-lucky-cat.js" defer></script>
-  <script src="/js/mahjong-jorge-yau.js" defer></script>
-  <script src="/js/mahjong-ml-features.js" defer></script>
-  <script src="/js/mahjong-ml-model.js" defer></script>
-  <script src="/js/mahjong-ml.js" defer></script>
-  <script src="/js/mahjong-only-orphans.js" defer></script>
-  <script src="/js/mahjong-lucky-cat-net.js" defer></script>
-  <script src="/js/mahjong-lucky-cat-ml.js" defer></script>
-  <script src="/js/mahjong-strategies.js" defer></script>
-  <script src="/js/mahjong-coach.js" defer></script>
-  <script src="/js/mahjong-analysis.js" defer></script>
-  <script src="/js/mahjong-lesson.js" defer></script>
-  <script src="/js/mahjong-rules.js" defer></script>
-  <script src="/js/mahjong-game.js" defer></script>
-  <script src="/js/playback-page.js" defer></script>
+  <p><a href="/play-mahjong/?playback=1">Open the playback</a></p>
 </body>
 </html>

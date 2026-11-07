@@ -250,6 +250,9 @@ html.play-has-save:not(.play-settled):not(.play-new-first) #play-resume {
 
 .play-canvas:focus { outline: none; }
 
+/* The game page has two: the game's table and the playback view's. */
+.play-canvas[hidden] { display: none; }
+
 /* Refreshing the game: hide the page until the table opens. The animation
    shows it anyway if the game's script never gets there. */
 html.play-reopening body {
