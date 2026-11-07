@@ -115,6 +115,12 @@ const WIN_WEIGHT = 5;         // points a hand per percentage point of hands won
 const LC_WIN_WEIGHT = 0.5;
 let WORKERS = null;           // Lucky Cat's processes (--workers)
 let LC_TEMPERATURE = 0.5;     // Lucky Cat's exploring temperature (--temperature)
+// The table Lucky Cat trains and is judged at: the game's other strategies,
+// two Neural Cats and Jorge Yau. Learning and judging against its own kind
+// (two learner seats, earlier selves in the pool, head to head) rewarded
+// bigger hands that beat Lucky Cat but not this table: LP11b and LP12b beat
+// lc32 head to head by 4 to 6 points a hand and tied or lost to it here.
+const LC_TABLE = ['neural-cat', 'jorge-yau', 'neural-cat'];
 const WINDOW = 8;             // data sets a fine-tune trains on
 
 let DIR = path.join(ROOT, 'ml', 'lab');
@@ -316,7 +322,8 @@ function compareLC(a, b, deals, seed, name) {
   const json = evalJson(name);
   const A = /^[a-z]+:/.test(a) || !/\.json$/.test(a) ? a : 'lc:' + a;
   const B = /^[a-z]+:/.test(b) || !/\.json$/.test(b) ? b : 'lc:' + b;
-  const args = ['scripts/ml/lucky.js', 'eval', '--lineup', A + ',' + B, '--deals', String(deals), '--seed', String(seed), '--json', json];
+  // Each takes one seat at the game's table, every seat in turn, on the same deals.
+  const args = ['scripts/ml/lucky.js', 'eval', '--lineup', A + ',' + B, '--table', LC_TABLE.join(','), '--deals', String(deals), '--seed', String(seed), '--json', json];
   if (WORKERS) args.push('--workers', String(WORKERS));
   run('node', args);
   const r = JSON.parse(fs.readFileSync(json, 'utf8'));
@@ -406,7 +413,10 @@ const STRATEGIES = {
     },
   },
   'lucky-cat': {
-    dir: 'lab-lucky-cat', prefix: 'lcpts', model: 'LP', trainArms: LC_TRAIN_ARMS, playArms: {}, folder: 'lucky-cat',
+    // From the game's table on (LC_TABLE), new names: LT models, lctab data.
+    // The rounds against its own kind were LP<n><letter> and lcpts-<n>
+    // (state moved to ml/lab-lucky-cat-points-h2h/).
+    dir: 'lab-lucky-cat', prefix: 'lctab', model: 'LT', trainArms: LC_TRAIN_ARMS, playArms: {}, folder: 'lucky-cat',
     weights: 'mahjong-lucky-cat-weights.js',
     // Training data: only the lab's own rounds, which record every hand
     // (the league's lc<n> sets hold only the moves of hands won).
@@ -414,10 +424,11 @@ const STRATEGIES = {
     // Points first: kept only when its points a hand beat the champion's by
     // more than their standard error (and J, with the wins, is ahead too).
     keep: (e) => e.points > e.margin / 2 && e.J > 0,
-    // One hand's points are mostly luck: on 20,000 deals the standard error is
-    // about 2.6 points a hand, so champions one standard error ahead of the
-    // last (LP3c, LP5a, LP8b) drifted on noise and none clearly beat lc32.
-    // 40,000 deals bring it to about 1.8. --full-deals still overrides it.
+    // One hand's points are mostly luck, and more so at the game's table,
+    // where Neural Cat's wins are worth about 1,800 points: there one
+    // standard error is about 41 points a hand on 300 deals, so about 3.5 on
+    // 40,000 (each deal plays 8 hands: both strategies in all four seats).
+    // --full-deals still overrides it.
     fullDeals: 40000,
     start() {
       const shipped = shippedModel('mahjong-lucky-cat-weights.js');
@@ -430,12 +441,12 @@ const STRATEGIES = {
       return { start: shipped, members: files.map((n) => path.join('ml', 'models', n)) };
     },
     generate(state, r, champ, data, opts) {
-      // Its last two champions, and the point scorers the game seats beside it.
-      const selves = state.members.filter((m) => m !== champ).slice(-2).map((m) => 'lc:' + m);
-      const pool = selves.concat(['neural-cat', 'neural-cat', 'jorge-yau']);
+      // One seat at the game's table: the other seats from Neural Cat (two
+      // in three) and Jorge Yau, no earlier selves (see LC_TABLE).
+      const pool = LC_TABLE.slice();
       log('Round ' + r + ': ' + opts.deals + ' deals, champion ' + base(champ) + ' (temperature ' + LC_TEMPERATURE + ') learning against ' + pool.map(short).join(', '));
       const args = ['scripts/ml/lucky.js', 'generate', '--returns', '--sample', '0.5', '--weights', champ, '--deals', String(opts.deals), '--out', data,
-        '--pool', pool.join(','), '--seed', String(DATA_SEED + r * 1000000), '--temperature', String(opts.bold ? Math.max(1, LC_TEMPERATURE) : LC_TEMPERATURE), '--learners', '2'];
+        '--pool', pool.join(','), '--seed', String(DATA_SEED + r * 1000000), '--temperature', String(opts.bold ? Math.max(1, LC_TEMPERATURE) : LC_TEMPERATURE), '--learners', '1'];
       if (WORKERS) args.push('--workers', String(WORKERS));
       log('Round ' + r + ': ' + run('node', args).trim().split('\n').pop());
     },

@@ -545,7 +545,20 @@ Round 1's policy-gradient steps on one round of data were within the noise. In r
 **Status.** This ran in parallel with the lab rounds above, from LC20, and was merged after LC32 shipped. LC32 stays in the game; LP2b is kept in `ml/models/` for benchmarking. The points-first trainer and judge are now the lab's for Lucky Cat: its next rounds start from LC32 and are kept only when they score more points a hand. LP2b has not been played against LC32.
 
 
-## What the two show together
+### Critique: points first from lc32 learned to beat itself, not the table
+
+Thirteen points-first rounds from lc32 (LP1a to LP13a, 650,000 deals) kept six champions, and none shipped. What happened, and what changed:
+
+- **Head to head, it looked like progress.** LP11b beat lc32 by +4.0 ± 1.9 points a hand on 40,000 deals neither had played, and LP12b beat LP11b by +6.0 ± 2.1. Each kept champion won fewer hands than the one before, with bigger wins (lc32 about 160 points a win, LP11b 193, LP13a 218).
+- **At the game's table, it wasn't.** One seat each against two Neural Cats and Jorge Yau, on the same 5,000 deals rotated through every seat (`scripts/competition.js`): lc32 −103.7 ± 13.8 points a hand, LP11b −104.8 ± 15.0, LP12b −111.2 ± 14.9. Against Jorge Yau alone, LP11b lost 40.6 a hand to lc32's 32.0, and against Neural Cat NC3 it was level (−76.2 to −74.6).
+- **Why.** The lab trained and judged Lucky Cat against its own kind. Each training deal gave the learner two of the four seats and drew its last two champions into the opponents' pool, and the judge was head to head. Against a fast player of cheap hands, waiting for bigger hands pays: its deal-ins go into small hands, and the other Lucky Cat rarely builds a big one. Against Neural Cat, whose wins are worth about 1,800 points, and Jorge Yau, whose are worth about 400, the same waiting costs wins and deals into big hands. Points first was the right goal, measured at the wrong table.
+- **The judge is also noisier than it looked.** Head to head on 20,000 deals, one standard error was about 2.6 points a hand, and LP3c, LP5a and LP8b were each kept about one standard error ahead of the last without clearly beating lc32. Judging on 40,000 deals (from round 9) brought that to about 1.8, but it couldn't fix the table.
+
+**What changed.** The lab now trains and judges Lucky Cat at the game's table (`LC_TABLE` in `scripts/ml/lab.js`):
+- **Training:** one learner seat; the other three are drawn from Neural Cat (two in three) and Jorge Yau, with no earlier selves.
+- **Judging:** `lucky.js eval --table neural-cat,jorge-yau,neural-cat` seats the candidate and the champion alone at that table, each in every seat in turn, on the same 40,000 deals, paired deal by deal (one standard error about 3.5 points a hand).
+- **A fresh start from lc32**, with new names (LT models, `lctab` data); the head-to-head rounds are kept as LP models and `ml/lab-lucky-cat-points-h2h/`.
+
 
 - **What a model optimizes is what you get.** Neural Cat scores choices in expected points and learned bigger hands. Lucky Cat scores wins and learned faster, smaller ones. Neither is "better" in general: Neural Cat scores more points, and Lucky Cat wins more hands.
 - **Building on rules gets far faster than starting from scratch.** Neural Cat was ahead of the rule bots from its first model, because it chooses among Jorge Yau's best options. Lucky Cat needed a million hands to learn what the rules already knew, but it isn't limited by them.

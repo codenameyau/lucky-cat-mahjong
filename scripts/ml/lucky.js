@@ -23,6 +23,11 @@
              how fast, and points. With two strategies it also reports the
              paired points gap (the first's points a hand less the
              second's, deal by deal) and its standard error.
+             --table a,b,c seats each strategy of --lineup alone at a table
+             of those three instead, in every seat in turn, on the same
+             deals: the game's table (the lab judges Lucky Cat this way,
+             since beating its own kind head to head can mean bigger hands
+             that don't pay against Neural Cat and Jorge Yau).
    league    rounds of generate, train (ml/train_lucky.py), and eval of
              the new model against the best so far. The new model is kept
              when it wins more hands than the best at the same table; each
@@ -296,8 +301,37 @@ async function evalWork(job) {
   // The paired gap: per deal, the first strategy's points a seat-hand less the second's.
   const pair = { n: 0, sum: 0, sq: 0 };
   const two = job.lineup.length === 2 && job.lineup[0] !== job.lineup[1];
+  const record = (o, res, s, game) => {
+    o.seats++;
+    o.points += res.deltas[s];
+    if (res.type !== 'win') return;
+    if (res.winner === s) {
+      o.wins++;
+      o.winPoints += res.deltas[s];
+      o.winDiscards += game.hand.seats[s].discards.length;
+      o.winFaan += (res.score && res.score.faan) || 0;
+      if (res.how === 'selfDraw') o.selfDraws++;
+    } else if (res.payer === s) o.dealIns++;
+  };
   for (let d = job.from; d < job.to; d++) {
     let gap = 0;
+    if (job.table) {
+      // --table: each strategy of the lineup takes one seat, in turn every
+      // seat, at the same table on the same deal; the gap is its points
+      // there less the other's, so only their choices differ.
+      for (let k = 0; k < 4; k++) {
+        for (const id of job.lineup) {
+          const others = job.table.slice();
+          const ids = [0, 1, 2, 3].map((s) => (s === k ? id : others.shift()));
+          const game = E.createGame({ seed: job.seed + d, humanSeat: false, dealer: d % 4, startPoints: 1e9 });
+          const res = await E.runHand(game, ids.map((x) => opponent(x).createBotAgent()));
+          record((out[id] = out[id] || { seats: 0, wins: 0, points: 0, dealIns: 0, winDiscards: 0, winFaan: 0, selfDraws: 0, winPoints: 0 }), res, k, game);
+          if (two) gap += (id === job.lineup[0] ? 1 : -1) * res.deltas[k] / 4;
+        }
+      }
+      if (two) { pair.n++; pair.sum += gap; pair.sq += gap * gap; }
+      continue;
+    }
     for (const r of rot) {
       const ids = r.map((k) => job.lineup[k % job.lineup.length]);
       const game = E.createGame({ seed: job.seed + d, humanSeat: false, dealer: d % 4, startPoints: 1e9 });
@@ -327,7 +361,9 @@ async function evaluate(a) {
   const lineup = String(a.lineup).split(',');
   const deals = parseInt(a.deals || 2000, 10), workers = workerCount(a);
   const per = Math.ceil(deals / workers), jobs = [];
-  for (let k = 0; k < workers; k++) if (k * per < deals) jobs.push({ mode: 'eval', lineup, seed: parseInt(a.seed || 3100000, 10), from: k * per, to: Math.min(deals, (k + 1) * per) });
+  const table = a.table ? String(a.table).split(',') : null;
+  if (table && table.length !== 3) throw new Error('--table needs three strategies, e.g. neural-cat,jorge-yau,neural-cat');
+  for (let k = 0; k < workers; k++) if (k * per < deals) jobs.push({ mode: 'eval', lineup, table, seed: parseInt(a.seed || 3100000, 10), from: k * per, to: Math.min(deals, (k + 1) * per) });
   const parts = await Promise.all(jobs.map((job) => new Promise((resolve, reject) => {
     const child = fork(__filename, ['--worker'], { stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
     child.on('message', (m) => { if (m.error) reject(new Error(m.error)); else resolve(m.stats); child.kill(); });
