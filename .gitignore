@@ -157,3 +157,5 @@ ml/loop5/
 # Tuning screens and rule-bot comparisons (npm run compete --json)
 ml/tune/
 ml/pairs/
+# The lab: state, evaluations and benchmarks (npm run ml:lab)
+ml/lab/

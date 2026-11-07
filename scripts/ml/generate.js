@@ -224,7 +224,7 @@ async function main() {
   const pool = args.pool ? String(args.pool).split(',') : null;
   const lineup = !args.lineup || args.lineup === 'mix' ? 'mix' : String(args.lineup).split(',');
   const models = (pool || []).concat(lineup === 'mix' ? [] : lineup).filter((id) => /^ml:/.test(id));
-  const known = S.ids().concat(S.ids().indexOf(ML_ID) !== -1 ? [] : [ML_ID])
+  const known = S.ids().concat(S.labIds()).concat(S.ids().indexOf(ML_ID) !== -1 ? [] : [ML_ID])
     .concat(models.filter((id, k) => models.indexOf(id) === k));
   if (lineup !== 'mix' && lineup.length !== 4) throw new Error('--lineup needs four strategy ids, or "mix"');
   (lineup === 'mix' ? (pool || known) : lineup).forEach((id) => {

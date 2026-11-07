@@ -293,7 +293,8 @@ Neural Cat's network is trained on simulated hands. How the whole AI layer works
 | --- | --- |
 | `npm run ml:generate` | Plays simulated hands across worker threads and writes training data to `ml/data/<name>/` |
 | `npm run ml:train` | Trains a model on that data with PyTorch (`ml/train.py`; set up with `python3 -m venv ml/.venv && ml/.venv/bin/pip install -r ml/requirements.txt`; on Windows with an NVIDIA GPU, run `ml\setup-windows.ps1`, see [training](docs/machine-learning/training.md#windows-with-an-nvidia-gpu)) and checks the JS model gives the same outputs. `--ship` writes `js/mahjong-ml-weights.js` |
-| `npm run ml:league` | The league: rounds of models playing only other models, each new model kept and shipped if it beats the best head to head. State in `ml/league/` |
+| `npm run ml:lab` | The lab, how Neural Cat is trained now: each round plays 50,000 deals against varied opponents, tries several experiments (retraining, wider networks, how the model plays), keeps one only on a clear gain on 20,000 fresh deals, and learns which experiments pay. State in `ml/lab/` |
+| `npm run ml:league` | The league that came before the lab (it plateaued after L7). State in `ml/league/` |
 | `npm run ml:hf -- --repo codenameyau/lucky-cat-mahjong` | Uploads each new best model and the model card to Hugging Face. `--watch` keeps going until the league is done |
 | `npm run ml:hf-data -- --repo codenameyau/lucky-cat-mahjong-games --publish` | Only when the maintainer explicitly asks: uploads the training data in use to the Hugging Face dataset and drops what no model uses. Without `--publish` it uploads nothing |
 | `node scripts/ml/prune-data.js --apply` | Moves training data no model uses from `ml/data/` to the Trash (the league does this after every round) |

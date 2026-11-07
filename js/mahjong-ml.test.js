@@ -111,6 +111,26 @@ describe('ML model', () => {
 });
 
 describe('Neural Cat strategy', () => {
+  it('plays with the settings in its own weights (meta.play), unless told otherwise', async () => {
+    const J = require('./mahjong-jorge-yau.js');
+    const W = require('./mahjong-ml-weights.js');
+    const own = ML.create({ weights: Object.assign({}, W, { meta: Object.assign({}, W.meta, { play: { topK: 1 } }) }), claims: false });
+    const game = () => E.createGame({ seed: 3, humanSeat: false, dealer: 0, startPoints: 1e9 });
+    const play = async (a) => { const g = game(); await E.runHand(g, [a, J.createBotAgent(), J.createBotAgent(), J.createBotAgent()]); return g.hand.seats[0].discards.map((d) => d.tile).join(); };
+    assert.equal(await play(own.createBotAgent()), await play(J.createBotAgent()));
+    // An option still wins over the weights' own setting.
+    const told = ML.create({ weights: Object.assign({}, W, { meta: Object.assign({}, W.meta, { play: { topK: 1 } }) }), topK: 3 });
+    assert.ok(told.analyzeDiscards(dealt(23), 0).candidates.slice(0, 3).every((x) => x.ml.choice));
+  });
+
+  it('leans toward winning more often with a win bonus', () => {
+    const big = ML.create({ model: ML.model, topK: 0, winBonus: 100000 }).analyzeDiscards(dealt(23), 0).candidates;
+    const p = big.map((x) => x.ml.pWin);
+    assert.deepEqual(p, p.slice().sort((a, b) => b - a));
+    // The coach still shows expected points.
+    assert.ok(big.every((x) => Math.abs(x.ml.ev) < 10000));
+  });
+
   it('throws the discard the model values most, and says why', () => {
     const game = dealt(23);
     const res = ML.analyzeDiscards(game, 0);

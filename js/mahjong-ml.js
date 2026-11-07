@@ -19,7 +19,7 @@
    (Jorge Yau's).
 
    create({ id, base, model, weights, topK, temperature, epsilon, rng,
-            claims, claimMargin, fast })
+            claims, claimMargin, winBonus, fast })
    builds another copy, e.g. with exploration for training data:
      base         the strategy it builds on (default jorge-yau; null = the
                   shared foundation alone)
@@ -32,6 +32,9 @@
      claims       false leaves claims and kongs to the base strategy
      fast         read only the discards it picks from, and skip `why`
                   (the same choices, for simulations)
+     winBonus     points added for each 100% of win chance when choosing
+                  (default 0): above 0 it leans toward winning more often,
+                  at some cost in points. Shown values stay expected points.
      claimMargin  points the model's claim or kong choice must beat the
                   base strategy's by (default CLAIM_MARGIN)
    Until trained weights ship in js/mahjong-ml-weights.js, the model is
@@ -130,10 +133,18 @@
     var temperature = options.temperature || 0;
     var epsilon = options.epsilon || 0;
     var rng = options.rng || Math.random;
-    var topK = options.topK != null ? options.topK : TOP_K;
+    // Play settings: an option, else the model's own (meta.play, set by
+    // the lab when it trains or tunes a model), else the defaults.
+    function setting(name, dflt) {
+      if (options[name] != null) return options[name];
+      var play = getModel().meta && getModel().meta.play;
+      return play && play[name] != null ? play[name] : dflt;
+    }
+    // What a choice is worth when choosing: its expected points, plus the
+    // win bonus for its chance to win.
+    function value(ml) { return ml.ev + setting('winBonus', 0) * ml.pWin; }
     var claims = options.claims !== false;
     var fast = !!options.fast;
-    var claimMargin = options.claimMargin != null ? options.claimMargin : CLAIM_MARGIN;
 
     // Exploring: a random discard that costs no step (epsilon), or one of
     // the discards the model picks from, by value (temperature).
@@ -144,8 +155,8 @@
         return ranked.indexOf(pool[Math.floor(rng() * pool.length)]);
       }
       if (!temperature) return 0;
-      var top = ranked[0].ml.ev;
-      var w = ranked.slice(0, k0).map(function (x) { return Math.exp((x.ml.ev - top) / temperature); });
+      var top = value(ranked[0].ml);
+      var w = ranked.slice(0, k0).map(function (x) { return Math.exp((value(x.ml) - top) / temperature); });
       var r = rng() * w.reduce(function (s, v) { return s + v; }, 0);
       for (var k = 0; k < w.length; k++) { r -= w[k]; if (r <= 0) return k; }
       return 0;
@@ -154,6 +165,7 @@
     function rerank(out, ctx, counts, game, seat, threats, folding) {
       var state = F.prepare(game, seat, ctx, threats, bot, counts);
       // The model picks among the foundation's best few; the rest keep its order.
+      var topK = setting('topK', TOP_K);
       var k0 = topK > 0 ? Math.min(topK, out.length) : out.length;
       out.forEach(function (x, k) {
         if (fast && k >= k0) return; // only the ones it picks from
@@ -162,7 +174,7 @@
         x.ml.order = k; // where the foundation put it
       });
       out.forEach(function (x, j) { if (x.ml) x.ml.choice = j < k0; }); // among the discards the model picks from
-      var ranked = out.slice(0, k0).sort(function (p, q) { return q.ml.ev - p.ml.ev || p.ml.order - q.ml.order; })
+      var ranked = out.slice(0, k0).sort(function (p, q) { return value(q.ml) - value(p.ml) || p.ml.order - q.ml.order; })
         .concat(out.slice(k0));
       // Between tied honors the shared order still decides (honorTieOrder):
       // the model weighs everything else.
@@ -201,14 +213,14 @@
     function pickChoice(choices, at) {
       if (epsilon && rng() < epsilon) return Math.floor(rng() * choices.length);
       if (temperature) {
-        var w = choices.map(function (x) { return Math.exp((x.ml.ev - choices[at].ml.ev) / temperature); });
+        var w = choices.map(function (x) { return Math.exp((value(x.ml) - value(choices[at].ml)) / temperature); });
         var r = rng() * w.reduce(function (a, v) { return a + v; }, 0);
         for (var k = 0; k < w.length; k++) { r -= w[k]; if (r <= 0) return k; }
         return at;
       }
       var top = 0;
-      choices.forEach(function (x, k) { if (x.ml.ev > choices[top].ml.ev) top = k; });
-      return choices[top].ml.ev > choices[at].ml.ev + claimMargin ? top : at;
+      choices.forEach(function (x, k) { if (value(x.ml) > value(choices[top].ml)) top = k; });
+      return value(choices[top].ml) > value(choices[at].ml) + setting('claimMargin', CLAIM_MARGIN) ? top : at;
     }
 
     function sameDecision(a, b) {

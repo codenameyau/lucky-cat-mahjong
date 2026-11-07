@@ -30,9 +30,9 @@ python3 scripts/serve.py 8080   # then open http://localhost:8080/play-mahjong/
 # Measure: the shipped model against the rule bots.
 npm run compete -- --lineup neural-cat,jorge-yau,lucky-cat,jorge-yau --deals 1000
 
-# Train: set up Python once, then run league rounds (models against models).
+# Train: set up Python once, then run lab rounds (experiments, kept only on clear gains).
 python3 -m venv ml/.venv && ml/.venv/bin/pip install -r ml/requirements.txt
-npm run ml:league -- --start ml/models/s5.json --rounds 20 --deals 50000 --keep 8
+npm run ml:lab -- --rounds 10
 ```
 
 ## At a glance
