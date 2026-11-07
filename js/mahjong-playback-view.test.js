@@ -368,6 +368,24 @@ test('a playback that reaches its last move shows its results, with Watch again 
   assert.match(GAME_SRC, /button\('Close', cx/);
 });
 
+test('auto-play (the wind badge, with the coach on) is for local and private-network addresses only', () => {
+  // The address check, run on its own.
+  const src = /function isLocalHost\(host\) \{[\s\S]*?\n  \}\n/.exec(GAME_SRC)[0];
+  const isLocalHost = new Function(src + '; return isLocalHost;')();
+  ['localhost', '127.0.0.1', '[::1]', '192.168.1.50', '192.168.0.12', '10.0.0.7', '172.16.4.2', '172.31.255.1', 'mac.local', 'app.localhost', 'lucky.test']
+    .forEach((h) => assert.equal(isLocalHost(h), true, h));
+  ['luckycatmahjong.com', 'www.luckycatmahjong.com', '192.169.1.1', '172.32.0.1', '172.15.0.1', '11.0.0.1', '8.8.8.8', 'evil-192.168.1.1.com', '']
+    .forEach((h) => assert.equal(isLocalHost(h), false, h));
+  // It matches the pages' analytics check, so "local" means the same thing everywhere.
+  const analytics = /var localHost = \/(.+)\/i\.test\(location\.hostname\);/.exec(fs.readFileSync(path.join(ROOT, 'playing-mahjong/index.html'), 'utf8'));
+  const sameAsAnalytics = new RegExp(analytics[1], 'i');
+  ['localhost', '127.0.0.1', '192.168.1.50', '10.0.0.7', '172.20.1.1', 'mac.local', 'luckycatmahjong.com', '192.169.1.1']
+    .forEach((h) => assert.equal(isLocalHost(h), sameAsAnalytics.test(h), 'same as analytics: ' + h));
+  // The badge toggles it only with the coach on, and never in a playback or the lesson.
+  assert.match(GAME_SRC, /return localDev\(\) && !settings\.review && !settings\.playback && !settings\.lesson && ui\.coach !== 'off'/);
+  assert.match(GAME_SRC, /if \(autoPlay \|\| canAutoPlay\(\)\) \{ toggleAutoPlay\(\); return; \}\n      copySeed\(\);/);
+});
+
 test('the playback bar opens the View playback sheet, and its rows play, download and upload', () => {
   const game = fs.readFileSync(path.join(ROOT, 'playing-mahjong/index.html'), 'utf8');
   assert.match(game, /<dialog id="playbacks-sheet"/);
@@ -383,9 +401,17 @@ test('the playback bar opens the View playback sheet, and its rows play, downloa
   // Icon buttons, named for screen readers; each row says when its hand finished.
   assert.match(row, /play\.innerHTML = ICON_PLAY/);
   assert.match(row, /down\.innerHTML = ICON_DOWNLOAD/);
+  // Copy hand seed sits between Play and Download and copies payload.handSeed.
+  assert.match(row, /copy\.innerHTML = ICON_COPY/);
+  assert.match(row, /String\(entry\.file\.payload\.handSeed/);
+  assert.match(row, /copyText\(seedText\)/);
+  assert.ok(row.indexOf('li.appendChild(play)') < row.indexOf('li.appendChild(copy)') && row.indexOf('li.appendChild(copy)') < row.indexOf('li.appendChild(down)'), 'Play, Copy hand seed, Download');
+  // Download's tooltip is read after its disabled state is set.
+  assert.ok(row.indexOf('down.disabled = ') < row.indexOf("down.setAttribute('data-tip'"), 'the tooltip knows if Download is disabled');
   assert.match(row, /setAttribute\('aria-label', 'Play '/);
-  assert.match(row, /'Finished ' \+ lower\(E\.playbackWhen\(ended/);
-  assert.match(row, /'Uploaded ' \+ lower\(E\.playbackWhen\(entry\.savedAt\)\)/);
+  // A time nobody kept is left out, never shown as "earlier".
+  assert.match(row, /finished && finishedAt != null\) times\.push\('Finished ' \+ lower\(E\.playbackWhen\(finishedAt\)\)\)/);
+  assert.match(row, /kind === 'upload' && entry\.savedAt != null\) times\.push\('Uploaded ' \+ lower\(E\.playbackWhen\(entry\.savedAt\)\)\)/);
   const build = GAME_SRC.slice(GAME_SRC.indexOf('function buildPlaybacks'), GAME_SRC.indexOf('var replayFileInput'));
   assert.match(build, /up \? \[up\] : \[\]/, 'at most one uploaded row');
 });

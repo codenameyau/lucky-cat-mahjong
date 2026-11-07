@@ -648,7 +648,11 @@ html.is-playing.is-sideways body {
 }
 
 .playbacks-btn[data-tip]:hover::after,
-.playbacks-btn[data-tip]:focus-visible::after { opacity: 1; }
+.playbacks-btn[data-tip]:focus-visible::after,
+.playbacks-btn.is-copied::after { opacity: 1; }
+
+/* Copy hand seed turns green with a check for a moment once it has copied. */
+.playbacks-btn.is-copied { border-color: #7bd88f; background: #1f6b3c; }
 
 /* The last button on a row keeps its tooltip inside the sheet. */
 .playbacks-btn:last-child[data-tip]::after { left: auto; right: 0; transform: none; }

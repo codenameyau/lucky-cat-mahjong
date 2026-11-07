@@ -151,6 +151,8 @@ Every button is tracked except the tiles and the buttons that play a move (Win, 
 | `play_playback_back_click`, `play_playback_list_click` | Back, and Saved playbacks (the bar's button, or the one in the center with no hand loaded) | |
 | `play_playback_list_play`, `play_playback_list_download` | In the Saved playbacks sheet: Play or Download on a row | `kind`: `recent` or `upload` |
 | `play_playback_upload_click` | Upload playback, in the Saved playbacks sheet | |
+| `play_playback_list_copy_seed` | Copy hand seed on a row of the Saved playbacks sheet | `kind`: `recent` or `upload` |
+| `play_autoplay` | Your wind badge turned auto-play on or off (development addresses only, which send no analytics) | `on`: true or false |
 | `play_playback_results` | A playback reached its last move and showed the hand's results | `result`: `win` or `draw` |
 | `play_playback_coach_note_click` | A coach note, jumping to its move | |
 

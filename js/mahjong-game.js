@@ -2726,7 +2726,17 @@
       var ptsPx = 13;
       windBadge(seat, x + r, y + r, r);
       if (seat === 0 && !settings.review) {
-        addRegion(x, y, 2 * r, 2 * r, copySeed, 'my-wind', true);
+        addRegion(x, y, 2 * r, 2 * r, onMyWind, 'my-wind', true);
+        // Auto-play on (localhost): a steady gold ring round your wind.
+        if (autoPlay) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(x + r, y + r, r + 3, 0, Math.PI * 2);
+          ctx.strokeStyle = COLORS.gold;
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+          ctx.restore();
+        }
         // The flash after copying the seed: the badge lights up gold, and a
         // ring spreads out as it fades.
         var f = ui.windFlash;
@@ -3641,6 +3651,85 @@
       var text = pendingCopy;
       pendingCopy = null;
       copyText(text).then(function () {}, function () {});
+    }
+
+    /* Auto-play, for testing on localhost only: with the coach on, clicking
+       your wind badge has the coach's strategy play your moves (each one
+       through the same buttons and animations as a click), hand after hand,
+       until it is clicked again or the coach is turned off. Anywhere else,
+       and with the coach off, the badge copies the hand seed as usual. */
+    var autoPlay = false;
+    var autoTimer = null;
+    var autoAgents = {};
+    function localDev() {
+      return isLocalHost((root.location && root.location.hostname) || '');
+    }
+
+    function canAutoPlay() {
+      return localDev() && !settings.review && !settings.playback && !settings.lesson && ui.coach !== 'off';
+    }
+
+    function onMyWind() {
+      if (autoPlay || canAutoPlay()) { toggleAutoPlay(); return; }
+      copySeed();
+    }
+
+    function toggleAutoPlay() {
+      autoPlay = !autoPlay;
+      sound.play('select');
+      clearTimeout(autoTimer);
+      var coachName = Strategies.get(ui.strategies.coach).name;
+      announce(autoPlay ? 'Auto-play on: ' + coachName + ' plays your moves. Click your wind to stop.' : 'Auto-play off.');
+      track('play_autoplay', { on: autoPlay });
+      if (autoPlay) autoStep();
+      requestRender();
+    }
+
+    function coachAgent() {
+      var id = ui.strategies.coach;
+      if (!autoAgents[id]) autoAgents[id] = Strategies.createAgent(id);
+      return autoAgents[id];
+    }
+
+    // The next move, a moment after the prompt appears, so each one can be seen.
+    function autoStep() {
+      clearTimeout(autoTimer);
+      if (!autoPlay) return;
+      if (!canAutoPlay()) { autoPlay = false; announce('Auto-play off.'); requestRender(); return; }
+      autoTimer = setTimeout(autoMove, instantMode() ? 30 : 650);
+    }
+
+    function autoMove() {
+      autoTimer = null;
+      if (!autoPlay || destroyed || !game || !game.hand) return;
+      if (!canAutoPlay()) { autoPlay = false; requestRender(); return; }
+      // The hand's results: on to the next hand after a look (the last hand's end stops it).
+      if (ui.overlay && ui.overlay.type === 'summary' && !ui.overlay.playback) {
+        if (game.over) { autoPlay = false; requestRender(); return; }
+        autoTimer = setTimeout(function () {
+          if (autoPlay && ui.overlay && ui.overlay.type === 'summary') nextHand();
+        }, instantMode() ? 50 : 1800);
+        return;
+      }
+      if (ui.overlay) return; // the menu, say: wait for it to close
+      var turn = ui.turnPrompt, claim = ui.claimPrompt;
+      if (!turn && !claim) return;
+      var agent = coachAgent();
+      Promise.resolve(turn ? agent.turn(game, 0, turn.opts) : agent.claim(game, 0, claim.opts)).then(function (d) {
+        if (!autoPlay || destroyed || !d) return;
+        if (turn && ui.turnPrompt === turn) {
+          if (d.type === 'discard') {
+            var idx = myHandOrder().tiles.indexOf(d.tile);
+            if (idx < 0) return;
+            ui.selected = idx;
+            discardSelected(false);
+          } else {
+            resolveTurn(d);
+          }
+        } else if (claim && ui.claimPrompt === claim) {
+          resolveClaim(d);
+        }
+      }, function () {});
     }
 
     function copySeed() {
@@ -4736,6 +4825,7 @@
         ui.overlay = o;
         overlayResolve = resolve;
         requestRender();
+        if (autoPlay) autoStep();
       });
     }
 
@@ -4890,6 +4980,8 @@
       var next = COACH_ORDER[(COACH_ORDER.indexOf(ui.coach) + 1) % COACH_ORDER.length];
       ui.coach = next;
       saveSetting('coach', next);
+      // Auto-play follows the coach: turning it off stops it.
+      if (autoPlay && next === 'off') { autoPlay = false; clearTimeout(autoTimer); announce('Auto-play off.'); }
       refreshHint();
       L = computeLayout(); // phones show or hide the coach's bar or column
       requestRender();
@@ -5827,6 +5919,7 @@
             sound.play('turn');
             announce(lessonLine || ui.notice || 'Your turn. Pick a tile to discard.');
             requestRender();
+            if (autoPlay) autoStep();
           });
         },
         claim: function (g, seat, opts) {
@@ -5844,6 +5937,7 @@
             sound.play('turn');
             announce(lessonLine || ui.notice);
             requestRender();
+            if (autoPlay) autoStep();
           });
         },
       };
@@ -5964,6 +6058,8 @@
     // The row buttons are icons: their names are in aria-label, and a tooltip
     // (data-tip, drawn by css/play.css) shows them on hover or keyboard focus.
     var ICON_PLAY = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>';
+    var ICON_COPY = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15"/></svg>';
+    var ICON_CHECK = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
     var ICON_DOWNLOAD = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg>';
 
     function playbackRow(entry, mark, kind) {
@@ -5987,8 +6083,10 @@
       var ended = check.ok ? check.record.endedAt : null;
       var finished = check.ok && E.playbackFinished(check.record);
       var times = [];
-      if (finished) times.push('Finished ' + lower(E.playbackWhen(ended != null ? ended : (kind === 'upload' ? null : entry.savedAt))));
-      if (kind === 'upload') times.push('Uploaded ' + lower(E.playbackWhen(entry.savedAt)));
+      // A time nobody kept (a file from before times were) isn't shown at all.
+      var finishedAt = ended != null ? ended : (kind === 'upload' ? null : entry.savedAt);
+      if (finished && finishedAt != null) times.push('Finished ' + lower(E.playbackWhen(finishedAt)));
+      if (kind === 'upload' && entry.savedAt != null) times.push('Uploaded ' + lower(E.playbackWhen(entry.savedAt)));
       when.textContent = [sum.hand].concat(times).filter(Boolean).join(' · ') + (showing ? ' · Showing now' : '');
       info.appendChild(name);
       info.appendChild(when);
@@ -6006,13 +6104,41 @@
         closePlaybacks();
         loadPlaybackText(entry.file, mark);
       });
+      // Copy hand seed, between Play and Download: the hand's seed (such as
+      // 919942249-NE) on the clipboard, the same text your wind badge copies.
+      var seedText = check.ok && entry.file.payload ? String(entry.file.payload.handSeed || '') : '';
+      var copy = document.createElement('button');
+      copy.type = 'button';
+      copy.className = 'playbacks-btn playbacks-copy';
+      copy.innerHTML = ICON_COPY;
+      copy.setAttribute('data-tip', 'Copy hand seed');
+      copy.disabled = !seedText;
+      copy.setAttribute('aria-label', 'Copy hand seed for ' + sum.hand + ', ' + sum.result);
+      var copiedTimer = null;
+      copy.addEventListener('click', function () {
+        sound.play('select');
+        track('play_playback_list_copy_seed', { kind: kind });
+        copyText(seedText).then(function () {
+          // "Copied" shows even without a hover (a phone), then goes back.
+          copy.classList.add('is-copied');
+          copy.innerHTML = ICON_CHECK;
+          copy.setAttribute('data-tip', 'Copied');
+          announce('Copied hand seed ' + seedText + '.');
+          clearTimeout(copiedTimer);
+          copiedTimer = setTimeout(function () {
+            copy.classList.remove('is-copied');
+            copy.innerHTML = ICON_COPY;
+            copy.setAttribute('data-tip', 'Copy hand seed');
+          }, 1500);
+        }, function () { announce('Could not copy the hand seed.'); });
+      });
       var down = document.createElement('button');
       down.type = 'button';
       down.className = 'playbacks-btn playbacks-download';
       down.innerHTML = ICON_DOWNLOAD;
-      down.setAttribute('data-tip', down.disabled ? 'Download opens once the hand is finished' : 'Download');
       // Only a finished hand's file is saved: an unfinished one holds the whole deal.
       down.disabled = !check.ok || !E.playbackFinished(check.record);
+      down.setAttribute('data-tip', down.disabled ? 'Download opens once the hand is finished' : 'Download');
       down.setAttribute('aria-label', 'Download ' + sum.hand + ', ' + sum.result);
       down.addEventListener('click', function () {
         sound.play('select');
@@ -6020,6 +6146,7 @@
         saveFile(entry.file, entry.savedAt);
       });
       li.appendChild(play);
+      li.appendChild(copy);
       li.appendChild(down);
       return li;
     }
@@ -7370,6 +7497,9 @@
         requestRender();
       },
       get suspended() { return suspended; },
+      // Your wind badge's click (auto-play on localhost with the coach on; else copy the seed).
+      clickMyWind: function () { if (!destroyed) onMyWind(); },
+      get autoPlay() { return autoPlay; },
       // The menu's View playback, for this hand.
       viewPlayback: function () { if (!destroyed && !settings.playback) viewReplay(); },
       // The playback bar's View playback: the sheet of recent hands and the upload.
@@ -7382,6 +7512,8 @@
       },
       destroy: function () {
         destroyed = true;
+        autoPlay = false;
+        clearTimeout(autoTimer);
         if (strategyToastTimer) clearTimeout(strategyToastTimer);
         stopReviewPlay();
         if (reviewCoachTimer) { clearTimeout(reviewCoachTimer); reviewCoachTimer = null; }
@@ -7786,7 +7918,16 @@
     });
   }
 
-  var api = { createTable: createTable, init: init };
+  // A development address: this computer, or a private network (a phone on
+  // the local wifi, say). The same set the pages' analytics skip, so testing
+  // adds no events: localhost, 127.x.x.x, ::1, 10.x.x.x, 192.168.x.x,
+  // 172.16-31.x.x, and .local, .localhost and .test names. Auto-play is for
+  // these only.
+  function isLocalHost(host) {
+    return /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local|.+\.localhost|.+\.test)$/i.test(String(host || ''));
+  }
+
+  var api = { createTable: createTable, init: init, isLocalHost: isLocalHost };
   root.MahjongGame = api;
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
