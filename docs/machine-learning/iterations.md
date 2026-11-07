@@ -1,6 +1,6 @@
 # Iterations
 
-How each Neural Cat and Lucky Cat model came to be, how it plays differently from the one before it, and what each step taught. Every release of a Neural Cat or Lucky Cat model adds its iterations here and to the GitHub release notes (see [each release](#documenting-a-release)).
+How each Neural Cat, Lucky Cat and Only Orphans model came to be, how it plays differently from the one before it, and what each step taught. Every release of a Neural Cat or Lucky Cat model adds its iterations here and to the GitHub release notes (see [each release](#documenting-a-release)).
 
 **How to read this.** A model has no stated reasons: it scores choices with a network. So "what it does differently" below is measured, from the evaluation each model plays against the best before it (`ml/league/eval-<name>-vs-best.json`: the same deals, the two models two seats each). The reason a change happened is the training that produced it, and where the numbers hint at why, it says so as a reading, not a fact. The coach's text for a single decision is the only place the model explains itself.
 
@@ -10,7 +10,7 @@ Every score here is **points a hand**: one player's average points per hand less
 
 | | Neural Cat | Lucky Cat |
 | --- | --- | --- |
-| In the game | **NC3** (lab model N2b) | **LC21** (lab model LP2b, from LC20) |
+| In the game | **NC3** (lab model N2b) | **LC32** (lab model LL26b) |
 | What it is | A network that scores Jorge Yau's best choices in expected points | A network that makes every move itself, with no rules underneath |
 | What it plays for | Points: often and big wins on one scale | Points first, wins second (LC20 and before: wins, as many and as fast as it can) |
 | Trained on | 950,000 league hands (stopped in round 19, at a plateau), and earlier rounds against the rule bots | 1,000,000 league hands against its earlier selves and Neural Cat, then 100,000 lab hands against Neural Cat, Jorge Yau and its last two champions, every hand weighted by its points |
@@ -361,7 +361,140 @@ Against Neural Cat, over 1,000 deals each round:
 - **Points stay close between its own versions.** LC20 beats its older selves by +0.2 to +27.1 points a hand, because every version wins cheap hands. Its progress shows in wins, not points.
 - **It needs no rules to play well.** Lucky Cat has no steps-from-ready count, plans or threat reads. It learned all of that from its wins, and the fair-play test checks it too.
 
-### LC21: points first, wins second
+### LC21 (lab model LL1a): the first lab champion
+
+- **Thinking.** The league kept a new model whenever it won more hands than the best over 2,000 deals, where the win-rate margin is about ±1 point. That's enough to see the league's big early gains, but not the half-point steps near the end. So Lucky Cat moved to the lab: the same rule as Neural Cat's, a clear gain over 20,000 new deals (about ±0.4 points of win rate), with several fine-tunes tried each round. Its first lab round played 50,000 hands with lc20 against lc17, lc18, lc19, Neural Cat (two seats' worth) and Jorge Yau. Jorge Yau and the newer Neural Cat were new to it: the league's tables were only itself and NC1. It then tried three fine-tunes of lc20 on that round's 153,016 winning moves: at its usual rate (`finetune`), on a longer window (`long`, the same with one round of data so far), and with sharper targets (`sharp`, label smoothing 0.01).
+- **What it does differently.** Against lc20 over 20,000 deals, it wins 20.5% of its seats to 19.0%, in the same 16.7 discards a win and at the same 4.8 faan, and deals in a little less (14.0% against 14.3%). Against Neural Cat NC2 it wins 19.1% of hands to lc20's 18.3%.
+- **Reading.** One round against new opponents (Jorge Yau's rule-based play, and NC2) taught it something its own league couldn't, with the same network and learning rate as the league used. The gain is in how often it finishes a hand, not how fast or how big, so it's likely in which hands it chases and when it stops feeding others, not in speed. Its points against Neural Cat didn't move (−137 a hand): wins this small still lose to Neural Cat's bigger hands.
+- **Result.** J +1.5 (hands won) ± 0.39 at 95%, beyond its standard error: kept, and shipped as **lc21**. `sharp` matched it on the first 6,000 deals (+1.5). `long` was the same model as `finetune` until there's more than one lab round of data.
+
+### LC22 (lab model LL2b): only the newest games
+
+- **Thinking.** Round 2 played 50,000 hands with lc21 against lc18, lc19, lc20, Neural Cat and Jorge Yau, then tried three fine-tunes of lc21 on 318,444 winning moves: at 3x the learning rate (`finetune-fast`), at a third (`finetune-slow`), and on the last two rounds only (`recent`, here the same two lab rounds, with the league's older data left out).
+- **What it does differently.** Against lc21 over 20,000 new deals it wins 21.2% of its seats to 19.5%, in the same 16.6 discards a win, and deals in less (14.5% against 15.0%). Against Neural Cat NC2 it wins 20.7% of hands (lc21 19.1%), and loses 122 points a hand to it, against lc21's 137.
+- **Reading.** Two lab rounds in a row each gained about 1.5 points of win rate, after the league's last rounds gained less than half a point each. Both rounds' data came from tables with Jorge Yau and the newer Neural Cat in them, so the opponents, not a new kind of training, look like what changed. `finetune-slow` was almost as good (+1.6 on 20,000 deals), and `finetune-fast` was the weakest (+0.4 on 6,000), so smaller steps from the champion work best for Lucky Cat so far.
+- **Result.** J +1.7 ± 0.39: kept, and shipped as **lc22**.
+
+### LC23 (lab model LL3a): recent data again
+
+- **Thinking.** Round 3 played 50,000 hands with lc22 against lc19, lc20, lc21, Neural Cat and Jorge Yau. The lab favoured `recent` after it won round 2, and tried it again, with `finetune-slow` and `sharp`.
+- **What it does differently.** Against lc22 over 20,000 new deals it wins 21.8% of its seats to 20.0%, in the same 16.4 discards a win. Against lc20 over 10,000 deals it wins 22.8% to 18.2%. Against Neural Cat NC2 it wins 22.2% of hands and loses 116 points a hand (lc20: 18.3% and 138).
+- **Reading.** The gains add up: the three lab steps were +1.5, +1.7 and +1.9 points of win rate, and lc23 against lc20 directly is +4.5. So it isn't only learning to beat its last self. `recent`, training on the newest two rounds only, won both rounds it was tried, ahead of `finetune-slow` (+0.2 on 6,000 deals) and `sharp` (+1.3 on 20,000, also beyond the noise). Fresh games against the current table matter more than more data.
+- **Result.** J +1.9 ± 0.40: kept, and shipped as **lc23**.
+
+### LC24 (lab model LL5b): sharper targets
+
+- **Thinking.** Round 4 played 50,000 hands with lc23 and tried plain `finetune`, `long` (the last 10 rounds) and `finetune-fast`: all three lost to lc23 on 6,000 deals (J −0.3, −0.3 and −0.8), and it stayed champion. Round 5 played 50,000 more hands against lc20, lc21, lc22, Neural Cat NC2 and Jorge Yau, then tried `recent`, `sharp` (label smoothing 0.01 instead of the usual, so the network commits harder to the move that won) and `finetune-slow`.
+- **What it does differently.** Against lc23 over 20,000 new deals it wins 21.9% of its seats to 20.7%, in 16.4 discards a win to 16.2: a little slower, about as many more wins. Against lc20 over 10,000 deals it wins 23.8% to 17.6%. Against Neural Cat NC2 it wins 22.8% of hands and loses 98 points a hand to it (lc23: 22.2% and 116, lc20: 18.3% and 138).
+- **Reading.** The gains are shrinking: +1.5, +1.7, +1.9, then a round with nothing, then +1.1. `recent` tied `sharp` on 20,000 deals (J +1.1 each), so fresh data still helps, but the round-to-round step is now about the size of the noise on 6,000 deals (± 0.73). Its biggest gain is against Neural Cat: 18 points a hand less lost, more than any step before it, though on 5,000 deals that number is noisy. If the next rounds keep nothing, the lab needs something new for Lucky Cat, not another fine-tune.
+- **Result.** J +1.1 ± 0.40: kept, and shipped as **lc24**.
+
+### LC25 (lab model LL7b): sharper targets, two rounds on
+
+- **Thinking.** Round 6 played 50,000 hands with lc24 and tried `finetune`, `long` and `finetune-fast`. `finetune` and `long` were the same model, since the lab has fewer than 10 rounds of data. `finetune-fast` (LL6c) beat lc24 by J +0.5 ± 0.40 on 20,000 deals: the lab kept it, since its bar is half the margin, but that's too close to ship. Round 7 played 50,000 hands with LL6c against LL2b, LL3a, LL5b, Neural Cat NC2 and Jorge Yau, then tried `recent` (+1.1 on 6,000 deals), `sharp` and `finetune-slow` (+1.1 on 20,000).
+- **What it does differently.** Against lc24 directly over 20,000 new deals it wins 22.7% of hands to 20.8%, in about the same 16.2 discards a win, and deals in a little less (16.1% against 16.5%). Against lc20 over 10,000 deals it wins 24.7% to 17.3%. Against Neural Cat NC2 it wins 24.4% of hands, Neural Cat's lowest yet at 8.9%, and loses 89 points a hand to it (lc24: 98).
+- **Reading.** `sharp` has now won two of the three rounds it was tried: targets with less smoothing make the network commit to the move that won, and the gain held up against lc24 directly, not only against LL6c. Two rounds of fine-tuning in a row gained more than either alone, so a marginal champion is still a good place to train from, even if it isn't one to ship.
+- **Result.** J +1.3 ± 0.40 against LL6c, and +1.8 ± 0.40 against lc24: shipped as **lc25**.
+
+### LC26 (lab model LL9b): the same two-step again
+
+- **Thinking.** Round 8 played 50,000 hands with lc25 and tried `long` (now 8 rounds of data), `finetune` and `finetune-fast`, all about level on 6,000 deals (J +0.1 to +0.2). `long` (LL8a) beat lc25 by +0.8 ± 0.41 on 20,000 deals, but it was the better of the two picked for that test, and on a second 20,000 deals it was only +0.3: kept by the lab, not shipped. Round 9 played 50,000 hands with LL8a against LL5b, LL6c, LL7b, Neural Cat NC2 and Jorge Yau, then tried `recent`, `sharp` and `finetune-slow` (J +0.6 to +0.8 on 6,000 deals, +0.5 and +0.7 on 20,000 for the top two).
+- **What it does differently.** Against lc25 directly over 20,000 new deals it wins 22.9% of hands to 21.6%, in 16.0 discards a win, deals in a little less (16.5% to 16.9%), and wins slightly bigger (5.03 faan to 4.96). Against lc20 over 10,000 deals it wins 25.5% to 17.0%. Against Neural Cat NC2 it wins 25.3% of hands, holds Neural Cat to 8.5%, and loses 83 points a hand to it (lc25: 89).
+- **Reading.** The pattern from lc25 repeats: a round whose gain is too small to ship, then a `sharp` round on top of it, and together they clear the bar. Single rounds now gain under a point of win rate, so the lab can't tell a round's winner from noise on 6,000 deals (± 0.74); it takes the 20,000-deal tests and a check against the shipped release. `sharp` has won three of the four rounds it was tried.
+- **Result.** J +0.7 ± 0.41 against LL8a, and +1.2 ± 0.41 against lc25 on a separate 20,000 deals: shipped as **lc26**.
+
+### LC27 (lab model LL11a): recent data, two rounds on
+
+- **Thinking.** Round 10 played 50,000 hands with lc26 and tried `long` (now all 10 rounds, J −0.3 on 6,000 deals), `finetune` and `finetune-fast`. `finetune` (LL10b) beat lc26 by +0.4 ± 0.41 on 20,000 deals: kept by the lab, not shipped. Round 11 played 50,000 hands with LL10b against LL7b, LL8a, LL9b, Neural Cat NC2 and Jorge Yau, then tried `recent`, `sharp` and `finetune-slow` (J +0.4 to +0.7 on 6,000 deals).
+- **What it does differently.** Against lc26 directly over 20,000 new deals it wins 23.5% of hands to 21.4%, in about the same 15.9 discards a win, and deals in less (16.7% to 17.4%). Against lc20 over 10,000 deals it wins 26.5% to 16.6%. Against Neural Cat NC2 it wins 25.9% of hands (lc26: 25.3%) but loses 87 points a hand to it (lc26: 83), within the noise of 5,000 deals.
+- **Reading.** The two-round pattern held a third time, and with `recent` this time, not `sharp`: the arm matters less than training twice in a row from the newest champion on the newest games. The biggest change is fewer deal-ins against its own kind. Against Neural Cat the win rate still rises but the points have stopped improving, so lc27 wins Lucky Cat's small hands more often without stopping Neural Cat's big ones. The lab's J for Lucky Cat counts only wins, so it can't see that.
+- **Result.** J +0.8 ± 0.41 against LL10b, and +2.1 ± 0.41 against lc26 on a separate 20,000 deals: shipped as **lc27**.
+
+### LC28 (lab model LL13a): fewer points to Neural Cat
+
+- **Thinking.** Round 12 played 50,000 hands with lc27 and tried `long`, `finetune` and `finetune-fast`: none beat it (the best, `finetune`, was −0.3 on 20,000 deals). Round 13 played 50,000 more against LL8a, LL9b, LL10b, Neural Cat NC2 and Jorge Yau, and tried `recent`, `sharp` and `finetune-slow`. `recent` (LL13a) beat lc27 by +0.6 ± 0.41 on 20,000 deals and by +0.9 ± 0.41 on a separate 20,000. That's small, so it was held a round to see whether a second step would add to it, as it had for lc25, lc26 and lc27. Round 14 kept nothing, so LL13a shipped.
+- **What it does differently.** Against lc27 over 20,000 new deals it wins 23.2% of hands to 22.2%, at the same 15.8 discards a win, and deals in a little less (17.2% to 17.4%). Against lc20 over 10,000 deals it wins 26.7% to 16.6%. Against Neural Cat NC2 it wins 27.1% of hands, holds Neural Cat to 8.2%, and loses 74 points a hand to it (lc27: 87), the biggest drop of any lab step.
+- **Reading.** Against its own kind the gain is the smallest yet, but against Neural Cat it's the largest, which lc27 didn't show. Points against Neural Cat on 5,000 deals swing by about ±30 between runs (measured at lc30), so both lc27's flat result and lc28's drop are mostly noise. Taken together, the last two steps cut 9 points a hand from what Neural Cat takes. `recent` has now won three rounds, and the other fine-tunes (`long`, `finetune`, `finetune-fast`) haven't won since round 10. Two of the last three rounds kept nothing. The lab is close to a plateau for Lucky Cat.
+- **Result.** J +0.6 ± 0.41 against lc27, confirmed at +0.9 ± 0.41 on a separate 20,000 deals: shipped as **lc28**.
+
+### LC29 (lab model LL17c): four rounds for one small step
+
+- **Thinking.** Round 15 kept `recent` (LL15a) by +0.7 on the lab's 20,000 deals, but on a separate 20,000 against lc28 it won exactly as many hands (22.85% each): the lab's pick of the better of two had been noise. Round 16 kept nothing. Round 17 played 50,000 hands with LL15a against LL10b, LL11a, LL13a, Neural Cat NC2 and Jorge Yau, and kept `finetune-slow` (LL17c, +0.8). Round 18 kept nothing, so LL17c shipped.
+- **What it does differently.** Against lc28 directly over 20,000 new deals it wins 23.3% of hands to 22.6%, at the same 15.7 discards a win, and deals in a little less (17.4% to 17.8%). Against lc20 over 10,000 deals it wins 27.2% to 16.4%. Against Neural Cat NC2 it wins 27.5% of hands, holds Neural Cat to 8.0%, and loses 65 points a hand to it (lc28: 74).
+- **Reading.** Four rounds and 200,000 hands bought +0.7 points of win rate against its own kind, where rounds 1 to 3 bought about +1.7 each. The lab's fine-tunes have run out of easy gains for Lucky Cat: it needs a new idea, not another round (see the critique that follows). The steady drop in points lost to Neural Cat (138 a hand at lc20, 65 now) is the one trend that hasn't slowed.
+- **Result.** J +0.8 ± 0.41 against LL15a, and +0.7 ± 0.41 against lc28 on a separate 20,000 deals: shipped as **lc29**.
+
+### Critique: where the Lucky Cat lab stalled, and what's next
+
+Eighteen lab rounds took Lucky Cat from lc20 to lc29: 16.4% of hands to 27.2% when they meet, and 138 points a hand lost to Neural Cat down to 65. But the steps shrank from about +1.7 points of win rate a round (rounds 1 to 3) to +0.7 over rounds 15 to 18. What the lab got right, what it got wrong, and what changes:
+
+- **It only learns from wins.** Every training sample is a move from a hand the learner won. A deal-in is never seen: the network learns what winners did, never what losers did wrong. Deal-ins fell anyway (lc29 deals in on 14.9% of hands to lc20's 17.7% when they meet), but only as a side effect of playing faster. **Next:** the discard that dealt in is written as a negative sample, and training pushes its probability down (an unlikelihood term, weighted below the wins), so the network learns from its worst moves too.
+- **Every arm is the same network.** All six arms fine-tune the same 256-128 network: different learning rates and windows of data, nothing that changes what the network can represent. Fine-tunes now differ by less than the noise. **Next:** a `wide` arm (512-256), trained from scratch on the last 10 rounds, as Only Orphans already tries.
+- **Two arms were the same model.** `long` (10 rounds) and `finetune` (6) used the same data until round 10, so two of the three candidates were often one model, and round 6 judged the same network twice.
+- **The first test is too small.** Its 6,000 deals give ± 0.75, larger than any round's gain since round 9. And picking the better of two on 20,000 deals inflates the winner: round 15's +0.7 was level with lc28 on a separate 20,000. Since then, every Lucky Cat champion is checked against the shipped release on a separate 20,000 deals before it ships, and ships only beyond the full margin.
+- **What worked.** Fresh games against the current table (`recent`) and sharper targets (`sharp`) won 8 of the 13 champions, and training on from a champion too marginal to ship often paid off one round later (lc25, lc26, lc27). The lab's J for Lucky Cat counts wins only, yet points lost to Neural Cat kept falling: winning more often is how Lucky Cat cuts Neural Cat's share.
+
+### LC30 (lab model LL19b): a wider network
+
+- **Thinking.** The first round of the rebuilt lab. Round 19 played 50,000 hands with lc29, writing each move that dealt in (12,375 of them, beside 253,572 winners' moves), and tried the three new arms: `deal-ins-strong` (fine-tune on the last 2 rounds with deal-ins at weight 1, J 0.0), `deal-ins` (weight 0.3, +0.2, then 0.0 on 20,000 deals) and `wide`, a 512-256 network trained from scratch on the last 10 rounds with deal-ins at weight 0.3 (+0.3, then +0.6 on 20,000). Round 20 kept nothing: `wide` from scratch again was −0.3, and both deal-in fine-tunes failed to start, because they built a 256-128 network to load the new 512-256 champion into. The trainer now keeps the shape of the model it starts from.
+- **What it does differently.** Against lc29 directly over a separate 20,000 deals it wins 23.2% of hands to 22.8%, in 15.6 discards a win to 15.7, with the same deal-ins (17.7%). Against lc20 over 10,000 deals it wins 27.7% to 16.0%. Against Neural Cat NC2 it wins 27.4% to 27.8% of hands over 15,000 deals, about what lc29 does, and loses about as many points.
+- **Reading.** A network twice as wide, trained once from scratch on 10 rounds, matched and slightly beat 19 rounds of fine-tuning. That points at the 256-128 network as part of the plateau. The deal-in fine-tunes cut deal-ins a little (17.4% to 17.7% for the strong one against lc29 on 10,000 deals) without winning more, so far. The wide network is now the champion, so the next rounds fine-tune it: the deal-in arms on it are the real test.
+- **Result.** J +0.6 ± 0.41 against lc29, confirmed at +0.5 ± 0.41 on a separate 20,000 deals: shipped as **lc30**.
+
+### LC31 (lab model LL22b): learning from its deal-ins
+
+- **Thinking.** With the trainer fixed to keep the wide network's shape, round 21 tried all three new arms on lc30, and all three beat it on 6,000 deals: `deal-ins` (weight 0.3) +1.4, `deal-ins-strong` (weight 1) +1.0, `wide` from scratch +0.9. `deal-ins-strong` (LL21c) won on 20,000 deals, +0.7, and on a separate 20,000 against lc30 it won 23.3% of hands to 22.8% and dealt in on 17.3% to 18.0%. Small, so it was held. Round 22 trained on from it: `deal-ins` (LL22b) +0.2, kept, and the two steps together shipped. Each fine-tune trained on 510,405 moves from the last two rounds, 24,995 of them moves that dealt in.
+- **What it does differently.** Against lc30 directly over a separate 20,000 deals it wins 23.6% of hands to 22.6%, in about the same 15.7 discards a win, and deals in on 17.5% of hands to 18.0%. Against lc20 over 10,000 deals it wins 28.0% to 15.9% and deals in on 14.8% to 18.2%. Against Neural Cat NC2 over 15,000 deals it wins 28.1% of hands to lc30's 27.7% and loses 75 points a hand to lc30's 80, both within the noise, and doesn't deal in less (13.5% to 13.2%).
+- **Reading.** The first change of the rebuild that does what it was built for: pushing down the moves that dealt in cut deal-ins against its own kind by half a point, beyond the noise, and the hands it stopped giving away became wins. Against Neural Cat it didn't, so far: Neural Cat's hands are slow and big and look different, and the moves that dealt in were mostly into other Lucky Cats (the learner takes two of the four seats in every training deal, and its earlier selves often a third). The `wide` network from scratch was level with the fine-tunes both rounds, so the 512-256 network now has room the old one didn't.
+- **Result.** J +0.7 and +0.2 on the lab's 20,000 deals, and +0.9 ± 0.41 against lc30 on a separate 20,000: shipped as **lc31**.
+
+### LC32 (lab model LL26b): deal-ins again
+
+- **Thinking.** Round 23 kept nothing. Round 24 kept `finetune-slow` (LL24b, +0.6), but on a separate 20,000 deals it won exactly as often as lc31 and dealt in more (18.1% to 17.7%), so it didn't ship. Round 25 trained on from it with `deal-ins` (LL25c, +0.2; +0.5 ± 0.41 against lc31 on a separate 20,000), held a round, and round 26's `deal-ins-strong` (LL26b, +0.3) built on it. `wide` from scratch and `finetune-fast` lost both rounds (−0.4 to −1.7).
+- **What it does differently.** Against lc31 directly over a separate 20,000 deals it wins 23.5% of hands to 22.7%, at about the same 15.6 discards a win, and deals in on 17.6% to 17.9%. Against lc20 over 10,000 deals it wins 28.7% to 15.3% and deals in on 14.3% to 18.4%. Against Neural Cat NC2, on the same 15,000 deals as lc31's test, it wins 28.7% of hands to lc31's 28.1%, holds Neural Cat to 7.5% (lc31: 7.9%), deals in on 13.2% (lc31: 13.5%), and loses 72 points a hand to lc31's 75.
+- **Reading.** In the six rounds since lc30, all four kept models that held up came from the deal-in arms (LL21c, LL22b, LL25c, LL26b), and every arm that ignores deal-ins (`recent`, `sharp`, `finetune-slow`, `finetune-fast`, `long`, `wide` from scratch) lost or tied. Against Neural Cat it now deals in a little less too, the first step to do so, though by less than the noise on 15,000 deals. Each shipped step still takes two rounds of about +0.4.
+- **Result.** J +0.2 and +0.3 on the lab's 20,000 deals, and +0.8 ± 0.41 against lc31 on a separate 20,000: shipped as **lc32**.
+
+## Only Orphans
+
+Only Orphans keeps fixed rules (only 1s, 9s and honors, no chows) and lets a network, the same model as Neural Cat's, choose everything else in expected points. Its league (`scripts/ml/orphans.js`) made O1 to O5 against the rule-based bot it replaced: O5 beat that bot by +37.6 ± 22 points a hand and shipped (round by round: [only-orphans-training.md](../strategies/only-orphans-training.md)). From O5 it moved to the lab (`npm run ml:lab -- --strategy only-orphans`), judged by J = points a hand + 5 × hands won (in percentage points). The rule-based bot plays each round's deals as the baseline.
+
+### OL2c: more triplet hands
+
+- **Thinking.** Lab round 1, against NC1, the newer Jorge Yau and LC20, kept nothing: the wider network (`wide`) led on 6,000 deals but fell to J +5.1 on 20,000 (points +4.0 ± 15.6), within the noise. Round 2 played 50,000 hands with O5 against the game's new table (NC2, lc23, Jorge Yau) and O2 and O3, then tried a third of the learning rate (`finetune-slow`, J −6.6), a deeper network from scratch (`deep`, +29.1 on 6,000 deals, then +7.1 on 20,000, within the noise), three times the learning rate (`finetune-fast`), and claim margins of −25 and +25 (0.0 and +6.7). `finetune-fast` trained O5 on 3,457,210 positions from the league's five rounds and the lab's two.
+- **What it does differently.** Against O5 on the same 20,000 deals, it wins 2.2% of its hands to 1.9% (1,767 wins to 1,560) and deals in just as often (11.1%). The extra wins are Mixed Orphans in triplets: 848 Mixed Orphans to 679, and 710 All Triplets to 535, while Thirteen Orphans stayed level (724 to 718). It pungs more (0.52 a hand to 0.48), kongs more (5,458 to 5,106) and self-draws more (463 to 377). Each win is a little smaller (9.8 faan to 10.0, about 6,000 points to 6,700), but more wins add up to more points: 49.1 a hand to O5's 42.5.
+- **Reading.** A larger step from O5 on games against the stronger table taught it to take more orphan pungs and settle for the triplet hands earlier, where O5 kept chasing Thirteen Orphans. It deals in on about 11% of hands, against the rule bot's 4.6%, but on cheap hands, so in points its deal-ins cost about the same as the rule bot's (see the plateau below).
+- **Result.** J +8.0 on 20,000 fresh deals (points +6.7 ± 15.4), beyond its standard error: kept, and shipped as **OL2c**. Against the rule-based bot on those deals: +26.8 ± 14.8 points a hand.
+
+### The plateau after OL2c (lab rounds 3 to 6)
+
+Four rounds in a row kept nothing, so the lab stopped to look at what it does badly.
+
+**The evidence.**
+
+| Round | Best on 6,000 deals | On 20,000 deals | OL2c against the rule bot (6,000 deals) |
+| ---: | --- | --- | ---: |
+| 3 | deep +4.3 | +1.2 (points +2.8 ± 15.0) | +42.0 ± 27 |
+| 4 | claimMargin−25 +5.6, winBonus+150 +2.0 | 0.0, +0.9 | +23.4 ± 28 |
+| 5 | claimMargin+25 +3.4, finetune +1.6 | +4.9 (points +6.0 ± 15.5), +1.9 | +43.5 ± 27 |
+| 6 | claimMargin+25 +7.0, finetune-slow +3.7 | +1.6, −6.5 | +29.8 ± 28 |
+
+- **The noise is wider than the gains.** On 20,000 deals the 95% margin was about ±15 points a hand. The candidates sent there averaged J +3.9 on their first 6,000 deals and +0.6 on the 20,000: picking the best of five on ±28 mostly picks luck. OL2c's own score against the rule bot swung from +23 to +44 between rounds, with nothing changed. A limit hand pays up to 24,576 points, so this strategy's points swing more than Neural Cat's.
+- **The margins ignored that both models play the same deals.** The lab added the two runs' margins as if they were independent. Measured deal by deal (OL2c against O5, 3,000 deals), the two runs correlate at 0.28, and the paired margin is about 15% narrower: ±30 against ±36. For a play setting that changes only a few choices, the gap is far bigger: on 300 deals, `winBonus+150` was ±5 paired, where the independent margin would be about ±60.
+- **One arm could never change anything.** A claim is the model's only when it's worth more than the base strategy's pass, so a negative claim margin never changes a choice. `claimMargin−25` played exactly like the champion all three times it was tried, and used a candidate's slot each time.
+- **Training drifts back to fewer, bigger hands.** All 12 networks trained in rounds 3 to 6 won fewer hands than OL2c (1.6–2.2% against 2.2–2.4%), with bigger average wins (5,900–8,400 points against 5,700–6,200), and lost: J −5.8 on average. That held even for `recent` in round 6, trained only on OL2c's own games, so it isn't the league's old data. OL2c had gained by going the other way: more wins, smaller.
+- **Deal-ins weren't the weak spot.** OL2c deals in more than twice as often as the rule bot (11.1% of hands against 4.6%), but on cheap hands (216 points each against 506), so its deal-ins cost about the same: 23.9 points a hand against 23.3. Its whole lead is in what it wins: 132.6 points a hand against the rule bot's 103.4. Lucky Cat's fix, training on each move that dealt in as a negative example, doesn't apply here either: Lucky Cat learns which move to copy, and this network already learns the chance of dealing in as one of its outcomes.
+
+**What changed** (`scripts/ml/lab.js`, Only Orphans only; `scripts/competition.js --per-deal`):
+
+1. **Paired margins.** Each Only Orphans evaluation writes its points on every deal, and the margin of a difference is read from the per-deal differences, for candidates, the champion and the rule bot alike.
+2. **40,000 deals for the long evaluation**, against 20,000. With pairing, the 95% margin is about ±8 points a hand, against ±15 before: a candidate needs about +4 to be kept, against +8.
+3. **`claimMargin−25` is gone**, replaced by `claimMargin+50`. `claimMargin+25`, the next step up, averaged J +3.0 over four tries and cut deal-ins each time.
+4. **A training arm against the drift**, `finetune-wins`: a fine-tune whose play then leans toward winning (winBonus +300). The lab's arm choice will show whether it pays.
+
+The lab's first round after the change is round 7, from OL2c.
+
+### Points first (LP2b): the new objective, not shipped
 
 **The thinking.** LC20 got what it was rewarded for: wins, fast. Its hands were cheap (4 to 5 faan) and its losses taught it nothing, so it never learned what a deal-in costs, and it lost about 103 points a hand to Jorge Yau on 20,000 deals. The goal now is points first and wins second, learned on its own, so the reward had to be the points:
 
@@ -374,15 +507,15 @@ Against Neural Cat, over 1,000 deals each round:
 | Round | Experiments (6,000 deals, points a hand against the champion) | Best on 20,000 fresh deals | Kept |
 | --- | --- | ---: | --- |
 | 1 | pg-2 +8.4, pg-fast −0.6, pg-sqrt −7.9 | pg-2 +2.3 ± 2.5 | no |
-| 2 | awr +8.0, pg-clip +2.4, pg-all −4.2, pg −3.5 | **awr +6.9 ± 2.5**, pg-clip +5.4 ± 2.3 | **LP2b, shipped as LC21** |
+| 2 | awr +8.0, pg-clip +2.4, pg-all −4.2, pg −3.5 | **awr +6.9 ± 2.5**, pg-clip +5.4 ± 2.3 | **LP2b** |
 | 3 | awr +3.9, pg-clip +0.2, pg-2 −3.2, pg-wins −4.6 | awr −4.2 ± 2.4 | no |
 | 4 | pg-wins −0.2, pg −0.5, pg-fast −4.1, pg-all −9.0 | none ahead | no |
 
-Round 1's policy-gradient steps on one round of data were within the noise. In round 2, with two rounds (50,000 deals) of LC20's play, both AWR and the clipped policy gradient cleared the bar, and AWR by more. Rounds 3 and 4 trained from LC21 on its own data and LC20's, and nothing beat it: two rounds without a gain, so the lab stopped there (100,000 deals in all). By the bandit's record, `awr` and `pg-clip` are the arms that have paid; `pg-all` (four rounds, mostly an older champion's play) and `pg-sqrt` the ones that haven't.
+Round 1's policy-gradient steps on one round of data were within the noise. In round 2, with two rounds (50,000 deals) of LC20's play, both AWR and the clipped policy gradient cleared the bar, and AWR by more. Rounds 3 and 4 trained from LP2b on its own data and LC20's, and nothing beat it: two rounds without a gain, so the lab stopped there (100,000 deals in all). By the bandit's record, `awr` and `pg-clip` are the arms that have paid; `pg-all` (four rounds, mostly an older champion's play) and `pg-sqrt` the ones that haven't.
 
-**What it does differently.** Replayed against LC20 on 20,000 deals neither had played in the lab, LC21 scores **+4.0 ± 2.3** points a hand (the lab's own 20,000 said +6.9 ± 2.5; keeping the best of several flatters it):
+**What it does differently.** Replayed against LC20 on 20,000 deals neither had played in the lab, LP2b scores **+4.0 ± 2.3** points a hand (the lab's own 20,000 said +6.9 ± 2.5; keeping the best of several flatters it):
 
-| LC21 against | Points a hand | Hands won | Deal-ins | Average win | Faan a win |
+| LP2b against | Points a hand | Hands won | Deal-ins | Average win | Faan a win |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | LC20, fresh deals | +4.0 ± 2.3 | 20.0% vs 19.4% | 14.0% vs 14.2% | 162 vs 151 | 4.86 vs 4.80 |
 | LC20, the lab's deals | +6.9 ± 2.5 | 19.7% vs 19.5% | 13.9% vs 14.1% | 170 vs 147 | 4.87 vs 4.80 |
@@ -391,6 +524,9 @@ Round 1's policy-gradient steps on one round of data were within the noise. In r
 - **More points, not fewer wins.** It wins as often as LC20, and its wins are worth about 8–15% more. Against Jorge Yau it gains about 15 points a hand on the same deals, all from bigger wins (166 points a win to 153); it deals in just as often there.
 - **A small step.** It is still a fast player of 4 to 5 faan hands. Most of what separates it from Jorge Yau (wins worth more than twice as much, and a third fewer deal-ins) is still to learn.
 - **What it taught:** with a noisy reward, data counts more than the size of the step. The bigger policy-gradient step (`pg-fast`) and the square root of the points (`pg-sqrt`) did no better, and the gains came once there were 50,000 deals of the champion's own play to learn from.
+
+**Status.** This ran in parallel with the lab rounds above, from LC20, and was merged after LC32 shipped. LC32 stays in the game; LP2b is kept in `ml/models/` for benchmarking. The points-first trainer and judge are now the lab's for Lucky Cat: its next rounds start from LC32 and are kept only when they score more points a hand. LP2b has not been played against LC32.
+
 
 ## What the two show together
 

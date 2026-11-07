@@ -1,14 +1,14 @@
-# lucky-cat: a network that taught itself to play for points
+# lucky-cat: a network that taught itself to win
 
 **Lucky Cat** (`js/mahjong-lucky-cat-ml.js`, network in `js/mahjong-lucky-cat-net.js`, weights in `js/mahjong-lucky-cat-weights.js`) is a neural network that makes every move itself. It is not built on the shared foundation (`js/mahjong-bot.js`) the other strategies use: it has no steps-from-ready count, no plans, no threat reads and no claim rules. What it knows, it learned from playing.
 
 ## How it thinks
 
-It doesn't plan a hand. Each turn it looks at what its seat can see and the network gives every legal move a share (a discard of each kind of tile, each kong, or on a claim: pass, each chow, pung or kong). The biggest share is played. What looks like a plan is a habit it found.
+It doesn't plan a hand. Each turn it looks at what its seat can see and the network gives every legal move a share (a discard of each kind of tile, each kong, or on a claim: pass, each chow, pung or kong). The biggest share is played. What looks like a plan is a habit it found, because it learned only from the hands it won, the quicker the win the more.
 
-**Higher-scoring hands first, more wins second.** Its first models (up to LC20) learned only from the hands they won, the quicker the win the more, so they learned fast, cheap wins and nothing about what a deal-in costs. Since LC21 it learns from every hand it plays, won or lost, by the points the hand paid it. A move from a hand that scored better than usual gets more likely, and a move from a hand that cost it (a deal-in, or a cheap win that gave up a bigger one) less. Winning counts only as far as it pays: a win is worth its points, no more.
+So it values speed over size: it wins often and in few discards, mostly with small hands of 4 to 5 faan, and it deals in more often than [Neural Cat](neural-cat.md), which wins about half as many hands but with bigger ones. The coach says how often the network plays its move and the next most likely one.
 
-So far that has moved it a little, not a lot. LC21 wins as often as LC20, but its wins are bigger (about 160 to 170 points a win against 150) and it deals in a little less against its old self. It is still a fast player of 4 to 5 faan hands, and it still deals in more often than [Neural Cat](neural-cat.md) or Jorge Yau, whose hands are worth more. The coach says how often the network plays its move and the next most likely one.
+Its goal is to win as many hands as it can, as fast as it can. Points count for only a little. It takes the risks that have won it hands before, so its wins can look lucky when they are learned.
 
 The rules it replaced are still in the game as **Lucky Cat Classic** (`js/mahjong-lucky-cat.js`, a lab strategy: not on the Strategies sheet, but `npm run compete` and `npm run review` can play it as `lucky-cat-classic`). They are written out from [The classic rules](#the-classic-rules) on. The coach still uses their reads of the hand (plans, waits, threats) for its words.
 
@@ -42,13 +42,54 @@ Illegal moves are masked out, and the move with the biggest share is played. A w
 
 4. **Then it plays Neural Cat.** Once the best model wins 10% of its seats against the model before it, Neural Cat (the latest shipped model) takes a third of the opponent seats in every round after. Each round's new model then also plays Neural Cat over 1,000 deals in both seat orders, for the record. Being kept still means beating its own best.
 
-The league runs 20 rounds of 50,000 hands, a million hands in all. Its log and state are in `ml/lucky/` (not committed). That made LC20.
+The league runs 20 rounds of 50,000 hands, a million hands in all. Its log and state are in `ml/lucky/` (not committed).
 
-5. **Then it learns to score (LC21 on).** The lab (`npm run ml:lab -- --strategy lucky-cat`, [how it works](../machine-learning/training.md#lucky-cat-points-first)) plays the champion, exploring (its shares sharpened to temperature 0.5), in two seats against its last two champions, Neural Cat and Jorge Yau, 25,000 deals a round. Every hand its seats play is kept, won or lost, with the points the hand paid. Training makes the moves of hands that scored better than average more likely and the rest less, by the points: a 1,000-point deal-in teaches far more than a 30-point win. Each experiment is judged against the champion head to head, points first (J = points a hand + 0.5 × hands won, in percentage points), and kept only if its points a hand beat the champion's by more than their standard error on 20,000 fresh deals.
+5. **Since lc21, the lab.** After the league, Lucky Cat trains in the lab (`npm run ml:lab -- --strategy lucky-cat`, [how it works](../machine-learning/training.md#the-lab-for-only-orphans-and-lucky-cat---strategy)), like Neural Cat and Only Orphans. Each round plays 50,000 hands against its last three champions, Neural Cat and Jorge Yau, then tries several fine-tunes: at three learning rates, on 2, 6 or 10 rounds of data, and with sharper targets. Since lc29 the data also holds each move that dealt in, and two arms train it down, so Lucky Cat learns from the hands it lost that way, not only from its wins; a third arm tries a wider network. A candidate first plays the champion over 6,000 deals. The best two then play 20,000 new deals, and one replaces the champion only if it wins more hands by more than its standard error. The lab's models are named LL&lt;round&gt;&lt;letter&gt;, and each champion ships under the next lc number.
 
 ## Results
 
-The league ran 20 rounds of 50,000 deals each: 1,000,000 hands. 18 of the 20 new models beat the best before them and were kept. lc13 and lc16 were not. The shipped model is lc20.
+### The lab
+
+| Release | Lab model | Against | Hands won | Discards per win | Deal-ins | Faan a win |
+|---|---|---|---|---|---|---|
+| lc21 | LL1a (fine-tune of lc20 on round 1) | lc20, 20,000 deals | **20.5%** vs 19.0% (± 0.4) | 16.7 vs 16.7 | 14.0% vs 14.3% | 4.85 vs 4.82 |
+| lc22 | LL2b (fine-tune of lc21 on rounds 1–2 only) | lc21, 20,000 deals | **21.2%** vs 19.5% (± 0.4) | 16.6 vs 16.5 | 14.5% vs 15.0% | 4.91 vs 4.84 |
+| lc23 | LL3a (fine-tune of lc22 on rounds 2–3 only) | lc22, 20,000 deals | **21.8%** vs 20.0% (± 0.4) | 16.4 vs 16.4 | | |
+| lc24 | LL5b (fine-tune of lc23 with sharper targets, smoothing 0.01) | lc23, 20,000 deals | **21.9%** vs 20.7% (± 0.4) | 16.4 vs 16.2 | | |
+| lc25 | LL7b (sharper targets again, from LL6c, a fine-tune of lc24) | lc24, 20,000 deals | **22.7%** vs 20.8% (± 0.4) | 16.2 vs 16.1 | 16.1% vs 16.5% | 4.98 vs 4.94 |
+| lc26 | LL9b (sharper targets a third time, from LL8a, a fine-tune of lc25 on 10 rounds) | lc25, 20,000 deals | **22.9%** vs 21.6% (± 0.4) | 16.0 vs 15.9 | 16.5% vs 16.9% | 5.03 vs 4.96 |
+| lc27 | LL11a (the last 2 rounds only, from LL10b, a fine-tune of lc26) | lc26, 20,000 deals | **23.5%** vs 21.4% (± 0.4) | 15.9 vs 15.8 | 16.7% vs 17.4% | 5.02 vs 5.01 |
+| lc28 | LL13a (fine-tune of lc27 on the last 2 rounds only) | lc27, 20,000 deals | **23.2%** vs 22.2% (± 0.4) | 15.8 vs 15.8 | 17.2% vs 17.4% | 5.03 vs 5.02 |
+| lc29 | LL17c (a third of the learning rate, from LL15a, a fine-tune of lc28) | lc28, 20,000 deals | **23.3%** vs 22.6% (± 0.4) | 15.7 vs 15.7 | 17.4% vs 17.8% | 5.05 vs 5.02 |
+| lc30 | LL19b (a wider network, 512-256, trained from scratch on the last 10 rounds) | lc29, 20,000 deals | **23.2%** vs 22.8% (± 0.4) | 15.6 vs 15.7 | 17.7% vs 17.7% | 5.01 vs 5.03 |
+| lc31 | LL22b (fine-tunes of lc30 that push down the moves that dealt in, two rounds) | lc30, 20,000 deals | **23.6%** vs 22.6% (± 0.4) | 15.7 vs 15.6 | **17.5%** vs 18.0% | 5.02 vs 5.02 |
+| **lc32** | LL26b (more fine-tunes that push down the moves that dealt in, from lc31) | lc31, 20,000 deals | **23.5%** vs 22.7% (± 0.4) | 15.6 vs 15.5 | **17.6%** vs 17.9% | 5.02 vs 5.00 |
+
+Round 4 kept nothing: its three fine-tunes all lost to lc23 on 6,000 deals. Round 5 kept `sharp`. Round 6 kept LL6c (`finetune-fast`) by only +0.5 ± 0.4, too close to ship, and round 7 trained on from it and kept `sharp` again. Round 8 kept LL8a (`long`), +0.3 against lc25 on a second 20,000 deals, too close to ship. Round 9 trained on from it and kept `sharp` a third time. Round 10 kept LL10b (`finetune`) by +0.4 ± 0.4, and round 11 trained on from it and kept `recent`. Round 12 kept nothing. Round 13 kept `recent` again, +0.6 on the lab's 20,000 deals and +0.9 on a separate 20,000, and round 14 kept nothing, so it shipped. Round 15 kept LL15a, level with lc28 on a separate 20,000 deals. Round 16 kept nothing. Round 17 kept `finetune-slow` (+0.7 against lc28 on a separate 20,000 deals), and round 18 kept nothing, so it shipped. Then the lab was rebuilt (see [the critique](../machine-learning/iterations.md#critique-where-the-lucky-cat-lab-stalled-and-whats-next)): round 19 kept a wider network trained from scratch (+0.5 against lc29 on a separate 20,000 deals), and round 20 kept nothing, so it shipped. Rounds 21 and 22 fine-tuned it with deal-ins pushed down (`deal-ins-strong`, then `deal-ins`), and the two steps together shipped. Rounds 23 and 24 gave nothing to ship. Rounds 25 and 26 fine-tuned with deal-ins again (`deal-ins`, then `deal-ins-strong`), and the two together shipped.
+
+lc32 against lc20, the league's last model, over 10,000 deals: **28.7%** of hands won to 15.3%, +14.9 points a hand, in 16.3 discards a win, and deals in on 14.3% of hands to lc20's 18.4% (lc31: 28.0% to 15.9%). The steps add up.
+
+Each against Neural Cat NC2, over the same 5,000 deals in both seat orders (lc32, lc31 and lc30 also over another 15,000: lc32 28.7% and −71.8, lc31 28.1% and −75.3, lc30 27.7% and −79.7):
+
+| | Hands won | Neural Cat wins | Points per hand |
+|---|---|---|---|
+| lc30 | 27.4% | 8.4% | −97.1 |
+| **lc29** | **27.5%** | 8.0% | **−64.7** |
+| lc28 | 27.1% | 8.2% | −73.8 |
+| lc27 | 25.9% | 8.8% | −86.5 |
+| lc26 | 25.3% | 8.5% | −83.2 |
+| lc25 | 24.4% | 8.9% | −89.3 |
+| lc24 | 22.8% | 9.3% | −98.0 |
+| lc23 | 22.2% | 9.4% | −116.0 |
+| lc22 | 20.7% | 9.5% | −122.3 |
+| lc21 | 19.1% | 9.8% | −137.1 |
+| lc20 | 18.3% | 9.8% | −137.7 |
+
+Each lab champion wins about 1.5 to 2 more hands in 100 than the one before it at its own table, at the same speed and size. Against Neural Cat, lc29 and lc30 win about 9 more hands in 100 than lc20. Points a hand against Neural Cat are noisy, about ± 30 on 5,000 deals, because its wins are big: on another 10,000 deals lc30 lost 85 a hand and lc29 94, the other way round, so over the 15,000 the two are level (lc30 −89, lc29 −84). The steady trend from lc20's −138 is real; a single step's change in points is not. It still loses points to Neural Cat: it wins small. It still loses points to Neural Cat: it wins small.
+
+### The league
+
+The league ran 20 rounds of 50,000 deals each: 1,000,000 hands. 18 of the 20 new models beat the best before them and were kept. lc13 and lc16 were not. Its last model was lc20.
 
 Each round's new model played the best before it over 2,000 deals, every deal in both seat orders:
 
@@ -87,20 +128,20 @@ Neural Cat joined a third of the opponent seats from round 7, once lc6 won 11.9%
 
 Lucky Cat now wins nearly twice as many hands as Neural Cat, and wins in fewer discards. It still loses points to Neural Cat. Neural Cat's wins are worth about 8 faan to Lucky Cat's 4 to 5, and Neural Cat deals in less often. That is the trade Lucky Cat was built to make: more hands won, not more points.
 
-### LC21: points first
+### Next: points first (trial model LP2b)
 
-The lab ran four rounds from LC20, 100,000 deals in all (state and log in `ml/lab-lucky-cat/`, not committed). Round 2's advantage-weighted imitation (`awr`, model LP2b) cleared the bar and shipped as LC21. Rounds 3 and 4 found nothing better, so the lab stopped there.
+The lab ran four rounds from LC20, 100,000 deals in all (state and log in `ml/lab-lucky-cat/`, not committed). Round 2's advantage-weighted imitation (`awr`, model LP2b) cleared the bar. This ran from LC20 at the same time as the lab rounds above, so LP2b didn't ship: LC32 stays in the game, and the lab's next Lucky Cat rounds start from LC32 with this points-first trainer and judge. Rounds 3 and 4 found nothing better, so the lab stopped there.
 
 | Round | Experiments (6,000 deals each, points a hand against the champion) | Best on 20,000 fresh deals | Kept |
 |---|---|---|---|
 | 1 | pg-2 +8.4, pg-fast −0.6, pg-sqrt −7.9 | pg-2: +2.3 ± 2.5 | no |
-| 2 | awr +8.0, pg-clip +2.4, pg-all −4.2, pg −3.5 | awr: **+6.9 ± 2.5** (pg-clip +5.4 ± 2.3) | **LP2b (LC21)** |
+| 2 | awr +8.0, pg-clip +2.4, pg-all −4.2, pg −3.5 | awr: **+6.9 ± 2.5** (pg-clip +5.4 ± 2.3) | **LP2b** |
 | 3 | awr +3.9, pg-clip +0.2, pg-2 −3.2, pg-wins −4.6 | awr: −4.2 ± 2.4 | no |
 | 4 | pg-wins −0.2, pg −0.5, pg-fast −4.1, pg-all −9.0 | none ahead | no |
 
-± is one standard error, deal by deal. LC21 replayed against LC20 on another 20,000 deals it had never played:
+± is one standard error, deal by deal. LP2b replayed against LC20 on another 20,000 deals it had never played:
 
-| LC21 against | Points a hand | Hands won | Deal-ins | Average win |
+| LP2b against | Points a hand | Hands won | Deal-ins | Average win |
 |---|---:|---:|---:|---:|
 | LC20 (lab, 20,000 deals) | **+6.9 ± 2.5** | 19.7% vs 19.5% | 13.9% vs 14.1% | 170 vs 147 |
 | LC20 (fresh, 20,000 deals) | **+4.0 ± 2.3** | 20.0% vs 19.4% | 14.0% vs 14.2% | 162 vs 151 |
@@ -110,7 +151,7 @@ Against Jorge Yau, on the same 20,000 deals for both (two seats each):
 | | Points a hand against Jorge Yau | Hands won | Deal-ins | Average win |
 |---|---:|---:|---:|---:|
 | LC20 | −102.7 ± 5.2 | 15.2% vs 22.3% | 14.8% vs 9.9% | 153 vs 424 |
-| LC21 | −87.7 ± 4.9 | 15.2% vs 22.3% | 14.9% vs 10.1% | 166 vs 396 |
+| LP2b | −87.7 ± 4.9 | 15.2% vs 22.3% | 14.9% vs 10.1% | 166 vs 396 |
 
 - **It scores more without winning less.** Against LC20 its points rose by about 4 to 7 points a hand, with the same share of hands won: its wins are worth more (4.86 faan to 4.80, 160 to 170 points a win to about 150).
 - **It is still Lucky Cat.** The change is small: 100,000 hands of training, a tenth of the league's million. Jorge Yau still beats it by about 88 points a hand, mostly because Jorge Yau's wins are worth more than twice as much and it deals in about two-thirds as often.

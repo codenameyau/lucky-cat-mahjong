@@ -37,7 +37,7 @@ Every `npm run ml:*` command then works as written: the scripts find `ml\.venv\S
 | Self-play (s1–s6) | `ml:loop` | Neural Cat (exploring) with Jorge Yau, Lucky Cat and Only Orphans | Discards | s5: +48.5 points a hand over Jorge Yau on fresh deals |
 | League (L1, L2, ...) | `ml:league` | Only Neural Cat models: the best, exploring, against earlier bests | Discards, claims, kongs | About +75 to +82 points a hand over s5; plateaued after L7 |
 | Lab (N1a, N1b, ...) | `ml:lab` | Earlier champions, s5, Jorge Yau, LC20 and Lucky Cat Classic | Discards, claims, kongs, and how it plays (`meta.play`) | Today's framework: see [the lab](#4-the-lab-npm-run-mllab) |
-| Lucky Cat lab (LP1a, ...) | `ml:lab -- --strategy lucky-cat` | Its last two champions, Neural Cat and Jorge Yau | Every move of every hand it plays, by the points the hand paid | LC21: +4.0 ± 2.3 points a hand over LC20 on fresh deals ([points first](#lucky-cat-points-first)) |
+| Lucky Cat lab (LP1a, ...) | `ml:lab -- --strategy lucky-cat` | Its last two champions, Neural Cat and Jorge Yau | Every move of every hand it plays, by the points the hand paid | LC32 is in the game (from the earlier, hands-won lab); the points-first trial LP2b was +4.0 ± 2.3 points a hand over LC20 on fresh deals ([points first](#lucky-cat-points-first)) |
 
 The full results, round by round, are in the [playbook](../strategies/neural-cat.md#results) and on the [model card](https://huggingface.co/codenameyau/lucky-cat-mahjong).
 
@@ -174,12 +174,12 @@ npm run ml:lab -- --strategy lucky-cat --rounds 10      # starts from the model 
 | Plays against | Its last three champions, s5, Jorge Yau, Lucky Cat, Lucky Cat Classic | Neural Cat, Jorge Yau and Lucky Cat (the table the game seats it at), and its last two champions | Its last two champions, Neural Cat (two seats' worth) and Jorge Yau, exploring at temperature 0.5 (`--temperature`) |
 | Records | Every seat's decisions (`--sample 0.12`) | Only its own seats (`--record only-orphans`, `--sample 0.25`) | Every hand its seats play, won or lost: half its real choices, with the hand's points (`scripts/ml/lucky.js generate --returns`) |
 | Trains with | `ml/train.py` | `ml/train.py` | `ml/train_lucky.py` |
-| Training arms | All six above | All six above | Points first ([below](#lucky-cat-points-first)): `pg`, `pg-2` (2 sets), `pg-all` (4 sets), `pg-fast` (1e-3), `pg-sqrt`, `pg-clip`, `pg-wins`, `awr` |
+| Training arms | All six above | All six above | Points first ([below](#lucky-cat-points-first)): `pg`, `pg-2` (2 sets), `pg-all` (4 sets), `pg-fast` (1e-3), `pg-sqrt`, `pg-clip`, `pg-wins`, `awr`; the deal-in and imitation arms of LC22–LC32 are retired, since points first learns from every hand, deal-ins included |
 | Play arms | All of them | `winBonus` and `claimMargin` (it already picks among every allowed discard) | None (it plays its biggest share) |
 | Judged on | Head to head, two seats each: J = points + 5 × wins | One seat each against Neural Cat, Jorge Yau and Lucky Cat, on the same deals: the same J | Head to head, two seats each, points first: J = points + 0.5 × wins, and kept only if its points a hand beat the champion's by more than their standard error |
 | Baseline | | The rule-based Only Orphans plays the same deals every round | |
 | Data | `ml/data/lab-<n>` (and the league's `league-<n>`) | `ml/data/oolab-<n>` (and `orphans-<n>`) | `ml/data/lcpts-<n>` (only its own: the league's `lc<n>` hold only wins) |
-| Models | `N<round><letter>` | `OL<round><letter>` | `LP<round><letter>`, shipped as LC21, LC22, ... |
+| Models | `N<round><letter>` | `OL<round><letter>` | `LP<round><letter>`, shipped as LC33, LC34, ... (LC21–LC32 came from the hands-won lab, `LL<round><letter>`) |
 | State | `ml/lab/` | `ml/lab-only-orphans/` | `ml/lab-lucky-cat/` |
 
 A new champion ships at once to `js/mahjong-only-orphans-weights.js` or `js/mahjong-lucky-cat-weights.js`, and goes to the Hugging Face model repo's `only-orphans/` or `lucky-cat/` folder (`--no-upload` skips that, `--dry` ships nothing). Only Neural Cat's data is pruned.

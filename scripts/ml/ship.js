@@ -7,11 +7,12 @@
    node scripts/ml/ship.js ml/models/O2.json only-orphans (js/mahjong-only-orphans-weights.js)
 
    Neural Cat's shipped models get a release name, NC1, NC2 and so on, which
-   the game shows (easier to read than the league's L17). Each model that
-   ships gets the next number, counted from the weights already shipped;
-   shipping the same model again keeps its name. The training name stays in
-   meta.trainedName, and ml/models/ keeps the file under it. Lucky Cat's
-   count on from its league's last, lc20: lc21, lc22 (shown as LC21). */
+   the game shows (easier to read than the league's L17). Lucky Cat's go on
+   from its league's: lc20, then lc21 for the lab's first champion (LL1a).
+   Each model that ships gets the next number, counted from the weights
+   already shipped; shipping the same model again keeps its name. The
+   training name stays in meta.trainedName, and ml/models/ keeps the file
+   under it. */
 
 'use strict';
 
