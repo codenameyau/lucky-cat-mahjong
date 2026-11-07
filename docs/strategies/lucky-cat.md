@@ -57,17 +57,19 @@ The league runs 20 rounds of 50,000 hands, a million hands in all. Its log and s
 | lc23 | LL3a (fine-tune of lc22 on rounds 2–3 only) | lc22, 20,000 deals | **21.8%** vs 20.0% (± 0.4) | 16.4 vs 16.4 | | |
 | lc24 | LL5b (fine-tune of lc23 with sharper targets, smoothing 0.01) | lc23, 20,000 deals | **21.9%** vs 20.7% (± 0.4) | 16.4 vs 16.2 | | |
 | lc25 | LL7b (sharper targets again, from LL6c, a fine-tune of lc24) | lc24, 20,000 deals | **22.7%** vs 20.8% (± 0.4) | 16.2 vs 16.1 | 16.1% vs 16.5% | 4.98 vs 4.94 |
-| **lc26** | LL9b (sharper targets a third time, from LL8a, a fine-tune of lc25 on 10 rounds) | lc25, 20,000 deals | **22.9%** vs 21.6% (± 0.4) | 16.0 vs 15.9 | 16.5% vs 16.9% | 5.03 vs 4.96 |
+| lc26 | LL9b (sharper targets a third time, from LL8a, a fine-tune of lc25 on 10 rounds) | lc25, 20,000 deals | **22.9%** vs 21.6% (± 0.4) | 16.0 vs 15.9 | 16.5% vs 16.9% | 5.03 vs 4.96 |
+| **lc27** | LL11a (the last 2 rounds only, from LL10b, a fine-tune of lc26) | lc26, 20,000 deals | **23.5%** vs 21.4% (± 0.4) | 15.9 vs 15.8 | 16.7% vs 17.4% | 5.02 vs 5.01 |
 
-Round 4 kept nothing: its three fine-tunes all lost to lc23 on 6,000 deals. Round 5 kept `sharp`. Round 6 kept LL6c (`finetune-fast`) by only +0.5 ± 0.4, too close to ship, and round 7 trained on from it and kept `sharp` again. Round 8 kept LL8a (`long`), +0.3 against lc25 on a second 20,000 deals, too close to ship. Round 9 trained on from it and kept `sharp` a third time.
+Round 4 kept nothing: its three fine-tunes all lost to lc23 on 6,000 deals. Round 5 kept `sharp`. Round 6 kept LL6c (`finetune-fast`) by only +0.5 ± 0.4, too close to ship, and round 7 trained on from it and kept `sharp` again. Round 8 kept LL8a (`long`), +0.3 against lc25 on a second 20,000 deals, too close to ship. Round 9 trained on from it and kept `sharp` a third time. Round 10 kept LL10b (`finetune`) by +0.4 ± 0.4, and round 11 trained on from it and kept `recent`.
 
-lc26 against lc20, the league's last model, over 10,000 deals: **25.5%** of hands won to 17.0%, +13.8 points a hand, in 16.5 discards a win (lc25: 24.7% to 17.3%). The steps add up.
+lc27 against lc20, the league's last model, over 10,000 deals: **26.5%** of hands won to 16.6%, +14.1 points a hand, in 16.4 discards a win (lc26: 25.5% to 17.0%). The steps add up.
 
 Each against Neural Cat NC2, over the same 5,000 deals in both seat orders:
 
 | | Hands won | Neural Cat wins | Points per hand |
 |---|---|---|---|
-| **lc26** | **25.3%** | 8.5% | **−83.2** |
+| **lc27** | **25.9%** | 8.8% | −86.5 |
+| lc26 | 25.3% | 8.5% | **−83.2** |
 | lc25 | 24.4% | 8.9% | −89.3 |
 | lc24 | 22.8% | 9.3% | −98.0 |
 | lc23 | 22.2% | 9.4% | −116.0 |
@@ -75,7 +77,7 @@ Each against Neural Cat NC2, over the same 5,000 deals in both seat orders:
 | lc21 | 19.1% | 9.8% | −137.1 |
 | lc20 | 18.3% | 9.8% | −137.7 |
 
-Each lab champion wins about 1.5 to 2 more hands in 100 than the one before it at its own table, at the same speed and size. Against Neural Cat, lc26 wins 7.0 more hands in 100 than lc20 and loses about 54 points a hand less. It still loses points to Neural Cat: it wins small.
+Each lab champion wins about 1.5 to 2 more hands in 100 than the one before it at its own table, at the same speed and size. Against Neural Cat, lc27 wins 7.6 more hands in 100 than lc20 and loses about 51 points a hand less. lc27 wins more hands than lc26 against Neural Cat but no fewer points go to Neural Cat: the gap is within the noise of 5,000 deals. It still loses points to Neural Cat: it wins small.
 
 ### The league
 
