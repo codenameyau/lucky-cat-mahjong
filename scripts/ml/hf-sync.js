@@ -165,6 +165,10 @@ function improved(state, r) {
 
 function modelCard(repo, state, uploaded) {
   const best = path.basename(state.best, '.json');
+  // The name the game shows (NC1, NC2, ...), when the shipped weights are this model.
+  let shipped = null;
+  try { shipped = require(path.join(ROOT, 'js', 'mahjong-ml-weights.js')).meta; } catch (err) { shipped = null; }
+  const release = shipped && shipped.trainedName === best && shipped.name !== best ? shipped.name : null;
   const kept = state.rounds.filter((r) => r.kept);
   const score = (e) => (e ? signed(e.score) + ' points' + (e.margin ? ' \u00b1 ' + e.margin.toFixed(0) : '') : '\u2014');
   const rows = state.rounds.map((r) => '| ' + r.name + ' | ' + path.basename(r.against, '.json') + ' | ' + score(r.vsBest) +
@@ -175,7 +179,7 @@ function modelCard(repo, state, uploaded) {
 
 Neural Cat is a learned strategy in the game. A small neural network scores each choice a player has (which tile to discard, whether to claim a pung, chow or kong, whether to declare a kong) in expected points, and the choice worth the most is played. Wins that come often and wins that pay big are weighed on the same scale.
 
-**Current best: \`${best}\`** (\`neural-cat/neural-cat.json\`), after ${done} league round${done === 1 ? '' : 's'} (${state.deals.toLocaleString('en-US')} simulated hands).
+**Current best: \`${best}\`**${release ? ', called ' + release + ' in the game,' : ''} (\`neural-cat/neural-cat.json\`), after ${done} league round${done === 1 ? '' : 's'} (${state.deals.toLocaleString('en-US')} simulated hands).
 
 ### How it plays
 

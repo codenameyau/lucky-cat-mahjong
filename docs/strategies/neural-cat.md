@@ -95,7 +95,7 @@ Rounds 1 to 5 used 2,000-deal evaluations, which swing by about ±50 points a ha
 
 #### What L7 improved
 
-L7 is the model the game ships. It replaces L3, which shipped before it. Against L6, its direct predecessor, on 6,000 new deals (each deal played from every seat, L7 and L6 two seats each):
+The game now ships NC1, which is L17 (shipped models are named NC1, NC2 and so on; see [release names](../machine-learning/model.md)). At the time of writing, L7 was the model the game shipped. It replaces L3, which shipped before it. Against L6, its direct predecessor, on 6,000 new deals (each deal played from every seat, L7 and L6 two seats each):
 
 | | L7 | L6 |
 | --- | ---: | ---: |
@@ -111,6 +111,10 @@ L7 is the model the game ships. It replaces L3, which shipped before it. Against
 - **More data.** It trained on 3,994,461 positions from seven league rounds, against 1,692,560 from three for L3.
 
 How much to trust it: +41.1 is only just beyond its ±33 margin, and L6's own win over L4 (+7.9 ± 30) was within noise, so each step is small. The steady gains are in the held-out accuracy, which rises with almost every model (s5 68.6%, L3 70.6%, L4 71.8%, L5 72.6%, L6 73.0%, L7 73.3%), and the average win. L7 was not measured against s5 or the rule bots, so there is no number yet for how far it is ahead of L3 head to head. L7's weights ship in `js/mahjong-ml-weights.js`, and the model and its results are on [Hugging Face](https://huggingface.co/codenameyau/lucky-cat-mahjong).
+
+**Pairs.** Keeping a pair that can still become a pung over a single (the `keepPairs` knob) was tested against Jorge Yau without it, on the same 6,000 deals × 4 seat rotations. It won as often (about 15%) but with smaller hands (about 340 points a win against 430), and came out behind: throwing honors to keep pairs, −14.8 ± 17.6 points a hand; throwing only number tiles, −19.8 ± 17.6. Neither is a sure loss, but neither is a gain. Neural Cat with it was even (+2.2 ± 41.8). The knob stays off. Neural Cat sees how many pairs and sets it holds (the `value` features), so it keeps pairs where the hands it learned from say they pay.
+
+**Honors.** Jorge Yau with the honor order against Jorge Yau without it, on 6,000 deals × 4 rotations: +2.0 ± 17.7 points a hand, the same wins, deal-ins and size of win. It's a tie-break between honors held the same way, so it rarely changes a discard; it's on because it's the right order to keep honors in, and the coach can teach it.
 
 ### Self-play against the rule bots (discards only)
 

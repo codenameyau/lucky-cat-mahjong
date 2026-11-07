@@ -66,9 +66,22 @@
   //   feed: weight on feeding claims (chow tiles, fresh honors)
   //   reads: read opponents' hands from their discards
   //   skip: target ids to leave out of the read (to measure each one)
-  //   ownClaims, ownDiscards: false uses lucky-cat's claims or discard order
-  var TUNING = { targetWeight: 1.5, giveUpWall: 40, giveUpDefense: 1.6, feed: 1, reads: true, skip: [], ownClaims: true, ownDiscards: true };
-  var K = TUNING; // replaced by the strategy's own copy below
+  //   ownClaims: false (the default) uses lucky-cat's claims, which scored
+  //     about 47 points a hand more; true takes any claim that gets closer;
+  //     'lock' takes its own only while locked onto a big hand
+  //   ownDiscards: false uses lucky-cat's discard order
+  // keepPairs: don't break a pair that can still become a pung when a single
+  // costs no speed (MahjongBot keepPairs); the number is how much hand value
+  // the single may cost. honorOrder: between tied honors, keep the ones worth
+  // most (MahjongBot honorTieOrder).
+  var TUNING = { targetWeight: 1.5, giveUpWall: 40, giveUpDefense: 1.6, feed: 1, reads: true, skip: [], ownClaims: false, ownDiscards: true, keepPairs: 0, honorOrder: true };
+  var K0 = TUNING; // replaced by the strategy's own copy below
+  // The knobs of the copy being played: Jorge Yau's own, or a variant's or
+  // Neural Cat's (each strategy built on these hooks has its own tuning).
+  function knobs() {
+    var t = B.currentTuning ? B.currentTuning() : null;
+    return t && t.targetWeight !== undefined ? t : K0;
+  }
 
   function isOrphan(i) { return ORPHANS.indexOf(i) !== -1; }
   function isTerminal(i) { return TERMINALS.indexOf(i) !== -1; }
@@ -217,7 +230,7 @@
     var avoid = B.avoidSuit(c, ctx);
     for (var k = 0; k < TARGETS.length; k++) {
       var t = TARGETS[k];
-      if (K.skip.indexOf(t.id) !== -1 || !t.fits(r)) continue;
+      if (knobs().skip.indexOf(t.id) !== -1 || !t.fits(r)) continue;
       var out = { id: t.id, rank: t.rank, name: t.name };
       if (t.id === 'gates') { out.suit = r.gates.suit; out.start = r.gates.start; }
       if (t.id === 'full' || t.id === 'half' || t.id === 'triplets') out.suit = r.top;
@@ -393,7 +406,7 @@
     // After a chow only that suit's flush is left: the usual plans already say so.
     if (B.chowCommitment(ctx)) return B.basePlans(c, ctx);
     var def = TARGET_BY_ID[t.id];
-    var W = ctx.fast && !def.hard ? 1 : K.targetWeight;
+    var W = ctx.fast && !def.hard ? 1 : knobs().targetWeight;
     var base = B.baseFaan(ctx) + (ctx.concealed ? 1 : 0);
     var plain = plan({ id: 'plain', label: 'a standard hand', counts: c, shantenFn: E.standardShanten, faan: base + B.handYaku(ctx, c), open: true, weight: 0.6 });
     var out;
@@ -512,11 +525,11 @@
   // honors and sets the target keeps. Unlikely to win late, the order only
   // breaks ties (safety decides).
   function priority(game, ctx, counts, cand, bestShanten) {
-    if (!K.ownDiscards) return null;
+    if (!knobs().ownDiscards) return null;
     var i = cand.index;
     var t = ctx.target || { id: 'standard' };
     var def = TARGET_BY_ID[t.id];
-    var givingUp = ctx.wallLeft < K.giveUpWall && bestShanten >= 2;
+    var givingUp = ctx.wallLeft < knobs().giveUpWall && bestShanten >= 2;
     var pair = counts[i] === 2;
     if (givingUp) return pair ? 3 : 2;
     // A softer target sets the order only while its plan is the one ahead;
@@ -718,7 +731,7 @@
 
   // What each opponent's discards say about the hand they're on.
   function threats(list, game) {
-    if (!K.reads) return;
+    if (!knobs().reads) return;
     list.forEach(function (t) {
       var s = game.hand.seats[t.seat];
       var tiles = s.discards.map(function (d) { return E.tileIndex(d.tile); });
@@ -764,7 +777,7 @@
     var seats = list.map(function (t) { return t.seat; });
     var me = [0, 1, 2, 3].filter(function (s) { return seats.indexOf(s) === -1; })[0];
     var next = list.filter(function (t) { return t.seat === (me + 1) % 4; })[0];
-    var late = game.hand.wall.length < K.giveUpWall;
+    var late = game.hand.wall.length < knobs().giveUpWall;
     var feed = 0;
     if (i < 27 && next) {
       var su = suitOf(i);
@@ -782,14 +795,14 @@
         list.some(function (t) { return t.windIndex === i; });
       feed += scoring ? 0.006 : 0.003;
     }
-    return feed * K.feed * (late ? 1 : 0.3);
+    return feed * knobs().feed * (late ? 1 : 0.3);
   }
 
   // No defense, until the hand is slow: late, and still 2 or more from ready,
   // with no big hand locked. Then it stops building and plays safe.
   function defense(w, ctx, list, shanten) {
     if (ctx.lock) return 0;
-    if (ctx.wallLeft < K.giveUpWall && shanten >= 2) return w * K.giveUpDefense;
+    if (ctx.wallLeft < knobs().giveUpWall && shanten >= 2) return w * knobs().giveUpDefense;
     return 0;
   }
 
@@ -861,16 +874,18 @@
     return 3;
   }
 
-  // Lone honors with fewer copies left go first, and ones that score last.
+  // Lone honors with fewer copies left go first. Between honors with as many
+  // left, the shared order (MahjongBot.honorKeepRank): winds worth nothing,
+  // then your 1-faan winds, then dragons, and a 2-faan wind last.
   function honorOrder(a, b, ctx) {
     if (a.index < 27 || b.index < 27) return 0;
     return ctx.unseen[a.index] - ctx.unseen[b.index] ||
-      B.valueWeight(ctx, a.index) - B.valueWeight(ctx, b.index);
+      B.honorKeepRank(ctx, a.index) - B.honorKeepRank(ctx, b.index);
   }
 
   function bigFinalOrder(out, ctx, c) {
     // Folding, safety decides.
-    if (ctx.folding || !K.ownDiscards) return out;
+    if (ctx.folding || !knobs().ownDiscards) return out;
     var lock = ctx.lock;
     var bestSteps = Math.min.apply(null, out.map(function (x) { return x.shanten; }));
     var rank = function (x) { return lock ? lockRank(x, c, ctx, lock) : freeRank(x, c, ctx, bestSteps); };
@@ -887,8 +902,11 @@
   // Takes any claim that moves the hand closer and can still score. On a lock,
   // only a claim of that hand's tiles that moves it closer.
   function bigClaim(res, ctx, game, seat, opts) {
-    if (!K.ownClaims) return null;
+    var own = knobs().ownClaims;
+    if (!own) return null;
     var lock = savedLock(ctx);
+    // 'lock': its own claims only while locked onto a big hand; the shared ones otherwise.
+    if (own === 'lock' && !lock) return null;
     if (lock && !lock.fits(E.tileIndex(opts.tile))) return { type: 'pass' };
     var min = game.settings.minFaan;
     var now = res.stay.shanten, pick = null;
@@ -931,10 +949,10 @@
     },
     tuning: TUNING,
   });
-  K = bot.tuning;
+  K0 = bot.tuning;
   // Its target holds until it's dead or a stronger one appears, so the plans
   // it lists are the only ones to weigh.
-  K.ownPlans = true;
+  K0.ownPlans = true;
   bot.classify = classify;
   bot.TARGETS = TARGETS;
   bot.targetFor = function (game, seat) { return bot.buildContext(game, seat).target; };

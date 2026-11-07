@@ -103,18 +103,31 @@ This section is from the no-defense strategy, which was merged into jorge-yau. I
 1. A lone honor with the other three copies on the table (discarded or in a meld).
 2. A discard that leaves the hand able to win for the minimum, whatever the tile.
 3. Number tiles that cost no step toward ready.
-4. Lone honors, the fewest copies left first and honors that score last.
+4. Lone honors, the fewest copies left first. Between honors held the same way with as many left, the [honor order](#which-honor-to-keep) decides.
 5. Number tiles that cost a step.
 6. Honor pairs, then honor sets.
 7. A lone dragon with all three other copies unseen, which goes only if throwing it leaves a hand that can win.
 
 When the target's order would differ, this order decides, and the target's order only breaks ties.
 
+### Which honor to keep
+
+When two or more honors are tied as discards (as many in the hand, as many still unseen, the same steps from ready), they go in this order, first to last:
+
+| Order | Honor | Why |
+| --- | --- | --- |
+| 1st | A wind worth nothing to you: neither your seat wind nor the round wind | It can't score for you |
+| 2nd | A wind worth 1 faan to you: your seat wind or the round wind | It scores only for you |
+| 3rd | A dragon, single, pair or set | 1 faan to anyone, so keeping it also keeps it from the others |
+| Last | A wind worth 2 faan to you: your seat wind in its own round (East seat in the East round) | The most valuable honor you can hold |
+
+The rule is `honorKeepRank` and `honorTieOrder` in the shared foundation (`js/mahjong-bot.js`), turned on by the `honorOrder` knob. Neural Cat builds on Jorge Yau, so it keeps honors the same way: the model weighs everything else, and between tied honors this order still decides. The coach says why: "West Wind is worth nothing to you, and your East Wind is worth 1 faan."
+
 **Locking onto a big hand.** On any of its first 8 turns, it checks for 8 tiles of a hand worth 7 faan or more (melds count as 3 tiles): a Full Flush or Nine Gates (one suit), Thirteen Orphans (one of each kind plus a pair), All Honors, All Terminals or Mixed Orphans (as sets or pairs), Four Winds, or Three Dragons. If more than one qualifies it takes the most faan less 1.25 for each step away. Half Flush and Seven Pairs are worth less than 7, so they don't lock.
 
 Once locked, other number tiles go first, then honors outside the hand, and the hand's own tiles last. A win that is offered is always taken, even on a smaller hand. The lock ends only when the hand can't be won, and it can lock again only within the first 8 turns. A saved game replays the bots' turns, so they come back on the same lock. The lock replaces the target's plans while it holds.
 
-**Claims.** It takes any chow, pung or kong that brings the hand closer and can still reach 3 faan. With a lock, it claims only that hand's tiles. Thirteen Orphans and hands of pairs claim nothing but a win. This replaces the "stay concealed" claim rules.
+**Claims.** Since 0.43.0 it uses the shared claim rules (the "stay concealed" rules above). Its old rule, taking any chow, pung or kong that brings the hand closer and can still reach 3 faan, lost about 47 points a hand to them (±17, 6000 deals): it chowed six times as often and won smaller hands. Set `ownClaims: true` to bring it back, or `'lock'` to use it only on a big-hand lock (no better than the shared rules).
 
 ## Reading the other players
 
@@ -157,7 +170,10 @@ One tile from ready with fewer than 20 tiles left, safety counts 1.3 times more.
 | `feed` | 1 | Weight on feeding chows and fresh honors |
 | `reads` | true | Read opponents' hands from their discards |
 | `skip` | [] | Targets to leave out of the read (to measure each one) |
-| `ownClaims`, `ownDiscards` | true | false uses the shared claims or discard order |
+| `ownClaims` | false | true: any claim that gets closer; 'lock': that, only while locked |
+| `ownDiscards` | true | false uses the shared discard order |
+| `honorOrder` | true | Between tied honors, keep the ones worth most ([which honor to keep](#which-honor-to-keep)) |
+| `keepPairs` | 0 | Keep a pair that can still become a pung when a number tile costs no speed; the number is how much hand value that tile may cost (0 is off) |
 
 ## Results
 

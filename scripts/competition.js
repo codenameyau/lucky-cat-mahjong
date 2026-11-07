@@ -18,6 +18,8 @@
      --json FILE       also write the full report as JSON
      --ml-weights FILE neural-cat plays these weights (ml/models/<name>.json)
      --ml-options JSON other options for neural-cat, e.g. '{"claims":false}'
+     --variant N=B:JSON a player N: strategy B with other tuning, e.g.
+                       'jy-old=jorge-yau:{"keepPairs":0}'; separate several with ;
      --list            list the strategies and exit */
 
 'use strict';
@@ -40,6 +42,32 @@ function useMl(file, options) {
   S.get('neural-cat').bot = ML.create(o);
 }
 
+// --variant NAME=BASE:{json}: BASE with other tuning, as its own player NAME,
+// e.g. 'jy-old=jorge-yau:{"keepPairs":0}'. A neural-cat variant changes the
+// tuning of the strategy it builds on (Jorge Yau's).
+function addVariants(list) {
+  const B = require('../js/mahjong-bot.js');
+  (list || []).forEach((spec) => {
+    const m = /^([^=]+)=([^:]+):(.*)$/.exec(spec);
+    if (!m) throw new Error('--variant needs NAME=BASE:{json}, got ' + spec);
+    const [, name, base, json] = m;
+    if (S.has(name)) return;
+    const over = JSON.parse(json);
+    let bot;
+    if (base === 'neural-cat') {
+      const ML = require('../js/mahjong-ml.js');
+      const J = S.get('jorge-yau').bot;
+      const jv = B.createStrategy({ id: name + '-base', hooks: J.hooks, tuning: Object.assign({}, J.tuning, over) });
+      bot = ML.create({ id: name, base: jv, fast: true });
+    } else {
+      if (!S.has(base)) throw new Error('unknown strategy ' + base);
+      const b = S.get(base).bot;
+      bot = B.createStrategy({ id: name, hooks: b.hooks, tuning: Object.assign({}, b.tuning, over) });
+    }
+    S.addLab({ id: name, name, bot });
+  });
+}
+
 // "ml:<file>" in a lineup: Neural Cat with those weights, as its own player.
 // "oo:<file>": Only Orphans with those weights; only-orphans-rules: the
 // rule-based Only Orphans (scripts/ml/baselines/).
@@ -55,6 +83,7 @@ function addModels(lineup) {
 }
 
 if (!isMainThread) {
+  addVariants(workerData.variants);
   addModels(workerData.lineup);
   useMl(workerData.mlWeights, workerData.mlOptions);
   C.runMatch(workerData).then((report) => parentPort.postMessage(report));
@@ -83,6 +112,8 @@ async function main() {
   }
   const lineup = args.lineup ? String(args.lineup).split(',') : ['jorge-yau', 'lucky-cat', 'jorge-yau', 'lucky-cat'];
   if (lineup.length !== 4) throw new Error('--lineup needs four strategy ids, one per seat');
+  const variants = args.variant ? String(args.variant).split(';').filter(Boolean) : [];
+  addVariants(variants);
   addModels(lineup);
   lineup.forEach((id) => { if (!S.has(id)) throw new Error('unknown strategy ' + id + ' (have: ' + S.ids().join(', ') + ')'); });
   const deals = Math.max(1, parseInt(args.deals || 250, 10));
@@ -100,7 +131,7 @@ async function main() {
     jobs.push(new Promise((resolve, reject) => {
       const mlWeights = args['ml-weights'] ? path.resolve(String(args['ml-weights'])) : null;
       const mlOptions = args['ml-options'] ? JSON.parse(String(args['ml-options'])) : null;
-      const worker = new Worker(__filename, { workerData: { lineup, deals: count, seed: seed + first, mlWeights, mlOptions } });
+      const worker = new Worker(__filename, { workerData: { lineup, deals: count, seed: seed + first, mlWeights, mlOptions, variants } });
       worker.once('message', resolve);
       worker.once('error', reject);
     }));
