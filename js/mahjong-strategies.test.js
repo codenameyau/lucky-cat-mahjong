@@ -36,9 +36,12 @@ function targetOf(hand, extra) {
 
 describe('strategy registry', () => {
   it('lists every strategy, with neural-cat as the coach default', () => {
-    assert.deepEqual(S.ids(), ['jorge-yau', 'lucky-cat', 'neural-cat', 'only-orphans']);
+    assert.deepEqual(S.ids(), ['jorge-yau', 'neural-cat', 'lucky-cat', 'only-orphans']);
     assert.equal(S.DEFAULT_COACH, 'neural-cat');
-    assert.equal(S.get('lucky-cat').bot, B);
+    // Lucky Cat is its network once weights ship; the classic rules stay a lab strategy.
+    assert.equal(S.get('lucky-cat').bot.learned, true);
+    assert.equal(S.get('lucky-cat-classic').bot, B);
+    assert.equal(S.isLab('lucky-cat-classic'), true);
     assert.equal(S.get('jorge-yau').bot, L);
     assert.equal(S.get('lucky-cat').bot.id, 'lucky-cat');
     assert.equal(S.get('jorge-yau').bot.id, 'jorge-yau');
@@ -46,6 +49,12 @@ describe('strategy registry', () => {
     S.list().forEach((s) => {
       assert.ok(s.name && s.summary && s.details.length, s.id + ' has words for the sheet');
     });
+  });
+
+  it('starts each learned strategy\'s summary with its model', () => {
+    assert.match(S.get('neural-cat').summary, /^Model NC\d+\. Plays Jorge Yau's hands/);
+    assert.match(S.get('lucky-cat').summary, /^Model LC\d+\. A neural network/);
+    assert.doesNotMatch(S.get('jorge-yau').summary, /^Model/);
   });
 
   it('falls back to the default for an unknown id', () => {
@@ -623,7 +632,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.42.12');
+    assert.equal(E.GAME_VERSION, '0.44.6');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
@@ -748,10 +757,26 @@ describe('jorge-yau attack, big-hand lock and late defense', () => {
   });
 
   it('keeps a lone dragon with three copies left behind number tiles', () => {
+    // East seat in the South round: East is worth 1 faan, less than a dragon.
     const hand = ['c2', 'c3', 'c4', 'd4', 'd5', 'd7', 'b3', 'b4', 'b8', 'c7', 'dg', 'dr', 'we', 'd1'];
-    const list = order(table({ seats: [{ hand }] }));
+    const list = order(table({ seats: [{ hand }], round: 2 }));
     assert.ok(list.indexOf('dr') > list.indexOf('we'));
     assert.ok(list.indexOf('dr') > list.indexOf('c7'));
+  });
+
+  it('keeps tied honors by what they are worth: a 2-faan wind, then dragons, then 1-faan winds, then the rest', () => {
+    const hand = ['c2', 'c3', 'c4', 'd4', 'd5', 'd6', 'b3', 'b4', 'b5', 'b7', 'b8', 'we', 'ws', 'dr'];
+    const pos = (list, t) => list.indexOf(t);
+    // East seat in the East round: East is worth 2 faan, so it's kept longest.
+    const east = order(table({ seats: [{ hand }] }));
+    assert.ok(pos(east, 'ws') < pos(east, 'dr') && pos(east, 'dr') < pos(east, 'we'), east.join());
+    // East seat in the South round: East and South are each worth 1 faan, the dragon more.
+    const south = order(table({ seats: [{ hand }], round: 2 }));
+    assert.ok(pos(south, 'we') < pos(south, 'dr') && pos(south, 'ws') < pos(south, 'dr'), south.join());
+    // The rule itself.
+    const ctx = { seatWind: 1, round: 1 };
+    assert.deepEqual([27, 28, 29, 30, 31, 32, 33].map((i) => B.honorKeepRank(ctx, i)), [3, 0, 0, 0, 2, 2, 2]);
+    assert.deepEqual([27, 28, 29, 30].map((i) => B.honorKeepRank({ seatWind: 2, round: 1 }, i)), [1, 1, 0, 0]);
   });
 
   const threat = { melds: [pung('b5'), pung('b6'), pung('b7')], discards: ['c1', 'c9', 'd1', 'd9', 'c2', 'd8'] };
@@ -773,7 +798,7 @@ describe('jorge-yau attack, big-hand lock and late defense', () => {
   });
 
   it('locks onto a Full Flush with 8 tiles, and throws other suits, then honors, keeping a lone dragon', () => {
-    const list = order(table({ seats: [{ hand: flush }] }));
+    const list = order(table({ seats: [{ hand: flush }], round: 2 }));
     assert.deepEqual(list.slice(0, 3).sort(), ['c2', 'c7', 'd4']);
     assert.deepEqual(list.slice(3, 5).sort(), ['we', 'wn']);
     assert.ok(list.slice(5, -1).every((t) => t[0] === 'b'));
@@ -833,14 +858,22 @@ describe('jorge-yau attack, big-hand lock and late defense', () => {
     const hand = flush.slice(0, 13);
     const game = table({ seats: [{ hand }] });
     game.hand.seats[0].bigHandLock = 'full-b';
-    assert.deepEqual(N.chooseClaim(game, 0, { tile: 'c7', pung: false, kong: false, chows: [['c6', 'c8']] }), { type: 'pass' });
-    assert.equal(N.chooseClaim(game, 0, { tile: 'b9', pung: true, kong: false, chows: [] }).type, 'pung');
+    N.setTuning({ ownClaims: true });
+    try {
+      assert.deepEqual(N.chooseClaim(game, 0, { tile: 'c7', pung: false, kong: false, chows: [['c6', 'c8']] }), { type: 'pass' });
+      assert.equal(N.chooseClaim(game, 0, { tile: 'b9', pung: true, kong: false, chows: [] }).type, 'pung');
+    } finally { N.setTuning({ ownClaims: false }); }
   });
 
   it('claims what brings an unlocked hand closer', () => {
     const hand = ['c2', 'c3', 'c4', 'c6', 'c7', 'c9', 'c9', 'dr', 'dr', 'dr', 'd2', 'b6', 'we'];
-    const pick = N.chooseClaim(table({ seats: [{ hand }] }), 0, { tile: 'c5', pung: false, kong: false, chows: [['c6', 'c7']] });
-    assert.equal(pick.type, 'chow');
+    const opts = { tile: 'c5', pung: false, kong: false, chows: [['c6', 'c7']] };
+    N.setTuning({ ownClaims: true });
+    try {
+      assert.equal(N.chooseClaim(table({ seats: [{ hand }] }), 0, opts).type, 'chow');
+    } finally { N.setTuning({ ownClaims: false }); }
+    // By default it uses the shared claims, which pass on this chow.
+    assert.equal(N.chooseClaim(table({ seats: [{ hand }] }), 0, opts).type, 'pass');
   });
 
   it('the coach names the hand it is on', () => {

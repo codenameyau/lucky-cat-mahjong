@@ -1027,9 +1027,20 @@
     return (n < 1 && n > 0 ? '<1' : String(Math.round(n))) + '%';
   }
 
+  // Lucky Cat's network (ml.policy: the share it gives each move) learned
+  // only from hands it won, so its line says how sure it is.
+  function policyLine(list, pick, m) {
+    var line = 'Lucky Cat\'s network plays this discard ' + pct(m.policy) + ' of the time';
+    var next = list.filter(function (x) { return x !== pick && x.ml; })
+      .sort(function (a, b) { return b.ml.policy - a.ml.policy; })[0];
+    if (next && next.ml.policy >= 0.005) line += '. Next most likely is ' + E.tileName(next.tile) + ': ' + pct(next.ml.policy) + ' of the time';
+    return line + '.';
+  }
+
   function modelLine(list, pick) {
     var m = pick && pick.ml;
     if (!m) return '';
+    if (m.policy != null) return policyLine(list, pick, m);
     var line = 'The model expects ' + pointsWord(m.ev) + ' on average from this discard, with ' + chance(m.pWin, 'win') +
       (m.pWin >= 0.01 ? ' (about ' + Math.round(m.avgWin).toLocaleString('en-US') + ' points)' : '') + '.';
     var next = list.filter(function (x) { return x !== pick && x.ml && x.ml.choice !== false; })
@@ -1056,6 +1067,12 @@
   function choicesLine(read, tile) {
     if (!read || !read.choices || read.choices.length < 2) return '';
     var pick = read.choices[read.pick];
+    if (pick.ml.policy != null) {
+      var rest = read.choices.filter(function (x) { return x !== pick; })
+        .sort(function (a, b) { return b.ml.policy - a.ml.policy; }).slice(0, 2);
+      var act = function (x) { return ifYou(x.decision, tile).replace(/^if you /, '') + ' ' + pct(x.ml.policy) + ' of the time'; };
+      return 'Lucky Cat\'s network would ' + [pick].concat(rest).map(act).join(', and ') + '.';
+    }
     var ranked = [pick].concat(read.choices.filter(function (x) { return x !== pick; })
       .sort(function (a, b) { return b.ml.ev - a.ml.ev; }).slice(0, 2));
     var said = ranked.map(function (x) { return pointsWord(x.ml.ev) + ' ' + ifYou(x.decision, tile); });
@@ -1275,7 +1292,24 @@
 
   // A learned strategy weighs discards in expected points, so feedback
   // compares those.
+  function policyFeedback(hint, top, chosen, mine, best) {
+    var steps = chosen.shanten > top.shanten;
+    if (chosen.tile === top.tile || (!steps && chosen.ml.policy >= top.ml.policy * 0.8)) {
+      var tips = [chosen.tile === top.tile
+        ? (mine + ' was the top choice. ' + (hint.why || '')).trim()
+        : mine + ' is as good as ' + best + '.'];
+      if (chosen.tile === top.tile && hint.model) tips.push(hint.model);
+      return { kind: 'feedback', action: 'Great discard.', tips: tips };
+    }
+    var out = ['The coach picks ' + best + '. ' + (hint.why || ''),
+      'Lucky Cat\'s network plays ' + best + ' ' + pct(top.ml.policy) + ' of the time, and ' + mine + ' ' + pct(chosen.ml.policy) + ' of the time.'];
+    var action = steps ? 'That discard slows your hand.'
+      : chosen.ml.policy >= top.ml.policy * 0.4 ? 'Good discard.' : 'There was a better discard.';
+    return { kind: 'feedback', action: action, tips: out.map(function (t) { return t.trim(); }) };
+  }
+
   function modelFeedback(hint, top, chosen, mine, best) {
+    if (top.ml.policy != null) return policyFeedback(hint, top, chosen, mine, best);
     var diff = top.ml.ev - chosen.ml.ev;
     if (chosen.tile === top.tile || diff <= Math.max(5, Math.abs(top.ml.ev) * 0.03)) {
       var tips = [chosen.tile === top.tile
