@@ -35,7 +35,8 @@ Every `npm run ml:*` command then works as written: the scripts find `ml\.venv\S
 | --- | --- | --- | --- | --- |
 | Bootstrap (j0) | `ml:generate`, `ml:train` | The rule strategies in every seat | Discards | A first model from the bots' own play |
 | Self-play (s1–s6) | `ml:loop` | Neural Cat (exploring) with Jorge Yau, Lucky Cat and Only Orphans | Discards | s5: +48.5 points a hand over Jorge Yau on fresh deals |
-| League (L1, L2, ...) | `ml:league` | Only Neural Cat models: the best, exploring, against earlier bests | Discards, claims, kongs | L3: +95.7 points a hand over s5, head to head |
+| League (L1, L2, ...) | `ml:league` | Only Neural Cat models: the best, exploring, against earlier bests | Discards, claims, kongs | About +75 to +82 points a hand over s5; plateaued after L7 |
+| Lab (N1a, N1b, ...) | `ml:lab` | Earlier champions, s5, Jorge Yau, LC20 and Lucky Cat Classic | Discards, claims, kongs, and how it plays (`meta.play`) | Today's framework: see [the lab](#4-the-lab-npm-run-mllab) |
 
 The full results, round by round, are in the [playbook](../strategies/neural-cat.md#results) and on the [model card](https://huggingface.co/codenameyau/lucky-cat-mahjong).
 
@@ -118,7 +119,40 @@ On an M-series GPU, an epoch over about 1.7 million positions takes about 10 sec
 
 `scripts/ml/loop.js` repeats: generate 20,000 hands with the best model exploring among the rule bots, train a new model from the best on the base data plus the last 3 rounds, then play it against Jorge Yau and Lucky Cat on the same 1,500 deals every round. If it scores more points a hand than Jorge Yau by a wider margin than the best did, it's the new best and is shipped. State is in `ml/loop/state.json`, so a stopped loop picks up where it left off. `--dir`, `--prefix` and `--data-seed` run a second loop beside the first.
 
-## 4. The league: `npm run ml:league`
+## 4. The lab: `npm run ml:lab`
+
+`scripts/ml/lab.js` is how Neural Cat is trained now. It replaced the league, which stopped improving after L7 ([why](iterations.md#the-plateau-where-neural-cat-stands)): the league trained one model the same way every round, kept it on any score above 0 (a coin flip at ±30 points a hand), and only played copies of itself. The lab runs experiments, keeps only clear gains, and learns which experiments pay.
+
+```bash
+npm run ml:lab -- --rounds 10          # starts from the league's best (or --start FILE)
+npm run ml:lab -- report               # every experiment's record
+npm run ml:lab -- bench --model ml/models/L17.json --against s5,L7,L11 --deals 20000
+```
+
+Each round:
+
+1. **Play** 50,000 deals. Half the seats are the champion, exploring (`--temperature 150`, `--epsilon 0.05`). The rest are its last three predecessors, s5, Jorge Yau, Lucky Cat (the LC20 network) and Lucky Cat Classic, so it learns against several styles, not only itself.
+2. **Experiment.** Each round tries `--train` (3) training arms and `--play` (2) play arms:
+
+   | Arm | What it tries |
+   | --- | --- |
+   | `finetune` | Fine-tune the champion on the last 8 data sets (learning rate 3e-4) |
+   | `finetune-slow`, `finetune-fast` | The same at 1e-4 or 1e-3 |
+   | `recent` | Fine-tune on the last 3 data sets only |
+   | `wide` | A wider network (512, 256), from scratch, on the last 12 data sets |
+   | `deep` | A deeper network (512, 256, 128), from scratch, on the last 12 data sets |
+   | `topK+1`, `topK+2`, `topK-1` | Choose among more or fewer of Jorge Yau's discards |
+   | `winBonus+50`, `winBonus+150`, `winBonus-50` | Add points for each 100% of win chance when choosing, to win more often |
+   | `claimMargin+25`, `claimMargin-25` | How much a claim must beat Jorge Yau's call by |
+
+   Play arms keep the champion's network and change only how it plays. The settings ride in the weights as `meta.play` (`{ topK, winBonus, claimMargin }`), so a shipped model plays with its own; an option passed to `create()` still overrides them. Every candidate inherits the champion's settings, and play arms are relative to them, so after a change is kept the next round explores around it.
+3. **Judge** against the objective **J = points a hand + 5 × hands won (percentage points)**: the most points, with a point of win rate worth 5 points a hand. Each candidate plays the champion head to head (two seats each, every rotation) on 6,000 deals. The best two that are ahead play 20,000 fresh deals, and one is kept only if J beats the champion there by more than its standard error (about ±8 points a hand). Close calls are rejected, so the champion can't drift on noise.
+4. **Learn.** Each arm keeps its tries, results and how often it was kept. The next round picks arms by an upper confidence bound: the best average J, plus a bonus for arms tried less, untried arms first. Failing arms are tried less but never ruled out.
+5. **Ship.** A new champion ships at once (named NC2, NC3, ... by `scripts/ml/ship.js`), its weights go to the Hugging Face model repo (`--no-upload` skips that), and data no model uses goes to the Trash.
+
+State, every evaluation and a log are in `ml/lab/`. A stopped lab picks up where it left off. `--dry`, `--quick-deals`, `--full-deals` and `--prefix` run a small check of the lab without shipping or pruning.
+
+## The league (before the lab): `npm run ml:league`
 
 `scripts/ml/league.js` trains against models only:
 
