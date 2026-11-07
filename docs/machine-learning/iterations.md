@@ -1,8 +1,50 @@
 # Iterations
 
-How each Neural Cat model came to be, and how it plays differently from the one before it. Every release of a Neural Cat or Lucky Cat model adds its iterations here and to the GitHub release notes (see [each release](#documenting-a-release)).
+How each Neural Cat and Lucky Cat model came to be, how it plays differently from the one before it, and what each step taught. Every release of a Neural Cat or Lucky Cat model adds its iterations here and to the GitHub release notes (see [each release](#documenting-a-release)).
 
 **How to read this.** A model has no stated reasons: it scores choices with a network. So "what it does differently" below is measured, from the evaluation each model plays against the best before it (`ml/league/eval-<name>-vs-best.json`: the same deals, the two models two seats each). The reason a change happened is the training that produced it, and where the numbers hint at why, it says so as a reading, not a fact. The coach's text for a single decision is the only place the model explains itself.
+
+Every score here is **points a hand**: one player's average points per hand less the other's, on the same deals, with every deal played from every seat. At 2,000 deals a model-against-model score swings by about ±50 points a hand, and at 6,000 deals by about ±30. Where a 95% margin was measured, it's shown as ±.
+
+## At a glance
+
+| | Neural Cat | Lucky Cat |
+| --- | --- | --- |
+| In the game | **NC1** (league model L17) | **LC20** (lc20) |
+| What it is | A network that scores Jorge Yau's best choices in expected points | A network that makes every move itself, with no rules underneath |
+| What it plays for | Points: often and big wins on one scale | Wins: as many and as fast as it can |
+| Trained on | 900,000 league hands, and earlier rounds against the rule bots | 1,000,000 hands against its earlier selves and Neural Cat |
+| Wins / deal-ins | about 9% / 5–6% against other Neural Cat models | about 18–21% against its older selves; 17.9% against Neural Cat's 9.1% |
+| Average win | about 1,900 points | 4–5 faan, about a quarter of Neural Cat's |
+| Head to head | Beats s5, the model before the league, by about 75–80 points a hand | Wins twice as many hands as Neural Cat but loses about 109 points a hand to it |
+
+## Before the league
+
+Neural Cat's first models learned at tables with the rule bots, discards only.
+
+### j0: learning from the rule bots
+
+The first model learned from the rule strategies (Jorge Yau, Lucky Cat, Only Orphans): 20,000 hands of their discards, each labelled with how the hand ended. It scored **+17.1** points a hand against Jorge Yau.
+
+**What it taught:** a model that chooses among *every* discard is dangerous. Trained only on the bots' own choices, it couldn't tell close discards apart or judge safety, and it dealt in on **12%** of hands while winning 3.5%. So Neural Cat became a reranker: Jorge Yau's foundation lists the discards, and the model chooses among only the **best three** (`TOP_K` = 3). The hand-reading judgment stays, and the model decides the close calls. With `topK: 1` it plays exactly like Jorge Yau, which a test checks.
+
+### s1–s6: self-play against the rule bots (discards only)
+
+`npm run ml:loop` played Neural Cat (exploring) at tables with Jorge Yau, Lucky Cat and Only Orphans. A new model was kept only if it beat the best so far.
+
+| Model | Trained from | Score against Jorge Yau | Kept |
+| --- | --- | ---: | --- |
+| s1 | j0 | +61.4 | yes |
+| s2–s4 | s1 | +34.6 to +52.3 | no |
+| s5 | s1 | +76.0 | yes, shipped |
+| s6 | s5 | +50.2 | no |
+
+Replayed on fresh deals, s5 scored **+48.5**, not +76. Keeping the best of several noisy scores flatters the winner.
+
+**What it taught:**
+- **Neural Cat wins less often but bigger.** s5 won about 10.5% of hands to Jorge Yau's 14%, but its average win was 731 points to 292, and it came out ahead. That shape (fewer, bigger wins) has held for every Neural Cat since.
+- **Always replay the winner on fresh deals.** The first score of a "best" model is biased upward.
+- **The rule bots are a ceiling.** Against fixed opponents, gains stalled after s5.
 
 ## How an iteration is made
 
@@ -10,7 +52,7 @@ Each [league](training.md) round does the same four things:
 
 1. **Play.** The best model so far, exploring (`--temperature 150`, `--epsilon 0.05`: it sometimes picks a slightly worse choice or a random one), sits with earlier models at a table of Neural Cat models only, 50,000 hands, keeping about 12% of positions. Exploring is how it finds out whether a different choice would have paid.
 2. **Label.** Each kept position is labelled with how its hand really ended (win by self-draw or off a discard, deal in, someone else's win, draw) and the faan won or paid.
-3. **Train.** The new model starts from the best model's weights and trains on every round's data so far (`--lr 3e-4`, dropout 0.2, weight decay 1e-3, up to 8 epochs, stopping after 3 without improvement). More rounds means more varied tables: the pool of opponents grows with each round (s5; then L1; then L2 and L3; and so on).
+3. **Train.** The new model starts from the best model's weights and trains on the league's data so far, the last 8 rounds from round 9 on (`--lr 3e-4`, dropout 0.2, weight decay 1e-3, up to 8 epochs, stopping after 3 without improvement). More rounds means more varied tables: the pool of opponents grows with each round (s5; then L1; then L2 and L3; and so on).
 4. **Judge.** The new model plays the best head to head. It is kept, and shipped, only if it scores more points a hand. A kept model is the starting point for the next round.
 
 ## At the table: each model against the one before it
@@ -26,6 +68,17 @@ Per hand dealt to a seat, from each model's evaluation (L1 against s5, the rule-
 | L5 (not kept) | L4 | 0.41 vs 0.45 | 0.49 vs 0.49 | 0.07 vs 0.07 | 8.6% vs 8.3% | 5.5% vs 5.4% | 1,708 vs 1,712 | 9.0% vs 7.7% | 40% vs 41% |
 | L6 | L4 | 0.41 vs 0.46 | 0.48 vs 0.50 | 0.07 vs 0.08 | 8.3% vs 8.8% | 5.4% vs 5.7% | 1,781 vs 1,662 | 8.8% vs 8.8% | 40% vs 38% |
 | L7 | L6 | 0.38 vs 0.41 | 0.48 vs 0.48 | 0.07 vs 0.07 | 8.1% vs 8.2% | 5.1% vs 5.4% | 2,069 vs 1,682 | 10.3% vs 8.7% | 41% vs 39% |
+| L8 | L7 | 0.37 vs 0.38 | 0.42 vs 0.47 | 0.07 vs 0.08 | 8.3% vs 8.1% | 5.3% vs 5.3% | 1,889 vs 1,890 | 9.4% vs 9.8% | 43% vs 40% |
+| L9 (not kept) | L8 | 0.35 vs 0.37 | 0.41 vs 0.44 | 0.06 vs 0.07 | 8.6% vs 8.5% | 5.6% vs 5.4% | 1,615 vs 1,719 | 8.6% vs 8.0% | 43% vs 42% |
+| L10 (not kept) | L8 | 0.39 vs 0.36 | 0.43 vs 0.43 | 0.07 vs 0.07 | 8.6% vs 8.5% | 5.3% vs 5.4% | 1,739 vs 1,835 | 8.1% vs 9.0% | 41% vs 42% |
+| L11 | L8 | 0.31 vs 0.36 | 0.40 vs 0.42 | 0.06 vs 0.07 | 8.0% vs 8.2% | 5.4% vs 5.3% | 1,937 vs 1,829 | 10.5% vs 10.0% | 46% vs 43% |
+| L12 (not kept) | L11 | 0.40 vs 0.33 | 0.46 vs 0.41 | 0.07 vs 0.07 | 9.1% vs 8.4% | 5.8% vs 5.7% | 1,988 vs 2,188 | 9.4% vs 10.9% | 38% vs 42% |
+| L13 (not kept) | L11 | 0.33 vs 0.33 | 0.45 vs 0.40 | 0.07 vs 0.06 | 8.7% vs 8.6% | 5.9% vs 5.6% | 1,748 vs 1,979 | 9.0% vs 9.3% | 41% vs 44% |
+| L14 | L11 | 0.31 vs 0.34 | 0.42 vs 0.41 | 0.07 vs 0.06 | 8.9% vs 8.4% | 5.6% vs 5.6% | 1,888 vs 1,852 | 9.1% vs 8.4% | 46% vs 41% |
+| L15 (not kept) | L14 | 0.42 vs 0.30 | 0.45 vs 0.42 | 0.06 vs 0.07 | 9.3% vs 8.6% | 6.0% vs 5.8% | 1,741 vs 1,868 | 8.1% vs 9.8% | 39% vs 44% |
+| L16 | L14 | 0.39 vs 0.30 | 0.45 vs 0.42 | 0.07 vs 0.07 | 8.5% vs 8.7% | 5.8% vs 5.6% | 1,952 vs 1,630 | 9.3% vs 7.9% | 42% vs 44% |
+| L17 (NC1) | L16 | 0.35 vs 0.40 | 0.44 vs 0.46 | 0.07 vs 0.07 | 8.9% vs 8.3% | 5.7% vs 5.7% | 1,907 vs 1,917 | 9.2% vs 9.2% | 42% vs 41% |
+| L18 (not kept) | L17 | 0.36 vs 0.35 | 0.41 vs 0.44 | 0.06 vs 0.06 | 9.2% vs 8.8% | 5.9% vs 5.8% | 1,768 vs 1,940 | 8.6% vs 9.6% | 43% vs 41% |
 
 ## L1: stop claiming everything
 
@@ -62,7 +115,7 @@ Per hand dealt to a seat, from each model's evaluation (L1 against s5, the rule-
 
 ## L6: from Half Flush to Full Flush
 
-- **Thinking.** Started from L4, not L5. It trained on six rounds of data, where round 6 had L4 exploring against s5, L1, L2 and L3. From here the league played 6,000-deal evaluations (about ±30 points a hand) instead of 2,000 (about ±50), because the earlier scores were too noisy to separate models. The league games from round 6 on used Jorge Yau's honor tie-break order (the `honorOrder` tuning), which is in the working tree but not yet on master.
+- **Thinking.** Started from L4, not L5. It trained on six rounds of data, where round 6 had L4 exploring against s5, L1, L2 and L3. From here the league played 6,000-deal evaluations (about ±30 points a hand) instead of 2,000 (about ±50), because the earlier scores were too noisy to separate models. The league games from round 6 on used Jorge Yau's honor tie-break order (the `honorOrder` tuning), which ships in 0.44.
 - **What it does differently.** It wins about 3 more Full Flush hands per 1,000 hands and 5 fewer Half Flush hands, plus more All Sequences and Concealed Triplets, and fewer All Triplets and Dragon Triplet. The faan per win rises from 6.49 to 6.87, with a slightly lower win rate (8.3% against 8.8%).
 - **Reading.** It more often commits all the way to one suit instead of stopping at a Half Flush that includes honors, taking a slower, bigger hand.
 - **Result.** +7.9 ± 30 points a hand against L4: kept, but not a clear gain on its own.
@@ -72,7 +125,167 @@ Per hand dealt to a seat, from each model's evaluation (L1 against s5, the rule-
 - **Thinking.** Seven rounds, started from L6, trained on 3,994,461 positions, with s5, L2, L3 and L4 in the pool. Its held-out accuracy and outcome loss are the best so far (73.3%, 0.896).
 - **What it does differently.** It claims fewer chows still (0.38 against 0.41), and 10.3% of its wins are limit hands against 8.7% (400 against 340 over 6,000 deals). Its average win is 23% higher (2,069 against 1,682) though it wins no more often (8.1% against 8.2%). It deals in less (5.1% against 5.4%). It wins more Concealed Triplets, Thirteen Orphans and Seven Pairs hands, and fewer Half Flush, Concealed, Self-Draw and Chicken Hand wins.
 - **Reading.** Each model since L1 has moved toward fewer, bigger wins. L7 takes it furthest: it claims fewer chows and keeps hands for limit hands, while dealing in a little less. The numbers show the result, not which individual choices changed.
-- **Result.** +41.1 ± 33 points a hand against L6, just beyond its margin. It is the shipped model.
+- **Result.** +41.1 ± 33 points a hand against L6, just beyond its margin. It shipped until NC1 (L17).
+
+## L8: fewer pungs, more concealed
+
+- **Thinking.** Started from L7, on rounds 1–8 (4,571,784 positions), with s5, L3, L4 and L6 in the pool.
+- **What it does differently.** It claims fewer pungs (0.42 against 0.47) and wins more hands with no melds claimed (43% against 40%). Its average win is the same as L7's (1,889 against 1,890). When it deals in, it pays more (1,165 a deal-in against 1,072).
+- **Result.** +2.1 ± 32 points a hand against L7: kept, but no measurable gain.
+
+## L9 and L10: not kept
+
+- **Thinking.** Both started from L8, with s5, L4, L6 and L7 in the pool. From round 9 the league trains on its last 8 rounds, so the training set stops growing (about 4.6 million positions).
+- **What they do differently.** L9 won smaller hands (1,615 against 1,719). L10 claimed a few more chows (0.39 against 0.36) and also won smaller (1,739 against 1,835).
+- **Result.** −3.1 ± 29 and −9.5 ± 32 points a hand against L8. Round 10 also measured L10 against s5: **+81.6 ± 32**, the clearest sign yet that the league as a whole had moved well past s5.
+
+## L11: the fewest chows
+
+- **Thinking.** Started from L8, on rounds 4–11.
+- **What it does differently.** It claims the fewest chows of any model so far (0.31 against 0.36), wins more hands concealed (46% against 43%), and more of its wins are limit hands (10.5% against 10.0%). Average win 1,937 against 1,829.
+- **Result.** +1.4 ± 31 points a hand against L8: kept, within the noise.
+
+## L12 and L13: not kept
+
+- **Thinking.** Both started from L11, with s5, L6, L7 and L8 in the pool.
+- **What they do differently.** L12 claimed more (0.40 chows and 0.46 pungs against 0.33 and 0.41) and won more often (9.1% against 8.4%), but smaller (1,988 against 2,188). L13 claimed more pungs, won smaller (1,748 against 1,979) and dealt in more (5.9% against 5.6%).
+- **Result.** −5.3 ± 35 and **−34.1 ± 31**. L13 is the one model the league clearly rejected: claiming more cost it more than it won.
+
+## L14: wins more often, same size
+
+- **Thinking.** Started from L11, on rounds 7–14.
+- **What it does differently.** It wins more often (8.9% against 8.4%) with the same size of win (1,888 against 1,852), more of them concealed (46% against 41%) and more of them limit hands (9.1% against 8.4%).
+- **Result.** +17.6 ± 33 points a hand against L11.
+
+## L15: not kept
+
+- **Thinking.** Started from L14, with s5, L7, L8 and L11 in the pool.
+- **What it does differently.** More chows (0.42 against 0.30), more wins (9.3% against 8.6%), smaller wins (1,741 against 1,868).
+- **Result.** −0.0 ± 32 against L14. Against s5: **+75.5 ± 33**, the league still far ahead of where it started.
+
+## L16: the biggest wins
+
+- **Thinking.** Started from L14, on rounds 9–16.
+- **What it does differently.** Its wins pay the most of any model against its predecessor: 1,952 points against 1,630, 7.32 faan against 6.81, and 9.3% limit hands against 7.9%. It also pays less when it deals in (949 a deal-in against 1,193). It claims more chows than L14 (0.39 against 0.30), so not every chow it takes is a cheap one.
+- **Result.** **+43.9 ± 31** points a hand against L14, one of the three clear gains of the league (with L1 and L7).
+
+## L17 (NC1): wins more often
+
+- **Thinking.** Started from L16, on rounds 10–17, with s5, L8, L11 and L14 in the pool.
+- **What it does differently.** Fewer chows (0.35 against 0.40), and it wins more often (8.9% against 8.3%) with about the same size of win (1,907 against 1,917). Its wins are a little cheaper in faan (6.92 against 7.19), and it pays more when it deals in (1,152 against 994).
+- **Reading.** L16 found bigger hands; L17 keeps most of that while finishing more hands.
+- **Result.** +6.9 ± 33 points a hand against L16: kept, within the noise. It ships as **NC1**, the first release under the NC names.
+
+## L18: not kept
+
+- **Thinking.** Started from L17, with s5, L11, L14 and L16 in the pool.
+- **What it does differently.** It won more often (9.2% against 8.8%) but smaller (1,768 against 1,940).
+- **Result.** −5.7 ± 32 against L17. Rounds 19 and 20 were still playing when this was written.
+
+## The league overall
+
+Every league round's score against the best before it, against s5 where that was played, and its held-out accuracy:
+
+| Model | Against | vs the best | vs s5 | Wins | Deal-ins | Average win | Held-out accuracy | Kept |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| L1 | s5 | +62.5 | +62.5 | 9.3% | 6.2% | 1,675 | 68.6% | yes |
+| L2 | L1 | +28.3 | +68.4 | 8.6% | 5.4% | 1,672 | 69.0% | yes |
+| L3 | L2 | +16.4 | +95.7 | 8.5% | 5.6% | 1,537 | 70.6% | yes |
+| L4 | L3 | +14.8 | +0.0 | 8.7% | 5.6% | 1,808 | 71.8% | yes |
+| L5 | L4 | −3.5 | +0.3 | 8.6% | 5.5% | 1,708 | 72.6% | no |
+| L6 | L4 | +7.9 ± 30 | | 8.3% | 5.4% | 1,781 | 73.0% | yes |
+| L7 | L6 | +41.1 ± 33 | | 8.1% | 5.1% | 2,069 | 73.3% | yes |
+| L8 | L7 | +2.1 ± 32 | | 8.3% | 5.3% | 1,889 | 73.8% | yes |
+| L9 | L8 | −3.1 ± 29 | | 8.6% | 5.6% | 1,615 | 74.6% | no |
+| L10 | L8 | −9.5 ± 31 | +81.6 ± 32 | 8.6% | 5.3% | 1,739 | 75.5% | no |
+| L11 | L8 | +1.4 ± 31 | | 8.0% | 5.4% | 1,937 | 75.8% | yes |
+| L12 | L11 | −5.3 ± 35 | | 9.1% | 5.8% | 1,988 | 76.0% | no |
+| L13 | L11 | −34.1 ± 31 | | 8.7% | 5.9% | 1,748 | 76.2% | no |
+| L14 | L11 | +17.6 ± 33 | | 8.9% | 5.6% | 1,888 | 76.3% | yes |
+| L15 | L14 | −0.0 ± 32 | +75.5 ± 33 | 9.3% | 6.0% | 1,741 | 76.7% | no |
+| L16 | L14 | +43.9 ± 31 | | 8.5% | 5.8% | 1,952 | 76.6% | yes |
+| **L17 (NC1)** | L16 | +6.9 ± 33 | | 8.9% | 5.7% | 1,907 | 77.0% | yes, shipped |
+| L18 | L17 | −5.7 ± 32 | | 9.2% | 5.9% | 1,768 | 77.1% | no |
+
+"Held-out accuracy" is how often the model names how a hand ends, on positions from deals it wasn't trained on. The league runs 20 rounds; rounds 19 and 20 were still playing when this was written.
+
+**What it taught:**
+- **The league beats the starting point by a clear margin.** L10 beat s5 by +81.6 ± 32 and L15 by +75.5 ± 33, and neither was even kept: the whole league is well past s5. That's beyond the noise, and the biggest gain of any phase.
+- **Each round's step is small.** Most new models land within ±30 of the best. Only three steps were clearly beyond the noise: L1 over s5 (+62.5), L7 (+41.1) and L16 (+43.9). The rest of the progress comes from many small, noisy steps.
+- **Reading the hand keeps improving, even when points don't.** Held-out accuracy rose with almost every model, from 68.6% to 77.1%, including models that weren't kept. Data and training kept getting better; winning more points per hand is the harder part.
+- **The gains are in the size of wins.** Win rate stayed at 8–9% and deal-ins at 5–6% throughout. The average win went from about 1,670 points (L1–L2) to about 1,900–2,070 (L7 onward). The league learned to steer toward bigger hands, the trade-off expected points exist to make. L7, for example, won about as often as L6 but each win paid 23% more, and it won 18% more limit hands.
+- **2,000-deal evaluations were too noisy.** Rounds 1–5 used them (±50), so L4 and L5's scores against s5 (+0.0, +0.3) said nothing. From round 6 the league plays 6,000 deals (±30) and records the margin, and measures against s5 every 5 rounds to save time.
+- **Training data levels off.** With an 8-round window the training set stays at about 4.6 million positions from L8 on. More rounds now bring fresher data, not more of it.
+- **A plateau is near.** After L7, new models have been kept about half the time, mostly within the noise. A bigger network, new features, or a longer evaluation to tell close models apart are the likely next levers. More rounds of the same are not.
+
+## Changes to the base logic during the league
+
+Neural Cat plays Jorge Yau's foundation, so improving Jorge Yau improves what Neural Cat chooses from. The league was restarted at round 6 on new base logic, and every round after it plays whatever the foundation is at the time.
+
+| Change | Tested as | Result | Decision |
+| --- | --- | ---: | --- |
+| Shared claim rules instead of Jorge Yau's own (claim anything that gets closer) | Jorge Yau against itself, 6,000 deals | **+47.1 ± 16.7** | On since 0.43.0 |
+| | At a mixed table (Lucky Cat, Neural Cat), 4,000 deals | +40.8 ± 32.5 | |
+| | Neural Cat with shared claims, 3,000 deals | +0.0 ± 42.3 | No change: its model makes its own claims |
+| Own claims only while locked onto a big hand | Against shared claims, 6,000 deals | −2.1 ± 19.9 | Not used; shared claims are simpler |
+| Keep pairs over singles (throw honors) | Jorge Yau, 6,000 deals | −14.8 ± 17.6 | Off |
+| Keep pairs over singles (throw number tiles only) | Jorge Yau, 6,000 deals | −19.8 ± 17.6 | Off |
+| Keep pairs, Neural Cat | 3,000 deals | +2.2 ± 41.8 | Off |
+| Keep tied honors by value (0-faan winds first, 2-faan winds last) | Jorge Yau, 6,000 deals | +2.0 ± 17.7 | On: the right order, and the coach teaches it |
+| A screen of 11 other Jorge Yau knobs (target weight, give-up point, feeding, defense, how much a hand is worth) | Jorge Yau, 3,000 deals each | all between −8.3 and +2.5, ±28 | None changed |
+
+**What it taught:**
+- **Jorge Yau's own claim rule was its biggest weakness.** It took any claim that moved the hand closer, so it chowed about six times as often as the shared rules (0.57 chows a hand against 0.09). Its hands opened early and paid little: an average win of 298 points against 482 with shared claims, and more deal-ins (9.5% against 8.6%). One change was worth more than everything the tuning screen tried.
+- **Many pairs are good, but breaking a single to keep one isn't.** Keeping pairs won as often but with smaller hands (about 340 points a win against 430). The coach no longer calls many pairs a problem; the bot logic stays as it was.
+- **Most knobs were already near their best.** Nothing in the tuning screen moved the score beyond its noise.
+
+## Fair play
+
+A test plays every strategy, then shuffles everything a seat can't see (the wall, other hands, the tile of a concealed kong) and traps the hidden records. Every feature and every move must come out the same. It caught a real leak: the foundation read the tile of other players' concealed kongs, and so did the coach. Both were fixed (`shownMelds`) before the league trained on anything.
+
+## Lucky Cat
+
+Lucky Cat started from nothing: a network with every weight at zero, so every legal move was equally likely. It learned only from hands it won, the quicker the win the more. It played its own earlier selves, and from round 7 a third of its opponent seats were Neural Cat. A new model was kept only if it won more hands than the best at the same table.
+
+| Round | New model wins | Best before wins | Discards per win |
+| --- | ---: | ---: | ---: |
+| 1 | 2.00% | 0.59% (random) | 18.0 |
+| 3 | 6.16% | 2.73% | 18.9 |
+| 6 | 11.95% | 8.95% | 18.6 |
+| 10 | 14.71% | 13.73% | 17.9 |
+| 14 | 17.32% | 15.16% | 17.5 |
+| 17 | 17.51% | 17.14% | 17.3 |
+| **20 (LC20)** | 20.36% | 17.63% | 16.9 |
+
+Against Neural Cat, over 1,000 deals each round:
+
+| Round | Lucky Cat wins | Neural Cat wins | Lucky Cat points a hand |
+| --- | ---: | ---: | ---: |
+| 7 | 8.92% | 11.33% | −159.8 |
+| 10 | 11.05% | 10.70% | −103.6 |
+| 14 | 13.08% | 10.32% | −154.5 |
+| 17 | 15.07% | 10.47% | −160.0 |
+| 20 | 17.90% | 9.13% | −109.1 |
+
+**What it taught:**
+- **Learning from wins alone works, from scratch.** A random player wins about 0.4% of hands. After a million hands Lucky Cat wins about 20% against its older selves, and 18 of 20 new models beat the best before them.
+- **It gets what it's rewarded for.** It was rewarded for winning quickly, so it wins often (nearly twice as often as Neural Cat by the end) and fast (16.9 discards per win, down from 18). It wasn't rewarded much for size, so its wins stay at 4–5 faan against Neural Cat's 8, and it still loses about 100–160 points a hand to Neural Cat.
+- **Points stay close between its own versions.** LC20 beats its older selves by +0.2 to +27.1 points a hand, because every version wins cheap hands. Its progress shows in wins, not points.
+- **It needs no rules to play well.** Lucky Cat has no steps-from-ready count, plans or threat reads. It learned all of that from its wins, and the fair-play test checks it too.
+
+## What the two show together
+
+- **What a model optimizes is what you get.** Neural Cat scores choices in expected points and learned bigger hands. Lucky Cat scores wins and learned faster, smaller ones. Neither is "better" in general: Neural Cat scores more points, and Lucky Cat wins more hands.
+- **Building on rules gets far faster than starting from scratch.** Neural Cat was ahead of the rule bots from its first model, because it chooses among Jorge Yau's best options. Lucky Cat needed a million hands to learn what the rules already knew, but it isn't limited by them.
+- **Play against strong opponents.** Neural Cat stalled against the fixed rule bots and moved again once it played other models in the league. Lucky Cat kept improving because each new version had to beat its own best.
+- **Noise is the main obstacle to telling models apart.** Most head-to-head results between neighbours are within ±30. Use 6,000 or more deals, record the margin, and replay any "best" on fresh deals.
+
+## Where the files are
+
+- Every model's weights are kept, in `ml/models/` and on [Hugging Face](https://huggingface.co/codenameyau/lucky-cat-mahjong), so any of them can play in `npm run compete` (`ml:ml/models/L8.json`).
+- League logs and every evaluation: `ml/league/` (Neural Cat) and `ml/lucky/` (Lucky Cat). The rule-bot screens: `ml/tune/` and `ml/pairs/`.
+- Training data is kept only while a model uses it ([what is kept](hugging-face.md#what-is-kept)).
+- The full playbooks: [Neural Cat](../strategies/neural-cat.md), [Lucky Cat](../strategies/lucky-cat.md), [Jorge Yau](../strategies/jorge-yau.md).
 
 ## Documenting a release
 
@@ -81,4 +294,4 @@ Every release of a Neural Cat or Lucky Cat model does two things, in the GitHub 
 1. **The thinking of each iteration since the last release:** what was trained, from which model, on what data and opponents, and why it was kept or not.
 2. **What the bot does differently:** the table's measures against the model before it, and a plain reading of them, from the `eval-<name>-vs-best.json` files in `ml/league/`.
 
-For Lucky Cat, whose strategy is rules, not a trained model, the first is what rule or tuning changed and why, and the second is measured the same way with `npm run compete`.
+For Lucky Cat, the first is what each league round trained against and whether it beat its own best, and the second is its wins, speed and points against its older selves and Neural Cat (`ml/lucky/`). For a rule strategy (Jorge Yau, Only Orphans), the first is what rule or tuning changed and why, and the second is measured the same way with `npm run compete`.

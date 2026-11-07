@@ -18,8 +18,8 @@ In the game, the model runs in the browser in plain JavaScript, with no ML serve
 | [Decisions](decisions.md) | How Neural Cat picks discards, claims and kongs, how it explains them, and what the coach says |
 | [Training](training.md) | Generating data, training, self-play, the league, competitions, and every command and option |
 | [Fair play](fair-play.md) | How the models are kept from seeing the wall or another hand, and the test that checks it |
-| [Iterations](iterations.md) | How each Neural Cat model was made and how it plays differently from the one before it |
 | [Hugging Face](hugging-face.md) | Where the models and data live, and how they're uploaded |
+| [Iterations](iterations.md) | How each Neural Cat and Lucky Cat model was made, how it plays differently from the one before it, and what each step taught |
 
 ## Quick start
 
@@ -60,6 +60,7 @@ npm run ml:league -- --start ml/models/s5.json --rounds 20 --deals 50000 --keep 
 | `scripts/ml/league.js` | League rounds: models against models |
 | `scripts/competition.js` | Head-to-head matches (`npm run compete`) |
 | `scripts/ml/hf-sync.js`, `scripts/ml/hf-data.js` | Upload models and data to [Hugging Face](hugging-face.md) |
+| `scripts/ml/prune-data.js` | Moves training data no model uses to the Trash ([what is kept](hugging-face.md#what-is-kept)) |
 | `js/mahjong-ml.test.js` | Tests for the features, model, strategy, claims, kongs and coach lines |
 | `js/mahjong-fair-play.test.js` | The [fair-play](fair-play.md) test, for every strategy |
 | `js/mahjong-coach-text.test.js` | Keeps every coach line under 400 characters and in the house style |
