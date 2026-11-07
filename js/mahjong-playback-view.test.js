@@ -328,7 +328,7 @@ test('uploads have their own place, so they never replace the game\'s playback',
   assert.doesNotMatch(load, /keepReplay|REPLAY_KEY|RECENT_KEY/, 'an upload never writes the game\'s playbacks');
 });
 
-test('the View playback sheet keeps the five most recent hands, newest first, and one upload', () => {
+test('the View playback sheet keeps the three most recent hands, newest first, and one upload', () => {
   // The storage helpers, run on their own with a fake localStorage.
   const store = {};
   const ctx = { localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } },
@@ -350,7 +350,7 @@ test('the View playback sheet keeps the five most recent hands, newest first, an
   api.keepReplay(file(7, true));
   api.keepReplay(file(6, true)); // already listed: keeps its place
   const list = api.recentPlaybacks();
-  assert.deepEqual(list.map((e) => e.file.moves), [7, 6, 5, 4, 2], 'five, newest first, the oldest (1) dropped');
+  assert.deepEqual(list.map((e) => e.file.moves), [7, 6, 5], 'three, newest first, the older ones dropped');
   assert.ok(list.every((e) => typeof e.savedAt === 'number'), 'each with the time it was saved');
   assert.equal(api.uploadedPlayback(), null);
   store['lcm-play-upload'] = JSON.stringify({ savedAt: 123, file: file(9, true) });
@@ -624,7 +624,7 @@ test('a playback that fails its signature opens the could-not-be-uploaded popup,
   const html = fs.readFileSync(path.join(ROOT, 'playing-mahjong/index.html'), 'utf8');
   assert.match(html, /<dialog id="upload-error-sheet"[^>]*role="alertdialog"/);
   assert.match(html, /<h2 id="upload-error-title">Upload failed<\/h2>/);
-  assert.match(html, /<p class="rules-sheet-intro">Your five most recent finished hands and your last upload are saved\.<\/p>/);
+  assert.match(html, /<p class="rules-sheet-intro">Your three most recent finished hands and your last upload are saved\.<\/p>/);
   assert.match(html, /This playback could not be uploaded\./);
   assert.doesNotMatch(html.slice(html.indexOf('id="upload-error-sheet"'), html.indexOf('id="strategies-sheet"')), /<button[^>]*upload-error-ok|>OK</, 'no OK button: Close, a click outside and Escape close it');
   assert.match(html, /<button type="button" class="rules-sheet-close" aria-label="Close">Close<\/button>[\s\S]*id="upload-error-lead"/);
@@ -782,4 +782,19 @@ test('opening playback again and again leaves one set of listeners on each sheet
     assert.equal(dlg.listeners.close.length, base[id][3] + 1, id + ': one more close listener');
     assert.equal(dlg.closeButton.listeners.click.length, base[id][4] + 1, id + ': one more Close listener');
   });
+});
+
+test('colour themes: green, blue and red, cycled from the menu and kept in the game prefs', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'mahjong-game.js'), 'utf8');
+  for (const name of ['green', 'blue', 'red']) assert.match(src, new RegExp(name + ": \\{ label: '"));
+  assert.match(src, /green: \{[^}]*felt: '#0b5a39', feltLight: '#127048', feltDark: '#074029'/);
+  assert.match(src, /'Theme: ' \+ themeLabel/);
+  assert.match(src, /prefs\.theme = applyTheme\(next\)[\s\S]{0,60}writeJson\(PREFS_KEY, prefs\)/);
+  assert.match(src, /applyTheme\(prefs\.theme\)/);
+  assert.doesNotMatch(src, /addColorStop\(0, '#127048'\)/);
+  const css = fs.readFileSync(path.join(__dirname, '..', 'css/play.css'), 'utf8');
+  assert.match(css, /:root\[data-theme="blue"\]/);
+  assert.match(css, /:root\[data-theme="red"\]/);
+  const html = fs.readFileSync(path.join(__dirname, '..', 'playing-mahjong/index.html'), 'utf8');
+  assert.match(html, /data-theme/);
 });

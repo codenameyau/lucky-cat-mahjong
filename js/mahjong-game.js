@@ -51,10 +51,10 @@
   // playback on the game always shows the game. A refresh while it shows
   // brings it back.
   var UPLOAD_KEY = 'lcm-play-upload';
-  // The five most recent finished hands, newest first: [{ savedAt, file }].
+  // The three most recent finished hands, newest first: [{ savedAt, file }].
   // The View playback sheet lists them, each with Play and Download.
   var RECENT_KEY = 'lcm-play-recent';
-  var RECENT_MAX = 5;
+  var RECENT_MAX = 3;
   // One hand's playback, whoever saved it.
   function playbackId(file) {
     var p = file && file.payload;
@@ -113,6 +113,30 @@
     muted: '#5C5C5C',
     white: '#ffffff',
   };
+
+  // The table's three colour themes. The green one is the original. Each
+  // gives the felt, its light and dark ends, the tile edge, and the deepest
+  // shade (the CSS --theme-deep). applyTheme copies one into COLORS and onto
+  // <html data-theme>, which css/play.css reads for the sheets and the page.
+  var THEMES = {
+    green: { label: 'Green', felt: '#0b5a39', feltLight: '#127048', feltDark: '#074029', green: '#05693A', deep: '#0a3d27', meta: '#074029' },
+    blue: { label: 'Blue', felt: '#0d4a7a', feltLight: '#16609a', feltDark: '#082f52', green: '#0a5c94', deep: '#0a2f4d', meta: '#082f52' },
+    red: { label: 'Red', felt: '#6e1a2c', feltLight: '#8c2639', feltDark: '#4a0f1c', green: '#7f2336', deep: '#3d0d18', meta: '#4a0f1c' },
+  };
+  var THEME_ORDER = ['green', 'blue', 'red'];
+  function themeName(name) { return THEMES[name] ? name : 'green'; }
+  function applyTheme(name) {
+    name = themeName(name);
+    var t = THEMES[name];
+    COLORS.felt = t.felt;
+    COLORS.feltLight = t.feltLight;
+    COLORS.feltDark = t.feltDark;
+    COLORS.green = t.green;
+    if (typeof document !== 'undefined' && document.documentElement && document.documentElement.setAttribute) {
+      document.documentElement.setAttribute('data-theme', name);
+    }
+    return name;
+  }
   var FONT_BODY = '"Avenir Medium", "Avenir Next Medium", Avenir, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
   // The site's heading font (css/fonts.css), for headings, winds and banners.
   var FONT_HEAD = '"KN Yuanmo SC", ' + FONT_BODY;
@@ -687,6 +711,7 @@
     if (!settings.playback) liveReplay = null; // a new game starts without the last one's unfinished playback
     dropUnfinishedStored();
     var prefs = readJson(PREFS_KEY, { sound: true });
+    applyTheme(prefs.theme); // green, blue or red, kept in PREFS_KEY
     // ?sound=0 and ?sound=1 cover this visit only, so a test can stay quiet
     // without changing the saved Sound button choice. No sound param keeps it.
     var soundParam = /[?&]sound=(0|1)(?:&|$)/.exec((root.location && root.location.search) || '');
@@ -2071,7 +2096,7 @@
 
     var ASSIGN_ICON = {
       user: '<circle cx="8" cy="4.4" r="2.3" fill="currentColor"/><path d="M2.1 14.4c.4-3.5 2.3-5.2 5.9-5.2s5.5 1.7 5.9 5.2z" fill="currentColor"/>',
-      bot: '<path d="M8 3.1V1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="1.15" r="0.85" fill="currentColor"/><rect x="0.5" y="6.1" width="1.5" height="2.5" rx="0.4" fill="currentColor"/><rect x="14" y="6.1" width="1.5" height="2.5" rx="0.4" fill="currentColor"/><rect x="2.3" y="3.5" width="11.4" height="10.2" rx="2.2" fill="currentColor"/><circle cx="6.2" cy="7.8" r="0.95" fill="#074029"/><circle cx="9.8" cy="7.8" r="0.95" fill="#074029"/><rect x="5.7" y="10.5" width="4.6" height="1" rx="0.4" fill="#074029"/>',
+      bot: '<path d="M8 3.1V1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="1.15" r="0.85" fill="currentColor"/><rect x="0.5" y="6.1" width="1.5" height="2.5" rx="0.4" fill="currentColor"/><rect x="14" y="6.1" width="1.5" height="2.5" rx="0.4" fill="currentColor"/><rect x="2.3" y="3.5" width="11.4" height="10.2" rx="2.2" fill="currentColor"/><circle cx="6.2" cy="7.8" r="0.95" fill="var(--theme-dark, #074029)"/><circle cx="9.8" cy="7.8" r="0.95" fill="var(--theme-dark, #074029)"/><rect x="5.7" y="10.5" width="4.6" height="1" rx="0.4" fill="var(--theme-dark, #074029)"/>',
     };
 
     // The drawings stop short of the view box. Drop each one so its lowest
@@ -2880,17 +2905,20 @@
       return Math.max(0, n - ui.hide.backs[seat]);
     }
 
-    // A player's box. Whose turn it is shows as a faint gold tint and a
-    // thin outline that slowly breathes, enough to find without pulling
-    // the eye away from the table.
+    // A player's box. Whose turn it is shows as a gold tint and an
+    // outline with a soft glow that slowly breathes: easy to find, and still
+    // gentle enough not to pull the eye from the table.
     function drawSeatBox(r, active, t) {
       ctx.save();
       roundRect(ctx, r.x, r.y, r.w, r.h, 6);
-      ctx.fillStyle = active ? 'rgba(244,160,32,0.07)' : 'rgba(0,0,0,0.16)';
+      ctx.fillStyle = active ? 'rgba(244,160,32,0.13)' : 'rgba(0,0,0,0.16)';
       ctx.fill();
       if (active) {
-        ctx.strokeStyle = 'rgba(244,160,32,' + (0.32 + 0.1 * Math.sin(t / 600)) + ')';
-        ctx.lineWidth = 1.5;
+        var pulse = Math.sin(t / 600);
+        ctx.shadowColor = 'rgba(244,160,32,' + (0.4 + 0.15 * pulse) + ')';
+        ctx.shadowBlur = 9 + 3 * pulse;
+        ctx.strokeStyle = 'rgba(244,160,32,' + (0.62 + 0.15 * pulse) + ')';
+        ctx.lineWidth = 2;
         ctx.stroke();
         requestRender();
       }
@@ -4334,8 +4362,8 @@
       ctx.shadowOffsetY = 18;
       roundRect(ctx, r.x, r.y, r.w, r.h, 8);
       var g = ctx.createRadialGradient(r.x + r.w / 2, r.y + r.h * 0.35, 10, r.x + r.w / 2, r.y + r.h * 0.35, Math.max(r.w, r.h) * 0.75);
-      g.addColorStop(0, '#127048');
-      g.addColorStop(1, '#074029');
+      g.addColorStop(0, COLORS.feltLight);
+      g.addColorStop(1, COLORS.feltDark);
       ctx.fillStyle = g;
       ctx.fill();
       ctx.restore();
@@ -4646,10 +4674,18 @@
 
     // The pause menu, in the look of the Results window: the deep green sheet
     // with a gold edge, a gold title at the left and a Close button at the right.
+    // Green, then blue, then red, and back. Kept in PREFS_KEY.
+    function cycleTheme() {
+      var next = THEME_ORDER[(THEME_ORDER.indexOf(themeName(prefs.theme)) + 1) % THEME_ORDER.length];
+      prefs.theme = applyTheme(next);
+      writeJson(PREFS_KEY, prefs);
+      requestRender();
+    }
+
     function drawMenu() {
       // View playback sits under Resume once the hand has a move to look at.
       var withPlayback = menuHasPlayback();
-      var r = panelRect(360, withPlayback ? 360 : 308);
+      var r = panelRect(360, withPlayback ? 414 : 362);
       ui.overlayBox = r;
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(0, 0, W, H);
@@ -4658,12 +4694,14 @@
       text('Menu', px, r.y + 36, { size: 28, family: FONT_HEAD, align: 'left', color: COLORS.goldLight });
       button('Close', r.x + r.w - 22 - 64, r.y + 22, 64, 28, function () { sound.play('select'); closeOverlay(); }, 'ghost', 'm-close');
       // On a short screen (a phone held sideways) the buttons close up to fit.
-      var rows = withPlayback ? 4 : 3;
+      var rows = withPlayback ? 5 : 4;
       var room = r.h - 70 - 64;
       var step = Math.max(34, Math.min(52, room / rows));
       var bh = Math.min(42, step - 6);
       var bx = px, bw = r.w - 44, y = r.y + 70;
       button('Resume', bx, y, bw, bh, function () { sound.play('select'); closeOverlay(); }, 'primary', 'm-resume'); y += step;
+      var themeLabel = THEMES[themeName(prefs.theme)].label;
+      button('Theme: ' + themeLabel, bx, y, bw, bh, function () { sound.play('select'); cycleTheme(); }, 'white', 'm-theme'); y += step;
       if (withPlayback) { button('View playback', bx, y, bw, bh, function () { sound.play('select'); closeOverlay(); viewReplay(); }, 'white', 'm-playback'); y += step; }
       var armed = ui.restartArmed && now() - ui.restartArmed < 5000;
       button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, bh, function () { sound.play('select'); restartGame(); }, armed ? 'gold' : 'white', 'm-restart'); y += step;
@@ -6194,7 +6232,7 @@
       setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
     }
 
-    /* The Saved playbacks sheet: your five most recent finished hands, each
+    /* The Saved playbacks sheet: your three most recent finished hands, each
        with the time it was saved, Play and Download, then the one playback
        you uploaded last (if any), and Upload playback. */
     function playbacksSheet() {
@@ -6384,7 +6422,7 @@
 
     function buildPlaybacks() {
       fillList(document.getElementById('playbacks-recent'), recentPlaybacks(),
-        'No finished hands yet. Each hand you finish is kept here, the last five.',
+        'No finished hands yet. Each hand you finish is kept here, the last three.',
         function (e) { return { lcmRecent: playbackId(e.file) }; }, 'recent');
       var up = uploadedPlayback();
       fillList(document.getElementById('playbacks-uploaded'), up ? [up] : [],
@@ -7724,6 +7762,7 @@
         // Take them, so this table never writes back an older choice.
         var fresh = readJson(PREFS_KEY, null);
         if (fresh) Object.keys(fresh).forEach(function (k) { prefs[k] = fresh[k]; });
+        applyTheme(prefs.theme);
         if (!soundParam) {
           sound.enabled = prefs.sound !== false;
           sound.musicEnabled = sound.enabled;
@@ -7740,6 +7779,12 @@
       // Your wind badge's click (auto-play on localhost with the coach on; else copy the seed).
       clickMyWind: function () { if (!destroyed) onMyWind(); },
       get autoPlay() { return autoPlay; },
+      // A drawn button's box on the page, by its id (for tests).
+      regionFor: function (id) {
+        var b = canvas.getBoundingClientRect();
+        for (var i = 0; i < regions.length; i++) if (regions[i].id === id) return { x: b.left + regions[i].x, y: b.top + regions[i].y, w: regions[i].w, h: regions[i].h };
+        return null;
+      },
       get stats() { return ui.stats; },
       // The menu's View playback, for this hand.
       viewPlayback: function () { if (!destroyed && !settings.playback) viewReplay(); },
@@ -8185,7 +8230,7 @@
     return /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local|.+\.localhost|.+\.test)$/i.test(String(host || ''));
   }
 
-  var api = { createTable: createTable, init: init, isLocalHost: isLocalHost, longestWinStreak: longestWinStreak };
+  var api = { createTable: createTable, init: init, isLocalHost: isLocalHost, longestWinStreak: longestWinStreak, THEMES: THEMES };
   root.MahjongGame = api;
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

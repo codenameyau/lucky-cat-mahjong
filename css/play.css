@@ -1,3 +1,11 @@
+:root {
+  --theme-light: #127048;
+  --theme-dark: #074029;
+  --theme-deep: #0a3d27;
+}
+:root[data-theme="blue"] { --theme-light: #16609a; --theme-dark: #082f52; --theme-deep: #0a2f4d; }
+:root[data-theme="red"] { --theme-light: #8c2639; --theme-dark: #4a0f1c; --theme-deep: #3d0d18; }
+
 /* Play page: settings preview card and the full-screen canvas stage. */
 
 .play {
@@ -232,7 +240,7 @@ html.play-has-save:not(.play-settled):not(.play-new-first) #play-resume {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: #074029;
+  background: var(--theme-dark);
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
@@ -288,7 +296,7 @@ html.is-playing.is-sideways body {
   padding: 0;
   border: 2px solid #F4A020;
   border-radius: 8px;
-  background: radial-gradient(circle at 50% 35%, #127048, #074029 75%);
+  background: radial-gradient(circle at 50% 35%, var(--theme-light), var(--theme-dark) 75%);
   color: #FFF8F0;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
   overflow: auto;
@@ -441,7 +449,7 @@ html.is-playing.is-sideways body {
   padding: 10px 12px;
   border: 2px solid #C41E3A;
   border-radius: 6px;
-  background: #0a3d27;
+  background: var(--theme-deep);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   cursor: pointer;
 }
@@ -904,7 +912,7 @@ html.is-playing.is-sideways body {
 .results-table thead th {
   position: sticky;
   top: 0;
-  background: #074029;
+  background: var(--theme-dark);
   color: #ffffff;
   font-size: 0.78rem;
   font-weight: bold;
