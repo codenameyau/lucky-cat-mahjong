@@ -82,6 +82,7 @@
           'The hands it can play are Thirteen Orphans, Mixed Orphans, All Terminals and All Honors, as triplets or as pairs. They are big hands, so it wins rarely, about 2 hands in 100, and each win is worth thousands of points.',
           'The choices left to ' + (version ? 'its neural network, model ' + version + ',' : 'a neural network') + ' are the ones that decide whether it gets there: which spare 1, 9 or honor goes, when to give up on Thirteen Orphans and for which hand, which pungs and kongs to take, and how long to keep chasing.',
           'It weighs each choice by the score it expects on average, a score that counts the chance to win, how big the win would be and the chance of dealing in, and plays the best one. Dealing in is part of that score, so there is no separate rule for playing safe.',
+          'Compared with the model before it, it takes more pungs of 1s, 9s and honors and settles for Mixed Orphans in triplets sooner instead of holding out for Thirteen Orphans. It wins about 13% more hands, each a little smaller, and deals in just as often.',
           'It learned from games against Neural Cat, Jorge Yau and Lucky Cat. It sees only what its seat can see.',
         ];
       },

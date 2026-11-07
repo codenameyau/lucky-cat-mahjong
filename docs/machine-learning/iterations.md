@@ -1,6 +1,6 @@
 # Iterations
 
-How each Neural Cat and Lucky Cat model came to be, how it plays differently from the one before it, and what each step taught. Every release of a Neural Cat or Lucky Cat model adds its iterations here and to the GitHub release notes (see [each release](#documenting-a-release)).
+How each Neural Cat, Lucky Cat and Only Orphans model came to be, how it plays differently from the one before it, and what each step taught. Every release of a Neural Cat or Lucky Cat model adds its iterations here and to the GitHub release notes (see [each release](#documenting-a-release)).
 
 **How to read this.** A model has no stated reasons: it scores choices with a network. So "what it does differently" below is measured, from the evaluation each model plays against the best before it (`ml/league/eval-<name>-vs-best.json`: the same deals, the two models two seats each). The reason a change happened is the training that produced it, and where the numbers hint at why, it says so as a reading, not a fact. The coach's text for a single decision is the only place the model explains itself.
 
@@ -363,6 +363,17 @@ Against Neural Cat, over 1,000 deals each round:
 - **What it does differently.** Against lc22 over 20,000 new deals it wins 21.8% of its seats to 20.0%, in the same 16.4 discards a win. Against lc20 over 10,000 deals it wins 22.8% to 18.2%. Against Neural Cat NC2 it wins 22.2% of hands and loses 116 points a hand (lc20: 18.3% and 138).
 - **Reading.** The gains add up: the three lab steps were +1.5, +1.7 and +1.9 points of win rate, and lc23 against lc20 directly is +4.5. So it isn't only learning to beat its last self. `recent`, training on the newest two rounds only, won both rounds it was tried, ahead of `finetune-slow` (+0.2 on 6,000 deals) and `sharp` (+1.3 on 20,000, also beyond the noise). Fresh games against the current table matter more than more data.
 - **Result.** J +1.9 ± 0.40: kept, and shipped as **lc23**.
+
+## Only Orphans
+
+Only Orphans keeps fixed rules (only 1s, 9s and honors, no chows) and lets a network, the same model as Neural Cat's, choose everything else in expected points. Its league (`scripts/ml/orphans.js`) made O1 to O5 against the rule-based bot it replaced: O5 beat that bot by +37.6 ± 22 points a hand and shipped (round by round: [only-orphans-training.md](../strategies/only-orphans-training.md)). From O5 it moved to the lab (`npm run ml:lab -- --strategy only-orphans`), judged by J = points a hand + 5 × hands won (in percentage points). The rule-based bot plays each round's deals as the baseline.
+
+### OL2c: more triplet hands
+
+- **Thinking.** Lab round 1, against NC1, the newer Jorge Yau and LC20, kept nothing: the wider network (`wide`) led on 6,000 deals but fell to J +5.1 on 20,000 (points +4.0 ± 15.6), within the noise. Round 2 played 50,000 hands with O5 against the game's new table (NC2, lc23, Jorge Yau) and O2 and O3, then tried a third of the learning rate (`finetune-slow`, J −6.6), a deeper network from scratch (`deep`, +29.1 on 6,000 deals, then +7.1 on 20,000, within the noise), three times the learning rate (`finetune-fast`), and claim margins of −25 and +25 (0.0 and +6.7). `finetune-fast` trained O5 on 3,457,210 positions from the league's five rounds and the lab's two.
+- **What it does differently.** Against O5 on the same 20,000 deals, it wins 2.2% of its hands to 1.9% (1,767 wins to 1,560) and deals in just as often (11.1%). The extra wins are Mixed Orphans in triplets: 848 Mixed Orphans to 679, and 710 All Triplets to 535, while Thirteen Orphans stayed level (724 to 718). It pungs more (0.52 a hand to 0.48), kongs more (5,458 to 5,106) and self-draws more (463 to 377). Each win is a little smaller (9.8 faan to 10.0, about 6,000 points to 6,700), but more wins add up to more points: 49.1 a hand to O5's 42.5.
+- **Reading.** A larger step from O5 on games against the stronger table taught it to take more orphan pungs and settle for the triplet hands earlier, where O5 kept chasing Thirteen Orphans. Deal-ins are still about 11% of hands, against the rule bot's 4.6%, so that's still where the next gains need to come from.
+- **Result.** J +8.0 on 20,000 fresh deals (points +6.7 ± 15.4), beyond its standard error: kept, and shipped as **OL2c**. Against the rule-based bot on those deals: +26.8 ± 14.8 points a hand.
 
 ## What the two show together
 
