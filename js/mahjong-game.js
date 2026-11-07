@@ -791,7 +791,10 @@
     }
 
     // Animations: 'normal' (shown) or 'off' (skip animations and delays).
-    function instantMode() { return settings.speed === 'off' || ui.replaying; }
+    // Auto-play (the wind badge, on development addresses) skips them too:
+    // every flight, pause and bot delay. The declaration banners and the win
+    // confetti still show.
+    function instantMode() { return settings.speed === 'off' || ui.replaying || autoPlay; }
     function speed(ms) { return reduceMotion ? 0 : ms; }
 
     /* ---------------- frame loop ---------------- */
@@ -3674,6 +3677,17 @@
       copySeed();
     }
 
+    // Every flight in progress ends at once. Banners and confetti are left to
+    // finish on their own.
+    function finishAnimations() {
+      var running = anims.splice(0);
+      running.forEach(function (a) {
+        a.step(1, 1);
+        a.done();
+      });
+      requestRender();
+    }
+
     // Off, with nothing queued. Auto-play is never kept: it is off on every
     // load, and a page the browser brings back from its frozen-page cache
     // (Back) or sends away (pagehide) is switched off too.
@@ -3692,6 +3706,8 @@
       var coachName = Strategies.get(ui.strategies.coach).name;
       announce(autoPlay ? 'Auto-play on: ' + coachName + ' plays your moves. Click your wind to stop.' : 'Auto-play off.');
       track('play_autoplay', { on: autoPlay });
+      // Whatever is mid-flight lands now, so the first auto move isn't held up by it.
+      if (autoPlay) finishAnimations();
       if (autoPlay) autoStep();
       requestRender();
     }

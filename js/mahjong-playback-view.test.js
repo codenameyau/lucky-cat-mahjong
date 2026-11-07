@@ -388,6 +388,24 @@ test('auto-play (the wind badge, with the coach on) is for local and private-net
   assert.match(GAME_SRC, /if \(autoPlay \|\| canAutoPlay\(\)\) \{ toggleAutoPlay\(\); return; \}\n      copySeed\(\);/);
 });
 
+test('auto-play skips the flights and pauses, but still shows the declaration banners and win confetti', () => {
+  assert.match(GAME_SRC, /function instantMode\(\) \{ return settings\.speed === 'off' \|\| ui\.replaying \|\| autoPlay; \}/);
+  // Banners and confetti are not gated on auto-play.
+  const banner = GAME_SRC.slice(GAME_SRC.indexOf('function banner(textStr'), GAME_SRC.indexOf('function banner(textStr') + 200);
+  assert.doesNotMatch(banner, /autoPlay/, 'declaration banners still show');
+  const confetti = GAME_SRC.slice(GAME_SRC.indexOf('function confetti('), GAME_SRC.indexOf('function confetti(') + 120);
+  assert.doesNotMatch(confetti, /autoPlay/, 'win confetti still shows');
+  // Turning it on lands the flights in progress, and leaves banners and particles alone.
+  assert.match(GAME_SRC, /if \(autoPlay\) finishAnimations\(\);/);
+  const fin = GAME_SRC.slice(GAME_SRC.indexOf('function finishAnimations'), GAME_SRC.indexOf('function stopAutoPlay'));
+  assert.match(fin, /anims\.splice\(0\)/);
+  assert.match(fin, /a\.step\(1, 1\);\s+a\.done\(\);/);
+  assert.doesNotMatch(fin, /banners|particles/);
+  // The other animation gates (animate, sleep, the bots' thinking) all read instantMode.
+  assert.match(GAME_SRC, /function animate\(dur, step, ease\) \{\n      if \(instantMode\(\)\)/);
+  assert.match(GAME_SRC, /function sleep\(ms\) \{\n      if \(instantMode\(\)\)/);
+});
+
 test('auto-play is never kept: off on every load, and off when a frozen page is restored or left', () => {
   assert.match(GAME_SRC, /var autoPlay = false;/, 'a plain variable, never stored');
   const stores = GAME_SRC.match(/(writeJson|localStorage\.setItem|sessionStorage\.setItem)\([^)]*autoPlay/g);
