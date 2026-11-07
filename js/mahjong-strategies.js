@@ -72,7 +72,9 @@
       id: 'only-orphans',
       name: 'Only Orphans',
       bot: O,
-      summary: 'Only plays hands of 1s, 9s and honors: Thirteen Orphans, Mixed Orphans, All Terminals and All Honors. A neural network trained on simulated games decides how.',
+      get summary() {
+        return withModel(weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights'), 'Only plays hands of 1s, 9s and honors: Thirteen Orphans, Mixed Orphans, All Terminals and All Honors. A neural network trained on simulated games decides how.');
+      },
       get details() {
         var version = weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights');
         return [
