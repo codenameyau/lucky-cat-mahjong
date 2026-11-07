@@ -167,7 +167,7 @@ npm run ml:lab -- --strategy lucky-cat --rounds 10      # starts from the model 
 | Plays against | Its last three champions, s5, Jorge Yau, Lucky Cat, Lucky Cat Classic | Neural Cat, Jorge Yau and Lucky Cat (the table the game seats it at), and its last two champions | Its last three champions, Neural Cat (two seats' worth) and Jorge Yau |
 | Records | Every seat's decisions (`--sample 0.12`) | Only its own seats (`--record only-orphans`, `--sample 0.25`) | The moves of every hand it wins (`scripts/ml/lucky.js generate`) |
 | Trains with | `ml/train.py` | `ml/train.py` | `ml/train_lucky.py` |
-| Training arms | All six above | All six above | `finetune` (1e-3), `finetune-slow` (3e-4), `finetune-fast` (3e-3), `recent` (2 sets), `long` (10 sets), `sharp` (smoothing 0.01) |
+| Training arms | All six above | All six above | `finetune` (1e-3), `finetune-slow` (3e-4), `finetune-fast` (3e-3), `recent` (2 sets), `long` (10 sets), `sharp` (smoothing 0.01), and since lc29 `deal-ins` and `deal-ins-strong` (the last 2 sets, pushing down each move that dealt in at weight 0.3 or 1) and `wide` (512-256 from scratch on 10 sets) |
 | Play arms | All of them | `winBonus` and `claimMargin` (it already picks among every allowed discard) | None (it plays its biggest share) |
 | Judged on | Head to head, two seats each: J = points + 5 × wins | One seat each against Neural Cat, Jorge Yau and Lucky Cat, on the same deals: the same J | Head to head, two seats each: J = hands won (percentage points), its own objective |
 | Baseline | | The rule-based Only Orphans plays the same deals every round | |

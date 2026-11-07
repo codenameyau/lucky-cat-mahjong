@@ -119,9 +119,10 @@ const PLAY_ARMS = {
 // strategy), so it has no topK arms.
 const OO_PLAY_ARMS = {};
 Object.keys(PLAY_ARMS).filter((n) => PLAY_ARMS[n].key !== 'topK').forEach((n) => { OO_PLAY_ARMS[n] = PLAY_ARMS[n]; });
-// Lucky Cat's experiments: its trainer (ml/train_lucky.py) has one network
-// size, so its arms vary the learning rate, the data window, and how sharp
-// its targets are.
+// Lucky Cat's experiments: they vary the learning rate, the data window, and
+// how sharp its targets are; since lc29, how much its deal-ins count (data
+// from then on holds each move that dealt in, which these arms push down) and
+// a wider network.
 const LC_TRAIN_ARMS = {
   finetune: { init: true, lr: 1e-3, epochs: 6, window: 6, about: 'fine-tune the champion' },
   'finetune-slow': { init: true, lr: 3e-4, epochs: 8, window: 6, about: 'fine-tune at a third of the learning rate' },
@@ -129,6 +130,9 @@ const LC_TRAIN_ARMS = {
   recent: { init: true, lr: 1e-3, epochs: 6, window: 2, about: 'fine-tune on the last 2 rounds only' },
   sharp: { init: true, lr: 1e-3, epochs: 6, window: 6, smoothing: 0.01, about: 'fine-tune with sharper targets (smoothing 0.01)' },
   long: { init: true, lr: 1e-3, epochs: 6, window: 10, about: 'fine-tune on the last 10 rounds' },
+  'deal-ins': { init: true, lr: 1e-3, epochs: 6, window: 2, negWeight: 0.3, about: 'fine-tune on the last 2 rounds, pushing down the moves that dealt in (weight 0.3)' },
+  'deal-ins-strong': { init: true, lr: 1e-3, epochs: 6, window: 2, negWeight: 1, about: 'fine-tune on the last 2 rounds, pushing down the moves that dealt in (weight 1)' },
+  wide: { hidden: '512,256', lr: 1e-3, epochs: 12, window: 10, negWeight: 0.3, about: 'a wider network (512, 256), from scratch on the last 10 rounds' },
 };
 
 function parseArgs(argv) {
@@ -329,6 +333,8 @@ const STRATEGIES = {
     trainArgs(spec, sets, name, champ) {
       const args = ['ml/train_lucky.py', '--data'].concat(sets, ['--name', name, '--lr', String(spec.lr), '--epochs', String(spec.epochs)]);
       if (spec.smoothing != null) args.push('--smoothing', String(spec.smoothing));
+      if (spec.negWeight) args.push('--neg-weight', String(spec.negWeight));
+      if (spec.hidden) args.push('--hidden', spec.hidden);
       if (spec.init) args.push('--init', champ);
       return { args, about: '(' + sets.length + ' data sets)' };
     },

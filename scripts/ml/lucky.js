@@ -114,7 +114,7 @@ async function work(job) {
     },
   });
   const rows = { x: [], a: [], legal: [], w: [] };
-  const stats = { deals: 0, learnerSeats: 0, learnerWins: 0, wins: 0, winDiscards: 0, winFaan: 0, dealIns: 0, samples: 0, byOpponent: {} };
+  const stats = { deals: 0, learnerSeats: 0, learnerWins: 0, wins: 0, winDiscards: 0, winFaan: 0, dealIns: 0, samples: 0, negatives: 0, byOpponent: {} };
   for (let d = job.from; d < job.to; d++) {
     const game = E.createGame({ seed: job.seed + d, humanSeat: false, dealer: d % 4, startPoints: 1e9 });
     const pool = job.pool.length ? job.pool : ['lc:' + job.weights];
@@ -135,7 +135,13 @@ async function work(job) {
       o.seats++;
       if (res.type === 'win' && res.winner === seat) o.wins++;
     });
-    if (res.type === 'win' && res.payer != null && ids[res.payer] === 'learn' && ids[res.winner] !== 'learn') stats.dealIns++;
+    if (res.type === 'win' && res.payer != null && ids[res.payer] === 'learn' && ids[res.winner] !== 'learn') {
+      stats.dealIns++;
+      // The move that dealt in (the learner's last: the discard, or a robbed
+      // kong), written with weight -1: training can push it down (--neg-weight).
+      const last = buffers[res.payer][buffers[res.payer].length - 1];
+      if (job.out && last) { rows.x.push(last.x); rows.a.push(last.a); rows.legal.push(last.legal); rows.w.push(-1); stats.negatives++; }
+    }
     if (res.type !== 'win' || ids[res.winner] !== 'learn') continue;
     const s = res.winner;
     const discards = game.hand.seats[s].discards.length;
@@ -180,9 +186,9 @@ function floatToHalf(v) {
  * ------------------------------------------------------------------ */
 
 function merge(all) {
-  const out = { deals: 0, learnerSeats: 0, learnerWins: 0, wins: 0, winDiscards: 0, winFaan: 0, dealIns: 0, samples: 0, byOpponent: {} };
+  const out = { deals: 0, learnerSeats: 0, learnerWins: 0, wins: 0, winDiscards: 0, winFaan: 0, dealIns: 0, samples: 0, negatives: 0, byOpponent: {} };
   all.forEach((s) => {
-    ['deals', 'learnerSeats', 'learnerWins', 'wins', 'winDiscards', 'winFaan', 'dealIns', 'samples'].forEach((k) => { out[k] += s[k]; });
+    ['deals', 'learnerSeats', 'learnerWins', 'wins', 'winDiscards', 'winFaan', 'dealIns', 'samples', 'negatives'].forEach((k) => { out[k] += s[k]; });
     Object.keys(s.byOpponent).forEach((id) => {
       const o = (out.byOpponent[id] = out.byOpponent[id] || { seats: 0, wins: 0 });
       o.seats += s.byOpponent[id].seats;
@@ -224,7 +230,7 @@ async function generate(a) {
   stats.avgWinFaan = stats.winFaan / Math.max(1, stats.learnerWins);
   if (out) fs.writeFileSync(path.join(out, 'meta.json'), JSON.stringify(Object.assign({ featureVersion: N.FEATURE_VERSION, featureSize: N.SIZE, job }, stats), null, 2) + '\n');
   console.log('generated ' + stats.deals + ' deals in ' + stats.seconds.toFixed(0) + 's: learner won ' + (100 * stats.winRate).toFixed(2) +
-    '% of its seats (' + stats.learnerWins + ' hands, ' + stats.avgWinDiscards.toFixed(1) + ' discards, ' + stats.avgWinFaan.toFixed(2) + ' faan), ' + stats.samples + ' samples');
+    '% of its seats (' + stats.learnerWins + ' hands, ' + stats.avgWinDiscards.toFixed(1) + ' discards, ' + stats.avgWinFaan.toFixed(2) + ' faan), ' + stats.samples + ' samples (' + stats.negatives + ' of them deal-ins)');
   return stats;
 }
 
