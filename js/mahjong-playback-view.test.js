@@ -407,16 +407,40 @@ test('a playback that fails its signature opens the could-not-be-uploaded popup,
   const html = fs.readFileSync(path.join(ROOT, 'playing-mahjong/index.html'), 'utf8');
   assert.match(html, /<dialog id="upload-error-sheet"[^>]*role="alertdialog"/);
   assert.match(html, /<h2 id="upload-error-title">Upload failed<\/h2>/);
+  assert.match(html, /<p class="rules-sheet-intro">Your five most recent finished hands and your last upload are saved\.<\/p>/);
   assert.match(html, /This playback could not be uploaded\./);
-  assert.match(html, /id="upload-error-ok"/);
+  assert.doesNotMatch(html.slice(html.indexOf('id="upload-error-sheet"'), html.indexOf('id="strategies-sheet"')), /<button[^>]*upload-error-ok|>OK</, 'no OK button: Close, a click outside and Escape close it');
+  assert.match(html, /<button type="button" class="rules-sheet-close" aria-label="Close">Close<\/button>[\s\S]*id="upload-error-lead"/);
   const load = GAME_SRC.slice(GAME_SRC.indexOf('function loadPlaybackText'), GAME_SRC.indexOf('function onCanvasPaste'));
   // The check runs first; a failure shows the popup and returns before anything is written.
   assert.ok(load.indexOf('showUploadError(checked)') > 0 && load.indexOf('showUploadError(checked)') < load.indexOf('writeJson(UPLOAD_KEY'), 'the popup comes before anything is stored');
   assert.match(load, /track\('play_playback_upload_failed', \{ code: checked\.code/);
   assert.match(GAME_SRC, /signature: 'Its signature doesn\\'t match, so the file was changed or damaged after it was saved/);
-  // Closed by OK, Close, a click outside, and Escape (a dialog's own).
-  assert.match(GAME_SRC, /onSheet\(document\.getElementById\('upload-error-ok'\), 'click', closeUploadError\)/);
+  // Closed by Close, a click outside, and Escape (a dialog's own).
+  assert.doesNotMatch(GAME_SRC, /upload-error-ok/);
+  assert.match(GAME_SRC, /onSheet\(dlg\.querySelector\('\.rules-sheet-close'\), 'click', closeUploadError\)/);
   assert.match(GAME_SRC, /playbacksOpen\(\) \|\| uploadErrorOpen\(\)\) return;/);
+});
+
+test('Upload playback closes the Saved playbacks sheet, and a bad file\'s popup stands on its own', () => {
+  const click = GAME_SRC.slice(GAME_SRC.indexOf("track('play_playback_upload_click'"), GAME_SRC.indexOf("track('play_playback_upload_click'") + 200);
+  assert.match(click, /closePlaybacks\(\);\n\s+openReplayPicker\(\)/, 'the sheet closes, then the picker opens');
+  const err = GAME_SRC.slice(GAME_SRC.indexOf('function showUploadError'), GAME_SRC.indexOf('function closeUploadError'));
+  assert.match(err, /closePlaybacks\(\)/);
+});
+
+test('an incompatible version gets a message of its own, naming both versions', () => {
+  const src = /function versionMessage\(c\) \{[\s\S]*?\n    \}\n/.exec(GAME_SRC)[0];
+  const versionMessage = new Function(src + '; return versionMessage;')();
+  assert.equal(versionMessage({ versionKind: 'newer', fileVersion: '2.0.0', gameVersion: '1.4.0' }),
+    'It was saved by a newer version of the game (2.0.0), and this page is on 1.4.0. Reload the page to update, then upload it again.');
+  assert.equal(versionMessage({ versionKind: 'older', fileVersion: '1.0.0', gameVersion: '2.1.0' }),
+    'It was saved by an older version of the game (1.0.0) that this version (2.1.0) can\'t play.');
+  assert.match(versionMessage({ versionKind: 'missing', fileVersion: null, gameVersion: '1.4.0' }), /^It has no game version, so this version \(1\.4\.0\) can't tell/);
+  // Its own line under the heading, and the popup reads both from the failed check.
+  assert.match(GAME_SRC, /version: 'This playback is from an incompatible version of the game\.'/);
+  assert.match(GAME_SRC, /checked\.code === 'version' \? versionMessage\(checked\)/);
+  assert.match(GAME_SRC, /UPLOAD_LEADS\[checked\.code\] \|\| 'This playback could not be uploaded\.'/);
 });
 
 test('the playback bar opens the View playback sheet, and its rows play, download and upload', () => {

@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.51.1';
+  var GAME_VERSION = '0.52.0';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -1062,14 +1062,18 @@
   }
 
   // Whether a save written by `version` loads into this one: any minor or
-  // patch version of the same major version does. Returns { ok, reason }.
+  // patch version of the same major version does. Returns { ok, reason, kind,
+  // fileVersion, gameVersion }; `kind` says what is wrong: 'missing' (no
+  // version), 'newer' or 'older' (another major version).
   function saveCompatibility(version) {
     var have = parseVersion(GAME_VERSION);
     var got = parseVersion(version);
-    if (!got) return { ok: false, reason: 'This file has no game version, so it can\'t be loaded.' };
-    if (got[0] > have[0]) return { ok: false, reason: 'Saved by version ' + version + ', newer than this game (' + GAME_VERSION + '). Reload the page to update.' };
-    if (got[0] !== have[0]) return { ok: false, reason: 'Saved by version ' + version + ', which doesn\'t load in version ' + GAME_VERSION + '.' };
-    return { ok: true, reason: null };
+    var info = { fileVersion: version == null ? null : String(version), gameVersion: GAME_VERSION };
+    function no(kind, reason) { return { ok: false, kind: kind, reason: reason, fileVersion: info.fileVersion, gameVersion: info.gameVersion }; }
+    if (!got) return no('missing', 'This file has no game version, so it can\'t be loaded.');
+    if (got[0] > have[0]) return no('newer', 'Saved by version ' + version + ', newer than this game (' + GAME_VERSION + '). Reload the page to update.');
+    if (got[0] !== have[0]) return no('older', 'Saved by version ' + version + ', which doesn\'t load in version ' + GAME_VERSION + '.');
+    return { ok: true, kind: null, reason: null, fileVersion: info.fileVersion, gameVersion: info.gameVersion };
   }
 
   // The game as it stood when the current hand began, plus that hand's
@@ -1337,7 +1341,7 @@
 
   // { ok, reason, code, record }. `code` says why a file failed: 'notFile'
   // (not a playback file), 'version' (saved by a version this game can't
-  // load), 'signature' (the HMAC signature doesn't match: the file was
+  // load; versionKind, fileVersion and gameVersion say how), 'signature' (the HMAC signature doesn't match: the file was
   // changed or damaged after it was saved) or 'damaged' (its contents don't
   // fit together).
   function checkPlayback(input) {
@@ -1346,7 +1350,9 @@
     if (typeof input === 'string' && !file) return notFile;
     if (!file || file.app !== PLAYBACK_APP || !file.payload) return notFile;
     var compat = saveCompatibility(file.version);
-    if (!compat.ok) return { ok: false, code: 'version', reason: compat.reason };
+    if (!compat.ok) {
+      return { ok: false, code: 'version', versionKind: compat.kind, fileVersion: compat.fileVersion, gameVersion: compat.gameVersion, reason: compat.reason };
+    }
     var changed = 'That playback was changed or damaged, so it can\'t be played.';
     if (!playbackShape(file.payload)) return { ok: false, code: 'damaged', reason: changed };
     if (playbackSign(file) !== file.signature) return { ok: false, code: 'signature', reason: changed };
@@ -1436,18 +1442,24 @@
   }
 
   // Who won a playback's hand and with which hand: { seat, name, how, hand,
-  // faan }, or null for a hand with no winner (or not finished).
+  // patterns, faan }, or null for a hand with no winner (or not finished).
+  // `hand` is only the most important pattern, the one worth the most faan
+  // (the first of them on a tie), so it stays short: "Half Flush", not "Half
+  // Flush + Dragon Triplet". `patterns` has all of them, best first.
   function playbackWinner(rec) {
     if (!rec || !Array.isArray(rec.actions)) return null;
     var limit = typeof rec.moves === 'number' && rec.moves >= 0 ? Math.min(rec.actions.length, rec.moves) : rec.actions.length;
     var ev = limit ? rec.actions[limit - 1] : null;
     if (!ev || ev.a !== 'win') return null;
-    var out = { seat: ev.s, name: playbackWho(rec, ev.s), how: ev.how, hand: null, faan: null };
+    var out = { seat: ev.s, name: playbackWho(rec, ev.s), how: ev.how, hand: null, patterns: [], faan: null };
     var res = playbackResult(rec);
     if (res && res.score) {
       var items = res.score.items || [];
       var patterns = items.filter(function (it) { return EXTRAS.indexOf(it.name) === -1; });
-      out.hand = (patterns.length ? patterns : items).map(function (it) { return it.name; }).join(' + ') || null;
+      var ranked = (patterns.length ? patterns : items).map(function (it, i) { return { name: it.name, faan: it.faan || 0, at: i }; })
+        .sort(function (a, b) { return b.faan - a.faan || a.at - b.at; });
+      out.patterns = ranked.map(function (it) { return it.name; });
+      out.hand = out.patterns[0] || null;
       out.faan = res.score.faan;
     }
     return out;

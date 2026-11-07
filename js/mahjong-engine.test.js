@@ -421,9 +421,13 @@ describe('playback seed', () => {
       const w = E.playbackWinner(rec);
       assert.equal(w.seat, r.winner, 'seed ' + seed);
       assert.equal(w.faan, r.score.faan, 'seed ' + seed);
-      // The hand is the score's patterns, without how it was won or the flowers.
-      assert.ok(r.score.items.some((it) => w.hand.split(' + ').includes(it.name)), w.hand);
+      // Only the most important pattern: the one worth the most faan, not how it was won or the flowers.
+      assert.doesNotMatch(w.hand, / \+ /, 'one pattern only');
       assert.doesNotMatch(w.hand, /Self-Draw|No Flowers|Seat Flower|Concealed$/);
+      const real = r.score.items.filter((it) => !['Self-Draw', 'Concealed', 'Win on Last Tile', 'Robbing the Kong', 'Win by Kong', 'Win by Double Kong', 'Heavenly Hand', 'Earthly Hand', 'No Flowers', 'Seat Flower', 'Seat Season', 'Four Flowers', 'Four Seasons', 'Seven Robbing One', 'Eight Immortals Crossing the Sea'].includes(it.name));
+      const best = Math.max(...(real.length ? real : r.score.items).map((it) => it.faan || 0));
+      assert.ok((real.length ? real : r.score.items).some((it) => it.name === w.hand && (it.faan || 0) === best), 'the highest-faan pattern: ' + w.hand);
+      assert.equal(w.patterns[0], w.hand);
       assert.equal(sum.result.indexOf(w.name + ' won with ' + w.hand + ' · ' + w.faan + ' faan'), 0, sum.result);
     }
     assert.ok(wins >= 5, wins + ' wins');
@@ -486,6 +490,15 @@ describe('playback seed', () => {
     const newer = copy();
     newer.version = '99.0.0';
     assert.equal(E.checkPlayback(newer).code, 'version');
+    // A version failure says which way it is wrong, and names both versions.
+    const c = E.checkPlayback(newer);
+    assert.deepEqual([c.versionKind, c.fileVersion, c.gameVersion], ['newer', '99.0.0', E.GAME_VERSION]);
+    const unversioned = copy();
+    delete unversioned.version;
+    const u = E.checkPlayback(unversioned);
+    assert.deepEqual([u.code, u.versionKind, u.fileVersion], ['version', 'missing', null]);
+    assert.equal(E.saveCompatibility('0.0.1').ok, true, 'any minor or patch of the same major loads');
+    assert.equal(E.saveCompatibility('99.0.0').kind, 'newer');
     assert.equal(E.checkPlayback('not json at all').code, 'notFile');
     assert.equal(E.checkPlayback({ hello: 'world' }).code, 'notFile');
     const broken = copy();

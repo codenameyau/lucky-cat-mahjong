@@ -6058,6 +6058,24 @@
     /* The popup for a playback that couldn't be uploaded (a file or a paste):
        a signature that doesn't match, a file that isn't a playback, or one
        from a version this game can't load. Nothing from the file is kept. */
+    // The line under the heading: this one is not about the file being bad, but
+    // about the version it was saved by.
+    var UPLOAD_LEADS = {
+      version: 'This playback is from an incompatible version of the game.',
+    };
+
+    // What to do about a version this game can't load, named with both versions.
+    function versionMessage(c) {
+      var file = c.fileVersion, game = c.gameVersion;
+      if (c.versionKind === 'newer') {
+        return 'It was saved by a newer version of the game (' + file + '), and this page is on ' + game + '. Reload the page to update, then upload it again.';
+      }
+      if (c.versionKind === 'older') {
+        return 'It was saved by an older version of the game (' + file + ') that this version (' + game + ') can\'t play.';
+      }
+      return 'It has no game version, so this version (' + game + ') can\'t tell whether it can be played.';
+    }
+
     var UPLOAD_ERRORS = {
       signature: 'Its signature doesn\'t match, so the file was changed or damaged after it was saved. Only a playback downloaded from this game, as it was saved, can be played.',
       damaged: 'Its contents don\'t fit together, so the file was changed or damaged after it was saved.',
@@ -6077,7 +6095,9 @@
       var dlg = uploadErrorSheet();
       var why = document.getElementById('upload-error-why');
       if (!dlg) { announce('This playback could not be uploaded. ' + checked.reason); return; }
-      if (why) why.textContent = UPLOAD_ERRORS[checked.code] || checked.reason;
+      var lead = document.getElementById('upload-error-lead');
+      if (lead) lead.textContent = UPLOAD_LEADS[checked.code] || 'This playback could not be uploaded.';
+      if (why) why.textContent = checked.code === 'version' ? versionMessage(checked) : (UPLOAD_ERRORS[checked.code] || checked.reason);
       closePlaybacks();
       if (dlg.open) return;
       if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
@@ -7495,7 +7515,6 @@
       var dlg = settings.playback ? uploadErrorSheet() : null;
       if (!dlg) return;
       onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeUploadError);
-      onSheet(document.getElementById('upload-error-ok'), 'click', closeUploadError);
       onSheet(dlg, 'click', function (e) { if (e.target === dlg) closeUploadError(); });
       onSheet(dlg, 'close', function () { canvas.focus(); });
     })();
