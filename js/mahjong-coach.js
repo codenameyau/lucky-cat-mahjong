@@ -1027,8 +1027,9 @@
     return (n < 1 && n > 0 ? '<1' : String(Math.round(n))) + '%';
   }
 
-  // Lucky Cat's network (ml.policy: the share it gives each move) learned
-  // only from hands it won, so its line says how sure it is.
+  // Lucky Cat's network (ml.policy: the share it gives each move) has no
+  // score for a move, only a share learned from the points its hands paid,
+  // so its line says how sure it is.
   function policyLine(list, pick, m) {
     var line = 'Lucky Cat\'s network plays this discard ' + pct(m.policy) + ' of the time';
     var next = list.filter(function (x) { return x !== pick && x.ml; })

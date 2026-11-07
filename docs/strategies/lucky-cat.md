@@ -1,14 +1,14 @@
-# lucky-cat: a network that taught itself to win
+# lucky-cat: a network that taught itself to play for points
 
 **Lucky Cat** (`js/mahjong-lucky-cat-ml.js`, network in `js/mahjong-lucky-cat-net.js`, weights in `js/mahjong-lucky-cat-weights.js`) is a neural network that makes every move itself. It is not built on the shared foundation (`js/mahjong-bot.js`) the other strategies use: it has no steps-from-ready count, no plans, no threat reads and no claim rules. What it knows, it learned from playing.
 
 ## How it thinks
 
-It doesn't plan a hand. Each turn it looks at what its seat can see and the network gives every legal move a share (a discard of each kind of tile, each kong, or on a claim: pass, each chow, pung or kong). The biggest share is played. What looks like a plan is a habit it found, because it learned only from the hands it won, the quicker the win the more.
+It doesn't plan a hand. Each turn it looks at what its seat can see and the network gives every legal move a share (a discard of each kind of tile, each kong, or on a claim: pass, each chow, pung or kong). The biggest share is played. What looks like a plan is a habit it found.
 
-So it values speed over size: it wins often and in few discards, mostly with small hands of 4 to 5 faan, and it deals in more often than [Neural Cat](neural-cat.md), which wins about half as many hands but with bigger ones. The coach says how often the network plays its move and the next most likely one.
+**Higher-scoring hands first, more wins second.** Its first models (up to LC20) learned only from the hands they won, the quicker the win the more, so they learned fast, cheap wins and nothing about what a deal-in costs. Since LC21 it learns from every hand it plays, won or lost, by the points the hand paid it. A move from a hand that scored better than usual gets more likely, and a move from a hand that cost it (a deal-in, or a cheap win that gave up a bigger one) less. Winning counts only as far as it pays: a win is worth its points, no more.
 
-Its goal is to win as many hands as it can, as fast as it can. Points count for only a little. It takes the risks that have won it hands before, so its wins can look lucky when they are learned.
+So far that has moved it a little, not a lot. LC21 wins as often as LC20, but its wins are bigger (about 160 to 170 points a win against 150) and it deals in a little less against its old self. It is still a fast player of 4 to 5 faan hands, and it still deals in more often than [Neural Cat](neural-cat.md) or Jorge Yau, whose hands are worth more. The coach says how often the network plays its move and the next most likely one.
 
 The rules it replaced are still in the game as **Lucky Cat Classic** (`js/mahjong-lucky-cat.js`, a lab strategy: not on the Strategies sheet, but `npm run compete` and `npm run review` can play it as `lucky-cat-classic`). They are written out from [The classic rules](#the-classic-rules) on. The coach still uses their reads of the hand (plans, waits, threats) for its words.
 
@@ -42,7 +42,9 @@ Illegal moves are masked out, and the move with the biggest share is played. A w
 
 4. **Then it plays Neural Cat.** Once the best model wins 10% of its seats against the model before it, Neural Cat (the latest shipped model) takes a third of the opponent seats in every round after. Each round's new model then also plays Neural Cat over 1,000 deals in both seat orders, for the record. Being kept still means beating its own best.
 
-The league runs 20 rounds of 50,000 hands, a million hands in all. Its log and state are in `ml/lucky/` (not committed).
+The league runs 20 rounds of 50,000 hands, a million hands in all. Its log and state are in `ml/lucky/` (not committed). That made LC20.
+
+5. **Then it learns to score (LC21 on).** The lab (`npm run ml:lab -- --strategy lucky-cat`, [how it works](../machine-learning/training.md#lucky-cat-points-first)) plays the champion, exploring (its shares sharpened to temperature 0.5), in two seats against its last two champions, Neural Cat and Jorge Yau, 25,000 deals a round. Every hand its seats play is kept, won or lost, with the points the hand paid. Training makes the moves of hands that scored better than average more likely and the rest less, by the points: a 1,000-point deal-in teaches far more than a 30-point win. Each experiment is judged against the champion head to head, points first (J = points a hand + 0.5 × hands won, in percentage points), and kept only if its points a hand beat the champion's by more than their standard error on 20,000 fresh deals.
 
 ## Results
 
@@ -84,6 +86,35 @@ Neural Cat joined a third of the opponent seats from round 7, once lc6 won 11.9%
 | 20 | 17.90% | 9.13% | -109.1 |
 
 Lucky Cat now wins nearly twice as many hands as Neural Cat, and wins in fewer discards. It still loses points to Neural Cat. Neural Cat's wins are worth about 8 faan to Lucky Cat's 4 to 5, and Neural Cat deals in less often. That is the trade Lucky Cat was built to make: more hands won, not more points.
+
+### LC21: points first
+
+The lab ran four rounds from LC20, 100,000 deals in all (state and log in `ml/lab-lucky-cat/`, not committed). Round 2's advantage-weighted imitation (`awr`, model LP2b) cleared the bar and shipped as LC21. Rounds 3 and 4 found nothing better, so the lab stopped there.
+
+| Round | Experiments (6,000 deals each, points a hand against the champion) | Best on 20,000 fresh deals | Kept |
+|---|---|---|---|
+| 1 | pg-2 +8.4, pg-fast −0.6, pg-sqrt −7.9 | pg-2: +2.3 ± 2.5 | no |
+| 2 | awr +8.0, pg-clip +2.4, pg-all −4.2, pg −3.5 | awr: **+6.9 ± 2.5** (pg-clip +5.4 ± 2.3) | **LP2b (LC21)** |
+| 3 | awr +3.9, pg-clip +0.2, pg-2 −3.2, pg-wins −4.6 | awr: −4.2 ± 2.4 | no |
+| 4 | pg-wins −0.2, pg −0.5, pg-fast −4.1, pg-all −9.0 | none ahead | no |
+
+± is one standard error, deal by deal. LC21 replayed against LC20 on another 20,000 deals it had never played:
+
+| LC21 against | Points a hand | Hands won | Deal-ins | Average win |
+|---|---:|---:|---:|---:|
+| LC20 (lab, 20,000 deals) | **+6.9 ± 2.5** | 19.7% vs 19.5% | 13.9% vs 14.1% | 170 vs 147 |
+| LC20 (fresh, 20,000 deals) | **+4.0 ± 2.3** | 20.0% vs 19.4% | 14.0% vs 14.2% | 162 vs 151 |
+
+Against Jorge Yau, on the same 20,000 deals for both (two seats each):
+
+| | Points a hand against Jorge Yau | Hands won | Deal-ins | Average win |
+|---|---:|---:|---:|---:|
+| LC20 | −102.7 ± 5.2 | 15.2% vs 22.3% | 14.8% vs 9.9% | 153 vs 424 |
+| LC21 | −87.7 ± 4.9 | 15.2% vs 22.3% | 14.9% vs 10.1% | 166 vs 396 |
+
+- **It scores more without winning less.** Against LC20 its points rose by about 4 to 7 points a hand, with the same share of hands won: its wins are worth more (4.86 faan to 4.80, 160 to 170 points a win to about 150).
+- **It is still Lucky Cat.** The change is small: 100,000 hands of training, a tenth of the league's million. Jorge Yau still beats it by about 88 points a hand, mostly because Jorge Yau's wins are worth more than twice as much and it deals in about two-thirds as often.
+- **One hand's points are mostly luck.** A position barely predicts what a hand will pay (the critic explains well under 1% of it), so each step needs tens of thousands of hands, and most experiments were within the noise.
 
 ## What the coach says
 

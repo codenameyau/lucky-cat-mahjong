@@ -32,7 +32,9 @@
         points). Only Orphans: each takes one seat against Neural Cat, Jorge
         Yau and Lucky Cat on the same deals, on the same J; the rule-based
         Only Orphans plays those deals too, as the baseline. Lucky Cat: head
-        to head, on J = hands won (percentage points), its own objective. A
+        to head, points first: J = points a hand + 0.5 x hands won
+        (percentage points), and it is kept only if its points a hand beat
+        the champion's by more than their standard error. A
         candidate first plays 6,000 deals; the best two that are ahead play
         20,000 fresh deals, and one is kept only if J beats the champion
         there by more than its standard error (half the 95% margin). Close
@@ -78,11 +80,15 @@
                          the model in the game)
      --no-upload         don't push new champions to Hugging Face
      --dir DIR           state and log (default ml/lab, ml/lab-<strategy>)
+     --workers N         Lucky Cat: processes for its games (default: CPU
+                         cores - 1)
+     --temperature T     Lucky Cat: the champion explores with its shares
+                         sharpened to this temperature (default 0.5)
    For a quick check of the lab itself:
      --dry               no shipping, uploading or pruning
      --quick-deals N, --full-deals N, --extra-deals N   smaller evaluations (6000, 20000, 30000)
      --prefix NAME       the round's data set is ml/data/<NAME>-<round>
-                         (default lab, oolab or lclab) */
+                         (default lab, oolab or lcpts) */
 
 'use strict';
 
@@ -100,6 +106,12 @@ const FULL_SEED = 80000000;   // round r's long evaluation: FULL_SEED + r * 100,
 let QUICK_DEALS = 6000;
 let FULL_DEALS = 20000;
 const WIN_WEIGHT = 5;         // points a hand per percentage point of hands won
+// Lucky Cat plays for points first: a percentage point of hands won is worth
+// half a point a hand, about the size of a tie-breaker (a 20,000-deal
+// evaluation's standard error is about 5 points a hand).
+const LC_WIN_WEIGHT = 0.5;
+let WORKERS = null;           // Lucky Cat's processes (--workers)
+let LC_TEMPERATURE = 0.5;     // Lucky Cat's exploring temperature (--temperature)
 const WINDOW = 8;             // data sets a fine-tune trains on
 
 let DIR = path.join(ROOT, 'ml', 'lab');
@@ -134,17 +146,30 @@ const PLAY_ARMS = {
 // strategy), so it has no topK arms.
 const OO_PLAY_ARMS = {};
 Object.keys(PLAY_ARMS).filter((n) => PLAY_ARMS[n].key !== 'topK').forEach((n) => { OO_PLAY_ARMS[n] = PLAY_ARMS[n]; });
-// Lucky Cat's experiments: its trainer (ml/train_lucky.py) has one network
-// size, so its arms vary the learning rate, the data window, and how sharp
-// its targets are.
+// Lucky Cat's experiments, points first. LC20 learned by imitating its wins,
+// the quicker the more, so it learned fast cheap wins. Here it learns from
+// every hand it plays, won or lost, by the points the hand paid it
+// (ml/train_lucky.py --mode pg or awr): a critic says what each position is
+// worth on average, and a move that did better than that from there gets
+// more likely, one that did worse (a deal-in, a cheap win that gave up a
+// bigger one) less. The arms vary the update (a clipped policy gradient or
+// advantage-weighted imitation), its size, the data window, how the points
+// are scaled, and a small bonus for winning.
 const LC_TRAIN_ARMS = {
-  finetune: { init: true, lr: 1e-3, epochs: 6, window: 6, about: 'fine-tune the champion' },
-  'finetune-slow': { init: true, lr: 3e-4, epochs: 8, window: 6, about: 'fine-tune at a third of the learning rate' },
-  'finetune-fast': { init: true, lr: 3e-3, epochs: 4, window: 6, about: 'fine-tune at 3x the learning rate' },
-  recent: { init: true, lr: 1e-3, epochs: 6, window: 2, about: 'fine-tune on the last 2 rounds only' },
-  sharp: { init: true, lr: 1e-3, epochs: 6, window: 6, smoothing: 0.01, about: 'fine-tune with sharper targets (smoothing 0.01)' },
-  long: { init: true, lr: 1e-3, epochs: 6, window: 10, about: 'fine-tune on the last 10 rounds' },
-  'long-slow': { init: true, lr: 3e-4, epochs: 10, window: 14, bold: true, about: 'fine-tune slowly on the last 14 rounds' },
+  pg: { init: true, mode: 'pg', lr: 3e-4, epochs: 4, window: 1, about: 'policy gradient on the hand\'s points' },
+  'pg-2': { init: true, mode: 'pg', lr: 3e-4, epochs: 4, window: 2, about: 'policy gradient, the last 2 rounds' },
+  'pg-fast': { init: true, mode: 'pg', lr: 1e-3, epochs: 4, window: 1, klMax: 0.08, about: 'a bigger policy-gradient step' },
+  'pg-sqrt': { init: true, mode: 'pg', lr: 3e-4, epochs: 4, window: 1, reward: 'sqrt', about: 'policy gradient on the square root of the points' },
+  'pg-wins': { init: true, mode: 'pg', lr: 3e-4, epochs: 4, window: 1, winBonus: 100, about: 'policy gradient, 100 points more for a win' },
+  awr: { init: true, mode: 'awr', lr: 3e-4, epochs: 3, window: 2, about: 'advantage-weighted imitation of every move' },
+  // One hand's points are mostly luck, so a step needs many hands: these
+  // use the last 4 rounds (the share each move was played with corrects for
+  // older champions), or blunt the biggest hands so the common outcomes
+  // (small wins, deal-ins) speak.
+  'pg-all': { init: true, mode: 'pg', lr: 3e-4, epochs: 6, window: 4, about: 'policy gradient on the last 4 rounds' },
+  'pg-clip': { init: true, mode: 'pg', lr: 3e-4, epochs: 4, window: 2, rewardClip: 1000, about: 'policy gradient, points clipped at ±1,000' },
+  // Bold (after a plateau): a big step on the last 4 rounds.
+  'pg-bold': { init: true, mode: 'pg', lr: 1e-3, epochs: 6, window: 4, klMax: 0.1, bold: true, about: 'a big policy-gradient step on the last 4 rounds' },
 };
 
 // The plateau: rounds since the champion last changed. After --bold-after
@@ -253,21 +278,28 @@ function compareOO(a, b, deals, seed, name, champName) {
 }
 
 // Lucky Cat: a against b, two seats each, both seat orders, on the same
-// deals (scripts/ml/lucky.js eval). J is hands won, in percentage points.
+// deals (scripts/ml/lucky.js eval). Points first: J = points a hand +
+// 0.5 x hands won (percentage points). The margin is the paired points gap's
+// 95% margin (twice its standard error, deal by deal).
 function compareLC(a, b, deals, seed, name) {
   const json = evalJson(name);
-  const A = 'lc:' + a, B = 'lc:' + b;
-  run('node', ['scripts/ml/lucky.js', 'eval', '--lineup', A + ',' + B, '--deals', String(deals), '--seed', String(seed), '--json', json]);
-  const s = JSON.parse(fs.readFileSync(json, 'utf8')).summary;
+  const A = /^[a-z]+:/.test(a) || !/\.json$/.test(a) ? a : 'lc:' + a;
+  const B = /^[a-z]+:/.test(b) || !/\.json$/.test(b) ? b : 'lc:' + b;
+  const args = ['scripts/ml/lucky.js', 'eval', '--lineup', A + ',' + B, '--deals', String(deals), '--seed', String(seed), '--json', json];
+  if (WORKERS) args.push('--workers', String(WORKERS));
+  run('node', args);
+  const r = JSON.parse(fs.readFileSync(json, 'utf8'));
+  const s = r.summary;
   const wins = s[A].winRate - s[B].winRate;
-  const p = (s[A].winRate + s[B].winRate) / 2;
-  const seats = s[A].seats || 4 * deals;
+  const points = r.paired ? r.paired.points : s[A].pointsPerHand - s[B].pointsPerHand;
   return {
-    deals, wins, points: s[A].pointsPerHand - s[B].pointsPerHand,
-    J: 100 * wins,
-    margin: 100 * 1.96 * Math.sqrt(2 * p * (1 - p) / seats), // 95% margin of the win-rate gap
+    deals, wins, points,
+    J: points + LC_WIN_WEIGHT * 100 * wins,
+    margin: 2 * (r.paired ? r.paired.standardError : 0),
     winRate: s[A].winRate, otherWinRate: s[B].winRate,
     dealInRate: s[A].dealInRate, otherDealInRate: s[B].dealInRate,
+    avgWin: s[A].avgWinPoints, otherAvgWin: s[B].avgWinPoints,
+    avgWinFaan: s[A].avgWinFaan, otherAvgWinFaan: s[B].avgWinFaan,
     avgWinDiscards: s[A].avgWinDiscards, otherAvgWinDiscards: s[B].avgWinDiscards,
   };
 }
@@ -334,10 +366,14 @@ const STRATEGIES = {
     },
   },
   'lucky-cat': {
-    dir: 'lab-lucky-cat', prefix: 'lclab', model: 'LL', trainArms: LC_TRAIN_ARMS, playArms: {}, folder: 'lucky-cat',
+    dir: 'lab-lucky-cat', prefix: 'lcpts', model: 'LP', trainArms: LC_TRAIN_ARMS, playArms: {}, folder: 'lucky-cat',
     weights: 'mahjong-lucky-cat-weights.js',
-    // Training data in order: Lucky Cat's league rounds (lc<n>), then the lab's.
-    earlier: /^lc(\d+)$/, done: 'meta.json',
+    // Training data: only the lab's own rounds, which record every hand
+    // (the league's lc<n> sets hold only the moves of hands won).
+    earlier: /^$/, done: 'meta.json',
+    // Points first: kept only when its points a hand beat the champion's by
+    // more than their standard error (and J, with the wins, is ahead too).
+    keep: (e) => e.points > e.margin / 2 && e.J > 0,
     start() {
       const shipped = shippedModel('mahjong-lucky-cat-weights.js');
       const league = fs.existsSync(path.join(ROOT, 'ml', 'lucky', 'state.json')) ? readJson('ml/lucky/state.json') : null;
@@ -349,22 +385,31 @@ const STRATEGIES = {
       return { start: shipped, members: files.map((n) => path.join('ml', 'models', n)) };
     },
     generate(state, r, champ, data, opts) {
-      const selves = state.members.filter((m) => m !== champ).slice(-3).map((m) => 'lc:' + m);
+      // Its last two champions, and the point scorers the game seats beside it.
+      const selves = state.members.filter((m) => m !== champ).slice(-2).map((m) => 'lc:' + m);
       const pool = selves.concat(['neural-cat', 'neural-cat', 'jorge-yau']);
-      log('Round ' + r + ': ' + opts.deals + ' deals, champion ' + base(champ) + ' learning against ' + pool.map(short).join(', '));
-      run('node', ['scripts/ml/lucky.js', 'generate', '--weights', champ, '--deals', String(opts.deals), '--out', data,
-        '--pool', pool.join(','), '--seed', String(DATA_SEED + r * 1000000), '--temperature', opts.bold ? '1.5' : '1', '--learners', '2']);
+      log('Round ' + r + ': ' + opts.deals + ' deals, champion ' + base(champ) + ' (temperature ' + LC_TEMPERATURE + ') learning against ' + pool.map(short).join(', '));
+      const args = ['scripts/ml/lucky.js', 'generate', '--returns', '--sample', '0.5', '--weights', champ, '--deals', String(opts.deals), '--out', data,
+        '--pool', pool.join(','), '--seed', String(DATA_SEED + r * 1000000), '--temperature', String(opts.bold ? Math.max(1, LC_TEMPERATURE) : LC_TEMPERATURE), '--learners', '2'];
+      if (WORKERS) args.push('--workers', String(WORKERS));
+      log('Round ' + r + ': ' + run('node', args).trim().split('\n').pop());
     },
     trainArgs(spec, sets, name, champ) {
-      const args = ['ml/train_lucky.py', '--data'].concat(sets, ['--name', name, '--lr', String(spec.lr), '--epochs', String(spec.epochs)]);
+      const args = ['ml/train_lucky.py', '--data'].concat(sets, ['--name', name, '--lr', String(spec.lr), '--epochs', String(spec.epochs),
+        '--mode', spec.mode || 'imitate']);
       if (spec.smoothing != null) args.push('--smoothing', String(spec.smoothing));
+      if (spec.reward) args.push('--reward', spec.reward);
+      if (spec.winBonus != null) args.push('--win-bonus', String(spec.winBonus));
+      if (spec.klMax != null) args.push('--kl-max', String(spec.klMax));
+      if (spec.rewardClip != null) args.push('--reward-clip', String(spec.rewardClip));
       if (spec.init) args.push('--init', champ);
-      return { args, about: '(' + sets.length + ' data sets)' };
+      return { args, about: '(' + sets.length + ' data set' + (sets.length > 1 ? 's' : '') + ')' };
     },
     judge: (c, champ, deals, seed, tag) => compareLC(c, champ, deals, seed, base(c) + '-' + tag),
     ship(file) {
+      // Lucky Cat's releases are LC21, LC22, ... (scripts/ml/ship.js).
       ship(path.join(ROOT, file), 'lucky-cat');
-      return base(file);
+      return require(path.join(ROOT, 'js', 'mahjong-lucky-cat-weights.js')).meta.name;
     },
   },
 };
@@ -400,9 +445,9 @@ function trainNetArgs(spec, sets, name, champ) {
 
 function fmt(e) {
   if (S === STRATEGIES['lucky-cat']) {
-    return 'J ' + signed(e.J) + ' (hands won ' + pct(e.winRate) + ' vs ' + pct(e.otherWinRate) + ' ± ' + e.margin.toFixed(2) +
-      ', discards a win ' + (e.avgWinDiscards || 0).toFixed(1) + ' vs ' + (e.otherAvgWinDiscards || 0).toFixed(1) +
-      ', points ' + signed(e.points) + ', ' + e.deals + ' deals)';
+    return 'J ' + signed(e.J) + ' (points ' + signed(e.points) + ' ± ' + (e.margin / 2).toFixed(1) + ' standard error, wins ' + pct(e.winRate) + ' vs ' + pct(e.otherWinRate) +
+      ', deal-ins ' + pct(e.dealInRate) + ' vs ' + pct(e.otherDealInRate) + ', average win ' + Math.round(e.avgWin || 0) + ' vs ' + Math.round(e.otherAvgWin || 0) +
+      ' (' + (e.avgWinFaan || 0).toFixed(2) + ' vs ' + (e.otherAvgWinFaan || 0).toFixed(2) + ' faan), ' + e.deals + ' deals)';
   }
   return 'J ' + signed(e.J) + ' (points ' + signed(e.points) + ' ± ' + e.margin.toFixed(1) + ', wins ' + pct(e.winRate) + ' vs ' + pct(e.otherWinRate) +
     ', deal-ins ' + pct(e.dealInRate) + ' vs ' + pct(e.otherDealInRate) + ', average win ' + Math.round(e.avgWin) + ' vs ' + Math.round(e.otherAvgWin) + ', ' + e.deals + ' deals)';
@@ -536,7 +581,7 @@ function round(state, opts) {
   const ahead = candidates.filter((c) => c.quick.J > 0).sort((a, b) => b.quick.J - a.quick.J).slice(0, 2);
   ahead.forEach((c) => {
     c.full = S.judge(c.file, champ, FULL_DEALS, FULL_SEED + r * 100000, 'full');
-    c.kept = c.full.J > c.full.margin / 2;
+    c.kept = S.keep ? S.keep(c.full) : c.full.J > c.full.margin / 2;
     const close = !c.kept && c.full.J > 0 && bold;
     log('Round ' + r + ': ' + c.name + ' on ' + FULL_DEALS + ' fresh deals: ' + fmt(c.full) + (c.kept ? ', beyond its standard error' : close ? ', ahead but within the noise' : ', within the noise: rejected'));
     if (close) {
@@ -547,7 +592,7 @@ function round(state, opts) {
       const J = (c.full.J * w1 + more.J * w2) / (w1 + w2);
       const se = 1 / Math.sqrt(w1 + w2);
       c.full = Object.assign({}, more, { J, points: (c.full.points * w1 + more.points * w2) / (w1 + w2), margin: 2 * se, deals: FULL_DEALS + EXTRA_DEALS });
-      c.kept = J > se;
+      c.kept = S.keep ? S.keep(c.full) : J > se;
       log('Round ' + r + ': ' + c.name + ' on ' + (FULL_DEALS + EXTRA_DEALS) + ' deals in all: J ' + signed(J) + ' \u00b1 ' + (2 * se).toFixed(1) +
         (c.kept ? ', beyond its standard error' : ', still within the noise: rejected'));
     }
@@ -616,12 +661,16 @@ function main() {
   if (a['quick-deals']) QUICK_DEALS = parseInt(a['quick-deals'], 10);
   if (a['full-deals']) FULL_DEALS = parseInt(a['full-deals'], 10);
   if (a['extra-deals']) EXTRA_DEALS = parseInt(a['extra-deals'], 10);
+  if (a.workers) WORKERS = parseInt(a.workers, 10);
+  if (a.temperature) LC_TEMPERATURE = parseFloat(a.temperature);
 
   if (cmd === 'bench') {
     const model = String(a.model);
     const deals = parseInt(a.deals || FULL_DEALS, 10);
     String(a.against).split(',').forEach((o) => {
-      const other = /\.json$/.test(o) ? o : path.join('ml', 'models', o + '.json');
+      // A model name, a model file, or (Lucky Cat) a table strategy such as jorge-yau.
+      const strategy = S === STRATEGIES['lucky-cat'] && !/\.json$/.test(o) && !fs.existsSync(path.join(ROOT, 'ml', 'models', o + '.json'));
+      const other = strategy || /\.json$/.test(o) ? o : path.join('ml', 'models', o + '.json');
       const e = S.judge(model, other, deals, parseInt(a.seed || 50000000, 10), 'bench-vs-' + base(other));
       log('Bench ' + base(model) + ' vs ' + base(other) + ': ' + fmt(e));
     });

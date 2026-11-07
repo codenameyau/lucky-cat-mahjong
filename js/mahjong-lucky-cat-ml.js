@@ -4,13 +4,15 @@
    js/mahjong-lucky-cat-net.js reads the tiles its seat can see and gives
    each legal move a share, and the move with the biggest share is played.
 
-   It learned that from scratch. The first model played at random. Over
-   millions of simulated hands (scripts/ml/lucky-generate.js and
-   ml/train_lucky.py) every hand it won taught it: the discards, chows,
-   pungs, kongs and passes that led to the win were made more likely, the
-   quicker the win the more so. Hands it didn't win teach it nothing, so it
-   plays to win as many hands as it can, as fast as it can; the size of the
-   win counts for only a little.
+   It learned that from scratch. The first model played at random. Over a
+   million simulated hands (scripts/ml/lucky.js and ml/train_lucky.py)
+   every hand it won taught it: the moves that led to the win were made
+   more likely, the quicker the win the more so (LC20: fast, cheap wins).
+   Since LC21 the lab (scripts/ml/lab.js --strategy lucky-cat) trains it on
+   points first and wins second: every hand it plays, won or lost, teaches
+   it by the points the hand paid it, so moves from hands that scored
+   better than usual get more likely and moves from hands that cost it
+   less.
 
    A win (3 faan or more) is always declared. Everything else, the network
    decides.

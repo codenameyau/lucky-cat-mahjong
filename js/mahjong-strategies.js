@@ -55,13 +55,13 @@
       name: 'Lucky Cat',
       bot: LC && LC.trained ? LC : L,
       get summary() {
-        return withModel(luckyModelName(), 'A neural network that taught itself to win, with no rules built in. It plays the moves that won it hands before: fast, cheap wins, as often as it can get them.');
+        return withModel(luckyModelName(), 'A neural network that taught itself to play, with no rules built in. It plays for points first and wins second: the moves that paid it the most points before, in hands it won and hands it lost.');
       },
       details: [
         'It has no plan for a hand. Each turn it looks at what its seat can see (its tiles and melds, every discard, the melds and flowers others have shown, the winds and how many tiles are left) and the network gives every legal move a share. The biggest share is played.',
         'That is true of every move: which tile goes, each chow, pung and kong, and whether to pass. It has no count of steps from ready, no target hand and no list of safe tiles. What looks like a plan is a habit the network found.',
-        'It learned only from its wins. It began by playing at random, and after each round of simulated hands the moves of every hand it won were made more likely, the quicker the win the more. Hands it lost or drew taught it nothing, so it takes the risks that won it hands before.',
-        'It values speed over size. It wins often and in few discards, mostly small hands of 4 to 5 faan, and it deals in more often than Neural Cat does. Against Neural Cat it wins about twice as many hands but scores fewer points, because Neural Cat\'s hands are worth more.',
+        'It began by playing at random and first learned from its wins alone, the quicker the win the more. That made it fast, and its wins cheap. Now it learns from every hand it plays, by the points the hand paid it: moves from hands that scored better than usual get more likely, and moves from hands that cost it, such as a deal-in, less.',
+        'So it plays for points first and wins second. It still wins often and in few discards, mostly hands of 4 to 5 faan, but it holds out for bigger wins a little more than it used to, and it deals in more often than Neural Cat does, whose hands are worth more.',
         'It never looks at the wall or another player\'s hand, and a test checks that shuffling those changes nothing it does. A win of 3 faan or more is always declared.',
         'The coach says how often the network plays the move it picks, and the next most likely one. The words about the hand, such as its plans and waits, come from the classic Lucky Cat rules, kept as Lucky Cat Classic for simulations and reviews.',
       ],
