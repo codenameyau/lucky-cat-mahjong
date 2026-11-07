@@ -406,6 +406,7 @@ test('auto-play is never kept: off on every load, and off when a frozen page is 
 test('a playback that fails its signature opens the could-not-be-uploaded popup, and nothing is kept', () => {
   const html = fs.readFileSync(path.join(ROOT, 'playing-mahjong/index.html'), 'utf8');
   assert.match(html, /<dialog id="upload-error-sheet"[^>]*role="alertdialog"/);
+  assert.match(html, /<h2 id="upload-error-title">Upload failed<\/h2>/);
   assert.match(html, /This playback could not be uploaded\./);
   assert.match(html, /id="upload-error-ok"/);
   const load = GAME_SRC.slice(GAME_SRC.indexOf('function loadPlaybackText'), GAME_SRC.indexOf('function onCanvasPaste'));
