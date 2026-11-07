@@ -38,19 +38,55 @@
     if (!file) return;
     if (E.playbackFinished(file.payload || file)) {
       liveReplay = null;
+      // The list first: before it existed, REPLAY_KEY held the last hand,
+      // which the list takes in as an earlier one.
+      addRecent(file);
       writeJson(REPLAY_KEY, file);
     } else {
       liveReplay = file;
     }
   }
-  // A playback file you uploaded. It has a place of its own, so it never
-  // replaces the game's (REPLAY_KEY): View playback on the game always shows
-  // the game. A refresh while it shows brings it back.
+  // A playback file you uploaded: { savedAt, file }, one at a time. It has a
+  // place of its own, so it never replaces the game's (REPLAY_KEY): View
+  // playback on the game always shows the game. A refresh while it shows
+  // brings it back.
   var UPLOAD_KEY = 'lcm-play-upload';
+  // The three most recent finished hands, newest first: [{ savedAt, file }].
+  // The View playback sheet lists them, each with Play and Download.
+  var RECENT_KEY = 'lcm-play-recent';
+  var RECENT_MAX = 3;
+  // One hand's playback, whoever saved it.
+  function playbackId(file) {
+    var p = file && file.payload;
+    return p ? p.handSeed + ':' + p.handNumber + ':' + file.moves : null;
+  }
+  function recentPlaybacks() {
+    var list = readJson(RECENT_KEY, null);
+    if (!Array.isArray(list)) {
+      // Before the list was kept: the one finished hand there was.
+      var last = readJson(REPLAY_KEY, null);
+      list = last && last.payload && E.playbackFinished(last.payload) ? [{ savedAt: null, file: last }] : [];
+    }
+    return list.filter(function (e) { return e && e.file && e.file.payload; }).slice(0, RECENT_MAX);
+  }
+  // A finished hand joins the front; a hand already listed keeps its place and time.
+  function addRecent(file) {
+    var id = playbackId(file);
+    var list = recentPlaybacks();
+    if (list.some(function (e) { return playbackId(e.file) === id; })) return;
+    list.unshift({ savedAt: Date.now(), file: file });
+    writeJson(RECENT_KEY, list.slice(0, RECENT_MAX));
+  }
+  function uploadedPlayback() {
+    var u = readJson(UPLOAD_KEY, null);
+    if (!u) return null;
+    if (u.payload) return { savedAt: null, file: u }; // kept before the time was
+    return u.file && u.file.payload ? u : null;
+  }
   // Each strategy's hints for the game in progress: { v: 1, lists: { id: [note, ...] } }.
   // A new game overwrites it. Switching the coach only picks which list shows.
   var HINTS_KEY = 'lcm-play-hints';
-  var PLAYBACK_EMPTY = 'Upload a JSON file with a playback.';
+  var PLAYBACK_EMPTY = 'Pick one of your recent hands, or upload a playback file.';
   var SEAT_SIDES = ['', 'your right', 'across', 'your left'];
   var TILE_ASPECT = 1.4;
   var TILE_GAP = 4;
@@ -173,8 +209,8 @@
     'review-next': 'play_playback_next_click',
     'review-back': 'play_playback_back_click',
     'review-download': 'play_playback_download_click',
-    'review-open': 'play_playback_upload_click',
-    'review-upload': 'play_playback_upload_click',
+    'review-list': 'play_playback_list_click',
+    'review-list-center': 'play_playback_list_click',
   };
 
   /* ------------------------------------------------------------------ *
@@ -2516,41 +2552,58 @@
         button('Back', pad, 7, backW, 28, function () { sound.play('select'); backToGame(); }, 'ghost', 'review-back');
         var gapL = pad + backW + 8;
         var clusterX = soundX; // the left edge of the buttons on the right
-        if (settings.review) {
-          // Download, then Upload (opens a downloaded file), then Sound.
-          var words = W >= 600 && soundX - 6 - 92 - 6 - 92 - 8 - gapL >= TITLE_ROOM;
-          var vpW = words ? 92 : 34;
-          var vpX = soundX - 6 - vpW;
-          var dlW = words ? 92 : 34;
-          var dlX = vpX - 6 - dlW;
-          button(words ? 'Upload' : '', vpX, 7, vpW, 28, uploadReplay, 'ghost', 'review-open');
-          var canSave = reviewFinished();
+        // View playback (the sheet of recent hands and the upload), Download
+        // (with a hand on screen), then Sound. Words when they leave the title
+        // room, icons when they don't.
+        var LIST_W = 120, DL_W = 92;
+        var hasHand = !!settings.review;
+        var wordsNeed = LIST_W + 6 + (hasHand ? DL_W + 6 : 0);
+        var words = W >= 600 && soundX - 6 - wordsNeed - 8 - gapL >= TITLE_ROOM;
+        var vpW = words ? LIST_W : 34;
+        var vpX = soundX - 6 - vpW;
+        button(words ? 'View playback' : '', vpX, 7, vpW, 28, openPlaybacks, 'ghost', 'review-list');
+        clusterX = vpX;
+        var dlX = vpX, dlW = 0, canSave = false;
+        if (hasHand) {
+          dlW = words ? DL_W : 34;
+          dlX = vpX - 6 - dlW;
+          canSave = reviewFinished();
           button(words ? 'Download' : '', dlX, 7, dlW, 28, downloadReplay, canSave ? 'ghost' : 'off', 'review-download');
-          if (!words) {
-            // Small icons drawn here so they need no font: an arrow down onto a
-            // tray (download) and an arrow up out of one (open a file).
-            ctx.save();
-            ctx.strokeStyle = COLORS.white;
+          clusterX = dlX;
+        }
+        if (!words) {
+          // Small icons drawn here so they need no font.
+          ctx.save();
+          ctx.strokeStyle = COLORS.white;
+          ctx.fillStyle = COLORS.white;
+          ctx.lineWidth = 2;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          var ay = 21;
+          if (hasHand) {
+            // Download: an arrow down onto a tray.
             ctx.globalAlpha = canSave ? 1 : 0.3;
-            ctx.lineWidth = 2;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            var ax = dlX + dlW / 2, ay = 21;
+            var ax = dlX + dlW / 2;
             ctx.beginPath();
             ctx.moveTo(ax, ay - 8); ctx.lineTo(ax, ay + 3);
             ctx.moveTo(ax - 4.5, ay - 1.5); ctx.lineTo(ax, ay + 3); ctx.lineTo(ax + 4.5, ay - 1.5);
             ctx.moveTo(ax - 6, ay + 7); ctx.lineTo(ax + 6, ay + 7);
             ctx.stroke();
             ctx.globalAlpha = 1;
-            var bx2 = vpX + vpW / 2;
-            ctx.beginPath();
-            ctx.moveTo(bx2, ay + 3); ctx.lineTo(bx2, ay - 8);
-            ctx.moveTo(bx2 - 4.5, ay - 3.5); ctx.lineTo(bx2, ay - 8); ctx.lineTo(bx2 + 4.5, ay - 3.5);
-            ctx.moveTo(bx2 - 6, ay + 7); ctx.lineTo(bx2 + 6, ay + 7);
-            ctx.stroke();
-            ctx.restore();
           }
-          clusterX = dlX;
+          // View playback: a list, three rows each with a dot (your saved hands).
+          var lx = vpX + vpW / 2;
+          ctx.beginPath();
+          [-5, 0, 5].forEach(function (dy) {
+            ctx.moveTo(lx - 2, ay + dy); ctx.lineTo(lx + 7, ay + dy);
+          });
+          ctx.stroke();
+          [-5, 0, 5].forEach(function (dy) {
+            ctx.beginPath();
+            ctx.arc(lx - 6, ay + dy, 1.6, 0, Math.PI * 2);
+            ctx.fill();
+          });
+          ctx.restore();
         }
         // Always centered between Back and the buttons on the right.
         var gapR = clusterX - 8;
@@ -5845,7 +5898,7 @@
           color: reviewNote ? COLORS.goldLight : COLORS.cream,
         });
       });
-      button('Upload', (W - bw) / 2, by, bw, bh, uploadReplay, 'gold', 'review-upload');
+      button('View playback', (W - bw) / 2, by, bw, bh, openPlaybacks, 'gold', 'review-list-center');
     }
 
     // Saves the playback on screen as a JSON file named with the time, such as
@@ -5867,7 +5920,13 @@
       var file = shownFile || readJson(REPLAY_KEY, null);
       if (!file || !file.payload) return;
       sound.play('select'); // the click
-      var d = new Date();
+      saveFile(file, null);
+    }
+
+    // The file as JSON, named with the time it was saved (or now), such as
+    // lucky-cat-mahjong-playback-2026-11-05-1430.json.
+    function saveFile(file, savedAt) {
+      var d = new Date(savedAt == null ? Date.now() : savedAt);
       function two(n) { return (n < 10 ? '0' : '') + n; }
       var stamp = d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) + '-' + two(d.getHours()) + two(d.getMinutes());
       var blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
@@ -5881,31 +5940,100 @@
       setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
     }
 
-    var replayFileInput = null;
-    var pendingUpload = false;
-    function uploadReplay() {
-      sound.play('select'); // the click
-      // The press only asks for it. The picker opens when the finger lifts (pointerup,
-      // touchend or click, whichever comes first), since phones refuse it from a press.
-      pendingUpload = true;
-      var stop = function () {
-        document.removeEventListener('pointerup', go, true);
-        document.removeEventListener('touchend', go, true);
-        document.removeEventListener('click', go, true);
-        clearTimeout(timer);
-        pendingUpload = false;
-      };
-      var go = function () {
-        if (!pendingUpload) { stop(); return; }
-        stop();
-        openReplayPicker();
-      };
-      var timer = setTimeout(stop, 3000);
-      document.addEventListener('pointerup', go, true);
-      document.addEventListener('touchend', go, true);
-      document.addEventListener('click', go, true);
+    /* The View playback sheet: your three most recent finished hands, each
+       with the time it was saved, Play and Download, then the one playback
+       you uploaded last (if any), and Upload playback. */
+    function playbacksSheet() {
+      return document.getElementById('playbacks-sheet');
     }
 
+    function openPlaybacks() {
+      var dlg = playbacksSheet();
+      if (!dlg || dlg.open) return;
+      sound.play('select'); // the click
+      buildPlaybacks();
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+    }
+
+    function closePlaybacks() {
+      var dlg = playbacksSheet();
+      if (!dlg || !dlg.open) return;
+      if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
+    }
+
+    function playbackRow(entry, mark, kind) {
+      var li = document.createElement('li');
+      li.className = 'playbacks-row';
+      var check = E.checkPlayback(entry.file);
+      var showing = shownFile && playbackId(shownFile) === playbackId(entry.file);
+      if (showing) li.classList.add('is-showing');
+      var info = document.createElement('div');
+      info.className = 'playbacks-text';
+      // Who won and with which hand, then which hand of the game and when it was saved.
+      var sum = check.ok ? E.playbackSummary(check.record) : { result: 'A playback that no longer plays', hand: '' };
+      var name = document.createElement('div');
+      name.className = 'playbacks-name';
+      name.textContent = sum.result;
+      var when = document.createElement('div');
+      when.className = 'playbacks-when';
+      when.textContent = (sum.hand ? sum.hand + ' · ' : '') + (kind === 'upload' ? 'Uploaded ' : 'Saved ') +
+        E.playbackWhen(entry.savedAt).replace(/^(Today|Yesterday|Earlier)/, function (w) { return w.toLowerCase(); }) +
+        (showing ? ' · Showing now' : '');
+      info.appendChild(name);
+      info.appendChild(when);
+      li.appendChild(info);
+      var play = document.createElement('button');
+      play.type = 'button';
+      play.className = 'playbacks-btn playbacks-play';
+      play.textContent = 'Play';
+      play.disabled = !check.ok;
+      play.setAttribute('aria-label', 'Play ' + sum.hand + ', ' + sum.result);
+      play.addEventListener('click', function () {
+        sound.play('select');
+        track('play_playback_list_play', { kind: kind });
+        closePlaybacks();
+        loadPlaybackText(entry.file, mark);
+      });
+      var down = document.createElement('button');
+      down.type = 'button';
+      down.className = 'playbacks-btn playbacks-download';
+      down.textContent = 'Download';
+      // Only a finished hand's file is saved: an unfinished one holds the whole deal.
+      down.disabled = !check.ok || !E.playbackFinished(check.record);
+      down.setAttribute('aria-label', 'Download ' + sum.hand + ', ' + sum.result);
+      down.addEventListener('click', function () {
+        sound.play('select');
+        track('play_playback_list_download', { kind: kind });
+        saveFile(entry.file, entry.savedAt);
+      });
+      li.appendChild(play);
+      li.appendChild(down);
+      return li;
+    }
+
+    function fillList(el, entries, emptyText, markFor, kind) {
+      if (!el) return;
+      while (el.firstChild) el.removeChild(el.firstChild);
+      if (!entries.length) {
+        var empty = document.createElement('li');
+        empty.className = 'playbacks-empty';
+        empty.textContent = emptyText;
+        el.appendChild(empty);
+        return;
+      }
+      entries.forEach(function (e) { el.appendChild(playbackRow(e, markFor(e), kind)); });
+    }
+
+    function buildPlaybacks() {
+      fillList(document.getElementById('playbacks-recent'), recentPlaybacks(),
+        'No finished hands yet. Each hand you finish is kept here, the last three.',
+        function (e) { return { lcmRecent: playbackId(e.file) }; }, 'recent');
+      var up = uploadedPlayback();
+      fillList(document.getElementById('playbacks-uploaded'), up ? [up] : [],
+        'Nothing uploaded yet.', function () { return { lcmUpload: true }; }, 'upload');
+    }
+
+    var replayFileInput = null;
     function openReplayPicker() {
       if (!replayFileInput) {
         var input = document.createElement('input');
@@ -5931,7 +6059,10 @@
       replayFileInput.click();
     }
 
-    function loadPlaybackText(text) {
+    // A playback to show: a file uploaded or pasted (stored as the upload),
+    // or one picked from the View playback sheet (mark: { lcmRecent: id }).
+    // The mark rides in this view's history entry, so a refresh shows it again.
+    function loadPlaybackText(text, mark) {
       var checked = E.checkPlayback(text);
       if (!checked.ok) {
         reviewNote = checked.reason;
@@ -5943,11 +6074,15 @@
       try {
         var file = typeof text === 'string' ? JSON.parse(text) : text;
         if (file && file.payload) {
-          writeJson(UPLOAD_KEY, file);
+          if (!mark) writeJson(UPLOAD_KEY, { savedAt: Date.now(), file: file });
           shownFile = file;
-          // This view now shows an upload, so a refresh shows the upload too.
+          // What this view shows now, so a refresh shows it too.
           if (root.history && root.history.replaceState) {
-            root.history.replaceState(Object.assign({}, root.history.state || {}, { lcmUpload: true }), '');
+            var next = Object.assign({}, root.history.state || {});
+            delete next.lcmUpload;
+            delete next.lcmRecent;
+            Object.assign(next, mark || { lcmUpload: true });
+            root.history.replaceState(next, '');
           }
         }
       } catch (e) {}
@@ -6908,7 +7043,12 @@
           // An upload shown in this view (a refresh), or else the game's own:
           // the hand on the table (in memory), or its last finished hand.
           var viewState = (root.history && root.history.state) || {};
-          var stored = viewState.lcmUpload ? readJson(UPLOAD_KEY, null) : (liveReplay || readJson(REPLAY_KEY, null));
+          var picked = null;
+          if (viewState.lcmUpload) picked = uploadedPlayback();
+          else if (viewState.lcmRecent) {
+            picked = recentPlaybacks().filter(function (e) { return playbackId(e.file) === viewState.lcmRecent; })[0] || null;
+          }
+          var stored = picked ? picked.file : (liveReplay || readJson(REPLAY_KEY, null));
           shownFile = stored;
           var check = stored ? E.checkPlayback(stored) : null;
           if (check && check.ok) {
@@ -7107,6 +7247,21 @@
       onSheet(dlg, 'close', function () { canvas.focus(); });
     })();
     (function () {
+      var dlg = settings.playback ? playbacksSheet() : null;
+      if (!dlg) return;
+      onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closePlaybacks);
+      onSheet(dlg, 'click', function (e) { if (e.target === dlg) closePlaybacks(); });
+      onSheet(dlg, 'close', function () { canvas.focus(); });
+      var up = document.getElementById('playbacks-upload');
+      // A click on a page button may open the file picker straight away.
+      if (up) onSheet(up, 'click', function () {
+        sound.play('select');
+        track('play_playback_upload_click', {});
+        closePlaybacks();
+        openReplayPicker();
+      });
+    })();
+    (function () {
       var dlg = resultsSheet();
       if (!dlg) return;
       onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeResults);
@@ -7169,6 +7324,8 @@
       get suspended() { return suspended; },
       // The menu's View playback, for this hand.
       viewPlayback: function () { if (!destroyed && !settings.playback) viewReplay(); },
+      // The playback bar's View playback: the sheet of recent hands and the upload.
+      openPlaybacks: function () { if (!destroyed && settings.playback) openPlaybacks(); },
       start: function () {
         sound.music(true);
         play().catch(function (err) {

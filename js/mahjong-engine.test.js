@@ -398,6 +398,47 @@ describe('playback seed', () => {
     assert.equal(E.playbackCaption(plain, 0, 2), 'The deal.');
   });
 
+  it('names a playback\'s winner and winning hand, scored the same as the game scored it', async () => {
+    require('./mahjong-bot.js'); require('./mahjong-lucky-cat.js'); require('./mahjong-jorge-yau.js');
+    const S = require('./mahjong-strategies.js');
+    let wins = 0;
+    for (let seed = 1; seed <= 12; seed++) {
+      const game = E.createGame({ seed, humanSeat: false, dealer: seed % 4 });
+      await E.runHand(game, [0, 1, 2, 3].map(() => S.createAgent('jorge-yau')), { emit() {} });
+      const r = game.hand.result;
+      const rec = E.checkPlayback(E.makePlayback(game, { seat: 0 })).record;
+      const sum = E.playbackSummary(rec);
+      assert.match(sum.hand, /^Hand \d+ · (East|South|West|North) round$/);
+      if (r.type !== 'win') {
+        assert.equal(E.playbackWinner(rec), null);
+        assert.equal(sum.result, 'No winner: the wall ran out');
+        continue;
+      }
+      wins++;
+      const w = E.playbackWinner(rec);
+      assert.equal(w.seat, r.winner, 'seed ' + seed);
+      assert.equal(w.faan, r.score.faan, 'seed ' + seed);
+      // The hand is the score's patterns, without how it was won or the flowers.
+      assert.ok(r.score.items.some((it) => w.hand.split(' + ').includes(it.name)), w.hand);
+      assert.doesNotMatch(w.hand, /Self-Draw|No Flowers|Seat Flower|Concealed$/);
+      assert.equal(sum.result.indexOf(w.name + ' won with ' + w.hand + ' · ' + w.faan + ' faan'), 0, sum.result);
+    }
+    assert.ok(wins >= 5, wins + ' wins');
+    const game = E.createGame({ seed: 1, humanSeat: false, dealer: 0 });
+    await E.runHand(game, discarders(), { emit() {} });
+    const rec = E.checkPlayback(E.makePlayback(game, { seat: 0 })).record;
+    assert.equal(E.playbackSummary(Object.assign({}, rec, { actions: rec.actions.slice(0, 3), moves: 3 })).result, 'Still being played');
+  });
+
+  it('says when a playback was saved, for people', () => {
+    const now = new Date(2026, 10, 7, 15, 0).getTime();
+    assert.equal(E.playbackWhen(new Date(2026, 10, 7, 14, 30).getTime(), now), 'Today, 2:30 PM');
+    assert.equal(E.playbackWhen(new Date(2026, 10, 6, 9, 5).getTime(), now), 'Yesterday, 9:05 AM');
+    assert.equal(E.playbackWhen(new Date(2026, 10, 5, 14, 30).getTime(), now), 'Thu, Nov 5, 2:30 PM');
+    assert.equal(E.playbackWhen(new Date(2025, 11, 31, 8, 0).getTime(), now), 'Wed, Dec 31, 2025, 8:00 AM');
+    assert.equal(E.playbackWhen(null, now), 'Earlier');
+  });
+
   it('rebuilds that log when a saved hand is played back to the same moment', async () => {
     const game = E.createGame({ seed: 11, dealer: 0 });
     let saved = null;

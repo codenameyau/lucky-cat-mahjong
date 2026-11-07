@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.47.3';
+  var GAME_VERSION = '0.48.0';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -1373,6 +1373,78 @@
     return WIND_NAMES[p.wind] || ('Seat ' + (seat + 1));
   }
 
+  // What a win was scored for beyond the hand itself: how it was won, and
+  // flowers. The rest of a score's items are the hand's patterns.
+  var EXTRAS = ['Self-Draw', 'Concealed', 'Win on Last Tile', 'Robbing the Kong', 'Win by Kong',
+    'Win by Double Kong', 'Heavenly Hand', 'Earthly Hand', 'No Flowers', 'Seat Flower', 'Seat Season',
+    'Four Flowers', 'Four Seasons', 'Seven Robbing One', 'Eight Immortals Crossing the Sea'];
+
+  // Who won a playback's hand and with which hand: { seat, name, how, hand,
+  // faan }, or null for a hand with no winner (or not finished). The hand is
+  // scored again from the file, as it stood when the winning tile came.
+  function playbackWinner(rec) {
+    if (!rec || !Array.isArray(rec.actions)) return null;
+    var limit = typeof rec.moves === 'number' && rec.moves >= 0 ? Math.min(rec.actions.length, rec.moves) : rec.actions.length;
+    var ev = limit ? rec.actions[limit - 1] : null;
+    if (!ev || ev.a !== 'win') return null;
+    var out = { seat: ev.s, name: playbackWho(rec, ev.s), how: ev.how, hand: null, faan: null };
+    if (ev.how === 'flowers') {
+      var g0 = playbackGame(rec, limit - 1);
+      var n = g0 ? g0.hand.seats[ev.s].flowers.length : 7;
+      out.hand = n >= 8 ? 'Eight Immortals Crossing the Sea' : 'Seven Robbing One';
+      return out;
+    }
+    try {
+      var game = playbackGame(rec, limit - 1);
+      var self = ev.how === 'selfDraw';
+      var flags = self ? selfDrawFlags(game, ev.s) : { robKong: ev.how === 'robKong' };
+      var score = scoreWin(game, ev.s, self ? null : ev.t, flags);
+      if (score && score.valid) {
+        var patterns = (score.items || []).filter(function (it) { return EXTRAS.indexOf(it.name) === -1; });
+        out.hand = (patterns.length ? patterns : score.items || []).map(function (it) { return it.name; }).join(' + ') || null;
+        out.faan = score.faan;
+      }
+    } catch (e) { /* the winner still shows */ }
+    return out;
+  }
+
+  // A playback for a list: who won and with which hand, and which hand of
+  // the game it was. { result: "Katie won with Full Flush · 10 faan",
+  // hand: "Hand 3 · East round" }.
+  function playbackSummary(rec) {
+    if (!rec || !Array.isArray(rec.actions)) return { result: 'A playback', hand: '' };
+    var hand = 'Hand ' + (rec.handNumber || 1) + ' · ' + (WIND_NAMES[rec.round] || 'East') + ' round';
+    var limit = typeof rec.moves === 'number' && rec.moves >= 0 ? Math.min(rec.actions.length, rec.moves) : rec.actions.length;
+    var last = limit ? rec.actions[limit - 1] : null;
+    var result;
+    if (last && last.a === 'win') {
+      var w = playbackWinner(rec);
+      result = w.name + ' won' + (w.hand ? ' with ' + w.hand : '') + (w.faan != null ? ' · ' + w.faan + ' faan' : '') +
+        (w.how === 'selfDraw' ? ' (self\u2011draw)' : ''); // a hyphen that doesn't break the line
+    } else if (last && last.a === 'drawGame') {
+      result = 'No winner: the wall ran out';
+    } else {
+      result = 'Still being played';
+    }
+    return { result: result, hand: hand };
+  }
+
+  // When a playback was saved, for people: "Today, 2:30 PM", "Yesterday,
+  // 9:05 AM", "Wed, Nov 5, 2:30 PM". `now` is for tests. No time: "Earlier".
+  function playbackWhen(ms, now) {
+    if (ms == null || !isFinite(ms)) return 'Earlier';
+    var d = new Date(ms);
+    var today = new Date(now == null ? Date.now() : now);
+    var time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    var startOf = function (x) { return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(); };
+    var days = Math.round((startOf(today) - startOf(d)) / 86400000);
+    if (days === 0) return 'Today, ' + time;
+    if (days === 1) return 'Yesterday, ' + time;
+    var opts = { weekday: 'short', month: 'short', day: 'numeric' };
+    if (d.getFullYear() !== today.getFullYear()) opts.year = 'numeric';
+    return d.toLocaleDateString('en-US', opts) + ', ' + time;
+  }
+
   // The playback bar's caption for the steps from..step (one move): its
   // claims and discard, without the draws. Before the first discard, the only
   // steps are the players swapping out their flowers: 'Replacing flowers.'
@@ -1575,6 +1647,9 @@
     parsePlayback: parsePlayback,
     playbackLines: playbackLines,
     playbackCaption: playbackCaption,
+    playbackSummary: playbackSummary,
+    playbackWinner: playbackWinner,
+    playbackWhen: playbackWhen,
     playbackGame: playbackGame,
     playbackFinished: playbackFinished,
     applyPlaybackAction: applyPlaybackAction,

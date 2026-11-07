@@ -78,6 +78,20 @@
         <div id="results-sheet-body" class="rules-sheet-body"></div>
       </div>
     </dialog>
+    <dialog id="playbacks-sheet" class="rules-sheet playbacks-sheet" aria-labelledby="playbacks-sheet-title">
+      <div class="rules-sheet-inner">
+        <header class="rules-sheet-head">
+          <h2 id="playbacks-sheet-title">View playback</h2>
+          <button type="button" class="rules-sheet-close" aria-label="Close View playback">Close</button>
+        </header>
+        <p class="rules-sheet-intro">Your three most recent finished hands, and the last playback you uploaded.</p>
+        <h3 class="playbacks-heading">Recent hands</h3>
+        <ul id="playbacks-recent" class="playbacks-list"></ul>
+        <h3 class="playbacks-heading">Uploaded</h3>
+        <ul id="playbacks-uploaded" class="playbacks-list"></ul>
+        <button type="button" id="playbacks-upload" class="playbacks-upload">Upload playback</button>
+      </div>
+    </dialog>
     <dialog id="strategies-sheet" class="rules-sheet strategies-sheet" aria-labelledby="strategies-sheet-title">
       <div class="rules-sheet-inner">
         <header class="rules-sheet-head">

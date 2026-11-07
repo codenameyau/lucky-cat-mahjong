@@ -324,9 +324,53 @@ test('a refresh while an upload shows keeps showing the upload', async () => {
 test('uploads have their own place, so they never replace the game\'s playback', () => {
   assert.match(GAME_SRC, /var UPLOAD_KEY = 'lcm-play-upload'/);
   const load = GAME_SRC.slice(GAME_SRC.indexOf('function loadPlaybackText'), GAME_SRC.indexOf('function onCanvasPaste'));
-  assert.match(load, /writeJson\(UPLOAD_KEY, file\)/);
-  assert.doesNotMatch(load, /keepReplay|REPLAY_KEY/, 'an upload never writes the game\'s playback');
-  assert.match(GAME_SRC, /viewState\.lcmUpload \? readJson\(UPLOAD_KEY, null\) : \(liveReplay \|\| readJson\(REPLAY_KEY, null\)\)/);
+  assert.match(load, /if \(!mark\) writeJson\(UPLOAD_KEY, \{ savedAt: Date\.now\(\), file: file \}\)/);
+  assert.doesNotMatch(load, /keepReplay|REPLAY_KEY|RECENT_KEY/, 'an upload never writes the game\'s playbacks');
+});
+
+test('the View playback sheet keeps the three most recent hands, newest first, and one upload', () => {
+  // The storage helpers, run on their own with a fake localStorage.
+  const store = {};
+  const ctx = { localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } },
+    Date, JSON, Array };
+  const E = { playbackFinished: (p) => p.done };
+  const start = GAME_SRC.indexOf('  function readJson(');
+  const end = GAME_SRC.indexOf('  // Each strategy\'s hints for the game in progress');
+  const fns = GAME_SRC.slice(start, GAME_SRC.indexOf('\n  }\n', GAME_SRC.indexOf('function removeJson')) + 4) +
+    GAME_SRC.slice(GAME_SRC.indexOf('  var REPLAY_KEY'), end);
+  const run = new Function('localStorage', 'E', fns + '; return { keepReplay, recentPlaybacks, uploadedPlayback, playbackId };');
+  const api = run(ctx.localStorage, E);
+  const file = (n, done) => ({ moves: n, payload: { handSeed: 's' + n, handNumber: n, done } });
+  api.keepReplay(file(1, true));
+  api.keepReplay(file(2, true));
+  api.keepReplay(file(3, false)); // unfinished: never stored
+  api.keepReplay(file(4, true));
+  api.keepReplay(file(5, true));
+  api.keepReplay(file(4, true)); // already listed: keeps its place
+  const list = api.recentPlaybacks();
+  assert.deepEqual(list.map((e) => e.file.moves), [5, 4, 2]);
+  assert.ok(list.every((e) => typeof e.savedAt === 'number'), 'each with the time it was saved');
+  assert.equal(api.uploadedPlayback(), null);
+  store['lcm-play-upload'] = JSON.stringify({ savedAt: 123, file: file(9, true) });
+  assert.equal(api.uploadedPlayback().file.moves, 9);
+  // An upload stored before the time was kept still shows.
+  store['lcm-play-upload'] = JSON.stringify(file(8, true));
+  assert.deepEqual(api.uploadedPlayback(), { savedAt: null, file: file(8, true) });
+});
+
+test('the playback bar opens the View playback sheet, and its rows play, download and upload', () => {
+  const game = fs.readFileSync(path.join(ROOT, 'playing-mahjong/index.html'), 'utf8');
+  assert.match(game, /<dialog id="playbacks-sheet"/);
+  ['playbacks-recent', 'playbacks-uploaded', 'playbacks-upload'].forEach((id) => assert.match(game, new RegExp('id="' + id + '"')));
+  assert.match(GAME_SRC, /button\(words \? 'View playback' : '', vpX, 7, vpW, 28, openPlaybacks, 'ghost', 'review-list'\)/);
+  assert.doesNotMatch(GAME_SRC, /'Upload'/, 'no Upload button on the bar');
+  assert.match(GAME_SRC, /button\('View playback', \(W - bw\) \/ 2, by, bw, bh, openPlaybacks/);
+  const row = GAME_SRC.slice(GAME_SRC.indexOf('function playbackRow'), GAME_SRC.indexOf('function fillList'));
+  assert.match(row, /loadPlaybackText\(entry\.file, mark\)/);
+  assert.match(row, /saveFile\(entry\.file, entry\.savedAt\)/);
+  assert.match(row, /E\.playbackWhen\(entry\.savedAt\)/);
+  const build = GAME_SRC.slice(GAME_SRC.indexOf('function buildPlaybacks'), GAME_SRC.indexOf('var replayFileInput'));
+  assert.match(build, /up \? \[up\] : \[\]/, 'at most one uploaded row');
 });
 
 test('a link straight to ?playback=1 goes back to the game, or the options page with none', async () => {
