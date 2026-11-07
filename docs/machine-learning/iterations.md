@@ -13,7 +13,7 @@ Every score here is **points a hand**: one player's average points per hand less
 | In the game | **NC1** (league model L17) | **LC20** (lc20) |
 | What it is | A network that scores Jorge Yau's best choices in expected points | A network that makes every move itself, with no rules underneath |
 | What it plays for | Points: often and big wins on one scale | Wins: as many and as fast as it can |
-| Trained on | 900,000 league hands, and earlier rounds against the rule bots | 1,000,000 hands against its earlier selves and Neural Cat |
+| Trained on | 950,000 league hands (stopped in round 19, at a plateau), and earlier rounds against the rule bots | 1,000,000 hands against its earlier selves and Neural Cat |
 | Wins / deal-ins | about 9% / 5–6% against other Neural Cat models | about 18–21% against its older selves; 17.9% against Neural Cat's 9.1% |
 | Average win | about 1,900 points | 4–5 faan, about a quarter of Neural Cat's |
 | Head to head | Beats s5, the model before the league, by about 75–80 points a hand | Wins twice as many hands as Neural Cat but loses about 109 points a hand to it |
@@ -180,7 +180,12 @@ Per hand dealt to a seat, from each model's evaluation (L1 against s5, the rule-
 
 - **Thinking.** Started from L17, with s5, L11, L14 and L16 in the pool.
 - **What it does differently.** It won more often (9.2% against 8.8%) but smaller (1,768 against 1,940).
-- **Result.** −5.7 ± 32 against L17. Rounds 19 and 20 were still playing when this was written.
+- **Result.** −5.7 ± 32 against L17.
+
+## L19: trained, never judged
+
+- **Thinking.** Started from L17, with s5, L11, L14 and L16 in the pool.
+- **Result.** The league was stopped while L19 played its evaluation against L17 (see [the plateau](#the-plateau-where-neural-cat-stands)), so it has no score. Its weights are kept in `ml/models/L19.json` and can still be benchmarked.
 
 ## The league overall
 
@@ -207,7 +212,7 @@ Every league round's score against the best before it, against s5 where that was
 | **L17 (NC1)** | L16 | +6.9 ± 33 | | 8.9% | 5.7% | 1,907 | 77.0% | yes, shipped |
 | L18 | L17 | −5.7 ± 32 | | 9.2% | 5.9% | 1,768 | 77.1% | no |
 
-"Held-out accuracy" is how often the model names how a hand ends, on positions from deals it wasn't trained on. The league runs 20 rounds; rounds 19 and 20 were still playing when this was written.
+"Held-out accuracy" is how often the model names how a hand ends, on positions from deals it wasn't trained on. The league was planned for 20 rounds and stopped during round 19, after 950,000 hands.
 
 **What it taught:**
 - **The league beats the starting point by a clear margin.** L10 beat s5 by +81.6 ± 32 and L15 by +75.5 ± 33, and neither was even kept: the whole league is well past s5. That's beyond the noise, and the biggest gain of any phase.
@@ -216,7 +221,58 @@ Every league round's score against the best before it, against s5 where that was
 - **The gains are in the size of wins.** Win rate stayed at 8–9% and deal-ins at 5–6% throughout. The average win went from about 1,670 points (L1–L2) to about 1,900–2,070 (L7 onward). The league learned to steer toward bigger hands, the trade-off expected points exist to make. L7, for example, won about as often as L6 but each win paid 23% more, and it won 18% more limit hands.
 - **2,000-deal evaluations were too noisy.** Rounds 1–5 used them (±50), so L4 and L5's scores against s5 (+0.0, +0.3) said nothing. From round 6 the league plays 6,000 deals (±30) and records the margin, and measures against s5 every 5 rounds to save time.
 - **Training data levels off.** With an 8-round window the training set stays at about 4.6 million positions from L8 on. More rounds now bring fresher data, not more of it.
-- **A plateau is near.** After L7, new models have been kept about half the time, mostly within the noise. A bigger network, new features, or a longer evaluation to tell close models apart are the likely next levers. More rounds of the same are not.
+- **It reached a plateau.** After L7, new models were kept about half the time, mostly within the noise. See the next section.
+
+## The plateau: where Neural Cat stands
+
+The league was stopped during round 19 because Neural Cat had stopped improving. NC1 (L17) stays the shipped model. Since about L7, most of the apparent progress is noise.
+
+### The evidence
+
+| Measure | L1–L7 | L8–L18 |
+| --- | --- | --- |
+| Gain over the model before it | +62, +28, +16, +15, +8, +41 points a hand | Mostly −10 to +7, against noise of ±30 |
+| Models clearly better than the one before | L1 and L7 | Only L16 (+43.9 ± 31) |
+| Against s5, the fixed starting model | L1 +62 (L3 +96 and L4 +0.0 at ±50, too noisy to read) | L10 +81.6 ± 32, L15 +75.5 ± 33: flat |
+| Average win | 1,670 rising to 2,070 points | About 1,900 points, flat |
+| Held-out accuracy | 68.6% to 73.3% | 73.8% to 77.1%, rising slowly |
+
+- **The fixed comparison is the clearest sign.** Against s5, the round-10 and round-15 models score the same. If the league were still improving, that number would rise.
+- **Several models were kept on noise.** A model was kept if it scored above 0 against the best, so L8 (+2.1), L11 (+1.4) and L17 (+6.9) were kept, but each was a coin flip at ±30. The "best" model became partly a random walk.
+- **The model still reads hands better, but that doesn't turn into points.** Its accuracy at predicting how a hand ends kept rising slowly, but it stopped translating into more points a hand.
+
+### Why it stalled
+
+1. **The model can't stray far from Jorge Yau.** It only chooses among Jorge Yau's top 3 discards (`TOP_K` = 3). Once it picks the best of those three well, there's little room left. This is probably the main limit.
+2. **It plays near-copies of itself.** The pool is L models that all play alike, so new rounds teach little that's new.
+3. **The training data stopped growing.** With an 8-round window it has been about 4.6 million positions since L8, with the same network size (256 and 128 hidden units) and the same features.
+4. **Evaluations can't see small gains.** At 6,000 deals the margin is about ±30 points a hand, so a real gain of +10 is invisible.
+
+### What to do next, in order
+
+1. **Measure honestly first.** Play NC1 against s5, L7 and L11 over about 20,000 deals each (about ±15 points a hand). That shows whether anything real was gained since L7. L19, never judged, can be measured the same way.
+2. **Make keeping a model stricter.** Keep a new model only if it beats the best by more than its margin, or re-test close calls on more deals. That stops the noise-driven random walk.
+3. **Raise the ceiling.** Let the model choose among Jorge Yau's top 5 discards instead of 3, try a bigger network (512 and 256), and add features for what it can't yet see.
+4. **Vary the opponents.** Put LC20, Jorge Yau and Lucky Cat Classic in the pool, so it learns against different styles, not only copies of itself.
+
+More rounds of the same league were unlikely to help, so the league was replaced by the lab, which does all four (next section). The league's data for rounds 10–19 seeds the lab's first rounds.
+
+## The lab: remaking Neural Cat
+
+After the plateau, Neural Cat's training was rebuilt as the lab (`npm run ml:lab`, [how it works](training.md#4-the-lab-npm-run-mllab)), starting from NC1 (L17). It does each step above:
+
+| The plateau's lesson | What the lab does |
+| --- | --- |
+| Measure honestly | NC1 is benchmarked against s5, L7, L11 and L19 on 20,000 deals each (about ±15 points a hand), and every candidate that looks ahead is re-judged on 20,000 fresh deals |
+| Keep only clear gains | A candidate is kept only if it beats the champion by more than its standard error on those 20,000 deals, not on any score above 0 |
+| Score wins as well as points | The objective is J = points a hand + 5 × hands won (percentage points) |
+| Raise the ceiling | Experiments choose among more of Jorge Yau's discards (`topK`), add a bonus for the chance to win (`winBonus`), change the claim margin, and train wider (512, 256) and deeper (512, 256, 128) networks from scratch |
+| Vary the opponents | Each round's table mixes the champion with its last three predecessors, s5, Jorge Yau, LC20 and Lucky Cat Classic |
+| Learn from failures | Each experiment's results are kept, and the next round favours the experiments that have paid, while still trying the rest now and then |
+
+New features (what the model can't yet see) need new data from scratch, so they're not an experiment yet. They're the next step if these stall.
+
+The lab's results go below as rounds finish.
 
 ## Changes to the base logic during the league
 

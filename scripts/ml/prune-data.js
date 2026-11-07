@@ -57,7 +57,8 @@ function unused(dataDir, keep) {
 function prune(opts) {
   opts = opts || {};
   const dataDir = opts.data || path.join(ROOT, 'ml', 'data');
-  const gone = unused(dataDir, keptSets(opts.window || 8, opts.league));
+  // opts.keep: the caller's own set of names to keep (the lab's), instead of the league's.
+  const gone = unused(dataDir, opts.keep || keptSets(opts.window || 8, opts.league));
   if (!opts.apply || !gone.length) return { names: gone, moved: false };
   const trash = path.join(os.homedir(), '.Trash');
   if (!fs.existsSync(trash)) return { names: gone, moved: false, reason: 'no ~/.Trash folder here: delete them yourself' };
