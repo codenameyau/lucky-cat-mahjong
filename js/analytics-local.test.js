@@ -8,6 +8,7 @@ const ROOT = path.join(__dirname, '..');
 const PAGES = [
   'index.html',
   'play-mahjong/index.html',
+  'playing-mahjong/index.html',
   'hong-kong-mahjong-scoring/index.html',
   'events/index.html',
   'community/index.html',

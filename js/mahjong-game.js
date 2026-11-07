@@ -2345,7 +2345,7 @@
       } else if (!storedReplay()) return;
       track('play_view_replay', {});
       if (callbacks.playback) { callbacks.playback(); return; }
-      root.location.assign(visitUrl('/play-mahjong/', { playback: '1' }));
+      root.location.assign(visitUrl('/playing-mahjong/', { playback: '1' }));
     }
 
     // Keep a quiet or instant visit quiet on the next page too.
@@ -4832,7 +4832,7 @@
     // (no page around it) loads the game page.
     function backToGame() {
       if (callbacks.back) { callbacks.back(); return; }
-      root.location.assign(visitUrl('/play-mahjong/', { opened: '1', results: '1' }));
+      root.location.assign(visitUrl('/playing-mahjong/', { results: '1' }));
     }
 
     // ?results=1 asks the finished game to open its results. One visit only.
@@ -7150,15 +7150,12 @@
 
   // Settings the form doesn't show (the coach) keep whatever
   // was last chosen from the in-game menu.
-  function readForm(form, saved) {
+  // The settings the options page (/play-mahjong/) saved.
+  function savedSettings(saved) {
     saved = saved || {};
-    var get = function (name, fallback) {
-      var el = form.querySelector('input[name="' + name + '"]:checked');
-      return el ? el.value : fallback;
-    };
     return {
       spicy: 'full',
-      mode: get('mode', saved.mode || 'practice'),
+      mode: saved.mode === 'payout' ? 'payout' : 'practice',
       // Older saves had a hints on/off flag. With nothing saved, the coach is on.
       coach: saved.coach || (saved.hints === false ? 'off' : 'on'),
       // Animations are always on; ?instant=1 skips them for a visit (see below).
@@ -7166,63 +7163,49 @@
     };
   }
 
-  function applySaved(form, saved) {
-    var set = function (name, value) {
-      var el = form.querySelector('input[name="' + name + '"][value="' + value + '"]');
-      if (el) el.checked = true;
-    };
-    if (saved.mode) set('mode', saved.mode);
-  }
-
+  /* The game page, /playing-mahjong/. The options page (/play-mahjong/) sends
+     you here: ?new=1 starts a new game in the mode it saved, ?learn=1 the
+     lesson, and no query resumes the saved game (or starts one if there is
+     none). A refresh resumes the saved game. ?playback=1 is the playback
+     view. Quit goes back to the options page. */
   function init() {
-    var form = document.getElementById('play-settings');
     var stage = document.getElementById('play-stage');
     var canvas = document.getElementById('play-canvas');
     var live = document.getElementById('play-live');
-    if (!form || !stage || !canvas) return;
-    applySaved(form, readJson(SETTINGS_KEY, {}));
+    if (!stage || !canvas) return;
     loadAssets();
 
-    // ?opened=1 says the table is open, so refreshing comes back to the game.
-    // A lesson isn't saved, so it doesn't set it.
-    function isOpenedUrl() {
-      return /[?&]opened=1(&|$)/.test(root.location.search);
+    function hasParam(name) {
+      return new RegExp('[?&]' + name + '=1(&|$)').test(root.location.search);
     }
 
-    function gameUrl(on) {
+    // Takes a one-time request (?new=1) out of the address, so a refresh resumes.
+    function dropParam(name) {
+      if (!root.history || !root.history.replaceState) return;
       var url = new URL(root.location.href);
-      if (on) url.searchParams.set('opened', '1');
-      else url.searchParams.delete('opened');
-      return url;
+      url.searchParams.delete(name);
+      root.history.replaceState(root.history.state, '', url.pathname + url.search);
     }
 
-    function inGameEntry() {
-      return !!(root.history.state && root.history.state.lcmGame);
+    // Keep a quiet or instant visit quiet on the next page too.
+    function pageUrl(path) {
+      var url = new URL(path, root.location.origin);
+      var search = root.location.search || '';
+      var sound = /[?&]sound=(0|1)(?:&|$)/.exec(search);
+      if (sound) url.searchParams.set('sound', sound[1]);
+      if (/[?&]instant=1(?:&|$)/.test(search)) url.searchParams.set('instant', '1');
+      return url.pathname + url.search;
     }
 
-    // The open table is its own history entry, so Back returns to this page.
-    // A link straight to ?opened=1 gets this page's entry put under it first.
-    function enterGameHistory(opened) {
-      if (!root.history || !root.history.pushState) return;
-      var state = { lcmGame: true };
-      if (inGameEntry()) { root.history.replaceState(state, '', gameUrl(opened)); return; }
-      if (isOpenedUrl()) root.history.replaceState(null, '', gameUrl(false));
-      root.history.pushState(state, '', gameUrl(opened));
+    function goToOptions() {
+      root.location.assign(pageUrl('/play-mahjong/'));
     }
 
-    function clearOpenedUrl() {
-      if (root.history && root.history.replaceState) root.history.replaceState(null, '', gameUrl(false));
-    }
-
-    // Quit steps back over the table's entry, so Back doesn't show this page twice.
-    function leaveGameHistory() {
-      if (!root.history) return;
-      if (inGameEntry()) root.history.back();
-      else clearOpenedUrl();
-    }
-
-    function pageReady() {
-      document.documentElement.classList.remove('play-reopening');
+    function settingsNow() {
+      var settings = savedSettings(readJson(SETTINGS_KEY, {}));
+      // ?instant=1 skips animations for this visit only, to speed up testing.
+      if (hasParam('instant')) settings.speed = 'off';
+      return settings;
     }
 
     // Tables are made through the api, so a test can stand in for them.
@@ -7231,9 +7214,7 @@
       // A new game takes the save slot. A lesson leaves a saved game alone.
       if (!saved && !settings.lesson) removeJson(AUTOSAVE_KEY);
       closePlaybackView();
-      enterGameHistory(!settings.lesson);
       stage.hidden = false;
-      pageReady();
       document.documentElement.classList.add('is-playing');
       if (table) table.destroy();
       table = api.createTable(canvas, live, settings, {
@@ -7247,6 +7228,27 @@
       canvas.focus();
       root.__lcmTable = table;
       hideToolbar();
+    }
+
+    function startFresh() {
+      open(settingsNow());
+    }
+
+    function startLesson() {
+      var settings = settingsNow();
+      settings.mode = 'practice';
+      settings.lesson = true;
+      open(settings);
+    }
+
+    // The saved game, if its signature checks out. Otherwise a new game.
+    function resumeGame() {
+      var stored = readJson(AUTOSAVE_KEY, null);
+      if (!stored || !stored.payload || !stored.payload.game || !E.checkSave) { startFresh(); return; }
+      E.checkSave(stored).then(function (check) {
+        if (!check.ok) { startFresh(); return; }
+        open(Object.assign(settingsNow(), { mode: stored.payload.game.settings.mode }), stored);
+      }, startFresh);
     }
 
     // Phones held sideways play fullscreen. Browsers only allow it from a
@@ -7406,7 +7408,6 @@
       canvas.hidden = true;
       playbackCanvas.hidden = false;
       if (strategiesIntro) strategiesIntro.textContent = PLAYBACK_STRATEGIES_INTRO;
-      pageReady();
       document.documentElement.classList.add('is-playing');
       playbackTable = api.createTable(playbackCanvas, playbackLive, {
         playback: true,
@@ -7444,18 +7445,16 @@
     }
 
     // With no game in memory (playback opened by a refresh or a link), the
-    // saved game opens on its results, as it ended. With none, the page shows.
+    // saved game opens on its results, as it ended. With none, the options page.
     function reopenAfterPlayback() {
       if (table) return;
       if (readJson(AUTOSAVE_KEY, null)) {
-        var url = gameUrl(true);
+        var url = new URL(root.location.href);
         url.searchParams.set('results', '1');
-        root.history.replaceState(Object.assign({}, root.history.state || {}, { lcmGame: true }), '', url);
-        reopenGame();
+        root.history.replaceState(root.history.state, '', url.pathname + url.search);
+        resumeGame();
       } else {
-        clearOpenedUrl();
-        pageReady();
-        revealResume();
+        goToOptions();
       }
     }
 
@@ -7476,224 +7475,28 @@
       reopenAfterPlayback();
     }
 
-    // Quitting leaves the table. The saved game stays, so Resume game can
-    // bring it back.
+    // Quitting goes back to the options page. The saved game stays, so
+    // Resume game there brings it back.
     function close() {
-      leaveGameHistory();
-      leaveTable();
-    }
-
-    function leaveTable() {
       leaveAutoFullscreen();
       document.documentElement.classList.remove('is-sideways');
       if (table) table.destroy();
       table = null;
-      // Paint Resume and the mode while the table still covers the page.
-      revealResume(true);
-      stage.hidden = true;
-      document.documentElement.classList.remove('is-playing');
+      goToOptions();
     }
 
-    // Remember the last Payout/Practice choice as soon as it changes.
-    // Payouts are always full spicy, including games saved as half spicy.
-    form.addEventListener('change', function () {
-      var saved = readJson(SETTINGS_KEY, {});
-      var now = readForm(form, saved);
-      saved.mode = now.mode;
-      saved.spicy = 'full';
-      writeJson(SETTINGS_KEY, saved);
-      document.documentElement.classList.remove('play-mode-practice', 'play-mode-payout');
-      if (now.mode === 'practice' || now.mode === 'payout') {
-        document.documentElement.classList.add('play-mode-' + now.mode);
-      }
-      track('play_mode_select', { mode: now.mode });
-      paintPlayActions();
-    });
+    if (hasParam('playback')) showPlayback(false);
+    else if (hasParam('learn')) startLesson();
+    else if (hasParam('new')) { dropParam('new'); startFresh(); }
+    else resumeGame();
 
-    var credits = document.querySelector('.play-credits');
-    if (credits) {
-      credits.addEventListener('click', function (e) {
-        var link = e.target.closest('a');
-        if (link) track('play_credit_click', { link: link.textContent });
-      });
-    }
-
-    var resumeBtn = document.getElementById('play-resume');
-    var startBtn = document.getElementById('play-start');
-    var learnBtn = document.getElementById('play-learn');
-
-    // A saved game in the other mode puts Start new game first: Resume
-    // wouldn't open the mode you just picked.
-    function newGameFirst() {
-      if (!resumeBtn || resumeBtn.hidden) return false;
-      var stored = readJson(AUTOSAVE_KEY, null);
-      var mode = stored && stored.payload && stored.payload.game && stored.payload.game.settings && stored.payload.game.settings.mode;
-      return !!mode && mode !== readForm(form, readJson(SETTINGS_KEY, {})).mode;
-    }
-
-    // The first button on the page is the red one. The rest are white.
-    function paintPlayActions() {
-      var seen = false;
-      var startFirst = newGameFirst();
-      document.documentElement.classList.toggle('play-new-first', startFirst);
-      if (resumeBtn && startBtn) {
-        if (startFirst) startBtn.parentNode.insertBefore(startBtn, resumeBtn);
-        else resumeBtn.parentNode.insertBefore(resumeBtn, startBtn);
-      }
-      (startFirst ? [startBtn, resumeBtn, learnBtn] : [resumeBtn, startBtn, learnBtn]).forEach(function (btn) {
-        if (!btn) return;
-        var primary = !seen && !btn.hidden;
-        if (!btn.hidden) seen = true;
-        btn.classList.toggle('btn-primary', primary);
-        btn.classList.toggle('btn-white', !primary);
-      });
-    }
-
-    // A stored game shows Resume and hides Learn. Otherwise Start leads.
-    function showSavedGame(on) {
-      document.documentElement.classList.toggle('play-has-save', !!on);
-      if (resumeBtn) resumeBtn.hidden = !on;
-      if (learnBtn) learnBtn.hidden = on;
-      if (startBtn) startBtn.textContent = on ? 'Start new game' : 'Start game';
-      paintPlayActions();
-    }
-
-    function settlePlayForm() {
-      document.documentElement.classList.add('play-settled');
-    }
-
-    function pageSettings() {
-      var settings = readForm(form, readJson(SETTINGS_KEY, {}));
-      if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
-      return settings;
-    }
-
-    function startFresh() {
-      open(pageSettings());
-    }
-
-    // The signature covers the save. A changed one is thrown out and a new
-    // game starts in its place.
-    function resumeOrNew() {
-      var data = readJson(AUTOSAVE_KEY, null);
-      var settings = pageSettings();
-      var beginNew = function () {
-        removeJson(AUTOSAVE_KEY);
-        showSavedGame(false);
-        open(settings);
-      };
-      if (!data || !E.checkSave) { beginNew(); return; }
-      E.checkSave(data).then(function (check) {
-        if (!check.ok) { beginNew(); return; }
-        open(Object.assign(settings, { mode: data.payload.game.settings.mode }), data);
-      }, beginNew);
-    }
-
-    function revealResume(fromQuit) {
-      var stored = readJson(AUTOSAVE_KEY, null);
-      var looksSaved = !!(stored && stored.payload && stored.payload.game);
-      if (!stored || !E.checkSave) {
-        showSavedGame(false);
-        settlePlayForm();
-        if (fromQuit && startBtn) startBtn.focus();
-        return;
-      }
-      // Show the stored game before the signature check, so the page doesn't
-      // flash Start as the red button while that check runs.
-      showSavedGame(looksSaved);
-      E.checkSave(stored).then(function (check) {
-        if (table || playbackTable) { settlePlayForm(); return; }
-        if (check.ok) {
-          showSavedGame(true);
-          settlePlayForm();
-          if (fromQuit && resumeBtn) resumeBtn.focus();
-          return;
-        }
-        showSavedGame(false);
-        settlePlayForm();
-        // A newer game wrote this. Leave it. A changed signature is discarded.
-        if (/newer than this game|doesn't load in version|no game version/.test(check.reason || '')) return;
-        removeJson(AUTOSAVE_KEY);
-        startFresh();
-      }, function () {
-        if (table || playbackTable) { settlePlayForm(); return; }
-        removeJson(AUTOSAVE_KEY);
-        showSavedGame(false);
-        settlePlayForm();
-        startFresh();
-      });
-    }
-
-    if (resumeBtn) {
-      resumeBtn.addEventListener('click', function () {
-        track('play_resume_click', {});
-        resumeOrNew();
-      });
-    }
-
-    // Learn to play, beside the game buttons: one fixed hand the coach walks you through.
-    if (learnBtn) {
-      learnBtn.addEventListener('click', function () {
-        track('play_learn_click', {});
-        var settings = readForm(form, readJson(SETTINGS_KEY, {}));
-        settings.mode = 'practice';
-        settings.lesson = true;
-        settings.spicy = 'full';
-        if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
-        open(settings);
-      });
-    }
-
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var settings = readForm(form, readJson(SETTINGS_KEY, {}));
-      writeJson(SETTINGS_KEY, settings);
-      track('play_start_click', { mode: settings.mode });
-      // ?instant=1 skips animations for this visit only, to speed up testing.
-      if (/[?&]instant=1/.test(root.location.search)) settings.speed = 'off';
-      open(settings);
-    });
-
-    // Refreshing the game goes back into it. With no game to go back to, or a
-    // save that doesn't load, the page shows as usual.
-    function reopenGame() {
-      var stored = readJson(AUTOSAVE_KEY, null);
-      var offerPage = function () {
-        clearOpenedUrl();
-        pageReady();
-        revealResume();
-      };
-      if (!stored || !stored.payload || !stored.payload.game || !E.checkSave) { offerPage(); return; }
-      E.checkSave(stored).then(function (check) {
-        if (!check.ok) { offerPage(); return; }
-        showSavedGame(true);
-        settlePlayForm();
-        open(Object.assign(pageSettings(), { mode: stored.payload.game.settings.mode }), stored);
-      }, offerPage);
-    }
-
-    // A stored game offers Resume. A changed signature starts a new game.
-    // ?playback=1 opens the playback view (the hand saved in storage).
-    if (isPlaybackUrl()) showPlayback(false);
-    else if (isOpenedUrl()) reopenGame();
-    else revealResume();
-
-    // Back leaves the table for this page, and Forward returns to the game.
     // Back from playback returns to the game, and Forward to playback again.
     root.addEventListener('popstate', function () {
       if (inPlaybackEntry() || isPlaybackUrl()) {
         if (!playbackTable) showPlayback(false);
         return;
       }
-      if (closePlaybackView()) {
-        if (!table && inGameEntry() && isOpenedUrl()) reopenAfterPlayback();
-        else if (!table) revealResume();
-        return;
-      }
-      if (table && !inGameEntry()) {
-        closeSheets();
-        leaveTable();
-      } else if (!table && inGameEntry() && isOpenedUrl()) reopenGame();
+      if (closePlaybackView() && !table) reopenAfterPlayback();
     });
   }
 

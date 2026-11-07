@@ -4,7 +4,7 @@
   "description": "Play Hong Kong mahjong with a coach, online or offline.",
   "id": "/play-mahjong/",
   "start_url": "/play-mahjong/",
-  "scope": "/play-mahjong/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#FFF8F0",
   "theme_color": "#C41E3A",

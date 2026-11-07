@@ -68,7 +68,7 @@ Every hook is optional. A strategy with none plays the shared foundation alone: 
 
 Then:
 
-1. Load its script in `play-mahjong/index.html` after `mahjong-bot.js` and before `mahjong-strategies.js`.
+1. Load its script in `playing-mahjong/index.html` (the game page) after `mahjong-bot.js` and before `mahjong-strategies.js`.
 2. Add an entry to `STRATEGIES` in `js/mahjong-strategies.js` with its `id`, `name`, `bot`, a one-line `summary` and a few `details` paragraphs for the Strategies sheet.
 3. Write its playbook here.
 4. Play it against the others (below).
