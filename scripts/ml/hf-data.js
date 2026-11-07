@@ -4,16 +4,32 @@
    (no token: the repo must already exist, and your SSH key must be on your
    Hugging Face account; Git LFS must be installed).
 
-   Each finished set (one with a manifest.json) goes up as its own commit:
-   data/<set>/manifest.json and its shards, with README.md (the dataset card).
+   Only the data in use is kept: the rounds the shipped model trained on,
+   and the league's training window (the last --window rounds, the one
+   being played among them). Every other set keeps just its manifest.json,
+   which records how it was made (seed, opponents, model, game version), so
+   it can be generated again; the dataset card lists the command. When a set
+   drops out, its shards are deleted and the repo's history is squashed to
+   one commit (a force push), because Hugging Face keeps every file in the
+   history otherwise.
+
+   The same sets leave ml/data/ on this machine too, to the Trash
+   (scripts/ml/prune-data.js). Model weights and reports stay.
+
    A league round still being played has no manifest yet, so it waits.
 
-   npm run ml:hf-data -- --repo codenameyau/lucky-cat-mahjong-games
-   npm run ml:hf-data -- --repo codenameyau/lucky-cat-mahjong-games --watch
+   Training data is published only when the maintainer explicitly asks for
+   it (docs/machine-learning/hugging-face.md), so nothing is uploaded
+   without --publish.
+
+   npm run ml:hf-data -- --repo codenameyau/lucky-cat-mahjong-games --publish
 
    Options:
+     --publish          required: upload (without it, nothing happens)
      --repo OWNER/NAME  the Hugging Face dataset repo
      --sets a,b,...     which sets (default: j0, s1-s6 and every league round)
+     --window N         league rounds of training data to keep (default 8,
+                        the league's --keep)
      --watch            keep uploading league rounds until the league is done
      --every SECONDS    how often to check when watching (default 300) */
 
@@ -22,6 +38,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { keptSets, prune } = require('./prune-data.js');
 
 const ROOT = path.join(__dirname, '..', '..');
 const DATA = path.join(ROOT, 'ml', 'data');
@@ -59,17 +76,36 @@ function defaultSets() {
   return ['j0', 's1', 's2', 's3', 's4', 's5', 's6'].filter((n) => names.indexOf(n) !== -1).concat(league);
 }
 
+function readJson(file) {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (err) { return null; }
+}
+
+// The command that makes a set again, from its manifest.
+function rebuild(name, m) {
+  const c = m.config;
+  const args = ['--deals', c.deals, '--lineup', c.lineup];
+  if (c.pool) args.push('--pool', c.pool.join(','));
+  if (c.weights) args.push('--weights', 'ml/models/' + path.basename(c.weights));
+  ['temperature', 'epsilon', 'explore', 'sample', 'seed'].forEach((k) => { if (c[k] !== undefined) args.push('--' + k, c[k]); });
+  return 'node scripts/ml/generate.js ' + args.join(' ') + ' --out ml/data/' + name;
+}
+
 function describe(name, m) {
   if (name === 'j0') return 'Bootstrap: the rule strategies (Jorge Yau, Lucky Cat, Only Orphans) in every seat, read through Neural Cat\'s features.';
   if (/^s\d$/.test(name)) return 'Self-play against the rule bots: Neural Cat (exploring) with Jorge Yau, Lucky Cat and Only Orphans. Discards only.';
   return 'League round ' + name.slice(7) + ': every seat a Neural Cat model, the best so far exploring against earlier bests. Discards, claims and kongs.';
 }
 
-function card(repo, sets) {
+function card(repo, sets, kept) {
   const first = sets.length ? JSON.parse(fs.readFileSync(path.join(DATA, sets[0], 'manifest.json'), 'utf8')) : null;
   const rows = sets.map((n) => {
     const m = JSON.parse(fs.readFileSync(path.join(DATA, n, 'manifest.json'), 'utf8'));
-    return '| `data/' + n + '/` | ' + m.config.deals.toLocaleString('en-US') + ' | ' + m.samples.toLocaleString('en-US') + ' | ' + describe(n, m) + ' |';
+    return '| `data/' + n + '/` | ' + m.config.deals.toLocaleString('en-US') + ' | ' + m.samples.toLocaleString('en-US') + ' | ' +
+      (kept(n) ? 'Yes' : 'Manifest only') + ' | ' + describe(n, m) + ' |';
+  });
+  const gone = sets.filter((n) => !kept(n)).map((n) => {
+    const m = JSON.parse(fs.readFileSync(path.join(DATA, n, 'manifest.json'), 'utf8'));
+    return '- `' + n + '` (game ' + m.gameVersion + '): `' + rebuild(n, m) + '`';
   });
   const deals = sets.reduce((s, n) => s + JSON.parse(fs.readFileSync(path.join(DATA, n, 'manifest.json'), 'utf8')).config.deals, 0);
   const samples = sets.reduce((s, n) => s + JSON.parse(fs.readFileSync(path.join(DATA, n, 'manifest.json'), 'utf8')).samples, 0);
@@ -88,7 +124,7 @@ pretty_name: Lucky Cat Mahjong training games
 
 The data [Neural Cat](https://huggingface.co/codenameyau/lucky-cat-mahjong) is trained on: positions from simulated Hong Kong mahjong hands played in [Lucky Cat Mahjong](https://github.com/codenameyau/lucky-cat-mahjong), each labelled with how that hand ended for the player.
 
-**${deals.toLocaleString('en-US')} hands, ${samples.toLocaleString('en-US')} positions** so far.
+**${deals.toLocaleString('en-US')} hands, ${samples.toLocaleString('en-US')} positions** played so far. Only the sets in use have their positions here: the ones the shipped model was trained on, and the league rounds the next model trains on. The rest keep their \`manifest.json\`, which says how to play them again.
 
 ## What a position is
 
@@ -98,10 +134,16 @@ Only what that seat could see goes into the features: its own hand, every discar
 
 ## Sets
 
-| Folder | Hands | Positions | What was played |
-| --- | ---: | ---: | --- |
+| Folder | Hands | Positions | Data here | What was played |
+| --- | ---: | ---: | --- | --- |
 ${rows.join('\n')}
+${gone.length ? `
+## Playing a removed set again
 
+From the [game's repo](https://github.com/codenameyau/lucky-cat-mahjong), with the models from [the model repo](https://huggingface.co/codenameyau/lucky-cat-mahjong/tree/main/neural-cat/models) in \`ml/models/\`. The same seed plays the same deals; the positions match exactly only with the game at the manifest's \`gameVersion\`. The first sets (\`j0\`, \`s1\`–\`s6\`) use models that are no longer published.
+
+${gone.join('\n')}
+` : ''}
 ## Format
 
 Each folder has \`manifest.json\` and, per worker, \`shard-N.features\` and \`shard-N.labels\`:
@@ -136,35 +178,94 @@ function sync(args) {
   }
   git(dir, ['lfs', 'track', '*.features', '*.labels']);
   const sets = (args.sets || defaultSets()).filter((n) => fs.existsSync(path.join(DATA, n, 'manifest.json')));
-  const up = (n) => fs.existsSync(path.join(dir, 'data', n, 'manifest.json'));
-  sets.filter((n) => !up(n)).forEach((n) => {
+  const keep = keptSets(args.window);
+  const kept = (n) => !keep || keep.has(n);
+  const added = [], removed = [];
+  sets.forEach((n) => {
     const from = path.join(DATA, n), to = path.join(dir, 'data', n);
-    fs.mkdirSync(to, { recursive: true });
     const m = JSON.parse(fs.readFileSync(path.join(from, 'manifest.json'), 'utf8'));
-    m.shards.forEach((s) => [s.features, s.labels].forEach((f) => {
-      if (!fs.existsSync(path.join(to, f))) fs.linkSync(path.join(from, f), path.join(to, f)); // no second copy on disk
+    fs.mkdirSync(to, { recursive: true });
+    if (!fs.existsSync(path.join(to, 'manifest.json'))) {
+      fs.copyFileSync(path.join(from, 'manifest.json'), path.join(to, 'manifest.json'));
+      if (!kept(n)) added.push(n + ' (manifest only)');
+    }
+    m.shards.forEach((sh) => [sh.features, sh.labels].forEach((f) => {
+      const here = path.join(to, f);
+      if (kept(n) && !fs.existsSync(here)) {
+        fs.linkSync(path.join(from, f), here); // no second copy on disk
+        if (added.indexOf(n) === -1) added.push(n);
+      } else if (!kept(n) && fs.existsSync(here)) {
+        fs.unlinkSync(here);
+        if (removed.indexOf(n) === -1) removed.push(n);
+      }
     }));
-    fs.copyFileSync(path.join(from, 'manifest.json'), path.join(to, 'manifest.json'));
-    const done = sets.filter((x) => up(x) || x === n);
-    fs.writeFileSync(path.join(dir, 'README.md'), card(args.repo, done));
-    git(dir, ['add', '-A']);
-    const mb = m.shards.reduce((s, sh) => s + fs.statSync(path.join(from, sh.features)).size + fs.statSync(path.join(from, sh.labels)).size, 0) / 1e6;
-    git(dir, ['commit', '-q', '-m', 'Add ' + n + ': ' + m.config.deals.toLocaleString('en-US') + ' hands, ' + m.samples.toLocaleString('en-US') +
-      ' positions\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>']);
-    const t0 = Date.now();
-    git(dir, ['push', '-q', 'origin', 'HEAD']);
-    log('Pushed ' + n + ' (' + Math.round(mb) + ' MB in ' + Math.round((Date.now() - t0) / 1000) + 's) to https://huggingface.co/datasets/' + args.repo);
   });
+  if (added.length || removed.length) push(args, dir, sets, kept, added, removed);
+  // The same sets leave this machine too (to the Trash).
+  const local = prune({ apply: true, window: args.window });
+  if (local.moved) log('Moved to the Trash: ' + local.names.join(', '));
+}
+
+// Git LFS keeps its own copy of each shard; the copy becomes a hard link
+// to the shard (itself a link into ml/data/), so the data is on disk once.
+function linkLfs(dir) {
+  const out = git(dir, ['lfs', 'ls-files', '-l'], true).stdout || '';
+  out.split('\n').forEach((line) => {
+    const m = line.match(/^([0-9a-f]{64}) [*-] (.+)$/);
+    if (!m) return;
+    const obj = path.join(dir, '.git', 'lfs', 'objects', m[1].slice(0, 2), m[1].slice(2, 4), m[1]);
+    const file = path.join(dir, m[2]);
+    try {
+      const a = fs.statSync(obj), b = fs.statSync(file);
+      if (a.ino === b.ino || a.size !== b.size) return;
+      fs.unlinkSync(obj);
+      fs.linkSync(file, obj);
+    } catch (err) { /* missing on one side: leave it */ }
+  });
+}
+
+function push(args, dir, sets, kept, added, removed) {
+  fs.writeFileSync(path.join(dir, 'README.md'), card(args.repo, sets, kept));
+  const what = (added.length ? 'Add ' + added.join(', ') : '') + (added.length && removed.length ? '; ' : '') +
+    (removed.length ? 'keep only the manifest of ' + removed.join(', ') : '');
+  const said = what.charAt(0).toUpperCase() + what.slice(1);
+  const msg = said + '\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>';
+  const t0 = Date.now();
+  if (removed.length) {
+    // Hugging Face keeps every file in the history, so a set that drops out
+    // only frees its space once the history is one commit.
+    git(dir, ['checkout', '-q', '--orphan', 'squashed']);
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-q', '-m', 'Training data in use, with the manifest of every set\n\n' + said + '\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>']);
+    git(dir, ['branch', '-D', 'main']);
+    git(dir, ['branch', '-m', 'main']);
+    git(dir, ['push', '-q', '--force', 'origin', 'main']);
+    // The old history's files are no longer needed here either.
+    git(dir, ['reflog', 'expire', '--expire=now', '--all']);
+    git(dir, ['gc', '-q', '--prune=now']);
+    git(dir, ['lfs', 'prune']);
+  } else {
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-q', '-m', msg]);
+    git(dir, ['push', '-q', 'origin', 'HEAD']);
+  }
+  linkLfs(dir);
+  log(said + ' (' + Math.round((Date.now() - t0) / 1000) + 's): https://huggingface.co/datasets/' + args.repo);
 }
 
 function main() {
   const a = parseArgs(process.argv.slice(2));
+  if (!a.publish) {
+    console.log('Training data is published to Hugging Face only when the maintainer asks for it. Run again with --publish to upload.');
+    return;
+  }
   if (!a.repo || !/^[^/]+\/[^/]+$/.test(String(a.repo))) throw new Error('--repo OWNER/NAME is needed');
   const args = {
     repo: String(a.repo),
     remote: a.remote ? String(a.remote) : 'git@hf.co:datasets/' + String(a.repo), // --remote: another git URL, for testing
     sets: a.sets ? String(a.sets).split(',') : null,
     every: parseInt(a.every || 300, 10) * 1000,
+    window: parseInt(a.window || 8, 10),
   };
   const leagueLog = path.join(ROOT, 'ml', 'league', 'league.log');
   const finished = () => fs.existsSync(leagueLog) && /\b(Done: |FAILED: )/.test(fs.readFileSync(leagueLog, 'utf8').split('\n').slice(-40).join('\n'));

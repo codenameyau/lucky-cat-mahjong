@@ -130,10 +130,12 @@ Each round:
 
 1. **Generate** `--deals` hands where every seat is a model. Half the seats are the best model so far, exploring (`--temperature 150`, `--epsilon 0.05`, discards, claims and kongs alike). The rest are league members: the latest earlier bests (`--members`, default 4), with the starting model always among them, playing their best.
 2. **Train** a new model from the best, on the last `--keep` rounds of data.
-3. **Evaluate** it head to head against the best: two seats each, rotated through every seat, on `--eval-deals` (2,000) hands no round has played. The score is its points a hand less the best's. It's also measured against the starting model.
+3. **Evaluate** it head to head against the best: two seats each, rotated through every seat, on `--eval-deals` hands no round has played. The score is its points a hand less the best's, with a 95% margin. Every `--anchor-every` rounds it's also measured against the starting model.
 4. **Keep** it if it scored more than the best. It joins the league, becomes the best, and is shipped to `js/mahjong-ml-weights.js`, so the game plays it right away.
 
-State and a log are in `ml/league/`. A stopped league picks up where it left off. A round of 50,000 hands takes about 30 minutes on an 8-core Mac, so 20 rounds take about 10 hours. One evaluation is noisy, about ±4 points a hand, so the results are confirmed on fresh deals when the league ends.
+State and a log are in `ml/league/`. A stopped league picks up where it left off.
+
+**Evaluations are noisy.** These models win only about 1 hand in 11 but win big (about 1,600 points), so one model-against-model score swings a lot: about ±50 points a hand at 2,000 deals, and ±29 at 6,000. Rounds 1–5 used 2,000; from round 6 the league uses `--eval-deals 6000 --anchor-every 5`. A new model can be kept by luck, so the best is confirmed on fresh deals, with many more hands, when the league ends.
 
 ## 5. Compete: `npm run compete`
 

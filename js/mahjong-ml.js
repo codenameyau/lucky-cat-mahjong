@@ -151,7 +151,7 @@
       return 0;
     }
 
-    function rerank(out, ctx, counts, game, seat, threats) {
+    function rerank(out, ctx, counts, game, seat, threats, folding) {
       var state = F.prepare(game, seat, ctx, threats, bot, counts);
       // The model picks among the foundation's best few; the rest keep its order.
       var k0 = topK > 0 ? Math.min(topK, out.length) : out.length;
@@ -164,6 +164,9 @@
       out.forEach(function (x, j) { if (x.ml) x.ml.choice = j < k0; }); // among the discards the model picks from
       var ranked = out.slice(0, k0).sort(function (p, q) { return q.ml.ev - p.ml.ev || p.ml.order - q.ml.order; })
         .concat(out.slice(k0));
+      // Between tied honors the shared order still decides (honorTieOrder):
+      // the model weighs everything else.
+      if (bot.tuning.honorOrder && !folding) ranked = B.honorTieOrder(ranked, ctx, counts);
       var k = pickIndex(ranked, k0);
       if (k) ranked.unshift(ranked.splice(k, 1)[0]);
       if (!ranked[0].ml) { // a random discard the fast mode didn't read

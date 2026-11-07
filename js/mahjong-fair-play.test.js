@@ -132,7 +132,8 @@ describe('fair play', () => {
   });
 
   it('every table strategy plays only on what its seat can see', async () => {
-    for (const id of S.ids().filter((x) => x !== 'neural-cat')) await playAll(id, S.get(id).bot, null, 2);
+    // Lucky Cat wins quickly, so it needs more deals for enough positions.
+    for (const id of S.ids().filter((x) => x !== 'neural-cat')) await playAll(id, S.get(id).bot, null, id === 'lucky-cat' ? 4 : 2);
   });
 
   it('catches a strategy that peeks', async () => {

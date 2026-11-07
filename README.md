@@ -286,7 +286,7 @@ Background music is three CC BY 4.0 tracks by Kevin MacLeod (Guzheng City, Sheny
 Neural Cat's network is trained on simulated hands. How the whole AI layer works (features, model, decisions, training, the league, fair play, Hugging Face) is in [docs/machine-learning](docs/machine-learning/README.md), and the strategy's playbook, with every result, is [docs/strategies/neural-cat.md](docs/strategies/neural-cat.md).
 
 - **Models**: [huggingface.co/codenameyau/lucky-cat-mahjong](https://huggingface.co/codenameyau/lucky-cat-mahjong). `neural-cat/neural-cat.json` is the model the game ships (the same file as `js/mahjong-ml-weights.js`), and `neural-cat/models/` holds every model that became the best, with a model card of the results
-- **Training data**: [huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games](https://huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games). Every set the models trained on, from the bootstrap to each league round, in the format `npm run ml:generate` writes, with a dataset card that explains it
+- **Training data**: [huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games](https://huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games). **Training data is not published unless the maintainer explicitly asks for it**: it runs to gigabytes a round, and every set can be played again from its manifest. Models are published as they ship. What's there now: the sets the shipped model trained on and the league's rounds at the time, in the format `npm run ml:generate` writes, with a dataset card that explains it. Older sets keep only their manifest, which says how to play them again
 - **Fair play**: the models see only what their seat can see, never the wall or another hand. `js/mahjong-fair-play.test.js` checks it for every strategy
 
 | Command | What it does |
@@ -295,7 +295,8 @@ Neural Cat's network is trained on simulated hands. How the whole AI layer works
 | `npm run ml:train` | Trains a model on that data with PyTorch (`ml/train.py`; set up with `python3 -m venv ml/.venv && ml/.venv/bin/pip install -r ml/requirements.txt`; on Windows with an NVIDIA GPU, run `ml\setup-windows.ps1`, see [training](docs/machine-learning/training.md#windows-with-an-nvidia-gpu)) and checks the JS model gives the same outputs. `--ship` writes `js/mahjong-ml-weights.js` |
 | `npm run ml:league` | The league: rounds of models playing only other models, each new model kept and shipped if it beats the best head to head. State in `ml/league/` |
 | `npm run ml:hf -- --repo codenameyau/lucky-cat-mahjong` | Uploads each new best model and the model card to Hugging Face. `--watch` keeps going until the league is done |
-| `npm run ml:hf-data -- --repo codenameyau/lucky-cat-mahjong-games` | Uploads the training data to the Hugging Face dataset. `--watch` adds each league round as it finishes |
+| `npm run ml:hf-data -- --repo codenameyau/lucky-cat-mahjong-games --publish` | Only when the maintainer explicitly asks: uploads the training data in use to the Hugging Face dataset and drops what no model uses. Without `--publish` it uploads nothing |
+| `node scripts/ml/prune-data.js --apply` | Moves training data no model uses from `ml/data/` to the Trash (the league does this after every round) |
 
 Uploads go over git and SSH, so your SSH key must be on your Hugging Face account, the repos must already exist, and the data needs [Git LFS](https://git-lfs.com) (`brew install git-lfs`). Local data, models and upload copies (`ml/data/`, `ml/models/`, `ml/hf/`) aren't committed.
 

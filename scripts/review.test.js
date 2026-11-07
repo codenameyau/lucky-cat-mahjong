@@ -8,7 +8,9 @@ const E = require('../js/mahjong-engine.js');
 const R = require('./review-lib.js');
 
 const SEED = '3764864992-EE';
-const SPEC = { seed: SEED, coach: 'lucky-cat' };
+// Lucky Cat Classic: these hands were read with the classic rules, not the network.
+const CLASSIC = 'lucky-cat-classic';
+const SPEC = { seed: SEED, coach: CLASSIC, lineup: [CLASSIC, CLASSIC, CLASSIC] };
 const cases = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'docs', 'strategies', 'feedback.json'), 'utf8'));
 
 describe('reviewing a hand from its seed', () => {
@@ -40,7 +42,7 @@ describe('reviewing a hand from its seed', () => {
     const first = await R.replay(Object.assign({}, SPEC, { moves: ['d4', 'c1', 'd9'], until: 4 }));
     const payload = {
       game: Object.assign(E.gameRecord(first.game)),
-      strategies: { seats: [null, 'lucky-cat', 'lucky-cat', 'lucky-cat'], coach: 'lucky-cat' },
+      strategies: { seats: [null, CLASSIC, CLASSIC, CLASSIC], coach: CLASSIC },
     };
     const spec = R.specFromSave({ payload });
     assert.equal(spec.seed, SEED);
