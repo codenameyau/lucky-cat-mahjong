@@ -663,6 +663,16 @@ html.is-playing.is-sideways body {
 .playbacks-btn svg { display: block; }
 .playbacks-play svg { margin-left: 2px; } /* the triangle looks centered */
 
+/* The popup for a playback that could not be uploaded. */
+.upload-error-sheet { width: min(480px, calc(100vw - 32px)); }
+
+.upload-error-lead {
+  margin: 4px 0 8px;
+  font-size: 1.05rem;
+  font-weight: bold;
+  color: #ffd27a;
+}
+
 /* Strategies sheet: the same look as the rules sheet. */
 .strategies-sheet { width: min(1000px, calc(100vw - 32px)); }
 

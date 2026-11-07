@@ -328,7 +328,7 @@ test('uploads have their own place, so they never replace the game\'s playback',
   assert.doesNotMatch(load, /keepReplay|REPLAY_KEY|RECENT_KEY/, 'an upload never writes the game\'s playbacks');
 });
 
-test('the View playback sheet keeps the three most recent hands, newest first, and one upload', () => {
+test('the View playback sheet keeps the five most recent hands, newest first, and one upload', () => {
   // The storage helpers, run on their own with a fake localStorage.
   const store = {};
   const ctx = { localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } },
@@ -346,9 +346,11 @@ test('the View playback sheet keeps the three most recent hands, newest first, a
   api.keepReplay(file(3, false)); // unfinished: never stored
   api.keepReplay(file(4, true));
   api.keepReplay(file(5, true));
-  api.keepReplay(file(4, true)); // already listed: keeps its place
+  api.keepReplay(file(6, true));
+  api.keepReplay(file(7, true));
+  api.keepReplay(file(6, true)); // already listed: keeps its place
   const list = api.recentPlaybacks();
-  assert.deepEqual(list.map((e) => e.file.moves), [5, 4, 2]);
+  assert.deepEqual(list.map((e) => e.file.moves), [7, 6, 5, 4, 2], 'five, newest first, the oldest (1) dropped');
   assert.ok(list.every((e) => typeof e.savedAt === 'number'), 'each with the time it was saved');
   assert.equal(api.uploadedPlayback(), null);
   store['lcm-play-upload'] = JSON.stringify({ savedAt: 123, file: file(9, true) });
@@ -399,6 +401,21 @@ test('auto-play is never kept: off on every load, and off when a frozen page is 
   assert.match(destroy, /stopAutoPlay\(\)/);
   assert.match(destroy, /removeEventListener\('pageshow', onPageLife\)/);
   assert.match(destroy, /removeEventListener\('pagehide', onPageLife\)/);
+});
+
+test('a playback that fails its signature opens the could-not-be-uploaded popup, and nothing is kept', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'playing-mahjong/index.html'), 'utf8');
+  assert.match(html, /<dialog id="upload-error-sheet"[^>]*role="alertdialog"/);
+  assert.match(html, /This playback could not be uploaded\./);
+  assert.match(html, /id="upload-error-ok"/);
+  const load = GAME_SRC.slice(GAME_SRC.indexOf('function loadPlaybackText'), GAME_SRC.indexOf('function onCanvasPaste'));
+  // The check runs first; a failure shows the popup and returns before anything is written.
+  assert.ok(load.indexOf('showUploadError(checked)') > 0 && load.indexOf('showUploadError(checked)') < load.indexOf('writeJson(UPLOAD_KEY'), 'the popup comes before anything is stored');
+  assert.match(load, /track\('play_playback_upload_failed', \{ code: checked\.code/);
+  assert.match(GAME_SRC, /signature: 'Its signature doesn\\'t match, so the file was changed or damaged after it was saved/);
+  // Closed by OK, Close, a click outside, and Escape (a dialog's own).
+  assert.match(GAME_SRC, /onSheet\(document\.getElementById\('upload-error-ok'\), 'click', closeUploadError\)/);
+  assert.match(GAME_SRC, /playbacksOpen\(\) \|\| uploadErrorOpen\(\)\) return;/);
 });
 
 test('the playback bar opens the View playback sheet, and its rows play, download and upload', () => {

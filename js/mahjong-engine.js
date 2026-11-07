@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.50.1';
+  var GAME_VERSION = '0.51.0';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -1335,26 +1335,28 @@
     try { return JSON.parse(raw.slice(nl + 1)); } catch (e2) { return null; }
   }
 
+  // { ok, reason, code, record }. `code` says why a file failed: 'notFile'
+  // (not a playback file), 'version' (saved by a version this game can't
+  // load), 'signature' (the HMAC signature doesn't match: the file was
+  // changed or damaged after it was saved) or 'damaged' (its contents don't
+  // fit together).
   function checkPlayback(input) {
     var file = playbackFileFrom(input);
-    if (typeof input === 'string' && !file) {
-      return { ok: false, reason: 'That isn\'t a playback file. Upload a JSON playback file.' };
-    }
-    if (!file || file.app !== PLAYBACK_APP || !file.payload) {
-      return { ok: false, reason: 'That isn\'t a playback file. Upload a JSON playback file.' };
-    }
+    var notFile = { ok: false, code: 'notFile', reason: 'That isn\'t a playback file. Upload a JSON playback file.' };
+    if (typeof input === 'string' && !file) return notFile;
+    if (!file || file.app !== PLAYBACK_APP || !file.payload) return notFile;
     var compat = saveCompatibility(file.version);
-    if (!compat.ok) return { ok: false, reason: compat.reason };
-    if (!playbackShape(file.payload) || playbackSign(file) !== file.signature) {
-      return { ok: false, reason: 'That playback was changed or damaged, so it can\'t be played.' };
-    }
+    if (!compat.ok) return { ok: false, code: 'version', reason: compat.reason };
+    var changed = 'That playback was changed or damaged, so it can\'t be played.';
+    if (!playbackShape(file.payload)) return { ok: false, code: 'damaged', reason: changed };
+    if (playbackSign(file) !== file.signature) return { ok: false, code: 'signature', reason: changed };
     if (file.payload.actions.length !== file.moves || (file.payload.moves != null && file.payload.moves !== file.moves)) {
-      return { ok: false, reason: 'That playback was changed or damaged, so it can\'t be played.' };
+      return { ok: false, code: 'damaged', reason: changed };
     }
     var rec = JSON.parse(JSON.stringify(file.payload));
     rec.moves = file.moves;
     rec.actions = rec.actions.slice(0, file.moves);
-    return { ok: true, reason: null, record: rec };
+    return { ok: true, reason: null, code: null, record: rec };
   }
 
   function parsePlayback(text) {

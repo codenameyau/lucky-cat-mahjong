@@ -51,10 +51,10 @@
   // playback on the game always shows the game. A refresh while it shows
   // brings it back.
   var UPLOAD_KEY = 'lcm-play-upload';
-  // The three most recent finished hands, newest first: [{ savedAt, file }].
+  // The five most recent finished hands, newest first: [{ savedAt, file }].
   // The View playback sheet lists them, each with Play and Download.
   var RECENT_KEY = 'lcm-play-recent';
-  var RECENT_MAX = 3;
+  var RECENT_MAX = 5;
   // One hand's playback, whoever saved it.
   function playbackId(file) {
     var p = file && file.payload;
@@ -5499,7 +5499,7 @@
 
     function onKey(e) {
       if (destroyed) return;
-      if (rulesOpen() || strategiesOpen() || resultsOpen() || playbacksOpen()) return; // the sheets handle their own keys (Escape closes them)
+      if (rulesOpen() || strategiesOpen() || resultsOpen() || playbacksOpen() || uploadErrorOpen()) return; // the sheets handle their own keys (Escape closes them)
       if (settings.playback && !settings.review) return;
       if (settings.review && ui.overlay && ui.overlay.type === 'summary') {
         // The playback's results: Enter or Escape puts them away; Space watches it again.
@@ -6040,7 +6040,7 @@
       setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
     }
 
-    /* The View playback sheet: your three most recent finished hands, each
+    /* The Saved playbacks sheet: your five most recent finished hands, each
        with the time it was saved, Play and Download, then the one playback
        you uploaded last (if any), and Upload playback. */
     function playbacksSheet() {
@@ -6053,6 +6053,41 @@
       sound.play('select'); // the click
       buildPlaybacks();
       if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+    }
+
+    /* The popup for a playback that couldn't be uploaded (a file or a paste):
+       a signature that doesn't match, a file that isn't a playback, or one
+       from a version this game can't load. Nothing from the file is kept. */
+    var UPLOAD_ERRORS = {
+      signature: 'Its signature doesn\'t match, so the file was changed or damaged after it was saved. Only a playback downloaded from this game, as it was saved, can be played.',
+      damaged: 'Its contents don\'t fit together, so the file was changed or damaged after it was saved.',
+      notFile: 'That isn\'t a playback file. Upload a JSON file downloaded from Saved playbacks.',
+    };
+
+    function uploadErrorSheet() {
+      return document.getElementById('upload-error-sheet');
+    }
+
+    function uploadErrorOpen() {
+      var dlg = uploadErrorSheet();
+      return !!(dlg && dlg.open);
+    }
+
+    function showUploadError(checked) {
+      var dlg = uploadErrorSheet();
+      var why = document.getElementById('upload-error-why');
+      if (!dlg) { announce('This playback could not be uploaded. ' + checked.reason); return; }
+      if (why) why.textContent = UPLOAD_ERRORS[checked.code] || checked.reason;
+      closePlaybacks();
+      if (dlg.open) return;
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+    }
+
+    function closeUploadError() {
+      var dlg = uploadErrorSheet();
+      if (!dlg || !dlg.open) return;
+      sound.play('select'); // the click
+      if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
     }
 
     function playbacksOpen() {
@@ -6177,7 +6212,7 @@
 
     function buildPlaybacks() {
       fillList(document.getElementById('playbacks-recent'), recentPlaybacks(),
-        'No finished hands yet. Each hand you finish is kept here, the last three.',
+        'No finished hands yet. Each hand you finish is kept here, the last five.',
         function (e) { return { lcmRecent: playbackId(e.file) }; }, 'recent');
       var up = uploadedPlayback();
       fillList(document.getElementById('playbacks-uploaded'), up ? [up] : [],
@@ -6216,8 +6251,10 @@
     function loadPlaybackText(text, mark) {
       var checked = E.checkPlayback(text);
       if (!checked.ok) {
+        // Nothing is kept or shown: the playback on screen stays, and a popup says why.
         reviewNote = checked.reason;
-        announce(reviewNote);
+        track('play_playback_upload_failed', { code: checked.code || 'unknown' });
+        showUploadError(checked);
         requestRender();
         return;
       }
@@ -7453,6 +7490,14 @@
         closePlaybacks();
         openReplayPicker();
       });
+    })();
+    (function () {
+      var dlg = settings.playback ? uploadErrorSheet() : null;
+      if (!dlg) return;
+      onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeUploadError);
+      onSheet(document.getElementById('upload-error-ok'), 'click', closeUploadError);
+      onSheet(dlg, 'click', function (e) { if (e.target === dlg) closeUploadError(); });
+      onSheet(dlg, 'close', function () { canvas.focus(); });
     })();
     (function () {
       var dlg = resultsSheet();

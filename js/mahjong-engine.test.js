@@ -467,6 +467,32 @@ describe('playback seed', () => {
     assert.equal(unfinished.ok ? E.playbackResult(unfinished.record) : null, null);
   });
 
+  it('says why a playback file failed its check: not a playback, a version it can\'t load, a signature that doesn\'t match, or damaged contents', async () => {
+    const game = E.createGame({ seed: 1, humanSeat: false, dealer: 0 });
+    await E.runHand(game, discarders(), { emit() {} });
+    const file = E.makePlayback(game, { seat: 0 });
+    assert.equal(E.checkPlayback(file).ok, true);
+    assert.equal(E.checkPlayback(file).code, null);
+    const copy = () => JSON.parse(JSON.stringify(file));
+    const edited = copy();
+    edited.payload.handNumber = 99; // changed after it was signed
+    assert.deepEqual([E.checkPlayback(edited).ok, E.checkPlayback(edited).code], [false, 'signature']);
+    const badSignature = copy();
+    badSignature.signature = 'f'.repeat(64);
+    assert.equal(E.checkPlayback(badSignature).code, 'signature');
+    const noSignature = copy();
+    delete noSignature.signature;
+    assert.equal(E.checkPlayback(noSignature).code, 'signature');
+    const newer = copy();
+    newer.version = '99.0.0';
+    assert.equal(E.checkPlayback(newer).code, 'version');
+    assert.equal(E.checkPlayback('not json at all').code, 'notFile');
+    assert.equal(E.checkPlayback({ hello: 'world' }).code, 'notFile');
+    const broken = copy();
+    broken.payload.players = [];
+    assert.equal(E.checkPlayback(broken).code, 'damaged');
+  });
+
   it('says when a playback was saved, for people', () => {
     const now = new Date(2026, 10, 7, 15, 0).getTime();
     assert.equal(E.playbackWhen(new Date(2026, 10, 7, 14, 30).getTime(), now), 'Today, 2:30 PM');
