@@ -38,9 +38,28 @@ Illegal moves are masked out, and the move with the biggest share is played. A w
 
 The league runs 20 rounds of 50,000 hands, a million hands in all. Its log and state are in `ml/lucky/` (not committed).
 
+5. **Since lc21, the lab.** After the league, Lucky Cat trains in the lab (`npm run ml:lab -- --strategy lucky-cat`, [how it works](../machine-learning/training.md#the-lab-for-only-orphans-and-lucky-cat---strategy)), like Neural Cat and Only Orphans. Each round plays 50,000 hands against its last three champions, Neural Cat and Jorge Yau, then tries several fine-tunes: at three learning rates, on 2, 6 or 10 rounds of data, and with sharper targets. A candidate first plays the champion over 6,000 deals. The best two then play 20,000 new deals, and one replaces the champion only if it wins more hands by more than its standard error. The lab's models are named LL&lt;round&gt;&lt;letter&gt;, and each champion ships under the next lc number.
+
 ## Results
 
-The league ran 20 rounds of 50,000 deals each: 1,000,000 hands. 18 of the 20 new models beat the best before them and were kept. lc13 and lc16 were not. The shipped model is lc20.
+### The lab
+
+| Release | Lab model | Against | Hands won | Discards per win | Deal-ins | Faan a win |
+|---|---|---|---|---|---|---|
+| **lc21** | LL1a (fine-tune of lc20 on round 1) | lc20, 20,000 deals | **20.5%** vs 19.0% (± 0.4) | 16.7 vs 16.7 | 14.0% vs 14.3% | 4.85 vs 4.82 |
+
+lc21 and lc20 against Neural Cat NC2, over 5,000 deals in both seat orders:
+
+| | Hands won | Neural Cat wins | Points per hand |
+|---|---|---|---|
+| lc21 | **19.1%** | 9.8% | −137.1 |
+| lc20 | 18.3% | 9.8% | −137.7 |
+
+lc21 wins about 1.5 more hands in 100 than lc20 at its own table, and about 0.8 more against Neural Cat, at the same speed and size. Its points against Neural Cat don't move: it still wins small.
+
+### The league
+
+The league ran 20 rounds of 50,000 deals each: 1,000,000 hands. 18 of the 20 new models beat the best before them and were kept. lc13 and lc16 were not. Its last model was lc20.
 
 Each round's new model played the best before it over 2,000 deals, every deal in both seat orders:
 

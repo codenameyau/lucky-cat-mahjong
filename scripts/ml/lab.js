@@ -335,7 +335,7 @@ const STRATEGIES = {
     judge: (c, champ, deals, seed, tag) => compareLC(c, champ, deals, seed, base(c) + '-' + tag),
     ship(file) {
       ship(path.join(ROOT, file), 'lucky-cat');
-      return base(file);
+      return shippedName('mahjong-lucky-cat-weights.js') || base(file); // lc21, lc22, ...
     },
   },
 };
@@ -343,6 +343,12 @@ let S = STRATEGIES['neural-cat'];
 let PREFIX = S.prefix;
 
 const short = (id) => id.replace(/^(ml|oo|lc):ml[\\/]models[\\/]/, '').replace('.json', '');
+
+// The name a shipped weights file shows in the game (its release name).
+function shippedName(weightsFile) {
+  const file = path.join(ROOT, 'js', weightsFile);
+  try { delete require.cache[require.resolve(file)]; return require(file).meta.name || null; } catch (err) { return null; }
+}
 
 // The model file a shipped weights file came from (ml/models/<trained name>.json).
 function shippedModel(weightsFile) {

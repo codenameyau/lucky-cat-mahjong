@@ -10,7 +10,7 @@ Every score here is **points a hand**: one player's average points per hand less
 
 | | Neural Cat | Lucky Cat |
 | --- | --- | --- |
-| In the game | **NC2** (league model L19) | **LC20** (lc20) |
+| In the game | **NC2** (league model L19) | **LC21** (lab model LL1a) |
 | What it is | A network that scores Jorge Yau's best choices in expected points | A network that makes every move itself, with no rules underneath |
 | What it plays for | Points: often and big wins on one scale | Wins: as many and as fast as it can |
 | Trained on | 950,000 league hands (stopped in round 19, at a plateau), and earlier rounds against the rule bots | 1,000,000 hands against its earlier selves and Neural Cat |
@@ -342,6 +342,13 @@ Against Neural Cat, over 1,000 deals each round:
 - **It gets what it's rewarded for.** It was rewarded for winning quickly, so it wins often (nearly twice as often as Neural Cat by the end) and fast (16.9 discards per win, down from 18). It wasn't rewarded much for size, so its wins stay at 4–5 faan against Neural Cat's 8, and it still loses about 100–160 points a hand to Neural Cat.
 - **Points stay close between its own versions.** LC20 beats its older selves by +0.2 to +27.1 points a hand, because every version wins cheap hands. Its progress shows in wins, not points.
 - **It needs no rules to play well.** Lucky Cat has no steps-from-ready count, plans or threat reads. It learned all of that from its wins, and the fair-play test checks it too.
+
+### LC21 (lab model LL1a): the first lab champion
+
+- **Thinking.** The league kept a new model whenever it won more hands than the best over 2,000 deals, where the win-rate margin is about ±1 point. That's enough to see the league's big early gains, but not the half-point steps near the end. So Lucky Cat moved to the lab: the same rule as Neural Cat's, a clear gain over 20,000 new deals (about ±0.4 points of win rate), with several fine-tunes tried each round. Its first lab round played 50,000 hands with lc20 against lc17, lc18, lc19, Neural Cat (two seats' worth) and Jorge Yau. Jorge Yau and the newer Neural Cat were new to it: the league's tables were only itself and NC1. It then tried three fine-tunes of lc20 on that round's 153,016 winning moves: at its usual rate (`finetune`), on a longer window (`long`, the same with one round of data so far), and with sharper targets (`sharp`, label smoothing 0.01).
+- **What it does differently.** Against lc20 over 20,000 deals, it wins 20.5% of its seats to 19.0%, in the same 16.7 discards a win and at the same 4.8 faan, and deals in a little less (14.0% against 14.3%). Against Neural Cat NC2 it wins 19.1% of hands to lc20's 18.3%.
+- **Reading.** One round against new opponents (Jorge Yau's rule-based play, and NC2) taught it something its own league couldn't, with the same network and learning rate as the league used. The gain is in how often it finishes a hand, not how fast or how big, so it's likely in which hands it chases and when it stops feeding others, not in speed. Its points against Neural Cat didn't move (−137 a hand): wins this small still lose to Neural Cat's bigger hands.
+- **Result.** J +1.5 (hands won) ± 0.39 at 95%, beyond its standard error: kept, and shipped as **lc21**. `sharp` matched it on the first 6,000 deals (+1.5). `long` was the same model as `finetune` until there's more than one lab round of data.
 
 ## What the two show together
 
