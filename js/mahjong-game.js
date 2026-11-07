@@ -1648,7 +1648,7 @@
       body.parentNode.insertBefore(intro, body);
       root.MahjongRules.RULES.forEach(function (section) {
         var sec = document.createElement('section');
-        sec.className = 'rules-section';
+        sec.className = 'rules-section' + (section.half ? ' rules-section--half' : '');
         var h = document.createElement('h3');
         h.className = 'rules-section-title';
         h.textContent = section.title;
