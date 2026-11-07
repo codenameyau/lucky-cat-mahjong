@@ -1,28 +1,37 @@
-/* Offline play: what the play page needs with no connection, and how it is
-   cached. Shared by the service worker (/play-mahjong/sw.js loads it with
-   importScripts), the page (js/play-offline.js) and the tests.
+/* Offline: what the interactive pages need with no connection, and how it is
+   cached. Shared by the service worker (/sw.js loads it with importScripts),
+   the pages (js/offline.js) and the tests.
 
-   - ASSETS lists every file the game, its lazily loaded model weights, its
-     sounds and music fetch (playback is a view of the game page, and
-     /play-mahjong/playback/ is kept as the old address's redirect). Tests check the list
-     against the pages and the game's code, so a new file can't be missed.
-   - Each GAME_VERSION gets its own cache (cacheName). A new version's
-     service worker fills its cache, then deletes the older ones.
-   - Code (pages, scripts, styles, data) is network first, so an online
-     visit always runs the latest JS. Media (tiles, sounds, music, fonts,
-     images) is cache first: it doesn't change between versions. On a local
-     dev host everything is network first, so a cache never hides a change. */
+   - Only the interactive pages are kept: the Points Guide
+     (/hong-kong-mahjong-scoring/), the options page (/play-mahjong/) and the
+     game (/playing-mahjong/), with every file they load, the game's lazily
+     loaded model weights, sounds and music included. ASSETS lists them all,
+     and tests check it against the pages and the game's code, so a new file
+     can't be missed.
+   - The worker answers only for those files (isSaved). Every other request,
+     the rest of the site included, goes to the network untouched and is
+     never saved.
+   - Online, a saved file is fetched from the network first, revalidated with
+     the server (cache: 'no-cache', so the browser's HTTP cache can't hand
+     back an old file either), and saved again. The saved copy answers only
+     when the network fails. No timeout: a slow connection waits for the
+     latest file rather than getting an old one.
+   - Each version (VERSION, the game's GAME_VERSION) gets its own cache
+     (cacheName). A new version's service worker fills its cache, then
+     deletes the older ones. */
 
 (function (root) {
   'use strict';
 
+  // The game's version (GAME_VERSION in js/mahjong-engine.js; a test keeps them equal).
+  var VERSION = '0.47.0';
   var CACHE_PREFIX = 'lcm-play-v';
   // The old Play offline button's flag (0.45.0 builds before offline became the default), cleaned up.
   var OLD_FLAG_CACHE = 'lcm-play-offline';
-  var SCOPE = '/play-mahjong/';
-  var SW_URL = '/play-mahjong/sw.js';
-  // A slow network falls back to the cached copy after this long.
-  var NETWORK_TIMEOUT_MS = 4000;
+  var SCOPE = '/';
+  var SW_URL = '/sw.js';
+  // The game's own worker before the site had one, unregistered when found.
+  var OLD_SCOPE = '/play-mahjong/';
 
   var TILES = [
     '01-white-dragon', '02-green-dragon', '03-red-dragon',
@@ -53,17 +62,24 @@
     'mahjong-analysis', 'mahjong-lesson', 'mahjong-rules', 'mahjong-game',
     // Loaded later by the game (loadAssets in mahjong-game.js).
     'mahjong-ml-weights', 'mahjong-only-orphans-weights', 'mahjong-lucky-cat-weights',
-    'offline-cache', 'play-offline',
+    'offline-cache', 'offline', 'play-options',
   ];
 
-  var ASSETS = [
+  // The interactive pages, the only ones kept offline: the Points Guide, the
+  // options page and the game. The rest of the site is left to the network.
+  var PAGES = [
+    '/hong-kong-mahjong-scoring/',
     '/play-mahjong/',
-    '/play-mahjong/playback/',
+    '/playing-mahjong/',
+  ];
+
+  // The header's links (js/nav.js).
+  var DATA = ['nav'];
+
+  var STYLES = ['fonts', 'styles', 'play', 'points'];
+
+  var ASSETS = PAGES.concat([
     '/play-mahjong/manifest.webmanifest',
-    '/data/nav.json',
-    '/css/fonts.css',
-    '/css/styles.css',
-    '/css/play.css',
     '/fonts/kn-yuanmo-sc.woff2',
     '/favicon-32.png',
     '/logo.png',
@@ -71,7 +87,9 @@
     '/apple-touch-icon.png',
     '/assets/icons/app-icon-192.png',
     '/assets/icons/app-icon-512.png',
-  ].concat(
+  ]).concat(
+    STYLES.map(function (n) { return '/css/' + n + '.css'; }),
+    DATA.map(function (n) { return '/data/' + n + '.json'; }),
     SCRIPTS.map(function (n) { return '/js/' + n + '.js'; }),
     TILES.map(function (n) { return '/tiles/' + n + '.svg'; }),
     SOUNDS.map(function (n) { return '/assets/sounds/' + n + '.wav'; }),
@@ -89,7 +107,7 @@
     return name === OLD_FLAG_CACHE || (name.indexOf(CACHE_PREFIX) === 0 && name !== cacheName(version));
   }
 
-  // The version the service worker was registered for: /play-mahjong/sw.js?v=0.44.8.
+  // The version the service worker was registered for: /sw.js?v=0.47.0.
   function versionFromScriptUrl(href) {
     var m = /[?&]v=([^&#]+)/.exec(String(href));
     return m ? decodeURIComponent(m[1]) : null;
@@ -107,18 +125,25 @@
     return MEDIA_EXT.test(pathname);
   }
 
-  // 'cache' (cache first) or 'network' (network first, cache when offline).
-  function strategyFor(pathname, local) {
-    if (local) return 'network';
-    return isMedia(pathname) ? 'cache' : 'network';
+  // Always 'network': the network first, the saved copy only when it fails.
+  // (Media too: an unchanged file is a cheap 304, and a changed one is never missed.)
+  function strategyFor() {
+    return 'network';
   }
 
-  // Where a request is kept: the path alone, so /play-mahjong/?opened=1 and
-  // /play-mahjong/index.html find the page.
+  // Where a request is kept: the path alone, so /playing-mahjong/?new=1 and
+  // /playing-mahjong/index.html find the page.
   function cacheKey(url) {
     var u = typeof url === 'string' ? new URL(url, 'https://x.invalid') : url;
     var path = u.pathname.replace(/\/index\.html$/i, '/');
     return path;
+  }
+
+  // One of the files kept offline (by its cache key). Nothing else is touched.
+  var SAVED = {};
+  ASSETS.forEach(function (p) { SAVED[p] = true; });
+  function isSaved(key) {
+    return SAVED[key] === true;
   }
 
   // A 206 for a media element's Range request, cut from the full cached file
@@ -157,9 +182,9 @@
     }).then(function (list) { return list.filter(Boolean); });
   }
 
-  // Fills the version's cache with every listed file. Code is fetched again
-  // (revalidated); media already cached, in this version or an older one,
-  // is kept. opts: { caches, fetch, version, assets, onlyMissing, onProgress(done, total), concurrency }.
+  // Fills the version's cache with every listed file, each fetched from the
+  // network and revalidated (an unchanged file is a 304 from the browser's
+  // HTTP cache, so this is cheap), so a new version never keeps an old file. opts: { caches, fetch, version, assets, onlyMissing, onProgress(done, total), concurrency }.
   // Resolves { ok, total, failed: [path] }.
   function precache(opts) {
     var cs = opts.caches;
@@ -172,14 +197,10 @@
     return cs.open(cacheName(opts.version)).then(function (cache) {
       function one(path) {
         return cache.match(path).then(function (have) {
-          if (have && (opts.onlyMissing || isMedia(path))) return;
-          var reuse = isMedia(path) ? cs.match(path) : Promise.resolve(null);
-          return reuse.then(function (old) {
-            if (old) return cache.put(path, old);
-            return fetchFn(path, { cache: 'no-cache', credentials: 'same-origin' }).then(function (res) {
-              if (!cacheable(res)) throw new Error(path + ' ' + (res && res.status));
-              return cache.put(path, res);
-            });
+          if (have && opts.onlyMissing) return;
+          return fetchFn(path, { cache: 'no-cache', credentials: 'same-origin' }).then(function (res) {
+            if (!cacheable(res)) throw new Error(path + ' ' + (res && res.status));
+            return cache.put(path, res);
           });
         }).then(function () {}, function () { failed.push(path); }).then(function () {
           done++;
@@ -202,9 +223,12 @@
   var api = {
     CACHE_PREFIX: CACHE_PREFIX,
     OLD_FLAG_CACHE: OLD_FLAG_CACHE,
+    VERSION: VERSION,
     SCOPE: SCOPE,
     SW_URL: SW_URL,
-    NETWORK_TIMEOUT_MS: NETWORK_TIMEOUT_MS,
+    OLD_SCOPE: OLD_SCOPE,
+    PAGES: PAGES,
+    isSaved: isSaved,
     ASSETS: ASSETS,
     cacheName: cacheName,
     isStaleCache: isStaleCache,

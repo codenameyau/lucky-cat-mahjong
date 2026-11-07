@@ -51,9 +51,6 @@
       if (hasSave && save.payload.game.settings && save.payload.game.settings.mode !== mode) {
         root.classList.add('play-new-first');
       }
-      if (hasSave && /[?&]opened=1(&|$)/.test(location.search)) root.classList.add('play-reopening');
-      // ?playback=1 is the playback view: the table opens on it, not this page.
-      if (/[?&]playback=1(&|$)/.test(location.search)) root.classList.add('play-reopening');
     })();
   </script>
   <script>
@@ -184,41 +181,6 @@
     </section>
   </main>
 
-  <div id="play-stage" class="play-stage" hidden>
-    <canvas id="play-canvas" class="play-canvas" tabindex="0" role="application" aria-label="Mahjong table. With the coach on, a panel beside your hand, headed Strategies, shows the tile each strategy would discard, and what it would chow, pung, kong, or pass. Feedback shows the tile each strategy would have discarded after you throw one. Both panels hide when the coach is off. Click one to make it the coach. Pick a tile with the arrow keys, Enter to discard, Escape for the menu."></canvas>
-    <p id="play-live" class="visually-hidden" aria-live="polite"></p>
-    <canvas id="playback-canvas" class="play-canvas" tabindex="0" role="application" hidden aria-label="Mahjong replay. A playback saved from your wind opens on its own. Upload, in the center, reads a JSON playback file. Command+V or Ctrl+V pastes one too. Strategies, Rules, and Sound sit at the top right. The hand then plays through the moves in that file. A panel under the coach column, headed Strategies, shows the tile each strategy would discard. Click one to make it the coach. The coach on the right is titled Coach and that strategy, and comments on your moves. Space pauses. Left and right arrows step one move. Drag the bar to a move. Back returns to the game. Escape clears the hand."></canvas>
-    <p id="playback-live" class="visually-hidden" aria-live="polite"></p>
-    <dialog id="rules-sheet" class="rules-sheet" aria-labelledby="rules-sheet-title">
-      <div class="rules-sheet-inner">
-        <header class="rules-sheet-head">
-          <h2 id="rules-sheet-title">Rules</h2>
-          <button type="button" class="rules-sheet-close" aria-label="Close the rules">Close</button>
-        </header>
-        <div id="rules-sheet-body" class="rules-sheet-body"></div>
-      </div>
-    </dialog>
-    <dialog id="results-sheet" class="rules-sheet results-sheet" aria-labelledby="results-sheet-title">
-      <div class="rules-sheet-inner">
-        <header class="rules-sheet-head">
-          <h2 id="results-sheet-title">Results</h2>
-          <button type="button" class="rules-sheet-close" aria-label="Close the results">Close</button>
-        </header>
-        <div id="results-sheet-body" class="rules-sheet-body"></div>
-      </div>
-    </dialog>
-    <dialog id="strategies-sheet" class="rules-sheet strategies-sheet" aria-labelledby="strategies-sheet-title">
-      <div class="rules-sheet-inner">
-        <header class="rules-sheet-head">
-          <h2 id="strategies-sheet-title">Strategies <span class="strategies-beta">Beta</span></h2>
-          <button type="button" class="rules-sheet-close" aria-label="Close the strategies">Close</button>
-        </header>
-        <p class="rules-sheet-intro">Each computer player gets a random strategy every game. Click a strategy on the table to make it your coach, and that choice is saved.</p>
-        <div id="strategies-sheet-body" class="rules-sheet-body"></div>
-      </div>
-    </dialog>
-  </div>
-
   <footer class="site-footer">
     <div class="container footer-inner">
       <div class="footer-brand">
@@ -234,25 +196,9 @@
   </footer>
 
   <script src="/js/nav.js" defer></script>
-  <script src="/js/points.js" defer></script>
-  <script src="/js/mahjong-engine.js" defer></script>
-  <script src="/js/mahjong-bot.js" defer></script>
-  <script src="/js/mahjong-lucky-cat.js" defer></script>
-  <script src="/js/mahjong-jorge-yau.js" defer></script>
-  <script src="/js/mahjong-ml-features.js" defer></script>
-  <script src="/js/mahjong-ml-model.js" defer></script>
-  <script src="/js/mahjong-ml.js" defer></script>
-  <script src="/js/mahjong-only-orphans.js" defer></script>
-  <script src="/js/mahjong-lucky-cat-net.js" defer></script>
-  <script src="/js/mahjong-lucky-cat-ml.js" defer></script>
-  <script src="/js/mahjong-strategies.js" defer></script>
-  <script src="/js/mahjong-coach.js" defer></script>
-  <script src="/js/mahjong-analysis.js" defer></script>
-  <script src="/js/mahjong-lesson.js" defer></script>
-  <script src="/js/mahjong-rules.js" defer></script>
+  <script src="/js/play-options.js" defer></script>
   <script src="/js/offline-cache.js" defer></script>
-  <script src="/js/play-offline.js" defer></script>
-  <script src="/js/mahjong-game.js" defer></script>
+  <script src="/js/offline.js" defer></script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
   </script>

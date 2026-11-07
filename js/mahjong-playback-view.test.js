@@ -1,7 +1,8 @@
 'use strict';
-// The playback view lives on the game page: switching to it and back needs no
-// page load, ?playback=1 brings it back on a refresh, and Back always returns
-// to the game. The page's wiring (init) runs here on a small fake DOM, with
+// The playback view lives on the game page (/playing-mahjong/): switching to it
+// and back needs no page load, ?playback=1 brings it back on a refresh, and
+// Back always returns to the game. The options page (/play-mahjong/) is a page
+// of its own. The page's wiring (init) runs here on a small fake DOM, with
 // stand-in tables that record what is done to them.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -95,7 +96,7 @@ function loadPage(url, store, opts) {
   opts = opts || {};
   const browser = fakeBrowser(url, store || {});
   const els = {};
-  ['play-settings', 'play-stage', 'play-canvas', 'play-live', 'playback-canvas', 'playback-live'].forEach((id) => { els[id] = fakeElement(id); });
+  ['play-stage', 'play-canvas', 'play-live', 'playback-canvas', 'playback-live'].forEach((id) => { els[id] = fakeElement(id); });
   // The page's sheets, each with its Close button.
   ['rules-sheet', 'strategies-sheet', 'results-sheet'].forEach((id) => {
     const dlg = fakeElement(id);
@@ -113,7 +114,6 @@ function loadPage(url, store, opts) {
     els[id].getContext = () => noop;
     els[id].getBoundingClientRect = () => ({ left: 0, top: 0, width: 1280, height: 800 });
   });
-  els['play-stage'].hidden = true;
   els['playback-canvas'].hidden = true;
   const intro = fakeElement('intro');
   intro.textContent = 'Each computer player gets a random strategy every game.';
@@ -160,7 +160,7 @@ function loadPage(url, store, opts) {
   vm.createContext(window);
   if (opts.realTables) {
     // The game page's scripts, in its order (the ones before mahjong-game.js).
-    const html = fs.readFileSync(path.join(ROOT, 'play-mahjong/index.html'), 'utf8');
+    const html = fs.readFileSync(path.join(ROOT, 'playing-mahjong/index.html'), 'utf8');
     const srcs = [...html.matchAll(/<script src="\/js\/([^"]+)" defer><\/script>/g)].map((m) => m[1])
       .filter((f) => f !== 'nav.js' && f !== 'mahjong-game.js');
     delete window.MahjongEngine;
@@ -196,9 +196,36 @@ function loadPage(url, store, opts) {
 
 const SAVE = JSON.stringify({ payload: { game: { settings: { mode: 'practice' } } } });
 
+test('Start game on the options page opens the game page on a new game', async () => {
+  const page = loadPage('http://localhost/playing-mahjong/?new=1', { 'lcm-play-autosave': SAVE, 'lcm-play-settings': '{"mode":"payout"}' });
+  assert.equal(page.made.length, 1);
+  assert.equal(page.made[0].canvas, 'play-canvas');
+  assert.equal(page.made[0].saved, undefined, 'a new game, not the save');
+  assert.equal(page.made[0].settings.mode, 'payout');
+  assert.equal(page.browser.location.search, '', '?new=1 is dropped, so a refresh resumes');
+});
+
+test('the game page with no query resumes the saved game, or starts one', async () => {
+  const saved = loadPage('http://localhost/playing-mahjong/', { 'lcm-play-autosave': SAVE });
+  await saved.flush();
+  assert.equal(saved.made.length, 1);
+  assert.ok(saved.made[0].saved, 'from the save');
+  const none = loadPage('http://localhost/playing-mahjong/');
+  assert.equal(none.made.length, 1);
+  assert.ok(!none.made[0].saved);
+  const lesson = loadPage('http://localhost/playing-mahjong/?learn=1');
+  assert.equal(lesson.made[0].settings.lesson, true);
+});
+
+test('Quit goes back to the options page', async () => {
+  const page = loadPage('http://localhost/playing-mahjong/?new=1&sound=0');
+  page.made[0].callbacks.quit();
+  assert.ok(page.made[0].destroyed);
+  assert.equal(page.browser.loads(), 1, 'the options page loads');
+});
+
 test('View playback opens the view in place and Back returns to the same game', async () => {
-  const page = loadPage('http://localhost/play-mahjong/');
-  page.els['play-settings'].listeners.submit[0]({ preventDefault() {} });
+  const page = loadPage('http://localhost/playing-mahjong/?new=1');
   assert.equal(page.made.length, 1);
   const game = page.made[0];
   assert.equal(game.canvas, 'play-canvas');
@@ -221,7 +248,6 @@ test('View playback opens the view in place and Back returns to the same game', 
   assert.ok(!game.destroyed, 'the same game, not a new one');
   assert.equal(page.made.length, 2);
   assert.doesNotMatch(page.browser.location.search, /playback=1/);
-  assert.match(page.browser.location.search, /opened=1/);
   assert.equal(page.els['play-canvas'].hidden, false);
   assert.equal(page.els['playback-canvas'].hidden, true);
   assert.match(page.intro.textContent, /random strategy/);
@@ -229,8 +255,7 @@ test('View playback opens the view in place and Back returns to the same game', 
 });
 
 test('the browser Back from playback goes to the game, not an earlier move', async () => {
-  const page = loadPage('http://localhost/play-mahjong/');
-  page.els['play-settings'].listeners.submit[0]({ preventDefault() {} });
+  const page = loadPage('http://localhost/playing-mahjong/?new=1');
   const game = page.made[0];
   const before = page.browser.entries().length;
   game.callbacks.playback();
@@ -245,9 +270,8 @@ test('a refresh on ?playback=1 opens the playback view, and Back opens the saved
   const store = { 'lcm-play-autosave': SAVE };
   // The entries a game, View playback, then a refresh leave behind.
   const refreshed = loadPage([
-    { url: 'http://localhost/play-mahjong/', state: null },
-    { url: 'http://localhost/play-mahjong/?opened=1', state: { lcmGame: true } },
-    { url: 'http://localhost/play-mahjong/?opened=1&playback=1', state: { lcmGame: true, lcmPlayback: true, lcmFromGame: true } },
+    { url: 'http://localhost/playing-mahjong/', state: null },
+    { url: 'http://localhost/playing-mahjong/?playback=1', state: { lcmPlayback: true, lcmFromGame: true } },
   ], store);
   assert.equal(refreshed.made.length, 1);
   assert.equal(refreshed.made[0].canvas, 'playback-canvas');
@@ -263,8 +287,8 @@ test('a refresh on ?playback=1 opens the playback view, and Back opens the saved
   assert.match(refreshed.browser.location.search, /results=1/);
 });
 
-test('a link straight to ?playback=1 goes back to the game page, not off the site', async () => {
-  const page = loadPage('http://localhost/play-mahjong/?playback=1');
+test('a link straight to ?playback=1 goes back to the game, or the options page with none', async () => {
+  const page = loadPage('http://localhost/playing-mahjong/?playback=1');
   assert.equal(page.made.length, 1);
   assert.equal(page.made[0].canvas, 'playback-canvas');
   const entries = page.browser.entries().length;
@@ -272,58 +296,72 @@ test('a link straight to ?playback=1 goes back to the game page, not off the sit
   await page.flush();
   assert.equal(page.browser.entries().length, entries, 'the entry is replaced, not stepped back over');
   assert.doesNotMatch(page.browser.location.search, /playback=1/);
-  assert.equal(page.els['play-stage'].hidden, true, 'no saved game: the page shows');
+  assert.equal(page.browser.loads(), 1, 'no saved game: the options page');
 });
 
 test('Forward after Back opens the playback view again', async () => {
-  const page = loadPage('http://localhost/play-mahjong/');
-  page.els['play-settings'].listeners.submit[0]({ preventDefault() {} });
+  const page = loadPage('http://localhost/playing-mahjong/?new=1');
   page.made[0].callbacks.playback();
   page.popBack();
   // Forward: the history moves on to the playback entry and fires popstate.
-  page.browser.history.pushState({ lcmGame: true, lcmPlayback: true, lcmFromGame: true }, '', '/play-mahjong/?opened=1&playback=1');
+  page.browser.history.pushState({ lcmGame: true, lcmPlayback: true, lcmFromGame: true }, '', '/playing-mahjong/?playback=1');
   page.browser.winListeners.popstate.forEach((fn) => fn({}));
   assert.equal(page.made.length, 3);
   assert.equal(page.made[2].canvas, 'playback-canvas');
   assert.deepEqual(page.made[0].log, ['start', 'suspend', 'resume', 'suspend']);
 });
 
-test('playback is part of the game page: no page of its own, no scripts of its own', () => {
-  const game = fs.readFileSync(path.join(ROOT, 'play-mahjong/index.html'), 'utf8');
+test('the options page and the game are two pages, and playback is part of the game', () => {
+  const game = fs.readFileSync(path.join(ROOT, 'playing-mahjong/index.html'), 'utf8');
+  const options = fs.readFileSync(path.join(ROOT, 'play-mahjong/index.html'), 'utf8');
+  assert.match(game, /id="play-canvas"/);
   assert.match(game, /id="playback-canvas"/);
   assert.match(game, /id="playback-live"/);
+  assert.match(game, /src="\/js\/mahjong-game\.js"/);
+  assert.doesNotMatch(game, /id="play-settings"/);
+  assert.match(options, /id="play-settings"/);
+  assert.match(options, /src="\/js\/play-options\.js"/);
+  assert.doesNotMatch(options, /id="play-stage"|mahjong-game\.js/);
   assert.ok(!fs.existsSync(path.join(__dirname, 'playback-page.js')));
-  // The old address still works: it sends you to the game page's view.
-  const old = fs.readFileSync(path.join(ROOT, 'play-mahjong/playback/index.html'), 'utf8');
-  assert.match(old, /location\.replace\('\/play-mahjong\/\?'/);
-  assert.match(old, /params\.set\('playback', '1'\)/);
-  assert.doesNotMatch(old, /<script src=/);
+  assert.ok(!fs.existsSync(path.join(ROOT, 'play-mahjong/playback')));
+  assert.doesNotMatch(GAME_SRC, /opened=1|opened: '1'|'opened'/, 'no ?opened=1');
   assert.doesNotMatch(GAME_SRC, /\/play-mahjong\/playback\//, 'nothing links to the old page');
 });
 
+test('the options page sends each button to the game page', () => {
+  const O = require('./play-options.js');
+  assert.equal(O.gameUrl({ new: 1 }, ''), '/playing-mahjong/?new=1');
+  assert.equal(O.gameUrl({}, '?sound=0&instant=1'), '/playing-mahjong/?sound=0&instant=1');
+  assert.equal(O.gameUrl({ learn: 1 }, '?x=1'), '/playing-mahjong/?learn=1');
+});
+
 test('opening playback again and again leaves one set of listeners on each sheet', async () => {
-  const page = loadPage('http://localhost/play-mahjong/', {}, { realTables: true });
+  const page = loadPage('http://localhost/playing-mahjong/?new=1', {}, { realTables: true });
   const count = (el) => Object.values(el.listeners).reduce((n, list) => n + list.length, 0);
+  const ids = ['rules-sheet', 'strategies-sheet', 'results-sheet'];
+  // The game's own table is open the whole time: its listeners are the baseline.
+  const base = {};
+  ids.forEach((id) => { base[id] = [count(page.els[id]), count(page.els[id].closeButton), page.els[id].listeners.click.length, page.els[id].listeners.close.length, page.els[id].closeButton.listeners.click.length]; });
   for (let i = 0; i < 4; i++) {
     // Forward onto the playback entry, then Back off it.
-    page.browser.history.pushState({ lcmPlayback: true }, '', '/play-mahjong/?playback=1');
+    page.browser.history.pushState({ lcmPlayback: true }, '', '/playing-mahjong/?playback=1');
     page.browser.winListeners.popstate.forEach((fn) => fn({}));
-    assert.equal(page.made.length, i + 1);
+    assert.equal(page.made.length, i + 2);
     page.browser.history.back();
     assert.equal(page.els['playback-canvas'].hidden, true, 'the view is closed');
   }
-  ['rules-sheet', 'strategies-sheet', 'results-sheet'].forEach((id) => {
+  ids.forEach((id) => {
     const dlg = page.els[id];
-    assert.equal(count(dlg), 0, id + ': a closed playback view leaves nothing behind');
-    assert.equal(count(dlg.closeButton), 0, id + ' Close: nothing left behind');
+    assert.equal(count(dlg), base[id][0], id + ': a closed playback view leaves nothing behind');
+    assert.equal(count(dlg.closeButton), base[id][1], id + ' Close: nothing left behind');
   });
-  // Open once more: exactly one table's worth (Close, backdrop click, close).
-  page.browser.history.pushState({ lcmPlayback: true }, '', '/play-mahjong/?playback=1');
+  // Open once more: exactly one more table's worth (Close, backdrop click, close).
+  page.browser.history.pushState({ lcmPlayback: true }, '', '/playing-mahjong/?playback=1');
   page.browser.winListeners.popstate.forEach((fn) => fn({}));
-  ['rules-sheet', 'strategies-sheet', 'results-sheet'].forEach((id) => {
+  ids.forEach((id) => {
     const dlg = page.els[id];
-    assert.equal(dlg.listeners.click.length, 1, id + ': one backdrop click listener');
-    assert.equal(dlg.listeners.close.length, 1, id + ': one close listener');
-    assert.equal(dlg.closeButton.listeners.click.length, 1, id + ': one Close listener');
+    assert.equal(dlg.listeners.click.length, base[id][2] + 1, id + ': one more backdrop click listener');
+    assert.equal(dlg.listeners.close.length, base[id][3] + 1, id + ': one more close listener');
+    assert.equal(dlg.closeButton.listeners.click.length, base[id][4] + 1, id + ': one more Close listener');
   });
 });

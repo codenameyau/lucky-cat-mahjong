@@ -5,7 +5,7 @@ The site uses **Google Analytics 4** to learn which pages and buttons people use
 ## Setup
 
 - **Property**: one GA4 property, measurement ID `G-B514HH987M`, for the whole site.
-- **Where it loads**: each page's `<head>` has the same small snippet. It defines `gtag`, then adds Google's `gtag.js` script only when the page isn't on a local address. The pages that load it: the homepage (`index.html`), the Points Guide, Community, Events, the tile quiz, the play page and the playback page.
+- **Where it loads**: each page's `<head>` has the same small snippet. It defines `gtag`, then adds Google's `gtag.js` script only when the page isn't on a local address. The pages that load it: the homepage (`index.html`), the Points Guide, Community, Events, the tile quiz, the Play Mahjong options page (`/play-mahjong/`) and the game (`/playing-mahjong/`, where playback is a view).
 - **Page views** are recorded by GA4 automatically (`gtag('config', ...)`). Everything else is a custom event, sent with `gtag('event', name, params)`.
 
 ## Privacy
