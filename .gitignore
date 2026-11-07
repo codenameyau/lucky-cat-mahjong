@@ -161,3 +161,6 @@ ml/pairs/
 # The lab: state, evaluations and benchmarks (npm run ml:lab)
 ml/lab/
 ml/lab-*/
+# Paired evaluations (scripts/ml/paired.js)
+ml/paired/
+ml/.venv

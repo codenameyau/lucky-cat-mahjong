@@ -40,7 +40,7 @@
      allow        (candidates, ctx, counts, game) -> candidates: the discards
                   the model may pick from (all of them with topK 0), ahead of
                   the rest; exploring stays among them too (none: any)
-     claimOk      (option, opts) -> bool: the calls the model may weigh
+     claimOk      (option, opts, game, seat) -> bool: the calls the model may weigh
                   against passing
      kongOk       (kong, game, seat) -> bool: the kongs it may weigh on its
                   own turn
@@ -263,7 +263,7 @@
       if (!claims || !found || !found.options.length || d.decision.type === 'win') return d;
       var choices = [{ decision: { type: 'pass' }, ml: read(waitingFeatures(bot, game, seat, 'pass', opts.tile)) }];
       found.options.forEach(function (o) {
-        if (claimOk && !claimOk(o, opts)) return;
+        if (claimOk && !claimOk(o, opts, game, seat)) return;
         var ml = o.decision.type === 'kong' ? read(waitingFeatures(bot, game, seat, 'kong', opts.tile)) : o.ml;
         if (!ml) return;
         if (ml.best != null) ml = Object.assign({}, ml, { ev: ml.best });

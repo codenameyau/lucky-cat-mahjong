@@ -1,12 +1,26 @@
-# only-orphans: one family of hands, played by a model
+# only-orphans: big hands built on 1s, 9s and honors, played by a model
 
-This is the playbook for the **only-orphans** strategy (`js/mahjong-only-orphans.js`). It only plays hands of 1s, 9s and honors. A neural network trained by self-play decides how, the same way [Neural Cat](neural-cat.md) plays its hands. Any bot seat can play it, and the coach can follow it (pick it in the Strategies sheet).
+This is the playbook for the **only-orphans** strategy (`js/mahjong-only-orphans.js`). Its hands are built on 1s, 9s and honors: Thirteen Orphans, triplets or pairs of those tiles, and, when the deal fits better, Seven Pairs and Concealed Triplets of any tiles. Rules pick the target; a neural network trained by self-play decides the moves inside it, the same way [Neural Cat](neural-cat.md) plays its hands. Any bot seat can play it, and the coach can follow it (pick it in the Strategies sheet).
 
 ## How it thinks
 
-The rules fix the family of hands: every tile that isn't a 1, a 9 or an honor goes first, and it never chows. The hands it can reach are big (it wins about 2 hands in 100, each worth thousands of points), so the question is how long to keep chasing one. The network answers it with a score for each choice: the chance to win, how big the win would be and the chance of dealing in, folded into what the choice is worth on average. It plays the best one: which spare 1, 9 or honor goes, when to give up on Thirteen Orphans and for which hand, and which pungs and kongs to take. There is no separate rule for playing safe, because dealing in is already part of every score.
+Every deal it picks a **target**, the hand worth the most points on average, and it reads that again every turn as tiles come in. It has five:
 
-It only uses what its seat can see, and it plays on the shared foundation in `js/mahjong-bot.js`, so it keeps the shared rules, like never throwing a lone dragon nobody has shown.
+| Target | The hands | Faan (before flowers) | Claims |
+| --- | --- | ---: | --- |
+| Thirteen Orphans | one of every 1, 9 and honor, and a pair of one | limit (13) | only the winning tile |
+| Triplets of 1s, 9s and honors | Mixed Orphans with All Triplets, All Terminals, All Honors | 4 to limit | pungs and kongs of 1s, 9s and honors |
+| Pairs of 1s, 9s and honors | Seven Pairs with Mixed Orphans, or in All Honors | 5 to limit | only the winning tile |
+| Seven Pairs | seven different pairs of any tiles | 4 | only the winning tile |
+| Concealed Triplets | four concealed pungs of any tiles and the eyes | 10 (limit with only 1s, 9s and honors) | only the winning tile |
+
+What a target is worth is its payout (each faan doubles it, up to the 13-faan limit) times the odds of finishing it. The odds are played out a go-around at a time: at each step the hand takes the likeliest kind of help (a new kind of tile, a pair, a pung), its live tiles are counted, the winning tile can come off any discard (and on the triplets target so can a pung's third tile), and every go-around someone else may finish first. So a hand whose later steps need the last two copies of its pairs is slower than one whose first step only looks as wide. A hand keeps its target until another is worth 1.3 times as much, or until the target can't be made any more.
+
+1s, 9s and honors are the shared core: whatever the target, they are kept ahead of other tiles, their pairs become the eyes or pungs, and Concealed Triplets made only of them is a limit hand. Because a bigger hand pays so much more (Concealed Triplets pays 64 times a Seven Pairs of 4 faan), Seven Pairs only becomes the target once nothing bigger has real odds, for example late in the wall or when the copies its pairs need are all on the table.
+
+Inside the target, the network scores every allowed choice: the chance to win, how big the win would be and the chance of dealing in, folded into what the choice is worth on average. It plays the best one: which allowed tile goes, and which allowed pungs and kongs to take. There is no separate rule for playing safe, because dealing in is already part of every score.
+
+It only uses what its seat can see (its tiles and melds, and the copies of each tile not yet on the table), and it plays on the shared foundation in `js/mahjong-bot.js`, so it keeps the shared rules, like never throwing a lone dragon nobody has shown.
 
 Training progress, round by round: [only-orphans-training.md](only-orphans-training.md).
 
@@ -14,18 +28,20 @@ Training progress, round by round: [only-orphans-training.md](only-orphans-train
 
 These rules are what make it Only Orphans, so the model can't change them:
 
-- **Tiles that aren't 1s, 9s or honors always go first**, even when it plays safe. The model picks which of them goes.
-- **It never chows.** It only pungs or kongs a 1, a 9 or an honor, and only declares a kong of one. A win is always taken.
-- **The hands it reads** are Thirteen Orphans (while no meld is down and no tile it needs has run out), and Mixed Orphans, All Terminals and All Honors, as triplets or as pairs. The usual hands only come in if a meld somehow rules all of those out.
+- **The target is the rules' call**, picked as above.
+- **Tiles the target can't use always go first**, even when it plays safe. On Thirteen Orphans and the hands of 1s, 9s and honors that is every other tile. On Seven Pairs it is any other tile not in a pair (and a third copy), and on Concealed Triplets any other tile not in a pair or pung: their pairs and pungs stay. The model picks which of those tiles goes.
+- **It never chows.** It pungs or kongs only a 1, a 9 or an honor, and only on the triplets target, or when that pung makes the triplets target worth 1.3 times the one it's on. On every other target it claims nothing but the winning tile, and it declares a kong only on the triplets target (of a 1, a 9 or an honor) or a concealed one on Concealed Triplets. A win is always taken.
+- **The hands it reads** are the target's: on Seven Pairs, Seven Pairs and the same hand in 1s, 9s and honors; on Concealed Triplets, Concealed Triplets and the triplets of 1s, 9s and honors; otherwise Thirteen Orphans (while no meld is down and no tile it needs has run out) beside Mixed Orphans, All Terminals and All Honors, as triplets or as pairs. The usual hands only come in if a meld somehow rules all of those out.
 
 ## What the model decides
 
 Everything else, scored in expected points (the [model](../machine-learning/model.md) Neural Cat uses, with its own weights in `js/mahjong-only-orphans-weights.js`):
 
-- **Which tile goes.** It reads the position each allowed discard leaves and throws the one worth the most. Once it holds only 1s, 9s and honors, every tile is allowed.
-- **When to give up on Thirteen Orphans, and for which hand.** The rule-based bot gave up on a fixed odds threshold after six discards. The model keeps or breaks the singles a Thirteen Orphans hand needs, and the pairs and triplets the other hands need, by what each is worth.
-- **Which pungs and kongs to take.** Passing and each call it may make are scored, and the best one is played.
+- **Which tile goes.** It reads the position each allowed discard leaves and throws the one worth the most. Once only tiles the target uses are left, every tile is allowed.
+- **Which pungs and kongs to take**, among the ones the target allows. Passing and each call it may make are scored, and the best one is played.
 - **When to play safe.** Deal-in risk is part of every position it reads, so there is no separate folding rule beyond the shared foundation's order.
+
+Before the targets, the model also decided when to give up on Thirteen Orphans: it kept or broke the singles a Thirteen Orphans hand needs by what each was worth, and could pung a 1, 9 or honor at any time. That is the target's job now. With O5's weights the targets scored +21.6 ± 21.5 points a hand more than the old rules on the same 20,000 deals, winning 5.0% of hands instead of 2.0%, with an average win of 2,907 points instead of 6,186 ([iterations](../machine-learning/iterations.md#only-orphans-targets-by-expected-points)).
 
 ## How it is trained
 
