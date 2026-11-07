@@ -43,6 +43,10 @@
       liveReplay = file;
     }
   }
+  // A playback file you uploaded. It has a place of its own, so it never
+  // replaces the game's (REPLAY_KEY): View playback on the game always shows
+  // the game. A refresh while it shows brings it back.
+  var UPLOAD_KEY = 'lcm-play-upload';
   // Each strategy's hints for the game in progress: { v: 1, lists: { id: [note, ...] } }.
   // A new game overwrites it. Switching the coach only picks which list shows.
   var HINTS_KEY = 'lcm-play-hints';
@@ -4593,6 +4597,7 @@
     // so leaving the results can't be overwritten by the copy taken while
     // they were up.
     var restoredHand = null; // a finished hand put back after a refresh, only for looking at
+    var shownFile = null; // the playback view's file: what Download saves
     var autosaveTimer = null;
     var autosaveGen = 0;
     var pendingSummary = null;
@@ -5810,6 +5815,11 @@
       L = computeLayout();
       announce('Game loaded. Hand ' + game.handNumber + '.');
       requestRender();
+      // A refresh of View playback: the hand is back on the table, so its playback opens again.
+      if (settings.openPlayback) {
+        settings.openPlayback = false;
+        viewReplay();
+      }
     }
 
     // The empty table, before a playback is stored, or after a file that didn't load.
@@ -5854,7 +5864,7 @@
 
     function downloadReplay() {
       if (!reviewFinished()) { announce('Download opens once the hand is finished.'); return; }
-      var file = readJson(REPLAY_KEY, null);
+      var file = shownFile || readJson(REPLAY_KEY, null);
       if (!file || !file.payload) return;
       sound.play('select'); // the click
       var d = new Date();
@@ -5932,7 +5942,14 @@
       var rec = checked.record;
       try {
         var file = typeof text === 'string' ? JSON.parse(text) : text;
-        if (file && file.payload) keepReplay(file);
+        if (file && file.payload) {
+          writeJson(UPLOAD_KEY, file);
+          shownFile = file;
+          // This view now shows an upload, so a refresh shows the upload too.
+          if (root.history && root.history.replaceState) {
+            root.history.replaceState(Object.assign({}, root.history.state || {}, { lcmUpload: true }), '');
+          }
+        }
       } catch (e) {}
       try { E.playbackGame(rec, 0); }
       catch (err) {
@@ -6888,7 +6905,11 @@
         if (destroyed) return;
         spriteCache = {};
         if (!settings.review) {
-          var stored = liveReplay || readJson(REPLAY_KEY, null);
+          // An upload shown in this view (a refresh), or else the game's own:
+          // the hand on the table (in memory), or its last finished hand.
+          var viewState = (root.history && root.history.state) || {};
+          var stored = viewState.lcmUpload ? readJson(UPLOAD_KEY, null) : (liveReplay || readJson(REPLAY_KEY, null));
+          shownFile = stored;
           var check = stored ? E.checkPlayback(stored) : null;
           if (check && check.ok) {
             settings.review = check.record;
@@ -7146,6 +7167,8 @@
         requestRender();
       },
       get suspended() { return suspended; },
+      // The menu's View playback, for this hand.
+      viewPlayback: function () { if (!destroyed && !settings.playback) viewReplay(); },
       start: function () {
         sound.music(true);
         play().catch(function (err) {
@@ -7260,7 +7283,9 @@
       table = api.createTable(canvas, live, settings, {
         quit: close,
         restart: function () { open(settings); },
-        playback: function () { showPlayback(true); },
+        // Already on the playback's entry (a refresh brought the game back
+        // under it): no second entry.
+        playback: function () { showPlayback(!inPlaybackEntry()); },
         fullscreen: toggleFullscreen,
         isFullscreen: function () { return !!fullscreenElement(); },
       }, saved);
@@ -7282,13 +7307,28 @@
     }
 
     // The saved game, if its signature checks out. Otherwise a new game.
-    function resumeGame() {
+    // extra: settings for the table (openPlayback).
+    function resumeGame(extra) {
       var stored = readJson(AUTOSAVE_KEY, null);
       if (!stored || !stored.payload || !stored.payload.game || !E.checkSave) { startFresh(); return; }
       E.checkSave(stored).then(function (check) {
         if (!check.ok) { startFresh(); return; }
-        open(Object.assign(settingsNow(), { mode: stored.payload.game.settings.mode }), stored);
+        open(Object.assign(settingsNow(), { mode: stored.payload.game.settings.mode }, extra || {}), stored);
       }, startFresh);
+    }
+
+    // A refresh of View playback on a hand still being played. That hand's
+    // playback was never stored (it holds the whole deal), so the game comes
+    // back from its save, played up to the current move, and its playback
+    // opens again on this same entry: the hand on the table, not a stored or
+    // uploaded one.
+    function handInProgress() {
+      var stored = readJson(AUTOSAVE_KEY, null);
+      return !!(stored && stored.payload && stored.payload.game && stored.payload.game.hand);
+    }
+    function refreshedGamePlayback() {
+      var state = (root.history && root.history.state) || {};
+      return !!(state.lcmFromGame && !state.lcmUpload && handInProgress());
     }
 
     // Phones held sideways play fullscreen. Browsers only allow it from a
@@ -7525,7 +7565,8 @@
       goToOptions();
     }
 
-    if (hasParam('playback')) showPlayback(false);
+    if (hasParam('playback') && refreshedGamePlayback()) resumeGame({ openPlayback: true });
+    else if (hasParam('playback')) showPlayback(false);
     else if (hasParam('learn')) startLesson();
     else if (hasParam('new')) { dropParam('new'); startFresh(); }
     else resumeGame();
