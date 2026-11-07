@@ -7,10 +7,12 @@
    node scripts/ml/ship.js ml/models/O2.json only-orphans (js/mahjong-only-orphans-weights.js)
 
    Neural Cat's shipped models get a release name, NC1, NC2 and so on, which
-   the game shows (easier to read than the league's L17). Each model that
-   ships gets the next number, counted from the weights already shipped;
-   shipping the same model again keeps its name. The training name stays in
-   meta.trainedName, and ml/models/ keeps the file under it. */
+   the game shows (easier to read than the league's L17). Lucky Cat's go on
+   from its league's: lc20, then lc21 for the lab's first champion (LL1a).
+   Each model that ships gets the next number, counted from the weights
+   already shipped; shipping the same model again keeps its name. The
+   training name stays in meta.trainedName, and ml/models/ keeps the file
+   under it. */
 
 'use strict';
 
@@ -22,7 +24,7 @@ const LN = require('../../js/mahjong-lucky-cat-net.js');
 const TARGETS = {
   'neural-cat': { file: 'mahjong-ml-weights.js', global: 'MahjongMLWeights', name: "Neural Cat's", model: M, by: 'scripts/ml/ship.js', release: 'NC' },
   'only-orphans': { file: 'mahjong-only-orphans-weights.js', global: 'MahjongOnlyOrphansWeights', name: "Only Orphans'", model: M, by: 'scripts/ml/ship.js' },
-  'lucky-cat': { file: 'mahjong-lucky-cat-weights.js', global: 'MahjongLuckyCatWeights', name: "Lucky Cat's", model: LN, by: 'scripts/ml/lucky.js league' },
+  'lucky-cat': { file: 'mahjong-lucky-cat-weights.js', global: 'MahjongLuckyCatWeights', name: "Lucky Cat's", model: LN, by: 'scripts/ml/ship.js', release: 'lc' },
 };
 
 // The release name for meta (e.g. NC2), from the weights shipped in `out`.

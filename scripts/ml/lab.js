@@ -6,7 +6,7 @@
    itself. The same lab now trains three strategies (--strategy):
 
      neural-cat    (default) Neural Cat, from the league's best (NC1)
-     only-orphans  the learned Only Orphans, from the model in the game (O2)
+     only-orphans  the learned Only Orphans, from the model in the game
      lucky-cat     Lucky Cat's network, from the model in the game (LC20)
 
    Each lab round:
@@ -34,9 +34,11 @@
         Only Orphans plays those deals too, as the baseline. Lucky Cat: head
         to head, on J = hands won (percentage points), its own objective. A
         candidate first plays 6,000 deals; the best two that are ahead play
-        20,000 fresh deals, and one is kept only if J beats the champion
-        there by more than its standard error (half the 95% margin). Close
-        calls are rejected, so the champion can't drift on noise.
+        20,000 fresh deals (Only Orphans: 40,000), and one is kept only if J
+        beats the champion there by more than its standard error (half the
+        95% margin). Close calls are rejected, so the champion can't drift
+        on noise. Only Orphans' margins are paired: read from the difference
+        on each deal, since both played the same deals.
      4. Learns from the results: each arm keeps its tries, its average J and
         how often it was kept, and the next round picks arms by an upper
         confidence bound (the best average, plus a bonus for arms tried
@@ -69,7 +71,8 @@
      --dir DIR           state and log (default ml/lab, ml/lab-<strategy>)
    For a quick check of the lab itself:
      --dry               no shipping, uploading or pruning
-     --quick-deals N, --full-deals N   smaller evaluations (6000, 20000)
+     --quick-deals N, --full-deals N   smaller evaluations (6000, 20000;
+                         Only Orphans' full evaluation: 40000)
      --prefix NAME       the round's data set is ml/data/<NAME>-<round>
                          (default lab, oolab or lclab) */
 
@@ -104,6 +107,14 @@ const TRAIN_ARMS = {
   wide: { hidden: '512,256', lr: 1e-3, epochs: 14, window: 12, about: 'a wider network (512, 256), from scratch' },
   deep: { hidden: '512,256,128', lr: 1e-3, epochs: 14, window: 12, about: 'a deeper network (512, 256, 128), from scratch' },
 };
+// Only Orphans' training arms: Neural Cat's, and a fine-tune that also leans
+// toward winning (winBonus +300 on top of the champion's). In lab rounds 3 to
+// 6 all 12 trained candidates won fewer hands than the champion, with bigger
+// average wins, and lost (J -5.8 on average), even trained on the champion's
+// own games only: training pulls it back to fewer, bigger hands.
+const OO_TRAIN_ARMS = Object.assign({}, TRAIN_ARMS, {
+  'finetune-wins': { init: true, lr: 3e-4, epochs: 8, window: WINDOW, play: { winBonus: 300 }, about: 'fine-tune the champion, then winBonus +300' },
+});
 const PLAY_DEFAULTS = { topK: 3, winBonus: 0, claimMargin: 0 };
 const PLAY_ARMS = {
   'topK+1': { key: 'topK', step: 1, min: 1, max: 10 },
@@ -116,12 +127,18 @@ const PLAY_ARMS = {
   'claimMargin-25': { key: 'claimMargin', step: -25, min: -200, max: 200 },
 };
 // Only Orphans picks among every allowed discard (topK 0, fixed by the
-// strategy), so it has no topK arms.
+// strategy), so it has no topK arms. Nor claimMargin-25: the model's claim is
+// taken only when it's worth more than the base strategy's pass, so a margin
+// below 0 never changes a choice (it played exactly like the champion in all
+// three lab rounds it was tried). claimMargin+50 goes further the way
+// claimMargin+25 went: fewer calls, fewer deal-ins (rounds 2 to 6).
 const OO_PLAY_ARMS = {};
-Object.keys(PLAY_ARMS).filter((n) => PLAY_ARMS[n].key !== 'topK').forEach((n) => { OO_PLAY_ARMS[n] = PLAY_ARMS[n]; });
-// Lucky Cat's experiments: its trainer (ml/train_lucky.py) has one network
-// size, so its arms vary the learning rate, the data window, and how sharp
-// its targets are.
+Object.keys(PLAY_ARMS).filter((n) => PLAY_ARMS[n].key !== 'topK' && n !== 'claimMargin-25').forEach((n) => { OO_PLAY_ARMS[n] = PLAY_ARMS[n]; });
+OO_PLAY_ARMS['claimMargin+50'] = { key: 'claimMargin', step: 50, min: -200, max: 200 };
+// Lucky Cat's experiments: they vary the learning rate, the data window, and
+// how sharp its targets are; since lc29, how much its deal-ins count (data
+// from then on holds each move that dealt in, which these arms push down) and
+// a wider network.
 const LC_TRAIN_ARMS = {
   finetune: { init: true, lr: 1e-3, epochs: 6, window: 6, about: 'fine-tune the champion' },
   'finetune-slow': { init: true, lr: 3e-4, epochs: 8, window: 6, about: 'fine-tune at a third of the learning rate' },
@@ -129,6 +146,9 @@ const LC_TRAIN_ARMS = {
   recent: { init: true, lr: 1e-3, epochs: 6, window: 2, about: 'fine-tune on the last 2 rounds only' },
   sharp: { init: true, lr: 1e-3, epochs: 6, window: 6, smoothing: 0.01, about: 'fine-tune with sharper targets (smoothing 0.01)' },
   long: { init: true, lr: 1e-3, epochs: 6, window: 10, about: 'fine-tune on the last 10 rounds' },
+  'deal-ins': { init: true, lr: 1e-3, epochs: 6, window: 2, negWeight: 0.3, about: 'fine-tune on the last 2 rounds, pushing down the moves that dealt in (weight 0.3)' },
+  'deal-ins-strong': { init: true, lr: 1e-3, epochs: 6, window: 2, negWeight: 1, about: 'fine-tune on the last 2 rounds, pushing down the moves that dealt in (weight 1)' },
+  wide: { hidden: '512,256', lr: 1e-3, epochs: 12, window: 10, negWeight: 0.3, about: 'a wider network (512, 256), from scratch on the last 10 rounds' },
 };
 
 function parseArgs(argv) {
@@ -200,7 +220,7 @@ function seatOO(id, deals, seed, name) {
   const key = id + '@' + deals + '@' + seed;
   if (seatCache[key]) return seatCache[key];
   const json = evalJson(name);
-  run('node', ['scripts/competition.js', '--lineup', [id].concat(OO_TABLE).join(','), '--deals', String(deals), '--seed', String(seed), '--json', json]);
+  run('node', ['scripts/competition.js', '--lineup', [id].concat(OO_TABLE).join(','), '--deals', String(deals), '--seed', String(seed), '--json', json, '--per-deal']);
   const r = JSON.parse(fs.readFileSync(json, 'utf8'));
   const s = r.summary[id];
   const raw = (r.report && r.report.strategies && r.report.strategies[id]) || {};
@@ -208,7 +228,22 @@ function seatOO(id, deals, seed, name) {
   return (seatCache[key] = {
     pointsPerHand: s.pointsPerHand, margin: s.pointsMargin || 0, winRate: s.winRate, dealInRate: s.dealInRate,
     avgWin: s.avgWinPoints, limitWins: raw.limitWins || 0, thirteenOrphans: p['Thirteen Orphans'] || 0,
+    perDeal: r.perDeal ? r.perDeal.points : null,
   });
+}
+// The 95% margin of A's points a hand less B's. Both played the same deals,
+// so it's read from the difference on each deal (its 4 rotations, 4 hands):
+// the luck of the deal they share cancels. About 15% narrower than treating
+// the two runs as independent, which is the fallback without per-deal results.
+function pairedMargin(A, B) {
+  const a = A.perDeal, b = B.perDeal;
+  if (!a || !b || a.length !== b.length || a.length < 2) return Math.sqrt(A.margin * A.margin + B.margin * B.margin);
+  const n = a.length;
+  let sum = 0, sq = 0;
+  for (let i = 0; i < n; i++) { const d = a[i] - b[i]; sum += d; sq += d * d; }
+  const mean = sum / n;
+  const sd = Math.sqrt(Math.max(0, (sq - n * mean * mean) / (n - 1)));
+  return 1.96 * sd / Math.sqrt(n) / 4;
 }
 function compareOO(a, b, deals, seed, name, champName) {
   const A = seatOO('oo:' + a, deals, seed, name);
@@ -218,7 +253,7 @@ function compareOO(a, b, deals, seed, name, champName) {
   return {
     deals, points, wins,
     J: points + WIN_WEIGHT * 100 * wins,
-    margin: Math.sqrt(A.margin * A.margin + B.margin * B.margin),
+    margin: pairedMargin(A, B),
     winRate: A.winRate, otherWinRate: B.winRate,
     dealInRate: A.dealInRate, otherDealInRate: B.dealInRate,
     avgWin: A.avgWin, otherAvgWin: B.avgWin,
@@ -278,8 +313,12 @@ const STRATEGIES = {
     },
   },
   'only-orphans': {
-    dir: 'lab-only-orphans', prefix: 'oolab', model: 'OL', trainArms: TRAIN_ARMS, playArms: OO_PLAY_ARMS, folder: 'only-orphans',
+    dir: 'lab-only-orphans', prefix: 'oolab', model: 'OL', trainArms: OO_TRAIN_ARMS, playArms: OO_PLAY_ARMS, folder: 'only-orphans',
     weights: 'mahjong-only-orphans-weights.js',
+    // Its points swing more than the others' (a limit hand pays up to 24,576),
+    // so its long evaluation plays twice the deals: a 95% margin of about
+    // ±8 points a hand, paired, against ±15 on 20,000 deals unpaired.
+    fullDeals: 40000,
     // Training data in order: the Only Orphans league's rounds, then the lab's.
     earlier: /^orphans-(\d+)$/, done: 'manifest.json',
     start() {
@@ -329,13 +368,15 @@ const STRATEGIES = {
     trainArgs(spec, sets, name, champ) {
       const args = ['ml/train_lucky.py', '--data'].concat(sets, ['--name', name, '--lr', String(spec.lr), '--epochs', String(spec.epochs)]);
       if (spec.smoothing != null) args.push('--smoothing', String(spec.smoothing));
+      if (spec.negWeight) args.push('--neg-weight', String(spec.negWeight));
+      if (spec.hidden) args.push('--hidden', spec.hidden);
       if (spec.init) args.push('--init', champ);
       return { args, about: '(' + sets.length + ' data sets)' };
     },
     judge: (c, champ, deals, seed, tag) => compareLC(c, champ, deals, seed, base(c) + '-' + tag),
     ship(file) {
       ship(path.join(ROOT, file), 'lucky-cat');
-      return base(file);
+      return shippedName('mahjong-lucky-cat-weights.js') || base(file); // lc21, lc22, ...
     },
   },
 };
@@ -343,6 +384,12 @@ let S = STRATEGIES['neural-cat'];
 let PREFIX = S.prefix;
 
 const short = (id) => id.replace(/^(ml|oo|lc):ml[\\/]models[\\/]/, '').replace('.json', '');
+
+// The name a shipped weights file shows in the game (its release name).
+function shippedName(weightsFile) {
+  const file = path.join(ROOT, 'js', weightsFile);
+  try { delete require.cache[require.resolve(file)]; return require(file).meta.name || null; } catch (err) { return null; }
+}
 
 // The model file a shipped weights file came from (ml/models/<trained name>.json).
 function shippedModel(weightsFile) {
@@ -418,6 +465,8 @@ function train(state, r, letter, arm, data) {
   const w = readJson(file);
   w.meta = Object.assign(w.meta || {}, { arm, from: base(champ) });
   if (S !== STRATEGIES['lucky-cat']) w.meta.play = playOf(champ);
+  // An arm may also move play settings, relative to the champion's.
+  if (spec.play) Object.keys(spec.play).forEach((k) => { w.meta.play[k] = (w.meta.play[k] || 0) + spec.play[k]; });
   writeJson(file, w);
   return { name, file, arm, about: spec.about + ' ' + t.about };
 }
@@ -495,7 +544,7 @@ function round(state, opts) {
     // Only Orphans: every round, the champion against the rule-based bot on the first evaluation's deals.
     const b = S.baseline(QUICK_DEALS, QUICK_SEED + r * 10000, 'quick');
     const mine = seatOO('oo:' + champ, QUICK_DEALS, QUICK_SEED + r * 10000, base(champ) + '-quick-' + (QUICK_SEED + r * 10000));
-    champVsBaseline = { points: mine.pointsPerHand - b.pointsPerHand, margin: Math.sqrt(mine.margin * mine.margin + b.margin * b.margin),
+    champVsBaseline = { points: mine.pointsPerHand - b.pointsPerHand, margin: pairedMargin(mine, b),
       pointsPerHand: mine.pointsPerHand, baselinePointsPerHand: b.pointsPerHand, winRate: mine.winRate, baselineWinRate: b.winRate,
       dealInRate: mine.dealInRate, baselineDealInRate: b.dealInRate, deals: QUICK_DEALS };
     log('Round ' + r + ': champion ' + base(champ) + ' against the rule-based bot ' + signed(champVsBaseline.points) + ' ± ' + champVsBaseline.margin.toFixed(1) +
@@ -520,7 +569,7 @@ function round(state, opts) {
     // Only Orphans: the new champion against the rule-based bot, on the same deals.
     const b = S.baseline(FULL_DEALS, FULL_SEED + r * 100000, 'full');
     const mine = seatOO('oo:' + best.file, FULL_DEALS, FULL_SEED + r * 100000, best.name + '-full');
-    result.vsBaseline = { points: mine.pointsPerHand - b.pointsPerHand, margin: Math.sqrt(mine.margin * mine.margin + b.margin * b.margin),
+    result.vsBaseline = { points: mine.pointsPerHand - b.pointsPerHand, margin: pairedMargin(mine, b),
       pointsPerHand: mine.pointsPerHand, baselinePointsPerHand: b.pointsPerHand, winRate: mine.winRate, baselineWinRate: b.winRate };
     log('Round ' + r + ': ' + best.name + ' against the rule-based bot ' + signed(result.vsBaseline.points) + ' ± ' + result.vsBaseline.margin.toFixed(1) +
       ' points a hand (' + mine.pointsPerHand.toFixed(1) + ' against ' + b.pointsPerHand.toFixed(1) + ')');
@@ -568,6 +617,7 @@ function main() {
   const cmd = a._[0] || 'run';
   if (a['quick-deals']) QUICK_DEALS = parseInt(a['quick-deals'], 10);
   if (a['full-deals']) FULL_DEALS = parseInt(a['full-deals'], 10);
+  else if (S.fullDeals) FULL_DEALS = S.fullDeals;
 
   if (cmd === 'bench') {
     const model = String(a.model);

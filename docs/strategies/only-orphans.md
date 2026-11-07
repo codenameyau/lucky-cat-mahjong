@@ -6,6 +6,8 @@ This is the playbook for the **only-orphans** strategy (`js/mahjong-only-orphans
 
 The rules fix the family of hands: every tile that isn't a 1, a 9 or an honor goes first, and it never chows. The hands it can reach are big (it wins about 2 hands in 100, each worth thousands of points), so the question is how long to keep chasing one. The network answers it with a score for each choice: the chance to win, how big the win would be and the chance of dealing in, folded into what the choice is worth on average. It plays the best one: which spare 1, 9 or honor goes, when to give up on Thirteen Orphans and for which hand, and which pungs and kongs to take. There is no separate rule for playing safe, because dealing in is already part of every score.
 
+The model in the game, OL2c, plays like this compared with O5 before it (the same 20,000 deals): it takes more orphan pungs (0.52 a hand to 0.48) and settles for Mixed Orphans in triplets sooner (848 Mixed Orphans to 679, with Thirteen Orphans level at 724 to 718). It wins 2.2% of hands to 1.9%, each win a little smaller (about 6,000 points to 6,700), and deals in just as often (11.1%). Against the rule-based bot it scores +26.8 ± 14.8 points a hand.
+
 It only uses what its seat can see, and it plays on the shared foundation in `js/mahjong-bot.js`, so it keeps the shared rules, like never throwing a lone dragon nobody has shown.
 
 Training progress, round by round: [only-orphans-training.md](only-orphans-training.md).
@@ -36,6 +38,8 @@ Everything else, scored in expected points (the [model](../machine-learning/mode
 3. **Train.** A new model starts from the best one's weights and trains on the last 8 rounds of data (`--lr 3e-4`, dropout 0.2, weight decay 1e-3, up to 8 epochs).
 4. **Rank.** The new model, the best one, the model in the game and the rule-based bot each take one seat against Neural Cat, Jorge Yau and Lucky Cat, on the same 9,000 deals, each played from every seat, new deals every round. (Rounds 1 to 4 used 3,000 deals, which left a margin of about ±35 points a hand, wider than most differences between models.)
 5. **Keep and ship.** It becomes the best if it scores more points a hand than the best. A best that also beats the rule-based bot by more than the 95% margin, and scores more than the model in the game on the same deals, is a **milestone**: it ships to `js/mahjong-only-orphans-weights.js`, so the game plays it. Both are measured on the same deals because the opponents change when the game's other strategies do, and every score with them.
+
+**From O5, training moved to the lab** (`npm run ml:lab -- --strategy only-orphans`, state in `ml/lab-only-orphans/`), like Neural Cat's and Lucky Cat's. Each round the champion plays 50,000 games against the game's table and its last two champions, several candidates are trained from it (other learning rates, wider or deeper networks, other claim margins and win bonuses), and each takes one seat on 6,000 deals. The best two play 40,000 fresh deals, and one is kept only if J (points a hand + 5 × hands won, in percentage points) beats the champion beyond its standard error. Margins are read from the difference on each deal, since the candidate and the champion play the same deals. A kept champion ships to the game. The rule-based bot plays the same deals as the baseline.
 
 The features are read through this strategy's own hooks, not Neural Cat's, so its data and models can't be mixed with Neural Cat's.
 

@@ -11,6 +11,11 @@ cross-entropy over a softmax of the legal moves' logits, with a little label
 smoothing so every legal move keeps some chance and the next round still
 explores.
 
+Since lc29, data also holds the move that dealt in from each hand the learner
+lost that way, with weight -1. With --neg-weight above 0, training pushes
+those moves down (an unlikelihood term, -log(1 - p), times that weight);
+otherwise it leaves them out, so older arms train as before.
+
 The network is the one the JS runs: fully connected layers with ReLU, and 74
 raw outputs (34 discards, 34 kongs, then pass, three chows, pung, kong).
 A model from --init whose meta says random (the first, all-zero model)
@@ -58,9 +63,9 @@ def load(dirs):
 
 
 class Net(nn.Module):
-    def __init__(self, size, dropout):
+    def __init__(self, size, dropout, hidden=None):
         super().__init__()
-        sizes = [size] + HIDDEN + [OUTPUTS]
+        sizes = [size] + (hidden or HIDDEN) + [OUTPUTS]
         self.layers = nn.ModuleList([nn.Linear(sizes[i], sizes[i + 1]) for i in range(len(sizes) - 1)])
         self.drop = nn.Dropout(dropout)
 
@@ -93,17 +98,37 @@ def main():
     ap.add_argument('--dropout', type=float, default=0.1)
     ap.add_argument('--weight-decay', type=float, default=1e-4)
     ap.add_argument('--smoothing', type=float, default=0.05)
+    ap.add_argument('--neg-weight', type=float, default=0.0)
+    ap.add_argument('--hidden', help='hidden layer sizes, e.g. 512,256 (a new network: --init is ignored)')
     args = ap.parse_args()
+    hidden = [int(v) for v in args.hidden.split(',')] if args.hidden else None
+    # A fine-tune keeps the shape of the model it starts from (lc30 and on
+    # can be wider than the original 256, 128).
+    init_hidden = None
+    if args.init and not hidden:
+        src = json.load(open(os.path.join(ROOT, args.init)))
+        if not (src.get('meta') or {}).get('random'):
+            init_hidden = [l['rows'] for l in src['layers'][:-1]]
 
     t0 = time.time()
     x, a, legal, w, size, version = load(args.data)
+    neg = w < 0
+    if args.neg_weight <= 0 and neg.any():
+        keep = ~neg
+        x, a, legal, w = x[keep], a[keep], legal[keep], w[keep]
+        neg = w < 0
     n = len(a)
-    print(f'{n} samples from {len(args.data)} rounds ({x.shape[1]} features)')
+    print(f'{n} samples from {len(args.data)} rounds ({x.shape[1]} features), {int(neg.sum())} of them deal-ins')
     torch.manual_seed(1)
     dev = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f'training on {dev}' + (f' ({torch.cuda.get_device_name(0)})' if dev == 'cuda' else ''))
-    net = Net(size, args.dropout)
-    if args.init:
+    net = Net(size, args.dropout, hidden or init_hidden)
+    if args.init and hidden:
+        print('a new ' + args.hidden + ' network: --init ' + args.init + ' ignored')
+        with torch.no_grad():
+            net.layers[-1].weight.mul_(0.1)
+            net.layers[-1].bias.zero_()
+    elif args.init:
         init = json.load(open(os.path.join(ROOT, args.init)))
         if not (init.get('meta') or {}).get('random'):
             with torch.no_grad():
@@ -127,19 +152,26 @@ def main():
     A = torch.from_numpy(a)
     Lg = torch.from_numpy(legal)
     W = torch.from_numpy(w.astype(np.float32))
-    W = W / W.mean()
+    Neg = W < 0
+    # Wins keep their mean weight of 1; each deal-in counts --neg-weight.
+    W = torch.where(Neg, torch.full_like(W, args.neg_weight), W / W[~Neg].mean())
 
     def loss_of(idx, train):
-        xb, ab, lb, wb = X[idx].to(dev), A[idx].to(dev), Lg[idx].to(dev), W[idx].to(dev)
+        xb, ab, lb, wb, nb = X[idx].to(dev), A[idx].to(dev), Lg[idx].to(dev), W[idx].to(dev), Neg[idx].to(dev)
         logits = net(xb).masked_fill(~lb, -1e9)
         logp = torch.log_softmax(logits, dim=1)
-        nll = -logp.gather(1, ab[:, None])[:, 0]
+        lp = logp.gather(1, ab[:, None])[:, 0]
+        nll = -lp
         # Smoothing: a share of the target spread over every legal move.
         k = lb.sum(1).clamp(min=1)
         uniform = -(logp.masked_fill(~lb, 0).sum(1)) / k
         per = (1 - args.smoothing) * nll + args.smoothing * uniform
-        acc = (logits.argmax(1) == ab).float()
-        return (per * wb).mean(), acc.mean()
+        # A deal-in: make that move less likely, -log(1 - p).
+        unlikely = -torch.log1p(-lp.exp().clamp(max=1 - 1e-6))
+        per = torch.where(nb, unlikely, per)
+        pos = (~nb).float()
+        acc = ((logits.argmax(1) == ab).float() * pos).sum() / pos.sum().clamp(min=1)
+        return (per * wb).mean(), acc
 
     opt = torch.optim.AdamW(net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     best, best_state = float('inf'), None
@@ -170,7 +202,8 @@ def main():
     for l in net.layers:
         layers.append({'rows': l.out_features, 'cols': l.in_features, 'w': b64(l.weight.detach().numpy()), 'b': b64(l.bias.detach().numpy())})
     meta = {'name': args.name, 'trainedAt': time.strftime('%Y-%m-%d %H:%M'), 'samples': int(n), 'data': args.data,
-            'init': args.init, 'validationLoss': best}
+            'init': None if hidden else args.init, 'validationLoss': best, 'negWeight': args.neg_weight,
+            'hidden': hidden or init_hidden or HIDDEN}
     out = {'featureVersion': version, 'featureSize': size, 'dtype': 'f16', 'meta': meta, 'layers': layers}
     os.makedirs(os.path.join(ROOT, 'ml', 'models'), exist_ok=True)
     path = os.path.join(ROOT, 'ml', 'models', args.name + '.json')
