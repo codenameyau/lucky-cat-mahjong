@@ -6991,27 +6991,35 @@
     };
     document.addEventListener('visibilitychange', onVisibility);
     root.addEventListener('keydown', onKey);
+    // The sheets belong to the page, and every table (a new game, the playback
+    // view) adds its own listeners to them, so destroy() takes them off again:
+    // [element, type, handler] for each.
+    var sheetListeners = [];
+    function onSheet(el, type, fn) {
+      el.addEventListener(type, fn);
+      sheetListeners.push([el, type, fn]);
+    }
     (function () {
       var dlg = rulesSheet();
       if (!dlg) return;
-      dlg.querySelector('.rules-sheet-close').addEventListener('click', closeRules);
+      onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeRules);
       // A click on the dimmed area outside the sheet closes it too.
-      dlg.addEventListener('click', function (e) { if (e.target === dlg) closeRules(); });
-      dlg.addEventListener('close', function () { canvas.focus(); });
+      onSheet(dlg, 'click', function (e) { if (e.target === dlg) closeRules(); });
+      onSheet(dlg, 'close', function () { canvas.focus(); });
     })();
     (function () {
       var dlg = strategiesSheet();
       if (!dlg) return;
-      dlg.querySelector('.rules-sheet-close').addEventListener('click', closeStrategies);
-      dlg.addEventListener('click', function (e) { if (e.target === dlg) closeStrategies(); });
-      dlg.addEventListener('close', function () { canvas.focus(); });
+      onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeStrategies);
+      onSheet(dlg, 'click', function (e) { if (e.target === dlg) closeStrategies(); });
+      onSheet(dlg, 'close', function () { canvas.focus(); });
     })();
     (function () {
       var dlg = resultsSheet();
       if (!dlg) return;
-      dlg.querySelector('.rules-sheet-close').addEventListener('click', closeResults);
-      dlg.addEventListener('click', function (e) { if (e.target === dlg) closeResults(); });
-      dlg.addEventListener('close', function () {
+      onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeResults);
+      onSheet(dlg, 'click', function (e) { if (e.target === dlg) closeResults(); });
+      onSheet(dlg, 'close', function () {
         canvas.focus();
         if (resultsStay) { resultsStay = false; return; }
         markResultsOpen(false);
@@ -7080,6 +7088,8 @@
         if (reviewCoachTimer) { clearTimeout(reviewCoachTimer); reviewCoachTimer = null; }
         sound.stopMusic();
         detachWindow();
+        sheetListeners.forEach(function (l) { l[0].removeEventListener(l[1], l[2]); });
+        sheetListeners = [];
         canvas.removeEventListener('pointerdown', onPointerDown);
         canvas.removeEventListener('click', onCanvasClick);
         canvas.removeEventListener('pointermove', onPointerMove);

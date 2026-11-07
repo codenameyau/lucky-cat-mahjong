@@ -28,7 +28,7 @@ function fakeElement(id) {
       contains: (c) => classes.has(c),
     },
     addEventListener: (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); },
-    removeEventListener: () => {},
+    removeEventListener: (type, fn) => { listeners[type] = (listeners[type] || []).filter((f) => f !== fn); },
     querySelector: () => null,
     querySelectorAll: () => [],
     focus() {},
@@ -90,10 +90,29 @@ function fakeBrowser(start, store) {
 
 // Loads mahjong-game.js on a page at `url` (or on a history, see fakeBrowser)
 // and runs its init with stand-in tables.
-function loadPage(url, store) {
+// opts.realTables: the game's own tables, on a canvas that draws nothing.
+function loadPage(url, store, opts) {
+  opts = opts || {};
   const browser = fakeBrowser(url, store || {});
   const els = {};
   ['play-settings', 'play-stage', 'play-canvas', 'play-live', 'playback-canvas', 'playback-live'].forEach((id) => { els[id] = fakeElement(id); });
+  // The page's sheets, each with its Close button.
+  ['rules-sheet', 'strategies-sheet', 'results-sheet'].forEach((id) => {
+    const dlg = fakeElement(id);
+    dlg.closeButton = fakeElement(id + '-close');
+    dlg.querySelector = (sel) => (sel === '.rules-sheet-close' ? dlg.closeButton : null);
+    els[id] = dlg;
+  });
+  // A 2D context that takes every call and draws nothing.
+  const noop = new Proxy(function () {}, {
+    get: (t, k) => (k === 'width' ? 10 : k === Symbol.toPrimitive ? () => 0 : noop),
+    apply: () => noop,
+    set: () => true,
+  });
+  ['play-canvas', 'playback-canvas'].forEach((id) => {
+    els[id].getContext = () => noop;
+    els[id].getBoundingClientRect = () => ({ left: 0, top: 0, width: 1280, height: 800 });
+  });
   els['play-stage'].hidden = true;
   els['playback-canvas'].hidden = true;
   const intro = fakeElement('intro');
@@ -139,8 +158,25 @@ function loadPage(url, store) {
   window.globalThis = window;
   window.window = window;
   vm.createContext(window);
+  if (opts.realTables) {
+    // The game page's scripts, in its order (the ones before mahjong-game.js).
+    const html = fs.readFileSync(path.join(ROOT, 'play-mahjong/index.html'), 'utf8');
+    const srcs = [...html.matchAll(/<script src="\/js\/([^"]+)" defer><\/script>/g)].map((m) => m[1])
+      .filter((f) => f !== 'nav.js' && f !== 'mahjong-game.js');
+    delete window.MahjongEngine;
+    Object.assign(window, { navigator: {}, crypto: globalThis.crypto, TextEncoder, TextDecoder, Math, JSON, Date, Array, Object });
+    srcs.forEach((f) => vm.runInContext(fs.readFileSync(path.join(__dirname, f), 'utf8'), window, { filename: f }));
+  }
   vm.runInContext(GAME_SRC, window);
   const api = window.MahjongGame;
+  if (opts.realTables) {
+    window.requestAnimationFrame = () => 0;
+    window.performance = { now: () => Date.now() };
+    const real = api.createTable;
+    api.createTable = function () { const t = real.apply(this, arguments); made.push(t); return t; };
+    ready();
+    return { browser, els, made, flush: () => new Promise((r) => setImmediate(r)) };
+  }
   api.createTable = function (canvas, live, settings, callbacks, saved) {
     const t = {
       canvas: canvas.id, settings, callbacks, saved,
@@ -263,4 +299,31 @@ test('playback is part of the game page: no page of its own, no scripts of its o
   assert.match(old, /params\.set\('playback', '1'\)/);
   assert.doesNotMatch(old, /<script src=/);
   assert.doesNotMatch(GAME_SRC, /\/play-mahjong\/playback\//, 'nothing links to the old page');
+});
+
+test('opening playback again and again leaves one set of listeners on each sheet', async () => {
+  const page = loadPage('http://localhost/play-mahjong/', {}, { realTables: true });
+  const count = (el) => Object.values(el.listeners).reduce((n, list) => n + list.length, 0);
+  for (let i = 0; i < 4; i++) {
+    // Forward onto the playback entry, then Back off it.
+    page.browser.history.pushState({ lcmPlayback: true }, '', '/play-mahjong/?playback=1');
+    page.browser.winListeners.popstate.forEach((fn) => fn({}));
+    assert.equal(page.made.length, i + 1);
+    page.browser.history.back();
+    assert.equal(page.els['playback-canvas'].hidden, true, 'the view is closed');
+  }
+  ['rules-sheet', 'strategies-sheet', 'results-sheet'].forEach((id) => {
+    const dlg = page.els[id];
+    assert.equal(count(dlg), 0, id + ': a closed playback view leaves nothing behind');
+    assert.equal(count(dlg.closeButton), 0, id + ' Close: nothing left behind');
+  });
+  // Open once more: exactly one table's worth (Close, backdrop click, close).
+  page.browser.history.pushState({ lcmPlayback: true }, '', '/play-mahjong/?playback=1');
+  page.browser.winListeners.popstate.forEach((fn) => fn({}));
+  ['rules-sheet', 'strategies-sheet', 'results-sheet'].forEach((id) => {
+    const dlg = page.els[id];
+    assert.equal(dlg.listeners.click.length, 1, id + ': one backdrop click listener');
+    assert.equal(dlg.listeners.close.length, 1, id + ': one close listener');
+    assert.equal(dlg.closeButton.listeners.click.length, 1, id + ': one Close listener');
+  });
 });
