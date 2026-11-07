@@ -11,7 +11,9 @@
         It joins the league and becomes the best if it beats the best.
    The best model is shipped to js/mahjong-ml-weights.js as soon as it wins.
    State is in ml/league/state.json, so a stopped league picks up where it
-   left off.
+   left off. After each round, training data that neither the best model nor
+   the next rounds use goes to the Trash (scripts/ml/prune-data.js); every
+   model's weights and the evaluation reports stay.
 
    npm run ml:league -- --start ml/models/s5.json --rounds 10 --deals 100000
 
@@ -23,7 +25,10 @@
      --keep N          rounds of data to train on (default 4)
      --members N       league members besides the best (default 4)
      --sample P        chance each decision is recorded (default 0.12)
-     --eval-deals N    deals per evaluation, x4 seat rotations (default 2000)
+     --eval-deals N    deals per evaluation, x4 seat rotations (default 2000;
+                       a model-against-model score is about +/-50 points a hand
+                       at 2000 deals, +/-29 at 6000)
+     --anchor-every N  measure against the starting model every N rounds (default 1)
      --hidden a,b      the network's hidden layers (default 256,128)
      --dir DIR         state and log (default ml/league) */
 
@@ -33,6 +38,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { ship } = require('./ship.js');
+const { prune } = require('./prune-data.js');
 
 const ROOT = path.join(__dirname, '..', '..');
 const DATA_SEED = 10000000; // round r's deals start at DATA_SEED + r * 1,000,000
@@ -77,6 +83,7 @@ function headToHead(a, b, deals, seed, name) {
   const s = JSON.parse(fs.readFileSync(json, 'utf8')).summary;
   return {
     score: s[A].pointsPerHand - s[B].pointsPerHand,
+    margin: 2 * (s[A].pointsMargin || 0), // the score's 95% margin
     pointsPerHand: s[A].pointsPerHand,
     winRate: s[A].winRate,
     dealInRate: s[A].dealInRate,
@@ -85,7 +92,7 @@ function headToHead(a, b, deals, seed, name) {
 }
 
 function fmt(e) {
-  return (e.score >= 0 ? '+' : '') + e.score.toFixed(1) + ' points/hand (wins ' + (100 * (e.winRate || 0)).toFixed(1) +
+  return (e.score >= 0 ? '+' : '') + e.score.toFixed(1) + (e.margin ? ' \u00b1 ' + e.margin.toFixed(1) : '') + ' points/hand (wins ' + (100 * (e.winRate || 0)).toFixed(1) +
     '%, deal-ins ' + (100 * (e.dealInRate || 0)).toFixed(1) + '%, average win ' + Math.round(e.avgWinPoints || 0) + ')';
 }
 
@@ -100,6 +107,7 @@ function main() {
     members: parseInt(a.members || 4, 10),
     sample: parseFloat(a.sample || 0.12),
     evalDeals: parseInt(a['eval-deals'] || 2000, 10),
+    anchorEvery: parseInt(a['anchor-every'] || 1, 10),
     hidden: String(a.hidden || '256,128'),
   };
   fs.mkdirSync(DIR, { recursive: true });
@@ -133,9 +141,11 @@ function main() {
     const model = path.join('ml', 'models', name + '.json');
     const seed = EVAL_SEED + r * 10000;
     const vsBest = headToHead(model, state.best, args.evalDeals, seed, name + '-vs-best');
-    const vsAnchor = state.best === state.anchor ? vsBest : headToHead(model, state.anchor, args.evalDeals, seed, name + '-vs-anchor');
+    // Against the starting model every few rounds (it's slow, and the best is what decides).
+    const vsAnchor = state.best === state.anchor ? vsBest
+      : r % args.anchorEvery === 0 ? headToHead(model, state.anchor, args.evalDeals, seed, name + '-vs-anchor') : null;
     const kept = vsBest.score > 0;
-    log('Round ' + r + ': ' + name + ' against the best ' + fmt(vsBest) + '; against ' + path.basename(state.anchor, '.json') + ' ' + fmt(vsAnchor) +
+    log('Round ' + r + ': ' + name + ' against the best ' + fmt(vsBest) + (vsAnchor ? '; against ' + path.basename(state.anchor, '.json') + ' ' + fmt(vsAnchor) : '') +
       (kept ? ' -> new best' : ' -> kept ' + state.best));
     state.rounds.push({ name, data, model, vsBest, vsAnchor, against: state.best, kept, deals: args.deals });
     if (kept) {
@@ -145,6 +155,10 @@ function main() {
       log('Shipped ' + name + ' to js/mahjong-ml-weights.js');
     }
     fs.writeFileSync(STATE, JSON.stringify(state, null, 2) + '\n');
+    // Training data no model uses any more goes to the Trash (weights and reports stay).
+    const gone = prune({ apply: true, window: args.keep, league: DIR });
+    if (gone.moved) log('Moved to the Trash: ' + gone.names.join(', '));
+    else if (gone.reason) log('Unused data left in place (' + gone.reason + '): ' + gone.names.join(', '));
   }
   log('Done: ' + state.deals + ' deals. Best: ' + state.best);
 }
