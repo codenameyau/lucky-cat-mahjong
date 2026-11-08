@@ -20,6 +20,7 @@ In the game, the model runs in the browser in plain JavaScript, with no ML serve
 | [Fair play](fair-play.md) | How the models are kept from seeing the wall or another hand, and the test that checks it |
 | [Hugging Face](hugging-face.md) | Where the models and data live, and how they're uploaded |
 | [Iterations](iterations.md) | How each Neural Cat and Lucky Cat model was made, how it plays differently from the one before it, and what each step taught |
+| [Frontier plan](frontier-plan.md) | Suphx taken apart against Hong Kong rules, three rounds of critique, and the phased plan to make Lucky Cat the strongest Hong Kong mahjong player: privileged labels as targets, a tile-structured network, a distributional value, a league |
 
 ## Quick start
 

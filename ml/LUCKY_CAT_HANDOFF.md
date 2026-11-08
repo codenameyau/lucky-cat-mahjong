@@ -1,6 +1,6 @@
 # Lucky Cat: handoff for the Suphx rounds (then the futures rounds)
 
-Written 2026-11-08 for the machine that takes over Lucky Cat's training. Start from `master` once this PR is merged (0.57.9). **Run the Suphx lab first** ([below](#run-first-suphx-lucky-cat-suphx)). The futures rounds (LF) come after, if Suphx stalls. The shipped models are Lucky Cat lc32 and Neural Cat NC8 (N10c).
+Written 2026-11-08 for the machine that takes over Lucky Cat's training. Start from `master` once this PR is merged (0.57.9). **Run the Suphx lab first** ([below](#run-first-suphx-lucky-cat-suphx)): it is phase 0 of the [frontier plan](../docs/machine-learning/frontier-plan.md), which says what comes after it and when each phase is dropped. The futures rounds (LF) come after, if Suphx stalls. The shipped models are Lucky Cat lc32 and Neural Cat NC8 (N10c).
 
 ## The goal
 
