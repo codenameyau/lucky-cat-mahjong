@@ -1303,7 +1303,7 @@
         ? (mine + ' was the top choice. ' + (hint.why || '')).trim()
         : mine + ' is as good as ' + best + '.'] };
     }
-    var tips = ['The coach picks ' + best + '. ' + (hint.why || '')];
+    var tips = ['I pick ' + best + '. ' + (hint.why || '')];
     var action;
     if (slows) {
       action = 'That discard slows your hand.';
@@ -1339,7 +1339,7 @@
       if (chosen.tile === top.tile && hint.model) tips.push(hint.model);
       return { kind: 'feedback', action: 'Great discard.', tips: tips };
     }
-    var out = ['The coach picks ' + best + '. ' + (hint.why || ''),
+    var out = ['I pick ' + best + '. ' + (hint.why || ''),
       'Lucky Cat\'s network plays ' + best + ' ' + pct(top.ml.policy) + ' of the time, and ' + mine + ' ' + pct(chosen.ml.policy) + ' of the time.'];
     var action = steps ? 'That discard slows your hand.'
       : chosen.ml.policy >= top.ml.policy * 0.4 ? 'Good discard.' : 'There was a better discard.';
@@ -1356,7 +1356,7 @@
       if (chosen.tile === top.tile && hint.model) tips.push(hint.model);
       return { kind: 'feedback', action: 'Great discard.', tips: tips };
     }
-    var out = ['The coach picks ' + best + '. ' + (hint.why || '')];
+    var out = ['I pick ' + best + '. ' + (hint.why || '')];
     out.push('The model expects ' + pointsWord(top.ml.ev) + ' on average from ' + best + ', and ' + pointsWord(chosen.ml.ev) +
       ' from ' + mine + '.' + odds(best, top.ml, chosen.ml));
     var action = chosen.shanten > top.shanten ? 'That discard slows your hand.'
@@ -1381,7 +1381,7 @@
       return { kind: 'feedback', action: decision.type === 'pass' ? 'Good pass.' : 'Good call.', tips: [reason].filter(Boolean) };
     }
     var did = decision.type === 'pass' ? 'You passed.' : 'You took the ' + claimName(decision) + '.';
-    var action = coachType === 'pass' ? 'The coach would have passed.' : 'The coach would have called ' + coachSays + '.';
+    var action = coachType === 'pass' ? 'I would have passed.' : 'I would have called ' + coachSays + '.';
     return { kind: 'feedback', action: action, tips: [did + ' ' + reason] };
   }
 
@@ -1425,6 +1425,43 @@
     return fit(out);
   }
 
+  // Feedback on your move (training mode, and the playback's coach notes),
+  // said at the chosen detail. `hint` is the hint the feedback judged from:
+  // its plain reasons say why the coach preferred its pick.
+  //  - Complex: unchanged, with the model's numbers.
+  //  - Detailed: no numbers; the coach's reasons in plain words, as "I".
+  //  - Simple: the verdict and one short reason.
+  var SIMPLE_FEEDBACK = 160;
+  function shapeFeedback(fb, hint, detail) {
+    if (!fb || detail === 'complex' || DETAILS.indexOf(detail) === -1) return fb;
+    var out = {};
+    Object.keys(fb).forEach(function (k) { out[k] = fb[k]; });
+        var tips = (fb.tips || []).filter(function (t) { return t && !isModelTip(t); });
+    var praised = /^(Great|Good) /.test(fb.action || '');
+    var reasons = hint && !praised ? (detail === 'simple' ? hint.modelWhyClear : hint.modelWhy) || [] : [];
+    if (detail === 'detailed') {
+      if (reasons.length) tips.push(sentenceOf(reasons, 'I like it because '));
+      out.tips = tips;
+      return fit(out);
+    }
+    var why = clip(tips[0] || '', SIMPLE_FEEDBACK);
+    if (reasons.length) why = (why + ' ' + sentenceOf(reasons, 'I like it because ')).trim();
+    out.tips = why ? [why] : [];
+    return fit(out);
+  }
+
+  // A playback's table read (js/mahjong-analysis.js), said at the chosen
+  // detail: Simple keeps its first sentence, Detailed its first few, and
+  // Complex all of it. Its notes are about your hand ("you"), never the model.
+  var NOTE_ROOM = { simple: 140, detailed: 260 };
+  function shapeNote(note, detail) {
+    if (!note || !NOTE_ROOM[detail] || !note.detail) return note;
+    var out = {};
+    Object.keys(note).forEach(function (k) { out[k] = note[k]; });
+    out.detail = clip(note.detail, NOTE_ROOM[detail]);
+    return out;
+  }
+
   function fitted(f) {
     return function () { return fit(f.apply(null, arguments)); };
   }
@@ -1432,7 +1469,7 @@
   var api = {
     discardFeedback: fitted(discardFeedback), claimFeedback: fitted(claimFeedback), noteDiscard: noteDiscard,
     turnHint: fitted(turnHint), claimHint: fitted(claimHint), MAX_TEXT: MAX_TEXT, fit: fit,
-    shape: shape, DETAILS: DETAILS,
+    shape: shape, shapeFeedback: shapeFeedback, shapeNote: shapeNote, DETAILS: DETAILS,
     rankDiscards: rankDiscards, look: look, highlightPatterns: highlightPatterns,
   };
 
@@ -1445,7 +1482,7 @@
     var detail = opts && opts.detail;
     Object.keys(api).forEach(function (k) {
       var f = api[k];
-      if (typeof f !== 'function' || k === 'fit' || k === 'shape') { out[k] = f; return; }
+      if (typeof f !== 'function' || k === 'fit' || /^shape/.test(k)) { out[k] = f; return; }
       var spoken = k === 'turnHint' || k === 'claimHint';
       out[k] = function () {
         var prev = B;

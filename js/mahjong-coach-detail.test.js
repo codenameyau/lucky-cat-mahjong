@@ -91,3 +91,49 @@ test('Simple and Detailed speak as "I", never "the model"; Complex may say "the 
   }
   assert.match(words(hintFor('neural-cat', 'complex', 3)), /The model expects/);
 });
+
+// Feedback on a discard the coach did not pick: the worst-scored tile of the hint.
+function feedbackFor(id, detail, seed) {
+  const game = E.createGame({ seed, humanSeat: true, dealer: 0 });
+  E.startHand && E.startHand(game);
+  const coach = Coach.forStrategy(S.get(id).bot, { detail });
+  const hint = coach.turnHint(game, 0, E.turnOptions(game, 0));
+  if (!hint || !hint.candidates || hint.candidates.length < 2) return null;
+  const worst = hint.candidates[hint.candidates.length - 1].tile;
+  return Coach.shapeFeedback(coach.discardFeedback(hint, worst), hint, detail);
+}
+
+test('Feedback follows the coach setting: numbers only on Complex, "I" on Simple and Detailed', () => {
+  let complexNumbers = 0;
+  for (const id of ['neural-cat', 'jorge-yau', 'lucky-cat', 'only-orphans']) {
+    for (const seed of [3, 5, 9, 29]) {
+      const s = feedbackFor(id, 'simple', seed), d = feedbackFor(id, 'detailed', seed), c = feedbackFor(id, 'complex', seed);
+      if (!s) continue;
+      for (const [name, fb] of [['simple', s], ['detailed', d]]) {
+        const w = words(fb);
+        assert.doesNotMatch(w, /\bthe model\b|network plays|\bscore\b/i, name + ' ' + id + ' ' + seed + ': ' + w);
+        assert.ok(w.length <= Coach.MAX_TEXT);
+      }
+      assert.ok(s.tips.length <= 1, 'Simple gives one reason');
+      assert.ok(words(s).length <= words(d).length && words(d).length <= words(c).length + 120, id + ' ' + seed);
+      if (/model expects|network plays/.test(words(c))) complexNumbers++;
+    }
+  }
+  assert.ok(complexNumbers > 0, 'Complex still gives the model\'s numbers');
+  // The coach is always "I", Complex too.
+  for (const seed of [3, 5, 9, 29]) {
+    const c = feedbackFor('neural-cat', 'complex', seed);
+    if (c) assert.doesNotMatch(words(c), /The coach /);
+  }
+  const said = [3, 5, 9, 29].map((seed) => feedbackFor('neural-cat', 'detailed', seed)).filter(Boolean).map(words);
+  assert.ok(said.some((t) => /^.*I pick .* I like it because it /.test(t)), said.join(' | '));
+});
+
+test('The table read is shorter on Simple and Detailed, and whole on Complex', () => {
+  const note = { kind: 'analysis', action: 'A step slower than it needed to be.',
+    detail: 'Throwing Two Bamboo leaves the hand 2 tiles from ready; throwing Nine Circles keeps it 1 tile from ready, with 6 live tiles to improve it. Tiles that help: Three and Six Bamboo. 4 are still in the wall (2 in other hands). Vivien was ready on Five Circles, and Two Bamboo was not one of the tiles. That is a step back from last turn.' };
+  const s = Coach.shapeNote(note, 'simple'), d = Coach.shapeNote(note, 'detailed'), c = Coach.shapeNote(note, 'complex');
+  assert.equal(c.detail, note.detail);
+  assert.ok(s.detail.length <= 140 && d.detail.length <= 260 && s.detail.length < d.detail.length && d.detail.length < c.detail.length);
+  assert.match(s.detail, /^Throwing Two Bamboo leaves the hand 2 tiles from ready/);
+});
