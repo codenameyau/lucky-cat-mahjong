@@ -10,7 +10,7 @@ Every score here is **points a hand**: one player's average points per hand less
 
 | | Neural Cat | Lucky Cat |
 | --- | --- | --- |
-| In the game | **NC3** (lab model N2b) | **LC32** (lab model LL26b) |
+| In the game | **NC8** (lab model N10c) | **LC32** (lab model LL26b) |
 | What it is | A network that scores Jorge Yau's best choices in expected points | A network that makes every move itself, with no rules underneath |
 | What it plays for | Points: often and big wins on one scale | Points first, wins second (LC20 and before: wins, as many and as fast as it can) |
 | Trained on | 950,000 league hands (stopped in round 19, at a plateau), and earlier rounds against the rule bots | 1,000,000 league hands against its earlier selves and Neural Cat, then 100,000 lab hands against Neural Cat, Jorge Yau and its last two champions, every hand weighted by its points |
@@ -306,6 +306,43 @@ Starting from NC2 (L19), on 50,000 deals against L14, L16, L17, s5, Jorge Yau, L
 - **Result.** The slow fine-tune, N2b, beat NC2 by **+8.1 ± 18.3** points a hand on 20,000 fresh deals, winning 9.0% against 8.4% with deal-ins down from 6.0% to 5.7%: **J +11.4**, beyond its standard error. It ships as **NC3**. The deeper network was even (+1.2 ± 17.5); `topK` 2 lost badly on 6,000 deals (−40.9: more, smaller wins); recent-data-only and the claim margin lost too.
 - **What the bot does differently.** It wins a little more often and deals in a little less, with wins about the same size (1,896 against 1,963 points): the same style as NC2, slightly sharper. The gain is in J, mostly from the extra wins; the points alone are within their margin.
 
+### Lab round 3 (NC4): leaning toward wins
+
+- **Thinking.** Round 2's gain was mostly more wins, so the bandit pushed on that: the same network with `winBonus` 0 → 150, `topK` 3 → 4, a plain fine-tune, the slow fine-tune again and a deeper network.
+- **Result.** `winBonus` 150 (N3d) won on 6,000 deals (J +40.4) and held on 20,000 fresh ones: **+7.5 ± 17.5 points a hand, 12.2% of hands won against 8.7%, deal-ins 6.6% against 7.3%, J +25.3**, beyond its standard error. It ships as **NC4** with the NC3 weights and a new play setting. The plain fine-tune looked best on points (+26.7) and fell to −10.3 on 20,000 deals: rejected. `topK` 4 (+14.1) and the rest were not re-judged.
+- **What the bot does differently.** It wins about four hands in a hundred more, with smaller wins (1,347 against 1,853 points). It takes a ready hand over a bigger one that is further off.
+
+### Lab round 4 (NC5): learning from its own newest games
+
+- **Thinking.** NC4's games are a new style, and the old data is not. The bandit tried a fine-tune on the last three rounds only, a wider network from scratch, a faster fine-tune, a lower `winBonus` and a negative claim margin.
+- **Result.** The recent-data fine-tune (N4c) beat NC4 by **+4.9 ± 16.9** points a hand on 20,000 fresh deals, winning 12.6% against 11.4%: **J +11.1**. It ships as **NC5**. The faster fine-tune (J +3.5) was within the noise; the wider network, lower `winBonus` and claim margin did nothing.
+- **What the bot does differently.** The same style as NC4, a little sharper: slightly more wins, slightly smaller ones (1,220 against 1,275 points).
+
+### Lab rounds 5 and 6: nothing beat NC5
+
+- **Thinking.** Round 5 asked whether more of what worked would keep working: the slow fine-tune, a plain fine-tune, a wider network, `winBonus` 150 → 300 and `topK` 3 → 4. Round 6 repeated the fine-tunes, tried a deeper network, and nudged `winBonus` to 200 and `topK` to 5. Several looked good on 6,000 deals (the slow fine-tune J +23.6, `topK` 4 J +14.3).
+- **Result.** Every one that was re-judged on 20,000 fresh deals fell inside the noise: N5b J −2.9, N5e (`topK` 4) +8.5 (+14.3 points ± 17.4, not beyond its margin), N6b −5.2, N6d (`winBonus` 200) +4.7. NC5 stayed champion for two rounds.
+- **Self-critique.** A 6,000-deal result is about ±30 points, so the best of five candidates is mostly the luckiest of five. The 20,000-deal check did its job. The lab also kept picking the same experiments, so the next rounds leaned on the arms that had the best record and on the two play settings that had paid off before, `winBonus` and `topK`.
+
+### Lab round 7 (NC6): a bigger bonus for winning
+
+- **Thinking.** The plateau was in the network, not in what it was asked to do. Round 3 showed the choice (`winBonus`) mattered more than any re-training, so the bandit tried the next step of it: 150 → 300, with no new training.
+- **Result.** N7e beat NC5 by **+22.0 ± 16.9** points a hand on 20,000 fresh deals, winning 14.7% of hands against 12.3% with deal-ins 8.6% against 8.9%: **J +34.2**, the biggest gain since round 3. It ships as **NC6**. The recent-data fine-tune (N7b, J −0.6) did not hold on 20,000 deals.
+- **What the bot does differently.** It takes a ready hand over a bigger one that is further off more often: more wins, each smaller (1,070 against 1,176 points).
+
+### Lab round 8 (NC7): a wider choice
+
+- **Thinking.** With wins now worth more, the model may be right more often than Jorge Yau's ordering of discards lets it show. `topK` is how many of Jorge Yau's best discards the model reorders; 3 → 4 gives it one more to consider. A bigger `winBonus` (300 → 450) was tried too.
+- **Result.** `topK` 4 (N8e) beat NC6 by **+20.4 ± 17.1** points a hand on 20,000 fresh deals (wins 13.7% against 14.6%, average win 1,168 against 965): **J +15.8**. It ships as **NC7**. `winBonus` 450 (J +2.2) won more hands (15.9%) but with smaller wins, no better.
+- **What the bot does differently.** A little fewer wins than NC6 but bigger ones: the extra discard it can pick is sometimes a slower, larger hand.
+
+### Lab rounds 9 and 10 (NC8): a small step, then a plateau check
+
+- **Round 9.** The wider network, the fine-tunes, `winBonus` 250 and a claim margin of +25 all fell inside the noise (J +1.8 and +5.5 for the two that were re-judged). NC7 stayed champion.
+- **Round 10.** The 3× learning-rate fine-tune looked like a breakthrough on 6,000 deals (J +52.1) and was nothing on 20,000 (J +0.1, points +1.9 ± 17.5): rejected. The slow fine-tune (N10c, from NC7 on the lab's newest eight rounds of games) held: **+7.7 ± 16.9** points a hand, 14.5% of hands won against 13.5%, deal-ins 9.2% against 9.6%, **J +12.9**, beyond its standard error. It ships as **NC8**. `topK` 5 and the wider network did not beat NC7.
+- **What the bot does differently.** Slightly more wins and slightly fewer deal-ins than NC7, with a smaller average win (1,078 against 1,157 points): the same style, sharper.
+- **Where this leaves the lab.** Rounds 1 to 10 lifted J by about +100 in total, and about half of it came from two play settings that retrained nothing (`winBonus` and `topK`). The fine-tunes now give about +10 a round, near the lab's detection limit. The next gains likely need new information (a different training signal, or more diverse opponents), not more fine-tuning.
+
 ## Looking three discards ahead: tried, not shipped
 
 Not a new network: the same weights (NC2, LC20, O5), choosing differently. [What was built and the full numbers](decisions.md#looking-ahead-depth-tried-not-shipped).
@@ -545,7 +582,33 @@ Round 1's policy-gradient steps on one round of data were within the noise. In r
 **Status.** This ran in parallel with the lab rounds above, from LC20, and was merged after LC32 shipped. LC32 stays in the game; LP2b is kept in `ml/models/` for benchmarking. The points-first trainer and judge are now the lab's for Lucky Cat: its next rounds start from LC32 and are kept only when they score more points a hand. LP2b has not been played against LC32.
 
 
-## What the two show together
+### Critique: points first from lc32 learned to beat itself, not the table
+
+Thirteen points-first rounds from lc32 (LP1a to LP13a, 650,000 deals) kept six champions, and none shipped. What happened, and what changed:
+
+- **Head to head, it looked like progress.** LP11b beat lc32 by +4.0 ± 1.9 points a hand on 40,000 deals neither had played, and LP12b beat LP11b by +6.0 ± 2.1. Each kept champion won fewer hands than the one before, with bigger wins (lc32 about 160 points a win, LP11b 193, LP13a 218).
+- **At the game's table, it wasn't.** One seat each against two Neural Cats and Jorge Yau, on the same 5,000 deals rotated through every seat (`scripts/competition.js`): lc32 −103.7 ± 13.8 points a hand, LP11b −104.8 ± 15.0, LP12b −111.2 ± 14.9. Against Jorge Yau alone, LP11b lost 40.6 a hand to lc32's 32.0, and against Neural Cat NC3 it was level (−76.2 to −74.6).
+- **Why.** The lab trained and judged Lucky Cat against its own kind. Each training deal gave the learner two of the four seats and drew its last two champions into the opponents' pool, and the judge was head to head. Against a fast player of cheap hands, waiting for bigger hands pays: its deal-ins go into small hands, and the other Lucky Cat rarely builds a big one. Against Neural Cat, whose wins are worth about 1,800 points, and Jorge Yau, whose are worth about 400, the same waiting costs wins and deals into big hands. Points first was the right goal, measured at the wrong table.
+- **The judge is also noisier than it looked.** Head to head on 20,000 deals, one standard error was about 2.6 points a hand, and LP3c, LP5a and LP8b were each kept about one standard error ahead of the last without clearly beating lc32. Judging on 40,000 deals (from round 9) brought that to about 1.8, but it couldn't fix the table.
+
+**What changed.** The lab now trains and judges Lucky Cat at the game's table (`LC_TABLE` in `scripts/ml/lab.js`):
+- **Training:** one learner seat; the other three are drawn from Neural Cat (two in three) and Jorge Yau, with no earlier selves.
+- **Judging:** `lucky.js eval --table neural-cat,jorge-yau,neural-cat` seats the candidate and the champion alone at that table, each in every seat in turn, on the same 40,000 deals, paired deal by deal (one standard error about 3.5 points a hand).
+- **A fresh start from lc32**, with new names (LT models, `lctab` data); the head-to-head rounds are kept as LP models and `ml/lab-lucky-cat-points-h2h/`.
+
+### Critique: at the table, a whole hand's points are too noisy to learn from
+
+Four rounds at the game's table from lc32 (LT1a to LT4c, 200,000 deals, bold mode in the fourth) kept nothing. Of the eight candidates that looked ahead on the screen, the four that went on to 40,000 fresh deals all came out level or behind: LT1c −4.2 ± 2.7 points a hand, LT2b −9.3 ± 3.0, LT2a −1.1 ± 2.7, LT4c −1.8 ± 2.6, LT4b −0.6 ± 2.8. Two things were wrong:
+
+- **The training signal was mostly luck.** Every move was credited with the hand's points. At this table those are decided mostly by the others: Neural Cat's wins are worth about 1,800 points, and whether one comes rarely turns on a single Lucky Cat move. The critic, which should explain what a position is worth, explained none of the reward's variance (−1.2% in round 1), so each move's advantage was the hand's luck. A few hundred thousand moves can't average that out.
+- **The screen picked the luckiest arm.** On 6,000 deals one standard error at the table is about 7 points a hand, more than the gains looked for (2 to 5). So the arms that screened best were the ones the deals favoured: LT4c screened at +11.4 and LT4b at +10.4, and both were level on 40,000 deals.
+
+**What changed: move by move, from replays.** The game is deterministic given the deal and every choice, so the lab can ask what a single move was worth:
+- **Replays (`lucky.js generate --rollouts`):** the champion plays its best in one seat at the table. At up to 4 of its real choices a hand (the ones it was least sure of more often), the deal is played again from the start with each of its 2 next-best moves forced there, and every player playing its best otherwise. The wall and every other choice are the same, so the gap in points between a replay and the hand is that one move's worth on that wall. About a third of the forced moves change the hand's points, and about one in six does better than the champion's move.
+- **Training (`train_lucky.py --mode q`):** the target for each choice is the champion's shares times exp(advantage / tau), and the network is fitted to it. A move that scored more on the same wall gets more of the share, by an amount tau sets (in points), and choices where the replays changed nothing keep the champion's shares, so the step stays small where the evidence is.
+- **A longer screen:** Lucky Cat's candidates are screened on 15,000 deals (about ±4.5) before the best two play 40,000.
+- **New names:** LR models and `lcroll` data, from lc32 again. The table rounds above are kept as LT models and `ml/lab-lucky-cat-table-pg/`.
+
 
 - **What a model optimizes is what you get.** Neural Cat scores choices in expected points and learned bigger hands. Lucky Cat scores wins and learned faster, smaller ones. Neither is "better" in general: Neural Cat scores more points, and Lucky Cat wins more hands.
 - **Building on rules gets far faster than starting from scratch.** Neural Cat was ahead of the rule bots from its first model, because it chooses among Jorge Yau's best options. Lucky Cat needed a million hands to learn what the rules already knew, but it isn't limited by them.
@@ -578,6 +641,34 @@ It wins two and a half times as often, with wins worth half as much: Concealed T
 - **What it does differently.** Against OL2c on the same 40,000 deals, both with the targets: it wins 2.8% of hands to 4.4% (4,543 wins to 7,052), each worth about 5,500 points to 3,200 (9.4 faan to 7.5). The wins it gives up are Seven Pairs (1,733 to 4,665). It wins more Concealed Triplets (961 to 578), dragon pungs (800 to 484) and All Triplets (369 to 259), and more limit hands (1,743 to 1,662), with Thirteen Orphans about level (1,347 to 1,419). It pungs more (0.10 a hand to 0.07) and kongs more (3,977 to 2,957). It deals in about as often (13.5% to 13.1%), for about the same points (28.0 a hand to 27.2).
 - **Reading.** The targets alone, with OL2c's weights, won many cheap Seven Pairs. Fine-tuned on its own games with them, the network's discards and claims keep more hands on the way to pungs, so the target settles on Concealed Triplets or triplets more often than Seven Pairs, which pays 4 faan. That is the "fewer, bigger hands" drift the fixed-family lab kept losing to, but here it wins. A Seven Pairs win was worth too little to pay for the pung hands it gave up.
 - **Result.** J +7.0 on 40,000 fresh deals (points +14.8 ± 9.3, paired), beyond its standard error: kept, and shipped as **OT1a**. Against the rule-based bot on those deals: +74.0 ± 9.7 points a hand (OL2c with the targets: +59.3). J counts wins too, and OT1a's fewer wins cost it 7.8 of the 14.8 points.
+
+### OT2d: fewer pungs
+
+- **Thinking.** Round 2 played 50,000 deals with OT1a against Neural Cat, Jorge Yau, Lucky Cat, O5 and OL2c, then tried a deeper and a wider network from scratch on the two rounds of target data (J −17.9 and −34.1 on 6,000 deals: two rounds aren't enough to train from scratch), three times the learning rate (`finetune-fast`, +4.9), and win bonus +50 (+1.1). The claim margin arm, `claimMargin+50`, led with +6.1, and with a paired margin of ±5.1 already on 6,000 deals.
+- **What it does differently.** It is OT1a's network, taking a pung or kong only when it scores 50 points more than passing. Against OT1a on the same 40,000 deals: it pungs a discard about a fifth as often (3,174 pungs to 15,389) and kongs more (5,370 to 3,919), and more of its wins are concealed (4,173 to 4,056). It wins as often (2.7% to 2.8%), each a little bigger (5,906 points to 5,759, 9.5 faan either way). It wins fewer All Triplets (164 to 319), Mixed Orphans (386 to 522) and dragon pungs (663 to 760), with Thirteen Orphans (1,401 to 1,373), Concealed Triplets (934 to 915) and Seven Pairs (1,750 to 1,686) about level. It deals in just as often (13.4%), for a little less (24.7 points a hand to 24.9).
+- **Reading.** The network rated most pungs of 1s, 9s and honors only a little above passing. A pung shows a meld, which ends Thirteen Orphans and the pairs hands and fixes the triplets target. Kept concealed, the pair can still become a concealed pung or kong, or the eyes of a bigger hand. The fixed-family lab had found the same direction with `claimMargin+25`, which cut deal-ins whenever it was tried, but its margins were too wide to keep it.
+- **Result.** J +2.4 on 40,000 fresh deals (points +2.5 ± 1.9, paired), beyond its standard error: kept, and shipped as **OT2d**. Only a few choices change, so the paired margin is narrow. Against the rule-based bot on those deals: +77.9 ± 9.8 points a hand (OT1a: +75.4).
+
+### OT4a: more wins, a few of them small
+
+- **Thinking.** Round 3, from OT2d, kept nothing: `finetune-wins` (a fine-tune, then win bonus +300) led with J +20.2 on 6,000 deals but fell to +3.9 on 40,000 (points +0.4 ± 9.4), under the bar of half the margin. It won more (3.4% to 2.7%) but smaller (4,627 points to 5,848). Round 4 played 50,000 more deals with OT2d against Neural Cat, Jorge Yau, Lucky Cat, OL2c and OT1a, so four rounds of data with the targets, then tried `finetune-wins` again (+10.8 on 6,000 deals), `finetune-fast` (+15.1), `finetune-slow` (+1.2), win bonus +50 (+2.8) and claim margin 75 (+2.1). Both fine-tunes sent to 40,000 deals passed: `finetune-fast` J +7.2 (points +6.5 ± 9.7) and `finetune-wins` +14.8.
+- **What it does differently.** Against OT2d on the same 40,000 deals: it wins 3.5% of hands to 2.7% (5,521 wins to 4,361). Most of the extra wins are Seven Pairs (2,876 to 1,792), and its limit hands hold up (1,864 to 1,796, Thirteen Orphans 1,450 to 1,409, Concealed Triplets 943 to 902). Each win is smaller (4,827 points to 5,746, 8.6 faan to 9.5), and more are self-drawn (1,366 to 1,011). It pungs less (2,043 to 3,038), with the same claim margin of 50, and deals in a little less (13.1% to 13.3%, 25.0 points a hand to 26.4).
+- **Reading.** Two things changed at once: the network trained on four rounds of target data, and its play adds 300 points times the chance to win to every choice. The bonus tips close calls toward the hand more likely to finish, which brings back some of the Seven Pairs OT1a gave up, without giving up the limit hands. Win bonus +50 alone on OT2d's network was +2.8 on 6,000 deals, so most of the gain is the bonus being big, the new network, or the two together. In the fixed-family lab every candidate drifted to fewer, bigger hands and lost. Here the arm built to push back against that drift was kept, on its second try.
+- **Result.** J +14.8 on 40,000 fresh deals (points +11.2 ± 9.5, paired), beyond its standard error: kept, and shipped as **OT4a**. Against the rule-based bot on those deals: +79.8 ± 9.8 points a hand (OT2d: +68.7).
+
+### OT5e: a bigger win bonus
+
+- **Thinking.** Round 5 played 50,000 deals with OT4a against Neural Cat (NC3), Jorge Yau, Lucky Cat, OT1a and OT2d, then tried `finetune-wins` again (J −3.9 on 6,000 deals: a second bonus of +300 on top of OT4a's), `recent` (−7.3), `finetune-fast` (+11.6, then +0.3 on 40,000 deals, points −2.0 ± 10.1, rejected), and win bonuses of 250 (+1.0) and 450 (+2.9). On 40,000 deals the win bonus of 450 kept its lead: the paired margin of a play setting is narrow.
+- **What it does differently.** It is OT4a's network, with a win bonus of 450 instead of 300. Against OT4a on the same 40,000 deals: it wins 3.8% of hands to 3.5% (6,154 wins to 5,592), most of the extra ones Seven Pairs (3,371 to 2,842), with limit hands (1,898 to 1,880) and Thirteen Orphans (1,485 to 1,477) level. Each win is smaller (4,436 points to 4,837, 8.4 faan to 8.7), more are self-drawn (1,533 to 1,403), and it deals in just as often (12.9%, 23.7 points a hand either way).
+- **Reading.** The same direction as OT4a, one step further: more of the close calls go to the hand more likely to finish, and those are Seven Pairs. The points gain alone, +1.9 ± 2.0, is within its margin, so the lab kept it on J, which counts each extra percentage point of hands won as 5 points a hand. Two signs of where it ends: `finetune-wins`, which stacks another +300 on OT4a, lost (−3.9), and `winBonus-50` back to 250 was about level (+1.0). Neither is clean evidence (the first is a new network too), so the next rounds will show how far the bonus can go.
+- **Result.** J +3.7 on 40,000 fresh deals (points +1.9 ± 2.0, paired), beyond its standard error: kept, and shipped as **OT5e**. Against the rule-based bot on those deals: +81.8 ± 10.0 points a hand (OT4a: +79.9).
+
+### OT6e: win bonus 500, a hair better
+
+- **Thinking.** Round 6 was the first against Neural Cat NC5 (with Jorge Yau, Lucky Cat, OT2d and OT4a). Every network the lab trained lost on 6,000 deals: `finetune` J −16.1, `finetune-slow` −20.4, `deep` from scratch −23.9. So did a win bonus of 400 (−2.3). Only a win bonus of 500 led (+1.6), and it was the only candidate with J above 0, so the only one sent to 40,000 deals.
+- **What it does differently.** It is OT5e with a win bonus of 500 instead of 450. Against OT5e on the same 40,000 deals: it wins 3.87% of hands to 3.76% (6,190 wins to 6,011), the extra ones Seven Pairs (3,576 to 3,406), each win a little smaller (3,961 points to 4,073). Limit hands (1,735 each), pungs, kongs and deal-ins are the same.
+- **Reading.** A real gain, but a small one. The paired margin of a play setting that changes few choices is narrow (±1.0 point a hand here), so the keep rule, J beyond half its margin, passes steps this small. The win bonus has now gone 0 → 300 → 450 → 500, and each step gained less: J +14.8 (with a new network), +3.7, +1.0. It is close to where more win bonus stops paying. The trained networks are the bigger question. Three in a row lost to OT5e's on 6,000 deals, with six rounds of data and a new Neural Cat at the table. Since OT4a, the gains have come from play settings on that one network.
+- **Result.** J +1.0 on 40,000 fresh deals (points +0.5 ± 1.0, paired), beyond its standard error: kept, and shipped as **OT6e**. Against the rule-based bot on those deals: +75.3 ± 9.4 points a hand (OT5e: +74.8). The table changed to NC5, so scores against the rule-based bot from round 6 on don't compare directly with earlier rounds.
 
 ## Where the files are
 

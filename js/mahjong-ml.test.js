@@ -135,9 +135,12 @@ describe('Neural Cat strategy', () => {
     const game = dealt(23);
     const res = ML.analyzeDiscards(game, 0);
     // Among the foundation's best three, the model's favourite goes first.
-    const evs = res.candidates.slice(0, 3).map((x) => x.ml.ev);
+    // "Most" is the value the choice uses: expected points plus the win bonus
+    // (the weights' own play setting) for each 100% of win chance.
+    const bonus = (ML.model && ML.model.meta && ML.model.meta.play && ML.model.meta.play.winBonus) || 0;
+    const evs = res.candidates.slice(0, 3).map((x) => x.ml.ev + bonus * x.ml.pWin);
     assert.deepEqual(evs, evs.slice().sort((a, b) => b - a));
-    const free = ML.create({ model: ML.model, topK: 0 }).analyzeDiscards(dealt(23), 0).candidates.map((x) => x.ml.ev);
+    const free = ML.create({ model: ML.model, topK: 0, winBonus: 0 }).analyzeDiscards(dealt(23), 0).candidates.map((x) => x.ml.ev);
     assert.deepEqual(free, free.slice().sort((a, b) => b - a));
     const why = res.candidates[0].ml.why;
     assert.equal(why.length, Object.keys(F.GROUPS).length);
@@ -204,8 +207,11 @@ describe('Neural Cat strategy', () => {
           claims++;
           assert.equal(read.choices[0].decision.type, 'pass');
           assert.deepEqual(d.decision, read.choices[read.pick].decision);
-          const top = Math.max.apply(null, read.choices.map((x) => x.ml.ev));
-          assert.ok(read.pick === read.foundation || read.choices[read.pick].ml.ev === top);
+          // The pick maximizes expected points plus the weights' win bonus per 100% of win chance.
+          const bonus = (ML.model && ML.model.meta && ML.model.meta.play && ML.model.meta.play.winBonus) || 0;
+          const val = (x) => x.ml.ev + bonus * x.ml.pWin;
+          const top = Math.max.apply(null, read.choices.map(val));
+          assert.ok(read.pick === read.foundation || val(read.choices[read.pick]) === top);
           read.choices.forEach((x) => assert.ok(Number.isFinite(x.ml.ev) && !x.ml.features));
           if (claims === 1) {
             const hint = Coach.claimHint(g, s, o);

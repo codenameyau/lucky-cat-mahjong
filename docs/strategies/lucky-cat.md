@@ -157,6 +157,14 @@ Against Jorge Yau, on the same 20,000 deals for both (two seats each):
 - **It is still Lucky Cat.** The change is small: 100,000 hands of training, a tenth of the league's million. Jorge Yau still beats it by about 88 points a hand, mostly because Jorge Yau's wins are worth more than twice as much and it deals in about two-thirds as often.
 - **One hand's points are mostly luck.** A position barely predicts what a hand will pay (the critic explains well under 1% of it), so each step needs tens of thousands of hands, and most experiments were within the noise.
 
+### Points first from lc32: beating itself, not the table
+
+The lab then ran thirteen points-first rounds from lc32 (models LP1a to LP13a), trained with two learner seats and its own last champions in the pool, and judged head to head. Its champions beat lc32 head to head by 4 to 6 points a hand, with fewer, bigger wins, but at the game's table (one seat against two Neural Cats and Jorge Yau, 5,000 deals in every seat) they didn't: lc32 −103.7 ± 13.8 points a hand, LP11b −104.8 ± 15.0, LP12b −111.2 ± 14.9. So none shipped, and the lab now trains and judges Lucky Cat at that table, from lc32 ([the critique](../machine-learning/iterations.md#critique-points-first-from-lc32-learned-to-beat-itself-not-the-table)).
+
+### At the table: one move at a time
+
+Four rounds at the table (LT1a to LT4c) kept nothing: crediting every move with its whole hand's points taught it mostly luck, since at that table the points are decided mostly by Neural Cat's big wins. So the lab now replays deals: at a few of lc32's choices a hand, the same deal is played again with its next-best moves forced, and the network learns from the points each move scored on the same wall (LR models; [the critique](../machine-learning/iterations.md#critique-at-the-table-a-whole-hands-points-are-too-noisy-to-learn-from)).
+
 ## What the coach says
 
 The coach's words about the hand (what to go for, the waits, the threats) come from the classic rules' reads. What to do is the network's move. Its line says how often the network plays that move, and the next most likely one, for example "Lucky Cat's network plays this discard 62% of the time. Next most likely is 5 Bamboo: 21% of the time." For a claim or a kong it gives the share of each choice: "Lucky Cat's network would pung Red Dragon 60% of the time, and pass 40% of the time." After your discard, it is a great discard when the network gives your tile at least 80% of its top pick's share.
