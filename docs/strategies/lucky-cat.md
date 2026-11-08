@@ -167,6 +167,10 @@ Four rounds at the table (LT1a to LT4c) kept nothing: crediting every move with 
 
 Three rounds of that (LR1a to LR3c) kept nothing that held. On the same wall a move is judged by tiles the player can't see yet. So at each replayed choice the lab now reshuffles the wall still to be drawn 4 ways and plays every move on the same 4 futures, learning from the mean (LF models; [the critique](../machine-learning/iterations.md#critique-on-one-wall-a-move-is-judged-by-a-future-no-player-can-see)).
 
+### Suphx: an oracle teacher
+
+The lab now also trains Lucky Cat the way Suphx, Microsoft's mahjong AI, was trained: with the hidden tiles in view during training only. At every recorded choice the data knows what each discard would pay if it dealt in right now. A teacher takes lc32's shares and pushes those discards down by what they'd cost. The network, reading only its own seat, is fitted to that teacher, so it learns how dangerous each tile looks from what it can see. The aim is to keep its win rate and lose fewer points to deal-ins. A model ships only if its points beat lc32's at the game's table and its hands won hold. The thinking, the probes and the arms are in [iterations](../machine-learning/iterations.md#suphx-for-lucky-cat-an-oracle-teacher-not-an-oracle-critic); `npm run ml:lab -- --strategy lucky-cat-suphx` runs it.
+
 ## What the coach says
 
 The coach's words about the hand (what to go for, the waits, the threats) come from the classic rules' reads. What to do is the network's move. Its line says how often the network plays that move, and the next most likely one, for example "Lucky Cat's network plays this discard 62% of the time. Next most likely is 5 Bamboo: 21% of the time." For a claim or a kong it gives the share of each choice: "Lucky Cat's network would pung Red Dragon 60% of the time, and pass 40% of the time." After your discard, it is a great discard when the network gives your tile at least 80% of its top pick's share.
