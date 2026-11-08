@@ -639,6 +639,8 @@ The game never loads that file. `ship.js` refuses a model that reads the hidden 
 
 **What changed: an oracle teacher, distilled (`ml/train_lucky.py --mode oracle`).** At every recorded choice, the teacher is lc32's shares with each discard that would deal in pushed down by what it would pay: its share is divided by e for each `--danger-tau` points. The network reads only the seat's view and is fitted to the teacher. The best it can do from that view is to learn how likely each tile is to deal in, choice by choice, with none of the hand's luck. On those 5,000 deals, its shares on held-out choices would pay 2.91 points a choice to deal-ins right now, against lc32's 3.38 (−14%), with a KL of 0.0004 from lc32, so the rest of its play barely moves.
 
+**A first check at the table.** That model (tau 400, 4 epochs on those 5,000 deals) played lc32 at the game's table over 2,000 fresh deals, each taking every seat in turn on the same deals: **+14.8 ± 6.7 points a hand**, hands won 24.89% vs 24.96%, deal-ins 13.04% vs 13.38%. That's about two standard errors on a small sample, not the lab's bar of the full margin on 40,000 deals, so it's a reason to run the lab, not a result to ship. Its average win was a little smaller (152 vs 159 points).
+
 **The Suphx lab (`npm run ml:lab -- --strategy lucky-cat-suphx`):**
 - **Arms:** `teach` (tau 400, the last round), `teach-2`, `teach-sharp` (tau 100), `teach-soft` (tau 1,000), and bold `teach-bold` (tau 50).
 - **`guided`:** Suphx's oracle guiding. The same teacher, but the network also reads the hidden tiles at first, each kept with a chance that falls from 1 to 0 over the epochs, then it is written without them (`--oracle-anneal 1,0 --public`).
