@@ -272,9 +272,9 @@ The Coach button in the top bar cycles three modes, and all of them work in ever
 
 **Coach settings** (Menu, Coach settings) set how much the coach says, with three choices, kept as `coachDetail` in `lcm-play-prefs` and applied at once to the hint on screen:
 
-- **Simple** (the default) — What to do and one short reason why, such as *Discard Two Bamboo. Not Circles or an honor.* A learned coach adds what it likes about the tile in plain words (*The model likes it because it gets you ready fastest.*), never a score
-- **Detailed** — Adds the hand you are going for, the threats, and the model's reasons in plain words (*The model picks it because it keeps a bigger hand in reach.*), still with no score
-- **Complex** — Everything the models weigh: the expected score, the chance to win and what a win pays, and the next best choice (the coach as it was before the setting)
+- **Simple** (the default) — What to do and one short reason why, such as *Discard Two Bamboo. Not Circles or an honor.* A learned coach adds what it likes about the tile in plain words (*I like it because it gets you ready fastest.*), never a score
+- **Detailed** — Adds the hand you are going for, the threats, and my reasons in plain words (*I pick it because it keeps a bigger hand in reach.*), still with no score
+- **Complex** — The only level that says "the model" (Simple and Detailed speak as "I"). Everything the models weigh: the expected score, the chance to win and what a win pays, and the next best choice (the coach as it was before the setting)
 
 The plain reasons come from the feature groups that put the model's pick furthest ahead (`speed`, `value`, `safety`, `table`, `hand`, `discard`, `context`; `GROUP_PLAIN` in `js/mahjong-coach.js`). Simple leaves out the three vague ones (the tile itself, the tiles you keep, the stage of the game). The setting is applied by `Coach.forStrategy(bot, { detail })`; with no detail the coach says everything, so other callers and the tests are unchanged. A win declaration reads the same at every level. The playback analysis table keeps its own wording.
 
