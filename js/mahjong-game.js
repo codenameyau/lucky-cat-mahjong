@@ -2299,7 +2299,7 @@
     var COACH_OPTIONS = [
       { id: 'simple', name: 'Simple', note: 'What to do, and one short reason why.', example: 'Discard Two Bamboo. Not Circles or an honor. I like it because it gets you ready fastest.' },
       { id: 'detailed', name: 'Detailed', note: 'Adds the hand you are going for, the threats, and why I like my pick.', example: 'Discard Two Bamboo. Not Circles or an honor. Go for Half Flush in Circles. I pick it because it keeps a bigger hand in reach.' },
-      { id: 'complex', name: 'Complex', note: 'Talks like the models do ("the model"): expected score, chance to win, and the next best choice.', example: 'Discard Two Bamboo. Not Circles or an honor. Go for Half Flush in Circles. The model expects +67 score on average, with a 3% chance to win. Next best discard is Six Bamboo: +48 score.' },
+      { id: 'complex', name: 'Complex', note: 'Talks the way the models do: expected score, chance to win, and the next best choice.', example: 'Discard Two Bamboo. Not Circles or an honor. Go for Half Flush in Circles. The model expects +67 score on average, with a 3% chance to win. Next best discard is Six Bamboo: +48 score.' },
     ];
 
     function coachSettingsSheet() {
