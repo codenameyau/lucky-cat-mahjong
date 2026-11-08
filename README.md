@@ -25,7 +25,7 @@ The learned bot, Neural Cat, is on Hugging Face:
 - [Personality quiz](#which-mahjong-tile-are-you-quiz-which-mahjong-tiles-are-you)
 - [Play Mahjong](#play-hong-kong-mahjong-play-mahjong)
   - Playing: [Game modes](#game-modes) · [Rules and scoring](#rules-and-scoring) · [Saving and resuming](#saving-and-resuming) · [Hand seeds](#hand-seeds) · [Playback](#playback) · [Auto-play](#auto-play-development-only)
-  - Bots and coach: [Strategies](#strategies) · [Bots](#bots) · [Coach](#coach) · [Bot competition](#bot-competition) · [Neural Cat training and models](#neural-cat-training-and-models) · [Hand review and feedback](#hand-review-and-feedback)
+  - Bots and coach: [Strategies](#strategies) · [Bots](#bots) · [Coach](#coach) · [Bot competition](#bot-competition) · [Training the models](#training-the-models) · [The frontier plan](#the-frontier-plan) · [Hand review and feedback](#hand-review-and-feedback)
   - Table: [Table and layouts](#table-and-layouts) · [Sound and music](#sound-and-music)
   - For developers: [Machine learning](docs/machine-learning/README.md) · [Analytics](docs/analytics/README.md) · [Testing tip](#testing-tip)
 - [Other pages](#other)
@@ -216,14 +216,16 @@ On a development address (`localhost`, `127.x.x.x`, `192.168.x.x`, `10.x.x.x`, `
 
 #### Strategies
 
-Every bot plays a named strategy, built on the shared foundation in `js/mahjong-bot.js` with `MahjongBot.createStrategy({ id, hooks, tuning })`.
-| Strategy | File | Style | Playbook |
+Every bot plays a named strategy. The rule-based ones are built on the shared foundation in `js/mahjong-bot.js` with `MahjongBot.createStrategy({ id, hooks, tuning })`; the learned ones decide with a neural network.
 
+| Strategy | File | Style | Playbook |
 | --- | --- | --- | --- |
-| **lucky-cat** | `js/mahjong-lucky-cat.js` | Tracks every discard and plays the odds to the fastest 3-faan win | [lucky-cat.md](docs/strategies/lucky-cat.md) |
+| **lucky-cat** | `js/mahjong-lucky-cat-ml.js` | A neural network that taught itself from random play and makes every move itself: wins often and fast, mostly with small hands of 4 to 5 faan | [lucky-cat.md](docs/strategies/lucky-cat.md) |
 | **jorge-yau** | `js/mahjong-jorge-yau.js` | Reads the opening hand and builds toward one target hand, attacks with no defense until it's slow late, and locks onto a hand worth 7 faan or more | [jorge-yau.md](docs/strategies/jorge-yau.md) |
 | **only-orphans** | `js/mahjong-only-orphans.js` | Big hands built on 1s, 9s and honors (Thirteen Orphans, their triplets or pairs, Concealed Triplets, Seven Pairs), the target picked by expected points; a model trained by self-play decides how (`npm run ml:orphans`) | [only-orphans.md](docs/strategies/only-orphans.md) |
 | **neural-cat** | `js/mahjong-ml.js` | Plays Jorge Yau's hands, and a neural network trained on simulated games picks the discard, claim or kong worth the most points on average | [neural-cat.md](docs/strategies/neural-cat.md) |
+
+Lucky Cat's original rules are still in the code as **lucky-cat-classic** (`js/mahjong-lucky-cat.js`): tracks every discard and plays the odds to the fastest 3-faan win. It's a lab strategy, not on the Strategies sheet, but `npm run compete` and `npm run review` can play it.
 
 - The **Strategies** button in the top bar (`js/mahjong-strategies.js`) describes each one and shows who plays which
 - The coach's pick is saved in `localStorage` (`lcm-play-strategies`), and the coach defaults to lucky-cat. The computer players are never saved: each plays a random strategy every game
@@ -374,9 +376,9 @@ Background music is three CC BY 4.0 tracks by Kevin MacLeod (Guzheng City, Sheny
 - It prints each strategy's points per hand, wins, self-draws, deal-ins, points paid, average faan, limit hands, concealed wins, claims per hand, the patterns in its wins and its net points against each other strategy
 - Code: `js/mahjong-competition.js`, `scripts/competition.js`. More in [docs/strategies/README.md](docs/strategies/README.md#competition)
 
-#### Neural Cat training and models
+#### Training the models
 
-Neural Cat's network is trained on simulated hands. How the whole AI layer works (features, model, decisions, training, the league, fair play, Hugging Face) is in [docs/machine-learning](docs/machine-learning/README.md), and the strategy's playbook, with every result, is [docs/strategies/neural-cat.md](docs/strategies/neural-cat.md).
+Neural Cat's, Lucky Cat's and Only Orphans' networks are trained on simulated hands. How the whole AI layer works (features, model, decisions, training, the league, fair play, Hugging Face) is in [docs/machine-learning](docs/machine-learning/README.md), and the strategy's playbook, with every result, is [docs/strategies/neural-cat.md](docs/strategies/neural-cat.md).
 
 - **Models**: [huggingface.co/codenameyau/lucky-cat-mahjong](https://huggingface.co/codenameyau/lucky-cat-mahjong). `neural-cat/neural-cat.json` is the model the game ships (the same file as `js/mahjong-ml-weights.js`), and `neural-cat/models/` holds every model that became the best, with a model card of the results
 - **Training data**: [huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games](https://huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games). **Training data is not published unless the maintainer explicitly asks for it**: it runs to gigabytes a round, and every set can be played again from its manifest. Models are published as they ship. What's there now: the sets the shipped model trained on and the league's rounds at the time, in the format `npm run ml:generate` writes, with a dataset card that explains it. Older sets keep only their manifest, which says how to play them again
@@ -396,6 +398,23 @@ Neural Cat's network is trained on simulated hands. How the whole AI layer works
 | `node scripts/ml/prune-data.js --apply` | Moves training data no model uses from `ml/data/` to the Trash (the league does this after every round) |
 
 Uploads go over git and SSH, so your SSH key must be on your Hugging Face account, the repos must already exist, and the data needs [Git LFS](https://git-lfs.com) (`brew install git-lfs`). Local data, models and upload copies (`ml/data/`, `ml/models/`, `ml/hf/`) aren't committed.
+
+#### The frontier plan
+
+[The frontier plan](docs/machine-learning/frontier-plan.md) is how Lucky Cat is meant to become the strongest Hong Kong mahjong player. It takes Suphx, Microsoft's mahjong AI for Japanese riichi, apart against Hong Kong rules (no riichi, no placement bonus, payouts that double with each faan, only the discarder pays), argues the design through four rounds of critique, and lays out the phases:
+
+| Phase | What | Bar to pass |
+| --- | --- | --- |
+| 0 | Suphx teacher: the hidden tiles show which discards would deal in, and the network learns from that teacher (built: `--strategy lucky-cat-suphx`) | +10 points a hand over lc32 |
+| 1 | New inputs (who threw what, in order; engine facts such as shanten and live waits) on the current network, with the hidden tiles as prediction targets | +25 more; deal-ins at the table ≤ 11% |
+| 2 | A tile-structured network (tokens per tile kind) with a policy and a value per tile | +20 more, within 10 ms a move in the browser |
+| 3 | A value over how the hand ends and at what faan, regularized policy iteration, value-guided exploration, a league | +40 more; points a hand at the game's table ≥ 0 |
+| 3b, 4 | Search: offline as a teacher, then optionally at play ("thinks longer") | +15, then +20 |
+
+- **The benchmark**: two Neural Cat NC8 and Jorge Yau, frozen; a fixed deck of 40,000 deals; one number per model, its **Table Score** (points a hand at that table).
+- **The bar for a next generation**: two standard errors better on 40,000 fresh paired deals, **replicated** on another 40,000, with the win rate held and no loss to any earlier generation or league opponent.
+- **Two lineages** on the same benchmark: **Lucky Cat**, carrying on from lc32 with its own methods, and **Sphinx**, trained from random weights on the new architecture.
+- **Fair play**: training may use the hidden tiles as labels and as a teacher, never as the shipped model's inputs. `ship.js` refuses a model that reads them, and the fair-play test catches one that plays through the training hook ([fair play](docs/machine-learning/fair-play.md)).
 
 #### Hand review and feedback
 
