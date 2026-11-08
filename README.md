@@ -511,91 +511,91 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 ## Project structure
 
 ```
-├── .pages.yml              # Pages CMS configuration
-├── CNAME                   # Custom domain
-├── index.html              # Homepage
-├── community/              # Community event recaps
-├── events/                 # Upcoming events and tickets
-├── hong-kong-mahjong-scoring/ # Scoring guide + interactive Points Guide
-├── which-mahjong-tiles-are-you/ # Tile quiz + a generated page per tile
-├── play-mahjong/           # Play page: the game's options (mode, Start, Resume, Learn to play)
-├── playing-mahjong/        # The game: canvas table and its playback view
-├── sw.js                   # Service worker: the Points Guide, the options page and the game offline
-├── 404.html                # Custom not-found page
-├── logo.png / logo.webp    # Club logo
+├── .pages.yml                           # Pages CMS configuration
+├── CNAME                                # Custom domain
+├── index.html                           # Homepage
+├── community/                           # Community event recaps
+├── events/                              # Upcoming events and tickets
+├── hong-kong-mahjong-scoring/           # Scoring guide + interactive Points Guide
+├── which-mahjong-tiles-are-you/         # Tile quiz + a generated page per tile
+├── play-mahjong/                        # Play page: the game's options (mode, Start, Resume, Learn to play)
+├── playing-mahjong/                     # The game: canvas table and its playback view
+├── sw.js                                # Service worker: the Points Guide, the options page and the game offline
+├── 404.html                             # Custom not-found page
+├── logo.png / logo.webp                 # Club logo
 ├── css/
-│   ├── styles.css          # Shared styles and design tokens
-│   ├── community.css       # Community page styles
-│   ├── events.css          # Events page styles
-│   ├── points.css          # Points Guide styles
-│   ├── tile-quiz.css       # Tile quiz styles
-│   ├── play.css            # Play page styles
-│   ├── 404.css             # 404 page styles
-│   └── fonts.css           # Web font (KN Yuanmo SC)
-├── js/                     # Each has a *.test.js beside it where noted below
-│   ├── main.js             # Loads CMS data and renders the home page (tested)
-│   ├── main.harness.js     # Test harness for the homepage renderer
-│   ├── nav.js              # Shared header nav (loads data/nav.json)
-│   ├── canonical-redirect.js # Sends /path/index.html to /path/
-│   ├── community.js        # Community page renderer (tested)
-│   ├── points.js           # Tile data, reference, and the faan calculator (tested)
-│   ├── points.harness.js   # Test harness for the scoring calculator
-│   ├── tile-quiz.js        # Quiz copy, scoring and page (tested)
-│   ├── tile-quiz-art.js    # Quiz tile characters as inline SVG
-│   ├── mahjong-engine.js   # Play: rules engine, shanten, claims, settlement (tested)
-│   ├── mahjong-bot.js      # Play: bot engine and the rules every strategy shares
-│   ├── mahjong-lucky-cat.js # Play: the lucky-cat strategy (tested)
-│   ├── mahjong-lucky-cat-ml.js # Play: Lucky Cat's learned discards
-│   ├── mahjong-lucky-cat-net.js # Play: Lucky Cat's network, in plain JS
-│   ├── mahjong-lucky-cat-weights.js # Play: its shipped model (generated)
-│   ├── mahjong-jorge-yau.js # Play: the jorge-yau strategy
-│   ├── mahjong-only-orphans.js # Play: the only-orphans strategy (learned)
-│   ├── mahjong-only-orphans-weights.js # Play: its shipped model (generated)
-│   ├── mahjong-ml.js       # Play: Neural Cat, the learned strategy (tested)
-│   ├── mahjong-ml-features.js # Play: what the model sees of a position
-│   ├── mahjong-ml-model.js # Play: the neural network, in plain JS
-│   ├── mahjong-ml-weights.js # Play: the shipped model (generated)
-│   ├── mahjong-analysis.js # Playback: the face-up table read (tested)
-│   ├── mahjong-strategies.js # Play: strategy list and the Strategies sheet (tested)
-│   ├── mahjong-competition.js # Play: strategies against each other
-│   ├── mahjong-coach.js    # Play: the coach (tested)
-│   ├── mahjong-rules.js    # Play: the Rules sheet (tested)
-│   ├── mahjong-lesson.js   # Play: Learn to play, the scripted lesson
-│   ├── play-options.js     # Options page: mode, Start, Resume, Learn to play
-│   ├── offline-cache.js    # Offline: the saved file list, version and cache logic (tested)
-│   ├── offline.js          # Offline: registers the service worker on the three pages
-│   └── mahjong-game.js     # Play: canvas table, animation, sound
+│   ├── styles.css                       # Shared styles and design tokens
+│   ├── community.css                    # Community page styles
+│   ├── events.css                       # Events page styles
+│   ├── points.css                       # Points Guide styles
+│   ├── tile-quiz.css                    # Tile quiz styles
+│   ├── play.css                         # Play page styles
+│   ├── 404.css                          # 404 page styles
+│   └── fonts.css                        # Web font (KN Yuanmo SC)
+├── js/                                  # Each has a *.test.js beside it where noted below
+│   ├── main.js                          # Loads CMS data and renders the home page (tested)
+│   ├── main.harness.js                  # Test harness for the homepage renderer
+│   ├── nav.js                           # Shared header nav (loads data/nav.json)
+│   ├── canonical-redirect.js            # Sends /path/index.html to /path/
+│   ├── community.js                     # Community page renderer (tested)
+│   ├── points.js                        # Tile data, reference, and the faan calculator (tested)
+│   ├── points.harness.js                # Test harness for the scoring calculator
+│   ├── tile-quiz.js                     # Quiz copy, scoring and page (tested)
+│   ├── tile-quiz-art.js                 # Quiz tile characters as inline SVG
+│   ├── mahjong-engine.js                # Play: rules engine, shanten, claims, settlement (tested)
+│   ├── mahjong-bot.js                   # Play: bot engine and the rules every strategy shares
+│   ├── mahjong-lucky-cat.js             # Play: the lucky-cat strategy (tested)
+│   ├── mahjong-lucky-cat-ml.js          # Play: Lucky Cat's learned discards
+│   ├── mahjong-lucky-cat-net.js         # Play: Lucky Cat's network, in plain JS
+│   ├── mahjong-lucky-cat-weights.js     # Play: its shipped model (generated)
+│   ├── mahjong-jorge-yau.js             # Play: the jorge-yau strategy
+│   ├── mahjong-only-orphans.js          # Play: the only-orphans strategy (learned)
+│   ├── mahjong-only-orphans-weights.js  # Play: its shipped model (generated)
+│   ├── mahjong-ml.js                    # Play: Neural Cat, the learned strategy (tested)
+│   ├── mahjong-ml-features.js           # Play: what the model sees of a position
+│   ├── mahjong-ml-model.js              # Play: the neural network, in plain JS
+│   ├── mahjong-ml-weights.js            # Play: the shipped model (generated)
+│   ├── mahjong-analysis.js              # Playback: the face-up table read (tested)
+│   ├── mahjong-strategies.js            # Play: strategy list and the Strategies sheet (tested)
+│   ├── mahjong-competition.js           # Play: strategies against each other
+│   ├── mahjong-coach.js                 # Play: the coach (tested)
+│   ├── mahjong-rules.js                 # Play: the Rules sheet (tested)
+│   ├── mahjong-lesson.js                # Play: Learn to play, the scripted lesson
+│   ├── play-options.js                  # Options page: mode, Start, Resume, Learn to play
+│   ├── offline-cache.js                 # Offline: the saved file list, version and cache logic (tested)
+│   ├── offline.js                       # Offline: registers the service worker on the three pages
+│   └── mahjong-game.js                  # Play: canvas table, animation, sound
 ├── scripts/
-│   ├── serve.py            # Local dev server that turns off caching
-│   ├── format-media.js     # CLI: optimize media/ images and sync community.json
-│   ├── format-media-lib.js # Shared image-formatting logic (tested)
-│   ├── generate-tile-pages.js # Quiz: per-tile pages and preview images
-│   ├── tile-pages-lib.js   # Shared tile-page logic (tested)
-│   ├── competition.js      # CLI: npm run compete
-│   ├── ml/                 # Neural Cat: data, self-play, the league, Hugging Face uploads
-│   ├── review.js           # CLI: npm run review, replay a seed and give feedback
-│   ├── review-lib.js       # Shared review logic (tested)
-│   ├── generate-guide.js   # Printable rules booklet PDF
-│   └── licensing-agreement.js # Licensing agreement PDF
-├── ml/                     # train.py and requirements.txt (local data, models and the venv are gitignored)
+│   ├── serve.py                         # Local dev server that turns off caching
+│   ├── format-media.js                  # CLI: optimize media/ images and sync community.json
+│   ├── format-media-lib.js              # Shared image-formatting logic (tested)
+│   ├── generate-tile-pages.js           # Quiz: per-tile pages and preview images
+│   ├── tile-pages-lib.js                # Shared tile-page logic (tested)
+│   ├── competition.js                   # CLI: npm run compete
+│   ├── ml/                              # Neural Cat: data, self-play, the league, Hugging Face uploads
+│   ├── review.js                        # CLI: npm run review, replay a seed and give feedback
+│   ├── review-lib.js                    # Shared review logic (tested)
+│   ├── generate-guide.js                # Printable rules booklet PDF
+│   └── licensing-agreement.js           # Licensing agreement PDF
+├── ml/                                  # train.py and requirements.txt (local data, models and the venv are gitignored)
 ├── docs/
-│   ├── README.md           # Index of the docs
-│   ├── analytics/          # Google Analytics setup, privacy and every event
-│   ├── offline/            # The service worker and what works offline
-│   ├── machine-learning/   # Neural Cat: features, model, decisions, training, fair play, Hugging Face
-│   └── strategies/         # Bot and coach playbooks, and feedback.json
-├── assets/                 # Music, sounds, PDFs and images
-├── package.json            # npm scripts
-├── tiles/                  # Hong Kong mahjong tile SVGs (CC0, see credit below)
+│   ├── README.md                        # Index of the docs
+│   ├── analytics/                       # Google Analytics setup, privacy and every event
+│   ├── offline/                         # The service worker and what works offline
+│   ├── machine-learning/                # Neural Cat: features, model, decisions, training, fair play, Hugging Face
+│   └── strategies/                      # Bot and coach playbooks, and feedback.json
+├── assets/                              # Music, sounds, PDFs and images
+├── package.json                         # npm scripts
+├── tiles/                               # Hong Kong mahjong tile SVGs (CC0, see credit below)
 ├── data/
-│   ├── site.json           # Site settings, copy & hero stats
-│   ├── nav.json            # Header navigation links
-│   ├── services.json       # Service offerings
-│   ├── rates.json          # Pricing table
-│   ├── testimonials.json   # Social proof / reviews
-│   ├── faq.json            # Frequently asked questions
-│   └── community.json      # Community page events & photos
-├── media/                  # Uploaded event photos (via Pages CMS)
+│   ├── site.json                        # Site settings, copy & hero stats
+│   ├── nav.json                         # Header navigation links
+│   ├── services.json                    # Service offerings
+│   ├── rates.json                       # Pricing table
+│   ├── testimonials.json                # Social proof / reviews
+│   ├── faq.json                         # Frequently asked questions
+│   └── community.json                   # Community page events & photos
+├── media/                               # Uploaded event photos (via Pages CMS)
 ├── sitemap.xml
 └── robots.txt
 ```
