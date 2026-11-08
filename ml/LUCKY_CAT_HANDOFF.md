@@ -71,6 +71,10 @@ npm run ml:lab -- --strategy lucky-cat bench --model ml/models/<name>.json --aga
 
 One round is about 20,000 replayed deals plus six training arms and 15,000 + 40,000 judging deals: plan on an hour or more on 8 cores. On a new machine there is no `ml/lucky/` league state and no `ml/models/lc*.json`, so the lab starts from the shipped weights with no earlier selves. That is how it's meant to run (the table has no earlier selves since lc32).
 
+## The bar for a new generation
+
+The plan's §9 sets the bar every shipped model must clear, and it is stricter than the lab's keep rule today: a gap of **two standard errors on 40,000 fresh paired deals, replicated on another 40,000**, hands won within one standard error, no loss beyond one standard error to any earlier generation or league opponent, and the fair-play checks. Until the lab enforces it in code, apply it by hand before shipping: after the lab keeps a model, rerun `bench` on another 40,000 deals with a new seed and ship only if it clears two standard errors again.
+
 ## What to check each round (keep the win rate)
 
 The keep rule is points first. A candidate can lose a point or two of win rate and still be kept if its points go up. The goal here is to keep the win rate, so **before shipping, check that the champion's hands won are no lower than lc32's by more than one standard error (about ±0.4 points of win rate on 40,000 deals).** Hand by hand, also look at:
