@@ -622,6 +622,31 @@ Three rounds of replays (LR1a to LR3c, 90,000 deals, against NC5) kept one model
 - **A stricter keep bar:** Lucky Cat's points must beat the full margin (about two standard errors), not half of it.
 - **New names:** LF models and `lcfut` data, from lc32, against NC8. The one-wall rounds are kept as LR models and `ml/lab-lucky-cat-one-wall/`.
 
+### Suphx for Lucky Cat: an oracle teacher, not an oracle critic
+
+Lucky Cat still loses points at the game's table, mostly through deal-ins. lc32 deals in on about 17.6% of hands, and there a Neural Cat win is worth about 1,800 points. So the lab now tries the ideas in Suphx ([Li et al. 2020](https://arxiv.org/abs/2003.13590)), Microsoft's mahjong AI: train with the hidden tiles in view (the "oracle"), then take them away. A Hong Kong hand settles on its own, so Suphx's global reward prediction (for a game of many rounds) isn't needed. Its run-time adaptation is too slow for a bot in the browser.
+
+**The hidden tiles, for training only.** `lucky.js generate --oracle` records, beside the seat's 376 features, 312 more (`scripts/ml/oracle.js`):
+- each other player's concealed tiles, their waits, and how far they are from ready;
+- the live wall and its next tile;
+- for each tile the seat holds, the points it would pay if it discarded that tile now, from the engine's own win check (`claimOptions`) and score.
+
+The game never loads that file. `ship.js` refuses a model that reads the hidden tiles, and `scripts/ml/oracle.test.js` checks both.
+
+**What the probes showed (lc32 at the table, 5,000 deals, 108,559 choices):**
+- **A critic with every tile in view doesn't help.** On the hand's points, a critic explained −1.2% of the variance with the hidden tiles and −1.4% without (−12% to −14% when trained longer: it overfits). The fault is the target: one hand's points are decided mostly by one discard, and a critic scores the position, not the move. A squared-error critic didn't change that. Predicting how the hand ends (win, deal-in, someone else wins, draw), the hidden tiles moved the held-out loss only from 1.2186 to 1.2116.
+- **The answer key per move is sharp.** At 4.2% of choices a discard would deal in right now, and lc32 played one 685 times in those 5,000 deals (25 times in 400 deals, at 628 points each on average).
+
+**What changed: an oracle teacher, distilled (`ml/train_lucky.py --mode oracle`).** At every recorded choice, the teacher is lc32's shares with each discard that would deal in pushed down by what it would pay: its share is divided by e for each `--danger-tau` points. The network reads only the seat's view and is fitted to the teacher. The best it can do from that view is to learn how likely each tile is to deal in, choice by choice, with none of the hand's luck. On those 5,000 deals, its shares on held-out choices would pay 2.91 points a choice to deal-ins right now, against lc32's 3.38 (−14%), with a KL of 0.0004 from lc32, so the rest of its play barely moves.
+
+**The Suphx lab (`npm run ml:lab -- --strategy lucky-cat-suphx`):**
+- **Arms:** `teach` (tau 400, the last round), `teach-2`, `teach-sharp` (tau 100), `teach-soft` (tau 1,000), and bold `teach-bold` (tau 50).
+- **`guided`:** Suphx's oracle guiding. The same teacher, but the network also reads the hidden tiles at first, each kept with a chance that falls from 1 to 0 over the epochs, then it is written without them (`--oracle-anneal 1,0 --public`).
+- **`pg-oc`:** Suphx's RL stage. A policy gradient with the hidden-tile critic and an adaptive entropy bonus (`--target-entropy`), kept to see whether more data changes the probe.
+- **Judging:** at the table, as lucky-cat. Points must beat the full margin, and hands won may not fall more than one standard error below the champion's: keep the win rate, gain points.
+- **Names:** LS models and `lcsx` data, from lc32. State in `ml/lab-lucky-cat-suphx/`.
+
+
 
 - **What a model optimizes is what you get.** Neural Cat scores choices in expected points and learned bigger hands. Lucky Cat scores wins and learned faster, smaller ones. Neither is "better" in general: Neural Cat scores more points, and Lucky Cat wins more hands.
 - **Building on rules gets far faster than starting from scratch.** Neural Cat was ahead of the rule bots from its first model, because it chooses among Jorge Yau's best options. Lucky Cat needed a million hands to learn what the rules already knew, but it isn't limited by them.

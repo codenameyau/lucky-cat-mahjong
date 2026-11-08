@@ -60,6 +60,43 @@ fits the network to it (cross-entropy): moves that scored more on the same
 wall get more of the share, by an amount --tau sets, so the new model stays
 close to the champion where the replays say little.
 
+Suphx (Li et al. 2020, arXiv:2003.13590), with data from lucky.js generate
+--oracle, whose rows also hold the hidden tiles (scripts/ml/oracle.js):
+
+  --oracle-critic    the critic also reads the hidden tiles (training only),
+                     so it explains far more of a hand's points and each
+                     move's advantage is far less luck. The policy still
+                     reads only the seat's view.
+  --oracle-delta D   oracle guiding: the policy reads the hidden tiles too,
+                     each input kept with chance D. --oracle-anneal A,B
+                     lowers it from A to B over the epochs (Suphx drops the
+                     oracle inputs gradually, until the agent plays on its
+                     own view). Its model keeps the extra columns, marked
+                     meta.oracle, for lucky.js to play while training; it
+                     can't ship.
+  --public           writes the model without the hidden tiles' columns:
+                     the normal agent, after the oracle is gone (delta 0).
+                     An oracle --init is sliced the same way, and a public
+                     --init starts an oracle model with those columns at 0,
+                     so it starts by playing exactly as the public model.
+  --reject-ratio R   Suphx's normal-agent stage: drops the moves whose share
+                     now is more than R times (or less than 1/R of) the
+                     share they were played with, since the data was played
+                     by the oracle.
+  --target-entropy H adjusts the entropy bonus as it trains to keep the
+                     policy's entropy near H (Suphx's adaptive entropy).
+  --mode oracle      an oracle teacher, distilled: at every recorded choice
+                     the data knows what each discard would pay right now
+                     (a player who can win on it). The teacher is the
+                     champion's shares times exp(-points paid / --danger-tau),
+                     so a discard that deals in loses its share by what it
+                     would cost, and the network (reading only the seat's
+                     view, unless --oracle-delta) is fitted to it. The best
+                     it can do from its own view is to read how likely each
+                     tile is to deal in, choice by choice, with none of the
+                     hand's luck. Choices with a discard that would deal in
+                     count --danger-weight times.
+
 Writes ml/models/<name>.json (float16 base64) and checks the JS model gives
 the same outputs.
 """
@@ -78,6 +115,11 @@ import torch.nn as nn
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUTPUTS = 74
 HIDDEN = [256, 128]
+# The seat's own features per row (the rest, with --oracle data, are the hidden tiles).
+PUBLIC = [None]
+# Where the danger row (each discard's points paid now) starts in an --oracle row.
+DANGER_AT = [None]
+CRITIC_LOSS = ['mse']
 
 
 def load_q(dirs):
@@ -196,7 +238,11 @@ def load(dirs, returns=False):
     size = version = None
     for di, d in enumerate(dirs):
         meta = json.load(open(os.path.join(ROOT, d, 'meta.json')))
+        if size is not None and meta['featureSize'] != size:
+            raise SystemExit(d + ' has ' + str(meta['featureSize']) + ' features a row, the others ' + str(size) + ' (mix --oracle data only with --oracle data)')
         size, version = meta['featureSize'], meta['featureVersion']
+        PUBLIC[0] = ((meta.get('oracle') or {}).get('publicSize')) or size
+        DANGER_AT[0] = (meta.get('oracle') or {}).get('dangerAt')
         if returns and not meta.get('returns'):
             raise SystemExit(d + ' has no returns (generate it with --returns)')
         temp = float((meta.get('job') or {}).get('temperature') or 1)
@@ -259,7 +305,10 @@ def fit_critic(X, R, train_idx, score_idx, dev, epochs, rng):
         perm = rng.permutation(train_idx)
         for s in range(0, len(perm), 2048):
             idx = torch.from_numpy(perm[s:s + 2048])
-            loss = nn.functional.smooth_l1_loss(c(X[idx].to(dev)), R[idx].to(dev))
+            # Squared error: the critic must learn the mean points (a baseline); a
+            # Huber loss on these heavy-tailed rewards learns closer to the median.
+            pred, tgt = c(X[idx].to(dev)), R[idx].to(dev)
+            loss = nn.functional.mse_loss(pred, tgt) if CRITIC_LOSS[0] == 'mse' else nn.functional.smooth_l1_loss(pred, tgt)
             opt.zero_grad()
             loss.backward()
             opt.step()
@@ -294,19 +343,36 @@ def main():
     ap.add_argument('--weight-decay', type=float, default=1e-4)
     ap.add_argument('--smoothing', type=float, default=0.05)
     # Points first (data from lucky.js generate --returns).
-    ap.add_argument('--mode', choices=['imitate', 'pg', 'awr', 'q'], default='imitate')
+    ap.add_argument('--mode', choices=['imitate', 'pg', 'awr', 'q', 'oracle'], default='imitate')
+    ap.add_argument('--danger-tau', type=float, default=100.0, help='--mode oracle: the points paid that divide a discard\'s share by e')
+    ap.add_argument('--danger-weight', type=float, default=4.0, help='--mode oracle: weight of a choice with a discard that deals in')
     ap.add_argument('--tau', type=float, default=100.0, help='--mode q: the points of advantage that multiply a share by e')
     ap.add_argument('--reward', choices=['points', 'sqrt'], default='points', help='the hand\'s points, or their signed square root')
     ap.add_argument('--reward-clip', type=float, default=4000)
     ap.add_argument('--win-bonus', type=float, default=0, help='points added to the reward of a hand won')
     ap.add_argument('--critic-epochs', type=int, default=3)
+    ap.add_argument('--critic-loss', choices=['mse', 'huber'], default='mse', help='the critic\'s loss (huber was the default before Suphx)')
     ap.add_argument('--clip', type=float, default=0.2)
     ap.add_argument('--entropy', type=float, default=0.003)
     ap.add_argument('--kl-max', type=float, default=0.03)
     ap.add_argument('--beta', type=float, default=1.0)
     ap.add_argument('--neg-weight', type=float, default=0.0)
     ap.add_argument('--hidden', help='hidden layer sizes, e.g. 512,256 (a new network: --init is ignored)')
+    # Suphx (data from lucky.js generate --oracle).
+    ap.add_argument('--oracle-critic', action='store_true', help='the critic also reads the hidden tiles')
+    ap.add_argument('--oracle-delta', type=float, help='the policy reads the hidden tiles, each kept with this chance')
+    ap.add_argument('--oracle-anneal', help='A,B: lower the oracle delta from A to B over the epochs')
+    ap.add_argument('--public', action='store_true', help='write the model without the hidden tiles\' columns')
+    ap.add_argument('--reject-ratio', type=float, default=0, help='drop moves whose share moved more than this factor from the one played')
+    ap.add_argument('--target-entropy', type=float, default=0, help='adapt the entropy bonus to keep the entropy near this')
     args = ap.parse_args()
+    CRITIC_LOSS[0] = args.critic_loss
+    if args.oracle_anneal:
+        a0, a1 = [float(v) for v in args.oracle_anneal.split(',')]
+        args.oracle_delta = a0 if args.oracle_delta is None else args.oracle_delta
+        args.anneal = (a0, a1)
+    else:
+        args.anneal = None if args.oracle_delta is None else (args.oracle_delta, args.oracle_delta)
     hidden = [int(v) for v in args.hidden.split(',')] if args.hidden else None
     # A fine-tune keeps the shape of the model it starts from (lc30 and on
     # can be wider than the original 256, 128).
@@ -321,7 +387,8 @@ def main():
         net, x, va, n, size, version, best, meta_train = train_q(args, hidden, init_hidden)
         export(args, net, x, va, n, size, version, best, hidden, init_hidden, {'objective': 'points', 'train': meta_train}, t0)
         return
-    rl = args.mode != 'imitate'
+    teacher = args.mode == 'oracle'
+    rl = args.mode not in ('imitate', 'oracle')
     loaded = load(args.data, rl)
     x, a, legal, w, size, version = loaded[:6]
     neg = w < 0
@@ -332,10 +399,17 @@ def main():
         neg = w < 0
     n = len(a)
     print(f'{n} samples from {len(args.data)} rounds ({x.shape[1]} features), {int(neg.sum())} of them deal-ins')
+    P = PUBLIC[0] or size
+    if (args.oracle_critic or args.anneal) and P == size:
+        raise SystemExit('--oracle-critic and --oracle-delta need data from lucky.js generate --oracle')
+    # The policy's inputs: the seat's view, plus the hidden tiles for an oracle policy.
+    IN = size if args.anneal else P
+    if args.anneal:
+        print(f'oracle guiding: the policy reads {size - P} hidden-tile inputs, kept with chance {args.anneal[0]} to {args.anneal[1]}')
     torch.manual_seed(1)
     dev = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f'training on {dev}' + (f' ({torch.cuda.get_device_name(0)})' if dev == 'cuda' else ''))
-    net = Net(size, args.dropout, hidden or init_hidden)
+    net = Net(IN, args.dropout, hidden or init_hidden)
     if args.init and hidden:
         print('a new ' + args.hidden + ' network: --init ' + args.init + ' ignored')
         with torch.no_grad():
@@ -344,11 +418,9 @@ def main():
     elif args.init:
         init = json.load(open(os.path.join(ROOT, args.init)))
         if not (init.get('meta') or {}).get('random'):
-            with torch.no_grad():
-                for l, src in zip(net.layers, init['layers']):
-                    l.weight.copy_(torch.from_numpy(floats(src['w'], init.get('dtype')).reshape(src['rows'], src['cols'])))
-                    l.bias.copy_(torch.from_numpy(floats(src['b'], init.get('dtype'))))
-            print('from ' + args.init)
+            load_init(net, init)
+            print('from ' + args.init + ('' if init['layers'][0]['cols'] == IN else
+                  f' ({init["layers"][0]["cols"]} inputs to {IN}: the hidden tiles\' columns ' + ('start at 0' if IN > init['layers'][0]['cols'] else 'dropped') + ')'))
         else:
             # Small last layer: the new model starts close to random moves.
             with torch.no_grad():
@@ -377,6 +449,7 @@ def main():
     # Wins keep their mean weight of 1; each deal-in counts --neg-weight.
     W = torch.where(Neg, torch.full_like(W, args.neg_weight), W / W[~Neg].mean())
     rl_stats = {}
+    teacher_stats = {}
     if rl:
         r = np.clip(ret['r'], -args.reward_clip, args.reward_clip) + args.win_bonus * (ret['o'] == 0)
         if args.reward == 'sqrt':
@@ -388,8 +461,10 @@ def main():
         f = fold[inv]
         one, two = np.nonzero(f)[0], np.nonzero(~f)[0]
         v = np.zeros(n, dtype=np.float32)
-        v[two] = fit_critic(X, R, one, two, dev, args.critic_epochs, rng)
-        v[one] = fit_critic(X, R, two, one, dev, args.critic_epochs, rng)
+        # Suphx: a critic that sees the hidden tiles (training only) explains far more of the luck.
+        XC = X if args.oracle_critic else X[:, :P]
+        v[two] = fit_critic(XC, R, one, two, dev, args.critic_epochs, rng)
+        v[one] = fit_critic(XC, R, two, one, dev, args.critic_epochs, rng)
         adv = R.numpy() - v
         explained = 1 - float(np.var(adv)) / max(1e-9, float(np.var(R.numpy())))
         adv = np.clip((adv - adv.mean()) / (adv.std() + 1e-8), -5, 5)
@@ -398,14 +473,60 @@ def main():
         TEMP = torch.from_numpy(ret['t'])
         rl_stats = {'hands': int(len(hands)), 'rewardScale': scale, 'criticExplained': explained,
                     'meanPoints': float(ret['r'].mean())}
-        print(f'{len(hands)} hands, reward scale {scale:.1f}, the critic explains {100 * explained:.1f}% of the reward\'s variance')
-        ref = Net(size, 0.0, hidden or init_hidden).to(dev)
+        print(f'{len(hands)} hands, reward scale {scale:.1f}, the critic' + (' (with the hidden tiles)' if args.oracle_critic else '') +
+              f' explains {100 * explained:.1f}% of the reward\'s variance')
+        rl_stats['oracleCritic'] = bool(args.oracle_critic)
+        ref = Net(IN, 0.0, hidden or init_hidden).to(dev)
         ref.load_state_dict(net.state_dict())
         ref.eval()
 
+    # The policy's inputs: the seat's view, then (oracle guiding) the hidden
+    # tiles, each kept with chance delta[0] (Suphx's dropout of the oracle).
+    delta = [args.anneal[0] if args.anneal else 0.0]
+    gen = torch.Generator().manual_seed(7)
+
+    def pin(xb):
+        if IN == P:
+            return xb[:, :P]
+        keep = (torch.rand(xb.shape[0], IN - P, generator=gen) < delta[0]).to(xb.device, xb.dtype)
+        return torch.cat([xb[:, :P], xb[:, P:IN] * keep], dim=1)
+
+    if teacher:
+        if DANGER_AT[0] is None:
+            raise SystemExit('--mode oracle needs data from lucky.js generate --oracle')
+        at = DANGER_AT[0]
+        COST = torch.zeros(n, OUTPUTS)
+        COST[:, :34] = X[:, at:at + 34] * 1024
+        COST = COST.masked_fill(~Lg, 0)
+        risky = (COST > 0).any(1)
+        TW = torch.where(risky, torch.full((n,), args.danger_weight), torch.ones(n))
+        TW = TW / TW.mean()
+        print(f'{int(risky.sum())} choices ({100 * float(risky.float().mean()):.1f}%) had a discard that would deal in now; '
+              f'the champion played one {int(((COST.gather(1, A[:, None])[:, 0]) > 0).sum())} times')
+        ref = Net(IN, 0.0, hidden or init_hidden).to(dev)
+        ref.load_state_dict(net.state_dict())
+        ref.eval()
+
+    def teacher_loss(idx):
+        xb, lb, cb, wb = X[idx].to(dev), Lg[idx].to(dev), COST[idx].to(dev), TW[idx].to(dev)
+        xin = pin(xb)
+        logp = torch.log_softmax(net(xin).masked_fill(~lb, -1e9), dim=1)
+        with torch.no_grad():
+            rlog = torch.log_softmax(ref(xin).masked_fill(~lb, -1e9), dim=1)
+            tgt = torch.softmax((rlog - cb / args.danger_tau).masked_fill(~lb, -1e9), dim=1)
+        ce = (-(tgt * logp.masked_fill(~lb, 0)).sum(1) * wb).mean()
+        with torch.no_grad():
+            kl = (rlog.exp() * (rlog - logp).masked_fill(~lb, 0)).sum(1).mean()
+            # The points the shares would pay now: the new network's, and the champion's.
+            pay = (logp.exp() * cb).sum(1).mean()
+            pay0 = (rlog.exp() * cb).sum(1).mean()
+        return ce, kl, pay, pay0
+
     def loss_of(idx, train):
+        if teacher:
+            return teacher_loss(idx)[0], torch.zeros(())
         xb, ab, lb, wb, nb = X[idx].to(dev), A[idx].to(dev), Lg[idx].to(dev), W[idx].to(dev), Neg[idx].to(dev)
-        logits = net(xb).masked_fill(~lb, -1e9)
+        logits = net(pin(xb)).masked_fill(~lb, -1e9)
         logp = torch.log_softmax(logits, dim=1)
         lp = logp.gather(1, ab[:, None])[:, 0]
         nll = -lp
@@ -423,7 +544,8 @@ def main():
     def rl_loss(idx):
         xb, ab, lb = X[idx].to(dev), A[idx].to(dev), Lg[idx].to(dev)
         advb, logb, tb = ADV[idx].to(dev), LOGB[idx].to(dev), TEMP[idx].to(dev)
-        logits = net(xb).masked_fill(~lb, -1e9)
+        xin = pin(xb)
+        logits = net(xin).masked_fill(~lb, -1e9)
         logp = torch.log_softmax(logits / tb[:, None], dim=1)
         lpa = logp.gather(1, ab[:, None])[:, 0]
         ent = -(logp.exp() * logp.masked_fill(~lb, 0)).sum(1)
@@ -432,11 +554,34 @@ def main():
             surr = torch.min(ratio * advb, torch.clamp(ratio, 1 - args.clip, 1 + args.clip) * advb)
         else:
             surr = torch.clamp(torch.exp(advb / args.beta), max=20.0) * lpa
-        loss = -surr.mean() - args.entropy * ent.mean()
+        loss = -surr.mean() - alpha[0] * ent.mean()
         with torch.no_grad():
-            rlog = torch.log_softmax(ref(xb).masked_fill(~lb, -1e9) / tb[:, None], dim=1)
+            rlog = torch.log_softmax(ref(xin).masked_fill(~lb, -1e9) / tb[:, None], dim=1)
             kl = (rlog.exp() * (rlog - logp).masked_fill(~lb, 0)).sum(1).mean()
         return loss, surr.mean(), kl, ent.mean()
+
+    alpha = [args.entropy]
+    if rl and args.reject_ratio > 1:
+        # Suphx's normal agent, after oracle data: drop the moves whose share
+        # now is far from the share they were played with.
+        with torch.no_grad():
+            lr_ = np.zeros(n, dtype=np.float32)
+            for s_ in range(0, n, 16384):
+                idx = torch.arange(s_, min(n, s_ + 16384))
+                xb, ab, lb, tb = X[idx].to(dev), A[idx].to(dev), Lg[idx].to(dev), TEMP[idx].to(dev)
+                lp_ = torch.log_softmax(ref(pin(xb)).masked_fill(~lb, -1e9) / tb[:, None], dim=1).gather(1, ab[:, None])[:, 0]
+                lr_[s_:s_ + len(idx)] = (lp_.cpu() - LOGB[idx]).numpy()
+        ok = np.abs(lr_) <= np.log(args.reject_ratio)
+        print(f'rejecting {100 * (1 - ok.mean()):.1f}% of the moves: their share moved more than {args.reject_ratio}x from the one played')
+        tr, va = tr[ok[tr]], va[ok[va]]
+        nv = len(va)
+        rl_stats['rejected'] = float(1 - ok.mean())
+
+    def delta_at(ep):
+        if not args.anneal:
+            return 0.0
+        a0, a1 = args.anneal
+        return a0 + (a1 - a0) * (ep / max(1, args.epochs - 1))
 
     opt = torch.optim.AdamW(net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     best, best_state = float('inf'), None
@@ -445,13 +590,17 @@ def main():
         best_state = {k: v.detach().cpu().clone() for k, v in net.state_dict().items()}
         best = 0.0
         for ep in range(args.epochs):
+            delta[0] = delta_at(ep)
             net.train()
             perm = torch.from_numpy(rng.permutation(tr))
             for s in range(0, len(perm), args.batch):
-                loss = rl_loss(perm[s:s + args.batch])[0]
+                loss, _, _, ent_b = rl_loss(perm[s:s + args.batch])
                 opt.zero_grad()
                 loss.backward()
                 opt.step()
+                if args.target_entropy > 0:
+                    # Suphx's adaptive entropy: more bonus when the policy is too sure, less when too spread.
+                    alpha[0] = max(0.0, alpha[0] + 1e-4 * (args.target_entropy - float(ent_b)))
             net.eval()
             with torch.no_grad():
                 sv = kv = ev = 0.0
@@ -466,17 +615,21 @@ def main():
             sv /= cnt
             kv /= cnt
             ev /= cnt
-            print(f'epoch {ep + 1}: held-out surrogate {sv:.4f}, KL from the champion {kv:.4f}, entropy {ev:.3f}')
+            print(f'epoch {ep + 1}: held-out surrogate {sv:.4f}, KL from the champion {kv:.4f}, entropy {ev:.3f}' +
+                  (f', oracle kept {delta[0]:.2f}' if args.anneal else '') + (f', entropy bonus {alpha[0]:.4f}' if args.target_entropy > 0 else ''))
             if kv > 2 * args.kl_max and ep > 0:
                 print(f'stopping: the policy moved more than {2 * args.kl_max} from the champion, keeping epoch {ep}')
                 break
             best = sv
             best_state = {k: v.detach().cpu().clone() for k, v in net.state_dict().items()}
             rl_stats.update({'epochs': ep + 1, 'kl': kv, 'heldOutEntropy': ev, 'surrogate': sv})
+            if args.anneal:
+                rl_stats['oracleDelta'] = delta[0]
             if kv > args.kl_max:
                 print(f'stopping: the policy moved {kv:.4f} from the champion')
                 break
     for ep in range(0 if rl else args.epochs):
+        delta[0] = delta_at(ep)
         net.train()
         perm = torch.from_numpy(rng.permutation(tr))
         for s in range(0, len(perm), args.batch):
@@ -492,18 +645,71 @@ def main():
                 l_, ac = loss_of(idx, False)
                 vl += l_.item() * len(idx); vacc += ac.item() * len(idx); cnt += len(idx)
         vl /= cnt; vacc /= cnt
-        print(f'epoch {ep + 1}: validation loss {vl:.4f}, picks the move it won with {100 * vacc:.1f}%')
+        if teacher:
+            with torch.no_grad():
+                tot = np.zeros(4)
+                for s in range(0, nv, 8192):
+                    idx = torch.from_numpy(va[s:s + 8192])
+                    tot += np.array([v.item() for v in teacher_loss(idx)]) * len(idx)
+                _, kl_, pay_, pay0_ = tot / max(1, nv)
+            print(f'epoch {ep + 1}: held-out loss {vl:.4f}, KL from the champion {kl_:.4f}, points its shares would pay now '
+                  f'{pay_:.2f} a choice (the champion\'s {pay0_:.2f})' + (f', oracle kept {delta[0]:.2f}' if args.anneal else ''))
+            if vl < best:
+                teacher_stats = {'epochs': ep + 1, 'kl': float(kl_), 'heldOutPay': float(pay_), 'championPay': float(pay0_)}
+        else:
+            print(f'epoch {ep + 1}: validation loss {vl:.4f}, picks the move it won with {100 * vacc:.1f}%')
         if vl < best:
             best = vl
             best_state = {k: v.detach().cpu().clone() for k, v in net.state_dict().items()}
     net.load_state_dict(best_state)
     net.cpu().eval()
     extra = {}
+    if teacher:
+        extra['objective'] = 'points'
+        extra['train'] = dict({'mode': 'oracle', 'dangerTau': args.danger_tau, 'dangerWeight': args.danger_weight, 'lr': args.lr}, **teacher_stats)
+        rl_stats['oracleDelta'] = delta[0]
     if rl:
         extra['objective'] = 'points'
         extra['train'] = dict({'mode': args.mode, 'reward': args.reward, 'rewardClip': args.reward_clip, 'winBonus': args.win_bonus,
                                'lr': args.lr, 'clip': args.clip, 'entropy': args.entropy, 'klMax': args.kl_max, 'beta': args.beta}, **rl_stats)
-    export(args, net, x, va, n, size, version, best, hidden, init_hidden, extra, t0)
+    if IN > P:
+        final = float(rl_stats.get('oracleDelta', delta[0]))
+        if args.public:
+            if final > 0:
+                print(f'note: --public drops the hidden tiles while the oracle was still kept {final:.2f} of the time')
+            net = public_net(net, P)
+        else:
+            extra['oracle'] = {'delta': final, 'size': IN - P, 'publicSize': P}
+    extra['suphx'] = {k: v for k, v in {'oracleCritic': bool(args.oracle_critic), 'anneal': args.anneal, 'public': bool(args.public),
+                                        'rejectRatio': args.reject_ratio or None, 'targetEntropy': args.target_entropy or None}.items() if v}
+    export(args, net, x, va, n, P, version, best, hidden, init_hidden, extra, t0)
+
+
+def load_init(net, init):
+    """Copies --init's weights into net; the first layer's columns may differ
+    (an oracle model has the hidden tiles' columns after the seat's own):
+    columns net has and init doesn't start at 0, and init's extra are dropped."""
+    with torch.no_grad():
+        for k, (l, src) in enumerate(zip(net.layers, init['layers'])):
+            w = torch.from_numpy(floats(src['w'], init.get('dtype')).reshape(src['rows'], src['cols']))
+            if k == 0 and src['cols'] != l.in_features:
+                l.weight.zero_()
+                c = min(src['cols'], l.in_features)
+                l.weight[:, :c] = w[:, :c]
+            else:
+                l.weight.copy_(w)
+            l.bias.copy_(torch.from_numpy(floats(src['b'], init.get('dtype'))))
+
+
+def public_net(net, P):
+    """The same network reading only the seat's own P features."""
+    hid = [l.out_features for l in net.layers[:-1]]
+    out = Net(P, 0.0, hid)
+    with torch.no_grad():
+        for k, (a, b) in enumerate(zip(out.layers, net.layers)):
+            a.weight.copy_(b.weight[:, :P] if k == 0 else b.weight)
+            a.bias.copy_(b.bias)
+    return out.eval()
 
 
 def export(args, net, x, va, n, size, version, best, hidden, init_hidden, extra, t0):
@@ -520,7 +726,7 @@ def export(args, net, x, va, n, size, version, best, hidden, init_hidden, extra,
     json.dump(out, open(path, 'w'))
 
     # The JS model must give the same logits (to float16 rounding).
-    probe = x[va[:8]].astype(np.float32)
+    probe = x[va[:8]][:, :net.layers[0].in_features].astype(np.float32)
     with torch.no_grad():
         want = net(torch.from_numpy(probe)).numpy()
     js = ("const N=require(process.argv[1]+'/js/mahjong-lucky-cat-net.js');const m=N.createModel(require(process.argv[2]));"

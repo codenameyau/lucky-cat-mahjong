@@ -8,6 +8,8 @@
      neural-cat    (default) Neural Cat, from the league's best (NC1)
      only-orphans  the learned Only Orphans, from the model in the game
      lucky-cat     Lucky Cat's network, from the model in the game (LC20)
+     lucky-cat-suphx  Lucky Cat with Suphx's oracle teacher and oracle guiding
+                   (LC_SUPHX_ARMS), from the model in the game (lc32)
 
    Each lab round:
      1. Plays 50,000 deals. Half the seats are the champion, exploring; the
@@ -207,6 +209,33 @@ const LC_Q_ARMS = {
   'q-soft': { init: true, mode: 'q', lr: 1e-4, epochs: 4, window: 2, tau: 200, about: 'move by move, a smaller step (tau 200)' },
   'q-sharp': { init: true, mode: 'q', lr: 1e-4, epochs: 4, window: 2, tau: 50, about: 'move by move, a bigger step (tau 50)' },
   'q-bold': { init: true, mode: 'q', lr: 3e-4, epochs: 6, window: 4, tau: 30, bold: true, about: 'move by move, a big step on the last 4 rounds (tau 30)' },
+};
+// Suphx for Lucky Cat (Li et al. 2020, arXiv:2003.13590; --strategy
+// lucky-cat-suphx). Each round the champion plays the game's table with the
+// hidden tiles recorded beside its own view (lucky.js generate --returns
+// --oracle, scripts/ml/oracle.js), so at every choice the data knows what
+// each discard would pay right now. Training never lets the shipped network
+// read them:
+//   teach*   an oracle teacher, distilled (ml/train_lucky.py --mode oracle):
+//            the champion's shares with each discard that would deal in
+//            pushed down by what it would pay (--danger-tau points divide
+//            its share by e). The public network learns how dangerous each
+//            tile is from its own view, choice by choice, with none of the
+//            hand's luck (the critic of the points-first rounds explained
+//            under 1% of it; with every tile in view still about 0%).
+//   guided   Suphx's oracle guiding: the same teacher, but the network also
+//            reads the hidden tiles at first, kept with a chance that falls
+//            from 1 to 0 over the epochs, then is written without them.
+//   pg-oc    Suphx's RL stage: a policy gradient on the hand's points with a
+//            critic that sees the hidden tiles and an adaptive entropy bonus.
+const LC_SUPHX_ARMS = {
+  teach: { init: true, mode: 'oracle', lr: 3e-4, epochs: 6, window: 1, dangerTau: 400, about: 'oracle teacher, the last round (tau 400)' },
+  'teach-2': { init: true, mode: 'oracle', lr: 3e-4, epochs: 6, window: 2, dangerTau: 400, about: 'oracle teacher, the last 2 rounds (tau 400)' },
+  'teach-sharp': { init: true, mode: 'oracle', lr: 3e-4, epochs: 6, window: 2, dangerTau: 100, about: 'oracle teacher, a bigger step (tau 100)' },
+  'teach-soft': { init: true, mode: 'oracle', lr: 3e-4, epochs: 6, window: 2, dangerTau: 1000, about: 'oracle teacher, a smaller step (tau 1,000)' },
+  guided: { init: true, mode: 'oracle', lr: 3e-4, epochs: 8, window: 2, dangerTau: 400, oracleAnneal: '1,0', publicOut: true, about: 'oracle guiding: the hidden tiles dropped out over the epochs' },
+  'pg-oc': { init: true, mode: 'pg', lr: 3e-4, epochs: 4, window: 2, oracleCritic: true, targetEntropy: 1.0, about: 'policy gradient with a critic that sees the hidden tiles' },
+  'teach-bold': { init: true, mode: 'oracle', lr: 1e-3, epochs: 8, window: 2, dangerTau: 50, dangerWeight: 8, bold: true, about: 'oracle teacher, a big step (tau 50, lr 1e-3)' },
 };
 
 // The plateau: rounds since the champion last changed. After --bold-after
@@ -499,6 +528,14 @@ const STRATEGIES = {
       if (spec.negWeight) args.push('--neg-weight', String(spec.negWeight));
       if (spec.hidden) args.push('--hidden', spec.hidden);
       if (spec.tau != null) args.push('--tau', String(spec.tau));
+      // Suphx (lucky-cat-suphx).
+      if (spec.dangerTau != null) args.push('--danger-tau', String(spec.dangerTau));
+      if (spec.dangerWeight != null) args.push('--danger-weight', String(spec.dangerWeight));
+      if (spec.oracleCritic) args.push('--oracle-critic');
+      if (spec.oracleAnneal) args.push('--oracle-anneal', spec.oracleAnneal);
+      if (spec.publicOut) args.push('--public');
+      if (spec.targetEntropy) args.push('--target-entropy', String(spec.targetEntropy));
+      if (spec.mode === 'oracle') args.push('--dropout', '0', '--smoothing', '0');
       if (spec.init) args.push('--init', champ);
       return { args, about: '(' + sets.length + ' data set' + (sets.length > 1 ? 's' : '') + ')' };
     },
@@ -510,6 +547,24 @@ const STRATEGIES = {
     },
   },
 };
+// Suphx for Lucky Cat: the lucky-cat lab with oracle data and arms (LC_SUPHX_ARMS).
+STRATEGIES['lucky-cat-suphx'] = Object.assign({}, STRATEGIES['lucky-cat'], {
+  dir: 'lab-lucky-cat-suphx', prefix: 'lcsx', model: 'LS', trainArms: LC_SUPHX_ARMS,
+  // Points first, as lucky-cat, and the win rate kept: hands won no lower
+  // than the champion's by more than one standard error.
+  keep: (e) => e.points > e.margin && e.J > 0 && e.wins > -Math.sqrt(2 * e.winRate * (1 - e.winRate) / (4 * e.deals)),
+  // A round: 20,000 deals at the table, half the real choices recorded
+  // with the hidden tiles (about 300 MB a round).
+  deals: 20000,
+  generate(state, r, champ, data, opts) {
+    const pool = LC_TABLE.slice();
+    log('Round ' + r + ': ' + opts.deals + ' deals, champion ' + base(champ) + ' at the table against ' + pool.map(short).join(', ') + ', the hidden tiles recorded (Suphx)');
+    const args = ['scripts/ml/lucky.js', 'generate', '--returns', '--oracle', '--sample', '0.5', '--learners', '1', '--temperature', opts.bold ? '1' : '0.5',
+      '--weights', champ, '--deals', String(opts.deals), '--out', data, '--pool', pool.join(','), '--seed', String(DATA_SEED + r * 1000000)];
+    if (WORKERS) args.push('--workers', String(WORKERS));
+    log('Round ' + r + ': ' + run('node', args).trim().split('\n').pop());
+  },
+});
 let S = STRATEGIES['neural-cat'];
 let PREFIX = S.prefix;
 
@@ -527,7 +582,13 @@ function shippedModel(weightsFile) {
     const w = require(path.join(ROOT, 'js', weightsFile));
     const name = (w.meta && (w.meta.trainedName || w.meta.name)) || null;
     const file = name && path.join('ml', 'models', name + '.json');
-    return file && fs.existsSync(path.join(ROOT, file)) ? file : null;
+    if (!file) return null;
+    // A new machine has no ml/models/ (not committed): write the shipped weights out as the model.
+    if (!fs.existsSync(path.join(ROOT, file))) {
+      fs.mkdirSync(path.join(ROOT, 'ml', 'models'), { recursive: true });
+      fs.writeFileSync(path.join(ROOT, file), JSON.stringify(w));
+    }
+    return file;
   } catch (err) { return null; }
 }
 
@@ -547,7 +608,7 @@ function trainNetArgs(spec, sets, name, champ) {
 }
 
 function fmt(e) {
-  if (S === STRATEGIES['lucky-cat']) {
+  if (S.folder === 'lucky-cat') {
     return 'J ' + signed(e.J) + ' (points ' + signed(e.points) + ' ± ' + (e.margin / 2).toFixed(1) + ' standard error, wins ' + pct(e.winRate) + ' vs ' + pct(e.otherWinRate) +
       ', deal-ins ' + pct(e.dealInRate) + ' vs ' + pct(e.otherDealInRate) + ', average win ' + Math.round(e.avgWin || 0) + ' vs ' + Math.round(e.otherAvgWin || 0) +
       ' (' + (e.avgWinFaan || 0).toFixed(2) + ' vs ' + (e.otherAvgWinFaan || 0).toFixed(2) + ' faan), ' + e.deals + ' deals)';
@@ -594,7 +655,7 @@ function train(state, r, letter, arm, data) {
   const file = path.join('ml', 'models', name + '.json');
   const w = readJson(file);
   w.meta = Object.assign(w.meta || {}, { arm, from: base(champ) });
-  if (S !== STRATEGIES['lucky-cat']) w.meta.play = playOf(champ);
+  if (S.folder !== 'lucky-cat') w.meta.play = playOf(champ);
   // An arm may also move play settings, relative to the champion's.
   if (spec.play) Object.keys(spec.play).forEach((k) => { w.meta.play[k] = (w.meta.play[k] || 0) + spec.play[k]; });
   writeJson(file, w);
@@ -776,7 +837,7 @@ function main() {
     const deals = parseInt(a.deals || FULL_DEALS, 10);
     String(a.against).split(',').forEach((o) => {
       // A model name, a model file, or (Lucky Cat) a table strategy such as jorge-yau.
-      const strategy = S === STRATEGIES['lucky-cat'] && !/\.json$/.test(o) && !fs.existsSync(path.join(ROOT, 'ml', 'models', o + '.json'));
+      const strategy = S.folder === 'lucky-cat' && !/\.json$/.test(o) && !fs.existsSync(path.join(ROOT, 'ml', 'models', o + '.json'));
       const other = strategy || /\.json$/.test(o) ? o : path.join('ml', 'models', o + '.json');
       const e = S.judge(model, other, deals, parseInt(a.seed || 50000000, 10), 'bench-vs-' + base(other));
       log('Bench ' + base(model) + ' vs ' + base(other) + ': ' + fmt(e));

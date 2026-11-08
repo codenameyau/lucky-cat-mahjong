@@ -42,6 +42,10 @@ function ship(file, target) {
   if (!t) throw new Error('ship target is ' + Object.keys(TARGETS).join(' or '));
   const weights = JSON.parse(fs.readFileSync(file, 'utf8'));
   t.model.createModel(weights); // refuses weights for other features
+  // An oracle model (Suphx's oracle guiding) reads the hidden tiles: training only.
+  if ((weights.meta || {}).oracle || weights.layers[0].cols !== weights.featureSize) {
+    throw new Error(file + ' reads hidden tiles (an oracle model): train it on to delta 0 and write it with --public before shipping');
+  }
   const m = weights.meta = weights.meta || {};
   const out = path.join(__dirname, '..', '..', 'js', t.file);
   if (t.release) release(m, out, t.release);

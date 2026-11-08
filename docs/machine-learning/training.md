@@ -38,6 +38,7 @@ Every `npm run ml:*` command then works as written: the scripts find `ml\.venv\S
 | League (L1, L2, ...) | `ml:league` | Only Neural Cat models: the best, exploring, against earlier bests | Discards, claims, kongs | About +75 to +82 points a hand over s5; plateaued after L7 |
 | Lab (N1a, N1b, ...) | `ml:lab` | Earlier champions, s5, Jorge Yau, LC20 and Lucky Cat Classic | Discards, claims, kongs, and how it plays (`meta.play`) | Today's framework: see [the lab](#4-the-lab-npm-run-mllab) |
 | Lucky Cat lab (LF1a, ...) | `ml:lab -- --strategy lucky-cat` | The game's table: Neural Cat, Jorge Yau, Neural Cat | Its choices, each replayed with its next-best moves on 4 reshuffled futures, by the mean points each scored | lc32 is in the game (from the earlier, hands-won lab). The futures rounds start from it ([handoff](../../ml/LUCKY_CAT_HANDOFF.md)) |
+| Lucky Cat Suphx lab (LS1a, ...) | `ml:lab -- --strategy lucky-cat-suphx` | The game's table: Neural Cat, Jorge Yau, Neural Cat | Its choices, with the hidden tiles recorded beside them (training only): an oracle teacher pushes down each discard that would deal in now by what it would pay, and the public network is fitted to it; also Suphx's oracle guiding and a hidden-tile critic | Starts from lc32 ([Suphx](iterations.md#suphx-for-lucky-cat-an-oracle-teacher-not-an-oracle-critic), [handoff](../../ml/LUCKY_CAT_HANDOFF.md)) |
 
 The full results, round by round, are in the [playbook](../strategies/neural-cat.md#results) and on the [model card](https://huggingface.co/codenameyau/lucky-cat-mahjong).
 

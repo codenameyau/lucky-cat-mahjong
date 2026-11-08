@@ -79,10 +79,17 @@
       return top;
     }
 
+    // Training only (scripts/ml/oracle.js): options.features(game, seat, x)
+    // returns { x, record }: the features the model reads (the seat's view
+    // plus the hidden tiles, some dropped out) and the ones recorded. The
+    // game never sets it, so play sees only the seat's view.
+    var features = options.features || null;
+
     function decide(game, seat, x, moves) {
-      getModel().policy(x, moves);
+      var f = features ? features(game, seat, x) : null;
+      getModel().policy(f ? f.x : x, moves);
       var k = pick(moves);
-      if (bot.onDecision) bot.onDecision({ seat: seat, features: x, moves: moves, pick: k });
+      if (bot.onDecision) bot.onDecision({ seat: seat, features: f ? f.record : x, moves: moves, pick: k });
       return k;
     }
 

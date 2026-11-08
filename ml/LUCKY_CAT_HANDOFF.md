@@ -1,6 +1,6 @@
-# Lucky Cat: handoff for the futures rounds
+# Lucky Cat: handoff for the Suphx rounds (then the futures rounds)
 
-Written 2026-11-08 for the machine that takes over Lucky Cat's training. Start from `master` (0.57.8). The shipped models are Lucky Cat lc32 and Neural Cat NC8 (N10c).
+Written 2026-11-08 for the machine that takes over Lucky Cat's training. Start from `master` once this PR is merged (0.57.9). **Run the Suphx lab first** ([below](#run-first-suphx-lucky-cat-suphx)). The futures rounds (LF) come after, if Suphx stalls. The shipped models are Lucky Cat lc32 and Neural Cat NC8 (N10c).
 
 ## The goal
 
@@ -18,7 +18,31 @@ lc20 to lc32 learned by imitating the moves of hands it won, the quicker the win
 | LP (from lc32) | Points first, head to head | Beat lc32 head to head, but not at the game's table |
 | LT | Points first, at the game's table | Nothing held. A whole hand's points are mostly luck, and the critic explained under 1% of them |
 | LR | Replays: each move's next-best options replayed on the same wall | Nothing held. On a known wall, a move is judged by tiles the player can't see |
-| **LF** | **Replays on 4 reshuffled futures of the wall still to be drawn, every move on the same 4** | **Built (commits `55c1c04`, `1442300`), not run yet. This handoff** |
+| LF | Replays on 4 reshuffled futures of the wall still to be drawn, every move on the same 4 | Built (commits `55c1c04`, `1442300`), not run yet. Second in line |
+| **LS** | **Suphx: the hidden tiles recorded for training only; an oracle teacher pushes down each discard that would deal in now** | **Built in this PR, not run at scale. Run first** |
+
+## Run first: Suphx (`lucky-cat-suphx`)
+
+Why and what the probes showed: [iterations.md](../docs/machine-learning/iterations.md#suphx-for-lucky-cat-an-oracle-teacher-not-an-oracle-critic). In short:
+
+- **Data (`lucky.js generate --returns --oracle --sample 0.5 --learners 1`):** lc32 plays one seat at the game's table. Half its real choices are recorded with 312 hidden-tile features after its own 376 (`scripts/ml/oracle.js`): the other hands, their waits, the wall, and what each discard would pay right now. That's about 300 MB a round of 20,000 deals, into `ml/data/lcsx-<n>`.
+- **Training (`ml/train_lucky.py`):**
+  - The `teach*` arms (`--mode oracle`): an oracle teacher, lc32's shares with each deal-in discard pushed down by `--danger-tau` points. The network reads only its own seat and is fitted to the teacher.
+  - `guided` (`--oracle-anneal 1,0 --public`): Suphx's oracle guiding, the hidden tiles dropped out over the epochs.
+  - `pg-oc` (`--oracle-critic --target-entropy 1`): a policy gradient with a critic that sees the hidden tiles.
+- **Judge:** as lucky-cat, at the table, points beyond the full margin. **The win rate must hold:** hands won no more than one standard error below the champion's.
+- **Names:** `LS<round><letter>`, shipped as LC33, ... State and log: `ml/lab-lucky-cat-suphx/`.
+- **Safety:** the shipped network never reads the hidden tiles. `ship.js` refuses any model that does, and `scripts/ml/oracle.test.js` checks it.
+
+```bash
+npm run ml:lab -- --strategy lucky-cat-suphx --rounds 1 --deals 400 --quick-deals 100 --full-deals 200 --extra-deals 0 --dry --no-upload --dir ml/lab-lucky-cat-suphx-check   # about 4 minutes on 4 cores
+npm run ml:lab -- --strategy lucky-cat-suphx --rounds 10 --workers <cores - 1>
+npm run ml:lab -- --strategy lucky-cat-suphx report
+```
+
+**If the Suphx rounds stall** (two or three rounds with nothing kept), write the critique in `iterations.md`, then:
+- try a bigger danger weight, or teach from waits too (a discard that makes an opponent's wait live);
+- or move on to the LF rounds below.
 
 ## How the LF rounds work
 
@@ -32,7 +56,7 @@ lc20 to lc32 learned by imitating the moves of hands it won, the quicker the win
 Set up Python once (`python3 -m venv ml/.venv && ml/.venv/bin/pip install -r ml/requirements.txt`, or `ml\setup-windows.ps1` on Windows with an NVIDIA GPU). Then:
 
 ```bash
-# A small check first: it runs every step on a few deals and ships nothing (not timed yet).
+# A small check first: it runs every step on a few deals and ships nothing (not timed yet). Add --no-upload.
 npm run ml:lab -- --strategy lucky-cat --rounds 1 --deals 500 --quick-deals 500 --full-deals 1000 --dry --dir ml/lab-lucky-cat-check
 
 # The real rounds. They start from lc32 (the shipped weights). A stopped lab picks up where it left off.
@@ -67,13 +91,13 @@ The lab writes `js/mahjong-lucky-cat-weights.js` and uploads the model to the Hu
 
 Keep adding milestones to the same PR as commits until it's merged.
 
-## If LF stalls (two or three rounds with nothing kept)
+## If LF stalls too (two or three rounds with nothing kept)
 
 Write the critique in `iterations.md` first, then try, in this order:
 
-1. **A critic that sees every tile (training only).** The LP and LT rounds failed because the critic explained under 1% of a hand's points: it saw only what the seat sees, so its baseline was close to the average. A value network that also reads every concealed hand and the wall would explain much more of the luck. Subtract it from each move's points, and what's left is closer to the move's own worth. The policy (the shipped network) still reads only its seat. `js/mahjong-fair-play.test.js` must still pass, since the critic is never shipped. This is the asymmetric actor-critic: the critic gets privileged information, the actor does not.
+1. **The Suphx lab above.** A critic that sees every tile was probed first and didn't help (it explained about 0% of a hand's points either way), so the Suphx lab teaches per move instead.
 2. **More futures, fewer choices.** 8 futures at 1 choice a hand halves the futures' noise for the same cost.
 3. **A deal-in weight in the target.** Weight replayed moves that avoided a deal-in to a hand of 6 faan or more above the rest.
 4. **More weight for bigger wins** in the imitation rounds: from 8% a faan above 3 to about 25 to 30%. LP2b suggests this gains a few points a hand at most.
 
-Don't give the playing network itself hidden tiles. The LR rounds showed what happens: a policy that learns from tiles it can't see learns luck.
+The shipped network must never read hidden tiles. Oracle guiding (`guided`) reads them only while training and drops them before the model is written. Learning from tiles the player can't see, without dropping them, teaches luck: the LR rounds showed it.
