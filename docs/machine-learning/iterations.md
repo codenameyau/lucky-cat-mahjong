@@ -10,7 +10,7 @@ Every score here is **points a hand**: one player's average points per hand less
 
 | | Neural Cat | Lucky Cat |
 | --- | --- | --- |
-| In the game | **NC3** (lab model N2b) | **LC32** (lab model LL26b) |
+| In the game | **NC8** (lab model N10c) | **LC32** (lab model LL26b) |
 | What it is | A network that scores Jorge Yau's best choices in expected points | A network that makes every move itself, with no rules underneath |
 | What it plays for | Points: often and big wins on one scale | Points first, wins second (LC20 and before: wins, as many and as fast as it can) |
 | Trained on | 950,000 league hands (stopped in round 19, at a plateau), and earlier rounds against the rule bots | 1,000,000 league hands against its earlier selves and Neural Cat, then 100,000 lab hands against Neural Cat, Jorge Yau and its last two champions, every hand weighted by its points |
@@ -317,6 +317,31 @@ Starting from NC2 (L19), on 50,000 deals against L14, L16, L17, s5, Jorge Yau, L
 - **Thinking.** NC4's games are a new style, and the old data is not. The bandit tried a fine-tune on the last three rounds only, a wider network from scratch, a faster fine-tune, a lower `winBonus` and a negative claim margin.
 - **Result.** The recent-data fine-tune (N4c) beat NC4 by **+4.9 ± 16.9** points a hand on 20,000 fresh deals, winning 12.6% against 11.4%: **J +11.1**. It ships as **NC5**. The faster fine-tune (J +3.5) was within the noise; the wider network, lower `winBonus` and claim margin did nothing.
 - **What the bot does differently.** The same style as NC4, a little sharper: slightly more wins, slightly smaller ones (1,220 against 1,275 points).
+
+### Lab rounds 5 and 6: nothing beat NC5
+
+- **Thinking.** Round 5 asked whether more of what worked would keep working: the slow fine-tune, a plain fine-tune, a wider network, `winBonus` 150 → 300 and `topK` 3 → 4. Round 6 repeated the fine-tunes, tried a deeper network, and nudged `winBonus` to 200 and `topK` to 5. Several looked good on 6,000 deals (the slow fine-tune J +23.6, `topK` 4 J +14.3).
+- **Result.** Every one that was re-judged on 20,000 fresh deals fell inside the noise: N5b J −2.9, N5e (`topK` 4) +8.5 (+14.3 points ± 17.4, not beyond its margin), N6b −5.2, N6d (`winBonus` 200) +4.7. NC5 stayed champion for two rounds.
+- **Self-critique.** A 6,000-deal result is about ±30 points, so the best of five candidates is mostly the luckiest of five. The 20,000-deal check did its job. The lab also kept picking the same experiments, so the next rounds leaned on the arms that had the best record and on the two play settings that had paid off before, `winBonus` and `topK`.
+
+### Lab round 7 (NC6): a bigger bonus for winning
+
+- **Thinking.** The plateau was in the network, not in what it was asked to do. Round 3 showed the choice (`winBonus`) mattered more than any re-training, so the bandit tried the next step of it: 150 → 300, with no new training.
+- **Result.** N7e beat NC5 by **+22.0 ± 16.9** points a hand on 20,000 fresh deals, winning 14.7% of hands against 12.3% with deal-ins 8.6% against 8.9%: **J +34.2**, the biggest gain since round 3. It ships as **NC6**. The recent-data fine-tune (N7b, J −0.6) did not hold on 20,000 deals.
+- **What the bot does differently.** It takes a ready hand over a bigger one that is further off more often: more wins, each smaller (1,070 against 1,176 points).
+
+### Lab round 8 (NC7): a wider choice
+
+- **Thinking.** With wins now worth more, the model may be right more often than Jorge Yau's ordering of discards lets it show. `topK` is how many of Jorge Yau's best discards the model reorders; 3 → 4 gives it one more to consider. A bigger `winBonus` (300 → 450) was tried too.
+- **Result.** `topK` 4 (N8e) beat NC6 by **+20.4 ± 17.1** points a hand on 20,000 fresh deals (wins 13.7% against 14.6%, average win 1,168 against 965): **J +15.8**. It ships as **NC7**. `winBonus` 450 (J +2.2) won more hands (15.9%) but with smaller wins, no better.
+- **What the bot does differently.** A little fewer wins than NC6 but bigger ones: the extra discard it can pick is sometimes a slower, larger hand.
+
+### Lab rounds 9 and 10 (NC8): a small step, then a plateau check
+
+- **Round 9.** The wider network, the fine-tunes, `winBonus` 250 and a claim margin of +25 all fell inside the noise (J +1.8 and +5.5 for the two that were re-judged). NC7 stayed champion.
+- **Round 10.** The 3× learning-rate fine-tune looked like a breakthrough on 6,000 deals (J +52.1) and was nothing on 20,000 (J +0.1, points +1.9 ± 17.5): rejected. The slow fine-tune (N10c, from NC7 on the lab's newest eight rounds of games) held: **+7.7 ± 16.9** points a hand, 14.5% of hands won against 13.5%, deal-ins 9.2% against 9.6%, **J +12.9**, beyond its standard error. It ships as **NC8**. `topK` 5 and the wider network did not beat NC7.
+- **What the bot does differently.** Slightly more wins and slightly fewer deal-ins than NC7, with a smaller average win (1,078 against 1,157 points): the same style, sharper.
+- **Where this leaves the lab.** Rounds 1 to 10 lifted J by about +100 in total, and about half of it came from two play settings that retrained nothing (`winBonus` and `topK`). The fine-tunes now give about +10 a round, near the lab's detection limit. The next gains likely need new information (a different training signal, or more diverse opponents), not more fine-tuning.
 
 ## Looking three discards ahead: tried, not shipped
 
