@@ -401,6 +401,11 @@ const STRATEGIES = {
     // so its long evaluation plays twice the deals: a 95% margin of about
     // ±8 points a hand, paired, against ±15 on 20,000 deals unpaired.
     fullDeals: 40000,
+    // Kept only when J beats half its margin and is at least +2. A play
+    // setting that changes few choices has a narrow paired margin (±1.0 for
+    // winBonus 450 → 500 in round 6), so without the floor the lab ships
+    // steps too small to matter (OT6e: J +1.0, points +0.5).
+    keep: (e) => e.J > Math.max(e.margin / 2, 2),
     // Training data: only the lab's own rounds under the targets. The league's
     // (orphans-<n>) and the fixed-family lab's (oolab-<n>) positions were read
     // through the old fixed-family plans, so they no longer match how it plays.
