@@ -51,10 +51,12 @@ describe('strategy registry', () => {
     });
   });
 
-  it('starts each learned strategy\'s summary with its model', () => {
-    assert.match(S.get('neural-cat').summary, /^Model NC\d+\. Plays Jorge Yau's hands/);
-    assert.match(S.get('lucky-cat').summary, /^Model LC\d+\. A neural network/);
-    assert.doesNotMatch(S.get('jorge-yau').summary, /^Model/);
+  it('names each learned strategy\'s model apart from its summary', () => {
+    assert.match(S.get('neural-cat').model, /^NC\d+$/);
+    assert.match(S.get('lucky-cat').model, /^LC\d+$/);
+    assert.equal(S.get('jorge-yau').model, undefined);
+    S.list().forEach((s) => assert.doesNotMatch(s.summary, /^Model /, s.id));
+    assert.match(S.get('jorge-yau').summary, /^Play mahjong the way the founder of Lucky Cat plays\./);
   });
 
   it('falls back to the default for an unknown id', () => {
@@ -632,7 +634,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.57.6');
+    assert.equal(E.GAME_VERSION, '0.57.7');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);

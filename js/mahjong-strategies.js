@@ -29,16 +29,16 @@
   function modelName() { return weightsName('./mahjong-ml-weights.js', 'MahjongMLWeights'); }
   function luckyModelName() { return weightsName('./mahjong-lucky-cat-weights.js', 'MahjongLuckyCatWeights'); }
 
-  // The model before a learned strategy's summary ("Model NC1. ",
-  // "Model LC20. "), once its weights are here.
-  function withModel(name, text) { return (name ? 'Model ' + name.toUpperCase() + '. ' : '') + text; }
+  // A learned strategy's model name for its heading ("NC8"), once its weights are here.
+  function upper(name) { return name ? name.toUpperCase() : null; }
+  function orphansModelName() { return weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights'); }
 
   var STRATEGIES = [
     {
       id: 'jorge-yau',
       name: 'Jorge Yau',
       bot: J,
-      summary: 'Play mahjong the way the founder of Lucky Cat plays. Reads the opening hand, picks one hand to build and pivots when it can\'t be made. Attacks with no defense, keeps honors, and locks onto a hand worth 7 faan or more. Only plays safe late, when it is far from winning.',
+      summary: 'Play mahjong the way the founder of Lucky Cat plays. It reads the opening hand and picks one hand to build, from Thirteen Orphans down to Concealed Straights, and pivots when that hand can\'t be made. It keeps honors, pungs dragons and scoring winds, and locks onto a hand worth 7 faan or more. It plays no defense until late in the wall, when it is far from winning.',
       details: [
         'It looks at the opening hand and picks a target, in this order: Thirteen Orphans, Nine Gates, Four Winds, All Terminals, All Honors, Seven Pairs, Full Flush, Concealed Triplets, Half Flush and Concealed Straights. Tiles the target can\'t use go first.',
         'Each turn it reads the hand again. A stronger target replaces the old one, and when a target can\'t be made it pivots: Seven Pairs to Concealed Triplets to All Triplets, Concealed Triplets to All Triplets or Seven Pairs, Full Flush to Half Flush, Four Winds to All Honors, and Thirteen Orphans to Seven Pairs with Mixed Orphans.',
@@ -54,8 +54,9 @@
       id: 'lucky-cat',
       name: 'Lucky Cat',
       bot: LC && LC.trained ? LC : L,
+      get model() { return upper(luckyModelName()); },
       get summary() {
-        return withModel(luckyModelName(), 'A neural network that taught itself to win, with no rules built in. It plays the moves that won it hands before and avoids the discards that dealt in: fast, cheap wins, nearly one hand in four.');
+        return 'A neural network that taught itself to win, with no rules built in. It plays the moves that won it hands before and avoids the discards that dealt in: fast, cheap wins, nearly one hand in four.';
       },
       details: [
         'It has no plan for a hand. Each turn it looks at what its seat can see (its tiles and melds, every discard, the melds and flowers others have shown, the winds and how many tiles are left) and the network gives every legal move a share. The biggest share is played.',
@@ -72,8 +73,9 @@
       id: 'only-orphans',
       name: 'Only Orphans',
       bot: O,
+      get model() { return upper(orphansModelName()); },
       get summary() {
-        return withModel(weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights'), 'Builds big hands on 1s, 9s and honors: Thirteen Orphans, their triplets or pairs, Concealed Triplets and Seven Pairs, whichever the deal is worth most. A neural network decides how, betting on a few big hands over many small ones, and leaning toward the choice more likely to finish.');
+        return 'Builds big hands on 1s, 9s and honors: Thirteen Orphans, their triplets or pairs, Concealed Triplets and Seven Pairs, whichever the deal is worth most. A neural network decides how, betting on a few big hands over many small ones, and leaning toward the choice more likely to finish.';
       },
       get details() {
         var version = weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights');
@@ -100,8 +102,9 @@
       id: 'neural-cat',
       name: 'Neural Cat',
       bot: N,
+      get model() { return upper(modelName()); },
       get summary() {
-        return withModel(modelName(), 'Plays Jorge Yau\'s hands, but a neural network trained on simulated games chooses among his best options by what each is worth on average, with a bonus for the chance to win: it wins about 14% of hands, and bigger ones than Lucky Cat\'s, while dealing in less.');
+        return 'Plays Jorge Yau\'s hands, but a neural network trained on simulated games chooses among his best options by what each is worth on average, with a bonus for the chance to win: it wins about 14% of hands, and bigger ones than Lucky Cat\'s, while dealing in less.';
       },
       get details() {
         return [
