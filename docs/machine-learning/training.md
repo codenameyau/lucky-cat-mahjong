@@ -37,7 +37,7 @@ Every `npm run ml:*` command then works as written: the scripts find `ml\.venv\S
 | Self-play (s1–s6) | `ml:loop` | Neural Cat (exploring) with Jorge Yau, Lucky Cat and Only Orphans | Discards | s5: +48.5 points a hand over Jorge Yau on fresh deals |
 | League (L1, L2, ...) | `ml:league` | Only Neural Cat models: the best, exploring, against earlier bests | Discards, claims, kongs | About +75 to +82 points a hand over s5; plateaued after L7 |
 | Lab (N1a, N1b, ...) | `ml:lab` | Earlier champions, s5, Jorge Yau, LC20 and Lucky Cat Classic | Discards, claims, kongs, and how it plays (`meta.play`) | Today's framework: see [the lab](#4-the-lab-npm-run-mllab) |
-| Lucky Cat lab (LP1a, ...) | `ml:lab -- --strategy lucky-cat` | Its last two champions, Neural Cat and Jorge Yau | Every move of every hand it plays, by the points the hand paid | LC32 is in the game (from the earlier, hands-won lab); the points-first trial LP2b was +4.0 ± 2.3 points a hand over LC20 on fresh deals ([points first](#lucky-cat-points-first)) |
+| Lucky Cat lab (LF1a, ...) | `ml:lab -- --strategy lucky-cat` | The game's table: Neural Cat, Jorge Yau, Neural Cat | Its choices, each replayed with its next-best moves on 4 reshuffled futures, by the mean points each scored | lc32 is in the game (from the earlier, hands-won lab). The futures rounds start from it ([handoff](../../ml/LUCKY_CAT_HANDOFF.md)) |
 
 The full results, round by round, are in the [playbook](../strategies/neural-cat.md#results) and on the [model card](https://huggingface.co/codenameyau/lucky-cat-mahjong).
 
@@ -165,12 +165,12 @@ The same lab trains the learned Only Orphans and Lucky Cat's network, with the s
 
 ```bash
 npm run ml:lab -- --strategy only-orphans --rounds 10   # starts from the model in the game (or --start FILE)
-npm run ml:lab -- --strategy lucky-cat --rounds 10      # starts from the model in the game, LC20
+npm run ml:lab -- --strategy lucky-cat --rounds 10      # starts from the model in the game, lc32
 ```
 
 | | Neural Cat | Only Orphans | Lucky Cat |
 | --- | --- | --- | --- |
-| Starts from | The league's best (NC1) | The model in the game | The model in the game (LC20) |
+| Starts from | The league's best (NC1) | The model in the game | The model in the game (lc32) |
 | Plays against | Its last three champions, s5, Jorge Yau, Lucky Cat, Lucky Cat Classic | Neural Cat, Jorge Yau and Lucky Cat (the table the game seats it at), and its last two champions | The game's table: one seat against Neural Cat (two in three) and Jorge Yau, exploring at temperature 0.5 (`--temperature`); no earlier selves since LC32, when two learner seats and its own champions taught it to beat its own kind |
 | Records | Every seat's decisions (`--sample 0.12`) | Only its own seats (`--record only-orphans`, `--sample 0.25`) | Replays over reshuffled futures: the champion plays its best in one seat; at up to 2 of its real choices a hand the wall still to be drawn is reshuffled 4 ways, and its move and its 2 next-best moves each play those same 4 futures; each move's mean points are recorded (`scripts/ml/lucky.js generate --rollouts 2 --alts 2 --futures 4`, 20,000 deals a round) |
 | Trains with | `ml/train.py` | `ml/train.py` | `ml/train_lucky.py` |
