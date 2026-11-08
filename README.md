@@ -1,6 +1,12 @@
 # Lucky Cat Mahjong
 
-A static website for the Lucky Cat Mahjong club at [luckycatmahjong.com](https://luckycatmahjong.com), with content managed through [Pages CMS](https://pagescms.org).
+Lucky Cat Mahjong is a New York City mahjong community. We host events, lessons, corporate workshops, brand collaborations and tournaments, and we build free online tools to help people learn the game.
+
+**Our mission** is to use mahjong as a powerful way to connect with people and culture across generations. A game that parents and grandparents grew up with, and that friends are picking up today, gives people a table to share stories, traditions and a good time. We make it fun, easy and welcoming for first-timers and lifelong players alike.
+
+Here at Lucky Cat Mahjong we believe some of the strongest connections are built one tile at a time.
+
+This repository is the club's site at [luckycatmahjong.com](https://luckycatmahjong.com): a static website, with its content managed through [Pages CMS](https://pagescms.org), plus a Hong Kong mahjong game with a coach and bots to practice against.
 
 The learned bot, Neural Cat, is on Hugging Face:
 
