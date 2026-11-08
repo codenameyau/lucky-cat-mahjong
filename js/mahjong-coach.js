@@ -1395,7 +1395,8 @@
   var DETAILS = ['simple', 'detailed', 'complex'];
   var SIMPLE_WHY = 130; // characters: one short reason
 
-  // "The model likes it because it gets you ready fastest and keeps a bigger hand in reach."
+  // "I like it because it gets you ready fastest and keeps a bigger hand in reach."
+  // Simple and Detailed speak as the coach ("I"); only Complex says "the model".
   function sentenceOf(reasons, lead) {
     return lead + 'it ' + reasons.join(' and ') + '.';
   }
@@ -1412,14 +1413,14 @@
     var reasons = hint.modelWhy || [];
     out.model = null;
     if (detail === 'detailed') {
-      if (reasons.length) tips.push(sentenceOf(reasons, 'The model picks it because '));
+      if (reasons.length) tips.push(sentenceOf(reasons, 'I pick it because '));
       out.tips = tips;
       return fit(out);
     }
     // Simple: the action, then the reason why. A learned strategy adds what it likes about the tile.
     var clear = hint.modelWhyClear || [];
     var why = clip(tips[0] || '', SIMPLE_WHY);
-    if (clear.length) why = (why + ' ' + sentenceOf(clear, 'The model likes it because ')).trim();
+    if (clear.length) why = (why + ' ' + sentenceOf(clear, 'I like it because ')).trim();
     out.tips = why ? [why] : [];
     return fit(out);
   }

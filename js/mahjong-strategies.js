@@ -38,7 +38,7 @@
       id: 'jorge-yau',
       name: 'Jorge Yau',
       bot: J,
-      summary: 'Reads the opening hand, picks one hand to build and pivots. Attacks with no defense, keeps honors, and locks onto a hand worth 7 faan or more. Only plays safe late, when it is far from winning.',
+      summary: 'Play mahjong the way the founder of Lucky Cat plays. Reads the opening hand, picks one hand to build and pivots when it can\'t be made. Attacks with no defense, keeps honors, and locks onto a hand worth 7 faan or more. Only plays safe late, when it is far from winning.',
       details: [
         'It looks at the opening hand and picks a target, in this order: Thirteen Orphans, Nine Gates, Four Winds, All Terminals, All Honors, Seven Pairs, Full Flush, Concealed Triplets, Half Flush and Concealed Straights. Tiles the target can\'t use go first.',
         'Each turn it reads the hand again. A stronger target replaces the old one, and when a target can\'t be made it pivots: Seven Pairs to Concealed Triplets to All Triplets, Concealed Triplets to All Triplets or Seven Pairs, Full Flush to Half Flush, Four Winds to All Honors, and Thirteen Orphans to Seven Pairs with Mixed Orphans.',
@@ -55,7 +55,7 @@
       name: 'Lucky Cat',
       bot: LC && LC.trained ? LC : L,
       get summary() {
-        return withModel(luckyModelName(), 'A neural network that taught itself to win, with no rules built in. It plays the moves that won it hands before: fast, cheap wins, as often as it can get them.');
+        return withModel(luckyModelName(), 'A neural network that taught itself to win, with no rules built in. It plays the moves that won it hands before and avoids the discards that dealt in: fast, cheap wins, nearly one hand in four.');
       },
       details: [
         'It has no plan for a hand. Each turn it looks at what its seat can see (its tiles and melds, every discard, the melds and flowers others have shown, the winds and how many tiles are left) and the network gives every legal move a share. The biggest share is played.',
@@ -73,7 +73,7 @@
       name: 'Only Orphans',
       bot: O,
       get summary() {
-        return withModel(weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights'), 'Builds big hands on 1s, 9s and honors: Thirteen Orphans, their triplets or pairs, Concealed Triplets and Seven Pairs, whichever the deal is worth most. A neural network decides how, betting on a few big hands over many small ones.');
+        return withModel(weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights'), 'Builds big hands on 1s, 9s and honors: Thirteen Orphans, their triplets or pairs, Concealed Triplets and Seven Pairs, whichever the deal is worth most. A neural network decides how, betting on a few big hands over many small ones, and leaning toward the choice more likely to finish.');
       },
       get details() {
         var version = weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights');
@@ -84,7 +84,7 @@
           'The choices left to ' + (version ? 'its neural network, model ' + version + ',' : 'a neural network') + ' are which allowed tile goes and which allowed pungs and kongs to take. It weighs each by the score it expects on average, a score that counts the chance to win, how big the win would be and the chance of dealing in, and plays the best one. Dealing in is part of that score, so there is no separate rule for playing safe.',
           'It learned from its own games with the targets, and it bets on bigger hands inside them: compared with the model before the targets, it wins Seven Pairs far less often and Concealed Triplets more often, about 3 hands in 100 instead of 4, each worth about 5,500 points instead of 3,200.',
           'It rarely pungs a discard: it claims one only when that is clearly worth more than passing. So it keeps more pairs and triplets concealed and declares more kongs.',
-          'It leans toward finishing: among choices worth about the same, it takes the one more likely to win. That brought back Seven Pairs, while its limit hands held up. Compared with the model before it, it finishes more Concealed Triplets and Mixed Orphans: it wins about 2 more hands in 1,000, each a little bigger, takes a few more pungs and kongs, and deals in a little less.',
+          'It leans toward finishing: each choice's score adds a bonus for its chance to win (500 points for a sure win), so among choices worth about the same it takes the one more likely to win. That brought back Seven Pairs, while its limit hands held up. Compared with the model before it, it finishes more Concealed Triplets and Mixed Orphans: it wins about 2 more hands in 1,000, each a little bigger, takes a few more pungs and kongs, and deals in a little less.',
           'It learned from games against Neural Cat, Jorge Yau and Lucky Cat. It sees only what its seat can see.',
         ];
       },
@@ -101,7 +101,7 @@
       name: 'Neural Cat',
       bot: N,
       get summary() {
-        return withModel(modelName(), 'Plays Jorge Yau\'s hands, but a neural network trained on simulated games chooses among its best options by what each is worth on average: wins that come often and wins that pay big both count.');
+        return withModel(modelName(), 'Plays Jorge Yau\'s hands, but a neural network trained on simulated games chooses among his best options by what each is worth on average, with a bonus for the chance to win: it wins about 14% of hands, and bigger ones than Lucky Cat\'s, while dealing in less.');
       },
       get details() {
         return [
@@ -110,7 +110,7 @@
         'Those predictions make one score, what the option is worth on average, and the highest score goes. A quick small win and a slower big one are weighed on the same scale, so it can prefer a slower big hand over a fast small one when the numbers favor it.',
         'It plays for bigger hands than Lucky Cat does: it wins less often, and its wins are worth much more. It also deals in less, because the chance of dealing in is part of every score. Since NC4 the score also gets a bonus for the chance to win (300 points for a sure win since NC6; 150 before), so it now wins about 14% of hands (up from about 9%) with smaller wins on average (about 1,100 points, down from about 1,900). It was then trained again on its newest games (NC5, NC8) and weighs a wider set of Jorge Yau\'s discards (NC7).',
         'Claims and kongs are weighed the same way: passing, each pung, chow or kong and the best discard after it. When the model\'s pick scores higher than Jorge Yau\'s call, the model\'s goes.',
-        'The coach says the score it expects from its pick and from the next best, its chance to win and how much a win pays, and which parts of the position put its pick ahead: speed, hand value, safety, what the table shows.',
+        'The coach says the score it expects from its pick and from the next best, its chance to win and how much a win pays, and which parts of the position put its pick ahead: speed, hand value, safety, what the table shows. On Simple and Detailed the coach speaks for itself ("I like it because it keeps a bigger hand in reach"); only Complex says "the model".',
         'It plays fair: it sees only what its seat can see, the same as you. Never the wall, another player\'s hand, or which tile a concealed kong is.',
         ];
       },

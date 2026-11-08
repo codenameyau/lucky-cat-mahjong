@@ -29,7 +29,7 @@ test('Detailed leaves out the score and says why in plain words', () => {
   for (const seed of [3, 5, 9, 29]) {
     const h = hintFor('neural-cat', 'detailed', seed);
     assert.doesNotMatch(words(h), /model expects|score|chance to win/, 'seed ' + seed);
-    assert.match(words(h), /The model picks it because it /, 'seed ' + seed);
+    assert.match(words(h), /I pick it because it /, 'seed ' + seed);
     assert.ok(words(h).length <= Coach.MAX_TEXT);
   }
 });
@@ -45,7 +45,7 @@ test('Simple is the action and a short reason, never the score', () => {
   }
   // A learned strategy says what it likes about the pick, with the words above.
   const said = [3, 5, 9, 29, 41, 77, 12].map((seed) => words(hintFor('neural-cat', 'simple', seed)));
-  assert.ok(said.some((t) => /The model likes it because it /.test(t)), said.join(' | '));
+  assert.ok(said.some((t) => /I like it because it /.test(t)), said.join(' | '));
 });
 
 test('Simple is shorter than Detailed, and Detailed shorter than Complex', () => {
@@ -79,4 +79,15 @@ test('the game keeps the choice in the game prefs and has Coach settings on the 
   const html = fs.readFileSync(path.join(__dirname, '..', 'playing-mahjong/index.html'), 'utf8');
   assert.match(html, /id="coach-settings-sheet"/);
   for (const name of ['Simple', 'Detailed', 'Complex']) assert.match(game, new RegExp("name: '" + name + "'"));
+});
+
+test('Simple and Detailed speak as "I", never "the model"; Complex may say "the model"', () => {
+  for (const detail of ['simple', 'detailed']) {
+    for (const id of ['neural-cat', 'jorge-yau', 'lucky-cat', 'only-orphans']) {
+      for (const seed of [3, 5, 9, 29, 41, 77, 12]) {
+        assert.doesNotMatch(words(hintFor(id, detail, seed)), /\bthe model\b|\bthe network\b/i, detail + ' ' + id + ' ' + seed);
+      }
+    }
+  }
+  assert.match(words(hintFor('neural-cat', 'complex', 3)), /The model expects/);
 });

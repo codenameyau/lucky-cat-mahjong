@@ -24,7 +24,7 @@
   'use strict';
 
   // The game's version (GAME_VERSION in js/mahjong-engine.js; a test keeps them equal).
-  var VERSION = '0.57.3';
+  var VERSION = '0.57.6';
   var CACHE_PREFIX = 'lcm-play-v';
   // The old Play offline button's flag (0.45.0 builds before offline became the default), cleaned up.
   var OLD_FLAG_CACHE = 'lcm-play-offline';
@@ -107,7 +107,7 @@
     return name === OLD_FLAG_CACHE || (name.indexOf(CACHE_PREFIX) === 0 && name !== cacheName(version));
   }
 
-  // The version the service worker was registered for: /sw.js?v=0.57.3.
+  // The version the service worker was registered for: /sw.js?v=0.57.6.
   function versionFromScriptUrl(href) {
     var m = /[?&]v=([^&#]+)/.exec(String(href));
     return m ? decodeURIComponent(m[1]) : null;
