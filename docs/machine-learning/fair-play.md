@@ -45,6 +45,23 @@ A test that never fails proves nothing, so it also plants cheats and requires ea
 
 When it was first run, Only Orphans' scores changed when hidden tiles moved. A tripwire on every hidden array traced it to the shared foundation: `opponentThreats`, `readCollecting`, `leftRead`, `afterRead` and `valueSlope` read the tile of an opponent's concealed kong. It affected every strategy, and only showed up when a concealed kong was on the table. Every opponent read now goes through `shownMelds`, and the coach's opponent reads were fixed the same way. The test checks that for every strategy.
 
+## Training with the hidden tiles (Suphx), and why the game never sees them
+
+Since the Suphx work, training can record what a seat *can't* see beside what it can: the other players' concealed tiles, their waits, the wall, and what each discard would pay right now (`scripts/ml/oracle.js`, `lucky.js generate --oracle`). It is used in three ways, and only the first two reach a model that ships:
+
+- **As labels.** A hand's real ending was always the only thing from the future a model learned from. The hidden tiles are labels of the same kind: the model is graded on predicting them from what its seat can see (is that player ready, which tiles would complete their hand, what's in the wall). Predicting the hidden tiles is what a strong player does; reading them is cheating. The shipped network's inputs are unchanged.
+- **As a teacher.** The oracle knows which discards would deal in right now; a teacher pushes those down in the champion's choices, and the shipped network, reading only its seat, is fitted to the teacher.
+- **As inputs, in training only (oracle guiding).** A training-time model can read the hidden tiles while it learns, with those inputs faded to zero before it is written out without them. Such a model carries `meta.oracle` and a first layer wider than the seat's features.
+
+What keeps the game honest:
+
+- The game sets no hook: `js/mahjong-lucky-cat-ml.js` takes an optional `features` function that only `scripts/ml/lucky.js` ever passes. `scripts/ml/` is never loaded by any page or by the offline cache, and a test checks every page's `<script>` tags and the cache's list.
+- `scripts/ml/ship.js` refuses any model whose first layer reads more than the seat's features or that is marked `meta.oracle`.
+- `js/mahjong-fair-play.test.js` checks the shipped Lucky Cat and Neural Cat weights read exactly their seat's features, and plants a Lucky Cat that plays through the oracle hook to prove the shuffle test catches it.
+- The oracle's own test (`scripts/ml/oracle.test.js`) checks it reads the hidden tiles correctly, so a label is never wrong, and that `ship` refuses an oracle model.
+
+Any search at play (the plan's phase 4) is bound by the same test: it must build the worlds it plays out from the seat's view and the model's beliefs, never from the game's hidden state, and its decision must be unchanged when the hidden tiles are shuffled.
+
 ## Adding a strategy or a feature
 
 - Read opponents through `shownMelds`, `E.unseenCounts` and the pond, never through their `hand` or concealed melds.

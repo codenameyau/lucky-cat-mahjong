@@ -13,6 +13,11 @@ const S = require('./mahjong-strategies.js');
 const ML = require('./mahjong-ml.js');
 const F = require('./mahjong-ml-features.js');
 const Coach = require('./mahjong-coach.js');
+const fs = require('node:fs');
+const path = require('node:path');
+const LC = require('./mahjong-lucky-cat-ml.js');
+const LCN = require('./mahjong-lucky-cat-net.js');
+const Oracle = require('../scripts/ml/oracle.js');
 
 function copyGame(game) {
   const { rng, ...rest } = game;
@@ -153,6 +158,44 @@ describe('fair play', () => {
     for (const what of Object.keys(peeks)) {
       await assert.rejects(playAll('cheat', cheat(peeks[what]), null, 1), /changed its decision|peeked/, 'missed a peek at ' + what);
     }
+  });
+
+  // Training records the hidden tiles beside the seat's view (Suphx's
+  // oracle, scripts/ml/oracle.js) through a hook the game never sets. If a
+  // Lucky Cat ever played with that hook, this is what would catch it.
+  it('catches a Lucky Cat that reads the hidden tiles through the training hook', async () => {
+    const w = LCN.randomWeights(5, [64, 32]);
+    w.layers[0].cols = LCN.SIZE + Oracle.SIZE;
+    w.layers[0].w = new Float32Array(w.layers[0].rows * w.layers[0].cols).map(() => Math.random() - 0.5);
+    const peeking = LC.create({ weights: w, fast: true, features: (g, s, x) => { const f = Oracle.extend(x, g, s); return { x: f, record: f }; } });
+    await assert.rejects(playAll('oracle lucky cat', peeking, null, 2), /changed its decision|peeked/);
+  });
+
+  it('the shipped Lucky Cat reads exactly its seat\'s features, and no page loads training code', () => {
+    const w = require('./mahjong-lucky-cat-weights.js');
+    assert.equal(w.featureSize, LCN.SIZE);
+    assert.equal(w.layers[0].cols, LCN.SIZE, 'the shipped network reads more inputs than the seat can see');
+    assert.ok(!(w.meta || {}).oracle, 'the shipped model is marked as an oracle model');
+    const nc = require('./mahjong-ml-weights.js');
+    assert.equal(nc.layers[0].cols, nc.featureSize);
+    // scripts/ml/ is training code: no page and not the offline cache may load it.
+    const root = path.join(__dirname, '..');
+    const pages = [];
+    (function walk(dir) {
+      fs.readdirSync(dir, { withFileTypes: true }).forEach((e) => {
+        if (e.name === 'node_modules' || e.name.startsWith('.')) return;
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) walk(p); else if (e.name.endsWith('.html')) pages.push(p);
+      });
+    })(root);
+    assert.ok(pages.length > 5);
+    pages.forEach((p) => {
+      const html = fs.readFileSync(p, 'utf8');
+      const srcs = Array.from(html.matchAll(/<script[^>]*\ssrc=["']([^"']+)["']/g)).map((m) => m[1]);
+      srcs.forEach((src) => assert.ok(!/scripts\/|oracle/.test(src), path.relative(root, p) + ' loads ' + src));
+    });
+    const cache = fs.readFileSync(path.join(__dirname, 'offline-cache.js'), 'utf8');
+    assert.ok(!/oracle|scripts\//.test(cache), 'the offline cache lists training code');
   });
 
   it("reads another player's concealed kong as a kong, never as its tile", () => {

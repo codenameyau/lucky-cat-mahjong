@@ -204,6 +204,21 @@ Numbers are chosen to be clear on 40,000 deals: one standard error there is abou
 
 Documentation rule, unchanged: every model that ships gets its iteration written up (the thinking, what the bot does differently), the Lucky Cat playbook updated, the game version bumped.
 
-## 8. What this plan would make Lucky Cat
+## 8. Fair play, phase by phase
+
+The shipped model must never read another hand or the wall. Each phase uses hidden information somewhere in training, so each one says exactly where it stops, and what proves it ([fair play](fair-play.md)):
+
+| Phase | Hidden information used | Where it stops | What proves it |
+| --- | --- | --- | --- |
+| 0 | What each discard would pay now, as a teacher's push on the champion's shares | The public network is fitted to the teacher; it never sees the labels | `ship.js` refuses oracle models; `oracle.test.js`; the shipped weights read exactly `N.SIZE` inputs |
+| 1 | The same, plus the hidden tiles as **auxiliary targets** (ready, waits, wall) | Targets only. The heads are predictions from public inputs; the warm start imitates Neural Cat and Jorge Yau, which read only their seats | The fair-play shuffle test on the new encoder (every table strategy is covered automatically); the auxiliary heads' outputs must not change when hidden tiles are shuffled |
+| 2 | Same as phase 1 | Same | Parity tests for the JS forward; the fair-play test on the structured network |
+| 3 | Same, plus futures replays and value-guided exploration **in data generation** | Replays reshuffle the wall to score moves offline; nothing of it is an input. Exploration samples from the public value head | The fair-play test; the replay buffer holds no hidden-tile inputs for the policy |
+| 3b | Determinized search as a **teacher**, with worlds sampled from the auxiliary heads' beliefs | The search runs offline; the shipped policy is distilled from its move distribution | The search's worlds are built from the seat's view only, checked by running it on a hidden-shuffled copy |
+| 4 | Search **at play**, worlds sampled from beliefs | The search must construct its worlds from the public view and the model's beliefs, never from `game.hand` | The fair-play shuffle test applied to the search's decision: unchanged when hidden tiles move, and it throws if it touches a trapped record |
+
+`guided` (oracle guiding, Suphx's own method) is the one arm whose training-time model reads hidden tiles; it is written without those inputs (`--public`) and cannot ship otherwise. If a phase cannot show its proof, it does not ship, whatever its score.
+
+## 9. What this plan would make Lucky Cat
 
 A network that decides every move itself, that began by learning from the table's best players and went on from there, that reads the table the way a strong player does because it was graded on reading it, that values hands by their whole distribution of outcomes in a scoring system where one hand can be worth a thousand, and that folds exactly when the risk says so. It should win as often as lc32 and lose far fewer points doing it. Whether it becomes the strongest Hong Kong mahjong player anywhere is not something a plan can promise; the north star and the rating ladder in phase 3 are what would show it, and the phases are built so each one earns the next.
