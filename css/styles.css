@@ -929,6 +929,10 @@ h1, h2, h3 {
     padding: 2.5rem 0 2.5rem;
   }
 
+  .hero-subheadline {
+    display: none;
+  }
+
   .hero-subheadline br {
     display: none;
   }
