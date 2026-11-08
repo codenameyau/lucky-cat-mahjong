@@ -2352,6 +2352,11 @@
         ui.hintsAll = hintsForAll(ui.turnPrompt ? 'turn' : 'claim', (ui.turnPrompt || ui.claimPrompt).opts);
         ui.hint = ui.hintsAll[ui.strategies.coach];
       }
+      // A playback's coach notes are written again in the new words.
+      if (settings.review) {
+        resetReviewCoach();
+        ensureReviewNotes(reviewStep);
+      }
       requestRender();
     }
 
@@ -5343,7 +5348,7 @@
         ui.feedbackKind = 'discard';
       }
       if (ui.coach === 'feedback' && ui.hint && action.type === 'discard') {
-        ui.feedback = Coach.discardFeedback(ui.hint, action.tile) || ui.feedback;
+        ui.feedback = judged(Coach.discardFeedback(ui.hint, action.tile), ui.hint) || ui.feedback;
         rememberAll(feedbackForAll(function (hint) { return Coach.discardFeedback(hint, action.tile); }), 'feedback');
       }
       ui.turnPrompt = null;
@@ -5359,7 +5364,7 @@
       if (!p) return;
       if (!lessonAllows('claim', decision)) return;
       if (ui.coach === 'feedback' && ui.hint) {
-        ui.feedback = Coach.claimFeedback(ui.hint, decision) || ui.feedback;
+        ui.feedback = judged(Coach.claimFeedback(ui.hint, decision), ui.hint) || ui.feedback;
         rememberAll(feedbackForAll(function (hint) { return Coach.claimFeedback(hint, decision); }), 'feedback');
       }
       if (ui.coach === 'feedback') {
@@ -5379,12 +5384,17 @@
       p.resolve(decision);
     }
 
+    // Feedback said at the Coach settings detail (Simple, Detailed or Complex).
+    function judged(fb, hint) {
+      return Coach.shapeFeedback ? Coach.shapeFeedback(fb, hint, coachDetail()) : fb;
+    }
+
     // What each strategy says about your move, from the hints it gave for it.
     function feedbackForAll(judge) {
       var out = {};
       Strategies.ids().forEach(function (id) {
         var hint = ui.hintsAll[id];
-        out[id] = hint ? judge(hint) : null;
+        out[id] = hint ? judged(judge(hint), hint) : null;
       });
       return out;
     }
@@ -6750,7 +6760,10 @@
       var coachNotes = mine ? mine.notes : [];
       ui.coachLog = coachNotes.concat(table).filter(function (n) { return n.step <= reviewStep; }).map(function (n, k) {
         return { n: n, k: k };
-      }).sort(function (a, b) { return a.n.step - b.n.step || a.k - b.k; }).map(function (o) { return o.n; });
+      }).sort(function (a, b) { return a.n.step - b.n.step || a.k - b.k; }).map(function (o) {
+        // The table read is said at the Coach settings detail too.
+        return o.n.kind === 'analysis' && Coach.shapeNote ? Coach.shapeNote(o.n, coachDetail()) : o.n;
+      });
     }
 
     // What this coach says about your discard, call, or kong, before it happens.
@@ -6775,6 +6788,7 @@
         hint = coach.turnHint(game, 0, E.turnOptions(game, 0));
         fb = reviewKongFeedback(hint, ev.t);
       } else return null;
+      fb = judged(fb, hint);
       if (!fb || !fb.action) return null;
       return {
         kind: 'feedback',
@@ -6790,8 +6804,8 @@
       var name = E.tileName(tile);
       var wanted = hint && hint.action && hint.action.indexOf('Kong ') === 0;
       if (wanted && hint.action.indexOf(name) !== -1) return { action: 'Good call.', tips: [hint.action] };
-      if (wanted) return { action: 'The coach would have called ' + hint.action.replace(/[.!]$/, '') + '.', tips: ['You konged ' + name + '.'] };
-      if (hint && hint.tile) return { action: 'The coach would have discarded ' + E.tileName(hint.tile) + '.', tips: ['You konged ' + name + '.'] };
+      if (wanted) return { action: 'I would have called ' + hint.action.replace(/[.!]$/, '') + '.', tips: ['You konged ' + name + '.'] };
+      if (hint && hint.tile) return { action: 'I would have discarded ' + E.tileName(hint.tile) + '.', tips: ['You konged ' + name + '.'] };
       return null;
     }
 

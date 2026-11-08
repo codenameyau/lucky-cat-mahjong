@@ -323,7 +323,7 @@ describe('coach: feedback on your last move', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }, { discards: ['dr'] }] }), 0, { kongs: [] });
     const fb = C.discardFeedback(hint, 'd5');
     assert.equal(fb.action, 'That discard slows your hand.');
-    assert.match(fb.tips.join(' '), /The coach picks Red Dragon\./);
+    assert.match(fb.tips.join(' '), /I pick Red Dragon\./);
     assert.match(fb.tips.join(' '), /Five Circle leaves you 2 tiles from ready, 1 more than Red Dragon/);
   });
 
@@ -337,7 +337,7 @@ describe('coach: feedback on your last move', () => {
     const hint = C.claimHint(game, 0, E.claimOptions(game, 0, 'dr', 2, false));
     assert.equal(C.claimFeedback(hint, { type: 'pung' }).action, 'Good call.');
     const missed = C.claimFeedback(hint, { type: 'pass' });
-    assert.equal(missed.action, 'The coach would have called Pung.');
+    assert.equal(missed.action, 'I would have called Pung.');
     assert.match(missed.tips[0], /^You passed\. /);
   });
 
@@ -347,7 +347,7 @@ describe('coach: feedback on your last move', () => {
     const hint = C.claimHint(game, 0, opts);
     assert.equal(C.claimFeedback(hint, { type: 'pass' }).action, 'Good pass.');
     const fb = C.claimFeedback(hint, { type: 'chow', tiles: opts.chows[0] });
-    assert.equal(fb.action, 'The coach would have passed.');
+    assert.equal(fb.action, 'I would have passed.');
     assert.match(fb.tips[0], /^You took the Chow\. /);
   });
 });
