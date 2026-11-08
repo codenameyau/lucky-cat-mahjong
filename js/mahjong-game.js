@@ -4789,9 +4789,9 @@
       var bh = Math.min(42, step - 6);
       var bx = px, bw = r.w - 44, y = r.y + 70;
       button('Resume', bx, y, bw, bh, function () { sound.play('select'); closeOverlay(); }, 'primary', 'm-resume'); y += step;
-      button('Coach settings', bx, y, bw, bh, function () { sound.play('select'); closeOverlay(); openCoachSettings(); }, 'white', 'm-coach'); y += step;
       var themeLabel = THEMES[themeName(prefs.theme)].label;
       button('Theme: ' + themeLabel, bx, y, bw, bh, function () { sound.play('select'); cycleTheme(); }, 'white', 'm-theme'); y += step;
+      button('Coach settings', bx, y, bw, bh, function () { sound.play('select'); closeOverlay(); openCoachSettings(); }, 'white', 'm-coach'); y += step;
       if (withPlayback) { button('View playback', bx, y, bw, bh, function () { sound.play('select'); closeOverlay(); viewReplay(); }, 'white', 'm-playback'); y += step; }
       var armed = ui.restartArmed && now() - ui.restartArmed < 5000;
       button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, bh, function () { sound.play('select'); restartGame(); }, armed ? 'gold' : 'white', 'm-restart'); y += step;
