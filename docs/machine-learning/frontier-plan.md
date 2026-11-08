@@ -11,7 +11,7 @@ Everything here must keep two promises: the shipped model reads only what its se
 | **Five networks**: discard, riichi, chow, pung, kong | Riichi is a declaration with its own payoff | No riichi. One network with action heads (what Lucky Cat has) is simpler and lets the heads share what they learn |
 | **Global reward prediction**: a GRU predicts the game's final placement from the round's state, and each round's reward is the change in that prediction | A riichi game is 8+ rounds and the prize is placement (uma/oka), so a round's points mean different things in different positions | Points settle every hand and there is no placement bonus. Points a hand is the right objective; the predictor is dead weight. **Drop it** |
 | **Oracle guiding**: train with every hidden tile as input, drop those inputs out to zero | Hidden information is large and learning is slow without it | Same hidden information. But probed here, a critic with every tile in view explained about 0% of a hand's points. The hidden tiles pay off **per move** (what does this discard pay right now?), not per hand. **Keep the idea, change where it's applied** (§3) |
-| **Run-time policy adaptation**: at the start of a round, simulate with the private hand fixed and fine-tune the policy | Cheap on a server | Not in a browser bot's turn. **Replace with a search option the browser can afford** (§5, phase 4) |
+| **Run-time policy adaptation**: at the start of a round, simulate with the private hand fixed and fine-tune the policy | Cheap on a server | Not in a browser bot's turn. **Replace with a search option the browser can afford** (§5, §6 phase 4) |
 | **Deep residual CNN over 34-tile channels**, with hand-crafted look-ahead features (what each discard leads to, from a search of the hand) | Tile adjacency within a suit is where chows live; look-ahead is expert knowledge the net needn't rediscover | Lucky Cat is a flat 376-256-128 MLP with no look-ahead features. This is the biggest gap (§2, §4) |
 | **Supervised start from millions of human games on Tenhou**, then policy gradient with entropy regularization, distributed self-play | Human data exists | No human data. Lucky Cat started at random and needed a million hands to learn what the rule bots knew. But the engine is deterministic and fast, and the rule bots encode expert knowledge: facts from the engine can be inputs, and the bots can be opponents, without Lucky Cat copying their opinions |
 
@@ -66,7 +66,7 @@ Reading `js/mahjong-lucky-cat-net.js`'s layout against what a strong human sees:
 6. **A league, not a fixed table.** Data comes from a pool: the champion, its last champions, Neural Cat (several releases), Jorge Yau, Lucky Cat Classic, Only Orphans. Judging has two parts: the game's table (what players meet) and a round robin against the pool. Shipping needs a gain at the table and no loss anywhere in the pool.
 
 *Critique.*
-- **Cost.** Items 2–4 are a new feature version, a new network with a JS forward and parity tests, and new training code: weeks, not a lab round. Answer: phase it (§5). Each phase ships on its own or is dropped on its own.
+- **Cost.** Items 2–4 are a new feature version, a new network with a JS forward and parity tests, and new training code: weeks, not a lab round. Answer: phase it (§6). Each phase ships on its own or is dropped on its own.
 - **Lucky Cat's identity.** It is "a network that taught itself"; engine facts as inputs blur that. Answer: shanten, waits and faan are rules of the game, as the tile counts are. The rule bots' *plans and preferences* stay out. Jorge Yau's foundation is never called.
 - **Afterstate value needs a lot of data.** Neural Cat trains on 50,000 deals a round and every seat. Answer: the oracle rounds record 1 learner seat and half its choices (300 MB a round). Record all four seats' outcomes for the value heads (small: outcome, faan, seat) and sample the policy rows. The engine does about 20 deals a second a worker with replays, about 60 without; a day on 8 workers is 1–4 million hands.
 - **Overfitting the table.** A champion trained and judged against two Neural Cats and Jorge Yau can learn their tells. Answer: the league (item 6), plus a held-out opponent never trained against (an older Neural Cat release) in the shipping check.
@@ -87,7 +87,77 @@ Heads:
 
 Size target: 4 layers, width 96, 4 heads; about 11 million multiply-adds a move; weights about 400 KB in float16. Measured on a mid-range phone before the width is fixed.
 
-## 5. Phases, numbers and kill criteria
+## 5. Four model families, and the job each one gets
+
+Four families come up for game-playing bots. None of them is the plan on its own; each has a job in it, and two of them are already here under other names.
+
+### Heuristic-based models
+
+**What they are here.** Jorge Yau, Lucky Cat Classic and the rule-based Only Orphans: hand-written reads of the table (steps from ready, live tiles, plans, threats, feeding) and a discard order. Neural Cat is a hybrid: it chooses among Jorge Yau's top three or four discards with a learned value, and that is why it scores more points than anything else in the game.
+
+**Strengths.** No data needed, every move explainable (the coach's words come from them), fast, and they encode decades of Hong Kong mahjong knowledge: when a half flush is on, which honor to keep, when to fold.
+
+**Ceiling.** Exactly the designer's knowledge. Lucky Cat passed them on hands won by lc20, with a million hands of self-play, and they can't learn from their mistakes.
+
+**Jobs in the plan.**
+- *Scaffolding for the network.* Engine facts (shanten, live waits, faan now, patterns still reachable) are the heuristics' inputs made available to the network, without the heuristics' conclusions (phase 2).
+- *Opponents and a yardstick.* Jorge Yau and Lucky Cat Classic stay in the league pool and the shipping check: a model that loses to a rule bot has learned something narrow.
+- *The rollout policy for search.* A search needs a fast policy to play out futures; Lucky Cat Classic plays a hand in about a millisecond, the network in about ten.
+- *Not the decider.* A rule that overrides the network ("never discard into four shown sets") is tempting after a bad deal-in and would hide what the network failed to learn. Fix the training, not the output.
+
+### Monte-Carlo Tree Search
+
+**The fit.** MCTS as AlphaZero uses it needs the full state. Mahjong hides 3 hands and the wall, and the tree at one decision branches into 14 discards × 3 opponents' claims × the draw. The forms that work in hidden-information games are **determinization** (sample worlds consistent with what the seat knows, search each as if it were open, average) and **information-set MCTS** (one tree over what the seat knows, worlds sampled as the tree is walked). Both are heavy; neither top riichi program searches at play time.
+
+**Where it earns its cost here.** The engine is deterministic and fast, and the auxiliary heads (§4) give exactly the beliefs a determinizer needs: for each tile, the chance it sits in each opponent's hand or in the wall, and whether each opponent is ready. Sample 16–64 worlds from those beliefs, play each candidate move out with the fast policy on the same worlds (shared luck, as the futures replays do), and average points.
+
+**Two jobs.**
+- *Offline, as a teacher (phase 3b): expert iteration.* Search is a policy-improvement operator: its choice at a position is better than the network's. Run it at training time on the champion's recorded choices, with 64 worlds and the network as rollout policy, and distill its move distribution into the policy head alongside the value targets. This is AlphaZero's loop with determinization in place of a perfect-information tree. It replaces the one-shot "next-best moves on 4 futures" replays with a search that also considers moves the champion ranked low. Cost: about 64 × 14 × 11 ms ≈ 10 s a searched choice, so a few choices a hand on a few thousand hands a round, aimed at the choices the value head is least sure of.
+- *Online, optional (phase 4): "thinks longer".* The same search in a Web Worker with 16–32 worlds and Lucky Cat Classic as rollout policy, 1–1.5 s a move. It is strongest exactly where networks are weakest: a late, ready hand against a shown big hand, where one discard decides 2,000 points.
+
+**Risk.** Determinized search is overconfident: it plays as if it will learn the hidden tiles after its move (the "strategy fusion" problem). Mahjong is forgiving here because one move rarely gathers information, but it is why the plan keeps search as a teacher and an option rather than the player.
+
+### Deep Q-learning
+
+**What it is here already.** A discard leaves a deterministic position, so Q(state, discard) is the value of that **afterstate**. Neural Cat is an afterstate value model trained on Monte Carlo outcomes: that is Q-learning's object without its bootstrapping. The plan's value head (§4, item 4) is the same object for Lucky Cat.
+
+**What DQN's machinery adds, and what to leave.**
+- *Distributional Q (C51, QR-DQN).* Take it: it is the categorical outcome × faan head, and in a scoring system where one hand is worth a thousand, the distribution is the only learnable target.
+- *Temporal-difference bootstrapping.* Mostly leave it. Within one hand the return is known at the end (a few dozen moves), and Monte Carlo targets are unbiased in a four-player hidden-information game where the "next state" depends on three opponents' policies. Use an n-step mix (TD(λ) with λ near 0.9) only if the value head's correlation with realized points stalls below 0.25 on held-out hands.
+- *A target network and double-Q.* Needed with bootstrapping; otherwise unneeded.
+- *Prioritized replay.* Take it, in the form that matters here: sample training rows in proportion to |advantage|, so the rare big hands and the deal-ins that decide the points are seen often, with importance weights to keep the estimate honest.
+- *Epsilon-greedy exploration.* Replace with sampling from the policy at a temperature (what the lab does) and the entropy target: epsilon-greedy throws away a random tile, which in mahjong is a free deal-in.
+
+**Job in the plan.** The value head is a distributional afterstate Q trained by Monte Carlo with prioritized sampling; it grades every legal move at every choice for the policy update, and gives the coach its "expected points and chance to win" line, as Neural Cat's does.
+
+### Deep policy gradient
+
+**What was tried.** Suphx's method, PPO with entropy regularization on the hand's points, ran here as the LP and LT rounds. With a critic that explained under 1% of the reward, each round moved the policy a KL of 0.0005–0.005 from the champion: a refit, not an improvement. Policy gradient is not wrong; its signal was.
+
+**What changes it.**
+- *The baseline.* The distributional afterstate Q is the critic; the advantage of a move is its Q less the policy's average Q at that choice, computed for every legal move, not only the one played. This is the variance reduction the scalar critic couldn't give.
+- *The update.* Regularized policy iteration (MPO or advantage-weighted regression, Suphx's PPO is a cousin): the target distribution is the champion's shares times exp(advantage / tau), fitted with a KL leash. The step size is set by the evidence (tau and the leash), so a round with little signal moves little and a round with much moves much, which is what the plateaued PPO rounds lacked.
+- *Counterfactuals where the value is unsure.* The futures replays and, in phase 3b, search give exact advantages for the hardest choices.
+- *Entropy.* Suphx's adaptive entropy target, kept (built in phase 0 as `--target-entropy`).
+
+**Job in the plan.** Policy gradient in its regularized form is the policy update itself, in phase 3, with the value head as its critic.
+
+### Where each one sits
+
+| Family | Job | Phase | Expected gain | Cost | Risk |
+| --- | --- | --- | --- | --- | --- |
+| Heuristic | Engine facts as inputs; league opponents; rollout policy | 2, 3, 4 | Indirect, large (Suphx's look-ahead features) | Low | Blurring "the network decides" if their *choices* leak in |
+| MCTS (determinized) | Offline teacher by expert iteration; optional online search | 3b, 4 | +10 to +40 a hand where one discard decides a big hand | High compute offline; 1–1.5 s a move online | Overconfidence from determinization |
+| DQN family | Distributional afterstate value with prioritized sampling | 3 | The critic that makes the policy update work; the coach's numbers | Medium | TD bootstrapping against three moving opponents (so Monte Carlo first) |
+| Policy gradient (regularized) | The policy update | 3 | Carries the value's gains into play | Low once the value exists | Refitting the champion if the signal is weak (the leash and tau) |
+
+### On TensorFlow
+
+The training code is PyTorch (`ml/train.py`, `ml/train_lucky.py`), and the models run in the game as weights read by plain JS, not by a framework. Which framework trains them changes nothing about how strong they get; the signal, the inputs and the network do. Moving training to TensorFlow would mean rewriting two trainers and their parity checks for no gain in play, so the plan keeps PyTorch unless there is another reason (a machine or a team that needs it).
+
+Where TensorFlow does matter is **TensorFlow.js in the browser**. The structured network of phase 2 has a 10 ms budget in hand-written JS. If the width that beats the MLP can't meet it, TensorFlow.js (or ONNX Runtime Web) runs the same weights on WebGL or WebAssembly several times faster, at the price of a 1–2 MB library the page must load offline (the game is a PWA, so it would join `js/offline-cache.js`). That is the fallback for phase 2's kill criterion, and phase 4's online search would need it too.
+
+## 6. Phases, numbers and kill criteria
 
 Each phase has a result it must show on 40,000 fresh deals at the game's table (candidate and champion in every seat on the same deals, points first, win rate within one standard error), and a reason to stop.
 
@@ -95,14 +165,15 @@ Each phase has a result it must show on 40,000 fresh deals at the game's table (
 | --- | --- | --- | --- |
 | **0** Suphx teacher (built, `--strategy lucky-cat-suphx`) | Per-move danger teacher, distilled | ≥ +10 points a hand over lc32, win rate held | Three rounds without a kept model |
 | **1** Labels as targets | Oracle-supervised auxiliary heads on the current MLP and features; distill policy from the champion with the teacher | Deal-in head AUC ≥ 0.80 on held-out hands; ≥ +10 over the phase-0 champion | Heads below AUC 0.70: the inputs can't carry it (go to phase 2 first) |
-| **2** Features v2 + structured net | Per-player ordered piles, engine facts, tile tokens, JS forward, parity and fair-play tests, 10 ms budget | Same training as phase 1 but ≥ +25 over its champion; deal-ins at the table ≤ 11% | Can't meet 10 ms on a phone at a width that beats the MLP |
+| **2** Features v2 + structured net | Per-player ordered piles, engine facts, tile tokens, JS forward, parity and fair-play tests, 10 ms budget | Same training as phase 1 but ≥ +25 over its champion; deal-ins at the table ≤ 11% | Can't meet 10 ms on a phone at a width that beats the MLP, even on TensorFlow.js or ONNX Runtime Web |
 | **3** Distributional value + policy iteration + league | Afterstate value heads; exp(advantage / tau) targets with futures replays at uncertain choices; league pool; two-part judging | ≥ +40 over the phase-2 champion; no loss against any pool member; expected-points correlation with realized points ≥ 0.25 on held-out hands | Two full rounds without a kept model after the value heads reach that correlation |
+| **3b** Search as a teacher | Determinized search (worlds sampled from the auxiliary heads' beliefs, the network as rollout policy) at the choices the value is least sure of; its move distribution distilled into the policy | ≥ +15 over the phase-3 champion | Search agrees with the value head's best move more than 95% of the time: nothing left to teach |
 | **4** Search (optional) | At play, sample opponent hands from the auxiliary heads' beliefs, roll out a few dozen futures per candidate move in a worker; a "thinks longer" setting | ≥ +20 over the phase-3 champion at ≤ 1.5 s a move | Gain under one standard error at 1.5 s |
 
 Numbers are chosen to be clear on 40,000 deals: one standard error there is about 3.5 points a hand, so every bar is at least three of them.
 
 Documentation rule, unchanged: every model that ships gets its iteration written up (the thinking, what the bot does differently), the Lucky Cat playbook updated, the game version bumped.
 
-## 6. What this plan would make Lucky Cat
+## 7. What this plan would make Lucky Cat
 
 A network that still decides every move itself, that reads the table the way a strong player does because it was graded on reading it, that values hands by their whole distribution of outcomes in a scoring system where one hand can be worth a thousand, and that folds exactly when the risk says so. It should win as often as lc32 and lose far fewer points doing it. Whether it becomes the strongest Hong Kong mahjong player anywhere is not something a plan can promise; the evaluation suite in phase 3 is what would show it, and the phases are built so each one earns the next.
