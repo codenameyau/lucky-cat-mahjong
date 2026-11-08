@@ -609,6 +609,19 @@ Four rounds at the game's table from lc32 (LT1a to LT4c, 200,000 deals, bold mod
 - **A longer screen:** Lucky Cat's candidates are screened on 15,000 deals (about ±4.5) before the best two play 40,000.
 - **New names:** LR models and `lcroll` data, from lc32 again. The table rounds above are kept as LT models and `ml/lab-lucky-cat-table-pg/`.
 
+### Critique: on one wall, a move is judged by a future no player can see
+
+Three rounds of replays (LR1a to LR3c, 90,000 deals, against NC5) kept one model, and it didn't hold. On 40,000 deals every finalist was level: LR1c +1.2 ± 2.1 points a hand, LR2a −0.9 ± 2.0, LR2c +1.0 ± 2.1, LR3b +1.4 ± 2.0. LR3a was kept at +3.0 ± 1.9, but on 40,000 fresh deals against NC8 it scored −0.4 ± 1.9. Three things were wrong:
+
+- **The replays knew the future.** Each move was replayed on the same wall, with the same tiles in the other hands. So a move "scored more" when it happened to suit the tiles still to come, which the player can't see when it chooses. A third of the forced moves changed the hand's points, but mostly through luck, not through anything the move's position shows. The network was fitted to that luck: the points it gained on held-out moves were about zero (−0.02 to −0.05 a choice), and it moved very little from the champion (a KL of 0.003).
+- **One sample a move.** Even with the right futures, one replay of a hand is one draw of all that's still to come.
+- **The keep bar picked luck.** It kept a candidate whose points beat one standard error. With two finalists a round, one does that about a third of the time by chance, as LR3a did.
+
+**What changed: every move on the same reshuffled futures.**
+- **Futures (`lucky.js generate --futures 4`):** at a replayed choice, the wall still to be drawn (flowers left where they are) is shuffled again, 4 ways. The other players' concealed tiles stay as dealt: at a claim they may already have chosen which of them to meld, and reshuffling them broke those claims. Every move tried, the champion's included, plays the same 4 futures, and its points are the mean. That's what the move is worth from what the player knew, and the futures' luck is shared between the moves compared. Each round now replays 2 choices a hand (3 in bold mode) on 20,000 deals.
+- **A stricter keep bar:** Lucky Cat's points must beat the full margin (about two standard errors), not half of it.
+- **New names:** LF models and `lcfut` data, from lc32, against NC8. The one-wall rounds are kept as LR models and `ml/lab-lucky-cat-one-wall/`.
+
 
 - **What a model optimizes is what you get.** Neural Cat scores choices in expected points and learned bigger hands. Lucky Cat scores wins and learned faster, smaller ones. Neither is "better" in general: Neural Cat scores more points, and Lucky Cat wins more hands.
 - **Building on rules gets far faster than starting from scratch.** Neural Cat was ahead of the rule bots from its first model, because it chooses among Jorge Yau's best options. Lucky Cat needed a million hands to learn what the rules already knew, but it isn't limited by them.
