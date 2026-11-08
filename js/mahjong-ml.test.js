@@ -207,8 +207,11 @@ describe('Neural Cat strategy', () => {
           claims++;
           assert.equal(read.choices[0].decision.type, 'pass');
           assert.deepEqual(d.decision, read.choices[read.pick].decision);
-          const top = Math.max.apply(null, read.choices.map((x) => x.ml.ev));
-          assert.ok(read.pick === read.foundation || read.choices[read.pick].ml.ev === top);
+          // The pick maximizes expected points plus the weights' win bonus per 100% of win chance.
+          const bonus = (ML.model && ML.model.meta && ML.model.meta.play && ML.model.meta.play.winBonus) || 0;
+          const val = (x) => x.ml.ev + bonus * x.ml.pWin;
+          const top = Math.max.apply(null, read.choices.map(val));
+          assert.ok(read.pick === read.foundation || val(read.choices[read.pick]) === top);
           read.choices.forEach((x) => assert.ok(Number.isFinite(x.ml.ev) && !x.ml.features));
           if (claims === 1) {
             const hint = Coach.claimHint(g, s, o);
