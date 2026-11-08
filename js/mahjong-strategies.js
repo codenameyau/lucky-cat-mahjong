@@ -84,7 +84,7 @@
           'The choices left to ' + (version ? 'its neural network, model ' + version + ',' : 'a neural network') + ' are which allowed tile goes and which allowed pungs and kongs to take. It weighs each by the score it expects on average, a score that counts the chance to win, how big the win would be and the chance of dealing in, and plays the best one. Dealing in is part of that score, so there is no separate rule for playing safe.',
           'It learned from its own games with the targets, and it bets on bigger hands inside them: compared with the model before the targets, it wins Seven Pairs far less often and Concealed Triplets more often, about 3 hands in 100 instead of 4, each worth about 5,500 points instead of 3,200.',
           'It rarely pungs a discard: it claims one only when that is clearly worth more than passing. So it keeps more pairs and triplets concealed and declares more kongs.',
-          'It leans toward finishing: among choices worth about the same, it takes the one more likely to win. That brought back Seven Pairs, while its limit hands held up. Compared with the model before it, it leans a little harder: it wins about 3.9 hands in 100 instead of 3.5, the extra ones mostly Seven Pairs, each a little smaller, with as many limit hands and deal-ins.',
+          'It leans toward finishing: among choices worth about the same, it takes the one more likely to win. That brought back Seven Pairs, while its limit hands held up. Compared with the model before it, it leans a touch harder still: it wins about 1 more hand in 1,000, the extra ones Seven Pairs, and otherwise plays the same.',
           'It learned from games against Neural Cat, Jorge Yau and Lucky Cat. It sees only what its seat can see.',
         ];
       },
