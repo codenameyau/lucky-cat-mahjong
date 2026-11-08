@@ -49,6 +49,17 @@ the hand it came from. Then:
 The shares are read at the temperature the data was played at, so the
 champion's own data starts at a ratio of 1.
 
+Move by move (--mode q): data from lucky.js generate --rollouts, where
+some of the champion's choices were played again with its next-best moves
+forced, on the same deal. Each row has the moves tried and the points each
+scored. A move's advantage is its points less the points of the move the
+champion played (clipped at --reward-clip); moves not tried count as the
+worst one tried, and no better than the champion's. The target for each
+choice is the champion's shares times exp(advantage / --tau), and training
+fits the network to it (cross-entropy): moves that scored more on the same
+wall get more of the share, by an amount --tau sets, so the new model stays
+close to the champion where the replays say little.
+
 Writes ml/models/<name>.json (float16 base64) and checks the JS model gives
 the same outputs.
 """
@@ -67,6 +78,116 @@ import torch.nn as nn
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUTPUTS = 74
 HIDDEN = [256, 128]
+
+
+def load_q(dirs):
+    xs, legal, qa, q, hs = [], [], [], [], []
+    size = version = None
+    for di, d in enumerate(dirs):
+        meta = json.load(open(os.path.join(ROOT, d, 'meta.json')))
+        size, version = meta['featureSize'], meta['featureVersion']
+        if not meta.get('rollouts'):
+            raise SystemExit(d + ' has no rollouts (generate it with --rollouts)')
+        slots = meta['rollouts']['slots']
+        for f in sorted(os.listdir(os.path.join(ROOT, d))):
+            if not f.endswith('.qa.u1'):
+                continue
+            base = os.path.join(ROOT, d, f[:-6])
+            t = np.fromfile(base + '.qa.u1', dtype=np.uint8).reshape(-1, slots)
+            if not len(t):
+                continue
+            # Four slots whatever the data had: the move played and up to three tried.
+            qa.append(np.concatenate([t, np.full((len(t), 4), 255, dtype=np.uint8)], axis=1)[:, :4])
+            qv = np.fromfile(base + '.q.f4', dtype='<f4').reshape(-1, slots)
+            q.append(np.concatenate([qv, np.zeros((len(t), 4), np.float32)], axis=1)[:, :4])
+            xs.append(np.fromfile(base + '.x.f16', dtype='<f2').reshape(-1, size))
+            m = np.unpackbits(np.fromfile(base + '.m.u1', dtype=np.uint8).reshape(-1, 10), axis=1, bitorder='little')[:, :OUTPUTS]
+            legal.append(m.astype(bool))
+            shard = int(f.split('-')[1].split('.')[0])
+            hs.append(np.fromfile(base + '.h.u4', dtype='<u4').astype(np.int64) + (di * 1000 + shard) * (1 << 32))
+    return np.concatenate(xs), np.concatenate(legal), np.concatenate(qa), np.concatenate(q), np.concatenate(hs), size, version
+
+
+def train_q(args, hidden, init_hidden):
+    """--mode q: fit the champion's shares, tilted toward the moves that scored more on replays."""
+    x, legal, qa, q, h, size, version = load_q(args.data)
+    n = len(x)
+    valid = qa != 255
+    adv = np.clip(q - q[:, :1], -args.reward_clip, args.reward_clip) * valid
+    reps = max(1, int(valid.sum()) - n)
+    print(f'{n} choices from {len(args.data)} rounds ({x.shape[1]} features), {reps} replays; '
+          f'{100 * float((np.abs(adv[:, 1:]) > 0).sum()) / reps:.1f}% changed the points, '
+          f'{100 * float((adv[:, 1:] > 0).sum()) / reps:.1f}% for the better')
+    torch.manual_seed(1)
+    dev = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f'training on {dev}' + (f' ({torch.cuda.get_device_name(0)})' if dev == 'cuda' else ''))
+    shape = hidden or init_hidden
+    net = Net(size, args.dropout, shape)
+    init = json.load(open(os.path.join(ROOT, args.init)))
+    with torch.no_grad():
+        for l, src in zip(net.layers, init['layers']):
+            l.weight.copy_(torch.from_numpy(floats(src['w'], init.get('dtype')).reshape(src['rows'], src['cols'])))
+            l.bias.copy_(torch.from_numpy(floats(src['b'], init.get('dtype'))))
+    print('from ' + args.init)
+    net.to(dev)
+    ref = Net(size, 0.0, shape).to(dev)
+    ref.load_state_dict(net.state_dict())
+    ref.eval()
+    rng = np.random.default_rng(1)
+    hands, inv = np.unique(h, return_inverse=True)
+    held = rng.random(len(hands)) < 0.1
+    va, tr = np.nonzero(held[inv])[0], np.nonzero(~held[inv])[0]
+    X = torch.from_numpy(x.astype(np.float32))
+    Lg = torch.from_numpy(legal)
+    QA = torch.from_numpy(np.where(valid, qa, 0).astype(np.int64))
+    V = torch.from_numpy(valid)
+    ADV = torch.from_numpy(adv.astype(np.float32))
+
+    def q_loss(idx):
+        xb, lb, qab, vb, advb = X[idx].to(dev), Lg[idx].to(dev), QA[idx].to(dev), V[idx].to(dev), ADV[idx].to(dev)
+        # Untried moves: the worst tried move's advantage, and no better than the champion's.
+        floor = torch.where(vb, advb, torch.full_like(advb, 1e9)).min(1).values.clamp(max=0)
+        a_all = floor[:, None].expand(-1, OUTPUTS).clone()
+        a_all.scatter_(1, qab, torch.where(vb, advb, floor[:, None].expand_as(advb)))
+        with torch.no_grad():
+            rlog = torch.log_softmax(ref(xb).masked_fill(~lb, -1e9), dim=1)
+            tgt = torch.softmax((rlog + a_all / args.tau).masked_fill(~lb, -1e9), dim=1)
+        logp = torch.log_softmax(net(xb).masked_fill(~lb, -1e9), dim=1)
+        ce = -(tgt * logp.masked_fill(~lb, 0)).sum(1).mean()
+        with torch.no_grad():
+            kl = (rlog.exp() * (rlog - logp).masked_fill(~lb, 0)).sum(1).mean()
+            # The points the new shares expect over the moves tried, less the champion's shares'.
+            pt = torch.where(vb, logp.gather(1, qab).exp(), torch.zeros_like(advb))
+            pr = torch.where(vb, rlog.gather(1, qab).exp(), torch.zeros_like(advb))
+            gain = ((pt - pr) * advb).sum(1).mean()
+        return ce, kl, gain
+
+    opt = torch.optim.AdamW(net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    best, best_state, stats = float('inf'), None, {}
+    for ep in range(args.epochs):
+        net.train()
+        perm = torch.from_numpy(rng.permutation(tr))
+        for s_ in range(0, len(perm), args.batch):
+            loss = q_loss(perm[s_:s_ + args.batch])[0]
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
+        net.eval()
+        with torch.no_grad():
+            tot = np.zeros(3)
+            for s_ in range(0, len(va), 8192):
+                idx = torch.from_numpy(va[s_:s_ + 8192])
+                tot += np.array([v.item() for v in q_loss(idx)]) * len(idx)
+            ce, kl, gain = tot / len(va)
+        print(f'epoch {ep + 1}: held-out cross-entropy {ce:.4f}, KL from the champion {kl:.4f}, points gained on the moves tried {gain:+.2f}')
+        if ce < best:
+            best = ce
+            best_state = {k: v.detach().cpu().clone() for k, v in net.state_dict().items()}
+            stats = {'epochs': ep + 1, 'kl': float(kl), 'heldOutGain': float(gain)}
+    net.load_state_dict(best_state)
+    net.cpu().eval()
+    meta_train = dict({'mode': 'q', 'tau': args.tau, 'rewardClip': args.reward_clip, 'lr': args.lr, 'choices': int(n)}, **stats)
+    return net, x, va, n, size, version, best, meta_train
 
 
 def load(dirs, returns=False):
@@ -173,7 +294,8 @@ def main():
     ap.add_argument('--weight-decay', type=float, default=1e-4)
     ap.add_argument('--smoothing', type=float, default=0.05)
     # Points first (data from lucky.js generate --returns).
-    ap.add_argument('--mode', choices=['imitate', 'pg', 'awr'], default='imitate')
+    ap.add_argument('--mode', choices=['imitate', 'pg', 'awr', 'q'], default='imitate')
+    ap.add_argument('--tau', type=float, default=100.0, help='--mode q: the points of advantage that multiply a share by e')
     ap.add_argument('--reward', choices=['points', 'sqrt'], default='points', help='the hand\'s points, or their signed square root')
     ap.add_argument('--reward-clip', type=float, default=4000)
     ap.add_argument('--win-bonus', type=float, default=0, help='points added to the reward of a hand won')
@@ -195,6 +317,10 @@ def main():
             init_hidden = [l['rows'] for l in src['layers'][:-1]]
 
     t0 = time.time()
+    if args.mode == 'q':
+        net, x, va, n, size, version, best, meta_train = train_q(args, hidden, init_hidden)
+        export(args, net, x, va, n, size, version, best, hidden, init_hidden, {'objective': 'points', 'train': meta_train}, t0)
+        return
     rl = args.mode != 'imitate'
     loaded = load(args.data, rl)
     x, a, legal, w, size, version = loaded[:6]
@@ -372,17 +498,22 @@ def main():
             best_state = {k: v.detach().cpu().clone() for k, v in net.state_dict().items()}
     net.load_state_dict(best_state)
     net.cpu().eval()
+    extra = {}
+    if rl:
+        extra['objective'] = 'points'
+        extra['train'] = dict({'mode': args.mode, 'reward': args.reward, 'rewardClip': args.reward_clip, 'winBonus': args.win_bonus,
+                               'lr': args.lr, 'clip': args.clip, 'entropy': args.entropy, 'klMax': args.kl_max, 'beta': args.beta}, **rl_stats)
+    export(args, net, x, va, n, size, version, best, hidden, init_hidden, extra, t0)
 
+
+def export(args, net, x, va, n, size, version, best, hidden, init_hidden, extra, t0):
     layers = []
     for l in net.layers:
         layers.append({'rows': l.out_features, 'cols': l.in_features, 'w': b64(l.weight.detach().numpy()), 'b': b64(l.bias.detach().numpy())})
     meta = {'name': args.name, 'trainedAt': time.strftime('%Y-%m-%d %H:%M'), 'samples': int(n), 'data': args.data,
             'init': None if hidden else args.init, 'validationLoss': best, 'negWeight': args.neg_weight,
             'hidden': hidden or init_hidden or HIDDEN}
-    if rl:
-        meta['objective'] = 'points'
-        meta['train'] = dict({'mode': args.mode, 'reward': args.reward, 'rewardClip': args.reward_clip, 'winBonus': args.win_bonus,
-                              'lr': args.lr, 'clip': args.clip, 'entropy': args.entropy, 'klMax': args.kl_max, 'beta': args.beta}, **rl_stats)
+    meta.update(extra)
     out = {'featureVersion': version, 'featureSize': size, 'dtype': 'f16', 'meta': meta, 'layers': layers}
     os.makedirs(os.path.join(ROOT, 'ml', 'models'), exist_ok=True)
     path = os.path.join(ROOT, 'ml', 'models', args.name + '.json')

@@ -559,6 +559,19 @@ Thirteen points-first rounds from lc32 (LP1a to LP13a, 650,000 deals) kept six c
 - **Judging:** `lucky.js eval --table neural-cat,jorge-yau,neural-cat` seats the candidate and the champion alone at that table, each in every seat in turn, on the same 40,000 deals, paired deal by deal (one standard error about 3.5 points a hand).
 - **A fresh start from lc32**, with new names (LT models, `lctab` data); the head-to-head rounds are kept as LP models and `ml/lab-lucky-cat-points-h2h/`.
 
+### Critique: at the table, a whole hand's points are too noisy to learn from
+
+Four rounds at the game's table from lc32 (LT1a to LT4c, 200,000 deals, bold mode in the fourth) kept nothing. Of the eight candidates that looked ahead on the screen, the four that went on to 40,000 fresh deals all came out level or behind: LT1c −4.2 ± 2.7 points a hand, LT2b −9.3 ± 3.0, LT2a −1.1 ± 2.7, LT4c −1.8 ± 2.6, LT4b −0.6 ± 2.8. Two things were wrong:
+
+- **The training signal was mostly luck.** Every move was credited with the hand's points. At this table those are decided mostly by the others: Neural Cat's wins are worth about 1,800 points, and whether one comes rarely turns on a single Lucky Cat move. The critic, which should explain what a position is worth, explained none of the reward's variance (−1.2% in round 1), so each move's advantage was the hand's luck. A few hundred thousand moves can't average that out.
+- **The screen picked the luckiest arm.** On 6,000 deals one standard error at the table is about 7 points a hand, more than the gains looked for (2 to 5). So the arms that screened best were the ones the deals favoured: LT4c screened at +11.4 and LT4b at +10.4, and both were level on 40,000 deals.
+
+**What changed: move by move, from replays.** The game is deterministic given the deal and every choice, so the lab can ask what a single move was worth:
+- **Replays (`lucky.js generate --rollouts`):** the champion plays its best in one seat at the table. At up to 4 of its real choices a hand (the ones it was least sure of more often), the deal is played again from the start with each of its 2 next-best moves forced there, and every player playing its best otherwise. The wall and every other choice are the same, so the gap in points between a replay and the hand is that one move's worth on that wall. About a third of the forced moves change the hand's points, and about one in six does better than the champion's move.
+- **Training (`train_lucky.py --mode q`):** the target for each choice is the champion's shares times exp(advantage / tau), and the network is fitted to it. A move that scored more on the same wall gets more of the share, by an amount tau sets (in points), and choices where the replays changed nothing keep the champion's shares, so the step stays small where the evidence is.
+- **A longer screen:** Lucky Cat's candidates are screened on 15,000 deals (about ±4.5) before the best two play 40,000.
+- **New names:** LR models and `lcroll` data, from lc32 again. The table rounds above are kept as LT models and `ml/lab-lucky-cat-table-pg/`.
+
 
 - **What a model optimizes is what you get.** Neural Cat scores choices in expected points and learned bigger hands. Lucky Cat scores wins and learned faster, smaller ones. Neither is "better" in general: Neural Cat scores more points, and Lucky Cat wins more hands.
 - **Building on rules gets far faster than starting from scratch.** Neural Cat was ahead of the rule bots from its first model, because it chooses among Jorge Yau's best options. Lucky Cat needed a million hands to learn what the rules already knew, but it isn't limited by them.

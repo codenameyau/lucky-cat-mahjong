@@ -18,6 +18,13 @@
              ended for it, the share the move was played with, and the
              hand it came from. ml/train_lucky.py --mode pg or awr learns
              from those which moves led to more points.
+             --rollouts N replays deals instead (the lab's Lucky Cat since
+             the table rounds LT1 to LT4): the --weights model plays its
+             best in one seat at the --pool table, and at up to N of its
+             real choices a hand the deal is played again with each of its
+             --alts (2) next-best moves forced there, so each move gets its
+             own points on the same wall. ml/train_lucky.py --mode q learns
+             from those.
    eval      plays the same deals with the strategies of --lineup in every
              seat order (each plays its best) and reports hands won,
              how fast, and points. With two strategies it also reports the
@@ -115,6 +122,7 @@ function winWeight(discards, faan) {
  * ------------------------------------------------------------------ */
 
 async function work(job) {
+  if (job.rollouts) return rolloutWork(job);
   const LC = require('../../js/mahjong-lucky-cat-ml.js');
   const rng = E.createRng(job.seed + 7919);
   const learnerWeights = job.weights ? readWeights(job.weights) : N.zeroWeights();
@@ -221,6 +229,123 @@ async function work(job) {
   return stats;
 }
 
+/* ------------------------------------------------------------------ *
+ * Rollouts: each move's points, from replays of the same deal
+ * ------------------------------------------------------------------ */
+
+// --rollouts N: the learner (playing its best) takes one seat at the --pool
+// table (its three players in order), every seat in turn over the deals. At
+// up to N of its real choices a hand (those it was least sure of more often),
+// the deal is played again from the start with each of its --alts next-best
+// moves forced there instead, and every player playing its best otherwise.
+// The deal and every other choice are the same, so the gap between the
+// replays' points and the hand's is that one move's worth, on that wall:
+// far less noise than crediting every move with the whole hand's points.
+// Each row: the features, the legal moves, the moves tried (the one played
+// first) and the points each scored. ml/train_lucky.py --mode q learns from them.
+async function rolloutWork(job) {
+  const LC = require('../../js/mahjong-lucky-cat-ml.js');
+  const N2 = require('../../js/mahjong-lucky-cat-net.js');
+  const rng = E.createRng(job.seed + 104729);
+  const model = N2.createModel(readWeights(job.weights));
+  const SLOTS = job.alts + 1;
+  // The learner, playing its best: with force, the force.at-th decision plays force.k.
+  function learnerAgent(record, force) {
+    let i = 0;
+    const wrapped = {
+      policy(x, moves) {
+        const out = model.policy(x, moves);
+        if (record) record.push({ x: Float32Array.from(x), moves: moves.map((m) => ({ action: m.action, p: m.p })) });
+        if (force && i === force.at) {
+          if (moves.length !== force.n) force.mismatch = true;
+          else moves.forEach((m, k) => { m.p = k === force.k ? 2 : m.p / 2; });
+        }
+        i++;
+        return out;
+      },
+    };
+    return LC.create({ model: wrapped, fast: true }).createBotAgent();
+  }
+  async function play(d, seat, record, force) {
+    const others = job.pool.slice();
+    const agents = [0, 1, 2, 3].map((s) => (s === seat ? learnerAgent(record, force) : opponent(others.shift()).createBotAgent()));
+    const game = E.createGame({ seed: job.seed + d, humanSeat: false, dealer: d % 4, startPoints: 1e9 });
+    const res = await E.runHand(game, agents);
+    return { points: res.deltas[seat] || 0, res, game };
+  }
+  const rows = { x: [], a: [], legal: [], qa: [], q: [], h: [] };
+  const stats = { deals: 0, learnerSeats: 0, learnerWins: 0, wins: 0, winDiscards: 0, winFaan: 0, dealIns: 0, samples: 0, negatives: 0,
+    learnerPoints: 0, learnerWinPoints: 0, byOpponent: {}, replays: 0, mismatches: 0, changed: 0, better: 0 };
+  for (let d = job.from; d < job.to; d++) {
+    const seat = d % 4;
+    const record = [];
+    const base = await play(d, seat, record, null);
+    const { res, game } = base;
+    stats.deals++;
+    stats.learnerSeats++;
+    stats.learnerPoints += base.points;
+    if (res.type === 'win') {
+      stats.wins++;
+      if (res.winner === seat) {
+        stats.learnerWins++;
+        stats.learnerWinPoints += base.points;
+        stats.winDiscards += game.hand.seats[seat].discards.length;
+        stats.winFaan += (res.score && res.score.faan) || 0;
+      } else if (res.payer === seat) stats.dealIns++;
+    }
+    // Real choices, the less sure ones more often.
+    const choices = [];
+    record.forEach((r, at) => {
+      if (r.moves.length < 2) return;
+      const top = Math.max(...r.moves.map((m) => m.p));
+      if (rng() < Math.min(1, (job.rollouts / Math.max(1, record.length)) * 2 * (1.05 - top))) choices.push(at);
+    });
+    while (choices.length > job.rollouts) choices.splice(Math.floor(rng() * choices.length), 1);
+    for (const at of choices) {
+      const r = record[at];
+      const order = r.moves.map((m, k) => k).sort((p, q) => r.moves[q].p - r.moves[p].p);
+      const tried = [order[0]], q = [base.points];
+      for (const k of order.slice(1, SLOTS)) {
+        const force = { at, k, n: r.moves.length };
+        const alt = await play(d, seat, null, force);
+        stats.replays++;
+        if (force.mismatch) { stats.mismatches++; continue; }
+        tried.push(k);
+        q.push(alt.points);
+        if (alt.points !== base.points) stats.changed++;
+        if (alt.points > base.points) stats.better++;
+      }
+      if (tried.length < 2 || !job.out) continue;
+      const legal = new Uint8Array(10);
+      r.moves.forEach((m) => { legal[m.action >> 3] |= 1 << (m.action & 7); });
+      const qa = new Uint8Array(SLOTS).fill(255), qv = new Float32Array(SLOTS);
+      tried.forEach((k, j) => { qa[j] = r.moves[k].action; qv[j] = q[j]; });
+      rows.x.push(r.x); rows.a.push(r.moves[order[0]].action); rows.legal.push(legal);
+      rows.qa.push(qa); rows.q.push(qv); rows.h.push(d);
+    }
+  }
+  stats.samples = rows.a.length;
+  if (job.out) {
+    const n = rows.a.length;
+    const x = new Uint16Array(n * N.SIZE);
+    rows.x.forEach((v, k) => { for (let i = 0; i < N.SIZE; i++) x[k * N.SIZE + i] = floatToHalf(v[i]); });
+    const legal = new Uint8Array(n * 10);
+    rows.legal.forEach((v, k) => legal.set(v, k * 10));
+    const qa = new Uint8Array(n * SLOTS), q = new Float32Array(n * SLOTS);
+    rows.qa.forEach((v, k) => qa.set(v, k * SLOTS));
+    rows.q.forEach((v, k) => q.set(v, k * SLOTS));
+    const out = path.join(job.out, 'shard-' + job.shard);
+    fs.writeFileSync(out + '.x.f16', Buffer.from(x.buffer));
+    fs.writeFileSync(out + '.a.u1', Buffer.from(Uint8Array.from(rows.a)));
+    fs.writeFileSync(out + '.m.u1', Buffer.from(legal));
+    fs.writeFileSync(out + '.w.f4', Buffer.from(new Float32Array(n).fill(1).buffer));
+    fs.writeFileSync(out + '.qa.u1', Buffer.from(qa));
+    fs.writeFileSync(out + '.q.f4', Buffer.from(q.buffer));
+    fs.writeFileSync(out + '.h.u4', Buffer.from(Uint32Array.from(rows.h).buffer));
+  }
+  return stats;
+}
+
 const f32 = new Float32Array(1), u32 = new Uint32Array(f32.buffer);
 function floatToHalf(v) {
   f32[0] = v;
@@ -240,7 +365,7 @@ function floatToHalf(v) {
 function merge(all) {
   const out = { deals: 0, learnerSeats: 0, learnerWins: 0, wins: 0, winDiscards: 0, winFaan: 0, dealIns: 0, samples: 0, negatives: 0, learnerPoints: 0, learnerWinPoints: 0, byOpponent: {} };
   all.forEach((s) => {
-    ['deals', 'learnerSeats', 'learnerWins', 'wins', 'winDiscards', 'winFaan', 'dealIns', 'samples', 'negatives', 'learnerPoints', 'learnerWinPoints'].forEach((k) => { out[k] += s[k]; });
+    Object.keys(s).forEach((k) => { if (typeof s[k] === 'number') out[k] = (out[k] || 0) + s[k]; });
     Object.keys(s.byOpponent).forEach((id) => {
       const o = (out.byOpponent[id] = out.byOpponent[id] || { seats: 0, wins: 0 });
       o.seats += s.byOpponent[id].seats;
@@ -275,6 +400,7 @@ async function generate(a) {
     weights: a.weights || null, temperature: parseFloat(a.temperature || 1), seed: parseInt(a.seed || 7000000, 10),
     pool: a.pool ? String(a.pool).split(',') : [], learners: parseInt(a.learners || 2, 10), out,
     returns: !!a.returns, sample: a.returns ? parseFloat(a.sample || 0.5) : 1,
+    rollouts: a.rollouts ? parseInt(a.rollouts, 10) : 0, alts: parseInt(a.alts || 2, 10),
   };
   const stats = await runJobs(job, parseInt(a.deals || 10000, 10), workerCount(a));
   stats.seconds = (Date.now() - t0) / 1000;
@@ -283,11 +409,13 @@ async function generate(a) {
   stats.avgWinFaan = stats.winFaan / Math.max(1, stats.learnerWins);
   stats.pointsPerHand = stats.learnerPoints / Math.max(1, stats.learnerSeats);
   stats.avgWinPoints = stats.learnerWinPoints / Math.max(1, stats.learnerWins);
-  if (out) fs.writeFileSync(path.join(out, 'meta.json'), JSON.stringify(Object.assign({ featureVersion: N.FEATURE_VERSION, featureSize: N.SIZE, returns: job.returns, job }, stats), null, 2) + '\n');
+  if (out) fs.writeFileSync(path.join(out, 'meta.json'), JSON.stringify(Object.assign({ featureVersion: N.FEATURE_VERSION, featureSize: N.SIZE, returns: job.returns, rollouts: job.rollouts ? { slots: job.alts + 1 } : null, job }, stats), null, 2) + '\n');
   console.log('generated ' + stats.deals + ' deals in ' + stats.seconds.toFixed(0) + 's: learner won ' + (100 * stats.winRate).toFixed(2) +
     '% of its seats (' + stats.learnerWins + ' hands, ' + stats.avgWinDiscards.toFixed(1) + ' discards, ' + stats.avgWinFaan.toFixed(2) + ' faan, ' +
     Math.round(stats.avgWinPoints) + ' points a win), ' + stats.pointsPerHand.toFixed(1) + ' points a hand, ' + stats.samples + ' samples' +
-    (stats.negatives ? ' (' + stats.negatives + ' of them deal-ins)' : ''));
+    (stats.negatives ? ' (' + stats.negatives + ' of them deal-ins)' : '') +
+    (stats.replays ? '; ' + stats.replays + ' replays, ' + (100 * stats.changed / stats.replays).toFixed(1) + '% changed the points, ' +
+      (100 * stats.better / stats.replays).toFixed(1) + '% for the better' + (stats.mismatches ? ', ' + stats.mismatches + ' out of step' : '') : ''));
   return stats;
 }
 
