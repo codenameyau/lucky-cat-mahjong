@@ -1,6 +1,6 @@
 # Lucky Cat as the frontier Hong Kong mahjong player: the plan
 
-Written 2026-11-08. Suphx ([Li et al. 2020](https://arxiv.org/abs/2003.13590)) was built for Japanese riichi mahjong. This page takes it apart against Hong Kong rules and this engine, argues the design through three rounds of critique, and ends in a plan with phases, numbers to hit, and the point at which each phase is dropped. The Suphx teacher already in the lab ([iterations](iterations.md#suphx-for-lucky-cat-an-oracle-teacher-not-an-oracle-critic)) is phase 0 of this plan.
+Written 2026-11-08. Suphx ([Li et al. 2020](https://arxiv.org/abs/2003.13590)) was built for Japanese riichi mahjong. This page takes it apart against Hong Kong rules and this engine, argues the design through four rounds of critique, and ends in a plan with phases, numbers to hit, and the point at which each phase is dropped. The Suphx teacher already in the lab ([iterations](iterations.md#suphx-for-lucky-cat-an-oracle-teacher-not-an-oracle-critic)) is phase 0 of this plan.
 
 Everything here must keep two promises: the shipped model reads only what its seat can see (`js/mahjong-fair-play.test.js`), and it runs in plain JS in the browser in a few milliseconds a move.
 
@@ -11,7 +11,7 @@ Everything here must keep two promises: the shipped model reads only what its se
 | **Five networks**: discard, riichi, chow, pung, kong | Riichi is a declaration with its own payoff | No riichi. One network with action heads (what Lucky Cat has) is simpler and lets the heads share what they learn |
 | **Global reward prediction**: a GRU predicts the game's final placement from the round's state, and each round's reward is the change in that prediction | A riichi game is 8+ rounds and the prize is placement (uma/oka), so a round's points mean different things in different positions | Points settle every hand and there is no placement bonus. Points a hand is the right objective; the predictor is dead weight. **Drop it** |
 | **Oracle guiding**: train with every hidden tile as input, drop those inputs out to zero | Hidden information is large and learning is slow without it | Same hidden information. But probed here, a critic with every tile in view explained about 0% of a hand's points. The hidden tiles pay off **per move** (what does this discard pay right now?), not per hand. **Keep the idea, change where it's applied** (§3) |
-| **Run-time policy adaptation**: at the start of a round, simulate with the private hand fixed and fine-tune the policy | Cheap on a server | Not in a browser bot's turn. **Replace with a search option the browser can afford** (§5, §6 phase 4) |
+| **Run-time policy adaptation**: at the start of a round, simulate with the private hand fixed and fine-tune the policy | Cheap on a server | Not in a browser bot's turn. **Replace with a search option the browser can afford** (§5, §7 phase 4) |
 | **Deep residual CNN over 34-tile channels**, with hand-crafted look-ahead features (what each discard leads to, from a search of the hand) | Tile adjacency within a suit is where chows live; look-ahead is expert knowledge the net needn't rediscover | Lucky Cat is a flat 376-256-128 MLP with no look-ahead features. This is the biggest gap (§2, §4) |
 | **Supervised start from millions of human games on Tenhou**, then policy gradient with entropy regularization, distributed self-play | Human data exists | No human data. Lucky Cat started at random and needed a million hands to learn what the rule bots knew. But the engine is deterministic and fast, and the rule bots encode expert knowledge: facts from the engine can be inputs, and the bots can be opponents, without Lucky Cat copying their opinions |
 
@@ -30,7 +30,7 @@ Reading `js/mahjong-lucky-cat-net.js`'s layout against what a strong human sees:
 - **A flat MLP** over 34-tile vectors has no notion that 3 Bamboo sits between 2 and 4. Chows, runs and suit structure are learned one weight at a time.
 - **One scalar signal.** It has learned from wins (imitation), from the hand's points (policy gradient), and from replays. Never from a dense, exact, per-move target.
 
-## 3. The argument, in three rounds
+## 3. The argument, in four rounds
 
 ### Round 1: port Suphx as it is
 
@@ -66,12 +66,27 @@ Reading `js/mahjong-lucky-cat-net.js`'s layout against what a strong human sees:
 6. **A league, not a fixed table.** Data comes from a pool: the champion, its last champions, Neural Cat (several releases), Jorge Yau, Lucky Cat Classic, Only Orphans. Judging has two parts: the game's table (what players meet) and a round robin against the pool. Shipping needs a gain at the table and no loss anywhere in the pool.
 
 *Critique.*
-- **Cost.** Items 2–4 are a new feature version, a new network with a JS forward and parity tests, and new training code: weeks, not a lab round. Answer: phase it (§6). Each phase ships on its own or is dropped on its own.
+- **Cost.** Items 2–4 are a new feature version, a new network with a JS forward and parity tests, and new training code: weeks, not a lab round. Answer: phase it (§7). Each phase ships on its own or is dropped on its own.
 - **Lucky Cat's identity.** It is "a network that taught itself"; engine facts as inputs blur that. Answer: shanten, waits and faan are rules of the game, as the tile counts are. The rule bots' *plans and preferences* stay out. Jorge Yau's foundation is never called.
 - **Afterstate value needs a lot of data.** Neural Cat trains on 50,000 deals a round and every seat. Answer: the oracle rounds record 1 learner seat and half its choices (300 MB a round). Record all four seats' outcomes for the value heads (small: outcome, faan, seat) and sample the policy rows. The engine does about 20 deals a second a worker with replays, about 60 without; a day on 8 workers is 1–4 million hands.
 - **Overfitting the table.** A champion trained and judged against two Neural Cats and Jorge Yau can learn their tells. Answer: the league (item 6), plus a held-out opponent never trained against (an older Neural Cat release) in the shipping check.
 - **Browser cost.** Attention over 35 tokens at width 96 for 4 layers is about 11 million multiply-adds; the current MLP is about 130,000. Answer: measured budget of 10 ms a move on a phone, with the width and depth set by that measurement, not by taste.
 - **Search.** The strongest riichi programs don't search at play time either; Suphx's adaptation is offline-ish. Answer: search is the last phase and optional, a "thinks longer" setting.
+
+
+### Round 4: the plan itself critiqued
+
+Read back, the plan above has seven weak points. Each gets a fix below, and the sections after this one are written with the fixes in.
+
+1. **Phases 0 and 1 polish the wrong thing.** Section 2 says the biggest gap is the inputs (no per-player piles), yet phases 0 and 1 train the old inputs harder, and phase 1's work is thrown away when phase 2 changes them. *Fix:* separate inputs from architecture. Features v2 on the **current MLP** is cheap (a longer input vector, no new JS forward) and is where the information is; it becomes phase 1. The structured network becomes phase 2 and is built only if the MLP on v2 plateaus. A network that can't see who threw what cannot learn defence, whatever the signal.
+2. **It can never leave lc32.** Every phase distills from the champion with a KL leash. lc32 was trained to win fast and small; a leash keeps every successor in that basin. Suphx's single biggest ingredient was a supervised start from strong play (millions of human games), and this plan has none. *Fix:* **a supervised warm start from the table's best player.** Neural Cat scores the most points of anything in the game, and its choices on millions of positions are free to generate. Train the new network (v2 features) to imitate Neural Cat and Jorge Yau at the table, then improve it by the value and policy steps, exactly as Suphx learned from humans and then surpassed them. Keep a from-scratch arm beside it. Lucky Cat's playbook then says, honestly, that it learned from the table's best players and went on from there; the shipped network still never calls them.
+3. **"Every legal move in one forward pass by conditioning on the move token" is hand-waving.** An exact afterstate value means one pass per legal discard, as Neural Cat does: 14 × 11 million multiply-adds is 150 million a turn, far past the browser budget. *Fix:* the **per-tile tokens already give per-discard outputs**. Token *i* carries the policy logit for discarding tile *i* and its distributional Q (outcome × faan) for that discard; the global token carries the claim and kong heads. One pass, every move valued. This is the DQN form of the value, chosen for cost; Neural Cat's exact afterstate pass is the yardstick it is checked against offline.
+4. **The data numbers were guessed.** "20 deals a second a worker with replays, 60 without" was not measured. Measured: with the hidden tiles recorded, 5,000 deals took 280 s on 5 workers, about **3.6 deals a second a worker**; the danger row (a win check per held tile per opponent per choice) is most of the cost. On 8 workers that is about 2.5 million deals a day, enough, but every budget below uses the measured figure.
+5. **Exploration is undirected.** Sampling the policy at a temperature spreads probability over bad tiles as much as over promising lines; a policy that never tries a flush never learns what a flush is worth, and in Hong Kong scoring the big hands are the points. *Fix:* **value-guided exploration** in data generation: sample moves in proportion to exp(Q / tau) from the value head (Boltzmann over Q), not from the policy. Exploration then goes where the value says the points might be, and the entropy target keeps it from collapsing.
+6. **Judging is slow and the north star is vague.** 40,000 deals in every seat is 320,000 hands a candidate, and "frontier" has no number. *Fix:* **sequential testing** (SPRT, as chess engines use): judge in blocks of 5,000 deals and stop as soon as the paired gap is clearly past the bar or clearly short of it; most candidates resolve in 10,000–15,000. And one north-star metric: **points a hand at the game's table against two Neural Cat NC8 and Jorge Yau.** lc32 is at −98.7. Zero is parity with the strongest model in the game; above zero, Lucky Cat is the strongest player at its own table. A **rating ladder** (paired round robin over every model and rule bot, an Elo-style number per model, published with each release) shows where everything stands.
+7. **The lab is a loop of rounds, not a pipeline.** Generate, train, judge, one after another on one machine, so the GPU idles while the engine plays and the engine idles while the GPU trains. *Fix:* §6 below separates the two, with a replay buffer across rounds.
+
+*What this round changes.* Phase 1 is now features v2 on the MLP with a supervised warm start; phase 2 is the structured network with per-tile heads; phase 3 adds value-guided exploration and sequential judging; and the north star is written down.
 
 ## 4. The target architecture
 
@@ -82,10 +97,14 @@ Inputs, per decision (feature version 2):
 
 Heads:
 - **Policy**: 74 logits (as now), masked to legal moves.
-- **Afterstate value**: for the position after each legal own move, 6 outcome logits + 11 win-faan + 11 pay-faan (Neural Cat's heads). Evaluated for every legal move in one forward pass by conditioning on the move token.
+- **Per-move distributional value**: from tile token *i*, 6 outcome logits + 11 win-faan + 11 pay-faan (Neural Cat's heads) for discarding tile *i*; from the global token, the same for each claim and kong option. One pass values every legal move. Offline it is checked against Neural Cat's exact afterstate pass; at play the one pass is what the budget allows.
 - **Auxiliary (oracle-supervised, training only; cheap to keep at play for the coach)**: per opponent ready (3), per opponent per tile completes-their-hand (3 × 34), per opponent steps from ready (3), wall counts (34), and the exact cost of each own discard now (34).
 
 Size target: 4 layers, width 96, 4 heads; about 11 million multiply-adds a move; weights about 400 KB in float16. Measured on a mid-range phone before the width is fixed.
+
+**Before any of that: features v2 on the current MLP** (phase 1). The same inputs flattened (about 34 × 20 tile channels plus the global features, around 800 values), the current two hidden layers, the current 74 outputs plus the auxiliary heads. No new JS forward, no parity work beyond the feature encoder. If this alone takes the deal-in rate at the table under 11% and clears its bar, the structured network waits until the MLP plateaus.
+
+**The warm start.** Neural Cat and Jorge Yau play the game's table; every position and the move each chose is recorded with v2 features and the oracle labels (several million positions a day). The new network is trained to imitate them (cross-entropy on the move, the auxiliary losses alongside) until its moves agree with Neural Cat's on held-out positions about as often as Neural Cat's own top two choices are close. From there the value and policy steps of phase 3 take over. A from-scratch arm and a from-lc32 arm run beside it in the lab, so the warm start has to earn its place.
 
 ## 5. Four model families, and the job each one gets
 
@@ -103,6 +122,7 @@ Four families come up for game-playing bots. None of them is the plan on its own
 - *Scaffolding for the network.* Engine facts (shanten, live waits, faan now, patterns still reachable) are the heuristics' inputs made available to the network, without the heuristics' conclusions (phase 2).
 - *Opponents and a yardstick.* Jorge Yau and Lucky Cat Classic stay in the league pool and the shipping check: a model that loses to a rule bot has learned something narrow.
 - *The rollout policy for search.* A search needs a fast policy to play out futures; Lucky Cat Classic plays a hand in about a millisecond, the network in about ten.
+- *The warm start.* Neural Cat's and Jorge Yau's choices are the supervised start for the v2 network (Round 4, point 2), the way Tenhou's players were Suphx's. Their choices shape where learning begins, not where it ends, and the shipped network never calls them.
 - *Not the decider.* A rule that overrides the network ("never discard into four shown sets") is tempting after a bad deal-in and would hide what the network failed to learn. Fix the training, not the output.
 
 ### Monte-Carlo Tree Search
@@ -157,23 +177,33 @@ The training code is PyTorch (`ml/train.py`, `ml/train_lucky.py`), and the model
 
 Where TensorFlow does matter is **TensorFlow.js in the browser**. The structured network of phase 2 has a 10 ms budget in hand-written JS. If the width that beats the MLP can't meet it, TensorFlow.js (or ONNX Runtime Web) runs the same weights on WebGL or WebAssembly several times faster, at the price of a 1–2 MB library the page must load offline (the game is a PWA, so it would join `js/offline-cache.js`). That is the fallback for phase 2's kill criterion, and phase 4's online search would need it too.
 
-## 6. Phases, numbers and kill criteria
+## 6. The training pipeline
+
+The lab today is a loop: generate 20,000–50,000 deals, train a few arms, judge, repeat, all on one machine in turn. For phases 1 to 3 it becomes a pipeline with three parts that run at once, on one machine or two (one generates and judges, the one with the GPU trains):
+
+- **Generation** runs continuously with the current champion (value-guided exploration, Round 4 point 5) and the league pool, writing shards to a **replay buffer** of the last N rounds with each row's behaviour probability, so older rows are reweighted rather than thrown away. Measured cost: 3.6 deals a second a worker with the hidden tiles recorded; about 2.5 million deals a day on 8 workers.
+- **Training** pulls from the buffer: the auxiliary losses on every row, the value heads on every row (Monte Carlo targets, prioritized by |advantage| with importance weights), the policy loss on the exp(advantage / tau) target with the KL leash. Several arms a round, as now; the bandit over arms, as now.
+- **Judging** runs as candidates appear: the table test with sequential stopping (blocks of 5,000 deals, stop when the paired gap is clearly past or short of the bar, 40,000 at most), then the round robin against the pool for any candidate that passes, then the held-out opponent. A kept model ships, joins the pool, and gets a rating-ladder entry.
+
+Everything stays reproducible: seeds per round as now, every evaluation written to JSON, the lab log the record. The oracle features and the warm-start data never leave `ml/data/` (no dataset uploads).
+
+## 7. Phases, numbers and kill criteria
 
 Each phase has a result it must show on 40,000 fresh deals at the game's table (candidate and champion in every seat on the same deals, points first, win rate within one standard error), and a reason to stop.
 
 | Phase | What | Must show | Dropped if |
 | --- | --- | --- | --- |
-| **0** Suphx teacher (built, `--strategy lucky-cat-suphx`) | Per-move danger teacher, distilled | ≥ +10 points a hand over lc32, win rate held | Three rounds without a kept model |
-| **1** Labels as targets | Oracle-supervised auxiliary heads on the current MLP and features; distill policy from the champion with the teacher | Deal-in head AUC ≥ 0.80 on held-out hands; ≥ +10 over the phase-0 champion | Heads below AUC 0.70: the inputs can't carry it (go to phase 2 first) |
-| **2** Features v2 + structured net | Per-player ordered piles, engine facts, tile tokens, JS forward, parity and fair-play tests, 10 ms budget | Same training as phase 1 but ≥ +25 over its champion; deal-ins at the table ≤ 11% | Can't meet 10 ms on a phone at a width that beats the MLP, even on TensorFlow.js or ONNX Runtime Web |
-| **3** Distributional value + policy iteration + league | Afterstate value heads; exp(advantage / tau) targets with futures replays at uncertain choices; league pool; two-part judging | ≥ +40 over the phase-2 champion; no loss against any pool member; expected-points correlation with realized points ≥ 0.25 on held-out hands | Two full rounds without a kept model after the value heads reach that correlation |
+| **0** Suphx teacher (built, `--strategy lucky-cat-suphx`) | Per-move danger teacher, distilled into lc32 | ≥ +10 points a hand over lc32, win rate held | Three rounds without a kept model |
+| **1** Features v2 on the MLP, labels as targets, warm start | Per-player ordered piles and engine facts flattened into the current MLP; oracle-supervised auxiliary heads; three starts in the lab: imitate Neural Cat and Jorge Yau at the table, fine-tune lc32, from scratch | Deal-in head AUC ≥ 0.75 on held-out hands; ≥ +25 over the phase-0 champion; deal-ins at the table ≤ 11% | Heads below AUC 0.65 after 2 million deals: the labels aren't learnable from public information at this size (go to phase 2); or no start beats lc32 after four rounds |
+| **2** Structured network | Tile tokens with per-tile policy and value heads, JS forward, parity and fair-play tests, 10 ms budget on a phone | ≥ +20 over the phase-1 champion | Can't meet 10 ms on a phone at a width that beats the MLP, even on TensorFlow.js or ONNX Runtime Web; or the MLP on v2 is still improving (then it isn't needed yet) |
+| **3** Distributional value, policy iteration, league, pipeline | Per-move value heads trained by Monte Carlo with prioritized sampling; exp(advantage / tau) targets with a KL leash; value-guided exploration; futures replays at uncertain choices; league pool; sequential judging; rating ladder | ≥ +40 over the phase-2 champion; no loss against any pool member; expected-points correlation with realized points ≥ 0.25 on held-out hands; **north star: points a hand at the game's table ≥ 0** | Two full rounds without a kept model after the value heads reach that correlation |
 | **3b** Search as a teacher | Determinized search (worlds sampled from the auxiliary heads' beliefs, the network as rollout policy) at the choices the value is least sure of; its move distribution distilled into the policy | ≥ +15 over the phase-3 champion | Search agrees with the value head's best move more than 95% of the time: nothing left to teach |
-| **4** Search (optional) | At play, sample opponent hands from the auxiliary heads' beliefs, roll out a few dozen futures per candidate move in a worker; a "thinks longer" setting | ≥ +20 over the phase-3 champion at ≤ 1.5 s a move | Gain under one standard error at 1.5 s |
+| **4** Search at play (optional) | Sample opponent hands from the auxiliary heads' beliefs, roll out a few dozen futures per candidate move in a worker; a "thinks longer" setting | ≥ +20 over the phase-3 champion at ≤ 1.5 s a move | Gain under one standard error at 1.5 s |
 
-Numbers are chosen to be clear on 40,000 deals: one standard error there is about 3.5 points a hand, so every bar is at least three of them.
+Numbers are chosen to be clear on 40,000 deals: one standard error there is about 3.5 points a hand, so every bar is at least three of them. The bars add to about +110 over lc32, which is what parity with Neural Cat at its own table (the north star, 0 from −98.7) needs.
 
 Documentation rule, unchanged: every model that ships gets its iteration written up (the thinking, what the bot does differently), the Lucky Cat playbook updated, the game version bumped.
 
-## 7. What this plan would make Lucky Cat
+## 8. What this plan would make Lucky Cat
 
-A network that still decides every move itself, that reads the table the way a strong player does because it was graded on reading it, that values hands by their whole distribution of outcomes in a scoring system where one hand can be worth a thousand, and that folds exactly when the risk says so. It should win as often as lc32 and lose far fewer points doing it. Whether it becomes the strongest Hong Kong mahjong player anywhere is not something a plan can promise; the evaluation suite in phase 3 is what would show it, and the phases are built so each one earns the next.
+A network that decides every move itself, that began by learning from the table's best players and went on from there, that reads the table the way a strong player does because it was graded on reading it, that values hands by their whole distribution of outcomes in a scoring system where one hand can be worth a thousand, and that folds exactly when the risk says so. It should win as often as lc32 and lose far fewer points doing it. Whether it becomes the strongest Hong Kong mahjong player anywhere is not something a plan can promise; the north star and the rating ladder in phase 3 are what would show it, and the phases are built so each one earns the next.
