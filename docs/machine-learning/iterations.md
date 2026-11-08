@@ -618,7 +618,7 @@ Three rounds of replays (LR1a to LR3c, 90,000 deals, against NC5) kept one model
 - **The keep bar picked luck.** It kept a candidate whose points beat one standard error. With two finalists a round, one does that about a third of the time by chance, as LR3a did.
 
 **What changed: every move on the same reshuffled futures.**
-- **Futures (`lucky.js generate --futures 4`):** at a replayed choice, the tiles the learner can't see (the wall and the other players' concealed tiles, flowers left where they are) are shuffled again, 4 ways. Every move tried, the champion's included, plays the same 4 futures, and its points are the mean. That's what the move is worth from what the player knew, and the futures' luck is shared between the moves compared. Each round now replays 2 choices a hand (3 in bold mode) on 20,000 deals.
+- **Futures (`lucky.js generate --futures 4`):** at a replayed choice, the wall still to be drawn (flowers left where they are) is shuffled again, 4 ways. The other players' concealed tiles stay as dealt: at a claim they may already have chosen which of them to meld, and reshuffling them broke those claims. Every move tried, the champion's included, plays the same 4 futures, and its points are the mean. That's what the move is worth from what the player knew, and the futures' luck is shared between the moves compared. Each round now replays 2 choices a hand (3 in bold mode) on 20,000 deals.
 - **A stricter keep bar:** Lucky Cat's points must beat the full margin (about two standard errors), not half of it.
 - **New names:** LF models and `lcfut` data, from lc32, against NC8. The one-wall rounds are kept as LR models and `ml/lab-lucky-cat-one-wall/`.
 

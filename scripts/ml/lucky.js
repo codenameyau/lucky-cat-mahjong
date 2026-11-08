@@ -25,8 +25,8 @@
              --alts (2) next-best moves forced there, so each move gets its
              own points on the same wall. ml/train_lucky.py --mode q learns
              from those. --futures K (default 1) plays each move, the
-             champion's too, on K reshuffles of the tiles the learner can't
-             see at that choice, and keeps the mean.
+             champion's too, on K reshuffles of the wall still to be drawn
+             at that choice, and keeps the mean.
    eval      plays the same deals with the strategies of --lineup in every
              seat order (each plays its best) and reports hands won,
              how fast, and points. With two strategies it also reports the
@@ -248,9 +248,10 @@ async function work(job) {
 //
 // --futures K (since LR1 to LR3 kept nothing): on one fixed wall a move is
 // judged with the future known, which no player can know when it chooses.
-// So at the choice the tiles the learner can't see (the wall and the other
-// players' concealed tiles, flowers left in place) are shuffled again, K
-// ways, and every move, the champion's included, plays the same K futures.
+// So at the choice the wall still to be drawn (flowers left in place) is
+// shuffled again, K ways, and every move, the champion's included, plays the
+// same K futures. The other players' concealed tiles stay: at a claim they
+// may already have chosen which of them to meld.
 // Its points are the mean: what the move is worth from what the learner
 // knew, with the futures' luck shared between the moves.
 async function rolloutWork(job) {
@@ -279,13 +280,12 @@ async function rolloutWork(job) {
     };
     return LC.create({ model: wrapped, fast: true }).createBotAgent();
   }
-  // The tiles the learner can't see, shuffled again: the same future seed gives
-  // the same future for every move tried.
+  // The wall still to be drawn, shuffled again (flowers left in place): the
+  // same future seed gives the same future for every move tried.
   function reshuffleUnseen(game, seat, future) {
     const h = game.hand;
     const slots = [];
     h.wall.forEach((t, i) => { if (!E.isBonus(t)) slots.push([h.wall, i]); });
-    h.seats.forEach((st, s) => { if (s !== seat) st.hand.forEach((t, i) => { if (!E.isBonus(t)) slots.push([st.hand, i]); }); });
     const tiles = slots.map(([arr, i]) => arr[i]).sort((x, y) => x - y);
     E.shuffle(tiles, E.createRng(future));
     slots.forEach(([arr, i], k) => { arr[i] = tiles[k]; });

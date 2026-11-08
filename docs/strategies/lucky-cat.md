@@ -165,7 +165,7 @@ The lab then ran thirteen points-first rounds from lc32 (models LP1a to LP13a), 
 
 Four rounds at the table (LT1a to LT4c) kept nothing: crediting every move with its whole hand's points taught it mostly luck, since at that table the points are decided mostly by Neural Cat's big wins. So the lab now replays deals: at a few of lc32's choices a hand, the same deal is played again with its next-best moves forced, and the network learns from the points each move scored on the same wall (LR models; [the critique](../machine-learning/iterations.md#critique-at-the-table-a-whole-hands-points-are-too-noisy-to-learn-from)).
 
-Three rounds of that (LR1a to LR3c) kept nothing that held. On the same wall a move is judged by tiles the player can't see yet. So at each replayed choice the lab now reshuffles the unseen tiles 4 ways and plays every move on the same 4 futures, learning from the mean (LF models; [the critique](../machine-learning/iterations.md#critique-on-one-wall-a-move-is-judged-by-a-future-no-player-can-see)).
+Three rounds of that (LR1a to LR3c) kept nothing that held. On the same wall a move is judged by tiles the player can't see yet. So at each replayed choice the lab now reshuffles the wall still to be drawn 4 ways and plays every move on the same 4 futures, learning from the mean (LF models; [the critique](../machine-learning/iterations.md#critique-on-one-wall-a-move-is-judged-by-a-future-no-player-can-see)).
 
 ## What the coach says
 
