@@ -999,6 +999,7 @@
     return lead({
       kind: 'discard', tile: pick.tile, tips: tips, candidates: list,
       why: why, threatName: worry ? worry.name : null, model: learned || null,
+      modelWhy: modelReasons(pick), modelWhyClear: modelReasons(pick, true),
     }, kongAt !== undefined ? kongAt : discardAt);
   }
 
@@ -1055,6 +1056,31 @@
     var why = (m.why || []).filter(function (g) { return g.points >= 1; }).slice(0, 2);
     if (why.length) line += ' This one comes out ahead on ' + why.map(function (g) { return GROUP_WORDS[g.group] || g.group; }).join(' and on ') + '.';
     return line;
+  }
+
+  // The same feature groups, in plain words for a player: why the model
+  // likes the tile. Used by the Simple and Detailed coach (the Complex coach
+  // says the score and the groups' own names).
+  var GROUP_PLAIN = {
+    speed: 'gets you ready fastest',
+    value: 'keeps a bigger hand in reach',
+    safety: 'is the safest tile to throw',
+    table: 'fits what the other players are doing',
+    hand: 'works best with the tiles you keep',
+    discard: 'is the tile you need least',
+    context: 'suits this stage of the game',
+  };
+
+  // Up to two plain reasons the model prefers its pick, the groups that put
+  // it furthest ahead of the next best discard. Empty when it has no
+  // reasons to give (Lucky Cat's network, or a rule-based strategy).
+  // `clear` leaves out the three vague groups (the tile itself, the tiles
+  // you keep, the stage of the game), which say little to a player.
+  function modelReasons(pick, clear) {
+    var m = pick && pick.ml;
+    if (!m || !m.why) return [];
+    return m.why.filter(function (g) { return g.points >= 1 && GROUP_PLAIN[g.group] && !(clear && (g.group === 'discard' || g.group === 'context' || g.group === 'hand')); })
+      .slice(0, 2).map(function (g) { return GROUP_PLAIN[g.group]; });
   }
 
   // What a learned strategy expects from each choice of a claim or a kong
@@ -1359,6 +1385,45 @@
     return { kind: 'feedback', action: action, tips: [did + ' ' + reason] };
   }
 
+  /* ------------------------------------------------------------------ *
+   * 6. How much the coach says. The hints above are the Complex coach:
+   *    everything, with the model's score. Detailed drops the score and
+   *    says the model's reasons in plain words. Simple says what to do and
+   *    one short reason why. The game picks one (its Coach settings).
+   * ------------------------------------------------------------------ */
+
+  var DETAILS = ['simple', 'detailed', 'complex'];
+  var SIMPLE_WHY = 130; // characters: one short reason
+
+  // "The model likes it because it gets you ready fastest and keeps a bigger hand in reach."
+  function sentenceOf(reasons, lead) {
+    return lead + 'it ' + reasons.join(' and ') + '.';
+  }
+
+  function isModelTip(t) {
+    return /^(On average, )?[Tt]he model expects |^Lucky Cat's network /.test(plain(t));
+  }
+
+  function shape(hint, detail) {
+    if (!hint || !hint.tips || detail === 'complex' || DETAILS.indexOf(detail) === -1) return hint;
+    var out = {};
+    Object.keys(hint).forEach(function (k) { out[k] = hint[k]; });
+    var tips = hint.tips.filter(function (t) { return !isModelTip(t); });
+    var reasons = hint.modelWhy || [];
+    out.model = null;
+    if (detail === 'detailed') {
+      if (reasons.length) tips.push(sentenceOf(reasons, 'The model picks it because '));
+      out.tips = tips;
+      return fit(out);
+    }
+    // Simple: the action, then the reason why. A learned strategy adds what it likes about the tile.
+    var clear = hint.modelWhyClear || [];
+    var why = clip(tips[0] || '', SIMPLE_WHY);
+    if (clear.length) why = (why + ' ' + sentenceOf(clear, 'The model likes it because ')).trim();
+    out.tips = why ? [why] : [];
+    return fit(out);
+  }
+
   function fitted(f) {
     return function () { return fit(f.apply(null, arguments)); };
   }
@@ -1366,20 +1431,28 @@
   var api = {
     discardFeedback: fitted(discardFeedback), claimFeedback: fitted(claimFeedback), noteDiscard: noteDiscard,
     turnHint: fitted(turnHint), claimHint: fitted(claimHint), MAX_TEXT: MAX_TEXT, fit: fit,
+    shape: shape, DETAILS: DETAILS,
     rankDiscards: rankDiscards, look: look, highlightPatterns: highlightPatterns,
   };
 
   // The same coach, saying what `bot` (a strategy from createStrategy)
   // would do. Calls are synchronous, so the bot is swapped in for each call.
-  function forStrategy(bot) {
+  // opts.detail ('simple', 'detailed' or 'complex'; the default is complex)
+  // is how much the hints say.
+  function forStrategy(bot, opts) {
     var out = { strategy: bot && bot.id };
+    var detail = opts && opts.detail;
     Object.keys(api).forEach(function (k) {
       var f = api[k];
-      if (typeof f !== 'function' || k === 'fit') { out[k] = f; return; }
+      if (typeof f !== 'function' || k === 'fit' || k === 'shape') { out[k] = f; return; }
+      var spoken = k === 'turnHint' || k === 'claimHint';
       out[k] = function () {
         var prev = B;
         B = bot || DEFAULT_BOT;
-        try { return f.apply(null, arguments); } finally { B = prev; }
+        try {
+          var res = f.apply(null, arguments);
+          return spoken ? shape(res, detail) : res;
+        } finally { B = prev; }
       };
     });
     return out;

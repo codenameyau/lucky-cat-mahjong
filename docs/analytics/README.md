@@ -130,6 +130,7 @@ Every button is tracked except the tiles and the buttons that play a move (Win, 
 | `play_open_results`, `play_close_results` | The results sheet | |
 | `play_again_click`, `play_end_quit_click`, `play_end_results_click`, `play_end_close_click` | The end-of-game buttons: Play again, Quit, Results, and Close (which steps aside to the table with every hand face up) | |
 | `play_open_rules`, `play_close_rules`, `play_rule_click` | The rules sheet; a rule row | `hand` (row only) |
+| `play_coach_detail` | A Coach settings choice (Simple, Detailed or Complex) | `detail` |
 | `play_open_strategies`, `play_close_strategies`, `play_strategy_details_click` | The Strategies sheet; a strategy's details | `open` (details only) |
 | `play_credit_click` | A music or art credit link | `link` |
 
