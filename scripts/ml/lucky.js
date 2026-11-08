@@ -24,7 +24,9 @@
              real choices a hand the deal is played again with each of its
              --alts (2) next-best moves forced there, so each move gets its
              own points on the same wall. ml/train_lucky.py --mode q learns
-             from those.
+             from those. --futures K (default 1) plays each move, the
+             champion's too, on K reshuffles of the tiles the learner can't
+             see at that choice, and keeps the mean.
    eval      plays the same deals with the strategies of --lineup in every
              seat order (each plays its best) and reports hands won,
              how fast, and points. With two strategies it also reports the
@@ -243,6 +245,14 @@ async function work(job) {
 // far less noise than crediting every move with the whole hand's points.
 // Each row: the features, the legal moves, the moves tried (the one played
 // first) and the points each scored. ml/train_lucky.py --mode q learns from them.
+//
+// --futures K (since LR1 to LR3 kept nothing): on one fixed wall a move is
+// judged with the future known, which no player can know when it chooses.
+// So at the choice the tiles the learner can't see (the wall and the other
+// players' concealed tiles, flowers left in place) are shuffled again, K
+// ways, and every move, the champion's included, plays the same K futures.
+// Its points are the mean: what the move is worth from what the learner
+// knew, with the futures' luck shared between the moves.
 async function rolloutWork(job) {
   const LC = require('../../js/mahjong-lucky-cat-ml.js');
   const N2 = require('../../js/mahjong-lucky-cat-net.js');
@@ -250,7 +260,7 @@ async function rolloutWork(job) {
   const model = N2.createModel(readWeights(job.weights));
   const SLOTS = job.alts + 1;
   // The learner, playing its best: with force, the force.at-th decision plays force.k.
-  function learnerAgent(record, force) {
+  function learnerAgent(record, force, gameRef) {
     let i = 0;
     const wrapped = {
       policy(x, moves) {
@@ -258,7 +268,10 @@ async function rolloutWork(job) {
         if (record) record.push({ x: Float32Array.from(x), moves: moves.map((m) => ({ action: m.action, p: m.p })) });
         if (force && i === force.at) {
           if (moves.length !== force.n) force.mismatch = true;
-          else moves.forEach((m, k) => { m.p = k === force.k ? 2 : m.p / 2; });
+          else {
+            moves.forEach((m, k) => { m.p = k === force.k ? 2 : m.p / 2; });
+            if (force.future != null) reshuffleUnseen(gameRef.game, force.seat, force.future);
+          }
         }
         i++;
         return out;
@@ -266,16 +279,29 @@ async function rolloutWork(job) {
     };
     return LC.create({ model: wrapped, fast: true }).createBotAgent();
   }
+  // The tiles the learner can't see, shuffled again: the same future seed gives
+  // the same future for every move tried.
+  function reshuffleUnseen(game, seat, future) {
+    const h = game.hand;
+    const slots = [];
+    h.wall.forEach((t, i) => { if (!E.isBonus(t)) slots.push([h.wall, i]); });
+    h.seats.forEach((st, s) => { if (s !== seat) st.hand.forEach((t, i) => { if (!E.isBonus(t)) slots.push([st.hand, i]); }); });
+    const tiles = slots.map(([arr, i]) => arr[i]).sort((x, y) => x - y);
+    E.shuffle(tiles, E.createRng(future));
+    slots.forEach(([arr, i], k) => { arr[i] = tiles[k]; });
+  }
   async function play(d, seat, record, force) {
     const others = job.pool.slice();
-    const agents = [0, 1, 2, 3].map((s) => (s === seat ? learnerAgent(record, force) : opponent(others.shift()).createBotAgent()));
+    const gameRef = {};
+    const agents = [0, 1, 2, 3].map((s) => (s === seat ? learnerAgent(record, force, gameRef) : opponent(others.shift()).createBotAgent()));
     const game = E.createGame({ seed: job.seed + d, humanSeat: false, dealer: d % 4, startPoints: 1e9 });
+    gameRef.game = game;
     const res = await E.runHand(game, agents);
     return { points: res.deltas[seat] || 0, res, game };
   }
   const rows = { x: [], a: [], legal: [], qa: [], q: [], h: [] };
   const stats = { deals: 0, learnerSeats: 0, learnerWins: 0, wins: 0, winDiscards: 0, winFaan: 0, dealIns: 0, samples: 0, negatives: 0,
-    learnerPoints: 0, learnerWinPoints: 0, byOpponent: {}, replays: 0, mismatches: 0, changed: 0, better: 0 };
+    learnerPoints: 0, learnerWinPoints: 0, byOpponent: {}, replays: 0, compared: 0, mismatches: 0, changed: 0, better: 0 };
   for (let d = job.from; d < job.to; d++) {
     const seat = d % 4;
     const record = [];
@@ -304,14 +330,37 @@ async function rolloutWork(job) {
     for (const at of choices) {
       const r = record[at];
       const order = r.moves.map((m, k) => k).sort((p, q) => r.moves[q].p - r.moves[p].p);
-      const tried = [order[0]], q = [base.points];
-      for (const k of order.slice(1, SLOTS)) {
+      let tried = [order[0]], q = [base.points];
+      if (job.futures > 1) {
+        // Every move, the champion's first, on the same K reshuffled futures.
+        tried = []; q = [];
+        for (const k of order.slice(0, SLOTS)) {
+          let sum = 0, ok = true;
+          for (let f = 0; f < job.futures; f++) {
+            const force = { at, k, n: r.moves.length, seat, future: (job.seed + d * 7919 + at * 104729 + f * 15485863) >>> 0 };
+            const alt = await play(d, seat, null, force);
+            stats.replays++;
+            if (force.mismatch) { stats.mismatches++; ok = false; break; }
+            sum += alt.points;
+          }
+          if (!ok) continue;
+          tried.push(k);
+          q.push(sum / job.futures);
+        }
+        if (tried.length < 2 || tried[0] !== order[0]) continue;
+        for (let j = 1; j < q.length; j++) {
+          stats.compared++;
+          if (q[j] !== q[0]) stats.changed++;
+          if (q[j] > q[0]) stats.better++;
+        }
+      } else for (const k of order.slice(1, SLOTS)) {
         const force = { at, k, n: r.moves.length };
         const alt = await play(d, seat, null, force);
         stats.replays++;
         if (force.mismatch) { stats.mismatches++; continue; }
         tried.push(k);
         q.push(alt.points);
+        stats.compared++;
         if (alt.points !== base.points) stats.changed++;
         if (alt.points > base.points) stats.better++;
       }
@@ -401,6 +450,7 @@ async function generate(a) {
     pool: a.pool ? String(a.pool).split(',') : [], learners: parseInt(a.learners || 2, 10), out,
     returns: !!a.returns, sample: a.returns ? parseFloat(a.sample || 0.5) : 1,
     rollouts: a.rollouts ? parseInt(a.rollouts, 10) : 0, alts: parseInt(a.alts || 2, 10),
+    futures: parseInt(a.futures || 1, 10),
   };
   const stats = await runJobs(job, parseInt(a.deals || 10000, 10), workerCount(a));
   stats.seconds = (Date.now() - t0) / 1000;
@@ -414,8 +464,8 @@ async function generate(a) {
     '% of its seats (' + stats.learnerWins + ' hands, ' + stats.avgWinDiscards.toFixed(1) + ' discards, ' + stats.avgWinFaan.toFixed(2) + ' faan, ' +
     Math.round(stats.avgWinPoints) + ' points a win), ' + stats.pointsPerHand.toFixed(1) + ' points a hand, ' + stats.samples + ' samples' +
     (stats.negatives ? ' (' + stats.negatives + ' of them deal-ins)' : '') +
-    (stats.replays ? '; ' + stats.replays + ' replays, ' + (100 * stats.changed / stats.replays).toFixed(1) + '% changed the points, ' +
-      (100 * stats.better / stats.replays).toFixed(1) + '% for the better' + (stats.mismatches ? ', ' + stats.mismatches + ' out of step' : '') : ''));
+    (stats.replays ? '; ' + stats.replays + ' replays, ' + (100 * stats.changed / (stats.compared || stats.replays)).toFixed(1) + '% changed the points, ' +
+      (100 * stats.better / (stats.compared || stats.replays)).toFixed(1) + '% for the better' + (stats.mismatches ? ', ' + stats.mismatches + ' out of step' : '') : ''));
   return stats;
 }
 

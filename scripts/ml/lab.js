@@ -433,19 +433,24 @@ const STRATEGIES = {
     },
   },
   'lucky-cat': {
-    // Move by move from replays at the game's table, new names: LR models,
-    // lcroll data. The table rounds that credited every move with its whole
+    // Move by move from replays over reshuffled futures (--futures), new
+    // names: LF models, lcfut data. The replays on one fixed wall were
+    // LR<n><letter> and lcroll-<n> (state in ml/lab-lucky-cat-one-wall/).
+    // The table rounds that credited every move with its whole
     // hand were LT<n><letter> and lctab-<n> (state in ml/lab-lucky-cat-table-pg/);
     // the rounds against its own kind LP<n><letter> and lcpts-<n>
     // (ml/lab-lucky-cat-points-h2h/).
-    dir: 'lab-lucky-cat', prefix: 'lcroll', model: 'LR', trainArms: LC_Q_ARMS, playArms: {}, folder: 'lucky-cat',
+    dir: 'lab-lucky-cat', prefix: 'lcfut', model: 'LF', trainArms: LC_Q_ARMS, playArms: {}, folder: 'lucky-cat',
     weights: 'mahjong-lucky-cat-weights.js',
     // Training data: only the lab's own rounds, which record every hand
     // (the league's lc<n> sets hold only the moves of hands won).
     earlier: /^$/, done: 'meta.json',
     // Points first: kept only when its points a hand beat the champion's by
     // more than their standard error (and J, with the wins, is ahead too).
-    keep: (e) => e.points > e.margin / 2 && e.J > 0,
+    // Since LR3a (+3.0 ± 1.9 when kept, -0.4 ± 1.9 on fresh deals against
+    // NC8), the full margin: the best of two finalists beating one
+    // standard error is too often luck.
+    keep: (e) => e.points > e.margin && e.J > 0,
     // One hand's points are mostly luck, and more so at the game's table,
     // where Neural Cat's wins are worth about 1,800 points: there one
     // standard error is about 41 points a hand on 300 deals, so about 3.5 on
@@ -457,9 +462,9 @@ const STRATEGIES = {
     // mostly picked the luckiest arm (LT4c: +11.4 there, -1.8 on 40,000
     // deals). 15,000 deals bring it to about 4.5.
     quickDeals: 15000,
-    // A round: 30,000 deals with replays (about 3 choices a hand, each
-    // played up to 3 ways), about 50 minutes on 8 processes.
-    deals: 30000,
+    // A round: 20,000 deals with replays (about 2 choices a hand, each
+    // move played on 4 futures), about 90 minutes on 8 processes.
+    deals: 20000,
     start() {
       const shipped = shippedModel('mahjong-lucky-cat-weights.js');
       const league = fs.existsSync(path.join(ROOT, 'ml', 'lucky', 'state.json')) ? readJson('ml/lucky/state.json') : null;
@@ -474,10 +479,11 @@ const STRATEGIES = {
       // One seat at the game's table: the other seats from Neural Cat (two
       // in three) and Jorge Yau, no earlier selves (see LC_TABLE).
       const pool = LC_TABLE.slice();
-      // Replays: up to 4 choices a hand (5 in bold mode), each with its 2 next-best moves.
-      const rollouts = opts.bold ? 5 : 4;
-      log('Round ' + r + ': ' + opts.deals + ' deals, champion ' + base(champ) + ' playing its best against ' + pool.map(short).join(', ') + ', up to ' + rollouts + ' of its choices a hand replayed');
-      const args = ['scripts/ml/lucky.js', 'generate', '--rollouts', String(rollouts), '--alts', '2', '--weights', champ, '--deals', String(opts.deals), '--out', data,
+      // Replays: up to 2 choices a hand (3 in bold mode), each with its 2
+      // next-best moves, every move on the same 4 reshuffled futures.
+      const rollouts = opts.bold ? 3 : 2;
+      log('Round ' + r + ': ' + opts.deals + ' deals, champion ' + base(champ) + ' playing its best against ' + pool.map(short).join(', ') + ', up to ' + rollouts + ' of its choices a hand replayed on 4 futures');
+      const args = ['scripts/ml/lucky.js', 'generate', '--rollouts', String(rollouts), '--alts', '2', '--futures', '4', '--weights', champ, '--deals', String(opts.deals), '--out', data,
         '--pool', pool.join(','), '--seed', String(DATA_SEED + r * 1000000)];
       if (WORKERS) args.push('--workers', String(WORKERS));
       log('Round ' + r + ': ' + run('node', args).trim().split('\n').pop());
