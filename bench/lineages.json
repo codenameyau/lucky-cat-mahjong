@@ -1,0 +1,30 @@
+{
+  "about": "The two lineages of the frontier plan (docs/machine-learning/frontier-plan.md §9). A generation joins only through bench.js judge --promote. Models are pinned by git:<commit>:<path> once shipped, and by SHA-256.",
+  "lineages": {
+    "lucky-cat": {
+      "about": "From lc32, the network that taught itself from random play; its own methods carried on. Releases lc33, lc34, ...",
+      "keepWinRate": true,
+      "league": [
+        "bench:jorge-yau",
+        "neural-cat"
+      ],
+      "generations": [
+        {
+          "name": "lc32",
+          "model": "lc:git:dd881a5e3c7c3e568a9d668bade368a91cb8bcc3:js/mahjong-lucky-cat-weights.js",
+          "sha256": "c1e7fa8b50596633b4a3c2668cb06dd3af232eff0e78152c3a10d161e79dc1d7",
+          "judged": "the starting generation (LL26b), not judged"
+        }
+      ]
+    },
+    "sphinx": {
+      "about": "From random weights, on features v2 and the structured network. Releases sphinx1, sphinx2, ... Its first generation is judged against random play.",
+      "keepWinRate": false,
+      "league": [
+        "bench:jorge-yau",
+        "neural-cat"
+      ],
+      "generations": []
+    }
+  }
+}

@@ -411,7 +411,7 @@ Uploads go over git and SSH, so your SSH key must be on your Hugging Face accoun
 | 3 | A value over how the hand ends and at what faan, regularized policy iteration, value-guided exploration, a league | +40 more; points a hand at the game's table ≥ 0 |
 | 3b, 4 | Search: offline as a teacher, then optionally at play ("thinks longer") | +15, then +20 |
 
-- **The benchmark**: two Neural Cat NC8 and Jorge Yau, frozen; a fixed deck of 40,000 deals; one number per model, its **Table Score** (points a hand at that table).
+- **The benchmark** (built: [benchmark](docs/machine-learning/benchmark.md)): two Neural Cat NC8 and Jorge Yau, frozen; a fixed deck of 40,000 deals; one number per model, its **Table Score** (points a hand at that table). `node scripts/ml/bench.js score <model>` scores one, and `node scripts/ml/bench.js judge <model> --lineage lucky-cat` runs the bar below.
 - **The bar for a next generation**: two standard errors better on 40,000 fresh paired deals, **replicated** on another 40,000, with the win rate held and no loss to any earlier generation or league opponent.
 - **Two lineages** on the same benchmark: **Lucky Cat**, carrying on from lc32 with its own methods, and **Sphinx**, trained from random weights on the new architecture.
 - **Fair play**: training may use the hidden tiles as labels and as a teacher, never as the shipped model's inputs. `ship.js` refuses a model that reads them, and the fair-play test catches one that plays through the training hook ([fair play](docs/machine-learning/fair-play.md)).

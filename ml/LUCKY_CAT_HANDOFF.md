@@ -73,7 +73,7 @@ One round is about 20,000 replayed deals plus six training arms and 15,000 + 40,
 
 ## The bar for a new generation
 
-The plan's §9 sets the bar every shipped model must clear, and it is stricter than the lab's keep rule today: a gap of **two standard errors on 40,000 fresh paired deals, replicated on another 40,000**, hands won within one standard error, no loss beyond one standard error to any earlier generation or league opponent, and the fair-play checks. Until the lab enforces it in code, apply it by hand before shipping: after the lab keeps a model, rerun `bench` on another 40,000 deals with a new seed and ship only if it clears two standard errors again.
+The plan's §9 sets the bar every shipped model must clear, and it is stricter than the lab's keep rule today: a gap of **two standard errors on 40,000 fresh paired deals, replicated on another 40,000**, hands won within one standard error, no loss beyond one standard error to any earlier generation or league opponent, and the fair-play checks. It is built: after the lab keeps a model, run `node scripts/ml/bench.js judge lc:ml/models/<name>.json --lineage lucky-cat`, and ship only what passes; `--promote lc33` then records it as the next generation with its Table Score ([benchmark](../docs/machine-learning/benchmark.md)). The lab doesn't call it yet.
 
 ## What to check each round (keep the win rate)
 

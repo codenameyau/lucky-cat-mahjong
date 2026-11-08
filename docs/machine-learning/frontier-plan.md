@@ -221,13 +221,13 @@ The shipped model must never read another hand or the wall. Each phase uses hidd
 
 ## 9. The benchmark, and the bar for the next generation
 
-Everything above says "better". This section says how that is measured, by one number anyone can reproduce, and how strict the bar is before a model becomes the next generation.
+Everything above says "better". This section says how that is measured, by one number anyone can reproduce, and how strict the bar is before a model becomes the next generation. **Built** as `scripts/ml/bench.js` with the benchmark pinned in `bench/`; how to run it is in [the benchmark](benchmark.md).
 
 ### The benchmark table
 
-- **Opponents, frozen.** Two Neural Cat NC8 (N10c) and Jorge Yau as of game version 0.57.9, in the seats of the game's table: Neural Cat, Jorge Yau, Neural Cat. Their weights and the engine's rules are pinned by file and SHA-256 in `bench/benchmark.json`, with the weights fetched from the Hugging Face model repo when they aren't on disk. The game's shipped Neural Cat will keep changing; the benchmark's does not, so a score from this month and one from next year mean the same thing. A new benchmark version (new opponents) gets a new name, and every model is scored again on it.
-- **The deals.** The benchmark deck: 40,000 fixed deals, seeds 90,000,000 to 90,039,999, dealer rotating. The same deck for every model, so two scores are comparable to the deal.
-- **The design.** The model takes every seat in turn on every deal (`lucky.js eval --table`), 160,000 hands. Points a hand is averaged over them. Paired comparisons between two models are made deal by deal on the same deck, which removes the luck of the deal from the difference and is what makes the standard error small.
+- **Opponents, frozen.** Two Neural Cat NC8 (N10c) and Jorge Yau as of game version 0.57.9, in the seats of the game's table: Neural Cat, Jorge Yau, Neural Cat. Their weights, their code and the engine's rules they call are pinned by file and SHA-256 at commit `dd881a5` in `bench/benchmark.json` and read from git history; a fingerprint of 24 deals on today's engine must match too, so a rules change shows. The game's shipped Neural Cat will keep changing; the benchmark's does not, so a score from this month and one from next year mean the same thing. A new benchmark version (new opponents) gets a new name, and every model is scored again on it.
+- **The deals.** The benchmark deck: 40,000 fixed deals, seeds 900,000,000 to 900,039,999, dealer rotating (first planned at 90,000,000, which the Only Orphans lab ranks on). The same deck for every model, so two scores are comparable to the deal.
+- **The design.** The model takes every seat in turn on every deal (`bench.js score`), 160,000 hands. Points a hand is averaged over them. Paired comparisons between two models are made deal by deal on the same deck, which removes the luck of the deal from the difference and is what makes the standard error small.
 
 ### The score
 
@@ -237,7 +237,7 @@ Every shipped model's Table Score goes in the playbook's results table and on th
 
 ### The bar: two standard errors, twice
 
-A candidate becomes the **next generation** of its lineage only by passing every one of these, in order. Each stage plays fresh deals (new seeds, never the benchmark deck, so a model can't learn the deck):
+A candidate becomes the **next generation** of its lineage only by passing every one of these (`bench.js judge`; fair play, the cheapest, runs first). Each stage plays fresh deals (new seeds, never the benchmark deck, so a model can't learn the deck):
 
 1. **Screen.** 10,000 fresh paired deals at the benchmark table against the current generation. Arms whose gap is under one standard error stop here.
 2. **Qualify.** 40,000 fresh paired deals. The gap in points a hand must be **at least two standard errors** (about +7 at this size), and hands won must be within one standard error of the current generation's (the Lucky Cat lineage keeps its win rate).

@@ -21,6 +21,7 @@ In the game, the model runs in the browser in plain JavaScript, with no ML serve
 | [Hugging Face](hugging-face.md) | Where the models and data live, and how they're uploaded |
 | [Iterations](iterations.md) | How each Neural Cat and Lucky Cat model was made, how it plays differently from the one before it, and what each step taught |
 | [Frontier plan](frontier-plan.md) | Suphx taken apart against Hong Kong rules, four rounds of critique (the last on the plan itself), and the phased plan to make Lucky Cat the strongest Hong Kong mahjong player: privileged labels as targets, a tile-structured network, a distributional value, a league, the job each model family (heuristics, MCTS, DQN, policy gradient) gets, the benchmark (one frozen table, one deck, a Table Score) with its two-standard-errors-twice bar, and the two lineages, Lucky Cat and Sphinx |
+| [Benchmark](benchmark.md) | The frontier benchmark, built: the frozen table (NC8, Jorge Yau, NC8 at 0.57.9, pinned by SHA-256 and a fingerprint), the 40,000-deal deck, the Table Score, and `bench.js judge`, which runs the five stages of the bar for the next generation of Lucky Cat or Sphinx |
 
 ## Quick start
 
