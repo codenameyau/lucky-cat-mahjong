@@ -2208,7 +2208,7 @@
         head.className = 'strategies-card-head';
         var name = document.createElement('h4');
         name.className = 'strategies-card-name';
-        name.textContent = s.name;
+        name.textContent = s.name + (s.model ? ' (' + s.model + ')' : '');
         var id = document.createElement('code');
         id.className = 'strategies-card-id';
         id.textContent = s.id;
