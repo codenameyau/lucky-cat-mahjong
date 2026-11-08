@@ -115,6 +115,12 @@ const WIN_WEIGHT = 5;         // points a hand per percentage point of hands won
 const LC_WIN_WEIGHT = 0.5;
 let WORKERS = null;           // Lucky Cat's processes (--workers)
 let LC_TEMPERATURE = 0.5;     // Lucky Cat's exploring temperature (--temperature)
+// The table Lucky Cat trains and is judged at: the game's other strategies,
+// two Neural Cats and Jorge Yau. Learning and judging against its own kind
+// (two learner seats, earlier selves in the pool, head to head) rewarded
+// bigger hands that beat Lucky Cat but not this table: LP11b and LP12b beat
+// lc32 head to head by 4 to 6 points a hand and tied or lost to it here.
+const LC_TABLE = ['neural-cat', 'jorge-yau', 'neural-cat'];
 const WINDOW = 8;             // data sets a fine-tune trains on
 
 let DIR = path.join(ROOT, 'ml', 'lab');
@@ -186,6 +192,21 @@ const LC_TRAIN_ARMS = {
   'pg-clip': { init: true, mode: 'pg', lr: 3e-4, epochs: 4, window: 2, rewardClip: 1000, about: 'policy gradient, points clipped at ±1,000' },
   // Bold (after a plateau): a big step on the last 4 rounds.
   'pg-bold': { init: true, mode: 'pg', lr: 1e-3, epochs: 6, window: 4, klMax: 0.1, bold: true, about: 'a big policy-gradient step on the last 4 rounds' },
+};
+// Move by move, from replays (since the table rounds LT1 to LT4 stalled):
+// at a few of the champion's choices a hand, the same deal is played again
+// with its next-best moves forced (lucky.js generate --rollouts), so each
+// move gets its own points on the same wall instead of the whole hand's.
+// ml/train_lucky.py --mode q tilts the champion's shares toward the moves
+// that scored more: --tau is how many points of advantage multiply a
+// move's share by e (smaller is a bigger step).
+const LC_Q_ARMS = {
+  q: { init: true, mode: 'q', lr: 1e-4, epochs: 4, window: 1, tau: 100, about: 'move by move, the last round' },
+  'q-2': { init: true, mode: 'q', lr: 1e-4, epochs: 4, window: 2, tau: 100, about: 'move by move, the last 2 rounds' },
+  'q-all': { init: true, mode: 'q', lr: 1e-4, epochs: 4, window: 4, tau: 100, about: 'move by move, the last 4 rounds' },
+  'q-soft': { init: true, mode: 'q', lr: 1e-4, epochs: 4, window: 2, tau: 200, about: 'move by move, a smaller step (tau 200)' },
+  'q-sharp': { init: true, mode: 'q', lr: 1e-4, epochs: 4, window: 2, tau: 50, about: 'move by move, a bigger step (tau 50)' },
+  'q-bold': { init: true, mode: 'q', lr: 3e-4, epochs: 6, window: 4, tau: 30, bold: true, about: 'move by move, a big step on the last 4 rounds (tau 30)' },
 };
 
 // The plateau: rounds since the champion last changed. After --bold-after
@@ -316,7 +337,8 @@ function compareLC(a, b, deals, seed, name) {
   const json = evalJson(name);
   const A = /^[a-z]+:/.test(a) || !/\.json$/.test(a) ? a : 'lc:' + a;
   const B = /^[a-z]+:/.test(b) || !/\.json$/.test(b) ? b : 'lc:' + b;
-  const args = ['scripts/ml/lucky.js', 'eval', '--lineup', A + ',' + B, '--deals', String(deals), '--seed', String(seed), '--json', json];
+  // Each takes one seat at the game's table, every seat in turn, on the same deals.
+  const args = ['scripts/ml/lucky.js', 'eval', '--lineup', A + ',' + B, '--table', LC_TABLE.join(','), '--deals', String(deals), '--seed', String(seed), '--json', json];
   if (WORKERS) args.push('--workers', String(WORKERS));
   run('node', args);
   const r = JSON.parse(fs.readFileSync(json, 'utf8'));
@@ -406,7 +428,12 @@ const STRATEGIES = {
     },
   },
   'lucky-cat': {
-    dir: 'lab-lucky-cat', prefix: 'lcpts', model: 'LP', trainArms: LC_TRAIN_ARMS, playArms: {}, folder: 'lucky-cat',
+    // Move by move from replays at the game's table, new names: LR models,
+    // lcroll data. The table rounds that credited every move with its whole
+    // hand were LT<n><letter> and lctab-<n> (state in ml/lab-lucky-cat-table-pg/);
+    // the rounds against its own kind LP<n><letter> and lcpts-<n>
+    // (ml/lab-lucky-cat-points-h2h/).
+    dir: 'lab-lucky-cat', prefix: 'lcroll', model: 'LR', trainArms: LC_Q_ARMS, playArms: {}, folder: 'lucky-cat',
     weights: 'mahjong-lucky-cat-weights.js',
     // Training data: only the lab's own rounds, which record every hand
     // (the league's lc<n> sets hold only the moves of hands won).
@@ -414,11 +441,20 @@ const STRATEGIES = {
     // Points first: kept only when its points a hand beat the champion's by
     // more than their standard error (and J, with the wins, is ahead too).
     keep: (e) => e.points > e.margin / 2 && e.J > 0,
-    // One hand's points are mostly luck: on 20,000 deals the standard error is
-    // about 2.6 points a hand, so champions one standard error ahead of the
-    // last (LP3c, LP5a, LP8b) drifted on noise and none clearly beat lc32.
-    // 40,000 deals bring it to about 1.8. --full-deals still overrides it.
+    // One hand's points are mostly luck, and more so at the game's table,
+    // where Neural Cat's wins are worth about 1,800 points: there one
+    // standard error is about 41 points a hand on 300 deals, so about 3.5 on
+    // 40,000 (each deal plays 8 hands: both strategies in all four seats).
+    // --full-deals still overrides it.
     fullDeals: 40000,
+    // The screen: on 6,000 deals one standard error at the table is about 7
+    // points a hand, more than the gains looked for (2 to 5), so the screen
+    // mostly picked the luckiest arm (LT4c: +11.4 there, -1.8 on 40,000
+    // deals). 15,000 deals bring it to about 4.5.
+    quickDeals: 15000,
+    // A round: 30,000 deals with replays (about 3 choices a hand, each
+    // played up to 3 ways), about 50 minutes on 8 processes.
+    deals: 30000,
     start() {
       const shipped = shippedModel('mahjong-lucky-cat-weights.js');
       const league = fs.existsSync(path.join(ROOT, 'ml', 'lucky', 'state.json')) ? readJson('ml/lucky/state.json') : null;
@@ -430,12 +466,14 @@ const STRATEGIES = {
       return { start: shipped, members: files.map((n) => path.join('ml', 'models', n)) };
     },
     generate(state, r, champ, data, opts) {
-      // Its last two champions, and the point scorers the game seats beside it.
-      const selves = state.members.filter((m) => m !== champ).slice(-2).map((m) => 'lc:' + m);
-      const pool = selves.concat(['neural-cat', 'neural-cat', 'jorge-yau']);
-      log('Round ' + r + ': ' + opts.deals + ' deals, champion ' + base(champ) + ' (temperature ' + LC_TEMPERATURE + ') learning against ' + pool.map(short).join(', '));
-      const args = ['scripts/ml/lucky.js', 'generate', '--returns', '--sample', '0.5', '--weights', champ, '--deals', String(opts.deals), '--out', data,
-        '--pool', pool.join(','), '--seed', String(DATA_SEED + r * 1000000), '--temperature', String(opts.bold ? Math.max(1, LC_TEMPERATURE) : LC_TEMPERATURE), '--learners', '2'];
+      // One seat at the game's table: the other seats from Neural Cat (two
+      // in three) and Jorge Yau, no earlier selves (see LC_TABLE).
+      const pool = LC_TABLE.slice();
+      // Replays: up to 4 choices a hand (5 in bold mode), each with its 2 next-best moves.
+      const rollouts = opts.bold ? 5 : 4;
+      log('Round ' + r + ': ' + opts.deals + ' deals, champion ' + base(champ) + ' playing its best against ' + pool.map(short).join(', ') + ', up to ' + rollouts + ' of its choices a hand replayed');
+      const args = ['scripts/ml/lucky.js', 'generate', '--rollouts', String(rollouts), '--alts', '2', '--weights', champ, '--deals', String(opts.deals), '--out', data,
+        '--pool', pool.join(','), '--seed', String(DATA_SEED + r * 1000000)];
       if (WORKERS) args.push('--workers', String(WORKERS));
       log('Round ' + r + ': ' + run('node', args).trim().split('\n').pop());
     },
@@ -449,6 +487,7 @@ const STRATEGIES = {
       if (spec.rewardClip != null) args.push('--reward-clip', String(spec.rewardClip));
       if (spec.negWeight) args.push('--neg-weight', String(spec.negWeight));
       if (spec.hidden) args.push('--hidden', spec.hidden);
+      if (spec.tau != null) args.push('--tau', String(spec.tau));
       if (spec.init) args.push('--init', champ);
       return { args, about: '(' + sets.length + ' data set' + (sets.length > 1 ? 's' : '') + ')' };
     },
@@ -617,7 +656,7 @@ function round(state, opts) {
   });
   playArms.forEach((arm) => candidates.push(tune(state, r, letters[candidates.length], arm)));
 
-  // 3. Judge: 6,000 deals each, then 20,000 fresh deals for the best two ahead.
+  // 3. Judge: 6,000 deals each (Lucky Cat 15,000), then the full evaluation's fresh deals for the best two ahead.
   candidates.forEach((c) => {
     c.quick = S.judge(c.file, champ, QUICK_DEALS, QUICK_SEED + r * 10000, 'quick');
     log('Round ' + r + ': ' + c.name + ' [' + c.arm + ': ' + c.about + '] ' + fmt(c.quick));
@@ -714,6 +753,7 @@ function main() {
   const STATE = path.join(DIR, 'state.json');
   const cmd = a._[0] || 'run';
   if (a['quick-deals']) QUICK_DEALS = parseInt(a['quick-deals'], 10);
+  else if (S.quickDeals) QUICK_DEALS = S.quickDeals;
   if (a['full-deals']) FULL_DEALS = parseInt(a['full-deals'], 10);
   else if (S.fullDeals) FULL_DEALS = S.fullDeals;
   if (a['extra-deals']) EXTRA_DEALS = parseInt(a['extra-deals'], 10);
@@ -747,7 +787,7 @@ function main() {
   if (cmd === 'report') return report(state);
 
   const opts = {
-    deals: parseInt(a.deals || 50000, 10),
+    deals: parseInt(a.deals || S.deals || 50000, 10),
     train: parseInt(a.train || 3, 10),
     play: parseInt(a.play != null ? a.play : 2, 10),
     noUpload: !!a['no-upload'],
