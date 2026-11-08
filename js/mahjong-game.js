@@ -2085,8 +2085,19 @@
       return document.getElementById('strategies-sheet');
     }
 
+    // How much the coach says (Coach settings): 'simple' (the default),
+    // 'detailed' or 'complex'. Kept in PREFS_KEY.
+    var COACH_DETAILS = ['simple', 'detailed', 'complex'];
+    function coachDetail() {
+      return COACH_DETAILS.indexOf(prefs.coachDetail) !== -1 ? prefs.coachDetail : 'simple';
+    }
+
+    function coachWith(id) {
+      return Coach.forStrategy(Strategies.get(id).bot, { detail: coachDetail() });
+    }
+
     function coachFor() {
-      return Coach.forStrategy(Strategies.get(ui.strategies.coach).bot);
+      return coachWith(ui.strategies.coach);
     }
 
     function playerLabel(seat) {
@@ -2278,6 +2289,84 @@
     function strategiesOpen() {
       var dlg = strategiesSheet();
       return !!(dlg && dlg.open);
+    }
+
+    /* ---------------- coach settings sheet ---------------- */
+    // How much the coach says: Simple (the default), Detailed or Complex.
+    // The choice is kept in PREFS_KEY (coachDetail), and the hint on screen
+    // is worked out again at once in the new words.
+
+    var COACH_OPTIONS = [
+      { id: 'simple', name: 'Simple', note: 'What to do, and one short reason why.', example: 'Discard Two Bamboo. Not Circles or an honor.' },
+      { id: 'detailed', name: 'Detailed', note: 'Adds the hand you are going for, the threats, and why the model likes its pick.', example: 'Discard Two Bamboo. Not Circles or an honor. Go for Half Flush in Circles. The model picks it because it keeps a bigger hand in reach.' },
+      { id: 'complex', name: 'Complex', note: 'Everything the models weigh: expected score, chance to win, and the next best choice.', example: 'Discard Two Bamboo. Not Circles or an honor. Go for Half Flush in Circles. The model expects +67 score on average, with a 3% chance to win. Next best discard is Six Bamboo: +48 score.' },
+    ];
+
+    function coachSettingsSheet() {
+      return document.getElementById('coach-settings-sheet');
+    }
+
+    function coachSettingsOpen() {
+      var dlg = coachSettingsSheet();
+      return !!(dlg && dlg.open);
+    }
+
+    function buildCoachSettings() {
+      var body = document.getElementById('coach-settings-body');
+      if (!body) return;
+      body.textContent = '';
+      var current = coachDetail();
+      COACH_OPTIONS.forEach(function (o) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'coach-option' + (o.id === current ? ' is-selected' : '');
+        b.setAttribute('role', 'radio');
+        b.setAttribute('aria-checked', o.id === current ? 'true' : 'false');
+        b.setAttribute('data-detail', o.id);
+        var name = document.createElement('span');
+        name.className = 'coach-option-name';
+        name.textContent = o.name + (o.id === 'simple' ? ' (default)' : '');
+        var note = document.createElement('span');
+        note.className = 'coach-option-note';
+        note.textContent = o.note;
+        var ex = document.createElement('span');
+        ex.className = 'coach-option-example';
+        ex.textContent = o.example;
+        b.appendChild(name);
+        b.appendChild(note);
+        b.appendChild(ex);
+        b.addEventListener('click', function () { setCoachDetail(o.id); });
+        body.appendChild(b);
+      });
+    }
+
+    function setCoachDetail(id) {
+      if (COACH_DETAILS.indexOf(id) === -1 || id === coachDetail()) return;
+      sound.play('select');
+      prefs.coachDetail = id;
+      writeJson(PREFS_KEY, prefs);
+      track('play_coach_detail', { detail: id });
+      buildCoachSettings();
+      // The hint on screen says it again in the new words.
+      if (!settings.lesson && ui.coach !== 'off' && game && game.hand && (ui.turnPrompt || ui.claimPrompt)) {
+        ui.hintsAll = hintsForAll(ui.turnPrompt ? 'turn' : 'claim', (ui.turnPrompt || ui.claimPrompt).opts);
+        ui.hint = ui.hintsAll[ui.strategies.coach];
+      }
+      requestRender();
+    }
+
+    function openCoachSettings() {
+      var dlg = coachSettingsSheet();
+      if (!dlg || dlg.open) return;
+      buildCoachSettings();
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+    }
+
+    function closeCoachSettings() {
+      var dlg = coachSettingsSheet();
+      if (!dlg || !dlg.open) return;
+      sound.play('select'); // the click
+      if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
     }
 
     /* ---------------- results sheet ---------------- */
@@ -3598,7 +3687,7 @@
     function hintsForAll(kind, opts) {
       var out = {};
       Strategies.ids().forEach(function (id) {
-        var coach = Coach.forStrategy(Strategies.get(id).bot);
+        var coach = coachWith(id);
         try { out[id] = kind === 'turn' ? coach.turnHint(game, 0, opts) : coach.claimHint(game, 0, opts); }
         catch (err) { out[id] = null; }
       });
@@ -4685,7 +4774,7 @@
     function drawMenu() {
       // View playback sits under Resume once the hand has a move to look at.
       var withPlayback = menuHasPlayback();
-      var r = panelRect(360, withPlayback ? 414 : 362);
+      var r = panelRect(360, withPlayback ? 466 : 414);
       ui.overlayBox = r;
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(0, 0, W, H);
@@ -4694,7 +4783,7 @@
       text('Menu', px, r.y + 36, { size: 28, family: FONT_HEAD, align: 'left', color: COLORS.goldLight });
       button('Close', r.x + r.w - 22 - 64, r.y + 22, 64, 28, function () { sound.play('select'); closeOverlay(); }, 'ghost', 'm-close');
       // On a short screen (a phone held sideways) the buttons close up to fit.
-      var rows = withPlayback ? 5 : 4;
+      var rows = withPlayback ? 6 : 5;
       var room = r.h - 70 - 64;
       var step = Math.max(34, Math.min(52, room / rows));
       var bh = Math.min(42, step - 6);
@@ -4702,6 +4791,7 @@
       button('Resume', bx, y, bw, bh, function () { sound.play('select'); closeOverlay(); }, 'primary', 'm-resume'); y += step;
       var themeLabel = THEMES[themeName(prefs.theme)].label;
       button('Theme: ' + themeLabel, bx, y, bw, bh, function () { sound.play('select'); cycleTheme(); }, 'white', 'm-theme'); y += step;
+      button('Coach settings', bx, y, bw, bh, function () { sound.play('select'); closeOverlay(); openCoachSettings(); }, 'white', 'm-coach'); y += step;
       if (withPlayback) { button('View playback', bx, y, bw, bh, function () { sound.play('select'); closeOverlay(); viewReplay(); }, 'white', 'm-playback'); y += step; }
       var armed = ui.restartArmed && now() - ui.restartArmed < 5000;
       button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, bh, function () { sound.play('select'); restartGame(); }, armed ? 'gold' : 'white', 'm-restart'); y += step;
@@ -5682,7 +5772,7 @@
 
     function onKey(e) {
       if (destroyed) return;
-      if (rulesOpen() || strategiesOpen() || resultsOpen() || playbacksOpen() || uploadErrorOpen()) return; // the sheets handle their own keys (Escape closes them)
+      if (rulesOpen() || strategiesOpen() || resultsOpen() || playbacksOpen() || uploadErrorOpen() || coachSettingsOpen()) return; // the sheets handle their own keys (Escape closes them)
       if (settings.playback && !settings.review) return;
       if (settings.review && ui.overlay && ui.overlay.type === 'summary') {
         // The playback's results: Enter or Escape puts them away; Space watches it again.
@@ -6619,7 +6709,7 @@
           if (!built) return;
           walk = reviewCoaches[id] = { id: id, game: built, index: 0, discards: 0, notes: [] };
         }
-        var coach = Coach.forStrategy(Strategies.get(id).bot);
+        var coach = coachWith(id);
         var hints = 0;
         while (walk.index < target) {
           var ev = actions[walk.index];
@@ -7690,6 +7780,13 @@
       if (!dlg) return;
       onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeStrategies);
       onSheet(dlg, 'click', function (e) { if (e.target === dlg) closeStrategies(); });
+      onSheet(dlg, 'close', function () { canvas.focus(); });
+    })();
+    (function () {
+      var dlg = coachSettingsSheet();
+      if (!dlg) return;
+      onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeCoachSettings);
+      onSheet(dlg, 'click', function (e) { if (e.target === dlg) closeCoachSettings(); });
       onSheet(dlg, 'close', function () { canvas.focus(); });
     })();
     (function () {

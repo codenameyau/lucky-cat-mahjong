@@ -636,7 +636,7 @@ test('a playback that fails its signature opens the could-not-be-uploaded popup,
   // Closed by Close, a click outside, and Escape (a dialog's own).
   assert.doesNotMatch(GAME_SRC, /upload-error-ok/);
   assert.match(GAME_SRC, /onSheet\(dlg\.querySelector\('\.rules-sheet-close'\), 'click', closeUploadError\)/);
-  assert.match(GAME_SRC, /playbacksOpen\(\) \|\| uploadErrorOpen\(\)\) return;/);
+  assert.match(GAME_SRC, /playbacksOpen\(\) \|\| uploadErrorOpen\(\)(?: \|\| coachSettingsOpen\(\))?\) return;/);
 });
 
 test('Upload playback closes the Saved playbacks sheet, and a bad file\'s popup stands on its own', () => {

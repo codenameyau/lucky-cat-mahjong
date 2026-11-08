@@ -1008,3 +1008,17 @@ html.is-playing.is-sideways body {
   .play-actions { flex-direction: column; }
   .play-start { flex: none; width: 100%; }
 }
+
+/* Coach settings: three choices, each with what it says and an example. */
+.coach-settings-sheet { width: min(520px, calc(100vw - 32px)); }
+.coach-options { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.coach-option {
+  display: flex; flex-direction: column; gap: 4px; text-align: left;
+  padding: 12px 14px; border: 2px solid rgba(255, 255, 255, 0.22); border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18); color: #FFF8F0; font: inherit; cursor: pointer;
+}
+.coach-option:hover { border-color: rgba(255, 210, 122, 0.6); }
+.coach-option.is-selected { border-color: #F4A020; background: rgba(244, 160, 32, 0.14); }
+.coach-option-name { font-weight: 700; color: #ffd27a; font-size: 1rem; }
+.coach-option-note { font-size: 0.9rem; }
+.coach-option-example { font-size: 0.82rem; opacity: 0.75; font-style: italic; }

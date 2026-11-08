@@ -138,7 +138,7 @@ The interactive pages work offline after one visit: the Points Guide (`/hong-kon
 - **Full game** — Everyone starts with 2,000 points and plays 4 rounds and 16 dealer rotations, so at least 16 hands. Points can go negative without ending the game, and it closes with the final standings
 - **The deal** — In both modes, a dealer who wins deals again, and anything else, a drawn hand too, passes the deal on
 - **Payouts** always use the **full spicy** table
-- **The in-game menu** has Resume, Theme (green, blue or red; see the colour themes below), View playback (once the hand has a move to look at), Restart game (a second tap confirms) and Quit game.
+- **The in-game menu** has Resume, Theme (green, blue or red; see the colour themes below), Coach settings (how much the coach says), View playback (once the hand has a move to look at), Restart game (a second tap confirms) and Quit game.
 - **Game over** — The end-of-game window (Game over) is in the Results window's look: the green sheet with a gold edge, a gold title and Close at the top. It lists the four standings, each with the player's avatar (a person for you, a robot for the computer players), their name, the strategy they played (yours is the coach's, shown as *Coach · Neural Cat*) and their points, with yours highlighted, then your game's stats: hands played, your biggest hand, your fastest win (the fewest moves in a hand you won: your own discards plus the winning move, so a win on your 6th turn is *6 moves*; a dash if you won no hand), hands you won, your longest winning streak (the most hands you won in a row; a drawn hand ends it), the times you discarded the winning tile (another player won on your discard) and the times you stayed dealer (you won as dealer and the deal stayed with you). Play again is the large red button on top, with Results and Quit side by side below it. Pressing See results after the last hand (or on the table, after Close) shows only this window; its Results button opens the Results table. Close, or a click outside, steps aside to the table with every hand face up. Closing it makes no sound. On a development address, [auto-play](#auto-play-development-only) plays through to this window quickly
 
 #### Rules and scoring
@@ -269,6 +269,14 @@ The Coach button in the top bar cycles three modes, and all of them work in ever
 - **Coach on** — Says what to do and why
 - **Feedback on** — A training mode. After you move, it reviews your previous move (a great, good, slowing or risky discard, or a good or missed claim) against what it would have done, and says why
 - **Coach off** — The box stays, in gray, with a prompt to turn the coach on. On an upright phone the bar is hidden and the table gets the room
+
+**Coach settings** (Menu, Coach settings) set how much the coach says, with three choices, kept as `coachDetail` in `lcm-play-prefs` and applied at once to the hint on screen:
+
+- **Simple** (the default) — What to do and one short reason why, such as *Discard Two Bamboo. Not Circles or an honor.* A learned coach adds what it likes about the tile in plain words (*The model likes it because it gets you ready fastest.*), never a score
+- **Detailed** — Adds the hand you are going for, the threats, and the model's reasons in plain words (*The model picks it because it keeps a bigger hand in reach.*), still with no score
+- **Complex** — Everything the models weigh: the expected score, the chance to win and what a win pays, and the next best choice (the coach as it was before the setting)
+
+The plain reasons come from the feature groups that put the model's pick furthest ahead (`speed`, `value`, `safety`, `table`, `hand`, `discard`, `context`; `GROUP_PLAIN` in `js/mahjong-coach.js`). Simple leaves out the three vague ones (the tile itself, the tiles you keep, the stage of the game). The setting is applied by `Coach.forStrategy(bot, { detail })`; with no detail the coach says everything, so other callers and the tests are unchanged. A win declaration reads the same at every level. The playback analysis table keeps its own wording.
 
 What it plays for:
 
