@@ -306,6 +306,18 @@ Starting from NC2 (L19), on 50,000 deals against L14, L16, L17, s5, Jorge Yau, L
 - **Result.** The slow fine-tune, N2b, beat NC2 by **+8.1 ± 18.3** points a hand on 20,000 fresh deals, winning 9.0% against 8.4% with deal-ins down from 6.0% to 5.7%: **J +11.4**, beyond its standard error. It ships as **NC3**. The deeper network was even (+1.2 ± 17.5); `topK` 2 lost badly on 6,000 deals (−40.9: more, smaller wins); recent-data-only and the claim margin lost too.
 - **What the bot does differently.** It wins a little more often and deals in a little less, with wins about the same size (1,896 against 1,963 points): the same style as NC2, slightly sharper. The gain is in J, mostly from the extra wins; the points alone are within their margin.
 
+### Lab round 3 (NC4): leaning toward wins
+
+- **Thinking.** Round 2's gain was mostly more wins, so the bandit pushed on that: the same network with `winBonus` 0 → 150, `topK` 3 → 4, a plain fine-tune, the slow fine-tune again and a deeper network.
+- **Result.** `winBonus` 150 (N3d) won on 6,000 deals (J +40.4) and held on 20,000 fresh ones: **+7.5 ± 17.5 points a hand, 12.2% of hands won against 8.7%, deal-ins 6.6% against 7.3%, J +25.3**, beyond its standard error. It ships as **NC4** with the NC3 weights and a new play setting. The plain fine-tune looked best on points (+26.7) and fell to −10.3 on 20,000 deals: rejected. `topK` 4 (+14.1) and the rest were not re-judged.
+- **What the bot does differently.** It wins about four hands in a hundred more, with smaller wins (1,347 against 1,853 points). It takes a ready hand over a bigger one that is further off.
+
+### Lab round 4 (NC5): learning from its own newest games
+
+- **Thinking.** NC4's games are a new style, and the old data is not. The bandit tried a fine-tune on the last three rounds only, a wider network from scratch, a faster fine-tune, a lower `winBonus` and a negative claim margin.
+- **Result.** The recent-data fine-tune (N4c) beat NC4 by **+4.9 ± 16.9** points a hand on 20,000 fresh deals, winning 12.6% against 11.4%: **J +11.1**. It ships as **NC5**. The faster fine-tune (J +3.5) was within the noise; the wider network, lower `winBonus` and claim margin did nothing.
+- **What the bot does differently.** The same style as NC4, a little sharper: slightly more wins, slightly smaller ones (1,220 against 1,275 points).
+
 ## Looking three discards ahead: tried, not shipped
 
 Not a new network: the same weights (NC2, LC20, O5), choosing differently. [What was built and the full numbers](decisions.md#looking-ahead-depth-tried-not-shipped).
