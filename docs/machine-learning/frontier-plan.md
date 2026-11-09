@@ -624,3 +624,17 @@ The maintainer's call, after rounds 4–6: "Train Sphinx to be more aggressive t
     - a: danger-tau 150, progress 200.
     - b: danger-tau 200, progress 200.
     - c: danger-tau 200, progress 100 (less rush to ready, for bigger hands).
+- **Rounds 10–12: offence alone gets within 4 points of random play, and dealing in less than it, while winning about 4 times as often.**
+  - *Evidence (screens against sp0, 40,000 fresh deals):*
+
+    | Arm | Points a hand | Hands won | Deal-ins | Average win |
+    | --- | --- | --- | --- | --- |
+    | a: danger-tau 150, progress 200 | −25.0, −26.3, −23.5 | 3.11, 3.63, 2.76% | 11.8, 12.5, 12.1% | 143, 174, 123 |
+    | b: danger-tau 200, progress 200 | −23.5, −12.7, −22.5 | 2.15, 2.64, 2.00% | 11.9, 11.7, 11.4% | 134, 194, 153 |
+    | c: danger-tau 200, progress 100 | **−11.2**, −26.2, **−4.1 ± 2.9** | 1.12, 1.42, 1.29% | **9.8**, 11.6, **9.9%** | 230, 122, 131 |
+
+  - Without imitation, every arm beat rounds 7–9's imitation arms (−35 to −43).
+  - **The hardest push to ready (progress 200) wins most** (up to 3.6% of seats, 11 times sp0) but deals in about 1.5–2 points more.
+  - **The gentler push (c, progress 100) dealt in less than random play in two of three rounds** (9.8% and 9.9% against about 10.4%) and came closest: −4.1 ± 2.9 in round 12, 1.4 SE from parity.
+  - Every arm's wins are still small (3.9–4.3 faan against sp0's 6.7, whose rare wins come from big random hands), and arm c swung from −11.2 to −26.2 and back to −4.1: one 40,000-deal screen moves by about 10 points between rounds of the same recipe.
+  - *Open:* sp0 is still champion, so every round fine-tunes from random weights on sp0's own data. What would compound is a first generation: a candidate that beats sp0 becomes the champion and generates the next round's data. The gentle-offence recipe (c) is the closest; the next rounds should run it, and variants around it.
