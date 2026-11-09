@@ -34,18 +34,17 @@ test('Detailed leaves out the score and says why in plain words', () => {
   }
 });
 
-test('Simple is the action and a short reason, never the score', () => {
+test('Simple is the action and the hand to go for, with no reason and never the score', () => {
   for (const id of ['neural-cat', 'jorge-yau', 'lucky-cat', 'only-orphans']) {
     for (const seed of [3, 5, 9, 29, 41]) {
       const h = hintFor(id, 'simple', seed);
       assert.doesNotMatch(words(h), /model expects|score|chance to win|network plays/, id + ' ' + seed);
-      assert.ok(h.tips.length <= 1, id + ' has one reason at most');
+      assert.ok(h.tips.length <= 1, id + ' says one thing after the action at most');
+      assert.doesNotMatch(words(h), /I like it because|I pick it because/, id + ' ' + seed + ' gives no reason');
+      if (h.aim) assert.match(words(h), /\. Go for [^.]+, (about \d+ faan|the 13 faan limit)(, short of the \d+ faan minimum)?\.$/, id + ' ' + seed + ': ' + words(h));
       assert.ok(words(h).length <= 260, id + ' ' + seed + ': ' + words(h).length + ' characters');
     }
   }
-  // A learned strategy says what it likes about the pick, with the words above.
-  const said = [3, 5, 9, 29, 41, 77, 12].map((seed) => words(hintFor('neural-cat', 'simple', seed)));
-  assert.ok(said.some((t) => /I like it because it /.test(t)), said.join(' | '));
 });
 
 test('Simple is shorter than Detailed, and Detailed shorter than Complex', () => {

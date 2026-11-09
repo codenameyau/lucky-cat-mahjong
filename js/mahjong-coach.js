@@ -985,7 +985,7 @@
     } else if (pick.plan || followed) {
       var spoken = followed ? { route: routeOf(followed) } : pick.plan;
       var speak = spoken.route;
-      var line = (followed ? 'You\'re going for ' : 'Go for ') + targetText(v, spoken, cAfter, null) + '.';
+      var line = 'Go for ' + targetText(v, spoken, cAfter, null) + '.';
       line += shifted;
       line += deadNote(v, speak, cAfter);
       // A complete shape that doesn't score isn't ready, so say why.
@@ -1233,7 +1233,7 @@
       if (followed && !waiting.length) {
         if (discard && !planClaims(followed, E.tileIndex(discard), v.ctx.declared)) discard = null;
         if (discard) lines.push('Then discard ' + E.tileName(discard) + '.');
-        lines.push('You\'re going for ' + targetText(v, { route: routeOf(followed) }, counts) + '.');
+        lines.push('Go for ' + targetText(v, { route: routeOf(followed) }, counts) + '.');
         var shown = threats.filter(function (t) { return t.level >= 2; });
         var said = threatSentence(v.game, shown);
         if (said) lines.push(said);
@@ -1432,7 +1432,7 @@
   // "I like it because it gets you ready fastest and keeps a bigger hand in reach."
   // Simple and Detailed speak as the coach ("I"); only Complex says "the model".
   // Simple ends with one "Go for ..." sentence (aimSentence). The hint's own tip can say it too
-  // ("You're going for ...", "Go for ..."), so those sentences come out and it is said once.
+  // ("Go for ...", "You're going for ..."), so those sentences come out and it is said once.
   function withoutAimSentences(text) {
     var parts = String(text || '').match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [];
     return parts.filter(function (p) {
@@ -1461,10 +1461,15 @@
       return fit(out);
     }
     // Simple: the action, then the reason why. A learned strategy adds what it likes about the tile.
-    var clear = hint.modelWhyClear || [];
-    var why = clip(hint.aim ? withoutAimSentences(tips[0]) : tips[0] || '', SIMPLE_WHY);
-    if (clear.length) why = (why + ' ' + sentenceOf(clear, 'I like it because ')).trim();
-    why = (why + ' ' + aimSentence(hint.aim)).trim();
+    // With a hand to go for, that sentence is all Simple adds: no reason. Without one, the first tip stays.
+    var why;
+    if (hint.aim) {
+      why = aimSentence(hint.aim);
+    } else {
+      var clear = hint.modelWhyClear || [];
+      why = clip(tips[0] || '', SIMPLE_WHY);
+      if (clear.length) why = (why + ' ' + sentenceOf(clear, 'I like it because ')).trim();
+    }
     out.tips = why ? [why] : [];
     return fit(out);
   }
@@ -1488,9 +1493,18 @@
       out.tips = tips;
       return fit(out);
     }
-    var why = clip(hint && hint.aim ? withoutAimSentences(tips[0]) : tips[0] || '', SIMPLE_FEEDBACK);
-    if (reasons.length) why = (why + ' ' + sentenceOf(reasons, 'I like it because ')).trim();
-    why = (why + ' ' + aimSentence(hint && hint.aim)).trim();
+    // The verdict is in the action. With a hand to go for, that sentence is all Simple adds: no reason.
+    var why;
+    if (hint && hint.aim) {
+      // "I pick Eight Character." says what to do instead, so it stays; the reasons after it go.
+      var pick = (String(tips[0] || '').match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || []).filter(function (p) {
+        return /^\s*I (pick|would)\b/.test(plain(p));
+      }).join('').trim();
+      why = (pick + ' ' + aimSentence(hint.aim)).trim();
+    } else {
+      why = clip(tips[0] || '', SIMPLE_FEEDBACK);
+      if (reasons.length) why = (why + ' ' + sentenceOf(reasons, 'I like it because ')).trim();
+    }
     out.tips = why ? [why] : [];
     return fit(out);
   }
