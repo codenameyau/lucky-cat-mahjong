@@ -513,3 +513,6 @@ The desktop (x86-64, Windows, a TITAN RTX) reproduced the reference compare to t
     - b: fold 2 alone, with no progress push, to test whether the smaller wins come from progress.
     - c: c's recipe at half the learning rate for twice the epochs (lr 5e-4, 16), for a larger, steadier step from more data.
   - **Sphinx's arms build on b,** the only arm that has closed in on random play (see Sphinx below).
+- **Qualify and replicate now stop early only on a clear loss: at most −2 standard errors after a block, not 0** (the maintainer's call).
+  - *Evidence:* a +2-point gain is under half a standard error of a 10,000-deal block (about 5.3), so it is at or below 0 after its first block about a third of the time. LV8c stopped at −1.34 SE after 10,000 deals. The arms' true gains look like about +2 (above), exactly the case a 0 threshold cuts short.
+  - *Changed:* `bench/benchmark.json` `bar.earlyFail` 0 → −2. The early pass (≥ 4 SE) and the bar (2 SE at 40,000 deals, replicated) are unchanged. Documented in [benchmark](benchmark.md).

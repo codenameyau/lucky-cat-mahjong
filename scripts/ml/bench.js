@@ -261,7 +261,10 @@ async function playParts(models, seed, from, to, workers, bm) {
 // gap is clearly past the bar (bar.earlyPass SE) or clearly short of it
 // (bar.earlyFail SE), after at least one block; otherwise plays all `deals`.
 // The early thresholds are far stricter than the bar's, so stopping early
-// almost never changes the verdict a full run would give.
+// almost never changes the verdict a full run would give. earlyFail is -2 (a
+// clear loss) since 2026-11-09, not 0: a small true gain (+2 points a hand) is
+// at or below 0 after one 10,000-deal block about a third of the time, and
+// should get its full deals (docs/machine-learning/benchmark.md).
 async function playSequential(models, seed, deals, workers, bm, bar) {
   const block = Math.min(deals, bar.block || deals);
   const parts = [];
