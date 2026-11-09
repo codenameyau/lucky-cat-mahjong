@@ -87,10 +87,16 @@ const LINEAGES = {
     // a: round 3's best reader (LV3b: waits AUC 0.61), on 5x the data.
     // b: the same with the heads pulling a quarter as hard (aux 0.2 is a large push).
     // c: what hands scored (PG3, the best probe), heads at 0.05.
+    // From round 7: the teacher also learns from losses (probes LP1, LP2 on
+    // round 5's data: +2.5 and +2.3 on 40,000 deals, more hands won, fewer
+    // deal-ins, smaller wins; progress 200 with fold 4 cost points: -1.9).
+    // a: the recipe that screened best in rounds 4-6 (aux 0.05).
+    // b: that, with progress 100 and fold 2 (LP2).
+    // c: a gentler progress (50) with fold 2, so value plans aren't pushed off.
     arms: [
-      { key: 'a', why: 'teacher + aux 0.2, lr 1e-3, 8 epochs (LV3b on 5x the data)', args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '8', '--aux', '0.2'] },
-      { key: 'b', why: 'teacher + aux 0.05, lr 1e-3, 8 epochs', args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '8', '--aux', '0.05'] },
-      { key: 'c', why: 'returns (pg, hidden-tile critic) + teacher 0.5 + aux 0.05, lr 3e-4, 6 epochs', args: ['--mode', 'pg', '--oracle-critic', '--lr', '3e-4', '--epochs', '6', '--aux', '0.05', '--teach', '0.5'] },
+      { key: 'a', why: 'teacher + aux 0.05, lr 1e-3, 8 epochs', args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '8', '--aux', '0.05'] },
+      { key: 'b', why: 'teacher (progress 100, fold 2) + aux 0.05, lr 1e-3, 8 epochs', args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '8', '--aux', '0.05', '--progress', '100', '--fold', '2'] },
+      { key: 'c', why: 'teacher (progress 50, fold 2) + aux 0.05, lr 1e-3, 8 epochs', args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '8', '--aux', '0.05', '--progress', '50', '--fold', '2'] },
     ],
   },
   sphinx: {
