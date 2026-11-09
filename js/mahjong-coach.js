@@ -387,6 +387,27 @@
     return r.faan >= v.game.settings.minFaan ? 'a chicken hand' : 'a dragon or wind meld';
   }
 
+  // The hand the coach is aiming for and what it is worth, for the Simple
+  // coach's one sentence (aimSentence). `route` is the bot's plan (routeOf),
+  // `c` the hand after the move, and `faan` what a ready hand wins for, when
+  // it is ready; otherwise the plan's own faan. Null without a plan.
+  function aimOf(v, route, c, faan) {
+    if (!route) return null;
+    var label = targetText(v, { route: route }, c, null).split(/[.:]/)[0].replace(/\s*\(\d+ faan\)/, '');
+    if (label === 'a dragon or wind meld') label = 'a chicken hand';
+    if (faan == null) faan = route.faan + (route.id === 'straights' ? v.flowerFaan || 0 : 0);
+    return { name: label, faan: Math.max(0, Math.floor(faan + 0.25)), min: v.game.settings.minFaan };
+  }
+
+  // "Going for All Triplets, about 4 faan." One sentence, the same at every
+  // level that says it (the Simple hint and feedback; a playback can reuse it).
+  function aimSentence(aim) {
+    if (!aim || !aim.name) return '';
+    var worth = aim.faan >= 13 ? 'the 13 faan limit' : 'about ' + aim.faan + ' faan';
+    var short = aim.min && aim.faan < aim.min ? ', short of the ' + aim.min + ' faan minimum' : '';
+    return 'Going for ' + aim.name + ', ' + worth + short + '.';
+  }
+
   // The bigger hand the same tiles can still make, when it isn't already
   // the aim: name it, and what to keep for it.
   function upgradeNote(v, route) {
@@ -983,6 +1004,11 @@
       tips.push(line);
     }
 
+    // The hand it's aiming for, and its faan (the Simple coach says this).
+    var aimRoute = followed ? routeOf(followed) : route;
+    var readyFaan = canWin ? winning.filter(function (w) { return w.ronOk; }).map(function (w) { return w.ronFaan; }) : [];
+    var aim = aimOf(v, aimRoute, cAfter, readyFaan.length ? Math.min.apply(null, readyFaan) : null);
+
     // 3. Threats and how safe the discard is.
     var defense = defenseLine(v, threats, pick, list);
     if (defense) tips.push(defense);
@@ -999,7 +1025,7 @@
     return lead({
       kind: 'discard', tile: pick.tile, tips: tips, candidates: list,
       why: why, threatName: worry ? worry.name : null, model: learned || null,
-      modelWhy: modelReasons(pick), modelWhyClear: modelReasons(pick, true),
+      modelWhy: modelReasons(pick), modelWhyClear: modelReasons(pick, true), aim: aim,
     }, kongAt !== undefined ? kongAt : discardAt);
   }
 
@@ -1128,10 +1154,13 @@
   }
 
   var lastClaim = null; // what the strategy decided, for the model line
+  var lastAim = null; // the hand the claim hint is aiming for (aimOf)
 
   function claimHint(game, seat, opts) {
     lastClaim = null;
+    lastAim = null;
     var hint = claimAdvice(game, seat, opts);
+    if (lastAim) hint.aim = lastAim;
     var read = lastClaim && lastClaim.found && lastClaim.found.ml;
     var line = choicesLine(read, opts.tile);
     if (line) { hint.tips.push(line); hint.model = line; }
@@ -1196,6 +1225,9 @@
     function after(plan, counts, discard, named, ready) {
       var lines = [];
       var waiting = winningWaits(ready);
+      var readyFaan = waiting.filter(function (w) { return w.ronOk; }).map(function (w) { return w.ronFaan; });
+      var aimRoute = followed && !waiting.length ? routeOf(followed) : plan && plan.route;
+      lastAim = aimOf(v, aimRoute, counts, readyFaan.length ? Math.min.apply(null, readyFaan) : null);
       if (followed && !waiting.length) {
         if (discard && !planClaims(followed, E.tileIndex(discard), v.ctx.declared)) discard = null;
         if (discard) lines.push('Then discard ' + E.tileName(discard) + '.');
@@ -1388,8 +1420,8 @@
   /* ------------------------------------------------------------------ *
    * 6. How much the coach says. The hints above are the Complex coach:
    *    everything, with the model's score. Detailed drops the score and
-   *    says the model's reasons in plain words. Simple says what to do and
-   *    one short reason why. The game picks one (its Coach settings).
+   *    says the model's reasons in plain words. Simple says what to do,
+   *    one short reason why, and the hand it's aiming for with its faan. The game picks one (its Coach settings).
    * ------------------------------------------------------------------ */
 
   var DETAILS = ['simple', 'detailed', 'complex'];
@@ -1421,6 +1453,7 @@
     var clear = hint.modelWhyClear || [];
     var why = clip(tips[0] || '', SIMPLE_WHY);
     if (clear.length) why = (why + ' ' + sentenceOf(clear, 'I like it because ')).trim();
+    why = (why + ' ' + aimSentence(hint.aim)).trim();
     out.tips = why ? [why] : [];
     return fit(out);
   }
@@ -1430,7 +1463,7 @@
   // its plain reasons say why the coach preferred its pick.
   //  - Complex: unchanged, with the model's numbers.
   //  - Detailed: no numbers; the coach's reasons in plain words, as "I".
-  //  - Simple: the verdict and one short reason.
+  //  - Simple: the verdict, one short reason, and the hand it's aiming for.
   var SIMPLE_FEEDBACK = 160;
   function shapeFeedback(fb, hint, detail) {
     if (!fb || detail === 'complex' || DETAILS.indexOf(detail) === -1) return fb;
@@ -1446,6 +1479,7 @@
     }
     var why = clip(tips[0] || '', SIMPLE_FEEDBACK);
     if (reasons.length) why = (why + ' ' + sentenceOf(reasons, 'I like it because ')).trim();
+    why = (why + ' ' + aimSentence(hint && hint.aim)).trim();
     out.tips = why ? [why] : [];
     return fit(out);
   }
@@ -1469,7 +1503,7 @@
   var api = {
     discardFeedback: fitted(discardFeedback), claimFeedback: fitted(claimFeedback), noteDiscard: noteDiscard,
     turnHint: fitted(turnHint), claimHint: fitted(claimHint), MAX_TEXT: MAX_TEXT, fit: fit,
-    shape: shape, shapeFeedback: shapeFeedback, shapeNote: shapeNote, DETAILS: DETAILS,
+    shape: shape, shapeFeedback: shapeFeedback, shapeNote: shapeNote, DETAILS: DETAILS, aimSentence: aimSentence,
     rankDiscards: rankDiscards, look: look, highlightPatterns: highlightPatterns,
   };
 

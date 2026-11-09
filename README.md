@@ -280,17 +280,17 @@ The Coach button in the top bar cycles three modes, and all of them work in ever
 
 **Coach settings** (Menu, Coach settings) set how much the coach says, with three choices, kept as `coachDetail` in `lcm-play-prefs` and applied at once to the hint on screen:
 
-- **Simple** (the default) — What to do and one short reason why, such as *Discard Two Bamboo. Not Circles or an honor.* A learned coach adds what it likes about the tile in plain words (*I like it because it gets you ready fastest.*), never a score
+- **Simple** (the default) — What to do and one short reason why, such as *Discard Two Bamboo. Not Circles or an honor.* A learned coach adds what it likes about the tile in plain words (*I like it because it gets you ready fastest.*), never a score. It ends with one sentence on the hand it's going for and its faan, from the strategy's own plan (*Going for Half Flush in Circles, about 5 faan.*, or *Going for a chicken hand, about 1 faan, short of the 3 faan minimum.*); a ready hand says what its wait wins for
 - **Detailed** — Adds the hand you are going for, the threats, and my reasons in plain words (*I pick it because it keeps a bigger hand in reach.*), still with no score
 - **Complex** — The only level that says "the model" (Simple and Detailed speak as "I"). Everything the models weigh: the expected score, the chance to win and what a win pays, and the next best choice (the coach as it was before the setting)
 
 The same setting applies to everything the coach says: the hint before your move, **Feedback on** after it, and a playback's coach notes and table read. The coach always speaks as "I" (*I pick Eight Character.*, *I would have passed.*); only Complex adds what the model expects, in numbers.
 
-- **Simple** — Feedback is the verdict and one short reason (*There was a better discard. I pick Eight Character. Thirteen Orphans uses only terminals and honors.*), plus what a learned coach likes about its pick. The playback's table read keeps its first sentence
+- **Simple** — Feedback is the verdict and one short reason (*There was a better discard. I pick Eight Character. Thirteen Orphans uses only terminals and honors.*), plus what a learned coach likes about its pick, and the same sentence on the hand it's going for (*Going for Thirteen Orphans, the 13 faan limit.*). The playback's table read keeps its first sentence
 - **Detailed** — Feedback adds the coach's reasons in plain words (*I like it because it keeps a bigger hand in reach.*); the table read keeps its first few sentences
 - **Complex** — Feedback adds the model's numbers (*The model expects +663 score on average from Eight Character, and +6 score from Red Dragon.*); the table read is whole
 
-`shapeFeedback(feedback, hint, detail)` and `shapeNote(note, detail)` in `js/mahjong-coach.js` do this; the game applies them wherever feedback or a table-read note is shown, and redoes a playback's notes when the setting changes.
+`shapeFeedback(feedback, hint, detail)` and `shapeNote(note, detail)` in `js/mahjong-coach.js` do this; the hand and its faan travel on each hint as `hint.aim` (`{ name, faan, min }`) and `aimSentence(aim)` says it, so other notes can reuse it; the game applies them wherever feedback or a table-read note is shown, and redoes a playback's notes when the setting changes.
 
 The plain reasons come from the feature groups that put the model's pick furthest ahead (`speed`, `value`, `safety`, `table`, `hand`, `discard`, `context`; `GROUP_PLAIN` in `js/mahjong-coach.js`). Simple leaves out the three vague ones (the tile itself, the tiles you keep, the stage of the game). The setting is applied by `Coach.forStrategy(bot, { detail })`; with no detail the coach says everything, so other callers and the tests are unchanged. A win declaration reads the same at every level. The playback analysis table keeps its own wording.
 
