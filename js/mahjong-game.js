@@ -104,6 +104,8 @@
     feltDark: '#074029',
     red: '#C41E3A',
     redDark: '#8f1229',
+    backLight: '#2FA866', // tile backs: light face, the main colour, dark edge, in the theme's colour
+    backDark: '#0F5C36',
     redLight: '#EE6A80', // the brand red, lightened to read on the dark coach bar
     gold: '#F4A020',
     goldLight: '#ffd27a',
@@ -121,9 +123,9 @@
   // shade (the CSS --theme-deep). applyTheme copies one into COLORS and onto
   // <html data-theme>, which css/play.css reads for the sheets and the page.
   var THEMES = {
-    green: { label: 'Green', felt: '#0b5a39', feltLight: '#127048', feltDark: '#074029', green: '#05693A', deep: '#0a3d27', meta: '#074029', primary: '#1C8B53', primaryHover: '#25A363' },
-    blue: { label: 'Blue', felt: '#0d4a7a', feltLight: '#16609a', feltDark: '#082f52', green: '#0a5c94', deep: '#0a2f4d', meta: '#082f52', primary: '#2377C4', primaryHover: '#3490DD' },
-    red: { label: 'Red', felt: '#6e1a2c', feltLight: '#8c2639', feltDark: '#4a0f1c', green: '#7f2336', deep: '#3d0d18', meta: '#4a0f1c', primary: '#C41E3A', primaryHover: '#D62A47' },
+    green: { label: 'Green', felt: '#0b5a39', feltLight: '#127048', feltDark: '#074029', green: '#05693A', deep: '#0a3d27', meta: '#074029', primary: '#1C8B53', primaryHover: '#25A363', backLight: '#2FA866', backDark: '#0F5C36' },
+    blue: { label: 'Blue', felt: '#0d4a7a', feltLight: '#16609a', feltDark: '#082f52', green: '#0a5c94', deep: '#0a2f4d', meta: '#082f52', primary: '#2377C4', primaryHover: '#3490DD', backLight: '#3E91D8', backDark: '#154F85' },
+    red: { label: 'Red', felt: '#6e1a2c', feltLight: '#8c2639', feltDark: '#4a0f1c', green: '#7f2336', deep: '#3d0d18', meta: '#4a0f1c', primary: '#C41E3A', primaryHover: '#D62A47', backLight: '#d8344f', backDark: '#8f1229' },
   };
   var THEME_ORDER = ['green', 'blue', 'red'];
   function themeName(name) { return THEMES[name] ? name : 'green'; }
@@ -136,6 +138,9 @@
     COLORS.green = t.green;
     COLORS.primary = t.primary;
     COLORS.primaryHover = t.primaryHover;
+    COLORS.backLight = t.backLight;
+    COLORS.backDark = t.backDark;
+    spriteCache = {}; // the tile backs are drawn in the theme's colour
     if (typeof document !== 'undefined' && document.documentElement && document.documentElement.setAttribute) {
       document.documentElement.setAttribute('data-theme', name);
     }
@@ -336,14 +341,14 @@
     var r = Math.max(2, w * 0.13);
 
     roundRect(c, 0, depth, w, h, r);
-    c.fillStyle = back ? COLORS.redDark : COLORS.green;
+    c.fillStyle = back ? COLORS.backDark : COLORS.green;
     c.fill();
 
     if (back) {
       roundRect(c, 0, 0, w, h, r);
       var g = c.createLinearGradient(0, 0, w, h);
-      g.addColorStop(0, '#d8344f');
-      g.addColorStop(1, COLORS.red);
+      g.addColorStop(0, COLORS.backLight);
+      g.addColorStop(1, COLORS.primary);
       c.fillStyle = g;
       c.fill();
       c.strokeStyle = 'rgba(255, 210, 122, 0.75)';
