@@ -639,11 +639,11 @@
     return BLOCKED_INSIDE.some(function (w) { return squashed.indexOf(w) !== -1; });
   }
 
-  // A name: a first name is enough, two or more letters (hyphens, apostrophes and periods are
-  // fine), and not one letter typed over and over ("aa", "xxx"), and nothing profane.
+  // A full name: a first and a last name, each of two or more letters (hyphens, apostrophes and
+  // periods are fine), not one letter typed over and over ("aa bb"), and nothing profane.
   function isValidName(value) {
     var parts = String(value || '').trim().split(/\s+/);
-    if (!parts[0] || hasProfanity(value)) return false;
+    if (parts.length < 2 || hasProfanity(value)) return false;
     return parts.every(function (part) {
       var letters = part.replace(/[-'\u2019.]/g, '');
       return /^[\p{L}][\p{L}\p{M}'\u2019.-]*$/u.test(part) && letters.length >= 2 && !/^(.)\1+$/u.test(letters);
@@ -661,7 +661,7 @@
 
   function validateProfile(profile) {
     var errors = {};
-    if (!isValidName(profile.name)) errors.name = hasProfanity(profile.name) ? 'Please keep it clean: enter your name' : 'Enter your name (at least two letters)';
+    if (!isValidName(profile.name)) errors.name = hasProfanity(profile.name) ? 'Please keep it clean: enter your full name' : 'Enter your full name';
     if (!isValidInstagram(profile.instagram)) errors.instagram = hasProfanity(profile.instagram) ? 'Please keep it clean: enter your real Instagram handle' : 'Enter your real Instagram handle, like @luckycat.mahjong';
     if (!isValidZip(profile.zip)) errors.zip = 'Enter a valid 5-digit zip code';
     if (SKILL_LEVELS.indexOf(profile.skill) === -1) errors.skill = 'Pick your skill level';
