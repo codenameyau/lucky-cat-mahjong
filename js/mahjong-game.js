@@ -1453,6 +1453,22 @@
       ctx.fillText(str, x, y);
     }
 
+    // Text whose letters (not its line box) are centered on a point, both ways: the ink's own
+    // bounds decide, so a letter sits in the middle of a circle whatever the font's metrics.
+    function inkCenteredText(str, cx, cy, opts) {
+      opts = opts || {};
+      ctx.font = (opts.weight || '') + ' ' + (opts.size || 13) + 'px ' + (opts.family || FONT_BODY);
+      ctx.fillStyle = opts.color || COLORS.white;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      var m = ctx.measureText(str);
+      if (m && m.actualBoundingBoxAscent != null && m.actualBoundingBoxRight != null) {
+        ctx.fillText(str, cx - (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2, cy + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2);
+      } else {
+        text(str, cx, cy, { size: opts.size, family: opts.family, color: opts.color, align: 'center', weight: opts.weight });
+      }
+    }
+
     function pill(x, y, w, h, fill, stroke) {
       roundRect(ctx, x, y, w, h, h / 2);
       ctx.fillStyle = fill;
@@ -2795,7 +2811,7 @@
       ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fillStyle = isDealer ? COLORS.primary : 'rgba(255,248,240,0.92)';
       ctx.fill();
-      text(WIND_LETTERS[wind], x, y + 1, { size: Math.round(r * 1.05), family: FONT_HEAD, align: 'center', color: isDealer ? COLORS.white : COLORS.ink });
+      inkCenteredText(WIND_LETTERS[wind], x, y, { size: Math.round(r * 1.05), family: FONT_HEAD, color: isDealer ? COLORS.white : COLORS.ink });
     }
 
     // A seat shows the player's name only. Their strategy is in the tooltip
