@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.57.9';
+  var GAME_VERSION = '0.57.10';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
