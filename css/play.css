@@ -2,9 +2,10 @@
   --theme-light: #127048;
   --theme-dark: #074029;
   --theme-deep: #0a3d27;
+  --theme-primary: #1C8B53;
 }
-:root[data-theme="blue"] { --theme-light: #16609a; --theme-dark: #082f52; --theme-deep: #0a2f4d; }
-:root[data-theme="red"] { --theme-light: #8c2639; --theme-dark: #4a0f1c; --theme-deep: #3d0d18; }
+:root[data-theme="blue"] { --theme-light: #16609a; --theme-dark: #082f52; --theme-deep: #0a2f4d; --theme-primary: #2377C4; }
+:root[data-theme="red"] { --theme-light: #8c2639; --theme-dark: #4a0f1c; --theme-deep: #3d0d18; --theme-primary: #C41E3A; }
 
 /* Play page: settings preview card and the full-screen canvas stage. */
 
@@ -351,7 +352,7 @@ html.is-playing.is-sideways body {
   padding: 2px 16px 3px;
   border: 2px solid #ffd27a;
   border-radius: 999px;
-  background: #C41E3A;
+  background: var(--theme-primary);
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
   font-family: "KN Yuanmo SC", var(--font-heading);
   font-size: 1.05rem;
@@ -375,7 +376,7 @@ html.is-playing.is-sideways body {
 
 .rules-family {
   padding: 6px 12px 4px;
-  border-top: 3px solid #C41E3A;
+  border-top: 3px solid var(--theme-primary);
   border-radius: 5px;
   background: rgba(0, 0, 0, 0.26);
 }
@@ -420,7 +421,7 @@ html.is-playing.is-sideways body {
   padding: 2px 7px;
   border: 1px solid rgba(255, 210, 122, 0.6);
   border-radius: 999px;
-  background: #C41E3A;
+  background: var(--theme-primary);
   color: #fff;
   font-size: 0.78rem;
   font-weight: bold;
@@ -448,7 +449,7 @@ html.is-playing.is-sideways body {
   z-index: 2;
   max-width: min(560px, calc(100% - 16px));
   padding: 10px 12px;
-  border: 2px solid #C41E3A;
+  border: 2px solid var(--theme-primary);
   border-radius: 6px;
   background: var(--theme-deep);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -487,7 +488,7 @@ html.is-playing.is-sideways body {
   border-bottom: 3px solid transparent;
 }
 
-.rules-set--open { border-bottom-color: #C41E3A; }
+.rules-set--open { border-bottom-color: var(--theme-primary); }
 
 .rules-example-break { flex-basis: 100%; height: 0; }
 
@@ -561,7 +562,7 @@ html.is-playing.is-sideways body {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-top: 3px solid #C41E3A;
+  border-top: 3px solid var(--theme-primary);
   border-radius: 5px;
   background: rgba(0, 0, 0, 0.26);
 }
@@ -626,7 +627,7 @@ html.is-playing.is-sideways body {
   margin: 14px auto 0;
   padding: 8px 22px;
   border-color: #ffd27a;
-  background: #C41E3A;
+  background: var(--theme-primary);
 }
 
 .playbacks-upload:hover { background: #d8344f; }
@@ -701,7 +702,7 @@ html.is-playing.is-sideways body {
   margin-left: 4px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #C41E3A;
+  background: var(--theme-primary);
   color: #fff;
   font-family: var(--font-body);
   font-size: 0.7rem;
@@ -854,7 +855,7 @@ html.is-playing.is-sideways body {
 .strategies-card-id {
   padding: 1px 8px;
   border-radius: 999px;
-  background: #C41E3A;
+  background: var(--theme-primary);
   color: #fff;
   font-size: 0.72rem;
 }
