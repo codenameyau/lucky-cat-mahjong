@@ -38,6 +38,8 @@ class Mlp {
   explicit Mlp(const Weights& w);
   // The raw outputs for one feature vector (float32 values, widened).
   const std::vector<double>& forward(const float* x) const;
+  // Several inputs at once (fast build: each weight column is read once for all of them). outs[k] gets input k's outputs.
+  void forwardBatch(const float* const* xs, int n, std::vector<double>* outs) const;
   int outputs() const { return outputs_; }
   int inputs() const { return inputs_; }
   const Weights& weights() const { return w_; }
@@ -50,6 +52,7 @@ class Mlp {
   mutable std::vector<float> bufA_, bufB_;
   mutable std::vector<double> acc_, out_;
   mutable std::vector<float> facc_;
+  mutable std::vector<float> batchIn_, batchAcc_;
   // Fast mode: the first layer's last input and pre-activation, updated by the
   // difference when the next input is close (consecutive candidates are).
   mutable std::vector<float> lastX_, lastPre_;

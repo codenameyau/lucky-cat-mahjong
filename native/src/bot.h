@@ -230,6 +230,7 @@ class Foundation {
   ThreatMemo threatMemo_[2];
   TrackMemo trackMemo_[2];
   int threatNext_ = 0, trackNext_ = 0;
+  uint64_t version_ = 0;  // the hand version handUtility is reading (for its plan memo)
   std::vector<Threat> opponentThreatsUncached(const Game& g, int seat);
   std::shared_ptr<Track> readTableUncached(const Game& g, int seat, const Counts& unseen);
 
@@ -279,8 +280,8 @@ class Foundation {
   // table reads
   SeatRead readSeat(const Game& g, int o, const Counts& unseen);
   std::shared_ptr<Track> readTable(const Game& g, int seat, const Counts& unseen);
-  double liveOuts(const Ctx& ctx, const std::vector<int>& tiles);
-  double finishChance(const Ctx& ctx, int s, const std::vector<int>& tiles, const Plan& plan);
+  double liveOuts(const Ctx& ctx, uint64_t tiles);  // tiles: a set of kinds, read in ascending order
+  double finishChance(const Ctx& ctx, int s, uint64_t tiles, const Plan& plan);
   double feedLoss(const Game& g, const std::vector<Threat>& list, int i);
   bool readyValue(const Counts& c, const Ctx& ctx, ReadyInfo& out);
   int scoreIfWin(const Ctx& ctx, const std::vector<int8_t>& ids, bool selfDraw);

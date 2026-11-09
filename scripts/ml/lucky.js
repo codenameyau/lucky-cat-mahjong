@@ -489,15 +489,20 @@ function runJobs(base, deals, workers) {
     const from = k * per, to = Math.min(deals, from + per);
     if (from < to) jobs.push(Object.assign({}, base, { from, to, shard: k }));
   }
-  const natives = jobs.map(nativeJob);
+  // Natively: four chunks (shards) a worker, queued, so the fast cores take more of them.
+  const chunks = [];
+  const nper = Math.ceil(deals / (workers * 4));
+  for (let k = 0, from = 0; from < deals; k++, from += nper) chunks.push(Object.assign({}, base, { from, to: Math.min(deals, from + nper), shard: k }));
+  const natives = chunks.map(nativeJob);
   if (natives.every((x) => x)) {
     const SIM = process.env.LCM_SIM || path.join(ROOT, 'native', 'build', 'lcm-sim');
-    return Promise.all(natives.map((args) => new Promise((resolve, reject) => {
+    const run = (args) => () => new Promise((resolve, reject) => {
       const child = spawn(SIM, args, { stdio: ['ignore', 'pipe', 'inherit'] });
       let out = '';
       child.stdout.on('data', (d) => { out += d; });
       child.on('exit', (code) => (code ? reject(new Error('lcm-sim generate exited with ' + code)) : resolve(JSON.parse(out))));
-    }))).then(merge);
+    });
+    return require('./native.js').pool(natives.map(run), workers).then(merge);
   }
   return Promise.all(jobs.map((job) => new Promise((resolve, reject) => {
     const child = fork(__filename, ['--worker'], { stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
@@ -507,7 +512,8 @@ function runJobs(base, deals, workers) {
   }))).then(merge);
 }
 
-function workerCount(a) { return parseInt(a.workers || Math.max(1, os.cpus().length - 1), 10); }
+// Every core: the parent only waits while the workers play.
+function workerCount(a) { return parseInt(a.workers || os.cpus().length, 10); }
 
 function job0Weights(a) { return a.weights ? readWeights(a.weights) : null; }
 

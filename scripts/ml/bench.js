@@ -209,7 +209,8 @@ function summarize(models, parts) {
   return result;
 }
 
-const workerCount = (a) => parseInt(a.workers || Math.max(1, os.cpus().length - 1), 10);
+// Every core: the parent only waits while the workers play.
+const workerCount = (a) => parseInt(a.workers || os.cpus().length, 10);
 
 // Plays `deals` deals from `seed` with each model in turn; workers 0 plays in this process.
 // `table`: the three other players (the benchmark table by default).
@@ -228,9 +229,8 @@ async function playParts(models, seed, from, to, workers, bm) {
   // The native simulator (native/, npm run native:build) plays the same hands
   // exactly as the JS does, when every player can run there; --js forces the JS.
   if (!process.env.LCM_JS) {
-    const N = require('./native.js');
-    const native = jobs.map((job) => N.playNative(job));
-    if (native.every((x) => x)) return Promise.all(native);
+    const parts = require('./native.js').playNativeParts({ bm, models, seed, from, to }, Math.max(1, workers));
+    if (parts) return parts;
   }
   return workers === 0
     ? [await playWork(jobs[0])]

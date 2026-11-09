@@ -1008,17 +1008,17 @@ std::shared_ptr<Track> Foundation::readTableUncached(const Game& g, int seat, co
   return t;
 }
 
-double Foundation::liveOuts(const Ctx& ctx, const std::vector<int>& tiles) {
+double Foundation::liveOuts(const Ctx& ctx, uint64_t tiles) {
   const double* inWall = ctx.track->inWall;
   double sum = 0;
   for (int i = 0; i < 34; i++) sum = sum + inWall[i];
   double mean = sum / 34;
   double m = 0;
-  for (int i : tiles) m = m + ctx.unseen[i] * inWall[i] / mean;
+  for (uint64_t t = tiles; t; t &= t - 1) { int i = __builtin_ctzll(t); m = m + ctx.unseen[i] * inWall[i] / mean; }
   return m;
 }
 
-double Foundation::finishChance(const Ctx& ctx, int s, const std::vector<int>& tiles, const Plan& plan) {
+double Foundation::finishChance(const Ctx& ctx, int s, uint64_t tiles, const Plan& plan) {
   // T.race is off: the shared estimate.
   double outs = liveOuts(ctx, tiles);
   double expected = ctx.unseenTotal / (std::max(outs, 0.5) * (plan.open ? 1.33 : 1));
@@ -1158,19 +1158,63 @@ double Foundation::backupValue(const std::vector<Entry>& entries, int best) {
   return (others.size() > 0 ? others[0] : 0) + (others.size() > 1 ? others[1] : 0);
 }
 
+// A plan's shanten and useful tiles depend only on its counts, its shanten
+// rule, the melds declared and the tiles unseen (the hand's version and the
+// seat). Candidate discards share most of them (a flush plan keeps the same
+// tiles whichever off-suit tile goes), so they're kept, keyed by all of that.
+struct PlanMemo {
+  uint64_t a = ~0ull, b = 0, f = 0, version = 0;
+  int8_t seat = -1, s = 0;
+  bool hasU = false;
+  int total = 0;
+  uint64_t tiles = 0;
+};
+static const int PLAN_MEMO_BITS = 15;
+static std::vector<PlanMemo> planMemo(size_t(1) << PLAN_MEMO_BITS);
+
+static inline void planKey(const Plan& p, int declared, uint64_t& a, uint64_t& b, uint64_t& f) {
+  a = 0; b = 0;
+  for (int i = 0; i < 17; i++) a = (a << 3) | uint64_t(p.counts[i] & 7);
+  for (int i = 17; i < 34; i++) b = (b << 3) | uint64_t(p.counts[i] & 7);
+  const ShFn& fn = p.fn;
+  uint64_t done = 0;
+  for (int i : fn.doneIdx) done |= uint64_t(1) << i;
+  f = uint64_t(fn.kind) | (uint64_t(fn.filled) << 3) | (uint64_t(fn.start & 31) << 4) | (uint64_t(declared & 7) << 9) |
+      (uint64_t(fn.pungs & 7) << 12) | (uint64_t(fn.pair) << 15) | (uint64_t(fn.group.empty() ? 0 : fn.group[0] & 63) << 16) | (done << 22);
+}
+
 Analysis Foundation::handUtility(Counts c, Ctx& ctx) {
+  version_ = ctx.game->hand.version;
   auto plans = plansFor(c, ctx);
   std::vector<Entry> entries;
   int shantenAll = shanten(c.data(), ctx.declared);
   for (auto& p : plans) {
-    int s = shantenOf(p->fn, p->counts, ctx.declared);
+    uint64_t ka, kb, kf;
+    planKey(*p, ctx.declared, ka, kb, kf);
+    uint64_t h = (ka * 0x9E3779B97F4A7C15ull) ^ (kb * 0xC2B2AE3D27D4EB4Full) ^ (kf * 0x165667B19E3779F9ull) ^ (version_ * 0x27D4EB2F165667C5ull) ^ uint64_t(ctx.seat);
+    h ^= h >> 29;
+    PlanMemo& pm = planMemo[(h * 0xBF58476D1CE4E5B9ull) >> (64 - PLAN_MEMO_BITS)];
+    bool hit = pm.a == ka && pm.b == kb && pm.f == kf && pm.version == version_ && pm.seat == ctx.seat;
+    if (!hit) {
+      pm.a = ka; pm.b = kb; pm.f = kf; pm.version = version_; pm.seat = int8_t(ctx.seat);
+      int sv = shantenOf(p->fn, p->counts, ctx.declared);
+      pm.s = int8_t(std::min(sv, 127));
+      pm.hasU = false;
+    }
+    int s = pm.s >= 127 ? INF : pm.s;
     if (isInf(s)) continue;
     if (p->upgrade && ctx.drawsLeft < 2 * s) continue;
-    Ukeire u = ukeireOf(this, p->counts, p->fn, ctx.declared, ctx.unseen, s, &Foundation::shantenOf);
-    double chance = finishChance(ctx, s, u.tiles, *p);
+    if (!pm.hasU) {
+      Ukeire u0 = ukeireOf(this, p->counts, p->fn, ctx.declared, ctx.unseen, s, &Foundation::shantenOf);
+      pm.total = u0.total;
+      pm.tiles = 0;
+      for (int t : u0.tiles) pm.tiles |= uint64_t(1) << t;
+      pm.hasU = true;
+    }
+    double chance = finishChance(ctx, s, pm.tiles, *p);
     double util = handValue(p->faan + SELF_DRAW_CHANCE, ctx.slope) * 1.8 * chance;
     Entry e;
-    e.plan = p; e.shanten = s; e.planShanten = s; e.ukeire = u.total; e.nUkeireTiles = int(u.tiles.size());
+    e.plan = p; e.shanten = s; e.planShanten = s; e.ukeire = pm.total; e.nUkeireTiles = __builtin_popcountll(pm.tiles);
     e.util = util; e.chance = chance; e.hasChance = true;
     e.pick = util * (p->weight ? p->weight : 1) * suitLean(p.get(), ctx);
     entries.push_back(e);

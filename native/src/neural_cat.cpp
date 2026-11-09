@@ -191,8 +191,9 @@ void NeuralCat::encode(const State& st, int index, const Analysis& analysis, dou
   x[p + 11] = float(top / 3.0);
 }
 
-MlRead NeuralCat::ev(const float* x) {
-  const std::vector<double>& raw = model_->forward(x);
+MlRead NeuralCat::ev(const float* x) { return evRaw(model_->forward(x)); }
+
+MlRead NeuralCat::evRaw(const std::vector<double>& raw) {
   auto softmax = [&](int from, int n, double* out) {
     double m = -DINF;
     for (int i = 0; i < n; i++) m = std::max(m, raw[from + i]);
@@ -224,11 +225,19 @@ std::vector<CandP> NeuralCat::rerank(std::vector<CandP> out, Ctx& ctx, const Cou
   prepare(st, g, seat, ctx, &threats, &counts);
   int open = int(out.size());
   int k0 = topK_ > 0 ? std::min(topK_, open) : open;
-  float x[SIZE];
+  // The best few, through the network together.
+  static thread_local std::vector<float> xs;
+  static thread_local std::vector<double> raws[16];
+  xs.resize(size_t(k0) * SIZE);
+  const float* ptrs[16];
+  for (int k = 0; k < k0; k++) {
+    encode(st, out[k]->index, *out[k]->analysis, out[k]->loss, xs.data() + size_t(k) * SIZE);
+    ptrs[k] = xs.data() + size_t(k) * SIZE;
+  }
+  model_->forwardBatch(ptrs, k0, raws);
   for (int k = 0; k < k0; k++) {
     Candidate& c = *out[k];
-    encode(st, c.index, *c.analysis, c.loss, x);
-    MlRead m = ev(x);
+    MlRead m = evRaw(raws[k]);
     c.hasMl = true; c.mlEv = m.ev; c.mlPWin = m.pWin; c.mlOrder = k;
   }
   std::vector<CandP> ranked(out.begin(), out.begin() + k0);

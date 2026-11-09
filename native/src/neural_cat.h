@@ -35,6 +35,7 @@ class NeuralCat : public Foundation {
   void prepare(State& st, const Game& g, int seat, Ctx& ctx, const std::vector<Threat>* threats, const Counts* counts);
   void encode(const State& st, int index, const Analysis& analysis, double loss, float* x);
   MlRead ev(const float* x);
+  MlRead evRaw(const std::vector<double>& raw);
   double value(const MlRead& m) const { return m.ev + winBonus_ * m.pWin; }
   MlRead waitingFeatures(const Game& g, int seat, int kind, int tile);  // 0 pass, 1 kong, 2 concealed, 3 added
 };

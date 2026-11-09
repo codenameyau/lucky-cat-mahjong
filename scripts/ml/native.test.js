@@ -7,7 +7,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..', '..');
-const built = fs.existsSync(path.join(ROOT, 'native', 'build', 'lcm-sim'));
+const built = fs.existsSync(path.join(ROOT, 'native', 'build', 'lcm-sim')) && fs.existsSync(path.join(ROOT, 'native', 'build', 'lcm-sim-exact'));
 
 describe('native simulator', { skip: !built && 'native/build/lcm-sim is not built (npm run native:build)' }, () => {
   const parity = (agents, deals) => {
@@ -18,6 +18,15 @@ describe('native simulator', { skip: !built && 'native/build/lcm-sim is not buil
   it('plays every action of the engine as the JS does', () => parity('simple,simple,simple,simple', 100));
   it('plays Jorge Yau and Neural Cat as the JS does', () => parity('neural-cat,jorge-yau,neural-cat,jorge-yau', 8));
   it('plays Lucky Cat (features v1) as the JS does', () => parity('lc:js/mahjong-lucky-cat-weights.js,neural-cat,jorge-yau,neural-cat', 6));
+  it('the fast build plays the exact build\'s hands, last-bit ties aside', () => {
+    const N = require('./native.js');
+    const ids = ['neural-cat', 'jorge-yau', 'neural-cat', 'lc:js/mahjong-lucky-cat-weights.js'].map((id) => N.nativeId(id));
+    const run = (bin) => spawnSync(path.join(ROOT, 'native', 'build', bin), ['trace', '--agents', ids.join(','), '--seed', '915500000', '--deals', '30'], { encoding: 'utf8' }).stdout.split(/^hand /m).slice(1);
+    const fast = run('lcm-sim'), exact = run('lcm-sim-exact');
+    assert.strictEqual(fast.length, 30);
+    const same = fast.filter((h, k) => h === exact[k]).length;
+    assert.ok(same >= 27, same + ' of 30 hands identical');
+  });
   it('round-trips weights through .lcmw', () => {
     const W = require('./weights.js');
     const w = W.readWeights('js/mahjong-lucky-cat-weights.js');

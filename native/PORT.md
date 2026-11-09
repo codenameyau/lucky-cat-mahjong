@@ -47,4 +47,6 @@ parity` checks it, hand by hand.
 - Shanten: JS 31,952 hands/s, native 6.9 million/s (217x).
 - Data generation (7 workers): 587 deals/s against 61 (9.7x). Benchmark table: 82 deals/s against about 10 (7.9x).
 
+Two builds since round 1: `lcm-sim` (fast: fused multiply-adds, float32 networks; what training runs) and `lcm-sim-exact` (`-DLCM_EXACT`: what parity diffs). Three optimization rounds took one core from 148 to 384 hands a second at the benchmark table; see docs/machine-learning/native.md.
+
 The user-facing write-up is docs/machine-learning/native.md.

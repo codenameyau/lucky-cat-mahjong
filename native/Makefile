@@ -30,7 +30,19 @@ $(OUT)/exact/%.o: src/%.cpp $(HDR)
 	@mkdir -p $(OUT)/exact
 	$(CXX) $(EXACT_FLAGS) -c -o $@ $<
 
+# Profile-guided: build an instrumented copy, play a representative workload
+# (the benchmark table, and a round's data with the oracle), then rebuild the
+# fast build laid out for what it actually runs.
+PGO_WORKLOAD ?= ./pgo-workload.sh
+pgo:
+	$(MAKE) OUT=$(OUT)/pgo-gen FAST_FLAGS="$(FAST_FLAGS) -fprofile-instr-generate" $(OUT)/pgo-gen/lcm-sim
+	rm -f $(OUT)/pgo/*.profraw; mkdir -p $(OUT)/pgo
+	LLVM_PROFILE_FILE=$(abspath $(OUT))/pgo/%p.profraw $(PGO_WORKLOAD) $(abspath $(OUT))/pgo-gen/lcm-sim
+	xcrun llvm-profdata merge -o $(OUT)/pgo/lcm.profdata $(OUT)/pgo/*.profraw
+	rm -rf $(OUT)/fast $(OUT)/lcm-sim
+	$(MAKE) FAST_FLAGS="$(FAST_FLAGS) -fprofile-instr-use=$(abspath $(OUT))/pgo/lcm.profdata -Wno-profile-instr-out-of-date -Wno-profile-instr-unprofiled" $(OUT)/lcm-sim
+
 clean:
 	rm -rf $(OUT)
 
-.PHONY: all clean
+.PHONY: all clean pgo

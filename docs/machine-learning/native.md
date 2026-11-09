@@ -7,7 +7,7 @@ npm run native:build      # make -C native: native/build/lcm-sim
 npm run native:parity -- --agents neural-cat,jorge-yau,neural-cat,neural-cat --deals 1000
 ```
 
-Once it's built, nothing else changes: `bench.js` (compare, score, judge) and `lucky.js generate` use it whenever every player in a job can run natively, and fall back to the JS otherwise. `LCM_JS=1` forces the JS.
+Once it's built, nothing else changes. `make -C native pgo` rebuilds the fast build profile-guided (a few percent more). `bench.js` (compare, score, judge) and `lucky.js generate` use it whenever every player in a job can run natively, and fall back to the JS otherwise. `LCM_JS=1` forces the JS.
 
 ## What's ported
 
@@ -63,17 +63,38 @@ node scripts/ml/weights.js import LV3b.lcmw LV3b.json              # back again
 
 `.lcmw` is a JSON header (feature version and size, meta with the play settings) followed by each layer's weights and biases as float32, the same numbers the JS plays with (f16 weights are widened exactly as the JS widens them). Training writes JSON as before, the game loads JSON, and the simulator converts a model the first time it plays it (cached in `native/build/cache/`).
 
+## Two builds
+
+`make -C native` builds both. Training, screens and judgments run the **fast** build (`lcm-sim`); the parity check diffs the **exact** build (`lcm-sim-exact`) against the JS.
+
+| | Fast (`lcm-sim`) | Exact (`lcm-sim-exact`) |
+| --- | --- | --- |
+| Float math | fused multiply-adds, float32 networks, the C library's `exp`/`log` | as the JS: no fusing, V8's fdlibm, float32 stores, double sums |
+| Same hands as the JS | statistically; a decision between moves tied to the last bit can go the other way | action for action |
+| Used by | `bench.js`, `lucky.js generate`, `frontier.js` | `native.js parity`, `npm test` |
+
+How rarely the fast build differs: on 1,000 deals at the benchmark table every hand was identical to the exact build, and a 2,000-deal compare printed the same gap. On a 20,000-deal round of data (220,000 sampled moves), a few sampled moves flipped; each flip changes that hand, and the rest of its chunk's random stream with it, so 63 of the round's 256 shard files differ while the data is the same in distribution. **This is an accepted trade-off, flagged in the [frontier plan](frontier-plan.md) §6b.**
+
+Both builds share every line of code except the arithmetic, so the action-level check on the exact build covers the logic of both.
+
 ## Speed
 
-On this Mac, 7 workers:
+On this Mac (Apple M3: 4 performance and 4 efficiency cores). "Table" is the benchmark table: a Lucky Cat model, Neural Cat, Jorge Yau, Neural Cat.
 
-| Work | JS | Native |
-| --- | --- | --- |
-| A round's data (`lucky.js generate --oracle --returns`) | 61 deals a second | 587 deals a second (9.7x) |
-| The benchmark table (`bench.js compare`) | about 10 deals a second | 82 deals a second (7.9x) |
-| The engine alone, one core | 224 hands a second | 5,984 hands a second (26.7x) |
-| Shanten | 32,000 hands a second | 6.9 million hands a second (217x) |
+| | JS | Native, first port (exact) | Round 1 | Round 2 | Round 3 |
+| --- | --- | --- | --- | --- | --- |
+| Table, one core (hands a second) | 19 | 148 | 308 | 371 | 384 |
+| `bench.js compare`, 2,000 deals | about 200 s | 23.7 s | 11.9 s | 11.0 s | **9.9 s** |
+| A round's data, 20,000 deals with the oracle | 330 s | about 34 s | | | **12.9 s** |
 
-The floor now is the networks: a Neural Cat forward pass takes 12.9 µs and lc32's 26.3 µs, about 200 a hand, and they must run in float32 in the JS's order to give the same moves. JS's JIT already runs that arithmetic close to native speed, which is why the benchmark table gains 8x where the engine gains 27x. Faster still would mean giving up exactness (float32 SIMD, GPU batches), and the benchmark's promise is exactness.
+The exact build, on round 3's pipeline: 235 hands a second on one core, the compare in 15.5 s, the round's data in 20 s.
+
+What each round did:
+
+1. **Round 1 (2.1x on one core):** the fast build (fused multiply-adds, float32 networks with SIMD); standard-shanten ukeire made incremental (adding a tile changes one suit: the other three are merged once, then one lookup and merge per tile); suit tables packed to their reachable states; the networks' first layer updated by the difference from the previous input (consecutive candidates differ in a few features); zero inputs skipped in every layer; the per-input forward cache removed (it never paid).
+2. **Round 2 (1.2x):** a plan's shanten and useful tiles memoised by its exact counts and rule (candidate discards share them); Neural Cat's top candidates through the network in one batch; useful tiles as a bitmask instead of a vector.
+3. **Round 3 (1.04x on one core, 1.1x end to end):** a profile-guided build (`make -C native pgo`); every core a worker (the parent only waits); work cut into four chunks a worker and queued, so the efficiency cores don't hold the rest up; each model converted to `.lcmw` once a process.
+
+The floor is the bots' own work: per turn, Jorge Yau's foundation weighs about 14 discards against about 10 plans each, and Neural Cat runs its network on the best 4. Neither can be skipped without changing how they play. The networks are already near what float32 arithmetic allows; cheaper formats (int8, float16) would change moves far more often than last-bit rounding does, so they aren't used.
 
 The caches can't change a result: the per-suit shanten table and the whole-hand shanten cache are exact, the opponent reads are kept by the hand's version (a number that changes with every change to the hand), and a forward pass is kept by its exact input.

@@ -207,4 +207,81 @@ const std::vector<double>& Mlp::forward(const float* x) const {
   return out_;
 }
 
+void Mlp::forwardBatch(const float* const* xs, int n, std::vector<double>* outs) const {
+#ifdef LCM_EXACT
+  for (int k = 0; k < n; k++) outs[k] = forward(xs[k]);
+#else
+  const Layer& first = w_.layers[0];
+  const int rows = first.rows;
+  if (w_.layers.size() < 2) { for (int k = 0; k < n; k++) outs[k] = forward(xs[k]); return; }
+  // The first layer for each (incremental against the one before), then the
+  // later layers for all n together: s[k][r] += col[r] * in[k][c].
+  batchIn_.resize(size_t(n) * widest_);
+  for (int k = 0; k < n; k++) {
+    // forward() leaves the first layer's activation in bufA_; run just that part.
+    float* dst = batchIn_.data() + size_t(k) * widest_;
+    const float* x = xs[k];
+    int nnz = 0, changed = 0;
+    bool have = !lastX_.empty() && sinceFull_ < 32;
+    for (int c = 0; c < first.cols; c++) { nnz += x[c] != 0; if (have) changed += x[c] != lastX_[c]; }
+    float* pre;
+    if (have && changed * 2 < nnz) {
+      pre = lastPre_.data();
+      for (int c = 0; c < first.cols; c++) {
+        float d = x[c] - lastX_[c];
+        if (d == 0) continue;
+        const float* col = firstT_.data() + size_t(c) * rows;
+        for (int r = 0; r < rows; r++) pre[r] += col[r] * d;
+      }
+      sinceFull_++;
+    } else {
+      lastX_.resize(first.cols);
+      lastPre_.resize(rows);
+      pre = lastPre_.data();
+      for (int r = 0; r < rows; r++) pre[r] = first.b[r];
+      for (int c = 0; c < first.cols; c++) {
+        const float v = x[c];
+        if (v == 0) continue;
+        const float* col = firstT_.data() + size_t(c) * rows;
+        for (int r = 0; r < rows; r++) pre[r] += col[r] * v;
+      }
+      sinceFull_ = 0;
+    }
+    std::memcpy(lastX_.data(), x, sizeof(float) * first.cols);
+    for (int r = 0; r < rows; r++) dst[r] = pre[r] > 0 ? pre[r] : 0;
+  }
+  int inRows = rows;
+  for (size_t L = 1; L < w_.layers.size(); L++) {
+    const Layer& l = w_.layers[L];
+    bool last = L == w_.layers.size() - 1;
+    batchAcc_.resize(size_t(n) * widest_);
+    for (int k = 0; k < n; k++) {
+      float* s = batchAcc_.data() + size_t(k) * widest_;
+      for (int r = 0; r < l.rows; r++) s[r] = l.b[r];
+    }
+    for (int c = 0; c < l.cols; c++) {
+      const float* col = wT_[L].data() + size_t(c) * l.rows;
+      for (int k = 0; k < n; k++) {
+        const float in = batchIn_[size_t(k) * widest_ + c];
+        if (in == 0) continue;
+        float* s = batchAcc_.data() + size_t(k) * widest_;
+        for (int r = 0; r < l.rows; r++) s[r] += col[r] * in;
+      }
+    }
+    for (int k = 0; k < n; k++) {
+      float* s = batchAcc_.data() + size_t(k) * widest_;
+      float* d = batchIn_.data() + size_t(k) * widest_;
+      for (int r = 0; r < l.rows; r++) d[r] = last || s[r] > 0 ? s[r] : 0;
+    }
+    inRows = l.rows;
+  }
+  for (int k = 0; k < n; k++) {
+    outs[k].resize(outputs_);
+    const float* d = batchIn_.data() + size_t(k) * widest_;
+    for (int r = 0; r < outputs_; r++) outs[k][r] = d[r];
+  }
+  (void)inRows;
+#endif
+}
+
 }  // namespace lcm

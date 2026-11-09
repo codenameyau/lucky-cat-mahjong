@@ -161,7 +161,16 @@ async function jsTrace(ids, seed, deals) {
 }
 
 // The native simulator reads weights as .lcmw: a .json (or git:) model is converted once, cached by its contents.
+const converted = new Map();  // spec -> { stamp, file }: each model converted once a process
 function lcmwFor(spec) {
+  const stamp = spec.startsWith('git:') ? spec : (() => { try { const st = fs.statSync(path.resolve(ROOT, spec)); return st.mtimeMs + ':' + st.size; } catch (e) { return null; } })();
+  const hit = converted.get(spec);
+  if (hit && stamp && hit.stamp === stamp && fs.existsSync(hit.file)) return hit.file;
+  const file = lcmwConvert(spec);
+  if (stamp) converted.set(spec, { stamp, file });
+  return file;
+}
+function lcmwConvert(spec) {
   const W = require('./weights.js');
   const buf = W.toLcmw(W.readWeights(spec));
   const dir = path.join(ROOT, 'native', 'build', 'cache');
@@ -199,10 +208,35 @@ function nativeId(id, bm) {
   return id === 'simple' ? id : null;
 }
 
-// bench.js playWork natively: { out, pair } for deals [from, to), or null when a player can't run natively.
-function playNative(job) {
+// Runs native jobs with at most `workers` at once, the next one starting as
+// each finishes, so the efficiency cores don't hold the rest up.
+function pool(tasks, workers) {
+  const results = new Array(tasks.length);
+  let next = 0;
+  const run = () => (next >= tasks.length ? Promise.resolve() : (() => { const k = next++; return tasks[k]().then((r) => { results[k] = r; return run(); }); })());
+  return Promise.all(Array.from({ length: Math.min(workers, tasks.length) }, run)).then(() => results);
+}
+
+// bench.js playWork natively, for deals [from, to) split into chunks run `workers` at a time:
+// the chunks' sums (bench.js summarize adds them), or null when a player can't run natively.
+function playNativeParts(job, workers) {
   const models = job.models.map((id) => nativeId(id, job.bm));
   const table = job.bm.table.map((id) => nativeId(id, job.bm));
+  if (models.concat(table).some((x) => !x)) return null;
+  const deals = job.to - job.from;
+  const chunks = Math.max(1, Math.min(deals, workers * 4));
+  const per = Math.ceil(deals / chunks);
+  const tasks = [];
+  for (let from = job.from; from < job.to; from += per) {
+    const to = Math.min(job.to, from + per);
+    tasks.push(() => playNative(Object.assign({}, job, { from, to }), models, table));
+  }
+  return pool(tasks, Math.max(1, workers));
+}
+
+function playNative(job, models, table) {
+  models = models || job.models.map((id) => nativeId(id, job.bm));
+  table = table || job.bm.table.map((id) => nativeId(id, job.bm));
   if (models.concat(table).some((x) => !x)) return null;
   return new Promise((resolve, reject) => {
     const child = spawn(SIM, ['play', '--models', models.join(','), '--table', table.join(','), '--seed', String(job.seed),
@@ -267,4 +301,4 @@ async function main(a) {
 
 if (require.main === module) main(parseArgs(process.argv.slice(2))).catch((err) => { console.error(err.stack || err.message); process.exit(1); });
 
-module.exports = { line, resultLine, jsTrace, nativeId, playNative, lcmwFor };
+module.exports = { line, resultLine, jsTrace, nativeId, playNative, playNativeParts, lcmwFor, pool };
