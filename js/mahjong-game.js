@@ -137,8 +137,19 @@
     }
     // The browser's address bar takes the theme's colour right away, not on the next load.
     if (typeof document !== 'undefined' && document.querySelectorAll) {
+      // Safari only repaints its bars for a new tag, so the old ones are replaced, not edited.
       var bars = document.querySelectorAll('meta[name="theme-color"]');
-      for (var i = 0; i < bars.length; i++) bars[i].setAttribute('content', t.meta);
+      var head = document.head || document.getElementsByTagName('head')[0];
+      for (var i = 0; i < bars.length; i++) bars[i].parentNode.removeChild(bars[i]);
+      var bar = document.createElement('meta');
+      if (bar && bar.setAttribute && head) {
+        bar.setAttribute('name', 'theme-color');
+        bar.setAttribute('content', t.meta);
+        head.appendChild(bar);
+      }
+      // Newer Safari tints its bars from the page's own background instead.
+      document.documentElement.style.backgroundColor = t.meta;
+      if (document.body) document.body.style.backgroundColor = t.meta;
     }
     return name;
   }
