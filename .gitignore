@@ -170,3 +170,6 @@ ml/.venv
 ml/bench/
 # The frontier rounds (scripts/ml/frontier.js): state and logs
 ml/frontier/
+
+# The native simulator's build and its converted weights (npm run native:build)
+native/build/

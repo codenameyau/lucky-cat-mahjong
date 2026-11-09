@@ -225,6 +225,13 @@ async function playParts(models, seed, from, to, workers, bm) {
   const deals = to - from;
   const n = Math.max(1, workers), per = Math.ceil(deals / n);
   for (let k = 0; k < n; k++) if (k * per < deals) jobs.push({ bm, models, seed, from: from + k * per, to: from + Math.min(deals, (k + 1) * per) });
+  // The native simulator (native/, npm run native:build) plays the same hands
+  // exactly as the JS does, when every player can run there; --js forces the JS.
+  if (!process.env.LCM_JS) {
+    const N = require('./native.js');
+    const native = jobs.map((job) => N.playNative(job));
+    if (native.every((x) => x)) return Promise.all(native);
+  }
   return workers === 0
     ? [await playWork(jobs[0])]
     : await Promise.all(jobs.map((job) => new Promise((resolve, reject) => {
