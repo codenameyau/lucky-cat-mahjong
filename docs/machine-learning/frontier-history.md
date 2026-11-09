@@ -6,8 +6,8 @@ A record of the frontier work so far (from 2026-11-08): what was built, every de
 
 | | State |
 | --- | --- |
-| **Lucky Cat lineage** | Generation 1 is still lc32 (as `lc32v2`, lc32 widened to features v2). 6 rounds and 18 arms of phase 1 (3 at native scale), 3 policy-gradient probes and 4 loss-aware teacher probes. LV6b (+5.1 at its screen) is being judged |
-| **Sphinx lineage** | v1 paused after every arm lost about 43 points a hand to random play. v2 restarts at the benchmark table, with the loss-aware teacher, queued after Lucky Cat's round 6. No generation yet |
+| **Lucky Cat lineage** | Generation 1 is still lc32 (as `lc32v2`, lc32 widened to features v2). 6 rounds and 18 arms of phase 1 (3 at native scale), 3 policy-gradient probes and 4 loss-aware teacher probes. LV6b screened +5.1 and failed qualify (+0.8) |
+| **Sphinx lineage** | v1 paused after every arm lost about 43 points a hand to random play. v2 restarted at the benchmark table with the loss-aware teacher: 3 rounds, still behind random play (best SP2b −7.1, no imitation). No generation yet |
 | **Benchmark** | `hk-table-v1`, frozen: two Neural Cat NC8 and Jorge Yau at 0.57.9, a 40,000-deal deck, the five-stage bar |
 | **Phases** | 0 built and folded into 1. 1 built and training. 2 and 3 designed, not built. 3b (search as a teacher) and 4 (search at play) deferred |
 | **Simulation** | The native C++ simulator runs every round, as a hybrid: training data and screens on the fast build, judgments and Table Scores on the exact build |
@@ -24,8 +24,10 @@ A record of the frontier work so far (from 2026-11-08): what was built, every de
 7. **Policy-gradient probes** (PG1–PG3). Training on what hands scored, with the heads and the teacher. PG2 and PG3 passed the screen (+8.1, +5.7), then failed to qualify (−2.4, −2.6).
 8. **Pruning.** Monte Carlo search was measured and deferred until phase 3; the judgment's second screen and Sphinx's restarting arm were removed; Sphinx was paused.
 9. **The native simulator.** The engine and the benchmark table's players ported to C++, bit-exact with the JS. Then three optimization rounds and a fast build, and finally the hybrid (PR #208). Phase 1 and rounds 1–3 were merged as #205.
-10. **Native-scale rounds** (100,000 deals a round, 40,000-deal screens). Lucky Cat rounds 4–6: LV4b screened +4.7 and failed qualify (−10.3); LV6b screened +5.1 (2.00 SE) and went to a judgment.
+10. **Native-scale rounds** (100,000 deals a round, 40,000-deal screens). Lucky Cat rounds 4–6: LV4b screened +4.7 and failed qualify (−10.3); LV6b screened +5.1 (2.00 SE) and failed qualify (+0.8).
 11. **The loss-aware teacher.** lc32 sets its own hand back in 19.5% of its choices. `--progress` and `--fold` teach against that and against dealing in with poor prospects; probes gained about +2.4 points a hand at a moderate weight.
+12. **Sphinx v2, rounds 1–3.** At the benchmark table with the new teacher: imitating its own wins lost 41–54 points a hand to random play every round; without imitation, −7.1 and −10.3 by rounds 2 and 3.
+13. **The rounds move to the user's desktop** (more cores), from Lucky Cat round 7 and Sphinx round 4.
 
 ## Decisions
 

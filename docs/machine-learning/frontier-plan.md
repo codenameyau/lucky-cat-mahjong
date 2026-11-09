@@ -485,3 +485,9 @@ Lucky Cat rounds 4–6: 100,000 deals a round, 40,000-deal screens (one standard
   - *Evidence (probes on round 5's data, 40,000-deal screens):* the teacher alone +1.8 ± 2.5; progress 100: +2.5 ± 2.8, hands won 24.41% → 24.95%, set-back share 17.1%; progress 100 with fold 2: +2.3 ± 2.8, dealt in 12.90% → 12.67%; progress 200 with fold 4: −1.9 ± 3.1, set-back share 14.1%, average win 178 → 139 points.
   - *Changed:* from round 7, two of Lucky Cat's three arms use it (progress 100 or 50, fold 2). Sphinx v2 uses it in every arm.
   - *Open:* some set-back discards are right (breaking a fast hand to keep a valuable one). Telling those apart needs the per-move value of phase 3, not shanten alone.
+- **LV6b, the round-6 best, failed qualify too.**
+  - *Evidence:* +5.1 ± 2.6 (2.00 SE) at its screen, then +0.8 ± 2.6 on 40,000 fresh deals (0.30 SE), with hands won down 0.15 points.
+- **Sphinx v2, at the benchmark table from round 1, still loses to random play, but its arm without imitation is closing in.**
+  - *Evidence (screens against sp0, 40,000 deals):* imitating its own wins (arms a and c) lost 41–54 points a hand in every round. Teacher with progress and fold, no imitation (arm b): −38.2 in round 1, −7.1 ± 2.9 in round 2, −10.3 ± 3.2 in round 3.
+  - *Open:* imitating its wins teaches Sphinx to race for cheap hands at any risk. The next Sphinx arms should build on b.
+- **From 2026-11-09 the frontier rounds run on the user's desktop**, not the Mac: Lucky Cat from round 7, Sphinx from round 4, carrying over the fresh-deal counter (`ml/bench/seeds.json`, next 68) and the champions (lc32v2 and sp0, from Hugging Face). Its exact build must reproduce a reference compare to the decimal before any result counts.
