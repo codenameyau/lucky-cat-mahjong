@@ -607,15 +607,37 @@
     return handle ? '@' + handle : '';
   }
 
+  // A real zip: five digits (and the optional four), and not the placeholder 00000.
   function isValidZip(value) {
-    return /^\d{5}(-\d{4})?$/.test(String(value || '').trim());
+    var zip = String(value || '').trim();
+    return /^\d{5}(-\d{4})?$/.test(zip) && zip.slice(0, 5) !== '00000';
+  }
+
+  // A full name: at least a first and a last name, each two or more letters (hyphens, apostrophes
+  // and periods are fine), and not one letter typed over and over ("aa bb", "xxx xxx").
+  function isValidName(value) {
+    var parts = String(value || '').trim().split(/\s+/);
+    if (parts.length < 2) return false;
+    return parts.every(function (part) {
+      var letters = part.replace(/[-'\u2019.]/g, '');
+      return /^[\p{L}][\p{L}\p{M}'\u2019.-]*$/u.test(part) && letters.length >= 2 && !/^(.)\1+$/u.test(letters);
+    });
+  }
+
+  // A plausible Instagram handle: 3 to 30 letters, numbers, periods and underscores, with a letter
+  // or number in it, and not one character typed over and over.
+  function isValidInstagram(value) {
+    var m = /^@([A-Za-z0-9._]{3,30})$/.exec(normalizeInstagram(value));
+    if (!m) return false;
+    var handle = m[1];
+    return /[A-Za-z0-9]/.test(handle) && !/^(.)\1+$/.test(handle);
   }
 
   function validateProfile(profile) {
     var errors = {};
-    if (!String(profile.name || '').trim()) errors.name = 'Enter your full name';
-    if (!/^@[A-Za-z0-9._]{1,30}$/.test(normalizeInstagram(profile.instagram))) errors.instagram = 'Enter your Instagram handle, like @luckycat.mahjong';
-    if (!isValidZip(profile.zip)) errors.zip = 'Enter a 5-digit zip code';
+    if (!isValidName(profile.name)) errors.name = 'Enter your first and last name';
+    if (!isValidInstagram(profile.instagram)) errors.instagram = 'Enter your real Instagram handle, like @luckycat.mahjong';
+    if (!isValidZip(profile.zip)) errors.zip = 'Enter a valid 5-digit zip code';
     if (SKILL_LEVELS.indexOf(profile.skill) === -1) errors.skill = 'Pick your skill level';
     return errors;
   }
@@ -1321,6 +1343,8 @@
     normalizeInstagram: normalizeInstagram,
     isValidZip: isValidZip,
     validateProfile: validateProfile,
+    isValidName: isValidName,
+    isValidInstagram: isValidInstagram,
     buildFormBody: buildFormBody,
     restorableProgress: restorableProgress,
     signCompletion: signCompletion,
