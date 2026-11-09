@@ -106,6 +106,17 @@ With the [native simulator](native.md), a round's data costs seconds instead of 
 
 A round of Lucky Cat now takes about a minute of data, about 8 minutes of training, 10 minutes of screens, and a judgment of about 20 minutes on the exact build when an arm passes.
 
+## Disk space
+
+A native-scale round writes about 2.5 GB of data, so the round driver manages the disk itself (`scripts/ml/disk.js`). It deletes **permanently**, by rules that only remove what can never be read again:
+
+- **A round's data leaves with its training window.** Once a lineage's data falls outside the last `keep` rounds (2 at native scale), it's deleted at once. Its seed and the model that played it are in the lineage's state, so it could be played again.
+- **Orphaned frontier data goes at the start of each round.** That's a `lv-<n>` or `sp-<n>` set no lineage's `state.json` lists, such as a crashed run's, a smoke run's, or an archived lineage's. It must be at least 6 hours old, so a set still being written by another run is never caught.
+- **Room before each round.** The round needs its expected size (the last round's, scaled to its deals) plus 10 GB. If the disk is short, the oldest kept rounds go first, always keeping the newest. If that still isn't enough, the round stops with a message instead of filling the disk.
+- **Converted weights are a cache.** `native/build/cache/*.lcmw` files are made again whenever they're needed, so those unused for 14 days go, as does anything past 1 GB (oldest first).
+
+Never touched: model weights (`ml/models/`), logs and reports, the benchmark, and data that isn't a frontier round. Other labs prune their own data (`scripts/ml/prune-data.js`, to the Trash). `scripts/ml/disk.test.js` checks the rules on temporary folders.
+
 ## Not done yet
 
 - **No frontier round has run at full size:** the machine is training Neural Cat. They are queued after it, and after lc32's Table Score.

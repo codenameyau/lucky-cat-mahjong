@@ -42,6 +42,7 @@ const { spawnSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..', '..');
 const F2 = require('../../js/mahjong-frontier-net.js');
+const D = require('./disk.js');
 
 function parseArgs(argv) {
   const out = { _: [] };
@@ -162,17 +163,22 @@ async function main(a) {
     state.rounds.push(rec);
     log('Round ' + r + ': champion ' + champ.name);
 
-    // 1. Data
+    // 1. Data (disk first: what's no longer needed goes, and the round must fit)
     const data = 'ml/data/' + L.prefix.toLowerCase() + '-' + r;
     const deals = String(a.deals || L.deals);
+    D.pruneOrphans(log);
+    D.pruneCache(log);
+    D.makeRoom(state, D.roundBytes(state, +deals, +deals * 30e3), log);
+    save();
     const g = run('node', ['scripts/ml/lucky.js', 'generate', '--weights', champ.model, '--oracle', '--returns', '--temperature', '1',
       '--deals', deals, '--seed', String(L.seed + r * 100000), '--out', data].concat(L.generate(state), workers), log);
     if (!g.ok) throw new Error('generate failed');
     state.data.push(data);
+    // A round's data is deleted for good once it leaves the training window: it
+    // is never read again (its seed and model are in this state, to play it again).
     while (state.data.length > (L.keep || 3)) {
       const old = state.data.shift();
-      fs.rmSync(path.join(ROOT, old), { recursive: true, force: true });
-      log('dropped ' + old + ' (the last ' + (L.keep || 3) + ' rounds of data are kept)');
+      D.remove(path.join(ROOT, old), 'left the training window (the last ' + (L.keep || 3) + ' rounds are kept)', log);
     }
     save();
 

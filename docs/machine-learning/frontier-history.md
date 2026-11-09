@@ -50,6 +50,7 @@ Each with why, and the evidence. Dates are when it was decided.
 | **`--aux` with `--mode pg`, and `--teach`** (2026-11-09) | The heads only shape the shared layers; nothing in an imitation loss rewards acting on a better read | PG probes: passed the screen, failed to qualify |
 | **No more rounds of the same signal** | Twelve arms screened, centred on zero. The critic explains none of the reward, so training on hand returns is luck. Phase 3's per-move value is what this needs | §11 |
 | **Sphinx paused** (2026-11-09) | Its recipe (imitate its own wins from random self-play) loses about 43 points a hand to random play. It learns to race for cheap hands, and nothing teaches it defence | SP1a −43.3, SP1b −46.3, SP1c −45.1, SP2a −43.5 |
+| **The rounds delete their own data, permanently** (2026-11-09) | A native-scale round writes about 2.5 GB. Deleted: data once it leaves the training window, frontier data no lineage lists (once 6 hours old), the oldest kept rounds when the next wouldn't fit (never the newest), and converted weights unused for 14 days or past 1 GB. Never: weights, reports, the benchmark, other labs' data | Frontier training, Disk space |
 | **Sphinx's wide arm trains fresh only while the champion is random** | From the second generation on, starting from scratch each round would throw away every generation it had earned | |
 
 ### Search

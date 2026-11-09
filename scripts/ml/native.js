@@ -200,6 +200,7 @@ function lcmwConvert(spec) {
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, sha(buf).slice(0, 16) + '.lcmw');
   if (!fs.existsSync(file)) fs.writeFileSync(file, buf);
+  else { const now = new Date(); try { fs.utimesSync(file, now, now); } catch (e) { /* read-only: fine */ } }  // used: scripts/ml/disk.js keeps the recent ones
   return file;
 }
 
