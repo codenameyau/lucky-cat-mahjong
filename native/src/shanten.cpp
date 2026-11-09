@@ -10,7 +10,8 @@ const int ORPHAN_INDEXES[13] = {0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33}
 // suit can reach and merges them; the merge only ever adds and caps, and it
 // never lowers with more taatsu, so the most taatsu for each (p, m) gives the
 // same best value.
-struct SuitOpt { int8_t t[2][5]; };
+// n: the reachable (p, m, t) entries, packed for merging (filled once the entry is done).
+struct SuitOpt { int8_t t[2][5]; int8_t n; int8_t e[10][3]; };
 
 static void clearOpt(SuitOpt& o) { for (auto& r : o.t) for (auto& v : r) v = -1; }
 
@@ -78,47 +79,122 @@ static const SuitOpt& suitOptions(int8_t* c, int len, int i, bool honor, int key
     }
     c[i]--; addShift(out, suitOptions(c, len, i, honor, key - unit), 0, 0, 0, false); c[i]++;
   }
+  out.n = 0;
+  for (int p = 0; p < 2; p++) for (int m = 0; m < 5; m++)
+    if (out.t[p][m] >= 0) { out.e[out.n][0] = int8_t(p); out.e[out.n][1] = int8_t(m); out.e[out.n][2] = out.t[p][m]; out.n++; }
   memo[h][key] = out;
   known[h][key] = 1;
   return memo[h][key];
 }
 
-static int solveStandard(const int8_t* c, int declared) {
-  int need = 4 - declared;
-  // cur[p][m] = most taatsu, merged suit by suit with the JS's caps.
-  int cur[2][5];
-  for (auto& r : cur) for (auto& v : r) v = -1;
-  cur[0][0] = 0;
-  for (int s = 0; s < 4; s++) {
-    bool honor = s == 3;
-    int len = honor ? 7 : 9, h = honor ? 1 : 0;
-    ensureMemo(h);
-    int8_t slice[9];
-    int key = 0;
-    for (int i = 0; i < len; i++) {
-      slice[i] = c[s * 9 + i];
-      if (slice[i] < 0 || slice[i] > 4) throw std::runtime_error("shanten: counts must be 0-4");
-      key = key * 5 + slice[i];
+// A suit's table entry, computed the first time its pattern is seen.
+static inline const SuitOpt& suitEntry(const int8_t* c, int s, int& key) {
+  bool honor = s == 3;
+  int len = honor ? 7 : 9, h = honor ? 1 : 0;
+  key = 0;
+  for (int i = 0; i < len; i++) key = key * 5 + c[s * 9 + i];
+  if (known[h][key]) return memo[h][key];
+  int8_t slice[9];
+  for (int i = 0; i < len; i++) slice[i] = c[s * 9 + i];
+  return suitOptions(slice, len, 0, honor, key);
+}
+
+// cur[p][m] = most taatsu; merge one suit's options in, with the JS's caps.
+static inline void mergeSuit(int cur[2][5], const SuitOpt& o, int need) {
+  int nx[2][5];
+  for (auto& r : nx) for (auto& v : r) v = -1;
+  for (int p = 0; p < 2; p++) for (int m = 0; m < 5; m++) {
+    int cv = cur[p][m];
+    if (cv < 0) continue;
+    for (int j = 0; j < o.n; j++) {
+      int q = o.e[j][0];
+      if (q + p > 1) continue;
+      int mm = m + o.e[j][1], tt = cv + o.e[j][2];
+      if (mm > need) mm = need;
+      if (mm + tt > need) tt = need - mm;
+      if (nx[p + q][mm] < tt) nx[p + q][mm] = tt;
     }
-    const SuitOpt& o = suitOptions(slice, len, 0, honor, key);
-    int nx[2][5];
-    for (auto& r : nx) for (auto& v : r) v = -1;
-    for (int p = 0; p < 2; p++) for (int m = 0; m < 5; m++) {
-      if (cur[p][m] < 0) continue;
-      for (int q = 0; q + p < 2; q++) for (int k = 0; k < 5; k++) {
-        if (o.t[q][k] < 0) continue;
-        int mm = m + k, tt = cur[p][m] + o.t[q][k];
-        if (mm > need) mm = need;
-        if (mm + tt > need) tt = need - mm;
-        if (nx[p + q][mm] < tt) nx[p + q][mm] = tt;
-      }
-    }
-    std::memcpy(cur, nx, sizeof cur);
   }
+  std::memcpy(cur, nx, sizeof nx);
+}
+
+// The best 2m + t + p of cur merged with o, without building the merged table.
+struct Packed { int n; int8_t e[10][3]; };
+static inline void pack(const int cur[2][5], Packed& out) {
+  out.n = 0;
+  for (int p = 0; p < 2; p++) for (int m = 0; m < 5; m++)
+    if (cur[p][m] >= 0) { out.e[out.n][0] = int8_t(p); out.e[out.n][1] = int8_t(m); out.e[out.n][2] = int8_t(cur[p][m]); out.n++; }
+}
+static inline int bestMerged(const Packed& a, const SuitOpt& o, int need) {
+  int best = 0;
+  for (int i = 0; i < a.n; i++) {
+    int p = a.e[i][0], m = a.e[i][1], t = a.e[i][2];
+    for (int j = 0; j < o.n; j++) {
+      int q = p + o.e[j][0];
+      if (q > 1) continue;
+      int mm = m + o.e[j][1];
+      if (mm > need) mm = need;
+      int tt = t + o.e[j][2];
+      if (mm + tt > need) tt = need - mm;
+      int v = 2 * mm + tt + q;
+      if (v > best) best = v;
+    }
+  }
+  return 2 * need - best;
+}
+
+static inline int bestOf(const int cur[2][5], int need) {
   int best = 0;
   for (int p = 0; p < 2; p++) for (int m = 0; m < 5; m++)
     if (cur[p][m] >= 0) { int v = 2 * m + cur[p][m] + p; if (v > best) best = v; }
   return 2 * need - best;
+}
+
+void standardUkeire(const int8_t* c, int declared, const int8_t* unseen, int current, int& total, std::vector<int>& tiles) {
+  // Adding a tile changes only its own suit: the other three are merged once
+  // per suit, then each tile costs one lookup and one merge. (The caps make
+  // the merge's order irrelevant, so this is the same answer.)
+  ensureMemo(0); ensureMemo(1);
+  int need = 4 - declared;
+  int key[4];
+  const SuitOpt* opt[4];
+  for (int s = 0; s < 4; s++) opt[s] = &suitEntry(c, s, key[s]);
+  total = 0;
+  tiles.clear();
+  int8_t tmp[34];
+  std::memcpy(tmp, c, 34);
+  for (int s = 0; s < 4; s++) {
+    int base[2][5];
+    for (auto& r : base) for (auto& v : r) v = -1;
+    base[0][0] = 0;
+    for (int o = 0; o < 4; o++) if (o != s) mergeSuit(base, *opt[o], need);
+    Packed pb;
+    pack(base, pb);
+    int len = s == 3 ? 7 : 9;
+    for (int r = 0; r < len; r++) {
+      int i = s * 9 + r;
+      if (!unseen[i] || c[i] >= 4) continue;
+      tmp[i]++;
+      int k;
+      const SuitOpt& so = suitEntry(tmp, s, k);
+      tmp[i]--;
+      if (bestMerged(pb, so, need) < current) { total += unseen[i]; tiles.push_back(i); }
+    }
+  }
+}
+
+static int solveStandard(const int8_t* c, int declared) {
+  for (int i = 0; i < 34; i++) if (c[i] < 0 || c[i] > 4) throw std::runtime_error("shanten: counts must be 0-4");
+  ensureMemo(0); ensureMemo(1);
+  int need = 4 - declared;
+  int cur[2][5];
+  for (auto& r : cur) for (auto& v : r) v = -1;
+  cur[0][0] = 0;
+  int key;
+  for (int s = 0; s < 3; s++) mergeSuit(cur, suitEntry(c, s, key), need);
+  Packed pb;
+  pack(cur, pb);
+  return bestMerged(pb, suitEntry(c, 3, key), need);
 }
 
 // Whole hands come back again and again (every plan, every discard, every

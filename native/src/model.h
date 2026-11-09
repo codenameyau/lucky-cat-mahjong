@@ -49,14 +49,11 @@ class Mlp {
   int outputs_, inputs_, widest_;
   mutable std::vector<float> bufA_, bufB_;
   mutable std::vector<double> acc_, out_;
-  // Answers already worked out, keyed by the exact input: the same input
-  // gives the same output, so a hit is the forward pass itself. (A compare
-  // plays every deal once per model: the table's players see the same
-  // positions until the two models first differ.)
-  static const int CACHE_BITS = 12;
-  struct CacheEntry { uint64_t hash = 0; std::vector<float> x; std::vector<double> out; };
-  mutable std::vector<CacheEntry> cache_;
-  const std::vector<double>& compute(const float* x) const;
+  mutable std::vector<float> facc_;
+  // Fast mode: the first layer's last input and pre-activation, updated by the
+  // difference when the next input is close (consecutive candidates are).
+  mutable std::vector<float> lastX_, lastPre_;
+  mutable int sinceFull_ = 1 << 30;
 };
 
 }  // namespace lcm

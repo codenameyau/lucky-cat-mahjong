@@ -24,7 +24,9 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const { spawn, execFileSync } = require('node:child_process');
 const E = require('../../js/mahjong-engine.js');
-const SIM = path.join(ROOT, 'native', 'build', 'lcm-sim');
+// The fast build plays training, screens and judgments; the exact build is diffed against the JS.
+const SIM = process.env.LCM_SIM || path.join(ROOT, 'native', 'build', 'lcm-sim');
+const SIM_EXACT = process.env.LCM_SIM_EXACT || path.join(ROOT, 'native', 'build', 'lcm-sim-exact');
 const PORTED = path.join(ROOT, 'native', 'ported.json');
 
 // The JS the port plays exactly as (native/ported.json, written by `native.js pin`
@@ -211,8 +213,8 @@ function playNative(job) {
   });
 }
 
-function nativeRun(cmd, ids, seed, deals) {
-  const r = spawnSync(SIM, [cmd, '--agents', ids.map((id) => nativeId(id) || id).join(','), '--seed', String(seed), '--deals', String(deals)], { encoding: 'utf8', maxBuffer: 1 << 30 });
+function nativeRun(cmd, ids, seed, deals, exact) {
+  const r = spawnSync(exact ? SIM_EXACT : SIM, [cmd, '--agents', ids.map((id) => nativeId(id) || id).join(','), '--seed', String(seed), '--deals', String(deals)], { encoding: 'utf8', maxBuffer: 1 << 30 });
   if (r.status !== 0) throw new Error('lcm-sim failed: ' + (r.stderr || r.error));
   return r.stdout;
 }
@@ -226,7 +228,7 @@ async function main(a) {
     const t0 = Date.now();
     const js = await jsTrace(ids, seed, deals);
     const t1 = Date.now();
-    const nat = nativeRun('trace', ids, seed, deals).trimEnd().split('\n');
+    const nat = nativeRun('trace', ids, seed, deals, true).trimEnd().split('\n');
     const t2 = Date.now();
     let hand = '';
     for (let i = 0; i < Math.max(js.length, nat.length); i++) {

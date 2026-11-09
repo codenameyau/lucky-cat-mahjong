@@ -19,6 +19,8 @@ int tripletsShanten(const int8_t* c, int declared);
 int shanten(const int8_t* c, int declared);
 // Tile indexes that complete a hand of 3n+1 tiles.
 std::vector<int> winningTiles(int8_t* c, int declared);
+// The tiles (unseen, held fewer than 4) that bring standard shanten below `current`, and their unseen copies.
+void standardUkeire(const int8_t* c, int declared, const int8_t* unseen, int current, int& total, std::vector<int>& tiles);
 inline int standardShanten(const Counts& c, int d) { return standardShanten(c.data(), d); }
 inline int shanten(const Counts& c, int d) { return shanten(c.data(), d); }
 

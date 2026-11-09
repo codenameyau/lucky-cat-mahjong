@@ -858,6 +858,10 @@ struct Ukeire { int total; std::vector<int> tiles; };
 static Ukeire ukeireOf(Foundation* f, Counts counts, const ShFn& fn, int declared, const Counts& unseen, int current,
                        int (Foundation::*sh)(const ShFn&, const Counts&, int)) {
   Ukeire u{0, {}};
+  if (fn.kind == SH_STD && !fn.filled && declared >= 0 && declared <= 4) {
+    standardUkeire(counts.data(), declared, unseen.data(), current, u.total, u.tiles);
+    return u;
+  }
   for (int i = 0; i < 34; i++) {
     if (!unseen[i] || counts[i] >= 4) continue;
     counts[i]++;

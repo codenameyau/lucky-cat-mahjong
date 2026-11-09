@@ -15,6 +15,7 @@ inline uint32_t loWord(double x) { uint64_t b; std::memcpy(&b, &x, 8); return ui
 inline double fromWords(uint32_t hi, uint32_t lo) { uint64_t b = (uint64_t(hi) << 32) | lo; double x; std::memcpy(&x, &b, 8); return x; }
 inline double setHigh(double x, uint32_t hi) { return fromWords(hi, loWord(x)); }
 
+#ifdef LCM_EXACT
 inline double exp(double x) {
 #pragma clang fp contract(on)
   static const double one = 1.0, halF[2] = {0.5, -0.5}, o_threshold = 7.09782712893383973096e+02,
@@ -125,6 +126,12 @@ inline double log(double x) {
   if (k == 0) return f - s * (f - R);
   return dk * ln2_hi - ((s * (f - R) - dk * ln2_lo) - f);
 }
+
+#else
+// Fast mode: the C library's (last-bit differences only).
+inline double exp(double x) { return std::exp(x); }
+inline double log(double x) { return std::log(x); }
+#endif
 
 inline double pow(double x, double y) { return std::pow(x, y); }
 

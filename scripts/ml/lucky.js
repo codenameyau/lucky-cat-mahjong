@@ -491,7 +491,7 @@ function runJobs(base, deals, workers) {
   }
   const natives = jobs.map(nativeJob);
   if (natives.every((x) => x)) {
-    const SIM = path.join(ROOT, 'native', 'build', 'lcm-sim');
+    const SIM = process.env.LCM_SIM || path.join(ROOT, 'native', 'build', 'lcm-sim');
     return Promise.all(natives.map((args) => new Promise((resolve, reject) => {
       const child = spawn(SIM, args, { stdio: ['ignore', 'pipe', 'inherit'] });
       let out = '';

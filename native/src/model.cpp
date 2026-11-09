@@ -1,6 +1,7 @@
 #include "model.h"
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #include <stdexcept>
 
 namespace lcm {
@@ -124,51 +125,82 @@ Mlp::Mlp(const Weights& w) : w_(w) {
   bufA_.assign(widest_, 0);
   bufB_.assign(widest_, 0);
   acc_.assign(widest_, 0);
+  facc_.assign(widest_, 0);
   out_.assign(outputs_, 0);
-  cache_.resize(size_t(1) << CACHE_BITS);
 }
 
 const std::vector<double>& Mlp::forward(const float* x) const {
-  uint64_t h = 0x9E3779B97F4A7C15ull;
-  const uint32_t* bits = reinterpret_cast<const uint32_t*>(x);
-  for (int i = 0; i < inputs_; i++) h = (h ^ bits[i]) * 0x100000001B3ull + (h >> 27);
-  h |= 1;
-  CacheEntry& e = cache_[(h * 0xBF58476D1CE4E5B9ull) >> (64 - CACHE_BITS)];
-  if (e.hash == h && std::memcmp(e.x.data(), x, sizeof(float) * inputs_) == 0) return e.out;
-  const std::vector<double>& out = compute(x);
-  e.hash = h;
-  e.x.assign(x, x + inputs_);
-  e.out = out;
-  return e.out;
-}
-
-const std::vector<double>& Mlp::compute(const float* x) const {
   const Layer& first = w_.layers[0];
   const int rows = first.rows;
   float* out = bufA_.data();
+#ifdef LCM_EXACT
   for (int r = 0; r < rows; r++) out[r] = first.b[r];
   for (int c = 0; c < first.cols; c++) {
-    double v = x[c];
-    if (v == 0) continue;
+    if (x[c] == 0) continue;
     const float* col = firstT_.data() + size_t(c) * rows;
     // JS: out[r] += firstT[...] * v, the sum in double, the store in float32.
+    double v = x[c];
     for (int r = 0; r < rows; r++) out[r] = float(double(out[r]) + double(col[r]) * v);
   }
+#else
+  int nnz = 0, changed = 0;
+  bool have = !lastX_.empty() && sinceFull_ < 32;
+  for (int c = 0; c < first.cols; c++) { nnz += x[c] != 0; if (have) changed += x[c] != lastX_[c]; }
+  float* pre = lastPre_.data();
+  if (have && changed * 2 < nnz) {
+    // The previous answer, plus the columns that changed.
+    for (int c = 0; c < first.cols; c++) {
+      float d = x[c] - lastX_[c];
+      if (d == 0) continue;
+      const float* col = firstT_.data() + size_t(c) * rows;
+      for (int r = 0; r < rows; r++) pre[r] += col[r] * d;
+    }
+    sinceFull_++;
+  } else {
+    lastX_.resize(first.cols);
+    lastPre_.resize(rows);
+    pre = lastPre_.data();
+    for (int r = 0; r < rows; r++) pre[r] = first.b[r];
+    for (int c = 0; c < first.cols; c++) {
+      const float v = x[c];
+      if (v == 0) continue;
+      const float* col = firstT_.data() + size_t(c) * rows;
+      for (int r = 0; r < rows; r++) pre[r] += col[r] * v;
+    }
+    sinceFull_ = 0;
+  }
+  std::memcpy(lastX_.data(), x, sizeof(float) * first.cols);
+  std::memcpy(out, pre, sizeof(float) * rows);
+#endif
   if (w_.layers.size() > 1) for (int r = 0; r < rows; r++) if (out[r] < 0) out[r] = 0;
   const float* input = out;
   for (size_t k = 1; k < w_.layers.size(); k++) {
     const Layer& l = w_.layers[k];
     float* o = k % 2 ? bufB_.data() : bufA_.data();
     bool last = k == w_.layers.size() - 1;
-    // Each row's sum in the JS's order (b, then column 0, 1, ...), all rows at once.
+    // All rows at once, column by column; a zero input (half of them after
+    // ReLU) adds nothing, in either mode, so it's skipped.
+#ifdef LCM_EXACT
     double* s = acc_.data();
     for (int r = 0; r < l.rows; r++) s[r] = l.b[r];
     for (int c = 0; c < l.cols; c++) {
+      if (input[c] == 0) continue;
       double in = input[c];
       const float* col = wT_[k].data() + size_t(c) * l.rows;
       for (int r = 0; r < l.rows; r++) s[r] = s[r] + double(col[r]) * in;
     }
     for (int r = 0; r < l.rows; r++) o[r] = float(last || s[r] > 0 ? s[r] : 0);
+#else
+    float* s = facc_.data();
+    for (int r = 0; r < l.rows; r++) s[r] = l.b[r];
+    for (int c = 0; c < l.cols; c++) {
+      const float in = input[c];
+      if (in == 0) continue;
+      const float* col = wT_[k].data() + size_t(c) * l.rows;
+      for (int r = 0; r < l.rows; r++) s[r] += col[r] * in;
+    }
+    for (int r = 0; r < l.rows; r++) o[r] = last || s[r] > 0 ? s[r] : 0;
+#endif
     input = o;
   }
   for (int r = 0; r < outputs_; r++) out_[r] = input[r];

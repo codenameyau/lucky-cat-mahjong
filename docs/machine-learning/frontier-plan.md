@@ -9,7 +9,7 @@ Everything here must keep two promises: the shipped model reads only what its se
 | Phase | State |
 | --- | --- |
 | Benchmark (§9) | **Built.** `npm run ml:bench`: the frozen table (NC8, Jorge Yau, NC8 at 0.57.9), the 40,000-deal deck, the Table Score, and `judge` for the five-stage bar ([benchmark](benchmark.md)) |
-| Native simulator | **Built.** The engine and the table's players in C++ (`native/`, [native simulator](native.md)), playing every hand exactly as the JS does: data and judging 8–10x faster |
+| Native simulator | **Built** (§6b). The engine and the table's players in C++ (`native/`, [native simulator](native.md)). The exact build plays every hand as the JS does; the fast build, which training runs, is not bit-exact (**important potential issue**, §6b) |
 | 0 Suphx teacher | Built as the lab's `lucky-cat-suphx`. It is folded into phase 1 as the per-move deal-in teacher every arm trains with |
 | 1 Features v2, labels as targets | **Built and training.** `npm run ml:frontier` ([frontier training](frontier-training.md)). Lucky Cat rounds 1–3 kept nothing (9 arms, best LV1a, which failed the bar); lc32v2 is still champion. Returns-trained probes (PG2, PG3) passed the screen and failed to qualify. Sphinx paused after round 1 (its recipe lost 43 points a hand to random play) |
 | 2 Structured network | Designed (§4); not built. Starts when the phase-1 MLP stops improving |
@@ -203,6 +203,27 @@ The lab today is a loop: generate 20,000–50,000 deals, train a few arms, judge
 - **Judging** runs as candidates appear: the table test with sequential stopping (blocks of 5,000 deals, stop when the paired gap is clearly past or short of the bar, 40,000 at most), then the replication and the round robin of §9 for any candidate that passes. A kept model ships, joins the pool, and gets its Table Score.
 
 Everything stays reproducible: seeds per round as now, every evaluation written to JSON, the lab log the record. The oracle features and the warm-start data never leave `ml/data/` (no dataset uploads).
+
+## 6b. The native simulator: the C++ engine the training runs on
+
+Every phase of this plan is bound by how fast hands can be played: a round's data, every screen, every judgment. The JS engine that runs the game was the bottleneck (a round took 13 minutes of data and 1.5 hours of screening; a judgment 1–6 hours), so the engine and the benchmark table's players are ported to C++ in `native/` ([native simulator](native.md)).
+
+**What's ported.** The engine (the deal, options, claims, settlement, `runHand`), scoring (`js/points.js` `scoreHand`), shanten (a per-suit table and a whole-hand cache), the shared bot foundation with Jorge Yau's hooks, Neural Cat, Lucky Cat with features v1 and v2, the oracle's hidden-tile labels, `lucky.js generate`'s worker (`lcm-sim generate`, the same shard files) and `bench.js`'s play loop (`lcm-sim play`, the same sums). The game itself still runs on the JS.
+
+**How the pipeline uses it.** `bench.js` (compare, score, judge) and `lucky.js generate` run natively whenever every player in a job can, and fall back to the JS otherwise (`LCM_JS=1` forces the JS). `native/ported.json` pins the SHA-256 of every JS file the port was checked against: a player runs natively only while its JS is that version, and for the benchmark's frozen players the frozen files must match too.
+
+**Weights in both forms.** Training writes JSON, as before, and the game loads JSON. `scripts/ml/weights.js` converts a model to `.lcmw` (a header and float32 arrays) for the simulator, which caches the conversion. The numbers are the same either way, so a model trained on native data loads and plays in the JS game unchanged.
+
+**Two builds.** `make -C native` builds both:
+- `lcm-sim-exact` plays every seeded hand action for action as the JS does: no fused multiply-adds, V8's own fdlibm `exp` and `log`, V8's sort, float32 stores where the JS has them. `scripts/ml/native.js parity` diffs it against the JS, action by action. It's the bug detector: the port's one real bug (the discard order under V8's sort) showed up as the first differing line of a 1,000-hand diff.
+- `lcm-sim` is what training, screens and judgments run: float math free to use SIMD and fused multiply-adds, for speed.
+
+> **Important potential issue: the fast simulator is not bit-exact with the JS.**
+> A decision between two moves whose values tie to the last bit can go the other way in the fast build: roughly 1 in 10,000 to 1 in a million decisions, after which that hand plays out differently (just as legitimately). The play is statistically the same, and the trained weights are unaffected (they load and play the same in the JS game). What it costs:
+> - **Benchmark numbers no longer reproduce to the decimal against the JS.** A Table Score or a judgment's gap measured on the fast build differs from the JS's by noise. Scores from the fast build compare with each other; comparing one with a JS-measured score adds that noise. Every score records which it was measured on.
+> - **The action-level bug check covers the exact build only.** A porting mistake that exists only in the fast build's code paths (the float math, the SIMD forward pass) can't be caught by diffing actions; it shows only as a statistical difference. So the fast build's own code is kept to the arithmetic, the exact build shares everything else, and the fast build is checked against the exact one on the same positions (the same move except near ties) and on aggregates (points, hands won, deal-ins within noise).
+> - **A change to the JS must be ported.** Until `native/ported.json` is re-pinned, the affected players fall back to the JS, so a stale port can't silently judge a model; it only runs slower.
+> Chosen on 2026-11-09: the speed matters more to training than last-bit reproducibility. Revisit if a judgment's verdict ever sits within noise of the bar and has to be confirmed (the exact build, or the JS, can replay it).
 
 ## 7. Phases, numbers and kill criteria
 
