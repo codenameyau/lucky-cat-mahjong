@@ -791,6 +791,8 @@ test('colour themes: green, blue and red, cycled from the menu and kept in the g
   assert.match(src, /'Theme: ' \+ themeLabel/);
   assert.match(src, /prefs\.theme = applyTheme\(next\)[\s\S]{0,60}writeJson\(PREFS_KEY, prefs\)/);
   assert.match(src, /applyTheme\(prefs\.theme\)/);
+  assert.match(src, /green: \{[^}]*accent: '#6FD3A0'/);
+  assert.match(src, /color: COLORS\.accent, bold: weightAt\(a\)/);
   assert.match(src, /c\.fillStyle = back \? COLORS\.backDark/);
   assert.match(src, /addColorStop\(1, COLORS\.primary\)/);
   assert.match(src, /green: \{[^}]*primary: '#1C8B53'/);

@@ -3,9 +3,10 @@
   --theme-dark: #074029;
   --theme-deep: #0a3d27;
   --theme-primary: #1C8B53;
+  --theme-accent: #6FD3A0;
 }
-:root[data-theme="blue"] { --theme-light: #16609a; --theme-dark: #082f52; --theme-deep: #0a2f4d; --theme-primary: #2377C4; }
-:root[data-theme="red"] { --theme-light: #8c2639; --theme-dark: #4a0f1c; --theme-deep: #3d0d18; --theme-primary: #C41E3A; }
+:root[data-theme="blue"] { --theme-light: #16609a; --theme-dark: #082f52; --theme-deep: #0a2f4d; --theme-primary: #2377C4; --theme-accent: #7FBCF0; }
+:root[data-theme="red"] { --theme-light: #8c2639; --theme-dark: #4a0f1c; --theme-deep: #3d0d18; --theme-primary: #C41E3A; --theme-accent: #EE6A80; }
 
 /* Play page: settings preview card and the full-screen canvas stage. */
 
@@ -386,7 +387,7 @@ html.is-playing.is-sideways body {
   font-size: 0.78rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #EE6A80;
+  color: var(--theme-accent);
 }
 
 .rules-row {
@@ -546,7 +547,7 @@ html.is-playing.is-sideways body {
   font-size: 0.78rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #EE6A80;
+  color: var(--theme-accent);
 }
 
 .playbacks-list {
@@ -863,7 +864,7 @@ html.is-playing.is-sideways body {
 .strategies-card-who {
   margin: 2px 0 6px;
   font-size: 0.76rem;
-  color: #EE6A80;
+  color: var(--theme-accent);
 }
 
 .strategies-card-summary {
@@ -883,9 +884,9 @@ html.is-playing.is-sideways body {
   color: rgba(255, 248, 240, 0.85);
 }
 
-/* Hand names, in the coach's red for the dark sheet. */
+/* Hand names, in the theme's colour for the dark sheet. */
 .strategies-hand {
-  color: #EE6A80;
+  color: var(--theme-accent);
   font-weight: 600;
 }
 
@@ -957,13 +958,13 @@ html.is-playing.is-sideways body {
 
 .results-faan--scored { color: #fff8f0; font-weight: bold; }
 
-.results-faan--loss { color: #EE6A80; font-weight: bold; }
+.results-faan--loss { color: var(--theme-accent); font-weight: bold; }
 
 .results-points { color: rgba(255, 248, 240, 0.55); }
 
 .results-points--gain { color: #ffd27a; font-weight: bold; }
 
-.results-points--loss { color: #EE6A80; font-weight: bold; }
+.results-points--loss { color: var(--theme-accent); font-weight: bold; }
 
 .results-total th,
 .results-total td {
