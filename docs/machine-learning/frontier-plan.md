@@ -16,18 +16,9 @@ Everything here must keep two promises: the shipped model reads only what its se
 | 3b Search as a teacher | Designed (§5); not built |
 | 4 Search at play (optional) | Designed (§5); not built |
 
-**What phase 1 has shown so far** (Lucky Cat round 1: 20,000 deals of lc32 widened to features v2, 221,717 choices):
+What each phase has taught is in [§11 Learnings](#11-learnings).
 
-- **The table can be read from public information.** The auxiliary heads predict which held tile would deal in now with a held-out AUC of 0.87 to 0.89, and whether each opponent is ready with 0.85 to 0.88. Phase 1's bar is 0.75. A 3,000-deal probe gave 0.78, so the heads keep improving with data.
-- **Which tiles an opponent waits on isn't learned** (AUC 0.52). The heads know *that* a player is ready, but not on *what*. A wait is a shape within one suit (a 4–7 two-sided wait, a 3 Bamboo edge), which a flat MLP over 34-tile vectors has to learn tile by tile. This is the most direct evidence yet for phase 2's tile tokens, with a convolution within each suit. When phase 2 is built, the waits AUC is the first number it must move.
-- **The auxiliary weight trades the table's reading against the policy.**
-  - At weight 1 the heads read best (AUC 0.886). But the arm gave up 0.6 percentage points of hands won (24.05% against 24.63%), which the Lucky Cat lineage's bar refuses.
-  - At 0.2 the win rate held exactly (24.71% against 24.68%), deal-ins fell (12.73% against 13.01%), and points rose **+7.6 ± 5.0 a hand** over lc32 on the 10,000-deal screen.
-  - Weight is a dial per lineage, not one number: Lucky Cat runs low, Sphinx (no win-rate rule) high.
-- **The policy moves very little in a round** (KL 0.004 to 0.01 from lc32 at lr 3e-4, 4 epochs). That keeps lc32's strengths, but it caps the gain a round can show. If the screens stay near one standard error, the next arms train longer and at a higher rate.
-- **Data is cheaper than budgeted.** 20,000 deals with the hidden tiles recorded took 5.5 minutes on 7 workers, against the 3.6 deals a second a worker measured earlier. That's about 8.7 deals a second a worker, so phase 3's volumes cost less than §6 assumed.
-
-This section is updated as rounds finish. The full record of every round is `ml/frontier/<lineage>/frontier.log`. Kept generations go in `bench/lineages.json` and their Table Scores in `bench/scores.json`.
+This table is updated as phases move. The full record of every round is `ml/frontier/<lineage>/frontier.log`. Kept generations go in `bench/lineages.json` and their Table Scores in `bench/scores.json`.
 
 ## 1. What Suphx is, and what Hong Kong mahjong changes
 
@@ -293,3 +284,80 @@ Both play the same benchmark deck, so their Table Scores compare directly. Each 
 ## 10. What this plan would make Lucky Cat
 
 Two networks that decide every move themselves, one that carries its own history on and one that starts from nothing, both of which read the table the way a strong player does because it was graded on reading it, that values hands by their whole distribution of outcomes in a scoring system where one hand can be worth a thousand, and that fold exactly when the risk says so. Lucky Cat should win as often as lc32 and lose far fewer points doing it; Sphinx should show what the architecture is worth on its own. Whether either becomes the strongest Hong Kong mahjong player anywhere is not something a plan can promise; the Table Score on the benchmark deck is what would show it, and the bar of two standard errors, twice, is what makes each generation a step that holds.
+
+## 11. Learnings
+
+What building and training each phase has taught, written up when each phase (or a major step in one) finishes. It's the record a review of the framework starts from. Each entry has three parts:
+- **what we saw**;
+- **the evidence** (numbers, sizes, where they came from);
+- **what it changed**, or the question it leaves open.
+
+Negative results are kept as carefully as positive ones.
+
+### Phase 0: the Suphx teacher (2026-11-08)
+
+- **A critic that sees every hidden tile doesn't explain a hand's points.**
+  - *Evidence:* on 108,559 choices, the critic with the hidden tiles explained −1.2% of the variance of the hand's points, against −1.4% without them. It got worse with more epochs.
+  - *Changed:* we dropped Suphx's oracle critic. The hidden tiles pay off **per move** (what this discard pays right now), not per hand. Hong Kong's exponential payouts (8 × 2^(faan − 3)) make a hand's points a heavy-tailed target that no critic regresses well.
+- **A per-move teacher works where the critic didn't.**
+  - *Evidence:* distilling a teacher that pushes down each discard by what it would pay now cut the points the policy's shares would pay from 3.38 to 2.91 a choice, at a KL of 0.0004. At the table: +14.8 ± 6.7 points a hand over lc32 on 2,000 deals, wins level (24.89% vs 24.96%), deal-ins 13.04% vs 13.38%.
+  - *Changed:* the teacher is the base every phase-1 arm trains with.
+- **Only 4.2% of choices hold a discard that deals in now.**
+  - *Evidence:* the oracle's danger row, across the probe data.
+  - *Open:* most deal-ins are set up two or three discards earlier, and the teacher says nothing there. Phase 3's value heads are meant to reach those choices.
+
+### The benchmark (2026-11-08)
+
+- **"No regression" can't mean "doesn't lose head to head."**
+  - *Evidence:* lc32 itself loses to Jorge Yau at a table, and so does any early Sphinx, so the first draft of `judge` could never pass anything.
+  - *Changed:* the stage now seats the candidate and the current generation each at a table of three of every rival, and compares them on the same deals. It catches a model that beats the champion by learning one opponent's tells.
+- **Seed ranges collide unless someone checks.**
+  - *Evidence:* the plan's deck (seeds from 90,000,000) is where the Only Orphans lab ranks its models.
+  - *Changed:* the deck moved to 900,000,000, and fresh deals start at 910,000,000. No training uses nine-digit seeds. A test keeps the deck and the fresh blocks apart.
+- **Freezing opponents by commit, not by copy, is enough, but CI needs the full history.**
+  - *Evidence:* the 8 pinned files come from `git show dd881a5:…`. A depth-1 checkout can't read them.
+  - *Changed:* CI fetches the whole history.
+  - *Open:* there's no fallback (such as Hugging Face) if the history is ever rewritten.
+- **A fingerprint catches what hashes can't.**
+  - *Evidence:* the hashes pin the frozen files, but the candidate plays on today's engine. The 24-deal fingerprint replays the frozen players on today's engine and must match.
+  - *Changed:* every command refuses to score on a drifted table, so a rules change forces a new benchmark version rather than silently moving every score.
+- **The win-rate rule does what it is for.**
+  - *Evidence:* in a dry run, Neural Cat beat lc32 by 2.2 standard errors on points but won fewer hands (−7.75 ± 1.85 percentage points), and failed the Lucky Cat lineage's qualify stage. In the Sphinx lineage, which has no win-rate rule, it passed every stage.
+- **Real judgments are expensive.**
+  - *Evidence:* about a million hands, some six hours on seven workers. A full Table Score is about an hour.
+  - *Changed:* sequential stopping in qualify and replicate (blocks of 10,000, stop at ≥ 4 or ≤ 0 standard errors).
+  - *Open:* how often stopping early changes a verdict, measured on real judgments.
+
+### Phase 1: features v2 and the hidden tiles as targets (in progress)
+
+Lucky Cat round 1: 20,000 deals of lc32 widened to features v2, at the game's table, 221,717 choices.
+
+- **The table can be read from public information.**
+  - *Evidence:* the auxiliary heads predict which held tile would deal in now at a held-out AUC of 0.87–0.89, and whether each opponent is ready at 0.85–0.88. The phase-1 bar is 0.75. A 3,000-deal probe (33,295 choices) gave 0.78, so they improve with data.
+  - *Changed:* nothing yet. The next question is whether reading better shows at the table.
+- **Which tiles an opponent waits on isn't learned.**
+  - *Evidence:* the waits AUC (when the opponent is ready) is 0.50–0.53 at every weight and data size so far.
+  - *Changed:* this is the most direct evidence for phase 2. A wait is a shape within one suit, which a flat MLP over 34-tile vectors must learn tile by tile. Phase 2's bar now includes a waits AUC of at least 0.70.
+- **The auxiliary weight trades reading the table against the policy.**
+  - *Evidence (round 1 screens, 10,000 deals each against lc32):*
+    - Weight 1 read best (deal-in AUC 0.886) but gave up 0.6 percentage points of hands won (24.05% vs 24.63%), at −1.3 ± 5.9 points.
+    - Weight 0.2 held the win rate (24.71% vs 24.68%), lowered deal-ins (12.73% vs 13.01%), and scored **+7.6 ± 5.0**.
+  - *Changed:* the weight is a dial per lineage: low for Lucky Cat, which must keep its win rate, and high for Sphinx.
+  - *Open:* a schedule, high early and low late, might get both.
+- **On the small probe, the weight pulled the policy far from lc32 (KL 0.057 at weight 1). On ten times the data it barely did (KL 0.010).**
+  - *Evidence:* the probe against round 1.
+  - *Changed:* probe results on 3,000 deals aren't a guide to a full round's dynamics. Arms are now chosen on round data.
+- **The policy moves very little in a round.**
+  - *Evidence:* KL 0.004–0.01 from lc32 at lr 3e-4, 4 epochs.
+  - *Open:* this keeps lc32's strengths but caps what a round can show. If the screens stay near one standard error, the next arms train longer or at a higher rate.
+- **The screen is noisy at ±5 points: two nearly identical models differed by 10.**
+  - *Evidence:* LV1a and LV1c had the same weight, KL 0.004 from lc32 each, and the same AUCs (0.874 and 0.873). Only the teacher's tau differed. They screened at +7.6 and −2.7.
+  - *Changed:* a single screen is a coin with a ±5-point edge, which is why the bar qualifies and replicates on 40,000 deals each.
+  - *Open:* whether to screen two seeds of each arm before spending a judgment.
+- **Data is cheaper than budgeted.**
+  - *Evidence:* 20,000 deals with the hidden tiles recorded took 5.5 minutes on 7 workers, about 8.7 deals a second a worker, against 3.6 in the first probe.
+  - *Changed:* phase 3's volumes cost less than §6 assumed.
+- **A random Sphinx wins 0.25–0.4% of its seats in self-play.**
+  - *Evidence:* 53 wins in 4,000 deals, and 20 in 2,000.
+  - *Changed:* `--sample-won` keeps every move of a won hand, so the few wins aren't sampled away.
+  - *Open:* on the tiny smoke data (4,722 rows), Sphinx's AUCs came out below 0.5. To be checked on the first full round: if they stay below 0.5, it's a bug.
