@@ -2624,6 +2624,7 @@
     createStrategy: createStrategy,
     basePlans: basePlans,
     makeSpecialPlan: makeSpecialPlan,
+    groupShanten: groupShanten,
     baseFaan: baseFaan,
     handYaku: handYaku,
     restrict: restrict,

@@ -134,6 +134,31 @@ describe('jorge-yau opening targets', () => {
     assert.deepEqual([t.id, t.suit], ['half', 'c']);
   });
 
+  it('tries the targets in order, with Big Three Dragons after Four Winds and All Triplets after Half Flush', () => {
+    assert.deepEqual(L.TARGETS.map((x) => x.id), ['orphans', 'gates', 'winds', 'dragons', 'terminals', 'honors', 'pairs', 'full', 'triplets', 'half', 'all-triplets', 'sequences', 'standard']);
+  });
+
+  it('goes for Big Three Dragons with a pair of every dragon, and not once a dragon is gone', () => {
+    const hand = ['dr', 'dr', 'dg', 'dg', 'dw', 'dw', 'c2', 'c3', 'c5', 'd3', 'd4', 'b7', 'b8'];
+    assert.equal(targetOf(hand).id, 'dragons');
+    assert.notEqual(targetOf(hand, { seats: [null, { hand }, { discards: ['dw', 'dw'] }] }).id, 'dragons');
+  });
+
+  it('pivots to the smaller hand late in the wall (20 tiles or fewer)', () => {
+    const lead = (hand, wallLeft) => L.analyzeDiscards(table({ seats: [{ hand }], wallLeft }), 0).ctx.leadPlan.id;
+    // Big Three Dragons to Small Three Dragons.
+    const dragons = ['dr', 'dr', 'dg', 'dg', 'dw', 'dw', 'c2', 'c3', 'c5', 'd3', 'd4', 'b7', 'b8', 'c9'];
+    assert.equal(lead(dragons, 70), 'big-dragons');
+    assert.equal(lead(dragons, 20), 'small-dragons');
+    // Concealed Triplets to Seven Pairs.
+    const sets = ['c2', 'c2', 'c2', 'd5', 'd5', 'b8', 'b8', 'c9', 'd1', 'b3', 'we', 'ws', 'dr', 'b1'];
+    assert.equal(lead(sets, 70), 'concealed-triplets');
+    assert.equal(lead(sets, 15), 'pairs');
+    // A target closer to ready than any smaller hand stays.
+    const pairs = ['c2', 'c2', 'd5', 'd5', 'b8', 'b8', 'c7', 'c7', 'd1', 'b3', 'we', 'ws', 'dr', 'b1'];
+    assert.equal(lead(pairs, 15), 'pairs');
+  });
+
   it('goes for All Triplets after Half Flush: three pairs and no set, when pairs are as quick as runs', () => {
     assert.equal(targetOf(['c2', 'c2', 'd5', 'd5', 'b8', 'b8', 'c9', 'd1', 'b3', 'we', 'ws', 'dr', 'dg']).id, 'all-triplets');
     // Half Flush comes first.
