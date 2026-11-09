@@ -19,7 +19,7 @@
     '/events/': '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
     '/hong-kong-mahjong-scoring/': '<rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8.5 7.5h7"/><path d="M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01"/>',
     '/which-mahjong-tiles-are-you/': '<path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"/><path d="M19 15v4M17 17h4"/>',
-    '/play-mahjong/': '<rect x="5" y="2.5" width="14" height="19" rx="2.6"/><circle cx="9.3" cy="7.3" r="1.25" fill="currentColor" stroke="none"/><circle cx="14.7" cy="7.3" r="1.25" fill="currentColor" stroke="none"/><circle cx="12" cy="11.5" r="1.25" fill="currentColor" stroke="none"/><circle cx="9.3" cy="15.7" r="1.25" fill="currentColor" stroke="none"/><circle cx="14.7" cy="15.7" r="1.25" fill="currentColor" stroke="none"/>',
+    '/play-mahjong/': '<rect x="3.5" y="3.5" width="17" height="17" rx="3.2"/><path d="M3.8 16.5h16.4"/><circle cx="12" cy="10" r="3.6"/><circle cx="12" cy="10" r="1" fill="currentColor" stroke="none"/>',
   };
 
   function navIcon(href) {
