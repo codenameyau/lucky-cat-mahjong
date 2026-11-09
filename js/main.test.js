@@ -105,7 +105,7 @@ describe('Homepage CMS rendering', function () {
 
       assert.equal(ctx.document.title, 'Test Mahjong Club | Mahjong in Test City');
       assert.equal(ctx.document.querySelector('meta[name="description"]').content, SAMPLE_SITE.description);
-      assert.equal(ctx.document.querySelector('.hero-headline').textContent, SAMPLE_SITE.tagline);
+      assert.equal(ctx.document.querySelector('.hero-headline').textContent, SAMPLE_SITE.hero.headline);
       assert.equal(ctx.document.querySelector('.hero-subheadline').textContent, SAMPLE_SITE.hero.subheadline);
       assert.equal(ctx.document.querySelector('#about .section-heading').textContent, SAMPLE_SITE.about.heading);
       assert.equal(ctx.document.querySelector('.about-body').innerHTML, 'First paragraph.<br><br>Second paragraph.');

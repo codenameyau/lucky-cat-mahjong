@@ -86,7 +86,8 @@ function applySite(site) {
   }
   document.querySelector('meta[name="description"]').content = site.description;
 
-  document.querySelector('.hero-headline').textContent = site.tagline;
+  // The hero's own headline (hero.headline in site.json), not the site tagline the page title and footer use.
+  document.querySelector('.hero-headline').textContent = (site.hero && site.hero.headline) || site.tagline;
   const subheadline = document.querySelector('.hero-subheadline');
   const subheadlineText = site.hero.subheadline || '';
   if (subheadlineText.includes('\n')) {
