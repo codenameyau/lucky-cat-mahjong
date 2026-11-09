@@ -25,7 +25,7 @@ The learned bot, Neural Cat, is on Hugging Face:
 - [Personality quiz](#which-mahjong-tile-are-you-quiz-which-mahjong-tiles-are-you)
 - [Play Mahjong](#play-hong-kong-mahjong-play-mahjong)
   - Playing: [Game modes](#game-modes) · [Rules and scoring](#rules-and-scoring) · [Saving and resuming](#saving-and-resuming) · [Hand seeds](#hand-seeds) · [Playback](#playback) · [Auto-play](#auto-play-development-only)
-  - Bots and coach: [Strategies](#strategies) · [Bots](#bots) · [Coach](#coach) · [Bot competition](#bot-competition) · [Training the models](#training-the-models) · [The frontier plan](#the-frontier-plan) · [Hand review and feedback](#hand-review-and-feedback)
+  - Bots and coach: [Strategies](#strategies) · [Bots](#bots) · [Coach](#coach) · [Bot competition](#bot-competition) · [Training the models](#training-the-models) · [The frontier plan](#the-frontier-plan)
   - Table: [Table and layouts](#table-and-layouts) · [Sound and music](#sound-and-music)
   - For developers: [Machine learning](docs/machine-learning/README.md) · [Analytics](docs/analytics/README.md) · [Testing tip](#testing-tip)
 - [Other pages](#other)
@@ -225,7 +225,7 @@ Every bot plays a named strategy. The rule-based ones are built on the shared fo
 | **only-orphans** | `js/mahjong-only-orphans.js` | Big hands built on 1s, 9s and honors (Thirteen Orphans, their triplets or pairs, Concealed Triplets, Seven Pairs), the target picked by expected points; a model trained by self-play decides how (`npm run ml:orphans`) | [only-orphans.md](docs/strategies/only-orphans.md) |
 | **neural-cat** | `js/mahjong-ml.js` | Plays Jorge Yau's hands, and a neural network trained on simulated games picks the discard, claim or kong worth the most points on average | [neural-cat.md](docs/strategies/neural-cat.md) |
 
-Lucky Cat's original rules are still in the code as **lucky-cat-classic** (`js/mahjong-lucky-cat.js`): tracks every discard and plays the odds to the fastest 3-faan win. It's a lab strategy, not on the Strategies sheet, but `npm run compete` and `npm run review` can play it.
+Lucky Cat's original rules are still in the code as **lucky-cat-classic** (`js/mahjong-lucky-cat.js`): tracks every discard and plays the odds to the fastest 3-faan win. It's a lab strategy, not on the Strategies sheet, but `npm run compete` can play it.
 
 - The **Strategies** button in the top bar (`js/mahjong-strategies.js`) describes each one and shows who plays which
 - The coach's pick is saved in `localStorage` (`lcm-play-strategies`), and the coach defaults to lucky-cat. The computer players are never saved: each plays a random strategy every game
@@ -422,10 +422,6 @@ Uploads go over git and SSH, so your SSH key must be on your Hugging Face accoun
 - **History and decisions:** every choice so far, with why and the evidence, is in [frontier history](docs/machine-learning/frontier-history.md).
 - **Fair play**: training may use the hidden tiles as labels and as a teacher, never as the shipped model's inputs. `ship.js` refuses a model that reads them, and the fair-play test catches one that plays through the training hook ([fair play](docs/machine-learning/fair-play.md)).
 
-#### Hand review and feedback
-
-`npm run review -- 3764864992-EE` replays a hand from its seed and shows the coach's advice each turn. Add `--turn N` for its reasoning and `--keep` or `--drop` to save feedback on a turn. Saved cases live in `docs/strategies/feedback.json`, and `npm test` holds the coach to the ones marked fixed. More in [docs/strategies/README.md](docs/strategies/README.md#reviewing-a-hand-and-teaching-the-coach).
-
 #### Testing tip
 
 Animations are always on for players. Add `?instant=1` to the page URL to skip them for that visit, which makes testing much faster. Add `sound=0` to turn sound and music off for that visit, or `sound=1` to turn them on. With no `sound` parameter, the Sound button's saved choice is used. Always set `sound=0` while testing programmatically, so the run stays quiet.
@@ -468,8 +464,7 @@ This runs `node --test` over the test files listed in `package.json`:
 - **Scoring calculator** — `js/points.js`
 - **Play game** — the engine, bots, strategies, coach and rule sheet. These check that `scoreHand` matches the calculator, cover legal claims, payouts and dealer rotation and play full bot hands to check that every tile is accounted for
 - **Site** — the homepage renderer, community page, tile quiz and generated tile pages
-- **Scripts** — the media formatter and hand review
-- **Coach feedback** — every case in `docs/strategies/feedback.json` marked fixed
+- **Scripts** — the media formatter
 - **Native simulator** — once it's built (`npm run native:build`): the exact build plays the same hands as the JS action for action, the fast build plays the exact build's hands, and weights round-trip through `.lcmw` (skipped when it isn't built, as on CI)
 
 Harnesses in `js/points.harness.js` and `js/main.harness.js` load each script in a mocked browser environment, so scoring logic and CMS rendering can be tested without opening the page.
@@ -580,8 +575,6 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── tile-pages-lib.js                # Shared tile-page logic (tested)
 │   ├── competition.js                   # CLI: npm run compete
 │   ├── ml/                              # Neural Cat: data, self-play, the league, Hugging Face uploads
-│   ├── review.js                        # CLI: npm run review, replay a seed and give feedback
-│   ├── review-lib.js                    # Shared review logic (tested)
 │   ├── generate-guide.js                # Printable rules booklet PDF
 │   └── licensing-agreement.js           # Licensing agreement PDF
 ├── ml/                                  # train.py and requirements.txt (local data, models and the venv are gitignored)
@@ -592,7 +585,7 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── analytics/                       # Google Analytics setup, privacy and every event
 │   ├── offline/                         # The service worker and what works offline
 │   ├── machine-learning/                # Neural Cat and the frontier plan: features, model, training, fair play, the benchmark, the native simulator, history
-│   └── strategies/                      # Bot and coach playbooks, and feedback.json
+│   └── strategies/                      # Bot and coach playbooks
 ├── assets/                              # Music, sounds, PDFs and images
 ├── package.json                         # npm scripts
 ├── tiles/                               # Hong Kong mahjong tile SVGs (CC0, see credit below)

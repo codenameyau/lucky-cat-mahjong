@@ -106,36 +106,6 @@ npm run ml:train -- --data ml/data/r0 --name r0 --ship
 
 Every seat's discards are recorded, whatever strategy it plays, with how the hand ended for that seat. Data goes to `ml/data/` (not committed).
 
-## Reviewing a hand, and teaching the coach
-
-`npm run review` replays a hand from its seed in under a second and shows what the coach said on each of your turns. Tap your wind badge in the game to copy the hand seed this command takes (its `handSeed`, such as `919942249-NE`).
-
-| Command | |
-| --- | --- |
-| `npm run review -- 3764864992-EE` | Every turn, following the coach |
-| `npm run review -- 3764864992-EE --moves d1,c1,pung` | Your moves first, then the coach. Tiles are discards, and a claim is passed unless the next move names it (`pung`, `chow`, `kong`, `win`) |
-| `npm run review -- 3764864992-EE --moves d1,c1 --turn 3` | That turn's reasoning: every tile's discard group, steps from ready, copies left, score and plan |
-| `npm run review -- --save game.json` | The exact hand from a save file, with its moves and the other seats' strategies |
-| `npm run review -- 3764864992-EE --find dr --left 3` | Plays the hand many ways to find turns where the coach throws that tile, with the `--moves` to get there |
-
-The seed alone doesn't say what the other seats play, and their claims change who draws what. Use `--lineup a,b,c`, or a save file for an exact hand.
-
-**Giving feedback.** Add `--keep` (tiles it shouldn't throw) or `--drop` (tiles it should have), with a reason:
-
-```bash
-npm run review -- 3764864992-EE --moves d1,c1 --turn 3 --keep dr --drop c4 --note "Keep a dragon nobody has shown"
-```
-
-That saves the turn to [feedback.json](feedback.json) as an `open` case. A case holds only what that seat could see, so it still reads the same after a change to how the other seats play.
-
-**Learning from it.** The coach and bots don't change themselves. `npm run review -- --check` lists every case and why the coach chose as it did, which is the to-do list for improving the rules in `js/mahjong-bot.js` or a strategy:
-
-- `open`: the coach still chooses otherwise. Tests don't fail on these.
-- `NOW PASSES`: a change fixed it. `npm run review -- --check --update` marks it `fixed`.
-- `fixed`: `npm test` fails if the coach goes back to its old choice, so what it learned stays learned.
-
-A rule that fixes one case can hurt elsewhere, so measure a bigger change with the competition below.
-
 ## Competition
 
 ```bash
