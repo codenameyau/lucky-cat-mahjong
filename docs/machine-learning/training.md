@@ -2,6 +2,22 @@
 
 Training has three parts. Node.js simulates hands and records positions with how each hand ended. PyTorch fits the network to them. Competitions decide whether a new model is better. Each step has its own command.
 
+## Contents
+
+- [Setup](#setup)
+  - [Windows with an NVIDIA GPU](#windows-with-an-nvidia-gpu)
+- [How the models were trained](#how-the-models-were-trained)
+- [1. Generate data: `npm run ml:generate`](#1-generate-data-npm-run-mlgenerate)
+  - [Data format](#data-format)
+- [2. Train: `npm run ml:train`](#2-train-npm-run-mltrain)
+- [3. Self-play against the rule bots: `npm run ml:loop`](#3-self-play-against-the-rule-bots-npm-run-mlloop)
+- [4. The lab: `npm run ml:lab`](#4-the-lab-npm-run-mllab)
+  - [The lab for Only Orphans and Lucky Cat: `--strategy`](#the-lab-for-only-orphans-and-lucky-cat---strategy)
+- [The league (before the lab): `npm run ml:league`](#the-league-before-the-lab-npm-run-mlleague)
+- [Only Orphans: `npm run ml:orphans`](#only-orphans-npm-run-mlorphans)
+- [5. Compete: `npm run compete`](#5-compete-npm-run-compete)
+- [Reading the results](#reading-the-results)
+
 ## Setup
 
 ```bash

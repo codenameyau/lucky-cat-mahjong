@@ -60,7 +60,7 @@ Before the targets, the model also decided when to give up on Thirteen Orphans: 
 
 ## How it is trained
 
-`npm run ml:orphans` (`scripts/ml/orphans.js`) trains it like the Neural Cat [league](../machine-learning/training.md#4-the-league-npm-run-mlleague), in rounds of 50,000 games:
+`npm run ml:orphans` (`scripts/ml/orphans.js`) trains it like the Neural Cat [league](../machine-learning/training.md#the-league-before-the-lab-npm-run-mlleague), in rounds of 50,000 games:
 
 1. **Bootstrap (round 1).** The rule-based bot plays about half the seats, exploring, against Neural Cat, Jorge Yau and Lucky Cat. Its positions are read through the learned strategy's foundation and labelled with how each hand ended. O1 is trained on them from scratch.
 2. **Play.** From round 2, the best model so far plays about half the seats, exploring (`--temperature 150`, `--epsilon 0.05`), against Neural Cat, Jorge Yau, Lucky Cat and up to two earlier models. Only its own seats are recorded, about 25% of their decisions.

@@ -167,6 +167,10 @@ Four rounds at the table (LT1a to LT4c) kept nothing: crediting every move with 
 
 Three rounds of that (LR1a to LR3c) kept nothing that held. On the same wall a move is judged by tiles the player can't see yet. So at each replayed choice the lab now reshuffles the wall still to be drawn 4 ways and plays every move on the same 4 futures, learning from the mean (LF models; [the critique](../machine-learning/iterations.md#critique-on-one-wall-a-move-is-judged-by-a-future-no-player-can-see)).
 
+### The frontier: generation 1 and Sphinx
+
+Beyond the lab, Lucky Cat now has a second program of work, the frontier: features v2, auxiliary heads that learn the hidden tiles as targets, a frozen benchmark that a new generation must beat by two standard errors twice, and a native C++ simulator that plays a round's data in 13 seconds instead of 330. Three rounds and nine arms, then three policy-gradient probes, found nothing that passed the bar, so Lucky Cat is still **lc32** (the frontier's `lc32v2` is lc32 widened to the new features). [What was built, the numbers and why](../machine-learning/iterations.md#the-frontier-lucky-cat-generation-1-and-sphinx).
+
 ### Suphx: an oracle teacher
 
 The lab now also trains Lucky Cat the way Suphx, Microsoft's mahjong AI, was trained: with the hidden tiles in view during training only. At every recorded choice the data knows what each discard would pay if it dealt in right now. A teacher takes lc32's shares and pushes those discards down by what they'd cost. The network, reading only its own seat, is fitted to that teacher, so it learns how dangerous each tile looks from what it can see. The aim is to keep its win rate and lose fewer points to deal-ins. A model ships only if its points beat lc32's at the game's table and its hands won hold. The thinking, the probes and the arms are in [iterations](../machine-learning/iterations.md#suphx-for-lucky-cat-an-oracle-teacher-not-an-oracle-critic); `npm run ml:lab -- --strategy lucky-cat-suphx` runs it.

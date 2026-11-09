@@ -11,6 +11,12 @@ The trained models are public on Hugging Face, so anyone can read the model card
 
 The model repo is shared with any other learned strategy: each has its own folder and its own section of the README, between markers like `<!-- neural-cat:start -->` and `<!-- neural-cat:end -->`. The uploader rewrites only its own section.
 
+## Contents
+
+- [Uploading](#uploading)
+- [What is kept](#what-is-kept)
+- [Using a model from Hugging Face](#using-a-model-from-hugging-face)
+
 ## Uploading
 
 Both uploaders push over git and SSH, with no access token:

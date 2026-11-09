@@ -2,6 +2,15 @@
 
 Neural Cat is a strategy like any other: an object made with `MahjongBot.createStrategy`, with the same `analyzeDiscards`, `chooseTurnAction`, `chooseClaim` and `createBotAgent` as Jorge Yau or Lucky Cat. The learned part sits on top of the shared foundation and changes only the final choice.
 
+## Contents
+
+- [The layers](#the-layers)
+- [A discard, step by step](#a-discard-step-by-step)
+- [A claim, step by step](#a-claim-step-by-step)
+- [Hooks into the foundation](#hooks-into-the-foundation)
+- [Building another learned strategy](#building-another-learned-strategy)
+- [Performance](#performance)
+
 ## The layers
 
 ```

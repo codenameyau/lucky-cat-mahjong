@@ -2,6 +2,16 @@
 
 A model that could see the wall or another player's hand would play brilliantly and teach nothing. The rule is the same for every strategy, learned or not: **a seat decides only on what that seat could see at a real table.**
 
+## Contents
+
+- [What a seat can see](#what-a-seat-can-see)
+- [How the code keeps to it](#how-the-code-keeps-to-it)
+- [The test](#the-test)
+  - [Checking the checker](#checking-the-checker)
+  - [What it found](#what-it-found)
+- [Training with the hidden tiles (Suphx), and why the game never sees them](#training-with-the-hidden-tiles-suphx-and-why-the-game-never-sees-them)
+- [Adding a strategy or a feature](#adding-a-strategy-or-a-feature)
+
 ## What a seat can see
 
 | Visible | Hidden |
@@ -23,6 +33,8 @@ The game object holds all of it, so the rule is kept by how the code reads it, a
 - **Labels** in training data are how each hand really ended. That's the only thing from the future a model learns from, and only in training: at the table it sees the present, like a player.
 
 ## The test
+
+**In this section:** [Checking the checker](#checking-the-checker) · [What it found](#what-it-found)
 
 `js/mahjong-fair-play.test.js` runs with `npm test`. At real positions from whole hands, it makes every decision twice:
 

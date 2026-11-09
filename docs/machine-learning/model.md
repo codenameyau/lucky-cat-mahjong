@@ -2,6 +2,14 @@
 
 `js/mahjong-ml-model.js` runs the network in plain JavaScript. `ml/train.py` trains the same network in PyTorch, and a parity check makes sure both give the same outputs.
 
+## Contents
+
+- [The network](#the-network)
+- [Expected points](#expected-points)
+- [The weights file](#the-weights-file)
+- [The API](#the-api)
+- [Parity with PyTorch](#parity-with-pytorch)
+
 ## The network
 
 ```
