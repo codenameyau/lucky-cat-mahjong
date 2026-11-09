@@ -608,3 +608,19 @@ The maintainer's call, after rounds 4–6: "Train Sphinx to be more aggressive t
     - c: progress 100, imitate 0.3.
   - sp0 stays its starting champion, and rounds 5–6's data (sp0's own play) are kept.
 - **What to watch:** Sphinx's bar has no win-rate rule, so each round's screens report hands won, deal-ins and the average win per arm. Hands won should rise first. If they do while points still fall, it's aggressive but not yet good. If they don't rise, the recipe isn't more aggressive.
+- **Rounds 7–9: more aggressive, as asked, but still behind random play. Imitating wins is what makes it reckless.**
+  - *Evidence (screens against sp0, 40,000 fresh deals; sp0 wins about 0.31% of its seats, deals in about 10.4%, and averages 530–720 points a win):*
+
+    | Arm | Points a hand | Hands won | Deal-ins | Average win |
+    | --- | --- | --- | --- | --- |
+    | a: progress 150, imitate 0.2 by points | −40.1, −39.4, −36.8 | 1.38%, 0.85%, 0.68% | 15.0%, 14.1%, 14.5% | 51, 91, 87 |
+    | b: progress 200, no imitation | **−17.5, −27.7, −26.2** | 1.44%, **1.98%**, 1.77% | **10.7%**, 13.3%, 11.8% | 155, 149, 99 |
+    | c: progress 100, imitate 0.3 by points | −43.2, −41.2, −35.2 | 1.36%, 0.92%, 0.73% | 14.5%, 14.6%, 13.8% | 55, 94, 171 |
+
+  - Every arm won 2–6 times as often as random play, so the recipe is more aggressive.
+  - **Imitating wins, even by their points, sends it racing:** arms a and c dealt in about 4 points more than sp0 and won tiny hands. Their hands won also fell round by round as the imitation compounded.
+  - **Offence alone (b) was best every round.** Without fold and at danger-tau 300 its deal-ins climbed (10.7% → 13.3%), and its wins shrank toward the 3-faan minimum (3.49 faan in round 9).
+  - *Changed (from round 10):* every arm is offence alone (no imitation, no fold), with a moderate deal-in teacher:
+    - a: danger-tau 150, progress 200.
+    - b: danger-tau 200, progress 200.
+    - c: danger-tau 200, progress 100 (less rush to ready, for bigger hands).

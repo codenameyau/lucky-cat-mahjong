@@ -143,12 +143,18 @@ const LINEAGES = {
     // deal-in still costs, a merely risky discard much less); --progress pushes
     // every discard toward ready; and wins are imitated by their points, so a
     // big win teaches more than a cheap one.
-    // a: progress 150 + imitate 0.2 by points. b: progress 200, no imitation
-    // (offence alone). c: progress 100 + imitate 0.3 by points.
+    // Rounds 7-9 (aggressive): every arm won 2-6x as often as random play.
+    // Imitating wins, even by points (a, c), dealt in about 4 points more and
+    // won tiny hands (-35 to -43 points a hand). Offence alone (b) was best
+    // (-17.5, -27.7, -26.2), but its deal-ins rose to 13.3% at danger-tau 300.
+    // From round 10: offence alone, no fold, no imitation, with the deal-in
+    // teacher between the old 100 and 300.
+    // a: danger-tau 150, progress 200. b: danger-tau 200, progress 200.
+    // c: danger-tau 200, progress 100 (less rush to ready, for bigger hands).
     arms: [
-      { key: 'a', why: 'offence: progress 150, no fold, danger-tau 300, imitate wins 0.2 by points, aux 1', args: ['--lr', '1e-3', '--epochs', '6', '--aux', '1', '--progress', '150', '--danger-tau', '300', '--imitate-wins', '0.2', '--imitate-points'] },
-      { key: 'b', why: 'offence: progress 200, no fold, danger-tau 300, no imitation, aux 1', args: ['--lr', '1e-3', '--epochs', '6', '--aux', '1', '--progress', '200', '--danger-tau', '300'] },
-      { key: 'c', why: 'offence: progress 100, no fold, danger-tau 300, imitate wins 0.3 by points, aux 1', args: ['--lr', '1e-3', '--epochs', '6', '--aux', '1', '--progress', '100', '--danger-tau', '300', '--imitate-wins', '0.3', '--imitate-points'] },
+      { key: 'a', why: 'offence: progress 200, no fold, danger-tau 150, no imitation, aux 1', args: ['--lr', '1e-3', '--epochs', '6', '--aux', '1', '--progress', '200', '--danger-tau', '150'] },
+      { key: 'b', why: 'offence: progress 200, no fold, danger-tau 200, no imitation, aux 1', args: ['--lr', '1e-3', '--epochs', '6', '--aux', '1', '--progress', '200', '--danger-tau', '200'] },
+      { key: 'c', why: 'offence: progress 100, no fold, danger-tau 200, no imitation, aux 1', args: ['--lr', '1e-3', '--epochs', '6', '--aux', '1', '--progress', '100', '--danger-tau', '200'] },
     ].map((x) => Object.assign(x, { args: ['--mode', 'oracle'].concat(x.args) })),
   },
 };
