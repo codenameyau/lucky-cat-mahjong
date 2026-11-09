@@ -61,6 +61,9 @@
     "sigma": 2,
     "winSigma": 1,
     "regression": 10000,
-    "regressionSigma": 1
+    "regressionSigma": 1,
+    "block": 10000,
+    "earlyPass": 4,
+    "earlyFail": 0
   }
 }

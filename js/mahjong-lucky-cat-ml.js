@@ -53,7 +53,10 @@
     options = options || {};
     // Built on first use: on the Play page the weights load after this
     // script, when a game starts (js/mahjong-game.js loadAssets).
-    var chosen = options.model || (options.weights ? N.createModel(options.weights) : null);
+    // options.net: another encoder over the same network, such as features v2
+    // (js/mahjong-frontier-net.js): { encode, createModel }. Lucky Cat's own by default.
+    var net = options.net || N;
+    var chosen = options.model || (options.weights ? net.createModel(options.weights) : null);
     function getModel() { return chosen || (chosen = trainedModel() || N.createModel(N.zeroWeights())); }
     var temperature = options.temperature || 0;
     var rng = options.rng || Math.random;
@@ -99,7 +102,7 @@
 
     function turnRead(game, seat, opts) {
       var moves = N.turnMoves(game.hand.seats[seat].hand, opts.kongs);
-      var k = decide(game, seat, N.encode(game, seat), moves);
+      var k = decide(game, seat, net.encode(game, seat), moves);
       return { moves: moves, k: k };
     }
 
@@ -127,7 +130,7 @@
 
     function claimRead(game, seat, opts) {
       var moves = N.claimMoves(opts);
-      var k = decide(game, seat, N.encode(game, seat, null, opts), moves);
+      var k = decide(game, seat, net.encode(game, seat, null, opts), moves);
       return { moves: moves, k: k };
     }
 
@@ -161,7 +164,7 @@
       var res = L.analyzeDiscards(game, seat, ctx, hand);
       var held = hand || game.hand.seats[seat].hand;
       var moves = N.turnMoves(held, []);
-      getModel().policy(N.encode(game, seat, { hand: held, melds: ctx ? ctx.melds : null }), moves);
+      getModel().policy(net.encode(game, seat, { hand: held, melds: ctx ? ctx.melds : null }), moves);
       var byIndex = {};
       moves.forEach(function (m) { byIndex[m.action] = m; });
       res.candidates.forEach(function (x, k) {

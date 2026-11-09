@@ -26,7 +26,12 @@
    judge    the five stages of the bar (bench/benchmark.json "bar") against
             the lineage's current generation (bench/lineages.json, or --vs):
             fair play, screen, qualify, replicate, no regression. It stops
-            at the first stage that fails. A pass is then scored on the deck;
+            at the first stage that fails. Qualify and replicate play in
+            blocks and stop early when the gap is clearly decided (bar
+            block, earlyPass, earlyFail). No regression seats the candidate
+            and the current generation each at a table of three of every
+            rival (earlier generations, league opponents): against none may
+            the candidate do worse by more than 1 standard error. A pass is then scored on the deck;
             --promote NAME records it as the lineage's next generation and
             its Table Score. Every judgment is written to ml/bench/judged/.
             --dry-run plays every stage at 1/200 of its deals, to check the
@@ -125,7 +130,9 @@ function bot(id, bm) {
     const mod = require(path.join(frozenDir(bm, false), what.module));
     b = what.create ? mod.create(what.create) : mod;
   } else if (id.startsWith('lc:')) {
-    b = require('../../js/mahjong-lucky-cat-ml.js').create({ weights: readWeights(id.slice(3)), fast: true });
+    const w = readWeights(id.slice(3));
+    const F2 = require('../../js/mahjong-frontier-net.js');
+    b = require('../../js/mahjong-lucky-cat-ml.js').create({ weights: w, fast: true, net: w.featureVersion === F2.FEATURE_VERSION ? F2 : undefined });
   } else if (id.startsWith('nc:')) {
     b = require('../../js/mahjong-ml.js').create({ weights: readWeights(id.slice(3)), fast: true });
   } else {
@@ -203,12 +210,20 @@ function summarize(models, parts) {
 const workerCount = (a) => parseInt(a.workers || Math.max(1, os.cpus().length - 1), 10);
 
 // Plays `deals` deals from `seed` with each model in turn; workers 0 plays in this process.
-async function play(models, seed, deals, workers, bm) {
+// `table`: the three other players (the benchmark table by default).
+async function play(models, seed, deals, workers, bm, table) {
   bm = bm || benchmark();
+  if (table) bm = Object.assign({}, bm, { table });
+  return summarize(models, await playParts(models, seed, 0, deals, workers, bm));
+}
+
+// Deals [from, to) of the seeds from `seed`, split across the workers: the raw sums.
+async function playParts(models, seed, from, to, workers, bm) {
   const jobs = [];
+  const deals = to - from;
   const n = Math.max(1, workers), per = Math.ceil(deals / n);
-  for (let k = 0; k < n; k++) if (k * per < deals) jobs.push({ bm, models, seed, from: k * per, to: Math.min(deals, (k + 1) * per) });
-  const parts = workers === 0
+  for (let k = 0; k < n; k++) if (k * per < deals) jobs.push({ bm, models, seed, from: from + k * per, to: from + Math.min(deals, (k + 1) * per) });
+  return workers === 0
     ? [await playWork(jobs[0])]
     : await Promise.all(jobs.map((job) => new Promise((resolve, reject) => {
       const child = fork(__filename, ['--worker'], { stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
@@ -216,7 +231,24 @@ async function play(models, seed, deals, workers, bm) {
       child.on('exit', (code) => { if (code) reject(new Error('bench worker exited with ' + code)); });
       child.send(job);
     })));
-  return summarize(models, parts);
+}
+
+// Sequential stopping (frontier plan §6): plays in blocks and stops once the
+// gap is clearly past the bar (bar.earlyPass SE) or clearly short of it
+// (bar.earlyFail SE), after at least one block; otherwise plays all `deals`.
+// The early thresholds are far stricter than the bar's, so stopping early
+// almost never changes the verdict a full run would give.
+async function playSequential(models, seed, deals, workers, bm, bar) {
+  const block = Math.min(deals, bar.block || deals);
+  const parts = [];
+  let r = null;
+  for (let from = 0; from < deals; from += block) {
+    parts.push(...await playParts(models, seed, from, Math.min(deals, from + block), workers, bm));
+    r = summarize(models, parts);
+    const sig = r.gap.standardError > 0 ? r.gap.points / r.gap.standardError : 0;
+    if (from + block < deals && (sig >= bar.earlyPass || sig <= bar.earlyFail)) { r.stoppedEarly = true; break; }
+  }
+  return r;
 }
 
 /* ------------------------------------------------------------------ *
@@ -320,7 +352,7 @@ async function judge(a) {
   const workers = workerCount(a);
   // --dry-run: every stage at 1/200 of its deals, to see the pipeline work. Never promotes.
   const dry = !!a['dry-run'];
-  const bar = dry ? Object.assign({}, bm.bar, { screen: 50, qualify: 200, replicate: 200, regression: 50 }) : bm.bar;
+  const bar = dry ? Object.assign({}, bm.bar, { screen: 50, qualify: 200, replicate: 200, regression: 50, block: 100 }) : bm.bar;
   const record = { candidate: cand, lineage: lineName, current, benchmark: bm.name, dryRun: dry, started: stamp(), stages: [] };
   const dir = path.join(LOCAL, 'judged');
   const save = () => writeJson(path.join(dir, (dry ? 'dry-' : '') + (a.promote || cand.replace(/[^A-Za-z0-9]+/g, '_')) + '.json'), record);
@@ -336,14 +368,22 @@ async function judge(a) {
   log('fair play: ' + (fp.pass ? 'pass' : 'FAIL') + ' (' + fp.why + ')');
   if (!fp.pass) return stop('fair-play', fp.why);
 
+  // Screen, qualify, replicate: the candidate against the current generation
+  // at the benchmark table. No regression: against each rival, the candidate
+  // and the current generation each at a table of three of that rival, on
+  // the same deals: the candidate may not do worse against it.
   const paired = async (stage, other, deals) => {
     const seed = a.seed && stage === 'screen' ? parseInt(a.seed, 10) : freshSeed(bm, deals);
     if (inDeck(bm, seed, deals)) throw new Error('bench: fresh deals may not touch the benchmark deck');
-    const r = await play([cand, other], seed, deals, workers, bm);
+    // Qualify and replicate stop early when the gap is clearly decided.
+    const r = stage === 'qualify' || stage === 'replicate' ? await playSequential([cand, other], seed, deals, workers, bm, bar)
+      : stage === 'regression' ? await play([cand, current], seed, deals, workers, bm, [other, other, other])
+      : await play([cand, other], seed, deals, workers, bm);
     const v = stagePasses(stage, r.gap, bar, line.keepWinRate);
-    record.stages.push({ stage, against: other, seed, deals, gap: r.gap, models: r.models, pass: v.pass, why: v.why });
+    if (r.stoppedEarly) v.why += ' (stopped early at ' + r.gap.deals + ' deals)';
+    record.stages.push({ stage, against: other, seed, deals: r.gap.deals, gap: r.gap, models: r.models, pass: v.pass, why: v.why });
     save();
-    log(stage + ' vs ' + other + ': ' + fmt(r.gap) + ' points a hand, hands won ' + (100 * r.gap.winRate).toFixed(2) + ' ± ' +
+    log(stage + (stage === 'regression' ? ' against ' + other + ' (less ' + current + ' there)' : ' vs ' + other) + ': ' + fmt(r.gap) + ' points a hand, hands won ' + (100 * r.gap.winRate).toFixed(2) + ' ± ' +
       (100 * r.gap.winStandardError).toFixed(2) + ' points, ' + deals + ' deals: ' + (v.pass ? 'pass' : 'FAIL') + ' (' + v.why + ')');
     return v;
   };
@@ -465,4 +505,4 @@ if (process.argv[2] === '--worker') {
   main(parseArgs(process.argv.slice(2))).catch((err) => { console.error(err.message); process.exit(1); });
 }
 
-module.exports = { benchmark, lineages, verify, fingerprint, play, score, fairPlay, stagePasses, inDeck, meanSe, resolveFile, promote, recordScore };
+module.exports = { benchmark, lineages, verify, fingerprint, play, playSequential, score, fairPlay, stagePasses, inDeck, meanSe, resolveFile, promote, recordScore };

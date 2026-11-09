@@ -59,9 +59,13 @@ A candidate becomes the next generation only by passing every stage, in this ord
 | **Screen** | 10,000 fresh, paired against the current generation | The gap is at least 1 standard error |
 | **Qualify** | 40,000 fresh, paired | The gap is at least **2 standard errors**. In the Lucky Cat lineage, hands won may not fall more than 1 standard error below the current generation (winning more is never a fail) |
 | **Replicate** | Another 40,000, new seeds | At least **2 standard errors again**. One two-sigma result among several arms a round is a 2% coin; two in a row on independent deals is a 0.05% one |
-| **No regression** | 10,000 against each earlier generation and each league opponent (Jorge Yau and the shipped Neural Cat) | No loss beyond 1 standard error to any of them |
+| **No regression** | 10,000 for each earlier generation and each league opponent (Jorge Yau and the shipped Neural Cat) | The candidate and the current generation each sit at a table of three of that rival, on the same deals; the candidate may not do worse there by more than 1 standard error |
 
 A candidate that passes is then scored on the deck. `--promote NAME` adds it to `bench/lineages.json` as the lineage's next generation, pinned by SHA-256, and puts its Table Score in `bench/scores.json`. Every judgment, passed or failed, with every stage's numbers, is written to `ml/bench/judged/`. A model that fails doesn't come back: the next round trains from the current generation.
+
+**No regression is measured against the current generation, not head to head.** A first draft of `judge` played the candidate against each league opponent directly and required it not to lose. But lc32 loses to Jorge Yau at a table, and so does any early Sphinx, so nothing could ever pass. What the stage is for is a model that beats the champion by learning one opponent's tells and plays worse against another, and the paired comparison at that rival's table catches exactly that.
+
+**Sequential stopping** (plan §6). Qualify and replicate play in blocks of 10,000 deals. After a block, they stop early if the gap is already at least 4 standard errors (a pass: twice the bar) or at most 0 (a fail: a gap that still needs to reach +2 standard errors with three quarters of the deals to come). The thresholds sit far outside the bar, so stopping early rarely changes the verdict a full run would give, and a clear case costs a quarter of the deals.
 
 The current generation is the last one in `bench/lineages.json`; `--vs` gives another. The stage sizes and sigmas are in `bench/benchmark.json` under `bar`, and the tests hold them to the numbers above.
 
@@ -78,7 +82,6 @@ A generation's model should be pinned by `git:<commit>:<path>` once it ships, so
 
 ## Not built yet
 
-- **Sequential stopping** (plan §6): stopping a stage early when the gap is clearly past or short of the bar. The stages play their full size.
 - **The lab's keep rule.** The labs still keep models by their own one-judge rule. Running `judge` on what they keep, and shipping only what passes, is the next step, along with wiring `judge` into the lab.
 - **The Hugging Face fallback for the pinned files.** They come from git history only.
 - **The head-to-head between the lineages**, which waits for Sphinx's first generation.

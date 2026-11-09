@@ -87,6 +87,10 @@ function parseArgs(argv) {
   return out;
 }
 
+// The encoder a model reads: Lucky Cat's (version 1), or features v2 (js/mahjong-frontier-net.js).
+const F2 = require('../../js/mahjong-frontier-net.js');
+function netFor(w) { return w && w.featureVersion === F2.FEATURE_VERSION ? F2 : N; }
+
 function readWeights(file) { return JSON.parse(fs.readFileSync(path.resolve(ROOT, file), 'utf8')); }
 
 /* ------------------------------------------------------------------ *
@@ -101,7 +105,7 @@ function opponent(id) {
     const w = readWeights(id.slice(3));
     // An oracle model (Suphx's oracle guiding) also reads the hidden tiles, at its own dropout.
     const o = (w.meta || {}).oracle;
-    bot = require('../../js/mahjong-lucky-cat-ml.js').create({ weights: w, fast: true,
+    bot = require('../../js/mahjong-lucky-cat-ml.js').create({ weights: w, fast: true, net: netFor(w),
       features: o ? oracleFeatures(o.delta, E.createRng(7)) : null });
   } else if (id === 'neural-cat') {
     bot = require('../../js/mahjong-ml.js').create({ fast: true });
@@ -147,20 +151,25 @@ async function work(job) {
   if (job.rollouts) return rolloutWork(job);
   const LC = require('../../js/mahjong-lucky-cat-ml.js');
   const rng = E.createRng(job.seed + 7919);
-  const learnerWeights = job.weights ? readWeights(job.weights) : N.zeroWeights();
+  const v2 = job.features === 'v2';
+  const learnerWeights = job.weights ? readWeights(job.weights) : v2 ? F2.zeroWeights() : N.zeroWeights();
+  if (v2 !== (learnerWeights.featureVersion === F2.FEATURE_VERSION)) throw new Error('--features ' + (v2 ? 'v2' : 'v1') + ' needs a model of that version, not ' + job.weights);
   let buffers = [[], [], [], []];
   const returns = !!job.returns;
   const sample = job.sample == null ? 1 : job.sample;
+  // --sample-won P: moves of a hand the learner won kept with chance P, the rest with --sample.
+  const sampleWon = job.sampleWon == null ? null : job.sampleWon;
   const temp = job.temperature || 1;
   // --oracle: record the hidden tiles too; an oracle model also plays on them (at --oracle-delta, else its own).
   const om = (learnerWeights.meta || {}).oracle;
   const delta = job.oracleDelta != null ? job.oracleDelta : om ? om.delta : 0;
   const learner = LC.create({
-    weights: learnerWeights, temperature: job.temperature, rng, fast: true,
+    weights: learnerWeights, temperature: job.temperature, rng, fast: true, net: netFor(learnerWeights),
     features: job.oracle || om ? oracleFeatures(delta, E.createRng(job.seed + 31337)) : null,
     onDecision: (d) => {
       // Points-first data: only real choices, a share of them.
-      if (returns && (d.moves.length < 2 || rng() >= sample)) return;
+      // With --sample-won every real choice is kept until the hand ends (then sampled by how it ended).
+      if (returns && (d.moves.length < 2 || (sampleWon == null && rng() >= sample))) return;
       const legal = new Uint8Array(10);
       d.moves.forEach((m) => { legal[m.action >> 3] |= 1 << (m.action & 7); });
       // The chance the move was played with (its share, at the temperature).
@@ -214,7 +223,9 @@ async function work(job) {
         }
         if (!job.out) return;
         const hand = d * 4 + s;
+        const keep = sampleWon == null ? 1 : won ? sampleWon : sample;
         buffers[s].forEach((b) => {
+          if (keep < 1 && rng() >= keep) return;
           rows.x.push(b.x); rows.a.push(b.a); rows.legal.push(b.legal); rows.w.push(1);
           rows.r.push(res.deltas[s] || 0); rows.p.push(b.p); rows.o.push(outcome); rows.h.push(hand);
         });
@@ -421,7 +432,8 @@ async function rolloutWork(job) {
 }
 
 // A recorded row: the seat's features, then the hidden tiles' with --oracle.
-function rowSize(job) { return N.SIZE + (job.oracle ? O.SIZE : 0); }
+function publicSize(job) { return job.features === 'v2' ? F2.SIZE : N.SIZE; }
+function rowSize(job) { return publicSize(job) + (job.oracle ? O.SIZE : 0); }
 
 const f32 = new Float32Array(1), u32 = new Uint32Array(f32.buffer);
 function floatToHalf(v) {
@@ -469,6 +481,8 @@ function runJobs(base, deals, workers) {
 
 function workerCount(a) { return parseInt(a.workers || Math.max(1, os.cpus().length - 1), 10); }
 
+function job0Weights(a) { return a.weights ? readWeights(a.weights) : null; }
+
 async function generate(a) {
   const out = a.out ? path.resolve(ROOT, a.out) : null;
   if (out) fs.mkdirSync(out, { recursive: true });
@@ -480,6 +494,9 @@ async function generate(a) {
     rollouts: a.rollouts ? parseInt(a.rollouts, 10) : 0, alts: parseInt(a.alts || 2, 10),
     futures: parseInt(a.futures || 1, 10),
     oracle: !!a.oracle, oracleDelta: a['oracle-delta'] != null ? parseFloat(a['oracle-delta']) : null,
+    // --features v2: the learner reads features v2 (js/mahjong-frontier-net.js); its model must be v2.
+    sampleWon: a['sample-won'] != null ? parseFloat(a['sample-won']) : null,
+    features: a.features ? String(a.features) : (job0Weights(a) || {}).featureVersion === F2.FEATURE_VERSION ? 'v2' : 'v1',
   };
   if (job.oracle && job.rollouts) throw new Error('--oracle records hands played (--returns or wins), not --rollouts');
   if (!job.oracle && job.weights && (readWeights(job.weights).meta || {}).oracle) job.oracle = true;
@@ -490,7 +507,7 @@ async function generate(a) {
   stats.avgWinFaan = stats.winFaan / Math.max(1, stats.learnerWins);
   stats.pointsPerHand = stats.learnerPoints / Math.max(1, stats.learnerSeats);
   stats.avgWinPoints = stats.learnerWinPoints / Math.max(1, stats.learnerWins);
-  if (out) fs.writeFileSync(path.join(out, 'meta.json'), JSON.stringify(Object.assign({ featureVersion: N.FEATURE_VERSION, featureSize: rowSize(job), oracle: job.oracle ? { size: O.SIZE, publicSize: N.SIZE, dangerAt: N.SIZE + O.DANGER, delta: job.oracleDelta } : null, returns: job.returns, rollouts: job.rollouts ? { slots: job.alts + 1 } : null, job }, stats), null, 2) + '\n');
+  if (out) fs.writeFileSync(path.join(out, 'meta.json'), JSON.stringify(Object.assign({ featureVersion: job.features === 'v2' ? F2.FEATURE_VERSION : N.FEATURE_VERSION, featureSize: rowSize(job), oracle: job.oracle ? { size: O.SIZE, publicSize: publicSize(job), dangerAt: publicSize(job) + O.DANGER, oracleAt: publicSize(job), per: O.PER, delta: job.oracleDelta } : null, returns: job.returns, rollouts: job.rollouts ? { slots: job.alts + 1 } : null, job }, stats), null, 2) + '\n');
   console.log('generated ' + stats.deals + ' deals in ' + stats.seconds.toFixed(0) + 's: learner won ' + (100 * stats.winRate).toFixed(2) +
     '% of its seats (' + stats.learnerWins + ' hands, ' + stats.avgWinDiscards.toFixed(1) + ' discards, ' + stats.avgWinFaan.toFixed(2) + ' faan, ' +
     Math.round(stats.avgWinPoints) + ' points a win), ' + stats.pointsPerHand.toFixed(1) + ' points a hand, ' + stats.samples + ' samples' +

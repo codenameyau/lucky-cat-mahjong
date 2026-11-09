@@ -168,3 +168,5 @@ ml/paired/
 ml/.venv
 # The frontier benchmark (scripts/ml/bench.js): fetched files, fresh-seed counter, judgments
 ml/bench/
+# The frontier rounds (scripts/ml/frontier.js): state and logs
+ml/frontier/
