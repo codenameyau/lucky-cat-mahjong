@@ -491,3 +491,25 @@ Lucky Cat rounds 4–6: 100,000 deals a round, 40,000-deal screens (one standard
   - *Evidence (screens against sp0, 40,000 deals):* imitating its own wins (arms a and c) lost 41–54 points a hand in every round. Teacher with progress and fold, no imitation (arm b): −38.2 in round 1, −7.1 ± 2.9 in round 2, −10.3 ± 3.2 in round 3.
   - *Open:* imitating its wins teaches Sphinx to race for cheap hands at any risk. The next Sphinx arms should build on b.
 - **From 2026-11-09 the frontier rounds run on the user's desktop**, not the Mac: Lucky Cat from round 7, Sphinx from round 4, carrying over the fresh-deal counter (`ml/bench/seeds.json`, next 68) and the champions (lc32v2 and sp0, from Hugging Face). Its exact build must reproduce a reference compare to the decimal before any result counts.
+
+### Lucky Cat rounds 7–9, on the desktop (2026-11-09)
+
+The desktop (x86-64, Windows, a TITAN RTX) reproduced the reference compare to the decimal on its exact build (−87.1 ± 15.1 points a hand for lc32v2 and lc32 on 1,000 deals from 990,000,000), and a round now takes about 8 minutes: 100,000 deals of data in 22 s, about 50 s of training an arm, and a minute for each 40,000-deal screen. Rounds 7–9 ran the same three arms each: a (teacher + aux 0.05), b (progress 100, fold 2) and c (progress 50, fold 2).
+
+- **None passed the bar, and the screen winner failed qualify twice more.**
+  - *Evidence (screens against lc32v2, 40,000 fresh deals, fast build):* round 7: LV7a +2.0 ± 2.6, LV7b +2.6 ± 2.8, LV7c +4.5 ± 2.6 (1.72 SE). Round 8: LV8a −1.4, LV8b +2.0, LV8c +5.6 ± 2.6 (2.15 SE). Round 9: LV9a +2.2, LV9b +1.5, LV9c +2.3 (0.86 SE): no arm passed. Qualify (exact build): LV7c +0.0 ± 2.6 on 40,000 deals; LV8c −7.2 ± 5.4, stopped early at 10,000.
+  - That's four rounds in a row (LV4b, LV6b, LV7c, LV8c) where the best of three screens failed qualify.
+- **The arms are a little better than lc32v2 on the screens as a whole, about +2 points a hand: too small for the bar to see.**
+  - *Evidence:* the nine screens average +2.4 ± 0.9 points a hand (8 of 9 positive), by arm a +0.9, b +2.0, c +4.2. Every arm is a fine-tune of lc32v2 on one round's fresh data, so the rounds are near-repeats of the same experiment and the champion never moves.
+  - On 40,000 paired deals one standard error is about 2.6, so the bar's 2 SE is about +5 points a hand. A real +2 passes a 1-SE screen about a third of the time and qualify only rarely.
+  - *Open:* the qualify results for arm c, the only unselected measure of the screen winners, average about −1.4 ± 2.3, against the screens' +2.4 ± 0.9 (fast build). The gap is 1.5 SE: maybe the winner's curse plus noise, maybe a fast-build bias in screens. Replaying one screen's deals on the exact build would tell; it's a simulation beyond the rounds, so it waits for the maintainer.
+- **The loss-aware teacher trades points a win for hands won, and that trade is close to even at this table.**
+  - *Evidence:* the progress-100 arm (b) won more hands in every round (24.99 vs 24.67%, 24.86 vs 24.52%, 24.84 vs 24.39%) and dealt in less (12.68 vs 12.99%, 12.64 vs 12.90%, 12.61 vs 12.95%), but its wins were smaller (166 vs 181, 155 vs 174, 163 vs 181 points). Its set-back share fell from 19.5% to about 16.8%. Qualifying, LV7c and LV8c won 0.26 ± 0.11 and 0.43 ± 0.22 points more hands (2.4 and 1.95 SE), with points flat.
+  - So the teacher's push against set-back discards also pushes against building the bigger hands that pay. Which set-back discards are right needs the per-move value of phase 3 (see the open point under the loss-aware teacher above).
+- *Changed (from round 10):*
+  - **Lucky Cat keeps 4 rounds of data, not 2,** so an arm trains on up to 400,000 deals rather than refitting the same small step to each round's fresh 100,000.
+  - **Its arms:**
+    - a: c's recipe (progress 50, fold 2), the best arm on the screens, as the control.
+    - b: fold 2 alone, with no progress push, to test whether the smaller wins come from progress.
+    - c: c's recipe at half the learning rate for twice the epochs (lr 5e-4, 16), for a larger, steadier step from more data.
+  - **Sphinx's arms build on b,** the only arm that has closed in on random play (see Sphinx below).

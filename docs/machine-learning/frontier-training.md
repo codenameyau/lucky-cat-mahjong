@@ -128,6 +128,7 @@ What it says:
 - **A moderate weight helps a little:** LP1 and LP2 win half a point more hands than the control and deal in less, but their wins are smaller, so points move by under one standard error.
 - **Pushed hard, it costs points:** LP3 sets the hand back least, but its wins shrink to 139 points. Some set-back discards are right: breaking a fast hand to keep a valuable one.
 - **Changed:** from round 7, Lucky Cat's arms are the best recipe of rounds 4–6 (teacher + aux 0.05), that with progress 100 and fold 2, and that with a gentler progress 50.
+- **Changed again from round 10:** rounds 7–9 screened +2.4 ± 0.9 on average and kept nothing ([frontier plan §11](frontier-plan.md)). Lucky Cat now keeps 4 rounds of data instead of 2. Its arms are progress 50 with fold 2 (the control), fold 2 alone, and progress 50 with fold 2 at lr 5e-4 for 16 epochs. Sphinx's arms all drop the imitation of its own wins: the no-imitation teacher, the same pushed twice as hard (progress 200, fold 4), and the same at lr 3e-4 for 12 epochs.
 
 ## Disk space
 

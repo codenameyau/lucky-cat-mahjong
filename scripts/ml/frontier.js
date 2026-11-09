@@ -82,7 +82,10 @@ const LINEAGES = {
     // so a +5 arm passes). Rounds 1-3 (20,000 deals, 10,000-deal screens)
     // kept nothing: every screen was within noise.
     deals: 100000,
-    keep: 2,
+    // From round 10, 4 rounds of data, not 2: rounds 7-9's nine arms screened
+    // +2.4 +/- 0.9 on average, each refitting one small step to one round's
+    // fresh data, and the champion never moved (frontier plan, section 11).
+    keep: 4,
     screen: 40000,
     // a: round 3's best reader (LV3b: waits AUC 0.61), on 5x the data.
     // b: the same with the heads pulling a quarter as hard (aux 0.2 is a large push).
@@ -93,10 +96,15 @@ const LINEAGES = {
     // a: the recipe that screened best in rounds 4-6 (aux 0.05).
     // b: that, with progress 100 and fold 2 (LP2).
     // c: a gentler progress (50) with fold 2, so value plans aren't pushed off.
+    // From round 10 (rounds 7-9: by arm a +0.9, b +2.0, c +4.2 on the screens;
+    // b won more hands with smaller wins every round):
+    // a: c's recipe, the best on the screens, as the control.
+    // b: fold 2 alone, no progress, to test whether the smaller wins come from progress.
+    // c: c's recipe at half the learning rate for twice the epochs, a steadier step on more data.
     arms: [
-      { key: 'a', why: 'teacher + aux 0.05, lr 1e-3, 8 epochs', args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '8', '--aux', '0.05'] },
-      { key: 'b', why: 'teacher (progress 100, fold 2) + aux 0.05, lr 1e-3, 8 epochs', args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '8', '--aux', '0.05', '--progress', '100', '--fold', '2'] },
-      { key: 'c', why: 'teacher (progress 50, fold 2) + aux 0.05, lr 1e-3, 8 epochs', args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '8', '--aux', '0.05', '--progress', '50', '--fold', '2'] },
+      { key: 'a', why: 'teacher (progress 50, fold 2) + aux 0.05, lr 1e-3, 8 epochs', args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '8', '--aux', '0.05', '--progress', '50', '--fold', '2'] },
+      { key: 'b', why: 'teacher (fold 2, no progress) + aux 0.05, lr 1e-3, 8 epochs', args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '8', '--aux', '0.05', '--fold', '2'] },
+      { key: 'c', why: 'teacher (progress 50, fold 2) + aux 0.05, lr 5e-4, 16 epochs', args: ['--mode', 'oracle', '--lr', '5e-4', '--epochs', '16', '--aux', '0.05', '--progress', '50', '--fold', '2'] },
     ],
   },
   sphinx: {
@@ -126,13 +134,17 @@ const LINEAGES = {
     // discard that would deal in (harder the worse the hand's prospects:
     // --fold) and one that sets its own hand back (--progress), which from
     // random play is how to build a hand at all.
-    // a: v1's recipe at the table. b: no imitation of wins (defence and
-    // progress only). c: progress pushed twice as hard.
+    // Rounds 1-3: a: v1's recipe at the table. b: no imitation of wins (defence
+    // and progress only). c: progress pushed twice as hard. Imitating its own
+    // wins (a, c) lost 41-54 points a hand to random play every round; b alone
+    // closed in (-38.2, -7.1, -10.3). So from round 4 every arm builds on b:
+    // a: b itself, the control. b: b with progress and fold pushed twice as
+    // hard. c: b at a third of the learning rate for twice the epochs.
     arms: [
-      { key: 'a', why: 'imitate its wins + teacher (progress 100, fold 2) + aux 1', args: ['--imitate-wins', '1', '--aux', '1', '--progress', '100', '--fold', '2'] },
-      { key: 'b', why: 'teacher (progress 100, fold 2) + aux 1, no imitation', args: ['--aux', '1', '--progress', '100', '--fold', '2'] },
-      { key: 'c', why: 'imitate 0.3 + teacher (progress 200, fold 4) + aux 1', args: ['--imitate-wins', '0.3', '--aux', '1', '--progress', '200', '--fold', '4'] },
-    ].map((x) => Object.assign(x, { args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '6'].concat(x.args) })),
+      { key: 'a', why: 'teacher (progress 100, fold 2) + aux 1, no imitation', args: ['--lr', '1e-3', '--epochs', '6', '--aux', '1', '--progress', '100', '--fold', '2'] },
+      { key: 'b', why: 'teacher (progress 200, fold 4) + aux 1, no imitation', args: ['--lr', '1e-3', '--epochs', '6', '--aux', '1', '--progress', '200', '--fold', '4'] },
+      { key: 'c', why: 'teacher (progress 100, fold 2) + aux 1, no imitation, lr 3e-4, 12 epochs', args: ['--lr', '3e-4', '--epochs', '12', '--aux', '1', '--progress', '100', '--fold', '2'] },
+    ].map((x) => Object.assign(x, { args: ['--mode', 'oracle'].concat(x.args) })),
   },
 };
 

@@ -81,6 +81,9 @@ Each with why, and the evidence. Dates are when it was decided.
 | **A fast build beside the exact one** | Float math free to fuse and vectorize changes a move only when two tie to the last bit, which is rare | 1,000 deals identical between builds; a few flips in a 20,000-deal round |
 | **The hybrid** (2026-11-09, the maintainer's call, after measuring fast-only) | Training data and screens get the speed; the benchmark's verdicts and scores stay reproducible to the decimal against the JS. A round with a judgment takes about 23 minutes this way, against about 16 fast everywhere | Compare 9.9 s fast, 15.5 s exact; data 12.9 s fast, 20 s exact |
 | **Every result records its simulator** | So a number is never compared across builds without knowing it | `simulator`: `native-fast`, `native-exact` or `js` |
+| **Frontier rounds move to the desktop** (2026-11-09, the maintainer's call) | x86-64 with a GPU: a Lucky Cat round takes about 8 minutes (data 22 s, training about 50 s an arm, a 40,000-deal screen about a minute), against about 23 on the Mac | The exact build reproduced the reference compare to the decimal; native and JS data byte-identical on the same chunks |
+| **Lucky Cat keeps 4 rounds of data and retunes its arms** (after rounds 7–9) | Nine arms screened +2.4 ± 0.9 on average, below the +5 the bar can see, and the screen winner failed qualify four rounds running; each round refit the same small step to one round of data | Screens and qualifies in frontier plan §11 |
+| **Sphinx's arms build on the no-imitation arm** | Imitating its own wins lost 41–54 points a hand to random play every round; the teacher alone reached −7.1 | Sphinx v2 rounds 1–3 |
 
 ## Important potential issue
 
