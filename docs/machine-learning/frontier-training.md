@@ -89,6 +89,23 @@ With the [native simulator](native.md) built, the round runs natively as a hybri
 
 The judgment takes the round's own screen (`judge --screened`), so the best arm doesn't have to pass a second, independent 10,000-deal screen before it qualifies.
 
+## Native-scale rounds (from 2026-11-09)
+
+With the [native simulator](native.md), a round's data costs seconds instead of minutes, so the rounds are rescaled. That answers two things rounds 1–3 left open: the heads read better with more data (waits AUC 0.52 → 0.61 over 3 rounds), and a 10,000-deal screen couldn't see a +3-point arm.
+
+| | Lucky Cat (from round 4) | Sphinx v2 (restarted) |
+| --- | --- | --- |
+| Data a round | 100,000 deals (5x), one seat at the game's table, half the choices; the last 2 rounds kept | 100,000 deals, one seat at the game's table from round 1 (later with its last 2 generations in the pool); every won hand kept, 10% of the rest |
+| Screen | 40,000 deals (one standard error about 2.5 points a hand) | 40,000 deals against its current generation |
+| Arms | a: teacher + aux 0.2, lr 1e-3, 8 epochs (LV3b's recipe); b: the same with aux 0.05; c: returns (`--mode pg`, hidden-tile critic) + teacher 0.5 + aux 0.05 | a: imitate wins + teacher + aux 1 (v1's recipe, now at the table); b: teacher + aux 1, no imitation (defence first); c: imitate 0.3 + a sharper teacher |
+| Judgment | `--screened`, then qualify and replicate on the exact build | the same, without the win-rate rule |
+
+**Why Sphinx restarted.** v1 played its first rounds in self-play among random players. The deal-in teacher learned what random opponents punish, and every arm lost about 43 points a hand to random play at the benchmark table. v2 learns at the table it's judged at, from its first round. v1's log and state are kept in `ml/frontier/sphinx-v1/`.
+
+**Memory.** `train_lucky.py` keeps the data in float16, as the shards store it, and widens one batch at a time. Two native-scale rounds (about 2.2 million rows of 1,166 values) fit in about 5 GB.
+
+A round of Lucky Cat now takes about a minute of data, about 8 minutes of training, 10 minutes of screens, and a judgment of about 20 minutes on the exact build when an arm passes.
+
 ## Not done yet
 
 - **No frontier round has run at full size:** the machine is training Neural Cat. They are queued after it, and after lc32's Table Score.
