@@ -4,6 +4,31 @@ Written 2026-11-08. Suphx ([Li et al. 2020](https://arxiv.org/abs/2003.13590)) w
 
 Everything here must keep two promises: the shipped model reads only what its seat can see (`js/mahjong-fair-play.test.js`), and it runs in plain JS in the browser in a few milliseconds a move.
 
+## Where it stands (2026-11-09)
+
+| Phase | State |
+| --- | --- |
+| Benchmark (§9) | **Built.** `npm run ml:bench`: the frozen table (NC8, Jorge Yau, NC8 at 0.57.9), the 40,000-deal deck, the Table Score, and `judge` for the five-stage bar ([benchmark](benchmark.md)) |
+| 0 Suphx teacher | Built as the lab's `lucky-cat-suphx`. It is folded into phase 1 as the per-move deal-in teacher every arm trains with |
+| 1 Features v2, labels as targets | **Built and training.** `npm run ml:frontier` ([frontier training](frontier-training.md)). Lucky Cat round 1 is in progress; Sphinx's rounds follow |
+| 2 Structured network | Designed (§4); not built. Starts when the phase-1 MLP stops improving |
+| 3 Value, policy iteration, league, pipeline | Designed (§4, §5, §6); not built |
+| 3b Search as a teacher | Designed (§5); not built |
+| 4 Search at play (optional) | Designed (§5); not built |
+
+**What phase 1 has shown so far** (Lucky Cat round 1: 20,000 deals of lc32 widened to features v2, 221,717 choices):
+
+- **The table can be read from public information.** The auxiliary heads predict which held tile would deal in now with a held-out AUC of 0.87 to 0.89, and whether each opponent is ready with 0.85 to 0.88. Phase 1's bar is 0.75. A 3,000-deal probe gave 0.78, so the heads keep improving with data.
+- **Which tiles an opponent waits on isn't learned** (AUC 0.52). The heads know *that* a player is ready, but not on *what*. A wait is a shape within one suit (a 4–7 two-sided wait, a 3 Bamboo edge), which a flat MLP over 34-tile vectors has to learn tile by tile. This is the most direct evidence yet for phase 2's tile tokens, with a convolution within each suit. When phase 2 is built, the waits AUC is the first number it must move.
+- **The auxiliary weight trades the table's reading against the policy.**
+  - At weight 1 the heads read best (AUC 0.886). But the arm gave up 0.6 percentage points of hands won (24.05% against 24.63%), which the Lucky Cat lineage's bar refuses.
+  - At 0.2 the win rate held exactly (24.71% against 24.68%), deal-ins fell (12.73% against 13.01%), and points rose **+7.6 ± 5.0 a hand** over lc32 on the 10,000-deal screen.
+  - Weight is a dial per lineage, not one number: Lucky Cat runs low, Sphinx (no win-rate rule) high.
+- **The policy moves very little in a round** (KL 0.004 to 0.01 from lc32 at lr 3e-4, 4 epochs). That keeps lc32's strengths, but it caps the gain a round can show. If the screens stay near one standard error, the next arms train longer and at a higher rate.
+- **Data is cheaper than budgeted.** 20,000 deals with the hidden tiles recorded took 5.5 minutes on 7 workers, against the 3.6 deals a second a worker measured earlier. That's about 8.7 deals a second a worker, so phase 3's volumes cost less than §6 assumed.
+
+This section is updated as rounds finish. The full record of every round is `ml/frontier/<lineage>/frontier.log`. Kept generations go in `bench/lineages.json` and their Table Scores in `bench/scores.json`.
+
 ## 1. What Suphx is, and what Hong Kong mahjong changes
 
 | Suphx | Why it's there in riichi | In Hong Kong mahjong, in this engine |
@@ -181,7 +206,7 @@ Where TensorFlow does matter is **TensorFlow.js in the browser**. The structured
 
 The lab today is a loop: generate 20,000–50,000 deals, train a few arms, judge, repeat, all on one machine in turn. For phases 1 to 3 it becomes a pipeline with three parts that run at once, on one machine or two (one generates and judges, the one with the GPU trains):
 
-- **Generation** runs continuously with the current champion (value-guided exploration, Round 4 point 5) and the league pool, writing shards to a **replay buffer** of the last N rounds with each row's behaviour probability, so older rows are reweighted rather than thrown away. Measured cost: 3.6 deals a second a worker with the hidden tiles recorded; about 2.5 million deals a day on 8 workers.
+- **Generation** runs continuously with the current champion (value-guided exploration, Round 4 point 5) and the league pool, writing shards to a **replay buffer** of the last N rounds with each row's behaviour probability, so older rows are reweighted rather than thrown away. Measured cost: 3.6 deals a second a worker with the hidden tiles recorded in the first probe, and 8.7 in phase 1's first full round (20,000 deals in 5.5 minutes on 7 workers): 2.5 to 6 million deals a day on 8 workers.
 - **Training** pulls from the buffer: the auxiliary losses on every row, the value heads on every row (Monte Carlo targets, prioritized by |advantage| with importance weights), the policy loss on the exp(advantage / tau) target with the KL leash. Several arms a round, as now; the bandit over arms, as now.
 - **Judging** runs as candidates appear: the table test with sequential stopping (blocks of 5,000 deals, stop when the paired gap is clearly past or short of the bar, 40,000 at most), then the replication and the round robin of §9 for any candidate that passes. A kept model ships, joins the pool, and gets its Table Score.
 
@@ -195,7 +220,7 @@ Each phase has a result it must show on 40,000 fresh deals at the game's table (
 | --- | --- | --- | --- |
 | **0** Suphx teacher (built, `--strategy lucky-cat-suphx`) | Per-move danger teacher, distilled into lc32 | ≥ +10 points a hand over lc32, win rate held | Three rounds without a kept model |
 | **1** Features v2 on the MLP, labels as targets (built: `npm run ml:frontier`, [frontier training](frontier-training.md)) | Per-player ordered piles and engine facts flattened into the current MLP; oracle-supervised auxiliary heads; two lineages (§9): Lucky Cat fine-tuned from lc32, Sphinx from scratch | Deal-in head AUC ≥ 0.75 on held-out hands; ≥ +25 over the phase-0 champion; deal-ins at the table ≤ 11% | Heads below AUC 0.65 after 2 million deals: the labels aren't learnable from public information at this size (go to phase 2); or no start beats lc32 after four rounds |
-| **2** Structured network | Tile tokens with per-tile policy and value heads, JS forward, parity and fair-play tests, 10 ms budget on a phone | ≥ +20 over the phase-1 champion | Can't meet 10 ms on a phone at a width that beats the MLP, even on TensorFlow.js or ONNX Runtime Web; or the MLP on v2 is still improving (then it isn't needed yet) |
+| **2** Structured network | Tile tokens with per-tile policy and value heads, JS forward, parity and fair-play tests, 10 ms budget on a phone | ≥ +20 over the phase-1 champion; the waits head (which tiles a ready opponent waits on) at AUC ≥ 0.70, where the phase-1 MLP reads 0.52 | Can't meet 10 ms on a phone at a width that beats the MLP, even on TensorFlow.js or ONNX Runtime Web; or the MLP on v2 is still improving (then it isn't needed yet) |
 | **3** Distributional value, policy iteration, league, pipeline | Per-move value heads trained by Monte Carlo with prioritized sampling; exp(advantage / tau) targets with a KL leash; value-guided exploration; futures replays at uncertain choices; league pool; the five-stage bar of §9 | ≥ +40 over the phase-2 champion; no loss against any pool member; expected-points correlation with realized points ≥ 0.25 on held-out hands; **north star: points a hand at the game's table ≥ 0** | Two full rounds without a kept model after the value heads reach that correlation |
 | **3b** Search as a teacher | Determinized search (worlds sampled from the auxiliary heads' beliefs, the network as rollout policy) at the choices the value is least sure of; its move distribution distilled into the policy | ≥ +15 over the phase-3 champion | Search agrees with the value head's best move more than 95% of the time: nothing left to teach |
 | **4** Search at play (optional) | Sample opponent hands from the auxiliary heads' beliefs, roll out a few dozen futures per candidate move in a worker; a "thinks longer" setting | ≥ +20 over the phase-3 champion at ≤ 1.5 s a move | Gain under one standard error at 1.5 s |
