@@ -76,15 +76,21 @@ const LINEAGES = {
     },
     // One seat at the game's table, as the lab trains Lucky Cat.
     generate: () => ['--learners', '1', '--pool', TABLE, '--sample', '0.5'],
-    deals: 20000,
-    // Round 1 (LV1): aux 1 cost hands won, and at lr 3e-4 for 4 epochs the
-    // policy moved a KL of only 0.004 from lc32. So a stays as the control
-    // and b, c train at about 3x the rate for twice the epochs.
+    // Native scale (from round 4): 5x the data a round, kept for 2 rounds,
+    // and screens on 40,000 deals (one standard error about 2.5 points a hand,
+    // so a +5 arm passes). Rounds 1-3 (20,000 deals, 10,000-deal screens)
+    // kept nothing: every screen was within noise.
+    deals: 100000,
+    keep: 2,
+    screen: 40000,
+    // a: round 3's best reader (LV3b: waits AUC 0.61), on 5x the data.
+    // b: the same with the heads pulling a quarter as hard (aux 0.2 is a large push).
+    // c: what hands scored (PG3, the best probe), heads at 0.05.
     arms: [
-      { key: 'a', why: 'teacher + aux 0.2 (control: lr 3e-4, 4 epochs)', args: ['--lr', '3e-4', '--epochs', '4', '--aux', '0.2'] },
-      { key: 'b', why: 'teacher + aux 0.2, moved further (lr 1e-3, 8 epochs)', args: ['--lr', '1e-3', '--epochs', '8', '--aux', '0.2'] },
-      { key: 'c', why: 'sharper teacher (danger-tau 50) + aux 0.2, lr 1e-3, 8 epochs', args: ['--lr', '1e-3', '--epochs', '8', '--aux', '0.2', '--danger-tau', '50'] },
-    ].map((x) => Object.assign(x, { args: ['--mode', 'oracle'].concat(x.args) })),
+      { key: 'a', why: 'teacher + aux 0.2, lr 1e-3, 8 epochs (LV3b on 5x the data)', args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '8', '--aux', '0.2'] },
+      { key: 'b', why: 'teacher + aux 0.05, lr 1e-3, 8 epochs', args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '8', '--aux', '0.05'] },
+      { key: 'c', why: 'returns (pg, hidden-tile critic) + teacher 0.5 + aux 0.05, lr 3e-4, 6 epochs', args: ['--mode', 'pg', '--oracle-critic', '--lr', '3e-4', '--epochs', '6', '--aux', '0.05', '--teach', '0.5'] },
+    ],
   },
   sphinx: {
     prefix: 'SP', seed: 960000000,
@@ -97,18 +103,24 @@ const LINEAGES = {
       }
       return { name: 'sp0', model: file };
     },
-    // Self-play among its own generations; from round 3, also at the table.
+    // Restarted at native scale (Sphinx v2): at the game's table from round 1.
+    // In self-play among random players (v1) the deal-in teacher learned about
+    // random opponents, and every arm lost about 43 points a hand to random
+    // play at the benchmark table. Its past generations join the pool once it
+    // has some.
     generate: (state) => {
-      const selves = state.champions.slice(-4).map((c) => 'lc:' + c.model);
-      return state.round < 3
-        ? ['--learners', '4', '--pool', selves.join(','), '--sample', '0.02', '--sample-won', '1']
-        : ['--learners', '2', '--pool', selves.concat(['jorge-yau', 'neural-cat']).join(','), '--sample', '0.1', '--sample-won', '1'];
+      const selves = state.champions.length > 1 ? state.champions.slice(-2).map((c) => 'lc:' + c.model) : [];
+      return ['--learners', '1', '--pool', [TABLE].concat(selves).join(','), '--sample', '0.1', '--sample-won', '1'];
     },
-    deals: 50000,
+    deals: 100000,
+    keep: 2,
+    screen: 40000,
+    // a: v1's recipe, at the table. b: defence first, no imitation of wins.
+    // c: imitation down to 0.3 with a sharper teacher.
     arms: [
       { key: 'a', why: 'imitate its wins + teacher + aux 1', args: ['--imitate-wins', '1', '--aux', '1'] },
-      { key: 'b', why: 'imitate its wins harder + aux 0.3', args: ['--imitate-wins', '3', '--aux', '0.3'] },
-      { key: 'c', why: 'wider network (512, 256), imitate + aux 1', args: ['--imitate-wins', '1', '--aux', '1'], fresh: '512,256' },
+      { key: 'b', why: 'teacher + aux 1 (defence first: no imitation)', args: ['--aux', '1'] },
+      { key: 'c', why: 'imitate 0.3 + sharper teacher (danger-tau 50) + aux 1', args: ['--imitate-wins', '0.3', '--aux', '1', '--danger-tau', '50'] },
     ].map((x) => Object.assign(x, { args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '6'].concat(x.args) })),
   },
 };
@@ -157,10 +169,10 @@ async function main(a) {
       '--deals', deals, '--seed', String(L.seed + r * 100000), '--out', data].concat(L.generate(state), workers), log);
     if (!g.ok) throw new Error('generate failed');
     state.data.push(data);
-    while (state.data.length > 3) {
+    while (state.data.length > (L.keep || 3)) {
       const old = state.data.shift();
       fs.rmSync(path.join(ROOT, old), { recursive: true, force: true });
-      log('dropped ' + old + ' (the last 3 rounds of data are kept)');
+      log('dropped ' + old + ' (the last ' + (L.keep || 3) + ' rounds of data are kept)');
     }
     save();
 
@@ -185,7 +197,7 @@ async function main(a) {
     for (const x of rec.arms.filter((y) => y.trained)) {
       const json = path.join('ml', 'frontier', name, x.model + '-screen.json');
       const c = run('node', ['scripts/ml/bench.js', 'compare', 'lc:ml/models/' + x.model + '.json', 'lc:' + champ.model,
-        '--deals', String(a.screen || 10000), '--json', json].concat(workers), log);
+        '--deals', String(a.screen || L.screen || 10000), '--json', json].concat(workers), log);
       if (!c.ok) continue;
       const gap = JSON.parse(fs.readFileSync(path.join(ROOT, json), 'utf8')).gap;
       x.screen = gap;

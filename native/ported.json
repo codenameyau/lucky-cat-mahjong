@@ -1,8 +1,8 @@
 {
   "checked": "2026-11-09",
-  "commit": "def513ac88fbad8cdfd214f83e2a5858177f05a3",
+  "commit": "ec9da47f12729552994a4cd508756f0e73fd2a82",
   "files": {
-    "js/mahjong-engine.js": "ba79fd8efaddad7206c0c4bf060e21d0780a7e753cdc90369f495233916908b1",
+    "js/mahjong-engine.js": "6e26a95e5301d710cfe438b350fa5bb59a27ae96f3941758578b12802fc77d13",
     "js/points.js": "86b3818b1b926a75a41429c647db912291c0542dbb749081a999244d433a811e",
     "js/mahjong-bot.js": "2545390dc98b85a57e50b13e7a48e6abf3ec19dcdd42aa417ca97b57ee6670c2",
     "js/mahjong-jorge-yau.js": "31a3f1723cdf194f277f2d2f6a9a97b81190c38328a6ca94b23f394185a2d099",
