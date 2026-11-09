@@ -22,7 +22,10 @@
             a full-deck score to bench/scores.json.
    compare  the paired gap between two models at the benchmark table, on
             fresh deals (never the deck): points a hand, the first less the
-            second, deal by deal, with its standard error.
+            second, deal by deal, with its standard error. Played on the
+            native simulator's fast build (a screen); --exact plays it on the
+            exact build. judge and score always play on the exact build,
+            which plays every hand as the JS does (frontier plan §6b).
    judge    the five stages of the bar (bench/benchmark.json "bar") against
             the lineage's current generation (bench/lineages.json, or --vs):
             fair play, screen, qualify, replicate, no regression. It stops
@@ -217,10 +220,21 @@ const workerCount = (a) => parseInt(a.workers || os.cpus().length, 10);
 async function play(models, seed, deals, workers, bm, table) {
   bm = bm || benchmark();
   if (table) bm = Object.assign({}, bm, { table });
-  return summarize(models, await playParts(models, seed, 0, deals, workers, bm));
+  const r = summarize(models, await playParts(models, seed, 0, deals, workers, bm));
+  r.simulator = played;
+  return r;
 }
 
 // Deals [from, to) of the seeds from `seed`, split across the workers: the raw sums.
+// The hybrid (frontier plan §6b): the benchmark's own numbers (judgments and
+// Table Scores) are played on the exact build, which plays every hand as the
+// JS does; screens and training data on the fast one. `simulator` is what this
+// process plays on, and `played` what it last actually ran ('js' when a player
+// can't run natively).
+let simulator = 'fast';
+let played = null;
+function useSimulator(kind) { simulator = kind; }
+
 async function playParts(models, seed, from, to, workers, bm) {
   const jobs = [];
   const deals = to - from;
@@ -229,9 +243,10 @@ async function playParts(models, seed, from, to, workers, bm) {
   // The native simulator (native/, npm run native:build) plays the same hands
   // exactly as the JS does, when every player can run there; --js forces the JS.
   if (!process.env.LCM_JS) {
-    const parts = require('./native.js').playNativeParts({ bm, models, seed, from, to }, Math.max(1, workers));
-    if (parts) return parts;
+    const parts = require('./native.js').playNativeParts({ bm, models, seed, from, to, exact: simulator === 'exact' }, Math.max(1, workers));
+    if (parts) { played = 'native-' + simulator; return parts; }
   }
+  played = 'js';
   return workers === 0
     ? [await playWork(jobs[0])]
     : await Promise.all(jobs.map((job) => new Promise((resolve, reject) => {
@@ -257,6 +272,7 @@ async function playSequential(models, seed, deals, workers, bm, bar) {
     const sig = r.gap.standardError > 0 ? r.gap.points / r.gap.standardError : 0;
     if (from + block < deals && (sig >= bar.earlyPass || sig <= bar.earlyFail)) { r.stoppedEarly = true; break; }
   }
+  r.simulator = played;
   return r;
 }
 
@@ -349,6 +365,7 @@ function lineages() { return readJson(path.join(BENCH, 'lineages.json')); }
 const fmt = (g) => (g.points >= 0 ? '+' : '') + g.points.toFixed(1) + ' ± ' + g.standardError.toFixed(1);
 
 async function judge(a) {
+  useSimulator('exact');
   const bm = benchmark();
   const cand = a._[1];
   const lineName = a.lineage;
@@ -392,7 +409,7 @@ async function judge(a) {
       : await play([cand, other], seed, deals, workers, bm);
     const v = stagePasses(stage, r.gap, bar, line.keepWinRate);
     if (r.stoppedEarly) v.why += ' (stopped early at ' + r.gap.deals + ' deals)';
-    record.stages.push({ stage, against: other, seed, deals: r.gap.deals, gap: r.gap, models: r.models, pass: v.pass, why: v.why });
+    record.stages.push({ stage, against: other, seed, deals: r.gap.deals, gap: r.gap, models: r.models, pass: v.pass, why: v.why, simulator: r.simulator });
     save();
     log(stage + (stage === 'regression' ? ' against ' + other + ' (less ' + current + ' there)' : ' vs ' + other) + ': ' + fmt(r.gap) + ' points a hand, hands won ' + (100 * r.gap.winRate).toFixed(2) + ' ± ' +
       (100 * r.gap.winStandardError).toFixed(2) + ' points, ' + deals + ' deals: ' + (v.pass ? 'pass' : 'FAIL') + ' (' + v.why + ')');
@@ -462,7 +479,7 @@ function promote(lineName, name, model, record) {
 async function score(id, deals, workers, bm) {
   bm = bm || benchmark();
   const r = await play([id], bm.deck.start, Math.min(deals, bm.deck.deals), workers, bm);
-  return Object.assign({ benchmark: bm.name, full: r.models[0].deals === bm.deck.deals }, r.models[0]);
+  return Object.assign({ benchmark: bm.name, full: r.models[0].deals === bm.deck.deals, simulator: r.simulator }, r.models[0]);
 }
 
 function recordScore(name, model, s, bm) {
@@ -472,7 +489,7 @@ function recordScore(name, model, s, bm) {
   all.scores = all.scores.filter((x) => !(x.name === name && x.benchmark === bm.name));
   all.scores.push({ name, model, sha256: modelSha(model), benchmark: bm.name, scored: stamp(), gameVersion: E.GAME_VERSION,
     points: +s.points.toFixed(2), standardError: +s.standardError.toFixed(2), winRate: +s.winRate.toFixed(4), dealInRate: +s.dealInRate.toFixed(4),
-    averageWin: Math.round(s.averageWin), averageFaan: +s.averageFaan.toFixed(2), deals: s.deals });
+    averageWin: Math.round(s.averageWin), averageFaan: +s.averageFaan.toFixed(2), deals: s.deals, simulator: s.simulator || 'js' });
   all.scores.sort((x, y) => y.points - x.points);
   writeJson(file, all);
 }
@@ -504,6 +521,7 @@ async function main(a) {
   if (cmd === 'verify') { const v = await verify(bm); console.log(v.name + ': ' + v.files + ' pinned files match, fingerprint ' + v.fingerprint.slice(0, 12) + ' matches'); return v; }
   await verify(bm);
   if (cmd === 'score') {
+    useSimulator('exact');  // a Table Score is the benchmark's own number
     const s = await score(a._[1], parseInt(a.deals || bm.deck.deals, 10), workerCount(a), bm);
     console.log('Table Score ' + (s.full ? '' : '(partial, ' + s.deals + ' of ' + bm.deck.deals + ' deals) ') + 'on ' + bm.name + '\n  ' + report(s));
     if (a.record) { recordScore(a.record, a._[1], s, bm); console.log('Recorded in bench/scores.json as ' + a.record); }
@@ -514,9 +532,11 @@ async function main(a) {
     const deals = parseInt(a.deals || bm.bar.screen, 10);
     const seed = a.seed ? parseInt(a.seed, 10) : freshSeed(bm, deals);
     if (inDeck(bm, seed, deals)) throw new Error('bench: compare plays fresh deals; seeds ' + seed + ' onward touch the benchmark deck');
+    // A screen plays on the fast build; --exact for a compare whose number must reproduce to the decimal.
+    if (a.exact) useSimulator('exact');
     const r = await play([a._[1], a._[2]], seed, deals, workerCount(a), bm);
     r.models.forEach((m) => console.log('  ' + report(m)));
-    console.log(a._[1] + ' less ' + a._[2] + ': ' + fmt(r.gap) + ' points a hand (' + (r.gap.points / r.gap.standardError).toFixed(2) + ' SE), seeds from ' + seed);
+    console.log(a._[1] + ' less ' + a._[2] + ': ' + fmt(r.gap) + ' points a hand (' + (r.gap.points / r.gap.standardError).toFixed(2) + ' SE), seeds from ' + seed + ' (' + r.simulator + ')');
     if (a.json) writeJson(path.resolve(ROOT, a.json), Object.assign({ seed }, r));
     return r;
   }
@@ -532,4 +552,4 @@ if (process.argv[2] === '--worker') {
   main(parseArgs(process.argv.slice(2))).catch((err) => { console.error(err.message); process.exit(1); });
 }
 
-module.exports = { benchmark, lineages, verify, fingerprint, play, playSequential, score, fairPlay, stagePasses, inDeck, meanSe, resolveFile, promote, recordScore };
+module.exports = { useSimulator, benchmark, lineages, verify, fingerprint, play, playSequential, score, fairPlay, stagePasses, inDeck, meanSe, resolveFile, promote, recordScore };

@@ -239,7 +239,7 @@ function playNative(job, models, table) {
   table = table || job.bm.table.map((id) => nativeId(id, job.bm));
   if (models.concat(table).some((x) => !x)) return null;
   return new Promise((resolve, reject) => {
-    const child = spawn(SIM, ['play', '--models', models.join(','), '--table', table.join(','), '--seed', String(job.seed),
+    const child = spawn(job.exact ? SIM_EXACT : SIM, ['play', '--models', models.join(','), '--table', table.join(','), '--seed', String(job.seed),
       '--from', String(job.from), '--to', String(job.to)], { stdio: ['ignore', 'pipe', 'inherit'] });
     let out = '';
     child.stdout.on('data', (d) => { out += d; });

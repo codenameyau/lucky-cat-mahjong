@@ -65,15 +65,15 @@ node scripts/ml/weights.js import LV3b.lcmw LV3b.json              # back again
 
 ## Two builds
 
-`make -C native` builds both. Training, screens and judgments run the **fast** build (`lcm-sim`); the parity check diffs the **exact** build (`lcm-sim-exact`) against the JS.
+`make -C native` builds both, and the pipeline uses them as a hybrid: training data and screens on the **fast** build (`lcm-sim`), the benchmark's own numbers (every stage of `bench.js judge`, every `bench.js score`) on the **exact** build (`lcm-sim-exact`), which the parity check also diffs against the JS. `bench.js compare --exact` plays a compare exactly. Each result records the build it ran on (`simulator`: `native-fast`, `native-exact` or `js`).
 
 | | Fast (`lcm-sim`) | Exact (`lcm-sim-exact`) |
 | --- | --- | --- |
 | Float math | fused multiply-adds, float32 networks, the C library's `exp`/`log` | as the JS: no fusing, V8's fdlibm, float32 stores, double sums |
 | Same hands as the JS | statistically; a decision between moves tied to the last bit can go the other way | action for action |
-| Used by | `bench.js`, `lucky.js generate`, `frontier.js` | `native.js parity`, `npm test` |
+| Used by | `lucky.js generate`, `bench.js compare` (screens) | `bench.js judge` and `score`, `compare --exact`, `native.js parity`, `npm test` |
 
-How rarely the fast build differs: on 1,000 deals at the benchmark table every hand was identical to the exact build, and a 2,000-deal compare printed the same gap. On a 20,000-deal round of data (220,000 sampled moves), a few sampled moves flipped; each flip changes that hand, and the rest of its chunk's random stream with it, so 63 of the round's 256 shard files differ while the data is the same in distribution. **This is an accepted trade-off, flagged in the [frontier plan](frontier-plan.md) §6b.**
+How rarely the fast build differs: on 1,000 deals at the benchmark table every hand was identical to the exact build, and a 2,000-deal compare printed the same gap. On a 20,000-deal round of data (220,000 sampled moves), a few sampled moves flipped; each flip changes that hand, and the rest of its chunk's random stream with it, so 63 of the round's 256 shard files differ while the data is the same in distribution. **This is an accepted trade-off for training data and screens, flagged in the [frontier plan](frontier-plan.md) §6b; judgments and Table Scores don't take it.**
 
 Both builds share every line of code except the arithmetic, so the action-level check on the exact build covers the logic of both.
 
