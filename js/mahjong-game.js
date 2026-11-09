@@ -135,6 +135,11 @@
     if (typeof document !== 'undefined' && document.documentElement && document.documentElement.setAttribute) {
       document.documentElement.setAttribute('data-theme', name);
     }
+    // The browser's address bar takes the theme's colour right away, not on the next load.
+    if (typeof document !== 'undefined' && document.querySelectorAll) {
+      var bars = document.querySelectorAll('meta[name="theme-color"]');
+      for (var i = 0; i < bars.length; i++) bars[i].setAttribute('content', t.meta);
+    }
     return name;
   }
   var FONT_BODY = '"Avenir Medium", "Avenir Next Medium", Avenir, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
