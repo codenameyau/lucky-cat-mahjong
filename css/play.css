@@ -274,6 +274,7 @@ html.play-reopening body {
 
 html.is-playing,
 html.is-playing body {
+  background: var(--theme-dark);
   overflow: hidden;
   overscroll-behavior: none;
 }

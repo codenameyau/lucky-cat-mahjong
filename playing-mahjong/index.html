@@ -41,7 +41,9 @@
       var t = JSON.parse(localStorage.getItem('lcm-play-prefs') || '{}').theme;
       if (t === 'blue' || t === 'red') document.documentElement.setAttribute('data-theme', t);
       // The address bar matches the theme from the first paint (game.js changes it with the theme).
-      document.querySelector('meta[name="theme-color"]').setAttribute('content', { blue: '#082f52', red: '#4a0f1c' }[t] || '#074029');
+      var c = { blue: '#082f52', red: '#4a0f1c' }[t] || '#074029';
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', c);
+      document.documentElement.style.backgroundColor = c;
     } catch (e) {}
   </script>
   <script>
