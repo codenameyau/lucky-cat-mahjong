@@ -34,6 +34,8 @@
             the candidate do worse by more than 1 standard error. A pass is then scored on the deck;
             --promote NAME records it as the lineage's next generation and
             its Table Score. Every judgment is written to ml/bench/judged/.
+            --screened FILE takes a screen already played (compare --json,
+            the candidate against the current generation) as the screen.
             --dry-run plays every stage at 1/200 of its deals, to check the
             pipeline; it never promotes. A real judgment is about a million
             hands: some six hours on seven workers.
@@ -360,6 +362,8 @@ async function judge(a) {
   await verify(bm);
   log('Judging ' + cand + ' against ' + current + ' (' + lineName + ') on ' + bm.name);
 
+  // The same model spelled two ways (a short and a full commit) is the same model.
+  const same = (x, y) => x === y || !!(x && y && modelSha(x) && modelSha(x) === modelSha(y));
   const stop = (stage, why) => { record.passed = false; record.failedAt = stage; save(); log('FAIL at ' + stage + ': ' + why); return record; };
 
   // Fair play is cheapest, so it runs first: a model that fails it is never played.
@@ -388,12 +392,28 @@ async function judge(a) {
     return v;
   };
 
-  for (const [stage, deals] of [['screen', bar.screen], ['qualify', bar.qualify], ['replicate', bar.replicate]]) {
+  // --screened FILE: a screen already played (bench.js compare --json, the
+  // candidate against the current generation on fresh deals) stands as the
+  // screen, instead of a second one. Selection among a round's arms is paid
+  // for by qualify and replicate, which play fresh deals at 2 SE each.
+  const stages = [['screen', bar.screen], ['qualify', bar.qualify], ['replicate', bar.replicate]];
+  if (a.screened) {
+    const s = readJson(path.resolve(ROOT, a.screened));
+    const ids = (s.models || []).map((m) => m.model);
+    if (!same(ids[0], cand) || !same(ids[1], current)) throw new Error('bench: --screened is ' + ids.join(' vs ') + ', not ' + cand + ' vs ' + current);
+    if (s.gap.deals < bar.screen) throw new Error('bench: --screened played ' + s.gap.deals + ' deals; the screen needs ' + bar.screen);
+    if (inDeck(bm, s.seed, s.gap.deals)) throw new Error('bench: --screened touched the benchmark deck');
+    const v = stagePasses('screen', s.gap, bar, line.keepWinRate);
+    record.stages.push({ stage: 'screen', against: current, seed: s.seed, deals: s.gap.deals, gap: s.gap, models: s.models, pass: v.pass, why: v.why + ' (screened before the judgment)', from: a.screened });
+    save();
+    log('screen vs ' + current + ' (already played, ' + a.screened + '): ' + fmt(s.gap) + ' points a hand: ' + (v.pass ? 'pass' : 'FAIL') + ' (' + v.why + ')');
+    if (!v.pass) return stop('screen', v.why);
+    stages.shift();
+  }
+  for (const [stage, deals] of stages) {
     const v = await paired(stage, current, deals);
     if (!v.pass) return stop(stage, v.why);
   }
-  // The same model spelled two ways (a short and a full commit) is the same model.
-  const same = (x, y) => x === y || (modelSha(x) && modelSha(x) === modelSha(y));
   const rivals = gens.map((g) => g.model).concat(line.league || []).filter((m) => !same(m, current) && !same(m, cand));
   for (const other of rivals) {
     const v = await paired('regression', other, bar.regression);

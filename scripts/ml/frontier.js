@@ -167,7 +167,13 @@ async function main(a) {
     // 2. Arms
     for (const arm of L.arms) {
       const model = L.prefix + r + arm.key;
-      const init = arm.fresh ? ['--hidden', arm.fresh] : ['--init', champ.model];
+      // A fresh network only while the champion is still random play: after
+      // that, a network from scratch each round would throw away every
+      // generation the lineage has earned.
+      const fresh = arm.fresh && state.champions.length === 1;
+      // Its args are arm a's; from the champion it would be arm a again.
+      if (arm.fresh && !fresh) { log('  ' + model + ' skipped: a fresh network only while the champion plays at random'); continue; }
+      const init = fresh ? ['--hidden', arm.fresh] : ['--init', champ.model];
       const t = run(py, ['ml/train_lucky.py', '--data'].concat(state.data, ['--name', model], init, arm.args), log);
       const auxLine = (t.out.match(/auxiliary heads, held out: .*/) || [''])[0];
       rec.arms.push({ model, why: arm.why, trained: t.ok, aux: auxLine });
@@ -183,6 +189,7 @@ async function main(a) {
       if (!c.ok) continue;
       const gap = JSON.parse(fs.readFileSync(path.join(ROOT, json), 'utf8')).gap;
       x.screen = gap;
+      x.screenFile = json;
       x.sigmas = gap.points / gap.standardError;
       log('  ' + x.model + ' (' + x.why + '): ' + (gap.points >= 0 ? '+' : '') + gap.points.toFixed(1) + ' ± ' + gap.standardError.toFixed(1) +
         ' points a hand over ' + champ.name + ' (' + x.sigmas.toFixed(2) + ' SE)');
@@ -194,7 +201,9 @@ async function main(a) {
     // 4. Judge
     if (a['no-judge']) { rec.result = best.model + ' screened best (no judge)'; log('Round ' + r + ': ' + best.model + ' screened best; --no-judge, so nothing is promoted'); save(); continue; }
     const j = run('node', ['scripts/ml/bench.js', 'judge', 'lc:ml/models/' + best.model + '.json', '--lineage', name,
-      '--vs', 'lc:' + champ.model, '--promote', best.model].concat(workers), log);
+      // The round's screen stands as the judgment's: a second 10,000-deal
+      // screen rejected most real gains near 1 SE (LV1a: +7.6, then +4.3).
+      '--vs', 'lc:' + champ.model, '--screened', best.screenFile, '--promote', best.model].concat(workers), log);
     rec.judged = best.model;
     if (j.ok) {
       state.champion = { name: best.model, model: 'ml/models/' + best.model + '.json' };
