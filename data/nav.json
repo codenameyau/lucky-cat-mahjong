@@ -1,10 +1,6 @@
 {
   "links": [
     {
-      "label": "Home",
-      "href": "/"
-    },
-    {
       "label": "Community",
       "href": "/community/"
     },

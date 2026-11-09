@@ -6,13 +6,27 @@
   var NAV_JSON = '/data/nav.json';
 
   var DEFAULT_LINKS = [
-    { label: 'Home', href: '/' },
     { label: 'Community', href: '/community/' },
     { label: 'Events', href: '/events/' },
     { label: 'Points Guide', href: '/hong-kong-mahjong-scoring/' },
     { label: 'Personality Quiz', href: '/which-mahjong-tiles-are-you/' },
     { label: 'Play Mahjong', href: '/play-mahjong/' },
   ];
+
+  // Line icons for the nav links (also written into each page's own nav, so there is no flash).
+  var NAV_ICONS = {
+    '/community/': '<circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 13.7c2.6 0 4.5 1.8 4.5 4.3"/>',
+    '/events/': '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+    '/hong-kong-mahjong-scoring/': '<rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8.5 7.5h7"/><path d="M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01"/>',
+    '/which-mahjong-tiles-are-you/': '<path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"/><path d="M19 15v4M17 17h4"/>',
+    '/play-mahjong/': '<rect x="5" y="2.5" width="14" height="19" rx="2.6"/><circle cx="9.3" cy="7.3" r="1.25" fill="currentColor" stroke="none"/><circle cx="14.7" cy="7.3" r="1.25" fill="currentColor" stroke="none"/><circle cx="12" cy="11.5" r="1.25" fill="currentColor" stroke="none"/><circle cx="9.3" cy="15.7" r="1.25" fill="currentColor" stroke="none"/><circle cx="14.7" cy="15.7" r="1.25" fill="currentColor" stroke="none"/>',
+  };
+
+  function navIcon(href) {
+    var path = String(href || '').split('#')[0];
+    var paths = NAV_ICONS[path];
+    return paths ? '<svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + paths + '</svg>' : '';
+  }
 
   function escapeHtml(str) {
     return String(str)
@@ -39,7 +53,7 @@
     return links.map(function (item) {
       var active = linkIsActive(item.href) ? ' is-active' : '';
       return '<li><a href="' + escapeHtml(item.href) + '" class="nav-link' + active + '">' +
-        escapeHtml(item.label) + '</a></li>';
+        navIcon(item.href) + escapeHtml(item.label) + '</a></li>';
     }).join('');
   }
 

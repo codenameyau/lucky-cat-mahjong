@@ -244,6 +244,15 @@ h1, h2, h3 {
   flex-shrink: 0;
 }
 
+.icon-line,
+.nav-icon {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .btn .icon,
 .mobile-bar-btn .icon {
   width: 1.5em;
@@ -633,7 +642,16 @@ h1, h2, h3 {
   }
 }
 
+/* Between the mobile menu and a full-width bar there's no room for the icons: the labels alone just fit. */
+@media (min-width: 769px) and (max-width: 900px) {
+  .nav-icon { display: none; }
+}
+
 .nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
   color: var(--color-text);
   font-weight: 500;
   font-size: 0.95rem;
@@ -647,6 +665,12 @@ h1, h2, h3 {
   text-decoration: none;
   opacity: 1;
   color: var(--color-primary);
+}
+
+.nav-icon {
+  width: 1.15em;
+  height: 1.15em;
+  flex-shrink: 0;
 }
 
 .nav-toggle {
@@ -1066,7 +1090,8 @@ h1, h2, h3 {
   }
 
   .nav-link {
-    display: block;
+    display: flex;
+    justify-content: center;
     width: 100%;
     padding: 0.85rem 1rem;
     opacity: 1;
