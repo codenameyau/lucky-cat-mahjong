@@ -791,6 +791,7 @@ test('colour themes: green, blue and red, cycled from the menu and kept in the g
   assert.match(src, /'Theme: ' \+ themeLabel/);
   assert.match(src, /prefs\.theme = applyTheme\(next\)[\s\S]{0,60}writeJson\(PREFS_KEY, prefs\)/);
   assert.match(src, /applyTheme\(prefs\.theme\)/);
+  assert.match(src, /meta\[name="theme-color"\][\s\S]{0,160}t\.meta/);
   assert.doesNotMatch(src, /addColorStop\(0, '#127048'\)/);
   const css = fs.readFileSync(path.join(__dirname, '..', 'css/play.css'), 'utf8');
   assert.match(css, /:root\[data-theme="blue"\]/);
