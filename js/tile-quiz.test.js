@@ -87,12 +87,38 @@ describe('profile helpers', () => {
     assert.ok(quiz.isValidZip('10001-1234'));
     assert.ok(!quiz.isValidZip('1000'));
     assert.ok(!quiz.isValidZip('abcde'));
+    assert.ok(!quiz.isValidZip('00000'));
+  });
+
+  it('wants a full name: a first and a last name, not a letter or a word', () => {
+    for (const ok of ['Mei Lin', 'Jorge Yau', "Siobhan O'Neil", 'Anne-Marie Smith', 'José García', '  Mei   Lin  ', 'Al Li']) assert.ok(quiz.isValidName(ok), ok);
+    for (const bad of ['', ' ', 'a', 'aa', 'Mei', 'xxx', 'a b', 'aa bb', 'xxx xxx', '12 34', 'Mei 4', '-- --']) assert.ok(!quiz.isValidName(bad), bad);
+  });
+
+  it('turns away profanity in a name or handle, but not names that only contain it', () => {
+    const profane = ['fuck', 'Shit Head', 'f u c k', 'f.u.c.k', 'fvck'.replace('v', 'u'), 'sh1t', 'b!tch', '$hit', 'Mei Cunt', 'asshole'];
+    for (const bad of profane) assert.ok(quiz.hasProfanity(bad), bad);
+    assert.ok(quiz.hasProfanity('xxfuckxx'));
+    assert.ok(!quiz.isValidName('Mei Fuck'));
+    assert.equal(quiz.validateProfile({ name: 'Mei Fuck', instagram: '@mei', zip: '11201', skill: 'Beginner' }).name, 'Please keep it clean: enter your full name');
+    assert.ok(!quiz.isValidInstagram('@xxfuckxx'));
+    assert.ok(!quiz.isValidInstagram('@big.sh1t'));
+    for (const ok of ['Class', 'Scunthorpe', 'Cassidy', 'Bassett', 'Hancock', 'Dickens', 'Mei Lin', 'Assunta', 'Compass', 'Peacock']) assert.ok(!quiz.hasProfanity(ok), ok);
+    assert.ok(quiz.isValidName('Cassidy Bassett'));
+    assert.ok(quiz.isValidInstagram('@classy.cassidy'));
+  });
+
+  it('wants a real Instagram handle, not a letter or two', () => {
+    for (const ok of ['@mei.lin', 'mei_lin', 'https://instagram.com/luckycat.mahjong/', '@abc', 'A1b']) assert.ok(quiz.isValidInstagram(ok), ok);
+    for (const bad of ['', '@', 'a', '@ab', 'xx', '@aaaa', '@...', '@___', '@mei lin', '@' + 'a'.repeat(31)]) assert.ok(!quiz.isValidInstagram(bad), bad);
   });
 
   it('requires every field', () => {
     const errors = quiz.validateProfile({ name: ' ', instagram: '', zip: '1', skill: 'Expert' });
     assert.deepEqual(Object.keys(errors).sort(), ['instagram', 'name', 'skill', 'zip']);
-    assert.deepEqual(quiz.validateProfile({ name: 'Mei', instagram: 'mei', zip: '11201', skill: 'Beginner' }), {});
+    assert.deepEqual(quiz.validateProfile({ name: 'Mei Lin', instagram: 'mei.lin', zip: '11201', skill: 'Beginner' }), {});
+    assert.deepEqual(Object.keys(quiz.validateProfile({ name: 'M', instagram: 'a', zip: '00000', skill: 'Beginner' })).sort(), ['instagram', 'name', 'zip']);
+    assert.deepEqual(quiz.validateProfile({ name: 'Mei Lin', instagram: '@mei', zip: '11201', skill: 'Beginner' }), {});
   });
 
   it('encodes the Google Form body with the form entry IDs', () => {

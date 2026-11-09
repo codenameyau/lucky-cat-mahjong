@@ -607,15 +607,63 @@
     return handle ? '@' + handle : '';
   }
 
+  // A real zip: five digits (and the optional four), and not the placeholder 00000.
   function isValidZip(value) {
-    return /^\d{5}(-\d{4})?$/.test(String(value || '').trim());
+    var zip = String(value || '').trim();
+    return /^\d{5}(-\d{4})?$/.test(zip) && zip.slice(0, 5) !== '00000';
+  }
+
+  // Words that are never fine in a name or a handle. A whole word on its own is matched, so
+  // "Class" and "Scunthorpe" pass; the longer, unmistakable ones are also matched inside a
+  // handle ("xxfuckxx"), after digits and symbols that stand in for letters are read as letters.
+  // Words that sit inside real names and places (a "cunt" in Scunthorpe, a "nazi" in Nazir) are
+  // matched whole only.
+  var BLOCKED_WORDS = ['fuck', 'fucker', 'fucking', 'shit', 'shitty', 'bitch', 'bastard', 'asshole', 'arse', 'ass', 'cunt',
+    'dick', 'cock', 'pussy', 'whore', 'slut', 'twat', 'wank', 'wanker', 'bollocks', 'piss', 'cum', 'porn', 'rape', 'rapist',
+    'nazi', 'hitler', 'nigger', 'nigga', 'faggot', 'fag', 'retard', 'tranny', 'kike', 'chink', 'spic', 'coon', 'dyke', 'paki'];
+  var BLOCKED_INSIDE = ['fuck', 'shit', 'bitch', 'asshole', 'pussy', 'whore', 'nigger', 'nigga', 'faggot', 'rapist', 'hitler',
+    'retard', 'tranny'];
+  var LOOKALIKES = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '8': 'b', '@': 'a', '$': 's', '!': 'i' };
+
+  function readAsLetters(value) {
+    return String(value || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[0134578@$!]/g, function (c) { return LOOKALIKES[c] || ''; });
+  }
+
+  // True when a name or handle holds a blocked word.
+  function hasProfanity(value) {
+    var read = readAsLetters(value);
+    var words = read.split(/[^a-z]+/).filter(Boolean);
+    if (words.some(function (w) { return BLOCKED_WORDS.indexOf(w) !== -1; })) return true;
+    var squashed = read.replace(/[^a-z]/g, '');
+    return BLOCKED_INSIDE.some(function (w) { return squashed.indexOf(w) !== -1; });
+  }
+
+  // A full name: a first and a last name, each of two or more letters (hyphens, apostrophes and
+  // periods are fine), not one letter typed over and over ("aa bb"), and nothing profane.
+  function isValidName(value) {
+    var parts = String(value || '').trim().split(/\s+/);
+    if (parts.length < 2 || hasProfanity(value)) return false;
+    return parts.every(function (part) {
+      var letters = part.replace(/[-'\u2019.]/g, '');
+      return /^[\p{L}][\p{L}\p{M}'\u2019.-]*$/u.test(part) && letters.length >= 2 && !/^(.)\1+$/u.test(letters);
+    });
+  }
+
+  // A plausible Instagram handle: 3 to 30 letters, numbers, periods and underscores, with a letter
+  // or number in it, and not one character typed over and over.
+  function isValidInstagram(value) {
+    var m = /^@([A-Za-z0-9._]{3,30})$/.exec(normalizeInstagram(value));
+    if (!m) return false;
+    var handle = m[1];
+    return /[A-Za-z0-9]/.test(handle) && !/^(.)\1+$/.test(handle) && !hasProfanity(handle);
   }
 
   function validateProfile(profile) {
     var errors = {};
-    if (!String(profile.name || '').trim()) errors.name = 'Enter your full name';
-    if (!/^@[A-Za-z0-9._]{1,30}$/.test(normalizeInstagram(profile.instagram))) errors.instagram = 'Enter your Instagram handle, like @luckycat.mahjong';
-    if (!isValidZip(profile.zip)) errors.zip = 'Enter a 5-digit zip code';
+    if (!isValidName(profile.name)) errors.name = hasProfanity(profile.name) ? 'Please keep it clean: enter your full name' : 'Enter your full name';
+    if (!isValidInstagram(profile.instagram)) errors.instagram = hasProfanity(profile.instagram) ? 'Please keep it clean: enter your real Instagram handle' : 'Enter your real Instagram handle, like @luckycat.mahjong';
+    if (!isValidZip(profile.zip)) errors.zip = 'Enter a valid 5-digit zip code';
     if (SKILL_LEVELS.indexOf(profile.skill) === -1) errors.skill = 'Pick your skill level';
     return errors;
   }
@@ -1321,6 +1369,9 @@
     normalizeInstagram: normalizeInstagram,
     isValidZip: isValidZip,
     validateProfile: validateProfile,
+    isValidName: isValidName,
+    hasProfanity: hasProfanity,
+    isValidInstagram: isValidInstagram,
     buildFormBody: buildFormBody,
     restorableProgress: restorableProgress,
     signCompletion: signCompletion,
