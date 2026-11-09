@@ -190,7 +190,7 @@
     var oneSuit = B.suitCommitment(v.ctx, c);
     if (oneSuit && i < 27 && E.suitOfIndex(i) !== oneSuit) {
       // The plan line names the flush, so this one only says why the tile goes.
-      return 'Your hand is keeping ' + SUIT_NAME[oneSuit] + ', so other suits go first.';
+      return 'Your hand is keeping ' + SUIT_NAME[oneSuit] + ': discard other suits first.';
     }
     if (B.isPungTile(v.game, i) && c[i] < 2) {
       return pungedReason(i);
@@ -251,7 +251,7 @@
     if (pick.shortSuit && i < 27) {
       var su = E.suitOfIndex(i);
       if (neighbors(c, i) === 0) return 'Nothing connects to it, and ' + SUIT_NAME[su] + ' is your shortest suit.';
-      if (B.looseTerminal(c, i)) return SUIT_NAME[su] + ' is your shortest suit, so its terminal goes first.';
+      if (B.looseTerminal(c, i)) return SUIT_NAME[su] + ' is your shortest suit: discard its terminal first.';
       return SUIT_NAME[su] + ' is your shortest suit, and it connects the least.';
     }
     if (pick.lone) {
@@ -399,13 +399,13 @@
     return { name: label, faan: Math.max(0, Math.floor(faan + 0.25)), min: v.game.settings.minFaan };
   }
 
-  // "Going for All Triplets, about 4 faan." One sentence, the same at every
+  // "Go for All Triplets, about 4 faan." One sentence, the same at every
   // level that says it (the Simple hint and feedback; a playback can reuse it).
   function aimSentence(aim) {
     if (!aim || !aim.name) return '';
     var worth = aim.faan >= 13 ? 'the 13 faan limit' : 'about ' + aim.faan + ' faan';
     var short = aim.min && aim.faan < aim.min ? ', short of the ' + aim.min + ' faan minimum' : '';
-    return 'Going for ' + aim.name + ', ' + worth + short + '.';
+    return 'Go for ' + aim.name + ', ' + worth + short + '.';
   }
 
   // The bigger hand the same tiles can still make, when it isn't already
@@ -561,7 +561,7 @@
   function playerDiscardWhy(plan, pick) {
     var route = routeOf(plan);
     if (route && route.suit && pick.index < 27 && E.suitOfIndex(pick.index) !== route.suit) {
-      return 'Your hand is keeping ' + SUIT_NAME[route.suit] + ', so other suits go first.';
+      return 'Your hand is keeping ' + SUIT_NAME[route.suit] + ': discard other suits first.';
     }
     return 'It doesn\'t help the hand you\'re going for.';
   }
@@ -1298,8 +1298,8 @@
     } else if (bestFaan < min) {
       tips.push('Pass. Claiming leaves you short of ' + min + ' faan.');
     } else if (v.concealed) {
-      tips.push('Pass. Staying concealed is worth 1 faan' +
-        (stay && stay.route.id === 'straights' ? ' and keeps All Sequences' : '') + '.');
+      tips.push('Pass. Stay concealed for 1 faan' +
+        (stay && stay.route.id === 'straights' ? ' and to keep All Sequences' : '') + '.');
     } else {
       tips.push('Pass. It doesn\'t help enough.');
     }

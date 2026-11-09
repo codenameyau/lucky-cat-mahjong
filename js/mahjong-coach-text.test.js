@@ -89,7 +89,7 @@ describe('coach text', () => {
         if (!h.aim) continue;
         named++;
         const said = C.aimSentence(h.aim);
-        assert.match(said, /^Going for .+, (about \d+ faan|the 13 faan limit)(, short of the \d+ faan minimum)?\.$/, said);
+        assert.match(said, /^Go for .+, (about \d+ faan|the 13 faan limit)(, short of the \d+ faan minimum)?\.$/, said);
         assert.ok(w.endsWith(said), id + ' ' + seed + ': ' + w);
         assert.equal(h.tips.length, 1, 'Simple stays one tip');
         // Detailed and Complex stay as they were.
@@ -102,8 +102,8 @@ describe('coach text', () => {
       }
     }
     assert.ok(named >= total - 2 && named > 10, named + ' of ' + total + ' named a hand');
-    assert.equal(C.aimSentence({ name: 'a chicken hand', faan: 1, min: 3 }), 'Going for a chicken hand, about 1 faan, short of the 3 faan minimum.');
-    assert.equal(C.aimSentence({ name: 'All Triplets', faan: 4, min: 3 }), 'Going for All Triplets, about 4 faan.');
+    assert.equal(C.aimSentence({ name: 'a chicken hand', faan: 1, min: 3 }), 'Go for a chicken hand, about 1 faan, short of the 3 faan minimum.');
+    assert.equal(C.aimSentence({ name: 'All Triplets', faan: 4, min: 3 }), 'Go for All Triplets, about 4 faan.');
     assert.equal(C.aimSentence(null), '');
   });
 

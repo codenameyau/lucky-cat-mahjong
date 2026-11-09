@@ -121,7 +121,7 @@ test('Feedback follows the coach setting: numbers only on Complex, "I" on Simple
         assert.ok(w.length <= Coach.MAX_TEXT);
       }
       assert.ok(s.tips.length <= 1, 'Simple gives one reason');
-      // Simple also names the hand it's going for (Coach.aimSentence), which the others leave out.
+      // Simple also names the hand to go for (Coach.aimSentence), which the others leave out.
       const aim = (' ' + Coach.aimSentence(feedbackHint(id, seed).aim)).trimEnd();
       assert.ok(words(s).length - aim.length <= words(d).length && words(d).length <= words(c).length + 120, id + ' ' + seed);
       if (/model expects|network plays/.test(words(c))) complexNumbers++;
