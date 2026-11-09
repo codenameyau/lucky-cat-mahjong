@@ -108,6 +108,8 @@
     gold: '#F4A020',
     goldLight: '#ffd27a',
     green: '#05693A',
+    primary: '#1C8B53', // the primary buttons and badges, in the theme's colour
+    primaryHover: '#25A363',
     cream: '#FFF8F0',
     ink: '#1A1A1A',
     muted: '#5C5C5C',
@@ -119,9 +121,9 @@
   // shade (the CSS --theme-deep). applyTheme copies one into COLORS and onto
   // <html data-theme>, which css/play.css reads for the sheets and the page.
   var THEMES = {
-    green: { label: 'Green', felt: '#0b5a39', feltLight: '#127048', feltDark: '#074029', green: '#05693A', deep: '#0a3d27', meta: '#074029' },
-    blue: { label: 'Blue', felt: '#0d4a7a', feltLight: '#16609a', feltDark: '#082f52', green: '#0a5c94', deep: '#0a2f4d', meta: '#082f52' },
-    red: { label: 'Red', felt: '#6e1a2c', feltLight: '#8c2639', feltDark: '#4a0f1c', green: '#7f2336', deep: '#3d0d18', meta: '#4a0f1c' },
+    green: { label: 'Green', felt: '#0b5a39', feltLight: '#127048', feltDark: '#074029', green: '#05693A', deep: '#0a3d27', meta: '#074029', primary: '#1C8B53', primaryHover: '#25A363' },
+    blue: { label: 'Blue', felt: '#0d4a7a', feltLight: '#16609a', feltDark: '#082f52', green: '#0a5c94', deep: '#0a2f4d', meta: '#082f52', primary: '#2377C4', primaryHover: '#3490DD' },
+    red: { label: 'Red', felt: '#6e1a2c', feltLight: '#8c2639', feltDark: '#4a0f1c', green: '#7f2336', deep: '#3d0d18', meta: '#4a0f1c', primary: '#C41E3A', primaryHover: '#D62A47' },
   };
   var THEME_ORDER = ['green', 'blue', 'red'];
   function themeName(name) { return THEMES[name] ? name : 'green'; }
@@ -132,6 +134,8 @@
     COLORS.feltLight = t.feltLight;
     COLORS.feltDark = t.feltDark;
     COLORS.green = t.green;
+    COLORS.primary = t.primary;
+    COLORS.primaryHover = t.primaryHover;
     if (typeof document !== 'undefined' && document.documentElement && document.documentElement.setAttribute) {
       document.documentElement.setAttribute('data-theme', name);
     }
@@ -1468,7 +1472,7 @@
       var dx = shakeDx('button', id);
       if (dx) { ctx.save(); ctx.translate(dx, 0); }
       var fills = {
-        primary: isHover ? '#d62a47' : COLORS.red,
+        primary: isHover ? COLORS.primaryHover : COLORS.primary,
         gold: isHover ? '#ffb43c' : COLORS.gold,
         light: isHover ? '#ffffff' : 'rgba(255, 248, 240, 0.94)',
         white: isHover ? '#ece6de' : '#ffffff',
@@ -2777,7 +2781,7 @@
       var isDealer = seat === game.dealer;
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fillStyle = isDealer ? COLORS.red : 'rgba(255,248,240,0.92)';
+      ctx.fillStyle = isDealer ? COLORS.primary : 'rgba(255,248,240,0.92)';
       ctx.fill();
       text(WIND_LETTERS[wind], x, y + 1, { size: Math.round(r * 1.05), family: FONT_HEAD, align: 'center', color: isDealer ? COLORS.white : COLORS.ink });
     }
@@ -4399,7 +4403,7 @@
         var tw = ctx.measureText(b.text).width;
         var bw = tw + size * 1.2, bh = size * 1.5;
         roundRect(ctx, -bw / 2, -bh / 2, bw, bh, bh / 2);
-        ctx.fillStyle = b.color || COLORS.red;
+        ctx.fillStyle = b.color || COLORS.primary;
         ctx.shadowColor = 'rgba(0,0,0,0.35)';
         ctx.shadowBlur = 14;
         ctx.fill();
@@ -4825,7 +4829,7 @@
       var badgeW = ctx.measureText('BETA').width + 12, badgeH = 16;
       var lx = r.x + (r.w - lineW - 6 - badgeW) / 2, ly = r.y + r.h - 46;
       text(line, lx, ly, { size: 12, color: 'rgba(255,248,240,0.7)' });
-      pill(lx + lineW + 6, ly - badgeH / 2, badgeW, badgeH, COLORS.red);
+      pill(lx + lineW + 6, ly - badgeH / 2, badgeW, badgeH, COLORS.primary);
       text('BETA', lx + lineW + 6 + badgeW / 2, ly + 1, { size: 10, weight: 'bold', align: 'center', color: COLORS.white });
       text('Built by Jorge Yau, developer, mahjong instructor', r.x + r.w / 2, r.y + r.h - 22, { size: 12, align: 'center', color: 'rgba(255,248,240,0.55)' });
     }
@@ -6092,7 +6096,7 @@
           var label = res.how === 'selfDraw' ? 'Self-draw!' : 'Win!';
           if (res.how === 'flowers') label = 'Flower win!';
           var mine = res.winner === 0;
-          banner(label, cx, cy, { size: 34, dur: 1700, color: mine ? COLORS.gold : COLORS.red, textColor: mine ? COLORS.ink : COLORS.white, sub: (mine ? 'You' : game.players[res.winner].name) + ' · ' + res.score.faan + ' faan' });
+          banner(label, cx, cy, { size: 34, dur: 1700, color: mine ? COLORS.gold : COLORS.primary, textColor: mine ? COLORS.ink : COLORS.white, sub: (mine ? 'You' : game.players[res.winner].name) + ' · ' + res.score.faan + ' faan' });
           sound.play('win');
           if (mine) {
             confetti(cx, cy, 140, false);
@@ -7410,7 +7414,7 @@
           var c = L.center;
           var mine = seat === 0;
           var label = ev.how === 'selfDraw' ? 'Self-draw!' : ev.how === 'flowers' ? 'Flower win!' : 'Win!';
-          banner(label, c.x + c.w / 2, c.y + c.h / 2, { size: 34, dur: 1700, color: mine ? COLORS.gold : COLORS.red, textColor: mine ? COLORS.ink : COLORS.white });
+          banner(label, c.x + c.w / 2, c.y + c.h / 2, { size: 34, dur: 1700, color: mine ? COLORS.gold : COLORS.primary, textColor: mine ? COLORS.ink : COLORS.white });
           sound.play('win');
           confetti(c.x + c.w / 2, c.y + c.h / 2, mine ? 140 : 40, !mine);
           if (mine) confetti(c.x + c.w / 2, c.y + c.h / 2, 50, true);
