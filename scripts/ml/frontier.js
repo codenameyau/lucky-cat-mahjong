@@ -134,16 +134,21 @@ const LINEAGES = {
     // discard that would deal in (harder the worse the hand's prospects:
     // --fold) and one that sets its own hand back (--progress), which from
     // random play is how to build a hand at all.
-    // Rounds 1-3: a: v1's recipe at the table. b: no imitation of wins (defence
-    // and progress only). c: progress pushed twice as hard. Imitating its own
-    // wins (a, c) lost 41-54 points a hand to random play every round; b alone
-    // closed in (-38.2, -7.1, -10.3). So from round 4 every arm builds on b:
-    // a: b itself, the control. b: b with progress and fold pushed twice as
-    // hard. c: b at a third of the learning rate for twice the epochs.
+    // Rounds 1-3 imitated its own wins (a, c: -41 to -54 points a hand, racing
+    // for cheap hands at any risk) or not (b: -38.2, -7.1, -10.3). Rounds 4-6
+    // built every arm on b, and every arm lost to random play (-6.7 to -33.3):
+    // from random play the teacher mostly taught folding.
+    // From round 7, the maintainer's call: more aggressive than defensive. No
+    // --fold; a softer deal-in teacher (danger-tau 300, not 100: an obvious
+    // deal-in still costs, a merely risky discard much less); --progress pushes
+    // every discard toward ready; and wins are imitated by their points, so a
+    // big win teaches more than a cheap one.
+    // a: progress 150 + imitate 0.2 by points. b: progress 200, no imitation
+    // (offence alone). c: progress 100 + imitate 0.3 by points.
     arms: [
-      { key: 'a', why: 'teacher (progress 100, fold 2) + aux 1, no imitation', args: ['--lr', '1e-3', '--epochs', '6', '--aux', '1', '--progress', '100', '--fold', '2'] },
-      { key: 'b', why: 'teacher (progress 200, fold 4) + aux 1, no imitation', args: ['--lr', '1e-3', '--epochs', '6', '--aux', '1', '--progress', '200', '--fold', '4'] },
-      { key: 'c', why: 'teacher (progress 100, fold 2) + aux 1, no imitation, lr 3e-4, 12 epochs', args: ['--lr', '3e-4', '--epochs', '12', '--aux', '1', '--progress', '100', '--fold', '2'] },
+      { key: 'a', why: 'offence: progress 150, no fold, danger-tau 300, imitate wins 0.2 by points, aux 1', args: ['--lr', '1e-3', '--epochs', '6', '--aux', '1', '--progress', '150', '--danger-tau', '300', '--imitate-wins', '0.2', '--imitate-points'] },
+      { key: 'b', why: 'offence: progress 200, no fold, danger-tau 300, no imitation, aux 1', args: ['--lr', '1e-3', '--epochs', '6', '--aux', '1', '--progress', '200', '--danger-tau', '300'] },
+      { key: 'c', why: 'offence: progress 100, no fold, danger-tau 300, imitate wins 0.3 by points, aux 1', args: ['--lr', '1e-3', '--epochs', '6', '--aux', '1', '--progress', '100', '--danger-tau', '300', '--imitate-wins', '0.3', '--imitate-points'] },
     ].map((x) => Object.assign(x, { args: ['--mode', 'oracle'].concat(x.args) })),
   },
 };

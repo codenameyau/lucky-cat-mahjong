@@ -418,6 +418,7 @@ def main():
     # Frontier plan, phase 1 (data from lucky.js generate --oracle, usually --features v2).
     ap.add_argument('--aux', type=float, default=0, help='weight of the auxiliary heads that predict the hidden tiles (targets, never inputs)')
     ap.add_argument('--imitate-wins', type=float, default=0, help='--mode oracle with --returns data: also imitate the moves of hands won, at this weight')
+    ap.add_argument('--imitate-points', action='store_true', help='with --imitate-wins: weight each won hand\'s moves by the points it scored (mean 1 over wins), not equally, so a big win teaches more than a cheap one')
     ap.add_argument('--teach', type=float, default=0, help='--mode pg or awr: also train toward the per-move deal-in teacher of --mode oracle, at this weight')
     ap.add_argument('--progress', type=float, default=0, help='teacher (features v2): points a discard costs for each step it sets the hand back from its best, scaled by the hand\'s prospects')
     ap.add_argument('--fold', type=float, default=0, help='teacher (features v2): deal-in costs grow by up to this factor as the hand\'s prospects fall (far from ready, late in the wall)')
@@ -513,8 +514,17 @@ def main():
     teacher_stats = {}
     WON = None
     if args.imitate_wins > 0:
-        WON = torch.from_numpy((loaded[6]['o'] == 0).astype(np.float32))
-        print(f'imitating the moves of hands won: {int(WON.sum())} of {n} choices ({100 * float(WON.mean()):.1f}%), weight {args.imitate_wins}')
+        won = (loaded[6]['o'] == 0)
+        if args.imitate_points:
+            # A won hand's moves count by its points (scaled to a mean of 1 over
+            # the wins): imitating every win equally taught Sphinx to race for
+            # cheap hands at any risk (rounds 1-3, -41 to -54 points a hand).
+            pts = np.clip(loaded[6]['r'], 0, None) * won
+            m = float(pts[won].mean()) if won.any() else 1.0
+            WON = torch.from_numpy((pts / (m or 1.0)).astype(np.float32))
+        else:
+            WON = torch.from_numpy(won.astype(np.float32))
+        print(f'imitating the moves of hands won: {int(won.sum())} of {n} choices ({100 * float(won.mean()):.1f}%), weight {args.imitate_wins}' + (', by points' if args.imitate_points else ''))
     if rl:
         r = np.clip(ret['r'], -args.reward_clip, args.reward_clip) + args.win_bonus * (ret['o'] == 0)
         if args.reward == 'sqrt':

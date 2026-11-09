@@ -46,7 +46,7 @@ Everything here must keep two promises: the shipped model reads only what its se
 | Benchmark (§9) | **Built.** `npm run ml:bench`: the frozen table (NC8, Jorge Yau, NC8 at 0.57.9), the 40,000-deal deck, the Table Score, and `judge` for the five-stage bar ([benchmark](benchmark.md)) |
 | Native simulator | **Built** (§6b). The engine and the table's players in C++ (`native/`, [native simulator](native.md)). Hybrid: judgments and Table Scores on the exact build (every hand as the JS plays it), training data and screens on the fast build, which is not bit-exact (**important potential issue**, §6b) |
 | 0 Suphx teacher | Built as the lab's `lucky-cat-suphx`. It is folded into phase 1 as the per-move deal-in teacher every arm trains with |
-| 1 Features v2, labels as targets | **Built and training.** `npm run ml:frontier` ([frontier training](frontier-training.md)). Lucky Cat rounds 1–3 kept nothing (9 arms, best LV1a, which failed the bar); lc32v2 is still champion. Returns-trained probes (PG2, PG3) passed the screen and failed to qualify. Now running at native scale ([frontier training](frontier-training.md#native-scale-rounds-from-2026-11-09)): 100,000 deals a round, 40,000-deal screens; Sphinx restarted at the table (v2). Sphinx v1 paused after round 1 (its recipe lost 43 points a hand to random play). **Plateaued (2026-11-09):** Lucky Cat rounds 7–12 on the desktop, 18 arms, averaged +1.7 ± 0.6 points a hand over lc32v2 and none passed the bar (best LV10a, +4.4 ± 2.7 at qualify); Sphinx v2 paused after round 6, every arm behind random play |
+| 1 Features v2, labels as targets | **Built and training.** `npm run ml:frontier` ([frontier training](frontier-training.md)). Lucky Cat rounds 1–3 kept nothing (9 arms, best LV1a, which failed the bar); lc32v2 is still champion. Returns-trained probes (PG2, PG3) passed the screen and failed to qualify. Now running at native scale ([frontier training](frontier-training.md#native-scale-rounds-from-2026-11-09)): 100,000 deals a round, 40,000-deal screens; Sphinx restarted at the table (v2). Sphinx v1 paused after round 1 (its recipe lost 43 points a hand to random play). **Plateaued (2026-11-09):** Lucky Cat rounds 7–12 on the desktop, 18 arms, averaged +1.7 ± 0.6 points a hand over lc32v2 and none passed the bar (best LV10a, +4.4 ± 2.7 at qualify); Sphinx v2 paused after round 6, every arm behind random play, then restarted from round 7 more aggressive than defensive (§11) |
 | 2 Structured network | Designed (§4); not built. **Next:** the phase-1 MLP has stopped improving (§11, Lucky Cat rounds 10–12) |
 | 3 Value, policy iteration, league, pipeline | Designed (§4, §5, §6); not built |
 | 3b Search as a teacher | **Deferred.** A Monte Carlo search with perfect beliefs added nothing measurable (§11); revisit only once the value heads exist |
@@ -591,3 +591,20 @@ Rounds 10–12 kept up to 4 rounds of data (300,000–400,000 deals an arm) and 
 - **The phase-1 MLP has stopped improving.**
   - Six rounds (54 arms since round 1, 18 on the desktop) of fine-tuning lc32v2 with the teacher and the auxiliary heads have produced a gain of a point or two a hand, an order of magnitude under phase 1's bar (+25) and under what one generation can show. More data (4 rounds), a slower step, or a different teacher weight didn't move it. The auxiliary heads read the table well (deal-in and ready AUC about 0.90), but as phase 1 found earlier, nothing in the policy's loss rewards acting on a better read: the policy still copies lc32v2's moves, nudged by the teacher.
 - *Changed:* phase 1 is marked plateaued, and phase 2 (§4: the structured network with a policy and a value per tile) is next, as §3 round 4 decided: "built only if the MLP on v2 plateaus". The Lucky Cat rounds stop here; lc32v2 stays champion.
+
+### Sphinx restarted, more aggressive than defensive (2026-11-09)
+
+The maintainer's call, after rounds 4–6: "Train Sphinx to be more aggressive than defensive."
+
+- **Why it fits the evidence:** in rounds 4–6 the teacher mostly taught folding, which at this table gives up the few wins random play gets (§11 above). Imitating wins equally (rounds 1–3) taught racing for cheap hands at any risk.
+- *Changed (from round 7):*
+  - **No `--fold`**, so poor prospects no longer raise deal-in costs.
+  - **A softer deal-in teacher:** danger-tau 300 instead of 100. An obvious deal-in still costs, a merely risky discard much less.
+  - **Progress:** set-back discards still cost, which is offence: every discard toward ready.
+  - **Wins imitated by their points** (`train_lucky.py --imitate-points`): a won hand's moves weigh by its points (a mean of 1 over the wins), so a big win teaches more than a cheap one.
+  - **The arms:**
+    - a: progress 150, imitate 0.2.
+    - b: progress 200, no imitation (offence alone).
+    - c: progress 100, imitate 0.3.
+  - sp0 stays its starting champion, and rounds 5–6's data (sp0's own play) are kept.
+- **What to watch:** Sphinx's bar has no win-rate rule, so each round's screens report hands won, deal-ins and the average win per arm. Hands won should rise first. If they do while points still fall, it's aggressive but not yet good. If they don't rise, the recipe isn't more aggressive.

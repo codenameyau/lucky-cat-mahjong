@@ -54,7 +54,7 @@ The network is Lucky Cat's: the same MLP and the same 74 outputs, read by its ow
 
 The targets are the oracle's (`scripts/ml/oracle.js`), recorded beside every choice by `lucky.js generate --oracle`. The network is graded on reading the table at every move, from the first hand, with no train/test shift: the hidden tiles are what it learns to predict, never what it reads.
 
-It trains together with the per-move deal-in teacher of phase 0 (`--mode oracle`) and, for Sphinx, `--imitate-wins W`, which imitates the moves of hands it won. At the end it reports held-out AUCs.
+It trains together with the per-move deal-in teacher of phase 0 (`--mode oracle`) and, for Sphinx, `--imitate-wins W`, which imitates the moves of hands it won (with `--imitate-points`, each won hand's moves weighted by its points, so a big win teaches more than a cheap one). At the end it reports held-out AUCs.
 
 **Probe** (3,000 deals of lc32-v2 at the game's table, 33,295 choices, 4 epochs from lc32-v2):
 
@@ -107,7 +107,7 @@ With the [native simulator](native.md), a round's data costs seconds instead of 
 | --- | --- | --- |
 | Data a round | 100,000 deals (5x), one seat at the game's table, half the choices; the last 2 rounds kept | 100,000 deals, one seat at the game's table from round 1 (later with its last 2 generations in the pool); every won hand kept, 10% of the rest |
 | Screen | 40,000 deals (one standard error about 2.5 points a hand) | 40,000 deals against its current generation |
-| Arms | Rounds 4–6: a: teacher + aux 0.2, lr 1e-3, 8 epochs (LV3b's recipe); b: the same with aux 0.05; c: returns (`--mode pg`, hidden-tile critic) + teacher 0.5 + aux 0.05. From round 7: aux 0.05, alone, with progress 100 and fold 2, and with progress 50 and fold 2 (see below) | All with progress and fold: a: imitate wins + teacher + aux 1 (v1's recipe, now at the table); b: teacher + aux 1, no imitation (defence first); c: imitate 0.3 + harder progress (200) and fold (4) |
+| Arms | Rounds 4–6: a: teacher + aux 0.2, lr 1e-3, 8 epochs (LV3b's recipe); b: the same with aux 0.05; c: returns (`--mode pg`, hidden-tile critic) + teacher 0.5 + aux 0.05. From round 7: aux 0.05, alone, with progress 100 and fold 2, and with progress 50 and fold 2 (see below) | All with progress and fold: a: imitate wins + teacher + aux 1 (v1's recipe, now at the table); b: teacher + aux 1, no imitation (defence first); c: imitate 0.3 + harder progress (200) and fold (4). Rounds 4–6: every arm built on b (no imitation), and every arm lost to random play. **From round 7, more aggressive than defensive** (the maintainer's call): no fold, a softer deal-in teacher (danger-tau 300), progress, and wins imitated by their points (`--imitate-points`): a: progress 150 + imitate 0.2; b: progress 200, no imitation; c: progress 100 + imitate 0.3 |
 | Judgment | `--screened`, then qualify and replicate on the exact build | the same, without the win-rate rule |
 
 **Why Sphinx restarted.** v1 played its first rounds in self-play among random players. The deal-in teacher learned what random opponents punish, and every arm lost about 43 points a hand to random play at the benchmark table. v2 learns at the table it's judged at, from its first round. v1's log and state are kept in `ml/frontier/sphinx-v1/`.
