@@ -227,6 +227,20 @@ Every phase of this plan is bound by how fast hands can be played: a round's dat
 > - **A change to the JS must be ported.** Until `native/ported.json` is re-pinned, the affected players fall back to the JS, so a stale port can't silently judge a model; it only runs slower.
 > Chosen on 2026-11-09, after measuring both: the hybrid. Training data and screens get the fast build's speed, and the benchmark's verdicts and scores stay reproducible. A round with a judgment takes about 23 minutes this way, against about 16 fast everywhere.
 
+## 6c. What the frontier work feeds: the playback analysis
+
+A post-game **playback analysis engine** is being built for each model. After a hand, it reviews the player's moves with every player's hand in view, **but never the wall**, and says how to improve. Its feedback, like the coach's in the game, comes at all three coach levels: Simple, Detailed and Complex.
+
+Much of what the frontier training computes is that engine's raw material:
+- **What a discard would pay right now** (the deal-in teacher's labels): the engine's own win check against the other hands. It needs the hands only, never the wall.
+- **Discards that set the hand back** (`--progress`): shanten after each discard against the best available, with the hand's prospects.
+- **When to fold** (`--fold`): how prospects (far from ready, the wall running out) change what a deal-in risk is worth.
+- **Reading the table** (the auxiliary heads): which players were ready and on which tiles. In review, the real answer can be shown beside what a public read would have guessed.
+
+Two rules follow:
+- **No wall in the analysis.** `scripts/ml/oracle.js` mixes hand features with wall features (the live wall, the next tile), so the analysis takes only the hand parts. A refactor should split them.
+- **Nothing hidden reaches live play.** Hand-reading in review is allowed because the hand is over. The fair-play test keeps it out of every model's play.
+
 ## 7. Phases, numbers and kill criteria
 
 Each phase has a result it must show on 40,000 fresh deals at the game's table (candidate and champion in every seat on the same deals, points first, win rate within one standard error), and a reason to stop.
