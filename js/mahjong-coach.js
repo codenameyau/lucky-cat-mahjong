@@ -1049,9 +1049,10 @@
     return pointsText(n) + ' score';
   }
 
-  // "an 8% chance to win", "a 12% chance to win", "almost no chance to win".
+  // "an 8% chance to win", "a 12% chance to win". Under 1% it says nothing: "almost none" is
+  // often wrong for the model's estimate, so the chance is left out.
   function chance(p, what) {
-    if (p < 0.01) return 'almost no chance to ' + what;
+    if (p < 0.01) return '';
     var n = pct(p);
     return (/^(8|11|18)(\D|$)|^8\d/.test(n) ? 'an ' : 'a ') + n + ' chance to ' + what;
   }
@@ -1076,8 +1077,8 @@
     var m = pick && pick.ml;
     if (!m) return '';
     if (m.policy != null) return policyLine(list, pick, m);
-    var line = 'The model expects ' + pointsWord(m.ev) + ' on average from this discard, with ' + chance(m.pWin, 'win') +
-      (m.pWin >= 0.01 ? ' (about ' + Math.round(m.avgWin).toLocaleString('en-US') + ' points)' : '') + '.';
+    var line = 'The model expects ' + pointsWord(m.ev) + ' on average from this discard' +
+      (m.pWin >= 0.01 ? ', with ' + chance(m.pWin, 'win') + ' (about ' + Math.round(m.avgWin).toLocaleString('en-US') + ' points)' : '') + '.';
     var next = list.filter(function (x) { return x !== pick && x.ml && x.ml.choice !== false; })
       .sort(function (a, b) { return b.ml.ev - a.ml.ev; })[0];
     if (next) line += ' Next best discard is ' + E.tileName(next.tile) + ': ' + pointsWord(next.ml.ev) + '.';
@@ -1137,8 +1138,8 @@
       .sort(function (a, b) { return b.ml.ev - a.ml.ev; }).slice(0, 2));
     var said = ranked.map(function (x) { return pointsWord(x.ml.ev) + ' ' + ifYou(x.decision, tile); });
     var line = 'On average, the model expects ' + said[0] +
-      (said.length > 2 ? ', ' + said.slice(1, -1).join(', ') + ', and ' + said[said.length - 1] : ' and ' + said[1]) + '. ' +
-      'That gives ' + chance(pick.ml.pWin, 'win') + '.';
+      (said.length > 2 ? ', ' + said.slice(1, -1).join(', ') + ', and ' + said[said.length - 1] : ' and ' + said[1]) + '.' +
+      (pick.ml.pWin >= 0.01 ? ' That gives ' + chance(pick.ml.pWin, 'win') + '.' : '');
     if (read.pick !== read.foundation) {
       line += ' The usual call here would be to ' + ifYou(read.choices[read.foundation].decision, tile).replace(/^if you /, '') + ', but the model expects less from it.';
     }
@@ -1528,7 +1529,7 @@
   var api = {
     discardFeedback: fitted(discardFeedback), claimFeedback: fitted(claimFeedback), noteDiscard: noteDiscard,
     turnHint: fitted(turnHint), claimHint: fitted(claimHint), MAX_TEXT: MAX_TEXT, fit: fit,
-    shape: shape, shapeFeedback: shapeFeedback, shapeNote: shapeNote, DETAILS: DETAILS, aimSentence: aimSentence,
+    chance: chance, modelLine: modelLine, shape: shape, shapeFeedback: shapeFeedback, shapeNote: shapeNote, DETAILS: DETAILS, aimSentence: aimSentence,
     rankDiscards: rankDiscards, look: look, highlightPatterns: highlightPatterns,
   };
 
