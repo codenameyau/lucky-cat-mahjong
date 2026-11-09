@@ -644,3 +644,16 @@ The maintainer's call, after rounds 4–6: "Train Sphinx to be more aggressive t
     - c: c with a firmer deal-in teacher (danger-tau 150), since c's best rounds were its lowest deal-ins.
     - A value push without imitation isn't available in phase 1's trainer. It's what phase 3's value heads are for.
   - **Sphinx's bar is 1 SE for qualify and replicate, not 2** (the maintainer's call; `bench/benchmark.json` `bar.lineages.sphinx`). Every round so far fine-tuned from random weights on random play's data, so nothing compounds until a first generation exists. The screen, qualify and replicate together still pass a candidate no better than sp0 only about 0.4% of the time. It goes back to 2 SE once Sphinx clearly beats random play ([benchmark](benchmark.md)).
+- **Rounds 13–18, around c: nothing passed, and the round matters more than the arm.**
+  - *Evidence (screens against sp0, 40,000 fresh deals):*
+
+    | Arm | 13 | 14 | 15 | 16 | 17 | 18 | Mean |
+    | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+    | a: progress 100, danger-tau 200 | −13.5 | −31.0 | −17.7 | −3.2 | −39.0 | −40.8 | −24.2 |
+    | b: progress 50, danger-tau 200 | −33.1 | −31.8 | −16.7 | **+0.3** | −22.3 | −41.2 | −24.1 |
+    | c: progress 100, danger-tau 150 | −23.5 | −36.9 | −21.9 | −25.7 | −27.3 | −39.1 | −29.1 |
+
+  - SP16b (+0.3 ± 2.8) is the first Sphinx at or above random play, but it's level, under even the 1-SE screen.
+  - **The round's draw outweighs the recipe.** The rounds' means spread by 11 points (standard deviation; from −9.5 in round 16 to −40.3 in round 18). Arms within a round spread by 6.7. Each screen's own error is about 3.2. The same recipe went from −3.2 to −40.8 in two rounds. Each round trains every arm from random weights on two rounds of sp0's own play. So which fresh 100,000 deals a round draws, and how training lands on them, decides more than the settings do. A best-of-three on one round's screen mostly picks the round's luck.
+  - **Why the teacher can't get far from sp0:** the target is sp0's own shares (uniform over legal moves) tilted by exp(−cost / tau). At progress 100 and danger-tau 200, a set-back discard is down-weighted by only about e^−0.5. The student learns a mild lean toward progress and away from deal-ins, never a strong player. That's why it needs a first generation to compound: each kept generation's sharper shares would become the next round's starting point.
+  - *Open:* two ways to get a first generation without changing the bar. (1) A much sharper tilt (larger progress and a tighter deal-in teacher), so one round learns a near-greedy player that clearly beats random. (2) Several seeds of one recipe each round, or every round's data pooled, so a screen measures the recipe instead of one draw. Otherwise Sphinx waits for phase 3's value. The maintainer's call.
