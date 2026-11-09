@@ -85,7 +85,9 @@ Only a pass makes a new champion, recorded in `bench/lineages.json` with its Tab
 | Arms | From round 2: teacher + aux 0.2 at lr 3e-4 for 4 epochs (the control, round 1's best); the same at lr 1e-3 for 8 epochs; and that with a sharper teacher (danger-tau 50). Round 1 ran aux 0.2, aux 1, and danger-tau 50, all at lr 3e-4 for 4 epochs. All are fine-tuned from the champion | Imitate its wins + teacher + aux 1; imitate harder (3) + aux 0.3; a fresh 512, 256 network on the same data |
 | The bar | Its win rate is kept (`keepWinRate`) | No win-rate rule |
 
-A round of Lucky Cat takes about 13 minutes of data, a few minutes of training and about 1.5 hours of screening on seven workers. A judgment takes 1–6 hours on top, depending on how early sequential stopping decides it. Sphinx's data takes longer, at 50,000 deals.
+With the [native simulator](native.md) built, the round runs natively as a hybrid: its data and screens on the fast build, its judgment on the exact build (every hand as the JS plays it). A round of Lucky Cat is about 15 seconds of data, a few minutes of training, about 4 minutes of screens, and a judgment about 19 minutes when an arm passes. In JS the same round took 13 minutes of data and 1.5 hours of screening, and a judgment 1–6 hours.
+
+The judgment takes the round's own screen (`judge --screened`), so the best arm doesn't have to pass a second, independent 10,000-deal screen before it qualifies.
 
 ## Not done yet
 

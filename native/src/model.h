@@ -1,0 +1,62 @@
+// Model weights (.lcmw, written by scripts/ml/weights.js) and the forward
+// pass the JS models use: float32 buffers (each store rounds to float32),
+// sums in double, the first layer by input so zero features cost nothing.
+#pragma once
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
+
+namespace lcm {
+
+// A small JSON value, for the weights' header.
+struct Json {
+  enum Kind { NUL, BOOL, NUM, STR, ARR, OBJ } kind = NUL;
+  bool b = false;
+  double n = 0;
+  std::string s;
+  std::vector<Json> a;
+  std::map<std::string, Json> o;
+  const Json& operator[](const std::string& k) const;
+  bool has(const std::string& k) const { return kind == OBJ && o.count(k); }
+  double num(double dflt) const { return kind == NUM ? n : dflt; }
+};
+Json parseJson(const std::string& text);
+
+struct Layer { int rows, cols; std::vector<float> w, b; };
+
+struct Weights {
+  int featureVersion = 0, featureSize = 0;
+  Json meta;
+  std::vector<Layer> layers;
+};
+Weights loadWeights(const std::string& file);
+
+class Mlp {
+ public:
+  explicit Mlp(const Weights& w);
+  // The raw outputs for one feature vector (float32 values, widened).
+  const std::vector<double>& forward(const float* x) const;
+  // Several inputs at once (fast build: each weight column is read once for all of them). outs[k] gets input k's outputs.
+  void forwardBatch(const float* const* xs, int n, std::vector<double>* outs) const;
+  int outputs() const { return outputs_; }
+  int inputs() const { return inputs_; }
+  const Weights& weights() const { return w_; }
+
+ private:
+  Weights w_;
+  std::vector<float> firstT_;            // the first layer, by input
+  std::vector<std::vector<float>> wT_;   // later layers, by input (so a row's sum keeps its order)
+  int outputs_, inputs_, widest_;
+  mutable std::vector<float> bufA_, bufB_;
+  mutable std::vector<double> acc_, out_;
+  mutable std::vector<float> facc_;
+  mutable std::vector<float> batchIn_, batchAcc_;
+  // Fast mode: the first layer's last input and pre-activation, updated by the
+  // difference when the next input is close (consecutive candidates are).
+  mutable std::vector<float> lastX_, lastPre_;
+  mutable int sinceFull_ = 1 << 30;
+};
+
+}  // namespace lcm

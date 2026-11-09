@@ -1,0 +1,52 @@
+# The native simulator: port notes
+
+`native/` is a C++ port of the JS engine and the benchmark table's players, for
+training and judging at native speed. The rule is **the same results**: every
+seeded hand plays out action for action as it does in JS. `scripts/ml/native.js
+parity` checks it, hand by hand.
+
+## Status
+
+| Part | JS source | C++ | Parity |
+| --- | --- | --- | --- |
+| Tiles, RNG, wall | js/mahjong-engine.js §1 | src/core.* | yes (through the engine) |
+| Shanten | engine §2 | src/shanten.* (per-suit table, filled on first use) | 300,000 random hands, 0 mismatches |
+| Scoring | js/points.js §5-10 (scoreHand) | src/scoring.* | yes (through the engine) |
+| Engine: deal, options, claims, settlement | engine §3-7 | src/engine.* | 2,000 hands, 342,274 actions identical (simple agents) |
+| Math.exp, Math.log, Math.pow | V8 | src/jsmath.h | 1,000,000 inputs each, 0 mismatches |
+| Array.prototype.sort | V8 | src/jssort.h | 60,000 inconsistent comparators against node, 0 mismatches |
+| Foundation (shared bot) | js/mahjong-bot.js | src/bot.cpp | 1,000 hands of Jorge Yau, identical |
+| Jorge Yau | js/mahjong-jorge-yau.js | src/jy.inc (hooks) | (with the foundation) |
+| Neural Cat | js/mahjong-ml*.js | src/neural_cat.*, src/model.* | 1,000 hands NC, JY, NC, NC, identical |
+| Lucky Cat (v1, v2 features) | js/mahjong-lucky-cat-ml.js, -net.js, js/mahjong-frontier-net.js | src/lucky_cat.* | 200 / 300 hands at the benchmark table, identical |
+| Oracle labels, data generation | scripts/ml/oracle.js, lucky.js generate | src/generate.* | byte-identical shards |
+| Bench play | bench.js playWork | lcm-sim play | byte-identical compare JSON |
+
+## What it takes to match JS to the bit
+
+- **Floats.** JS arithmetic never fuses a multiply and an add, so the build uses
+  `-ffp-contract=off`. V8's own `Math.exp` and `Math.log` (fdlibm, built by clang
+  with contraction on) are ported with `#pragma clang fp contract(on)` inside them.
+  `Math.pow` is the C library's (identical on a million inputs).
+- **Float32Array.** Neural Cat's and Lucky Cat's buffers are float32: each store
+  rounds, each read widens. The port keeps the same stores.
+- **Sorting.** V8's, comparator call for comparator call: under 8 elements binary
+  insertion from the second, from 8 the first run then binary insertion. The
+  foundation's comparators are not always consistent.
+- **Object key order.** Integer-like keys iterate in ascending order (readSeat's
+  `seen` and `passed`), string keys in insertion order. Products are taken in
+  the same order.
+- **State that lives across turns:** `seat.planMemo[strategy id]` (plan
+  commitment), `seat.bigHandLock` (Jorge Yau's lock), Jorge Yau's opening read
+  per (hand, seat). The port keeps each on the seat.
+- **The RNG.** mulberry32 exactly; createGame shuffles the 12 bot names first.
+
+## Measured
+
+- Simple agents, engine only: JS 224 hands/s, native 5,984 hands/s (26.7x), one core.
+- Shanten: JS 31,952 hands/s, native 6.9 million/s (217x).
+- Data generation (7 workers): 587 deals/s against 61 (9.7x). Benchmark table: 82 deals/s against about 10 (7.9x).
+
+Two builds since round 1: `lcm-sim` (fast: fused multiply-adds, float32 networks; what training runs) and `lcm-sim-exact` (`-DLCM_EXACT`: what parity diffs). Three optimization rounds took one core from 148 to 384 hands a second at the benchmark table; see docs/machine-learning/native.md.
+
+The user-facing write-up is docs/machine-learning/native.md.

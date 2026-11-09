@@ -9,14 +9,15 @@ Everything here must keep two promises: the shipped model reads only what its se
 | Phase | State |
 | --- | --- |
 | Benchmark (§9) | **Built.** `npm run ml:bench`: the frozen table (NC8, Jorge Yau, NC8 at 0.57.9), the 40,000-deal deck, the Table Score, and `judge` for the five-stage bar ([benchmark](benchmark.md)) |
+| Native simulator | **Built** (§6b). The engine and the table's players in C++ (`native/`, [native simulator](native.md)). Hybrid: judgments and Table Scores on the exact build (every hand as the JS plays it), training data and screens on the fast build, which is not bit-exact (**important potential issue**, §6b) |
 | 0 Suphx teacher | Built as the lab's `lucky-cat-suphx`. It is folded into phase 1 as the per-move deal-in teacher every arm trains with |
-| 1 Features v2, labels as targets | **Built and training.** `npm run ml:frontier` ([frontier training](frontier-training.md)). Lucky Cat rounds 1–3 kept nothing (9 arms, best LV1a, which failed the bar); lc32v2 is still champion. Sphinx round 1 is running |
+| 1 Features v2, labels as targets | **Built and training.** `npm run ml:frontier` ([frontier training](frontier-training.md)). Lucky Cat rounds 1–3 kept nothing (9 arms, best LV1a, which failed the bar); lc32v2 is still champion. Returns-trained probes (PG2, PG3) passed the screen and failed to qualify. Sphinx paused after round 1 (its recipe lost 43 points a hand to random play) |
 | 2 Structured network | Designed (§4); not built. Starts when the phase-1 MLP stops improving |
 | 3 Value, policy iteration, league, pipeline | Designed (§4, §5, §6); not built |
-| 3b Search as a teacher | Designed (§5); not built |
-| 4 Search at play (optional) | Designed (§5); not built |
+| 3b Search as a teacher | **Deferred.** A Monte Carlo search with perfect beliefs added nothing measurable (§11); revisit only once the value heads exist |
+| 4 Search at play (optional) | **Dropped.** 1–1.5 s a move breaks the browser promise, and search measured no gain (§11) |
 
-What each phase has taught is in [§11 Learnings](#11-learnings).
+What each phase has taught is in [§11 Learnings](#11-learnings). The history, and every decision with why, is [frontier history](frontier-history.md).
 
 This table is updated as phases move. The full record of every round is `ml/frontier/<lineage>/frontier.log`. Kept generations go in `bench/lineages.json` and their Table Scores in `bench/scores.json`.
 
@@ -202,6 +203,29 @@ The lab today is a loop: generate 20,000–50,000 deals, train a few arms, judge
 - **Judging** runs as candidates appear: the table test with sequential stopping (blocks of 5,000 deals, stop when the paired gap is clearly past or short of the bar, 40,000 at most), then the replication and the round robin of §9 for any candidate that passes. A kept model ships, joins the pool, and gets its Table Score.
 
 Everything stays reproducible: seeds per round as now, every evaluation written to JSON, the lab log the record. The oracle features and the warm-start data never leave `ml/data/` (no dataset uploads).
+
+## 6b. The native simulator: the C++ engine the training runs on
+
+Every phase of this plan is bound by how fast hands can be played: a round's data, every screen, every judgment. The JS engine that runs the game was the bottleneck (a round took 13 minutes of data and 1.5 hours of screening; a judgment 1–6 hours), so the engine and the benchmark table's players are ported to C++ in `native/` ([native simulator](native.md)).
+
+**What's ported.** The engine (the deal, options, claims, settlement, `runHand`), scoring (`js/points.js` `scoreHand`), shanten (a per-suit table and a whole-hand cache), the shared bot foundation with Jorge Yau's hooks, Neural Cat, Lucky Cat with features v1 and v2, the oracle's hidden-tile labels, `lucky.js generate`'s worker (`lcm-sim generate`, the same shard files) and `bench.js`'s play loop (`lcm-sim play`, the same sums). The game itself still runs on the JS.
+
+**How the pipeline uses it.** `bench.js` (compare, score, judge) and `lucky.js generate` run natively whenever every player in a job can, and fall back to the JS otherwise (`LCM_JS=1` forces the JS). `native/ported.json` pins the SHA-256 of every JS file the port was checked against: a player runs natively only while its JS is that version, and for the benchmark's frozen players the frozen files must match too.
+
+**Weights in both forms.** Training writes JSON, as before, and the game loads JSON. `scripts/ml/weights.js` converts a model to `.lcmw` (a header and float32 arrays) for the simulator, which caches the conversion. The numbers are the same either way, so a model trained on native data loads and plays in the JS game unchanged.
+
+**Two builds.** `make -C native` builds both:
+- `lcm-sim-exact` plays every seeded hand action for action as the JS does: no fused multiply-adds, V8's own fdlibm `exp` and `log`, V8's sort, float32 stores where the JS has them. `scripts/ml/native.js parity` diffs it against the JS, action by action. It's the bug detector: the port's one real bug (the discard order under V8's sort) showed up as the first differing line of a 1,000-hand diff.
+- `lcm-sim` is the fast build: float math free to use SIMD and fused multiply-adds.
+
+**The hybrid.** Training data (`lucky.js generate`) and screens (`bench.js compare`, so every arm's screen in a round) play on the fast build. The benchmark's own numbers play on the exact build: every stage of a judgment (`bench.js judge`) and every Table Score (`bench.js score`), so a verdict and a score reproduce to the decimal against the JS. `compare --exact` plays a compare on the exact build too. Every result records which it was played on (`simulator`: `native-fast`, `native-exact` or `js`) in its JSON, the judgment's stages and `bench/scores.json`.
+
+> **Important potential issue: the fast simulator is not bit-exact with the JS.** (Contained by the hybrid: only training data and screens use it.)
+> A decision between two moves whose values tie to the last bit can go the other way in the fast build: roughly 1 in 10,000 to 1 in a million decisions, after which that hand plays out differently (just as legitimately). The play is statistically the same, and the trained weights are unaffected (they load and play the same in the JS game). What it costs:
+> - **Numbers played on the fast build don't reproduce to the decimal against the JS.** That is why judgments and Table Scores play on the exact build. A screen's gap (fast) differs from what the JS would print by noise; a judgment that reuses it (`--screened`) records that its screen was played fast.
+> - **The action-level bug check covers the exact build only.** A porting mistake that exists only in the fast build's code paths (the float math, the SIMD forward pass) can't be caught by diffing actions; it shows only as a statistical difference. So the fast build's own code is kept to the arithmetic, the exact build shares everything else, and the fast build is checked against the exact one on the same positions (the same move except near ties) and on aggregates (points, hands won, deal-ins within noise).
+> - **A change to the JS must be ported.** Until `native/ported.json` is re-pinned, the affected players fall back to the JS, so a stale port can't silently judge a model; it only runs slower.
+> Chosen on 2026-11-09, after measuring both: the hybrid. Training data and screens get the fast build's speed, and the benchmark's verdicts and scores stay reproducible. A round with a judgment takes about 23 minutes this way, against about 16 fast everywhere.
 
 ## 7. Phases, numbers and kill criteria
 
@@ -391,3 +415,41 @@ Lucky Cat rounds 2 and 3: the retuned arms, 20,000 new deals a round, trained on
 - **Sphinx round 1: imitating its own wins made it win five times as often, and lose more points at the table.**
   - *Evidence:* SP1a won 1.51% of its seats at the benchmark table against sp0's 0.31%, but dealt in 15.17% against 10.45%, with cheaper wins (78 points against 243). That's −43.3 ± 6.8 points a hand (−6.35 SE). Its first data took 178 s for 50,000 deals, with 616 wins.
   - *Open:* the round is still screening its other arms. Imitating wins from random self-play teaches it to race for cheap hands, and nothing teaches it defence yet. The table rounds (from round 3) and the teacher's weight will tell whether that turns around.
+  - *Then:* every arm of round 1 lost to random play (SP1a −43.3, SP1b −46.3, SP1c −45.1, each about −6.5 SE), and round 2's first arm repeated it (SP2a −43.5). Sphinx is paused: this recipe can't start a lineage at a table where deal-ins decide the points.
+
+### Pruning, and the native simulator (2026-11-09)
+
+What the frontier rounds were spending time on that they shouldn't, and the C++ simulator that now plays their hands.
+
+- **Monte Carlo search would have nothing to teach yet.**
+  - *Evidence:* at 2 of lc32's least sure choices a hand (1,600 choices, 800 deals at the game's table), its top 3 moves were each replayed on 8 reshuffles of the wall still to be drawn, with the other hands as dealt: a search that knows the hidden hands, so an upper bound. A 4-world search picked a different move 46% of the time, and on the 4 held-out futures it gained **+7.8 ± 8.4 points a choice**: not distinguishable from zero. Scored on its own futures it looked like +79, which is the winner's curse, not a gain. Each searched choice cost 24 full replays.
+  - *Changed:* phase 3b (search as a teacher) is deferred until the value heads exist to aim it, and phase 4 (search at play) is dropped: 1–1.5 s a move breaks the plan's browser promise, and the measured gain is nil. Monte Carlo *targets* (the value heads learning from how hands ended) stay: that is how Neural Cat learns.
+  - *Open:* with the native simulator a 64-world search costs about what a 4-world one did in JS; worth one more measurement once the policy is stronger.
+- **The judgment played the round's screen a second time, and the second screen rejected most real gains.**
+  - *Evidence:* LV1a screened at +7.6 ± 5.0 in its round and +4.3 ± 5.0 at the judgment's own screen (0.86 SE, failed). For a gain near 1 SE, two 1-SE screens in a row pass about a third of the time.
+  - *Changed:* `bench.js judge --screened FILE` takes the round's screen as the judgment's (same pair of models, fresh deals, enough of them); qualify and replicate still play fresh deals at 2 SE each, which is what pays for picking the best of a round's arms. `frontier.js` passes it.
+- **Sphinx's wide arm started from random weights every round.**
+  - *Evidence:* arm c (512, 256) ignored the champion, so from round 2 it would have thrown away every generation the lineage earned.
+  - *Changed:* it trains fresh only while the champion is random play, and is skipped after (from the champion it is arm a again).
+- **Moving the policy by what hands scored, with the heads reading the table, passed the screen, then failed to qualify.**
+  - *Evidence:* three probes from lc32v2 on rounds 1–3's data (665,226 choices), `--mode pg` with the hidden-tile critic, screened on 10,000 deals: returns alone (PG1) −0.7 ± 5.7; returns with the heads at 0.2 (PG2) **+8.1 ± 6.4 (1.27 SE)**, though the heads pulled the policy past the 0.03 leash in one epoch; with the deal-in teacher at 0.5 too (PG3) **+5.7 ± 5.2 (1.09 SE)**, KL 0.007. The critic explained −4.7% of the reward: the advantage is still almost the raw points.
+  - *Then:* on the bar's fresh deals both fell to nothing. PG2 qualified at **−2.4 ± 6.4** and gave up hands won (−0.85 percentage points, −3.3 SE); PG3 at **−2.6 ± 5.5**, hands won level. Each was stopped after its first 10,000 deals. Twelve arms screened so far (nine Lucky Cat rounds' and three probes) are centred on zero, and the two that passed 1 SE are what the best of twelve noisy screens looks like.
+  - *Changed:* `train_lucky.py` lets `--aux` train with `--mode pg` and adds `--teach W`. Nothing kept: with a critic that explains none of the reward, the returns are luck, as phase 0 found. Phase 3's value heads (an advantage per move, not per hand) are what this needs, not more rounds of the same signal.
+  - *Open:* the heads and the returns are at very different scales (the surrogate is about 0.02, the aux loss about 1): a weight of 0.2 is a large push. Weights 0.02–0.05 are the next arms.
+- **The JS simulator, not the training, set the pace, and a C++ port of it plays exactly the same hands 8–10x faster.**
+  - *Evidence:* a round's 20,000 deals of data took 330 s and a 10,000-deal screen about 16 minutes in JS, against seconds of training. Profiling the benchmark table in JS: 31% shanten, 30% Jorge Yau's reads, 18% the networks. Ported (`native/`): the engine, scoring, Jorge Yau, Neural Cat, Lucky Cat (features v1 and v2) and the oracle's labels. `scripts/ml/native.js parity` plays the same seeded hands in both and diffs every action: 1,000 hands each of Jorge Yau, Neural Cat with Jorge Yau, and Lucky Cat at the benchmark table, identical; `bench.js compare` gives byte-identical JSON; `lucky.js generate` writes byte-identical shards (Lucky Cat's and Sphinx's settings, with and without the oracle). Speed on 7 workers: data 587 deals a second (9.7x), the benchmark table 82 deals a second (7.9x); the engine alone 26.7x and shanten 217x on one core.
+  - *What it took to be exact:* no fused multiply-adds (JS has none); V8's own `Math.exp` and `Math.log`, which are fdlibm built by clang **with** fused multiply-adds (both the C library's and plain fdlibm differ from V8 on about 1 input in 2,000); V8's `Array.prototype.sort`, which under 8 elements is binary insertion with no run detected, and from 8 a run then binary insertion (measured on 60,000 inconsistent comparators; the foundation's discard comparator is inconsistent, so any other sort changes moves); float32 stores wherever the JS has a Float32Array.
+  - *Changed:* `bench.js` and `lucky.js` use the native simulator whenever every player can run there (`native/ported.json` pins the exact JS it matches; anything else falls back to the JS), so the frontier rounds, screens and judgments run on it.
+  - *Open:* the floor now is the networks: one Neural Cat forward pass is 12.9 µs and lc32's 26.3 µs, about 200 a hand, and they must stay float32 in the JS's order to give the same moves. 100x at the same results is not on offer on a CPU; a cross-pass decision cache would save about 14% of a compare (9.5% of hands are identical between candidate and champion, the mean shared prefix 28%). Beyond that the choice is between exactness and speed (float32 SIMD, batching on a GPU), and the benchmark's promise is exactness.
+
+### Optimizing the native simulator, three rounds (2026-11-09)
+
+- **A review found no bugs, and the exact build stays the reference.**
+  - *Evidence:* a parity sweep before any speed work: 39,000 hands (3,000 each of Jorge Yau ×4, Neural Cat with Jorge Yau, and LV3b at the benchmark table; 30,000 of test agents for the engine's rare paths), 6.5 million actions, identical to the JS. A model trained on native data (20,000 deals, `--mode oracle --aux 0.2`) passes the trainer's JS check (largest difference 0.0009), plays in the JS engine and passes the fair-play check.
+- **Each round gained far less than 10x: the floor is the bots' own work.**
+  - *Evidence (one core, the benchmark table):* 148 hands a second (the first port) → 308 (round 1: the fast build, incremental ukeire, an incremental first layer) → 371 (round 2: a plan memo, batched candidates) → 384 (round 3: profile-guided). End to end, a 2,000-deal compare 23.7 s → 9.9 s and a 20,000-deal round of data about 34 s → 12.9 s; against the JS, 20x and 25.6x. The profile after round 3: per turn, Jorge Yau's foundation weighs about 14 discards × 10 plans and Neural Cat runs its network on the best 4, and neither can be skipped without changing how they play. The networks are near float32's limit; int8 or float16 would change moves far more often than last-bit rounding.
+  - *Changed:* nothing in the bots' decisions. The remaining levers are hardware (more cores: the BOSGAME P6's 8 Zen 3 cores; Linux builds), or a cheaper table to train against (which would change the benchmark, so it is not done).
+- **Two things that looked like wins weren't.** A cache of forward passes by exact input never hit often enough to pay for hashing 854 inputs (removed); widening the weights to double made the forward pass slower (memory, not arithmetic, bounds it).
+- **The hybrid against fast-only.**
+  - *Evidence (round 3's pipeline, 8 workers):* the fast build runs a 2,000-deal compare in 9.9 s, the exact build in 15.5 s (1.56x slower); a round's data in 12.9 s against 20 s. A frontier round's work is about 35 s of data, three 10,000-deal screens (about 4 minutes) and, when an arm passes, a judgment of about 150,000 deals (about 12 minutes fast, 19 exact). So a round with a judgment takes about 16 minutes fast-only, or about 23 with exact judgments (the hybrid).
+  - *Changed:* first fast everywhere, then, after this comparison, the hybrid (the user's call): judgments and Table Scores on the exact build, data and screens on the fast one; every result records its simulator. On 1,000 deals every hand was identical between the builds, and a compare printed the same gap; on a 20,000-deal round of data a few sampled moves flipped, and each flip changes the rest of its chunk's random stream (63 of 256 shard files differ, the data the same in distribution). See §6b.
