@@ -2313,7 +2313,7 @@
     // is worked out again at once in the new words.
 
     var COACH_OPTIONS = [
-      { id: 'simple', name: 'Simple', note: 'What to do, and one short reason why.', example: 'Discard Two Bamboo. Not Circles or an honor. I like it because it gets you ready fastest.' },
+      { id: 'simple', name: 'Simple', note: 'What to do, one short reason why, and the hand I\'m going for with its faan.', example: 'Discard Two Bamboo. Not Circles or an honor. I like it because it gets you ready fastest. Going for Half Flush in Circles, about 5 faan.' },
       { id: 'detailed', name: 'Detailed', note: 'Adds the hand you are going for, the threats, and why I like my pick.', example: 'Discard Two Bamboo. Not Circles or an honor. Go for Half Flush in Circles. I pick it because it keeps a bigger hand in reach.' },
       { id: 'complex', name: 'Complex', note: 'Talks the way the models do: expected score, chance to win, and the next best choice.', example: 'Discard Two Bamboo. Not Circles or an honor. Go for Half Flush in Circles. The model expects +67 score on average, with a 3% chance to win. Next best discard is Six Bamboo: +48 score.' },
     ];
@@ -6797,6 +6797,7 @@
           hint = {
             action: hint.action, tips: hint.tips,
             decision: { type: hint.decision.type, tiles: hint.decision.tiles.slice().sort() },
+            aim: hint.aim,
           };
         }
         fb = coach.claimFeedback(hint, { type: ev.c, tiles: ev.tiles ? ev.tiles.slice().sort() : [] });

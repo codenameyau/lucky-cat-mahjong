@@ -73,6 +73,40 @@ describe('coach text', () => {
     assert.ok(seen > 20);
   });
 
+  it('Simple names the hand it is going for and its faan, from the plan, in one sentence', () => {
+    let named = 0, total = 0;
+    for (const id of S.ids()) {
+      const simple = C.forStrategy(S.get(id).bot, { detail: 'simple' });
+      const detailed = C.forStrategy(S.get(id).bot, { detail: 'detailed' });
+      for (const seed of [3, 9, 41, 77]) {
+        const game = E.createGame({ seed, humanSeat: true, dealer: 0 });
+        E.startHand && E.startHand(game);
+        const h = simple.turnHint(game, 0, E.turnOptions(game, 0));
+        if (!h || h.kind === 'win') continue;
+        total++;
+        const w = words(h);
+        checkText(w, id + ' simple');
+        if (!h.aim) continue;
+        named++;
+        const said = C.aimSentence(h.aim);
+        assert.match(said, /^Going for .+, (about \d+ faan|the 13 faan limit)(, short of the \d+ faan minimum)?\.$/, said);
+        assert.ok(w.endsWith(said), id + ' ' + seed + ': ' + w);
+        assert.equal(h.tips.length, 1, 'Simple stays one tip');
+        // Detailed and Complex stay as they were.
+        const d = detailed.turnHint(game, 0, E.turnOptions(game, 0));
+        assert.ok(!words(d).includes(said), 'Detailed has no aim sentence: ' + words(d));
+        // Feedback (and so the playback's coach notes) says it too.
+        const other = h.candidates[h.candidates.length - 1].tile;
+        const fb = C.shapeFeedback(C.discardFeedback(h, other), h, 'simple');
+        if (fb) assert.ok(words(fb).endsWith(said), words(fb));
+      }
+    }
+    assert.ok(named >= total - 2 && named > 10, named + ' of ' + total + ' named a hand');
+    assert.equal(C.aimSentence({ name: 'a chicken hand', faan: 1, min: 3 }), 'Going for a chicken hand, about 1 faan, short of the 3 faan minimum.');
+    assert.equal(C.aimSentence({ name: 'All Triplets', faan: 4, min: 3 }), 'Going for All Triplets, about 4 faan.');
+    assert.equal(C.aimSentence(null), '');
+  });
+
   it('cuts a long hint to whole tips, keeping the action and the model line', () => {
     const long = 'This tip is long enough that a few of them will not fit together in one hint. ';
     const h = C.fit({ action: 'Discard Red Dragon.', tips: [long, long + long, long, 'The model expects +40 score on average from this discard.', long], model: 'The model expects +40 score on average from this discard.' });
