@@ -1,20 +1,33 @@
 # Machine learning
 
-Lucky Cat Mahjong has one learned strategy, **Neural Cat**. A small neural network, trained on simulated hands, scores every choice a player has in expected points: which tile to discard, whether to pung, chow or kong, and whether to declare a kong. Neural Cat plays the choice worth the most. The coach explains each choice in plain words.
+Lucky Cat Mahjong has three learned strategies, each a small neural network trained on simulated hands:
 
-In the game, the model runs in the browser in plain JavaScript, with no ML server and no ML library. Training runs offline in Node.js (simulating hands) and PyTorch (fitting the network).
+- **Neural Cat** (shipped model NC8) scores every choice in expected points (which tile to discard, whether to pung, chow or kong) on top of Jorge Yau's hand reading, and plays the one worth the most. The coach explains each choice in plain words.
+- **Lucky Cat** (shipped model lc32) plays every move itself, with no rules underneath: its network reads what its seat can see and gives each legal move a share. It taught itself from random play.
+- **Only Orphans** (the O models) decides when to chase Thirteen Orphans and its relatives.
+
+In the game, the models run in the browser in plain JavaScript, with no ML server and no ML library. Training runs offline: hands are simulated in Node.js, or in the native C++ simulator, which plays the same hands much faster, and the networks are fitted with PyTorch.
+
+**How they're trained now.** Neural Cat in the lab (`npm run ml:lab`): rounds of experiments, each kept only on a clear gain on fresh deals. Lucky Cat started from wins imitated in self-play, then learned from the points every hand paid (policy gradient), from replays of its own choices, and from a Suphx-style teacher that marks the discards that would deal in. The **frontier plan** now carries Lucky Cat on, and adds a second lineage, **Sphinx**, trained from random weights:
+- **Features v2:** who threw what, and engine facts such as shanten and live waits.
+- **The hidden tiles as targets:** auxiliary heads learn to predict the other hands and the wall from public inputs. The hidden tiles are never inputs.
+- **The per-move deal-in teacher,** with optional training on what each hand scored.
+- **One bar:** a model becomes a lineage's next generation only by passing the frozen [benchmark](benchmark.md) (two standard errors, twice, with no regression).
+- **The native simulator:** the rounds run on it ([native simulator](native.md)), its fast build for data and screens, its exact build for judgments.
+
+Where all of that stands, and why each choice was made, is in [frontier history](frontier-history.md).
 
 - **Model**: [huggingface.co/codenameyau/lucky-cat-mahjong](https://huggingface.co/codenameyau/lucky-cat-mahjong)
 - **Training data**: [huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games](https://huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games)
-- **How it plays and its results**: [docs/strategies/neural-cat.md](../strategies/neural-cat.md), the strategy's playbook
+- **How they play and their results**: the playbooks for [Neural Cat](../strategies/neural-cat.md), [Lucky Cat](../strategies/lucky-cat.md) and [Only Orphans](../strategies/only-orphans.md)
 
 ## Guides
 
 | Guide | What it covers |
 | --- | --- |
 | [Architecture](architecture.md) | Every file, how a decision flows from the game to the model and back, and how the pieces fit the bot foundation |
-| [Features](features.md) | The 568 numbers that describe a position, group by group, and the rules that keep them honest |
-| [Model](model.md) | The network, its outputs, how they become expected points, and the weights file format |
+| [Features](features.md) | Neural Cat's 568 numbers that describe a position, group by group, and the rules that keep them honest (Lucky Cat's and the frontier models' are in [frontier training](frontier-training.md)) |
+| [Model](model.md) | Neural Cat's network, its outputs, how they become expected points, and the weights file format |
 | [Decisions](decisions.md) | How Neural Cat picks discards, claims and kongs, how it explains them, and what the coach says |
 | [Training](training.md) | Generating data, training, self-play, the league, competitions, and every command and option |
 | [Fair play](fair-play.md) | How the models are kept from seeing the wall or another hand, and the test that checks it |
@@ -38,14 +51,21 @@ npm run compete -- --lineup neural-cat,jorge-yau,lucky-cat,jorge-yau --deals 100
 # Train: set up Python once, then run lab rounds (experiments, kept only on clear gains).
 python3 -m venv ml/.venv && ml/.venv/bin/pip install -r ml/requirements.txt
 npm run ml:lab -- --rounds 10
+
+# The frontier: build the native simulator once, then run rounds of a lineage,
+# each kept only by the benchmark's bar.
+npm run native:build
+npm run ml:frontier -- --lineage lucky-cat --rounds 3
+npm run ml:bench -- score lc:ml/models/<model>.json   # a model's Table Score
 ```
 
 ## At a glance
 
-- **What it learns**: how a hand ends after each choice: a win by self-draw or off a discard, dealing in, someone else winning, or a draw, plus how many faan are won or paid. Those combine into one number, expected points on the full-spicy payout table, so a fast small win and a slow big one are weighed on the same scale.
-- **What it builds on**: Jorge Yau's hand reading (`js/mahjong-jorge-yau.js` on the shared foundation `js/mahjong-bot.js`). The model picks among Jorge Yau's best three discards, and can overrule Jorge Yau's claim or kong call when its own pick is worth more.
-- **How it was trained**: first on hands the rule strategies played, then self-play against the rule bots, then a league of models playing only other models, a million hands in 50,000-hand rounds. A new model ships only if it beats the best one head to head.
-- **What keeps it fair**: its inputs hold only what its seat can see. A test makes every decision twice, once with every hidden tile shuffled, and fails if anything changes.
+- **Neural Cat: what it learns**: how a hand ends after each choice: a win by self-draw or off a discard, dealing in, someone else winning, or a draw, plus how many faan are won or paid. Those combine into one number, expected points on the full-spicy payout table, so a fast small win and a slow big one are weighed on the same scale.
+- **Neural Cat: what it builds on**: Jorge Yau's hand reading (`js/mahjong-jorge-yau.js` on the shared foundation `js/mahjong-bot.js`). The model picks among Jorge Yau's best three discards, and can overrule Jorge Yau's claim or kong call when its own pick is worth more.
+- **Neural Cat: how it was trained**: first on hands the rule strategies played, then self-play against the rule bots, then a league of models playing only other models, a million hands in 50,000-hand rounds. A new model ships only if it beats the best one head to head.
+- **Lucky Cat and Sphinx, the frontier lineages**: one network over features v2 (854 inputs for the frontier models, 376 for the shipped lc32), with 74 outputs: a share for every discard and kong, and for each claim. Auxiliary heads, used in training only, learn to read the other hands and the wall. Judged at the benchmark table (two Neural Cat NC8 and Jorge Yau, frozen) by its Table Score, points a hand.
+- **What keeps it fair**: every model's inputs hold only what its seat can see. A test makes every decision twice, once with every hidden tile shuffled, and fails if anything changes. The hidden tiles may be training targets and a teacher's labels, never a shipped model's inputs.
 
 ## Files
 
@@ -66,8 +86,15 @@ npm run ml:lab -- --rounds 10
 | `scripts/competition.js` | Head-to-head matches (`npm run compete`) |
 | `scripts/ml/hf-sync.js`, `scripts/ml/hf-data.js` | Upload models and data to [Hugging Face](hugging-face.md) |
 | `scripts/ml/prune-data.js` | Moves training data no model uses to the Trash ([what is kept](hugging-face.md#what-is-kept)) |
+| `js/mahjong-lucky-cat-ml.js`, `js/mahjong-lucky-cat-net.js`, `js/mahjong-lucky-cat-weights.js` | Lucky Cat: the strategy, its network and features (v1), the shipped weights |
+| `js/mahjong-frontier-net.js` | Features v2 for the frontier models ([frontier training](frontier-training.md)) |
+| `scripts/ml/lucky.js`, `ml/train_lucky.py` | Lucky Cat's and Sphinx's data and training (imitation, the deal-in teacher, auxiliary heads, policy gradient) |
+| `scripts/ml/oracle.js` | The hidden tiles, recorded for training only |
+| `scripts/ml/frontier.js` | The frontier round driver (`npm run ml:frontier`) |
+| `scripts/ml/bench.js`, `bench/` | The benchmark: Table Scores and the bar for a next generation ([benchmark](benchmark.md)) |
+| `native/`, `scripts/ml/native.js`, `scripts/ml/weights.js` | The native simulator, its parity check against the JS, and weights as JSON and `.lcmw` ([native simulator](native.md)) |
 | `js/mahjong-ml.test.js` | Tests for the features, model, strategy, claims, kongs and coach lines |
 | `js/mahjong-fair-play.test.js` | The [fair-play](fair-play.md) test, for every strategy |
 | `js/mahjong-coach-text.test.js` | Keeps every coach line under 400 characters and in the house style |
 
-Local training files are never committed: `ml/data/`, `ml/models/`, `ml/loop/`, `ml/league/`, `ml/hf/` and `ml/.venv/` are gitignored. The only model file in git is `js/mahjong-ml-weights.js`.
+Local training files are never committed: `ml/data/`, `ml/models/`, `ml/loop/`, `ml/league/`, `ml/frontier/`, `ml/bench/`, `ml/hf/`, `ml/.venv/` and `native/build/` are gitignored. The model files in git are the shipped weights: `js/mahjong-ml-weights.js`, `js/mahjong-lucky-cat-weights.js` and `js/mahjong-only-orphans-weights.js`.

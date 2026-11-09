@@ -38,13 +38,36 @@ const GROUPS = {
   'lucky-cat': ['js/mahjong-lucky-cat-ml.js', 'js/mahjong-lucky-cat-net.js', 'js/mahjong-frontier-net.js'],
 };
 const sha = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
+// A file as the port depends on it: the engine's GAME_VERSION line changes with
+// every release and nothing plays differently for it, so it's left out.
+function content(f, buf) {
+  return f === 'js/mahjong-engine.js' ? Buffer.from(buf.toString('utf8').replace(/var GAME_VERSION = '[^']*';/, "var GAME_VERSION = '';")) : buf;
+}
+const pinSum = (f, buf) => sha(content(f, buf));
 function ported() { return fs.existsSync(PORTED) ? JSON.parse(fs.readFileSync(PORTED, 'utf8')) : null; }
 // sums: file -> SHA-256 of the version a player would run (today's, or the benchmark's frozen ones)
+const warned = new Set();
 function groupOk(group, sums) {
   const p = ported();
-  return !!p && GROUPS[group].concat(GROUPS.engine).every((f) => p.files[f] && sums(f) === p.files[f]);
+  if (!p) return false;
+  const stale = GROUPS[group].concat(GROUPS.engine).filter((f) => !p.files[f] || sums(f) !== p.files[f]);
+  stale.forEach((f) => {
+    if (warned.has(f)) return;
+    warned.add(f);
+    console.error('native: ' + f + ' is not the version native/ported.json pins, so its players run in the JS (slower). ' +
+      'Port the change to native/, check it (node scripts/ml/native.js parity), then node scripts/ml/native.js pin.');
+  });
+  return !stale.length;
 }
-const today = (f) => sha(fs.readFileSync(path.join(ROOT, f)));
+const today = (f) => pinSum(f, fs.readFileSync(path.join(ROOT, f)));
+const frozenSums = {};
+function frozenSum(bm, f) {
+  const key = bm.frozen.commit + ':' + f;
+  if (!(key in frozenSums)) {
+    try { frozenSums[key] = pinSum(f, execFileSync('git', ['show', bm.frozen.commit + ':' + f], { cwd: ROOT, maxBuffer: 1 << 28 })); } catch (e) { frozenSums[key] = null; }
+  }
+  return frozenSums[key];
+}
 
 function parseArgs(argv) {
   const out = { _: [] };
@@ -177,6 +200,7 @@ function lcmwConvert(spec) {
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, sha(buf).slice(0, 16) + '.lcmw');
   if (!fs.existsSync(file)) fs.writeFileSync(file, buf);
+  else { const now = new Date(); try { fs.utimesSync(file, now, now); } catch (e) { /* read-only: fine */ } }  // used: scripts/ml/disk.js keeps the recent ones
   return file;
 }
 
@@ -186,7 +210,7 @@ function nativeId(id, bm) {
   if (!fs.existsSync(SIM)) return null;
   if (id.startsWith('bench:')) {
     const name = id.slice(6);
-    const frozen = (f) => bm && bm.frozen.files[f];
+    const frozen = (f) => (bm && bm.frozen.files[f] ? frozenSum(bm, f) : null);
     if (!bm || !bm.frozen.players[name] || !GROUPS[name] || !groupOk(name, frozen)) return null;
     if (name === 'neural-cat') {
       const what = bm.frozen.players[name];
@@ -247,8 +271,16 @@ function playNative(job, models, table) {
   });
 }
 
+// A player as the simulator names it, ignoring the pin: the parity check is
+// how a port is verified before it's pinned.
+function simId(id) {
+  if (id === 'neural-cat') return 'nc:' + lcmwFor('js/mahjong-ml-weights.js');
+  if ((id.startsWith('lc:') || id.startsWith('nc:')) && !id.endsWith('.lcmw')) return id.slice(0, 3) + lcmwFor(id.slice(3));
+  return id;
+}
+
 function nativeRun(cmd, ids, seed, deals, exact) {
-  const r = spawnSync(exact ? SIM_EXACT : SIM, [cmd, '--agents', ids.map((id) => nativeId(id) || id).join(','), '--seed', String(seed), '--deals', String(deals)], { encoding: 'utf8', maxBuffer: 1 << 30 });
+  const r = spawnSync(exact ? SIM_EXACT : SIM, [cmd, '--agents', ids.map(simId).join(','), '--seed', String(seed), '--deals', String(deals)], { encoding: 'utf8', maxBuffer: 1 << 30 });
   if (r.status !== 0) throw new Error('lcm-sim failed: ' + (r.stderr || r.error));
   return r.stdout;
 }

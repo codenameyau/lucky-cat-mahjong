@@ -9,7 +9,7 @@ A record of the frontier work so far (from 2026-11-08): what was built, every de
 | **Lucky Cat lineage** | Generation 1 is still lc32 (as `lc32v2`, lc32 widened to features v2). 3 rounds and 9 arms of phase 1, then 3 policy-gradient probes: nothing passed the bar |
 | **Sphinx lineage** | Paused after round 1 and part of round 2. Every arm lost about 43 points a hand to random play. No generation yet |
 | **Benchmark** | `hk-table-v1`, frozen: two Neural Cat NC8 and Jorge Yau at 0.57.9, a 40,000-deal deck, the five-stage bar |
-| **Phases** | 0 built and folded into 1. 1 built and training. 2 and 3 designed, not built. 3b (search as a teacher) deferred. 4 (search at play) dropped |
+| **Phases** | 0 built and folded into 1. 1 built and training. 2 and 3 designed, not built. 3b (search as a teacher) and 4 (search at play) deferred |
 | **Simulation** | The native C++ simulator runs every round, as a hybrid: training data and screens on the fast build, judgments and Table Scores on the exact build |
 | **Speed** | A round's data (20,000 deals with the hidden-tile labels): 330 s in JS, 12.9 s now. A 2,000-deal compare: about 200 s in JS, 9.9 s now (15.5 s on the exact build) |
 
@@ -22,7 +22,7 @@ A record of the frontier work so far (from 2026-11-08): what was built, every de
 5. **Lucky Cat rounds 1–3.** 9 arms: the best (LV1a, +7.6 at its screen) failed the judgment's own screen at +4.3. The heads learned to read the table (deal-in AUC 0.87 → 0.92, waits 0.52 → 0.61), but play didn't change: the nine screens averaged −0.4 points a hand.
 6. **Sphinx rounds 1–2.** Imitating its own rare wins in self-play made it win five times as often and deal in far more: SP1a, SP1b, SP1c and SP2a each lost about 43 points a hand to random play.
 7. **Policy-gradient probes** (PG1–PG3). Training on what hands scored, with the heads and the teacher. PG2 and PG3 passed the screen (+8.1, +5.7), then failed to qualify (−2.4, −2.6).
-8. **Pruning.** Monte Carlo search was measured and dropped from the near-term plan; the judgment's second screen and Sphinx's restarting arm were removed; Sphinx was paused.
+8. **Pruning.** Monte Carlo search was measured and deferred until phase 3; the judgment's second screen and Sphinx's restarting arm were removed; Sphinx was paused.
 9. **The native simulator.** The engine and the benchmark table's players ported to C++, bit-exact with the JS. Then three optimization rounds and a fast build, and finally the hybrid (PR #208). Phase 1 and rounds 1–3 were merged as #205.
 
 ## Decisions
@@ -50,6 +50,7 @@ Each with why, and the evidence. Dates are when it was decided.
 | **`--aux` with `--mode pg`, and `--teach`** (2026-11-09) | The heads only shape the shared layers; nothing in an imitation loss rewards acting on a better read | PG probes: passed the screen, failed to qualify |
 | **No more rounds of the same signal** | Twelve arms screened, centred on zero. The critic explains none of the reward, so training on hand returns is luck. Phase 3's per-move value is what this needs | §11 |
 | **Sphinx paused** (2026-11-09) | Its recipe (imitate its own wins from random self-play) loses about 43 points a hand to random play. It learns to race for cheap hands, and nothing teaches it defence | SP1a −43.3, SP1b −46.3, SP1c −45.1, SP2a −43.5 |
+| **The rounds delete their own data, permanently** (2026-11-09) | A native-scale round writes about 2.5 GB. Deleted: data once it leaves the training window, frontier data no lineage lists (once 6 hours old), the oldest kept rounds when the next wouldn't fit (never the newest), and converted weights unused for 14 days or past 1 GB. Never: weights, reports, the benchmark, other labs' data | Frontier training, Disk space |
 | **Sphinx's wide arm trains fresh only while the champion is random** | From the second generation on, starting from scratch each round would throw away every generation it had earned | |
 
 ### Search
@@ -57,7 +58,7 @@ Each with why, and the evidence. Dates are when it was decided.
 | Decision | Why | Evidence |
 | --- | --- | --- |
 | **Phase 3b (search as a teacher) deferred** (2026-11-09) | A 4-world Monte Carlo search that knew every hidden hand (an upper bound) gained nothing measurable on held-out futures; scored on its own futures it looked like +79, which is the winner's curse | +7.8 ± 8.4 points a choice, 1,600 choices |
-| **Phase 4 (search at play) dropped** | 1–1.5 s a move breaks the browser promise, and the measured gain is nil | |
+| **Phase 4 (search at play) dropped, then deferred** (both 2026-11-09) | First dropped: 1–1.5 s a move breaks the browser promise, and the measured gain was nil. Then deferred on review: the test was too small to rule out a real gain (4 worlds against phase 4's 16–32, a ±8.4-point error), it sampled choices across the whole hand rather than the decisive late ones, and its futures were played by lc32, a weak policy. Phase 4 was always an opt-in "thinks longer" setting, so the browser promise holds for the default player | The re-test: once phase 3 exists, a 32–64-world search at decisive late-hand choices, with phase 3's value and policy playing the futures; it ships as an opt-in "thinks longer" setting only at ≥ +20 points a hand within 1.5 s a move |
 | **Monte Carlo *targets* kept** | Learning a value from how hands ended is how Neural Cat learns, and phase 3's value heads do the same | |
 
 ### The native simulator
@@ -85,7 +86,7 @@ Details are in the [frontier plan](frontier-plan.md) §6b.
 
 ## What would reopen each decision
 
-- **Search:** once phase 3's value heads exist, measure a 64-world search (cheap on the native simulator) at the choices the value is least sure of.
+- **Search (3b and 4):** once phase 3 exists, a 32–64-world search at decisive late-hand choices, with phase 3's value and policy playing the futures; it ships as an opt-in "thinks longer" setting only at ≥ +20 points a hand within 1.5 s a move. As a teacher (3b), the same search at the choices the value is least sure of. The native simulator makes 64 worlds cost less than 4 did in JS.
 - **Sphinx:** restart with a recipe that learns defence: the per-move deal-in teacher at full weight, joining the table earlier, or the per-move value of phase 3.
 - **More Lucky Cat rounds of the same recipe:** only with a new signal (phase 3's value), or screens of 40,000 deals that can see a +3-point gain.
 - **Exactness:** if a screen and its judgment disagree near the bar, replay the screen with `--exact`.

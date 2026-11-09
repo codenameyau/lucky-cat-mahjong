@@ -357,7 +357,7 @@ def fit_critic(X, R, train_idx, score_idx, dev, epochs, rng):
             idx = torch.from_numpy(perm[s:s + 2048])
             # Squared error: the critic must learn the mean points (a baseline); a
             # Huber loss on these heavy-tailed rewards learns closer to the median.
-            pred, tgt = c(X[idx].to(dev)), R[idx].to(dev)
+            pred, tgt = c(X[idx].to(dev).float()), R[idx].to(dev)
             loss = nn.functional.mse_loss(pred, tgt) if CRITIC_LOSS[0] == 'mse' else nn.functional.smooth_l1_loss(pred, tgt)
             opt.zero_grad()
             loss.backward()
@@ -367,7 +367,7 @@ def fit_critic(X, R, train_idx, score_idx, dev, epochs, rng):
     with torch.no_grad():
         for s in range(0, len(score_idx), 16384):
             idx = torch.from_numpy(score_idx[s:s + 16384])
-            out[s:s + len(idx)] = c(X[idx].to(dev)).cpu().numpy()
+            out[s:s + len(idx)] = c(X[idx].to(dev).float()).cpu().numpy()
     return out
 
 
@@ -499,7 +499,8 @@ def main():
         order = rng.permutation(n)
         nv = max(1, n // 10)
         va, tr = order[:nv], order[nv:]
-    X = torch.from_numpy(x.astype(np.float32))
+    # Kept as float16 (as the shards store it) and widened a batch at a time: half the memory, the same numbers.
+    X = torch.from_numpy(np.ascontiguousarray(x.astype(np.float16, copy=False)))
     A = torch.from_numpy(a)
     Lg = torch.from_numpy(legal)
     W = torch.from_numpy(w.astype(np.float32))
@@ -558,7 +559,7 @@ def main():
             raise SystemExit('--mode oracle and --teach need data from lucky.js generate --oracle')
         at = DANGER_AT[0]
         COST = torch.zeros(n, OUTPUTS)
-        COST[:, :34] = X[:, at:at + 34] * 1024
+        COST[:, :34] = X[:, at:at + 34].float() * 1024
         COST = COST.masked_fill(~Lg, 0)
         risky = (COST > 0).any(1)
         TW = torch.where(risky, torch.full((n,), args.danger_weight), torch.ones(n))
@@ -572,7 +573,7 @@ def main():
     def teacher_loss(idx, out=None):
         """The per-move deal-in teacher. With out (the policy's logits and aux
         outputs, from pg or awr), only the teacher's own term."""
-        xb, lb, cb, wb = X[idx].to(dev), Lg[idx].to(dev), COST[idx].to(dev), TW[idx].to(dev)
+        xb, lb, cb, wb = X[idx].to(dev).float(), Lg[idx].to(dev), COST[idx].to(dev), TW[idx].to(dev)
         xin = pin(xb)
         logits, aux_out = net.both(xin) if out is None else (out[0], None)
         logp = torch.log_softmax(logits.masked_fill(~lb, -1e9), dim=1)
@@ -597,7 +598,7 @@ def main():
     def loss_of(idx, train):
         if teacher:
             return teacher_loss(idx)[0], torch.zeros(())
-        xb, ab, lb, wb, nb = X[idx].to(dev), A[idx].to(dev), Lg[idx].to(dev), W[idx].to(dev), Neg[idx].to(dev)
+        xb, ab, lb, wb, nb = X[idx].to(dev).float(), A[idx].to(dev), Lg[idx].to(dev), W[idx].to(dev), Neg[idx].to(dev)
         logits, aux_out = net.both(pin(xb))
         logits = logits.masked_fill(~lb, -1e9)
         logp = torch.log_softmax(logits, dim=1)
@@ -617,7 +618,7 @@ def main():
         return (per * wb).mean(), acc
 
     def rl_loss(idx):
-        xb, ab, lb = X[idx].to(dev), A[idx].to(dev), Lg[idx].to(dev)
+        xb, ab, lb = X[idx].to(dev).float(), A[idx].to(dev), Lg[idx].to(dev)
         advb, logb, tb = ADV[idx].to(dev), LOGB[idx].to(dev), TEMP[idx].to(dev)
         xin = pin(xb)
         raw, aux_out = net.both(xin)
@@ -650,7 +651,7 @@ def main():
             lr_ = np.zeros(n, dtype=np.float32)
             for s_ in range(0, n, 16384):
                 idx = torch.arange(s_, min(n, s_ + 16384))
-                xb, ab, lb, tb = X[idx].to(dev), A[idx].to(dev), Lg[idx].to(dev), TEMP[idx].to(dev)
+                xb, ab, lb, tb = X[idx].to(dev).float(), A[idx].to(dev), Lg[idx].to(dev), TEMP[idx].to(dev)
                 lp_ = torch.log_softmax(ref(pin(xb)).masked_fill(~lb, -1e9) / tb[:, None], dim=1).gather(1, ab[:, None])[:, 0]
                 lr_[s_:s_ + len(idx)] = (lp_.cpu() - LOGB[idx]).numpy()
         ok = np.abs(lr_) <= np.log(args.reject_ratio)
@@ -777,7 +778,7 @@ def aux_report(net, X, va, P, pin):
     with torch.no_grad():
         for s in range(0, min(len(va), 200000), 8192):
             idx = torch.from_numpy(va[s:s + 8192])
-            xb = X[idx]
+            xb = X[idx].float()
             outs.append(net.both(pin(xb))[1].numpy())
             tg.append([t.numpy() for t in aux_targets(xb, P)])
     out = np.concatenate(outs)
