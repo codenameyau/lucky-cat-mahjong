@@ -85,6 +85,7 @@ Each with why, and the evidence. Dates are when it was decided.
 | **Lucky Cat keeps 4 rounds of data and retunes its arms** (after rounds 7–9) | Nine arms screened +2.4 ± 0.9 on average, below the +5 the bar can see, and the screen winner failed qualify four rounds running; each round refit the same small step to one round of data | Screens and qualifies in frontier plan §11 |
 | **Sphinx's arms build on the no-imitation arm** | Imitating its own wins lost 41–54 points a hand to random play every round; the teacher alone reached −7.1 | Sphinx v2 rounds 1–3 |
 | **Qualify stops early only on a clear loss** (2026-11-09, the maintainer's call) | `earlyFail` 0 → −2 standard errors: a small true gain (+2 points a hand) is at or below 0 after one 10,000-deal block about a third of the time, so 0 cut real gains short; at −2 they get the full 40,000 deals. The bar itself is unchanged | LV8c stopped at −1.34 SE after 10,000 deals |
+| **Sphinx paused again** (after round 6) | Rounds 4–6 on the no-imitation teacher lost to random play in every arm and round (−6.7 to −33.3 points a hand), and more data made arms b and c worse. Without a value of the position, the teacher's folding lessons from random play are wrong at this table | Screens in frontier plan §11; reopens with phase 3's value or a warm start |
 
 ## Important potential issue
 

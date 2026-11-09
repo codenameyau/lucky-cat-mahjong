@@ -516,3 +516,21 @@ The desktop (x86-64, Windows, a TITAN RTX) reproduced the reference compare to t
 - **Qualify and replicate now stop early only on a clear loss: at most −2 standard errors after a block, not 0** (the maintainer's call).
   - *Evidence:* a +2-point gain is under half a standard error of a 10,000-deal block (about 5.3), so it is at or below 0 after its first block about a third of the time. LV8c stopped at −1.34 SE after 10,000 deals. The arms' true gains look like about +2 (above), exactly the case a 0 threshold cuts short.
   - *Changed:* `bench/benchmark.json` `bar.earlyFail` 0 → −2. The early pass (≥ 4 SE) and the bar (2 SE at 40,000 deals, replicated) are unchanged. Documented in [benchmark](benchmark.md).
+
+### Sphinx rounds 4–6, on the desktop: paused (2026-11-09)
+
+Every arm built on the no-imitation teacher, as round 3 suggested: a (progress 100, fold 2, lr 1e-3, 6 epochs), b (progress 200, fold 4) and c (a at lr 3e-4 for 12 epochs). The rounds started without the Mac's Sphinx data, from sp0 (random weights), 100,000 deals of data a round, kept 2 rounds.
+
+- **Every arm lost to random play in every round, and more data made them worse, not better.**
+  - *Evidence (screens against sp0, 40,000 fresh deals):*
+
+    | Arm | Round 4 | Round 5 | Round 6 |
+    | --- | ---: | ---: | ---: |
+    | a | −31.8 ± 3.3 | −32.1 ± 3.4 | −26.6 ± 3.3 |
+    | b | −11.2 ± 3.1 | −24.1 ± 3.3 | −33.3 ± 3.3 |
+    | c | −6.7 ± 2.8 | −20.6 ± 3.2 | −17.2 ± 3.2 |
+
+  - The networks barely moved (KL from sp0 0.001–0.009) and still lost a lot, so the losses don't come from how far a step goes but from where the teacher points. Arm b's set-back share fell from 30.6% to about 28%, and it lost more as its data grew: what the teacher teaches against random players is wrong at this table.
+- **Why, as far as the evidence goes:** the teacher scores a discard by what the hidden tiles say it costs now (a deal-in) and by shanten (a set-back), scaled by the hand's prospects. sp0's data is random play, so its hands' prospects are almost always poor, and the teacher's lessons are mostly about folding, which against Neural Cat and Jorge Yau gives up the few wins random play gets without saving enough deal-ins. The imitation arms of rounds 1–3 failed the other way (racing for cheap hands). Neither signal is a value of the position; Sphinx has nothing that says what a hand from here is worth.
+- *Changed:* **Sphinx is paused** after round 6 (sp0 stays its champion; its state and the last 2 rounds of data are kept). Rounds of the same recipe would cost about 4 minutes each and, on this evidence, teach the same wrong lesson.
+  - *Reopens when:* Sphinx has a value to learn from: phase 3's value over how the hand ends, or a warm start (from lc32v2's policy, which would make it a second Lucky Cat lineage rather than a from-scratch one) — the maintainer's call.
