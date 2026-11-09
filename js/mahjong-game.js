@@ -98,56 +98,61 @@
   var OPP_ROW_GAP = 4; // on desktop, between a computer's exposed tiles and their hand
   var ACTIONS_LIFT = 6; // the Discard, Pung, Pass and other action buttons sit this far above their row's center
 
+  // The canvas colours. The theme's own are read from the CSS variables in css/play.css
+  // by applyTheme; the values here are the default (red) theme's, for when there is
+  // no stylesheet to read.
   var COLORS = {
-    felt: '#0b5a39',
-    feltLight: '#127048',
-    feltDark: '#074029',
-    red: '#C41E3A',
+    felt: '#6e1a2c',
+    feltLight: '#8c2639',
+    feltDark: '#4a0f1c',
+    green: '#7f2336', // the tile's edge
+    primary: '#C41E3A', // the primary buttons and badges
+    primaryHover: '#D62A47',
+    backLight: '#d8344f', // tile backs: light face (the main colour is primary) and dark edge
+    backDark: '#8f1229',
+    accent: '#EE6A80', // text on a dark bar: hand names in the coach's notes
+    red: '#C41E3A', // the brand red, for what means red whatever the theme
     redDark: '#8f1229',
-    backLight: '#2FA866', // tile backs: light face, the main colour, dark edge, in the theme's colour
-    backDark: '#0F5C36',
     redLight: '#EE6A80', // the brand red, lightened to read on the dark coach bar (losses)
-    accent: '#6FD3A0', // the theme's colour for text on a dark bar: hand names in the coach's notes
     gold: '#F4A020',
     goldLight: '#ffd27a',
-    green: '#05693A',
-    primary: '#1C8B53', // the primary buttons and badges, in the theme's colour
-    primaryHover: '#25A363',
     cream: '#FFF8F0',
     ink: '#1A1A1A',
     muted: '#5C5C5C',
     white: '#ffffff',
   };
 
-  // The table's three colour themes. The green one is the original. Each
-  // gives the felt, its light and dark ends, the tile edge, and the deepest
-  // shade (the CSS --theme-deep). applyTheme copies one into COLORS and onto
-  // <html data-theme>, which css/play.css reads for the sheets and the page.
-  var THEMES = {
-    green: { label: 'Green', felt: '#0b5a39', feltLight: '#127048', feltDark: '#074029', green: '#05693A', deep: '#0a3d27', meta: '#074029', primary: '#1C8B53', primaryHover: '#25A363', backLight: '#2FA866', backDark: '#0F5C36', accent: '#6FD3A0' },
-    blue: { label: 'Blue', felt: '#0d4a7a', feltLight: '#16609a', feltDark: '#082f52', green: '#0a5c94', deep: '#0a2f4d', meta: '#082f52', primary: '#2377C4', primaryHover: '#3490DD', backLight: '#3E91D8', backDark: '#154F85', accent: '#7FBCF0' },
-    red: { label: 'Red', felt: '#6e1a2c', feltLight: '#8c2639', feltDark: '#4a0f1c', green: '#7f2336', deep: '#3d0d18', meta: '#4a0f1c', primary: '#C41E3A', primaryHover: '#D62A47', backLight: '#d8344f', backDark: '#8f1229', accent: '#EE6A80' },
+
+  // The table's three colour themes: red (the default), green and blue. Their
+  // colours are CSS variables in css/play.css (:root, and :root[data-theme]), so
+  // the sheets, the page and the canvas all read the same ones; only the labels
+  // and the order are here. applyTheme sets <html data-theme> and copies the
+  // theme's variables into COLORS.
+  var THEMES = { red: { label: 'Red' }, green: { label: 'Green' }, blue: { label: 'Blue' } };
+  var THEME_ORDER = ['red', 'green', 'blue'];
+  var DEFAULT_THEME = 'red';
+  var THEME_COLORS = {
+    felt: '--theme-felt', feltLight: '--theme-light', feltDark: '--theme-dark', green: '--theme-edge',
+    primary: '--theme-primary', primaryHover: '--theme-primary-hover',
+    backLight: '--theme-back-light', backDark: '--theme-back-dark', accent: '--theme-accent',
   };
-  var THEME_ORDER = ['green', 'blue', 'red'];
-  function themeName(name) { return THEMES[name] ? name : 'green'; }
+  function themeName(name) { return THEMES[name] ? name : DEFAULT_THEME; }
   function applyTheme(name) {
     name = themeName(name);
-    var t = THEMES[name];
-    COLORS.felt = t.felt;
-    COLORS.feltLight = t.feltLight;
-    COLORS.feltDark = t.feltDark;
-    COLORS.green = t.green;
-    COLORS.primary = t.primary;
-    COLORS.primaryHover = t.primaryHover;
-    COLORS.backLight = t.backLight;
-    COLORS.backDark = t.backDark;
-    COLORS.accent = t.accent;
-    spriteCache = {}; // the tile backs are drawn in the theme's colour
-    if (typeof document !== 'undefined' && document.documentElement && document.documentElement.setAttribute) {
-      document.documentElement.setAttribute('data-theme', name);
+    var hasDom = typeof document !== 'undefined' && document.documentElement && document.documentElement.setAttribute;
+    if (hasDom) document.documentElement.setAttribute('data-theme', name);
+    var meta = null;
+    if (hasDom && typeof getComputedStyle === 'function') {
+      var css = getComputedStyle(document.documentElement);
+      Object.keys(THEME_COLORS).forEach(function (key) {
+        var value = String(css.getPropertyValue(THEME_COLORS[key]) || '').trim();
+        if (value) COLORS[key] = value;
+      });
+      meta = String(css.getPropertyValue('--theme-meta') || '').trim() || null;
     }
+    spriteCache = {}; // the tile backs are drawn in the theme's colour
     // The browser's address bar takes the theme's colour right away, not on the next load.
-    if (typeof document !== 'undefined' && document.querySelectorAll) {
+    if (meta && document.querySelectorAll) {
       // Safari only repaints its bars for a new tag, so the old ones are replaced, not edited.
       var bars = document.querySelectorAll('meta[name="theme-color"]');
       var head = document.head || document.getElementsByTagName('head')[0];
@@ -155,12 +160,12 @@
       var bar = document.createElement('meta');
       if (bar && bar.setAttribute && head) {
         bar.setAttribute('name', 'theme-color');
-        bar.setAttribute('content', t.meta);
+        bar.setAttribute('content', meta);
         head.appendChild(bar);
       }
       // Newer Safari tints its bars from the page's own background instead.
-      document.documentElement.style.backgroundColor = t.meta;
-      if (document.body) document.body.style.backgroundColor = t.meta;
+      document.documentElement.style.backgroundColor = meta;
+      if (document.body) document.body.style.backgroundColor = meta;
     }
     return name;
   }

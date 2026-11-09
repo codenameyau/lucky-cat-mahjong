@@ -784,25 +784,28 @@ test('opening playback again and again leaves one set of listeners on each sheet
   });
 });
 
-test('colour themes: green, blue and red, cycled from the menu and kept in the game prefs', () => {
+test('colour themes: red (the default), green and blue, cycled from the menu and kept in the game prefs', () => {
   const src = fs.readFileSync(path.join(__dirname, 'mahjong-game.js'), 'utf8');
-  for (const name of ['green', 'blue', 'red']) assert.match(src, new RegExp(name + ": \\{ label: '"));
-  assert.match(src, /green: \{[^}]*felt: '#0b5a39', feltLight: '#127048', feltDark: '#074029'/);
+  for (const name of ['red', 'green', 'blue']) assert.match(src, new RegExp(name + ": \\{ label: '"));
+  assert.match(src, /THEME_ORDER = \['red', 'green', 'blue'\]/);
+  assert.match(src, /DEFAULT_THEME = 'red'/);
   assert.match(src, /'Theme: ' \+ themeLabel/);
   assert.match(src, /prefs\.theme = applyTheme\(next\)[\s\S]{0,60}writeJson\(PREFS_KEY, prefs\)/);
   assert.match(src, /applyTheme\(prefs\.theme\)/);
-  assert.match(src, /green: \{[^}]*accent: '#6FD3A0'/);
   assert.match(src, /color: COLORS\.accent, bold: weightAt\(a\)/);
   assert.match(src, /c\.fillStyle = back \? COLORS\.backDark/);
   assert.match(src, /addColorStop\(1, COLORS\.primary\)/);
-  assert.match(src, /green: \{[^}]*primary: '#1C8B53'/);
-  assert.match(src, /blue: \{[^}]*primary: '#2377C4'/);
   assert.match(src, /primary: isHover \? COLORS\.primaryHover : COLORS\.primary/);
-  assert.match(src, /meta\[name="theme-color"\][\s\S]{0,600}t\.meta/);
-  assert.doesNotMatch(src, /addColorStop\(0, '#127048'\)/);
+  assert.match(src, /meta\[name="theme-color"\]/);
+  // The themes' colours are CSS variables, not written in the game's script.
+  assert.doesNotMatch(src, /THEMES = \{[^}]*#[0-9a-fA-F]{6}/);
   const css = fs.readFileSync(path.join(__dirname, '..', 'css/play.css'), 'utf8');
-  assert.match(css, /:root\[data-theme="blue"\]/);
-  assert.match(css, /:root\[data-theme="red"\]/);
+  const vars = ['felt', 'light', 'dark', 'deep', 'edge', 'meta', 'primary', 'primary-hover', 'back-light', 'back-dark', 'accent'];
+  const block = (sel) => css.slice(css.indexOf(sel + ' {'), css.indexOf('}', css.indexOf(sel + ' {')));
+  for (const sel of [':root', ':root[data-theme="green"]', ':root[data-theme="blue"]']) {
+    for (const v of vars) assert.match(block(sel), new RegExp('--theme-' + v + ': #'), sel + ' ' + v);
+  }
+  assert.match(block(':root'), /--theme-primary: #C41E3A/);
   const html = fs.readFileSync(path.join(__dirname, '..', 'playing-mahjong/index.html'), 'utf8');
   assert.match(html, /data-theme/);
 });
