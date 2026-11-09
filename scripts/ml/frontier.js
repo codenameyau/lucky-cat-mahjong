@@ -116,12 +116,16 @@ const LINEAGES = {
     deals: 100000,
     keep: 2,
     screen: 40000,
-    // a: v1's recipe, at the table. b: defence first, no imitation of wins.
-    // c: imitation down to 0.3 with a sharper teacher.
+    // Every arm learns from losses as well as wins: the teacher pushes down a
+    // discard that would deal in (harder the worse the hand's prospects:
+    // --fold) and one that sets its own hand back (--progress), which from
+    // random play is how to build a hand at all.
+    // a: v1's recipe at the table. b: no imitation of wins (defence and
+    // progress only). c: progress pushed twice as hard.
     arms: [
-      { key: 'a', why: 'imitate its wins + teacher + aux 1', args: ['--imitate-wins', '1', '--aux', '1'] },
-      { key: 'b', why: 'teacher + aux 1 (defence first: no imitation)', args: ['--aux', '1'] },
-      { key: 'c', why: 'imitate 0.3 + sharper teacher (danger-tau 50) + aux 1', args: ['--imitate-wins', '0.3', '--aux', '1', '--danger-tau', '50'] },
+      { key: 'a', why: 'imitate its wins + teacher (progress 100, fold 2) + aux 1', args: ['--imitate-wins', '1', '--aux', '1', '--progress', '100', '--fold', '2'] },
+      { key: 'b', why: 'teacher (progress 100, fold 2) + aux 1, no imitation', args: ['--aux', '1', '--progress', '100', '--fold', '2'] },
+      { key: 'c', why: 'imitate 0.3 + teacher (progress 200, fold 4) + aux 1', args: ['--imitate-wins', '0.3', '--aux', '1', '--progress', '200', '--fold', '4'] },
     ].map((x) => Object.assign(x, { args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '6'].concat(x.args) })),
   },
 };
