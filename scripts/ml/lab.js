@@ -92,6 +92,8 @@
      --dry               no shipping, uploading or pruning
      --quick-deals N, --full-deals N, --extra-deals N   smaller evaluations
                          (6000, 20000, 30000; Only Orphans' full evaluation: 40000)
+     --quick-train-deals N   Only Orphans: the first screen for retrained
+                         networks (default 12000)
      --prefix NAME       the round's data set is ml/data/<NAME>-<round>
                          (default lab, oolab or lcpts) */
 
@@ -109,6 +111,8 @@ const DATA_SEED = 60000000;   // round r's deals: DATA_SEED + r * 1,000,000
 const QUICK_SEED = 70000000;  // round r's first evaluation: QUICK_SEED + r * 10,000
 const FULL_SEED = 80000000;   // round r's long evaluation: FULL_SEED + r * 100,000
 let QUICK_DEALS = 6000;
+// Only Orphans' retrained networks: a larger first screen (0 = QUICK_DEALS).
+let QUICK_TRAIN_DEALS = 0;
 let FULL_DEALS = 20000;
 const WIN_WEIGHT = 5;         // points a hand per percentage point of hands won
 // Lucky Cat plays for points first: a percentage point of hands won is worth
@@ -434,7 +438,21 @@ const STRATEGIES = {
     // setting that changes few choices has a narrow paired margin (±1.0 for
     // winBonus 450 → 500 in round 6), so without the floor the lab ships
     // steps too small to matter (OT6e: J +1.0, points +0.5).
-    keep: (e) => e.J > Math.max(e.margin / 2, 2),
+    // From round 12, points a hand must not fall either: J counts each extra
+    // percentage point of hands won as 5 points a hand, so a setting that only
+    // trades bigger hands for more small ones can pass on J alone (OT11d:
+    // J +2.9, points +0.3).
+    keep: (e) => e.J > Math.max(e.margin / 2, 2) && e.points > 0,
+    // From round 12, a retrained network is screened on 12,000 deals, not
+    // 6,000: its paired margin there is about ±23 points a hand, so the best
+    // of three often leads by luck alone (rounds 8 to 11: four led on 6,000
+    // deals and all four lost on 40,000).
+    quickTrainDeals: 12000,
+    // And the two places on 40,000 deals go one to the best network and one
+    // to the best play setting, each only if ahead. A network's wider swings
+    // kept taking both places from settings whose margins are a few points
+    // (round 8: win bonus 650 led on 6,000 deals but never got the long check).
+    finalists: oneOfEach,
     // Training data: only the lab's own rounds under the targets. The league's
     // (orphans-<n>) and the fixed-family lab's (oolab-<n>) positions were read
     // through the old fixed-family plans, so they no longer match how it plays.
@@ -701,6 +719,16 @@ function upload(file, release) {
   log(res.status === 0 ? 'Pushed ' + name + ' to https://huggingface.co/codenameyau/lucky-cat-mahjong' : 'Upload failed: ' + (res.stderr || '').slice(-300));
 }
 
+// The full evaluation's two places: the best network ahead and the best play
+// setting ahead, so neither kind crowds out the other. If one kind has none
+// ahead, the other may take both.
+function oneOfEach(candidates) {
+  const ahead = candidates.filter((c) => c.quick.J > 0).sort((a, b) => b.quick.J - a.quick.J);
+  const picks = ['train', 'play'].map((k) => ahead.find((c) => c.kind === k)).filter(Boolean);
+  ahead.forEach((c) => { if (picks.length < 2 && picks.indexOf(c) < 0) picks.push(c); });
+  return picks.sort((a, b) => b.quick.J - a.quick.J);
+}
+
 function round(state, opts) {
   const r = state.rounds.length + 1;
   const champ = state.champion;
@@ -721,16 +749,19 @@ function round(state, opts) {
   const playArms = pickArms(state, Object.keys(S.playArms), opts.play, (n) => (bold || !S.playArms[n].bold) && playArmValue(play, n) !== null);
   const candidates = [];
   trainArms.forEach((arm) => {
-    try { candidates.push(train(state, r, letters[candidates.length], arm, sets)); } catch (err) {
+    try { candidates.push(Object.assign(train(state, r, letters[candidates.length], arm, sets), { kind: 'train' })); } catch (err) {
       log('Round ' + r + ': ' + arm + ' failed to train: ' + err.message.split('\n')[0]);
       record(state, arm, -50, false);
     }
   });
-  playArms.forEach((arm) => candidates.push(tune(state, r, letters[candidates.length], arm)));
+  playArms.forEach((arm) => candidates.push(Object.assign(tune(state, r, letters[candidates.length], arm), { kind: 'play' })));
 
-  // 3. Judge: 6,000 deals each (Lucky Cat 15,000), then the full evaluation's fresh deals for the best two ahead.
+  // 3. Judge: 6,000 deals each (Lucky Cat 15,000; Only Orphans' networks
+  // 12,000), then the full evaluation's fresh deals for the best two ahead
+  // (Only Orphans: the best network and the best play setting).
   candidates.forEach((c) => {
-    c.quick = S.judge(c.file, champ, QUICK_DEALS, QUICK_SEED + r * 10000, 'quick');
+    const deals = c.kind === 'train' && QUICK_TRAIN_DEALS ? QUICK_TRAIN_DEALS : QUICK_DEALS;
+    c.quick = S.judge(c.file, champ, deals, QUICK_SEED + r * 10000, 'quick');
     log('Round ' + r + ': ' + c.name + ' [' + c.arm + ': ' + c.about + '] ' + fmt(c.quick));
   });
   let champVsBaseline = null;
@@ -744,7 +775,7 @@ function round(state, opts) {
     log('Round ' + r + ': champion ' + base(champ) + ' against the rule-based bot ' + signed(champVsBaseline.points) + ' ± ' + champVsBaseline.margin.toFixed(1) +
       ' points a hand (' + mine.pointsPerHand.toFixed(1) + ' against ' + b.pointsPerHand.toFixed(1) + ', wins ' + pct(mine.winRate) + ' vs ' + pct(b.winRate) + ')');
   }
-  const ahead = candidates.filter((c) => c.quick.J > 0).sort((a, b) => b.quick.J - a.quick.J).slice(0, 2);
+  const ahead = S.finalists ? S.finalists(candidates) : candidates.filter((c) => c.quick.J > 0).sort((a, b) => b.quick.J - a.quick.J).slice(0, 2);
   ahead.forEach((c) => {
     c.full = S.judge(c.file, champ, FULL_DEALS, FULL_SEED + r * 100000, 'full');
     c.kept = S.keep ? S.keep(c.full) : c.full.J > c.full.margin / 2;
@@ -826,6 +857,8 @@ function main() {
   const cmd = a._[0] || 'run';
   if (a['quick-deals']) QUICK_DEALS = parseInt(a['quick-deals'], 10);
   else if (S.quickDeals) QUICK_DEALS = S.quickDeals;
+  if (a['quick-train-deals']) QUICK_TRAIN_DEALS = parseInt(a['quick-train-deals'], 10);
+  else if (S.quickTrainDeals) QUICK_TRAIN_DEALS = S.quickTrainDeals;
   if (a['full-deals']) FULL_DEALS = parseInt(a['full-deals'], 10);
   else if (S.fullDeals) FULL_DEALS = S.fullDeals;
   if (a['extra-deals']) EXTRA_DEALS = parseInt(a['extra-deals'], 10);
