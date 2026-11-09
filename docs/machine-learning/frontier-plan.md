@@ -638,3 +638,8 @@ The maintainer's call, after rounds 4–6: "Train Sphinx to be more aggressive t
   - **The gentler push (c, progress 100) dealt in less than random play in two of three rounds** (9.8% and 9.9% against about 10.4%) and came closest: −4.1 ± 2.9 in round 12, 1.4 SE from parity.
   - Every arm's wins are still small (3.9–4.3 faan against sp0's 6.7, whose rare wins come from big random hands), and arm c swung from −11.2 to −26.2 and back to −4.1: one 40,000-deal screen moves by about 10 points between rounds of the same recipe.
   - *Open:* sp0 is still champion, so every round fine-tunes from random weights on sp0's own data. What would compound is a first generation: a candidate that beats sp0 becomes the champion and generates the next round's data. The gentle-offence recipe (c) is the closest; the next rounds should run it, and variants around it.
+  - *Changed (from round 13, the maintainer's call: Sphinx runs around c until one passes, alongside phase 2):*
+    - a: c itself (progress 100, danger-tau 200), the control.
+    - b: an even gentler push (progress 50), so value plans are pushed off less.
+    - c: c with a firmer deal-in teacher (danger-tau 150), since c's best rounds were its lowest deal-ins.
+    - A value push without imitation isn't available in phase 1's trainer. It's what phase 3's value heads are for.
