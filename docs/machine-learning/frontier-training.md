@@ -97,7 +97,7 @@ With the [native simulator](native.md), a round's data costs seconds instead of 
 | --- | --- | --- |
 | Data a round | 100,000 deals (5x), one seat at the game's table, half the choices; the last 2 rounds kept | 100,000 deals, one seat at the game's table from round 1 (later with its last 2 generations in the pool); every won hand kept, 10% of the rest |
 | Screen | 40,000 deals (one standard error about 2.5 points a hand) | 40,000 deals against its current generation |
-| Arms | a: teacher + aux 0.2, lr 1e-3, 8 epochs (LV3b's recipe); b: the same with aux 0.05; c: returns (`--mode pg`, hidden-tile critic) + teacher 0.5 + aux 0.05 | a: imitate wins + teacher + aux 1 (v1's recipe, now at the table); b: teacher + aux 1, no imitation (defence first); c: imitate 0.3 + a sharper teacher |
+| Arms | Rounds 4–6: a: teacher + aux 0.2, lr 1e-3, 8 epochs (LV3b's recipe); b: the same with aux 0.05; c: returns (`--mode pg`, hidden-tile critic) + teacher 0.5 + aux 0.05. From round 7: aux 0.05, alone, with progress 100 and fold 2, and with progress 50 and fold 2 (see below) | All with progress and fold: a: imitate wins + teacher + aux 1 (v1's recipe, now at the table); b: teacher + aux 1, no imitation (defence first); c: imitate 0.3 + harder progress (200) and fold (4) |
 | Judgment | `--screened`, then qualify and replicate on the exact build | the same, without the win-rate rule |
 
 **Why Sphinx restarted.** v1 played its first rounds in self-play among random players. The deal-in teacher learned what random opponents punish, and every arm lost about 43 points a hand to random play at the benchmark table. v2 learns at the table it's judged at, from its first round. v1's log and state are kept in `ml/frontier/sphinx-v1/`.
@@ -105,6 +105,29 @@ With the [native simulator](native.md), a round's data costs seconds instead of 
 **Memory.** `train_lucky.py` keeps the data in float16, as the shards store it, and widens one batch at a time. Two native-scale rounds (about 2.2 million rows of 1,166 values) fit in about 5 GB.
 
 A round of Lucky Cat now takes about a minute of data, about 8 minutes of training, 10 minutes of screens, and a judgment of about 20 minutes on the exact build when an arm passes.
+
+## Learning from losses: the loss-aware teacher (from 2026-11-09)
+
+The deal-in teacher (`--mode oracle`) pushes down each discard by what it would pay right now. Two options widen what it teaches, so that losses and silly mistakes count as much as wins:
+
+- **`--progress P`: discards that set the hand back.** For each tile held, the shanten after discarding it (features v2 already record it, inputs 784–817) against the best discard available. A discard that is worse costs P for each step it sets the hand back, scaled by the hand's prospects, so a hand close to ready is protected most.
+- **`--fold F`: when to fold.** Prospects come from the best shanten (1 when ready, 0.8 one away, 0.5 two away, 0.25 further) times the wall left. With poor prospects, a discard's deal-in cost is multiplied by up to 1 + F, so a hand that can't win soon is pushed hardest to play safe.
+
+Both read only the seat's own hand and the wall count it can see; neither adds an input. The trainer reports the share of the policy on set-back discards, against the champion's.
+
+**lc32 throws a set-back discard in 19.5% of its choices** (215,135 of 1.1 million, round 5's data). Probes on that data, each screened on 40,000 deals against lc32v2:
+
+| Probe | Settings | Set-back share | Gap (points a hand) | Hands won | Dealt in | Average win |
+| --- | --- | --- | --- | --- | --- | --- |
+| LP0 | the teacher alone (the control) | 19.5% | +1.8 ± 2.5 | 24.41% | 12.90% | 178 |
+| LP1 | progress 100 | 17.1% | +2.5 ± 2.8 | 24.95% | | 167 |
+| LP2 | progress 100, fold 2 | 17.2% | +2.3 ± 2.8 | 24.98% | 12.67% | 162 |
+| LP3 | progress 200, fold 4 | 14.1% | −1.9 ± 3.1 | 23.95% | | 139 |
+
+What it says:
+- **A moderate weight helps a little:** LP1 and LP2 win half a point more hands than the control and deal in less, but their wins are smaller, so points move by under one standard error.
+- **Pushed hard, it costs points:** LP3 sets the hand back least, but its wins shrink to 139 points. Some set-back discards are right: breaking a fast hand to keep a valuable one.
+- **Changed:** from round 7, Lucky Cat's arms are the best recipe of rounds 4–6 (teacher + aux 0.05), that with progress 100 and fold 2, and that with a gentler progress 50.
 
 ## Disk space
 
@@ -119,6 +142,5 @@ Never touched: model weights (`ml/models/`), logs and reports, the benchmark, an
 
 ## Not done yet
 
-- **No frontier round has run at full size:** the machine is training Neural Cat. They are queued after it, and after lc32's Table Score.
-- **The phase-1 bar on the table:** ≥ +25 points a hand over the phase-0 champion and deal-ins at the table ≤ 11%. Unknown until the rounds run.
+- **The phase-1 bar on the table:** ≥ +25 points a hand over the phase-0 champion and deal-ins at the table ≤ 11%. Rounds 4–6 moved points by at most about +5 a hand.
 - **Value-guided exploration, the distributional value and the policy-iteration step** are phase 3. The tile-structured network is phase 2.

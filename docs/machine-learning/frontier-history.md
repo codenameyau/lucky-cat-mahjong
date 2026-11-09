@@ -6,8 +6,8 @@ A record of the frontier work so far (from 2026-11-08): what was built, every de
 
 | | State |
 | --- | --- |
-| **Lucky Cat lineage** | Generation 1 is still lc32 (as `lc32v2`, lc32 widened to features v2). 3 rounds and 9 arms of phase 1, then 3 policy-gradient probes: nothing passed the bar |
-| **Sphinx lineage** | Paused after round 1 and part of round 2. Every arm lost about 43 points a hand to random play. No generation yet |
+| **Lucky Cat lineage** | Generation 1 is still lc32 (as `lc32v2`, lc32 widened to features v2). 6 rounds and 18 arms of phase 1 (3 at native scale), 3 policy-gradient probes and 4 loss-aware teacher probes. LV6b (+5.1 at its screen) is being judged |
+| **Sphinx lineage** | v1 paused after every arm lost about 43 points a hand to random play. v2 restarts at the benchmark table, with the loss-aware teacher, queued after Lucky Cat's round 6. No generation yet |
 | **Benchmark** | `hk-table-v1`, frozen: two Neural Cat NC8 and Jorge Yau at 0.57.9, a 40,000-deal deck, the five-stage bar |
 | **Phases** | 0 built and folded into 1. 1 built and training. 2 and 3 designed, not built. 3b (search as a teacher) and 4 (search at play) deferred |
 | **Simulation** | The native C++ simulator runs every round, as a hybrid: training data and screens on the fast build, judgments and Table Scores on the exact build |
@@ -24,6 +24,8 @@ A record of the frontier work so far (from 2026-11-08): what was built, every de
 7. **Policy-gradient probes** (PG1–PG3). Training on what hands scored, with the heads and the teacher. PG2 and PG3 passed the screen (+8.1, +5.7), then failed to qualify (−2.4, −2.6).
 8. **Pruning.** Monte Carlo search was measured and deferred until phase 3; the judgment's second screen and Sphinx's restarting arm were removed; Sphinx was paused.
 9. **The native simulator.** The engine and the benchmark table's players ported to C++, bit-exact with the JS. Then three optimization rounds and a fast build, and finally the hybrid (PR #208). Phase 1 and rounds 1–3 were merged as #205.
+10. **Native-scale rounds** (100,000 deals a round, 40,000-deal screens). Lucky Cat rounds 4–6: LV4b screened +4.7 and failed qualify (−10.3); LV6b screened +5.1 (2.00 SE) and went to a judgment.
+11. **The loss-aware teacher.** lc32 sets its own hand back in 19.5% of its choices. `--progress` and `--fold` teach against that and against dealing in with poor prospects; probes gained about +2.4 points a hand at a moderate weight.
 
 ## Decisions
 
@@ -51,6 +53,8 @@ Each with why, and the evidence. Dates are when it was decided.
 | **No more rounds of the same signal** | Twelve arms screened, centred on zero. The critic explains none of the reward, so training on hand returns is luck. Phase 3's per-move value is what this needs | §11 |
 | **Sphinx paused** (2026-11-09) | Its recipe (imitate its own wins from random self-play) loses about 43 points a hand to random play. It learns to race for cheap hands, and nothing teaches it defence | SP1a −43.3, SP1b −46.3, SP1c −45.1, SP2a −43.5 |
 | **The rounds delete their own data, permanently** (2026-11-09) | A native-scale round writes about 2.5 GB. Deleted: data once it leaves the training window, frontier data no lineage lists (once 6 hours old), the oldest kept rounds when the next wouldn't fit (never the newest), and converted weights unused for 14 days or past 1 GB. Never: weights, reports, the benchmark, other labs' data | Frontier training, Disk space |
+| **The teacher learns from losses: `--progress` and `--fold`** (2026-11-09) | Losing points and dealing in are lessons as important as winning, and so are discards that set one's own hand back. lc32 throws one in 19.5% of its choices | Probes LP0–LP3 on round 5's data: progress 100 (with or without fold 2) about +2.4 and half a point more hands won; progress 200 with fold 4 −1.9 |
+| **The returns arm dropped from Lucky Cat's rounds** (from round 7) | Training on what hands scored screened near zero again in rounds 4–6 (−1.2, +2.4, +0.4), after PG1–PG3 | §11 |
 | **Sphinx's wide arm trains fresh only while the champion is random** | From the second generation on, starting from scratch each round would throw away every generation it had earned | |
 
 ### Search

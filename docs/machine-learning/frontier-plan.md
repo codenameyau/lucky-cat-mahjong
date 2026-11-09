@@ -467,3 +467,21 @@ What the frontier rounds were spending time on that they shouldn't, and the C++ 
 - **The hybrid against fast-only.**
   - *Evidence (round 3's pipeline, 8 workers):* the fast build runs a 2,000-deal compare in 9.9 s, the exact build in 15.5 s (1.56x slower); a round's data in 12.9 s against 20 s. A frontier round's work is about 35 s of data, three 10,000-deal screens (about 4 minutes) and, when an arm passes, a judgment of about 150,000 deals (about 12 minutes fast, 19 exact). So a round with a judgment takes about 16 minutes fast-only, or about 23 with exact judgments (the hybrid).
   - *Changed:* first fast everywhere, then, after this comparison, the hybrid (the user's call): judgments and Table Scores on the exact build, data and screens on the fast one; every result records its simulator. On 1,000 deals every hand was identical between the builds, and a compare printed the same gap; on a 20,000-deal round of data a few sampled moves flipped, and each flip changes the rest of its chunk's random stream (63 of 256 shard files differ, the data the same in distribution). See §6b.
+
+### Native-scale rounds and the loss-aware teacher (2026-11-09)
+
+Lucky Cat rounds 4–6: 100,000 deals a round, 40,000-deal screens (one standard error about 2.5 points a hand), the same three arms each round.
+
+- **At 5x the data, the aux-0.05 teacher arm screened best twice, and the returns arm never did.**
+  - *Evidence (screens against lc32v2):* round 4: LV4a (aux 0.2) +4.2 ± 2.7, LV4b (aux 0.05) +4.7 ± 2.5, LV4c (returns) −1.2. Round 5: LV5a +0.3, LV5b −0.6, LV5c +2.4. Round 6: LV6a −0.8, LV6b +5.1 ± 2.6 (2.00 SE), LV6c +0.4.
+  - *Changed:* the returns arm (`--mode pg --oracle-critic`) was dropped from round 7, the third time training on hand returns screened near zero (after PG1–PG3).
+- **A 2-SE screen can still be luck.**
+  - *Evidence:* LV4b screened at +4.7 ± 2.5 and failed qualify on fresh deals at −10.3 ± 5.0. The screen picks the best of three arms, so its gap is biased upward.
+  - *Changed:* nothing: qualify and replicate are there for exactly this, and the exact build gave every hand the JS would have.
+- **lc32 throws a discard that sets its own hand back in 19.5% of its choices.**
+  - *Evidence:* 215,135 of 1.1 million choices in round 5's data, measured against the best shanten available after a discard.
+  - *Changed:* the teacher gained `--progress` (set-back discards cost points, scaled by the hand's prospects) and `--fold` (with poor prospects, a deal-in costs more), so it learns from losses and silly mistakes, not only wins.
+- **Learning from losses helps a little at a moderate weight, and costs points when pushed.**
+  - *Evidence (probes on round 5's data, 40,000-deal screens):* the teacher alone +1.8 ± 2.5; progress 100: +2.5 ± 2.8, hands won 24.41% → 24.95%, set-back share 17.1%; progress 100 with fold 2: +2.3 ± 2.8, dealt in 12.90% → 12.67%; progress 200 with fold 4: −1.9 ± 3.1, set-back share 14.1%, average win 178 → 139 points.
+  - *Changed:* from round 7, two of Lucky Cat's three arms use it (progress 100 or 50, fold 2). Sphinx v2 uses it in every arm.
+  - *Open:* some set-back discards are right (breaking a fast hand to keep a valuable one). Telling those apart needs the per-move value of phase 3, not shanten alone.
