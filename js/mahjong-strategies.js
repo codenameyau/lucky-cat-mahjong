@@ -40,7 +40,7 @@
       bot: J,
       summary: 'Play mahjong the way the founder of Lucky Cat plays. It reads the opening hand and picks one hand to build, from Thirteen Orphans down to Concealed Straights, and pivots when that hand can\'t be made. It keeps honors, pungs dragons and scoring winds, and locks onto a hand worth 7 faan or more. It plays no defense until late in the wall, when it is far from winning.',
       details: [
-        'It looks at the opening hand and picks a target, in this order: Thirteen Orphans, Nine Gates, Four Winds, All Terminals, All Honors, Seven Pairs, Full Flush, Concealed Triplets, Half Flush and Concealed Straights. Tiles the target can\'t use go first.',
+        'It looks at the opening hand and picks a target, in this order: Thirteen Orphans, Nine Gates, Four Winds, All Terminals, All Honors, Seven Pairs, Full Flush, Concealed Triplets, Half Flush, All Triplets and Concealed Straights. Tiles the target can\'t use go first.',
         'Each turn it reads the hand again. A stronger target replaces the old one, and when a target can\'t be made it pivots: Seven Pairs to Concealed Triplets to All Triplets, Concealed Triplets to All Triplets or Seven Pairs, Full Flush to Half Flush, Four Winds to All Honors, and Thirteen Orphans to Seven Pairs with Mixed Orphans.',
         'With a seat or round wind, or a seat flower, the hand already has faan, so it plays for speed. It also counts wins off the last tile and off a kong toward the 3-faan minimum.',
         'With 8 tiles of a hand worth 7 faan or more within its first 8 turns (a Full Flush, Thirteen Orphans, Nine Gates, All Honors, All Terminals, Four Winds, Three Dragons or Mixed Orphans), it locks onto that hand and keeps those tiles until the hand can\'t be won.',

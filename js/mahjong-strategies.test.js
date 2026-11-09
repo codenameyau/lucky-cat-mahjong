@@ -134,6 +134,16 @@ describe('jorge-yau opening targets', () => {
     assert.deepEqual([t.id, t.suit], ['half', 'c']);
   });
 
+  it('goes for All Triplets after Half Flush: three pairs and no set, when pairs are as quick as runs', () => {
+    assert.equal(targetOf(['c2', 'c2', 'd5', 'd5', 'b8', 'b8', 'c9', 'd1', 'b3', 'we', 'ws', 'dr', 'dg']).id, 'all-triplets');
+    // Half Flush comes first.
+    assert.equal(targetOf(['c2', 'c2', 'c5', 'c5', 'c8', 'c8', 'c9', 'd1', 'b3', 'we', 'ws', 'dr', 'dg']).id, 'half');
+    // Runs that are quicker keep it off.
+    assert.notEqual(targetOf(['c2', 'c2', 'd5', 'd5', 'b8', 'b8', 'c3', 'c4', 'd6', 'd7', 'b6', 'b7', 'we']).id, 'all-triplets');
+    const ids = L.TARGETS.map((x) => x.id);
+    assert.equal(ids.indexOf('all-triplets'), ids.indexOf('half') + 1);
+  });
+
   it('reads Concealed Straights from evenly mixed suits', () => {
     assert.equal(targetOf(['c1', 'c3', 'c5', 'c7', 'd2', 'd4', 'd6', 'd8', 'b3', 'b5', 'b7', 'b9', 'we']).id, 'sequences');
   });
@@ -634,7 +644,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.57.20');
+    assert.equal(E.GAME_VERSION, '0.57.22');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);

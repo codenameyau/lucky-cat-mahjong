@@ -6,8 +6,8 @@
    differently:
      - Target. From the opening hand it picks one hand to aim for, in a fixed
        order (TARGETS below): Thirteen Orphans, Nine Gates, Four Winds, All
-       Terminals, honors, Seven Pairs, Full Flush, All Triplets, Half Flush,
-       Concealed Straights. Each turn the current hand is read again; a
+       Terminals, honors, Seven Pairs, Full Flush, Concealed Triplets, Half
+       Flush, All Triplets, Concealed Straights. Each turn the current hand is read again; a
        stronger target replaces it, and a target that can no longer be made
        gives way. The target's plans are preferred (K.targetWeight), so the
        hand only pivots when a backup is clearly better.
@@ -178,6 +178,14 @@
         return r.honors >= 3 && r.by[r.top] >= 5 && r.by[r.top] >= Math.max.apply(null, second) * 2;
       },
       dead: function (r, t) { return hasSuitedMeld(r.ctx, t.suit); },
+    },
+    {
+      // Three pairs and no set yet, when pairs are no slower than runs: pung
+      // them into All Triplets, open or not, with Concealed Triplets and Seven
+      // Pairs behind it.
+      id: 'all-triplets', name: 'All Triplets',
+      fits: function (r) { return !r.ctx.hasChow && r.pairs >= 3 && E.tripletsShanten(r.c) <= E.standardShanten(r.c); },
+      dead: function (r) { return r.ctx.hasChow; },
     },
     {
       id: 'sequences', name: 'Concealed Straights',
@@ -474,6 +482,14 @@
         out = out.concat(flushPlans(c, ctx, su, base, 1, 0.8));
         break;
       }
+      case 'all-triplets':
+        out = weigh(tripletsPlans(c, ctx, base, W * 0.9), function (p) { return p.id === 'triplets'; }, W);
+        if (!ctx.declared) {
+          var ap = B.makeSpecialPlan('pairs', c, ctx);
+          ap.weight = W * 0.8;
+          out.push(ap);
+        }
+        break;
       case 'sequences':
         out = weigh(B.basePlans(c, ctx), function (p) { return p.id === 'straights'; }, W);
         break;
@@ -507,6 +523,7 @@
 
   var FAMILY = {
     triplets: ['triplets', 'concealed-triplets', 'pairs'],
+    'all-triplets': ['triplets', 'concealed-triplets', 'pairs'],
     pairs: ['pairs'],
     sequences: ['straights'],
   };
@@ -553,7 +570,7 @@
     // Seven Pairs keeps pairs and lets a third copy go.
     if (t.id === 'pairs') return pair ? 6 : 2;
     // Hands of sets keep every pair and pung, the pung longest.
-    if (['triplets', 'terminals', 'honors', 'winds'].indexOf(t.id) !== -1 && counts[i] >= 2) return counts[i] >= 3 ? 6 : 5;
+    if (['triplets', 'all-triplets', 'terminals', 'honors', 'winds'].indexOf(t.id) !== -1 && counts[i] >= 2) return counts[i] >= 3 ? 6 : 5;
     // Concealed Triplets sticks to one suit and honors where it can: a
     // single of another suit goes first.
     if (t.id === 'triplets' && i < 27 && suitOf(i) !== t.suit) return 1;

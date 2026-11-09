@@ -23,8 +23,9 @@ At its first decision of the hand, jorge-yau reads the opening tiles and picks a
 | 7 | 8 or more tiles of one suit | **Full Flush**. Keep that suit, discard the other suits and honors. Early chows in that suit are fine | Half Flush in that suit |
 | 8 | 1 to 3 sets (three or four of a kind) | **Concealed Triplets**, in the main suit and honors where it can | All Triplets or Seven Pairs, preferably in one suit with honors, then a Half Flush |
 | 9 | One main suit (at least 5 tiles, twice the next suit) and 3 or more honors | **Half Flush** | Full Flush, All Triplets |
-| 10 | 9 or more number tiles spread evenly over two or three suits | **Concealed Straights**. Honors go first | Every lucky-cat hand |
-| 11 | Anything else | **A standard hand**, played like lucky-cat | |
+| 10 | 3 or more pairs and no set, when pairs are no slower to finish than runs | **All Triplets**. Pung the pairs, open or concealed | Concealed Triplets, then Seven Pairs |
+| 11 | 9 or more number tiles spread evenly over two or three suits | **Concealed Straights**. Honors go first | Every lucky-cat hand |
+| 12 | Anything else | **A standard hand**, played like lucky-cat | |
 
 "Different" in row 1 means kinds, not copies: Thirteen Orphans needs one of each, so a pair of East Winds counts once there. A pair still counts toward the hand's one pair. In row 8, pairs alone don't count: the hand needs a set already.
 
@@ -41,6 +42,7 @@ Each turn the current hand is read again with the same table:
   - Four Winds once more than one set of number tiles is open.
   - All Terminals and All Honors after a chow.
   - Full and Half Flush once a set of another suit is open.
+  - All Triplets after a chow.
   - Concealed Straights once it claims.
 - **Backups.** The target's hands are preferred over the backups (1.5 times), but the hand switches when a backup is clearly closer to a good win. A pivot on the softer targets (Concealed Triplets, Seven Pairs, Half Flush, All Sequences) also hands the discard order back to the shared one. The hand keeps a target's discards only while that target's hand is the one in the lead.
 
@@ -66,7 +68,7 @@ A ready hand is scored wait by wait, by discard and by self-draw, with Concealed
 
 ### Bigger hands from the same tiles
 
-The softer targets (and the default) also weigh the special hands the same tiles can still make, as the shared rules in `js/mahjong-bot.js` do: Mixed Orphans on All Triplets, All Terminals, All Honors, Small and Big Three Dragons, Small and Big Four Winds, and Seven Pairs in Mixed Orphans, All Honors or All Terminals. While one is within a step, its tiles wait behind tiles it can't use, unless no copy is left to finish them. Once one is the hand in the lead, the tiles it can't use go first even at a step's cost, as on any target. The three-step reach in the shared rules only applies to a hand with no target of its own (row 11 above).
+The softer targets (and the default) also weigh the special hands the same tiles can still make, as the shared rules in `js/mahjong-bot.js` do: Mixed Orphans on All Triplets, All Terminals, All Honors, Small and Big Three Dragons, Small and Big Four Winds, and Seven Pairs in Mixed Orphans, All Honors or All Terminals. While one is within a step, its tiles wait behind tiles it can't use, unless no copy is left to finish them. Once one is the hand in the lead, the tiles it can't use go first even at a step's cost, as on any target. The three-step reach in the shared rules only applies to a hand with no target of its own (row 12 above).
 
 ## What gets discarded first
 
