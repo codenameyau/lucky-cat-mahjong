@@ -78,6 +78,8 @@ A candidate that passes is then scored on the deck. `--promote NAME` adds it to 
 
 The early fail was at most 0 standard errors until 2026-11-09, when the maintainer moved it to −2. The candidates in question have a true gain of about +2 points a hand, under half a standard error of a 10,000-deal block (about 5.3). One of those is at or below 0 after its first block about a third of the time, so a 0 threshold stopped many real small gains on a single block's noise: LV8c stopped at −1.34 SE. At −2, a candidate stops early only on a clear loss, and anything else gets its full 40,000 deals. The bar itself is unchanged: 2 standard errors at the end.
 
+**Sphinx's bar is 1 standard error for now** (`bar.lineages.sphinx.sigma`, the maintainer's call, 2026-11-09). Sphinx starts from random weights (sp0) and no candidate has beaten random play yet, so a first generation needs a lower bar to start compounding. It still passes the screen, qualify and replicate, each at 1 SE on fresh deals. A candidate no better than sp0 passes all three about 0.4% of the time (0.16³). Sphinx isn't in the game, so a lucky generation costs little: the next one must beat it. The bar goes back to 2 SE once Sphinx clearly beats random play, and always before a Sphinx model could ship. Lucky Cat's bar is unchanged.
+
 The current generation is the last one in `bench/lineages.json`; `--vs` gives another. The stage sizes and sigmas are in `bench/benchmark.json` under `bar`, and the tests hold them to the numbers above.
 
 **What a judgment costs.** About a million hands: some six hours on seven workers. Most candidates stop at the screen, about 40 minutes. `--dry-run` plays every stage at 1/200 of its deals to check the pipeline, and it never promotes.

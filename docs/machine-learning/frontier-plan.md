@@ -643,3 +643,4 @@ The maintainer's call, after rounds 4–6: "Train Sphinx to be more aggressive t
     - b: an even gentler push (progress 50), so value plans are pushed off less.
     - c: c with a firmer deal-in teacher (danger-tau 150), since c's best rounds were its lowest deal-ins.
     - A value push without imitation isn't available in phase 1's trainer. It's what phase 3's value heads are for.
+  - **Sphinx's bar is 1 SE for qualify and replicate, not 2** (the maintainer's call; `bench/benchmark.json` `bar.lineages.sphinx`). Every round so far fine-tuned from random weights on random play's data, so nothing compounds until a first generation exists. The screen, qualify and replicate together still pass a candidate no better than sp0 only about 0.4% of the time. It goes back to 2 SE once Sphinx clearly beats random play ([benchmark](benchmark.md)).
