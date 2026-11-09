@@ -82,7 +82,7 @@ Only a pass makes a new champion, recorded in `bench/lineages.json` with its Tab
 | --- | --- | --- |
 | Starts from | lc32 widened to v2 (`lc32v2`) | `sp0`: zero weights, random play |
 | Data a round | 20,000 deals, one seat at the game's table (Neural Cat, Jorge Yau, Neural Cat), half the choices | 50,000 deals of self-play among its last four generations for 2 rounds, then 2 seats against them, Jorge Yau and Neural Cat; every won hand kept, 2–10% of the rest |
-| Arms | Teacher + aux 0.2; teacher + aux 1; a sharper teacher (danger-tau 50) + aux 0.2. All fine-tuned from the champion at lr 3e-4 | Imitate its wins + teacher + aux 1; imitate harder (3) + aux 0.3; a fresh 512, 256 network on the same data |
+| Arms | From round 2: teacher + aux 0.2 at lr 3e-4 for 4 epochs (the control, round 1's best); the same at lr 1e-3 for 8 epochs; and that with a sharper teacher (danger-tau 50). Round 1 ran aux 0.2, aux 1, and danger-tau 50, all at lr 3e-4 for 4 epochs. All are fine-tuned from the champion | Imitate its wins + teacher + aux 1; imitate harder (3) + aux 0.3; a fresh 512, 256 network on the same data |
 | The bar | Its win rate is kept (`keepWinRate`) | No win-rate rule |
 
 A round of Lucky Cat takes about 13 minutes of data, a few minutes of training and about 1.5 hours of screening on seven workers. A judgment takes 1–6 hours on top, depending on how early sequential stopping decides it. Sphinx's data takes longer, at 50,000 deals.
