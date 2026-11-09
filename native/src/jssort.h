@@ -1,7 +1,7 @@
-// Array.prototype.sort as node's V8 does it:
-// TimSort, which for fewer than 64 elements is one run (the first ascending
-// or strictly descending stretch, reversed if descending) extended by binary
-// insertion. The foundation's discard comparators aren't always consistent
+// Array.prototype.sort as node's V8 does it, for fewer than 64 elements: under
+// 8, binary insertion from the second element; from 8, the first ascending or
+// strictly descending run (reversed if descending), then binary insertion.
+// The foundation's discard comparators aren't always consistent
 // (a < b, b < c, c < a can all hold), so only the same algorithm, calling the
 // comparator on the same pairs in the same order, gives the same order.
 #pragma once

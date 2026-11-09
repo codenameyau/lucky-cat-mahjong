@@ -14,12 +14,13 @@ parity` checks it, hand by hand.
 | Scoring | js/points.js §5-10 (scoreHand) | src/scoring.* | yes (through the engine) |
 | Engine: deal, options, claims, settlement | engine §3-7 | src/engine.* | 2,000 hands, 342,274 actions identical (simple agents) |
 | Math.exp, Math.log, Math.pow | V8 | src/jsmath.h | 1,000,000 inputs each, 0 mismatches |
-| Array.prototype.sort | V8 TimSort | src/jssort.h | (through the bots) |
-| Foundation (shared bot) | js/mahjong-bot.js | src/bot.* | in progress |
-| Jorge Yau | js/mahjong-jorge-yau.js | src/bot.* (hooks) | in progress |
-| Neural Cat | js/mahjong-ml*.js | src/neural_cat.* | to do |
-| Lucky Cat (v1, v2 features), oracle | js/mahjong-lucky-cat*.js, js/mahjong-frontier-net.js, scripts/ml/oracle.js | to do | to do |
-| Data generation, bench play | scripts/ml/lucky.js, bench.js | to do | to do |
+| Array.prototype.sort | V8 | src/jssort.h | 60,000 inconsistent comparators against node, 0 mismatches |
+| Foundation (shared bot) | js/mahjong-bot.js | src/bot.cpp | 1,000 hands of Jorge Yau, identical |
+| Jorge Yau | js/mahjong-jorge-yau.js | src/jy.inc (hooks) | (with the foundation) |
+| Neural Cat | js/mahjong-ml*.js | src/neural_cat.*, src/model.* | 1,000 hands NC, JY, NC, NC, identical |
+| Lucky Cat (v1, v2 features) | js/mahjong-lucky-cat-ml.js, -net.js, js/mahjong-frontier-net.js | src/lucky_cat.* | 200 / 300 hands at the benchmark table, identical |
+| Oracle labels, data generation | scripts/ml/oracle.js, lucky.js generate | src/generate.* | byte-identical shards |
+| Bench play | bench.js playWork | lcm-sim play | byte-identical compare JSON |
 
 ## What it takes to match JS to the bit
 
@@ -29,8 +30,9 @@ parity` checks it, hand by hand.
   `Math.pow` is the C library's (identical on a million inputs).
 - **Float32Array.** Neural Cat's and Lucky Cat's buffers are float32: each store
   rounds, each read widens. The port keeps the same stores.
-- **Sorting.** V8's TimSort (binary insertion under 64 elements), comparator for
-  comparator: the foundation's comparators are not always consistent.
+- **Sorting.** V8's, comparator call for comparator call: under 8 elements binary
+  insertion from the second, from 8 the first run then binary insertion. The
+  foundation's comparators are not always consistent.
 - **Object key order.** Integer-like keys iterate in ascending order (readSeat's
   `seen` and `passed`), string keys in insertion order. Products are taken in
   the same order.
@@ -43,3 +45,6 @@ parity` checks it, hand by hand.
 
 - Simple agents, engine only: JS 224 hands/s, native 5,984 hands/s (26.7x), one core.
 - Shanten: JS 31,952 hands/s, native 6.9 million/s (217x).
+- Data generation (7 workers): 587 deals/s against 61 (9.7x). Benchmark table: 82 deals/s against about 10 (7.9x).
+
+The user-facing write-up is docs/machine-learning/native.md.

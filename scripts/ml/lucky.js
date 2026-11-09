@@ -68,7 +68,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { fork, spawnSync } = require('node:child_process');
+const { fork, spawn, spawnSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..', '..');
 const E = require('../../js/mahjong-engine.js');
@@ -464,12 +464,40 @@ function merge(all) {
   return out;
 }
 
+// The native simulator writes the same shards byte for byte (scripts/ml/native.js),
+// when it can play the learner and every opponent exactly; LCM_JS=1 forces the JS.
+function nativeJob(job) {
+  if (process.env.LCM_JS || job.rollouts || job.oracleDelta != null || !job.weights) return null;
+  const N = require('./native.js');
+  const learner = N.nativeId('lc:' + job.weights);
+  const pool = job.pool.map((id) => N.nativeId(id));
+  if (!learner || pool.some((x) => !x)) return null;
+  const args = ['generate', '--weights', learner.slice(3), '--seed', String(job.seed), '--from', String(job.from), '--to', String(job.to),
+    '--shard', String(job.shard), '--learners', String(job.learners), '--temperature', String(job.temperature), '--sample', String(job.sample)];
+  if (pool.length) args.push('--pool', pool.join(','));
+  if (job.returns) args.push('--returns');
+  if (job.oracle) args.push('--oracle');
+  if (job.sampleWon != null) args.push('--sample-won', String(job.sampleWon));
+  if (job.out) args.push('--out', job.out);
+  return args;
+}
+
 function runJobs(base, deals, workers) {
   const per = Math.ceil(deals / workers);
   const jobs = [];
   for (let k = 0; k < workers; k++) {
     const from = k * per, to = Math.min(deals, from + per);
     if (from < to) jobs.push(Object.assign({}, base, { from, to, shard: k }));
+  }
+  const natives = jobs.map(nativeJob);
+  if (natives.every((x) => x)) {
+    const SIM = path.join(ROOT, 'native', 'build', 'lcm-sim');
+    return Promise.all(natives.map((args) => new Promise((resolve, reject) => {
+      const child = spawn(SIM, args, { stdio: ['ignore', 'pipe', 'inherit'] });
+      let out = '';
+      child.stdout.on('data', (d) => { out += d; });
+      child.on('exit', (code) => (code ? reject(new Error('lcm-sim generate exited with ' + code)) : resolve(JSON.parse(out))));
+    }))).then(merge);
   }
   return Promise.all(jobs.map((job) => new Promise((resolve, reject) => {
     const child = fork(__filename, ['--worker'], { stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });

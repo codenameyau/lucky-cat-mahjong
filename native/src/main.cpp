@@ -6,12 +6,16 @@
 //       hands a second, no trace.
 //   lcm-sim play --models a[,b] --table x,y,z --seed S --from F --to T
 //       scripts/ml/bench.js playWork natively: the same sums, as JSON.
+//   lcm-sim generate --weights W.lcmw --seed S --from F --to T [--out DIR --shard K] [--pool ids]
+//       [--learners N] [--returns] [--oracle] [--sample P] [--sample-won P] [--temperature T]
+//       scripts/ml/lucky.js generate's worker natively: the same shard files and stats.
 //   lcm-sim shanten FILE   shanten of 34-count rows (uint8), one int8 each to stdout
 #include "engine.h"
 #include "simple_agent.h"
 #include "bot.h"
 #include "neural_cat.h"
 #include "lucky_cat.h"
+#include "generate.h"
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -145,6 +149,24 @@ int main(int argc, char** argv) {
       }
       std::printf("],\"pair\":{\"n\":%.17g,\"sum\":%.17g,\"sq\":%.17g,\"win\":%.17g,\"winSq\":%.17g}}\n", pn, psum, psq, pwin, pwinSq);
       return 0;
+    }
+    if (cmd == "generate") {
+      // scripts/ml/lucky.js generate's worker: the same rows, shard files and stats.
+      GenerateJob j;
+      j.weights = a["weights"];
+      j.temperature = a.count("temperature") ? std::stod(a["temperature"]) : 1;
+      j.seed = uint32_t(std::stoul(a["seed"]));
+      if (a.count("pool") && !a["pool"].empty()) j.pool = split(a["pool"], ',');
+      j.learners = a.count("learners") ? std::stoi(a["learners"]) : 2;
+      j.returns = a.count("returns") > 0;
+      j.oracle = a.count("oracle") > 0;
+      j.sample = a.count("sample") ? std::stod(a["sample"]) : 1;
+      j.sampleWon = a.count("sample-won") ? std::stod(a["sample-won"]) : -1;
+      j.from = std::stol(a["from"]);
+      j.to = std::stol(a["to"]);
+      j.shard = a.count("shard") ? std::stoi(a["shard"]) : 0;
+      if (a.count("out")) { j.out = a["out"]; j.write = true; }
+      return runGenerate(j, [](const std::string& id) { return makeAgent(id); });
     }
     if (cmd == "shanten") {
       FILE* f = std::fopen(argv[2], "rb");
