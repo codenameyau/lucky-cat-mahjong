@@ -1,0 +1,94 @@
+# Frontier training: phase 1
+
+Phase 1 of the [frontier plan](frontier-plan.md) is built. It has four parts:
+- **Features v2:** who threw what, and engine facts per discard.
+- **The hidden tiles as training targets**, through auxiliary heads, never as inputs.
+- **A round driver for both lineages.**
+- **The bar:** every round's best arm must clear [the benchmark](benchmark.md) before it becomes a generation.
+
+```bash
+npm run ml:frontier -- --lineage lucky-cat --rounds 4
+npm run ml:frontier -- --lineage sphinx --rounds 10
+```
+
+## Features v2
+
+`js/mahjong-frontier-net.js` keeps Lucky Cat's 376 features first and adds 478 more, for 854 in all:
+
+| Group | Size | What it says |
+| --- | --- | --- |
+| piles | 3 × 3 × 34 | Each other player's own discards, claimed ones included, split by when: their last 3, the 3 before, and earlier. Lucky Cat's v1 pond pools every discard, so it can't know a tile is safe against one player and live against another. |
+| afterClaim | 3 × 34 | The tile each player threw right after each of their claims: what the meld made them give up. |
+| shantenAfter | 34 | For each tile kind held, on its own turn: how far from ready the hand is after discarding it (`E.shanten`). |
+| wavesAfter | 34 | For each discard that leaves the hand ready: the live copies of its winning tiles (`E.winningTiles`, counted over tiles the seat hasn't seen). |
+| now | 2 | Shanten and live waits of the hand as it is (claims read these). |
+
+Shanten and waits are the engine's rules of the game, not a bot's opinion: nothing comes from `js/mahjong-bot.js`, and Jorge Yau's foundation is never called. "Live" counts only tiles the seat hasn't seen, so the wall and the other hands never enter. `js/mahjong-frontier-net.test.js` checks this:
+- the encoding is unchanged when every hidden tile is shuffled;
+- a v2 Lucky Cat passes the fair-play shuffle check at real positions.
+
+The cost is about 0.1 ms a decision.
+
+The network is Lucky Cat's: the same MLP and the same 74 outputs, read by its own forward pass. `LC.create({ weights, net: F2 })` plays a v2 model. The game doesn't load features v2 yet: a frontier model plays in the lab until it earns a place.
+
+**lc32, widened.** `F2.widen(lc32)` gives lc32 the new inputs with their weights at zero, so it plays exactly as lc32 does. The test checks the logits match to the bit. That's how the Lucky Cat lineage starts phase 1: it fine-tunes from lc32, and what it learns to read in the new columns is new.
+
+## The hidden tiles as targets
+
+`ml/train_lucky.py --aux W` adds an auxiliary head (training only, never exported) on the last hidden layer. It predicts, from public inputs only:
+- whether each other player is ready;
+- the tiles each one waits on;
+- how far each is from ready;
+- the live tiles left in the wall by kind;
+- whether each tile held would deal in right now.
+
+The targets are the oracle's (`scripts/ml/oracle.js`), recorded beside every choice by `lucky.js generate --oracle`. The network is graded on reading the table at every move, from the first hand, with no train/test shift: the hidden tiles are what it learns to predict, never what it reads.
+
+It trains together with the per-move deal-in teacher of phase 0 (`--mode oracle`) and, for Sphinx, `--imitate-wins W`, which imitates the moves of hands it won. At the end it reports held-out AUCs.
+
+**Probe** (3,000 deals of lc32-v2 at the game's table, 33,295 choices, 4 epochs from lc32-v2):
+
+| Aux weight | Deal-in AUC | Ready AUC | Waits AUC (when ready) | KL from lc32 | Points its shares would pay now (lc32: 4.02) |
+| --- | --- | --- | --- | --- | --- |
+| 0 (teacher only) | — | — | — | 0.0009 | 3.71 |
+| 0.05 | 0.616 | 0.654 | 0.495 | 0.009 | 3.72 |
+| 0.2 | 0.742 | 0.790 | 0.497 | 0.020 | 3.78 |
+| 1 | **0.781** | 0.825 | 0.501 | 0.057 | 3.30 |
+
+What it says:
+- **The table is readable from public inputs.** At weight 1, the deal-in head clears the plan's phase-1 bar (AUC ≥ 0.75) on the first small data set.
+- **Which tiles an opponent waits on isn't learned yet.** AUC is 0.50: only about 2,400 ready positions, about 1.6 winning tiles each. It needs far more data, or it needs phase 2's tile-structured network.
+- **Weight trades reading for distance from lc32.** The Lucky Cat lineage cares about staying close to lc32; Sphinx doesn't. So Lucky Cat's arms run at 0.2 and 1, and the benchmark decides.
+
+None of this is a table result yet: no frontier model has played its screen.
+
+## Data for the two lineages
+
+`lucky.js generate --features v2` (the default for a v2 model) records v2 rows. With `--oracle`, each row also carries the 312 hidden-tile labels, for 1,166 values a row.
+
+`--sample-won P` keeps every move of a hand the learner won with chance P, and every other move at `--sample`. Sphinx's first rounds are self-play among random players, who win 0.33% of their seats (53 hands in 4,000 deals). Sampling them like the rest would lose the few wins the network learns from.
+
+## The round driver
+
+`scripts/ml/frontier.js --lineage <name>` runs rounds. Each round goes:
+1. **Generate.** The champion plays with the hidden tiles recorded.
+2. **Train** three arms.
+3. **Screen** each arm against the champion: 10,000 fresh paired deals at the benchmark table.
+4. **Judge** the best arm with a gap of at least 1 standard error, through all five stages of the bar (`bench.js judge --vs champion --promote`).
+
+Only a pass makes a new champion, recorded in `bench/lineages.json` with its Table Score. State and log are in `ml/frontier/<lineage>/`.
+
+| | Lucky Cat | Sphinx |
+| --- | --- | --- |
+| Starts from | lc32 widened to v2 (`lc32v2`) | `sp0`: zero weights, random play |
+| Data a round | 20,000 deals, one seat at the game's table (Neural Cat, Jorge Yau, Neural Cat), half the choices | 50,000 deals of self-play among its last four generations for 2 rounds, then 2 seats against them, Jorge Yau and Neural Cat; every won hand kept, 2–10% of the rest |
+| Arms | Teacher + aux 0.2; teacher + aux 1; a sharper teacher (danger-tau 50) + aux 0.2. All fine-tuned from the champion at lr 3e-4 | Imitate its wins + teacher + aux 1; imitate harder (3) + aux 0.3; a fresh 512, 256 network on the same data |
+| The bar | Its win rate is kept (`keepWinRate`) | No win-rate rule |
+
+A round of Lucky Cat takes about 13 minutes of data, a few minutes of training and about 1.5 hours of screening on seven workers. A judgment takes 1–6 hours on top, depending on how early sequential stopping decides it. Sphinx's data takes longer, at 50,000 deals.
+
+## Not done yet
+
+- **No frontier round has run at full size:** the machine is training Neural Cat. They are queued after it, and after lc32's Table Score.
+- **The phase-1 bar on the table:** ≥ +25 points a hand over the phase-0 champion and deal-ins at the table ≤ 11%. Unknown until the rounds run.
+- **Value-guided exploration, the distributional value and the policy-iteration step** are phase 3. The tile-structured network is phase 2.

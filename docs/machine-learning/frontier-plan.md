@@ -4,6 +4,22 @@ Written 2026-11-08. Suphx ([Li et al. 2020](https://arxiv.org/abs/2003.13590)) w
 
 Everything here must keep two promises: the shipped model reads only what its seat can see (`js/mahjong-fair-play.test.js`), and it runs in plain JS in the browser in a few milliseconds a move.
 
+## Where it stands (2026-11-09)
+
+| Phase | State |
+| --- | --- |
+| Benchmark (§9) | **Built.** `npm run ml:bench`: the frozen table (NC8, Jorge Yau, NC8 at 0.57.9), the 40,000-deal deck, the Table Score, and `judge` for the five-stage bar ([benchmark](benchmark.md)) |
+| 0 Suphx teacher | Built as the lab's `lucky-cat-suphx`. It is folded into phase 1 as the per-move deal-in teacher every arm trains with |
+| 1 Features v2, labels as targets | **Built and training.** `npm run ml:frontier` ([frontier training](frontier-training.md)). Lucky Cat round 1 is in progress; Sphinx's rounds follow |
+| 2 Structured network | Designed (§4); not built. Starts when the phase-1 MLP stops improving |
+| 3 Value, policy iteration, league, pipeline | Designed (§4, §5, §6); not built |
+| 3b Search as a teacher | Designed (§5); not built |
+| 4 Search at play (optional) | Designed (§5); not built |
+
+What each phase has taught is in [§11 Learnings](#11-learnings).
+
+This table is updated as phases move. The full record of every round is `ml/frontier/<lineage>/frontier.log`. Kept generations go in `bench/lineages.json` and their Table Scores in `bench/scores.json`.
+
 ## 1. What Suphx is, and what Hong Kong mahjong changes
 
 | Suphx | Why it's there in riichi | In Hong Kong mahjong, in this engine |
@@ -181,7 +197,7 @@ Where TensorFlow does matter is **TensorFlow.js in the browser**. The structured
 
 The lab today is a loop: generate 20,000–50,000 deals, train a few arms, judge, repeat, all on one machine in turn. For phases 1 to 3 it becomes a pipeline with three parts that run at once, on one machine or two (one generates and judges, the one with the GPU trains):
 
-- **Generation** runs continuously with the current champion (value-guided exploration, Round 4 point 5) and the league pool, writing shards to a **replay buffer** of the last N rounds with each row's behaviour probability, so older rows are reweighted rather than thrown away. Measured cost: 3.6 deals a second a worker with the hidden tiles recorded; about 2.5 million deals a day on 8 workers.
+- **Generation** runs continuously with the current champion (value-guided exploration, Round 4 point 5) and the league pool, writing shards to a **replay buffer** of the last N rounds with each row's behaviour probability, so older rows are reweighted rather than thrown away. Measured cost: 3.6 deals a second a worker with the hidden tiles recorded in the first probe, and 8.7 in phase 1's first full round (20,000 deals in 5.5 minutes on 7 workers): 2.5 to 6 million deals a day on 8 workers.
 - **Training** pulls from the buffer: the auxiliary losses on every row, the value heads on every row (Monte Carlo targets, prioritized by |advantage| with importance weights), the policy loss on the exp(advantage / tau) target with the KL leash. Several arms a round, as now; the bandit over arms, as now.
 - **Judging** runs as candidates appear: the table test with sequential stopping (blocks of 5,000 deals, stop when the paired gap is clearly past or short of the bar, 40,000 at most), then the replication and the round robin of §9 for any candidate that passes. A kept model ships, joins the pool, and gets its Table Score.
 
@@ -194,8 +210,8 @@ Each phase has a result it must show on 40,000 fresh deals at the game's table (
 | Phase | What | Must show | Dropped if |
 | --- | --- | --- | --- |
 | **0** Suphx teacher (built, `--strategy lucky-cat-suphx`) | Per-move danger teacher, distilled into lc32 | ≥ +10 points a hand over lc32, win rate held | Three rounds without a kept model |
-| **1** Features v2 on the MLP, labels as targets | Per-player ordered piles and engine facts flattened into the current MLP; oracle-supervised auxiliary heads; two lineages (§9): Lucky Cat fine-tuned from lc32, Sphinx from scratch | Deal-in head AUC ≥ 0.75 on held-out hands; ≥ +25 over the phase-0 champion; deal-ins at the table ≤ 11% | Heads below AUC 0.65 after 2 million deals: the labels aren't learnable from public information at this size (go to phase 2); or no start beats lc32 after four rounds |
-| **2** Structured network | Tile tokens with per-tile policy and value heads, JS forward, parity and fair-play tests, 10 ms budget on a phone | ≥ +20 over the phase-1 champion | Can't meet 10 ms on a phone at a width that beats the MLP, even on TensorFlow.js or ONNX Runtime Web; or the MLP on v2 is still improving (then it isn't needed yet) |
+| **1** Features v2 on the MLP, labels as targets (built: `npm run ml:frontier`, [frontier training](frontier-training.md)) | Per-player ordered piles and engine facts flattened into the current MLP; oracle-supervised auxiliary heads; two lineages (§9): Lucky Cat fine-tuned from lc32, Sphinx from scratch | Deal-in head AUC ≥ 0.75 on held-out hands; ≥ +25 over the phase-0 champion; deal-ins at the table ≤ 11% | Heads below AUC 0.65 after 2 million deals: the labels aren't learnable from public information at this size (go to phase 2); or no start beats lc32 after four rounds |
+| **2** Structured network | Tile tokens with per-tile policy and value heads, JS forward, parity and fair-play tests, 10 ms budget on a phone | ≥ +20 over the phase-1 champion; the waits head (which tiles a ready opponent waits on) at AUC ≥ 0.70, where the phase-1 MLP reads 0.52 | Can't meet 10 ms on a phone at a width that beats the MLP, even on TensorFlow.js or ONNX Runtime Web; or the MLP on v2 is still improving (then it isn't needed yet) |
 | **3** Distributional value, policy iteration, league, pipeline | Per-move value heads trained by Monte Carlo with prioritized sampling; exp(advantage / tau) targets with a KL leash; value-guided exploration; futures replays at uncertain choices; league pool; the five-stage bar of §9 | ≥ +40 over the phase-2 champion; no loss against any pool member; expected-points correlation with realized points ≥ 0.25 on held-out hands; **north star: points a hand at the game's table ≥ 0** | Two full rounds without a kept model after the value heads reach that correlation |
 | **3b** Search as a teacher | Determinized search (worlds sampled from the auxiliary heads' beliefs, the network as rollout policy) at the choices the value is least sure of; its move distribution distilled into the policy | ≥ +15 over the phase-3 champion | Search agrees with the value head's best move more than 95% of the time: nothing left to teach |
 | **4** Search at play (optional) | Sample opponent hands from the auxiliary heads' beliefs, roll out a few dozen futures per candidate move in a worker; a "thinks longer" setting | ≥ +20 over the phase-3 champion at ≤ 1.5 s a move | Gain under one standard error at 1.5 s |
@@ -221,13 +237,13 @@ The shipped model must never read another hand or the wall. Each phase uses hidd
 
 ## 9. The benchmark, and the bar for the next generation
 
-Everything above says "better". This section says how that is measured, by one number anyone can reproduce, and how strict the bar is before a model becomes the next generation.
+Everything above says "better". This section says how that is measured, by one number anyone can reproduce, and how strict the bar is before a model becomes the next generation. **Built** as `scripts/ml/bench.js` with the benchmark pinned in `bench/`; how to run it is in [the benchmark](benchmark.md).
 
 ### The benchmark table
 
-- **Opponents, frozen.** Two Neural Cat NC8 (N10c) and Jorge Yau as of game version 0.57.9, in the seats of the game's table: Neural Cat, Jorge Yau, Neural Cat. Their weights and the engine's rules are pinned by file and SHA-256 in `bench/benchmark.json`, with the weights fetched from the Hugging Face model repo when they aren't on disk. The game's shipped Neural Cat will keep changing; the benchmark's does not, so a score from this month and one from next year mean the same thing. A new benchmark version (new opponents) gets a new name, and every model is scored again on it.
-- **The deals.** The benchmark deck: 40,000 fixed deals, seeds 90,000,000 to 90,039,999, dealer rotating. The same deck for every model, so two scores are comparable to the deal.
-- **The design.** The model takes every seat in turn on every deal (`lucky.js eval --table`), 160,000 hands. Points a hand is averaged over them. Paired comparisons between two models are made deal by deal on the same deck, which removes the luck of the deal from the difference and is what makes the standard error small.
+- **Opponents, frozen.** Two Neural Cat NC8 (N10c) and Jorge Yau as of game version 0.57.9, in the seats of the game's table: Neural Cat, Jorge Yau, Neural Cat. Their weights, their code and the engine's rules they call are pinned by file and SHA-256 at commit `dd881a5` in `bench/benchmark.json` and read from git history; a fingerprint of 24 deals on today's engine must match too, so a rules change shows. The game's shipped Neural Cat will keep changing; the benchmark's does not, so a score from this month and one from next year mean the same thing. A new benchmark version (new opponents) gets a new name, and every model is scored again on it.
+- **The deals.** The benchmark deck: 40,000 fixed deals, seeds 900,000,000 to 900,039,999, dealer rotating (first planned at 90,000,000, which the Only Orphans lab ranks on). The same deck for every model, so two scores are comparable to the deal.
+- **The design.** The model takes every seat in turn on every deal (`bench.js score`), 160,000 hands. Points a hand is averaged over them. Paired comparisons between two models are made deal by deal on the same deck, which removes the luck of the deal from the difference and is what makes the standard error small.
 
 ### The score
 
@@ -237,12 +253,12 @@ Every shipped model's Table Score goes in the playbook's results table and on th
 
 ### The bar: two standard errors, twice
 
-A candidate becomes the **next generation** of its lineage only by passing every one of these, in order. Each stage plays fresh deals (new seeds, never the benchmark deck, so a model can't learn the deck):
+A candidate becomes the **next generation** of its lineage only by passing every one of these (`bench.js judge`; fair play, the cheapest, runs first). Each stage plays fresh deals (new seeds, never the benchmark deck, so a model can't learn the deck):
 
 1. **Screen.** 10,000 fresh paired deals at the benchmark table against the current generation. Arms whose gap is under one standard error stop here.
 2. **Qualify.** 40,000 fresh paired deals. The gap in points a hand must be **at least two standard errors** (about +7 at this size), and hands won must be within one standard error of the current generation's (the Lucky Cat lineage keeps its win rate).
 3. **Replicate.** Another 40,000 fresh paired deals, new seeds. The gap must be at least two standard errors **again**. One two-sigma result among several arms a round is a 2% coin; two in a row on independent deals is a 0.05% one.
-4. **No regression.** A round robin against every earlier generation of its lineage and every league opponent (10,000 paired deals each): it may not lose to any of them by more than one standard error. A model that beats the champion by learning Neural Cat's tells and loses to Jorge Yau has learned something narrow, and does not ship.
+4. **No regression.** For every earlier generation of its lineage and every league opponent (10,000 paired deals each), the candidate and the current generation each play at a table of three of that opponent: the candidate may not do worse there than the current generation by more than one standard error. (Head to head would be the wrong test: lc32 itself loses to Jorge Yau at a table.) A model that beats the champion by learning Neural Cat's tells and loses to Jorge Yau has learned something narrow, and does not ship.
 5. **Fair play.** The shuffle test and the shipping checks (§8) pass.
 
 Then it scores the benchmark deck for its Table Score, ships, joins the league pool, and its iteration is written up. A candidate that fails any stage is recorded in the lab log with its numbers and does not come back; the next round trains from the current generation, not from it.
@@ -268,3 +284,80 @@ Both play the same benchmark deck, so their Table Scores compare directly. Each 
 ## 10. What this plan would make Lucky Cat
 
 Two networks that decide every move themselves, one that carries its own history on and one that starts from nothing, both of which read the table the way a strong player does because it was graded on reading it, that values hands by their whole distribution of outcomes in a scoring system where one hand can be worth a thousand, and that fold exactly when the risk says so. Lucky Cat should win as often as lc32 and lose far fewer points doing it; Sphinx should show what the architecture is worth on its own. Whether either becomes the strongest Hong Kong mahjong player anywhere is not something a plan can promise; the Table Score on the benchmark deck is what would show it, and the bar of two standard errors, twice, is what makes each generation a step that holds.
+
+## 11. Learnings
+
+What building and training each phase has taught, written up when each phase (or a major step in one) finishes. It's the record a review of the framework starts from. Each entry has three parts:
+- **what we saw**;
+- **the evidence** (numbers, sizes, where they came from);
+- **what it changed**, or the question it leaves open.
+
+Negative results are kept as carefully as positive ones.
+
+### Phase 0: the Suphx teacher (2026-11-08)
+
+- **A critic that sees every hidden tile doesn't explain a hand's points.**
+  - *Evidence:* on 108,559 choices, the critic with the hidden tiles explained −1.2% of the variance of the hand's points, against −1.4% without them. It got worse with more epochs.
+  - *Changed:* we dropped Suphx's oracle critic. The hidden tiles pay off **per move** (what this discard pays right now), not per hand. Hong Kong's exponential payouts (8 × 2^(faan − 3)) make a hand's points a heavy-tailed target that no critic regresses well.
+- **A per-move teacher works where the critic didn't.**
+  - *Evidence:* distilling a teacher that pushes down each discard by what it would pay now cut the points the policy's shares would pay from 3.38 to 2.91 a choice, at a KL of 0.0004. At the table: +14.8 ± 6.7 points a hand over lc32 on 2,000 deals, wins level (24.89% vs 24.96%), deal-ins 13.04% vs 13.38%.
+  - *Changed:* the teacher is the base every phase-1 arm trains with.
+- **Only 4.2% of choices hold a discard that deals in now.**
+  - *Evidence:* the oracle's danger row, across the probe data.
+  - *Open:* most deal-ins are set up two or three discards earlier, and the teacher says nothing there. Phase 3's value heads are meant to reach those choices.
+
+### The benchmark (2026-11-08)
+
+- **"No regression" can't mean "doesn't lose head to head."**
+  - *Evidence:* lc32 itself loses to Jorge Yau at a table, and so does any early Sphinx, so the first draft of `judge` could never pass anything.
+  - *Changed:* the stage now seats the candidate and the current generation each at a table of three of every rival, and compares them on the same deals. It catches a model that beats the champion by learning one opponent's tells.
+- **Seed ranges collide unless someone checks.**
+  - *Evidence:* the plan's deck (seeds from 90,000,000) is where the Only Orphans lab ranks its models.
+  - *Changed:* the deck moved to 900,000,000, and fresh deals start at 910,000,000. No training uses nine-digit seeds. A test keeps the deck and the fresh blocks apart.
+- **Freezing opponents by commit, not by copy, is enough, but CI needs the full history.**
+  - *Evidence:* the 8 pinned files come from `git show dd881a5:…`. A depth-1 checkout can't read them.
+  - *Changed:* CI fetches the whole history.
+  - *Open:* there's no fallback (such as Hugging Face) if the history is ever rewritten.
+- **A fingerprint catches what hashes can't.**
+  - *Evidence:* the hashes pin the frozen files, but the candidate plays on today's engine. The 24-deal fingerprint replays the frozen players on today's engine and must match.
+  - *Changed:* every command refuses to score on a drifted table, so a rules change forces a new benchmark version rather than silently moving every score.
+- **The win-rate rule does what it is for.**
+  - *Evidence:* in a dry run, Neural Cat beat lc32 by 2.2 standard errors on points but won fewer hands (−7.75 ± 1.85 percentage points), and failed the Lucky Cat lineage's qualify stage. In the Sphinx lineage, which has no win-rate rule, it passed every stage.
+- **Real judgments are expensive.**
+  - *Evidence:* about a million hands, some six hours on seven workers. A full Table Score is about an hour.
+  - *Changed:* sequential stopping in qualify and replicate (blocks of 10,000, stop at ≥ 4 or ≤ 0 standard errors).
+  - *Open:* how often stopping early changes a verdict, measured on real judgments.
+
+### Phase 1: features v2 and the hidden tiles as targets (in progress)
+
+Lucky Cat round 1: 20,000 deals of lc32 widened to features v2, at the game's table, 221,717 choices.
+
+- **The table can be read from public information.**
+  - *Evidence:* the auxiliary heads predict which held tile would deal in now at a held-out AUC of 0.87–0.89, and whether each opponent is ready at 0.85–0.88. The phase-1 bar is 0.75. A 3,000-deal probe (33,295 choices) gave 0.78, so they improve with data.
+  - *Changed:* nothing yet. The next question is whether reading better shows at the table.
+- **Which tiles an opponent waits on isn't learned.**
+  - *Evidence:* the waits AUC (when the opponent is ready) is 0.50–0.53 at every weight and data size so far.
+  - *Changed:* this is the most direct evidence for phase 2. A wait is a shape within one suit, which a flat MLP over 34-tile vectors must learn tile by tile. Phase 2's bar now includes a waits AUC of at least 0.70.
+- **The auxiliary weight trades reading the table against the policy.**
+  - *Evidence (round 1 screens, 10,000 deals each against lc32):*
+    - Weight 1 read best (deal-in AUC 0.886) but gave up 0.6 percentage points of hands won (24.05% vs 24.63%), at −1.3 ± 5.9 points.
+    - Weight 0.2 held the win rate (24.71% vs 24.68%), lowered deal-ins (12.73% vs 13.01%), and scored **+7.6 ± 5.0**.
+  - *Changed:* the weight is a dial per lineage: low for Lucky Cat, which must keep its win rate, and high for Sphinx.
+  - *Open:* a schedule, high early and low late, might get both.
+- **On the small probe, the weight pulled the policy far from lc32 (KL 0.057 at weight 1). On ten times the data it barely did (KL 0.010).**
+  - *Evidence:* the probe against round 1.
+  - *Changed:* probe results on 3,000 deals aren't a guide to a full round's dynamics. Arms are now chosen on round data.
+- **The policy moves very little in a round.**
+  - *Evidence:* KL 0.004–0.01 from lc32 at lr 3e-4, 4 epochs.
+  - *Open:* this keeps lc32's strengths but caps what a round can show. If the screens stay near one standard error, the next arms train longer or at a higher rate.
+- **The screen is noisy at ±5 points: two nearly identical models differed by 10.**
+  - *Evidence:* LV1a and LV1c had the same weight, KL 0.004 from lc32 each, and the same AUCs (0.874 and 0.873). Only the teacher's tau differed. They screened at +7.6 and −2.7.
+  - *Changed:* a single screen is a coin with a ±5-point edge, which is why the bar qualifies and replicates on 40,000 deals each.
+  - *Open:* whether to screen two seeds of each arm before spending a judgment.
+- **Data is cheaper than budgeted.**
+  - *Evidence:* 20,000 deals with the hidden tiles recorded took 5.5 minutes on 7 workers, about 8.7 deals a second a worker, against 3.6 in the first probe.
+  - *Changed:* phase 3's volumes cost less than §6 assumed.
+- **A random Sphinx wins 0.25–0.4% of its seats in self-play.**
+  - *Evidence:* 53 wins in 4,000 deals, and 20 in 2,000.
+  - *Changed:* `--sample-won` keeps every move of a won hand, so the few wins aren't sampled away.
+  - *Open:* on the tiny smoke data (4,722 rows), Sphinx's AUCs came out below 0.5. To be checked on the first full round: if they stay below 0.5, it's a bug.

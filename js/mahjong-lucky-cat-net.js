@@ -232,10 +232,13 @@
     return Float32Array.from(v);
   }
 
-  function createModel(weights) {
-    if (weights.featureSize !== SIZE || weights.featureVersion !== FEATURE_VERSION) {
+  // expect: { size, version } for a longer encoder built on this one
+  // (js/mahjong-frontier-net.js, features v2); this one's by default.
+  function createModel(weights, expect) {
+    var size = expect ? expect.size : SIZE, version = expect ? expect.version : FEATURE_VERSION;
+    if (weights.featureSize !== size || weights.featureVersion !== version) {
       throw new Error('Lucky Cat model expects ' + weights.featureSize + ' features (version ' + weights.featureVersion +
-        '), have ' + SIZE + ' (version ' + FEATURE_VERSION + ')');
+        '), have ' + size + ' (version ' + version + ')');
     }
     var layers = weights.layers.map(function (l) {
       return { rows: l.rows, cols: l.cols, w: floats(l.w, weights.dtype), b: floats(l.b, weights.dtype) };
@@ -325,6 +328,7 @@
     createModel: createModel,
     zeroWeights: zeroWeights,
     randomWeights: randomWeights,
+    floats: floats,
   };
 
   if (node) module.exports = api;

@@ -120,6 +120,12 @@ PUBLIC = [None]
 # Where the danger row (each discard's points paid now) starts in an --oracle row.
 DANGER_AT = [None]
 CRITIC_LOSS = ['mse']
+# Where the hidden tiles start in an --oracle row, and each opponent's block (scripts/ml/oracle.js).
+ORACLE_AT = [None]
+PER = [69]
+# The auxiliary heads (frontier plan, phase 1): the hidden tiles as targets, never inputs.
+#   waits 3 x 34, ready 3, steps 3, wall 34, deal-in 34 (each held tile would deal in now)
+AUX = 3 * 34 + 3 + 3 + 34 + 34
 
 
 def load_q(dirs):
@@ -173,7 +179,7 @@ def train_q(args, hidden, init_hidden):
     print('from ' + args.init)
     net.to(dev)
     ref = Net(size, 0.0, shape).to(dev)
-    ref.load_state_dict(net.state_dict())
+    ref.load_state_dict(net.state_dict(), strict=False)
     ref.eval()
     rng = np.random.default_rng(1)
     hands, inv = np.unique(h, return_inverse=True)
@@ -243,6 +249,8 @@ def load(dirs, returns=False):
         size, version = meta['featureSize'], meta['featureVersion']
         PUBLIC[0] = ((meta.get('oracle') or {}).get('publicSize')) or size
         DANGER_AT[0] = (meta.get('oracle') or {}).get('dangerAt')
+        ORACLE_AT[0] = (meta.get('oracle') or {}).get('oracleAt') or PUBLIC[0]
+        PER[0] = (meta.get('oracle') or {}).get('per') or 69
         if returns and not meta.get('returns'):
             raise SystemExit(d + ' has no returns (generate it with --returns)')
         temp = float((meta.get('job') or {}).get('temperature') or 1)
@@ -273,18 +281,60 @@ def load(dirs, returns=False):
 
 
 class Net(nn.Module):
-    def __init__(self, size, dropout, hidden=None):
+    def __init__(self, size, dropout, hidden=None, aux=False):
         super().__init__()
         sizes = [size] + (hidden or HIDDEN) + [OUTPUTS]
         self.layers = nn.ModuleList([nn.Linear(sizes[i], sizes[i + 1]) for i in range(len(sizes) - 1)])
         self.drop = nn.Dropout(dropout)
+        # Training only: predictions of the hidden tiles from the last hidden layer. Never exported.
+        self.aux = nn.Linear(sizes[-2], AUX) if aux else None
+
+    def both(self, x):
+        for i, l in enumerate(self.layers):
+            if i == len(self.layers) - 1:
+                return l(x), (self.aux(x) if self.aux is not None else None)
+            x = self.drop(torch.relu(l(x)))
 
     def forward(self, x):
-        for i, l in enumerate(self.layers):
-            x = l(x)
-            if i < len(self.layers) - 1:
-                x = self.drop(torch.relu(x))
-        return x
+        return self.both(x)[0]
+
+
+def aux_targets(xb, P):
+    """The auxiliary heads' targets from an --oracle row: (waits, ready, steps, wall, deal-in, held)."""
+    o, per = ORACLE_AT[0], PER[0]
+    waits = torch.cat([xb[:, o + k * per + 34:o + k * per + 68] for k in range(3)], 1)
+    steps = torch.stack([xb[:, o + k * per + 68] for k in range(3)], 1)
+    ready = (steps == 0).float()
+    wall = xb[:, o + 3 * per:o + 3 * per + 34]
+    at = DANGER_AT[0]
+    dealin = (xb[:, at:at + 34] > 0).float()
+    held = (xb[:, :34] > 0).float()
+    return waits, ready, steps, wall, dealin, held
+
+
+def aux_loss(out, xb, P):
+    waits, ready, steps, wall, dealin, held = aux_targets(xb, P)
+    bce = nn.functional.binary_cross_entropy_with_logits
+    a, b = 0, 102
+    l_w = bce(out[:, a:b], waits)
+    l_r = bce(out[:, b:b + 3], ready)
+    l_s = nn.functional.mse_loss(torch.sigmoid(out[:, b + 3:b + 6]), steps)
+    l_wall = nn.functional.mse_loss(torch.sigmoid(out[:, b + 6:b + 40]), wall)
+    d = bce(out[:, b + 40:b + 74], dealin, reduction='none')
+    l_d = (d * held).sum() / held.sum().clamp(min=1)
+    return l_w + l_r + l_s + 4 * l_wall + 2 * l_d
+
+
+def auc(score, label):
+    """Area under the ROC curve (the chance a positive outranks a negative)."""
+    score, label = np.asarray(score, np.float64), np.asarray(label, bool)
+    pos, neg = int(label.sum()), int((~label).sum())
+    if not pos or not neg:
+        return float('nan')
+    ranks = np.empty(len(score))
+    order = np.argsort(score, kind='mergesort')
+    ranks[order] = np.arange(1, len(score) + 1)
+    return float((ranks[label].sum() - pos * (pos + 1) / 2) / (pos * neg))
 
 
 class Critic(nn.Module):
@@ -365,6 +415,9 @@ def main():
     ap.add_argument('--public', action='store_true', help='write the model without the hidden tiles\' columns')
     ap.add_argument('--reject-ratio', type=float, default=0, help='drop moves whose share moved more than this factor from the one played')
     ap.add_argument('--target-entropy', type=float, default=0, help='adapt the entropy bonus to keep the entropy near this')
+    # Frontier plan, phase 1 (data from lucky.js generate --oracle, usually --features v2).
+    ap.add_argument('--aux', type=float, default=0, help='weight of the auxiliary heads that predict the hidden tiles (targets, never inputs)')
+    ap.add_argument('--imitate-wins', type=float, default=0, help='--mode oracle with --returns data: also imitate the moves of hands won, at this weight')
     args = ap.parse_args()
     CRITIC_LOSS[0] = args.critic_loss
     if args.oracle_anneal:
@@ -389,7 +442,7 @@ def main():
         return
     teacher = args.mode == 'oracle'
     rl = args.mode not in ('imitate', 'oracle')
-    loaded = load(args.data, rl)
+    loaded = load(args.data, rl or args.imitate_wins > 0)
     x, a, legal, w, size, version = loaded[:6]
     neg = w < 0
     if (rl or args.neg_weight <= 0) and neg.any():
@@ -400,6 +453,10 @@ def main():
     n = len(a)
     print(f'{n} samples from {len(args.data)} rounds ({x.shape[1]} features), {int(neg.sum())} of them deal-ins')
     P = PUBLIC[0] or size
+    if args.aux and P == size:
+        raise SystemExit('--aux needs data from lucky.js generate --oracle (its targets are the hidden tiles)')
+    if args.aux and args.mode not in ('imitate', 'oracle'):
+        raise SystemExit('--aux trains with --mode imitate or oracle')
     if (args.oracle_critic or args.anneal) and P == size:
         raise SystemExit('--oracle-critic and --oracle-delta need data from lucky.js generate --oracle')
     # The policy's inputs: the seat's view, plus the hidden tiles for an oracle policy.
@@ -409,7 +466,7 @@ def main():
     torch.manual_seed(1)
     dev = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f'training on {dev}' + (f' ({torch.cuda.get_device_name(0)})' if dev == 'cuda' else ''))
-    net = Net(IN, args.dropout, hidden or init_hidden)
+    net = Net(IN, args.dropout, hidden or init_hidden, aux=args.aux > 0)
     if args.init and hidden:
         print('a new ' + args.hidden + ' network: --init ' + args.init + ' ignored')
         with torch.no_grad():
@@ -450,6 +507,10 @@ def main():
     W = torch.where(Neg, torch.full_like(W, args.neg_weight), W / W[~Neg].mean())
     rl_stats = {}
     teacher_stats = {}
+    WON = None
+    if args.imitate_wins > 0:
+        WON = torch.from_numpy((loaded[6]['o'] == 0).astype(np.float32))
+        print(f'imitating the moves of hands won: {int(WON.sum())} of {n} choices ({100 * float(WON.mean()):.1f}%), weight {args.imitate_wins}')
     if rl:
         r = np.clip(ret['r'], -args.reward_clip, args.reward_clip) + args.win_bonus * (ret['o'] == 0)
         if args.reward == 'sqrt':
@@ -477,7 +538,7 @@ def main():
               f' explains {100 * explained:.1f}% of the reward\'s variance')
         rl_stats['oracleCritic'] = bool(args.oracle_critic)
         ref = Net(IN, 0.0, hidden or init_hidden).to(dev)
-        ref.load_state_dict(net.state_dict())
+        ref.load_state_dict(net.state_dict(), strict=False)
         ref.eval()
 
     # The policy's inputs: the seat's view, then (oracle guiding) the hidden
@@ -504,17 +565,23 @@ def main():
         print(f'{int(risky.sum())} choices ({100 * float(risky.float().mean()):.1f}%) had a discard that would deal in now; '
               f'the champion played one {int(((COST.gather(1, A[:, None])[:, 0]) > 0).sum())} times')
         ref = Net(IN, 0.0, hidden or init_hidden).to(dev)
-        ref.load_state_dict(net.state_dict())
+        ref.load_state_dict(net.state_dict(), strict=False)
         ref.eval()
 
     def teacher_loss(idx):
         xb, lb, cb, wb = X[idx].to(dev), Lg[idx].to(dev), COST[idx].to(dev), TW[idx].to(dev)
         xin = pin(xb)
-        logp = torch.log_softmax(net(xin).masked_fill(~lb, -1e9), dim=1)
+        logits, aux_out = net.both(xin)
+        logp = torch.log_softmax(logits.masked_fill(~lb, -1e9), dim=1)
         with torch.no_grad():
             rlog = torch.log_softmax(ref(xin).masked_fill(~lb, -1e9), dim=1)
             tgt = torch.softmax((rlog - cb / args.danger_tau).masked_fill(~lb, -1e9), dim=1)
         ce = (-(tgt * logp.masked_fill(~lb, 0)).sum(1) * wb).mean()
+        if WON is not None:
+            ab, won = A[idx].to(dev), WON[idx].to(dev)
+            ce = ce + args.imitate_wins * (-(logp.gather(1, ab[:, None])[:, 0]) * won).sum() / won.sum().clamp(min=1)
+        if aux_out is not None:
+            ce = ce + args.aux * aux_loss(aux_out, xb, P)
         with torch.no_grad():
             kl = (rlog.exp() * (rlog - logp).masked_fill(~lb, 0)).sum(1).mean()
             # The points the shares would pay now: the new network's, and the champion's.
@@ -526,7 +593,8 @@ def main():
         if teacher:
             return teacher_loss(idx)[0], torch.zeros(())
         xb, ab, lb, wb, nb = X[idx].to(dev), A[idx].to(dev), Lg[idx].to(dev), W[idx].to(dev), Neg[idx].to(dev)
-        logits = net(pin(xb)).masked_fill(~lb, -1e9)
+        logits, aux_out = net.both(pin(xb))
+        logits = logits.masked_fill(~lb, -1e9)
         logp = torch.log_softmax(logits, dim=1)
         lp = logp.gather(1, ab[:, None])[:, 0]
         nll = -lp
@@ -539,6 +607,8 @@ def main():
         per = torch.where(nb, unlikely, per)
         pos = (~nb).float()
         acc = ((logits.argmax(1) == ab).float() * pos).sum() / pos.sum().clamp(min=1)
+        if aux_out is not None:
+            return (per * wb).mean() + args.aux * aux_loss(aux_out, xb, P), acc
         return (per * wb).mean(), acc
 
     def rl_loss(idx):
@@ -664,6 +734,8 @@ def main():
     net.load_state_dict(best_state)
     net.cpu().eval()
     extra = {}
+    if args.aux > 0:
+        extra['aux'] = dict({'weight': args.aux}, **aux_report(net, X, va, P, pin))
     if teacher:
         extra['objective'] = 'points'
         extra['train'] = dict({'mode': 'oracle', 'dangerTau': args.danger_tau, 'dangerWeight': args.danger_weight, 'lr': args.lr}, **teacher_stats)
@@ -683,6 +755,27 @@ def main():
     extra['suphx'] = {k: v for k, v in {'oracleCritic': bool(args.oracle_critic), 'anneal': args.anneal, 'public': bool(args.public),
                                         'rejectRatio': args.reject_ratio or None, 'targetEntropy': args.target_entropy or None}.items() if v}
     export(args, net, x, va, n, P, version, best, hidden, init_hidden, extra, t0)
+
+
+def aux_report(net, X, va, P, pin):
+    """Held-out AUCs of the auxiliary heads: does the network read the table?"""
+    outs, tg = [], []
+    with torch.no_grad():
+        for s in range(0, min(len(va), 200000), 8192):
+            idx = torch.from_numpy(va[s:s + 8192])
+            xb = X[idx]
+            outs.append(net.both(pin(xb))[1].numpy())
+            tg.append([t.numpy() for t in aux_targets(xb, P)])
+    out = np.concatenate(outs)
+    waits, ready, steps, wall, dealin, held = [np.concatenate([t[k] for t in tg]) for k in range(6)]
+    h = held > 0
+    r = {'dealInAuc': auc(out[:, 142:176][h], dealin[h] > 0),
+         'readyAuc': auc(out[:, 102:105].ravel(), ready.ravel() > 0),
+         'waitsAuc': auc(out[:, :102][np.repeat(ready > 0, 34, axis=1)], waits[np.repeat(ready > 0, 34, axis=1)] > 0),
+         'wallMae': float(np.abs(1 / (1 + np.exp(-out[:, 108:142])) - wall).mean() * 4)}
+    print(f"auxiliary heads, held out: deal-in AUC {r['dealInAuc']:.3f}, ready AUC {r['readyAuc']:.3f}, "
+          f"waits AUC (when ready) {r['waitsAuc']:.3f}, wall count error {r['wallMae']:.3f} copies")
+    return r
 
 
 def load_init(net, init):
@@ -729,7 +822,8 @@ def export(args, net, x, va, n, size, version, best, hidden, init_hidden, extra,
     probe = x[va[:8]][:, :net.layers[0].in_features].astype(np.float32)
     with torch.no_grad():
         want = net(torch.from_numpy(probe)).numpy()
-    js = ("const N=require(process.argv[1]+'/js/mahjong-lucky-cat-net.js');const m=N.createModel(require(process.argv[2]));"
+    mod = '/js/mahjong-frontier-net.js' if version == 2 else '/js/mahjong-lucky-cat-net.js'
+    js = ("const N=require(process.argv[1]+'" + mod + "');const m=N.createModel(require(process.argv[2]));"
           "const xs=JSON.parse(require('fs').readFileSync(0,'utf8'));console.log(JSON.stringify(xs.map(x=>m.forward(Float32Array.from(x)))));")
     got = np.array(json.loads(subprocess.run(['node', '-e', js, ROOT, path], input=json.dumps(probe.tolist()),
                                              capture_output=True, text=True, check=True).stdout))
