@@ -9,6 +9,14 @@ npm run native:parity -- --agents neural-cat,jorge-yau,neural-cat,neural-cat --d
 
 Once it's built, nothing else changes. `make -C native pgo` rebuilds the fast build profile-guided (a few percent more). `bench.js` (compare, score, judge) and `lucky.js generate` use it whenever every player in a job can run natively, and fall back to the JS otherwise. `LCM_JS=1` forces the JS.
 
+## Contents
+
+- [What's ported](#whats-ported)
+- [The same results](#the-same-results)
+- [Weights](#weights)
+- [Two builds](#two-builds)
+- [Speed](#speed)
+
 ## What's ported
 
 | JS | C++ |

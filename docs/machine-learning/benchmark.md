@@ -2,6 +2,15 @@
 
 How strong a model is, as one number anyone can reproduce, and the bar a model must clear to become the next generation of its lineage. This is phase 0 of the [frontier plan](frontier-plan.md) (§9), built in `scripts/ml/bench.js`, with the benchmark pinned in `bench/`.
 
+## Contents
+
+- [The table, frozen](#the-table-frozen)
+- [The Table Score](#the-table-score)
+- [Comparing two models](#comparing-two-models)
+- [The bar: two standard errors, twice](#the-bar-two-standard-errors-twice)
+- [The lineages](#the-lineages)
+- [Not built yet](#not-built-yet)
+
 ## The table, frozen
 
 The benchmark is named **hk-table-v1**. It is defined in `bench/benchmark.json` and never edited: a new table gets a new name, and every model is scored again on it.

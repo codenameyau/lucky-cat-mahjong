@@ -2,6 +2,17 @@
 
 `js/mahjong-ml.js` is the Neural Cat strategy. It turns the [model](model.md)'s expected points into choices, within guardrails that keep it from straying far from a sound rule-based player.
 
+## Contents
+
+- [Discards](#discards)
+- [Looking ahead (depth): tried, not shipped](#looking-ahead-depth-tried-not-shipped)
+- [Claims](#claims)
+- [Kongs on your own turn](#kongs-on-your-own-turn)
+- [Explanations](#explanations)
+- [What the coach says](#what-the-coach-says)
+- [Options](#options)
+  - [Exploring](#exploring)
+
 ## Discards
 
 Jorge Yau's foundation lists every discard in its order. Neural Cat reads the position each of the **best three** leaves (`TOP_K` = 3, unless the model's own `meta.play.topK` says otherwise) and plays the one worth the most. The rest keep Jorge Yau's order. With `topK: 1` it plays exactly like Jorge Yau, which a test checks.

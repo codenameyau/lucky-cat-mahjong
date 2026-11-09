@@ -83,6 +83,8 @@ Simulations play in fast mode (`create({ fast: true })`): the same choices, but 
 
 ## Results
 
+Neural Cat in the game is **NC8**. The league made NC1 and NC2, and the lab made NC3 to NC8. Each model's thinking, and how it plays differently from the one before it, is in [Iterations](../machine-learning/iterations.md#neural-cat-the-league-l1-to-l18-nc1).
+
 ### League (claims and kongs, against other models)
 
 Every seat is a Neural Cat model. Each round trains a model from the best so far on the last four rounds' hands, then plays it head to head against the best before it (two seats each, every seat rotation, on deals no round has played). The score is the model's points a hand less its opponent's, with a 95% margin where measured. A model is kept only if it scores more. The league is still running, so this is the state after round 7; the [model card](https://huggingface.co/codenameyau/lucky-cat-mahjong) is rebuilt from the same results on every upload.

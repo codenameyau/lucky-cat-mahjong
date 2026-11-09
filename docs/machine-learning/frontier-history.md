@@ -2,6 +2,18 @@
 
 A record of the frontier work so far (from 2026-11-08): what was built, every decision taken and why, and what would make each one worth revisiting. The design itself is the [frontier plan](frontier-plan.md). What each step taught, with its evidence, is its §11 Learnings. This page is the short version: the order things happened in, and the choices.
 
+## Contents
+
+- [Where it stands (2026-11-09)](#where-it-stands-2026-11-09)
+- [Timeline](#timeline)
+- [Decisions](#decisions)
+  - [The benchmark](#the-benchmark)
+  - [Training](#training)
+  - [Search](#search)
+  - [The native simulator](#the-native-simulator)
+- [Important potential issue](#important-potential-issue)
+- [What would reopen each decision](#what-would-reopen-each-decision)
+
 ## Where it stands (2026-11-09)
 
 | | State |
@@ -26,6 +38,8 @@ A record of the frontier work so far (from 2026-11-08): what was built, every de
 9. **The native simulator.** The engine and the benchmark table's players ported to C++, bit-exact with the JS. Then three optimization rounds and a fast build, and finally the hybrid (PR #208). Phase 1 and rounds 1–3 were merged as #205.
 
 ## Decisions
+
+**In this section:** [The benchmark](#the-benchmark) · [Training](#training) · [Search](#search) · [The native simulator](#the-native-simulator)
 
 Each with why, and the evidence. Dates are when it was decided.
 
