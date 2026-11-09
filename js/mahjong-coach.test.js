@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
 const E = require('./mahjong-engine.js');
 const C = require('./mahjong-coach.js');
+const S = require('./mahjong-strategies.js');
 
 // Seat 0 is East (dealer) in the East round. Other seats' hands are filler.
 function table(opts) {
@@ -112,6 +113,18 @@ describe('coach: discards', () => {
     const hand = ['c2', 'c2', 'c5', 'c5', 'd3', 'd3', 'd8', 'd8', 'b4', 'b4', 'b4', 'we', 'ws', 'wn'];
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
     assert.doesNotMatch(text(hint), /Seven Pairs/);
+  });
+
+  it('on Concealed Straights, says the last faan comes from a situational bonus', () => {
+    // A flower that isn't your seat's loses No Flowers, so the hand is a faan short.
+    const hint = C.turnHint(table({ seats: [{ hand: mixed, flowers: ['f3'] }] }), 0, { kongs: [] });
+    assert.match(text(hint), /Concealed Straights\. Get the last faan from a situational bonus like self-draw or drawing your own seat flower\./);
+  });
+
+  it('on Concealed Straights, with No Flowers or your own flower it makes 3 already', () => {
+    const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
+    assert.match(text(hint), /Concealed Straights\. Flowers make it 3\./);
+    assert.doesNotMatch(text(hint), /situational bonus/);
   });
 
   it('on Concealed Straights, keeps a dragon nobody has shown', () => {
@@ -446,6 +459,24 @@ describe('coach: a player who ignores the discard', () => {
     const next = C.turnHint(game, 0, { kongs: [] });
     assert.match(text(next), /You're going for .*Bamboo/);
     assert.ok(!['b6', 'b7', 'b8', 'b9', 'ws', 'we'].includes(next.tile), next.tile);
+  });
+
+  it('Simple says "go for" once, not in its tip and again in its aim sentence', () => {
+    for (const id of ['jorge-yau', 'neural-cat', 'lucky-cat']) {
+      const simple = C.forStrategy(S.get(id).bot, { detail: 'simple' });
+      const game = table({ seats: [{ hand: hand }] });
+      let hint = simple.turnHint(game, 0, { kongs: [] });
+      simple.noteDiscard(game, 0, hint.tile, 'c9');
+      drop(game, 'c9');
+      hint = simple.turnHint(game, 0, { kongs: [] });
+      simple.noteDiscard(game, 0, hint.tile, 'c8');
+      drop(game, 'c8');
+      const said = [text(simple.turnHint(game, 0, { kongs: [] })), text(simple.claimHint(game, 0, E.claimOptions(game, 0, 'c1', 3, false)))];
+      for (const s of said) {
+        assert.equal((s.match(/going for|go for/gi) || []).length, 1, id + ': ' + s);
+        assert.match(s, /Go for Half Flush in Bamboo, about \d+ faan\.$/, id + ': ' + s);
+      }
+    }
   });
 
   it('names that hand on a claim, instead of the one it first recommended', () => {

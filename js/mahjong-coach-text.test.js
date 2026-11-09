@@ -92,13 +92,17 @@ describe('coach text', () => {
         assert.match(said, /^Go for .+, (about \d+ faan|the 13 faan limit)(, short of the \d+ faan minimum)?\.$/, said);
         assert.ok(w.endsWith(said), id + ' ' + seed + ': ' + w);
         assert.equal(h.tips.length, 1, 'Simple stays one tip');
+        assert.ok((w.match(/going for|go for/gi) || []).length <= 1, id + ' ' + seed + ' says "go for" once: ' + w);
         // Detailed and Complex stay as they were.
         const d = detailed.turnHint(game, 0, E.turnOptions(game, 0));
         assert.ok(!words(d).includes(said), 'Detailed has no aim sentence: ' + words(d));
         // Feedback (and so the playback's coach notes) says it too.
         const other = h.candidates[h.candidates.length - 1].tile;
         const fb = C.shapeFeedback(C.discardFeedback(h, other), h, 'simple');
-        if (fb) assert.ok(words(fb).endsWith(said), words(fb));
+        if (fb) {
+          assert.ok(words(fb).endsWith(said), words(fb));
+          assert.ok((words(fb).match(/going for|go for/gi) || []).length <= 1, 'feedback says "go for" once: ' + words(fb));
+        }
       }
     }
     assert.ok(named >= total - 2 && named > 10, named + ' of ' + total + ' named a hand');
@@ -106,6 +110,7 @@ describe('coach text', () => {
     assert.equal(C.aimSentence({ name: 'All Triplets', faan: 4, min: 3 }), 'Go for All Triplets, about 4 faan.');
     assert.equal(C.aimSentence(null), '');
   });
+
 
   it('cuts a long hint to whole tips, keeping the action and the model line', () => {
     const long = 'This tip is long enough that a few of them will not fit together in one hint. ';

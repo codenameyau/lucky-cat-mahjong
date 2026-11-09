@@ -359,7 +359,9 @@
         honors += c[h] || 0;
       }
       var keepPair = eyes !== null ? '. Keep your ' + name(eyes) + ' pair as the eyes' : '';
-      return 'Concealed Straights' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' + keepPair +
+      var lastFaan = v.flowerFaan ? '. Flowers make it 3'
+        : '. Get the last faan from a situational bonus like self-draw or drawing your own seat flower';
+      return 'Concealed Straights' + lastFaan + '. Don\'t claim' + keepPair +
         (honors ? (eyes !== null ? ', and throw your other honors first' : '. Throw your honors first') : '');
     }
     if (r.id === 'half') return 'Half Flush in ' + SUIT_NAME[r.suit] + leftNote(v, r.suit);
@@ -1429,6 +1431,15 @@
 
   // "I like it because it gets you ready fastest and keeps a bigger hand in reach."
   // Simple and Detailed speak as the coach ("I"); only Complex says "the model".
+  // Simple ends with one "Go for ..." sentence (aimSentence). The hint's own tip can say it too
+  // ("You're going for ...", "Go for ..."), so those sentences come out and it is said once.
+  function withoutAimSentences(text) {
+    var parts = String(text || '').match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [];
+    return parts.filter(function (p) {
+      return !/\bgoing for\b|^\s*go for\b/i.test(plain(p));
+    }).join('').trim();
+  }
+
   function sentenceOf(reasons, lead) {
     return lead + 'it ' + reasons.join(' and ') + '.';
   }
@@ -1451,7 +1462,7 @@
     }
     // Simple: the action, then the reason why. A learned strategy adds what it likes about the tile.
     var clear = hint.modelWhyClear || [];
-    var why = clip(tips[0] || '', SIMPLE_WHY);
+    var why = clip(hint.aim ? withoutAimSentences(tips[0]) : tips[0] || '', SIMPLE_WHY);
     if (clear.length) why = (why + ' ' + sentenceOf(clear, 'I like it because ')).trim();
     why = (why + ' ' + aimSentence(hint.aim)).trim();
     out.tips = why ? [why] : [];
@@ -1477,7 +1488,7 @@
       out.tips = tips;
       return fit(out);
     }
-    var why = clip(tips[0] || '', SIMPLE_FEEDBACK);
+    var why = clip(hint && hint.aim ? withoutAimSentences(tips[0]) : tips[0] || '', SIMPLE_FEEDBACK);
     if (reasons.length) why = (why + ' ' + sentenceOf(reasons, 'I like it because ')).trim();
     why = (why + ' ' + aimSentence(hint && hint.aim)).trim();
     out.tips = why ? [why] : [];
