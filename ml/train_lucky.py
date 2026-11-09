@@ -418,6 +418,7 @@ def main():
     # Frontier plan, phase 1 (data from lucky.js generate --oracle, usually --features v2).
     ap.add_argument('--aux', type=float, default=0, help='weight of the auxiliary heads that predict the hidden tiles (targets, never inputs)')
     ap.add_argument('--imitate-wins', type=float, default=0, help='--mode oracle with --returns data: also imitate the moves of hands won, at this weight')
+    ap.add_argument('--teach', type=float, default=0, help='--mode pg or awr: also train toward the per-move deal-in teacher of --mode oracle, at this weight')
     args = ap.parse_args()
     CRITIC_LOSS[0] = args.critic_loss
     if args.oracle_anneal:
@@ -455,8 +456,8 @@ def main():
     P = PUBLIC[0] or size
     if args.aux and P == size:
         raise SystemExit('--aux needs data from lucky.js generate --oracle (its targets are the hidden tiles)')
-    if args.aux and args.mode not in ('imitate', 'oracle'):
-        raise SystemExit('--aux trains with --mode imitate or oracle')
+    if args.teach and args.mode not in ('pg', 'awr'):
+        raise SystemExit('--teach trains with --mode pg or awr (--mode oracle is the teacher alone)')
     if (args.oracle_critic or args.anneal) and P == size:
         raise SystemExit('--oracle-critic and --oracle-delta need data from lucky.js generate --oracle')
     # The policy's inputs: the seat's view, plus the hidden tiles for an oracle policy.
@@ -552,9 +553,9 @@ def main():
         keep = (torch.rand(xb.shape[0], IN - P, generator=gen) < delta[0]).to(xb.device, xb.dtype)
         return torch.cat([xb[:, :P], xb[:, P:IN] * keep], dim=1)
 
-    if teacher:
+    if teacher or args.teach > 0:
         if DANGER_AT[0] is None:
-            raise SystemExit('--mode oracle needs data from lucky.js generate --oracle')
+            raise SystemExit('--mode oracle and --teach need data from lucky.js generate --oracle')
         at = DANGER_AT[0]
         COST = torch.zeros(n, OUTPUTS)
         COST[:, :34] = X[:, at:at + 34] * 1024
@@ -568,15 +569,19 @@ def main():
         ref.load_state_dict(net.state_dict(), strict=False)
         ref.eval()
 
-    def teacher_loss(idx):
+    def teacher_loss(idx, out=None):
+        """The per-move deal-in teacher. With out (the policy's logits and aux
+        outputs, from pg or awr), only the teacher's own term."""
         xb, lb, cb, wb = X[idx].to(dev), Lg[idx].to(dev), COST[idx].to(dev), TW[idx].to(dev)
         xin = pin(xb)
-        logits, aux_out = net.both(xin)
+        logits, aux_out = net.both(xin) if out is None else (out[0], None)
         logp = torch.log_softmax(logits.masked_fill(~lb, -1e9), dim=1)
         with torch.no_grad():
             rlog = torch.log_softmax(ref(xin).masked_fill(~lb, -1e9), dim=1)
             tgt = torch.softmax((rlog - cb / args.danger_tau).masked_fill(~lb, -1e9), dim=1)
         ce = (-(tgt * logp.masked_fill(~lb, 0)).sum(1) * wb).mean()
+        if out is not None:
+            return ce
         if WON is not None:
             ab, won = A[idx].to(dev), WON[idx].to(dev)
             ce = ce + args.imitate_wins * (-(logp.gather(1, ab[:, None])[:, 0]) * won).sum() / won.sum().clamp(min=1)
@@ -615,7 +620,8 @@ def main():
         xb, ab, lb = X[idx].to(dev), A[idx].to(dev), Lg[idx].to(dev)
         advb, logb, tb = ADV[idx].to(dev), LOGB[idx].to(dev), TEMP[idx].to(dev)
         xin = pin(xb)
-        logits = net(xin).masked_fill(~lb, -1e9)
+        raw, aux_out = net.both(xin)
+        logits = raw.masked_fill(~lb, -1e9)
         logp = torch.log_softmax(logits / tb[:, None], dim=1)
         lpa = logp.gather(1, ab[:, None])[:, 0]
         ent = -(logp.exp() * logp.masked_fill(~lb, 0)).sum(1)
@@ -625,6 +631,12 @@ def main():
         else:
             surr = torch.clamp(torch.exp(advb / args.beta), max=20.0) * lpa
         loss = -surr.mean() - alpha[0] * ent.mean()
+        # Frontier phase 1: the returns move the policy, while the heads learn
+        # to read the table in the same trunk and the teacher steers off deal-ins.
+        if aux_out is not None:
+            loss = loss + args.aux * aux_loss(aux_out, xb, P)
+        if args.teach > 0:
+            loss = loss + args.teach * teacher_loss(idx, (raw, aux_out))
         with torch.no_grad():
             rlog = torch.log_softmax(ref(xin).masked_fill(~lb, -1e9) / tb[:, None], dim=1)
             kl = (rlog.exp() * (rlog - logp).masked_fill(~lb, 0)).sum(1).mean()
@@ -744,6 +756,8 @@ def main():
         extra['objective'] = 'points'
         extra['train'] = dict({'mode': args.mode, 'reward': args.reward, 'rewardClip': args.reward_clip, 'winBonus': args.win_bonus,
                                'lr': args.lr, 'clip': args.clip, 'entropy': args.entropy, 'klMax': args.kl_max, 'beta': args.beta}, **rl_stats)
+        if args.teach > 0:
+            extra['train'].update({'teach': args.teach, 'dangerTau': args.danger_tau, 'dangerWeight': args.danger_weight})
     if IN > P:
         final = float(rl_stats.get('oracleDelta', delta[0]))
         if args.public:
