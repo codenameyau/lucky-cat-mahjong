@@ -10,7 +10,7 @@ Everything here must keep two promises: the shipped model reads only what its se
 | --- | --- |
 | Benchmark (§9) | **Built.** `npm run ml:bench`: the frozen table (NC8, Jorge Yau, NC8 at 0.57.9), the 40,000-deal deck, the Table Score, and `judge` for the five-stage bar ([benchmark](benchmark.md)) |
 | 0 Suphx teacher | Built as the lab's `lucky-cat-suphx`. It is folded into phase 1 as the per-move deal-in teacher every arm trains with |
-| 1 Features v2, labels as targets | **Built and training.** `npm run ml:frontier` ([frontier training](frontier-training.md)). Lucky Cat round 1 kept nothing (LV1a, +4.3 to +7.6, failed the bar); round 2 is running with retuned arms, then Sphinx |
+| 1 Features v2, labels as targets | **Built and training.** `npm run ml:frontier` ([frontier training](frontier-training.md)). Lucky Cat rounds 1–3 kept nothing (9 arms, best LV1a, which failed the bar); lc32v2 is still champion. Sphinx round 1 is running |
 | 2 Structured network | Designed (§4); not built. Starts when the phase-1 MLP stops improving |
 | 3 Value, policy iteration, league, pipeline | Designed (§4, §5, §6); not built |
 | 3b Search as a teacher | Designed (§5); not built |
@@ -365,3 +365,29 @@ Lucky Cat round 1: 20,000 deals of lc32 widened to features v2, at the game's ta
   - *Evidence:* 53 wins in 4,000 deals, and 20 in 2,000.
   - *Changed:* `--sample-won` keeps every move of a won hand, so the few wins aren't sampled away.
   - *Open:* on the tiny smoke data (4,722 rows), Sphinx's AUCs came out below 0.5. To be checked on the first full round: if they stay below 0.5, it's a bug.
+  - *Checked (Sphinx round 1, 50,000 deals, 119,332 choices):* not a bug. Ready AUC is 0.86–0.95 and deal-in 0.51–0.74 across the arms, so the smoke result was too little data. Waits stay below chance (0.46–0.48): with random opponents, almost nobody is ready, so there are too few examples to learn from.
+
+Lucky Cat rounds 2 and 3: the retuned arms, 20,000 new deals a round, trained on every round so far (443,000 choices in round 2, 665,000 in round 3).
+
+- **With more data and a higher learning rate, the heads read the table much better.**
+  - *Evidence:* at lr 1e-3 for 8 epochs, deal-in AUC went from 0.874 (round 1) to 0.916, then 0.917. Ready went from 0.850 to 0.926, then 0.923. **Waits went from 0.518 to 0.585, then 0.610**, the first time it has moved off chance. Wall count error fell from 0.72 to 0.67 copies. The control arm (lr 3e-4, 4 epochs) only reached 0.880, 0.884 and 0.536 on the same data.
+  - *Changed:* waits are learnable by the flat MLP after all, slowly. Phase 2 still has to beat this curve, not just 0.5.
+- **Reading the table better didn't change the result at the table.**
+  - *Evidence (10,000-deal screens against lc32):*
+    - Round 2: LV2a +1.9 ± 4.9, LV2b −7.9 ± 5.3, LV2c +2.0 ± 5.4.
+    - Round 3: LV3a −0.6 ± 4.9, LV3b +4.4 ± 5.2 (0.84 SE), LV3c −6.7 ± 5.2.
+    
+    None reached 1 SE, so nothing was judged. Hands won stayed within 0.3 percentage points of lc32 in every screen (24.4–24.8%). Deal-ins were 0.1–0.5 points lower in all six (12.4–12.8% against 12.6–13.0%), small but consistent.
+  - *Changed:* nothing kept. lc32v2 is still the champion after 3 rounds and 9 arms.
+- **How well an arm reads doesn't predict how it screens, so the gap isn't in the reading.**
+  - *Evidence:* LV2b and LV3b had the same recipe and the best heads (deal-in about 0.917, waits 0.585 and 0.610), and they screened at −7.9 and +4.4. LV3c read almost as well (0.915, 0.608) and screened at −6.7. The policy stayed close to lc32 throughout: KL 0.003–0.008.
+  - *Open, and the most important finding of phase 1 so far:* the heads only shape the shared trunk. The policy is still trained to copy the champion's moves, nudged by the per-move deal-in teacher, so nothing in its loss rewards acting on a better read. Phase 1's "labels as targets" seems to buy representation, not play. Options for review:
+    - bring forward phase 3's value heads and policy-iteration step, so the policy is trained on returns;
+    - feed the heads' predictions to the policy as inputs, so it can condition on them;
+    - weight the teacher by the heads' own danger estimate.
+- **The screen's noise is about the size of the effects being tested.**
+  - *Evidence:* the nine Lucky Cat screens of rounds 1–3 ranged from −7.9 to +7.6, at about ±5.1 each. Their mean is −0.4, which is consistent with no effect at all.
+  - *Open:* a 10,000-deal screen can't separate a +3-point arm from zero. Either screen on 40,000 deals (about an hour each), or stop running more fine-tuning rounds of this recipe until the policy loss changes.
+- **Sphinx round 1: imitating its own wins made it win five times as often, and lose more points at the table.**
+  - *Evidence:* SP1a won 1.51% of its seats at the benchmark table against sp0's 0.31%, but dealt in 15.17% against 10.45%, with cheaper wins (78 points against 243). That's −43.3 ± 6.8 points a hand (−6.35 SE). Its first data took 178 s for 50,000 deals, with 616 wins.
+  - *Open:* the round is still screening its other arms. Imitating wins from random self-play teaches it to race for cheap hands, and nothing teaches it defence yet. The table rounds (from round 3) and the teacher's weight will tell whether that turns around.
