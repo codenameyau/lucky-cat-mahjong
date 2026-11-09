@@ -4,6 +4,15 @@
 
 A position is what a choice **leaves**: after a discard, the 13 tiles kept and the tile thrown. Each candidate discard is one feature vector, and the model compares them.
 
+## Contents
+
+- [The groups](#the-groups)
+- [Read through the foundation](#read-through-the-foundation)
+- [The API](#the-api)
+  - [Waiting positions](#waiting-positions)
+- [Only what the seat can see](#only-what-the-seat-can-see)
+- [Changing the features](#changing-the-features)
+
 ## The groups
 
 | Group | Size | What it holds |

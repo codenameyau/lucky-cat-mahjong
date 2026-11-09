@@ -103,6 +103,12 @@ function feedbackFor(id, detail, seed) {
   return Coach.shapeFeedback(coach.discardFeedback(hint, worst), hint, detail);
 }
 
+function feedbackHint(id, seed) {
+  const game = E.createGame({ seed, humanSeat: true, dealer: 0 });
+  E.startHand && E.startHand(game);
+  return Coach.forStrategy(S.get(id).bot).turnHint(game, 0, E.turnOptions(game, 0));
+}
+
 test('Feedback follows the coach setting: numbers only on Complex, "I" on Simple and Detailed', () => {
   let complexNumbers = 0;
   for (const id of ['neural-cat', 'jorge-yau', 'lucky-cat', 'only-orphans']) {
@@ -115,7 +121,9 @@ test('Feedback follows the coach setting: numbers only on Complex, "I" on Simple
         assert.ok(w.length <= Coach.MAX_TEXT);
       }
       assert.ok(s.tips.length <= 1, 'Simple gives one reason');
-      assert.ok(words(s).length <= words(d).length && words(d).length <= words(c).length + 120, id + ' ' + seed);
+      // Simple also names the hand it's going for (Coach.aimSentence), which the others leave out.
+      const aim = (' ' + Coach.aimSentence(feedbackHint(id, seed).aim)).trimEnd();
+      assert.ok(words(s).length - aim.length <= words(d).length && words(d).length <= words(c).length + 120, id + ' ' + seed);
       if (/model expects|network plays/.test(words(c))) complexNumbers++;
     }
   }

@@ -11,6 +11,16 @@ npm run ml:frontier -- --lineage lucky-cat --rounds 4
 npm run ml:frontier -- --lineage sphinx --rounds 10
 ```
 
+## Contents
+
+- [Features v2](#features-v2)
+- [The hidden tiles as targets](#the-hidden-tiles-as-targets)
+- [Data for the two lineages](#data-for-the-two-lineages)
+- [The round driver](#the-round-driver)
+- [Native-scale rounds (from 2026-11-09)](#native-scale-rounds-from-2026-11-09)
+- [Disk space](#disk-space)
+- [Not done yet](#not-done-yet)
+
 ## Features v2
 
 `js/mahjong-frontier-net.js` keeps Lucky Cat's 376 features first and adds 478 more, for 854 in all:

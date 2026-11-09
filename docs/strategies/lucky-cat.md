@@ -10,7 +10,7 @@ So it values speed over size: it wins often and in few discards, mostly with sma
 
 Its goal is to win as many hands as it can, as fast as it can. Points count for only a little. It takes the risks that have won it hands before, so its wins can look lucky when they are learned.
 
-The rules it replaced are still in the game as **Lucky Cat Classic** (`js/mahjong-lucky-cat.js`, a lab strategy: not on the Strategies sheet, but `npm run compete` and `npm run review` can play it as `lucky-cat-classic`). They are written out from [The classic rules](#the-classic-rules) on. The coach still uses their reads of the hand (plans, waits, threats) for its words.
+The rules it replaced are still in the game as **Lucky Cat Classic** (`js/mahjong-lucky-cat.js`, a lab strategy: not on the Strategies sheet, but `npm run compete` can play it as `lucky-cat-classic`). They are written out from [The classic rules](#the-classic-rules) on. The coach still uses their reads of the hand (plans, waits, threats) for its words.
 
 ## What it sees
 
@@ -166,6 +166,10 @@ The lab then ran thirteen points-first rounds from lc32 (models LP1a to LP13a), 
 Four rounds at the table (LT1a to LT4c) kept nothing: crediting every move with its whole hand's points taught it mostly luck, since at that table the points are decided mostly by Neural Cat's big wins. So the lab now replays deals: at a few of lc32's choices a hand, the same deal is played again with its next-best moves forced, and the network learns from the points each move scored on the same wall (LR models; [the critique](../machine-learning/iterations.md#critique-at-the-table-a-whole-hands-points-are-too-noisy-to-learn-from)).
 
 Three rounds of that (LR1a to LR3c) kept nothing that held. On the same wall a move is judged by tiles the player can't see yet. So at each replayed choice the lab now reshuffles the wall still to be drawn 4 ways and plays every move on the same 4 futures, learning from the mean (LF models; [the critique](../machine-learning/iterations.md#critique-on-one-wall-a-move-is-judged-by-a-future-no-player-can-see)).
+
+### The frontier: generation 1 and Sphinx
+
+Beyond the lab, Lucky Cat now has a second program of work, the frontier: features v2, auxiliary heads that learn the hidden tiles as targets, a frozen benchmark that a new generation must beat by two standard errors twice, and a native C++ simulator that plays a round's data in 13 seconds instead of 330. Three rounds and nine arms, then three policy-gradient probes, found nothing that passed the bar, so Lucky Cat is still **lc32** (the frontier's `lc32v2` is lc32 widened to the new features). [What was built, the numbers and why](../machine-learning/iterations.md#the-frontier-lucky-cat-generation-1-and-sphinx).
 
 ### Suphx: an oracle teacher
 

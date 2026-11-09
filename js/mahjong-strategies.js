@@ -121,7 +121,7 @@
     });
   }
 
-  // Lab strategies: playable by id (npm run compete, npm run review, a
+  // Lab strategies: playable by id (npm run compete, a
   // saved pick) but not on the Strategies sheet or in the random seats.
   var LAB = [
     {

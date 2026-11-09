@@ -21,6 +21,13 @@ Where all of that stands, and why each choice was made, is in [frontier history]
 - **Training data**: [huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games](https://huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games)
 - **How they play and their results**: the playbooks for [Neural Cat](../strategies/neural-cat.md), [Lucky Cat](../strategies/lucky-cat.md) and [Only Orphans](../strategies/only-orphans.md)
 
+## Contents
+
+- [Guides](#guides)
+- [Quick start](#quick-start)
+- [At a glance](#at-a-glance)
+- [Files](#files)
+
 ## Guides
 
 | Guide | What it covers |
@@ -32,7 +39,7 @@ Where all of that stands, and why each choice was made, is in [frontier history]
 | [Training](training.md) | Generating data, training, self-play, the league, competitions, and every command and option |
 | [Fair play](fair-play.md) | How the models are kept from seeing the wall or another hand, and the test that checks it |
 | [Hugging Face](hugging-face.md) | Where the models and data live, and how they're uploaded |
-| [Iterations](iterations.md) | How each Neural Cat and Lucky Cat model was made, how it plays differently from the one before it, and what each step taught |
+| [Iterations](iterations.md) | How each Neural Cat, Lucky Cat and Only Orphans model was made, how it plays differently from the one before it, and what each step taught. One section per training idea (the league, the lab, points first, Suphx, the frontier) or milestone (Neural Cat 2, Lucky Cat 2), a heading for each model inside it |
 | [Frontier plan](frontier-plan.md) | Suphx taken apart against Hong Kong rules, four rounds of critique (the last on the plan itself), and the phased plan to make Lucky Cat the strongest Hong Kong mahjong player: privileged labels as targets, a tile-structured network, a distributional value, a league, the job each model family (heuristics, MCTS, DQN, policy gradient) gets, the benchmark (one frozen table, one deck, a Table Score) with its two-standard-errors-twice bar, and the two lineages, Lucky Cat and Sphinx |
 | [Benchmark](benchmark.md) | The frontier benchmark, built: the frozen table (NC8, Jorge Yau, NC8 at 0.57.9, pinned by SHA-256 and a fingerprint), the 40,000-deal deck, the Table Score, and `bench.js judge`, which runs the five stages of the bar for the next generation of Lucky Cat or Sphinx |
 | [Native simulator](native.md) | The engine and the benchmark table's players (Jorge Yau, Neural Cat, Lucky Cat v1 and v2, the oracle) in C++. A round's data in 13 s instead of 330 s. Two builds used as a hybrid: fast for training data and screens, exact (every hand as the JS plays it) for judgments and Table Scores. How it's built, checked and pinned, the three optimization rounds, and the weights in both forms (JSON and `.lcmw`) |

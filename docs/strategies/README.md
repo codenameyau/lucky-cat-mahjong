@@ -12,6 +12,17 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 
 Before version 0.6.0 the two ids were the other way round; saved choices and save files from then are converted when they're read.
 
+## What each strategy is now
+
+| Strategy | In the game | How it is made | Where its story is |
+| --- | --- | --- | --- |
+| `jorge-yau` | Rules only (no model) | Hand-written rules: it picks a target hand, keeps honors, locks onto a hand worth 7 faan or more and plays no defense until late in the wall | [jorge-yau.md](jorge-yau.md) |
+| `lucky-cat` | **lc32** | A network that makes every move itself, trained in the lab on fresh games and kept only for a clear gain on 20,000 deals; learns from deal-ins since lc31 | [lucky-cat.md](lucky-cat.md), [iterations](../machine-learning/iterations.md#lucky-cat-2-the-lab-lc21-to-lc32) |
+| `neural-cat` | **NC8** | Jorge Yau's best choices, ranked by a network in expected score; trained by the league (to NC2) and then the lab (NC3 to NC8) | [neural-cat.md](neural-cat.md), [iterations](../machine-learning/iterations.md#the-lab-neural-cat-3-to-8-nc3-to-nc8) |
+| `only-orphans` | **OT11d** | Rules that pick a target each deal (Thirteen Orphans, triplets, Seven Pairs) and a network that chooses the rest in expected points | [only-orphans.md](only-orphans.md), [training progress](only-orphans-training.md) |
+
+The newest training idea is the [frontier](../machine-learning/iterations.md#the-frontier-lucky-cat-generation-1-and-sphinx): Lucky Cat generation 1 and a second lineage, Sphinx, trained against a frozen benchmark on a native C++ simulator. It has not shipped a model yet: Lucky Cat is still lc32. Each model's full history is in [Iterations](../machine-learning/iterations.md).
+
 ## Which strategy plays where
 
 - Picks are saved in `localStorage` under `lcm-play-strategies`, as `{ "seats": { "1": id, "2": id, "3": id }, "coach": id }`. Seat 1 is on your right, 2 across, 3 on your left.
@@ -94,36 +105,6 @@ npm run ml:train -- --data ml/data/r0 --name r0 --ship
 ```
 
 Every seat's discards are recorded, whatever strategy it plays, with how the hand ended for that seat. Data goes to `ml/data/` (not committed).
-
-## Reviewing a hand, and teaching the coach
-
-`npm run review` replays a hand from its seed in under a second and shows what the coach said on each of your turns. Tap your wind badge in the game to copy the hand seed this command takes (its `handSeed`, such as `919942249-NE`).
-
-| Command | |
-| --- | --- |
-| `npm run review -- 3764864992-EE` | Every turn, following the coach |
-| `npm run review -- 3764864992-EE --moves d1,c1,pung` | Your moves first, then the coach. Tiles are discards, and a claim is passed unless the next move names it (`pung`, `chow`, `kong`, `win`) |
-| `npm run review -- 3764864992-EE --moves d1,c1 --turn 3` | That turn's reasoning: every tile's discard group, steps from ready, copies left, score and plan |
-| `npm run review -- --save game.json` | The exact hand from a save file, with its moves and the other seats' strategies |
-| `npm run review -- 3764864992-EE --find dr --left 3` | Plays the hand many ways to find turns where the coach throws that tile, with the `--moves` to get there |
-
-The seed alone doesn't say what the other seats play, and their claims change who draws what. Use `--lineup a,b,c`, or a save file for an exact hand.
-
-**Giving feedback.** Add `--keep` (tiles it shouldn't throw) or `--drop` (tiles it should have), with a reason:
-
-```bash
-npm run review -- 3764864992-EE --moves d1,c1 --turn 3 --keep dr --drop c4 --note "Keep a dragon nobody has shown"
-```
-
-That saves the turn to [feedback.json](feedback.json) as an `open` case. A case holds only what that seat could see, so it still reads the same after a change to how the other seats play.
-
-**Learning from it.** The coach and bots don't change themselves. `npm run review -- --check` lists every case and why the coach chose as it did, which is the to-do list for improving the rules in `js/mahjong-bot.js` or a strategy:
-
-- `open`: the coach still chooses otherwise. Tests don't fail on these.
-- `NOW PASSES`: a change fixed it. `npm run review -- --check --update` marks it `fixed`.
-- `fixed`: `npm test` fails if the coach goes back to its old choice, so what it learned stays learned.
-
-A rule that fixes one case can hurt elsewhere, so measure a bigger change with the competition below.
 
 ## Competition
 

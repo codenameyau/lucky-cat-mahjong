@@ -25,7 +25,7 @@ The learned bot, Neural Cat, is on Hugging Face:
 - [Personality quiz](#which-mahjong-tile-are-you-quiz-which-mahjong-tiles-are-you)
 - [Play Mahjong](#play-hong-kong-mahjong-play-mahjong)
   - Playing: [Game modes](#game-modes) · [Rules and scoring](#rules-and-scoring) · [Saving and resuming](#saving-and-resuming) · [Hand seeds](#hand-seeds) · [Playback](#playback) · [Auto-play](#auto-play-development-only)
-  - Bots and coach: [Strategies](#strategies) · [Bots](#bots) · [Coach](#coach) · [Bot competition](#bot-competition) · [Training the models](#training-the-models) · [The frontier plan](#the-frontier-plan) · [Hand review and feedback](#hand-review-and-feedback)
+  - Bots and coach: [Strategies](#strategies) · [Bots](#bots) · [Coach](#coach) · [Bot competition](#bot-competition) · [Training the models](#training-the-models) · [The frontier plan](#the-frontier-plan)
   - Table: [Table and layouts](#table-and-layouts) · [Sound and music](#sound-and-music)
   - For developers: [Machine learning](docs/machine-learning/README.md) · [Analytics](docs/analytics/README.md) · [Testing tip](#testing-tip)
 - [Other pages](#other)
@@ -225,7 +225,7 @@ Every bot plays a named strategy. The rule-based ones are built on the shared fo
 | **only-orphans** | `js/mahjong-only-orphans.js` | Big hands built on 1s, 9s and honors (Thirteen Orphans, their triplets or pairs, Concealed Triplets, Seven Pairs), the target picked by expected points; a model trained by self-play decides how (`npm run ml:orphans`) | [only-orphans.md](docs/strategies/only-orphans.md) |
 | **neural-cat** | `js/mahjong-ml.js` | Plays Jorge Yau's hands, and a neural network trained on simulated games picks the discard, claim or kong worth the most points on average | [neural-cat.md](docs/strategies/neural-cat.md) |
 
-Lucky Cat's original rules are still in the code as **lucky-cat-classic** (`js/mahjong-lucky-cat.js`): tracks every discard and plays the odds to the fastest 3-faan win. It's a lab strategy, not on the Strategies sheet, but `npm run compete` and `npm run review` can play it.
+Lucky Cat's original rules are still in the code as **lucky-cat-classic** (`js/mahjong-lucky-cat.js`): tracks every discard and plays the odds to the fastest 3-faan win. It's a lab strategy, not on the Strategies sheet, but `npm run compete` can play it.
 
 - The **Strategies** button in the top bar (`js/mahjong-strategies.js`) describes each one and shows who plays which
 - The coach's pick is saved in `localStorage` (`lcm-play-strategies`), and the coach defaults to lucky-cat. The computer players are never saved: each plays a random strategy every game
@@ -280,17 +280,17 @@ The Coach button in the top bar cycles three modes, and all of them work in ever
 
 **Coach settings** (Menu, Coach settings) set how much the coach says, with three choices, kept as `coachDetail` in `lcm-play-prefs` and applied at once to the hint on screen:
 
-- **Simple** (the default) — What to do and one short reason why, such as *Discard Two Bamboo. Not Circles or an honor.* A learned coach adds what it likes about the tile in plain words (*I like it because it gets you ready fastest.*), never a score
+- **Simple** (the default) — What to do and one short reason why, such as *Discard Two Bamboo. Not Circles or an honor.* A learned coach adds what it likes about the tile in plain words (*I like it because it gets you ready fastest.*), never a score. It ends with one sentence on the hand it's going for and its faan, from the strategy's own plan (*Going for Half Flush in Circles, about 5 faan.*, or *Going for a chicken hand, about 1 faan, short of the 3 faan minimum.*); a ready hand says what its wait wins for
 - **Detailed** — Adds the hand you are going for, the threats, and my reasons in plain words (*I pick it because it keeps a bigger hand in reach.*), still with no score
 - **Complex** — The only level that says "the model" (Simple and Detailed speak as "I"). Everything the models weigh: the expected score, the chance to win and what a win pays, and the next best choice (the coach as it was before the setting)
 
 The same setting applies to everything the coach says: the hint before your move, **Feedback on** after it, and a playback's coach notes and table read. The coach always speaks as "I" (*I pick Eight Character.*, *I would have passed.*); only Complex adds what the model expects, in numbers.
 
-- **Simple** — Feedback is the verdict and one short reason (*There was a better discard. I pick Eight Character. Thirteen Orphans uses only terminals and honors.*), plus what a learned coach likes about its pick. The playback's table read keeps its first sentence
+- **Simple** — Feedback is the verdict and one short reason (*There was a better discard. I pick Eight Character. Thirteen Orphans uses only terminals and honors.*), plus what a learned coach likes about its pick, and the same sentence on the hand it's going for (*Going for Thirteen Orphans, the 13 faan limit.*). The playback's table read keeps its first sentence
 - **Detailed** — Feedback adds the coach's reasons in plain words (*I like it because it keeps a bigger hand in reach.*); the table read keeps its first few sentences
 - **Complex** — Feedback adds the model's numbers (*The model expects +663 score on average from Eight Character, and +6 score from Red Dragon.*); the table read is whole
 
-`shapeFeedback(feedback, hint, detail)` and `shapeNote(note, detail)` in `js/mahjong-coach.js` do this; the game applies them wherever feedback or a table-read note is shown, and redoes a playback's notes when the setting changes.
+`shapeFeedback(feedback, hint, detail)` and `shapeNote(note, detail)` in `js/mahjong-coach.js` do this; the hand and its faan travel on each hint as `hint.aim` (`{ name, faan, min }`) and `aimSentence(aim)` says it, so other notes can reuse it; the game applies them wherever feedback or a table-read note is shown, and redoes a playback's notes when the setting changes.
 
 The plain reasons come from the feature groups that put the model's pick furthest ahead (`speed`, `value`, `safety`, `table`, `hand`, `discard`, `context`; `GROUP_PLAIN` in `js/mahjong-coach.js`). Simple leaves out the three vague ones (the tile itself, the tiles you keep, the stage of the game). The setting is applied by `Coach.forStrategy(bot, { detail })`; with no detail the coach says everything, so other callers and the tests are unchanged. A win declaration reads the same at every level. The playback analysis table keeps its own wording.
 
@@ -389,8 +389,8 @@ Neural Cat's, Lucky Cat's and Only Orphans' networks are trained on simulated ha
 | `npm run ml:generate` | Plays simulated hands across worker threads and writes training data to `ml/data/<name>/` |
 | `npm run ml:train` | Trains a model on that data with PyTorch (`ml/train.py`; set up with `python3 -m venv ml/.venv && ml/.venv/bin/pip install -r ml/requirements.txt`; on Windows with an NVIDIA GPU, run `ml\setup-windows.ps1`, see [training](docs/machine-learning/training.md#windows-with-an-nvidia-gpu)) and checks the JS model gives the same outputs. `--ship` writes `js/mahjong-ml-weights.js` |
 | `npm run ml:lab` | The lab, how Neural Cat is trained now: each round plays 50,000 deals against varied opponents, tries several experiments (retraining, wider networks, how the model plays), keeps one only on a clear gain on 20,000 fresh deals, and learns which experiments pay. State in `ml/lab/` |
-| `npm run ml:lab -- --strategy lucky-cat` | Trains Lucky Cat's network at the game's table (one seat against Neural Cat, Jorge Yau and Neural Cat), aiming to keep its win rate and score more points. Each move it is unsure of is replayed with its next-best moves on 4 reshuffled futures of the wall, and it learns from the points each move scored on average. Kept only if its points a hand beat the champion's by about two standard errors on 40,000 deals. State in `ml/lab-lucky-cat/`. How to run it, and what to try if it stalls: [ml/LUCKY_CAT_HANDOFF.md](ml/LUCKY_CAT_HANDOFF.md) |
-| `npm run ml:lab -- --strategy lucky-cat-suphx` | Trains Lucky Cat the way Suphx was trained: the hidden tiles (the other hands, the wall, what each discard would pay right now) are recorded for training only, and an oracle teacher pushes down each discard that would deal in. The network, reading only its own seat, learns from it. Kept only if its points beat the champion's at the table and its hands won hold. State in `ml/lab-lucky-cat-suphx/`; run it first ([handoff](ml/LUCKY_CAT_HANDOFF.md)) |
+| `npm run ml:lab -- --strategy lucky-cat` | Trains Lucky Cat's network at the game's table (one seat against Neural Cat, Jorge Yau and Neural Cat), aiming to keep its win rate and score more points. Each move it is unsure of is replayed with its next-best moves on 4 reshuffled futures of the wall, and it learns from the points each move scored on average. Kept only if its points a hand beat the champion's by about two standard errors on 40,000 deals. State in `ml/lab-lucky-cat/`. |
+| `npm run ml:lab -- --strategy lucky-cat-suphx` | Trains Lucky Cat the way Suphx was trained: the hidden tiles (the other hands, the wall, what each discard would pay right now) are recorded for training only, and an oracle teacher pushes down each discard that would deal in. The network, reading only its own seat, learns from it. Kept only if its points beat the champion's at the table and its hands won hold. State in `ml/lab-lucky-cat-suphx/` |
 | `npm run ml:frontier -- --lineage lucky-cat` | The frontier plan's phase 1: rounds on features v2 (who threw what, and shanten and live waits per discard), with the hidden tiles as targets the network learns to predict, never as inputs. Each round's best arm becomes the next generation only by passing the benchmark's bar (`npm run ml:bench`). `--lineage sphinx` trains Sphinx from random weights. [Frontier training](docs/machine-learning/frontier-training.md) |
 | `npm run native:build` | Builds the native simulator (`native/`, C++): the engine and the benchmark table's players, which `bench.js` and `lucky.js generate` then use on their own. Two builds: `lcm-sim` (fast: training data and screens) and `lcm-sim-exact` (every hand as the JS plays it: judgments and Table Scores). `make -C native pgo` rebuilds the fast one profile-guided. [Native simulator](docs/machine-learning/native.md) |
 | `npm run native:parity -- --agents neural-cat,jorge-yau,neural-cat,neural-cat --deals 1000` | Plays the same seeded hands in the JS and on the exact build and compares every action; the first difference fails it |
@@ -421,10 +421,6 @@ Uploads go over git and SSH, so your SSH key must be on your Hugging Face accoun
 - **The native simulator** (built: [native simulator](docs/machine-learning/native.md)): the engine and the benchmark table's players in C++. A round's data takes 13 s instead of 330 s, and a 2,000-deal compare 10 s instead of about 200. It runs as a **hybrid**: training data and screens on a fast build, judgments and Table Scores on an exact build that plays every hand as the JS does. The fast build isn't bit-exact (a move tied to the last bit can go the other way), an accepted trade-off for training data, flagged as an important potential issue in the plan.
 - **History and decisions:** every choice so far, with why and the evidence, is in [frontier history](docs/machine-learning/frontier-history.md).
 - **Fair play**: training may use the hidden tiles as labels and as a teacher, never as the shipped model's inputs. `ship.js` refuses a model that reads them, and the fair-play test catches one that plays through the training hook ([fair play](docs/machine-learning/fair-play.md)).
-
-#### Hand review and feedback
-
-`npm run review -- 3764864992-EE` replays a hand from its seed and shows the coach's advice each turn. Add `--turn N` for its reasoning and `--keep` or `--drop` to save feedback on a turn. Saved cases live in `docs/strategies/feedback.json`, and `npm test` holds the coach to the ones marked fixed. More in [docs/strategies/README.md](docs/strategies/README.md#reviewing-a-hand-and-teaching-the-coach).
 
 #### Testing tip
 
@@ -468,8 +464,7 @@ This runs `node --test` over the test files listed in `package.json`:
 - **Scoring calculator** — `js/points.js`
 - **Play game** — the engine, bots, strategies, coach and rule sheet. These check that `scoreHand` matches the calculator, cover legal claims, payouts and dealer rotation and play full bot hands to check that every tile is accounted for
 - **Site** — the homepage renderer, community page, tile quiz and generated tile pages
-- **Scripts** — the media formatter and hand review
-- **Coach feedback** — every case in `docs/strategies/feedback.json` marked fixed
+- **Scripts** — the media formatter
 - **Native simulator** — once it's built (`npm run native:build`): the exact build plays the same hands as the JS action for action, the fast build plays the exact build's hands, and weights round-trip through `.lcmw` (skipped when it isn't built, as on CI)
 
 Harnesses in `js/points.harness.js` and `js/main.harness.js` load each script in a mocked browser environment, so scoring logic and CMS rendering can be tested without opening the page.
@@ -580,8 +575,6 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── tile-pages-lib.js                # Shared tile-page logic (tested)
 │   ├── competition.js                   # CLI: npm run compete
 │   ├── ml/                              # Neural Cat: data, self-play, the league, Hugging Face uploads
-│   ├── review.js                        # CLI: npm run review, replay a seed and give feedback
-│   ├── review-lib.js                    # Shared review logic (tested)
 │   ├── generate-guide.js                # Printable rules booklet PDF
 │   └── licensing-agreement.js           # Licensing agreement PDF
 ├── ml/                                  # train.py and requirements.txt (local data, models and the venv are gitignored)
@@ -592,7 +585,7 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── analytics/                       # Google Analytics setup, privacy and every event
 │   ├── offline/                         # The service worker and what works offline
 │   ├── machine-learning/                # Neural Cat and the frontier plan: features, model, training, fair play, the benchmark, the native simulator, history
-│   └── strategies/                      # Bot and coach playbooks, and feedback.json
+│   └── strategies/                      # Bot and coach playbooks
 ├── assets/                              # Music, sounds, PDFs and images
 ├── package.json                         # npm scripts
 ├── tiles/                               # Hong Kong mahjong tile SVGs (CC0, see credit below)

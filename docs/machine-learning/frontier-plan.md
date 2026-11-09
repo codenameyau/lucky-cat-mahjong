@@ -4,6 +4,41 @@ Written 2026-11-08. Suphx ([Li et al. 2020](https://arxiv.org/abs/2003.13590)) w
 
 Everything here must keep two promises: the shipped model reads only what its seat can see (`js/mahjong-fair-play.test.js`), and it runs in plain JS in the browser in a few milliseconds a move.
 
+## Contents
+
+- [Where it stands (2026-11-09)](#where-it-stands-2026-11-09)
+- [1. What Suphx is, and what Hong Kong mahjong changes](#1-what-suphx-is-and-what-hong-kong-mahjong-changes)
+- [2. What Lucky Cat lacks today](#2-what-lucky-cat-lacks-today)
+- [3. The argument, in four rounds](#3-the-argument-in-four-rounds)
+  - [Round 1: port Suphx as it is](#round-1-port-suphx-as-it-is)
+  - [Round 2: use the hidden tiles per move, not per hand](#round-2-use-the-hidden-tiles-per-move-not-per-hand)
+  - [Round 3: privileged labels as targets, a structured network, a distributional value](#round-3-privileged-labels-as-targets-a-structured-network-a-distributional-value)
+  - [Round 4: the plan itself critiqued](#round-4-the-plan-itself-critiqued)
+- [4. The target architecture](#4-the-target-architecture)
+- [5. Four model families, and the job each one gets](#5-four-model-families-and-the-job-each-one-gets)
+  - [Heuristic-based models](#heuristic-based-models)
+  - [Monte-Carlo Tree Search](#monte-carlo-tree-search)
+  - [Deep Q-learning](#deep-q-learning)
+  - [Deep policy gradient](#deep-policy-gradient)
+  - [Where each one sits](#where-each-one-sits)
+  - [On TensorFlow](#on-tensorflow)
+- [6. The training pipeline](#6-the-training-pipeline)
+- [6b. The native simulator: the C++ engine the training runs on](#6b-the-native-simulator-the-c-engine-the-training-runs-on)
+- [7. Phases, numbers and kill criteria](#7-phases-numbers-and-kill-criteria)
+- [8. Fair play, phase by phase](#8-fair-play-phase-by-phase)
+- [9. The benchmark, and the bar for the next generation](#9-the-benchmark-and-the-bar-for-the-next-generation)
+  - [The benchmark table](#the-benchmark-table)
+  - [The score](#the-score)
+  - [The bar: two standard errors, twice](#the-bar-two-standard-errors-twice)
+  - [Two lineages](#two-lineages)
+- [10. What this plan would make Lucky Cat](#10-what-this-plan-would-make-lucky-cat)
+- [11. Learnings](#11-learnings)
+  - [Phase 0: the Suphx teacher (2026-11-08)](#phase-0-the-suphx-teacher-2026-11-08)
+  - [The benchmark (2026-11-08)](#the-benchmark-2026-11-08)
+  - [Phase 1: features v2 and the hidden tiles as targets (in progress)](#phase-1-features-v2-and-the-hidden-tiles-as-targets-in-progress)
+  - [Pruning, and the native simulator (2026-11-09)](#pruning-and-the-native-simulator-2026-11-09)
+  - [Optimizing the native simulator, three rounds (2026-11-09)](#optimizing-the-native-simulator-three-rounds-2026-11-09)
+
 ## Where it stands (2026-11-09)
 
 | Phase | State |
@@ -48,6 +83,8 @@ Reading `js/mahjong-lucky-cat-net.js`'s layout against what a strong human sees:
 - **One scalar signal.** It has learned from wins (imitation), from the hand's points (policy gradient), and from replays. Never from a dense, exact, per-move target.
 
 ## 3. The argument, in four rounds
+
+**In this section:** [Round 1: port Suphx as it is](#round-1-port-suphx-as-it-is) · [Round 2: use the hidden tiles per move, not per hand](#round-2-use-the-hidden-tiles-per-move-not-per-hand) · [Round 3: privileged labels as targets, a structured network, a distributional value](#round-3-privileged-labels-as-targets-a-structured-network-a-distributional-value) · [Round 4: the plan itself critiqued](#round-4-the-plan-itself-critiqued)
 
 ### Round 1: port Suphx as it is
 
@@ -124,6 +161,8 @@ Size target: 4 layers, width 96, 4 heads; about 11 million multiply-adds a move;
 **The warm start, held in reserve.** Neural Cat and Jorge Yau could play the game's table with every position and move recorded (several million a day), and a new network trained to imitate them before the value and policy steps take over, as Suphx did with human games. Section 9 keeps both lineages free of it: Lucky Cat never copied anyone and Sphinx learns from the ground up. It stays in the plan as the fallback variant Sphinx-W, allowed only if Sphinx stalls, and judged separately.
 
 ## 5. Four model families, and the job each one gets
+
+**In this section:** [Heuristic-based models](#heuristic-based-models) · [Monte-Carlo Tree Search](#monte-carlo-tree-search) · [Deep Q-learning](#deep-q-learning) · [Deep policy gradient](#deep-policy-gradient) · [Where each one sits](#where-each-one-sits) · [On TensorFlow](#on-tensorflow)
 
 Four families come up for game-playing bots. None of them is the plan on its own; each has a job in it, and two of them are already here under other names.
 
@@ -275,6 +314,8 @@ The shipped model must never read another hand or the wall. Each phase uses hidd
 
 ## 9. The benchmark, and the bar for the next generation
 
+**In this section:** [The benchmark table](#the-benchmark-table) · [The score](#the-score) · [The bar: two standard errors, twice](#the-bar-two-standard-errors-twice) · [Two lineages](#two-lineages)
+
 Everything above says "better". This section says how that is measured, by one number anyone can reproduce, and how strict the bar is before a model becomes the next generation. **Built** as `scripts/ml/bench.js` with the benchmark pinned in `bench/`; how to run it is in [the benchmark](benchmark.md).
 
 ### The benchmark table
@@ -324,6 +365,8 @@ Both play the same benchmark deck, so their Table Scores compare directly. Each 
 Two networks that decide every move themselves, one that carries its own history on and one that starts from nothing, both of which read the table the way a strong player does because it was graded on reading it, that values hands by their whole distribution of outcomes in a scoring system where one hand can be worth a thousand, and that fold exactly when the risk says so. Lucky Cat should win as often as lc32 and lose far fewer points doing it; Sphinx should show what the architecture is worth on its own. Whether either becomes the strongest Hong Kong mahjong player anywhere is not something a plan can promise; the Table Score on the benchmark deck is what would show it, and the bar of two standard errors, twice, is what makes each generation a step that holds.
 
 ## 11. Learnings
+
+**In this section:** [Phase 0: the Suphx teacher (2026-11-08)](#phase-0-the-suphx-teacher-2026-11-08) · [The benchmark (2026-11-08)](#the-benchmark-2026-11-08) · [Phase 1: features v2 and the hidden tiles as targets (in progress)](#phase-1-features-v2-and-the-hidden-tiles-as-targets-in-progress) · [Pruning, and the native simulator (2026-11-09)](#pruning-and-the-native-simulator-2026-11-09) · [Optimizing the native simulator, three rounds (2026-11-09)](#optimizing-the-native-simulator-three-rounds-2026-11-09)
 
 What building and training each phase has taught, written up when each phase (or a major step in one) finishes. It's the record a review of the framework starts from. Each entry has three parts:
 - **what we saw**;
