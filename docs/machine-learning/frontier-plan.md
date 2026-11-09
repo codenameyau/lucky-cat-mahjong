@@ -10,7 +10,7 @@ Everything here must keep two promises: the shipped model reads only what its se
 | --- | --- |
 | Benchmark (§9) | **Built.** `npm run ml:bench`: the frozen table (NC8, Jorge Yau, NC8 at 0.57.9), the 40,000-deal deck, the Table Score, and `judge` for the five-stage bar ([benchmark](benchmark.md)) |
 | 0 Suphx teacher | Built as the lab's `lucky-cat-suphx`. It is folded into phase 1 as the per-move deal-in teacher every arm trains with |
-| 1 Features v2, labels as targets | **Built and training.** `npm run ml:frontier` ([frontier training](frontier-training.md)). Lucky Cat round 1 is in progress; Sphinx's rounds follow |
+| 1 Features v2, labels as targets | **Built and training.** `npm run ml:frontier` ([frontier training](frontier-training.md)). Lucky Cat round 1 kept nothing (LV1a, +4.3 to +7.6, failed the bar); round 2 is running with retuned arms, then Sphinx |
 | 2 Structured network | Designed (§4); not built. Starts when the phase-1 MLP stops improving |
 | 3 Value, policy iteration, league, pipeline | Designed (§4, §5, §6); not built |
 | 3b Search as a teacher | Designed (§5); not built |
@@ -354,6 +354,10 @@ Lucky Cat round 1: 20,000 deals of lc32 widened to features v2, at the game's ta
   - *Evidence:* LV1a and LV1c had the same weight, KL 0.004 from lc32 each, and the same AUCs (0.874 and 0.873). Only the teacher's tau differed. They screened at +7.6 and −2.7.
   - *Changed:* a single screen is a coin with a ±5-point edge, which is why the bar qualifies and replicates on 40,000 deals each.
   - *Open:* whether to screen two seeds of each arm before spending a judgment.
+- **Round 1's verdict: nothing kept. LV1a failed the bar at the judgment's own screen.**
+  - *Evidence:* LV1a screened at +7.6 ± 5.0 points a hand over lc32 in the round (1.54 SE). On the judgment's fresh 10,000 deals it was +4.3 ± 5.0 (0.86 SE, and the screen needs 1). Hands won were level both times (24.35% vs 24.34%), and deal-ins were lower both times (12.52% vs 12.75%). Pooled, the two screens are about +6.0 ± 3.5: likely a real gain of a few points a hand, too small to clear a 1-SE screen reliably.
+  - *Changed:* the bar did its job. A small, uncertain gain doesn't become a generation, and LV1a doesn't come back. Round 1 also showed the policy barely moving (KL 0.004), so from round 2 two of the three arms train at lr 1e-3 for 8 epochs instead of 3e-4 for 4, to move further on what the heads read. Arm a stays as the control.
+  - *Open:* the driver's screen and the judgment's screen are two independent 10,000-deal screens, so a candidate must pass 1 SE twice before it qualifies. For an effect near +5 points (about 1 SE at that size), each screen is close to a coin flip, and two in a row reject most real small gains. Worth weighing in review: pool the two screens, size the screen to the effect the phase expects, or accept that the bar only admits steps of about +8 or more.
 - **Data is cheaper than budgeted.**
   - *Evidence:* 20,000 deals with the hidden tiles recorded took 5.5 minutes on 7 workers, about 8.7 deals a second a worker, against 3.6 in the first probe.
   - *Changed:* phase 3's volumes cost less than §6 assumed.

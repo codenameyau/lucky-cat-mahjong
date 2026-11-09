@@ -77,11 +77,14 @@ const LINEAGES = {
     // One seat at the game's table, as the lab trains Lucky Cat.
     generate: () => ['--learners', '1', '--pool', TABLE, '--sample', '0.5'],
     deals: 20000,
+    // Round 1 (LV1): aux 1 cost hands won, and at lr 3e-4 for 4 epochs the
+    // policy moved a KL of only 0.004 from lc32. So a stays as the control
+    // and b, c train at about 3x the rate for twice the epochs.
     arms: [
-      { key: 'a', why: 'teacher + reading the table (aux 0.2)', args: ['--aux', '0.2'] },
-      { key: 'b', why: 'teacher + reading the table, strongly (aux 1)', args: ['--aux', '1'] },
-      { key: 'c', why: 'sharper teacher (danger-tau 50) + aux 0.2', args: ['--aux', '0.2', '--danger-tau', '50'] },
-    ].map((x) => Object.assign(x, { args: ['--mode', 'oracle', '--lr', '3e-4', '--epochs', '4'].concat(x.args) })),
+      { key: 'a', why: 'teacher + aux 0.2 (control: lr 3e-4, 4 epochs)', args: ['--lr', '3e-4', '--epochs', '4', '--aux', '0.2'] },
+      { key: 'b', why: 'teacher + aux 0.2, moved further (lr 1e-3, 8 epochs)', args: ['--lr', '1e-3', '--epochs', '8', '--aux', '0.2'] },
+      { key: 'c', why: 'sharper teacher (danger-tau 50) + aux 0.2, lr 1e-3, 8 epochs', args: ['--lr', '1e-3', '--epochs', '8', '--aux', '0.2', '--danger-tau', '50'] },
+    ].map((x) => Object.assign(x, { args: ['--mode', 'oracle'].concat(x.args) })),
   },
   sphinx: {
     prefix: 'SP', seed: 960000000,
