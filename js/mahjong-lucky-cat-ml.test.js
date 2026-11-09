@@ -80,11 +80,11 @@ describe('Lucky Cat network', () => {
     assert.ok(winWeight(10, 8) < winWeight(4, 3));
   });
 
-  it('has the coach say how often the network plays the move', () => {
+  it('has the coach say how often Lucky Cat makes the move', () => {
     const bot = LC.create({ weights: N.randomWeights(7) });
     const Coach = require('./mahjong-coach.js').forStrategy(bot);
     const hint = Coach.turnHint(dealt(29), 0, { win: null, kongs: [] });
-    const line = hint.tips.filter((t) => /^Lucky Cat's network plays this/.test(t))[0];
+    const line = hint.tips.filter((t) => /^Lucky Cat discards this/.test(t))[0];
     assert.ok(line, 'no network line in ' + JSON.stringify(hint.tips));
     assert.match(line, /\d+% of the time/);
     assert.ok(line.length <= 400);
@@ -110,7 +110,7 @@ describe('Lucky Cat network', () => {
           assert.equal(read.choices[0].decision.type, 'pass');
           assert.deepEqual(d.decision, read.choices[read.pick].decision);
           assert.deepEqual(d.decision, bot.chooseClaim(g, s, o));
-          if (claims === 1) assert.match(Coach.claimHint(g, s, o).model, /^Lucky Cat's network would \w.*% of the time/);
+          if (claims === 1) assert.match(Coach.claimHint(g, s, o).model, /^Lucky Cat would \w.*% of the time/);
         }
         return Promise.resolve(d.decision);
       },

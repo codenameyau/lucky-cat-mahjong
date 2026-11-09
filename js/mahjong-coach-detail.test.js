@@ -51,7 +51,7 @@ test('Simple is the action and the hand to go for, with no reason and never the 
   for (const id of ['neural-cat', 'jorge-yau', 'lucky-cat', 'only-orphans']) {
     for (const seed of [3, 5, 9, 29, 41]) {
       const h = hintFor(id, 'simple', seed);
-      assert.doesNotMatch(words(h), /model expects|score|chance to win|network plays/, id + ' ' + seed);
+      assert.doesNotMatch(words(h), /model expects|score|chance to win|Lucky Cat (discards this|would|plays)/, id + ' ' + seed);
       assert.ok(h.tips.length <= 1, id + ' says one thing after the action at most');
       assert.doesNotMatch(words(h), /I like it because|I pick it because/, id + ' ' + seed + ' gives no reason');
       if (h.aim) assert.match(words(h), /\. Go for [^.]+, (about \d+ faan|the 13 faan limit)(, short of the \d+ faan minimum)?\.$/, id + ' ' + seed + ': ' + words(h));
@@ -129,14 +129,14 @@ test('Feedback follows the coach setting: numbers only on Complex, "I" on Simple
       if (!s) continue;
       for (const [name, fb] of [['simple', s], ['detailed', d]]) {
         const w = words(fb);
-        assert.doesNotMatch(w, /\bthe model\b|network plays|\bscore\b/i, name + ' ' + id + ' ' + seed + ': ' + w);
+        assert.doesNotMatch(w, /\bthe model\b|Lucky Cat (discards this|would|plays)|\bscore\b/i, name + ' ' + id + ' ' + seed + ': ' + w);
         assert.ok(w.length <= Coach.MAX_TEXT);
       }
       assert.ok(s.tips.length <= 1, 'Simple gives one reason');
       // Simple also names the hand to go for (Coach.aimSentence), which the others leave out.
       const aim = (' ' + Coach.aimSentence(feedbackHint(id, seed).aim)).trimEnd();
       assert.ok(words(s).length - aim.length <= words(d).length && words(d).length <= words(c).length + 120, id + ' ' + seed);
-      if (/model expects|network plays/.test(words(c))) complexNumbers++;
+      if (/model expects|Lucky Cat (discards this|would|plays)/.test(words(c))) complexNumbers++;
     }
   }
   assert.ok(complexNumbers > 0, 'Complex still gives the model\'s numbers');

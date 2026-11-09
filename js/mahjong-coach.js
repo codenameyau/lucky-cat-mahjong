@@ -1066,7 +1066,7 @@
   // score for a move, only a share learned from the points its hands paid,
   // so its line says how sure it is.
   function policyLine(list, pick, m) {
-    var line = 'Lucky Cat\'s network plays this discard ' + pct(m.policy) + ' of the time';
+    var line = 'Lucky Cat discards this ' + pct(m.policy) + ' of the time';
     var next = list.filter(function (x) { return x !== pick && x.ml; })
       .sort(function (a, b) { return b.ml.policy - a.ml.policy; })[0];
     if (next && next.ml.policy >= 0.005) line += '. Next most likely is ' + E.tileName(next.tile) + ': ' + pct(next.ml.policy) + ' of the time';
@@ -1132,7 +1132,7 @@
       var rest = read.choices.filter(function (x) { return x !== pick; })
         .sort(function (a, b) { return b.ml.policy - a.ml.policy; }).slice(0, 2);
       var act = function (x) { return ifYou(x.decision, tile).replace(/^if you /, '') + ' ' + pct(x.ml.policy) + ' of the time'; };
-      return 'Lucky Cat\'s network would ' + [pick].concat(rest).map(act).join(', and ') + '.';
+      return 'Lucky Cat would ' + [pick].concat(rest).map(act).join(', and ') + '.';
     }
     var ranked = [pick].concat(read.choices.filter(function (x) { return x !== pick; })
       .sort(function (a, b) { return b.ml.ev - a.ml.ev; }).slice(0, 2));
@@ -1375,7 +1375,7 @@
       return { kind: 'feedback', action: 'Great discard.', tips: tips };
     }
     var out = ['I pick ' + best + '. ' + (hint.why || ''),
-      'Lucky Cat\'s network plays ' + best + ' ' + pct(top.ml.policy) + ' of the time, and ' + mine + ' ' + pct(chosen.ml.policy) + ' of the time.'];
+      'Lucky Cat plays ' + best + ' ' + pct(top.ml.policy) + ' of the time, and ' + mine + ' ' + pct(chosen.ml.policy) + ' of the time.'];
     var action = steps ? 'That discard slows your hand.'
       : chosen.ml.policy >= top.ml.policy * 0.4 ? 'Good discard.' : 'There was a better discard.';
     return { kind: 'feedback', action: action, tips: out.map(function (t) { return t.trim(); }) };
@@ -1446,7 +1446,7 @@
   }
 
   function isModelTip(t) {
-    return /^(On average, )?[Tt]he model expects |^Lucky Cat's network /.test(plain(t));
+    return /^(On average, )?[Tt]he model expects |^Lucky Cat (discards this|would|plays) /.test(plain(t));
   }
 
   function shape(hint, detail) {

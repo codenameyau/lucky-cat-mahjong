@@ -177,7 +177,7 @@ The lab now also trains Lucky Cat the way Suphx, Microsoft's mahjong AI, was tra
 
 ## What the coach says
 
-The coach's words about the hand (what to go for, the waits, the threats) come from the classic rules' reads. What to do is the network's move. Its line says how often the network plays that move, and the next most likely one, for example "Lucky Cat's network plays this discard 62% of the time. Next most likely is 5 Bamboo: 21% of the time." For a claim or a kong it gives the share of each choice: "Lucky Cat's network would pung Red Dragon 60% of the time, and pass 40% of the time." After your discard, it is a great discard when the network gives your tile at least 80% of its top pick's share.
+The coach's words about the hand (what to go for, the waits, the threats) come from the classic rules' reads. What to do is the network's move. Its line says how often Lucky Cat makes that move, and the next most likely one, for example "Lucky Cat discards this 62% of the time. Next most likely is 5 Bamboo: 21% of the time." For a claim or a kong it gives the share of each choice: "Lucky Cat would pung Red Dragon 60% of the time, and pass 40% of the time." After your discard, it is a great discard when the network gives your tile at least 80% of its top pick's share.
 
 ## The classic rules
 

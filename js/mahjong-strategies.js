@@ -65,7 +65,7 @@
         'Since LC21 it keeps learning in the lab, from fresh games against its last few versions, Neural Cat and Jorge Yau, and a new version replaces it only when it wins clearly more hands over 20,000 new deals. Since LC31 it also learns from the hands it lost by dealing in, and makes those discards less likely, with a network twice as wide. LC32 wins 28.7% of hands to LC20\'s 15.3% when they meet, just as fast, and deals in less.',
         'It values speed over size. It wins often and in few discards, mostly small hands of 4 to 5 faan, and it deals in more often than Neural Cat does. Against Neural Cat it wins about twice as many hands but scores fewer points, because Neural Cat\'s hands are worth more.',
         'It never looks at the wall or another player\'s hand, and a test checks that shuffling those changes nothing it does. A win of 3 faan or more is always declared.',
-        'The coach says how often the network plays the move it picks, and the next most likely one. The words about the hand, such as its plans and waits, come from the classic Lucky Cat rules, kept as Lucky Cat Classic for simulations and reviews.',
+        'The coach says how often Lucky Cat makes the move it picks, and the next most likely one. The words about the hand, such as its plans and waits, come from the classic Lucky Cat rules, kept as Lucky Cat Classic for simulations and reviews.',
       ],
       doc: 'docs/strategies/lucky-cat.md',
     },
