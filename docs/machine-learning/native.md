@@ -9,6 +9,8 @@ npm run native:parity -- --agents neural-cat,jorge-yau,neural-cat,neural-cat --d
 
 Once it's built, nothing else changes. `make -C native pgo` rebuilds the fast build profile-guided (a few percent more). `bench.js` (compare, score, judge) and `lucky.js generate` use it whenever every player in a job can run natively, and fall back to the JS otherwise. `LCM_JS=1` forces the JS.
 
+**On Windows**, build with clang from [llvm-mingw](https://github.com/mstorsjo/llvm-mingw) (`winget install MartinStorsjo.LLVM-MinGW.UCRT`, then put its `bin` on the PATH for the build). The exact build needs clang (`#pragma clang fp contract`), and the LLVM installer alone has no C++ headers. The Makefile uses `-march=native` on x86-64 and links the C++ runtime in statically on Windows, so the builds (`lcm-sim.exe`, `lcm-sim-exact.exe`) run without llvm-mingw on the PATH. The simulator puts stdout in binary mode on Windows, so its traces and JSON are byte for byte the JS's. Checked on an x86-64 desktop: the native tests pass, and the reference compare (lc32v2 against lc32 on 1,000 deals from seed 990,000,000, `--exact`) gives −87.1 ± 15.1 points a hand for both, as on the Mac.
+
 ## What's ported
 
 | JS | C++ |

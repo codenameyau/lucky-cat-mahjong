@@ -25,8 +25,10 @@ const crypto = require('node:crypto');
 const { spawn, execFileSync } = require('node:child_process');
 const E = require('../../js/mahjong-engine.js');
 // The fast build plays training, screens and judgments; the exact build is diffed against the JS.
-const SIM = process.env.LCM_SIM || path.join(ROOT, 'native', 'build', 'lcm-sim');
-const SIM_EXACT = process.env.LCM_SIM_EXACT || path.join(ROOT, 'native', 'build', 'lcm-sim-exact');
+// On Windows the compiler names the builds lcm-sim.exe and lcm-sim-exact.exe.
+const EXE = process.platform === 'win32' ? '.exe' : '';
+const SIM = process.env.LCM_SIM || path.join(ROOT, 'native', 'build', 'lcm-sim' + EXE);
+const SIM_EXACT = process.env.LCM_SIM_EXACT || path.join(ROOT, 'native', 'build', 'lcm-sim-exact' + EXE);
 const PORTED = path.join(ROOT, 'native', 'ported.json');
 
 // The JS the port plays exactly as (native/ported.json, written by `native.js pin`

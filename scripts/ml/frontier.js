@@ -164,7 +164,7 @@ async function main(a) {
   const save = () => fs.writeFileSync(STATE, JSON.stringify(state, null, 2) + '\n');
   save();
   const workers = a.workers ? ['--workers', String(a.workers)] : [];
-  const py = path.join(ROOT, 'ml', '.venv', 'bin', 'python');
+  const py = require('./python').PYTHON;
   const rounds = parseInt(a.rounds || 1, 10);
   for (let k = 0; k < rounds; k++) {
     state.round++;
