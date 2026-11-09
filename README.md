@@ -392,6 +392,8 @@ Neural Cat's, Lucky Cat's and Only Orphans' networks are trained on simulated ha
 | `npm run ml:lab -- --strategy lucky-cat` | Trains Lucky Cat's network at the game's table (one seat against Neural Cat, Jorge Yau and Neural Cat), aiming to keep its win rate and score more points. Each move it is unsure of is replayed with its next-best moves on 4 reshuffled futures of the wall, and it learns from the points each move scored on average. Kept only if its points a hand beat the champion's by about two standard errors on 40,000 deals. State in `ml/lab-lucky-cat/`. How to run it, and what to try if it stalls: [ml/LUCKY_CAT_HANDOFF.md](ml/LUCKY_CAT_HANDOFF.md) |
 | `npm run ml:lab -- --strategy lucky-cat-suphx` | Trains Lucky Cat the way Suphx was trained: the hidden tiles (the other hands, the wall, what each discard would pay right now) are recorded for training only, and an oracle teacher pushes down each discard that would deal in. The network, reading only its own seat, learns from it. Kept only if its points beat the champion's at the table and its hands won hold. State in `ml/lab-lucky-cat-suphx/`; run it first ([handoff](ml/LUCKY_CAT_HANDOFF.md)) |
 | `npm run ml:frontier -- --lineage lucky-cat` | The frontier plan's phase 1: rounds on features v2 (who threw what, and shanten and live waits per discard), with the hidden tiles as targets the network learns to predict, never as inputs. Each round's best arm becomes the next generation only by passing the benchmark's bar (`npm run ml:bench`). `--lineage sphinx` trains Sphinx from random weights. [Frontier training](docs/machine-learning/frontier-training.md) |
+| `npm run native:build` | Builds the native simulator (`native/`, C++): the engine and the benchmark table's players, which `bench.js` and `lucky.js generate` then use on their own. Two builds: `lcm-sim` (fast: training data and screens) and `lcm-sim-exact` (every hand as the JS plays it: judgments and Table Scores). `make -C native pgo` rebuilds the fast one profile-guided. [Native simulator](docs/machine-learning/native.md) |
+| `npm run native:parity -- --agents neural-cat,jorge-yau,neural-cat,neural-cat --deals 1000` | Plays the same seeded hands in the JS and on the exact build and compares every action; the first difference fails it |
 | `npm run ml:league` | The league that came before the lab (it plateaued after L7). State in `ml/league/` |
 | `npm run ml:orphans` | Trains the learned Only Orphans in rounds of 50,000 games, ranked each round against the best model and the rule-based Only Orphans; milestones ship to `js/mahjong-only-orphans-weights.js`. Progress in [only-orphans-training.md](docs/strategies/only-orphans-training.md), state in `ml/orphans/` |
 | `npm run ml:hf -- --repo codenameyau/lucky-cat-mahjong` | Uploads each new best model and the model card to Hugging Face. `--watch` keeps going until the league is done |
@@ -410,11 +412,14 @@ Uploads go over git and SSH, so your SSH key must be on your Hugging Face accoun
 | 1 | New inputs (who threw what, in order; engine facts such as shanten and live waits) on the current network, with the hidden tiles as prediction targets (built: `npm run ml:frontier`) | +25 more; deal-ins at the table ≤ 11% |
 | 2 | A tile-structured network (tokens per tile kind) with a policy and a value per tile | +20 more, within 10 ms a move in the browser |
 | 3 | A value over how the hand ends and at what faan, regularized policy iteration, value-guided exploration, a league | +40 more; points a hand at the game's table ≥ 0 |
-| 3b, 4 | Search: offline as a teacher, then optionally at play ("thinks longer") | +15, then +20 |
+| 3b, 4 | Search: offline as a teacher, then optionally at play. **3b deferred, 4 dropped**: a Monte Carlo search that knew every hidden hand measured no gain (+7.8 ± 8.4 points a choice), and 1–1.5 s a move breaks the browser promise | +15, then +20 |
 
 - **The benchmark** (built: [benchmark](docs/machine-learning/benchmark.md)): two Neural Cat NC8 and Jorge Yau, frozen; a fixed deck of 40,000 deals; one number per model, its **Table Score** (points a hand at that table). `node scripts/ml/bench.js score <model>` scores one, and `node scripts/ml/bench.js judge <model> --lineage lucky-cat` runs the bar below.
 - **The bar for a next generation**: two standard errors better on 40,000 fresh paired deals, **replicated** on another 40,000, with the win rate held and no loss to any earlier generation or league opponent.
 - **Two lineages** on the same benchmark: **Lucky Cat**, carrying on from lc32 with its own methods, and **Sphinx**, trained from random weights on the new architecture.
+- **Where it stands** (2026-11-09): lc32 is still Lucky Cat's generation 1. Phase 1's 9 arms and 3 policy-gradient probes learned to read the table (deal-in AUC 0.92, waits 0.61) but none passed the bar: training on what each hand scored is mostly luck until phase 3's per-move value exists. Sphinx is paused: its recipe (imitating its own wins from random self-play) lost about 43 points a hand to random play.
+- **The native simulator** (built: [native simulator](docs/machine-learning/native.md)): the engine and the benchmark table's players in C++. A round's data takes 13 s instead of 330 s, and a 2,000-deal compare 10 s instead of about 200. It runs as a **hybrid**: training data and screens on a fast build, judgments and Table Scores on an exact build that plays every hand as the JS does. The fast build isn't bit-exact (a move tied to the last bit can go the other way), an accepted trade-off for training data, flagged as an important potential issue in the plan.
+- **History and decisions:** every choice so far, with why and the evidence, is in [frontier history](docs/machine-learning/frontier-history.md).
 - **Fair play**: training may use the hidden tiles as labels and as a teacher, never as the shipped model's inputs. `ship.js` refuses a model that reads them, and the fair-play test catches one that plays through the training hook ([fair play](docs/machine-learning/fair-play.md)).
 
 #### Hand review and feedback
@@ -465,6 +470,7 @@ This runs `node --test` over the test files listed in `package.json`:
 - **Site** — the homepage renderer, community page, tile quiz and generated tile pages
 - **Scripts** — the media formatter and hand review
 - **Coach feedback** — every case in `docs/strategies/feedback.json` marked fixed
+- **Native simulator** — once it's built (`npm run native:build`): the exact build plays the same hands as the JS action for action, the fast build plays the exact build's hands, and weights round-trip through `.lcmw` (skipped when it isn't built, as on CI)
 
 Harnesses in `js/points.harness.js` and `js/main.harness.js` load each script in a mocked browser environment, so scoring logic and CMS rendering can be tested without opening the page.
 
@@ -579,11 +585,13 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── generate-guide.js                # Printable rules booklet PDF
 │   └── licensing-agreement.js           # Licensing agreement PDF
 ├── ml/                                  # train.py and requirements.txt (local data, models and the venv are gitignored)
+├── native/                              # The native simulator (C++): the engine and the benchmark table's players; build/ is gitignored
+├── bench/                               # The frozen benchmark, the lineages' generations and their Table Scores
 ├── docs/
 │   ├── README.md                        # Index of the docs
 │   ├── analytics/                       # Google Analytics setup, privacy and every event
 │   ├── offline/                         # The service worker and what works offline
-│   ├── machine-learning/                # Neural Cat: features, model, decisions, training, fair play, Hugging Face
+│   ├── machine-learning/                # Neural Cat and the frontier plan: features, model, training, fair play, the benchmark, the native simulator, history
 │   └── strategies/                      # Bot and coach playbooks, and feedback.json
 ├── assets/                              # Music, sounds, PDFs and images
 ├── package.json                         # npm scripts

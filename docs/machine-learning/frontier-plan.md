@@ -17,7 +17,7 @@ Everything here must keep two promises: the shipped model reads only what its se
 | 3b Search as a teacher | **Deferred.** A Monte Carlo search with perfect beliefs added nothing measurable (§11); revisit only once the value heads exist |
 | 4 Search at play (optional) | **Dropped.** 1–1.5 s a move breaks the browser promise, and search measured no gain (§11) |
 
-What each phase has taught is in [§11 Learnings](#11-learnings).
+What each phase has taught is in [§11 Learnings](#11-learnings). The history, and every decision with why, is [frontier history](frontier-history.md).
 
 This table is updated as phases move. The full record of every round is `ml/frontier/<lineage>/frontier.log`. Kept generations go in `bench/lineages.json` and their Table Scores in `bench/scores.json`.
 
