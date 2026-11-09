@@ -173,3 +173,7 @@ ml/frontier/
 
 # The native simulator's build and its converted weights (npm run native:build)
 native/build/
+
+# Python bytecode
+__pycache__/
+*.pyc
