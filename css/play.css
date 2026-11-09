@@ -1,12 +1,44 @@
 :root {
+  /* The colour themes. Red is the default; the game sets data-theme on <html>
+     (green or blue override these) and reads the same variables for the canvas. */
+  --theme-felt: #6e1a2c;
+  --theme-light: #8c2639;
+  --theme-dark: #4a0f1c;
+  --theme-deep: #3d0d18;
+  --theme-edge: #7f2336;
+  --theme-meta: #4a0f1c;
+  --theme-primary: #C41E3A;
+  --theme-primary-hover: #D62A47;
+  --theme-back-light: #d8344f;
+  --theme-back-dark: #8f1229;
+  --theme-accent: #EE6A80;
+}
+:root[data-theme="green"] {
+  --theme-felt: #0b5a39;
   --theme-light: #127048;
   --theme-dark: #074029;
   --theme-deep: #0a3d27;
+  --theme-edge: #05693A;
+  --theme-meta: #074029;
   --theme-primary: #1C8B53;
+  --theme-primary-hover: #25A363;
+  --theme-back-light: #2FA866;
+  --theme-back-dark: #0F5C36;
   --theme-accent: #6FD3A0;
 }
-:root[data-theme="blue"] { --theme-light: #16609a; --theme-dark: #082f52; --theme-deep: #0a2f4d; --theme-primary: #2377C4; --theme-accent: #7FBCF0; }
-:root[data-theme="red"] { --theme-light: #8c2639; --theme-dark: #4a0f1c; --theme-deep: #3d0d18; --theme-primary: #C41E3A; --theme-accent: #EE6A80; }
+:root[data-theme="blue"] {
+  --theme-felt: #0d4a7a;
+  --theme-light: #16609a;
+  --theme-dark: #082f52;
+  --theme-deep: #0a2f4d;
+  --theme-edge: #0a5c94;
+  --theme-meta: #082f52;
+  --theme-primary: #2377C4;
+  --theme-primary-hover: #3490DD;
+  --theme-back-light: #3E91D8;
+  --theme-back-dark: #154F85;
+  --theme-accent: #7FBCF0;
+}
 
 /* Play page: settings preview card and the full-screen canvas stage. */
 

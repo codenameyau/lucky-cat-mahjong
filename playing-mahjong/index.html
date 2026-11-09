@@ -7,7 +7,7 @@
   <meta name="description" content="Play Hong Kong mahjong for free with a coach to help you get better at playing.">
   <meta name="author" content="Lucky Cat Mahjong">
   <meta name="robots" content="noindex, follow">
-  <meta name="theme-color" content="#C41E3A">
+  <meta name="theme-color" content="#4a0f1c">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="canonical" href="https://luckycatmahjong.com/play-mahjong/">
@@ -36,14 +36,16 @@
   <script>
     // The table covers the page from the first paint.
     document.documentElement.classList.add('is-playing');
-    // The colour theme (green, blue or red) from the saved game prefs, before the first paint.
+    // The colour theme from the saved game prefs, before the first paint. No saved theme
+    // is the default (red). The colours are CSS variables (css/play.css), the address bar's too.
     try {
       var t = JSON.parse(localStorage.getItem('lcm-play-prefs') || '{}').theme;
-      if (t === 'blue' || t === 'red') document.documentElement.setAttribute('data-theme', t);
-      // The address bar matches the theme from the first paint (game.js changes it with the theme).
-      var c = { blue: '#082f52', red: '#4a0f1c' }[t] || '#074029';
-      document.querySelector('meta[name="theme-color"]').setAttribute('content', c);
-      document.documentElement.style.backgroundColor = c;
+      if (typeof t === 'string' && /^[a-z]+$/.test(t)) document.documentElement.setAttribute('data-theme', t);
+      var c = getComputedStyle(document.documentElement).getPropertyValue('--theme-meta').trim();
+      if (c) {
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', c);
+        document.documentElement.style.backgroundColor = c;
+      }
     } catch (e) {}
   </script>
   <script>
