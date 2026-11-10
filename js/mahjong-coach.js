@@ -856,10 +856,13 @@
 
   function fit(h) {
     if (!h || !h.tips) return h;
-    // A strategy's own numbers stay longest: a network's line, or a rule strategy's odds.
-    var isModel = function (t) { return /^(On average, )?[Tt]he model expects |^Odds to finish /.test(plain(t)); };
+    // A network's line stays longest. A rule strategy's odds go first: they
+    // add to the advice, and never push out a reason, plan or threat.
+    var isModel = function (t) { return /^(On average, )?[Tt]he model expects /.test(plain(t)); };
+    var isOdds = function (t) { return /^Odds to finish /.test(plain(t)); };
     while (textLength(h) > MAX_TEXT && h.tips.length) {
       var drop = -1;
+      for (var o = h.tips.length - 1; o >= 1 && drop === -1; o--) if (isOdds(h.tips[o])) drop = o;
       for (var k = h.tips.length - 1; k >= 1 && drop === -1; k--) if (!isModel(h.tips[k])) drop = k;
       for (var j = h.tips.length - 1; j >= 1 && drop === -1; j--) drop = j;
       if (drop === -1) {
