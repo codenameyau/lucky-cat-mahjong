@@ -1360,7 +1360,7 @@ Thinking: if the data was the problem in round 3, replayed labels should pay off
 Thinking: replayed labels made the network predict better without choosing better; maybe it needed to learn which option is best, not only what each is worth. Every option a seat weighed was played on 12 times from the position, and the network learned a ranking loss over each group (FM5).
 
 - **The ranking loss broke the values:** by recipe −44.7 ± 9.4 points a hand against N14c, −44.4 with the reader, −18.4 with a wider body. A loss on the order of options leaves their level free, and claims compare an option's level against passing.
-- **The control is ahead:** replayed labels on two rounds of every-seat data, +6.8 ± 2.4 by recipe (FM5c0 +7.8 ± 3.4 over 60,000 deals), winning 18.6% of hands against 17.3%. FM5c0 goes to the bar.
+- **The control is ahead:** replayed labels on two rounds of every-seat data, +6.8 ± 2.4 by recipe (FM5c0 +7.8 ± 3.4 over 60,000 deals), winning 18.6% of hands against 17.3%. On the benchmark's bar it fell short at the screen (+3.7 ± 7.9 points a hand against NC9 over 10,000 deals), so NC9 stays.
 - **What the bots did differently:** the control's models win more hands and slightly bigger ones (5.86 faan against 5.75), for a few more deal-ins (12.1% against 11.9%).
 
 ### FC1: what ships, and what it does differently

@@ -101,7 +101,7 @@ The current generation is the last one in `bench/lineages.json`; `--vs` gives an
 node scripts/ml/bench.js judge nc:ml/models/<name>.json --lineage neural-cat
 ```
 
-The first judgment on version 2 was Frontier Cat FC1 against NC9: fair play passed, and the screen gave **+6.6 ± 8.1 points a hand** over 10,000 deals (0.8 standard errors), short of the 1 it needs, so it stopped there ([frontier plan](frontier-plan.md#learnings)).
+The first judgment on version 2 was Frontier Cat FC1 against NC9: fair play passed, and the screen gave **+6.6 ± 8.1 points a hand** over 10,000 deals (0.8 standard errors), short of the 1 it needs, so it stopped there ([frontier plan](frontier-plan.md#learnings)). The second was round 5's FM5c0: fair play passed, and the screen gave **+3.7 ± 7.9** (0.47 standard errors), with 1.46 ± 0.20 points more of its hands won. It stopped there too.
 
 A generation's model should be pinned by `git:<commit>:<path>` once it ships, so that anyone with the repository can play it again. A local `ml/models/` path works on the machine that trained it, and its SHA-256 says whether it is still the same file.
 
