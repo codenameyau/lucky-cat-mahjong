@@ -184,6 +184,12 @@ async function main() {
     const lab = S.learner === 'neural-cat' ? readJson(path.join(ROOT, 'ml', 'lab', 'state.json'), null) : null;
     state.champion = a.start ? String(a.start) : lab && lab.champion ? lab.champion : S.start;
     state.members = lab && lab.members ? lab.members.slice(-2) : [];
+    // A game weights file (.js) is written out as JSON for ml/train.py --init.
+    if (state.champion.endsWith('.js')) {
+      const w = weightsOf(state.champion), out = path.join('ml', 'models', (w.meta.name || path.basename(state.champion, '.js')) + '.json');
+      if (!fs.existsSync(path.join(ROOT, out))) writeJson(path.join(ROOT, out), w);
+      state.champion = out;
+    }
     log('The first champion is ' + state.champion);
   }
   const rounds = parseInt(a.rounds || 1, 10);
