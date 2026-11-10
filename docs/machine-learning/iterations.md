@@ -103,6 +103,7 @@ Every training idea and every milestone model is a section below, in the order t
   - [A wider choice](#a-wider-choice)
   - [Round 3: replayed labels](#round-3-replayed-labels)
   - [Round 4: replays on fresh every-seat data](#round-4-replays-on-fresh-every-seat-data)
+  - [Round 5: option replays and a ranking loss](#round-5-option-replays-and-a-ranking-loss)
   - [FC1: what ships, and what it does differently](#fc1-what-ships-and-what-it-does-differently)
 - [Where the files are](#where-the-files-are)
 - [Documenting a release](#documenting-a-release)
@@ -1353,6 +1354,14 @@ Thinking: if the data was the problem in round 3, replayed labels should pay off
 - **Level, not ahead.** By recipe against N14c over 60,000 deals: replayed labels +0.6 ± 2.4, with the reader +0.7 ± 2.4, the control +2.1 ± 2.4. Round 3's learner-only data had them 5 to 6 points behind, so every-seat data fixes the drift.
 - **Prediction again, not play.** Validation loss 3.1090–3.1092 with replays, 3.1086–3.1087 with the reader too, against 3.1111–3.1116 for the control. Twice now the better labels haven't made better moves, so FC1 stays.
 - **What the bots did differently:** all six won more hands than N14c (18.5% against 17.4%) and dealt in more (12.3 to 12.5% against 11.8%), the control as much as the rest, which points to the one round of exploring data rather than the labels.
+
+### Round 5: option replays and a ranking loss
+
+Thinking: replayed labels made the network predict better without choosing better; maybe it needed to learn which option is best, not only what each is worth. Every option a seat weighed was played on 12 times from the position, and the network learned a ranking loss over each group (FM5).
+
+- **The ranking loss broke the values:** by recipe −44.7 ± 9.4 points a hand against N14c, −44.4 with the reader, −18.4 with a wider body. A loss on the order of options leaves their level free, and claims compare an option's level against passing.
+- **The control is ahead:** replayed labels on two rounds of every-seat data, +6.8 ± 2.4 by recipe (FM5c0 +7.8 ± 3.4 over 60,000 deals), winning 18.6% of hands against 17.3%. FM5c0 goes to the bar.
+- **What the bots did differently:** the control's models win more hands and slightly bigger ones (5.86 faan against 5.75), for a few more deal-ins (12.1% against 11.9%).
 
 ### FC1: what ships, and what it does differently
 

@@ -86,6 +86,7 @@ Each step against N14c, the champion every model started from. The networks are 
 | 4 A wider choice | Best 10 options, and every option, in place of 6 | (same weights) | +2.2 ± 3.5 and +0.8 ± 3.6, with about 1 point more deal-ins | Not kept: the choice stays at 6 |
 | 5 Replayed labels | 8 replays of a quarter of the discards (round 3) | Better: 3.0641–3.0642 against 3.0656–3.0658; with the read too, 3.0636–3.0638 | −4.9 ± 3.6 (with the read) against −6.5 ± 3.6 (control), by recipe | Better predictions, not yet better play |
 | 5 again, every seat | Replays on fresh every-seat data (round 4, 150,000 deals) | Better: 3.1090–3.1092, with the read 3.1086–3.1087, against 3.1111–3.1116 | replays +0.6 ± 2.4, with the read +0.7 ± 2.4, control +2.1 ± 2.4 | Level; replays still help prediction, not play |
+| 5, 6 Option replays, a ranking loss | Every option weighed played on 12 times (round 5), the ranking loss, a wider body, the reader FR1 | Option values: 3.1064–3.1066 against 3.1054–3.1055 | ranking loss −44.7 ± 9.4, with the reader −44.4 ± 9.4, wider −18.4 ± 7.4, option values +1.7 ± 2.4, control **+6.8 ± 2.4** | The ranking loss breaks a fine-tuned value; the control (two rounds of every-seat data) is a candidate |
 | Every seat recorded | The lab's data in place of the frontier's | (different data) | level: −1.5 to +2.9 ± about 5.5 | The fix for the drift |
 | All together (FC1) | The reader, replayed labels, every-seat data | | +4.5 ± 2.7 over 100,000 deals | Ships as Frontier Cat, for play and review |
 

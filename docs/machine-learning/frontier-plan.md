@@ -278,6 +278,18 @@ fm-4: 150,000 deals on the native simulator, every seat recorded (N14c exploring
 - *Changed:* nothing ships from this round; FC1 stays. Replayed labels have now improved prediction twice and play never, so step 5 is set aside as a lever on play: a lower validation loss on the real endings isn't turning into better moves at this size. fm-2 was moved to the Trash; fm-3 and fm-4 are kept.
 - *Open:* why better predictions don't move play. One reading: the endings' noise isn't what holds the value back, but the 28 outputs' disagreement on the few options that matter. A loss on the gap between the options of one position (ranking, not regression) would test it.
 
+### Round 5: option replays and a ranking loss hurt; the control is a candidate (2026-11-10)
+
+fm-5: 80,000 deals on the native simulator, every seat recorded (865,775 positions), with replayed labels and option replays: at a tenth of the recorded decisions, every option the seat weighed (its top 4 discards and each kong, or passing, each call and the kong) was played on 12 times from the position (88,661 groups, 334,720 option rows). A new reader, FR1, was trained on fm-4's every-seat data. Five recipes of two seeds from N14c on fm-4 and fm-5, lr 1e-4: r (option replays and the ranking loss, weight 1), o (option replays as values only), s (r with the reader FR1), w (r with a wider body, 768 and 384, grown from N14c), c (replayed labels only, the control).
+
+- **The ranking loss breaks a fine-tuned value.**
+  - *Evidence (points a hand against N14c, 4,000 deals, each ± about 13):* r −42.5 and −46.9, s −42.1 and −46.6, w −24.9 and −4.0, all dropped (w1 at the next stage, −11.9 ± 5.9 over 20,000 deals). By recipe: r −44.7 ± 9.4, s −44.4 ± 9.4, w −18.4 ± 7.4.
+  - The listwise loss compares options within a position and leaves their level free, so it pulls the expected points away from the scale that claims compare against passing. On held-out groups the models' picks gave up as much against the replays' best option as the moves played had (regret 175 to 184 points against 175): the ranking signal itself, 12 replays an option, was too noisy to learn from.
+- **Option rows as values are harmless, and add nothing.** *Evidence:* o +1.5 and +1.9 ± 3.4 over 60,000 deals, by recipe +1.7 ± 2.4; validation loss 3.1064 and 3.1066, against the control's 3.1054 and 3.1055.
+- **The control is ahead.** *Evidence:* c +7.8 and +5.8 ± 3.4 over 60,000 deals, by recipe +6.8 ± 2.4 (2.8 standard errors), hands won 18.6% against 17.3%, deal-ins 12.1% against 11.9%, 5.86 faan against 5.75. FM5c0 is a candidate and is being judged on the bar ([benchmark](benchmark.md)). Round 4's control was level (+2.1 ± 2.4); the difference is a second round of every-seat data in the window.
+- *Changed:* the ranking loss and option values are dropped for Neural Cat. More rounds of every-seat data with replayed labels are the lever that moved it.
+- *For Lucky Cat:* the same ranking loss helped a value trained from scratch ([Lucky Cat](../strategies/lucky-cat.md#the-value)), so it stays there.
+
 ### Step 4: a wider choice gains nothing (2026-11-10)
 
 N14c, the champion, scores Jorge Yau's best 6 discards (its `meta.play.topK`). The same weights scoring his best 10, and every legal discard, each against N14c on 40,000 fresh deals at the game's table (the native simulator):
