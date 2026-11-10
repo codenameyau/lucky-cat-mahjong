@@ -51,12 +51,29 @@ describe('strategy registry', () => {
     });
   });
 
-  it('names each learned strategy\'s model apart from its summary', () => {
+  it('opens each learned strategy\'s summary with its name and model', () => {
     assert.match(S.get('neural-cat').model, /^NC\d+$/);
     assert.match(S.get('lucky-cat').model, /^LC\d+$/);
     assert.equal(S.get('jorge-yau').model, undefined);
-    S.list().forEach((s) => assert.doesNotMatch(s.summary, /^Model /, s.id));
+    assert.match(S.get('neural-cat').summary, /^Neural Cat NC\d+ /);
+    assert.match(S.get('lucky-cat').summary, /^Lucky Cat LC\d+ /);
+    assert.match(S.get('only-orphans').summary, /^Only Orphans OT\w+ /);
     assert.match(S.get('jorge-yau').summary, /^Play mahjong the way the founder of Lucky Cat plays\./);
+  });
+
+  it('keeps how often a strategy wins out of its summary, and its numbers last in its details', () => {
+    S.list().forEach((s) => {
+      assert.doesNotMatch(s.summary, /\d+(\.\d+)?%|hands? in \d|one hand in/, s.id);
+      const last = s.details[s.details.length - 1];
+      if (s.model) assert.match(last, /^Its numbers: /, s.id);
+    });
+  });
+
+  it('writes hand names in their canonical form, so the sheet highlights them', () => {
+    const NON_CANONICAL = /\b(Big|Small) (Dragons|Winds)\b|(?<!Big |Small )\bThree Dragons\b|(?<!Big |Small )\bFour Winds\b/;
+    S.list().forEach((s) => {
+      [s.summary].concat(s.details).forEach((t) => assert.doesNotMatch(t, NON_CANONICAL, s.id + ': ' + t));
+    });
   });
 
   it('falls back to the default for an unknown id', () => {
@@ -712,7 +729,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.59.1');
+    assert.equal(E.GAME_VERSION, '0.59.2');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
