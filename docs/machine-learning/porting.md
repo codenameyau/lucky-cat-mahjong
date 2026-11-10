@@ -8,6 +8,7 @@ The models play in three places today: the browser (plain JS), the native simula
 - [The weights](#the-weights)
 - [The forward pass](#the-forward-pass)
 - [The outputs](#the-outputs)
+- [A stacked model: the reader](#a-stacked-model-the-reader)
 - [The three checks](#the-three-checks)
 - [Where training runs](#where-training-runs)
 - [What is and isn't exact](#what-is-and-isnt-exact)
@@ -72,6 +73,26 @@ Expected points are in [the model](model.md#expected-points). The frontier model
 
 The first 28 rows of the last layer are the play model, unchanged, so a frontend that only plays can ignore the rest.
 
+## A stacked model: the reader
+
+A stacked model (the [frontier plan](frontier-plan.md)'s step 3) has two networks. The **reader** reads the 568 features and gives the heads above (158 outputs). Sixteen numbers are made from its outputs, the **read** (read version 1, `readFeatures` in `js/mahjong-ml-model.js`, `NeuralCat::input` in `native/src/neural_cat.cpp`):
+
+| Read | From the reader's outputs | As |
+| --- | --- | --- |
+| 0–2 | 52–54, each opponent ready | `1 / (1 + exp(-z))` each |
+| 3 | 55, the tile thrown deals in now | `1 / (1 + exp(-z))` |
+| 4–15 | 28–39, the hand this seat wins with | softmax: subtract the largest, `exp`, divide by the sum |
+
+The **move network** then reads the 568 features followed by the read (584 inputs) and gives the 28 outputs, read as above. Compute the read in double precision and store it as float32, as the JS does.
+
+In the files:
+- **JSON:** `readerVersion: 1` and `reader: { dtype, layers }` beside the move network's `layers`, whose first layer has 584 columns.
+- **`.lcmw`:** version 2. The header also has `readerVersion` and `reader.layers` (each `{ rows, cols }`), and the reader's arrays follow the move network's, in the same layout.
+
+A frontend that only knows plain models must refuse a file with a `reader`: the move network can't be run without the read.
+
+The reader costs about 2.7 times a plain model's evaluation in JS (0.36 ms against 0.13 ms on a laptop), and Neural Cat evaluates its best few discards a turn (6 for N14c), so a turn costs about 2 ms.
+
 ## The three checks
 
 Each one is a file a port can read and compare against, with no JS to run.
@@ -80,7 +101,7 @@ Each one is a file a port can read and compare against, with no JS to run.
 | --- | --- | --- | --- |
 | **The network** | The forward pass gives the same outputs | `ml/models/<name>.check.json`: 16 inputs and their outputs from PyTorch | `node scripts/ml/parity.js <weights> <check>` (the largest difference must be under 0.001) |
 | **The rows** | The features and labels of a position are the same bytes | The shard files of a short run (`shard-N.features`, float16; `.labels`; `.aux`) | `npm run ml:generate -- parity --deals 200` |
-| **The actions** | Every move of every hand is the same | A trace: one line an action for a list of deals | `node scripts/ml/native.js parity --agents neural-cat,jorge-yau,neural-cat,jorge-yau --deals 2000` |
+| **The actions** | Every move of every hand is the same | A trace: one line an action for a list of deals | `node scripts/ml/native.js parity --agents neural-cat,jorge-yau,neural-cat,jorge-yau --deals 2000`, or `--agents nc:<model.json>,...` for another model, a stacked one among them |
 
 A Swift port passes when it reads the same weights, reproduces the check file's outputs, and prints the same trace for the same deal seeds. The action check is the one that matters to a player: it says the app plays the hand the way the website does.
 

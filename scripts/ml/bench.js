@@ -355,7 +355,10 @@ async function fairPlay(id) {
   if (id.startsWith('lc:') || id.startsWith('nc:')) {
     const w = readWeights(id.slice(3));
     if ((w.meta || {}).oracle) why.push('it is an oracle model (meta.oracle)');
-    if (w.layers[0].cols !== w.featureSize) why.push('its first layer reads ' + w.layers[0].cols + ' inputs, not its ' + w.featureSize + ' features');
+    // A stacked model's move network reads its features and its reader's read of them.
+    const cols = w.featureSize + (w.reader ? require('../../js/mahjong-ml-model.js').READ_SIZE : 0);
+    if (w.layers[0].cols !== cols) why.push('its first layer reads ' + w.layers[0].cols + ' inputs, not its ' + cols + ' (features' + (w.reader ? ' and the read' : '') + ')');
+    if (w.reader && w.reader.layers[0].cols !== w.featureSize) why.push('its reader reads ' + w.reader.layers[0].cols + ' inputs, not its ' + w.featureSize + ' features');
   }
   if (!why.length) {
     try { await require('./fair-play.js').playAll(id, bot(id), null, 4); } catch (err) { why.push(err.message.split('\n')[0]); }

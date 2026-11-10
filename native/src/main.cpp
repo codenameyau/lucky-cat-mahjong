@@ -67,16 +67,29 @@ static std::unique_ptr<Agent> makeAgentChecked(const std::string& id, bool check
     std::string file = id == "neural-cat" ? "native/build/neural-cat.lcmw" : id.substr(3);
     auto& m = models[file];
     if (!m) m = std::make_shared<Mlp>(loadWeights(file));
-    auto f = std::make_shared<NeuralCat>(m);
+    // Each model keeps its own memory of a seat's plan, under its own name, as the JS
+    // (create({ id })): an earlier model at the table and the learner reading that
+    // seat for training data mustn't share it. "neural-cat" is the shipped one.
+    auto f = std::make_shared<NeuralCat>(m, id == "neural-cat" ? std::string("neural-cat") : id);
     f->check = check;
     return std::unique_ptr<Agent>(new BotAgent(f));
   }
   // Lucky Cat: lc:<file.lcmw>, features v1 or v2 (scripts/ml/native.js converts a .json model).
+  // With a value (js/mahjong-lucky-cat-value.js): lc:<policy.lcmw>+<value.lcmw>.
   if (id.rfind("lc:", 0) == 0) {
     static std::map<std::string, std::shared_ptr<Mlp>> models;
-    auto& m = models[id];
-    if (!m) m = std::make_shared<Mlp>(loadWeights(id.substr(3)));
+    static std::map<std::string, std::shared_ptr<ValueNet>> values;
+    std::string rest = id.substr(3), vfile;
+    size_t plus = rest.find('+');
+    if (plus != std::string::npos) { vfile = rest.substr(plus + 1); rest = rest.substr(0, plus); }
+    auto& m = models[rest];
+    if (!m) m = std::make_shared<Mlp>(loadWeights(rest));
     auto lc = std::unique_ptr<LuckyCat>(new LuckyCat(m));
+    if (!vfile.empty()) {
+      auto& v = values[vfile];
+      if (!v) v = std::make_shared<ValueNet>(std::make_shared<Mlp>(loadWeights(vfile)), lucky::VALUE_SIZE);
+      lc->value = v;
+    }
     lc->check = check;
     return std::unique_ptr<Agent>(lc.release());
   }
@@ -191,6 +204,24 @@ int main(int argc, char** argv) {
       if (a.count("out")) { j.out = a["out"]; j.write = true; }
       return runGenerate(j, [](const std::string& id) { return makeAgent(id); });
     }
+    if (cmd == "generate-lcv") {
+      // Lucky Cat's value data (js/mahjong-lucky-cat-value.js): native only.
+      NcGenerateJob j;
+      j.weights = a["weights"];
+      j.temperature = a.count("temperature") ? std::stod(a["temperature"]) : 1;
+      j.epsilon = a.count("epsilon") ? std::stod(a["epsilon"]) : 0.1;
+      j.sample = a.count("sample") ? std::stod(a["sample"]) : 0.12;
+      j.seed = uint32_t(std::stoul(a["seed"]));
+      j.deals = std::stol(a["deals"]);
+      j.shard = a.count("shard") ? std::stoi(a["shard"]) : 0;
+      j.pool = split(a["pool"], ',');
+      if (a.count("strategies")) for (auto& k : split(a["strategies"], ',')) j.poolStrategies.push_back(std::stoi(k));
+      j.out = a["out"];
+      j.optionReplays = a.count("option-replays") ? std::stoi(a["option-replays"]) : 0;
+      j.options = a.count("options") ? std::stoi(a["options"]) : 4;
+      j.optionShare = a.count("option-share") ? std::stod(a["option-share"]) : 0.1;
+      return runGenerateLcv(j, [](const std::string& id) { return makeAgent(id); });
+    }
     if (cmd == "generate-nc") {
       // scripts/ml/generate.js's worker (Neural Cat and the frontier model): the same shard files.
       NcGenerateJob j;
@@ -204,6 +235,16 @@ int main(int argc, char** argv) {
       j.strategy = a.count("strategy") ? std::stoi(a["strategy"]) : 0;
       j.pool = split(a["pool"], ',');
       j.out = a["out"];
+      j.replays = a.count("replays") ? std::stoi(a["replays"]) : 0;
+      if (a.count("record-all")) {
+        j.recordAll = true;
+        for (auto& k : split(a["record-all"], ',')) j.poolStrategies.push_back(std::stoi(k));
+        if (j.poolStrategies.size() != j.pool.size()) throw std::runtime_error("lcm-sim generate-nc: --record-all needs a strategy index for each pool id");
+      }
+      j.replayShare = a.count("replay-share") ? std::stod(a["replay-share"]) : 0.25;
+      j.optionReplays = a.count("option-replays") ? std::stoi(a["option-replays"]) : 0;
+      j.options = a.count("options") ? std::stoi(a["options"]) : 4;
+      j.optionShare = a.count("option-share") ? std::stod(a["option-share"]) : 0.1;
       return runGenerateNc(j, [](const std::string& id) { return makeAgent(id); });
     }
     if (cmd == "shanten") {

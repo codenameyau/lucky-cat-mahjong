@@ -19,6 +19,30 @@ data without it trains the first 28 outputs only. The model the game plays
 is still the first 28 outputs; <name>.heads.json keeps all of them, and
 <name>.heads-report.json says how well each head reads.
 
+--reader FILE (a <name>.heads.json) trains a stacked model (frontier plan,
+step 3): the reader's read of each position (READ_SIZE values, as
+js/mahjong-ml-model.js readFeatures makes them) goes after the features, and
+the move network reads both. The read is computed once per data set and
+reader and cached beside the data (read-<reader hash>.f4). --init starts the
+move network from a plain model with zero weights on the read, so it starts
+out playing exactly as that model.
+
+--replay learns from replayed labels (frontier plan, step 5; generate.js
+--native --replays K): on a replayed row the target is the real ending and
+the K replays' endings together, a distribution in place of one draw, for
+how the hand ends and for the faan won and paid. Validation still scores
+the one real ending, so models with and without it compare.
+
+--options learns from option replays (frontier plan, steps 5 and 6; generate.js
+--native --option-replays K): groups of rows, one for each option a seat weighed
+at a position (the discards, the kong, passing, each call), each played on K
+times from it. Each option row learns from its replays' endings (--option-weight),
+and --rank-weight adds a listwise loss on each group: the model's values of the
+options (expected points and the win bonus, as the game ranks them) against the
+replays' mean values, both through a softmax at --rank-temp points. Validation
+reports, on held-out groups, the points the model's pick gives up against the
+replays' best (regret) and how often it is the replays' best.
+
 Writes ml/models/<name>.json (weights, float16 base64) and checks the JS
 model gives the same outputs. --ship also writes js/mahjong-ml-weights.js,
 the copy the page and npm run compete load.
@@ -56,9 +80,65 @@ H_READY = H_RULE + N_HANDS         # each opponent ready (3)
 H_DEAL = H_READY + 3               # the tile thrown deals in now (1)
 H_WAITS = H_DEAL + 1               # each ready opponent's winning tiles (3 x 34)
 HEAD_OUTPUTS = H_WAITS + 102
+READ_SIZE = 16  # js/mahjong-ml-model.js readFeatures, read version 1
 
 
-def load(dirs, limit=None, heads=False):
+def read_layers(weights):
+    """A JSON model's layers as float32 numpy arrays."""
+    dt = '<f2' if weights.get('dtype') == 'f16' else '<f4'
+    out = []
+    for l in weights['layers']:
+        w = np.frombuffer(base64.b64decode(l['w']), dtype=dt).astype(np.float32).reshape(l['rows'], l['cols'])
+        b = np.frombuffer(base64.b64decode(l['b']), dtype=dt).astype(np.float32)
+        out.append((w, b))
+    return out
+
+
+def reader_net(layers, device):
+    net = Net(layers[0][0].shape[1], [w.shape[0] for w, _ in layers[:-1]], 0, layers[-1][0].shape[0])
+    for lin, (w, b) in zip(net.linears(), layers):
+        lin.weight.data = torch.from_numpy(w.copy())
+        lin.bias.data = torch.from_numpy(b.copy())
+    return net.to(device).eval()
+
+
+def read_of(raw):
+    """readFeatures in js/mahjong-ml-model.js: each opponent ready, the tile thrown deals in now, the hand it wins with."""
+    return torch.cat([torch.sigmoid(raw[:, H_READY:H_READY + 3]), torch.sigmoid(raw[:, H_DEAL:H_DEAL + 1]),
+                      torch.softmax(raw[:, H_WIN:H_WIN + N_HANDS], 1)], 1)
+
+
+def cached_read(dirs, manifests, x, reader_file, device, batch=16384):
+    """The reader's read of every row, cached per data set beside its shards."""
+    import hashlib
+    with open(reader_file, 'rb') as f:
+        tag = hashlib.sha256(f.read()).hexdigest()[:16]
+    with open(reader_file) as f:
+        net = reader_net(read_layers(json.load(f)), device)
+    out = np.empty((len(x), READ_SIZE), dtype=np.float32)
+    at = 0
+    for d, m in zip(dirs, manifests):
+        n = sum(s['samples'] for s in m['shards'])
+        cache = os.path.join(d, 'read-%s.f4' % tag)
+        if os.path.exists(cache) and os.path.getsize(cache) == n * READ_SIZE * 4:
+            out[at:at + n] = np.fromfile(cache, dtype=np.float32).reshape(n, READ_SIZE)
+            print('Read of %s: cached (%s)' % (d, os.path.basename(cache)))
+        else:
+            t0 = time.time()
+            with torch.no_grad():
+                for i in range(at, at + n, batch):
+                    j = min(at + n, i + batch)
+                    out[i:j] = read_of(net(torch.from_numpy(x[i:j].astype(np.float32)).to(device))).cpu().numpy()
+            out[at:at + n].tofile(cache)
+            print('Read of %s: %d rows in %.1fs, cached as %s' % (d, n, time.time() - t0, os.path.basename(cache)))
+        at += n
+    return out
+
+
+REPLAY_BYTES = 30  # native/src/generate_nc.cpp: replays, outcome counts (6), win faan (11), pay faan (11), unused
+
+
+def load(dirs, limit=None, heads=False, replay=False):
     # Read straight into one array: the data can be most of the memory.
     labels, manifests = [], []
     for d in dirs:
@@ -74,6 +154,7 @@ def load(dirs, limit=None, heads=False):
     # 255 in the first byte of a row: no aux for it (older data).
     aux = np.full((total, AUX_BYTES), 255, dtype=np.uint8) if heads else None
     has_aux = np.zeros(total, dtype=bool)
+    rep = np.zeros((total, REPLAY_BYTES), dtype=np.uint8) if replay else None
     at = 0
     for m in manifests:
         for s in m['shards']:
@@ -85,6 +166,8 @@ def load(dirs, limit=None, heads=False):
             if heads and m.get('auxBytes') == AUX_BYTES and s.get('aux'):
                 aux[at:at + n] = np.fromfile(os.path.join(m['dir'], s['aux']), dtype=np.uint8).reshape(-1, AUX_BYTES)
                 has_aux[at:at + n] = True
+            if replay and s.get('replay'):
+                rep[at:at + n] = np.fromfile(os.path.join(m['dir'], s['replay']), dtype=np.uint8).reshape(-1, REPLAY_BYTES)
             at += n
     y = np.concatenate(labels)
     if limit and len(x) > limit:
@@ -93,7 +176,73 @@ def load(dirs, limit=None, heads=False):
         has_aux = has_aux[idx]
         if heads:
             aux = aux[idx]
-    return x, y, manifests, aux, has_aux
+        if replay:
+            rep = rep[idx]
+    if replay:
+        print('Replayed labels: %d of %d rows' % (int((rep[:, 0] > 0).sum()), total))
+    return x, y, manifests, aux, has_aux, rep
+
+
+OPT_BYTES = 56  # native/src/generate_nc.cpp: one option row's labels
+
+
+def load_options(manifests, size):
+    """The option groups of every shard that has them: features, labels, and a padded group matrix."""
+    xs, ls, gid, at = [], [], [], 0
+    for m in manifests:
+        for s in m['shards']:
+            if not s.get('options'):
+                continue
+            x = np.fromfile(os.path.join(m['dir'], s['options']), dtype=np.float16).reshape(-1, size)
+            l = np.fromfile(os.path.join(m['dir'], s['optlabels']), dtype=np.uint8).reshape(-1, OPT_BYTES)
+            assert len(x) == len(l), 'option rows mismatch in ' + m['dir']
+            g = l[:, 0:4].copy().view('<u4').ravel().astype(np.int64)
+            xs.append(x); ls.append(l); gid.append(g + at)
+            at += int(g.max()) + 1 if len(g) else 0
+    if not xs:
+        return None
+    x, l, g = np.concatenate(xs), np.concatenate(ls), np.concatenate(gid)
+    _, g = np.unique(g, return_inverse=True)
+    n_groups = int(g.max()) + 1
+    order = np.argsort(g, kind='stable')
+    width = int(np.bincount(g).max())
+    mat = np.full((n_groups, width), -1, dtype=np.int64)
+    starts = np.searchsorted(g[order], np.arange(n_groups))
+    for k in range(width):
+        pos = starts + k
+        ok = (pos < len(order)) & (g[order][np.minimum(pos, len(order) - 1)] == np.arange(n_groups))
+        mat[ok, k] = order[pos[ok]]
+    seed = l[mat[:, 0], 20:24].copy().view('<u4').ravel()
+    print('Option groups: %d positions, %d option rows (up to %d a position)' % (n_groups, len(x), width))
+    return {'x': x, 'labels': l, 'groups': mat, 'seed': seed}
+
+
+def option_value(out, bonus):
+    """The value the game ranks options by: expected points plus the win bonus times the chance to win."""
+    p = torch.softmax(out[:, :N_OUTCOMES], 1)
+    return expected_points(out) + bonus * (p[:, 0] + p[:, 1])
+
+
+def option_losses(out, lab):
+    """Each option row's value heads against its replays' endings (counts only)."""
+    cnt = lab[:, 9:15]
+    lo = -(cnt / cnt.sum(1, keepdim=True).clamp(min=1) * F.log_softmax(out[:, :N_OUTCOMES], 1)).sum(1).mean()
+    def faan(lo_, hi, c):
+        m = c.sum(1) > 0
+        if not m.any():
+            return out.new_zeros(())
+        t = c[m] / c[m].sum(1, keepdim=True)
+        return -(t * F.log_softmax(out[m, lo_:hi], 1)).sum(1).mean()
+    return lo + 0.5 * faan(N_OUTCOMES, N_OUTCOMES + N_FAAN, lab[:, 32:43]) + 0.5 * faan(N_OUTCOMES + N_FAAN, OUTPUTS, lab[:, 43:54])
+
+
+def rank_loss(v, t, mask, temp):
+    """Listwise: the replays' softmax over a group's options against the model's (padded with mask)."""
+    neg = torch.finfo(v.dtype).min / 4
+    tv = torch.where(mask, t / temp, torch.full_like(t, neg))
+    mv = torch.where(mask, v / temp, torch.full_like(v, neg))
+    p = torch.softmax(tv, 1)
+    return -(p * torch.where(mask, F.log_softmax(mv, 1), torch.zeros_like(mv))).sum(1).mean()
 
 
 class Net(nn.Module):
@@ -120,6 +269,24 @@ def losses(out, y_outcome, y_win, y_pay):
     zero = out.new_zeros(())
     lw = F.cross_entropy(out[win, N_OUTCOMES:N_OUTCOMES + N_FAAN], y_win[win]) if win.any() else zero
     lp = F.cross_entropy(out[pay, N_OUTCOMES + N_FAAN:OUTPUTS], y_pay[pay]) if pay.any() else zero
+    return lo, lw, lp
+
+
+def soft_losses(out, y_outcome, y_win, y_pay, rep):
+    """losses() with replayed endings: each row's target is its real ending plus its replays'
+    (rep: float, B x 30). A row with no replays is exactly losses()."""
+    one = lambda y, n: F.one_hot(y, n).float()
+    t_o = one(y_outcome, N_OUTCOMES) + rep[:, 1:7]
+    lo = -(t_o / t_o.sum(1, keepdim=True) * F.log_softmax(out[:, :N_OUTCOMES], 1)).sum(1).mean()
+    def faan(lo_, hi, y, real, counts):
+        t = one(y, N_FAAN) * real.float().unsqueeze(1) + counts
+        m = t.sum(1) > 0
+        if not m.any():
+            return out.new_zeros(())
+        t = t[m] / t[m].sum(1, keepdim=True)
+        return -(t * F.log_softmax(out[m, lo_:hi], 1)).sum(1).mean()
+    lw = faan(N_OUTCOMES, N_OUTCOMES + N_FAAN, y_win, y_outcome <= 1, rep[:, 7:18])
+    lp = faan(N_OUTCOMES + N_FAAN, OUTPUTS, y_pay, (y_outcome == 2) | (y_outcome == 3), rep[:, 18:29])
     return lo, lw, lp
 
 
@@ -263,6 +430,14 @@ def main():
     ap.add_argument('--heads', action='store_true', help="train the frontier model's extra heads from shard-N.aux")
     ap.add_argument('--head-weight', type=float, default=0.5, help='weight of the extra heads in the loss')
     ap.add_argument('--seed', type=int, default=0)
+    ap.add_argument('--reader', help='a <name>.heads.json: train a stacked model that reads its read')
+    ap.add_argument('--replay', action='store_true', help='learn from replayed labels (shard-N.replay)')
+    ap.add_argument('--options', action='store_true', help='learn from option replays (shard-N.options)')
+    ap.add_argument('--option-weight', type=float, default=0.5, help="weight of the option rows' value loss")
+    ap.add_argument('--rank-weight', type=float, default=0.0, help='weight of the listwise loss on each group of options')
+    ap.add_argument('--rank-temp', type=float, default=100.0, help='the softmax temperature of the ranking loss, in points')
+    ap.add_argument('--win-bonus', type=float, default=None, help="the win bonus options are ranked with (default: --init's, else 300)")
+    ap.add_argument('--group-batch', type=int, default=256, help='option groups a step')
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -272,9 +447,13 @@ def main():
     if device.startswith('cuda'):
         print('GPU: %s (%.0f GB)' % (torch.cuda.get_device_name(device), torch.cuda.get_device_properties(device).total_memory / 1e9))
     t0 = time.time()
-    x, y, manifests, aux, has_aux = load(args.data, args.limit or None, args.heads)
+    x, y, manifests, aux, has_aux, rep = load(args.data, args.limit or None, args.heads, args.replay)
     outputs = HEAD_OUTPUTS if args.heads else OUTPUTS
     size = manifests[0]['featureSize']
+    if args.reader and args.limit:
+        sys.exit('--reader caches the read for whole data sets: leave out --limit')
+    rd = cached_read(args.data, manifests, x, args.reader, device) if args.reader else None
+    inputs = size + (READ_SIZE if args.reader else 0)
     print('Loaded %d samples of %d features from %s (%.1fs)' % (len(x), size, ', '.join(args.data), time.time() - t0))
     counts = np.bincount(y['outcome'], minlength=N_OUTCOMES) / len(y)
     print('Outcomes: ' + ', '.join('%s %.1f%%' % (k, 100 * v) for k, v in zip(manifests[0]['outcomes'], counts)))
@@ -294,20 +473,84 @@ def main():
         fetch_t = lambda pos: torch.from_numpy(x[tr_rows[pos]]).to(device).float()
         fetch_v = lambda pos: torch.from_numpy(x[va_rows[pos]]).to(device).float()
         print('Data is %.1f GB: keeping it in memory, a batch at a time on the device' % (x.nbytes / 1e9))
+    raw_v = fetch_v
+    if rd is not None:
+        rt, rv = to(rd[tr_rows], torch.float32), to(rd[va_rows], torch.float32)
+        base_t, base_v = fetch_t, fetch_v
+        fetch_t = lambda pos: torch.cat([base_t(pos), rt[torch.from_numpy(pos).to(device)]], 1)
+        fetch_v = lambda pos: torch.cat([base_v(pos), rv[torch.from_numpy(pos).to(device)]], 1)
     out_t, out_v = to(y['outcome'][~val], torch.long), to(y['outcome'][val], torch.long)
     win_t = to(np.clip(y['winFaan'][~val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
     win_v = to(np.clip(y['winFaan'][val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
     pay_t = to(np.clip(y['payFaan'][~val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
     pay_v = to(np.clip(y['payFaan'][val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
     delta_v = y['delta'][val]
+    if args.replay:
+        rep_t = to(rep[~val], torch.float32)
     if args.heads:
         aux_t, aux_v = to(aux[~val], torch.uint8), aux[val]
         has_t = to(has_aux[~val], torch.bool)
         print('Extra heads: %d of %d rows carry their labels' % (int(has_aux.sum()), len(has_aux)))
+    opt_data = load_options(manifests, size) if args.options else None
+    if args.options and opt_data is None:
+        sys.exit('--options: no shard has option rows (generate.js --native --option-replays K)')
+    bonus = args.win_bonus
+    if bonus is None:
+        bonus = 300.0
+        if args.init:
+            with open(args.init) as f:
+                bonus = float(((json.load(f).get('meta') or {}).get('play') or {}).get('winBonus', 300))
+    if opt_data is not None:
+        ox = opt_data['x']
+        if args.reader:
+            with open(args.reader) as f:
+                rnet = reader_net(read_layers(json.load(f)), device)
+            with torch.no_grad():
+                ord_ = np.concatenate([read_of(rnet(torch.from_numpy(ox[i:i + 16384].astype(np.float32)).to(device))).cpu().numpy()
+                                       for i in range(0, len(ox), 16384)])
+            ox_in = np.concatenate([ox.astype(np.float32), ord_], 1)
+        else:
+            ox_in = ox.astype(np.float32)
+        oxt = to(ox_in, torch.float32)
+        olab = to(opt_data['labels'].astype(np.float32), torch.float32)
+        omean = to(opt_data['labels'][:, 16:20].copy().view('<f4').ravel(), torch.float32)
+        ocnt = opt_data['labels'][:, 9:15].astype(np.float32)
+        owin = to((ocnt[:, 0] + ocnt[:, 1]) / np.maximum(1, ocnt.sum(1)), torch.float32)
+        otarget = omean + bonus * owin
+        gval = (opt_data['seed'].astype(np.uint64) * 2654435761 % 2**32) % 20 == 0
+        gmat = opt_data['groups']
+        g_tr, g_va = gmat[~gval], gmat[gval]
+        print('Option groups: %d to train on, %d held out; ranked with a win bonus of %g, at %g points' % (len(g_tr), len(g_va), bonus, args.rank_temp))
+
+    def group_batch(mat):
+        m = torch.from_numpy(mat).to(device)
+        mask = m >= 0
+        flat = m.clamp(min=0)
+        return flat, mask
+
+    def rank_report(model):
+        model.eval()
+        regret, top, played = [], [], []
+        with torch.no_grad():
+            for i in range(0, len(g_va), 4096):
+                flat, mask = group_batch(g_va[i:i + 4096])
+                v = option_value(model(oxt[flat.view(-1)]), bonus).view(flat.shape)
+                t = otarget[flat.view(-1)].view(flat.shape)
+                v = torch.where(mask, v, torch.full_like(v, -1e30))
+                tm = torch.where(mask, t, torch.full_like(t, -1e30))
+                best = tm.max(1).values
+                pick = v.argmax(1)
+                got = t.gather(1, pick.unsqueeze(1)).squeeze(1)
+                regret.append((best - got).cpu()); top.append((pick == tm.argmax(1)).cpu())
+                ch = (olab[flat.view(-1), 4].view(flat.shape) > 0) & mask
+                played.append((best - (t * ch).sum(1)).cpu())
+        model.train()
+        return float(torch.cat(regret).mean()), float(torch.cat(top).float().mean()), float(torch.cat(played).mean())
+
     print('Training on %d, validating on %d, on %s' % (n_train, n_val, device))
 
     hidden = [int(h) for h in args.hidden.split(',') if h]
-    model = Net(size, hidden, args.dropout, outputs).to(device)
+    model = Net(inputs, hidden, args.dropout, outputs).to(device)
     if args.init:
         with open(args.init) as f:
             init = json.load(f)
@@ -315,8 +558,16 @@ def main():
             dt = '<f2' if init.get('dtype') == 'f16' else '<f4'
             w = np.frombuffer(base64.b64decode(l['w']), dtype=dt).astype(np.float32).reshape(l['rows'], l['cols'])
             b = np.frombuffer(base64.b64decode(l['b']), dtype=dt).astype(np.float32)
-            # A wider last layer (the extra heads) keeps its own start for the new rows.
+            # More rows than the start (the extra heads, or a wider layer): the new rows keep
+            # their own random start. More columns (a stacked model's read, or the units
+            # a wider layer below added): zeros, so the model starts out as the one it came
+            # from, and the new units learn from there.
             rows = min(l['rows'], lin.weight.shape[0])
+            if lin.weight.shape[1] != w.shape[1]:
+                lin.weight.data[:, w.shape[1]:] = 0
+                lin.weight.data[:rows, :w.shape[1]] = torch.from_numpy(w[:rows].copy()).to(device)
+                lin.bias.data[:rows] = torch.from_numpy(b[:rows].copy()).to(device)
+                continue
             lin.weight.data[:rows] = torch.from_numpy(w[:rows].copy()).to(device)
             lin.bias.data[:rows] = torch.from_numpy(b[:rows].copy()).to(device)
         print('Starting from ' + args.init)
@@ -333,10 +584,25 @@ def main():
             pos = np.sort(perm[i:i + args.batch])
             idx = torch.from_numpy(pos).to(device)
             out = model(fetch_t(pos))
-            lo, lw, lp = losses(out, out_t[idx], win_t[idx], pay_t[idx])
+            if args.replay:
+                lo, lw, lp = soft_losses(out, out_t[idx], win_t[idx], pay_t[idx], rep_t[idx])
+            else:
+                lo, lw, lp = losses(out, out_t[idx], win_t[idx], pay_t[idx])
             loss = lo + 0.5 * lw + 0.5 * lp
             if args.heads:
                 loss = loss + args.head_weight * sum(head_losses(out, aux_t[idx], has_t[idx]))
+            if opt_data is not None and len(g_tr):
+                gsel = g_tr[np.random.default_rng(epoch * 100003 + steps).integers(0, len(g_tr), args.group_batch)]
+                flat, mask = group_batch(gsel)
+                rows = flat[mask]
+                o_out = model(oxt[rows])
+                loss = loss + args.option_weight * option_losses(o_out, olab[rows])
+                if args.rank_weight:
+                    full = torch.zeros(flat.numel(), o_out.shape[1], device=device, dtype=o_out.dtype)
+                    full[mask.view(-1)] = o_out
+                    v = option_value(full, bonus).view(flat.shape)
+                    t = otarget[flat.view(-1)].view(flat.shape)
+                    loss = loss + args.rank_weight * rank_loss(v, t, mask, args.rank_temp)
             opt.zero_grad()
             loss.backward()
             opt.step()
@@ -350,13 +616,18 @@ def main():
         if not math.isfinite(corr):
             corr = 0.0
         run /= max(1, steps)
-        print('epoch %2d  train %.4f %.4f %.4f  val %.4f %.4f %.4f  outcome acc %.3f  ev~points r=%.3f  %.0fs' % (
-            epoch + 1, run[0], run[1], run[2], vl[0], vl[1], vl[2], acc, corr, time.time() - t1))
+        rr = rank_report(model) if opt_data is not None and len(g_va) else None
+        print('epoch %2d  train %.4f %.4f %.4f  val %.4f %.4f %.4f  outcome acc %.3f  ev~points r=%.3f%s  %.0fs' % (
+            epoch + 1, run[0], run[1], run[2], vl[0], vl[1], vl[2], acc, corr,
+            ('  options: regret %.1f points, picks the best %.1f%% (as played: regret %.1f)' % (rr[0], 100 * rr[1], rr[2])) if rr else '',
+            time.time() - t1))
         if total < best - 1e-4:
             best, stale = total, 0
             best_state = {k: v.detach().clone() for k, v in model.state_dict().items()}
             best_info = {'valLoss': round(float(total), 5), 'valOutcomeLoss': round(float(vl[0]), 5),
                          'valOutcomeAcc': round(acc, 4), 'evPointsCorr': round(corr, 4), 'epoch': epoch + 1}
+            if rr:
+                best_info.update({'optionRegret': round(rr[0], 2), 'optionPicksBest': round(rr[1], 4), 'optionRegretAsPlayed': round(rr[2], 2)})
         else:
             stale += 1
             if stale >= args.patience:
@@ -375,6 +646,12 @@ def main():
         'gameVersion': manifests[0].get('gameVersion'),
     })
     weights = export(model, meta, manifests[0]['featureVersion'], size)
+    if args.reader:
+        with open(args.reader) as f:
+            rw = json.load(f)
+        weights['readerVersion'] = 1
+        weights['reader'] = {'dtype': rw.get('dtype', 'f16'), 'layers': rw['layers']}
+        weights['meta']['reader'] = (rw.get('meta') or {}).get('name') or os.path.basename(args.reader)
     full = None
     if args.heads:
         # The game plays the first 28 outputs; the rest are kept beside it.
@@ -396,7 +673,10 @@ def main():
         with torch.no_grad():
             for i in range(0, len(va), args.batch * 4):
                 rows = va[i:i + args.batch * 4]
-                outs.append(model(torch.from_numpy(x[rows].astype(np.float32)).to(device)).cpu().numpy())
+                xin = torch.from_numpy(x[rows].astype(np.float32)).to(device)
+                if rd is not None:
+                    xin = torch.cat([xin, torch.from_numpy(rd[rows]).to(device)], 1)
+                outs.append(model(xin).cpu().numpy())
         if outs:
             rep = heads_report(np.concatenate(outs).astype(np.float64), aux[va], y['outcome'][va], manifests[-1].get('hands') or [str(i) for i in range(N_HANDS)])
             rep['name'] = args.name
@@ -409,13 +689,18 @@ def main():
                 print('  %-20s said %.3f%%  happened %.3f%%  wins %5d  AUC %.3f' % (fm['hand'], 100 * fm['said'], 100 * fm['happened'], fm['wins'], fm['auc']))
 
     # The JS model must give the same outputs as this one (float16 weights).
-    sample = fetch_v(np.arange(min(16, n_val)))
-    cpu = Net(size, hidden, 0)
+    # The check's inputs are the features alone: a stacked model's JS runs its reader itself.
+    sample = raw_v(np.arange(min(16, n_val))).cpu()
+    cpu = Net(inputs, hidden, 0)
     for lin, l in zip(cpu.linears(), weights['layers']):
         lin.weight.data = torch.from_numpy(np.frombuffer(base64.b64decode(l['w']), '<f2').astype(np.float32).reshape(l['rows'], l['cols']).copy())
         lin.bias.data = torch.from_numpy(np.frombuffer(base64.b64decode(l['b']), '<f2').astype(np.float32).copy())
     with torch.no_grad():
-        expected = cpu(sample.cpu()).numpy()
+        if args.reader:
+            rnet = reader_net(read_layers(weights['reader']), 'cpu')
+            expected = cpu(torch.cat([sample, read_of(rnet(sample))], 1)).numpy()
+        else:
+            expected = cpu(sample).numpy()
     check = os.path.join(ROOT, 'ml', 'models', args.name + '.check.json')
     with open(check, 'w') as f:
         json.dump({'inputs': sample.cpu().numpy().tolist(), 'outputs': expected.tolist()}, f)

@@ -37,7 +37,7 @@ const GROUPS = {
   engine: ['js/mahjong-engine.js', 'js/points.js'],
   'jorge-yau': ['js/mahjong-bot.js', 'js/mahjong-jorge-yau.js'],
   'neural-cat': ['js/mahjong-bot.js', 'js/mahjong-jorge-yau.js', 'js/mahjong-ml.js', 'js/mahjong-ml-features.js', 'js/mahjong-ml-model.js'],
-  'lucky-cat': ['js/mahjong-lucky-cat-ml.js', 'js/mahjong-lucky-cat-net.js', 'js/mahjong-frontier-net.js'],
+  'lucky-cat': ['js/mahjong-lucky-cat-ml.js', 'js/mahjong-lucky-cat-net.js', 'js/mahjong-frontier-net.js', 'js/mahjong-lucky-cat-value.js', 'js/mahjong-ml-model.js'],
 };
 const sha = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 // A file as the port depends on it: the engine's GAME_VERSION line changes with
@@ -113,6 +113,8 @@ function agentFor(id) {
   if (id === 'simple') return simple;
   if (id === 'jorge-yau') return require('../../js/mahjong-jorge-yau.js');
   if (id === 'neural-cat') return require('../../js/mahjong-ml.js').create({ fast: true });
+  // Neural Cat with other weights (a stacked frontier model among them).
+  if (id.startsWith('nc:')) return require('../../js/mahjong-ml.js').create({ weights: require('./weights.js').readWeights(id.slice(3)), fast: true });
   if (id.startsWith('lc:')) {
     const W = require('./weights.js');
     const w = W.readWeights(id.slice(3));
@@ -188,7 +190,7 @@ async function jsTrace(ids, seed, deals) {
 // The native simulator reads weights as .lcmw: a .json (or git:) model is converted once, cached by its contents.
 const converted = new Map();  // spec -> { stamp, file }: each model converted once a process
 function lcmwFor(spec) {
-  const stamp = spec.startsWith('git:') ? spec : (() => { try { const st = fs.statSync(path.resolve(ROOT, spec)); return st.mtimeMs + ':' + st.size; } catch (e) { return null; } })();
+  const stamp = spec.startsWith('git:') ? spec : (() => { try { const st = fs.statSync(path.resolve(ROOT, spec.replace(/#value$/, ''))); return st.mtimeMs + ':' + st.size + (spec.endsWith('#value') ? '#value' : ''); } catch (e) { return null; } })();
   const hit = converted.get(spec);
   if (hit && stamp && hit.stamp === stamp && fs.existsSync(hit.file)) return hit.file;
   const file = lcmwConvert(spec);
@@ -197,7 +199,8 @@ function lcmwFor(spec) {
 }
 function lcmwConvert(spec) {
   const W = require('./weights.js');
-  const buf = W.toLcmw(W.readWeights(spec));
+  // <file>#value: Lucky Cat's value model, inside its weights (js/mahjong-lucky-cat-value.js).
+  const buf = spec.endsWith('#value') ? W.toLcmw(W.readWeights(spec.slice(0, -6)).value) : W.toLcmw(W.readWeights(spec));
   const dir = path.join(ROOT, 'native', 'build', 'cache');
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, sha(buf).slice(0, 16) + '.lcmw');
@@ -229,7 +232,9 @@ function nativeId(id, bm) {
     const W = require('./weights.js');
     const w = id.endsWith('.lcmw') ? null : W.readWeights(id.slice(3));
     if (w && ((w.meta || {}).oracle || (w.featureVersion !== 1 && w.featureVersion !== 2))) return null;
-    return 'lc:' + (id.endsWith('.lcmw') ? id.slice(3) : lcmwFor(id.slice(3)));
+    // A value model (w.value, version 1 over v1 features) plays as lc:<policy>+<value>.
+    if (w && w.value && (w.featureVersion !== 1 || w.value.featureVersion !== 'lcv1')) return null;
+    return 'lc:' + (id.endsWith('.lcmw') ? id.slice(3) : lcmwFor(id.slice(3)) + (w && w.value ? '+' + lcmwFor(id.slice(3) + '#value') : ''));
   }
   return id === 'simple' ? id : null;
 }
@@ -277,7 +282,11 @@ function playNative(job, models, table) {
 // how a port is verified before it's pinned.
 function simId(id) {
   if (id === 'neural-cat') return 'nc:' + lcmwFor('js/mahjong-ml-weights.js');
-  if ((id.startsWith('lc:') || id.startsWith('nc:')) && !id.endsWith('.lcmw')) return id.slice(0, 3) + lcmwFor(id.slice(3));
+  if ((id.startsWith('lc:') || id.startsWith('nc:')) && !id.endsWith('.lcmw')) {
+    // Lucky Cat with a value: lc:<policy>+<value> (js/mahjong-lucky-cat-value.js).
+    const hasValue = id.startsWith('lc:') && !!require('./weights.js').readWeights(id.slice(3)).value;
+    return id.slice(0, 3) + lcmwFor(id.slice(3)) + (hasValue ? '+' + lcmwFor(id.slice(3) + '#value') : '');
+  }
   return id;
 }
 

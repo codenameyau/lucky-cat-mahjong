@@ -30,6 +30,9 @@ struct Weights {
   int featureVersion = 0, featureSize = 0;
   Json meta;
   std::vector<Layer> layers;
+  // A stacked model (js/mahjong-ml-model.js): the reader's layers, and the version of its read.
+  int readerVersion = 0;
+  std::vector<Layer> reader;
 };
 Weights loadWeights(const std::string& file);
 

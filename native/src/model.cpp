@@ -92,15 +92,24 @@ Weights loadWeights(const std::string& file) {
   w.featureSize = int(h["featureSize"].num(0));
   w.meta = h["meta"];
   size_t at = 12 + hlen;
-  for (auto& l : h["layers"].a) {
-    Layer L;
-    L.rows = int(l["rows"].num(0));
-    L.cols = int(l["cols"].num(0));
-    L.w.resize(size_t(L.rows) * L.cols);
-    L.b.resize(L.rows);
-    std::memcpy(L.w.data(), buf.data() + at, 4 * L.w.size()); at += 4 * L.w.size();
-    std::memcpy(L.b.data(), buf.data() + at, 4 * L.b.size()); at += 4 * L.b.size();
-    w.layers.push_back(std::move(L));
+  auto read = [&](const Json& dims, std::vector<Layer>& out) {
+    for (auto& l : dims.a) {
+      Layer L;
+      L.rows = int(l["rows"].num(0));
+      L.cols = int(l["cols"].num(0));
+      L.w.resize(size_t(L.rows) * L.cols);
+      L.b.resize(L.rows);
+      if (at + 4 * (L.w.size() + L.b.size()) > buf.size()) throw std::runtime_error("weights: " + file + " is too short");
+      std::memcpy(L.w.data(), buf.data() + at, 4 * L.w.size()); at += 4 * L.w.size();
+      std::memcpy(L.b.data(), buf.data() + at, 4 * L.b.size()); at += 4 * L.b.size();
+      out.push_back(std::move(L));
+    }
+  };
+  read(h["layers"], w.layers);
+  // Version 2: a stacked model's reader follows the move network.
+  if (h.has("reader")) {
+    w.readerVersion = int(h["readerVersion"].num(0));
+    read(h["reader"]["layers"], w.reader);
   }
   if (at != buf.size()) throw std::runtime_error("weights: " + file + " has the wrong size");
   return w;

@@ -16,6 +16,8 @@
   var node = typeof module !== 'undefined' && module.exports;
   var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
   var DEFAULT_BOT = node ? require('./mahjong-lucky-cat.js') : root.MahjongLuckyCat;
+  // The names of a stacked model's read (js/mahjong-ml-model.js), where it loads.
+  var M = node ? require('./mahjong-ml-model.js') : root.MahjongMLModel;
   var B = DEFAULT_BOT;
 
   var SUIT_NAME = { c: 'Characters', d: 'Circles', b: 'Bamboo' };
@@ -1141,7 +1143,22 @@
     if (next) line += ' Next best discard is ' + E.tileName(next.tile) + ': ' + pointsWord(next.ml.ev) + '.';
     var why = (m.why || []).filter(function (g) { return g.points >= 1; }).slice(0, 2);
     if (why.length) line += ' This one comes out ahead on ' + why.map(function (g) { return GROUP_WORDS[g.group] || g.group; }).join(' and on ') + '.';
-    return line;
+    return line + readLine(m.read);
+  }
+
+  // A stacked model's read (a Neural Cat model with a reader): who it thinks is ready, how likely the
+  // tile is to win someone the hand right now, and the hand it expects to win with.
+  var READ_SEATS = ['the player on your right', 'the player across', 'the player on your left'];
+  function readLine(read) {
+    if (!read) return '';
+    var out = '', top = 0;
+    read.ready.forEach(function (p, k) { if (p > read.ready[top]) top = k; });
+    if (read.ready[top] >= 0.3) out += ' It reads ' + READ_SEATS[top] + ' as ready (' + pct(read.ready[top]) + ' likely).';
+    if (read.dealNow >= 0.01) out += ' It gives this tile ' + chance(read.dealNow, 'win someone the hand right now') + '.';
+    var h = 0;
+    read.hand.forEach(function (p, k) { if (p > read.hand[h]) h = k; });
+    if (read.hand[h] >= 0.4 && M && M.READ_HANDS) out += ' If you win, it expects ' + M.READ_HANDS[h] + ' (' + pct(read.hand[h]) + ' likely).';
+    return out;
   }
 
   // A rule strategy's numbers: its estimate of finishing the hand it is going
@@ -1188,7 +1205,7 @@
     value: 'keeps a bigger hand in reach',
     safety: 'is the safest tile to throw',
     table: 'fits what the other players are doing',
-    hand: 'works best with the tiles you keep',
+    hand: 'works best with the tiles you have',
     discard: 'is the tile you need least',
     context: 'suits this stage of the game',
   };
@@ -1377,7 +1394,9 @@
         tips.push(call.label + '. It helps the hand you\'re going for.');
         return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(call.plan, call.counts, call.discard, true, call.ready)) }, tips.length - 1);
       }
-      var route = call.plan.route;
+      // A call with no plan behind it (a learned strategy can take one the rules wouldn't):
+      // it speeds the hand up, and no hand is named.
+      var route = call.plan ? call.plan.route : { id: 'plain' };
       var fits = route.id === 'half' || route.id === 'full'
         ? 'It builds your ' + (route.id === 'full' ? 'Full Flush' : 'Half Flush') + ' in ' + SUIT_NAME[route.suit]
         : route.id === 'triplets' || route.id === 'concealed-triplets'
@@ -1555,7 +1574,7 @@
   var DETAILS = ['simple', 'detailed', 'complex'];
   var SIMPLE_WHY = 130; // characters: one short reason
 
-  // "I like it because it gets you ready fastest and keeps a bigger hand in reach."
+  // "It gets you ready fastest and keeps a bigger hand in reach."
   // Simple and Detailed speak as the coach ("I"), in hints and feedback alike;
   // only Complex says "the model".
   // Simple ends with one "Go for ..." sentence (aimSentence). The hint's own tip can say it too
@@ -1576,8 +1595,14 @@
     }).join('').trim();
   }
 
-  function sentenceOf(reasons, lead) {
-    return lead + 'it ' + reasons.join(' and ') + '.';
+  function sentenceOf(reasons) {
+    return 'It ' + reasons.join(' and ') + '.';
+  }
+
+  // "It keeps a bigger hand in reach." A network's reasons, said as one sentence.
+  function isReasonSentence(t) {
+    var said = plain(t);
+    return Object.keys(GROUP_PLAIN).some(function (g) { return said.indexOf('It ' + GROUP_PLAIN[g]) === 0; });
   }
 
   function isModelTip(t) {
@@ -1592,7 +1617,7 @@
     var reasons = hint.modelWhy || [];
     out.model = null;
     if (detail === 'detailed') {
-      if (reasons.length) tips.push(sentenceOf(reasons, 'I like it because '));
+      if (reasons.length) tips.push(sentenceOf(reasons));
       out.tips = tips;
       return fit(out);
     }
@@ -1604,7 +1629,7 @@
     } else {
       var clear = hint.modelWhyClear || [];
       why = clip(withoutPivots(tips[0]), SIMPLE_WHY);
-      if (clear.length) why = (why + ' ' + sentenceOf(clear, 'I like it because ')).trim();
+      if (clear.length) why = (why + ' ' + sentenceOf(clear)).trim();
     }
     out.tips = why ? [why] : [];
     return fit(out);
@@ -1625,7 +1650,7 @@
     var praised = /^(Great|Good) /.test(fb.action || '');
     var reasons = hint && !praised ? (detail === 'simple' ? hint.modelWhyClear : hint.modelWhy) || [] : [];
     if (detail === 'detailed') {
-      if (reasons.length) tips.push(sentenceOf(reasons, 'I like it because '));
+      if (reasons.length) tips.push(sentenceOf(reasons));
       out.tips = tips;
       return fit(out);
     }
@@ -1639,7 +1664,7 @@
       why = (pick + ' ' + aimSentence(hint.aim)).trim();
     } else {
       why = clip(withoutPivots(tips[0]), SIMPLE_FEEDBACK);
-      if (reasons.length) why = (why + ' ' + sentenceOf(reasons, 'I like it because ')).trim();
+      if (reasons.length) why = (why + ' ' + sentenceOf(reasons)).trim();
     }
     out.tips = why ? [why] : [];
     return fit(out);
@@ -1710,6 +1735,7 @@
   }
   api.forStrategy = forStrategy;
   api.atDetail = atDetail;
+  api.isReasonSentence = isReasonSentence;
   if (node) module.exports = api;
   else root.MahjongCoach = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

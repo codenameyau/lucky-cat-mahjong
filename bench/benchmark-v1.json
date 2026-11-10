@@ -1,0 +1,72 @@
+{
+  "name": "hk-table-v1",
+  "about": "The frontier benchmark, version 1 (docs/machine-learning/benchmark.md). The table: frozen Neural Cat NC8 (N10c), Jorge Yau and NC8, as of game version 0.57.9. Never edit a frozen version: a new table is a new name.",
+  "table": [
+    "bench:neural-cat",
+    "bench:jorge-yau",
+    "bench:neural-cat"
+  ],
+  "frozen": {
+    "commit": "dd881a5e3c7c3e568a9d668bade368a91cb8bcc3",
+    "gameVersion": "0.57.9",
+    "players": {
+      "neural-cat": {
+        "name": "Neural Cat NC8 (N10c), fast",
+        "module": "js/mahjong-ml.js",
+        "create": {
+          "fast": true
+        }
+      },
+      "jorge-yau": {
+        "name": "Jorge Yau",
+        "module": "js/mahjong-jorge-yau.js"
+      }
+    },
+    "files": {
+      "js/mahjong-engine.js": "ba79fd8efaddad7206c0c4bf060e21d0780a7e753cdc90369f495233916908b1",
+      "js/points.js": "86b3818b1b926a75a41429c647db912291c0542dbb749081a999244d433a811e",
+      "js/mahjong-bot.js": "2545390dc98b85a57e50b13e7a48e6abf3ec19dcdd42aa417ca97b57ee6670c2",
+      "js/mahjong-jorge-yau.js": "31a3f1723cdf194f277f2d2f6a9a97b81190c38328a6ca94b23f394185a2d099",
+      "js/mahjong-ml.js": "a23f94a11226ff57b6676a87056717988ae99a56bd3512ac511cd7f3a839f624",
+      "js/mahjong-ml-features.js": "6f55fa69ffdc4fca867a16c1c038e80183f3251373766525e77f64910f5d7a40",
+      "js/mahjong-ml-model.js": "541f9c3a7d9206d15ffe50e83742688a2ea37cdbc078a2f90b2479232f88cd77",
+      "js/mahjong-ml-weights.js": "df88e341f2a1c6f97196a68101b3546365af55eb5b89ce79a30715432ad678cc"
+    }
+  },
+  "deck": {
+    "start": 900000000,
+    "deals": 40000,
+    "about": "Seeds 900,000,000 to 900,039,999, dealer rotating; no training or lab evaluation uses nine-digit seeds"
+  },
+  "fresh": {
+    "start": 910000000,
+    "block": 50000,
+    "about": "Each stage of the bar takes the next unused block of seeds on this machine (ml/bench/seeds.json)"
+  },
+  "fingerprint": {
+    "deals": 24,
+    "seats": [
+      "bench:neural-cat",
+      "bench:jorge-yau",
+      "bench:neural-cat",
+      "bench:jorge-yau"
+    ],
+    "sha256": "227d69ca0e5e8d2c9e89beff205952aa7fe28860673a4439f66f4fd52dd5b91d"
+  },
+  "bar": {
+    "screen": 10000,
+    "screenSigma": 1,
+    "qualify": 40000,
+    "replicate": 40000,
+    "sigma": 2,
+    "winSigma": 1,
+    "regression": 10000,
+    "regressionSigma": 1,
+    "block": 10000,
+    "earlyPass": 4,
+    "earlyFail": -2,
+    "lineages": {
+      "sphinx": { "sigma": 1 }
+    }
+  }
+}

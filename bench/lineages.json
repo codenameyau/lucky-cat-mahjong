@@ -25,6 +25,23 @@
         "neural-cat"
       ],
       "generations": []
+    },
+    "neural-cat": {
+      "about": "Neural Cat: networks that score the shared foundation's best options by expected points, its stacked models (a reader, then the move network) among them, judged against the current generation. Releases NC10, FC2, ...",
+      "keepWinRate": false,
+      "league": [
+        "bench:jorge-yau",
+        "lc:git:dd881a5e3c7c3e568a9d668bade368a91cb8bcc3:js/mahjong-lucky-cat-weights.js",
+        "nc:git:dd881a5e3c7c3e568a9d668bade368a91cb8bcc3:js/mahjong-ml-weights.js"
+      ],
+      "generations": [
+        {
+          "name": "nc9",
+          "model": "nc:git:8ffc0d098046326c3b1c33557448ae65e4a94bbb:js/mahjong-ml-weights.js",
+          "sha256": "c0ae0d14e095e9a2f4c6470fe640ab686974bf7bc26717c4b203053b151d0071",
+          "judged": "the starting generation (N14c, shipped as NC9 beside FC1), not judged"
+        }
+      ]
     }
   }
 }

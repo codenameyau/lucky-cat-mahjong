@@ -134,3 +134,50 @@ describe('Lucky Cat network', () => {
     assert.ok(LC.trained, 'js/mahjong-lucky-cat-weights.js is missing or for other features');
   });
 });
+
+describe('Lucky Cat with a value (js/mahjong-lucky-cat-value.js)', () => {
+  const V = require('./mahjong-lucky-cat-value.js');
+  // A small random value network, the same every run.
+  function randomValue(seed) {
+    let s = seed;
+    const r = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648 - 0.5; };
+    const sizes = [V.SIZE, 32, 28], layers = [];
+    for (let i = 1; i < sizes.length; i++) {
+      layers.push({ rows: sizes[i], cols: sizes[i - 1], w: Array.from({ length: sizes[i] * sizes[i - 1] }, () => r() * 0.3), b: Array.from({ length: sizes[i] }, () => r() * 0.1) });
+    }
+    return { featureVersion: V.VALUE_VERSION, featureSize: V.SIZE, meta: { play: { topK: 4, winBonus: 300 } }, layers };
+  }
+
+  it("reads the position a move leaves, the tile it throws and the move's kind", () => {
+    const game = E.createGame({ seed: 77, humanSeat: false, dealer: 0 });
+    E.startHand(game);
+    const seat = 0, hand = game.hand.seats[seat].hand;
+    const tile = hand[0];
+    const after = V.afterTurn(game, seat, { type: 'discard', tile });
+    assert.equal(after.hand.length, hand.length - 1);
+    const x = V.features(game, seat, after);
+    assert.equal(x.length, V.SIZE);
+    assert.equal(x[N.SIZE + E.tileIndex(tile)], 1);
+    assert.equal(x[N.SIZE + 34], 1);
+    // The policy's features of the hand it keeps, first.
+    assert.deepEqual(Array.from(x.slice(0, N.SIZE)), Array.from(N.encode(game, seat, { hand: after.hand, melds: after.melds })));
+  });
+
+  it('plays legal hands, its moves from the policy\'s best few', async () => {
+    const w = Object.assign({}, require('./mahjong-lucky-cat-weights.js'), { value: randomValue(3) });
+    const bot = LC.create({ weights: w, fast: true });
+    let picks = 0;
+    bot.onDecision = (d) => { picks++; assert.ok(d.pick >= 0 && d.pick < d.moves.length); };
+    for (let d = 0; d < 3; d++) {
+      const game = E.createGame({ seed: 500 + d, humanSeat: false, dealer: d % 4, startPoints: 1e9 });
+      const res = await E.runHand(game, [0, 1, 2, 3].map(() => bot.createBotAgent()));
+      assert.ok(res.type === 'win' || res.type === 'draw');
+    }
+    assert.ok(picks > 20);
+  });
+
+  it('plays fair: nothing it does changes when the hidden tiles move', async () => {
+    const w = Object.assign({}, require('./mahjong-lucky-cat-weights.js'), { value: randomValue(5) });
+    await require('../scripts/ml/fair-play.js').playAll('lucky-cat value', LC.create({ weights: w, fast: true }), null, 3);
+  });
+});

@@ -2,7 +2,7 @@
 
 Lucky Cat Mahjong has three learned strategies, each a small neural network trained on simulated hands:
 
-- **Neural Cat** (shipped model NC8) scores every choice in expected points (which tile to discard, whether to pung, chow or kong) on top of Jorge Yau's hand reading, and plays the one worth the most. The coach explains each choice in plain words.
+- **Neural Cat** (shipped model NC9) scores every choice in expected points (which tile to discard, whether to pung, chow or kong) on top of Jorge Yau's hand reading, and plays the one worth the most. The coach explains each choice in plain words.
 - **Lucky Cat** (shipped model lc32) plays every move itself, with no rules underneath: its network reads what its seat can see and gives each legal move a share. It taught itself from random play.
 - **Only Orphans** (the O models) decides when to chase Thirteen Orphans and its relatives.
 
@@ -40,6 +40,7 @@ Where all of that stands, and why each choice was made, is in [frontier history]
 | [Fair play](fair-play.md) | How the models are kept from seeing the wall or another hand, and the test that checks it |
 | [Hugging Face](hugging-face.md) | Where the models and data live, and how they're uploaded |
 | [Iterations](iterations.md) | How each Neural Cat, Lucky Cat and Only Orphans model was made, how it plays differently from the one before it, and what each step taught. One section per training idea (the league, the lab, points first, Suphx, the frontier) or milestone (Neural Cat 2, Lucky Cat 2), a heading for each model inside it |
+| [Frontier report](frontier-report.md) | The stacked evaluation architecture (Frontier Cat FC1, folded into Neural Cat in 0.59.0) against the previous architecture (Neural Cat: NC8 in the game, N14c the lab's best), head to head on 100,000 deals, with what each step added and what comes next |
 | [Frontier plan](frontier-plan.md) | The plan for the frontier model: one network with three heads (the table, the hand, the move), grown from Neural Cat. The steps to make it strong, each with a bar and a point at which it is dropped, where it is weak, and its Learnings |
 | [Other frontends](porting.md) | What a port to another frontend (Swift, for an iOS app) has to build, the weights formats, the forward pass, each head's outputs, and the three checks a port must pass |
 | [Suphx plan](suphx-plan.md) (cancelled) | Suphx taken apart against Hong Kong rules, four rounds of critique (the last on the plan itself), and the phased plan to make Lucky Cat the strongest Hong Kong mahjong player: privileged labels as targets, a tile-structured network, a distributional value, a league, the job each model family (heuristics, MCTS, DQN, policy gradient) gets, the benchmark (one frozen table, one deck, a Table Score) with its two-standard-errors-twice bar, and the two lineages, Lucky Cat and Sphinx |
