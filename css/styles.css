@@ -579,7 +579,7 @@ h1, h2, h3 {
   opacity: 0.6;
 }
 
-/* Footer: the privacy policy and cookie settings (js/analytics-id.js opens the banner). */
+/* Footer: Privacy Policy and Cookie Settings (Cookie Settings opens the banner from js/analytics-id.js). */
 .footer-links {
   display: flex;
   flex-wrap: wrap;
@@ -610,7 +610,7 @@ h1, h2, h3 {
   opacity: 0.5;
 }
 
-/* The cookie banner (js/analytics-id.js), shown where consent comes first, or from Cookie settings. */
+/* The cookie banner (js/analytics-id.js), shown where consent comes first, or from Cookie Settings. */
 .cookie-banner {
   position: fixed;
   left: 50%;
@@ -620,7 +620,7 @@ h1, h2, h3 {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem 1rem;
-  width: min(640px, calc(100% - 32px));
+  width: min(960px, calc(100% - 32px));
   padding: 1rem 1.15rem;
   transform: translateX(-50%);
   background: var(--color-surface, #fff);

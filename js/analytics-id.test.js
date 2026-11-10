@@ -163,19 +163,23 @@ test('in Europe nothing is set or sent until the visitor accepts', () => {
   });
 });
 
-test('the banner is for Europe only: elsewhere Cookie settings opens the privacy page', () => {
-  const us = setup();
-  us.api.start(us.gtag);
+test('the banner opens by itself only in Europe; Cookie Settings opens it anywhere', () => {
+  const page = (tz) => {
+    const body = { children: [], appendChild(el) { this.children.push(el); } };
+    const el = () => ({ hidden: false, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, querySelector: () => null });
+    const doc = cookieJar();
+    Object.assign(doc, { body, readyState: 'complete', addEventListener() {}, createElement: el, querySelectorAll: () => [] });
+    const api = A.create({ window: {}, document: doc, navigator: {}, location: { protocol: 'https:', hostname: 'luckycatmahjong.com' }, timeZone: tz });
+    api.start(() => {});
+    return { api, body };
+  };
+  const us = page('America/New_York');
+  assert.equal(us.body.children.length, 0, 'no banner in the US');
   us.api.openSettings();
-  assert.equal(us.api.consentState(), 'granted');
-  // No document.body in the fake page, so the only way to show it would be the banner; it goes to the page instead.
-  const loc = { protocol: 'https:', hostname: 'luckycatmahjong.com' };
-  const api = A.create({ window: {}, document: cookieJar(), navigator: {}, location: loc, timeZone: 'America/Chicago' });
-  api.openSettings();
-  assert.equal(loc.href, '/privacy/#cookies');
-  const eu = { protocol: 'https:', hostname: 'luckycatmahjong.com' };
-  A.create({ window: {}, document: cookieJar(), navigator: {}, location: eu, timeZone: 'Europe/Paris' }).openSettings();
-  assert.equal(eu.href, undefined, 'Europe gets the banner, not a page change');
+  assert.equal(us.body.children.length, 1, 'Cookie Settings opens it');
+  assert.equal(us.body.children[0].hidden, false);
+  const eu = page('Europe/London');
+  assert.equal(eu.body.children.length, 1, 'the banner opens by itself in Europe');
 });
 
 test('declining deletes the IDs and Google\'s cookies and disables GA', () => {
@@ -219,9 +223,7 @@ test('the privacy page explains every cookie the tracker sets, and the GA4 setti
   assert.doesNotMatch(html, /sell, or lease/);
   assert.match(html, /mailto:events@luckycatmahjong\.com/, 'the contact email');
   assert.match(html, /Global Privacy Control/);
-  assert.match(html, /data-consent="granted"/);
-  assert.match(html, /data-consent="denied"/);
-  assert.match(html, /data-consent-status/);
+  assert.doesNotMatch(html, /data-consent/, 'no on/off box on the page');
   assert.match(html, /id="cookies"/, 'the banner links to #cookies');
-  assert.match(html, /id="choices"[^>]*>7\. California Residents: Your Privacy Choices/, 'the footer\'s Your Privacy Choices link leads to section 7');
+  assert.match(html, /id="choices"[^>]*>7\. California Residents: Your Privacy Choices/);
 });
