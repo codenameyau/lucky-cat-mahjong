@@ -1300,7 +1300,7 @@ Points a hand, with the check minus without it. A 2,000-deal run in the JS engin
 
 #### What comes next
 
-The [evaluation engine](evaluation-engine.md): one hand picked for the turn (the hand picker), a pivot checker that decides whether to stay on it, a discarder (rules or a model) that chooses only among moves for that hand, and the contradiction check last, as a safety net. A model then chooses among consistent moves itself, which is where Neural Cat's loss should come back.
+The [evaluation architecture](../architecture/README.md): one hand picked for the turn (the hand picker), a pivot checker that decides whether to stay on it, a discarder (rules or a model) that chooses only among moves for that hand, and the contradiction check last, as a safety net. A model then chooses among consistent moves itself, which is where Neural Cat's loss should come back.
 
 ## Where the files are
 

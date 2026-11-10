@@ -1,4 +1,4 @@
-# The evaluation engine (proposed)
+# The evaluation architecture (proposed)
 
 A design, not built yet (written 2026-11-09). One pipeline that every strategy, every model and the coach run for every decision: pick the hand for the turn, decide whether to pivot, choose the move for that hand, and check the move against it. It replaces five overlapping ways of choosing a hand and four of leaving one, and it removes the cause of the contradictions the [contradiction check](../strategies/README.md#the-contradiction-check) now catches after the fact.
 
@@ -24,7 +24,7 @@ A design, not built yet (written 2026-11-09). One pipeline that every strategy, 
 
 ## Why
 
-The coach said "Go for Half Flush in Characters" and threw a Character with a Bamboo in hand. The contradiction check (0.57.25) now stops that: a move that goes against the hand it builds toward gives way to the strategy's next choice. Measured head to head on 20,000 deals ([iterations](iterations.md#head-to-head-with-the-check-against-without-it)), it gains Jorge Yau about 8 to 10 points a hand and Lucky Cat 12 to 14, and costs Neural Cat 9 to 16.
+The coach said "Go for Half Flush in Characters" and threw a Character with a Bamboo in hand. The contradiction check (0.57.25) now stops that: a move that goes against the hand it builds toward gives way to the strategy's next choice. Measured head to head on 20,000 deals ([iterations](../machine-learning/iterations.md#head-to-head-with-the-check-against-without-it)), it gains Jorge Yau about 8 to 10 points a hand and Lucky Cat 12 to 14, and costs Neural Cat 9 to 16.
 
 Neural Cat's loss says where the real problem is. The check runs after the model has chosen, and replaces its pick with a move the model rated lower. The contradiction itself is a symptom: no layer picks a hand for the turn, so a discard can always disagree with "the hand". Choosing the hand first removes the contradiction at the root and lets a model choose among consistent moves itself.
 
