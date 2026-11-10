@@ -2343,11 +2343,13 @@
         var straightB = breaksFinishedStraight(c, b.index);
         if (straightA !== straightB) return straightA ? 1 : -1;
       }
+      if (!folding && a.tier !== b.tier) return a.tier - b.tier;
+      // Within a tier (applied before it, this broke the sort's order: a tile
+      // of the shortest suit could jump a lower tier and then not the next).
       if (!folding) {
         var suitOrder = shortBeforeLongTerminal(c, a, b);
         if (suitOrder) return suitOrder;
       }
-      if (!folding && a.tier !== b.tier) return a.tier - b.tier;
       // A terminal the orphan hands still need waits behind the other tiles.
       if (!folding && a.tier === b.tier) {
         var keepA = keepsLooseTerminal(c, a.index, ctx.leadPlan);

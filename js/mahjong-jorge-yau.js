@@ -592,6 +592,9 @@
     return (FAMILY[t.id] || []).indexOf(id) !== -1;
   }
 
+  // Targets built on pairs and pungs: they keep every pair and pung.
+  var SET_TARGETS = ['triplets', 'all-triplets', 'terminals', 'honors', 'winds', 'dragons'];
+
   // Lower goes first, after the shared one-suit rules (MahjongBot's group
   // 0): -1 off-target tiles for a hard target, 1 off-target for a softer
   // target and tiles someone punged, 2 ordinary tiles, 3 pairs, 4-6 live
@@ -621,12 +624,22 @@
       if (pair && i < 27 && !def.hard && !B.chowOfAnotherSuit(ctx, i)) return 1.25;
       return def.hard ? -1 : 1;
     }
+    // A hand of pairs or sets can't use a single with no copy left to draw or
+    // claim: it can never be a pair or a pung, so it goes before the other
+    // singles (Thirteen Orphans needs only one of each, and keeps it). An
+    // honor single like that goes on any hand: it can't make a run either.
+    var dead = counts[i] === 1 && ctx.unseen[i] === 0;
+    var setsHand = SET_TARGETS.indexOf(t.id) !== -1 || t.id === 'pairs';
+    // (1, not a half step: MahjongBot reads x.5 as a tile to keep.)
+    if (dead && t.id !== 'orphans' && (setsHand || i >= 27)) return 1;
+    // A pair with no copy left can still be the eyes, but never a pung.
+    if (pair && ctx.unseen[i] === 0 && SET_TARGETS.indexOf(t.id) !== -1) return 3;
     if (t.id === 'gates' && !B.gatesTileNeeded(counts, t.start, i)) return 1;
     if (B.isPungTile(game, i) && counts[i] < 2 && cand.shanten <= bestShanten) return 1;
     // Seven Pairs keeps pairs and lets a third copy go.
     if (t.id === 'pairs') return pair ? 6 : 2;
     // Hands of sets keep every pair and pung, the pung longest.
-    if (['triplets', 'all-triplets', 'terminals', 'honors', 'winds'].indexOf(t.id) !== -1 && counts[i] >= 2) return counts[i] >= 3 ? 6 : 5;
+    if (SET_TARGETS.indexOf(t.id) !== -1 && counts[i] >= 2) return counts[i] >= 3 ? 6 : 5;
     // Concealed Triplets sticks to one suit and honors where it can: a
     // single of another suit goes first.
     if (t.id === 'triplets' && i < 27 && suitOf(i) !== t.suit) return 1;
@@ -1003,6 +1016,13 @@
   // Takes any claim that moves the hand closer and can still score. On a lock,
   // only a claim of that hand's tiles that moves it closer.
   function bigClaim(res, ctx, game, seat, opts) {
+    // A dragon or a scoring wind (seat or round) is always punged, early or
+    // late and whatever the hand, unless it is going for Thirteen Orphans.
+    var ti = E.tileIndex(opts.tile);
+    var orphans = (ctx.target && ctx.target.id === 'orphans') || (savedLock(ctx) && savedLock(ctx).id === 'orphans');
+    if ((opts.pung || opts.kong) && ti >= 27 && B.valueWeight(ctx, ti) > 0 && !orphans) {
+      return { type: opts.pung ? 'pung' : 'kong' };
+    }
     var own = knobs().ownClaims;
     // The early-game rule is the default claims' (ownClaims off or 'lock').
     var early = own === true ? null : earlyClaim(res, ctx, game);

@@ -77,21 +77,23 @@ The softer targets (and the default) also weigh the special hands the same tiles
 
 1. **The other suits, after a chow or with 7 or more tiles of one suit.** A mixed hand can't reach 3 faan once a chow is open, so every tile of another suit goes first, even while folding. The same goes once 7 or more of the hand's tiles (sets count) are in one suit, more than any other, unless the hand is on Seven Pairs, Thirteen Orphans, Nine Gates, All Terminals, All Honors or Four Winds, or on Concealed Straights, which throws honors first instead (keeping one honor pair, if it has one, as the hand's pair, and any dragon nobody has shown, unless throwing it leaves the hand ready). These are the shared rules every strategy follows.
 2. **Tiles the target can't use.** For the limit-hand targets and the flushes, these go first even if they cost a step toward ready, because the target needs every slot: number tiles on Four Winds and All Honors, middle tiles on All Terminals, non-orphans on Thirteen Orphans, other suits and honors on Nine Gates and Full Flush. For the softer targets they go first only when they don't cost a step: other suits on a Half Flush, and honors on Concealed Straights.
-3. **A tile someone has punged**, when the hand doesn't need it. On Nine Gates, spare copies beyond the 1112345678999 go here too.
-4. **Ordinary tiles.**
-5. **Pairs.** On Seven Pairs a pair is kept longest. On Concealed Triplets, All Terminals, All Honors and Four Winds every pair waits, and a pung waits longer. On Concealed Triplets a single of a suit other than its main one goes in group 2 above, so the hand drifts toward one suit and honors.
-6. **Honors that can still become a set** (fewer than two copies out): a single waits like a pair, and a dragon or scoring wind waits longer, all hand long. Other winds wait like this only early, while more than 60 tiles are left. Concealed Straights drops honors instead.
+3. **A single with no copy left** (every other copy is on the table or in a meld). On Seven Pairs and the hands of pairs and pungs (Concealed Triplets, All Triplets, All Terminals, All Honors, Four Winds, Three Dragons) it can never be a pair or a pung, and an honor like that can't make a run either, so it goes with these. Thirteen Orphans keeps it: it needs one of each. On those hands of pungs, a pair with no copy left can still be the eyes but never a pung, so it waits only like an ordinary pair.
+4. **A tile someone has punged**, when the hand doesn't need it. On Nine Gates, spare copies beyond the 1112345678999 go here too.
+5. **Ordinary tiles.** Between them the shared order decides: the discard that keeps the hand closest to ready with the most live tiles to improve it, then the tile that connects least (a single with no tile of its suit within 2 ranks, and a 1 or 9, which joins a run from one side only, before a middle tile), then the tile with the fewest copies left.
+6. **Pairs.** On Seven Pairs a pair is kept longest. On Concealed Triplets, All Terminals, All Honors and Four Winds every pair waits, and a pung waits longer. On Concealed Triplets a single of a suit other than its main one goes in group 2 above, so the hand drifts toward one suit and honors.
+7. **Honors that can still become a set** (fewer than two copies out): a single waits like a pair, and a dragon or scoring wind waits longer, all hand long. Other winds wait like this only early, while more than 60 tiles are left. Concealed Straights drops honors instead.
 
 ## Claims
 
 **Stay concealed.** Concealed is a faan, and it hides the hand.
 
-- **Early game (more than 60 tiles left in the wall): no claims, with one exception.** A claim that leaves the hand within two tiles of ready, and still able to reach 3 faan, is taken to win quickly. A pung or kong comes first. A chow is taken only once the player before it has a read (from 6 discards, the suit they keep or the one they feed: whether they'll feed those tiles or need them), and only a chow the rules below allow. Dragons and scoring winds wait like anything else.
+- **Dragons and scoring winds are always punged** (or konged), early or late and on any hand, unless it is going for Thirteen Orphans.
+- **Early game (more than 60 tiles left in the wall): no other claims, with one exception.** A claim that leaves the hand within two tiles of ready, and still able to reach 3 faan, is taken to win quickly. A pung or kong comes first. A chow is taken only once the player before it has a read (from 6 discards, the suit they keep or the one they feed: whether they'll feed those tiles or need them), and only a chow the rules below allow.
 - **From 60 tiles left, the rules below apply.**
 
-- **Seven Pairs, Thirteen Orphans, Nine Gates and Concealed Straights claim nothing.** The one exception: Concealed Straights will pung a dragon or scoring wind once it is three or more tiles from ready.
-- **Pungs are fine early.** A pung keeps the hand open to a Half Flush in any suit. A pung or kong is taken when the hand is at least as good afterwards.
-- **Dragons and scoring winds are always punged.** On Four Winds, All Honors and All Terminals, any honor is punged. The exception is a ready hand that the pung would leave slower and worth less.
+- **Seven Pairs, Nine Gates and Concealed Straights claim nothing else**, and Thirteen Orphans claims nothing at all.
+- **Pungs are fine.** A pung keeps the hand open to a Half Flush in any suit. A pung or kong is taken when the hand is at least as good afterwards.
+- **On Four Winds, All Honors and All Terminals any honor is punged.**
 - **Chows are rare.** A chow must leave the hand closer to ready and still able to reach 3 faan, and it must also:
   - make the hand ready for 3 faan or more, or
   - build the Full or Half Flush the hand is going for in that suit (within two tiles of ready, early or late), or

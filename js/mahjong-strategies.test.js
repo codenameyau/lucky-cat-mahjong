@@ -205,12 +205,18 @@ describe('jorge-yau decisions', () => {
     assert.deepEqual(L.chooseClaim(game, 1, { tile: 'd4', from: 0, pung: true, kong: false, chows: [] }), { type: 'pass' });
   });
 
-  it('stays concealed early, and pungs a dragon later in the wall', () => {
+  it('always pungs a dragon or a scoring wind, early or late, unless it is going for Thirteen Orphans', () => {
     const hand = ['c2', 'c3', 'c4', 'd5', 'd6', 'b1', 'b4', 'b8', 'c8', 'we', 'dr', 'dr', 'd9'];
     const opts = { tile: 'dr', from: 0, pung: true, kong: false, chows: [] };
-    // Early (more than 60 tiles left) and still far from ready: no claim.
-    assert.deepEqual(L.chooseClaim(table({ seats: [null, { hand }] }), 1, opts), { type: 'pass' });
+    assert.deepEqual(L.chooseClaim(table({ seats: [null, { hand }] }), 1, opts), { type: 'pung' });
     assert.deepEqual(L.chooseClaim(table({ seats: [null, { hand }], wallLeft: 55 }), 1, opts), { type: 'pung' });
+    // A wind that scores nothing waits, early, like any other tile.
+    const plain = ['c2', 'c3', 'c4', 'd5', 'd6', 'b1', 'b4', 'b8', 'c8', 'dr', 'wn', 'wn', 'd9'];
+    assert.deepEqual(L.chooseClaim(table({ seats: [null, { hand: plain }] }), 1, { tile: 'wn', from: 0, pung: true, kong: false, chows: [] }), { type: 'pass' });
+    // On Thirteen Orphans it never claims.
+    const orphans = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'dr', 'dr', 'c2', 'd5', 'b6'];
+    assert.equal(targetOf(orphans).id, 'orphans');
+    assert.deepEqual(L.chooseClaim(table({ seats: [null, { hand: orphans }] }), 1, opts), { type: 'pass' });
   });
 
   it('claims early only to be within two tiles of ready, a pung before a chow, a chow only once the player before it is read', () => {
