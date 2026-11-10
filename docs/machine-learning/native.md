@@ -85,7 +85,7 @@ node scripts/ml/weights.js import LV3b.lcmw LV3b.json              # back again
 | Same hands as the JS | statistically; a decision between moves tied to the last bit can go the other way | action for action |
 | Used by | `lucky.js generate`, `bench.js compare` (screens) | `bench.js judge` and `score`, `compare --exact`, `native.js parity`, `npm test` |
 
-How rarely the fast build differs: on 1,000 deals at the benchmark table every hand was identical to the exact build, and a 2,000-deal compare printed the same gap. On a 20,000-deal round of data (220,000 sampled moves), a few sampled moves flipped; each flip changes that hand, and the rest of its chunk's random stream with it, so 63 of the round's 256 shard files differ while the data is the same in distribution. **This is an accepted trade-off for training data and screens, flagged in the [frontier plan](frontier-plan.md) §6b; judgments and Table Scores don't take it.**
+How rarely the fast build differs: on 1,000 deals at the benchmark table every hand was identical to the exact build, and a 2,000-deal compare printed the same gap. On a 20,000-deal round of data (220,000 sampled moves), a few sampled moves flipped; each flip changes that hand, and the rest of its chunk's random stream with it, so 63 of the round's 256 shard files differ while the data is the same in distribution. **This is an accepted trade-off for training data and screens, flagged in the [frontier plan](suphx-plan.md) §6b; judgments and Table Scores don't take it.**
 
 Both builds share every line of code except the arithmetic, so the action-level check on the exact build covers the logic of both.
 

@@ -1,6 +1,6 @@
 # The frontier benchmark
 
-How strong a model is, as one number anyone can reproduce, and the bar a model must clear to become the next generation of its lineage. This is phase 0 of the [frontier plan](frontier-plan.md) (§9), built in `scripts/ml/bench.js`, with the benchmark pinned in `bench/`.
+How strong a model is, as one number anyone can reproduce, and the bar a model must clear to become the next generation of its lineage. This is phase 0 of the [frontier plan](suphx-plan.md) (§9), built in `scripts/ml/bench.js`, with the benchmark pinned in `bench/`.
 
 ## Contents
 

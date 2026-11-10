@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Phase 1 of the frontier plan (docs/machine-learning/frontier-plan.md):
+/* Phase 1 of the frontier plan (docs/machine-learning/suphx-plan.md):
    rounds of training for the two lineages, on features v2 with the hidden
    tiles as targets, kept only by the benchmark's bar.
 

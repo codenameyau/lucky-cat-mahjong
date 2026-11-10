@@ -1,8 +1,8 @@
 # Frontier work: history and decisions
 
-**The Suphx line was cancelled on 2026-11-09 as a failed experiment** ([why](frontier-plan.md#the-suphx-line-is-cancelled-2026-11-09)). The new frontier model is in [the evaluation architecture](../architecture/README.md#one-model-for-the-middle). This page is the record of the line that ended.
+**The Suphx line was cancelled on 2026-11-09 as a failed experiment** ([why](suphx-plan.md#the-suphx-line-is-cancelled-2026-11-09)). The frontier plan is now [one model, three heads](frontier-plan.md). This page is the record of the line that ended.
 
-A record of the frontier work so far (from 2026-11-08): what was built, every decision taken and why, and what would make each one worth revisiting. The design itself is the [frontier plan](frontier-plan.md). What each step taught, with its evidence, is its §11 Learnings. This page is the short version: the order things happened in, and the choices.
+A record of the frontier work so far (from 2026-11-08): what was built, every decision taken and why, and what would make each one worth revisiting. The design itself is the [frontier plan](suphx-plan.md). What each step taught, with its evidence, is its §11 Learnings. This page is the short version: the order things happened in, and the choices.
 
 ## Contents
 
@@ -115,7 +115,7 @@ Each with why, and the evidence. Dates are when it was decided.
 - **Contained:** under the hybrid only training data and screens play on the fast build. The action-level check covers the exact build. Both builds share every line except the arithmetic, and a test checks that the fast build plays the exact build's hands.
 - **Revisit:** if a screen's verdict ever sits right at 1 SE, or a result must reproduce to the decimal, use `bench.js compare --exact`.
 
-Details are in the [frontier plan](frontier-plan.md) §6b.
+Details are in the [frontier plan](suphx-plan.md) §6b.
 
 ## What would reopen each decision
 

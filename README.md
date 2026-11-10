@@ -406,9 +406,9 @@ Uploads go over git and SSH, so your SSH key must be on your Hugging Face accoun
 
 #### The frontier plan
 
-**Cancelled on 2026-11-09 as a failed experiment** ([why, with the evidence](docs/machine-learning/frontier-plan.md#the-suphx-line-is-cancelled-2026-11-09)). The new frontier model is one network with three heads (the table, the hand, the move), grown from Neural Cat: [the evaluation architecture](docs/architecture/README.md#one-model-for-the-middle). The benchmark, its bar and the native simulator below carry over. The rest of this section is the record.
+**Cancelled on 2026-11-09 as a failed experiment** ([why, with the evidence](docs/machine-learning/suphx-plan.md#the-suphx-line-is-cancelled-2026-11-09)). The new frontier model is one network with three heads (the table, the hand, the move), grown from Neural Cat: [the frontier plan](docs/machine-learning/frontier-plan.md). The benchmark, its bar and the native simulator below carry over. The rest of this section is the record.
 
-[The frontier plan](docs/machine-learning/frontier-plan.md) was how Lucky Cat was meant to become the strongest Hong Kong mahjong player. It takes Suphx, Microsoft's mahjong AI for Japanese riichi, apart against Hong Kong rules (no riichi, no placement bonus, payouts that double with each faan, only the discarder pays), argues the design through four rounds of critique, and lays out the phases:
+[The Suphx plan](docs/machine-learning/suphx-plan.md) was how Lucky Cat was meant to become the strongest Hong Kong mahjong player. It takes Suphx, Microsoft's mahjong AI for Japanese riichi, apart against Hong Kong rules (no riichi, no placement bonus, payouts that double with each faan, only the discarder pays), argues the design through four rounds of critique, and lays out the phases:
 
 | Phase | What | Bar to pass |
 | --- | --- | --- |

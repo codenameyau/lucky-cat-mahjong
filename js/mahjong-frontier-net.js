@@ -1,4 +1,4 @@
-/* Features v2 for the frontier models (docs/machine-learning/frontier-plan.md,
+/* Features v2 for the frontier models (docs/machine-learning/suphx-plan.md,
    phase 1): what Lucky Cat's 376 features leave out, read only from what a
    seat can see. Both lineages read it: Lucky Cat fine-tuned from lc32 (its
    first layer gains these columns, starting at zero) and Sphinx from random

@@ -47,7 +47,8 @@
    seat, strategy, wallLeft, explored as uint8 (bit 1: a random choice; bit 2:
    a position waiting for a tile, after a passed claim or a kong); delta as
    float32; deal seed
-   as uint32), and manifest.json describing both. */
+   as uint32), shard-N.aux (scripts/ml/heads.js: the hand and the table, for
+   the frontier model's extra heads) and manifest.json describing them. */
 
 'use strict';
 
@@ -63,6 +64,7 @@ const M = require('../../js/mahjong-ml-model.js');
 const ML = require('../../js/mahjong-ml.js');
 const OO = require('../../js/mahjong-only-orphans.js');
 const { addBaselines, MODEL_PREFIX } = require('./baselines/register.js');
+const H = require('./heads.js');
 
 const LABEL_BYTES = 16;
 const OUTCOMES = M.OUTCOMES;
@@ -127,6 +129,7 @@ async function runWorker(cfg) {
   const recorded = (id) => !cfg.record || cfg.record.indexOf(id) !== -1;
   const featFd = fs.openSync(path.join(cfg.out, 'shard-' + cfg.index + '.features'), 'w');
   const labelFd = fs.openSync(path.join(cfg.out, 'shard-' + cfg.index + '.labels'), 'w');
+  const auxFd = fs.openSync(path.join(cfg.out, 'shard-' + cfg.index + '.aux'), 'w');
   let samples = 0, hands = 0;
   const outcomes = OUTCOMES.map(() => 0);
   const t0 = Date.now();
@@ -143,6 +146,7 @@ async function runWorker(cfg) {
     const push = (g, s, id, x, explored) => records.push({
       seat: s, strategy: strategies.indexOf(id), explored: explored | 2,
       turn: g.hand.seats[s].discards.length, wallLeft: g.hand.wall.length, x,
+      aux: H.tableLabels(g, s, -1),
     });
     const waiting = (g, s, id, kind, tile, explored) => push(g, s, id, ML.waitingFeatures(cfg.mlBot, g, s, kind, tile), explored);
     const agents = ids.map((id, seat) => {
@@ -167,10 +171,17 @@ async function runWorker(cfg) {
               if (E.tileId(i) !== action.tile) { action = { type: 'discard', tile: E.tileId(i) }; explored = 1; }
             }
             if (state) {
+              // The hand the rules read for the tiles kept, and the table as it is now.
+              const index = E.tileIndex(action.tile);
+              const kept = state.counts.slice();
+              kept[index]--;
+              const analysis = cfg.mlBot.handUtility(kept, state.ctx);
+              const aux = H.tableLabels(g, s, index);
+              aux[0] = H.planHand(analysis && analysis.best && analysis.best.plan && analysis.best.plan.id);
               records.push({
                 seat: s, strategy: strategies.indexOf(id), explored,
                 turn: g.hand.seats[s].discards.length, wallLeft: g.hand.wall.length,
-                x: F.encode(state, E.tileIndex(action.tile)),
+                x: F.encode(state, index, analysis), aux,
               });
             }
             return action;
@@ -202,6 +213,8 @@ async function runWorker(cfg) {
     if (!records.length) continue;
     const feats = new Float16Array(records.length * F.SIZE);
     const labels = Buffer.alloc(records.length * LABEL_BYTES);
+    const aux = Buffer.alloc(records.length * H.AUX_BYTES);
+    const won = res.type === 'win' ? H.winHand(res.score) : H.NONE;
     records.forEach((r, k) => {
       feats.set(r.x, k * F.SIZE);
       const o = outcomeFor(res, r.seat);
@@ -217,14 +230,18 @@ async function runWorker(cfg) {
       labels.writeUInt8(r.explored, off + 7);
       labels.writeFloatLE(res.deltas[r.seat], off + 8);
       labels.writeUInt32LE(dealSeed, off + 12);
+      if (o === 0 || o === 1) r.aux[1] = won;
+      aux.set(r.aux, k * H.AUX_BYTES);
     });
     fs.writeSync(featFd, new Uint8Array(feats.buffer));
     fs.writeSync(labelFd, labels);
+    fs.writeSync(auxFd, aux);
     samples += records.length;
     if (cfg.progress && (d + 1) % cfg.progress === 0) parentPort.postMessage({ progress: d + 1, index: cfg.index });
   }
   fs.closeSync(featFd);
   fs.closeSync(labelFd);
+  fs.closeSync(auxFd);
   return { index: cfg.index, deals: cfg.deals, hands, samples, outcomes, ms: Date.now() - t0 };
 }
 
@@ -320,12 +337,14 @@ async function main() {
       ['seat', 'u8'], ['strategy', 'u8'], ['wallLeft', 'u8'], ['explored', 'u8'],
       ['delta', 'f32'], ['dealSeed', 'u32'],
     ],
+    auxBytes: H.AUX_BYTES,
+    hands: H.HANDS,
     outcomes: OUTCOMES,
     strategies: known,
     gameVersion: E.GAME_VERSION,
     learner,
     config: { deals, seed, lineup, pool, record: cfgBase.record, sample: cfgBase.sample, explore: cfgBase.explore, temperature: cfgBase.temperature, epsilon: cfgBase.epsilon, weights: cfgBase.weightsFile },
-    shards: shards.map((s) => ({ features: 'shard-' + s.index + '.features', labels: 'shard-' + s.index + '.labels', samples: s.samples, deals: s.deals })),
+    shards: shards.map((s) => ({ features: 'shard-' + s.index + '.features', labels: 'shard-' + s.index + '.labels', aux: 'shard-' + s.index + '.aux', samples: s.samples, deals: s.deals })),
     samples: total,
     ms: Date.now() - t0,
   };
