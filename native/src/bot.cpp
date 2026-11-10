@@ -455,7 +455,7 @@ bool Foundation::claimContradicts(const ClaimFound& found, const Ctx& ctx, const
 
 // The foundation's liveUpgrade never has a hard target with Jorge Yau's hooks (they always set a target).
 bool Foundation::claimConsistent(const Game& g, int seat, const ClaimFound* found, const Decision& d, int tile) {
-  if (!found || d.type == A_PASS || d.type == A_WIN) return true;
+  if (!check || !found || d.type == A_PASS || d.type == A_WIN) return true;
   Ctx ctx = buildContext(g, seat);
   return !claimContradicts(*found, ctx, d, tile);
 }
@@ -469,7 +469,7 @@ bool Foundation::kongContradicts(const Plan* plan, int tile) {
 }
 
 std::vector<CandP> Foundation::consistentFirst(const std::vector<CandP>& out, const Game& g, const Counts& counts, bool folding) {
-  if (folding || out.empty()) return out;
+  if (!check || folding || out.empty()) return out;
   size_t k = 0;
   while (k < out.size() && contradicts(g, counts, *out[k])) k++;
   if (k == 0) return out;
@@ -1847,7 +1847,7 @@ Decision Foundation::chooseTurnAction(const Game& g, int seat, const TurnOptions
   Ctx& ctx = analysis.ctx;
   for (auto& kong : opts.kongs) {
     if (!jyKongOk(kong, ctx)) continue;
-    if (kongContradicts(ctx.leadPlan.get(), kong.tile)) continue;
+    if (check && kongContradicts(ctx.leadPlan.get(), kong.tile)) continue;
     int i = kong.tile;
     Counts c = countsOf(g.hand.seats[seat].hand);
     double util;

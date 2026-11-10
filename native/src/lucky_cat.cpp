@@ -225,7 +225,7 @@ Decision LuckyCat::turn(Game& g, int seat, const TurnOptions& o) {
       return true;
     });
   };
-  return moves[decide(g, seat, moves, check)].decision;
+  return moves[decide(g, seat, moves, this->check ? std::function<int(int)>(check) : std::function<int(int)>())].decision;
 }
 
 Decision LuckyCat::claim(Game& g, int seat, const ClaimOptions& o) {
@@ -233,6 +233,11 @@ Decision LuckyCat::claim(Game& g, int seat, const ClaimOptions& o) {
   if (o.hasWin) { d.type = A_WIN; return d; }
   if (!o.pung && !o.kong && o.chows.empty()) return d;
   auto moves = lucky::claimMoves(o);
+  if (!this->check) {
+    lucky::Offer offer0{o.tile, o.from, o.robKong};
+    lucky::encode(g, seat, &offer0, version_, x_.data());
+    return moves[decide(g, seat, moves, std::function<int(int)>())].decision;
+  }
   Foundation::Decided found = base_->decideClaim(g, seat, o);
   lucky::Offer offer{o.tile, o.from, o.robKong};
   lucky::encode(g, seat, &offer, version_, x_.data());

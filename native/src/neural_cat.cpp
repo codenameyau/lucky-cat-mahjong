@@ -334,7 +334,7 @@ Decision NeuralCat::chooseTurnAction(const Game& g, int seat, const TurnOptions&
   DiscardAnalysis a = analyzeDiscards(g, seat);
   // Never a kong that goes against the hand it's building (the contradiction check).
   std::vector<KongOption> kongs;
-  for (auto& kong : opts.kongs) if (!kongContradicts(a.ctx.leadPlan.get(), kong.tile)) kongs.push_back(kong);
+  for (auto& kong : opts.kongs) if (!check || !kongContradicts(a.ctx.leadPlan.get(), kong.tile)) kongs.push_back(kong);
   if (kongs.empty()) return d;
   const Candidate& keep = *a.candidates[0];
   struct Choice { Decision decision; MlRead ml; };

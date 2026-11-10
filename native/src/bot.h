@@ -198,6 +198,8 @@ SeatMemo& seatShared(const Game& g, int seat);  // the seat's own (bigHandLock, 
 class Foundation {
  public:
   Tuning T;
+  // The contradiction check (on unless lcm-sim is asked for an id~nocheck, to measure it).
+  bool check = true;
   explicit Foundation(const std::string& id) { T.id = id; }
   virtual ~Foundation() {}
 
