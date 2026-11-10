@@ -5,7 +5,7 @@
 
    node scripts/ml/frontier.js --lineage lucky-cat --rounds 4
    node scripts/ml/frontier.js --lineage sphinx --rounds 10
-   (npm run ml:frontier -- --lineage sphinx)
+   (npm run ml:suphx -- --lineage sphinx)
 
    Each round:
      1. generate  the champion plays (lucky.js generate --oracle --returns),

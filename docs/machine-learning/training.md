@@ -86,10 +86,13 @@ npm run ml:generate -- --deals 50000 --lineup mix --pool neural-cat,ml:ml/models
 | `--top-k N` | 3 | `neural-cat` picks among the foundation's best N discards |
 | `--workers N` | cores − 1 | Worker threads |
 | `--out DIR` | `ml/data/<time>` | Where to write |
+| `--native` | off | Plays on the [native simulator](native.md) (`lcm-sim generate-nc`): the same shard files, about 15 times faster. It needs `--record neural-cat`, `--explore 0`, a mixed lineup, and a pool of `neural-cat`, `ml:<file>`, `jorge-yau` and `lucky-cat`. A finished shard is reused when a stopped run is started again. `--exact` uses the exact build |
+
+`npm run ml:generate -- parity --deals 200` plays a short run in the JS and on the native simulator's exact build and compares the files byte for byte. The native path is how the frontier model's data is made; the JS stays as the reference it is checked against ([running the models on another frontend](porting.md)).
 
 ### Data format
 
-Each set is a folder with `manifest.json` and, per worker, `shard-N.features` and `shard-N.labels`:
+Each set is a folder with `manifest.json` and, per worker, `shard-N.features`, `shard-N.labels` and `shard-N.aux`:
 
 - **Features**: little-endian float16, 568 per position ([features](features.md)).
 - **Labels**: 16 bytes per position.
@@ -106,6 +109,16 @@ Each set is a folder with `manifest.json` and, per worker, `shard-N.features` an
 | 7 | `explored` | u8 | Bit 1: a random choice. Bit 2: a waiting position |
 | 8–11 | `delta` | f32 | The seat's points for the hand |
 | 12–15 | `dealSeed` | u32 | The hand's seed |
+
+- **Aux**: 108 bytes per position, the labels of the frontier model's extra heads (`scripts/ml/heads.js`). They are targets only; the hidden tiles they are read from never reach a model's inputs.
+
+| Bytes | Field | Meaning |
+| --- | --- | --- |
+| 0 | `ruleHand` | The hand the rules read for the tiles kept, an index into the manifest's `hands`; 255 unknown |
+| 1 | `winHand` | The hand this seat won with; 255 if it didn't win |
+| 2 | `dealNow` | The faan the tile thrown would pay right now; 0 if nobody wins on it |
+| 3–5 | `steps` | Each opponent's steps from ready, 0 to 4, from the seat's right |
+| 6–107 | `waits` | Each opponent's winning tiles (34 each), when it is ready |
 
 The manifest records the feature version and size, the groups, the outcomes, the strategies, the game version, the settings and each shard's sample count. A set of 50,000 league hands at `--sample 0.12` is about 560,000 positions, about 650 MB.
 

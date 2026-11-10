@@ -7,8 +7,8 @@ Phase 1 of the [frontier plan](suphx-plan.md) is built. It has four parts:
 - **The bar:** every round's best arm must clear [the benchmark](benchmark.md) before it becomes a generation.
 
 ```bash
-npm run ml:frontier -- --lineage lucky-cat --rounds 4
-npm run ml:frontier -- --lineage sphinx --rounds 10
+npm run ml:suphx -- --lineage lucky-cat --rounds 4
+npm run ml:suphx -- --lineage sphinx --rounds 10
 ```
 
 ## Contents

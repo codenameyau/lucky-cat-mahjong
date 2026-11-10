@@ -30,6 +30,7 @@ Once it's built, nothing else changes. `make -C native pgo` rebuilds the fast bu
 | Neural Cat (`js/mahjong-ml*.js`), fast play | `native/src/neural_cat.*`, `model.*` |
 | Lucky Cat, features v1 and v2 (`js/mahjong-lucky-cat-ml.js`, `-net.js`, `js/mahjong-frontier-net.js`) | `native/src/lucky_cat.*` |
 | `scripts/ml/oracle.js`, `lucky.js generate`'s worker | `native/src/generate.*` |
+| `scripts/ml/generate.js`'s worker for Neural Cat and the frontier model: Neural Cat exploring (temperature, epsilon), its own seats recorded, the extra heads' labels (`scripts/ml/heads.js`) | `native/src/generate_nc.*` (`npm run ml:generate -- --native`) |
 | `bench.js` `playWork` | `lcm-sim play` |
 
 The contradiction check is ported with the foundation, Neural Cat and Lucky Cat (which runs the foundation's analysis for its seat to check each move against). `lcm-sim` takes `id~nocheck` to play a player without it, to measure it: with every player's check off, the build plays exactly as before the check.
@@ -48,6 +49,7 @@ Not ported: the classic Lucky Cat rules, Only Orphans, oracle-guided models (`--
 | Lucky Cat v1 and v2 at the benchmark table | 200 and 300 hands identical |
 | `bench.js compare`, 280 deals | byte-identical JSON |
 | `lucky.js generate`, Lucky Cat round settings (`--oracle --returns`), Sphinx's (`--sample-won`, its own models in the pool), and wins only | byte-identical shards |
+| `generate.js --native`, Neural Cat exploring against earlier models, Jorge Yau and Lucky Cat, 1,000 deals (`npm run ml:generate -- parity`) | byte-identical shards (13.4 MB); about 500 deals a second on 7 workers against 25 to 34 in JS |
 | Shanten, 300,000 random hands | 0 mismatches |
 | `Math.exp`, `Math.log`, `Math.pow`, 1,000,000 inputs each | 0 mismatches |
 

@@ -14,6 +14,11 @@ Written 2026-11-09. This is the plan for the frontier model: one network that re
 - [Where this is weak](#where-this-is-weak)
 - [Making it strong](#making-it-strong)
 - [The first step is small](#the-first-step-is-small)
+- [How it trains](#how-it-trains)
+  - [Where each step runs](#where-each-step-runs)
+  - [Caching](#caching)
+  - [Pruning](#pruning)
+  - [Other frontends](#other-frontends)
 - [How it is judged](#how-it-is-judged)
 - [Learnings](#learnings)
 
@@ -22,7 +27,7 @@ Written 2026-11-09. This is the plan for the frontier model: one network that re
 | Step ([Making it strong](#making-it-strong)) | State |
 | --- | --- |
 | 1 Start from the champion | Neural Cat's lab champion is the starting point |
-| 2 The hand head and the table heads | **Being built** (2026-11-09) |
+| 2 The hand head and the table heads | **Built** (2026-11-09). The hand head names the hand a seat wins with 74% of the time, the rules 64% ([Learnings](#step-2-the-hand-head-and-the-table-heads-2026-11-09)). Round 1's screens are running |
 | 3 to 11 | Not started |
 
 This table is a status table only. What each step taught goes in [Learnings](#learnings).
@@ -126,6 +131,44 @@ Before anything else changes: **add the hand head and the table heads to Neural 
 
 One round answers the question this whole section rests on: can a model pick a hand? The test is calibration by family (of the positions where it said 30%, about 30% finished) and whether its main hand beats the rules' pick at naming the hand a seat wins with. If it can't beat the rules there, the hand picker stays rules, the model keeps two heads, and the rest of [Making it strong](#making-it-strong) goes ahead without it.
 
+## How it trains
+
+`npm run ml:frontier -- --rounds 1` (`scripts/ml/frontier-model.js`) runs a round: the champion plays for data, each recipe trains several seeds from the champion, the heads are reported, and the models are screened in stages at the benchmark table. `npm run ml:frontier -- report` lists the rounds so far.
+
+### Where each step runs
+
+| Step | Runs on | Speed |
+| --- | --- | --- |
+| Playing the deals for data | The native simulator's fast build (`npm run ml:generate -- --native`) | About 500 deals a second on a laptop, against 25 to 34 in JS |
+| Fitting the network | PyTorch (`ml/train.py --heads`), on the GPU when there is one | Minutes a model |
+| Screens | The native simulator's fast build (`bench.js compare`) | Thousands of deals a minute |
+| The bar | The native simulator's exact build (`bench.js judge`) | Hours, so only for a candidate |
+
+**The JS is the reference, not the workhorse.** The native generator plays the same deals with the same random draws as `scripts/ml/generate.js` and writes the same bytes. `npm run ml:generate -- parity` checks that on a short run, and `npm test` runs it whenever the simulator is built. So the data a model learns from is the data the browser's engine would have made, and a model trained on it behaves the same in the game.
+
+### Caching
+
+Every stage writes its result and is skipped when the result is already there, so a round that is stopped picks up where it was, and nothing is computed twice:
+
+- **Data:** a set is done when its `manifest.json` exists. Inside a set, each finished shard keeps a `shard-N.done.json` saying what made it (seeds, weights, pool, settings, game version), and is reused only if that still matches.
+- **Weights for the simulator:** each model's `.lcmw` is cached under `native/build/cache/` by the hash of its contents.
+- **Models:** a model file that exists is not trained again.
+- **Screens:** each stage's result is a JSON file under `ml/fm/screens/`; a stage that has one is read, not replayed.
+- **The simulator's own reads:** the threats and the table read are cached for each position, and the plan a seat is committed to is kept with the seat.
+
+### Pruning
+
+- **Staged screens.** A model plays 4,000 deals, then 16,000, then 40,000, on fresh deals each time. After each stage, a model behind the champion by more than one standard error (pooled over the stages so far) is dropped. A losing arm costs 4,000 deals, not 60,000.
+- **Recipes, not lucky models.** A recipe is kept on the average of its seeds, and dropped when any seed falls behind. One good draw can't carry a recipe.
+- **Only the learner's seats are recorded.** Rows read through the learner's foundation from other players' seats are left out: they doubled the data and were read with a plan memory that wasn't theirs.
+- **A sample of positions.** 30% of the learner's discards, and every kong and passed claim.
+- **Early stopping.** Training stops after 3 epochs without a better validation loss.
+- **Old data.** Sets older than the training window (3 rounds) go to the Trash, never deleted outright. Weights, reports and logs stay.
+
+### Other frontends
+
+The model is a list of matrices and a short forward pass, with nothing tied to JS. [Running the models on another frontend](porting.md) is the contract for a port such as Swift: the weights file, the forward pass, the outputs of each head, and three checks (the network's outputs, the rows, every action of a list of deals) that a port can run against files, with no JS involved.
+
 ## How it is judged
 
 - **The frozen benchmark and its bar** carry over from the Suphx plan ([benchmark](benchmark.md)): two standard errors better on 40,000 paired deals, replicated on another 40,000.
@@ -137,3 +180,16 @@ One round answers the question this whole section rests on: can a model pick a h
 ## Learnings
 
 One sub-section a step, each entry as a finding, its *Evidence* (numbers, sizes, source), and what *Changed* or stays *Open*. Negative results are kept.
+
+### Step 2: the hand head and the table heads (2026-11-09)
+
+Model FM1a0: NC's body (512, 256) started from N14c, the extra heads at loss weight 0.5, trained on fm-1 (200,000 deals on the native simulator, the champion's own seats, about 2.7 million positions). Judged on 135,600 held-out positions from whole held-out deals.
+
+- **A model can pick a hand, and it picks better than the rules do.**
+  - *Evidence:* on the 8,555 held-out positions whose seat went on to win, the hand head named the hand it won with 74.4% of the time. The rules' read of the same tiles (the foundation's best plan) named it 64.1%. The head trained to copy the rules matched them on 99.9% of positions, so the gap isn't the head failing to learn the rules: it learned something they miss.
+- **Its chances are calibrated, hand by hand.**
+  - *Evidence (the chance it gave to win as each hand, against how often that happened):* half flush 1.42% against 1.37%, full flush 2.38% against 2.43%, all triplets 1.19% against 1.25%, seven pairs 1.26% against 1.32%, thirteen orphans 0.22% against 0.22%. The mean error by bin is under 0.2 points for every hand. AUC 0.82 (plain) to 0.99 (thirteen orphans).
+  - Nine Gates had no wins in the data, so its head is untested; the rules' formula stays its answer.
+- **The table heads read the opponents.**
+  - *Evidence:* an opponent is ready, AUC 0.84 (6.4% of opponent-positions are ready); the tile thrown deals in now, AUC 0.87 (0.45% of throws); a ready opponent's winning tiles, AUC 0.68.
+- *Changed:* the first step passed, so the hand stays a head of the model (it doesn't fall back to rules). Whether the heads also make the moves better is the screen's question, below.

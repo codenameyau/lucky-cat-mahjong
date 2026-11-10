@@ -32,7 +32,7 @@ A record of the frontier work so far (from 2026-11-08): what was built, every de
 1. **The frontier plan** (2026-11-08). Suphx, taken apart against Hong Kong rules, argued through four rounds of critique, ending in phases with bars to pass and reasons to stop. Two lineages: Lucky Cat (from lc32) and Sphinx (from random weights).
 2. **Phase 0, the Suphx teacher.** Built as the lab's `lucky-cat-suphx`: the hidden tiles say which discards would deal in now, and a teacher pushes them down. It became the per-move teacher every phase-1 arm trains with.
 3. **The benchmark.** A frozen table pinned by SHA-256 and a fingerprint, a fixed deck, the Table Score, and `bench.js judge` for the bar. Its PR was merged as #202.
-4. **Phase 1 built.** Features v2 (854 inputs), auxiliary heads that learn the hidden tiles as targets, and the round driver `npm run ml:frontier`.
+4. **Phase 1 built.** Features v2 (854 inputs), auxiliary heads that learn the hidden tiles as targets, and the round driver `npm run ml:suphx`.
 5. **Lucky Cat rounds 1–3.** 9 arms: the best (LV1a, +7.6 at its screen) failed the judgment's own screen at +4.3. The heads learned to read the table (deal-in AUC 0.87 → 0.92, waits 0.52 → 0.61), but play didn't change: the nine screens averaged −0.4 points a hand.
 6. **Sphinx rounds 1–2.** Imitating its own rare wins in self-play made it win five times as often and deal in far more: SP1a, SP1b, SP1c and SP2a each lost about 43 points a hand to random play.
 7. **Policy-gradient probes** (PG1–PG3). Training on what hands scored, with the heads and the teacher. PG2 and PG3 passed the screen (+8.1, +5.7), then failed to qualify (−2.4, −2.6).
