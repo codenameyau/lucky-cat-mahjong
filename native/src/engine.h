@@ -137,6 +137,12 @@ struct Result {
 Result runHand(Game& g, Agent* agents[4], std::vector<std::string>* trace = nullptr);
 // A replay: the hand in `g` goes on from `seat` throwing `tile` (its turn, the tile not thrown yet).
 Result continueAfterDiscard(Game& g, Agent* agents[4], int seat, int tile);
+// A replay from a decision point: `seat`'s turn as it stands (the tile drawn or claimed,
+// nothing thrown yet), or `from`'s `tile` thrown with the claims on it not yet asked.
+Result continueAtTurn(Game& g, Agent* agents[4], int seat);
+Result continueAtClaims(Game& g, Agent* agents[4], int from, int tile);
+// A claim applied to the hand: the tiles moved and the meld made (the engine's own step).
+void applyClaim(Game& g, int seat, const Decision& d);
 void touch(Hand& h);  // a new version
 
 // Helpers the bots share with the engine.

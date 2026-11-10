@@ -6,7 +6,6 @@ Guides for working on Lucky Cat Mahjong. The [project README](../README.md) cove
 
 Lucky Cat Mahjong is a static site whose centre is a Hong Kong mahjong game played in the browser, with bots at the table and a coach beside you. Every bot seat, and the coach, plays a named **strategy**. Some are written as rules (Jorge Yau, Only Orphans' targets); the rest are **neural networks** trained on millions of simulated hands:
 
-- **Frontier Cat** (FC1) is the newest. It uses a stacked model: a reader network reads the table first, then the move network scores each option with that read beside it.
 - **Neural Cat** (NC9) scores Jorge Yau's best options by the points it expects them to win or lose.
 - **Lucky Cat** (LC32) makes every move itself, with no rules underneath.
 
@@ -26,13 +25,13 @@ The folders, most important first:
 
 ## Machine learning
 
-The models behind Neural Cat, Lucky Cat, Only Orphans and Frontier Cat. Start with the frontier report for where things stand, or the overview for how a model plays.
+The models behind Neural Cat, Lucky Cat and Only Orphans. Start with the frontier report for where things stand, or the overview for how a model plays.
 
 **Where it stands**
 
-- [Frontier report](machine-learning/frontier-report.md): the stacked evaluation architecture (Frontier Cat) against the previous one (Neural Cat). It covers the head-to-head results over 100,000 deals, what each step added, what the reader learned, the cost, what went wrong, and what comes next.
+- [Frontier report](machine-learning/frontier-report.md): the stacked evaluation architecture (Frontier Cat FC1, since folded into Neural Cat) against the previous one (Neural Cat). It covers the head-to-head results over 100,000 deals, what each step added, what the reader learned, the cost, what went wrong, and what comes next.
 - [Frontier plan](machine-learning/frontier-plan.md): the frontier model, one network with three heads grown from Neural Cat. It has the steps to make it strong, how it trains (caching, pruning, where each step runs), how it is judged, and the Learnings from every round.
-- [Iterations](machine-learning/iterations.md): how Neural Cat, Lucky Cat and Frontier Cat evolved model by model, with the thinking behind each release and what the bot does differently.
+- [Iterations](machine-learning/iterations.md): how Neural Cat (with its stacked models) and Lucky Cat evolved model by model, with the thinking behind each release and what the bot does differently.
 
 **How a model plays**
 
@@ -62,7 +61,6 @@ The models behind Neural Cat, Lucky Cat, Only Orphans and Frontier Cat. Start wi
 How each bot plays, and how the coach follows a strategy.
 
 - [Strategies and the shared foundation](strategies/README.md): what each strategy is now and where it plays. It covers the shared foundation (steps from ready, live tiles, plans, threat reads), the contradiction check, adding a strategy, and competition results.
-- [Frontier Cat](strategies/frontier-cat.md): the stacked model. A reader gives each opponent's chance to be ready, the tile's chance to deal in, and the hand it expects to win; the move network scores each option with that read. The page also covers what the coach adds at Complex, and its cost.
 - [Neural Cat](strategies/neural-cat.md): a network scoring Jorge Yau's best options by expected points, with a bonus for the chance to win.
 - [Jorge Yau](strategies/jorge-yau.md): the rule playbook. Picking a hand, playing fast, discard order, claims, attack and when to play safe, reading the table, and its knobs.
 - [Lucky Cat](strategies/lucky-cat.md): a network that makes every move itself, trained by self-play to win often and fast.

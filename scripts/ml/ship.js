@@ -24,8 +24,6 @@ const LN = require('../../js/mahjong-lucky-cat-net.js');
 const TARGETS = {
   'neural-cat': { file: 'mahjong-ml-weights.js', global: 'MahjongMLWeights', name: "Neural Cat's", model: M, by: 'scripts/ml/ship.js', release: 'NC' },
   'only-orphans': { file: 'mahjong-only-orphans-weights.js', global: 'MahjongOnlyOrphansWeights', name: "Only Orphans'", model: M, by: 'scripts/ml/ship.js' },
-  // The frontier model (docs/machine-learning/frontier-plan.md): a stacked Neural Cat, shipped beside Neural Cat.
-  'frontier-cat': { file: 'mahjong-frontier-weights.js', global: 'MahjongFrontierWeights', name: "Frontier Cat's", model: M, by: 'scripts/ml/ship.js', release: 'FC' },
   'lucky-cat': { file: 'mahjong-lucky-cat-weights.js', global: 'MahjongLuckyCatWeights', name: "Lucky Cat's", model: LN, by: 'scripts/ml/ship.js', release: 'lc' },
 };
 

@@ -34,6 +34,17 @@ One network (376 inputs, two hidden layers of 256 and 128, 74 outputs) gives eac
 
 Illegal moves are masked out, and the move with the biggest share is played, unless it contradicts the hand it builds toward (the plan the shared foundation reads for it, as Jorge Yau and Neural Cat play it): then the network's next most likely move that doesn't is played ([the contradiction check](README.md#the-contradiction-check)). The check runs in the game, in benchmarks and in training, and the data records the move it settled on. A win of 3 faan or more is always declared.
 
+## The value
+
+Lucky Cat's new lineage (from 2026-11-10) adds the stacked evaluation of the [frontier plan](../machine-learning/frontier-plan.md) and keeps what Lucky Cat is: it taught itself, and nothing in its choice comes from Jorge Yau's rules or options. **The policy prunes, the value decides.**
+
+1. **The policy** (LC32's network, as above) gives every legal move its share, and keeps its best few (`play.topK`, 4). At a claim, every move is kept: pass, each chow, pung, kong.
+2. **The value** (`js/mahjong-lucky-cat-value.js`) scores the position each of them leaves, in expected points: the policy's 376 features of the hand and melds it leaves and the table as it is, plus the tile it throws (34) and the kind of move (6), 416 numbers in all, only what the seat can see. Its network has Neural Cat's 28 outputs (how the hand ends, the faan won and paid), so it is summarized the same way, and a bonus for the chance to win is added (`play.winBonus`, 300). A call is worth the best of the policy's top discards after it, each read as the discard it is.
+3. **The read**, stacked: a reader (`ml/train.py --heads`) reads the same 416 numbers and gives 16 (each other player ready, the tile thrown dealing in now, the hand it wins with), and the value reads both. It learned from hands where every tile was known afterwards; in play it reads only the seat's view.
+4. **The pick:** the best value goes, unless the contradiction check stops it; then the next best value, then the rest by share.
+
+**How it learns, all from its own play.** Rounds of Lucky Cat's own games on the native simulator (`lcm-sim generate-lcv`, `npm run ml:lucky-value`): the learner explores (its shares; with a value, now and then one of its best few), at a table of itself, LC32, Neural Cat and Jorge Yau, and every seat's moves are recorded through Lucky Cat's eyes. At a tenth of the positions, each of the learner's top moves is played on 12 times from there with the wall shuffled (option replays), so each option has its own label and the network can learn which is best (a ranking loss). The value is trained by `ml/train.py`, packed with the policy into Lucky Cat's weights (`value` in the file), and screened against the champion at the game's table. The JS and the C++ play every hand alike (`node scripts/ml/native.js parity` with a value model).
+
 ## How it learned
 
 1. **It started at random.** The first model (`lc0`) has every weight at zero, so every legal move gets the same share. Playing itself at random, about 0.4% of seats win a hand.

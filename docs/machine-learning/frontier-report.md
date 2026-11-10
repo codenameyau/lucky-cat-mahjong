@@ -105,7 +105,7 @@ The reader is FM1b0, trained in round 1 with the hidden tiles as answers. On 135
 
 AUC is the chance that a random positive is rated above a random negative: 0.5 is a coin flip, 1.0 is perfect. Nine Gates had no wins in the data, so its read is untested.
 
-The reads are good and the move network gains little from them. Most of what they say is already in the features: the 568 include a hand-made threat read of each opponent, and N14c's network had learned to use it. The coach uses the reads at Complex, where they are the most direct thing it can say about the table ([Frontier Cat](../strategies/frontier-cat.md#what-the-coach-says)).
+The reads are good and the move network gains little from them. Most of what they say is already in the features: the 568 include a hand-made threat read of each opponent, and N14c's network had learned to use it. The coach uses the reads at Complex, where they are the most direct thing it can say about the table ([stacked models](../strategies/neural-cat.md#stacked-models)).
 
 ## What it costs
 
@@ -173,6 +173,8 @@ In the order the evidence points:
 5. **A bigger network, last.** Nothing measured points at size yet.
 
 ## What ships
+
+**Since then (0.59.0):** Frontier Cat folded into Neural Cat's lineage. It chooses as Neural Cat does (Jorge Yau's best options, scored in expected points), so a stacked model now ships as Neural Cat once it clears the bar, and FC1 didn't: on the [benchmark](benchmark.md) (version 2, which runs natively) its screen against NC9 was +6.6 ± 8.1 points a hand, short of 1 standard error. The stacked evaluation goes on in Neural Cat's rounds, and, self-taught, as Lucky Cat's new lineage ([Lucky Cat](../strategies/lucky-cat.md#the-value)). Shipped in 0.58.0:
 
 - **Frontier Cat FC1** (`frontier-cat`, `js/mahjong-frontier-weights.js`), on the Strategies sheet after Neural Cat, for a seat or the coach. It is a new strategy and replaces nothing.
 - **Neural Cat NC9** (the lab's N14c), in place of NC8. It is the previous architecture's best, +11.6 ± 2.8 points a hand over NC8, and the fair point of comparison for Frontier Cat in the game. It is its own commit, so it can be left out on its own.

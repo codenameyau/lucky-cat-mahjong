@@ -189,7 +189,7 @@ static void markLastDiscardClaimed(Game& g) {
   touch(g.hand);
 }
 
-static void applyClaim(Game& g, int seat, const Decision& d) {
+void applyClaim(Game& g, int seat, const Decision& d) {
   Hand& h = g.hand;
   int t = h.lastDiscard.tile;
   Seat& s = h.seats[seat];
@@ -352,7 +352,7 @@ static Result finishFlowerWin(Game& g, int seat, const FlowerWin& fw) {
 
 // The hand's loop. A replay (continueAfterDiscard) starts at `pending`: `cur` has
 // just chosen to throw it, so the loop goes straight to applying it.
-static Result playLoop(Game& g, Agent* agents[4], int cur, bool needDraw, int pending);
+static Result playLoop(Game& g, Agent* agents[4], int cur, bool needDraw, int pending, bool thrown = false);
 
 static Result playHand(Game& g, Agent* agents[4]) {
   for (int k = 0; k < 4; k++) handleFlowers(g, (g.dealer + k) % 4);
@@ -367,7 +367,15 @@ Result continueAfterDiscard(Game& g, Agent* agents[4], int seat, int tile) {
   return playLoop(g, agents, seat, false, tile);
 }
 
-static Result playLoop(Game& g, Agent* agents[4], int cur, bool needDraw, int pending) {
+Result continueAtTurn(Game& g, Agent* agents[4], int seat) {
+  return playLoop(g, agents, seat, false, NO_TILE);
+}
+
+Result continueAtClaims(Game& g, Agent* agents[4], int from, int tile) {
+  return playLoop(g, agents, from, false, tile, true);
+}
+
+static Result playLoop(Game& g, Agent* agents[4], int cur, bool needDraw, int pending, bool thrown) {
   Hand& h = g.hand;
   for (;;) {
     h.turn = cur;
@@ -391,7 +399,8 @@ static Result playLoop(Game& g, Agent* agents[4], int cur, bool needDraw, int pe
 
     int discarded = NO_TILE;
     if (pending != NO_TILE) {
-      applyDiscard(g, cur, pending);
+      if (!thrown) applyDiscard(g, cur, pending);
+      thrown = false;
       discarded = pending;
       pending = NO_TILE;
     }

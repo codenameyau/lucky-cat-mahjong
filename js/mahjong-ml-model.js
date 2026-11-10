@@ -102,10 +102,13 @@
     return out;
   }
 
-  function createModel(weights) {
-    if (weights.featureSize !== F.SIZE || weights.featureVersion !== F.FEATURE_VERSION) {
+  // expect: { size, version } for a model over other features (Lucky Cat's value,
+  // js/mahjong-lucky-cat-value.js); Neural Cat's by default.
+  function createModel(weights, expect) {
+    var SIZE = expect ? expect.size : F.SIZE, VERSION = expect ? expect.version : F.FEATURE_VERSION;
+    if (weights.featureSize !== SIZE || weights.featureVersion !== VERSION) {
       throw new Error('model expects ' + weights.featureSize + ' features (version ' + weights.featureVersion +
-        '), have ' + F.SIZE + ' (version ' + F.FEATURE_VERSION + ')');
+        '), have ' + SIZE + ' (version ' + VERSION + ')');
     }
     var layers = weights.layers.map(function (l) {
       return { rows: l.rows, cols: l.cols, w: floats(l.w, weights.dtype), b: floats(l.b, weights.dtype) };
@@ -117,16 +120,16 @@
       reader = network(weights.reader.layers.map(function (l) {
         return { rows: l.rows, cols: l.cols, w: floats(l.w, weights.reader.dtype || weights.dtype), b: floats(l.b, weights.reader.dtype || weights.dtype) };
       }), READER_OUTPUTS);
-      if (layers[0].cols !== F.SIZE + READ_SIZE) throw new Error('a stacked model reads ' + (F.SIZE + READ_SIZE) + ' inputs');
+      if (layers[0].cols !== SIZE + READ_SIZE) throw new Error('a stacked model reads ' + (SIZE + READ_SIZE) + ' inputs');
     }
     var move = network(layers, OUTPUTS);
-    var stacked = new Float32Array(F.SIZE + READ_SIZE);
+    var stacked = new Float32Array(SIZE + READ_SIZE);
     // The raw outputs for one feature vector: the reader's read put after the
     // features, then the move network.
     function forward(x) {
       if (!reader) return move(x);
-      for (var i = 0; i < F.SIZE; i++) stacked[i] = x[i];
-      readFeatures(reader(x), stacked, F.SIZE);
+      for (var i = 0; i < SIZE; i++) stacked[i] = x[i];
+      readFeatures(reader(x), stacked, SIZE);
       return move(stacked);
     }
 

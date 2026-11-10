@@ -197,7 +197,8 @@
   }
 
   // Strategies saved under an older id.
-  var RENAMED_STRATEGIES = { 'claude-cat': 'lucky-cat', 'no-defense': 'jorge-yau' };
+  // Frontier Cat (0.58) was Neural Cat with a stacked model; it folded into Neural Cat's lineage.
+  var RENAMED_STRATEGIES = { 'claude-cat': 'lucky-cat', 'no-defense': 'jorge-yau', 'frontier-cat': 'neural-cat' };
   // Before 0.6.0 the lucky-cat and jorge-yau ids were the other way round.
   // Saved choices from then have no `v`; saves from then are older than
   // SWAPPED_BEFORE.
@@ -309,8 +310,6 @@
     // Only Orphans' weights, the same way.
     if (!root.MahjongOnlyOrphansWeights) jobs.push(loadScript('/js/mahjong-only-orphans-weights.js'));
     if (!root.MahjongLuckyCatWeights) jobs.push(loadScript('/js/mahjong-lucky-cat-weights.js'));
-    // Frontier Cat's: its move network and the reader it reads (js/mahjong-ml-model.js).
-    if (!root.MahjongFrontierWeights) jobs.push(loadScript('/js/mahjong-frontier-weights.js'));
     if (document.fonts && document.fonts.load) {
       jobs.push(Promise.race([
         document.fonts.load('16px "KN Yuanmo SC"').catch(function () {}),

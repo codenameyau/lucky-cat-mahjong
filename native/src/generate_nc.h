@@ -25,8 +25,27 @@ struct NcGenerateJob {
   // counts go in shard-N.replay; the rows themselves are unchanged.
   int replays = 0;
   double replayShare = 0;
+  // Option replays (steps 5 and 6): this share of the recorded decisions writes a
+  // group of rows, one for each option the seat weighs (the first `options`
+  // discards in the foundation's order and each kong; or passing, each call and
+  // the kong), each played on `optionReplays` times from the position. In
+  // shard-N.options (features) and shard-N.optlabels (56 bytes a row: group,
+  // chosen, kind, strategy, options, replays, outcome counts, seat, mean points,
+  // deal seed, win and pay faan counts).
+  int optionReplays = 0, options = 4;
+  double optionShare = 0;
 };
 
 int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make);
+
+// lcm-sim generate-lcv: Lucky Cat's value data (js/mahjong-lucky-cat-value.js), native
+// only. The learner is Lucky Cat (job.weights: <policy.lcmw>[+<value.lcmw>]), playing
+// by its shares at job.temperature (no value), or by its value with job.epsilon. At a
+// share of every seat's decisions (job.sample): the value's features of the position the
+// move leaves, how the hand ended (shard-N.labels, as Neural Cat's), and the table's
+// hidden-tile labels (shard-N.aux, no rules' hand); and at job.optionShare of them, the
+// learner's top job.options moves by share (or every claim move), each played on
+// job.optionReplays times (shard-N.options, shard-N.optlabels, as generate-nc).
+int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make);
 
 }  // namespace lcm

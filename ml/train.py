@@ -33,6 +33,16 @@ the K replays' endings together, a distribution in place of one draw, for
 how the hand ends and for the faan won and paid. Validation still scores
 the one real ending, so models with and without it compare.
 
+--options learns from option replays (frontier plan, steps 5 and 6; generate.js
+--native --option-replays K): groups of rows, one for each option a seat weighed
+at a position (the discards, the kong, passing, each call), each played on K
+times from it. Each option row learns from its replays' endings (--option-weight),
+and --rank-weight adds a listwise loss on each group: the model's values of the
+options (expected points and the win bonus, as the game ranks them) against the
+replays' mean values, both through a softmax at --rank-temp points. Validation
+reports, on held-out groups, the points the model's pick gives up against the
+replays' best (regret) and how often it is the replays' best.
+
 Writes ml/models/<name>.json (weights, float16 base64) and checks the JS
 model gives the same outputs. --ship also writes js/mahjong-ml-weights.js,
 the copy the page and npm run compete load.
@@ -171,6 +181,68 @@ def load(dirs, limit=None, heads=False, replay=False):
     if replay:
         print('Replayed labels: %d of %d rows' % (int((rep[:, 0] > 0).sum()), total))
     return x, y, manifests, aux, has_aux, rep
+
+
+OPT_BYTES = 56  # native/src/generate_nc.cpp: one option row's labels
+
+
+def load_options(manifests, size):
+    """The option groups of every shard that has them: features, labels, and a padded group matrix."""
+    xs, ls, gid, at = [], [], [], 0
+    for m in manifests:
+        for s in m['shards']:
+            if not s.get('options'):
+                continue
+            x = np.fromfile(os.path.join(m['dir'], s['options']), dtype=np.float16).reshape(-1, size)
+            l = np.fromfile(os.path.join(m['dir'], s['optlabels']), dtype=np.uint8).reshape(-1, OPT_BYTES)
+            assert len(x) == len(l), 'option rows mismatch in ' + m['dir']
+            g = l[:, 0:4].copy().view('<u4').ravel().astype(np.int64)
+            xs.append(x); ls.append(l); gid.append(g + at)
+            at += int(g.max()) + 1 if len(g) else 0
+    if not xs:
+        return None
+    x, l, g = np.concatenate(xs), np.concatenate(ls), np.concatenate(gid)
+    _, g = np.unique(g, return_inverse=True)
+    n_groups = int(g.max()) + 1
+    order = np.argsort(g, kind='stable')
+    width = int(np.bincount(g).max())
+    mat = np.full((n_groups, width), -1, dtype=np.int64)
+    starts = np.searchsorted(g[order], np.arange(n_groups))
+    for k in range(width):
+        pos = starts + k
+        ok = (pos < len(order)) & (g[order][np.minimum(pos, len(order) - 1)] == np.arange(n_groups))
+        mat[ok, k] = order[pos[ok]]
+    seed = l[mat[:, 0], 20:24].copy().view('<u4').ravel()
+    print('Option groups: %d positions, %d option rows (up to %d a position)' % (n_groups, len(x), width))
+    return {'x': x, 'labels': l, 'groups': mat, 'seed': seed}
+
+
+def option_value(out, bonus):
+    """The value the game ranks options by: expected points plus the win bonus times the chance to win."""
+    p = torch.softmax(out[:, :N_OUTCOMES], 1)
+    return expected_points(out) + bonus * (p[:, 0] + p[:, 1])
+
+
+def option_losses(out, lab):
+    """Each option row's value heads against its replays' endings (counts only)."""
+    cnt = lab[:, 9:15]
+    lo = -(cnt / cnt.sum(1, keepdim=True).clamp(min=1) * F.log_softmax(out[:, :N_OUTCOMES], 1)).sum(1).mean()
+    def faan(lo_, hi, c):
+        m = c.sum(1) > 0
+        if not m.any():
+            return out.new_zeros(())
+        t = c[m] / c[m].sum(1, keepdim=True)
+        return -(t * F.log_softmax(out[m, lo_:hi], 1)).sum(1).mean()
+    return lo + 0.5 * faan(N_OUTCOMES, N_OUTCOMES + N_FAAN, lab[:, 32:43]) + 0.5 * faan(N_OUTCOMES + N_FAAN, OUTPUTS, lab[:, 43:54])
+
+
+def rank_loss(v, t, mask, temp):
+    """Listwise: the replays' softmax over a group's options against the model's (padded with mask)."""
+    neg = torch.finfo(v.dtype).min / 4
+    tv = torch.where(mask, t / temp, torch.full_like(t, neg))
+    mv = torch.where(mask, v / temp, torch.full_like(v, neg))
+    p = torch.softmax(tv, 1)
+    return -(p * torch.where(mask, F.log_softmax(mv, 1), torch.zeros_like(mv))).sum(1).mean()
 
 
 class Net(nn.Module):
@@ -360,6 +432,12 @@ def main():
     ap.add_argument('--seed', type=int, default=0)
     ap.add_argument('--reader', help='a <name>.heads.json: train a stacked model that reads its read')
     ap.add_argument('--replay', action='store_true', help='learn from replayed labels (shard-N.replay)')
+    ap.add_argument('--options', action='store_true', help='learn from option replays (shard-N.options)')
+    ap.add_argument('--option-weight', type=float, default=0.5, help="weight of the option rows' value loss")
+    ap.add_argument('--rank-weight', type=float, default=0.0, help='weight of the listwise loss on each group of options')
+    ap.add_argument('--rank-temp', type=float, default=100.0, help='the softmax temperature of the ranking loss, in points')
+    ap.add_argument('--win-bonus', type=float, default=None, help="the win bonus options are ranked with (default: --init's, else 300)")
+    ap.add_argument('--group-batch', type=int, default=256, help='option groups a step')
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -413,6 +491,62 @@ def main():
         aux_t, aux_v = to(aux[~val], torch.uint8), aux[val]
         has_t = to(has_aux[~val], torch.bool)
         print('Extra heads: %d of %d rows carry their labels' % (int(has_aux.sum()), len(has_aux)))
+    opt_data = load_options(manifests, size) if args.options else None
+    if args.options and opt_data is None:
+        sys.exit('--options: no shard has option rows (generate.js --native --option-replays K)')
+    bonus = args.win_bonus
+    if bonus is None:
+        bonus = 300.0
+        if args.init:
+            with open(args.init) as f:
+                bonus = float(((json.load(f).get('meta') or {}).get('play') or {}).get('winBonus', 300))
+    if opt_data is not None:
+        ox = opt_data['x']
+        if args.reader:
+            with open(args.reader) as f:
+                rnet = reader_net(read_layers(json.load(f)), device)
+            with torch.no_grad():
+                ord_ = np.concatenate([read_of(rnet(torch.from_numpy(ox[i:i + 16384].astype(np.float32)).to(device))).cpu().numpy()
+                                       for i in range(0, len(ox), 16384)])
+            ox_in = np.concatenate([ox.astype(np.float32), ord_], 1)
+        else:
+            ox_in = ox.astype(np.float32)
+        oxt = to(ox_in, torch.float32)
+        olab = to(opt_data['labels'].astype(np.float32), torch.float32)
+        omean = to(opt_data['labels'][:, 16:20].copy().view('<f4').ravel(), torch.float32)
+        ocnt = opt_data['labels'][:, 9:15].astype(np.float32)
+        owin = to((ocnt[:, 0] + ocnt[:, 1]) / np.maximum(1, ocnt.sum(1)), torch.float32)
+        otarget = omean + bonus * owin
+        gval = (opt_data['seed'].astype(np.uint64) * 2654435761 % 2**32) % 20 == 0
+        gmat = opt_data['groups']
+        g_tr, g_va = gmat[~gval], gmat[gval]
+        print('Option groups: %d to train on, %d held out; ranked with a win bonus of %g, at %g points' % (len(g_tr), len(g_va), bonus, args.rank_temp))
+
+    def group_batch(mat):
+        m = torch.from_numpy(mat).to(device)
+        mask = m >= 0
+        flat = m.clamp(min=0)
+        return flat, mask
+
+    def rank_report(model):
+        model.eval()
+        regret, top, played = [], [], []
+        with torch.no_grad():
+            for i in range(0, len(g_va), 4096):
+                flat, mask = group_batch(g_va[i:i + 4096])
+                v = option_value(model(oxt[flat.view(-1)]), bonus).view(flat.shape)
+                t = otarget[flat.view(-1)].view(flat.shape)
+                v = torch.where(mask, v, torch.full_like(v, -1e30))
+                tm = torch.where(mask, t, torch.full_like(t, -1e30))
+                best = tm.max(1).values
+                pick = v.argmax(1)
+                got = t.gather(1, pick.unsqueeze(1)).squeeze(1)
+                regret.append((best - got).cpu()); top.append((pick == tm.argmax(1)).cpu())
+                ch = (olab[flat.view(-1), 4].view(flat.shape) > 0) & mask
+                played.append((best - (t * ch).sum(1)).cpu())
+        model.train()
+        return float(torch.cat(regret).mean()), float(torch.cat(top).float().mean()), float(torch.cat(played).mean())
+
     print('Training on %d, validating on %d, on %s' % (n_train, n_val, device))
 
     hidden = [int(h) for h in args.hidden.split(',') if h]
@@ -424,11 +558,13 @@ def main():
             dt = '<f2' if init.get('dtype') == 'f16' else '<f4'
             w = np.frombuffer(base64.b64decode(l['w']), dtype=dt).astype(np.float32).reshape(l['rows'], l['cols'])
             b = np.frombuffer(base64.b64decode(l['b']), dtype=dt).astype(np.float32)
-            # A wider last layer (the extra heads) keeps its own start for the new rows.
+            # More rows than the start (the extra heads, or a wider layer): the new rows keep
+            # their own random start. More columns (a stacked model's read, or the units
+            # a wider layer below added): zeros, so the model starts out as the one it came
+            # from, and the new units learn from there.
             rows = min(l['rows'], lin.weight.shape[0])
-            # A stacked model's first layer: the plain model's columns, and zeros for the read.
             if lin.weight.shape[1] != w.shape[1]:
-                lin.weight.data.zero_()
+                lin.weight.data[:, w.shape[1]:] = 0
                 lin.weight.data[:rows, :w.shape[1]] = torch.from_numpy(w[:rows].copy()).to(device)
                 lin.bias.data[:rows] = torch.from_numpy(b[:rows].copy()).to(device)
                 continue
@@ -455,6 +591,18 @@ def main():
             loss = lo + 0.5 * lw + 0.5 * lp
             if args.heads:
                 loss = loss + args.head_weight * sum(head_losses(out, aux_t[idx], has_t[idx]))
+            if opt_data is not None and len(g_tr):
+                gsel = g_tr[np.random.default_rng(epoch * 100003 + steps).integers(0, len(g_tr), args.group_batch)]
+                flat, mask = group_batch(gsel)
+                rows = flat[mask]
+                o_out = model(oxt[rows])
+                loss = loss + args.option_weight * option_losses(o_out, olab[rows])
+                if args.rank_weight:
+                    full = torch.zeros(flat.numel(), o_out.shape[1], device=device, dtype=o_out.dtype)
+                    full[mask.view(-1)] = o_out
+                    v = option_value(full, bonus).view(flat.shape)
+                    t = otarget[flat.view(-1)].view(flat.shape)
+                    loss = loss + args.rank_weight * rank_loss(v, t, mask, args.rank_temp)
             opt.zero_grad()
             loss.backward()
             opt.step()
@@ -468,13 +616,18 @@ def main():
         if not math.isfinite(corr):
             corr = 0.0
         run /= max(1, steps)
-        print('epoch %2d  train %.4f %.4f %.4f  val %.4f %.4f %.4f  outcome acc %.3f  ev~points r=%.3f  %.0fs' % (
-            epoch + 1, run[0], run[1], run[2], vl[0], vl[1], vl[2], acc, corr, time.time() - t1))
+        rr = rank_report(model) if opt_data is not None and len(g_va) else None
+        print('epoch %2d  train %.4f %.4f %.4f  val %.4f %.4f %.4f  outcome acc %.3f  ev~points r=%.3f%s  %.0fs' % (
+            epoch + 1, run[0], run[1], run[2], vl[0], vl[1], vl[2], acc, corr,
+            ('  options: regret %.1f points, picks the best %.1f%% (as played: regret %.1f)' % (rr[0], 100 * rr[1], rr[2])) if rr else '',
+            time.time() - t1))
         if total < best - 1e-4:
             best, stale = total, 0
             best_state = {k: v.detach().clone() for k, v in model.state_dict().items()}
             best_info = {'valLoss': round(float(total), 5), 'valOutcomeLoss': round(float(vl[0]), 5),
                          'valOutcomeAcc': round(acc, 4), 'evPointsCorr': round(corr, 4), 'epoch': epoch + 1}
+            if rr:
+                best_info.update({'optionRegret': round(rr[0], 2), 'optionPicksBest': round(rr[1], 4), 'optionRegretAsPlayed': round(rr[2], 2)})
         else:
             stale += 1
             if stale >= args.patience:

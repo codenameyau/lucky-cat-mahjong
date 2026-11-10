@@ -47,6 +47,12 @@
                       the recorded discards K times after the hand, with the
                       tiles the seat can't see shuffled; the counts of how the
                       replays ended go in shard-N.replay (labels only)
+     --option-replays K  native only: at a share (--option-share, default 0.1) of
+                      the recorded decisions, every option the seat weighs (the
+                      first --options discards, default 4, and each kong; or
+                      passing, each call and the kong) is played on K times from
+                      the position; one row an option, grouped by the position,
+                      in shard-N.options and shard-N.optlabels (labels only)
    npm run ml:generate -- parity --deals 200   checks that: the JS and the native
                       simulator write the same bytes for the same deals, every
                       seat recorded (--learner-only: the learner's seats alone)
@@ -300,7 +306,8 @@ function nativePlan(cfg, known, args) {
   const sim = path.join(__dirname, '..', '..', 'native', 'build', (args.exact ? 'lcm-sim-exact' : 'lcm-sim') + (process.platform === 'win32' ? '.exe' : ''));
   // A finished shard is kept (shard-N.done.json says what made it): a run that was
   // stopped part way picks up at the shards it hadn't finished.
-  const replays = args.replays ? ['--replays', String(args.replays), '--replay-share', String(args['replay-share'] || 0.25)] : [];
+  const replays = (args.replays ? ['--replays', String(args.replays), '--replay-share', String(args['replay-share'] || 0.25)] : [])
+    .concat(args['option-replays'] ? ['--option-replays', String(args['option-replays']), '--options', String(args.options || 4), '--option-share', String(args['option-share'] || 0.1)] : []);
   const recordAll = all ? ['--record-all', cfg.pool.map((id) => known.indexOf(id)).join(',')] : [];
   const key = (c) => JSON.stringify([c.seed, c.deals, weights, pool, cfg.temperature, cfg.epsilon, cfg.sample, !!args.exact, E.GAME_VERSION, replays, recordAll]);
   return (c) => new Promise((resolve, reject) => {
@@ -396,7 +403,7 @@ async function main() {
   const progress = new Array(workers).fill(0);
   let lastLog = 0;
   const jobs = [];
-  if (args.replays && !args.native) throw new Error('--replays runs on the native simulator only (--native)');
+  if ((args.replays || args['option-replays']) && !args.native) throw new Error('--replays and --option-replays run on the native simulator only (--native)');
   const native = args.native ? nativePlan(cfgBase, known, args) : null;
   for (let w = 0; w < workers; w++) {
     const first = w * per;
@@ -441,8 +448,12 @@ async function main() {
     learner,
     native: native ? (args.exact ? 'exact' : 'fast') : false,
     replays: args.replays ? { replays: parseInt(args.replays, 10), share: parseFloat(args['replay-share'] || 0.25), bytes: 30 } : null,
+    options: args['option-replays'] ? { replays: parseInt(args['option-replays'], 10), options: parseInt(args.options || 4, 10), share: parseFloat(args['option-share'] || 0.1), bytes: 56,
+      rows: shards.reduce((a, s) => a + (s.optionRows || 0), 0), groups: shards.reduce((a, s) => a + (s.optionGroups || 0), 0) } : null,
     config: { deals, seed, lineup, pool, record: cfgBase.record, sample: cfgBase.sample, explore: cfgBase.explore, temperature: cfgBase.temperature, epsilon: cfgBase.epsilon, weights: cfgBase.weightsFile },
-    shards: shards.map((s) => ({ features: 'shard-' + s.index + '.features', labels: 'shard-' + s.index + '.labels', aux: 'shard-' + s.index + '.aux', replay: args.replays ? 'shard-' + s.index + '.replay' : undefined, samples: s.samples, deals: s.deals })),
+    shards: shards.map((s) => ({ features: 'shard-' + s.index + '.features', labels: 'shard-' + s.index + '.labels', aux: 'shard-' + s.index + '.aux', replay: args.replays ? 'shard-' + s.index + '.replay' : undefined,
+      options: args['option-replays'] ? 'shard-' + s.index + '.options' : undefined, optlabels: args['option-replays'] ? 'shard-' + s.index + '.optlabels' : undefined,
+      optionRows: s.optionRows, samples: s.samples, deals: s.deals })),
     samples: total,
     ms: Date.now() - t0,
   };

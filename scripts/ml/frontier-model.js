@@ -45,14 +45,18 @@
      --keep N       keep N rounds of data, if more than the window
      --stages a,b   deals of each screen stage (default 4000,16000,40000)
      --drop X       drop a model behind by more than X standard errors (default 1)
-     --keep X       a recipe is a candidate ahead by more than X (default 2)
-     --recipes SET  heads (step 2, the default) or stacked (step 3)
+     --candidate X  a recipe is a candidate ahead by more than X standard errors (default 2)
+     --recipes SET  heads (step 2, the default), stacked (step 3), replay (step 5)
+                    or rank (option replays and the ranking loss, steps 5, 6 and 11)
      --reader FILE  for stacked and replay: the reader, a <name>.heads.json
      --learner-only record the champion's seats alone (rounds 1 to 3 did; every
                     model trained on that fell behind it). Default: every seat
      --sample P     the share of positions recorded (default 0.12; 0.3 learner-only)
      --replays K    the round's data replays a share of its discards K times
-                    (--replay-share, default 0.25), for --recipes replay
+                    (--replay-share, default 0.25), for --recipes replay and rank
+     --option-replays K  the round's data plays every option a seat weighs on K
+                    times at a share of the positions (--option-share, default 0.1;
+                    --options, the discards weighed, default 4), for --recipes rank
      --start FILE   the first champion (default: Neural Cat's lab champion,
                     else the model in the game)
      --dir DIR      state, log and screens (default ml/fm)
@@ -98,6 +102,17 @@ const RECIPE_SETS = {
     { id: 'p', what: 'replayed labels, the window, lr 1e-4', args: ['--lr', '1e-4', '--epochs', '4', '--replay'], plain: true },
     { id: 'q', what: 'replayed labels and the reader, the window less the reader\'s data, lr 1e-4', args: ['--lr', '1e-4', '--epochs', '4', '--replay'], plain: true, stacked: true, notReaderData: true },
     { id: 'c', what: 'the same window, real endings only, lr 1e-4 (the control)', args: ['--lr', '1e-4', '--epochs', '4'], plain: true },
+  ],
+  // Steps 5, 6 and 11 together, on data made with --replays and --option-replays: every
+  // option a seat weighed at a share of the positions, each played on from there.
+  // Round 4 found replayed labels predict better without playing better; these
+  // test whether learning which option is best (a ranking loss) moves play.
+  rank: [
+    { id: 'r', what: 'option replays and the ranking loss, the window, lr 1e-4', args: ['--lr', '1e-4', '--epochs', '4', '--replay', '--options', '--rank-weight', '1'], plain: true },
+    { id: 'o', what: 'option replays as values only, no ranking loss, lr 1e-4', args: ['--lr', '1e-4', '--epochs', '4', '--replay', '--options'], plain: true },
+    { id: 's', what: 'option replays, the ranking loss and the reader, the window less the reader\'s data, lr 1e-4', args: ['--lr', '1e-4', '--epochs', '4', '--replay', '--options', '--rank-weight', '1'], plain: true, stacked: true, notReaderData: true },
+    { id: 'w', what: 'option replays and the ranking loss, a wider body (768, 384) grown from the champion, lr 1e-4', args: ['--lr', '1e-4', '--epochs', '4', '--replay', '--options', '--rank-weight', '1'], plain: true, hidden: '768,384' },
+    { id: 'c', what: 'the same window, replayed labels only, lr 1e-4 (the control)', args: ['--lr', '1e-4', '--epochs', '4', '--replay'], plain: true },
   ],
 };
 
@@ -158,7 +173,7 @@ async function main() {
   const seeds = parseInt(a.seeds || 3, 10);
   const window = parseInt(a.window || 3, 10);
   const stages = String(a.stages || '4000,16000,40000').split(',').map(Number);
-  const drop = parseFloat(a.drop || 1), keep = parseFloat(a.keep || 2);
+  const drop = parseFloat(a.drop || 1), keep = parseFloat(a.candidate || 2);
   const workers = String(a.workers || os.cpus().length);
   const RECIPES = RECIPE_SETS[String(a.recipes || 'heads')];
   if (!RECIPES) throw new Error('--recipes: one of ' + Object.keys(RECIPE_SETS).join(', '));
@@ -171,6 +186,9 @@ async function main() {
   const sample = parseFloat(a.sample || (learnerOnly ? 0.3 : 0.12));
   const replays = a.replays ? parseInt(a.replays, 10) : 0, replayShare = parseFloat(a['replay-share'] || 0.25);
   if (String(a.recipes) === 'replay' && !replays) throw new Error('--recipes replay needs --replays K');
+  const optionReplays = a['option-replays'] ? parseInt(a['option-replays'], 10) : 0;
+  const optionArgs = optionReplays ? ['--option-replays', String(optionReplays), '--options', String(a.options || 4), '--option-share', String(a['option-share'] || 0.1)] : [];
+  if (String(a.recipes) === 'rank' && (!replays || !optionReplays)) throw new Error('--recipes rank needs --replays K and --option-replays K');
   if (RECIPES.some((x) => x.stacked) && !readerFile) throw new Error('--recipes stacked needs --reader <name>.heads.json');
 
   for (let n = 0; n < rounds; n++) {
@@ -186,7 +204,7 @@ async function main() {
       log('Round ' + r + ': ' + deals + ' deals on the native simulator, ' + path.basename(champ) + ' exploring against ' + opponents.join(', '));
       run('node', ['scripts/ml/generate.js', '--native', '--deals', String(deals), '--workers', workers, '--lineup', 'mix', '--pool', pool.join(','),
         '--explore', '0', '--sample', String(sample), '--temperature', '150', '--epsilon', '0.05'].concat(learnerOnly ? ['--record', 'neural-cat'] : [], [
-        '--weights', champ, '--seed', String(DATA_SEED + (r - 1) * 1000000), '--out', data].concat(replays ? ['--replays', String(replays), '--replay-share', String(replayShare)] : [])));
+        '--weights', champ, '--seed', String(DATA_SEED + (r - 1) * 1000000), '--out', data].concat(replays ? ['--replays', String(replays), '--replay-share', String(replayShare)] : [], optionArgs)));
     }
     const sets = [];
     for (let k = Math.max(1, r - window + 1); k <= r; k++) sets.push(path.join('ml', 'data', 'fm-' + k));
@@ -200,7 +218,7 @@ async function main() {
           log('Round ' + r + ': training ' + name + ' [' + rec.what + ', seed ' + s + ']');
           const readerData = readerFile ? (readJson(path.resolve(ROOT, readerFile), { meta: {} }).meta.data || []) : [];
           const use = rec.latest ? [data] : rec.notReaderData ? sets.filter((d) => readerData.indexOf(d) === -1) : sets;
-          run(PYTHON, ['ml/train.py', '--data'].concat(use, ['--name', name, '--init', champ, '--hidden', hidden, '--seed', String(s), '--patience', '3'],
+          run(PYTHON, ['ml/train.py', '--data'].concat(use, ['--name', name, '--init', champ, '--hidden', rec.hidden || hidden, '--seed', String(s), '--patience', '3'],
             rec.plain ? [] : ['--heads'], rec.stacked ? ['--reader', readerFile] : [], rec.args));
           // The model plays with its champion's settings.
           const w = readJson(path.join(ROOT, file));

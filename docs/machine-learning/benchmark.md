@@ -13,9 +13,9 @@ How strong a model is, as one number anyone can reproduce, and the bar a model m
 
 ## The table, frozen
 
-The benchmark is named **hk-table-v1**. It is defined in `bench/benchmark.json` and never edited: a new table gets a new name, and every model is scored again on it.
+The benchmark is named **hk-table-v2**. It is defined in `bench/benchmark.json` and never edited: a new table gets a new name, and every model is scored again on it. Version 1 is kept as `bench/benchmark-v1.json` ([below](#version-1)).
 
-- **Who plays.** The model being scored takes one seat. The other three are frozen copies of **Neural Cat NC8** (N10c, fast), **Jorge Yau** and NC8 again, as they were at game version 0.57.9, which is commit `dd881a5`. The model takes every seat in turn on every deal. The frozen players don't follow the game: when Neural Cat ships NC9, the benchmark's Neural Cat stays NC8.
+- **Who plays.** The model being scored takes one seat. The other three are frozen copies of **Neural Cat NC9** (N14c, fast), **Jorge Yau** and NC9 again, as they were at game version 0.58.0, which is commit `8ffc0d0`. The model takes every seat in turn on every deal. The frozen players don't follow the game: when Neural Cat ships NC10, the benchmark's Neural Cat stays NC9.
 - **How they are frozen.** `bench/benchmark.json` pins eight files at that commit by SHA-256:
   - Neural Cat's weights;
   - the code both players run (`mahjong-ml.js` and its features and model, `mahjong-jorge-yau.js`, `mahjong-bot.js`);
@@ -24,6 +24,11 @@ The benchmark is named **hk-table-v1**. It is defined in `bench/benchmark.json` 
   `bench.js` reads the files out of git history into `ml/bench/git/`, checks every hash, and loads the players from there. So nothing large is committed, and a full clone is needed (CI fetches the whole history for this). The model being scored uses today's engine and code.
 - **The fingerprint.** The frozen players play 24 deals alone, on today's engine, from the first seeds of the deck. The hash of how every hand ended must match the one recorded when the benchmark was frozen. If an engine change alters how a hand plays or scores, the fingerprint no longer matches, and every command refuses to score until a new benchmark version is frozen. Scores from two versions never mix.
 - **The deck.** 40,000 deals, seeds 900,000,000 to 900,039,999, with the dealer rotating. No training data or lab evaluation uses nine-digit seeds. The plan first named 90,000,000, but the Only Orphans lab ranks its models on those seeds, so the deck moved.
+- **Native.** The frozen players' files are the ones `native/ported.json` pins, so every stage plays on the native simulator (the exact build for the bar and the score). A change to one of those files in the game doesn't move the benchmark: its players stay frozen, and they run natively only while the port matches them.
+
+### Version 1
+
+**hk-table-v1** froze NC8 (N10c) and Jorge Yau at game 0.57.9 (commit `dd881a5`). Jorge Yau has changed a lot since (pivots, staying concealed early, the contradiction check), and the native port follows the game, so its players could only run in JS, hours a stage. Version 2 (2026-11-10) keeps the same deck, fresh blocks, bar and fingerprint deals, with the table frozen again at 0.58.0. No model had a recorded score on version 1.
 
 ## The Table Score
 
@@ -86,10 +91,17 @@ The current generation is the last one in `bench/lineages.json`; `--vs` gives an
 
 ## The lineages
 
-`bench/lineages.json` holds both lineages of the plan:
+`bench/lineages.json` holds three lineages:
 
+- **Neural Cat** (`neural-cat`) starts from **NC9** (N14c), pinned as `git:8ffc0d0…:js/mahjong-ml-weights.js`. Neural Cat's models, stacked ones too (Frontier Cat FC1 was one), are judged in it, against its current generation. Its league, for the no-regression stage, is Jorge Yau, Lucky Cat lc32 and NC8.
 - **Lucky Cat** starts from **lc32**, pinned as `git:dd881a5:js/mahjong-lucky-cat-weights.js` with its SHA-256. It keeps its win rate (`keepWinRate`).
-- **Sphinx** has no generation yet: its first is judged with `--vs` against random play.
+- **Sphinx** has no generation yet: its first is judged with `--vs` against random play. The Suphx plan it belongs to is cancelled.
+
+```bash
+node scripts/ml/bench.js judge nc:ml/models/<name>.json --lineage neural-cat
+```
+
+The first judgment on version 2 was Frontier Cat FC1 against NC9: fair play passed, and the screen gave **+6.6 ± 8.1 points a hand** over 10,000 deals (0.8 standard errors), short of the 1 it needs, so it stopped there ([frontier plan](frontier-plan.md#learnings)).
 
 A generation's model should be pinned by `git:<commit>:<path>` once it ships, so that anyone with the repository can play it again. A local `ml/models/` path works on the machine that trained it, and its SHA-256 says whether it is still the same file.
 

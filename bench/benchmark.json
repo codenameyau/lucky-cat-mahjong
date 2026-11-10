@@ -1,17 +1,17 @@
 {
-  "name": "hk-table-v1",
-  "about": "The frontier benchmark, version 1 (docs/machine-learning/benchmark.md). The table: frozen Neural Cat NC8 (N10c), Jorge Yau and NC8, as of game version 0.57.9. Never edit a frozen version: a new table is a new name.",
+  "name": "hk-table-v2",
+  "about": "The frontier benchmark, version 1 (docs/machine-learning/benchmark.md). The table: frozen Neural Cat NC8 (N10c), Jorge Yau and NC8, as of game version 0.57.9. Never edit a frozen version: a new table is a new name. Version 2 (2026-11-10): the same deck, fresh blocks and bar, with the table re-frozen at game 0.58.0 (Neural Cat NC9 and today's Jorge Yau) so it runs on the native simulator again; version 1 is bench/benchmark-v1.json.",
   "table": [
     "bench:neural-cat",
     "bench:jorge-yau",
     "bench:neural-cat"
   ],
   "frozen": {
-    "commit": "dd881a5e3c7c3e568a9d668bade368a91cb8bcc3",
-    "gameVersion": "0.57.9",
+    "commit": "8ffc0d098046326c3b1c33557448ae65e4a94bbb",
+    "gameVersion": "0.58.0",
     "players": {
       "neural-cat": {
-        "name": "Neural Cat NC8 (N10c), fast",
+        "name": "Neural Cat NC9 (N14c), fast",
         "module": "js/mahjong-ml.js",
         "create": {
           "fast": true
@@ -23,14 +23,14 @@
       }
     },
     "files": {
-      "js/mahjong-engine.js": "ba79fd8efaddad7206c0c4bf060e21d0780a7e753cdc90369f495233916908b1",
+      "js/mahjong-engine.js": "0797765bcfb3f603208a596ce5a6846c4a20f797b2742035826e2ecbfe6758b9",
       "js/points.js": "86b3818b1b926a75a41429c647db912291c0542dbb749081a999244d433a811e",
-      "js/mahjong-bot.js": "2545390dc98b85a57e50b13e7a48e6abf3ec19dcdd42aa417ca97b57ee6670c2",
-      "js/mahjong-jorge-yau.js": "31a3f1723cdf194f277f2d2f6a9a97b81190c38328a6ca94b23f394185a2d099",
-      "js/mahjong-ml.js": "a23f94a11226ff57b6676a87056717988ae99a56bd3512ac511cd7f3a839f624",
+      "js/mahjong-bot.js": "cd11e35f2e46c5206b0dcdf4de77df14d2240e55d07f5da0e93afa0170572692",
+      "js/mahjong-jorge-yau.js": "30fc10f3e23a69a69967a2d154afa7b57f9eba0947fcec470b099fabfb5fe771",
+      "js/mahjong-ml.js": "8eccb1e0fdaec526aa834eb056c9724f92e2da4426fb0a0491956dc64a0ba6c4",
       "js/mahjong-ml-features.js": "6f55fa69ffdc4fca867a16c1c038e80183f3251373766525e77f64910f5d7a40",
-      "js/mahjong-ml-model.js": "541f9c3a7d9206d15ffe50e83742688a2ea37cdbc078a2f90b2479232f88cd77",
-      "js/mahjong-ml-weights.js": "df88e341f2a1c6f97196a68101b3546365af55eb5b89ce79a30715432ad678cc"
+      "js/mahjong-ml-model.js": "4e39134263e4e3aaebf8dc19c88df451b975d91ef54e00384598bf8e09fecb58",
+      "js/mahjong-ml-weights.js": "c0ae0d14e095e9a2f4c6470fe640ab686974bf7bc26717c4b203053b151d0071"
     }
   },
   "deck": {
@@ -51,7 +51,7 @@
       "bench:neural-cat",
       "bench:jorge-yau"
     ],
-    "sha256": "227d69ca0e5e8d2c9e89beff205952aa7fe28860673a4439f66f4fd52dd5b91d"
+    "sha256": "d3ef8fad4e37012b50e4978834b680fa37c54d965868e655bac49d293be4d4fc"
   },
   "bar": {
     "screen": 10000,
@@ -66,7 +66,9 @@
     "earlyPass": 4,
     "earlyFail": -2,
     "lineages": {
-      "sphinx": { "sigma": 1 }
+      "sphinx": {
+        "sigma": 1
+      }
     }
   }
 }
