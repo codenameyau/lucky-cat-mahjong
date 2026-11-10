@@ -238,7 +238,7 @@ A rule strategy is then a table (hands, order, weights, chains) and a discarder,
 
 ## The coach
 
-The coach says what the pipeline returned, and computes nothing of its own: the hand, the backup when there is one ("Go for Half Flush in Characters, about 5 faan; a plain hand is still open"), the pivot and its reason, the move, and why the discarder chose it. When it follows the hand your own discards point to, that is a different hand picker in layer 1 (the player's intent), and everything after it is the same. The coach and the bot can't disagree, because they read one result.
+The coach says what the pipeline returned, and computes nothing of its own: the hand, the backup when there is one ("Go for Half Flush in Characters, about 3 faan +2 for bonuses; a plain hand is still open"), the pivot and its reason, the move, and why the discarder chose it. When it follows the hand your own discards point to, that is a different hand picker in layer 1 (the player's intent), and everything after it is the same. The coach and the bot can't disagree, because they read one result.
 
 One thing to decide deliberately: at Simple the coach names one hand. A backup the coach doesn't mention can make a discard look like a contradiction to the player even when it isn't one. Either Simple names the backup when the discard is for it, or the check for the coach is stricter than for the bot. The first is better.
 

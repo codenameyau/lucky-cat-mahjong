@@ -104,7 +104,12 @@
       html.classList.remove('play-mode-practice', 'play-mode-payout');
       html.classList.add('play-mode-' + mode());
       track('play_mode_select', { mode: mode() });
+      // The buttons swap colors at once: reading a layout value applies the
+      // new colors while their fade is off, so nothing fades when it's back on.
+      html.classList.add('play-swapping');
       paint();
+      void html.offsetWidth;
+      html.classList.remove('play-swapping');
     });
 
     form.addEventListener('submit', function (e) {

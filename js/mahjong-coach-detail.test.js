@@ -57,7 +57,7 @@ test('Simple is the action and the hand to go for, with no reason and never the 
       assert.doesNotMatch(words(h), /model expects|score|chance to win|Lucky Cat (discards this|would|plays)/, id + ' ' + seed);
       assert.ok(h.tips.length <= 1, id + ' says one thing after the action at most');
       assert.ok(!h.tips.some(Coach.isReasonSentence) && !/I like it because|I pick it because/.test(words(h)), id + ' ' + seed + ' gives no reason');
-      if (h.aim) assert.match(words(h), /\. Go for [^.]+, (about \d+ faan|the 13 faan limit)(, short of the \d+ faan minimum)?\.$/, id + ' ' + seed + ': ' + words(h));
+      if (h.aim) assert.match(words(h), /\. Go for [^.]+, (about \d+ faan( \+\d+ for bonuses)?|the 13 faan limit)(, short of the \d+ faan minimum)?\.$/, id + ' ' + seed + ': ' + words(h));
       assert.ok(words(h).length <= 260, id + ' ' + seed + ': ' + words(h).length + ' characters');
     }
   }
