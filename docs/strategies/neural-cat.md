@@ -35,6 +35,8 @@ Each candidate carries `ml`: `ev`, `pWin`, `pDealIn`, `avgWin`, `winFaan` and th
 
 ## Claims and kongs
 
+Every discard, call and kong passes [the contradiction check](README.md#the-contradiction-check) first: the model only chooses among moves that don't go against the hand they build toward.
+
 A claim is weighed in the same points. When a tile is on offer, each choice is a position:
 
 - **Pass**: the hand as it is, waiting for the next tile.

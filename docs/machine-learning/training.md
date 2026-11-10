@@ -4,6 +4,7 @@ Training has three parts. Node.js simulates hands and records positions with how
 
 ## Contents
 
+- [The contradiction check in training](#the-contradiction-check-in-training)
 - [Setup](#setup)
   - [Windows with an NVIDIA GPU](#windows-with-an-nvidia-gpu)
 - [How the models were trained](#how-the-models-were-trained)
@@ -17,6 +18,10 @@ Training has three parts. Node.js simulates hands and records positions with how
 - [Only Orphans: `npm run ml:orphans`](#only-orphans-npm-run-mlorphans)
 - [5. Compete: `npm run compete`](#5-compete-npm-run-compete)
 - [Reading the results](#reading-the-results)
+
+## The contradiction check in training
+
+Every model's moves go through [the contradiction check](../strategies/README.md#the-contradiction-check) in training as in play: Neural Cat's model chooses only among moves that pass it, and Lucky Cat's network has each pick checked against the shared foundation's plan. The data records the move the check settled on, so a model learns from moves that don't contradict the hand they build toward.
 
 ## Setup
 

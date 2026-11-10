@@ -31,6 +31,27 @@ The newest training idea is the [frontier](../machine-learning/iterations.md#the
 - A change takes effect on the bot's next move, in the game you're playing.
 - The table shows only each player's name. Which strategy each bot plays is on the Strategies sheet, and on desktop in a tooltip when you hover over their name.
 
+## The contradiction check
+
+Every decision every strategy makes, and every move the coach recommends, goes through one check (`js/mahjong-bot.js`: `contradicts`, `consistentFirst`, `claimContradicts`, `claimConsistent`, `kongContradicts`; ported to `native/src/bot.cpp`): the move must not go against the hand it is building toward, the hand the coach names ("Go for Half Flush in Characters").
+
+- **Discards.** A discard contradicts its hand when it throws a tile that hand keeps while the hand still holds a tile it has no use for: a Character on the way to a Half Flush in Characters while a Bamboo or a Circle is still in hand, a number tile on Concealed Straights while a loose honor is held. On hands of pungs and pairs (All Triplets, Concealed Triplets, Seven Pairs), breaking a pair or a pung while a single is left contradicts it. The hand is the plan the discard builds toward (its analysis' best plan), so the coach's words and the move agree.
+- **Claims.** A pung, chow or kong contradicts the hand being built (the plan if it passes) when that hand can't take it: a hand built concealed (Seven Pairs, Thirteen Orphans, Nine Gates, Concealed Triplets, Concealed Straights), or a meld of tiles the hand doesn't keep (a Bamboo chow on a Half Flush in Characters). A contradicting claim passes.
+- **Kongs on your own turn.** A kong contradicts the hand when that hand can't hold it (Seven Pairs, Thirteen Orphans, Nine Gates, Concealed Straights, or a tile it doesn't keep), and is skipped.
+- **Never a contradiction:** a discard that leaves the hand ready, a win, a pung or kong of a dragon or scoring wind (the one exception: on Thirteen Orphans), throwing an honor whose other copies are all out, keeping a dragon nobody has shown, keeping an honor pair as the eyes of Concealed Straights, and any move while folding (safety decides then). A claim of the tiles of a big hand the bot is building (a hard target) is that hand's own.
+- **When the first choice contradicts.** The strategy's next choice in its own order is taken, until one doesn't contradict; if every one does, the last of them. In practice a hand always holds some tile its hand has no use for, so the fallback almost never happens.
+
+Where it runs:
+
+| Strategy | Its moves | How |
+| --- | --- | --- |
+| Jorge Yau, Only Orphans, Lucky Cat Classic | Discards, claims, kongs | The foundation's discard order ends with `consistentFirst`; `decideClaim` passes a contradicting claim; `chooseTurnAction` skips a contradicting kong |
+| Neural Cat | Discards, claims, kongs | The same, and its model only chooses among moves that pass: its rerank ends with the check, and a contradicting call or kong is never one of its choices |
+| Lucky Cat (the network) | Discards, claims, kongs | Each move the network picks is checked against the plan the shared foundation reads for it (as Jorge Yau and Neural Cat play it); if it contradicts, the network's next most likely move that doesn't is played |
+| The coach | Every hint | Its hint is the strategy's own move, so it passes the same check; when it follows your own plan instead of the strategy's, it checks against that |
+
+It runs in the game, in every simulation, and in training: the data a model learns from records the move the check settled on, so models learn not to contradict themselves. `lcm-sim` takes `id~nocheck` (for example `jorge-yau~nocheck`) to play a player without it, which is how it was measured.
+
 ## Adding a strategy
 
 All strategies are built on the shared foundation in `js/mahjong-bot.js` (`MahjongBot`): shanten, live tiles, the exact score of every wait, the threat model, the claim options, and the principles every bot follows:

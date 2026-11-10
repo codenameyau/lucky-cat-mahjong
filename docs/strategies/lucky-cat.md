@@ -32,7 +32,7 @@ One network (376 inputs, two hidden layers of 256 and 128, 74 outputs) gives eac
 - **Its own turn:** a discard of each kind of tile it holds, and each kong it can make.
 - **A claim:** pass, each chow offered (the tile lowest, middle or highest), pung or kong.
 
-Illegal moves are masked out, and the move with the biggest share is played. A win of 3 faan or more is always declared.
+Illegal moves are masked out, and the move with the biggest share is played, unless it contradicts the hand it builds toward (the plan the shared foundation reads for it, as Jorge Yau and Neural Cat play it): then the network's next most likely move that doesn't is played ([the contradiction check](README.md#the-contradiction-check)). The check runs in the game, in benchmarks and in training, and the data records the move it settled on. A win of 3 faan or more is always declared.
 
 ## How it learned
 
@@ -177,7 +177,7 @@ The lab now also trains Lucky Cat the way Suphx, Microsoft's mahjong AI, was tra
 
 ## What the coach says
 
-The coach's words about the hand (what to go for, the waits, the threats) come from the classic rules' reads. What to do is the network's move. Its line says how often Lucky Cat makes that move, and the next most likely one, for example "Lucky Cat discards this 62% of the time. Next most likely is 5 Bamboo: 21% of the time." For a claim or a kong it gives the share of each choice: "Lucky Cat would pung Red Dragon 60% of the time, and pass 40% of the time." After your discard, it is a great discard when the network gives your tile at least 80% of its top pick's share.
+The coach's words about the hand (what to go for, the waits, the threats) come from the shared foundation's reads, the same plan the contradiction check uses (before 0.57.25 they came from the classic rules). What to do is the network's move. Its line says how often Lucky Cat makes that move, and the next most likely one, for example "Lucky Cat discards this 62% of the time. Next most likely is 5 Bamboo: 21% of the time." For a claim or a kong it gives the share of each choice: "Lucky Cat would pung Red Dragon 60% of the time, and pass 40% of the time." After your discard, it is a great discard when the network gives your tile at least 80% of its top pick's share.
 
 ## The classic rules
 
