@@ -2605,6 +2605,27 @@
     document.documentElement.classList.toggle('hide-extra-chinese', !SHOW_EXTRA_CHINESE);
   }
 
+  // The bottom button, for Google Analytics: how many readers reach it, and how many click.
+  function setupCtaTracking() {
+    var link = document.querySelector('.points-cta a');
+    if (!link) return;
+    var track = function (name) {
+      try {
+        if (typeof window.gtag === 'function') {
+          window.gtag('event', name, { link_text: link.textContent, destination: link.getAttribute('href') });
+        }
+      } catch (_) { /* analytics is best-effort */ }
+    };
+    link.addEventListener('click', function () { track('points_cta_click'); });
+    if (!('IntersectionObserver' in window)) return;
+    var seen = new IntersectionObserver(function (entries) {
+      if (!entries.some(function (entry) { return entry.isIntersecting; })) return;
+      seen.disconnect();
+      track('points_cta_view');
+    }, { threshold: 0.5 });
+    seen.observe(link);
+  }
+
   function init() {
     if (!document.getElementById('calc-palette')) return; // scoring-only use (e.g. the Play game)
     preventMobileViewportZoom();
@@ -2620,6 +2641,7 @@
     update();
     urlSyncEnabled = true;
     document.addEventListener('paste', onPasteHandSeed);
+    setupCtaTracking();
   }
 
   var scoringApi = {

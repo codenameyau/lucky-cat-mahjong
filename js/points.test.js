@@ -755,3 +755,17 @@ describe('Hong Kong mahjong scoring', function () {
     });
   });
 });
+
+describe('Points Guide bottom button analytics', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(path.join(__dirname, 'points.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'hong-kong-mahjong-scoring', 'index.html'), 'utf8');
+
+  it('tracks the button being seen and clicked, on the page that has it', () => {
+    assert.match(html, /class="points-cta">\s*<a href="\/play-mahjong\/"/);
+    assert.match(src, /track\('points_cta_click'\)/);
+    assert.match(src, /track\('points_cta_view'\)/);
+    assert.match(src, /setupCtaTracking\(\);/);
+  });
+});
