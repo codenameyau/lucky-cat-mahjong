@@ -86,6 +86,9 @@ The softer targets (and the default) also weigh the special hands the same tiles
 
 **Stay concealed.** Concealed is a faan, and it hides the hand.
 
+- **Early game (more than 60 tiles left in the wall): no claims, with one exception.** A claim that leaves the hand within two tiles of ready, and still able to reach 3 faan, is taken to win quickly. A pung or kong comes first. A chow is taken only once the player before it has a read (from 6 discards, the suit they keep or the one they feed: whether they'll feed those tiles or need them), and only a chow the rules below allow. Dragons and scoring winds wait like anything else.
+- **From 60 tiles left, the rules below apply.**
+
 - **Seven Pairs, Thirteen Orphans, Nine Gates and Concealed Straights claim nothing.** The one exception: Concealed Straights will pung a dragon or scoring wind once it is three or more tiles from ready.
 - **Pungs are fine early.** A pung keeps the hand open to a Half Flush in any suit. A pung or kong is taken when the hand is at least as good afterwards.
 - **Dragons and scoring winds are always punged.** On Four Winds, All Honors and All Terminals, any honor is punged. The exception is a ready hand that the pung would leave slower and worth less.

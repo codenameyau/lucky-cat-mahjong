@@ -205,10 +205,25 @@ describe('jorge-yau decisions', () => {
     assert.deepEqual(L.chooseClaim(game, 1, { tile: 'd4', from: 0, pung: true, kong: false, chows: [] }), { type: 'pass' });
   });
 
-  it('pungs a dragon', () => {
+  it('stays concealed early, and pungs a dragon later in the wall', () => {
     const hand = ['c2', 'c3', 'c4', 'd5', 'd6', 'b1', 'b4', 'b8', 'c8', 'we', 'dr', 'dr', 'd9'];
-    const game = table({ seats: [null, { hand }] });
-    assert.deepEqual(L.chooseClaim(game, 1, { tile: 'dr', from: 0, pung: true, kong: false, chows: [] }), { type: 'pung' });
+    const opts = { tile: 'dr', from: 0, pung: true, kong: false, chows: [] };
+    // Early (more than 60 tiles left) and still far from ready: no claim.
+    assert.deepEqual(L.chooseClaim(table({ seats: [null, { hand }] }), 1, opts), { type: 'pass' });
+    assert.deepEqual(L.chooseClaim(table({ seats: [null, { hand }], wallLeft: 55 }), 1, opts), { type: 'pung' });
+  });
+
+  it('claims early only to be within two tiles of ready, a pung before a chow, a chow only once the player before it is read', () => {
+    // A Characters Half Flush with a dragon pair: punging the dragon leaves it within two tiles of ready, for 3 faan or more.
+    const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c8', 'c9', 'c9', 'dr', 'dr', 'we', 'ws', 'b3'];
+    const pung = { tile: 'dr', from: 0, pung: true, kong: false, chows: [] };
+    assert.deepEqual(L.chooseClaim(table({ seats: [{}, { hand }] }), 1, pung), { type: 'pung' });
+    // The same hand could chow the 7 Characters from the player before it, but early, with no read of them yet, it passes.
+    const chow = { tile: 'c7', from: 0, pung: false, kong: false, chows: [['c5', 'c6'], ['c6', 'c8'], ['c8', 'c9']] };
+    assert.deepEqual(L.chooseClaim(table({ seats: [{}, { hand }] }), 1, chow), { type: 'pass' });
+    // Once its discards show the suit they feed, the chow is taken.
+    const read = table({ seats: [{ discards: ['c1', 'c1', 'c3', 'b1', 'b2', 'd1'] }, { hand }] });
+    assert.equal(L.chooseClaim(read, 1, chow).type, 'chow');
   });
 
   it('won\'t chow early into a suit it barely holds', () => {

@@ -972,10 +972,41 @@
     return best && best.planShanten !== undefined ? best.planShanten : Infinity;
   }
 
+  // Early game (more than EARLY_WALL tiles left) it stays concealed, unless a
+  // claim leaves the hand within two tiles of ready (CLAIM_READY_STEPS) and
+  // able to score, to win quickly: then a pung or kong first, and a chow only
+  // once the player before it has a read (MahjongBot.leftRead: the suit they
+  // keep or the one they feed), and only a chow the shared rules allow. Later
+  // in the hand, the shared claims decide (null).
+  var CLAIM_READY_STEPS = 2;
+  function earlyClaim(res, ctx, game) {
+    if (ctx.wallLeft <= EARLY_WALL || savedLock(ctx)) return null;
+    var min = game.settings.minFaan;
+    var quick = function (o) {
+      var an = o.analysis;
+      if (!an || an.shanten > CLAIM_READY_STEPS || an.shanten >= res.stay.shanten) return false;
+      var p = an.best && an.best.plan;
+      return an.shanten === 0 || !!(p && p.faan >= min);
+    };
+    var best = function (list) { return list.sort(function (a, b) { return b.score - a.score; })[0]; };
+    var sets = res.options.filter(function (o) { return (o.decision.type === 'pung' || o.decision.type === 'kong') && quick(o); });
+    if (sets.length) return best(sets).decision;
+    var read = ctx.leftRead;
+    var known = !!(read && (read.feeds || read.keeps));
+    var chows = known ? res.options.filter(function (o) {
+      return o.decision.type === 'chow' && quick(o) && B.chowAllowed(o, res, game, ctx);
+    }) : [];
+    if (chows.length) return best(chows).decision;
+    return { type: 'pass' };
+  }
+
   // Takes any claim that moves the hand closer and can still score. On a lock,
   // only a claim of that hand's tiles that moves it closer.
   function bigClaim(res, ctx, game, seat, opts) {
     var own = knobs().ownClaims;
+    // The early-game rule is the default claims' (ownClaims off or 'lock').
+    var early = own === true ? null : earlyClaim(res, ctx, game);
+    if (early) return early;
     if (!own) return null;
     var lock = savedLock(ctx);
     // 'lock': its own claims only while locked onto a big hand; the shared ones otherwise.

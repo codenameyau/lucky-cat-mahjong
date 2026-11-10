@@ -45,7 +45,7 @@
         'With a seat or round wind, or a seat flower, the hand already has faan, so it plays for speed. It also counts wins off the last tile and off a kong toward the 3-faan minimum.',
         'With 8 tiles of a hand worth 7 faan or more within its first 8 turns (a Full Flush, Thirteen Orphans, Nine Gates, All Honors, All Terminals, Four Winds, Three Dragons or Mixed Orphans), it locks onto that hand and keeps those tiles until the hand can\'t be won.',
         'It keeps honors as long as it can. Number tiles that cost no step go first, then lone honors, and honor pairs stay longest. A lone honor with the other three copies on the table goes first of all.',
-        'It claims like Lucky Cat Classic: dragons and scoring winds are punged, other pungs only when the hand is no worse, and chows rarely, for a ready hand, a flush, a fast hand or late in the wall.',
+        'It stays concealed for the early game unless it can reach a ready hand within two to three tiles and win quickly where it prefers pungs over chows. It rarely chows early game until it figures out whether or not the player before it will either feed or needs those tiles.',
         'It plays no defense: it never folds and doesn\'t mind what it feeds. The one exception is late in the wall, when it is still two or more tiles from ready and holds no lock. Then it stops building, plays safe and stops feeding chow tiles and fresh honors, using its reads of what each opponent is collecting.',
       ],
       doc: 'docs/strategies/jorge-yau.md',
