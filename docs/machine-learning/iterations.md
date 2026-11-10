@@ -93,6 +93,7 @@ Every training idea and every milestone model is a section below, in the order t
 - [Lucky Cat 3: self-taught and stacked, playing to win (from 2026-11-10)](#lucky-cat-3-self-taught-and-stacked-playing-to-win-from-2026-11-10)
   - [Round 1: a value, judged on points, wins fewer hands](#round-1-a-value-judged-on-points-wins-fewer-hands)
   - [Round 2: the policy learns from the replays (LV2p)](#round-2-the-policy-learns-from-the-replays-lv2p)
+  - [The objective: points, with a floor on hands won](#the-objective-points-with-a-floor-on-hands-won)
 - [The contradiction check: every move agrees with its hand](#the-contradiction-check-every-move-agrees-with-its-hand)
   - [What it is](#what-it-is)
   - [The discard check, measured](#the-discard-check-measured)
@@ -1233,7 +1234,7 @@ Phases 0 and 1 are built and training; phases 2 and 3 are designed. Search was m
 
 ## Lucky Cat 3: self-taught and stacked, playing to win (from 2026-11-10)
 
-On 2026-11-10 the stacked design became Lucky Cat's new lineage, still called Lucky Cat and still self-taught: nothing in its choice comes from Jorge Yau's rules or options. It starts from LC32 and is judged on **hands won** (the maintainer's call: win quickly and most often). Models in this lineage are named LV (the round driver `npm run ml:lucky-value`; not the phase-1 arms of the same name above). [Details](../strategies/lucky-cat.md#the-value).
+On 2026-11-10 the stacked design became Lucky Cat's new lineage, still called Lucky Cat and still self-taught: nothing in its choice comes from Jorge Yau's rules or options. It starts from LC32 and is judged on points a hand, with a floor on hands won (the maintainer's call: maximize points, keep a fairly high win rate; rounds 2 and 3's first try judged hands won alone). Models in this lineage are named LV (the round driver `npm run ml:lucky-value`; not the phase-1 arms of the same name above). [Details](../strategies/lucky-cat.md#the-value).
 
 ### Round 1: a value, judged on points, wins fewer hands
 
@@ -1247,6 +1248,10 @@ Thinking: if the value can't choose better than the policy, use the replays to m
 - **LV2t (tau 0.15):** +0.32 ± 0.07, a candidate too.
 - **LV2a (a value):** −1.31 ± 0.38 after 4,000 deals, dropped.
 - **What the bot does differently:** the same network, a little more sure of the moves that won their replays. It deals in as often (15.3% against 15.4%) and wins slightly smaller hands (5.46 faan against 5.49).
+
+### The objective: points, with a floor on hands won
+
+The maintainer then settled the objective: Lucky Cat may be trained to maximize points, as long as it keeps a fairly high win rate. Screens and the bar judge points a hand, and a model more than one point of win rate behind its champion is dropped. The policy recipes now learn each move's replayed mean points plus a bonus for a sure win (300 or 1,000 points). LV2p, level on points (−2.1 ± 2.0), is the starting champion for round 3, not a release.
 
 ## The contradiction check: every move agrees with its hand
 

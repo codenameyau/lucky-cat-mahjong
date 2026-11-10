@@ -25,17 +25,19 @@
    Options: --round N (default: the next), --deals N (80000), --workers N
    (CPU cores), --sample P (0.12), --option-replays K (12), --options N (4),
    --stages a,b,c (4000,16000,40000), --drop X (1), --candidate X (2),
-   --recipes a,s,c, --top-k K (4), --objective win|points (win), --win-bonus B.
+   --recipes p,t,k, --top-k K (4), --objective points|win (points),
+   --win-bonus B, --win-floor F (1).
 
-   The objective (the maintainer's call, 2026-11-10): Lucky Cat is trained to
-   win quickly and most often. With --objective win (the default) its value
-   ranks moves by the chance to win, expected points only breaking ties (a win
-   bonus of 100,000 points), the ranking loss learns each option's share of
-   replays won, and a screen judges hands won against the champion: a model
-   ahead by --candidate SE of hands won is a candidate, one behind by --drop SE
-   is dropped. Points are reported beside. --objective points judges points
-   with a win bonus of 300 (round 1's LV1a: +14.0 points a hand over LC32, but
-   15.5% of hands won against 20.5%). */
+   The objective (the maintainer's call, 2026-11-10): Lucky Cat maximizes
+   points and keeps a fairly high win rate. With --objective points (the
+   default) a screen judges points a hand against the champion, and hands won
+   are a floor: a model more than --win-floor points of win rate behind (by
+   --drop SE) is dropped, and a candidate must be ahead by --candidate SE of
+   points and not behind the floor by more than 1 SE. The policy recipes learn
+   each move's replayed mean points plus a bonus for a sure win (--q-points).
+   (Round 1's LV1a: +14.0 points a hand over LC32 with 15.5% of hands won
+   against 20.5%, which the floor would drop.) --objective win (rounds 2 and 3)
+   judges hands won only. */
 
 'use strict';
 
@@ -58,9 +60,11 @@ const RECIPES = {
   // The policy itself, taught from the option replays (ml/train_lucky.py --mode q): the
   // champion's shares tilted toward the moves whose replays won more often, by --tau
   // (a share of replays won). No value: the policy plays alone, as LC32 does.
-  p: { what: 'the policy, tilted toward the moves that won more replays (tau 0.05)', policy: true, tau: '0.05' },
-  t: { what: 'the same, gentler (tau 0.15)', policy: true, tau: '0.15' },
-  k: { what: 'the same, sharper (tau 0.02)', policy: true, tau: '0.02' },
+  // With --objective points, a move's replays score its mean points plus qPoints a
+  // sure win, and tau is in points; with --objective win, its share of wins (winTau).
+  p: { what: 'the policy, tilted toward the moves that scored more replays (tau 100 points, 300 a win)', policy: true, tau: '100', qPoints: '300', winTau: '0.05' },
+  t: { what: 'the same, gentler (tau 300 points)', policy: true, tau: '300', qPoints: '300', winTau: '0.15' },
+  k: { what: 'the same, leaning on wins (tau 100 points, 1,000 a win)', policy: true, tau: '100', qPoints: '1000', winTau: '0.02' },
   a: { what: 'value from option replays and real endings, with the ranking loss', args: ['--options', '--rank-weight', '1'] },
   s: { what: 'the same, stacked: the value reads the reader', args: ['--options', '--rank-weight', '1'], stacked: true },
   c: { what: 'value from real endings only (the control)', args: [] },
@@ -127,7 +131,7 @@ async function makeData(dir, champ, r, a, log) {
   };
   writeJson(manifest, m);
   // Lucky Cat's own trainer reads the policy rows (shard-N.x.f16 and the rest) through meta.json.
-  writeJson(path.join(dir, 'meta.json'), { featureVersion: 1, featureSize: 376, rollouts: { slots: 8 }, objective: 'win',
+  writeJson(path.join(dir, 'meta.json'), { featureVersion: 1, featureSize: 376, rollouts: { slots: 8 }, qPoints: true,
     policyRows: shards.reduce((t, s) => t + (s.policyRows || 0), 0) });
   log('Round ' + r + ': ' + m.samples + ' positions, ' + shards.reduce((t, s) => t + s.optionGroups, 0) + ' option groups');
   return m;
@@ -162,12 +166,13 @@ async function main() {
   // The values learn from this round's data and the round before's (--window 2).
   const windowN = parseInt(a.window || 2, 10), sets = [];
   for (let k = Math.max(1, r - windowN + 1); k <= r; k++) if (fs.existsSync(path.join(ROOT, 'ml', 'data', 'lcv-' + k, 'manifest.json'))) sets.push(path.join('ml', 'data', 'lcv-' + k));
-  const winObjective = String(a.objective || 'win') === 'win';
+  const winObjective = String(a.objective || 'points') === 'win';
+  const winFloor = parseFloat(a['win-floor'] || 1);
   const play = { topK: parseInt(a['top-k'] || 4, 10), winBonus: parseFloat(a['win-bonus'] || (winObjective ? 100000 : 300)) };
   // The ranking loss's softmax temperature, in the value's units: 3,000 points of
   // win bonus is a 3% chance to win.
   const rankTemp = winObjective ? String(0.03 * play.winBonus) : '100';
-  const recipes = String(a.recipes || (winObjective ? 'p,k,t' : 'a,s,c')).split(',');
+  const recipes = String(a.recipes || 'p,t,k').split(',');
 
   // The reader: the heads on the round's data.
   const reader = path.join('ml', 'models', 'LVR' + r);
@@ -189,8 +194,11 @@ async function main() {
     if (rec.policy) {
       if (!fs.existsSync(path.join(ROOT, packed))) {
         log('Round ' + r + ': training LV' + r + k + ' [' + rec.what + ']');
-        const res = spawnSync(PYTHON, ['ml/train_lucky.py', '--mode', 'q', '--data'].concat(sets.filter((d) => fs.existsSync(path.join(ROOT, d, 'meta.json'))),
-          ['--name', 'LV' + r + k, '--init', champPolicy, '--tau', rec.tau, '--reward-clip', '1', '--lr', '3e-4', '--epochs', '4']), { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 });
+        // Rounds before the mean points were recorded (.qp.f4) can't teach the points target.
+        const qSets = sets.filter((d) => { const mt = readJson(path.join(ROOT, d, 'meta.json'), null); return mt && (winObjective || mt.qPoints); });
+        const q = winObjective ? ['--tau', rec.winTau, '--reward-clip', '1'] : ['--tau', rec.tau, '--q-points', rec.qPoints, '--reward-clip', '4000'];
+        const res = spawnSync(PYTHON, ['ml/train_lucky.py', '--mode', 'q', '--data'].concat(qSets,
+          ['--name', 'LV' + r + k, '--init', champPolicy], q, ['--lr', '3e-4', '--epochs', '4']), { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 });
         if (res.status) throw new Error('train_lucky.py failed: ' + (res.stderr || '').slice(-1500) + (res.stdout || '').slice(-800));
         log('  ' + (res.stdout || '').trim().split('\n').filter((l) => /epoch|choices/.test(l)).slice(-3).join(' | ').slice(0, 600));
       }
@@ -227,8 +235,7 @@ async function main() {
       m.wgap = m.wsum / m.n; m.wse = Math.sqrt(m.wsq) / m.n;
       const x = res.models;
       m.last = x;
-      const [judged, judgedSe] = winObjective ? [m.wgap, m.wse] : [m.gap, m.se];
-      if (judged < -drop * judgedSe) m.alive = false;
+      if (winObjective ? m.wgap < -drop * m.wse : m.gap < -drop * m.se || m.wgap < -winFloor - drop * m.wse) m.alive = false;
       log('Round ' + r + ' stage ' + (s + 1) + ': ' + m.name + ' hands won ' + (m.wgap >= 0 ? '+' : '') + m.wgap.toFixed(2) + ' ± ' + m.wse.toFixed(2) +
         ' points of win rate, ' + (m.gap >= 0 ? '+' : '') + m.gap.toFixed(1) + ' ± ' + m.se.toFixed(1) + ' points a hand over ' + m.n +
         ' deals | won ' + (100 * x[0].wins).toFixed(1) + '% / ' + (100 * x[1].wins).toFixed(1) + '%, dealt in ' + (100 * x[0].dealIns).toFixed(1) + '% / ' + (100 * x[1].dealIns).toFixed(1) +
@@ -239,7 +246,7 @@ async function main() {
   const out = models.map((m) => {
     const [g, e] = winObjective ? [m.wgap, m.wse] : [m.gap, m.se];
     return { name: m.name, recipe: m.recipe, gap: m.gap, se: m.se, winGap: m.wgap, winSe: m.wse, deals: m.n, objective: winObjective ? 'win' : 'points',
-      score: g, verdict: m.alive && g > keep * e ? 'candidate' : 'not ahead' };
+      score: g, verdict: m.alive && g > keep * e && (winObjective || m.wgap >= -winFloor - m.wse) ? 'candidate' : 'not ahead' };
   });
   out.forEach((m) => log('Round ' + r + ': ' + m.name + ' [' + RECIPES[m.recipe].what + ']: ' + m.verdict + ', hands won ' + (m.winGap >= 0 ? '+' : '') + m.winGap.toFixed(2) +
     ' ± ' + m.winSe.toFixed(2) + ' points of win rate, ' + (m.gap >= 0 ? '+' : '') + m.gap.toFixed(1) + ' ± ' + m.se.toFixed(1) + ' points a hand'));

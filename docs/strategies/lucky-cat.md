@@ -39,7 +39,7 @@ Illegal moves are masked out, and the move with the biggest share is played, unl
 Lucky Cat's new lineage (from 2026-11-10) adds the stacked evaluation of the [frontier plan](../machine-learning/frontier-plan.md) and keeps what Lucky Cat is: it taught itself, and nothing in its choice comes from Jorge Yau's rules or options. **The policy prunes, the value decides.**
 
 1. **The policy** (LC32's network, as above) gives every legal move its share, and keeps its best few (`play.topK`, 4). At a claim, every move is kept: pass, each chow, pung, kong.
-2. **The value** (`js/mahjong-lucky-cat-value.js`) scores the position each of them leaves, in expected points: the policy's 376 features of the hand and melds it leaves and the table as it is, plus the tile it throws (34) and the kind of move (6), 416 numbers in all, only what the seat can see. Its network has Neural Cat's 28 outputs (how the hand ends, the faan won and paid), so it is summarized the same way. **Lucky Cat plays to win quickly and most often** (the maintainer's call, 2026-11-10), so the value ranks moves by the chance to win, with expected points only breaking ties (`play.winBonus`, 100,000 points for a sure win). A call is worth the best of the policy's top discards after it, each read as the discard it is.
+2. **The value** (`js/mahjong-lucky-cat-value.js`) scores the position each of them leaves, in expected points: the policy's 376 features of the hand and melds it leaves and the table as it is, plus the tile it throws (34) and the kind of move (6), 416 numbers in all, only what the seat can see. Its network has Neural Cat's 28 outputs (how the hand ends, the faan won and paid), so it is summarized the same way. **Lucky Cat maximizes points and keeps a fairly high win rate** (the maintainer's call, 2026-11-10), so the value ranks moves by expected points plus a bonus for the chance to win (`play.winBonus`). A call is worth the best of the policy's top discards after it, each read as the discard it is.
 3. **The read**, stacked: a reader (`ml/train.py --heads`) reads the same 416 numbers and gives 16 (each other player ready, the tile thrown dealing in now, the hand it wins with), and the value reads both. It learned from hands where every tile was known afterwards; in play it reads only the seat's view.
 4. **The pick:** the best value goes, unless the contradiction check stops it; then the next best value, then the rest by share.
 
@@ -53,7 +53,9 @@ Lucky Cat's new lineage (from 2026-11-10) adds the stacked evaluation of the [fr
 | LV2t (tau 0.15, gentler) | 21.0% against 20.7%, +0.32 ± 0.07 | −1.0 ± 1.8 |
 | LV2a (a value, as round 1) | 19.3% against 20.6% (4,000 deals), dropped | −11.0 ± 9.4 |
 
-LV2p is the round's champion: five standard errors more hands won, deal-ins level (15.3% against 15.4%), hands a touch smaller (5.46 faan against 5.49). It plays with no value: the policy alone, a little more sure of the moves that won. It goes to the bar against LC32 next.
+LV2p is the round's champion: five standard errors more hands won, deal-ins level (15.3% against 15.4%), hands a touch smaller (5.46 faan against 5.49). It plays with no value: the policy alone, a little more sure of the moves that won.
+
+**The objective, settled.** The maintainer then set it: points, with a fairly high win rate kept. Screens and the bar judge points a hand; a model more than one point of win rate behind is dropped, and at the bar may not qualify (`keepWinRate: 0.01`). The policy recipes learn each move's replayed mean points plus a bonus for a sure win (`train_lucky.py --q-points`, from the `.qp.f4` rows `generate-lcv` now writes). LV2p is level on points, so it starts round 3 rather than shipping.
 
 The JS and the C++ play every hand alike (`node scripts/ml/native.js parity` with a value model).
 
