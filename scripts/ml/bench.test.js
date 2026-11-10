@@ -76,10 +76,11 @@ describe('frontier benchmark', () => {
     assert.match(r.why, /oracle model/);
   });
 
-  it('pins every generation of both lineages by SHA-256', () => {
+  it('pins every generation of every lineage by SHA-256', () => {
     const all = B.lineages();
-    assert.deepEqual(Object.keys(all.lineages).sort(), ['lucky-cat', 'sphinx']);
+    assert.deepEqual(Object.keys(all.lineages).sort(), ['lucky-cat', 'neural-cat', 'sphinx']);
     assert.equal(all.lineages['lucky-cat'].generations[0].name, 'lc32');
+    assert.equal(all.lineages['neural-cat'].generations[0].name, 'nc9');
     Object.values(all.lineages).forEach((line) => line.generations.forEach((g) => {
       const file = B.resolveFile(g.model.replace(/^(lc|nc):/, ''));
       assert.equal(crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'), g.sha256, g.name);

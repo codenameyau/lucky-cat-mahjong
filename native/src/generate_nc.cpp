@@ -97,6 +97,55 @@ struct NcRow {
   std::shared_ptr<Game> snap; int tile = NO_TILE;  // a discard to replay: the game before it, and the tile
 };
 
+// Option replays (the frontier plan, steps 5 and 6): at a share of the recorded
+// decisions, every option the seat weighs, not just the one it took, is played on
+// `optionReplays` times from the same position, the wall shuffled each time. Each
+// option is a row (the learner's features for it) with the counts and the mean
+// points of its replays, grouped by the position, so the network can learn both
+// what each option is worth and which of them is best. Native only, after the hand:
+// the shard's own rows stay the JS's byte for byte.
+static const int OPT_BYTES = 56;
+enum OptKind : uint8_t { O_DISCARD, O_KONG, O_PASS, O_PUNG, O_CHOW, O_CALL_KONG };
+struct Opt {
+  OptKind kind; std::vector<float> x;
+  Decision first; bool hasThen = false; Decision then;  // the seat's forced decisions: the move, and a discard after a call
+};
+struct OptGroup {
+  uint8_t seat, strategy; bool atClaim; int from = -1, tile = NO_TILE, melds = 0;
+  std::shared_ptr<Game> snap; std::vector<Opt> opts; int chosen = -1;
+};
+
+static void cloneMemos(Game& g) { for (auto& s : g.hand.seats) if (s.botState) s.botState = s.botState->clone(); }
+static std::shared_ptr<Game> snapshot(const Game& g) { auto p = std::make_shared<Game>(g); cloneMemos(*p); return p; }
+
+static bool sameMove(const Decision& a, const Decision& b) {
+  if (a.type != b.type) return false;
+  if (a.type == A_CHOW) return a.tiles[0] == b.tiles[0] && a.tiles[1] == b.tiles[1];
+  if (a.type == A_DISCARD || (a.type == A_KONG && a.tile != NO_TILE && b.tile != NO_TILE)) return a.tile == b.tile;
+  return true;
+}
+
+// The seat's first decisions forced (an option being replayed), then its own strategy.
+struct Forced : Agent {
+  Agent* inner; int seat; const Opt* opt; int melds; bool firstUsed = false, thenUsed = false;
+  Decision turn(Game& g, int s, const TurnOptions& o) override {
+    if (s == seat && opt->first.type != A_PASS && !firstUsed && (opt->first.type == A_DISCARD || opt->first.type == A_KONG) && opt->kind <= O_KONG) {
+      firstUsed = true;
+      return opt->first;
+    }
+    if (s == seat && opt->hasThen && !thenUsed && firstUsed) {
+      thenUsed = true;
+      // Only when the call went through (another seat may have taken the tile first).
+      if (int(g.hand.seats[s].melds.size()) > melds && indexOf(g.hand.seats[s].hand, opt->then.tile) != -1) return opt->then;
+    }
+    return inner->turn(g, s, o);
+  }
+  Decision claim(Game& g, int s, const ClaimOptions& o) override {
+    if (s == seat && opt->kind >= O_PASS && !firstUsed) { firstUsed = true; return opt->first; }
+    return inner->claim(g, s, o);
+  }
+};
+
 struct Recorder : Agent {
   NeuralCat* nc;
   Agent* inner = nullptr;  // the seat's own strategy; null: the learner itself (nc) plays
@@ -104,6 +153,8 @@ struct Recorder : Agent {
   Rng* rng;
   Rng* replayRng = nullptr;  // its own generator, so the rows are the JS's whatever is replayed
   double replayShare = 0;
+  double optionShare = 0; int options = 0;  // option replays: the share of recorded decisions, and the discards weighed
+  std::vector<OptGroup>* groups = nullptr;
   double sample;
   std::vector<NcRow>* rows;
   NcRow& push(const Game& g, int seat, int explored) {
@@ -120,7 +171,9 @@ struct Recorder : Agent {
     bool keep = !o.hasWin && (*rng)() < sample;
     std::unique_ptr<NeuralCat::Reading> st;
     if (keep) { st.reset(new NeuralCat::Reading); nc->read(*st, g, seat); }
+    OptGroup* grp = keep && optionShare > 0 && (*replayRng)() < optionShare ? turnGroup(g, seat, o) : nullptr;
     Decision a = inner ? inner->turn(g, seat, o) : nc->chooseTurnAction(g, seat, o);
+    if (grp) settle(*grp, a, [&](Opt& op) { return turnOption(*grp, a, op); });
     if (a.type == A_KONG) {
       for (auto& k : o.kongs) if (k.tile == a.tile) {
         NcRow& r = push(g, seat, 2);
@@ -149,7 +202,9 @@ struct Recorder : Agent {
     std::vector<float> pass, kong;
     if (keep) { pass.resize(NeuralCat::SIZE); nc->waitingRow(g, seat, 0, o.tile, pass.data()); }
     if (keep && o.kong) { kong.resize(NeuralCat::SIZE); nc->waitingRow(g, seat, 1, o.tile, kong.data()); }
+    OptGroup* grp = keep && !o.robKong && optionShare > 0 && (*replayRng)() < optionShare ? claimGroup(g, seat, o) : nullptr;
     Decision d = inner ? inner->claim(g, seat, o) : nc->chooseClaim(g, seat, o);
+    if (grp) settle(*grp, d, [&](Opt& op) { return claimOption(*grp, d, op); });
     const std::vector<float>* x = d.type == A_PASS && !pass.empty() ? &pass : d.type == A_KONG && !kong.empty() ? &kong : nullptr;
     if (x) {
       NcRow& r = push(g, seat, 2);
@@ -157,6 +212,84 @@ struct Recorder : Agent {
       tableLabels(g, seat, -1, r.aux);
     }
     return d;
+  }
+
+  // The options at a turn: the first `options` discards in the foundation's order, and each kong.
+  OptGroup* turnGroup(const Game& g, int seat, const TurnOptions& o) {
+    groups->emplace_back();
+    OptGroup& G = groups->back();
+    G.seat = uint8_t(seat); G.strategy = strategy; G.atClaim = false;
+    G.snap = snapshot(g);
+    Game probe = *G.snap; cloneMemos(probe);
+    NeuralCat::Reading rd; nc->read(rd, probe, seat);
+    Game probe2 = *G.snap; cloneMemos(probe2);
+    DiscardAnalysis da = nc->analyzeDiscards(probe2, seat);
+    std::vector<int> seen;
+    for (auto& c : da.candidates) {
+      if (int(G.opts.size()) >= options) break;
+      if (std::find(seen.begin(), seen.end(), c->index) != seen.end()) continue;
+      seen.push_back(c->index);
+      Opt op; op.kind = O_DISCARD; op.first.type = A_DISCARD; op.first.tile = c->index;
+      op.x.resize(NeuralCat::SIZE); nc->row(rd, c->index, op.x.data());
+      G.opts.push_back(std::move(op));
+    }
+    for (auto& k : o.kongs) {
+      Opt op; op.kind = O_KONG; op.first.type = A_KONG; op.first.tile = k.tile;
+      op.x.resize(NeuralCat::SIZE); nc->waitingRow(probe, seat, k.added ? 3 : 2, k.tile, op.x.data());
+      G.opts.push_back(std::move(op));
+    }
+    G.melds = int(g.hand.seats[seat].melds.size());
+    return &G;
+  }
+  bool turnOption(OptGroup& G, const Decision& a, Opt& op) {
+    if (a.type != A_DISCARD) return false;
+    Game probe = *G.snap; cloneMemos(probe);
+    NeuralCat::Reading rd; nc->read(rd, probe, G.seat);
+    op.kind = O_DISCARD; op.first = a; op.x.resize(NeuralCat::SIZE); nc->row(rd, a.tile, op.x.data());
+    return true;
+  }
+  // The options at a claim: passing, each call the seat may make (with the learner's discard after it), the kong.
+  OptGroup* claimGroup(const Game& g, int seat, const ClaimOptions& o) {
+    groups->emplace_back();
+    OptGroup& G = groups->back();
+    G.seat = uint8_t(seat); G.strategy = strategy; G.atClaim = true; G.from = o.from; G.tile = o.tile;
+    G.melds = int(g.hand.seats[seat].melds.size());
+    G.snap = snapshot(g);
+    std::vector<Decision> moves;
+    Decision pass; pass.type = A_PASS; moves.push_back(pass);
+    if (o.pung) { Decision d; d.type = A_PUNG; d.tile = o.tile; moves.push_back(d); }
+    for (auto& c : o.chows) { Decision d; d.type = A_CHOW; d.tile = o.tile; d.tiles = c; moves.push_back(d); }
+    if (o.kong) { Decision d; d.type = A_KONG; d.tile = o.tile; moves.push_back(d); }
+    for (auto& d : moves) { Opt op; if (claimOption(G, d, op)) G.opts.push_back(std::move(op)); }
+    if (G.opts.size() < 2) { groups->pop_back(); return nullptr; }
+    return &G;
+  }
+  bool claimOption(OptGroup& G, const Decision& d, Opt& op) {
+    op.first = d; op.x.resize(NeuralCat::SIZE);
+    if (d.type == A_PASS) { op.kind = O_PASS; Game p = *G.snap; cloneMemos(p); nc->waitingRow(p, G.seat, 0, G.tile, op.x.data()); return true; }
+    if (d.type == A_KONG) { op.kind = O_CALL_KONG; Game p = *G.snap; cloneMemos(p); nc->waitingRow(p, G.seat, 1, G.tile, op.x.data()); return true; }
+    if (d.type != A_PUNG && d.type != A_CHOW) return false;
+    op.kind = d.type == A_PUNG ? O_PUNG : O_CHOW;
+    // The call made on a copy, then the learner's discard after it: the row is that discard's.
+    Game p = *G.snap; cloneMemos(p);
+    applyClaim(p, G.seat, d);
+    p.hand.turn = G.seat;
+    Game q = p; cloneMemos(q);
+    TurnOptions to = turnOptions(q, G.seat);
+    Decision after = nc->chooseTurnAction(q, G.seat, to);
+    if (after.type != A_DISCARD) return false;
+    NeuralCat::Reading rd; nc->read(rd, p, G.seat);
+    nc->row(rd, after.tile, op.x.data());
+    op.hasThen = true; op.then = after;
+    return true;
+  }
+  template <class F> void settle(OptGroup& G, const Decision& taken, F make) {
+    for (size_t k = 0; k < G.opts.size(); k++) if (sameMove(G.opts[k].first, taken)) { G.chosen = int(k); break; }
+    if (G.chosen < 0) {
+      Opt op;
+      if (make(op)) { G.opts.push_back(std::move(op)); G.chosen = int(G.opts.size()) - 1; }
+    }
+    if (G.chosen < 0 || G.opts.size() < 2) groups->pop_back();
   }
 };
 
@@ -188,6 +321,8 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
   Rng replayRng(job.seed ^ 0x9e3779b9u);
   rec.nc = &learner; rec.rng = &rng; rec.sample = job.sample; rec.rows = &rows;
   rec.replayRng = &replayRng; rec.replayShare = job.replays > 0 ? job.replayShare : 0;
+  std::vector<OptGroup> groups;
+  rec.groups = &groups; rec.optionShare = job.optionReplays > 0 ? job.optionShare : 0; rec.options = job.options;
   // The learner in a replay plays its best (no exploring), as it will in the game.
   NeuralCat best(model);
   struct BestAgent : Agent {
@@ -205,7 +340,10 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
   FILE* fl = std::fopen((base + ".labels").c_str(), "wb");
   FILE* fa = std::fopen((base + ".aux").c_str(), "wb");
   FILE* fr = job.replays > 0 ? std::fopen((base + ".replay").c_str(), "wb") : nullptr;
-  if (!ff || !fl || !fa || (job.replays > 0 && !fr)) throw std::runtime_error("generate-nc: can't write " + base);
+  FILE* fo = job.optionReplays > 0 ? std::fopen((base + ".options").c_str(), "wb") : nullptr;
+  FILE* fol = job.optionReplays > 0 ? std::fopen((base + ".optlabels").c_str(), "wb") : nullptr;
+  if (!ff || !fl || !fa || (job.replays > 0 && !fr) || (job.optionReplays > 0 && (!fo || !fol))) throw std::runtime_error("generate-nc: can't write " + base);
+  long optionRows = 0, optionGroups = 0;
   long samples = 0, hands = 0, outcomes[6] = {0, 0, 0, 0, 0, 0};
   std::vector<uint16_t> X;
   std::vector<uint8_t> L, A;
@@ -233,6 +371,7 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
     Game g = createGame(o);
     g.round = int((dealSeed >> 2) % 4) + 1;
     rows.clear();
+    groups.clear();
     Result res = runHand(g, agents);
     hands++;
     if (rows.empty()) continue;
@@ -277,6 +416,7 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
         uint8_t* p = R.data() + k * REPLAY_BYTES;
         for (int n = 0; n < job.replays; n++) {
           Game copy = *r.snap;
+          cloneMemos(copy);  // each replay starts from the same memory of the hand
           reshuffle(copy, r.seat, replayRng);
           Result rr = continueAfterDiscard(copy, again, r.seat, r.tile);
           int f = std::max(3, std::min(13, rr.score.faan ? rr.score.faan : 3));
@@ -294,13 +434,65 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
       }
       std::fwrite(R.data(), 1, R.size(), fr);
     }
+    if (fo && !groups.empty()) {
+      Agent* again[4];
+      for (int s = 0; s < 4; s++) again[s] = real[s] ? real[s] : static_cast<Agent*>(&bestAgent);
+      std::vector<uint16_t> OX;
+      std::vector<uint8_t> OL;
+      for (auto& G : groups) {
+        uint32_t gid = uint32_t(optionGroups++);
+        for (size_t k = 0; k < G.opts.size(); k++) {
+          const Opt& op = G.opts[k];
+          for (float v : op.x) OX.push_back(toHalf(v));
+          uint8_t p[OPT_BYTES];
+          std::memset(p, 0, OPT_BYTES);
+          double pts = 0;
+          for (int n = 0; n < job.optionReplays; n++) {
+            Game copy = *G.snap;
+            cloneMemos(copy);
+            reshuffle(copy, G.seat, replayRng);
+            Forced fz; fz.inner = again[G.seat]; fz.seat = G.seat; fz.opt = &op; fz.melds = G.melds;
+            Agent* ag[4];
+            for (int s = 0; s < 4; s++) ag[s] = s == G.seat ? static_cast<Agent*>(&fz) : again[s];
+            Result rr = G.atClaim ? continueAtClaims(copy, ag, G.from, G.tile) : continueAtTurn(copy, ag, G.seat);
+            int f = std::max(3, std::min(13, rr.score.faan ? rr.score.faan : 3));
+            double v = 8.0 * std::pow(2.0, f - 3);
+            int oc = 5;
+            if (rr.win) {
+              bool selfPaid = rr.payer < 0;
+              oc = rr.winner == G.seat ? (selfPaid ? 0 : 1) : rr.payer == G.seat ? 2 : selfPaid ? 3 : 4;
+            }
+            p[9 + oc]++;
+            if (oc <= 1) p[32 + f - 3]++;
+            if (oc == 2 || oc == 3) p[43 + f - 3]++;
+            // expected points as the model counts them (js/mahjong-ml-model.js summarize)
+            pts += oc == 0 ? 3 * v : oc == 1 ? v : oc == 2 || oc == 3 ? -v : 0;
+          }
+          std::memcpy(p, &gid, 4);
+          p[4] = uint8_t(int(k) == G.chosen);
+          p[5] = uint8_t(op.kind);
+          p[6] = job.recordAll ? G.strategy : uint8_t(job.strategy);
+          p[7] = uint8_t(G.opts.size());
+          p[8] = uint8_t(job.optionReplays);
+          p[15] = G.seat;
+          float mean = float(pts / job.optionReplays);
+          std::memcpy(p + 16, &mean, 4);
+          std::memcpy(p + 20, &dealSeed, 4);
+          OL.insert(OL.end(), p, p + OPT_BYTES);
+          optionRows++;
+        }
+      }
+      std::fwrite(OX.data(), 2, OX.size(), fo);
+      std::fwrite(OL.data(), 1, OL.size(), fol);
+    }
     samples += long(rows.size());
   }
   std::fclose(ff); std::fclose(fl); std::fclose(fa);
   if (fr) std::fclose(fr);
+  if (fo) { std::fclose(fo); std::fclose(fol); }
   long ms = long(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count());
-  std::printf("{\"index\":%d,\"deals\":%ld,\"hands\":%ld,\"samples\":%ld,\"replayed\":%ld,\"outcomes\":[%ld,%ld,%ld,%ld,%ld,%ld],\"ms\":%ld}\n",
-              job.shard, job.deals, hands, samples, replayed, outcomes[0], outcomes[1], outcomes[2], outcomes[3], outcomes[4], outcomes[5], ms);
+  std::printf("{\"index\":%d,\"deals\":%ld,\"hands\":%ld,\"samples\":%ld,\"replayed\":%ld,\"optionRows\":%ld,\"optionGroups\":%ld,\"outcomes\":[%ld,%ld,%ld,%ld,%ld,%ld],\"ms\":%ld}\n",
+              job.shard, job.deals, hands, samples, replayed, optionRows, optionGroups, outcomes[0], outcomes[1], outcomes[2], outcomes[3], outcomes[4], outcomes[5], ms);
   return 0;
 }
 
