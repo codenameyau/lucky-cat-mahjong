@@ -1886,10 +1886,15 @@
               var show = function () { showRuleExample(row, r, pill.textContent); };
               var fromMouse = true;
               var openBeforePress = false;
+              // A tap opens the example from the hover and focus it fakes, and iOS
+              // then skips the click, so the sound plays on the press itself.
+              var pressSounded = false;
               row.addEventListener('pointerdown', function (e) {
                 if (desktopRules()) return;
                 fromMouse = e.pointerType === 'mouse';
                 openBeforePress = openExampleRow === row;
+                pressSounded = !fromMouse;
+                if (pressSounded) sound.play('select'); // opening or putting away an example
               });
               row.addEventListener('mouseenter', function () {
                 if (desktopRules()) { show(); return; }
@@ -1900,7 +1905,8 @@
                 if (fromMouse || !openBeforePress) show();
               });
               row.addEventListener('click', function () {
-                sound.play('select'); // opening or putting away an example
+                if (!pressSounded) sound.play('select'); // opening or putting away an example
+                pressSounded = false;
                 track('play_rule_click', { hand: r.name });
                 if (desktopRules()) { show(); return; }
                 if (fromMouse ? openExampleRow === row : openBeforePress) { hideRuleExample(); return; }
@@ -2276,7 +2282,7 @@
         head.className = 'strategies-card-head';
         var name = document.createElement('h4');
         name.className = 'strategies-card-name';
-        name.textContent = s.name + (s.model ? ' ' + s.model : '');
+        name.textContent = s.name; // a learned strategy's model opens its summary
         var id = document.createElement('code');
         id.className = 'strategies-card-id';
         id.textContent = s.id;
@@ -2292,7 +2298,7 @@
         card.appendChild(who);
         var sum = document.createElement('p');
         sum.className = 'strategies-card-summary';
-        sum.textContent = s.summary;
+        appendHandNames(sum, s.summary);
         card.appendChild(sum);
         var more = document.createElement('div');
         more.className = 'strategies-card-more';
