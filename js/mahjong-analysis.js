@@ -216,7 +216,7 @@
     if (mine.live <= 2 && mine.good.length && mine.eff > 0 && mine.eff !== 1.5) line.push('(Very few live tiles: this hand is slow.)');
     if (losing) {
       action = 'A step slower than it needed to be.';
-      line.push('Throwing ' + tn(d) + ' (' + describeTile(c, d) + ') leaves the hand ' + stepsText(mine.eff) + '; throwing ' + tn(best.index) + ' keeps it ' + stepsText(best.eff) + ', with ' + plural(best.live, 'live tile') + ' to improve it.');
+      line.push('If you throw ' + tn(d) + ' (' + describeTile(c, d) + '), the hand is ' + stepsText(mine.eff) + '; if you throw ' + tn(best.index) + ', it is ' + stepsText(best.eff) + ', with ' + plural(best.live, 'live tile') + ' to improve it.');
     } else if (fewer) {
       action = 'Same speed, fewer outs.';
       line.push(tn(d) + ' leaves the hand ' + stepsText(mine.eff) + ' with ' + plural(mine.live, 'live tile') + ' to improve it. ' + tn(best.index) + ' gives ' + best.live + '.');
@@ -243,7 +243,7 @@
         var kinds = mine.ready.waits.length;
         var topFaan = mine.ready.waits.reduce(function (n, w) { return Math.max(n, w.ron, w.tsumo); }, 0);
         if (dead) line.push('None are left in the wall' + held + ', so this wait is dead: change it when a draw lets you.');
-        else line.push(kinds >= 2 ? 'Waiting on ' + kinds + ' different tiles is the strong kind of wait.' : 'A one-tile wait is thin: only one kind of tile wins.');
+        else line.push(kinds >= 2 ? 'You are waiting on ' + kinds + ' different tiles: the strong kind of wait.' : 'A one-tile wait is thin: only one kind of tile wins.');
         line.push('It scores up to ' + faanText(topFaan) + '.');
       }
     } else if (mine.eff === 1.5 && mine.ready) {
@@ -256,7 +256,7 @@
       var whoReady = readyNames.length > 1 ? readyNames.slice(0, -1).join(', ') + ' and ' + readyNames[readyNames.length - 1] + ' were' : readyNames[0] + ' was';
       line.push(whoReady + ' ready' + (ready.length === 1 ? ' on ' + names(r.waits.map(function (w) { return w.i; })) : '') + ', and ' + tn(d) + ' was not one of the tiles.');
       var risky = rated.filter(function (x) { return x.index !== d && winnersOn(game, seat, E.tileId(x.index)).length; })[0];
-      if (risky && risky.eff <= mine.eff + 0.5) line.push('Throwing ' + tn(risky.index) + ' instead would have lost.');
+      if (risky && risky.eff <= mine.eff + 0.5) line.push('You would have lost by throwing ' + tn(risky.index) + ' instead.');
     }
     if (!losing && ctx.prev && ctx.prev.lastSteps != null && mine.eff > ctx.prev.lastSteps) line.push('That is a step back from last turn.');
     return { action: action, detail: line.join(' '), after: mine.eff, waitKey: mine.eff === 0 ? mine.good.join(',') : '' };
@@ -322,7 +322,7 @@
     tiles.forEach(function (i) { live += where.wall[i] + where.others[i]; });
     var topFaan = w.waits.reduce(function (n, x) { return Math.max(n, x.ron, x.tsumo); }, 0);
     var action = who(game, o) + ' is ready.';
-    line.push('Waiting on ' + names(tiles) + ' for up to ' + faanText(topFaan) + '. ' + plural(live, 'copy', 'copies') + ' left unseen.');
+    line.push('They are waiting on ' + names(tiles) + ' for up to ' + faanText(topFaan) + '. ' + plural(live, 'copy', 'copies') + ' left unseen.');
     var me = game.hand.seats[0];
     var held = [];
     tiles.forEach(function (i) { if (me.hand.indexOf(E.tileId(i)) !== -1) held.push(i); });
@@ -348,7 +348,7 @@
     if (value) line.push('It is ' + value + ', a faan' + (o === 0 ? ' toward the ' + minFaan(game) + ' you need.' : '.'));
     else if (ev.c === 'chow') line.push(gain > 0 ? 'A chow is worth no faan and ends Concealed, so the speed it buys is the whole reason to call it.' : 'A chow is worth no faan and ends Concealed, and this one did not make the hand any closer.');
     else line.push('A pung of a plain tile scores nothing by itself, but it keeps All Triplets and a flush open.');
-    if (gain <= 0 && !value) line.push(o === 0 ? 'Calling here cost you your Concealed faan for nothing; passing was better.' : 'It gains no speed.');
+    if (gain <= 0 && !value) line.push(o === 0 ? 'You gave up your Concealed faan for nothing by calling here: passing was better.' : 'It gains no speed.');
     var read = readHand(game, o);
     if (read.big) line.push((o === 0 ? 'You are' : 'They are') + ' building ' + read.text + '.');
     var kind = ev.c === 'kong' ? 'kong' : ev.c;

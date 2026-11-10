@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
 const E = require('./mahjong-engine.js');
 const C = require('./mahjong-coach.js');
+const S = require('./mahjong-strategies.js');
 
 // Seat 0 is East (dealer) in the East round. Other seats' hands are filler.
 function table(opts) {
@@ -114,6 +115,18 @@ describe('coach: discards', () => {
     assert.doesNotMatch(text(hint), /Seven Pairs/);
   });
 
+  it('on Concealed Straights, says the last faan comes from a situational bonus', () => {
+    // A flower that isn't your seat's loses No Flowers, so the hand is a faan short.
+    const hint = C.turnHint(table({ seats: [{ hand: mixed, flowers: ['f3'] }] }), 0, { kongs: [] });
+    assert.match(text(hint), /Concealed Straights\. Get the last faan from a situational bonus like self-draw or drawing your own seat flower\./);
+  });
+
+  it('on Concealed Straights, with No Flowers or your own flower it makes 3 already', () => {
+    const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
+    assert.match(text(hint), /Concealed Straights\. Flowers make it 3\./);
+    assert.doesNotMatch(text(hint), /situational bonus/);
+  });
+
   it('on Concealed Straights, keeps a dragon nobody has shown', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
     assert.notEqual(hint.tile, 'dr');
@@ -147,7 +160,7 @@ describe('coach: discards', () => {
     const hand = ['b2', 'b3', 'b4', 'b5', 'b6', 'b6', 'b7', 'b8', 'b8', 'dr', 'dr', 'c5', 'd7', 'ws'];
     const hint = C.turnHint(table({ seats: [{ hand }] }), 0, { kongs: [] });
     assert.ok(['c5', 'd7'].includes(hint.tile), 'discarded ' + hint.tile);
-    assert.match(text(hint), /Your hand is keeping Bamboo, so other suits go first/);
+    assert.match(text(hint), /Your hand is keeping Bamboo: discard other suits first/);
     assert.doesNotMatch(text(hint), /Go for Bamboo,/);
     assert.match(text(hint), /(Half|Full) Flush in Bamboo/);
     assert.doesNotMatch(text(hint), /tile(?:s)? from ready|Ready, waiting on/);
@@ -403,7 +416,7 @@ describe('coach: a player who ignores the discard', () => {
     const hint = C.turnHint(table({ seats: [{ hand: hand }] }), 0, { kongs: [] });
     assert.equal(hint.tile, 'b9');
     assert.match(text(hint), /Go for /);
-    assert.doesNotMatch(text(hint), /You're going for/);
+    assert.doesNotMatch(text(hint), /Go for .*Bamboo/);
   });
 
   it('keeps its own plan after one discard against its advice', () => {
@@ -412,7 +425,7 @@ describe('coach: a player who ignores the discard', () => {
     C.noteDiscard(game, 0, hint.tile, 'c9');
     drop(game, 'c9');
     const next = C.turnHint(game, 0, { kongs: [] });
-    assert.doesNotMatch(text(next), /You're going for/);
+    assert.doesNotMatch(text(next), /Go for .*Bamboo/);
     assert.match(text(next), /Go for /);
   });
 
@@ -427,8 +440,7 @@ describe('coach: a player who ignores the discard', () => {
     drop(game, 'c8');
     const next = C.turnHint(game, 0, { kongs: [] });
     const said = text(next);
-    assert.match(said, /You're going for .*Bamboo/);
-    assert.doesNotMatch(said, /\bGo for /);
+    assert.match(said, /Go for .*Bamboo/);
     assert.ok(!['b6', 'b7', 'b8', 'b9'].includes(next.tile), next.tile);
   });
 
@@ -444,8 +456,26 @@ describe('coach: a player who ignores the discard', () => {
     C.noteDiscard(game, 0, hint.tile, hint.tile);
     drop(game, hint.tile);
     const next = C.turnHint(game, 0, { kongs: [] });
-    assert.match(text(next), /You're going for .*Bamboo/);
+    assert.match(text(next), /Go for .*Bamboo/);
     assert.ok(!['b6', 'b7', 'b8', 'b9', 'ws', 'we'].includes(next.tile), next.tile);
+  });
+
+  it('Simple says "go for" once, not in its tip and again in its aim sentence', () => {
+    for (const id of ['jorge-yau', 'neural-cat', 'lucky-cat']) {
+      const simple = C.forStrategy(S.get(id).bot, { detail: 'simple' });
+      const game = table({ seats: [{ hand: hand }] });
+      let hint = simple.turnHint(game, 0, { kongs: [] });
+      simple.noteDiscard(game, 0, hint.tile, 'c9');
+      drop(game, 'c9');
+      hint = simple.turnHint(game, 0, { kongs: [] });
+      simple.noteDiscard(game, 0, hint.tile, 'c8');
+      drop(game, 'c8');
+      const said = [text(simple.turnHint(game, 0, { kongs: [] })), text(simple.claimHint(game, 0, E.claimOptions(game, 0, 'c1', 3, false)))];
+      for (const s of said) {
+        assert.equal((s.match(/going for|go for/gi) || []).length, 1, id + ': ' + s);
+        assert.match(s, /Go for Half Flush in Bamboo, about \d+ faan\.$/, id + ': ' + s);
+      }
+    }
   });
 
   it('names that hand on a claim, instead of the one it first recommended', () => {
@@ -458,8 +488,7 @@ describe('coach: a player who ignores the discard', () => {
     drop(game, 'c8');
     const claim = C.claimHint(game, 0, E.claimOptions(game, 0, 'c1', 3, false));
     assert.equal(claim.decision.type, 'pass');
-    assert.match(text(claim), /You're going for .*Bamboo/);
-    assert.doesNotMatch(text(claim), /\bGo for /);
+    assert.match(text(claim), /Go for .*Bamboo/);
   });
 });
 

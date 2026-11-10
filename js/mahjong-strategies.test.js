@@ -634,7 +634,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.57.20');
+    assert.equal(E.GAME_VERSION, '0.57.21');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
@@ -1274,7 +1274,7 @@ describe('the isolated tile in the shortest suit goes first', () => {
     const game = table({ seats: [{ hand: loose }], wallLeft: 70 });
     assert.equal(Base.chooseTurnAction(game, 0, { kongs: [] }).tile, 'd1');
     const text = Coach.forStrategy(Base).turnHint(game, 0, { kongs: [] }).tips.join(' ');
-    assert.match(text, /Circles is your shortest suit, so its terminal goes first/);
+    assert.match(text, /Circles is your shortest suit: discard its terminal first/);
   });
 
   it('keeps a short-suit terminal once seven other majors belong to all terminals, mixed orphans, or thirteen orphans', () => {
