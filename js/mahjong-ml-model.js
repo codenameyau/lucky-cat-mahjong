@@ -14,7 +14,14 @@
    Weights are { featureVersion, featureSize, layers: [{ rows, cols, w, b }] }
    with w (rows x cols, row-major) and b as base64 float32 (or float16 with
    dtype: 'f16', as ml/train.py exports them), or plain arrays.
-   The last layer has OUTPUTS rows. createModel(weights) or randomModel(seed). */
+   The last layer has OUTPUTS rows. createModel(weights) or randomModel(seed).
+
+   A stacked model (the frontier plan, step 3) also carries `reader`: a
+   network over the same features whose heads read the table and the hand
+   (ml/train.py --heads). Its read (READ_SIZE values, readFeatures) is put
+   after the features, and the move network reads both: its first layer has
+   featureSize + READ_SIZE columns. A frontend runs the reader, then the
+   move network (docs/machine-learning/porting.md). */
 
 (function (root) {
   'use strict';
@@ -29,6 +36,21 @@
   var HIDDEN = [256, 128];
 
   function points(f) { return 8 * Math.pow(2, Math.min(f, 13) - 3); }
+
+  // The reader's outputs (scripts/ml/heads.js, ml/train.py HEAD_OUTPUTS): the move
+  // model's 28, the hand it wins with (12), the hand the rules read (12), each
+  // opponent ready (3), the tile thrown deals in now (1), each opponent's waits (102).
+  var R_WIN = OUTPUTS, R_READY = OUTPUTS + 24, R_DEAL = R_READY + 3, READER_OUTPUTS = R_DEAL + 1 + 102;
+  var READ_SIZE = 16;
+  function sigmoid(z) { return 1 / (1 + Math.exp(-z)); }
+  // Read version 1: each opponent ready, the tile thrown deals in now, and the
+  // hand this seat would win with, as chances.
+  function readFeatures(r, out, at) {
+    for (var k = 0; k < 3; k++) out[at + k] = sigmoid(r[R_READY + k]);
+    out[at + 3] = sigmoid(r[R_DEAL]);
+    var hand = softmax(r, R_WIN, 12);
+    for (var i = 0; i < 12; i++) out[at + 4 + i] = hand[i];
+  }
 
   // Half-precision floats (as the trained weights ship) to float32.
   function halfToFloat(h) {
@@ -86,6 +108,48 @@
       return { rows: l.rows, cols: l.cols, w: floats(l.w, weights.dtype), b: floats(l.b, weights.dtype) };
     });
     if (layers[layers.length - 1].rows !== OUTPUTS) throw new Error('model must have ' + OUTPUTS + ' outputs');
+    var reader = null;
+    if (weights.reader) {
+      if (weights.readerVersion !== 1) throw new Error('model reads version ' + weights.readerVersion + ' of the reader, have 1');
+      reader = network(weights.reader.layers.map(function (l) {
+        return { rows: l.rows, cols: l.cols, w: floats(l.w, weights.reader.dtype || weights.dtype), b: floats(l.b, weights.reader.dtype || weights.dtype) };
+      }), READER_OUTPUTS);
+      if (layers[0].cols !== F.SIZE + READ_SIZE) throw new Error('a stacked model reads ' + (F.SIZE + READ_SIZE) + ' inputs');
+    }
+    var move = network(layers, OUTPUTS);
+    var stacked = new Float32Array(F.SIZE + READ_SIZE);
+    // The raw outputs for one feature vector: the reader's read put after the
+    // features, then the move network.
+    function forward(x) {
+      if (!reader) return move(x);
+      for (var i = 0; i < F.SIZE; i++) stacked[i] = x[i];
+      readFeatures(reader(x), stacked, F.SIZE);
+      return move(stacked);
+    }
+
+    function predict(x) {
+      var raw = forward(x);
+      var o = softmax(raw, 0, OUTCOMES.length);
+      var winFaan = softmax(raw, OUTCOMES.length, FAAN.length);
+      var payFaan = softmax(raw, OUTCOMES.length + FAAN.length, FAAN.length);
+      var outcome = {};
+      OUTCOMES.forEach(function (k, i) { outcome[k] = o[i]; });
+      return { outcome: outcome, winFaan: winFaan, payFaan: payFaan };
+    }
+
+    return {
+      meta: weights.meta || {},
+      featureVersion: weights.featureVersion,
+      stacked: !!reader,
+      forward: forward,
+      predict: predict,
+      ev: function (x) { return summarize(predict(x)); },
+    };
+  }
+
+  // A fully connected network with ReLU between layers: its raw outputs (the
+  // first `n`) for one input. float32 buffers, sums in double.
+  function network(layers, n) {
     var widest = layers.reduce(function (m, l) { return Math.max(m, l.rows); }, 0);
     var bufA = new Float32Array(widest), bufB = new Float32Array(widest);
     // The first layer by input, so the many zero features cost nothing.
@@ -117,26 +181,9 @@
         }
         input = out;
       }
-      return Array.prototype.slice.call(out, 0, OUTPUTS);
+      return Array.prototype.slice.call(out, 0, n);
     }
-
-    function predict(x) {
-      var raw = forward(x);
-      var o = softmax(raw, 0, OUTCOMES.length);
-      var winFaan = softmax(raw, OUTCOMES.length, FAAN.length);
-      var payFaan = softmax(raw, OUTCOMES.length + FAAN.length, FAAN.length);
-      var outcome = {};
-      OUTCOMES.forEach(function (k, i) { outcome[k] = o[i]; });
-      return { outcome: outcome, winFaan: winFaan, payFaan: payFaan };
-    }
-
-    return {
-      meta: weights.meta || {},
-      featureVersion: weights.featureVersion,
-      forward: forward,
-      predict: predict,
-      ev: function (x) { return summarize(predict(x)); },
-    };
+    return forward;
   }
 
   // Expected points from a prediction, and the parts behind it.
@@ -191,20 +238,29 @@
 
   // Weights as JSON-friendly base64 (for js/mahjong-ml-weights.js).
   function serialize(weights) {
-    return {
+    var enc = function (ls, dtype) {
+      return ls.map(function (l) { return { rows: l.rows, cols: l.cols, w: toBase64(floats(l.w, dtype)), b: toBase64(floats(l.b, dtype)) }; });
+    };
+    var out = {
       featureVersion: weights.featureVersion,
       featureSize: weights.featureSize,
       meta: weights.meta || {},
-      layers: weights.layers.map(function (l) {
-        return { rows: l.rows, cols: l.cols, w: toBase64(floats(l.w)), b: toBase64(floats(l.b)) };
-      }),
+      layers: enc(weights.layers, weights.dtype),
     };
+    if (weights.reader) {
+      out.readerVersion = weights.readerVersion;
+      out.reader = { layers: enc(weights.reader.layers, weights.reader.dtype || weights.dtype) };
+    }
+    return out;
   }
 
   var api = {
     OUTCOMES: OUTCOMES,
     FAAN: FAAN,
     OUTPUTS: OUTPUTS,
+    READ_SIZE: READ_SIZE,
+    READER_OUTPUTS: READER_OUTPUTS,
+    readFeatures: readFeatures,
     HIDDEN: HIDDEN,
     points: points,
     createModel: createModel,

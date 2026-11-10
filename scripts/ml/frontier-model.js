@@ -45,6 +45,8 @@
      --stages a,b   deals of each screen stage (default 4000,16000,40000)
      --drop X       drop a model behind by more than X standard errors (default 1)
      --keep X       a recipe is a candidate ahead by more than X (default 2)
+     --recipes SET  heads (step 2, the default) or stacked (step 3)
+     --reader FILE  for stacked: the reader, a <name>.heads.json
      --start FILE   the first champion (default: Neural Cat's lab champion,
                     else the model in the game)
      --dir DIR      state, log and screens (default ml/fm)
@@ -62,12 +64,25 @@ const ROOT = path.join(__dirname, '..', '..');
 const DATA_SEED = 90000000;      // round r's deals: DATA_SEED + (r - 1) * 1,000,000
 const SCREEN_SEED = 930000000;   // fresh deals for screens, never the benchmark deck
 
-// The recipes a round tries. Each is trained --seeds times.
-const RECIPES = [
-  { id: 'a', what: 'heads at weight 0.5, lr 3e-4', args: ['--lr', '3e-4', '--epochs', '8', '--head-weight', '0.5'] },
-  { id: 'b', what: 'heads at weight 0.2, lr 3e-4', args: ['--lr', '3e-4', '--epochs', '8', '--head-weight', '0.2'] },
-  { id: 'c', what: 'no extra heads, lr 3e-4 (the control)', args: ['--lr', '3e-4', '--epochs', '8'], plain: true },
-];
+// The recipes a round tries (--recipes), each trained --seeds times.
+//   heads    step 2: the extra heads as outputs (round 1)
+//   stacked  step 3: the move network reads the reader's read (--reader, a
+//            <name>.heads.json from an earlier round). These train on this
+//            round's data alone: the reader learned from earlier rounds', so
+//            its read of these rows is as honest as it will be in play. The
+//            control trains on the same rows.
+const RECIPE_SETS = {
+  heads: [
+    { id: 'a', what: 'heads at weight 0.5, lr 3e-4', args: ['--lr', '3e-4', '--epochs', '8', '--head-weight', '0.5'] },
+    { id: 'b', what: 'heads at weight 0.2, lr 3e-4', args: ['--lr', '3e-4', '--epochs', '8', '--head-weight', '0.2'] },
+    { id: 'c', what: 'no extra heads, lr 3e-4 (the control)', args: ['--lr', '3e-4', '--epochs', '8'], plain: true },
+  ],
+  stacked: [
+    { id: 's', what: 'reads the reader, lr 3e-4', args: ['--lr', '3e-4', '--epochs', '8'], plain: true, stacked: true, latest: true },
+    { id: 't', what: 'reads the reader, lr 1e-3', args: ['--lr', '1e-3', '--epochs', '6'], plain: true, stacked: true, latest: true },
+    { id: 'c', what: 'the same rows, no reader, lr 3e-4 (the control)', args: ['--lr', '3e-4', '--epochs', '8'], plain: true, latest: true },
+  ],
+};
 
 function parseArgs(argv) {
   const out = { _: [] };
@@ -152,6 +167,10 @@ async function main() {
   const stages = String(a.stages || '4000,16000,40000').split(',').map(Number);
   const drop = parseFloat(a.drop || 1), keep = parseFloat(a.keep || 2);
   const workers = String(a.workers || os.cpus().length);
+  const RECIPES = RECIPE_SETS[String(a.recipes || 'heads')];
+  if (!RECIPES) throw new Error('--recipes: one of ' + Object.keys(RECIPE_SETS).join(', '));
+  const readerFile = a.reader ? String(a.reader) : null;
+  if (RECIPES.some((x) => x.stacked) && !readerFile) throw new Error('--recipes stacked needs --reader <name>.heads.json');
 
   for (let n = 0; n < rounds; n++) {
     const r = state.rounds.length + 1;
@@ -178,8 +197,8 @@ async function main() {
         const file = path.join('ml', 'models', name + '.json');
         if (!fs.existsSync(path.join(ROOT, file))) {
           log('Round ' + r + ': training ' + name + ' [' + rec.what + ', seed ' + s + ']');
-          run(PYTHON, ['ml/train.py', '--data'].concat(sets, ['--name', name, '--init', champ, '--hidden', hidden, '--seed', String(s), '--patience', '3'],
-            rec.plain ? [] : ['--heads'], rec.args));
+          run(PYTHON, ['ml/train.py', '--data'].concat(rec.latest ? [data] : sets, ['--name', name, '--init', champ, '--hidden', hidden, '--seed', String(s), '--patience', '3'],
+            rec.plain ? [] : ['--heads'], rec.stacked ? ['--reader', readerFile] : [], rec.args));
           // The model plays with its champion's settings.
           const w = readJson(path.join(ROOT, file));
           const play = (readJson(path.resolve(ROOT, champ), { meta: {} }).meta || {}).play;
@@ -232,7 +251,7 @@ async function main() {
       const top = best.models.filter((m) => m.alive).sort((p, q) => q.gap - p.gap)[0];
       log('Round ' + r + ': ' + top.name + ' is a candidate. The bar: node scripts/ml/bench.js judge nc:ml/models/' + top.name + '.json --vs nc:' + champ);
     }
-    state.rounds.push({ round: r, data, champion: champ, recipes });
+    state.rounds.push({ round: r, data, champion: champ, recipeSet: String(a.recipes || 'heads'), reader: readerFile, recipes });
     writeJson(stateFile, state);
     // Data no round trains on any more goes to the Trash.
     for (let k = 1; k <= r - window; k++) {

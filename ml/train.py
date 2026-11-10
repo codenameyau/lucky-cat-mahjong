@@ -19,6 +19,14 @@ data without it trains the first 28 outputs only. The model the game plays
 is still the first 28 outputs; <name>.heads.json keeps all of them, and
 <name>.heads-report.json says how well each head reads.
 
+--reader FILE (a <name>.heads.json) trains a stacked model (frontier plan,
+step 3): the reader's read of each position (READ_SIZE values, as
+js/mahjong-ml-model.js readFeatures makes them) goes after the features, and
+the move network reads both. The read is computed once per data set and
+reader and cached beside the data (read-<reader hash>.f4). --init starts the
+move network from a plain model with zero weights on the read, so it starts
+out playing exactly as that model.
+
 Writes ml/models/<name>.json (weights, float16 base64) and checks the JS
 model gives the same outputs. --ship also writes js/mahjong-ml-weights.js,
 the copy the page and npm run compete load.
@@ -56,6 +64,59 @@ H_READY = H_RULE + N_HANDS         # each opponent ready (3)
 H_DEAL = H_READY + 3               # the tile thrown deals in now (1)
 H_WAITS = H_DEAL + 1               # each ready opponent's winning tiles (3 x 34)
 HEAD_OUTPUTS = H_WAITS + 102
+READ_SIZE = 16  # js/mahjong-ml-model.js readFeatures, read version 1
+
+
+def read_layers(weights):
+    """A JSON model's layers as float32 numpy arrays."""
+    dt = '<f2' if weights.get('dtype') == 'f16' else '<f4'
+    out = []
+    for l in weights['layers']:
+        w = np.frombuffer(base64.b64decode(l['w']), dtype=dt).astype(np.float32).reshape(l['rows'], l['cols'])
+        b = np.frombuffer(base64.b64decode(l['b']), dtype=dt).astype(np.float32)
+        out.append((w, b))
+    return out
+
+
+def reader_net(layers, device):
+    net = Net(layers[0][0].shape[1], [w.shape[0] for w, _ in layers[:-1]], 0, layers[-1][0].shape[0])
+    for lin, (w, b) in zip(net.linears(), layers):
+        lin.weight.data = torch.from_numpy(w.copy())
+        lin.bias.data = torch.from_numpy(b.copy())
+    return net.to(device).eval()
+
+
+def read_of(raw):
+    """readFeatures in js/mahjong-ml-model.js: each opponent ready, the tile thrown deals in now, the hand it wins with."""
+    return torch.cat([torch.sigmoid(raw[:, H_READY:H_READY + 3]), torch.sigmoid(raw[:, H_DEAL:H_DEAL + 1]),
+                      torch.softmax(raw[:, H_WIN:H_WIN + N_HANDS], 1)], 1)
+
+
+def cached_read(dirs, manifests, x, reader_file, device, batch=16384):
+    """The reader's read of every row, cached per data set beside its shards."""
+    import hashlib
+    with open(reader_file, 'rb') as f:
+        tag = hashlib.sha256(f.read()).hexdigest()[:16]
+    with open(reader_file) as f:
+        net = reader_net(read_layers(json.load(f)), device)
+    out = np.empty((len(x), READ_SIZE), dtype=np.float32)
+    at = 0
+    for d, m in zip(dirs, manifests):
+        n = sum(s['samples'] for s in m['shards'])
+        cache = os.path.join(d, 'read-%s.f4' % tag)
+        if os.path.exists(cache) and os.path.getsize(cache) == n * READ_SIZE * 4:
+            out[at:at + n] = np.fromfile(cache, dtype=np.float32).reshape(n, READ_SIZE)
+            print('Read of %s: cached (%s)' % (d, os.path.basename(cache)))
+        else:
+            t0 = time.time()
+            with torch.no_grad():
+                for i in range(at, at + n, batch):
+                    j = min(at + n, i + batch)
+                    out[i:j] = read_of(net(torch.from_numpy(x[i:j].astype(np.float32)).to(device))).cpu().numpy()
+            out[at:at + n].tofile(cache)
+            print('Read of %s: %d rows in %.1fs, cached as %s' % (d, n, time.time() - t0, os.path.basename(cache)))
+        at += n
+    return out
 
 
 def load(dirs, limit=None, heads=False):
@@ -263,6 +324,7 @@ def main():
     ap.add_argument('--heads', action='store_true', help="train the frontier model's extra heads from shard-N.aux")
     ap.add_argument('--head-weight', type=float, default=0.5, help='weight of the extra heads in the loss')
     ap.add_argument('--seed', type=int, default=0)
+    ap.add_argument('--reader', help='a <name>.heads.json: train a stacked model that reads its read')
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -275,6 +337,10 @@ def main():
     x, y, manifests, aux, has_aux = load(args.data, args.limit or None, args.heads)
     outputs = HEAD_OUTPUTS if args.heads else OUTPUTS
     size = manifests[0]['featureSize']
+    if args.reader and args.limit:
+        sys.exit('--reader caches the read for whole data sets: leave out --limit')
+    rd = cached_read(args.data, manifests, x, args.reader, device) if args.reader else None
+    inputs = size + (READ_SIZE if args.reader else 0)
     print('Loaded %d samples of %d features from %s (%.1fs)' % (len(x), size, ', '.join(args.data), time.time() - t0))
     counts = np.bincount(y['outcome'], minlength=N_OUTCOMES) / len(y)
     print('Outcomes: ' + ', '.join('%s %.1f%%' % (k, 100 * v) for k, v in zip(manifests[0]['outcomes'], counts)))
@@ -294,6 +360,12 @@ def main():
         fetch_t = lambda pos: torch.from_numpy(x[tr_rows[pos]]).to(device).float()
         fetch_v = lambda pos: torch.from_numpy(x[va_rows[pos]]).to(device).float()
         print('Data is %.1f GB: keeping it in memory, a batch at a time on the device' % (x.nbytes / 1e9))
+    raw_v = fetch_v
+    if rd is not None:
+        rt, rv = to(rd[tr_rows], torch.float32), to(rd[va_rows], torch.float32)
+        base_t, base_v = fetch_t, fetch_v
+        fetch_t = lambda pos: torch.cat([base_t(pos), rt[torch.from_numpy(pos).to(device)]], 1)
+        fetch_v = lambda pos: torch.cat([base_v(pos), rv[torch.from_numpy(pos).to(device)]], 1)
     out_t, out_v = to(y['outcome'][~val], torch.long), to(y['outcome'][val], torch.long)
     win_t = to(np.clip(y['winFaan'][~val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
     win_v = to(np.clip(y['winFaan'][val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
@@ -307,7 +379,7 @@ def main():
     print('Training on %d, validating on %d, on %s' % (n_train, n_val, device))
 
     hidden = [int(h) for h in args.hidden.split(',') if h]
-    model = Net(size, hidden, args.dropout, outputs).to(device)
+    model = Net(inputs, hidden, args.dropout, outputs).to(device)
     if args.init:
         with open(args.init) as f:
             init = json.load(f)
@@ -317,6 +389,12 @@ def main():
             b = np.frombuffer(base64.b64decode(l['b']), dtype=dt).astype(np.float32)
             # A wider last layer (the extra heads) keeps its own start for the new rows.
             rows = min(l['rows'], lin.weight.shape[0])
+            # A stacked model's first layer: the plain model's columns, and zeros for the read.
+            if lin.weight.shape[1] != w.shape[1]:
+                lin.weight.data.zero_()
+                lin.weight.data[:rows, :w.shape[1]] = torch.from_numpy(w[:rows].copy()).to(device)
+                lin.bias.data[:rows] = torch.from_numpy(b[:rows].copy()).to(device)
+                continue
             lin.weight.data[:rows] = torch.from_numpy(w[:rows].copy()).to(device)
             lin.bias.data[:rows] = torch.from_numpy(b[:rows].copy()).to(device)
         print('Starting from ' + args.init)
@@ -375,6 +453,12 @@ def main():
         'gameVersion': manifests[0].get('gameVersion'),
     })
     weights = export(model, meta, manifests[0]['featureVersion'], size)
+    if args.reader:
+        with open(args.reader) as f:
+            rw = json.load(f)
+        weights['readerVersion'] = 1
+        weights['reader'] = {'dtype': rw.get('dtype', 'f16'), 'layers': rw['layers']}
+        weights['meta']['reader'] = (rw.get('meta') or {}).get('name') or os.path.basename(args.reader)
     full = None
     if args.heads:
         # The game plays the first 28 outputs; the rest are kept beside it.
@@ -396,7 +480,10 @@ def main():
         with torch.no_grad():
             for i in range(0, len(va), args.batch * 4):
                 rows = va[i:i + args.batch * 4]
-                outs.append(model(torch.from_numpy(x[rows].astype(np.float32)).to(device)).cpu().numpy())
+                xin = torch.from_numpy(x[rows].astype(np.float32)).to(device)
+                if rd is not None:
+                    xin = torch.cat([xin, torch.from_numpy(rd[rows]).to(device)], 1)
+                outs.append(model(xin).cpu().numpy())
         if outs:
             rep = heads_report(np.concatenate(outs).astype(np.float64), aux[va], y['outcome'][va], manifests[-1].get('hands') or [str(i) for i in range(N_HANDS)])
             rep['name'] = args.name
@@ -409,13 +496,18 @@ def main():
                 print('  %-20s said %.3f%%  happened %.3f%%  wins %5d  AUC %.3f' % (fm['hand'], 100 * fm['said'], 100 * fm['happened'], fm['wins'], fm['auc']))
 
     # The JS model must give the same outputs as this one (float16 weights).
-    sample = fetch_v(np.arange(min(16, n_val)))
-    cpu = Net(size, hidden, 0)
+    # The check's inputs are the features alone: a stacked model's JS runs its reader itself.
+    sample = raw_v(np.arange(min(16, n_val))).cpu()
+    cpu = Net(inputs, hidden, 0)
     for lin, l in zip(cpu.linears(), weights['layers']):
         lin.weight.data = torch.from_numpy(np.frombuffer(base64.b64decode(l['w']), '<f2').astype(np.float32).reshape(l['rows'], l['cols']).copy())
         lin.bias.data = torch.from_numpy(np.frombuffer(base64.b64decode(l['b']), '<f2').astype(np.float32).copy())
     with torch.no_grad():
-        expected = cpu(sample.cpu()).numpy()
+        if args.reader:
+            rnet = reader_net(read_layers(weights['reader']), 'cpu')
+            expected = cpu(torch.cat([sample, read_of(rnet(sample))], 1)).numpy()
+        else:
+            expected = cpu(sample).numpy()
     check = os.path.join(ROOT, 'ml', 'models', args.name + '.check.json')
     with open(check, 'w') as f:
         json.dump({'inputs': sample.cpu().numpy().tolist(), 'outputs': expected.tolist()}, f)

@@ -13,7 +13,31 @@ NeuralCat::NeuralCat(std::shared_ptr<Mlp> model, const std::string& id) : Founda
   topK_ = int(play["topK"].num(3));
   winBonus_ = play["winBonus"].num(0);
   claimMargin_ = play["claimMargin"].num(0);
-  if (model_->inputs() != SIZE) throw std::runtime_error("neural cat: the model reads " + std::to_string(model_->inputs()) + " features, not 568");
+  const Weights& w = model_->weights();
+  if (!w.reader.empty()) {
+    if (w.readerVersion != 1) throw std::runtime_error("neural cat: the model reads version " + std::to_string(w.readerVersion) + " of the reader, have 1");
+    Weights r;
+    r.featureVersion = w.featureVersion; r.featureSize = w.featureSize; r.layers = w.reader;
+    reader_.reset(new Mlp(r));
+  }
+  int want = SIZE + (reader_ ? READ_SIZE : 0);
+  if (model_->inputs() != want) throw std::runtime_error("neural cat: the model reads " + std::to_string(model_->inputs()) + " inputs, not " + std::to_string(want));
+}
+
+// js/mahjong-ml-model.js readFeatures (read version 1): each opponent ready, the tile
+// thrown deals in now, and the hand this seat would win with, as chances.
+const float* NeuralCat::input(const float* x, float* buf) const {
+  if (!reader_) return x;
+  const std::vector<double>& r = reader_->forward(x);
+  std::memcpy(buf, x, sizeof(float) * SIZE);
+  const int R_WIN = 28, R_READY = 52, R_DEAL = 55;
+  for (int k = 0; k < 3; k++) buf[SIZE + k] = float(1 / (1 + js::exp(-r[R_READY + k])));
+  buf[SIZE + 3] = float(1 / (1 + js::exp(-r[R_DEAL])));
+  double m = -DINF, e[12], sum = 0;
+  for (int i = 0; i < 12; i++) m = std::max(m, r[R_WIN + i]);
+  for (int i = 0; i < 12; i++) { e[i] = js::exp(r[R_WIN + i] - m); sum += e[i]; }
+  for (int i = 0; i < 12; i++) buf[SIZE + 4 + i] = float(e[i] / sum);
+  return buf;
 }
 
 void NeuralCat::prepare(State& st, const Game& g, int seat, Ctx& ctx, const std::vector<Threat>* threats, const Counts* counts) {
@@ -191,7 +215,10 @@ void NeuralCat::encode(const State& st, int index, const Analysis& analysis, dou
   x[p + 11] = float(top / 3.0);
 }
 
-MlRead NeuralCat::ev(const float* x) { return evRaw(model_->forward(x)); }
+MlRead NeuralCat::ev(const float* x) {
+  float buf[SIZE + READ_SIZE];
+  return evRaw(model_->forward(input(x, buf)));
+}
 
 MlRead NeuralCat::evRaw(const std::vector<double>& raw) {
   auto softmax = [&](int from, int n, double* out) {
@@ -226,13 +253,14 @@ std::vector<CandP> NeuralCat::rerank(std::vector<CandP> out, Ctx& ctx, const Cou
   int open = int(out.size());
   int k0 = topK_ > 0 ? std::min(topK_, open) : open;
   // The best few, through the network together.
-  static thread_local std::vector<float> xs;
+  static thread_local std::vector<float> xs, stacked;
   static thread_local std::vector<double> raws[16];
   xs.resize(size_t(k0) * SIZE);
+  stacked.resize(size_t(k0) * (SIZE + READ_SIZE));
   const float* ptrs[16];
   for (int k = 0; k < k0; k++) {
     encode(st, out[k]->index, *out[k]->analysis, out[k]->loss, xs.data() + size_t(k) * SIZE);
-    ptrs[k] = xs.data() + size_t(k) * SIZE;
+    ptrs[k] = input(xs.data() + size_t(k) * SIZE, stacked.data() + size_t(k) * (SIZE + READ_SIZE));
   }
   model_->forwardBatch(ptrs, k0, raws);
   for (int k = 0; k < k0; k++) {

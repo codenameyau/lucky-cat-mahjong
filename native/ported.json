@@ -1,6 +1,6 @@
 {
   "checked": "2026-11-10",
-  "commit": "98aedd59a9f2e768d15fd1554e7aa5500f29c449",
+  "commit": "a02ade3e3c674679bb547300453f36021e7d0acc",
   "files": {
     "js/mahjong-engine.js": "6e26a95e5301d710cfe438b350fa5bb59a27ae96f3941758578b12802fc77d13",
     "js/points.js": "86b3818b1b926a75a41429c647db912291c0542dbb749081a999244d433a811e",
@@ -8,7 +8,7 @@
     "js/mahjong-jorge-yau.js": "28c97efd5ae265a9bc8ad92007386ed107242493fd1a1da27db9cce974c8e655",
     "js/mahjong-ml.js": "66f42babc0eefa1450123df56d1e1269f5c8cb38a879b2db5bba485b33b1e619",
     "js/mahjong-ml-features.js": "6f55fa69ffdc4fca867a16c1c038e80183f3251373766525e77f64910f5d7a40",
-    "js/mahjong-ml-model.js": "541f9c3a7d9206d15ffe50e83742688a2ea37cdbc078a2f90b2479232f88cd77",
+    "js/mahjong-ml-model.js": "e22a59f6de8cf40d962ca7c00694071ac3adb6d660907ec5aa438de52bab8c5c",
     "js/mahjong-lucky-cat-ml.js": "77a810a5cd52b8b3d40c512c39cb8af05d234b828573a2dcaca4cbf67378b36e",
     "js/mahjong-lucky-cat-net.js": "7c73551ef3a70cd9022f1a207fd1aae352e84284e503f2d673ab06991b512d06",
     "js/mahjong-frontier-net.js": "a0ca3cab59e87f2069e9289b05190f23b3f8753d2350ceb95555565571496d3b"
