@@ -157,3 +157,13 @@ test('The table read is shorter on Simple and Detailed, and whole on Complex', (
   assert.ok(s.detail.length <= 140 && d.detail.length <= 260 && s.detail.length < d.detail.length && d.detail.length < c.detail.length);
   assert.match(s.detail, /^Throwing Two Bamboo leaves the hand 2 tiles from ready/);
 });
+
+test('Simple never mentions a pivot, yours or an opponent\'s', () => {
+  const hint = { kind: 'discard', action: 'Discard Two Bamboo.', tips: ['Not Circles or an honor. Pivoting from Half Flush to Full Flush: your Circles filled in. Mei has pivoted out of Bamboo: they kept it early and are throwing it now.'], aim: null };
+  const said = words(Coach.shape(hint, 'simple'));
+  assert.equal(said, 'Discard Two Bamboo. Not Circles or an honor.');
+  const started = { kind: 'discard', action: 'Discard Two Bamboo.', tips: ['Ready, waiting on Three Circle. Mei has started keeping Circles: they threw it early and have stopped.'], aim: null };
+  assert.equal(words(Coach.shape(started, 'simple')), 'Discard Two Bamboo. Ready, waiting on Three Circle.');
+  // Detailed and Complex still say it.
+  assert.match(words(Coach.shape(hint, 'detailed')), /Pivoting from Half Flush to Full Flush/);
+});
