@@ -183,7 +183,7 @@ async function main() {
       log('Round ' + r + ': ' + deals + ' deals on the native simulator, ' + path.basename(champ) + ' exploring against ' + opponents.join(', '));
       run('node', ['scripts/ml/generate.js', '--native', '--deals', String(deals), '--workers', workers, '--lineup', 'mix', '--pool', pool.join(','),
         '--explore', '0', '--sample', String(sample), '--temperature', '150', '--epsilon', '0.05'].concat(learnerOnly ? ['--record', 'neural-cat'] : [], [
-        '--weights', champ, '--seed', String(DATA_SEED + (r - 1) * 1000000), '--out', data].concat(replays ? ['--replays', String(replays), '--replay-share', String(replayShare)] : []));
+        '--weights', champ, '--seed', String(DATA_SEED + (r - 1) * 1000000), '--out', data].concat(replays ? ['--replays', String(replays), '--replay-share', String(replayShare)] : [])));
     }
     const sets = [];
     for (let k = Math.max(1, r - window + 1); k <= r; k++) sets.push(path.join('ml', 'data', 'fm-' + k));
