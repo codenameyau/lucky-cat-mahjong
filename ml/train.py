@@ -27,6 +27,12 @@ reader and cached beside the data (read-<reader hash>.f4). --init starts the
 move network from a plain model with zero weights on the read, so it starts
 out playing exactly as that model.
 
+--replay learns from replayed labels (frontier plan, step 5; generate.js
+--native --replays K): on a replayed row the target is the real ending and
+the K replays' endings together, a distribution in place of one draw, for
+how the hand ends and for the faan won and paid. Validation still scores
+the one real ending, so models with and without it compare.
+
 Writes ml/models/<name>.json (weights, float16 base64) and checks the JS
 model gives the same outputs. --ship also writes js/mahjong-ml-weights.js,
 the copy the page and npm run compete load.
@@ -119,7 +125,10 @@ def cached_read(dirs, manifests, x, reader_file, device, batch=16384):
     return out
 
 
-def load(dirs, limit=None, heads=False):
+REPLAY_BYTES = 30  # native/src/generate_nc.cpp: replays, outcome counts (6), win faan (11), pay faan (11), unused
+
+
+def load(dirs, limit=None, heads=False, replay=False):
     # Read straight into one array: the data can be most of the memory.
     labels, manifests = [], []
     for d in dirs:
@@ -135,6 +144,7 @@ def load(dirs, limit=None, heads=False):
     # 255 in the first byte of a row: no aux for it (older data).
     aux = np.full((total, AUX_BYTES), 255, dtype=np.uint8) if heads else None
     has_aux = np.zeros(total, dtype=bool)
+    rep = np.zeros((total, REPLAY_BYTES), dtype=np.uint8) if replay else None
     at = 0
     for m in manifests:
         for s in m['shards']:
@@ -146,6 +156,8 @@ def load(dirs, limit=None, heads=False):
             if heads and m.get('auxBytes') == AUX_BYTES and s.get('aux'):
                 aux[at:at + n] = np.fromfile(os.path.join(m['dir'], s['aux']), dtype=np.uint8).reshape(-1, AUX_BYTES)
                 has_aux[at:at + n] = True
+            if replay and s.get('replay'):
+                rep[at:at + n] = np.fromfile(os.path.join(m['dir'], s['replay']), dtype=np.uint8).reshape(-1, REPLAY_BYTES)
             at += n
     y = np.concatenate(labels)
     if limit and len(x) > limit:
@@ -154,7 +166,11 @@ def load(dirs, limit=None, heads=False):
         has_aux = has_aux[idx]
         if heads:
             aux = aux[idx]
-    return x, y, manifests, aux, has_aux
+        if replay:
+            rep = rep[idx]
+    if replay:
+        print('Replayed labels: %d of %d rows' % (int((rep[:, 0] > 0).sum()), total))
+    return x, y, manifests, aux, has_aux, rep
 
 
 class Net(nn.Module):
@@ -181,6 +197,24 @@ def losses(out, y_outcome, y_win, y_pay):
     zero = out.new_zeros(())
     lw = F.cross_entropy(out[win, N_OUTCOMES:N_OUTCOMES + N_FAAN], y_win[win]) if win.any() else zero
     lp = F.cross_entropy(out[pay, N_OUTCOMES + N_FAAN:OUTPUTS], y_pay[pay]) if pay.any() else zero
+    return lo, lw, lp
+
+
+def soft_losses(out, y_outcome, y_win, y_pay, rep):
+    """losses() with replayed endings: each row's target is its real ending plus its replays'
+    (rep: float, B x 30). A row with no replays is exactly losses()."""
+    one = lambda y, n: F.one_hot(y, n).float()
+    t_o = one(y_outcome, N_OUTCOMES) + rep[:, 1:7]
+    lo = -(t_o / t_o.sum(1, keepdim=True) * F.log_softmax(out[:, :N_OUTCOMES], 1)).sum(1).mean()
+    def faan(lo_, hi, y, real, counts):
+        t = one(y, N_FAAN) * real.float().unsqueeze(1) + counts
+        m = t.sum(1) > 0
+        if not m.any():
+            return out.new_zeros(())
+        t = t[m] / t[m].sum(1, keepdim=True)
+        return -(t * F.log_softmax(out[m, lo_:hi], 1)).sum(1).mean()
+    lw = faan(N_OUTCOMES, N_OUTCOMES + N_FAAN, y_win, y_outcome <= 1, rep[:, 7:18])
+    lp = faan(N_OUTCOMES + N_FAAN, OUTPUTS, y_pay, (y_outcome == 2) | (y_outcome == 3), rep[:, 18:29])
     return lo, lw, lp
 
 
@@ -325,6 +359,7 @@ def main():
     ap.add_argument('--head-weight', type=float, default=0.5, help='weight of the extra heads in the loss')
     ap.add_argument('--seed', type=int, default=0)
     ap.add_argument('--reader', help='a <name>.heads.json: train a stacked model that reads its read')
+    ap.add_argument('--replay', action='store_true', help='learn from replayed labels (shard-N.replay)')
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -334,7 +369,7 @@ def main():
     if device.startswith('cuda'):
         print('GPU: %s (%.0f GB)' % (torch.cuda.get_device_name(device), torch.cuda.get_device_properties(device).total_memory / 1e9))
     t0 = time.time()
-    x, y, manifests, aux, has_aux = load(args.data, args.limit or None, args.heads)
+    x, y, manifests, aux, has_aux, rep = load(args.data, args.limit or None, args.heads, args.replay)
     outputs = HEAD_OUTPUTS if args.heads else OUTPUTS
     size = manifests[0]['featureSize']
     if args.reader and args.limit:
@@ -372,6 +407,8 @@ def main():
     pay_t = to(np.clip(y['payFaan'][~val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
     pay_v = to(np.clip(y['payFaan'][val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
     delta_v = y['delta'][val]
+    if args.replay:
+        rep_t = to(rep[~val], torch.float32)
     if args.heads:
         aux_t, aux_v = to(aux[~val], torch.uint8), aux[val]
         has_t = to(has_aux[~val], torch.bool)
@@ -411,7 +448,10 @@ def main():
             pos = np.sort(perm[i:i + args.batch])
             idx = torch.from_numpy(pos).to(device)
             out = model(fetch_t(pos))
-            lo, lw, lp = losses(out, out_t[idx], win_t[idx], pay_t[idx])
+            if args.replay:
+                lo, lw, lp = soft_losses(out, out_t[idx], win_t[idx], pay_t[idx], rep_t[idx])
+            else:
+                lo, lw, lp = losses(out, out_t[idx], win_t[idx], pay_t[idx])
             loss = lo + 0.5 * lw + 0.5 * lp
             if args.heads:
                 loss = loss + args.head_weight * sum(head_losses(out, aux_t[idx], has_t[idx]))

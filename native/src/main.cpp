@@ -204,6 +204,8 @@ int main(int argc, char** argv) {
       j.strategy = a.count("strategy") ? std::stoi(a["strategy"]) : 0;
       j.pool = split(a["pool"], ',');
       j.out = a["out"];
+      j.replays = a.count("replays") ? std::stoi(a["replays"]) : 0;
+      j.replayShare = a.count("replay-share") ? std::stod(a["replay-share"]) : 0.25;
       return runGenerateNc(j, [](const std::string& id) { return makeAgent(id); });
     }
     if (cmd == "shanten") {

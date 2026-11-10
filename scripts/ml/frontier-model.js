@@ -46,7 +46,9 @@
      --drop X       drop a model behind by more than X standard errors (default 1)
      --keep X       a recipe is a candidate ahead by more than X (default 2)
      --recipes SET  heads (step 2, the default) or stacked (step 3)
-     --reader FILE  for stacked: the reader, a <name>.heads.json
+     --reader FILE  for stacked and replay: the reader, a <name>.heads.json
+     --replays K    the round's data replays a share of its discards K times
+                    (--replay-share, default 0.25), for --recipes replay
      --start FILE   the first champion (default: Neural Cat's lab champion,
                     else the model in the game)
      --dir DIR      state, log and screens (default ml/fm)
@@ -66,6 +68,7 @@ const SCREEN_SEED = 930000000;   // fresh deals for screens, never the benchmark
 
 // The recipes a round tries (--recipes), each trained --seeds times.
 //   heads    step 2: the extra heads as outputs (round 1)
+//   replay   step 5: replayed labels (below)
 //   stacked  step 3: the move network reads the reader's read (--reader, a
 //            <name>.heads.json from an earlier round). These train on this
 //            round's data alone: the reader learned from earlier rounds', so
@@ -81,6 +84,16 @@ const RECIPE_SETS = {
     { id: 's', what: 'reads the reader, lr 3e-4', args: ['--lr', '3e-4', '--epochs', '8'], plain: true, stacked: true, latest: true },
     { id: 't', what: 'reads the reader, lr 1e-3', args: ['--lr', '1e-3', '--epochs', '6'], plain: true, stacked: true, latest: true },
     { id: 'c', what: 'the same rows, no reader, lr 3e-4 (the control)', args: ['--lr', '3e-4', '--epochs', '8'], plain: true, latest: true },
+  ],
+  // step 5: replayed labels (the round's data made with --replays). The control
+  // trains on the same rows with only their real endings.
+  // Rounds 1 and 2 found that one round of the champion's own seats pulls it off
+  // course, so these train on the whole window at a gentler rate. The stacked
+  // recipe leaves out the data its reader learned from.
+  replay: [
+    { id: 'p', what: 'replayed labels, the window, lr 1e-4', args: ['--lr', '1e-4', '--epochs', '4', '--replay'], plain: true },
+    { id: 'q', what: 'replayed labels and the reader, the window less the reader\'s data, lr 1e-4', args: ['--lr', '1e-4', '--epochs', '4', '--replay'], plain: true, stacked: true, notReaderData: true },
+    { id: 'c', what: 'the same window, real endings only, lr 1e-4 (the control)', args: ['--lr', '1e-4', '--epochs', '4'], plain: true },
   ],
 };
 
@@ -170,6 +183,8 @@ async function main() {
   const RECIPES = RECIPE_SETS[String(a.recipes || 'heads')];
   if (!RECIPES) throw new Error('--recipes: one of ' + Object.keys(RECIPE_SETS).join(', '));
   const readerFile = a.reader ? String(a.reader) : null;
+  const replays = a.replays ? parseInt(a.replays, 10) : 0, replayShare = parseFloat(a['replay-share'] || 0.25);
+  if (String(a.recipes) === 'replay' && !replays) throw new Error('--recipes replay needs --replays K');
   if (RECIPES.some((x) => x.stacked) && !readerFile) throw new Error('--recipes stacked needs --reader <name>.heads.json');
 
   for (let n = 0; n < rounds; n++) {
@@ -185,7 +200,7 @@ async function main() {
       log('Round ' + r + ': ' + deals + ' deals on the native simulator, ' + path.basename(champ) + ' exploring against ' + opponents.join(', '));
       run('node', ['scripts/ml/generate.js', '--native', '--deals', String(deals), '--workers', workers, '--lineup', 'mix', '--pool', pool.join(','),
         '--record', 'neural-cat', '--explore', '0', '--sample', '0.3', '--temperature', '150', '--epsilon', '0.05',
-        '--weights', champ, '--seed', String(DATA_SEED + (r - 1) * 1000000), '--out', data]);
+        '--weights', champ, '--seed', String(DATA_SEED + (r - 1) * 1000000), '--out', data].concat(replays ? ['--replays', String(replays), '--replay-share', String(replayShare)] : []));
     }
     const sets = [];
     for (let k = Math.max(1, r - window + 1); k <= r; k++) sets.push(path.join('ml', 'data', 'fm-' + k));
@@ -197,7 +212,9 @@ async function main() {
         const file = path.join('ml', 'models', name + '.json');
         if (!fs.existsSync(path.join(ROOT, file))) {
           log('Round ' + r + ': training ' + name + ' [' + rec.what + ', seed ' + s + ']');
-          run(PYTHON, ['ml/train.py', '--data'].concat(rec.latest ? [data] : sets, ['--name', name, '--init', champ, '--hidden', hidden, '--seed', String(s), '--patience', '3'],
+          const readerData = readerFile ? (readJson(path.resolve(ROOT, readerFile), { meta: {} }).meta.data || []) : [];
+          const use = rec.latest ? [data] : rec.notReaderData ? sets.filter((d) => readerData.indexOf(d) === -1) : sets;
+          run(PYTHON, ['ml/train.py', '--data'].concat(use, ['--name', name, '--init', champ, '--hidden', hidden, '--seed', String(s), '--patience', '3'],
             rec.plain ? [] : ['--heads'], rec.stacked ? ['--reader', readerFile] : [], rec.args));
           // The model plays with its champion's settings.
           const w = readJson(path.join(ROOT, file));

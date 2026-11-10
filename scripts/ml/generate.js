@@ -43,6 +43,10 @@
                       mixed lineup, and a pool the simulator has (neural-cat,
                       ml:<file>, jorge-yau, lucky-cat). --exact uses the exact
                       build, whose rows are the JS's byte for byte
+     --replays K      native only: replay a share (--replay-share, default 0.25) of
+                      the recorded discards K times after the hand, with the
+                      tiles the seat can't see shuffled; the counts of how the
+                      replays ended go in shard-N.replay (labels only)
    npm run ml:generate -- parity --deals 200   checks that: the JS and the native
                       simulator write the same bytes for the same deals
    only-orphans-rules (the rule-based Only Orphans, the baseline) can sit at
@@ -293,7 +297,8 @@ function nativePlan(cfg, known, args) {
   const sim = path.join(__dirname, '..', '..', 'native', 'build', (args.exact ? 'lcm-sim-exact' : 'lcm-sim') + (process.platform === 'win32' ? '.exe' : ''));
   // A finished shard is kept (shard-N.done.json says what made it): a run that was
   // stopped part way picks up at the shards it hadn't finished.
-  const key = (c) => JSON.stringify([c.seed, c.deals, weights, pool, cfg.temperature, cfg.epsilon, cfg.sample, !!args.exact, E.GAME_VERSION]);
+  const replays = args.replays ? ['--replays', String(args.replays), '--replay-share', String(args['replay-share'] || 0.25)] : [];
+  const key = (c) => JSON.stringify([c.seed, c.deals, weights, pool, cfg.temperature, cfg.epsilon, cfg.sample, !!args.exact, E.GAME_VERSION, replays]);
   return (c) => new Promise((resolve, reject) => {
     const done = path.join(cfg.out, 'shard-' + c.index + '.done.json');
     try {
@@ -302,7 +307,7 @@ function nativePlan(cfg, known, args) {
     } catch (e) { /* not there yet */ }
     execFile(sim, ['generate-nc', '--weights', weights.slice(3), '--temperature', String(cfg.temperature), '--epsilon', String(cfg.epsilon),
       '--sample', String(cfg.sample), '--seed', String(c.seed), '--deals', String(c.deals), '--shard', String(c.index),
-      '--strategy', String(known.indexOf(cfg.learner)), '--pool', pool.join(','), '--out', cfg.out], { maxBuffer: 1 << 24 },
+      '--strategy', String(known.indexOf(cfg.learner)), '--pool', pool.join(','), '--out', cfg.out].concat(replays), { maxBuffer: 1 << 24 },
     (err, stdout, stderr) => {
       if (err) return reject(new Error('lcm-sim generate-nc: ' + (stderr || err.message)));
       const result = JSON.parse(stdout);
@@ -385,6 +390,7 @@ async function main() {
   const progress = new Array(workers).fill(0);
   let lastLog = 0;
   const jobs = [];
+  if (args.replays && !args.native) throw new Error('--replays runs on the native simulator only (--native)');
   const native = args.native ? nativePlan(cfgBase, known, args) : null;
   for (let w = 0; w < workers; w++) {
     const first = w * per;
@@ -428,8 +434,9 @@ async function main() {
     gameVersion: E.GAME_VERSION,
     learner,
     native: native ? (args.exact ? 'exact' : 'fast') : false,
+    replays: args.replays ? { replays: parseInt(args.replays, 10), share: parseFloat(args['replay-share'] || 0.25), bytes: 30 } : null,
     config: { deals, seed, lineup, pool, record: cfgBase.record, sample: cfgBase.sample, explore: cfgBase.explore, temperature: cfgBase.temperature, epsilon: cfgBase.epsilon, weights: cfgBase.weightsFile },
-    shards: shards.map((s) => ({ features: 'shard-' + s.index + '.features', labels: 'shard-' + s.index + '.labels', aux: 'shard-' + s.index + '.aux', samples: s.samples, deals: s.deals })),
+    shards: shards.map((s) => ({ features: 'shard-' + s.index + '.features', labels: 'shard-' + s.index + '.labels', aux: 'shard-' + s.index + '.aux', replay: args.replays ? 'shard-' + s.index + '.replay' : undefined, samples: s.samples, deals: s.deals })),
     samples: total,
     ms: Date.now() - t0,
   };
