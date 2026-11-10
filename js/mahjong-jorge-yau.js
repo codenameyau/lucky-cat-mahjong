@@ -330,16 +330,19 @@
     }
   }
 
+  // Why a tile the target can't use goes, in the coach's words for every
+  // strategy: "<hand> uses only <tiles>." (js/mahjong-coach.js usesOnly).
+  var SPOKEN_SUIT = { c: 'Characters', d: 'Circles', b: 'Bamboo' }; // as the coach says them
   function reasonFor(target) {
-    var su = SUIT_LABELS[target.suit];
+    var su = SPOKEN_SUIT[target.suit];
     switch (target.id) {
-      case 'orphans': return 'Thirteen Orphans uses only terminals and honors.';
+      case 'orphans': return 'Thirteen Orphans uses only 1s, 9s and honors.';
       case 'gates': return 'Nine Gates uses only ' + su + '.';
-      case 'winds': return 'Four Winds keeps only honors.';
-      case 'honors': return 'All Honors keeps only honors.';
-      case 'terminals': return 'All Terminals keeps only 1s, 9s and honors.';
-      case 'full': return 'Full Flush keeps only ' + su + '.';
-      case 'half': return 'Not ' + su + ' or an honor.';
+      case 'winds': return 'Four Winds uses only honors.';
+      case 'honors': return 'All Honors uses only honors.';
+      case 'terminals': return 'All Terminals uses only 1s and 9s, and Mixed Orphans adds honors.';
+      case 'full': return 'Full Flush uses only ' + su + '.';
+      case 'half': return 'Half Flush uses only ' + su + ' and honors.';
       case 'sequences': return 'Honors break All Sequences.';
       default: return null;
     }

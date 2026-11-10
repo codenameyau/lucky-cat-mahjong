@@ -44,7 +44,7 @@ test('Detailed leaves out the score and says why in plain words', () => {
     const h = hintFor('neural-cat', 'detailed', seed);
     assert.doesNotMatch(words(h), /model expects|score|chance to win/, 'seed ' + seed);
     // A pick the contradiction check moved (an honor on Concealed Straights) has no model reason to give.
-    if ((h.modelWhy || []).length) { assert.match(words(h), /I pick it because it /, 'seed ' + seed); because++; }
+    if ((h.modelWhy || []).length) { assert.match(words(h), /I like it because it /, 'seed ' + seed); because++; }
     assert.ok(words(h).length <= Coach.MAX_TEXT);
   }
   assert.ok(because >= 2, because + ' of 4 said why');
