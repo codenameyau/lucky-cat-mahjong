@@ -2,8 +2,13 @@
 // so they share its helpers.
 
 // TARGETS, in the order they are tried.
-enum TargetId { T_ORPHANS, T_GATES, T_WINDS, T_TERMINALS, T_HONORS, T_PAIRS, T_FULL, T_TRIPLETS, T_HALF, T_SEQUENCES, T_STANDARD };
-static const bool TARGET_HARD[11] = {true, true, true, true, true, false, true, false, false, false, false};
+enum TargetId { T_ORPHANS, T_GATES, T_WINDS, T_DRAGONS, T_TERMINALS, T_HONORS, T_PAIRS, T_FULL, T_TRIPLETS, T_HALF, T_ALL_TRIPLETS, T_SEQUENCES, T_STANDARD };
+static const bool TARGET_HARD[13] = {true, true, true, true, true, true, false, true, false, false, false, false, false};
+// Late in the wall (20 tiles or fewer left): a target gives way to its smaller hand (pivot).
+static const int JY_LATE_WALL = 20;
+// Early claims: within this many tiles of ready.
+static const int CLAIM_READY_STEPS = 2;
+static bool isSetTarget(int id) { return id == T_TRIPLETS || id == T_ALL_TRIPLETS || id == T_TERMINALS || id == T_HONORS || id == T_WINDS || id == T_DRAGONS; }
 static const int LOCK_TILES = 8, LOCK_TURNS = 8;
 static const double LOCK_FAAN = 7;
 
@@ -63,6 +68,27 @@ static HandRead readHand(const Counts& c, const Ctx& ctx) {
   return r;
 }
 
+// groupShanten(ctx, group, pungs, pair)(c, declared)
+static ShFn groupFn(const Ctx& ctx, const int* group, int gn, int pungs, bool pair) {
+  ShFn fn;
+  fn.kind = SH_GROUP;
+  fn.group.assign(group, group + gn);
+  for (auto& m : ctx.melds)
+    if (m.type != CHOW && std::find(group, group + gn, meldFirst(m)) != group + gn) fn.doneIdx.push_back(meldFirst(m));
+  fn.pungs = pungs; fn.pair = pair; fn.unseen = ctx.unseen;
+  return fn;
+}
+
+bool Foundation::jyWindsDead(const Counts& c, const Ctx& ctx) {
+  int n = 0;
+  for (auto& m : ctx.melds) if (!isHonorI(meldFirst(m))) n++;
+  return n > 1 || isInf(shantenOf(groupFn(ctx, WINDS_, 4, 3, true), c, ctx.declared));
+}
+
+bool Foundation::jyDragonsDead(const Counts& c, const Ctx& ctx) {
+  return isInf(shantenOf(groupFn(ctx, DRAGONS, 3, 2, true), c, ctx.declared));
+}
+
 Target Foundation::jyClassify(const Counts& c, const Ctx& ctx, bool& found) {
   HandRead r = readHand(c, ctx);
   int avoid = avoidSuitOf(c, ctx);
@@ -71,7 +97,8 @@ Target Foundation::jyClassify(const Counts& c, const Ctx& ctx, bool& found) {
     switch (k) {
       case T_ORPHANS: fits = !ctx.declared && r.orphanKinds >= 8 && orphansAlive(c, ctx); break;
       case T_GATES: fits = !ctx.declared && r.hasGates; break;
-      case T_WINDS: fits = r.winds >= 8; break;
+      case T_WINDS: fits = r.winds >= 8 && !jyWindsDead(c, ctx); break;
+      case T_DRAGONS: fits = r.all[31] >= 2 && r.all[32] >= 2 && r.all[33] >= 2 && !jyDragonsDead(c, ctx); break;
       case T_TERMINALS: fits = r.terminals >= 8; break;
       case T_HONORS: fits = r.honors >= 8; break;
       case T_PAIRS: fits = !ctx.declared && r.pairs >= 4; break;
@@ -83,6 +110,7 @@ Target Foundation::jyClassify(const Counts& c, const Ctx& ctx, bool& found) {
         fits = r.honors >= 3 && r.by[r.top] >= 5 && r.by[r.top] >= second * 2;
         break;
       }
+      case T_ALL_TRIPLETS: fits = !ctx.hasChow && r.pairs >= 3 && tripletsShanten(c.data(), 0) <= standardShanten(c.data(), 0); break;
       case T_SEQUENCES: {
         int suited = r.by[0] + r.by[1] + r.by[2];
         std::vector<int> used;
@@ -105,11 +133,13 @@ Target Foundation::jyClassify(const Counts& c, const Ctx& ctx, bool& found) {
   return Target();
 }
 
-static bool targetDead(const Target& t, const HandRead& r, const Counts& c, const Ctx& ctx, Foundation* f, bool (Foundation::*alive)(const Counts&, const Ctx&)) {
+static bool targetDead(const Target& t, const HandRead& r, const Counts& c, const Ctx& ctx, Foundation* f, bool (Foundation::*alive)(const Counts&, const Ctx&), bool windsDead, bool dragonsDead) {
   switch (t.id) {
     case T_ORPHANS: return ctx.declared || !(f->*alive)(c, ctx);
     case T_GATES: return ctx.declared || hasSuitedMeld(ctx, t.suit) || ctx.meldSuits[3];
-    case T_WINDS: { int n = 0; for (auto& m : ctx.melds) if (!isHonorI(meldFirst(m))) n++; return n > 1; }
+    case T_WINDS: return windsDead;
+    case T_DRAGONS: return dragonsDead;
+    case T_ALL_TRIPLETS: return ctx.hasChow;
     case T_TERMINALS: { if (ctx.hasChow) return true; for (auto& m : ctx.melds) if (!isOrphanI(meldFirst(m))) return true; return false; }
     case T_HONORS: return ctx.hasChow;
     case T_PAIRS: return ctx.declared;
@@ -131,7 +161,9 @@ Target Foundation::jyCurrentTarget(const Game& g, int seat, const Counts& c, con
   bool oneSuit = held.id == T_GATES || held.id == T_FULL || held.id == T_HALF;
   bool avoided = oneSuit && held.suit == avoidSuitOf(c, ctx) && held.suit >= 0;
   bool stronger = now.rank < held.rank && (ctx.turn < 3 || TARGET_HARD[now.id]);
-  if (targetDead(held, r, c, ctx, this, &Foundation::orphansAlive) || avoided || stronger) sh.opening = now;
+  bool windsDead = held.id == T_WINDS && jyWindsDead(c, ctx);
+  bool dragonsDead = held.id == T_DRAGONS && jyDragonsDead(c, ctx);
+  if (targetDead(held, r, c, ctx, this, &Foundation::orphansAlive, windsDead, dragonsDead) || avoided || stronger) sh.opening = now;
   return sh.opening;
 }
 
@@ -173,6 +205,29 @@ static PlanP jyPlan(PlanKind kind, int suit, const Counts& counts, ShKind sh, do
   return p;
 }
 
+// pivot(): a smaller hand takes over when it is ready and the target isn't, or late in
+// the wall when it is no further from ready; the target's own plans are then dropped.
+void Foundation::jyPivot(std::vector<PlanP>& out, const Ctx& ctx, double W) {
+  if (W <= 1) return;
+  std::vector<Plan*> own;
+  for (auto& p : out) if (p->weight == W) own.push_back(p.get());
+  if (own.empty()) return;
+  auto steps = [&](const Plan& p) { return shantenOf(p.fn, p.counts, ctx.declared); };
+  int ownSteps = INF;
+  for (auto* p : own) ownSteps = std::min(ownSteps, steps(*p));
+  bool late = ctx.wallLeft <= JY_LATE_WALL && ownSteps > 0;
+  bool moved = false;
+  for (auto& p : out) {
+    if (p->weight >= W || p->kind == P_PLAIN) continue;
+    int s = steps(*p);
+    if ((s == 0 && ownSteps > 0) || (late && s <= ownSteps)) { p->weight = W; moved = true; }
+  }
+  if (moved) {
+    for (int k = int(out.size()) - 1; k >= 0; k--)
+      if (std::find(own.begin(), own.end(), out[k].get()) != own.end()) out.erase(out.begin() + k);
+  }
+}
+
 std::vector<PlanP> Foundation::jyPlansBase(const Counts& c, const Ctx& ctx) {
   Target t = ctx.target.id >= 0 ? ctx.target : Target{T_STANDARD, T_STANDARD, -1, 0};
   if (chowCommitment(ctx) >= 0) return basePlans(c, ctx);
@@ -191,14 +246,6 @@ std::vector<PlanP> Foundation::jyPlansBase(const Counts& c, const Ctx& ctx) {
     return out;
   };
   auto honorsOnly = [&]() { return restrictMask(c, M_HONOR); };
-  auto windsPlan = [&](double weight) {
-    int sets = 0;
-    for (int i : WINDS_) if (c[i] >= 2) sets++;
-    for (auto& m : ctx.melds) if (isWindI(meldFirst(m))) sets++;
-    bool big = sets >= 4;
-    Counts h = honorsOnly();
-    return jyPlan(P_JY_WINDS, -1, h, SH_STD, big ? double(LIMIT) : std::min(double(LIMIT), base + 6 + handYaku(ctx, h)), true, weight);
-  };
   auto honorsPlan = [&](double weight) {
     Counts h = honorsOnly();
     return jyPlan(P_JY_HONORS, -1, h, SH_TRIP, std::min(double(LIMIT), base + 10 + handYaku(ctx, h)), true, weight);
@@ -220,16 +267,27 @@ std::vector<PlanP> Foundation::jyPlansBase(const Counts& c, const Ctx& ctx) {
   };
   auto cat = [](std::vector<PlanP>& a, const std::vector<PlanP>& b) { a.insert(a.end(), b.begin(), b.end()); };
   std::vector<PlanP> out;
+  // groupPlans: those honors in pungs (and a pair for the small one), the rest anything; left out once it can't be made.
+  auto groupPlans = [&](PlanKind kind, const int* group, int gn, int pungs, bool pair, double faan, double weight, Mask fav) {
+    ShFn fn = groupFn(ctx, group, gn, pungs, pair);
+    if (isInf(shantenOf(fn, c, ctx.declared))) return;
+    auto p = std::make_shared<Plan>();
+    p->kind = kind; p->counts = c; p->fn = fn; p->faan = std::min(double(LIMIT), faan); p->open = true;
+    p->weight = weight ? weight : 1;
+    p->hasFavors = true; p->favors = fav;
+    out.push_back(p);
+  };
   switch (t.id) {
     case T_ORPHANS: {
+      // Thirteen Orphans to Seven Pairs or All Triplets, both with Mixed Orphans.
       out.push_back(makeSpecialPlan(1, c, ctx));
-      out.push_back(terminalsPlan(0.8));
       if (!ctx.declared) {
         PlanP op = makeSpecialPlan(0, restrictMask(c, M_ORPHAN), ctx);
         op->faan += 1;
         op->weight = W * 0.8;
         out.push_back(op);
       }
+      out.push_back(terminalsPlan(0.8));
       out[0]->weight = W;
       break;
     }
@@ -238,30 +296,46 @@ std::vector<PlanP> Foundation::jyPlansBase(const Counts& c, const Ctx& ctx) {
       cat(out, flushPlans(su, 0.8, W));
       out[0]->weight = W;
       break;
-    case T_WINDS: out.push_back(windsPlan(W)); out.push_back(honorsPlan(W * 0.9)); break;
+    case T_WINDS:
+      // Big Four Winds to Small Four Winds.
+      groupPlans(P_BIG_WINDS, WINDS_, 4, 4, false, LIMIT, W, M_WIND);
+      groupPlans(P_SMALL_WINDS, WINDS_, 4, 3, true, base + 6 + handYaku(ctx, restrictMask(c, M_DRAGON)), 1, M_WIND);
+      break;
+    case T_DRAGONS:
+      // Big Three Dragons to Small Three Dragons.
+      groupPlans(P_BIG_DRAGONS, DRAGONS, 3, 3, false, base + 8 + handYaku(ctx, restrictMask(c, M_WIND)), W, M_DRAGON);
+      groupPlans(P_SMALL_DRAGONS, DRAGONS, 3, 2, true, base + 5 + handYaku(ctx, restrictMask(c, M_WIND)), 1, M_DRAGON);
+      break;
     case T_TERMINALS: out.push_back(terminalsPlan(W)); cat(out, tripletsPlans(0.8)); break;
     case T_HONORS:
+      // All Honors to Half Flush or All Triplets.
       out.push_back(honorsPlan(W));
-      cat(out, tripletsPlans(W * 0.9));
       for (int s = 0; s < 3; s++) { auto fp = flushPlans(s, 1, 0.6); if (!fp.empty()) out.push_back(fp[0]); }
+      for (auto& p : tripletsPlans(1)) if (p->kind == P_TRIPLETS) out.push_back(p);
       break;
     case T_PAIRS:
       if (!ctx.declared && !concealedShape(c).hasSet) { PlanP pp = makeSpecialPlan(0, c, ctx); pp->weight = W; out.push_back(pp); }
-      cat(out, tripletsPlans(1));
+      // Seven Pairs to All Triplets.
+      for (auto& p : tripletsPlans(1)) if (p->kind == P_TRIPLETS) out.push_back(p);
       break;
     case T_FULL: out = flushPlans(su, W * 0.9, W); break;
     case T_HALF: out = flushPlans(su, W, 1); cat(out, tripletsPlans(0.8)); break;
     case T_TRIPLETS: {
-      out = tripletsPlans(W * 0.9);
+      // Concealed Triplets to Seven Pairs to All Triplets.
+      out = tripletsPlans(0.9);
       for (auto& p : out) if (p->kind == P_CONCEALED_TRIPLETS) p->weight = W;
       if (!ctx.hasChow && !hasSuitedMeld(ctx, su)) {
         Counts kept = restrictMask(c, halfMask(su));
-        out.push_back(jyPlan(P_TRIPLETS, -1, kept, SH_TRIP, base + 3 + 3 + handYaku(ctx, kept), true, W));
+        out.push_back(jyPlan(P_TRIPLETS, -1, kept, SH_TRIP, base + 3 + 3 + handYaku(ctx, kept), true, 0.9));
       }
-      if (!ctx.declared) { PlanP sp = makeSpecialPlan(0, c, ctx); sp->weight = W * 0.9; out.push_back(sp); }
-      cat(out, flushPlans(su, 1, 0.8));
+      if (!ctx.declared) { PlanP sp = makeSpecialPlan(0, c, ctx); sp->weight = 1; out.push_back(sp); }
       break;
     }
+    case T_ALL_TRIPLETS:
+      out = tripletsPlans(W * 0.9);
+      for (auto& p : out) if (p->kind == P_TRIPLETS) p->weight = W;
+      if (!ctx.declared) { PlanP ap = makeSpecialPlan(0, c, ctx); ap->weight = W * 0.8; out.push_back(ap); }
+      break;
     case T_SEQUENCES:
       out = basePlans(c, ctx);
       for (auto& p : out) if (p->kind == P_STRAIGHTS) p->weight = W;
@@ -270,6 +344,7 @@ std::vector<PlanP> Foundation::jyPlansBase(const Counts& c, const Ctx& ctx) {
       out = basePlans(c, ctx);
       if (chaseSevenPairs(c, ctx)) out.push_back(makeSpecialPlan(0, c, ctx));
   }
+  jyPivot(out, ctx, W);
   if (!hard || t.id == T_FULL) {
     auto sameId = [](const Plan& a, const Plan& b) { return a.kind == b.kind && (!isFlushKind(a.kind) || a.suit == b.suit); };
     std::vector<PlanP> more = t.id == T_PAIRS ? pairsUpgrades(c, ctx, false) : upgradePlans(c, ctx);
@@ -289,7 +364,7 @@ std::vector<PlanP> Foundation::jyPlansBase(const Counts& c, const Ctx& ctx) {
       switch (t.id) {
         case T_ORPHANS: same = p->kind == P_ORPHANS; break;
         case T_GATES: same = p->kind == P_GATES; break;
-        case T_WINDS: same = p->kind == P_JY_WINDS; break;
+        case T_WINDS: same = p->kind == P_BIG_WINDS; break;
         case T_TERMINALS: same = p->kind == P_JY_TERMINALS; break;
         case T_HONORS: same = p->kind == P_JY_HONORS; break;
         case T_FULL: same = p->kind == P_FULL && p->suit == su; break;
@@ -446,7 +521,7 @@ static bool leading(const Target& t, const Candidate& cand) {
   const Plan* plan = an && an->hasBest ? an->best.plan.get() : nullptr;
   if (!plan) return false;
   if ((t.id == T_HALF || t.id == T_TRIPLETS) && plan->kind == P_HALF && plan->suit == t.suit) return true;
-  if (t.id == T_TRIPLETS) return plan->kind == P_TRIPLETS || plan->kind == P_CONCEALED_TRIPLETS || plan->kind == P_PAIRS;
+  if (t.id == T_TRIPLETS || t.id == T_ALL_TRIPLETS) return plan->kind == P_TRIPLETS || plan->kind == P_CONCEALED_TRIPLETS || plan->kind == P_PAIRS;
   if (t.id == T_PAIRS) return plan->kind == P_PAIRS;
   if (t.id == T_SEQUENCES) return plan->kind == P_STRAIGHTS;
   return false;
@@ -470,10 +545,17 @@ bool Foundation::jyPriority(const Game& g, const Ctx& ctx, const Counts& counts,
     out = hard ? -1 : 1;
     return true;
   }
+  // A single with no copy left can never be a pair or a pung: first, on hands of
+  // pairs and pungs (Thirteen Orphans keeps it); an honor like that on any hand.
+  bool dead = counts[i] == 1 && ctx.unseen[i] == 0;
+  bool setsHand = isSetTarget(t.id) || t.id == T_PAIRS;
+  if (dead && t.id != T_ORPHANS && (setsHand || i >= 27)) { out = 1; return true; }
+  // A pair with no copy left can still be the eyes, but never a pung.
+  if (pair && ctx.unseen[i] == 0 && isSetTarget(t.id)) { out = 3; return true; }
   if (t.id == T_GATES && !gatesTileNeeded(counts, t.start, i)) { out = 1; return true; }
   if (isPungTile(g, i) && counts[i] < 2 && cand.shanten <= bestShanten) { out = 1; return true; }
   if (t.id == T_PAIRS) { out = pair ? 6 : 2; return true; }
-  if ((t.id == T_TRIPLETS || t.id == T_TERMINALS || t.id == T_HONORS || t.id == T_WINDS) && counts[i] >= 2) { out = counts[i] >= 3 ? 6 : 5; return true; }
+  if (isSetTarget(t.id) && counts[i] >= 2) { out = counts[i] >= 3 ? 6 : 5; return true; }
   if (t.id == T_TRIPLETS && i < 27 && i / 9 != t.suit) { out = 1; return true; }
   if (i >= 27 && t.id != T_SEQUENCES) {
     int shown = revealedCopies(g, i);
@@ -635,4 +717,46 @@ std::vector<CandP> Foundation::jyFinalOrder(const std::vector<CandP>& out, const
 
 bool Foundation::jyKongOk(const KongOption& kong, const Ctx& ctx) {
   return ctx.lock < 0 || (jyHandFits(ctx.lock, kong.tile) && ctx.lock != H_ORPHANS);
+}
+
+/* ---- claims (bigClaim with ownClaims off) ---- */
+
+// Early game (more than EARLY_WALL tiles left) it stays concealed, unless a claim
+// leaves the hand within CLAIM_READY_STEPS of ready and able to score: a pung or
+// kong first, and a chow only once the player before it is read.
+bool Foundation::jyEarlyClaim(const ClaimFound& res, const Ctx& ctx, const Game& g, Decision& out) {
+  if (ctx.wallLeft <= EARLY_WALL || jySavedLock(ctx) >= 0) return false;
+  int min = g.minFaan;
+  auto quick = [&](const ClaimOption& o) {
+    const Analysis* an = o.analysis.get();
+    if (!an || an->shanten > CLAIM_READY_STEPS || an->shanten >= res.stay.shanten) return false;
+    const Plan* p = an->hasBest ? an->best.plan.get() : nullptr;
+    return an->shanten == 0 || (p && p->faan >= min);
+  };
+  const ClaimOption* best = nullptr;
+  for (auto& o : res.options)
+    if ((o.decision.type == A_PUNG || o.decision.type == A_KONG) && quick(o) && (!best || o.score > best->score)) best = &o;
+  if (best) { out = best->decision; return true; }
+  const LeftRead& read = ctx.leftRead;
+  bool known = read.feeds >= 0 || read.keeps >= 0 || read.nTosses > 0;
+  if (known) {
+    for (auto& o : res.options)
+      if (o.decision.type == A_CHOW && quick(o) && chowAllowed(o, res, g, ctx) && (!best || o.score > best->score)) best = &o;
+    if (best) { out = best->decision; return true; }
+  }
+  out = Decision();
+  out.type = A_PASS;
+  return true;
+}
+
+// A dragon or a scoring wind is always punged, unless the hand is going for Thirteen Orphans.
+bool Foundation::jyClaim(const ClaimFound& res, const Ctx& ctx, const Game& g, const ClaimOptions& opts, Decision& out) {
+  int ti = opts.tile;
+  bool orphans = ctx.target.id == T_ORPHANS || jySavedLock(ctx) == H_ORPHANS;
+  if ((opts.pung || opts.kong) && ti >= 27 && valueWeight(ctx, ti) > 0 && !orphans) {
+    out = Decision();
+    out.type = opts.pung ? A_PUNG : A_KONG;
+    return true;
+  }
+  return jyEarlyClaim(res, ctx, g, out);
 }

@@ -134,6 +134,56 @@ describe('jorge-yau opening targets', () => {
     assert.deepEqual([t.id, t.suit], ['half', 'c']);
   });
 
+  it('on hands of pairs and pungs, throws a single with no copy left first', () => {
+    const top = (hand, discards) => L.analyzeDiscards(table({ seats: [{ hand }, { discards }] }), 0).candidates[0].tile;
+    // Concealed Triplets: the Three Bamboo is dead (three are out), so it goes before the live singles.
+    assert.equal(top(['c5', 'c5', 'c5', 'd3', 'd3', 'b8', 'b8', 'c9', 'd4', 'b3', 'we', 'ws', 'dr', 'd5'], ['b3', 'b3', 'b3']), 'b3');
+    // Seven Pairs: the same.
+    assert.equal(top(['c2', 'c2', 'd4', 'd4', 'b6', 'b6', 'c7', 'c7', 'd1', 'b3', 'we', 'ws', 'dr', 'b9'], ['b3', 'b3', 'b3']), 'b3');
+  });
+
+  it('on a hand of runs, throws the loose tile that connects least, a 1 or 9 before a middle tile', () => {
+    const order = L.analyzeDiscards(table({ seats: [{ hand: ['c2', 'c3', 'c4', 'd2', 'd3', 'd4', 'we', 'we', 'b4', 'b5', 'c8', 'dr', 'd9', 'b1'] }] }), 0)
+      .candidates.map((x) => x.tile);
+    assert.ok(order.indexOf('b1') < order.indexOf('b4') && order.indexOf('d9') < order.indexOf('b5'), order.join(' '));
+    assert.ok(order.indexOf('b1') < order.indexOf('c8'), order.join(' '));
+  });
+
+  it('tries the targets in order, with Big Three Dragons after Four Winds and All Triplets after Half Flush', () => {
+    assert.deepEqual(L.TARGETS.map((x) => x.id), ['orphans', 'gates', 'winds', 'dragons', 'terminals', 'honors', 'pairs', 'full', 'triplets', 'half', 'all-triplets', 'sequences', 'standard']);
+  });
+
+  it('goes for Big Three Dragons with a pair of every dragon, and not once a dragon is gone', () => {
+    const hand = ['dr', 'dr', 'dg', 'dg', 'dw', 'dw', 'c2', 'c3', 'c5', 'd3', 'd4', 'b7', 'b8'];
+    assert.equal(targetOf(hand).id, 'dragons');
+    assert.notEqual(targetOf(hand, { seats: [null, { hand }, { discards: ['dw', 'dw'] }] }).id, 'dragons');
+  });
+
+  it('pivots to the smaller hand late in the wall (20 tiles or fewer)', () => {
+    const lead = (hand, wallLeft) => L.analyzeDiscards(table({ seats: [{ hand }], wallLeft }), 0).ctx.leadPlan.id;
+    // Big Three Dragons to Small Three Dragons.
+    const dragons = ['dr', 'dr', 'dg', 'dg', 'dw', 'dw', 'c2', 'c3', 'c5', 'd3', 'd4', 'b7', 'b8', 'c9'];
+    assert.equal(lead(dragons, 70), 'big-dragons');
+    assert.equal(lead(dragons, 20), 'small-dragons');
+    // Concealed Triplets to Seven Pairs.
+    const sets = ['c2', 'c2', 'c2', 'd5', 'd5', 'b8', 'b8', 'c9', 'd1', 'b3', 'we', 'ws', 'dr', 'b1'];
+    assert.equal(lead(sets, 70), 'concealed-triplets');
+    assert.equal(lead(sets, 15), 'pairs');
+    // A target closer to ready than any smaller hand stays.
+    const pairs = ['c2', 'c2', 'd5', 'd5', 'b8', 'b8', 'c7', 'c7', 'd1', 'b3', 'we', 'ws', 'dr', 'b1'];
+    assert.equal(lead(pairs, 15), 'pairs');
+  });
+
+  it('goes for All Triplets after Half Flush: three pairs and no set, when pairs are as quick as runs', () => {
+    assert.equal(targetOf(['c2', 'c2', 'd5', 'd5', 'b8', 'b8', 'c9', 'd1', 'b3', 'we', 'ws', 'dr', 'dg']).id, 'all-triplets');
+    // Half Flush comes first.
+    assert.equal(targetOf(['c2', 'c2', 'c5', 'c5', 'c8', 'c8', 'c9', 'd1', 'b3', 'we', 'ws', 'dr', 'dg']).id, 'half');
+    // Runs that are quicker keep it off.
+    assert.notEqual(targetOf(['c2', 'c2', 'd5', 'd5', 'b8', 'b8', 'c3', 'c4', 'd6', 'd7', 'b6', 'b7', 'we']).id, 'all-triplets');
+    const ids = L.TARGETS.map((x) => x.id);
+    assert.equal(ids.indexOf('all-triplets'), ids.indexOf('half') + 1);
+  });
+
   it('reads Concealed Straights from evenly mixed suits', () => {
     assert.equal(targetOf(['c1', 'c3', 'c5', 'c7', 'd2', 'd4', 'd6', 'd8', 'b3', 'b5', 'b7', 'b9', 'we']).id, 'sequences');
   });
@@ -170,10 +220,31 @@ describe('jorge-yau decisions', () => {
     assert.deepEqual(L.chooseClaim(game, 1, { tile: 'd4', from: 0, pung: true, kong: false, chows: [] }), { type: 'pass' });
   });
 
-  it('pungs a dragon', () => {
+  it('always pungs a dragon or a scoring wind, early or late, unless it is going for Thirteen Orphans', () => {
     const hand = ['c2', 'c3', 'c4', 'd5', 'd6', 'b1', 'b4', 'b8', 'c8', 'we', 'dr', 'dr', 'd9'];
-    const game = table({ seats: [null, { hand }] });
-    assert.deepEqual(L.chooseClaim(game, 1, { tile: 'dr', from: 0, pung: true, kong: false, chows: [] }), { type: 'pung' });
+    const opts = { tile: 'dr', from: 0, pung: true, kong: false, chows: [] };
+    assert.deepEqual(L.chooseClaim(table({ seats: [null, { hand }] }), 1, opts), { type: 'pung' });
+    assert.deepEqual(L.chooseClaim(table({ seats: [null, { hand }], wallLeft: 55 }), 1, opts), { type: 'pung' });
+    // A wind that scores nothing waits, early, like any other tile.
+    const plain = ['c2', 'c3', 'c4', 'd5', 'd6', 'b1', 'b4', 'b8', 'c8', 'dr', 'wn', 'wn', 'd9'];
+    assert.deepEqual(L.chooseClaim(table({ seats: [null, { hand: plain }] }), 1, { tile: 'wn', from: 0, pung: true, kong: false, chows: [] }), { type: 'pass' });
+    // On Thirteen Orphans it never claims.
+    const orphans = ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'dr', 'dr', 'c2', 'd5', 'b6'];
+    assert.equal(targetOf(orphans).id, 'orphans');
+    assert.deepEqual(L.chooseClaim(table({ seats: [null, { hand: orphans }] }), 1, opts), { type: 'pass' });
+  });
+
+  it('claims early only to be within two tiles of ready, a pung before a chow, a chow only once the player before it is read', () => {
+    // A Characters Half Flush with a dragon pair: punging the dragon leaves it within two tiles of ready, for 3 faan or more.
+    const hand = ['c2', 'c3', 'c4', 'c5', 'c6', 'c8', 'c9', 'c9', 'dr', 'dr', 'we', 'ws', 'b3'];
+    const pung = { tile: 'dr', from: 0, pung: true, kong: false, chows: [] };
+    assert.deepEqual(L.chooseClaim(table({ seats: [{}, { hand }] }), 1, pung), { type: 'pung' });
+    // The same hand could chow the 7 Characters from the player before it, but early, with no read of them yet, it passes.
+    const chow = { tile: 'c7', from: 0, pung: false, kong: false, chows: [['c5', 'c6'], ['c6', 'c8'], ['c8', 'c9']] };
+    assert.deepEqual(L.chooseClaim(table({ seats: [{}, { hand }] }), 1, chow), { type: 'pass' });
+    // Once its discards show the suit they feed, the chow is taken.
+    const read = table({ seats: [{ discards: ['c1', 'c1', 'c3', 'b1', 'b2', 'd1'] }, { hand }] });
+    assert.equal(L.chooseClaim(read, 1, chow).type, 'chow');
   });
 
   it('won\'t chow early into a suit it barely holds', () => {
@@ -261,8 +332,15 @@ describe('the player before you decides a close flush suit', () => {
 
   it('reads the suit they keep and the suit they throw', () => {
     const read = B.leftRead(at(keepsBamboo), 0);
-    assert.deepEqual(read, { seat: 3, keeps: 'b', feeds: 'd' });
-    assert.deepEqual(B.leftRead(at([]), 0), { seat: 3, keeps: null, feeds: null });
+    assert.deepEqual(read, { seat: 3, keeps: 'b', feeds: 'd', locked: false, tosses: [] });
+    assert.deepEqual(B.leftRead(at([]), 0), { seat: 3, keeps: null, feeds: null, locked: false, tosses: [] });
+  });
+
+  it('reads a chow by the player before you: they need that suit and toss the others', () => {
+    const game = table({ seats: [{}, {}, {}, { discards: ['d1', 'd2', 'c9'] }] });
+    game.hand.seats[3].melds = [{ type: 'chow', tiles: ['b3', 'b4', 'b5'], concealed: false, from: 2 }];
+    const read = B.leftRead(game, 0);
+    assert.deepEqual([read.keeps, read.locked, read.tosses, read.feeds], ['b', true, ['c', 'd'], 'd']);
   });
 
   it('lucky-cat leaves the suit they keep for a faster hand', () => {

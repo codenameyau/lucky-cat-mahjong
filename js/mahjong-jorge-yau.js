@@ -5,12 +5,13 @@
    rules every bot follows), but picks its hand differently and plays it
    differently:
      - Target. From the opening hand it picks one hand to aim for, in a fixed
-       order (TARGETS below): Thirteen Orphans, Nine Gates, Four Winds, All
-       Terminals, honors, Seven Pairs, Full Flush, All Triplets, Half Flush,
-       Concealed Straights. Each turn the current hand is read again; a
-       stronger target replaces it, and a target that can no longer be made
-       gives way. The target's plans are preferred (K.targetWeight), so the
-       hand only pivots when a backup is clearly better.
+       order (TARGETS below): Thirteen Orphans, Nine Gates, Big Four Winds,
+       Big Three Dragons, All Terminals, All Honors, Seven Pairs, Full Flush,
+       Concealed Triplets, Half Flush, All Triplets, Concealed Straights. Each
+       turn the current hand is read again; a stronger target replaces it,
+       and a target that can no longer be made gives way. The target's plans
+       are preferred (K.targetWeight); it pivots to its smaller hand when that
+       is ready first, or late in the wall (20 tiles or fewer), see pivot().
      - Discards. Tiles the target can't use go first. Pairs and live honors
        wait, except on Concealed Straights, which drops honors first.
      - Fast hands. With a scoring wind (seat or round) or a seat flower, the
@@ -57,6 +58,8 @@
   }
 
   var EARLY_WALL = 60;
+  // Late in the wall: 20 tiles or fewer left. A target then gives way to its smaller hand.
+  var LATE_WALL = 20;
 
   // Jorge Yau's knobs, kept with the strategy's tuning (bot.setTuning) so
   // the competition can compare settings.
@@ -139,10 +142,20 @@
       dead: function (r, t) { return r.ctx.declared || hasSuitedMeld(r.ctx, t.suit) || r.ctx.meldSuits.z; },
     },
     {
-      id: 'winds', name: 'Big or Small Four Winds', hard: true,
-      fits: function (r) { return r.winds >= 8; },
-      // Small Four Winds has room for one set that isn't a wind.
-      dead: function (r) { return r.ctx.melds.filter(function (m) { return !isHonor(E.tileIndex(m.tiles[0])); }).length > 1; },
+      id: 'winds', name: 'Big Four Winds', hard: true,
+      fits: function (r) { return r.winds >= 8 && !this.dead(r); },
+      // Small Four Winds has room for one set that isn't a wind; past that, or
+      // with too few winds left to pung, neither can be made.
+      dead: function (r) {
+        return r.ctx.melds.filter(function (m) { return !isHonor(E.tileIndex(m.tiles[0])); }).length > 1 ||
+          B.groupShanten(r.ctx, WINDS, 3, true)(r.c, r.ctx.declared) === Infinity;
+      },
+    },
+    {
+      // A pair or more of every dragon: Big Three Dragons, then Small Three Dragons.
+      id: 'dragons', name: 'Big Three Dragons', hard: true,
+      fits: function (r) { return DRAGONS.every(function (i) { return r.all[i] >= 2; }) && !this.dead(r); },
+      dead: function (r) { return B.groupShanten(r.ctx, DRAGONS, 2, true)(r.c, r.ctx.declared) === Infinity; },
     },
     {
       id: 'terminals', name: 'All Terminals', hard: true,
@@ -178,6 +191,14 @@
         return r.honors >= 3 && r.by[r.top] >= 5 && r.by[r.top] >= Math.max.apply(null, second) * 2;
       },
       dead: function (r, t) { return hasSuitedMeld(r.ctx, t.suit); },
+    },
+    {
+      // Three pairs and no set yet, when pairs are no slower than runs: pung
+      // them into All Triplets, open or not, with Concealed Triplets and Seven
+      // Pairs behind it.
+      id: 'all-triplets', name: 'All Triplets',
+      fits: function (r) { return !r.ctx.hasChow && r.pairs >= 3 && E.tripletsShanten(r.c) <= E.standardShanten(r.c); },
+      dead: function (r) { return r.ctx.hasChow; },
     },
     {
       id: 'sequences', name: 'Concealed Straights',
@@ -352,17 +373,45 @@
 
   function honorsOnly(c) { return B.restrict(c, isHonor); }
 
-  function windsPlan(c, ctx, base, weight) {
-    var sets = 0;
-    WINDS.forEach(function (i) { if (c[i] >= 2) sets++; });
-    ctx.melds.forEach(function (m) { if (WINDS.indexOf(E.tileIndex(m.tiles[0])) !== -1) sets++; });
-    var big = sets >= 4;
-    return plan({
-      id: 'winds', label: big ? 'Big Four Winds' : 'Small Four Winds',
-      counts: honorsOnly(c), shantenFn: E.standardShanten,
-      faan: big ? LIMIT : Math.min(LIMIT, base + F.smallWinds + B.handYaku(ctx, honorsOnly(c))),
-      open: true, weight: weight,
+  // Pung-group hands (Four Winds, Three Dragons): those honors in pungs (and
+  // a pair for the small one), the rest anything. A hand that can't be made
+  // any more (too few copies left) is left out.
+  function groupPlans(c, ctx, specs) {
+    var out = [];
+    specs.forEach(function (s) {
+      var fn = B.groupShanten(ctx, s.group, s.pungs, s.pair);
+      if (fn(c, ctx.declared) === Infinity) return;
+      out.push(plan({
+        id: s.id, label: s.label, counts: c, shantenFn: fn, faan: Math.min(LIMIT, s.faan), open: true, weight: s.weight,
+        favors: function (i) { return s.group.indexOf(i) !== -1; },
+      }));
     });
+    return out;
+  }
+
+  // The pivots: the target's own plans weigh W, its smaller hands less. The
+  // hand pivots to a smaller hand when it is ready and the target isn't, or
+  // late in the wall (LATE_WALL tiles or fewer) when the smaller hand is no
+  // further from ready: the smaller hand then weighs W and the target's own
+  // plans are dropped, so the hand goes where it is more likely to win (a
+  // bigger hand pays so much more that a lighter weight alone wouldn't move it).
+  function pivot(out, ctx, W) {
+    if (W <= 1) return;
+    var steps = function (p) { return p.shantenFn(p.counts, ctx.declared); };
+    var own = out.filter(function (p) { return p.weight === W; });
+    if (!own.length) return;
+    var ownSteps = Math.min.apply(null, own.map(steps));
+    // A ready target stays; late, a smaller hand counts only if it is no further away.
+    var late = ctx.wallLeft <= LATE_WALL && ownSteps > 0;
+    var moved = false;
+    out.forEach(function (p) {
+      if (p.weight >= W || p.id === 'plain') return;
+      var s = steps(p);
+      if ((s === 0 && ownSteps > 0) || (late && s <= ownSteps)) { p.weight = W; moved = true; }
+    });
+    if (moved) {
+      for (var k = out.length - 1; k >= 0; k--) if (own.indexOf(out[k]) !== -1) out.splice(k, 1);
+    }
   }
 
   function honorsPlan(c, ctx, base, weight) {
@@ -413,8 +462,8 @@
     var su = t.suit;
     switch (t.id) {
       case 'orphans':
-        out = [B.makeSpecialPlan('orphans', c, ctx), terminalsPlan(c, ctx, base, 0.8)];
-        // Seven Pairs of terminals and honors: Mixed Orphans on top of the pairs.
+        // Thirteen Orphans to Seven Pairs or All Triplets, both with Mixed Orphans.
+        out = [B.makeSpecialPlan('orphans', c, ctx)];
         if (!ctx.declared) {
           var op = B.makeSpecialPlan('pairs', B.restrict(c, isOrphan), ctx);
           op.faan += F.mixedOrphans;
@@ -422,6 +471,7 @@
           op.weight = W * 0.8;
           out.push(op);
         }
+        out.push(terminalsPlan(c, ctx, base, 0.8));
         out[0].weight = W;
         break;
       case 'gates':
@@ -429,14 +479,27 @@
         out[0].weight = W;
         break;
       case 'winds':
-        out = [windsPlan(c, ctx, base, W), honorsPlan(c, ctx, base, W * 0.9)];
+        // Big Four Winds to Small Four Winds.
+        out = groupPlans(c, ctx, [
+          { id: 'big-winds', label: 'Big Four Winds', group: WINDS, pungs: 4, pair: false, faan: LIMIT, weight: W },
+          { id: 'small-winds', label: 'Small Four Winds', group: WINDS, pungs: 3, pair: true, faan: base + F.smallWinds + B.handYaku(ctx, B.restrict(c, isDragon)), weight: 1 },
+        ]);
+        break;
+      case 'dragons':
+        // Big Three Dragons to Small Three Dragons.
+        out = groupPlans(c, ctx, [
+          { id: 'big-dragons', label: 'Big Three Dragons', group: DRAGONS, pungs: 3, pair: false, faan: base + F.greatDragons + B.handYaku(ctx, B.restrict(c, isWind)), weight: W },
+          { id: 'small-dragons', label: 'Small Three Dragons', group: DRAGONS, pungs: 2, pair: true, faan: base + F.smallDragons + B.handYaku(ctx, B.restrict(c, isWind)), weight: 1 },
+        ]);
         break;
       case 'terminals':
         out = [terminalsPlan(c, ctx, base, W)].concat(tripletsPlans(c, ctx, base, 0.8));
         break;
       case 'honors':
-        out = [honorsPlan(c, ctx, base, W)].concat(tripletsPlans(c, ctx, base, W * 0.9));
+        // All Honors to Half Flush or All Triplets.
+        out = [honorsPlan(c, ctx, base, W)];
         SUITS.forEach(function (s) { out = out.concat(flushPlans(c, ctx, s, base, 1, 0.6).slice(0, 1)); });
+        out = out.concat(tripletsPlans(c, ctx, base, 1).filter(function (p) { return p.id === 'triplets'; }));
         break;
       case 'pairs': {
         out = [];
@@ -445,7 +508,8 @@
           pp.weight = W;
           out.push(pp);
         }
-        out = out.concat(tripletsPlans(c, ctx, base, 1));
+        // Seven Pairs to All Triplets.
+        out = out.concat(tripletsPlans(c, ctx, base, 1).filter(function (p) { return p.id === 'triplets'; }));
         break;
       }
       case 'full':
@@ -455,25 +519,32 @@
         out = flushPlans(c, ctx, su, base, W, 1).concat(tripletsPlans(c, ctx, base, 0.8));
         break;
       case 'triplets': {
-        // Concealed Triplets first, then All Triplets or Seven Pairs, and all
-        // of them better in one suit with honors.
-        out = weigh(tripletsPlans(c, ctx, base, W * 0.9), function (p) { return p.id === 'concealed-triplets'; }, W);
+        // Concealed Triplets to Seven Pairs to All Triplets, the triplets
+        // better in one suit with honors.
+        out = weigh(tripletsPlans(c, ctx, base, 0.9), function (p) { return p.id === 'concealed-triplets'; }, W);
         var inHalf = function (j) { return suitOf(j) === su || j >= 27; };
         if (!ctx.hasChow && !hasSuitedMeld(ctx, su)) {
           var kept = B.restrict(c, inHalf);
           out.push(plan({
             id: 'triplets', label: 'All Triplets', counts: kept, shantenFn: E.tripletsShanten,
-            faan: base + F.allTriplets + F.halfFlush + B.handYaku(ctx, kept), open: true, weight: W,
+            faan: base + F.allTriplets + F.halfFlush + B.handYaku(ctx, kept), open: true, weight: 0.9,
           }));
         }
         if (!ctx.declared) {
           var sp = B.makeSpecialPlan('pairs', c, ctx);
-          sp.weight = W * 0.9;
+          sp.weight = 1;
           out.push(sp);
         }
-        out = out.concat(flushPlans(c, ctx, su, base, 1, 0.8));
         break;
       }
+      case 'all-triplets':
+        out = weigh(tripletsPlans(c, ctx, base, W * 0.9), function (p) { return p.id === 'triplets'; }, W);
+        if (!ctx.declared) {
+          var ap = B.makeSpecialPlan('pairs', c, ctx);
+          ap.weight = W * 0.8;
+          out.push(ap);
+        }
+        break;
       case 'sequences':
         out = weigh(B.basePlans(c, ctx), function (p) { return p.id === 'straights'; }, W);
         break;
@@ -481,6 +552,7 @@
         out = B.basePlans(c, ctx);
         if (B.chaseSevenPairs(c, ctx)) out.push(B.makeSpecialPlan('pairs', c, ctx));
     }
+    pivot(out, ctx, W);
     // Softer targets also weigh the bigger hands the same tiles can make
     // (MahjongBot.upgradePlans); the hard ones already are one.
     if (!def.hard || t.id === 'full') {
@@ -492,7 +564,7 @@
     }
     var keep = keepFor(t), reason = reasonFor(t);
     out.forEach(function (p) {
-      if (keep && !p.keep && (p.id === t.id || p.id === t.id + '-' + su || (t.id === 'sequences' && p.id === 'straights'))) {
+      if (keep && !p.keep && (p.id === t.id || p.id === t.id + '-' + su || (t.id === 'sequences' && p.id === 'straights') || (t.id === 'winds' && p.id === 'big-winds'))) {
         p.keep = keep;
         p.reason = reason;
       }
@@ -507,6 +579,7 @@
 
   var FAMILY = {
     triplets: ['triplets', 'concealed-triplets', 'pairs'],
+    'all-triplets': ['triplets', 'concealed-triplets', 'pairs'],
     pairs: ['pairs'],
     sequences: ['straights'],
   };
@@ -518,6 +591,9 @@
     if (t.id === 'half' || t.id === 'triplets') { if (id === 'half-' + t.suit) return true; }
     return (FAMILY[t.id] || []).indexOf(id) !== -1;
   }
+
+  // Targets built on pairs and pungs: they keep every pair and pung.
+  var SET_TARGETS = ['triplets', 'all-triplets', 'terminals', 'honors', 'winds', 'dragons'];
 
   // Lower goes first, after the shared one-suit rules (MahjongBot's group
   // 0): -1 off-target tiles for a hard target, 1 off-target for a softer
@@ -548,12 +624,22 @@
       if (pair && i < 27 && !def.hard && !B.chowOfAnotherSuit(ctx, i)) return 1.25;
       return def.hard ? -1 : 1;
     }
+    // A hand of pairs or sets can't use a single with no copy left to draw or
+    // claim: it can never be a pair or a pung, so it goes before the other
+    // singles (Thirteen Orphans needs only one of each, and keeps it). An
+    // honor single like that goes on any hand: it can't make a run either.
+    var dead = counts[i] === 1 && ctx.unseen[i] === 0;
+    var setsHand = SET_TARGETS.indexOf(t.id) !== -1 || t.id === 'pairs';
+    // (1, not a half step: MahjongBot reads x.5 as a tile to keep.)
+    if (dead && t.id !== 'orphans' && (setsHand || i >= 27)) return 1;
+    // A pair with no copy left can still be the eyes, but never a pung.
+    if (pair && ctx.unseen[i] === 0 && SET_TARGETS.indexOf(t.id) !== -1) return 3;
     if (t.id === 'gates' && !B.gatesTileNeeded(counts, t.start, i)) return 1;
     if (B.isPungTile(game, i) && counts[i] < 2 && cand.shanten <= bestShanten) return 1;
     // Seven Pairs keeps pairs and lets a third copy go.
     if (t.id === 'pairs') return pair ? 6 : 2;
     // Hands of sets keep every pair and pung, the pung longest.
-    if (['triplets', 'terminals', 'honors', 'winds'].indexOf(t.id) !== -1 && counts[i] >= 2) return counts[i] >= 3 ? 6 : 5;
+    if (SET_TARGETS.indexOf(t.id) !== -1 && counts[i] >= 2) return counts[i] >= 3 ? 6 : 5;
     // Concealed Triplets sticks to one suit and honors where it can: a
     // single of another suit goes first.
     if (t.id === 'triplets' && i < 27 && suitOf(i) !== t.suit) return 1;
@@ -899,10 +985,50 @@
     return best && best.planShanten !== undefined ? best.planShanten : Infinity;
   }
 
+  // Early game (more than EARLY_WALL tiles left) it stays concealed, unless a
+  // claim leaves the hand within two tiles of ready (CLAIM_READY_STEPS) and
+  // able to score, to win quickly: then a pung or kong first, and a chow only
+  // once the player before it has a read (MahjongBot.leftRead: the suit they
+  // keep or the one they feed), and only a chow the shared rules allow. Later
+  // in the hand, the shared claims decide (null).
+  var CLAIM_READY_STEPS = 2;
+  function earlyClaim(res, ctx, game) {
+    if (ctx.wallLeft <= EARLY_WALL || savedLock(ctx)) return null;
+    var min = game.settings.minFaan;
+    var quick = function (o) {
+      var an = o.analysis;
+      if (!an || an.shanten > CLAIM_READY_STEPS || an.shanten >= res.stay.shanten) return false;
+      var p = an.best && an.best.plan;
+      return an.shanten === 0 || !!(p && p.faan >= min);
+    };
+    var best = function (list) { return list.sort(function (a, b) { return b.score - a.score; })[0]; };
+    var sets = res.options.filter(function (o) { return (o.decision.type === 'pung' || o.decision.type === 'kong') && quick(o); });
+    if (sets.length) return best(sets).decision;
+    // A chow of a suit the player before it feeds, or tosses after a chow of
+    // their own (they need only their suit): more of it will come.
+    var read = ctx.leftRead;
+    var known = !!(read && (read.feeds || read.keeps || (read.tosses && read.tosses.length)));
+    var chows = known ? res.options.filter(function (o) {
+      return o.decision.type === 'chow' && quick(o) && B.chowAllowed(o, res, game, ctx);
+    }) : [];
+    if (chows.length) return best(chows).decision;
+    return { type: 'pass' };
+  }
+
   // Takes any claim that moves the hand closer and can still score. On a lock,
   // only a claim of that hand's tiles that moves it closer.
   function bigClaim(res, ctx, game, seat, opts) {
+    // A dragon or a scoring wind (seat or round) is always punged, early or
+    // late and whatever the hand, unless it is going for Thirteen Orphans.
+    var ti = E.tileIndex(opts.tile);
+    var orphans = (ctx.target && ctx.target.id === 'orphans') || (savedLock(ctx) && savedLock(ctx).id === 'orphans');
+    if ((opts.pung || opts.kong) && ti >= 27 && B.valueWeight(ctx, ti) > 0 && !orphans) {
+      return { type: opts.pung ? 'pung' : 'kong' };
+    }
     var own = knobs().ownClaims;
+    // The early-game rule is the default claims' (ownClaims off or 'lock').
+    var early = own === true ? null : earlyClaim(res, ctx, game);
+    if (early) return early;
     if (!own) return null;
     var lock = savedLock(ctx);
     // 'lock': its own claims only while locked onto a big hand; the shared ones otherwise.

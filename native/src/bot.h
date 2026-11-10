@@ -88,7 +88,7 @@ using AnalysisP = std::shared_ptr<Analysis>;
 struct Pivot { bool any = false; int from = -1, to = -1, at = 0; };
 struct SeatRead { int seat; double want[34]; double out[34]; double hidden; int collecting; Pivot pivot; double pace; };
 struct Track { std::vector<SeatRead> seats; double inWall[34]; double wall; int left, next; };
-struct LeftRead { int seat, keeps = -1, feeds = -1; };
+struct LeftRead { int seat, keeps = -1, feeds = -1; bool locked = false; int tosses[2] = {-1, -1}; int nTosses = 0; };
 struct AfterRead { int seat, keeps = -1; bool locked = false; int melds = 0; };
 struct OwnRead { int n = 0; int by[4] = {0, 0, 0, 0}; };
 
@@ -312,6 +312,11 @@ class Foundation {
   std::vector<CandP> jyFinalOrder(const std::vector<CandP>& out, const Ctx& ctx, const Counts& c);
   bool jyKongOk(const KongOption& k, const Ctx& ctx);
   Target jyClassify(const Counts& c, const Ctx& ctx, bool& found);
+  bool jyWindsDead(const Counts& c, const Ctx& ctx);
+  bool jyDragonsDead(const Counts& c, const Ctx& ctx);
+  void jyPivot(std::vector<PlanP>& out, const Ctx& ctx, double W);
+  bool jyEarlyClaim(const ClaimFound& res, const Ctx& ctx, const Game& g, Decision& out);
+  bool jyClaim(const ClaimFound& res, const Ctx& ctx, const Game& g, const ClaimOptions& opts, Decision& out);
   Target jyCurrentTarget(const Game& g, int seat, const Counts& c, const Ctx& ctx);
   bool jyHasQuickFaan(const Counts& c, const Ctx& ctx);
   int jyUpdateLock(const Counts& c, const Ctx& ctx);
