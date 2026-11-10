@@ -13,8 +13,13 @@
      3. Heads. Each model's report: how often the hand head names the hand a
         seat wins with (against the rules' read), calibration by hand, and
         how well the table heads read the opponents.
-     4. Screens, in stages, on fresh deals at the benchmark table
-        (bench.js compare, the native simulator's fast build). After each
+     4. Screens, in stages, on fresh deals, on the native simulator's fast
+        build (lcm-sim play): the model and the champion each take every seat
+        of the same deals at the game's table (the shipped Neural Cat, Jorge
+        Yau, Lucky Cat), and the gap is taken deal by deal. The frozen
+        benchmark table (game 0.57.9) can't run natively since the native
+        port moved on (the contradiction check), and in JS a screen takes
+        hours, so it is kept for the bar (bench.js judge). After each
         stage a model that is behind the champion by more than --drop
         standard errors is dropped, so losing arms cost a few thousand deals
         and not forty thousand.
@@ -80,7 +85,36 @@ const readJson = (f, dflt) => { try { return JSON.parse(fs.readFileSync(f, 'utf8
 const writeJson = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 1) + '\n'); };
 const rel = (f) => path.relative(ROOT, f);
 
-function main() {
+// A head to head on the native simulator at the game's table: the pair is
+// (model less champion) per deal, as bench.js compare reports it.
+const SIM = path.join(ROOT, 'native', 'build', 'lcm-sim' + (process.platform === 'win32' ? '.exe' : ''));
+function screen(file, champ, seed, deals, workers) {
+  const N = require('./native.js');
+  const ids = ['nc:' + file, 'nc:' + champ, 'neural-cat', 'jorge-yau', 'lc:js/mahjong-lucky-cat-weights.js'].map((id) => N.nativeId(id));
+  if (ids.some((x) => !x)) throw new Error("frontier: a player can't run on the native simulator (make -C native; node scripts/ml/native.js parity, then pin)");
+  const { spawn } = require('node:child_process');
+  const step = Math.ceil(deals / workers), jobs = [];
+  for (let f = 0; f < deals; f += step) {
+    jobs.push(new Promise((res, rej) => {
+      const p = spawn(SIM, ['play', '--models', ids[0] + ',' + ids[1], '--table', ids.slice(2).join(','),
+        '--seed', String(seed), '--from', String(f), '--to', String(Math.min(deals, f + step))], { cwd: ROOT });
+      let o = '', e = '';
+      p.stdout.on('data', (d) => (o += d)); p.stderr.on('data', (d) => (e += d));
+      p.on('exit', (c) => (c ? rej(new Error('lcm-sim play: ' + e)) : res(JSON.parse(o))));
+    }));
+  }
+  return Promise.all(jobs).then((outs) => {
+    const sum = (k, m) => outs.reduce((a, o) => a + o.out[m][k], 0);
+    const n = outs.reduce((a, o) => a + o.pair.n, 0), ps = outs.reduce((a, o) => a + o.pair.sum, 0), pq = outs.reduce((a, o) => a + o.pair.sq, 0);
+    const mean = ps / n;
+    const model = (m) => ({ points: sum('points', m) / sum('seats', m), wins: sum('wins', m) / sum('seats', m), dealIns: sum('dealIns', m) / sum('seats', m),
+      averageWin: sum('winPoints', m) / Math.max(1, sum('wins', m)), averageFaan: sum('winFaan', m) / Math.max(1, sum('wins', m)) });
+    return { seed, deals: n, table: ids.slice(2), simulator: 'native-fast', models: [model(0), model(1)],
+      gap: { points: mean, standardError: Math.sqrt(Math.max(0, pq / n - mean * mean) / n), deals: n } };
+  });
+}
+
+async function main() {
   const a = parseArgs(process.argv.slice(2));
   const dir = path.resolve(ROOT, String(a.dir || 'ml/fm'));
   const stateFile = path.join(dir, 'state.json');
@@ -165,10 +199,11 @@ function main() {
     });
     // 4. Screens in stages; a model clearly behind is dropped (cached by the screen's JSON).
     let seed = SCREEN_SEED + r * 1000000;
-    stages.forEach((stageDeals, k) => {
-      models.filter((m) => m.alive).forEach((m) => {
+    for (let k = 0; k < stages.length; k++) {
+      const stageDeals = stages[k];
+      for (const m of models.filter((x) => x.alive)) {
         const json = path.join(dir, 'screens', m.name + '-' + k + '.json');
-        if (!fs.existsSync(json)) run('node', ['scripts/ml/bench.js', 'compare', 'nc:' + m.file, 'nc:' + champ, '--deals', String(stageDeals), '--seed', String(seed), '--workers', workers, '--json', rel(json)]);
+        if (!fs.existsSync(json)) writeJson(json, await screen(m.file, champ, seed, stageDeals, parseInt(workers, 10)));
         const res = readJson(json);
         // Pooled over the stages so far, weighted by deals.
         m.n += stageDeals; m.sum += res.gap.points * stageDeals; m.sq += Math.pow(res.gap.standardError * stageDeals, 2);
@@ -176,15 +211,16 @@ function main() {
         if (m.gap < -drop * m.se) m.alive = false;
         log('Round ' + r + ' stage ' + (k + 1) + ' (' + stageDeals + ' deals): ' + m.name + ' ' + (m.gap >= 0 ? '+' : '') + m.gap.toFixed(1) + ' ± ' + m.se.toFixed(1) +
           ' points a hand over ' + m.n + ' deals' + (m.alive ? '' : ': dropped'));
-      });
+      }
       seed += stageDeals;
-    });
+    }
     // 5. A recipe by the average of its seeds.
     const recipes = RECIPES.map((rec) => {
       const ms = models.filter((m) => m.recipe === rec.id);
-      const done = ms.filter((m) => m.alive);
+      // Judged on the mean of every seed (a dropped seed counts at the gap it was dropped on):
+      // dropping a recipe for one unlucky seed drops good recipes about one time in six.
+      const done = ms;
       const out = { id: rec.id, what: rec.what, models: ms.map((m) => ({ name: m.name, gap: m.gap, se: m.se, deals: m.n, alive: m.alive })) };
-      if (done.length < ms.length) { out.verdict = 'dropped (' + (ms.length - done.length) + ' of ' + ms.length + ' seeds fell behind)'; return out; }
       out.gap = done.reduce((t, m) => t + m.gap, 0) / done.length;
       out.se = Math.sqrt(done.reduce((t, m) => t + m.se * m.se, 0)) / done.length;
       out.verdict = out.gap > keep * out.se ? 'candidate' : 'not ahead';
@@ -193,7 +229,7 @@ function main() {
     recipes.forEach((x) => log('Round ' + r + ': recipe ' + x.id + ' [' + x.what + ']: ' + x.verdict + (x.gap != null ? ', ' + (x.gap >= 0 ? '+' : '') + x.gap.toFixed(1) + ' ± ' + x.se.toFixed(1) + ' points a hand' : '')));
     const best = recipes.filter((x) => x.verdict === 'candidate').sort((p, q) => q.gap - p.gap)[0];
     if (best) {
-      const top = best.models.slice().sort((p, q) => q.gap - p.gap)[0];
+      const top = best.models.filter((m) => m.alive).sort((p, q) => q.gap - p.gap)[0];
       log('Round ' + r + ': ' + top.name + ' is a candidate. The bar: node scripts/ml/bench.js judge nc:ml/models/' + top.name + '.json --vs nc:' + champ);
     }
     state.rounds.push({ round: r, data, champion: champ, recipes });
@@ -208,4 +244,4 @@ function main() {
   }
 }
 
-main();
+main().catch((err) => { console.error(err.stack || err.message); process.exit(1); });

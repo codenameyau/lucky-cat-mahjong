@@ -27,8 +27,9 @@ Written 2026-11-09. This is the plan for the frontier model: one network that re
 | Step ([Making it strong](#making-it-strong)) | State |
 | --- | --- |
 | 1 Start from the champion | Neural Cat's lab champion is the starting point |
-| 2 The hand head and the table heads | **Built** (2026-11-09). The hand head names the hand a seat wins with 74% of the time, the rules 64% ([Learnings](#step-2-the-hand-head-and-the-table-heads-2026-11-09)). Round 1's screens are running |
-| 3 to 11 | Not started |
+| 2 The hand head and the table heads | **Built** (2026-11-09). The hand head names the hand a seat wins with 74% of the time, the rules 64% ([Learnings](#step-2-the-hand-head-and-the-table-heads-2026-11-09)). Round 1 screened: the heads neither help nor hurt play yet ([Learnings](#round-1-the-heads-dont-change-play-yet-2026-11-10)) |
+| 3 The read as an input to the move head | **Next** |
+| 4 to 11 | Not started |
 
 This table is a status table only. What each step taught goes in [Learnings](#learnings).
 
@@ -193,3 +194,27 @@ Model FM1a0: NC's body (512, 256) started from N14c, the extra heads at loss wei
 - **The table heads read the opponents.**
   - *Evidence:* an opponent is ready, AUC 0.84 (6.4% of opponent-positions are ready); the tile thrown deals in now, AUC 0.87 (0.45% of throws); a ready opponent's winning tiles, AUC 0.68.
 - *Changed:* the first step passed, so the hand stays a head of the model (it doesn't fall back to rules). Whether the heads also make the moves better is the screen's question, below.
+
+### Round 1: the heads don't change play yet (2026-11-10)
+
+Nine models from N14c on fm-1, three recipes of three seeds: a (heads at loss weight 0.5), b (weight 0.2), c (no heads, the control); lr 3e-4, up to 8 epochs. Screened in stages (4,000, 16,000, 40,000 fresh deals) on the native simulator's fast build, each model and N14c in every seat of the same deals at the game's table (the shipped Neural Cat, Jorge Yau, Lucky Cat).
+
+- **No recipe beat the champion, and the heads made no difference either way.**
+  - *Evidence (points a hand, model less N14c, 60,000 deals unless dropped):*
+
+    | Recipe | Seed 0 | Seed 1 | Seed 2 | Mean |
+    | --- | ---: | ---: | ---: | ---: |
+    | a: heads at 0.5 | −1.7 ± 3.8 | −5.4 ± 3.8 | −8.8 ± 6.5 (20,000) | about −4 |
+    | b: heads at 0.2 | +1.7 ± 3.8 | +1.3 ± 3.8 | −1.6 ± 3.8 | +0.5 ± 2.2 |
+    | c: control | +0.0 ± 3.7 | +1.1 ± 3.7 | −4.9 ± 3.7 | −1.3 ± 2.1 |
+
+  - b and c are within a standard error of each other and of zero. As expected: the heads are outputs only, and the move is still chosen by the same 28 outputs, so a better read can't change a move until the move head reads it (step 3).
+  - The heavier head weight (a) may cost a little, by pulling the shared body away from the move value. It is within the noise.
+- **Fine-tuning on one round of the champion's own seats moved every model toward bigger, rarer wins, heads or not.**
+  - *Evidence (the third stage, model against N14c):* hands won 15.5 to 16.5% against 17.4%; deal-ins 11.8 to 12.6% against 11.7%; average win 908 to 1,017 points against 906; average faan 6.17 to 6.30 against 5.77. The control shows it as much as the head recipes.
+  - The likely cause is the data, not the heads: N14c learned from 12 rounds of every seat, these from one round of its own exploring seats (temperature 150, epsilon 0.05). Exploring wins are fewer and bigger, and one round is all the model saw.
+  - *Open:* more rounds in the window (the driver keeps 3), or a lower learning rate, should pull it back. Measured on round 2.
+- **The screen's pruning worked, and one of its rules is too strict.**
+  - *Evidence:* a model costs about 2.5 minutes at stage 2 and 5.5 at stage 3 on 8 cores; dropping 3 of the 9 saved about 20 minutes of a 72-minute round. 4,000-deal stages are ±14 points, so the leads at stage 1 (up to +22.7) were all luck.
+  - *Changed:* a recipe was dropped when any one seed fell behind. With margins of ±3.8 a seed falls behind by chance about one time in six, so that rule drops good recipes. A recipe is now judged on the mean of its seeds, every seed played through.
+- **The frozen benchmark can't run natively any more.** Its players are game 0.57.9; the native port has moved on (the contradiction check), so `bench.js compare` falls back to JS, which takes hours a screen. *Changed:* the round's screens play at the game's table on the native simulator; the frozen table stays for the bar (`bench.js judge`).
