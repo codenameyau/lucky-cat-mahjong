@@ -433,13 +433,9 @@
   max-width: 28rem;
 }
 
-.tq-hero-cta {
-  margin-top: 1.25rem;
-  justify-content: center;
-}
-
-.tq-result[data-mine="true"] .tq-hero-cta {
-  display: none;
+.tq-hero-actions {
+  max-width: 16rem;
+  margin: 1.25rem auto 0;
 }
 
 .tq-result-description {
@@ -565,8 +561,21 @@
   font-size: 0.82rem;
 }
 
-.tq-share {
+.tq-again {
   text-align: center;
+}
+
+/* The white action beside the red Take Again. */
+.tq-btn-white {
+  background: #fff;
+  color: var(--color-text);
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.tq-btn-white:hover {
+  background: #f6f1ea;
+  color: var(--color-text);
 }
 
 .tq-share-actions {
