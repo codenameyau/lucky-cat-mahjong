@@ -198,8 +198,13 @@ test('the privacy page explains every cookie the tracker sets, and the GA4 setti
   Object.values(A.COOKIES).forEach((name) => assert.match(html, new RegExp('<code>' + name + '</code>'), name));
   assert.match(html, /<code>_ga<\/code>/);
   ['Google signals', 'User-ID', 'User-provided data collection', 'Granular location and device data', 'User Data Collection Acknowledgement'].forEach((s) => assert.ok(html.includes(s), s));
-  assert.match(html, /don't sell your information to advertisers/);
-  assert.match(html, /names, email addresses and Instagram handles/);
+  assert.match(html, /We do not sell your personal information, and we do not share it with marketers or other businesses/);
+  assert.doesNotMatch(html, /sell, or lease/);
+  assert.match(html, /id="choices"/, 'the footer links #choices');
+  assert.match(html, /id="california"/);
+  assert.match(html, /Global Privacy Control/);
+  assert.match(html, /adssettings\.google\.com/);
+  assert.match(html, /name, email address and Instagram handle/);
   assert.match(html, /data-consent="granted"/);
   assert.match(html, /data-consent="denied"/);
   assert.match(html, /data-consent-status/);

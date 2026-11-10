@@ -71,6 +71,7 @@ test('every page with a footer links the privacy policy and cookie settings', ()
     const footer = /<footer class="site-footer">[\s\S]*?<\/footer>/.exec(html);
     assert.ok(footer, page + ' has the site footer');
     assert.match(footer[0], /<a href="\/privacy\/" class="footer-link">Privacy policy<\/a>/, page + ' links the privacy policy');
+    assert.match(footer[0], /<a href="\/privacy\/#choices" class="footer-link">Your Privacy Choices<\/a>/, page + ' links Your Privacy Choices');
     assert.match(footer[0], /class="footer-link js-cookie-settings">Cookie settings<\/button>/, page + ' has cookie settings');
   });
   const sitemap = fs.readFileSync(path.join(ROOT, 'sitemap.xml'), 'utf8');
