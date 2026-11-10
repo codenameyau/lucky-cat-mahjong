@@ -107,4 +107,10 @@
       <image:caption>Our signature free monthly community gathering with 100+ in attendance.</image:caption>
     </image:image>
   </url>
+  <url>
+    <loc>https://luckycatmahjong.com/privacy/</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
 </urlset>
