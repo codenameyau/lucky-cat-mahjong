@@ -401,25 +401,81 @@
     return r.faan >= v.game.settings.minFaan ? 'a chicken hand' : 'a dragon or wind meld';
   }
 
-  // The hand the coach is aiming for and what it is worth, for the Simple
-  // coach's one sentence (aimSentence). `route` is the bot's plan (routeOf),
-  // `c` the hand after the move, and `faan` what a ready hand wins for, when
-  // it is ready; otherwise the plan's own faan. Null without a plan.
-  function aimOf(v, route, c, faan) {
-    if (!route) return null;
-    var label = targetText(v, { route: route }, c, null).split(/[.:]/)[0].replace(/\s*\(\d+ faan\)/, '');
-    if (label === 'a dragon or wind meld') label = 'a chicken hand';
-    if (faan == null) faan = route.faan + (route.id === 'straights' ? v.flowerFaan || 0 : 0);
-    return { name: label, faan: Math.max(0, Math.floor(faan + 0.25)), min: v.game.settings.minFaan };
+  // What each hand pattern is worth on its own, by the plan's id: the scoring
+  // table's value, with nothing for flowers, honor melds or how the hand is won.
+  var LIMIT_FAAN = 13;
+  var PATTERN_FAAN = (function () {
+    var F = E.HKScoring.FAAN;
+    return {
+      half: F.halfFlush, full: F.fullFlush,
+      triplets: F.allTriplets, 'all-triplets': F.allTriplets, 'concealed-triplets': F.allConcealedTriplets,
+      pairs: F.sevenPairs, 'pairs-orphans': F.sevenPairs + F.mixedOrphans,
+      'pairs-honors': LIMIT_FAAN, 'pairs-terminals': LIMIT_FAAN,
+      orphans: LIMIT_FAAN, gates: LIMIT_FAAN, 'big-winds': LIMIT_FAAN,
+      winds: F.smallWinds, 'small-winds': F.smallWinds,
+      'small-dragons': F.smallDragons, 'big-dragons': F.greatDragons,
+      honors: F.allHonors, 'all-honors': F.allHonors, 'all-terminals': F.allTerminals,
+      'mixed-orphans': F.allTriplets + F.mixedOrphans,
+      runs: F.allSequences, straights: F.allSequences + F.concealed,
+      mixed: F.chicken,
+    };
+  })();
+
+  function patternFaan(route, label, total) {
+    var meld = /\((\d+) faan\)/.exec(label); // "a Red Dragon meld (1 faan)": the meld is the aim
+    if (meld) return Number(meld[1]);
+    if (route.id === 'terminals') return route.label === 'Mixed Orphans' ? PATTERN_FAAN['mixed-orphans'] : PATTERN_FAAN['all-terminals'];
+    return PATTERN_FAAN[route.id] !== undefined ? PATTERN_FAAN[route.id] : total;
   }
 
-  // "Go for All Triplets, about 4 faan." One sentence, the same at every
-  // level that says it (the Simple hint and feedback; a playback can reuse it).
+  // Bonus faan the hand already has, whatever it finishes as: seat flowers and
+  // seasons, and triplets of dragons, the seat wind or the round wind, shown or
+  // held. No Flowers isn't sure until the hand ends, so it isn't one. A pattern
+  // built of dragons has those triplets in its own value, and a hand of pairs or
+  // runs can't keep a triplet it holds.
+  function confirmedBonus(v, route, c) {
+    var ctx = v.ctx;
+    var bonus = ctx.flowers.length ? B.flowerPoints(ctx) : 0;
+    var noDragons = route.id === 'small-dragons' || route.id === 'big-dragons';
+    var worth = function (i) { return noDragons && i >= 31 ? 0 : honorWorth(v, i); };
+    ctx.melds.forEach(function (m) {
+      if (m.type !== 'chow') bonus += worth(E.tileIndex(m.tiles[0]));
+    });
+    if (!/^pairs|^straights$|^runs$|^orphans$/.test(route.id)) {
+      for (var i = 27; i < 34; i++) if (c[i] >= 3) bonus += worth(i);
+    }
+    return bonus;
+  }
+
+  // The hand the coach is aiming for and what it is worth, for the Simple
+  // coach's one sentence (aimSentence): `faan` is the pattern alone, `bonus`
+  // what the hand already has on top, and `total` what it wins for, which says
+  // whether it reaches the minimum. `route` is the bot's plan (routeOf), `c` the
+  // hand after the move, and `won` what a ready hand wins for, when it is ready;
+  // otherwise the plan's own faan. Null without a plan.
+  function aimOf(v, route, c, won) {
+    if (!route) return null;
+    var text = targetText(v, { route: route }, c, null).split(/[.:]/)[0];
+    var label = text.replace(/\s*\(\d+ faan\)/, '');
+    if (label === 'a dragon or wind meld') label = 'a chicken hand';
+    if (won == null) won = route.faan + (route.id === 'straights' ? v.flowerFaan || 0 : 0);
+    var total = Math.max(0, Math.floor(won + 0.25));
+    var faan = patternFaan(route, text, total);
+    var bonus = Math.max(0, Math.min(confirmedBonus(v, route, c), LIMIT_FAAN - faan));
+    return { name: label, faan: faan, bonus: bonus, total: total, min: v.game.settings.minFaan };
+  }
+
+  // "Go for All Triplets, about 3 faan +2 for bonuses." One sentence, the same
+  // at every level that says it (the Simple hint and feedback; a playback can
+  // reuse it). The faan is the pattern's alone; bonuses show once the hand has one.
   function aimSentence(aim) {
     if (!aim || !aim.name) return '';
-    var worth = aim.faan >= 13 ? 'the 13 faan limit' : 'about ' + aim.faan + ' faan';
-    var short = aim.min && aim.faan < aim.min ? ', short of the ' + aim.min + ' faan minimum' : '';
-    return 'Go for ' + aim.name + ', ' + worth + short + '.';
+    var limit = aim.faan >= LIMIT_FAAN;
+    var worth = limit ? 'the 13 faan limit' : 'about ' + aim.faan + ' faan';
+    var extra = !limit && aim.bonus > 0 ? ' +' + aim.bonus + ' for bonuses' : '';
+    var total = aim.total !== undefined ? aim.total : aim.faan + (aim.bonus || 0);
+    var short = aim.min && !limit && total < aim.min ? ', short of the ' + aim.min + ' faan minimum' : '';
+    return 'Go for ' + aim.name + ', ' + worth + extra + short + '.';
   }
 
   // The bigger hand the same tiles can still make, when it isn't already

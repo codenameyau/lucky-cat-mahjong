@@ -460,6 +460,29 @@ describe('coach: a player who ignores the discard', () => {
     assert.ok(!['b6', 'b7', 'b8', 'b9', 'ws', 'we'].includes(next.tile), next.tile);
   });
 
+  it('Simple counts only the pattern in its faan, and lumps what the hand already has as bonuses', () => {
+    const dragon = E.tileId(31);
+    const eastWind = E.tileId(27);
+    const bamboo = ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9', 'b9', 'b2'];
+    const said = (seat) => {
+      const simple = C.forStrategy(S.get('jorge-yau').bot, { detail: 'simple' });
+      return text(simple.turnHint(table({ seats: [seat] }), 0, { kongs: [] }));
+    };
+    // A shown dragon triplet and the seat's own flower: 2 bonus faan on Half Flush's 3.
+    assert.match(said({ hand: bamboo, melds: [meld('pung', dragon)], flowers: ['f1'] }), /Go for Half Flush in Bamboo, about 3 faan \+2 for bonuses\.$/);
+    // A seat-and-round wind triplet is worth 2 by itself.
+    assert.match(said({ hand: bamboo, melds: [meld('pung', eastWind)] }), /Go for Half Flush in Bamboo, about 3 faan \+2 for bonuses\.$/);
+    // Another seat's flower gives nothing, so there's no bonus to mention.
+    assert.match(said({ hand: bamboo, melds: [meld('pung', E.tileId(28))], flowers: ['f2'] }), /Go for Half Flush in Bamboo, about 3 faan\.$/);
+  });
+
+  it('says bonuses only when there are some, and not on a limit hand', () => {
+    assert.equal(C.aimSentence({ name: 'All Triplets', faan: 3, bonus: 1, total: 4, min: 3 }), 'Go for All Triplets, about 3 faan +1 for bonuses.');
+    assert.equal(C.aimSentence({ name: 'All Triplets', faan: 3, bonus: 0, total: 3, min: 3 }), 'Go for All Triplets, about 3 faan.');
+    assert.equal(C.aimSentence({ name: 'a chicken hand', faan: 0, bonus: 2, total: 2, min: 3 }), 'Go for a chicken hand, about 0 faan +2 for bonuses, short of the 3 faan minimum.');
+    assert.equal(C.aimSentence({ name: 'Thirteen Orphans', faan: 13, bonus: 0, total: 13, min: 3 }), 'Go for Thirteen Orphans, the 13 faan limit.');
+  });
+
   it('Simple says "go for" once, not in its tip and again in its aim sentence', () => {
     for (const id of ['jorge-yau', 'neural-cat', 'lucky-cat']) {
       const simple = C.forStrategy(S.get(id).bot, { detail: 'simple' });
@@ -473,7 +496,7 @@ describe('coach: a player who ignores the discard', () => {
       const said = [text(simple.turnHint(game, 0, { kongs: [] })), text(simple.claimHint(game, 0, E.claimOptions(game, 0, 'c1', 3, false)))];
       for (const s of said) {
         assert.equal((s.match(/going for|go for/gi) || []).length, 1, id + ': ' + s);
-        assert.match(s, /Go for Half Flush in Bamboo, about \d+ faan\.$/, id + ': ' + s);
+        assert.match(s, /Go for Half Flush in Bamboo, about \d+ faan( \+\d+ for bonuses)?\.$/, id + ': ' + s);
       }
     }
   });

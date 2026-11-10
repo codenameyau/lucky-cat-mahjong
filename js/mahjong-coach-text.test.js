@@ -89,7 +89,7 @@ describe('coach text', () => {
         if (!h.aim) continue;
         named++;
         const said = C.aimSentence(h.aim);
-        assert.match(said, /^Go for .+, (about \d+ faan|the 13 faan limit)(, short of the \d+ faan minimum)?\.$/, said);
+        assert.match(said, /^Go for .+, (about \d+ faan( \+\d+ for bonuses)?|the 13 faan limit)(, short of the \d+ faan minimum)?\.$/, said);
         assert.ok(w.endsWith(said), id + ' ' + seed + ': ' + w);
         assert.equal(h.tips.length, 1, 'Simple stays one tip');
         assert.ok((w.match(/going for|go for/gi) || []).length <= 1, id + ' ' + seed + ' says "go for" once: ' + w);
