@@ -360,14 +360,16 @@ test('the View playback sheet keeps the three most recent hands, newest first, a
   assert.deepEqual(api.uploadedPlayback(), { savedAt: null, file: file(8, true) });
 });
 
-test('a playback that reaches its last move shows its results, with Watch again and Close', () => {
+test('a playback that reaches its last move shows its results, with Back to game as the main button and Watch again', () => {
   const step = GAME_SRC.slice(GAME_SRC.indexOf('function showReviewStep'), GAME_SRC.indexOf('function stepReview'));
   assert.match(step, /reviewStep >= reviewMoves\(\) && reviewFinished\(\)/);
   assert.match(step, /showPlaybackResult\(\)/);
   assert.match(GAME_SRC, /ui\.overlay = \{ type: 'summary', result: res, hasPlayback: false, playback: true \}/);
   assert.match(GAME_SRC, /var res = E\.playbackResult\(settings\.review\)/);
   assert.match(GAME_SRC, /button\('Watch again'/);
-  assert.match(GAME_SRC, /button\('Close', cx/);
+  assert.match(GAME_SRC, /button\('Back to game', cx[^\n]*backToGame\(\); \}, 'primary', 'review-result-back'\)/);
+  assert.doesNotMatch(GAME_SRC, /review-result-close/);
+  assert.match(GAME_SRC, /if \(e\.key === 'Enter'\) \{ sound\.play\('select'\); backToGame\(\); e\.preventDefault\(\); \}/, 'Enter presses the main button');
 });
 
 test('auto-play (the wind badge, with the coach on) is for local and private-network addresses only', () => {

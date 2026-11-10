@@ -282,6 +282,7 @@
     'review-prev': 'play_playback_prev_click',
     'review-next': 'play_playback_next_click',
     'review-back': 'play_playback_back_click',
+    'review-result-back': 'play_playback_back_click',
     'review-list': 'play_playback_list_click',
     'review-list-center': 'play_playback_list_click',
   };
@@ -4808,18 +4809,18 @@
         text(o.extra, cx, ey, { size: fitFont(ctx, o.extra, w, 13, FONT_BODY, 'bold'), weight: 'bold', align: 'center', color: COLORS.goldLight });
       }
       if (o.playback) {
-        // A playback's results: Watch again (from the deal), and Close (back
-        // to the table at the last move).
+        // A playback's results: Back to game, the main button, and Watch again
+        // (from the deal).
         var firstP = regions.length;
         var byP = r.y + r.h - SUMMARY_PAD - 42;
         if (phoneStack) {
           var swP = Math.min(w, 280);
           button('Watch again', cx - swP / 2, byP - 58, swP, 42, function () { sound.play('select'); watchAgain(); }, 'white', 'review-again');
-          button('Close', cx - swP / 2, byP, swP, 42, function () { sound.play('select'); closeOverlay(); }, 'primary', 'review-result-close');
+          button('Back to game', cx - swP / 2, byP, swP, 42, function () { sound.play('select'); backToGame(); }, 'primary', 'review-result-back');
         } else {
           var bwP = Math.min(156, (w - 12) / 2);
           button('Watch again', cx - bwP - 6, byP, bwP, 42, function () { sound.play('select'); watchAgain(); }, 'white', 'review-again');
-          button('Close', cx + 6, byP, bwP, 42, function () { sound.play('select'); closeOverlay(); }, 'primary', 'review-result-close');
+          button('Back to game', cx + 6, byP, bwP, 42, function () { sound.play('select'); backToGame(); }, 'primary', 'review-result-back');
         }
         ctx.restore();
         regions.slice(firstP).forEach(function (g) {
@@ -5973,8 +5974,9 @@
       if (rulesOpen() || strategiesOpen() || resultsOpen() || playbacksOpen() || uploadErrorOpen() || coachSettingsOpen()) return; // the sheets handle their own keys (Escape closes them)
       if (settings.playback && !settings.review) return;
       if (settings.review && ui.overlay && ui.overlay.type === 'summary') {
-        // The playback's results: Enter or Escape puts them away; Space watches it again.
-        if (e.key === 'Enter' || e.key === 'Escape') { sound.play('select'); closeOverlay(); e.preventDefault(); }
+        // The playback's results: Enter goes back to the game, Escape puts them away, Space watches it again.
+        if (e.key === 'Enter') { sound.play('select'); backToGame(); e.preventDefault(); }
+        else if (e.key === 'Escape') { sound.play('select'); closeOverlay(); e.preventDefault(); }
         else if (e.key === ' ') { sound.play('select'); watchAgain(); e.preventDefault(); }
         return;
       }
