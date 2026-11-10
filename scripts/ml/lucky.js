@@ -495,7 +495,7 @@ function runJobs(base, deals, workers) {
   for (let k = 0, from = 0; from < deals; k++, from += nper) chunks.push(Object.assign({}, base, { from, to: Math.min(deals, from + nper), shard: k }));
   const natives = chunks.map(nativeJob);
   if (natives.every((x) => x)) {
-    const SIM = process.env.LCM_SIM || path.join(ROOT, 'native', 'build', 'lcm-sim');
+    const SIM = process.env.LCM_SIM || path.join(ROOT, 'native', 'build', 'lcm-sim' + (process.platform === 'win32' ? '.exe' : ''));
     const run = (args) => () => new Promise((resolve, reject) => {
       const child = spawn(SIM, args, { stdio: ['ignore', 'pipe', 'inherit'] });
       let out = '';

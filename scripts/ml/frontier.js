@@ -82,15 +82,29 @@ const LINEAGES = {
     // so a +5 arm passes). Rounds 1-3 (20,000 deals, 10,000-deal screens)
     // kept nothing: every screen was within noise.
     deals: 100000,
-    keep: 2,
+    // From round 10, 4 rounds of data, not 2: rounds 7-9's nine arms screened
+    // +2.4 +/- 0.9 on average, each refitting one small step to one round's
+    // fresh data, and the champion never moved (frontier plan, section 11).
+    keep: 4,
     screen: 40000,
     // a: round 3's best reader (LV3b: waits AUC 0.61), on 5x the data.
     // b: the same with the heads pulling a quarter as hard (aux 0.2 is a large push).
     // c: what hands scored (PG3, the best probe), heads at 0.05.
+    // From round 7: the teacher also learns from losses (probes LP1, LP2 on
+    // round 5's data: +2.5 and +2.3 on 40,000 deals, more hands won, fewer
+    // deal-ins, smaller wins; progress 200 with fold 4 cost points: -1.9).
+    // a: the recipe that screened best in rounds 4-6 (aux 0.05).
+    // b: that, with progress 100 and fold 2 (LP2).
+    // c: a gentler progress (50) with fold 2, so value plans aren't pushed off.
+    // From round 10 (rounds 7-9: by arm a +0.9, b +2.0, c +4.2 on the screens;
+    // b won more hands with smaller wins every round):
+    // a: c's recipe, the best on the screens, as the control.
+    // b: fold 2 alone, no progress, to test whether the smaller wins come from progress.
+    // c: c's recipe at half the learning rate for twice the epochs, a steadier step on more data.
     arms: [
-      { key: 'a', why: 'teacher + aux 0.2, lr 1e-3, 8 epochs (LV3b on 5x the data)', args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '8', '--aux', '0.2'] },
-      { key: 'b', why: 'teacher + aux 0.05, lr 1e-3, 8 epochs', args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '8', '--aux', '0.05'] },
-      { key: 'c', why: 'returns (pg, hidden-tile critic) + teacher 0.5 + aux 0.05, lr 3e-4, 6 epochs', args: ['--mode', 'pg', '--oracle-critic', '--lr', '3e-4', '--epochs', '6', '--aux', '0.05', '--teach', '0.5'] },
+      { key: 'a', why: 'teacher (progress 50, fold 2) + aux 0.05, lr 1e-3, 8 epochs', args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '8', '--aux', '0.05', '--progress', '50', '--fold', '2'] },
+      { key: 'b', why: 'teacher (fold 2, no progress) + aux 0.05, lr 1e-3, 8 epochs', args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '8', '--aux', '0.05', '--fold', '2'] },
+      { key: 'c', why: 'teacher (progress 50, fold 2) + aux 0.05, lr 5e-4, 16 epochs', args: ['--mode', 'oracle', '--lr', '5e-4', '--epochs', '16', '--aux', '0.05', '--progress', '50', '--fold', '2'] },
     ],
   },
   sphinx: {
@@ -116,13 +130,38 @@ const LINEAGES = {
     deals: 100000,
     keep: 2,
     screen: 40000,
-    // a: v1's recipe, at the table. b: defence first, no imitation of wins.
-    // c: imitation down to 0.3 with a sharper teacher.
+    // Every arm learns from losses as well as wins: the teacher pushes down a
+    // discard that would deal in (harder the worse the hand's prospects:
+    // --fold) and one that sets its own hand back (--progress), which from
+    // random play is how to build a hand at all.
+    // Rounds 1-3 imitated its own wins (a, c: -41 to -54 points a hand, racing
+    // for cheap hands at any risk) or not (b: -38.2, -7.1, -10.3). Rounds 4-6
+    // built every arm on b, and every arm lost to random play (-6.7 to -33.3):
+    // from random play the teacher mostly taught folding.
+    // From round 7, the maintainer's call: more aggressive than defensive. No
+    // --fold; a softer deal-in teacher (danger-tau 300, not 100: an obvious
+    // deal-in still costs, a merely risky discard much less); --progress pushes
+    // every discard toward ready; and wins are imitated by their points, so a
+    // big win teaches more than a cheap one.
+    // Rounds 7-9 (aggressive): every arm won 2-6x as often as random play.
+    // Imitating wins, even by points (a, c), dealt in about 4 points more and
+    // won tiny hands (-35 to -43 points a hand). Offence alone (b) was best
+    // (-17.5, -27.7, -26.2), but its deal-ins rose to 13.3% at danger-tau 300.
+    // From round 10: offence alone, no fold, no imitation, with the deal-in
+    // teacher between the old 100 and 300.
+    // Rounds 10-12: a (danger-tau 150, progress 200) -25.0, -26.3, -23.5;
+    // b (200, 200) -23.5, -12.7, -22.5; c (200, progress 100) -11.2, -26.2,
+    // -4.1 +/- 2.9, dealing in less than random play twice. The gap left is
+    // hand value: about 4 faan a win against sp0's 6.7.
+    // From round 13, around c (the maintainer's call):
+    // a: c itself, the control. b: an even gentler push (progress 50), so
+    // value plans are pushed off less. c: c with the deal-in teacher a little
+    // firmer (danger-tau 150), since c's best rounds were its lowest deal-ins.
     arms: [
-      { key: 'a', why: 'imitate its wins + teacher + aux 1', args: ['--imitate-wins', '1', '--aux', '1'] },
-      { key: 'b', why: 'teacher + aux 1 (defence first: no imitation)', args: ['--aux', '1'] },
-      { key: 'c', why: 'imitate 0.3 + sharper teacher (danger-tau 50) + aux 1', args: ['--imitate-wins', '0.3', '--aux', '1', '--danger-tau', '50'] },
-    ].map((x) => Object.assign(x, { args: ['--mode', 'oracle', '--lr', '1e-3', '--epochs', '6'].concat(x.args) })),
+      { key: 'a', why: 'gentle offence: progress 100, no fold, danger-tau 200, no imitation, aux 1', args: ['--lr', '1e-3', '--epochs', '6', '--aux', '1', '--progress', '100', '--danger-tau', '200'] },
+      { key: 'b', why: 'gentler offence: progress 50, no fold, danger-tau 200, no imitation, aux 1', args: ['--lr', '1e-3', '--epochs', '6', '--aux', '1', '--progress', '50', '--danger-tau', '200'] },
+      { key: 'c', why: 'gentle offence, firmer defence: progress 100, no fold, danger-tau 150, no imitation, aux 1', args: ['--lr', '1e-3', '--epochs', '6', '--aux', '1', '--progress', '100', '--danger-tau', '150'] },
+    ].map((x) => Object.assign(x, { args: ['--mode', 'oracle'].concat(x.args) })),
   },
 };
 
@@ -154,7 +193,7 @@ async function main(a) {
   const save = () => fs.writeFileSync(STATE, JSON.stringify(state, null, 2) + '\n');
   save();
   const workers = a.workers ? ['--workers', String(a.workers)] : [];
-  const py = path.join(ROOT, 'ml', '.venv', 'bin', 'python');
+  const py = require('./python').PYTHON;
   const rounds = parseInt(a.rounds || 1, 10);
   for (let k = 0; k < rounds; k++) {
     state.round++;

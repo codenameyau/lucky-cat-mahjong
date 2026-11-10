@@ -1479,6 +1479,15 @@
     }).join('').trim();
   }
 
+  // Simple leaves out pivots, yours ("Pivoting from Half Flush to Full Flush: ...")
+  // and an opponent's ("Mei has pivoted out of Bamboo ...", "... has started keeping ...").
+  function withoutPivots(text) {
+    var parts = String(text || '').match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [];
+    return parts.filter(function (p) {
+      return !/^\s*Pivoting from |\bhas pivoted out of\b|\bhas started keeping\b/.test(plain(p));
+    }).join('').trim();
+  }
+
   function sentenceOf(reasons, lead) {
     return lead + 'it ' + reasons.join(' and ') + '.';
   }
@@ -1506,7 +1515,7 @@
       why = aimSentence(hint.aim);
     } else {
       var clear = hint.modelWhyClear || [];
-      why = clip(tips[0] || '', SIMPLE_WHY);
+      why = clip(withoutPivots(tips[0]), SIMPLE_WHY);
       if (clear.length) why = (why + ' ' + sentenceOf(clear, 'I like it because ')).trim();
     }
     out.tips = why ? [why] : [];
@@ -1541,7 +1550,7 @@
       }).join('').trim();
       why = (pick + ' ' + aimSentence(hint.aim)).trim();
     } else {
-      why = clip(tips[0] || '', SIMPLE_FEEDBACK);
+      why = clip(withoutPivots(tips[0]), SIMPLE_FEEDBACK);
       if (reasons.length) why = (why + ' ' + sentenceOf(reasons, 'I like it because ')).trim();
     }
     out.tips = why ? [why] : [];

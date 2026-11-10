@@ -18,6 +18,10 @@
 #include "generate.h"
 #include <chrono>
 #include <cstdio>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
 #include <cstdlib>
 #include <map>
 #include <sstream>
@@ -79,6 +83,12 @@ static std::unique_ptr<Agent> makeAgentChecked(const std::string& id, bool check
 }
 
 int main(int argc, char** argv) {
+#ifdef _WIN32
+  // Windows opens stdout in text mode, which turns each LF into CR LF: the
+  // traces and JSON the scripts read must be byte for byte the JS's.
+  _setmode(_fileno(stdout), _O_BINARY);
+  _setmode(_fileno(stdin), _O_BINARY);
+#endif
   std::string cmd;
   auto a = parseArgs(argc, argv, cmd);
   try {

@@ -204,7 +204,11 @@ int runGenerate(const GenerateJob& job, const AgentFactory& make) {
               st.deals, st.learnerSeats, st.learnerWins, st.wins, st.winDiscards, st.winFaan, st.dealIns, st.samples, st.negatives, st.learnerPoints, st.learnerWinPoints);
   bool firstO = true;
   for (auto& kv : st.byOpponent) {
-    std::printf("%s\"%s\":{\"seats\":%ld,\"wins\":%ld}", firstO ? "" : ",", kv.first.c_str(), kv.second.first, kv.second.second);
+    // The key can hold a model's path, and a Windows path's backslashes must
+    // be escaped for JSON.parse.
+    std::string key;
+    for (char c : kv.first) { if (c == '\\' || c == '"') key += '\\'; key += c; }
+    std::printf("%s\"%s\":{\"seats\":%ld,\"wins\":%ld}", firstO ? "" : ",", key.c_str(), kv.second.first, kv.second.second);
     firstO = false;
   }
   std::printf("}}\n");
