@@ -42,6 +42,9 @@
   // opponent ready (3), the tile thrown deals in now (1), each opponent's waits (102).
   var R_WIN = OUTPUTS, R_READY = OUTPUTS + 24, R_DEAL = R_READY + 3, READER_OUTPUTS = R_DEAL + 1 + 102;
   var READ_SIZE = 16;
+  // The hands of the read, in its order (scripts/ml/heads.js HANDS), as the coach names them.
+  var READ_HANDS = ['a standard hand', 'All Sequences', 'Half Flush', 'Full Flush', 'All Triplets', 'Concealed Triplets',
+    'Seven Pairs', 'Thirteen Orphans', 'Nine Gates', 'a hand of 1s, 9s and honors', 'Three Dragons', 'Four Winds'];
   function sigmoid(z) { return 1 / (1 + Math.exp(-z)); }
   // Read version 1: each opponent ready, the tile thrown deals in now, and the
   // hand this seat would win with, as chances.
@@ -141,6 +144,15 @@
       meta: weights.meta || {},
       featureVersion: weights.featureVersion,
       stacked: !!reader,
+      // A stacked model's read of a position, for the coach: each opponent ready
+      // (from the seat's right), the tile thrown wins someone the hand now, and
+      // the chance of each hand (READ_HANDS) as the one it wins with. Null for a plain model.
+      read: function (x) {
+        if (!reader) return null;
+        var r = new Float32Array(READ_SIZE);
+        readFeatures(reader(x), r, 0);
+        return { ready: [r[0], r[1], r[2]], dealNow: r[3], hand: Array.prototype.slice.call(r, 4, 16) };
+      },
       forward: forward,
       predict: predict,
       ev: function (x) { return summarize(predict(x)); },
@@ -259,6 +271,7 @@
     FAAN: FAAN,
     OUTPUTS: OUTPUTS,
     READ_SIZE: READ_SIZE,
+    READ_HANDS: READ_HANDS,
     READER_OUTPUTS: READER_OUTPUTS,
     readFeatures: readFeatures,
     HIDDEN: HIDDEN,

@@ -24,6 +24,8 @@ const LN = require('../../js/mahjong-lucky-cat-net.js');
 const TARGETS = {
   'neural-cat': { file: 'mahjong-ml-weights.js', global: 'MahjongMLWeights', name: "Neural Cat's", model: M, by: 'scripts/ml/ship.js', release: 'NC' },
   'only-orphans': { file: 'mahjong-only-orphans-weights.js', global: 'MahjongOnlyOrphansWeights', name: "Only Orphans'", model: M, by: 'scripts/ml/ship.js' },
+  // The frontier model (docs/machine-learning/frontier-plan.md): a stacked Neural Cat, shipped beside Neural Cat.
+  'frontier-cat': { file: 'mahjong-frontier-weights.js', global: 'MahjongFrontierWeights', name: "Frontier Cat's", model: M, by: 'scripts/ml/ship.js', release: 'FC' },
   'lucky-cat': { file: 'mahjong-lucky-cat-weights.js', global: 'MahjongLuckyCatWeights', name: "Lucky Cat's", model: LN, by: 'scripts/ml/ship.js', release: 'lc' },
 };
 
@@ -43,7 +45,9 @@ function ship(file, target) {
   const weights = JSON.parse(fs.readFileSync(file, 'utf8'));
   t.model.createModel(weights); // refuses weights for other features
   // An oracle model (Suphx's oracle guiding) reads the hidden tiles: training only.
-  if ((weights.meta || {}).oracle || weights.layers[0].cols !== weights.featureSize) {
+  // A stacked model's move network reads the features and its reader's read (js/mahjong-ml-model.js).
+  const cols = weights.featureSize + (weights.reader ? M.READ_SIZE : 0);
+  if ((weights.meta || {}).oracle || weights.layers[0].cols !== cols) {
     throw new Error(file + ' reads hidden tiles (an oracle model): train it on to delta 0 and write it with --public before shipping');
   }
   const m = weights.meta = weights.meta || {};

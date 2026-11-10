@@ -113,33 +113,9 @@ const readJson = (f, dflt) => { try { return JSON.parse(fs.readFileSync(f, 'utf8
 const writeJson = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 1) + '\n'); };
 const rel = (f) => path.relative(ROOT, f);
 
-// A head to head on the native simulator at the game's table: the pair is
-// (model less champion) per deal, as bench.js compare reports it.
-const SIM = path.join(ROOT, 'native', 'build', 'lcm-sim' + (process.platform === 'win32' ? '.exe' : ''));
+// A screen: the model against the champion at the game's table (scripts/ml/h2h.js).
 function screen(file, champ, seed, deals, workers) {
-  const N = require('./native.js');
-  const ids = ['nc:' + file, 'nc:' + champ, 'neural-cat', 'jorge-yau', 'lc:js/mahjong-lucky-cat-weights.js'].map((id) => N.nativeId(id));
-  if (ids.some((x) => !x)) throw new Error("frontier: a player can't run on the native simulator (make -C native; node scripts/ml/native.js parity, then pin)");
-  const { spawn } = require('node:child_process');
-  const step = Math.ceil(deals / workers), jobs = [];
-  for (let f = 0; f < deals; f += step) {
-    jobs.push(new Promise((res, rej) => {
-      const p = spawn(SIM, ['play', '--models', ids[0] + ',' + ids[1], '--table', ids.slice(2).join(','),
-        '--seed', String(seed), '--from', String(f), '--to', String(Math.min(deals, f + step))], { cwd: ROOT });
-      let o = '', e = '';
-      p.stdout.on('data', (d) => (o += d)); p.stderr.on('data', (d) => (e += d));
-      p.on('exit', (c) => (c ? rej(new Error('lcm-sim play: ' + e)) : res(JSON.parse(o))));
-    }));
-  }
-  return Promise.all(jobs).then((outs) => {
-    const sum = (k, m) => outs.reduce((a, o) => a + o.out[m][k], 0);
-    const n = outs.reduce((a, o) => a + o.pair.n, 0), ps = outs.reduce((a, o) => a + o.pair.sum, 0), pq = outs.reduce((a, o) => a + o.pair.sq, 0);
-    const mean = ps / n;
-    const model = (m) => ({ points: sum('points', m) / sum('seats', m), wins: sum('wins', m) / sum('seats', m), dealIns: sum('dealIns', m) / sum('seats', m),
-      averageWin: sum('winPoints', m) / Math.max(1, sum('wins', m)), averageFaan: sum('winFaan', m) / Math.max(1, sum('wins', m)) });
-    return { seed, deals: n, table: ids.slice(2), simulator: 'native-fast', models: [model(0), model(1)],
-      gap: { points: mean, standardError: Math.sqrt(Math.max(0, pq / n - mean * mean) / n), deals: n } };
-  });
+  return require('./h2h.js').headToHead('nc:' + file, 'nc:' + champ, null, seed, deals, workers);
 }
 
 async function main() {

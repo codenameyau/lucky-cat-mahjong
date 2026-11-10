@@ -26,10 +26,18 @@ Written 2026-11-09. This is the plan for the frontier model: one network that re
 
 | Step ([Making it strong](#making-it-strong)) | State |
 | --- | --- |
-| 1 Start from the champion | Neural Cat's lab champion is the starting point |
-| 2 The hand head and the table heads | **Built** (2026-11-09). The hand head names the hand a seat wins with 74% of the time, the rules 64% ([Learnings](#step-2-the-hand-head-and-the-table-heads-2026-11-09)). Round 1 screened: the heads neither help nor hurt play yet ([Learnings](#round-1-the-heads-dont-change-play-yet-2026-11-10)) |
-| 3 The read as an input to the move head | **Next** |
-| 4 to 11 | Not started |
+| **Shipped** | **Frontier Cat FC1** (2026-11-10): the reader, replayed labels, every-seat data. +15.5 ± 2.8 points a hand over the game's NC8, +4.5 ± 2.7 over N14c (shipped beside it as NC9), on 100,000 deals each ([frontier report](frontier-report.md)). Not yet through the bar |
+| 1 Start from the champion | Every model starts from N14c, the lab's champion |
+| 2 The hand head and the table heads | **Built** (2026-11-09). The hand head names the hand a seat wins with 74% of the time, the rules 64% ([Learnings](#step-2-the-hand-head-and-the-table-heads-2026-11-09)) |
+| 3 The read as an input to the move head | **Built** (2026-11-10): the stacked model, in the JS, the C++, the converter and the trainer. Adds nothing measurable on its own ([round 2](#round-2-the-read-as-an-input-step-3-adds-nothing-measurable-2026-11-10)) |
+| 4 A wider choice | **Tested** (2026-11-10): best 10 and every discard, neither better than the best 6 ([Learnings](#step-4-a-wider-choice-gains-nothing-2026-11-10)) |
+| 5 Replayed labels | **Built** (2026-11-10): better predictions, not yet better play on their own ([round 3](#round-3-replayed-labels-step-5-predict-better-and-dont-play-better-2026-11-10)) |
+| 6 Explore in the data | In the data already: the champion explores (temperature 150, a random discard 5% of the time) |
+| 7 A mixed table | In the data already: earlier champions, Jorge Yau and Lucky Cat. Recording every seat, not only the learner's, turned out to matter most ([every seat](#the-read-and-the-replays-on-data-that-records-every-seat-2026-11-10)); the native generator still records the learner's only |
+| 8 Claims and kongs by the same value | As Neural Cat already does (claim margin 0) |
+| 9 Train with the check on | Always: the data is played with the contradiction check |
+| 10 Seeds | Two or three a recipe, judged on their mean |
+| 11 A bigger network | Not run: nothing measured points at size |
 
 This table is a status table only. What each step taught goes in [Learnings](#learnings).
 
@@ -218,3 +226,59 @@ Nine models from N14c on fm-1, three recipes of three seeds: a (heads at loss we
   - *Evidence:* a model costs about 2.5 minutes at stage 2 and 5.5 at stage 3 on 8 cores; dropping 3 of the 9 saved about 20 minutes of a 72-minute round. 4,000-deal stages are ±14 points, so the leads at stage 1 (up to +22.7) were all luck.
   - *Changed:* a recipe was dropped when any one seed fell behind. With margins of ±3.8 a seed falls behind by chance about one time in six, so that rule drops good recipes. A recipe is now judged on the mean of its seeds, every seed played through.
 - **The frozen benchmark can't run natively any more.** Its players are game 0.57.9; the native port has moved on (the contradiction check), so `bench.js compare` falls back to JS, which takes hours a screen. *Changed:* the round's screens play at the game's table on the native simulator; the frozen table stays for the bar (`bench.js judge`).
+
+### Round 3: replayed labels (step 5) predict better and don't play better (2026-11-10)
+
+fm-3: 100,000 deals on the native simulator, a quarter of the champion's recorded discards replayed 8 times after the hand with the wall shuffled (336,000 replayed rows of 1,341,000). Three recipes of two seeds from N14c, on fm-2 and fm-3, lr 1e-4, up to 4 epochs: p (replayed labels), q (replayed labels and the reader), c (the same rows, real endings only).
+
+- **Replays built, and the first version was biased.**
+  - *Evidence (861 replayed rows, 8 replays each):* shuffling the other players' hands as well as the wall gave them random hands, which won far less than the hands they held: the replays dealt in 4.9% of the time against 12.2% in the real endings of the same rows, and drew 61% against 46%. Shuffling only the wall (every hand kept as it was) brought them in line: 9.7% deal-ins against 12.5%, 41.9% draws against 46.6%; the replays' learner plays its best, without exploring, so it deals in a little less.
+  - The replays carry real information about the ending: they give the real outcome 41% of their weight on average, against 29% from the base rates.
+  - *Changed:* replays shuffle the wall only. The hidden hands are used for labels only, never as inputs: a target conditioned on more than the seat can see is still an unbiased target for what it can see, with less noise.
+- **The labels help the network predict, as intended.**
+  - *Evidence (validation loss on the real endings of held-out deals):* p 3.0641 and 3.0642, q 3.0636 and 3.0638, c 3.0656 and 3.0658. The gain is 5 times the spread between seeds, and the reader added a little more on top of the replays (the first time it helped anything).
+  - Every model kept improving through 4 epochs at lr 1e-4, where at 3e-4 on one round they were best after 1.
+- **But they don't play better.**
+  - *Evidence (points a hand against N14c, each seat at stage 3 over 60,000 deals, the others dropped at 20,000):* p −6.2 and −6.2 (dropped); q −8.1 (dropped), −1.7 ± 3.6; c −2.1 ± 3.5, −10.9 (dropped). By recipe: p −6.2 ± 4.4, q −4.9 ± 3.6, c −6.5 ± 3.6.
+- **Why, as far as the evidence goes: the data, not the labels.** No model trained on frontier data has beaten N14c, and as a group they were behind it, the controls as much as anything (rounds 1 to 3, 24 models; by recipe from +0.5 to −26.0 points a hand). Frontier data records only the champion's own seats, and only the discard it chose. The network is asked to score the best 6 options, most of which the champion doesn't choose, and on those it has seen little. N14c's data recorded every seat at the table (Jorge Yau's, Lucky Cat's, earlier models'), so it saw the positions other choices lead to. Recording only the learner's seats was meant to prune the data; it pruned what the value needs.
+  - *Changed:* the next test trains on data that records every seat (below), and the native generator should record every seat, as the JS generator's default does.
+
+### The read and the replays on data that records every seat (2026-11-10)
+
+The lab's last two data sets (lab-15 and lab-16, 1.1 million positions from every seat, played by N14c's lab after N14c was trained, so new to it), each recipe two seeds from N14c at lr 1e-4: s (the reader), c (the control), q (the reader, with fm-3's replayed rows added).
+
+- **The read adds nothing here either.**
+  - *Evidence (validation loss on lab-15 and lab-16's held-out deals):* s 2.8268 and 2.8265, c 2.8269 and 2.8267. q 2.9738 is on a different validation set (fm-3's rows included) and doesn't compare.
+- **Every model is level with N14c, where every frontier-data model was behind.**
+  - *Evidence (points a hand against N14c, 20,000 fresh deals each at the game's table):* s +1.3 and −4.7; c +2.9 and −3.2; q −1.5 and +0.1 (each ± 5.4 to 6.0). By recipe: s −1.7, c −0.2, q −0.7, each about ± 3.9.
+  - They deal in less than the frontier-data models did (11.2 to 11.7% against N14c's 11.6%, where frontier data gave 11.8 to 12.6%), and they win as often (17.4 to 17.8% against 17.5%).
+  - With fm-3's replayed rows in (q), the wins are bigger (6.0 faan against 5.76) for the same hands won.
+- *Changed:* the data hypothesis holds: recording every seat keeps the value from drifting. FLq1 (the reader, replayed labels, every-seat data) ships as Frontier Cat FC1, for play and review, as the whole new architecture in one model ([frontier report](frontier-report.md)).
+- *Open:* nothing tried overnight beats N14c. What the evidence points to next is in [the report](frontier-report.md#what-comes-next).
+
+### Step 4: a wider choice gains nothing (2026-11-10)
+
+N14c, the champion, scores Jorge Yau's best 6 discards (its `meta.play.topK`). The same weights scoring his best 10, and every legal discard, each against N14c on 40,000 fresh deals at the game's table (the native simulator):
+
+- **Neither is better, and both deal in more.**
+  - *Evidence:* best 10: +2.2 ± 3.5 points a hand; hands won 16.8% against 17.5%, deal-ins 12.8% against 11.7%, average win 976 against 897 points. Every discard: +0.8 ± 3.6; hands won 17.6% against 17.5%, deal-ins 12.9% against 11.7%, average win 925 against 897.
+  - A wider choice lets a noisy value pick a tile the rules would have kept back, and the tiles it picks are riskier. This is what the first Neural Cat found choosing among every discard (3.5% of hands won, 12% deal-ins), now much smaller because the values are better.
+- *Changed:* the choice stays at the best 6. The plan put this step after the labels get less noisy (step 5); it is worth trying again on a model trained on replayed labels.
+
+### Round 2: the read as an input (step 3) adds nothing measurable (2026-11-10)
+
+The stacked model: the reader (FM1b0's heads, frozen) reads the 568 features and gives 16 numbers (each opponent ready, the tile thrown deals in now, the hand it wins with), and the move network reads the 568 and the 16. It starts as N14c with zero weights on the 16, so it plays exactly as N14c until training moves them. Trained on fm-2 alone (200,000 fresh deals), so the reader's read of those rows is as honest as in play (it learned from fm-1). Three recipes of three seeds: s (stacked, lr 3e-4), t (stacked, lr 1e-3), c (the same rows, no reader).
+
+- **The read doesn't help the move network predict how the hand ends.**
+  - *Evidence (validation loss on fm-2's held-out deals):* stacked 3.0712 to 3.0718 (lr 3e-4), control 3.0715 to 3.0723. Outcome accuracy 52.1 to 52.2% in both. The difference is a twentieth of the spread between seeds.
+  - The likely reason is information, not training: the read is a function of the same 568 features, and N14c's body already extracts what they say about threats (its features include a hand-made threat read for each opponent). A second network's read can only help if it learned something the move network can't learn from the endings, and at this data size it doesn't.
+- **And it doesn't change play.**
+  - *Evidence (stage 1, 4,000 deals):* every model behind N14c, the control as much as the stacked ones: s −9.9, −20.0, −18.4; t −26.6, −17.5, −34.0; c −6.3, −18.2, −1.7. The best of each over 60,000 deals: stacked FM2s0 −3.9 ± 3.6, control FM2c2 −4.5 ± 3.7. By recipe (every seed, each at the stage it was dropped): s −14.1 ± 6.9, t −26.0 ± 8.8, c −10.0 ± 5.4.
+  - The faster rate (t) was worst in every seed.
+- **Training on one round of the champion's own seats moves it backwards.**
+  - *Evidence:* every model's best validation loss was at epoch 1 (later epochs were worse), and every one played worse than N14c, which learned from 12 rounds of every seat. Round 1 showed the same drift (fewer, bigger wins) at a smaller cost.
+  - *Changed:* the next recipes train on the whole window (3 rounds) at a gentler rate (1e-4).
+- **A change to a pinned file stops every native run that starts after it.**
+  - *Evidence:* adding the coach's read to `js/mahjong-ml.js` unpinned it, and the round's next screen refused to run (the native port no longer provably matched the JS). The parity check passed unchanged and the pin was renewed; the round resumed from its cached stages.
+  - *Changed:* pin again (after the parity check) in the same step as any edit to a pinned file while rounds run.
+

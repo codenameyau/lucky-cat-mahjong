@@ -21,6 +21,7 @@ Guides for working on Lucky Cat Mahjong. The [project README](../README.md) cove
 - [Fair play](machine-learning/fair-play.md): how the models are kept from seeing hidden tiles
 - [Hugging Face](machine-learning/hugging-face.md): the public models and data, and uploading them
 - [Iterations](machine-learning/iterations.md): how Neural Cat and Lucky Cat evolved, model by model, and what each step taught
+- [Frontier report](machine-learning/frontier-report.md): the stacked evaluation architecture (Frontier Cat) against the previous one (Neural Cat), head to head, with what each step added
 - [Frontier plan](machine-learning/frontier-plan.md): the frontier model, one network with three heads grown from Neural Cat, the steps to make it strong, and its Learnings
 - [Suphx plan](machine-learning/suphx-plan.md): the earlier frontier plan, cancelled on 2026-11-09 as a failed experiment, and its Learnings
 - [Benchmark](machine-learning/benchmark.md): the frozen table, the deck, the Table Score and the bar for a next generation
