@@ -36,9 +36,7 @@ function targetOf(hand, extra) {
 
 describe('strategy registry', () => {
   it('lists every strategy, with neural-cat as the coach default', () => {
-    assert.deepEqual(S.ids(), ['jorge-yau', 'neural-cat', 'frontier-cat', 'lucky-cat', 'only-orphans']);
-    // Frontier Cat is Neural Cat with a stacked model: a reader, then the move network.
-    assert.equal(S.get('frontier-cat').bot.model.stacked, true);
+    assert.deepEqual(S.ids(), ['jorge-yau', 'neural-cat', 'lucky-cat', 'only-orphans']);
     assert.equal(S.DEFAULT_COACH, 'neural-cat');
     // Lucky Cat is its network once weights ship; the classic rules stay a lab strategy.
     assert.equal(S.get('lucky-cat').bot.learned, true);
@@ -714,7 +712,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.58.0');
+    assert.equal(E.GAME_VERSION, '0.59.0');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);

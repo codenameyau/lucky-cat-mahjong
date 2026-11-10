@@ -38,4 +38,14 @@ struct NcGenerateJob {
 
 int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make);
 
+// lcm-sim generate-lcv: Lucky Cat's value data (js/mahjong-lucky-cat-value.js), native
+// only. The learner is Lucky Cat (job.weights: <policy.lcmw>[+<value.lcmw>]), playing
+// by its shares at job.temperature (no value), or by its value with job.epsilon. At a
+// share of every seat's decisions (job.sample): the value's features of the position the
+// move leaves, how the hand ended (shard-N.labels, as Neural Cat's), and the table's
+// hidden-tile labels (shard-N.aux, no rules' hand); and at job.optionShare of them, the
+// learner's top job.options moves by share (or every claim move), each played on
+// job.optionReplays times (shard-N.options, shard-N.optlabels, as generate-nc).
+int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make);
+
 }  // namespace lcm

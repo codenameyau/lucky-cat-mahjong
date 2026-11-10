@@ -1,5 +1,6 @@
 #include "generate_nc.h"
 #include "neural_cat.h"
+#include "lucky_cat.h"
 #include "shanten.h"
 #include <chrono>
 #include <cmath>
@@ -493,6 +494,229 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
   long ms = long(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count());
   std::printf("{\"index\":%d,\"deals\":%ld,\"hands\":%ld,\"samples\":%ld,\"replayed\":%ld,\"optionRows\":%ld,\"optionGroups\":%ld,\"outcomes\":[%ld,%ld,%ld,%ld,%ld,%ld],\"ms\":%ld}\n",
               job.shard, job.deals, hands, samples, replayed, optionRows, optionGroups, outcomes[0], outcomes[1], outcomes[2], outcomes[3], outcomes[4], outcomes[5], ms);
+  return 0;
+}
+
+// ---- Lucky Cat's value data (generate-lcv) ------------------------------------
+
+struct LcRow { uint8_t seat, strategy; int turn, wallLeft; std::vector<float> x; uint8_t aux[AUX_BYTES]; };
+
+struct LcvRecorder : Agent {
+  LuckyCat* lc;
+  Agent* inner = nullptr;  // the seat's own strategy; null: the learner
+  uint8_t strategy = 0;
+  Rng* rng; Rng* replayRng;
+  double sample = 0.12, optionShare = 0; int options = 4;
+  std::vector<LcRow>* rows; std::vector<OptGroup>* groups;
+
+  LcRow& push(const Game& g, int seat, const lucky::After& a, int thrown) {
+    rows->emplace_back();
+    LcRow& r = rows->back();
+    r.seat = uint8_t(seat); r.strategy = strategy;
+    r.turn = int(g.hand.seats[seat].discards.size());
+    r.wallLeft = int(g.hand.wall.size());
+    r.x.resize(lucky::VALUE_SIZE);
+    lucky::valueFeatures(g, seat, a, r.x.data());
+    tableLabels(g, seat, thrown, r.aux);
+    r.aux[0] = NONE;  // no rules' hand: Lucky Cat reads none
+    return r;
+  }
+  static std::vector<int> byShare(const std::vector<Move>& m) {
+    std::vector<int> o(m.size());
+    for (size_t j = 0; j < m.size(); j++) o[j] = int(j);
+    std::sort(o.begin(), o.end(), [&](int a, int b) { return m[a].p != m[b].p ? m[a].p > m[b].p : a < b; });
+    return o;
+  }
+  Opt turnOpt(const Game& g, int seat, const Decision& d) {
+    Opt op; op.kind = d.type == A_KONG ? O_KONG : O_DISCARD; op.first = d;
+    op.x.resize(lucky::VALUE_SIZE);
+    lucky::valueFeatures(g, seat, lucky::afterTurn(g, seat, d), op.x.data());
+    return op;
+  }
+  bool claimOpt(const OptGroup& G, const Game& g, int seat, const ClaimOptions& o, const Decision& d, Opt& op) {
+    op.first = d; op.x.resize(lucky::VALUE_SIZE);
+    lucky::After a = lucky::afterCall(g, seat, o, d);
+    if (d.type == A_PASS || d.type == A_KONG) { op.kind = d.type == A_PASS ? O_PASS : O_CALL_KONG; lucky::valueFeatures(g, seat, a, op.x.data()); return true; }
+    if (d.type != A_PUNG && d.type != A_CHOW) return false;
+    op.kind = d.type == A_PUNG ? O_PUNG : O_CHOW;
+    // The call on a copy, then the learner's discard after it; the row is that discard's.
+    Game p = *G.snap; cloneMemos(p);
+    applyClaim(p, seat, d);
+    p.hand.turn = seat;
+    TurnOptions to = turnOptions(p, seat);
+    Decision after = lc->turn(p, seat, to);
+    if (after.type != A_DISCARD) return false;
+    lucky::After b = a;
+    for (int t = int(b.hand.size()) - 1; t >= 0; t--) if (b.hand[t] == after.tile) { b.hand.erase(b.hand.begin() + t); break; }
+    b.thrown = after.tile; b.kind = 0;
+    lucky::valueFeatures(g, seat, b, op.x.data());
+    op.hasThen = true; op.then = after;
+    return true;
+  }
+  void settle(OptGroup& G, const Decision& taken, const std::function<bool(Opt&)>& make) {
+    for (size_t k = 0; k < G.opts.size(); k++) if (sameMove(G.opts[k].first, taken)) { G.chosen = int(k); break; }
+    if (G.chosen < 0) { Opt op; if (make(op)) { G.opts.push_back(std::move(op)); G.chosen = int(G.opts.size()) - 1; } }
+    if (G.chosen < 0 || G.opts.size() < 2) groups->pop_back();
+  }
+
+  Decision turn(Game& g, int seat, const TurnOptions& o) override {
+    bool keep = !o.hasWin && (*rng)() < sample;
+    OptGroup* grp = nullptr;
+    if (keep && optionShare > 0 && (*replayRng)() < optionShare) {
+      groups->emplace_back();
+      OptGroup& G = groups->back();
+      G.seat = uint8_t(seat); G.strategy = strategy; G.atClaim = false;
+      G.melds = int(g.hand.seats[seat].melds.size());
+      G.snap = snapshot(g);
+      auto moves = lc->turnShares(g, seat, o);
+      auto order = byShare(moves);
+      for (int k = 0; k < int(order.size()) && k < options; k++) G.opts.push_back(turnOpt(g, seat, moves[order[k]].decision));
+      grp = &G;
+    }
+    Decision a = inner ? inner->turn(g, seat, o) : lc->turn(g, seat, o);
+    if (keep && (a.type == A_DISCARD || a.type == A_KONG)) push(g, seat, lucky::afterTurn(g, seat, a), a.type == A_DISCARD ? a.tile : -1);
+    if (grp) settle(*grp, a, [&](Opt& op) { if (a.type != A_DISCARD && a.type != A_KONG) return false; op = turnOpt(g, seat, a); return true; });
+    return a;
+  }
+  Decision claim(Game& g, int seat, const ClaimOptions& o) override {
+    bool can = !o.hasWin && (o.pung || o.kong || !o.chows.empty());
+    bool keep = can && (*rng)() < sample;
+    OptGroup* grp = nullptr;
+    if (keep && !o.robKong && optionShare > 0 && (*replayRng)() < optionShare) {
+      groups->emplace_back();
+      OptGroup& G = groups->back();
+      G.seat = uint8_t(seat); G.strategy = strategy; G.atClaim = true; G.from = o.from; G.tile = o.tile;
+      G.melds = int(g.hand.seats[seat].melds.size());
+      G.snap = snapshot(g);
+      for (auto& m : lucky::claimMoves(o)) { Opt op; if (claimOpt(G, g, seat, o, m.decision, op)) G.opts.push_back(std::move(op)); }
+      if (G.opts.size() < 2) groups->pop_back(); else grp = &G;
+    }
+    Decision d = inner ? inner->claim(g, seat, o) : lc->claim(g, seat, o);
+    if (keep && (d.type == A_PASS || d.type == A_KONG)) push(g, seat, lucky::afterCall(g, seat, o, d), -1);
+    if (grp) settle(*grp, d, [&](Opt& op) { return claimOpt(*grp, g, seat, o, d, op); });
+    return d;
+  }
+};
+
+// <policy.lcmw>[+<value.lcmw>]
+static std::unique_ptr<LuckyCat> makeLucky(const std::string& spec, double temperature, std::function<double()> rng) {
+  std::string pol = spec, val;
+  size_t plus = spec.find('+');
+  if (plus != std::string::npos) { pol = spec.substr(0, plus); val = spec.substr(plus + 1); }
+  std::unique_ptr<LuckyCat> lc(new LuckyCat(std::make_shared<Mlp>(loadWeights(pol)), temperature, std::move(rng)));
+  if (!val.empty()) lc->value = std::make_shared<ValueNet>(std::make_shared<Mlp>(loadWeights(val)), lucky::VALUE_SIZE);
+  return lc;
+}
+
+int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
+  auto t0 = std::chrono::steady_clock::now();
+  double prod = double(job.seed) * 2654435761.0;
+  Rng rng(uint32_t(std::fmod(prod, 4294967296.0)));
+  Rng replayRng(job.seed ^ 0x9e3779b9u);
+  // The learner explores by its shares (no value) or now and then one of its best few (a value).
+  auto learner = makeLucky(job.weights, job.temperature, [&rng]() { return rng(); });
+  if (learner->value) { learner->epsilon = job.epsilon; }
+  auto best = makeLucky(job.weights, 0, [&replayRng]() { return replayRng(); });
+  std::vector<LcRow> rows;
+  std::vector<OptGroup> groups;
+  LcvRecorder rec;
+  rec.lc = learner.get(); rec.rng = &rng; rec.replayRng = &replayRng; rec.sample = job.sample;
+  rec.optionShare = job.optionReplays > 0 ? job.optionShare : 0; rec.options = job.options;
+  rec.rows = &rows; rec.groups = &groups;
+  std::map<std::string, std::unique_ptr<Agent>> pool;
+  for (auto& id : job.pool) if (id != "learner" && !pool.count(id)) pool[id] = make(id);
+
+  std::string base = job.out + "/shard-" + std::to_string(job.shard);
+  FILE* ff = std::fopen((base + ".features").c_str(), "wb");
+  FILE* fl = std::fopen((base + ".labels").c_str(), "wb");
+  FILE* fa = std::fopen((base + ".aux").c_str(), "wb");
+  FILE* fo = job.optionReplays > 0 ? std::fopen((base + ".options").c_str(), "wb") : nullptr;
+  FILE* fol = job.optionReplays > 0 ? std::fopen((base + ".optlabels").c_str(), "wb") : nullptr;
+  if (!ff || !fl || !fa || (job.optionReplays > 0 && (!fo || !fol))) throw std::runtime_error("generate-lcv: can't write " + base);
+  long samples = 0, hands = 0, optionRows = 0, optionGroups = 0, outcomes[6] = {0, 0, 0, 0, 0, 0};
+  for (long d = 0; d < job.deals; d++) {
+    uint32_t dealSeed = uint32_t(job.seed + d);
+    Agent* agents[4]; Agent* real[4];
+    LcvRecorder seatRec[4];
+    for (int s = 0; s < 4; s++) {
+      size_t k = size_t(rng() * double(job.pool.size()));
+      const std::string& id = job.pool[k];
+      real[s] = id == "learner" ? nullptr : pool[id].get();
+      seatRec[s] = rec;
+      seatRec[s].inner = real[s];
+      seatRec[s].strategy = uint8_t(job.poolStrategies.empty() ? 0 : job.poolStrategies[k]);
+      agents[s] = &seatRec[s];
+    }
+    GameOptions o;
+    o.seed = dealSeed; o.dealer = int(dealSeed % 4); o.startPoints = 1000000000;
+    Game g = createGame(o);
+    g.round = int((dealSeed >> 2) % 4) + 1;
+    rows.clear(); groups.clear();
+    Result res = runHand(g, agents);
+    hands++;
+    int faan = std::max(3, std::min(13, res.score.faan ? res.score.faan : 3));
+    int won = res.win ? winHand(res.score) : NONE;
+    std::vector<uint16_t> X; std::vector<uint8_t> L(rows.size() * LABEL_BYTES, 0), A;
+    for (size_t k = 0; k < rows.size(); k++) {
+      LcRow& r = rows[k];
+      for (float v : r.x) X.push_back(toHalf(v));
+      int oc = 5;
+      if (res.win) { bool selfPaid = res.payer < 0; oc = res.winner == r.seat ? (selfPaid ? 0 : 1) : res.payer == r.seat ? 2 : selfPaid ? 3 : 4; }
+      outcomes[oc]++;
+      uint8_t* p = L.data() + k * LABEL_BYTES;
+      p[0] = uint8_t(oc); p[1] = uint8_t(oc <= 1 ? faan : 0); p[2] = uint8_t(oc == 2 || oc == 3 ? faan : 0);
+      p[3] = uint8_t(std::min(255, r.turn)); p[4] = r.seat; p[5] = r.strategy; p[6] = uint8_t(std::min(255, r.wallLeft)); p[7] = 0;
+      float delta = float(res.deltas[r.seat]);
+      std::memcpy(p + 8, &delta, 4); std::memcpy(p + 12, &dealSeed, 4);
+      if (oc <= 1) r.aux[1] = uint8_t(won);
+      A.insert(A.end(), r.aux, r.aux + AUX_BYTES);
+    }
+    std::fwrite(X.data(), 2, X.size(), ff); std::fwrite(L.data(), 1, L.size(), fl); std::fwrite(A.data(), 1, A.size(), fa);
+    samples += long(rows.size());
+    if (fo && !groups.empty()) {
+      Agent* again[4];
+      for (int s = 0; s < 4; s++) again[s] = real[s] ? real[s] : static_cast<Agent*>(best.get());
+      std::vector<uint16_t> OX; std::vector<uint8_t> OL;
+      for (auto& G : groups) {
+        uint32_t gid = uint32_t(optionGroups++);
+        for (size_t k = 0; k < G.opts.size(); k++) {
+          const Opt& op = G.opts[k];
+          for (float v : op.x) OX.push_back(toHalf(v));
+          uint8_t p[OPT_BYTES]; std::memset(p, 0, OPT_BYTES);
+          double pts = 0;
+          for (int n = 0; n < job.optionReplays; n++) {
+            Game copy = *G.snap; cloneMemos(copy);
+            reshuffle(copy, G.seat, replayRng);
+            Forced fz; fz.inner = again[G.seat]; fz.seat = G.seat; fz.opt = &op; fz.melds = G.melds;
+            Agent* ag[4];
+            for (int s = 0; s < 4; s++) ag[s] = s == G.seat ? static_cast<Agent*>(&fz) : again[s];
+            Result rr = G.atClaim ? continueAtClaims(copy, ag, G.from, G.tile) : continueAtTurn(copy, ag, G.seat);
+            int f = std::max(3, std::min(13, rr.score.faan ? rr.score.faan : 3));
+            double v = 8.0 * std::pow(2.0, f - 3);
+            int oc = 5;
+            if (rr.win) { bool selfPaid = rr.payer < 0; oc = rr.winner == G.seat ? (selfPaid ? 0 : 1) : rr.payer == G.seat ? 2 : selfPaid ? 3 : 4; }
+            p[9 + oc]++;
+            if (oc <= 1) p[32 + f - 3]++;
+            if (oc == 2 || oc == 3) p[43 + f - 3]++;
+            pts += oc == 0 ? 3 * v : oc == 1 ? v : oc == 2 || oc == 3 ? -v : 0;
+          }
+          std::memcpy(p, &gid, 4);
+          p[4] = uint8_t(int(k) == G.chosen); p[5] = uint8_t(op.kind); p[6] = G.strategy; p[7] = uint8_t(G.opts.size());
+          p[8] = uint8_t(job.optionReplays); p[15] = G.seat;
+          float mean = float(pts / job.optionReplays);
+          std::memcpy(p + 16, &mean, 4); std::memcpy(p + 20, &dealSeed, 4);
+          OL.insert(OL.end(), p, p + OPT_BYTES);
+          optionRows++;
+        }
+      }
+      std::fwrite(OX.data(), 2, OX.size(), fo); std::fwrite(OL.data(), 1, OL.size(), fol);
+    }
+  }
+  std::fclose(ff); std::fclose(fl); std::fclose(fa);
+  if (fo) { std::fclose(fo); std::fclose(fol); }
+  long ms = long(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count());
+  std::printf("{\"index\":%d,\"deals\":%ld,\"hands\":%ld,\"samples\":%ld,\"replayed\":0,\"optionRows\":%ld,\"optionGroups\":%ld,\"outcomes\":[%ld,%ld,%ld,%ld,%ld,%ld],\"ms\":%ld}\n",
+              job.shard, job.deals, hands, samples, optionRows, optionGroups, outcomes[0], outcomes[1], outcomes[2], outcomes[3], outcomes[4], outcomes[5], ms);
   return 0;
 }
 

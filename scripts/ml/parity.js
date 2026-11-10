@@ -10,7 +10,9 @@ const fs = require('node:fs');
 const M = require('../../js/mahjong-ml-model.js');
 
 const [weightsFile, checkFile] = process.argv.slice(2);
-const model = M.createModel(JSON.parse(fs.readFileSync(weightsFile, 'utf8')));
+const weights = JSON.parse(fs.readFileSync(weightsFile, 'utf8'));
+// Lucky Cat's value (js/mahjong-lucky-cat-value.js) is the same network over its own features.
+const model = weights.featureVersion === 'lcv1' ? require('../../js/mahjong-lucky-cat-value.js').createModel(weights) : M.createModel(weights);
 const check = JSON.parse(fs.readFileSync(checkFile, 'utf8'));
 let worst = 0;
 check.inputs.forEach((x, k) => {

@@ -41,6 +41,8 @@
   // toward, for the contradiction check and the coach's words. The native simulator has it too.
   var J = node ? require('./mahjong-jorge-yau.js') : root.MahjongJorgeYau;
   var N = node ? require('./mahjong-lucky-cat-net.js') : root.MahjongLuckyCatNet;
+  // The value (the stacked evaluation, self-taught): js/mahjong-lucky-cat-value.js.
+  var V = node ? require('./mahjong-lucky-cat-value.js') : root.MahjongLuckyCatValue;
 
   function shippedWeights() {
     if (!node) return root.MahjongLuckyCatWeights || null;
@@ -62,7 +64,22 @@
     var net = options.net || N;
     var chosen = options.model || (options.weights ? net.createModel(options.weights) : null);
     function getModel() { return chosen || (chosen = trainedModel() || N.createModel(N.zeroWeights())); }
+    // The value model: options.value, else the value in the weights (weights.value).
+    // Null: the policy alone picks, as before.
+    var valueWeights = options.value !== undefined ? options.value : null;
+    var valueModel;
+    function getValue() {
+      if (valueModel !== undefined) return valueModel;
+      var w = valueWeights;
+      if (w === null && options.value === undefined) {
+        var src = options.weights || (options.model ? null : shippedWeights());
+        w = src && src.value ? src.value : null;
+      }
+      valueModel = w && V ? V.createModel(w) : null;
+      return valueModel;
+    }
     var temperature = options.temperature || 0;
+    var epsilon = options.epsilon || 0;
     var rng = options.rng || Math.random;
     var fast = !!options.fast;
 
@@ -104,6 +121,60 @@
       return k;
     }
 
+    // With a value: the policy's best few moves (play.topK) by share, each scored by
+    // the value of the position it leaves plus the win bonus; then the rest by share.
+    // The first in that order the check lets through is played. score(m): its value.
+    function valueDecide(game, seat, x, moves, score, ok, all) {
+      var vm = getValue();
+      var play = (vm.meta && vm.meta.play) || {};
+      var K = all ? moves.length : play.topK || 4, bonus = play.winBonus != null ? play.winBonus : 300;
+      var f = features ? features(game, seat, x) : null;
+      getModel().policy(f ? f.x : x, moves);
+      var byShare = moves.map(function (m, j) { return j; }).sort(function (a, b) { return moves[b].p - moves[a].p || a - b; });
+      var top = byShare.slice(0, K);
+      top.forEach(function (j) {
+        var r = score(moves[j], vm);
+        moves[j].value = r.ev + bonus * r.pWin;
+        moves[j].ev = r;
+      });
+      var ranked = top.slice().sort(function (a, b) { return moves[b].value - moves[a].value || byShare.indexOf(a) - byShare.indexOf(b); });
+      // Exploring (training data): now and then one of the best few at random.
+      if (epsilon && rng() < epsilon) {
+        var r0 = Math.floor(rng() * ranked.length);
+        ranked.unshift(ranked.splice(r0, 1)[0]);
+      }
+      var order = ranked.concat(byShare.slice(K));
+      var k = order[order.length - 1];
+      for (var n = 0; n < order.length; n++) if (!ok || ok(moves[order[n]])) { k = order[n]; break; }
+      if (bot.onDecision) bot.onDecision({ seat: seat, features: f ? f.record : x, moves: moves, pick: k });
+      return k;
+    }
+
+    // A move's value: the position it leaves (a call: the best of the policy's top
+    // discards after it).
+    function turnScore(game, seat) {
+      return function (m, vm) { return vm.ev(V.features(game, seat, V.afterTurn(game, seat, m.decision))); };
+    }
+    function claimScore(game, seat, opts) {
+      return function (m, vm) {
+        var after = V.afterCall(game, seat, opts, m.decision);
+        if (m.decision.type !== 'pung' && m.decision.type !== 'chow') return vm.ev(V.features(game, seat, after));
+        var play = (vm.meta && vm.meta.play) || {};
+        var discards = N.turnMoves(after.hand, []);
+        getModel().policy(N.encode(game, seat, { hand: after.hand, melds: after.melds }), discards);
+        discards.sort(function (a, b) { return b.p - a.p || a.action - b.action; });
+        var best = null, bonus = play.winBonus != null ? play.winBonus : 300;
+        discards.slice(0, play.topK || 4).forEach(function (d) {
+          var i = d.action;
+          var hand = after.hand.slice();
+          for (var j = hand.length - 1; j >= 0; j--) if (E.tileIndex(hand[j]) === i) { hand.splice(j, 1); break; }
+          var r = vm.ev(V.features(game, seat, { hand: hand, melds: after.melds, thrown: i, kind: 0 }));
+          if (!best || r.ev + bonus * r.pWin > best.ev + bonus * best.pWin) best = r;
+        });
+        return best;
+      };
+    }
+
     // The network's pick first, then its other moves by share; the first that
     // doesn't contradict the hand it builds toward, or the last if all do.
     function firstConsistent(moves, k, ok) {
@@ -136,6 +207,17 @@
 
     function turnRead(game, seat, opts) {
       var moves = N.turnMoves(game.hand.seats[seat].hand, opts.kongs);
+      if (getValue()) {
+        var res = J.analyzeDiscards(game, seat), counts = E.countsOf(game.hand.seats[seat].hand), byTile = {};
+        res.candidates.forEach(function (c) { byTile[c.tile] = c; });
+        var ok = function (m) {
+          if (m.decision.type === 'kong') return !Base.kongContradicts(res.ctx.leadPlan, m.decision.tile);
+          if (m.decision.type !== 'discard' || res.folding) return true;
+          var c = byTile[m.decision.tile];
+          return !c || !Base.contradicts(game, counts, c);
+        };
+        return { moves: moves, k: valueDecide(game, seat, net.encode(game, seat), moves, turnScore(game, seat), ok, false) };
+      }
       var k = decide(game, seat, net.encode(game, seat), moves, turnCheck(game, seat).bind({ moves: moves }));
       return { moves: moves, k: k };
     }
@@ -165,6 +247,11 @@
     function claimRead(game, seat, opts) {
       var moves = N.claimMoves(opts);
       var found = J.decideClaim(game, seat, opts).found || { options: [] };
+      if (getValue()) {
+        var k1 = valueDecide(game, seat, net.encode(game, seat, null, opts), moves, claimScore(game, seat, opts),
+          function (m) { return J.claimConsistent(game, seat, opts, found, m.decision); }, true);
+        return { moves: moves, k: k1, found: found };
+      }
       var k = decide(game, seat, net.encode(game, seat, null, opts), moves, function (k0) {
         return firstConsistent(moves, k0, function (m) { return J.claimConsistent(game, seat, opts, found, m.decision); });
       });
@@ -231,6 +318,7 @@
   api.create = create;
   api.classic = L;
   api.Net = N;
+  api.Value = V;
 
   if (node) module.exports = api;
   else root.MahjongLuckyCatML = api;

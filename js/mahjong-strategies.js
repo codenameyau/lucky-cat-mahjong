@@ -27,11 +27,6 @@
     return w && w.meta && w.meta.name ? String(w.meta.name) : null;
   }
   function modelName() { return weightsName('./mahjong-ml-weights.js', 'MahjongMLWeights'); }
-  function frontierModelName() { return weightsName('./mahjong-frontier-weights.js', 'MahjongFrontierWeights'); }
-  // Frontier Cat's weights: on the Play page they load with the others (loadAssets).
-  function frontierWeights() {
-    try { return node ? require('./mahjong-frontier-weights.js') : root.MahjongFrontierWeights || null; } catch (err) { return null; }
-  }
   function luckyModelName() { return weightsName('./mahjong-lucky-cat-weights.js', 'MahjongLuckyCatWeights'); }
 
   // A learned strategy's model name for its heading ("NC8"), once its weights are here.
@@ -125,30 +120,6 @@
         ];
       },
       doc: 'docs/strategies/neural-cat.md',
-    });
-    // Frontier Cat, the frontier model (docs/machine-learning/frontier-plan.md): Neural Cat's
-    // way of choosing, with a network that also reads the table and the hand. Listed after
-    // Neural Cat, where its weights ship.
-    var FC = N.create({ id: 'frontier-cat', loadWeights: frontierWeights });
-    if (!node || frontierWeights()) STRATEGIES.splice(2, 0, {
-      id: 'frontier-cat',
-      name: 'Frontier Cat',
-      bot: FC,
-      get model() { return upper(frontierModelName()); },
-      get summary() {
-        return 'Neural Cat with a second network that reads the table first: which players look ready, whether a discard would win someone the hand right now, and which hand it is on its way to. Its main network weighs each option with that read in hand.';
-      },
-      get details() {
-        return [
-        'It reads the hand the way Jorge Yau does and narrows each decision to a few sound options, as Neural Cat does.',
-        'A reading network looks first. From what its seat can see, it gives the chance that each player is ready, the chance that the tile it throws would win someone the hand right now, and the hand it is most likely to win with, as chances for every hand from a plain hand to Thirteen Orphans.',
-        'It learned to read from simulated hands where every tile was known afterwards, so its reads were checked against the real hands. It names the hand a seat goes on to win with about three times in four, more often than the rules\' own read of the tiles.',
-        'Its main network then scores each option with those reads beside the position, and the highest score goes, with a bonus for the chance to win. Claims and kongs are weighed the same way.',
-        'The coach names the hand to go for and says why each move fits it, in the words it uses for every strategy. On Complex it also gives the network\'s numbers: the score it expects from its pick and from the next best, its chance to win and how much a win pays, and its read: a player it reads as ready, the chance the tile wins someone the hand right now, and the hand it expects to win with.',
-        'It plays fair: it sees only what its seat can see, the same as you. The hidden tiles were used only to teach the reading network, never as something it reads in play.',
-        ];
-      },
-      doc: 'docs/strategies/frontier-cat.md',
     });
   }
 

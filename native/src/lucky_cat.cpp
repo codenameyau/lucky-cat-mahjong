@@ -1,6 +1,8 @@
 #include "lucky_cat.h"
 #include "jsmath.h"
 #include <cstring>
+#include <cstdlib>
+#include <cstdio>
 #include <stdexcept>
 
 namespace lcm {
@@ -159,6 +161,65 @@ std::vector<Move> claimMoves(const ClaimOptions& o) {
   return out;
 }
 
+// js/mahjong-lucky-cat-value.js: the hand and melds a move leaves.
+static std::vector<int8_t> without(const std::vector<int8_t>& hand, int idx, int n, std::vector<int8_t>* taken) {
+  std::vector<int8_t> out = hand;
+  for (int k = int(out.size()) - 1; k >= 0 && n > 0; k--) {
+    if (out[k] == idx) { if (taken) taken->push_back(out[k]); out.erase(out.begin() + k); n--; }
+  }
+  return out;
+}
+
+After afterTurn(const Game& g, int seat, const Decision& d) {
+  const Seat& me = g.hand.seats[seat];
+  After a;
+  a.melds = me.melds;
+  int i = d.tile;
+  if (d.type == A_DISCARD) { a.hand = without(me.hand, i, 1, nullptr); a.thrown = i; a.kind = 0; return a; }
+  a.kind = 1;
+  for (auto& m : a.melds) if (m.type == PUNG && m.tiles[0] == i) {
+    std::vector<int8_t> t;
+    a.hand = without(me.hand, i, 1, &t);
+    Meld k; k.type = KONG; k.tiles = m.tiles; k.tiles.push_back(t[0]); k.concealed = false;
+    m = k;
+    return a;
+  }
+  std::vector<int8_t> t;
+  a.hand = without(me.hand, i, 4, &t);
+  Meld k; k.type = KONG; k.tiles = t; k.concealed = true;
+  a.melds.push_back(k);
+  return a;
+}
+
+After afterCall(const Game& g, int seat, const ClaimOptions& o, const Decision& d) {
+  const Seat& me = g.hand.seats[seat];
+  After a;
+  a.melds = me.melds;
+  if (d.type == A_PASS) { a.hand = me.hand; a.kind = 2; return a; }
+  Meld m; m.concealed = false;
+  if (d.type == A_CHOW) {
+    std::vector<int8_t> t;
+    std::vector<int8_t> h1 = without(me.hand, d.tiles[0], 1, &t);
+    a.hand = without(h1, d.tiles[1], 1, &t);
+    m.type = CHOW; m.tiles = {t[0], t[1], int8_t(o.tile)};
+    a.melds.push_back(m); a.kind = 4;
+    return a;
+  }
+  bool kong = d.type == A_KONG;
+  std::vector<int8_t> t;
+  a.hand = without(me.hand, o.tile, kong ? 3 : 2, &t);
+  m.type = kong ? KONG : PUNG; m.tiles = t; m.tiles.push_back(int8_t(o.tile));
+  a.melds.push_back(m); a.kind = kong ? 5 : 3;
+  return a;
+}
+
+void valueFeatures(const Game& g, int seat, const After& a, float* x) {
+  encode(g, seat, nullptr, 1, x, &a.hand, &a.melds);
+  std::memset(x + SIZE_V1, 0, sizeof(float) * 40);
+  if (a.thrown >= 0) x[SIZE_V1 + a.thrown] = 1;
+  x[SIZE_V1 + 34 + a.kind] = 1;
+}
+
 }  // namespace lucky
 
 LuckyCat::LuckyCat(std::shared_ptr<Mlp> model, double temperature, std::function<double()> rng)
@@ -172,8 +233,10 @@ LuckyCat::LuckyCat(std::shared_ptr<Mlp> model, double temperature, std::function
   x_.resize(size_);
 }
 
-void LuckyCat::policy(std::vector<Move>& moves) {
-  const std::vector<double>& raw = model_->forward(x_.data());
+void LuckyCat::policy(std::vector<Move>& moves) { policyOn(x_.data(), moves); }
+
+void LuckyCat::policyOn(const float* x, std::vector<Move>& moves) {
+  const std::vector<double>& raw = model_->forward(x);
   double top = -std::numeric_limits<double>::infinity();
   for (auto& m : moves) { m.logit = raw[m.action]; top = std::max(top, m.logit); }
   double sum = 0;
@@ -211,10 +274,69 @@ int LuckyCat::decide(const Game& g, int seat, std::vector<Move>& moves, const st
   return k;
 }
 
+// js/mahjong-lucky-cat-ml.js valueDecide: the policy's best few by share, each scored by
+// its value plus the win bonus, then the rest by share; the first the check lets through.
+int LuckyCat::valueDecide(const Game& g, int seat, std::vector<Move>& moves, const std::function<ValueRead(const Move&)>& score,
+                          const std::function<bool(const Move&)>& ok, bool all) {
+  policy(moves);
+  int n = int(moves.size());
+  int K = all ? n : std::min(n, value->topK());
+  std::vector<int> byShare(n);
+  for (int j = 0; j < n; j++) byShare[j] = j;
+  std::sort(byShare.begin(), byShare.end(), [&](int a, int b) { return moves[a].p != moves[b].p ? moves[a].p > moves[b].p : a < b; });
+  std::vector<int> rank(n);
+  for (int j = 0; j < n; j++) rank[byShare[j]] = j;
+  std::vector<double> v(n, 0);
+  std::vector<int> top(byShare.begin(), byShare.begin() + K);
+  for (int j : top) { ValueRead r = score(moves[j]); v[j] = r.ev + value->winBonus() * r.pWin; }
+  std::vector<int> ranked = top;
+  std::sort(ranked.begin(), ranked.end(), [&](int a, int b) { return v[a] != v[b] ? v[a] > v[b] : rank[a] < rank[b]; });
+  if (epsilon && rng_() < epsilon) {
+    int r0 = int(std::floor(rng_() * double(ranked.size())));
+    int c = ranked[r0]; ranked.erase(ranked.begin() + r0); ranked.insert(ranked.begin(), c);
+  }
+  std::vector<int> order = ranked;
+  order.insert(order.end(), byShare.begin() + K, byShare.end());
+  int k = order.back();
+  for (int j : order) if (!ok || ok(moves[j])) { k = j; break; }
+  if (onDecision) onDecision(g, seat, x_.data(), moves, k);
+  return k;
+}
+
+std::vector<Move> LuckyCat::turnShares(const Game& g, int seat, const TurnOptions& o) {
+  auto moves = lucky::turnMoves(g.hand.seats[seat].hand, o.kongs);
+  std::vector<float> x(static_cast<size_t>(size_), 0.0f);
+  lucky::encode(g, seat, nullptr, version_, x.data());
+  policyOn(x.data(), moves);
+  return moves;
+}
+
+std::vector<Move> LuckyCat::claimShares(const Game& g, int seat, const ClaimOptions& o) {
+  auto moves = lucky::claimMoves(o);
+  std::vector<float> x(static_cast<size_t>(size_), 0.0f);
+  lucky::Offer offer{o.tile, o.from, o.robKong};
+  lucky::encode(g, seat, &offer, version_, x.data());
+  policyOn(x.data(), moves);
+  return moves;
+}
+
 Decision LuckyCat::turn(Game& g, int seat, const TurnOptions& o) {
   if (o.hasWin) { Decision d; d.type = A_WIN; return d; }
   auto moves = lucky::turnMoves(g.hand.seats[seat].hand, o.kongs);
   lucky::encode(g, seat, nullptr, version_, x_.data());
+  if (value) {
+    DiscardAnalysis a = base_->analyzeDiscards(g, seat);
+    Counts counts = countsOf(g.hand.seats[seat].hand);
+    float vx[lucky::VALUE_SIZE];
+    auto score = [&](const Move& m) { lucky::valueFeatures(g, seat, lucky::afterTurn(g, seat, m.decision), vx); return value->ev(vx); };
+    auto ok = [&](const Move& m) {
+      if (m.decision.type == A_KONG) return !Foundation::kongContradicts(a.ctx.leadPlan.get(), m.decision.tile);
+      if (m.decision.type != A_DISCARD || a.folding) return true;
+      for (auto& x : a.candidates) if (x->index == m.decision.tile) return !base_->contradicts(g, counts, *x);
+      return true;
+    };
+    return moves[valueDecide(g, seat, moves, score, this->check ? std::function<bool(const Move&)>(ok) : nullptr, false)].decision;
+  }
   auto check = [&](int k) {
     DiscardAnalysis a = base_->analyzeDiscards(g, seat);
     Counts counts = countsOf(g.hand.seats[seat].hand);
@@ -241,6 +363,34 @@ Decision LuckyCat::claim(Game& g, int seat, const ClaimOptions& o) {
   Foundation::Decided found = base_->decideClaim(g, seat, o);
   lucky::Offer offer{o.tile, o.from, o.robKong};
   lucky::encode(g, seat, &offer, version_, x_.data());
+  if (value) {
+    float vx[lucky::VALUE_SIZE];
+    std::vector<float> px(static_cast<size_t>(size_), 0.0f);
+    auto score = [&](const Move& m) {
+      lucky::After a = lucky::afterCall(g, seat, o, m.decision);
+      if (m.decision.type != A_PUNG && m.decision.type != A_CHOW) { lucky::valueFeatures(g, seat, a, vx); return value->ev(vx); }
+      // A call: the best of the policy's top discards after it.
+      std::vector<KongOption> none;
+      auto discards = lucky::turnMoves(a.hand, none);
+      lucky::encode(g, seat, nullptr, version_, px.data(), &a.hand, &a.melds);
+      policyOn(px.data(), discards);
+      std::sort(discards.begin(), discards.end(), [](const Move& p, const Move& q) { return p.p != q.p ? p.p > q.p : p.action < q.action; });
+      ValueRead best; bool have = false;
+      int K = std::min(int(discards.size()), value->topK());
+      for (int j = 0; j < K; j++) {
+        lucky::After b;
+        b.hand = a.hand;
+        for (int t = int(b.hand.size()) - 1; t >= 0; t--) if (b.hand[t] == discards[j].action) { b.hand.erase(b.hand.begin() + t); break; }
+        b.melds = a.melds; b.thrown = discards[j].action; b.kind = 0;  // read as the discard it is
+        lucky::valueFeatures(g, seat, b, vx);
+        ValueRead r = value->ev(vx);
+        if (!have || r.ev + value->winBonus() * r.pWin > best.ev + value->winBonus() * best.pWin) { best = r; have = true; }
+      }
+      return best;
+    };
+    auto ok = [&](const Move& m) { return base_->claimConsistent(g, seat, found.hasFound ? &found.found : nullptr, m.decision, o.tile); };
+    return moves[valueDecide(g, seat, moves, score, ok, true)].decision;
+  }
   auto check = [&](int k) {
     return firstConsistent(moves, k, [&](const Move& m) {
       return base_->claimConsistent(g, seat, found.hasFound ? &found.found : nullptr, m.decision, o.tile);

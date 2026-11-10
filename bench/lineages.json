@@ -27,7 +27,7 @@
       "generations": []
     },
     "neural-cat": {
-      "about": "Neural Cat and Frontier Cat: networks that score the shared foundation's best options by expected points. Frontier Cat (the stacked model) is judged in this lineage against the current generation. Releases NC10, FC2, ...",
+      "about": "Neural Cat: networks that score the shared foundation's best options by expected points, its stacked models (a reader, then the move network) among them, judged against the current generation. Releases NC10, FC2, ...",
       "keepWinRate": false,
       "league": [
         "bench:jorge-yau",

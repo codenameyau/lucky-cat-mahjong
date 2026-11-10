@@ -83,9 +83,31 @@ Each round plays new deals where every seat is a model. Half the seats are the b
 
 Simulations play in fast mode (`create({ fast: true })`): the same choices, but only the discards the model picks from are read, and the explanation is skipped. With a sparse first layer in the model and a cache of whole-hand shanten in the engine, a model-only table plays about 4.5 deals a second per core. `npm run compete` takes `ml:<file>` as a player, and `--ml-options` for neural-cat (e.g. `'{"claims":false}'`).
 
+## Stacked models
+
+A Neural Cat model can be **stacked**: a reading network looks at the table first, and the network that scores each option reads what it saw. The frontier work built this ([frontier plan](../machine-learning/frontier-plan.md), [frontier report](../machine-learning/frontier-report.md)), and its first model, FC1, shipped in game 0.58.0 as its own strategy, **Frontier Cat**. It chose as Neural Cat does, so in 0.59.0 it folded into Neural Cat's lineage: a stacked model ships as Neural Cat once it clears the bar, and FC1 hasn't (on the [benchmark](../machine-learning/benchmark.md), +6.6 ± 8.1 points a hand over NC9 at the screen, short of the 1 standard error it needs). A saved game or coach that picked Frontier Cat now plays Neural Cat.
+
+**The read.** The reader reads the 568 features of each option and gives 16 numbers; the move network reads the 568 and the 16 together (584 inputs):
+
+| Read | What it says |
+| --- | --- |
+| 3 | The chance that each other player is ready, from your right |
+| 1 | The chance that the tile thrown wins someone the hand right now |
+| 12 | If this seat wins, the chance of each hand it wins with: a standard hand, All Sequences, Half Flush, Full Flush, All Triplets, Concealed Triplets, Seven Pairs, Thirteen Orphans, Nine Gates, a hand of 1s, 9s and honors, Three Dragons, Four Winds |
+
+The reader learned from simulated hands where every tile was known once the hand was over, so each read had a right answer: FC1's reader (FM1b0) names the hand a seat goes on to win with 74% of the time, against 64% for the rules' read of the same tiles, and tells a ready opponent from one that isn't with an AUC of 0.83. The hidden tiles taught it what to look for; in play it reads only the seat's view (`js/mahjong-fair-play.test.js`).
+
+**What the coach says.** At Complex, a stacked model's coach adds the read after the model's numbers, each part only when it is worth saying (a player read as ready at 30% or more, a tile at 1% or more, a hand at 40% or more):
+
+> It reads the player across as ready (41% likely). It gives this tile a 3% chance to win someone the hand right now. If you win, it expects Half Flush (55% likely).
+
+**Cost.** The reader roughly triples the work of each option scored: about 0.36 ms in the browser's JS against 0.13 ms, about 2 ms a turn, and twice the weights.
+
+**Weights.** FC1 is `ml/models/FLq1.json` (and `js/mahjong-frontier-weights.js` at commit `8ffc0d0`); `scripts/ml/ship.js` ships a stacked model as Neural Cat like any other.
+
 ## Results
 
-Neural Cat in the game is **NC9** (the lab model N14c, shipped 2026-11-10 with [Frontier Cat](frontier-cat.md)). The league made NC1 and NC2, and the lab made NC3 to NC9. NC9 beats NC8 by +11.6 ± 2.8 points a hand over 100,000 fresh deals at the game's table: it wins more often (17.4% of hands against 16.8%) and bigger (896 points against 869), and deals in a little more (11.8% against 11.5%) ([frontier report](../machine-learning/frontier-report.md#head-to-head)). It scores Jorge Yau's best 6 discards (NC8: 4). Each model's thinking, and how it plays differently from the one before it, is in [Iterations](../machine-learning/iterations.md#neural-cat-the-league-l1-to-l18-nc1).
+Neural Cat in the game is **NC9** (the lab model N14c, shipped 2026-11-10 in game 0.58.0, beside the stacked FC1: [stacked models](#stacked-models)). The league made NC1 and NC2, and the lab made NC3 to NC9. NC9 beats NC8 by +11.6 ± 2.8 points a hand over 100,000 fresh deals at the game's table: it wins more often (17.4% of hands against 16.8%) and bigger (896 points against 869), and deals in a little more (11.8% against 11.5%) ([frontier report](../machine-learning/frontier-report.md#head-to-head)). It scores Jorge Yau's best 6 discards (NC8: 4). Each model's thinking, and how it plays differently from the one before it, is in [Iterations](../machine-learning/iterations.md#neural-cat-the-league-l1-to-l18-nc1).
 
 ### League (claims and kongs, against other models)
 

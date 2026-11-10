@@ -1146,7 +1146,7 @@
     return line + readLine(m.read);
   }
 
-  // A stacked model's read (Frontier Cat): who it thinks is ready, how likely the
+  // A stacked model's read (a Neural Cat model with a reader): who it thinks is ready, how likely the
   // tile is to win someone the hand right now, and the hand it expects to win with.
   var READ_SEATS = ['the player on your right', 'the player across', 'the player on your left'];
   function readLine(read) {

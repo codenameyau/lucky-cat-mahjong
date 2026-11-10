@@ -111,7 +111,7 @@ Every training idea and every milestone model is a section below, in the order t
 
 | | Neural Cat | Lucky Cat | Only Orphans |
 | --- | --- | --- | --- |
-| In the game | **NC9** (lab model N14c; [Frontier Cat](#frontier-cat-one-model-three-heads-fc1) FC1 beside it) | **LC32** (lab model LL26b) | **OT11d** |
+| In the game | **NC9** (lab model N14c; the stacked [FC1](#frontier-cat-one-model-three-heads-fc1) was beside it in 0.58) | **LC32** (lab model LL26b) | **OT11d** |
 | What it is | A network that scores Jorge Yau's best choices in expected points | A network that makes every move itself, with no rules underneath | Fixed rules pick a target each deal (Thirteen Orphans, triplet hands, Seven Pairs); a network, the same kind as Neural Cat's, chooses the rest in expected points |
 | What it plays for | Points: often and big wins on one scale | Points first, wins second (LC20 and before: wins, as many and as fast as it can) | Points and wins on one scale (J), with a win bonus of 800 |
 | Trained on | 950,000 league hands (stopped in round 19, at a plateau), and earlier rounds against the rule bots | 1,000,000 league hands against its earlier selves and Neural Cat, then 100,000 lab hands against Neural Cat, Jorge Yau and its last two champions, every hand weighted by its points | Its own league (O1 to O5), then 11 lab rounds with the targets against Neural Cat, Jorge Yau, Lucky Cat and its earlier selves |

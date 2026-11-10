@@ -75,11 +75,21 @@ static std::unique_ptr<Agent> makeAgentChecked(const std::string& id, bool check
     return std::unique_ptr<Agent>(new BotAgent(f));
   }
   // Lucky Cat: lc:<file.lcmw>, features v1 or v2 (scripts/ml/native.js converts a .json model).
+  // With a value (js/mahjong-lucky-cat-value.js): lc:<policy.lcmw>+<value.lcmw>.
   if (id.rfind("lc:", 0) == 0) {
     static std::map<std::string, std::shared_ptr<Mlp>> models;
-    auto& m = models[id];
-    if (!m) m = std::make_shared<Mlp>(loadWeights(id.substr(3)));
+    static std::map<std::string, std::shared_ptr<ValueNet>> values;
+    std::string rest = id.substr(3), vfile;
+    size_t plus = rest.find('+');
+    if (plus != std::string::npos) { vfile = rest.substr(plus + 1); rest = rest.substr(0, plus); }
+    auto& m = models[rest];
+    if (!m) m = std::make_shared<Mlp>(loadWeights(rest));
     auto lc = std::unique_ptr<LuckyCat>(new LuckyCat(m));
+    if (!vfile.empty()) {
+      auto& v = values[vfile];
+      if (!v) v = std::make_shared<ValueNet>(std::make_shared<Mlp>(loadWeights(vfile)), lucky::VALUE_SIZE);
+      lc->value = v;
+    }
     lc->check = check;
     return std::unique_ptr<Agent>(lc.release());
   }
@@ -193,6 +203,24 @@ int main(int argc, char** argv) {
       j.shard = a.count("shard") ? std::stoi(a["shard"]) : 0;
       if (a.count("out")) { j.out = a["out"]; j.write = true; }
       return runGenerate(j, [](const std::string& id) { return makeAgent(id); });
+    }
+    if (cmd == "generate-lcv") {
+      // Lucky Cat's value data (js/mahjong-lucky-cat-value.js): native only.
+      NcGenerateJob j;
+      j.weights = a["weights"];
+      j.temperature = a.count("temperature") ? std::stod(a["temperature"]) : 1;
+      j.epsilon = a.count("epsilon") ? std::stod(a["epsilon"]) : 0.1;
+      j.sample = a.count("sample") ? std::stod(a["sample"]) : 0.12;
+      j.seed = uint32_t(std::stoul(a["seed"]));
+      j.deals = std::stol(a["deals"]);
+      j.shard = a.count("shard") ? std::stoi(a["shard"]) : 0;
+      j.pool = split(a["pool"], ',');
+      if (a.count("strategies")) for (auto& k : split(a["strategies"], ',')) j.poolStrategies.push_back(std::stoi(k));
+      j.out = a["out"];
+      j.optionReplays = a.count("option-replays") ? std::stoi(a["option-replays"]) : 0;
+      j.options = a.count("options") ? std::stoi(a["options"]) : 4;
+      j.optionShare = a.count("option-share") ? std::stod(a["option-share"]) : 0.1;
+      return runGenerateLcv(j, [](const std::string& id) { return makeAgent(id); });
     }
     if (cmd == "generate-nc") {
       // scripts/ml/generate.js's worker (Neural Cat and the frontier model): the same shard files.
