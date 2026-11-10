@@ -207,7 +207,10 @@ html.play-settled .play-actions .btn {
   transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
 }
 
-/* On mobile these two swap colors when the game mode changes: no fade between them. */
+/* These swap colors and places when the game mode changes: no fade between them.
+   Hover keeps its fade, except on phones, which have no hover to fade. */
+html.play-swapping .play-actions .btn { transition: none; }
+
 @media (max-width: 600px), (pointer: coarse) and (max-height: 599px) {
   html.play-settled .play-actions .btn { transition: none; }
 }
