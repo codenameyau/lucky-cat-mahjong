@@ -14,19 +14,21 @@ At its first decision of the hand, jorge-yau reads the opening tiles and picks a
 
 | # | The opening hand has | Target | Backups it can pivot to |
 | --- | --- | --- | --- |
-| 1 | 8 or more different terminals and honors | **Thirteen Orphans**. Keep 1s, 9s and honors, discard everything else | Seven Pairs of terminals and honors (Mixed Orphans on top), then All Terminals or Mixed Orphans |
+| 1 | 8 or more different terminals and honors | **Thirteen Orphans**. Keep 1s, 9s and honors, discard everything else | Seven Pairs or All Triplets, both with Mixed Orphans |
 | 2 | 7 or more tiles of one suit's 1112345678999 | **Nine Gates** in that suit. Discard everything else | Full Flush, then Half Flush in that suit |
-| 3 | 8 or more winds | **Big or Small Four Winds**. Discard number tiles, keep every honor | All Honors |
-| 4 | 8 or more 1s and 9s | **All Terminals** (sets of 1s and 9s) | Mixed Orphans with honors, All Triplets |
-| 5 | 8 or more honors | **All Honors** (sets and a pair of honors) | All Triplets, then a Half Flush |
-| 6 | 4 or more pairs | **Seven Pairs** | Concealed Triplets, then All Triplets |
-| 7 | 8 or more tiles of one suit | **Full Flush**. Keep that suit, discard the other suits and honors. Early chows in that suit are fine | Half Flush in that suit |
-| 8 | 1 to 3 sets (three or four of a kind) | **Concealed Triplets**, in the main suit and honors where it can | All Triplets or Seven Pairs, preferably in one suit with honors, then a Half Flush |
-| 9 | One main suit (at least 5 tiles, twice the next suit) and 3 or more honors | **Half Flush** | Full Flush, All Triplets |
-| 10 | 9 or more number tiles spread evenly over two or three suits | **Concealed Straights**. Honors go first | Every lucky-cat hand |
-| 11 | Anything else | **A standard hand**, played like lucky-cat | |
+| 3 | 8 or more winds | **Big Four Winds**. Discard number tiles, keep every honor | Small Four Winds |
+| 4 | A pair or more of every dragon | **Big Three Dragons**. Pung all three | Small Three Dragons |
+| 5 | 8 or more 1s and 9s | **All Terminals** (sets of 1s and 9s) | Mixed Orphans with honors, All Triplets |
+| 6 | 8 or more honors | **All Honors** (sets and a pair of honors) | Half Flush or All Triplets |
+| 7 | 4 or more pairs | **Seven Pairs** | All Triplets |
+| 8 | 8 or more tiles of one suit | **Full Flush**. Keep that suit, discard the other suits and honors. Early chows in that suit are fine | Half Flush in that suit |
+| 9 | 1 to 3 sets (three or four of a kind) | **Concealed Triplets**, in the main suit and honors where it can | Seven Pairs, then All Triplets (preferably in one suit with honors) |
+| 10 | One main suit (at least 5 tiles, twice the next suit) and 3 or more honors | **Half Flush** | Full Flush, All Triplets |
+| 11 | 3 or more pairs and no set, when pairs are no slower to finish than runs | **All Triplets**. Pung the pairs, open or concealed | Concealed Triplets, then Seven Pairs |
+| 12 | 9 or more number tiles spread evenly over two or three suits | **Concealed Straights**. Honors go first | Every lucky-cat hand |
+| 13 | Anything else | **A standard hand**, played like lucky-cat | |
 
-"Different" in row 1 means kinds, not copies: Thirteen Orphans needs one of each, so a pair of East Winds counts once there. A pair still counts toward the hand's one pair. In row 8, pairs alone don't count: the hand needs a set already.
+"Different" in row 1 means kinds, not copies: Thirteen Orphans needs one of each, so a pair of East Winds counts once there. A pair still counts toward the hand's one pair. In row 9, pairs alone don't count: the hand needs a set already.
 
 A flush target (Full Flush, Half Flush or Nine Gates) is never set in the suit the player on your left is collecting when another of your suits is about even with it (six or more, within a tile). The next target that fits is taken instead, and a held flush target in that suit gives way once their discards show it. When two suits are within a tile, the one they're throwing is the main suit. See [the shared rules](README.md#adding-a-strategy).
 
@@ -38,11 +40,14 @@ Each turn the current hand is read again with the same table:
 - **A target that can no longer be made gives way** to the current read:
   - Thirteen Orphans once it claims anything, or once all four copies of a tile it still needs are on the table.
   - Nine Gates and Seven Pairs once it claims.
-  - Four Winds once more than one set of number tiles is open.
+  - Four Winds once more than one set of number tiles is open, or too few winds are left to pung three.
+  - Big Three Dragons once too few dragons are left for two pungs and a pair.
   - All Terminals and All Honors after a chow.
   - Full and Half Flush once a set of another suit is open.
+  - All Triplets after a chow.
   - Concealed Straights once it claims.
-- **Backups.** The target's hands are preferred over the backups (1.5 times), but the hand switches when a backup is clearly closer to a good win. A pivot on the softer targets (Concealed Triplets, Seven Pairs, Half Flush, All Sequences) also hands the discard order back to the shared one. The hand keeps a target's discards only while that target's hand is the one in the lead.
+- **Pivots.** Each target has smaller hands to pivot to, to raise the chance of winning when the bigger hand has little hope or a smaller one is ready sooner: Concealed Triplets to Seven Pairs to All Triplets; Full Flush to Half Flush; Big Four Winds to Small Four Winds; Big Three Dragons to Small Three Dragons; All Honors to Half Flush or All Triplets; and Thirteen Orphans to Seven Pairs or All Triplets with Mixed Orphans. The hand pivots when a smaller hand is ready and the target isn't, or late in the wall (20 tiles or fewer left) when the smaller hand is no further from ready. Then the target's own plans are dropped, so the hand goes for the smaller one; a ready target stays.
+- **Backups.** Otherwise the target's hands are preferred over the backups (1.5 times), but the hand switches when a backup is clearly closer to a good win. A pivot on the softer targets (Concealed Triplets, Seven Pairs, Half Flush, All Sequences) also hands the discard order back to the shared one. The hand keeps a target's discards only while that target's hand is the one in the lead.
 
 Choosing a backup doesn't make it worth more. The value of a hand is still its real payout times its chance to finish, so defense weighs against the true value.
 
@@ -66,24 +71,29 @@ A ready hand is scored wait by wait, by discard and by self-draw, with Concealed
 
 ### Bigger hands from the same tiles
 
-The softer targets (and the default) also weigh the special hands the same tiles can still make, as the shared rules in `js/mahjong-bot.js` do: Mixed Orphans on All Triplets, All Terminals, All Honors, Small and Big Three Dragons, Small and Big Four Winds, and Seven Pairs in Mixed Orphans, All Honors or All Terminals. While one is within a step, its tiles wait behind tiles it can't use, unless no copy is left to finish them. Once one is the hand in the lead, the tiles it can't use go first even at a step's cost, as on any target. The three-step reach in the shared rules only applies to a hand with no target of its own (row 11 above).
+The softer targets (and the default) also weigh the special hands the same tiles can still make, as the shared rules in `js/mahjong-bot.js` do: Mixed Orphans on All Triplets, All Terminals, All Honors, Small and Big Three Dragons, Small and Big Four Winds, and Seven Pairs in Mixed Orphans, All Honors or All Terminals. While one is within a step, its tiles wait behind tiles it can't use, unless no copy is left to finish them. Once one is the hand in the lead, the tiles it can't use go first even at a step's cost, as on any target. The three-step reach in the shared rules only applies to a hand with no target of its own (row 13 above).
 
 ## What gets discarded first
 
 1. **The other suits, after a chow or with 7 or more tiles of one suit.** A mixed hand can't reach 3 faan once a chow is open, so every tile of another suit goes first, even while folding. The same goes once 7 or more of the hand's tiles (sets count) are in one suit, more than any other, unless the hand is on Seven Pairs, Thirteen Orphans, Nine Gates, All Terminals, All Honors or Four Winds, or on Concealed Straights, which throws honors first instead (keeping one honor pair, if it has one, as the hand's pair, and any dragon nobody has shown, unless throwing it leaves the hand ready). These are the shared rules every strategy follows.
 2. **Tiles the target can't use.** For the limit-hand targets and the flushes, these go first even if they cost a step toward ready, because the target needs every slot: number tiles on Four Winds and All Honors, middle tiles on All Terminals, non-orphans on Thirteen Orphans, other suits and honors on Nine Gates and Full Flush. For the softer targets they go first only when they don't cost a step: other suits on a Half Flush, and honors on Concealed Straights.
-3. **A tile someone has punged**, when the hand doesn't need it. On Nine Gates, spare copies beyond the 1112345678999 go here too.
-4. **Ordinary tiles.**
-5. **Pairs.** On Seven Pairs a pair is kept longest. On Concealed Triplets, All Terminals, All Honors and Four Winds every pair waits, and a pung waits longer. On Concealed Triplets a single of a suit other than its main one goes in group 2 above, so the hand drifts toward one suit and honors.
-6. **Honors that can still become a set** (fewer than two copies out): a single waits like a pair, and a dragon or scoring wind waits longer, all hand long. Other winds wait like this only early, while more than 60 tiles are left. Concealed Straights drops honors instead.
+3. **A single with no copy left** (every other copy is on the table or in a meld). On Seven Pairs and the hands of pairs and pungs (Concealed Triplets, All Triplets, All Terminals, All Honors, Four Winds, Three Dragons) it can never be a pair or a pung, and an honor like that can't make a run either, so it goes with these. Thirteen Orphans keeps it: it needs one of each. On those hands of pungs, a pair with no copy left can still be the eyes but never a pung, so it waits only like an ordinary pair.
+4. **A tile someone has punged**, when the hand doesn't need it. On Nine Gates, spare copies beyond the 1112345678999 go here too.
+5. **Ordinary tiles.** Between them the shared order decides: the discard that keeps the hand closest to ready with the most live tiles to improve it, then the tile that connects least (a single with no tile of its suit within 2 ranks, and a 1 or 9, which joins a run from one side only, before a middle tile), then the tile with the fewest copies left.
+6. **Pairs.** On Seven Pairs a pair is kept longest. On Concealed Triplets, All Terminals, All Honors and Four Winds every pair waits, and a pung waits longer. On Concealed Triplets a single of a suit other than its main one goes in group 2 above, so the hand drifts toward one suit and honors.
+7. **Honors that can still become a set** (fewer than two copies out): a single waits like a pair, and a dragon or scoring wind waits longer, all hand long. Other winds wait like this only early, while more than 60 tiles are left. Concealed Straights drops honors instead.
 
 ## Claims
 
 **Stay concealed.** Concealed is a faan, and it hides the hand.
 
-- **Seven Pairs, Thirteen Orphans, Nine Gates and Concealed Straights claim nothing.** The one exception: Concealed Straights will pung a dragon or scoring wind once it is three or more tiles from ready.
-- **Pungs are fine early.** A pung keeps the hand open to a Half Flush in any suit. A pung or kong is taken when the hand is at least as good afterwards.
-- **Dragons and scoring winds are always punged.** On Four Winds, All Honors and All Terminals, any honor is punged. The exception is a ready hand that the pung would leave slower and worth less.
+- **Dragons and scoring winds are always punged** (or konged), early or late and on any hand, unless it is going for Thirteen Orphans.
+- **Early game (more than 60 tiles left in the wall): no other claims, with one exception.** A claim that leaves the hand within two tiles of ready, and still able to reach 3 faan, is taken to win quickly. A pung or kong comes first. A chow is taken only once the player before it has a read (from 6 discards, the suit they keep or the one they feed: whether they'll feed those tiles or need them), and only a chow the rules below allow.
+- **From 60 tiles left, the rules below apply.**
+
+- **Seven Pairs, Nine Gates and Concealed Straights claim nothing else**, and Thirteen Orphans claims nothing at all.
+- **Pungs are fine.** A pung keeps the hand open to a Half Flush in any suit. A pung or kong is taken when the hand is at least as good afterwards.
+- **On Four Winds, All Honors and All Terminals any honor is punged.**
 - **Chows are rare.** A chow must leave the hand closer to ready and still able to reach 3 faan, and it must also:
   - make the hand ready for 3 faan or more, or
   - build the Full or Half Flush the hand is going for in that suit (within two tiles of ready, early or late), or
@@ -135,6 +145,7 @@ Every opponent's discards say which hand they are likely on, and so which tiles 
 
 - **A flush.** After six discards, a suit they've thrown almost none of (10% or less) while throwing at least two of each other suit is the suit they want. Its tiles are more dangerous to throw (1.8×), and the other suits are safer (0.6×). With a meld down, this also counts as a flush for their threat level.
 - **Honors.** No honors thrown in seven or more discards: they're keeping them. Live honors are more dangerous (1.6×).
+- **A chow, by the player before or after it.** It settles the read at once: they need that suit to win, and they'll toss the other number suits. From the player after it, that suit is held back so it doesn't feed them. From the player before it, the other suits are the ones they'll keep throwing, so a flush in one of them leans its way and an early chow of them is allowed.
 - **A hand of runs.** Their first discards were all terminals and honors: middle tiles 3 to 7 are more dangerous (1.3×), and honors safer (0.6×).
 
 This adds to lucky-cat's reads: tiles thrown since their last meld, dead honors, suji, kabe, their melds, and how late it is. See [lucky-cat.md](lucky-cat.md#defense).
@@ -200,4 +211,4 @@ On the way, two choices were measured and changed:
 - **Preferring a target doesn't inflate its value.** With the target's value multiplied by 1.5, the bot defended too little and lost about 80 points a hand. Now the weight only chooses which hand to build.
 - **The softer targets give the discard order back once the hand has pivoted.** Keeping every pair for All Triplets while another hand was ahead cost several wins in a hundred.
 
-Concealed Straights is the most common opening target, and Concealed Triplets is about one in ten. When row 8 read 1 to 3 pairs, about 80% of hands aimed for All Triplets. Points came out about the same (+12.7 per hand), but the hands it built were less varied.
+Concealed Straights is the most common opening target, and Concealed Triplets is about one in ten. When row 9 read 1 to 3 pairs, about 80% of hands aimed for All Triplets. Points came out about the same (+12.7 per hand), but the hands it built were less varied.
