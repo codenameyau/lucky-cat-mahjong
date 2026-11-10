@@ -13,7 +13,9 @@
    the JS loads, with float32 weights: the two forms play the same moves.
 
    Layout: "LCMW" 1 (uint32) headerBytes (uint32) header (UTF-8 JSON), then
-   per layer w (rows x cols, row-major) and b (rows), float32 little-endian. */
+   per layer w (rows x cols, row-major) and b (rows), float32 little-endian.
+   Version 2 is a stacked model: the header also has readerVersion and
+   reader.layers, and the reader's layers follow the move network's. */
 
 'use strict';
 
@@ -54,16 +56,20 @@ function readWeights(spec) {
 }
 
 function toLcmw(w) {
-  const layers = w.layers.map((l) => ({ rows: l.rows, cols: l.cols, w: floats(l.w, w.dtype), b: floats(l.b, w.dtype) }));
-  const header = Buffer.from(JSON.stringify({
+  const conv = (ls, dtype) => ls.map((l) => ({ rows: l.rows, cols: l.cols, w: floats(l.w, dtype), b: floats(l.b, dtype) }));
+  const layers = conv(w.layers, w.dtype);
+  const reader = w.reader ? conv(w.reader.layers, w.reader.dtype || w.dtype) : null;
+  const head = {
     featureVersion: w.featureVersion, featureSize: w.featureSize, meta: w.meta || {},
     layers: layers.map((l) => ({ rows: l.rows, cols: l.cols })),
-  }));
+  };
+  if (reader) { head.readerVersion = w.readerVersion; head.reader = { layers: reader.map((l) => ({ rows: l.rows, cols: l.cols })) }; }
+  const header = Buffer.from(JSON.stringify(head));
   const parts = [Buffer.from('LCMW'), Buffer.alloc(8)];
-  parts[1].writeUInt32LE(1, 0);
+  parts[1].writeUInt32LE(reader ? 2 : 1, 0);
   parts[1].writeUInt32LE(header.length, 4);
   parts.push(header);
-  layers.forEach((l) => { parts.push(Buffer.from(l.w.buffer, l.w.byteOffset, l.w.byteLength), Buffer.from(l.b.buffer, l.b.byteOffset, l.b.byteLength)); });
+  layers.concat(reader || []).forEach((l) => { parts.push(Buffer.from(l.w.buffer, l.w.byteOffset, l.w.byteLength), Buffer.from(l.b.buffer, l.b.byteOffset, l.b.byteLength)); });
   return Buffer.concat(parts);
 }
 
@@ -74,8 +80,11 @@ function fromLcmw(buf) {
   let at = 12 + n;
   const take = (len) => { const a = new Float32Array(buf.buffer.slice(buf.byteOffset + at, buf.byteOffset + at + 4 * len)); at += 4 * len; return a; };
   const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
-  const layers = h.layers.map((l) => { const w = take(l.rows * l.cols), b = take(l.rows); return { rows: l.rows, cols: l.cols, w: b64(w), b: b64(b) }; });
-  return { featureVersion: h.featureVersion, featureSize: h.featureSize, meta: h.meta, layers };
+  const one = (l) => { const w = take(l.rows * l.cols), b = take(l.rows); return { rows: l.rows, cols: l.cols, w: b64(w), b: b64(b) }; };
+  const layers = h.layers.map(one);
+  const out = { featureVersion: h.featureVersion, featureSize: h.featureSize, meta: h.meta, layers };
+  if (h.reader) { out.readerVersion = h.readerVersion; out.reader = { layers: h.reader.layers.map(one) }; }
+  return out;
 }
 
 if (require.main === module) {

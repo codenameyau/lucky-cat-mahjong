@@ -86,7 +86,7 @@ npm run ml:generate -- --deals 50000 --lineup mix --pool neural-cat,ml:ml/models
 | `--top-k N` | 3 | `neural-cat` picks among the foundation's best N discards |
 | `--workers N` | cores − 1 | Worker threads |
 | `--out DIR` | `ml/data/<time>` | Where to write |
-| `--native` | off | Plays on the [native simulator](native.md) (`lcm-sim generate-nc`): the same shard files, about 15 times faster. It needs `--record neural-cat`, `--explore 0`, a mixed lineup, and a pool of `neural-cat`, `ml:<file>`, `jorge-yau` and `lucky-cat`. A finished shard is reused when a stopped run is started again. `--exact` uses the exact build |
+| `--native` | off | Plays on the [native simulator](native.md) (`lcm-sim generate-nc`): the same shard files, about 15 times faster. It records every seat (the default) or `--record neural-cat`, and needs `--explore 0`, a mixed lineup, and a pool of `neural-cat`, `ml:<file>`, `jorge-yau` and `lucky-cat`. A finished shard is reused when a stopped run is started again. `--exact` uses the exact build |
 
 `npm run ml:generate -- parity --deals 200` plays a short run in the JS and on the native simulator's exact build and compares the files byte for byte. The native path is how the frontier model's data is made; the JS stays as the reference it is checked against ([running the models on another frontend](porting.md)).
 

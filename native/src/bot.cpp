@@ -71,6 +71,7 @@ static bool isFlushKind(PlanKind k) { return k == P_HALF || k == P_FULL; }
 struct BotSeatMemos : BotSeatState {
   std::map<std::string, SeatMemo> byBot;
   SeatMemo shared;
+  std::shared_ptr<BotSeatState> clone() const override { return std::make_shared<BotSeatMemos>(*this); }
 };
 static BotSeatMemos& memos(const Game& g, int seat) {
   auto& st = g.hand.seats[seat].botState;

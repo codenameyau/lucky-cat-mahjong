@@ -85,7 +85,7 @@ Simulations play in fast mode (`create({ fast: true })`): the same choices, but 
 
 ## Results
 
-Neural Cat in the game is **NC8**. The league made NC1 and NC2, and the lab made NC3 to NC8. Each model's thinking, and how it plays differently from the one before it, is in [Iterations](../machine-learning/iterations.md#neural-cat-the-league-l1-to-l18-nc1).
+Neural Cat in the game is **NC9** (the lab model N14c, shipped 2026-11-10 with [Frontier Cat](frontier-cat.md)). The league made NC1 and NC2, and the lab made NC3 to NC9. NC9 beats NC8 by +11.6 ± 2.8 points a hand over 100,000 fresh deals at the game's table: it wins more often (17.4% of hands against 16.8%) and bigger (896 points against 869), and deals in a little more (11.8% against 11.5%) ([frontier report](../machine-learning/frontier-report.md#head-to-head)). It scores Jorge Yau's best 6 discards (NC8: 4). Each model's thinking, and how it plays differently from the one before it, is in [Iterations](../machine-learning/iterations.md#neural-cat-the-league-l1-to-l18-nc1).
 
 ### League (claims and kongs, against other models)
 
@@ -105,7 +105,7 @@ Rounds 1 to 5 used 2,000-deal evaluations, which swing by about ±50 points a ha
 
 #### What L7 improved
 
-The game now ships NC8, which is the lab model N10c (shipped models are named NC1, NC2 and so on; see [release names](../machine-learning/model.md); NC1 was L17, NC2 was L19, NC3 was N2b, NC4 was N3d, NC5 was N4c, NC6 was N7e and NC7 was N8e). How each was measured is in [iterations](../machine-learning/iterations.md). At the time of writing, L7 was the model the game shipped. It replaces L3, which shipped before it. Against L6, its direct predecessor, on 6,000 new deals (each deal played from every seat, L7 and L6 two seats each):
+The game now ships NC9, which is the lab model N14c; NC8 was N10c (shipped models are named NC1, NC2 and so on; see [release names](../machine-learning/model.md); NC1 was L17, NC2 was L19, NC3 was N2b, NC4 was N3d, NC5 was N4c, NC6 was N7e and NC7 was N8e). How each was measured is in [iterations](../machine-learning/iterations.md). At the time of writing, L7 was the model the game shipped. It replaces L3, which shipped before it. Against L6, its direct predecessor, on 6,000 new deals (each deal played from every seat, L7 and L6 two seats each):
 
 | | L7 | L6 |
 | --- | ---: | ---: |

@@ -39,12 +39,17 @@
                       (default: every seat)
      --native         play on the native simulator (native/, lcm-sim generate-nc):
                       the same shard files as the JS writes, far faster. It
-                      needs --record <learner> for Neural Cat, --explore 0, a
+                      records every seat (the default) or --record neural-cat, and needs --explore 0, a
                       mixed lineup, and a pool the simulator has (neural-cat,
                       ml:<file>, jorge-yau, lucky-cat). --exact uses the exact
                       build, whose rows are the JS's byte for byte
+     --replays K      native only: replay a share (--replay-share, default 0.25) of
+                      the recorded discards K times after the hand, with the
+                      tiles the seat can't see shuffled; the counts of how the
+                      replays ended go in shard-N.replay (labels only)
    npm run ml:generate -- parity --deals 200   checks that: the JS and the native
-                      simulator write the same bytes for the same deals
+                      simulator write the same bytes for the same deals, every
+                      seat recorded (--learner-only: the learner's seats alone)
    only-orphans-rules (the rule-based Only Orphans, the baseline) can sit at
    any table too. */
 
@@ -279,7 +284,9 @@ function nativePlan(cfg, known, args) {
   if (cfg.learner !== 'neural-cat') fail('only Neural Cat and the frontier model are ported');
   if (cfg.lineup !== 'mix') fail('needs a mixed lineup (--lineup mix)');
   if (cfg.explore) fail('needs --explore 0');
-  if (!cfg.record || cfg.record.length !== 1 || cfg.record[0] !== cfg.learner) fail('needs --record ' + cfg.learner);
+  // Every seat (the default), or the learner's alone (--record neural-cat).
+  const all = !cfg.record;
+  if (!all && (cfg.record.length !== 1 || cfg.record[0] !== cfg.learner)) fail('records every seat, or --record ' + cfg.learner);
   if (cfg.topK !== undefined) fail("--top-k isn't ported: the model's own setting is used");
   const pool = cfg.pool.map((id) => {
     if (id === cfg.learner) return 'learner';
@@ -293,7 +300,9 @@ function nativePlan(cfg, known, args) {
   const sim = path.join(__dirname, '..', '..', 'native', 'build', (args.exact ? 'lcm-sim-exact' : 'lcm-sim') + (process.platform === 'win32' ? '.exe' : ''));
   // A finished shard is kept (shard-N.done.json says what made it): a run that was
   // stopped part way picks up at the shards it hadn't finished.
-  const key = (c) => JSON.stringify([c.seed, c.deals, weights, pool, cfg.temperature, cfg.epsilon, cfg.sample, !!args.exact, E.GAME_VERSION]);
+  const replays = args.replays ? ['--replays', String(args.replays), '--replay-share', String(args['replay-share'] || 0.25)] : [];
+  const recordAll = all ? ['--record-all', cfg.pool.map((id) => known.indexOf(id)).join(',')] : [];
+  const key = (c) => JSON.stringify([c.seed, c.deals, weights, pool, cfg.temperature, cfg.epsilon, cfg.sample, !!args.exact, E.GAME_VERSION, replays, recordAll]);
   return (c) => new Promise((resolve, reject) => {
     const done = path.join(cfg.out, 'shard-' + c.index + '.done.json');
     try {
@@ -302,7 +311,7 @@ function nativePlan(cfg, known, args) {
     } catch (e) { /* not there yet */ }
     execFile(sim, ['generate-nc', '--weights', weights.slice(3), '--temperature', String(cfg.temperature), '--epsilon', String(cfg.epsilon),
       '--sample', String(cfg.sample), '--seed', String(c.seed), '--deals', String(c.deals), '--shard', String(c.index),
-      '--strategy', String(known.indexOf(cfg.learner)), '--pool', pool.join(','), '--out', cfg.out], { maxBuffer: 1 << 24 },
+      '--strategy', String(known.indexOf(cfg.learner)), '--pool', pool.join(','), '--out', cfg.out].concat(replays, recordAll), { maxBuffer: 1 << 24 },
     (err, stdout, stderr) => {
       if (err) return reject(new Error('lcm-sim generate-nc: ' + (stderr || err.message)));
       const result = JSON.parse(stdout);
@@ -319,14 +328,16 @@ function parity(args) {
   const deals = String(args.deals || 200);
   const pool = String(args.pool || 'neural-cat,neural-cat,jorge-yau,lucky-cat');
   const base = ['--deals', deals, '--workers', String(args.workers || 2), '--seed', String(args.seed || 4242), '--lineup', 'mix', '--pool', pool,
-    '--record', 'neural-cat', '--explore', '0', '--sample', String(args.sample || 0.3),
+    '--explore', '0', '--sample', String(args.sample || 0.3),
     '--temperature', String(args.temperature || 150), '--epsilon', String(args.epsilon || 0.05)].concat(args.weights ? ['--weights', String(args.weights)] : []);
   const run = (name, extra) => {
     const r = spawnSync('node', [__filename].concat(base, ['--out', path.join(dir, name)], extra), { encoding: 'utf8' });
     if (r.status) throw new Error(name + ' failed: ' + (r.stderr || r.stdout));
   };
-  run('js', []);
-  run('native', ['--native', '--exact']);
+  // Every seat recorded (the default), or the learner's alone (--learner-only).
+  const rec = args['learner-only'] ? ['--record', 'neural-cat'] : [];
+  run('js', rec);
+  run('native', ['--native', '--exact'].concat(rec));
   let bytes = 0, bad = 0;
   fs.readdirSync(path.join(dir, 'js')).filter((f) => f.startsWith('shard-')).sort().forEach((f) => {
     const a = fs.readFileSync(path.join(dir, 'js', f));
@@ -385,6 +396,7 @@ async function main() {
   const progress = new Array(workers).fill(0);
   let lastLog = 0;
   const jobs = [];
+  if (args.replays && !args.native) throw new Error('--replays runs on the native simulator only (--native)');
   const native = args.native ? nativePlan(cfgBase, known, args) : null;
   for (let w = 0; w < workers; w++) {
     const first = w * per;
@@ -428,8 +440,9 @@ async function main() {
     gameVersion: E.GAME_VERSION,
     learner,
     native: native ? (args.exact ? 'exact' : 'fast') : false,
+    replays: args.replays ? { replays: parseInt(args.replays, 10), share: parseFloat(args['replay-share'] || 0.25), bytes: 30 } : null,
     config: { deals, seed, lineup, pool, record: cfgBase.record, sample: cfgBase.sample, explore: cfgBase.explore, temperature: cfgBase.temperature, epsilon: cfgBase.epsilon, weights: cfgBase.weightsFile },
-    shards: shards.map((s) => ({ features: 'shard-' + s.index + '.features', labels: 'shard-' + s.index + '.labels', aux: 'shard-' + s.index + '.aux', samples: s.samples, deals: s.deals })),
+    shards: shards.map((s) => ({ features: 'shard-' + s.index + '.features', labels: 'shard-' + s.index + '.labels', aux: 'shard-' + s.index + '.aux', replay: args.replays ? 'shard-' + s.index + '.replay' : undefined, samples: s.samples, deals: s.deals })),
     samples: total,
     ms: Date.now() - t0,
   };

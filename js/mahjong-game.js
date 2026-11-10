@@ -309,6 +309,8 @@
     // Only Orphans' weights, the same way.
     if (!root.MahjongOnlyOrphansWeights) jobs.push(loadScript('/js/mahjong-only-orphans-weights.js'));
     if (!root.MahjongLuckyCatWeights) jobs.push(loadScript('/js/mahjong-lucky-cat-weights.js'));
+    // Frontier Cat's: its move network and the reader it reads (js/mahjong-ml-model.js).
+    if (!root.MahjongFrontierWeights) jobs.push(loadScript('/js/mahjong-frontier-weights.js'));
     if (document.fonts && document.fonts.load) {
       jobs.push(Promise.race([
         document.fonts.load('16px "KN Yuanmo SC"').catch(function () {}),

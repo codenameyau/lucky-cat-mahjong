@@ -212,6 +212,8 @@
         ranked[0].ml.choice = false;
       }
       ranked[0].ml.why = fast ? [] : explain(getModel(), ranked[0], ranked[1]);
+      // A stacked model's read of the position, for the coach (js/mahjong-ml-model.js read).
+      if (!fast && getModel().stacked) ranked[0].ml.read = getModel().read(ranked[0].features);
       ranked[0].ml.best = Math.max.apply(null, out.slice(0, k0).map(function (x) { return x.ml.ev; }));
       ranked.forEach(function (x, j) { if (j > 1) delete x.features; });
       return ranked;

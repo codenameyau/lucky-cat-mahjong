@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstring>
 #include <stdexcept>
+#include <algorithm>
 
 namespace lcm {
 
@@ -90,17 +91,25 @@ static uint16_t toHalf(float v) {
   return uint16_t(sign | (uint32_t(he + 15) << 10) | (n & 0x3ff));
 }
 
-struct NcRow { uint8_t seat, explored; int turn, wallLeft; std::vector<float> x; uint8_t aux[AUX_BYTES]; };
+static const int REPLAY_BYTES = 30;  // replays, outcome counts (6), win faan counts (11), pay faan counts (11), unused
+struct NcRow {
+  uint8_t seat, explored, strategy = 0; int turn, wallLeft; std::vector<float> x; uint8_t aux[AUX_BYTES];
+  std::shared_ptr<Game> snap; int tile = NO_TILE;  // a discard to replay: the game before it, and the tile
+};
 
 struct Recorder : Agent {
   NeuralCat* nc;
+  Agent* inner = nullptr;  // the seat's own strategy; null: the learner itself (nc) plays
+  uint8_t strategy = 0;
   Rng* rng;
+  Rng* replayRng = nullptr;  // its own generator, so the rows are the JS's whatever is replayed
+  double replayShare = 0;
   double sample;
   std::vector<NcRow>* rows;
   NcRow& push(const Game& g, int seat, int explored) {
     rows->emplace_back();
     NcRow& r = rows->back();
-    r.seat = uint8_t(seat); r.explored = uint8_t(explored);
+    r.seat = uint8_t(seat); r.explored = uint8_t(explored); r.strategy = strategy;
     r.turn = int(g.hand.seats[seat].discards.size());
     r.wallLeft = int(g.hand.wall.size());
     r.x.resize(NeuralCat::SIZE);
@@ -111,7 +120,7 @@ struct Recorder : Agent {
     bool keep = !o.hasWin && (*rng)() < sample;
     std::unique_ptr<NeuralCat::Reading> st;
     if (keep) { st.reset(new NeuralCat::Reading); nc->read(*st, g, seat); }
-    Decision a = nc->chooseTurnAction(g, seat, o);
+    Decision a = inner ? inner->turn(g, seat, o) : nc->chooseTurnAction(g, seat, o);
     if (a.type == A_KONG) {
       for (auto& k : o.kongs) if (k.tile == a.tile) {
         NcRow& r = push(g, seat, 2);
@@ -123,6 +132,12 @@ struct Recorder : Agent {
     }
     if (a.type != A_DISCARD || !st) return a;
     NcRow& r = push(g, seat, 0);
+    if (replayShare > 0 && (*replayRng)() < replayShare) {
+      // The game as it is, each strategy's memory of the hand copied (not shared) with it.
+      r.snap = std::make_shared<Game>(g);
+      for (auto& s : r.snap->hand.seats) if (s.botState) s.botState = s.botState->clone();
+      r.tile = a.tile;
+    }
     int kind = nc->row(*st, a.tile, r.x.data());
     tableLabels(g, seat, a.tile, r.aux);
     r.aux[0] = uint8_t(planHand(kind));
@@ -134,7 +149,7 @@ struct Recorder : Agent {
     std::vector<float> pass, kong;
     if (keep) { pass.resize(NeuralCat::SIZE); nc->waitingRow(g, seat, 0, o.tile, pass.data()); }
     if (keep && o.kong) { kong.resize(NeuralCat::SIZE); nc->waitingRow(g, seat, 1, o.tile, kong.data()); }
-    Decision d = nc->chooseClaim(g, seat, o);
+    Decision d = inner ? inner->claim(g, seat, o) : nc->chooseClaim(g, seat, o);
     const std::vector<float>* x = d.type == A_PASS && !pass.empty() ? &pass : d.type == A_KONG && !kong.empty() ? &kong : nullptr;
     if (x) {
       NcRow& r = push(g, seat, 2);
@@ -144,6 +159,19 @@ struct Recorder : Agent {
     return d;
   }
 };
+
+// The wall's order shuffled: the draws still to come, and nothing else. Every hand
+// stays as it is, so a replay's outcome is drawn from how the hand would end
+// given everything at the table (an unbiased target with less noise than the one
+// real ending: the hidden hands are used for labels only, never as inputs).
+// Shuffling the others' hands too gives them random hands, which win far less
+// than the hands they really held (4.9% deal-ins in replays against 12.2%).
+static void reshuffle(Game& g, int seat, Rng& rng) {
+  (void)seat;
+  Hand& h = g.hand;
+  for (int i = h.wall.tail; i > h.wall.head + 1; i--) std::swap(h.wall.t[i - 1], h.wall.t[h.wall.head + size_t(rng() * double(i - h.wall.head))]);
+  touch(h);
+}
 
 int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
   auto t0 = std::chrono::steady_clock::now();
@@ -157,7 +185,18 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
   learner.rng = [&rng]() { return rng(); };
   std::vector<NcRow> rows;
   Recorder rec;
+  Rng replayRng(job.seed ^ 0x9e3779b9u);
   rec.nc = &learner; rec.rng = &rng; rec.sample = job.sample; rec.rows = &rows;
+  rec.replayRng = &replayRng; rec.replayShare = job.replays > 0 ? job.replayShare : 0;
+  // The learner in a replay plays its best (no exploring), as it will in the game.
+  NeuralCat best(model);
+  struct BestAgent : Agent {
+    NeuralCat* nc;
+    Decision turn(Game& g, int seat, const TurnOptions& o) override { return nc->chooseTurnAction(g, seat, o); }
+    Decision claim(Game& g, int seat, const ClaimOptions& o) override { return nc->chooseClaim(g, seat, o); }
+  } bestAgent;
+  bestAgent.nc = &best;
+  long replayed = 0;
   std::map<std::string, std::unique_ptr<Agent>> pool;
   for (auto& id : job.pool) if (id != "learner" && !pool.count(id)) pool[id] = make(id);
 
@@ -165,16 +204,29 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
   FILE* ff = std::fopen((base + ".features").c_str(), "wb");
   FILE* fl = std::fopen((base + ".labels").c_str(), "wb");
   FILE* fa = std::fopen((base + ".aux").c_str(), "wb");
-  if (!ff || !fl || !fa) throw std::runtime_error("generate-nc: can't write " + base);
+  FILE* fr = job.replays > 0 ? std::fopen((base + ".replay").c_str(), "wb") : nullptr;
+  if (!ff || !fl || !fa || (job.replays > 0 && !fr)) throw std::runtime_error("generate-nc: can't write " + base);
   long samples = 0, hands = 0, outcomes[6] = {0, 0, 0, 0, 0, 0};
   std::vector<uint16_t> X;
   std::vector<uint8_t> L, A;
   for (long d = 0; d < job.deals; d++) {
     uint32_t dealSeed = uint32_t(job.seed + d);
     Agent* agents[4];
+    Agent* real[4];  // who plays each seat in a replay
+    Recorder seatRec[4];
     for (int s = 0; s < 4; s++) {
-      const std::string& id = job.pool[size_t(rng() * double(job.pool.size()))];
-      agents[s] = id == "learner" ? static_cast<Agent*>(&rec) : pool[id].get();
+      size_t k = size_t(rng() * double(job.pool.size()));
+      const std::string& id = job.pool[k];
+      bool learner = id == "learner";
+      real[s] = learner ? nullptr : pool[id].get();
+      if (job.recordAll) {
+        seatRec[s] = rec;
+        seatRec[s].inner = real[s];
+        seatRec[s].strategy = uint8_t(job.poolStrategies[k]);
+        agents[s] = &seatRec[s];
+      } else {
+        agents[s] = learner ? static_cast<Agent*>(&rec) : real[s];
+      }
     }
     GameOptions o;
     o.seed = dealSeed; o.dealer = int(dealSeed % 4); o.startPoints = 1000000000;
@@ -202,7 +254,7 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
       p[2] = uint8_t(oc == 2 || oc == 3 ? faan : 0);
       p[3] = uint8_t(std::min(255, r.turn));
       p[4] = r.seat;
-      p[5] = uint8_t(job.strategy);
+      p[5] = job.recordAll ? r.strategy : uint8_t(job.strategy);
       p[6] = uint8_t(std::min(255, r.wallLeft));
       p[7] = r.explored;
       float delta = float(res.deltas[r.seat]);
@@ -214,12 +266,41 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
     std::fwrite(X.data(), 2, X.size(), ff);
     std::fwrite(L.data(), 1, L.size(), fl);
     std::fwrite(A.data(), 1, A.size(), fa);
+    if (fr) {
+      // After the hand, so nothing here moves the deals' own random draws.
+      std::vector<uint8_t> R(rows.size() * REPLAY_BYTES, 0);
+      Agent* again[4];
+      for (int s = 0; s < 4; s++) again[s] = real[s] ? real[s] : static_cast<Agent*>(&bestAgent);
+      for (size_t k = 0; k < rows.size(); k++) {
+        NcRow& r = rows[k];
+        if (!r.snap) continue;
+        uint8_t* p = R.data() + k * REPLAY_BYTES;
+        for (int n = 0; n < job.replays; n++) {
+          Game copy = *r.snap;
+          reshuffle(copy, r.seat, replayRng);
+          Result rr = continueAfterDiscard(copy, again, r.seat, r.tile);
+          int f = std::max(3, std::min(13, rr.score.faan ? rr.score.faan : 3));
+          int oc = 5;
+          if (rr.win) {
+            bool selfPaid = rr.payer < 0;
+            oc = rr.winner == r.seat ? (selfPaid ? 0 : 1) : rr.payer == r.seat ? 2 : selfPaid ? 3 : 4;
+          }
+          p[1 + oc]++;
+          if (oc <= 1) p[7 + f - 3]++;
+          if (oc == 2 || oc == 3) p[18 + f - 3]++;
+        }
+        p[0] = uint8_t(job.replays);
+        replayed++;
+      }
+      std::fwrite(R.data(), 1, R.size(), fr);
+    }
     samples += long(rows.size());
   }
   std::fclose(ff); std::fclose(fl); std::fclose(fa);
+  if (fr) std::fclose(fr);
   long ms = long(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count());
-  std::printf("{\"index\":%d,\"deals\":%ld,\"hands\":%ld,\"samples\":%ld,\"outcomes\":[%ld,%ld,%ld,%ld,%ld,%ld],\"ms\":%ld}\n",
-              job.shard, job.deals, hands, samples, outcomes[0], outcomes[1], outcomes[2], outcomes[3], outcomes[4], outcomes[5], ms);
+  std::printf("{\"index\":%d,\"deals\":%ld,\"hands\":%ld,\"samples\":%ld,\"replayed\":%ld,\"outcomes\":[%ld,%ld,%ld,%ld,%ld,%ld],\"ms\":%ld}\n",
+              job.shard, job.deals, hands, samples, replayed, outcomes[0], outcomes[1], outcomes[2], outcomes[3], outcomes[4], outcomes[5], ms);
   return 0;
 }
 

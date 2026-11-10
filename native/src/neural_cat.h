@@ -44,6 +44,10 @@ class NeuralCat : public Foundation {
 
  private:
   std::shared_ptr<Mlp> model_;
+  std::unique_ptr<Mlp> reader_;  // a stacked model's reader (js/mahjong-ml-model.js), else null
+  static const int READ_SIZE = 16;
+  // The move network's input for features x: x itself, or x and the reader's read after it (in buf).
+  const float* input(const float* x, float* buf) const;
   int topK_;
   double winBonus_, claimMargin_;
   void prepare(State& st, const Game& g, int seat, Ctx& ctx, const std::vector<Threat>* threats, const Counts* counts);

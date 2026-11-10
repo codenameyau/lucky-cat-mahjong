@@ -25,7 +25,10 @@ struct Meld {
 struct Discard { int8_t tile; bool claimed; };
 
 // What a strategy keeps on a seat for the hand (plan commitment, a lock): opaque here.
-struct BotSeatState { virtual ~BotSeatState() {} };
+struct BotSeatState {
+  virtual ~BotSeatState() {}
+  virtual std::shared_ptr<BotSeatState> clone() const { return nullptr; }  // a replay's own copy
+};
 
 struct Seat {
   std::vector<int8_t> hand, flowers;
@@ -132,6 +135,8 @@ struct Result {
 
 // Plays one hand from a fresh deal (game.hand). trace (optional) gets every action.
 Result runHand(Game& g, Agent* agents[4], std::vector<std::string>* trace = nullptr);
+// A replay: the hand in `g` goes on from `seat` throwing `tile` (its turn, the tile not thrown yet).
+Result continueAfterDiscard(Game& g, Agent* agents[4], int seat, int tile);
 void touch(Hand& h);  // a new version
 
 // Helpers the bots share with the engine.

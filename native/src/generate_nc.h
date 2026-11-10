@@ -14,7 +14,17 @@ struct NcGenerateJob {
   long deals = 0;
   int shard = 0, strategy = 0;    // the learner's index in the manifest's strategies
   std::vector<std::string> pool;  // native ids; "learner" is the exploring copy
+  // Every seat recorded (generate.js's default), each read through the learner as the JS
+  // reads it; poolStrategies[k] is pool[k]'s index in the manifest's strategies.
+  bool recordAll = false;
+  std::vector<int> poolStrategies;
   std::string out;
+  // Replayed labels (the frontier plan, step 5): this share of the recorded
+  // discards is played on `replays` times after the hand, with the tiles the
+  // seat can't see (the others' hands and the wall) shuffled each time. The
+  // counts go in shard-N.replay; the rows themselves are unchanged.
+  int replays = 0;
+  double replayShare = 0;
 };
 
 int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make);

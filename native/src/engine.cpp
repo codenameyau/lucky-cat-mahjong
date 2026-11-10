@@ -350,18 +350,28 @@ static Result finishFlowerWin(Game& g, int seat, const FlowerWin& fw) {
   return r;
 }
 
+// The hand's loop. A replay (continueAfterDiscard) starts at `pending`: `cur` has
+// just chosen to throw it, so the loop goes straight to applying it.
+static Result playLoop(Game& g, Agent* agents[4], int cur, bool needDraw, int pending);
+
 static Result playHand(Game& g, Agent* agents[4]) {
-  Hand& h = g.hand;
   for (int k = 0; k < 4; k++) handleFlowers(g, (g.dealer + k) % 4);
   for (int f = 0; f < 4; f++) {
     FlowerWin fw = flowerWinCheck(g, (g.dealer + f) % 4);
     if (fw.any) return finishFlowerWin(g, (g.dealer + f) % 4, fw);
   }
-  int cur = g.dealer;
-  bool needDraw = false;
+  return playLoop(g, agents, g.dealer, false, NO_TILE);
+}
+
+Result continueAfterDiscard(Game& g, Agent* agents[4], int seat, int tile) {
+  return playLoop(g, agents, seat, false, tile);
+}
+
+static Result playLoop(Game& g, Agent* agents[4], int cur, bool needDraw, int pending) {
+  Hand& h = g.hand;
   for (;;) {
     h.turn = cur;
-    if (needDraw) {
+    if (needDraw && pending == NO_TILE) {
       if (h.wall.empty()) {
         Result dr = settleDraw(g);
         log(g, "drawGame");
@@ -380,6 +390,11 @@ static Result playHand(Game& g, Agent* agents[4]) {
     needDraw = true;
 
     int discarded = NO_TILE;
+    if (pending != NO_TILE) {
+      applyDiscard(g, cur, pending);
+      discarded = pending;
+      pending = NO_TILE;
+    }
     while (discarded == NO_TILE) {
       TurnOptions topts = turnOptions(g, cur);
       Decision action = agents[cur]->turn(g, cur, topts);

@@ -96,6 +96,14 @@ Every training idea and every milestone model is a section below, in the order t
   - [Every decision, and every strategy](#every-decision-and-every-strategy)
   - [Head to head: with the check against without it](#head-to-head-with-the-check-against-without-it)
   - [What it taught, and what comes next](#what-it-taught-and-what-comes-next)
+- [Frontier Cat: one model, three heads (FC1)](#frontier-cat-one-model-three-heads-fc1)
+  - [Thinking](#thinking-2)
+  - [Round 1: the heads, as outputs](#round-1-the-heads-as-outputs)
+  - [Round 2: the read, as an input](#round-2-the-read-as-an-input)
+  - [A wider choice](#a-wider-choice)
+  - [Round 3: replayed labels](#round-3-replayed-labels)
+  - [Round 4: replays on fresh every-seat data](#round-4-replays-on-fresh-every-seat-data)
+  - [FC1: what ships, and what it does differently](#fc1-what-ships-and-what-it-does-differently)
 - [Where the files are](#where-the-files-are)
 - [Documenting a release](#documenting-a-release)
 
@@ -103,7 +111,7 @@ Every training idea and every milestone model is a section below, in the order t
 
 | | Neural Cat | Lucky Cat | Only Orphans |
 | --- | --- | --- | --- |
-| In the game | **NC8** (lab model N10c) | **LC32** (lab model LL26b) | **OT11d** |
+| In the game | **NC9** (lab model N14c; [Frontier Cat](#frontier-cat-one-model-three-heads-fc1) FC1 beside it) | **LC32** (lab model LL26b) | **OT11d** |
 | What it is | A network that scores Jorge Yau's best choices in expected points | A network that makes every move itself, with no rules underneath | Fixed rules pick a target each deal (Thirteen Orphans, triplet hands, Seven Pairs); a network, the same kind as Neural Cat's, chooses the rest in expected points |
 | What it plays for | Points: often and big wins on one scale | Points first, wins second (LC20 and before: wins, as many and as fast as it can) | Points and wins on one scale (J), with a win bonus of 800 |
 | Trained on | 950,000 league hands (stopped in round 19, at a plateau), and earlier rounds against the rule bots | 1,000,000 league hands against its earlier selves and Neural Cat, then 100,000 lab hands against Neural Cat, Jorge Yau and its last two champions, every hand weighted by its points | Its own league (O1 to O5), then 11 lab rounds with the targets against Neural Cat, Jorge Yau, Lucky Cat and its earlier selves |
@@ -1301,6 +1309,66 @@ Points a hand, with the check minus without it. A 2,000-deal run in the JS engin
 #### What comes next
 
 The [evaluation architecture](../architecture/README.md): a main hand and a backup picked for the turn (the hand picker), a pivot checker that decides whether to stay on it, a discarder (rules or a model), and the contradiction check last. Before any of it is built, three things are measured (why the check overrides Neural Cat, whether the chance to finish is right, how often each strategy pivots) and four small experiments run head to head: a Neural Cat lab round with the check on, a finer meaning of a tile the hand keeps, a backup hand in the check, and hand-first scoring for Jorge Yau.
+
+## Frontier Cat: one model, three heads (FC1)
+
+The [frontier plan](frontier-plan.md) after the [Suphx plan](suphx-plan.md) was cancelled: grow Neural Cat into one network that reads the table, picks the hand and values the move, and train it on the native simulator. The full comparison with the previous architecture is the [frontier report](frontier-report.md); every finding with its evidence is in the plan's [Learnings](frontier-plan.md#learnings).
+
+### Thinking
+
+Neural Cat's network predicts how the hand ends from the position a discard leaves. That is the part of the project that has worked, so the new model keeps it as its move head and adds what it lacks: a read of the opponents (who is ready, on which tiles) and of its own hand (which hand it will win with), learned with the hidden tiles as answers. The bet was that a move valued with that read in hand would choose better, and that the hand head could replace the rules' five ways of picking a hand.
+
+### Round 1: the heads, as outputs
+
+The heads were added to N14c's network as extra outputs (FM1, three recipes of three seeds).
+
+- **The read is good.** The hand head names the hand a seat goes on to win with 74% of the time, against 64% for the rules' read, and its chances are calibrated hand by hand. An opponent being ready is read with an AUC of 0.84, a tile that deals in now with 0.87.
+- **Play didn't change.** Heads at weight 0.2: +0.5 ± 2.2 points a hand against N14c; the control without them, −1.3 ± 2.1. The move was still chosen from the same 28 outputs, so a better read had no way to change it.
+- **What it did differently:** every fine-tuned model, the control too, won less often (15.5–16.5% of hands against 17.4%) with bigger wins (6.2 faan against 5.8). That came from the data (one round of the champion's own exploring seats), not from the heads.
+
+### Round 2: the read, as an input
+
+The stacked model: the round-1 heads model became a frozen **reader**, and its read (16 numbers) went after the features of a **move network** that started as N14c with zero weights on the read (FM2).
+
+- **The read added nothing.** On held-out positions the stacked models predicted endings no better than the control trained on the same rows (validation loss 3.0712–3.0718 against 3.0715–3.0723). At the table the best of each were level: −3.9 ± 3.6 and −4.5 ± 3.7 points a hand against N14c over 60,000 deals.
+- **Why, as far as the evidence goes:** the read is a function of the same features, and N14c's network already makes most of it from them (its inputs include a hand-made threat read for each opponent). A second network's read only helps if it knows something the move network can't learn from the endings, and here it doesn't.
+- **One round of data moves it backwards.** Trained on round 2's data alone, every model was best after one epoch and every one played worse than N14c. The recipes after this train on more rounds at a gentler rate.
+
+### A wider choice
+
+N14c scores Jorge Yau's best 6 discards. Scoring his best 10 was +2.2 ± 3.5 points a hand, and every legal discard +0.8 ± 3.6: neither better, and both dealt in about one point more often. The choice stays at 6.
+
+### Round 3: replayed labels
+
+The plan's biggest lever: one hand's ending is a noisy label, because points double with every faan. A quarter of the champion's recorded discards were replayed 8 times after the hand with the wall shuffled, and the network learned from the replays' endings together with the real one (FM3).
+
+- **The labels are better.** Validation loss on the real endings: replayed labels 3.0641–3.0642, with the reader too 3.0636–3.0638, the control 3.0656–3.0658, five times the spread between seeds. The first version of the replays also shuffled the other players' hands, and it was biased: random hands win far less, so the replays dealt in 4.9% of the time against 12.2% really. Shuffling only the wall fixed that.
+- **Play is not.** By recipe against N14c: replayed labels −6.2 ± 4.4, with the reader −4.9 ± 3.6, the control −6.5 ± 3.6.
+- **The data was the problem.** Across three rounds, no model trained on frontier data beat N14c, and as a group they were behind it, the controls as much as the rest. That data recorded only the champion's own seats, while the network scores the best 6 options, most of which the champion doesn't choose. N14c's data recorded every seat at the table. On the lab's last two data sets (every seat, new to N14c) the same recipes were all level with N14c: the reader +1.3 and −4.7, the control +2.9 and −3.2, the reader with replayed labels −1.5 and +0.1 (each ± about 5.5 over 20,000 deals). The reader still added nothing to the validation loss there (2.8265–2.8268 against 2.8267–2.8269).
+
+### Round 4: replays on fresh every-seat data
+
+Thinking: if the data was the problem in round 3, replayed labels should pay off on data that records every seat. 150,000 fresh deals on the native simulator, every seat recorded, a quarter of the discards replayed 8 times (FM4).
+
+- **Level, not ahead.** By recipe against N14c over 60,000 deals: replayed labels +0.6 ± 2.4, with the reader +0.7 ± 2.4, the control +2.1 ± 2.4. Round 3's learner-only data had them 5 to 6 points behind, so every-seat data fixes the drift.
+- **Prediction again, not play.** Validation loss 3.1090–3.1092 with replays, 3.1086–3.1087 with the reader too, against 3.1111–3.1116 for the control. Twice now the better labels haven't made better moves, so FC1 stays.
+- **What the bots did differently:** all six won more hands than N14c (18.5% against 17.4%) and dealt in more (12.3 to 12.5% against 11.8%), the control as much as the rest, which points to the one round of exploring data rather than the labels.
+
+### FC1: what ships, and what it does differently
+
+Frontier Cat FC1 is FLq1: the reader, replayed labels, and data that records every seat (the lab's last two sets and round 3's replayed rows), from N14c at lr 1e-4. It plays with N14c's settings (the best 6 options, a win bonus of 300). The same change ships N14c itself as Neural Cat **NC9**, in place of NC8.
+
+On 100,000 fresh deals at the game's table ([frontier report](frontier-report.md#head-to-head)):
+
+| | Points a hand | Hands won | Deal-ins | Average win |
+| --- | ---: | ---: | ---: | ---: |
+| FC1 less NC8 | **+15.5 ± 2.8** | 17.4% against 16.8% | 11.6% against 11.5% | 6.00 faan against 5.71 |
+| FC1 less N14c (NC9) | **+4.5 ± 2.7** | 17.4% against 17.4% | 11.6% against 11.8% | 6.00 faan against 5.77 |
+| N14c less NC8 | +11.6 ± 2.8 | 17.4% against 16.8% | 11.8% against 11.5% | 5.77 faan against 5.70 |
+
+- **What the bot does differently:** against N14c, the same hands won and slightly fewer deal-ins, with wins about a quarter of a faan bigger. The bigger wins came with the replayed labels: on the same deals, the models trained with them won at 5.97 to 6.00 faan and those without at 5.72 to 5.73.
+- **What the coach says differently:** at Complex, Frontier Cat adds its read: a player it reads as ready, a tile's chance to win someone the hand right now, and the hand it expects to win with.
+- **Not yet proven:** +4.5 ± 2.7 over N14c is short of the bar (two standard errors, twice), and the bar's frozen table only runs in JS now. Most of the gain over the game's Neural Cat is N14c's.
 
 ## Where the files are
 

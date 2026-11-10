@@ -5,8 +5,8 @@
 
      1. Data. The champion plays --deals deals on the native simulator
         (generate.js --native), exploring, against earlier champions, Jorge Yau
-        and Lucky Cat. Only its own seats are recorded, with the labels of the
-        extra heads (scripts/ml/heads.js).
+        and Lucky Cat. Every seat is recorded, read through the champion, with
+        the labels of the extra heads (scripts/ml/heads.js).
      2. Arms. Each recipe trains --seeds models from the champion (ml/train.py
         --heads), so a recipe is judged by the average of its seeds, not by
         its luckiest one.
@@ -42,9 +42,17 @@
      --deals N      deals a round (default 200000)
      --seeds N      models a recipe (default 3)
      --window N     rounds of data a model trains on, and that are kept (default 3)
+     --keep N       keep N rounds of data, if more than the window
      --stages a,b   deals of each screen stage (default 4000,16000,40000)
      --drop X       drop a model behind by more than X standard errors (default 1)
      --keep X       a recipe is a candidate ahead by more than X (default 2)
+     --recipes SET  heads (step 2, the default) or stacked (step 3)
+     --reader FILE  for stacked and replay: the reader, a <name>.heads.json
+     --learner-only record the champion's seats alone (rounds 1 to 3 did; every
+                    model trained on that fell behind it). Default: every seat
+     --sample P     the share of positions recorded (default 0.12; 0.3 learner-only)
+     --replays K    the round's data replays a share of its discards K times
+                    (--replay-share, default 0.25), for --recipes replay
      --start FILE   the first champion (default: Neural Cat's lab champion,
                     else the model in the game)
      --dir DIR      state, log and screens (default ml/fm)
@@ -62,12 +70,36 @@ const ROOT = path.join(__dirname, '..', '..');
 const DATA_SEED = 90000000;      // round r's deals: DATA_SEED + (r - 1) * 1,000,000
 const SCREEN_SEED = 930000000;   // fresh deals for screens, never the benchmark deck
 
-// The recipes a round tries. Each is trained --seeds times.
-const RECIPES = [
-  { id: 'a', what: 'heads at weight 0.5, lr 3e-4', args: ['--lr', '3e-4', '--epochs', '8', '--head-weight', '0.5'] },
-  { id: 'b', what: 'heads at weight 0.2, lr 3e-4', args: ['--lr', '3e-4', '--epochs', '8', '--head-weight', '0.2'] },
-  { id: 'c', what: 'no extra heads, lr 3e-4 (the control)', args: ['--lr', '3e-4', '--epochs', '8'], plain: true },
-];
+// The recipes a round tries (--recipes), each trained --seeds times.
+//   heads    step 2: the extra heads as outputs (round 1)
+//   replay   step 5: replayed labels (below)
+//   stacked  step 3: the move network reads the reader's read (--reader, a
+//            <name>.heads.json from an earlier round). These train on this
+//            round's data alone: the reader learned from earlier rounds', so
+//            its read of these rows is as honest as it will be in play. The
+//            control trains on the same rows.
+const RECIPE_SETS = {
+  heads: [
+    { id: 'a', what: 'heads at weight 0.5, lr 3e-4', args: ['--lr', '3e-4', '--epochs', '8', '--head-weight', '0.5'] },
+    { id: 'b', what: 'heads at weight 0.2, lr 3e-4', args: ['--lr', '3e-4', '--epochs', '8', '--head-weight', '0.2'] },
+    { id: 'c', what: 'no extra heads, lr 3e-4 (the control)', args: ['--lr', '3e-4', '--epochs', '8'], plain: true },
+  ],
+  stacked: [
+    { id: 's', what: 'reads the reader, lr 3e-4', args: ['--lr', '3e-4', '--epochs', '8'], plain: true, stacked: true, latest: true },
+    { id: 't', what: 'reads the reader, lr 1e-3', args: ['--lr', '1e-3', '--epochs', '6'], plain: true, stacked: true, latest: true },
+    { id: 'c', what: 'the same rows, no reader, lr 3e-4 (the control)', args: ['--lr', '3e-4', '--epochs', '8'], plain: true, latest: true },
+  ],
+  // step 5: replayed labels (the round's data made with --replays). The control
+  // trains on the same rows with only their real endings.
+  // Rounds 1 and 2 found that one round of the champion's own seats pulls it off
+  // course, so these train on the whole window at a gentler rate. The stacked
+  // recipe leaves out the data its reader learned from.
+  replay: [
+    { id: 'p', what: 'replayed labels, the window, lr 1e-4', args: ['--lr', '1e-4', '--epochs', '4', '--replay'], plain: true },
+    { id: 'q', what: 'replayed labels and the reader, the window less the reader\'s data, lr 1e-4', args: ['--lr', '1e-4', '--epochs', '4', '--replay'], plain: true, stacked: true, notReaderData: true },
+    { id: 'c', what: 'the same window, real endings only, lr 1e-4 (the control)', args: ['--lr', '1e-4', '--epochs', '4'], plain: true },
+  ],
+};
 
 function parseArgs(argv) {
   const out = { _: [] };
@@ -85,33 +117,9 @@ const readJson = (f, dflt) => { try { return JSON.parse(fs.readFileSync(f, 'utf8
 const writeJson = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 1) + '\n'); };
 const rel = (f) => path.relative(ROOT, f);
 
-// A head to head on the native simulator at the game's table: the pair is
-// (model less champion) per deal, as bench.js compare reports it.
-const SIM = path.join(ROOT, 'native', 'build', 'lcm-sim' + (process.platform === 'win32' ? '.exe' : ''));
+// A screen: the model against the champion at the game's table (scripts/ml/h2h.js).
 function screen(file, champ, seed, deals, workers) {
-  const N = require('./native.js');
-  const ids = ['nc:' + file, 'nc:' + champ, 'neural-cat', 'jorge-yau', 'lc:js/mahjong-lucky-cat-weights.js'].map((id) => N.nativeId(id));
-  if (ids.some((x) => !x)) throw new Error("frontier: a player can't run on the native simulator (make -C native; node scripts/ml/native.js parity, then pin)");
-  const { spawn } = require('node:child_process');
-  const step = Math.ceil(deals / workers), jobs = [];
-  for (let f = 0; f < deals; f += step) {
-    jobs.push(new Promise((res, rej) => {
-      const p = spawn(SIM, ['play', '--models', ids[0] + ',' + ids[1], '--table', ids.slice(2).join(','),
-        '--seed', String(seed), '--from', String(f), '--to', String(Math.min(deals, f + step))], { cwd: ROOT });
-      let o = '', e = '';
-      p.stdout.on('data', (d) => (o += d)); p.stderr.on('data', (d) => (e += d));
-      p.on('exit', (c) => (c ? rej(new Error('lcm-sim play: ' + e)) : res(JSON.parse(o))));
-    }));
-  }
-  return Promise.all(jobs).then((outs) => {
-    const sum = (k, m) => outs.reduce((a, o) => a + o.out[m][k], 0);
-    const n = outs.reduce((a, o) => a + o.pair.n, 0), ps = outs.reduce((a, o) => a + o.pair.sum, 0), pq = outs.reduce((a, o) => a + o.pair.sq, 0);
-    const mean = ps / n;
-    const model = (m) => ({ points: sum('points', m) / sum('seats', m), wins: sum('wins', m) / sum('seats', m), dealIns: sum('dealIns', m) / sum('seats', m),
-      averageWin: sum('winPoints', m) / Math.max(1, sum('wins', m)), averageFaan: sum('winFaan', m) / Math.max(1, sum('wins', m)) });
-    return { seed, deals: n, table: ids.slice(2), simulator: 'native-fast', models: [model(0), model(1)],
-      gap: { points: mean, standardError: Math.sqrt(Math.max(0, pq / n - mean * mean) / n), deals: n } };
-  });
+  return require('./h2h.js').headToHead('nc:' + file, 'nc:' + champ, null, seed, deals, workers);
 }
 
 async function main() {
@@ -152,6 +160,18 @@ async function main() {
   const stages = String(a.stages || '4000,16000,40000').split(',').map(Number);
   const drop = parseFloat(a.drop || 1), keep = parseFloat(a.keep || 2);
   const workers = String(a.workers || os.cpus().length);
+  const RECIPES = RECIPE_SETS[String(a.recipes || 'heads')];
+  if (!RECIPES) throw new Error('--recipes: one of ' + Object.keys(RECIPE_SETS).join(', '));
+  const readerFile = a.reader ? String(a.reader) : null;
+  // Every seat is recorded (as the lab does) unless --learner-only: rounds 1 to 3 recorded the
+  // champion's seats alone, and every model trained on that fell behind it.
+  const learnerOnly = !!a['learner-only'];
+  // Data kept: the window, or more (--keep N rounds), so a shipped model's data stays.
+  const keepRounds = Math.max(parseInt(a.window || 3, 10), parseInt(a.keep || 0, 10));
+  const sample = parseFloat(a.sample || (learnerOnly ? 0.3 : 0.12));
+  const replays = a.replays ? parseInt(a.replays, 10) : 0, replayShare = parseFloat(a['replay-share'] || 0.25);
+  if (String(a.recipes) === 'replay' && !replays) throw new Error('--recipes replay needs --replays K');
+  if (RECIPES.some((x) => x.stacked) && !readerFile) throw new Error('--recipes stacked needs --reader <name>.heads.json');
 
   for (let n = 0; n < rounds; n++) {
     const r = state.rounds.length + 1;
@@ -165,8 +185,8 @@ async function main() {
       const pool = opponents.map(() => 'neural-cat').concat(opponents);
       log('Round ' + r + ': ' + deals + ' deals on the native simulator, ' + path.basename(champ) + ' exploring against ' + opponents.join(', '));
       run('node', ['scripts/ml/generate.js', '--native', '--deals', String(deals), '--workers', workers, '--lineup', 'mix', '--pool', pool.join(','),
-        '--record', 'neural-cat', '--explore', '0', '--sample', '0.3', '--temperature', '150', '--epsilon', '0.05',
-        '--weights', champ, '--seed', String(DATA_SEED + (r - 1) * 1000000), '--out', data]);
+        '--explore', '0', '--sample', String(sample), '--temperature', '150', '--epsilon', '0.05'].concat(learnerOnly ? ['--record', 'neural-cat'] : [], [
+        '--weights', champ, '--seed', String(DATA_SEED + (r - 1) * 1000000), '--out', data].concat(replays ? ['--replays', String(replays), '--replay-share', String(replayShare)] : [])));
     }
     const sets = [];
     for (let k = Math.max(1, r - window + 1); k <= r; k++) sets.push(path.join('ml', 'data', 'fm-' + k));
@@ -178,8 +198,10 @@ async function main() {
         const file = path.join('ml', 'models', name + '.json');
         if (!fs.existsSync(path.join(ROOT, file))) {
           log('Round ' + r + ': training ' + name + ' [' + rec.what + ', seed ' + s + ']');
-          run(PYTHON, ['ml/train.py', '--data'].concat(sets, ['--name', name, '--init', champ, '--hidden', hidden, '--seed', String(s), '--patience', '3'],
-            rec.plain ? [] : ['--heads'], rec.args));
+          const readerData = readerFile ? (readJson(path.resolve(ROOT, readerFile), { meta: {} }).meta.data || []) : [];
+          const use = rec.latest ? [data] : rec.notReaderData ? sets.filter((d) => readerData.indexOf(d) === -1) : sets;
+          run(PYTHON, ['ml/train.py', '--data'].concat(use, ['--name', name, '--init', champ, '--hidden', hidden, '--seed', String(s), '--patience', '3'],
+            rec.plain ? [] : ['--heads'], rec.stacked ? ['--reader', readerFile] : [], rec.args));
           // The model plays with its champion's settings.
           const w = readJson(path.join(ROOT, file));
           const play = (readJson(path.resolve(ROOT, champ), { meta: {} }).meta || {}).play;
@@ -232,10 +254,10 @@ async function main() {
       const top = best.models.filter((m) => m.alive).sort((p, q) => q.gap - p.gap)[0];
       log('Round ' + r + ': ' + top.name + ' is a candidate. The bar: node scripts/ml/bench.js judge nc:ml/models/' + top.name + '.json --vs nc:' + champ);
     }
-    state.rounds.push({ round: r, data, champion: champ, recipes });
+    state.rounds.push({ round: r, data, champion: champ, recipeSet: String(a.recipes || 'heads'), reader: readerFile, recipes });
     writeJson(stateFile, state);
     // Data no round trains on any more goes to the Trash.
-    for (let k = 1; k <= r - window; k++) {
+    for (let k = 1; k <= r - keepRounds; k++) {
       const old = path.join(ROOT, 'ml', 'data', 'fm-' + k);
       if (!fs.existsSync(old)) continue;
       const to = path.join(os.homedir(), '.Trash', 'fm-' + k + '-' + Date.now());

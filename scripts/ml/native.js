@@ -113,6 +113,8 @@ function agentFor(id) {
   if (id === 'simple') return simple;
   if (id === 'jorge-yau') return require('../../js/mahjong-jorge-yau.js');
   if (id === 'neural-cat') return require('../../js/mahjong-ml.js').create({ fast: true });
+  // Neural Cat with other weights (a stacked frontier model among them).
+  if (id.startsWith('nc:')) return require('../../js/mahjong-ml.js').create({ weights: require('./weights.js').readWeights(id.slice(3)), fast: true });
   if (id.startsWith('lc:')) {
     const W = require('./weights.js');
     const w = W.readWeights(id.slice(3));
