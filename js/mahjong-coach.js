@@ -1574,7 +1574,7 @@
   var DETAILS = ['simple', 'detailed', 'complex'];
   var SIMPLE_WHY = 130; // characters: one short reason
 
-  // "I like it because it gets you ready fastest and keeps a bigger hand in reach."
+  // "It gets you ready fastest and keeps a bigger hand in reach."
   // Simple and Detailed speak as the coach ("I"), in hints and feedback alike;
   // only Complex says "the model".
   // Simple ends with one "Go for ..." sentence (aimSentence). The hint's own tip can say it too
@@ -1595,8 +1595,14 @@
     }).join('').trim();
   }
 
-  function sentenceOf(reasons, lead) {
-    return lead + 'it ' + reasons.join(' and ') + '.';
+  function sentenceOf(reasons) {
+    return 'It ' + reasons.join(' and ') + '.';
+  }
+
+  // "It keeps a bigger hand in reach." A network's reasons, said as one sentence.
+  function isReasonSentence(t) {
+    var said = plain(t);
+    return Object.keys(GROUP_PLAIN).some(function (g) { return said.indexOf('It ' + GROUP_PLAIN[g]) === 0; });
   }
 
   function isModelTip(t) {
@@ -1611,7 +1617,7 @@
     var reasons = hint.modelWhy || [];
     out.model = null;
     if (detail === 'detailed') {
-      if (reasons.length) tips.push(sentenceOf(reasons, 'I like it because '));
+      if (reasons.length) tips.push(sentenceOf(reasons));
       out.tips = tips;
       return fit(out);
     }
@@ -1623,7 +1629,7 @@
     } else {
       var clear = hint.modelWhyClear || [];
       why = clip(withoutPivots(tips[0]), SIMPLE_WHY);
-      if (clear.length) why = (why + ' ' + sentenceOf(clear, 'I like it because ')).trim();
+      if (clear.length) why = (why + ' ' + sentenceOf(clear)).trim();
     }
     out.tips = why ? [why] : [];
     return fit(out);
@@ -1644,7 +1650,7 @@
     var praised = /^(Great|Good) /.test(fb.action || '');
     var reasons = hint && !praised ? (detail === 'simple' ? hint.modelWhyClear : hint.modelWhy) || [] : [];
     if (detail === 'detailed') {
-      if (reasons.length) tips.push(sentenceOf(reasons, 'I like it because '));
+      if (reasons.length) tips.push(sentenceOf(reasons));
       out.tips = tips;
       return fit(out);
     }
@@ -1658,7 +1664,7 @@
       why = (pick + ' ' + aimSentence(hint.aim)).trim();
     } else {
       why = clip(withoutPivots(tips[0]), SIMPLE_FEEDBACK);
-      if (reasons.length) why = (why + ' ' + sentenceOf(reasons, 'I like it because ')).trim();
+      if (reasons.length) why = (why + ' ' + sentenceOf(reasons)).trim();
     }
     out.tips = why ? [why] : [];
     return fit(out);
@@ -1729,6 +1735,7 @@
   }
   api.forStrategy = forStrategy;
   api.atDetail = atDetail;
+  api.isReasonSentence = isReasonSentence;
   if (node) module.exports = api;
   else root.MahjongCoach = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

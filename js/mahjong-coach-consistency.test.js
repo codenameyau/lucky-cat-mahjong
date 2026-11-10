@@ -19,7 +19,7 @@ const LEVELS = ['simple', 'detailed', 'complex'];
 const clean = (t) => String(t || '').replace(/[\u0001\u0002]/g, '');
 const words = (h) => [h.action].concat(h.tips || []).map(clean).filter(Boolean).join(' ');
 // A network's own line: its numbers (Complex) or its reasons (Simple, Detailed).
-const networkLine = (t) => /^(On average, )?[Tt]he model expects |^Lucky Cat (discards|would) |^I like it because |^Odds to finish /.test(clean(t));
+const networkLine = (t) => /^(On average, )?[Tt]he model expects |^Lucky Cat (discards|would) |^Odds to finish /.test(clean(t)) || C.isReasonSentence(clean(t));
 const shared = (h) => [h.action].concat(h.tips || []).map(clean).filter((t) => t && !networkLine(t)).join(' | ');
 const NUMBERS = /model expects|\bscore\b|chance to win|% of the time|Odds to finish|\d%/;
 const NETWORK_NUMBERS = /model expects|\bscore\b|chance to win|% of the time/;
@@ -99,7 +99,7 @@ test('a tile the hand can\'t use goes for the same reason, said one way', () => 
 });
 
 test('no strategy says a hand\'s tiles or its own name in the old words', async () => {
-  const OLD = /\bkeeps only\b|^Not \w+( or an honor)?\.|terminals and honors|I pick it because|Lucky Cat plays |Your target, |never chows|Next most likely is /;
+  const OLD = /\bkeeps only\b|^Not \w+( or an honor)?\.|terminals and honors|I pick it because|Lucky Cat plays |Your target, |never chows|Next most likely is |I like it because/;
   let seen = 0;
   for (const id of IDS) {
     const bot = S.get(id).bot;
