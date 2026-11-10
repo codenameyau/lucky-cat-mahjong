@@ -48,21 +48,3 @@ test('the live site and public addresses are not local', () => {
     assert.ok(!local.test(host), host + ' is not local');
   });
 });
-
-// Every event the site sends is in the analytics docs, so the reporting guide
-// never falls behind the code.
-test('every tracked event is documented', () => {
-  const doc = fs.readFileSync(path.join(ROOT, 'docs/analytics/README.md'), 'utf8');
-  const names = new Set();
-  ['js/mahjong-game.js', 'js/play-options.js', 'js/nav.js', 'js/offline.js', 'js/tile-quiz.js', 'js/main.js'].forEach((file) => {
-    const src = fs.readFileSync(path.join(ROOT, file), 'utf8');
-    for (const m of src.matchAll(/\btrack(?:Nav)?\(\s*(?:[^'(),]+\?\s*)?'([a-z0-9_]+)'(?:\s*:\s*'([a-z0-9_]+)')?/g)) {
-      names.add(m[1]);
-      if (m[2]) names.add(m[2]);
-    }
-    for (const m of src.matchAll(/^\s+'?[a-z-]+'?: '(play_[a-z_]+)',$/gm)) names.add(m[1]); // BUTTON_EVENTS
-  });
-  assert.ok(names.size > 40, 'found the events (' + names.size + ')');
-  const missing = [...names].filter((n) => !doc.includes('`' + n + '`'));
-  assert.deepEqual(missing, [], 'events missing from docs/analytics/README.md');
-});

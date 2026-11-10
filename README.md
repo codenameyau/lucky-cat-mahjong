@@ -27,7 +27,7 @@ The learned bot, Neural Cat, is on Hugging Face:
   - Playing: [Game modes](#game-modes) · [Rules and scoring](#rules-and-scoring) · [Saving and resuming](#saving-and-resuming) · [Hand seeds](#hand-seeds) · [Playback](#playback) · [Auto-play](#auto-play-development-only)
   - Bots and coach: [Strategies](#strategies) · [Bots](#bots) · [Coach](#coach) · [Bot competition](#bot-competition) · [Training the models](#training-the-models) · [The frontier plan](#the-frontier-plan)
   - Table: [Table and layouts](#table-and-layouts) · [Sound and music](#sound-and-music)
-  - For developers: [Machine learning](docs/machine-learning/README.md) · [Analytics](docs/analytics/README.md) · [Testing tip](#testing-tip)
+  - For developers: [Machine learning](docs/machine-learning/README.md) · [Testing tip](#testing-tip)
 - [Other pages](#other)
 
 **Working on the site**
@@ -38,7 +38,7 @@ The learned bot, Neural Cat, is on Hugging Face:
 - [Editing content with Pages CMS](#editing-content-with-pages-cms)
 - [Deploy to GitHub Pages](#deploy-to-github-pages)
 - [Project structure](#project-structure)
-- [Documentation](docs/README.md): [Machine learning](docs/machine-learning/README.md) · [Analytics](docs/analytics/README.md) · [Strategies](docs/strategies/README.md) · [Offline](docs/offline/README.md)
+- [Documentation](docs/README.md): [Machine learning](docs/machine-learning/README.md) · [Strategies](docs/strategies/README.md) · [Offline](docs/offline/README.md)
 
 **[Credits](#credits)**
 
@@ -588,7 +588,6 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 ├── bench/                               # The frozen benchmark, the lineages' generations and their Table Scores
 ├── docs/
 │   ├── README.md                        # Index of the docs
-│   ├── analytics/                       # Google Analytics setup, privacy and every event
 │   ├── offline/                         # The service worker and what works offline
 │   ├── machine-learning/                # Neural Cat and the frontier plan: features, model, training, fair play, the benchmark, the native simulator, history
 │   └── strategies/                      # Bot and coach playbooks
