@@ -60,6 +60,7 @@ const RECIPES = {
   // (a share of replays won). No value: the policy plays alone, as LC32 does.
   p: { what: 'the policy, tilted toward the moves that won more replays (tau 0.05)', policy: true, tau: '0.05' },
   t: { what: 'the same, gentler (tau 0.15)', policy: true, tau: '0.15' },
+  k: { what: 'the same, sharper (tau 0.02)', policy: true, tau: '0.02' },
   a: { what: 'value from option replays and real endings, with the ranking loss', args: ['--options', '--rank-weight', '1'] },
   s: { what: 'the same, stacked: the value reads the reader', args: ['--options', '--rank-weight', '1'], stacked: true },
   c: { what: 'value from real endings only (the control)', args: [] },
@@ -166,7 +167,7 @@ async function main() {
   // The ranking loss's softmax temperature, in the value's units: 3,000 points of
   // win bonus is a 3% chance to win.
   const rankTemp = winObjective ? String(0.03 * play.winBonus) : '100';
-  const recipes = String(a.recipes || (winObjective ? 'p,t,a' : 'a,s,c')).split(',');
+  const recipes = String(a.recipes || (winObjective ? 'p,k,t' : 'a,s,c')).split(',');
 
   // The reader: the heads on the round's data.
   const reader = path.join('ml', 'models', 'LVR' + r);
