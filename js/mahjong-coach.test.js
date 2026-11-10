@@ -416,7 +416,7 @@ describe('coach: a player who ignores the discard', () => {
     const hint = C.turnHint(table({ seats: [{ hand: hand }] }), 0, { kongs: [] });
     assert.equal(hint.tile, 'b9');
     assert.match(text(hint), /Go for /);
-    assert.doesNotMatch(text(hint), /Go for .*Bamboo/);
+    assert.doesNotMatch(text(hint), /Go for [^.]*Bamboo/);
   });
 
   it('keeps its own plan after one discard against its advice', () => {
@@ -425,7 +425,7 @@ describe('coach: a player who ignores the discard', () => {
     C.noteDiscard(game, 0, hint.tile, 'c9');
     drop(game, 'c9');
     const next = C.turnHint(game, 0, { kongs: [] });
-    assert.doesNotMatch(text(next), /Go for .*Bamboo/);
+    assert.doesNotMatch(text(next), /Go for [^.]*Bamboo/);
     assert.match(text(next), /Go for /);
   });
 
@@ -440,7 +440,7 @@ describe('coach: a player who ignores the discard', () => {
     drop(game, 'c8');
     const next = C.turnHint(game, 0, { kongs: [] });
     const said = text(next);
-    assert.match(said, /Go for .*Bamboo/);
+    assert.match(said, /Go for [^.]*Bamboo/);
     assert.ok(!['b6', 'b7', 'b8', 'b9'].includes(next.tile), next.tile);
   });
 
@@ -456,7 +456,7 @@ describe('coach: a player who ignores the discard', () => {
     C.noteDiscard(game, 0, hint.tile, hint.tile);
     drop(game, hint.tile);
     const next = C.turnHint(game, 0, { kongs: [] });
-    assert.match(text(next), /Go for .*Bamboo/);
+    assert.match(text(next), /Go for [^.]*Bamboo/);
     assert.ok(!['b6', 'b7', 'b8', 'b9', 'ws', 'we'].includes(next.tile), next.tile);
   });
 
@@ -488,7 +488,7 @@ describe('coach: a player who ignores the discard', () => {
     drop(game, 'c8');
     const claim = C.claimHint(game, 0, E.claimOptions(game, 0, 'c1', 3, false));
     assert.equal(claim.decision.type, 'pass');
-    assert.match(text(claim), /Go for .*Bamboo/);
+    assert.match(text(claim), /Go for [^.]*Bamboo/);
   });
 });
 

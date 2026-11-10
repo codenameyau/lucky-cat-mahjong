@@ -825,7 +825,9 @@
       claimPrompt: null,
       hint: null,
       hintLists: {}, // by strategy id: every hint and feedback note it gave this game, oldest first (HINTS_KEY)
-      hintsAll: {}, // by strategy id: the hint for the move in front of you
+      hintsAll: {}, // by strategy id: the hint for the move in front of you, at the coach level
+      hintsWhole: {}, // by strategy id: the same hints whole, said at any level (Coach.atDetail)
+      feedbackAll: {}, // by strategy id, then coach level: its note on your last move
       coachLog: [], // playback only: the shown coach's notes up to the move on the table
       coachScroll: 0,
       coachStick: true, // follow the newest note until the player scrolls up
@@ -2315,6 +2317,9 @@
       track('play_set_coach_strategy', { strategy: id });
       // Only which list shows changes. Every strategy has kept its own.
       if (ui.hint && !settings.lesson && ui.coach !== 'off') ui.hint = ui.hintsAll[id] || ui.hint;
+      // In Feedback mode, its own note on your last move.
+      var said = ui.feedbackAll[id];
+      if (ui.feedback && said && said[coachDetail()]) ui.feedback = said[coachDetail()];
       ui.coachStick = true;
       buildStrategies();
       requestRender();
@@ -2348,8 +2353,8 @@
 
     var COACH_OPTIONS = [
       { id: 'simple', name: 'Simple', note: 'What to do and the hand to go for with its faan.', example: 'Discard Two Bamboo. Go for Half Flush in Circles, about 5 faan.' },
-      { id: 'detailed', name: 'Detailed', note: 'What to do, the hand to go for, any threats at the table, and why I pick it.', example: 'Discard Two Bamboo. Not Circles or an honor. Go for Half Flush in Circles. I pick it because it keeps a bigger hand in reach.' },
-      { id: 'complex', name: 'Complex', note: 'Everything the models weigh: the expected score, the chance to win and what a win pays, and the next best choice.', example: 'Discard Two Bamboo. Not Circles or an honor. Go for Half Flush in Circles. The model expects +67 score on average from this discard, with a 3% chance to win (about 418 points). Next best discard is Six Bamboo: +48 score.' },
+      { id: 'detailed', name: 'Detailed', note: 'What to do, the hand to go for, any threats at the table, and why I like the move. No numbers.', example: 'Discard Two Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. I like it because it keeps a bigger hand in reach.' },
+      { id: 'complex', name: 'Complex', note: 'Everything, with each strategy\'s own numbers: a network\'s expected score, chance to win and next best choice, or a rule strategy\'s odds of finishing the hand.', example: 'Discard Two Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. The model expects +67 score on average from this discard, with a 3% chance to win (about 418 points). Next best discard is Six Bamboo: +48 score.' },
     ];
 
     function coachSettingsSheet() {
@@ -2399,9 +2404,15 @@
       buildCoachSettings();
       // The hint on screen says it again in the new words.
       if (!settings.lesson && ui.coach !== 'off' && game && game.hand && (ui.turnPrompt || ui.claimPrompt)) {
-        ui.hintsAll = hintsForAll(ui.turnPrompt ? 'turn' : 'claim', (ui.turnPrompt || ui.claimPrompt).opts);
-        ui.hint = ui.hintsAll[ui.strategies.coach];
+        Object.keys(ui.hintsWhole).forEach(function (sid) {
+          ui.hintsAll[sid] = ui.hintsWhole[sid] ? Coach.atDetail(ui.hintsWhole[sid], id) : null;
+        });
+        ui.hint = ui.hintsAll[ui.strategies.coach] || ui.hint;
       }
+      // The note on your last move, and the panel's notes, at the new level.
+      var fbNow = ui.feedbackAll[ui.strategies.coach];
+      if (ui.feedback && fbNow && fbNow[id]) ui.feedback = fbNow[id];
+      ui.coachStick = true;
       // A playback's coach notes are written again in the new words.
       if (settings.review) {
         resetReviewCoach();
@@ -3732,30 +3743,66 @@
         if (!Array.isArray(list)) return;
         out[id] = list.filter(function (e) {
           return e && (e.kind === 'hint' || e.kind === 'feedback') && typeof e.action === 'string'
-            && typeof e.detail === 'string' && typeof e.move === 'number' && typeof e.hand === 'number';
+            && typeof e.detail === 'string' && typeof e.move === 'number' && typeof e.hand === 'number'
+            && (e.levels === undefined || (e.levels && typeof e.levels === 'object' && Object.keys(e.levels).every(function (d) {
+              var l = e.levels[d];
+              return COACH_DETAILS.indexOf(d) !== -1 && l && typeof l.action === 'string' && typeof l.detail === 'string';
+            })));
         }).slice(-200);
       });
       return out;
     }
 
-    // The advice from every strategy for the move in front of you.
+    // The advice from every strategy for the move in front of you, worked out
+    // whether or not it is the coach on show, so switching strategy (or the
+    // coach level) shows its hint and its notes at once. Kept whole in
+    // ui.hintsWhole; returned at the coach level.
     function hintsForAll(kind, opts) {
       var out = {};
+      ui.hintsWhole = {};
       Strategies.ids().forEach(function (id) {
-        var coach = coachWith(id);
-        try { out[id] = kind === 'turn' ? coach.turnHint(game, 0, opts) : coach.claimHint(game, 0, opts); }
-        catch (err) { out[id] = null; }
+        var coach = Coach.forStrategy(Strategies.get(id).bot, { detail: 'all' });
+        var whole = null;
+        try { whole = kind === 'turn' ? coach.turnHint(game, 0, opts) : coach.claimHint(game, 0, opts); }
+        catch (err) { whole = null; }
+        ui.hintsWhole[id] = whole;
+        out[id] = whole ? Coach.atDetail(whole, coachDetail()) : null;
       });
       return out;
     }
 
-    // Puts a note on each strategy's own list. `notes` is by strategy id.
+    // Each strategy's hints at every coach level, by strategy id.
+    function hintLevelsForAll() {
+      var out = {};
+      Strategies.ids().forEach(function (id) {
+        var whole = ui.hintsWhole[id];
+        if (!whole) return;
+        out[id] = {};
+        COACH_DETAILS.forEach(function (d) { out[id][d] = Coach.atDetail(whole, d); });
+      });
+      return out;
+    }
+
+    // Puts a note on each strategy's own list. `notes` is by strategy id, then
+    // coach level; the list shows the level the coach is set to.
     function rememberAll(notes, kind) {
-      Strategies.ids().forEach(function (id) { rememberCoach(notes[id], kind, id); });
+      Strategies.ids().forEach(function (id) {
+        var levels = notes[id];
+        if (!levels) return;
+        var plain = {};
+        COACH_DETAILS.forEach(function (d) { var p = coachPlain(levels[d]); if (p) plain[d] = p; });
+        rememberCoach(levels[coachDetail()], kind, id, plain);
+      });
       saveHints();
     }
 
-    function rememberCoach(note, kind, id) {
+    // A list entry said at the coach level, when it kept every level.
+    function atLevel(e) {
+      var said = e.levels && e.levels[coachDetail()];
+      return said ? Object.assign({}, e, { action: said.action, detail: said.detail }) : e;
+    }
+
+    function rememberCoach(note, kind, id, levels) {
       var plain = coachPlain(note);
       if (!plain) return;
       var list = hintList(id || ui.strategies.coach);
@@ -3773,6 +3820,7 @@
           last.detail = plain.detail;
           ui.coachStick = true;
         }
+        if (levels) last.levels = levels;
         var prev = list[list.length - 2];
         if (prev && prev.kind === kind && prev.hand === hand && prev.action === plain.action && sameAdvice(prev.detail)) {
           list.splice(list.length - 2, 1);
@@ -3780,7 +3828,9 @@
         }
         return;
       }
-      list.push({ kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber(list, hand), hand: hand });
+      var entry = { kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber(list, hand), hand: hand };
+      if (levels) entry.levels = levels;
+      list.push(entry);
       if (list.length > 200) list.shift();
       ui.coachStick = true;
     }
@@ -3792,7 +3842,7 @@
       if (settings.review) return ui.coachLog;
       // The shown coach's list, for this hand. The panel is this hand only.
       var hand = game ? game.handNumber : 1;
-      var entries = hintList(ui.strategies.coach).filter(function (e) { return e.hand === hand; });
+      var entries = hintList(ui.strategies.coach).filter(function (e) { return e.hand === hand; }).map(atLevel);
       // Without the bar (a landscape phone), the column shows the live note too.
       if (!L.hintH) return entries;
       var live = coachPlain(ui.coach === 'on' ? ui.hint : ui.coach === 'feedback' ? ui.feedback : null);
@@ -5392,15 +5442,14 @@
       if (!lessonAllows('turn', action, target)) return;
       // Training mode: judge the move against what the coach would have done.
       if (!settings.lesson && ui.coach !== 'off' && action.type === 'discard' && ui.hint && ui.hint.tile) {
-        coachFor().noteDiscard(game, 0, ui.hint.tile, action.tile);
+        noteDiscardForAll(action.tile);
       }
       if (action.type === 'discard' && game && game.hand) {
         ui.feedbackDiscards = strategyDiscardRows();
         ui.feedbackKind = 'discard';
       }
       if (ui.coach === 'feedback' && ui.hint && action.type === 'discard') {
-        ui.feedback = judged(Coach.discardFeedback(ui.hint, action.tile), ui.hint) || ui.feedback;
-        rememberAll(feedbackForAll(function (hint) { return Coach.discardFeedback(hint, action.tile); }), 'feedback');
+        feedbackOnMove(function (hint) { return Coach.discardFeedback(hint, action.tile); });
       }
       ui.turnPrompt = null;
       ui.selected = -1;
@@ -5415,8 +5464,7 @@
       if (!p) return;
       if (!lessonAllows('claim', decision)) return;
       if (ui.coach === 'feedback' && ui.hint) {
-        ui.feedback = judged(Coach.claimFeedback(ui.hint, decision), ui.hint) || ui.feedback;
-        rememberAll(feedbackForAll(function (hint) { return Coach.claimFeedback(hint, decision); }), 'feedback');
+        feedbackOnMove(function (hint) { return Coach.claimFeedback(hint, decision); });
       }
       if (ui.coach === 'feedback') {
         // What each strategy would have done with this tile, shown after your call.
@@ -5440,14 +5488,27 @@
       return Coach.shapeFeedback ? Coach.shapeFeedback(fb, hint, coachDetail()) : fb;
     }
 
-    // What each strategy says about your move, from the hints it gave for it.
+    // What each strategy says about your move, from the hints it gave for it,
+    // at every coach level: by strategy id, then level.
     function feedbackForAll(judge) {
       var out = {};
       Strategies.ids().forEach(function (id) {
-        var hint = ui.hintsAll[id];
-        out[id] = hint ? judged(judge(hint), hint) : null;
+        var hint = ui.hintsWhole[id];
+        var fb = hint ? judge(hint) : null;
+        if (!fb) { out[id] = null; return; }
+        out[id] = {};
+        COACH_DETAILS.forEach(function (d) { out[id][d] = Coach.shapeFeedback ? Coach.shapeFeedback(fb, hint, d) : fb; });
       });
       return out;
+    }
+
+    // Feedback on your move from every strategy; the coach on show says its own.
+    function feedbackOnMove(judge) {
+      var notes = feedbackForAll(judge);
+      ui.feedbackAll = notes;
+      var mine = notes[ui.strategies.coach];
+      if (mine && mine[coachDetail()]) ui.feedback = mine[coachDetail()];
+      rememberAll(notes, 'feedback');
     }
 
     // The same notes the strategies would have given, before this saved move.
@@ -5458,18 +5519,26 @@
       var hint = all[ui.strategies.coach];
       if (!hint) return;
       ui.hintsAll = all;
-      if (ui.coach === 'on') rememberAll(all, 'hint');
-      if (kind === 'turn' && decision.type === 'discard' && hint.tile) {
-        coachFor().noteDiscard(game, 0, hint.tile, decision.tile);
-      }
+      if (ui.coach === 'on') rememberAll(hintLevelsForAll(), 'hint');
+      if (kind === 'turn' && decision.type === 'discard') noteDiscardForAll(decision.tile);
       if (ui.coach !== 'feedback') return;
       var judge = kind === 'turn'
         ? function (h) { return decision.type === 'discard' ? Coach.discardFeedback(h, decision.tile) : null; }
         : function (h) { return Coach.claimFeedback(h, decision); };
       var notes = feedbackForAll(judge);
       if (!notes[ui.strategies.coach]) return;
-      ui.feedback = notes[ui.strategies.coach];
+      ui.feedbackAll = notes;
+      ui.feedback = notes[ui.strategies.coach][coachDetail()];
       rememberAll(notes, 'feedback');
+    }
+
+    // Every strategy follows your discards (two away from its pick and its
+    // hints follow your hand), whether or not it is the coach on show.
+    function noteDiscardForAll(tile) {
+      Strategies.ids().forEach(function (id) {
+        var hint = ui.hintsWhole[id];
+        if (hint && hint.tile) coachWith(id).noteDiscard(game, 0, hint.tile, tile);
+      });
     }
 
     function refreshHint() {
@@ -5480,13 +5549,13 @@
         return;
       }
       // In Feedback mode the advice is worked out (to judge your move) but not shown.
-      if (ui.coach === 'off' || !game || !game.hand) { ui.hint = null; ui.hintsAll = {}; return; }
+      if (ui.coach === 'off' || !game || !game.hand) { ui.hint = null; ui.hintsAll = {}; ui.hintsWhole = {}; return; }
       var kind = ui.turnPrompt ? 'turn' : ui.claimPrompt ? 'claim' : null;
       if (!kind) return;
       // Every strategy works out its advice, and each keeps its own list.
       ui.hintsAll = hintsForAll(kind, (ui.turnPrompt || ui.claimPrompt).opts);
       ui.hint = ui.hintsAll[ui.strategies.coach];
-      if (ui.coach === 'on') rememberAll(ui.hintsAll, 'hint');
+      if (ui.coach === 'on') rememberAll(hintLevelsForAll(), 'hint');
     }
 
     function hitTest(x, y) {
@@ -6019,6 +6088,8 @@
         ui.feedbackKind = null;
         // The panel is this hand only; the lists keep every hand of the game.
         ui.hintsAll = {};
+        ui.hintsWhole = {};
+        ui.feedbackAll = {};
         ui.coachScroll = 0;
         ui.coachStick = true;
         L = computeLayout();

@@ -951,7 +951,7 @@ describe('only-orphans (learned)', () => {
       const game = table({ seats: [{ hand: ['c2', 'c2', 'c2', 'd5', 'd5', 'd5', 'b7', 'b7', 'dr', 'dr', 'b3', 'd2', 'c5'] }] });
       const hint = Coach.forStrategy(OO).claimHint(game, 0, { tile: 'dr', pung: true, kong: false, chows: [] });
       assert.equal(hint.decision.type, 'pass');
-      assert.ok(hint.tips.some((t) => /Your target, Concealed Triplets, claims nothing but the winning tile/.test(t)), hint.tips.join(' | '));
+      assert.ok(hint.tips.some((t) => /^Concealed Triplets claims nothing but the winning tile\./.test(t)), hint.tips.join(' | '));
     });
 
     it('may pung a 1, a 9 or an honor on the triplets target', () => {

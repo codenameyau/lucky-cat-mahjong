@@ -71,6 +71,9 @@
       route: routeOf(best.plan),
       shanten: best.planShanten != null ? best.planShanten : best.shanten,
       live: best.ukeire || 0,
+      // The rules' own estimate of finishing this plan before the wall runs
+      // out (MahjongBot finishChance). A ready hand has its waits instead.
+      chance: typeof best.chance === 'number' ? best.chance : null,
     };
   }
 
@@ -184,6 +187,19 @@
     return 'Your other tiles are worth more to the hand right now than a pung of ' + name(i) + '.';
   }
 
+  // What a hand keeps, said one way for every strategy: "Full Flush uses
+  // only Bamboo." A strategy's own plan.reason (js/mahjong-jorge-yau.js,
+  // the foundation's upgrades) says it in the same words.
+  function usesOnly(route) {
+    var suit = SUIT_NAME[route.suit];
+    if (route.id === 'orphans') return 'Thirteen Orphans uses only 1s, 9s and honors.';
+    if (route.id === 'gates') return 'Nine Gates uses only ' + suit + '.';
+    if (route.id === 'straights' || route.id === 'runs') return 'Honors break All Sequences.';
+    if (route.id === 'full') return 'Full Flush uses only ' + suit + '.';
+    if (route.id === 'half') return 'Half Flush uses only ' + suit + ' and honors.';
+    return '';
+  }
+
   function whyDiscard(v, c, pick, route) {
     var i = pick.index;
     if (v.committedSuit && i < 27 && E.suitOfIndex(i) !== v.committedSuit) {
@@ -227,21 +243,15 @@
     if (route && route.id === 'pairs' && c[i] === 1) {
       return 'Seven Pairs keeps pairs, so singles go.';
     }
-    if (route && route.id === 'orphans' && !E.isTerminalOrHonorIndex(i)) {
-      return 'Thirteen Orphans uses only terminals and honors.';
-    }
-    if (route && route.id === 'gates' && E.suitOfIndex(i) !== route.suit) {
-      return 'Nine Gates uses only ' + SUIT_NAME[route.suit] + '.';
-    }
+    if (route && route.id === 'orphans' && !E.isTerminalOrHonorIndex(i)) return usesOnly(route);
+    if (route && route.id === 'gates' && E.suitOfIndex(i) !== route.suit) return usesOnly(route);
     if (i >= 27 && c[i] === 1 && B.revealedCopies(v.game, i) >= 2) {
       var out = B.revealedCopies(v.game, i);
       return COUNT_WORDS[out] + ' are out, so it can\'t make a meld.';
     }
     if (route && route.keep && !route.keep(i)) {
       if (route.reason) return route.reason;
-      if (route.id === 'straights') return 'Honors break All Sequences.';
-      var suit = SUIT_NAME[route.suit];
-      return route.id === 'half' ? 'Not ' + suit + ' or an honor.' : 'Not ' + suit + '.';
+      return usesOnly(route) || 'Your hand needs it least.';
     }
     var honor = i >= 27 ? honorReason(v, c, i) : '';
     if (honor) return honor;
@@ -451,11 +461,12 @@
   // Two in a row means the next hints follow the hand those discards point to.
   var PLAYER_AIM = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
 
+  // Kept per strategy: each one compares your discards with its own picks.
   function aimBag(game) {
     if (!PLAYER_AIM || !game) return null;
-    var bag = PLAYER_AIM.get(game);
-    if (!bag) { bag = {}; PLAYER_AIM.set(game, bag); }
-    return bag;
+    var bags = PLAYER_AIM.get(game);
+    if (!bags) { bags = {}; PLAYER_AIM.set(game, bags); }
+    return bags[B.id] || (bags[B.id] = {});
   }
 
   function noteDiscard(game, seat, recommended, thrown) {
@@ -847,9 +858,13 @@
 
   function fit(h) {
     if (!h || !h.tips) return h;
+    // A network's line stays longest. A rule strategy's odds go first: they
+    // add to the advice, and never push out a reason, plan or threat.
     var isModel = function (t) { return /^(On average, )?[Tt]he model expects /.test(plain(t)); };
+    var isOdds = function (t) { return /^Odds to finish /.test(plain(t)); };
     while (textLength(h) > MAX_TEXT && h.tips.length) {
       var drop = -1;
+      for (var o = h.tips.length - 1; o >= 1 && drop === -1; o--) if (isOdds(h.tips[o])) drop = o;
       for (var k = h.tips.length - 1; k >= 1 && drop === -1; k--) if (!isModel(h.tips[k])) drop = k;
       for (var j = h.tips.length - 1; j >= 1 && drop === -1; j--) drop = j;
       if (drop === -1) {
@@ -1005,7 +1020,8 @@
           ? 'Play safe. The wall is nearly gone and a win is unlikely.'
           : (canWin ? 'It leaves you ready.' : whyDiscard(v, c, pick, route))));
     var discardAt = tips.length;
-    var readyPick = !pungSafe && !defending && canWin;
+    // (Defending or not: a ready discard reads the same for every strategy.)
+    var readyPick = !pungSafe && canWin;
     // A ready discard is explained by the wait that follows.
     tips.push('Discard ' + E.tileName(pick.tile) + '.' + (readyPick ? '' : ' ' + why));
 
@@ -1062,6 +1078,9 @@
     if (kongLine) tips.push(kongLine);
     var learned = modelLine(list, pick);
     if (learned) tips.push(learned);
+    // A rule strategy says the odds its rules worked out (Complex only).
+    var ruled = learned || kongLine ? '' : oddsLine(v, list, pick, cAfter);
+    if (ruled) tips.push(ruled);
 
     var worry = threats.filter(function (t) { return t.level >= 2; }).sort(function (a, b) { return b.level - a.level; })[0];
     return lead({
@@ -1109,7 +1128,7 @@
     var line = 'Lucky Cat discards this ' + pct(m.policy) + ' of the time';
     var next = list.filter(function (x) { return x !== pick && x.ml; })
       .sort(function (a, b) { return b.ml.policy - a.ml.policy; })[0];
-    if (next && next.ml.policy >= 0.005) line += '. Next most likely is ' + E.tileName(next.tile) + ': ' + pct(next.ml.policy) + ' of the time';
+    if (next && next.ml.policy >= 0.005) line += '. Next most likely discard is ' + E.tileName(next.tile) + ': ' + pct(next.ml.policy) + ' of the time';
     return line + '.';
   }
 
@@ -1140,6 +1159,42 @@
     read.hand.forEach(function (p, k) { if (p > read.hand[h]) h = k; });
     if (read.hand[h] >= 0.4 && M && M.READ_HANDS) out += ' If you win, it expects ' + M.READ_HANDS[h] + ' (' + pct(read.hand[h]) + ' likely).';
     return out;
+  }
+
+  // A rule strategy's numbers: its estimate of finishing the hand it is going
+  // for before the wall runs out, the tiles that help, and the next best
+  // discard's odds. Complex only (shape leaves it out), like a network's line.
+  // The hand by the name its "Go for" sentence uses.
+  function oddsName(v, plan, c) {
+    return targetText(v, { route: plan.route }, c, null).split(/[.:]/)[0].replace(/\s*\(\d+ faan\)/, '');
+  }
+
+  // A strategy with a neural network gives the network's numbers instead.
+  function ruleStrategy() { return !(B.learned || B.base || B.kongChoice); }
+
+  function oddsLine(v, list, pick, cAfter) {
+    var plan = pick.plan;
+    if (!ruleStrategy()) return '';
+    if (!plan || plan.chance == null || plan.chance < 0.01 || pick.ready) return '';
+    var line = 'Odds to finish ' + oddsName(v, plan, cAfter) + ' before the wall runs out: about ' + pct(plan.chance) +
+      (plan.live ? ', with ' + plan.live + (plan.live === 1 ? ' tile' : ' tiles') + ' that help.' : '.');
+    var next = list.filter(function (x) { return x !== pick && x.plan && x.plan.chance != null; })[0];
+    if (next && next.plan.chance >= 0.01) line += ' Next best discard is ' + E.tileName(next.tile) + ': about ' + pct(next.plan.chance) + '.';
+    return line;
+  }
+
+  function claimOddsLine(v, found, dec, taken, stay, tile, c) {
+    if (!found || !ruleStrategy()) return '';
+    var said = [];
+    var add = function (plan, decision) {
+      if (plan && plan.chance != null && plan.chance >= 0.01) said.push('about ' + pct(plan.chance) + ' ' + ifYou(decision, tile));
+    };
+    if (taken) add(described(taken.analysis), taken.decision);
+    add(stay, { type: 'pass' });
+    if (!said.length) return '';
+    var plan = taken ? described(taken.analysis) : stay;
+    var name = plan && plan.route ? oddsName(v, plan, c) : 'the hand';
+    return 'Odds to finish ' + name + ' before the wall runs out: ' + said.join(', and ') + '.';
   }
 
   // The same feature groups, in plain words for a player: why the model
@@ -1205,6 +1260,11 @@
     return choicesLine(read, null);
   }
 
+  // Hands that claim nothing but the winning tile, and hands of pungs that
+  // take no chows (routeOf ids).
+  var NO_CLAIM_HANDS = /^(orphans|gates|pairs|pairs-.+|concealed-triplets)$/;
+  var NO_CHOW_HANDS = /^(triplets|mixed-orphans|all-terminals|all-honors|honors|terminals)$/;
+
   function chowLabel(pair, tile) {
     var tiles = E.sortTiles(pair.concat([tile]));
     var su = E.suitOfIndex(E.tileIndex(tile));
@@ -1213,15 +1273,18 @@
 
   var lastClaim = null; // what the strategy decided, for the model line
   var lastAim = null; // the hand the claim hint is aiming for (aimOf)
+  var lastOdds = ''; // a rule strategy's odds for the claim (claimOddsLine)
 
   function claimHint(game, seat, opts) {
     lastClaim = null;
     lastAim = null;
+    lastOdds = '';
     var hint = claimAdvice(game, seat, opts);
     if (lastAim) hint.aim = lastAim;
     var read = lastClaim && lastClaim.found && lastClaim.found.ml;
     var line = choicesLine(read, opts.tile);
     if (line) { hint.tips.push(line); hint.model = line; }
+    else if (lastOdds) hint.tips.push(lastOdds);
     return hint;
   }
 
@@ -1248,6 +1311,10 @@
       tips.push(E.tileName(opts.tile) + ' completes your hand, but only for ' + opts.completeButShort.faan + ' faan. You need ' + min + '.');
     }
     if (!found || !found.options.length) return lead({ kind: 'claim', decision: dec, tips: tips.concat(['Pass.']) }, tips.length);
+    var takenOption = found.options.filter(function (o) {
+      return dec.type !== 'pass' && o.decision.type === dec.type && (dec.type !== 'chow' || o.decision.tiles.join() === dec.tiles.join());
+    })[0];
+    lastOdds = claimOddsLine(v, found, dec, takenOption, stay, opts.tile, c);
 
     function without(ids) {
       var h = hand.slice();
@@ -1343,12 +1410,19 @@
     var chowOnly = found.options.every(function (o) { return o.decision.type === 'chow'; });
     var tileSuit = ti < 27 ? E.suitOfIndex(ti) : null;
     var shortSuit = tileSuit && opts.chows.length && !B.chowSuitReady(v.ctx, c, tileSuit);
-    // A strategy with a target that claims nothing (Only Orphans) says so.
+    // A hand that claims nothing but the winning tile, or takes no chows,
+    // says so the same way for every strategy. Only Orphans names its target
+    // when the read has no plan for it.
     var target = B.targetOf && B.targetOf(game, seat);
-    if (target && target.id !== 'major-sets' && (opts.pung || opts.kong)) {
-      tips.push('Pass. Your target, ' + target.label + ', claims nothing but the winning tile.');
-    } else if (target && opts.chows.length && chowOnly) {
-      tips.push('Pass. Only Orphans never chows.');
+    var stayRoute = stay && stay.route;
+    var stayName = stayRoute ? aimOf(v, stayRoute, c).name : null;
+    var claimsNothing = stayRoute ? NO_CLAIM_HANDS.test(stayRoute.id) : !!(target && target.id !== 'major-sets');
+    var noChows = stayRoute ? NO_CHOW_HANDS.test(stayRoute.id) : !!target;
+    if (!stayName && target) stayName = target.label.charAt(0).toUpperCase() + target.label.slice(1);
+    if (claimsNothing && stayName) {
+      tips.push('Pass. ' + stayName + ' claims nothing but the winning tile.');
+    } else if (noChows && stayName && chowOnly) {
+      tips.push('Pass. ' + stayName + ' takes no chows.');
     } else if (shortSuit && chowOnly && bestFaan >= min && !v.concealed) {
       tips.push('Pass. Hold 7 ' + SUIT_NAME[tileSuit] + ' before you chow that suit.');
     } else if (chowOnly && bestFaan >= min) {
@@ -1375,6 +1449,23 @@
     return shanten === 1 ? '1 tile from ready' : shanten + ' tiles from ready';
   }
 
+  // The sentences every strategy's feedback shares, so the same verdict reads
+  // the same way whoever judged it. A learned strategy adds its numbers after.
+  function praise(hint, top, chosen, mine, best) {
+    return [chosen.tile === top.tile
+      ? (mine + ' was the top choice. ' + (hint.why || '')).trim()
+      : mine + ' is as good as ' + best + '.'];
+  }
+
+  function iPick(hint, best, close) {
+    return ((close ? 'Both work, but I pick ' : 'I pick ') + best + '. ' + (hint.why || '')).trim();
+  }
+
+  function slowsLine(top, chosen, mine, best) {
+    var more = chosen.shanten - top.shanten;
+    return mine + ' leaves you ' + stepsWords(chosen.shanten) + ', ' + more + ' more than ' + best + '.';
+  }
+
   // `hint` is what turnHint said before you moved; `tile` is what you threw.
   function discardFeedback(hint, tile) {
     if (!hint || !hint.candidates || !hint.candidates.length) return null;
@@ -1390,23 +1481,18 @@
     var risky = chosen.loss >= 0.035 && chosen.loss > top.loss * 1.5 + 0.01 && !!chosen.evidence;
     var good = gap <= Math.max(0.003, Math.abs(top.score) * 0.15);
 
-    if (great) {
-      return { kind: 'feedback', action: 'Great discard.', tips: [chosen.tile === top.tile
-        ? (mine + ' was the top choice. ' + (hint.why || '')).trim()
-        : mine + ' is as good as ' + best + '.'] };
-    }
-    var tips = ['I pick ' + best + '. ' + (hint.why || '')];
+    if (great) return { kind: 'feedback', action: 'Great discard.', tips: praise(hint, top, chosen, mine, best) };
+    var tips = [iPick(hint, best)];
     var action;
     if (slows) {
       action = 'That discard slows your hand.';
-      var more = chosen.shanten - top.shanten;
-      tips.push(mine + ' leaves you ' + stepsWords(chosen.shanten) + ', ' + more + ' more than ' + best + '.');
+      tips.push(slowsLine(top, chosen, mine, best));
     } else if (risky) {
       action = 'That discard was risky.';
       tips.push(chosen.evidence + '.');
     } else if (good) {
       action = 'Good discard.';
-      tips = ['Both work, but ' + best + ' is slightly better.'];
+      tips = [iPick(hint, best, true)];
     } else {
       action = 'There was a better discard.';
       tips.push(mine + ' leaves fewer ways to improve.');
@@ -1425,16 +1511,15 @@
   function policyFeedback(hint, top, chosen, mine, best) {
     var steps = chosen.shanten > top.shanten;
     if (chosen.tile === top.tile || (!steps && chosen.ml.policy >= top.ml.policy * 0.8)) {
-      var tips = [chosen.tile === top.tile
-        ? (mine + ' was the top choice. ' + (hint.why || '')).trim()
-        : mine + ' is as good as ' + best + '.'];
+      var tips = praise(hint, top, chosen, mine, best);
       if (chosen.tile === top.tile && hint.model) tips.push(hint.model);
       return { kind: 'feedback', action: 'Great discard.', tips: tips };
     }
-    var out = ['I pick ' + best + '. ' + (hint.why || ''),
-      'Lucky Cat plays ' + best + ' ' + pct(top.ml.policy) + ' of the time, and ' + mine + ' ' + pct(chosen.ml.policy) + ' of the time.'];
-    var action = steps ? 'That discard slows your hand.'
-      : chosen.ml.policy >= top.ml.policy * 0.4 ? 'Good discard.' : 'There was a better discard.';
+    var good = !steps && chosen.ml.policy >= top.ml.policy * 0.4;
+    var out = [iPick(hint, best, good)];
+    if (steps) out.push(slowsLine(top, chosen, mine, best));
+    out.push('Lucky Cat discards ' + best + ' ' + pct(top.ml.policy) + ' of the time, and ' + mine + ' ' + pct(chosen.ml.policy) + ' of the time.');
+    var action = steps ? 'That discard slows your hand.' : good ? 'Good discard.' : 'There was a better discard.';
     return { kind: 'feedback', action: action, tips: out.map(function (t) { return t.trim(); }) };
   }
 
@@ -1442,18 +1527,20 @@
     if (top.ml.policy != null) return policyFeedback(hint, top, chosen, mine, best);
     var diff = top.ml.ev - chosen.ml.ev;
     if (chosen.tile === top.tile || diff <= Math.max(5, Math.abs(top.ml.ev) * 0.03)) {
-      var tips = [chosen.tile === top.tile
-        ? (mine + ' was the top choice. ' + (hint.why || '')).trim()
-        : mine + ' is as good as ' + best + '.'];
+      var tips = praise(hint, top, chosen, mine, best);
       if (chosen.tile === top.tile && hint.model) tips.push(hint.model);
       return { kind: 'feedback', action: 'Great discard.', tips: tips };
     }
-    var out = ['I pick ' + best + '. ' + (hint.why || '')];
+    var slows = chosen.shanten > top.shanten;
+    var risky = !slows && chosen.ml.pDealIn > top.ml.pDealIn + 0.02;
+    var good = !slows && !risky && diff <= Math.max(20, Math.abs(top.ml.ev) * 0.1);
+    var out = [iPick(hint, best, good)];
+    if (slows) out.push(slowsLine(top, chosen, mine, best));
+    if (risky && chosen.evidence) out.push(chosen.evidence + '.');
     out.push('The model expects ' + pointsWord(top.ml.ev) + ' on average from ' + best + ', and ' + pointsWord(chosen.ml.ev) +
       ' from ' + mine + '.' + odds(best, top.ml, chosen.ml));
-    var action = chosen.shanten > top.shanten ? 'That discard slows your hand.'
-      : chosen.ml.pDealIn > top.ml.pDealIn + 0.02 ? 'That discard was risky.'
-      : diff <= Math.max(20, Math.abs(top.ml.ev) * 0.1) ? 'Good discard.' : 'There was a better discard.';
+    var action = slows ? 'That discard slows your hand.' : risky ? 'That discard was risky.'
+      : good ? 'Good discard.' : 'There was a better discard.';
     return { kind: 'feedback', action: action, tips: out.map(function (t) { return t.trim(); }) };
   }
 
@@ -1488,7 +1575,8 @@
   var SIMPLE_WHY = 130; // characters: one short reason
 
   // "I like it because it gets you ready fastest and keeps a bigger hand in reach."
-  // Simple and Detailed speak as the coach ("I"); only Complex says "the model".
+  // Simple and Detailed speak as the coach ("I"), in hints and feedback alike;
+  // only Complex says "the model".
   // Simple ends with one "Go for ..." sentence (aimSentence). The hint's own tip can say it too
   // ("Go for ...", "You're going for ..."), so those sentences come out and it is said once.
   function withoutAimSentences(text) {
@@ -1512,7 +1600,7 @@
   }
 
   function isModelTip(t) {
-    return /^(On average, )?[Tt]he model expects |^Lucky Cat (discards this|would|plays) /.test(plain(t));
+    return /^(On average, )?[Tt]he model expects |^Lucky Cat (discards|would|plays) |^Odds to finish /.test(plain(t));
   }
 
   function shape(hint, detail) {
@@ -1523,7 +1611,7 @@
     var reasons = hint.modelWhy || [];
     out.model = null;
     if (detail === 'detailed') {
-      if (reasons.length) tips.push(sentenceOf(reasons, 'I pick it because '));
+      if (reasons.length) tips.push(sentenceOf(reasons, 'I like it because '));
       out.tips = tips;
       return fit(out);
     }
@@ -1565,7 +1653,7 @@
     if (hint && hint.aim) {
       // "I pick Eight Character." says what to do instead, so it stays; the reasons after it go.
       var pick = (String(tips[0] || '').match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || []).filter(function (p) {
-        return /^\s*I (pick|would)\b/.test(plain(p));
+        return /\bI (pick|would)\b/.test(plain(p));
       }).join('').trim();
       why = (pick + ' ' + aimSentence(hint.aim)).trim();
     } else {
@@ -1603,26 +1691,44 @@
   // The same coach, saying what `bot` (a strategy from createStrategy)
   // would do. Calls are synchronous, so the bot is swapped in for each call.
   // opts.detail ('simple', 'detailed' or 'complex'; the default is complex)
-  // is how much the hints say.
+  // is how much the hints say; 'all' returns the whole hint, for atDetail.
+  // Hints are shaped before they are cut to MAX_TEXT, so Simple and Detailed
+  // keep the lines the model's numbers would have pushed out on Complex: the
+  // same hint for every strategy, less the networks' numbers.
+  var UNFITTED = { turnHint: turnHint, claimHint: claimHint };
+
+  // A hint at one coach level, from the whole hint (forStrategy with
+  // detail 'all'). The game works out each strategy's hint once and says it
+  // at every level, so switching level or strategy needs no new work.
+  function atDetail(hint, detail) {
+    if (!hint) return hint;
+    var copy = {};
+    Object.keys(hint).forEach(function (k) { copy[k] = hint[k]; });
+    if (hint.tips) copy.tips = hint.tips.slice();
+    return fit(shape(copy, detail));
+  }
+
   function forStrategy(bot, opts) {
     var out = { strategy: bot && bot.id };
     var detail = opts && opts.detail;
     Object.keys(api).forEach(function (k) {
       var f = api[k];
       if (typeof f !== 'function' || k === 'fit' || /^shape/.test(k)) { out[k] = f; return; }
-      var spoken = k === 'turnHint' || k === 'claimHint';
+      var spoken = UNFITTED[k];
       out[k] = function () {
         var prev = B;
         B = bot || DEFAULT_BOT;
         try {
-          var res = f.apply(null, arguments);
-          return spoken ? shape(res, detail) : res;
+          if (!spoken) return f.apply(null, arguments);
+          var whole = spoken.apply(null, arguments);
+          return detail === 'all' ? whole : atDetail(whole, detail);
         } finally { B = prev; }
       };
     });
     return out;
   }
   api.forStrategy = forStrategy;
+  api.atDetail = atDetail;
   if (node) module.exports = api;
   else root.MahjongCoach = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
