@@ -28,7 +28,9 @@
      window['ga-disable-G-B514HH987M'] so gtag sends nothing at all.
    - The banner opens by itself only in Europe, until the visitor chooses.
      Anywhere, a footer element with class js-cookie-settings (Cookie
-     Settings) opens it, to turn analytics on or off. */
+     Settings) opens it, to turn analytics on or off. Outside Europe, closing
+     that banner without Decline (a click outside it, or Escape) counts as
+     Accept. In Europe it only closes it: consent there needs a click on Accept. */
 
 (function (root, factory) {
   'use strict';
@@ -234,6 +236,7 @@
       }
       if (doc && doc.addEventListener) {
         doc.addEventListener('click', onClick, true);
+        doc.addEventListener('keydown', onKeydown);
         if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', onReady);
         else onReady();
       }
@@ -266,6 +269,20 @@
     // The banner
 
     var banner = null;
+    var fromSettings = false;
+
+    function bannerOpen() { return !!(banner && !banner.hidden); }
+
+    // Cookie Settings closed without a choice: Accept outside Europe, just closed in Europe.
+    function dismissBanner() {
+      fromSettings = false;
+      if (needsConsentFirst()) hideBanner();
+      else setConsent('granted');
+    }
+
+    function onKeydown(e) {
+      if (e.key === 'Escape' && fromSettings && bannerOpen()) dismissBanner();
+    }
 
     function onReady() {
       if (consentState() === 'pending') showBanner();
@@ -276,13 +293,16 @@
       var el = e.target && e.target.closest ? e.target.closest('.js-cookie-settings, [data-consent]') : null;
       if (el && el.classList.contains('js-cookie-settings')) {
         e.preventDefault();
+        fromSettings = true;
         showBanner(true);
         return;
       }
       if (el && el.hasAttribute('data-consent')) {
+        fromSettings = false;
         setConsent(el.getAttribute('data-consent'));
         return;
       }
+      if (fromSettings && bannerOpen() && !banner.contains(e.target)) dismissBanner();
       renew();
     }
 
@@ -300,7 +320,7 @@
         banner.setAttribute('aria-label', 'Cookie Settings');
         banner.innerHTML =
           '<p class="cookie-banner-text">' + bannerText() +
-          ' <a href="/privacy/#cookies">Privacy Policy</a></p>' +
+          ' <a href="/privacy-policy/#cookies">Privacy Policy</a></p>' +
           '<div class="cookie-banner-actions">' +
           '<button type="button" class="cookie-banner-btn" data-consent="denied">Decline</button>' +
           '<button type="button" class="cookie-banner-btn cookie-banner-accept" data-consent="granted">Accept</button>' +
@@ -341,7 +361,8 @@
       needsConsentFirst: needsConsentFirst,
       fields: fields,
       ids: function () { return ids ? copy(ids) : null; },
-      openSettings: function () { showBanner(true); },
+      openSettings: function () { fromSettings = true; showBanner(true); },
+      dismissBanner: function () { if (fromSettings && bannerOpen()) dismissBanner(); },
       renew: renew,
     };
   }

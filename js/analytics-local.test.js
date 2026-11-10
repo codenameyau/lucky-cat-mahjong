@@ -13,7 +13,7 @@ const PAGES = [
   'events/index.html',
   'community/index.html',
   'which-mahjong-tiles-are-you/index.html',
-  'privacy/index.html',
+  'privacy-policy/index.html',
 ];
 
 // The pattern each page uses to spot a local or private address.
@@ -70,11 +70,11 @@ test('every page with a footer links the privacy policy and cookie settings', ()
     const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
     const footer = /<footer class="site-footer">[\s\S]*?<\/footer>/.exec(html);
     assert.ok(footer, page + ' has the site footer');
-    assert.match(footer[0], /<a href="\/privacy\/" class="footer-link">Privacy Policy<\/a>/, page + ' links the privacy policy');
+    assert.match(footer[0], /<a href="\/privacy-policy\/" class="footer-link">Privacy Policy<\/a>/, page + ' links the privacy policy');
     assert.match(footer[0], /class="footer-link js-cookie-settings">Cookie Settings<\/button>/, page + ' has cookie settings');
     assert.doesNotMatch(footer[0], /Your Privacy Choices/, page + ' shows only Privacy Policy and Cookie Settings');
     assert.equal((footer[0].match(/class="footer-link[ "]/g) || []).length, 2, page + ' has two footer links');
   });
   const sitemap = fs.readFileSync(path.join(ROOT, 'sitemap.xml'), 'utf8');
-  assert.match(sitemap, /<loc>https:\/\/luckycatmahjong\.com\/privacy\/<\/loc>/);
+  assert.match(sitemap, /<loc>https:\/\/luckycatmahjong\.com\/privacy-policy\/<\/loc>/);
 });

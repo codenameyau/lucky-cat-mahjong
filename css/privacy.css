@@ -5,7 +5,7 @@ body {
 }
 
 .privacy-inner {
-  max-width: 760px;
+  max-width: none;
   margin: 3rem auto 4rem;
   line-height: 1.6;
 }

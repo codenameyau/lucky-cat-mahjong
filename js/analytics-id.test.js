@@ -182,6 +182,37 @@ test('the banner opens by itself only in Europe; Cookie Settings opens it anywhe
   assert.equal(eu.body.children.length, 1, 'the banner opens by itself in Europe');
 });
 
+test('closing Cookie Settings without Decline accepts, outside Europe only', () => {
+  const page = (tz, cookies) => {
+    const body = { children: [], appendChild(el) { this.children.push(el); } };
+    const el = () => ({ hidden: false, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, querySelector: () => null, contains: () => false });
+    const doc = cookieJar();
+    if (cookies) Object.entries(cookies).forEach(([k, v]) => { doc.cookie = k + '=' + v + '; Path=/'; });
+    Object.assign(doc, { body, readyState: 'complete', addEventListener() {}, createElement: el, querySelectorAll: () => [] });
+    const api = A.create({ window: {}, document: doc, navigator: {}, location: { protocol: 'https:', hostname: 'luckycatmahjong.com' }, timeZone: tz });
+    api.start(() => {});
+    return { api, doc, body };
+  };
+  // A US visitor who had declined opens Cookie Settings and clicks away: that's Accept.
+  const us = page('America/New_York', { lcm_consent: 'denied' });
+  us.api.openSettings();
+  us.api.dismissBanner();
+  assert.equal(cookie(us.doc, 'lcm_consent'), 'granted');
+  assert.ok(cookie(us.doc, 'lcm_vid'));
+  assert.equal(us.body.children[0].hidden, true);
+  // In Europe it only closes: no choice is made for them.
+  const eu = page('Europe/Berlin');
+  eu.api.openSettings();
+  eu.api.dismissBanner();
+  assert.equal(cookie(eu.doc, 'lcm_consent'), undefined);
+  assert.equal(cookie(eu.doc, 'lcm_vid'), undefined);
+  assert.equal(eu.body.children[0].hidden, true);
+  // The banner that opens by itself in Europe isn't closed by a click elsewhere.
+  const eu2 = page('Europe/Paris');
+  eu2.api.dismissBanner();
+  assert.equal(eu2.body.children[0].hidden, false);
+});
+
 test('declining deletes the IDs and Google\'s cookies and disables GA', () => {
   const { api, doc, win, calls, gtag } = setup({ cookies: { _ga: 'GA1.1.123', _ga_B514HH987M: 'GS1.1.x' } });
   api.start(gtag);
@@ -213,7 +244,7 @@ test('Global Privacy Control turns analytics off unless the visitor turns it on'
 });
 
 test('the privacy page explains every cookie the tracker sets, and the GA4 settings', () => {
-  const html = fs.readFileSync(path.join(ROOT, 'privacy/index.html'), 'utf8');
+  const html = fs.readFileSync(path.join(ROOT, 'privacy-policy/index.html'), 'utf8');
   Object.values(A.COOKIES).forEach((name) => assert.match(html, new RegExp('<code>' + name + '</code>'), name));
   assert.match(html, /<code>_ga<\/code>/);
   assert.match(html, /400 days, renewed on each visit/, 'lcm_vid lasts as long as the code keeps it');
