@@ -13,5 +13,14 @@
     "js/mahjong-lucky-cat-net.js": "7c73551ef3a70cd9022f1a207fd1aae352e84284e503f2d673ab06991b512d06",
     "js/mahjong-frontier-net.js": "a0ca3cab59e87f2069e9289b05190f23b3f8753d2350ceb95555565571496d3b",
     "js/mahjong-lucky-cat-value.js": "bd07755979993699f402f992c9c5d92b93d924608f9538b184e309d73d7a0b9e"
+  },
+  "equivalent": {
+    "js/mahjong-ml-model.js": [
+      {
+        "sha256": "4e39134263e4e3aaebf8dc19c88df451b975d91ef54e00384598bf8e09fecb58",
+        "commit": "8ffc0d098046326c3b1c33557448ae65e4a94bbb",
+        "why": "the benchmark v2 freeze; today's adds createModel's optional expect (Lucky Cat's value) and plays the same without it"
+      }
+    ]
   }
 }

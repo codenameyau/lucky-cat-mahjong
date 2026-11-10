@@ -52,7 +52,11 @@ const warned = new Set();
 function groupOk(group, sums) {
   const p = ported();
   if (!p) return false;
-  const stale = GROUPS[group].concat(GROUPS.engine).filter((f) => !p.files[f] || sums(f) !== p.files[f]);
+  // equivalent: earlier versions of a file that play exactly as the pinned one
+  // (a change that adds an option and leaves the default alone, read and
+  // recorded by hand), so the benchmark's frozen players still run natively.
+  const same = (f) => sums(f) === p.files[f] || ((p.equivalent || {})[f] || []).some((e) => e.sha256 === sums(f));
+  const stale = GROUPS[group].concat(GROUPS.engine).filter((f) => !p.files[f] || !same(f));
   stale.forEach((f) => {
     if (warned.has(f)) return;
     warned.add(f);
@@ -335,7 +339,7 @@ async function main(a) {
     const files = {};
     [...new Set([].concat(...Object.values(GROUPS)))].forEach((f) => { files[f] = today(f); });
     const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT }).toString().trim();
-    fs.writeFileSync(PORTED, JSON.stringify({ checked: new Date().toISOString().slice(0, 10), commit, files }, null, 2) + '\n');
+    fs.writeFileSync(PORTED, JSON.stringify(Object.assign({ checked: new Date().toISOString().slice(0, 10), commit, files }, (ported() || {}).equivalent ? { equivalent: ported().equivalent } : {}), null, 2) + '\n');
     console.log('pinned ' + Object.keys(files).length + ' files in native/ported.json');
     return;
   }
