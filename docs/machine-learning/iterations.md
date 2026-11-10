@@ -90,6 +90,12 @@ Every training idea and every milestone model is a section below, in the order t
   - [The native simulator](#the-native-simulator)
   - [Native-scale rounds (from 2026-11-09)](#native-scale-rounds-from-2026-11-09)
   - [Where it stands](#where-it-stands)
+- [The contradiction check: every move agrees with its hand](#the-contradiction-check-every-move-agrees-with-its-hand)
+  - [What it is](#what-it-is)
+  - [The discard check, measured](#the-discard-check-measured)
+  - [Every decision, and every strategy](#every-decision-and-every-strategy)
+  - [Head to head: with the check against without it](#head-to-head-with-the-check-against-without-it)
+  - [What it taught, and what comes next](#what-it-taught-and-what-comes-next)
 - [Where the files are](#where-the-files-are)
 - [Documenting a release](#documenting-a-release)
 
@@ -1212,6 +1218,89 @@ With data costing seconds, the rounds were rescaled: 100,000 deals a round, 40,0
 ### Where it stands
 
 Phases 0 and 1 are built and training; phases 2 and 3 are designed. Search was measured (4 worlds, ±8.4 points a choice, no measurable gain) and is deferred to after phase 3, when it ships only at +20 points a hand or more within 1.5 s a move. Each decision, and what would reopen it, is in the [frontier history](frontier-history.md#what-would-reopen-each-decision).
+
+## The contradiction check: every move agrees with its hand
+
+**In this section:** [What it is](#what-it-is) · [The discard check, measured](#the-discard-check-measured) · [Every decision, and every strategy](#every-decision-and-every-strategy) · [Head to head: with the check against without it](#head-to-head-with-the-check-against-without-it) · [What it taught, and what comes next](#what-it-taught-and-what-comes-next)
+
+Not a new model: a rule every strategy, every model and the coach now pass every move through (0.57.25). The coach would say "Go for Half Flush in Characters" and then throw a Character with a Bamboo still in hand. The reason was structural: the foundation scores each possible discard against the best hand for the tiles left after it, so the hand a discard is "building" is chosen separately for each discard, and a discard can be scored as building a hand it breaks. The rules are in [the strategies doc](../strategies/README.md#the-contradiction-check).
+
+### What it is
+
+#### Thinking
+
+A move must not go against the hand it builds toward. A discard contradicts its hand when it throws a tile that hand keeps while the hand still holds a tile it has no use for; a claim or a kong contradicts it when that hand can't take the meld. When the first choice contradicts, the strategy's next choice in its own order is taken, until one doesn't; if every one does, the last of them. Never a contradiction: a discard that leaves the hand ready, a win, a pung of a dragon or scoring wind (except on Thirteen Orphans), a dead honor, a dragon held back, and any move while folding.
+
+#### What it does differently
+
+Jorge Yau, Only Orphans and Lucky Cat Classic run it at the end of the foundation's discard order and on every claim and kong. Neural Cat's model chooses only among moves that pass. Lucky Cat's network has each pick checked against the plan the shared foundation reads for its seat, and the network's next most likely move that passes is played. It runs in the game, in every simulation and in training, where the data records the move the check settled on. The native simulator has it too (parity on 2,500 hands), and `lcm-sim` plays `id~nocheck` without it, to measure it.
+
+### The discard check, measured
+
+#### Result
+
+The first version checked discards only (Lucky Cat's network unchecked). Jorge Yau in every seat of 40,000 deals, master's build against the check's, points a hand for that seat:
+
+| Table | Without | With | Change |
+| --- | ---: | ---: | ---: |
+| Game table (Neural Cat, Jorge Yau, Neural Cat) | −46.8 ± 2.9 | −35.1 ± 2.8 | +11.7 ± 4.0 |
+| Three Lucky Cat lc32 | +32.3 ± 2.2 | +39.8 ± 2.3 | +7.5 ± 3.2 |
+| Three Neural Cat NC8 | −82.4 ± 3.3 | −58.5 ± 3.1 | +23.9 ± 4.5 |
+
+#### Reading
+
+The Lucky Cat table is the clean row: its opponents were the same in both runs. At the other two the opponents changed too, because Neural Cat plays on the same foundation, so part of the +23.9 against Neural Cat is Neural Cat getting weaker (see the head to head below).
+
+### Every decision, and every strategy
+
+#### Thinking
+
+The check was then extended to claims and kongs, and to Lucky Cat's network in the game, in benchmarks and in training. Lucky Cat's check is based on the shared foundation's plan (as Jorge Yau and Neural Cat play it), which the native simulator already has, in place of the classic rules' plan, which it doesn't: its coach's words about the hand moved to that plan too.
+
+#### Result
+
+The same 40,000 deals, every strategy at the table with the full check against none:
+
+| Table | Without | With | Change |
+| --- | ---: | ---: | ---: |
+| Game table (Neural Cat, Jorge Yau, Neural Cat) | −46.8 | −37.8 | +9.0 ± 4.0 |
+| Three Lucky Cat lc32 | +32.3 | +32.0 | −0.2 ± 3.4 |
+| Three Neural Cat NC8 | −82.4 | −54.3 | +28.1 ± 4.5 |
+
+### Head to head: with the check against without it
+
+#### Thinking
+
+The runs above compare whole tables. To see what the check does to each strategy alone, each one played itself: with the check and without it (`id~nocheck`), each in every seat of the same 20,000 deals against the same three opponents, the difference taken deal by deal. Once against opponents without the check, once against opponents with it.
+
+#### Result
+
+| Strategy | Against a table without the check | Against a table with the check | Hands won | Average win |
+| --- | ---: | ---: | --- | --- |
+| Jorge Yau | **+10.0 ± 2.9** | **+7.6 ± 2.8** | 16.7% vs 16.0% | 493 vs 440 points |
+| Neural Cat NC8 | **−15.6 ± 4.2** | **−9.3 ± 4.3** | 15.5% vs 14.2% | 846 vs 994 points |
+| Lucky Cat lc32 | **+11.8 ± 2.0** | **+14.2 ± 1.9** | 18.6% vs 23.0% | 280 vs 172 points |
+
+Points a hand, with the check minus without it. A 2,000-deal run in the JS engine (two seats each, seats swapped) had said the same, inside its noise: Jorge Yau +38 ± 22, Neural Cat −42 ± 27, Lucky Cat +17 ± 12.
+
+#### What it does differently
+
+- **Jorge Yau** wins a little more often and bigger (493 points a win against 440), with the same deal-ins.
+- **Lucky Cat** wins fewer hands (18.6% against 23.0%) worth about 60% more each (280 points against 172): it stops finishing cheap hands that go against the hand it was building. It deals in a little more (18.5% against 17.7%).
+- **Neural Cat** wins more hands (15.5% against 14.2%) worth about 15% less (846 points against 994). Its model weighs a discard in expected score; the check replaces the model's pick after the fact with a move the model rated lower, and the big hands it was building pay for it.
+
+### What it taught, and what comes next
+
+#### What it taught
+
+- **Consistency pays for the rule strategy and for Lucky Cat.** Both gain about 8 to 14 points a hand from never going against their own hand.
+- **Overriding a model after it has chosen costs it.** Neural Cat loses 9 to 16 points a hand to the check as it stands. The check stays on for every strategy and model all the same: a move that contradicts the hand the coach names is the thing being fixed. The loss is the cost of checking after the choice instead of before it.
+- **A whole-table comparison hides this.** Jorge Yau's seat gained most at the Neural Cat table, where part of the gain was the opponents losing. Only the head to head separated the two.
+- **The contradiction is a symptom.** A hand chosen once for each possible discard can always disagree with the discard. The fix that removes it at the root is to choose the hand first.
+
+#### What comes next
+
+The [evaluation engine](evaluation-engine.md): one hand picked for the turn (the hand picker), a pivot checker that decides whether to stay on it, a discarder (rules or a model) that chooses only among moves for that hand, and the contradiction check last, as a safety net. A model then chooses among consistent moves itself, which is where Neural Cat's loss should come back.
 
 ## Where the files are
 

@@ -50,6 +50,8 @@ Where it runs:
 | Lucky Cat (the network) | Discards, claims, kongs | Each move the network picks is checked against the plan the shared foundation reads for it (as Jorge Yau and Neural Cat play it); if it contradicts, the network's next most likely move that doesn't is played |
 | The coach | Every hint | Its hint is the strategy's own move, so it passes the same check; when it follows your own plan instead of the strategy's, it checks against that |
 
+What it measured, strategy by strategy, is in [iterations](../machine-learning/iterations.md#the-contradiction-check-every-move-agrees-with-its-hand); the design that puts it at the end of one pipeline (a hand picker, a pivot checker, a discarder, then this check) is the [evaluation engine](../machine-learning/evaluation-engine.md).
+
 It runs in the game, in every simulation, and in training: the data a model learns from records the move the check settled on, so models learn not to contradict themselves. `lcm-sim` takes `id~nocheck` (for example `jorge-yau~nocheck`) to play a player without it, which is how it was measured.
 
 ## Adding a strategy
