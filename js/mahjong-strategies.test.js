@@ -134,6 +134,21 @@ describe('jorge-yau opening targets', () => {
     assert.deepEqual([t.id, t.suit], ['half', 'c']);
   });
 
+  it('on hands of pairs and pungs, throws a single with no copy left first', () => {
+    const top = (hand, discards) => L.analyzeDiscards(table({ seats: [{ hand }, { discards }] }), 0).candidates[0].tile;
+    // Concealed Triplets: the Three Bamboo is dead (three are out), so it goes before the live singles.
+    assert.equal(top(['c5', 'c5', 'c5', 'd3', 'd3', 'b8', 'b8', 'c9', 'd4', 'b3', 'we', 'ws', 'dr', 'd5'], ['b3', 'b3', 'b3']), 'b3');
+    // Seven Pairs: the same.
+    assert.equal(top(['c2', 'c2', 'd4', 'd4', 'b6', 'b6', 'c7', 'c7', 'd1', 'b3', 'we', 'ws', 'dr', 'b9'], ['b3', 'b3', 'b3']), 'b3');
+  });
+
+  it('on a hand of runs, throws the loose tile that connects least, a 1 or 9 before a middle tile', () => {
+    const order = L.analyzeDiscards(table({ seats: [{ hand: ['c2', 'c3', 'c4', 'd2', 'd3', 'd4', 'we', 'we', 'b4', 'b5', 'c8', 'dr', 'd9', 'b1'] }] }), 0)
+      .candidates.map((x) => x.tile);
+    assert.ok(order.indexOf('b1') < order.indexOf('b4') && order.indexOf('d9') < order.indexOf('b5'), order.join(' '));
+    assert.ok(order.indexOf('b1') < order.indexOf('c8'), order.join(' '));
+  });
+
   it('tries the targets in order, with Big Three Dragons after Four Winds and All Triplets after Half Flush', () => {
     assert.deepEqual(L.TARGETS.map((x) => x.id), ['orphans', 'gates', 'winds', 'dragons', 'terminals', 'honors', 'pairs', 'full', 'triplets', 'half', 'all-triplets', 'sequences', 'standard']);
   });
@@ -317,8 +332,15 @@ describe('the player before you decides a close flush suit', () => {
 
   it('reads the suit they keep and the suit they throw', () => {
     const read = B.leftRead(at(keepsBamboo), 0);
-    assert.deepEqual(read, { seat: 3, keeps: 'b', feeds: 'd' });
-    assert.deepEqual(B.leftRead(at([]), 0), { seat: 3, keeps: null, feeds: null });
+    assert.deepEqual(read, { seat: 3, keeps: 'b', feeds: 'd', locked: false, tosses: [] });
+    assert.deepEqual(B.leftRead(at([]), 0), { seat: 3, keeps: null, feeds: null, locked: false, tosses: [] });
+  });
+
+  it('reads a chow by the player before you: they need that suit and toss the others', () => {
+    const game = table({ seats: [{}, {}, {}, { discards: ['d1', 'd2', 'c9'] }] });
+    game.hand.seats[3].melds = [{ type: 'chow', tiles: ['b3', 'b4', 'b5'], concealed: false, from: 2 }];
+    const read = B.leftRead(game, 0);
+    assert.deepEqual([read.keeps, read.locked, read.tosses, read.feeds], ['b', true, ['c', 'd'], 'd']);
   });
 
   it('lucky-cat leaves the suit they keep for a faster hand', () => {

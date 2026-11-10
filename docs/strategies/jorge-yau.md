@@ -145,6 +145,7 @@ Every opponent's discards say which hand they are likely on, and so which tiles 
 
 - **A flush.** After six discards, a suit they've thrown almost none of (10% or less) while throwing at least two of each other suit is the suit they want. Its tiles are more dangerous to throw (1.8×), and the other suits are safer (0.6×). With a meld down, this also counts as a flush for their threat level.
 - **Honors.** No honors thrown in seven or more discards: they're keeping them. Live honors are more dangerous (1.6×).
+- **A chow, by the player before or after it.** It settles the read at once: they need that suit to win, and they'll toss the other number suits. From the player after it, that suit is held back so it doesn't feed them. From the player before it, the other suits are the ones they'll keep throwing, so a flush in one of them leans its way and an early chow of them is allowed.
 - **A hand of runs.** Their first discards were all terminals and honors: middle tiles 3 to 7 are more dangerous (1.3×), and honors safer (0.6×).
 
 This adds to lucky-cat's reads: tiles thrown since their last meld, dead honors, suji, kabe, their melds, and how late it is. See [lucky-cat.md](lucky-cat.md#defense).

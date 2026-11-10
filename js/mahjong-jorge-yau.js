@@ -1004,8 +1004,10 @@
     var best = function (list) { return list.sort(function (a, b) { return b.score - a.score; })[0]; };
     var sets = res.options.filter(function (o) { return (o.decision.type === 'pung' || o.decision.type === 'kong') && quick(o); });
     if (sets.length) return best(sets).decision;
+    // A chow of a suit the player before it feeds, or tosses after a chow of
+    // their own (they need only their suit): more of it will come.
     var read = ctx.leftRead;
-    var known = !!(read && (read.feeds || read.keeps));
+    var known = !!(read && (read.feeds || read.keeps || (read.tosses && read.tosses.length)));
     var chows = known ? res.options.filter(function (o) {
       return o.decision.type === 'chow' && quick(o) && B.chowAllowed(o, res, game, ctx);
     }) : [];

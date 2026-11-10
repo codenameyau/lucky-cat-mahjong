@@ -125,7 +125,10 @@
   // collecting (`keeps`: at most a tenth of their discards while they've
   // thrown at least two of each other suit, or the one suit their melds
   // are in) and which they're giving away (`feeds`: the suit they've
-  // thrown the most, three or more and more than any other).
+  // thrown the most, three or more and more than any other). A chow settles
+  // it at once, as on the player after you: they need that suit to win
+  // (`keeps`, `locked`), and every other number suit is one they will toss
+  // (`tosses`; `feeds` is the one of those they've thrown most).
   function leftRead(game, seat) {
     var o = (seat + 3) % 4;
     var s = game.hand.seats[o];
@@ -136,9 +139,17 @@
       if (by[su] !== undefined) by[su]++;
     });
     var meldSuits = {};
-    shownMelds(s).forEach(function (m) { var su = meldSuit(m); if (su !== 'z') meldSuits[su] = true; });
+    var chowSuits = {};
+    shownMelds(s).forEach(function (m) {
+      var su = meldSuit(m);
+      if (su === 'z') return;
+      meldSuits[su] = true;
+      if (m.type === 'chow') chowSuits[su] = true;
+    });
     var inMelds = Object.keys(meldSuits);
     var keeps = inMelds.length === 1 ? inMelds[0] : null;
+    var locked = keeps !== null && !!chowSuits[keeps];
+    var tosses = locked ? SUIT_LETTERS.filter(function (su) { return su !== keeps; }) : [];
     if (!keeps && !inMelds.length && n >= 6) {
       SUIT_LETTERS.forEach(function (su) {
         var others = SUIT_LETTERS.filter(function (x) { return x !== su; });
@@ -154,7 +165,11 @@
       });
       if (tie || top < 3) feeds = null;
     }
-    return { seat: o, keeps: keeps, feeds: feeds };
+    if (locked && !feeds) {
+      // After their chow, the other suit they've thrown more is the one to wait on.
+      feeds = by[tosses[0]] === by[tosses[1]] ? null : (by[tosses[0]] > by[tosses[1]] ? tosses[0] : tosses[1]);
+    }
+    return { seat: o, keeps: keeps, feeds: feeds, locked: locked, tosses: tosses };
   }
 
   // The player after you (on your right: the only one who can chow your
@@ -241,7 +256,7 @@
     var read = ctx.leftRead;
     if (read) {
       if (plan.suit === read.keeps) lean *= LEAN_AWAY;
-      else if (plan.suit === read.feeds) lean *= LEAN_TOWARD;
+      else if (plan.suit === read.feeds || (read.tosses && read.tosses.indexOf(plan.suit) !== -1)) lean *= LEAN_TOWARD;
     }
     // The player after you can chow this suit, so a flush in it is a way
     // to keep the tiles. It never overrides the left player's suit.
