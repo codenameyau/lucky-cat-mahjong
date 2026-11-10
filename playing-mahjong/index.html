@@ -51,10 +51,11 @@
   <script>
     // Google Analytics runs on the live site only. On localhost and private network
     // addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x, .local) gtag does nothing, so
-    // testing never adds events.
+    // testing never adds events. There, each call is kept in window.lcmLocalEvents
+    // instead, so a test can read what would have been sent.
     window.dataLayer = window.dataLayer || [];
     var localHost = /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local)$/i.test(location.hostname);
-    function gtag(){ if (!localHost) dataLayer.push(arguments); }
+    function gtag(){ if (!localHost) dataLayer.push(arguments); else (window.lcmLocalEvents = window.lcmLocalEvents || []).push([].slice.call(arguments)); }
     if (!localHost) {
       var gaScript = document.createElement('script');
       gaScript.async = true;

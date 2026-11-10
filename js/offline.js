@@ -69,12 +69,15 @@
     if (unsupportedReason()) { state = { status: 'unsupported', reason: unsupportedReason() }; return Promise.resolve(state); }
     if (saving) return saving;
     if (nav.onLine === false) return Promise.resolve(state);
+    var fresh = false; // this load saved files, so the event fires once per version saved
     saving = C.missing(root.caches, version()).then(function (left) {
       if (!left.length) return { ok: true, failed: [] };
       state = { status: 'saving' };
+      fresh = true;
       return C.precache({ caches: root.caches, fetch: root.fetch.bind(root), version: version(), onlyMissing: true });
     }).then(function (res) {
       state = res.ok ? { status: 'ready' } : { status: 'partial', failed: res.failed };
+      if (fresh) track(res.ok ? 'offline_ready' : 'offline_partial', res.ok ? { version: version() } : { version: version(), failed_count: (res.failed || []).length });
       return state;
     }, function () {
       state = { status: 'partial' };
@@ -83,7 +86,22 @@
     return saving;
   }
 
+  function track(name, params) {
+    if (typeof root.gtag === 'function') root.gtag('event', name, params || {});
+  }
+
+  // Installing the site as an app (Add to Home Screen / Install app), and
+  // opening it from that icon.
+  function watchInstall() {
+    if (!root.addEventListener) return;
+    root.addEventListener('beforeinstallprompt', function () { track('app_install_prompt', {}); });
+    root.addEventListener('appinstalled', function () { track('app_installed', {}); });
+    var standalone = (root.matchMedia && root.matchMedia('(display-mode: standalone)').matches) || nav.standalone === true;
+    if (standalone) track('app_open_installed', {});
+  }
+
   function init() {
+    watchInstall();
     if (unsupportedReason()) return;
     // After the page has loaded, so the worker doesn't compete with the page's own files.
     var go = function () {

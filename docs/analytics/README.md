@@ -13,6 +13,8 @@ The site uses **Google Analytics 4** to learn which pages and buttons people use
 - **Never sent**: names, Instagram handles, email addresses, zip codes, or anything typed into a form. The booking form sends only that it was submitted and which service was picked.
 - **No tracking while developing**: on `localhost`, `127.x.x.x`, `::1`, `192.168.x.x`, `10.x.x.x`, `172.16–31.x.x` or a `.local` name, the snippet never adds Google's script and `gtag` does nothing, so testing adds no events. `js/analytics-local.test.js` checks every page that loads analytics has this check, that the script isn't hard-coded into the page, and that all of those addresses count as local.
 - **Game content isn't sent**: the mahjong game sends button clicks and how a hand ended (win, loss or draw, and the faan), never the tiles or moves.
+- **Links off the site** send only the address's host (`github.com`), never its path or query.
+- **User properties** are only `player_type` (`new` or `returning`, from a count of games kept in this browser's `lcm-analytics`) and `theme`.
 
 ## How events are sent
 
@@ -40,7 +42,7 @@ Each homepage call to action sends two events:
 
 ### Naming
 
-Event names are lowercase with underscores, and start with the area: `nav_`, `tile_quiz_`, `play_`. A click on a button ends in `_click`, opening or closing something is `_open`/`_close`, and a setting change is `_set_`. Parameters are lowercase too, and reuse existing names (`location`, `link`, `tile`, `mode`) where they mean the same thing.
+Event names are lowercase with underscores, and start with the area: `nav_`, `tile_quiz_`, `play_`, `outbound_`, `offline_`, `app_`. A click on a button ends in `_click`, opening or closing something is `_open`/`_close`, and a setting change is `_set_`. Parameters are lowercase too, and reuse existing names (`location`, `link`, `tile`, `mode`) where they mean the same thing.
 
 ## Reading the data in GA4
 
@@ -80,6 +82,19 @@ Every event has `location`: where on the page the button is (`hero`, `cta`, `mob
 | --- | --- | --- |
 | `nav_click` | A link in the header | `link` (its text, or `Home` for the logo), `page` |
 | `nav_toggle_click` | The phone menu button | `page` |
+| `outbound_click` | Any link to another site, anywhere on a page with the header (credits, Instagram, GitHub, Ticket Tailor) | `link_domain` (host only, without `www.`), `link_type` (`github`, `instagram`, `tickettailor`, `huggingface` or `other`), `page` |
+
+GA4's own enhanced measurement can also send `click` with `outbound: true`. `outbound_click` is the site's version, with the kind of link, and is the one the reporting guide uses.
+
+### Offline and installing the app (pages that load `js/offline.js`)
+
+| Event | When it fires | Parameters |
+| --- | --- | --- |
+| `offline_ready` | This load saved the files that were missing, and the whole site and game now work offline: once per version saved | `version` |
+| `offline_partial` | This load tried to save them and some failed | `version`, `failed_count` |
+| `app_install_prompt` | The browser offered to install the site as an app (`beforeinstallprompt`; Chrome and Edge only) | |
+| `app_installed` | It was installed (`appinstalled`) | |
+| `app_open_installed` | A page opened from the installed app's icon (standalone display) | |
 
 ### Tile quiz (`/which-mahjong-tiles-are-you/`)
 
@@ -116,9 +131,11 @@ Every button is tracked except the tiles and the buttons that play a move (Win, 
 | `play_mode_select` | A game mode is picked on the start screen | `mode` (`practice` or `payout`) |
 | `play_start_click`, `play_resume_click` | Start new game; Resume game | `mode` (start only) |
 | `play_learn_click` | Learn to play (the guided lesson) | |
-| `play_start`, `play_resume` | A game starts or resumes | `spicy`, `mode`, `coach`, `speed`, `coach_strategy` (the coach's strategy), `strategies` (the computer seats' strategies) |
-| `play_hand_end` | A hand ends | `result` (`win`, `loss` or `draw`), `faan` (your winning faan, else 0) |
-| `play_game_over` | The last hand of a game ends | `hands`, `wins` |
+| `play_start`, `play_resume` | A game starts or resumes, or the lesson starts | `lesson` (true for the guided lesson), `spicy`, `mode`, `coach`, `speed`, `coach_strategy` (the coach's strategy), `strategies` (the computer seats' strategies), `games_started` (start only, not the lesson: how many games this browser has started, counting this one) |
+| `play_hand_end` | A hand ends | `result` (`win`, `loss` or `draw`), `faan` (the winner's faan, else 0), `hand_number` (hands finished this game), `lesson`, `mode` |
+| `play_game_over` | The last hand of a game ends | `hands`, `wins`, `mode` |
+| `play_lesson_step` | In the guided lesson, you made the move it asked for | `step` (how far through its script, counting every seat's moves) |
+| `play_lesson_complete` | The lesson's hand ended | `result` (`win`, else `other`) |
 | `play_restart`, `play_copy_seed` | Restart the hand; copy the hand's seed | |
 
 **Table buttons and menus**
@@ -141,12 +158,14 @@ Every button is tracked except the tiles and the buttons that play a move (Win, 
 | `play_set_coach` | The Coach button cycles | `coach` (`on`, `feedback` or `off`) |
 | `play_set_coach_strategy` | A different strategy coaches | `strategy`, and `playback: true` on the playback page |
 | `play_set_sound` | The Sound button | `sound` (`on` or `off`) |
+| `play_set_theme` | The menu's Theme button | `theme` (`red`, `green` or `blue`); the `theme` user property is set on load and on each change |
 
 **Playback**
 
 | Event | When it fires | Parameters |
 | --- | --- | --- |
 | `play_view_replay` | View playback of a hand | |
+| `play_playback_view` | A playback is loaded on the table: the one to count for "watched a playback" | `source`: `game` (the game's own hand), `recent` (Saved playbacks) or `upload` |
 | `play_playback_prev_click`, `play_playback_next_click`, `play_playback_play_click`, `play_playback_pause_click` | Step and play controls | |
 | `play_playback_speed` | The playback speed changes | `speed` |
 | `play_playback_back_click`, `play_playback_list_click` | Back, and Saved playbacks (the bar's button, or the one in the center with no hand loaded) | |
@@ -163,4 +182,8 @@ Every button is tracked except the tiles and the buttons that play a move (Win, 
 
 - `js/analytics-local.test.js` (in `npm test`) checks the local-address rule on every page.
 - `js/tile-quiz.test.js` checks the quiz's events with a fake `gtag` that records every call.
-- To see events from a page, run it on the live site with DebugView open. A local preview sends nothing by design.
+- `every tracked event is documented` (in `js/analytics-local.test.js`) fails when the code sends an event this page doesn't list.
+- **Locally**, nothing is sent, but each `gtag` call is kept in `window.lcmLocalEvents`. On `localhost:8080`, play a little and run `lcmLocalEvents.filter(e => e[0] === 'event')` in the console to see what the live site would have sent.
+- To see events arrive in GA, use the live site with DebugView open.
+
+For which custom dimensions to register, and the explorations and funnels to build, see the [reporting guide](reporting.md).
