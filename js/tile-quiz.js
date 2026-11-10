@@ -1037,7 +1037,6 @@
       $('#tq-result-bestie').innerHTML = renderRelation(getTile(tile.bestie));
       $('#tq-result-enemy').innerHTML = renderRelation(getTile(tile.enemy));
 
-      $('#tq-share-heading').textContent = isMine ? 'Share your tile' : 'Send this to the friend who\'s a ' + tile.name;
       card.setAttribute('data-mine', isMine ? 'true' : 'false');
       resultTile = tile;
       renderGallery(tile.id);
@@ -1305,8 +1304,8 @@
         track('tile_quiz_download_click', { tile: resultTile.id });
         downloadImage();
       });
-      $('#tq-hero-cta').addEventListener('click', function () {
-        track('tile_quiz_start_click', { location: 'tile_page' });
+      $('#tq-again').addEventListener('click', function () {
+        track('tile_quiz_start_click', { location: 'take_again' });
         startQuiz();
       });
       $('#tq-share').addEventListener('click', function () {

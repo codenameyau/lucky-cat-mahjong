@@ -245,6 +245,22 @@
     if (typeof root.gtag === 'function') root.gtag('event', name, params || {});
   }
 
+  // GA4 user properties, for splitting reports by player (register each as a
+  // user-scoped custom dimension). Never anything personal or about the tiles.
+  function setUserProperties(props) {
+    if (typeof root.gtag === 'function') root.gtag('set', 'user_properties', props);
+  }
+
+  // How many games this browser has started, kept only on the device: the
+  // first is a new player, any later one a returning player.
+  var ANALYTICS_KEY = 'lcm-analytics';
+  function countGameStarted() {
+    var a = readJson(ANALYTICS_KEY, {}) || {};
+    a.games = (a.games || 0) + 1;
+    writeJson(ANALYTICS_KEY, a);
+    return a.games;
+  }
+
   // The event for a click on each of the table's buttons, by button id. Coach,
   // Rules, Strategies and Sound have their own, and so do View playback and the
   // playback speed. Tiles and the buttons that play a move (Win, Kong, Pung,
@@ -745,6 +761,7 @@
     dropUnfinishedStored();
     var prefs = readJson(PREFS_KEY, { sound: true });
     applyTheme(prefs.theme); // green, blue or red, kept in PREFS_KEY
+    setUserProperties({ theme: themeName(prefs.theme) });
     // ?sound=0 and ?sound=1 cover this visit only, so a test can stay quiet
     // without changing the saved Sound button choice. No sound param keeps it.
     var soundParam = /[?&]sound=(0|1)(?:&|$)/.exec((root.location && root.location.search) || '');
@@ -1869,10 +1886,15 @@
               var show = function () { showRuleExample(row, r, pill.textContent); };
               var fromMouse = true;
               var openBeforePress = false;
+              // A tap opens the example from the hover and focus it fakes, and iOS
+              // then skips the click, so the sound plays on the press itself.
+              var pressSounded = false;
               row.addEventListener('pointerdown', function (e) {
                 if (desktopRules()) return;
                 fromMouse = e.pointerType === 'mouse';
                 openBeforePress = openExampleRow === row;
+                pressSounded = !fromMouse;
+                if (pressSounded) sound.play('select'); // opening or putting away an example
               });
               row.addEventListener('mouseenter', function () {
                 if (desktopRules()) { show(); return; }
@@ -1883,7 +1905,8 @@
                 if (fromMouse || !openBeforePress) show();
               });
               row.addEventListener('click', function () {
-                sound.play('select'); // opening or putting away an example
+                if (!pressSounded) sound.play('select'); // opening or putting away an example
+                pressSounded = false;
                 track('play_rule_click', { hand: r.name });
                 if (desktopRules()) { show(); return; }
                 if (fromMouse ? openExampleRow === row : openBeforePress) { hideRuleExample(); return; }
@@ -2259,7 +2282,7 @@
         head.className = 'strategies-card-head';
         var name = document.createElement('h4');
         name.className = 'strategies-card-name';
-        name.textContent = s.name + (s.model ? ' ' + s.model : '');
+        name.textContent = s.name; // a learned strategy's model opens its summary
         var id = document.createElement('code');
         id.className = 'strategies-card-id';
         id.textContent = s.id;
@@ -2275,7 +2298,7 @@
         card.appendChild(who);
         var sum = document.createElement('p');
         sum.className = 'strategies-card-summary';
-        sum.textContent = s.summary;
+        appendHandNames(sum, s.summary);
         card.appendChild(sum);
         var more = document.createElement('div');
         more.className = 'strategies-card-more';
@@ -4873,6 +4896,8 @@
       var next = THEME_ORDER[(THEME_ORDER.indexOf(themeName(prefs.theme)) + 1) % THEME_ORDER.length];
       prefs.theme = applyTheme(next);
       writeJson(PREFS_KEY, prefs);
+      track('play_set_theme', { theme: prefs.theme });
+      setUserProperties({ theme: prefs.theme });
       requestRender();
     }
 
@@ -5426,9 +5451,53 @@
       return { kind: 'button', key: decision.type };
     }
 
+    // Lesson analytics: how far people get. Each of the player's moves sends
+    // play_lesson_step (move 1 to 8); a first wrong try on a move sends
+    // play_lesson_wrong_move; leaving before the end sends play_lesson_exit.
+    var lessonTrack = null;
+
+    function lessonSeconds() {
+      return lessonTrack ? Math.round((Date.now() - lessonTrack.started) / 1000) : 0;
+    }
+
+    function startLessonTracking() {
+      lessonTrack = { started: Date.now(), wrong: 0, wrongTotal: 0, done: false };
+      track('play_lesson_start', { moves: Lesson.MOVES });
+    }
+
+    // The lesson ended before its hand did: quit from the menu (how: quit) or the page closed (how: leave).
+    function trackLessonExit(how) {
+      if (!settings.lesson || !lessonTrack || lessonTrack.done || !game) return;
+      lessonTrack.done = true;
+      var at = Lesson.progress(game);
+      track('play_lesson_exit', {
+        move: at.move, moves: at.moves, next_action: at.next || 'none', how: how,
+        seconds: lessonSeconds(), wrong_tries: lessonTrack.wrongTotal, transport_type: 'beacon',
+      });
+    }
+
     function lessonAllows(kind, decision, target) {
       if (!settings.lesson) return true;
-      if (Lesson.accept(game, 0, kind, decision)) return true;
+      if (Lesson.accept(game, 0, kind, decision)) {
+        var at = Lesson.progress(game);
+        track('play_lesson_step', {
+          step: game.lessonStep, move: at.move, moves: at.moves, action: decision.type,
+          seconds: lessonSeconds(), wrong_tries: lessonTrack ? lessonTrack.wrong : 0,
+        });
+        if (lessonTrack) lessonTrack.wrong = 0;
+        return true;
+      }
+      if (lessonTrack) {
+        lessonTrack.wrong++;
+        lessonTrack.wrongTotal++;
+        if (lessonTrack.wrong === 1) {
+          var now0 = Lesson.progress(game);
+          track('play_lesson_wrong_move', {
+            move: now0.move + 1, moves: now0.moves, expected: now0.next || 'none', tried: decision.type,
+            mistake: decision.type === now0.next ? 'wrong_tile' : 'wrong_action',
+          });
+        }
+      }
       var where = lessonTarget(decision, target);
       ui.shake = { kind: where.kind, key: where.key, start: now() };
       requestRender();
@@ -6717,6 +6786,7 @@
       resetReviewCoach();
       reviewPicks = null;
       settings.review = rec;
+      track('play_playback_view', { source: mark && mark.lcmRecent ? 'recent' : 'upload' });
       reviewStep = 0;
       showReviewStep();
       reviewPlaying = true;
@@ -7714,6 +7784,7 @@
           var check = stored ? E.checkPlayback(stored) : null;
           if (check && check.ok) {
             settings.review = check.record;
+            track('play_playback_view', { source: viewState.lcmUpload ? 'upload' : viewState.lcmRecent ? 'recent' : 'game' });
             // Back belongs to View playback, which opens this page on purpose.
             if (settings.replayFromStorage) settings.replayBack = true;
           } else if (check && check.reason) {
@@ -7776,6 +7847,7 @@
         if (settings.lesson) {
           Lesson.prepare(game);
           ui.coach = 'on';
+          startLessonTracking();
         }
         ui.strategies = pickStrategies();
         ui.hintLists = {};
@@ -7784,11 +7856,16 @@
       var agents = settings.lesson
         ? [humanAgent(), lessonAgent(), lessonAgent(), lessonAgent()]
         : [humanAgent(), botAgent(), botAgent(), botAgent()];
-      track(saved ? 'play_resume' : 'play_start', {
+      var started = saved || settings.lesson ? null : countGameStarted(); // the lesson isn't a game
+      if (started) setUserProperties({ player_type: started > 1 ? 'returning' : 'new' });
+      var startParams = {
+        lesson: !!settings.lesson,
         spicy: settings.spicy, mode: settings.mode, coach: settings.coach,
         speed: settings.speed, coach_strategy: ui.strategies.coach,
         strategies: ui.strategies.seats.slice(1).join(','),
-      });
+      };
+      if (started) startParams.games_started = started;
+      track(saved ? 'play_resume' : 'play_start', startParams);
       if (pendingSummary) restoreFinishedHand();
       var showSavedResults = consumeResultsRequest() || !!ui.resultsOpen;
       if (game.over && !pendingSummary) {
@@ -7811,7 +7888,7 @@
           return;
         }
         if (game.over) {
-          track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins });
+          track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins, mode: settings.mode });
           showFinalMatch();
           L = computeLayout();
           // Only the game over window shows (not the Results table): its Results
@@ -7832,7 +7909,15 @@
         track('play_hand_end', {
           result: res.type === 'draw' ? 'draw' : res.winner === 0 ? 'win' : 'loss',
           faan: res.type === 'win' ? res.score.faan : 0,
+          hand_number: ui.stats.hands, lesson: !!settings.lesson, mode: settings.mode,
         });
+        if (settings.lesson) {
+          track('play_lesson_complete', {
+            result: res.type === 'win' && res.winner === 0 ? 'win' : 'other',
+            moves: Lesson.MOVES, seconds: lessonSeconds(), wrong_tries: lessonTrack ? lessonTrack.wrongTotal : 0,
+          });
+          if (lessonTrack) lessonTrack.done = true;
+        }
         var extra = null;
         if (settings.lesson && res.type === 'win' && res.winner === 0) extra = 'You won a Half Flush on East Wind.';
         else if (res.roundAdvanced) extra = 'The round wind is now ' + E.WIND_NAMES[game.round] + '.';
@@ -7852,7 +7937,7 @@
           return;
         }
         if (game.over) {
-          track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins });
+          track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins, mode: settings.mode });
           showFinalMatch();
           L = computeLayout();
           // Only the game over window shows (not the Results table): its Results
@@ -7873,6 +7958,7 @@
     // and timers, so auto-play would still be on; it never is after a load.
     var onPageLife = function (e) {
       if (e.type === 'pagehide' || e.persisted) stopAutoPlay();
+      if (e.type === 'pagehide') trackLessonExit('leave');
     };
     root.addEventListener('pageshow', onPageLife);
     root.addEventListener('pagehide', onPageLife);
@@ -8030,6 +8116,7 @@
         });
       },
       destroy: function () {
+        trackLessonExit('quit');
         destroyed = true;
         stopAutoPlay();
         root.removeEventListener('pageshow', onPageLife);

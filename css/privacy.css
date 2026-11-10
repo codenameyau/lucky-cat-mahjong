@@ -1,0 +1,138 @@
+/* The terms and conditions, privacy policy and refund policy pages */
+
+body {
+  background: #fff;
+}
+
+.privacy-inner {
+  max-width: none;
+  margin: 3rem auto 4rem;
+  line-height: 1.6;
+}
+
+.privacy-head {
+  margin-bottom: 2rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px dashed rgba(var(--color-primary-rgb), 0.22);
+}
+
+.privacy-title {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-heading);
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  color: var(--color-primary);
+}
+
+.privacy-updated {
+  margin: 0 0 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.privacy-lead {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.privacy h2 {
+  margin: 2.25rem 0 0.75rem;
+  font-family: var(--font-heading);
+  font-size: 1.4rem;
+  color: var(--color-text);
+  scroll-margin-top: calc(var(--header-height) + 16px);
+}
+
+.privacy h3 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.privacy p,
+.privacy li {
+  color: var(--color-text);
+}
+
+.privacy ul {
+  padding-left: 1.25rem;
+}
+
+.privacy li + li {
+  margin-top: 0.4rem;
+}
+
+.privacy a {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.privacy code {
+  font-size: 0.9em;
+  padding: 0.05em 0.35em;
+  border-radius: 4px;
+  background: rgba(var(--color-secondary-rgb), 0.14);
+  word-break: break-word;
+}
+
+.privacy-summary {
+  padding: 1rem 1.25rem;
+  border: 1px solid rgba(var(--color-primary-rgb), 0.18);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(var(--color-secondary-rgb), 0.08) 0%, transparent 70%), var(--color-surface);
+}
+
+.privacy-summary h2 {
+  margin-top: 0.25rem;
+}
+
+.privacy-table-wrap {
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.privacy-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.privacy-table th,
+.privacy-table td {
+  padding: 0.6rem 0.65rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  text-align: left;
+  vertical-align: top;
+}
+
+.privacy-table th {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+
+@media (max-width: 600px) {
+  .privacy-table thead {
+    display: none;
+  }
+
+  .privacy-table tr {
+    display: block;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  .privacy-table td {
+    display: block;
+    padding: 0.15rem 0;
+    border: 0;
+  }
+
+  .privacy-table td:first-child {
+    font-weight: 600;
+  }
+}
+
+.terms-closing {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px dashed rgba(var(--color-primary-rgb), 0.22);
+}

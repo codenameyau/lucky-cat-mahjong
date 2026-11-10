@@ -142,6 +142,30 @@
     if (typeof window.gtag === 'function') window.gtag('event', name, params);
   }
 
+  // What kind of site a link leaves to, so reports group them without a
+  // custom dimension per address.
+  function linkType(host) {
+    if (/(^|\.)github\.com$/.test(host)) return 'github';
+    if (/(^|\.)instagram\.com$/.test(host)) return 'instagram';
+    if (/(^|\.)tickettailor\.com$/.test(host)) return 'tickettailor';
+    if (/(^|\.)huggingface\.co$/.test(host)) return 'huggingface';
+    return 'other';
+  }
+
+  // Every link off the site, on every page with the header: outbound_click with
+  // the domain and its kind (only the address's host, never its path or query).
+  function setupOutbound() {
+    if (document.documentElement.dataset.outboundBound) return;
+    document.documentElement.dataset.outboundBound = 'true';
+    document.addEventListener('click', function (e) {
+      var link = e.target.closest && e.target.closest('a[href]');
+      if (!link || !/^https?:$/.test(link.protocol)) return;
+      var host = link.hostname.replace(/^www\./, '');
+      if (!host || host === window.location.hostname.replace(/^www\./, '') || /(^|\.)luckycatmahjong\.com$/.test(host)) return;
+      trackNav('outbound_click', { link_domain: host, link_type: linkType(host) });
+    });
+  }
+
   function setupMenu(header) {
     var toggle = document.querySelector('.nav-toggle');
     var links = document.querySelector('.nav-links');
@@ -204,6 +228,7 @@
 
     applyActiveStates(list);
     setupMenu(header);
+    setupOutbound();
     setupScrollShadow(header);
     setupBrandProtection();
 

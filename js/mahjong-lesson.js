@@ -107,6 +107,20 @@
 
   function stepAt(game) { return STEPS[game.lessonStep]; }
 
+  // The player's own moves (seat 0's steps), for analytics: how many there are.
+  var MOVES = STEPS.filter(function (st) { return st.seat === 0; }).length;
+
+  // How many of the player's moves are done, and what the next one is.
+  function progress(game) {
+    var done = 0;
+    for (var i = 0; i < Math.min(game.lessonStep || 0, STEPS.length); i++) if (STEPS[i].seat === 0) done++;
+    var next = null;
+    for (var j = game.lessonStep || 0; j < STEPS.length; j++) {
+      if (STEPS[j].seat === 0) { next = STEPS[j].action.type; break; }
+    }
+    return { move: done, moves: MOVES, next: next };
+  }
+
   function wanted(game, step) {
     if (step.drawn) return { type: 'discard', tile: game.hand.drawnTile };
     return step.action;
@@ -155,7 +169,7 @@
     game.round = 1;
   }
 
-  var api = { wall: wall, prepare: prepare, hint: hint, matches: matches, accept: accept, take: take };
+  var api = { wall: wall, prepare: prepare, hint: hint, matches: matches, accept: accept, take: take, progress: progress, MOVES: MOVES };
 
   if (node) module.exports = api;
   else root.MahjongLesson = api;

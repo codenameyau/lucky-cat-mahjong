@@ -32,21 +32,23 @@
   // A learned strategy's model name for its heading ("NC8"), once its weights are here.
   function upper(name) { return name ? name.toUpperCase() : null; }
   function orphansModelName() { return weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights'); }
+  // A learned strategy's summary opens with its name and model ("Neural Cat NC9").
+  function named(name, model) { return model ? name + ' ' + model : name; }
 
   var STRATEGIES = [
     {
       id: 'jorge-yau',
       name: 'Jorge Yau',
       bot: J,
-      summary: 'Play mahjong the way the founder of Lucky Cat plays. It reads the opening hand and picks one hand to build, from Thirteen Orphans down to Concealed Straights, and pivots when that hand can\'t be made. It keeps honors, pungs dragons and scoring winds, and locks onto a hand worth 7 faan or more. It plays no defense until late in the wall, when it is far from winning.',
+      summary: 'Play mahjong the way the founder of Lucky Cat plays. It reads the opening hand, picks one hand to build, from Thirteen Orphans down to Concealed Straights, and keeps the tiles that hand needs. It loves honors: it holds them longest, and always pungs dragons and scoring winds. It goes for value, locking onto a hand worth 7 faan or more when one is close, and plays for speed when the hand already has faan. It plays no defense until late in the wall.',
       details: [
-        'It looks at the opening hand and picks a target, in this order: Thirteen Orphans, Nine Gates, Four Winds, Big Three Dragons, All Terminals, All Honors, Seven Pairs, Full Flush, Concealed Triplets, Half Flush, All Triplets and Concealed Straights. Tiles the target can\'t use go first.',
-        'Each turn it reads the hand again. A stronger target replaces the old one, and when a target can\'t be made it pivots: Concealed Triplets to Seven Pairs to All Triplets; Full Flush to Half Flush; Four Winds to Small Winds; Big Dragons to Small Dragons; All Honors to Half Flush or All Triplets; and Thirteen Orphans to Seven Pairs or All Triplets with Mixed Orphans.',
+        'It looks at the opening hand and picks a target, in this order: Thirteen Orphans, Nine Gates, Big Four Winds, Big Three Dragons, All Terminals, All Honors, Seven Pairs, Full Flush, Concealed Triplets, Half Flush, All Triplets and Concealed Straights. Tiles the target can\'t use go first.',
+        'Each turn it reads the hand again. A stronger target replaces the old one, and when a target can\'t be made it changes to the closest one: Concealed Triplets to Seven Pairs to All Triplets; Full Flush to Half Flush; Big Four Winds to Small Four Winds; Big Three Dragons to Small Three Dragons; All Honors to Half Flush or All Triplets; and Thirteen Orphans to Seven Pairs, or to All Triplets with Mixed Orphans.',
         'With a seat or round wind, or a seat flower, the hand already has faan, so it plays for speed. It also counts wins off the last tile and off a kong toward the 3-faan minimum.',
-        'With 8 tiles of a hand worth 7 faan or more within its first 8 turns (a Full Flush, Thirteen Orphans, Nine Gates, All Honors, All Terminals, Four Winds, Three Dragons or Mixed Orphans), it locks onto that hand and keeps those tiles until the hand can\'t be won.',
-        'It keeps honors as long as it can. Number tiles that cost no step go first, then lone honors, and honor pairs stay longest. A lone honor with the other three copies on the table goes first of all.',
-        'It stays concealed for the early game unless it can reach a ready hand within two to three tiles and win quickly where it prefers pungs over chows. It rarely chows early game until it figures out whether or not the player before it will either feed or needs those tiles. It always pungs dragons and scoring winds, unless it is going for Thirteen Orphans.',
-        'It plays no defense: it never folds and doesn\'t mind what it feeds. The one exception is late in the wall, when it is still two or more tiles from ready and holds no lock. Then it stops building, plays safe and stops feeding chow tiles and fresh honors, using its reads of what each opponent is collecting.',
+        'If it has 8 tiles of a hand worth 7 faan or more within its first 8 turns (Full Flush, Thirteen Orphans, Nine Gates, All Honors, All Terminals, Big Four Winds, Big Three Dragons or Mixed Orphans), it locks onto that hand and keeps those tiles until the hand can\'t be won.',
+        'It keeps honors as long as it can. Number tiles that cost no step go first, then lone honors, and honor pairs stay longest. A lone honor whose other three copies are on the table goes first of all.',
+        'It stays concealed early on, unless a claim gets it within two or three tiles of ready and it can win quickly; then it prefers pungs to chows. It rarely chows early until it knows whether the player before it is feeding it or needs those tiles. It always pungs dragons and scoring winds, unless it is going for Thirteen Orphans.',
+        'It plays no defense: it never folds and doesn\'t mind what it feeds. The one exception is late in the wall, when it is still two or more tiles from ready and holds no lock. Then it stops building and plays safe, holding back chow tiles and fresh honors, using its reads of what each opponent is collecting.',
         'The coach names the hand to go for and says why each move fits it, in the words it uses for every strategy. On Complex it also gives the odds its rules work out: the chance to finish the hand before the wall runs out, the tiles that help, and the next best discard\'s odds.',
       ],
       doc: 'docs/strategies/jorge-yau.md',
@@ -57,16 +59,16 @@
       bot: LC && LC.trained ? LC : L,
       get model() { return upper(luckyModelName()); },
       get summary() {
-        return 'A neural network that taught itself to win, with no rules built in. It plays the moves that won it hands before and avoids the discards that dealt in: fast, cheap wins, nearly one hand in four.';
+        return named('Lucky Cat', luckyModelName() && upper(luckyModelName())) + ' is a neural network that taught itself to play, with no rules built in. Each turn it looks at what its seat can see and plays the move that most often led to wins in its training, with no target hand and no plan. It goes for speed: fast, cheap wins of a few faan, and it takes risks to get them. It trained on simulated games, first learning from the hands it won, and later also from the discards that dealt in.';
       },
       details: [
-        'It has no plan for a hand. Each turn it looks at what its seat can see (its tiles and melds, every discard, the melds and flowers others have shown, the winds and how many tiles are left) and the network gives every legal move a share. The biggest share is played.',
-        'That is true of every move: which tile goes, each chow, pung and kong, and whether to pass. It has no count of steps from ready, no target hand and no list of safe tiles. What looks like a plan is a habit the network found.',
-        'It learned only from its wins. It began by playing at random, and after each round of simulated hands the moves of every hand it won were made more likely, the quicker the win the more. Hands it lost or drew taught it nothing, so it takes the risks that won it hands before.',
-        'Since LC21 it keeps learning in the lab, from fresh games against its last few versions, Neural Cat and Jorge Yau, and a new version replaces it only when it wins clearly more hands over 20,000 new deals. Since LC31 it also learns from the hands it lost by dealing in, and makes those discards less likely, with a network twice as wide. LC32 wins 28.7% of hands to LC20\'s 15.3% when they meet, just as fast, and deals in less.',
-        'It values speed over size. It wins often and in few discards, mostly small hands of 4 to 5 faan, and it deals in more often than Neural Cat does. Against Neural Cat it wins about twice as many hands but scores fewer points, because Neural Cat\'s hands are worth more.',
+        'It has no plan and no rules. Each turn it looks at what its seat can see (its own tiles and melds, every discard, the melds and flowers others have shown, the winds, and how many tiles are left), and its neural network gives every legal move a share. It plays the move with the biggest share.',
+        'That goes for every move: which tile to discard, each chow, pung and kong, and whether to pass. It doesn\'t count tiles from ready, pick a target hand or keep a list of safe tiles. What looks like a plan is a habit the network learned.',
+        'How it was trained: it started by playing at random. After each round of simulated hands, the moves of every hand it won were made more likely, the faster the win the more. Since LC21 it trains against its last few versions, Neural Cat and Jorge Yau, and a new version replaces it only when it wins clearly more hands over 20,000 fresh deals. Since LC31 it also learns from the hands it lost by dealing in, and makes those discards less likely.',
+        'It values speed over size. It wins often and in few discards, mostly small hands of 4 to 5 faan, and it takes risks to get them, so it deals in more often than Neural Cat does.',
         'It never looks at the wall or another player\'s hand, and a test checks that shuffling those changes nothing it does. A win of 3 faan or more is always declared.',
         'The coach names the hand to go for and says why each move fits it, in the words it uses for every strategy. Its words about the hand, such as its plans and waits, come from the shared foundation\'s read, and every move is checked against that plan: one that goes against it gives way to the network\'s next most likely move. On Complex it also says how often Lucky Cat makes the move it picks, and the next most likely one.',
+        'Its numbers: LC32 wins nearly 1 hand in 4 at the game\'s table. Against LC20 over 10,000 deals it won 28.7% of hands to 15.3%, just as fast, and dealt in less (14.3% of hands to 18.4%). Against Neural Cat it wins about twice as many hands but scores fewer points, because Neural Cat\'s wins are worth about 8 faan to its 4 to 5.',
       ],
       doc: 'docs/strategies/lucky-cat.md',
     },
@@ -76,22 +78,19 @@
       bot: O,
       get model() { return upper(orphansModelName()); },
       get summary() {
-        return 'Builds big hands on 1s, 9s and honors: Thirteen Orphans, their triplets or pairs, Concealed Triplets and Seven Pairs, whichever the deal is worth most. A neural network decides how, betting on a few big hands over many small ones, and leaning toward the choice more likely to finish.';
+        return named('Only Orphans', orphansModelName()) + ' builds big hands on 1s, 9s and honors: Thirteen Orphans, triplets or pairs of those tiles, Concealed Triplets and Seven Pairs. Each turn it goes for whichever of those the deal is worth most, and keeps its 1s, 9s and honors longest. It bets on a few big wins over many small ones, and among choices worth about the same it takes the one more likely to finish. A neural network trained on its own simulated games picks which tile goes and which pungs and kongs to take.';
       },
-      get details() {
-        var version = weightsName('./mahjong-only-orphans-weights.js', 'MahjongOnlyOrphansWeights');
-        return [
-          'Each deal it picks a target and reads it again every turn: Thirteen Orphans, triplets of 1s, 9s and honors (Mixed Orphans, All Terminals, All Honors), the same as pairs, Seven Pairs, or Concealed Triplets of any tiles. It picks the one worth the most points on average: what the hand pays, times its odds of finishing from the tiles still live and the draws left. It changes target only when another is worth clearly more.',
-          '1s, 9s and honors are the core of every target: they stay longest, and their pairs become the eyes or pungs. Tiles the target can\'t use go first, even late in the hand when it plays safe. On Seven Pairs and Concealed Triplets that means single tiles: pairs and pungs of any tile stay.',
-          'It never chows. It pungs or kongs only a 1, a 9 or an honor, and only when the target is triplets of them. On Thirteen Orphans, the pairs hands and Concealed Triplets it claims nothing but the winning tile.',
-          'The choices left to ' + (version ? 'its neural network, model ' + version + ',' : 'a neural network') + ' are which allowed tile goes and which allowed pungs and kongs to take. It weighs each by the score it expects on average, a score that counts the chance to win, how big the win would be and the chance of dealing in, and plays the best one. Dealing in is part of that score, so there is no separate rule for playing safe.',
-          'It learned from its own games with the targets, and it bets on bigger hands inside them: compared with the model before the targets, it wins Seven Pairs far less often and Concealed Triplets more often, about 3 hands in 100 instead of 4, each worth about 5,500 points instead of 3,200.',
-          'It rarely pungs a discard: it claims one only when that is clearly worth more than passing. So it keeps more pairs and triplets concealed and declares more kongs.',
-          'It leans toward finishing: each choice\'s score adds a bonus for its chance to win (800 points for a sure win), so among choices worth about the same it takes the one more likely to win. That brought back Seven Pairs, while its limit hands held up. Compared with the model before it, it leans harder still: it wins about 5 more hands in 1,000, nearly all of them Seven Pairs, each win smaller, with its limit hands and deal-ins the same.',
-          'It learned from games against Neural Cat, Jorge Yau and Lucky Cat. It sees only what its seat can see.',
-          'The coach names the hand to go for and says why each move fits it, in the words it uses for every strategy. On Complex it also gives the network\'s numbers: the score it expects from its pick and from the next best, its chance to win and how much a win pays.',
-        ];
-      },
+      details: [
+        'Each deal it picks a target and checks it again every turn: Thirteen Orphans; triplets of 1s, 9s and honors (Mixed Orphans, All Terminals, All Honors); the same hands as pairs; Seven Pairs; or Concealed Triplets of any tiles. It picks the one worth the most points on average, which is what the hand pays times its chance of finishing, from the tiles still live and the draws left. It changes target only when another is worth clearly more.',
+        '1s, 9s and honors are the heart of every target: they stay longest, and their pairs become the eyes or pungs. Tiles the target can\'t use go first, even late in the hand when it plays safe. On Seven Pairs and Concealed Triplets that means single tiles go first, and pairs and pungs of any tile stay.',
+        'It never chows. It pungs or kongs only a 1, a 9 or an honor, and only when the target is triplets of them. On Thirteen Orphans, the pairs hands and Concealed Triplets it claims nothing but the winning tile.',
+        'Within those rules its neural network makes the choices: which allowed tile goes, and which allowed pungs and kongs to take. It scores each by the points it expects on average, counting the chance to win, how big the win would be and the chance of dealing in, and plays the best. Dealing in is part of that score, so there is no separate rule for playing safe.',
+        'It rarely pungs a discard: it claims one only when that is clearly worth more than passing. So it keeps more pairs and triplets concealed and declares more kongs.',
+        'It leans toward finishing: each choice\'s score gets a bonus for its chance to win (800 points for a sure win), so among choices worth about the same it takes the one more likely to win. That brings in more Seven Pairs without giving up its limit hands.',
+        'How it was trained: on its own simulated games with these targets, against Neural Cat, Jorge Yau and Lucky Cat. It sees only what its seat can see.',
+        'The coach names the hand to go for and says why each move fits it, in the words it uses for every strategy. On Complex it also gives the network\'s numbers: the score it expects from its pick and from the next best, its chance to win and how much a win pays.',
+        'Its numbers: over 40,000 deals against Neural Cat, OT11d won 4.6% of hands, each win worth about 3,480 points on average, and dealt in on 13.7% of hands. Against OT7c before it, it won about 5 more hands in 1,000, nearly all of them Seven Pairs, with its limit hands level.',
+      ],
       doc: 'docs/strategies/only-orphans.md',
     },
   ];
@@ -106,17 +105,18 @@
       bot: N,
       get model() { return upper(modelName()); },
       get summary() {
-        return 'Plays Jorge Yau\'s hands, but a neural network trained on simulated games chooses among his best options by what each is worth on average, with a bonus for the chance to win: it wins about 14% of hands, and bigger ones than Lucky Cat\'s, while dealing in less.';
+        return named('Neural Cat', upper(modelName())) + ' reads the hand the way Jorge Yau does, then lets a neural network choose among his best options by what each is worth on average: the chance to win, how big the win would be, and the risk of dealing in. It will take a slower, bigger hand over a fast small one when the numbers favor it, and it plays safer because dealing in is part of every score. Its network learned from simulated hands, most of them played by earlier Neural Cat models.';
       },
       get details() {
         return [
-        'It reads the hand the way Jorge Yau does: the target hand, the plans it can still make, steps from ready, live tiles, and how risky each tile is. That narrows each decision to a few sound options.',
-        'Its neural network, ' + (modelName() ? 'model ' + modelName() + ', ' : '') + 'then picks among them. It was trained on simulated hands, most of them played by earlier Neural Cat models, and for each option it predicts how the hand ends: the chance to win by self-draw or off a discard, the chance to deal in, and how many faan a win would be.',
-        'Those predictions make one score, what the option is worth on average, and the highest score goes. A quick small win and a slower big one are weighed on the same scale, so it can prefer a slower big hand over a fast small one when the numbers favor it.',
-        'It plays for bigger hands than Lucky Cat does: it wins less often, and its wins are worth much more. It also deals in less, because the chance of dealing in is part of every score. Since NC4 the score also gets a bonus for the chance to win (300 points for a sure win since NC6; 150 before), so it now wins about 14% of hands (up from about 9%) with smaller wins on average (about 1,100 points, down from about 1,900). It was then trained again on its newest games (NC5, NC8) and weighs a wider set of Jorge Yau\'s discards (NC7).',
-        'Claims and kongs are weighed the same way: passing, each pung, chow or kong and the best discard after it. When the model\'s pick scores higher than Jorge Yau\'s call, the model\'s goes.',
+        'First it reads the hand the way Jorge Yau does: the hand to build, the other hands still in reach, how many tiles from ready it is, which tiles are still live, and how risky each discard is. That narrows each choice to his best few options.',
+        'Then its neural network scores each option. It predicts how the hand will end after it: a win by self-draw or off a discard, dealing in, someone else winning, or a draw, and how many faan a win would be. Those make one score, the points the option is worth on average, plus a bonus for the chance to win. The best score is played.',
+        'A quick small win and a slower big one are scored on the same scale, so it can wait for a bigger hand when the numbers favor it. And because dealing in is part of every score, it plays safe without a separate rule for it.',
+        'Claims and kongs work the same way: passing, each pung, chow or kong, and the best discard after it are all scored. When the network\'s pick scores higher than Jorge Yau\'s call, the network\'s pick goes.',
+        'How it was trained: on simulated hands, most of them played by earlier Neural Cat models, so each model learns from the games of the one before. A new model replaces the old one only when it beats it over thousands of fresh deals.',
         'The coach names the hand to go for and says why each move fits it, in the words it uses for every strategy. On Complex it also gives the network\'s numbers: the score it expects from its pick and from the next best, its chance to win and how much a win pays, and which parts of the position put its pick ahead: speed, hand value, safety, what the table shows. On Simple and Detailed the coach speaks for itself ("It keeps a bigger hand in reach"); only Complex says "the model".',
         'It plays fair: it sees only what its seat can see, the same as you. Never the wall, another player\'s hand, or which tile a concealed kong is.',
+        'Its numbers: NC9 wins about 17% of hands at the game\'s table, each win worth about 900 points on average, and deals in on about 12% of hands. It weighs Jorge Yau\'s best 6 discards, and against NC8 it scored 11.6 points a hand more over 100,000 fresh deals. It wins fewer hands than Lucky Cat, but each is worth much more. NC1 to NC3 won about 9% of hands, each worth about 1,900 points; since NC4 a bonus for the chance to win (300 points for a sure win since NC6) has made it win more often with smaller wins.',
         ];
       },
       doc: 'docs/strategies/neural-cat.md',

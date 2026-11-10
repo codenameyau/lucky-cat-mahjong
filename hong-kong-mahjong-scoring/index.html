@@ -38,13 +38,17 @@
   <link rel="stylesheet" href="../css/styles.css">
   <link rel="stylesheet" href="../css/points.css">
 
+  <script src="/js/analytics-id.js"></script>
   <script>
     // Google Analytics runs on the live site only. On localhost and private network
     // addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x, .local) gtag does nothing, so
-    // testing never adds events.
+    // testing never adds events. There, each call is kept in window.lcmLocalEvents
+    // instead, so a test can read what would have been sent.
     window.dataLayer = window.dataLayer || [];
     var localHost = /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local)$/i.test(location.hostname);
-    function gtag(){ if (!localHost) dataLayer.push(arguments); }
+    function gtag(){ if (!localHost) dataLayer.push(arguments); else (window.lcmLocalEvents = window.lcmLocalEvents || []).push([].slice.call(arguments)); }
+    // The visitor and session IDs and the cookie choice (js/analytics-id.js), before the page view.
+    if (window.lcmAnalytics) window.lcmAnalytics.start(gtag);
     if (!localHost) {
       var gaScript = document.createElement('script');
       gaScript.async = true;
@@ -384,6 +388,7 @@
         <span>Lucky Cat Mahjong</span>
       </div>
       <p class="footer-tagline">Hong Kong Mahjong</p>
+      <p class="footer-links"><a href="/terms-and-conditions/" class="footer-link">Terms and Conditions</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/privacy-policy/" class="footer-link">Privacy Policy</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/refund-policy/" class="footer-link">Refund Policy</a><span class="footer-links-sep" aria-hidden="true">|</span><button type="button" class="footer-link js-cookie-settings">Cookie Settings</button></p>
       <p class="footer-copy">&copy; <span id="year"></span> Lucky Cat Mahjong</p>
     </div>
   </footer>
