@@ -24,7 +24,7 @@
   'use strict';
 
   // The game's version (GAME_VERSION in js/mahjong-engine.js; a test keeps them equal).
-  var VERSION = '0.61.0';
+  var VERSION = '0.61.1';
   var CACHE_PREFIX = 'lcm-play-v';
   // The old Play offline button's flag (0.45.0 builds before offline became the default), cleaned up.
   var OLD_FLAG_CACHE = 'lcm-play-offline';
