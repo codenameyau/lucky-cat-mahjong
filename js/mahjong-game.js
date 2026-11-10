@@ -3796,8 +3796,9 @@
       var live = coachPlain(ui.coach === 'on' ? ui.hint : ui.coach === 'feedback' ? ui.feedback : null);
       if (!live || !entries.length) return entries;
       var last = entries[entries.length - 1];
-      // Move 1 of a hand stays in the panel, in yellow, even while that note is still on the table.
-      if (last.move !== 1 && last.action === live.action && last.detail === live.detail) return entries.slice(0, -1);
+      // A note joins the panel once its move is done, at every coach level: while
+      // it is still on the table (the bar shows it), it isn't repeated here.
+      if (last.action === live.action && last.detail === live.detail) return entries.slice(0, -1);
       return entries;
     }
 
