@@ -31,7 +31,7 @@ Written 2026-11-09. This is the plan for the frontier model: one network that re
 | 2 The hand head and the table heads | **Built** (2026-11-09). The hand head names the hand a seat wins with 74% of the time, the rules 64% ([Learnings](#step-2-the-hand-head-and-the-table-heads-2026-11-09)) |
 | 3 The read as an input to the move head | **Built** (2026-11-10): the stacked model, in the JS, the C++, the converter and the trainer. Adds nothing measurable on its own ([round 2](#round-2-the-read-as-an-input-step-3-adds-nothing-measurable-2026-11-10)) |
 | 4 A wider choice | **Tested** (2026-11-10): best 10 and every discard, neither better than the best 6 ([Learnings](#step-4-a-wider-choice-gains-nothing-2026-11-10)) |
-| 5 Replayed labels | **Built** (2026-11-10): better predictions, not yet better play on their own ([round 3](#round-3-replayed-labels-step-5-predict-better-and-dont-play-better-2026-11-10)) |
+| 5 Replayed labels | **Built** (2026-11-10): better predictions, not better play, on learner-only data ([round 3](#round-3-replayed-labels-step-5-predict-better-and-dont-play-better-2026-11-10)) and again on fresh every-seat data ([round 4](#round-4-replayed-labels-on-fresh-every-seat-data-2026-11-10)). Set aside as a lever on play |
 | 6 Explore in the data | In the data already: the champion explores (temperature 150, a random discard 5% of the time) |
 | 7 A mixed table | In the data already: earlier champions, Jorge Yau and Lucky Cat. Recording every seat, not only the learner's, turned out to matter most ([every seat](#the-read-and-the-replays-on-data-that-records-every-seat-2026-11-10)); the native generator records every seat too since 2026-11-10 (byte for byte with the JS), and the round driver does by default |
 | 8 Claims and kongs by the same value | As Neural Cat already does (claim margin 0) |
@@ -264,6 +264,19 @@ The lab's last two data sets (lab-15 and lab-16, 1.1 million positions from ever
   - *Evidence:* the first try differed on a few rows of seats played by an earlier Neural Cat model, in the features (the plan of the tiles kept) and never in the labels (so play was the same). In JS each model keeps its memory of a seat's plan under its own name (`create({ id })`); in C++ every Neural Cat used `neural-cat`, the learner's name, so the learner reading that seat for training data saw the other model's memory.
   - *Changed:* each `nc:<file>` agent in the simulator keeps its memory under its own name; the shipped `neural-cat` keeps `neural-cat`. Play is unchanged (every native parity check passes), and the rows now match.
 - *Changed:* the round driver records every seat by default (`--sample` 0.12, as the lab), and `--learner-only` gives the old behaviour.
+
+### Round 4: replayed labels on fresh every-seat data (2026-11-10)
+
+fm-4: 150,000 deals on the native simulator, every seat recorded (N14c exploring against N13a, Jorge Yau twice and Lucky Cat), with a quarter of the discards replayed 8 times, 1.62 million positions. Three recipes of two seeds from N14c on fm-4 alone, lr 1e-4, up to 4 epochs: p (replayed labels), q (replayed labels and the reader), c (real endings only, the control).
+
+- **The replays again predict better, by about as much as in round 3.**
+  - *Evidence (validation loss on fm-4's held-out deals):* p 3.1092 and 3.1090, q 3.1087 and 3.1086, c 3.1116 and 3.1111. The reader again adds a little on top of the replays.
+- **Every-seat data keeps every model level with N14c, and the replays still don't play better.**
+  - *Evidence (points a hand against N14c, 60,000 fresh deals each at the game's table):* p +0.0 and +1.1; q −0.8 and +2.3; c +3.2 and +0.9 (each ± 3.4). By recipe: p +0.6 ± 2.4, q +0.7 ± 2.4, c +2.1 ± 2.4. None is ahead by the driver's rule, and the control is best, within the noise.
+  - Every model won more hands than N14c (18.5 to 18.6% against 17.4%) and dealt in more (12.3 to 12.5% against 11.8%), with slightly bigger wins (5.84 to 5.87 faan against 5.77). The control shows it as much as the replay recipes, so it comes from the data (one round, N14c exploring), not the labels.
+  - Compare round 3 on learner-only data: −4.9 to −6.5 by recipe. Recording every seat closed that gap, as the lab data did.
+- *Changed:* nothing ships from this round; FC1 stays. Replayed labels have now improved prediction twice and play never, so step 5 is set aside as a lever on play: a lower validation loss on the real endings isn't turning into better moves at this size. fm-2 was moved to the Trash; fm-3 and fm-4 are kept.
+- *Open:* why better predictions don't move play. One reading: the endings' noise isn't what holds the value back, but the 28 outputs' disagreement on the few options that matter. A loss on the gap between the options of one position (ranking, not regression) would test it.
 
 ### Step 4: a wider choice gains nothing (2026-11-10)
 

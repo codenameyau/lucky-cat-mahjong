@@ -102,6 +102,7 @@ Every training idea and every milestone model is a section below, in the order t
   - [Round 2: the read, as an input](#round-2-the-read-as-an-input)
   - [A wider choice](#a-wider-choice)
   - [Round 3: replayed labels](#round-3-replayed-labels)
+  - [Round 4: replays on fresh every-seat data](#round-4-replays-on-fresh-every-seat-data)
   - [FC1: what ships, and what it does differently](#fc1-what-ships-and-what-it-does-differently)
 - [Where the files are](#where-the-files-are)
 - [Documenting a release](#documenting-a-release)
@@ -1344,6 +1345,14 @@ The plan's biggest lever: one hand's ending is a noisy label, because points dou
 - **The labels are better.** Validation loss on the real endings: replayed labels 3.0641–3.0642, with the reader too 3.0636–3.0638, the control 3.0656–3.0658, five times the spread between seeds. The first version of the replays also shuffled the other players' hands, and it was biased: random hands win far less, so the replays dealt in 4.9% of the time against 12.2% really. Shuffling only the wall fixed that.
 - **Play is not.** By recipe against N14c: replayed labels −6.2 ± 4.4, with the reader −4.9 ± 3.6, the control −6.5 ± 3.6.
 - **The data was the problem.** Across three rounds, no model trained on frontier data beat N14c, and as a group they were behind it, the controls as much as the rest. That data recorded only the champion's own seats, while the network scores the best 6 options, most of which the champion doesn't choose. N14c's data recorded every seat at the table. On the lab's last two data sets (every seat, new to N14c) the same recipes were all level with N14c: the reader +1.3 and −4.7, the control +2.9 and −3.2, the reader with replayed labels −1.5 and +0.1 (each ± about 5.5 over 20,000 deals). The reader still added nothing to the validation loss there (2.8265–2.8268 against 2.8267–2.8269).
+
+### Round 4: replays on fresh every-seat data
+
+Thinking: if the data was the problem in round 3, replayed labels should pay off on data that records every seat. 150,000 fresh deals on the native simulator, every seat recorded, a quarter of the discards replayed 8 times (FM4).
+
+- **Level, not ahead.** By recipe against N14c over 60,000 deals: replayed labels +0.6 ± 2.4, with the reader +0.7 ± 2.4, the control +2.1 ± 2.4. Round 3's learner-only data had them 5 to 6 points behind, so every-seat data fixes the drift.
+- **Prediction again, not play.** Validation loss 3.1090–3.1092 with replays, 3.1086–3.1087 with the reader too, against 3.1111–3.1116 for the control. Twice now the better labels haven't made better moves, so FC1 stays.
+- **What the bots did differently:** all six won more hands than N14c (18.5% against 17.4%) and dealt in more (12.3 to 12.5% against 11.8%), the control as much as the rest, which points to the one round of exploring data rather than the labels.
 
 ### FC1: what ships, and what it does differently
 

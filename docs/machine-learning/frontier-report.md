@@ -85,6 +85,7 @@ Each step against N14c, the champion every model started from. The networks are 
 | 3 The read as an input | The stacked model (round 2, and again on lab data) | No better than the control: 3.0712–3.0718 against 3.0715–3.0723; on lab data 2.8265–2.8268 against 2.8267–2.8269 | stacked −3.9 ± 3.6; control −4.5 ± 3.7 (best of each) | Adds nothing measurable alone |
 | 4 A wider choice | Best 10 options, and every option, in place of 6 | (same weights) | +2.2 ± 3.5 and +0.8 ± 3.6, with about 1 point more deal-ins | Not kept: the choice stays at 6 |
 | 5 Replayed labels | 8 replays of a quarter of the discards (round 3) | Better: 3.0641–3.0642 against 3.0656–3.0658; with the read too, 3.0636–3.0638 | −4.9 ± 3.6 (with the read) against −6.5 ± 3.6 (control), by recipe | Better predictions, not yet better play |
+| 5 again, every seat | Replays on fresh every-seat data (round 4, 150,000 deals) | Better: 3.1090–3.1092, with the read 3.1086–3.1087, against 3.1111–3.1116 | replays +0.6 ± 2.4, with the read +0.7 ± 2.4, control +2.1 ± 2.4 | Level; replays still help prediction, not play |
 | Every seat recorded | The lab's data in place of the frontier's | (different data) | level: −1.5 to +2.9 ± about 5.5 | The fix for the drift |
 | All together (FC1) | The reader, replayed labels, every-seat data | | +4.5 ± 2.7 over 100,000 deals | Ships as Frontier Cat, for play and review |
 
@@ -161,10 +162,10 @@ It's a sanity check, not a verdict: at ± 10 points it can't tell a gap of 5 eit
 
 In the order the evidence points:
 
-1. **A round on every-seat data, with replays.** The native generator now records every seat, as the JS does (built after the matches above, and checked byte for byte against the JS on 1,000 deals), and the round driver does so by default. So the next round tests replayed labels on fresh every-seat data, which hasn't been tried: round 3's replays were on the learner's seats only, and FC1's every-seat data was the lab's, without replays.
+1. **Done: a round on every-seat data, with replays (round 4).** The native generator now records every seat, so round 4 tested replayed labels on 150,000 fresh deals of every-seat data. Every model came out level with N14c (+0.6, +0.7 and +2.1 ± 2.4 by recipe, the control best), so recording every seat fixed the drift, and the replays again helped prediction but not play. FC1 stays. The [frontier plan](frontier-plan.md#round-4-replayed-labels-on-fresh-every-seat-data-2026-11-10) has the details, and a ranking loss over the options of one position is the next idea it names.
 
    ```bash
-   npm run ml:frontier -- --rounds 1 --recipes replay --replays 8 --deals 100000 --seeds 2 --window 2 --reader ml/models/FM1b0.heads.json
+   npm run ml:frontier -- --rounds 1 --recipes replay --replays 8 --deals 150000 --seeds 2 --window 1 --keep 2 --reader ml/models/FM1b0.heads.json
    ```
 2. **Judge FC1 against the bar** (`bench.js judge`) once the frozen table can run natively again, or overnight in JS. At +4.5 ± 2.7 it would need about four times the deals to settle whether it is really ahead.
 3. **Retrain the reader on every-seat data.** It learned on round 1's learner-only data. Its reads were good, but the move network may trust a reader trained on the positions it scores more.
