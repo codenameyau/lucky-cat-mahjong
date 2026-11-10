@@ -140,6 +140,9 @@ async function main() {
   const champ = state.champion;
   const data = path.join('ml', 'data', 'lcv-' + r);
   await makeData(path.join(ROOT, data), champ, r, a, log);
+  // The values learn from this round's data and the round before's (--window 2).
+  const windowN = parseInt(a.window || 2, 10), sets = [];
+  for (let k = Math.max(1, r - windowN + 1); k <= r; k++) if (fs.existsSync(path.join(ROOT, 'ml', 'data', 'lcv-' + k, 'manifest.json'))) sets.push(path.join('ml', 'data', 'lcv-' + k));
   const play = { topK: parseInt(a['top-k'] || 4, 10), winBonus: parseFloat(a['win-bonus'] || 300) };
   const recipes = String(a.recipes || 'a,s,c').split(',');
 
@@ -155,11 +158,17 @@ async function main() {
     const name = 'LVv' + r + k, packed = path.join('ml', 'models', 'LV' + r + k + '.json');
     if (!fs.existsSync(path.join(ROOT, packed))) {
       log('Round ' + r + ': training ' + name + ' [' + rec.what + ']');
-      train(['--data', data, '--name', name, '--hidden', '512,256', '--lr', '1e-3', '--epochs', '12', '--patience', '3', '--win-bonus', String(play.winBonus)]
+      train(['--data'].concat(rec.stacked ? [data] : sets, ['--name', name, '--hidden', '512,256']).concat([ '--lr', '1e-3', '--epochs', '12', '--patience', '3', '--win-bonus', String(play.winBonus)])
         .concat(rec.stacked ? ['--reader', reader + '.heads.json'] : [], rec.args), log);
       pack(champ, path.join('ml', 'models', name + '.json'), packed, play);
     }
     models.push({ name: 'LV' + r + k, file: packed, recipe: k, alive: true, n: 0, sum: 0, sq: 0 });
+    // --narrow: also the same value with the policy's best 2 only (keeps more of its wins).
+    if (a.narrow && k === 'a') {
+      const narrow = path.join('ml', 'models', 'LV' + r + 'a2.json');
+      if (!fs.existsSync(path.join(ROOT, narrow))) pack(champ, path.join('ml', 'models', name + '.json'), narrow, { topK: 2, winBonus: play.winBonus });
+      models.push({ name: 'LV' + r + 'a2', file: narrow, recipe: 'a', alive: true, n: 0, sum: 0, sq: 0 });
+    }
   }
   // Screens against the champion at the game's table.
   const stages = String(a.stages || '4000,16000,40000').split(',').map(Number);
