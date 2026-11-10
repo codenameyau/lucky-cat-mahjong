@@ -14,6 +14,7 @@
 #include "simple_agent.h"
 #include "bot.h"
 #include "neural_cat.h"
+#include "only_orphans.h"
 #include "lucky_cat.h"
 #include "generate.h"
 #include "generate_nc.h"
@@ -71,6 +72,17 @@ static std::unique_ptr<Agent> makeAgentChecked(const std::string& id, bool check
     // (create({ id })): an earlier model at the table and the learner reading that
     // seat for training data mustn't share it. "neural-cat" is the shipped one.
     auto f = std::make_shared<NeuralCat>(m, id == "neural-cat" ? std::string("neural-cat") : id);
+    f->check = check;
+    return std::unique_ptr<Agent>(new BotAgent(f));
+  }
+  // Only Orphans: oo:<file.lcmw> (js/mahjong-only-orphans.js), or the shipped one
+  // (only-orphans: native/build/only-orphans.lcmw). A stacked model (a reader) plays as Neural Cat's.
+  if (id == "only-orphans" || id.rfind("oo:", 0) == 0) {
+    static std::map<std::string, std::shared_ptr<Mlp>> models;
+    std::string file = id == "only-orphans" ? "native/build/only-orphans.lcmw" : id.substr(3);
+    auto& m = models[file];
+    if (!m) m = std::make_shared<Mlp>(loadWeights(file));
+    auto f = std::make_shared<OnlyOrphans>(m, id == "only-orphans" ? std::string("only-orphans") : id);
     f->check = check;
     return std::unique_ptr<Agent>(new BotAgent(f));
   }
@@ -235,6 +247,9 @@ int main(int argc, char** argv) {
       j.strategy = a.count("strategy") ? std::stoi(a["strategy"]) : 0;
       j.pool = split(a["pool"], ',');
       j.out = a["out"];
+      // The learner: neural-cat (default) or only-orphans (generate.js --learner).
+      j.learner = a.count("learner") ? a["learner"] : "neural-cat";
+      if (j.learner != "neural-cat" && j.learner != "only-orphans") throw std::runtime_error("lcm-sim generate-nc: --learner neural-cat or only-orphans");
       j.replays = a.count("replays") ? std::stoi(a["replays"]) : 0;
       if (a.count("record-all")) {
         j.recordAll = true;

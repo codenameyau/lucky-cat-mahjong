@@ -10,7 +10,8 @@
    node scripts/ml/native.js trace ...  the JS side's trace (lcm-sim trace prints the native one)
 
    Agents: simple (a deterministic test agent, written the same way in
-   native/src/simple_agent.h) and, as they are ported, the table's players.
+   native/src/simple_agent.h) and, as they are ported, the table's players:
+   jorge-yau, neural-cat, nc:<weights>, lc:<weights>, only-orphans, oo:<weights>.
    A hand is played on createGame({ seed: S + d, dealer: d % 4 }), as the
    benchmark deals it. Results stay the same only if every line matches. */
 
@@ -37,6 +38,9 @@ const GROUPS = {
   engine: ['js/mahjong-engine.js', 'js/points.js'],
   'jorge-yau': ['js/mahjong-bot.js', 'js/mahjong-jorge-yau.js'],
   'neural-cat': ['js/mahjong-bot.js', 'js/mahjong-jorge-yau.js', 'js/mahjong-ml.js', 'js/mahjong-ml-features.js', 'js/mahjong-ml-model.js'],
+  // Only Orphans (oo:<file>): its hooks and target system on the shared foundation, through MahjongML.create
+  // (which loads Jorge Yau as its default base).
+  'only-orphans': ['js/mahjong-only-orphans.js', 'js/mahjong-bot.js', 'js/mahjong-jorge-yau.js', 'js/mahjong-ml.js', 'js/mahjong-ml-features.js', 'js/mahjong-ml-model.js'],
   'lucky-cat': ['js/mahjong-lucky-cat-ml.js', 'js/mahjong-lucky-cat-net.js', 'js/mahjong-frontier-net.js', 'js/mahjong-lucky-cat-value.js', 'js/mahjong-ml-model.js'],
 };
 const sha = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
@@ -119,6 +123,9 @@ function agentFor(id) {
   if (id === 'neural-cat') return require('../../js/mahjong-ml.js').create({ fast: true });
   // Neural Cat with other weights (a stacked frontier model among them).
   if (id.startsWith('nc:')) return require('../../js/mahjong-ml.js').create({ weights: require('./weights.js').readWeights(id.slice(3)), fast: true });
+  // Only Orphans: the shipped model, or oo:<weights> (an earlier or stacked one).
+  if (id === 'only-orphans') return require('../../js/mahjong-only-orphans.js').create({ fast: true });
+  if (id.startsWith('oo:')) return require('../../js/mahjong-only-orphans.js').create({ weights: require('./weights.js').readWeights(id.slice(3)), fast: true });
   if (id.startsWith('lc:')) {
     const W = require('./weights.js');
     const w = W.readWeights(id.slice(3));
@@ -226,11 +233,18 @@ function nativeId(id, bm) {
       if (what.create && (what.create.temperature || what.create.epsilon || what.create.topK != null)) return null;
       return 'nc:' + lcmwFor('git:' + bm.frozen.commit + ':js/mahjong-ml-weights.js');
     }
+    if (name === 'only-orphans') {
+      const what = bm.frozen.players[name];
+      if (what.create && (what.create.temperature || what.create.epsilon)) return null;
+      return 'oo:' + lcmwFor('git:' + bm.frozen.commit + ':js/mahjong-only-orphans-weights.js');
+    }
     return name;
   }
   if (id === 'jorge-yau') return groupOk('jorge-yau', today) ? id : null;
   if (id === 'neural-cat') return groupOk('neural-cat', today) ? 'nc:' + lcmwFor('js/mahjong-ml-weights.js') : null;
   if (id.startsWith('nc:')) return groupOk('neural-cat', today) ? 'nc:' + (id.endsWith('.lcmw') ? id.slice(3) : lcmwFor(id.slice(3))) : null;
+  if (id === 'only-orphans') return groupOk('only-orphans', today) ? 'oo:' + lcmwFor('js/mahjong-only-orphans-weights.js') : null;
+  if (id.startsWith('oo:')) return groupOk('only-orphans', today) ? 'oo:' + (id.endsWith('.lcmw') ? id.slice(3) : lcmwFor(id.slice(3))) : null;
   if (id.startsWith('lc:')) {
     if (!groupOk('lucky-cat', today)) return null;
     const W = require('./weights.js');
@@ -286,6 +300,8 @@ function playNative(job, models, table) {
 // how a port is verified before it's pinned.
 function simId(id) {
   if (id === 'neural-cat') return 'nc:' + lcmwFor('js/mahjong-ml-weights.js');
+  if (id === 'only-orphans') return 'oo:' + lcmwFor('js/mahjong-only-orphans-weights.js');
+  if (id.startsWith('oo:') && !id.endsWith('.lcmw')) return 'oo:' + lcmwFor(id.slice(3));
   if ((id.startsWith('lc:') || id.startsWith('nc:')) && !id.endsWith('.lcmw')) {
     // Lucky Cat with a value: lc:<policy>+<value> (js/mahjong-lucky-cat-value.js).
     const hasValue = id.startsWith('lc:') && !!require('./weights.js').readWeights(id.slice(3)).value;

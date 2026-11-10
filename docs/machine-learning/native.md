@@ -28,14 +28,17 @@ Once it's built, nothing else changes. `make -C native pgo` rebuilds the fast bu
 | Shanten | `native/src/shanten.*`: a per-suit table filled on first use, and a whole-hand cache |
 | The shared foundation (`js/mahjong-bot.js`) with Jorge Yau's hooks (`js/mahjong-jorge-yau.js`) | `native/src/bot.*`, `jy.inc`: the paths Jorge Yau's tuning takes |
 | Neural Cat (`js/mahjong-ml*.js`), fast play | `native/src/neural_cat.*`, `model.*` |
+| Only Orphans (`js/mahjong-only-orphans.js`), fast play: its target system and hooks on the foundation, and `MahjongML.create`'s options as it sets them (topK 0, `allow`, `claimOk`, `kongOk`, `winBonus` and `claimMargin` from `meta.play`); stacked weights too | `native/src/only_orphans.*` (`oo:<file>`, `only-orphans`) |
 | Lucky Cat, features v1 and v2 (`js/mahjong-lucky-cat-ml.js`, `-net.js`, `js/mahjong-frontier-net.js`) | `native/src/lucky_cat.*` |
 | `scripts/ml/oracle.js`, `lucky.js generate`'s worker | `native/src/generate.*` |
-| `scripts/ml/generate.js`'s worker for Neural Cat and the frontier model: Neural Cat exploring (temperature, epsilon), every seat recorded (or `--record neural-cat`, its own), the extra heads' labels (`scripts/ml/heads.js`), replayed labels (`--replays`, native only) | `native/src/generate_nc.*` (`npm run ml:generate -- --native`) |
+| `scripts/ml/generate.js`'s worker for Neural Cat, the frontier model and Only Orphans (`--learner only-orphans`): the learner exploring (temperature, epsilon), every seat recorded (or `--record <learner>`, its own), the extra heads' labels (`scripts/ml/heads.js`), replayed labels (`--replays`, native only) | `native/src/generate_nc.*` (`npm run ml:generate -- --native`) |
 | `bench.js` `playWork` | `lcm-sim play` |
+
+The foundation takes a strategy's hooks as virtual `hook*` methods (`native/src/bot.h`), Jorge Yau's by default, so Jorge Yau and Neural Cat play exactly as before. Only Orphans overrides them, and returns the shared foundation's no-hook value for the hooks it doesn't define (readyValue, threats, waitChance, extraLoss, defense, finalOrder). The foundation paths its tuning takes that Jorge Yau's doesn't are ported with it: `ctx.mixedHand` (no one-suit commitment), a plan's `committed` (kept however few draws are left), and a hard target (`isHardTarget`: its plan picked first, and claims of its tiles consistent).
 
 The contradiction check is ported with the foundation, Neural Cat and Lucky Cat (which runs the foundation's analysis for its seat to check each move against). `lcm-sim` takes `id~nocheck` to play a player without it, to measure it: with every player's check off, the build plays exactly as before the check.
 
-Not ported: the classic Lucky Cat rules, Only Orphans, oracle-guided models (`--oracle-delta`), rollouts, exploration (temperature or epsilon) for Neural Cat. A job that needs one runs in JS.
+Not ported: the classic Lucky Cat rules, the rule-based Only Orphans (`only-orphans-rules`, the lab's baseline), oracle-guided models (`--oracle-delta`), rollouts, exploration (temperature or epsilon) for Neural Cat. A job that needs one runs in JS.
 
 ## The same results
 
@@ -47,6 +50,8 @@ Not ported: the classic Lucky Cat rules, Only Orphans, oracle-guided models (`--
 | Jorge Yau in every seat | 1,000 hands, 158,558 actions identical |
 | Neural Cat, Jorge Yau, Neural Cat, Neural Cat | 1,000 hands, 160,856 actions identical |
 | Lucky Cat v1 and v2 at the benchmark table | 200 and 300 hands identical |
+| Only Orphans (OT11d) with Neural Cat, Jorge Yau and Lucky Cat; two, then three Only Orphans seats; a stacked model (`oo:<file>` with a reader) beside OT11d | 400, 400, 300 and 200 hands identical (64,724, 66,452, 51,531 and 32,655 actions); on two such tables (300 deals each) the fast build played every hand as the exact build |
+| `generate.js --native --learner only-orphans`, Only Orphans exploring against the shipped Neural Cat, Jorge Yau and Lucky Cat, every seat (600 deals) and its own seats alone (400); a stacked learner against an earlier `oo:` model (300) | byte-identical shards (20.5, 5.9 and 10.1 MB); 270 deals a second on 4 workers against 19 in JS |
 | `bench.js compare`, 280 deals | byte-identical JSON |
 | `lucky.js generate`, Lucky Cat round settings (`--oracle --returns`), Sphinx's (`--sample-won`, its own models in the pool), and wins only | byte-identical shards |
 | `generate.js --native`, Neural Cat exploring against earlier models, Jorge Yau and Lucky Cat, 1,000 deals (`npm run ml:generate -- parity`) | byte-identical shards: every seat recorded (32.4 MB), and the learner's alone (13.4 MB); about 300 to 500 deals a second on 6 to 7 workers against 25 to 34 in JS |
@@ -102,6 +107,8 @@ On this Mac (Apple M3: 4 performance and 4 efficiency cores). "Table" is the ben
 | A round's data, 20,000 deals with the oracle | 330 s | about 34 s | | | **12.9 s** |
 
 The exact build, on round 3's pipeline: 235 hands a second on one core, the compare in 15.5 s, the round's data in 20 s.
+
+An Only Orphans seat costs more than a Neural Cat one: it reads its targets' worths from its 14 tiles every turn (each discard, each target's plans, each step's live tiles). Only Orphans, Neural Cat, Jorge Yau and Lucky Cat: 10.5 hands a second in JS, 135 native (fast), 101 exact; four Only Orphans seats: 6.5 and 52.
 
 What each round did:
 

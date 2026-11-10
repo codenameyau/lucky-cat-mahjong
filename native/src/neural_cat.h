@@ -2,7 +2,9 @@
 // js/mahjong-ml-model.js): Jorge Yau's foundation, with a model that scores
 // the best topK discards, and the claims and kongs, in expected points.
 // Ported for fast play (create({ fast: true })). Exploring (temperature, epsilon,
-// rng) is for training data (generate_nc.cpp).
+// rng) is for training data (generate_nc.cpp). Another learned strategy built
+// through MahjongML.create (Only Orphans: native/src/only_orphans.h) derives from
+// it with its own foundation hooks and create's allow, claimOk and kongOk.
 #pragma once
 #include "bot.h"
 #include "model.h"
@@ -39,6 +41,13 @@ class NeuralCat : public Foundation {
 
  protected:
   bool hasRerank() const override { return true; }
+  // create({ allow, claimOk, kongOk }) (none: every discard, call and kong).
+  // allow: the discards the model may pick from, ahead of the rest (false: no allow).
+  virtual bool hasAllow() const { return false; }
+  virtual std::vector<CandP> allow(const std::vector<CandP>& out, const Ctx& ctx, const Counts& counts, const Game& g) { return out; }
+  virtual bool claimOk(const ClaimOption& o, const ClaimOptions& opts, const Game& g, int seat) { return true; }
+  virtual bool kongAllowed(const KongOption& k, const Game& g, int seat) { return true; }
+  int topK_;
   std::vector<CandP> rerank(std::vector<CandP> out, Ctx& ctx, const Counts& counts, const Game& g, int seat,
                             const std::vector<Threat>& threats, bool folding) override;
 
@@ -48,7 +57,6 @@ class NeuralCat : public Foundation {
   static const int READ_SIZE = 16;
   // The move network's input for features x: x itself, or x and the reader's read after it (in buf).
   const float* input(const float* x, float* buf) const;
-  int topK_;
   double winBonus_, claimMargin_;
   void prepare(State& st, const Game& g, int seat, Ctx& ctx, const std::vector<Threat>* threats, const Counts* counts);
   void encode(const State& st, int index, const Analysis& analysis, double loss, float* x);

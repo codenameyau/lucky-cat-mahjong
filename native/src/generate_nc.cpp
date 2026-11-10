@@ -1,5 +1,6 @@
 #include "generate_nc.h"
 #include "neural_cat.h"
+#include "only_orphans.h"
 #include "lucky_cat.h"
 #include "shanten.h"
 #include <chrono>
@@ -316,7 +317,14 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
   double prod = double(job.seed) * 2654435761.0;
   Rng rng(uint32_t(std::fmod(prod, 4294967296.0)));
   auto model = std::make_shared<Mlp>(loadWeights(job.weights));
-  NeuralCat learner(model);
+  // The learner (generate.js's mlBot, its id the JS's default for that strategy).
+  bool oo = job.learner == "only-orphans";
+  auto makeLearner = [&]() -> std::unique_ptr<NeuralCat> {
+    if (oo) return std::unique_ptr<NeuralCat>(new OnlyOrphans(model));
+    return std::unique_ptr<NeuralCat>(new NeuralCat(model));
+  };
+  auto learnerP = makeLearner();
+  NeuralCat& learner = *learnerP;
   learner.temperature = job.temperature;
   learner.epsilon = job.epsilon;
   learner.rng = [&rng]() { return rng(); };
@@ -328,7 +336,8 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
   std::vector<OptGroup> groups;
   rec.groups = &groups; rec.optionShare = job.optionReplays > 0 ? job.optionShare : 0; rec.options = job.options;
   // The learner in a replay plays its best (no exploring), as it will in the game.
-  NeuralCat best(model);
+  auto bestP = makeLearner();
+  NeuralCat& best = *bestP;
   struct BestAgent : Agent {
     NeuralCat* nc;
     Decision turn(Game& g, int seat, const TurnOptions& o) override { return nc->chooseTurnAction(g, seat, o); }

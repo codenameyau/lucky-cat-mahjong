@@ -1,5 +1,5 @@
-// lcm-sim generate-nc: scripts/ml/generate.js's worker natively, for Neural Cat
-// and the frontier model: the same deals, the same random draws, the same rows,
+// lcm-sim generate-nc: scripts/ml/generate.js's worker natively, for Neural Cat,
+// the frontier model and Only Orphans (--learner only-orphans): the same deals, the same random draws, the same rows,
 // the same shard files byte for byte (scripts/ml/generate.js --native checks it
 // with `parity`). Records the learner's own seats (--record <learner>).
 #pragma once
@@ -9,6 +9,7 @@ namespace lcm {
 
 struct NcGenerateJob {
   std::string weights;            // the learner's .lcmw
+  std::string learner = "neural-cat";  // or "only-orphans" (native/src/only_orphans.h)
   double temperature = 100, epsilon = 0.05, sample = 0.3;
   uint32_t seed = 1;              // the worker's first deal seed
   long deals = 0;

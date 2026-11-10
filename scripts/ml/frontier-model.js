@@ -49,6 +49,7 @@
      --recipes SET  heads (step 2, the default), stacked (step 3), replay (step 5)
                     or rank (option replays and the ranking loss, steps 5, 6 and 11)
      --reader FILE  for stacked and replay: the reader, a <name>.heads.json
+     --no-reader-yet  leave out the stacked recipes (a lineage's first round)
      --learner-only record the champion's seats alone (rounds 1 to 3 did; every
                     model trained on that fell behind it). Default: every seat
      --sample P     the share of positions recorded (default 0.12; 0.3 learner-only)
@@ -59,7 +60,12 @@
                     --options, the discards weighed, default 4), for --recipes rank
      --start FILE   the first champion (default: Neural Cat's lab champion,
                     else the model in the game)
-     --dir DIR      state, log and screens (default ml/fm)
+     --strategy S   neural-cat (the default) or only-orphans: the learned strategy
+                    trained. Only Orphans' rounds start from the model in the game
+                    (js/mahjong-only-orphans-weights.js, OT11d), name their models OS<round>
+                    and data ml/data/os-<round>, keep state in ml/os, and screen at the
+                    same game table (the shipped Neural Cat, Jorge Yau and Lucky Cat)
+     --dir DIR      state, log and screens (default ml/fm, or ml/os)
      --workers N    processes (default: CPU cores) */
 
 'use strict';
@@ -132,14 +138,26 @@ const readJson = (f, dflt) => { try { return JSON.parse(fs.readFileSync(f, 'utf8
 const writeJson = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 1) + '\n'); };
 const rel = (f) => path.relative(ROOT, f);
 
+// The learned strategies a round can train: the id its exploring copy has in a
+// lineup, the native id prefix of a model, an earlier model's lineup id, and names.
+const STRATEGIES = {
+  'neural-cat': { learner: 'neural-cat', native: 'nc:', member: 'ml:', name: 'FM', data: 'fm-', dir: 'ml/fm', start: 'js/mahjong-ml-weights.js' },
+  'only-orphans': { learner: 'only-orphans', native: 'oo:', member: 'oo:', name: 'OS', data: 'os-', dir: 'ml/os', start: 'js/mahjong-only-orphans-weights.js' },
+};
+let S = STRATEGIES['neural-cat'];
+// A weights file's JSON (a .js weights file too).
+const weightsOf = (f) => { try { return require('./weights.js').readWeights(path.resolve(ROOT, f)); } catch (e) { return { meta: {} }; } };
+
 // A screen: the model against the champion at the game's table (scripts/ml/h2h.js).
 function screen(file, champ, seed, deals, workers) {
-  return require('./h2h.js').headToHead('nc:' + file, 'nc:' + champ, null, seed, deals, workers);
+  return require('./h2h.js').headToHead(S.native + file, S.native + champ, null, seed, deals, workers);
 }
 
 async function main() {
   const a = parseArgs(process.argv.slice(2));
-  const dir = path.resolve(ROOT, String(a.dir || 'ml/fm'));
+  S = STRATEGIES[String(a.strategy || 'neural-cat')];
+  if (!S) throw new Error('--strategy: one of ' + Object.keys(STRATEGIES).join(', '));
+  const dir = path.resolve(ROOT, String(a.dir || S.dir));
   const stateFile = path.join(dir, 'state.json');
   const logFile = path.join(dir, 'fm.log');
   fs.mkdirSync(dir, { recursive: true });
@@ -163,8 +181,8 @@ async function main() {
     return;
   }
   if (!state.champion) {
-    const lab = readJson(path.join(ROOT, 'ml', 'lab', 'state.json'), null);
-    state.champion = a.start ? String(a.start) : lab && lab.champion ? lab.champion : 'js/mahjong-ml-weights.js';
+    const lab = S.learner === 'neural-cat' ? readJson(path.join(ROOT, 'ml', 'lab', 'state.json'), null) : null;
+    state.champion = a.start ? String(a.start) : lab && lab.champion ? lab.champion : S.start;
     state.members = lab && lab.members ? lab.members.slice(-2) : [];
     log('The first champion is ' + state.champion);
   }
@@ -175,9 +193,11 @@ async function main() {
   const stages = String(a.stages || '4000,16000,40000').split(',').map(Number);
   const drop = parseFloat(a.drop || 1), keep = parseFloat(a.candidate || 2);
   const workers = String(a.workers || os.cpus().length);
-  const RECIPES = RECIPE_SETS[String(a.recipes || 'heads')];
-  if (!RECIPES) throw new Error('--recipes: one of ' + Object.keys(RECIPE_SETS).join(', '));
   const readerFile = a.reader ? String(a.reader) : null;
+  // --no-reader-yet: a lineage's first round has no reader of its own data, so the
+  // stacked recipes wait for the next round.
+  const RECIPES = (RECIPE_SETS[String(a.recipes || 'heads')] || []).filter((x) => !(x.stacked && !readerFile && a['no-reader-yet']));
+  if (!RECIPES.length) throw new Error('--recipes: one of ' + Object.keys(RECIPE_SETS).join(', '));
   // Every seat is recorded (as the lab does) unless --learner-only: rounds 1 to 3 recorded the
   // champion's seats alone, and every model trained on that fell behind it.
   const learnerOnly = !!a['learner-only'];
@@ -194,25 +214,26 @@ async function main() {
   for (let n = 0; n < rounds; n++) {
     const r = state.rounds.length + 1;
     const champ = state.champion;
-    const hidden = (readJson(path.resolve(ROOT, champ), { meta: {} }).meta.hidden || [256, 128]).join(',');
+    const hidden = (weightsOf(champ).meta.hidden || [256, 128]).join(',');
     // 1. Data (cached by its manifest; finished shards are reused).
-    const data = path.join('ml', 'data', 'fm-' + r);
+    const data = path.join('ml', 'data', S.data + r);
     if (!fs.existsSync(path.join(ROOT, data, 'manifest.json'))) {
-      const others = state.members.filter((m) => m !== champ).slice(-2).map((m) => 'ml:' + m);
-      const opponents = others.concat(['jorge-yau', 'jorge-yau', 'lucky-cat']);
-      const pool = opponents.map(() => 'neural-cat').concat(opponents);
+      const others = state.members.filter((m) => m !== champ).slice(-2).map((m) => S.member + m);
+      // Only Orphans plays against the game's table: Neural Cat as well as Jorge Yau and Lucky Cat.
+      const opponents = others.concat(S.learner === 'neural-cat' ? ['jorge-yau', 'jorge-yau', 'lucky-cat'] : ['neural-cat', 'jorge-yau', 'lucky-cat']);
+      const pool = opponents.map(() => S.learner).concat(opponents);
       log('Round ' + r + ': ' + deals + ' deals on the native simulator, ' + path.basename(champ) + ' exploring against ' + opponents.join(', '));
       run('node', ['scripts/ml/generate.js', '--native', '--deals', String(deals), '--workers', workers, '--lineup', 'mix', '--pool', pool.join(','),
-        '--explore', '0', '--sample', String(sample), '--temperature', '150', '--epsilon', '0.05'].concat(learnerOnly ? ['--record', 'neural-cat'] : [], [
+        '--explore', '0', '--sample', String(sample), '--temperature', '150', '--epsilon', '0.05'].concat(S.learner === 'neural-cat' ? [] : ['--learner', S.learner], learnerOnly ? ['--record', S.learner] : [], [
         '--weights', champ, '--seed', String(DATA_SEED + (r - 1) * 1000000), '--out', data].concat(replays ? ['--replays', String(replays), '--replay-share', String(replayShare)] : [], optionArgs)));
     }
     const sets = [];
-    for (let k = Math.max(1, r - window + 1); k <= r; k++) sets.push(path.join('ml', 'data', 'fm-' + k));
+    for (let k = Math.max(1, r - window + 1); k <= r; k++) sets.push(path.join('ml', 'data', S.data + k));
     // 2. Arms: each recipe, --seeds times (cached by the model file).
     const models = [];
     RECIPES.forEach((rec) => {
       for (let s = 0; s < seeds; s++) {
-        const name = 'FM' + r + rec.id + s;
+        const name = S.name + r + rec.id + s;
         const file = path.join('ml', 'models', name + '.json');
         if (!fs.existsSync(path.join(ROOT, file))) {
           log('Round ' + r + ': training ' + name + ' [' + rec.what + ', seed ' + s + ']');
@@ -222,7 +243,7 @@ async function main() {
             rec.plain ? [] : ['--heads'], rec.stacked ? ['--reader', readerFile] : [], rec.args));
           // The model plays with its champion's settings.
           const w = readJson(path.join(ROOT, file));
-          const play = (readJson(path.resolve(ROOT, champ), { meta: {} }).meta || {}).play;
+          const play = (weightsOf(champ).meta || {}).play;
           if (play) { w.meta.play = play; fs.writeFileSync(path.join(ROOT, file), JSON.stringify(w)); }
         }
         models.push({ name, file, recipe: rec.id, alive: true, n: 0, sum: 0, sq: 0, heads: readJson(path.join(ROOT, 'ml', 'models', name + '.heads-report.json'), null) });
@@ -270,15 +291,15 @@ async function main() {
     const best = recipes.filter((x) => x.verdict === 'candidate').sort((p, q) => q.gap - p.gap)[0];
     if (best) {
       const top = best.models.filter((m) => m.alive).sort((p, q) => q.gap - p.gap)[0];
-      log('Round ' + r + ': ' + top.name + ' is a candidate. The bar: node scripts/ml/bench.js judge nc:ml/models/' + top.name + '.json --vs nc:' + champ);
+      log('Round ' + r + ': ' + top.name + ' is a candidate. The bar: node scripts/ml/bench.js judge ' + S.native + 'ml/models/' + top.name + '.json --vs ' + S.native + champ);
     }
     state.rounds.push({ round: r, data, champion: champ, recipeSet: String(a.recipes || 'heads'), reader: readerFile, recipes });
     writeJson(stateFile, state);
     // Data no round trains on any more goes to the Trash.
     for (let k = 1; k <= r - keepRounds; k++) {
-      const old = path.join(ROOT, 'ml', 'data', 'fm-' + k);
+      const old = path.join(ROOT, 'ml', 'data', S.data + k);
       if (!fs.existsSync(old)) continue;
-      const to = path.join(os.homedir(), '.Trash', 'fm-' + k + '-' + Date.now());
+      const to = path.join(os.homedir(), '.Trash', S.data + k + '-' + Date.now());
       try { fs.renameSync(old, to); log('Moved ' + rel(old) + ' to the Trash'); } catch (e) { log('Could not move ' + rel(old) + ' to the Trash: ' + e.message); }
     }
   }
