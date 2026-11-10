@@ -44,7 +44,7 @@ test('Detailed leaves out the score and says why in plain words', () => {
     const h = hintFor('neural-cat', 'detailed', seed);
     assert.doesNotMatch(words(h), /model expects|score|chance to win/, 'seed ' + seed);
     // A pick the contradiction check moved (an honor on Concealed Straights) has no model reason to give.
-    if ((h.modelWhy || []).length) { assert.match(words(h), /I like it because it /, 'seed ' + seed); because++; }
+    if ((h.modelWhy || []).length) { assert.ok(h.tips.some(Coach.isReasonSentence), 'seed ' + seed); because++; }
     assert.ok(words(h).length <= Coach.MAX_TEXT);
   }
   assert.ok(because >= 2, because + ' of 4 said why');
@@ -56,7 +56,7 @@ test('Simple is the action and the hand to go for, with no reason and never the 
       const h = hintFor(id, 'simple', seed);
       assert.doesNotMatch(words(h), /model expects|score|chance to win|Lucky Cat (discards this|would|plays)/, id + ' ' + seed);
       assert.ok(h.tips.length <= 1, id + ' says one thing after the action at most');
-      assert.doesNotMatch(words(h), /I like it because|I pick it because/, id + ' ' + seed + ' gives no reason');
+      assert.ok(!h.tips.some(Coach.isReasonSentence) && !/I like it because|I pick it because/.test(words(h)), id + ' ' + seed + ' gives no reason');
       if (h.aim) assert.match(words(h), /\. Go for [^.]+, (about \d+ faan|the 13 faan limit)(, short of the \d+ faan minimum)?\.$/, id + ' ' + seed + ': ' + words(h));
       assert.ok(words(h).length <= 260, id + ' ' + seed + ': ' + words(h).length + ' characters');
     }
@@ -149,7 +149,8 @@ test('Feedback follows the coach setting: numbers only on Complex, "I" on Simple
     if (c) assert.doesNotMatch(words(c), /The coach /);
   }
   const said = [3, 5, 9, 29].map((seed) => feedbackFor('neural-cat', 'detailed', seed)).filter(Boolean).map(words);
-  assert.ok(said.some((t) => /^.*I pick .* I like it because it /.test(t)), said.join(' | '));
+  assert.ok(said.some((t) => /\bI pick /.test(t) && t.split(/(?<=\.) /).some(Coach.isReasonSentence)), said.join(' | '));
+  assert.ok(said.every((t) => !/I like it because/.test(t)), said.join(' | '));
 });
 
 test('The table read is shorter on Simple and Detailed, and whole on Complex', () => {
