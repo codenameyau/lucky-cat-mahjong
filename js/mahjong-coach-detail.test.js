@@ -25,6 +25,19 @@ test('Complex says everything: the model\'s score stays', () => {
   assert.equal(words(plain), words(h));
 });
 
+test('Complex never says "almost no chance to win": under 1% it leaves the chance out', () => {
+  assert.equal(Coach.chance(0.004, 'win'), '');
+  assert.equal(Coach.chance(0.05, 'win'), 'a 5% chance to win');
+  assert.equal(Coach.chance(0.11, 'win'), 'an 11% chance to win');
+  const pick = { tile: 'c1', ml: { ev: -30, pWin: 0.004, avgWin: 0 } };
+  const rival = { tile: 'c2', ml: { ev: -45, pWin: 0.002, avgWin: 0, choice: true } };
+  const said = Coach.modelLine([pick, rival], pick);
+  assert.equal(said, 'The model expects −30 score on average from this discard. Next best discard is Two Character: −45 score.');
+  const sure = { tile: 'c1', ml: { ev: 12, pWin: 0.08, avgWin: 1200 } };
+  const likely = Coach.modelLine([sure], sure);
+  assert.match(likely, /^The model expects \+12 score on average from this discard, with an 8% chance to win \(about 1,200 points\)\.$/);
+});
+
 test('Detailed leaves out the score and says why in plain words', () => {
   for (const seed of [3, 5, 9, 29]) {
     const h = hintFor('neural-cat', 'detailed', seed);
@@ -34,18 +47,17 @@ test('Detailed leaves out the score and says why in plain words', () => {
   }
 });
 
-test('Simple is the action and a short reason, never the score', () => {
+test('Simple is the action and the hand to go for, with no reason and never the score', () => {
   for (const id of ['neural-cat', 'jorge-yau', 'lucky-cat', 'only-orphans']) {
     for (const seed of [3, 5, 9, 29, 41]) {
       const h = hintFor(id, 'simple', seed);
-      assert.doesNotMatch(words(h), /model expects|score|chance to win|network plays/, id + ' ' + seed);
-      assert.ok(h.tips.length <= 1, id + ' has one reason at most');
+      assert.doesNotMatch(words(h), /model expects|score|chance to win|Lucky Cat (discards this|would|plays)/, id + ' ' + seed);
+      assert.ok(h.tips.length <= 1, id + ' says one thing after the action at most');
+      assert.doesNotMatch(words(h), /I like it because|I pick it because/, id + ' ' + seed + ' gives no reason');
+      if (h.aim) assert.match(words(h), /\. Go for [^.]+, (about \d+ faan|the 13 faan limit)(, short of the \d+ faan minimum)?\.$/, id + ' ' + seed + ': ' + words(h));
       assert.ok(words(h).length <= 260, id + ' ' + seed + ': ' + words(h).length + ' characters');
     }
   }
-  // A learned strategy says what it likes about the pick, with the words above.
-  const said = [3, 5, 9, 29, 41, 77, 12].map((seed) => words(hintFor('neural-cat', 'simple', seed)));
-  assert.ok(said.some((t) => /I like it because it /.test(t)), said.join(' | '));
 });
 
 test('Simple is shorter than Detailed, and Detailed shorter than Complex', () => {
@@ -117,14 +129,14 @@ test('Feedback follows the coach setting: numbers only on Complex, "I" on Simple
       if (!s) continue;
       for (const [name, fb] of [['simple', s], ['detailed', d]]) {
         const w = words(fb);
-        assert.doesNotMatch(w, /\bthe model\b|network plays|\bscore\b/i, name + ' ' + id + ' ' + seed + ': ' + w);
+        assert.doesNotMatch(w, /\bthe model\b|Lucky Cat (discards this|would|plays)|\bscore\b/i, name + ' ' + id + ' ' + seed + ': ' + w);
         assert.ok(w.length <= Coach.MAX_TEXT);
       }
       assert.ok(s.tips.length <= 1, 'Simple gives one reason');
-      // Simple also names the hand it's going for (Coach.aimSentence), which the others leave out.
+      // Simple also names the hand to go for (Coach.aimSentence), which the others leave out.
       const aim = (' ' + Coach.aimSentence(feedbackHint(id, seed).aim)).trimEnd();
       assert.ok(words(s).length - aim.length <= words(d).length && words(d).length <= words(c).length + 120, id + ' ' + seed);
-      if (/model expects|network plays/.test(words(c))) complexNumbers++;
+      if (/model expects|Lucky Cat (discards this|would|plays)/.test(words(c))) complexNumbers++;
     }
   }
   assert.ok(complexNumbers > 0, 'Complex still gives the model\'s numbers');

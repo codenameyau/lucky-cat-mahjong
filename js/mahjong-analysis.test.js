@@ -55,7 +55,7 @@ describe('playback analysis', () => {
       found = A.analyze(await recording(seed, seed % 4, false)).filter((n) => / is ready\.$/.test(n.action))[0];
     }
     assert.ok(found, 'someone is ready in some hand');
-    assert.match(found.detail, /Waiting on .* for up to \d+ faan/);
+    assert.match(found.detail, /They are waiting on .* for up to \d+ faan/);
     assert.match(found.detail, /safe against|would deal in/);
   });
 

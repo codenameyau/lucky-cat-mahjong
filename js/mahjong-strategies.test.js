@@ -1352,7 +1352,7 @@ describe('the isolated tile in the shortest suit goes first', () => {
     const game = table({ seats: [{ hand: loose }], wallLeft: 70 });
     assert.equal(Base.chooseTurnAction(game, 0, { kongs: [] }).tile, 'd1');
     const text = Coach.forStrategy(Base).turnHint(game, 0, { kongs: [] }).tips.join(' ');
-    assert.match(text, /Circles is your shortest suit, so its terminal goes first/);
+    assert.match(text, /Circles is your shortest suit: discard its terminal first/);
   });
 
   it('keeps a short-suit terminal once seven other majors belong to all terminals, mixed orphans, or thirteen orphans', () => {

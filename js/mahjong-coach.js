@@ -190,7 +190,7 @@
     var oneSuit = B.suitCommitment(v.ctx, c);
     if (oneSuit && i < 27 && E.suitOfIndex(i) !== oneSuit) {
       // The plan line names the flush, so this one only says why the tile goes.
-      return 'Your hand is keeping ' + SUIT_NAME[oneSuit] + ', so other suits go first.';
+      return 'Your hand is keeping ' + SUIT_NAME[oneSuit] + ': discard other suits first.';
     }
     if (B.isPungTile(v.game, i) && c[i] < 2) {
       return pungedReason(i);
@@ -251,7 +251,7 @@
     if (pick.shortSuit && i < 27) {
       var su = E.suitOfIndex(i);
       if (neighbors(c, i) === 0) return 'Nothing connects to it, and ' + SUIT_NAME[su] + ' is your shortest suit.';
-      if (B.looseTerminal(c, i)) return SUIT_NAME[su] + ' is your shortest suit, so its terminal goes first.';
+      if (B.looseTerminal(c, i)) return SUIT_NAME[su] + ' is your shortest suit: discard its terminal first.';
       return SUIT_NAME[su] + ' is your shortest suit, and it connects the least.';
     }
     if (pick.lone) {
@@ -359,7 +359,9 @@
         honors += c[h] || 0;
       }
       var keepPair = eyes !== null ? '. Keep your ' + name(eyes) + ' pair as the eyes' : '';
-      return 'Concealed Straights' + (v.flowerFaan ? '. Flowers make it 3' : '') + '. Don\'t claim' + keepPair +
+      var lastFaan = v.flowerFaan ? '. Flowers make it 3'
+        : '. Get the last faan from a situational bonus like self-draw or drawing your own seat flower';
+      return 'Concealed Straights' + lastFaan + '. Don\'t claim' + keepPair +
         (honors ? (eyes !== null ? ', and throw your other honors first' : '. Throw your honors first') : '');
     }
     if (r.id === 'half') return 'Half Flush in ' + SUIT_NAME[r.suit] + leftNote(v, r.suit);
@@ -399,13 +401,13 @@
     return { name: label, faan: Math.max(0, Math.floor(faan + 0.25)), min: v.game.settings.minFaan };
   }
 
-  // "Going for All Triplets, about 4 faan." One sentence, the same at every
+  // "Go for All Triplets, about 4 faan." One sentence, the same at every
   // level that says it (the Simple hint and feedback; a playback can reuse it).
   function aimSentence(aim) {
     if (!aim || !aim.name) return '';
     var worth = aim.faan >= 13 ? 'the 13 faan limit' : 'about ' + aim.faan + ' faan';
     var short = aim.min && aim.faan < aim.min ? ', short of the ' + aim.min + ' faan minimum' : '';
-    return 'Going for ' + aim.name + ', ' + worth + short + '.';
+    return 'Go for ' + aim.name + ', ' + worth + short + '.';
   }
 
   // The bigger hand the same tiles can still make, when it isn't already
@@ -561,7 +563,7 @@
   function playerDiscardWhy(plan, pick) {
     var route = routeOf(plan);
     if (route && route.suit && pick.index < 27 && E.suitOfIndex(pick.index) !== route.suit) {
-      return 'Your hand is keeping ' + SUIT_NAME[route.suit] + ', so other suits go first.';
+      return 'Your hand is keeping ' + SUIT_NAME[route.suit] + ': discard other suits first.';
     }
     return 'It doesn\'t help the hand you\'re going for.';
   }
@@ -983,7 +985,7 @@
     } else if (pick.plan || followed) {
       var spoken = followed ? { route: routeOf(followed) } : pick.plan;
       var speak = spoken.route;
-      var line = (followed ? 'You\'re going for ' : 'Go for ') + targetText(v, spoken, cAfter, null) + '.';
+      var line = 'Go for ' + targetText(v, spoken, cAfter, null) + '.';
       line += shifted;
       line += deadNote(v, speak, cAfter);
       // A complete shape that doesn't score isn't ready, so say why.
@@ -1047,9 +1049,10 @@
     return pointsText(n) + ' score';
   }
 
-  // "an 8% chance to win", "a 12% chance to win", "almost no chance to win".
+  // "an 8% chance to win", "a 12% chance to win". Under 1% it says nothing: "almost none" is
+  // often wrong for the model's estimate, so the chance is left out.
   function chance(p, what) {
-    if (p < 0.01) return 'almost no chance to ' + what;
+    if (p < 0.01) return '';
     var n = pct(p);
     return (/^(8|11|18)(\D|$)|^8\d/.test(n) ? 'an ' : 'a ') + n + ' chance to ' + what;
   }
@@ -1063,7 +1066,7 @@
   // score for a move, only a share learned from the points its hands paid,
   // so its line says how sure it is.
   function policyLine(list, pick, m) {
-    var line = 'Lucky Cat\'s network plays this discard ' + pct(m.policy) + ' of the time';
+    var line = 'Lucky Cat discards this ' + pct(m.policy) + ' of the time';
     var next = list.filter(function (x) { return x !== pick && x.ml; })
       .sort(function (a, b) { return b.ml.policy - a.ml.policy; })[0];
     if (next && next.ml.policy >= 0.005) line += '. Next most likely is ' + E.tileName(next.tile) + ': ' + pct(next.ml.policy) + ' of the time';
@@ -1074,8 +1077,8 @@
     var m = pick && pick.ml;
     if (!m) return '';
     if (m.policy != null) return policyLine(list, pick, m);
-    var line = 'The model expects ' + pointsWord(m.ev) + ' on average from this discard, with ' + chance(m.pWin, 'win') +
-      (m.pWin >= 0.01 ? ' (about ' + Math.round(m.avgWin).toLocaleString('en-US') + ' points)' : '') + '.';
+    var line = 'The model expects ' + pointsWord(m.ev) + ' on average from this discard' +
+      (m.pWin >= 0.01 ? ', with ' + chance(m.pWin, 'win') + ' (about ' + Math.round(m.avgWin).toLocaleString('en-US') + ' points)' : '') + '.';
     var next = list.filter(function (x) { return x !== pick && x.ml && x.ml.choice !== false; })
       .sort(function (a, b) { return b.ml.ev - a.ml.ev; })[0];
     if (next) line += ' Next best discard is ' + E.tileName(next.tile) + ': ' + pointsWord(next.ml.ev) + '.';
@@ -1129,14 +1132,14 @@
       var rest = read.choices.filter(function (x) { return x !== pick; })
         .sort(function (a, b) { return b.ml.policy - a.ml.policy; }).slice(0, 2);
       var act = function (x) { return ifYou(x.decision, tile).replace(/^if you /, '') + ' ' + pct(x.ml.policy) + ' of the time'; };
-      return 'Lucky Cat\'s network would ' + [pick].concat(rest).map(act).join(', and ') + '.';
+      return 'Lucky Cat would ' + [pick].concat(rest).map(act).join(', and ') + '.';
     }
     var ranked = [pick].concat(read.choices.filter(function (x) { return x !== pick; })
       .sort(function (a, b) { return b.ml.ev - a.ml.ev; }).slice(0, 2));
     var said = ranked.map(function (x) { return pointsWord(x.ml.ev) + ' ' + ifYou(x.decision, tile); });
     var line = 'On average, the model expects ' + said[0] +
-      (said.length > 2 ? ', ' + said.slice(1, -1).join(', ') + ', and ' + said[said.length - 1] : ' and ' + said[1]) + '. ' +
-      'That gives ' + chance(pick.ml.pWin, 'win') + '.';
+      (said.length > 2 ? ', ' + said.slice(1, -1).join(', ') + ', and ' + said[said.length - 1] : ' and ' + said[1]) + '.' +
+      (pick.ml.pWin >= 0.01 ? ' That gives ' + chance(pick.ml.pWin, 'win') + '.' : '');
     if (read.pick !== read.foundation) {
       line += ' The usual call here would be to ' + ifYou(read.choices[read.foundation].decision, tile).replace(/^if you /, '') + ', but the model expects less from it.';
     }
@@ -1231,7 +1234,7 @@
       if (followed && !waiting.length) {
         if (discard && !planClaims(followed, E.tileIndex(discard), v.ctx.declared)) discard = null;
         if (discard) lines.push('Then discard ' + E.tileName(discard) + '.');
-        lines.push('You\'re going for ' + targetText(v, { route: routeOf(followed) }, counts) + '.');
+        lines.push('Go for ' + targetText(v, { route: routeOf(followed) }, counts) + '.');
         var shown = threats.filter(function (t) { return t.level >= 2; });
         var said = threatSentence(v.game, shown);
         if (said) lines.push(said);
@@ -1298,8 +1301,8 @@
     } else if (bestFaan < min) {
       tips.push('Pass. Claiming leaves you short of ' + min + ' faan.');
     } else if (v.concealed) {
-      tips.push('Pass. Staying concealed is worth 1 faan' +
-        (stay && stay.route.id === 'straights' ? ' and keeps All Sequences' : '') + '.');
+      tips.push('Pass. Stay concealed for 1 faan' +
+        (stay && stay.route.id === 'straights' ? ' and to keep All Sequences' : '') + '.');
     } else {
       tips.push('Pass. It doesn\'t help enough.');
     }
@@ -1372,7 +1375,7 @@
       return { kind: 'feedback', action: 'Great discard.', tips: tips };
     }
     var out = ['I pick ' + best + '. ' + (hint.why || ''),
-      'Lucky Cat\'s network plays ' + best + ' ' + pct(top.ml.policy) + ' of the time, and ' + mine + ' ' + pct(chosen.ml.policy) + ' of the time.'];
+      'Lucky Cat plays ' + best + ' ' + pct(top.ml.policy) + ' of the time, and ' + mine + ' ' + pct(chosen.ml.policy) + ' of the time.'];
     var action = steps ? 'That discard slows your hand.'
       : chosen.ml.policy >= top.ml.policy * 0.4 ? 'Good discard.' : 'There was a better discard.';
     return { kind: 'feedback', action: action, tips: out.map(function (t) { return t.trim(); }) };
@@ -1429,12 +1432,21 @@
 
   // "I like it because it gets you ready fastest and keeps a bigger hand in reach."
   // Simple and Detailed speak as the coach ("I"); only Complex says "the model".
+  // Simple ends with one "Go for ..." sentence (aimSentence). The hint's own tip can say it too
+  // ("Go for ...", "You're going for ..."), so those sentences come out and it is said once.
+  function withoutAimSentences(text) {
+    var parts = String(text || '').match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [];
+    return parts.filter(function (p) {
+      return !/\bgoing for\b|^\s*go for\b/i.test(plain(p));
+    }).join('').trim();
+  }
+
   function sentenceOf(reasons, lead) {
     return lead + 'it ' + reasons.join(' and ') + '.';
   }
 
   function isModelTip(t) {
-    return /^(On average, )?[Tt]he model expects |^Lucky Cat's network /.test(plain(t));
+    return /^(On average, )?[Tt]he model expects |^Lucky Cat (discards this|would|plays) /.test(plain(t));
   }
 
   function shape(hint, detail) {
@@ -1450,10 +1462,15 @@
       return fit(out);
     }
     // Simple: the action, then the reason why. A learned strategy adds what it likes about the tile.
-    var clear = hint.modelWhyClear || [];
-    var why = clip(tips[0] || '', SIMPLE_WHY);
-    if (clear.length) why = (why + ' ' + sentenceOf(clear, 'I like it because ')).trim();
-    why = (why + ' ' + aimSentence(hint.aim)).trim();
+    // With a hand to go for, that sentence is all Simple adds: no reason. Without one, the first tip stays.
+    var why;
+    if (hint.aim) {
+      why = aimSentence(hint.aim);
+    } else {
+      var clear = hint.modelWhyClear || [];
+      why = clip(tips[0] || '', SIMPLE_WHY);
+      if (clear.length) why = (why + ' ' + sentenceOf(clear, 'I like it because ')).trim();
+    }
     out.tips = why ? [why] : [];
     return fit(out);
   }
@@ -1477,9 +1494,18 @@
       out.tips = tips;
       return fit(out);
     }
-    var why = clip(tips[0] || '', SIMPLE_FEEDBACK);
-    if (reasons.length) why = (why + ' ' + sentenceOf(reasons, 'I like it because ')).trim();
-    why = (why + ' ' + aimSentence(hint && hint.aim)).trim();
+    // The verdict is in the action. With a hand to go for, that sentence is all Simple adds: no reason.
+    var why;
+    if (hint && hint.aim) {
+      // "I pick Eight Character." says what to do instead, so it stays; the reasons after it go.
+      var pick = (String(tips[0] || '').match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || []).filter(function (p) {
+        return /^\s*I (pick|would)\b/.test(plain(p));
+      }).join('').trim();
+      why = (pick + ' ' + aimSentence(hint.aim)).trim();
+    } else {
+      why = clip(tips[0] || '', SIMPLE_FEEDBACK);
+      if (reasons.length) why = (why + ' ' + sentenceOf(reasons, 'I like it because ')).trim();
+    }
     out.tips = why ? [why] : [];
     return fit(out);
   }
@@ -1503,7 +1529,7 @@
   var api = {
     discardFeedback: fitted(discardFeedback), claimFeedback: fitted(claimFeedback), noteDiscard: noteDiscard,
     turnHint: fitted(turnHint), claimHint: fitted(claimHint), MAX_TEXT: MAX_TEXT, fit: fit,
-    shape: shape, shapeFeedback: shapeFeedback, shapeNote: shapeNote, DETAILS: DETAILS, aimSentence: aimSentence,
+    chance: chance, modelLine: modelLine, shape: shape, shapeFeedback: shapeFeedback, shapeNote: shapeNote, DETAILS: DETAILS, aimSentence: aimSentence,
     rankDiscards: rankDiscards, look: look, highlightPatterns: highlightPatterns,
   };
 
