@@ -31,9 +31,9 @@ function planHand(id) {
   if (id === 'pairs' || /^pairs-/.test(id)) return 6;
   if (id === 'orphans') return 7;
   if (id === 'gates') return 8;
-  if (id === 'mixed-orphans' || id === 'all-terminals' || id === 'all-honors') return 9;
-  if (/-dragons$/.test(id)) return 10;
-  if (/-winds$/.test(id)) return 11;
+  if (id === 'mixed-orphans' || id === 'all-terminals' || id === 'all-honors' || id === 'honors' || id === 'terminals') return 9;
+  if (id === 'dragons' || /-dragons$/.test(id)) return 10;
+  if (id === 'winds' || /-winds$/.test(id)) return 11;
   return 0;
 }
 

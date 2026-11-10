@@ -11,6 +11,14 @@ deal in, someone else self-draws, someone else wins, draw), then 11 logits
 for the faan of our win and 11 for the faan we pay (3 to 13). The faan
 heads learn only from hands that had that kind of ending.
 
+--heads adds the frontier model's extra heads (docs/machine-learning/frontier-plan.md)
+as more outputs on the same body: the hand a seat wins with, the hand the
+rules read, which opponents are ready and on which tiles, and whether the
+tile thrown deals in now. They learn from shard-N.aux (scripts/ml/heads.js);
+data without it trains the first 28 outputs only. The model the game plays
+is still the first 28 outputs; <name>.heads.json keeps all of them, and
+<name>.heads-report.json says how well each head reads.
+
 Writes ml/models/<name>.json (weights, float16 base64) and checks the JS
 model gives the same outputs. --ship also writes js/mahjong-ml-weights.js,
 the copy the page and npm run compete load.
@@ -39,9 +47,18 @@ LABEL_DTYPE = np.dtype([
     ('seat', 'u1'), ('strategy', 'u1'), ('wallLeft', 'u1'), ('explored', 'u1'),
     ('delta', '<f4'), ('dealSeed', '<u4'),
 ])
+# scripts/ml/heads.js
+N_HANDS = 12
+AUX_BYTES = 6 + 102
+H_WIN = OUTPUTS                    # the hand this seat wins with (12)
+H_RULE = H_WIN + N_HANDS           # the hand the rules read for the tiles kept (12)
+H_READY = H_RULE + N_HANDS         # each opponent ready (3)
+H_DEAL = H_READY + 3               # the tile thrown deals in now (1)
+H_WAITS = H_DEAL + 1               # each ready opponent's winning tiles (3 x 34)
+HEAD_OUTPUTS = H_WAITS + 102
 
 
-def load(dirs, limit=None):
+def load(dirs, limit=None, heads=False):
     # Read straight into one array: the data can be most of the memory.
     labels, manifests = [], []
     for d in dirs:
@@ -54,6 +71,9 @@ def load(dirs, limit=None):
     size = manifests[0]['featureSize']
     total = sum(s['samples'] for m in manifests for s in m['shards'])
     x = np.empty((total, size), dtype=np.float16)
+    # 255 in the first byte of a row: no aux for it (older data).
+    aux = np.full((total, AUX_BYTES), 255, dtype=np.uint8) if heads else None
+    has_aux = np.zeros(total, dtype=bool)
     at = 0
     for m in manifests:
         for s in m['shards']:
@@ -62,22 +82,28 @@ def load(dirs, limit=None):
             y = np.fromfile(os.path.join(m['dir'], s['labels']), dtype=LABEL_DTYPE)
             assert len(y) == n, 'shard size mismatch in ' + m['dir']
             labels.append(y)
+            if heads and m.get('auxBytes') == AUX_BYTES and s.get('aux'):
+                aux[at:at + n] = np.fromfile(os.path.join(m['dir'], s['aux']), dtype=np.uint8).reshape(-1, AUX_BYTES)
+                has_aux[at:at + n] = True
             at += n
     y = np.concatenate(labels)
     if limit and len(x) > limit:
         idx = np.random.default_rng(0).choice(len(x), limit, replace=False)
         x, y = x[idx], y[idx]
-    return x, y, manifests
+        has_aux = has_aux[idx]
+        if heads:
+            aux = aux[idx]
+    return x, y, manifests, aux, has_aux
 
 
 class Net(nn.Module):
-    def __init__(self, size, hidden, dropout):
+    def __init__(self, size, hidden, dropout, outputs=OUTPUTS):
         super().__init__()
         layers, prev = [], size
         for h in hidden:
             layers += [nn.Linear(prev, h), nn.ReLU(), nn.Dropout(dropout)]
             prev = h
-        layers.append(nn.Linear(prev, OUTPUTS))
+        layers.append(nn.Linear(prev, outputs))
         self.net = nn.Sequential(*layers)
 
     def forward(self, x):
@@ -93,8 +119,88 @@ def losses(out, y_outcome, y_win, y_pay):
     pay = (y_outcome == 2) | (y_outcome == 3)
     zero = out.new_zeros(())
     lw = F.cross_entropy(out[win, N_OUTCOMES:N_OUTCOMES + N_FAAN], y_win[win]) if win.any() else zero
-    lp = F.cross_entropy(out[pay, N_OUTCOMES + N_FAAN:], y_pay[pay]) if pay.any() else zero
+    lp = F.cross_entropy(out[pay, N_OUTCOMES + N_FAAN:OUTPUTS], y_pay[pay]) if pay.any() else zero
     return lo, lw, lp
+
+
+def head_losses(out, a, has):
+    """The extra heads' losses on the rows that carry aux labels."""
+    zero = out.new_zeros(())
+    if not has.any():
+        return zero, zero, zero, zero, zero
+    o, a = out[has], a[has]
+    won = a[:, 1] < N_HANDS
+    ruled = a[:, 0] < N_HANDS
+    l_win = F.cross_entropy(o[won, H_WIN:H_RULE], a[won, 1].long()) if won.any() else zero
+    l_rule = F.cross_entropy(o[ruled, H_RULE:H_READY], a[ruled, 0].long()) if ruled.any() else zero
+    ready = (a[:, 3:6] == 0)
+    l_ready = F.binary_cross_entropy_with_logits(o[:, H_READY:H_DEAL], ready.float())
+    l_deal = F.binary_cross_entropy_with_logits(o[:, H_DEAL], (a[:, 2] > 0).float())
+    # Waits count only for an opponent that is ready.
+    waits = a[:, 6:].float().view(-1, 3, 34)
+    lw = F.binary_cross_entropy_with_logits(o[:, H_WAITS:].view(-1, 3, 34), waits, reduction='none').mean(2)
+    l_waits = (lw * ready.float()).sum() / ready.float().sum().clamp(min=1)
+    return l_win, l_rule, l_ready, l_deal, l_waits
+
+
+def auc(score, label):
+    """Area under the ROC curve, by ranks."""
+    label = label.astype(bool)
+    pos, neg = int(label.sum()), int((~label).sum())
+    if not pos or not neg:
+        return float('nan')
+    order = np.argsort(score, kind='mergesort')
+    ranks = np.empty(len(score), dtype=np.float64)
+    ranks[order] = np.arange(1, len(score) + 1)
+    return float((ranks[label].sum() - pos * (pos + 1) / 2) / (pos * neg))
+
+
+def heads_report(out, aux, outcome, hands):
+    """How well each extra head reads, on held-out rows (numpy arrays)."""
+    def softmax(z):
+        z = z - z.max(1, keepdims=True)
+        e = np.exp(z)
+        return e / e.sum(1, keepdims=True)
+    sig = lambda z: 1 / (1 + np.exp(-z))
+    rep = {'rows': int(len(out))}
+    p_out = softmax(out[:, :N_OUTCOMES])
+    p_win = p_out[:, 0] + p_out[:, 1]
+    p_hand = softmax(out[:, H_WIN:H_RULE])
+    p_rule = softmax(out[:, H_RULE:H_READY])
+    won = aux[:, 1] < N_HANDS
+    ruled = aux[:, 0] < N_HANDS
+    both = won & ruled
+    # Naming the hand a seat wins with: the hand head, against the rules' read.
+    rep['wins'] = int(both.sum())
+    rep['handHeadNamesWin'] = float((p_hand[both].argmax(1) == aux[both, 1]).mean()) if both.any() else None
+    rep['rulesNameWin'] = float((aux[both, 0] == aux[both, 1]).mean()) if both.any() else None
+    rep['ruleHeadNamesWin'] = float((p_rule[both].argmax(1) == aux[both, 1]).mean()) if both.any() else None
+    rep['ruleHeadMatchesRules'] = float((p_rule[ruled].argmax(1) == aux[ruled, 0]).mean()) if ruled.any() else None
+    # Calibration by family: the chance to win as that hand, against how often it did.
+    fam = []
+    for f in range(N_HANDS):
+        p = p_win * p_hand[:, f]
+        y = (won & (aux[:, 1] == f) & (outcome <= 1)).astype(np.float64)
+        bins = []
+        edges = [0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5, 1.0001]
+        err = 0.0
+        for lo, hi in zip(edges[:-1], edges[1:]):
+            m = (p >= lo) & (p < hi)
+            if m.sum():
+                bins.append({'from': lo, 'to': min(hi, 1.0), 'rows': int(m.sum()), 'said': float(p[m].mean()), 'happened': float(y[m].mean())})
+                err += m.sum() * abs(p[m].mean() - y[m].mean())
+        fam.append({'hand': hands[f], 'wins': int(y.sum()), 'said': float(p.mean()), 'happened': float(y.mean()),
+                    'calibrationError': float(err / max(1, len(p))), 'auc': auc(p, y), 'bins': bins})
+    rep['families'] = fam
+    ready = aux[:, 3:6] == 0
+    rep['readyAuc'] = auc(sig(out[:, H_READY:H_DEAL]).ravel(), ready.ravel())
+    rep['readyRate'] = float(ready.mean())
+    rep['dealNowAuc'] = auc(sig(out[:, H_DEAL]), aux[:, 2] > 0)
+    rep['dealNowRate'] = float((aux[:, 2] > 0).mean())
+    w = sig(out[:, H_WAITS:]).reshape(-1, 3, 34)
+    t = aux[:, 6:].reshape(-1, 3, 34)
+    rep['waitsAuc'] = auc(w[ready].ravel(), t[ready].ravel()) if ready.any() else None
+    return rep
 
 
 def expected_points(out):
@@ -102,7 +208,7 @@ def expected_points(out):
     o = torch.softmax(out[:, :N_OUTCOMES], 1)
     pts = 8 * torch.pow(2.0, torch.arange(N_FAAN, device=out.device, dtype=out.dtype))
     win_pts = (torch.softmax(out[:, N_OUTCOMES:N_OUTCOMES + N_FAAN], 1) * pts).sum(1)
-    pay_pts = (torch.softmax(out[:, N_OUTCOMES + N_FAAN:], 1) * pts).sum(1)
+    pay_pts = (torch.softmax(out[:, N_OUTCOMES + N_FAAN:OUTPUTS], 1) * pts).sum(1)
     return o[:, 0] * 3 * win_pts + o[:, 1] * win_pts - (o[:, 2] + o[:, 3]) * pay_pts
 
 
@@ -154,16 +260,20 @@ def main():
     ap.add_argument('--device', default='auto')
     ap.add_argument('--device-bytes', type=float, default=3e9, help='data bigger than this stays in memory, off the device')
     ap.add_argument('--ship', action='store_true', help='also write js/mahjong-ml-weights.js')
+    ap.add_argument('--heads', action='store_true', help="train the frontier model's extra heads from shard-N.aux")
+    ap.add_argument('--head-weight', type=float, default=0.5, help='weight of the extra heads in the loss')
+    ap.add_argument('--seed', type=int, default=0)
     args = ap.parse_args()
 
-    torch.manual_seed(0)
+    torch.manual_seed(args.seed)
     device = args.device
     if device == 'auto':
         device = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
     if device.startswith('cuda'):
         print('GPU: %s (%.0f GB)' % (torch.cuda.get_device_name(device), torch.cuda.get_device_properties(device).total_memory / 1e9))
     t0 = time.time()
-    x, y, manifests = load(args.data, args.limit or None)
+    x, y, manifests, aux, has_aux = load(args.data, args.limit or None, args.heads)
+    outputs = HEAD_OUTPUTS if args.heads else OUTPUTS
     size = manifests[0]['featureSize']
     print('Loaded %d samples of %d features from %s (%.1fs)' % (len(x), size, ', '.join(args.data), time.time() - t0))
     counts = np.bincount(y['outcome'], minlength=N_OUTCOMES) / len(y)
@@ -190,10 +300,14 @@ def main():
     pay_t = to(np.clip(y['payFaan'][~val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
     pay_v = to(np.clip(y['payFaan'][val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
     delta_v = y['delta'][val]
+    if args.heads:
+        aux_t, aux_v = to(aux[~val], torch.uint8), aux[val]
+        has_t = to(has_aux[~val], torch.bool)
+        print('Extra heads: %d of %d rows carry their labels' % (int(has_aux.sum()), len(has_aux)))
     print('Training on %d, validating on %d, on %s' % (n_train, n_val, device))
 
     hidden = [int(h) for h in args.hidden.split(',') if h]
-    model = Net(size, hidden, args.dropout).to(device)
+    model = Net(size, hidden, args.dropout, outputs).to(device)
     if args.init:
         with open(args.init) as f:
             init = json.load(f)
@@ -201,8 +315,10 @@ def main():
             dt = '<f2' if init.get('dtype') == 'f16' else '<f4'
             w = np.frombuffer(base64.b64decode(l['w']), dtype=dt).astype(np.float32).reshape(l['rows'], l['cols'])
             b = np.frombuffer(base64.b64decode(l['b']), dtype=dt).astype(np.float32)
-            lin.weight.data = torch.from_numpy(w.copy()).to(device)
-            lin.bias.data = torch.from_numpy(b.copy()).to(device)
+            # A wider last layer (the extra heads) keeps its own start for the new rows.
+            rows = min(l['rows'], lin.weight.shape[0])
+            lin.weight.data[:rows] = torch.from_numpy(w[:rows].copy()).to(device)
+            lin.bias.data[:rows] = torch.from_numpy(b[:rows].copy()).to(device)
         print('Starting from ' + args.init)
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs)
@@ -219,6 +335,8 @@ def main():
             out = model(fetch_t(pos))
             lo, lw, lp = losses(out, out_t[idx], win_t[idx], pay_t[idx])
             loss = lo + 0.5 * lw + 0.5 * lp
+            if args.heads:
+                loss = loss + args.head_weight * sum(head_losses(out, aux_t[idx], has_t[idx]))
             opt.zero_grad()
             loss.backward()
             opt.step()
@@ -257,11 +375,38 @@ def main():
         'gameVersion': manifests[0].get('gameVersion'),
     })
     weights = export(model, meta, manifests[0]['featureVersion'], size)
+    full = None
+    if args.heads:
+        # The game plays the first 28 outputs; the rest are kept beside it.
+        full = json.loads(json.dumps(weights))
+        last = model.linears()[-1]
+        w = last.weight.detach().cpu().numpy()[:OUTPUTS]
+        b = last.bias.detach().cpu().numpy()[:OUTPUTS]
+        weights['layers'][-1] = {'rows': OUTPUTS, 'cols': int(w.shape[1]), 'w': b64(w), 'b': b64(b)}
     os.makedirs(os.path.join(ROOT, 'ml', 'models'), exist_ok=True)
     out_path = os.path.join(ROOT, 'ml', 'models', args.name + '.json')
     with open(out_path, 'w') as f:
         json.dump(weights, f)
     print('Wrote %s (%.0f KB), best epoch %d, val loss %.4f' % (out_path, os.path.getsize(out_path) / 1024, meta['epoch'], meta['valLoss']))
+    if args.heads:
+        with open(os.path.join(ROOT, 'ml', 'models', args.name + '.heads.json'), 'w') as f:
+            json.dump(full, f)
+        va = np.nonzero(val)[0][has_aux[val]]
+        outs = []
+        with torch.no_grad():
+            for i in range(0, len(va), args.batch * 4):
+                rows = va[i:i + args.batch * 4]
+                outs.append(model(torch.from_numpy(x[rows].astype(np.float32)).to(device)).cpu().numpy())
+        if outs:
+            rep = heads_report(np.concatenate(outs).astype(np.float64), aux[va], y['outcome'][va], manifests[-1].get('hands') or [str(i) for i in range(N_HANDS)])
+            rep['name'] = args.name
+            with open(os.path.join(ROOT, 'ml', 'models', args.name + '.heads-report.json'), 'w') as f:
+                json.dump(rep, f, indent=1)
+            print('Hand head names the winning hand %.1f%% of the time; the rules\' read %.1f%% (%d wins held out)' % (
+                100 * (rep['handHeadNamesWin'] or 0), 100 * (rep['rulesNameWin'] or 0), rep['wins']))
+            print('Ready AUC %.3f, deals in now AUC %.3f, waits AUC %.3f' % (rep['readyAuc'], rep['dealNowAuc'], rep['waitsAuc'] or float('nan')))
+            for fm in rep['families']:
+                print('  %-20s said %.3f%%  happened %.3f%%  wins %5d  AUC %.3f' % (fm['hand'], 100 * fm['said'], 100 * fm['happened'], fm['wins'], fm['auc']))
 
     # The JS model must give the same outputs as this one (float16 weights).
     sample = fetch_v(np.arange(min(16, n_val)))

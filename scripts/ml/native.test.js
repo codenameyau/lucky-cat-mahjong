@@ -28,6 +28,11 @@ describe('native simulator', { skip: !built && 'native/build/lcm-sim is not buil
     const same = fast.filter((h, k) => h === exact[k]).length;
     assert.ok(same >= 27, same + ' of 30 hands identical');
   });
+  it('writes the training rows of the JS generator byte for byte (Neural Cat, exploring)', () => {
+    const r = spawnSync('node', [path.join(__dirname, 'generate.js'), 'parity', '--deals', '12', '--workers', '1'], { encoding: 'utf8', cwd: ROOT });
+    assert.strictEqual(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /byte for byte/);
+  });
   it('round-trips weights through .lcmw', () => {
     const W = require('./weights.js');
     const w = W.readWeights('js/mahjong-lucky-cat-weights.js');
