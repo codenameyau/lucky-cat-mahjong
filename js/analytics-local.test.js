@@ -14,6 +14,8 @@ const PAGES = [
   'community/index.html',
   'which-mahjong-tiles-are-you/index.html',
   'privacy-policy/index.html',
+  'terms-and-conditions/index.html',
+  'refund-policy/index.html',
 ];
 
 // The pattern each page uses to spot a local or private address.
@@ -71,10 +73,16 @@ test('every page with a footer links the privacy policy and cookie settings', ()
     const footer = /<footer class="site-footer">[\s\S]*?<\/footer>/.exec(html);
     assert.ok(footer, page + ' has the site footer');
     assert.match(footer[0], /<a href="\/privacy-policy\/" class="footer-link">Privacy Policy<\/a>/, page + ' links the privacy policy');
+    assert.match(footer[0], /<a href="\/terms-and-conditions\/" class="footer-link">Terms and Conditions<\/a>/, page + ' links the terms and conditions');
+    assert.match(footer[0], /<a href="\/refund-policy\/" class="footer-link">Refund Policy<\/a>/, page + ' links the refund policy');
     assert.match(footer[0], /class="footer-link js-cookie-settings">Cookie Settings<\/button>/, page + ' has cookie settings');
-    assert.doesNotMatch(footer[0], /Your Privacy Choices/, page + ' shows only Privacy Policy and Cookie Settings');
-    assert.equal((footer[0].match(/class="footer-link[ "]/g) || []).length, 2, page + ' has two footer links');
+    const order = ['Terms and Conditions', 'Privacy Policy', 'Refund Policy', 'Cookie Settings'].map((label) => footer[0].indexOf('>' + label + '<'));
+    assert.deepEqual(order.slice().sort((x, y) => x - y), order, page + ' lists Terms and Conditions, Privacy Policy, Refund Policy, Cookie Settings');
+    assert.doesNotMatch(footer[0], /Your Privacy Choices/, page + ' has no Your Privacy Choices link');
+    assert.equal((footer[0].match(/class="footer-link[ "]/g) || []).length, 4, page + ' has four footer links');
   });
   const sitemap = fs.readFileSync(path.join(ROOT, 'sitemap.xml'), 'utf8');
   assert.match(sitemap, /<loc>https:\/\/luckycatmahjong\.com\/privacy-policy\/<\/loc>/);
+  assert.match(sitemap, /<loc>https:\/\/luckycatmahjong\.com\/terms-and-conditions\/<\/loc>/);
+  assert.match(sitemap, /<loc>https:\/\/luckycatmahjong\.com\/refund-policy\/<\/loc>/);
 });

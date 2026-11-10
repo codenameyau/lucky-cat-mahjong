@@ -1,4 +1,4 @@
-/* Privacy policy page */
+/* The terms and conditions, privacy policy and refund policy pages */
 
 body {
   background: #fff;
@@ -129,4 +129,10 @@ body {
   .privacy-table td:first-child {
     font-weight: 600;
   }
+}
+
+.terms-closing {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px dashed rgba(var(--color-primary-rgb), 0.22);
 }
