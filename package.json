@@ -20,7 +20,8 @@
     "ml:hf": "node scripts/ml/hf-sync.js",
     "ml:hf-data": "node scripts/ml/hf-data.js",
     "ml:bench": "node scripts/ml/bench.js",
-    "ml:frontier": "node scripts/ml/frontier.js",
+    "ml:frontier": "node scripts/ml/frontier-model.js",
+    "ml:suphx": "node scripts/ml/frontier.js",
     "native:build": "make -C native",
     "native:parity": "node scripts/ml/native.js parity"
   },

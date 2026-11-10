@@ -30,6 +30,7 @@ Once it's built, nothing else changes. `make -C native pgo` rebuilds the fast bu
 | Neural Cat (`js/mahjong-ml*.js`), fast play | `native/src/neural_cat.*`, `model.*` |
 | Lucky Cat, features v1 and v2 (`js/mahjong-lucky-cat-ml.js`, `-net.js`, `js/mahjong-frontier-net.js`) | `native/src/lucky_cat.*` |
 | `scripts/ml/oracle.js`, `lucky.js generate`'s worker | `native/src/generate.*` |
+| `scripts/ml/generate.js`'s worker for Neural Cat and the frontier model: Neural Cat exploring (temperature, epsilon), its own seats recorded, the extra heads' labels (`scripts/ml/heads.js`) | `native/src/generate_nc.*` (`npm run ml:generate -- --native`) |
 | `bench.js` `playWork` | `lcm-sim play` |
 
 The contradiction check is ported with the foundation, Neural Cat and Lucky Cat (which runs the foundation's analysis for its seat to check each move against). `lcm-sim` takes `id~nocheck` to play a player without it, to measure it: with every player's check off, the build plays exactly as before the check.
@@ -48,6 +49,7 @@ Not ported: the classic Lucky Cat rules, Only Orphans, oracle-guided models (`--
 | Lucky Cat v1 and v2 at the benchmark table | 200 and 300 hands identical |
 | `bench.js compare`, 280 deals | byte-identical JSON |
 | `lucky.js generate`, Lucky Cat round settings (`--oracle --returns`), Sphinx's (`--sample-won`, its own models in the pool), and wins only | byte-identical shards |
+| `generate.js --native`, Neural Cat exploring against earlier models, Jorge Yau and Lucky Cat, 1,000 deals (`npm run ml:generate -- parity`) | byte-identical shards (13.4 MB); about 500 deals a second on 7 workers against 25 to 34 in JS |
 | Shanten, 300,000 random hands | 0 mismatches |
 | `Math.exp`, `Math.log`, `Math.pow`, 1,000,000 inputs each | 0 mismatches |
 
@@ -85,7 +87,7 @@ node scripts/ml/weights.js import LV3b.lcmw LV3b.json              # back again
 | Same hands as the JS | statistically; a decision between moves tied to the last bit can go the other way | action for action |
 | Used by | `lucky.js generate`, `bench.js compare` (screens) | `bench.js judge` and `score`, `compare --exact`, `native.js parity`, `npm test` |
 
-How rarely the fast build differs: on 1,000 deals at the benchmark table every hand was identical to the exact build, and a 2,000-deal compare printed the same gap. On a 20,000-deal round of data (220,000 sampled moves), a few sampled moves flipped; each flip changes that hand, and the rest of its chunk's random stream with it, so 63 of the round's 256 shard files differ while the data is the same in distribution. **This is an accepted trade-off for training data and screens, flagged in the [frontier plan](frontier-plan.md) §6b; judgments and Table Scores don't take it.**
+How rarely the fast build differs: on 1,000 deals at the benchmark table every hand was identical to the exact build, and a 2,000-deal compare printed the same gap. On a 20,000-deal round of data (220,000 sampled moves), a few sampled moves flipped; each flip changes that hand, and the rest of its chunk's random stream with it, so 63 of the round's 256 shard files differ while the data is the same in distribution. **This is an accepted trade-off for training data and screens, flagged in the [frontier plan](suphx-plan.md) §6b; judgments and Table Scores don't take it.**
 
 Both builds share every line of code except the arithmetic, so the action-level check on the exact build covers the logic of both.
 

@@ -247,6 +247,8 @@ std::vector<CandP> NeuralCat::rerank(std::vector<CandP> out, Ctx& ctx, const Cou
   });
   ranked.insert(ranked.end(), out.begin() + k0, out.end());
   if (T.honorOrder && !folding) ranked = honorTieOrder(ranked, ctx, counts);
+  int pick = pickIndex(ranked, k0);
+  if (pick) { CandP c = ranked[pick]; ranked.erase(ranked.begin() + pick); ranked.insert(ranked.begin(), c); }
   // No discard that goes against the hand it is building (Foundation::consistentFirst).
   ranked = consistentFirst(ranked, g, counts, folding);
   if (!ranked[0]->hasMl) {
@@ -264,7 +266,66 @@ std::vector<CandP> NeuralCat::rerank(std::vector<CandP> out, Ctx& ctx, const Cou
   return ranked;
 }
 
+// Exploring (js/mahjong-ml.js pickIndex): the same draws from the same generator.
+int NeuralCat::pickIndex(const std::vector<CandP>& ranked, int k0) {
+  if (epsilon && rng() < epsilon) {
+    int best = 1 << 30;
+    for (auto& x : ranked) best = std::min(best, x->shanten);
+    std::vector<int> pool;
+    for (size_t i = 0; i < ranked.size(); i++) if (ranked[i]->shanten <= best) pool.push_back(int(i));
+    return pool[size_t(rng() * double(pool.size()))];
+  }
+  if (!temperature) return 0;
+  auto val = [&](const CandP& x) { return x->mlEv + winBonus_ * x->mlPWin; };
+  double top = val(ranked[0]);
+  std::vector<double> w;
+  for (int k = 0; k < k0; k++) w.push_back(js::exp((val(ranked[k]) - top) / temperature));
+  double sum = 0;
+  for (double v : w) sum += v;
+  double r = rng() * sum;
+  for (size_t k = 0; k < w.size(); k++) { r -= w[k]; if (r <= 0) return int(k); }
+  return 0;
+}
+
+// js/mahjong-ml.js pickChoice: the choice worth the most, unless it beats the
+// foundation's (index `at`) by less than claimMargin; or an exploring pick.
+template <class C> int NeuralCat::pickChoice(const std::vector<C>& choices, int at) {
+  if (epsilon && rng() < epsilon) return int(rng() * double(choices.size()));
+  if (temperature) {
+    std::vector<double> w;
+    for (auto& x : choices) w.push_back(js::exp((value(x.ml) - value(choices[at].ml)) / temperature));
+    double sum = 0;
+    for (double v : w) sum += v;
+    double r = rng() * sum;
+    for (size_t k = 0; k < w.size(); k++) { r -= w[k]; if (r <= 0) return int(k); }
+    return at;
+  }
+  int top = 0;
+  for (size_t k = 0; k < choices.size(); k++) if (value(choices[k].ml) > value(choices[top].ml)) top = int(k);
+  return value(choices[top].ml) > value(choices[at].ml) + claimMargin_ ? top : at;
+}
+
+void NeuralCat::read(Reading& r, const Game& g, int seat) {
+  r.ctx = buildContext(g, seat);
+  prepare(r.st, g, seat, r.ctx, nullptr, nullptr);
+}
+
+int NeuralCat::row(Reading& r, int index, float* x) {
+  Counts kept = r.st.counts;
+  kept[index]--;
+  Analysis an = handUtility(kept, r.ctx);
+  double loss = dealInLoss(*r.st.g, r.st.threats, index);
+  encode(r.st, index, an, loss, x);
+  return an.hasBest && an.best.plan ? int(an.best.plan->kind) : -1;
+}
+
 MlRead NeuralCat::waitingFeatures(const Game& g, int seat, int kind, int tile) {
+  float x[SIZE];
+  waitingRow(g, seat, kind, tile, x);
+  return ev(x);
+}
+
+void NeuralCat::waitingRow(const Game& g, int seat, int kind, int tile, float* x) {
   Ctx ctx = buildContext(g, seat);
   Counts c = countsOf(g.hand.seats[seat].hand);
   int i = tile;
@@ -286,10 +347,8 @@ MlRead NeuralCat::waitingFeatures(const Game& g, int seat, int kind, int tile) {
   // encodeWaiting
   Analysis an = handUtility(st.counts, ctx);
   st.counts[index]++;
-  float x[SIZE];
   encode(st, index, an, 0, x);
   st.counts[index]--;
-  return ev(x);
 }
 
 static bool sameDecision(const Decision& a, const Decision& b) {
@@ -322,10 +381,7 @@ Decision NeuralCat::chooseClaim(const Game& g, int seat, const ClaimOptions& opt
   if (choices.size() == 1) { Decision p; p.type = A_PASS; return p; }
   int at = 0;
   for (size_t k = 0; k < choices.size(); k++) if (sameDecision(choices[k].decision, d.decision)) at = int(k);
-  int top = 0;
-  for (size_t k = 0; k < choices.size(); k++) if (value(choices[k].ml) > value(choices[top].ml)) top = int(k);
-  int k = value(choices[top].ml) > value(choices[at].ml) + claimMargin_ ? top : at;
-  return choices[k].decision;
+  return choices[size_t(pickChoice(choices, at))].decision;
 }
 
 Decision NeuralCat::chooseTurnAction(const Game& g, int seat, const TurnOptions& opts) {
@@ -354,10 +410,7 @@ Decision NeuralCat::chooseTurnAction(const Game& g, int seat, const TurnOptions&
   }
   int at = 0;
   for (size_t k = 0; k < choices.size(); k++) if (sameDecision(choices[k].decision, d)) at = int(k);
-  int top = 0;
-  for (size_t k = 0; k < choices.size(); k++) if (value(choices[k].ml) > value(choices[top].ml)) top = int(k);
-  int k = value(choices[top].ml) > value(choices[at].ml) + claimMargin_ ? top : at;
-  return choices[k].decision;
+  return choices[size_t(pickChoice(choices, at))].decision;
 }
 
 }  // namespace lcm

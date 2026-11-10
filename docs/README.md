@@ -6,7 +6,7 @@ Guides for working on Lucky Cat Mahjong. The [project README](../README.md) cove
 | --- | --- |
 | [Machine learning](machine-learning/README.md) | Neural Cat and Lucky Cat, the learned strategies. Neural Cat: its features, the neural network, how it picks discards, claims and kongs, how it's trained (self-play and the league), fair play, and the models and data on Hugging Face |
 | [Analytics](analytics/README.md) | Google Analytics: how tracking is set up, what's never collected, how to read and add events, and every event the site sends |
-| [Architecture](architecture/README.md) | The evaluation architecture (proposed): one pipeline every strategy, model and the coach run for every decision (table read, hand picker, pivot checker, discarder, contradiction check), how it maps onto today's code, and the stages to build it |
+| [Architecture](architecture/README.md) | The evaluation architecture (proposed): one model with three heads for the middle layers, inside one pipeline every strategy, model and the coach run for every decision (table read, hand picker, pivot checker, discarder, contradiction check), how it maps onto today's code, and the stages to build it |
 | [Strategies](strategies/README.md) | The bots and the coach: the shared foundation, each strategy's playbook, competitions, and reviewing a hand to teach the coach |
 | [Offline](offline/README.md) | The service worker: which pages work offline, how every request gets the latest file while online, how new versions take over, retiring the old game worker, and testing |
 
@@ -21,7 +21,8 @@ Guides for working on Lucky Cat Mahjong. The [project README](../README.md) cove
 - [Fair play](machine-learning/fair-play.md): how the models are kept from seeing hidden tiles
 - [Hugging Face](machine-learning/hugging-face.md): the public models and data, and uploading them
 - [Iterations](machine-learning/iterations.md): how Neural Cat and Lucky Cat evolved, model by model, and what each step taught
-- [Frontier plan](machine-learning/frontier-plan.md): the phased plan to make Lucky Cat the strongest Hong Kong mahjong player, and its Learnings
+- [Frontier plan](machine-learning/frontier-plan.md): the frontier model, one network with three heads grown from Neural Cat, the steps to make it strong, and its Learnings
+- [Suphx plan](machine-learning/suphx-plan.md): the earlier frontier plan, cancelled on 2026-11-09 as a failed experiment, and its Learnings
 - [Benchmark](machine-learning/benchmark.md): the frozen table, the deck, the Table Score and the bar for a next generation
 - [Frontier training](machine-learning/frontier-training.md): phase 1, built: features v2, the hidden tiles as targets, the round driver
 - [Native simulator](machine-learning/native.md): the engine and the table's players in C++, the exact and fast builds, and the hybrid

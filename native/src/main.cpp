@@ -16,6 +16,7 @@
 #include "neural_cat.h"
 #include "lucky_cat.h"
 #include "generate.h"
+#include "generate_nc.h"
 #include <chrono>
 #include <cstdio>
 #ifdef _WIN32
@@ -189,6 +190,21 @@ int main(int argc, char** argv) {
       j.shard = a.count("shard") ? std::stoi(a["shard"]) : 0;
       if (a.count("out")) { j.out = a["out"]; j.write = true; }
       return runGenerate(j, [](const std::string& id) { return makeAgent(id); });
+    }
+    if (cmd == "generate-nc") {
+      // scripts/ml/generate.js's worker (Neural Cat and the frontier model): the same shard files.
+      NcGenerateJob j;
+      j.weights = a["weights"];
+      j.temperature = a.count("temperature") ? std::stod(a["temperature"]) : 100;
+      j.epsilon = a.count("epsilon") ? std::stod(a["epsilon"]) : 0.05;
+      j.sample = a.count("sample") ? std::stod(a["sample"]) : 0.3;
+      j.seed = uint32_t(std::stoul(a["seed"]));
+      j.deals = std::stol(a["deals"]);
+      j.shard = a.count("shard") ? std::stoi(a["shard"]) : 0;
+      j.strategy = a.count("strategy") ? std::stoi(a["strategy"]) : 0;
+      j.pool = split(a["pool"], ',');
+      j.out = a["out"];
+      return runGenerateNc(j, [](const std::string& id) { return makeAgent(id); });
     }
     if (cmd == "shanten") {
       FILE* f = std::fopen(argv[2], "rb");

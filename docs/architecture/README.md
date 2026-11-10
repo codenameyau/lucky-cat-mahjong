@@ -2,11 +2,15 @@
 
 A design, not built yet (written 2026-11-09, revised the same day after a critical pass). One pipeline that every strategy, every model and the coach run for every decision: read the table, pick the hand, decide whether to pivot, choose the move, and check the move against the hand. It replaces five overlapping ways of choosing a hand and four of leaving one.
 
+**Simplified on 2026-11-09 (maintainer's decision): one model does the middle of the pipeline, and it is the frontier model ([the frontier plan](../machine-learning/frontier-plan.md)).** The Suphx plan is cancelled as a failed experiment ([why](../machine-learning/suphx-plan.md#the-suphx-line-is-cancelled-2026-11-09)). The five layers below are still the five jobs, but a model strategy no longer has a rule set or a model for each. One network with three heads reads the table, picks the hand and values the moves; exact rules feed it facts and check its move. That design is [One model for the middle](#one-model-for-the-middle), and where it and the layer-by-layer text disagree, it wins.
+
 This page also says where the design is weak, which layers should be rules and which a model, and what has to be measured before any of it is built. Two things in the first draft were wrong and are corrected here: that choosing the hand before the model chooses would by itself return Neural Cat's loss ([it won't](#1-masking-before-the-model-is-not-a-fix-by-itself)), and that the pipeline should hold exactly one hand ([it should hold two](#2-one-hand-is-too-few-early-in-the-hand)).
 
 ## Contents
 
 - [Why](#why)
+- [The reward: points](#the-reward-points)
+- [One model for the middle](#one-model-for-the-middle)
 - [How a decision is made today](#how-a-decision-is-made-today)
   - [Where each layer's work lives now](#where-each-layers-work-lives-now)
 - [The pipeline](#the-pipeline)
@@ -38,6 +42,29 @@ This page also says where the design is weak, which layers should be rules and w
 The coach said "Go for Half Flush in Characters" and threw a Character with a Bamboo in hand. The [contradiction check](../strategies/README.md#the-contradiction-check) (0.57.25) now stops that: a move that goes against the hand it builds toward gives way to the strategy's next choice. Measured head to head on 20,000 deals ([iterations](../machine-learning/iterations.md#head-to-head-with-the-check-against-without-it)), it gains Jorge Yau about 8 to 10 points a hand and Lucky Cat 12 to 14, and costs Neural Cat 9 to 16.
 
 The contradiction is a symptom. No layer picks a hand for the turn: each possible discard is scored against the best hand for the tiles left after it, so a discard can always disagree with "the hand". The check stays on for every strategy and model by decision. This design is about making it rarely needed, and about finding out why it costs Neural Cat points, which is not yet known.
+
+## The reward: points
+
+Decided by the maintainer (2026-11-09): **models are trained toward points**, on this game's payout table, as they have been. An earlier revision of this page made faan (capped at 13) the reward; that is withdrawn. The hand picker ranks hands by expected points, a model that scores predicts expected points, the lab's objective and the frontier's Table Score stay as they are, and a change is kept or rejected on points a hand.
+
+Faan is still worth reporting beside points in every benchmark: hands won, the average faan of a win, and deal-ins say how a player got its points, and a faan total is the one number that would carry to a house with a different payout table.
+
+## One model for the middle
+
+Decided by the maintainer (2026-11-09): one model, trained to do several layers, in place of a rule set or a model for each. That model is the frontier model, and its plan is [the frontier plan](../machine-learning/frontier-plan.md): how each layer falls out of a head, what it learns from, where it is weak, and the steps to make it strong. In short:
+
+```
+A. Facts (rules, exact)    tiles seen, legal moves, draws left; for each hand family:
+                           steps from ready, live tiles, the faan it would hold
+
+B. One model, three heads  one shared body, read twice a turn
+     once for the position: the table head (layer 0) and the hand head (layers 1, 2)
+     once for each legal move, given the hands just picked: the move head (layer 3)
+
+C. Check (rules)           the move against the hand head's main hand and backup (layer 4)
+```
+
+Five layers become three stages. The facts, the contradiction check and Jorge Yau stay rules. The rest of this page is the pipeline those stages fit into, and what it means for the rule strategies and today's models.
 
 ## How a decision is made today
 
@@ -139,6 +166,8 @@ What it forbids stays. What it checks against changes in two ways:
 
 ## Rules or a model, layer by layer
 
+**Read this table as the reasoning, not the plan.** It asks, layer by layer, whether a model could do the job, and its answer was a model in three places. [One model for the middle](#one-model-for-the-middle) takes those three and makes them heads of one network, and moves the pivot checker and attack-or-fold in with them, against the verdicts below. What that costs is in [its weak points](../machine-learning/frontier-plan.md#where-this-is-weak) (5 for folding). The verdicts for the facts and for the check stand.
+
 The test for each layer: is there a right answer that can be computed, or only one that can be estimated? Is there a label to learn from? Does the coach have to say why?
 
 | Layer | Verdict | Why |
@@ -203,8 +232,9 @@ A claim is a question for layers 1 and 2: with this meld, which hands would the 
 | Lucky Cat Classic | The shared picker | The shared checker | Rules |
 | Neural Cat | The shared picker (Jorge Yau's table) | The shared checker | Its model, reranking the best few |
 | Lucky Cat | The shared picker | The shared checker | Its network |
+| The new frontier model ([one model](#one-model-for-the-middle)) | Its hand head | Its hand head, a turn apart, and one margin | Its move head |
 
-A strategy is then a table (hands, order, weights, chains) and a discarder, not a set of hooks into the foundation.
+A rule strategy is then a table (hands, order, weights, chains) and a discarder, not a set of hooks into the foundation. Today's models keep the shared rule-made picker, because they have no hand of their own. The new frontier model brings its own, and uses none of the rule tables.
 
 ## The coach
 
@@ -225,7 +255,7 @@ Saved with the game and kept in the native simulator's seat memo. A claim being 
 ## Training and the native simulator
 
 - **Training data** records the move the pipeline played. It can also record the hands and the pivot, which is the label a learned chance-to-finish needs, and later a learned picker.
-- **The hand as a feature.** Neither model is told the hand. Giving it as input needs new data and a new model, so it is not part of this design; the pipeline makes it possible.
+- **The hand as a head, not a feature.** Neither of today's models is told the hand, and neither is changed. The new frontier model predicts the hand itself and feeds it to its move head ([one model](#one-model-for-the-middle)). Its data records, for every position, the hand the rules picked (the warm-start label) and, when the hand is over, the family and faan the seat won with.
 - **The native simulator** ports each change as it lands, with the parity check (every action identical to the JS) before it is pinned. Picking hands once a turn instead of once a discard should make a turn cheaper.
 
 ## Building it: measure, then experiment, then refactor
@@ -243,11 +273,16 @@ Saved with the game and kept in the native simulator's seat memo. A claim being 
 6. **A backup hand in the check** ([2](#2-one-hand-is-too-few-early-in-the-hand)).
 7. **Hand-first scoring for Jorge Yau only**, behind a switch: the hands picked once, the discards scored for them. This is the experiment that says whether the pipeline's central idea is right.
 
-**Then build what survived.**
+**Then the one model, smallest step first** ([one model for the middle](#one-model-for-the-middle)).
 
-8. **The pipeline as the shape of the result**: `decide()` returns the record above, and the coach reads it. Worth doing whatever the experiments say, because it ends the coach computing its own version of the hand.
-9. **One hand picker and one pivot checker**, with a table for each strategy and `seat.handState`, if 7 held.
-10. **The models' discarders on the pipeline**, last.
+8. **The hand head and the table heads on Neural Cat's network** ([the first step](../machine-learning/frontier-plan.md#the-first-step-is-small)). One round, judged on calibration by family and against the rules' pick.
+9. **The rest of [Making it strong](../machine-learning/frontier-plan.md#making-it-strong), in its order**, one change at a time against the benchmark's bar, trained on points with the check on.
+
+**And for the rule strategies and today's models, build what survived.**
+
+10. **The pipeline as the shape of the result**: `decide()` returns the record above, and the coach reads it. Worth doing whatever the experiments say, because it ends the coach computing its own version of the hand.
+11. **One rule-made hand picker and one pivot checker**, with a table for each rule strategy and `seat.handState`, if 7 held. It serves Jorge Yau, Lucky Cat Classic and today's models, and is the teacher for step 8; it is no longer where the models are headed.
+12. **Today's models' discarders on the pipeline**, last, and only if the new frontier model isn't close.
 
 Wiring the frontier's read of the opponents' hands into layer 0 is separate from all of this and can start at any time.
 
@@ -258,12 +293,14 @@ Wiring the frontier's read of the opponents' hands into layer 0 is separate from
 - **Pivots a hand**, with their reasons. More than about twice a hand is flip-flopping.
 - **Calibration**: the chance to finish against results, for each family, within a few points.
 - **The coach and the bot agree** on every hint, by construction, and by test.
-- **The frontier benchmark** is frozen at 0.57.9 and doesn't move; these are measured against today's players.
+- **The frontier benchmark** is frozen at 0.57.9 and doesn't move; it and its bar (two standard errors, twice) carry over from the cancelled plan to judge the new frontier model. The experiments on today's players are measured against today's players.
 
 ## Open questions
 
-- **Is hand-first better at all?** Experiment 7. If per-discard scoring with a good check plays as well, layers 1 and 2 are a tidier way to describe the bot, not a stronger way to play, and should be built only as far as the coach needs.
+- **Is hand-first better at all?** Experiment 7, for the rule strategies. If per-discard scoring with a good check plays as well, layers 1 and 2 are a tidier way to describe the bot, not a stronger way to play, and should be built only as far as the coach needs.
 - **How much is a backup worth?** Too little and it is ignored; too much and nothing is ever committed to. Today's share for backups is 0.12 of the best one or two; nobody has tuned it.
 - **Jorge Yau's order against expected points.** Keep his order as a table first, try the value second, and keep whichever wins.
 - **Lucky Cat's hand.** Its network never chose by a hand, and the check now makes it win 4 points fewer hands for 60% bigger wins. The points are up, but that is a different player from the one the lab has been training (points first, without losing wins). Whether the lab's bar should change with it is a call for the maintainer.
+- **Can a model pick a hand?** Step 8. If the hand head can't beat the rules' pick at naming the hand a seat wins with, the one model keeps two heads and the hand stays rules.
+- **How much does the move head lean on the hand head?** Too little and the two disagree (`checked` stays high); too much and a wrong hand early drags every move after it. The backup is the hedge, and its weight is learned, not set.
 - **Should folding name a hand?** It is a mode above the hand, and stays one. Whether the coach still says what the hand was going for is a wording question.

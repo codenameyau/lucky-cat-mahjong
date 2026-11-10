@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-/* Phase 1 of the frontier plan (docs/machine-learning/frontier-plan.md):
+/* Phase 1 of the frontier plan (docs/machine-learning/suphx-plan.md):
    rounds of training for the two lineages, on features v2 with the hidden
    tiles as targets, kept only by the benchmark's bar.
 
    node scripts/ml/frontier.js --lineage lucky-cat --rounds 4
    node scripts/ml/frontier.js --lineage sphinx --rounds 10
-   (npm run ml:frontier -- --lineage sphinx)
+   (npm run ml:suphx -- --lineage sphinx)
 
    Each round:
      1. generate  the champion plays (lucky.js generate --oracle --returns),

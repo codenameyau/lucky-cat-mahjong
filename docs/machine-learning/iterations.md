@@ -1181,7 +1181,7 @@ Eleven rounds with the targets trained 33 networks and tried 22 play settings. T
 
 **In this section:** [The plan and the benchmark](#the-plan-and-the-benchmark) · [Phase 0: the Suphx teacher](#phase-0-the-suphx-teacher) · [Phase 1: features v2 and the hidden tiles as targets](#phase-1-features-v2-and-the-hidden-tiles-as-targets) · [The native simulator](#the-native-simulator) · [Native-scale rounds (from 2026-11-09)](#native-scale-rounds-from-2026-11-09) · [Where it stands](#where-it-stands)
 
-The newest training idea, from 2026-11-08: make Lucky Cat the strongest Hong Kong mahjong player by taking apart what made Suphx strong (Li et al. 2020) and keeping only what fits Hong Kong rules. It has two lineages, **Lucky Cat** (generation 1 is still lc32, widened to the new features as `lc32v2`) and **Sphinx** (from random weights). No model has shipped from it yet: every candidate failed the benchmark's bar. The design is the [frontier plan](frontier-plan.md), the choices with their evidence are in the [frontier history](frontier-history.md), and what each step taught is in the plan's learnings.
+The newest training idea, from 2026-11-08: make Lucky Cat the strongest Hong Kong mahjong player by taking apart what made Suphx strong (Li et al. 2020) and keeping only what fits Hong Kong rules. It has two lineages, **Lucky Cat** (generation 1 is still lc32, widened to the new features as `lc32v2`) and **Sphinx** (from random weights). No model has shipped from it yet: every candidate failed the benchmark's bar. The design is the [frontier plan](suphx-plan.md), the choices with their evidence are in the [frontier history](frontier-history.md), and what each step taught is in the plan's learnings.
 
 ### The plan and the benchmark
 

@@ -1,5 +1,5 @@
 {
-  "about": "The two lineages of the frontier plan (docs/machine-learning/frontier-plan.md §9). A generation joins only through bench.js judge --promote. Models are pinned by git:<commit>:<path> once shipped, and by SHA-256.",
+  "about": "The two lineages of the frontier plan (docs/machine-learning/suphx-plan.md §9). A generation joins only through bench.js judge --promote. Models are pinned by git:<commit>:<path> once shipped, and by SHA-256.",
   "lineages": {
     "lucky-cat": {
       "about": "From lc32, the network that taught itself from random play; its own methods carried on. Releases lc33, lc34, ...",

@@ -37,6 +37,14 @@
                       Neural Cat, a table opponent)
      --record a,b,..  record only the seats playing these strategies
                       (default: every seat)
+     --native         play on the native simulator (native/, lcm-sim generate-nc):
+                      the same shard files as the JS writes, far faster. It
+                      needs --record <learner> for Neural Cat, --explore 0, a
+                      mixed lineup, and a pool the simulator has (neural-cat,
+                      ml:<file>, jorge-yau, lucky-cat). --exact uses the exact
+                      build, whose rows are the JS's byte for byte
+   npm run ml:generate -- parity --deals 200   checks that: the JS and the native
+                      simulator write the same bytes for the same deals
    only-orphans-rules (the rule-based Only Orphans, the baseline) can sit at
    any table too. */
 
@@ -47,7 +55,8 @@
    seat, strategy, wallLeft, explored as uint8 (bit 1: a random choice; bit 2:
    a position waiting for a tile, after a passed claim or a kong); delta as
    float32; deal seed
-   as uint32), and manifest.json describing both. */
+   as uint32), shard-N.aux (scripts/ml/heads.js: the hand and the table, for
+   the frontier model's extra heads) and manifest.json describing them. */
 
 'use strict';
 
@@ -63,6 +72,7 @@ const M = require('../../js/mahjong-ml-model.js');
 const ML = require('../../js/mahjong-ml.js');
 const OO = require('../../js/mahjong-only-orphans.js');
 const { addBaselines, MODEL_PREFIX } = require('./baselines/register.js');
+const H = require('./heads.js');
 
 const LABEL_BYTES = 16;
 const OUTCOMES = M.OUTCOMES;
@@ -127,6 +137,7 @@ async function runWorker(cfg) {
   const recorded = (id) => !cfg.record || cfg.record.indexOf(id) !== -1;
   const featFd = fs.openSync(path.join(cfg.out, 'shard-' + cfg.index + '.features'), 'w');
   const labelFd = fs.openSync(path.join(cfg.out, 'shard-' + cfg.index + '.labels'), 'w');
+  const auxFd = fs.openSync(path.join(cfg.out, 'shard-' + cfg.index + '.aux'), 'w');
   let samples = 0, hands = 0;
   const outcomes = OUTCOMES.map(() => 0);
   const t0 = Date.now();
@@ -143,6 +154,7 @@ async function runWorker(cfg) {
     const push = (g, s, id, x, explored) => records.push({
       seat: s, strategy: strategies.indexOf(id), explored: explored | 2,
       turn: g.hand.seats[s].discards.length, wallLeft: g.hand.wall.length, x,
+      aux: H.tableLabels(g, s, -1),
     });
     const waiting = (g, s, id, kind, tile, explored) => push(g, s, id, ML.waitingFeatures(cfg.mlBot, g, s, kind, tile), explored);
     const agents = ids.map((id, seat) => {
@@ -167,10 +179,17 @@ async function runWorker(cfg) {
               if (E.tileId(i) !== action.tile) { action = { type: 'discard', tile: E.tileId(i) }; explored = 1; }
             }
             if (state) {
+              // The hand the rules read for the tiles kept, and the table as it is now.
+              const index = E.tileIndex(action.tile);
+              const kept = state.counts.slice();
+              kept[index]--;
+              const analysis = cfg.mlBot.handUtility(kept, state.ctx);
+              const aux = H.tableLabels(g, s, index);
+              aux[0] = H.planHand(analysis && analysis.best && analysis.best.plan && analysis.best.plan.id);
               records.push({
                 seat: s, strategy: strategies.indexOf(id), explored,
                 turn: g.hand.seats[s].discards.length, wallLeft: g.hand.wall.length,
-                x: F.encode(state, E.tileIndex(action.tile)),
+                x: F.encode(state, index, analysis), aux,
               });
             }
             return action;
@@ -202,6 +221,8 @@ async function runWorker(cfg) {
     if (!records.length) continue;
     const feats = new Float16Array(records.length * F.SIZE);
     const labels = Buffer.alloc(records.length * LABEL_BYTES);
+    const aux = Buffer.alloc(records.length * H.AUX_BYTES);
+    const won = res.type === 'win' ? H.winHand(res.score) : H.NONE;
     records.forEach((r, k) => {
       feats.set(r.x, k * F.SIZE);
       const o = outcomeFor(res, r.seat);
@@ -217,14 +238,18 @@ async function runWorker(cfg) {
       labels.writeUInt8(r.explored, off + 7);
       labels.writeFloatLE(res.deltas[r.seat], off + 8);
       labels.writeUInt32LE(dealSeed, off + 12);
+      if (o === 0 || o === 1) r.aux[1] = won;
+      aux.set(r.aux, k * H.AUX_BYTES);
     });
     fs.writeSync(featFd, new Uint8Array(feats.buffer));
     fs.writeSync(labelFd, labels);
+    fs.writeSync(auxFd, aux);
     samples += records.length;
     if (cfg.progress && (d + 1) % cfg.progress === 0) parentPort.postMessage({ progress: d + 1, index: cfg.index });
   }
   fs.closeSync(featFd);
   fs.closeSync(labelFd);
+  fs.closeSync(auxFd);
   return { index: cfg.index, deals: cfg.deals, hands, samples, outcomes, ms: Date.now() - t0 };
 }
 
@@ -245,12 +270,86 @@ function parseArgs(argv) {
   return out;
 }
 
+// The same run on the native simulator: a function that plays one worker's
+// deals with lcm-sim generate-nc and resolves to what runWorker returns.
+function nativePlan(cfg, known, args) {
+  const N = require('./native.js');
+  const { execFile } = require('node:child_process');
+  const fail = (why) => { throw new Error('--native: ' + why); };
+  if (cfg.learner !== 'neural-cat') fail('only Neural Cat and the frontier model are ported');
+  if (cfg.lineup !== 'mix') fail('needs a mixed lineup (--lineup mix)');
+  if (cfg.explore) fail('needs --explore 0');
+  if (!cfg.record || cfg.record.length !== 1 || cfg.record[0] !== cfg.learner) fail('needs --record ' + cfg.learner);
+  if (cfg.topK !== undefined) fail("--top-k isn't ported: the model's own setting is used");
+  const pool = cfg.pool.map((id) => {
+    if (id === cfg.learner) return 'learner';
+    const n = id.startsWith('ml:') ? N.nativeId('nc:' + path.resolve(id.slice(3)))
+      : id === 'lucky-cat' ? N.nativeId('lc:js/mahjong-lucky-cat-weights.js') : N.nativeId(id);
+    if (!n) fail(id + " can't play on the native simulator (build it with make -C native; see docs/machine-learning/native.md)");
+    return n;
+  });
+  const weights = N.nativeId('nc:' + (cfg.weightsFile || 'js/mahjong-ml-weights.js'));
+  if (!weights) fail("Neural Cat can't play on the native simulator as it stands (node scripts/ml/native.js parity, then pin)");
+  const sim = path.join(__dirname, '..', '..', 'native', 'build', (args.exact ? 'lcm-sim-exact' : 'lcm-sim') + (process.platform === 'win32' ? '.exe' : ''));
+  // A finished shard is kept (shard-N.done.json says what made it): a run that was
+  // stopped part way picks up at the shards it hadn't finished.
+  const key = (c) => JSON.stringify([c.seed, c.deals, weights, pool, cfg.temperature, cfg.epsilon, cfg.sample, !!args.exact, E.GAME_VERSION]);
+  return (c) => new Promise((resolve, reject) => {
+    const done = path.join(cfg.out, 'shard-' + c.index + '.done.json');
+    try {
+      const was = JSON.parse(fs.readFileSync(done, 'utf8'));
+      if (was.key === key(c) && fs.existsSync(path.join(cfg.out, 'shard-' + c.index + '.features'))) return resolve(was.result);
+    } catch (e) { /* not there yet */ }
+    execFile(sim, ['generate-nc', '--weights', weights.slice(3), '--temperature', String(cfg.temperature), '--epsilon', String(cfg.epsilon),
+      '--sample', String(cfg.sample), '--seed', String(c.seed), '--deals', String(c.deals), '--shard', String(c.index),
+      '--strategy', String(known.indexOf(cfg.learner)), '--pool', pool.join(','), '--out', cfg.out], { maxBuffer: 1 << 24 },
+    (err, stdout, stderr) => {
+      if (err) return reject(new Error('lcm-sim generate-nc: ' + (stderr || err.message)));
+      const result = JSON.parse(stdout);
+      fs.writeFileSync(done, JSON.stringify({ key: key(c), result }));
+      resolve(result);
+    });
+  });
+}
+
+// parity: the JS and the native simulator (its exact build) write the same bytes.
+function parity(args) {
+  const { spawnSync } = require('node:child_process');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lcm-rows-'));
+  const deals = String(args.deals || 200);
+  const pool = String(args.pool || 'neural-cat,neural-cat,jorge-yau,lucky-cat');
+  const base = ['--deals', deals, '--workers', String(args.workers || 2), '--seed', String(args.seed || 4242), '--lineup', 'mix', '--pool', pool,
+    '--record', 'neural-cat', '--explore', '0', '--sample', String(args.sample || 0.3),
+    '--temperature', String(args.temperature || 150), '--epsilon', String(args.epsilon || 0.05)].concat(args.weights ? ['--weights', String(args.weights)] : []);
+  const run = (name, extra) => {
+    const r = spawnSync('node', [__filename].concat(base, ['--out', path.join(dir, name)], extra), { encoding: 'utf8' });
+    if (r.status) throw new Error(name + ' failed: ' + (r.stderr || r.stdout));
+  };
+  run('js', []);
+  run('native', ['--native', '--exact']);
+  let bytes = 0, bad = 0;
+  fs.readdirSync(path.join(dir, 'js')).filter((f) => f.startsWith('shard-')).sort().forEach((f) => {
+    const a = fs.readFileSync(path.join(dir, 'js', f));
+    const b = fs.existsSync(path.join(dir, 'native', f)) ? fs.readFileSync(path.join(dir, 'native', f)) : Buffer.alloc(0);
+    bytes += a.length;
+    if (a.equals(b)) return;
+    bad++;
+    let at = 0;
+    while (at < a.length && at < b.length && a[at] === b[at]) at++;
+    console.log('  ' + f + ': differs at byte ' + at + ' (JS ' + a.length + ' bytes, native ' + b.length + ')');
+  });
+  fs.rmSync(dir, { recursive: true, force: true });
+  if (bad) { console.log('generate parity: ' + bad + ' shard file' + (bad > 1 ? 's differ' : ' differs') + ' over ' + deals + ' deals'); process.exit(1); }
+  console.log('generate parity: the native simulator wrote the JS rows byte for byte (' + deals + ' deals, ' + bytes + ' bytes)');
+}
+
 function stamp() {
   return new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (process.argv[2] === 'parity') return parity(args);
   const learner = String(args.learner || 'neural-cat');
   if (!LEARNERS[learner]) throw new Error('unknown --learner ' + learner + ' (have: ' + Object.keys(LEARNERS).join(', ') + ')');
   const prefix = LEARNERS[learner].prefix;
@@ -280,17 +379,19 @@ async function main() {
     weightsFile: args.weights ? path.resolve(String(args.weights)) : null,
   };
 
-  console.log('Playing ' + deals + ' deals on ' + workers + ' worker' + (workers > 1 ? 's' : '') + ' into ' + out);
+  console.log('Playing ' + deals + ' deals on ' + workers + ' worker' + (workers > 1 ? 's' : '') + ' into ' + out + (args.native ? ' (native simulator)' : ''));
   const t0 = Date.now();
   const per = Math.ceil(deals / workers);
   const progress = new Array(workers).fill(0);
   let lastLog = 0;
   const jobs = [];
+  const native = args.native ? nativePlan(cfgBase, known, args) : null;
   for (let w = 0; w < workers; w++) {
     const first = w * per;
     const count = Math.min(per, deals - first);
     if (count <= 0) break;
     const cfg = Object.assign({}, cfgBase, { index: w, deals: count, seed: seed + first, progress: 50 });
+    if (native) { jobs.push(() => native(cfg)); continue; }
     jobs.push(new Promise((resolve, reject) => {
       const worker = new Worker(__filename, { workerData: cfg });
       worker.on('message', (m) => {
@@ -306,7 +407,7 @@ async function main() {
       worker.once('error', reject);
     }));
   }
-  const shards = await Promise.all(jobs);
+  const shards = native ? await require('./native.js').pool(jobs, workers) : await Promise.all(jobs);
   const total = shards.reduce((a, s) => a + s.samples, 0);
   const outcomes = OUTCOMES.map((_, i) => shards.reduce((a, s) => a + s.outcomes[i], 0));
   const manifest = {
@@ -320,12 +421,15 @@ async function main() {
       ['seat', 'u8'], ['strategy', 'u8'], ['wallLeft', 'u8'], ['explored', 'u8'],
       ['delta', 'f32'], ['dealSeed', 'u32'],
     ],
+    auxBytes: H.AUX_BYTES,
+    hands: H.HANDS,
     outcomes: OUTCOMES,
     strategies: known,
     gameVersion: E.GAME_VERSION,
     learner,
+    native: native ? (args.exact ? 'exact' : 'fast') : false,
     config: { deals, seed, lineup, pool, record: cfgBase.record, sample: cfgBase.sample, explore: cfgBase.explore, temperature: cfgBase.temperature, epsilon: cfgBase.epsilon, weights: cfgBase.weightsFile },
-    shards: shards.map((s) => ({ features: 'shard-' + s.index + '.features', labels: 'shard-' + s.index + '.labels', samples: s.samples, deals: s.deals })),
+    shards: shards.map((s) => ({ features: 'shard-' + s.index + '.features', labels: 'shard-' + s.index + '.labels', aux: 'shard-' + s.index + '.aux', samples: s.samples, deals: s.deals })),
     samples: total,
     ms: Date.now() - t0,
   };

@@ -1,6 +1,8 @@
 # Frontier work: history and decisions
 
-A record of the frontier work so far (from 2026-11-08): what was built, every decision taken and why, and what would make each one worth revisiting. The design itself is the [frontier plan](frontier-plan.md). What each step taught, with its evidence, is its §11 Learnings. This page is the short version: the order things happened in, and the choices.
+**The Suphx line was cancelled on 2026-11-09 as a failed experiment** ([why](suphx-plan.md#the-suphx-line-is-cancelled-2026-11-09)). The frontier plan is now [one model, three heads](frontier-plan.md). This page is the record of the line that ended.
+
+A record of the frontier work so far (from 2026-11-08): what was built, every decision taken and why, and what would make each one worth revisiting. The design itself is the [frontier plan](suphx-plan.md). What each step taught, with its evidence, is its §11 Learnings. This page is the short version: the order things happened in, and the choices.
 
 ## Contents
 
@@ -30,7 +32,7 @@ A record of the frontier work so far (from 2026-11-08): what was built, every de
 1. **The frontier plan** (2026-11-08). Suphx, taken apart against Hong Kong rules, argued through four rounds of critique, ending in phases with bars to pass and reasons to stop. Two lineages: Lucky Cat (from lc32) and Sphinx (from random weights).
 2. **Phase 0, the Suphx teacher.** Built as the lab's `lucky-cat-suphx`: the hidden tiles say which discards would deal in now, and a teacher pushes them down. It became the per-move teacher every phase-1 arm trains with.
 3. **The benchmark.** A frozen table pinned by SHA-256 and a fingerprint, a fixed deck, the Table Score, and `bench.js judge` for the bar. Its PR was merged as #202.
-4. **Phase 1 built.** Features v2 (854 inputs), auxiliary heads that learn the hidden tiles as targets, and the round driver `npm run ml:frontier`.
+4. **Phase 1 built.** Features v2 (854 inputs), auxiliary heads that learn the hidden tiles as targets, and the round driver `npm run ml:suphx`.
 5. **Lucky Cat rounds 1–3.** 9 arms: the best (LV1a, +7.6 at its screen) failed the judgment's own screen at +4.3. The heads learned to read the table (deal-in AUC 0.87 → 0.92, waits 0.52 → 0.61), but play didn't change: the nine screens averaged −0.4 points a hand.
 6. **Sphinx rounds 1–2.** Imitating its own rare wins in self-play made it win five times as often and deal in far more: SP1a, SP1b, SP1c and SP2a each lost about 43 points a hand to random play.
 7. **Policy-gradient probes** (PG1–PG3). Training on what hands scored, with the heads and the teacher. PG2 and PG3 passed the screen (+8.1, +5.7), then failed to qualify (−2.4, −2.6).
@@ -113,9 +115,11 @@ Each with why, and the evidence. Dates are when it was decided.
 - **Contained:** under the hybrid only training data and screens play on the fast build. The action-level check covers the exact build. Both builds share every line except the arithmetic, and a test checks that the fast build plays the exact build's hands.
 - **Revisit:** if a screen's verdict ever sits right at 1 SE, or a result must reproduce to the decimal, use `bench.js compare --exact`.
 
-Details are in the [frontier plan](frontier-plan.md) §6b.
+Details are in the [frontier plan](suphx-plan.md) §6b.
 
 ## What would reopen each decision
+
+**The whole line (cancelled 2026-11-09):** nothing below is planned. A teacher-pushed policy, a from-scratch lineage or search would be asked again only of the new frontier model, and only once it has a value that beats Neural Cat's.
 
 - **Search (3b and 4):** once phase 3 exists, a 32–64-world search at decisive late-hand choices, with phase 3's value and policy playing the futures; it ships as an opt-in "thinks longer" setting only at ≥ +20 points a hand within 1.5 s a move. As a teacher (3b), the same search at the choices the value is least sure of. The native simulator makes 64 worlds cost less than 4 did in JS.
 - **Sphinx:** restart with a recipe that learns defence: the per-move deal-in teacher at full weight, joining the table earlier, or the per-move value of phase 3.
