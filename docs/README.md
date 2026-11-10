@@ -21,7 +21,6 @@ The folders, most important first:
 | [Strategies](#strategies) | The bots and the coach: the shared foundation every rule and model strategy builds on, each strategy's playbook, the contradiction check, and competitions |
 | [Architecture](#architecture) | The evaluation architecture: one pipeline every strategy and the coach run for every decision, with one model for the middle layers, and points as the reward |
 | [Offline](#offline) | The service worker: which pages work with no connection, how the latest files win while online, and releasing a version |
-| [Analytics](#analytics) | Google Analytics: what's tracked, what's never collected, and every event the site sends |
 
 ## Machine learning
 
@@ -74,7 +73,3 @@ How each bot plays, and how the coach follows a strategy.
 ## Offline
 
 - [Offline](offline/README.md): the service worker `/sw.js`. Which pages and files it saves, how it answers each request, staying up to date and releasing a new version, retiring the old game worker, and testing.
-
-## Analytics
-
-- [Analytics](analytics/README.md): Google Analytics 4. Setup, privacy (what's never collected), how events are sent, reading the data, adding an event, every event, and testing.

@@ -27,7 +27,7 @@ test('every page that loads Google Analytics skips it on local addresses', () =>
     const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
     assert.match(html, /G-B514HH987M/, page + ' loads Google Analytics');
     assert.match(html, /if \(!localHost\) \{/, page + ' only loads it off a local address');
-    assert.match(html, /function gtag\(\)\{ if \(!localHost\) dataLayer\.push\(arguments\); \}/, page + ' sends nothing from a local address');
+    assert.match(html, /function gtag\(\)\{ if \(!localHost\) dataLayer\.push\(arguments\); else \(window\.lcmLocalEvents = window\.lcmLocalEvents \|\| \[\]\)\.push\(\[\]\.slice\.call\(arguments\)\); \}/, page + ' sends nothing from a local address, and keeps the calls locally');
     // The script tag isn't in the page itself: it's added only when not local.
     assert.doesNotMatch(html, /<script async src="https:\/\/www\.googletagmanager\.com/, page + ' has no always-on tag');
   });
