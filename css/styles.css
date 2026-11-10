@@ -579,6 +579,98 @@ h1, h2, h3 {
   opacity: 0.6;
 }
 
+/* Footer: Privacy Policy and Cookie Settings (Cookie Settings opens the banner from js/analytics-id.js). */
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.25rem 0.6rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+}
+
+.footer-link {
+  padding: 0.35rem 0.25rem;
+  border: 0;
+  background: none;
+  color: rgba(255, 255, 255, 0.85);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.footer-link:hover,
+.footer-link:focus-visible {
+  color: #fff;
+}
+
+.footer-links-sep {
+  opacity: 0.5;
+}
+
+/* The cookie banner (js/analytics-id.js), shown where consent comes first, or from Cookie Settings. */
+.cookie-banner {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + var(--mobile-bar-offset, 0px) + env(safe-area-inset-bottom, 0px));
+  z-index: 1000;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  width: min(960px, calc(100% - 32px));
+  padding: 1rem 1.15rem;
+  transform: translateX(-50%);
+  background: var(--color-surface, #fff);
+  color: var(--color-text, #1a1a1a);
+  border: 1px solid rgba(var(--color-primary-rgb, 196, 30, 58), 0.2);
+  border-radius: var(--radius, 12px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+  font-family: var(--font-body, sans-serif);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.cookie-banner[hidden] {
+  display: none;
+}
+
+.cookie-banner-text {
+  flex: 1 1 260px;
+  margin: 0;
+}
+
+.cookie-banner-text a {
+  color: var(--color-primary, #c41e3a);
+  font-weight: 600;
+}
+
+.cookie-banner-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.cookie-banner-btn {
+  min-height: 40px;
+  padding: 0.45rem 1.1rem;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cookie-banner-accept {
+  border-color: var(--color-primary, #c41e3a);
+  background: var(--color-primary, #c41e3a);
+  color: #fff;
+}
+
 /* Sticky header */
 .site-header {
   position: sticky;
