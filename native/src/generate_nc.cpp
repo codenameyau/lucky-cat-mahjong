@@ -109,11 +109,14 @@ static const int OPT_BYTES = 56;
 enum OptKind : uint8_t { O_DISCARD, O_KONG, O_PASS, O_PUNG, O_CHOW, O_CALL_KONG };
 struct Opt {
   OptKind kind; std::vector<float> x;
+  int action = -1;  // Lucky Cat's output for the move (generate-lcv's policy files), else -1
   Decision first; bool hasThen = false; Decision then;  // the seat's forced decisions: the move, and a discard after a call
 };
 struct OptGroup {
   uint8_t seat, strategy; bool atClaim; int from = -1, tile = NO_TILE, melds = 0;
   std::shared_ptr<Game> snap; std::vector<Opt> opts; int chosen = -1;
+  // generate-lcv: the policy's features of the position and the legal moves' outputs.
+  std::vector<float> px; std::vector<int> legal;
 };
 
 static void cloneMemos(Game& g) { for (auto& s : g.hand.seats) if (s.botState) s.botState = s.botState->clone(); }
@@ -570,12 +573,18 @@ struct LcvRecorder : Agent {
       G.snap = snapshot(g);
       auto moves = lc->turnShares(g, seat, o);
       auto order = byShare(moves);
-      for (int k = 0; k < int(order.size()) && k < options; k++) G.opts.push_back(turnOpt(g, seat, moves[order[k]].decision));
+      for (int k = 0; k < int(order.size()) && k < options; k++) { G.opts.push_back(turnOpt(g, seat, moves[order[k]].decision)); G.opts.back().action = moves[order[k]].action; }
+      G.px.resize(lucky::SIZE_V1); lucky::encode(g, seat, nullptr, 1, G.px.data());
+      for (auto& m : moves) G.legal.push_back(m.action);
       grp = &G;
     }
     Decision a = inner ? inner->turn(g, seat, o) : lc->turn(g, seat, o);
     if (keep && (a.type == A_DISCARD || a.type == A_KONG)) push(g, seat, lucky::afterTurn(g, seat, a), a.type == A_DISCARD ? a.tile : -1);
-    if (grp) settle(*grp, a, [&](Opt& op) { if (a.type != A_DISCARD && a.type != A_KONG) return false; op = turnOpt(g, seat, a); return true; });
+    if (grp) settle(*grp, a, [&](Opt& op) {
+      if (a.type != A_DISCARD && a.type != A_KONG) return false;
+      op = turnOpt(g, seat, a); op.action = a.type == A_KONG ? 34 + a.tile : a.tile;
+      return true;
+    });
     return a;
   }
   Decision claim(Game& g, int seat, const ClaimOptions& o) override {
@@ -588,12 +597,20 @@ struct LcvRecorder : Agent {
       G.seat = uint8_t(seat); G.strategy = strategy; G.atClaim = true; G.from = o.from; G.tile = o.tile;
       G.melds = int(g.hand.seats[seat].melds.size());
       G.snap = snapshot(g);
-      for (auto& m : lucky::claimMoves(o)) { Opt op; if (claimOpt(G, g, seat, o, m.decision, op)) G.opts.push_back(std::move(op)); }
+      auto cm = lucky::claimMoves(o);
+      for (auto& m : cm) { Opt op; if (claimOpt(G, g, seat, o, m.decision, op)) { op.action = m.action; G.opts.push_back(std::move(op)); } }
+      lucky::Offer offer{o.tile, o.from, o.robKong};
+      G.px.resize(lucky::SIZE_V1); lucky::encode(g, seat, &offer, 1, G.px.data());
+      for (auto& m : cm) G.legal.push_back(m.action);
       if (G.opts.size() < 2) groups->pop_back(); else grp = &G;
     }
     Decision d = inner ? inner->claim(g, seat, o) : lc->claim(g, seat, o);
     if (keep && (d.type == A_PASS || d.type == A_KONG)) push(g, seat, lucky::afterCall(g, seat, o, d), -1);
-    if (grp) settle(*grp, d, [&](Opt& op) { return claimOpt(*grp, g, seat, o, d, op); });
+    if (grp) settle(*grp, d, [&](Opt& op) {
+      if (!claimOpt(*grp, g, seat, o, d, op)) return false;
+      for (auto& m : lucky::claimMoves(o)) if (sameMove(m.decision, d)) op.action = m.action;
+      return true;
+    });
     return d;
   }
 };
@@ -633,7 +650,18 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
   FILE* fo = job.optionReplays > 0 ? std::fopen((base + ".options").c_str(), "wb") : nullptr;
   FILE* fol = job.optionReplays > 0 ? std::fopen((base + ".optlabels").c_str(), "wb") : nullptr;
   if (!ff || !fl || !fa || (job.optionReplays > 0 && (!fo || !fol))) throw std::runtime_error("generate-lcv: can't write " + base);
-  long samples = 0, hands = 0, optionRows = 0, optionGroups = 0, outcomes[6] = {0, 0, 0, 0, 0, 0};
+  // Lucky Cat's policy files (ml/train_lucky.py --mode q): at each option group, the policy's
+  // features, the legal moves, the moves tried (the one played first) and each one's share of
+  // replays won.
+  static const int SLOTS = 8;
+  FILE* px = nullptr; FILE* pm = nullptr; FILE* pqa = nullptr; FILE* pq = nullptr; FILE* ph = nullptr; FILE* pa = nullptr; FILE* pw = nullptr;
+  if (job.optionReplays > 0) {
+    px = std::fopen((base + ".x.f16").c_str(), "wb"); pm = std::fopen((base + ".m.u1").c_str(), "wb");
+    pqa = std::fopen((base + ".qa.u1").c_str(), "wb"); pq = std::fopen((base + ".q.f4").c_str(), "wb");
+    ph = std::fopen((base + ".h.u4").c_str(), "wb"); pa = std::fopen((base + ".a.u1").c_str(), "wb"); pw = std::fopen((base + ".w.f4").c_str(), "wb");
+    if (!px || !pm || !pqa || !pq || !ph || !pa || !pw) throw std::runtime_error("generate-lcv: can't write " + base + " (policy files)");
+  }
+  long samples = 0, hands = 0, optionRows = 0, optionGroups = 0, policyRows = 0, outcomes[6] = {0, 0, 0, 0, 0, 0};
   for (long d = 0; d < job.deals; d++) {
     uint32_t dealSeed = uint32_t(job.seed + d);
     Agent* agents[4]; Agent* real[4];
@@ -679,6 +707,7 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
       std::vector<uint16_t> OX; std::vector<uint8_t> OL;
       for (auto& G : groups) {
         uint32_t gid = uint32_t(optionGroups++);
+        std::vector<double> winShare(G.opts.size(), 0);
         for (size_t k = 0; k < G.opts.size(); k++) {
           const Opt& op = G.opts[k];
           for (float v : op.x) OX.push_back(toHalf(v));
@@ -707,16 +736,35 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
           std::memcpy(p + 16, &mean, 4); std::memcpy(p + 20, &dealSeed, 4);
           OL.insert(OL.end(), p, p + OPT_BYTES);
           optionRows++;
+          winShare[k] = double(p[9] + p[10]) / job.optionReplays;
         }
+        // The policy's row: the played move first, then the others tried.
+        if (G.px.empty() || G.chosen < 0 || G.opts[G.chosen].action < 0) continue;
+        std::vector<uint16_t> hx; for (float v : G.px) hx.push_back(toHalf(v));
+        std::fwrite(hx.data(), 2, hx.size(), px);
+        uint8_t mask[10] = {0};
+        for (int a : G.legal) mask[a >> 3] |= uint8_t(1 << (a & 7));
+        std::fwrite(mask, 1, 10, pm);
+        uint8_t qa[SLOTS]; float q[SLOTS];
+        for (int k = 0; k < SLOTS; k++) { qa[k] = 255; q[k] = 0; }
+        int n = 0;
+        qa[n] = uint8_t(G.opts[G.chosen].action); q[n++] = float(winShare[G.chosen]);
+        for (size_t k = 0; k < G.opts.size() && n < SLOTS; k++) if (int(k) != G.chosen && G.opts[k].action >= 0) { qa[n] = uint8_t(G.opts[k].action); q[n++] = float(winShare[k]); }
+        std::fwrite(qa, 1, SLOTS, pqa); std::fwrite(q, 4, SLOTS, pq);
+        std::fwrite(&dealSeed, 4, 1, ph);
+        uint8_t a0 = qa[0]; std::fwrite(&a0, 1, 1, pa);
+        float w1 = 1; std::fwrite(&w1, 4, 1, pw);
+        policyRows++;
       }
       std::fwrite(OX.data(), 2, OX.size(), fo); std::fwrite(OL.data(), 1, OL.size(), fol);
     }
   }
   std::fclose(ff); std::fclose(fl); std::fclose(fa);
   if (fo) { std::fclose(fo); std::fclose(fol); }
+  if (px) { std::fclose(px); std::fclose(pm); std::fclose(pqa); std::fclose(pq); std::fclose(ph); std::fclose(pa); std::fclose(pw); }
   long ms = long(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count());
-  std::printf("{\"index\":%d,\"deals\":%ld,\"hands\":%ld,\"samples\":%ld,\"replayed\":0,\"optionRows\":%ld,\"optionGroups\":%ld,\"outcomes\":[%ld,%ld,%ld,%ld,%ld,%ld],\"ms\":%ld}\n",
-              job.shard, job.deals, hands, samples, optionRows, optionGroups, outcomes[0], outcomes[1], outcomes[2], outcomes[3], outcomes[4], outcomes[5], ms);
+  std::printf("{\"index\":%d,\"deals\":%ld,\"hands\":%ld,\"samples\":%ld,\"policyRows\":%ld,\"replayed\":0,\"optionRows\":%ld,\"optionGroups\":%ld,\"outcomes\":[%ld,%ld,%ld,%ld,%ld,%ld],\"ms\":%ld}\n",
+              job.shard, job.deals, hands, samples, policyRows, optionRows, optionGroups, outcomes[0], outcomes[1], outcomes[2], outcomes[3], outcomes[4], outcomes[5], ms);
   return 0;
 }
 

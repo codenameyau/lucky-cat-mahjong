@@ -55,6 +55,11 @@ const LC32 = 'js/mahjong-lucky-cat-weights.js';
 const OUTCOMES = ['winSelf', 'winDiscard', 'dealIn', 'otherSelf', 'otherWin', 'draw'];
 
 const RECIPES = {
+  // The policy itself, taught from the option replays (ml/train_lucky.py --mode q): the
+  // champion's shares tilted toward the moves whose replays won more often, by --tau
+  // (a share of replays won). No value: the policy plays alone, as LC32 does.
+  p: { what: 'the policy, tilted toward the moves that won more replays (tau 0.05)', policy: true, tau: '0.05' },
+  t: { what: 'the same, gentler (tau 0.15)', policy: true, tau: '0.15' },
   a: { what: 'value from option replays and real endings, with the ranking loss', args: ['--options', '--rank-weight', '1'] },
   s: { what: 'the same, stacked: the value reads the reader', args: ['--options', '--rank-weight', '1'], stacked: true },
   c: { what: 'value from real endings only (the control)', args: [] },
@@ -120,6 +125,9 @@ async function makeData(dir, champ, r, a, log) {
     samples: shards.reduce((t, s) => t + s.samples, 0),
   };
   writeJson(manifest, m);
+  // Lucky Cat's own trainer reads the policy rows (shard-N.x.f16 and the rest) through meta.json.
+  writeJson(path.join(dir, 'meta.json'), { featureVersion: 1, featureSize: 376, rollouts: { slots: 8 }, objective: 'win',
+    policyRows: shards.reduce((t, s) => t + (s.policyRows || 0), 0) });
   log('Round ' + r + ': ' + m.samples + ' positions, ' + shards.reduce((t, s) => t + s.optionGroups, 0) + ' option groups');
   return m;
 }
@@ -158,7 +166,7 @@ async function main() {
   // The ranking loss's softmax temperature, in the value's units: 3,000 points of
   // win bonus is a 3% chance to win.
   const rankTemp = winObjective ? String(0.03 * play.winBonus) : '100';
-  const recipes = String(a.recipes || 'a,s,c').split(',');
+  const recipes = String(a.recipes || (winObjective ? 'p,t,a' : 'a,s,c')).split(',');
 
   // The reader: the heads on the round's data.
   const reader = path.join('ml', 'models', 'LVR' + r);
@@ -167,9 +175,27 @@ async function main() {
     train(['--data', data, '--name', 'LVR' + r, '--hidden', '512,256', '--heads', '--head-weight', '0.5', '--lr', '1e-3', '--epochs', '12', '--patience', '3'], log);
   }
   const models = [];
+  // The champion's policy as JSON, for --init.
+  const champPolicy = path.join('ml', 'models', 'LV' + r + '-init.json');
+  if (!fs.existsSync(path.join(ROOT, champPolicy))) {
+    const w = require('./weights.js').readWeights(champ);
+    const pol = Object.assign({}, w); delete pol.value;
+    fs.writeFileSync(path.join(ROOT, champPolicy), JSON.stringify(pol));
+  }
   for (const k of recipes) {
     const rec = RECIPES[k];
     const name = 'LVv' + r + k, packed = path.join('ml', 'models', 'LV' + r + k + '.json');
+    if (rec.policy) {
+      if (!fs.existsSync(path.join(ROOT, packed))) {
+        log('Round ' + r + ': training LV' + r + k + ' [' + rec.what + ']');
+        const res = spawnSync(PYTHON, ['ml/train_lucky.py', '--mode', 'q', '--data'].concat(sets.filter((d) => fs.existsSync(path.join(ROOT, d, 'meta.json'))),
+          ['--name', 'LV' + r + k, '--init', champPolicy, '--tau', rec.tau, '--reward-clip', '1', '--lr', '3e-4', '--epochs', '4']), { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 });
+        if (res.status) throw new Error('train_lucky.py failed: ' + (res.stderr || '').slice(-1500) + (res.stdout || '').slice(-800));
+        log('  ' + (res.stdout || '').trim().split('\n').filter((l) => /epoch|choices/.test(l)).slice(-3).join(' | ').slice(0, 600));
+      }
+      models.push({ name: 'LV' + r + k, file: packed, recipe: k, alive: true, n: 0, sum: 0, sq: 0 });
+      continue;
+    }
     if (!fs.existsSync(path.join(ROOT, packed))) {
       log('Round ' + r + ': training ' + name + ' [' + rec.what + ']');
       train(['--data'].concat(rec.stacked ? [data] : sets, ['--name', name, '--hidden', '512,256']).concat([ '--lr', '1e-3', '--epochs', '12', '--patience', '3', '--win-bonus', String(play.winBonus), '--rank-temp', rankTemp])
