@@ -5451,11 +5451,52 @@
       return { kind: 'button', key: decision.type };
     }
 
+    // Lesson analytics: how far people get. Each of the player's moves sends
+    // play_lesson_step (move 1 to 8); a first wrong try on a move sends
+    // play_lesson_wrong_move; leaving before the end sends play_lesson_exit.
+    var lessonTrack = null;
+
+    function lessonSeconds() {
+      return lessonTrack ? Math.round((Date.now() - lessonTrack.started) / 1000) : 0;
+    }
+
+    function startLessonTracking() {
+      lessonTrack = { started: Date.now(), wrong: 0, wrongTotal: 0, done: false };
+      track('play_lesson_start', { moves: Lesson.MOVES });
+    }
+
+    // The lesson ended before its hand did: quit from the menu (how: quit) or the page closed (how: leave).
+    function trackLessonExit(how) {
+      if (!settings.lesson || !lessonTrack || lessonTrack.done || !game) return;
+      lessonTrack.done = true;
+      var at = Lesson.progress(game);
+      track('play_lesson_exit', {
+        move: at.move, moves: at.moves, next_action: at.next || 'none', how: how,
+        seconds: lessonSeconds(), wrong_tries: lessonTrack.wrongTotal, transport_type: 'beacon',
+      });
+    }
+
     function lessonAllows(kind, decision, target) {
       if (!settings.lesson) return true;
       if (Lesson.accept(game, 0, kind, decision)) {
-        track('play_lesson_step', { step: game.lessonStep });
+        var at = Lesson.progress(game);
+        track('play_lesson_step', {
+          step: game.lessonStep, move: at.move, moves: at.moves, action: decision.type,
+          seconds: lessonSeconds(), wrong_tries: lessonTrack ? lessonTrack.wrong : 0,
+        });
+        if (lessonTrack) lessonTrack.wrong = 0;
         return true;
+      }
+      if (lessonTrack) {
+        lessonTrack.wrong++;
+        lessonTrack.wrongTotal++;
+        if (lessonTrack.wrong === 1) {
+          var now0 = Lesson.progress(game);
+          track('play_lesson_wrong_move', {
+            move: now0.move + 1, moves: now0.moves, expected: now0.next || 'none', tried: decision.type,
+            mistake: decision.type === now0.next ? 'wrong_tile' : 'wrong_action',
+          });
+        }
       }
       var where = lessonTarget(decision, target);
       ui.shake = { kind: where.kind, key: where.key, start: now() };
@@ -7806,6 +7847,7 @@
         if (settings.lesson) {
           Lesson.prepare(game);
           ui.coach = 'on';
+          startLessonTracking();
         }
         ui.strategies = pickStrategies();
         ui.hintLists = {};
@@ -7869,7 +7911,13 @@
           faan: res.type === 'win' ? res.score.faan : 0,
           hand_number: ui.stats.hands, lesson: !!settings.lesson, mode: settings.mode,
         });
-        if (settings.lesson) track('play_lesson_complete', { result: res.type === 'win' && res.winner === 0 ? 'win' : 'other' });
+        if (settings.lesson) {
+          track('play_lesson_complete', {
+            result: res.type === 'win' && res.winner === 0 ? 'win' : 'other',
+            moves: Lesson.MOVES, seconds: lessonSeconds(), wrong_tries: lessonTrack ? lessonTrack.wrongTotal : 0,
+          });
+          if (lessonTrack) lessonTrack.done = true;
+        }
         var extra = null;
         if (settings.lesson && res.type === 'win' && res.winner === 0) extra = 'You won a Half Flush on East Wind.';
         else if (res.roundAdvanced) extra = 'The round wind is now ' + E.WIND_NAMES[game.round] + '.';
@@ -7910,6 +7958,7 @@
     // and timers, so auto-play would still be on; it never is after a load.
     var onPageLife = function (e) {
       if (e.type === 'pagehide' || e.persisted) stopAutoPlay();
+      if (e.type === 'pagehide') trackLessonExit('leave');
     };
     root.addEventListener('pageshow', onPageLife);
     root.addEventListener('pagehide', onPageLife);
@@ -8067,6 +8116,7 @@
         });
       },
       destroy: function () {
+        trackLessonExit('quit');
         destroyed = true;
         stopAutoPlay();
         root.removeEventListener('pageshow', onPageLife);
