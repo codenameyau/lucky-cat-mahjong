@@ -247,6 +247,17 @@ std::vector<CandP> NeuralCat::rerank(std::vector<CandP> out, Ctx& ctx, const Cou
   });
   ranked.insert(ranked.end(), out.begin() + k0, out.end());
   if (T.honorOrder && !folding) ranked = honorTieOrder(ranked, ctx, counts);
+  // No discard that goes against the hand it is building (Foundation::consistentFirst).
+  ranked = consistentFirst(ranked, g, counts, folding);
+  if (!ranked[0]->hasMl) {
+    static thread_local std::vector<float> x1;
+    x1.resize(SIZE);
+    encode(st, ranked[0]->index, *ranked[0]->analysis, ranked[0]->loss, x1.data());
+    MlRead m = ev(x1.data());
+    Candidate& top = *ranked[0];
+    top.hasMl = true; top.mlEv = m.ev; top.mlPWin = m.pWin;
+    for (size_t k = 0; k < out.size(); k++) if (out[k] == ranked[0]) top.mlOrder = int(k);
+  }
   double best = -DINF;
   for (int k = 0; k < k0; k++) best = std::max(best, out[k]->mlEv);
   ranked[0]->mlBest = best;
@@ -298,6 +309,8 @@ Decision NeuralCat::chooseClaim(const Game& g, int seat, const ClaimOptions& opt
   pass.ml = waitingFeatures(g, seat, 0, opts.tile);
   choices.push_back(pass);
   for (auto& o : d.found.options) {
+    // Never a call that goes against the hand it's building (the contradiction check).
+    if (!claimConsistent(g, seat, &d.found, o.decision, opts.tile)) continue;
     MlRead ml;
     if (o.decision.type == A_KONG) ml = waitingFeatures(g, seat, 1, opts.tile);
     else {
@@ -306,6 +319,7 @@ Decision NeuralCat::chooseClaim(const Game& g, int seat, const ClaimOptions& opt
     }
     choices.push_back({o.decision, ml});
   }
+  if (choices.size() == 1) { Decision p; p.type = A_PASS; return p; }
   int at = 0;
   for (size_t k = 0; k < choices.size(); k++) if (sameDecision(choices[k].decision, d.decision)) at = int(k);
   int top = 0;
@@ -318,6 +332,10 @@ Decision NeuralCat::chooseTurnAction(const Game& g, int seat, const TurnOptions&
   Decision d = Foundation::chooseTurnAction(g, seat, opts);
   if (opts.hasWin || opts.kongs.empty()) return d;
   DiscardAnalysis a = analyzeDiscards(g, seat);
+  // Never a kong that goes against the hand it's building (the contradiction check).
+  std::vector<KongOption> kongs;
+  for (auto& kong : opts.kongs) if (!check || !kongContradicts(a.ctx.leadPlan.get(), kong.tile)) kongs.push_back(kong);
+  if (kongs.empty()) return d;
   const Candidate& keep = *a.candidates[0];
   struct Choice { Decision decision; MlRead ml; };
   std::vector<Choice> choices;
@@ -327,7 +345,7 @@ Decision NeuralCat::chooseTurnAction(const Game& g, int seat, const TurnOptions&
   first.ml.ev = keep.mlBest;  // keep.ml.best is always set on the top candidate
   first.ml.pWin = keep.mlPWin;
   choices.push_back(first);
-  for (auto& kong : opts.kongs) {
+  for (auto& kong : kongs) {
     Choice c;
     c.decision.type = A_KONG;
     c.decision.tile = kong.tile;

@@ -906,6 +906,43 @@
     return 'Mahjong! Win ' + how + ' with ' + win.faan + ' faan!';
   }
 
+  // The contradiction check. A discard contradicts the hand the coach names
+  // for it when it throws a tile that hand keeps while the hand still holds a
+  // tile that hand has no use for: "Go for Half Flush in Characters" with a
+  // Character thrown while a Bamboo or a Circle is still in hand. On hands of
+  // pungs and pairs, breaking a pair or a pung while a single is left does the
+  // same. A discard that leaves the hand ready never contradicts it. On
+  // Concealed Straights an honor pair (its eyes) and a dragon it holds back
+  // aren't tiles it has no use for.
+  function contradicts(v, c, x, route) {
+    if (!route || x.shanten === 0) return false;
+    var i = x.index;
+    if (i >= 27 && c[i] + B.revealedCopies(v.game, i) >= 4) return false;
+    var after = c.slice();
+    after[i]--;
+    if (route.id === 'triplets' || route.id === 'concealed-triplets' || route.id === 'pairs') {
+      if (c[i] < 2) return false;
+      for (var s = 0; s < 34; s++) if (after[s] === 1 && s !== i && !B.holdsDragon(v.game, s, x.shanten)) return true;
+      return false;
+    }
+    var keep = route.keep;
+    if (!keep || !keep(i)) return false;
+    for (var j = 0; j < 34; j++) {
+      if (!after[j] || keep(j)) continue;
+      if (B.holdsDragon(v.game, j, x.shanten) || (route.id === 'straights' && j >= 27 && after[j] >= 2)) continue;
+      return true;
+    }
+    return false;
+  }
+
+  // The first discard in the strategy's order that doesn't contradict its own
+  // advice; if every one does, the last of them.
+  function consistentPick(v, c, list, followed) {
+    var route = function (x) { return followed ? routeOf(followed) : x.plan && x.plan.route; };
+    for (var k = 0; k < list.length; k++) if (!contradicts(v, c, list[k], route(list[k]))) return list[k];
+    return list[list.length - 1];
+  }
+
   function turnHint(game, seat, opts) {
     var min = game.settings.minFaan;
     if (opts.win) return { kind: 'win', action: winDeclaration(opts.win, 'by self-draw'), tips: [] };
@@ -926,7 +963,8 @@
       }
     }
     var threats = list.threats;
-    var pick = list[0];
+    // While folding, safety decides: the hand isn't building anything.
+    var pick = list.folding ? list[0] : consistentPick(v, c, list, followed);
     var offenseTop = list.slice().sort(function (a, b) { return b.offense - a.offense; })[0];
     // lucky-cat's discard order only bends to its value read, so any gap
     // from the top offense pick is defense. Other strategies keep their own
@@ -1539,7 +1577,8 @@
     discardFeedback: fitted(discardFeedback), claimFeedback: fitted(claimFeedback), noteDiscard: noteDiscard,
     turnHint: fitted(turnHint), claimHint: fitted(claimHint), MAX_TEXT: MAX_TEXT, fit: fit,
     chance: chance, modelLine: modelLine, shape: shape, shapeFeedback: shapeFeedback, shapeNote: shapeNote, DETAILS: DETAILS, aimSentence: aimSentence,
-    rankDiscards: rankDiscards, look: look, highlightPatterns: highlightPatterns,
+    rankDiscards: rankDiscards,
+    contradicts: contradicts, look: look, highlightPatterns: highlightPatterns,
   };
 
   // The same coach, saying what `bot` (a strategy from createStrategy)

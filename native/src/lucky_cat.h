@@ -4,6 +4,8 @@
 #pragma once
 #include "engine.h"
 #include "model.h"
+#include "bot.h"
+#include <memory>
 #include <functional>
 
 namespace lcm {
@@ -36,7 +38,14 @@ class LuckyCat : public Agent {
   std::function<double()> rng_;
   int version_, size_;
   std::vector<float> x_;
-  int decide(const Game& g, int seat, std::vector<Move>& moves);
+  // The shared foundation (Jorge Yau's, as js/mahjong-lucky-cat-ml.js reads it): the plan
+  // each move builds toward, for the contradiction check.
+  std::shared_ptr<Foundation> base_;
+ public:
+  bool check = true;  // the contradiction check (off only to measure it)
+ private:
+  int decide(const Game& g, int seat, std::vector<Move>& moves, const std::function<int(int)>& check);
+  static int firstConsistent(const std::vector<Move>& moves, int k, const std::function<bool(const Move&)>& ok);
   void policy(std::vector<Move>& moves);
 };
 

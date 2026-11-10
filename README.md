@@ -272,6 +272,8 @@ Over thousands of paired simulated hands, valuing hands at their real payout sco
 
 `js/mahjong-coach.js` thinks like an experienced Hong Kong player and explains itself in plain words. Moves are checked against the bots' tuned hand values. Over 4,000 simulated hands, following the coach played about as well as the bots (within the noise of the test).
 
+**It never contradicts itself.** Every hint passes the same contradiction check as every bot's moves: a discard, call or kong that goes against the hand it names ("Go for Half Flush in Characters" and then a Character thrown while a Bamboo is in hand) gives way to the strategy's next choice that doesn't. See [the contradiction check](docs/strategies/README.md#the-contradiction-check).
+
 The Coach button in the top bar cycles three modes, and all of them work in every layout:
 
 - **Coach on** — Says what to do and why

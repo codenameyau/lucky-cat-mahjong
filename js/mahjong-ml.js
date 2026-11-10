@@ -203,6 +203,8 @@
       if (bot.tuning.honorOrder && !folding) ranked = B.honorTieOrder(ranked, ctx, counts);
       var k = pickIndex(ranked, k0);
       if (k) ranked.unshift(ranked.splice(k, 1)[0]);
+      // No discard that goes against the hand it is building (MahjongBot.consistentFirst).
+      ranked = B.consistentFirst(ranked, game, counts, folding);
       if (!ranked[0].ml) { // a random discard the fast mode didn't read
         ranked[0].features = F.encode(state, ranked[0].index, ranked[0].analysis, ranked[0].loss);
         ranked[0].ml = getModel().ev(ranked[0].features);
@@ -264,13 +266,15 @@
       var choices = [{ decision: { type: 'pass' }, ml: read(waitingFeatures(bot, game, seat, 'pass', opts.tile)) }];
       found.options.forEach(function (o) {
         if (claimOk && !claimOk(o, opts, game, seat)) return;
+        // Never a call that goes against the hand it's building (the contradiction check).
+        if (!bot.claimConsistent(game, seat, opts, found, o.decision)) return;
         var ml = o.decision.type === 'kong' ? read(waitingFeatures(bot, game, seat, 'kong', opts.tile)) : o.ml;
         if (!ml) return;
         if (ml.best != null) ml = Object.assign({}, ml, { ev: ml.best });
         choices.push({ decision: o.decision, discard: o.discard, ml: ml });
       });
       // Nothing it may call: it passes.
-      if (claimOk && choices.length === 1) {
+      if (choices.length === 1) {
         found.ml = finish(choices, 0, 0);
         return { decision: { type: 'pass' }, found: found };
       }
@@ -288,7 +292,11 @@
       var d = baseTurn(game, seat, opts);
       var kongs = opts.kongs && kongAllowed ? opts.kongs.filter(function (k) { return kongAllowed(k, game, seat); }) : opts.kongs;
       if (!claims || opts.win || !kongs || !kongs.length) return { decision: d, choices: null };
-      var keep = bot.analyzeDiscards(game, seat).candidates[0];
+      var analysis = bot.analyzeDiscards(game, seat);
+      // Never a kong that goes against the hand it's building (the contradiction check).
+      kongs = kongs.filter(function (k) { return !B.kongContradicts(analysis.ctx.leadPlan, k.tile); });
+      if (!kongs.length) return { decision: d, choices: null };
+      var keep = analysis.candidates[0];
       var discard = d.type === 'discard' ? d : { type: 'discard', tile: keep.tile };
       var choices = [{ decision: discard, ml: Object.assign({}, keep.ml, { ev: keep.ml.best != null ? keep.ml.best : keep.ml.ev }) }];
       kongs.forEach(function (kong) {

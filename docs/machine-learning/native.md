@@ -32,6 +32,8 @@ Once it's built, nothing else changes. `make -C native pgo` rebuilds the fast bu
 | `scripts/ml/oracle.js`, `lucky.js generate`'s worker | `native/src/generate.*` |
 | `bench.js` `playWork` | `lcm-sim play` |
 
+The contradiction check is ported with the foundation, Neural Cat and Lucky Cat (which runs the foundation's analysis for its seat to check each move against). `lcm-sim` takes `id~nocheck` to play a player without it, to measure it: with every player's check off, the build plays exactly as before the check.
+
 Not ported: the classic Lucky Cat rules, Only Orphans, oracle-guided models (`--oracle-delta`), rollouts, exploration (temperature or epsilon) for Neural Cat. A job that needs one runs in JS.
 
 ## The same results

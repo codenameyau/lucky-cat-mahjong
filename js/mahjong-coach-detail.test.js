@@ -39,12 +39,15 @@ test('Complex never says "almost no chance to win": under 1% it leaves the chanc
 });
 
 test('Detailed leaves out the score and says why in plain words', () => {
+  let because = 0;
   for (const seed of [3, 5, 9, 29]) {
     const h = hintFor('neural-cat', 'detailed', seed);
     assert.doesNotMatch(words(h), /model expects|score|chance to win/, 'seed ' + seed);
-    assert.match(words(h), /I pick it because it /, 'seed ' + seed);
+    // A pick the contradiction check moved (an honor on Concealed Straights) has no model reason to give.
+    if ((h.modelWhy || []).length) { assert.match(words(h), /I pick it because it /, 'seed ' + seed); because++; }
     assert.ok(words(h).length <= Coach.MAX_TEXT);
   }
+  assert.ok(because >= 2, because + ' of 4 said why');
 });
 
 test('Simple is the action and the hand to go for, with no reason and never the score', () => {

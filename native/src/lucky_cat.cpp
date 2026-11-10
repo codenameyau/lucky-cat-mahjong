@@ -162,7 +162,7 @@ std::vector<Move> claimMoves(const ClaimOptions& o) {
 }  // namespace lucky
 
 LuckyCat::LuckyCat(std::shared_ptr<Mlp> model, double temperature, std::function<double()> rng)
-    : model_(std::move(model)), temperature_(temperature), rng_(std::move(rng)) {
+    : model_(std::move(model)), temperature_(temperature), rng_(std::move(rng)), base_(std::make_shared<Foundation>("jorge-yau")) {
   const Weights& w = model_->weights();
   version_ = w.featureVersion;
   size_ = version_ == 2 ? lucky::SIZE_V2 : lucky::SIZE_V1;
@@ -181,7 +181,18 @@ void LuckyCat::policy(std::vector<Move>& moves) {
   for (auto& m : moves) m.p /= sum;
 }
 
-int LuckyCat::decide(const Game& g, int seat, std::vector<Move>& moves) {
+// The network's pick first, then its other moves by share; the first that doesn't
+// contradict the hand it builds toward, or the last if all do.
+int LuckyCat::firstConsistent(const std::vector<Move>& moves, int k, const std::function<bool(const Move&)>& ok) {
+  std::vector<int> order;
+  for (int j = 0; j < int(moves.size()); j++) if (j != k) order.push_back(j);
+  std::sort(order.begin(), order.end(), [&](int a, int b) { return moves[a].p != moves[b].p ? moves[a].p > moves[b].p : a < b; });
+  order.insert(order.begin(), k);
+  for (int j : order) if (ok(moves[j])) return j;
+  return order.back();
+}
+
+int LuckyCat::decide(const Game& g, int seat, std::vector<Move>& moves, const std::function<int(int)>& check) {
   policy(moves);
   int k = 0;
   if (temperature_) {
@@ -195,6 +206,7 @@ int LuckyCat::decide(const Game& g, int seat, std::vector<Move>& moves) {
   } else {
     for (size_t j = 0; j < moves.size(); j++) if (moves[j].p > moves[k].p) k = int(j);
   }
+  if (check) k = check(k);
   if (onDecision) onDecision(g, seat, x_.data(), moves, k);
   return k;
 }
@@ -203,7 +215,17 @@ Decision LuckyCat::turn(Game& g, int seat, const TurnOptions& o) {
   if (o.hasWin) { Decision d; d.type = A_WIN; return d; }
   auto moves = lucky::turnMoves(g.hand.seats[seat].hand, o.kongs);
   lucky::encode(g, seat, nullptr, version_, x_.data());
-  return moves[decide(g, seat, moves)].decision;
+  auto check = [&](int k) {
+    DiscardAnalysis a = base_->analyzeDiscards(g, seat);
+    Counts counts = countsOf(g.hand.seats[seat].hand);
+    return firstConsistent(moves, k, [&](const Move& m) {
+      if (m.decision.type == A_KONG) return !Foundation::kongContradicts(a.ctx.leadPlan.get(), m.decision.tile);
+      if (m.decision.type != A_DISCARD || a.folding) return true;
+      for (auto& x : a.candidates) if (x->index == m.decision.tile) return !base_->contradicts(g, counts, *x);
+      return true;
+    });
+  };
+  return moves[decide(g, seat, moves, this->check ? std::function<int(int)>(check) : std::function<int(int)>())].decision;
 }
 
 Decision LuckyCat::claim(Game& g, int seat, const ClaimOptions& o) {
@@ -211,9 +233,20 @@ Decision LuckyCat::claim(Game& g, int seat, const ClaimOptions& o) {
   if (o.hasWin) { d.type = A_WIN; return d; }
   if (!o.pung && !o.kong && o.chows.empty()) return d;
   auto moves = lucky::claimMoves(o);
+  if (!this->check) {
+    lucky::Offer offer0{o.tile, o.from, o.robKong};
+    lucky::encode(g, seat, &offer0, version_, x_.data());
+    return moves[decide(g, seat, moves, std::function<int(int)>())].decision;
+  }
+  Foundation::Decided found = base_->decideClaim(g, seat, o);
   lucky::Offer offer{o.tile, o.from, o.robKong};
   lucky::encode(g, seat, &offer, version_, x_.data());
-  return moves[decide(g, seat, moves)].decision;
+  auto check = [&](int k) {
+    return firstConsistent(moves, k, [&](const Move& m) {
+      return base_->claimConsistent(g, seat, found.hasFound ? &found.found : nullptr, m.decision, o.tile);
+    });
+  };
+  return moves[decide(g, seat, moves, check)].decision;
 }
 
 }  // namespace lcm

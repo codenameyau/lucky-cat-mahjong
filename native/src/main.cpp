@@ -49,23 +49,35 @@ static std::vector<std::string> split(const std::string& s, char sep) {
   return out;
 }
 
+static std::unique_ptr<Agent> makeAgentChecked(const std::string& id, bool check);
+// id~nocheck: the same player without the contradiction check (to measure it).
 static std::unique_ptr<Agent> makeAgent(const std::string& id) {
+  const std::string off = "~nocheck";
+  if (id.size() > off.size() && id.compare(id.size() - off.size(), off.size(), off) == 0) return makeAgentChecked(id.substr(0, id.size() - off.size()), false);
+  return makeAgentChecked(id, true);
+}
+
+static std::unique_ptr<Agent> makeAgentChecked(const std::string& id, bool check) {
   if (id == "simple") return std::unique_ptr<Agent>(new SimpleAgent());
-  if (id == "jorge-yau") return std::unique_ptr<Agent>(new BotAgent(std::make_shared<Foundation>("jorge-yau")));
+  if (id == "jorge-yau") { auto f = std::make_shared<Foundation>("jorge-yau"); f->check = check; return std::unique_ptr<Agent>(new BotAgent(f)); }
   // Neural Cat: its weights as .lcmw (scripts/ml/weights.js export), shared by every seat that plays it.
   if (id == "neural-cat" || id.rfind("nc:", 0) == 0) {
     static std::map<std::string, std::shared_ptr<Mlp>> models;
     std::string file = id == "neural-cat" ? "native/build/neural-cat.lcmw" : id.substr(3);
     auto& m = models[file];
     if (!m) m = std::make_shared<Mlp>(loadWeights(file));
-    return std::unique_ptr<Agent>(new BotAgent(std::make_shared<NeuralCat>(m)));
+    auto f = std::make_shared<NeuralCat>(m);
+    f->check = check;
+    return std::unique_ptr<Agent>(new BotAgent(f));
   }
   // Lucky Cat: lc:<file.lcmw>, features v1 or v2 (scripts/ml/native.js converts a .json model).
   if (id.rfind("lc:", 0) == 0) {
     static std::map<std::string, std::shared_ptr<Mlp>> models;
     auto& m = models[id];
     if (!m) m = std::make_shared<Mlp>(loadWeights(id.substr(3)));
-    return std::unique_ptr<Agent>(new LuckyCat(m));
+    auto lc = std::unique_ptr<LuckyCat>(new LuckyCat(m));
+    lc->check = check;
+    return std::unique_ptr<Agent>(lc.release());
   }
   throw std::runtime_error("lcm-sim: no agent " + id);
 }
