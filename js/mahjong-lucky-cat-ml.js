@@ -37,6 +37,9 @@
   var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
   var Base = node ? require('./mahjong-bot.js') : root.MahjongBot;
   var L = node ? require('./mahjong-lucky-cat.js') : root.MahjongLuckyCat;
+  // The shared foundation (as Jorge Yau and Neural Cat play it): the plan each move builds
+  // toward, for the contradiction check and the coach's words. The native simulator has it too.
+  var J = node ? require('./mahjong-jorge-yau.js') : root.MahjongJorgeYau;
   var N = node ? require('./mahjong-lucky-cat-net.js') : root.MahjongLuckyCatNet;
 
   function shippedWeights() {
@@ -63,9 +66,10 @@
     var rng = options.rng || Math.random;
     var fast = !!options.fast;
 
-    // The coach's helpers (buildContext and the rest) come from the
-    // classic rules; every decision below is the network's.
-    var bot = Object.create(L);
+    // The coach's helpers (buildContext and the rest) come from the shared
+    // foundation; every decision below is the network's, checked against
+    // the plan the foundation reads for it (the contradiction check).
+    var bot = Object.create(J);
     bot.id = 'lucky-cat';
     Object.defineProperty(bot, 'model', { get: getModel, enumerable: true });
     bot.learned = true;
@@ -89,12 +93,41 @@
     // game never sets it, so play sees only the seat's view.
     var features = options.features || null;
 
-    function decide(game, seat, x, moves) {
+    // `check(k)` is the contradiction check: the move it settles on is the one
+    // played, and the one training records.
+    function decide(game, seat, x, moves, check) {
       var f = features ? features(game, seat, x) : null;
       getModel().policy(f ? f.x : x, moves);
       var k = pick(moves);
+      if (check) k = check(k);
       if (bot.onDecision) bot.onDecision({ seat: seat, features: f ? f.record : x, moves: moves, pick: k });
       return k;
+    }
+
+    // The network's pick first, then its other moves by share; the first that
+    // doesn't contradict the hand it builds toward, or the last if all do.
+    function firstConsistent(moves, k, ok) {
+      var order = moves.map(function (m, j) { return j; })
+        .sort(function (a, b) { return moves[b].p - moves[a].p || a - b; })
+        .filter(function (j) { return j !== k; });
+      order.unshift(k);
+      for (var n = 0; n < order.length; n++) if (ok(moves[order[n]])) return order[n];
+      return order[order.length - 1];
+    }
+
+    function turnCheck(game, seat) {
+      return function (k) {
+        var res = J.analyzeDiscards(game, seat);
+        var counts = E.countsOf(game.hand.seats[seat].hand);
+        var byTile = {};
+        res.candidates.forEach(function (x) { byTile[x.tile] = x; });
+        return firstConsistent(this.moves, k, function (m) {
+          if (m.decision.type === 'kong') return !Base.kongContradicts(res.ctx.leadPlan, m.decision.tile);
+          if (m.decision.type !== 'discard' || res.folding) return true;
+          var x = byTile[m.decision.tile];
+          return !x || !Base.contradicts(game, counts, x);
+        });
+      };
     }
 
     function share(m) { return { policy: m.p, ev: m.p, choice: true }; }
@@ -103,7 +136,7 @@
 
     function turnRead(game, seat, opts) {
       var moves = N.turnMoves(game.hand.seats[seat].hand, opts.kongs);
-      var k = decide(game, seat, net.encode(game, seat), moves);
+      var k = decide(game, seat, net.encode(game, seat), moves, turnCheck(game, seat).bind({ moves: moves }));
       return { moves: moves, k: k };
     }
 
@@ -121,30 +154,21 @@
       return { decision: decision, choices: choices, pick: at, foundation: at };
     };
 
-    // In the game (not the fast training and benchmark runs), a discard that
-    // contradicts the hand the classic rules read for it gives way to the
-    // network's next one that doesn't (MahjongBot.consistentFirst), as the
-    // coach says.
-    function consistentDiscard(game, seat, decision) {
-      if (fast || decision.type !== 'discard') return decision;
-      var res = bot.analyzeDiscards(game, seat);
-      var mine = res.candidates.filter(function (x) { return x.tile === decision.tile; })[0];
-      if (!mine || res.folding || !Base.contradicts(game, E.countsOf(game.hand.seats[seat].hand), mine)) return decision;
-      return { type: 'discard', tile: res.candidates[0].tile };
-    }
-
     bot.chooseTurnAction = function (game, seat, opts) {
       if (opts.win) return { type: 'win' };
       var r = turnRead(game, seat, opts);
-      return consistentDiscard(game, seat, r.moves[r.k].decision);
+      return r.moves[r.k].decision;
     };
 
     /* Claims --------------------------------------------------------- */
 
     function claimRead(game, seat, opts) {
       var moves = N.claimMoves(opts);
-      var k = decide(game, seat, net.encode(game, seat, null, opts), moves);
-      return { moves: moves, k: k };
+      var found = J.decideClaim(game, seat, opts).found || { options: [] };
+      var k = decide(game, seat, net.encode(game, seat, null, opts), moves, function (k0) {
+        return firstConsistent(moves, k0, function (m) { return J.claimConsistent(game, seat, opts, found, m.decision); });
+      });
+      return { moves: moves, k: k, found: found };
     }
 
     bot.chooseClaim = function (game, seat, opts) {
@@ -160,7 +184,7 @@
       if (opts.win) return { decision: { type: 'win' }, found: null };
       if (!opts.pung && !opts.kong && !(opts.chows || []).length) return { decision: { type: 'pass' }, found: null };
       var r = claimRead(game, seat, opts);
-      var found = fast ? { options: [] } : (L.decideClaim(game, seat, opts).found || { options: [] });
+      var found = r.found;
       found.ml = {
         choices: r.moves.map(function (m) { return { decision: m.decision, ml: share(m) }; }),
         pick: r.k,
@@ -174,7 +198,7 @@
     // The classic rules' read of every discard (for the coach's words),
     // in the order of the network's shares.
     bot.analyzeDiscards = function (game, seat, ctx, hand) {
-      var res = L.analyzeDiscards(game, seat, ctx, hand);
+      var res = J.analyzeDiscards(game, seat, ctx, hand);
       var held = hand || game.hand.seats[seat].hand;
       var moves = N.turnMoves(held, []);
       getModel().policy(net.encode(game, seat, { hand: held, melds: ctx ? ctx.melds : null }), moves);

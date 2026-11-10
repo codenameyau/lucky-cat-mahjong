@@ -221,6 +221,13 @@ class Foundation {
   bool deadTile(const Game& g, int i);
   struct Decided { Decision decision; bool hasFound = false; ClaimFound found; };
   Decided decideClaim(const Game& g, int seat, const ClaimOptions& o);
+  Decided decideClaimRaw(const Game& g, int seat, const ClaimOptions& o);
+  // The contradiction check (js/mahjong-bot.js).
+  bool contradicts(const Game& g, const Counts& counts, const Candidate& x);
+  std::vector<CandP> consistentFirst(const std::vector<CandP>& out, const Game& g, const Counts& counts, bool folding);
+  bool claimContradicts(const ClaimFound& found, const Ctx& ctx, const Decision& d, int tile);
+  bool claimConsistent(const Game& g, int seat, const ClaimFound* found, const Decision& d, int tile);
+  static bool kongContradicts(const Plan* plan, int tile);
   std::vector<CandP> honorTieOrder(const std::vector<CandP>& out, const Ctx& ctx, const Counts& c);
 
  protected:
@@ -255,8 +262,7 @@ class Foundation {
   int suitCommitment(const Ctx& ctx, const Counts& counts);
   int keptHonorPair(const Counts& counts, const Ctx& ctx);
   bool holdsDragon(const Game& g, int i, int shanten);
-  bool contradicts(const Game& g, const Counts& counts, const Candidate& x);
-  std::vector<CandP> consistentFirst(const std::vector<CandP>& out, const Game& g, const Counts& counts, bool folding);
+
   bool loneDragon(const Game& g, const Counts& counts, int i);
   bool chowOfAnotherSuit(const Ctx& ctx, int i);
   bool sharedPriority(const Game& g, const Ctx& ctx, const Counts& counts, const Candidate& cand, double& out);

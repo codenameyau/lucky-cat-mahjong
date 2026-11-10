@@ -2435,6 +2435,8 @@
     var plan = x.analysis && x.analysis.best && x.analysis.best.plan;
     if (!plan) return false;
     var i = x.index;
+    // An honor with every other copy out can't become anything: throwing it never contradicts.
+    if (i >= 27 && counts[i] + revealedCopies(game, i) >= 4) return false;
     var after = counts.slice();
     after[i]--;
     if (plan.id === 'triplets' || plan.id === 'concealed-triplets' || plan.id === 'pairs') {
@@ -2451,6 +2453,41 @@
       return true;
     }
     return false;
+  }
+
+  // Hands built concealed: any claim breaks them.
+  var CONCEALED_PLANS = ['pairs', 'orphans', 'gates', 'concealed-triplets', 'straights'];
+
+  // A claim contradicts the hand being built (the plan if it passes) when that
+  // hand can't take it: a hand built concealed (Seven Pairs, Thirteen Orphans,
+  // Nine Gates, Concealed Triplets, Concealed Straights), or a meld of tiles
+  // the hand doesn't keep (a Bamboo chow on a Half Flush in Characters). A win
+  // never contradicts, nor a pung or kong of a dragon or scoring wind, except
+  // on Thirteen Orphans.
+  function claimContradicts(found, ctx, decision, tile) {
+    if (!decision || decision.type === 'pass' || decision.type === 'win') return false;
+    var plan = found && found.stay && found.stay.best && found.stay.best.plan;
+    if (!plan) return false;
+    var ti = E.tileIndex(tile);
+    if (plan.id === 'orphans') return true;
+    if ((decision.type === 'pung' || decision.type === 'kong') && ti >= 27 && valueWeight(ctx, ti) > 0) return false;
+    if (CONCEALED_PLANS.indexOf(plan.id) !== -1) return true;
+    var keep = planKeep(plan);
+    if (!keep) return false;
+    var tiles = [ti];
+    if (decision.type === 'chow') decision.tiles.forEach(function (t) { tiles.push(E.tileIndex(t)); });
+    return tiles.some(function (t) { return !keep(t); });
+  }
+
+  // A kong on your own turn contradicts the hand it builds toward (the lead
+  // plan) when that hand can't hold it: Seven Pairs, Thirteen Orphans, Nine
+  // Gates and Concealed Straights, or a tile the hand doesn't keep.
+  function kongContradicts(plan, tile) {
+    if (!plan) return false;
+    var id = plan.id;
+    if (id === 'pairs' || id === 'orphans' || id === 'gates' || id === 'straights' || id === 'runs') return true;
+    var keep = planKeep(plan);
+    return !!keep && !keep(E.tileIndex(tile));
   }
 
   // Every strategy's last check (not while folding: safety decides then): the
@@ -2477,6 +2514,7 @@
     for (var k = 0; k < opts.kongs.length; k++) {
       var kong = opts.kongs[k];
       if (H.kongOk && !H.kongOk(kong, ctx)) continue;
+      if (kongContradicts(ctx.leadPlan, kong.tile)) continue;
       var i = E.tileIndex(kong.tile);
       var c = E.countsOf(game.hand.seats[seat].hand);
       var util;
@@ -2540,7 +2578,24 @@
     return { options: out, passScore: passScore, stay: stay };
   }
 
+  // Every claim decision goes through the contradiction check (claimContradicts).
+  // A big hand the claim builds (a hard target, isHardTarget) is the hand it names, so a
+  // claim of that hand's tiles is consistent with it.
+  function claimConsistent(game, seat, opts, found, decision) {
+    if (!found || !decision || decision.type === 'pass' || decision.type === 'win') return true;
+    var ctx = buildContext(game, seat);
+    var target = liveUpgrade(E.countsOf(game.hand.seats[seat].hand), ctx);
+    if (target && target.hard && target.keep(E.tileIndex(opts.tile))) return true;
+    return !claimContradicts(found, ctx, decision, opts.tile);
+  }
+
   function decideClaim(game, seat, opts) {
+    var d = decideClaimRaw(game, seat, opts);
+    if (!claimConsistent(game, seat, opts, d.found, d.decision)) return { decision: { type: 'pass' }, found: d.found };
+    return d;
+  }
+
+  function decideClaimRaw(game, seat, opts) {
     if (opts.win) return { decision: { type: 'win' }, found: null };
     if (!opts.pung && !opts.kong && !opts.chows.length) return { decision: { type: 'pass' }, found: null };
     var res = claimCandidates(game, seat, opts);
@@ -2785,9 +2840,12 @@
     analyzeDiscards: analyzeDiscards,
     chooseTurnAction: chooseTurnAction,
     contradicts: contradicts,
+    claimContradicts: claimContradicts,
+    kongContradicts: kongContradicts,
     consistentFirst: consistentFirst,
     chooseClaim: chooseClaim,
     decideClaim: decideClaim,
+    claimConsistent: claimConsistent,
     claimCandidates: claimCandidates,
     createBotAgent: createBotAgent,
   };

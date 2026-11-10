@@ -1149,7 +1149,8 @@ describe('jorge-yau attack, big-hand lock and late defense', () => {
           const dead = [];
           for (let t = 27; t < 34; t++) if (c[t] === 1 && ctx.unseen[t] === 0) dead.push(t);
           const lock = g.hand.seats[seat].bigHandLock;
-          if (dead.length && lock !== 'orphans') assert.ok(dead.includes(i), g.hand.seats[seat].hand.join(' '));
+          // (While folding, safety decides instead.)
+          if (dead.length && lock !== 'orphans' && !N.analyzeDiscards(g, seat).folding) assert.ok(dead.includes(i), g.hand.seats[seat].hand.join(' '));
           assert.equal(typeof coach.turnHint(g, seat, { kongs: [] }).tile, 'string');
           assert.ok(!lock || lock === lockBefore || ctx.turn <= 8, 'locked after turn 8');
           return action;

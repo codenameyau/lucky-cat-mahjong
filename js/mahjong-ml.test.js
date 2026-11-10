@@ -184,14 +184,15 @@ describe('Neural Cat strategy', () => {
 
   it('weighs claims and kongs in expected points, and the coach says so', async () => {
     const Coach = require('./mahjong-coach.js').forStrategy(ML);
-    let claims = 0, kongs = 0;
+    let claims = 0, kongs = 0, said = false;
     const agent = {
       turn(g, s, o) {
         const r = ML.kongChoice(g, s, o);
         if (r.choices) {
           kongs++;
           assert.equal(r.choices[0].decision.type, 'discard');
-          assert.equal(r.choices.length, o.kongs.length + 1);
+          // Kongs that go against the hand it's building aren't choices (the contradiction check).
+          assert.ok(r.choices.length >= 2 && r.choices.length <= o.kongs.length + 1);
           assert.deepEqual(r.decision, r.choices[r.pick].decision);
           // The model's pick is worth the most, or it's the foundation's.
           const top = Math.max.apply(null, r.choices.map((x) => x.ml.ev));
@@ -213,7 +214,8 @@ describe('Neural Cat strategy', () => {
           const top = Math.max.apply(null, read.choices.map(val));
           assert.ok(read.pick === read.foundation || val(read.choices[read.pick]) === top);
           read.choices.forEach((x) => assert.ok(Number.isFinite(x.ml.ev) && !x.ml.features));
-          if (claims === 1) {
+          if (read.choices.length > 1 && !said) {
+            said = true;
             const hint = Coach.claimHint(g, s, o);
             assert.match(hint.model, /^On average, the model expects /);
           }

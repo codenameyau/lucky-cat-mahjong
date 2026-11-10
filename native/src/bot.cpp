@@ -407,6 +407,7 @@ bool Foundation::contradicts(const Game& g, const Counts& counts, const Candidat
   const Plan* plan = an && an->hasBest ? an->best.plan.get() : nullptr;
   if (!plan) return false;
   int i = x.index;
+  if (i >= 27 && counts[i] + revealedCopies(g, i) >= 4) return false;
   Counts after = counts;
   after[i]--;
   if (plan->kind == P_TRIPLETS || plan->kind == P_CONCEALED_TRIPLETS || plan->kind == P_PAIRS) {
@@ -428,6 +429,43 @@ bool Foundation::contradicts(const Game& g, const Counts& counts, const Candidat
     return true;
   }
   return false;
+}
+
+static bool planKeepMask(const Plan* plan, Mask& keep) {
+  if (plan->hasKeep) { keep = plan->keep; return true; }
+  if (plan->kind == P_HALF) { keep = halfMask(plan->suit); return true; }
+  if (plan->kind == P_FULL) { keep = suitMask(plan->suit); return true; }
+  if (plan->kind == P_STRAIGHTS || plan->kind == P_RUNS) { keep = M_NUMBERS; return true; }
+  return false;
+}
+
+bool Foundation::claimContradicts(const ClaimFound& found, const Ctx& ctx, const Decision& d, int tile) {
+  if (d.type == A_PASS || d.type == A_WIN) return false;
+  const Plan* plan = found.stay.hasBest ? found.stay.best.plan.get() : nullptr;
+  if (!plan) return false;
+  if (plan->kind == P_ORPHANS) return true;
+  if ((d.type == A_PUNG || d.type == A_KONG) && tile >= 27 && valueWeight(ctx, tile) > 0) return false;
+  if (plan->kind == P_PAIRS || plan->kind == P_GATES || plan->kind == P_CONCEALED_TRIPLETS || plan->kind == P_STRAIGHTS) return true;
+  Mask keep;
+  if (!planKeepMask(plan, keep)) return false;
+  if (!inMask(keep, tile)) return true;
+  if (d.type == A_CHOW) for (int t : d.tiles) if (!inMask(keep, t)) return true;
+  return false;
+}
+
+// The foundation's liveUpgrade never has a hard target with Jorge Yau's hooks (they always set a target).
+bool Foundation::claimConsistent(const Game& g, int seat, const ClaimFound* found, const Decision& d, int tile) {
+  if (!found || d.type == A_PASS || d.type == A_WIN) return true;
+  Ctx ctx = buildContext(g, seat);
+  return !claimContradicts(*found, ctx, d, tile);
+}
+
+bool Foundation::kongContradicts(const Plan* plan, int tile) {
+  if (!plan) return false;
+  PlanKind k = plan->kind;
+  if (k == P_PAIRS || k == P_ORPHANS || k == P_GATES || k == P_STRAIGHTS || k == P_RUNS) return true;
+  Mask keep;
+  return planKeepMask(plan, keep) && !inMask(keep, tile);
 }
 
 std::vector<CandP> Foundation::consistentFirst(const std::vector<CandP>& out, const Game& g, const Counts& counts, bool folding) {
@@ -1809,6 +1847,7 @@ Decision Foundation::chooseTurnAction(const Game& g, int seat, const TurnOptions
   Ctx& ctx = analysis.ctx;
   for (auto& kong : opts.kongs) {
     if (!jyKongOk(kong, ctx)) continue;
+    if (kongContradicts(ctx.leadPlan.get(), kong.tile)) continue;
     int i = kong.tile;
     Counts c = countsOf(g.hand.seats[seat].hand);
     double util;
@@ -1903,6 +1942,12 @@ bool Foundation::chowAllowed(const ClaimOption& o, const ClaimFound& res, const 
 }
 
 Foundation::Decided Foundation::decideClaim(const Game& g, int seat, const ClaimOptions& opts) {
+  Decided d = decideClaimRaw(g, seat, opts);
+  if (!claimConsistent(g, seat, d.hasFound ? &d.found : nullptr, d.decision, opts.tile)) { d.decision = Decision(); d.decision.type = A_PASS; }
+  return d;
+}
+
+Foundation::Decided Foundation::decideClaimRaw(const Game& g, int seat, const ClaimOptions& opts) {
   Decided out;
   if (opts.hasWin) { out.decision.type = A_WIN; return out; }
   if (!opts.pung && !opts.kong && opts.chows.empty()) { out.decision.type = A_PASS; return out; }

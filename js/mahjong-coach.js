@@ -917,6 +917,7 @@
   function contradicts(v, c, x, route) {
     if (!route || x.shanten === 0) return false;
     var i = x.index;
+    if (i >= 27 && c[i] + B.revealedCopies(v.game, i) >= 4) return false;
     var after = c.slice();
     after[i]--;
     if (route.id === 'triplets' || route.id === 'concealed-triplets' || route.id === 'pairs') {
