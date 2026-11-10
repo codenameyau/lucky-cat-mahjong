@@ -22,6 +22,16 @@ describe('the first game', () => {
     assert.match(Lesson.hint({ lessonStep: 0 }).action, /1 Character/);
   });
 
+  it('counts the player\'s own moves for analytics: 8 of them, and names the next', () => {
+    assert.equal(Lesson.MOVES, 8);
+    assert.deepEqual(Lesson.progress({ lessonStep: 0 }), { move: 0, moves: 8, next: 'discard' });
+    // After the first discard, the three other seats play, then the chow.
+    assert.deepEqual(Lesson.progress({ lessonStep: 1 }), { move: 1, moves: 8, next: 'chow' });
+    assert.deepEqual(Lesson.progress({ lessonStep: 4 }), { move: 1, moves: 8, next: 'chow' });
+    assert.deepEqual(Lesson.progress({ lessonStep: 5 }), { move: 2, moves: 8, next: 'discard' });
+    assert.deepEqual(Lesson.progress({ lessonStep: 16 }), { move: 8, moves: 8, next: null });
+  });
+
   it('wins a Half Flush by taking East Wind', async () => {
     const game = E.createGame({ dealer: 0, mode: 'practice', seed: 1 });
     Lesson.prepare(game);
