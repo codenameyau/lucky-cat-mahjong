@@ -42,6 +42,7 @@
      --deals N      deals a round (default 200000)
      --seeds N      models a recipe (default 3)
      --window N     rounds of data a model trains on, and that are kept (default 3)
+     --keep N       keep N rounds of data, if more than the window
      --stages a,b   deals of each screen stage (default 4000,16000,40000)
      --drop X       drop a model behind by more than X standard errors (default 1)
      --keep X       a recipe is a candidate ahead by more than X (default 2)
@@ -165,6 +166,8 @@ async function main() {
   // Every seat is recorded (as the lab does) unless --learner-only: rounds 1 to 3 recorded the
   // champion's seats alone, and every model trained on that fell behind it.
   const learnerOnly = !!a['learner-only'];
+  // Data kept: the window, or more (--keep N rounds), so a shipped model's data stays.
+  const keepRounds = Math.max(parseInt(a.window || 3, 10), parseInt(a.keep || 0, 10));
   const sample = parseFloat(a.sample || (learnerOnly ? 0.3 : 0.12));
   const replays = a.replays ? parseInt(a.replays, 10) : 0, replayShare = parseFloat(a['replay-share'] || 0.25);
   if (String(a.recipes) === 'replay' && !replays) throw new Error('--recipes replay needs --replays K');
@@ -254,7 +257,7 @@ async function main() {
     state.rounds.push({ round: r, data, champion: champ, recipeSet: String(a.recipes || 'heads'), reader: readerFile, recipes });
     writeJson(stateFile, state);
     // Data no round trains on any more goes to the Trash.
-    for (let k = 1; k <= r - window; k++) {
+    for (let k = 1; k <= r - keepRounds; k++) {
       const old = path.join(ROOT, 'ml', 'data', 'fm-' + k);
       if (!fs.existsSync(old)) continue;
       const to = path.join(os.homedir(), '.Trash', 'fm-' + k + '-' + Date.now());
