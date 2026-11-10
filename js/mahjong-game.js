@@ -2353,7 +2353,7 @@
 
     var COACH_OPTIONS = [
       { id: 'simple', name: 'Simple', note: 'What to do and the hand to go for with its faan.', example: 'Discard Two Bamboo. Go for Half Flush in Circles, about 5 faan.' },
-      { id: 'detailed', name: 'Detailed', note: 'What to do, the hand to go for, any threats at the table, and why I like the move. No numbers.', example: 'Discard Two Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. I like it because it keeps a bigger hand in reach.' },
+      { id: 'detailed', name: 'Detailed', note: 'What to do, the hand to go for, any threats at the table, and why the move fits. No numbers.', example: 'Discard Two Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. It keeps a bigger hand in reach.' },
       { id: 'complex', name: 'Complex', note: 'Everything, with each strategy\'s own numbers: a network\'s expected score, chance to win and next best choice, or a rule strategy\'s odds of finishing the hand.', example: 'Discard Two Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. The model expects +67 score on average from this discard, with a 3% chance to win (about 418 points). Next best discard is Six Bamboo: +48 score.' },
     ];
 
