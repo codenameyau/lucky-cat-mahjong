@@ -256,6 +256,15 @@ The lab's last two data sets (lab-15 and lab-16, 1.1 million positions from ever
 - *Changed:* the data hypothesis holds: recording every seat keeps the value from drifting. FLq1 (the reader, replayed labels, every-seat data) ships as Frontier Cat FC1, for play and review, as the whole new architecture in one model ([frontier report](frontier-report.md)).
 - *Open:* nothing tried overnight beats N14c. What the evidence points to next is in [the report](frontier-report.md#what-comes-next).
 
+### Every seat recorded on the native simulator (2026-11-10)
+
+- **Built, and byte for byte with the JS.**
+  - *Evidence:* `npm run ml:generate -- parity` over 1,000 deals (Neural Cat exploring, an earlier model, Jorge Yau and Lucky Cat in the pool): the same 32.4 MB of rows, every seat recorded and read through the learner, as `scripts/ml/generate.js` does by default. The learner-only mode still matches (13.4 MB). About 300 deals a second on 6 workers.
+- **One difference had to be found first: whose memory a seat's plan is kept under.**
+  - *Evidence:* the first try differed on a few rows of seats played by an earlier Neural Cat model, in the features (the plan of the tiles kept) and never in the labels (so play was the same). In JS each model keeps its memory of a seat's plan under its own name (`create({ id })`); in C++ every Neural Cat used `neural-cat`, the learner's name, so the learner reading that seat for training data saw the other model's memory.
+  - *Changed:* each `nc:<file>` agent in the simulator keeps its memory under its own name; the shipped `neural-cat` keeps `neural-cat`. Play is unchanged (every native parity check passes), and the rows now match.
+- *Changed:* the round driver records every seat by default (`--sample` 0.12, as the lab), and `--learner-only` gives the old behaviour.
+
 ### Step 4: a wider choice gains nothing (2026-11-10)
 
 N14c, the champion, scores Jorge Yau's best 6 discards (its `meta.play.topK`). The same weights scoring his best 10, and every legal discard, each against N14c on 40,000 fresh deals at the game's table (the native simulator):
