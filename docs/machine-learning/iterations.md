@@ -1294,13 +1294,13 @@ Points a hand, with the check minus without it. A 2,000-deal run in the JS engin
 #### What it taught
 
 - **Consistency pays for the rule strategy and for Lucky Cat.** Both gain about 8 to 14 points a hand from never going against their own hand.
-- **Overriding a model after it has chosen costs it.** Neural Cat loses 9 to 16 points a hand to the check as it stands. The check stays on for every strategy and model all the same: a move that contradicts the hand the coach names is the thing being fixed. The loss is the cost of checking after the choice instead of before it.
+- **Overriding a model after it has chosen costs it.** Neural Cat loses 9 to 16 points a hand to the check as it stands. The check stays on for every strategy and model all the same: a move that contradicts the hand the coach names is the thing being fixed. Why it costs the model isn't known yet: its picks in those positions may be reading safety or a second hand that the rule-made hand doesn't, or the model may simply not have learned the game with the check on.
 - **A whole-table comparison hides this.** Jorge Yau's seat gained most at the Neural Cat table, where part of the gain was the opponents losing. Only the head to head separated the two.
 - **The contradiction is a symptom.** A hand chosen once for each possible discard can always disagree with the discard. The fix that removes it at the root is to choose the hand first.
 
 #### What comes next
 
-The [evaluation architecture](../architecture/README.md): one hand picked for the turn (the hand picker), a pivot checker that decides whether to stay on it, a discarder (rules or a model) that chooses only among moves for that hand, and the contradiction check last, as a safety net. A model then chooses among consistent moves itself, which is where Neural Cat's loss should come back.
+The [evaluation architecture](../architecture/README.md): a main hand and a backup picked for the turn (the hand picker), a pivot checker that decides whether to stay on it, a discarder (rules or a model), and the contradiction check last. Before any of it is built, three things are measured (why the check overrides Neural Cat, whether the chance to finish is right, how often each strategy pivots) and four small experiments run head to head: a Neural Cat lab round with the check on, a finer meaning of a tile the hand keeps, a backup hand in the check, and hand-first scoring for Jorge Yau.
 
 ## Where the files are
 
