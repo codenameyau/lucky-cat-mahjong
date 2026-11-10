@@ -10,6 +10,10 @@ const {
   normalizePhotos,
   normalizePhotoPath,
   renderPhoto,
+  renderEventSection,
+  sectionId,
+  photoLabel,
+  photoFile,
 } = require('./community.js');
 
 describe('Community utilities', function () {
@@ -92,6 +96,35 @@ describe('Community utilities', function () {
     it('lazy-loads later batches of photos', function () {
       var html = renderPhoto({ name: 'June Social' }, '/media/photo.webp', 0, true);
       assert.match(html, /loading="lazy"/);
+    });
+  });
+
+  describe('analytics labels', function () {
+    var event = { name: 'August 2026 Invitational', date: '2026-08-25', photos: ['/media/2026-08-25/abc.webp', 'media/2026-08-25/def.webp'] };
+
+    it('names each section by its date and event, and each photo by its event and place', function () {
+      assert.equal(sectionId(event), '2026-08-25-august-2026-invitational');
+      assert.equal(photoLabel(event, 2), 'August 2026 Invitational, photo 3');
+      assert.equal(photoFile('/media/2026-08-25/abc.webp'), 'abc.webp');
+    });
+
+    it('labels a section with its name, id and place on the page', function () {
+      var html = renderEventSection(event, false, 0);
+      assert.match(html, /data-section="August 2026 Invitational"/);
+      assert.match(html, /data-section-id="2026-08-25-august-2026-invitational"/);
+      assert.match(html, /data-section-index="1"/);
+    });
+
+    it('labels every photo with its label and file, and uses the label as its alt text', function () {
+      var html = renderEventSection(event, false, 0);
+      assert.match(html, /data-photo-label="August 2026 Invitational, photo 1" data-photo-file="abc.webp"/);
+      assert.match(html, /data-photo-label="August 2026 Invitational, photo 2" data-photo-file="def.webp"/);
+      assert.match(html, /alt="August 2026 Invitational, photo 2"/);
+    });
+
+    it('escapes the labels', function () {
+      var html = renderPhoto({ name: 'Tom & "Jerry"' }, '/media/x.webp', 0, false);
+      assert.match(html, /data-photo-label="Tom &amp; &quot;Jerry&quot;, photo 1"/);
     });
   });
 });
