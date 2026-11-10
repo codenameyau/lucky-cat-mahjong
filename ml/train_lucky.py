@@ -418,7 +418,10 @@ def main():
     # Frontier plan, phase 1 (data from lucky.js generate --oracle, usually --features v2).
     ap.add_argument('--aux', type=float, default=0, help='weight of the auxiliary heads that predict the hidden tiles (targets, never inputs)')
     ap.add_argument('--imitate-wins', type=float, default=0, help='--mode oracle with --returns data: also imitate the moves of hands won, at this weight')
+    ap.add_argument('--imitate-points', action='store_true', help='with --imitate-wins: weight each won hand\'s moves by the points it scored (mean 1 over wins), not equally, so a big win teaches more than a cheap one')
     ap.add_argument('--teach', type=float, default=0, help='--mode pg or awr: also train toward the per-move deal-in teacher of --mode oracle, at this weight')
+    ap.add_argument('--progress', type=float, default=0, help='teacher (features v2): points a discard costs for each step it sets the hand back from its best, scaled by the hand\'s prospects')
+    ap.add_argument('--fold', type=float, default=0, help='teacher (features v2): deal-in costs grow by up to this factor as the hand\'s prospects fall (far from ready, late in the wall)')
     args = ap.parse_args()
     CRITIC_LOSS[0] = args.critic_loss
     if args.oracle_anneal:
@@ -511,8 +514,17 @@ def main():
     teacher_stats = {}
     WON = None
     if args.imitate_wins > 0:
-        WON = torch.from_numpy((loaded[6]['o'] == 0).astype(np.float32))
-        print(f'imitating the moves of hands won: {int(WON.sum())} of {n} choices ({100 * float(WON.mean()):.1f}%), weight {args.imitate_wins}')
+        won = (loaded[6]['o'] == 0)
+        if args.imitate_points:
+            # A won hand's moves count by its points (scaled to a mean of 1 over
+            # the wins): imitating every win equally taught Sphinx to race for
+            # cheap hands at any risk (rounds 1-3, -41 to -54 points a hand).
+            pts = np.clip(loaded[6]['r'], 0, None) * won
+            m = float(pts[won].mean()) if won.any() else 1.0
+            WON = torch.from_numpy((pts / (m or 1.0)).astype(np.float32))
+        else:
+            WON = torch.from_numpy(won.astype(np.float32))
+        print(f'imitating the moves of hands won: {int(won.sum())} of {n} choices ({100 * float(won.mean()):.1f}%), weight {args.imitate_wins}' + (', by points' if args.imitate_points else ''))
     if rl:
         r = np.clip(ret['r'], -args.reward_clip, args.reward_clip) + args.win_bonus * (ret['o'] == 0)
         if args.reward == 'sqrt':
@@ -561,6 +573,34 @@ def main():
         COST = torch.zeros(n, OUTPUTS)
         COST[:, :34] = X[:, at:at + 34].float() * 1024
         COST = COST.masked_fill(~Lg, 0)
+        # What the teacher steers by: the deal-in cost, and (features v2) the
+        # hand's own progress. A hand with poor prospects (far from ready, the
+        # wall running out) should fold harder (--fold); a discard that sets
+        # the hand back when a tile that keeps its progress is there is a
+        # mistake, the more so the better its prospects (--progress). Both are
+        # read from public inputs: shantenAfter per tile, and the wall.
+        TCOST = COST
+        BACK = None
+        if args.progress or args.fold:
+            if P < 854:
+                raise SystemExit('--progress and --fold need features v2 data (shanten after each discard)')
+            v = X[:, 784:818].float()
+            held = Lg[:, :34]
+            sh = torch.where(v > 0, torch.round(8 * (1 - v) - 1), torch.full_like(v, 7.0))
+            sh = torch.where(held, sh, torch.full_like(sh, 99.0))
+            best = sh.min(1).values
+            turn = held.any(1)
+            back = torch.where(held, (sh - best[:, None]).clamp(min=0), torch.zeros_like(sh))
+            base = torch.where(best <= 0, torch.tensor(1.0), torch.where(best == 1, torch.tensor(0.8), torch.where(best == 2, torch.tensor(0.5), torch.tensor(0.25))))
+            wall = (X[:, 334].float() * 91 / 40).clamp(0.25, 1.0)
+            prospects = torch.where(turn, base * wall, torch.ones_like(base))
+            TCOST = COST.clone()
+            TCOST[:, :34] = COST[:, :34] * (1 + args.fold * (1 - prospects))[:, None] + args.progress * back * prospects[:, None]
+            TCOST = TCOST.masked_fill(~Lg, 0)
+            BACK = torch.zeros(n, OUTPUTS, dtype=torch.bool)
+            BACK[:, :34] = back > 0
+            print(f'progress and fold: {100 * float((back > 0).any(1).float().mean()):.1f}% of choices have a discard that sets the hand back; '
+                  f'the champion played one {int(BACK.gather(1, A[:, None])[:, 0].sum())} times; mean prospects {float(prospects[turn].mean()):.2f}')
         risky = (COST > 0).any(1)
         TW = torch.where(risky, torch.full((n,), args.danger_weight), torch.ones(n))
         TW = TW / TW.mean()
@@ -570,16 +610,19 @@ def main():
         ref.load_state_dict(net.state_dict(), strict=False)
         ref.eval()
 
+    back_share = [0.0, 0.0, 0]  # share on discards that set the hand back: the network's, the champion's, choices
+
     def teacher_loss(idx, out=None):
         """The per-move deal-in teacher. With out (the policy's logits and aux
         outputs, from pg or awr), only the teacher's own term."""
         xb, lb, cb, wb = X[idx].to(dev).float(), Lg[idx].to(dev), COST[idx].to(dev), TW[idx].to(dev)
+        tc = TCOST[idx].to(dev)
         xin = pin(xb)
         logits, aux_out = net.both(xin) if out is None else (out[0], None)
         logp = torch.log_softmax(logits.masked_fill(~lb, -1e9), dim=1)
         with torch.no_grad():
             rlog = torch.log_softmax(ref(xin).masked_fill(~lb, -1e9), dim=1)
-            tgt = torch.softmax((rlog - cb / args.danger_tau).masked_fill(~lb, -1e9), dim=1)
+            tgt = torch.softmax((rlog - tc / args.danger_tau).masked_fill(~lb, -1e9), dim=1)
         ce = (-(tgt * logp.masked_fill(~lb, 0)).sum(1) * wb).mean()
         if out is not None:
             return ce
@@ -593,6 +636,9 @@ def main():
             # The points the shares would pay now: the new network's, and the champion's.
             pay = (logp.exp() * cb).sum(1).mean()
             pay0 = (rlog.exp() * cb).sum(1).mean()
+            if BACK is not None:
+                bk = BACK[idx].to(dev)
+                back_share[0] += float((logp.exp() * bk).sum()); back_share[1] += float((rlog.exp() * bk).sum()); back_share[2] += len(idx)
         return ce, kl, pay, pay0
 
     def loss_of(idx, train):
@@ -731,14 +777,18 @@ def main():
         if teacher:
             with torch.no_grad():
                 tot = np.zeros(4)
+                back_share[:] = [0.0, 0.0, 0]
                 for s in range(0, nv, 8192):
                     idx = torch.from_numpy(va[s:s + 8192])
                     tot += np.array([v.item() for v in teacher_loss(idx)]) * len(idx)
                 _, kl_, pay_, pay0_ = tot / max(1, nv)
+            sb = f', set-back discards {100 * back_share[0] / max(1, back_share[2]):.2f}% of its shares (the champion\'s {100 * back_share[1] / max(1, back_share[2]):.2f}%)' if BACK is not None else ''
             print(f'epoch {ep + 1}: held-out loss {vl:.4f}, KL from the champion {kl_:.4f}, points its shares would pay now '
-                  f'{pay_:.2f} a choice (the champion\'s {pay0_:.2f})' + (f', oracle kept {delta[0]:.2f}' if args.anneal else ''))
+                  f'{pay_:.2f} a choice (the champion\'s {pay0_:.2f})' + sb + (f', oracle kept {delta[0]:.2f}' if args.anneal else ''))
             if vl < best:
                 teacher_stats = {'epochs': ep + 1, 'kl': float(kl_), 'heldOutPay': float(pay_), 'championPay': float(pay0_)}
+                if BACK is not None:
+                    teacher_stats.update({'setBackShare': back_share[0] / max(1, back_share[2]), 'championSetBackShare': back_share[1] / max(1, back_share[2])})
         else:
             print(f'epoch {ep + 1}: validation loss {vl:.4f}, picks the move it won with {100 * vacc:.1f}%')
         if vl < best:
@@ -751,7 +801,7 @@ def main():
         extra['aux'] = dict({'weight': args.aux}, **aux_report(net, X, va, P, pin))
     if teacher:
         extra['objective'] = 'points'
-        extra['train'] = dict({'mode': 'oracle', 'dangerTau': args.danger_tau, 'dangerWeight': args.danger_weight, 'lr': args.lr}, **teacher_stats)
+        extra['train'] = dict({'mode': 'oracle', 'dangerTau': args.danger_tau, 'dangerWeight': args.danger_weight, 'progress': args.progress, 'fold': args.fold, 'lr': args.lr}, **teacher_stats)
         rl_stats['oracleDelta'] = delta[0]
     if rl:
         extra['objective'] = 'points'

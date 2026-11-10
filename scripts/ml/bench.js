@@ -261,7 +261,10 @@ async function playParts(models, seed, from, to, workers, bm) {
 // gap is clearly past the bar (bar.earlyPass SE) or clearly short of it
 // (bar.earlyFail SE), after at least one block; otherwise plays all `deals`.
 // The early thresholds are far stricter than the bar's, so stopping early
-// almost never changes the verdict a full run would give.
+// almost never changes the verdict a full run would give. earlyFail is -2 (a
+// clear loss) since 2026-11-09, not 0: a small true gain (+2 points a hand) is
+// at or below 0 after one 10,000-deal block about a third of the time, and
+// should get its full deals (docs/machine-learning/benchmark.md).
 async function playSequential(models, seed, deals, workers, bm, bar) {
   const block = Math.min(deals, bar.block || deals);
   const parts = [];
@@ -378,13 +381,18 @@ async function judge(a) {
   const workers = workerCount(a);
   // --dry-run: every stage at 1/200 of its deals, to see the pipeline work. Never promotes.
   const dry = !!a['dry-run'];
-  const bar = dry ? Object.assign({}, bm.bar, { screen: 50, qualify: 200, replicate: 200, regression: 50, block: 100 }) : bm.bar;
+  // A lineage may override the bar (bar.lineages.<name>): Sphinx qualifies and
+  // replicates at 1 SE while it is still finding its feet (the maintainer's
+  // call, 2026-11-09), to be raised once it clearly beats random play.
+  const lineBar = Object.assign({}, bm.bar, (bm.bar.lineages || {})[lineName] || {});
+  delete lineBar.lineages;
+  const bar = dry ? Object.assign({}, lineBar, { screen: 50, qualify: 200, replicate: 200, regression: 50, block: 100 }) : lineBar;
   const record = { candidate: cand, lineage: lineName, current, benchmark: bm.name, dryRun: dry, started: stamp(), stages: [] };
   const dir = path.join(LOCAL, 'judged');
   const save = () => writeJson(path.join(dir, (dry ? 'dry-' : '') + (a.promote || cand.replace(/[^A-Za-z0-9]+/g, '_')) + '.json'), record);
   const log = (s) => console.log(stamp() + ' ' + s);
   await verify(bm);
-  log('Judging ' + cand + ' against ' + current + ' (' + lineName + ') on ' + bm.name);
+  log('Judging ' + cand + ' against ' + current + ' (' + lineName + ') on ' + bm.name + ', qualify and replicate at ' + bar.sigma + ' SE');
 
   // The same model spelled two ways (a short and a full commit) is the same model.
   const same = (x, y) => x === y || !!(x && y && modelSha(x) && modelSha(x) === modelSha(y));

@@ -18,8 +18,8 @@ A record of the frontier work so far (from 2026-11-08): what was built, every de
 
 | | State |
 | --- | --- |
-| **Lucky Cat lineage** | Generation 1 is still lc32 (as `lc32v2`, lc32 widened to features v2). 3 rounds and 9 arms of phase 1, then 3 policy-gradient probes: nothing passed the bar |
-| **Sphinx lineage** | Paused after round 1 and part of round 2. Every arm lost about 43 points a hand to random play. No generation yet |
+| **Lucky Cat lineage** | Generation 1 is still lc32 (as `lc32v2`, lc32 widened to features v2). 6 rounds and 18 arms of phase 1 (3 at native scale), 3 policy-gradient probes and 4 loss-aware teacher probes. LV6b screened +5.1 and failed qualify (+0.8) |
+| **Sphinx lineage** | v1 paused after every arm lost about 43 points a hand to random play. v2 restarted at the benchmark table with the loss-aware teacher: 3 rounds, still behind random play (best SP2b −7.1, no imitation). No generation yet |
 | **Benchmark** | `hk-table-v1`, frozen: two Neural Cat NC8 and Jorge Yau at 0.57.9, a 40,000-deal deck, the five-stage bar |
 | **Phases** | 0 built and folded into 1. 1 built and training. 2 and 3 designed, not built. 3b (search as a teacher) and 4 (search at play) deferred |
 | **Simulation** | The native C++ simulator runs every round, as a hybrid: training data and screens on the fast build, judgments and Table Scores on the exact build |
@@ -36,6 +36,10 @@ A record of the frontier work so far (from 2026-11-08): what was built, every de
 7. **Policy-gradient probes** (PG1–PG3). Training on what hands scored, with the heads and the teacher. PG2 and PG3 passed the screen (+8.1, +5.7), then failed to qualify (−2.4, −2.6).
 8. **Pruning.** Monte Carlo search was measured and deferred until phase 3; the judgment's second screen and Sphinx's restarting arm were removed; Sphinx was paused.
 9. **The native simulator.** The engine and the benchmark table's players ported to C++, bit-exact with the JS. Then three optimization rounds and a fast build, and finally the hybrid (PR #208). Phase 1 and rounds 1–3 were merged as #205.
+10. **Native-scale rounds** (100,000 deals a round, 40,000-deal screens). Lucky Cat rounds 4–6: LV4b screened +4.7 and failed qualify (−10.3); LV6b screened +5.1 (2.00 SE) and failed qualify (+0.8).
+11. **The loss-aware teacher.** lc32 sets its own hand back in 19.5% of its choices. `--progress` and `--fold` teach against that and against dealing in with poor prospects; probes gained about +2.4 points a hand at a moderate weight.
+12. **Sphinx v2, rounds 1–3.** At the benchmark table with the new teacher: imitating its own wins lost 41–54 points a hand to random play every round; without imitation, −7.1 and −10.3 by rounds 2 and 3.
+13. **The rounds move to the user's desktop** (more cores), from Lucky Cat round 7 and Sphinx round 4.
 
 ## Decisions
 
@@ -65,6 +69,8 @@ Each with why, and the evidence. Dates are when it was decided.
 | **No more rounds of the same signal** | Twelve arms screened, centred on zero. The critic explains none of the reward, so training on hand returns is luck. Phase 3's per-move value is what this needs | §11 |
 | **Sphinx paused** (2026-11-09) | Its recipe (imitate its own wins from random self-play) loses about 43 points a hand to random play. It learns to race for cheap hands, and nothing teaches it defence | SP1a −43.3, SP1b −46.3, SP1c −45.1, SP2a −43.5 |
 | **The rounds delete their own data, permanently** (2026-11-09) | A native-scale round writes about 2.5 GB. Deleted: data once it leaves the training window, frontier data no lineage lists (once 6 hours old), the oldest kept rounds when the next wouldn't fit (never the newest), and converted weights unused for 14 days or past 1 GB. Never: weights, reports, the benchmark, other labs' data | Frontier training, Disk space |
+| **The teacher learns from losses: `--progress` and `--fold`** (2026-11-09) | Losing points and dealing in are lessons as important as winning, and so are discards that set one's own hand back. lc32 throws one in 19.5% of its choices | Probes LP0–LP3 on round 5's data: progress 100 (with or without fold 2) about +2.4 and half a point more hands won; progress 200 with fold 4 −1.9 |
+| **The returns arm dropped from Lucky Cat's rounds** (from round 7) | Training on what hands scored screened near zero again in rounds 4–6 (−1.2, +2.4, +0.4), after PG1–PG3 | §11 |
 | **Sphinx's wide arm trains fresh only while the champion is random** | From the second generation on, starting from scratch each round would throw away every generation it had earned | |
 
 ### Search
@@ -89,6 +95,17 @@ Each with why, and the evidence. Dates are when it was decided.
 | **A fast build beside the exact one** | Float math free to fuse and vectorize changes a move only when two tie to the last bit, which is rare | 1,000 deals identical between builds; a few flips in a 20,000-deal round |
 | **The hybrid** (2026-11-09, the maintainer's call, after measuring fast-only) | Training data and screens get the speed; the benchmark's verdicts and scores stay reproducible to the decimal against the JS. A round with a judgment takes about 23 minutes this way, against about 16 fast everywhere | Compare 9.9 s fast, 15.5 s exact; data 12.9 s fast, 20 s exact |
 | **Every result records its simulator** | So a number is never compared across builds without knowing it | `simulator`: `native-fast`, `native-exact` or `js` |
+| **Frontier rounds move to the desktop** (2026-11-09, the maintainer's call) | x86-64 with a GPU: a Lucky Cat round takes about 8 minutes (data 22 s, training about 50 s an arm, a 40,000-deal screen about a minute), against about 23 on the Mac | The exact build reproduced the reference compare to the decimal; native and JS data byte-identical on the same chunks |
+| **Lucky Cat keeps 4 rounds of data and retunes its arms** (after rounds 7–9) | Nine arms screened +2.4 ± 0.9 on average, below the +5 the bar can see, and the screen winner failed qualify four rounds running; each round refit the same small step to one round of data | Screens and qualifies in frontier plan §11 |
+| **Sphinx's arms build on the no-imitation arm** | Imitating its own wins lost 41–54 points a hand to random play every round; the teacher alone reached −7.1 | Sphinx v2 rounds 1–3 |
+| **Qualify stops early only on a clear loss** (2026-11-09, the maintainer's call) | `earlyFail` 0 → −2 standard errors: a small true gain (+2 points a hand) is at or below 0 after one 10,000-deal block about a third of the time, so 0 cut real gains short; at −2 they get the full 40,000 deals. The bar itself is unchanged | LV8c stopped at −1.34 SE after 10,000 deals |
+| **Sphinx paused again** (after round 6) | Rounds 4–6 on the no-imitation teacher lost to random play in every arm and round (−6.7 to −33.3 points a hand), and more data made arms b and c worse. Without a value of the position, the teacher's folding lessons from random play are wrong at this table | Screens in frontier plan §11; reopens with phase 3's value or a warm start |
+| **Phase 1 plateaued; phase 2 next** (after Lucky Cat round 12) | 18 arms on the desktop averaged +1.7 ± 0.6 points a hand over lc32v2 and none passed; 4 rounds of data, a slower step and the fold-only teacher didn't raise it. The plan builds the structured network only once the MLP plateaus | Screens and qualifies in frontier plan §11; best LV10a +4.4 ± 2.7 at qualify |
+| **Sphinx restarted, more aggressive than defensive** (from round 7, the maintainer's call) | Rounds 4–6's teacher mostly taught folding. Now: no fold, a softer deal-in teacher (danger-tau 300), progress 100–200, and wins imitated by their points (`--imitate-points`) instead of equally, so it learns from big wins rather than cheap races | Screens report hands won, deal-ins and the average win per arm |
+| **Sphinx: offence alone, with a moderate deal-in teacher** (from round 10) | Rounds 7–9: every arm won 2–6x as often as random play; imitating wins (even by points) dealt in 4 points more and won tiny hands (−35 to −43); offence alone was best (−17.5 to −27.7) but its deal-ins rose at danger-tau 300. So no imitation, no fold, danger-tau 150–200 | Screens with hands won, deal-ins and the average win in frontier plan §11 |
+| **Sphinx rounds 10–12: gentle offence closest to random play** | Offence alone beat every imitation arm; the gentler push to ready (progress 100, danger-tau 200) dealt in less than random play twice and reached −4.1 ± 2.9 (1.4 SE from parity), while winning about 4x as often | Screens in frontier plan §11 |
+| **Sphinx's bar lowered to 1 SE** (2026-11-09, the maintainer's call) | From random weights nothing compounds until a first generation; the screen, qualify and replicate at 1 SE each still pass a no-better candidate about 0.4% of the time, and Sphinx isn't in the game. Raised back to 2 SE once Sphinx clearly beats random play | `bar.lineages.sphinx.sigma` 1; Lucky Cat unchanged |
+| **Sphinx rounds 13–18: the round's draw outweighs the recipe** | 18 arms around c, none passed; the rounds' means spread 11 points against 6.7 between arms (best SP16b +0.3 ± 2.8). The teacher tilts sp0's uniform shares by exp(−cost / tau), too gently to learn a strong player in one round, so nothing compounds before a first generation | Screens in frontier plan §11; next step is the maintainer's call |
 
 ## Important potential issue
 
