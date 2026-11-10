@@ -93,12 +93,14 @@ static uint16_t toHalf(float v) {
 
 static const int REPLAY_BYTES = 30;  // replays, outcome counts (6), win faan counts (11), pay faan counts (11), unused
 struct NcRow {
-  uint8_t seat, explored; int turn, wallLeft; std::vector<float> x; uint8_t aux[AUX_BYTES];
+  uint8_t seat, explored, strategy = 0; int turn, wallLeft; std::vector<float> x; uint8_t aux[AUX_BYTES];
   std::shared_ptr<Game> snap; int tile = NO_TILE;  // a discard to replay: the game before it, and the tile
 };
 
 struct Recorder : Agent {
   NeuralCat* nc;
+  Agent* inner = nullptr;  // the seat's own strategy; null: the learner itself (nc) plays
+  uint8_t strategy = 0;
   Rng* rng;
   Rng* replayRng = nullptr;  // its own generator, so the rows are the JS's whatever is replayed
   double replayShare = 0;
@@ -107,7 +109,7 @@ struct Recorder : Agent {
   NcRow& push(const Game& g, int seat, int explored) {
     rows->emplace_back();
     NcRow& r = rows->back();
-    r.seat = uint8_t(seat); r.explored = uint8_t(explored);
+    r.seat = uint8_t(seat); r.explored = uint8_t(explored); r.strategy = strategy;
     r.turn = int(g.hand.seats[seat].discards.size());
     r.wallLeft = int(g.hand.wall.size());
     r.x.resize(NeuralCat::SIZE);
@@ -118,7 +120,7 @@ struct Recorder : Agent {
     bool keep = !o.hasWin && (*rng)() < sample;
     std::unique_ptr<NeuralCat::Reading> st;
     if (keep) { st.reset(new NeuralCat::Reading); nc->read(*st, g, seat); }
-    Decision a = nc->chooseTurnAction(g, seat, o);
+    Decision a = inner ? inner->turn(g, seat, o) : nc->chooseTurnAction(g, seat, o);
     if (a.type == A_KONG) {
       for (auto& k : o.kongs) if (k.tile == a.tile) {
         NcRow& r = push(g, seat, 2);
@@ -147,7 +149,7 @@ struct Recorder : Agent {
     std::vector<float> pass, kong;
     if (keep) { pass.resize(NeuralCat::SIZE); nc->waitingRow(g, seat, 0, o.tile, pass.data()); }
     if (keep && o.kong) { kong.resize(NeuralCat::SIZE); nc->waitingRow(g, seat, 1, o.tile, kong.data()); }
-    Decision d = nc->chooseClaim(g, seat, o);
+    Decision d = inner ? inner->claim(g, seat, o) : nc->chooseClaim(g, seat, o);
     const std::vector<float>* x = d.type == A_PASS && !pass.empty() ? &pass : d.type == A_KONG && !kong.empty() ? &kong : nullptr;
     if (x) {
       NcRow& r = push(g, seat, 2);
@@ -210,9 +212,21 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
   for (long d = 0; d < job.deals; d++) {
     uint32_t dealSeed = uint32_t(job.seed + d);
     Agent* agents[4];
+    Agent* real[4];  // who plays each seat in a replay
+    Recorder seatRec[4];
     for (int s = 0; s < 4; s++) {
-      const std::string& id = job.pool[size_t(rng() * double(job.pool.size()))];
-      agents[s] = id == "learner" ? static_cast<Agent*>(&rec) : pool[id].get();
+      size_t k = size_t(rng() * double(job.pool.size()));
+      const std::string& id = job.pool[k];
+      bool learner = id == "learner";
+      real[s] = learner ? nullptr : pool[id].get();
+      if (job.recordAll) {
+        seatRec[s] = rec;
+        seatRec[s].inner = real[s];
+        seatRec[s].strategy = uint8_t(job.poolStrategies[k]);
+        agents[s] = &seatRec[s];
+      } else {
+        agents[s] = learner ? static_cast<Agent*>(&rec) : real[s];
+      }
     }
     GameOptions o;
     o.seed = dealSeed; o.dealer = int(dealSeed % 4); o.startPoints = 1000000000;
@@ -240,7 +254,7 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
       p[2] = uint8_t(oc == 2 || oc == 3 ? faan : 0);
       p[3] = uint8_t(std::min(255, r.turn));
       p[4] = r.seat;
-      p[5] = uint8_t(job.strategy);
+      p[5] = job.recordAll ? r.strategy : uint8_t(job.strategy);
       p[6] = uint8_t(std::min(255, r.wallLeft));
       p[7] = r.explored;
       float delta = float(res.deltas[r.seat]);
@@ -256,7 +270,7 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
       // After the hand, so nothing here moves the deals' own random draws.
       std::vector<uint8_t> R(rows.size() * REPLAY_BYTES, 0);
       Agent* again[4];
-      for (int s = 0; s < 4; s++) again[s] = agents[s] == static_cast<Agent*>(&rec) ? static_cast<Agent*>(&bestAgent) : agents[s];
+      for (int s = 0; s < 4; s++) again[s] = real[s] ? real[s] : static_cast<Agent*>(&bestAgent);
       for (size_t k = 0; k < rows.size(); k++) {
         NcRow& r = rows[k];
         if (!r.snap) continue;

@@ -138,7 +138,15 @@ Training, on a laptop (8 cores, Apple GPU):
 
 ### The frozen benchmark
 
-FROZEN_PLACEHOLDER
+FC1 against N14c on the frozen table (Neural Cat NC8, Jorge Yau, NC8, all at game 0.57.9), 8,000 fresh deals, in JS (`bench.js compare`, about 25 minutes on 8 workers):
+
+| | Points a hand | Hands won | Deal-ins | Average win |
+| --- | ---: | ---: | ---: | ---: |
+| FC1 | +21.5 ± 8.5 | 16.0% | 9.7% | 937 points, 6.01 faan |
+| N14c | +25.4 ± 8.6 | 16.2% | 9.7% | 951 points, 5.77 faan |
+| FC1 less N14c | **−4.0 ± 10.3** | | | |
+
+It's a sanity check, not a verdict: at ± 10 points it can't tell a gap of 5 either way. The style matches the native matches (FC1's wins about a quarter of a faan bigger), and nothing is broken on the frozen table.
 
 ## What went wrong, and what it taught
 
@@ -153,7 +161,11 @@ FROZEN_PLACEHOLDER
 
 In the order the evidence points:
 
-1. **Record every seat on the native simulator.** The JS generator records every seat by default; the native one records the learner's only. Porting the rest is the step that unlocks everything below on fresh data. Then replayed labels on every-seat data, which has not been tried: round 3's replays were on the learner's seats only.
+1. **A round on every-seat data, with replays.** The native generator now records every seat, as the JS does (built after the matches above, and checked byte for byte against the JS on 1,000 deals), and the round driver does so by default. So the next round tests replayed labels on fresh every-seat data, which hasn't been tried: round 3's replays were on the learner's seats only, and FC1's every-seat data was the lab's, without replays.
+
+   ```bash
+   npm run ml:frontier -- --rounds 1 --recipes replay --replays 8 --deals 100000 --seeds 2 --window 2 --reader ml/models/FM1b0.heads.json
+   ```
 2. **Judge FC1 against the bar** (`bench.js judge`) once the frozen table can run natively again, or overnight in JS. At +4.5 ± 2.7 it would need about four times the deals to settle whether it is really ahead.
 3. **Retrain the reader on every-seat data.** It learned on round 1's learner-only data. Its reads were good, but the move network may trust a reader trained on the positions it scores more.
 4. **Replays for claims and kongs.** Only discards are replayed now, and the networks' claim choices are where Frontier Cat and N14c might differ most.

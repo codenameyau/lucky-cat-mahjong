@@ -5,8 +5,8 @@
 
      1. Data. The champion plays --deals deals on the native simulator
         (generate.js --native), exploring, against earlier champions, Jorge Yau
-        and Lucky Cat. Only its own seats are recorded, with the labels of the
-        extra heads (scripts/ml/heads.js).
+        and Lucky Cat. Every seat is recorded, read through the champion, with
+        the labels of the extra heads (scripts/ml/heads.js).
      2. Arms. Each recipe trains --seeds models from the champion (ml/train.py
         --heads), so a recipe is judged by the average of its seeds, not by
         its luckiest one.
@@ -47,6 +47,9 @@
      --keep X       a recipe is a candidate ahead by more than X (default 2)
      --recipes SET  heads (step 2, the default) or stacked (step 3)
      --reader FILE  for stacked and replay: the reader, a <name>.heads.json
+     --learner-only record the champion's seats alone (rounds 1 to 3 did; every
+                    model trained on that fell behind it). Default: every seat
+     --sample P     the share of positions recorded (default 0.12; 0.3 learner-only)
      --replays K    the round's data replays a share of its discards K times
                     (--replay-share, default 0.25), for --recipes replay
      --start FILE   the first champion (default: Neural Cat's lab champion,
@@ -159,6 +162,10 @@ async function main() {
   const RECIPES = RECIPE_SETS[String(a.recipes || 'heads')];
   if (!RECIPES) throw new Error('--recipes: one of ' + Object.keys(RECIPE_SETS).join(', '));
   const readerFile = a.reader ? String(a.reader) : null;
+  // Every seat is recorded (as the lab does) unless --learner-only: rounds 1 to 3 recorded the
+  // champion's seats alone, and every model trained on that fell behind it.
+  const learnerOnly = !!a['learner-only'];
+  const sample = parseFloat(a.sample || (learnerOnly ? 0.3 : 0.12));
   const replays = a.replays ? parseInt(a.replays, 10) : 0, replayShare = parseFloat(a['replay-share'] || 0.25);
   if (String(a.recipes) === 'replay' && !replays) throw new Error('--recipes replay needs --replays K');
   if (RECIPES.some((x) => x.stacked) && !readerFile) throw new Error('--recipes stacked needs --reader <name>.heads.json');
@@ -175,7 +182,7 @@ async function main() {
       const pool = opponents.map(() => 'neural-cat').concat(opponents);
       log('Round ' + r + ': ' + deals + ' deals on the native simulator, ' + path.basename(champ) + ' exploring against ' + opponents.join(', '));
       run('node', ['scripts/ml/generate.js', '--native', '--deals', String(deals), '--workers', workers, '--lineup', 'mix', '--pool', pool.join(','),
-        '--record', 'neural-cat', '--explore', '0', '--sample', '0.3', '--temperature', '150', '--epsilon', '0.05',
+        '--explore', '0', '--sample', String(sample), '--temperature', '150', '--epsilon', '0.05'].concat(learnerOnly ? ['--record', 'neural-cat'] : [], [
         '--weights', champ, '--seed', String(DATA_SEED + (r - 1) * 1000000), '--out', data].concat(replays ? ['--replays', String(replays), '--replay-share', String(replayShare)] : []));
     }
     const sets = [];

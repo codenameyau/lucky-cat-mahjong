@@ -67,7 +67,10 @@ static std::unique_ptr<Agent> makeAgentChecked(const std::string& id, bool check
     std::string file = id == "neural-cat" ? "native/build/neural-cat.lcmw" : id.substr(3);
     auto& m = models[file];
     if (!m) m = std::make_shared<Mlp>(loadWeights(file));
-    auto f = std::make_shared<NeuralCat>(m);
+    // Each model keeps its own memory of a seat's plan, under its own name, as the JS
+    // (create({ id })): an earlier model at the table and the learner reading that
+    // seat for training data mustn't share it. "neural-cat" is the shipped one.
+    auto f = std::make_shared<NeuralCat>(m, id == "neural-cat" ? std::string("neural-cat") : id);
     f->check = check;
     return std::unique_ptr<Agent>(new BotAgent(f));
   }
@@ -205,6 +208,11 @@ int main(int argc, char** argv) {
       j.pool = split(a["pool"], ',');
       j.out = a["out"];
       j.replays = a.count("replays") ? std::stoi(a["replays"]) : 0;
+      if (a.count("record-all")) {
+        j.recordAll = true;
+        for (auto& k : split(a["record-all"], ',')) j.poolStrategies.push_back(std::stoi(k));
+        if (j.poolStrategies.size() != j.pool.size()) throw std::runtime_error("lcm-sim generate-nc: --record-all needs a strategy index for each pool id");
+      }
       j.replayShare = a.count("replay-share") ? std::stod(a["replay-share"]) : 0.25;
       return runGenerateNc(j, [](const std::string& id) { return makeAgent(id); });
     }

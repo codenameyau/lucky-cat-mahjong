@@ -33,7 +33,7 @@ Written 2026-11-09. This is the plan for the frontier model: one network that re
 | 4 A wider choice | **Tested** (2026-11-10): best 10 and every discard, neither better than the best 6 ([Learnings](#step-4-a-wider-choice-gains-nothing-2026-11-10)) |
 | 5 Replayed labels | **Built** (2026-11-10): better predictions, not yet better play on their own ([round 3](#round-3-replayed-labels-step-5-predict-better-and-dont-play-better-2026-11-10)) |
 | 6 Explore in the data | In the data already: the champion explores (temperature 150, a random discard 5% of the time) |
-| 7 A mixed table | In the data already: earlier champions, Jorge Yau and Lucky Cat. Recording every seat, not only the learner's, turned out to matter most ([every seat](#the-read-and-the-replays-on-data-that-records-every-seat-2026-11-10)); the native generator still records the learner's only |
+| 7 A mixed table | In the data already: earlier champions, Jorge Yau and Lucky Cat. Recording every seat, not only the learner's, turned out to matter most ([every seat](#the-read-and-the-replays-on-data-that-records-every-seat-2026-11-10)); the native generator records every seat too since 2026-11-10 (byte for byte with the JS), and the round driver does by default |
 | 8 Claims and kongs by the same value | As Neural Cat already does (claim margin 0) |
 | 9 Train with the check on | Always: the data is played with the contradiction check |
 | 10 Seeds | Two or three a recipe, judged on their mean |
