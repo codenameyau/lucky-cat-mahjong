@@ -1,6 +1,6 @@
 {
   "checked": "2026-11-10",
-  "commit": "498068ccf041921463f405eb362c75ce3002a825",
+  "commit": "b2bc63c51f9d7dfaa73d5d0b99b6c2afa915d061",
   "files": {
     "js/mahjong-engine.js": "6e26a95e5301d710cfe438b350fa5bb59a27ae96f3941758578b12802fc77d13",
     "js/points.js": "86b3818b1b926a75a41429c647db912291c0542dbb749081a999244d433a811e",
@@ -9,9 +9,19 @@
     "js/mahjong-ml.js": "8eccb1e0fdaec526aa834eb056c9724f92e2da4426fb0a0491956dc64a0ba6c4",
     "js/mahjong-ml-features.js": "6f55fa69ffdc4fca867a16c1c038e80183f3251373766525e77f64910f5d7a40",
     "js/mahjong-ml-model.js": "883f8e1645690fecf81c26a6a8cefe19dded0285a156e9b2e819b2b4d9712ccd",
+    "js/mahjong-only-orphans.js": "614e4b1168c809c5d0231856a3ee30174284c0d61a93a614b61c14b9c75d29bb",
     "js/mahjong-lucky-cat-ml.js": "13f170b22ccc7a1bbe94e42df058a4f98bd9d46117b7644b94f7078ef66d0f03",
     "js/mahjong-lucky-cat-net.js": "7c73551ef3a70cd9022f1a207fd1aae352e84284e503f2d673ab06991b512d06",
     "js/mahjong-frontier-net.js": "a0ca3cab59e87f2069e9289b05190f23b3f8753d2350ceb95555565571496d3b",
     "js/mahjong-lucky-cat-value.js": "bd07755979993699f402f992c9c5d92b93d924608f9538b184e309d73d7a0b9e"
+  },
+  "equivalent": {
+    "js/mahjong-ml-model.js": [
+      {
+        "sha256": "4e39134263e4e3aaebf8dc19c88df451b975d91ef54e00384598bf8e09fecb58",
+        "commit": "8ffc0d098046326c3b1c33557448ae65e4a94bbb",
+        "why": "the benchmark v2 freeze; today's adds createModel's optional expect (Lucky Cat's value) and plays the same without it"
+      }
+    ]
   }
 }

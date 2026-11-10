@@ -331,6 +331,8 @@ function freshSeed(bm, deals) {
  * ------------------------------------------------------------------ */
 
 // Whether a stage's numbers pass (pure, so the tests can check the rules).
+// keepWinRate: true, or a share of hands (Lucky Cat's 0.01: one point of win
+// rate) its win rate may fall short of the generation's before the guard counts.
 function stagePasses(stage, gap, bar, keepWinRate) {
   const sigmas = gap.standardError > 0 ? gap.points / gap.standardError : (gap.points > 0 ? Infinity : -Infinity);
   if (stage === 'screen') return { pass: sigmas >= bar.screenSigma, sigmas, why: 'gap ' + sigmas.toFixed(2) + ' SE, needs ' + bar.screenSigma };
@@ -338,9 +340,10 @@ function stagePasses(stage, gap, bar, keepWinRate) {
     let pass = sigmas >= bar.sigma;
     let why = 'gap ' + sigmas.toFixed(2) + ' SE, needs ' + bar.sigma;
     if (stage === 'qualify' && keepWinRate) {
-      const ws = gap.winStandardError > 0 ? gap.winRate / gap.winStandardError : 0;
+      const tol = typeof keepWinRate === 'number' ? keepWinRate : 0;
+      const ws = gap.winStandardError > 0 ? (gap.winRate + tol) / gap.winStandardError : 0;
       if (ws < -bar.winSigma) pass = false;
-      why += '; hands won ' + ws.toFixed(2) + ' SE, may not fall below −' + bar.winSigma;
+      why += '; hands won ' + ws.toFixed(2) + ' SE' + (tol ? ' (allowing ' + (100 * tol) + ' point' + (tol === 0.01 ? '' : 's') + ')' : '') + ', may not fall below −' + bar.winSigma;
     }
     return { pass, sigmas, why };
   }

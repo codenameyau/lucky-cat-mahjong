@@ -94,14 +94,14 @@ The current generation is the last one in `bench/lineages.json`; `--vs` gives an
 `bench/lineages.json` holds three lineages:
 
 - **Neural Cat** (`neural-cat`) starts from **NC9** (N14c), pinned as `git:8ffc0d0…:js/mahjong-ml-weights.js`. Neural Cat's models, stacked ones too (Frontier Cat FC1 was one), are judged in it, against its current generation. Its league, for the no-regression stage, is Jorge Yau, Lucky Cat lc32 and NC8.
-- **Lucky Cat** starts from **lc32**, pinned as `git:dd881a5:js/mahjong-lucky-cat-weights.js` with its SHA-256. It keeps its win rate (`keepWinRate`).
+- **Lucky Cat** starts from **lc32**, pinned as `git:dd881a5:js/mahjong-lucky-cat-weights.js` with its SHA-256. It is judged on points a hand and must keep a fairly high win rate (the maintainer's call, 2026-11-10): at qualify, its hands won may not fall more than one point of win rate below the generation's by more than one standard error (`keepWinRate: 0.01`).
 - **Sphinx** has no generation yet: its first is judged with `--vs` against random play. The Suphx plan it belongs to is cancelled.
 
 ```bash
 node scripts/ml/bench.js judge nc:ml/models/<name>.json --lineage neural-cat
 ```
 
-The first judgment on version 2 was Frontier Cat FC1 against NC9: fair play passed, and the screen gave **+6.6 ± 8.1 points a hand** over 10,000 deals (0.8 standard errors), short of the 1 it needs, so it stopped there ([frontier plan](frontier-plan.md#learnings)).
+The first judgment on version 2 was Frontier Cat FC1 against NC9: fair play passed, and the screen gave **+6.6 ± 8.1 points a hand** over 10,000 deals (0.8 standard errors), short of the 1 it needs, so it stopped there ([frontier plan](frontier-plan.md#learnings)). The second was round 5's FM5c0: fair play passed, and the screen gave **+3.7 ± 7.9** (0.47 standard errors), with 1.46 ± 0.20 points more of its hands won. It stopped there too.
 
 A generation's model should be pinned by `git:<commit>:<path>` once it ships, so that anyone with the repository can play it again. A local `ml/models/` path works on the machine that trained it, and its SHA-256 says whether it is still the same file.
 

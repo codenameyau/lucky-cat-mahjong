@@ -39,9 +39,10 @@
                       (default: every seat)
      --native         play on the native simulator (native/, lcm-sim generate-nc):
                       the same shard files as the JS writes, far faster. It
-                      records every seat (the default) or --record neural-cat, and needs --explore 0, a
+                      records every seat (the default) or --record <learner>, and needs --explore 0, a
                       mixed lineup, and a pool the simulator has (neural-cat,
-                      ml:<file>, jorge-yau, lucky-cat). --exact uses the exact
+                      ml:<file>, jorge-yau, lucky-cat; with --learner only-orphans,
+                      only-orphans and oo:<file> too). --exact uses the exact
                       build, whose rows are the JS's byte for byte
      --replays K      native only: replay a share (--replay-share, default 0.25) of
                       the recorded discards K times after the hand, with the
@@ -55,7 +56,8 @@
                       in shard-N.options and shard-N.optlabels (labels only)
    npm run ml:generate -- parity --deals 200   checks that: the JS and the native
                       simulator write the same bytes for the same deals, every
-                      seat recorded (--learner-only: the learner's seats alone)
+                      seat recorded (--learner-only: the learner's seats alone;
+                      --learner only-orphans: Only Orphans learning)
    only-orphans-rules (the rule-based Only Orphans, the baseline) can sit at
    any table too. */
 
@@ -287,7 +289,7 @@ function nativePlan(cfg, known, args) {
   const N = require('./native.js');
   const { execFile } = require('node:child_process');
   const fail = (why) => { throw new Error('--native: ' + why); };
-  if (cfg.learner !== 'neural-cat') fail('only Neural Cat and the frontier model are ported');
+  if (cfg.learner !== 'neural-cat' && cfg.learner !== 'only-orphans') fail('only Neural Cat, the frontier model and Only Orphans are ported');
   if (cfg.lineup !== 'mix') fail('needs a mixed lineup (--lineup mix)');
   if (cfg.explore) fail('needs --explore 0');
   // Every seat (the default), or the learner's alone (--record neural-cat).
@@ -297,19 +299,23 @@ function nativePlan(cfg, known, args) {
   const pool = cfg.pool.map((id) => {
     if (id === cfg.learner) return 'learner';
     const n = id.startsWith('ml:') ? N.nativeId('nc:' + path.resolve(id.slice(3)))
+      : id.startsWith('oo:') ? N.nativeId('oo:' + path.resolve(id.slice(3)))
       : id === 'lucky-cat' ? N.nativeId('lc:js/mahjong-lucky-cat-weights.js') : N.nativeId(id);
     if (!n) fail(id + " can't play on the native simulator (build it with make -C native; see docs/machine-learning/native.md)");
     return n;
   });
-  const weights = N.nativeId('nc:' + (cfg.weightsFile || 'js/mahjong-ml-weights.js'));
-  if (!weights) fail("Neural Cat can't play on the native simulator as it stands (node scripts/ml/native.js parity, then pin)");
+  const oo = cfg.learner === 'only-orphans';
+  const weights = oo ? N.nativeId('oo:' + (cfg.weightsFile || 'js/mahjong-only-orphans-weights.js'))
+    : N.nativeId('nc:' + (cfg.weightsFile || 'js/mahjong-ml-weights.js'));
+  if (!weights) fail((oo ? 'Only Orphans' : 'Neural Cat') + " can't play on the native simulator as it stands (node scripts/ml/native.js parity, then pin)");
   const sim = path.join(__dirname, '..', '..', 'native', 'build', (args.exact ? 'lcm-sim-exact' : 'lcm-sim') + (process.platform === 'win32' ? '.exe' : ''));
   // A finished shard is kept (shard-N.done.json says what made it): a run that was
   // stopped part way picks up at the shards it hadn't finished.
   const replays = (args.replays ? ['--replays', String(args.replays), '--replay-share', String(args['replay-share'] || 0.25)] : [])
     .concat(args['option-replays'] ? ['--option-replays', String(args['option-replays']), '--options', String(args.options || 4), '--option-share', String(args['option-share'] || 0.1)] : []);
   const recordAll = all ? ['--record-all', cfg.pool.map((id) => known.indexOf(id)).join(',')] : [];
-  const key = (c) => JSON.stringify([c.seed, c.deals, weights, pool, cfg.temperature, cfg.epsilon, cfg.sample, !!args.exact, E.GAME_VERSION, replays, recordAll]);
+  const learnerArg = oo ? ['--learner', cfg.learner] : [];
+  const key = (c) => JSON.stringify([c.seed, c.deals, weights, pool, cfg.temperature, cfg.epsilon, cfg.sample, !!args.exact, E.GAME_VERSION, replays, recordAll].concat(learnerArg));
   return (c) => new Promise((resolve, reject) => {
     const done = path.join(cfg.out, 'shard-' + c.index + '.done.json');
     try {
@@ -318,7 +324,7 @@ function nativePlan(cfg, known, args) {
     } catch (e) { /* not there yet */ }
     execFile(sim, ['generate-nc', '--weights', weights.slice(3), '--temperature', String(cfg.temperature), '--epsilon', String(cfg.epsilon),
       '--sample', String(cfg.sample), '--seed', String(c.seed), '--deals', String(c.deals), '--shard', String(c.index),
-      '--strategy', String(known.indexOf(cfg.learner)), '--pool', pool.join(','), '--out', cfg.out].concat(replays, recordAll), { maxBuffer: 1 << 24 },
+      '--strategy', String(known.indexOf(cfg.learner)), '--pool', pool.join(','), '--out', cfg.out].concat(learnerArg, replays, recordAll), { maxBuffer: 1 << 24 },
     (err, stdout, stderr) => {
       if (err) return reject(new Error('lcm-sim generate-nc: ' + (stderr || err.message)));
       const result = JSON.parse(stdout);
@@ -333,16 +339,18 @@ function parity(args) {
   const { spawnSync } = require('node:child_process');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lcm-rows-'));
   const deals = String(args.deals || 200);
-  const pool = String(args.pool || 'neural-cat,neural-cat,jorge-yau,lucky-cat');
+  // --learner only-orphans: Only Orphans exploring, against the shipped Neural Cat and the table.
+  const learner = String(args.learner || 'neural-cat');
+  const pool = String(args.pool || (learner === 'only-orphans' ? 'only-orphans,only-orphans,neural-cat,jorge-yau,lucky-cat' : 'neural-cat,neural-cat,jorge-yau,lucky-cat'));
   const base = ['--deals', deals, '--workers', String(args.workers || 2), '--seed', String(args.seed || 4242), '--lineup', 'mix', '--pool', pool,
     '--explore', '0', '--sample', String(args.sample || 0.3),
-    '--temperature', String(args.temperature || 150), '--epsilon', String(args.epsilon || 0.05)].concat(args.weights ? ['--weights', String(args.weights)] : []);
+    '--temperature', String(args.temperature || 150), '--epsilon', String(args.epsilon || 0.05), '--learner', learner].concat(args.weights ? ['--weights', String(args.weights)] : []);
   const run = (name, extra) => {
     const r = spawnSync('node', [__filename].concat(base, ['--out', path.join(dir, name)], extra), { encoding: 'utf8' });
     if (r.status) throw new Error(name + ' failed: ' + (r.stderr || r.stdout));
   };
   // Every seat recorded (the default), or the learner's alone (--learner-only).
-  const rec = args['learner-only'] ? ['--record', 'neural-cat'] : [];
+  const rec = args['learner-only'] ? ['--record', learner] : [];
   run('js', rec);
   run('native', ['--native', '--exact'].concat(rec));
   let bytes = 0, bad = 0;
@@ -358,7 +366,7 @@ function parity(args) {
   });
   fs.rmSync(dir, { recursive: true, force: true });
   if (bad) { console.log('generate parity: ' + bad + ' shard file' + (bad > 1 ? 's differ' : ' differs') + ' over ' + deals + ' deals'); process.exit(1); }
-  console.log('generate parity: the native simulator wrote the JS rows byte for byte (' + deals + ' deals, ' + bytes + ' bytes)');
+  console.log('generate parity: the native simulator wrote the JS rows byte for byte (' + learner + ', ' + deals + ' deals, ' + bytes + ' bytes)');
 }
 
 function stamp() {

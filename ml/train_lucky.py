@@ -128,7 +128,7 @@ PER = [69]
 AUX = 3 * 34 + 3 + 3 + 34 + 34
 
 
-def load_q(dirs):
+def load_q(dirs, q_points=None):
     xs, legal, qa, q, hs = [], [], [], [], []
     size = version = None
     for di, d in enumerate(dirs):
@@ -147,6 +147,10 @@ def load_q(dirs):
             # Four slots whatever the data had: the move played and up to three tried.
             qa.append(np.concatenate([t, np.full((len(t), 4), 255, dtype=np.uint8)], axis=1)[:, :4])
             qv = np.fromfile(base + '.q.f4', dtype='<f4').reshape(-1, slots)
+            # --q-points B: each move's replayed mean points plus B for a sure win
+            # (.qp.f4 beside the share of replays won, lcm-sim generate-lcv).
+            if q_points is not None:
+                qv = np.fromfile(base + '.qp.f4', dtype='<f4').reshape(-1, slots) + q_points * qv
             q.append(np.concatenate([qv, np.zeros((len(t), 4), np.float32)], axis=1)[:, :4])
             xs.append(np.fromfile(base + '.x.f16', dtype='<f2').reshape(-1, size))
             m = np.unpackbits(np.fromfile(base + '.m.u1', dtype=np.uint8).reshape(-1, 10), axis=1, bitorder='little')[:, :OUTPUTS]
@@ -158,7 +162,7 @@ def load_q(dirs):
 
 def train_q(args, hidden, init_hidden):
     """--mode q: fit the champion's shares, tilted toward the moves that scored more on replays."""
-    x, legal, qa, q, h, size, version = load_q(args.data)
+    x, legal, qa, q, h, size, version = load_q(args.data, args.q_points)
     n = len(x)
     valid = qa != 255
     adv = np.clip(q - q[:, :1], -args.reward_clip, args.reward_clip) * valid
@@ -234,7 +238,7 @@ def train_q(args, hidden, init_hidden):
             stats = {'epochs': ep + 1, 'kl': float(kl), 'heldOutGain': float(gain)}
     net.load_state_dict(best_state)
     net.cpu().eval()
-    meta_train = dict({'mode': 'q', 'tau': args.tau, 'rewardClip': args.reward_clip, 'lr': args.lr, 'choices': int(n)}, **stats)
+    meta_train = dict({'mode': 'q', 'tau': args.tau, 'qPoints': args.q_points, 'rewardClip': args.reward_clip, 'lr': args.lr, 'choices': int(n)}, **stats)
     return net, x, va, n, size, version, best, meta_train
 
 
@@ -399,6 +403,7 @@ def main():
     ap.add_argument('--tau', type=float, default=100.0, help='--mode q: the points of advantage that multiply a share by e')
     ap.add_argument('--reward', choices=['points', 'sqrt'], default='points', help='the hand\'s points, or their signed square root')
     ap.add_argument('--reward-clip', type=float, default=4000)
+    ap.add_argument('--q-points', type=float, default=None, help='--mode q: target each move\'s replayed mean points plus this bonus for a sure win, instead of its share of replays won')
     ap.add_argument('--win-bonus', type=float, default=0, help='points added to the reward of a hand won')
     ap.add_argument('--critic-epochs', type=int, default=3)
     ap.add_argument('--critic-loss', choices=['mse', 'huber'], default='mse', help='the critic\'s loss (huber was the default before Suphx)')

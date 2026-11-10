@@ -1,8 +1,10 @@
-// The shared bot foundation (js/mahjong-bot.js) with Jorge Yau's hooks
-// (js/mahjong-jorge-yau.js), the base of the benchmark's Jorge Yau and
-// Neural Cat. Only the paths those two take are ported: their tuning has
-// ownPlans set (no plansOfFamily, no gateSpecial), race unset, keepPairs 0.
-// Every function keeps the JS's order of reads, products and sorts.
+// The shared bot foundation (js/mahjong-bot.js) with a strategy's hooks: Jorge
+// Yau's (js/mahjong-jorge-yau.js) by default, the base of the benchmark's Jorge
+// Yau and Neural Cat, or another strategy's (the hook* methods, as createStrategy's
+// def.hooks: Only Orphans, native/src/only_orphans.*). Only the paths those
+// take are ported: their tuning has ownPlans set (no plansOfFamily, no
+// gateSpecial), race unset, keepPairs 0. Every function keeps the JS's order of
+// reads, products and sorts.
 #pragma once
 #include "engine.h"
 #include "jsmath.h"
@@ -56,6 +58,7 @@ struct Plan {
   bool hasKeep = false; Mask keep = 0;
   bool hasFavors = false; Mask favors = 0;
   bool upgrade = false, pairs = false, hard = false;
+  bool committed = false;  // the only kind of hand a strategy plays (handUtility keeps it however few draws are left)
   int start = 0;  // gates
 };
 using PlanP = std::shared_ptr<Plan>;
@@ -126,6 +129,10 @@ struct Tuning {
   double keepPairs = 0;
 };
 
+// Only Orphans' read of a hand's targets, kept on the context as the JS keeps
+// ctx.ooWorths (shared by its copies): native/src/only_orphans.cpp.
+struct OoWorthCache;
+
 struct Ctx {
   const Game* game = nullptr;
   int seat = 0, seatWind = 1, round = 1;
@@ -163,6 +170,11 @@ struct Ctx {
   bool leadReady = false;
   bool folding = false;
   bool mlSynced = false;
+  // A strategy's hand of 1s, 9s and honors (Only Orphans' hand hook): no one-suit commitment.
+  bool mixedHand = false;
+  // Only Orphans: the target (only_orphans.h's targets, -1 none) and its cache of worths.
+  int ooTarget = -1;
+  mutable std::shared_ptr<OoWorthCache> ooWorths;
 };
 
 struct Candidate {
@@ -191,6 +203,7 @@ struct SeatMemo {
   bool hasPlan = false; int turn = -1; Family base = F_NONE, now = F_NONE; std::map<int, int> left;
   int bigHandLock = -2;  // -2 undefined, -1 null, else HANDS index
   bool hasOpening = false; Target opening;
+  int ooTarget = -1;  // Only Orphans' target as last read (seat['ooTarget:' + id].id), -1 none
 };
 SeatMemo& seatMemo(const Game& g, int seat, const std::string& botId);  // planMemo per strategy id
 SeatMemo& seatShared(const Game& g, int seat);  // the seat's own (bigHandLock, opening)
@@ -242,6 +255,27 @@ class Foundation {
   uint64_t version_ = 0;  // the hand version handUtility is reading (for its plan memo)
   std::vector<Threat> opponentThreatsUncached(const Game& g, int seat);
   std::shared_ptr<Track> readTableUncached(const Game& g, int seat, const Counts& unseen);
+
+  // A strategy's hooks (js/mahjong-bot.js createStrategy's def.hooks). Jorge Yau's
+  // by default; a strategy without one of these hooks returns the shared
+  // foundation's no-hook value from its override.
+  virtual void hookContext(Ctx& ctx, const Game& g, int seat) { jyContext(ctx, g, seat); }
+  virtual void hookHand(Ctx& ctx, const Counts& counts) { jyLockHand(ctx, counts); }
+  virtual std::vector<PlanP> hookPlans(const Counts& c, Ctx& ctx) { return jyPlans(c, ctx); }
+  virtual bool hookPriority(const Game& g, const Ctx& ctx, const Counts& counts, const Candidate& cand, int bestShanten, double& out) {
+    return jyPriority(g, ctx, counts, cand, bestShanten, out);
+  }
+  virtual double hookReadyValue(double value, const std::vector<Wait>& waits, const Counts& c, const Ctx& ctx) { return jyReadyValue(value, waits, c, ctx); }
+  virtual void hookThreats(std::vector<Threat>& list, const Game& g) { jyThreats(list, g); }
+  virtual double hookWaitChance(double chance, const Threat& t, int i) { return jyWaitChance(chance, t, i); }
+  virtual double hookExtraLoss(const Game& g, const std::vector<Threat>& list, int i) { return jyExtraLoss(g, list, i); }
+  virtual double hookDefense(double w, const Ctx& ctx, int shanten) { return jyDefense(w, ctx, shanten); }
+  virtual std::vector<CandP> hookFinalOrder(const std::vector<CandP>& out, const Ctx& ctx, const Counts& c) { return jyFinalOrder(out, ctx, c); }
+  virtual bool hookKongOk(const KongOption& k, const Ctx& ctx) { return jyKongOk(k, ctx); }
+  virtual bool hookClaim(const ClaimFound& res, const Ctx& ctx, const Game& g, const ClaimOptions& opts, Decision& out) { return jyClaim(res, ctx, g, opts, out); }
+  // Whether liveUpgrade can name a hard target (isHardTarget): never with Jorge Yau's
+  // hooks (ctx.target is always set), so his claims skip reading it.
+  virtual bool hardTargets() const { return false; }
 
   // A strategy's last word on the discard order (Neural Cat).
   virtual bool hasRerank() const { return false; }

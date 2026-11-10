@@ -1,4 +1,5 @@
 #include "neural_cat.h"
+#include <algorithm>
 #include <cstring>
 
 namespace lcm {
@@ -251,6 +252,16 @@ std::vector<CandP> NeuralCat::rerank(std::vector<CandP> out, Ctx& ctx, const Cou
   State st;
   prepare(st, g, seat, ctx, &threats, &counts);
   int open = int(out.size());
+  // Only the discards `allow` lets through are picked from; they go first.
+  if (hasAllow()) {
+    std::vector<CandP> ok = allow(out, ctx, counts, g);
+    if (!ok.empty()) {
+      std::vector<CandP> next = ok;
+      for (auto& x : out) if (std::find(ok.begin(), ok.end(), x) == ok.end()) next.push_back(x);
+      out = next;
+      open = int(ok.size());
+    }
+  }
   int k0 = topK_ > 0 ? std::min(topK_, open) : open;
   // The best few, through the network together.
   static thread_local std::vector<float> xs, stacked;
@@ -297,10 +308,12 @@ std::vector<CandP> NeuralCat::rerank(std::vector<CandP> out, Ctx& ctx, const Cou
 // Exploring (js/mahjong-ml.js pickIndex): the same draws from the same generator.
 int NeuralCat::pickIndex(const std::vector<CandP>& ranked, int k0) {
   if (epsilon && rng() < epsilon) {
+    // With allow, among the discards it picks from (the first k0); else any.
+    size_t n = hasAllow() ? size_t(k0) : ranked.size();
     int best = 1 << 30;
-    for (auto& x : ranked) best = std::min(best, x->shanten);
+    for (size_t i = 0; i < n; i++) best = std::min(best, ranked[i]->shanten);
     std::vector<int> pool;
-    for (size_t i = 0; i < ranked.size(); i++) if (ranked[i]->shanten <= best) pool.push_back(int(i));
+    for (size_t i = 0; i < n; i++) if (ranked[i]->shanten <= best) pool.push_back(int(i));
     return pool[size_t(rng() * double(pool.size()))];
   }
   if (!temperature) return 0;
@@ -396,6 +409,7 @@ Decision NeuralCat::chooseClaim(const Game& g, int seat, const ClaimOptions& opt
   pass.ml = waitingFeatures(g, seat, 0, opts.tile);
   choices.push_back(pass);
   for (auto& o : d.found.options) {
+    if (!claimOk(o, opts, g, seat)) continue;
     // Never a call that goes against the hand it's building (the contradiction check).
     if (!claimConsistent(g, seat, &d.found, o.decision, opts.tile)) continue;
     MlRead ml;
@@ -414,11 +428,13 @@ Decision NeuralCat::chooseClaim(const Game& g, int seat, const ClaimOptions& opt
 
 Decision NeuralCat::chooseTurnAction(const Game& g, int seat, const TurnOptions& opts) {
   Decision d = Foundation::chooseTurnAction(g, seat, opts);
-  if (opts.hasWin || opts.kongs.empty()) return d;
+  std::vector<KongOption> allowed;
+  for (auto& kong : opts.kongs) if (kongAllowed(kong, g, seat)) allowed.push_back(kong);
+  if (opts.hasWin || allowed.empty()) return d;
   DiscardAnalysis a = analyzeDiscards(g, seat);
   // Never a kong that goes against the hand it's building (the contradiction check).
   std::vector<KongOption> kongs;
-  for (auto& kong : opts.kongs) if (!check || !kongContradicts(a.ctx.leadPlan.get(), kong.tile)) kongs.push_back(kong);
+  for (auto& kong : allowed) if (!check || !kongContradicts(a.ctx.leadPlan.get(), kong.tile)) kongs.push_back(kong);
   if (kongs.empty()) return d;
   const Candidate& keep = *a.candidates[0];
   struct Choice { Decision decision; MlRead ml; };

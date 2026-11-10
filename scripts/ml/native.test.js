@@ -19,6 +19,7 @@ describe('native simulator', { skip: !built && 'native/build/lcm-sim is not buil
   it('plays every action of the engine as the JS does', () => parity('simple,simple,simple,simple', 100));
   it('plays Jorge Yau and Neural Cat as the JS does', () => parity('neural-cat,jorge-yau,neural-cat,jorge-yau', 8));
   it('plays Lucky Cat (features v1) as the JS does', () => parity('lc:js/mahjong-lucky-cat-weights.js,neural-cat,jorge-yau,neural-cat', 6));
+  it('plays Only Orphans as the JS does', () => parity('only-orphans,neural-cat,only-orphans,jorge-yau', 6));
   it('the fast build plays the exact build\'s hands, last-bit ties aside', () => {
     const N = require('./native.js');
     const ids = ['neural-cat', 'jorge-yau', 'neural-cat', 'lc:js/mahjong-lucky-cat-weights.js'].map((id) => N.nativeId(id));
@@ -32,6 +33,11 @@ describe('native simulator', { skip: !built && 'native/build/lcm-sim is not buil
     const r = spawnSync('node', [path.join(__dirname, 'generate.js'), 'parity', '--deals', '12', '--workers', '1'], { encoding: 'utf8', cwd: ROOT });
     assert.strictEqual(r.status, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /byte for byte/);
+  });
+  it('writes the training rows of the JS generator byte for byte (Only Orphans, exploring)', () => {
+    const r = spawnSync('node', [path.join(__dirname, 'generate.js'), 'parity', '--learner', 'only-orphans', '--deals', '8', '--workers', '1'], { encoding: 'utf8', cwd: ROOT });
+    assert.strictEqual(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /byte for byte \(only-orphans/);
   });
   it('round-trips weights through .lcmw', () => {
     const W = require('./weights.js');

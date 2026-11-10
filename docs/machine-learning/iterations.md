@@ -90,6 +90,10 @@ Every training idea and every milestone model is a section below, in the order t
   - [The native simulator](#the-native-simulator)
   - [Native-scale rounds (from 2026-11-09)](#native-scale-rounds-from-2026-11-09)
   - [Where it stands](#where-it-stands)
+- [Lucky Cat 3: self-taught and stacked, playing to win (from 2026-11-10)](#lucky-cat-3-self-taught-and-stacked-playing-to-win-from-2026-11-10)
+  - [Round 1: a value, judged on points, wins fewer hands](#round-1-a-value-judged-on-points-wins-fewer-hands)
+  - [Round 2: the policy learns from the replays (LV2p)](#round-2-the-policy-learns-from-the-replays-lv2p)
+  - [The objective: points, with a floor on hands won](#the-objective-points-with-a-floor-on-hands-won)
 - [The contradiction check: every move agrees with its hand](#the-contradiction-check-every-move-agrees-with-its-hand)
   - [What it is](#what-it-is)
   - [The discard check, measured](#the-discard-check-measured)
@@ -103,6 +107,7 @@ Every training idea and every milestone model is a section below, in the order t
   - [A wider choice](#a-wider-choice)
   - [Round 3: replayed labels](#round-3-replayed-labels)
   - [Round 4: replays on fresh every-seat data](#round-4-replays-on-fresh-every-seat-data)
+  - [Round 5: option replays and a ranking loss](#round-5-option-replays-and-a-ranking-loss)
   - [FC1: what ships, and what it does differently](#fc1-what-ships-and-what-it-does-differently)
 - [Where the files are](#where-the-files-are)
 - [Documenting a release](#documenting-a-release)
@@ -1227,6 +1232,27 @@ With data costing seconds, the rounds were rescaled: 100,000 deals a round, 40,0
 
 Phases 0 and 1 are built and training; phases 2 and 3 are designed. Search was measured (4 worlds, ±8.4 points a choice, no measurable gain) and is deferred to after phase 3, when it ships only at +20 points a hand or more within 1.5 s a move. Each decision, and what would reopen it, is in the [frontier history](frontier-history.md#what-would-reopen-each-decision).
 
+## Lucky Cat 3: self-taught and stacked, playing to win (from 2026-11-10)
+
+On 2026-11-10 the stacked design became Lucky Cat's new lineage, still called Lucky Cat and still self-taught: nothing in its choice comes from Jorge Yau's rules or options. It starts from LC32 and is judged on points a hand, with a floor on hands won (the maintainer's call: maximize points, keep a fairly high win rate; rounds 2 and 3's first try judged hands won alone). Models in this lineage are named LV (the round driver `npm run ml:lucky-value`; not the phase-1 arms of the same name above). [Details](../strategies/lucky-cat.md#the-value).
+
+### Round 1: a value, judged on points, wins fewer hands
+
+Thinking: give Lucky Cat Neural Cat's kind of value, a network that scores the position each of the policy's top moves leaves, learned from replays of every option. LV1a scored +14.0 ± 2.7 points a hand over LC32 (60,000 deals) and won 15.5% of its hands against 20.5%: it bought points with fewer, bigger wins. Bigger win bonuses didn't bring the wins back, and a value ranking by its own chance to win still won fewer hands than LC32 (top 4: 3.0 points of win rate fewer; top 2: 1.5). Not kept.
+
+### Round 2: the policy learns from the replays (LV2p)
+
+Thinking: if the value can't choose better than the policy, use the replays to make the policy choose better. `train_lucky --mode q` tilts LC32's shares toward the moves that won more replays. On 80,000 deals, against LC32 over 60,000:
+
+- **LV2p (tau 0.05):** won 21.1% of hands against 20.7%, +0.40 ± 0.08 points of win rate (five standard errors); −2.1 ± 2.0 points a hand. The champion.
+- **LV2t (tau 0.15):** +0.32 ± 0.07, a candidate too.
+- **LV2a (a value):** −1.31 ± 0.38 after 4,000 deals, dropped.
+- **What the bot does differently:** the same network, a little more sure of the moves that won their replays. It deals in as often (15.3% against 15.4%) and wins slightly smaller hands (5.46 faan against 5.49).
+
+### The objective: points, with a floor on hands won
+
+The maintainer then settled the objective: Lucky Cat may be trained to maximize points, as long as it keeps a fairly high win rate. Screens and the bar judge points a hand, and a model more than one point of win rate behind its champion is dropped. The policy recipes now learn each move's replayed mean points plus a bonus for a sure win (300 or 1,000 points). LV2p, level on points (−2.1 ± 2.0), is the starting champion for round 3, not a release.
+
 ## The contradiction check: every move agrees with its hand
 
 **In this section:** [What it is](#what-it-is) · [The discard check, measured](#the-discard-check-measured) · [Every decision, and every strategy](#every-decision-and-every-strategy) · [Head to head: with the check against without it](#head-to-head-with-the-check-against-without-it) · [What it taught, and what comes next](#what-it-taught-and-what-comes-next)
@@ -1353,6 +1379,14 @@ Thinking: if the data was the problem in round 3, replayed labels should pay off
 - **Level, not ahead.** By recipe against N14c over 60,000 deals: replayed labels +0.6 ± 2.4, with the reader +0.7 ± 2.4, the control +2.1 ± 2.4. Round 3's learner-only data had them 5 to 6 points behind, so every-seat data fixes the drift.
 - **Prediction again, not play.** Validation loss 3.1090–3.1092 with replays, 3.1086–3.1087 with the reader too, against 3.1111–3.1116 for the control. Twice now the better labels haven't made better moves, so FC1 stays.
 - **What the bots did differently:** all six won more hands than N14c (18.5% against 17.4%) and dealt in more (12.3 to 12.5% against 11.8%), the control as much as the rest, which points to the one round of exploring data rather than the labels.
+
+### Round 5: option replays and a ranking loss
+
+Thinking: replayed labels made the network predict better without choosing better; maybe it needed to learn which option is best, not only what each is worth. Every option a seat weighed was played on 12 times from the position, and the network learned a ranking loss over each group (FM5).
+
+- **The ranking loss broke the values:** by recipe −44.7 ± 9.4 points a hand against N14c, −44.4 with the reader, −18.4 with a wider body. A loss on the order of options leaves their level free, and claims compare an option's level against passing.
+- **The control is ahead:** replayed labels on two rounds of every-seat data, +6.8 ± 2.4 by recipe (FM5c0 +7.8 ± 3.4 over 60,000 deals), winning 18.6% of hands against 17.3%. On the benchmark's bar it fell short at the screen (+3.7 ± 7.9 points a hand against NC9 over 10,000 deals), so NC9 stays.
+- **What the bots did differently:** the control's models win more hands and slightly bigger ones (5.86 faan against 5.75), for a few more deal-ins (12.1% against 11.9%).
 
 ### FC1: what ships, and what it does differently
 

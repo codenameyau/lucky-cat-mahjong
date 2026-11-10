@@ -260,7 +260,7 @@ Ctx Foundation::buildContext(const Game& g, int seat) {
   double m = 1;
   for (auto& t : opponentThreats(g, seat)) m = m * (1 - t.ready * WIN_PER_TURN);
   ctx.hazard = 1 - m;
-  jyContext(ctx, g, seat);
+  hookContext(ctx, g, seat);
   return ctx;
 }
 
@@ -369,6 +369,7 @@ static bool isMixedPlan(PlanKind k) {
 int Foundation::suitCommitment(const Ctx& ctx, const Counts& counts) {
   int chow = chowCommitment(ctx);
   if (chow >= 0) return chow;
+  if (ctx.mixedHand) return -1;
   const Plan* lead = ctx.leadPlan.get();
   if (lead && (lead->kind == P_STRAIGHTS || isMixedPlan(lead->kind))) return -1;
   // the meld suits other than honors, in the order the JS's object keys give (first seen)
@@ -454,10 +455,16 @@ bool Foundation::claimContradicts(const ClaimFound& found, const Ctx& ctx, const
   return false;
 }
 
-// The foundation's liveUpgrade never has a hard target with Jorge Yau's hooks (they always set a target).
+// A big hand the claim builds (a hard target) is the hand it names, so a claim of its tiles
+// is consistent with it. (The foundation's liveUpgrade never has a hard target with Jorge
+// Yau's hooks: they always set a target.)
 bool Foundation::claimConsistent(const Game& g, int seat, const ClaimFound* found, const Decision& d, int tile) {
   if (!check || !found || d.type == A_PASS || d.type == A_WIN) return true;
   Ctx ctx = buildContext(g, seat);
+  if (hardTargets()) {
+    PlanP target = liveUpgrade(countsOf(g.hand.seats[seat].hand), ctx);
+    if (target && target->hard && inMask(target->keep, tile)) return true;
+  }
   return !claimContradicts(*found, ctx, d, tile);
 }
 
@@ -602,7 +609,7 @@ double Foundation::discardPriority(const Game& g, const Ctx& ctx, const Counts& 
   double shared;
   if (sharedPriority(g, ctx, counts, cand, shared)) return shared;
   double own;
-  if (jyPriority(g, ctx, counts, cand, bestShanten, own)) return own;
+  if (hookPriority(g, ctx, counts, cand, bestShanten, own)) return own;
   int i = cand.index;
   if (isPungTile(g, i) && counts[i] < 2 && cand.shanten <= bestShanten) return 1;
   const Analysis* an = cand.analysis.get();
@@ -670,7 +677,7 @@ int Foundation::shantenOf(const ShFn& fn, const Counts& c, int declared) {
 
 std::vector<PlanP> Foundation::plansFor(const Counts& c, Ctx& ctx) {
   // T.ownPlans: the strategy's list stands (plansOfFamily never joins it).
-  return aimablePlans(jyPlans(c, ctx), c, ctx);
+  return aimablePlans(hookPlans(c, ctx), c, ctx);
 }
 
 std::vector<PlanP> Foundation::aimablePlans(std::vector<PlanP> plans, const Counts& c, const Ctx& ctx) {
@@ -1177,7 +1184,7 @@ bool Foundation::readyValue(const Counts& cIn, const Ctx& ctx, ReadyInfo& out) {
   }
   if (tsumo <= 1) value *= 0.5;
   // readyOdds: T.race is off, the value stands.
-  value = jyReadyValue(value, out.waits, c, ctx);
+  value = hookReadyValue(value, out.waits, c, ctx);
   int best = 0;
   for (auto& d : out.waits) if (d.left && d.ronOk) best = std::max(best, d.ronFaan);
   out.value = value;
@@ -1296,7 +1303,7 @@ Analysis Foundation::handUtility(Counts c, Ctx& ctx) {
     }
     int s = pm.s >= 127 ? INF : pm.s;
     if (isInf(s)) continue;
-    if (p->upgrade && ctx.drawsLeft < 2 * s) continue;
+    if (p->upgrade && !p->committed && ctx.drawsLeft < 2 * s) continue;
     if (!pm.hasU) {
       Ukeire u0 = ukeireOf(this, p->counts, p->fn, ctx.declared, ctx.unseen, s, &Foundation::shantenOf);
       pm.total = u0.total;
@@ -1310,6 +1317,8 @@ Analysis Foundation::handUtility(Counts c, Ctx& ctx) {
     e.plan = p; e.shanten = s; e.planShanten = s; e.ukeire = pm.total; e.nUkeireTiles = __builtin_popcountll(pm.tiles);
     e.util = util; e.chance = chance; e.hasChance = true;
     e.pick = util * (p->weight ? p->weight : 1) * suitLean(p.get(), ctx);
+    // The hand's target (isHardTarget) is the plan it's on, whatever else pays now.
+    if (ctx.upgrade && ctx.upgrade->hard && ctx.upgrade->kind == p->kind && ctx.upgrade->suit == p->suit) e.pick = DINF;
     entries.push_back(e);
   }
   int bi = chooseEntry(entries, ctx);
@@ -1437,7 +1446,7 @@ std::vector<Threat> Foundation::opponentThreatsUncached(const Game& g, int seat)
     }
     t.ready = std::min(0.93, t.ready * read.pace);
   }
-  jyThreats(out, g);
+  hookThreats(out, g);
   return out;
 }
 
@@ -1487,7 +1496,7 @@ double Foundation::waitChance(const Game& g, const Threat& threat, int i) {
     else chance *= 0.15;
   }
   chance *= js::pow(threat.want[i], 0.6);
-  chance = jyWaitChance(chance, threat, i);
+  chance = hookWaitChance(chance, threat, i);
   return std::min(chance, 0.6);
 }
 
@@ -1498,7 +1507,7 @@ double Foundation::dealInLoss(const Game& g, const std::vector<Threat>& threats,
   double loss = 0;
   for (auto& t : threats) loss += t.ready * waitChance(g, t, i) * t.payment;
   loss += feedLoss(g, threats, i);
-  loss += jyExtraLoss(g, threats, i);
+  loss += hookExtraLoss(g, threats, i);
   return loss;
 }
 
@@ -1509,7 +1518,7 @@ double Foundation::defenseWeight(const Ctx& ctx, const std::vector<Threat>& thre
   if (top >= 2 && shanten >= 2) w *= top == 3 ? 1.7 : 1.3;
   if (ctx.wallLeft < 16 && !(shanten == 0 && readyFaan >= 5)) w *= 1.7;
   if (T.lateFold != 1 && shanten >= 2 && ctx.wallLeft < T.lateFoldWall) w *= T.lateFold;
-  return jyDefense(w, ctx, shanten);
+  return hookDefense(w, ctx, shanten);
 }
 
 static int riskStep(double loss) { return loss < 0.002 ? 0 : loss < 0.012 ? 1 : loss < 0.035 ? 2 : 3; }
@@ -1706,7 +1715,7 @@ static bool isReadyCand(const Candidate& x) {
 void Foundation::syncHandPlans(Ctx& ctx, const Counts& counts) {
   ctx.blockSevenPairs = concealedShape(counts).hasSet;
   ctx.avoidSuit = avoidSuitOf(counts, ctx);
-  jyLockHand(ctx, counts);
+  hookHand(ctx, counts);
   // gateSpecial: T.ownPlans, nothing to gate.
   ctx.upgrade = liveUpgrade(counts, ctx);
 }
@@ -1812,7 +1821,7 @@ DiscardAnalysis Foundation::analyzeDiscards(const Game& g, int seat, const Ctx* 
     keep.insert(keep.end(), lone.begin(), lone.end());
     out = keep;
   }
-  out = jyFinalOrder(out, ctx, c);
+  out = hookFinalOrder(out, ctx, c);
   out = keepDragonPair(out, ctx, c);
   {
     std::vector<CandP> ready, rest;
@@ -1847,7 +1856,7 @@ Decision Foundation::chooseTurnAction(const Game& g, int seat, const TurnOptions
   const Candidate& keep = *analysis.candidates[0];
   Ctx& ctx = analysis.ctx;
   for (auto& kong : opts.kongs) {
-    if (!jyKongOk(kong, ctx)) continue;
+    if (!hookKongOk(kong, ctx)) continue;
     if (check && kongContradicts(ctx.leadPlan.get(), kong.tile)) continue;
     int i = kong.tile;
     Counts c = countsOf(g.hand.seats[seat].hand);
@@ -1956,8 +1965,20 @@ Foundation::Decided Foundation::decideClaimRaw(const Game& g, int seat, const Cl
   out.hasFound = true;
   ClaimFound& res = out.found;
   Ctx ctx = buildContext(g, seat);
-  // H.claim: Jorge Yau's bigClaim (ownClaims is off). liveUpgrade's target is never hard (it always has a target).
-  { Decision mine; if (jyClaim(res, ctx, g, opts, mine)) { out.decision = mine; return out; } }
+  // H.claim: Jorge Yau's bigClaim (ownClaims is off), or the strategy's own.
+  { Decision mine; if (hookClaim(res, ctx, g, opts, mine)) { out.decision = mine; return out; } }
+  // On a target (isHardTarget), claim only what it uses. (Never with Jorge Yau's hooks: he always has a target.)
+  if (hardTargets()) {
+    PlanP target = liveUpgrade(countsOf(g.hand.seats[seat].hand), ctx);
+    if (target && target->hard) {
+      int t = opts.tile;
+      if (!inMask(target->keep, t)) out.decision.type = A_PASS;
+      else if (opts.kong) out.decision.type = A_KONG;
+      else if (opts.pung && !target->pairs) out.decision.type = A_PUNG;
+      else out.decision.type = A_PASS;
+      return out;
+    }
+  }
   int ti = opts.tile;
   const Plan* stayPlan = res.stay.hasBest ? res.stay.best.plan.get() : nullptr;
   bool lockedShape = stayPlan && (stayPlan->kind == P_PAIRS || stayPlan->kind == P_ORPHANS || stayPlan->kind == P_GATES);

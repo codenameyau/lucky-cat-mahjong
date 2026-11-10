@@ -25,7 +25,19 @@
    Options: --round N (default: the next), --deals N (80000), --workers N
    (CPU cores), --sample P (0.12), --option-replays K (12), --options N (4),
    --stages a,b,c (4000,16000,40000), --drop X (1), --candidate X (2),
-   --recipes a,s,c, --top-k K (4), --win-bonus B (300). */
+   --recipes p,t,k, --top-k K (4), --objective points|win (points),
+   --win-bonus B, --win-floor F (1).
+
+   The objective (the maintainer's call, 2026-11-10): Lucky Cat maximizes
+   points and keeps a fairly high win rate. With --objective points (the
+   default) a screen judges points a hand against the champion, and hands won
+   are a floor: a model more than --win-floor points of win rate behind (by
+   --drop SE) is dropped, and a candidate must be ahead by --candidate SE of
+   points and not behind the floor by more than 1 SE. The policy recipes learn
+   each move's replayed mean points plus a bonus for a sure win (--q-points).
+   (Round 1's LV1a: +14.0 points a hand over LC32 with 15.5% of hands won
+   against 20.5%, which the floor would drop.) --objective win (rounds 2 and 3)
+   judges hands won only. */
 
 'use strict';
 
@@ -45,6 +57,14 @@ const LC32 = 'js/mahjong-lucky-cat-weights.js';
 const OUTCOMES = ['winSelf', 'winDiscard', 'dealIn', 'otherSelf', 'otherWin', 'draw'];
 
 const RECIPES = {
+  // The policy itself, taught from the option replays (ml/train_lucky.py --mode q): the
+  // champion's shares tilted toward the moves whose replays won more often, by --tau
+  // (a share of replays won). No value: the policy plays alone, as LC32 does.
+  // With --objective points, a move's replays score its mean points plus qPoints a
+  // sure win, and tau is in points; with --objective win, its share of wins (winTau).
+  p: { what: 'the policy, tilted toward the moves that scored more replays (tau 100 points, 300 a win)', policy: true, tau: '100', qPoints: '300', winTau: '0.05' },
+  t: { what: 'the same, gentler (tau 300 points)', policy: true, tau: '300', qPoints: '300', winTau: '0.15' },
+  k: { what: 'the same, leaning on wins (tau 100 points, 1,000 a win)', policy: true, tau: '100', qPoints: '1000', winTau: '0.02' },
   a: { what: 'value from option replays and real endings, with the ranking loss', args: ['--options', '--rank-weight', '1'] },
   s: { what: 'the same, stacked: the value reads the reader', args: ['--options', '--rank-weight', '1'], stacked: true },
   c: { what: 'value from real endings only (the control)', args: [] },
@@ -110,6 +130,9 @@ async function makeData(dir, champ, r, a, log) {
     samples: shards.reduce((t, s) => t + s.samples, 0),
   };
   writeJson(manifest, m);
+  // Lucky Cat's own trainer reads the policy rows (shard-N.x.f16 and the rest) through meta.json.
+  writeJson(path.join(dir, 'meta.json'), { featureVersion: 1, featureSize: 376, rollouts: { slots: 8 }, qPoints: true,
+    policyRows: shards.reduce((t, s) => t + (s.policyRows || 0), 0) });
   log('Round ' + r + ': ' + m.samples + ' positions, ' + shards.reduce((t, s) => t + s.optionGroups, 0) + ' option groups');
   return m;
 }
@@ -140,8 +163,16 @@ async function main() {
   const champ = state.champion;
   const data = path.join('ml', 'data', 'lcv-' + r);
   await makeData(path.join(ROOT, data), champ, r, a, log);
-  const play = { topK: parseInt(a['top-k'] || 4, 10), winBonus: parseFloat(a['win-bonus'] || 300) };
-  const recipes = String(a.recipes || 'a,s,c').split(',');
+  // The values learn from this round's data and the round before's (--window 2).
+  const windowN = parseInt(a.window || 2, 10), sets = [];
+  for (let k = Math.max(1, r - windowN + 1); k <= r; k++) if (fs.existsSync(path.join(ROOT, 'ml', 'data', 'lcv-' + k, 'manifest.json'))) sets.push(path.join('ml', 'data', 'lcv-' + k));
+  const winObjective = String(a.objective || 'points') === 'win';
+  const winFloor = parseFloat(a['win-floor'] || 1);
+  const play = { topK: parseInt(a['top-k'] || 4, 10), winBonus: parseFloat(a['win-bonus'] || (winObjective ? 100000 : 300)) };
+  // The ranking loss's softmax temperature, in the value's units: 3,000 points of
+  // win bonus is a 3% chance to win.
+  const rankTemp = winObjective ? String(0.03 * play.winBonus) : '100';
+  const recipes = String(a.recipes || 'p,t,k').split(',');
 
   // The reader: the heads on the round's data.
   const reader = path.join('ml', 'models', 'LVR' + r);
@@ -150,16 +181,43 @@ async function main() {
     train(['--data', data, '--name', 'LVR' + r, '--hidden', '512,256', '--heads', '--head-weight', '0.5', '--lr', '1e-3', '--epochs', '12', '--patience', '3'], log);
   }
   const models = [];
+  // The champion's policy as JSON, for --init.
+  const champPolicy = path.join('ml', 'models', 'LV' + r + '-init.json');
+  if (!fs.existsSync(path.join(ROOT, champPolicy))) {
+    const w = require('./weights.js').readWeights(champ);
+    const pol = Object.assign({}, w); delete pol.value;
+    fs.writeFileSync(path.join(ROOT, champPolicy), JSON.stringify(pol));
+  }
   for (const k of recipes) {
     const rec = RECIPES[k];
     const name = 'LVv' + r + k, packed = path.join('ml', 'models', 'LV' + r + k + '.json');
+    if (rec.policy) {
+      if (!fs.existsSync(path.join(ROOT, packed))) {
+        log('Round ' + r + ': training LV' + r + k + ' [' + rec.what + ']');
+        // Rounds before the mean points were recorded (.qp.f4) can't teach the points target.
+        const qSets = sets.filter((d) => { const mt = readJson(path.join(ROOT, d, 'meta.json'), null); return mt && (winObjective || mt.qPoints); });
+        const q = winObjective ? ['--tau', rec.winTau, '--reward-clip', '1'] : ['--tau', rec.tau, '--q-points', rec.qPoints, '--reward-clip', '4000'];
+        const res = spawnSync(PYTHON, ['ml/train_lucky.py', '--mode', 'q', '--data'].concat(qSets,
+          ['--name', 'LV' + r + k, '--init', champPolicy], q, ['--lr', '3e-4', '--epochs', '4']), { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 });
+        if (res.status) throw new Error('train_lucky.py failed: ' + (res.stderr || '').slice(-1500) + (res.stdout || '').slice(-800));
+        log('  ' + (res.stdout || '').trim().split('\n').filter((l) => /epoch|choices/.test(l)).slice(-3).join(' | ').slice(0, 600));
+      }
+      models.push({ name: 'LV' + r + k, file: packed, recipe: k, alive: true, n: 0, sum: 0, sq: 0 });
+      continue;
+    }
     if (!fs.existsSync(path.join(ROOT, packed))) {
       log('Round ' + r + ': training ' + name + ' [' + rec.what + ']');
-      train(['--data', data, '--name', name, '--hidden', '512,256', '--lr', '1e-3', '--epochs', '12', '--patience', '3', '--win-bonus', String(play.winBonus)]
+      train(['--data'].concat(rec.stacked ? [data] : sets, ['--name', name, '--hidden', '512,256']).concat([ '--lr', '1e-3', '--epochs', '12', '--patience', '3', '--win-bonus', String(play.winBonus), '--rank-temp', rankTemp])
         .concat(rec.stacked ? ['--reader', reader + '.heads.json'] : [], rec.args), log);
       pack(champ, path.join('ml', 'models', name + '.json'), packed, play);
     }
     models.push({ name: 'LV' + r + k, file: packed, recipe: k, alive: true, n: 0, sum: 0, sq: 0 });
+    // --narrow: also the same value with the policy's best 2 only (keeps more of its wins).
+    if (a.narrow && k === 'a') {
+      const narrow = path.join('ml', 'models', 'LV' + r + 'a2.json');
+      if (!fs.existsSync(path.join(ROOT, narrow))) pack(champ, path.join('ml', 'models', name + '.json'), narrow, { topK: 2, winBonus: play.winBonus });
+      models.push({ name: 'LV' + r + 'a2', file: narrow, recipe: 'a', alive: true, n: 0, sum: 0, sq: 0 });
+    }
   }
   // Screens against the champion at the game's table.
   const stages = String(a.stages || '4000,16000,40000').split(',').map(Number);
@@ -172,18 +230,27 @@ async function main() {
       const res = readJson(json);
       m.n += stages[s]; m.sum += res.gap.points * stages[s]; m.sq += Math.pow(res.gap.standardError * stages[s], 2);
       m.gap = m.sum / m.n; m.se = Math.sqrt(m.sq) / m.n;
+      // Hands won, model less champion (points of win rate), pooled the same way.
+      m.wsum = (m.wsum || 0) + 100 * res.gap.wins * stages[s]; m.wsq = (m.wsq || 0) + Math.pow(100 * res.gap.winsError * stages[s], 2);
+      m.wgap = m.wsum / m.n; m.wse = Math.sqrt(m.wsq) / m.n;
       const x = res.models;
       m.last = x;
-      if (m.gap < -drop * m.se) m.alive = false;
-      log('Round ' + r + ' stage ' + (s + 1) + ': ' + m.name + ' ' + (m.gap >= 0 ? '+' : '') + m.gap.toFixed(1) + ' ± ' + m.se.toFixed(1) + ' points a hand over ' + m.n +
+      if (winObjective ? m.wgap < -drop * m.wse : m.gap < -drop * m.se || m.wgap < -winFloor - drop * m.wse) m.alive = false;
+      log('Round ' + r + ' stage ' + (s + 1) + ': ' + m.name + ' hands won ' + (m.wgap >= 0 ? '+' : '') + m.wgap.toFixed(2) + ' ± ' + m.wse.toFixed(2) +
+        ' points of win rate, ' + (m.gap >= 0 ? '+' : '') + m.gap.toFixed(1) + ' ± ' + m.se.toFixed(1) + ' points a hand over ' + m.n +
         ' deals | won ' + (100 * x[0].wins).toFixed(1) + '% / ' + (100 * x[1].wins).toFixed(1) + '%, dealt in ' + (100 * x[0].dealIns).toFixed(1) + '% / ' + (100 * x[1].dealIns).toFixed(1) +
         '%, ' + x[0].averageFaan.toFixed(2) + ' / ' + x[1].averageFaan.toFixed(2) + ' faan' + (m.alive ? '' : ': dropped'));
     }
     seed += stages[s];
   }
-  const out = models.map((m) => ({ name: m.name, recipe: m.recipe, gap: m.gap, se: m.se, deals: m.n, verdict: m.alive && m.gap > keep * m.se ? 'candidate' : 'not ahead' }));
-  out.forEach((m) => log('Round ' + r + ': ' + m.name + ' [' + RECIPES[m.recipe].what + ']: ' + m.verdict + ', ' + (m.gap >= 0 ? '+' : '') + m.gap.toFixed(1) + ' ± ' + m.se.toFixed(1)));
-  const best = out.filter((m) => m.verdict === 'candidate').sort((p, q) => q.gap - p.gap)[0];
+  const out = models.map((m) => {
+    const [g, e] = winObjective ? [m.wgap, m.wse] : [m.gap, m.se];
+    return { name: m.name, recipe: m.recipe, gap: m.gap, se: m.se, winGap: m.wgap, winSe: m.wse, deals: m.n, objective: winObjective ? 'win' : 'points',
+      score: g, verdict: m.alive && g > keep * e && (winObjective || m.wgap >= -winFloor - m.wse) ? 'candidate' : 'not ahead' };
+  });
+  out.forEach((m) => log('Round ' + r + ': ' + m.name + ' [' + RECIPES[m.recipe].what + ']: ' + m.verdict + ', hands won ' + (m.winGap >= 0 ? '+' : '') + m.winGap.toFixed(2) +
+    ' ± ' + m.winSe.toFixed(2) + ' points of win rate, ' + (m.gap >= 0 ? '+' : '') + m.gap.toFixed(1) + ' ± ' + m.se.toFixed(1) + ' points a hand'));
+  const best = out.filter((m) => m.verdict === 'candidate').sort((p, q) => q.score - p.score)[0];
   if (best) { state.champion = path.join('ml', 'models', best.name + '.json'); log('Round ' + r + ': ' + best.name + ' is the new champion (the bar: node scripts/ml/bench.js judge lc:' + state.champion + ' --lineage lucky-cat)'); }
   state.rounds[r - 1] = { round: r, data, champion: champ, models: out };
   writeJson(path.join(dir, 'state.json'), state);
