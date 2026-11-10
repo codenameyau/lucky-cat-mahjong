@@ -1205,7 +1205,7 @@
     value: 'keeps a bigger hand in reach',
     safety: 'is the safest tile to throw',
     table: 'fits what the other players are doing',
-    hand: 'works best with the tiles you keep',
+    hand: 'works best with the tiles you have',
     discard: 'is the tile you need least',
     context: 'suits this stage of the game',
   };
