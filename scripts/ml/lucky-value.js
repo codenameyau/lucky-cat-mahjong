@@ -25,7 +25,17 @@
    Options: --round N (default: the next), --deals N (80000), --workers N
    (CPU cores), --sample P (0.12), --option-replays K (12), --options N (4),
    --stages a,b,c (4000,16000,40000), --drop X (1), --candidate X (2),
-   --recipes a,s,c, --top-k K (4), --win-bonus B (300). */
+   --recipes a,s,c, --top-k K (4), --objective win|points (win), --win-bonus B.
+
+   The objective (the maintainer's call, 2026-11-10): Lucky Cat is trained to
+   win quickly and most often. With --objective win (the default) its value
+   ranks moves by the chance to win, expected points only breaking ties (a win
+   bonus of 100,000 points), the ranking loss learns each option's share of
+   replays won, and a screen judges hands won against the champion: a model
+   ahead by --candidate SE of hands won is a candidate, one behind by --drop SE
+   is dropped. Points are reported beside. --objective points judges points
+   with a win bonus of 300 (round 1's LV1a: +14.0 points a hand over LC32, but
+   15.5% of hands won against 20.5%). */
 
 'use strict';
 
@@ -143,7 +153,11 @@ async function main() {
   // The values learn from this round's data and the round before's (--window 2).
   const windowN = parseInt(a.window || 2, 10), sets = [];
   for (let k = Math.max(1, r - windowN + 1); k <= r; k++) if (fs.existsSync(path.join(ROOT, 'ml', 'data', 'lcv-' + k, 'manifest.json'))) sets.push(path.join('ml', 'data', 'lcv-' + k));
-  const play = { topK: parseInt(a['top-k'] || 4, 10), winBonus: parseFloat(a['win-bonus'] || 300) };
+  const winObjective = String(a.objective || 'win') === 'win';
+  const play = { topK: parseInt(a['top-k'] || 4, 10), winBonus: parseFloat(a['win-bonus'] || (winObjective ? 100000 : 300)) };
+  // The ranking loss's softmax temperature, in the value's units: 3,000 points of
+  // win bonus is a 3% chance to win.
+  const rankTemp = winObjective ? String(0.03 * play.winBonus) : '100';
   const recipes = String(a.recipes || 'a,s,c').split(',');
 
   // The reader: the heads on the round's data.
@@ -158,7 +172,7 @@ async function main() {
     const name = 'LVv' + r + k, packed = path.join('ml', 'models', 'LV' + r + k + '.json');
     if (!fs.existsSync(path.join(ROOT, packed))) {
       log('Round ' + r + ': training ' + name + ' [' + rec.what + ']');
-      train(['--data'].concat(rec.stacked ? [data] : sets, ['--name', name, '--hidden', '512,256']).concat([ '--lr', '1e-3', '--epochs', '12', '--patience', '3', '--win-bonus', String(play.winBonus)])
+      train(['--data'].concat(rec.stacked ? [data] : sets, ['--name', name, '--hidden', '512,256']).concat([ '--lr', '1e-3', '--epochs', '12', '--patience', '3', '--win-bonus', String(play.winBonus), '--rank-temp', rankTemp])
         .concat(rec.stacked ? ['--reader', reader + '.heads.json'] : [], rec.args), log);
       pack(champ, path.join('ml', 'models', name + '.json'), packed, play);
     }
@@ -181,18 +195,28 @@ async function main() {
       const res = readJson(json);
       m.n += stages[s]; m.sum += res.gap.points * stages[s]; m.sq += Math.pow(res.gap.standardError * stages[s], 2);
       m.gap = m.sum / m.n; m.se = Math.sqrt(m.sq) / m.n;
+      // Hands won, model less champion (points of win rate), pooled the same way.
+      m.wsum = (m.wsum || 0) + 100 * res.gap.wins * stages[s]; m.wsq = (m.wsq || 0) + Math.pow(100 * res.gap.winsError * stages[s], 2);
+      m.wgap = m.wsum / m.n; m.wse = Math.sqrt(m.wsq) / m.n;
       const x = res.models;
       m.last = x;
-      if (m.gap < -drop * m.se) m.alive = false;
-      log('Round ' + r + ' stage ' + (s + 1) + ': ' + m.name + ' ' + (m.gap >= 0 ? '+' : '') + m.gap.toFixed(1) + ' ± ' + m.se.toFixed(1) + ' points a hand over ' + m.n +
+      const [judged, judgedSe] = winObjective ? [m.wgap, m.wse] : [m.gap, m.se];
+      if (judged < -drop * judgedSe) m.alive = false;
+      log('Round ' + r + ' stage ' + (s + 1) + ': ' + m.name + ' hands won ' + (m.wgap >= 0 ? '+' : '') + m.wgap.toFixed(2) + ' ± ' + m.wse.toFixed(2) +
+        ' points of win rate, ' + (m.gap >= 0 ? '+' : '') + m.gap.toFixed(1) + ' ± ' + m.se.toFixed(1) + ' points a hand over ' + m.n +
         ' deals | won ' + (100 * x[0].wins).toFixed(1) + '% / ' + (100 * x[1].wins).toFixed(1) + '%, dealt in ' + (100 * x[0].dealIns).toFixed(1) + '% / ' + (100 * x[1].dealIns).toFixed(1) +
         '%, ' + x[0].averageFaan.toFixed(2) + ' / ' + x[1].averageFaan.toFixed(2) + ' faan' + (m.alive ? '' : ': dropped'));
     }
     seed += stages[s];
   }
-  const out = models.map((m) => ({ name: m.name, recipe: m.recipe, gap: m.gap, se: m.se, deals: m.n, verdict: m.alive && m.gap > keep * m.se ? 'candidate' : 'not ahead' }));
-  out.forEach((m) => log('Round ' + r + ': ' + m.name + ' [' + RECIPES[m.recipe].what + ']: ' + m.verdict + ', ' + (m.gap >= 0 ? '+' : '') + m.gap.toFixed(1) + ' ± ' + m.se.toFixed(1)));
-  const best = out.filter((m) => m.verdict === 'candidate').sort((p, q) => q.gap - p.gap)[0];
+  const out = models.map((m) => {
+    const [g, e] = winObjective ? [m.wgap, m.wse] : [m.gap, m.se];
+    return { name: m.name, recipe: m.recipe, gap: m.gap, se: m.se, winGap: m.wgap, winSe: m.wse, deals: m.n, objective: winObjective ? 'win' : 'points',
+      score: g, verdict: m.alive && g > keep * e ? 'candidate' : 'not ahead' };
+  });
+  out.forEach((m) => log('Round ' + r + ': ' + m.name + ' [' + RECIPES[m.recipe].what + ']: ' + m.verdict + ', hands won ' + (m.winGap >= 0 ? '+' : '') + m.winGap.toFixed(2) +
+    ' ± ' + m.winSe.toFixed(2) + ' points of win rate, ' + (m.gap >= 0 ? '+' : '') + m.gap.toFixed(1) + ' ± ' + m.se.toFixed(1) + ' points a hand'));
+  const best = out.filter((m) => m.verdict === 'candidate').sort((p, q) => q.score - p.score)[0];
   if (best) { state.champion = path.join('ml', 'models', best.name + '.json'); log('Round ' + r + ': ' + best.name + ' is the new champion (the bar: node scripts/ml/bench.js judge lc:' + state.champion + ' --lineage lucky-cat)'); }
   state.rounds[r - 1] = { round: r, data, champion: champ, models: out };
   writeJson(path.join(dir, 'state.json'), state);
