@@ -6,7 +6,7 @@ Guides for working on Lucky Cat Mahjong. The [project README](../README.md) cove
 | --- | --- |
 | [Machine learning](machine-learning/README.md) | Neural Cat and Lucky Cat, the learned strategies. Neural Cat: its features, the neural network, how it picks discards, claims and kongs, how it's trained (self-play and the league), fair play, and the models and data on Hugging Face |
 | [Analytics](analytics/README.md) | Google Analytics: how tracking is set up, what's never collected, how to read and add events, and every event the site sends |
-| [Architecture](architecture/README.md) | The evaluation architecture (proposed): one pipeline every strategy, model and the coach run for every decision (table read, hand picker, pivot checker, discarder, contradiction check), how it maps onto today's code, and the stages to build it |
+| [Architecture](architecture/README.md) | The evaluation architecture (proposed): one model with three heads for the middle layers, inside one pipeline every strategy, model and the coach run for every decision (table read, hand picker, pivot checker, discarder, contradiction check), how it maps onto today's code, and the stages to build it |
 | [Strategies](strategies/README.md) | The bots and the coach: the shared foundation, each strategy's playbook, competitions, and reviewing a hand to teach the coach |
 | [Offline](offline/README.md) | The service worker: which pages work offline, how every request gets the latest file while online, how new versions take over, retiring the old game worker, and testing |
 
