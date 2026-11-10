@@ -2,7 +2,7 @@
 
 A design, not built yet (written 2026-11-09, revised the same day after a critical pass). One pipeline that every strategy, every model and the coach run for every decision: read the table, pick the hand, decide whether to pivot, choose the move, and check the move against the hand. It replaces five overlapping ways of choosing a hand and four of leaving one.
 
-**Simplified on 2026-11-09 (maintainer's decision): one model does the middle of the pipeline.** The five layers below are still the five jobs, but a model strategy no longer has a rule set or a model for each. One network with three heads reads the table, picks the hand and values the moves; exact rules feed it facts and check its move. That design is [One model for the middle](#one-model-for-the-middle), and where it and the layer-by-layer text disagree, it wins.
+**Simplified on 2026-11-09 (maintainer's decision): one model does the middle of the pipeline, and it is the new frontier model.** The Suphx-based frontier plan is cancelled as a failed experiment ([why](../machine-learning/frontier-plan.md#the-suphx-line-is-cancelled-2026-11-09)). The five layers below are still the five jobs, but a model strategy no longer has a rule set or a model for each. One network with three heads reads the table, picks the hand and values the moves; exact rules feed it facts and check its move. That design is [One model for the middle](#one-model-for-the-middle), and where it and the layer-by-layer text disagree, it wins.
 
 This page also says where the design is weak, which layers should be rules and which a model, and what has to be measured before any of it is built. Two things in the first draft were wrong and are corrected here: that choosing the hand before the model chooses would by itself return Neural Cat's loss ([it won't](#1-masking-before-the-model-is-not-a-fix-by-itself)), and that the pipeline should hold exactly one hand ([it should hold two](#2-one-hand-is-too-few-early-in-the-hand)).
 
@@ -17,6 +17,7 @@ This page also says where the design is weak, which layers should be rules and w
   - [Why it is simpler](#why-it-is-simpler)
   - [What stays outside the model](#what-stays-outside-the-model)
   - [Where this is weak](#where-this-is-weak)
+  - [Making it strong](#making-it-strong)
   - [The first step is small](#the-first-step-is-small)
 - [How a decision is made today](#how-a-decision-is-made-today)
   - [Where each layer's work lives now](#where-each-layers-work-lives-now)
@@ -60,7 +61,7 @@ Faan is still worth reporting beside points in every benchmark: hands won, the a
 
 Decided by the maintainer (2026-11-09): one model, trained to do several layers, in place of a rule set or a model for each. The reason given is that it is easier, and for the model strategies that is right: one training run, one set of weights, one port to the native simulator, one thing to judge.
 
-It is also not a new model. The frontier plan's [next network](../machine-learning/frontier-plan.md#4-the-target-architecture) (phase 2, designed and not built) already has a head that reads the opponents and a head that values every move. This design adds one head to it, the hand, and makes that network the evaluation architecture's model. Two plans become one.
+**This is the new frontier model.** The frontier plan built on Suphx was cancelled the same day as a failed experiment ([the record](../machine-learning/frontier-plan.md#the-suphx-line-is-cancelled-2026-11-09)): its critic, its teacher-pushed policy, its from-scratch lineage and its search each failed to pay here. What has worked in this project is Neural Cat: rules propose the moves, and a model trained on how hands actually ended values them. So the one model grows from Neural Cat, generation by generation, and takes from the cancelled plan only what was shown to work: the benchmark and its bar, the native simulator, features v2, and the heads that read the table.
 
 ### The shape
 
@@ -68,16 +69,18 @@ It is also not a new model. The frontier plan's [next network](../machine-learni
 A. Facts (rules, exact)    tiles seen, legal moves, draws left; for each hand family:
                            steps from ready, live tiles, the faan it would hold
 
-B. One model, three heads  one shared body
-     table head            each opponent: ready or not, the tiles that complete the hand,
-                           the faan each of my discards would give away        (layer 0)
-     hand head             each hand family: the chance to finish, the faan      (layers 1, 2)
-     move head             each legal move: the expected points                  (layer 3)
+B. One model, three heads  one shared body, read twice a turn
+     once for the position (the 14 tiles):
+       table head          each opponent: ready or not, the tiles that complete the hand (layer 0)
+       hand head           each hand family: the chance to finish, the faan       (layers 1, 2)
+     once for each legal move (the tiles left after it), given the hands just picked:
+       move head           how the hand ends, the faan won, the faan paid:
+                           the expected points of that move                       (layer 3)
 
 C. Check (rules)           the move against the hand head's main hand and backup (layer 4)
 ```
 
-Five layers become three stages. `decide()` returns the same record as before: the hand, the backup, the pivot, the moves, the move and `checked`.
+Five layers become three stages. The hand is read once, from the whole position, and every move is then valued for that hand. That is the difference from today, where each discard is valued against its own best hand. The move head is Neural Cat's head as it is (6 ways the hand ends, 11 classes of faan won, 11 of faan paid), which is the part of this design already proven. `decide()` returns the same record as before: the hand, the backup, the pivot, the moves, the move and `checked`.
 
 ### How each layer falls out of a head
 
@@ -96,7 +99,7 @@ Every label comes free from simulated games. None is written by hand.
 
 | Head | Label | How good the label is |
 | --- | --- | --- |
-| Table | The opponents' hidden hands | Exact, on every row. Phase 1 already trains this (deal-in and ready AUC about 0.90) |
+| Table | The opponents' hidden hands | Exact, on every row. The cancelled plan's heads already learned this (deal-in and ready AUC about 0.90) |
 | Hand | For each family: did this seat win the hand as that family, and for how many faan | True but thin: a seat wins about one hand in five, so most rows are all zeros, and rare families have few wins. See [the weak points](#where-this-is-weak) |
 | Hand, to start | The hand today's rules pick in that position | Dense, on every row, and only as good as the rules. A warm start that keeps the coach's hand names sensible from the first round; its weight falls as the true label takes over |
 | Move | The points the hand ended with for the seat, as a distribution (how it ended, faan won, faan paid, turned into points by the payout table) | Unbiased and noisy, as Neural Cat's is today |
@@ -108,7 +111,7 @@ Training plays with the contradiction check on, so the model learns the game it 
 - **One of everything.** One dataset, one training run, one weights file, one forward pass in JS and one in C++, one parity check. A model for the opponents plus a model for the chance to finish plus a model for the discard, which the layer-by-layer verdicts added up to, is three of each.
 - **The hand and the move can't drift apart.** They share a body and the move head reads the hand. With separate layers, every improvement to one is a new chance to disagree with the other, which is the bug this page started from.
 - **The pivot rules mostly go.** The four reasons, three holds, the lock and the chains exist because the rule-made values are noisy ([layer 2](#layer-2-the-pivot-checker)). A calibrated chance needs one margin.
-- **The read gets used.** Phase 1's finding was that the auxiliary heads read the table well and the policy ignored them, because nothing in its loss rewarded acting on the read. A move head trained on points, with the table head's output as an input, is rewarded for exactly that.
+- **The read gets used.** The cancelled plan's finding was that the heads read the table well and the policy ignored them, because nothing in its loss rewarded acting on the read. A move head trained on how the hand ended, with the table head's output as an input, is rewarded for exactly that.
 - **The coach gets more to say, not less.** Lucky Cat gives the coach one share a move. This gives a chance and a faan for every hand, expected points for every move, and a risk for every discard.
 
 ### What stays outside the model
@@ -121,16 +124,37 @@ One model for the middle, not one model for everything. Three things stay rules,
 
 ### Where this is weak
 
-1. **"Easier" is true of the design and of the long run, not of the next month.** The network this needs has not been built: a new forward pass in JS, another in C++, parity between them, and a time budget on a phone (about 10 ms a move). And the last six rounds of fine-tuning the phase-1 network gained 1 to 2 points a hand against a bar of 25. A new body is the frontier plan's answer to that plateau, but it is a bet, and this design now rides on it.
+1. **Neural Cat's recipe may be near its own ceiling.** It has been through eight shipped generations, and whether more of the same still gains is unmeasured. The steps in [Making it strong](#making-it-strong) that change what the model can learn (valuing every move, less noisy labels, the table read as an input) matter more than the ones that tune it. If those don't gain either, the limit is the body or the inputs, and that is a bigger build.
 2. **The hand head's true label is thin and one-sided.** It only ever sees the hand a seat won with. It never sees that a different hand would have been finished from the same tiles, because that hand wasn't played. So it learns "what hands like this usually end as under the policy that played them", which is circular early on. The rules' label breaks the circle at the start; exploration (sometimes playing for the second hand) keeps it broken. Rare families (Thirteen Orphans, Nine Gates, Four Winds) may never have enough wins, and for those the rule formula should stay as the answer until calibration says the head is better.
 3. **One model is one point of failure.** A bad round used to cost one layer. Now a regression in the body moves the table read, the hand and the move together, and a play result alone won't say which. Every head needs its own number, judged every round: AUC for the table head, calibration by family for the hand head, points a hand for the move head.
-4. **Heads can pull against each other.** Sharing a body helps when the tasks agree and hurts when one loss swamps the others. The loss weights are tuning that didn't exist before. Phase 1 is a caution here too: adding the table heads didn't hurt, and didn't help play either.
+4. **Heads can pull against each other.** Sharing a body helps when the tasks agree and hurts when one loss swamps the others. The loss weights are tuning that didn't exist before. The cancelled plan is a caution here too: adding the table heads didn't hurt, and didn't help play either.
 5. **Folding loses its arithmetic.** In the layered design, attack or fold was a comparison the coach could state: this hand expects 40 points, this discard risks 130. Inside a move head it is a number with no parts. The parts are still there (the hand head's value, the table head's risk), so the coach can show them beside the choice, but nothing forces the choice to follow them. Worth checking in review: how often the move head folds when the parts say attack.
-6. **It doesn't help the players in the game today.** Neural Cat and Lucky Cat have no hand head and shouldn't be refitted with one. The contradiction check, "keeps" by what a tile does, and a round trained with the check on are still the way to give Neural Cat its loss back, and they are days of work, not a new network.
+6. **It doesn't help Lucky Cat, and it doesn't replace the small fixes.** Lucky Cat's network chooses a move directly and has no value to hang a hand on; it stays as it is. And Neural Cat as shipped still loses points to the contradiction check today. "Keeps" by what a tile does and a round trained with the check on are days of work and worth doing whatever happens here.
+7. **The benchmark table is two Neural Cats and Jorge Yau.** A model grown from Neural Cat is judged mostly against its own parent, which it has studied more than any other player. A gain there may not hold against Lucky Cat or a person. Every kept generation is also played head to head against each shipped strategy.
+
+### Making it strong
+
+In the order they should be tried. Each is one change, judged on the benchmark's bar (two standard errors, twice), and each has a point at which it is dropped. The cancelled plan had bars too and ran 54 arms past one; these are meant to be used.
+
+1. **Start from the champion, never from random weights.** Generation 0 is NC8: its weights, its data recipe, its lab. Everything below is added to a model that already wins. Sphinx's 18 rounds showed what starting from nothing costs.
+2. **The hand head and the table heads, as extra outputs** ([the first step](#the-first-step-is-small)). No change to play yet. *Dropped if* the hand head can't beat the rules' pick; the table heads are already known to learn.
+3. **The picked hands and the table read as inputs to the move head.** This is where the read starts to pay: the value of a discard is learned knowing which opponents are ready and what hand the seat is on. *Bar:* a gain at the table, and `checked` falling.
+4. **Value every legal move, not the rules' best three.** Neural Cat today only reorders Jorge Yau's top three, so it can never find a move the rules ranked fourth. Widen in steps (three, five, all), with the rules' rank kept as an input so the model starts from their judgment instead of losing it. It was tried once, with the first model, and failed: choosing among every discard it won 3.5% of hands and dealt in 12% of the time, because it had only ever seen the outcome of the bots' own choices and couldn't tell close discards apart ([Neural Cat](../strategies/neural-cat.md)). So this step is only worth running on data from steps 5 and 6, and may come after them. *Dropped at* the first width that loses.
+5. **Less noisy labels, by replaying.** The biggest obstacle in this game is that points double with every faan, so one hand's result says little. For a sample of recorded positions, the native simulator replays the rest of the hand many times with the unseen tiles reshuffled, and the label is the average. The same position then teaches with a fraction of the noise. This uses hidden tiles only to make targets, never inputs, as the fair-play tests require. *Bar:* lower validation loss on held-out single results, then a gain at the table.
+6. **Explore in the data.** A share of recorded moves are the second or third choice, played out. Without this the model only ever sees what happened after the move it already liked, and the hand head only sees the hand that was already chosen. This is what breaks the circle in [weak point 2](#where-this-is-weak).
+7. **A mixed table for training.** Data from tables of Neural Cat, Jorge Yau, Lucky Cat, earlier generations and itself, so it doesn't learn one opponent. Judged on the frozen benchmark and head to head against each.
+8. **Claims and kongs by the same value**, every option including the pass, in place of overruling the rules only when the model's pick is worth more.
+9. **Train with the contradiction check on**, always, so the game it learns is the game it plays.
+10. **Three seeds an arm.** Sphinx's last rounds showed the round's draw moving a result more than the recipe did. A recipe is kept on the average of its seeds, not its best one. If the phone budget allows, the shipped model is the average of two.
+11. **A bigger body, last.** Wider first, a body built around the 34 tile kinds only after that. The cancelled plan designed one and it was never the bottleneck that was measured.
+
+Left out on purpose: a critic that sees hidden tiles, a policy pushed by a teacher, any lineage from random weights, and search. Each failed here once. Search can be asked again when this model's value is clearly better than NC8's.
 
 ### The first step is small
 
-Before any new network: **add the hand head to the phase-1 network as it stands.** It is a few more outputs on a model that already trains (features v2, with the engine's facts as inputs), on data the native simulator already makes. One round answers the question this whole section rests on: can a model pick a hand? The test is calibration by family (of the positions where it said 30%, about 30% finished) and whether its main hand beats the rules' pick at predicting the hand a seat wins with. If it can't beat the rules there, the hand picker stays rules and the one model has two heads, which is the frontier plan unchanged.
+Before anything else changes: **add the hand head and the table heads to Neural Cat's network as it stands**, as extra outputs. The body, the inputs and the move head are untouched, so play doesn't change, and it trains on data the lab already makes with three more labels a row (the hand the rules picked, the family the seat won with, the opponents' hands).
+
+One round answers the question this whole section rests on: can a model pick a hand? The test is calibration by family (of the positions where it said 30%, about 30% finished) and whether its main hand beats the rules' pick at naming the hand a seat wins with. If it can't beat the rules there, the hand picker stays rules, the model keeps two heads, and the rest of [Making it strong](#making-it-strong) goes ahead without it.
 
 ## How a decision is made today
 
@@ -298,9 +322,9 @@ A claim is a question for layers 1 and 2: with this meld, which hands would the 
 | Lucky Cat Classic | The shared picker | The shared checker | Rules |
 | Neural Cat | The shared picker (Jorge Yau's table) | The shared checker | Its model, reranking the best few |
 | Lucky Cat | The shared picker | The shared checker | Its network |
-| The next network ([one model](#one-model-for-the-middle)) | Its hand head | Its hand head, a turn apart, and one margin | Its move head |
+| The new frontier model ([one model](#one-model-for-the-middle)) | Its hand head | Its hand head, a turn apart, and one margin | Its move head |
 
-A rule strategy is then a table (hands, order, weights, chains) and a discarder, not a set of hooks into the foundation. Today's models keep the shared rule-made picker, because they have no hand of their own. The next network brings its own, and uses none of the rule tables.
+A rule strategy is then a table (hands, order, weights, chains) and a discarder, not a set of hooks into the foundation. Today's models keep the shared rule-made picker, because they have no hand of their own. The new frontier model brings its own, and uses none of the rule tables.
 
 ## The coach
 
@@ -321,7 +345,7 @@ Saved with the game and kept in the native simulator's seat memo. A claim being 
 ## Training and the native simulator
 
 - **Training data** records the move the pipeline played. It can also record the hands and the pivot, which is the label a learned chance-to-finish needs, and later a learned picker.
-- **The hand as a head, not a feature.** Neither of today's models is told the hand, and neither is changed. The next network predicts the hand itself and feeds it to its move head ([one model](#one-model-for-the-middle)). Its data records, for every position, the hand the rules picked (the warm-start label) and, when the hand is over, the family and faan the seat won with.
+- **The hand as a head, not a feature.** Neither of today's models is told the hand, and neither is changed. The new frontier model predicts the hand itself and feeds it to its move head ([one model](#one-model-for-the-middle)). Its data records, for every position, the hand the rules picked (the warm-start label) and, when the hand is over, the family and faan the seat won with.
 - **The native simulator** ports each change as it lands, with the parity check (every action identical to the JS) before it is pinned. Picking hands once a turn instead of once a discard should make a turn cheaper.
 
 ## Building it: measure, then experiment, then refactor
@@ -341,14 +365,14 @@ Saved with the game and kept in the native simulator's seat memo. A claim being 
 
 **Then the one model, smallest step first** ([one model for the middle](#one-model-for-the-middle)).
 
-8. **A hand head on the phase-1 network.** A few more outputs, one round, judged on calibration by family and against the rules' pick. This says whether a model can pick a hand.
-9. **The next network with three heads**, if 8 held: the frontier plan's phase 2 with the hand head added and the move head reading it, trained on points with the check on.
+8. **The hand head and the table heads on Neural Cat's network** ([the first step](#the-first-step-is-small)). One round, judged on calibration by family and against the rules' pick.
+9. **The rest of [Making it strong](#making-it-strong), in its order**, one change at a time against the benchmark's bar, trained on points with the check on.
 
 **And for the rule strategies and today's models, build what survived.**
 
 10. **The pipeline as the shape of the result**: `decide()` returns the record above, and the coach reads it. Worth doing whatever the experiments say, because it ends the coach computing its own version of the hand.
 11. **One rule-made hand picker and one pivot checker**, with a table for each rule strategy and `seat.handState`, if 7 held. It serves Jorge Yau, Lucky Cat Classic and today's models, and is the teacher for step 8; it is no longer where the models are headed.
-12. **Today's models' discarders on the pipeline**, last, and only if the next network isn't close.
+12. **Today's models' discarders on the pipeline**, last, and only if the new frontier model isn't close.
 
 Wiring the frontier's read of the opponents' hands into layer 0 is separate from all of this and can start at any time.
 
@@ -359,7 +383,7 @@ Wiring the frontier's read of the opponents' hands into layer 0 is separate from
 - **Pivots a hand**, with their reasons. More than about twice a hand is flip-flopping.
 - **Calibration**: the chance to finish against results, for each family, within a few points.
 - **The coach and the bot agree** on every hint, by construction, and by test.
-- **The frontier benchmark** is frozen at 0.57.9 and doesn't move; these are measured against today's players.
+- **The frontier benchmark** is frozen at 0.57.9 and doesn't move; it and its bar (two standard errors, twice) carry over from the cancelled plan to judge the new frontier model. The experiments on today's players are measured against today's players.
 
 ## Open questions
 

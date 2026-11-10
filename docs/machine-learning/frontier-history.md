@@ -1,5 +1,7 @@
 # Frontier work: history and decisions
 
+**The Suphx line was cancelled on 2026-11-09 as a failed experiment** ([why](frontier-plan.md#the-suphx-line-is-cancelled-2026-11-09)). The new frontier model is in [the evaluation architecture](../architecture/README.md#one-model-for-the-middle). This page is the record of the line that ended.
+
 A record of the frontier work so far (from 2026-11-08): what was built, every decision taken and why, and what would make each one worth revisiting. The design itself is the [frontier plan](frontier-plan.md). What each step taught, with its evidence, is its §11 Learnings. This page is the short version: the order things happened in, and the choices.
 
 ## Contents
@@ -116,6 +118,8 @@ Each with why, and the evidence. Dates are when it was decided.
 Details are in the [frontier plan](frontier-plan.md) §6b.
 
 ## What would reopen each decision
+
+**The whole line (cancelled 2026-11-09):** nothing below is planned. A teacher-pushed policy, a from-scratch lineage or search would be asked again only of the new frontier model, and only once it has a value that beats Neural Cat's.
 
 - **Search (3b and 4):** once phase 3 exists, a 32–64-world search at decisive late-hand choices, with phase 3's value and policy playing the futures; it ships as an opt-in "thinks longer" setting only at ≥ +20 points a hand within 1.5 s a move. As a teacher (3b), the same search at the choices the value is least sure of. The native simulator makes 64 worlds cost less than 4 did in JS.
 - **Sphinx:** restart with a recipe that learns defence: the per-move deal-in teacher at full weight, joining the table earlier, or the per-move value of phase 3.

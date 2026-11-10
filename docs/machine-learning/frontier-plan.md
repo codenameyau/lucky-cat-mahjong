@@ -1,6 +1,8 @@
-# Lucky Cat as the frontier Hong Kong mahjong player: the plan
+# Lucky Cat as the frontier Hong Kong mahjong player: the plan (cancelled)
 
 Written 2026-11-08. Suphx ([Li et al. 2020](https://arxiv.org/abs/2003.13590)) was built for Japanese riichi mahjong. This page takes it apart against Hong Kong rules and this engine, argues the design through four rounds of critique, and ends in a plan with phases, numbers to hit, and the point at which each phase is dropped. The Suphx teacher already in the lab ([iterations](iterations.md#suphx-for-lucky-cat-an-oracle-teacher-not-an-oracle-critic)) is phase 0 of this plan.
+
+> **Cancelled on 2026-11-09 (the maintainer's decision): the Suphx line is a failed experiment.** No more Lucky Cat frontier rounds, no more Sphinx rounds, and phases 2 to 4 below are not built as written. The new frontier model is the one network with three heads in [the evaluation architecture](../architecture/README.md#one-model-for-the-middle), grown from Neural Cat's recipe. This page stays as the record of what was tried. Why it was cancelled, with the evidence, is in [§11](#the-suphx-line-is-cancelled-2026-11-09). What carries over: the benchmark and its bar (§9), the native simulator (§6b), features v2, the heads that read the table, and the fair-play rules (§8).
 
 Everything here must keep two promises: the shipped model reads only what its seat can see (`js/mahjong-fair-play.test.js`), and it runs in plain JS in the browser in a few milliseconds a move.
 
@@ -33,6 +35,7 @@ Everything here must keep two promises: the shipped model reads only what its se
   - [Two lineages](#two-lineages)
 - [10. What this plan would make Lucky Cat](#10-what-this-plan-would-make-lucky-cat)
 - [11. Learnings](#11-learnings)
+  - [The Suphx line is cancelled (2026-11-09)](#the-suphx-line-is-cancelled-2026-11-09)
   - [Phase 0: the Suphx teacher (2026-11-08)](#phase-0-the-suphx-teacher-2026-11-08)
   - [The benchmark (2026-11-08)](#the-benchmark-2026-11-08)
   - [Phase 1: features v2 and the hidden tiles as targets (in progress)](#phase-1-features-v2-and-the-hidden-tiles-as-targets-in-progress)
@@ -45,12 +48,12 @@ Everything here must keep two promises: the shipped model reads only what its se
 | --- | --- |
 | Benchmark (§9) | **Built.** `npm run ml:bench`: the frozen table (NC8, Jorge Yau, NC8 at 0.57.9), the 40,000-deal deck, the Table Score, and `judge` for the five-stage bar ([benchmark](benchmark.md)) |
 | Native simulator | **Built** (§6b). The engine and the table's players in C++ (`native/`, [native simulator](native.md)). Hybrid: judgments and Table Scores on the exact build (every hand as the JS plays it), training data and screens on the fast build, which is not bit-exact (**important potential issue**, §6b) |
-| 0 Suphx teacher | Built as the lab's `lucky-cat-suphx`. It is folded into phase 1 as the per-move deal-in teacher every arm trains with |
-| 1 Features v2, labels as targets | **Built and training.** `npm run ml:frontier` ([frontier training](frontier-training.md)). Lucky Cat rounds 1–3 kept nothing (9 arms, best LV1a, which failed the bar); lc32v2 is still champion. Returns-trained probes (PG2, PG3) passed the screen and failed to qualify. Now running at native scale ([frontier training](frontier-training.md#native-scale-rounds-from-2026-11-09)): 100,000 deals a round, 40,000-deal screens; Sphinx restarted at the table (v2). Sphinx v1 paused after round 1 (its recipe lost 43 points a hand to random play). **Plateaued (2026-11-09):** Lucky Cat rounds 7–12 on the desktop, 18 arms, averaged +1.7 ± 0.6 points a hand over lc32v2 and none passed the bar (best LV10a, +4.4 ± 2.7 at qualify); Sphinx v2 paused after round 6, every arm behind random play, then restarted from round 7 more aggressive than defensive (§11) |
-| 2 Structured network | Designed (§4); not built. **Next:** the phase-1 MLP has stopped improving (§11, Lucky Cat rounds 10–12) |
-| 3 Value, policy iteration, league, pipeline | Designed (§4, §5, §6); not built |
-| 3b Search as a teacher | **Deferred.** A Monte Carlo search with perfect beliefs added nothing measurable (§11); revisit only once the value heads exist |
-| 4 Search at play (optional) | **Deferred.** Measured again after phase 3: a 32–64-world search at decisive late-hand choices; ships as an opt-in setting only at ≥ +20 points a hand within 1.5 s a move (§11) |
+| 0 Suphx teacher | **Cancelled.** The oracle critic failed and was dropped. The per-move deal-in teacher gave one early gain that later rounds didn't repeat (§11). Shipped models that trained with it are unchanged |
+| 1 Features v2, labels as targets | **Stopped.** 54 arms on Lucky Cat gained 1 to 2 points a hand against a bar of 25; lc32v2 stays the last champion on record. Sphinx ran 18 rounds from random weights and never beat random play. **Kept for the new model:** features v2 and the heads that read the table (deal-in and ready AUC about 0.90) |
+| 2 Structured network | **Not built, and not planned as written.** The new frontier model starts on a plain network and takes a structured body only if its own gains stall ([the evaluation architecture](../architecture/README.md#one-model-for-the-middle)) |
+| 3 Value, policy iteration, league, pipeline | **Replaced.** A value over how the hand ends is the centre of the new model, trained Neural Cat's way, not added to a teacher-pushed policy |
+| 3b Search as a teacher | **Cancelled.** A Monte Carlo search with perfect beliefs added nothing measurable (§11) |
+| 4 Search at play (optional) | **Cancelled** with the rest. It can be asked again of the new model once that has a value worth searching with |
 
 What each phase has taught is in [§11 Learnings](#11-learnings). The history, and every decision with why, is [frontier history](frontier-history.md).
 
@@ -374,6 +377,28 @@ What building and training each phase has taught, written up when each phase (or
 - **what it changed**, or the question it leaves open.
 
 Negative results are kept as carefully as positive ones.
+
+### The Suphx line is cancelled (2026-11-09)
+
+The maintainer's decision, on the record below. Each part of the design that came from Suphx was tried, and one small part paid.
+
+- **The oracle critic failed.**
+  - *Evidence:* with every hidden tile as input it explained −1.2% of the variance of a hand's points (−1.4% without them), and got worse with more epochs (phase 0).
+- **The per-move teacher gave one early gain that didn't repeat.**
+  - *Evidence:* +14.8 ± 6.7 points a hand over lc32 on 2,000 deals (phase 0). The 54 arms that trained with it since (rounds 1 to 12) kept nothing after lc32v2; the 18 desktop screens average +1.7 ± 0.6 and their four full judgments +1.2 ± 1.5, against a bar of +25.
+- **Learning from scratch never left the ground.**
+  - *Evidence:* Sphinx, 18 rounds: every arm lost to random play except SP16b, which was level (+0.3 ± 2.8). The round's draw moved the result more than the recipe (11 points between rounds, 6.7 between arms).
+- **Search added nothing.**
+  - *Evidence:* a Monte Carlo search given perfect beliefs about the hidden tiles made no measurable difference.
+- **The heads that read the table worked, and the policy ignored them.**
+  - *Evidence:* deal-in and ready AUC about 0.90, with no gain at the table: nothing in the policy's loss rewards acting on a better read.
+- **Why it didn't carry to Hong Kong mahjong, as far as the evidence goes:**
+  - *The payout table.* Points double with every faan, so a hand's points are too heavy-tailed for a critic to regress. Riichi's scoring is far flatter.
+  - *No warm start.* Suphx began by imitating expert human games. Lucky Cat had only its own play, and Sphinx was barred from imitation by design, so a teacher could only tilt a weak policy a little, and nothing compounded.
+  - *Size.* Suphx's network and compute are far beyond a model that has to answer in about 10 ms on a phone.
+- **What has worked here is not from Suphx:** Neural Cat. Rules propose the moves, and a model trained on how hands actually ended (how it ends, the faan won, the faan paid) values them. Jorge Yau loses about 80 points a hand at a table of three Neural Cats, and eight generations compounded under the lab.
+- *Changed:* the Suphx line stops here. The new frontier model is one network with three heads, grown from Neural Cat ([the evaluation architecture](../architecture/README.md#one-model-for-the-middle)). The benchmark, its bar, the native simulator, features v2, the table-reading heads and the fair-play tests carry over. Sphinx's and Lucky Cat's frontier state under `ml/frontier/` is no longer used; shipped weights and reports stay.
+- *For the review:* the plan's own kill criteria were never used to stop it. Phase 1's bar was +25 and it ran 54 arms at +1 to +2. A bar that isn't met should end a line sooner than this one ended.
 
 ### Phase 0: the Suphx teacher (2026-11-08)
 
