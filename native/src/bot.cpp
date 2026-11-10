@@ -104,8 +104,18 @@ LeftRead Foundation::leftRead(const Game& g, int seat) {
   for (auto& d : s.discards) { int su = suitIdx(d.tile); if (su < 3) by[su]++; }
   // inMelds: number suits of shown melds, in insertion order
   std::vector<int> inMelds;
-  for (auto* m : shownMelds(s)) { int su = meldSuit(*m); if (su != 3 && std::find(inMelds.begin(), inMelds.end(), su) == inMelds.end()) inMelds.push_back(su); }
+  bool chowSuits[3] = {false, false, false};
+  for (auto* m : shownMelds(s)) {
+    int su = meldSuit(*m);
+    if (su == 3) continue;
+    if (std::find(inMelds.begin(), inMelds.end(), su) == inMelds.end()) inMelds.push_back(su);
+    if (m->type == CHOW) chowSuits[su] = true;
+  }
   int keeps = inMelds.size() == 1 ? inMelds[0] : -1;
+  // A chow settles it: they need that suit, and toss the other two.
+  bool locked = keeps >= 0 && chowSuits[keeps];
+  int tosses[2] = {-1, -1}, nTosses = 0;
+  if (locked) for (int su = 0; su < 3; su++) if (su != keeps) tosses[nTosses++] = su;
   if (keeps < 0 && inMelds.empty() && n >= 6) {
     for (int su = 0; su < 3; su++) {
       bool others = true;
@@ -122,7 +132,9 @@ LeftRead Foundation::leftRead(const Game& g, int seat) {
     }
     if (tie || top < 3) feeds = -1;
   }
-  LeftRead r; r.seat = o; r.keeps = keeps; r.feeds = feeds;
+  if (locked && feeds < 0) feeds = by[tosses[0]] == by[tosses[1]] ? -1 : (by[tosses[0]] > by[tosses[1]] ? tosses[0] : tosses[1]);
+  LeftRead r; r.seat = o; r.keeps = keeps; r.feeds = feeds; r.locked = locked;
+  r.tosses[0] = tosses[0]; r.tosses[1] = tosses[1]; r.nTosses = nTosses;
   return r;
 }
 
@@ -197,7 +209,7 @@ double Foundation::suitLean(const Plan* plan, const Ctx& ctx) {
   if (!plan || plan->suit < 0 || !isFlushKind(plan->kind)) return lean;
   const LeftRead& read = ctx.leftRead;
   if (plan->suit == read.keeps) lean *= 0.6;
-  else if (plan->suit == read.feeds) lean *= 1.5;
+  else if (plan->suit == read.feeds || (read.nTosses && (plan->suit == read.tosses[0] || plan->suit == read.tosses[1]))) lean *= 1.5;
   const AfterRead& after = ctx.afterRead;
   if (after.keeps == plan->suit && read.keeps != plan->suit)
     lean *= 1 + 0.2 * (1 + after.melds) + (after.locked ? 0.25 : 0);
@@ -1685,11 +1697,11 @@ DiscardAnalysis Foundation::analyzeDiscards(const Game& g, int seat, const Ctx* 
       bool sa = breaksFinishedStraight(c, a.index), sb = breaksFinishedStraight(c, b.index);
       if (sa != sb) return sa ? 1 : -1;
     }
+    if (!folding && a.tier != b.tier) return a.tier - b.tier;
     if (!folding) {
       int so = shortBeforeLongTerminal(c, a, b);
       if (so) return so;
     }
-    if (!folding && a.tier != b.tier) return a.tier - b.tier;
     if (!folding && a.tier == b.tier) {
       bool ka = keepsLooseTerminal(c, a.index, leadPlan), kb = keepsLooseTerminal(c, b.index, leadPlan);
       if (ka != kb) return ka ? 1 : -1;
@@ -1855,7 +1867,8 @@ Foundation::Decided Foundation::decideClaim(const Game& g, int seat, const Claim
   out.hasFound = true;
   ClaimFound& res = out.found;
   Ctx ctx = buildContext(g, seat);
-  // H.claim: Jorge Yau's ownClaims is off. liveUpgrade's target is never hard (it always has a target).
+  // H.claim: Jorge Yau's bigClaim (ownClaims is off). liveUpgrade's target is never hard (it always has a target).
+  { Decision mine; if (jyClaim(res, ctx, g, opts, mine)) { out.decision = mine; return out; } }
   int ti = opts.tile;
   const Plan* stayPlan = res.stay.hasBest ? res.stay.best.plan.get() : nullptr;
   bool lockedShape = stayPlan && (stayPlan->kind == P_PAIRS || stayPlan->kind == P_ORPHANS || stayPlan->kind == P_GATES);
