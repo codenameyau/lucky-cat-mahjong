@@ -163,6 +163,21 @@ test('in Europe nothing is set or sent until the visitor accepts', () => {
   });
 });
 
+test('the banner is for Europe only: elsewhere Cookie settings opens the privacy page', () => {
+  const us = setup();
+  us.api.start(us.gtag);
+  us.api.openSettings();
+  assert.equal(us.api.consentState(), 'granted');
+  // No document.body in the fake page, so the only way to show it would be the banner; it goes to the page instead.
+  const loc = { protocol: 'https:', hostname: 'luckycatmahjong.com' };
+  const api = A.create({ window: {}, document: cookieJar(), navigator: {}, location: loc, timeZone: 'America/Chicago' });
+  api.openSettings();
+  assert.equal(loc.href, '/privacy/#cookies');
+  const eu = { protocol: 'https:', hostname: 'luckycatmahjong.com' };
+  A.create({ window: {}, document: cookieJar(), navigator: {}, location: eu, timeZone: 'Europe/Paris' }).openSettings();
+  assert.equal(eu.href, undefined, 'Europe gets the banner, not a page change');
+});
+
 test('declining deletes the IDs and Google\'s cookies and disables GA', () => {
   const { api, doc, win, calls, gtag } = setup({ cookies: { _ga: 'GA1.1.123', _ga_B514HH987M: 'GS1.1.x' } });
   api.start(gtag);

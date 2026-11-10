@@ -26,7 +26,9 @@
      cookie settings, or the privacy page) or the browser sends Global Privacy
      Control. Off means no lcm_vid or lcm_sid, Google's _ga cookies cleared, and
      window['ga-disable-G-B514HH987M'] so gtag sends nothing at all.
-   - Any footer element with class js-cookie-settings opens the banner. */
+   - The banner is only ever shown in Europe. There, a footer element with
+     class js-cookie-settings opens it again; everywhere else it goes to the
+     privacy page's on/off buttons (/privacy/#cookies). */
 
 (function (root, factory) {
   'use strict';
@@ -274,7 +276,8 @@
       var el = e.target && e.target.closest ? e.target.closest('.js-cookie-settings, [data-consent]') : null;
       if (el && el.classList.contains('js-cookie-settings')) {
         e.preventDefault();
-        showBanner(true);
+        if (needsConsentFirst()) showBanner(true);
+        else goToChoices();
         return;
       }
       if (el && el.hasAttribute('data-consent')) {
@@ -282,6 +285,17 @@
         return;
       }
       renew();
+    }
+
+    // Outside Europe there is no banner: Cookie settings opens the privacy page's on/off buttons.
+    function goToChoices() {
+      var target = doc && doc.getElementById ? doc.getElementById('cookies') : null;
+      if (target && target.scrollIntoView) {
+        target.scrollIntoView();
+        if (win.history && win.history.replaceState) win.history.replaceState(null, '', '#cookies');
+        return;
+      }
+      loc.href = '/privacy/#cookies';
     }
 
     function bannerText() {
@@ -339,7 +353,7 @@
       needsConsentFirst: needsConsentFirst,
       fields: fields,
       ids: function () { return ids ? copy(ids) : null; },
-      openSettings: function () { showBanner(true); },
+      openSettings: function () { if (needsConsentFirst()) showBanner(true); else goToChoices(); },
       renew: renew,
     };
   }
