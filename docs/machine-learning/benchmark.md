@@ -94,7 +94,7 @@ The current generation is the last one in `bench/lineages.json`; `--vs` gives an
 `bench/lineages.json` holds three lineages:
 
 - **Neural Cat** (`neural-cat`) starts from **NC9** (N14c), pinned as `git:8ffc0d0…:js/mahjong-ml-weights.js`. Neural Cat's models, stacked ones too (Frontier Cat FC1 was one), are judged in it, against its current generation. Its league, for the no-regression stage, is Jorge Yau, Lucky Cat lc32 and NC8.
-- **Lucky Cat** starts from **lc32**, pinned as `git:dd881a5:js/mahjong-lucky-cat-weights.js` with its SHA-256. It keeps its win rate (`keepWinRate`).
+- **Lucky Cat** starts from **lc32**, pinned as `git:dd881a5:js/mahjong-lucky-cat-weights.js` with its SHA-256. It is judged on **hands won** (`objective: "win"`, from 2026-11-10: Lucky Cat plays to win quickly and most often): every stage's gap is its win rate against the generation's, in standard errors, and at qualify its points a hand may not fall more than one standard error below (the guard, `keepWinRate`, turned around).
 - **Sphinx** has no generation yet: its first is judged with `--vs` against random play. The Suphx plan it belongs to is cancelled.
 
 ```bash

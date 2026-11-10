@@ -59,6 +59,9 @@ describe('frontier benchmark', () => {
     assert.ok(B.stagePasses('qualify', g(10, 3.5, -0.003, 0.002), bar, false).pass, 'Sphinx may');
     assert.ok(B.stagePasses('qualify', g(10, 3.5, 0.01, 0.002), bar, true).pass, 'winning more is never a fail');
     assert.ok(!B.stagePasses('replicate', g(6.9, 3.5), bar).pass);
+    assert.ok(B.stagePasses('qualify', g(-1, 3, 0.004, 0.001), bar, true, 'win').pass, 'Lucky Cat is judged on hands won');
+    assert.ok(!B.stagePasses('qualify', g(-4, 3, 0.004, 0.001), bar, true, 'win').pass, 'and its points a hand may not fall below the guard');
+    assert.ok(!B.stagePasses('screen', g(20, 3, 0, 0.001), bar, true, 'win').pass, 'points alone do not pass it');
     assert.ok(B.stagePasses('regression', g(-3.9, 4), bar).pass);
     assert.ok(!B.stagePasses('regression', g(-4.1, 4), bar).pass);
     assert.deepEqual([bar.screen, bar.qualify, bar.replicate, bar.regression, bar.sigma], [10000, 40000, 40000, 10000, 2]);

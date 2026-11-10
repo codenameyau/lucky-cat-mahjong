@@ -90,6 +90,9 @@ Every training idea and every milestone model is a section below, in the order t
   - [The native simulator](#the-native-simulator)
   - [Native-scale rounds (from 2026-11-09)](#native-scale-rounds-from-2026-11-09)
   - [Where it stands](#where-it-stands)
+- [Lucky Cat 3: self-taught and stacked, playing to win (from 2026-11-10)](#lucky-cat-3-self-taught-and-stacked-playing-to-win-from-2026-11-10)
+  - [Round 1: a value, judged on points, wins fewer hands](#round-1-a-value-judged-on-points-wins-fewer-hands)
+  - [Round 2: the policy learns from the replays (LV2p)](#round-2-the-policy-learns-from-the-replays-lv2p)
 - [The contradiction check: every move agrees with its hand](#the-contradiction-check-every-move-agrees-with-its-hand)
   - [What it is](#what-it-is)
   - [The discard check, measured](#the-discard-check-measured)
@@ -1227,6 +1230,23 @@ With data costing seconds, the rounds were rescaled: 100,000 deals a round, 40,0
 ### Where it stands
 
 Phases 0 and 1 are built and training; phases 2 and 3 are designed. Search was measured (4 worlds, ±8.4 points a choice, no measurable gain) and is deferred to after phase 3, when it ships only at +20 points a hand or more within 1.5 s a move. Each decision, and what would reopen it, is in the [frontier history](frontier-history.md#what-would-reopen-each-decision).
+
+## Lucky Cat 3: self-taught and stacked, playing to win (from 2026-11-10)
+
+On 2026-11-10 the stacked design became Lucky Cat's new lineage, still called Lucky Cat and still self-taught: nothing in its choice comes from Jorge Yau's rules or options. It starts from LC32 and is judged on **hands won** (the maintainer's call: win quickly and most often). Models in this lineage are named LV (the round driver `npm run ml:lucky-value`; not the phase-1 arms of the same name above). [Details](../strategies/lucky-cat.md#the-value).
+
+### Round 1: a value, judged on points, wins fewer hands
+
+Thinking: give Lucky Cat Neural Cat's kind of value, a network that scores the position each of the policy's top moves leaves, learned from replays of every option. LV1a scored +14.0 ± 2.7 points a hand over LC32 (60,000 deals) and won 15.5% of its hands against 20.5%: it bought points with fewer, bigger wins. Bigger win bonuses didn't bring the wins back, and a value ranking by its own chance to win still won fewer hands than LC32 (top 4: 3.0 points of win rate fewer; top 2: 1.5). Not kept.
+
+### Round 2: the policy learns from the replays (LV2p)
+
+Thinking: if the value can't choose better than the policy, use the replays to make the policy choose better. `train_lucky --mode q` tilts LC32's shares toward the moves that won more replays. On 80,000 deals, against LC32 over 60,000:
+
+- **LV2p (tau 0.05):** won 21.1% of hands against 20.7%, +0.40 ± 0.08 points of win rate (five standard errors); −2.1 ± 2.0 points a hand. The champion.
+- **LV2t (tau 0.15):** +0.32 ± 0.07, a candidate too.
+- **LV2a (a value):** −1.31 ± 0.38 after 4,000 deals, dropped.
+- **What the bot does differently:** the same network, a little more sure of the moves that won their replays. It deals in as often (15.3% against 15.4%) and wins slightly smaller hands (5.46 faan against 5.49).
 
 ## The contradiction check: every move agrees with its hand
 

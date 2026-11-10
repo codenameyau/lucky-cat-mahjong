@@ -4,6 +4,7 @@
     "lucky-cat": {
       "about": "From lc32, the network that taught itself from random play; its own methods carried on. Releases lc33, lc34, ...",
       "keepWinRate": true,
+      "objective": "win",
       "league": [
         "bench:jorge-yau",
         "neural-cat"
