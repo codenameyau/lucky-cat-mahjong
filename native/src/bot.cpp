@@ -399,6 +399,48 @@ int Foundation::keptHonorPair(const Counts& counts, const Ctx& ctx) {
 }
 
 bool Foundation::holdsDragon(const Game& g, int i, int shanten) { return isDragon(i) && revealedCopies(g, i) == 0 && shanten > 0; }
+
+// The contradiction check (js/mahjong-bot.js contradicts, consistentFirst).
+bool Foundation::contradicts(const Game& g, const Counts& counts, const Candidate& x) {
+  if (x.shanten == 0) return false;
+  const Analysis* an = x.analysis.get();
+  const Plan* plan = an && an->hasBest ? an->best.plan.get() : nullptr;
+  if (!plan) return false;
+  int i = x.index;
+  Counts after = counts;
+  after[i]--;
+  if (plan->kind == P_TRIPLETS || plan->kind == P_CONCEALED_TRIPLETS || plan->kind == P_PAIRS) {
+    if (counts[i] < 2) return false;
+    for (int s = 0; s < 34; s++) if (after[s] == 1 && s != i && !holdsDragon(g, s, x.shanten)) return true;
+    return false;
+  }
+  Mask keep;
+  if (plan->hasKeep) keep = plan->keep;
+  else if (plan->kind == P_HALF) keep = halfMask(plan->suit);
+  else if (plan->kind == P_FULL) keep = suitMask(plan->suit);
+  else if (plan->kind == P_STRAIGHTS || plan->kind == P_RUNS) keep = M_NUMBERS;
+  else return false;
+  if (!inMask(keep, i)) return false;
+  bool straights = plan->kind == P_STRAIGHTS || plan->kind == P_RUNS;
+  for (int j = 0; j < 34; j++) {
+    if (!after[j] || inMask(keep, j)) continue;
+    if (holdsDragon(g, j, x.shanten) || (straights && j >= 27 && after[j] >= 2)) continue;
+    return true;
+  }
+  return false;
+}
+
+std::vector<CandP> Foundation::consistentFirst(const std::vector<CandP>& out, const Game& g, const Counts& counts, bool folding) {
+  if (folding || out.empty()) return out;
+  size_t k = 0;
+  while (k < out.size() && contradicts(g, counts, *out[k])) k++;
+  if (k == 0) return out;
+  if (k == out.size()) k = out.size() - 1;
+  std::vector<CandP> r;
+  r.push_back(out[k]);
+  for (size_t m = 0; m < out.size(); m++) if (m != k) r.push_back(out[m]);
+  return r;
+}
 bool Foundation::loneDragon(const Game& g, const Counts& counts, int i) { return isDragon(i) && counts[i] == 1 && revealedCopies(g, i) == 0; }
 
 bool Foundation::chowOfAnotherSuit(const Ctx& ctx, int i) {
@@ -1742,6 +1784,7 @@ DiscardAnalysis Foundation::analyzeDiscards(const Game& g, int seat, const Ctx* 
   // T.keepPairs is 0: no keepPairs.
   if (T.honorOrder && !folding) out = honorTieOrder(out, ctx, c);
   if (hasRerank()) out = rerank(out, ctx, c, g, seat, threats, folding);
+  out = consistentFirst(out, g, c, folding);
   if (!handOverride && ctx.actualMelds) updateCommit(g, seat, out.empty() ? nullptr : out[0].get(), folding);
   res.candidates = out;
   res.defense = weight;

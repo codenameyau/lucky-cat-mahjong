@@ -35,6 +35,7 @@
 
   var node = typeof module !== 'undefined' && module.exports;
   var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
+  var Base = node ? require('./mahjong-bot.js') : root.MahjongBot;
   var L = node ? require('./mahjong-lucky-cat.js') : root.MahjongLuckyCat;
   var N = node ? require('./mahjong-lucky-cat-net.js') : root.MahjongLuckyCatNet;
 
@@ -120,10 +121,22 @@
       return { decision: decision, choices: choices, pick: at, foundation: at };
     };
 
+    // In the game (not the fast training and benchmark runs), a discard that
+    // contradicts the hand the classic rules read for it gives way to the
+    // network's next one that doesn't (MahjongBot.consistentFirst), as the
+    // coach says.
+    function consistentDiscard(game, seat, decision) {
+      if (fast || decision.type !== 'discard') return decision;
+      var res = bot.analyzeDiscards(game, seat);
+      var mine = res.candidates.filter(function (x) { return x.tile === decision.tile; })[0];
+      if (!mine || res.folding || !Base.contradicts(game, E.countsOf(game.hand.seats[seat].hand), mine)) return decision;
+      return { type: 'discard', tile: res.candidates[0].tile };
+    }
+
     bot.chooseTurnAction = function (game, seat, opts) {
       if (opts.win) return { type: 'win' };
       var r = turnRead(game, seat, opts);
-      return r.moves[r.k].decision;
+      return consistentDiscard(game, seat, r.moves[r.k].decision);
     };
 
     /* Claims --------------------------------------------------------- */
@@ -173,6 +186,8 @@
         x.ml.order = k;
       });
       res.candidates.sort(function (a, b) { return b.ml.policy - a.ml.policy || a.ml.order - b.ml.order; });
+      // No discard that goes against the hand the classic rules read for it.
+      res.candidates = Base.consistentFirst(res.candidates, game, E.countsOf(held), res.folding);
       return res;
     };
 

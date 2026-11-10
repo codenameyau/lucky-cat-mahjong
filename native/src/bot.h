@@ -255,6 +255,8 @@ class Foundation {
   int suitCommitment(const Ctx& ctx, const Counts& counts);
   int keptHonorPair(const Counts& counts, const Ctx& ctx);
   bool holdsDragon(const Game& g, int i, int shanten);
+  bool contradicts(const Game& g, const Counts& counts, const Candidate& x);
+  std::vector<CandP> consistentFirst(const std::vector<CandP>& out, const Game& g, const Counts& counts, bool folding);
   bool loneDragon(const Game& g, const Counts& counts, int i);
   bool chowOfAnotherSuit(const Ctx& ctx, int i);
   bool sharedPriority(const Game& g, const Ctx& ctx, const Counts& counts, const Candidate& cand, double& out);

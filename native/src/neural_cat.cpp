@@ -247,6 +247,17 @@ std::vector<CandP> NeuralCat::rerank(std::vector<CandP> out, Ctx& ctx, const Cou
   });
   ranked.insert(ranked.end(), out.begin() + k0, out.end());
   if (T.honorOrder && !folding) ranked = honorTieOrder(ranked, ctx, counts);
+  // No discard that goes against the hand it is building (Foundation::consistentFirst).
+  ranked = consistentFirst(ranked, g, counts, folding);
+  if (!ranked[0]->hasMl) {
+    static thread_local std::vector<float> x1;
+    x1.resize(SIZE);
+    encode(st, ranked[0]->index, *ranked[0]->analysis, ranked[0]->loss, x1.data());
+    MlRead m = ev(x1.data());
+    Candidate& top = *ranked[0];
+    top.hasMl = true; top.mlEv = m.ev; top.mlPWin = m.pWin;
+    for (size_t k = 0; k < out.size(); k++) if (out[k] == ranked[0]) top.mlOrder = int(k);
+  }
   double best = -DINF;
   for (int k = 0; k < k0; k++) best = std::max(best, out[k]->mlEv);
   ranked[0]->mlBest = best;

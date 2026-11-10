@@ -203,6 +203,8 @@
       if (bot.tuning.honorOrder && !folding) ranked = B.honorTieOrder(ranked, ctx, counts);
       var k = pickIndex(ranked, k0);
       if (k) ranked.unshift(ranked.splice(k, 1)[0]);
+      // No discard that goes against the hand it is building (MahjongBot.consistentFirst).
+      ranked = B.consistentFirst(ranked, game, counts, folding);
       if (!ranked[0].ml) { // a random discard the fast mode didn't read
         ranked[0].features = F.encode(state, ranked[0].index, ranked[0].analysis, ranked[0].loss);
         ranked[0].ml = getModel().ev(ranked[0].features);

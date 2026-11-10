@@ -2396,10 +2396,73 @@
     if (T.honorOrder && !folding) out = honorTieOrder(out, ctx, c);
     // A strategy's last word, after every shared rule (a learned model).
     if (H.rerank) out = H.rerank(out, ctx, c, game, seat, threats, folding) || out;
+    // ...and no discard that goes against the hand it is building.
+    out = consistentFirst(out, game, c, folding);
     // Only the hand really held moves the plan: a claim being weighed doesn't.
     var seatNow = game.hand.seats[seat];
     if (hand === seatNow.hand && ctx.melds === seatNow.melds) updateCommit(seatNow, out[0], folding);
     return { ctx: ctx, candidates: out, threats: threats, defense: weight, folding: folding };
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 7b. The contradiction check
+   * ------------------------------------------------------------------ */
+
+  // The tiles a plan keeps: its own keep, or a flush's suit (and honors for a
+  // Half Flush), or the number tiles of Concealed Straights.
+  function planKeep(plan) {
+    if (!plan) return null;
+    if (plan.keep) return plan.keep;
+    var id = plan.id || '';
+    var su = plan.suit;
+    if (id.slice(0, 5) === 'half-') return function (j) { return E.suitOfIndex(j) === su || j >= 27; };
+    if (id.slice(0, 5) === 'full-') return function (j) { return E.suitOfIndex(j) === su; };
+    if (id === 'straights' || id === 'runs') return function (j) { return j < 27; };
+    return null;
+  }
+
+  // A discard contradicts the hand it builds toward (its plan, the hand the
+  // coach names) when it throws a tile that hand keeps while the hand still
+  // holds a tile that hand has no use for: a Character thrown on the way to a
+  // Half Flush in Characters while a Bamboo or a Circle is still in hand. On
+  // hands of pungs and pairs, breaking a pair or a pung while a single is left
+  // does the same. A discard that leaves the hand ready never contradicts it.
+  // A dragon nobody has shown, which every hand holds back to keep from
+  // feeding it, isn't a tile it has no use for, nor on Concealed Straights an
+  // honor pair (its eyes).
+  function contradicts(game, counts, x) {
+    if (x.shanten === 0) return false;
+    var plan = x.analysis && x.analysis.best && x.analysis.best.plan;
+    if (!plan) return false;
+    var i = x.index;
+    var after = counts.slice();
+    after[i]--;
+    if (plan.id === 'triplets' || plan.id === 'concealed-triplets' || plan.id === 'pairs') {
+      if (counts[i] < 2) return false;
+      for (var s = 0; s < 34; s++) if (after[s] === 1 && s !== i && !holdsDragon(game, s, x.shanten)) return true;
+      return false;
+    }
+    var keep = planKeep(plan);
+    if (!keep || !keep(i)) return false;
+    var straights = plan.id === 'straights' || plan.id === 'runs';
+    for (var j = 0; j < 34; j++) {
+      if (!after[j] || keep(j)) continue;
+      if (holdsDragon(game, j, x.shanten) || (straights && j >= 27 && after[j] >= 2)) continue;
+      return true;
+    }
+    return false;
+  }
+
+  // Every strategy's last check (not while folding: safety decides then): the
+  // first discard in its order that doesn't contradict its own plan goes
+  // first; if every one does, the last of them.
+  function consistentFirst(out, game, counts, folding) {
+    if (folding || !out.length) return out;
+    var k = 0;
+    while (k < out.length && contradicts(game, counts, out[k])) k++;
+    if (k === 0) return out;
+    if (k === out.length) k = out.length - 1;
+    return [out[k]].concat(out.slice(0, k), out.slice(k + 1));
   }
 
   /* ------------------------------------------------------------------ *
@@ -2721,6 +2784,8 @@
     waitChance: waitChance,
     analyzeDiscards: analyzeDiscards,
     chooseTurnAction: chooseTurnAction,
+    contradicts: contradicts,
+    consistentFirst: consistentFirst,
     chooseClaim: chooseClaim,
     decideClaim: decideClaim,
     claimCandidates: claimCandidates,

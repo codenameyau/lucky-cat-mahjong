@@ -712,7 +712,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.57.22');
+    assert.equal(E.GAME_VERSION, '0.57.25');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
@@ -1526,5 +1526,60 @@ describe('every strategy reads the table', () => {
     ctx.leftRead = null;
     assert.ok(Base.suitLean(plan('b'), ctx) > 1);
     assert.ok(Base.suitLean(plan('c'), ctx) < 1);
+  });
+});
+
+describe('the contradiction check', () => {
+  const Base = require('./mahjong-bot.js');
+  const at = (t) => E.tileIndex(t);
+  const counts = (tiles) => E.countsOf(tiles);
+  const cand = (tile, plan, shanten = 2) => ({ index: at(tile), tile, shanten, analysis: { best: { plan } } });
+  const game = E.createGame({ seed: 1, humanSeat: false, dealer: 0 });
+  E.startHand(game);
+
+  it('flags a discard that goes against the hand it builds toward', () => {
+    const half = { id: 'half-c', suit: 'c' };
+    const hand = ['c1', 'c2', 'c3', 'c5', 'c6', 'c7', 'c8', 'we', 'we', 'b5', 'd7', 'c9', 'c9', 'ws'];
+    // A Character thrown on the way to a Half Flush in Characters while a Bamboo and a Circle are in hand.
+    assert.equal(Base.contradicts(game, counts(hand), cand('c5', half)), true);
+    // The Bamboo is fine.
+    assert.equal(Base.contradicts(game, counts(hand), cand('b5', half)), false);
+    // With only Characters and honors left, any Character may go.
+    const clean = ['c1', 'c2', 'c3', 'c5', 'c6', 'c7', 'c8', 'we', 'we', 'c9', 'c9', 'ws', 'ws', 'c4'];
+    assert.equal(Base.contradicts(game, counts(clean), cand('c5', half)), false);
+    // A discard that leaves the hand ready never contradicts it.
+    assert.equal(Base.contradicts(game, counts(hand), cand('c5', half, 0)), false);
+    // Hands of pungs and pairs: breaking a pair while a single is left.
+    const sets = ['c2', 'c2', 'c2', 'd5', 'd5', 'b8', 'b8', 'c9', 'd1', 'we', 'we', 'b3', 'ws', 'ws'];
+    assert.equal(Base.contradicts(game, counts(sets), cand('d5', { id: 'triplets' })), true);
+    assert.equal(Base.contradicts(game, counts(sets), cand('c9', { id: 'triplets' })), false);
+    // Concealed Straights: an honor pair is its eyes, not a tile it has no use for.
+    const runs = ['c2', 'c3', 'c4', 'd5', 'd6', 'd7', 'b2', 'b3', 'b4', 'c7', 'c8', 'ws', 'ws', 'd9'];
+    assert.equal(Base.contradicts(game, counts(runs), cand('d9', { id: 'straights' })), false);
+  });
+
+  it('plays the first discard that doesn\'t contradict, or the last if they all do', () => {
+    const hand = counts(['c1', 'c2', 'c3', 'c5', 'c6', 'c7', 'c8', 'we', 'we', 'b5', 'd7', 'c9', 'c9', 'ws']);
+    const half = { id: 'half-c', suit: 'c' };
+    const order = [cand('c5', half), cand('c8', half), cand('b5', half), cand('d7', half)];
+    assert.deepEqual(Base.consistentFirst(order, game, hand, false).map((x) => x.tile), ['b5', 'c5', 'c8', 'd7']);
+    // Folding, safety decides.
+    assert.deepEqual(Base.consistentFirst(order, game, hand, true).map((x) => x.tile), ['c5', 'c8', 'b5', 'd7']);
+    const all = [cand('c5', half), cand('c8', half)];
+    assert.deepEqual(Base.consistentFirst(all, game, hand, false).map((x) => x.tile), ['c8', 'c5']);
+  });
+
+  it('no strategy\'s first discard contradicts its own plan', () => {
+    for (const id of S.ids()) {
+      const bot = S.get(id).bot;
+      for (let seed = 1; seed <= 25; seed++) {
+        const g = E.createGame({ seed, humanSeat: true, dealer: 0 });
+        E.startHand(g);
+        const res = bot.analyzeDiscards(g, 0);
+        if (res.folding) continue;
+        const first = res.candidates[0];
+        assert.equal(Base.contradicts(g, E.countsOf(g.hand.seats[0].hand), first), false, id + ' ' + seed + ' ' + first.tile);
+      }
+    }
   });
 });
