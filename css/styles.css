@@ -610,6 +610,17 @@ h1, h2, h3 {
   opacity: 0.5;
 }
 
+/* On a phone the links wrap, so drop the bars rather than leave one hanging at a line's end. */
+@media (max-width: 480px) {
+  .footer-links {
+    column-gap: 1.1rem;
+  }
+
+  .footer-links-sep {
+    display: none;
+  }
+}
+
 /* The cookie banner (js/analytics-id.js), shown where consent comes first, or from Cookie Settings. */
 .cookie-banner {
   position: fixed;
