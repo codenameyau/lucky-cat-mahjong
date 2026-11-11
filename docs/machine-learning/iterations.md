@@ -1260,7 +1260,7 @@ The maintainer then settled the objective: Lucky Cat may be trained to maximize 
 
 ## Lucky Cat against its own lineage: LC33 (2026-11-11)
 
-In this section: [the idea](#the-idea-only-older-lucky-cats-at-the-table) · [LC33](#lc33-lo2a-two-confirmed-steps-from-lc32) · [what didn't work](#what-didnt-work-that-night)
+In this section: [the idea](#the-idea-only-older-lucky-cats-at-the-table) · [LC33](#lc33-lo9d-four-confirmed-generations-from-lc32) · [what didn't work](#what-didnt-work-that-night)
 
 ### The idea: only older Lucky Cats at the table
 
@@ -1271,17 +1271,30 @@ Thinking: one overnight run (2026-11-10 to 11) trained each lineage against noth
 - **A stricter bar to ship:** three standard errors on points against the shipped model, on pooled fresh deals, with hands won not down.
 - **Screens overstate.** Every arm shared the champion's games, so its luck moved them together. Round 1's leader screened at +4.6 ± 1.4 and confirmed at +0.1 ± 1.4, so every step is confirmed on fresh deals: 160,000 when the gap is small.
 
-### LC33 (LO2a): two confirmed steps from LC32
+### LC33 (LO9d): four confirmed generations from LC32
 
-| Step | Against | Fresh deals (exact build) | Points a hand | Hands won | Deal-ins | Average win |
-| --- | --- | --- | --- | --- | --- | --- |
-| G1 = LO1b (tau 30, win bonus 300) | LC32 | 80,000 | +0.1 ± 1.4 | **+0.23 ± 0.07** (22.45% vs 22.22%) | 16.72% vs 16.69% | 288 vs 291 |
-| G2 = LO2a (tau 30, win bonus 150, data from G1) | G1 | 160,000 | **+2.2 ± 0.9** | +0.07 ± 0.05 | level | 301 vs 295 |
-| **LC33 = G2** | **LC32** | **160,000** (two runs of 80,000: +6.3 ± 1.5 and +5.5 ± 1.5) | **+5.9 ± 1.1** | **+0.35 ± 0.05** (22.1% vs 21.8%) | level | about 310 vs 289 |
+Each generation was confirmed against the one before it on fresh deals on the exact build, at a table of the lineage's last four generations:
 
-- **Reading:** the win bonus decides what the replays teach. Points double with each faan, so with 8 replays a move's chance to win is measured far better than its points. At bonus 300 the network learned to win more often and gave up a little hand value (G1). At 150 it kept the wins and won bigger (G2). At 0 it scored more still on the screen but won 0.30 ± 0.10 fewer hands, and was dropped.
-- **What the bot does differently:** against its own kind, LC33 wins slightly more often than LC32 and its wins are worth about 20 points more, with the same deal-ins. It is the same network (376 inputs, 512-256, 74 outputs) with its shares moved toward the moves that scored more on the replays; KL from G1 0.014.
-- **At the game's table it is level with LC32.** With two Neural Cats and Jorge Yau, on 60,000 fresh deals on the exact build: −1.6 ± 2.6 points a hand, hands won 19.23% vs 19.17%, deal-ins 14.27% vs 14.29%. What it learned against Lucky Cats neither helps nor hurts against the other strategies.
+| Generation | Recipe | Against | Fresh deals | Points a hand | Hands won | Deal-ins | Average win |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| G1 = LO1b | tau 30, win bonus 300 | LC32 | 80,000 | +0.1 ± 1.4 | **+0.23 ± 0.07** | 16.72% vs 16.69% | 288 vs 291 |
+| G2 = LO2a | win bonus 150, data from G1 | G1 | 160,000 | **+2.2 ± 0.9** | +0.07 ± 0.05 | level | 301 vs 295 |
+| G3 = LO4h | each move's advantage divided by its standard error | G2 | 160,000 | +1.4 ± 0.8 | **+0.22 ± 0.04** | −0.05 ± 0.04 | 306 vs 304 |
+| **G4 = LO9d** | three steps with no screen, the last on half-spicy replays (below) | G3 | 160,000 | **+3.4 ± 0.9** | **+0.31 ± 0.05** | −0.04 ± 0.05 | 305 vs 298 |
+
+**LC33 is G4.** Against LC32 itself, on a fixed table (LC32, LC31 and LC30 in the other seats) and the same 160,000 fresh deals:
+
+| Pair | Points a hand (full spicy) | Half spicy | Hands won | Deal-ins | Average win |
+| --- | --- | --- | --- | --- | --- |
+| **G4 against LC32** | **+7.8 ± 1.1** | +1.02 ± 0.09 | **+0.83 ± 0.06** (22.83% vs 22.00%) | −0.10 ± 0.06 | 307 vs 284 |
+| G2 against LC32 | +5.0 ± 1.0 | +0.49 ± 0.08 | +0.26 ± 0.06 | −0.08 ± 0.06 | 301 vs 284 |
+| G4 against G2 | +2.8 ± 1.0 | +0.52 ± 0.08 | +0.57 ± 0.05 | −0.01 ± 0.05 | 307 vs 301 |
+
+- **At the game's table it is ahead too.** With two Neural Cats and Jorge Yau, on 60,000 fresh deals on the exact build: **+5.3 ± 2.7 points a hand** (1.96 standard errors), hands won 19.78% vs 19.17%, deal-ins 14.10% vs 14.29%, average win 342 vs 336. G2 was level there (−1.6 ± 2.6 on the same deals), so the later steps are what carried over.
+- **The win bonus decides what the replays teach.** Points double with each faan, so with 8 replays a move's chance to win is measured far better than its points. At bonus 300 the network learned to win more often and gave up a little hand value (G1). At 150 it kept the wins and won bigger (G2). At 0 it scored more still on the screen but won 0.30 ± 0.10 fewer hands, and was dropped.
+- **The plateau after G3, and what broke it.** Rounds 5 and 6 kept nothing: the steps left were about a point a hand, below what an 80,000-deal screen can see, and bigger steps dealt in more. So the loop stopped screening: each round trains one recipe, which becomes the next round's starting point, and the sum of three steps is confirmed on 160,000 fresh deals (and reverted if it fails). G4 is the first such sum.
+- **Half-spicy replays** (the maintainer's idea). G4's last step scored its replays on the half-spicy payout table, which doubles every two faan above 4 instead of every one, so a move's score is far less noisy. With it went 16 replays at the close choices and the average of three training seeds, at win bonus 50. G4 is better on both payout tables, so here the lighter-tailed target carried over to full spicy. The three changes went in together, so their shares aren't separated.
+- **What the bot does differently:** against its own kind LC33 wins about one hand in 27 more often than LC32 (22.8% of hands to 22.0%), its wins are worth about 23 points more, and it deals in slightly less. It is the same network (376 inputs, 512-256, 74 outputs) with its shares moved toward the moves that scored more on the replays.
 - **Fair play:** the shuffle check passes; it reads only its seat.
 
 ### What didn't work that night
@@ -1291,9 +1304,9 @@ Thinking: one overnight run (2026-11-10 to 11) trained each lineage against noth
 - **Gradient clipping** never bites: the loss is a cross-entropy to a softmax target, and the largest gradient norm was 0.18.
 - **A residual, layer-normalized teacher** (768 wide, 4 blocks) overfits and its distilled student is worse than the control: capacity isn't the limit at this much data.
 - **Truncated replays scored by a learned value** made the data 2.8 times faster, but the value's expected points correlate with the hand's real points at only 0.12, and every arm trained on them dealt in more.
-- **Round 4**, from G2: the screen's leader, LO4c, confirmed at −1.3 ± 0.9 on 160,000 deals. Nothing kept.
+- **Round 4's screen leader**, LO4c, confirmed at −1.3 ± 0.9 on 160,000 deals; its second arm became G3.
 
-Tools: `scripts/ml/lc-own.js` (cached, pruned paired screens and the replay data), `scripts/ml/lc-own-loop.js` (the round driver), `ml/lc_own_train.py` (every arm in one GPU process: 9 arms in 15 s, against 52 s for one arm before).
+Tools: `scripts/ml/lc-own.js` (cached, pruned paired screens and the replay data), `scripts/ml/lc-own-loop.js` (the round driver), `scripts/ml/lc-own-ship.js` (the fixed ship table), `ml/lc_own_train.py` (every arm in one GPU process: 9 arms in 15 s, against 52 s for one arm before).
 
 ## Only Orphans on the stacked method (2026-11-10)
 
