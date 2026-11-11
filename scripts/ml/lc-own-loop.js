@@ -112,7 +112,7 @@ async function round(state, plan) {
   rec.times.data = (Date.now() - t) / 1000;
   log('Round ' + r + ': data ' + dataDir + ' (' + path.basename(head, '.json') + ' exploring), ' + dm.policyRows + ' choices replayed, ' + rec.times.data.toFixed(0) + 's' + (dm.cached ? ' (cached)' : ''));
   state.dataDirs = (state.dataDirs || []).concat([{ dir: dataDir, champion: head }]);
-  const window = state.dataDirs.filter((d) => plan.offPolicy || d.champion === head).slice(-(plan.window || 2)).map((d) => d.dir);
+  const window = state.dataDirs.filter((d) => !(plan.excludeData || []).includes(d.dir) && (plan.offPolicy || d.champion === head)).slice(-(plan.window || 2)).map((d) => d.dir);
   // 2. training
   t = Date.now();
   const arms = plan.arms.map((a, k) => Object.assign({ init: head }, a, { name: tag + r + String.fromCharCode(97 + k) }));

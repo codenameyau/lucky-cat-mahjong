@@ -2,14 +2,13 @@
 
 ## Status
 
-*Updated 2026-11-11 01:35 local.*
+*Updated 2026-11-11 02:05 local.* Rounds done: 3.
 
 - **Champion: G2 = LO2a** (`ml/models/LO2a.json`), the lineage's first points gain. Against G1 on 160,000 fresh exact deals: **+2.2 ± 0.9 points a hand (2.4 SE)**, hands won +0.07 ± 0.05, deal-ins level (−0.00 ± 0.05), average win 301 vs 295. It meets the generation bar and the points milestone. Fair-play shuffle check (`scripts/ml/fair-play.js`): **pass**.
 - **G1 = LO1b:** hands won +0.23 ± 0.07 against lc32 (generation bar only).
 - **SHIP CANDIDATE: G2 against lc32**, on two fresh exact runs of 80,000 deals each (seeds 801,264,000 and 801,344,000), pooled to 160,000 deals: **+5.9 ± 1.1 points a hand (5.5 SE)**, hands won **+0.35 ± 0.05** (22.1% vs 21.8%), deal-ins level (+0.00 ± 0.06), average win about 310 vs 289. The two runs alone: +6.3 ± 1.5 and +5.5 ± 1.5 points. It clears the 3 SE ship bar, and fair play passes.
 - **Running now:**
-  - **Round 3**: G2 makes the data, and each round's fresh value scores truncated replays (stop at the seat's 3rd own move). Halving and the extra option are off.
-  - Round 3's 8 arms: a control (tau 30, bonus 150), bonus 75, bonus 225, EMA, the LO1d retry (lr 1e-3, warm-up, cosine, EMA), gradient noise with two seeds, and the variance-aware target.
+  - **Round 4**: full CRN replays (truncated value replays hurt in round 3, see below), data from G2. Arms as in round 3: a control (tau 30, bonus 150), bonus 75, bonus 225, EMA, the LO1d retry (lr 1e-3, warm-up, cosine, EMA), gradient noise with two seeds, and the variance-aware target.
 - **Table pool:** G2, G1, lc32, lc31.
 - **Blockers:** none.
 
@@ -75,6 +74,29 @@ Times: data 1,184 s (halving and the extra option made it slower than round 1's 
 - **The win bonus sets the trade.** At 300 the arm gains hands won (+0.28) but no points. At 0 it gains points but loses hands won. At 150 it gains both, which is the Pareto step.
 - **The screen's points were inflated again.** LO2a screened at +3.8 and confirmed at +2.2, the same direction as round 1.
 - **Halving with a fifth option slowed the data down.** Both are off from round 3.
+
+### Round 3 (champion G2 = LO2a; data own-3: 24,000 deals, G2 exploring, replays truncated at the seat's 3rd own move and scored by a fresh value)
+
+The value LOV3 was trained on 476,602 of G2's positions (25 s for data and training). Its expected points correlate with the hand's real points at r = 0.12, and its best epoch was 3. Data took **368 s, against 1,020 s for full replays (2.8x faster)**, with about 84% of replays truncated. Training: 8 arms in 38 s on own-2 + own-3.
+
+| Arm | Recipe | Held-out CE (init) | Points | Hands won | Deal-ins | Avg win | Deals |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
+| LO3a | control: tau 30, bonus 150 | 1.3790 (1.3772) | −9.1 ± 4.1 | +0.16 ± 0.21 | +0.61 ± 0.21 | 297 vs 323 | 8,000 |
+| LO3b | bonus 75 | 1.3798 (1.3782) | −7.8 ± 4.2 | +0.05 ± 0.20 | +0.41 ± 0.21 | 305 vs 323 | 8,000 |
+| LO3c | bonus 225 | 1.3807 (1.3786) | −8.8 ± 4.1 | +0.28 ± 0.21 | +0.55 ± 0.21 | 286 vs 323 | 8,000 |
+| LO3d | control + EMA | 1.3757 (1.3772) | −3.7 ± 2.7 | +0.24 ± 0.15 | +0.26 ± 0.15 | 306 vs 323 | 8,000 |
+| LO3e | lr 1e-3, warm-up, cosine, EMA, tau 300, refreshed reference | 1.3869 (1.3749) | +3.4 ± 2.1 | −0.13 ± 0.11 | +0.08 ± 0.11 | 314 vs 300 | 32,000 (dropped on wins) |
+| LO3f | control + grad noise, seed 1 | 1.3790 (1.3772) | −9.1 ± 4.3 | +0.18 ± 0.20 | +0.58 ± 0.21 | 295 vs 323 | 8,000 |
+| LO3g | control + grad noise, seed 2 | 1.3803 (1.3789) | +1.3 ± 1.2 | −0.04 ± 0.06 | **+0.29 ± 0.07** | 304 vs 296 | 80,000 |
+| LO3h | vnorm 1, bonus 150 | 1.3445 (1.3461) | −5.4 ± 3.4 | +0.15 ± 0.18 | +0.34 ± 0.18 | 299 vs 323 | 8,000 |
+
+Nothing passed. The head stayed at G2, and there was no confirmation.
+
+**Critique: the value-scored truncated replays hurt, so they are off for round 4.**
+- **Every arm dealt in more**, by 0.3 to 0.6 points (the one that went the distance: +0.29 ± 0.07, 4 SE), and won smaller hands.
+- **The value can't see what the full replay saw.** A replay that stops three moves in is scored by a value that explains about 1.4% of a hand's points (r = 0.12). That value can't tell a safe hand from one walking into a deal-in, or a hand building toward a big win. So the options it prefers are the ones that look good now and cost later.
+- **The 2.8x faster data was worth less than full replays.** With full CRN replays (rounds 1 and 2) every q arm moved the right way.
+- **Changes for round 4:** full CRN replays again, and own-3 left out of training. Round 4 retries the same structural arms, since round 3 couldn't judge them. To make truncation work, the value would need to be far better at the truncation point (the hidden tiles as training targets, or bootstrapping from full replays). That isn't tried yet.
 
 ## Structural arms (from the maintainer's list)
 
