@@ -1,0 +1,11 @@
+{"name":"R9","data":{"sets":0,"window":8},
+ "arms":[
+  {"name":"R9pay","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","paySmooth":0.03},
+  {"name":"R9win","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","winSmooth":0.03},
+  {"name":"R9ema","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","faanSmooth":0.03,"ema":0.999},
+  {"name":"R9ema2","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":2,"init":"champion","hidden":"512,256","faanSmooth":0.03,"ema":0.999},
+  {"name":"R9n9pay","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"ml/models/pool/NC9.json","hidden":"512,256","paySmooth":0.03},
+  {"name":"R9n9win","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"ml/models/pool/NC9.json","hidden":"512,256","winSmooth":0.03}],
+ "soups":[{"of":["R8se","R9ema2"]}],
+ "screen":{"deals":40000,"look":20000,"minDeals":20000,"half":true},
+ "confirm":{"deals":150000,"top":1,"minZ":1,"half":true}}

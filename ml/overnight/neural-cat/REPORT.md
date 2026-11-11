@@ -1,11 +1,11 @@
 # Neural Cat overnight report
 
-## Status (updated 2026-11-11 10:55 UTC)
+## Status (updated 2026-11-11 12:05 UTC)
 
 - **Champion: G1** (`ml/models/pool/G1.json`, trained as R4sm03: NC9 fine-tuned on 8 sets of every-seat data with label smoothing 0.03 on the faan heads). **Generation 1** under the orchestrator's revised rule (deal-ins may rise by up to 0.25 pp or 1 SE): against NC9 on 150,000 fresh exact deals, hands won **+1.4 ± 0.05 pp** (17.61% vs 16.19%), points **+0.6 ± 2.3** (level), deal-ins +0.10 ± 0.05 pp, average win 833 vs 915. Fair-play shuffle check (`bench.js fairPlay`): **pass**. **Not a ship candidate** (points level). It joined the pool and plays the next data.
-- **Rounds done:** 5 rounds plus the frontier screen (S8). 
-- **Last result (S8, 40,000 fast deals against NC9, both payout tables):** the faan-smoothing frontier dominates the half-spicy play setting: at about +1.4 pp hands won, smoothing costs -0.5 to -0.8 ± 4.3 full-spicy points; the half-spicy blend 0.25 wins +1.1 pp at -2.2 ± 1.9, blend 0.5 wins +2.6 pp at -9.8 ± 4.1, blend 1.0 +9.5 pp at **-57.3**. On half-spicy points every smoothing model beats NC9 by +0.7 to +1.2 ± 0.25 (3 to 5 SE); the half-spicy play setting itself only +0.3 to +0.4.
-- **Now:** R8, G1's generation: 2 x 50,000 deals with G1 exploring against the pool (G1, NC9, NC8, NC7, NC5, NC3); fine-tunes of G1 (control, smoothing 0.03 seeds 1 and 2, with EMA, smoothing 0.015) and a soup; screen against G1 on both tables; 150,000-deal confirmations of the top 2.
+- **Rounds done:** 6 rounds (R1, R2, R3, R5, R8, plus R4/R6/R7 trained arms) and the S8 frontier screen; one generation (G1).
+- **Last result:** R9's pay-head smoothing (R9pay, from G1) against G1 on 150,000 fresh exact deals: **points +4.5 ± 2.1** (z 2.15), hands won -0.4 ± 0.05 pp, deal-ins +0.11 pp: points up 2 SE but hands won down, so not a generation. 
+- **Now:** ship check of R9pay against NC9: two fresh exact runs of 100,000 deals each, pooled (ship bar: points up 3 SE, hands won not down more than 1 SE).
 - **Bars:** generation = against the current champion on fresh exact deals, full-spicy points or hands won up >= 2 SE, the other not down > 1 SE, deal-ins up at most 0.25 pp or 1 SE (the larger). Ship candidate = full-spicy points up >= 3 SE against NC9 on pooled fresh exact deals, hands won not down > 1 SE.
 - **Blockers:** none.
 
@@ -200,3 +200,39 @@ S8 frontier screen (fast, 40,000 deals from seed 3,000,702,000, paired against N
 - **Faan smoothing is the better lever on both tables:** at the same hands won it keeps full-spicy points level, and it beats NC9 on half-spicy points by 3 to 5 SE, which the half-spicy play setting does not. Smoothing changes the faan heads' calibration as a whole, not just the payout weights; the screens can't separate smoothing 0.01 to 0.04 on full-spicy points (all within ± 4.4).
 - **Lowering the win bonus does take back deal-ins** (win bonus 250: 10.19%; deal-in logit +0.15: 10.11%) but gives back hands won faster than it saves points.
 - **Next under this heading:** data played by a half-spicy-setting learner, and a curriculum, are not run: the play setting lost on full spicy, so they are low priority beside G1's own generation.
+
+### R8: G1's generation (champion G1)
+
+- Data: nco-11 and nco-12, 2 x 50,000 deals, G1 exploring against G1, NC9, NC8, NC7, NC5, NC3 (49 s and 52 s). Arms from G1 on the last 8 sets (nco-5 to nco-12): a control (no smoothing), smoothing 0.03 seeds 1 and 2, smoothing 0.03 with EMA, smoothing 0.015, and the soup of the three 0.03 arms. Training 240 s.
+- Screen (fast, 40,000 deals from seed 3,000,742,000, paired against **G1**):
+
+| Candidate | Points vs G1 | Hands won | Deal-ins | Avg win | Half-spicy points | Deals |
+| --- | ---: | --- | --- | --- | ---: | ---: |
+| R8se smoothing 0.03 + EMA | -1.9 ± 3.9 | 18.19% vs 17.66% (+0.5 ± 0.09) | 10.54% vs 10.42% | 812 vs 850 | -0.0 ± 0.22 | 40,000 |
+| R8s2 smoothing 0.03 s2 | -2.7 ± 3.9 | 18.23% (+0.6 ± 0.09) | 10.55% | 802 | -0.0 ± 0.22 | 40,000 |
+| R8s1 smoothing 0.03 s1 | -3.8 ± 3.9 | 18.21% (+0.5 ± 0.09) | 10.63% | 812 | -0.1 ± 0.22 | 40,000 |
+| R8s0 soup | -4.2 ± 3.9 | 18.19% (+0.5 ± 0.09) | 10.64% | 803 | -0.2 ± 0.22 | 40,000 |
+| R8s15 smoothing 0.015 | -0.7 ± 5.5 | 17.68% vs 17.72% (-0.0 ± 0.13) | 10.63% vs 10.54% | 859 vs 877 | -0.1 ± 0.32 | 20,000 (dropped) |
+| R8c control (no smoothing) | -4.9 ± 6.0 | 17.15% (-0.6 ± 0.14) | 10.63% | 880 | -0.3 ± 0.34 | 20,000 (dropped) |
+
+- Nothing reached the confirmation threshold (points z 0.5): G1 stays. Smoothing again on top of G1 buys another +0.5 pp hands won with points slightly down; the no-smoothing control gives G1's extra wins back. The smoothing lever is spent after one step.
+
+### R9: one faan head smoothed (champion G1)
+
+- Arms on the same 8 sets: smoothing 0.03 on the pay head only (R9pay) or the win head only (R9win), from G1, and the same two from NC9 (R9n9pay, R9n9win); smoothing 0.03 on both with EMA (R8se, reused from R8's cache, and R9ema2, seed 2) and their soup (R9s0). Training 249 s.
+- Screen (fast, 40,000 deals from seed 3,000,782,000, paired against **G1**; the shrunken lead of the best of 7 is about its lead less 1.5 SE):
+
+| Candidate | Points vs G1 | Hands won | Deal-ins | Avg win | Half-spicy points |
+| --- | ---: | --- | --- | --- | ---: |
+| R9pay pay head 0.03, from G1 | +8.3 ± 4.0 (shrunken about +2) | 17.12% vs 17.51% (-0.4 ± 0.10) | 10.53% vs 10.39% | 909 vs 837 | +0.2 ± 0.23 |
+| R8se both heads + EMA | +6.6 ± 3.8 | 18.19% (+0.7 ± 0.09) | 10.39% | 829 | +0.5 ± 0.22 |
+| R9n9pay pay head, from NC9 | +6.2 ± 4.2 | 16.54% (-1.0 ± 0.10) | 10.48% | 940 | +0.0 ± 0.24 |
+| R9n9win win head, from NC9 | +6.1 ± 3.8 | 17.69% (+0.2 ± 0.09) | 10.56% | 870 | +0.2 ± 0.22 |
+| R9ema2 both + EMA seed 2 | +4.4 ± 3.8 | 18.17% (+0.7 ± 0.09) | 10.54% | 835 | +0.3 ± 0.22 |
+| R9win win head, from G1 | +4.0 ± 3.8 | 18.30% (+0.8 ± 0.09) | 10.62% | 822 | +0.4 ± 0.22 |
+| R9s0 soup of the two EMA arms | +3.1 ± 3.8 | 18.23% (+0.7 ± 0.09) | 10.45% | 823 | +0.3 ± 0.22 |
+
+- R8se was -1.9 ± 3.9 against G1 on R8's deals and +6.6 ± 3.8 here: the same model, 8.5 points apart on two fresh 40,000-deal decks (1.6 SE of the difference). That is the screen noise every lead above has to be read against.
+- **Which head does what:** smoothing the win head makes Neural Cat more eager (more, smaller wins); smoothing the pay head alone does the opposite (fewer, bigger wins), since a flatter pay head prices every chance of paying higher. G1's hands-won gain comes from the win head.
+- **Confirmation (exact, fresh, 150,000 deals from seed 3,000,822,000, against G1; 2,458 s):** R9pay **+4.5 ± 2.1** full-spicy points a hand (z 2.15), hands won 17.22% vs 17.62% (**-0.4 ± 0.05 pp**), deal-ins 10.50% vs 10.38% (+0.11 ± 0.05 pp), average win 892 vs 844; half spicy +0.1 ± 0.12. **Points up 2 SE (the points milestone's size), but hands won down 8 SE, so not a generation under the Pareto rule.** Its screen lead (+8.3, shrunken about +2) held at +4.5: the first retrained points gain to survive a fresh confirmation at 2 SE.
+- Against NC9 it should be about G1's +0.6 plus +4.5, with hands won about +1.0 pp: so it is checked against NC9 for the ship bar on two fresh exact runs of 100,000 deals each (pooled 200,000; seeds from 3,000,972,000).

@@ -66,14 +66,17 @@ def soft_ce(logits, target_logits):
     return -(torch.softmax(target_logits, 1) * F.log_softmax(logits, 1)).sum(1).mean()
 
 
-def losses(out, yo, yw, yp, smooth):
-    if not smooth:
+def losses(out, yo, yw, yp, smooth, win_smooth=None, pay_smooth=None):
+    # faanSmooth on both faan heads; winSmooth / paySmooth on one head only (they override it)
+    ws = smooth if win_smooth is None else win_smooth
+    ps = smooth if pay_smooth is None else pay_smooth
+    if not ws and not ps:
         return T.losses(out, yo, yw, yp)
     lo = F.cross_entropy(out[:, :T.N_OUTCOMES], yo)
     win, pay = yo <= 1, (yo == 2) | (yo == 3)
     z = out.new_zeros(())
-    lw = F.cross_entropy(out[win, T.N_OUTCOMES:T.N_OUTCOMES + T.N_FAAN], yw[win], label_smoothing=smooth) if win.any() else z
-    lp = F.cross_entropy(out[pay, T.N_OUTCOMES + T.N_FAAN:T.OUTPUTS], yp[pay], label_smoothing=smooth) if pay.any() else z
+    lw = F.cross_entropy(out[win, T.N_OUTCOMES:T.N_OUTCOMES + T.N_FAAN], yw[win], label_smoothing=ws) if win.any() else z
+    lp = F.cross_entropy(out[pay, T.N_OUTCOMES + T.N_FAAN:T.OUTPUTS], yp[pay], label_smoothing=ps) if pay.any() else z
     return lo, lw, lp
 
 
@@ -206,9 +209,9 @@ def main():
                 if a.get('sampleWeight') == 'learner':
                     wgt = 1.0 + (strat_t[idx] == learner_idx).float()
                     lo = (F.cross_entropy(out[:, :T.N_OUTCOMES], yo, reduction='none') * wgt).sum() / wgt.sum()
-                    _, lw, lp = losses(out, yo, yw, yp, a.get('faanSmooth', 0))
+                    _, lw, lp = losses(out, yo, yw, yp, a.get('faanSmooth', 0), a.get('winSmooth'), a.get('paySmooth'))
                 else:
-                    lo, lw, lp = losses(out, yo, yw, yp, a.get('faanSmooth', 0))
+                    lo, lw, lp = losses(out, yo, yw, yp, a.get('faanSmooth', 0), a.get('winSmooth'), a.get('paySmooth'))
                 loss = lo + a.get('winWeight', 0.5) * lw + a.get('payWeight', 0.5) * lp
                 if a.get('teacher'):
                     tl = teachers[a['teacher']][idx].float()
