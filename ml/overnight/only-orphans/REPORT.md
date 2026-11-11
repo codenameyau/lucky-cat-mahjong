@@ -241,3 +241,17 @@ Bar met: **the Pareto rule** (wins up 2.9 SE, points down 0.55 SE, deal-ins up 0
 Each cap step adds hands won and shrinks the average win: 3,661 to 3,167 for ON1, then 3,194 for ON2 against OS2c1's 3,759 on C3's deals. On points, each step is inside one standard error of its parent (ON1 +0.6 SE, ON2 −0.55 SE), so the rule passes it, but the losses add up: ON2 is −2.8 against OS2c1. A rule judged only against the parent is a ratchet. Wins are measured to ±0.04 pp and points to ±3 a hand, so it rewards the well-measured quantity and lets the noisy one drift. That is critique "J favored wins" again, in a new form.
 
 **What changes:** from round 3 every confirmation is **anchored to OS2c1**. The fresh deck's champion side is OS2c1. The candidate and the loop's champion are both read against it, the step from the parent comes from the same cached rows, and a candidate down more than one standard error on points against OS2c1 is not kept, whatever it does against its parent. Round 3 also has arms meant to give points back: the cap at 11 (recipe q) and a lower win bonus (500, 400).
+
+### Round 3, from ON2 (screen deck seed 1,505,000,000, fast build)
+
+Data `oon-3`: ON2 exploring against ON1, OS2c1 and the older generations, 100,000 deals. Fine-tunes from ON2 on `oon-1` to `oon-3` (j: cap 10, lr 1e-4, 4 epochs; q: cap 11), and win bonus 500 and 400. Gaps against ON2:
+
+| Arm | 8,000 deals | 40,000 deals | Wins gap (pp) | Deal-ins gap (pp) | Average win (ON2 3,145) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| N3j0 (cap 10, seed 0) | −1.0 ± 5.0 | +3.8 ± 2.3 | +0.06 ± 0.04 | +0.01 ± 0.03 | 3,169 |
+| N3j1 (cap 10, seed 1) | +1.9 ± 5.1 | +3.4 ± 2.2 | +0.07 ± 0.04 | +0.03 ± 0.03 | 3,154 |
+| ON2, win bonus 400 (S3wbm200) | +5.5 ± 2.8 | +2.4 ± 1.2 | −0.22 ± 0.02 | −0.06 ± 0.02 | 3,295 |
+| ON2, win bonus 500 (S3wbm100) | +3.6 ± 2.1 | +0.8 ± 0.9 | −0.07 ± 0.02 | −0.03 ± 0.01 | 3,180 |
+| N3q0 / N3q1 (cap 11) | +0.3 ± 6.4 / −4.1 ± 6.4 | cut | −0.42 / −0.46 (± 0.11) | +0.06 / −0.01 | 3,370 / 3,279 |
+
+ON2 on this deck: 8.0 points a hand, wins 5.18%, deal-ins 1.78%. Screen 1,687 s (the shadow replayed 69%). Reading: the third capped fine-tune barely moves the wins (+0.06), so the dial is near its end at cap 10. Cap 11 on top of two cap-10 generations gives back 0.4 pp of wins. A lower win bonus on ON2 trades the extra wins back for points, which is well measured here because it changes few hands (+2.4 ± 1.2 at 400). The round's driver confirms N3j0 (the best by z among arms with wins not down), anchored to OS2c1: C4 (running). The win-bonus arms and ON1 at win bonus 500 are confirmed against OS2c1 afterwards (C5), because against OS2c1, not against ON2, is where they have to be good on both counts.
