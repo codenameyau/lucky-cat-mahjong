@@ -2,15 +2,14 @@
 
 ## Status
 
-- **Finished (phase 2 done).** Champion of the lineage loop: ON2 (`ml/models/ON2.json`). **Not a ship candidate.**
-- **ON2 against OS2c1, older-generations table, 360,000 pooled fresh exact deals:** hands won +0.824 ± 0.017 pp, full-spicy points −1.39 ± 1.05, deal-ins +0.050 ± 0.012 pp, half-spicy points +0.25 ± 0.07. That is a trade (more wins, better on half spicy, level to slightly worse on full spicy), not a gain. The orchestrator's draft ship rule fails on the points leg (−1.32 SE).
-- **ON2 at the game's table** (NC9, Jorge Yau, NC9; 60,000 deals): wins +0.51 ± 0.06 pp, deal-ins −0.50 ± 0.08 pp, points −4.5 ± 3.8, limit-hand wins −0.077 ± 0.021 pp.
-- **Phase 2 results:**
-  - The variance-reduced estimator (`lcm-sim vr`) is built and unbiased. Its efficiency is 0.66 against plain deals, so it is not used.
-  - The ship check stopped on its upper bound at 360,000 deals.
-  - Half-spicy arms 2 to 4 show no transfer at this scale.
-  - Data was trimmed to 1.4 GB.
-- **Blockers:** none.
+- **Phase 3 is running** (the orchestrator's plan, aimed at points, which for Only Orphans means limit hands). OS2c1 stays the shipped model; ON2 doesn't ship (phase 2: hands won +0.82 pp, points −1.4 ± 1.0 on 360,000 deals).
+- **3.1: ten times the won positions. Running.**
+  - New option `generate.js --native --other-share q`: every recorded position of the hand's winner is kept, and every other position with chance q. It has its own random generator; off by default; generate parity is byte for byte.
+  - New option `ml/train.py --other-share q`: the outcome loss weighs the non-winner rows by 1/q, so the outcome head stays calibrated. `--calib DIR` checks calibration on an unsampled set.
+  - Data `oow-1` is being generated: 1,000,000 deals of OS2c1 exploring at the older-generations table, every position recorded, q = 0.03. A 2,000-deal test gave 47% won-hand rows, against 2.4% before. The full set will be about 5M rows and 6 GB.
+  - Next: fine-tune from OS2c1 without the faan cap, then with it. Each will be judged on full-spicy points and limit-hand wins against OS2c1, on 80,000+ fresh deals, anchored.
+- **3.2: the target choice.** New command `lcm-sim targets`: at the model's first turn it replays the rest of the hand K times under the rules' targets and under each possible target pinned for the hand, on the same reshuffled walls. It is built and parity holds. The measurement runs when the data finishes, because both need the 10 workers.
+- **Blockers:** none. The data generation takes most of an hour more.
 
 ## The table and the measures
 
