@@ -1,14 +1,15 @@
 # Neural Cat overnight report
 
-## Status (updated 2026-11-11 15:20 UTC; phase 2 running)
+## Status (updated 2026-11-11 16:30 UTC; phase 2 done for this session)
 
-- **SHIPPED as NC10 (PR #251): SC1** (`ml/models/pool/SC1.json`, trained as R9pay: G1 fine-tuned 4 epochs at lr 1e-4 on nco-5 to nco-12 with label smoothing 0.03 on the **pay** faan head only; play settings NC9's: topK 6, win bonus 300, claim margin 0). Against **NC9** on two fresh exact runs of 100,000 deals each (seeds 3,000,972,000 and 3,001,072,000), pooled to 200,000 deals: **+8.1 ± 2.0 full-spicy points a hand (4.0 SE)**, hands won **+1.08 ± 0.05 pp** (17.23% vs 16.15%), deal-ins +0.24 ± 0.04 pp (10.51% vs 10.27%, inside the 0.25 pp allowance), average win 903 vs 915; half-spicy points +1.23 ± 0.12. The two runs alone: +8.6 ± 2.9 and +7.6 ± 2.9. **It meets the ship bar** (points up 3 SE on pooled fresh exact deals, hands won not down). Fair-play shuffle check: **pass**.
-- **Champion: G2 = SC1** (`ml/models/pool/G2.json`; orchestrator ruling: against NC9, the lineage's anchor, it is a Pareto step on both legs). It is in the pool and makes the next data. Earlier: **G1** (`ml/models/pool/G1.json`, R4sm03, smoothing 0.03 on both faan heads): Generation 1 against NC9 (hands won +1.4 ± 0.05 pp, points +0.6 ± 2.3, 150,000 fresh exact deals; fair play pass).
-- **SC1 against G1** (150,000 fresh exact deals): points +4.5 ± 2.1 (2.15 SE), hands won -0.4 ± 0.05 pp, so by the Pareto rule it is **not** G2 (hands won down more than 1 SE), though it carries the points milestone. Whether SC1 becomes G2 is the orchestrator's call; the loop's state still has G1 as champion.
-- **Rounds done:** R1 to R9 (R4, R6, R7 as trained-arm batches), the S8 frontier screen, 11 exact confirmations.
-- **Now (phase 2):** SC1's recipe is confirmed by a second seed (R10g2: +7.0 ± 2.4 points, +1.0 pp hands won against NC9). Running R11, experiment (d): 2 x 50,000 deals of data from G2 (= SC1 = NC10), then G2 fine-tuned again (control, pay head 0.03 two seeds, win head 0.02, both), screened and confirmed against G2, which is now also the ship anchor.
-- **Half spicy for Neural Cat:** its faan heads are payout-free (they predict faan buckets), so training "on half spicy" can only mean reshaping what those heads say, which is what the smoothing arms do; the softened targets (R10h2, R10h5) are the literal half-spicy form of it.
-- **Blockers:** none. To ship SC1 the game needs nothing new: it is an ordinary 568-512-256-28 float16 model with NC9's play settings (no spicyBlend).
+- **Shipped as NC10 (PR #251): SC1 = G2** (`ml/models/pool/SC1.json`, same file as `G2.json`). Against NC9 on 200,000 pooled fresh exact deals: **+8.1 ± 2.0 points a hand, +1.08 ± 0.05 pp hands won**, deal-ins +0.24 pp; at the benchmark table (the orchestrator's run) +7.4 ± 3.4. The ship anchor is now SC1.
+- **Phase 2 results:**
+  - (a) **The recipe, not the seed:** SC1's recipe with seed 2 (R10g2) is **+7.0 ± 2.4** points and +1.0 ± 0.05 pp hands won against NC9 on 150,000 fresh exact deals.
+  - (b, c) **One step from NC9 is not enough:** the best one-step two-head smoothing (R10w2p3, win head 0.02, pay head 0.03) is +2.0 ± 2.3 points and +1.1 pp hands won against NC9: the G1 step then a pay-head step is worth about 5 points more.
+  - (d) **No compounding:** a fresh generation of data from G2 and G2 fine-tuned on it (R11c) is +0.1 ± 2.0 against G2; a second pay-head step or a win-head step on G2 screened level or down.
+  - (e) **Half spicy for Neural Cat** is the faan-head reshaping: faan targets softened 20% toward their half-spicy worth behave like a strong win-head smoothing (+1.2 pp hands won, points +2.1 ± 4.5 on the screen); 50% overshoots.
+- **No new candidate beats SC1.** Nothing running.
+- **Blockers:** none.
 
 ## Speed: before (the lab today) and after (this loop)
 
@@ -279,3 +280,18 @@ Screen (fast, 40,000 deals from seed 3,001,172,000, paired against **NC9**, 8 wo
 - **Half-spicy targets (e):** moving 20% of each faan target toward its half-spicy worth behaves like a strong win-head smoothing: +1.2 pp hands won with points level (+2.1 ± 4.5); at 50% it goes too far (-6.2, wins +2.9 pp, average win 738). So for Neural Cat the half-spicy idea is the same lever as the faan smoothing, and the hand-tuned smoothing points sit a little better on the frontier.
 - **R10w2p3 confirmed against NC9** (150,000 fresh exact deals, seed 3,001,212,000, 2,925 s): points **+2.0 ± 2.3**, hands won **+1.1 ± 0.05 pp** (17.35% vs 16.23%), deal-ins +0.07 ± 0.05 pp, average win 849 vs 900; half spicy +0.9 ± 0.13. A generation-sized step against NC9 by hands won (like G1), **not** SC1's points (+8.1). One light two-head step from NC9 does not reach the two-step SC1; its screen lead (+9.4, shrunken about +2.7) was mostly the draw.
 - **R10g2 (SC1's recipe, seed 2) confirmed against NC9** (150,000 fresh exact deals, seed 3,001,362,000, 2,819 s): points **+7.0 ± 2.4** (z 2.97), hands won **+1.0 ± 0.05 pp** (17.23% vs 16.25%), deal-ins +0.23 ± 0.05 pp, average win 918 vs 930; half spicy +1.2 ± 0.13. **The recipe, not SC1's seed, is what gains:** two seeds now give +8.1 ± 2.0 and +7.0 ± 2.4 points over NC9 with +1.0 to +1.1 pp hands won (mean about +7.6). Its screen on R10's deck said -0.2 ± 4.5: the screen was the outlier. And the two-step route (G1's two-head smoothing, then a pay-head step) beats the one-step light smoothing from NC9 (R10w2p3, +2.0 ± 2.3) by about 5 points.
+
+### R11: G2's own generation (experiment d: does it compound?)
+
+- Data: nco-13 and nco-14, 2 x 50,000 deals, G2 exploring against G2, G1, NC9, NC8, NC7, NC5, NC3 (63 s and 60 s on 8 workers). Arms from G2 on nco-7 to nco-14: control (no smoothing), pay head 0.03 (seeds 1, 2), win head 0.02, win 0.02 + pay 0.03.
+- Screen (fast, 40,000 deals from seed 3,001,512,000, paired against **G2**):
+
+| Arm | Points vs G2 | Hands won | Deal-ins | Avg win | Half-spicy | Deals |
+| --- | ---: | --- | --- | --- | ---: | ---: |
+| R11c control | +4.6 ± 3.8 | 17.18% vs 17.16% (+0.0 ± 0.09) | 10.53% vs 10.49% | 914 vs 884 | +0.1 ± 0.22 | 40,000 |
+| R11wp win 0.02 + pay 0.03 | -0.5 ± 3.9 | 18.08% (+0.9 ± 0.09) | 10.41% | 835 | +0.2 ± 0.22 | 40,000 |
+| R11w win 0.02 | -3.5 ± 4.0 | 18.03% (+0.9 ± 0.09) | 10.55% | 825 | -0.2 ± 0.23 | 40,000 |
+| R11p2 pay 0.03 s2 | -1.3 ± 5.5 | 17.20% vs 17.21% (-0.0 ± 0.12) | 10.71% vs 10.55% | 898 vs 880 | -0.3 ± 0.31 | 20,000 (dropped) |
+| R11p pay 0.03 s1 | -1.6 ± 5.3 | 17.08% (-0.1 ± 0.12) | 10.56% | 891 | -0.4 ± 0.31 | 20,000 (dropped) |
+
+- A second pay-head step on G2 does nothing measurable; a win-head step again trades size for more wins with points down. Early sign: the head-reshaping is a one- or two-step lever, not a compounding one. - **R11c confirmed against G2** (150,000 fresh exact deals, seed 3,001,552,000, 2,827 s): points **+0.1 ± 2.0**, hands won -0.1 ± 0.05 pp, deal-ins +0.10 ± 0.04 pp, average win 900 vs 900; half spicy -0.0 ± 0.11. Plain fine-tuning on G2's own data adds nothing, as it added nothing to NC9 (R1, R2). **Answer to (d): it does not compound.** The head reshaping gave two steps (G1: style, SC1: points) and then stops; new data from the stronger model doesn't by itself move it.
