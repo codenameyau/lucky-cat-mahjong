@@ -78,6 +78,55 @@ PlanP OnlyOrphans::concealedTripletsPlan(const Counts& c, const Ctx& ctx) {
   return p;
 }
 
+// Shanten for the three counting kinds (triplets, seven pairs, orphans) kept as
+// counts, so finishOdds reads a tile added or taken in O(1) instead of a pass over
+// the hand: the same numbers as tripletsShanten, sevenPairsShanten and
+// orphansShanten (shanten.cpp) with shantenOf's filled rule, by construction.
+namespace {
+struct CountSh {
+  ShKind kind;
+  bool filled;
+  int declared, full;
+  int a = 0, b = 0, held = 0;  // trip: pungs (>= 3), pairs (== 2); seven / orph: kinds (>= 1), pairs (>= 2)
+  static bool fits(const ShFn& fn) { return fn.kind == SH_TRIP || fn.kind == SH_SEVEN || fn.kind == SH_ORPH; }
+  CountSh(const ShFn& fn, int dec) : kind(fn.kind), filled(fn.filled), declared(dec), full(3 * (4 - dec) + 1) {}
+  static bool orphan(int i) { return i >= 27 || i % 9 == 0 || i % 9 == 8; }
+  void load(const Counts& c) {
+    a = b = held = 0;
+    for (int i = 0; i < 34; i++) {
+      held += c[i];
+      if (kind == SH_TRIP) { if (c[i] >= 3) a++; else if (c[i] == 2) b++; }
+      else if (kind == SH_SEVEN || orphan(i)) { if (c[i] >= 1) a++; if (c[i] >= 2) b++; }
+    }
+  }
+  int value(int A, int B, int h) const {
+    int s;
+    if (kind == SH_TRIP) {
+      int need = 4 - declared;
+      int m = std::min(A, need), p = B > 0 ? 1 : 0, t = std::min(B - p, need - m);
+      s = 2 * need - 2 * m - t - p;
+    } else if (declared) return INF;
+    else if (kind == SH_SEVEN) s = 6 - B + std::max(0, 7 - A);
+    else s = 13 - A - (B > 0 ? 1 : 0);
+    if (filled && s < INF) s = std::max(s, full - h);
+    return s;
+  }
+  // Shanten with one more of tile i (v: its count now), or one fewer of tile t.
+  int plus(int i, int v) const {
+    int A = a, B = b;
+    if (kind == SH_TRIP) { if (v == 1) B++; else if (v == 2) { B--; A++; } }
+    else if (kind == SH_SEVEN || orphan(i)) { if (v == 0) A++; else if (v == 1) B++; }
+    return value(A, B, held + 1);
+  }
+  int minus(int t, int v) const {
+    int A = a, B = b;
+    if (kind == SH_TRIP) { if (v == 3) { A--; B++; } else if (v == 2) B--; }
+    else if (kind == SH_SEVEN || orphan(t)) { if (v == 1) A--; else if (v == 2) B--; }
+    return value(A, B, held - 1);
+  }
+};
+}  // namespace
+
 // The odds of finishing a plan s steps from ready, a go-around at a time (finishOdds).
 double OnlyOrphans::finishOdds(const Plan& p, const Ctx& ctx, int s) {
   const ShFn& fn = p.fn;
@@ -86,14 +135,18 @@ double OnlyOrphans::finishOdds(const Plan& p, const Ctx& ctx, int s) {
   int full = 3 * (4 - declared) + 1;
   double rates[16];
   int nRates = 0;
+  const bool fast = CountSh::fits(fn);
+  CountSh cs(fn, declared);
   for (int k = 0; k <= s; k++) {
     int now = s - k;
     int total = 0, tiles[34], nt = 0;
+    if (fast) cs.load(counts);
     for (int i = 0; i < 34; i++) {
       if (!unseen[i] || counts[i] >= 4) continue;
-      counts[i]++;
-      if (shantenOf(fn, counts, declared) < now) { total += unseen[i]; tiles[nt++] = i; }
-      counts[i]--;
+      int sh;
+      if (fast) sh = cs.plus(i, counts[i]);
+      else { counts[i]++; sh = shantenOf(fn, counts, declared); counts[i]--; }
+      if (sh < now) { total += unseen[i]; tiles[nt++] = i; }
     }
     if (!total) return 0;
     double rate = 0;
@@ -120,11 +173,12 @@ double OnlyOrphans::finishOdds(const Plan& p, const Ctx& ctx, int s) {
     for (int j = 0; j < 34; j++) held += counts[j];
     if (held <= full) continue;
     int out = -1, outS = INF;
+    if (fast) cs.load(counts);
     for (int t = 0; t < 34; t++) {
       if (!counts[t] || t == take) continue;
-      counts[t]--;
-      int st = shantenOf(fn, counts, declared);
-      counts[t]++;
+      int st;
+      if (fast) st = cs.minus(t, counts[t]);
+      else { counts[t]--; st = shantenOf(fn, counts, declared); counts[t]++; }
       if (isInf(st)) continue;  // Infinity never beats Infinity, nor ties a tile with copies (unseen[-1])
       if (st < outS || (st == outS && unseen[t] < unseen[out])) { out = t; outS = st; }
     }
