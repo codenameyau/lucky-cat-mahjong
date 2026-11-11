@@ -57,20 +57,23 @@ async function shipCheck(state, plan, file, log) {
   for (let k = 0; k < 2; k++) {
     const seed = takeSeeds(state, deals);
     // the fixed ship table (the orchestrator, 2026-11-11): lc32, lc31 and lc30 in the other seats
-    const c = (await O.screen(SHIPPED, [file], seed, [deals], { pool: ['lc32', 'lc31', 'lc30'].map((m) => 'ml/models/' + m + '.json'), exact: true, drop: 1e9, log }))[0];
+    const c = (await O.screen(SHIPPED, [file], seed, [deals], { pool: SHIP_TABLE, exact: true, drop: 1e9, log }))[0];
     runs.push({ seed, pair: c.pair, me: c.me, ch: c.ch, line: c.line });
   }
   const P = pool2(runs[0].pair, runs[1].pair);
   const pass = P.gap > 3 * P.se && P.winGap >= -P.winSe;
   const fmt = (x, d = 1) => (x >= 0 ? '+' : '') + x.toFixed(d);
-  log('Ship check ' + path.basename(file, '.json') + ' against lc32, pooled ' + P.deals + ' fresh exact deals: ' + fmt(P.gap) + ' ± ' + P.se.toFixed(1) +
+  log('Ship check ' + path.basename(file, '.json') + ' against ' + path.basename(SHIPPED, '.json') + ', pooled ' + P.deals + ' fresh exact deals: ' + fmt(P.gap) + ' ± ' + P.se.toFixed(1) +
     ' points a hand, hands won ' + fmt(P.winGap, 2) + ' ± ' + P.winSe.toFixed(2) + (pass ? ' -> SHIP CANDIDATE (3 SE)' : ' -> below the ship bar'));
   const out = { file, runs, pooled: P, pass };
   state.shipChecks = (state.shipChecks || []).concat([out]);
   writeJson(STATE, state);
   return out;
 }
-const SHIPPED = 'ml/models/lc32.json';
+// The ship anchor: the model the game ships (lc33 = G4, LO9d, since PR #251), on the fixed table of
+// it, lc32 and lc31 (the orchestrator, 2026-11-11).
+const SHIPPED = 'ml/models/LO9d.json';
+const SHIP_TABLE = ['LO9d', 'lc32', 'lc31'].map((m) => 'ml/models/' + m + '.json');
 
 function takeSeeds(state, n) { const s = state.seed; state.seed += n; writeJson(STATE, state); return s; }
 

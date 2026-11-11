@@ -2,6 +2,8 @@
 
 ## Status
 
+**Shipped: lc33 = G4 (LO9d)**, in PR #251, merged by the maintainer. At the game's table it beat lc32 by +5.3 ± 2.7, where G5 managed +3.7 ± 2.7 (the orchestrator's run). From now on the **ship anchor is lc33 = G4**: a ship candidate needs points up 3 SE against G4 on the fixed table (G4, lc32 and lc31 in the other seats), with hands won not down.
+
 **Newest: G5 (LO12d) on the fixed ship table** (paired against lc32, with lc32, lc31 and lc30 in the other seats; 160,000 fresh exact deals, two runs of 80,000 from seed 803,516,000):
 
 | Pair | Points a hand | Half spicy | Hands won | Deal-ins | Average win |

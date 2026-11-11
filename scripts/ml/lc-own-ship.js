@@ -9,17 +9,19 @@ const path = require('node:path');
 const O = require('./lc-own.js');
 const a = process.argv.slice(2), arg = (k, d) => (a.includes('--' + k) ? a[a.indexOf('--' + k) + 1] : d);
 const cands = arg('cands').split(','), seed = parseInt(arg('seed'), 10), runs = arg('runs', '80000,80000').split(',').map(Number);
-const TABLE = ['lc32', 'lc31', 'lc30'].map((m) => 'ml/models/' + m + '.json');
+// --anchor A (default lc32) is the first model and sits at the table with --table's
+const ANCHOR = arg('anchor', 'ml/models/lc32.json');
+const TABLE = arg('table', 'ml/models/lc32.json,ml/models/lc31.json,ml/models/lc30.json').split(',');
 const fmt = (x, d = 1) => (x >= 0 ? '+' : '') + x.toFixed(d);
 (async () => {
-  const ids = [O.nid('ml/models/lc32.json')].concat(cands.map(O.nid));
+  const ids = [O.nid(ANCHOR)].concat(cands.map(O.nid));
   let blocks = ids.map(() => []), from = 0;
   for (const n of runs) {
     const res = await O.playDeck(ids, TABLE, seed, from, from + n, { exact: true });
     res.forEach((b, k) => { blocks[k] = blocks[k].concat(b); });
     from += n;
   }
-  const names = ['lc32'].concat(cands.map((f) => path.basename(f, '.json')));
+  const names = [path.basename(ANCHOR, '.json')].concat(cands.map((f) => path.basename(f, '.json')));
   const out = {};
   for (let i = 1; i < ids.length; i++) for (let j = 0; j < i; j++) {
     const p = O.paired(blocks[i], blocks[j]), me = O.summarize(blocks[i]), ch = O.summarize(blocks[j]);
