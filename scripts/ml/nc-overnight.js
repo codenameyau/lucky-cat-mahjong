@@ -213,7 +213,8 @@ async function screen(state, cands, opts) {
       res[c] = { name: nameOf(c), file: rel(c), pair: p, self: summary(r.rows[k + 1], at), champ: cs, deals: at };
     });
     const best = Math.max(...live.map((c) => res[c].pair.points - 2 * res[c].pair.se));
-    const drop = at >= minDeals ? live.filter((c) => res[c].pair.points + 2 * res[c].pair.se < Math.max(0, best)) : [];
+    // Past half the budget, a candidate behind the champion can't plausibly be confirmed either.
+    const drop = at >= minDeals ? live.filter((c) => res[c].pair.points + 2 * res[c].pair.se < Math.max(0, best) || (at >= deals / 2 && res[c].pair.points < 0)) : [];
     drop.forEach((c) => { res[c].dropped = at; });
     live = live.filter((c) => drop.indexOf(c) === -1);
     log('  ' + at + ' deals: ' + Object.values(res).filter((x) => x.deals === at).map((x) => x.name + ' ' + f1(x.pair.points) + '±' + x.pair.se.toFixed(1) + (x.dropped ? ' (dropped)' : '')).join(', '));
@@ -353,6 +354,27 @@ function bias(from, changes, name) {
   return f;
 }
 
+// A model soup: the mean of several models' weights (same shapes), the first one's play settings.
+function soup(files, name) {
+  const ws = files.map(readJson);
+  const enc = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
+  const out = JSON.parse(JSON.stringify(ws[0]));
+  out.layers = ws[0].layers.map((l, i) => {
+    const sw = new Float32Array(l.rows * l.cols), sb = new Float32Array(l.rows);
+    ws.forEach((w) => {
+      const a = W.floats(w.layers[i].w, w.dtype), b = W.floats(w.layers[i].b, w.dtype);
+      for (let j = 0; j < sw.length; j++) sw[j] += a[j] / ws.length;
+      for (let j = 0; j < sb.length; j++) sb[j] += b[j] / ws.length;
+    });
+    return { rows: l.rows, cols: l.cols, w: enc(sw), b: enc(sb) };
+  });
+  delete out.dtype;
+  out.meta = Object.assign({}, ws[0].meta, { name, soup: files.map(nameOf) });
+  const f = 'ml/models/' + name + '.json';
+  fs.writeFileSync(path.join(ROOT, f), JSON.stringify(out));
+  return f;
+}
+
 function tune(from, change, name) {
   const w = readJson(from);
   w.meta = Object.assign({}, w.meta, { name, play: Object.assign({}, (w.meta || {}).play, change), tunedFrom: nameOf(from) });
@@ -371,15 +393,25 @@ async function round(state, spec) {
   const t0 = Date.now();
   log('=== Round ' + spec.name + ': champion ' + state.championName);
   const champ = state.champion;
-  const cands = [];
+  const cands = [], trained = [];
   if (spec.arms && spec.arms.length) {
     const fresh = [];
     for (let k = 0; k < (spec.data.sets ?? 1); k++) fresh.push(gen(state, { deals: spec.data.deals, tag: spec.name + '-' + k, learners: spec.data.learners, temperature: spec.data.temperature, epsilon: spec.data.epsilon }));
     const all = state.datasets.map((d) => d.dir).filter((d) => fs.existsSync(path.join(ROOT, d, 'manifest.json')));
     const window = spec.data.window ? all.slice(-spec.data.window) : fresh;
     const arms = spec.arms.map((a) => Object.assign({}, a, { init: a.init === 'champion' ? rel(champ) : a.init }));
-    trainArms(state, arms, window).forEach((f) => cands.push(f));
+    trained.push(...trainArms(state, arms, window));
+    trained.forEach((f) => cands.push(f));
   }
+  // Soups: of every arm trained this round ("trained") or of named models; optional play changes on top.
+  (spec.soups || []).forEach((sp, k) => {
+    const of = sp.of === 'trained' ? trained : sp.of.map((x) => (x.endsWith('.json') ? x : 'ml/models/' + x + '.json'));
+    let f = soup(of, spec.name + 's' + k);
+    if (sp.play) f = tune(f, sp.play, spec.name + 's' + k);
+    cands.push(f);
+  });
+  // Trained arms with play changes on top: { arm: name, play: {...} }.
+  (spec.armPlay || []).forEach((ap, k) => cands.push(tune('ml/models/' + ap.arm + '.json', ap.play, spec.name + 'q' + k)));
   (spec.mutations || []).forEach((m, k) => cands.push(mutate(champ, m.sigma, m.seed, spec.name + 'm' + k, m.layers)));
   (spec.play || []).forEach((p, k) => cands.push(tune(champ, p, spec.name + 'p' + k)));
   (spec.bias || []).forEach((b, k) => cands.push(bias(champ, b, spec.name + 'b' + k)));
@@ -427,6 +459,7 @@ async function main() {
   }
   if (cmd === 'confirm') { const r = await confirm(state, a.cand, { deals: +a.deals || 40000, champion: a.champion }); fs.writeFileSync(path.join(WORK, 'confirm-' + Date.now() + '.json'), JSON.stringify(r, null, 1)); return; }
   if (cmd === 'mutate') { console.log(mutate(a.from, +a.sigma, +a.seed, a.name)); return; }
+  if (cmd === 'soup') { console.log(soup(String(a.of).split(','), a.name)); return; }
   if (cmd === 'tune') { console.log(tune(a.from, JSON.parse(a.play), a.name)); return; }
   if (cmd === 'round') { await round(state, readJson(a.spec)); return; }
   if (cmd === 'status') { console.log(JSON.stringify({ champion: state.championName, rounds: state.rounds.length, seeds: state.seeds, datasets: state.datasets.length }, null, 1)); return; }
@@ -435,4 +468,4 @@ async function main() {
 
 if (require.main === module) main().catch((e) => { console.error(e.stack || e.message); process.exit(1); });
 
-module.exports = { paired, summary, mutate, tune, bias };
+module.exports = { paired, summary, mutate, tune, bias, soup };
