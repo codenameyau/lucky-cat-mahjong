@@ -10,7 +10,7 @@
      gap: { points, standardError, deals, wins, winsError } }>
    a, b and the table's three are ids as scripts/ml/native.js nativeId reads them
    (nc:<file>, lc:<file>, oo:<file>, neural-cat, jorge-yau, only-orphans: the
-   shipped Only Orphans, OT11d). */
+   shipped Only Orphans). */
 
 'use strict';
 

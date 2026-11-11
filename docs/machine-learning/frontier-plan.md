@@ -317,3 +317,17 @@ The stacked model: the reader (FM1b0's heads, frozen) reads the 568 features and
   - *Evidence:* adding the coach's read to `js/mahjong-ml.js` unpinned it, and the round's next screen refused to run (the native port no longer provably matched the JS). The parity check passed unchanged and the pin was renewed; the round resumed from its cached stages.
   - *Changed:* pin again (after the parity check) in the same step as any edit to a pinned file while rounds run.
 
+### Only Orphans on the stacked method: the control leads again (2026-11-10)
+
+os-1 and os-2: 100,000 deals each on the native simulator, every seat recorded (OT11d exploring against Neural Cat, Jorge Yau and Lucky Cat), a quarter of the discards replayed 8 times, about 1.1 million positions each. Two seeds a recipe from OT11d, lr 1e-4: p (replayed labels), q (replayed labels and the reader OR1, round 2 only), c (real endings only, the control).
+
+- **The method moves a second strategy the same way, and the new parts add nothing measurable.**
+  - *Evidence (points a hand against OT11d, 60,000 fresh deals a model, by recipe):* round 1: p +4.4 ± 2.7, c +2.9 ± 2.7. Round 2: p +5.2 ± 2.7, q +5.1 ± 2.7, c +6.7 ± 2.7. The driver's only candidate is the control, OS2c1 (+8.5 ± 3.8), the best of six models, so that figure is likely flattering.
+  - q trained on half the positions of p and c (os-2 alone, leaving out the reader's data), so the comparison isn't level. It matched p on half the data, which is not enough to say the reader helps.
+- **The reader reads as well here as on Neural Cat.**
+  - *Evidence (OR1, 55,412 held-out positions):* an opponent is ready, AUC 0.89; the tile thrown deals in now, AUC 0.88; a ready opponent's winning tiles, AUC 0.66. On the 4,795 positions whose seat went on to win, the hand head named the hand 74.2% of the time, the rules 38.5%.
+- **Every-seat data shifted the style in every recipe: more wins, smaller wins.**
+  - *Evidence (round 2, against OT11d's 5.35% of hands won and 2,735 points a win):* hands won 6.30 to 6.58%, average win 2,315 to 2,427 points. Deal-ins 14.08 to 14.20% against 14.13%. The controls show it as much as the others, so it comes from the data and the extra training, not the labels or the read.
+- *Changed:* OS2c1 shipped in 0.61.7, on the maintainer's decision.
+- *Open:* OS2c1 wasn't judged on the bar. `bench.js judge` needs a lineage, Only Orphans has none in `bench/lineages.json`, and the command the driver prints for its candidate omits `--lineage`.
+
