@@ -257,6 +257,12 @@ int LuckyCat::firstConsistent(const std::vector<Move>& moves, int k, const std::
 
 int LuckyCat::decide(const Game& g, int seat, std::vector<Move>& moves, const std::function<int(int)>& check) {
   policy(moves);
+  if (bias) {
+    double top = -std::numeric_limits<double>::infinity(), sum = 0;
+    for (auto& m : moves) { m.logit += bias(g, seat, m); top = std::max(top, m.logit); }
+    for (auto& m : moves) { m.p = js::exp(m.logit - top); sum += m.p; }
+    for (auto& m : moves) m.p /= sum;
+  }
   int k = 0;
   if (temperature_) {
     std::vector<double> w;

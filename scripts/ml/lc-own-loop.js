@@ -110,7 +110,7 @@ async function round(state, plan) {
   const dataDir = 'ml/data/own-' + r;
   // plan.dataSeed: round 1 only (data made by hand before the loop started), then the counter.
   const dseed = (r === 1 && plan.dataSeed) || takeSeeds(state, plan.deals);
-  const dm = await O.data(head, state.pool, dseed, plan.deals, dataDir, { replays: plan.replays, share: plan.share, halving: plan.halving, margin: plan.halvingMargin, extra: plan.extraRandom, half: plan.halfSpicy, blend: plan.spicyBlend, closeSe: plan.closeSe,
+  const dm = await O.data(head, state.pool, dseed, plan.deals, dataDir, { replays: plan.replays, share: plan.share, halving: plan.halving, margin: plan.halvingMargin, extra: plan.extraRandom, half: plan.halfSpicy, blend: plan.spicyBlend, plan: plan.planShare, beta: plan.planBeta, closeSe: plan.closeSe,
     value: valueModel, truncate: plan.value && (plan.value.truncate || 3) });
   rec.data = { dir: dataDir, seed: dseed, deals: plan.deals, rows: dm.policyRows, seconds: dm.seconds, cached: !!dm.cached };
   rec.times.data = (Date.now() - t) / 1000;

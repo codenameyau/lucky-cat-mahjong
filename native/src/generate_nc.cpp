@@ -118,6 +118,7 @@ struct OptGroup {
   std::shared_ptr<Game> snap; std::vector<Opt> opts; int chosen = -1;
   // generate-lcv: the policy's features of the position and the legal moves' outputs.
   std::vector<float> px; std::vector<int> legal;
+  int plan = 0, biasOpt = -1;  // generate-lcv --plan-share: the seat's plan this hand, and the option the bias prefers
 };
 
 static void cloneMemos(Game& g) { for (auto& s : g.hand.seats) if (s.botState) s.botState = s.botState->clone(); }
@@ -519,6 +520,7 @@ struct LcvRecorder : Agent {
   uint8_t strategy = 0;
   Rng* rng; Rng* replayRng;
   double sample = 0.12, optionShare = 0; int options = 4, extraRandom = 0;
+  const int* plan = nullptr; LuckyCat* biased = nullptr;  // --plan-share: each seat's plan, and the learner with its bias
   std::vector<LcRow>* rows; std::vector<OptGroup>* groups;
 
   LcRow& push(const Game& g, int seat, const lucky::After& a, int thrown) {
@@ -591,6 +593,19 @@ struct LcvRecorder : Agent {
         for (auto& op : G.opts) if (op.action == moves[order[pick]].action) dup = true;
         if (dup) continue;
         G.opts.push_back(turnOpt(g, seat, moves[order[pick]].decision)); G.opts.back().action = moves[order[pick]].action;
+      }
+      // a biased hand: the move the plan's bias prefers is replayed too
+      if (!inner && plan && plan[seat] && biased) {
+        G.plan = plan[seat];
+        Game probe = *G.snap; cloneMemos(probe);
+        Decision b = biased->turn(probe, seat, o);
+        int at = -1;
+        for (size_t k = 0; k < G.opts.size(); k++) if (sameMove(G.opts[k].first, b)) at = int(k);
+        if (at < 0 && (b.type == A_DISCARD || b.type == A_KONG)) {
+          G.opts.push_back(turnOpt(g, seat, b)); G.opts.back().action = b.type == A_KONG ? 34 + b.tile : b.tile;
+          at = int(G.opts.size()) - 1;
+        }
+        G.biasOpt = at;
       }
       G.px.resize(lucky::SIZE_V1); lucky::encode(g, seat, nullptr, 1, G.px.data());
       for (auto& m : moves) G.legal.push_back(m.action);
@@ -678,12 +693,36 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
   auto learner = makeLucky(job.weights, job.temperature, [&rng]() { return rng(); });
   if (learner->value) { learner->epsilon = job.epsilon; }
   auto best = makeLucky(job.weights, 0, [&replayRng]() { return replayRng(); });
+  // --plan-share P: in a share of hands each learner seat gets a plan from its opening tiles
+  // (1 a flush in its longest suit, 2 all pungs, 3 dragons and its seat wind), and the learner
+  // explores with a logit bonus of --plan-beta for the moves that keep to it. Only its own tiles.
+  int plan[4] = {0, 0, 0, 0}, planSuit[4] = {0, 0, 0, 0};
+  auto biasFn = [&](const Game& g, int seat, const Move& m) -> double {
+    int pl = plan[seat];
+    if (!pl) return 0;
+    const Decision& d = m.decision;
+    const auto& h = g.hand.seats[seat].hand;
+    int t = d.tile;
+    double b = 0;
+    if (d.type == A_DISCARD && t >= 0) {
+      int n = 0; for (auto x : h) if (x == t) n++;
+      if (pl == 1) b = !isHonor(t) && t / 9 != planSuit[seat] ? 1 : isHonor(t) ? -0.5 : -1;
+      else if (pl == 2) b = n == 1 ? 1 : -1;
+      else b = (t >= 31 || t == 27 + seatWind(g, seat)) ? -1 : 0;
+    } else if (d.type == A_PUNG) b = pl == 1 ? (isHonor(t) || t / 9 == planSuit[seat] ? 1 : -1) : pl == 2 ? 1 : (isHonor(t) ? 1 : 0);
+    else if (d.type == A_CHOW) b = pl == 1 ? (t / 9 == planSuit[seat] ? 1 : -1) : pl == 2 ? -1 : 0;
+    return job.planBeta * b;
+  };
+  auto bestBiased = makeLucky(job.weights, 0, [&replayRng]() { return replayRng(); });
+  bestBiased->bias = biasFn;
+  long biasedHands = 0;
   std::vector<LcRow> rows;
   std::vector<OptGroup> groups;
   LcvRecorder rec;
   rec.lc = learner.get(); rec.rng = &rng; rec.replayRng = &replayRng; rec.sample = job.sample;
   rec.optionShare = job.optionReplays > 0 ? job.optionShare : 0; rec.options = job.options; rec.extraRandom = job.extraRandom;
   rec.rows = &rows; rec.groups = &groups;
+  if (job.planShare > 0) { learner->bias = biasFn; rec.plan = plan; rec.biased = bestBiased.get(); }
   std::map<std::string, std::unique_ptr<Agent>> pool;
   for (auto& id : job.pool) if (id != "learner" && !pool.count(id)) pool[id] = make(id);
 
@@ -698,12 +737,14 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
   // features, the legal moves, the moves tried (the one played first) and each one's share of
   // replays won.
   static const int SLOTS = 8;
-  FILE* px = nullptr; FILE* pm = nullptr; FILE* pqa = nullptr; FILE* pq = nullptr; FILE* pqp = nullptr; FILE* ph = nullptr; FILE* pa = nullptr; FILE* pw = nullptr; FILE* pqr = nullptr; FILE* pqn = nullptr;
+  FILE* px = nullptr; FILE* pm = nullptr; FILE* pqa = nullptr; FILE* pq = nullptr; FILE* pqp = nullptr; FILE* ph = nullptr; FILE* pa = nullptr; FILE* pw = nullptr; FILE* pqr = nullptr; FILE* pqn = nullptr; FILE* pqb = nullptr; FILE* pqbs = nullptr; FILE* ppl = nullptr;
   if (job.optionReplays > 0) {
     // --policy-only: each slot's SE of its gap to the move played (.qs.f4) and replays taken (.qn.u1);
     // otherwise each slot's mean real points (.qr.f4: the engine's deltas, the same numbers as .qp.f4).
     pqr = std::fopen((base + (job.policyOnly ? ".qs.f4" : ".qr.f4")).c_str(), "wb");
     if (job.policyOnly) pqn = std::fopen((base + ".qn.u1").c_str(), "wb");
+    // --plan-share: each slot continued by the biased head (.qb.f4), the SE of that against the played move continued plainly (.qbs.f4), and the row's plan and the bias's slot (.pl.u1)
+    if (job.policyOnly && job.planShare > 0) { pqb = std::fopen((base + ".qb.f4").c_str(), "wb"); pqbs = std::fopen((base + ".qbs.f4").c_str(), "wb"); ppl = std::fopen((base + ".pl.u1").c_str(), "wb"); }
     px = std::fopen((base + ".x.f16").c_str(), "wb"); pm = std::fopen((base + ".m.u1").c_str(), "wb");
     pqa = std::fopen((base + ".qa.u1").c_str(), "wb"); pq = std::fopen((base + ".q.f4").c_str(), "wb"); pqp = std::fopen((base + ".qp.f4").c_str(), "wb");
     ph = std::fopen((base + ".h.u4").c_str(), "wb"); pa = std::fopen((base + ".a.u1").c_str(), "wb"); pw = std::fopen((base + ".w.f4").c_str(), "wb");
@@ -733,6 +774,21 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
     Game g = createGame(o);
     g.round = int((dealSeed >> 2) % 4) + 1;
     rows.clear(); groups.clear();
+    for (int s = 0; s < 4; s++) {
+      plan[s] = 0;
+      if (job.planShare <= 0 || real[s] || replayRng() >= job.planShare) continue;
+      int bySuit[3] = {0, 0, 0}, honors = 0, dragons = 0, pairs = 0, cnt[34] = {0};
+      for (auto t : g.hand.seats[s].hand) { if (t < 0 || t >= 34) continue; cnt[t]++; if (isHonor(t)) { honors++; if (t >= 31) dragons++; } else bySuit[t / 9]++; }
+      for (int t = 0; t < 34; t++) if (cnt[t] >= 2) pairs++;
+      int su = 0; for (int k = 1; k < 3; k++) if (bySuit[k] > bySuit[su]) su = k;
+      std::vector<int> ok;
+      if (bySuit[su] + honors >= 9) ok.push_back(1);
+      if (pairs >= 4) ok.push_back(2);
+      if (dragons >= 2) ok.push_back(3);
+      if (ok.empty()) continue;
+      plan[s] = ok[size_t(replayRng() * double(ok.size())) % ok.size()]; planSuit[s] = su;
+      biasedHands++;
+    }
     Result res = runHand(g, agents);
     hands++;
     int faan = std::max(3, std::min(13, res.score.faan ? res.score.faan : 3));
@@ -766,7 +822,7 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
           // move played) take the rest. Each slot: mean points, share won, the SE of its gap to
           // the move played (paired by future), and the replays it took.
           size_t K = G.opts.size();
-          std::vector<std::vector<double>> P(K), Wn(K);
+          std::vector<std::vector<double>> P(K), Wn(K), PB(K);
           auto replay = [&](size_t k, int n) {
             Game copy = *G.snap; cloneMemos(copy);
             Rng fut(dealSeed * 2654435761u ^ (gid * 40503u + uint32_t(n) * 2246822519u + 0x85ebca6bu + job.crnSalt * 3266489917u));
@@ -784,6 +840,18 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
               Wn[k].push_back(0);  // not known: the share won counts only hands that ended
               truncated++;
             }
+            optionRows++;
+          };
+          // a biased hand: every option is also continued by the biased head on the same futures
+          auto replayBiased = [&](size_t k, int n) {
+            Game copy = *G.snap; cloneMemos(copy);
+            Rng fut(dealSeed * 2654435761u ^ (gid * 40503u + uint32_t(n) * 2246822519u + 0x85ebca6bu + job.crnSalt * 3266489917u));
+            reshuffle(copy, G.seat, fut);
+            Forced fz; fz.inner = bestBiased.get(); fz.seat = G.seat; fz.opt = &G.opts[k]; fz.melds = G.melds;
+            Agent* ag[4];
+            for (int s2 = 0; s2 < 4; s2++) ag[s2] = s2 == G.seat ? static_cast<Agent*>(&fz) : again[s2];
+            Result rr = G.atClaim ? continueAtClaims(copy, ag, G.from, G.tile) : continueAtTurn(copy, ag, G.seat);
+            PB[k].push_back(job.halfSpicy ? job.spicyBlend * halfSpicyDelta(rr, G.seat) + (1 - job.spicyBlend) * double(rr.deltas[G.seat]) : double(rr.deltas[G.seat]));
             optionRows++;
           };
           int R = job.optionReplays, r0 = job.halving > 0 ? std::min(job.halving, R) : R;
@@ -809,14 +877,16 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
             for (size_t k = 0; k < K; k++) { for (double v : P[k]) m[k] += v; m[k] /= P[k].size(); bestM = std::max(bestM, m[k]); }
             for (size_t k = 0; k < K; k++) if (int(k) == G.chosen || m[k] >= bestM - job.halvingMargin) for (int n = r0; n < R; n++) replay(k, n);
           }
+          if (G.plan) for (size_t k = 0; k < K; k++) for (size_t n = 0; n < P[k].size(); n++) replayBiased(k, int(n));
           if (G.px.empty() || G.chosen < 0 || G.opts[G.chosen].action < 0) continue;
           std::vector<uint16_t> hx; for (float v : G.px) hx.push_back(toHalf(v));
           std::fwrite(hx.data(), 2, hx.size(), px);
           uint8_t mask[10] = {0};
           for (int a : G.legal) mask[a >> 3] |= uint8_t(1 << (a & 7));
           std::fwrite(mask, 1, 10, pm);
-          uint8_t qa[SLOTS], qn[SLOTS]; float q[SLOTS], qp[SLOTS], qs[SLOTS];
-          for (int k = 0; k < SLOTS; k++) { qa[k] = 255; qn[k] = 0; q[k] = 0; qp[k] = 0; qs[k] = 0; }
+          uint8_t qa[SLOTS], qn[SLOTS]; float q[SLOTS], qp[SLOTS], qs[SLOTS], qb[SLOTS], qbs[SLOTS];
+          for (int k = 0; k < SLOTS; k++) { qa[k] = 255; qn[k] = 0; q[k] = 0; qp[k] = 0; qs[k] = 0; qb[k] = 0; qbs[k] = 0; }
+          uint8_t pl[2] = {uint8_t(G.plan), 255};
           auto slot = [&](int j, size_t k) {
             qa[j] = uint8_t(G.opts[k].action);
             double sm = 0, sw = 0; for (size_t n = 0; n < P[k].size(); n++) { sm += P[k][n]; sw += Wn[k][n]; }
@@ -824,12 +894,21 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
             size_t c = size_t(G.chosen), L = std::min(P[k].size(), P[c].size());
             double ds = 0, dq = 0; for (size_t n = 0; n < L; n++) { double d = P[k][n] - P[c][n]; ds += d; dq += d * d; }
             double dm = ds / L; qs[j] = L > 1 ? float(std::sqrt(std::max(0.0, dq / L - dm * dm) / (L - 1))) : 0;
+            if (G.plan && !PB[k].empty()) {
+              // the biased continuation's mean, and the SE of its gap to the played move continued plainly
+              double sb = 0; for (double v : PB[k]) sb += v; qb[j] = float(sb / PB[k].size());
+              size_t L2 = std::min(PB[k].size(), P[c].size()); double es = 0, eq = 0;
+              for (size_t n = 0; n < L2; n++) { double e = PB[k][n] - P[c][n]; es += e; eq += e * e; }
+              double em = es / L2; qbs[j] = L2 > 1 ? float(std::sqrt(std::max(0.0, eq / L2 - em * em) / (L2 - 1))) : 0;
+            }
+            if (int(k) == G.biasOpt) pl[1] = uint8_t(j);
           };
           int j = 0;
           slot(j++, size_t(G.chosen));
           for (size_t k = 0; k < K && j < SLOTS; k++) if (int(k) != G.chosen && G.opts[k].action >= 0) slot(j++, k);
           std::fwrite(qa, 1, SLOTS, pqa); std::fwrite(q, 4, SLOTS, pq); std::fwrite(qp, 4, SLOTS, pqp); std::fwrite(qs, 4, SLOTS, pqr);
           std::fwrite(qn, 1, SLOTS, pqn);
+          if (pqb) { std::fwrite(qb, 4, SLOTS, pqb); std::fwrite(qbs, 4, SLOTS, pqbs); std::fwrite(pl, 1, 2, ppl); }
           std::fwrite(&dealSeed, 4, 1, ph);
           uint8_t a0 = qa[0]; std::fwrite(&a0, 1, 1, pa);
           float w1 = 1; std::fwrite(&w1, 4, 1, pw);
@@ -896,10 +975,10 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
   }
   std::fclose(ff); std::fclose(fl); std::fclose(fa);
   if (fo) { std::fclose(fo); std::fclose(fol); }
-  if (px) { std::fclose(px); std::fclose(pm); std::fclose(pqa); std::fclose(pq); std::fclose(pqp); std::fclose(ph); std::fclose(pa); std::fclose(pw); std::fclose(pqr); if (pqn) std::fclose(pqn); }
+  if (px) { std::fclose(px); std::fclose(pm); std::fclose(pqa); std::fclose(pq); std::fclose(pqp); std::fclose(ph); std::fclose(pa); std::fclose(pw); std::fclose(pqr); if (pqn) std::fclose(pqn); if (pqb) { std::fclose(pqb); std::fclose(pqbs); std::fclose(ppl); } }
   long ms = long(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count());
-  std::printf("{\"truncated\":%ld,\"index\":%d,\"deals\":%ld,\"hands\":%ld,\"samples\":%ld,\"policyRows\":%ld,\"replayed\":0,\"optionRows\":%ld,\"optionGroups\":%ld,\"outcomes\":[%ld,%ld,%ld,%ld,%ld,%ld],\"ms\":%ld}\n",
-              truncated, job.shard, job.deals, hands, samples, policyRows, optionRows, optionGroups, outcomes[0], outcomes[1], outcomes[2], outcomes[3], outcomes[4], outcomes[5], ms);
+  std::printf("{\"biasedHands\":%ld,\"truncated\":%ld,\"index\":%d,\"deals\":%ld,\"hands\":%ld,\"samples\":%ld,\"policyRows\":%ld,\"replayed\":0,\"optionRows\":%ld,\"optionGroups\":%ld,\"outcomes\":[%ld,%ld,%ld,%ld,%ld,%ld],\"ms\":%ld}\n",
+              biasedHands, truncated, job.shard, job.deals, hands, samples, policyRows, optionRows, optionGroups, outcomes[0], outcomes[1], outcomes[2], outcomes[3], outcomes[4], outcomes[5], ms);
   return 0;
 }
 

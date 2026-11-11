@@ -127,7 +127,7 @@ def js_check(net, path, x):
 
 
 def load(dirs):
-    xs, legal, qa, qp, qw, hs, qs = [], [], [], [], [], [], []
+    xs, legal, qa, qp, qw, hs, qs, qb, qbs, pl = [], [], [], [], [], [], [], [], [], []
     for di, d in enumerate(dirs):
         full = os.path.join(ROOT, d)
         for f in sorted(os.listdir(full)):
@@ -142,12 +142,18 @@ def load(dirs):
             qw.append(np.fromfile(base + '.q.f4', dtype='<f4').reshape(-1, SLOTS))
             # the SE of each slot's gap to the move played (new data); NaN where not recorded
             qs.append(np.fromfile(base + '.qs.f4', dtype='<f4').reshape(-1, SLOTS) if os.path.exists(base + '.qs.f4') else np.full((len(t), SLOTS), np.nan, np.float32))
+            # plan-biased data (--plan-share): each slot continued by the biased head, its SE, and the row's plan
+            has_b = os.path.exists(base + '.qb.f4')
+            qb.append(np.fromfile(base + '.qb.f4', dtype='<f4').reshape(-1, SLOTS) if has_b else np.zeros((len(t), SLOTS), np.float32))
+            qbs.append(np.fromfile(base + '.qbs.f4', dtype='<f4').reshape(-1, SLOTS) if has_b else np.zeros((len(t), SLOTS), np.float32))
+            pl.append(np.fromfile(base + '.pl.u1', dtype=np.uint8).reshape(-1, 2) if has_b else np.tile(np.array([0, 255], np.uint8), (len(t), 1)))
             xs.append(np.fromfile(base + '.x.f16', dtype='<f2').reshape(-1, 376))
             m = np.unpackbits(np.fromfile(base + '.m.u1', dtype=np.uint8).reshape(-1, 10), axis=1, bitorder='little')[:, :OUTPUTS]
             legal.append(m.astype(bool))
             shard = int(f.split('-')[1].split('.')[0])
             hs.append(np.fromfile(base + '.h.u4', dtype='<u4').astype(np.int64) + (di * 100000 + shard) * (1 << 32))
-    return np.concatenate(xs), np.concatenate(legal), np.concatenate(qa), np.concatenate(qp), np.concatenate(qw), np.concatenate(hs), np.concatenate(qs)
+    return (np.concatenate(xs), np.concatenate(legal), np.concatenate(qa), np.concatenate(qp), np.concatenate(qw), np.concatenate(hs), np.concatenate(qs),
+            np.concatenate(qb), np.concatenate(qbs), np.concatenate(pl))
 
 
 def main():
@@ -159,7 +165,9 @@ def main():
     arms = json.load(open(args.arms))
     t0 = time.time()
     dev = 'cuda' if torch.cuda.is_available() else 'cpu'
-    x, legal, qa, qp, qw, h, qs = load(args.data)
+    x, legal, qa, qp, qw, h, qs, qb, qbs, pl = load(args.data)
+    biased = pl[:, 0] > 0
+    print(f'{int(biased.sum())} choices in plan-biased hands', flush=True)
     n = len(x)
     valid = qa != 255
     print(f'{n} choices from {len(args.data)} sets, {int(valid.sum()) - n} alternatives, loaded in {time.time() - t0:.0f}s on {dev}', flush=True)
@@ -170,6 +178,9 @@ def main():
     QP = torch.from_numpy(qp).to(dev)
     QW = torch.from_numpy(qw).to(dev)
     QS = torch.from_numpy(qs).to(dev)
+    QB = torch.from_numpy(qb).to(dev)
+    QBS = torch.from_numpy(qbs).to(dev)
+    BI = torch.from_numpy(biased).to(dev)
     hands, inv = np.unique(h, return_inverse=True)
     report = []
     for arm in arms:
@@ -212,6 +223,15 @@ def main():
         anchor, klw = arm.get('anchor', 'ref'), float(arm.get('kl', 0))
         clip = float(arm.get('clip', 4000))
         q = QP + bonus * QW
+        se_q = QS
+        # arm.planQ (plan-biased rows only): 'plain' (default) the plain head's continuation; 'biased' the
+        # biased head's; 'max' the better of the two for each slot. (The win share is the plain one's.)
+        pq = arm.get('planQ', 'plain')
+        if pq != 'plain':
+            qbx = QB + bonus * QW
+            use = BI[:, None] & ((qbx > q) if pq == 'max' else torch.ones_like(V))
+            q = torch.where(use, qbx, q)
+            se_q = torch.where(use, QBS, QS)
         adv = torch.clamp(q - q[:, :1], -clip, clip) * V
         rng = np.random.default_rng(int(arm.get('seed', 1)))
         torch.manual_seed(int(arm.get('seed', 1)))
@@ -228,7 +248,7 @@ def main():
         if arm.get('vnorm'):
             # variance-aware: each tried move's advantage over its own SE (with a floor s0 and a
             # default where the data has none), clipped at +-zclip, times vnorm (logit units).
-            se = torch.nan_to_num(QS, nan=float(arm.get('seDefault', 150)))
+            se = torch.nan_to_num(se_q, nan=float(arm.get('seDefault', 150)))
             z = torch.clamp(adv / torch.sqrt(se ** 2 + float(arm.get('s0', 50)) ** 2), -float(arm.get('zclip', 3)), float(arm.get('zclip', 3))) * V
             zf = torch.where(V, z, torch.full_like(z, 1e9)).min(1).values.clamp(max=0)
             A = zf[:, None].expand(-1, OUTPUTS).clone()

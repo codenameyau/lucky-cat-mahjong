@@ -58,6 +58,8 @@ class LuckyCat : public Agent {
   // the position it leaves; epsilon: now and then one of them at random (training data).
   std::shared_ptr<ValueNet> value;
   double epsilon = 0;
+  // generate-lcv --plan-share: a logit bonus per move (an exploration policy toward a hand plan); null in play
+  std::function<double(const Game&, int, const Move&)> bias;
  private:
   int decide(const Game& g, int seat, std::vector<Move>& moves, const std::function<int(int)>& check);
   static int firstConsistent(const std::vector<Move>& moves, int k, const std::function<bool(const Move&)>& ok);
