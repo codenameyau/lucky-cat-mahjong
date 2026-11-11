@@ -3,10 +3,10 @@
 ## Status
 
 - **Champion:** OS2c1 (the shipped model). Nothing has beaten it on fresh deals yet.
-- **Rounds done:** 1 screen round (R0, play settings and weight noise, stopped at 24,000 deals to switch to the shadow build); round 1 running.
-- **Last result:** R0 at 24,000 deals: claim margin 100 +1.0 ± 0.5 points a hand (wins level), noise 0.10 −1.5 ± 2.9 (wins +0.17 ± 0.05 pp), win bonus 1000 −0.0 ± 1.6 (wins +0.14 pp), win bonus 600 +1.6 ± 1.9 (wins −0.13 ± 0.03 pp: fails the wins rule).
-- **Now:** round 1: 6 networks fine-tuned on 100,000 deals against the older generations (3 recipes x 2 seeds), claim margins 100/150/200, win bonus 1000, noise 0.1 and 0.2 (2 seeds each), screened through `lcm-sim shadow`.
-- **Blockers:** none. The machine is shared: simulation runs at about 23 hands a second per worker under load (about 50 when idle).
+- **Rounds done:** R0 (settings and noise) and round 1 (fine-tunes, settings, noise).
+- **Last result:** round 1 at 40,000 deals: the fine-tuned N1a1 +6.2 ± 3.2 points a hand but wins −0.38 ± 0.05 pp (all six fine-tunes score more and win less); claim margin 100 +0.7 ± 0.4 with wins level.
+- **Now:** side screen R1b: fine-tunes N1a1/N1b1/N1c1 with win bonus 1100/1400/1800 and claim margin 100, and four more fine-tunes (recipe a seeds 2-3, recipe d: lr 3e-4, 16 epochs).
+- **Blockers:** none.
 
 ## The table and the measures
 
@@ -52,3 +52,28 @@
 | noise 0.05 s1, s2 | −1.6 ± 3.8, −3.2 ± 3.4 | cut | | |
 | claim margin 0 | −2.0 ± 1.0 | dropped | 0.00 | |
 | OT11d (reference) | −6.8 ± 6.9 | cut | −1.24 ± 0.11 | OS2c1 wins far more often than OT11d here (4.35% to 3.11%) |
+
+### Round 1 (screen deck seed 1,501,000,000, fast build, `lcm-sim shadow`)
+
+Arms from OS2c1: six networks fine-tuned on `oon-1` (c: lr 1e-4, 4 epochs; a: lr 3e-4, 8 epochs; b: lr 1e-3, 8 epochs; seeds 0 and 1; each about 20 s), claim margin 100/150/200, win bonus 1000, weight noise 0.1 and 0.2 (2 seeds each). Gap to OS2c1, points a hand, paired:
+
+| Arm | 8,000 deals | 40,000 deals | Wins gap (pp) | Deal-ins gap (pp) | Average win (OS2c1 3,596) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| N1a1 (lr 3e-4, seed 1) | +14.7 ± 7.1 | +6.2 ± 3.2 | −0.38 ± 0.05 | −0.17 | 3,918 |
+| N1b1 (lr 1e-3, seed 1) | +9.5 ± 6.8 | cut | −0.48 ± 0.11 | −0.05 | |
+| N1c1 (lr 1e-4, seed 1) | +7.2 ± 6.4 | cut | −0.47 ± 0.10 | −0.10 | |
+| N1a0 | +7.1 ± 6.9 | cut | −0.34 ± 0.11 | −0.16 | |
+| N1c0 | +5.5 ± 6.1 | cut | −0.43 ± 0.10 | −0.05 | |
+| N1b0 | +3.3 ± 6.6 | cut | −0.18 ± 0.11 | +0.05 | |
+| claim margin 100 (S1cmp50) | +1.4 ± 0.9 | +0.7 ± 0.4 | +0.00 | −0.00 | 3,605 |
+| claim margin 150 | +1.5 ± 0.9 | +0.5 ± 0.4 | −0.00 | | |
+| claim margin 200 | +1.8 ± 1.1 | +0.3 ± 0.5 | −0.00 | | |
+| win bonus 1000 | −1.4 ± 2.4 | cut | +0.09 ± 0.05 | | |
+| noise 0.1 s1, s2 | −1.3 ± 4.4, −7.2 ± 4.5 | cut, dropped | +0.06, −0.08 | | |
+| noise 0.2 s1, s2 | −2.9 ± 5.1, −4.5 ± 5.3 | cut | +0.17, −0.13 | | |
+
+OS2c1 on this deck: 10.0 points a hand, wins 4.41%, deal-ins 1.75%. Screen time 1,621 s for 14 arms (1,120 block runs); the shadow replayed 47% of the arms' hands (53% were the champion's hands, not played again).
+
+Reading: **every one of the six fine-tuned networks scores more points than OS2c1 (mean of the six on 8,000 deals +7.9) and every one wins fewer hands** (−0.2 to −0.5 pp, 2 to 5 standard errors) and deals in less: trained on this table's games (90% draws, older generations that rarely finish), the network learns that a big hand pays and that dealing in is the risk, and plays bigger and safer. The brief's rule (hands won not down by more than one standard error) rejects all of them. No arm was confirmed (the driver picked N1a1 by z and then refused it on wins; fixed: the best is now taken among the arms that pass the wins rule, and the top-4 cut ranks them first). Claim margin 100 is a small, steady gain (+0.7 ± 0.4 at 40,000, 99.9% of deals identical).
+
+Next: the fine-tuned networks with a larger win bonus (1100, 1400, 1800) and claim margin 100, to buy the wins back with part of the points (side screen R1b, deck seed 1,590,000,000), and more seeds of recipe a and a longer recipe d.

@@ -127,9 +127,10 @@ async function main() {
 
   // 4. Confirm the best.
   const z = (x) => x.gap.points / x.gap.se;
-  const best = arms.filter((x) => x.alive && x.gap.deals >= stages.reduce((t, s) => t + s, 0)).sort((p, q) => z(q) - z(p))[0];
+  // The best by z among arms whose hands won are not down by more than a standard error.
+  const best = arms.filter((x) => x.alive && x.gap.deals >= stages.reduce((t, s) => t + s, 0) && x.gap.wins > -x.gap.winsSE).sort((p, q) => z(q) - z(p))[0];
   const promote = parseFloat(a.promote || 1);
-  if (best && z(best) > promote && best.gap.wins > -best.gap.winsSE) {
+  if (best && z(best) > promote) {
     const cseed = O.SEEDS.confirm + st.next.confirm * 1000000;
     st.next.confirm++;
     saveSoon(st);

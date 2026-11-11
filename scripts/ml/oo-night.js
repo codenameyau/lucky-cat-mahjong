@@ -244,7 +244,9 @@ async function screen(arms, champion, seed, stages, opt) {
     // Drop the clearly behind; after the stage, at most `top` go on.
     live.forEach((a) => { if (a.gap.points < -drop * a.gap.se) a.alive = false; });
     if (k < stages.length - 1) {
-      const still = alive.filter((a) => a.alive).sort((p, q) => q.gap.points / q.gap.se - p.gap.points / p.gap.se);
+      // Ranked by z, arms whose hands won fall by more than a standard error last (they can't be kept).
+      const rank = (x) => x.gap.points / x.gap.se - (x.gap.wins > -x.gap.winsSE ? 0 : 100);
+      const still = alive.filter((a) => a.alive).sort((p, q) => rank(q) - rank(p));
       still.slice(top).forEach((a) => (a.alive = false, a.cut = true));
     }
     const cs = summary(C);
