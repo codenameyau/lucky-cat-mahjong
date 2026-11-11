@@ -473,6 +473,7 @@ int main(int argc, char** argv) {
         if (j.poolStrategies.size() != j.pool.size()) throw std::runtime_error("lcm-sim generate-nc: --record-all needs a strategy index for each pool id");
       }
       j.replayShare = a.count("replay-share") ? std::stod(a["replay-share"]) : 0.25;
+      j.otherShare = a.count("other-share") ? std::stod(a["other-share"]) : -1;
       j.optionReplays = a.count("option-replays") ? std::stoi(a["option-replays"]) : 0;
       j.options = a.count("options") ? std::stoi(a["options"]) : 4;
       j.optionShare = a.count("option-share") ? std::stod(a["option-share"]) : 0.1;

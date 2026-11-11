@@ -312,6 +312,7 @@ function nativePlan(cfg, known, args) {
   // A finished shard is kept (shard-N.done.json says what made it): a run that was
   // stopped part way picks up at the shards it hadn't finished.
   const replays = (args.replays ? ['--replays', String(args.replays), '--replay-share', String(args['replay-share'] || 0.25)] : [])
+    .concat(args['other-share'] != null ? ['--other-share', String(args['other-share'])] : [])
     .concat(args['option-replays'] ? ['--option-replays', String(args['option-replays']), '--options', String(args.options || 4), '--option-share', String(args['option-share'] || 0.1)] : []);
   const recordAll = all ? ['--record-all', cfg.pool.map((id) => known.indexOf(id)).join(',')] : [];
   const learnerArg = oo ? ['--learner', cfg.learner] : [];

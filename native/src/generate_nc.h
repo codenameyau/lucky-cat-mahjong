@@ -26,6 +26,9 @@ struct NcGenerateJob {
   // counts go in shard-N.replay; the rows themselves are unchanged.
   int replays = 0;
   double replayShare = 0;
+  // Won-hand data (--other-share q, off below 0): every recorded position of the seat that
+  // won the hand is kept, every other with chance q (ml/train.py --other-share reweights).
+  double otherShare = -1;
   // Option replays (steps 5 and 6): this share of the recorded decisions writes a
   // group of rows, one for each option the seat weighs (the first `options`
   // discards in the foundation's order and each kong; or passing, each call and

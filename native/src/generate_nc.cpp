@@ -331,6 +331,7 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
   std::vector<NcRow> rows;
   Recorder rec;
   Rng replayRng(job.seed ^ 0x9e3779b9u);
+  Rng otherRng(job.seed ^ 0x85ebca6bu);  // --other-share: its own generator, so the deals are as without it
   rec.nc = &learner; rec.rng = &rng; rec.sample = job.sample; rec.rows = &rows;
   rec.replayRng = &replayRng; rec.replayShare = job.replays > 0 ? job.replayShare : 0;
   std::vector<OptGroup> groups;
@@ -387,6 +388,11 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
     groups.clear();
     Result res = runHand(g, agents);
     hands++;
+    if (job.otherShare >= 0) {
+      std::vector<NcRow> kept;
+      for (auto& r : rows) if ((res.win && res.winner == r.seat) || otherRng() < job.otherShare) kept.push_back(std::move(r));
+      rows.swap(kept);
+    }
     if (rows.empty()) continue;
     int faan = std::max(3, std::min(13, res.score.faan ? res.score.faan : 3));
     int won = res.win ? winHand(res.score) : NONE;

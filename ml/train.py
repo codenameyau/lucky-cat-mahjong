@@ -311,8 +311,13 @@ def distill_loss(out, t):
     return ce(0, N_OUTCOMES) + 0.5 * ce(N_OUTCOMES, N_OUTCOMES + N_FAAN) + 0.5 * ce(N_OUTCOMES + N_FAAN, OUTPUTS)
 
 
-def losses(out, y_outcome, y_win, y_pay):
-    lo = F.cross_entropy(out[:, :N_OUTCOMES], y_outcome)
+def losses(out, y_outcome, y_win, y_pay, w=None):
+    # w: per-row weights of the outcome loss (--other-share: the rows of hands the seat
+    # didn't win were kept with chance q, so they weigh 1/q against a won hand's 1).
+    if w is None:
+        lo = F.cross_entropy(out[:, :N_OUTCOMES], y_outcome)
+    else:
+        lo = (F.cross_entropy(out[:, :N_OUTCOMES], y_outcome, reduction='none') * w).sum() / w.sum()
     win = y_outcome <= 1
     pay = (y_outcome == 2) | (y_outcome == 3)
     zero = out.new_zeros(())
@@ -428,7 +433,7 @@ def expected_points(out):
     return o[:, 0] * 3 * win_pts + o[:, 1] * win_pts - (o[:, 2] + o[:, 3]) * pay_pts
 
 
-def evaluate(model, fetch, count, yo, yw, yp, batch):
+def evaluate(model, fetch, count, yo, yw, yp, batch, other_share=None):
     model.eval()
     tot = np.zeros(3)
     n = 0
@@ -437,8 +442,11 @@ def evaluate(model, fetch, count, yo, yw, yp, batch):
     with torch.no_grad():
         for i in range(0, count, batch):
             out = model(fetch(np.arange(i, min(count, i + batch))))
-            lo, lw, lp = losses(out, yo[i:i + batch], yw[i:i + batch], yp[i:i + batch])
-            k = len(out)
+            wv = None
+            if other_share:
+                wv = torch.where(yo[i:i + batch] <= 1, torch.ones_like(out[:, 0]), torch.full_like(out[:, 0], 1.0 / other_share))
+            lo, lw, lp = losses(out, yo[i:i + batch], yw[i:i + batch], yp[i:i + batch], wv)
+            k = len(out) if wv is None else float(wv.sum())
             tot += np.array([lo.item(), lw.item(), lp.item()]) * k
             n += k
             evs.append(expected_points(out).cpu())
@@ -487,6 +495,8 @@ def main():
     ap.add_argument('--rank-temp', type=float, default=100.0, help='the softmax temperature of the ranking loss, in points')
     ap.add_argument('--win-bonus', type=float, default=None, help="the win bonus options are ranked with (default: --init's, else 300)")
     ap.add_argument('--group-batch', type=int, default=256, help='option groups a step')
+    ap.add_argument('--other-share', type=float, default=0.0, help='data made with generate.js --other-share q: reweight the outcome loss')
+    ap.add_argument('--calib', help='an unsampled data directory: report the outcome head calibration on it')
     ap.add_argument('--clip', type=float, default=0.0)
     ap.add_argument('--ema', type=float, default=0.0)
     ap.add_argument('--warmup', type=float, default=0.0)
@@ -670,7 +680,11 @@ def main():
             if args.replay:
                 lo, lw, lp = soft_losses(out, out_t[idx], win_t[idx], pay_t[idx], rep_t[idx])
             else:
-                lo, lw, lp = losses(out, out_t[idx], win_t[idx], pay_t[idx])
+                bw = None
+                if args.other_share:
+                    yb = out_t[idx]
+                    bw = torch.where(yb <= 1, torch.ones_like(out[:, 0]), torch.full_like(out[:, 0], 1.0 / args.other_share))
+                lo, lw, lp = losses(out, out_t[idx], win_t[idx], pay_t[idx], bw)
             loss = lo + 0.5 * lw + 0.5 * lp
             if args.heads:
                 loss = loss + args.head_weight * sum(head_losses(out, aux_t[idx], has_t[idx]))
@@ -724,7 +738,7 @@ def main():
         if ema is not None:
             live = {k: v.detach().clone() for k, v in model.state_dict().items()}
             model.load_state_dict(ema)
-        vl, evs, acc = evaluate(model, fetch_v, n_val, out_v, win_v, pay_v, args.batch * 4)
+        vl, evs, acc = evaluate(model, fetch_v, n_val, out_v, win_v, pay_v, args.batch * 4, args.other_share or None)
         total = vl[0] + 0.5 * vl[1] + 0.5 * vl[2]
         with np.errstate(invalid='ignore', divide='ignore'):
             corr = float(np.corrcoef(evs, delta_v)[0, 1]) if len(evs) > 1 else 0.0
@@ -754,6 +768,17 @@ def main():
             model.load_state_dict(live)
     model.load_state_dict(best_state)
     model.eval()
+    if args.calib:
+        cx, cy, _, _, _, _ = load([args.calib], 400000)
+        with torch.no_grad():
+            ps = []
+            for i in range(0, len(cx), 16384):
+                o = model(torch.from_numpy(cx[i:i + 16384].astype(np.float32)).to(device))
+                ps.append(F.softmax(o[:, :N_OUTCOMES], 1).cpu().numpy())
+            p = np.concatenate(ps)
+        freq = np.bincount(cy['outcome'], minlength=N_OUTCOMES) / len(cy)
+        print('Calibration on %s (%d rows, unsampled): predicted %s, happened %s' % (args.calib, len(cy),
+              ' '.join('%.4f' % v for v in p.mean(0)), ' '.join('%.4f' % v for v in freq)))
     if args.arch == 'res':
         os.makedirs(os.path.join(ROOT, 'ml', 'models'), exist_ok=True)
         tp = os.path.join(ROOT, 'ml', 'models', args.name + '.teacher.pt')
