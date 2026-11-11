@@ -450,3 +450,32 @@ The orchestrator's draft rule:
 - not worse at the game's table: open (−1.2 SE on points, limit hands −3.7 SE).
 
 The early runs flattered it (+2.6 at 120,000), which is the winner's curse again. ON2 was chosen as the champion partly on those runs.
+
+## 4. Half-spicy arms 2 to 4 (screen HS2, deck seed 1,507,000,000, fast build, against ON2)
+
+Data `oon-h1`: ON2 exploring with the half-spicy play setting at blend 0.5 (HN2h50), against OS2c1, ON1 and the older generations. 100,000 deals, 1.18M positions. Every arm is a fine-tune from ON2 with the faan cap (lr 1e-4, 4 epochs), two seeds:
+
+- **Arm 2 (P4hNH):** trained on `oon-h1` + `oon-2` + `oon-1`, played at blend 0.5.
+- **Arm 3 (P4hN):** the same networks, played on full spicy.
+- **Arm 4 (P4cN), the curriculum:** arm 2's network fine-tuned for 2 more epochs on `oon-3` (full-spicy data), played on full spicy.
+- **Control (N3j1):** the same recipe on `oon-1` to `oon-3` (all full-spicy data).
+
+The pre-registered proxy is the half-spicy points gap against ON2.
+
+| Arm | 8,000 deals: half-spicy gap | full-spicy gap | wins (pp) | deal-ins (pp) | 24,000 deals: half-spicy gap | full-spicy gap | wins | deal-ins |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| arm 2, seed 0 / 1 | −0.3 ± 0.3 / −0.3 ± 0.3 | −6.9 ± 5.5 / −4.2 ± 5.4 | +0.22 / +0.18 | +0.17 / +0.15 | — / −0.1 ± 0.2 | — / −2.0 ± 3.0 | +0.09 ± 0.05 | +0.13 ± 0.04 |
+| arm 3, seed 0 / 1 | −0.3 ± 0.3 / −0.3 ± 0.3 | −6.0 ± 5.1 / −4.5 ± 5.3 | +0.05 / +0.06 | +0.07 / +0.03 | cut | | | |
+| arm 4, seed 0 / 1 | −0.0 ± 0.3 / −0.2 ± 0.3 | +0.7 ± 5.6 / −3.9 ± 5.7 | +0.08 / +0.09 | −0.04 / +0.03 | +0.1 ± 0.2 / −0.1 ± 0.2 | +2.8 ± 3.1 / −1.6 ± 3.1 | +0.02 / +0.02 | −0.04 / +0.00 |
+| control N3j1 | −0.9 ± 0.3 | −16.1 ± 5.6 | −0.03 | +0.12 | cut | | | |
+
+ON2 on this deck: 8.8 full-spicy points a hand, wins 5.19%, deal-ins 1.78%.
+
+Reading:
+
+- **Does half-spicy training transfer? Not measurably here.** On the pre-registered proxy, no arm is ahead of ON2: the best is the curriculum seed 0 at +0.1 ± 0.2.
+- Played at the half-spicy setting (arm 2), the half-trained network wins a little more (+0.1 to +0.2 pp) but deals in more (+0.13 to +0.17 pp), and its half-spicy points don't rise.
+- Played on full spicy (arm 3), the same networks are level with ON2 on both tables.
+- The curriculum (arm 4) is level with ON2 on everything, with deal-ins level.
+- Against the full-data control on the same deck, all six half-trained arms are ahead (half spicy +0.6 to +0.9, full spicy +9 to +16 on 8,000 deals). But the control is one seed, and its −16 on full spicy is far outside what this recipe gave on other decks (N3j0: +0.5 against ON2 on C4). I read that as the control's bad luck, not evidence for half spicy.
+- Nothing here goes to a confirmation. Half-spicy training, at this scale (one round of 100,000 deals), neither helps nor hurts ON2.
