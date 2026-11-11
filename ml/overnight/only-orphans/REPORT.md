@@ -2,11 +2,11 @@
 
 ## Status
 
-- **Champion (lineage loop):** **ON1** (`ml/models/ON1.json`): OS2c1 fine-tuned with the faan targets clipped at 10, playing win bonus 600. Against OS2c1 on 40,000 fresh exact deals: points +1.9 ± 3.2 a hand, hands won +0.72 ± 0.05 pp (5.06% to 4.34%), deal-ins +0.00 ± 0.04 pp. **It meets the Pareto rule, so it is a new generation. It does not meet the ship bar** (points up 3 SE on pooled fresh deals).
-- **Rounds done:** R0, round 1, R1b, C0, the structural arms, R2, R3, C1.
-- **Last result:** C1 (above). N2cap1, the same network at win bonus 800, won even more hands (+0.83 pp) but dealt in +0.05 ± 0.04 pp more, so it met no bar.
-- **Now:** round 2 from ON1. Data `oon-2` (ON1 exploring against OS2c1 and the older generations), fine-tunes with the cap (two recipes x 2 seeds), win bonus 400 and 800, then a screen and a confirmation.
-- **Blockers:** none.
+- **Champion (lineage loop):** **ON2** (`ml/models/ON2.json`): ON1 fine-tuned on `oon-1` and `oon-2` with the faan cap (lr 1e-4, 4 epochs), win bonus 600. Against ON1 on 40,000 fresh exact deals (C2): points −1.2 ± 2.1, hands won +0.11 ± 0.04 pp, deal-ins +0.03 ± 0.03 pp. That meets the Pareto rule: a second new generation.
+- **ON1** (`ml/models/ON1.json`) against OS2c1 on 40,000 fresh exact deals (C1): points +1.9 ± 3.2, hands won +0.72 ± 0.05 pp (5.06% to 4.34%), deal-ins +0.00 ± 0.04 pp. That meets the Pareto rule, not the ship bar.
+- **Rounds done:** R0, 1, R1b, C0, the structural arms, R2, R3, C1, round 2 (data `oon-2`, screen, C2).
+- **Now:** C3. ON1 and ON2 against OS2c1 on the same 40,000 fresh exact deals (seed 2,503,000,000). This is ON2's direct comparison with the shipped model, and ON1's second fresh run, which is pooled with C1 for the ship bar.
+- **Blockers:** none. Both ON1 and ON2 pass the fair-play shuffle check (`scripts/ml/oo-fair-play.js`).
 
 ## The table and the measures
 
@@ -212,3 +212,13 @@ Data `oon-2`: ON1 exploring against OT11d, OT7c, OT6e, OT5e, OT4a, OT2d, OT1a an
 ON1 on this deck: 10.5 points a hand, wins 5.10%, deal-ins 1.76%, average win 3,033. Screen 2,184 s (the shadow replayed 77% of the arms' hands). Every arm led on the first 8,000 deals, which is the deck's luck again (critique 1). A second pass of the cap keeps adding wins (+0.14 to +0.24 pp) with a few more deal-ins. Confirmation C2: N2j1 against ON1 on 40,000 fresh deals from seed 2,502,000,000, exact build (running).
 
 B6 again with twice the data (`oon-1` + `oon-2`, 2.37M positions): the residual teacher (768 x 4, dropout 0.2, weight decay 1e-2) reaches held-out 1.9602 (outcome 0.4329) at epoch 3. The shipped-shape fine-tune from OS2c1 on the same data reaches 1.9303. The teacher gains from more data (1.994 to 1.960), but it starts from nothing while the fine-tune starts from OS2c1's millions of positions, and it is still 1.5% worse. Not distilled.
+
+### Confirmation C2: ON2 (against ON1, 40,000 fresh deals, exact build)
+
+40,000 fresh deals from seed 2,502,000,000, exact build, against ON1 (the loop's champion then): N2j1 scores 9.2 points a hand, wins 5.20%, deals in on 1.71%, average win 3,194.
+
+| Gap to ON1 | Points | Wins (pp) | Deal-ins (pp) |
+| --- | ---: | ---: | ---: |
+| N2j1 = **ON2** | −1.2 ± 2.1 | +0.11 ± 0.04 (2.9 SE) | +0.03 ± 0.03 (0.9 SE) |
+
+Bar met: **the Pareto rule** (wins up 2.9 SE, points down 0.55 SE, deal-ins up 0.93 SE, all inside the limits, the last only just), so ON2 is a new generation. It takes ON1's place as the loop's champion and joins the pool (OS2c1, ON1, ON2 and the older generations). 926 s. The two other seeds of the same recipe (N2j2, N2j3) are trained but not yet screened.
