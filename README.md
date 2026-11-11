@@ -465,13 +465,15 @@ Unit tests use Node's built-in test runner and require **Node.js 18+**. GitHub A
 npm test
 ```
 
-This runs `node --test` over the test files listed in `package.json`:
+This runs `node --test` over every `*.test.js` in `js/`, `scripts/` and `scripts/ml/`:
 
 - **Scoring calculator** — `js/points.js`
 - **Play game** — the engine, bots, strategies, coach and rule sheet. These check that `scoreHand` matches the calculator, cover legal claims, payouts and dealer rotation and play full bot hands to check that every tile is accounted for
 - **Site** — the homepage renderer, community page, tile quiz, generated tile pages, offline worker and analytics
 - **Scripts** — the media formatter and the ML tooling (data pruning, oracle labels, benchmark, disk)
 - **Native simulator** — once it's built (`npm run native:build`): the exact build plays the same hands as the JS action for action, the fast build plays the exact build's hands, and weights round-trip through `.lcmw` (skipped when it isn't built, as on CI)
+
+CI also fails a PR that changes the game without raising `GAME_VERSION` (`npm run check:game-version`).
 
 > **Note to self: pinned files.** Any time you change a file listed in `native/ported.json`, check whether the change has to be redone in `native/`. `npm run native:check-pin` compares each file's SHA-256 with the pin (the `GAME_VERSION` line is left out), and the `native-pin` CI job runs it on every PR. If the change affects how the game plays, port it. Either way, run `npm run native:build`, then `node scripts/ml/native.js parity` on every player, then `node scripts/ml/native.js pin`, and commit `native/ported.json`.
 
@@ -583,6 +585,7 @@ Site styles (`css/`) and the Events page are edited directly too.
 │   ├── generate-tile-pages.js           # Quiz: per-tile pages and preview images
 │   ├── tile-pages-lib.js                # Shared tile-page logic (tested)
 │   ├── competition.js                   # CLI: npm run compete
+│   ├── check-game-version.js            # CI: a game change must raise GAME_VERSION (tested)
 │   ├── ml/                              # Learned strategies: data, self-play, the lab, the benchmark, Hugging Face uploads
 │   ├── generate-guide.js                # Printable rules booklet PDF
 │   └── licensing-agreement.js           # Licensing agreement PDF
@@ -597,7 +600,7 @@ Site styles (`css/`) and the Events page are edited directly too.
 │   └── strategies/                      # Bot and coach playbooks
 ├── assets/                              # Music, sounds, PDFs and images
 ├── fonts/                               # The web font
-├── .github/workflows/test.yml           # CI: npm test
+├── .github/workflows/test.yml           # CI: npm test, the game version and the native pin
 ├── package.json                         # npm scripts
 ├── tiles/                               # Hong Kong mahjong tile SVGs (CC0, see credit below)
 ├── data/
