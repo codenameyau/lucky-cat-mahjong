@@ -286,12 +286,14 @@ int main(int argc, char** argv) {
     if (cmd == "shanten") {
       FILE* f = std::fopen(argv[2], "rb");
       if (!f) throw std::runtime_error("lcm-sim: can't read " + std::string(argv[2]));
-      uint8_t row[34];
+      // --declared: each row is 34 counts and then the number of declared melds (35 bytes)
+      int W = a.count("declared") ? 35 : 34;
+      uint8_t row[35];
       std::vector<int8_t> out;
-      while (std::fread(row, 1, 34, f) == 34) {
+      while (std::fread(row, 1, W, f) == size_t(W)) {
         int8_t c[34];
         for (int i = 0; i < 34; i++) c[i] = int8_t(row[i]);
-        out.push_back(int8_t(shanten(c, 0)));
+        out.push_back(int8_t(shanten(c, W == 35 ? row[34] : 0)));
       }
       std::fclose(f);
       std::fwrite(out.data(), 1, out.size(), stdout);

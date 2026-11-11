@@ -64,7 +64,7 @@ Fair play for G6: pass. **G6 clears the new ship bar:** hands won up 8.8 SE, poi
 **Recommendation: ship G4 (`ml/models/LO9d.json`) in place of G2**, subject to your game-table check.
 
 
-*Updated 2026-11-11 12:20 local.* Rounds done: 21. LO21d (full-spicy block) gained points (+3.5 ± 0.9) but lost hands won against G6. It and G6 are now on the fixed ship table against lc33. Next: plan-biased exploration toward bigger hands (orchestrator), built and tested for parity, from round 22. Rounds done: 4.
+*Updated 2026-11-11 13:40 local.* Rounds done: 23. Directed exploration was measured and doesn't pay (see its section). Running: round 24, blind step 3 from G6 (hands-won recipe), then the confirmation against G6. Rounds done: 4.
 
 - **Champion: G6 = LO18d** (`ml/models/LO18d.json`), from 3 blind steps on G5: half/full 50/50 blend, vnorm 1, bonus 150, 3-seed soup.
   - **Against G5** on 160,000 fresh exact deals: points +0.0 ± 0.9 (half spicy +0.14 ± 0.07), **hands won +0.14 ± 0.04 (3.5 SE)**, deal-ins −0.09 ± 0.05, average win 296 vs 294. A generation on hands won.
@@ -330,6 +330,35 @@ Data: own-19 to own-21, about 61,000 choices each, 907 to 978 s.
 **Reading.**
 - **Full-spicy replays buy points again, by giving up hands won:** 16 more points a win. That confirms the frontier the orchestrator described.
 - **Ship check under way:** LO21d (and G6) against lc33 (G4) on the fixed table. The ship bar needs only points up 3 SE with hands won not down against G4, not a Pareto step against G6.
+
+## Directed exploration toward bigger hands (the orchestrator's experiment): the signal, measured before training
+
+**What was built** (`generate-lcv --plan-share P --plan-beta B`):
+- **The plan.** In a share of the learner's hands, each learner seat gets a plan from its own tiles at its first move: (1) a flush in its longest suit when that suit plus honors make 9 or more tiles, (2) all pungs with 4 or more pairs, (3) dragons and its seat wind with 2 or more dragons. It then explores with a logit bonus B for the moves that keep to the plan.
+- **The replays.** At sampled choices, the bias's preferred move is replayed beside the head's top 4. Every option is continued two ways on the same CRN futures: by the plain head, and by the head with the bias for the rest of the hand.
+- **The outputs.** `.qb.f4` (biased continuation), `.qbs.f4` (its SE against the played move continued plainly), `.pl.u1` (the plan and the bias's slot).
+- **Checks.** The bias is null in play, and Lucky Cat parity is unchanged on 150 hands. A first version chose the plan before the deal and so found no plans; I fixed it (the plan is now chosen at the seat's first move), and rounds 22 and 23 ran without bias.
+
+**Measurement.** 4,000 deals from LO23d, every learner seat eligible (P 1.0, B 2), scored on the 50/50 blend. 10,197 choices, 1,270 of them in planned hands. "Plan" means the bias's move continued by the biased head. "Head" means the head's own move continued plainly.
+
+| Choices in planned hands | n | Bias move = head's move | Plan minus head (mean points) | Plan better by > 2 SE | Plan worse by > 2 SE | Gap when better |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| flush | 589 | 77% | −4.4 | 0.7% | 3.7% | +712 |
+| all pungs | 59 | 69% | −53.4 | 3.4% | 0.0% | +76 |
+| dragons / seat wind | 622 | 66% | +1.1 | 1.0% | 0.6% | +54 |
+| all | 1,270 | 71% | −4.0 | 0.9% | 2.0% | +277 |
+| **nearly ready (shanten 0 to 1)** | 452 | 85% | −1.7 | 1.1% | 1.5% | +557 |
+| shanten 2 | 375 | 70% | −4.7 | 1.3% | 2.9% | +90 |
+| shanten 3+ | 443 | 58% | −5.8 | 0.5% | 1.8% | +44 |
+
+Continuing the plainly-played move with the plan, against continuing it plainly: −2.5 points on average.
+
+**Reading: the plan rarely pays, so this block won't train on it.**
+- **Continuing a big-hand plan is worse on average** than the head's own play, from every distance to ready.
+- **Where it is better by 2 SE (about 1% of planned choices),** the gain is large in nearly-ready flush hands (+557 points). So the big-hand opportunity the maintainer describes exists, but it is rare. One forced plan is no way to find it: about 1 in 100 planned choices.
+- **lc33's style is close to the best this network does at this all-Lucky-Cat table**, with the big hands it already takes (28% of its wins at 7+ faan).
+- **What could find the niche:** a selective trigger, for example plan only when the hand is already within 1 of a 7+ faan hand and the wall is long. That isn't built yet.
+- **What runs instead:** the blind chain goes on with the hands-won recipe (the 50/50 blend, bonus 150, 3-seed soup; no plan bias). Block from G6: steps 1 and 2 done (LO22d, LO23d); step 3 and the confirmation are next.
 
 ## Half spicy
 

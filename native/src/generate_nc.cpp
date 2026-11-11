@@ -595,7 +595,7 @@ struct LcvRecorder : Agent {
         G.opts.push_back(turnOpt(g, seat, moves[order[pick]].decision)); G.opts.back().action = moves[order[pick]].action;
       }
       // a biased hand: the move the plan's bias prefers is replayed too
-      if (!inner && plan && plan[seat] && biased) {
+      if (!inner && plan && plan[seat] > 0 && biased) {
         G.plan = plan[seat];
         Game probe = *G.snap; cloneMemos(probe);
         Decision b = biased->turn(probe, seat, o);
@@ -697,9 +697,26 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
   // (1 a flush in its longest suit, 2 all pungs, 3 dragons and its seat wind), and the learner
   // explores with a logit bonus of --plan-beta for the moves that keep to it. Only its own tiles.
   int plan[4] = {0, 0, 0, 0}, planSuit[4] = {0, 0, 0, 0};
+  long biasedHands = 0;
+  auto resolvePlan = [&](const Game& g, int s) {
+    if (plan[s] != -1) return;
+    plan[s] = 0;
+    int bySuit[3] = {0, 0, 0}, honors = 0, dragons = 0, pairs = 0, cnt[34] = {0};
+    for (auto t : g.hand.seats[s].hand) { if (t < 0 || t >= 34) continue; cnt[t]++; if (isHonor(t)) { honors++; if (t >= 31) dragons++; } else bySuit[t / 9]++; }
+    for (int t = 0; t < 34; t++) if (cnt[t] >= 2) pairs++;
+    int su = 0; for (int k = 1; k < 3; k++) if (bySuit[k] > bySuit[su]) su = k;
+    std::vector<int> ok;
+    if (bySuit[su] + honors >= 9) ok.push_back(1);
+    if (pairs >= 4) ok.push_back(2);
+    if (dragons >= 2) ok.push_back(3);
+    if (ok.empty()) return;
+    plan[s] = ok[size_t(replayRng() * double(ok.size())) % ok.size()]; planSuit[s] = su;
+    biasedHands++;
+  };
   auto biasFn = [&](const Game& g, int seat, const Move& m) -> double {
+    resolvePlan(g, seat);
     int pl = plan[seat];
-    if (!pl) return 0;
+    if (pl <= 0) return 0;
     const Decision& d = m.decision;
     const auto& h = g.hand.seats[seat].hand;
     int t = d.tile;
@@ -715,7 +732,7 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
   };
   auto bestBiased = makeLucky(job.weights, 0, [&replayRng]() { return replayRng(); });
   bestBiased->bias = biasFn;
-  long biasedHands = 0;
+
   std::vector<LcRow> rows;
   std::vector<OptGroup> groups;
   LcvRecorder rec;
@@ -774,21 +791,8 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
     Game g = createGame(o);
     g.round = int((dealSeed >> 2) % 4) + 1;
     rows.clear(); groups.clear();
-    for (int s = 0; s < 4; s++) {
-      plan[s] = 0;
-      if (job.planShare <= 0 || real[s] || replayRng() >= job.planShare) continue;
-      int bySuit[3] = {0, 0, 0}, honors = 0, dragons = 0, pairs = 0, cnt[34] = {0};
-      for (auto t : g.hand.seats[s].hand) { if (t < 0 || t >= 34) continue; cnt[t]++; if (isHonor(t)) { honors++; if (t >= 31) dragons++; } else bySuit[t / 9]++; }
-      for (int t = 0; t < 34; t++) if (cnt[t] >= 2) pairs++;
-      int su = 0; for (int k = 1; k < 3; k++) if (bySuit[k] > bySuit[su]) su = k;
-      std::vector<int> ok;
-      if (bySuit[su] + honors >= 9) ok.push_back(1);
-      if (pairs >= 4) ok.push_back(2);
-      if (dragons >= 2) ok.push_back(3);
-      if (ok.empty()) continue;
-      plan[s] = ok[size_t(replayRng() * double(ok.size())) % ok.size()]; planSuit[s] = su;
-      biasedHands++;
-    }
+    // a share of the learner's seats get a plan, chosen from their tiles at their first move
+    for (int s = 0; s < 4; s++) plan[s] = job.planShare > 0 && !real[s] && replayRng() < job.planShare ? -1 : 0;
     Result res = runHand(g, agents);
     hands++;
     int faan = std::max(3, std::min(13, res.score.faan ? res.score.faan : 3));
