@@ -2,7 +2,7 @@
 
 This is the playbook for the **jorge-yau** strategy (`js/mahjong-jorge-yau.js`). Any bot seat can play it, and the coach can follow it (pick it in the Strategies sheet).
 
-jorge-yau also holds what the old no-defense strategy did (merged in 0.38.0): it attacks with no defense, keeps honors, claims anything that gets closer, and locks onto a hand worth 7 faan or more. It only plays safe late, when it is far from winning. Those parts are in [Attack, and when it plays safe](#attack-and-when-it-plays-safe) below, and where they differ from the rest of this page, they win.
+jorge-yau also holds what the old no-defense strategy did (merged in 0.38.0): it attacks with no defense, keeps honors, and locks onto a hand worth 7 faan or more. It only plays safe late, when it is far from winning. Those parts are in [Attack, and when it plays safe](#attack-and-when-it-plays-safe) below, and where they differ from the rest of this page, they win.
 
 jorge-yau runs on the same shared foundation as [lucky-cat](lucky-cat.md) (`js/mahjong-bot.js`). It counts tiles from ready and live tiles the same way, scores every wait of a ready hand exactly, and reads opponents' threat levels the same way. What changes is how it picks a hand, the order it throws tiles, when it claims, when it gives up, and how it reads the other players.
 
@@ -92,19 +92,13 @@ The softer targets (and the default) also weigh the special hands the same tiles
 - **From 60 tiles left, the rules below apply.**
 
 - **Seven Pairs, Nine Gates and Concealed Straights claim nothing else**, and Thirteen Orphans claims nothing at all.
-- **Pungs are fine.** A pung keeps the hand open to a Half Flush in any suit. A pung or kong is taken when the hand is at least as good afterwards.
+- **Pungs are fine.** A pung keeps the hand open to a Half Flush in any suit. A pung or kong is taken when the hand is at least 4% better afterwards.
 - **On Four Winds, All Honors and All Terminals any honor is punged.**
-- **Chows are rare.** A chow must leave the hand closer to ready and still able to reach 3 faan, and it must also:
-  - make the hand ready for 3 faan or more, or
-  - build the Full or Half Flush the hand is going for in that suit (within two tiles of ready, early or late), or
-  - be on a fast hand (within two tiles of ready), or
-  - be late (fewer than 48 tiles left, or after the ninth discard) and leave the hand one tile from ready.
-
-  It never chows into a suit it holds fewer than five tiles of (counting the chow), and the chow has to beat passing by 15%.
+- **Chows are rare.** A chow must leave the hand closer to ready and still able to reach 3 faan, in a suit with 7 or more tiles in the hand and melds, and it has to beat passing by 20%.
 
 ## Attack, and when it plays safe
 
-This section is from the no-defense strategy, which was merged into jorge-yau. It replaces the discard order, claims and defense described elsewhere on this page, except where noted.
+This section is from the no-defense strategy, which was merged into jorge-yau. It replaces the discard order and defense described elsewhere on this page, except where noted.
 
 **No defense.** It never folds and takes no account of what a discard might feed, with one exception: with fewer than 40 tiles left, still 2 or more tiles from ready and no big hand locked, it plays safe as described in "When to give up" and "Not feeding the table". A locked hand never plays safe.
 
@@ -166,8 +160,6 @@ With fewer than 40 tiles left and the hand still two or more tiles from ready, a
 - Safety counts 1.6 times more on top of lucky-cat's late fold, and the target's discard order only breaks ties.
 - The concealed hands may claim again (a claim can still sneak out a cheap win).
 - Feeding chows and fresh honors counts in full.
-
-One tile from ready with fewer than 20 tiles left, safety counts 1.3 times more.
 
 ## Knobs
 

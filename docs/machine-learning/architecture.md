@@ -34,7 +34,7 @@ The model never replaces the hand reading. Jorge Yau's foundation still finds th
 1. The engine calls `bot.chooseTurnAction(game, seat, opts)`. Neural Cat's version is `kongChoice`, which first asks Jorge Yau's foundation what it would do.
 2. `analyzeDiscards` (shared foundation) lists every discard and reads the hand each one leaves. Jorge Yau's hooks order them.
 3. The last hook, `rerank`, is Neural Cat's. It calls `F.prepare` once for the turn, then `F.encode` for each candidate, and `model.ev` for each feature vector. Each candidate gets `ml`: `ev` (expected points), `pWin`, `pDealIn`, `avgWin`, `winFaan` and the outcome odds.
-4. Among Jorge Yau's best three (`TOP_K`), the one with the highest `ev` goes first. The rest keep Jorge Yau's order.
+4. Among Jorge Yau's best few (`meta.play.topK`, else `TOP_K`, 3), the one with the highest `ev` plus win bonus goes first, unless the contradiction check moves it. The rest keep Jorge Yau's order.
 5. The chosen candidate also gets `ml.why`, how much each feature group puts it ahead of the next best ([decisions](decisions.md#explanations)).
 6. If kongs are possible, each kong is scored too, as the position after the kong, before its replacement tile, and compared with the best discard.
 
@@ -68,7 +68,7 @@ const LuckyCat = require('./js/mahjong-lucky-cat.js');
 const bot = ML.create({ id: 'my-cat', base: LuckyCat, weights: myWeights, topK: 3 });
 ```
 
-The features are read through the new bot's own foundation, so a model must be trained on data read through the same base strategy. `scripts/ml/generate.js` reads every position through neural-cat's foundation for that reason.
+The features are read through the new bot's own foundation, so a model must be trained on data read through the same base strategy. `scripts/ml/generate.js` reads every position through the learner's foundation (neural-cat by default) for that reason.
 
 ## Performance
 

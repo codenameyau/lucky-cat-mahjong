@@ -770,32 +770,12 @@
     return '';
   }
 
-  // The one number suit a player's open melds are in, and whether honors
-  // are among them: "all Bamboo", "Bamboo and honors", "all honors", or ''
-  // when the melds cover two suits. Read from the melds themselves, not the
-  // bots' flush estimate.
-  function meldSuitText(game, seat) {
-    var suits = {}, honors = false;
-    // Only shown melds: another player's concealed kong could be any tile.
-    var melds = game.hand.seats[seat].melds;
-    if (melds.some(function (m) { return m.concealed; })) return '';
-    melds.forEach(function (m) {
-      var i = E.tileIndex(m.tiles[0]);
-      if (i >= 27) honors = true; else suits[E.suitOfIndex(i)] = true;
-    });
-    var nums = Object.keys(suits);
-    if (nums.length === 1) return honors ? SUIT_NAME[nums[0]] + ' and honors' : 'all ' + SUIT_NAME[nums[0]];
-    if (!nums.length && honors) return 'all honors';
-    return '';
-  }
-
   // What the table shows that makes a tile dangerous, in words, or null.
   // Only these count: a High or Extreme player whose melds are all in the
   // tile's suit (with or without honors), or a player with 3 melds down who hasn't thrown the tile
   // (a live one). A tile any read marks safer never counts.
   function riskEvidence(v, threats, i) {
     if (B.deadTile(v.game, i)) return null;
-    var id = E.tileId(i);
     var list = threats.filter(function (t) { return t.level >= 2; }).sort(function (a, b) { return b.level - a.level; });
     for (var k = 0; k < list.length; k++) {
       var t = list[k];
@@ -1633,15 +1613,6 @@
   // "It gets you ready fastest and keeps a bigger hand in reach."
   // Simple and Detailed speak as the coach ("I"), in hints and feedback alike;
   // only Complex says "the model".
-  // Simple ends with one "Go for ..." sentence (aimSentence). The hint's own tip can say it too
-  // ("Go for ...", "You're going for ..."), so those sentences come out and it is said once.
-  function withoutAimSentences(text) {
-    var parts = String(text || '').match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [];
-    return parts.filter(function (p) {
-      return !/\bgoing for\b|^\s*go for\b/i.test(plain(p));
-    }).join('').trim();
-  }
-
   // Simple leaves out pivots, yours ("Pivoting from Half Flush to Full Flush: ...")
   // and an opponent's ("Mei has pivoted out of Bamboo ...", "... has started keeping ...").
   function withoutPivots(text) {

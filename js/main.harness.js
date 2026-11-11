@@ -313,7 +313,7 @@ function buildHomepageDom() {
   add('h2', 'section-heading rates-heading', rates);
   add('p', 'section-subheading rates-subheading', rates);
   const table = add('table', 'rates-table', rates);
-  const tbody = add('tbody', 'rates-body', table);
+  add('tbody', 'rates-body', table);
   add('p', 'rates-disclaimer', rates);
 
   const faq = section('faq', 'section faq');
@@ -326,7 +326,7 @@ function buildHomepageDom() {
   add('p', 'section-body cta-body', cta);
   const ctaBtn = add('a', 'btn btn-primary cta-button', cta);
   ctaBtn.appendChild(createTextNode(''));
-  const ctaLabel = add('span', 'btn-label', ctaBtn);
+  add('span', 'btn-label', ctaBtn);
   const heroBtn = add('a', 'btn btn-primary hero-book-button');
   heroBtn.appendChild(createTextNode(''));
   add('span', 'btn-label', heroBtn);
@@ -335,7 +335,7 @@ function buildHomepageDom() {
   igLink.appendChild(createTextNode('@handle'));
   const igFooter = add('a', 'instagram-link-footer');
   igFooter.appendChild(createTextNode('@handle'));
-  const footerIg = add('a', 'footer-instagram');
+  add('a', 'footer-instagram');
 
   const footerEmail = add('a', 'footer-email');
   footerEmail.appendChild(createTextNode('email@example.com'));
@@ -344,7 +344,6 @@ function buildHomepageDom() {
   add('span', '', footerBrand);
   add('p', 'footer-tagline');
 
-  add('div', 'toast').hidden = true;
 
   wireDom(html);
 

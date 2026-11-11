@@ -23,7 +23,6 @@
   var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
 
   var SUIT_NAMES = { c: 'Characters', d: 'Circles', b: 'Bamboos' };
-  var WINDS = [27, 28, 29, 30];
   var DRAGONS = [31, 32, 33];
 
   function tn(i) { return E.tileName(E.tileId(i)); }
@@ -185,7 +184,6 @@
     var mine = rated.filter(function (r) { return r.index === d; })[0];
     if (!mine) return null;
     var best = rated[0];
-    var where = whereTiles(game, seat);
     var line = [];
     var action;
 

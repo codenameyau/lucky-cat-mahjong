@@ -79,7 +79,7 @@ static uint16_t toHalf(float v) {
   // The value as mant53 * 2^e, then to half precision by exact rounding.
   double d = std::fabs(double(v));
   int e;
-  double m = std::frexp(d, &e);  // d = m * 2^e, m in [0.5, 1)
+  std::frexp(d, &e);              // d = m * 2^e, m in [0.5, 1)
   int he = e - 1;                 // unbiased exponent of the leading bit
   if (he > 15) return uint16_t(sign | 0x7c00);
   int shift = he < -14 ? -24 : he - 10;  // the weight of one unit in the last place

@@ -86,7 +86,7 @@ npm run ml:generate -- --deals 50000 --lineup mix --pool neural-cat,ml:ml/models
 | `--top-k N` | 3 | `neural-cat` picks among the foundation's best N discards |
 | `--workers N` | cores − 1 | Worker threads |
 | `--out DIR` | `ml/data/<time>` | Where to write |
-| `--native` | off | Plays on the [native simulator](native.md) (`lcm-sim generate-nc`): the same shard files, about 15 times faster. It records every seat (the default) or `--record neural-cat`, and needs `--explore 0`, a mixed lineup, and a pool of `neural-cat`, `ml:<file>`, `jorge-yau` and `lucky-cat`. A finished shard is reused when a stopped run is started again. `--exact` uses the exact build |
+| `--native` | off | Plays on the [native simulator](native.md) (`lcm-sim generate-nc`): the same shard files, about 15 times faster. It records every seat (the default) or `--record neural-cat`, and needs `--explore 0`, a mixed lineup, and a pool of `neural-cat`, `ml:<file>`, `jorge-yau` and `lucky-cat` (with `--learner only-orphans`, `only-orphans` and `oo:<file>` too). A finished shard is reused when a stopped run is started again. `--exact` uses the exact build |
 
 `npm run ml:generate -- parity --deals 200` plays a short run in the JS and on the native simulator's exact build and compares the files byte for byte. The native path is how the frontier model's data is made; the JS stays as the reference it is checked against ([running the models on another frontend](porting.md)).
 
@@ -185,8 +185,8 @@ Each round:
 3. **Judge** against the objective **J = points a hand + 5 × hands won (percentage points)**: the most points, with a point of win rate worth 5 points a hand. Each candidate plays the champion head to head (two seats each, every rotation) on 6,000 deals. The best two that are ahead play 20,000 fresh deals, and one is kept only if J beats the champion there by more than its standard error (about ±8 points a hand). Close calls are rejected, so the champion can't drift on noise.
 4. **Learn.** Each arm keeps its tries, results and how often it was kept. The next round picks arms by an upper confidence bound: the best average J, plus a bonus for arms tried less, untried arms first. Failing arms are tried less but never ruled out.
 5. **Escalate on a plateau.** After `--bold-after` (3) rounds with no new champion, the lab searches harder, and logs why:
-   - **Bold arms join:** for Neural Cat and Only Orphans, a much wider network (768, 384), `topK+3` and `winBonus+300`; for Lucky Cat, a slow fine-tune on the last 14 rounds. They're marked `*` in `npm run ml:lab -- report`.
-   - **The champion explores more** in the round's deals: temperature 300 and epsilon 0.1 (Lucky Cat: sampling temperature 1.5).
+   - **Bold arms join:** for Neural Cat and Only Orphans, a much wider network (768, 384), `topK+3` and `winBonus+300`; for Lucky Cat, `q-bold` (a big step on the last 4 rounds, tau 30). They're marked `*` in `npm run ml:lab -- report`.
+   - **The champion explores more** in the round's deals: temperature 300 and epsilon 0.1 (Lucky Cat plays its best, with up to 3 replayed choices a hand instead of 2).
    - **Close calls get more deals:** a candidate ahead but within the noise on 20,000 deals plays 30,000 more and is judged on all 50,000, each run weighted by its precision.
 
    After `--stop-after` (6) rounds with no new champion, the lab stops and logs what it tried, rather than spending the night on the same search. The next lever then is new features, which need a person to design them.
@@ -196,7 +196,7 @@ State, every evaluation and a log are in `ml/lab/`. A stopped lab picks up where
 
 ### The lab for Only Orphans and Lucky Cat: `--strategy`
 
-The same lab trains the learned Only Orphans and Lucky Cat's network, with the same experiments, the same two-step judging and the same rule: a champion is replaced only by a clear gain on 20,000 fresh deals.
+The same lab trains the learned Only Orphans and Lucky Cat's network, with the same experiments, the same two-step judging and the same rule: a champion is replaced only by a clear gain on 40,000 fresh deals.
 
 ```bash
 npm run ml:lab -- --strategy only-orphans --rounds 10   # starts from the model in the game (or --start FILE)
@@ -206,12 +206,12 @@ npm run ml:lab -- --strategy lucky-cat --rounds 10      # starts from the model 
 | | Neural Cat | Only Orphans | Lucky Cat |
 | --- | --- | --- | --- |
 | Starts from | The league's best (NC1) | The model in the game | The model in the game (lc32) |
-| Plays against | Its last three champions, s5, Jorge Yau, Lucky Cat, Lucky Cat Classic | Neural Cat, Jorge Yau and Lucky Cat (the table the game seats it at), and its last two champions | The game's table: one seat against Neural Cat (two in three) and Jorge Yau, exploring at temperature 0.5 (`--temperature`); no earlier selves since LC32, when two learner seats and its own champions taught it to beat its own kind |
+| Plays against | Its last three champions, s5, Jorge Yau, Lucky Cat, Lucky Cat Classic | Neural Cat, Jorge Yau and Lucky Cat (the table the game seats it at), and its last two champions | The game's table: one seat against Neural Cat (two in three) and Jorge Yau, playing its best; no earlier selves since LC32, when two learner seats and its own champions taught it to beat its own kind |
 | Records | Every seat's decisions (`--sample 0.12`) | Only its own seats (`--record only-orphans`, `--sample 0.25`) | Replays over reshuffled futures: the champion plays its best in one seat; at up to 2 of its real choices a hand the wall still to be drawn is reshuffled 4 ways, and its move and its 2 next-best moves each play those same 4 futures; each move's mean points are recorded (`scripts/ml/lucky.js generate --rollouts 2 --alts 2 --futures 4`, 20,000 deals a round) |
 | Trains with | `ml/train.py` | `ml/train.py` | `ml/train_lucky.py` |
 | Training arms | All six above | All six above | Move by move (`ml/train_lucky.py --mode q`): the champion's shares tilted toward the moves that scored more on the replays: `q` (1 set), `q-2`, `q-all` (4 sets), `q-soft` (tau 200), `q-sharp` (tau 50), bold `q-bold`; the whole-hand points-first arms (`pg`, `awr`, [below](#lucky-cat-points-first)) are retired, since at the table a hand's points were too noisy to learn from |
 | Play arms | All of them | `winBonus` and `claimMargin` (it already picks among every allowed discard) | None (it plays its biggest share) |
-| Judged on | Head to head, two seats each: J = points + 5 × wins | One seat each against Neural Cat, Jorge Yau and Lucky Cat, on the same deals: the same J | At the game's table (`lucky.js eval --table neural-cat,jorge-yau,neural-cat`): candidate and champion each take every seat in turn on the same deals, 40,000 of them, points first: J = points + 0.5 × wins, and kept only if its points a hand beat the champion's by more than their paired standard error |
+| Judged on | Head to head, two seats each: J = points + 5 × wins | One seat each against Neural Cat, Jorge Yau and Lucky Cat, on the same deals: the same J | At the game's table (`lucky.js eval --table neural-cat,jorge-yau,neural-cat`): candidate and champion each take every seat in turn on the same deals, 40,000 of them, points first: J = points + 0.5 × wins, and kept only if its points a hand beat the champion's by more than twice their paired standard error and J is ahead |
 | Baseline | | The rule-based Only Orphans plays the same deals every round | |
 | Data | `ml/data/lab-<n>` (and the league's `league-<n>`) | `ml/data/ootgt-<n>`, only its own under the targets (the fixed-family rounds were `oolab-<n>` and the league's `orphans-<n>`) | `ml/data/lcfut-<n>` (replays over reshuffled futures; the one-wall replays were `lcroll-<n>`, the whole-hand table rounds `lctab-<n>`, the head-to-head rounds `lcpts-<n>`, and the league's `lc<n>` hold only wins) |
 | Models | `N<round><letter>` | `OT<round><letter>` (OL<round><letter> before the targets) | `LF<round><letter>`, shipped as LC33, LC34, ... (the one-wall replays were `LR<round><letter>`, none shipped; the whole-hand table rounds `LT<round><letter>`, none shipped; the head-to-head points-first rounds were `LP<round><letter>`, none shipped; LC21–LC32 came from the hands-won lab, `LL<round><letter>`) |
@@ -221,15 +221,15 @@ A new champion ships at once to `js/mahjong-only-orphans-weights.js` or `js/mahj
 
 #### Lucky Cat: points first
 
-LC20 learned by imitating the moves of the hands it won, the quicker the win the more, and hands it lost taught it nothing. So it learned fast, cheap wins, and nothing about what a deal-in costs. The lab now trains it on points first, wins second:
+LC20 learned by imitating the moves of the hands it won, the quicker the win the more, and hands it lost taught it nothing. So it learned fast, cheap wins, and nothing about what a deal-in costs. From lc32 the lab tried training it on points first, wins second, on whole hands. These arms are retired (see the table above), and this is the record of how they worked:
 
 1. **Every hand counts.** `lucky.js generate --returns` records the champion's real choices (two or more legal moves; half of them) in every hand its seats play, with the points that seat scored in the hand, how it ended, and the share the move was played with.
 2. **The reward is the hand's points**, clipped at ±4,000 so one limit hand doesn't swamp a round (`--reward-clip`), plus `--win-bonus` points for a win (0 unless an arm sets it).
 3. **The advantage** is the reward less a critic's value of the position: a value network in `ml/train_lucky.py`, not shipped, fitted on half the hands and scoring the other half. One hand's points are mostly luck, and in practice the critic explains well under 1% of their variance, so the advantage is close to the hand's points less the average.
 4. **The update** (`--mode pg`) is a clipped policy gradient (PPO): moves in hands that did better than usual get more likely, moves in hands that did worse (deal-ins above all) less, each move's change against the share it was played with clipped at 1 ± 0.2, with a small entropy bonus, stopping once the policy has moved 0.03 (KL divergence) from the champion's. `--mode awr` imitates every move weighted by exp(advantage), at most 20. Shares are read at the temperature the data was played at.
-5. **The judge** is points first: J = points a hand + 0.5 × hands won (percentage points), so a point of win rate is worth half a point a hand, about a tenth of a 20,000-deal evaluation's standard error. A candidate is kept only if its points a hand beat the champion's by more than their paired standard error (deal by deal, `lucky.js eval`) and J is ahead too.
+5. **The judge** is points first: J = points a hand + 0.5 × hands won (percentage points), so a point of win rate is worth half a point a hand, about a tenth of a 20,000-deal evaluation's standard error. A candidate is kept only if its points a hand beat the champion's by more than twice their paired standard error (deal by deal, `lucky.js eval`) and J is ahead too.
 
-The arms vary the update and its data: `pg` (the last round), `pg-2` and `pg-all` (2 and 4 rounds), `pg-fast` (a bigger step, 1e-3, KL up to 0.08), `pg-sqrt` (the square root of the points), `pg-clip` (points clipped at ±1,000), `pg-wins` (100 points more for a win) and `awr`. The bandit picks among them as for Neural Cat.
+The arms varied the update and its data: `pg` (the last round), `pg-2` and `pg-all` (2 and 4 rounds), `pg-fast` (a bigger step, 1e-3, KL up to 0.08), `pg-sqrt` (the square root of the points), `pg-clip` (points clipped at ±1,000), `pg-wins` (100 points more for a win) and `awr`. The modes stay in `ml/train_lucky.py`; the lab's arms are now the move-by-move ones (`--mode q`).
 
 ```bash
 npm run ml:lab -- --strategy lucky-cat --rounds 4 --deals 25000 --workers 4 --dry   # trains and judges, ships nothing

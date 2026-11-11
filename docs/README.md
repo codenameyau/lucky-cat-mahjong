@@ -7,11 +7,11 @@ Guides for working on Lucky Cat Mahjong. The [project README](../README.md) cove
 Lucky Cat Mahjong is a static site whose centre is a Hong Kong mahjong game played in the browser, with bots at the table and a coach beside you. Every bot seat, and the coach, plays a named **strategy**. Some are written as rules (Jorge Yau, Only Orphans' targets); the rest are **neural networks** trained on millions of simulated hands:
 
 - **Neural Cat** (NC9) scores Jorge Yau's best options by the points it expects them to win or lose.
-- **Lucky Cat** (LC32) makes every move itself, with no rules underneath.
+- **Lucky Cat** (LC32) makes every move itself; only the contradiction check reads a plan for it.
 
 Every strategy sees only what its seat can see. A **contradiction check** keeps every move in line with the hand it is going for. The coach explains moves in the same words for every strategy, at three levels: Simple, Detailed and Complex.
 
-Training runs on a **native C++ simulator** that plays exactly as the JS game does, about ten times faster, and a PyTorch trainer fits the networks. Models are judged head to head on fresh deals, and against a frozen benchmark table.
+Training runs on a **native C++ simulator**, about ten times faster than the JS game: a fast build for training, and an exact build that plays every hand as the JS does for judging. A PyTorch trainer fits the networks. Models are judged head to head on fresh deals, and against a frozen benchmark table.
 
 The folders, most important first:
 
@@ -62,7 +62,7 @@ How each bot plays, and how the coach follows a strategy.
 - [Strategies and the shared foundation](strategies/README.md): what each strategy is now and where it plays. It covers the shared foundation (steps from ready, live tiles, plans, threat reads), the contradiction check, adding a strategy, and competition results.
 - [Neural Cat](strategies/neural-cat.md): a network scoring Jorge Yau's best options by expected points, with a bonus for the chance to win.
 - [Jorge Yau](strategies/jorge-yau.md): the rule playbook. Picking a hand, playing fast, discard order, claims, attack and when to play safe, reading the table, and its knobs.
-- [Lucky Cat](strategies/lucky-cat.md): a network that makes every move itself, trained by self-play to win often and fast.
+- [Lucky Cat](strategies/lucky-cat.md): a network that makes every move itself, trained by self-play. LC32 learned to win often and fast; its lineage now plays for points and keeps a fairly high win rate.
 - [Only Orphans](strategies/only-orphans.md): big hands of 1s, 9s and honors. Rules pick the target and a network plays inside it.
   - [Training progress](strategies/only-orphans-training.md): its league and lab rounds.
 

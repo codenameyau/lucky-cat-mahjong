@@ -1,6 +1,6 @@
 # The native simulator: port notes
 
-`native/` is a C++ port of the JS engine and the benchmark table's players, for
+`native/` is a C++ port of the JS engine and the game's players, for
 training and judging at native speed. The rule is **the same results**: every
 seeded hand plays out action for action as it does in JS. `scripts/ml/native.js
 parity` checks it, hand by hand.
@@ -21,6 +21,9 @@ parity` checks it, hand by hand.
 | Lucky Cat (v1, v2 features) | js/mahjong-lucky-cat-ml.js, -net.js, js/mahjong-frontier-net.js | src/lucky_cat.* | 200 / 300 hands at the benchmark table, identical |
 | Oracle labels, data generation | scripts/ml/oracle.js, lucky.js generate | src/generate.* | byte-identical shards |
 | Bench play | bench.js playWork | lcm-sim play | byte-identical compare JSON |
+| Only Orphans | js/mahjong-only-orphans.js | src/only_orphans.* | parity tables, see docs/machine-learning/native.md |
+| Lucky Cat's value | js/mahjong-lucky-cat-value.js | src/value_net.* | parity with value mode on |
+| Neural Cat and Only Orphans data generation | scripts/ml/generate.js | src/generate_nc.* | byte-identical rows |
 
 ## What it takes to match JS to the bit
 
@@ -47,6 +50,6 @@ parity` checks it, hand by hand.
 - Shanten: JS 31,952 hands/s, native 6.9 million/s (217x).
 - Data generation (7 workers): 587 deals/s against 61 (9.7x). Benchmark table: 82 deals/s against about 10 (7.9x).
 
-Two builds since round 1: `lcm-sim` (fast: fused multiply-adds, float32 networks; what training runs) and `lcm-sim-exact` (`-DLCM_EXACT`: what parity diffs). Three optimization rounds took one core from 148 to 384 hands a second at the benchmark table; see docs/machine-learning/native.md.
+Two builds since round 1: `lcm-sim` (fast: fused multiply-adds, float32 networks; what training runs) and `lcm-sim-exact` (`-DLCM_EXACT`: what parity diffs, and what judgments and Table Scores run). Three optimization rounds took one core from 148 to 384 hands a second at the benchmark table; see docs/machine-learning/native.md.
 
 The user-facing write-up is docs/machine-learning/native.md.

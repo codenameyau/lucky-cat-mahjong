@@ -4558,20 +4558,6 @@
       return { x: (W - w) / 2, y: (H - h) / 2, w: w, h: h };
     }
 
-    function drawPanelBg(r, noDim) {
-      if (!noDim) {
-        ctx.fillStyle = 'rgba(0,0,0,0.45)';
-        ctx.fillRect(0, 0, W, H);
-      }
-      ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.4)';
-      ctx.shadowBlur = 30;
-      roundRect(ctx, r.x, r.y, r.w, r.h, 9);
-      ctx.fillStyle = COLORS.cream;
-      ctx.fill();
-      ctx.restore();
-    }
-
     // The green sheet the Results window uses: a deep green with a gold edge.
     function drawSheetBg(r) {
       ctx.save();

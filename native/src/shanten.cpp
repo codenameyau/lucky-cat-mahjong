@@ -143,13 +143,6 @@ static inline int bestMerged(const Packed& a, const SuitOpt& o, int need) {
   return 2 * need - best;
 }
 
-static inline int bestOf(const int cur[2][5], int need) {
-  int best = 0;
-  for (int p = 0; p < 2; p++) for (int m = 0; m < 5; m++)
-    if (cur[p][m] >= 0) { int v = 2 * m + cur[p][m] + p; if (v > best) best = v; }
-  return 2 * need - best;
-}
-
 void standardUkeire(const int8_t* c, int declared, const int8_t* unseen, int current, int& total, std::vector<int>& tiles) {
   // Adding a tile changes only its own suit: the other three are merged once
   // per suit, then each tile costs one lookup and one merge. (The caps make

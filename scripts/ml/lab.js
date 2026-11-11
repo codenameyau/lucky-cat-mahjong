@@ -86,8 +86,6 @@
      --dir DIR           state and log (default ml/lab, ml/lab-<strategy>)
      --workers N         Lucky Cat: processes for its games (default: CPU
                          cores - 1)
-     --temperature T     Lucky Cat: the champion explores with its shares
-                         sharpened to this temperature (default 0.5)
    For a quick check of the lab itself:
      --dry               no shipping, uploading or pruning
      --quick-deals N, --full-deals N, --extra-deals N   smaller evaluations
@@ -120,7 +118,6 @@ const WIN_WEIGHT = 5;         // points a hand per percentage point of hands won
 // evaluation's standard error is about 5 points a hand).
 const LC_WIN_WEIGHT = 0.5;
 let WORKERS = null;           // Lucky Cat's processes (--workers)
-let LC_TEMPERATURE = 0.5;     // Lucky Cat's exploring temperature (--temperature)
 // The table Lucky Cat trains and is judged at: the game's other strategies,
 // two Neural Cats and Jorge Yau. Learning and judging against its own kind
 // (two learner seats, earlier selves in the pool, head to head) rewarded
@@ -174,31 +171,6 @@ const PLAY_ARMS = {
 const OO_PLAY_ARMS = {};
 Object.keys(PLAY_ARMS).filter((n) => PLAY_ARMS[n].key !== 'topK' && n !== 'claimMargin-25').forEach((n) => { OO_PLAY_ARMS[n] = PLAY_ARMS[n]; });
 OO_PLAY_ARMS['claimMargin+50'] = { key: 'claimMargin', step: 50, min: -200, max: 200 };
-// Lucky Cat's experiments, points first. LC20 learned by imitating its wins,
-// the quicker the more, so it learned fast cheap wins. Here it learns from
-// every hand it plays, won or lost, by the points the hand paid it
-// (ml/train_lucky.py --mode pg or awr): a critic says what each position is
-// worth on average, and a move that did better than that from there gets
-// more likely, one that did worse (a deal-in, a cheap win that gave up a
-// bigger one) less. The arms vary the update (a clipped policy gradient or
-// advantage-weighted imitation), its size, the data window, how the points
-// are scaled, and a small bonus for winning.
-const LC_TRAIN_ARMS = {
-  pg: { init: true, mode: 'pg', lr: 3e-4, epochs: 4, window: 1, about: 'policy gradient on the hand\'s points' },
-  'pg-2': { init: true, mode: 'pg', lr: 3e-4, epochs: 4, window: 2, about: 'policy gradient, the last 2 rounds' },
-  'pg-fast': { init: true, mode: 'pg', lr: 1e-3, epochs: 4, window: 1, klMax: 0.08, about: 'a bigger policy-gradient step' },
-  'pg-sqrt': { init: true, mode: 'pg', lr: 3e-4, epochs: 4, window: 1, reward: 'sqrt', about: 'policy gradient on the square root of the points' },
-  'pg-wins': { init: true, mode: 'pg', lr: 3e-4, epochs: 4, window: 1, winBonus: 100, about: 'policy gradient, 100 points more for a win' },
-  awr: { init: true, mode: 'awr', lr: 3e-4, epochs: 3, window: 2, about: 'advantage-weighted imitation of every move' },
-  // One hand's points are mostly luck, so a step needs many hands: these
-  // use the last 4 rounds (the share each move was played with corrects for
-  // older champions), or blunt the biggest hands so the common outcomes
-  // (small wins, deal-ins) speak.
-  'pg-all': { init: true, mode: 'pg', lr: 3e-4, epochs: 6, window: 4, about: 'policy gradient on the last 4 rounds' },
-  'pg-clip': { init: true, mode: 'pg', lr: 3e-4, epochs: 4, window: 2, rewardClip: 1000, about: 'policy gradient, points clipped at ±1,000' },
-  // Bold (after a plateau): a big step on the last 4 rounds.
-  'pg-bold': { init: true, mode: 'pg', lr: 1e-3, epochs: 6, window: 4, klMax: 0.1, bold: true, about: 'a big policy-gradient step on the last 4 rounds' },
-};
 // Move by move, from replays (since the table rounds LT1 to LT4 stalled):
 // at a few of the champion's choices a hand, the same deal is played again
 // with its next-best moves forced (lucky.js generate --rollouts), so each
@@ -863,7 +835,6 @@ function main() {
   else if (S.fullDeals) FULL_DEALS = S.fullDeals;
   if (a['extra-deals']) EXTRA_DEALS = parseInt(a['extra-deals'], 10);
   if (a.workers) WORKERS = parseInt(a.workers, 10);
-  if (a.temperature) LC_TEMPERATURE = parseFloat(a.temperature);
 
   if (cmd === 'bench') {
     const model = String(a.model);

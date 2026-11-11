@@ -1,16 +1,16 @@
 # lucky-cat: a network that taught itself to win
 
-**Lucky Cat** (`js/mahjong-lucky-cat-ml.js`, network in `js/mahjong-lucky-cat-net.js`, weights in `js/mahjong-lucky-cat-weights.js`) is a neural network that makes every move itself. It is not built on the shared foundation (`js/mahjong-bot.js`) the other strategies use: it has no steps-from-ready count, no plans, no threat reads and no claim rules. What it knows, it learned from playing.
+**Lucky Cat** (`js/mahjong-lucky-cat-ml.js`, network in `js/mahjong-lucky-cat-net.js`, weights in `js/mahjong-lucky-cat-weights.js`) is a neural network that makes every move itself. It is not built on the shared foundation (`js/mahjong-bot.js`) the other strategies use: its network has no steps-from-ready count, no plans, no threat reads and no claim rules. What it knows, it learned from playing. Only the contradiction check reads the foundation's plan, to stop a move that goes against the hand it builds toward.
 
 ## How it thinks
 
-It doesn't plan a hand. Each turn it looks at what its seat can see and the network gives every legal move a share (a discard of each kind of tile, each kong, or on a claim: pass, each chow, pung or kong). The biggest share is played. What looks like a plan is a habit it found, because it learned only from the hands it won, the quicker the win the more.
+It doesn't plan a hand. Each turn it looks at what its seat can see and the network gives every legal move a share (a discard of each kind of tile, each kong, or on a claim: pass, each chow, pung or kong). The biggest share is played, unless it contradicts the plan the foundation reads for it. What looks like a plan is a habit it found, because it learned from the hands it won, the quicker the win the more, and, since lc29, from the discards that dealt in.
 
 So it values speed over size: it wins often and in few discards, mostly with small hands of 4 to 5 faan, and it deals in more often than [Neural Cat](neural-cat.md), which wins about half as many hands but with bigger ones. The coach says how often the network plays its move and the next most likely one.
 
-Its goal is to win as many hands as it can, as fast as it can. Points count for only a little. It takes the risks that have won it hands before, so its wins can look lucky when they are learned.
+LC32 was trained to win as many hands as it can, as fast as it can, with points counting for only a little; its lineage's goal now is points, with a fairly high win rate kept. It takes the risks that have won it hands before, so its wins can look lucky when they are learned.
 
-The rules it replaced are still in the game as **Lucky Cat Classic** (`js/mahjong-lucky-cat.js`, a lab strategy: not on the Strategies sheet, but `npm run compete` can play it as `lucky-cat-classic`). They are written out from [The classic rules](#the-classic-rules) on. The coach still uses their reads of the hand (plans, waits, threats) for its words.
+The rules it replaced are still in the game as **Lucky Cat Classic** (`js/mahjong-lucky-cat.js`, a lab strategy: not on the Strategies sheet, but `npm run compete` can play it as `lucky-cat-classic`). They are written out from [The classic rules](#the-classic-rules) on. The coach reads the hand (plans, waits, threats) through the shared foundation for its words.
 
 ## What it sees
 
@@ -27,7 +27,7 @@ It never reads the wall's tiles, another player's hand, the seed or the move log
 
 ## How it moves
 
-One network (376 inputs, two hidden layers of 256 and 128, 74 outputs) gives each legal move a share:
+One network (376 inputs, two hidden layers of 512 and 256, 74 outputs) gives each legal move a share:
 
 - **Its own turn:** a discard of each kind of tile it holds, and each kong it can make.
 - **A claim:** pass, each chow offered (the tile lowest, middle or highest), pung or kong.
@@ -43,7 +43,7 @@ Lucky Cat's new lineage (from 2026-11-10) adds the stacked evaluation of the [fr
 3. **The read**, stacked: a reader (`ml/train.py --heads`) reads the same 416 numbers and gives 16 (each other player ready, the tile thrown dealing in now, the hand it wins with), and the value reads both. It learned from hands where every tile was known afterwards; in play it reads only the seat's view.
 4. **The pick:** the best value goes, unless the contradiction check stops it; then the next best value, then the rest by share.
 
-**How it learns, all from its own play.** Rounds of Lucky Cat's own games on the native simulator (`lcm-sim generate-lcv`, `npm run ml:lucky-value`): the learner explores (its shares; with a value, now and then one of its best few), at a table of itself, LC32, Neural Cat and Jorge Yau, and every seat's moves are recorded through Lucky Cat's eyes. At a tenth of the positions, each of the learner's top moves is played on 12 times from there with the wall shuffled (option replays), so each option has its own label and the network can learn which is best (a ranking loss). The value is trained by `ml/train.py`, packed with the policy into Lucky Cat's weights (`value` in the file), and screened against the champion at the game's table, judged on hands won (points are reported beside). Round 1 judged points and found what that objective buys: its best value, LV1a, scored +14.0 ± 2.7 points a hand over LC32 on 60,000 deals, with bigger hands (5.87 faan against 5.50) but far fewer of them (15.5% of hands won against 20.5%). A bigger win bonus on the same value didn't bring the wins back (at 3,000: 18.5% won, −20.7 points a hand), so values are now trained to rank options by their replays' share of wins. Even then, a value chose worse than the policy it pruned for: ranking LC32's top 4 by its own chance to win, it won 3.0 points fewer of its hands; its top 2, 1.5 fewer.
+**How it learns, all from its own play.** Rounds of Lucky Cat's own games on the native simulator (`lcm-sim generate-lcv`, `npm run ml:lucky-value`): the learner explores (its shares; with a value, now and then one of its best few), at a table of itself, LC32, Neural Cat and Jorge Yau, and every seat's moves are recorded through Lucky Cat's eyes. At a tenth of the positions, each of the learner's top moves is played on 12 times from there with the wall shuffled (option replays), so each option has its own label and the network can learn which is best (a ranking loss). The value is trained by `ml/train.py`, packed with the policy into Lucky Cat's weights (`value` in the file), and screened against the champion at the game's table, judged on points a hand, with hands won as a floor. Round 1 judged points and found what that objective buys: its best value, LV1a, scored +14.0 ± 2.7 points a hand over LC32 on 60,000 deals, with bigger hands (5.87 faan against 5.50) but far fewer of them (15.5% of hands won against 20.5%). A bigger win bonus on the same value didn't bring the wins back (at 3,000: 18.5% won, −20.7 points a hand), so rounds 2 and 3 trained values to rank options by their replays' share of wins (`--objective win`). Even then, a value chose worse than the policy it pruned for: ranking LC32's top 4 by its own chance to win, it won 3.0 points fewer of its hands; its top 2, 1.5 fewer.
 
 **Round 2: the policy learns from the replays.** The replays are used to improve the policy instead: `ml/train_lucky.py --mode q` tilts LC32's shares toward the moves that won more of their replays (by a temperature tau), staying close to LC32 elsewhere. On 80,000 deals of LC32's own play (795,797 positions, 84,992 option groups), against LC32 over 60,000 deals:
 
@@ -69,7 +69,7 @@ The JS and the C++ play every hand alike (`node scripts/ml/native.js parity` wit
 
 The league runs 20 rounds of 50,000 hands, a million hands in all. Its log and state are in `ml/lucky/` (not committed).
 
-5. **Since lc21, the lab.** After the league, Lucky Cat trains in the lab (`npm run ml:lab -- --strategy lucky-cat`, [how it works](../machine-learning/training.md#the-lab-for-only-orphans-and-lucky-cat---strategy)), like Neural Cat and Only Orphans. Each round plays 50,000 hands against its last three champions, Neural Cat and Jorge Yau, then tries several fine-tunes: at three learning rates, on 2, 6 or 10 rounds of data, and with sharper targets. Since lc29 the data also holds each move that dealt in, and two arms train it down, so Lucky Cat learns from the hands it lost that way, not only from its wins; a third arm tries a wider network. A candidate first plays the champion over 6,000 deals. The best two then play 20,000 new deals, and one replaces the champion only if it wins more hands by more than its standard error. The lab's models are named LL&lt;round&gt;&lt;letter&gt;, and each champion ships under the next lc number.
+5. **Since lc21, the lab.** After the league, lc21 to lc32 came from the lab (`npm run ml:lab -- --strategy lucky-cat`, [how it works](../machine-learning/training.md#the-lab-for-only-orphans-and-lucky-cat---strategy)), like Neural Cat and Only Orphans. Each round played 50,000 hands against its last three champions, Neural Cat and Jorge Yau, then tried several fine-tunes: at three learning rates, on 2, 6 or 10 rounds of data, and with sharper targets. Since lc29 the data also holds each move that dealt in, and two arms train it down, so Lucky Cat learns from the hands it lost that way, not only from its wins; a third arm tries a wider network. A candidate first plays the champion over 6,000 deals. The best two then play 20,000 new deals, and one replaces the champion only if it wins more hands by more than its standard error. The lab's models are named LL&lt;round&gt;&lt;letter&gt;, and each champion ships under the next lc number.
 
 ## Results
 
@@ -194,7 +194,7 @@ Three rounds of that (LR1a to LR3c) kept nothing that held. On the same wall a m
 
 ### The frontier: generation 1 and Sphinx
 
-Beyond the lab, Lucky Cat now has a second program of work, the frontier: features v2, auxiliary heads that learn the hidden tiles as targets, a frozen benchmark that a new generation must beat by two standard errors twice, and a native C++ simulator that plays a round's data in 13 seconds instead of 330. Three rounds and nine arms, then three policy-gradient probes, found nothing that passed the bar, so Lucky Cat is still **lc32** (the frontier's `lc32v2` is lc32 widened to the new features). [What was built, the numbers and why](../machine-learning/iterations.md#the-frontier-lucky-cat-generation-1-and-sphinx).
+Beyond the lab, Lucky Cat had a second program of work, the frontier (cancelled 2026-11-09): features v2, auxiliary heads that learn the hidden tiles as targets, a frozen benchmark that a new generation must beat by two standard errors twice, and a native C++ simulator that plays a round's data in 13 seconds instead of 330. Three rounds and nine arms, then three policy-gradient probes, found nothing that passed the bar, so Lucky Cat is still **lc32** (the frontier's `lc32v2` is lc32 widened to the new features). [What was built, the numbers and why](../machine-learning/iterations.md#the-frontier-lucky-cat-generation-1-and-sphinx).
 
 ### Suphx: an oracle teacher
 
@@ -375,7 +375,7 @@ Other pungs and chows are taken only when the hand afterwards is clearly better 
 
 Each opponent is read as Low, Medium, High, or Extreme from how many melds they have, whether those melds are one suit, and how late the hand is. Three open melds is Extreme. Two melds in one suit is at least High. After many discards, even a quiet hand may be ready, but that read stops at High unless the melds themselves are Extreme.
 
-Defense takes over when someone is High or Extreme and this hand is still two or more tiles from ready, or when fewer than 16 tiles are left in the wall and the hand is not already ready for a big win (5 faan or more). It also gets more weight once fewer than 45 tiles are left and the hand is still two or more tiles from ready (see Playing for points). The dealer pushes a little harder than the other seats.
+Defense takes over when someone is High or Extreme and this hand is still two or more tiles from ready, or when fewer than 16 tiles are left in the wall and the hand is not already ready for a big win (5 faan or more). It also gets more weight once fewer than 45 tiles are left and the hand is still two or more tiles from ready (see [Winning first](#winning-first)). The dealer pushes a little harder than the other seats.
 
 Against one opponent, a tile is safer in this order:
 

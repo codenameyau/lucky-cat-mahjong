@@ -6,7 +6,7 @@
 
 It reads the hand the way [Jorge Yau](jorge-yau.md) does, which narrows each decision to a few sound options. Its network then predicts how the hand ends after each one (win by self-draw or off a discard, deal in, and how many faan a win would be) and folds that into one score: what the option is worth on average. The highest score goes. Because a fast small win and a slow big one sit on the same scale, it can prefer a slower big hand over a fast small one when the numbers favor it.
 
-The style that results is bigger hands and fewer deal-ins than [Lucky Cat](lucky-cat.md)'s many small wins. NC1 to NC3 wanted size most: about 9% of hands won, each worth about 1,900 points. Since NC4 it also leans toward winning, with a bonus for the chance to win (`winBonus`, 150 points for a sure win, raised to 300 in NC6): about 14% of hands won, each worth about 1,100 points, with deal-ins a little higher (about 9%). The coach shows the same reasoning: the score of its pick and the next best, its chance to win and what a win pays, and which parts of the position put its pick ahead. It sees only what its seat can see.
+The style that results is bigger hands and fewer deal-ins than [Lucky Cat](lucky-cat.md)'s many small wins. NC1 to NC3 wanted size most: about 9% of hands won, each worth about 1,900 points. Since NC4 it also leans toward winning, with a bonus for the chance to win (`winBonus`, 150 points for a sure win, raised to 300 in NC6): NC9 wins about 17.4% of hands, each worth about 896 points, with deal-ins about 11.8%. The coach shows the same reasoning: the score of its pick and the next best, its chance to win and what a win pays, and which parts of the position put its pick ahead. It sees only what its seat can see.
 
 This is the strategy's playbook: how it plays and every result. How the whole AI layer is built (features, the network, decisions, training, the league, fair play and Hugging Face) is in [docs/machine-learning](../machine-learning/README.md).
 
@@ -26,10 +26,10 @@ This is the strategy's playbook: how it plays and every result. How the whole AI
    | `safety` | how likely the tile wins for each opponent |
 
    Only what the seat can see goes in. Never the wall, never another hand.
-3. The network (`js/mahjong-ml-model.js`, 568 → 256 → 128 → 28) predicts how the hand ends: win by self-draw, win off a discard, deal in, someone else self-draws, someone else wins, or a draw, and the faan of the win you'd collect and of the hand you'd pay for.
-4. Those make one number, expected points on the full-spicy payout table (a self-draw is paid by all three other seats). Of Jorge Yau's best three discards, the one worth the most goes. A fast cheap win and a slow big one are weighed on the same scale.
+3. The network (`js/mahjong-ml-model.js`, 568 → 512 → 256 → 28) predicts how the hand ends: win by self-draw, win off a discard, deal in, someone else self-draws, someone else wins, or a draw, and the faan of the win you'd collect and of the hand you'd pay for.
+4. Those make one number, expected points on the full-spicy payout table (a self-draw is paid by all three other seats). Of Jorge Yau's best few discards (`meta.play.topK`, 6 for NC9), the one worth the most, with its bonus for the chance to win, goes. A fast cheap win and a slow big one are weighed on the same scale.
 
-The model only reorders Jorge Yau's top three (`topK`, `TOP_K` in `js/mahjong-ml.js`). Choosing among every discard, the first model (on the plain foundation) won 3.5% of hands and dealt in 12% of the time: trained only on the bots' own choices, it couldn't yet tell close discards apart, and it didn't weigh safety.
+The model only reorders Jorge Yau's top few (`meta.play.topK`, 6 for NC9; `TOP_K` in `js/mahjong-ml.js`, 3, is the default). Choosing among every discard, the first model (on the plain foundation) won 3.5% of hands and dealt in 12% of the time: trained only on the bots' own choices, it couldn't yet tell close discards apart, and it didn't weigh safety.
 
 Each candidate carries `ml`: `ev`, `pWin`, `pDealIn`, `avgWin`, `winFaan` and the outcome odds. The chosen one also carries `ml.why`: the points each feature group puts it ahead of the next best discard, found by swapping that group's features for the other discard's.
 
@@ -40,7 +40,7 @@ Every discard, call and kong passes [the contradiction check](README.md#the-cont
 A claim is weighed in the same points. When a tile is on offer, each choice is a position:
 
 - **Pass**: the hand as it is, waiting for the next tile.
-- **Pung or chow**: the hand after the call and the best discard after it (Jorge Yau's best three, as on any turn).
+- **Pung or chow**: the hand after the call and the best discard after it (Jorge Yau's best few, as on any turn).
 - **Kong**: the hand with the kong, before its replacement tile.
 
 On your own turn, each kong you can declare (concealed, or added to a pung) is weighed against the best discard the same way. A position waiting for a tile has no discard of its own, so `encodeWaiting` (`js/mahjong-ml-features.js`) reads it with the seat's last discard in the discard group, a tile no one can claim any more. Training data holds these positions too, so the model learns what passing and kongs are worth.
@@ -67,7 +67,7 @@ npm run compete -- --lineup neural-cat,jorge-yau,lucky-cat,jorge-yau --deals 100
 - `ml:generate` plays deals across worker threads and records about 30% of every seat's discards, whatever strategy plays it, read through neural-cat's own foundation (as in play) and labelled with how that hand ended for the seat. A rule bot's discard is swapped for a random one that costs no step toward ready 5% of the time, so the data holds choices the bots wouldn't make. With `neural-cat` in the lineup or pool it plays with exploration: `--temperature` (in points) picks among close discards by their value, and `--epsilon` throws a random one.
 - `ml:train` (`ml/train.py`, PyTorch) holds out every 20th deal for validation and stops when validation loss stops improving. It writes `ml/models/<name>.json` and checks that the JS model gives the same outputs. `--ship` also writes `js/mahjong-ml-weights.js`, which the page and `npm run compete` load. `--init` starts from an earlier model.
 - Data (`ml/data/`), models (`ml/models/`) and the venv aren't committed. Only the shipped weights are.
-- Both are public on Hugging Face. The models are at [codenameyau/lucky-cat-mahjong](https://huggingface.co/codenameyau/lucky-cat-mahjong) (`neural-cat/`), and every training set at [codenameyau/lucky-cat-mahjong-games](https://huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games). `npm run ml:hf` and `npm run ml:hf-data` upload them over SSH (`--watch` keeps uploading as the league runs).
+- The models are public on Hugging Face at [codenameyau/lucky-cat-mahjong](https://huggingface.co/codenameyau/lucky-cat-mahjong) (`neural-cat/`). The training data in use, and a manifest for every other set, are at [codenameyau/lucky-cat-mahjong-games](https://huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games). Uploads are done by hand: [Hugging Face](../machine-learning/hugging-face.md).
 
 A change to the features (`FEATURE_VERSION`, `SIZE`) needs new data and a new model: the model refuses weights built for another size.
 
@@ -111,7 +111,7 @@ Neural Cat in the game is **NC9** (the lab model N14c, shipped 2026-11-10 in gam
 
 ### League (claims and kongs, against other models)
 
-Every seat is a Neural Cat model. Each round trains a model from the best so far on the last four rounds' hands, then plays it head to head against the best before it (two seats each, every seat rotation, on deals no round has played). The score is the model's points a hand less its opponent's, with a 95% margin where measured. A model is kept only if it scores more. The league is still running, so this is the state after round 7; the [model card](https://huggingface.co/codenameyau/lucky-cat-mahjong) is rebuilt from the same results on every upload.
+Every seat is a Neural Cat model. Each round trains a model from the best so far on the last four rounds' hands, then plays it head to head against the best before it (two seats each, every seat rotation, on deals no round has played). The score is the model's points a hand less its opponent's, with a 95% margin where measured. A model is kept only if it scores more. The league has ended, and this was the state after round 7; the [model card](https://huggingface.co/codenameyau/lucky-cat-mahjong) is rebuilt from the same results on every upload.
 
 | Model | Played against | vs best | vs s5 | Wins | Deal-ins | Average win | Kept |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
@@ -142,7 +142,7 @@ The game now ships NC9, which is the lab model N14c; NC8 was N10c (shipped model
 - **A better read of the hand.** On positions held out of training it names how the hand ends correctly 73.3% of the time, against 73.0% for L6, 70.6% for L3 and 68.6% for s5, and its outcome loss falls from 0.905 to 0.896.
 - **More data.** It trained on 3,994,461 positions from seven league rounds, against 1,692,560 from three for L3.
 
-How much to trust it: +41.1 is only just beyond its ±33 margin, and L6's own win over L4 (+7.9 ± 30) was within noise, so each step is small. The steady gains are in the held-out accuracy, which rises with almost every model (s5 68.6%, L3 70.6%, L4 71.8%, L5 72.6%, L6 73.0%, L7 73.3%), and the average win. L7 was not measured against s5 or the rule bots, so there is no number yet for how far it is ahead of L3 head to head. L7's weights ship in `js/mahjong-ml-weights.js`, and the model and its results are on [Hugging Face](https://huggingface.co/codenameyau/lucky-cat-mahjong).
+How much to trust it: +41.1 is only just beyond its ±33 margin, and L6's own win over L4 (+7.9 ± 30) was within noise, so each step is small. The steady gains are in the held-out accuracy, which rises with almost every model (s5 68.6%, L3 70.6%, L4 71.8%, L5 72.6%, L6 73.0%, L7 73.3%), and the average win. L7 was not measured against s5 or the rule bots, so there is no number yet for how far it is ahead of L3 head to head. L7's weights shipped then in `js/mahjong-ml-weights.js`, and the model and its results are on [Hugging Face](https://huggingface.co/codenameyau/lucky-cat-mahjong).
 
 **Pairs.** Keeping a pair that can still become a pung over a single (the `keepPairs` knob) was tested against Jorge Yau without it, on the same 6,000 deals × 4 seat rotations. It won as often (about 15%) but with smaller hands (about 340 points a win against 430), and came out behind: throwing honors to keep pairs, −14.8 ± 17.6 points a hand; throwing only number tiles, −19.8 ± 17.6. Neither is a sure loss, but neither is a gain. Neural Cat with it was even (+2.2 ± 41.8). The knob stays off. Neural Cat sees how many pairs and sets it holds (the `value` features), so it keeps pairs where the hands it learned from say they pay.
 
@@ -177,6 +177,6 @@ Keeping the best of several noisy scores flatters the winner, so the top three w
 | s1 | +22.3 points | +18.5 points | −3.8 points | −11.0 points | 10.1% | 7.2% | 705 points |
 | s3 | +7.9 points | +14.8 points | +6.9 points | −28.6 points | 9.4% | 7.3% | 666 points |
 
-s5 is the shipped model (1.86M training positions, `js/mahjong-ml-weights.js`). Neural Cat wins less often than Jorge Yau (about 10.5% of hands against about 14%), but its wins are worth about two and a half times as much (731 points against 292), and it comes out ahead on points. The score is noisy: about ±40 points per hand on one evaluation.
+s5 was the shipped model then (1.86M training positions, `js/mahjong-ml-weights.js`). Neural Cat wins less often than Jorge Yau (about 10.5% of hands against about 14%), but its wins are worth about two and a half times as much (731 points against 292), and it comes out ahead on points. The score is noisy: about ±40 points per hand on one evaluation.
 
 Run more rounds with `npm run ml:loop -- --rounds 4`. It picks up from `ml/loop/state.json`.

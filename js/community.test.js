@@ -8,7 +8,6 @@ const {
   sortEventsByDateDesc,
   formatEventDate,
   normalizePhotos,
-  normalizePhotoPath,
   renderPhoto,
   renderEventSection,
   sectionId,

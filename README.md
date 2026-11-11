@@ -38,7 +38,7 @@ The learned bot, Neural Cat, is on Hugging Face:
 - [Editing content with Pages CMS](#editing-content-with-pages-cms)
 - [Deploy to GitHub Pages](#deploy-to-github-pages)
 - [Project structure](#project-structure)
-- [Documentation](docs/README.md): [Machine learning](docs/machine-learning/README.md) · [Strategies](docs/strategies/README.md) · [Offline](docs/offline/README.md)
+- [Documentation](docs/README.md): [Machine learning](docs/machine-learning/README.md) · [Strategies](docs/strategies/README.md) · [Architecture](docs/architecture/README.md) · [Offline](docs/offline/README.md)
 
 **[Credits](#credits)**
 
@@ -47,7 +47,7 @@ The learned bot, Neural Cat, is on Hugging Face:
 ### Homepage
 
 - **Logo & branding** — Uses `logo.png` / `logo.webp` with a red-forward color palette matching the Lucky Cat brand
-- **Shared site navigation** — Sticky header across all pages (Home, Community, Events, Points Guide, Personality Quiz, Play Mahjong) with a mobile hamburger menu; links load from `data/nav.json`
+- **Shared site navigation** — Sticky header on every page except the game itself, with a mobile hamburger menu; the logo goes Home, and the links (Community, Events, Points Guide, Personality Quiz, Play Mahjong) load from `data/nav.json`
 - **Conversion-focused CTAs** — Hero and closing calls-to-action drive emails and Instagram messages
 - **"Book a session" form** — Static lead form that builds a pre-filled email (no backend needed); a direct email/Instagram link sits beneath it
 - **Direct Instagram message links** — "Message us" buttons open straight into a DM via `ig.me/m/<handle>`
@@ -100,7 +100,7 @@ The learned bot, Neural Cat, is on Hugging Face:
 
 - Every tile has its own link (`/which-mahjong-tiles-are-you/red-dragon/`) whose link preview uses that tile's image instead of the Lucky Cat logo
 - That link is a small page with the tile's preview tags that redirects to the quiz (`?tile=red-dragon`). The quiz then puts the tile link back in the address bar, so sharing from the browser gets the tile preview too. Old `?tile=` links still work
-- Results have a share-link button (native share sheet, or copies the link) and a "Download image" button that renders a 1080×1350 (4:5) card with the tile's description
+- Results have a share-link button (native share sheet, or copies the link) and a "Save image" button that renders a 1080×1920 (9:16) story image with the tile's description
 
 **Generated tile pages**
 
@@ -181,7 +181,7 @@ Playback replays a hand move by move. It is a view of the game page, `/playing-m
 - **View playback** is on each hand's summary and in the Menu, and opens the hand being played or just finished.
 - **Saved playbacks**, on the playback bar (a list icon when its words would crowd the bar), opens a sheet of your three most recent finished hands, newest first, and the last playback you uploaded (one at most). With no hand loaded, a Saved playbacks button sits in the center of the table.
   - Each row says who won with which hand and faan (only the most important pattern, the one worth the most faan, with the hand's total), such as *Katie won with Half Flush · 6 faan*. Below that is the hand number and when the hand finished, as a plain readable time: *Hand 3 · Today, 2:30 PM*. The finish time is inside the signed file; an older file without one shows when it was saved.
-  - Three rounded-square icon buttons, each with a tooltip: **Play**, **Copy hand seed** (shows a check and "Copied" for a moment) and **Download**. The playback on screen has a white ring round its Play button.
+  - Three rounded-square icon buttons, each with a tooltip: **Play**, **Copy hand seed** (shows a check and "Copied" for a moment) and **Download**. The playback on screen has a white ring round its Play button. On a phone, Copy hand seed is hidden.
   - **Upload playback**, at the bottom, closes the sheet and opens a file picker. The file plays and replaces the last upload. Command+V or Ctrl+V pastes a playback too.
 - **Download** saves that hand as JSON named with the time it was saved, such as `lucky-cat-mahjong-playback-2026-11-05-1430.json`. The playback bar has no Download button of its own.
 - **Upload failed.** A file that can't be uploaded opens a popup headed *Upload failed*, and nothing from it is kept; the playback on screen stays. The message says why: the signature doesn't match (the file was changed or damaged), its contents are damaged, it isn't a playback, or its version is incompatible (it names the file's version and this game's, and says to reload when the file is newer).
@@ -198,7 +198,7 @@ Playback replays a hand move by move. It is a view of the game page, `/playing-m
 - A move is one discard, by any player, so *Move 4 of 49* counts discards only; draws, flowers and claims come with the move they lead to. Each move plays action by action, and previous plays it in reverse. Move lines are in the past tense (*You discarded Four Circle.*).
 - The progress bar has a dot for each move: a larger one for your own discards, a red dot for each chow, pung or kong you made, and a yellow circle where you exposed a meld. Hover it to see what happened there; click or drag it to jump.
 - **Opponents' tiles.** In a finished hand's playback every hand is face up. Double-clicking (or double-tapping) an opponent's hand hides all their concealed tiles, and doing it again shows them. The choice is kept as `showOpponents` in `lcm-play-prefs`. An unfinished hand's playback always keeps their tiles concealed, and the double-click does nothing there.
-- **The end.** At the last move the hand's results show, the same card the game showed (who won, the hand, its patterns and faan, without the payout), with **Watch again** (from the deal) and **Close** (back to the table at the last move; Enter or Escape too). The result is scored again from the file (`E.playbackResult`) with the flags the game used, such as Win on Last Tile.
+- **The end.** At the last move the hand's results show, the same card the game showed (who won, the hand, its patterns and faan, without the payout), with **Watch again** (from the deal) and **Back to game** (the main button; Enter too). Escape puts the results away, leaving the table at the last move. The result is scored again from the file (`E.playbackResult`) with the flags the game used, such as Win on Last Tile.
 - The top bar shows the title, Playback Analysis, centered between Back and the buttons on the right, at every screen size.
 
 **The coach column**
@@ -212,7 +212,7 @@ Stepping through moves adds no browser history, so Back (the bar's button, or th
 
 #### Auto-play (development only)
 
-On a development address (`localhost`, `127.x.x.x`, `192.168.x.x`, `10.x.x.x`, `172.16-31.x.x`, or a `.local`, `.localhost` or `.test` name, the same set the analytics skip), with the coach on or in Feedback mode, clicking your wind badge has the coach's strategy play your moves, each through the same buttons as a click, hand after hand, until you click the badge again, turn the coach off, or the game ends (it stops at the Game over window). While it runs, the flights and pauses are skipped (tiles move at once, and the bots don't take their thinking time; whatever was mid-flight lands at once), so a hand takes a fraction of a second. The declaration banners (Pung, Flower and the other callouts) and the win confetti are skipped too, and any on screen when it starts are cleared. It also plays none of the tile sounds (draws, discards, flowers, claims, the knock for your turn, the reveal); the win, wall-ran-out and next-hand sounds, the button click and the music still play. A gold ring round the badge shows it's on. Auto-play is never kept: it is off whenever the game page loads, and a page the browser restores from its back/forward cache, or leaves, is switched off too. On a real host, with the coach off, in a lesson, and in a playback, the badge copies the hand seed as before. Phones on the local wifi count (`isLocalHost` in `js/mahjong-game.js`).
+On a development address (`localhost`, `127.x.x.x`, `192.168.x.x`, `10.x.x.x`, `172.16-31.x.x`, or a `.local`, `.localhost` or `.test` name; the analytics skip the same addresses, except `.localhost` and `.test` names), with the coach on or in Feedback mode, clicking your wind badge has the coach's strategy play your moves, each through the same buttons as a click, hand after hand, until you click the badge again, turn the coach off, or the game ends (it stops at the Game over window). While it runs, the flights and pauses are skipped (tiles move at once, and the bots don't take their thinking time; whatever was mid-flight lands at once), so a hand takes a fraction of a second. The declaration banners (Pung, Flower and the other callouts) and the win confetti are skipped too, and any on screen when it starts are cleared. It also plays none of the tile sounds (draws, discards, flowers, claims, the knock for your turn, the reveal); the win, wall-ran-out and next-hand sounds, the button click and the music still play. A gold ring round the badge shows it's on. Auto-play is never kept: it is off whenever the game page loads, and a page the browser restores from its back/forward cache, or leaves, is switched off too. On a real host, with the coach off, in a lesson, and in a playback, the badge copies the hand seed as before. Phones on the local wifi count (`isLocalHost` in `js/mahjong-game.js`).
 
 #### Strategies
 
@@ -228,21 +228,21 @@ Every bot plays a named strategy. The rule-based ones are built on the shared fo
 Lucky Cat's original rules are still in the code as **lucky-cat-classic** (`js/mahjong-lucky-cat.js`): tracks every discard and plays the odds to the fastest 3-faan win. It's a lab strategy, not on the Strategies sheet, but `npm run compete` can play it.
 
 - The **Strategies** button in the top bar (`js/mahjong-strategies.js`) describes each one and shows who plays which
-- The coach's pick is saved in `localStorage` (`lcm-play-strategies`), and the coach defaults to lucky-cat. The computer players are never saved: each plays a random strategy every game
+- The coach's pick is saved in `localStorage` (`lcm-play-strategies`), and the coach defaults to neural-cat. The computer players are never saved: each plays a random strategy every game
 - Every strategy keeps its own list of hints as a game goes on, saved in `localStorage` (`lcm-play-hints`). Clicking a recommendation only switches which list the coach panel shows, so the move count doesn't change. A new game overwrites the saved hints
 - The table shows only the player's name. On desktop, hovering over a computer player's name shows their strategy
 - How to add a strategy, and the rules they all share, are in [docs/strategies/README.md](docs/strategies/README.md)
 
 #### Bots
 
-Every decision is an expected-value estimate from information the seat could legally see. Jorge Yau plays for the most points. Lucky Cat tracks every discard by who threw it and plays the odds to the fastest 3-faan win. The full playbook is in [docs/strategies/lucky-cat.md](docs/strategies/lucky-cat.md).
+Every rule-based decision is an expected-value estimate from information the seat could legally see. Jorge Yau plays for the most points. Lucky Cat Classic tracks every discard by who threw it and plays the odds to the fastest 3-faan win. The full playbook is in [docs/strategies/lucky-cat.md](docs/strategies/lucky-cat.md#the-classic-rules).
 
 **Offense**
 
 - Weighs shanten and live improving tiles for each plan (plain hand, half/full flush, all triplets, seven pairs, thirteen orphans) against the faan that plan is likely to reach
 - Ready hands are valued exactly by scoring every wait with `points.js`, so bots know which waits can actually clear 3 faan. Dead waits (3+ copies visible) count for little
 - Bigger hands are worth more early, and speed matters more late or against a big hand
-- A hand is valued at its real payout (each faan doubles it), except on Lucky Cat, where a win at the minimum comes first. A slow hand late in the wall folds
+- A hand is valued at its real payout (each faan doubles it), except on Lucky Cat Classic, where a win at the minimum comes first. A slow hand late in the wall folds
 - A big hand of only certain tiles (10 faan or more, like All Terminals) becomes the hand's target from up to three steps away, while the wall and its live tiles can still finish it. Tiles it can't use go first, and its own tiles stay unless no copy is left to finish them
 
 **Defense**
@@ -284,7 +284,7 @@ The Coach button in the top bar cycles three modes, and all of them work in ever
 
 - **Simple** (the default) — What to do, then one sentence on the hand to go for and its faan, from the strategy's own plan (*Discard Two Bamboo. Go for Half Flush in Circles, about 3 faan +2 for bonuses.*, or *Go for a chicken hand, about 0 faan +1 for bonuses, short of the 3 faan minimum.*). The faan is the pattern's alone; bonuses are what the hand already has, such as a seat flower or a dragon or seat wind triplet. No reason and never a score. A hand with no plan to name keeps its first tip: a ready hand says what its wait wins for
 - **Detailed** — Adds the hand you are going for, the threats, and my reasons in plain words (*It keeps a bigger hand in reach.*), still with no numbers
-- **Complex** — Everything, with each strategy's own numbers. The networks (Neural Cat, Lucky Cat, Only Orphans) give theirs: the expected score, the chance to win and what a win pays, and the next best choice; it is the only level that says "the model" (Simple and Detailed speak as "I"). The rule strategies (Jorge Yau, Lucky Cat Classic) give the odds their rules work out: *Odds to finish Half Flush in Circles before the wall runs out: about 23%, with 12 tiles that help. Next best discard is Six Bamboo: about 20%.*
+- **Complex** — Everything, with each strategy's own numbers. Neural Cat and Only Orphans give the expected score, the chance to win, what a win pays and the next best choice; Lucky Cat gives how often it makes the move and its next most likely one. It is the only level that says "the model" (Simple and Detailed speak as "I"). The rule strategies (Jorge Yau, Lucky Cat Classic) give the odds their rules work out: *Odds to finish Half Flush in Circles before the wall runs out: about 23%, with 12 tiles that help. Next best discard is Six Bamboo: about 20%.*
 
 Every strategy says the same situation the same way at every level (the same plan, pivot, claim, fold or win); only these numbers differ. Each strategy works out its hint for every move and keeps its own notes for the hand at all three levels, so switching the coach's strategy or level shows that strategy's hint and notes at once. The side panel is the current hand only.
 
@@ -294,7 +294,7 @@ The same setting applies to everything the coach says: the hint before your move
 - **Detailed** — Feedback adds the coach's reasons in plain words (*It keeps a bigger hand in reach.*); the table read keeps its first few sentences
 - **Complex** — Feedback adds the model's numbers (*The model expects +663 score on average from Eight Character, and +6 score from Red Dragon.*); the table read is whole
 
-`shapeFeedback(feedback, hint, detail)` and `shapeNote(note, detail)` in `js/mahjong-coach.js` do this; the hand and its faan travel on each hint as `hint.aim` (`{ name, faan, min }`) and `aimSentence(aim)` says it, so other notes can reuse it; the game applies them wherever feedback or a table-read note is shown, and redoes a playback's notes when the setting changes.
+`shapeFeedback(feedback, hint, detail)` and `shapeNote(note, detail)` in `js/mahjong-coach.js` do this; the hand and its faan travel on each hint as `hint.aim` (`{ name, faan, bonus, total, min }`) and `aimSentence(aim)` says it, so other notes can reuse it; the game applies them wherever feedback or a table-read note is shown, and redoes a playback's notes when the setting changes.
 
 The plain reasons come from the feature groups that put the model's pick furthest ahead (`speed`, `value`, `safety`, `table`, `hand`, `discard`, `context`; `GROUP_PLAIN` in `js/mahjong-coach.js`). Simple leaves out the three vague ones (the tile itself, the tiles you keep, the stage of the game). The setting is applied by `Coach.forStrategy(bot, { detail })`; with no detail the coach says everything, so other callers and the tests are unchanged. A win declaration reads the same at every level. The playback analysis table keeps its own wording.
 
@@ -395,7 +395,7 @@ Neural Cat's, Lucky Cat's and Only Orphans' networks are trained on simulated ha
 | `npm run ml:lab` | The lab, how Neural Cat is trained now: each round plays 50,000 deals against varied opponents, tries several experiments (retraining, wider networks, how the model plays), keeps one only on a clear gain on 20,000 fresh deals, and learns which experiments pay. State in `ml/lab/` |
 | `npm run ml:lab -- --strategy lucky-cat` | Trains Lucky Cat's network at the game's table (one seat against Neural Cat, Jorge Yau and Neural Cat), aiming to keep its win rate and score more points. Each move it is unsure of is replayed with its next-best moves on 4 reshuffled futures of the wall, and it learns from the points each move scored on average. Kept only if its points a hand beat the champion's by about two standard errors on 40,000 deals. State in `ml/lab-lucky-cat/`. |
 | `npm run ml:lab -- --strategy lucky-cat-suphx` | Trains Lucky Cat the way Suphx was trained: the hidden tiles (the other hands, the wall, what each discard would pay right now) are recorded for training only, and an oracle teacher pushes down each discard that would deal in. The network, reading only its own seat, learns from it. Kept only if its points beat the champion's at the table and its hands won hold. State in `ml/lab-lucky-cat-suphx/` |
-| `npm run native:build` | Builds the native simulator (`native/`, C++): the engine and the benchmark table's players, which `bench.js` and `lucky.js generate` then use on their own. Two builds: `lcm-sim` (fast: training data and screens) and `lcm-sim-exact` (every hand as the JS plays it: judgments and Table Scores). `make -C native pgo` rebuilds the fast one profile-guided. [Native simulator](docs/machine-learning/native.md) |
+| `npm run native:build` | Builds the native simulator (`native/`, C++): the engine and the players (Jorge Yau, Neural Cat, Lucky Cat, Only Orphans), which `bench.js`, `lucky.js generate` and `generate.js --native` then use. Two builds: `lcm-sim` (fast: training data and screens) and `lcm-sim-exact` (every hand as the JS plays it: judgments and Table Scores). `make -C native pgo` rebuilds the fast one profile-guided. [Native simulator](docs/machine-learning/native.md) |
 | `npm run native:parity -- --agents neural-cat,jorge-yau,neural-cat,neural-cat --deals 1000` | Plays the same seeded hands in the JS and on the exact build and compares every action; the first difference fails it |
 | `npm run ml:league` | The league that came before the lab (it plateaued after L7). State in `ml/league/` |
 | `npm run ml:orphans` | Trains the learned Only Orphans in rounds of 50,000 games, ranked each round against the best model and the rule-based Only Orphans; milestones ship to `js/mahjong-only-orphans-weights.js`. Progress in [only-orphans-training.md](docs/strategies/only-orphans-training.md), state in `ml/orphans/` |
@@ -419,11 +419,11 @@ Uploads go over git and SSH, so your SSH key must be on your Hugging Face accoun
 | 3 | A value over how the hand ends and at what faan, regularized policy iteration, value-guided exploration, a league | +40 more; points a hand at the game's table ≥ 0 |
 | 3b, 4 | Search: offline as a teacher, then optionally at play. **both deferred**: a small Monte Carlo search that knew every hidden hand measured no gain (+7.8 ± 8.4 points a choice), too noisy a test to rule out a real gain at the choices that matter. Both are measured again after phase 3; search at play would only ever be an opt-in setting | +15, then +20 |
 
-- **The benchmark** (built: [benchmark](docs/machine-learning/benchmark.md)): two Neural Cat NC8 and Jorge Yau, frozen; a fixed deck of 40,000 deals; one number per model, its **Table Score** (points a hand at that table). `node scripts/ml/bench.js score <model>` scores one, and `node scripts/ml/bench.js judge <model> --lineage lucky-cat` runs the bar below.
-- **The bar for a next generation**: two standard errors better on 40,000 fresh paired deals, **replicated** on another 40,000, with the win rate held and no loss to any earlier generation or league opponent.
-- **Two lineages** on the same benchmark: **Lucky Cat**, carrying on from lc32 with its own methods, and **Sphinx**, trained from random weights on the new architecture.
+- **The benchmark** (built: [benchmark](docs/machine-learning/benchmark.md)): two Neural Cat NC9 and Jorge Yau, frozen at game 0.58.0 (`hk-table-v2`); a fixed deck of 40,000 deals; one number per model, its **Table Score** (points a hand at that table). `node scripts/ml/bench.js score <model>` scores one, and `node scripts/ml/bench.js judge <model> --lineage lucky-cat` runs the bar below.
+- **The bar for a next generation**: two standard errors better on 40,000 fresh paired deals, **replicated** on another 40,000 (Sphinx: one standard error), with Lucky Cat's hands won at most one point below its generation, and no loss to any earlier generation or league opponent.
+- **Three lineages** on the same benchmark: **Lucky Cat**, carrying on from lc32 with its own methods, **Sphinx**, trained from random weights on the new architecture, and **Neural Cat**, from NC9.
 - **Where it stands** (2026-11-09): lc32 is still Lucky Cat's generation 1. Phase 1's 9 arms and 3 policy-gradient probes learned to read the table (deal-in AUC 0.92, waits 0.61) but none passed the bar: training on what each hand scored is mostly luck until phase 3's per-move value exists. Sphinx is paused: its recipe (imitating its own wins from random self-play) lost about 43 points a hand to random play.
-- **The native simulator** (built: [native simulator](docs/machine-learning/native.md)): the engine and the benchmark table's players in C++. A round's data takes 13 s instead of 330 s, and a 2,000-deal compare 10 s instead of about 200. It runs as a **hybrid**: training data and screens on a fast build, judgments and Table Scores on an exact build that plays every hand as the JS does. The fast build isn't bit-exact (a move tied to the last bit can go the other way), an accepted trade-off for training data, flagged as an important potential issue in the plan.
+- **The native simulator** (built: [native simulator](docs/machine-learning/native.md)): the engine and the players in C++. A round's data takes 13 s instead of 330 s, and a 2,000-deal compare 10 s instead of about 200. It runs as a **hybrid**: training data and screens on a fast build, judgments and Table Scores on an exact build that plays every hand as the JS does. The fast build isn't bit-exact (a move tied to the last bit can go the other way), an accepted trade-off for training data, flagged as an important potential issue in the plan.
 - **History and decisions:** every choice so far, with why and the evidence, is in [frontier history](docs/machine-learning/frontier-history.md).
 - **Fair play**: training may use the hidden tiles as labels and as a teacher, never as the shipped model's inputs. `ship.js` refuses a model that reads them, and the fair-play test catches one that plays through the training hook ([fair play](docs/machine-learning/fair-play.md)).
 
@@ -433,6 +433,7 @@ Animations are always on for players. Add `?instant=1` to the page URL to skip t
 
 ### Other
 
+- **Legal pages** — `privacy-policy/`, `terms-and-conditions/` and `refund-policy/`
 - **Custom 404 page** — On-brand "page not found" screen with mahjong tile artwork
 - **Sitemap & robots** — `sitemap.xml` and `robots.txt` for search engines
 
@@ -468,9 +469,11 @@ This runs `node --test` over the test files listed in `package.json`:
 
 - **Scoring calculator** — `js/points.js`
 - **Play game** — the engine, bots, strategies, coach and rule sheet. These check that `scoreHand` matches the calculator, cover legal claims, payouts and dealer rotation and play full bot hands to check that every tile is accounted for
-- **Site** — the homepage renderer, community page, tile quiz and generated tile pages
-- **Scripts** — the media formatter
+- **Site** — the homepage renderer, community page, tile quiz, generated tile pages, offline worker and analytics
+- **Scripts** — the media formatter and the ML tooling (data pruning, oracle labels, benchmark, disk)
 - **Native simulator** — once it's built (`npm run native:build`): the exact build plays the same hands as the JS action for action, the fast build plays the exact build's hands, and weights round-trip through `.lcmw` (skipped when it isn't built, as on CI)
+
+> **Note to self: pinned files.** Any time you change a file listed in `native/ported.json`, check whether the change has to be redone in `native/`. `npm run native:check-pin` compares each file's SHA-256 with the pin (the `GAME_VERSION` line is left out), and the `native-pin` CI job runs it on every PR. If the change affects how the game plays, port it. Either way, run `npm run native:build`, then `node scripts/ml/native.js parity` on every player, then `node scripts/ml/native.js pin`, and commit `native/ported.json`.
 
 Harnesses in `js/points.harness.js` and `js/main.harness.js` load each script in a mocked browser environment, so scoring logic and CMS rendering can be tested without opening the page.
 
@@ -528,6 +531,7 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 ├── play-mahjong/                        # Play page: the game's options (mode, Start, Resume, Learn to play)
 ├── playing-mahjong/                     # The game: canvas table and its playback view
 ├── sw.js                                # Service worker: the Points Guide, the options page and the game offline
+├── privacy-policy/, terms-and-conditions/, refund-policy/  # Legal pages
 ├── 404.html                             # Custom not-found page
 ├── logo.png / logo.webp                 # Club logo
 ├── css/
@@ -538,12 +542,13 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── tile-quiz.css                    # Tile quiz styles
 │   ├── play.css                         # Play page styles
 │   ├── 404.css                          # 404 page styles
+│   ├── privacy.css                      # Privacy, terms and refund page styles
 │   └── fonts.css                        # Web font (KN Yuanmo SC)
 ├── js/                                  # Each has a *.test.js beside it where noted below
 │   ├── main.js                          # Loads CMS data and renders the home page (tested)
 │   ├── main.harness.js                  # Test harness for the homepage renderer
 │   ├── nav.js                           # Shared header nav (loads data/nav.json)
-│   ├── canonical-redirect.js            # Sends /path/index.html to /path/
+│   ├── analytics-id.js                  # Analytics: visitor and session IDs, the cookie choice (tested)
 │   ├── community.js                     # Community page renderer (tested)
 │   ├── points.js                        # Tile data, reference, and the faan calculator (tested)
 │   ├── points.harness.js                # Test harness for the scoring calculator
@@ -551,9 +556,11 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── tile-quiz-art.js                 # Quiz tile characters as inline SVG
 │   ├── mahjong-engine.js                # Play: rules engine, shanten, claims, settlement (tested)
 │   ├── mahjong-bot.js                   # Play: bot engine and the rules every strategy shares
-│   ├── mahjong-lucky-cat.js             # Play: the lucky-cat strategy (tested)
-│   ├── mahjong-lucky-cat-ml.js          # Play: Lucky Cat's learned discards
+│   ├── mahjong-lucky-cat.js             # Play: Lucky Cat Classic's rules (tested)
+│   ├── mahjong-lucky-cat-ml.js          # Play: Lucky Cat, the network's every move (tested)
 │   ├── mahjong-lucky-cat-net.js         # Play: Lucky Cat's network, in plain JS
+│   ├── mahjong-lucky-cat-value.js       # Play: Lucky Cat's value network
+│   ├── mahjong-frontier-net.js          # Play: features v2 for the frontier models (tested)
 │   ├── mahjong-lucky-cat-weights.js     # Play: its shipped model (generated)
 │   ├── mahjong-jorge-yau.js             # Play: the jorge-yau strategy
 │   ├── mahjong-only-orphans.js          # Play: the only-orphans strategy (learned)
@@ -567,7 +574,7 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── mahjong-competition.js           # Play: strategies against each other
 │   ├── mahjong-coach.js                 # Play: the coach (tested)
 │   ├── mahjong-rules.js                 # Play: the Rules sheet (tested)
-│   ├── mahjong-lesson.js                # Play: Learn to play, the scripted lesson
+│   ├── mahjong-lesson.js                # Play: Learn to play, the scripted lesson (tested)
 │   ├── play-options.js                  # Options page: mode, Start, Resume, Learn to play
 │   ├── offline-cache.js                 # Offline: the saved file list, version and cache logic (tested)
 │   ├── offline.js                       # Offline: registers the service worker on the three pages
@@ -579,18 +586,21 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── generate-tile-pages.js           # Quiz: per-tile pages and preview images
 │   ├── tile-pages-lib.js                # Shared tile-page logic (tested)
 │   ├── competition.js                   # CLI: npm run compete
-│   ├── ml/                              # Neural Cat: data, self-play, the league, Hugging Face uploads
+│   ├── ml/                              # Learned strategies: data, self-play, the lab, the benchmark, Hugging Face uploads
 │   ├── generate-guide.js                # Printable rules booklet PDF
 │   └── licensing-agreement.js           # Licensing agreement PDF
-├── ml/                                  # train.py and requirements.txt (local data, models and the venv are gitignored)
-├── native/                              # The native simulator (C++): the engine and the benchmark table's players; build/ is gitignored
+├── ml/                                  # train.py, train_lucky.py, check_gpu.py, setup-windows.ps1 and requirements.txt (local data, models and the venv are gitignored)
+├── native/                              # The native simulator (C++): the engine and the players; build/ is gitignored
 ├── bench/                               # The frozen benchmark, the lineages' generations and their Table Scores
 ├── docs/
 │   ├── README.md                        # Index of the docs
+│   ├── architecture/                    # The evaluation architecture
 │   ├── offline/                         # The service worker and what works offline
 │   ├── machine-learning/                # Neural Cat and the frontier plan: features, model, training, fair play, the benchmark, the native simulator, history
 │   └── strategies/                      # Bot and coach playbooks
 ├── assets/                              # Music, sounds, PDFs and images
+├── fonts/                               # The web font
+├── .github/workflows/test.yml           # CI: npm test
 ├── package.json                         # npm scripts
 ├── tiles/                               # Hong Kong mahjong tile SVGs (CC0, see credit below)
 ├── data/
