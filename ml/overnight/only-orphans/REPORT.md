@@ -2,11 +2,11 @@
 
 ## Status
 
-- **Loop champion:** **ON3** (`ml/models/ON3.json`, the third cap generation). Against OS2c1 on C4 (40,000 fresh exact deals): points +8.1 ± 3.1, hands won +0.92 ± 0.05 pp, deal-ins +0.06 ± 0.04 pp. That meets the Pareto rule (with the relaxed deal-in leg). The ship bar needs a second fresh run.
-- **Best measured against OS2c1 (pooled fresh exact runs):** ON2, 120,000 deals: points +2.5 ± 1.8, hands won +0.83 ± 0.03 pp, deal-ins +0.02 ± 0.02 pp. ON1, 120,000 deals: points +0.2 ± 1.8, hands won +0.73 ± 0.03 pp. Neither meets the ship bar.
-- **Rounds done:** R0, 1, R1b, C0, the structural arms, R2, R3, C1, round 2 (C2: ON2), C3, round 3 (C4: ON3), C5.
-- **Now:** the half-spicy screen HS (deck seed 1,506,000,000): the half-spicy play setting at weight 0.5 and 1 on OS2c1, ON2 and ON3, beside ON3 and ON2 at win bonus 400. Every arm is scored in full-spicy and half-spicy points, and in limit-hand wins. After that comes a second fresh run for ON3 and ON2 at win bonus 400, for the ship bar.
-- **Blockers:** none. ON1, ON2 and ON3 pass the fair-play check. Half spicy is a play setting of the native simulator only (`meta.play.halfSpicy`); the game's JS doesn't read it.
+- **Recommended champion: ON2** (`ml/models/ON2.json`). Against OS2c1 on 120,000 pooled fresh exact deals (C3, C4, C5): hands won **+0.83 ± 0.03 pp** (4.35% to about 5.2%), full-spicy points **+2.5 ± 1.8** a hand, deal-ins +0.02 ± 0.02 pp, limit-hand wins level. It meets the Pareto rule. **It is not a ship candidate** (points +1.4 SE; the bar is +3 SE pooled).
+- Other generations: ON1 (120,000 deals: +0.2 ± 1.8 points, +0.73 pp wins) and ON3 (80,000 deals: +1.6 ± 2.2 points, +0.90 pp wins, deal-ins +0.065 ± 0.028 pp). All three pass the fair-play check.
+- **Rounds done:** R0, 1, R1b, C0, the structural arms, R2, R3, C1, round 2 (C2), C3, round 3 (C4), C5, the half-spicy screen HS, C6. **Finished; the run has stopped.**
+- **Last result:** C6. ON3 −4.9 ± 3.1 and ON2 at win bonus 400 −3.7 ± 3.1 against OS2c1 on fresh deals. The single-run leads did not repeat.
+- **Blockers:** none.
 
 ## The table and the measures
 
@@ -344,3 +344,40 @@ At 24,000 deals (stage 2, the best three):
 | ON3 | +1.1 ± 4.1 | +0.5 ± 0.2 | +0.81 ± 0.07 | +0.02 ± 0.05 | +0.007 ± 0.020 |
 
 On half-spicy points the cap generations are ahead of OS2c1 by about 2.5 SE, and the blend adds deal-ins without adding half-spicy points. The blend is not worth it on top of the cap.
+
+### Confirmation C6: the second fresh run for ON3 and ON2 at win bonus 400 (40,000 deals, exact build)
+
+40,000 fresh deals from seed 2,506,000,000, exact build. OS2c1: 9.2 points a hand, wins 4.33%, deal-ins 1.73%, average win 3,756.
+
+| Model | Full-spicy points gap | Half-spicy points gap | Wins gap (pp) | Deal-ins gap (pp) | Limit-hand wins (gap, pp) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| ON3 | −4.9 ± 3.1 | +0.2 ± 0.2 | +0.88 ± 0.05 | +0.07 ± 0.04 | 0.786% (−0.020 ± 0.014) |
+| ON2 at win bonus 400 | −3.7 ± 3.1 | +0.2 ± 0.2 | +0.68 ± 0.05 | +0.03 ± 0.04 | 0.784% (−0.021 ± 0.015) |
+
+The single-run leads of C4 (+8.1) and C5 (+5.4) did not come back: one fresh 40,000-deal run is still ±3 points a hand.
+
+## Final standing against OS2c1 (pooled fresh exact runs, no screen deals)
+
+| Model | File | Runs (deals) | Full-spicy points | Hands won (pp) | Deal-ins (pp) | Bar met |
+| --- | --- | --- | ---: | ---: | ---: | --- |
+| **ON2** | `ml/models/ON2.json` | C3, C4, C5 (120,000) | **+2.5 ± 1.8** | **+0.83 ± 0.03** (4.35% to 5.2%) | +0.02 ± 0.02 | Pareto rule. Ship bar: no (1.4 SE) |
+| ON3 | `ml/models/ON3.json` | C4, C6 (80,000) | +1.6 ± 2.2 | +0.90 ± 0.035 | +0.065 ± 0.028 | Pareto rule (relaxed deal-in leg). Ship bar: no |
+| ON1 | `ml/models/ON1.json` | C1, C3, C5 (120,000) | +0.2 ± 1.8 | +0.73 ± 0.03 | −0.01 ± 0.02 | Pareto rule. Ship bar: no |
+| ON2 at win bonus 400 | `ml/models/S3wbm200.json` | C5, C6 (80,000) | +0.85 ± 2.2 | +0.675 ± 0.035 | −0.015 ± 0.028 | one-off setting; no bar beyond Pareto |
+
+**Recommendation: ON2.** It is the best measured: the most fresh deals, the biggest pooled points gain, hands won +19% (4.35% to about 5.2%), and deal-ins level. It meets the in-lineage Pareto rule against OS2c1 and against its parent. **It is not a ship candidate** under the 3 SE bar. The points are +2.5 ± 1.8, so a gain is likely, but it is not shown.
+
+## What plateaued, and the next experiments
+
+- **Plateaued:** fine-tuning on this table's data without the cap (all of them win 0.2 to 0.5 pp fewer hands). Play-setting steps (claim margin +0.0 ± 0.2 on 80,000 fresh deals). Weight noise, soups, clipping, EMA and warm-up (no effect on held-out loss or play). The residual teacher (worse than the fine-tuned shipped shape on held-out loss at 1.2M and 2.4M positions). A third cap generation (ON3) still adds hands won, but less each time (+0.72, then +0.11, then +0.09 pp against the parent).
+- **What worked:** the faan-target cap (A4), the one change to the training target. It is a dial between hands won and win size, and it keeps the limit hands.
+- **What limits every conclusion on points:** at this table a network that changes most hands has a paired standard error of about ±3 points a hand on 40,000 deals. The deck-to-deck swing of one model against OS2c1 was −2.8 to +7.5. The ship bar (+3 SE pooled) for a true gain of +3 points would need about 400,000 fresh deals.
+
+Next experiments, in order:
+
+1. **Judge on half-spicy points (or another bounded proxy) with full spicy as a guard.** Half spicy has standard errors 15 to 20 times smaller, so screens could compare ten times more arms. Keep full spicy as the bar, but pre-register the half-spicy gap as the screen signal.
+2. **More fresh runs of ON3 and ON2 at win bonus 400** for the ship bar. Each 40,000-deal exact run takes about 25 minutes for two networks with the shadow.
+3. **Arms 2 to 4 of half spicy:** data made under the half-spicy setting, and training under it then a short full-spicy fine-tune, compared with the cap at matched hands won.
+4. **Port `halfSpicy` (and the cap needs nothing: it is in the weights) to `js/mahjong-ml.js`** if a half-spicy-play model is wanted in the game. The cap generations ON1 to ON3 need no JS change: they are plain weights with a win bonus.
+5. **The evaluation table:** add OS2c1 and ON1/ON2 to the table once they are older generations of the shipped model, so the next lineage plays its own recent past.
+6. **A variance-reduced points estimator:** replay each diverging deal several times with the hidden tiles shuffled (the native `--replays` machinery), and take the paired gap over replays. This targets the deal-level luck that dominated every points measurement tonight.
