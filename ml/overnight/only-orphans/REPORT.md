@@ -2,10 +2,14 @@
 
 ## Status
 
-- **ON2 ship check, done** (360,000 pooled fresh exact deals against OS2c1, older-generations table). Hands won **+0.824 ± 0.017 pp**, full-spicy points **−1.39 ± 1.05**, deal-ins +0.050 ± 0.012 pp, half-spicy points +0.25 ± 0.07. It stopped because the upper bound fell under +1. **A trade, not a gain:** more wins and better on half spicy, level to slightly worse on full spicy. The orchestrator's draft ship rule is not met (points −1.32 SE).
-- **Game's table** (NC9, Jorge Yau, NC9; 60,000 deals): ON2 against OS2c1 has wins +0.51 ± 0.06 pp, deal-ins −0.50 ± 0.08 pp, points −4.5 ± 3.8, limit-hand wins −0.077 ± 0.021 pp.
-- **Variance-reduced estimator:** built and unbiased, but its efficiency is 0.66 against plain deals, so it is not used.
-- **Now:** half-spicy arms 2 to 4 against ON2 (screen HS2, deck seed 1,507,000,000). The pre-registered proxy is the half-spicy points gap; the control is N3j1 (the same recipe on full-spicy data).
+- **Finished (phase 2 done).** Champion of the lineage loop: ON2 (`ml/models/ON2.json`). **Not a ship candidate.**
+- **ON2 against OS2c1, older-generations table, 360,000 pooled fresh exact deals:** hands won +0.824 ± 0.017 pp, full-spicy points −1.39 ± 1.05, deal-ins +0.050 ± 0.012 pp, half-spicy points +0.25 ± 0.07. That is a trade (more wins, better on half spicy, level to slightly worse on full spicy), not a gain. The orchestrator's draft ship rule fails on the points leg (−1.32 SE).
+- **ON2 at the game's table** (NC9, Jorge Yau, NC9; 60,000 deals): wins +0.51 ± 0.06 pp, deal-ins −0.50 ± 0.08 pp, points −4.5 ± 3.8, limit-hand wins −0.077 ± 0.021 pp.
+- **Phase 2 results:**
+  - The variance-reduced estimator (`lcm-sim vr`) is built and unbiased. Its efficiency is 0.66 against plain deals, so it is not used.
+  - The ship check stopped on its upper bound at 360,000 deals.
+  - Half-spicy arms 2 to 4 show no transfer at this scale.
+  - Data was trimmed to 1.4 GB.
 - **Blockers:** none.
 
 ## The table and the measures
