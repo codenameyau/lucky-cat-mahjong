@@ -96,6 +96,7 @@ Every training idea and every milestone model is a section below, in the order t
   - [The objective: points, with a floor on hands won](#the-objective-points-with-a-floor-on-hands-won)
 - [Lucky Cat against its own lineage: LC33 (2026-11-11)](#lucky-cat-against-its-own-lineage-lc33-2026-11-11)
 - [Neural Cat against its own lineage: NC10 (2026-11-11)](#neural-cat-against-its-own-lineage-nc10-2026-11-11)
+- [Only Orphans against its own lineage: W1b0 (2026-11-11)](#only-orphans-against-its-own-lineage-w1b0-2026-11-11)
 - [Only Orphans on the stacked method (2026-11-10)](#only-orphans-on-the-stacked-method-2026-11-10)
   - [Round 1: replayed labels against the control](#round-1-replayed-labels-against-the-control)
   - [The reader, OR1](#the-reader-or1)
@@ -1349,6 +1350,26 @@ Thinking: the same overnight run as LC33, with Neural Cat at a table of only its
 - **Shared screens mislead.** Arms that share the champion's games win or lose together: the same model scored −1.9 and then +6.6 on two 40,000-deal decks. The fast build isn't the cause: 39,995 of 40,000 deals played identically on the fast and exact builds.
 
 Speed, at 10 workers: data 47 to about 1,200 deals a second, screens 62 to about 1,190 hands a second, a lab-sized round 95 minutes to about 6. Tools (on the branch `train/neural-cat-overnight`): `scripts/ml/nc-overnight.js`, `ml/nc_multi.py`.
+
+## Only Orphans against its own lineage: W1b0 (2026-11-11)
+
+Thinking: the overnight run trained Only Orphans against only its own older generations (OT11d, OT7c, OT6e, OT5e, OT4a, OT2d, OT1a, OL2c, then OS2c1 and ON1). Its aim, set that night: the biggest hands and the most points, with hands won reported but not a bar.
+
+- **What didn't move points.** Fine-tunes, weight noise, soups, clipping (it never bites), averaged weights, warm-up, a residual teacher (no better on held-out loss: capacity isn't the limit), and half spicy as a play setting or as training data. Capping the faan targets at 10 (ON1 to ON3) won about a fifth more hands for no more points: on 360,000 fresh deals ON2 was +0.82 points of a percent on hands won and −1.4 ± 1.0 points a hand.
+- **The diagnosis:** only about 2.4% of the training positions came from hands that were won, and far fewer from limit hands, so the network rarely saw what a big win looks like.
+- **What worked: ten times the won positions.** One million deals from OS2c1, keeping every position of the winner's hand and 3% of the rest, with importance weights so the outcome heads stay calibrated. OS2c1 fine-tuned on it with no faan cap (lr 3e-4, 8 epochs) is W1b0.
+
+| Against OS2c1, older-generations table, 160,000 fresh exact deals (two runs) | W1b0 | W1b1 (second seed) |
+| --- | --- | --- |
+| Full-spicy points a hand | **+9.6 ± 1.6** (5.9 SE) | +9.3 ± 1.7 |
+| Half-spicy points a hand | +0.35 ± 0.08 | +0.33 ± 0.08 |
+| Limit-hand wins | **+0.041 ± 0.008** points of a percent (0.84% vs 0.80%) | +0.042 |
+| Hands won | −0.21 ± 0.03 points | −0.23 |
+| Deal-ins | −0.08 points | −0.07 |
+
+- **What the bot does differently:** it wins about 2 fewer hands in 1,000 than OS2c1, and 5% more of its wins are limit hands; it deals in a little less. Its aim is points, so that trade is by design.
+- **Learning the target choice** (replaying each feasible target at the first decision) found nothing: the replays' best target scored −0.7 ± 1.4 points a hand against the rules' pick, out of sample.
+- **Fair play:** the shuffle check passes.
 
 ## Only Orphans on the stacked method (2026-11-10)
 
