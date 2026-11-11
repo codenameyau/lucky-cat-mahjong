@@ -311,6 +311,9 @@ def distill_loss(out, t):
     return ce(0, N_OUTCOMES) + 0.5 * ce(N_OUTCOMES, N_OUTCOMES + N_FAAN) + 0.5 * ce(N_OUTCOMES + N_FAAN, OUTPUTS)
 
 
+LIMIT_WEIGHT = [1.0]
+
+
 def losses(out, y_outcome, y_win, y_pay, w=None):
     # w: per-row weights of the outcome loss (--other-share: the rows of hands the seat
     # didn't win were kept with chance q, so they weigh 1/q against a won hand's 1).
@@ -321,7 +324,13 @@ def losses(out, y_outcome, y_win, y_pay, w=None):
     win = y_outcome <= 1
     pay = (y_outcome == 2) | (y_outcome == 3)
     zero = out.new_zeros(())
-    lw = F.cross_entropy(out[win, N_OUTCOMES:N_OUTCOMES + N_FAAN], y_win[win]) if win.any() else zero
+    if LIMIT_WEIGHT[0] != 1 and win.any():
+        # --limit-weight: a limit hand's row counts this many times in the win-faan head (a deliberate
+        # push toward valuing limit hands: Only Orphans' objective is the biggest hands).
+        lwv = torch.where(y_win[win] >= N_FAAN - 1, torch.full_like(y_win[win], 0, dtype=out.dtype) + LIMIT_WEIGHT[0], torch.ones_like(y_win[win], dtype=out.dtype))
+        lw = (F.cross_entropy(out[win, N_OUTCOMES:N_OUTCOMES + N_FAAN], y_win[win], reduction='none') * lwv).sum() / lwv.sum()
+    else:
+        lw = F.cross_entropy(out[win, N_OUTCOMES:N_OUTCOMES + N_FAAN], y_win[win]) if win.any() else zero
     lp = F.cross_entropy(out[pay, N_OUTCOMES + N_FAAN:OUTPUTS], y_pay[pay]) if pay.any() else zero
     return lo, lw, lp
 
@@ -495,6 +504,7 @@ def main():
     ap.add_argument('--rank-temp', type=float, default=100.0, help='the softmax temperature of the ranking loss, in points')
     ap.add_argument('--win-bonus', type=float, default=None, help="the win bonus options are ranked with (default: --init's, else 300)")
     ap.add_argument('--group-batch', type=int, default=256, help='option groups a step')
+    ap.add_argument('--limit-weight', type=float, default=1.0, help="weight of a limit hand's row in the win-faan loss")
     ap.add_argument('--other-share', type=float, default=0.0, help='data made with generate.js --other-share q: reweight the outcome loss')
     ap.add_argument('--calib', help='an unsampled data directory: report the outcome head calibration on it')
     ap.add_argument('--clip', type=float, default=0.0)
@@ -508,6 +518,7 @@ def main():
     ap.add_argument('--teacher')
     ap.add_argument('--distill-weight', type=float, default=1.0)
     args = ap.parse_args()
+    LIMIT_WEIGHT[0] = args.limit_weight
 
     torch.manual_seed(args.seed)
     device = args.device
