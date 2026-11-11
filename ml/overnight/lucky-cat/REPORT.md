@@ -2,6 +2,36 @@
 
 ## Status
 
+**Objective (the maintainer, 2026-11-11): hands won first.** Points are a floor: not down more than 1 SE. Deal-ins may not rise more than 0.25 pp or 1 SE. A ship candidate needs hands won up 3 SE against lc33 (G4) on the fixed Lucky Cat table, with the same floors. **Lineage only:** every table in this loop is Lucky Cat generations and nothing else.
+
+**SHIP CANDIDATE: G6 (LO18d, `ml/models/LO18d.json`) against lc33 = G4.** Fixed table: G4, lc32 and lc31 in the other seats. Two fresh exact runs of 80,000, pooled to 160,000 deals from seed 804,556,000.
+
+| Pair | Hands won | Points (full spicy) | Half spicy | Deal-ins | Average win |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **G6 against G4** | **+0.44 ± 0.05 (8.8 SE)** (22.94% vs 22.49%) | +2.0 ± 1.0 | +0.41 ± 0.07 | −0.10 ± 0.05 | 302 vs 301 |
+| LO21d (the full-spicy block, not a generation) against G4 | +0.21 ± 0.05 | **+3.5 ± 1.0** | +0.50 ± 0.08 | −0.10 ± 0.05 | 312 vs 301 |
+| G6 against LO21d | +0.23 ± 0.04 | −1.5 ± 0.9 | −0.09 ± 0.07 | +0.00 ± 0.05 | 302 vs 312 |
+
+**Share of wins at 7+ faan.** Each model played every seat of 20,000 fresh deals at the same fixed table (80,000 hands, native fast build, from `lcm-sim trace`):
+
+| Model | Wins | Share at 7+ faan | Faan a win |
+| --- | ---: | ---: | ---: |
+| G6 | 18,470 | 28.0% | 5.52 |
+| G4 | 18,045 | 28.0% | 5.52 |
+| LO21d | 18,251 | 28.9% | 5.57 |
+
+So G6 wins more hands without giving up the big ones.
+
+Fair play for G6: pass. **G6 clears the new ship bar:** hands won up 8.8 SE, points up 2 SE, fewer deal-ins.
+
+**Only Lucky Cat generations at any table.**
+- **Training data:** the head exploring in 2 of the pool's 6 slots. The other four slots hold the current pool, the lineage's last four generations: G6 LO18d, G5 LO12d, G4 LO9d, G3 LO4h. Before G3 joined, the pool had lc32, lc31, lc30, lc29 and then G1 and G2 in turn.
+- **Screens and confirmations:** each three-of-four of that same pool.
+- **Ship checks:** G4, lc32 and lc31 (earlier: lc32, lc31, lc30).
+- **Values (round 3 only):** trained on the head's own games at the same pool.
+- No Neural Cat, Jorge Yau or Only Orphans has sat at any table this loop played.
+
+
 **Shipped: lc33 = G4 (LO9d)**, in PR #251, merged by the maintainer. At the game's table it beat lc32 by +5.3 ± 2.7, where G5 managed +3.7 ± 2.7 (the orchestrator's run). From now on the **ship anchor is lc33 = G4**: a ship candidate needs points up 3 SE against G4 on the fixed table (G4, lc32 and lc31 in the other seats), with hands won not down.
 
 **Newest: G5 (LO12d) on the fixed ship table** (paired against lc32, with lc32, lc31 and lc30 in the other seats; 160,000 fresh exact deals, two runs of 80,000 from seed 803,516,000):
