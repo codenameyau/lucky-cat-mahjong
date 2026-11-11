@@ -1299,6 +1299,26 @@ Each generation was confirmed against the one before it on fresh deals on the ex
 - **What the bot does differently:** against its own kind LC33 wins about one hand in 27 more often than LC32 (22.8% of hands to 22.0%), its wins are worth about 23 points more, and it deals in slightly less. It is the same network (376 inputs, 512-256, 74 outputs) with its shares moved toward the moves that scored more on the replays.
 - **Fair play:** the shuffle check passes; it reads only its seat.
 
+### LC34 (LO18d): more wins, same big hands
+
+The maintainer then set Lucky Cat's aim: win as many hands as possible, taking a big hand when the chance is good and it is nearly ready. So a generation now needs hands won up two standard errors, with points a hand and deal-ins no worse.
+
+| Generation | Recipe | Against | Fresh deals | Hands won | Points a hand | Deal-ins |
+| --- | --- | --- | --- | --- | --- | --- |
+| G5 = LO12d | three steps with no screen on G4's recipe | G4 | 320,000 | **+0.25 ± 0.03** | +0.2 ± 0.6 | −0.09 ± 0.03 |
+| G6 = LO18d | three steps, replays scored half on half spicy and half on full, win bonus 150 | G5 | 160,000 | **+0.14 ± 0.04** | +0.0 ± 0.9 | −0.09 ± 0.05 |
+
+**LC34 is G6.** Against LC33 (G4), at a fixed table of LC33, LC32 and LC31, 160,000 fresh deals (two runs):
+
+| | Hands won | Points a hand (full spicy) | Half spicy | Deal-ins | Average win | Wins at 7+ faan |
+| --- | --- | --- | --- | --- | --- | --- |
+| **LC34 against LC33** | **22.94% vs 22.49%** (+0.44 ± 0.05, 8.8 SE) | +2.0 ± 1.0 | +0.41 ± 0.07 | −0.10 ± 0.05 | 302 vs 301 | 28.0% vs 28.0% |
+
+- **What the bot does differently:** it wins about one hand in 50 more often than LC33, with the same size of win and slightly fewer deal-ins. It doesn't give up big hands for the extra wins: the same 28% of its wins are 7 faan or more.
+- **A points-first block went the other way.** LO21d, three steps scored on full spicy alone, was +3.5 ± 1.0 points a hand over LC33 but won fewer hands than G6. It wasn't kept, since the aim is wins.
+- **Fair play:** the shuffle check passes.
+- Every table these generations trained or were judged at had only Lucky Cats in the other seats.
+
 ### What didn't work that night
 
 - **Weight noise** (sigma 0.01 to 0.05, alone or before a fine-tune): level or behind, every time.
