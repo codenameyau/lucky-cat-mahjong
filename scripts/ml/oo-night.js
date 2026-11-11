@@ -257,7 +257,8 @@ async function screen(arms, champion, seed, stages, opt) {
     if (k < stages.length - 1) {
       // Ranked by z, arms whose hands won fall by more than a standard error last (they can't be kept).
       // The Pareto rule: the better of the two z (points, hands won) when the other is not down by more than one standard error.
-      const rank = (x) => { const zp = x.gap.points / x.gap.se, zw = x.gap.wins / Math.max(1e-9, x.gap.winsSE); return zp > -1 && zw > -1 ? Math.max(zp, zw) : Math.min(zp, zw) - 100; };
+      const rank = (x) => { if (process.env.OO_RANK === 'points') return x.gap.points / x.gap.se;  // Only Orphans' objective (the maintainer): points; hands won may fall
+        const zp = x.gap.points / x.gap.se, zw = x.gap.wins / Math.max(1e-9, x.gap.winsSE); return zp > -1 && zw > -1 ? Math.max(zp, zw) : Math.min(zp, zw) - 100; };
       const still = alive.filter((a) => a.alive).sort((p, q) => rank(q) - rank(p));
       still.slice(top).forEach((a) => (a.alive = false, a.cut = true));
     }

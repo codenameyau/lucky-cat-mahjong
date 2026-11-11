@@ -2,28 +2,27 @@
 
 ## Status
 
-- **SHIP CANDIDATE: W1b0** (`ml/models/W1b0.json`; W1b1, a second seed of the same recipe, passes too). The recipe: OS2c1 fine-tuned on won-position-rich data `oow-1` (1,000,000 deals, every position of a hand's winner kept, the rest at 3% with importance weights), no faan cap, lr 3e-4, 8 epochs. It plays OS2c1's settings (win bonus 800, claim margin 50).
+- **FINISHED. Shipping: W1b0 = OW1** (in PR #252; `ml/models/W1b0.json`). The recipe: OS2c1 fine-tuned on won-position-rich data `oow-1` (1,000,000 deals at the older-generations table, every position of a hand's winner kept, the rest at 3% with importance weights), no faan cap, lr 3e-4, 8 epochs, OS2c1's play settings.
 
-  **Against OS2c1, pooled over two fresh exact runs at the older-generations table (C7 + C8, 160,000 deals; no screen deals):**
+  **Against OS2c1, pooled over two fresh exact runs at the older-generations table (C7 + C8, 160,000 deals):**
 
-  | | W1b0 | W1b1 |
-  | --- | ---: | ---: |
-  | **Full-spicy points a hand** | **+9.59 ± 1.63 (5.9 SE)** | +9.29 ± 1.65 (5.6 SE) |
-  | Half-spicy points a hand | +0.35 ± 0.08 | +0.33 ± 0.08 |
-  | **Limit-hand wins** | **+0.041 ± 0.008 pp** (0.84% against 0.80% of hands, +5%) | +0.042 ± 0.008 pp |
-  | Hands won (reported only) | −0.208 ± 0.026 pp | −0.225 ± 0.026 pp |
-  | Deal-ins | −0.075 ± 0.018 pp | −0.073 ± 0.018 pp |
+  | Measure | Gap |
+  | --- | ---: |
+  | **Full-spicy points a hand** | **+9.59 ± 1.63 (5.9 SE)** |
+  | Half-spicy points a hand | +0.35 ± 0.08 |
+  | **Limit-hand wins** | **+0.041 ± 0.008 pp** (about 0.84% against 0.80%) |
+  | Hands won (reported only) | −0.21 ± 0.03 pp |
+  | Deal-ins | −0.075 ± 0.018 pp |
 
-  Run by run: C7 +12.3 ± 2.3 and C8 +6.7 ± 2.3 for W1b0; C7 +12.8 ± 2.3 and C8 +5.8 ± 2.3 for W1b1.
-
-  - **Bar met: ship candidate** (points up 3 SE against OS2c1 on pooled fresh exact deals, lineage-only table).
-  - **Fair play: passes** (`scripts/ml/oo-fair-play.js`).
-  - **No game-table result**, by the maintainer's ruling.
-- **Benchmark purity:** every training-data table and every evaluation table tonight had only Only Orphans generations in the other seats.
-  - Data pools: the exploring learner plus OT11d, OT7c, OT6e, OT5e, OT4a, OT2d, OT1a, and from round 2 OS2c1 and ON1.
-  - Evaluation tables: three of OT11d, OT7c, OT6e, OT5e, OT4a, OT2d, OT1a and OL2c, cycling.
-  - Two game-table runs were evaluation only, never training data: G1 (ON2) and G2 (stopped on the ruling, unused).
-- **Next:** the win-bonus map on W1b0 and the W1b0+W1b1 soup (200 to 1000), the limit-weighted fine-tunes (W1L2, W1L4), then a second round of won-position-rich data played by W1b0.
+  - **Bar met:** ship candidate (points +3 SE pooled, lineage-only table).
+  - **Fair play:** passes.
+  - W1b1, a second seed of the same recipe: +9.29 ± 1.65 points, limit-hand wins +0.042 pp.
+- **Benchmark purity:** every training-data and evaluation table had only Only Orphans generations in the other seats.
+  - Data pools: the learner plus OT11d, OT7c, OT6e, OT5e, OT4a, OT2d, OT1a, and later OS2c1 and ON1.
+  - Evaluation tables: OT11d, OT7c, OT6e, OT5e, OT4a, OT2d, OT1a and OL2c, three at a time.
+  - Two game-table runs were evaluation only, never training data: G1 (ON2) and G2 (stopped, unused).
+- **Last screen (W2, unconfirmed):** limit-weighted W1L4 +5.6 ± 2.8 against W1b0. Lower win bonuses buy bigger wins but no clear points.
+- **Next, not started:** confirm W1L4; a second round of won-position-rich data from W1b0.
 - **Blockers:** none.
 
 ## The table and the measures
@@ -636,3 +635,25 @@ Under the maintainer's objective for Only Orphans (biggest hands and most points
 The second run came in at about half the first: the first run's +12 was partly luck, as single runs have been all night. The pooled figure is the one to quote.
 
 The game's-table run G2 was stopped on the maintainer's ruling (lineage-only benchmark); no result from it is used.
+
+### Screen W2: the win-bonus map and limit weighting, against W1b0 (deck seed 1,509,000,000, fast build; screen only, nothing confirmed)
+
+The arms are ranked by points, because the maintainer's objective for Only Orphans is points and limit hands. W1b0 on this deck: 19.9 points a hand, wins 4.13%, limit-hand wins 0.86%.
+
+| Arm | 8,000 deals | 40,000 deals | Wins (pp) | Limit-hand wins (pp) | Average win |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| W1L4 (limit hands weighted 4x in the win-faan loss) | +3.1 ± 6.3 | **+5.6 ± 2.8** | −0.07 ± 0.04 | +0.007 ± 0.013 | 4,294 |
+| W1L2 (weighted 2x) | +0.3 ± 5.6 | +3.1 ± 2.5 | −0.02 | +0.021 ± 0.012 | 4,196 |
+| W1b0 at win bonus 200 | −0.2 ± 3.1 | +2.7 ± 1.5 | −0.72 ± 0.03 | +0.013 ± 0.007 | 4,988 |
+| W1b0+W1b1 soup at win bonus 400 | −2.3 ± 4.8 | −0.7 ± 2.1 | −0.45 | +0.006 | 4,593 |
+| W1b0 at win bonus 300 / 400 / 500 | −2.9 / −2.1 / −3.2 (± 2.2 to 2.7) | cut | −0.55 / −0.44 / −0.28 | ~0 | |
+| W1b0 at win bonus 1000 | −1.2 ± 2.4 | cut | +0.16 | +0.016 | |
+| W1b0+W1b1 soup | −2.7 ± 4.9 | cut | −0.06 | 0.000 | |
+
+Reading:
+
+- **Win-bonus map:** lower bonuses buy bigger wins (average win up to about 5,000 at 200) and many fewer wins (−0.7 pp), but no clear points (+2.7 ± 1.5 at 200, below the 2 SE bar, and negative at 300 to 500). The win bonus of 800 that W1b0 inherited is close to the best.
+- **Limit weighting:** W1L4 is the best screened point (+5.6 ± 2.8 against W1b0, 2.0 SE on a screen of 9, so likely flattered). It is unconfirmed.
+- **Not run (the wrap-up came first):**
+  - a confirmation of W1L4;
+  - a second round of won-position-rich data played by W1b0 (the next step: the lever that worked was more won hands, and the data is cheap).
