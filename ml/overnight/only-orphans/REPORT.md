@@ -2,9 +2,14 @@
 
 ## Status
 
-- **Phase 3 is running.** OS2c1 stays the shipped model.
-- **3.1, ten times the won positions: promising.** On a 40,000-deal screen against OS2c1, W1b0 (OS2c1 fine-tuned on `oow-1` without the cap, lr 3e-4, 8 epochs) scores **+11.9 ± 3.3 points a hand** and **limit-hand wins +0.072 ± 0.016 pp** (4.5 SE), with hands won −0.17 ± 0.05 pp, deal-ins −0.07 pp and half-spicy points +0.5 ± 0.2. It is the first lever that gains points through bigger hands; the cap on the same data doesn't. **Now: confirmation C7**, W1b0 and a second seed W1b1, 80,000 fresh exact deals against OS2c1 (seed 2,514,000,000).
-- **3.2, the target choice: empty.** The per-deal oracle is +15.5 in sample and −0.7 ± 1.4 out of sample on independent walls. No head is trained.
+- **Phase 3 has a result.** OS2c1 stays the shipped model until the maintainer decides.
+- **3.1, ten times the won positions: confirmed on fresh deals.** C7, 80,000 fresh exact deals against OS2c1, two seeds of one recipe (OS2c1 fine-tuned on `oow-1`, no cap, lr 3e-4, 8 epochs):
+  - **W1b0: points +12.3 ± 2.3 a hand (5.4 SE), limit-hand wins +0.052 ± 0.011 pp,** hands won −0.19 ± 0.04 pp, deal-ins −0.08 pp, half-spicy points +0.5 ± 0.1.
+  - **W1b1: points +12.8 ± 2.3, limit-hand wins +0.063 pp,** hands won −0.25 pp.
+  - It passes the points leg. It fails "hands won not down more than 1 SE" (a trade toward bigger hands).
+  - Files: `ml/models/W1b0.json`, `ml/models/W1b1.json`. Both pass the fair-play check.
+- **Now:** G2, W1b0 and W1b1 against OS2c1 at the game's table (NC9, Jorge Yau, NC9), 60,000 fresh exact deals. Then a second fresh run at the older-generations table for the pooled ship bar.
+- **3.2, the target choice: empty.** The per-deal oracle is −0.7 ± 1.4 out of sample.
 - **Blockers:** none.
 
 ## The table and the measures
@@ -576,3 +581,22 @@ Reading: **this is the first lever tonight that moves the other way along the fr
 - The ship bar is about points, and hands won must not fall more than 1 SE, so it would fail on wins as well unless the fresh deals differ.
 
 **Confirmation C7 (running):** W1b0 and a second seed of the recipe (W1b1, seed 61), against OS2c1, on 80,000 fresh deals from seed 2,514,000,000, exact build.
+
+### Confirmation C7: the won-hand fine-tunes against OS2c1 (80,000 fresh deals, exact build)
+
+80,000 fresh deals from seed 2,514,000,000, exact build, anchored to OS2c1. OS2c1 here: 7.8 points a hand, wins 4.44%, deal-ins 1.75%, average win 3,610, limit-hand wins 0.796%.
+
+| Model | Points gap | Wins (pp) | Deal-ins (pp) | Limit-hand wins (pp) | Half-spicy points | Points a hand | Average win |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **W1b0** (seed 60) | **+12.3 ± 2.3** (5.4 SE) | −0.19 ± 0.04 | −0.08 ± 0.03 | **+0.052 ± 0.011** (0.848%) | +0.5 ± 0.1 | 20.1 | 3,983 |
+| **W1b1** (seed 61, the same recipe) | **+12.8 ± 2.3** (5.5 SE) | −0.25 ± 0.04 | −0.06 ± 0.03 | **+0.063 ± 0.011** (0.859%) | +0.5 ± 0.1 | 20.6 | 4,070 |
+
+**The recipe confirms on fresh deals, and both seeds agree:** about **+12.5 points a hand**, more than double OS2c1's own score at this table, from **7% more limit-hand wins** with 4 to 6% fewer hands won and fewer deal-ins. This is the first points gain tonight that holds on fresh exact deals. It comes from the opposite direction to the cap generations: the network learned to value big hands once it had seen enough of them.
+
+**Bars:**
+- **Points up 3 SE on fresh exact deals:** met on this one run (5.4 SE). The ship bar asks for pooled runs, and a second fresh run is next.
+- **Hands won not down more than 1 SE:** **not met** (−0.19 pp, 4.7 SE).
+- **The Pareto rule** (one leg up 2 SE, the other not down 1 SE): not met, for the same reason.
+- **The orchestrator's draft rule** (hands won up 3 SE): not met.
+
+This is a trade in the other direction: many more points, slightly fewer wins. Whether that ships is the maintainer's call: the maintainer optimizes points and hands won together. The game-table check (G2) is running.
