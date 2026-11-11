@@ -57,7 +57,7 @@ describe('strategy registry', () => {
     assert.equal(S.get('jorge-yau').model, undefined);
     assert.match(S.get('neural-cat').summary, /^Neural Cat NC\d+ /);
     assert.match(S.get('lucky-cat').summary, /^Lucky Cat LC\d+ /);
-    assert.match(S.get('only-orphans').summary, /^Only Orphans OT\w+ /);
+    assert.match(S.get('only-orphans').summary, /^Only Orphans O[TS]\w+ /);
     assert.match(S.get('jorge-yau').summary, /^Play mahjong the way the founder of Lucky Cat plays\./);
   });
 
@@ -729,7 +729,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.61.6');
+    assert.equal(E.GAME_VERSION, '0.61.7');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);

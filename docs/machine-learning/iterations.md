@@ -94,6 +94,10 @@ Every training idea and every milestone model is a section below, in the order t
   - [Round 1: a value, judged on points, wins fewer hands](#round-1-a-value-judged-on-points-wins-fewer-hands)
   - [Round 2: the policy learns from the replays (LV2p)](#round-2-the-policy-learns-from-the-replays-lv2p)
   - [The objective: points, with a floor on hands won](#the-objective-points-with-a-floor-on-hands-won)
+- [Only Orphans on the stacked method (2026-11-10)](#only-orphans-on-the-stacked-method-2026-11-10)
+  - [Round 1: replayed labels against the control](#round-1-replayed-labels-against-the-control)
+  - [The reader, OR1](#the-reader-or1)
+  - [Round 2: the control comes out ahead (OS2c1)](#round-2-the-control-comes-out-ahead-os2c1)
 - [The contradiction check: every move agrees with its hand](#the-contradiction-check-every-move-agrees-with-its-hand)
   - [What it is](#what-it-is)
   - [The discard check, measured](#the-discard-check-measured)
@@ -116,7 +120,7 @@ Every training idea and every milestone model is a section below, in the order t
 
 | | Neural Cat | Lucky Cat | Only Orphans |
 | --- | --- | --- | --- |
-| In the game | **NC9** (lab model N14c; the stacked [FC1](#frontier-cat-one-model-three-heads-fc1) was beside it in 0.58) | **LC32** (lab model LL26b) | **OT11d** |
+| In the game | **NC9** (lab model N14c; the stacked [FC1](#frontier-cat-one-model-three-heads-fc1) was beside it in 0.58) | **LC32** (lab model LL26b) | **OS2c1** |
 | What it is | A network that scores Jorge Yau's best choices in expected points | A network that makes every move itself, with no rules underneath | Fixed rules pick a target each deal (Thirteen Orphans, triplet hands, Seven Pairs); a network, the same kind as Neural Cat's, chooses the rest in expected points |
 | What it plays for | Points: often and big wins on one scale | Points first, wins second (LC20 and before: wins, as many and as fast as it can) | Points and wins on one scale (J), with a win bonus of 800 |
 | Trained on | 950,000 league hands (stopped in round 19, at a plateau), and earlier rounds against the rule bots | 1,000,000 league hands against its earlier selves and Neural Cat, then 100,000 lab hands against Neural Cat, Jorge Yau and its last two champions, every hand weighted by its points | Its own league (O1 to O5), then 11 lab rounds with the targets against Neural Cat, Jorge Yau, Lucky Cat and its earlier selves |
@@ -1252,6 +1256,47 @@ Thinking: if the value can't choose better than the policy, use the replays to m
 ### The objective: points, with a floor on hands won
 
 The maintainer then settled the objective: Lucky Cat may be trained to maximize points, as long as it keeps a fairly high win rate. Screens and the bar judge points a hand, and a model more than one point of win rate behind its champion is dropped. The policy recipes now learn each move's replayed mean points plus a bonus for a sure win (300 or 1,000 points). LV2p, level on points (−2.1 ± 2.0), is the starting champion for round 3, not a release.
+
+## Only Orphans on the stacked method (2026-11-10)
+
+**In this section:** [Round 1: replayed labels against the control](#round-1-replayed-labels-against-the-control) · [The reader, OR1](#the-reader-or1) · [Round 2: the control comes out ahead (OS2c1)](#round-2-the-control-comes-out-ahead-os2c1)
+
+Only Orphans was ported to the native simulator ([how](native.md)), then trained the way Neural Cat's stacked models were (`node scripts/ml/frontier-model.js --strategy only-orphans`): every seat recorded, a quarter of the discards replayed 8 times with the wall shuffled, and a reader whose read the move network takes as input. Each round played 100,000 deals (about 1.1 million positions), OT11d exploring against Neural Cat, Jorge Yau and Lucky Cat. Every model started from OT11d at lr 1e-4, and kept its play settings (top 3, win bonus 800, claim margin 50). Screens played 60,000 fresh deals against OT11d at the game's table. OS2c1 shipped in 0.61.7.
+
+### Round 1: replayed labels against the control
+
+| Recipe | Seed 0 | Seed 1 | Mean |
+| --- | ---: | ---: | ---: |
+| p: replayed labels | +3.7 ± 3.8 | +5.1 ± 3.8 | +4.4 ± 2.7 |
+| c: real endings only (the control) | +4.8 ± 3.8 | +0.9 ± 3.7 | +2.9 ± 2.7 |
+
+Points a hand against OT11d. Neither recipe counted as ahead.
+
+### The reader, OR1
+
+Trained on round 1's data from OT11d, with the extra heads. On held-out positions it scores AUC 0.89 for an opponent being ready and 0.88 for the tile thrown dealing in now. On positions whose seat went on to win, its hand head names the winning hand 74.2% of the time, against 38.5% for the rules' read of the same tiles.
+
+### Round 2: the control comes out ahead (OS2c1)
+
+| Recipe | Seed 0 | Seed 1 | Mean |
+| --- | ---: | ---: | ---: |
+| p: replayed labels | +4.0 ± 3.8 | +6.3 ± 3.9 | +5.2 ± 2.7 |
+| q: replayed labels and the reader (stacked) | +5.0 ± 3.8 | +5.2 ± 3.8 | +5.1 ± 2.7 |
+| c: real endings only (the control) | +4.9 ± 3.8 | +8.5 ± 3.8 | +6.7 ± 2.7 |
+
+Points a hand against OT11d. p and c trained on both rounds' data. q trained on round 2's alone, leaving out the data its reader learned from, so it saw half as many positions.
+
+#### What it does differently
+
+Every candidate, in both rounds and in every recipe, plays the same new way: more hands won, smaller wins, about the same deal-ins. OS2c1 against OT11d on the same 60,000 deals: wins 6.54% of hands to 5.35%, average win 2,380 points to 2,735, average faan 6.93 to 7.16, deal-ins 14.20% to 14.13%.
+
+#### Reading
+
+The control is the driver's candidate, so the gain comes from more training on fresh data that records every seat, not from the replays or the reader. The three recipes are within a standard error of each other, and OS2c1 is the best of six models, so its +8.5 is likely flattering; the recipe's mean, +6.7 ± 2.7, is the fairer figure.
+
+#### Result
+
+Shipped as **OS2c1** in 0.61.7, by the maintainer's decision, on this screen. It was not judged on the bar: Only Orphans has no lineage in `bench/lineages.json`. The reasoning: it wins clearly more hands, it scores more points, and it learned against today's table, where OT11d learned against older, weaker ones.
 
 ## The contradiction check: every move agrees with its hand
 

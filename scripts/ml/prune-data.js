@@ -4,12 +4,9 @@
    last --window rounds, the one being played among them). Every other set
    goes to the Trash (~/.Trash), so a mistake can still be undone; emptying
    the Trash frees the space. Model weights (ml/models/) and reports
-   (ml/league/, ml/tune/, ml/pairs/) are never touched, and a removed set's
-   manifest stays on Hugging Face with the command that plays it again
-   (scripts/ml/hf-data.js).
+   (ml/league/, ml/tune/, ml/pairs/) are never touched.
 
-   The league prunes after every round (scripts/ml/league.js), and so does
-   the Hugging Face uploader.
+   The league prunes after every round (scripts/ml/league.js).
 
    node scripts/ml/prune-data.js            what would go, without moving anything
    node scripts/ml/prune-data.js --apply    move it to the Trash

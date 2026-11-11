@@ -62,7 +62,7 @@
                     else the model in the game)
      --strategy S   neural-cat (the default) or only-orphans: the learned strategy
                     trained. Only Orphans' rounds start from the model in the game
-                    (js/mahjong-only-orphans-weights.js, OT11d), name their models OS<round>
+                    (js/mahjong-only-orphans-weights.js), name their models OS<round>
                     and data ml/data/os-<round>, keep state in ml/os, and screen at the
                     same game table (the shipped Neural Cat, Jorge Yau and Lucky Cat)
      --dir DIR      state, log and screens (default ml/fm, or ml/os)
