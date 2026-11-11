@@ -2,9 +2,15 @@
 
 ## Status
 
-*Updated 2026-11-11 05:15 local.* Rounds done: 7 (round 8 running). Rounds done: 4.
+*Updated 2026-11-11 05:50 local.* Rounds done: 9. Rounds done: 4.
 
-- **Champion: G3 = LO4h** (`ml/models/LO4h.json`, variance-aware target: vnorm 1, bonus 150, trained from G2). Against G2 on 160,000 fresh exact deals: points **+1.4 ± 0.8**, hands won **+0.22 ± 0.04 (5.5 SE)**, deal-ins −0.05 ± 0.04, average win 306 vs 304. It meets the generation bar on hands won, but not the points milestone (1.75 SE). **Ship check against lc32** (two fresh exact runs of 80,000 deals each, pooled to 160,000): **+2.4 ± 1.1 points (2.2 SE)**, hands won **+0.34 ± 0.06**. That is **below the 3 SE ship bar**. The runs alone were +1.0 ± 1.5 and +3.8 ± 1.5. Caveat: its table pool (G3, G2, G1, lc32) is not the one G2's ship check used (G2, G1, lc32, lc31), so the two checks don't compare directly. **G2 remains the ship candidate.**
+- **Champion: G4 = LO9d** (`ml/models/LO9d.json`), from 3 blind policy-iteration steps on G3:
+  - LO7a: full-spicy data, vnorm 1, bonus 100.
+  - LO8a: the same recipe.
+  - LO9d: half-spicy data, 16 replays at close choices, a 3-seed soup with vnorm 1 and bonus 50.
+
+  Against G3 on 160,000 fresh exact deals: **+3.4 ± 0.9 points a hand (3.8 SE)**, half spicy +0.39 ± 0.07, **hands won +0.31 ± 0.05 (6 SE)** (22.45% vs 22.14%), deal-ins −0.04 ± 0.05, average win 305 vs 298. It meets the generation bar and the points milestone. Its ship check against lc32 is running.
+- **G3 = LO4h** (`ml/models/LO4h.json`, variance-aware target: vnorm 1, bonus 150, trained from G2). Against G2 on 160,000 fresh exact deals: points **+1.4 ± 0.8**, hands won **+0.22 ± 0.04 (5.5 SE)**, deal-ins −0.05 ± 0.04, average win 306 vs 304. It meets the generation bar on hands won, but not the points milestone (1.75 SE). **Ship check against lc32** (two fresh exact runs of 80,000 deals each, pooled to 160,000): **+2.4 ± 1.1 points (2.2 SE)**, hands won **+0.34 ± 0.06**. That is **below the 3 SE ship bar**. The runs alone were +1.0 ± 1.5 and +3.8 ± 1.5. Caveat: its table pool (G3, G2, G1, lc32) is not the one G2's ship check used (G2, G1, lc32, lc31), so the two checks don't compare directly. **G2 remains the ship candidate.**
 - **G2 = LO2a** (`ml/models/LO2a.json`), the lineage's first points gain. Against G1 on 160,000 fresh exact deals: **+2.2 ± 0.9 points a hand (2.4 SE)**, hands won +0.07 ± 0.05, deal-ins level (−0.00 ± 0.05), average win 301 vs 295. It meets the generation bar and the points milestone. Fair-play shuffle check (`scripts/ml/fair-play.js`): **pass**.
 - **G1 = LO1b:** hands won +0.23 ± 0.07 against lc32 (generation bar only).
 - **SHIP CANDIDATE: G2 against lc32**, on two fresh exact runs of 80,000 deals each (seeds 801,264,000 and 801,344,000), pooled to 160,000 deals: **+5.9 ± 1.1 points a hand (5.5 SE)**, hands won **+0.35 ± 0.05** (22.1% vs 21.8%), deal-ins level (+0.00 ± 0.06), average win about 310 vs 289. The two runs alone: +6.3 ± 1.5 and +5.5 ± 1.5 points. It clears the 3 SE ship bar, and fair play passes.
@@ -191,6 +197,34 @@ No arm met the advance rule. The vnorm arms gained hands won (3 SE) but gave up 
   - Each round trains one recipe (vnorm 1, bonus 100, between the points recipe and the hands-won recipe). It becomes the head with no screen and makes the next round's data, so a round is about 18 min instead of 50.
   - Every 3 steps the head is confirmed against G3 on 160,000 fresh exact deals under the Pareto rule. Three steps' sum is what gets judged, where a single step was invisible.
   - If the confirmation fails, the head goes back to G3.
+
+### Rounds 7 to 9: blind policy iteration (one recipe a round, no screen; the head judged after 3 steps)
+
+| Round | Data | Recipe | Head | Data time | KL from init |
+| --- | --- | --- | --- | ---: | ---: |
+| 7 | own-6 + own-7 (G3), full spicy, 8 CRN replays, 124,504 choices | vnorm 1, bonus 100 | LO7a | 1,030 s | |
+| 8 | own-8 (LO7a), full spicy, 8 replays, 123,734 choices | the same | LO8a | 1,026 s | |
+| 9 | own-9 (LO8a), **half spicy**, 4 replays then 16 at close choices, share 0.25, 62,285 choices | 3 seeds of vnorm 1, bonus 50, **weight-averaged** (bonus 0 and 150 trained beside it, held-out only) | LO9d | 981 s | 0.002 a seed |
+
+**Confirmation of the 3-step head LO9d against G3, 160,000 fresh exact deals:** **+3.4 ± 0.9 points a hand** (half spicy +0.39 ± 0.07), **hands won +0.31 ± 0.05**, deal-ins −0.04 ± 0.05, average win 305 vs 298. **Generation 4, points milestone**, on both tables.
+
+**Reading.**
+- **Judging three steps together worked.** Rounds 5 and 6 couldn't see a single step's gain on 80,000-deal screens. Three unscreened steps added up to +3.4 points and +0.31 hands won.
+- **The round time fell too.** It is now about 18 min (data plus 10 s of training) against about 50 min for a screened round. One confirmation every three rounds replaces three screens.
+- **Not yet separated:** how much of the gain is the half-spicy step, the close-choice replays and the soup in round 9, and how much is the two full-spicy steps before it.
+
+## Half spicy
+
+**Re-scoring, proved.** `lcm-sim play --dump` and `generate-lcv --half-spicy` score a hand on the half-spicy table by scaling the full-spicy settlement by half/full at the winner's faan. On 1,000 deals (4,000 hands, 3,490 wins), every per-deal value matched `js/points.js` `faanToPoints(faan, { spicy: 'half' })` exactly (largest difference 0). The default table and the pinned JS are unchanged.
+
+**Replay noise under the two tables** (signal share = 1 − mean SE² of an option's gap to the move played / the variance of the gaps):
+
+| Data | Table | Replays per option | Gap SD | Mean CRN SE | Signal share |
+| --- | --- | ---: | ---: | ---: | ---: |
+| own-8 (LO7a exploring) | full spicy | 8 | 329 | 285 | 0.25 |
+| own-9 (LO8a exploring) | half spicy | 4, then 16 where the best two are within 1.5 SE (mean 14.9) | 22.7 | 16.6 | 0.47 |
+
+Scaled to 8 replays, half spicy's signal share would be about 0.32. So of the gain from 0.25 to 0.47, the table itself gives about a third, and spending replays on the close choices gives the rest.
 
 ## Structural arms (from the maintainer's list)
 
