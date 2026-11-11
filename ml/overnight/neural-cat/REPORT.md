@@ -1,13 +1,13 @@
 # Neural Cat overnight report
 
-## Status (updated 2026-11-11 05:20)
+## Status (updated 2026-11-11 06:45)
 
-- **Champion:** NC9 (the shipped model, the lab's N14c; `ml/models/pool/NC9.json`, from `js/mahjong-ml-weights.js` at 2d0cb33).
-- **Rounds done:** 1 screened (R1), its confirmation running now.
-- **Last result (R1 screen, 40,000 fast deals, paired against NC9 at a table of NC9, NC8, NC5):** all five fine-tunes of NC9 on 200,000 deals of fresh every-seat data are ahead: R1a +9.4 ± 4.4 (z 2.15), R1c +8.6 ± 4.6, R1e +7.3 ± 4.4, R1b +5.5 ± 4.4, R1d +4.3 ± 4.6 (recipe mean about +7). Weight-noise mutations and play-setting changes: none ahead (best topK 7 at +2.9 ± 2.8).
-- **Now:** confirming R1a, then R1c, on 40,000 fresh deals each on the exact build (bar: points >= 2 SE, hands won not down by more than 1 SE).
-- **Built:** `scripts/ml/nc-overnight.js` (the loop), `ml/nc_multi.py` (several arms in one GPU pass), `lcm-sim play --per-deal` (per-deal results, so any number of models share one paired screen and every model's results are cached by content). Committed 1018891.
-- **Blockers:** none. Note: a 40,000-deal screen at this all-Neural-Cat table has SE about 4.4 points a hand for a retrained arm (sd about 900 a deal), not 2.6; small mutations and play settings have SE 1.6 to 2.9 because most deals play identically.
+- **Champion:** NC9 (the shipped model; `ml/models/pool/NC9.json`). No generation has passed any bar yet.
+- **Rounds done:** 2 (R1, R2: nothing kept). R3 (the maintainer's structural arms) is screening.
+- **Last result:** R2's leader, the soup of four fine-tunes with topK 7 (R2s1), screened at +11.6 ± 3.7 and confirmed at **-0.1 ± 2.8** points a hand on 100,000 fresh exact deals (hands won 16.12% vs 16.15%, deal-ins 10.84% vs 10.32%): fails every bar. A fresh fast rerun of R1a gave -1.2 ± 4.4 (screen +9.4), so the gap is not the fast build: it is selection plus candidates that share their luck (see critique 2).
+- **Now:** R3 screen (40,000 deals, 9 candidates incl. the control R2a), then a 150,000-deal exact confirmation of its leader.
+- **Bars:** generation = on fresh exact deals, points or hands won up >= 2 SE, the other not down > 1 SE, deal-ins not up > 1 SE. Ship candidate = points up >= 3 SE against NC9 on pooled fresh exact deals (confirmation plus a second fresh run), hands won not down > 1 SE.
+- **Blockers:** none.
 
 ## Speed: before (the lab today) and after (this loop)
 
@@ -56,4 +56,57 @@ End to end for one lab-sized round (50,000 deals of data, 3 arms trained, 5 cand
 | R1p1 topK 5 | -11.3 ± 5.5 | 15.96% vs 16.05% | 10.04% vs 10.27% | 788 vs 828 | 10,000 (dropped) |
 
 - Timings: data 31 s (50,000 deals), training 86 s (5 arms), screen 1,787 s (2,120 model-pieces of 250 deals played; the champion once for all 14).
-- Confirmation: running.
+- Confirmation (exact, fresh, 40,000 deals each): R1a **-0.3 ± 4.4** (wins 16.03% vs 16.27%, deal-ins 10.29% vs 10.31%, average win 980 vs 955), fail; R1c **-7.8 ± 4.5** (wins 16.37% vs 16.22%, deal-ins 10.55% vs 10.29%, average win 906 vs 941), fail. 611 s and 597 s each (exact build, about 520 hands a second). Round total 3,112 s.
+
+#### Critique after R1
+
+- **The screen's leaders were inflated twice over.** Best of 14 is biased upward, and every candidate shares the champion's results on the same deals, so the champion's bad luck on those deals lifted all five fine-tunes at once. Their recipe mean (+7) was not five pieces of evidence; it was largely one. Fix: judge only on fresh deals, confirm on more deals (100,000, SE about 2.8) and rank recipes by fresh results, not by screen means.
+- **Where the variance is.** On R1a's 40,000 confirmation deals, 16% of deals were played identically by both models, and the 6.7% of deals whose difference exceeded 2,000 points carried 88% of the variance (limit hands). A retrained network diverges from the champion in most deals, so its paired SE is about 4.4 per 40,000 deals at this table (sd about 890 a deal). An effect of +5 needs about 125,000 deals to reach 2 SE.
+- **Mutations:** weight noise at 0.01 to 0.03 of a layer's spread is a small random step in a 430,000-dimensional space; all four lost slightly (-1.6 to -3.1 ± 2 to 3). Kept as a minor arm, smaller and on the last layer only.
+
+### R2 (champion NC9)
+
+- Data: 4 new sets of 50,000 deals (nco-6, nco-7 at temperature 150 / epsilon 0.05; nco-8, nco-9 at 75 / 0.02), 37 to 42 s each. Arms on the last 8 sets (4.39M rows, kept off the GPU): fine-tune lr 1e-4 seeds 1 to 3, lr 5e-5 for 6 epochs; soups (mean weights) of the four, plain and with topK 7; noise 0.005 (all layers) and 0.02 (last layer); output bias of the deal-in logit +0.1 and -0.1. Training 171 s for 4 arms in one pass.
+- Held-out loss (the 8 sets' held-out deals, outcome + half of each faan head): NC9 3.0630; R2a 2.9847; R2s0 (soup) 2.9853; R2d 2.9870.
+- Screen (fast, seed 3,000,122,000):
+
+| Candidate | Points | Wins | Deal-ins | Avg win | Deals |
+| --- | ---: | --- | --- | --- | ---: |
+| R2s1 soup + topK 7 | +11.6 ± 3.7 | 16.15% vs 16.10% | 10.90% vs 10.40% | 991 vs 919 | 60,000 |
+| R2s0 soup | +9.5 ± 3.6 | 16.19% vs 16.10% | 10.58% vs 10.40% | 966 vs 919 | 60,000 |
+| R2d lr 5e-5 | +8.7 ± 3.6 | 16.09% vs 16.10% | 10.48% vs 10.40% | 959 vs 919 | 60,000 |
+| R2a lr 1e-4 s1 | +8.1 ± 3.6 | 16.29% vs 16.10% | 10.54% vs 10.40% | 955 vs 919 | 60,000 |
+| R2b lr 1e-4 s2 | +7.5 ± 3.6 | 16.38% vs 16.10% | 10.58% vs 10.40% | 936 vs 919 | 60,000 |
+| R2c lr 1e-4 s3 | +5.1 ± 3.6 | 16.29% vs 16.10% | 10.57% vs 10.40% | 940 vs 919 | 60,000 |
+| R2m0 noise 0.005 | +1.4 ± 1.4 | 16.15% vs 16.15% | 10.37% vs 10.36% | 924 vs 916 | 40,000 (dropped) |
+| R2b1 deal-in logit -0.1 | +1.0 ± 1.0 | 16.26% vs 16.15% | 10.42% vs 10.36% | 915 vs 916 | 40,000 (dropped) |
+| R2m1 noise 0.02 last layer | +0.5 ± 1.1 | 16.17% vs 16.15% | 10.37% vs 10.36% | 913 vs 916 | 40,000 (dropped) |
+| R2b0 deal-in logit +0.1 | +0.4 ± 1.7 | 16.21% vs 16.27% | 10.24% vs 10.28% | 908 vs 905 | 20,000 (dropped) |
+
+- Confirmation (exact, fresh, seed 3,000,182,000): R2s1 **-0.1 ± 2.8** over 100,000 deals, wins 16.12% vs 16.15% (-0.0 ± 0.07 pp), deal-ins 10.84% vs 10.32%, average win 959 vs 903: fails. 1,594 s. Screen 1,941 s; round 3,706 s.
+- Check of the build: R1a on 40,000 fresh deals on the fast build: -1.2 ± 4.4 (its screen said +9.4, its exact confirmation -0.3). The fast build is not the cause.
+
+#### Critique 2 (after two rounds with nothing kept)
+
+- **The screens agree with each other, not with fresh deals.** In all three screens every retrained candidate was ahead (+4 to +12), and all three leaders confirmed at about 0. The retrained candidates make largely the same changed decisions (they share NC9's start and the same data), so on a given set of deals they win or lose together: their screen results are one draw, not five, and the best of them is that draw plus selection. Pruning and ranking on a shared screen can't tell them apart. Consequence: the screen is now only a filter for the clearly bad; the decision is the fresh confirmation, sized for SE about 2.3 (150,000 deals).
+- **Better prediction is not better play, again.** Fine-tuning cuts the held-out loss from 3.063 (NC9) to 2.985, about 40 times the spread between seeds, and play is unchanged (0 ± 3). The loss is spread over every seat's positions and the level of each value; the choice depends only on the differences between the 6 options at one position, which the data shows only through the moves actually made.
+- **Capacity is not the limit (B6).** A residual pre-LayerNorm teacher, 768 wide, 4 blocks, 9.9M parameters (23 times NC9), trained from scratch on the same 4.39M rows with AdamW, clipping at 1.0, 5% warm-up and cosine decay, reached a best held-out loss of 2.9866 (outcome 1.2235, win faan 1.4046, pay faan 2.1216, epoch 4 of 8; its win-faan head overfits after that), against 2.9847 for the champion-shaped fine-tune R2a (outcome 1.2238). No gain beyond seed noise, so by the maintainer's rule the residual port (B7) is not worth doing; one distilled student (R3dist) is screened anyway because it costs nothing more.
+- **Mutations and small play changes** are measurable to about ± 1 to 1.5 at 40,000 deals (most deals play identically) and every one has been within 1.5 points of NC9: NC9 sits near a local optimum of its play settings and output biases.
+
+## Structural arms (R3)
+
+All fine-tune NC9 on the same 8 sets (nco-2 to nco-9) for 4 epochs, seed 1, against the control R2a (lr 1e-4, no option), unless noted. Held-out loss on the same held-out deals (lower is better; seed-to-seed spread of the control recipe about 0.0003).
+
+| Arm | Change | Held-out loss | Note |
+| --- | --- | ---: | --- |
+| R2a (control) | none | 2.98471 | |
+| R3clip (A1) | clip global grad norm at 1.0 | 2.98481 | pre-clip norm median 0.40, p99 0.45, max 0.52 in every epoch: **the clip never bites**; drop it for these fine-tunes. (The from-scratch teacher's p99 was 20 in its first epoch, so clipping matters only from scratch.) |
+| R3ema (A2) | EMA of weights, 0.999 a step | 2.98504 | same as the control, as were the soups (2.9853) |
+| R3smooth (A4) | label smoothing 0.1 on both faan heads | 3.00696 | not comparable: the held-out loss is on hard labels, which smoothing pays for by design; judged by play |
+| R3noise1, R3noise2 (A5) | gradient noise 0.01 x RMS, annealed | 2.98486, 2.98491 | same as the control |
+| R3fast (A3 control) | lr 1e-3 | 2.97875 | better loss than lr 1e-4 |
+| R3warm (A3) | lr 1e-3 with 5% linear warm-up | 2.97832 | warm-up adds 0.0004 over its control |
+| R3dist (B6) | distil the teacher T1 (half the loss on its softmaxes) | 2.98410 | 0.0006 better than the control |
+| T1 teacher (B6) | residual + LayerNorm, 9.9M parameters, from scratch | 2.98661 | no better than the shipped shape fine-tuned |
+
+Play results: R3's screen and confirmation, below when done.

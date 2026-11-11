@@ -1,0 +1,13 @@
+{"name":"R3","data":{"sets":0,"window":8},
+ "arms":[
+  {"name":"R3clip","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","clip":1.0},
+  {"name":"R3ema","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","ema":0.999},
+  {"name":"R3smooth","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","faanSmooth":0.1},
+  {"name":"R3noise1","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","gradNoise":0.01},
+  {"name":"R3noise2","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":2,"init":"champion","hidden":"512,256","gradNoise":0.01},
+  {"name":"R3fast","lr":1e-3,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256"},
+  {"name":"R3warm","lr":1e-3,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","warmup":0.05},
+  {"name":"R3dist","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","teacher":"ml/overnight/neural-cat/work/teacher/T1.f16","distill":0.5}],
+ "extra":["ml/models/R2a.json"],
+ "screen":{"deals":40000,"look":20000,"minDeals":20000},
+ "confirm":{"deals":150000,"top":1,"minZ":1}}

@@ -1,0 +1,11 @@
+{"name":"R2","data":{"deals":50000,"sets":[{},{},{"temperature":75,"epsilon":0.02},{"temperature":75,"epsilon":0.02}],"window":8},
+ "arms":[
+  {"name":"R2a","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256"},
+  {"name":"R2b","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":2,"init":"champion","hidden":"512,256"},
+  {"name":"R2c","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":3,"init":"champion","hidden":"512,256"},
+  {"name":"R2d","lr":5e-5,"epochs":6,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256"}],
+ "soups":[{"of":"trained"},{"of":"trained","play":{"topK":7}}],
+ "mutations":[{"sigma":0.005,"seed":3},{"sigma":0.02,"seed":3,"layers":[2]}],
+ "bias":[[{"out":2,"delta":0.1}],[{"out":2,"delta":-0.1}]],
+ "screen":{"deals":60000,"look":20000,"minDeals":20000},
+ "confirm":{"deals":100000,"top":1,"minZ":1}}

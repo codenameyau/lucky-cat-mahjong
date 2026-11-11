@@ -14,7 +14,14 @@ which is shared).
 arms.json: a list of {"name", "lr", "epochs", "patience", "dropout",
 "weightDecay", "seed", "init" (a .json model), "hidden" ("512,256"),
 "batch" (2048), "winWeight" (0.5), "payWeight" (0.5), "sampleWeight"
-(optional: "learner" weights the learner's rows by 2)}.
+(optional: "learner" weights the learner's rows by 2),
+structural options: "clip" (global gradient-norm clipping; the pre-clip norm's
+median, 99th percentile and max are logged every epoch for every arm), "ema"
+(decay per step: the averaged weights are validated and exported), "warmup"
+(linear warm-up over this share of the steps), "faanSmooth" (label smoothing on
+the faan heads), "gradNoise" (Gaussian noise of this times the gradient's RMS,
+annealed to 0), "teacher" (a .f16 file of a teacher's 28 outputs for every row,
+ml/nc_teacher.py) with "distill" (the share of the loss on the teacher's softmaxes)}.
 Writes ml/models/<name>.json for each arm and prints one JSON line per arm
 (name, best epoch, validation loss, seconds).
 """
@@ -50,6 +57,21 @@ def init_from(model, file, device):
     return init
 
 
+def soft_ce(logits, target_logits):
+    return -(torch.softmax(target_logits, 1) * F.log_softmax(logits, 1)).sum(1).mean()
+
+
+def losses(out, yo, yw, yp, smooth):
+    if not smooth:
+        return T.losses(out, yo, yw, yp)
+    lo = F.cross_entropy(out[:, :T.N_OUTCOMES], yo)
+    win, pay = yo <= 1, (yo == 2) | (yo == 3)
+    z = out.new_zeros(())
+    lw = F.cross_entropy(out[win, T.N_OUTCOMES:T.N_OUTCOMES + T.N_FAAN], yw[win], label_smoothing=smooth) if win.any() else z
+    lp = F.cross_entropy(out[pay, T.N_OUTCOMES + T.N_FAAN:T.OUTPUTS], yp[pay], label_smoothing=smooth) if pay.any() else z
+    return lo, lw, lp
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--data', nargs='+', required=True)
@@ -73,17 +95,23 @@ def main():
         xt, xv = to(x[tr_rows], torch.float16), to(x[va_rows], torch.float16)
         fetch_t = lambda idx: xt[idx].float()
         fetch_v_np = lambda pos: xv[torch.from_numpy(pos).to(device)].float()
+        del x
     else:
         fetch_t = lambda idx: torch.from_numpy(x[tr_rows[idx.cpu().numpy()]]).to(device).float()
         fetch_v_np = lambda pos: torch.from_numpy(x[va_rows[pos]]).to(device).float()
         print('Data is %.1f GB: a batch at a time on the device' % (x.nbytes / 1e9), flush=True)
-    del x
     out_t, out_v = to(y['outcome'][~val], torch.long), to(y['outcome'][val], torch.long)
     cl = lambda a: np.clip(a.astype(np.int64) - 3, 0, T.N_FAAN - 1)
     win_t, win_v = to(cl(y['winFaan'][~val]), torch.long), to(cl(y['winFaan'][val]), torch.long)
     pay_t, pay_v = to(cl(y['payFaan'][~val]), torch.long), to(cl(y['payFaan'][val]), torch.long)
     learner_idx = manifests[0]['strategies'].index('neural-cat') if 'neural-cat' in manifests[0]['strategies'] else -1
     strat_t = to(y['strategy'][~val], torch.long)
+    teachers = {}
+    for a in arms:
+        if a.get('teacher') and a['teacher'] not in teachers:
+            tl = np.fromfile(a['teacher'], dtype=np.float16).reshape(-1, T.OUTPUTS)
+            assert len(tl) == len(y), 'teacher rows %d, data rows %d' % (len(tl), len(y))
+            teachers[a['teacher']] = to(tl[~val], torch.float16)
     delta_v = y['delta'][val]
 
     runs = []
@@ -95,8 +123,14 @@ def main():
             init_from(model, a['init'], device)
         opt = torch.optim.AdamW(model.parameters(), lr=a['lr'], weight_decay=a.get('weightDecay', 1e-3))
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=a['epochs'])
-        runs.append({'a': a, 'hidden': hidden, 'model': model, 'opt': opt, 'sched': sched, 'best': math.inf,
-                     'state': None, 'info': None, 'stale': 0, 'done': False, 't': 0.0, 'epochs': 0})
+        ema = None
+        if a.get('ema'):
+            ema = T.Net(size, hidden, a.get('dropout', 0.2)).to(device)
+            ema.load_state_dict(model.state_dict())
+            ema.eval()
+        runs.append({'a': a, 'hidden': hidden, 'model': model, 'opt': opt, 'sched': sched, 'best': math.inf, 'ema': ema,
+                     'state': None, 'info': None, 'stale': 0, 'done': False, 't': 0.0, 'epochs': 0, 'norms': [], 'step': 0})
+    steps_per_epoch = (n_train + args.batch - 1) // args.batch
     max_epochs = max(a['epochs'] for a in arms)
     print('Training %d arms on %d rows, validating on %d' % (len(arms), n_train, n_val), flush=True)
     for epoch in range(max_epochs):
@@ -115,17 +149,47 @@ def main():
                 if a.get('sampleWeight') == 'learner':
                     wgt = 1.0 + (strat_t[idx] == learner_idx).float()
                     lo = (F.cross_entropy(out[:, :T.N_OUTCOMES], yo, reduction='none') * wgt).sum() / wgt.sum()
-                    _, lw, lp = T.losses(out, yo, yw, yp)
+                    _, lw, lp = losses(out, yo, yw, yp, a.get('faanSmooth', 0))
                 else:
-                    lo, lw, lp = T.losses(out, yo, yw, yp)
+                    lo, lw, lp = losses(out, yo, yw, yp, a.get('faanSmooth', 0))
                 loss = lo + a.get('winWeight', 0.5) * lw + a.get('payWeight', 0.5) * lp
+                if a.get('teacher'):
+                    tl = teachers[a['teacher']][idx].float()
+                    O, W_ = T.N_OUTCOMES, T.N_OUTCOMES + T.N_FAAN
+                    ld = soft_ce(out[:, :O], tl[:, :O]) + 0.5 * soft_ce(out[:, O:W_], tl[:, O:W_]) + 0.5 * soft_ce(out[:, W_:], tl[:, W_:])
+                    loss = (1 - a.get('distill', 0.5)) * loss + a.get('distill', 0.5) * ld
+                total_steps = steps_per_epoch * a['epochs']
+                if a.get('warmup'):
+                    base_lr = a['lr'] * 0.5 * (1 + math.cos(math.pi * r['epochs'] / a['epochs']))
+                    for gp in r['opt'].param_groups:
+                        gp['lr'] = base_lr * min(1.0, (r['step'] + 1) / max(1, a['warmup'] * total_steps))
                 r['opt'].zero_grad(set_to_none=True)
                 loss.backward()
+                gn = torch.nn.utils.clip_grad_norm_(r['model'].parameters(), a['clip'] if a.get('clip') else float('inf'))
+                r['norms'].append(gn.detach())
+                if a.get('gradNoise'):
+                    frac = max(0.0, 1 - r['step'] / total_steps)
+                    for prm in r['model'].parameters():
+                        if prm.grad is not None:
+                            rms = prm.grad.pow(2).mean().sqrt()
+                            prm.grad.add_(torch.randn_like(prm.grad) * a['gradNoise'] * frac * rms)
                 r['opt'].step()
+                r['step'] += 1
+                if r['ema'] is not None:
+                    with torch.no_grad():
+                        for pe, pm in zip(r['ema'].parameters(), r['model'].parameters()):
+                            pe.mul_(a['ema']).add_(pm.detach(), alpha=1 - a['ema'])
         for r in live:
-            r['sched'].step()
+            if not r['a'].get('warmup'):
+                r['sched'].step()
             r['epochs'] += 1
-            vl, evs, acc = T.evaluate(r['model'], fetch_v_np, n_val, out_v, win_v, pay_v, args.batch * 4)
+            nm = torch.stack(r['norms']).float().cpu().numpy()
+            r['norms'] = []
+            clip = r['a'].get('clip')
+            print('%s epoch %d grad norm median %.3f p99 %.3f max %.3f%s' % (r['a']['name'], epoch + 1, np.median(nm), np.percentile(nm, 99), nm.max(),
+                  (' (clip %g bites on %.1f%% of steps)' % (clip, 100 * (nm > clip).mean())) if clip else ''), flush=True)
+            evm = r['ema'] if r['ema'] is not None else r['model']
+            vl, evs, acc = T.evaluate(evm, fetch_v_np, n_val, out_v, win_v, pay_v, args.batch * 4)
             total = vl[0] + 0.5 * vl[1] + 0.5 * vl[2]
             with np.errstate(invalid='ignore', divide='ignore'):
                 corr = float(np.corrcoef(evs, delta_v)[0, 1]) if len(evs) > 1 else 0.0
@@ -134,7 +198,7 @@ def main():
             print('%s epoch %d val %.5f acc %.4f r %.3f' % (r['a']['name'], epoch + 1, total, acc, corr), flush=True)
             if total < r['best'] - 1e-5:
                 r['best'], r['stale'] = total, 0
-                r['state'] = {k: v.detach().clone() for k, v in r['model'].state_dict().items()}
+                r['state'] = {k: v.detach().clone() for k, v in evm.state_dict().items()}
                 r['info'] = {'valLoss': round(float(total), 5), 'valOutcomeLoss': round(float(vl[0]), 5),
                              'valOutcomeAcc': round(acc, 4), 'evPointsCorr': round(corr, 4), 'epoch': epoch + 1}
             else:

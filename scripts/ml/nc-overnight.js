@@ -173,13 +173,14 @@ function summary(rows, n) {
 }
 
 function paired(a, b, n) {
-  let s = 0, q = 0, sw = 0, qw = 0;
+  let s = 0, q = 0, sw = 0, qw = 0, si = 0, qi = 0;
   for (let d = 0; d < n; d++) {
-    const x = a[d * 4] - b[d * 4], w = (a[d * 4 + 1] - b[d * 4 + 1]) / 4;
-    s += x; q += x * x; sw += w; qw += w * w;
+    const x = a[d * 4] - b[d * 4], w = (a[d * 4 + 1] - b[d * 4 + 1]) / 4, i = (a[d * 4 + 2] - b[d * 4 + 2]) / 4;
+    s += x; q += x * x; sw += w; qw += w * w; si += i; qi += i * i;
   }
-  const m = s / n, mw = sw / n;
-  return { n, points: m, se: Math.sqrt(Math.max(0, q / n - m * m) / (n - 1)), wins: mw, winSe: Math.sqrt(Math.max(0, qw / n - mw * mw) / (n - 1)) };
+  const m = s / n, mw = sw / n, mi = si / n;
+  const se = (q2, m2) => Math.sqrt(Math.max(0, q2 / n - m2 * m2) / (n - 1));
+  return { n, points: m, se: se(q, m), wins: mw, winSe: se(qw, mw), dealIns: mi, dealInSe: se(qi, mi) };
 }
 
 const f1 = (x) => (x >= 0 ? '+' : '') + x.toFixed(1);
@@ -237,11 +238,15 @@ async function confirm(state, cand, opts) {
   const r = await playRows([cand, champ], table, seed, deals, 'exact');
   const p = paired(r.rows[0], r.rows[1], deals);
   const s = summary(r.rows[0], deals), c = summary(r.rows[1], deals);
-  const pass = p.points >= 2 * p.se && p.wins >= -p.winSe;
+  // A generation (the Pareto rule): points or hands won up 2 SE, the other not down more than 1 SE,
+  // deal-ins not up more than 1 SE. A ship candidate needs points up 3 SE on pooled fresh exact deals.
+  const pass = ((p.points >= 2 * p.se && p.wins >= -p.winSe) || (p.wins >= 2 * p.winSe && p.points >= -p.se)) && p.dealIns <= p.dealInSe;
+  const shipLike = p.points >= 3 * p.se && p.wins >= -p.winSe;
   const secs = (Date.now() - t0) / 1000;
   timing(state, 'confirm', secs, { deals });
-  log('  ' + line(nameOf(cand), p, s, c) + (pass ? '  PASS' : '  fail') + ' (' + secs.toFixed(0) + 's)');
-  return { name: nameOf(cand), file: rel(cand), seed, deals, pair: p, self: s, champ: c, pass, seconds: secs };
+  log('  ' + line(nameOf(cand), p, s, c) + ', deal-in diff ' + (100 * p.dealIns).toFixed(2) + ' +- ' + (100 * p.dealInSe).toFixed(2) + ' pp' +
+    (pass ? '  PASS (generation, Pareto 2 SE)' : '  fail') + (shipLike ? ' points 3 SE' : '') + ' (' + secs.toFixed(0) + 's)');
+  return { name: nameOf(cand), file: rel(cand), seed, deals, pair: p, self: s, champ: c, pass, shipLike, seconds: secs };
 }
 
 /* ---------------- data ---------------- */
@@ -291,7 +296,7 @@ function trainArms(state, arms, data) {
     fs.writeFileSync(spec, JSON.stringify(todo.map((a) => { const b = Object.assign({}, a); delete b.key; return b; })));
     const t0 = Date.now();
     log('Training ' + todo.map((a) => a.name).join(', ') + ' on ' + data.join(', '));
-    const r = spawnSync(PY, ['ml/nc_multi.py', '--data'].concat(data, ['--arms', spec]), { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 });
+    const r = spawnSync(PY, ['ml/nc_multi.py', '--device-bytes', String(state.deviceBytes || 4e9), '--data'].concat(data, ['--arms', spec]), { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 });
     fs.appendFileSync(path.join(WORK, 'train.log'), (r.stdout || '') + (r.stderr || ''));
     if (r.status) throw new Error('nc_multi failed: ' + (r.stderr || '').slice(-3000) + (r.stdout || '').slice(-2000));
     const secs = (Date.now() - t0) / 1000;
@@ -396,13 +401,17 @@ async function round(state, spec) {
   const cands = [], trained = [];
   if (spec.arms && spec.arms.length) {
     const fresh = [];
-    for (let k = 0; k < (spec.data.sets ?? 1); k++) fresh.push(gen(state, { deals: spec.data.deals, tag: spec.name + '-' + k, learners: spec.data.learners, temperature: spec.data.temperature, epsilon: spec.data.epsilon }));
+    // sets: a count, or a list of per-set settings ({ temperature, epsilon, learners, deals }).
+    const sets = Array.isArray(spec.data.sets) ? spec.data.sets : Array(spec.data.sets ?? 1).fill({});
+    sets.forEach((o, k) => fresh.push(gen(state, { deals: o.deals || spec.data.deals, tag: spec.name + '-' + k, learners: o.learners || spec.data.learners,
+      temperature: o.temperature || spec.data.temperature, epsilon: o.epsilon || spec.data.epsilon })));
     const all = state.datasets.map((d) => d.dir).filter((d) => fs.existsSync(path.join(ROOT, d, 'manifest.json')));
     const window = spec.data.window ? all.slice(-spec.data.window) : fresh;
     const arms = spec.arms.map((a) => Object.assign({}, a, { init: a.init === 'champion' ? rel(champ) : a.init }));
     trained.push(...trainArms(state, arms, window));
     trained.forEach((f) => cands.push(f));
   }
+  if (spec.trainOnly) { log('Trained only (--train-only)'); return null; }
   // Soups: of every arm trained this round ("trained") or of named models; optional play changes on top.
   (spec.soups || []).forEach((sp, k) => {
     const of = sp.of === 'trained' ? trained : sp.of.map((x) => (x.endsWith('.json') ? x : 'ml/models/' + x + '.json'));
@@ -453,7 +462,7 @@ async function main() {
   saveState(state);
   if (cmd === 'gen') { gen(state, { deals: +a.deals || 50000, tag: a.tag || '', fresh: !!a.fresh }); return; }
   if (cmd === 'screen') {
-    const r = await screen(state, String(a.cands).split(','), { deals: +a.deals || 40000, look: +a.look || 10000, build: a.build, champion: a.champion });
+    const r = await screen(state, String(a.cands).split(','), { deals: +a.deals || 40000, look: +a.look || 10000, build: a.build, champion: a.champion, seed: a.seed ? +a.seed : undefined });
     fs.writeFileSync(path.join(WORK, 'screen-' + Date.now() + '.json'), JSON.stringify(r, null, 1));
     return;
   }
@@ -461,7 +470,7 @@ async function main() {
   if (cmd === 'mutate') { console.log(mutate(a.from, +a.sigma, +a.seed, a.name)); return; }
   if (cmd === 'soup') { console.log(soup(String(a.of).split(','), a.name)); return; }
   if (cmd === 'tune') { console.log(tune(a.from, JSON.parse(a.play), a.name)); return; }
-  if (cmd === 'round') { await round(state, readJson(a.spec)); return; }
+  if (cmd === 'round') { await round(state, Object.assign(readJson(a.spec), a['train-only'] ? { trainOnly: true } : {})); return; }
   if (cmd === 'status') { console.log(JSON.stringify({ champion: state.championName, rounds: state.rounds.length, seeds: state.seeds, datasets: state.datasets.length }, null, 1)); return; }
   throw new Error('usage: nc-overnight.js gen|round|screen|confirm|mutate|tune|status');
 }
