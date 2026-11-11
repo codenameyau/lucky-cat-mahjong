@@ -1,6 +1,6 @@
 # Frontier work: history and decisions
 
-**The Suphx line was cancelled on 2026-11-09 as a failed experiment** ([why](suphx-plan.md#the-suphx-line-is-cancelled-2026-11-09)). The frontier plan is now [one model, three heads](frontier-plan.md). This page is the record of the line that ended.
+**The Suphx line was cancelled on 2026-11-09 as a failed experiment** ([why](suphx-plan.md#the-suphx-line-is-cancelled-2026-11-09)). The plan after it, [one model, three heads](frontier-plan.md), is a past plan too: since 2026-11-10 each model is trained against older models of its own lineage only ([training](training.md#training-a-lineage-against-its-own-past)). This page is the record of the line that ended; its "Where it stands" is as of 2026-11-09.
 
 A record of the frontier work so far (from 2026-11-08): what was built, every decision taken and why, and what would make each one worth revisiting. The design itself is the [frontier plan](suphx-plan.md). What each step taught, with its evidence, is its §11 Learnings. This page is the short version: the order things happened in, and the choices.
 

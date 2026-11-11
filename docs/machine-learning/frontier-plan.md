@@ -2,6 +2,8 @@
 
 Written 2026-11-09. This is the plan for the frontier model: one network that reads the table, picks the hand and values every move, grown from Neural Cat. It replaces the [Suphx plan](suphx-plan.md), which was cancelled the same day as a failed experiment ([why](suphx-plan.md#the-suphx-line-is-cancelled-2026-11-09)). The pipeline this model sits in, and the rules around it, are [the evaluation architecture](../architecture/README.md).
 
+> **This is a past plan, not the current approach (2026-11-11).** Its stacked model, Frontier Cat FC1, folded into Neural Cat's lineage in 0.59.0 without clearing the bar, and no step below is being worked on. Each model is now trained against older models of its own lineage only ([training a lineage against its own past](training.md#training-a-lineage-against-its-own-past)); the game plays Neural Cat NC10, Lucky Cat lc34 and Only Orphans OW1. This page stays as the record.
+
 ## Contents
 
 - [Where it stands](#where-it-stands)

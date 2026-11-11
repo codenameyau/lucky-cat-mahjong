@@ -2,11 +2,15 @@
 
 `neural-cat` (`js/mahjong-ml.js`) is a learned strategy. It has no playbook of rules. A model trained on simulated deals picks the discard, and whether to claim or kong. Choose it on the Strategies sheet for a seat or the coach, like any other strategy.
 
+## What it is for
+
+**The balanced one: the best of both.** Where [Lucky Cat](lucky-cat.md) goes for the most wins and [Only Orphans](only-orphans.md) for the biggest hands, Neural Cat is meant to win often and win big. Its training keeps a new model when it scores more points without winning fewer hands, or wins more hands without scoring less (the maintainer's aim for it, set 2026-11-11; [what each strategy is for](README.md#what-each-learned-strategy-is-for)).
+
 ## How it thinks
 
 It reads the hand the way [Jorge Yau](jorge-yau.md) does, which narrows each decision to a few sound options. Its network then predicts how the hand ends after each one (win by self-draw or off a discard, deal in, and how many faan a win would be) and folds that into one score: what the option is worth on average. The highest score goes. Because a fast small win and a slow big one sit on the same scale, it can prefer a slower big hand over a fast small one when the numbers favor it.
 
-The style that results is bigger hands and fewer deal-ins than [Lucky Cat](lucky-cat.md)'s many small wins. NC1 to NC3 wanted size most: about 9% of hands won, each worth about 1,900 points. Since NC4 it also leans toward winning, with a bonus for the chance to win (`winBonus`, 150 points for a sure win, raised to 300 in NC6): NC9 wins about 17.4% of hands, each worth about 896 points, with deal-ins about 11.8%. The coach shows the same reasoning: the score of its pick and the next best, its chance to win and what a win pays, and which parts of the position put its pick ahead. It sees only what its seat can see.
+The style that results is bigger hands and fewer deal-ins than [Lucky Cat](lucky-cat.md)'s many small wins. NC1 to NC3 wanted size most: about 9% of hands won, each worth about 1,900 points. Since NC4 it also leans toward winning, with a bonus for the chance to win (`winBonus`, 150 points for a sure win, raised to 300 in NC6): NC9 wins about 17.4% of hands at the game's table, each worth about 896 points, with deal-ins about 11.8%. NC10, at a table of older Neural Cats, wins 17.2% of hands to NC9's 16.2% there, each worth about 903 points, with deal-ins 10.5%. The coach shows the same reasoning: the score of its pick and the next best, its chance to win and what a win pays, and which parts of the position put its pick ahead. It sees only what its seat can see.
 
 This is the strategy's playbook: how it plays and every result. How the whole AI layer is built (features, the network, decisions, training, the league, fair play and Hugging Face) is in [docs/machine-learning](../machine-learning/README.md).
 
@@ -27,9 +31,9 @@ This is the strategy's playbook: how it plays and every result. How the whole AI
 
    Only what the seat can see goes in. Never the wall, never another hand.
 3. The network (`js/mahjong-ml-model.js`, 568 → 512 → 256 → 28) predicts how the hand ends: win by self-draw, win off a discard, deal in, someone else self-draws, someone else wins, or a draw, and the faan of the win you'd collect and of the hand you'd pay for.
-4. Those make one number, expected points on the full-spicy payout table (a self-draw is paid by all three other seats). Of Jorge Yau's best few discards (`meta.play.topK`, 6 for NC9), the one worth the most, with its bonus for the chance to win, goes. A fast cheap win and a slow big one are weighed on the same scale.
+4. Those make one number, expected points on the full-spicy payout table (a self-draw is paid by all three other seats). Of Jorge Yau's best few discards (`meta.play.topK`, 6 for NC10, as for NC9), the one worth the most, with its bonus for the chance to win, goes. A fast cheap win and a slow big one are weighed on the same scale.
 
-The model only reorders Jorge Yau's top few (`meta.play.topK`, 6 for NC9; `TOP_K` in `js/mahjong-ml.js`, 3, is the default). Choosing among every discard, the first model (on the plain foundation) won 3.5% of hands and dealt in 12% of the time: trained only on the bots' own choices, it couldn't yet tell close discards apart, and it didn't weigh safety.
+The model only reorders Jorge Yau's top few (`meta.play.topK`, 6 for NC10; `TOP_K` in `js/mahjong-ml.js`, 3, is the default). Choosing among every discard, the first model (on the plain foundation) won 3.5% of hands and dealt in 12% of the time: trained only on the bots' own choices, it couldn't yet tell close discards apart, and it didn't weigh safety.
 
 Each candidate carries `ml`: `ev`, `pWin`, `pDealIn`, `avgWin`, `winFaan` and the outcome odds. The chosen one also carries `ml.why`: the points each feature group puts it ahead of the next best discard, found by swapping that group's features for the other discard's.
 
@@ -71,6 +75,8 @@ npm run compete -- --lineup neural-cat,jorge-yau,lucky-cat,jorge-yau --deals 100
 
 A change to the features (`FEATURE_VERSION`, `SIZE`) needs new data and a new model: the model refuses weights built for another size.
 
+**How it is trained now.** The commands above are the first steps. Since NC10, Neural Cat is trained against older Neural Cats only (NC9, NC8, NC7, NC5 and NC3 in the data), with several arms trained in one GPU pass and each kept only for a confirmed gain on fresh deals on the native simulator's exact build ([training a lineage against its own past](../machine-learning/training.md#training-a-lineage-against-its-own-past)). Its tools are on the branch `train/neural-cat-overnight` (`scripts/ml/nc-overnight.js`, `ml/nc_multi.py`), not in master.
+
 ### Self-play and the league
 
 `npm run ml:loop` trained the first models (s1 to s6) against Jorge Yau and Lucky Cat. `npm run ml:league` trains against other Neural Cat models only:
@@ -107,7 +113,7 @@ The reader learned from simulated hands where every tile was known once the hand
 
 ## Results
 
-Neural Cat in the game is **NC10** (SC1, shipped 2026-11-11 in game 0.61.8). It is NC9 with its two faan heads retrained on softened labels, trained at a table of only older Neural Cats. Against NC9 on 200,000 fresh deals there it scores **+8.1 ± 2.0 points a hand** and wins 17.2% of hands against 16.2%, with deal-ins up a quarter of a point; at the benchmark table (NC8, Jorge Yau, NC8) it is +7.4 ± 3.4 over 60,000 deals ([iterations](../machine-learning/iterations.md#neural-cat-against-its-own-lineage-nc10-2026-11-11)). Before it came **NC9** (the lab model N14c, shipped 2026-11-10 in game 0.58.0, beside the stacked FC1: [stacked models](#stacked-models)). The league made NC1 and NC2, and the lab made NC3 to NC9. NC9 beats NC8 by +11.6 ± 2.8 points a hand over 100,000 fresh deals at the game's table: it wins more often (17.4% of hands against 16.8%) and bigger (896 points against 869), and deals in a little more (11.8% against 11.5%) ([frontier report](../machine-learning/frontier-report.md#head-to-head)). It scores Jorge Yau's best 6 discards (NC8: 4). Each model's thinking, and how it plays differently from the one before it, is in [Iterations](../machine-learning/iterations.md#neural-cat-the-league-l1-to-l18-nc1).
+Neural Cat in the game is **NC10** (SC1, shipped 2026-11-11 in game 0.61.8). It is NC9 with its two faan heads retrained on softened labels in two steps (label smoothing 0.03 on both faan heads, then 0.03 on the pay head only), trained at a table of only older Neural Cats, with the same network (568-512-256-28) and play settings (best 6 options, win bonus 300, claim margin 0). Against NC9 on 200,000 fresh deals there, on the exact build, it scores **+8.1 ± 2.0 points a hand** and wins 17.23% of hands against 16.15% (+1.08 ± 0.05 points of a percent), with deal-ins 10.51% against 10.27% and an average win of 903 points against 915. A second seed of the recipe gave +7.0 ± 2.4; a third came out level with NC10; at the benchmark table (NC9, Jorge Yau, NC9, frozen at game 0.58.0) it is +7.4 ± 3.4 over 60,000 deals ([iterations](../machine-learning/iterations.md#neural-cat-against-its-own-lineage-nc10-2026-11-11)). Before it came **NC9** (the lab model N14c, shipped 2026-11-10 in game 0.58.0, beside the stacked FC1: [stacked models](#stacked-models)). The league made NC1 and NC2, and the lab made NC3 to NC9. NC9 beats NC8 by +11.6 ± 2.8 points a hand over 100,000 fresh deals at the game's table: it wins more often (17.4% of hands against 16.8%) and bigger (896 points against 869), and deals in a little more (11.8% against 11.5%) ([frontier report](../machine-learning/frontier-report.md#head-to-head)). It scores Jorge Yau's best 6 discards (NC8: 4). Each model's thinking, and how it plays differently from the one before it, is in [Iterations](../machine-learning/iterations.md#neural-cat-the-league-l1-to-l18-nc1).
 
 ### League (claims and kongs, against other models)
 
@@ -127,7 +133,7 @@ Rounds 1 to 5 used 2,000-deal evaluations, which swing by about ±50 points a ha
 
 #### What L7 improved
 
-The game now ships NC9, which is the lab model N14c; NC8 was N10c (shipped models are named NC1, NC2 and so on; see [release names](../machine-learning/model.md); NC1 was L17, NC2 was L19, NC3 was N2b, NC4 was N3d, NC5 was N4c, NC6 was N7e and NC7 was N8e). How each was measured is in [iterations](../machine-learning/iterations.md). At the time of writing, L7 was the model the game shipped. It replaces L3, which shipped before it. Against L6, its direct predecessor, on 6,000 new deals (each deal played from every seat, L7 and L6 two seats each):
+The game now ships NC10 (SC1, NC9 retrained); NC9 was the lab model N14c and NC8 was N10c (shipped models are named NC1, NC2 and so on; see [release names](../machine-learning/model.md); NC1 was L17, NC2 was L19, NC3 was N2b, NC4 was N3d, NC5 was N4c, NC6 was N7e and NC7 was N8e). How each was measured is in [iterations](../machine-learning/iterations.md). At the time of writing, L7 was the model the game shipped. It replaces L3, which shipped before it. Against L6, its direct predecessor, on 6,000 new deals (each deal played from every seat, L7 and L6 two seats each):
 
 | | L7 | L6 |
 | --- | ---: | ---: |

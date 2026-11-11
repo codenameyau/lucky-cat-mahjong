@@ -1,6 +1,8 @@
 # Training
 
-Training has three parts. Node.js simulates hands and records positions with how each hand ended. PyTorch fits the network to them. Competitions decide whether a new model is better. Each step has its own command.
+Training has three parts. Hands are simulated, on the [native simulator](native.md) (or in Node.js), and positions are recorded with how each hand ended. PyTorch fits the network to them. Paired games on fresh deals decide whether a new model is better. Each step has its own command.
+
+**How each model is trained now:** against older models of its own lineage only, in [the lineage-only loop](#training-a-lineage-against-its-own-past) (since 2026-11-10). The lab, the league and the self-play loop below are how the earlier models were made, and their commands still work.
 
 ## Contents
 
@@ -8,6 +10,12 @@ Training has three parts. Node.js simulates hands and records positions with how
 - [Setup](#setup)
   - [Windows with an NVIDIA GPU](#windows-with-an-nvidia-gpu)
 - [How the models were trained](#how-the-models-were-trained)
+- [Training a lineage against its own past](#training-a-lineage-against-its-own-past)
+  - [The bars](#the-bars)
+  - [Lucky Cat: `scripts/ml/lc-own-loop.js`](#lucky-cat-scriptsmllc-own-loopjs)
+  - [Neural Cat and Only Orphans: on their branches](#neural-cat-and-only-orphans-on-their-branches)
+  - [Speed](#speed)
+  - [What didn't work](#what-didnt-work)
 - [1. Generate data: `npm run ml:generate`](#1-generate-data-npm-run-mlgenerate)
   - [Data format](#data-format)
 - [2. Train: `npm run ml:train`](#2-train-npm-run-mltrain)
@@ -57,11 +65,120 @@ Every `npm run ml:*` command then works as written: the scripts find `ml\.venv\S
 | Bootstrap (j0) | `ml:generate`, `ml:train` | The rule strategies in every seat | Discards | A first model from the bots' own play |
 | Self-play (s1–s6) | `ml:loop` | Neural Cat (exploring) with Jorge Yau, Lucky Cat and Only Orphans | Discards | s5: +48.5 points a hand over Jorge Yau on fresh deals |
 | League (L1, L2, ...) | `ml:league` | Only Neural Cat models: the best, exploring, against earlier bests | Discards, claims, kongs | About +75 to +82 points a hand over s5; plateaued after L7 |
-| Lab (N1a, N1b, ...) | `ml:lab` | Earlier champions, s5, Jorge Yau, LC20 and Lucky Cat Classic | Discards, claims, kongs, and how it plays (`meta.play`) | Today's framework: see [the lab](#4-the-lab-npm-run-mllab) |
-| Lucky Cat lab (LF1a, ...) | `ml:lab -- --strategy lucky-cat` | The game's table: Neural Cat, Jorge Yau, Neural Cat | Its choices, each replayed with its next-best moves on 4 reshuffled futures, by the mean points each scored | lc32 is in the game (from the earlier, hands-won lab). The futures rounds start from it |
-| Lucky Cat Suphx lab (LS1a, ...) | `ml:lab -- --strategy lucky-cat-suphx` | The game's table: Neural Cat, Jorge Yau, Neural Cat | Its choices, with the hidden tiles recorded beside them (training only): an oracle teacher pushes down each discard that would deal in now by what it would pay, and the public network is fitted to it; also Suphx's oracle guiding and a hidden-tile critic | Starts from lc32 ([Suphx](iterations.md#suphx-for-lucky-cat-an-oracle-teacher-not-an-oracle-critic)) |
+| Lab (N1a, N1b, ...) | `ml:lab` | Earlier champions, s5, Jorge Yau, LC20 and Lucky Cat Classic | Discards, claims, kongs, and how it plays (`meta.play`) | NC3 to NC9: see [the lab](#4-the-lab-npm-run-mllab) |
+| Lucky Cat lab (LF1a, ...) | `ml:lab -- --strategy lucky-cat` | The game's table: Neural Cat, Jorge Yau, Neural Cat | Its choices, each replayed with its next-best moves on 4 reshuffled futures, by the mean points each scored | lc32 was in the game then (from the earlier, hands-won lab). The futures rounds started from it |
+| Lucky Cat Suphx lab (LS1a, ...) | `ml:lab -- --strategy lucky-cat-suphx` | The game's table: Neural Cat, Jorge Yau, Neural Cat | Its choices, with the hidden tiles recorded beside them (training only): an oracle teacher pushes down each discard that would deal in now by what it would pay, and the public network is fitted to it; also Suphx's oracle guiding and a hidden-tile critic | Started from lc32 ([Suphx](iterations.md#suphx-for-lucky-cat-an-oracle-teacher-not-an-oracle-critic)); the line was cancelled on 2026-11-09 |
+| Own lineage (LO, R and SC, ON and W models) | [the lineage-only loop](#training-a-lineage-against-its-own-past) | Only older models of the same lineage | Lucky Cat: replays of its top moves on shared walls. Neural Cat: its faan heads on softened labels. Only Orphans: won-position-rich data | **lc33, lc34, NC10 and OW1**: how each model is trained now |
 
-The full results, round by round, are in the [playbook](../strategies/neural-cat.md#results) and on the [model card](https://huggingface.co/codenameyau/lucky-cat-mahjong).
+The full results, round by round, are in the playbooks ([Neural Cat](../strategies/neural-cat.md#results), [Lucky Cat](../strategies/lucky-cat.md#results), [Only Orphans](../strategies/only-orphans.md)), in [iterations](iterations.md) and on the [model card](https://huggingface.co/codenameyau/lucky-cat-mahjong).
+
+## Training a lineage against its own past
+
+Since an overnight run on 2026-11-10 to 11, each learned strategy is trained and judged **only against older models of its own lineage**: Lucky Cats against Lucky Cats, Neural Cats against Neural Cats, Only Orphans against Only Orphans. The other seats hold the lineage's earlier generations, so a gain is a gain over the lineage's own past, a clear benchmark that doesn't move when another strategy changes. Playing the three against each other, and a championship with Jorge Yau, is a later phase; it hasn't been run.
+
+Every loop works the same way:
+
+1. **Data.** The champion explores against the lineage's older generations, on the native simulator's fast build. Data is cached by its settings, so a stopped run reuses what it made.
+2. **Arms.** Several candidates are trained from the champion in one GPU process that loads the data once, plus play settings and weight-noise mutations that need no training.
+3. **A screen** on fresh paired deals (fast build), in stages: the candidate and the champion each take every seat of the same deals, the gap is read deal by deal, and an arm clearly behind stops playing. Each model's result on a block of deals is cached, so the champion is played once for every arm.
+4. **A confirmation** of the best arm on fresh deals on the exact build. Only this decides a new generation.
+
+**Screens overstate.** A screen keeps the best of several arms, and every arm shares the champion's games, so their luck moves together. Lucky Cat's first screen leader screened at +4.6 ± 1.4 points a hand and confirmed at +0.1 ± 1.4. So every gain is confirmed on fresh deals, 160,000 when the gap is small (about ±1 point a hand for Lucky Cat). Seeds come from a counter that only goes up, so no deal is played twice.
+
+### The bars
+
+A new **generation** must win on fresh paired deals on the exact build, against the lineage's champion, by its lineage's aim ([what each strategy is for](../strategies/README.md#what-each-learned-strategy-is-for)):
+
+| Lineage | Its aim | A generation needs |
+| --- | --- | --- |
+| Lucky Cat | The most hands won | Hands won up 2 standard errors, with points a hand and deal-ins no worse |
+| Only Orphans | The biggest hands and the most points | Points a hand up 2 standard errors (hands won is reported, not a bar) |
+| Neural Cat | The balance of both | Points a hand or hands won up 2 standard errors, the other not down by more than 1 |
+
+For every lineage, deal-ins may not rise by more than 0.25 points of a percent or 1 standard error, whichever is larger. A **ship candidate** needs 3 standard errors on its aim's measure against the model in the game, on pooled fresh deals on the exact build (two runs, never screen deals).
+
+### Lucky Cat: `scripts/ml/lc-own-loop.js`
+
+In master since PR #251. lc33 (LO9d, generation 4) and lc34 (LO18d, generation 6) came from it.
+
+| File | What it does |
+| --- | --- |
+| `scripts/ml/lc-own.js` | The pieces: replay data, staged and cached paired screens, confirmations. The table is the newest older generations (`--table-pool`, by default lc32, lc31, lc30 and lc29), each block of deals at one three-of-four of them |
+| `scripts/ml/lc-own-loop.js` | The round driver. Each round reads `ml/overnight/lucky-cat/plan.json`, so the recipe can change between rounds without a restart. State in `state.json`, log in `loop.log` |
+| `scripts/ml/lc-own-ship.js` | The fixed ship table: candidates paired against the shipped model, with three older generations in the other seats |
+| `ml/lc_own_train.py` | Every arm of a round in one GPU process, on one load of the data (a round's 8 arms in 27 to 38 s, against about 416 s) |
+
+```bash
+npm run native:build
+node scripts/ml/lc-own-loop.js --rounds 4                          # rounds from plan.json
+node scripts/ml/lc-own-loop.js --confirm ml/models/<name>.json      # 160,000 fresh exact deals against the champion, first
+node scripts/ml/lc-own.js screen --champ ml/models/LO18d.json --cands a.json,b.json --seed S --stages 8000,24000,48000
+node scripts/ml/lc-own.js data --champ ml/models/LO18d.json --seed S --deals N --out ml/data/own-1
+node scripts/ml/lc-own.js confirm --champ ml/models/LO18d.json --cand a.json --seed S --deals 80000
+node scripts/ml/lc-own-ship.js --cands ml/models/<name>.json --seed S --runs 80000,80000
+node scripts/ml/python.js ml/lc_own_train.py --data ml/data/own-1 ml/data/own-2 --arms arms.json
+```
+
+What it learns from, and how:
+
+- **Replays with common random numbers (CRN).** At a share of the champion's choices, each of its top 4 moves is forced and the hand played on 8 times (16 at close choices) from there, every move on the *same* reshuffled walls, the tiles the seat hasn't seen (`lcm-sim generate-lcv --crn --policy-only`). The gap between two moves has 2.4 times less noise than with independent replays. Training (`mode q`) tilts the policy's shares toward the moves that scored more, with a bonus for each move's share of wins.
+- **Blind policy iteration.** Once the steps left were about a point a hand, below what a screen can see, the loop stopped screening: each round trains one recipe, which starts the next round, and the sum of three steps is confirmed on fresh deals (and reverted if it fails). Generations 4 to 6 came this way.
+- **Half-spicy or blended replay scoring.** A replay's points can be scored on the half-spicy table, which doubles every two faan above 4 instead of every one, so a move's score is far less noisy (generation 4), or half on half spicy and half on full spicy (generation 6).
+- **A 3-seed weight soup.** The champion's step is trained from three seeds and the weights averaged. It is the one structural change kept (in G4 to G6).
+
+The generations so far: G1 LO1b, G2 LO2a, G3 LO4h, G4 LO9d (lc33), G5 LO12d, G6 LO18d (lc34) ([iterations](iterations.md#lucky-cat-against-its-own-lineage-lc33-2026-11-11)). The run stopped after 24 rounds; its last candidate, LO24d, was level with G6.
+
+Two things in the script predate the aims and are worth knowing before a run. Its built-in generation check is the two-way rule (points or hands won up 2 standard errors, the other not down by more than 1, deal-ins as above), and its ship check (`shipCheck`, and `lc-own-ship.js`) is points up 3 standard errors against lc32, at a table of lc32, lc31 and lc30. lc34's ship check was against lc33, at a table of lc33, lc32 and lc31. With no `state.json`, the loop starts from lc32.
+
+### Neural Cat and Only Orphans: on their branches
+
+Their loops are on pushed branches, **not in master**:
+
+| Lineage | Branch | Tools |
+| --- | --- | --- |
+| Neural Cat (NC10 = SC1) | `train/neural-cat-overnight` | `scripts/ml/nc-overnight.js` (data, rounds, cached and pruned screens, confirmations, mutations), `ml/nc_multi.py` (several arms in one GPU pass; label smoothing on the faan heads is `faanSmooth`), `scripts/ml/nc-measure.js` and `ml/nc_oracle.py` (what option replays could gain, measured before training on them) |
+| Only Orphans (OW1 = W1b0) | `train/only-orphans-overnight` | `scripts/ml/oo-night.js` (screens, confirmations, mutations, play settings), `scripts/ml/oo-round.js` (one round), `scripts/ml/oo-ship.js` (the ship check, in blocks until 3 standard errors), `scripts/ml/oo-fair-play.js`, `lcm-sim shadow` (candidates read beside the champion), `generate.js --other-share` (keep every position of the winner's hand and a share of the rest), and `ml/train.py --other-share`, `--calib` and `--limit-weight` |
+
+On those branches:
+
+```bash
+node scripts/ml/nc-overnight.js round --spec spec.json        # a whole Neural Cat round
+node scripts/ml/nc-overnight.js confirm --cand a.json --deals 40000
+node scripts/ml/nc-overnight.js status
+node scripts/ml/oo-round.js                                   # one Only Orphans round
+node scripts/ml/oo-night.js confirm --arm a.json --champion ml/models/OS2c1.json --seed S --deals 40000
+node scripts/ml/oo-ship.js --arm ml/models/<name>.json --prior "<earlier runs>"
+```
+
+Neural Cat's table is NC9, NC8, NC7, NC5 and NC3 in the data (with every champion the loop makes), and NC9, NC8 and NC5 in evaluation. Only Orphans' is OT11d, OT7c, OT6e, OT5e, OT4a, OT2d, OT1a and OL2c, then OS2c1 and ON1 ([iterations](iterations.md#only-orphans-against-its-own-lineage-ow1-2026-11-11)).
+
+### Speed
+
+Measured on the overnight run, against the tools before it:
+
+| Lineage | What | Speed-up |
+| --- | --- | --- |
+| Neural Cat | Data | about 25x (47 to about 1,200 deals a second at 10 workers) |
+| Neural Cat | Screens | about 19x (62 to about 1,190 hands a second) |
+| Neural Cat | A lab-sized round | 95 minutes to about 6 |
+| Only Orphans | A screening round, end to end | about 13.5x |
+| Lucky Cat | Training | 11x to 15x (a round's 8 arms in one GPU process: 27 to 38 s, against about 416 s) |
+| Lucky Cat | Data | about 1.8x at equal information (the shared walls) |
+| Lucky Cat | Screens | about 1.6x (the champion played once a deck, cached and pruned) |
+| Lucky Cat | End to end | about 1.6x; blind policy iteration cut a round from about 50 minutes to about 18 |
+
+The one lever of the 10x kind tried for Lucky Cat, replays cut short and scored by a learned value, made data 2.8 times faster but taught worse play (every arm dealt in more), so it was turned off.
+
+### What didn't work
+
+Across the three lineages ([iterations](iterations.md#what-didnt-work-that-night) has the numbers):
+
+- Weight noise, gradient clipping (it never bites), warm-up, averaged weights (EMA), a residual layer-normalized teacher (capacity isn't the limit) and larger steps.
+- CRN option replays for Neural Cat: with 8 replays its close options can't be ranked, and replaying its claims found no oracle gain.
+- Half spicy as a play setting, for Neural Cat and Only Orphans (as Lucky Cat's replay scoring it helped).
+- Learning Only Orphans' target choice: no gain over the rules' pick.
+- Capping Only Orphans' faan targets at 10: more small wins, no more points.
+- Exploring toward big hands for Lucky Cat (continuing a flush, all-pungs or dragon plan): −4.0 points a hand on average, and still −1.7 when nearly ready.
 
 ## 1. Generate data: `npm run ml:generate`
 
@@ -157,7 +274,7 @@ On an M-series GPU, an epoch over about 1.7 million positions takes about 10 sec
 
 ## 4. The lab: `npm run ml:lab`
 
-`scripts/ml/lab.js` is how Neural Cat is trained now. It replaced the league, which stopped improving after L7 ([why](iterations.md#the-plateau-where-neural-cat-stands)): the league trained one model the same way every round, kept it on any score above 0 (a coin flip at ±30 points a hand), and only played copies of itself. The lab runs experiments, keeps only clear gains, and learns which experiments pay.
+`scripts/ml/lab.js` is how Neural Cat was trained from NC3 to NC9; since NC10 it is trained by [the lineage-only loop](#training-a-lineage-against-its-own-past). The lab replaced the league, which stopped improving after L7 ([why](iterations.md#the-plateau-where-neural-cat-stands)): the league trained one model the same way every round, kept it on any score above 0 (a coin flip at ±30 points a hand), and only played copies of itself. The lab runs experiments, keeps only clear gains, and learns which experiments pay.
 
 ```bash
 npm run ml:lab -- --rounds 10          # starts from the league's best (or --start FILE)
@@ -200,12 +317,14 @@ The same lab trains the learned Only Orphans and Lucky Cat's network, with the s
 
 ```bash
 npm run ml:lab -- --strategy only-orphans --rounds 10   # starts from the model in the game (or --start FILE)
-npm run ml:lab -- --strategy lucky-cat --rounds 10      # starts from the model in the game, lc32
+npm run ml:lab -- --strategy lucky-cat --rounds 10      # starts from the model in the game
 ```
+
+These labs made the models up to OT11d and lc32 (OS2c1 came from native rounds of `scripts/ml/frontier-model.js`); lc33, lc34 and OW1 came from [the lineage-only loop](#training-a-lineage-against-its-own-past). The table below is the labs as they last ran.
 
 | | Neural Cat | Only Orphans | Lucky Cat |
 | --- | --- | --- | --- |
-| Starts from | The league's best (NC1) | The model in the game | The model in the game (lc32) |
+| Starts from | The league's best (NC1) | The model in the game | The model in the game (lc32 when it last ran) |
 | Plays against | Its last three champions, s5, Jorge Yau, Lucky Cat, Lucky Cat Classic | Neural Cat, Jorge Yau and Lucky Cat (the table the game seats it at), and its last two champions | The game's table: one seat against Neural Cat (two in three) and Jorge Yau, playing its best; no earlier selves since LC32, when two learner seats and its own champions taught it to beat its own kind |
 | Records | Every seat's decisions (`--sample 0.12`) | Only its own seats (`--record only-orphans`, `--sample 0.25`) | Replays over reshuffled futures: the champion plays its best in one seat; at up to 2 of its real choices a hand the wall still to be drawn is reshuffled 4 ways, and its move and its 2 next-best moves each play those same 4 futures; each move's mean points are recorded (`scripts/ml/lucky.js generate --rollouts 2 --alts 2 --futures 4`, 20,000 deals a round) |
 | Trains with | `ml/train.py` | `ml/train.py` | `ml/train_lucky.py` |
@@ -257,7 +376,7 @@ State and a log are in `ml/league/`. A stopped league picks up where it left off
 
 ## Only Orphans: `npm run ml:orphans`
 
-The learned [Only Orphans](../strategies/only-orphans.md) is trained the same way, by `scripts/ml/orphans.js`: a bootstrap round from the rule-based bot, then rounds of the best model exploring against Neural Cat, Jorge Yau, Lucky Cat and earlier Only Orphans models. Each round is ranked against the best model and against the rule-based bot (`scripts/ml/baselines/only-orphans-rules.js`), on the same deals. `--learner only-orphans` on `ml:generate` reads every position through its foundation, and `oo:<file>` seats one of its models. Progress is written to [only-orphans-training.md](../strategies/only-orphans-training.md) after every round.
+The learned [Only Orphans](../strategies/only-orphans.md) was first trained the same way (O1 to O5), by `scripts/ml/orphans.js`; then in the lab, and since OW1 in [the lineage-only loop](#training-a-lineage-against-its-own-past). The league worked like this: a bootstrap round from the rule-based bot, then rounds of the best model exploring against Neural Cat, Jorge Yau, Lucky Cat and earlier Only Orphans models. Each round is ranked against the best model and against the rule-based bot (`scripts/ml/baselines/only-orphans-rules.js`), on the same deals. `--learner only-orphans` on `ml:generate` reads every position through its foundation, and `oo:<file>` seats one of its models. Progress is written to [only-orphans-training.md](../strategies/only-orphans-training.md) after every round.
 
 ```bash
 npm run ml:orphans -- --rounds 20 --deals 50000

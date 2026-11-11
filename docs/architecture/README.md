@@ -4,6 +4,8 @@ A design, not built yet (written 2026-11-09, revised the same day after a critic
 
 **Simplified on 2026-11-09 (maintainer's decision): one model does the middle of the pipeline, and it is the frontier model ([the frontier plan](../machine-learning/frontier-plan.md)).** The Suphx plan is cancelled as a failed experiment ([why](../machine-learning/suphx-plan.md#the-suphx-line-is-cancelled-2026-11-09)). The five layers below are still the five jobs, but a model strategy no longer has a rule set or a model for each. One network with three heads reads the table, picks the hand and values the moves; exact rules feed it facts and check its move. That design is [One model for the middle](#one-model-for-the-middle), and where it and the layer-by-layer text disagree, it wins.
 
+**Where it stands (2026-11-11).** The pipeline below is still a design: `decide()`, the shared hand picker and the pivot checker aren't built. What is built is layer 4, [the contradiction check](../strategies/README.md#the-contradiction-check), in the JS and the native simulator. The one model for the middle was tried as the frontier model: its stacked FC1 folded into Neural Cat in 0.59.0 without clearing the bar, and the [frontier plan](../machine-learning/frontier-plan.md) is a past plan. The models in the game (Neural Cat NC10, Lucky Cat lc34, Only Orphans OW1) keep the layers as [today](#how-a-decision-is-made-today) describes, and each is now trained against older models of its own lineage only ([training](../machine-learning/training.md#training-a-lineage-against-its-own-past)). Where the sections below say "the frontier model" or "the new frontier model", read them as the plan of 2026-11-09.
+
 This page also says where the design is weak, which layers should be rules and which a model, and what has to be measured before any of it is built. Two things in the first draft were wrong and are corrected here: that choosing the hand before the model chooses would by itself return Neural Cat's loss ([it won't](#1-masking-before-the-model-is-not-a-fix-by-itself)), and that the pipeline should hold exactly one hand ([it should hold two](#2-one-hand-is-too-few-early-in-the-hand)).
 
 ## Contents
@@ -256,7 +258,7 @@ Saved with the game and kept in the native simulator's seat memo. A claim being 
 
 - **Training data** records the move the pipeline played. It can also record the hands and the pivot, which is the label a learned chance-to-finish needs, and later a learned picker.
 - **The hand as a head, not a feature.** Neither of today's models is told the hand, and neither is changed. The new frontier model predicts the hand itself and feeds it to its move head ([one model](#one-model-for-the-middle)). Its data records, for every position, the hand the rules picked (the warm-start label) and, when the hand is over, the family and faan the seat won with.
-- **The native simulator** ports each change as it lands, with the parity check (every action identical to the JS) before it is pinned. Picking hands once a turn instead of once a discard should make a turn cheaper.
+- **The native simulator** ports each change as it lands, with the parity check (every action identical to the JS) before it is pinned. Picking hands once a turn instead of once a discard should make a turn cheaper. All training now plays on it: the fast build for data and screens, the exact build for confirmations ([native simulator](../machine-learning/native.md)).
 
 ## Building it: measure, then experiment, then refactor
 
@@ -293,14 +295,14 @@ Wiring the frontier's read of the opponents' hands into layer 0 is separate from
 - **Pivots a hand**, with their reasons. More than about twice a hand is flip-flopping.
 - **Calibration**: the chance to finish against results, for each family, within a few points.
 - **The coach and the bot agree** on every hint, by construction, and by test.
-- **The frontier benchmark** is frozen (`hk-table-v2`, game 0.58.0; a new table gets a new name); it and its bar (two standard errors, twice) carry over from the cancelled plan to judge the new frontier model. The experiments on today's players are measured against today's players.
+- **The frontier benchmark** is frozen (`hk-table-v2`, game 0.58.0; a new table gets a new name); it and its bar (two standard errors, twice) carried over from the cancelled plan to judge the frontier model. It is no longer the bar for a new generation: since 2026-11-10 each lineage is judged against its own older models, by its own aim ([the bars](../machine-learning/training.md#the-bars)). The experiments on today's players are measured against today's players.
 
 ## Open questions
 
 - **Is hand-first better at all?** Experiment 7, for the rule strategies. If per-discard scoring with a good check plays as well, layers 1 and 2 are a tidier way to describe the bot, not a stronger way to play, and should be built only as far as the coach needs.
 - **How much is a backup worth?** Too little and it is ignored; too much and nothing is ever committed to. Today's share for backups is 0.12 of the best one or two; nobody has tuned it.
 - **Jorge Yau's order against expected points.** Keep his order as a table first, try the value second, and keep whichever wins.
-- **Lucky Cat's hand.** Its network never chose by a hand, and the check now makes it win 4 points fewer hands for 60% bigger wins. The points are up, but that is a different player from the one the lab has been training (points first, without losing wins). Whether the lab's bar should change with it is a call for the maintainer.
+- **Lucky Cat's hand.** Its network never chose by a hand, and the check now makes it win 4 points fewer hands for 60% bigger wins. The points are up, but that is a different player from the one the lab has been training (points first, without losing wins). Whether the lab's bar should change with it is a call for the maintainer. *Since answered (2026-11-11):* the maintainer set Lucky Cat's aim to the most hands won, and its training is judged on that ([what each strategy is for](../strategies/README.md#what-each-learned-strategy-is-for)).
 - **Can a model pick a hand?** Step 8. If the hand head can't beat the rules' pick at naming the hand a seat wins with, the one model keeps two heads and the hand stays rules.
 - **How much does the move head lean on the hand head?** Too little and the two disagree (`checked` stays high); too much and a wrong hand early drags every move after it. The backup is the hedge, and its weight is learned, not set.
 - **Should folding name a hand?** It is a mode above the hand, and stays one. Whether the coach still says what the hand was going for is a wording question.

@@ -6,12 +6,13 @@ Guides for working on Lucky Cat Mahjong. The [project README](../README.md) cove
 
 Lucky Cat Mahjong is a static site whose centre is a Hong Kong mahjong game played in the browser, with bots at the table and a coach beside you. Every bot seat, and the coach, plays a named **strategy**. Some are written as rules (Jorge Yau, Only Orphans' targets); the rest are **neural networks** trained on millions of simulated hands:
 
-- **Neural Cat** (NC9) scores Jorge Yau's best options by the points it expects them to win or lose.
-- **Lucky Cat** (LC32) makes every move itself; only the contradiction check reads a plan for it.
+- **Neural Cat** (NC10) scores Jorge Yau's best options by the points it expects them to win or lose. It is the balanced one: it aims to win often and win big.
+- **Lucky Cat** (LC34) makes every move itself; only the contradiction check reads a plan for it. It aims to win the most hands.
+- **Only Orphans** (OW1) builds big hands on 1s, 9s and honors. It aims for the biggest hands and the most points, even if it wins less often.
 
 Every strategy sees only what its seat can see. A **contradiction check** keeps every move in line with the hand it is going for. The coach explains moves in the same words for every strategy, at three levels: Simple, Detailed and Complex.
 
-Training runs on a **native C++ simulator**, about ten times faster than the JS game: a fast build for training, and an exact build that plays every hand as the JS does for judging. A PyTorch trainer fits the networks. Models are judged head to head on fresh deals, and against a frozen benchmark table.
+Training runs on a **native C++ simulator**, about ten times faster than the JS game: a fast build for training, and an exact build that plays every hand as the JS does for judging. A PyTorch trainer fits the networks. Each lineage is trained and judged only against its own older models, on fresh deals, so its progress is a clear benchmark; playing the strategies against each other is a later phase.
 
 The folders, most important first:
 
@@ -24,7 +25,7 @@ The folders, most important first:
 
 ## Machine learning
 
-The models behind Neural Cat, Lucky Cat and Only Orphans. Start with the frontier report for where things stand, or the overview for how a model plays.
+The models behind Neural Cat, Lucky Cat and Only Orphans. Start with [Training a lineage against its own past](machine-learning/training.md#training-a-lineage-against-its-own-past) for how they are trained now, or the overview for how a model plays.
 
 **Where it stands**
 
@@ -62,7 +63,7 @@ How each bot plays, and how the coach follows a strategy.
 - [Strategies and the shared foundation](strategies/README.md): what each strategy is now and where it plays. It covers the shared foundation (steps from ready, live tiles, plans, threat reads), the contradiction check, adding a strategy, and competition results.
 - [Neural Cat](strategies/neural-cat.md): a network scoring Jorge Yau's best options by expected points, with a bonus for the chance to win.
 - [Jorge Yau](strategies/jorge-yau.md): the rule playbook. Picking a hand, playing fast, discard order, claims, attack and when to play safe, reading the table, and its knobs.
-- [Lucky Cat](strategies/lucky-cat.md): a network that makes every move itself, trained by self-play. LC32 learned to win often and fast; its lineage now plays for points and keeps a fairly high win rate.
+- [Lucky Cat](strategies/lucky-cat.md): a network that makes every move itself, trained by self-play. Its aim is the most hands won; LC34 is the current model.
 - [Only Orphans](strategies/only-orphans.md): big hands of 1s, 9s and honors. Rules pick the target and a network plays inside it.
   - [Training progress](strategies/only-orphans-training.md): its league and lab rounds.
 

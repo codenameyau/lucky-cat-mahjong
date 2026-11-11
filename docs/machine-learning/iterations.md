@@ -95,7 +95,14 @@ Every training idea and every milestone model is a section below, in the order t
   - [Round 2: the policy learns from the replays (LV2p)](#round-2-the-policy-learns-from-the-replays-lv2p)
   - [The objective: points, with a floor on hands won](#the-objective-points-with-a-floor-on-hands-won)
 - [Lucky Cat against its own lineage: LC33 (2026-11-11)](#lucky-cat-against-its-own-lineage-lc33-2026-11-11)
+  - [The idea: only older Lucky Cats at the table](#the-idea-only-older-lucky-cats-at-the-table)
+  - [LC33 (LO9d): four confirmed generations from LC32](#lc33-lo9d-four-confirmed-generations-from-lc32)
+  - [LC34 (LO18d): more wins, same big hands](#lc34-lo18d-more-wins-same-big-hands)
+  - [What didn't work that night](#what-didnt-work-that-night)
 - [Neural Cat against its own lineage: NC10 (2026-11-11)](#neural-cat-against-its-own-lineage-nc10-2026-11-11)
+  - [NC10 (SC1): the faan heads reshaped in two steps](#nc10-sc1-the-faan-heads-reshaped-in-two-steps)
+  - [What didn't work for Neural Cat that night](#what-didnt-work-for-neural-cat-that-night)
+- [Only Orphans against its own lineage: OW1 (2026-11-11)](#only-orphans-against-its-own-lineage-ow1-2026-11-11)
 - [Only Orphans on the stacked method (2026-11-10)](#only-orphans-on-the-stacked-method-2026-11-10)
   - [Round 1: replayed labels against the control](#round-1-replayed-labels-against-the-control)
   - [The reader, OR1](#the-reader-or1)
@@ -122,15 +129,17 @@ Every training idea and every milestone model is a section below, in the order t
 
 | | Neural Cat | Lucky Cat | Only Orphans |
 | --- | --- | --- | --- |
-| In the game | **NC9** (lab model N14c; the stacked [FC1](#frontier-cat-one-model-three-heads-fc1) was beside it in 0.58) | **LC32** (lab model LL26b) | **OS2c1** |
+| In the game | **NC10** (SC1: [NC9](#neural-cat-against-its-own-lineage-nc10-2026-11-11) with its faan heads retrained on softened labels) | **LC34** ([LO18d](#lc34-lo18d-more-wins-same-big-hands), generation 6 of its own lineage) | **OW1** ([W1b0](#only-orphans-against-its-own-lineage-ow1-2026-11-11)) |
 | What it is | A network that scores Jorge Yau's best choices in expected points | A network that makes every move itself, with no rules underneath | Fixed rules pick a target each deal (Thirteen Orphans, triplet hands, Seven Pairs); a network, the same kind as Neural Cat's, chooses the rest in expected points |
-| What it plays for | Points: often and big wins on one scale | Points first, wins second (LC20 and before: wins, as many and as fast as it can) | Points and wins on one scale (J), with a win bonus of 800 |
-| Trained on | 950,000 league hands (stopped in round 19, at a plateau), and earlier rounds against the rule bots | 1,000,000 league hands against its earlier selves and Neural Cat, then 100,000 lab hands against Neural Cat, Jorge Yau and its last two champions, every hand weighted by its points | Its own league (O1 to O5), then 11 lab rounds with the targets against Neural Cat, Jorge Yau, Lucky Cat and its earlier selves |
+| What it plays for (the aims set 2026-11-11) | The balance of both: win often and win big | The most hands won: small fast hands, a big one when the chance is good and it is nearly ready (LC21 to LC33 were judged on points; LC20 and before on wins) | The biggest hands and the most points; wins may fall (OT models were judged on J, points and wins on one scale) |
+| Trained on | 950,000 league hands (stopped in round 19, at a plateau), and earlier rounds against the rule bots; then the lab (NC3 to NC9), and since NC10 only older Neural Cats | 1,000,000 league hands against its earlier selves and Neural Cat, then the lab against Neural Cat, Jorge Yau and its last champions; since LC33 replays of its own choices at a table of only older Lucky Cats | Its own league (O1 to O5), then 11 lab rounds with the targets against Neural Cat, Jorge Yau, Lucky Cat and its earlier selves; since OW1 only older Only Orphans |
 | Wins / deal-ins | about 9% / 5–6% against other Neural Cat models | about 18–21% against its older selves; 17.9% against Neural Cat's 9.1% | 4.6% of hands won (OT7c: 4.1%) |
 | Average win | about 1,900 points | 4–5 faan, about a quarter of Neural Cat's | About 4,000 points (OT6e: 3,961), mostly Seven Pairs |
 | Head to head | Beats s5, the model before the league, by about 75–80 points a hand | LC21 beats LC20 by +4.0 to +6.9 points a hand (± 2.3–2.5); loses about 88 points a hand to Jorge Yau (LC20: 103) | +85.1 ± 9.4 points a hand over the rule-based bot (OT7c: +84.9) |
 
-**Not shipped yet.** The [frontier](#the-frontier-lucky-cat-generation-1-and-sphinx) (Lucky Cat generation 1 and Sphinx, with a frozen benchmark and a native simulator) has not passed its bar: Lucky Cat is still lc32.
+The last three rows are from the league and lab years and haven't been redone for the models in the game; each model's own section has its numbers.
+
+**How each model is trained now:** against older models of its own lineage only ([training](training.md#training-a-lineage-against-its-own-past)). The [frontier](#the-frontier-lucky-cat-generation-1-and-sphinx) (Lucky Cat generation 1 and Sphinx, with a frozen benchmark) never passed its bar and was cancelled.
 
 ## Before the league
 
@@ -1261,7 +1270,7 @@ The maintainer then settled the objective: Lucky Cat may be trained to maximize 
 
 ## Lucky Cat against its own lineage: LC33 (2026-11-11)
 
-In this section: [the idea](#the-idea-only-older-lucky-cats-at-the-table) · [LC33](#lc33-lo9d-four-confirmed-generations-from-lc32) · [what didn't work](#what-didnt-work-that-night)
+In this section: [the idea](#the-idea-only-older-lucky-cats-at-the-table) · [LC33](#lc33-lo9d-four-confirmed-generations-from-lc32) · [LC34](#lc34-lo18d-more-wins-same-big-hands) · [what didn't work](#what-didnt-work-that-night)
 
 ### The idea: only older Lucky Cats at the table
 
@@ -1298,6 +1307,26 @@ Each generation was confirmed against the one before it on fresh deals on the ex
 - **What the bot does differently:** against its own kind LC33 wins about one hand in 27 more often than LC32 (22.8% of hands to 22.0%), its wins are worth about 23 points more, and it deals in slightly less. It is the same network (376 inputs, 512-256, 74 outputs) with its shares moved toward the moves that scored more on the replays.
 - **Fair play:** the shuffle check passes; it reads only its seat.
 
+### LC34 (LO18d): more wins, same big hands
+
+The maintainer then set Lucky Cat's aim: win as many hands as possible, taking a big hand when the chance is good and it is nearly ready. So a generation now needs hands won up two standard errors, with points a hand and deal-ins no worse.
+
+| Generation | Recipe | Against | Fresh deals | Hands won | Points a hand | Deal-ins |
+| --- | --- | --- | --- | --- | --- | --- |
+| G5 = LO12d | three steps with no screen on G4's recipe | G4 | 320,000 | **+0.25 ± 0.03** | +0.2 ± 0.6 | −0.09 ± 0.03 |
+| G6 = LO18d | three steps, replays scored half on half spicy and half on full, win bonus 150 | G5 | 160,000 | **+0.14 ± 0.04** | +0.0 ± 0.9 | −0.09 ± 0.05 |
+
+**LC34 is G6.** Against LC33 (G4), at a fixed table of LC33, LC32 and LC31, 160,000 fresh deals (two runs):
+
+| | Hands won | Points a hand (full spicy) | Half spicy | Deal-ins | Average win | Wins at 7+ faan |
+| --- | --- | --- | --- | --- | --- | --- |
+| **LC34 against LC33** | **22.94% vs 22.49%** (+0.44 ± 0.05, 8.8 SE) | +2.0 ± 1.0 | +0.41 ± 0.07 | −0.10 ± 0.05 | 302 vs 301 | 28.0% vs 28.0% |
+
+- **What the bot does differently:** it wins about one hand in 50 more often than LC33, with the same size of win and slightly fewer deal-ins. It doesn't give up big hands for the extra wins: the same 28% of its wins are 7 faan or more.
+- **A points-first block went the other way.** LO21d, three steps scored on full spicy alone, was +3.5 ± 1.0 points a hand over LC33 but won fewer hands than G6. It wasn't kept, since the aim is wins.
+- **Fair play:** the shuffle check passes.
+- Every table these generations trained or were judged at had only Lucky Cats in the other seats.
+
 ### What didn't work that night
 
 - **Weight noise** (sigma 0.01 to 0.05, alone or before a fine-tune): level or behind, every time.
@@ -1306,8 +1335,13 @@ Each generation was confirmed against the one before it on fresh deals on the ex
 - **A residual, layer-normalized teacher** (768 wide, 4 blocks) overfits and its distilled student is worse than the control: capacity isn't the limit at this much data.
 - **Truncated replays scored by a learned value** made the data 2.8 times faster, but the value's expected points correlate with the hand's real points at only 0.12, and every arm trained on them dealt in more.
 - **Round 4's screen leader**, LO4c, confirmed at −1.3 ± 0.9 on 160,000 deals; its second arm became G3.
+- **Exploring toward big hands** (continuing a flush, all-pungs or dragon plan at the choices that keep it alive): −4.0 points a hand on average; better by 2 standard errors at only 0.9% of those choices, and still −1.7 when nearly ready.
+- **Averaging 3 seeds' weights** is the one structural change kept (in G4 to G6).
+- **The run stopped after 24 rounds.** The last candidate, LO24d, was level with G6.
 
-Tools: `scripts/ml/lc-own.js` (cached, pruned paired screens and the replay data), `scripts/ml/lc-own-loop.js` (the round driver), `scripts/ml/lc-own-ship.js` (the fixed ship table), `ml/lc_own_train.py` (every arm in one GPU process: 9 arms in 15 s, against 52 s for one arm before).
+Speed, against the tools before it: a round's 8 arms train 11 to 15 times faster in one GPU process (27 to 38 s, against about 416 s); data is about 1.8 times faster at equal information (the shared walls); screens about 1.6 times (the champion played once a deck, cached and pruned); end to end about 1.6 times. Blind policy iteration cut a round from about 50 minutes to about 18. The one lever of the 10x kind, value-truncated replays, made data 2.8 times faster but taught worse play, so it was turned off.
+
+Tools: `scripts/ml/lc-own.js` (cached, pruned paired screens and the replay data), `scripts/ml/lc-own-loop.js` (the round driver), `scripts/ml/lc-own-ship.js` (the fixed ship table), `ml/lc_own_train.py` (every arm of a round in one GPU process, on one load of the data).
 
 ## Neural Cat against its own lineage: NC10 (2026-11-11)
 
@@ -1330,7 +1364,7 @@ Thinking: the same overnight run as LC33, with Neural Cat at a table of only its
 | Hands won | 17.23% | 16.15% | **+1.08 ± 0.05** |
 | Deal-ins | 10.51% | 10.27% | +0.24 ± 0.04 |
 | Average win | 903 points | 915 points | |
-| **The benchmark table (NC8, Jorge Yau, NC8), 60,000 deals** | | | |
+| **The benchmark table (NC9, Jorge Yau, NC9, frozen at game 0.58.0), 60,000 deals** | | | |
 | Points a hand | +27.5 | +20.1 | **+7.4 ± 3.4** (2.2 standard errors) |
 | Hands won | 16.97% | 16.00% | |
 | Deal-ins | 11.04% | 10.78% | |
@@ -1349,6 +1383,28 @@ Thinking: the same overnight run as LC33, with Neural Cat at a table of only its
 - **Shared screens mislead.** Arms that share the champion's games win or lose together: the same model scored −1.9 and then +6.6 on two 40,000-deal decks. The fast build isn't the cause: 39,995 of 40,000 deals played identically on the fast and exact builds.
 
 Speed, at 10 workers: data 47 to about 1,200 deals a second, screens 62 to about 1,190 hands a second, a lab-sized round 95 minutes to about 6. Tools (on the branch `train/neural-cat-overnight`): `scripts/ml/nc-overnight.js`, `ml/nc_multi.py`.
+
+## Only Orphans against its own lineage: OW1 (2026-11-11)
+
+Thinking: the overnight run trained Only Orphans against only its own older generations (OT11d, OT7c, OT6e, OT5e, OT4a, OT2d, OT1a, OL2c, then OS2c1 and ON1). Its aim, set that night: the biggest hands and the most points, with hands won reported but not a bar.
+
+- **What didn't move points.** Fine-tunes, weight noise, soups, clipping (it never bites), averaged weights, warm-up, a residual teacher (no better on held-out loss: capacity isn't the limit), and half spicy as a play setting or as training data. Capping the faan targets at 10 (ON1 to ON3) won about a fifth more hands for no more points: on 360,000 fresh deals ON2 was +0.82 points of a percent on hands won and −1.4 ± 1.0 points a hand.
+- **The diagnosis:** only about 2.4% of the training positions came from hands that were won, and far fewer from limit hands, so the network rarely saw what a big win looks like.
+- **What worked: ten times the won positions.** One million deals from OS2c1, keeping every position of the winner's hand and 3% of the rest, with importance weights so the outcome heads stay calibrated. OS2c1 fine-tuned on it with no faan cap (lr 3e-4, 8 epochs) is W1b0, shipped as **OW1**.
+
+| Against OS2c1, older-generations table, 160,000 fresh exact deals (two runs) | W1b0 | W1b1 (second seed) |
+| --- | --- | --- |
+| Full-spicy points a hand | **+9.6 ± 1.6** (5.9 SE) | +9.3 ± 1.7 |
+| Half-spicy points a hand | +0.35 ± 0.08 | +0.33 ± 0.08 |
+| Limit-hand wins | **+0.041 ± 0.008** points of a percent (0.84% vs 0.80%) | +0.042 |
+| Hands won | −0.21 ± 0.03 points | −0.23 |
+| Deal-ins | −0.08 points | −0.07 |
+
+- **What the bot does differently:** it wins about 2 fewer hands in 1,000 than OS2c1, and 5% more of its wins are limit hands; it deals in a little less. Its aim is points, so that trade is by design.
+- **Learning the target choice** (replaying each feasible target at the first decision) found nothing: the replays' best target scored −0.7 ± 1.4 points a hand against the rules' pick, out of sample.
+- **Fair play:** the shuffle check passes.
+
+Speed: about 13.5 times faster end to end on a screening round. Tools (on the branch `train/only-orphans-overnight`): `scripts/ml/oo-night.js`, `scripts/ml/oo-round.js`, `scripts/ml/oo-ship.js`, `scripts/ml/oo-fair-play.js`, `lcm-sim shadow`, `generate.js --other-share`, `ml/train.py --other-share`, `--calib` and `--limit-weight`.
 
 ## Only Orphans on the stacked method (2026-11-10)
 

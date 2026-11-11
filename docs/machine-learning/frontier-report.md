@@ -2,6 +2,8 @@
 
 Written 2026-11-10, after one night of building and training. It compares the new frontier model, **Frontier Cat FC1** (the stacked evaluation architecture of the [frontier plan](frontier-plan.md)), with the previous architecture, **Neural Cat**, as it plays in the game (NC8) and at its best (the lab's champion N14c, which ships in the same change as NC9). Every round, with its evidence, is in the plan's [Learnings](frontier-plan.md#learnings); the model's story is in [iterations](iterations.md#frontier-cat-one-model-three-heads-fc1).
 
+> **A past report (2026-11-11).** FC1 folded into Neural Cat in 0.59.0, and the [frontier plan](frontier-plan.md) is no longer the current approach: each model is now trained against older models of its own lineage only ([training](training.md#training-a-lineage-against-its-own-past)), and the game plays Neural Cat NC10. "What comes next" and "What ships" below are as they were then.
+
 ## Contents
 
 - [In short](#in-short)

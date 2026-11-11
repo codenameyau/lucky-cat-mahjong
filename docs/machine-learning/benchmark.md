@@ -2,6 +2,8 @@
 
 How strong a model is, as one number anyone can reproduce, and the bar a model must clear to become the next generation of its lineage. This is phase 0 of the [frontier plan](suphx-plan.md) (§9), built in `scripts/ml/bench.js`, with the benchmark pinned in `bench/`.
 
+> **No longer the bar for a new generation (2026-11-11).** Since 2026-11-10 each lineage is judged against its own older models, on fresh paired deals on the exact build, by its own aim ([the bars](training.md#the-bars)). The benchmark is still built and runs, as an outside table to report a model at, but no model has been promoted through `judge`, and `bench/lineages.json` still names NC9 and lc32 as the current generations. The text below is the benchmark as built.
+
 ## Contents
 
 - [The table, frozen](#the-table-frozen)
@@ -107,6 +109,6 @@ A generation's model should be pinned by `git:<commit>:<path>` once it ships, so
 
 ## Not built yet
 
-- **The lab's keep rule.** The labs still keep models by their own one-judge rule. Running `judge` on what they keep, and shipping only what passes, is the next step, along with wiring `judge` into the lab.
+- **The lab's keep rule.** The labs kept models by their own one-judge rule, and `judge` was never wired into them. That plan is overtaken: the lineage-only loop has its own bars ([training](training.md#the-bars)).
 - **The Hugging Face fallback for the pinned files.** They come from git history only.
-- **The head-to-head between the lineages**, which waits for Sphinx's first generation.
+- **The head-to-head between the lineages.** Sphinx is cancelled. Playing Neural Cat, Lucky Cat and Only Orphans against each other is the planned next phase, after the lineage-only training.
