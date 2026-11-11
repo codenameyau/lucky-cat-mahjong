@@ -21,6 +21,14 @@
 - **Speed:** data 1.8x information a second from CRN, about 2.3x more from truncation (to be measured at scale); training 31x (one process); screens play the champion once per deck. Details below.
 - **Blockers:** none.
 
+## Bars
+
+- **Generation (in-lineage):** on fresh exact paired deals against the lineage's current champion, points a hand or hands won is up 2 SE, the other is not down more than 1 SE, and deal-ins are not up more than 1 SE.
+- **Points milestone:** a generation whose points are up 2 SE.
+- **Ship candidate (orchestrator, 2026-11-11):** against lc32 itself, on two fresh exact runs pooled (never screen deals), points up 3 SE and hands won not down more than 1 SE. The loop runs this check for every generation with a points milestone (`shipCheck` in `lc-own-loop.js`).
+
+So far: **G1 (LO1b)** met the generation bar on hands won (+0.23 ± 0.07 against lc32). It did not reach a points milestone or the ship bar.
+
 ## Setup
 
 - Table: only older Lucky Cat generations. lc20 to lc32 come from the git history of `js/mahjong-lucky-cat-weights.js` (`ml/models/lc20.json` to `lc32.json`). lc20 to lc29 are 256-128 networks; lc30 to lc32 are 512-256.
@@ -52,3 +60,31 @@ Arms: q = lc32's shares tilted by exp(advantage / tau), advantage = replays' mea
 Times: data 1,020 s (made before the loop; cached), training 15 s for 9 arms, screen 1,277 s (560,000 deal-models, 4 hands each), confirmation 469 s.
 
 **Reading.** Every q arm looked 2 to 5 points ahead on the screen, and the best was level on fresh deals. Part of that is the best-of-N bias. Part is structural: all arms are paired against the same champion games, so the champion's luck on that deck moves every arm's gap the same way. The extra hands won (+0.2 to +0.5) hold up.
+
+## Structural arms (from the maintainer's list)
+
+Built into `ml/lc_own_train.py` as arm options:
+- `gradClip`: global-norm clipping, with pre-clip gradient norms logged (median, 99th percentile, max).
+- `ema`: weight averaging; the averaged weights are evaluated and exported.
+- `warmup` and `cosine`: learning-rate schedule.
+- `gradNoise`: Gaussian gradient noise, annealed to 0.
+- `teacher`: a residual + LayerNorm teacher (pre-norm blocks, Kaiming init), distilled into the shipped shape with `alpha`.
+
+Every arm now logs held-out cross-entropy against the same fixed target: init's shares tilted by the replays.
+
+**Offline check** (data own-1 + own-2, 249,317 choices, from G1, tau 30, win bonus 150, 4 epochs; held-out CE; init's CE on this target is 1.41530):
+
+| Arm | Held-out CE | KL from init | Note |
+| --- | ---: | ---: | --- |
+| control | 1.40664 | 0.0139 | grad norm median 0.149, p99 0.174, max 0.177 |
+| + gradClip 0.5 | 1.40664 | 0.0139 | never bites: 0.0% of steps clipped |
+| + ema 0.999 | 1.40743 | 0.0030 | a smaller step |
+| + gradNoise 0.01 | 1.40657 | 0.0139 | |
+| teacher 768 x 4, from scratch, 12 epochs | 1.448 at epoch 4, then 1.590 | | overfits; worse than the champion it would replace |
+| student distilled from that teacher (alpha 0.5) | 1.40919 | 0.0170 | worse than the control |
+| LO1d retry: lr 1e-3, tau 300, refreshed reference, 8 epochs, warm-up 5%, cosine, clip 0.5, ema | 1.405 (its own target; init 1.386) | 0.031 | clip never bites (p99 0.073) |
+
+**Reading.**
+- **Clipping does nothing here.** The loss is a cross-entropy to a softmax target, so the advantage is bounded inside the target. The gradient's 99th percentile (0.17) is a third of the smallest cap. I'm dropping clipping.
+- **The teacher is no evidence of a capacity limit.** Trained from scratch on 250,000 choices, it overfits and never reaches the champion-shaped network's held-out loss. So more capacity isn't the bottleneck at this data size. I won't spend more on B6 for the policy unless far more data accumulates.
+- **What goes to play.** EMA, warm-up for the big step, and gradient noise go to round 3 as play arms next to a control, because their effects are small offline.

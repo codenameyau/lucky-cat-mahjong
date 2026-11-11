@@ -42,6 +42,35 @@ function py(args, logFile) {
   });
 }
 
+// Two independent paired runs, pooled deal-weighted.
+function pool2(a, b) {
+  const n = a.deals + b.deals, w = (k) => (a[k] * a.deals + b[k] * b.deals) / n;
+  const e = (k) => Math.sqrt(Math.pow(a[k] * a.deals, 2) + Math.pow(b[k] * b.deals, 2)) / n;
+  return { deals: n, gap: w('gap'), se: e('se'), winGap: w('winGap'), winSe: e('winSe'),
+    dealInGap: a.dealInGap == null ? null : w('dealInGap'), dealInSe: a.dealInSe == null ? null : e('dealInSe') };
+}
+
+// The ship bar (the orchestrator, 2026-11-11): against the shipped lc32, on two fresh exact runs
+// pooled (never screen deals), points up by 3 SE and hands won not down by more than 1 SE.
+async function shipCheck(state, plan, file, log) {
+  const deals = plan.shipDeals || 80000, runs = [];
+  for (let k = 0; k < 2; k++) {
+    const seed = takeSeeds(state, deals);
+    const c = (await O.screen(SHIPPED, [file], seed, [deals], { pool: state.pool, exact: true, drop: 1e9, log }))[0];
+    runs.push({ seed, pair: c.pair, me: c.me, ch: c.ch, line: c.line });
+  }
+  const P = pool2(runs[0].pair, runs[1].pair);
+  const pass = P.gap > 3 * P.se && P.winGap >= -P.winSe;
+  const fmt = (x, d = 1) => (x >= 0 ? '+' : '') + x.toFixed(d);
+  log('Ship check ' + path.basename(file, '.json') + ' against lc32, pooled ' + P.deals + ' fresh exact deals: ' + fmt(P.gap) + ' ± ' + P.se.toFixed(1) +
+    ' points a hand, hands won ' + fmt(P.winGap, 2) + ' ± ' + P.winSe.toFixed(2) + (pass ? ' -> SHIP CANDIDATE (3 SE)' : ' -> below the ship bar'));
+  const out = { file, runs, pooled: P, pass };
+  state.shipChecks = (state.shipChecks || []).concat([out]);
+  writeJson(STATE, state);
+  return out;
+}
+const SHIPPED = 'ml/models/lc32.json';
+
 function takeSeeds(state, n) { const s = state.seed; state.seed += n; writeJson(STATE, state); return s; }
 
 async function round(state, plan) {
@@ -139,6 +168,8 @@ async function round(state, plan) {
     log('Round ' + r + ': confirm ' + c.line + ' against ' + path.basename(champ, '.json') + (pass ? ' -> NEW GENERATION' + (milestone ? ' (points milestone)' : '') : ' -> not confirmed'));
     if (pass) {
       state.generations = (state.generations || []).concat([{ name: cand.name, file: cand.file, round: r, milestone, against: champ, pair: P }]);
+      // Against lc32 itself: every generation with a points milestone, or every generation with plan.shipCheckAll.
+      if (milestone || plan.shipCheckAll) rec.ship = await shipCheck(state, plan, cand.file, log);
       state.champion = cand.file;
       state.head = cand.file;
       state.champions = (state.champions || ['ml/models/lc32.json']).concat([cand.file]);
