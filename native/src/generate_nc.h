@@ -35,6 +35,11 @@ struct NcGenerateJob {
   // deal seed, win and pay faan counts).
   int optionReplays = 0, options = 4;
   double optionShare = 0;
+  // generate-lcv only: --crn plays every option of a group on the same wall shuffles
+  // (replay n of each option draws the same future), so the options' differences carry
+  // far less of the futures' luck; --policy-only writes only the policy files (no value rows).
+  bool crn = false, policyOnly = false;
+  uint32_t crnSalt = 0;  // --crn-salt: another set of futures (to measure the replays' noise)
 };
 
 int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make);

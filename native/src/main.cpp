@@ -160,6 +160,10 @@ int main(int argc, char** argv) {
       struct Out { double seats = 0, points = 0, wins = 0, dealIns = 0, winPoints = 0, winFaan = 0, selfDraws = 0, n = 0, sq = 0, winSq = 0; };
       std::vector<Out> out(models.size());
       double pn = 0, psum = 0, psq = 0, pwin = 0, pwinSq = 0;
+      // --dump FILE: each deal's points a seat and hands won a seat for each model (float32 pairs,
+      // model by model), so screens can pair any candidate with a cached champion.
+      FILE* dump = a.count("dump") ? std::fopen(a["dump"].c_str(), "wb") : nullptr;
+      if (a.count("dump") && !dump) throw std::runtime_error("lcm-sim play: can't write " + a["dump"]);
       for (long d = from; d < to; d++) {
         std::vector<double> dealPoints(models.size(), 0), dealWins(models.size(), 0);
         for (int k = 0; k < 4; k++) {
@@ -184,6 +188,7 @@ int main(int argc, char** argv) {
           }
         }
         for (size_t m = 0; m < models.size(); m++) { out[m].n++; out[m].sq += dealPoints[m] * dealPoints[m]; out[m].winSq += dealWins[m] * dealWins[m]; }
+        if (dump) for (size_t m = 0; m < models.size(); m++) { float v[2] = {float(dealPoints[m]), float(dealWins[m])}; std::fwrite(v, 4, 2, dump); }
         if (models.size() == 2) {
           double gp = dealPoints[0] - dealPoints[1], w = dealWins[0] - dealWins[1];
           pn++; psum += gp; psq += gp * gp; pwin += w; pwinSq += w * w;
@@ -195,6 +200,7 @@ int main(int argc, char** argv) {
         std::printf("%s{\"seats\":%.17g,\"points\":%.17g,\"wins\":%.17g,\"dealIns\":%.17g,\"winPoints\":%.17g,\"winFaan\":%.17g,\"selfDraws\":%.17g,\"n\":%.17g,\"sq\":%.17g,\"winSq\":%.17g}",
                     m ? "," : "", x.seats, x.points, x.wins, x.dealIns, x.winPoints, x.winFaan, x.selfDraws, x.n, x.sq, x.winSq);
       }
+      if (dump) std::fclose(dump);
       std::printf("],\"pair\":{\"n\":%.17g,\"sum\":%.17g,\"sq\":%.17g,\"win\":%.17g,\"winSq\":%.17g}}\n", pn, psum, psq, pwin, pwinSq);
       return 0;
     }
@@ -232,6 +238,9 @@ int main(int argc, char** argv) {
       j.optionReplays = a.count("option-replays") ? std::stoi(a["option-replays"]) : 0;
       j.options = a.count("options") ? std::stoi(a["options"]) : 4;
       j.optionShare = a.count("option-share") ? std::stod(a["option-share"]) : 0.1;
+      j.crn = a.count("crn") > 0;
+      j.crnSalt = a.count("crn-salt") ? uint32_t(std::stoul(a["crn-salt"])) : 0;
+      j.policyOnly = a.count("policy-only") > 0;
       return runGenerateLcv(j, [](const std::string& id) { return makeAgent(id); });
     }
     if (cmd == "generate-nc") {
