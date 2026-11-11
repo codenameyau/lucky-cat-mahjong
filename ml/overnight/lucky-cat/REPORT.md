@@ -1,6 +1,25 @@
 # Lucky Cat overnight: own-lineage table
 
-## Status
+## Status (final, 2026-11-11 14:15 local)
+
+- **Stopped by the maintainer.** 24 rounds ran, 6 generations were confirmed, and three models were shipped or proposed:
+  - **lc33 = G4 (LO9d)**: merged in PR #251.
+  - **lc34 = G6 (LO18d)**: in PR #252.
+- **Champion: G6 = LO18d** (`ml/models/LO18d.json`). Against lc33 (G4) on the fixed Lucky Cat ship table (G4, lc32 and lc31 in the other seats), on 160,000 pooled fresh exact deals:
+  - hands won **+0.44 ± 0.05 (8.8 SE)**, 22.94% vs 22.49%;
+  - points **+2.0 ± 1.0** (half spicy +0.41 ± 0.07);
+  - deal-ins −0.10 ± 0.05, average win 302 vs 301;
+  - share of wins at 7+ faan 28.0% (G4 28.0%).
+  - Fair play: pass.
+- **Against the starting model lc32**, along the chain:
+  - G4: +7.8 ± 1.1 points and +0.83 ± 0.06 hands won (fixed table lc32, lc31, lc30; 160,000 fresh exact deals).
+  - G5: +7.2 ± 1.1 points and +1.15 ± 0.06 hands won.
+  - G6 adds +0.44 hands won over G4.
+- **Last round (24), stopped mid-confirmation:** LO24d (3 blind steps from G6 with the hands-won recipe) was +1.1 ± 0.9 points and +0.04 ± 0.04 hands won against G6 at 160,000 deals. Not a generation.
+- **Every table had Lucky Cat generations only:**
+  - the pool, latest: G6, G5, G4, G3;
+  - ship tables: lc32, lc31, lc30, and later G4, lc32, lc31.
+
 
 **Objective (the maintainer, 2026-11-11): hands won first.** Points are a floor: not down more than 1 SE. Deal-ins may not rise more than 0.25 pp or 1 SE. A ship candidate needs hands won up 3 SE against lc33 (G4) on the fixed Lucky Cat table, with the same floors. **Lineage only:** every table in this loop is Lucky Cat generations and nothing else.
 
