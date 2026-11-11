@@ -3,8 +3,8 @@
 ## Status
 
 - **Phase 3 is running.** OS2c1 stays the shipped model.
-- **3.2, the target choice: done, and empty.** Forcing any target at the first decision is within ±1.6 points a hand of the rules (5,000 deals × 32 replays). The per-deal oracle's +15.5 in sample is −0.7 ± 1.4 out of sample, on independent walls: all selection noise. No head is trained.
-- **3.1, ten times the won positions: screening.** Data `oow-1` has 5.2M positions from 1,000,000 deals, 45% of them from won hands; the outcome head stays calibrated. Four fine-tunes from OS2c1 are being screened against OS2c1 (deck seed 1,508,000,000): W1a0 and W1a1 (no cap, lr 1e-4), W1b0 (no cap, lr 3e-4) and W1k0 (cap 10). The best goes to an anchored 80,000-deal exact confirmation.
+- **3.1, ten times the won positions: promising.** On a 40,000-deal screen against OS2c1, W1b0 (OS2c1 fine-tuned on `oow-1` without the cap, lr 3e-4, 8 epochs) scores **+11.9 ± 3.3 points a hand** and **limit-hand wins +0.072 ± 0.016 pp** (4.5 SE), with hands won −0.17 ± 0.05 pp, deal-ins −0.07 pp and half-spicy points +0.5 ± 0.2. It is the first lever that gains points through bigger hands; the cap on the same data doesn't. **Now: confirmation C7**, W1b0 and a second seed W1b1, 80,000 fresh exact deals against OS2c1 (seed 2,514,000,000).
+- **3.2, the target choice: empty.** The per-deal oracle is +15.5 in sample and −0.7 ± 1.4 out of sample on independent walls. No head is trained.
 - **Blockers:** none.
 
 ## The table and the measures
@@ -551,3 +551,28 @@ The per-deal oracle picks something other than the rules in 15.6% of deals, and 
 **3.2 is empty: no head is trained.**
 
 (The earlier version, with targets pinned for the whole hand, showed what the switching is worth: about 50 points a hand.)
+
+### 3.1 Screen W1: the won-hand fine-tunes against OS2c1 (deck seed 1,508,000,000, fast build)
+
+OS2c1 on this deck: 11.2 points a hand, wins 4.33%, deal-ins 1.70%, average win 3,766.
+
+| Arm | 8,000 deals | 40,000 deals | Wins (pp) | Deal-ins (pp) | Limit-hand wins (pp) | Half-spicy points | Average win |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **W1b0** (no cap, lr 3e-4, 8 epochs) | +8.3 ± 7.0 | **+11.9 ± 3.3** | −0.17 ± 0.05 | −0.07 ± 0.04 | **+0.072 ± 0.016** (0.867%) | +0.5 ± 0.2 | 4,156 |
+| W1a0 (no cap, lr 1e-4) | +8.2 ± 6.5 | +8.2 ± 3.1 | −0.42 ± 0.05 | −0.19 ± 0.03 | +0.035 ± 0.014 | +0.2 ± 0.2 | 4,203 |
+| W1a1 (the same, seed 61) | +2.4 ± 6.7 | cut | −0.61 ± 0.11 | −0.18 | −0.016 ± 0.031 | −0.2 ± 0.3 | 4,066 |
+| W1k0 (faan cap 10) | −6.8 ± 7.6 | −2.9 ± 3.3 | +0.96 ± 0.05 | +0.17 ± 0.04 | −0.004 ± 0.015 | +0.3 ± 0.2 | 3,098 |
+
+Reading: **this is the first lever tonight that moves the other way along the frontier, toward bigger hands, and gains points.**
+
+- The fine-tunes without the cap win fewer hands but bigger ones, deal in less, and **finish more limit hands**: W1b0 adds +0.072 pp of limit-hand wins (0.80% to 0.87% of hands, 4.5 SE) and +11.9 ± 3.3 points a hand on the screen.
+- The cap on the same data does what it always did: more small wins, more deal-ins, no limit hands gained.
+- With ten times the won hands, the faan heads have enough examples of limit hands to value them. That is the orchestrator's guess, and the cap is not needed.
+
+**Caveats:**
+- This is a screen of 4 arms, so the best is biased up.
+- The two lr 1e-4 seeds disagree (+8.2 and +2.4 on 8,000 deals).
+- Hands won fall by 0.17 pp (3 SE), so under the Pareto rule the points leg must carry it (up 2 SE with wins not down more than 1 SE: not met as a generation on this screen).
+- The ship bar is about points, and hands won must not fall more than 1 SE, so it would fail on wins as well unless the fresh deals differ.
+
+**Confirmation C7 (running):** W1b0 and a second seed of the recipe (W1b1, seed 61), against OS2c1, on 80,000 fresh deals from seed 2,514,000,000, exact build.
