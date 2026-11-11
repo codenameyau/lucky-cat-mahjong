@@ -305,6 +305,26 @@ function f2half(v) {
   return h;
 }
 
+// A blend: base + alpha * (mean of others - base), layer by layer (a model soup when alpha is 1).
+// The play settings are base's.
+function blend(baseFile, others, alpha, name) {
+  const W = require('./weights.js');
+  const base = JSON.parse(JSON.stringify(W.readWeights(path.resolve(ROOT, baseFile))));
+  const os = others.map((o) => W.readWeights(path.resolve(ROOT, o)));
+  const dec = (v) => { const b = Buffer.from(v, 'base64'); const o = new Float32Array(b.length / 2); for (let j = 0; j < o.length; j++) o[j] = half2f(b[2 * j] | (b[2 * j + 1] << 8)); return o; };
+  const enc = (a) => { const b = Buffer.alloc(a.length * 2); for (let j = 0; j < a.length; j++) { const h = f2half(a[j]); b[2 * j] = h & 255; b[2 * j + 1] = h >> 8; } return b.toString('base64'); };
+  base.layers.forEach((l, i) => ['w', 'b'].forEach((k) => {
+    const a = dec(l[k]);
+    const ms = os.map((o) => dec(o.layers[i][k]));
+    for (let j = 0; j < a.length; j++) { let m = 0; for (const x of ms) m += x[j]; m /= ms.length; a[j] = a[j] + alpha * (m - a[j]); }
+    l[k] = enc(a);
+  }));
+  base.meta = Object.assign({}, base.meta, { name, arm: 'blend ' + alpha + ' toward ' + others.map((o) => path.basename(o, '.json')).join('+'), from: (base.meta || {}).name });
+  const out = path.join(ROOT, 'ml', 'models', name + '.json');
+  fs.writeFileSync(out, JSON.stringify(base));
+  return out;
+}
+
 // A play setting: the same weights with other meta.play values.
 function setting(from, name, play) {
   const W = require('./weights.js');
@@ -316,7 +336,7 @@ function setting(from, name, play) {
   return out;
 }
 
-module.exports = { replayStats, screen, mutate, setting, rowsFor, summary, gap, TABLES, BLOCK, stats, line };
+module.exports = { blend, replayStats, screen, mutate, setting, rowsFor, summary, gap, TABLES, BLOCK, stats, line };
 
 if (require.main === module) {
   (async () => {
@@ -331,6 +351,8 @@ if (require.main === module) {
       if (a.out) { fs.mkdirSync(path.dirname(path.resolve(ROOT, a.out)), { recursive: true }); fs.writeFileSync(path.resolve(ROOT, a.out), JSON.stringify(res, null, 1)); }
     } else if (cmd === 'mutate') {
       console.log(mutate(a.from, parseFloat(a.sigma), parseInt(a.seed, 10), a.name));
+    } else if (cmd === 'blend') {
+      console.log(blend(a.from, String(a.toward).split(','), parseFloat(a.alpha), a.name));
     } else if (cmd === 'setting') {
       const play = {};
       if (a.winBonus != null) play.winBonus = parseFloat(a.winBonus);

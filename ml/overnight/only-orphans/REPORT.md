@@ -77,3 +77,30 @@ OS2c1 on this deck: 10.0 points a hand, wins 4.41%, deal-ins 1.75%. Screen time 
 Reading: **every one of the six fine-tuned networks scores more points than OS2c1 (mean of the six on 8,000 deals +7.9) and every one wins fewer hands** (−0.2 to −0.5 pp, 2 to 5 standard errors) and deals in less: trained on this table's games (90% draws, older generations that rarely finish), the network learns that a big hand pays and that dealing in is the risk, and plays bigger and safer. The brief's rule (hands won not down by more than one standard error) rejects all of them. No arm was confirmed (the driver picked N1a1 by z and then refused it on wins; fixed: the best is now taken among the arms that pass the wins rule, and the top-4 cut ranks them first). Claim margin 100 is a small, steady gain (+0.7 ± 0.4 at 40,000, 99.9% of deals identical).
 
 Next: the fine-tuned networks with a larger win bonus (1100, 1400, 1800) and claim margin 100, to buy the wins back with part of the points (side screen R1b, deck seed 1,590,000,000), and more seeds of recipe a and a longer recipe d.
+
+### Side screen R1b (deck seed 1,590,000,000, 8,000 deals, stopped after stage 1)
+
+| Arm | Gap, points a hand | Wins gap (pp) |
+| --- | ---: | ---: |
+| N1c1 + win bonus 1100, claim margin 100 | −3.1 ± 6.6 | −0.26 ± 0.10 |
+| N1a3 (recipe a, seed 3) | −5.1 ± 6.6 | −0.46 ± 0.11 |
+| N1d1 (lr 3e-4, 16 epochs) | −8.2 ± 6.7 | −0.43 ± 0.11 |
+| N1c1 + win bonus 1400 / 1800 | −10.3 ± 6.3 / −12.6 ± 6.5 | −0.11 / +0.05 |
+| N1b1 + win bonus 1100 / 1400 / 1800 | −10.9 / −14.0 / −17.0 (± 7.3 to 7.5) | −0.27 / −0.12 / +0.04 |
+| N1a1 + win bonus 1100 / 1400 / 1800 | −12.1 / −14.7 / −16.2 (± 6.7 to 6.9) | −0.19 / −0.01 / +0.11 |
+| N1a2 / N1d0 | −13.9 ± 6.7 / −14.4 ± 7.1 | −0.50 / −0.45 |
+
+OS2c1 on this deck: 17.9 points a hand, wins 4.41%.
+
+### Critique 1: one deck's luck moved every network together; the wins are the real signal
+
+- **The arms on one deck are not independent.** On round 1's deck the six fine-tunes were all ahead (+3 to +15, mean +7.9); on R1b's deck the four more of the same recipes were all behind (−5 to −14, mean −10.4), and the same networks with a bigger win bonus too. The paired gap is the arm's hands less the champion's on the same deals, and a fine-tuned network plays differently from OS2c1 on almost every hand (the shadow replayed 100% of their hands), so every arm's gap carries the same term: how lucky OS2c1 was on that deck's diverging hands (OS2c1 scored 11.8 a hand on one deck and 17.9 on the other). "All six ahead" was one draw of that term, not six pieces of evidence. The best-of-N on one deck is worse than the brief's warning says: N arms share the luck instead of averaging it out.
+- **What is well measured is the hands won.** Every fine-tune, on both decks, wins 0.2 to 0.5 percentage points fewer hands than OS2c1 (each 2 to 5 standard errors) and deals in a little less. That is not noise. Trained on this table's games (90% draws, opponents that rarely finish), the value network moves toward big hands and safety. A bigger win bonus buys the wins back but costs about 3 to 4 points a hand per 300 of bonus, so no win bonus gives both.
+- **Points a hand is dominated by rare big wins.** With 4.4% of hands won at about 3,600 points each, a 40,000-deal paired screen of a network that changes most hands has a standard error of about ±3 points a hand, while the effects worth having are +2 to +5. A setting that changes few decisions (claim margin) has ±0.4.
+
+**What changes:**
+1. Retraining on this table's data alone is set aside: it moves the model the wrong way on wins, robustly. Instead, low-divergence changes, whose paired standard errors are small enough to see a real +1: claim margin (100 is ahead on two decks: +1.0 ± 0.5 on 24,000, +0.7 ± 0.4 on 40,000), small win-bonus steps combined with it, and blends (OS2c1 moved a quarter or half of the way toward the fine-tunes' average, a "soup", which averages out seed noise and changes fewer decisions).
+2. A recipe is judged across decks, not by its luckiest seed on one deck; arms are compared with each other on the same deck (their shared term cancels) before one goes to a fresh confirmation.
+3. Confirmations of low-divergence arms are cheap through the shadow on the exact build, so they get 80,000 deals (standard error about ±0.3).
+
+Confirmation C0 (running): claim margin 100 on 80,000 fresh deals from seed 2,500,000,000, exact build.
