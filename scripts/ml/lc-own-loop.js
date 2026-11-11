@@ -56,7 +56,8 @@ async function shipCheck(state, plan, file, log) {
   const deals = plan.shipDeals || 80000, runs = [];
   for (let k = 0; k < 2; k++) {
     const seed = takeSeeds(state, deals);
-    const c = (await O.screen(SHIPPED, [file], seed, [deals], { pool: state.pool, exact: true, drop: 1e9, log }))[0];
+    // the fixed ship table (the orchestrator, 2026-11-11): lc32, lc31 and lc30 in the other seats
+    const c = (await O.screen(SHIPPED, [file], seed, [deals], { pool: ['lc32', 'lc31', 'lc30'].map((m) => 'ml/models/' + m + '.json'), exact: true, drop: 1e9, log }))[0];
     runs.push({ seed, pair: c.pair, me: c.me, ch: c.ch, line: c.line });
   }
   const P = pool2(runs[0].pair, runs[1].pair);
