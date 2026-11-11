@@ -27,6 +27,12 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Check the game version was bumped
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: node scripts/check-game-version.js "origin/$BASE_REF"
+
   native-pin:
     runs-on: ubuntu-latest
 
