@@ -2,13 +2,11 @@
 
 ## Status
 
-- **Best models against OS2c1, on pooled fresh exact deals (no screen deals):**
-  - **ON2** (`ml/models/ON2.json`, the loop's champion), over C3 and C4 (80,000 deals): hands won **+0.81 ± 0.035 pp**, points **+2.35 ± 2.2** a hand, deal-ins +0.025 ± 0.028 pp.
-  - **ON1** (`ml/models/ON1.json`), over C1 and C3 (80,000 deals): hands won +0.70 ± 0.035 pp, points +0.9 ± 2.2, deal-ins −0.005 ± 0.03 pp.
-  - Both meet the Pareto rule. Neither meets the ship bar (points +3 SE pooled).
-- **Rounds done:** R0, 1, R1b, C0, the structural arms, R2, R3, C1, round 2 (C2: ON2 kept), C3, round 3 (C4: N3j0 not kept, its deal-ins up 1.7 SE against ON2).
-- **Now:** C5. ON1, ON2, ON2 at win bonus 400 and ON1 at win bonus 500 against OS2c1 on 40,000 fresh exact deals (seed 2,505,000,000). It is the third fresh run for ON1 and ON2.
-- **Blockers:** none. ON1 and ON2 pass the fair-play shuffle check.
+- **Loop champion:** **ON3** (`ml/models/ON3.json`, the third cap generation). Against OS2c1 on C4 (40,000 fresh exact deals): points +8.1 ± 3.1, hands won +0.92 ± 0.05 pp, deal-ins +0.06 ± 0.04 pp. That meets the Pareto rule (with the relaxed deal-in leg). The ship bar needs a second fresh run.
+- **Best measured against OS2c1 (pooled fresh exact runs):** ON2, 120,000 deals: points +2.5 ± 1.8, hands won +0.83 ± 0.03 pp, deal-ins +0.02 ± 0.02 pp. ON1, 120,000 deals: points +0.2 ± 1.8, hands won +0.73 ± 0.03 pp. Neither meets the ship bar.
+- **Rounds done:** R0, 1, R1b, C0, the structural arms, R2, R3, C1, round 2 (C2: ON2), C3, round 3 (C4: ON3), C5.
+- **Now:** the half-spicy screen HS (deck seed 1,506,000,000): the half-spicy play setting at weight 0.5 and 1 on OS2c1, ON2 and ON3, beside ON3 and ON2 at win bonus 400. Every arm is scored in full-spicy and half-spicy points, and in limit-hand wins. After that comes a second fresh run for ON3 and ON2 at win bonus 400, for the ship bar.
+- **Blockers:** none. ON1, ON2 and ON3 pass the fair-play check. Half spicy is a play setting of the native simulator only (`meta.play.halfSpicy`); the game's JS doesn't read it.
 
 ## The table and the measures
 
@@ -282,3 +280,27 @@ The orchestrator changed the rule: deal-ins may now rise by up to 0.25 pp or 1 S
 - deal-ins +0.046 pp (under 0.25 pp: passes).
 
 Against the anchor OS2c1 it is +8.1 ± 3.1 points and +0.92 ± 0.05 pp hands won on that deck. **N3j0 is kept as ON3** (`ml/models/ON3.json`, a new generation by the Pareto rule with the relaxed deal-in leg, not the ship bar). It passes the fair-play check. The driver uses the relaxed leg from now on.
+
+### Confirmation C5: the third fresh run against OS2c1 (40,000 deals, exact build)
+
+40,000 fresh deals from seed 2,505,000,000, exact build. OS2c1: 11.4 points a hand, wins 4.35%, deal-ins 1.73%, average win 3,595.
+
+| Model | Points gap | Wins gap (pp) | Deal-ins gap (pp) | Points a hand | Wins | Average win |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| ON1 | −1.1 ± 3.1 | +0.78 ± 0.05 | −0.01 ± 0.04 | 10.3 | 5.14% | 3,052 |
+| ON2 | +2.8 ± 3.2 | +0.88 ± 0.05 | +0.01 ± 0.04 | 14.3 | 5.24% | 3,088 |
+| ON2 at win bonus 400 (S3wbm200) | **+5.4 ± 3.1** | +0.67 ± 0.05 | −0.06 ± 0.04 | 16.9 | 5.02% | 3,221 |
+| ON1 at win bonus 500 | +0.8 ± 3.1 | +0.68 ± 0.05 | −0.02 ± 0.04 | 12.2 | 5.04% | 3,124 |
+
+2,368 s for four networks (the shadow replays every hand of a network).
+
+**Pooled against OS2c1 over every fresh exact run (no screen deals):**
+
+| Model | Runs (deals) | Points a hand | Hands won (pp) | Deal-ins (pp) | Bar |
+| --- | --- | ---: | ---: | ---: | --- |
+| ON1 | C1, C3, C5 (120,000) | +0.2 ± 1.8 | +0.73 ± 0.03 | −0.01 ± 0.02 | Pareto rule; ship bar no |
+| ON2 | C3, C4, C5 (120,000) | +2.5 ± 1.8 | +0.83 ± 0.03 | +0.02 ± 0.02 | Pareto rule; ship bar no (1.4 SE) |
+| ON3 | C4 (40,000) | +8.1 ± 3.1 | +0.92 ± 0.05 | +0.06 ± 0.04 | Pareto rule; ship bar not tested (one run) |
+| ON2 at win bonus 400 | C5 (40,000) | +5.4 ± 3.1 | +0.67 ± 0.05 | −0.06 ± 0.04 | one run: 1.7 SE on points |
+
+Reading: the cap generations win 0.7 to 0.9 pp more hands than OS2c1 (5.0 to 5.3% against 4.35%), measured to ±0.03 pp. On points they are level to slightly ahead, but the standard error is ±1.8 even on 120,000 deals. ON2 is the best measured: +2.5 ± 1.8 points and +0.83 pp hands won, with deal-ins level. A lower win bonus moves ON2 along its own frontier, toward fewer, bigger wins (+5.4 ± 3.1 points and +0.67 pp hands won on one run). That is the strongest single result on full-spicy points tonight, but it is one run, and the ship bar needs +3 SE pooled.
