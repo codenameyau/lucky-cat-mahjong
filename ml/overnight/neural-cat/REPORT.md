@@ -1,13 +1,13 @@
 # Neural Cat overnight report
 
-## Status (updated 2026-11-11 12:05 UTC)
+## Status (updated 2026-11-11 13:00 UTC, final for this session)
 
-- **Champion: G1** (`ml/models/pool/G1.json`, trained as R4sm03: NC9 fine-tuned on 8 sets of every-seat data with label smoothing 0.03 on the faan heads). **Generation 1** under the orchestrator's revised rule (deal-ins may rise by up to 0.25 pp or 1 SE): against NC9 on 150,000 fresh exact deals, hands won **+1.4 ± 0.05 pp** (17.61% vs 16.19%), points **+0.6 ± 2.3** (level), deal-ins +0.10 ± 0.05 pp, average win 833 vs 915. Fair-play shuffle check (`bench.js fairPlay`): **pass**. **Not a ship candidate** (points level). It joined the pool and plays the next data.
-- **Rounds done:** 6 rounds (R1, R2, R3, R5, R8, plus R4/R6/R7 trained arms) and the S8 frontier screen; one generation (G1).
-- **Last result:** R9's pay-head smoothing (R9pay, from G1) against G1 on 150,000 fresh exact deals: **points +4.5 ± 2.1** (z 2.15), hands won -0.4 ± 0.05 pp, deal-ins +0.11 pp: points up 2 SE but hands won down, so not a generation. 
-- **Now:** ship check of R9pay against NC9: two fresh exact runs of 100,000 deals each, pooled (ship bar: points up 3 SE, hands won not down more than 1 SE).
-- **Bars:** generation = against the current champion on fresh exact deals, full-spicy points or hands won up >= 2 SE, the other not down > 1 SE, deal-ins up at most 0.25 pp or 1 SE (the larger). Ship candidate = full-spicy points up >= 3 SE against NC9 on pooled fresh exact deals, hands won not down > 1 SE.
-- **Blockers:** none.
+- **SHIP CANDIDATE: SC1** (`ml/models/pool/SC1.json`, trained as R9pay: G1 fine-tuned 4 epochs at lr 1e-4 on nco-5 to nco-12 with label smoothing 0.03 on the **pay** faan head only; play settings NC9's: topK 6, win bonus 300, claim margin 0). Against **NC9** on two fresh exact runs of 100,000 deals each (seeds 3,000,972,000 and 3,001,072,000), pooled to 200,000 deals: **+8.1 ± 2.0 full-spicy points a hand (4.0 SE)**, hands won **+1.08 ± 0.05 pp** (17.23% vs 16.15%), deal-ins +0.24 ± 0.04 pp (10.51% vs 10.27%, inside the 0.25 pp allowance), average win 903 vs 915; half-spicy points +1.23 ± 0.12. The two runs alone: +8.6 ± 2.9 and +7.6 ± 2.9. **It meets the ship bar** (points up 3 SE on pooled fresh exact deals, hands won not down). Fair-play shuffle check: **pass**.
+- **Champion (in-lineage): G1** (`ml/models/pool/G1.json`, R4sm03, smoothing 0.03 on both faan heads): Generation 1 against NC9 (hands won +1.4 ± 0.05 pp, points +0.6 ± 2.3, 150,000 fresh exact deals; fair play pass).
+- **SC1 against G1** (150,000 fresh exact deals): points +4.5 ± 2.1 (2.15 SE), hands won -0.4 ± 0.05 pp, so by the Pareto rule it is **not** G2 (hands won down more than 1 SE), though it carries the points milestone. Whether SC1 becomes G2 is the orchestrator's call; the loop's state still has G1 as champion.
+- **Rounds done:** R1 to R9 (R4, R6, R7 as trained-arm batches), the S8 frontier screen, 11 exact confirmations.
+- **Now:** nothing running. Session ended to hand back before running out of context.
+- **Blockers:** none. To ship SC1 the game needs nothing new: it is an ordinary 568-512-256-28 float16 model with NC9's play settings (no spicyBlend).
 
 ## Speed: before (the lab today) and after (this loop)
 
@@ -236,3 +236,20 @@ S8 frontier screen (fast, 40,000 deals from seed 3,000,702,000, paired against N
 - **Which head does what:** smoothing the win head makes Neural Cat more eager (more, smaller wins); smoothing the pay head alone does the opposite (fewer, bigger wins), since a flatter pay head prices every chance of paying higher. G1's hands-won gain comes from the win head.
 - **Confirmation (exact, fresh, 150,000 deals from seed 3,000,822,000, against G1; 2,458 s):** R9pay **+4.5 ± 2.1** full-spicy points a hand (z 2.15), hands won 17.22% vs 17.62% (**-0.4 ± 0.05 pp**), deal-ins 10.50% vs 10.38% (+0.11 ± 0.05 pp), average win 892 vs 844; half spicy +0.1 ± 0.12. **Points up 2 SE (the points milestone's size), but hands won down 8 SE, so not a generation under the Pareto rule.** Its screen lead (+8.3, shrunken about +2) held at +4.5: the first retrained points gain to survive a fresh confirmation at 2 SE.
 - Against NC9 it should be about G1's +0.6 plus +4.5, with hands won about +1.0 pp: so it is checked against NC9 for the ship bar on two fresh exact runs of 100,000 deals each (pooled 200,000; seeds from 3,000,972,000).
+
+### Ship check of R9pay (SC1) against NC9
+
+| Run | Deals (fresh, exact) | Points vs NC9 | Hands won | Deal-ins | Avg win | Half-spicy points |
+| --- | ---: | ---: | --- | --- | --- | ---: |
+| 1 (seed 3,000,972,000) | 100,000 | +8.6 ± 2.9 | 17.20% vs 16.11% (+1.1 ± 0.07) | 10.53% vs 10.28% (+0.25 ± 0.06) | 903 vs 914 | +1.3 ± 0.16 |
+| 2 (seed 3,001,072,000) | 100,000 | +7.6 ± 2.9 | 17.26% vs 16.18% (+1.1 ± 0.07) | 10.48% vs 10.25% (+0.23 ± 0.06) | 903 vs 916 | +1.2 ± 0.16 |
+| **Pooled** | **200,000** | **+8.1 ± 2.0 (4.0 SE)** | **17.23% vs 16.15% (+1.08 ± 0.05)** | 10.51% vs 10.27% (+0.24 ± 0.04) | 903 vs 915 | **+1.23 ± 0.12** |
+
+Bars met: **ship candidate** (points up 4.0 SE against NC9, hands won up); against NC9 also a generation (both runs PASS the Pareto rule); against G1, points milestone only (hands won down). Better on both payout tables (full +8.1, half +1.2). Pooling: `ml/overnight/neural-cat/work/pool.js` reads the two runs' cached per-deal rows (it reproduces run 1 alone exactly).
+
+## Final critique and what to run next
+
+- **What worked:** reshaping the faan heads, not more outcome regression. Smoothing both faan heads (G1) moved the style (more, smaller wins) with points level; smoothing the pay head on top (SC1) bought the points back and more, keeping most of G1's extra wins: in total +8.1 points and +1.1 pp hands won over NC9. The value net's faan heads are overconfident in the tail; a flatter pay head prices the risk of paying more cautiously, a flatter win head prices small wins higher.
+- **What didn't:** fine-tuning on more of the champion's own outcomes (prediction better, play level: R1, R2, R5c0), weight noise and output-bias mutations (all within ± 1.5), the half-spicy play setting (a trade on full spicy), CRN option replays with an advantage loss (worse than its control; replays too noisy to rank NC's close options), a 23x bigger residual teacher (same held-out loss: capacity is not the limit), clipping (never bites), warm-up, gradient noise.
+- **Evaluation:** a shared 40,000-deal screen of correlated arms is one draw (R8se: -1.9 then +6.6 on two decks); only fresh confirmations of 150,000+ deals decide. The fast build is unbiased (39,995 of 40,000 deals identical).
+- **Next experiments, in order:** (1) a second seed of SC1's recipe (pay smoothing 0.03 from G1) and pay smoothing 0.02 / 0.05, to check the recipe, not the draw; (2) SC1 as the learner for the next data (its own generation), pay and win smoothing tuned separately; (3) the same pay-head smoothing straight from NC9 (R9n9pay screened +6.2 ± 4.2 against G1 with fewer wins) to see whether G1's step is needed; (4) a JS port of `spicyBlend` only if a blend ever wins (none did).
