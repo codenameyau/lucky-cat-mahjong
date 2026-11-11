@@ -2,7 +2,22 @@
 
 ## Status
 
-*Updated 2026-11-11 05:50 local.* Rounds done: 9. Rounds done: 4.
+**Fixed ship table (orchestrator's request).** Each candidate is paired against lc32, with lc32, lc31 and lc30 in the other seats. All of them played the same 160,000 fresh exact deals: two runs of 80,000 from seed 802,828,000 (`scripts/ml/lc-own-ship.js`).
+
+| Pair | Points a hand (full spicy) | Half spicy | Hands won | Deal-ins | Average win |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **G4 (LO9d) against lc32** | **+7.8 ± 1.1** | +1.02 ± 0.09 | **+0.83 ± 0.06** (22.83% vs 22.00%) | −0.10 ± 0.06 | 307 vs 284 |
+| G2 (LO2a) against lc32 | +5.0 ± 1.0 | +0.49 ± 0.08 | +0.26 ± 0.06 (22.26% vs 22.00%) | −0.08 ± 0.06 | 301 vs 284 |
+| **G4 against G2** | **+2.8 ± 1.0** | +0.52 ± 0.08 | **+0.57 ± 0.05** | −0.01 ± 0.05 | 307 vs 301 |
+
+- **G4 beats G2** on this table: 2.8 SE in points and 11 SE in hands won, on both payout tables.
+- **Against lc32**, G4 is up 7 SE in points and 14 SE in hands won, with deal-ins slightly down.
+- Fair play for G4: pass.
+
+**Recommendation: ship G4 (`ml/models/LO9d.json`) in place of G2**, subject to your game-table check.
+
+
+*Updated 2026-11-11 06:50 local.* Rounds done: 10. The loop paused for the fixed ship table and is running again: round 11, blind step 2 from G4. Rounds done: 4.
 
 - **Champion: G4 = LO9d** (`ml/models/LO9d.json`), from 3 blind policy-iteration steps on G3:
   - LO7a: full-spicy data, vnorm 1, bonus 100.
