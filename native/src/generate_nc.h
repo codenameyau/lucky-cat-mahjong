@@ -41,7 +41,9 @@ struct NcGenerateJob {
   bool crn = false, policyOnly = false;
   uint32_t crnSalt = 0;
   int halving = 0, extraRandom = 0, truncate = 0;  // --truncate K (with --value): stop a replay at the seat's K-th move
-  bool valueRows = false;            // --value-rows: the value's rows too, with --policy-only
+  bool valueRows = false;
+  bool halfSpicy = false;            // --half-spicy: replays scored on the half-spicy table
+  double closeSe = 0;                // --close-se X (with --halving H): the rest only where the best two are within X SE            // --value-rows: the value's rows too, with --policy-only
   std::string value;                 // --value V.lcmw: the value a truncated replay is scored by
    // --halving H (replays before dropping options), --extra-random N
   double halvingMargin = 150;        // --halving-margin: points behind the best an option may be and go on  // --crn-salt: another set of futures (to measure the replays' noise)
@@ -57,6 +59,7 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make);
 // hidden-tile labels (shard-N.aux, no rules' hand); and at job.optionShare of them, the
 // learner's top job.options moves by share (or every claim move), each played on
 // job.optionReplays times (shard-N.options, shard-N.optlabels, as generate-nc).
+double halfSpicyDelta(const Result& r, int seat);
 int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make);
 
 }  // namespace lcm

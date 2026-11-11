@@ -637,6 +637,14 @@ struct LcvRecorder : Agent {
 // and scores the position that move leaves with the value (expected points), not the hand's
 // end: far less of the futures' luck, and a fraction of the cost.
 struct TruncEv { double ev; };
+// A hand's delta for a seat on the half-spicy table (js/points.js halfSpicyPoints): the settlement
+// is linear in the winner's base points, so the full-spicy delta is scaled by half/full.
+double halfSpicyDelta(const Result& r, int seat) {
+  if (!r.win || r.score.points <= 0) return 0;
+  int f = std::min(r.score.faan, 13);
+  double h = f <= 4 ? std::pow(2.0, f) : f % 2 == 0 ? std::pow(2.0, (f + 4) / 2) : std::pow(2.0, (f + 3) / 2) * 1.5;
+  return r.deltas[seat] * h / double(r.score.points);
+}
 struct Truncate : Agent {
   Agent* inner; int seat; int left; const ValueNet* value;
   Decision turn(Game& g, int s, const TurnOptions& o) override {
@@ -769,7 +777,7 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
             for (int s2 = 0; s2 < 4; s2++) ag[s2] = s2 == G.seat ? static_cast<Agent*>(&fz) : again[s2];
             try {
               Result rr = G.atClaim ? continueAtClaims(copy, ag, G.from, G.tile) : continueAtTurn(copy, ag, G.seat);
-              P[k].push_back(rr.deltas[G.seat]);
+              P[k].push_back(job.halfSpicy ? halfSpicyDelta(rr, G.seat) : double(rr.deltas[G.seat]));
               Wn[k].push_back(rr.win && rr.winner == G.seat ? 1 : 0);
             } catch (const TruncEv& t) {
               P[k].push_back(t.ev);
@@ -780,7 +788,22 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
           };
           int R = job.optionReplays, r0 = job.halving > 0 ? std::min(job.halving, R) : R;
           for (size_t k = 0; k < K; k++) for (int n = 0; n < r0; n++) replay(k, n);
-          if (r0 < R) {
+          bool goOn = r0 < R;
+          if (goOn && job.closeSe > 0 && K >= 2) {
+            // --close-se X: the rest of the replays only where the best two options are within X SE
+            // (their CRN-paired gap over the first replays): the close decisions.
+            std::vector<double> m(K, 0);
+            for (size_t k = 0; k < K; k++) { for (double v : P[k]) m[k] += v; m[k] /= P[k].size(); }
+            size_t b1 = 0; for (size_t k = 1; k < K; k++) if (m[k] > m[b1]) b1 = k;
+            size_t b2 = b1 == 0 ? 1 : 0; for (size_t k = 0; k < K; k++) if (k != b1 && m[k] > m[b2]) b2 = k;
+            double ds = 0, dq = 0; int L = r0;
+            for (int n = 0; n < L; n++) { double d = P[b1][n] - P[b2][n]; ds += d; dq += d * d; }
+            double dm = ds / L, se = L > 1 ? std::sqrt(std::max(0.0, dq / L - dm * dm) / (L - 1)) : 0;
+            goOn = dm <= job.closeSe * se;
+            if (goOn) for (size_t k = 0; k < K; k++) for (int n = r0; n < R; n++) replay(k, n);
+            goOn = false;
+          }
+          if (goOn) {
             double bestM = -1e18;
             std::vector<double> m(K, 0);
             for (size_t k = 0; k < K; k++) { for (double v : P[k]) m[k] += v; m[k] /= P[k].size(); bestM = std::max(bestM, m[k]); }

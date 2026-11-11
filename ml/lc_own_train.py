@@ -176,6 +176,18 @@ def main():
         ta = time.time()
         name = arm['name']
         net, base = load_model(arm['init'])
+        if arm.get('mode') == 'soup':
+            # the weight average of models trained from the same init (seeds), a model soup
+            nets = [load_model('ml/models/' + m + '.json')[0] for m in arm['members']]
+            with torch.no_grad():
+                for k, l in enumerate(net.layers):
+                    l.weight.copy_(sum(n_.layers[k].weight for n_ in nets) / len(nets))
+                    l.bias.copy_(sum(n_.layers[k].bias for n_ in nets) / len(nets))
+            path = save_model(net, base, name, {'mode': 'soup', 'members': arm['members'], 'init': arm['init']})
+            js_check(net, path, x)
+            report.append({'name': name, 'seconds': time.time() - ta})
+            print(f'{name}: soup of {", ".join(arm["members"])}', flush=True)
+            continue
         if arm.get('mode') == 'noise':
             g = torch.Generator().manual_seed(int(arm.get('seed', 1)))
             with torch.no_grad():

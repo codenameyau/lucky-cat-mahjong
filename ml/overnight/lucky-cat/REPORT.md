@@ -2,23 +2,56 @@
 
 ## Status
 
-*Updated 2026-11-11 03:10 local.* Rounds done: 4.
+**Fixed ship table (orchestrator's request).** Each candidate is paired against lc32, with lc32, lc31 and lc30 in the other seats. All of them played the same 160,000 fresh exact deals: two runs of 80,000 from seed 802,828,000 (`scripts/ml/lc-own-ship.js`).
 
-- **Champion: G2 = LO2a** (`ml/models/LO2a.json`), the lineage's first points gain. Against G1 on 160,000 fresh exact deals: **+2.2 ± 0.9 points a hand (2.4 SE)**, hands won +0.07 ± 0.05, deal-ins level (−0.00 ± 0.05), average win 301 vs 295. It meets the generation bar and the points milestone. Fair-play shuffle check (`scripts/ml/fair-play.js`): **pass**.
+| Pair | Points a hand (full spicy) | Half spicy | Hands won | Deal-ins | Average win |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **G4 (LO9d) against lc32** | **+7.8 ± 1.1** | +1.02 ± 0.09 | **+0.83 ± 0.06** (22.83% vs 22.00%) | −0.10 ± 0.06 | 307 vs 284 |
+| G2 (LO2a) against lc32 | +5.0 ± 1.0 | +0.49 ± 0.08 | +0.26 ± 0.06 (22.26% vs 22.00%) | −0.08 ± 0.06 | 301 vs 284 |
+| **G4 against G2** | **+2.8 ± 1.0** | +0.52 ± 0.08 | **+0.57 ± 0.05** | −0.01 ± 0.05 | 307 vs 301 |
+
+- **G4 beats G2** on this table: 2.8 SE in points and 11 SE in hands won, on both payout tables.
+- **Against lc32**, G4 is up 7 SE in points and 14 SE in hands won, with deal-ins slightly down.
+- Fair play for G4: pass.
+
+**Recommendation: ship G4 (`ml/models/LO9d.json`) in place of G2**, subject to your game-table check.
+
+
+*Updated 2026-11-11 06:50 local.* Rounds done: 10. The loop paused for the fixed ship table and is running again: round 11, blind step 2 from G4. Rounds done: 4.
+
+- **Champion: G4 = LO9d** (`ml/models/LO9d.json`), from 3 blind policy-iteration steps on G3:
+  - LO7a: full-spicy data, vnorm 1, bonus 100.
+  - LO8a: the same recipe.
+  - LO9d: half-spicy data, 16 replays at close choices, a 3-seed soup with vnorm 1 and bonus 50.
+
+  Against G3 on 160,000 fresh exact deals: **+3.4 ± 0.9 points a hand (3.8 SE)**, half spicy +0.39 ± 0.07, **hands won +0.31 ± 0.05 (6 SE)** (22.45% vs 22.14%), deal-ins −0.04 ± 0.05, average win 305 vs 298. It meets the generation bar and the points milestone. **SHIP CANDIDATE: G4 against lc32**, on two fresh exact runs of 80,000 deals each, pooled to 160,000, at the pool's table (G4, G3, G2, G1): **+4.5 ± 1.1 points a hand (4.1 SE)**, **hands won +0.84 ± 0.06** (22.5% vs 21.7%), deal-ins level. The runs alone: +3.5 ± 1.6 (half spicy +0.68 ± 0.12) and +5.5 ± 1.5 (half spicy +0.97 ± 0.12). Fair play: pass.
+  - **Against G2's ship check:** G4 wins far more hands than lc32 (+0.84 against G2's +0.35), and its points gain is similar (+4.5 ± 1.1 against +5.9 ± 1.1), within the noise and at a different table. Head to head, G4 descends from G2 through G3, and each step was up on hands won and on points (+1.4, then +3.4). **I'd ship G4 in place of G2**, after an exact G4-against-G2 run at the game's table.
+- **G3 = LO4h** (`ml/models/LO4h.json`, variance-aware target: vnorm 1, bonus 150, trained from G2). Against G2 on 160,000 fresh exact deals: points **+1.4 ± 0.8**, hands won **+0.22 ± 0.04 (5.5 SE)**, deal-ins −0.05 ± 0.04, average win 306 vs 304. It meets the generation bar on hands won, but not the points milestone (1.75 SE). **Ship check against lc32** (two fresh exact runs of 80,000 deals each, pooled to 160,000): **+2.4 ± 1.1 points (2.2 SE)**, hands won **+0.34 ± 0.06**. That is **below the 3 SE ship bar**. The runs alone were +1.0 ± 1.5 and +3.8 ± 1.5. Caveat: its table pool (G3, G2, G1, lc32) is not the one G2's ship check used (G2, G1, lc32, lc31), so the two checks don't compare directly. **G2 remains the ship candidate.**
+- **G2 = LO2a** (`ml/models/LO2a.json`), the lineage's first points gain. Against G1 on 160,000 fresh exact deals: **+2.2 ± 0.9 points a hand (2.4 SE)**, hands won +0.07 ± 0.05, deal-ins level (−0.00 ± 0.05), average win 301 vs 295. It meets the generation bar and the points milestone. Fair-play shuffle check (`scripts/ml/fair-play.js`): **pass**.
 - **G1 = LO1b:** hands won +0.23 ± 0.07 against lc32 (generation bar only).
 - **SHIP CANDIDATE: G2 against lc32**, on two fresh exact runs of 80,000 deals each (seeds 801,264,000 and 801,344,000), pooled to 160,000 deals: **+5.9 ± 1.1 points a hand (5.5 SE)**, hands won **+0.35 ± 0.05** (22.1% vs 21.8%), deal-ins level (+0.00 ± 0.06), average win about 310 vs 289. The two runs alone: +6.3 ± 1.5 and +5.5 ± 1.5 points. It clears the 3 SE ship bar, and fair play passes.
 - **Running now:**
-  - **Confirming LO4h** (vnorm 1; screen: hands won +0.19 ± 0.06) against G2 on 160,000 fresh exact deals, then **round 5** (full CRN replays, data from G2). Round 4 kept nothing; its arms were: a control (tau 30, bonus 150), bonus 75, bonus 225, EMA, the LO1d retry (lr 1e-3, warm-up, cosine, EMA), gradient noise with two seeds, and the variance-aware target.
-- **Table pool:** G2, G1, lc32, lc31.
+  - **Blind policy iteration since round 7** (critique below). Step 1: LO7a (data from G3, vnorm 1, bonus 100). Step 2 is running (round 8, data from LO7a). Step 3 (round 9) adds the orchestrator's changes and half spicy:
+    - replays scored on the **half-spicy table**, which I proved against `js/points.js` (4,000 hands, every per-deal value identical);
+    - 16 replays on half as many choices, the last 12 only where the best two options are within 1.5 SE after 4 (`--close-se`);
+    - the head is a **weight average of 3 seeds**, with bonus 0 and 150 trained beside it;
+    - a confirmation within ±1.5 SE at 160,000 deals is **extended to 320,000**;
+    - every screen and confirmation reports half-spicy points beside full-spicy ones (`play --dump`).
+    The 3-step head is then confirmed against G3. Rounds 5 and 6 kept nothing.
+- **G3 against G2, against lc32 (for PR #251):**
+  - G3 is not ahead of G2 against lc32. G3's ship check came to +2.4 ± 1.1 points (2.2 SE, below the bar) with hands won +0.34 ± 0.06. G2's was +5.9 ± 1.1 with +0.35 ± 0.05. The two ran at different table pools (G3, G2, G1, lc32 against G2, G1, lc32, lc31), so the comparison isn't clean.
+  - Head to head, G3 beat G2 on hands won (+0.22 ± 0.04) with points +1.4 ± 0.8.
+  - So I wouldn't add G3 to the PR on points; it is a hands-won step. Round 4 kept nothing; its arms were: a control (tau 30, bonus 150), bonus 75, bonus 225, EMA, the LO1d retry (lr 1e-3, warm-up, cosine, EMA), gradient noise with two seeds, and the variance-aware target.
+- **Table pool:** G3, G2, G1, lc32.
 - **Blockers:** none.
 
 ## Bars
 
-- **Generation (in-lineage):** on fresh exact paired deals against the lineage's current champion, points a hand or hands won is up 2 SE, the other is not down more than 1 SE, and deal-ins are not up more than 1 SE.
+- **Generation (in-lineage):** on fresh exact paired deals against the lineage's current champion, points a hand or hands won is up 2 SE, the other is not down more than 1 SE, and deal-ins are not up by more than 0.25 percentage points or 1 SE, whichever is larger (the orchestrator, 2026-11-11, from round 9; before that, 1 SE).
 - **Points milestone:** a generation whose points are up 2 SE.
 - **Ship candidate (orchestrator, 2026-11-11):** against lc32 itself, on two fresh exact runs pooled (never screen deals), points up 3 SE and hands won not down more than 1 SE. The loop runs this check for every generation with a points milestone (`shipCheck` in `lc-own-loop.js`).
 
-So far: **G1 (LO1b)** met the generation bar on hands won (+0.23 ± 0.07 against lc32), with no points milestone. **G2 (LO2a)** met the generation bar and the points milestone against G1 (+2.2 ± 0.9). It also met the **ship bar** against lc32: +5.9 ± 1.1 points (5.5 SE) and +0.35 ± 0.05 hands won, on 160,000 pooled fresh exact deals.
+So far: **G1 (LO1b)** met the generation bar on hands won (+0.23 ± 0.07 against lc32), with no points milestone. **G4 (LO9d)** met the generation bar, the points milestone and the **ship bar** (+4.5 ± 1.1 points, +0.84 ± 0.06 hands won against lc32, pooled 160,000 fresh exact deals). **G3 (LO4h)** met the generation bar on hands won (+0.22 ± 0.04 against G2), with no points milestone, and is below the ship bar against lc32 (+2.4 ± 1.1). **G2 (LO2a)** met the generation bar and the points milestone against G1 (+2.2 ± 0.9). It also met the **ship bar** against lc32: +5.9 ± 1.1 points (5.5 SE) and +0.35 ± 0.05 hands won, on 160,000 pooled fresh exact deals.
 
 ## Setup
 
@@ -144,6 +177,70 @@ Nothing passed. The head stayed at G2, and there was no confirmation.
   - arms are ranked by the sum of the two z-scores;
   - a failed confirmation sends the head back to the champion.
 - **What happens now:** LO4h is being confirmed on 160,000 fresh exact deals against G2 (`--confirm`). Then round 5 runs: two seeds of the control, tau 20, 6 epochs, two seeds of vnorm, and vnorm 1.5 with bonus 100, trained on three rounds of data.
+
+### Round 5 (champion G3 = LO4h; data own-5: 24,000 deals, G3 exploring, 124,110 choices in 1,039 s; trained on own-2 + own-4 + own-5 in 42 s)
+
+Every arm was dropped at stage 1 (8,000 deals), all on hands won: −0.22 to −0.71 against G3. The arms were the control (2 seeds), tau 20, 6 epochs, vnorm 1 (2 seeds), and vnorm 1.5 with bonus 100. Points ranged from −7.6 to +3.9 ± 4. No head move, no confirmation.
+
+**Critique.**
+- **The arms fell together.** All seven were behind on hands won on the same 8,000 deals. Part of that is the shared champion's luck on that deck, since every arm is paired with the same G3 games.
+- **The data mix fits the new champion badly.** Two of the three data rounds came from older champions (own-2 from G1, own-4 from G2), and their replays are scored with those champions playing on. G3 was the arm that won more hands, so pulling it toward older policies' values undoes its gain.
+- **Changes for round 6:**
+  - training on the head's own data only (on-policy; own-5 and own-6);
+  - stage-1 dropping loosened to 1.5 SE;
+  - arms: vnorm 1 (2 seeds), vnorm 0.7, the control (2 seeds), tau 50.
+- **Before round 6:** G3's ship check against lc32.
+
+### Round 6 (champion G3; data own-6: 24,000 deals, G3 exploring, 124,674 choices in 1,005 s; trained on-policy only, on own-5 + own-6, in 26 s; stage-1 drop at 1.5 SE)
+
+| Arm | Recipe | Points | Hands won | Deal-ins | Avg win | Deals |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| LO6a | vnorm 1, bonus 150 | −1.2 ± 1.1 | +0.19 ± 0.06 | +0.02 ± 0.06 | 299 vs 310 | 80,000 |
+| LO6b | vnorm 1, bonus 150, seed 2 | −5.4 ± 3.4 | +0.37 ± 0.19 | +0.08 ± 0.18 | 274 vs 291 | 8,000 (dropped) |
+| LO6c | vnorm 0.7, bonus 150 | −0.2 ± 1.0 | +0.15 ± 0.05 | +0.01 ± 0.06 | 304 vs 310 | 80,000 |
+| LO6d | control: tau 30, bonus 150 | +0.5 ± 1.4 | −0.16 ± 0.07 | +0.18 ± 0.07 | 314 vs 310 | 80,000 (dropped) |
+| LO6e | control, seed 2 | −0.0 ± 1.4 | −0.03 ± 0.07 | +0.10 ± 0.07 | 307 vs 310 | 80,000 |
+| LO6f | tau 50, bonus 150 | +1.7 ± 1.3 | −0.04 ± 0.07 | +0.08 ± 0.07 | 313 vs 310 | 80,000 |
+
+No arm met the advance rule. The vnorm arms gained hands won (3 SE) but gave up a little in points. No head move.
+
+### Critique after rounds 5 and 6 (a plateau: two rounds kept nothing), and the change
+
+- **The effects left are below what a screen can see.** Since G3, every arm's points gap on 80,000 deals is within about 1.5 SE (SE 1.0 to 1.4), and the hands-won gains come with a small points cost. The q step moves the policy very little (KL about 0.007 an arm). Seeing a 1-point step at 2 SE takes about 640,000 deals per arm, four times what a round spends on all its arms.
+- **One step's evidence can't separate the good recipes from noise any more.** Rounds 1, 2 and 4 still show the method works when it compounds (G1, G2, G3). Bigger steps (lr 1e-3, a refreshed reference) dealt in more every time, so the step can't simply be made larger.
+- **The data isn't the problem.** On-policy data alone (round 6) and mixed data (round 5) both came out level.
+- **The change: blind policy iteration (`plan.blind`).**
+  - Each round trains one recipe (vnorm 1, bonus 100, between the points recipe and the hands-won recipe). It becomes the head with no screen and makes the next round's data, so a round is about 18 min instead of 50.
+  - Every 3 steps the head is confirmed against G3 on 160,000 fresh exact deals under the Pareto rule. Three steps' sum is what gets judged, where a single step was invisible.
+  - If the confirmation fails, the head goes back to G3.
+
+### Rounds 7 to 9: blind policy iteration (one recipe a round, no screen; the head judged after 3 steps)
+
+| Round | Data | Recipe | Head | Data time | KL from init |
+| --- | --- | --- | --- | ---: | ---: |
+| 7 | own-6 + own-7 (G3), full spicy, 8 CRN replays, 124,504 choices | vnorm 1, bonus 100 | LO7a | 1,030 s | |
+| 8 | own-8 (LO7a), full spicy, 8 replays, 123,734 choices | the same | LO8a | 1,026 s | |
+| 9 | own-9 (LO8a), **half spicy**, 4 replays then 16 at close choices, share 0.25, 62,285 choices | 3 seeds of vnorm 1, bonus 50, **weight-averaged** (bonus 0 and 150 trained beside it, held-out only) | LO9d | 981 s | 0.002 a seed |
+
+**Confirmation of the 3-step head LO9d against G3, 160,000 fresh exact deals:** **+3.4 ± 0.9 points a hand** (half spicy +0.39 ± 0.07), **hands won +0.31 ± 0.05**, deal-ins −0.04 ± 0.05, average win 305 vs 298. **Generation 4, points milestone**, on both tables.
+
+**Reading.**
+- **Judging three steps together worked.** Rounds 5 and 6 couldn't see a single step's gain on 80,000-deal screens. Three unscreened steps added up to +3.4 points and +0.31 hands won.
+- **The round time fell too.** It is now about 18 min (data plus 10 s of training) against about 50 min for a screened round. One confirmation every three rounds replaces three screens.
+- **Not yet separated:** how much of the gain is the half-spicy step, the close-choice replays and the soup in round 9, and how much is the two full-spicy steps before it.
+
+## Half spicy
+
+**Re-scoring, proved.** `lcm-sim play --dump` and `generate-lcv --half-spicy` score a hand on the half-spicy table by scaling the full-spicy settlement by half/full at the winner's faan. On 1,000 deals (4,000 hands, 3,490 wins), every per-deal value matched `js/points.js` `faanToPoints(faan, { spicy: 'half' })` exactly (largest difference 0). The default table and the pinned JS are unchanged.
+
+**Replay noise under the two tables** (signal share = 1 − mean SE² of an option's gap to the move played / the variance of the gaps):
+
+| Data | Table | Replays per option | Gap SD | Mean CRN SE | Signal share |
+| --- | --- | ---: | ---: | ---: | ---: |
+| own-8 (LO7a exploring) | full spicy | 8 | 329 | 285 | 0.25 |
+| own-9 (LO8a exploring) | half spicy | 4, then 16 where the best two are within 1.5 SE (mean 14.9) | 22.7 | 16.6 | 0.47 |
+
+Scaled to 8 replays, half spicy's signal share would be about 0.32. So of the gain from 0.25 to 0.47, the table itself gives about a third, and spending replays on the close choices gives the rest.
 
 ## Structural arms (from the maintainer's list)
 
