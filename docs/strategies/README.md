@@ -35,6 +35,8 @@ The maintainer set each strategy's aim on 2026-11-11, and its training is judged
 
 Each lineage trains and is judged only against its own older versions, so its progress is a clear benchmark: a new model is confirmed on fresh deals against the one before it at a table of its own earlier generations ([training](../machine-learning/training.md#the-bars), [iterations](../machine-learning/iterations.md)). Playing the three against each other, and a championship with the rule-based Jorge Yau, is a later phase.
 
+How often each scoring pattern (Half Flush, All Triplets, Seven Pairs and the rest) appears in each strategy's wins, with the games and wins behind every percentage: [hand patterns](hand-patterns.md).
+
 ## Which strategy plays where
 
 - Picks are saved in `localStorage` under `lcm-play-strategies`, as `{ "seats": { "1": id, "2": id, "3": id }, "coach": id }`. Seat 1 is on your right, 2 across, 3 on your left.
