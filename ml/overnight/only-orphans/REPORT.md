@@ -193,3 +193,22 @@ Confirmation C1 (running): N2cap1 (cap 10, win bonus 800) and N2cap1w600 on the 
 1,463 s (the shadow replayed 100% of these networks' hands: they play differently on nearly every hand).
 
 **ON1** (`ml/models/ON1.json`): OS2c1 fine-tuned on `oon-1` (100,000 deals against the older generations) at lr 3e-4 for 8 epochs, seed 6, with the faan targets clipped at 10, playing win bonus 600 and claim margin 50. Against OS2c1 it wins 17% more hands (5.06% to 4.34%) at a smaller average win (3,167 to 3,661), with as many deal-ins and points level or a little up. It joins the pool, becomes the loop's champion and makes the next data (round 2: `oon-2`, ON1 exploring against OS2c1 and the older generations).
+
+### Round 2, from ON1 (screen deck seed 1,504,000,000, fast build)
+
+Data `oon-2`: ON1 exploring against OT11d, OT7c, OT6e, OT5e, OT4a, OT2d, OT1a and OS2c1, every seat recorded, 100,000 deals, 1,182,981 positions, 253 s. Fine-tunes from ON1 on `oon-1` + `oon-2` with the cap (k: lr 3e-4, 8 epochs; j: lr 1e-4, 4 epochs; two seeds each), win bonus 400 / 800, weight noise 0.02 / 0.05. Gaps against ON1:
+
+| Arm | 8,000 deals | 40,000 deals | Wins gap (pp) | Deal-ins gap (pp) |
+| --- | ---: | ---: | ---: | ---: |
+| N2j1 (cap, lr 1e-4, seed 1) | +5.0 ± 4.7 | +2.7 ± 2.2 | +0.18 ± 0.04 | +0.04 ± 0.03 |
+| N2k1 (cap, lr 3e-4, seed 1) | +3.9 ± 5.6 | +0.3 ± 2.6 | +0.24 ± 0.05 | +0.06 ± 0.03 |
+| N2j0 | +5.7 ± 4.4 | −0.5 ± 2.2 | +0.14 ± 0.04 | +0.06 ± 0.03 |
+| win bonus 800 | +2.7 ± 2.3 | −0.5 ± 1.1 | +0.13 ± 0.02 | +0.02 ± 0.01 |
+| N2k0 | +5.8 ± 6.5 | cut | +0.17 ± 0.10 | +0.09 |
+| win bonus 400 | +2.4 ± 2.3 | cut | −0.17 ± 0.05 | −0.00 |
+| noise 0.02 s1 / s2 | +2.5 ± 2.2 / +3.1 ± 2.6 | cut | +0.05 / +0.00 | |
+| noise 0.05 s1 / s2 | +2.3 ± 3.5 / +3.8 ± 3.7 | cut | +0.05 / +0.02 | |
+
+ON1 on this deck: 10.5 points a hand, wins 5.10%, deal-ins 1.76%, average win 3,033. Screen 2,184 s (the shadow replayed 77% of the arms' hands). Every arm led on the first 8,000 deals, which is the deck's luck again (critique 1). A second pass of the cap keeps adding wins (+0.14 to +0.24 pp) with a few more deal-ins. Confirmation C2: N2j1 against ON1 on 40,000 fresh deals from seed 2,502,000,000, exact build (running).
+
+B6 again with twice the data (`oon-1` + `oon-2`, 2.37M positions): the residual teacher (768 x 4, dropout 0.2, weight decay 1e-2) reaches held-out 1.9602 (outcome 0.4329) at epoch 3. The shipped-shape fine-tune from OS2c1 on the same data reaches 1.9303. The teacher gains from more data (1.994 to 1.960), but it starts from nothing while the fine-tune starts from OS2c1's millions of positions, and it is still 1.5% worse. Not distilled.
