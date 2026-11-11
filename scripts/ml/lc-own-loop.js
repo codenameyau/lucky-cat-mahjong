@@ -61,10 +61,11 @@ async function shipCheck(state, plan, file, log) {
     runs.push({ seed, pair: c.pair, me: c.me, ch: c.ch, line: c.line });
   }
   const P = pool2(runs[0].pair, runs[1].pair);
-  const pass = P.gap > 3 * P.se && P.winGap >= -P.winSe;
+  // the ship bar: hands won up 3 SE with points not down more than 1 SE (objective 'wins'); else points up 3 SE
+  const pass = plan.objective === 'wins' ? P.winGap > 3 * P.winSe && P.gap >= -P.se : P.gap > 3 * P.se && P.winGap >= -P.winSe;
   const fmt = (x, d = 1) => (x >= 0 ? '+' : '') + x.toFixed(d);
   log('Ship check ' + path.basename(file, '.json') + ' against ' + path.basename(SHIPPED, '.json') + ', pooled ' + P.deals + ' fresh exact deals: ' + fmt(P.gap) + ' ± ' + P.se.toFixed(1) +
-    ' points a hand, hands won ' + fmt(P.winGap, 2) + ' ± ' + P.winSe.toFixed(2) + (pass ? ' -> SHIP CANDIDATE (3 SE)' : ' -> below the ship bar'));
+    ' points a hand, hands won ' + fmt(P.winGap, 2) + ' ± ' + P.winSe.toFixed(2) + (pass ? ' -> SHIP CANDIDATE (3 SE)' : ' -> below the ship bar') + ', deal-ins ' + fmt(P.dealInGap, 2) + ' ± ' + P.dealInSe.toFixed(2));
   const out = { file, runs, pooled: P, pass };
   state.shipChecks = (state.shipChecks || []).concat([out]);
   writeJson(STATE, state);
@@ -199,7 +200,9 @@ async function round(state, plan) {
     // milestone: points up by 2 SE.
     const P = c.pair;
     const dealsOk = P.dealInSe == null || P.dealInGap <= Math.max(0.25, P.dealInSe);
-    const pass = dealsOk && ((P.gap > 2 * P.se && P.winGap >= -P.winSe) || (P.winGap > 2 * P.winSe && P.gap >= -P.se));
+    // plan.objective 'wins' (the maintainer, 2026-11-11): hands won up 2 SE, points not down more than 1 SE
+    const pass = dealsOk && (plan.objective === 'wins' ? P.winGap > 2 * P.winSe && P.gap >= -P.se
+      : (P.gap > 2 * P.se && P.winGap >= -P.winSe) || (P.winGap > 2 * P.winSe && P.gap >= -P.se));
     const milestone = pass && P.gap > 2 * P.se;
     rec.confirm.pass = pass; rec.confirm.milestone = milestone;
     state.blindSteps = 0;
