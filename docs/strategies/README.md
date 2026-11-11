@@ -5,7 +5,7 @@ Every bot at the Play Mahjong table plays a named strategy, and the coach follow
 | Strategy | Name | File | Playbook |
 | --- | --- | --- | --- |
 | (shared foundation) | | `js/mahjong-bot.js` | the rules below |
-| `lucky-cat` | Lucky Cat | `js/mahjong-lucky-cat.js` | [lucky-cat.md](lucky-cat.md) |
+| `lucky-cat` | Lucky Cat | `js/mahjong-lucky-cat-ml.js` | [lucky-cat.md](lucky-cat.md) |
 | `jorge-yau` | Jorge Yau | `js/mahjong-jorge-yau.js` | [jorge-yau.md](jorge-yau.md) |
 | `neural-cat` | Neural Cat | `js/mahjong-ml.js` | [neural-cat.md](neural-cat.md) |
 | `only-orphans` | Only Orphans | `js/mahjong-only-orphans.js` | [only-orphans.md](only-orphans.md) |
@@ -21,7 +21,7 @@ Before version 0.6.0 the two ids were the other way round; saved choices and sav
 | `neural-cat` | **NC9** | Jorge Yau's best choices, ranked by a network in expected score; trained by the league (to NC2) and then the lab (NC3 to NC9) | [neural-cat.md](neural-cat.md), [iterations](../machine-learning/iterations.md#the-lab-neural-cat-3-to-8-nc3-to-nc8) |
 | `only-orphans` | **OT11d** | Rules that pick a target each deal (Thirteen Orphans, triplets, Seven Pairs) and a network that chooses the rest in expected points | [only-orphans.md](only-orphans.md), [training progress](only-orphans-training.md) |
 
-The newest training idea is the [frontier](../machine-learning/iterations.md#the-frontier-lucky-cat-generation-1-and-sphinx): Lucky Cat generation 1 and a second lineage, Sphinx, trained against a frozen benchmark on a native C++ simulator. It has not shipped a model yet: Lucky Cat is still lc32. Each model's full history is in [Iterations](../machine-learning/iterations.md).
+The newest training work is the [frontier model](../machine-learning/frontier-plan.md) (one network with heads, grown from Neural Cat) and Lucky Cat's value lineage. Neither has shipped a new model yet: Neural Cat is NC9 and Lucky Cat is lc32. Each model's full history is in [Iterations](../machine-learning/iterations.md).
 
 ## Which strategy plays where
 
@@ -45,8 +45,8 @@ Where it runs:
 
 | Strategy | Its moves | How |
 | --- | --- | --- |
-| Jorge Yau, Only Orphans, Lucky Cat Classic | Discards, claims, kongs | The foundation's discard order ends with `consistentFirst`; `decideClaim` passes a contradicting claim; `chooseTurnAction` skips a contradicting kong |
-| Neural Cat | Discards, claims, kongs | The same, and its model only chooses among moves that pass: its rerank ends with the check, and a contradicting call or kong is never one of its choices |
+| Jorge Yau, Lucky Cat Classic | Discards, claims, kongs | The foundation's discard order ends with `consistentFirst`; `decideClaim` passes a contradicting claim; `chooseTurnAction` skips a contradicting kong |
+| Neural Cat, Only Orphans | Discards, claims, kongs | The same, and its model only chooses among moves that pass: its rerank ends with the check, and a contradicting call or kong is never one of its choices |
 | Lucky Cat (the network) | Discards, claims, kongs | Each move the network picks is checked against the plan the shared foundation reads for it (as Jorge Yau and Neural Cat play it); if it contradicts, the network's next most likely move that doesn't is played |
 | The coach | Every hint | Its hint is the strategy's own move, so it passes the same check; when it follows your own plan instead of the strategy's, it checks against that |
 
@@ -98,7 +98,7 @@ var bot = MahjongBot.createStrategy({
 });
 ```
 
-Every hook is optional. A strategy with none plays the shared foundation alone: the usual hands (standard, Concealed Straights, the flushes, All Triplets), no Seven Pairs, Thirteen Orphans or Nine Gates, and any chow the shared rule allows. lucky-cat (`js/mahjong-lucky-cat.js`) is a short example: it adds the special hands and its chow timing. The hooks are listed in section 9 of `js/mahjong-bot.js`. Each strategy keeps its own copy of the tuning knobs (`bot.setTuning`), so changing one never changes another.
+Every hook is optional. A strategy with none plays the shared foundation alone: the usual hands (standard, Concealed Straights, the flushes, All Triplets), no Seven Pairs, Thirteen Orphans or Nine Gates, and any chow the shared rule allows. lucky-cat-classic (`js/mahjong-lucky-cat.js`) is a short example: it adds the special hands and its chow timing. The hooks are listed in section 9 of `js/mahjong-bot.js`. Each strategy keeps its own copy of the tuning knobs (`bot.setTuning`), so changing one never changes another.
 
 Then:
 
@@ -111,7 +111,7 @@ The coach speaks for any strategy through `MahjongCoach.forStrategy(bot)`. It na
 
 ## Learned strategy
 
-`neural-cat` (`js/mahjong-ml.js`) lets a model trained on simulated hands pick the discard. It plays Jorge Yau's hooks (a strategy's `hooks` are on the bot, so another can build on them), which list and read every discard as usual, then the `rerank` hook (the last word, after every shared rule) scores the position each of the best three leaves in expected points: the chance of winning by self-draw or off a discard, of dealing in, and the faan of each, on the full-spicy payout table. Each candidate gets `ml` with those numbers, and the chosen one gets `ml.why`, the points each feature group (`hand`, `discard`, `table`, `context`, `speed`, `value`, `safety`) puts it ahead of the next best. Claims and kongs are weighed the same way (passing, each call and the discard after it, a kong before its replacement tile), and the model overrules Jorge Yau's call when its pick is worth more. Every strategy reads an opponent's melds through `shownMelds`, never which tile a concealed kong is, and `js/mahjong-fair-play.test.js` checks that no strategy's decisions change when the tiles its seat can't see are shuffled. Its playbook, with training and results, is [neural-cat.md](neural-cat.md), and the whole AI layer is documented in [docs/machine-learning](../machine-learning/README.md).
+`neural-cat` (`js/mahjong-ml.js`) lets a model trained on simulated hands pick the discard. It plays Jorge Yau's hooks (a strategy's `hooks` are on the bot, so another can build on them), which list and read every discard as usual, then the `rerank` hook (the last word, after every shared rule) scores the position each of the best few (6 for NC9) leaves in expected points: the chance of winning by self-draw or off a discard, of dealing in, and the faan of each, on the full-spicy payout table. Each candidate gets `ml` with those numbers, and the chosen one gets `ml.why`, the points each feature group (`hand`, `discard`, `table`, `context`, `speed`, `value`, `safety`) puts it ahead of the next best. Claims and kongs are weighed the same way (passing, each call and the discard after it, a kong before its replacement tile), and the model overrules Jorge Yau's call when its pick is worth more. Every strategy reads an opponent's melds through `shownMelds`, never which tile a concealed kong is, and `js/mahjong-fair-play.test.js` checks that no strategy's decisions change when the tiles its seat can't see are shuffled. Its playbook, with training and results, is [neural-cat.md](neural-cat.md), and the whole AI layer is documented in [docs/machine-learning](../machine-learning/README.md).
 
 | File | |
 | --- | --- |

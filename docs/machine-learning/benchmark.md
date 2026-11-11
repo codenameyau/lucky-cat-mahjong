@@ -71,9 +71,9 @@ A candidate becomes the next generation only by passing every stage, in this ord
 | --- | --- | --- |
 | **Fair play** | 4 whole hands, checked | It reads only its seat's features (no `meta.oracle`; the first layer reads exactly its feature size), and its decisions don't move when every hidden tile is shuffled and every hidden record throws (`scripts/ml/fair-play.js`, the same check as `js/mahjong-fair-play.test.js`). It is the cheapest stage, so it runs first: a model that fails it is never played. |
 | **Screen** | 10,000 fresh, paired against the current generation | The gap is at least 1 standard error |
-| **Qualify** | 40,000 fresh, paired | The gap is at least **2 standard errors**. In the Lucky Cat lineage, hands won may not fall more than 1 standard error below the current generation (winning more is never a fail) |
+| **Qualify** | 40,000 fresh, paired | The gap is at least **2 standard errors**. In the Lucky Cat lineage, hands won may not fall more than one point of win rate below the generation's by more than 1 standard error (winning more is never a fail) |
 | **Replicate** | Another 40,000, new seeds | At least **2 standard errors again**. One two-sigma result among several arms a round is a 2% coin; two in a row on independent deals is a 0.05% one |
-| **No regression** | 10,000 for each earlier generation and each league opponent (Jorge Yau and the shipped Neural Cat) | The candidate and the current generation each sit at a table of three of that rival, on the same deals; the candidate may not do worse there by more than 1 standard error |
+| **No regression** | 10,000 for each earlier generation and each opponent in the lineage's league (`bench/lineages.json`) | The candidate and the current generation each sit at a table of three of that rival, on the same deals; the candidate may not do worse there by more than 1 standard error |
 
 A candidate that passes is then scored on the deck. `--promote NAME` adds it to `bench/lineages.json` as the lineage's next generation, pinned by SHA-256, and puts its Table Score in `bench/scores.json`. Every judgment, passed or failed, with every stage's numbers, is written to `ml/bench/judged/`. A model that fails doesn't come back: the next round trains from the current generation.
 

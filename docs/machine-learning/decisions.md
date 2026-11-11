@@ -51,7 +51,7 @@ Every learned strategy reads one discard deep: the network scores the position e
 - **Cost.** About 10 times the time a move, on phones too, and the lab's evaluations would slow by about as much.
 - **Thin evidence.** 3,000 deals, not 20,000 (the machine was shared with the overnight lab), only against copies of the same model, with the search's settings set by reasoning, not tuned.
 
-**If it's tried again:** measure on 20,000 deals against the current models (NC3, LC32), head to head; tune the search's width and its deal-in weight; and try searching claims too.
+**If it's tried again:** measure on 20,000 deals against the current models (NC9, LC32), head to head; tune the search's width and its deal-in weight; and try searching claims too.
 
 ## Claims
 
@@ -60,7 +60,7 @@ When a tile is on offer, each choice is a position to compare:
 | Choice | The position read |
 | --- | --- |
 | Pass | The hand as it is, waiting for the next tile |
-| Pung, chow | The hand after the call and the best discard after it (Jorge Yau's best three, as on any turn) |
+| Pung, chow | The hand after the call and the best discard after it (Jorge Yau's best few, as on any turn) |
 | Kong | The hand with the kong, before its replacement tile |
 
 A win is always taken. Jorge Yau's call is the default, and the model's pick replaces it when it's worth more than `CLAIM_MARGIN` points (0 now) more. `decideClaim(game, seat, opts).found.ml` has `choices` (each with its `decision` and `ml`), `pick` (the model's) and `foundation` (Jorge Yau's).

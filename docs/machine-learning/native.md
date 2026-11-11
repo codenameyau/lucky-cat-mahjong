@@ -3,7 +3,7 @@
 The training and the benchmark spend almost all their time playing hands: generating a round's data, screening arms, judging candidates. `native/` is a C++ port of the JS engine and the benchmark table's players that plays those hands **exactly** as the JS does, 8–10x faster. The game itself still runs on the JS: the port only makes simulation faster.
 
 ```bash
-npm run native:build      # make -C native: native/build/lcm-sim
+npm run native:build      # make -C native: native/build/lcm-sim and lcm-sim-exact
 npm run native:parity -- --agents neural-cat,jorge-yau,neural-cat,neural-cat --deals 1000
 ```
 
@@ -38,7 +38,7 @@ The foundation takes a strategy's hooks as virtual `hook*` methods (`native/src/
 
 The contradiction check is ported with the foundation, Neural Cat and Lucky Cat (which runs the foundation's analysis for its seat to check each move against). `lcm-sim` takes `id~nocheck` to play a player without it, to measure it: with every player's check off, the build plays exactly as before the check.
 
-Not ported: the classic Lucky Cat rules, the rule-based Only Orphans (`only-orphans-rules`, the lab's baseline), oracle-guided models (`--oracle-delta`), rollouts, exploration (temperature or epsilon) for Neural Cat. A job that needs one runs in JS.
+Not ported: the classic Lucky Cat rules, the rule-based Only Orphans (`only-orphans-rules`, the lab's baseline), oracle-guided models (`--oracle-delta`), rollouts. A job that needs one runs in JS.
 
 ## The same results
 
@@ -58,7 +58,7 @@ Not ported: the classic Lucky Cat rules, the rule-based Only Orphans (`only-orph
 | Shanten, 300,000 random hands | 0 mismatches |
 | `Math.exp`, `Math.log`, `Math.pow`, 1,000,000 inputs each | 0 mismatches |
 
-`npm test` runs a short parity check whenever `native/build/lcm-sim` exists (`scripts/ml/native.test.js`).
+`npm test` runs a short parity check whenever both builds exist (`scripts/ml/native.test.js`).
 
 What it takes to match JS to the bit:
 
@@ -116,6 +116,6 @@ What each round did:
 2. **Round 2 (1.2x):** a plan's shanten and useful tiles memoised by its exact counts and rule (candidate discards share them); Neural Cat's top candidates through the network in one batch; useful tiles as a bitmask instead of a vector.
 3. **Round 3 (1.04x on one core, 1.1x end to end):** a profile-guided build (`make -C native pgo`); every core a worker (the parent only waits); work cut into four chunks a worker and queued, so the efficiency cores don't hold the rest up; each model converted to `.lcmw` once a process.
 
-The floor is the bots' own work: per turn, Jorge Yau's foundation weighs about 14 discards against about 10 plans each, and Neural Cat runs its network on the best 4. Neither can be skipped without changing how they play. The networks are already near what float32 arithmetic allows; cheaper formats (int8, float16) would change moves far more often than last-bit rounding does, so they aren't used.
+The floor is the bots' own work: per turn, Jorge Yau's foundation weighs about 14 discards against about 10 plans each, and Neural Cat runs its network on the best few (6 for NC9). Neither can be skipped without changing how they play. The networks are already near what float32 arithmetic allows; cheaper formats (int8, float16) would change moves far more often than last-bit rounding does, so they aren't used.
 
 The caches can't change a result: the per-suit shanten table and the whole-hand shanten cache are exact, the opponent reads are kept by the hand's version (a number that changes with every change to the hand), and a forward pass is kept by its exact input.

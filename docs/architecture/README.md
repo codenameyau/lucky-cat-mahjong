@@ -293,7 +293,7 @@ Wiring the frontier's read of the opponents' hands into layer 0 is separate from
 - **Pivots a hand**, with their reasons. More than about twice a hand is flip-flopping.
 - **Calibration**: the chance to finish against results, for each family, within a few points.
 - **The coach and the bot agree** on every hint, by construction, and by test.
-- **The frontier benchmark** is frozen at 0.57.9 and doesn't move; it and its bar (two standard errors, twice) carry over from the cancelled plan to judge the new frontier model. The experiments on today's players are measured against today's players.
+- **The frontier benchmark** is frozen (`hk-table-v2`, game 0.58.0; a new table gets a new name); it and its bar (two standard errors, twice) carry over from the cancelled plan to judge the new frontier model. The experiments on today's players are measured against today's players.
 
 ## Open questions
 
