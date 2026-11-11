@@ -2,13 +2,10 @@
 
 ## Status
 
-- **Recommended: ON2** (`ml/models/ON2.json`). Against OS2c1 at the older-generations table, 120,000 pooled fresh exact deals: hands won +0.83 ± 0.03 pp, points +2.6 ± 1.8, deal-ins +0.02 ± 0.02 pp. That meets the Pareto rule, not the ship bar.
-- **Game's table** (NC9, Jorge Yau, NC9; 60,000 fresh exact deals): ON2 against OS2c1 has hands won +0.51 ± 0.06 pp, deal-ins −0.50 ± 0.08 pp, points −4.5 ± 3.8, and **limit-hand wins −0.077 ± 0.021 pp** (fewer limit hands there).
-- **Phase 2 done so far:**
-  - The variance-reduced estimator `lcm-sim vr` is built and validated (unbiased, variance ratio 2.9 at K = 4). It costs 4.3x the compute, so it is less efficient than plain deals and is not used.
-  - The game-table check is done.
-  - Half-spicy arms 2 to 4 are trained (data `oon-h1` made by ON2 playing at blend 0.5).
-- **Now:** the ON2 ship check on plain fresh exact deals, in 40,000-deal blocks (`scripts/ml/oo-ship.js`, log `ml/oo-night/ship-ON2.log`), up to 400,000 deals. It stops when the pooled points gap is past 3 SE or its upper bound falls under +1. Then the half-spicy screen.
+- **Recommended: ON2** (`ml/models/ON2.json`). Ship check against OS2c1 at the older-generations table, still running. **After 240,000 pooled fresh exact deals: hands won +0.835 ± 0.021 pp (40 SE), points +0.34 ± 1.29 (level), deal-ins +0.037 ± 0.015 pp, half-spicy points +0.33 ± 0.09** (on the 120,000 deals of the three new runs).
+- **The orchestrator's draft ship rule** needs hands won up 3 SE (met), full-spicy points not below −1 SE on 200,000+ deals (met: +0.3 SE), and not worse at the game's table. On that last part ON2 is open: −4.5 ± 3.8 points (−1.2 SE) and limit-hand wins −0.077 ± 0.021 pp on 60,000 deals at the game's table.
+- **Phase 2:** the variance-reduced estimator is built and validated, but its efficiency is 0.66 against plain deals, so it is not used. The game-table check is done. Half-spicy arms 2 to 4 are trained.
+- **Now:** the ship check continues to 400,000 deals (`ml/oo-night/ship-ON2.log`). Then the half-spicy screen and a second game-table run.
 - **Blockers:** none.
 
 ## The table and the measures
