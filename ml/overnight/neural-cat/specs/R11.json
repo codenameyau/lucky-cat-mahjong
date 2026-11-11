@@ -1,0 +1,9 @@
+{"name":"R11","data":{"deals":50000,"sets":2,"window":8},
+ "arms":[
+  {"name":"R11c","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256"},
+  {"name":"R11p","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","paySmooth":0.03},
+  {"name":"R11p2","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":2,"init":"champion","hidden":"512,256","paySmooth":0.03},
+  {"name":"R11w","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","winSmooth":0.02},
+  {"name":"R11wp","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","winSmooth":0.02,"paySmooth":0.03}],
+ "screen":{"deals":40000,"look":20000,"minDeals":20000,"half":true},
+ "confirm":{"deals":150000,"top":1,"minZ":1,"half":true}}
