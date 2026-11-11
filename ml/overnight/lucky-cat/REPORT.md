@@ -2,7 +2,22 @@
 
 ## Status
 
-**Fixed ship table (orchestrator's request).** Each candidate is paired against lc32, with lc32, lc31 and lc30 in the other seats. All of them played the same 160,000 fresh exact deals: two runs of 80,000 from seed 802,828,000 (`scripts/ml/lc-own-ship.js`).
+**Newest: G5 (LO12d) on the fixed ship table** (paired against lc32, with lc32, lc31 and lc30 in the other seats; 160,000 fresh exact deals, two runs of 80,000 from seed 803,516,000):
+
+| Pair | Points a hand | Half spicy | Hands won | Deal-ins | Average win |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **G5 (LO12d) against lc32** | **+7.2 ± 1.1** | +1.09 ± 0.09 | **+1.15 ± 0.06** (23.25% vs 22.10%) | −0.16 ± 0.06 | 305 vs 292 |
+| G4 (LO9d) against lc32 | +5.9 ± 1.1 | +0.84 ± 0.09 | +0.84 ± 0.06 | −0.09 ± 0.06 | 304 vs 292 |
+| **G5 against G4** | **+1.3 ± 0.8** | +0.26 ± 0.06 | **+0.31 ± 0.04** | −0.07 ± 0.04 | 305 vs 304 |
+
+- **G5 is the strongest model.** Against lc32 it clears the ship bar at 6.5 SE in points and 19 SE in hands won, with fewer deal-ins.
+- **Against G4**, G5 wins more hands (8 SE) and leans ahead in points.
+- In the loop's own ship check (at the pool's table) G5 was +5.4 ± 1.1 points and +1.00 ± 0.06 hands won.
+- G5's fair-play check: pass.
+
+**Recommendation: ship G5 (`ml/models/LO12d.json`)** if it holds at the game's table.
+
+**Earlier: the first fixed ship table (orchestrator's request).** Each candidate is paired against lc32, with lc32, lc31 and lc30 in the other seats. All of them played the same 160,000 fresh exact deals: two runs of 80,000 from seed 802,828,000 (`scripts/ml/lc-own-ship.js`).
 
 | Pair | Points a hand (full spicy) | Half spicy | Hands won | Deal-ins | Average win |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -17,7 +32,7 @@
 **Recommendation: ship G4 (`ml/models/LO9d.json`) in place of G2**, subject to your game-table check.
 
 
-*Updated 2026-11-11 08:00 local.* Rounds done: 12. Rounds done: 4.
+*Updated 2026-11-11 08:40 local.* Rounds done: 12. Next: rounds 13 to 15, blind steps from G5 with replays scored on a 50/50 blend of the half- and full-spicy tables. Rounds done: 4.
 
 - **Champion: G5 = LO12d** (`ml/models/LO12d.json`), from 3 more blind steps on G4 with G4's recipe (half-spicy CRN replays, 16 at close choices, a 3-seed soup of vnorm 1 with bonus 50). Against G4 on 320,000 fresh exact deals (extended from 160,000): points **+0.2 ± 0.6** (half spicy **+0.15 ± 0.04, 3.7 SE**), **hands won +0.25 ± 0.03 (8 SE)** (22.59% vs 22.34%), deal-ins −0.09 ± 0.03, average win 297 vs 301. It meets the generation bar on hands won but not the points milestone (full spicy). This is the "better on half spicy, level on full" outcome. The loop's ship check against lc32 is running (on the pool's table; the fixed-table check follows).
 - **G4 = LO9d** (`ml/models/LO9d.json`), from 3 blind policy-iteration steps on G3:
