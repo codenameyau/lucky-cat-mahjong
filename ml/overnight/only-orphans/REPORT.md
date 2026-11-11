@@ -255,3 +255,18 @@ Data `oon-3`: ON2 exploring against ON1, OS2c1 and the older generations, 100,00
 | N3q0 / N3q1 (cap 11) | +0.3 ± 6.4 / −4.1 ± 6.4 | cut | −0.42 / −0.46 (± 0.11) | +0.06 / −0.01 | 3,370 / 3,279 |
 
 ON2 on this deck: 8.0 points a hand, wins 5.18%, deal-ins 1.78%. Screen 1,687 s (the shadow replayed 69%). Reading: the third capped fine-tune barely moves the wins (+0.06), so the dial is near its end at cap 10. Cap 11 on top of two cap-10 generations gives back 0.4 pp of wins. A lower win bonus on ON2 trades the extra wins back for points, which is well measured here because it changes few hands (+2.4 ± 1.2 at 400). The round's driver confirms N3j0 (the best by z among arms with wins not down), anchored to OS2c1: C4 (running). The win-bonus arms and ON1 at win bonus 500 are confirmed against OS2c1 afterwards (C5), because against OS2c1, not against ON2, is where they have to be good on both counts.
+
+### Confirmation C4: N3j0, anchored (40,000 fresh deals, exact build)
+
+40,000 fresh deals from seed 2,504,000,000, exact build. The deck's champion side is OS2c1, which scores 2.1 points a hand here. N3j0 and ON2 are both read against it.
+
+| Model | Against OS2c1: points | Wins (pp) | Deal-ins (pp) | Points a hand | Wins | Average win |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| N3j0 | +8.1 ± 3.1 | +0.92 ± 0.05 | +0.06 ± 0.04 | 10.2 | 5.30% | 3,079 |
+| ON2 | +7.5 ± 3.1 | +0.83 ± 0.05 | +0.02 ± 0.04 | 9.6 | 5.21% | 3,073 |
+
+N3j0 against its parent ON2, from the same rows: +0.5 ± 2.3, wins +0.09 ± 0.04 (2.3 SE), deal-ins +0.05 ± 0.03 (1.7 SE). **Not kept:** deal-ins are up more than 1 SE. Each cap generation buys its wins partly with deal-ins, and this one crossed the line.
+
+On C3's deck ON2 was −2.8 ± 3.1 against OS2c1, and here it is +7.5 ± 3.1. That gap between two fresh 40,000-deal decks is 2.3 combined standard errors, the noise this table has (critique 1). **ON2 against OS2c1, pooled over C3 and C4 (80,000 fresh exact deals):** points **+2.35 ± 2.2**, hands won **+0.81 ± 0.035 pp**, deal-ins +0.025 ± 0.028 pp. That meets the Pareto rule; the ship bar would need about +6.6.
+
+Confirmation C5 (running): ON1, ON2, ON2 at win bonus 400 (S3wbm200) and ON1 at win bonus 500, all against OS2c1 on 40,000 fresh deals from seed 2,505,000,000, exact build. It is the third fresh run for ON1 and ON2, and the first for the two lower-bonus versions.
