@@ -141,9 +141,14 @@ async function main() {
     c.log.forEach((l) => fs.appendFileSync(logFile, l + '\n'));
     timing.confirm = c.seconds;
     const g = c.arms[0].gap;
-    const kept = g.points > 2 * g.se && g.wins > -g.winsSE;
-    round.confirm = { name: best.name, seed: cseed, deals, champion: c.champion, summary: c.arms[0].summary, gap: g, kept };
-    say((kept ? 'KEPT: ' : 'not kept: ') + O.line(best.name, c.arms[0].summary, g));
+    // The Pareto rule (a new generation): points a hand or hands won up 2 standard errors, the
+    // other not down more than 1, deal-ins not up more than 1. A ship candidate (against the
+    // shipped model) needs points up 3 standard errors on pooled fresh exact deals, wins not
+    // down more than 1: this run alone is printed as a step toward that bar.
+    const kept = ((g.points > 2 * g.se && g.wins > -g.winsSE) || (g.wins > 2 * g.winsSE && g.points > -g.se)) && g.dealIns < g.dealInsSE;
+    const shipBar = g.points > 3 * g.se && g.wins > -g.winsSE;
+    round.confirm = { name: best.name, seed: cseed, deals, champion: c.champion, summary: c.arms[0].summary, gap: g, kept, shipBar };
+    say((kept ? 'KEPT (Pareto rule): ' : 'not kept: ') + O.line(best.name, c.arms[0].summary, g) + (shipBar ? ' [meets the 3 SE ship bar on this run: needs a second fresh run pooled]' : ''));
     if (kept) { st.champion = best.file; st.lineage.push(best.name); }
   } else say('No arm ahead enough to confirm' + (best ? ' (best ' + best.name + ', z ' + z(best).toFixed(2) + ')' : ''));
   st.rounds.push(round);

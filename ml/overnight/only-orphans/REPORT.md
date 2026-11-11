@@ -104,3 +104,34 @@ OS2c1 on this deck: 17.9 points a hand, wins 4.41%.
 3. Confirmations of low-divergence arms are cheap through the shadow on the exact build, so they get 80,000 deals (standard error about ±0.3).
 
 Confirmation C0 (running): claim margin 100 on 80,000 fresh deals from seed 2,500,000,000, exact build.
+
+### Confirmation C0: claim margin 100 is not better (80,000 fresh deals, exact build)
+
+S1cmp50 (OS2c1 with claim margin 100) against OS2c1 on 80,000 fresh deals from seed 2,500,000,000, exact build: **+0.0 ± 0.2 points a hand**, wins −0.00 ± 0.00 pp, deal-ins −0.00 pp (OS2c1: 6.8 a hand, wins 4.38%, deal-ins 1.70%, average win 3,598). Bar met: none. The screens' +1.0 ± 0.5 and +0.7 ± 0.4 were the screen winner's luck, as the brief warns. Cost: 1,058 s, the shadow replayed 1,392 of 320,000 hands (0.4%): a confirmation of a low-divergence arm costs the champion's games and little else.
+
+### Rules from the orchestrator (from this point)
+
+- New generation (joins the pool, makes the next data): the Pareto rule on fresh exact deals: points a hand or hands won up at least 2 SE, the other not down more than 1 SE, deal-ins not up more than 1 SE.
+- Ship candidate: points a hand up at least 3 SE against OS2c1 on pooled fresh exact deals (the confirmation and a second fresh run, never screen deals), hands won not down more than 1 SE.
+- Fine-tunes are compared at equal hands won: each with the win bonus that brings its wins level with OS2c1 (from R1b, about 1400 for the recipe-a fine-tunes).
+
+## Structural arms
+
+All on `oon-1`, from OS2c1, lr 3e-4, 8 epochs, patience 3, each against the control trained the same way (seeds 5 and 6). Held-out loss (outcome + 0.5 x each faan head, on 5% of deals held out):
+
+| Arm | Held-out loss | Outcome loss | Notes |
+| --- | ---: | ---: | --- |
+| control N2ctl0 / N2ctl1 | 1.9318 / 1.9315 | | |
+| A1 clipping at 1.0 (N2clip0) | 1.9320 | | pre-clip gradient norm: median 0.85 to 0.93, 99th percentile 1.17 to 1.31, max 1.86 (first epoch) then under 1.5. No heavy-tailed spikes: the cap only rescales ordinary steps (over it on 12 to 28% of steps). No effect: dropped. |
+| A2 EMA 0.999 (N2ema0) | 1.9315 | | no effect |
+| A3 warm-up 5% at lr 1e-3 (N2warm0) | 1.9446 | | lr 1e-3 without it (N1b0/N1b1): 1.9447 / 1.9390; no help |
+| A4 faan targets clipped at 10 (N2cap0 / N2cap1) | 1.6291 / 1.6301 (on capped targets) | 0.4303 / 0.4304 | not comparable on the loss (the faan heads are scored on capped targets); judged by play |
+| A5 gradient noise 0.01 (N2gn0 / N2gn1) | 1.9284 / 1.9289 | | 0.17% below the control on both seeds: the only arm that moves the loss |
+| B6 residual + LayerNorm teacher, 768 x 4 blocks, from scratch, lr 1e-3, clip, warm-up | 1.9940 (best epoch 3) | 0.4335 | over-fits from epoch 3: the win-faan head's held-out loss climbs from 1.33 to 2.08 while its training loss halves |
+| B6 teacher 512 x 4, dropout 0.3, weight decay 1e-2 | 1.9846 (epoch 4) | 0.4351 | same |
+
+Notes on A4 for Only Orphans: the trainer has no points regression to put a Huber loss on. Every target is a class (the hand's ending, the faan won, the faan paid) under cross-entropy, so the loss is already bounded. The heavy tail is in what the value reads from those classes (the payout doubles with each faan). Clipping the faan targets at 10 is the matching robust-target arm.
+
+Reading B6: the teacher has 5.2M parameters against the shipped 0.18M, and it is worse on held-out data, with or without strong regularisation. **Capacity is not the bottleneck here; the number of wins is.** Only 2.4% of the 1.18M positions belong to a hand the seat won (about 28,000), so the faan heads over-fit long before the outcome head has learned anything new. B6 is not distilled. The next lever is more data, not a bigger network.
+
+Play results for the structural arms (each at win bonus 1400 and claim margin 100, to compare at about equal hands won, with N2ctl0 also at its trained settings): screen R2 (deck seed 1,502,000,000), running.

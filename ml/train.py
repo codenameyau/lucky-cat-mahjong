@@ -43,6 +43,23 @@ replays' mean values, both through a softmax at --rank-temp points. Validation
 reports, on held-out groups, the points the model's pick gives up against the
 replays' best (regret) and how often it is the replays' best.
 
+Structural options (each off by default; the control is the plain run):
+  --clip X        global-norm gradient clipping at X; every epoch logs the pre-clip
+                  gradient norm (median, 99th percentile, max)
+  --ema D         an exponential moving average of the weights (decay D a step); the
+                  average is what is validated and exported
+  --warmup F      linear warm-up over the first F of the steps, then the cosine decay
+  --faan-cap K    the faan heads' targets clipped at K faan (a robust target: the
+                  points a win is worth double with each faan, so limit hands are
+                  the heavy tail of what the value reads)
+  --grad-noise S  Gaussian noise on the gradients, sigma S x the gradient's RMS,
+                  annealed to 0 over the run
+  --arch res      a residual teacher (pre-LayerNorm blocks x + W2 relu(W1 LN(x)),
+                  --width, --blocks), Python only: writes ml/models/<name>.teacher.pt
+                  and its held-out loss, never a game model
+  --teacher FILE  distil: the loss adds --distill-weight x the cross-entropy to the
+                  teacher's soft outputs (outcome and both faan heads)
+
 Writes ml/models/<name>.json (weights, float16 base64) and checks the JS
 model gives the same outputs. --ship also writes js/mahjong-ml-weights.js,
 the copy the page and npm run compete load.
@@ -262,6 +279,38 @@ class Net(nn.Module):
         return [m for m in self.net if isinstance(m, nn.Linear)]
 
 
+class ResNet(nn.Module):
+    """The residual teacher (structural arm B6): pre-LayerNorm residual blocks."""
+    def __init__(self, size, width, blocks, dropout, outputs=OUTPUTS):
+        super().__init__()
+        self.inp = nn.Linear(size, width)
+        self.blocks = nn.ModuleList()
+        for _ in range(blocks):
+            self.blocks.append(nn.ModuleDict({'ln': nn.LayerNorm(width), 'a': nn.Linear(width, width), 'b': nn.Linear(width, width)}))
+        self.drop = nn.Dropout(dropout)
+        self.ln = nn.LayerNorm(width)
+        self.out = nn.Linear(width, outputs)
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
+                nn.init.zeros_(m.bias)
+        for b in self.blocks:
+            nn.init.zeros_(b['b'].weight)
+
+    def forward(self, x):
+        h = self.inp(x)
+        for b in self.blocks:
+            h = h + b['b'](self.drop(F.relu(b['a'](b['ln'](h)))))
+        return self.out(F.relu(self.ln(h)))
+
+
+def distill_loss(out, t):
+    """Cross-entropy of the student's three softmax heads to the teacher's."""
+    def ce(lo, hi):
+        return -(F.softmax(t[:, lo:hi], 1) * F.log_softmax(out[:, lo:hi], 1)).sum(1).mean()
+    return ce(0, N_OUTCOMES) + 0.5 * ce(N_OUTCOMES, N_OUTCOMES + N_FAAN) + 0.5 * ce(N_OUTCOMES + N_FAAN, OUTPUTS)
+
+
 def losses(out, y_outcome, y_win, y_pay):
     lo = F.cross_entropy(out[:, :N_OUTCOMES], y_outcome)
     win = y_outcome <= 1
@@ -438,6 +487,16 @@ def main():
     ap.add_argument('--rank-temp', type=float, default=100.0, help='the softmax temperature of the ranking loss, in points')
     ap.add_argument('--win-bonus', type=float, default=None, help="the win bonus options are ranked with (default: --init's, else 300)")
     ap.add_argument('--group-batch', type=int, default=256, help='option groups a step')
+    ap.add_argument('--clip', type=float, default=0.0)
+    ap.add_argument('--ema', type=float, default=0.0)
+    ap.add_argument('--warmup', type=float, default=0.0)
+    ap.add_argument('--faan-cap', type=int, default=0)
+    ap.add_argument('--grad-noise', type=float, default=0.0)
+    ap.add_argument('--arch', default='mlp')
+    ap.add_argument('--width', type=int, default=768)
+    ap.add_argument('--blocks', type=int, default=4)
+    ap.add_argument('--teacher')
+    ap.add_argument('--distill-weight', type=float, default=1.0)
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -480,10 +539,11 @@ def main():
         fetch_t = lambda pos: torch.cat([base_t(pos), rt[torch.from_numpy(pos).to(device)]], 1)
         fetch_v = lambda pos: torch.cat([base_v(pos), rv[torch.from_numpy(pos).to(device)]], 1)
     out_t, out_v = to(y['outcome'][~val], torch.long), to(y['outcome'][val], torch.long)
-    win_t = to(np.clip(y['winFaan'][~val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
-    win_v = to(np.clip(y['winFaan'][val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
-    pay_t = to(np.clip(y['payFaan'][~val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
-    pay_v = to(np.clip(y['payFaan'][val].astype(np.int64) - 3, 0, N_FAAN - 1), torch.long)
+    cap = (args.faan_cap - 3) if args.faan_cap else N_FAAN - 1
+    win_t = to(np.clip(y['winFaan'][~val].astype(np.int64) - 3, 0, cap), torch.long)
+    win_v = to(np.clip(y['winFaan'][val].astype(np.int64) - 3, 0, cap), torch.long)  # --faan-cap: validated on the same capped targets
+    pay_t = to(np.clip(y['payFaan'][~val].astype(np.int64) - 3, 0, cap), torch.long)
+    pay_v = to(np.clip(y['payFaan'][val].astype(np.int64) - 3, 0, cap), torch.long)
     delta_v = y['delta'][val]
     if args.replay:
         rep_t = to(rep[~val], torch.float32)
@@ -550,8 +610,19 @@ def main():
     print('Training on %d, validating on %d, on %s' % (n_train, n_val, device))
 
     hidden = [int(h) for h in args.hidden.split(',') if h]
-    model = Net(inputs, hidden, args.dropout, outputs).to(device)
-    if args.init:
+    if args.arch == 'res':
+        model = ResNet(inputs, args.width, args.blocks, args.dropout, outputs).to(device)
+        print('Residual teacher: width %d, %d blocks, %d parameters' % (args.width, args.blocks, sum(p.numel() for p in model.parameters())))
+    else:
+        model = Net(inputs, hidden, args.dropout, outputs).to(device)
+    teacher = None
+    if args.teacher:
+        tt = torch.load(args.teacher, map_location=device)
+        teacher = ResNet(inputs, tt['width'], tt['blocks'], 0.0, outputs).to(device)
+        teacher.load_state_dict(tt['state'])
+        teacher.eval()
+        print('Distilling from %s (weight %g)' % (args.teacher, args.distill_weight))
+    if args.init and args.arch != 'res':
         with open(args.init) as f:
             init = json.load(f)
         for lin, l in zip(model.linears(), init['layers']):
@@ -572,12 +643,24 @@ def main():
             lin.bias.data[:rows] = torch.from_numpy(b[:rows].copy()).to(device)
         print('Starting from ' + args.init)
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs)
+    steps_per_epoch = (n_train + args.batch - 1) // args.batch
+    total_steps = steps_per_epoch * args.epochs
+    warm = int(args.warmup * total_steps)
+    if warm:
+        # Linear warm-up, then the cosine decay, by step.
+        sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda st: (st + 1) / warm if st < warm else 0.5 * (1 + math.cos(math.pi * (st - warm) / max(1, total_steps - warm))))
+    else:
+        sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs)
+    ema = None
+    if args.ema:
+        ema = {k: v.detach().clone() for k, v in model.state_dict().items()}
+    gstep = 0
 
     best, best_state, stale = math.inf, None, 0
     for epoch in range(args.epochs):
         t1 = time.time()
         perm = np.random.default_rng(epoch).permutation(n_train)
+        norms = []
         run = np.zeros(3)
         steps = 0
         for i in range(0, n_train, args.batch):
@@ -603,12 +686,44 @@ def main():
                     v = option_value(full, bonus).view(flat.shape)
                     t = otarget[flat.view(-1)].view(flat.shape)
                     loss = loss + args.rank_weight * rank_loss(v, t, mask, args.rank_temp)
+            if teacher is not None:
+                with torch.no_grad():
+                    tout = teacher(fetch_t(pos))
+                loss = loss + args.distill_weight * distill_loss(out, tout)
             opt.zero_grad()
             loss.backward()
+            if args.grad_noise:
+                frac = 1 - gstep / max(1, total_steps)
+                for p in model.parameters():
+                    if p.grad is not None:
+                        rms = p.grad.pow(2).mean().sqrt()
+                        p.grad.add_(torch.randn_like(p.grad) * args.grad_noise * rms * frac)
+            if args.clip:
+                gn = torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+                norms.append(float(gn))
+            else:
+                norms.append(float(torch.nn.utils.clip_grad_norm_(model.parameters(), float('inf'))))
             opt.step()
+            if warm:
+                sched.step()
+            gstep += 1
+            if ema is not None:
+                with torch.no_grad():
+                    for k, v in model.state_dict().items():
+                        if v.dtype.is_floating_point:
+                            ema[k].mul_(args.ema).add_(v, alpha=1 - args.ema)
+                        else:
+                            ema[k].copy_(v)
             run += [lo.item(), lw.item(), lp.item()]
             steps += 1
-        sched.step()
+        if not warm:
+            sched.step()
+        if norms:
+            q = np.percentile(np.array(norms), [50, 99, 100])
+            print('  grad norm before clipping: median %.3f, 99th %.3f, max %.3f (cap %g, over it on %.1f%% of steps)' % (q[0], q[1], q[2], args.clip, 100 * np.mean(np.array(norms) > args.clip) if args.clip else 0.0))
+        if ema is not None:
+            live = {k: v.detach().clone() for k, v in model.state_dict().items()}
+            model.load_state_dict(ema)
         vl, evs, acc = evaluate(model, fetch_v, n_val, out_v, win_v, pay_v, args.batch * 4)
         total = vl[0] + 0.5 * vl[1] + 0.5 * vl[2]
         with np.errstate(invalid='ignore', divide='ignore'):
@@ -624,6 +739,8 @@ def main():
         if total < best - 1e-4:
             best, stale = total, 0
             best_state = {k: v.detach().clone() for k, v in model.state_dict().items()}
+            if ema is not None:
+                pass  # model holds the EMA weights here: they are what is kept
             best_info = {'valLoss': round(float(total), 5), 'valOutcomeLoss': round(float(vl[0]), 5),
                          'valOutcomeAcc': round(acc, 4), 'evPointsCorr': round(corr, 4), 'epoch': epoch + 1}
             if rr:
@@ -633,8 +750,16 @@ def main():
             if stale >= args.patience:
                 print('No better for %d epochs: stopping.' % stale)
                 break
+        if ema is not None:
+            model.load_state_dict(live)
     model.load_state_dict(best_state)
     model.eval()
+    if args.arch == 'res':
+        os.makedirs(os.path.join(ROOT, 'ml', 'models'), exist_ok=True)
+        tp = os.path.join(ROOT, 'ml', 'models', args.name + '.teacher.pt')
+        torch.save({'state': best_state, 'width': args.width, 'blocks': args.blocks, 'info': best_info}, tp)
+        print('Wrote teacher %s: best epoch %d, val loss %.4f (outcome %.4f)' % (tp, best_info['epoch'], best_info['valLoss'], best_info['valOutcomeLoss']))
+        return
 
     meta = dict(best_info)
     meta.update({
