@@ -419,7 +419,7 @@ int main(int argc, char** argv) {
       // The target choice measured: in each deal the model sits in seat d % 4. At its first turn the
       // game is kept, and the rest of the hand is played K times under each option: the rules' own
       // targets (as the game plays), and each target the rules read as possible then (worth > 0),
-      // pinned for the whole hand. Every option plays the same K reshuffled walls (common random
+      // forced at that first decision, the rules carrying on from it. Every option plays the same K reshuffled walls (common random
       // numbers; only the wall is reshuffled, so each replay is an unbiased draw of the hand's end).
       // Rows: per deal, float64 x (1 + 5 options) x 4: [mean points, mean wins, mean limit wins,
       // feasible], then the rules' first pick, the seat.
@@ -474,10 +474,20 @@ int main(int argc, char** argv) {
               Hand& h = c.hand;
               for (int i = h.wall.tail; i > h.wall.head + 1; i--) std::swap(h.wall.t[i - 1], h.wall.t[h.wall.head + size_t(rng() * double(i - h.wall.head))]);
               touch(h);
-              oo->forcedTarget = t;
+              // The target forced at this first decision only (the seat's memory of it set too);
+              // from the next decision the rules carry on from it, switching as they would.
+              struct ForceFirst : Agent {
+                Agent* inner; OnlyOrphans* oo; int seat, t; bool used = false;
+                Decision turn(Game& g, int s, const TurnOptions& o) override {
+                  if (s != seat || used || t < 0) return inner->turn(g, s, o);
+                  used = true; oo->forcedTarget = t; Decision d = inner->turn(g, s, o); oo->forcedTarget = -1; return d;
+                }
+                Decision claim(Game& g, int s, const ClaimOptions& o) override { return inner->claim(g, s, o); }
+              };
+              ForceFirst ffa; ffa.inner = &me; ffa.oo = oo.get(); ffa.seat = k; ffa.t = t;
               if (t >= 0) seatMemo(c, k, modelId).ooTarget = t;
               Agent* a2[4];
-              { int q = 0; for (int s = 0; s < 4; s++) a2[s] = s == k ? static_cast<Agent*>(&me) : tableAgents[q++].get(); }
+              { int q = 0; for (int s = 0; s < 4; s++) a2[s] = s == k ? static_cast<Agent*>(&ffa) : tableAgents[q++].get(); }
               Result r = continueAtTurn(c, a2, k);
               row[size_t(opt) * 4] += double(r.deltas[k]) / K;
               if (r.win && r.winner == k) { row[size_t(opt) * 4 + 1] += 1.0 / K; if (r.score.faan >= 13) row[size_t(opt) * 4 + 2] += 1.0 / K; }

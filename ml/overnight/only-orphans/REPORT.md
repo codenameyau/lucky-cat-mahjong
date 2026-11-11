@@ -482,3 +482,45 @@ Reading:
 - The curriculum (arm 4) is level with ON2 on everything, with deal-ins level.
 - Against the full-data control on the same deck, all six half-trained arms are ahead (half spicy +0.6 to +0.9, full spicy +9 to +16 on 8,000 deals). But the control is one seed, and its −16 on full spicy is far outside what this recipe gave on other decks (N3j0: +0.5 against ON2 on C4). I read that as the control's bad luck, not evidence for half spicy.
 - Nothing here goes to a confirmation. Half-spicy training, at this scale (one round of 100,000 deals), neither helps nor hurts ON2.
+
+# Phase 3 (the orchestrator's plan: aim at points, that is, limit hands)
+
+## 3.1 Ten times the won positions
+
+**Data `oow-1`** (seeds from 1,310,000,000): 1,000,000 deals of OS2c1 exploring (temperature 150, epsilon 0.05) at the older-generations table. Every position is recorded, then sampled:
+
+- every position of the seat that won the hand is kept;
+- every other position is kept with chance q = 0.03 (`generate.js --native --other-share 0.03`, a generator of its own, so the deals are as without it).
+
+The result is 5,212,380 positions, 6.0 GB, in 3,586 s. 45.2% of the rows come from won hands, about 2.4 million, against about 28,000 in `oon-1`. Recording every position costs only 1.45x the time.
+
+**Training** (`ml/train.py --other-share 0.03`): the outcome loss weighs the other rows by 1/q, so the outcome head learns the natural frequencies. The faan heads learn only from won and paying rows, so their targets need no weight.
+
+Calibration, checked on 400,000 unsampled positions of `oon-3`:
+
+| Outcome | Self-draw win | Win off a discard | Deal-in | Another's self-draw | Another's win | Draw |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Predicted (W1a0, mean) | 0.98% | 1.48% | 1.45% | 2.96% | 2.89% | 90.25% |
+| Happened | 1.02% | 1.58% | 1.58% | 3.16% | 3.14% | 89.52% |
+
+The head is calibrated to within about a tenth of each rate. `oon-3` was played by ON2, which finishes more often, so a small shortfall is expected.
+
+| Arm (from OS2c1, OS2c1's settings) | Recipe | Held-out loss | Win-faan held-out loss |
+| --- | --- | ---: | ---: |
+| W1a0 / W1a1 | no cap, lr 1e-4, 4 epochs, seeds 60 / 61 | 1.9427 / 1.9428 | 1.202 |
+| W1b0 | no cap, lr 3e-4, 8 epochs | 1.9195 | |
+| W1k0 | faan cap 10, lr 1e-4, 4 epochs | 1.6255 (capped targets) | 0.939 |
+
+The screen against OS2c1 follows the target measurement, because both need the 10 workers.
+
+## 3.2 The target choice: first measurement (pinned targets)
+
+In a first version of `lcm-sim targets`, each target was **pinned for the whole hand**. On 1,570 deals × 32 common-wall replays (OS2c1, older-generations table):
+
+- every pinned target lost to the rules by 46 to 88 points a hand;
+- pinning even the rules' own first pick lost −48.8 ± 5.7;
+- limit-hand wins fell by 0.2 to 0.5 pp.
+
+**Switching targets during the hand is worth about 50 points a hand.** The rules give up a target that dies and move to one that pays 1.3x more, and that is most of what Only Orphans' targets are worth.
+
+This was not the question asked. The tool now forces the target **at the first decision only**, and the rules carry on from it with their usual switching. The measurement is re-running (5,000 deals, K = 32, deck seed 1,640,000,000).
