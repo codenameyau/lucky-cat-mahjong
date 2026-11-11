@@ -2,10 +2,12 @@
 
 ## Status
 
-- **Best model against OS2c1:** **ON1** (`ml/models/ON1.json`): OS2c1 fine-tuned on games against the older generations, with the faan targets clipped at 10, playing win bonus 600. Pooled over two fresh exact runs (C1 and C3, 80,000 deals): **hands won +0.70 ± 0.035 pp (4.35% to 5.05%), points +0.9 ± 2.2 a hand, deal-ins −0.005 ± 0.03 pp.** It meets the Pareto rule. It does **not** meet the ship bar (points +0.4 SE; the bar is +3 SE).
-- **Loop champion:** ON2 (ON1 + one more capped fine-tune). Against ON1 (C2): wins +0.11 ± 0.04 pp, points −1.2 ± 2.1. Against OS2c1 (C3): wins +0.79 ± 0.05 pp, points −2.8 ± 3.1. That meets the Pareto rule, but points are drifting (critique 2).
-- **Rounds done:** R0, 1, R1b, C0, the structural arms, R2, R3, C1, round 2 (C2), C3.
-- **Now:** round 3 from ON2. Data `oon-3` comes from ON2 exploring against ON1, OS2c1 and the older generations. Arms: capped fine-tunes (cap 10 and 11) and win bonus 500 and 400. The confirmation is now anchored to OS2c1.
+- **Best models against OS2c1, on pooled fresh exact deals (no screen deals):**
+  - **ON2** (`ml/models/ON2.json`, the loop's champion), over C3 and C4 (80,000 deals): hands won **+0.81 ± 0.035 pp**, points **+2.35 ± 2.2** a hand, deal-ins +0.025 ± 0.028 pp.
+  - **ON1** (`ml/models/ON1.json`), over C1 and C3 (80,000 deals): hands won +0.70 ± 0.035 pp, points +0.9 ± 2.2, deal-ins −0.005 ± 0.03 pp.
+  - Both meet the Pareto rule. Neither meets the ship bar (points +3 SE pooled).
+- **Rounds done:** R0, 1, R1b, C0, the structural arms, R2, R3, C1, round 2 (C2: ON2 kept), C3, round 3 (C4: N3j0 not kept, its deal-ins up 1.7 SE against ON2).
+- **Now:** C5. ON1, ON2, ON2 at win bonus 400 and ON1 at win bonus 500 against OS2c1 on 40,000 fresh exact deals (seed 2,505,000,000). It is the third fresh run for ON1 and ON2.
 - **Blockers:** none. ON1 and ON2 pass the fair-play shuffle check.
 
 ## The table and the measures
