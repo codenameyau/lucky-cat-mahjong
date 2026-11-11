@@ -2,10 +2,10 @@
 
 ## Status
 
-- **Champion:** OS2c1. Nothing has beaten it on fresh deals yet.
-- **Rounds done:** R0, round 1, R1b, C0, structural arms, R2, R3.
-- **Last result:** the faan-target cap (structural arm A4) wins 0.4 to 1.1 pp more hands than OS2c1 on two decks (4.3% to 5.2-5.4%), with points within one standard error. Everything else (fine-tunes, clipping, EMA, warm-up, gradient noise, soups, settings) is level with OS2c1 or fails the wins rule. C0 (claim margin 100) was +0.0 ± 0.2 on 80,000 fresh deals.
-- **Now:** confirmation C1, 40,000 fresh exact deals: N2cap1 (cap 10, win bonus 800) and N2cap1w600, by the Pareto rule.
+- **Champion (lineage loop):** **ON1** (): OS2c1 fine-tuned with faan targets clipped at 10, win bonus 600. On 40,000 fresh exact deals against OS2c1: points +1.9 ± 3.2 a hand, hands won +0.72 ± 0.05 pp (5.06% to 4.34%), deal-ins +0.00 ± 0.04 pp. **It meets the Pareto rule (a new generation), not the ship bar** (points +3 SE pooled).
+- **Rounds done:** R0, round 1, R1b, C0, structural arms, R2, R3, C1.
+- **Last result:** C1 (above). N2cap1 (the same network at win bonus 800) won even more (+0.83 pp) but dealt in +0.05 ± 0.04 pp: no bar.
+- **Now:** round 2 from ON1: data  (ON1 exploring against OS2c1 and the older generations), fine-tunes with the cap (two recipes x 2 seeds), win bonus 400/800, screen, confirmation.
 - **Blockers:** none.
 
 ## The table and the measures
@@ -171,3 +171,16 @@ OS2c1 on this deck: 1.9 points a hand, wins 4.32%, deal-ins 1.69%, average win 3
 Reading: the cap is a dial, the same on two decks. The lower the cap, the more hands won (+0.55 at 11, +0.84 at 10, +1.0 at 8 and 9) and the smaller each win. Below 10 the deal-ins rise by 0.2 pp (3 SE). A lower win bonus gives some of the extra wins back for bigger hands. Points stay within one standard error everywhere: the screen can't see a points gain smaller than ±7. Under the Pareto rule (wins up 2 SE, points not down 1 SE, deal-ins not up 1 SE), cap 10 with seed 1 at win bonus 800 or 600 is the cleanest. Seed 0 deals in more (+0.15 and +0.09). So recipes go by the mean of seeds, and seeds 2 and 3 of cap 10 are trained for that.
 
 Confirmation C1 (running): N2cap1 (cap 10, win bonus 800) and N2cap1w600 on the same 40,000 fresh deals from seed 2,501,000,000, exact build, each judged by the Pareto rule on its own (two candidates on one deck: a small multiplicity, noted).
+
+### Confirmation C1: ON1, the first new generation (40,000 fresh deals, exact build)
+
+40,000 fresh deals from seed 2,501,000,000, exact build. OS2c1: 6.7 points a hand, wins 4.34%, deal-ins 1.69%, average win 3,661.
+
+| Arm | Points gap | Wins gap (pp) | Deal-ins gap (pp) | Points a hand | Wins | Deal-ins | Average win | Bar met |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| N2cap1 (cap 10, win bonus 800) | −0.3 ± 3.3 | +0.83 ± 0.05 | +0.05 ± 0.04 | 6.5 | 5.17% | 1.74% | 3,095 | none (deal-ins up 1.25 SE) |
+| **N2cap1w600 = ON1** (cap 10, win bonus 600) | **+1.9 ± 3.2** | **+0.72 ± 0.05** | **+0.00 ± 0.04** | 8.7 | 5.06% | 1.69% | 3,167 | **Pareto rule (wins +14 SE, points +0.6 SE, deal-ins level): a new generation.** Not the ship bar (points +0.6 SE, needs +3 SE pooled) |
+
+1,463 s (the shadow replayed 100% of these networks' hands: they play differently on nearly every hand).
+
+**ON1** (`ml/models/ON1.json`): OS2c1 fine-tuned on `oon-1` (100,000 deals against the older generations) at lr 3e-4 for 8 epochs, seed 6, with the faan targets clipped at 10, playing win bonus 600 and claim margin 50. Against OS2c1 it wins 17% more hands (5.06% to 4.34%) at a smaller average win (3,167 to 3,661), with as many deal-ins and points level or a little up. It joins the pool, becomes the loop's champion and makes the next data (round 2: `oon-2`, ON1 exploring against OS2c1 and the older generations).

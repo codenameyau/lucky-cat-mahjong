@@ -47,6 +47,9 @@ const RECIPES = {
   c: { what: 'lr 1e-4, 4 epochs (the OS2c1 recipe)', args: ['--lr', '1e-4', '--epochs', '4'] },
   a: { what: 'lr 3e-4, 8 epochs', args: ['--lr', '3e-4', '--epochs', '8'] },
   b: { what: 'lr 1e-3, 8 epochs', args: ['--lr', '1e-3', '--epochs', '8'] },
+  // The faan-target cap (structural arm A4, kept in ON1): faan targets clipped at 10.
+  k: { what: 'faan cap 10, lr 3e-4, 8 epochs', args: ['--lr', '3e-4', '--epochs', '8', '--faan-cap', '10'] },
+  j: { what: 'faan cap 10, lr 1e-4, 4 epochs', args: ['--lr', '1e-4', '--epochs', '4', '--faan-cap', '10'] },
 };
 
 async function main() {
