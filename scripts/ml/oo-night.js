@@ -215,7 +215,7 @@ const pct = (x, d = 2) => (100 * x).toFixed(d) + '%';
 function line(name, s, g) {
   return name + ': ' + s.points.toFixed(1) + ' a hand, wins ' + pct(s.wins) + ', deal-ins ' + pct(s.dealIns) + ', average win ' + s.averageWin.toFixed(0) +
     (g ? ' | gap ' + fmt(g.points) + ' ± ' + g.se.toFixed(1) + ' (z ' + (g.points / g.se).toFixed(2) + '), wins ' + fmt(100 * g.wins, 2) + ' ± ' + (100 * g.winsSE).toFixed(2) +
-      ' pp, deal-ins ' + fmt(100 * g.dealIns, 2) + ' pp, identical deals ' + pct(g.sameDeals, 0) : '');
+      ' pp, deal-ins ' + fmt(100 * g.dealIns, 2) + ' ± ' + (100 * g.dealInsSE).toFixed(2) + ' pp, identical deals ' + pct(g.sameDeals, 0) : '');
 }
 
 // Staged screen: every arm against the champion on the same deck.
@@ -245,7 +245,8 @@ async function screen(arms, champion, seed, stages, opt) {
     live.forEach((a) => { if (a.gap.points < -drop * a.gap.se) a.alive = false; });
     if (k < stages.length - 1) {
       // Ranked by z, arms whose hands won fall by more than a standard error last (they can't be kept).
-      const rank = (x) => x.gap.points / x.gap.se - (x.gap.wins > -x.gap.winsSE ? 0 : 100);
+      // The Pareto rule: the better of the two z (points, hands won) when the other is not down by more than one standard error.
+      const rank = (x) => { const zp = x.gap.points / x.gap.se, zw = x.gap.wins / Math.max(1e-9, x.gap.winsSE); return zp > -1 && zw > -1 ? Math.max(zp, zw) : Math.min(zp, zw) - 100; };
       const still = alive.filter((a) => a.alive).sort((p, q) => rank(q) - rank(p));
       still.slice(top).forEach((a) => (a.alive = false, a.cut = true));
     }

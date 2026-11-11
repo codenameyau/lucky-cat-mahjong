@@ -135,3 +135,21 @@ Notes on A4 for Only Orphans: the trainer has no points regression to put a Hube
 Reading B6: the teacher has 5.2M parameters against the shipped 0.18M, and it is worse on held-out data, with or without strong regularisation. **Capacity is not the bottleneck here; the number of wins is.** Only 2.4% of the 1.18M positions belong to a hand the seat won (about 28,000), so the faan heads over-fit long before the outcome head has learned anything new. B6 is not distilled. The next lever is more data, not a bigger network.
 
 Play results for the structural arms (each at win bonus 1400 and claim margin 100, to compare at about equal hands won, with N2ctl0 also at its trained settings): screen R2 (deck seed 1,502,000,000), running.
+
+### Screen R2 (deck seed 1,502,000,000, 8,000 deals, fast build; stopped after stage 1 to follow A4)
+
+OS2c1 on this deck: 17.4 points a hand, wins 4.28%, deal-ins 1.61%, average win 3,805. "L" = win bonus 1400 and claim margin 100 (about level wins for a fine-tune).
+
+| Arm | Points gap | Wins gap (pp) | Deal-ins gap (pp) | Average win |
+| --- | ---: | ---: | ---: | ---: |
+| N2ctl0 (control, trained settings) | +4.9 ± 6.6 | −0.27 ± 0.11 | −0.19 | 4,050 |
+| N2ctl0L / N2ctl1L (control, L) | +1.4 ± 6.7 / −3.0 ± 6.6 | +0.09 / −0.06 (± 0.11) | −0.15 / −0.06 | 3,628 / 3,750 |
+| N2clip0L (A1) | +4.7 ± 6.9 | +0.04 ± 0.11 | −0.17 | 3,724 |
+| N2ema0L (A2) | −2.7 ± 6.7 | −0.05 ± 0.11 | −0.13 | 3,609 |
+| **N2cap0L / N2cap1L (A4, faan cap 10)** | −3.8 ± 7.1 / −3.7 ± 7.2 | **+1.07 / +1.11 (± 0.12)** | +0.15 / +0.09 | 2,993 / 2,946 |
+| N2gn0L / N2gn1L (A5) | −2.2 ± 6.8 / +1.7 ± 6.9 | −0.02 / +0.10 (± 0.11) | −0.08 / −0.19 | 3,614 / 3,581 |
+| soup 25% / 50% toward the six fine-tunes, claim margin 100 | −1.0 ± 5.1 / −1.4 ± 6.0 | +0.00 / −0.25 | −0.01 | |
+| claim margin 75 | +0.9 ± 0.5 | +0.00 | | |
+| claim margin 100 + win bonus 900 / 850 | +0.2 ± 1.8 / +0.8 ± 1.2 | +0.03 / +0.00 | | |
+
+Reading: at about level wins, the fine-tunes are level with OS2c1 on points (mean of the five plain-recipe L arms +0.4); clipping, EMA and gradient noise don't separate from the control in play. **The faan-target cap (A4) is the one arm that moves play: +1.1 percentage points of hands won (5.34% against 4.28%, 9 standard errors) on both seeds**, smaller wins (about 2,970 points against 3,805), points within one standard error, deal-ins up 0.1 to 0.15 pp. It values a limit hand like a 10-faan hand, so it takes the faster, smaller wins. As screened it carried win bonus 1400; it should give back wins for points at a lower win bonus. Next: screen R3, the cap at its trained settings (win bonus 800) and at 600 and 400, and caps 8, 9 and 11.
