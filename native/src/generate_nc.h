@@ -42,7 +42,8 @@ struct NcGenerateJob {
   uint32_t crnSalt = 0;
   int halving = 0, extraRandom = 0, truncate = 0;  // --truncate K (with --value): stop a replay at the seat's K-th move
   bool valueRows = false;
-  bool halfSpicy = false;            // --half-spicy: replays scored on the half-spicy table
+  bool halfSpicy = false;
+  double spicyBlend = 1;             // --spicy-blend B (with --half-spicy): B x half + (1 - B) x full            // --half-spicy: replays scored on the half-spicy table
   double closeSe = 0;                // --close-se X (with --halving H): the rest only where the best two are within X SE            // --value-rows: the value's rows too, with --policy-only
   std::string value;                 // --value V.lcmw: the value a truncated replay is scored by
    // --halving H (replays before dropping options), --extra-random N

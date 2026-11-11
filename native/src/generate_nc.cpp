@@ -777,7 +777,7 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
             for (int s2 = 0; s2 < 4; s2++) ag[s2] = s2 == G.seat ? static_cast<Agent*>(&fz) : again[s2];
             try {
               Result rr = G.atClaim ? continueAtClaims(copy, ag, G.from, G.tile) : continueAtTurn(copy, ag, G.seat);
-              P[k].push_back(job.halfSpicy ? halfSpicyDelta(rr, G.seat) : double(rr.deltas[G.seat]));
+              P[k].push_back(job.halfSpicy ? job.spicyBlend * halfSpicyDelta(rr, G.seat) + (1 - job.spicyBlend) * double(rr.deltas[G.seat]) : double(rr.deltas[G.seat]));
               Wn[k].push_back(rr.win && rr.winner == G.seat ? 1 : 0);
             } catch (const TruncEv& t) {
               P[k].push_back(t.ev);

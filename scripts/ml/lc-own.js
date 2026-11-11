@@ -170,7 +170,7 @@ async function data(champ, poolFiles, seed, deals, dir, opts = {}) {
   const manifest = path.join(ROOT, dir, 'manifest.json');
   const settings = { champ: path.basename(nid(champ)), pool: poolFiles.map((f) => path.basename(nid(f))), seed, deals,
     replays: opts.replays || 12, share: opts.share || 0.5, sample: opts.sample || 0.12, learners: opts.learners || 2, crn: true,
-    halving: opts.halving || 0, margin: opts.margin || 150, extra: opts.extra || 0, v: 2, half: !!opts.half, closeSe: opts.closeSe || 0,
+    halving: opts.halving || 0, margin: opts.margin || 150, extra: opts.extra || 0, v: 2, half: !!opts.half, blend: opts.blend == null ? 1 : opts.blend, closeSe: opts.closeSe || 0,
     value: opts.value ? path.basename(N.lcmwFor(opts.value)) : null, truncate: opts.value ? opts.truncate || 4 : 0 };
   const key = sha(JSON.stringify(settings));
   const was = readJson(manifest, null);
@@ -194,7 +194,7 @@ async function data(champ, poolFiles, seed, deals, dir, opts = {}) {
       '--pool', pool.join(','), '--strategies', strategies.join(','), '--out', path.join(ROOT, dir), '--sample', String(settings.sample),
       '--temperature', '1', '--epsilon', '0.1', '--option-replays', String(settings.replays), '--options', '4',
       '--option-share', String(settings.share), '--crn', '--policy-only', '--halving', String(settings.halving), '--halving-margin', String(settings.margin),
-      '--extra-random', String(settings.extra)].concat(settings.half ? ['--half-spicy'] : [], settings.closeSe ? ['--close-se', String(settings.closeSe)] : []).concat(settings.value ? ['--value', N.lcmwFor(opts.value), '--truncate', String(settings.truncate)] : [])).then((o) => { const j = JSON.parse(o); writeJson(done, j); return j; }));
+      '--extra-random', String(settings.extra)].concat(settings.half ? ['--half-spicy', '--spicy-blend', String(settings.blend)] : [], settings.closeSe ? ['--close-se', String(settings.closeSe)] : []).concat(settings.value ? ['--value', N.lcmwFor(opts.value), '--truncate', String(settings.truncate)] : [])).then((o) => { const j = JSON.parse(o); writeJson(done, j); return j; }));
   }
   const shards = await N.pool(tasks, opts.workers || WORKERS);
   // Drop the empty value files --policy-only leaves.

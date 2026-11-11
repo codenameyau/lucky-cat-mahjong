@@ -248,6 +248,7 @@ int main(int argc, char** argv) {
       j.truncate = a.count("truncate") ? std::stoi(a["truncate"]) : 0;
       j.valueRows = a.count("value-rows") > 0;
       j.halfSpicy = a.count("half-spicy") > 0;
+      j.spicyBlend = a.count("spicy-blend") ? std::stod(a["spicy-blend"]) : 1;
       j.closeSe = a.count("close-se") ? std::stod(a["close-se"]) : 0;
       if (a.count("value")) j.value = a["value"];
       return runGenerateLcv(j, [](const std::string& id) { return makeAgent(id); });
