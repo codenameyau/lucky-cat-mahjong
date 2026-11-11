@@ -15,6 +15,8 @@ NeuralCat::NeuralCat(std::shared_ptr<Mlp> model, const std::string& id) : Founda
   winBonus_ = play["winBonus"].num(0);
   claimMargin_ = play["claimMargin"].num(0);
   spicyBlend_ = play["spicyBlend"].num(0);
+  passBias_ = play["passBias"].num(0);
+  chowBias_ = play["chowBias"].num(0);
   const Weights& w = model_->weights();
   if (!w.reader.empty()) {
     if (w.readerVersion != 1) throw std::runtime_error("neural cat: the model reads version " + std::to_string(w.readerVersion) + " of the reader, have 1");
@@ -411,6 +413,7 @@ Decision NeuralCat::chooseClaim(const Game& g, int seat, const ClaimOptions& opt
   Choice pass;
   pass.decision.type = A_PASS;
   pass.ml = waitingFeatures(g, seat, 0, opts.tile);
+  pass.ml.ev += passBias_;
   choices.push_back(pass);
   for (auto& o : d.found.options) {
     if (!claimOk(o, opts, g, seat)) continue;
@@ -421,6 +424,7 @@ Decision NeuralCat::chooseClaim(const Game& g, int seat, const ClaimOptions& opt
     else {
       if (!o.cand || !o.cand->hasMl) continue;
       ml.ev = o.cand->mlBest; ml.pWin = o.cand->mlPWin;  // ml.best stands in for ev
+      if (o.decision.type == A_CHOW) ml.ev += chowBias_;
     }
     choices.push_back({o.decision, ml});
   }

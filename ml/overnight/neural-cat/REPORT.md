@@ -6,6 +6,8 @@
 - **Tools added:** `lcm-sim generate-nc --option-claims-only --option-learner-only --option-unseen --option-near-tie X` (option groups only at claims / only at the learner's seats / every unseen tile reshuffled, not just the wall / only near-tie discards) and a per-replay file `shard-N.optrep` (the seat's points, the model's points, the learner's expected points at the seat's next decision); each option row's label now carries the learner's value and expected points of that option and whether it weighs it (bytes 24 to 31, 54). `scripts/ml/nc-measure.js` runs a measurement (10 workers); `ml/nc_oracle.py` reads it (cross-fitted oracle gain, per learner seat-hand).
 - **Running:** (1) claims by replay: 20,000 deals of G2 at the table's mix, every claim of its seats, every option x 32 CRN replays of the unseen tiles; (3) cheap checks: stage 1 of the two-stage jobs training on the GPU.
 - **Measured so far:** a 100-deal smoke test only (4.2 claim decisions a seat-hand; G2's pick matches its top value in 100% of the groups where it weighs two or more options).
+- **Objective (the maintainer, via the orchestrator, 16:50 UTC):** Neural Cat is the balanced lineage ("the best of both worlds"). Generation: points or hands won up 2 SE on fresh exact deals, the other not down more than 1 SE. Ship candidate against NC10: points up 3 SE with hands won not down more than 1 SE, **or** hands won up 3 SE with points up at least 1 SE (`judge()` in nc-overnight.js flags both as "SHIP BAR"). Both reported for every candidate.
+- **Own lineage only (the maintainer's ruling, 2026-11-11), confirmed:** every run in phase 3 seats only Neural Cat generations in the other seats; nothing runs at the benchmark table (it seats Jorge Yau) or at any mixed table. Evaluation table: NC9, NC8, NC5 (the candidate and NC10 each play every seat of the same deals). Data pool: G2 (= NC10), G1, NC9, NC8, NC7, NC5, NC3 (`ml/models/pool/`). Phase 3 measurements: NC10 at the evaluation table's mix (each seat drawn from NC10, NC9, NC8, NC5), and the replays are played by the same Neural Cats. (The "+7.4 ± 3.4 at the benchmark table" for SC1 below was the orchestrator's ship check, not a run of this loop.)
 - **Blockers:** none.
 
 ## Status (updated 2026-11-11 16:30 UTC; phase 2 done for this session)
@@ -303,3 +305,22 @@ Screen (fast, 40,000 deals from seed 3,001,172,000, paired against **NC9**, 8 wo
 | R11p pay 0.03 s1 | -1.6 ± 5.3 | 17.08% (-0.1 ± 0.12) | 10.56% | 891 | -0.4 ± 0.31 | 20,000 (dropped) |
 
 - A second pay-head step on G2 does nothing measurable; a win-head step again trades size for more wins with points down. Early sign: the head-reshaping is a one- or two-step lever, not a compounding one. - **R11c confirmed against G2** (150,000 fresh exact deals, seed 3,001,552,000, 2,827 s): points **+0.1 ± 2.0**, hands won -0.1 ± 0.05 pp, deal-ins +0.10 ± 0.04 pp, average win 900 vs 900; half spicy -0.0 ± 0.11. Plain fine-tuning on G2's own data adds nothing, as it added nothing to NC9 (R1, R2). **Answer to (d): it does not compound.** The head reshaping gave two steps (G1: style, SC1: points) and then stops; new data from the stronger model doesn't by itself move it.
+
+## Phase 3: new sources of information (champion NC10 = G2)
+
+### P3.1 Claims by replay: measured, no oracle gain
+
+- **How:** 20,000 deals (data seeds 1,300,670,000 up) of NC10 playing its best at the evaluation table's mix (each seat drawn from NC10, NC9, NC8, NC5; 20,181 NC10 seat-hands). At **every** claim NC10's seats were offered with a choice (86,693 claims, 4.3 a seat-hand: 39,616 with a pung on offer, 47,077 a chow only, 2,690 a kong), every legal option (pass, each pung/chow with NC10's discard after it, the kong) was forced and the hand played on 32 times on common reshuffles of **every tile the seat hasn't seen** (the live wall and the others' concealed tiles; fair). 3,579 s on 10 workers (`scripts/ml/nc-measure.js --kind claims --unseen`; `ml/nc_oracle.py`).
+- **Check:** NC10's pick is the top value of what it weighs in 100.0% of the 36,788 claims where it weighs two or more options (in the other 49,905 it weighs only passing: the foundation's contradiction check rules the call out).
+- **How often the replays disagree:** the replays' best option beats NC10's choice by 2 SE of the paired gap in **1.4%** of claims (1.8% with a pung on offer, 1.1% chow, 1.5% kong): about what noise alone gives.
+- **The oracle (points a hand, per NC10 seat-hand; cross-fitted: the best option picked on 16 replays, its gap to NC10's choice measured on the other 16):**
+
+| Oracle | All claims | Pung on offer | Chow only | Kong on offer |
+| --- | ---: | ---: | ---: | ---: |
+| follows the replays, any legal option | **-93.2 ± 2.9** | -42.7 ± 2.3 | -50.4 ± 1.8 | -5.6 ± 0.7 |
+| only among the options NC10 weighs | -27.2 ± 2.0 | -15.1 ± 1.6 | -12.1 ± 1.1 | -1.6 ± 0.6 |
+| switches only when its half says 2 SE | -5.0 ± 0.7 | -3.8 ± 0.7 | -1.3 ± 0.3 | -0.4 ± 0.2 |
+| (in-sample best, inflated by selection) | (+183.4 ± 2.1) | | | |
+
+- **Why:** common random numbers do almost nothing at a claim: a call changes whose turn it is, so the same reshuffle deals different tiles to everyone; the paired gap's variance is 98% of the unpaired (2.35M against 2.39M points^2, sd about 1,530 a replay against a median within-option sd of 114: limit hands). With 32 replays the SE of one claim's gap is about 270 points, far above the true gaps; NC10's choices are better than anything the replays can pick, and even a 2 SE switch rule loses 5 points a hand (heavy tails make 2 SE false positives common).
+- **A claim correction instead (no selection inside a claim):** passing's value moved by b, each b's gain on all 32 replays: b = -25: -7.5 ± 0.8; -10: -2.4 ± 0.5; +10: +1.0 ± 0.5; **+25: +2.1 ± 0.8**; +50: +1.9 ± 1.0; +100: -1.9 ± 1.3; the best b chosen on half the deals and measured on the other half: +1.6. A small lean toward passing might be worth about 2 points in the replays' world (random hands for the others, which deal in and win less than real ones), so it is tested where it counts: as a play setting (`meta.play.passBias`, `chowBias`; native only, 0 by default, parity unchanged) screened at the table against NC10 (P3 screen 1). Training the network on these claim rows is **not** run: the measure-first rule says no (oracle far below 2 points a hand).

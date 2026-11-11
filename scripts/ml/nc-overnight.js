@@ -282,9 +282,10 @@ function judge(cand, rowsC, rowsChamp, deals, seed, secs) {
   // A generation (the Pareto rule): points or hands won up 2 SE, the other not down more than 1 SE,
   // deal-ins not up more than 1 SE. A ship candidate needs points up 3 SE on pooled fresh exact deals.
   const pass = ((p.points >= 2 * p.se && p.wins >= -p.winSe) || (p.wins >= 2 * p.winSe && p.points >= -p.se)) && p.dealIns <= Math.max(0.0025, p.dealInSe);  // deal-ins: up at most 0.25 pp or 1 SE, the larger (orchestrator, 2026-11-11)
-  const shipLike = p.points >= 3 * p.se && p.wins >= -p.winSe;
+  // Ship candidate (balanced, the maintainer 2026-11-11): points up 3 SE with hands won not down 1 SE, or hands won up 3 SE with points up 1 SE.
+  const shipLike = (p.points >= 3 * p.se && p.wins >= -p.winSe) || (p.wins >= 3 * p.winSe && p.points >= p.se);
   log('  ' + line(nameOf(cand), p, s, c) + ', deal-in diff ' + (100 * p.dealIns).toFixed(2) + ' +- ' + (100 * p.dealInSe).toFixed(2) + ' pp' +
-    (pass ? '  PASS (generation, Pareto 2 SE)' : '  fail') + (shipLike ? ' points 3 SE' : '') + ' (' + secs.toFixed(0) + 's)');
+    (pass ? '  PASS (generation, Pareto 2 SE)' : '  fail') + (shipLike ? ' SHIP BAR (balanced)' : '') + ' (' + secs.toFixed(0) + 's)');
   return { name: nameOf(cand), file: rel(cand), seed, deals, pair: p, self: s, champ: c, pass, shipLike, seconds: secs };
 }
 

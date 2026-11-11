@@ -33,12 +33,20 @@ import numpy as np
 KINDS = ['discard', 'kong', 'pass', 'pung', 'chow', 'call-kong']
 
 
-def load(d):
-    man = json.load(open(os.path.join(d, 'manifest.json')))
+def load(d, partial=None):
+    done = None
+    if os.path.exists(os.path.join(d, 'manifest.json')):
+        man = json.load(open(os.path.join(d, 'manifest.json')))
+    else:
+        # A measurement still running: the shards finished so far (partial = {kind, replays}).
+        done = {int(f.split('-')[-1].split('.')[0]): json.load(open(f)) for f in glob.glob(os.path.join(d, 'shard-*.done.json'))}
+        man = dict(partial, deals=sum(r['deals'] for r in done.values()), learnerSeats=sum(r['learnerSeats'] for r in done.values()))
     R = man['replays']
     groups = []
     for f in sorted(glob.glob(os.path.join(d, 'shard-*.optlabels')), key=lambda x: int(x.split('-')[-1].split('.')[0])):
         shard = int(f.split('-')[-1].split('.')[0])
+        if done is not None and shard not in done:
+            continue
         L = np.fromfile(f, dtype=np.uint8).reshape(-1, 56)
         Y = np.fromfile(f[:-len('optlabels')] + 'optrep', dtype=np.float32).reshape(-1, R, 3)
         assert len(L) == len(Y), f
@@ -200,11 +208,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('dirs', nargs='+')
     ap.add_argument('--json')
+    ap.add_argument('--kind', default='claims', help='for a measurement still running (no manifest yet)')
+    ap.add_argument('--replays', type=int, default=32)
     a = ap.parse_args()
     man = None
     groups = []
     for d in a.dirs:
-        m, g = load(d)
+        m, g = load(d, {'kind': a.kind, 'replays': a.replays, 'unseen': None})
         if man is None:
             man = dict(m)
         else:
