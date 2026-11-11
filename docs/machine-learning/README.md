@@ -46,7 +46,7 @@ Where all of that stands, and why each choice was made, is in [frontier history]
 | [Suphx plan](suphx-plan.md) (cancelled) | Suphx taken apart against Hong Kong rules, four rounds of critique (the last on the plan itself), and the phased plan to make Lucky Cat the strongest Hong Kong mahjong player: privileged labels as targets, a tile-structured network, a distributional value, a league, the job each model family (heuristics, MCTS, DQN, policy gradient) gets, the benchmark (one frozen table, one deck, a Table Score) with its two-standard-errors-twice bar, and the two lineages, Lucky Cat and Sphinx |
 | [Benchmark](benchmark.md) | The frontier benchmark, built: the frozen table (NC8, Jorge Yau, NC8 at 0.57.9, pinned by SHA-256 and a fingerprint), the 40,000-deal deck, the Table Score, and `bench.js judge`, which runs the five stages of the bar for the next generation of Lucky Cat or Sphinx |
 | [Native simulator](native.md) | The engine and the benchmark table's players (Jorge Yau, Neural Cat, Lucky Cat v1 and v2, the oracle) in C++. A round's data in 13 s instead of 330 s. Two builds used as a hybrid: fast for training data and screens, exact (every hand as the JS plays it) for judgments and Table Scores. How it's built, checked and pinned, the three optimization rounds, and the weights in both forms (JSON and `.lcmw`) |
-| [Frontier training](frontier-training.md) | Phase 1, built: features v2 (who threw what, after claims, shanten and live waits per discard), auxiliary heads that learn the hidden tiles as targets, `--sample-won`, and `frontier.js`, the round driver for Lucky Cat (from lc32 widened to v2) and Sphinx (from random weights), kept only by the benchmark's bar; the first probe's numbers |
+| [Frontier training](frontier-training.md) | Phase 1, built: features v2 (who threw what, after claims, shanten and live waits per discard), auxiliary heads that learn the hidden tiles as targets, `--sample-won`, and `frontier.js`, the round driver for Lucky Cat (from lc32 widened to v2) and Sphinx (from random weights), kept only by the benchmark's bar (since removed with the cancelled line); the first probe's numbers |
 | [Frontier history](frontier-history.md) | The frontier work in order, and every decision taken (the benchmark, training, search, the native simulator, the hybrid) with why, the evidence, and what would reopen it |
 
 ## Quick start
@@ -62,10 +62,10 @@ npm run compete -- --lineup neural-cat,jorge-yau,lucky-cat,jorge-yau --deals 100
 python3 -m venv ml/.venv && ml/.venv/bin/pip install -r ml/requirements.txt
 npm run ml:lab -- --rounds 10
 
-# The frontier: build the native simulator once, then run rounds of a lineage,
+# The frontier: build the native simulator once, then run rounds,
 # each kept only by the benchmark's bar.
 npm run native:build
-npm run ml:suphx -- --lineage lucky-cat --rounds 3
+npm run ml:frontier -- --rounds 1
 npm run ml:bench -- score lc:ml/models/<model>.json   # a model's Table Score
 ```
 
@@ -100,7 +100,6 @@ npm run ml:bench -- score lc:ml/models/<model>.json   # a model's Table Score
 | `js/mahjong-frontier-net.js` | Features v2 for the frontier models ([frontier training](frontier-training.md)) |
 | `scripts/ml/lucky.js`, `ml/train_lucky.py` | Lucky Cat's and Sphinx's data and training (imitation, the deal-in teacher, auxiliary heads, policy gradient) |
 | `scripts/ml/oracle.js` | The hidden tiles, recorded for training only |
-| `scripts/ml/frontier.js` | The frontier round driver (`npm run ml:suphx`) |
 | `scripts/ml/bench.js`, `bench/` | The benchmark: Table Scores and the bar for a next generation ([benchmark](benchmark.md)) |
 | `native/`, `scripts/ml/native.js`, `scripts/ml/weights.js` | The native simulator, its parity check against the JS, and weights as JSON and `.lcmw` ([native simulator](native.md)) |
 | `js/mahjong-ml.test.js` | Tests for the features, model, strategy, claims, kongs and coach lines |
