@@ -2,20 +2,30 @@
 
 ## Status
 
-*Updated 2026-11-11 04:40 local.* Rounds done: 6. Rounds done: 4.
+*Updated 2026-11-11 05:15 local.* Rounds done: 7 (round 8 running). Rounds done: 4.
 
 - **Champion: G3 = LO4h** (`ml/models/LO4h.json`, variance-aware target: vnorm 1, bonus 150, trained from G2). Against G2 on 160,000 fresh exact deals: points **+1.4 ± 0.8**, hands won **+0.22 ± 0.04 (5.5 SE)**, deal-ins −0.05 ± 0.04, average win 306 vs 304. It meets the generation bar on hands won, but not the points milestone (1.75 SE). **Ship check against lc32** (two fresh exact runs of 80,000 deals each, pooled to 160,000): **+2.4 ± 1.1 points (2.2 SE)**, hands won **+0.34 ± 0.06**. That is **below the 3 SE ship bar**. The runs alone were +1.0 ± 1.5 and +3.8 ± 1.5. Caveat: its table pool (G3, G2, G1, lc32) is not the one G2's ship check used (G2, G1, lc32, lc31), so the two checks don't compare directly. **G2 remains the ship candidate.**
 - **G2 = LO2a** (`ml/models/LO2a.json`), the lineage's first points gain. Against G1 on 160,000 fresh exact deals: **+2.2 ± 0.9 points a hand (2.4 SE)**, hands won +0.07 ± 0.05, deal-ins level (−0.00 ± 0.05), average win 301 vs 295. It meets the generation bar and the points milestone. Fair-play shuffle check (`scripts/ml/fair-play.js`): **pass**.
 - **G1 = LO1b:** hands won +0.23 ± 0.07 against lc32 (generation bar only).
 - **SHIP CANDIDATE: G2 against lc32**, on two fresh exact runs of 80,000 deals each (seeds 801,264,000 and 801,344,000), pooled to 160,000 deals: **+5.9 ± 1.1 points a hand (5.5 SE)**, hands won **+0.35 ± 0.05** (22.1% vs 21.8%), deal-ins level (+0.00 ± 0.06), average win about 310 vs 289. The two runs alone: +6.3 ± 1.5 and +5.5 ± 1.5 points. It clears the 3 SE ship bar, and fair play passes.
 - **Running now:**
-  - **Blind policy iteration from round 7** (critique below): one recipe a round, no screen, and the head confirmed against G3 every 3 steps. Rounds 5 and 6 kept nothing. Round 4 kept nothing; its arms were: a control (tau 30, bonus 150), bonus 75, bonus 225, EMA, the LO1d retry (lr 1e-3, warm-up, cosine, EMA), gradient noise with two seeds, and the variance-aware target.
+  - **Blind policy iteration since round 7** (critique below). Step 1: LO7a (data from G3, vnorm 1, bonus 100). Step 2 is running (round 8, data from LO7a). Step 3 (round 9) adds the orchestrator's changes and half spicy:
+    - replays scored on the **half-spicy table**, which I proved against `js/points.js` (4,000 hands, every per-deal value identical);
+    - 16 replays on half as many choices, the last 12 only where the best two options are within 1.5 SE after 4 (`--close-se`);
+    - the head is a **weight average of 3 seeds**, with bonus 0 and 150 trained beside it;
+    - a confirmation within ±1.5 SE at 160,000 deals is **extended to 320,000**;
+    - every screen and confirmation reports half-spicy points beside full-spicy ones (`play --dump`).
+    The 3-step head is then confirmed against G3. Rounds 5 and 6 kept nothing.
+- **G3 against G2, against lc32 (for PR #251):**
+  - G3 is not ahead of G2 against lc32. G3's ship check came to +2.4 ± 1.1 points (2.2 SE, below the bar) with hands won +0.34 ± 0.06. G2's was +5.9 ± 1.1 with +0.35 ± 0.05. The two ran at different table pools (G3, G2, G1, lc32 against G2, G1, lc32, lc31), so the comparison isn't clean.
+  - Head to head, G3 beat G2 on hands won (+0.22 ± 0.04) with points +1.4 ± 0.8.
+  - So I wouldn't add G3 to the PR on points; it is a hands-won step. Round 4 kept nothing; its arms were: a control (tau 30, bonus 150), bonus 75, bonus 225, EMA, the LO1d retry (lr 1e-3, warm-up, cosine, EMA), gradient noise with two seeds, and the variance-aware target.
 - **Table pool:** G3, G2, G1, lc32.
 - **Blockers:** none.
 
 ## Bars
 
-- **Generation (in-lineage):** on fresh exact paired deals against the lineage's current champion, points a hand or hands won is up 2 SE, the other is not down more than 1 SE, and deal-ins are not up more than 1 SE.
+- **Generation (in-lineage):** on fresh exact paired deals against the lineage's current champion, points a hand or hands won is up 2 SE, the other is not down more than 1 SE, and deal-ins are not up by more than 0.25 percentage points or 1 SE, whichever is larger (the orchestrator, 2026-11-11, from round 9; before that, 1 SE).
 - **Points milestone:** a generation whose points are up 2 SE.
 - **Ship candidate (orchestrator, 2026-11-11):** against lc32 itself, on two fresh exact runs pooled (never screen deals), points up 3 SE and hands won not down more than 1 SE. The loop runs this check for every generation with a points milestone (`shipCheck` in `lc-own-loop.js`).
 

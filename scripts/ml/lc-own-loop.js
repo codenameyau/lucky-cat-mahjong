@@ -106,7 +106,7 @@ async function round(state, plan) {
   const dataDir = 'ml/data/own-' + r;
   // plan.dataSeed: round 1 only (data made by hand before the loop started), then the counter.
   const dseed = (r === 1 && plan.dataSeed) || takeSeeds(state, plan.deals);
-  const dm = await O.data(head, state.pool, dseed, plan.deals, dataDir, { replays: plan.replays, share: plan.share, halving: plan.halving, margin: plan.halvingMargin, extra: plan.extraRandom,
+  const dm = await O.data(head, state.pool, dseed, plan.deals, dataDir, { replays: plan.replays, share: plan.share, halving: plan.halving, margin: plan.halvingMargin, extra: plan.extraRandom, half: plan.halfSpicy, closeSe: plan.closeSe,
     value: valueModel, truncate: plan.value && (plan.value.truncate || 3) });
   rec.data = { dir: dataDir, seed: dseed, deals: plan.deals, rows: dm.policyRows, seconds: dm.seconds, cached: !!dm.cached };
   rec.times.data = (Date.now() - t) / 1000;
@@ -116,6 +116,8 @@ async function round(state, plan) {
   // 2. training
   t = Date.now();
   const arms = plan.arms.map((a, k) => Object.assign({ init: head }, a, { name: tag + r + String.fromCharCode(97 + k) }));
+  // a soup arm names its members by their index in plan.arms
+  arms.forEach((a) => { if (a.mode === 'soup') a.members = a.of.map((k) => arms[k].name); });
   const armsFile = path.join(DIR, 'arms-' + r + '.json');
   writeJson(armsFile, arms);
   await py(['ml/lc_own_train.py', '--data'].concat(window, ['--arms', armsFile, '--report', path.join(DIR, 'train-' + r + '.json')]), path.join(DIR, 'train-' + r + '.log'));
@@ -127,11 +129,12 @@ async function round(state, plan) {
   // the champion, so N small steps are judged together, where their sum can be seen.
   let full = [], blindCand = null;
   if (plan.blind) {
-    state.head = 'ml/models/' + arms[0].name + '.json';
+    const hk = plan.headArm || 0;
+    state.head = 'ml/models/' + arms[hk].name + '.json';
     state.blindSteps = (state.blindSteps || 0) + 1;
-    rec.newHead = arms[0].name; rec.blind = state.blindSteps;
-    log('Round ' + r + ': blind step ' + state.blindSteps + ', head moves to ' + arms[0].name);
-    if (state.blindSteps % plan.blind === 0) blindCand = { file: state.head, name: arms[0].name, screenGap: 0 };
+    rec.newHead = arms[hk].name; rec.blind = state.blindSteps;
+    log('Round ' + r + ': blind step ' + state.blindSteps + ', head moves to ' + arms[hk].name);
+    if (state.blindSteps % plan.blind === 0) blindCand = { file: state.head, name: arms[hk].name, screenGap: 0 };
   } else {
     // 3. screen, against the head
     t = Date.now();
@@ -158,7 +161,7 @@ async function round(state, plan) {
     const z = (a) => a.pair.gap / a.pair.se + a.pair.winGap / a.pair.winSe;
     const up = full.filter((a) => {
       const p = a.pair, bar = plan.advanceBar || 1;
-      const okD = p.dealInSe == null || p.dealInGap <= p.dealInSe;
+      const okD = p.dealInSe == null || p.dealInGap <= Math.max(0.25, p.dealInSe);
       return okD && ((p.gap > bar * p.se && p.winGap >= 0) || (p.winGap > 2 * p.winSe && p.gap >= 0));
     }).sort((a, b) => z(b) - z(a));
     if (up.length) { state.head = up[0].file; rec.newHead = up[0].name; log('Round ' + r + ': head moves to ' + up[0].name); }
@@ -174,7 +177,13 @@ async function round(state, plan) {
     const base = plan.confirmDeals || 80000;
     const cdeals = (cand.screenGap || 0) < 4 && base >= 80000 ? Math.max(160000, base) : base;
     const cseed = takeSeeds(state, cdeals);
-    const conf = await O.screen(champ, [cand.file], cseed, [cdeals], { pool: state.pool, exact: true, drop: 1e9, log });
+    let conf = await O.screen(champ, [cand.file], cseed, [cdeals], { pool: state.pool, exact: true, drop: 1e9, log });
+    // Within 1.5 SE either way: twice the deals before judging (the first half comes from the cache).
+    if (plan.extendConfirm !== false && Math.abs(conf[0].pair.gap) < 1.5 * conf[0].pair.se) {
+      takeSeeds(state, cdeals);
+      log('Round ' + r + ': confirmation within 1.5 SE, extended to ' + 2 * cdeals + ' deals');
+      conf = await O.screen(champ, [cand.file], cseed, [cdeals, cdeals], { pool: state.pool, exact: true, drop: 1e9, log });
+    }
     const c = conf[0];
     rec.confirm = { name: cand.name, against: champ, seed: cseed, pair: c.pair, me: c.me, ch: c.ch, line: c.line };
     rec.times.confirm = (Date.now() - t) / 1000;
@@ -182,7 +191,7 @@ async function round(state, plan) {
     // other not down by more than 1 SE, and deal-ins not up by more than 1 SE. A ship
     // milestone: points up by 2 SE.
     const P = c.pair;
-    const dealsOk = P.dealInSe == null || P.dealInGap <= P.dealInSe;
+    const dealsOk = P.dealInSe == null || P.dealInGap <= Math.max(0.25, P.dealInSe);
     const pass = dealsOk && ((P.gap > 2 * P.se && P.winGap >= -P.winSe) || (P.winGap > 2 * P.winSe && P.gap >= -P.se));
     const milestone = pass && P.gap > 2 * P.se;
     rec.confirm.pass = pass; rec.confirm.milestone = milestone;
@@ -216,7 +225,7 @@ async function main() {
     const file = a[a.indexOf('--confirm') + 1], champ = state.champion, plan = readJson(PLAN, {});
     const cseed = takeSeeds(state, 160000);
     const c = (await O.screen(champ, [file], cseed, [160000], { pool: state.pool, exact: true, drop: 1e9, log }))[0];
-    const P = c.pair, okD = P.dealInSe == null || P.dealInGap <= P.dealInSe;
+    const P = c.pair, okD = P.dealInSe == null || P.dealInGap <= Math.max(0.25, P.dealInSe);
     const pass = okD && ((P.gap > 2 * P.se && P.winGap >= -P.winSe) || (P.winGap > 2 * P.winSe && P.gap >= -P.se));
     const milestone = pass && P.gap > 2 * P.se;
     state.confirmed = Object.assign(state.confirmed || {}, { [file + '|' + champ]: { pass, gap: P.gap, se: P.se, winGap: P.winGap, winSe: P.winSe, deals: P.deals, seed: cseed } });

@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
       FILE* dump = a.count("dump") ? std::fopen(a["dump"].c_str(), "wb") : nullptr;
       if (a.count("dump") && !dump) throw std::runtime_error("lcm-sim play: can't write " + a["dump"]);
       for (long d = from; d < to; d++) {
-        std::vector<double> dealPoints(models.size(), 0), dealWins(models.size(), 0), dealIns(models.size(), 0);
+        std::vector<double> dealPoints(models.size(), 0), dealWins(models.size(), 0), dealIns(models.size(), 0), dealHalf(models.size(), 0);
         for (int k = 0; k < 4; k++) {
           for (size_t m = 0; m < models.size(); m++) {
             Agent* agents[4];
@@ -179,6 +179,7 @@ int main(int argc, char** argv) {
             x.seats++;
             x.points += r.deltas[k];
             dealPoints[m] += r.deltas[k] / 4.0;
+            dealHalf[m] += halfSpicyDelta(r, k) / 4.0;
             if (r.win && r.winner == k) {
               x.wins++; dealWins[m] += 0.25;
               x.winPoints += r.deltas[k];
@@ -188,7 +189,7 @@ int main(int argc, char** argv) {
           }
         }
         for (size_t m = 0; m < models.size(); m++) { out[m].n++; out[m].sq += dealPoints[m] * dealPoints[m]; out[m].winSq += dealWins[m] * dealWins[m]; }
-        if (dump) for (size_t m = 0; m < models.size(); m++) { float v[3] = {float(dealPoints[m]), float(dealWins[m]), float(dealIns[m])}; std::fwrite(v, 4, 3, dump); }
+        if (dump) for (size_t m = 0; m < models.size(); m++) { float v[4] = {float(dealPoints[m]), float(dealWins[m]), float(dealIns[m]), float(dealHalf[m])}; std::fwrite(v, 4, 4, dump); }
         if (models.size() == 2) {
           double gp = dealPoints[0] - dealPoints[1], w = dealWins[0] - dealWins[1];
           pn++; psum += gp; psq += gp * gp; pwin += w; pwinSq += w * w;
@@ -246,6 +247,8 @@ int main(int argc, char** argv) {
       j.extraRandom = a.count("extra-random") ? std::stoi(a["extra-random"]) : 0;
       j.truncate = a.count("truncate") ? std::stoi(a["truncate"]) : 0;
       j.valueRows = a.count("value-rows") > 0;
+      j.halfSpicy = a.count("half-spicy") > 0;
+      j.closeSe = a.count("close-se") ? std::stod(a["close-se"]) : 0;
       if (a.count("value")) j.value = a["value"];
       return runGenerateLcv(j, [](const std::string& id) { return makeAgent(id); });
     }

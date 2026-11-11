@@ -83,7 +83,7 @@ async function block(model, table, seed, from, to, exact) {
   const buf = fs.readFileSync(dump);
   const v = new Float32Array(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length));
   fs.unlinkSync(dump);
-  const res = { sums: out, points: Array.from(v.filter((x, i) => i % 3 === 0)), wins: Array.from(v.filter((x, i) => i % 3 === 1)), dealIns: Array.from(v.filter((x, i) => i % 3 === 2)) };
+  const res = { sums: out, points: Array.from(v.filter((x, i) => i % 4 === 0)), wins: Array.from(v.filter((x, i) => i % 4 === 1)), dealIns: Array.from(v.filter((x, i) => i % 4 === 2)), half: Array.from(v.filter((x, i) => i % 4 === 3)) };
   writeJson(file, res);
   stats.played += to - from; stats.seconds += (Date.now() - t0) / 1000;
   return res;
@@ -116,6 +116,10 @@ function paired(a, b) {
   const pa = [].concat(...a.map((x) => x.points)), pb = [].concat(...b.map((x) => x.points));
   const wa = [].concat(...a.map((x) => x.wins)), wb = [].concat(...b.map((x) => x.wins));
   const da = [].concat(...a.map((x) => x.dealIns || [])), db = [].concat(...b.map((x) => x.dealIns || []));
+  const ha = [].concat(...a.map((x) => x.half || [])), hb = [].concat(...b.map((x) => x.half || []));
+  let hs = 0, hq = 0;
+  const hasH = ha.length === pa.length && hb.length === pa.length;
+  if (hasH) for (let i = 0; i < ha.length; i++) { const d = ha[i] - hb[i]; hs += d; hq += d * d; }
   const n = pa.length;
   let s = 0, q = 0, ws = 0, wq = 0, ds = 0, dq = 0;
   const hasD = da.length === n && db.length === n;
@@ -124,12 +128,13 @@ function paired(a, b) {
   for (let i = 0; i < n; i++) { const d = pa[i] - pb[i], w = wa[i] - wb[i]; s += d; q += d * d; ws += w; wq += w * w; }
   const m = s / n, wm = ws / n;
   return { deals: n, gap: m, se: Math.sqrt(Math.max(0, q / n - m * m) / n), winGap: 100 * wm, winSe: 100 * Math.sqrt(Math.max(0, wq / n - wm * wm) / n),
+    halfGap: hasH ? hs / n : null, halfSe: hasH ? Math.sqrt(Math.max(0, hq / n - (hs / n) * (hs / n)) / n) : null,
     dealInGap: hasD ? 100 * dm : null, dealInSe: hasD ? 100 * Math.sqrt(Math.max(0, dq / n - dm * dm) / n) : null };
 }
 
 const fmt = (x, d = 1) => (x >= 0 ? '+' : '') + x.toFixed(d);
 function line(name, p, me, ch) {
-  return name + ': ' + fmt(p.gap) + ' ± ' + p.se.toFixed(1) + ' points a hand, hands won ' + fmt(p.winGap, 2) + ' ± ' + p.winSe.toFixed(2) +
+  return name + ': ' + fmt(p.gap) + ' ± ' + p.se.toFixed(1) + ' points a hand' + (p.halfSe != null ? ' (half spicy ' + fmt(p.halfGap, 2) + ' ± ' + p.halfSe.toFixed(2) + ')' : '') + ', hands won ' + fmt(p.winGap, 2) + ' ± ' + p.winSe.toFixed(2) +
     ' (' + (100 * me.winRate).toFixed(2) + '% vs ' + (100 * ch.winRate).toFixed(2) + '%), deal-ins ' + (100 * me.dealIns).toFixed(2) + '% vs ' +
     (100 * ch.dealIns).toFixed(2) + '%' + (p.dealInSe != null ? ' (' + fmt(p.dealInGap, 2) + ' ± ' + p.dealInSe.toFixed(2) + ')' : '') + ', average win ' + Math.round(me.avgWin) + ' vs ' + Math.round(ch.avgWin) + ', ' + p.deals + ' deals';
 }
@@ -165,7 +170,7 @@ async function data(champ, poolFiles, seed, deals, dir, opts = {}) {
   const manifest = path.join(ROOT, dir, 'manifest.json');
   const settings = { champ: path.basename(nid(champ)), pool: poolFiles.map((f) => path.basename(nid(f))), seed, deals,
     replays: opts.replays || 12, share: opts.share || 0.5, sample: opts.sample || 0.12, learners: opts.learners || 2, crn: true,
-    halving: opts.halving || 0, margin: opts.margin || 150, extra: opts.extra || 0, v: 2,
+    halving: opts.halving || 0, margin: opts.margin || 150, extra: opts.extra || 0, v: 2, half: !!opts.half, closeSe: opts.closeSe || 0,
     value: opts.value ? path.basename(N.lcmwFor(opts.value)) : null, truncate: opts.value ? opts.truncate || 4 : 0 };
   const key = sha(JSON.stringify(settings));
   const was = readJson(manifest, null);
@@ -189,7 +194,7 @@ async function data(champ, poolFiles, seed, deals, dir, opts = {}) {
       '--pool', pool.join(','), '--strategies', strategies.join(','), '--out', path.join(ROOT, dir), '--sample', String(settings.sample),
       '--temperature', '1', '--epsilon', '0.1', '--option-replays', String(settings.replays), '--options', '4',
       '--option-share', String(settings.share), '--crn', '--policy-only', '--halving', String(settings.halving), '--halving-margin', String(settings.margin),
-      '--extra-random', String(settings.extra)].concat(settings.value ? ['--value', N.lcmwFor(opts.value), '--truncate', String(settings.truncate)] : [])).then((o) => { const j = JSON.parse(o); writeJson(done, j); return j; }));
+      '--extra-random', String(settings.extra)].concat(settings.half ? ['--half-spicy'] : [], settings.closeSe ? ['--close-se', String(settings.closeSe)] : []).concat(settings.value ? ['--value', N.lcmwFor(opts.value), '--truncate', String(settings.truncate)] : [])).then((o) => { const j = JSON.parse(o); writeJson(done, j); return j; }));
   }
   const shards = await N.pool(tasks, opts.workers || WORKERS);
   // Drop the empty value files --policy-only leaves.
