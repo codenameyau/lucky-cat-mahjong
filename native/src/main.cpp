@@ -414,6 +414,84 @@ int main(int argc, char** argv) {
       std::printf("{\"hands\":%.17g,\"split\":%.17g,\"replays\":%.17g,\"full\":%.17g}\n", hands, split, replays, full);
       return 0;
     }
+    if (cmd == "targets") {
+      // lcm-sim targets --model oo:M --table x,y,z --seed S --from F --to T --k K --rows FILE
+      // The target choice measured: in each deal the model sits in seat d % 4. At its first turn the
+      // game is kept, and the rest of the hand is played K times under each option: the rules' own
+      // targets (as the game plays), and each target the rules read as possible then (worth > 0),
+      // pinned for the whole hand. Every option plays the same K reshuffled walls (common random
+      // numbers; only the wall is reshuffled, so each replay is an unbiased draw of the hand's end).
+      // Rows: per deal, float64 x (1 + 5 options) x 4: [mean points, mean wins, mean limit wins,
+      // feasible], then the rules' first pick, the seat.
+      std::string modelId = a["model"];
+      auto table = split(a.count("table") ? a["table"] : "", ',');
+      if (table.size() != 3) throw std::runtime_error("lcm-sim targets: --table needs 3 ids");
+      int K = a.count("k") ? std::stoi(a["k"]) : 32;
+      uint32_t seed = uint32_t(std::stoul(a["seed"]));
+      long from = std::stol(a["from"]), to = std::stol(a["to"]);
+      auto oo = std::make_shared<OnlyOrphans>(std::make_shared<Mlp>(loadWeights(modelId.substr(3))), modelId);
+      BotAgent me(oo);
+      std::vector<std::unique_ptr<Agent>> tableAgents;
+      for (auto& id : table) tableAgents.push_back(makeAgent(id));
+      struct First : Agent {
+        Agent* inner; int seat; std::shared_ptr<Game> snap;
+        Decision turn(Game& g, int s, const TurnOptions& o) override {
+          if (s == seat && !snap && !o.hasWin) { snap = std::make_shared<Game>(g); for (auto& st : snap->hand.seats) if (st.botState) st.botState = st.botState->clone(); }
+          return inner->turn(g, s, o);
+        }
+        Decision claim(Game& g, int s, const ClaimOptions& o) override { return inner->claim(g, s, o); }
+      };
+      FILE* rowsFile = std::fopen(a["rows"].c_str(), "wb");
+      if (!rowsFile) throw std::runtime_error("lcm-sim: can't write " + a["rows"]);
+      const int NOPT = 1 + OnlyOrphans::OO_TARGETS;
+      long done = 0;
+      for (long d = from; d < to; d++) {
+        int k = int(d % 4);
+        GameOptions o;
+        o.seed = uint32_t(seed + d); o.dealer = int(d % 4); o.startPoints = 1000000000;
+        Game g = createGame(o);
+        First fa; fa.inner = &me; fa.seat = k;
+        Agent* ag[4];
+        { int t = 0; for (int s = 0; s < 4; s++) ag[s] = s == k ? static_cast<Agent*>(&fa) : tableAgents[t++].get(); }
+        oo->forcedTarget = -1;
+        runHand(g, ag);
+        std::vector<double> row(size_t(NOPT) * 4 + 2, 0);
+        if (fa.snap) {
+          Game& s0 = *fa.snap;
+          Ctx ctx = oo->buildContext(s0, k);
+          OnlyOrphans::Worths w = oo->targetWorths(countsOf(s0.hand.seats[k].hand), ctx);
+          int first = OnlyOrphans::pickTarget(w, -1);
+          row[size_t(NOPT) * 4] = first;
+          row[size_t(NOPT) * 4 + 1] = k;
+          for (int opt = 0; opt < NOPT; opt++) {
+            int t = opt - 1;
+            if (t >= 0 && !(w.w[t] > 0)) continue;
+            row[size_t(opt) * 4 + 3] = 1;
+            for (int j = 0; j < K; j++) {
+              Game c = s0;
+              for (auto& st : c.hand.seats) if (st.botState) st.botState = st.botState->clone();
+              Rng rng(uint32_t((uint64_t(seed + d) * 2654435761u) ^ (uint32_t(j + 1) * 2246822519u)));
+              Hand& h = c.hand;
+              for (int i = h.wall.tail; i > h.wall.head + 1; i--) std::swap(h.wall.t[i - 1], h.wall.t[h.wall.head + size_t(rng() * double(i - h.wall.head))]);
+              touch(h);
+              oo->forcedTarget = t;
+              if (t >= 0) seatMemo(c, k, modelId).ooTarget = t;
+              Agent* a2[4];
+              { int q = 0; for (int s = 0; s < 4; s++) a2[s] = s == k ? static_cast<Agent*>(&me) : tableAgents[q++].get(); }
+              Result r = continueAtTurn(c, a2, k);
+              row[size_t(opt) * 4] += double(r.deltas[k]) / K;
+              if (r.win && r.winner == k) { row[size_t(opt) * 4 + 1] += 1.0 / K; if (r.score.faan >= 13) row[size_t(opt) * 4 + 2] += 1.0 / K; }
+            }
+            oo->forcedTarget = -1;
+          }
+        }
+        std::fwrite(row.data(), sizeof(double), row.size(), rowsFile);
+        done++;
+      }
+      std::fclose(rowsFile);
+      std::printf("{\"deals\":%ld}\n", done);
+      return 0;
+    }
     if (cmd == "generate") {
       // scripts/ml/lucky.js generate's worker: the same rows, shard files and stats.
       GenerateJob j;

@@ -268,7 +268,7 @@ int OnlyOrphans::pickTarget(const Worths& worth, int now) {
 int OnlyOrphans::readTarget(Ctx& ctx, const Counts& counts, bool record) {
   int memo = seatMemo(*ctx.game, ctx.seat, T.id).ooTarget;
   Worths worth = targetWorths(counts, ctx);
-  int id = pickTarget(worth, memo);
+  int id = forcedTarget >= 0 ? forcedTarget : pickTarget(worth, memo);
   if (record) seatMemo(*ctx.game, ctx.seat, T.id).ooTarget = id;
   return id;
 }

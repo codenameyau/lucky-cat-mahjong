@@ -24,6 +24,8 @@ class OnlyOrphans : public NeuralCat {
   // Each target's worth for this hand (with a tile to throw, the most any discard leaves).
   Worths targetWorths(const Counts& c, const Ctx& ctx);
   static int pickTarget(const Worths& worth, int now);
+  // lcm-sim targets: the target pinned for the whole hand (-1: the rules pick, as in the game).
+  int forcedTarget = -1;
 
  protected:
   // The hooks (js/mahjong-only-orphans.js section 3), and the shared foundation's
