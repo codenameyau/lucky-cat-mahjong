@@ -91,7 +91,7 @@ describe('Homepage utilities', function () {
   });
 });
 
-describe('Homepage CMS rendering', function () {
+describe('Homepage rendering', function () {
   /** @type {ReturnType<typeof createHomepageApi>} */
   let ctx;
 
