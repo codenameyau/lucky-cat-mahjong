@@ -48,6 +48,8 @@
                       the recorded discards K times after the hand, with the
                       tiles the seat can't see shuffled; the counts of how the
                       replays ended go in shard-N.replay (labels only)
+     --crn            native only, with --option-replays: every option of a position is
+                      replayed on the same wall shuffles (common random numbers)
      --option-replays K  native only: at a share (--option-share, default 0.1) of
                       the recorded decisions, every option the seat weighs (the
                       first --options discards, default 4, and each kong; or
@@ -312,7 +314,8 @@ function nativePlan(cfg, known, args) {
   // A finished shard is kept (shard-N.done.json says what made it): a run that was
   // stopped part way picks up at the shards it hadn't finished.
   const replays = (args.replays ? ['--replays', String(args.replays), '--replay-share', String(args['replay-share'] || 0.25)] : [])
-    .concat(args['option-replays'] ? ['--option-replays', String(args['option-replays']), '--options', String(args.options || 4), '--option-share', String(args['option-share'] || 0.1)] : []);
+    .concat(args['option-replays'] ? ['--option-replays', String(args['option-replays']), '--options', String(args.options || 4), '--option-share', String(args['option-share'] || 0.1)] : [])
+    .concat(args.crn ? ['--crn'] : []);
   const recordAll = all ? ['--record-all', cfg.pool.map((id) => known.indexOf(id)).join(',')] : [];
   const learnerArg = oo ? ['--learner', cfg.learner] : [];
   const key = (c) => JSON.stringify([c.seed, c.deals, weights, pool, cfg.temperature, cfg.epsilon, cfg.sample, !!args.exact, E.GAME_VERSION, replays, recordAll].concat(learnerArg));

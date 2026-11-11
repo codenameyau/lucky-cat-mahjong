@@ -1,0 +1,11 @@
+{"name":"R5","data":{"window":8,"sets":[{"deals":20000,"optionReplays":8,"options":6,"optionShare":0.5,"crn":true}]},
+ "arms":[
+  {"name":"R5c0","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256"},
+  {"name":"R5a1","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","adv":{"weight":1.0,"huber":200,"groups":256}},
+  {"name":"R5a1b","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":2,"init":"champion","hidden":"512,256","adv":{"weight":1.0,"huber":200,"groups":256}},
+  {"name":"R5a3","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","adv":{"weight":3.0,"huber":200,"groups":256}},
+  {"name":"R5r1","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","adv":{"weight":1.0,"tau":100,"groups":256}}],
+ "armPlay":[{"arm":"R5a1","play":{"winBonus":150}},{"arm":"R5a3","play":{"winBonus":150}}],
+ "extra":["ml/models/R4sm03.json","ml/models/R4sm05.json","ml/models/R4dist2.json"],
+ "screen":{"deals":40000,"look":20000,"minDeals":20000},
+ "confirm":{"deals":150000,"top":2,"minZ":0.5}}

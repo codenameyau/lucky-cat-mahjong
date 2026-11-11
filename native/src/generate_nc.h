@@ -35,6 +35,9 @@ struct NcGenerateJob {
   // deal seed, win and pay faan counts).
   int optionReplays = 0, options = 4;
   double optionShare = 0;
+  // --crn (generate-nc): every option of a group replayed on the same wall shuffles; --crn-salt another set.
+  bool crn = false;
+  uint32_t crnSalt = 0;
 };
 
 int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make);

@@ -463,7 +463,10 @@ int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make) {
           for (int n = 0; n < job.optionReplays; n++) {
             Game copy = *G.snap;
             cloneMemos(copy);
-            reshuffle(copy, G.seat, replayRng);
+            // --crn: every option of the group replayed on the same wall shuffles (common random
+            // numbers), so the differences between options carry less of the wall's luck.
+            if (job.crn) { Rng fut(dealSeed * 2654435761u ^ (gid * 40503u + uint32_t(n) * 2246822519u + 0x85ebca6bu + job.crnSalt * 3266489917u)); reshuffle(copy, G.seat, fut); }
+            else reshuffle(copy, G.seat, replayRng);
             Forced fz; fz.inner = again[G.seat]; fz.seat = G.seat; fz.opt = &op; fz.melds = G.melds;
             Agent* ag[4];
             for (int s = 0; s < 4; s++) ag[s] = s == G.seat ? static_cast<Agent*>(&fz) : again[s];

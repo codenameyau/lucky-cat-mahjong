@@ -228,22 +228,30 @@ async function screen(state, cands, opts) {
 }
 
 // The confirmation: fresh deals, the exact build, paired against the champion.
+// Several candidates may share one confirmation (the champion is played once); each is judged on its own.
 async function confirm(state, cand, opts) {
+  const all = await confirmMany(state, [cand], opts);
+  return all[0];
+}
+async function confirmMany(state, cands, opts) {
   const deals = opts.deals || 40000;
   const champ = opts.champion || state.champion;
   const table = opts.table || state.table;
-  const seed = takeSeed(state, 'eval', deals);
+  const seed = opts.seed || takeSeed(state, 'eval', deals);
   const t0 = Date.now();
-  log('Confirm ' + nameOf(cand) + ' against ' + nameOf(champ) + ' on ' + deals + ' fresh deals from seed ' + seed + ' (exact)');
-  const r = await playRows([cand, champ], table, seed, deals, 'exact');
-  const p = paired(r.rows[0], r.rows[1], deals);
-  const s = summary(r.rows[0], deals), c = summary(r.rows[1], deals);
+  log('Confirm ' + cands.map(nameOf).join(', ') + ' against ' + nameOf(champ) + ' on ' + deals + ' fresh deals from seed ' + seed + ' (exact)');
+  const r = await playRows([champ].concat(cands), table, seed, deals, 'exact');
+  const secs = (Date.now() - t0) / 1000;
+  timing(state, 'confirm', secs, { deals, candidates: cands.length });
+  return cands.map((cand, k) => judge(cand, r.rows[k + 1], r.rows[0], deals, seed, secs));
+}
+function judge(cand, rowsC, rowsChamp, deals, seed, secs) {
+  const p = paired(rowsC, rowsChamp, deals);
+  const s = summary(rowsC, deals), c = summary(rowsChamp, deals);
   // A generation (the Pareto rule): points or hands won up 2 SE, the other not down more than 1 SE,
   // deal-ins not up more than 1 SE. A ship candidate needs points up 3 SE on pooled fresh exact deals.
   const pass = ((p.points >= 2 * p.se && p.wins >= -p.winSe) || (p.wins >= 2 * p.winSe && p.points >= -p.se)) && p.dealIns <= p.dealInSe;
   const shipLike = p.points >= 3 * p.se && p.wins >= -p.winSe;
-  const secs = (Date.now() - t0) / 1000;
-  timing(state, 'confirm', secs, { deals });
   log('  ' + line(nameOf(cand), p, s, c) + ', deal-in diff ' + (100 * p.dealIns).toFixed(2) + ' +- ' + (100 * p.dealInSe).toFixed(2) + ' pp' +
     (pass ? '  PASS (generation, Pareto 2 SE)' : '  fail') + (shipLike ? ' points 3 SE' : '') + ' (' + secs.toFixed(0) + 's)');
   return { name: nameOf(cand), file: rel(cand), seed, deals, pair: p, self: s, champ: c, pass, shipLike, seconds: secs };
@@ -257,7 +265,7 @@ function gen(state, opts) {
   const learners = opts.learners || 4;
   const pool = Array(learners).fill('neural-cat').concat((opts.pool || state.pool).map((f) => 'ml:' + rel(f)));
   const champ = opts.champion || state.champion;
-  const key = shaOf(JSON.stringify([deals, pool, fileSha(champ), (opts.pool || state.pool).map(fileSha), opts.temperature || 150, opts.epsilon || 0.05, opts.sample || 0.12, opts.tag || '']));
+  const key = shaOf(JSON.stringify([deals, pool, fileSha(champ), (opts.pool || state.pool).map(fileSha), opts.temperature || 150, opts.epsilon || 0.05, opts.sample || 0.12, opts.tag || ''].concat(opts.optionReplays ? [opts.optionReplays, opts.options, opts.optionShare, !!opts.crn] : [])));
   const hit = state.datasets.find((d) => d.key === key && fs.existsSync(path.join(ROOT, d.dir, 'manifest.json')));
   if (hit && !opts.fresh) { log('Data ' + hit.dir + ': cached'); return hit.dir; }
   const seed = takeSeed(state, 'data', deals);
@@ -265,11 +273,13 @@ function gen(state, opts) {
   const t0 = Date.now();
   const r = spawnSync('node', ['scripts/ml/generate.js', '--native', '--deals', String(deals), '--lineup', 'mix', '--pool', pool.join(','),
     '--weights', rel(champ), '--temperature', String(opts.temperature || 150), '--epsilon', String(opts.epsilon || 0.05), '--explore', '0',
-    '--sample', String(opts.sample || 0.12), '--seed', String(seed), '--workers', String(WORKERS), '--out', dir], { cwd: ROOT, encoding: 'utf8' });
+    '--sample', String(opts.sample || 0.12), '--seed', String(seed), '--workers', String(WORKERS), '--out', dir].concat(
+    opts.optionReplays ? ['--option-replays', String(opts.optionReplays), '--options', String(opts.options || 6), '--option-share', String(opts.optionShare || 0.5)] : [],
+    opts.crn ? ['--crn'] : []), { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 26 });
   if (r.status) throw new Error('generate failed: ' + r.stderr + r.stdout);
   const secs = (Date.now() - t0) / 1000;
   const m = readJson(path.join(dir, 'manifest.json'));
-  state.datasets.push({ dir, key, seed, deals, champion: nameOf(champ), pool, samples: m.samples, seconds: secs });
+  state.datasets.push({ dir, key, seed, deals, champion: nameOf(champ), pool, samples: m.samples, seconds: secs, options: m.options || null });
   timing(state, 'generate', secs, { deals, samples: m.samples });
   log('Data ' + dir + ': ' + deals + ' deals, ' + m.samples + ' samples in ' + secs.toFixed(0) + 's (' + (deals / secs).toFixed(0) + ' deals/s), learner ' + nameOf(champ) + ' against ' + (opts.pool || state.pool).map(nameOf).join(', '));
   return dir;
@@ -279,9 +289,9 @@ function gen(state, opts) {
 
 // Arms trained in one GPU pass. Each arm: { name, lr, epochs, patience, dropout,
 // weightDecay, seed, init, hidden, ... } (ml/nc_multi.py); its play settings are the champion's.
-function trainArms(state, arms, data) {
-  const play = (readJson(state.champion).meta || {}).play;
-  const dataKey = data.map((d) => shaOf(fs.readFileSync(path.join(ROOT, d, 'manifest.json')))).join(',');
+function trainArms(state, arms, data, from, advData) {
+  const play = (readJson(from || state.champion).meta || {}).play;
+  const dataKey = data.concat(advData || []).map((d) => shaOf(fs.readFileSync(path.join(ROOT, d, 'manifest.json')))).join(',');
   const todo = [], files = {};
   arms.forEach((a) => {
     const key = shaOf(JSON.stringify([a, dataKey, a.init ? fileSha(a.init) : null]).replace(/"name":"[^"]*",?/, ''));
@@ -296,7 +306,7 @@ function trainArms(state, arms, data) {
     fs.writeFileSync(spec, JSON.stringify(todo.map((a) => { const b = Object.assign({}, a); delete b.key; return b; })));
     const t0 = Date.now();
     log('Training ' + todo.map((a) => a.name).join(', ') + ' on ' + data.join(', '));
-    const r = spawnSync(PY, ['ml/nc_multi.py', '--device-bytes', String(state.deviceBytes || 4e9), '--data'].concat(data, ['--arms', spec]), { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 });
+    const r = spawnSync(PY, ['ml/nc_multi.py', '--device-bytes', String(state.deviceBytes || 4e9), '--data'].concat(data, ['--arms', spec], advData && advData.length ? ['--adv-data'].concat(advData) : []), { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 });
     fs.appendFileSync(path.join(WORK, 'train.log'), (r.stdout || '') + (r.stderr || ''));
     if (r.status) throw new Error('nc_multi failed: ' + (r.stderr || '').slice(-3000) + (r.stdout || '').slice(-2000));
     const secs = (Date.now() - t0) / 1000;
@@ -307,7 +317,7 @@ function trainArms(state, arms, data) {
       const f = files[a.name];
       const w = readJson(f);
       w.meta.play = Object.assign({}, play);
-      w.meta.from = state.championName;
+      w.meta.from = from ? nameOf(from) : state.championName;
       fs.writeFileSync(path.join(ROOT, f), JSON.stringify(w));
       state.trained[a.key] = f;
     });
@@ -388,6 +398,35 @@ function tune(from, change, name) {
   return f;
 }
 
+/* ---------------- a chain ---------------- */
+
+// Generations without a judgment between them (critique 2: one step is below what a
+// confirmation can see): each link plays its own data (the link exploring against the
+// pool), fine-tunes itself on the last `window` sets with `seeds` seeds, and the soup of
+// those is the next link. Only the last link (and any asked for) is judged, on fresh deals.
+async function chain(state, spec) {
+  let cur = spec.start ? path.join(ROOT, spec.start) : path.join(ROOT, state.champion);
+  const links = [];
+  for (let k = 1; k <= spec.links; k++) {
+    const name = spec.name + 'g' + k;
+    const t0 = Date.now();
+    for (let j = 0; j < (spec.sets || 2); j++) gen(state, { deals: spec.deals || 50000, champion: rel(cur), tag: name + '-' + j, temperature: spec.temperature, epsilon: spec.epsilon });
+    const all = state.datasets.map((d) => d.dir).filter((d) => fs.existsSync(path.join(ROOT, d, 'manifest.json')));
+    const window = all.slice(-(spec.window || 8));
+    const arms = [];
+    for (let sd = 1; sd <= (spec.seeds || 3); sd++) arms.push(Object.assign({ name: name + 's' + sd, lr: 1e-4, epochs: 4, patience: 2, dropout: 0.2, weightDecay: 1e-3, hidden: '512,256' }, spec.arm || {}, { seed: sd + 10 * k, init: rel(cur) }));
+    const files = trainArms(state, arms, window, rel(cur));
+    cur = path.join(ROOT, soup(files, name));
+    links.push({ name, file: rel(cur), data: window, seconds: (Date.now() - t0) / 1000 });
+    log('Link ' + name + ': soup of ' + files.map(nameOf).join(', ') + ' (' + ((Date.now() - t0) / 1000).toFixed(0) + 's)');
+    state.chains = state.chains || [];
+    saveState(state);
+  }
+  (state.chains = state.chains || []).push({ name: spec.name, links });
+  saveState(state);
+  return links;
+}
+
 /* ---------------- a round ---------------- */
 
 // spec: { name: 'R1', data: { deals, sets, window }, arms: [...nc_multi arms, init 'champion' allowed],
@@ -404,11 +443,13 @@ async function round(state, spec) {
     // sets: a count, or a list of per-set settings ({ temperature, epsilon, learners, deals }).
     const sets = Array.isArray(spec.data.sets) ? spec.data.sets : Array(spec.data.sets ?? 1).fill({});
     sets.forEach((o, k) => fresh.push(gen(state, { deals: o.deals || spec.data.deals, tag: spec.name + '-' + k, learners: o.learners || spec.data.learners,
-      temperature: o.temperature || spec.data.temperature, epsilon: o.epsilon || spec.data.epsilon })));
+      temperature: o.temperature || spec.data.temperature, epsilon: o.epsilon || spec.data.epsilon,
+      optionReplays: o.optionReplays, options: o.options, optionShare: o.optionShare, crn: o.crn })));
+    spec.data.advData = (spec.data.advData || []).concat(fresh.filter((d, k) => sets[k].optionReplays));
     const all = state.datasets.map((d) => d.dir).filter((d) => fs.existsSync(path.join(ROOT, d, 'manifest.json')));
     const window = spec.data.window ? all.slice(-spec.data.window) : fresh;
     const arms = spec.arms.map((a) => Object.assign({}, a, { init: a.init === 'champion' ? rel(champ) : a.init }));
-    trained.push(...trainArms(state, arms, window));
+    trained.push(...trainArms(state, arms, window, null, spec.data.advData));
     trained.forEach((f) => cands.push(f));
   }
   if (spec.trainOnly) { log('Trained only (--train-only)'); return null; }
@@ -466,11 +507,12 @@ async function main() {
     fs.writeFileSync(path.join(WORK, 'screen-' + Date.now() + '.json'), JSON.stringify(r, null, 1));
     return;
   }
-  if (cmd === 'confirm') { const r = await confirm(state, a.cand, { deals: +a.deals || 40000, champion: a.champion }); fs.writeFileSync(path.join(WORK, 'confirm-' + Date.now() + '.json'), JSON.stringify(r, null, 1)); return; }
+  if (cmd === 'confirm') { const r = await confirmMany(state, String(a.cand).split(','), { deals: +a.deals || 40000, champion: a.champion, seed: a.seed ? +a.seed : undefined }); fs.writeFileSync(path.join(WORK, 'confirm-' + Date.now() + '.json'), JSON.stringify(r, null, 1)); return; }
   if (cmd === 'mutate') { console.log(mutate(a.from, +a.sigma, +a.seed, a.name)); return; }
   if (cmd === 'soup') { console.log(soup(String(a.of).split(','), a.name)); return; }
   if (cmd === 'tune') { console.log(tune(a.from, JSON.parse(a.play), a.name)); return; }
   if (cmd === 'round') { await round(state, Object.assign(readJson(a.spec), a['train-only'] ? { trainOnly: true } : {})); return; }
+  if (cmd === 'chain') { await chain(state, readJson(a.spec)); return; }
   if (cmd === 'status') { console.log(JSON.stringify({ champion: state.championName, rounds: state.rounds.length, seeds: state.seeds, datasets: state.datasets.length }, null, 1)); return; }
   throw new Error('usage: nc-overnight.js gen|round|screen|confirm|mutate|tune|status');
 }

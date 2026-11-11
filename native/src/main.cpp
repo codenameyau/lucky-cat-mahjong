@@ -274,6 +274,8 @@ int main(int argc, char** argv) {
       j.optionReplays = a.count("option-replays") ? std::stoi(a["option-replays"]) : 0;
       j.options = a.count("options") ? std::stoi(a["options"]) : 4;
       j.optionShare = a.count("option-share") ? std::stod(a["option-share"]) : 0.1;
+      j.crn = a.count("crn") > 0;
+      j.crnSalt = a.count("crn-salt") ? uint32_t(std::stoul(a["crn-salt"])) : 0;
       return runGenerateNc(j, [](const std::string& id) { return makeAgent(id); });
     }
     if (cmd == "shanten") {

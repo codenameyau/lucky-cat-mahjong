@@ -1,0 +1,10 @@
+{"name":"R4","data":{"sets":0,"window":8},
+ "arms":[
+  {"name":"R4sm03","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","faanSmooth":0.03},
+  {"name":"R4sm05","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","faanSmooth":0.05},
+  {"name":"R4sm10b","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":2,"init":"champion","hidden":"512,256","faanSmooth":0.1},
+  {"name":"R4smema","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","faanSmooth":0.05,"ema":0.999},
+  {"name":"R4dist2","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":2,"init":"champion","hidden":"512,256","teacher":"ml/overnight/neural-cat/work/teacher/T1.f16","distill":0.5},
+  {"name":"R4ema2","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":2,"init":"champion","hidden":"512,256","ema":0.999}],
+ "screen":{"deals":40000,"look":20000,"minDeals":20000},
+ "confirm":{"deals":150000,"top":1,"minZ":1}}

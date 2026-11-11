@@ -21,7 +21,12 @@ median, 99th percentile and max are logged every epoch for every arm), "ema"
 (linear warm-up over this share of the steps), "faanSmooth" (label smoothing on
 the faan heads), "gradNoise" (Gaussian noise of this times the gradient's RMS,
 annealed to 0), "teacher" (a .f16 file of a teacher's 28 outputs for every row,
-ml/nc_teacher.py) with "distill" (the share of the loss on the teacher's softmaxes)}.
+ml/nc_teacher.py) with "distill" (the share of the loss on the teacher's softmaxes),
+"adv" {"weight", "huber" (points), "tau" (0: Huber on advantages; else a listwise
+loss toward softmax(replayed points / tau)), "groups" (a step)}: learn the options'
+differences from common-random-number option replays (--adv-data, generate.js
+--native --option-replays K --crn): the network's expected points of each option
+less the group's mean against the replays' mean points less theirs}.
 Writes ml/models/<name>.json for each arm and prints one JSON line per arm
 (name, best epoch, validation loss, seconds).
 """
@@ -79,6 +84,7 @@ def main():
     ap.add_argument('--device', default='cuda')
     ap.add_argument('--device-bytes', type=float, default=5e9)
     ap.add_argument('--batch', type=int, default=2048)
+    ap.add_argument('--adv-data', nargs='*', default=[], help='option-replay data sets (with --crn) for "adv" arms')
     args = ap.parse_args()
     with open(args.arms) as f:
         arms = json.load(f)
@@ -106,6 +112,57 @@ def main():
     pay_t, pay_v = to(cl(y['payFaan'][~val]), torch.long), to(cl(y['payFaan'][val]), torch.long)
     learner_idx = manifests[0]['strategies'].index('neural-cat') if 'neural-cat' in manifests[0]['strategies'] else -1
     strat_t = to(y['strategy'][~val], torch.long)
+    adv = None
+    if args.adv_data:
+        ams = []
+        for d in args.adv_data:
+            with open(os.path.join(d, 'manifest.json')) as f:
+                m = json.load(f)
+            m['dir'] = d
+            ams.append(m)
+        o = T.load_options(ams, size)
+        gm = o['groups']
+        gval = (o['seed'].astype(np.uint64) * 2654435761 % 2**32) % 20 == 0
+        omean = o['labels'][:, 16:20].copy().view('<f4').ravel()
+        adv = {'x': to(o['x'], torch.float16), 'mean': to(omean, torch.float32), 'tr': gm[~gval], 'va': gm[gval]}
+        print('Advantage groups: %d to train on, %d held out' % (len(adv['tr']), len(adv['va'])), flush=True)
+
+    def adv_loss(model, mat, spec):
+        m = torch.from_numpy(mat).to(device)
+        mask = m >= 0
+        flat = m.clamp(min=0)
+        ev = T.expected_points(model(adv['x'][flat.view(-1)].float())).view(flat.shape)
+        t = adv['mean'][flat.view(-1)].view(flat.shape)
+        cnt = mask.sum(1, keepdim=True).clamp(min=1)
+        evc = ev - (ev * mask).sum(1, keepdim=True) / cnt
+        tc = t - (t * mask).sum(1, keepdim=True) / cnt
+        if spec.get('tau'):
+            return T.rank_loss(ev, t, mask, spec['tau'])
+        h = spec.get('huber', 200.0)
+        e = (evc - tc).abs()
+        l = torch.where(e < h, 0.5 * e * e / h, e - 0.5 * h)
+        return (l * mask).sum() / mask.sum() / 100.0
+
+    def adv_report(model):
+        if adv is None or not len(adv['va']):
+            return None
+        model.eval()
+        reg, top = [], []
+        with torch.no_grad():
+            for i in range(0, len(adv['va']), 4096):
+                m = torch.from_numpy(adv['va'][i:i + 4096]).to(device)
+                mask = m >= 0
+                flat = m.clamp(min=0)
+                ev = T.expected_points(model(adv['x'][flat.view(-1)].float())).view(flat.shape)
+                t = adv['mean'][flat.view(-1)].view(flat.shape)
+                ev = torch.where(mask, ev, torch.full_like(ev, -1e30))
+                tm = torch.where(mask, t, torch.full_like(t, -1e30))
+                pick = ev.argmax(1)
+                reg.append((tm.max(1).values - t.gather(1, pick.unsqueeze(1)).squeeze(1)).cpu())
+                top.append((pick == tm.argmax(1)).cpu())
+        model.train()
+        return float(torch.cat(reg).mean()), float(torch.cat(top).float().mean())
+
     teachers = {}
     for a in arms:
         if a.get('teacher') and a['teacher'] not in teachers:
@@ -158,6 +215,10 @@ def main():
                     O, W_ = T.N_OUTCOMES, T.N_OUTCOMES + T.N_FAAN
                     ld = soft_ce(out[:, :O], tl[:, :O]) + 0.5 * soft_ce(out[:, O:W_], tl[:, O:W_]) + 0.5 * soft_ce(out[:, W_:], tl[:, W_:])
                     loss = (1 - a.get('distill', 0.5)) * loss + a.get('distill', 0.5) * ld
+                if a.get('adv') and adv is not None:
+                    sp = a['adv']
+                    sel = adv['tr'][np.random.default_rng(r['step'] * 7919 + a.get('seed', 0)).integers(0, len(adv['tr']), sp.get('groups', 256))]
+                    loss = loss + sp.get('weight', 1.0) * adv_loss(r['model'], sel, sp)
                 total_steps = steps_per_epoch * a['epochs']
                 if a.get('warmup'):
                     base_lr = a['lr'] * 0.5 * (1 + math.cos(math.pi * r['epochs'] / a['epochs']))
@@ -195,7 +256,9 @@ def main():
                 corr = float(np.corrcoef(evs, delta_v)[0, 1]) if len(evs) > 1 else 0.0
             if not math.isfinite(corr):
                 corr = 0.0
-            print('%s epoch %d val %.5f acc %.4f r %.3f' % (r['a']['name'], epoch + 1, total, acc, corr), flush=True)
+            ar = adv_report(evm)
+            print('%s epoch %d val %.5f acc %.4f r %.3f%s' % (r['a']['name'], epoch + 1, total, acc, corr,
+                  ('  options: regret %.2f, picks the replays\' best %.1f%%' % (ar[0], 100 * ar[1])) if ar else ''), flush=True)
             if total < r['best'] - 1e-5:
                 r['best'], r['stale'] = total, 0
                 r['state'] = {k: v.detach().clone() for k, v in evm.state_dict().items()}
