@@ -2,10 +2,10 @@
 
 ## Status
 
-- **Champion:** OS2c1 (the shipped model). Nothing has beaten it on fresh deals yet.
-- **Rounds done:** R0 (settings and noise) and round 1 (fine-tunes, settings, noise).
-- **Last result:** round 1 at 40,000 deals: the fine-tuned N1a1 +6.2 ± 3.2 points a hand but wins −0.38 ± 0.05 pp (all six fine-tunes score more and win less); claim margin 100 +0.7 ± 0.4 with wins level.
-- **Now:** side screen R1b: fine-tunes N1a1/N1b1/N1c1 with win bonus 1100/1400/1800 and claim margin 100, and four more fine-tunes (recipe a seeds 2-3, recipe d: lr 3e-4, 16 epochs).
+- **Champion:** OS2c1 (the shipped model). Nothing has beaten it on fresh deals.
+- **Rounds done:** R0, round 1, side screen R1b, confirmation C0, structural arms (held-out loss).
+- **Last result:** C0, claim margin 100 on 80,000 fresh exact deals: +0.0 ± 0.2 points a hand (no bar met). Structural arms: clipping, EMA, warm-up change nothing; gradient noise −0.17% held-out loss; the residual teacher is worse (capacity is not the bottleneck; the 28,000 won positions are).
+- **Now:** screen R2 (deck seed 1,502,000,000): the structural fine-tunes at win bonus 1400 and claim margin 100 (about level wins), the control at its own settings, two soups, three settings. Next: more data (a larger round of games) so the faan heads see more wins.
 - **Blockers:** none.
 
 ## The table and the measures
