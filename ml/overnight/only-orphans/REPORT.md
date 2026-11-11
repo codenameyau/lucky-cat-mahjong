@@ -2,14 +2,10 @@
 
 ## Status
 
-- **Phase 3 is running** (the orchestrator's plan, aimed at points, which for Only Orphans means limit hands). OS2c1 stays the shipped model; ON2 doesn't ship (phase 2: hands won +0.82 pp, points −1.4 ± 1.0 on 360,000 deals).
-- **3.1: ten times the won positions. Running.**
-  - New option `generate.js --native --other-share q`: every recorded position of the hand's winner is kept, and every other position with chance q. It has its own random generator; off by default; generate parity is byte for byte.
-  - New option `ml/train.py --other-share q`: the outcome loss weighs the non-winner rows by 1/q, so the outcome head stays calibrated. `--calib DIR` checks calibration on an unsampled set.
-  - Data `oow-1` is being generated: 1,000,000 deals of OS2c1 exploring at the older-generations table, every position recorded, q = 0.03. A 2,000-deal test gave 47% won-hand rows, against 2.4% before. The full set will be about 5M rows and 6 GB.
-  - Next: fine-tune from OS2c1 without the faan cap, then with it. Each will be judged on full-spicy points and limit-hand wins against OS2c1, on 80,000+ fresh deals, anchored.
-- **3.2: the target choice.** New command `lcm-sim targets`: at the model's first turn it replays the rest of the hand K times under the rules' targets and under each possible target pinned for the hand, on the same reshuffled walls. It is built and parity holds. The measurement runs when the data finishes, because both need the 10 workers.
-- **Blockers:** none. The data generation takes most of an hour more.
+- **Phase 3 is running.** OS2c1 stays the shipped model.
+- **3.2, the target choice: done, and empty.** Forcing any target at the first decision is within ±1.6 points a hand of the rules (5,000 deals × 32 replays). The per-deal oracle's +15.5 in sample is −0.7 ± 1.4 out of sample, on independent walls: all selection noise. No head is trained.
+- **3.1, ten times the won positions: screening.** Data `oow-1` has 5.2M positions from 1,000,000 deals, 45% of them from won hands; the outcome head stays calibrated. Four fine-tunes from OS2c1 are being screened against OS2c1 (deck seed 1,508,000,000): W1a0 and W1a1 (no cap, lr 1e-4), W1b0 (no cap, lr 3e-4) and W1k0 (cap 10). The best goes to an anchored 80,000-deal exact confirmation.
+- **Blockers:** none.
 
 ## The table and the measures
 
@@ -524,3 +520,34 @@ In a first version of `lcm-sim targets`, each target was **pinned for the whole 
 **Switching targets during the hand is worth about 50 points a hand.** The rules give up a target that dies and move to one that pays 1.3x more, and that is most of what Only Orphans' targets are worth.
 
 This was not the question asked. The tool now forces the target **at the first decision only**, and the rules carry on from it with their usual switching. The measurement is re-running (5,000 deals, K = 32, deck seed 1,640,000,000).
+
+### 3.2 The target choice: forced at the first decision (5,000 deals, K = 32 common-wall replays each)
+
+OS2c1 sits in seat d mod 4 of each deal, at the older-generations table, on deck seed 1,640,000,000. At the model's first turn the game is kept. The rest of the hand is played 32 times with the remaining wall reshuffled, the same 32 walls for every option:
+
+- **the rules** (as the game plays);
+- **each target forced at that first decision**, after which the rules carry on with their usual switching.
+
+The rules' first pick is Seven Pairs in 61% of deals, Thirteen Orphans in 27%, Concealed Triplets in 8.5% and pairs of 1s, 9s and honors in 3.6%. Every target is possible at the first turn in every deal.
+
+| Option against the rules | Points a hand | Limit-hand wins (pp) |
+| --- | ---: | ---: |
+| Forcing the rules' own first pick (check) | 0.0 ± 0.0 (identical games) | 0.000 |
+| Thirteen Orphans forced | −1.6 ± 1.3 | +0.004 |
+| Triplets of 1s, 9s and honors forced | −1.3 ± 1.3 | +0.003 |
+| Pairs of 1s, 9s and honors forced | −1.1 ± 1.3 | +0.003 |
+| Seven Pairs forced | −0.9 ± 0.8 | +0.006 |
+| Concealed Triplets forced | +0.5 ± 1.1 | +0.001 |
+| The per-deal oracle, in sample (the best of the six replayed means) | +15.5 ± 1.1 | |
+| A rule by (the rules' pick, the possible targets), fitted on half the deals and scored on the other half | −1.1 ± 1.1 | |
+
+The per-deal oracle picks something other than the rules in 15.6% of deals, and in sample it looks worth +15.5 a hand. To test that, the first 1,000 deals were replayed on 32 **independent** walls (`--salt`). The option chosen on one set of walls was scored on the other, both ways round:
+
+- **in sample: +15.5 ± 1.7 a hand;**
+- **out of sample: −0.7 ± 1.4 a hand,** limit-hand wins +0.005 pp.
+
+**The whole oracle gain is selection noise.** Even a perfect per-deal chooser, trained on 32 replays of each option, would gain nothing. A head trained on these labels can only do worse. The first target choice is not where Only Orphans loses points. Whatever is chosen first, the rules' switching carries the hand to about the same place.
+
+**3.2 is empty: no head is trained.**
+
+(The earlier version, with targets pinned for the whole hand, showed what the switching is worth: about 50 points a hand.)
