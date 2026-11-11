@@ -34,7 +34,7 @@
 **Recommendation: ship G4 (`ml/models/LO9d.json`) in place of G2**, subject to your game-table check.
 
 
-*Updated 2026-11-11 08:40 local.* Rounds done: 12. Next: rounds 13 to 15, blind steps from G5 with replays scored on a 50/50 blend of the half- and full-spicy tables. Rounds done: 4.
+*Updated 2026-11-11 09:50 local.* Rounds done: 15. Rounds 13 to 15 (a 50/50 blend) confirmed nothing. Now running rounds 16 to 18: the blend with bonus 150. Rounds done: 4.
 
 - **Champion: G5 = LO12d** (`ml/models/LO12d.json`), from 3 more blind steps on G4 with G4's recipe (half-spicy CRN replays, 16 at close choices, a 3-seed soup of vnorm 1 with bonus 50). Against G4 on 320,000 fresh exact deals (extended from 160,000): points **+0.2 ± 0.6** (half spicy **+0.15 ± 0.04, 3.7 SE**), **hands won +0.25 ± 0.03 (8 SE)** (22.59% vs 22.34%), deal-ins −0.09 ± 0.03, average win 297 vs 301. It meets the generation bar on hands won but not the points milestone (full spicy). This is the "better on half spicy, level on full" outcome. The loop's ship check against lc32 is running (on the pool's table; the fixed-table check follows).
 - **G4 = LO9d** (`ml/models/LO9d.json`), from 3 blind policy-iteration steps on G3:
@@ -261,6 +261,17 @@ No arm met the advance rule. The vnorm arms gained hands won (3 SE) but gave up 
 - **Half-spicy training transfers as a trade, not a free gain.** On the table it was trained for (half spicy) it gains 3.7 SE. On full spicy, points are level, and the gain shows up as hands won (+0.25) and fewer deal-ins.
 - **G4's full-spicy points gain came mostly from the two full-spicy steps before it.** Those plus one half-spicy step made G4.
 - **Next:** a blend of the tables (0.5 x half + 0.5 x full, the orchestrator's arm 5). It keeps most of the variance cut while scoring the objective the ship bar uses.
+
+### Rounds 13 to 15: blind steps from G5, replays scored on a 50/50 blend of half- and full-spicy points (otherwise G4's recipe: vnorm 1, bonus 50, 3-seed soup)
+
+Data: own-13 to own-15, about 61,000 choices each, 927 to 968 s. The blend kept the variance cut: signal share 0.456, against 0.467 for pure half spicy and 0.25 for full spicy at 8 replays.
+
+**Confirmation of LO15d against G5, 160,000 fresh exact deals:** points **+1.6 ± 0.8** (2.0 SE; half spicy +0.14 ± 0.07), hands won **−0.10 ± 0.04**, deal-ins −0.04 ± 0.04, average win 304 vs 296. **Not a generation:** hands won are down 2.5 SE. The head went back to G5.
+
+**Reading.**
+- **The blend buys points with hands won.** It moves along the same frontier the win bonus did. Pure half spicy (G4 to G5) gave hands won with level points; the 50/50 blend gives points with fewer hands won.
+- **What gives neither up:** no setting so far.
+- **Next block (rounds 16 to 18):** the blend with the win bonus raised to 150, on the orchestrator's advice, to hold the hands won while keeping the points.
 
 ## Half spicy
 
