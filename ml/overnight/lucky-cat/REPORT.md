@@ -2,23 +2,15 @@
 
 ## Status
 
-*Updated 2026-11-11 00:45 local.*
+*Updated 2026-11-11 01:35 local.*
 
-- **Generation 1 (G1) = LO1b**, by the orchestrator's Pareto rule. On 80,000 fresh exact-build deals against lc32: hands won **+0.23 ± 0.07** (3.3 SE), points +0.1 ± 1.4, deal-ins 16.72% vs 16.69%. It is not a points milestone, so it is not a ship candidate. Lineage champion and data-maker: `ml/models/LO1b.json`. Table pool: G1, lc32, lc31, lc30.
-- **Rounds done:** 1. **Round 2 is running** (data from G1, 7 arms). Recipe changes from round 1:
-  - Successive halving: 4 replays for each option, then 4 more only for options within 150 points of the best.
-  - One random extra legal move added to each choice's replayed set.
-  - Win bonus 0 or 150.
-  - A variance-aware target: advantage over its CRN SE.
-  - Noise then fine-tune (sigma 0.02).
-  - The head is on: policy iteration.
-  - Confirmations use 160,000 deals when the screen gap is under 4.
-- **New rule in the loop:** a generation is a Pareto step on fresh exact deals. One of points or hands won is up 2 SE, the other is not down more than 1 SE, and deal-ins are not up more than 1 SE (paired per-deal deal-ins are now dumped). Points up 2 SE is flagged as a milestone.
-- **Next (built and tested on a tiny round, starts at round 3):** truncated replays scored by a value.
-  - Each round trains a fresh value (`ml/train.py`, 416 seat-view features, 28 outcome heads) on 20,000 of the head's own games.
-  - A replay then stops at the seat's 3rd own move and scores the position by the value.
-  - Measured on 100 deals: the same data in 19.5 s against 44.4 s for full replays (2.3x at truncate 4), with 80% of replays truncated.
-- **Speed:** data 1.8x information a second from CRN, about 2.3x more from truncation (to be measured at scale); training 31x (one process); screens play the champion once per deck. Details below.
+- **Champion: G2 = LO2a** (`ml/models/LO2a.json`), the lineage's first points gain. Against G1 on 160,000 fresh exact deals: **+2.2 ± 0.9 points a hand (2.4 SE)**, hands won +0.07 ± 0.05, deal-ins level (−0.00 ± 0.05), average win 301 vs 295. It meets the generation bar and the points milestone. Fair-play shuffle check (`scripts/ml/fair-play.js`): **pass**.
+- **G1 = LO1b:** hands won +0.23 ± 0.07 against lc32 (generation bar only).
+- **Running now:**
+  - The **ship check for G2 against lc32**: two fresh exact runs of 80,000 deals, pooled. The bar is 3 SE on points, with hands won not down more than 1 SE.
+  - Then **round 3**: G2 makes the data, and each round's fresh value scores truncated replays (stop at the seat's 3rd own move). Halving and the extra option are off.
+  - Round 3's 8 arms: a control (tau 30, bonus 150), bonus 75, bonus 225, EMA, the LO1d retry (lr 1e-3, warm-up, cosine, EMA), gradient noise with two seeds, and the variance-aware target.
+- **Table pool:** G2, G1, lc32, lc31.
 - **Blockers:** none.
 
 ## Bars
@@ -27,7 +19,7 @@
 - **Points milestone:** a generation whose points are up 2 SE.
 - **Ship candidate (orchestrator, 2026-11-11):** against lc32 itself, on two fresh exact runs pooled (never screen deals), points up 3 SE and hands won not down more than 1 SE. The loop runs this check for every generation with a points milestone (`shipCheck` in `lc-own-loop.js`).
 
-So far: **G1 (LO1b)** met the generation bar on hands won (+0.23 ± 0.07 against lc32). It did not reach a points milestone or the ship bar.
+So far: **G1 (LO1b)** met the generation bar on hands won (+0.23 ± 0.07 against lc32), with no points milestone. **G2 (LO2a)** met the generation bar and the points milestone against G1 (+2.2 ± 0.9). Its ship check against lc32 is running.
 
 ## Setup
 
@@ -60,6 +52,29 @@ Arms: q = lc32's shares tilted by exp(advantage / tau), advantage = replays' mea
 Times: data 1,020 s (made before the loop; cached), training 15 s for 9 arms, screen 1,277 s (560,000 deal-models, 4 hands each), confirmation 469 s.
 
 **Reading.** Every q arm looked 2 to 5 points ahead on the screen, and the best was level on fresh deals. Part of that is the best-of-N bias. Part is structural: all arms are paired against the same champion games, so the champion's luck on that deck moves every arm's gap the same way. The extra hands won (+0.2 to +0.5) hold up.
+
+### Round 2 (champion G1 = LO1b; data own-2: 24,000 deals, G1 exploring, CRN, halving 4+4, one random extra option, 124,801 choices; trained on own-1 + own-2)
+
+Screened against G1 in three stages (8,000, then 24,000, then 48,000 fresh deals; dropped at 1 SE behind in points or hands won).
+
+| Arm | Recipe | Points | Hands won | Deal-ins | Avg win | Deals |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| LO2a | tau 30, bonus 150 | +3.8 ± 1.3 | +0.11 ± 0.07 | +0.01 ± 0.07 | 298 vs 288 | 80,000 |
+| LO2b | tau 30, bonus 0 | +6.2 ± 2.0 | −0.30 ± 0.10 | −0.01 ± 0.11 | 310 vs 286 | 32,000 (dropped on wins) |
+| LO2c | tau 30, bonus 150, refreshed reference | +4.1 ± 4.8 | −0.46 ± 0.25 | +0.12 ± 0.25 | 302 vs 284 | 8,000 (dropped) |
+| LO2d | vnorm 1, bonus 150 | +2.0 ± 1.1 | +0.16 ± 0.06 | −0.05 ± 0.06 | 294 vs 288 | 80,000 |
+| LO2e | vnorm 2, bonus 0 | +1.8 ± 3.8 | −0.29 ± 0.19 | +0.16 ± 0.20 | 299 vs 284 | 8,000 (dropped) |
+| LO2f | tau 30, bonus 300, seed 2 | +1.4 ± 1.3 | +0.28 ± 0.07 | +0.05 ± 0.07 | 289 vs 288 | 80,000 |
+| LO2g | noise 0.02, then tau 30, bonus 150 | +5.5 ± 2.0 | −0.12 ± 0.11 | −0.14 ± 0.11 | 303 vs 286 | 32,000 (dropped) |
+
+**Confirmation (LO2a against G1, 160,000 fresh deals, exact build):** **+2.2 ± 0.9 points a hand**, hands won 22.18% vs 22.11% (+0.07 ± 0.05), deal-ins 16.77% vs 16.77%, average win 301 vs 295. **Generation 2, points milestone.** Fair play: pass.
+
+Times: data 1,184 s (halving and the extra option made it slower than round 1's 1,020 s), training 27 s for 7 arms, screen 975 s (400,000 deal-models), confirmation 1,051 s.
+
+**Reading.**
+- **The win bonus sets the trade.** At 300 the arm gains hands won (+0.28) but no points. At 0 it gains points but loses hands won. At 150 it gains both, which is the Pareto step.
+- **The screen's points were inflated again.** LO2a screened at +3.8 and confirmed at +2.2, the same direction as round 1.
+- **Halving with a fifth option slowed the data down.** Both are off from round 3.
 
 ## Structural arms (from the maintainer's list)
 

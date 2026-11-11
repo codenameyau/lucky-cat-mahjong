@@ -187,6 +187,8 @@ async function main() {
   const n = a.includes('--rounds') ? parseInt(a[a.indexOf('--rounds') + 1], 10) : 1000;
   let state = readJson(STATE, null);
   if (!state) state = { champion: 'ml/models/lc32.json', champions: ['ml/models/lc32.json'], pool: O.DEFAULT_POOL.slice(), seed: 800000000, rounds: [] };
+  // --ship FILE: the ship check for FILE against lc32 first (two fresh exact runs, pooled).
+  if (a.includes('--ship')) await shipCheck(state, readJson(PLAN, {}), a[a.indexOf('--ship') + 1], log);
   for (let k = 0; k < n; k++) {
     const plan = readJson(PLAN, null);
     if (!plan || plan.stop) { log('plan.json says stop'); break; }
