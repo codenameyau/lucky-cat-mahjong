@@ -2,11 +2,11 @@
 
 ## Status
 
-- **Champion (lineage loop):** **ON2** (`ml/models/ON2.json`): ON1 fine-tuned on `oon-1` and `oon-2` with the faan cap (lr 1e-4, 4 epochs), win bonus 600. Against ON1 on 40,000 fresh exact deals (C2): points −1.2 ± 2.1, hands won +0.11 ± 0.04 pp, deal-ins +0.03 ± 0.03 pp. That meets the Pareto rule: a second new generation.
-- **ON1** (`ml/models/ON1.json`) against OS2c1 on 40,000 fresh exact deals (C1): points +1.9 ± 3.2, hands won +0.72 ± 0.05 pp (5.06% to 4.34%), deal-ins +0.00 ± 0.04 pp. That meets the Pareto rule, not the ship bar.
-- **Rounds done:** R0, 1, R1b, C0, the structural arms, R2, R3, C1, round 2 (data `oon-2`, screen, C2).
-- **Now:** C3. ON1 and ON2 against OS2c1 on the same 40,000 fresh exact deals (seed 2,503,000,000). This is ON2's direct comparison with the shipped model, and ON1's second fresh run, which is pooled with C1 for the ship bar.
-- **Blockers:** none. Both ON1 and ON2 pass the fair-play shuffle check (`scripts/ml/oo-fair-play.js`).
+- **Best model against OS2c1:** **ON1** (`ml/models/ON1.json`): OS2c1 fine-tuned on games against the older generations, with the faan targets clipped at 10, playing win bonus 600. Pooled over two fresh exact runs (C1 and C3, 80,000 deals): **hands won +0.70 ± 0.035 pp (4.35% to 5.05%), points +0.9 ± 2.2 a hand, deal-ins −0.005 ± 0.03 pp.** It meets the Pareto rule. It does **not** meet the ship bar (points +0.4 SE; the bar is +3 SE).
+- **Loop champion:** ON2 (ON1 + one more capped fine-tune). Against ON1 (C2): wins +0.11 ± 0.04 pp, points −1.2 ± 2.1. Against OS2c1 (C3): wins +0.79 ± 0.05 pp, points −2.8 ± 3.1. That meets the Pareto rule, but points are drifting (critique 2).
+- **Rounds done:** R0, 1, R1b, C0, the structural arms, R2, R3, C1, round 2 (C2), C3.
+- **Now:** round 3 from ON2. Data `oon-3` comes from ON2 exploring against ON1, OS2c1 and the older generations. Arms: capped fine-tunes (cap 10 and 11) and win bonus 500 and 400. The confirmation is now anchored to OS2c1.
+- **Blockers:** none. ON1 and ON2 pass the fair-play shuffle check.
 
 ## The table and the measures
 
@@ -222,3 +222,22 @@ B6 again with twice the data (`oon-1` + `oon-2`, 2.37M positions): the residual 
 | N2j1 = **ON2** | −1.2 ± 2.1 | +0.11 ± 0.04 (2.9 SE) | +0.03 ± 0.03 (0.9 SE) |
 
 Bar met: **the Pareto rule** (wins up 2.9 SE, points down 0.55 SE, deal-ins up 0.93 SE, all inside the limits, the last only just), so ON2 is a new generation. It takes ON1's place as the loop's champion and joins the pool (OS2c1, ON1, ON2 and the older generations). 926 s. The two other seeds of the same recipe (N2j2, N2j3) are trained but not yet screened.
+
+### Confirmation C3: ON1 and ON2 against OS2c1 (40,000 fresh deals, exact build)
+
+40,000 fresh deals from seed 2,503,000,000, exact build. OS2c1: 6.5 points a hand, wins 4.36%, deal-ins 1.76%, average win 3,759.
+
+| Model | Points gap | Wins gap (pp) | Deal-ins gap (pp) | Points a hand | Wins | Average win |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| ON1 | −0.1 ± 3.1 | +0.68 ± 0.05 | −0.01 ± 0.04 | 6.4 | 5.04% | 3,301 |
+| ON2 | −2.8 ± 3.1 | +0.79 ± 0.05 | +0.03 ± 0.04 | 3.7 | 5.15% | 3,194 |
+
+**ON1 against OS2c1, pooled over C1 and C3 (80,000 fresh exact deals, no screen deals):** points **+0.9 ± 2.2** a hand (inverse-variance pooled), hands won **+0.70 ± 0.035 pp** (4.35% to 5.05%, 20 SE), deal-ins −0.005 ± 0.03 pp. Bars: **Pareto rule, yes. Ship bar (points up 3 SE pooled), no:** points are +0.4 SE.
+
+**ON2 against OS2c1 (one fresh run):** points −2.8 ± 3.1, hands won +0.79 ± 0.05 pp, deal-ins +0.03 ± 0.04 pp. That still meets the Pareto rule against OS2c1, inside every limit, but it is a step back from ON1 on points (C2: −1.2 ± 2.1 against ON1).
+
+### Critique 2: the Pareto rule lets points leak away one generation at a time
+
+Each cap step adds hands won and shrinks the average win: 3,661 to 3,167 for ON1, then 3,194 for ON2 against OS2c1's 3,759 on C3's deals. On points, each step is inside one standard error of its parent (ON1 +0.6 SE, ON2 −0.55 SE), so the rule passes it, but the losses add up: ON2 is −2.8 against OS2c1. A rule judged only against the parent is a ratchet. Wins are measured to ±0.04 pp and points to ±3 a hand, so it rewards the well-measured quantity and lets the noisy one drift. That is critique "J favored wins" again, in a new form.
+
+**What changes:** from round 3 every confirmation is **anchored to OS2c1**. The fresh deck's champion side is OS2c1. The candidate and the loop's champion are both read against it, the step from the parent comes from the same cached rows, and a candidate down more than one standard error on points against OS2c1 is not kept, whatever it does against its parent. Round 3 also has arms meant to give points back: the cap at 11 (recipe q) and a lower win bonus (500, 400).
