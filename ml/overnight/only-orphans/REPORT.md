@@ -422,3 +422,31 @@ The table is the shipped Neural Cat NC9 twice and Jorge Yau (`neural-cat, jorge-
 | Limit-hand wins | 0.864% | 0.787% | **−0.077 ± 0.021 pp** (3.7 SE fewer) |
 
 Reading: at the game's table ON2 still wins more hands and deals in less. **But it finishes fewer limit hands (−0.08 pp, 3.7 SE)**, which it didn't against the older generations. Its full-spicy points are −4.5 ± 3.8, inconclusive but on the wrong side. Against faster opponents, small wins taken early cost limit hands that would have come later. The orchestrator's draft rule says "not worse at the game's table". On this run ON2 is not shown to be worse, but it is not shown to be level either. The limit-hand loss is real.
+
+## 2. ON2's ship check (plain fresh exact deals, older-generations table)
+
+`scripts/ml/oo-ship.js` adds fresh 40,000-deal exact decks (seeds 2,508,000,000 onwards from the counter) to the three earlier confirmations (C3, C4, C5). It stops when the pooled points gap passes 3 SE, or when the gap's upper bound (+2 SE) falls under +1. It stopped at **360,000 pooled fresh deals (9 runs) on the upper bound**:
+
+| Pooled deals | Full-spicy points | Hands won (pp) | Deal-ins (pp) | Half-spicy points (new runs only) |
+| ---: | ---: | ---: | ---: | ---: |
+| 120,000 | +2.62 ± 1.80 | +0.833 ± 0.030 | +0.021 ± 0.021 | |
+| 200,000 | +1.38 ± 1.41 | +0.844 ± 0.023 | +0.030 ± 0.016 | +0.40 ± 0.12 |
+| 280,000 | +0.04 ± 1.19 | +0.834 ± 0.020 | +0.039 ± 0.014 | +0.34 ± 0.08 |
+| **360,000** | **−1.39 ± 1.05** | **+0.824 ± 0.017** | **+0.050 ± 0.012** | **+0.25 ± 0.07** (240,000 deals) |
+
+**Verdict on ON2 against OS2c1 at the older-generations table:**
+
+- **Hands won: +0.82 pp, 48 SE**, about a fifth more hands won.
+- **Full-spicy points: −1.4 ± 1.0 a hand.** That is level to slightly behind, and it rules out a gain bigger than about +0.7.
+- **Deal-ins: +0.05 pp** (4 SE, but well under the 0.25 pp allowance).
+- **Half-spicy points: +0.25 ± 0.07**, ahead by 3.6 SE.
+
+ON2 is a trade, not a gain. It is better on the half-spicy table and in hands won, and level to slightly worse on the game's default full-spicy table.
+
+The orchestrator's draft rule:
+
+- hands won up 3 SE: met;
+- full-spicy points not below −1 SE on 200,000+ deals: **not met** (−1.32 SE at 360,000);
+- not worse at the game's table: open (−1.2 SE on points, limit hands −3.7 SE).
+
+The early runs flattered it (+2.6 at 120,000), which is the winner's curse again. ON2 was chosen as the champion partly on those runs.
