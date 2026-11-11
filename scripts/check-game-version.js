@@ -11,13 +11,13 @@ const { execFileSync } = require('node:child_process');
 
 const ENGINE = 'js/mahjong-engine.js';
 
-// What the game is made of: its scripts, its two pages and what they load.
+// What the game is made of: its scripts, its page and what it loads.
 function isGameFile(file) {
   if (/\.(test|harness)\.js$/.test(file) || file.endsWith('.md')) return false;
   return /^js\/mahjong-.*\.js$/.test(file) ||
     /^js\/(points|play-options|offline|offline-cache)\.js$/.test(file) ||
     file === 'css/play.css' ||
-    /^(play-mahjong|playing-mahjong|assets\/sounds|assets\/music|tiles)\//.test(file);
+    /^(playing-mahjong|assets\/sounds|assets\/music|tiles)\//.test(file);
 }
 
 function versionIn(source) {

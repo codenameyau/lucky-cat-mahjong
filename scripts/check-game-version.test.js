@@ -5,11 +5,11 @@ const { isGameFile, versionIn, isHigher, problem } = require('./check-game-versi
 describe('the game version check', () => {
   it('counts the game\'s scripts, pages, styles, sounds and tiles', () => {
     ['js/mahjong-coach.js', 'js/mahjong-ml-weights.js', 'js/points.js', 'js/offline-cache.js', 'css/play.css',
-      'playing-mahjong/index.html', 'play-mahjong/sw.js', 'assets/sounds/gong.wav', 'tiles/01-winds-east.svg',
+      'playing-mahjong/index.html', 'assets/sounds/gong.wav', 'tiles/01-winds-east.svg',
     ].forEach((f) => assert.ok(isGameFile(f), f));
   });
   it('leaves out tests, docs and the rest of the site', () => {
-    ['js/mahjong-coach.test.js', 'js/points.harness.js', 'js/main.js', 'css/styles.css', 'README.md',
+    ['js/mahjong-coach.test.js', 'js/points.harness.js', 'js/main.js', 'css/styles.css', 'README.md', 'play-mahjong/index.html',
       'assets/sounds/README.md', 'native/ported.json', 'scripts/ml/lab.js',
     ].forEach((f) => assert.ok(!isGameFile(f), f));
   });
