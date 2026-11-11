@@ -26,3 +26,18 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+  native-pin:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check the pinned JS files against the native port
+        run: npm run native:check-pin

@@ -8,6 +8,7 @@
    node scripts/ml/native.js speed --agents ... --deals N
        hands a second in each, and the ratio
    node scripts/ml/native.js trace ...  the JS side's trace (lcm-sim trace prints the native one)
+   node scripts/ml/native.js check-pin  exits 1 if a pinned JS file differs from native/ported.json (needs no build)
 
    Agents: simple (a deterministic test agent, written the same way in
    native/src/simple_agent.h) and, as they are ported, the table's players:
@@ -70,6 +71,13 @@ function groupOk(group, sums) {
   return !stale.length;
 }
 const today = (f) => pinSum(f, fs.readFileSync(path.join(ROOT, f)));
+const pinnedFiles = () => [...new Set([].concat(...Object.values(GROUPS)))];
+// The pinned files that aren't the version the port was last checked against:
+// what CI's native-pin job fails on.
+function pinDrift(pin = ported()) {
+  const files = (pin && pin.files) || {};
+  return pinnedFiles().filter((f) => files[f] !== today(f));
+}
 const frozenSums = {};
 function frozenSum(bm, f) {
   const key = bm.frozen.commit + ':' + f;
@@ -349,10 +357,19 @@ async function main(a) {
       ' hands/s: ' + (nat.handsPerSecond / (deals / js)).toFixed(1) + 'x');
     return;
   }
+  if (cmd === 'check-pin') {
+    const drift = pinDrift();
+    if (!drift.length) { console.log('native/ported.json matches all ' + pinnedFiles().length + ' pinned files'); return; }
+    console.error('These files changed since the native port was last checked against them:\n' + drift.map((f) => '  ' + f).join('\n') +
+      '\nIf the change affects how the game plays, port it to native/. Either way, build (npm run native:build), run ' +
+      'node scripts/ml/native.js parity on every player, then node scripts/ml/native.js pin, and commit native/ported.json.');
+    process.exitCode = 1;
+    return;
+  }
   if (cmd === 'pin') {
     // Records today's JS as what the port matches: run parity first, on every player.
     const files = {};
-    [...new Set([].concat(...Object.values(GROUPS)))].forEach((f) => { files[f] = today(f); });
+    pinnedFiles().forEach((f) => { files[f] = today(f); });
     const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT }).toString().trim();
     fs.writeFileSync(PORTED, JSON.stringify(Object.assign({ checked: new Date().toISOString().slice(0, 10), commit, files }, (ported() || {}).equivalent ? { equivalent: ported().equivalent } : {}), null, 2) + '\n');
     console.log('pinned ' + Object.keys(files).length + ' files in native/ported.json');
@@ -363,4 +380,4 @@ async function main(a) {
 
 if (require.main === module) main(parseArgs(process.argv.slice(2))).catch((err) => { console.error(err.stack || err.message); process.exit(1); });
 
-module.exports = { line, resultLine, jsTrace, nativeId, playNative, playNativeParts, lcmwFor, pool };
+module.exports = { line, resultLine, jsTrace, nativeId, playNative, playNativeParts, lcmwFor, pool, pinnedFiles, pinDrift, pinSum };

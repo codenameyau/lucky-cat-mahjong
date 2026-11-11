@@ -10,6 +10,24 @@ const ROOT = path.join(__dirname, '..', '..');
 const EXE = process.platform === 'win32' ? '.exe' : '';
 const built = fs.existsSync(path.join(ROOT, 'native', 'build', 'lcm-sim' + EXE)) && fs.existsSync(path.join(ROOT, 'native', 'build', 'lcm-sim-exact' + EXE));
 
+describe('the pin on the JS the port matches', () => {
+  const N = require('./native.js');
+  const current = () => Object.fromEntries(N.pinnedFiles().map((f) => [f, N.pinSum(f, fs.readFileSync(path.join(ROOT, f)))]));
+  it('finds nothing when every file matches', () => assert.deepStrictEqual(N.pinDrift({ files: current() }), []));
+  it('names a file that changed', () => {
+    assert.deepStrictEqual(N.pinDrift({ files: { ...current(), 'js/points.js': '0'.repeat(64) } }), ['js/points.js']);
+  });
+  it('names a file the pin leaves out', () => {
+    const files = current();
+    delete files['js/mahjong-bot.js'];
+    assert.deepStrictEqual(N.pinDrift({ files }), ['js/mahjong-bot.js']);
+  });
+  it('ignores the game version line', () => {
+    const at = (v) => N.pinSum('js/mahjong-engine.js', Buffer.from("var GAME_VERSION = '" + v + "';\nrest"));
+    assert.strictEqual(at('1.0.0'), at('2.0.0'));
+  });
+});
+
 describe('native simulator', { skip: !built && 'native/build/lcm-sim is not built (npm run native:build)' }, () => {
   const parity = (agents, deals) => {
     const r = spawnSync('node', [path.join(__dirname, 'native.js'), 'parity', '--agents', agents, '--deals', String(deals), '--seed', '914000000'], { encoding: 'utf8' });

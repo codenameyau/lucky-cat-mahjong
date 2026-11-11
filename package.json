@@ -22,7 +22,8 @@
     "ml:frontier": "node scripts/ml/frontier-model.js",
     "ml:lucky-value": "node scripts/ml/lucky-value.js",
     "native:build": "make -C native",
-    "native:parity": "node scripts/ml/native.js parity"
+    "native:parity": "node scripts/ml/native.js parity",
+    "native:check-pin": "node scripts/ml/native.js check-pin"
   },
   "devDependencies": {
     "puppeteer": "^25.3.0",

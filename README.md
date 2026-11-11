@@ -473,6 +473,8 @@ This runs `node --test` over the test files listed in `package.json`:
 - **Scripts** — the media formatter and the ML tooling (data pruning, oracle labels, benchmark, disk)
 - **Native simulator** — once it's built (`npm run native:build`): the exact build plays the same hands as the JS action for action, the fast build plays the exact build's hands, and weights round-trip through `.lcmw` (skipped when it isn't built, as on CI)
 
+> **Note to self: pinned files.** Any time you change a file listed in `native/ported.json`, check whether the change has to be redone in `native/`. `npm run native:check-pin` compares each file's SHA-256 with the pin (the `GAME_VERSION` line is left out), and the `native-pin` CI job runs it on every PR. If the change affects how the game plays, port it. Either way, run `npm run native:build`, then `node scripts/ml/native.js parity` on every player, then `node scripts/ml/native.js pin`, and commit `native/ported.json`.
+
 Harnesses in `js/points.harness.js` and `js/main.harness.js` load each script in a mocked browser environment, so scoring logic and CMS rendering can be tested without opening the page.
 
 ## Other scripts
