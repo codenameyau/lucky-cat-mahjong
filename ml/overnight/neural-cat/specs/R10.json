@@ -1,0 +1,15 @@
+{"name":"R10","data":{"sets":0,"window":8},
+ "arms":[
+  {"name":"R10g2","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":2,"init":"ml/models/pool/G1.json","hidden":"512,256","paySmooth":0.03},
+  {"name":"R10g3","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":3,"init":"ml/models/pool/G1.json","hidden":"512,256","paySmooth":0.03},
+  {"name":"R10n02","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"ml/models/pool/NC9.json","hidden":"512,256","paySmooth":0.02},
+  {"name":"R10n05","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"ml/models/pool/NC9.json","hidden":"512,256","paySmooth":0.05},
+  {"name":"R10w1p3","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"ml/models/pool/NC9.json","hidden":"512,256","winSmooth":0.01,"paySmooth":0.03},
+  {"name":"R10w2p3","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"ml/models/pool/NC9.json","hidden":"512,256","winSmooth":0.02,"paySmooth":0.03},
+  {"name":"R10w2p5","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"ml/models/pool/NC9.json","hidden":"512,256","winSmooth":0.02,"paySmooth":0.05},
+  {"name":"R10h2","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"ml/models/pool/NC9.json","hidden":"512,256","halfSoft":0.2},
+  {"name":"R10h5","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"ml/models/pool/NC9.json","hidden":"512,256","halfSoft":0.5}],
+ "soups":[{"of":["R9pay","R10g2","R10g3"]}],
+ "extra":["ml/models/R9n9pay.json"],
+ "screen":{"deals":40000,"look":20000,"minDeals":20000,"half":true,"champion":"ml/models/pool/NC9.json"},
+ "confirm":{"deals":150000,"top":0}}

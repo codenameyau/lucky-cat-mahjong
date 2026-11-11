@@ -66,7 +66,46 @@ def soft_ce(logits, target_logits):
     return -(torch.softmax(target_logits, 1) * F.log_softmax(logits, 1)).sum(1).mean()
 
 
-def losses(out, yo, yw, yp, smooth, win_smooth=None, pay_smooth=None):
+def half_matrix():
+    """Row f (faan 3 + f): the full-spicy faan buckets whose worth is the half-spicy worth of
+    faan f, split between the two nearest buckets so the expected full-spicy points match."""
+    full = [8 * 2 ** k for k in range(11)]
+    def half(faan):
+        if faan <= 4:
+            return 2 ** faan
+        return 2 ** ((faan + 4) // 2) if faan % 2 == 0 else 1.5 * 2 ** ((faan + 3) // 2)
+    m = np.zeros((11, 11), dtype=np.float32)
+    for f in range(11):
+        v = half(3 + f)
+        lo = max(k for k in range(11) if full[k] <= v)
+        if full[lo] == v or lo == 10:
+            m[f, lo] = 1
+        else:
+            w = (full[lo + 1] - v) / (full[lo + 1] - full[lo])
+            m[f, lo], m[f, lo + 1] = w, 1 - w
+    return torch.from_numpy(m)
+
+
+HALF_M = None
+
+
+def soft_target_ce(logits, y, lam):
+    global HALF_M
+    if HALF_M is None or HALF_M.device != logits.device:
+        HALF_M = half_matrix().to(logits.device)
+    t = (1 - lam) * F.one_hot(y, T.N_FAAN).float() + lam * HALF_M[y]
+    return -(t * F.log_softmax(logits, 1)).sum(1).mean()
+
+
+def losses(out, yo, yw, yp, smooth, win_smooth=None, pay_smooth=None, half_soft=0):
+    if half_soft:
+        # targets softened toward the half-spicy worth of each faan (both heads)
+        lo = F.cross_entropy(out[:, :T.N_OUTCOMES], yo)
+        win, pay = yo <= 1, (yo == 2) | (yo == 3)
+        z = out.new_zeros(())
+        lw = soft_target_ce(out[win, T.N_OUTCOMES:T.N_OUTCOMES + T.N_FAAN], yw[win], half_soft) if win.any() else z
+        lp = soft_target_ce(out[pay, T.N_OUTCOMES + T.N_FAAN:T.OUTPUTS], yp[pay], half_soft) if pay.any() else z
+        return lo, lw, lp
     # faanSmooth on both faan heads; winSmooth / paySmooth on one head only (they override it)
     ws = smooth if win_smooth is None else win_smooth
     ps = smooth if pay_smooth is None else pay_smooth
@@ -209,9 +248,9 @@ def main():
                 if a.get('sampleWeight') == 'learner':
                     wgt = 1.0 + (strat_t[idx] == learner_idx).float()
                     lo = (F.cross_entropy(out[:, :T.N_OUTCOMES], yo, reduction='none') * wgt).sum() / wgt.sum()
-                    _, lw, lp = losses(out, yo, yw, yp, a.get('faanSmooth', 0), a.get('winSmooth'), a.get('paySmooth'))
+                    _, lw, lp = losses(out, yo, yw, yp, a.get('faanSmooth', 0), a.get('winSmooth'), a.get('paySmooth'), a.get('halfSoft', 0))
                 else:
-                    lo, lw, lp = losses(out, yo, yw, yp, a.get('faanSmooth', 0), a.get('winSmooth'), a.get('paySmooth'))
+                    lo, lw, lp = losses(out, yo, yw, yp, a.get('faanSmooth', 0), a.get('winSmooth'), a.get('paySmooth'), a.get('halfSoft', 0))
                 loss = lo + a.get('winWeight', 0.5) * lw + a.get('payWeight', 0.5) * lp
                 if a.get('teacher'):
                     tl = teachers[a['teacher']][idx].float()

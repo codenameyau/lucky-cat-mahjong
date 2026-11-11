@@ -51,7 +51,7 @@ const CACHE = path.join(WORK, 'cache', 'play');
 const PY = path.join(ROOT, 'ml', '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
 const EXE = process.platform === 'win32' ? '.exe' : '';
 const SIM = { fast: path.join(ROOT, 'native', 'build', 'lcm-sim' + EXE), exact: path.join(ROOT, 'native', 'build', 'lcm-sim-exact' + EXE) };
-const WORKERS = 10;
+const WORKERS = 8;  // 8 while the orchestrator runs a benchmark compare in this worktree
 const PIECE = 250;            // deals a process plays, the unit of the cache
 const WIN_W = 0;              // the screen ranks on points; wins are a guard
 
@@ -501,7 +501,7 @@ async function round(state, spec) {
   r.screen = { seed: sc.seed, seconds: sc.seconds, results: Object.values(sc.results).map((x) => ({ name: x.name, file: x.file, deals: x.deals, dropped: x.dropped || null, pair: x.pair, self: x.self, champ: x.champ })) };
   const conf = spec.confirm || {};
   const top = Object.values(sc.results).filter((x) => !x.dropped && x.pair.points > (conf.minZ || 1) * x.pair.se)
-    .sort((a, b) => b.pair.points - a.pair.points).slice(0, conf.top || 2);
+    .sort((a, b) => b.pair.points - a.pair.points).slice(0, conf.top ?? 2);
   r.confirms = [];
   for (const x of top) {
     const c = await confirm(state, path.join(ROOT, x.file), { deals: conf.deals || 40000, half: conf.half });
