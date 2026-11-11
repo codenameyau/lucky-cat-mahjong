@@ -138,7 +138,14 @@ async function round(state, plan) {
   let cand = null;
   if (plan.advance === 'screen') {
     // ahead of the head by plan.advanceBar SE in points, hands won not behind
-    const up = full.filter((a) => a.pair.gap > (plan.advanceBar || 1) * a.pair.se && a.pair.winGap >= 0).sort((a, b) => b.pair.gap - a.pair.gap);
+    // A Pareto-shaped advance: points up advanceBar SE with hands won not down, or hands won up
+    // 2 SE with points not down; deal-ins not up by more than 1 SE. Ranked by the two z-scores summed.
+    const z = (a) => a.pair.gap / a.pair.se + a.pair.winGap / a.pair.winSe;
+    const up = full.filter((a) => {
+      const p = a.pair, bar = plan.advanceBar || 1;
+      const okD = p.dealInSe == null || p.dealInGap <= p.dealInSe;
+      return okD && ((p.gap > bar * p.se && p.winGap >= 0) || (p.winGap > 2 * p.winSe && p.gap >= 0));
+    }).sort((a, b) => z(b) - z(a));
     if (up.length) { state.head = up[0].file; rec.newHead = up[0].name; log('Round ' + r + ': head moves to ' + up[0].name); }
     if (state.head && state.head !== champ && (r % (plan.confirmEvery || 1) === 0 || up.length)) cand = { file: state.head, name: path.basename(state.head, '.json'), screenGap: up.length ? up[0].pair.gap : 0 };
   } else {
@@ -166,6 +173,7 @@ async function round(state, plan) {
     rec.confirm.pass = pass; rec.confirm.milestone = milestone;
     state.confirmed = Object.assign(state.confirmed || {}, { [cand.file + '|' + champ]: { pass, gap: c.pair.gap, se: c.pair.se, winGap: c.pair.winGap, winSe: c.pair.winSe, deals: c.pair.deals } });
     log('Round ' + r + ': confirm ' + c.line + ' against ' + path.basename(champ, '.json') + (pass ? ' -> NEW GENERATION' + (milestone ? ' (points milestone)' : '') : ' -> not confirmed'));
+    if (!pass && plan.revertOnFail !== false && state.head === cand.file) { state.head = champ; log('Round ' + r + ': head back to ' + path.basename(champ, '.json')); }
     if (pass) {
       state.generations = (state.generations || []).concat([{ name: cand.name, file: cand.file, round: r, milestone, against: champ, pair: P }]);
       // Against lc32 itself: every generation with a points milestone, or every generation with plan.shipCheckAll.
@@ -187,6 +195,25 @@ async function main() {
   const n = a.includes('--rounds') ? parseInt(a[a.indexOf('--rounds') + 1], 10) : 1000;
   let state = readJson(STATE, null);
   if (!state) state = { champion: 'ml/models/lc32.json', champions: ['ml/models/lc32.json'], pool: O.DEFAULT_POOL.slice(), seed: 800000000, rounds: [] };
+  // --confirm FILE: a Pareto confirmation of FILE against the champion first (160,000 fresh exact deals).
+  if (a.includes('--confirm')) {
+    const file = a[a.indexOf('--confirm') + 1], champ = state.champion, plan = readJson(PLAN, {});
+    const cseed = takeSeeds(state, 160000);
+    const c = (await O.screen(champ, [file], cseed, [160000], { pool: state.pool, exact: true, drop: 1e9, log }))[0];
+    const P = c.pair, okD = P.dealInSe == null || P.dealInGap <= P.dealInSe;
+    const pass = okD && ((P.gap > 2 * P.se && P.winGap >= -P.winSe) || (P.winGap > 2 * P.winSe && P.gap >= -P.se));
+    const milestone = pass && P.gap > 2 * P.se;
+    state.confirmed = Object.assign(state.confirmed || {}, { [file + '|' + champ]: { pass, gap: P.gap, se: P.se, winGap: P.winGap, winSe: P.winSe, deals: P.deals, seed: cseed } });
+    log('Confirm ' + c.line + ' against ' + path.basename(champ, '.json') + (pass ? ' -> NEW GENERATION' + (milestone ? ' (points milestone)' : '') : ' -> not confirmed'));
+    if (pass) {
+      state.generations = (state.generations || []).concat([{ name: path.basename(file, '.json'), file, milestone, against: champ, pair: P }]);
+      if (milestone) await shipCheck(state, plan, file, log);
+      state.champion = file; state.head = file;
+      state.champions = (state.champions || []).concat([file]);
+      state.pool = [file].concat(state.pool).slice(0, plan.poolSize || 4);
+    }
+    writeJson(STATE, state);
+  }
   // --ship FILE: the ship check for FILE against lc32 first (two fresh exact runs, pooled).
   if (a.includes('--ship')) await shipCheck(state, readJson(PLAN, {}), a[a.indexOf('--ship') + 1], log);
   for (let k = 0; k < n; k++) {
