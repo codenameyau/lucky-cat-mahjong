@@ -639,7 +639,9 @@ int Foundation::shantenOf(const ShFn& fn, const Counts& c, int declared) {
     case SH_GATES: s = nineGatesShanten(fn.start, c, declared); break;
     case SH_GROUP: {
       // groupShanten(ctx, group, pungs, pair)(c, declared)
-      std::vector<int> open;
+      // Reused, not allocated each call (shantenOf runs millions of times a round).
+      static thread_local std::vector<int> open;
+      open.clear();
       for (int i : fn.group) if (std::find(fn.doneIdx.begin(), fn.doneIdx.end(), i) == fn.doneIdx.end()) open.push_back(i);
       js::sort(open, [&](int a, int b) { return c[b] - c[a]; });
       int needPungs = fn.pungs - int(fn.doneIdx.size());
