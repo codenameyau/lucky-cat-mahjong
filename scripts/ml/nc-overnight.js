@@ -128,7 +128,8 @@ function runSim(build, args) {
 
 // Per-deal rows (4 float32s a deal: points a hand over the 4 seats, wins, deal-ins,
 // winning points) of each model on deals [seed, seed + deals), from the cache or played.
-async function playRows(models, table, seed, deals, build) {
+// With half: also each model's half-spicy points a hand per deal (rows.half, cached as .h4).
+async function playRows(models, table, seed, deals, build, half) {
   const tableKey = shaOf(table.map(fileSha).join(','));
   const shas = models.map(fileSha);
   const pieces = [];
@@ -137,14 +138,14 @@ async function playRows(models, table, seed, deals, build) {
   const tasks = [];
   let played = 0, cached = 0;
   pieces.forEach((p) => {
-    const need = models.map((_, m) => m).filter((m) => !fs.existsSync(cacheFile(m, p)));
+    const need = models.map((_, m) => m).filter((m) => !fs.existsSync(cacheFile(m, p)) || (half && !fs.existsSync(cacheFile(m, p).replace(/\.f4$/, '.h4'))));
     cached += models.length - need.length;
     if (!need.length) return;
     played += need.length;
     tasks.push(async () => {
       const tmp = path.join(CACHE, 'tmp-' + process.pid + '-' + seed + '-' + p[0] + '-' + Math.random().toString(36).slice(2) + '.f4');
       await runSim(build, ['play', '--models', need.map((m) => simId(models[m])).join(','), '--table', table.map(simId).join(','),
-        '--seed', String(seed), '--from', String(p[0]), '--to', String(p[1]), '--per-deal', tmp]);
+        '--seed', String(seed), '--from', String(p[0]), '--to', String(p[1]), '--per-deal', tmp].concat(half ? ['--per-deal-half', tmp + '.h'] : []));
       const buf = fs.readFileSync(tmp);
       const n = p[1] - p[0], k = need.length;
       if (buf.length !== n * k * 16) throw new Error('per-deal file has ' + buf.length + ' bytes, expected ' + n * k * 16);
@@ -155,6 +156,16 @@ async function playRows(models, table, seed, deals, build) {
         fs.writeFileSync(cacheFile(m, p), Buffer.from(rows.buffer));
       });
       fs.unlinkSync(tmp);
+      if (half) {
+        const hb = fs.readFileSync(tmp + '.h');
+        const ha = new Float32Array(hb.buffer, hb.byteOffset, n * k);
+        need.forEach((m, j) => {
+          const rows = new Float32Array(n);
+          for (let d = 0; d < n; d++) rows[d] = ha[d * k + j];
+          fs.writeFileSync(cacheFile(m, p).replace(/\.f4$/, '.h4'), Buffer.from(rows.buffer));
+        });
+        fs.unlinkSync(tmp + '.h');
+      }
     });
   });
   await N.pool(tasks, WORKERS);
@@ -163,7 +174,12 @@ async function playRows(models, table, seed, deals, build) {
     pieces.forEach((p) => { const b = fs.readFileSync(cacheFile(m, p)); out.set(new Float32Array(b.buffer, b.byteOffset, (p[1] - p[0]) * 4), p[0] * 4); });
     return out;
   });
-  return { rows, played, cached };
+  const halves = half ? models.map((_, m) => {
+    const out = new Float32Array(deals);
+    pieces.forEach((p) => { const b = fs.readFileSync(cacheFile(m, p).replace(/\.f4$/, '.h4')); out.set(new Float32Array(b.buffer, b.byteOffset, p[1] - p[0]), p[0]); });
+    return out;
+  }) : null;
+  return { rows, played, cached, halves };
 }
 
 function summary(rows, n) {
@@ -181,6 +197,13 @@ function paired(a, b, n) {
   const m = s / n, mw = sw / n, mi = si / n;
   const se = (q2, m2) => Math.sqrt(Math.max(0, q2 / n - m2 * m2) / (n - 1));
   return { n, points: m, se: se(q, m), wins: mw, winSe: se(qw, mw), dealIns: mi, dealInSe: se(qi, mi) };
+}
+
+function pairedHalf(a, b, n) {
+  let s = 0, q = 0, sa = 0;
+  for (let d = 0; d < n; d++) { const x = a[d] - b[d]; s += x; q += x * x; sa += a[d]; }
+  const m = s / n;
+  return { points: m, se: Math.sqrt(Math.max(0, q / n - m * m) / (n - 1)), self: sa / n };
 }
 
 const f1 = (x) => (x >= 0 ? '+' : '') + x.toFixed(1);
@@ -206,23 +229,27 @@ async function screen(state, cands, opts) {
   log('Screen of ' + cands.map(nameOf).join(', ') + ' against ' + nameOf(champ) + ' at ' + table.map(nameOf).join(', ') + ', up to ' + deals + ' deals from seed ' + seed + ' (' + (opts.build || 'fast') + ')');
   while (at < deals && live.length) {
     at = Math.min(deals, at + look);
-    const r = await playRows([champ].concat(live), table, seed, at, opts.build || 'fast');
+    const r = await playRows([champ].concat(live), table, seed, at, opts.build || 'fast', opts.half);
     played += r.played; cached += r.cached;
     const cs = summary(r.rows[0], at);
     live.forEach((c, k) => {
       const p = paired(r.rows[k + 1], r.rows[0], at);
-      res[c] = { name: nameOf(c), file: rel(c), pair: p, self: summary(r.rows[k + 1], at), champ: cs, deals: at };
+      res[c] = { name: nameOf(c), file: rel(c), pair: p, self: summary(r.rows[k + 1], at), champ: cs, deals: at,
+        half: r.halves ? pairedHalf(r.halves[k + 1], r.halves[0], at) : null };
     });
     const best = Math.max(...live.map((c) => res[c].pair.points - 2 * res[c].pair.se));
     // Past half the budget, a candidate behind the champion can't plausibly be confirmed either.
-    const drop = at >= minDeals ? live.filter((c) => res[c].pair.points + 2 * res[c].pair.se < Math.max(0, best) || (at >= deals / 2 && res[c].pair.points < 0)) : [];
+    // A candidate whose hands won are up 2 SE stays (the Pareto rule's other leg) unless its points are 2 SE down.
+    const winsUp = (c) => res[c].pair.wins >= 2 * res[c].pair.winSe && res[c].pair.points + 2 * res[c].pair.se >= 0;
+    const drop = at >= minDeals ? live.filter((c) => !winsUp(c) && (res[c].pair.points + 2 * res[c].pair.se < Math.max(0, best) || (at >= deals / 2 && res[c].pair.points < 0))) : [];
     drop.forEach((c) => { res[c].dropped = at; });
     live = live.filter((c) => drop.indexOf(c) === -1);
     log('  ' + at + ' deals: ' + Object.values(res).filter((x) => x.deals === at).map((x) => x.name + ' ' + f1(x.pair.points) + '±' + x.pair.se.toFixed(1) + (x.dropped ? ' (dropped)' : '')).join(', '));
   }
   const secs = (Date.now() - t0) / 1000;
   timing(state, 'screen', secs, { candidates: cands.length, deals, played, cached });
-  Object.values(res).sort((a, b) => b.pair.points - a.pair.points).forEach((x) => log('  ' + line(x.name, x.pair, x.self, x.champ)));
+  Object.values(res).sort((a, b) => b.pair.points - a.pair.points).forEach((x) => log('  ' + line(x.name, x.pair, x.self, x.champ) +
+    (x.half ? ', half spicy ' + f1(x.half.points) + ' +- ' + x.half.se.toFixed(2) + ' (' + x.half.self.toFixed(1) + ' a hand)' : '')));
   log('  screen took ' + secs.toFixed(0) + 's (' + played + ' model-pieces played, ' + cached + ' from the cache)');
   return { seed, deals, results: res, seconds: secs };
 }
@@ -240,10 +267,14 @@ async function confirmMany(state, cands, opts) {
   const seed = opts.seed || takeSeed(state, 'eval', deals);
   const t0 = Date.now();
   log('Confirm ' + cands.map(nameOf).join(', ') + ' against ' + nameOf(champ) + ' on ' + deals + ' fresh deals from seed ' + seed + ' (exact)');
-  const r = await playRows([champ].concat(cands), table, seed, deals, 'exact');
+  const r = await playRows([champ].concat(cands), table, seed, deals, 'exact', opts.half);
   const secs = (Date.now() - t0) / 1000;
   timing(state, 'confirm', secs, { deals, candidates: cands.length });
-  return cands.map((cand, k) => judge(cand, r.rows[k + 1], r.rows[0], deals, seed, secs));
+  return cands.map((cand, k) => {
+    const j = judge(cand, r.rows[k + 1], r.rows[0], deals, seed, secs);
+    if (r.halves) { j.half = pairedHalf(r.halves[k + 1], r.halves[0], deals); log('    half spicy: ' + f1(j.half.points) + ' +- ' + j.half.se.toFixed(2) + ' points a hand (' + j.half.self.toFixed(1) + ' a hand)'); }
+    return j;
+  });
 }
 function judge(cand, rowsC, rowsChamp, deals, seed, secs) {
   const p = paired(rowsC, rowsChamp, deals);
@@ -503,11 +534,11 @@ async function main() {
   saveState(state);
   if (cmd === 'gen') { gen(state, { deals: +a.deals || 50000, tag: a.tag || '', fresh: !!a.fresh }); return; }
   if (cmd === 'screen') {
-    const r = await screen(state, String(a.cands).split(','), { deals: +a.deals || 40000, look: +a.look || 10000, build: a.build, champion: a.champion, seed: a.seed ? +a.seed : undefined });
+    const r = await screen(state, String(a.cands).split(','), { deals: +a.deals || 40000, look: +a.look || 10000, build: a.build, champion: a.champion, seed: a.seed ? +a.seed : undefined, half: !!a.half });
     fs.writeFileSync(path.join(WORK, 'screen-' + Date.now() + '.json'), JSON.stringify(r, null, 1));
     return;
   }
-  if (cmd === 'confirm') { const r = await confirmMany(state, String(a.cand).split(','), { deals: +a.deals || 40000, champion: a.champion, seed: a.seed ? +a.seed : undefined }); fs.writeFileSync(path.join(WORK, 'confirm-' + Date.now() + '.json'), JSON.stringify(r, null, 1)); return; }
+  if (cmd === 'confirm') { const r = await confirmMany(state, String(a.cand).split(','), { deals: +a.deals || 40000, champion: a.champion, seed: a.seed ? +a.seed : undefined, half: !!a.half }); fs.writeFileSync(path.join(WORK, 'confirm-' + Date.now() + '.json'), JSON.stringify(r, null, 1)); return; }
   if (cmd === 'mutate') { console.log(mutate(a.from, +a.sigma, +a.seed, a.name)); return; }
   if (cmd === 'soup') { console.log(soup(String(a.of).split(','), a.name)); return; }
   if (cmd === 'tune') { console.log(tune(a.from, JSON.parse(a.play), a.name)); return; }

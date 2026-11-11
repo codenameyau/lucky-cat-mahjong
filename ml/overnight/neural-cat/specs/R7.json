@@ -1,0 +1,5 @@
+{"name":"R7","data":{"sets":0,"window":8},
+ "arms":[
+  {"name":"R7sm01","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","faanSmooth":0.01}],
+ "screen":{"deals":40000,"look":20000,"minDeals":20000},
+ "confirm":{"deals":150000,"top":1,"minZ":1}}

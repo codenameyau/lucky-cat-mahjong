@@ -41,5 +41,7 @@ struct Score {
 
 Score scoreHand(const ScoreInput& in);
 int faanToPoints(int faan, int minFaan);  // full spicy; -1 under the minimum
+// js/points.js halfSpicyPoints: 2^faan up to 4, then doubling every two faan.
+double halfSpicyPoints(int faan);
 
 }  // namespace lcm

@@ -1,14 +1,15 @@
 # Neural Cat overnight report
 
-## Status (updated 2026-11-11 07:15 UTC)
+## Status (updated 2026-11-11 10:15 UTC)
 
-- **Champion:** NC9 (the shipped model; `ml/models/pool/NC9.json`). No generation has passed any bar yet.
-- **Rounds done:** 2 confirmed (R1, R2: nothing kept); R3 (structural arms) screened, its confirmation running.
-- **Last result:** R3 screen (40,000 deals): faan label smoothing 0.1 (R3smooth) wins **+3.4 ± 0.16 pp** more hands (19.4% vs 16.1%) with points level (-3.9 ± 6.2) and deal-ins level: a Pareto (hands won) generation candidate. EMA +6.6 ± 4.4 and the distilled student +5.3 ± 4.6 (+0.7 ± 0.11 pp hands won) lead on points. All screen leads are shared-luck draws (critique 2): expected lead of the best of 9 from luck alone is about 1.5 SE (about 6.5 points), so the shrunken estimates are about 0 for EMA and the student.
-- **Now:** confirming R3ema, R3smooth and R3dist on 150,000 fresh exact deals (seed 3,000,362,000; ETA about 08:20 UTC). Then R5: Neural Cat learns option differences from **common-random-number option replays** (the orchestrator's R4 method; ported from Lucky Cat: `lcm-sim generate-nc --crn`, built and run on 100 deals; the advantage loss in `ml/nc_multi.py`, tested). R4's GPU-only arms (faan smoothing 0.03, 0.05, 0.1 seed 2, EMA seed 2, a second distilled student) are trained and join R5's screen.
-- **topK 7:** R2s1 (soup + topK 7) dealt in 10.84% vs 10.32% at its confirmation; in the same screen the soup alone dealt in 10.58% and with topK 7 10.90%: topK 7 adds about 0.3 pp deal-ins. topK stays 6.
-- **Bars:** generation = on fresh exact deals, points or hands won up >= 2 SE, the other not down > 1 SE, deal-ins not up > 1 SE. Ship candidate = points up >= 3 SE against NC9 on pooled fresh exact deals (confirmation plus a second fresh run), hands won not down > 1 SE.
-- **Blockers:** none. The CRN port is a small C++ change to the option replays only (the shard rows are untouched); the exact build still needs relinking once the running confirmation releases it, then the native tests.
+- **Champion:** NC9 (the shipped model; `ml/models/pool/NC9.json`). No generation has passed a bar yet.
+- **Rounds done:** 5 (R1 to R5) plus confirmations; nothing kept.
+- **Last result:** faan smoothing 0.03 (R4sm03) on 150,000 fresh exact deals: **hands won +1.4 ± 0.05 pp** (17.61% vs 16.19%), points **+0.6 ± 2.3** (level), deal-ins **+0.10 ± 0.05 pp**, average win 833 vs 915. It misses the generation bar only on deal-ins (up 2 SE, the rule allows 1). Closest of the night.
+- **Fast against exact (the orchestrator's check 1):** R1a's 40,000 confirmation deals replayed on the fast build: 39,995 of 40,000 deals identical for each model, means 15.52 vs 15.56 (R1a) and 15.83 vs 15.84 (NC9), gap -0.3 ± 4.4 on both. **The fast build is not biased**; the positive screens are selection plus candidates sharing their luck.
+- **Now:** a 15-candidate frontier screen (40,000 fast deals, scored on both payout tables): half-spicy play settings on NC9's weights (blend 0.25, 0.5, 1.0, and 0.5 with win bonus 150), faan smoothing 0.01 / 0.02 / 0.03 (seed 2, and with EMA) / 0.04, smoothing 0.03 with the win bonus lowered (250, 200) or the deal-in logit raised (+0.15) to bring deal-ins back to level, smoothing 0.02 with win bonus 250, and EMA with deal-in logit +0.2 / +0.4. Then 150,000-deal exact confirmations of the best points on the hands-won frontier with deal-ins level.
+- **Half spicy:** implemented natively (`meta.play.spicyBlend` in `native/src/neural_cat.cpp`, native only and off by default; `lcm-sim play --per-deal-half` re-scores every hand on the half-spicy table; the table matches `js/points.js` on faan 3 to 13; parity with the JS unchanged, 200 hands). A shipped model with a blend needs the same option in `js/mahjong-ml-model.js` (not done: pinned JS).
+- **Bars:** generation = on fresh exact deals, points (full spicy) or hands won up >= 2 SE, the other not down > 1 SE, deal-ins not up > 1 SE. Ship candidate = full-spicy points up >= 3 SE against NC9 on pooled fresh exact deals, hands won not down > 1 SE.
+- **Blockers:** none.
 
 ## Speed: before (the lab today) and after (this loop)
 
@@ -127,4 +128,48 @@ Play (screen, fast, 40,000 deals from seed 3,000,322,000, paired against NC9; th
 - **A4 changes the style a lot:** label smoothing 0.1 on the faan heads flattens the predicted faan of a win and of a loss, which raises the value of every chance to win (and of every chance to pay) relative to the hand's size: it wins 3.4 more hands in 100 (z about 21) with much smaller wins (720 points against 932) and slightly fewer deal-ins, and points about level (-3.9 ± 6.2). Under the Pareto rule (hands won up 2 SE, points not down more than 1 SE, deal-ins not up) it is a generation candidate. The points-first pruning dropped it at 20,000 deals; it is confirmed anyway.
 - **A1:** clipping never bit (p99 gradient norm 0.45 against a cap of 1.0), and play matches the control (-1.2 ± about 2): dropped.
 - **A3:** warm-up at lr 1e-3 changed nothing measurable against lr 1e-3 without it (-0.3); both are below the lr 1e-4 control.
-- Confirmation (exact, fresh, 150,000 deals from seed 3,000,362,000, the three that might pass a bar: R3ema, R3smooth, R3dist, the champion played once for all three): running.
+- Confirmation (exact, fresh, 150,000 deals from seed 3,000,362,000, the three that might pass a bar, the champion played once for all three; 4,772 s):
+
+| Arm | Points vs NC9 | Hands won | Deal-ins | Avg win | Bar met |
+| --- | ---: | --- | --- | --- | --- |
+| R3ema (A2, EMA) | **+4.3 ± 2.3** (z 1.83) | 16.23% vs 16.24% (-0.0 ± 0.05 pp) | 10.57% vs 10.27% (+0.30 ± 0.05 pp) | 950 vs 931 | none (points short of 2 SE; deal-ins up 6 SE) |
+| R3smooth (A4, faan smoothing 0.1) | **-7.9 ± 2.3** | **19.62% vs 16.24% (+3.4 ± 0.06 pp)** | 10.30% vs 10.27% (+0.03 ± 0.05) | 705 vs 931 | none (points down 3.4 SE) |
+| R3dist (B6 student) | +3.6 ± 2.4 | 16.81% vs 16.24% (+0.6 ± 0.06 pp) | 10.96% vs 10.27% (+0.69 ± 0.05 pp) | 911 vs 931 | none (hands won up 10 SE and points level, but deal-ins up 14 SE) |
+
+- **What the structural arms say.** EMA is the best points result of the night (+4.3 ± 2.3, shrunken screen lead +6.6 → confirmed +4.3: the screen was about right here), but it deals in 0.3 pp more. Faan smoothing is a strong style lever: it trades a quarter of the average win for 3.4 more wins in 100 and loses points; smaller smoothing (0.03, 0.05) is in R5 to look for a point on that curve with points level. The distilled student wins more and deals in a lot more. Every retrained arm so far deals in more than NC9 (0.3 to 0.7 pp): fine-tuning on outcomes makes Neural Cat more aggressive, and the deal-in rule is the binding constraint with an SE of 0.05 pp.
+
+### R5: learning option differences from common-random-number replays (the orchestrator's R4 method)
+
+- **Port:** `lcm-sim generate-nc --crn` (`native/src/generate_nc.cpp`): every option of a group replayed on the same wall shuffles, seeded by (deal, group, replay), as Lucky Cat's `generate-lcv --crn`; `generate.js --crn` passes it through. The shard rows are untouched (only the option files change); both builds relinked, native tests pass.
+- **Data:** nco-10, 20,000 deals of NC9 data (every seat), half the recorded decisions replayed: 111,974 groups, 583,240 option rows, 6 discards (or the claim options) a group, 8 replays each. **2,085 s** (10 deals a second against 1,200 without replays: the replays are 99% of the cost).
+- **Loss:** the outcome heads as before, plus an advantage term on 256 groups a step: the network's expected points of each option less the group's mean, against the replays' mean points less theirs (Huber at 200 points; or a listwise softmax at tau 100). Arms: weight 1 (seeds 1, 2), weight 3, listwise, and win bonus 150 on two of them; control R5c0 (same window, no advantage term).
+- **Offline check on held-out groups** (5,549, the replays' mean points of each model's pick less a random option's): NC9 +44.2 ± 5.6, NC3 +41.9, R5c0 +40.6, R5a1 +43.5, R5a1b +40.6, R5a3 +41.4, R5r1 +39.1. The advantage term didn't make picks better on groups it hadn't seen; and NC3, tens of points a hand behind NC9 at the table, is only 2 points behind here: the replays' means (within-group spread 163 points, 8 replays) are too noisy to rank NC's close options.
+- **Screen (fast, 40,000 deals, seed 3,000,512,000):**
+
+| Candidate | Points | Wins | Deal-ins | Avg win | Deals |
+| --- | ---: | --- | --- | --- | ---: |
+| R5c0 control | +8.3 ± 4.6 | 16.24% vs 16.09% | 10.65% vs 10.38% | 962 vs 920 | 40,000 |
+| R4sm03 faan smoothing 0.03 | +7.0 ± 4.4 | **17.71% vs 16.09% (+1.6 ± 0.11 pp)** | 10.44% vs 10.38% | 856 vs 920 | 40,000 |
+| R4dist2 student, seed 2 | -0.1 ± 6.6 | 16.78% vs 16.05% | 10.98% vs 10.41% | 931 vs 955 | 20,000 (dropped) |
+| R5a1 adv w1 s1 | -2.6 ± 6.6 | | | | 20,000 (dropped) |
+| R5a1b adv w1 s2 | -5.9 ± 6.5 | | | | 20,000 (dropped) |
+| R5a3 adv w3 | -10.0 ± 6.5 | | | | 20,000 (dropped) |
+| R5r1 listwise tau 100 | **-29.8 ± 6.3** | | | | 20,000 (dropped) |
+| R5q0 adv w1 + winBonus 150 | -3.8 ± 6.5 | | | | 20,000 (dropped) |
+| R5q1 adv w3 + winBonus 150 | -6.4 ± 6.5 | | | | 20,000 (dropped) |
+| R4sm05 faan smoothing 0.05 | -3.5 ± 6.3 | | | | 20,000 (dropped) |
+
+- **Verdict on the method for Neural Cat:** every advantage arm is behind its control on the same deals (by 5 to 16 points; listwise by 33, as the frontier's ranking loss was), and none picks better offline. Lucky Cat's gain came from a policy whose choices among many moves were far from optimal; Neural Cat already chooses among Jorge Yau's best 6 with a value net, and the replays can't resolve differences that small. Stopped after one round.
+- **Faan smoothing at 0.03 looks like the useful point on the A4 curve:** +1.6 pp hands won with points not down and deal-ins about level. Confirming it, with the control, on their own fresh decks.
+
+### Confirmations after R5
+
+| Candidate | Deals (fresh, exact) | Points vs NC9 | Hands won | Deal-ins | Avg win | Bar met |
+| --- | ---: | ---: | --- | --- | --- | --- |
+| R4sm03 (faan smoothing 0.03) | 150,000 (seed 3,000,552,000) | +0.6 ± 2.3 | 17.61% vs 16.19% (+1.4 ± 0.05 pp) | 10.44% vs 10.34% (+0.10 ± 0.05 pp) | 833 vs 915 | none: deal-ins up 2 SE (hands won up 28 SE, points level) |
+
+(R5's own confirmation of R5c0 was stopped after 3 minutes, before any result, to spend the deals on R4sm03; its deals were reused for R4sm03, unseen.)
+
+### Fast against exact, deal by deal
+
+R1a and NC9 on R1a's confirmation deals (seed 3,000,042,000, 40,000 deals), played again on the fast build: 39,995 of 40,000 deals identical for each model; R1a 15.52 against 15.56 points a hand, NC9 15.83 against 15.84; the gap -0.3 ± 4.4 on both builds. The fast build carries no bias toward newer weights.

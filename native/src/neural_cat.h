@@ -58,6 +58,7 @@ class NeuralCat : public Foundation {
   // The move network's input for features x: x itself, or x and the reader's read after it (in buf).
   const float* input(const float* x, float* buf) const;
   double winBonus_, claimMargin_;
+  double spicyBlend_ = 0;  // meta.play.spicyBlend (native only, overnight experiment): 0 full spicy, 1 half spicy
   void prepare(State& st, const Game& g, int seat, Ctx& ctx, const std::vector<Threat>* threats, const Counts* counts);
   void encode(const State& st, int index, const Analysis& analysis, double loss, float* x);
   MlRead ev(const float* x);

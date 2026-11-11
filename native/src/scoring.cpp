@@ -302,6 +302,12 @@ int faanToPoints(int faan, int minFaan) {
   return -1;
 }
 
+double halfSpicyPoints(int faan) {
+  if (faan <= 4) return double(1 << faan);
+  if (faan % 2 == 0) return double(1 << ((faan + 4) / 2));
+  return double(1 << ((faan + 3) / 2)) * 1.5;
+}
+
 static int capFaan(int f) { return f > LIMIT ? LIMIT : f; }
 
 Score scoreHand(const ScoreInput& in) {

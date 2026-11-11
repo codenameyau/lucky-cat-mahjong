@@ -14,6 +14,7 @@ NeuralCat::NeuralCat(std::shared_ptr<Mlp> model, const std::string& id) : Founda
   topK_ = int(play["topK"].num(3));
   winBonus_ = play["winBonus"].num(0);
   claimMargin_ = play["claimMargin"].num(0);
+  spicyBlend_ = play["spicyBlend"].num(0);
   const Weights& w = model_->weights();
   if (!w.reader.empty()) {
     if (w.readerVersion != 1) throw std::runtime_error("neural cat: the model reads version " + std::to_string(w.readerVersion) + " of the reader, have 1");
@@ -236,6 +237,9 @@ MlRead NeuralCat::evRaw(const std::vector<double>& raw) {
   double winPts = 0, payPts = 0;
   for (int i = 0; i < 11; i++) {
     double pts = 8 * js::pow(2, std::min(3 + i, 13) - 3);
+    // An experiment (not in the JS, so it never runs for a shipped model): each faan's
+    // worth blended toward the half-spicy table (js/points.js halfSpicyPoints).
+    if (spicyBlend_ > 0) pts = (1 - spicyBlend_) * pts + spicyBlend_ * halfSpicyPoints(std::min(3 + i, 13));
     winPts += winF[i] * pts;
     payPts += payF[i] * pts;
   }

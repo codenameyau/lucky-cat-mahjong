@@ -1,0 +1,9 @@
+{"name":"R6","data":{"sets":0,"window":8},
+ "arms":[
+  {"name":"R6sm02","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","faanSmooth":0.02},
+  {"name":"R6sm03b","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":2,"init":"champion","hidden":"512,256","faanSmooth":0.03},
+  {"name":"R6sm03e","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","faanSmooth":0.03,"ema":0.999},
+  {"name":"R6sm04","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","faanSmooth":0.04},
+  {"name":"R6sm03e2","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":2,"init":"champion","hidden":"512,256","faanSmooth":0.03,"ema":0.999}],
+ "screen":{"deals":40000,"look":20000,"minDeals":20000},
+ "confirm":{"deals":150000,"top":1,"minZ":1}}

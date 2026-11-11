@@ -166,8 +166,13 @@ int main(int argc, char** argv) {
       FILE* per = a.count("per-deal") ? std::fopen(a["per-deal"].c_str(), "wb") : nullptr;
       if (a.count("per-deal") && !per) throw std::runtime_error("lcm-sim play: can't write " + a["per-deal"]);
       std::vector<float> perRow(models.size() * 4);
+      // --per-deal-half FILE: each model's points a hand per deal re-scored on the half-spicy
+      // table (payments are linear in the hand's points, so each delta scales by half/full).
+      FILE* perHalf = a.count("per-deal-half") ? std::fopen(a["per-deal-half"].c_str(), "wb") : nullptr;
+      if (a.count("per-deal-half") && !perHalf) throw std::runtime_error("lcm-sim play: can't write " + a["per-deal-half"]);
+      std::vector<float> halfRow(models.size());
       for (long d = from; d < to; d++) {
-        std::vector<double> dealPoints(models.size(), 0), dealWins(models.size(), 0), dealIns(models.size(), 0), dealWinPoints(models.size(), 0);
+        std::vector<double> dealPoints(models.size(), 0), dealWins(models.size(), 0), dealIns(models.size(), 0), dealWinPoints(models.size(), 0), dealHalf(models.size(), 0);
         for (int k = 0; k < 4; k++) {
           for (size_t m = 0; m < models.size(); m++) {
             Agent* agents[4];
@@ -181,6 +186,10 @@ int main(int argc, char** argv) {
             x.seats++;
             x.points += r.deltas[k];
             dealPoints[m] += r.deltas[k] / 4.0;
+            if (perHalf && r.win && r.score.points > 0) {
+              int eff = std::min(r.score.faan, 13);
+              dealHalf[m] += r.deltas[k] * (halfSpicyPoints(eff) / double(r.score.points)) / 4.0;
+            }
             if (r.win && r.winner == k) {
               x.wins++; dealWins[m] += 0.25;
               x.winPoints += r.deltas[k]; dealWinPoints[m] += r.deltas[k];
@@ -197,6 +206,10 @@ int main(int argc, char** argv) {
           }
           std::fwrite(perRow.data(), sizeof(float), perRow.size(), per);
         }
+        if (perHalf) {
+          for (size_t m = 0; m < models.size(); m++) halfRow[m] = float(dealHalf[m]);
+          std::fwrite(halfRow.data(), sizeof(float), halfRow.size(), perHalf);
+        }
         if (models.size() == 2) {
           double gp = dealPoints[0] - dealPoints[1], w = dealWins[0] - dealWins[1];
           pn++; psum += gp; psq += gp * gp; pwin += w; pwinSq += w * w;
@@ -209,6 +222,7 @@ int main(int argc, char** argv) {
                     m ? "," : "", x.seats, x.points, x.wins, x.dealIns, x.winPoints, x.winFaan, x.selfDraws, x.n, x.sq, x.winSq);
       }
       if (per) std::fclose(per);
+      if (perHalf) std::fclose(perHalf);
       std::printf("],\"pair\":{\"n\":%.17g,\"sum\":%.17g,\"sq\":%.17g,\"win\":%.17g,\"winSq\":%.17g}}\n", pn, psum, psq, pwin, pwinSq);
       return 0;
     }
@@ -277,6 +291,11 @@ int main(int argc, char** argv) {
       j.crn = a.count("crn") > 0;
       j.crnSalt = a.count("crn-salt") ? uint32_t(std::stoul(a["crn-salt"])) : 0;
       return runGenerateNc(j, [](const std::string& id) { return makeAgent(id); });
+    }
+    if (cmd == "half-points") {
+      // the half-spicy table, for scripts to check against js/points.js
+      for (int f = 3; f <= 13; f++) std::printf("%d %.17g %d\n", f, halfSpicyPoints(f), faanToPoints(f, 3));
+      return 0;
     }
     if (cmd == "shanten") {
       FILE* f = std::fopen(argv[2], "rb");
