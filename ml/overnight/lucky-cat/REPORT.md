@@ -4,11 +4,21 @@
 
 *Updated 2026-11-11 00:45 local.*
 
-- **Champion:** lc32. Nothing confirmed.
-- **Rounds done:** 1. Round 2 (data from lc32, 8 arms) is running in the background with the first loop version. `plan.json` has `stop: true`, so that process exits after round 2.
-- **Last result:** round 1's screen winner LO1b (+4.6 ± 1.4 on the 80,000-deal screen) came out at **+0.1 ± 1.4 points a hand** on 80,000 fresh exact-build deals. Its extra hands won held: **+0.23 ± 0.07** (22.45% vs 22.22%). Not kept.
-- **Next (code ready, not yet run):** restart the loop with `stop` removed and `advance: screen`. A working "head" then moves to the best screened arm and makes the next round's data (policy iteration), and it is confirmed against lc32 on fresh deals each time it moves. The data also keeps finished shards across a restart now.
-- **Speed (10 workers, shared machine):** data 1.8x more information per second (CRN: 2.37x less replay noise; 122 against 98.5 groups a second). Training 9 arms in 15 s in one process, against 52 s per arm with `train_lucky.py` (31x). Screens: the champion is played once per deck (10 model-plays for 9 arms, not 18), with pruning at 1 SE. End to end, a round is about 45 min.
+- **Generation 1 (G1) = LO1b**, by the orchestrator's Pareto rule. On 80,000 fresh exact-build deals against lc32: hands won **+0.23 ± 0.07** (3.3 SE), points +0.1 ± 1.4, deal-ins 16.72% vs 16.69%. It is not a points milestone, so it is not a ship candidate. Lineage champion and data-maker: `ml/models/LO1b.json`. Table pool: G1, lc32, lc31, lc30.
+- **Rounds done:** 1. **Round 2 is running** (data from G1, 7 arms). Recipe changes from round 1:
+  - Successive halving: 4 replays for each option, then 4 more only for options within 150 points of the best.
+  - One random extra legal move added to each choice's replayed set.
+  - Win bonus 0 or 150.
+  - A variance-aware target: advantage over its CRN SE.
+  - Noise then fine-tune (sigma 0.02).
+  - The head is on: policy iteration.
+  - Confirmations use 160,000 deals when the screen gap is under 4.
+- **New rule in the loop:** a generation is a Pareto step on fresh exact deals. One of points or hands won is up 2 SE, the other is not down more than 1 SE, and deal-ins are not up more than 1 SE (paired per-deal deal-ins are now dumped). Points up 2 SE is flagged as a milestone.
+- **Next (built and tested on a tiny round, starts at round 3):** truncated replays scored by a value.
+  - Each round trains a fresh value (`ml/train.py`, 416 seat-view features, 28 outcome heads) on 20,000 of the head's own games.
+  - A replay then stops at the seat's 3rd own move and scores the position by the value.
+  - Measured on 100 deals: the same data in 19.5 s against 44.4 s for full replays (2.3x at truncate 4), with 80% of replays truncated.
+- **Speed:** data 1.8x information a second from CRN, about 2.3x more from truncation (to be measured at scale); training 31x (one process); screens play the champion once per deck. Details below.
 - **Blockers:** none.
 
 ## Setup

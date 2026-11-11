@@ -55,12 +55,30 @@ async function round(state, plan) {
   const tag = plan.prefix || 'LO';
   const rec = { round: r, champion: champ, head, started: new Date().toISOString(), times: {} };
   log('Round ' + r + ': champion ' + champ + ', head ' + head + ', table pool ' + state.pool.map((f) => path.basename(f, '.json')).join(','));
-  // 1. data
+  // 0. a value for truncated replays (plan.value): the head's own games, a fresh value each round
   let t = Date.now();
+  let valueModel = null;
+  if (plan.value) {
+    const vdir = 'ml/data/lov-' + r, vname = (plan.prefix || 'LO') + 'V' + r;
+    const vseed = takeSeeds(state, plan.value.deals || 20000);
+    const vm = await O.valueData(head, state.pool, vseed, plan.value.deals || 20000, vdir, { sample: plan.value.sample || 0.3 });
+    if (!fs.existsSync(path.join(ROOT, 'ml', 'models', vname + '.json'))) {
+      await py(['ml/train.py', '--data', vdir, '--name', vname, '--hidden', '512,256', '--lr', '1e-3', '--epochs', String(plan.value.epochs || 12), '--patience', '3', '--win-bonus', '0'],
+        path.join(DIR, 'value-' + r + '.log'));
+    }
+    valueModel = 'ml/models/' + vname + '.json';
+    rec.value = { dir: vdir, seed: vseed, samples: vm.samples, model: valueModel, truncate: plan.value.truncate || 3 };
+    rec.times.value = (Date.now() - t) / 1000;
+    log('Round ' + r + ': value ' + vname + ' on ' + vm.samples + ' positions in ' + rec.times.value.toFixed(0) + 's');
+    if (plan.value.keepData !== true) fs.rmSync(path.join(ROOT, vdir), { recursive: true, force: true });
+  }
+  // 1. data
+  t = Date.now();
   const dataDir = 'ml/data/own-' + r;
   // plan.dataSeed: round 1 only (data made by hand before the loop started), then the counter.
   const dseed = (r === 1 && plan.dataSeed) || takeSeeds(state, plan.deals);
-  const dm = await O.data(head, state.pool, dseed, plan.deals, dataDir, { replays: plan.replays, share: plan.share });
+  const dm = await O.data(head, state.pool, dseed, plan.deals, dataDir, { replays: plan.replays, share: plan.share, halving: plan.halving, margin: plan.halvingMargin, extra: plan.extraRandom,
+    value: valueModel, truncate: plan.value && (plan.value.truncate || 3) });
   rec.data = { dir: dataDir, seed: dseed, deals: plan.deals, rows: dm.policyRows, seconds: dm.seconds, cached: !!dm.cached };
   rec.times.data = (Date.now() - t) / 1000;
   log('Round ' + r + ': data ' + dataDir + ' (' + path.basename(head, '.json') + ' exploring), ' + dm.policyRows + ' choices replayed, ' + rec.times.data.toFixed(0) + 's' + (dm.cached ? ' (cached)' : ''));
@@ -93,24 +111,34 @@ async function round(state, plan) {
     // ahead of the head by plan.advanceBar SE in points, hands won not behind
     const up = full.filter((a) => a.pair.gap > (plan.advanceBar || 1) * a.pair.se && a.pair.winGap >= 0).sort((a, b) => b.pair.gap - a.pair.gap);
     if (up.length) { state.head = up[0].file; rec.newHead = up[0].name; log('Round ' + r + ': head moves to ' + up[0].name); }
-    if (state.head && state.head !== champ && (r % (plan.confirmEvery || 1) === 0 || up.length)) cand = { file: state.head, name: path.basename(state.head, '.json') };
+    if (state.head && state.head !== champ && (r % (plan.confirmEvery || 1) === 0 || up.length)) cand = { file: state.head, name: path.basename(state.head, '.json'), screenGap: up.length ? up[0].pair.gap : 0 };
   } else {
     const bar = plan.screenBar || 2;
     const ok = full.filter((a) => a.pair.gap > bar * a.pair.se && a.pair.winGap >= -a.pair.winSe).sort((a, b) => b.pair.gap - a.pair.gap);
-    if (ok.length) cand = { file: ok[0].file, name: ok[0].name };
+    if (ok.length) cand = { file: ok[0].file, name: ok[0].name, screenGap: ok[0].pair.gap };
   }
   if (cand && !(state.confirmed || {})[cand.file + '|' + champ]) {
     t = Date.now();
-    const cseed = takeSeeds(state, plan.confirmDeals || 80000);
-    const conf = await O.screen(champ, [cand.file], cseed, [plan.confirmDeals || 80000], { pool: state.pool, exact: true, drop: 1e9, log });
+    // 160,000 deals (SE about 1.0) when the screen's gap is under 4 points.
+    const base = plan.confirmDeals || 80000;
+    const cdeals = (cand.screenGap || 0) < 4 && base >= 80000 ? Math.max(160000, base) : base;
+    const cseed = takeSeeds(state, cdeals);
+    const conf = await O.screen(champ, [cand.file], cseed, [cdeals], { pool: state.pool, exact: true, drop: 1e9, log });
     const c = conf[0];
     rec.confirm = { name: cand.name, against: champ, seed: cseed, pair: c.pair, me: c.me, ch: c.ch, line: c.line };
     rec.times.confirm = (Date.now() - t) / 1000;
-    const pass = c.pair.gap > 2 * c.pair.se && c.pair.winGap >= -c.pair.winSe;
-    rec.confirm.pass = pass;
+    // A generation: a Pareto step on fresh exact deals. Points or hands won up by 2 SE, the
+    // other not down by more than 1 SE, and deal-ins not up by more than 1 SE. A ship
+    // milestone: points up by 2 SE.
+    const P = c.pair;
+    const dealsOk = P.dealInSe == null || P.dealInGap <= P.dealInSe;
+    const pass = dealsOk && ((P.gap > 2 * P.se && P.winGap >= -P.winSe) || (P.winGap > 2 * P.winSe && P.gap >= -P.se));
+    const milestone = pass && P.gap > 2 * P.se;
+    rec.confirm.pass = pass; rec.confirm.milestone = milestone;
     state.confirmed = Object.assign(state.confirmed || {}, { [cand.file + '|' + champ]: { pass, gap: c.pair.gap, se: c.pair.se, winGap: c.pair.winGap, winSe: c.pair.winSe, deals: c.pair.deals } });
-    log('Round ' + r + ': confirm ' + c.line + ' against ' + path.basename(champ, '.json') + (pass ? ' -> NEW CHAMPION' : ' -> not confirmed'));
+    log('Round ' + r + ': confirm ' + c.line + ' against ' + path.basename(champ, '.json') + (pass ? ' -> NEW GENERATION' + (milestone ? ' (points milestone)' : '') : ' -> not confirmed'));
     if (pass) {
+      state.generations = (state.generations || []).concat([{ name: cand.name, file: cand.file, round: r, milestone, against: champ, pair: P }]);
       state.champion = cand.file;
       state.head = cand.file;
       state.champions = (state.champions || ['ml/models/lc32.json']).concat([cand.file]);

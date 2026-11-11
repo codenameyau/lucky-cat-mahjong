@@ -104,7 +104,7 @@ def js_check(net, path, x):
 
 
 def load(dirs):
-    xs, legal, qa, qp, qw, hs = [], [], [], [], [], []
+    xs, legal, qa, qp, qw, hs, qs = [], [], [], [], [], [], []
     for di, d in enumerate(dirs):
         full = os.path.join(ROOT, d)
         for f in sorted(os.listdir(full)):
@@ -117,12 +117,14 @@ def load(dirs):
             qa.append(t)
             qp.append(np.fromfile(base + '.qp.f4', dtype='<f4').reshape(-1, SLOTS))
             qw.append(np.fromfile(base + '.q.f4', dtype='<f4').reshape(-1, SLOTS))
+            # the SE of each slot's gap to the move played (new data); NaN where not recorded
+            qs.append(np.fromfile(base + '.qs.f4', dtype='<f4').reshape(-1, SLOTS) if os.path.exists(base + '.qs.f4') else np.full((len(t), SLOTS), np.nan, np.float32))
             xs.append(np.fromfile(base + '.x.f16', dtype='<f2').reshape(-1, 376))
             m = np.unpackbits(np.fromfile(base + '.m.u1', dtype=np.uint8).reshape(-1, 10), axis=1, bitorder='little')[:, :OUTPUTS]
             legal.append(m.astype(bool))
             shard = int(f.split('-')[1].split('.')[0])
             hs.append(np.fromfile(base + '.h.u4', dtype='<u4').astype(np.int64) + (di * 100000 + shard) * (1 << 32))
-    return np.concatenate(xs), np.concatenate(legal), np.concatenate(qa), np.concatenate(qp), np.concatenate(qw), np.concatenate(hs)
+    return np.concatenate(xs), np.concatenate(legal), np.concatenate(qa), np.concatenate(qp), np.concatenate(qw), np.concatenate(hs), np.concatenate(qs)
 
 
 def main():
@@ -134,7 +136,7 @@ def main():
     arms = json.load(open(args.arms))
     t0 = time.time()
     dev = 'cuda' if torch.cuda.is_available() else 'cpu'
-    x, legal, qa, qp, qw, h = load(args.data)
+    x, legal, qa, qp, qw, h, qs = load(args.data)
     n = len(x)
     valid = qa != 255
     print(f'{n} choices from {len(args.data)} sets, {int(valid.sum()) - n} alternatives, loaded in {time.time() - t0:.0f}s on {dev}', flush=True)
@@ -144,6 +146,7 @@ def main():
     V = torch.from_numpy(valid).to(dev)
     QP = torch.from_numpy(qp).to(dev)
     QW = torch.from_numpy(qw).to(dev)
+    QS = torch.from_numpy(qs).to(dev)
     hands, inv = np.unique(h, return_inverse=True)
     report = []
     for arm in arms:
@@ -161,6 +164,14 @@ def main():
             report.append({'name': name, 'seconds': time.time() - ta})
             print(f'{name}: noise sigma {arm["sigma"]} seed {arm.get("seed", 1)}', flush=True)
             continue
+        if arm.get('noiseFirst'):
+            # noise, then the q step: an escape from init's basin before training
+            g = torch.Generator().manual_seed(int(arm.get('seed', 1)) + 1000)
+            with torch.no_grad():
+                for l in net.layers:
+                    sd = l.weight.std()
+                    l.weight.add_(torch.randn(l.weight.shape, generator=g) * float(arm['noiseFirst']) * sd)
+                    l.bias.add_(torch.randn(l.bias.shape, generator=g) * float(arm['noiseFirst']) * sd)
         tau, bonus = float(arm.get('tau', 100)), float(arm.get('bonus', 300))
         lr, epochs, batch = float(arm.get('lr', 3e-4)), int(arm.get('epochs', 4)), int(arm.get('batch', 1024))
         anchor, klw = arm.get('anchor', 'ref'), float(arm.get('kl', 0))
@@ -179,6 +190,15 @@ def main():
         A = floor[:, None].expand(-1, OUTPUTS).clone()
         A.scatter_(1, QA, torch.where(V, adv, floor[:, None].expand_as(adv)))
         A = A / tau
+        if arm.get('vnorm'):
+            # variance-aware: each tried move's advantage over its own SE (with a floor s0 and a
+            # default where the data has none), clipped at +-zclip, times vnorm (logit units).
+            se = torch.nan_to_num(QS, nan=float(arm.get('seDefault', 150)))
+            z = torch.clamp(adv / torch.sqrt(se ** 2 + float(arm.get('s0', 50)) ** 2), -float(arm.get('zclip', 3)), float(arm.get('zclip', 3))) * V
+            zf = torch.where(V, z, torch.full_like(z, 1e9)).min(1).values.clamp(max=0)
+            A = zf[:, None].expand(-1, OUTPUTS).clone()
+            A.scatter_(1, QA, torch.where(V, z, zf[:, None].expand_as(z)))
+            A = A * float(arm['vnorm'])
 
         def stats(idx, ref_net):
             xb, lb = X[idx], Lg[idx]

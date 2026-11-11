@@ -39,7 +39,12 @@ struct NcGenerateJob {
   // (replay n of each option draws the same future), so the options' differences carry
   // far less of the futures' luck; --policy-only writes only the policy files (no value rows).
   bool crn = false, policyOnly = false;
-  uint32_t crnSalt = 0;  // --crn-salt: another set of futures (to measure the replays' noise)
+  uint32_t crnSalt = 0;
+  int halving = 0, extraRandom = 0, truncate = 0;  // --truncate K (with --value): stop a replay at the seat's K-th move
+  bool valueRows = false;            // --value-rows: the value's rows too, with --policy-only
+  std::string value;                 // --value V.lcmw: the value a truncated replay is scored by
+   // --halving H (replays before dropping options), --extra-random N
+  double halvingMargin = 150;        // --halving-margin: points behind the best an option may be and go on  // --crn-salt: another set of futures (to measure the replays' noise)
 };
 
 int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make);

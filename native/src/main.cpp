@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
       FILE* dump = a.count("dump") ? std::fopen(a["dump"].c_str(), "wb") : nullptr;
       if (a.count("dump") && !dump) throw std::runtime_error("lcm-sim play: can't write " + a["dump"]);
       for (long d = from; d < to; d++) {
-        std::vector<double> dealPoints(models.size(), 0), dealWins(models.size(), 0);
+        std::vector<double> dealPoints(models.size(), 0), dealWins(models.size(), 0), dealIns(models.size(), 0);
         for (int k = 0; k < 4; k++) {
           for (size_t m = 0; m < models.size(); m++) {
             Agent* agents[4];
@@ -184,11 +184,11 @@ int main(int argc, char** argv) {
               x.winPoints += r.deltas[k];
               x.winFaan += r.score.faan;
               if (r.how == H_SELF_DRAW) x.selfDraws++;
-            } else if (r.win && r.payer == k) x.dealIns++;
+            } else if (r.win && r.payer == k) { x.dealIns++; dealIns[m] += 0.25; }
           }
         }
         for (size_t m = 0; m < models.size(); m++) { out[m].n++; out[m].sq += dealPoints[m] * dealPoints[m]; out[m].winSq += dealWins[m] * dealWins[m]; }
-        if (dump) for (size_t m = 0; m < models.size(); m++) { float v[2] = {float(dealPoints[m]), float(dealWins[m])}; std::fwrite(v, 4, 2, dump); }
+        if (dump) for (size_t m = 0; m < models.size(); m++) { float v[3] = {float(dealPoints[m]), float(dealWins[m]), float(dealIns[m])}; std::fwrite(v, 4, 3, dump); }
         if (models.size() == 2) {
           double gp = dealPoints[0] - dealPoints[1], w = dealWins[0] - dealWins[1];
           pn++; psum += gp; psq += gp * gp; pwin += w; pwinSq += w * w;
@@ -241,6 +241,12 @@ int main(int argc, char** argv) {
       j.crn = a.count("crn") > 0;
       j.crnSalt = a.count("crn-salt") ? uint32_t(std::stoul(a["crn-salt"])) : 0;
       j.policyOnly = a.count("policy-only") > 0;
+      j.halving = a.count("halving") ? std::stoi(a["halving"]) : 0;
+      j.halvingMargin = a.count("halving-margin") ? std::stod(a["halving-margin"]) : 150;
+      j.extraRandom = a.count("extra-random") ? std::stoi(a["extra-random"]) : 0;
+      j.truncate = a.count("truncate") ? std::stoi(a["truncate"]) : 0;
+      j.valueRows = a.count("value-rows") > 0;
+      if (a.count("value")) j.value = a["value"];
       return runGenerateLcv(j, [](const std::string& id) { return makeAgent(id); });
     }
     if (cmd == "generate-nc") {

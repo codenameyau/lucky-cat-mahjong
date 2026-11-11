@@ -35,7 +35,7 @@ const N = require('./native.js');
 
 const ROOT = path.join(__dirname, '..', '..');
 const EXE = process.platform === 'win32' ? '.exe' : '';
-const SIM = path.join(ROOT, 'native', 'build', 'lcm-sim' + EXE);
+const SIM = process.env.LC_SIM ? path.resolve(ROOT, process.env.LC_SIM) : path.join(ROOT, 'native', 'build', 'lcm-sim' + EXE);
 const SIM_EXACT = path.join(ROOT, 'native', 'build', 'lcm-sim-exact' + EXE);
 const OUT = path.join(ROOT, 'ml', 'overnight', 'lucky-cat');
 const CACHE = path.join(OUT, 'cache');
@@ -83,7 +83,7 @@ async function block(model, table, seed, from, to, exact) {
   const buf = fs.readFileSync(dump);
   const v = new Float32Array(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length));
   fs.unlinkSync(dump);
-  const res = { sums: out, points: Array.from(v.filter((x, i) => i % 2 === 0)), wins: Array.from(v.filter((x, i) => i % 2 === 1)) };
+  const res = { sums: out, points: Array.from(v.filter((x, i) => i % 3 === 0)), wins: Array.from(v.filter((x, i) => i % 3 === 1)), dealIns: Array.from(v.filter((x, i) => i % 3 === 2)) };
   writeJson(file, res);
   stats.played += to - from; stats.seconds += (Date.now() - t0) / 1000;
   return res;
@@ -115,18 +115,23 @@ function summarize(blocks) {
 function paired(a, b) {
   const pa = [].concat(...a.map((x) => x.points)), pb = [].concat(...b.map((x) => x.points));
   const wa = [].concat(...a.map((x) => x.wins)), wb = [].concat(...b.map((x) => x.wins));
+  const da = [].concat(...a.map((x) => x.dealIns || [])), db = [].concat(...b.map((x) => x.dealIns || []));
   const n = pa.length;
-  let s = 0, q = 0, ws = 0, wq = 0;
+  let s = 0, q = 0, ws = 0, wq = 0, ds = 0, dq = 0;
+  const hasD = da.length === n && db.length === n;
+  if (hasD) for (let i = 0; i < n; i++) { const d = da[i] - db[i]; ds += d; dq += d * d; }
+  const dm = ds / n;
   for (let i = 0; i < n; i++) { const d = pa[i] - pb[i], w = wa[i] - wb[i]; s += d; q += d * d; ws += w; wq += w * w; }
   const m = s / n, wm = ws / n;
-  return { deals: n, gap: m, se: Math.sqrt(Math.max(0, q / n - m * m) / n), winGap: 100 * wm, winSe: 100 * Math.sqrt(Math.max(0, wq / n - wm * wm) / n) };
+  return { deals: n, gap: m, se: Math.sqrt(Math.max(0, q / n - m * m) / n), winGap: 100 * wm, winSe: 100 * Math.sqrt(Math.max(0, wq / n - wm * wm) / n),
+    dealInGap: hasD ? 100 * dm : null, dealInSe: hasD ? 100 * Math.sqrt(Math.max(0, dq / n - dm * dm) / n) : null };
 }
 
 const fmt = (x, d = 1) => (x >= 0 ? '+' : '') + x.toFixed(d);
 function line(name, p, me, ch) {
   return name + ': ' + fmt(p.gap) + ' ± ' + p.se.toFixed(1) + ' points a hand, hands won ' + fmt(p.winGap, 2) + ' ± ' + p.winSe.toFixed(2) +
     ' (' + (100 * me.winRate).toFixed(2) + '% vs ' + (100 * ch.winRate).toFixed(2) + '%), deal-ins ' + (100 * me.dealIns).toFixed(2) + '% vs ' +
-    (100 * ch.dealIns).toFixed(2) + '%, average win ' + Math.round(me.avgWin) + ' vs ' + Math.round(ch.avgWin) + ', ' + p.deals + ' deals';
+    (100 * ch.dealIns).toFixed(2) + '%' + (p.dealInSe != null ? ' (' + fmt(p.dealInGap, 2) + ' ± ' + p.dealInSe.toFixed(2) + ')' : '') + ', average win ' + Math.round(me.avgWin) + ' vs ' + Math.round(ch.avgWin) + ', ' + p.deals + ' deals';
 }
 
 // A screen: stages of fresh deals from seed; arms behind by --drop SE (points or wins) stop.
@@ -159,7 +164,9 @@ async function screen(champ, cands, seed, stages, opts = {}) {
 async function data(champ, poolFiles, seed, deals, dir, opts = {}) {
   const manifest = path.join(ROOT, dir, 'manifest.json');
   const settings = { champ: path.basename(nid(champ)), pool: poolFiles.map((f) => path.basename(nid(f))), seed, deals,
-    replays: opts.replays || 12, share: opts.share || 0.5, sample: opts.sample || 0.12, learners: opts.learners || 2, crn: true };
+    replays: opts.replays || 12, share: opts.share || 0.5, sample: opts.sample || 0.12, learners: opts.learners || 2, crn: true,
+    halving: opts.halving || 0, margin: opts.margin || 150, extra: opts.extra || 0, v: 2,
+    value: opts.value ? path.basename(N.lcmwFor(opts.value)) : null, truncate: opts.value ? opts.truncate || 4 : 0 };
   const key = sha(JSON.stringify(settings));
   const was = readJson(manifest, null);
   if (was && was.key === key) return Object.assign({ cached: true }, was);
@@ -181,13 +188,44 @@ async function data(champ, poolFiles, seed, deals, dir, opts = {}) {
     tasks.push(() => fs.existsSync(done) ? Promise.resolve(readJson(done)) : run(SIM, ['generate-lcv', '--weights', L, '--seed', String(seed + f), '--deals', String(n), '--shard', String(k),
       '--pool', pool.join(','), '--strategies', strategies.join(','), '--out', path.join(ROOT, dir), '--sample', String(settings.sample),
       '--temperature', '1', '--epsilon', '0.1', '--option-replays', String(settings.replays), '--options', '4',
-      '--option-share', String(settings.share), '--crn', '--policy-only']).then((o) => { const j = JSON.parse(o); writeJson(done, j); return j; }));
+      '--option-share', String(settings.share), '--crn', '--policy-only', '--halving', String(settings.halving), '--halving-margin', String(settings.margin),
+      '--extra-random', String(settings.extra)].concat(settings.value ? ['--value', N.lcmwFor(opts.value), '--truncate', String(settings.truncate)] : [])).then((o) => { const j = JSON.parse(o); writeJson(done, j); return j; }));
   }
   const shards = await N.pool(tasks, opts.workers || WORKERS);
   // Drop the empty value files --policy-only leaves.
   for (const f of fs.readdirSync(path.join(ROOT, dir))) if (/\.(features|labels|aux|options|optlabels)$/.test(f)) fs.unlinkSync(path.join(ROOT, dir, f));
   const m = { key, settings, seconds: (Date.now() - t0) / 1000, policyRows: shards.reduce((t, s) => t + s.policyRows, 0), shards: shards.length };
   writeJson(path.join(ROOT, dir, 'meta.json'), { featureVersion: 1, featureSize: 376, rollouts: { slots: 8 }, qPoints: true, policyRows: m.policyRows });
+  writeJson(manifest, m);
+  return m;
+}
+
+// The value's rows (lcm-sim generate-lcv --value-rows): each sampled choice's 416 features of
+// the position its move leaves and how the hand ended for that seat, for ml/train.py.
+async function valueData(champ, poolFiles, seed, deals, dir, opts = {}) {
+  const full = path.join(ROOT, dir), manifest = path.join(full, 'manifest.json');
+  const settings = { champ: path.basename(nid(champ)), pool: poolFiles.map((f) => path.basename(nid(f))), seed, deals, sample: opts.sample || 0.5, learners: opts.learners || 2 };
+  const key = sha(JSON.stringify(settings));
+  const was = readJson(manifest, null);
+  if (was && was.key === key) return Object.assign({ cached: true }, was);
+  fs.rmSync(full, { recursive: true, force: true });
+  fs.mkdirSync(full, { recursive: true });
+  const pool = new Array(settings.learners).fill('learner').concat(poolFiles.map(nid));
+  const strategies = pool.map((p, k) => (p === 'learner' ? 0 : k - settings.learners + 1));
+  const per = Math.ceil(deals / (opts.workers || WORKERS)), tasks = [];
+  const t0 = Date.now();
+  for (let f = 0, k = 0; f < deals; f += per, k++) {
+    tasks.push(() => run(SIM, ['generate-lcv', '--weights', nid(champ).slice(3), '--seed', String(seed + f), '--deals', String(Math.min(per, deals - f)), '--shard', String(k),
+      '--pool', pool.join(','), '--strategies', strategies.join(','), '--out', full, '--sample', String(settings.sample), '--temperature', '1', '--epsilon', '0.1',
+      '--option-replays', '0', '--policy-only', '--value-rows']).then((o) => JSON.parse(o)));
+  }
+  const shards = await N.pool(tasks, opts.workers || WORKERS);
+  const H = require('./heads.js');
+  const m = { key, settings, seconds: (Date.now() - t0) / 1000, featureVersion: 'lcv1', featureSize: 416, featureDtype: 'float16', labelBytes: 16,
+    auxBytes: H.AUX_BYTES, hands: H.HANDS, outcomes: ['winSelf', 'winDiscard', 'dealIn', 'otherSelf', 'otherWin', 'draw'], strategies: ['learner'].concat(poolFiles.map((f) => path.basename(f, '.json'))),
+    learner: 'learner', native: 'fast', champion: champ,
+    shards: shards.map((x) => ({ features: 'shard-' + x.index + '.features', labels: 'shard-' + x.index + '.labels', aux: 'shard-' + x.index + '.aux', samples: x.samples, deals: x.deals })),
+    samples: shards.reduce((t, x) => t + x.samples, 0) };
   writeJson(manifest, m);
   return m;
 }
@@ -216,7 +254,9 @@ async function main(a) {
     const res = await screen(a.champ, cands, parseInt(a.seed, 10), stages, { pool, exact: cmd === 'confirm' || !!a.exact, drop: a.drop != null ? parseFloat(a.drop) : (cmd === 'confirm' ? 1e9 : 1) });
     if (a.json) writeJson(path.resolve(ROOT, a.json), res);
   } else if (cmd === 'data') {
-    const m = await data(a.champ, pool, parseInt(a.seed, 10), parseInt(a.deals, 10), a.out, { replays: a.replays && parseInt(a.replays, 10), share: a.share && parseFloat(a.share) });
+    const m = a.value === true ? await valueData(a.champ, pool, parseInt(a.seed, 10), parseInt(a.deals, 10), a.out) :
+      await data(a.champ, pool, parseInt(a.seed, 10), parseInt(a.deals, 10), a.out, { replays: a.replays && parseInt(a.replays, 10), share: a.share && parseFloat(a.share),
+        halving: a.halving && parseInt(a.halving, 10), extra: a.extra && parseInt(a.extra, 10), value: typeof a.value === 'string' ? a.value : null, truncate: a.truncate && parseInt(a.truncate, 10) });
     console.log(JSON.stringify(m));
   } else throw new Error('usage: lc-own.js screen|confirm|data');
   console.log('done in ' + ((Date.now() - t0) / 1000).toFixed(0) + 's; blocks played ' + stats.played + ' deal-models (' + stats.seconds.toFixed(0) + ' worker-s), cached ' + stats.cached);
@@ -224,4 +264,4 @@ async function main(a) {
 
 if (require.main === module) main(parseArgs(process.argv.slice(2))).catch((e) => { console.error(e.stack || e.message); process.exit(1); });
 
-module.exports = { screen, data, playDeck, paired, summarize, tables, nid, stats, DEFAULT_POOL, OUT };
+module.exports = { valueData, screen, data, playDeck, paired, summarize, tables, nid, stats, DEFAULT_POOL, OUT };
