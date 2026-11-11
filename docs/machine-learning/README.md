@@ -2,7 +2,7 @@
 
 Lucky Cat Mahjong has three learned strategies, each a small neural network trained on simulated hands:
 
-- **Neural Cat** (shipped model NC9) scores every choice in expected points (which tile to discard, whether to pung, chow or kong) on top of Jorge Yau's hand reading, and plays the one worth the most. The coach explains each choice in plain words.
+- **Neural Cat** (shipped model NC10) scores every choice in expected points (which tile to discard, whether to pung, chow or kong) on top of Jorge Yau's hand reading, and plays the one worth the most. The coach explains each choice in plain words.
 - **Lucky Cat** (shipped model lc33) plays every move itself: its network reads what its seat can see and gives each legal move a share, and a move that contradicts the hand it builds toward gives way to its next most likely. It taught itself from random play.
 - **Only Orphans** (shipped model OS2c1): rules pick a target each deal, and its network scores the allowed discards, pungs and kongs in expected points.
 
