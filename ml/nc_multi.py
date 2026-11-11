@@ -1,0 +1,178 @@
+#!/usr/bin/env python3
+"""Train several Neural Cat arms in one GPU pass (the overnight loop, scripts/ml/nc-overnight.js).
+
+  ml/.venv/Scripts/python.exe ml/nc_multi.py --data ml/data/a ml/data/b --arms arms.json
+
+Loads the data once, puts it on the device once (float16), and feeds every
+batch to every arm: each arm is its own network, optimiser and schedule
+(learning rate, epochs, patience, dropout, weight decay, seed, init), with
+its own best epoch by validation loss. The losses, the held-out deals, the
+export and the JS parity check are ml/train.py's, so an arm trained here is
+the model train.py would make with the same settings (up to the batch order,
+which is shared).
+
+arms.json: a list of {"name", "lr", "epochs", "patience", "dropout",
+"weightDecay", "seed", "init" (a .json model), "hidden" ("512,256"),
+"batch" (2048), "winWeight" (0.5), "payWeight" (0.5), "sampleWeight"
+(optional: "learner" weights the learner's rows by 2)}.
+Writes ml/models/<name>.json for each arm and prints one JSON line per arm
+(name, best epoch, validation loss, seconds).
+"""
+
+import argparse
+import base64
+import json
+import math
+import os
+import subprocess
+import sys
+import time
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import train as T  # noqa: E402
+
+ROOT = T.ROOT
+
+
+def init_from(model, file, device):
+    with open(file) as f:
+        init = json.load(f)
+    dt = '<f2' if init.get('dtype') == 'f16' else '<f4'
+    for lin, l in zip(model.linears(), init['layers']):
+        w = np.frombuffer(base64.b64decode(l['w']), dtype=dt).astype(np.float32).reshape(l['rows'], l['cols'])
+        b = np.frombuffer(base64.b64decode(l['b']), dtype=dt).astype(np.float32)
+        lin.weight.data[:] = torch.from_numpy(w.copy()).to(device)
+        lin.bias.data[:] = torch.from_numpy(b.copy()).to(device)
+    return init
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--data', nargs='+', required=True)
+    ap.add_argument('--arms', required=True)
+    ap.add_argument('--device', default='cuda')
+    ap.add_argument('--device-bytes', type=float, default=5e9)
+    ap.add_argument('--batch', type=int, default=2048)
+    args = ap.parse_args()
+    with open(args.arms) as f:
+        arms = json.load(f)
+    device = args.device
+    t0 = time.time()
+    x, y, manifests, _, _, _ = T.load(args.data)
+    size = manifests[0]['featureSize']
+    print('Loaded %d samples from %d sets (%.1fs)' % (len(x), len(args.data), time.time() - t0), flush=True)
+    val = (y['dealSeed'].astype(np.uint64) * 2654435761 % 2**32) % 20 == 0
+    to = lambda a, dt: torch.from_numpy(np.ascontiguousarray(a)).to(device=device, dtype=dt)
+    tr_rows, va_rows = np.nonzero(~val)[0], np.nonzero(val)[0]
+    n_train, n_val = len(tr_rows), len(va_rows)
+    if x.nbytes <= args.device_bytes:
+        xt, xv = to(x[tr_rows], torch.float16), to(x[va_rows], torch.float16)
+        fetch_t = lambda idx: xt[idx].float()
+        fetch_v_np = lambda pos: xv[torch.from_numpy(pos).to(device)].float()
+    else:
+        fetch_t = lambda idx: torch.from_numpy(x[tr_rows[idx.cpu().numpy()]]).to(device).float()
+        fetch_v_np = lambda pos: torch.from_numpy(x[va_rows[pos]]).to(device).float()
+        print('Data is %.1f GB: a batch at a time on the device' % (x.nbytes / 1e9), flush=True)
+    del x
+    out_t, out_v = to(y['outcome'][~val], torch.long), to(y['outcome'][val], torch.long)
+    cl = lambda a: np.clip(a.astype(np.int64) - 3, 0, T.N_FAAN - 1)
+    win_t, win_v = to(cl(y['winFaan'][~val]), torch.long), to(cl(y['winFaan'][val]), torch.long)
+    pay_t, pay_v = to(cl(y['payFaan'][~val]), torch.long), to(cl(y['payFaan'][val]), torch.long)
+    learner_idx = manifests[0]['strategies'].index('neural-cat') if 'neural-cat' in manifests[0]['strategies'] else -1
+    strat_t = to(y['strategy'][~val], torch.long)
+    delta_v = y['delta'][val]
+
+    runs = []
+    for a in arms:
+        torch.manual_seed(a.get('seed', 0))
+        hidden = [int(h) for h in str(a.get('hidden', '512,256')).split(',') if h]
+        model = T.Net(size, hidden, a.get('dropout', 0.2)).to(device)
+        if a.get('init'):
+            init_from(model, a['init'], device)
+        opt = torch.optim.AdamW(model.parameters(), lr=a['lr'], weight_decay=a.get('weightDecay', 1e-3))
+        sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=a['epochs'])
+        runs.append({'a': a, 'hidden': hidden, 'model': model, 'opt': opt, 'sched': sched, 'best': math.inf,
+                     'state': None, 'info': None, 'stale': 0, 'done': False, 't': 0.0, 'epochs': 0})
+    max_epochs = max(a['epochs'] for a in arms)
+    print('Training %d arms on %d rows, validating on %d' % (len(arms), n_train, n_val), flush=True)
+    for epoch in range(max_epochs):
+        live = [r for r in runs if not r['done'] and epoch < r['a']['epochs']]
+        if not live:
+            break
+        t1 = time.time()
+        perm = torch.from_numpy(np.random.default_rng(epoch).permutation(n_train)).to(device)
+        for i in range(0, n_train, args.batch):
+            idx = perm[i:i + args.batch].sort().values
+            xb = fetch_t(idx)
+            yo, yw, yp = out_t[idx], win_t[idx], pay_t[idx]
+            for r in live:
+                a = r['a']
+                out = r['model'](xb)
+                if a.get('sampleWeight') == 'learner':
+                    wgt = 1.0 + (strat_t[idx] == learner_idx).float()
+                    lo = (F.cross_entropy(out[:, :T.N_OUTCOMES], yo, reduction='none') * wgt).sum() / wgt.sum()
+                    _, lw, lp = T.losses(out, yo, yw, yp)
+                else:
+                    lo, lw, lp = T.losses(out, yo, yw, yp)
+                loss = lo + a.get('winWeight', 0.5) * lw + a.get('payWeight', 0.5) * lp
+                r['opt'].zero_grad(set_to_none=True)
+                loss.backward()
+                r['opt'].step()
+        for r in live:
+            r['sched'].step()
+            r['epochs'] += 1
+            vl, evs, acc = T.evaluate(r['model'], fetch_v_np, n_val, out_v, win_v, pay_v, args.batch * 4)
+            total = vl[0] + 0.5 * vl[1] + 0.5 * vl[2]
+            with np.errstate(invalid='ignore', divide='ignore'):
+                corr = float(np.corrcoef(evs, delta_v)[0, 1]) if len(evs) > 1 else 0.0
+            if not math.isfinite(corr):
+                corr = 0.0
+            print('%s epoch %d val %.5f acc %.4f r %.3f' % (r['a']['name'], epoch + 1, total, acc, corr), flush=True)
+            if total < r['best'] - 1e-5:
+                r['best'], r['stale'] = total, 0
+                r['state'] = {k: v.detach().clone() for k, v in r['model'].state_dict().items()}
+                r['info'] = {'valLoss': round(float(total), 5), 'valOutcomeLoss': round(float(vl[0]), 5),
+                             'valOutcomeAcc': round(acc, 4), 'evPointsCorr': round(corr, 4), 'epoch': epoch + 1}
+            else:
+                r['stale'] += 1
+                if r['stale'] >= r['a'].get('patience', 3):
+                    r['done'] = True
+        print('epoch %d: %d arms, %.1fs' % (epoch + 1, len(live), time.time() - t1), flush=True)
+
+    os.makedirs(os.path.join(ROOT, 'ml', 'models'), exist_ok=True)
+    sample = fetch_v_np(np.arange(min(16, n_val))).cpu()
+    for r in runs:
+        a = r['a']
+        r['model'].load_state_dict(r['state'])
+        r['model'].eval()
+        meta = dict(r['info'])
+        meta.update({'name': a['name'], 'trainedAt': time.strftime('%Y-%m-%d %H:%M'), 'samples': int(n_train + n_val),
+                     'data': [os.path.relpath(os.path.abspath(d), ROOT) for d in args.data], 'hidden': r['hidden'],
+                     'gameVersion': manifests[0].get('gameVersion'), 'arm': a})
+        weights = T.export(r['model'], meta, manifests[0]['featureVersion'], size)
+        out_path = os.path.join(ROOT, 'ml', 'models', a['name'] + '.json')
+        with open(out_path, 'w') as f:
+            json.dump(weights, f)
+        cpu = T.Net(size, r['hidden'], 0)
+        for lin, l in zip(cpu.linears(), weights['layers']):
+            lin.weight.data = torch.from_numpy(np.frombuffer(base64.b64decode(l['w']), '<f2').astype(np.float32).reshape(l['rows'], l['cols']).copy())
+            lin.bias.data = torch.from_numpy(np.frombuffer(base64.b64decode(l['b']), '<f2').astype(np.float32).copy())
+        with torch.no_grad():
+            expected = cpu(sample).numpy()
+        check = os.path.join(ROOT, 'ml', 'models', a['name'] + '.check.json')
+        with open(check, 'w') as f:
+            json.dump({'inputs': sample.numpy().tolist(), 'outputs': expected.tolist()}, f)
+        res = subprocess.run(['node', os.path.join(ROOT, 'scripts', 'ml', 'parity.js'), out_path, check], capture_output=True, text=True)
+        if res.returncode:
+            sys.exit('The JS model disagrees with %s: %s' % (a['name'], res.stdout + res.stderr))
+        print('ARM ' + json.dumps({'name': a['name'], 'file': os.path.relpath(out_path, ROOT), 'epoch': meta['epoch'],
+                                   'valLoss': meta['valLoss'], 'epochs': r['epochs']}), flush=True)
+    print('Total %.1fs' % (time.time() - t0), flush=True)
+
+
+if __name__ == '__main__':
+    main()

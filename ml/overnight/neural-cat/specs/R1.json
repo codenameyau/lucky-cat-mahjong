@@ -1,0 +1,11 @@
+{"name":"R1","data":{"sets":0,"window":4},
+ "arms":[
+  {"name":"R1a","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256"},
+  {"name":"R1b","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":2,"init":"champion","hidden":"512,256"},
+  {"name":"R1c","lr":3e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256"},
+  {"name":"R1d","lr":3e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":2,"init":"champion","hidden":"512,256"},
+  {"name":"R1e","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","sampleWeight":"learner"}],
+ "mutations":[{"sigma":0.01,"seed":1},{"sigma":0.01,"seed":2},{"sigma":0.03,"seed":1},{"sigma":0.03,"seed":2}],
+ "play":[{"topK":7},{"topK":5},{"winBonus":250},{"winBonus":400},{"claimMargin":25}],
+ "screen":{"deals":40000,"look":10000},
+ "confirm":{"deals":40000,"top":2,"minZ":1}}

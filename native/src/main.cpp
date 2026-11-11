@@ -160,8 +160,14 @@ int main(int argc, char** argv) {
       struct Out { double seats = 0, points = 0, wins = 0, dealIns = 0, winPoints = 0, winFaan = 0, selfDraws = 0, n = 0, sq = 0, winSq = 0; };
       std::vector<Out> out(models.size());
       double pn = 0, psum = 0, psq = 0, pwin = 0, pwinSq = 0;
+      // --per-deal FILE: for each deal, for each model, 4 float32s (its points a hand
+      // over the 4 seats, its wins, its deal-ins, its winning points), so a caller can
+      // pair any two models deal by deal and stop a screen early.
+      FILE* per = a.count("per-deal") ? std::fopen(a["per-deal"].c_str(), "wb") : nullptr;
+      if (a.count("per-deal") && !per) throw std::runtime_error("lcm-sim play: can't write " + a["per-deal"]);
+      std::vector<float> perRow(models.size() * 4);
       for (long d = from; d < to; d++) {
-        std::vector<double> dealPoints(models.size(), 0), dealWins(models.size(), 0);
+        std::vector<double> dealPoints(models.size(), 0), dealWins(models.size(), 0), dealIns(models.size(), 0), dealWinPoints(models.size(), 0);
         for (int k = 0; k < 4; k++) {
           for (size_t m = 0; m < models.size(); m++) {
             Agent* agents[4];
@@ -177,13 +183,20 @@ int main(int argc, char** argv) {
             dealPoints[m] += r.deltas[k] / 4.0;
             if (r.win && r.winner == k) {
               x.wins++; dealWins[m] += 0.25;
-              x.winPoints += r.deltas[k];
+              x.winPoints += r.deltas[k]; dealWinPoints[m] += r.deltas[k];
               x.winFaan += r.score.faan;
               if (r.how == H_SELF_DRAW) x.selfDraws++;
-            } else if (r.win && r.payer == k) x.dealIns++;
+            } else if (r.win && r.payer == k) { x.dealIns++; dealIns[m]++; }
           }
         }
         for (size_t m = 0; m < models.size(); m++) { out[m].n++; out[m].sq += dealPoints[m] * dealPoints[m]; out[m].winSq += dealWins[m] * dealWins[m]; }
+        if (per) {
+          for (size_t m = 0; m < models.size(); m++) {
+            perRow[m * 4] = float(dealPoints[m]); perRow[m * 4 + 1] = float(dealWins[m] * 4);
+            perRow[m * 4 + 2] = float(dealIns[m]); perRow[m * 4 + 3] = float(dealWinPoints[m]);
+          }
+          std::fwrite(perRow.data(), sizeof(float), perRow.size(), per);
+        }
         if (models.size() == 2) {
           double gp = dealPoints[0] - dealPoints[1], w = dealWins[0] - dealWins[1];
           pn++; psum += gp; psq += gp * gp; pwin += w; pwinSq += w * w;
@@ -195,6 +208,7 @@ int main(int argc, char** argv) {
         std::printf("%s{\"seats\":%.17g,\"points\":%.17g,\"wins\":%.17g,\"dealIns\":%.17g,\"winPoints\":%.17g,\"winFaan\":%.17g,\"selfDraws\":%.17g,\"n\":%.17g,\"sq\":%.17g,\"winSq\":%.17g}",
                     m ? "," : "", x.seats, x.points, x.wins, x.dealIns, x.winPoints, x.winFaan, x.selfDraws, x.n, x.sq, x.winSq);
       }
+      if (per) std::fclose(per);
       std::printf("],\"pair\":{\"n\":%.17g,\"sum\":%.17g,\"sq\":%.17g,\"win\":%.17g,\"winSq\":%.17g}}\n", pn, psum, psq, pwin, pwinSq);
       return 0;
     }
