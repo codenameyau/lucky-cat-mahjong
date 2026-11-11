@@ -427,6 +427,7 @@ int main(int argc, char** argv) {
       auto table = split(a.count("table") ? a["table"] : "", ',');
       if (table.size() != 3) throw std::runtime_error("lcm-sim targets: --table needs 3 ids");
       int K = a.count("k") ? std::stoi(a["k"]) : 32;
+      uint32_t salt = a.count("salt") ? uint32_t(std::stoul(a["salt"])) : 0;  // other walls for the same deals
       uint32_t seed = uint32_t(std::stoul(a["seed"]));
       long from = std::stol(a["from"]), to = std::stol(a["to"]);
       auto oo = std::make_shared<OnlyOrphans>(std::make_shared<Mlp>(loadWeights(modelId.substr(3))), modelId);
@@ -470,7 +471,7 @@ int main(int argc, char** argv) {
             for (int j = 0; j < K; j++) {
               Game c = s0;
               for (auto& st : c.hand.seats) if (st.botState) st.botState = st.botState->clone();
-              Rng rng(uint32_t((uint64_t(seed + d) * 2654435761u) ^ (uint32_t(j + 1) * 2246822519u)));
+              Rng rng(uint32_t((uint64_t(seed + d) * 2654435761u) ^ (uint32_t(j + 1 + salt) * 2246822519u)));
               Hand& h = c.hand;
               for (int i = h.wall.tail; i > h.wall.head + 1; i--) std::swap(h.wall.t[i - 1], h.wall.t[h.wall.head + size_t(rng() * double(i - h.wall.head))]);
               touch(h);
