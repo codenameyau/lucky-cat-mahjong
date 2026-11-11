@@ -296,6 +296,124 @@ int main(int argc, char** argv) {
       std::printf("]}\n");
       return 0;
     }
+    if (cmd == "vr") {
+      // lcm-sim vr --champion oo:C --shadows oo:a,... --table x,y,z --seed S --from F --to T --rows FILE [--k K]
+      // The variance-reduced paired estimate. Each hand is played once by the champion with
+      // the arms read alongside (as shadow). A hand where an arm chose as the champion
+      // throughout contributes a gap of exactly zero. Where an arm first chose otherwise, the
+      // game just before that decision is kept, and the rest of the hand is played K times by
+      // each side from there, with the wall (the draws still to come, and nothing else) reshuffled
+      // the same way for both (common random numbers). Every hand stays as it was, so given
+      // everything that has happened the remaining wall is exchangeable: each replay is an
+      // unbiased draw of how that hand ends, and their mean an unbiased, lower-variance estimate
+      // of the arm's gap on it. Rows as play --rows: the champion's real rows, then for each arm
+      // the champion's rows plus its estimated gap (so a paired gap of the two is the estimate).
+      std::string champId = a["champion"];
+      auto shadowIds = split(a["shadows"], ',');
+      auto table = split(a.count("table") ? a["table"] : "", ',');
+      if (table.size() != 3) throw std::runtime_error("lcm-sim vr: --table needs 3 ids");
+      int K = a.count("k") ? std::stoi(a["k"]) : 4;
+      uint32_t seed = uint32_t(std::stoul(a["seed"]));
+      long from = std::stol(a["from"]), to = std::stol(a["to"]);
+      auto champ = std::make_shared<OnlyOrphans>(std::make_shared<Mlp>(loadWeights(champId.substr(3))), champId);
+      for (auto& id : shadowIds) champ->addShadow(std::make_shared<Mlp>(loadWeights(id.substr(3))));
+      BotAgent champAgent(champ);
+      auto plainChamp = makeAgent(champId);
+      std::vector<std::unique_ptr<Agent>> own, tableAgents;
+      for (auto& id : shadowIds) own.push_back(makeAgent(id));
+      for (auto& id : table) tableAgents.push_back(makeAgent(id));
+      const size_t S = shadowIds.size(), M = 1 + S;
+      // Where an arm first chose otherwise: the game before that decision.
+      struct Split { std::shared_ptr<Game> snap; bool atClaim = false; int from = -1, tile = NO_TILE; bool ok = false; };
+      std::vector<Split> splits(S);
+      auto snapshotOf = [](const Game& g) {
+        auto p = std::make_shared<Game>(g);
+        for (auto& s : p->hand.seats) if (s.botState) s.botState = s.botState->clone();
+        return p;
+      };
+      // The model seat's decisions, each with the game kept before it, in case an arm splits there.
+      struct Watch : Agent {
+        Agent* inner; NeuralCat* nc; std::vector<Split>* splits; std::function<std::shared_ptr<Game>(const Game&)> snap;
+        std::vector<char> before;
+        void mark() { before.assign(nc->shadows.size(), 0); for (size_t s = 0; s < before.size(); s++) before[s] = nc->shadows[s].diverged; }
+        void after(const std::shared_ptr<Game>& g, bool atClaim, int from, int tile, bool ok) {
+          for (size_t s = 0; s < before.size(); s++)
+            if (!before[s] && nc->shadows[s].diverged) { Split& x = (*splits)[s]; x.snap = g; x.atClaim = atClaim; x.from = from; x.tile = tile; x.ok = ok; }
+        }
+        Decision turn(Game& g, int seat, const TurnOptions& o) override {
+          mark(); auto sn = snap(g); Decision d = inner->turn(g, seat, o); after(sn, false, -1, NO_TILE, true); return d;
+        }
+        Decision claim(Game& g, int seat, const ClaimOptions& o) override {
+          mark(); auto sn = snap(g); Decision d = inner->claim(g, seat, o); after(sn, true, o.from, o.tile, !o.robKong); return d;
+        }
+      };
+      Watch watch; watch.inner = &champAgent; watch.nc = champ.get(); watch.splits = &splits; watch.snap = snapshotOf;
+      FILE* rowsFile = std::fopen(a["rows"].c_str(), "wb");
+      if (!rowsFile) throw std::runtime_error("lcm-sim: can't write " + a["rows"]);
+      double hands = 0, split = 0, replays = 0, full = 0;
+      for (long d = from; d < to; d++) {
+        std::vector<std::array<double, 8>> acc(M, std::array<double, 8>{0, 0, 0, 0, 0, 0, 0, 0});
+        // A result's eight numbers for seat k.
+        auto row = [&](const Result& r, int k, double w, std::array<double, 8>& q) {
+          q[0] += w * r.deltas[k];
+          q[6] += w * (r.win ? r.deltas[k] * halfRatio(r.score.faan) : r.deltas[k]);
+          if (r.win && r.winner == k) { q[1] += w; q[3] += w * r.deltas[k]; q[4] += w * r.score.faan; if (r.how == H_SELF_DRAW) q[5] += w; if (r.score.faan >= 13) q[7] += w; }
+          else if (r.win && r.payer == k) q[2] += w;
+        };
+        auto agentsFor = [&](Agent* me, int k, Agent** ag) { int t = 0; for (int s = 0; s < 4; s++) ag[s] = s == k ? me : tableAgents[t++].get(); };
+        for (int k = 0; k < 4; k++) {
+          champ->resetShadows();
+          for (auto& x : splits) x = Split();
+          Agent* ag[4];
+          agentsFor(&watch, k, ag);
+          GameOptions o;
+          o.seed = uint32_t(seed + d); o.dealer = int(d % 4); o.startPoints = 1000000000;
+          Game g = createGame(o);
+          Result r = runHand(g, ag);
+          hands++;
+          row(r, k, 1, acc[0]);
+          for (size_t s = 0; s < S; s++) {
+            row(r, k, 1, acc[s + 1]);
+            if (!champ->shadows[s].diverged) continue;
+            split++;
+            const Split& x = splits[s];
+            if (!x.snap || !x.ok) {
+              // No replay from here (a robbed kong): the arm's own whole hand, less the champion's.
+              Agent* a2[4]; agentsFor(own[s].get(), k, a2);
+              Game g2 = createGame(o);
+              Result r2 = runHand(g2, a2);
+              row(r, k, -1, acc[s + 1]); row(r2, k, 1, acc[s + 1]);
+              full++;
+              continue;
+            }
+            for (int j = 0; j < K; j++) {
+              uint32_t rs = uint32_t((uint64_t(seed + d) * 2654435761u) ^ (uint32_t(k) * 40503u) ^ (uint32_t(j + 1) * 2246822519u) ^ (uint32_t(s) * 3266489917u));
+              Result side[2];
+              for (int w = 0; w < 2; w++) {
+                Game c = *x.snap;
+                for (auto& st : c.hand.seats) if (st.botState) st.botState = st.botState->clone();
+                Rng rng(rs);
+                Hand& h = c.hand;
+                for (int i = h.wall.tail; i > h.wall.head + 1; i--) std::swap(h.wall.t[i - 1], h.wall.t[h.wall.head + size_t(rng() * double(i - h.wall.head))]);
+                touch(h);
+                Agent* me = w == 0 ? plainChamp.get() : own[s].get();
+                // The arm's memory of the hand is the champion's so far: they chose alike until here.
+                if (w == 1) seatMemo(c, k, shadowIds[s]) = seatMemo(c, k, champId);
+                Agent* a2[4]; agentsFor(me, k, a2);
+                side[w] = x.atClaim ? continueAtClaims(c, a2, x.from, x.tile) : continueAtTurn(c, a2, k);
+              }
+              row(side[0], k, -1.0 / K, acc[s + 1]);
+              row(side[1], k, 1.0 / K, acc[s + 1]);
+              replays++;
+            }
+          }
+        }
+        for (size_t m = 0; m < M; m++) std::fwrite(acc[m].data(), sizeof(double), 8, rowsFile);
+      }
+      std::fclose(rowsFile);
+      std::printf("{\"hands\":%.17g,\"split\":%.17g,\"replays\":%.17g,\"full\":%.17g}\n", hands, split, replays, full);
+      return 0;
+    }
     if (cmd == "generate") {
       // scripts/ml/lucky.js generate's worker: the same rows, shard files and stats.
       GenerateJob j;
