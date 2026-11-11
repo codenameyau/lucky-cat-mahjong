@@ -44,7 +44,7 @@ class NeuralCat : public Foundation {
   // diverged once a choice differs from this model's: until then its own game would be
   // this game, move for move (exactly so on the exact build, whose forward pass keeps no
   // state between inputs), so its result is this game's and needs no play.
-  struct Shadow { std::shared_ptr<Mlp> mlp; double winBonus = 0, claimMargin = 0; bool diverged = false; };
+  struct Shadow { std::shared_ptr<Mlp> mlp; double winBonus = 0, claimMargin = 0, half = 0; bool diverged = false; };
   std::vector<Shadow> shadows;
   void addShadow(std::shared_ptr<Mlp> m);
   void resetShadows() { for (auto& s : shadows) s.diverged = false; }
@@ -71,7 +71,12 @@ class NeuralCat : public Foundation {
   void prepare(State& st, const Game& g, int seat, Ctx& ctx, const std::vector<Threat>* threats, const Counts* counts);
   void encode(const State& st, int index, const Analysis& analysis, double loss, float* x);
   MlRead ev(const float* x);
-  MlRead evRaw(const std::vector<double>& raw);
+  // half: the weight of the half-spicy payout in the expected points (meta.play.halfSpicy, default 0:
+  // full spicy, as the game scores). A play setting of the native simulator only: js/mahjong-ml.js
+  // does not read it, so a model with it set does not play the same in the game.
+  MlRead evRaw(const std::vector<double>& raw) { return evRaw(raw, half_); }
+  MlRead evRaw(const std::vector<double>& raw, double half);
+  double half_ = 0;
   double value(const MlRead& m) const { return m.ev + winBonus_ * m.pWin; }
   MlRead waitingFeatures(const Game& g, int seat, int kind, int tile);
   int pickIndex(const std::vector<CandP>& ranked, int k0);

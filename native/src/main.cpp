@@ -26,6 +26,7 @@
 #endif
 #include <cstdlib>
 #include <array>
+#include <cmath>
 #include <map>
 #include <sstream>
 
@@ -109,6 +110,15 @@ static std::unique_ptr<Agent> makeAgentChecked(const std::string& id, bool check
   throw std::runtime_error("lcm-sim: no agent " + id);
 }
 
+// js/points.js halfSpicyPoints over full spicy's 8 x 2^(f-3), for a win of f faan (capped at 13):
+// payments are linear in the hand's points, so a hand's half-spicy deltas are its deltas times this.
+static double halfRatio(int faan) {
+  int f = faan > 13 ? 13 : faan;
+  if (f < 3) return 1;
+  double h = f <= 4 ? std::pow(2.0, f) : f % 2 == 0 ? std::pow(2.0, (f + 4) / 2) : std::pow(2.0, (f + 3) / 2) * 1.5;
+  return h / (8.0 * std::pow(2.0, f - 3));
+}
+
 int main(int argc, char** argv) {
 #ifdef _WIN32
   // Windows opens stdout in text mode, which turns each LF into CR LF: the
@@ -163,7 +173,7 @@ int main(int argc, char** argv) {
       // --rows FILE: each deal's sums for each model (float64: points, wins, deal-ins, win
       // points, win faan, self-draws, over the deal's four seats), so a result can be cached
       // and paired deal by deal with another run on the same deals (scripts/ml/oo-night.js).
-      struct RowAcc { double points = 0, wins = 0, dealIns = 0, winPoints = 0, winFaan = 0, selfDraws = 0; };
+      struct RowAcc { double points = 0, wins = 0, dealIns = 0, winPoints = 0, winFaan = 0, selfDraws = 0, half = 0, limits = 0; };
       std::vector<RowAcc> acc(models.size());
       FILE* rowsFile = nullptr;
       if (a.count("rows")) {
@@ -187,11 +197,13 @@ int main(int argc, char** argv) {
             x.seats++;
             x.points += r.deltas[k];
             q.points += r.deltas[k];
+            q.half += r.win ? r.deltas[k] * halfRatio(r.score.faan) : r.deltas[k];
             dealPoints[m] += r.deltas[k] / 4.0;
             if (r.win && r.winner == k) {
               x.wins++; dealWins[m] += 0.25; q.wins++;
               x.winPoints += r.deltas[k]; q.winPoints += r.deltas[k];
               x.winFaan += r.score.faan; q.winFaan += r.score.faan;
+              if (r.score.faan >= 13) q.limits++;
               if (r.how == H_SELF_DRAW) { x.selfDraws++; q.selfDraws++; }
             } else if (r.win && r.payer == k) { x.dealIns++; q.dealIns++; }
           }
@@ -199,8 +211,8 @@ int main(int argc, char** argv) {
         for (size_t m = 0; m < models.size(); m++) { out[m].n++; out[m].sq += dealPoints[m] * dealPoints[m]; out[m].winSq += dealWins[m] * dealWins[m]; }
         if (rowsFile) for (size_t m = 0; m < models.size(); m++) {
           const RowAcc& q = acc[m];
-          double row[6] = {q.points, q.wins, q.dealIns, q.winPoints, q.winFaan, q.selfDraws};
-          std::fwrite(row, sizeof(double), 6, rowsFile);
+          double row[8] = {q.points, q.wins, q.dealIns, q.winPoints, q.winFaan, q.selfDraws, q.half, q.limits};
+          std::fwrite(row, sizeof(double), 8, rowsFile);
         }
         for (auto& q : acc) q = RowAcc();
         if (models.size() == 2) {
@@ -247,11 +259,12 @@ int main(int argc, char** argv) {
       if (!rowsFile) throw std::runtime_error("lcm-sim: can't write " + a["rows"]);
       double hands = 0;
       for (long d = from; d < to; d++) {
-        std::vector<std::array<double, 6>> acc(M, std::array<double, 6>{0, 0, 0, 0, 0, 0});
+        std::vector<std::array<double, 8>> acc(M, std::array<double, 8>{0, 0, 0, 0, 0, 0, 0, 0});
         auto add = [&](size_t m, const Result& r, int k) {
           auto& q = acc[m];
           q[0] += r.deltas[k];
-          if (r.win && r.winner == k) { q[1]++; q[3] += r.deltas[k]; q[4] += r.score.faan; if (r.how == H_SELF_DRAW) q[5]++; }
+          q[6] += r.win ? r.deltas[k] * halfRatio(r.score.faan) : r.deltas[k];
+          if (r.win && r.winner == k) { q[1]++; q[3] += r.deltas[k]; q[4] += r.score.faan; if (r.how == H_SELF_DRAW) q[5]++; if (r.score.faan >= 13) q[7]++; }
           else if (r.win && r.payer == k) q[2]++;
         };
         auto playWith = [&](Agent* me, int k) {
@@ -275,7 +288,7 @@ int main(int argc, char** argv) {
             add(s + 1, rs, k);
           }
         }
-        for (size_t m = 0; m < M; m++) std::fwrite(acc[m].data(), sizeof(double), 6, rowsFile);
+        for (size_t m = 0; m < M; m++) std::fwrite(acc[m].data(), sizeof(double), 8, rowsFile);
       }
       std::fclose(rowsFile);
       std::printf("{\"hands\":%.17g,\"replays\":[", hands);

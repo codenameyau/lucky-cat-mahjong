@@ -38,7 +38,7 @@ const SIM = { fast: path.join(ROOT, 'native', 'build', 'lcm-sim' + EXE), exact: 
 const DIR = path.join(ROOT, 'ml', 'oo-night');
 const ROWS = path.join(DIR, 'rows');
 const BLOCK = 250;   // deals a block: the unit of caching and of work
-const COLS = 6;      // points, wins, deal-ins, win points, win faan, self-draws (over a deal's 4 seats)
+const COLS = 8;      // points, wins, deal-ins, win points, win faan, self-draws, half-spicy points, limit-hand wins (over a deal's 4 seats)
 
 // The evaluation tables: older generations only (before OS2c1), weighted toward the recent ones.
 // Block b of a deck plays TABLES[b % TABLES.length].
@@ -185,29 +185,34 @@ async function rowsFor(files, seed, b0, b1, build, workers, useShadow) {
 // One model's numbers from its rows (a hand = one seat of one deal).
 function summary(r) {
   const n = r.length / COLS;
-  let pts = 0, w = 0, di = 0, wp = 0, wf = 0, sd = 0, sq = 0;
+  let pts = 0, w = 0, di = 0, wp = 0, wf = 0, sd = 0, sq = 0, hp = 0, hsq = 0, lim = 0;
   for (let d = 0; d < n; d++) {
     const o = d * COLS;
     pts += r[o]; w += r[o + 1]; di += r[o + 2]; wp += r[o + 3]; wf += r[o + 4]; sd += r[o + 5];
     sq += (r[o] / 4) * (r[o] / 4);
+    hp += r[o + 6]; hsq += (r[o + 6] / 4) * (r[o + 6] / 4); lim += r[o + 7];
   }
   const hands = 4 * n, mean = pts / hands;
   return { deals: n, points: mean, pointsSE: Math.sqrt(Math.max(0, sq / n - mean * mean) / n), wins: w / hands, dealIns: di / hands,
-    averageWin: wp / Math.max(1, w), averageFaan: wf / Math.max(1, w), selfDraws: sd / Math.max(1, w) };
+    averageWin: wp / Math.max(1, w), averageFaan: wf / Math.max(1, w), selfDraws: sd / Math.max(1, w),
+    half: hp / hands, halfSE: Math.sqrt(Math.max(0, hsq / n - (hp / hands) * (hp / hands)) / n), limits: lim / hands };
 }
 // The paired gap a - b, deal by deal (per hand).
 function gap(a, b) {
   const n = a.length / COLS;
-  let s = 0, sq = 0, ws = 0, wsq = 0, ds = 0, dsq = 0, same = 0;
+  let s = 0, sq = 0, ws = 0, wsq = 0, ds = 0, dsq = 0, same = 0, hs = 0, hsq = 0, ls = 0, lsq = 0;
   for (let d = 0; d < n; d++) {
     const o = d * COLS;
     const g = (a[o] - b[o]) / 4, w = (a[o + 1] - b[o + 1]) / 4, di = (a[o + 2] - b[o + 2]) / 4;
     s += g; sq += g * g; ws += w; wsq += w * w; ds += di; dsq += di * di;
+    const h = (a[o + 6] - b[o + 6]) / 4, l = (a[o + 7] - b[o + 7]) / 4;
+    hs += h; hsq += h * h; ls += l; lsq += l * l;
     if (a[o] === b[o] && a[o + 1] === b[o + 1]) same++;
   }
   const m = s / n, wm = ws / n, dm = ds / n;
   return { deals: n, points: m, se: Math.sqrt(Math.max(0, sq / n - m * m) / n), wins: wm, winsSE: Math.sqrt(Math.max(0, wsq / n - wm * wm) / n),
-    dealIns: dm, dealInsSE: Math.sqrt(Math.max(0, dsq / n - dm * dm) / n), sameDeals: same / n };
+    dealIns: dm, dealInsSE: Math.sqrt(Math.max(0, dsq / n - dm * dm) / n), sameDeals: same / n,
+    half: hs / n, halfSE: Math.sqrt(Math.max(0, hsq / n - (hs / n) * (hs / n)) / n), limits: ls / n, limitsSE: Math.sqrt(Math.max(0, lsq / n - (ls / n) * (ls / n)) / n) };
 }
 
 const fmt = (x, d = 1) => (x >= 0 ? '+' : '') + x.toFixed(d);
@@ -215,7 +220,8 @@ const pct = (x, d = 2) => (100 * x).toFixed(d) + '%';
 function line(name, s, g) {
   return name + ': ' + s.points.toFixed(1) + ' a hand, wins ' + pct(s.wins) + ', deal-ins ' + pct(s.dealIns) + ', average win ' + s.averageWin.toFixed(0) +
     (g ? ' | gap ' + fmt(g.points) + ' ± ' + g.se.toFixed(1) + ' (z ' + (g.points / g.se).toFixed(2) + '), wins ' + fmt(100 * g.wins, 2) + ' ± ' + (100 * g.winsSE).toFixed(2) +
-      ' pp, deal-ins ' + fmt(100 * g.dealIns, 2) + ' ± ' + (100 * g.dealInsSE).toFixed(2) + ' pp, identical deals ' + pct(g.sameDeals, 0) : '');
+      ' pp, deal-ins ' + fmt(100 * g.dealIns, 2) + ' ± ' + (100 * g.dealInsSE).toFixed(2) + ' pp, identical deals ' + pct(g.sameDeals, 0) +
+      (g.half != null ? ' | half spicy ' + s.half.toFixed(1) + ' a hand, gap ' + fmt(g.half) + ' ± ' + g.halfSE.toFixed(1) + '; limit wins ' + pct(s.limits, 3) + ' (' + fmt(100 * g.limits, 3) + ' ± ' + (100 * g.limitsSE).toFixed(3) + ' pp)' : '') : '');
 }
 
 // Staged screen: every arm against the champion on the same deck.

@@ -164,7 +164,8 @@ async function main() {
     // other not down more than 1, deal-ins not up more than 1. A ship candidate (against the
     // shipped model) needs points up 3 standard errors on pooled fresh exact deals, wins not
     // down more than 1: this run alone is printed as a step toward that bar.
-    const kept = ((g.points > 2 * g.se && g.wins > -g.winsSE) || (g.wins > 2 * g.winsSE && g.points > -g.se)) && g.dealIns < g.dealInsSE &&
+    const kept = ((g.points > 2 * g.se && g.wins > -g.winsSE) || (g.wins > 2 * g.winsSE && g.points > -g.se)) && g.dealIns <= Math.max(0.0025, g.dealInsSE) &&  // deal-ins up at most 0.25 pp or 1 SE, whichever is larger
+     
       (!vsAnchor || vsAnchor.candidate.points > -vsAnchor.candidate.se);
     const ga = vsAnchor ? vsAnchor.candidate : g;
     const shipBar = ga.points > 3 * ga.se && ga.wins > -ga.winsSE;

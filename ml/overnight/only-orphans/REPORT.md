@@ -272,3 +272,13 @@ N3j0 against its parent ON2, from the same rows: +0.5 ± 2.3, wins +0.09 ± 0.04
 On C3's deck ON2 was −2.8 ± 3.1 against OS2c1, and here it is +7.5 ± 3.1. That gap between two fresh 40,000-deal decks is 2.3 combined standard errors, the noise this table has (critique 1). **ON2 against OS2c1, pooled over C3 and C4 (80,000 fresh exact deals):** points **+2.35 ± 2.2**, hands won **+0.81 ± 0.035 pp**, deal-ins +0.025 ± 0.028 pp. That meets the Pareto rule; the ship bar would need about +6.6.
 
 Confirmation C5 (running): ON1, ON2, ON2 at win bonus 400 (S3wbm200) and ON1 at win bonus 500, all against OS2c1 on 40,000 fresh deals from seed 2,505,000,000, exact build. It is the third fresh run for ON1 and ON2, and the first for the two lower-bonus versions.
+
+### ON3: N3j0 re-checked under the orchestrator's new deal-in leg
+
+The orchestrator changed the rule: deal-ins may now rise by up to 0.25 pp or 1 SE, whichever is larger, because points already price deal-ins. Under it, N3j0 against ON2 on C4's deals has:
+
+- hands won +0.092 ± 0.040 pp (2.3 SE: passes),
+- points +0.5 ± 2.3 (not down),
+- deal-ins +0.046 pp (under 0.25 pp: passes).
+
+Against the anchor OS2c1 it is +8.1 ± 3.1 points and +0.92 ± 0.05 pp hands won on that deck. **N3j0 is kept as ON3** (`ml/models/ON3.json`, a new generation by the Pareto rule with the relaxed deal-in leg, not the ship bar). It passes the fair-play check. The driver uses the relaxed leg from now on.

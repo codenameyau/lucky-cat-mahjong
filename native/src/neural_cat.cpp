@@ -14,6 +14,7 @@ NeuralCat::NeuralCat(std::shared_ptr<Mlp> model, const std::string& id) : Founda
   topK_ = int(play["topK"].num(3));
   winBonus_ = play["winBonus"].num(0);
   claimMargin_ = play["claimMargin"].num(0);
+  half_ = play["halfSpicy"].num(0);
   const Weights& w = model_->weights();
   if (!w.reader.empty()) {
     if (w.readerVersion != 1) throw std::runtime_error("neural cat: the model reads version " + std::to_string(w.readerVersion) + " of the reader, have 1");
@@ -221,7 +222,7 @@ MlRead NeuralCat::ev(const float* x) {
   return evRaw(model_->forward(input(x, buf)));
 }
 
-MlRead NeuralCat::evRaw(const std::vector<double>& raw) {
+MlRead NeuralCat::evRaw(const std::vector<double>& raw, double half) {
   auto softmax = [&](int from, int n, double* out) {
     double m = -DINF;
     for (int i = 0; i < n; i++) m = std::max(m, raw[from + i]);
@@ -236,6 +237,12 @@ MlRead NeuralCat::evRaw(const std::vector<double>& raw) {
   double winPts = 0, payPts = 0;
   for (int i = 0; i < 11; i++) {
     double pts = 8 * js::pow(2, std::min(3 + i, 13) - 3);
+    if (half) {
+      // js/points.js halfSpicyPoints
+      int f = std::min(3 + i, 13);
+      double h = f <= 4 ? js::pow(2, f) : f % 2 == 0 ? js::pow(2, (f + 4) / 2) : js::pow(2, (f + 3) / 2) * 1.5;
+      pts = (1 - half) * pts + half * h;
+    }
     winPts += winF[i] * pts;
     payPts += payF[i] * pts;
   }
@@ -314,7 +321,7 @@ std::vector<CandP> NeuralCat::rerank(std::vector<CandP> out, Ctx& ctx, const Cou
       Shadow& sh = shadows[s];
       if (sh.diverged) continue;
       sh.mlp->forwardBatch(ptrs, k0, sraws);
-      for (int k = 0; k < k0; k++) { MlRead m = evRaw(sraws[k]); sev[k] = m.ev; spw[k] = m.pWin; ord[k] = k; }
+      for (int k = 0; k < k0; k++) { MlRead m = evRaw(sraws[k], sh.half); sev[k] = m.ev; spw[k] = m.pWin; ord[k] = k; }
       const double wb = sh.winBonus;
       js::sort(ord, [&](int p, int q) -> double {
         double d = (sev[q] + wb * spw[q]) - (sev[p] + wb * spw[p]);
@@ -332,7 +339,7 @@ std::vector<CandP> NeuralCat::rerank(std::vector<CandP> out, Ctx& ctx, const Cou
       else {
         float x1[SIZE];
         encode(st, r[0]->index, *r[0]->analysis, r[0]->loss, x1);
-        MlRead m = evRaw(sh.mlp->forward(x1));
+        MlRead m = evRaw(sh.mlp->forward(x1), sh.half);
         tev = m.ev; tpw = m.pWin;
       }
       double sb = -DINF;
@@ -354,6 +361,7 @@ void NeuralCat::addShadow(std::shared_ptr<Mlp> m) {
   s.mlp = std::move(m);
   s.winBonus = play["winBonus"].num(0);
   s.claimMargin = play["claimMargin"].num(0);
+  s.half = play["halfSpicy"].num(0);
   shadows.push_back(s);
 }
 
@@ -450,7 +458,7 @@ MlRead NeuralCat::waitingFeatures(const Game& g, int seat, int kind, int tile) {
   waitingRow(g, seat, kind, tile, x);
   MlRead r = ev(x);
   shadowReads_.assign(shadows.size(), MlRead());
-  for (size_t s = 0; s < shadows.size(); s++) if (!shadows[s].diverged) shadowReads_[s] = evRaw(shadows[s].mlp->forward(x));
+  for (size_t s = 0; s < shadows.size(); s++) if (!shadows[s].diverged) shadowReads_[s] = evRaw(shadows[s].mlp->forward(x), shadows[s].half);
   return r;
 }
 
