@@ -2,7 +2,7 @@
    decided by what can never be read again:
 
    - A frontier round's data (ml/data/lv-<n>, sp-<n>) is deleted for good the
-     moment it leaves its lineage's training window (frontier.js `keep`). Its
+     moment it leaves its lineage's training window (the round driver's `keep`). Its
      seed and the model that played it are in the lineage's state, so it can
      be played again if it's ever wanted.
    - Frontier data no lineage's state lists (a crashed run's, a smoke run's,

@@ -6,10 +6,7 @@ Phase 1 of the [frontier plan](suphx-plan.md) is built. It has four parts:
 - **A round driver for both lineages.**
 - **The bar:** every round's best arm must clear [the benchmark](benchmark.md) before it becomes a generation.
 
-```bash
-npm run ml:suphx -- --lineage lucky-cat --rounds 4
-npm run ml:suphx -- --lineage sphinx --rounds 10
-```
+> **This line is cancelled, and its round driver is removed.** `scripts/ml/frontier.js` (`npm run ml:suphx`) last exists at commit `075aa19`. This page stays as the record. Training now runs through `npm run ml:frontier` and `npm run ml:lucky-value`.
 
 ## Contents
 
@@ -80,7 +77,7 @@ None of this is a table result yet: no frontier model has played its screen.
 
 ## The round driver
 
-`scripts/ml/frontier.js --lineage <name>` runs rounds. Each round goes:
+`scripts/ml/frontier.js --lineage <name>` ran rounds. Each round went:
 1. **Generate.** The champion plays with the hidden tiles recorded.
 2. **Train** three arms.
 3. **Screen** each arm against the champion: 10,000 fresh paired deals at the benchmark table.
