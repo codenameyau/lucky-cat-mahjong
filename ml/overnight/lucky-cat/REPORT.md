@@ -34,9 +34,12 @@
 **Recommendation: ship G4 (`ml/models/LO9d.json`) in place of G2**, subject to your game-table check.
 
 
-*Updated 2026-11-11 09:50 local.* Rounds done: 15. Rounds 13 to 15 (a 50/50 blend) confirmed nothing. Now running rounds 16 to 18: the blend with bonus 150. Rounds done: 4.
+*Updated 2026-11-11 11:10 local.* Rounds done: 18. Since G4, three generations (G5, G6) have added hands won, not points. Now running rounds 19 to 21 to aim at points: full-spicy replays again with the close-choice budget and soups, bonus 50. Rounds done: 4.
 
-- **Champion: G5 = LO12d** (`ml/models/LO12d.json`), from 3 more blind steps on G4 with G4's recipe (half-spicy CRN replays, 16 at close choices, a 3-seed soup of vnorm 1 with bonus 50). Against G4 on 320,000 fresh exact deals (extended from 160,000): points **+0.2 ± 0.6** (half spicy **+0.15 ± 0.04, 3.7 SE**), **hands won +0.25 ± 0.03 (8 SE)** (22.59% vs 22.34%), deal-ins −0.09 ± 0.03, average win 297 vs 301. It meets the generation bar on hands won but not the points milestone (full spicy). This is the "better on half spicy, level on full" outcome. The loop's ship check against lc32 is running (on the pool's table; the fixed-table check follows).
+- **Champion: G6 = LO18d** (`ml/models/LO18d.json`), from 3 blind steps on G5: half/full 50/50 blend, vnorm 1, bonus 150, 3-seed soup.
+  - **Against G5** on 160,000 fresh exact deals: points +0.0 ± 0.9 (half spicy +0.14 ± 0.07), **hands won +0.14 ± 0.04 (3.5 SE)**, deal-ins −0.09 ± 0.05, average win 296 vs 294. A generation on hands won.
+  - **Ship check against lc33 = G4 on the fixed table (G4, lc32, lc31):** **+1.8 ± 0.9 points (2.0 SE)**, hands won +0.38 ± 0.05, pooled 160,000 fresh exact deals. **Below the 3 SE ship bar.**
+- **G5 = LO12d** (`ml/models/LO12d.json`), from 3 more blind steps on G4 with G4's recipe (half-spicy CRN replays, 16 at close choices, a 3-seed soup of vnorm 1 with bonus 50). Against G4 on 320,000 fresh exact deals (extended from 160,000): points **+0.2 ± 0.6** (half spicy **+0.15 ± 0.04, 3.7 SE**), **hands won +0.25 ± 0.03 (8 SE)** (22.59% vs 22.34%), deal-ins −0.09 ± 0.03, average win 297 vs 301. It meets the generation bar on hands won but not the points milestone (full spicy). This is the "better on half spicy, level on full" outcome. The loop's ship check against lc32 is running (on the pool's table; the fixed-table check follows).
 - **G4 = LO9d** (`ml/models/LO9d.json`), from 3 blind policy-iteration steps on G3:
   - LO7a: full-spicy data, vnorm 1, bonus 100.
   - LO8a: the same recipe.
@@ -272,6 +275,21 @@ Data: own-13 to own-15, about 61,000 choices each, 927 to 968 s. The blend kept 
 - **The blend buys points with hands won.** It moves along the same frontier the win bonus did. Pure half spicy (G4 to G5) gave hands won with level points; the 50/50 blend gives points with fewer hands won.
 - **What gives neither up:** no setting so far.
 - **Next block (rounds 16 to 18):** the blend with the win bonus raised to 150, on the orchestrator's advice, to hold the hands won while keeping the points.
+
+### Rounds 16 to 18: blind steps from G5, the 50/50 blend with bonus 150
+
+Data: own-16 to own-18, about 61,000 choices each, 909 to 937 s.
+
+**Confirmation of LO18d against G5:** +0.0 ± 0.9 points, hands won +0.14 ± 0.04, deal-ins −0.09 ± 0.05. **Generation 6.**
+
+**Ship check against lc33 (G4) on the fixed table:** +1.8 ± 0.9 points, hands won +0.38 ± 0.05. Below the bar.
+
+**Critique: since G4 the lineage moves on hands won, not on full-spicy points.**
+- **G5 and G6 together:** about +1.8 points against G4, and +0.38 hands won on the fixed table.
+- **Every half-spicy or blended block kept full-spicy points level:** pure half (G4 to G5), the blend with bonus 50 (rounds 13 to 15, points up but hands won down), and the blend with bonus 150 (G5 to G6).
+- **Why:** the targets weight small hands relatively more, so the steps they teach are steps toward winning more often.
+- **The steps that moved points were full spicy:** G2 (full, bonus 150), and the two full-spicy steps inside G4.
+- **Next (rounds 19 to 21):** full-spicy replays, with the close-choice budget and soups kept (the noise tools), and bonus 50.
 
 ## Half spicy
 
