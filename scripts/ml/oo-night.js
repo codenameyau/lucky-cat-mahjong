@@ -285,3 +285,34 @@ if (require.main === module) {
     }
   })().catch((e) => { console.error(e.stack || e.message); process.exit(1); });
 }
+
+/* ---------------- The round driver ----------------
+
+   node scripts/ml/oo-night.js round [--recipes ...]
+   State in ml/oo-night/state.json: the champion, the seed counters (no deck is
+   ever played twice for a judgment), and every round's arms and results. */
+const STATE = path.join(DIR, 'state.json');
+const SEEDS = { data: 1201000000, screen: 1500000000, confirm: 2500000000 };
+const OLD = ['OT11d', 'OT7c', 'OT6e', 'OT5e', 'OT4a', 'OT2d', 'OT1a'];
+function loadState() {
+  try { return JSON.parse(fs.readFileSync(STATE, 'utf8')); } catch (e) {
+    return { champion: 'ml/models/OS2c1.json', lineage: ['OS2c1'], next: { data: 2, screen: 1, confirm: 0 }, rounds: [] };
+  }
+}
+const saveState = (s) => { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(STATE, JSON.stringify(s, null, 1)); };
+function run(cmd, args, logFile) {
+  const { spawnSync } = require('node:child_process');
+  const t0 = Date.now();
+  const r = spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 });
+  if (logFile) fs.appendFileSync(logFile, (r.stdout || '') + (r.stderr || ''));
+  if (r.status) throw new Error(cmd + ' ' + args.slice(0, 4).join(' ') + ' exited with ' + r.status + '\n' + (r.stderr || '').slice(-2000));
+  return (Date.now() - t0) / 1000;
+}
+const PY = path.join(ROOT, 'ml', '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+
+module.exports.loadState = loadState;
+module.exports.saveState = saveState;
+module.exports.run = run;
+module.exports.PY = PY;
+module.exports.SEEDS = SEEDS;
+module.exports.OLD = OLD;
