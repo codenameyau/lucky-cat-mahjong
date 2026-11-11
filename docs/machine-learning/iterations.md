@@ -96,7 +96,7 @@ Every training idea and every milestone model is a section below, in the order t
   - [The objective: points, with a floor on hands won](#the-objective-points-with-a-floor-on-hands-won)
 - [Lucky Cat against its own lineage: LC33 (2026-11-11)](#lucky-cat-against-its-own-lineage-lc33-2026-11-11)
 - [Neural Cat against its own lineage: NC10 (2026-11-11)](#neural-cat-against-its-own-lineage-nc10-2026-11-11)
-- [Only Orphans against its own lineage: W1b0 (2026-11-11)](#only-orphans-against-its-own-lineage-w1b0-2026-11-11)
+- [Only Orphans against its own lineage: OW1 (2026-11-11)](#only-orphans-against-its-own-lineage-ow1-2026-11-11)
 - [Only Orphans on the stacked method (2026-11-10)](#only-orphans-on-the-stacked-method-2026-11-10)
   - [Round 1: replayed labels against the control](#round-1-replayed-labels-against-the-control)
   - [The reader, OR1](#the-reader-or1)
@@ -1351,13 +1351,13 @@ Thinking: the same overnight run as LC33, with Neural Cat at a table of only its
 
 Speed, at 10 workers: data 47 to about 1,200 deals a second, screens 62 to about 1,190 hands a second, a lab-sized round 95 minutes to about 6. Tools (on the branch `train/neural-cat-overnight`): `scripts/ml/nc-overnight.js`, `ml/nc_multi.py`.
 
-## Only Orphans against its own lineage: W1b0 (2026-11-11)
+## Only Orphans against its own lineage: OW1 (2026-11-11)
 
 Thinking: the overnight run trained Only Orphans against only its own older generations (OT11d, OT7c, OT6e, OT5e, OT4a, OT2d, OT1a, OL2c, then OS2c1 and ON1). Its aim, set that night: the biggest hands and the most points, with hands won reported but not a bar.
 
 - **What didn't move points.** Fine-tunes, weight noise, soups, clipping (it never bites), averaged weights, warm-up, a residual teacher (no better on held-out loss: capacity isn't the limit), and half spicy as a play setting or as training data. Capping the faan targets at 10 (ON1 to ON3) won about a fifth more hands for no more points: on 360,000 fresh deals ON2 was +0.82 points of a percent on hands won and −1.4 ± 1.0 points a hand.
 - **The diagnosis:** only about 2.4% of the training positions came from hands that were won, and far fewer from limit hands, so the network rarely saw what a big win looks like.
-- **What worked: ten times the won positions.** One million deals from OS2c1, keeping every position of the winner's hand and 3% of the rest, with importance weights so the outcome heads stay calibrated. OS2c1 fine-tuned on it with no faan cap (lr 3e-4, 8 epochs) is W1b0.
+- **What worked: ten times the won positions.** One million deals from OS2c1, keeping every position of the winner's hand and 3% of the rest, with importance weights so the outcome heads stay calibrated. OS2c1 fine-tuned on it with no faan cap (lr 3e-4, 8 epochs) is W1b0, shipped as **OW1**.
 
 | Against OS2c1, older-generations table, 160,000 fresh exact deals (two runs) | W1b0 | W1b1 (second seed) |
 | --- | --- | --- |

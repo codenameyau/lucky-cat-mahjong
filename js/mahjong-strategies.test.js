@@ -57,7 +57,7 @@ describe('strategy registry', () => {
     assert.equal(S.get('jorge-yau').model, undefined);
     assert.match(S.get('neural-cat').summary, /^Neural Cat NC\d+ /);
     assert.match(S.get('lucky-cat').summary, /^Lucky Cat LC\d+ /);
-    assert.match(S.get('only-orphans').summary, /^Only Orphans O[TS]\w+ /);
+    assert.match(S.get('only-orphans').summary, /^Only Orphans O[A-Z]\w+ /);
     assert.match(S.get('jorge-yau').summary, /^Play mahjong the way the founder of Lucky Cat plays\./);
   });
 
