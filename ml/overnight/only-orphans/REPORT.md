@@ -2,10 +2,13 @@
 
 ## Status
 
-- **Recommended champion: ON2** (`ml/models/ON2.json`). Against OS2c1 on 120,000 pooled fresh exact deals (C3, C4, C5): hands won **+0.83 ± 0.03 pp** (4.35% to about 5.2%), full-spicy points **+2.5 ± 1.8** a hand, deal-ins +0.02 ± 0.02 pp, limit-hand wins level. It meets the Pareto rule. **It is not a ship candidate** (points +1.4 SE; the bar is +3 SE pooled).
-- Other generations: ON1 (120,000 deals: +0.2 ± 1.8 points, +0.73 pp wins) and ON3 (80,000 deals: +1.6 ± 2.2 points, +0.90 pp wins, deal-ins +0.065 ± 0.028 pp). All three pass the fair-play check.
-- **Rounds done:** R0, 1, R1b, C0, the structural arms, R2, R3, C1, round 2 (C2), C3, round 3 (C4), C5, the half-spicy screen HS, C6. **Finished; the run has stopped.**
-- **Last result:** C6. ON3 −4.9 ± 3.1 and ON2 at win bonus 400 −3.7 ± 3.1 against OS2c1 on fresh deals. The single-run leads did not repeat.
+- **Recommended: ON2** (`ml/models/ON2.json`). Against OS2c1 at the older-generations table, 120,000 pooled fresh exact deals: hands won +0.83 ± 0.03 pp, points +2.6 ± 1.8, deal-ins +0.02 ± 0.02 pp. That meets the Pareto rule, not the ship bar.
+- **Game's table** (NC9, Jorge Yau, NC9; 60,000 fresh exact deals): ON2 against OS2c1 has hands won +0.51 ± 0.06 pp, deal-ins −0.50 ± 0.08 pp, points −4.5 ± 3.8, and **limit-hand wins −0.077 ± 0.021 pp** (fewer limit hands there).
+- **Phase 2 done so far:**
+  - The variance-reduced estimator `lcm-sim vr` is built and validated (unbiased, variance ratio 2.9 at K = 4). It costs 4.3x the compute, so it is less efficient than plain deals and is not used.
+  - The game-table check is done.
+  - Half-spicy arms 2 to 4 are trained (data `oon-h1` made by ON2 playing at blend 0.5).
+- **Now:** the ON2 ship check on plain fresh exact deals, in 40,000-deal blocks (`scripts/ml/oo-ship.js`, log `ml/oo-night/ship-ON2.log`), up to 400,000 deals. It stops when the pooled points gap is past 3 SE or its upper bound falls under +1. Then the half-spicy screen.
 - **Blockers:** none.
 
 ## The table and the measures
