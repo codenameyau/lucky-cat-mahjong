@@ -128,7 +128,7 @@ async function round(state, plan) {
   const total = stages.reduce((a, b) => a + b, 0);
   const sseed = takeSeeds(state, total);
   O.stats.played = 0; O.stats.cached = 0; O.stats.seconds = 0;
-  const res = await O.screen(head, arms.map((a) => 'ml/models/' + a.name + '.json'), sseed, stages, { pool: state.pool, log });
+  const res = await O.screen(head, arms.map((a) => 'ml/models/' + a.name + '.json'), sseed, stages, { pool: state.pool, log, drop: plan.drop == null ? 1 : plan.drop });
   rec.times.screen = (Date.now() - t) / 1000;
   rec.screen = { against: head, seed: sseed, stages, played: O.stats.played, cached: O.stats.cached };
   rec.arms = res.map((x, k) => Object.assign({ name: arms[k].name, recipe: plan.arms[k], train: tr.find((y) => y.name === arms[k].name) || null }, x));

@@ -2,14 +2,14 @@
 
 ## Status
 
-*Updated 2026-11-11 03:25 local.* Rounds done: 4.
+*Updated 2026-11-11 03:50 local.* Rounds done: 5. Rounds done: 4.
 
 - **Champion: G3 = LO4h** (`ml/models/LO4h.json`, variance-aware target: vnorm 1, bonus 150, trained from G2). Against G2 on 160,000 fresh exact deals: points **+1.4 ± 0.8**, hands won **+0.22 ± 0.04 (5.5 SE)**, deal-ins −0.05 ± 0.04, average win 306 vs 304. It meets the generation bar on hands won, but not the points milestone (1.75 SE). Its ship check against lc32 isn't run yet.
 - **G2 = LO2a** (`ml/models/LO2a.json`), the lineage's first points gain. Against G1 on 160,000 fresh exact deals: **+2.2 ± 0.9 points a hand (2.4 SE)**, hands won +0.07 ± 0.05, deal-ins level (−0.00 ± 0.05), average win 301 vs 295. It meets the generation bar and the points milestone. Fair-play shuffle check (`scripts/ml/fair-play.js`): **pass**.
 - **G1 = LO1b:** hands won +0.23 ± 0.07 against lc32 (generation bar only).
 - **SHIP CANDIDATE: G2 against lc32**, on two fresh exact runs of 80,000 deals each (seeds 801,264,000 and 801,344,000), pooled to 160,000 deals: **+5.9 ± 1.1 points a hand (5.5 SE)**, hands won **+0.35 ± 0.05** (22.1% vs 21.8%), deal-ins level (+0.00 ± 0.06), average win about 310 vs 289. The two runs alone: +6.3 ± 1.5 and +5.5 ± 1.5 points. It clears the 3 SE ship bar, and fair play passes.
 - **Running now:**
-  - **Round 5** (full CRN replays, data from G3). Round 4 kept nothing; its arms were: a control (tau 30, bonus 150), bonus 75, bonus 225, EMA, the LO1d retry (lr 1e-3, warm-up, cosine, EMA), gradient noise with two seeds, and the variance-aware target.
+  - **G3's ship check against lc32** (two fresh exact runs of 80,000 deals, pooled), then **round 6**: on-policy data only, drop at 1.5 SE. Round 5 kept nothing. Round 4 kept nothing; its arms were: a control (tau 30, bonus 150), bonus 75, bonus 225, EMA, the LO1d retry (lr 1e-3, warm-up, cosine, EMA), gradient noise with two seeds, and the variance-aware target.
 - **Table pool:** G3, G2, G1, lc32.
 - **Blockers:** none.
 
@@ -145,6 +145,19 @@ Nothing passed. The head stayed at G2, and there was no confirmation.
   - arms are ranked by the sum of the two z-scores;
   - a failed confirmation sends the head back to the champion.
 - **What happens now:** LO4h is being confirmed on 160,000 fresh exact deals against G2 (`--confirm`). Then round 5 runs: two seeds of the control, tau 20, 6 epochs, two seeds of vnorm, and vnorm 1.5 with bonus 100, trained on three rounds of data.
+
+### Round 5 (champion G3 = LO4h; data own-5: 24,000 deals, G3 exploring, 124,110 choices in 1,039 s; trained on own-2 + own-4 + own-5 in 42 s)
+
+Every arm was dropped at stage 1 (8,000 deals), all on hands won: −0.22 to −0.71 against G3. The arms were the control (2 seeds), tau 20, 6 epochs, vnorm 1 (2 seeds), and vnorm 1.5 with bonus 100. Points ranged from −7.6 to +3.9 ± 4. No head move, no confirmation.
+
+**Critique.**
+- **The arms fell together.** All seven were behind on hands won on the same 8,000 deals. Part of that is the shared champion's luck on that deck, since every arm is paired with the same G3 games.
+- **The data mix fits the new champion badly.** Two of the three data rounds came from older champions (own-2 from G1, own-4 from G2), and their replays are scored with those champions playing on. G3 was the arm that won more hands, so pulling it toward older policies' values undoes its gain.
+- **Changes for round 6:**
+  - training on the head's own data only (on-policy; own-5 and own-6);
+  - stage-1 dropping loosened to 1.5 SE;
+  - arms: vnorm 1 (2 seeds), vnorm 0.7, the control (2 seeds), tau 50.
+- **Before round 6:** G3's ship check against lc32.
 
 ## Structural arms (from the maintainer's list)
 
