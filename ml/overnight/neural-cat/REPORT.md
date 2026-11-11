@@ -1,14 +1,12 @@
 # Neural Cat overnight report
 
-## Status (updated 2026-11-11 10:15 UTC)
+## Status (updated 2026-11-11 10:55 UTC)
 
-- **Champion:** NC9 (the shipped model; `ml/models/pool/NC9.json`). No generation has passed a bar yet.
-- **Rounds done:** 5 (R1 to R5) plus confirmations; nothing kept.
-- **Last result:** faan smoothing 0.03 (R4sm03) on 150,000 fresh exact deals: **hands won +1.4 ± 0.05 pp** (17.61% vs 16.19%), points **+0.6 ± 2.3** (level), deal-ins **+0.10 ± 0.05 pp**, average win 833 vs 915. It misses the generation bar only on deal-ins (up 2 SE, the rule allows 1). Closest of the night.
-- **Fast against exact (the orchestrator's check 1):** R1a's 40,000 confirmation deals replayed on the fast build: 39,995 of 40,000 deals identical for each model, means 15.52 vs 15.56 (R1a) and 15.83 vs 15.84 (NC9), gap -0.3 ± 4.4 on both. **The fast build is not biased**; the positive screens are selection plus candidates sharing their luck.
-- **Now:** a 15-candidate frontier screen (40,000 fast deals, scored on both payout tables): half-spicy play settings on NC9's weights (blend 0.25, 0.5, 1.0, and 0.5 with win bonus 150), faan smoothing 0.01 / 0.02 / 0.03 (seed 2, and with EMA) / 0.04, smoothing 0.03 with the win bonus lowered (250, 200) or the deal-in logit raised (+0.15) to bring deal-ins back to level, smoothing 0.02 with win bonus 250, and EMA with deal-in logit +0.2 / +0.4. Then 150,000-deal exact confirmations of the best points on the hands-won frontier with deal-ins level.
-- **Half spicy:** implemented natively (`meta.play.spicyBlend` in `native/src/neural_cat.cpp`, native only and off by default; `lcm-sim play --per-deal-half` re-scores every hand on the half-spicy table; the table matches `js/points.js` on faan 3 to 13; parity with the JS unchanged, 200 hands). A shipped model with a blend needs the same option in `js/mahjong-ml-model.js` (not done: pinned JS).
-- **Bars:** generation = on fresh exact deals, points (full spicy) or hands won up >= 2 SE, the other not down > 1 SE, deal-ins not up > 1 SE. Ship candidate = full-spicy points up >= 3 SE against NC9 on pooled fresh exact deals, hands won not down > 1 SE.
+- **Champion: G1** (`ml/models/pool/G1.json`, trained as R4sm03: NC9 fine-tuned on 8 sets of every-seat data with label smoothing 0.03 on the faan heads). **Generation 1** under the orchestrator's revised rule (deal-ins may rise by up to 0.25 pp or 1 SE): against NC9 on 150,000 fresh exact deals, hands won **+1.4 ± 0.05 pp** (17.61% vs 16.19%), points **+0.6 ± 2.3** (level), deal-ins +0.10 ± 0.05 pp, average win 833 vs 915. Fair-play shuffle check (`bench.js fairPlay`): **pass**. **Not a ship candidate** (points level). It joined the pool and plays the next data.
+- **Rounds done:** 5 rounds plus the frontier screen (S8). 
+- **Last result (S8, 40,000 fast deals against NC9, both payout tables):** the faan-smoothing frontier dominates the half-spicy play setting: at about +1.4 pp hands won, smoothing costs -0.5 to -0.8 ± 4.3 full-spicy points; the half-spicy blend 0.25 wins +1.1 pp at -2.2 ± 1.9, blend 0.5 wins +2.6 pp at -9.8 ± 4.1, blend 1.0 +9.5 pp at **-57.3**. On half-spicy points every smoothing model beats NC9 by +0.7 to +1.2 ± 0.25 (3 to 5 SE); the half-spicy play setting itself only +0.3 to +0.4.
+- **Now:** R8, G1's generation: 2 x 50,000 deals with G1 exploring against the pool (G1, NC9, NC8, NC7, NC5, NC3); fine-tunes of G1 (control, smoothing 0.03 seeds 1 and 2, with EMA, smoothing 0.015) and a soup; screen against G1 on both tables; 150,000-deal confirmations of the top 2.
+- **Bars:** generation = against the current champion on fresh exact deals, full-spicy points or hands won up >= 2 SE, the other not down > 1 SE, deal-ins up at most 0.25 pp or 1 SE (the larger). Ship candidate = full-spicy points up >= 3 SE against NC9 on pooled fresh exact deals, hands won not down > 1 SE.
 - **Blockers:** none.
 
 ## Speed: before (the lab today) and after (this loop)
@@ -166,10 +164,39 @@ Play (screen, fast, 40,000 deals from seed 3,000,322,000, paired against NC9; th
 
 | Candidate | Deals (fresh, exact) | Points vs NC9 | Hands won | Deal-ins | Avg win | Bar met |
 | --- | ---: | ---: | --- | --- | --- | --- |
-| R4sm03 (faan smoothing 0.03) | 150,000 (seed 3,000,552,000) | +0.6 ± 2.3 | 17.61% vs 16.19% (+1.4 ± 0.05 pp) | 10.44% vs 10.34% (+0.10 ± 0.05 pp) | 833 vs 915 | none: deal-ins up 2 SE (hands won up 28 SE, points level) |
+| R4sm03 (faan smoothing 0.03) | 150,000 (seed 3,000,552,000) | +0.6 ± 2.3 | 17.61% vs 16.19% (+1.4 ± 0.05 pp) | 10.44% vs 10.34% (+0.10 ± 0.05 pp) | 833 vs 915 | at first none (deal-ins up 2 SE under the 1 SE rule); under the revised rule (0.25 pp or 1 SE) **Generation 1 (G1)**, not a ship candidate |
 
 (R5's own confirmation of R5c0 was stopped after 3 minutes, before any result, to spend the deals on R4sm03; its deals were reused for R4sm03, unseen.)
 
 ### Fast against exact, deal by deal
 
 R1a and NC9 on R1a's confirmation deals (seed 3,000,042,000, 40,000 deals), played again on the fast build: 39,995 of 40,000 deals identical for each model; R1a 15.52 against 15.56 points a hand, NC9 15.83 against 15.84; the gap -0.3 ± 4.4 on both builds. The fast build carries no bias toward newer weights.
+
+## Half spicy
+
+How: `meta.play.spicyBlend` b makes each faan's worth (1 - b) x full spicy + b x half spicy (`js/points.js` halfSpicyPoints) when Neural Cat turns its faan heads into expected points (native only; off by default, so every pinned player plays as before; parity rechecked on 200 hands). Every hand of a screen or confirmation is also re-scored on the half-spicy table (`lcm-sim play --per-deal-half`; payments are linear in the hand's points, so each delta scales by half / full for the hand's faan; the tables match `js/points.js` for faan 3 to 13). Neural Cat's targets are how the hand ends and the faan, not points, so "training on half spicy" for it means only the play setting and data played under it; the faan smoothing arms are the training-side analogue (they flatten the faan heads).
+
+S8 frontier screen (fast, 40,000 deals from seed 3,000,702,000, paired against NC9; full-spicy points, hands won, deal-ins, average win, then half-spicy points a hand and the candidate's own half-spicy points a hand; NC9 scores about 1.0 a hand on half spicy, about 15.8 on full):
+
+| Candidate | Full-spicy points | Hands won | Deal-ins | Avg win | Half-spicy points | Deals |
+| --- | ---: | --- | --- | --- | ---: | ---: |
+| R6sm04 smoothing 0.04 | +1.3 ± 4.4 | 17.85% vs 16.10% (+1.7 ± 0.11) | 10.37% vs 10.27% | 807 vs 892 | **+1.2 ± 0.25** | 40,000 |
+| R7sm01 smoothing 0.01 | -0.0 ± 4.3 | 16.83% (+0.7 ± 0.10) | 10.57% | 851 | +0.9 ± 0.25 | 40,000 |
+| R6sm02 smoothing 0.02 | -0.4 ± 4.4 | 17.14% (+1.0 ± 0.11) | 10.48% | 829 | +0.9 ± 0.25 | 40,000 |
+| R6sm03e smoothing 0.03 + EMA | -0.5 ± 4.3 | 17.59% (+1.5 ± 0.11) | 10.37% | 801 | +1.0 ± 0.25 | 40,000 |
+| R6sm03b smoothing 0.03 seed 2 | -0.8 ± 4.3 | 17.51% (+1.4 ± 0.11) | 10.44% | 804 | +0.9 ± 0.25 | 40,000 |
+| R4sm03d15 smoothing 0.03, deal-in logit +0.15 | -1.6 ± 4.3 | 17.45% (+1.3 ± 0.11) | **10.11%** | 799 | +0.9 ± 0.25 | 40,000 |
+| R6sm02w250 smoothing 0.02, win bonus 250 | -1.7 ± 4.4 | 16.42% (+0.3 ± 0.10) | 10.40% | 870 | +0.7 ± 0.25 | 40,000 |
+| R4sm03w250 smoothing 0.03, win bonus 250 | -1.8 ± 4.3 | 16.85% (+0.7 ± 0.11) | 10.19% | 843 | +0.8 ± 0.25 | 40,000 |
+| H4 half-spicy blend 0.25 (NC9's weights) | -2.2 ± 1.9 | 17.22% (+1.1 ± 0.06) | 10.33% | 817 | +0.3 ± 0.12 | 40,000 |
+| H3 blend 0.5, win bonus 150 | -1.3 ± 1.7 | 16.14% (-0.0 ± 0.05) | 10.15% vs 10.12% | 906 vs 920 | +0.0 ± 0.11 | 20,000 (dropped) |
+| R4sm03w200 smoothing 0.03, win bonus 200 | -4.3 ± 6.2 | 16.03% (-0.1) | 10.07% | 886 | +0.5 ± 0.36 | 20,000 (dropped) |
+| R3emaB4 EMA, deal-in logit +0.4 | -3.2 ± 6.2 | 15.84% (-0.3) | 10.14% | 908 | +0.6 ± 0.35 | 20,000 (dropped) |
+| R3emaB2 EMA, deal-in logit +0.2 | -4.8 ± 6.3 | 15.94% (-0.2) | 10.30% | 905 | +0.6 ± 0.36 | 20,000 (dropped) |
+| H1 half-spicy blend 0.5 | **-9.8 ± 4.1** | 18.78% (+2.6 ± 0.12) | 10.54% | 728 | +0.4 ± 0.24 | 20,000 (dropped) |
+| H2 half-spicy blend 1.0 | **-57.3 ± 5.8** | 25.62% (+9.5 ± 0.17) | 10.75% | 348 | +0.3 ± 0.34 | 20,000 (dropped) |
+
+- **The half-spicy play setting is a trade, not a gain, on full spicy:** each step toward half spicy buys hands won with full-spicy points (blend 1.0 wins 9.5 more hands in 100 and gives up 57 points a hand), and it barely helps on half spicy itself (+0.3 to +0.4). Its standard errors are 2 to 3 times smaller (most deals play the same), as expected.
+- **Faan smoothing is the better lever on both tables:** at the same hands won it keeps full-spicy points level, and it beats NC9 on half-spicy points by 3 to 5 SE, which the half-spicy play setting does not. Smoothing changes the faan heads' calibration as a whole, not just the payout weights; the screens can't separate smoothing 0.01 to 0.04 on full-spicy points (all within ± 4.4).
+- **Lowering the win bonus does take back deal-ins** (win bonus 250: 10.19%; deal-in logit +0.15: 10.11%) but gives back hands won faster than it saves points.
+- **Next under this heading:** data played by a half-spicy-setting learner, and a curriculum, are not run: the play setting lost on full spicy, so they are low priority beside G1's own generation.

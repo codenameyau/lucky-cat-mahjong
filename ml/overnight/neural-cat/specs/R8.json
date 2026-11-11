@@ -1,0 +1,10 @@
+{"name":"R8","data":{"deals":50000,"sets":2,"window":8},
+ "arms":[
+  {"name":"R8c","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256"},
+  {"name":"R8s1","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","faanSmooth":0.03},
+  {"name":"R8s2","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":2,"init":"champion","hidden":"512,256","faanSmooth":0.03},
+  {"name":"R8se","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","faanSmooth":0.03,"ema":0.999},
+  {"name":"R8s15","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"champion","hidden":"512,256","faanSmooth":0.015}],
+ "soups":[{"of":["R8s1","R8s2","R8se"]}],
+ "screen":{"deals":40000,"look":20000,"minDeals":20000,"half":true},
+ "confirm":{"deals":150000,"top":2,"minZ":0.5,"half":true}}

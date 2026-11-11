@@ -281,7 +281,7 @@ function judge(cand, rowsC, rowsChamp, deals, seed, secs) {
   const s = summary(rowsC, deals), c = summary(rowsChamp, deals);
   // A generation (the Pareto rule): points or hands won up 2 SE, the other not down more than 1 SE,
   // deal-ins not up more than 1 SE. A ship candidate needs points up 3 SE on pooled fresh exact deals.
-  const pass = ((p.points >= 2 * p.se && p.wins >= -p.winSe) || (p.wins >= 2 * p.winSe && p.points >= -p.se)) && p.dealIns <= p.dealInSe;
+  const pass = ((p.points >= 2 * p.se && p.wins >= -p.winSe) || (p.wins >= 2 * p.winSe && p.points >= -p.se)) && p.dealIns <= Math.max(0.0025, p.dealInSe);  // deal-ins: up at most 0.25 pp or 1 SE, the larger (orchestrator, 2026-11-11)
   const shipLike = p.points >= 3 * p.se && p.wins >= -p.winSe;
   log('  ' + line(nameOf(cand), p, s, c) + ', deal-in diff ' + (100 * p.dealIns).toFixed(2) + ' +- ' + (100 * p.dealInSe).toFixed(2) + ' pp' +
     (pass ? '  PASS (generation, Pareto 2 SE)' : '  fail') + (shipLike ? ' points 3 SE' : '') + ' (' + secs.toFixed(0) + 's)');
@@ -504,12 +504,13 @@ async function round(state, spec) {
     .sort((a, b) => b.pair.points - a.pair.points).slice(0, conf.top || 2);
   r.confirms = [];
   for (const x of top) {
-    const c = await confirm(state, path.join(ROOT, x.file), { deals: conf.deals || 40000 });
+    const c = await confirm(state, path.join(ROOT, x.file), { deals: conf.deals || 40000, half: conf.half });
     r.confirms.push(c);
   }
   const winner = r.confirms.filter((c) => c.pass).sort((a, b) => b.pair.points - a.pair.points)[0];
   if (winner) {
-    const name = 'NCo' + (state.rounds.filter((x) => x.kept).length + 1);
+    state.generation = (state.generation || 0) + 1;
+    const name = 'G' + state.generation;
     const f = 'ml/models/pool/' + name + '.json';
     const w = readJson(winner.file);
     w.meta = Object.assign({}, w.meta, { name, trainedName: winner.name, overnight: { round: spec.name, confirm: { deals: winner.deals, points: winner.pair.points, se: winner.pair.se } } });
