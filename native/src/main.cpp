@@ -290,6 +290,10 @@ int main(int argc, char** argv) {
       j.optionShare = a.count("option-share") ? std::stod(a["option-share"]) : 0.1;
       j.crn = a.count("crn") > 0;
       j.crnSalt = a.count("crn-salt") ? uint32_t(std::stoul(a["crn-salt"])) : 0;
+      j.claimsOnly = a.count("option-claims-only") > 0;
+      j.learnerOnly = a.count("option-learner-only") > 0;
+      j.unseen = a.count("option-unseen") > 0;
+      j.nearTie = a.count("option-near-tie") ? std::stod(a["option-near-tie"]) : -1;
       return runGenerateNc(j, [](const std::string& id) { return makeAgent(id); });
     }
     if (cmd == "half-points") {

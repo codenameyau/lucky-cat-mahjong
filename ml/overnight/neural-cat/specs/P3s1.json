@@ -1,0 +1,4 @@
+{"name":"P3s1","data":{"sets":0,"dirs":["ml/data/nco-3","ml/data/nco-4","ml/data/nco-5","ml/data/nco-6","ml/data/nco-7","ml/data/nco-8","ml/data/nco-9","ml/data/nco-10"]},
+ "arms":[
+  {"name":"P3w3","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"ml/models/pool/NC9.json","hidden":"512,256","winSmooth":0.03},
+  {"name":"P3f3","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":2,"init":"ml/models/pool/NC9.json","hidden":"512,256","faanSmooth":0.03}]}

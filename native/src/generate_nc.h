@@ -38,6 +38,15 @@ struct NcGenerateJob {
   // --crn (generate-nc): every option of a group replayed on the same wall shuffles; --crn-salt another set.
   bool crn = false;
   uint32_t crnSalt = 0;
+  // Overnight phase 3 (the measurements): option groups only at claims (claimsOnly), only at the
+  // learner's own seats (learnerOnly), only at discards whose best two values are within nearTie
+  // (nearTie >= 0; the options: the discards within nearTie of the best, at most `options`); and
+  // the replays' unseen tiles (the wall and the others' concealed tiles) reshuffled, not the wall
+  // alone (unseen). Each option row's replays go in shard-N.optrep (3 float32s a replay: the
+  // seat's points, the points as the model counts them, the learner's expected points at the
+  // seat's next decision, NaN if the hand ended before it).
+  bool claimsOnly = false, learnerOnly = false, unseen = false;
+  double nearTie = -1;
 };
 
 int runGenerateNc(const NcGenerateJob& job, const AgentFactory& make);

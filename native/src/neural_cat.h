@@ -38,6 +38,12 @@ class NeuralCat : public Foundation {
   void read(Reading& r, const Game& g, int seat);
   int row(Reading& r, int index, float* x);  // returns the kept tiles' plan (a PlanKind), or -1
   void waitingRow(const Game& g, int seat, int kind, int tile, float* x);  // 0 pass, 1 kong, 2 concealed, 3 added
+  // The overnight claim measurement (generate-nc --option-claims-only): the choices chooseClaim
+  // weighs (passing first), each one's expected points (ev) and value (ev + winBonus x pWin),
+  // and the foundation's pick (*at). Empty when chooseClaim would not weigh any.
+  struct ClaimValue { Decision decision; double ev, value; };
+  std::vector<ClaimValue> claimValues(const Game& g, int seat, const ClaimOptions& o, int* at);
+  double winBonus() const { return winBonus_; }
 
  protected:
   bool hasRerank() const override { return true; }

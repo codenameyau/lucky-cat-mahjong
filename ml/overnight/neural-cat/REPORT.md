@@ -1,5 +1,13 @@
 # Neural Cat overnight report
 
+## Phase 3 status (updated 2026-11-11 16:40 UTC; a new agent took over)
+
+- **Champion: NC10 = SC1 = G2** (`ml/models/pool/G2.json`), unchanged. Phase 3 asks for new information instead of more of the champion's own outcomes; measure the oracle gain first, train only if it is worth having.
+- **Tools added:** `lcm-sim generate-nc --option-claims-only --option-learner-only --option-unseen --option-near-tie X` (option groups only at claims / only at the learner's seats / every unseen tile reshuffled, not just the wall / only near-tie discards) and a per-replay file `shard-N.optrep` (the seat's points, the model's points, the learner's expected points at the seat's next decision); each option row's label now carries the learner's value and expected points of that option and whether it weighs it (bytes 24 to 31, 54). `scripts/ml/nc-measure.js` runs a measurement (10 workers); `ml/nc_oracle.py` reads it (cross-fitted oracle gain, per learner seat-hand).
+- **Running:** (1) claims by replay: 20,000 deals of G2 at the table's mix, every claim of its seats, every option x 32 CRN replays of the unseen tiles; (3) cheap checks: stage 1 of the two-stage jobs training on the GPU.
+- **Measured so far:** a 100-deal smoke test only (4.2 claim decisions a seat-hand; G2's pick matches its top value in 100% of the groups where it weighs two or more options).
+- **Blockers:** none.
+
 ## Status (updated 2026-11-11 16:30 UTC; phase 2 done for this session)
 
 - **Shipped as NC10 (PR #251): SC1 = G2** (`ml/models/pool/SC1.json`, same file as `G2.json`). Against NC9 on 200,000 pooled fresh exact deals: **+8.1 ± 2.0 points a hand, +1.08 ± 0.05 pp hands won**, deal-ins +0.24 pp; at the benchmark table (the orchestrator's run) +7.4 ± 3.4. The ship anchor is now SC1.

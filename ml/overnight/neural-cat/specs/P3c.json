@@ -1,0 +1,9 @@
+{"name":"P3c","data":{"sets":0,"dirs":["ml/data/nco-5","ml/data/nco-6","ml/data/nco-7","ml/data/nco-8","ml/data/nco-9","ml/data/nco-10","ml/data/nco-11","ml/data/nco-12"]},
+ "arms":[
+  {"name":"P3p02","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"ml/models/pool/G1.json","hidden":"512,256","paySmooth":0.02},
+  {"name":"P3p05","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"ml/models/pool/G1.json","hidden":"512,256","paySmooth":0.05},
+  {"name":"P3wp","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"ml/models/P3w3.json","hidden":"512,256","paySmooth":0.03},
+  {"name":"P3fp","lr":1e-4,"epochs":4,"patience":2,"dropout":0.2,"weightDecay":1e-3,"seed":1,"init":"ml/models/P3f3.json","hidden":"512,256","paySmooth":0.03}],
+ "extra":["ml/models/R10g3.json"],
+ "screen":{"deals":40000,"look":20000,"minDeals":20000,"half":true,"champion":"ml/models/pool/G2.json"},
+ "confirm":{"deals":150000,"top":0}}

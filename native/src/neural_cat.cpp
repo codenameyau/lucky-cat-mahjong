@@ -430,6 +430,30 @@ Decision NeuralCat::chooseClaim(const Game& g, int seat, const ClaimOptions& opt
   return choices[size_t(pickChoice(choices, at))].decision;
 }
 
+std::vector<NeuralCat::ClaimValue> NeuralCat::claimValues(const Game& g, int seat, const ClaimOptions& opts, int* at) {
+  std::vector<ClaimValue> out;
+  *at = 0;
+  Decided d = decideClaim(g, seat, opts);
+  if (!d.hasFound || d.found.options.empty() || d.decision.type == A_WIN) return out;
+  Decision pass; pass.type = A_PASS;
+  MlRead p = waitingFeatures(g, seat, 0, opts.tile);
+  out.push_back({pass, p.ev, value(p)});
+  for (auto& o : d.found.options) {
+    if (!claimOk(o, opts, g, seat)) continue;
+    if (!claimConsistent(g, seat, &d.found, o.decision, opts.tile)) continue;
+    MlRead ml;
+    if (o.decision.type == A_KONG) ml = waitingFeatures(g, seat, 1, opts.tile);
+    else {
+      if (!o.cand || !o.cand->hasMl) continue;
+      ml.ev = o.cand->mlBest; ml.pWin = o.cand->mlPWin;
+    }
+    out.push_back({o.decision, ml.ev, value(ml)});
+  }
+  if (out.size() == 1) { out.clear(); return out; }
+  for (size_t k = 0; k < out.size(); k++) if (sameDecision(out[k].decision, d.decision)) *at = int(k);
+  return out;
+}
+
 Decision NeuralCat::chooseTurnAction(const Game& g, int seat, const TurnOptions& opts) {
   Decision d = Foundation::chooseTurnAction(g, seat, opts);
   std::vector<KongOption> allowed;

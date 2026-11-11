@@ -478,7 +478,8 @@ async function round(state, spec) {
       optionReplays: o.optionReplays, options: o.options, optionShare: o.optionShare, crn: o.crn })));
     spec.data.advData = (spec.data.advData || []).concat(fresh.filter((d, k) => sets[k].optionReplays));
     const all = state.datasets.map((d) => d.dir).filter((d) => fs.existsSync(path.join(ROOT, d, 'manifest.json')));
-    const window = spec.data.window ? all.slice(-spec.data.window) : fresh;
+    // dirs: an explicit window (an earlier round's data, to re-run its recipe on the same rows).
+    const window = spec.data.dirs ? spec.data.dirs : spec.data.window ? all.slice(-spec.data.window) : fresh;
     const arms = spec.arms.map((a) => Object.assign({}, a, { init: a.init === 'champion' ? rel(champ) : a.init }));
     trained.push(...trainArms(state, arms, window, null, spec.data.advData));
     trained.forEach((f) => cands.push(f));
