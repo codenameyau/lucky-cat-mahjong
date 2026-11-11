@@ -6,7 +6,7 @@ Phase 1 of the [frontier plan](suphx-plan.md) is built. It has four parts:
 - **A round driver for both lineages.**
 - **The bar:** every round's best arm must clear [the benchmark](benchmark.md) before it becomes a generation.
 
-> **This line is cancelled, and its round driver is removed.** `scripts/ml/frontier.js` (`npm run ml:suphx`) last exists at commit `075aa19`. This page stays as the record. Training now runs through `npm run ml:frontier` and `npm run ml:lucky-value`.
+> **This line is cancelled, and its round driver is removed.** `scripts/ml/frontier.js` (`npm run ml:suphx`) last exists at commit `075aa19`. This page stays as the record, and "Not done yet" below won't be done. `npm run ml:frontier` and `npm run ml:lucky-value` came after it; since 2026-11-10 each model is trained against older models of its own lineage only ([training](training.md#training-a-lineage-against-its-own-past)).
 
 ## Contents
 

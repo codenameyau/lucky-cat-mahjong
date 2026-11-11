@@ -51,7 +51,7 @@ Every learned strategy reads one discard deep: the network scores the position e
 - **Cost.** About 10 times the time a move, on phones too, and the lab's evaluations would slow by about as much.
 - **Thin evidence.** 3,000 deals, not 20,000 (the machine was shared with the overnight lab), only against copies of the same model, with the search's settings set by reasoning, not tuned.
 
-**If it's tried again:** measure on 20,000 deals against the current models (NC9, LC32), head to head; tune the search's width and its deal-in weight; and try searching claims too.
+**If it's tried again:** measure on 20,000 deals against the current models (NC10, LC34), head to head; tune the search's width and its deal-in weight; and try searching claims too.
 
 ## Claims
 

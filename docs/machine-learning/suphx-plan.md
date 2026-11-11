@@ -3,6 +3,8 @@
 Written 2026-11-08. Suphx ([Li et al. 2020](https://arxiv.org/abs/2003.13590)) was built for Japanese riichi mahjong. This page takes it apart against Hong Kong rules and this engine, argues the design through four rounds of critique, and ends in a plan with phases, numbers to hit, and the point at which each phase is dropped. The Suphx teacher already in the lab ([iterations](iterations.md#suphx-for-lucky-cat-an-oracle-teacher-not-an-oracle-critic)) is phase 0 of this plan.
 
 > **Cancelled on 2026-11-09 (the maintainer's decision): the Suphx line is a failed experiment.** No more Lucky Cat frontier rounds, no more Sphinx rounds, and phases 2 to 4 below are not built as written. It was the frontier plan until then. The frontier plan is now [one model, three heads](frontier-plan.md), grown from Neural Cat's recipe. This page stays as the record of what was tried. Why it was cancelled, with the evidence, is in [§11](#the-suphx-line-is-cancelled-2026-11-09). What carries over: the benchmark and its bar (§9), the native simulator (§6b), features v2, the heads that read the table, and the fair-play rules (§8).
+>
+> **The current approach (2026-11-11) is neither plan.** The frontier plan that followed this one is past too. Each model is now trained against older models of its own lineage only, on the native simulator ([training](training.md#training-a-lineage-against-its-own-past)).
 
 Everything here must keep two promises: the shipped model reads only what its seat can see (`js/mahjong-fair-play.test.js`), and it runs in plain JS in the browser in a few milliseconds a move.
 

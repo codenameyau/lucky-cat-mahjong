@@ -12,7 +12,7 @@ It doesn't plan a hand. Each turn it looks at what its seat can see and the netw
 
 So it values speed over size: it wins often and in few discards, mostly with small hands of 4 to 5 faan, and it deals in more often than [Neural Cat](neural-cat.md), which wins about half as many hands but with bigger ones. The coach says how often the network plays its move and the next most likely one.
 
-LC32 was trained to win as many hands as it can, as fast as it can, with points counting for only a little; its lineage's goal now is points, with a fairly high win rate kept. It takes the risks that have won it hands before, so its wins can look lucky when they are learned.
+LC32 was trained to win as many hands as it can, as fast as it can, with points counting for only a little; LC33 was judged on points, and since LC34 its goal is the most hands won again (the aim above), with points a hand and deal-ins no worse. It takes the risks that have won it hands before, so its wins can look lucky when they are learned.
 
 The rules it replaced are still in the game as **Lucky Cat Classic** (`js/mahjong-lucky-cat.js`, a lab strategy: not on the Strategies sheet, but `npm run compete` can play it as `lucky-cat-classic`). They are written out from [The classic rules](#the-classic-rules) on. The coach reads the hand (plans, waits, threats) through the shared foundation for its words.
 
@@ -39,6 +39,8 @@ One network (376 inputs, two hidden layers of 512 and 256, 74 outputs) gives eac
 Illegal moves are masked out, and the move with the biggest share is played, unless it contradicts the hand it builds toward (the plan the shared foundation reads for it, as Jorge Yau and Neural Cat play it): then the network's next most likely move that doesn't is played ([the contradiction check](README.md#the-contradiction-check)). The check runs in the game, in benchmarks and in training, and the data records the move it settled on. A win of 3 faan or more is always declared.
 
 ## The value
+
+*A line of work from 2026-11-10 that shipped nothing: lc33 and lc34 play with the policy alone, and the points objective below was replaced on 2026-11-11 by the most hands won. Kept as the record; what replaced it is [how it learned](#how-it-learned), step 6.*
 
 Lucky Cat's new lineage (from 2026-11-10) adds the stacked evaluation of the [frontier plan](../machine-learning/frontier-plan.md) and keeps what Lucky Cat is: it taught itself, and nothing in its choice comes from Jorge Yau's rules or options. **The policy prunes, the value decides.**
 
@@ -74,6 +76,8 @@ The JS and the C++ play every hand alike (`node scripts/ml/native.js parity` wit
 The league runs 20 rounds of 50,000 hands, a million hands in all. Its log and state are in `ml/lucky/` (not committed).
 
 5. **Since lc21, the lab.** After the league, lc21 to lc32 came from the lab (`npm run ml:lab -- --strategy lucky-cat`, [how it works](../machine-learning/training.md#the-lab-for-only-orphans-and-lucky-cat---strategy)), like Neural Cat and Only Orphans. Each round played 50,000 hands against its last three champions, Neural Cat and Jorge Yau, then tried several fine-tunes: at three learning rates, on 2, 6 or 10 rounds of data, and with sharper targets. Since lc29 the data also holds each move that dealt in, and two arms train it down, so Lucky Cat learns from the hands it lost that way, not only from its wins; a third arm tries a wider network. A candidate first plays the champion over 6,000 deals. The best two then play 20,000 new deals, and one replaces the champion only if it wins more hands by more than its standard error. The lab's models are named LL&lt;round&gt;&lt;letter&gt;, and each champion ships under the next lc number.
+
+6. **Since lc33, only its own lineage.** Lucky Cat now plays only its own older generations, on the native simulator (`scripts/ml/lc-own-loop.js`, [how it works](../machine-learning/training.md#lucky-cat-scriptsmllc-own-loopjs)). At a share of its choices, each of its top 4 moves is forced and the hand replayed on the same reshuffled walls, so moves are compared on the same luck, and its shares tilt toward the moves that scored more. A model becomes the next generation only when it is confirmed on fresh deals on the exact build: since lc34, by hands won up two standard errors, with points a hand and deal-ins no worse. Six generations so far (LO1b, LO2a, LO4h, LO9d = lc33, LO12d, LO18d = lc34); the run stopped after 24 rounds, its last candidate level with lc34.
 
 ## Results
 
@@ -118,7 +122,7 @@ Each against Neural Cat NC2, over the same 5,000 deals in both seat orders (lc32
 | lc21 | 19.1% | 9.8% | −137.1 |
 | lc20 | 18.3% | 9.8% | −137.7 |
 
-Each lab champion wins about 1.5 to 2 more hands in 100 than the one before it at its own table, at the same speed and size. Against Neural Cat, lc29 and lc30 win about 9 more hands in 100 than lc20. Points a hand against Neural Cat are noisy, about ± 30 on 5,000 deals, because its wins are big: on another 10,000 deals lc30 lost 85 a hand and lc29 94, the other way round, so over the 15,000 the two are level (lc30 −89, lc29 −84). The steady trend from lc20's −138 is real; a single step's change in points is not. It still loses points to Neural Cat: it wins small. It still loses points to Neural Cat: it wins small.
+Each lab champion wins about 1.5 to 2 more hands in 100 than the one before it at its own table, at the same speed and size. Against Neural Cat, lc29 and lc30 win about 9 more hands in 100 than lc20. Points a hand against Neural Cat are noisy, about ± 30 on 5,000 deals, because its wins are big: on another 10,000 deals lc30 lost 85 a hand and lc29 94, the other way round, so over the 15,000 the two are level (lc30 −89, lc29 −84). The steady trend from lc20's −138 is real; a single step's change in points is not. It still loses points to Neural Cat: it wins small.
 
 ### The league
 
@@ -202,11 +206,11 @@ Three rounds of that (LR1a to LR3c) kept nothing that held. On the same wall a m
 
 ### The frontier: generation 1 and Sphinx
 
-Beyond the lab, Lucky Cat had a second program of work, the frontier (cancelled 2026-11-09): features v2, auxiliary heads that learn the hidden tiles as targets, a frozen benchmark that a new generation must beat by two standard errors twice, and a native C++ simulator that plays a round's data in 13 seconds instead of 330. Three rounds and nine arms, then three policy-gradient probes, found nothing that passed the bar, so Lucky Cat is still **lc32** (the frontier's `lc32v2` is lc32 widened to the new features). [What was built, the numbers and why](../machine-learning/iterations.md#the-frontier-lucky-cat-generation-1-and-sphinx).
+Beyond the lab, Lucky Cat had a second program of work, the frontier (cancelled 2026-11-09): features v2, auxiliary heads that learn the hidden tiles as targets, a frozen benchmark that a new generation must beat by two standard errors twice, and a native C++ simulator that plays a round's data in 13 seconds instead of 330. Three rounds and nine arms, then three policy-gradient probes, found nothing that passed the bar, so Lucky Cat stayed **lc32** until lc33 came from its own-lineage loop (the frontier's `lc32v2` is lc32 widened to the new features). [What was built, the numbers and why](../machine-learning/iterations.md#the-frontier-lucky-cat-generation-1-and-sphinx).
 
 ### Suphx: an oracle teacher
 
-The lab now also trains Lucky Cat the way Suphx, Microsoft's mahjong AI, was trained: with the hidden tiles in view during training only. At every recorded choice the data knows what each discard would pay if it dealt in right now. A teacher takes lc32's shares and pushes those discards down by what they'd cost. The network, reading only its own seat, is fitted to that teacher, so it learns how dangerous each tile looks from what it can see. The aim is to keep its win rate and lose fewer points to deal-ins. A model ships only if its points beat lc32's at the game's table and its hands won hold. The thinking, the probes and the arms are in [iterations](../machine-learning/iterations.md#suphx-for-lucky-cat-an-oracle-teacher-not-an-oracle-critic); `npm run ml:lab -- --strategy lucky-cat-suphx` runs it.
+*Cancelled with the Suphx line on 2026-11-09; kept as the record.* The lab also trained Lucky Cat the way Suphx, Microsoft's mahjong AI, was trained: with the hidden tiles in view during training only. At every recorded choice the data knows what each discard would pay if it dealt in right now. A teacher takes lc32's shares and pushes those discards down by what they'd cost. The network, reading only its own seat, is fitted to that teacher, so it learns how dangerous each tile looks from what it can see. The aim is to keep its win rate and lose fewer points to deal-ins. A model ships only if its points beat lc32's at the game's table and its hands won hold. The thinking, the probes and the arms are in [iterations](../machine-learning/iterations.md#suphx-for-lucky-cat-an-oracle-teacher-not-an-oracle-critic); `npm run ml:lab -- --strategy lucky-cat-suphx` runs it.
 
 ## What the coach says
 
