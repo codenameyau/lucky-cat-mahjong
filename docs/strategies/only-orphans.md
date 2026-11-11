@@ -2,6 +2,10 @@
 
 This is the playbook for the **only-orphans** strategy (`js/mahjong-only-orphans.js`). Its hands are built on 1s, 9s and honors: Thirteen Orphans, triplets or pairs of those tiles, and, when the deal fits better, Seven Pairs and Concealed Triplets of any tiles. Rules pick the target; a neural network trained by self-play decides the moves inside it, the same way [Neural Cat](neural-cat.md) plays its hands. Any bot seat can play it, and the coach can follow it (pick it in the Strategies sheet).
 
+## What it is for
+
+**The biggest hands and the most points.** Only Orphans bets on a few very big wins, and it's fine if it wins less often than the other strategies: a limit hand pays for many lost ones. Its training keeps a new model for more points a hand and more limit hands; how often it wins isn't a bar (the maintainer's aim for it, set 2026-11-11; [what each strategy is for](README.md#what-each-learned-strategy-is-for)).
+
 ## How it thinks
 
 Every deal it picks a **target**, the hand worth the most points on average, and it reads that again every turn as tiles come in. It has five:

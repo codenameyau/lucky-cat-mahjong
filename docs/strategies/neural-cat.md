@@ -2,6 +2,10 @@
 
 `neural-cat` (`js/mahjong-ml.js`) is a learned strategy. It has no playbook of rules. A model trained on simulated deals picks the discard, and whether to claim or kong. Choose it on the Strategies sheet for a seat or the coach, like any other strategy.
 
+## What it is for
+
+**The balanced one: the best of both.** Where [Lucky Cat](lucky-cat.md) goes for the most wins and [Only Orphans](only-orphans.md) for the biggest hands, Neural Cat is meant to win often and win big. Its training keeps a new model when it scores more points without winning fewer hands, or wins more hands without scoring less (the maintainer's aim for it, set 2026-11-11; [what each strategy is for](README.md#what-each-learned-strategy-is-for)).
+
 ## How it thinks
 
 It reads the hand the way [Jorge Yau](jorge-yau.md) does, which narrows each decision to a few sound options. Its network then predicts how the hand ends after each one (win by self-draw or off a discard, deal in, and how many faan a win would be) and folds that into one score: what the option is worth on average. The highest score goes. Because a fast small win and a slow big one sit on the same scale, it can prefer a slower big hand over a fast small one when the numbers favor it.

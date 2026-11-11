@@ -2,6 +2,10 @@
 
 **Lucky Cat** (`js/mahjong-lucky-cat-ml.js`, network in `js/mahjong-lucky-cat-net.js`, weights in `js/mahjong-lucky-cat-weights.js`) is a neural network that makes every move itself. It is not built on the shared foundation (`js/mahjong-bot.js`) the other strategies use: its network has no steps-from-ready count, no plans, no threat reads and no claim rules. What it knows, it learned from playing. Only the contradiction check reads the foundation's plan, to stop a move that goes against the hand it builds toward.
 
+## What it is for
+
+**Winning as many hands as possible.** Lucky Cat goes for smaller, quicker hands to secure the win, and takes a bigger hand when it has a good chance at one and is nearly ready. Its training keeps a new model when it wins more hands with its points a hand and deal-ins no worse (the maintainer's aim for it, set 2026-11-11; [what each strategy is for](README.md#what-each-learned-strategy-is-for)).
+
 ## How it thinks
 
 It doesn't plan a hand. Each turn it looks at what its seat can see and the network gives every legal move a share (a discard of each kind of tile, each kong, or on a claim: pass, each chow, pung or kong). The biggest share is played, unless it contradicts the plan the foundation reads for it. What looks like a plan is a habit it found, because it learned from the hands it won, the quicker the win the more, and, since lc29, from the discards that dealt in.

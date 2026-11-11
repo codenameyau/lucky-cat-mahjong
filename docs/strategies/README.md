@@ -17,11 +17,23 @@ Before version 0.6.0 the two ids were the other way round; saved choices and sav
 | Strategy | In the game | How it is made | Where its story is |
 | --- | --- | --- | --- |
 | `jorge-yau` | Rules only (no model) | Hand-written rules: it picks a target hand, keeps honors, locks onto a hand worth 7 faan or more and plays no defense until late in the wall | [jorge-yau.md](jorge-yau.md) |
-| `lucky-cat` | **lc33** | A network that makes every move itself, trained in the lab on fresh games and kept only for a clear gain on fresh deals; learns from deal-ins since lc31, and since lc33 from replays of its own choices against its older versions | [lucky-cat.md](lucky-cat.md), [iterations](../machine-learning/iterations.md#lucky-cat-2-the-lab-lc21-to-lc32) |
-| `neural-cat` | **NC10** | Jorge Yau's best choices, ranked by a network in expected score; trained by the league (to NC2), the lab (NC3 to NC9), and against its own older versions (NC10) | [neural-cat.md](neural-cat.md), [iterations](../machine-learning/iterations.md#the-lab-neural-cat-3-to-8-nc3-to-nc8) |
-| `only-orphans` | **OS2c1** | Rules that pick a target each deal (Thirteen Orphans, triplets, Seven Pairs) and a network that chooses the rest in expected points | [only-orphans.md](only-orphans.md), [training progress](only-orphans-training.md) |
+| `lucky-cat` | **lc33** | **Aim: the most hands won**, with small fast wins, and a bigger hand when the chance is good and it is nearly ready. A network that makes every move itself, trained in the lab on fresh games and kept only for a clear gain on fresh deals; learns from deal-ins since lc31, and since lc33 from replays of its own choices against its older versions | [lucky-cat.md](lucky-cat.md), [iterations](../machine-learning/iterations.md#lucky-cat-2-the-lab-lc21-to-lc32) |
+| `neural-cat` | **NC10** | **Aim: the balance of both**, winning often and winning big. Jorge Yau's best choices, ranked by a network in expected score; trained by the league (to NC2), the lab (NC3 to NC9), and against its own older versions (NC10) | [neural-cat.md](neural-cat.md), [iterations](../machine-learning/iterations.md#the-lab-neural-cat-3-to-8-nc3-to-nc8) |
+| `only-orphans` | **OS2c1** | **Aim: the biggest hands and the most points**, even if it wins less often. Rules that pick a target each deal (Thirteen Orphans, triplets, Seven Pairs) and a network that chooses the rest in expected points | [only-orphans.md](only-orphans.md), [training progress](only-orphans-training.md) |
 
 The newest training work is the [frontier model](../machine-learning/frontier-plan.md) (one network with heads, grown from Neural Cat) and Lucky Cat's value lineage. Neither has shipped a new model yet: Neural Cat is NC9 and Lucky Cat is lc32. Each model's full history is in [Iterations](../machine-learning/iterations.md).
+
+## What each learned strategy is for
+
+The maintainer set each strategy's aim on 2026-11-11, and its training is judged by it:
+
+| Strategy | Aim | What its training keeps a new model for |
+| --- | --- | --- |
+| **Lucky Cat** | Win as many hands as possible. It goes for smaller, quicker hands to secure the win, and takes a big hand when it has a good chance at one and is nearly ready | More hands won, with points a hand and deal-ins no worse |
+| **Only Orphans** | The biggest hands and the most points. It's fine if it wins less often | More points a hand and more limit hands; hands won isn't a bar |
+| **Neural Cat** | The balanced one, the best of both: win often and win big | More points with hands won no lower, or more hands won with points no lower |
+
+Each lineage trains and is judged only against its own older versions, so its progress is a clear benchmark: a new model is confirmed on fresh deals against the one before it at a table of its own earlier generations ([iterations](../machine-learning/iterations.md)). Playing the three against each other, and a championship with the rule-based Jorge Yau, is a later phase.
 
 ## Which strategy plays where
 

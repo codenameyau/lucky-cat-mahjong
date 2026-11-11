@@ -219,10 +219,10 @@ Every bot plays a named strategy. The rule-based ones are built on the shared fo
 
 | Strategy | File | Style | Playbook |
 | --- | --- | --- | --- |
-| **lucky-cat** | `js/mahjong-lucky-cat-ml.js` | A neural network that taught itself from random play and makes every move itself: wins often and fast, mostly with small hands of 4 to 5 faan | [lucky-cat.md](docs/strategies/lucky-cat.md) |
+| **lucky-cat** | `js/mahjong-lucky-cat-ml.js` | **Wins the most hands.** A neural network that taught itself from random play and makes every move itself: wins often and fast, mostly with small hands of 4 to 5 faan, and takes a bigger hand when the chance is good and it is nearly ready | [lucky-cat.md](docs/strategies/lucky-cat.md) |
 | **jorge-yau** | `js/mahjong-jorge-yau.js` | Reads the opening hand and builds toward one target hand, attacks with no defense until it's slow late, and locks onto a hand worth 7 faan or more | [jorge-yau.md](docs/strategies/jorge-yau.md) |
-| **only-orphans** | `js/mahjong-only-orphans.js` | Big hands built on 1s, 9s and honors (Thirteen Orphans, their triplets or pairs, Concealed Triplets, Seven Pairs), the target picked by expected points; a model trained by self-play decides how (`npm run ml:orphans`) | [only-orphans.md](docs/strategies/only-orphans.md) |
-| **neural-cat** | `js/mahjong-ml.js` | Plays Jorge Yau's hands, and a neural network trained on simulated games picks the discard, claim or kong worth the most points on average | [neural-cat.md](docs/strategies/neural-cat.md) |
+| **only-orphans** | `js/mahjong-only-orphans.js` | **The biggest hands and the most points, even if it wins less often.** Big hands built on 1s, 9s and honors (Thirteen Orphans, their triplets or pairs, Concealed Triplets, Seven Pairs), the target picked by expected points; a model trained by self-play decides how (`npm run ml:orphans`) | [only-orphans.md](docs/strategies/only-orphans.md) |
+| **neural-cat** | `js/mahjong-ml.js` | **The balanced one: wins often and wins big.** Plays Jorge Yau's hands, and a neural network trained on simulated games picks the discard, claim or kong worth the most points on average | [neural-cat.md](docs/strategies/neural-cat.md) |
 
 Lucky Cat's original rules are still in the code as **lucky-cat-classic** (`js/mahjong-lucky-cat.js`): tracks every discard and plays the odds to the fastest 3-faan win. It's a lab strategy, not on the Strategies sheet, but `npm run compete` can play it.
 
