@@ -991,6 +991,9 @@
     var POND_COLS = 8;
     var POND_ROWS = 3;
     var PHONE_POND_CAPACITY = 8;
+    // A tablet held upright gets the phone's layout, but its screen has the
+    // room to plan for a full pond (like desktop), so its discards draw smaller.
+    var TABLET_POND_CAPACITY = POND_COLS * POND_ROWS;
 
     function fitPondTile(zw, zh, n, cols) {
       cols = cols || POND_COLS;
@@ -1159,6 +1162,9 @@
       var desktop = cssW >= 980 && cssW >= cssH * 0.9;
       var landscape = !desktop && W > H;
       var phonePortrait = !desktop && !landscape;
+      // An upright tablet (an iPad, 768 to 1024 wide) uses the phone's
+      // portrait layout with deeper opponent seats and a desktop-sized pond.
+      var tabletPortrait = phonePortrait && cssW >= 700;
       var handRows = phonePortrait ? 2 : 1;
       var depth = function (w) { return Math.max(2, w * 0.08); };
 
@@ -1262,7 +1268,8 @@
         var oppFit = clamp(Math.min(lengthFit, depthFit), 8, 72);
         topPanelH = Math.ceil(oppFit * 2 * depthUnit + 16) - TOP_PANEL_TRIM;
       } else {
-        sideW = phonePortrait ? 46 : landscape ? LANDSCAPE_SIDE_W : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
+        // (An upright tablet's seats are a little deeper, so its opponents' tiles are larger.)
+        sideW = tabletPortrait ? clamp(Math.round(W * 0.072), 56, 72) : phonePortrait ? 46 : landscape ? LANDSCAPE_SIDE_W : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
         // Every opponent's panel is the same depth.
         topPanelH = sideW;
         sideHead = phoneHead;
@@ -1314,11 +1321,12 @@
 
       var inner = pond;
 
-      // Each pond is planned to hold this many discards: 24 on desktop, 8 on
+      // Each pond is planned to hold this many discards: 24 on desktop and on
+      // an upright tablet, 8 on
       // a phone so its discards draw close to twice as large. A pond that
       // runs past it re-fits them smaller (with a full pond, about the size
       // they were before).
-      var maxDiscards = desktop ? POND_COLS * POND_ROWS : PHONE_POND_CAPACITY;
+      var maxDiscards = desktop ? POND_COLS * POND_ROWS : tabletPortrait ? TABLET_POND_CAPACITY : PHONE_POND_CAPACITY;
       if (game && game.hand) {
         game.hand.seats.forEach(function (st) { maxDiscards = Math.max(maxDiscards, st.discards.length + 1); });
       }
@@ -1392,7 +1400,7 @@
 
       return {
         pad: pad, topH: topH, portrait: portrait, ox: ox, tableW: tableW, history: history,
-        desktop: desktop, landscape: landscape, phonePortrait: phonePortrait, meX: meX, meW: meW,
+        desktop: desktop, landscape: landscape, phonePortrait: phonePortrait, tabletPortrait: tabletPortrait, meX: meX, meW: meW,
         tw: tw, th: th, handGap: handGap, handY: handY, handRows: handRows, mw: mw, meY: meY, meldRowH: meldRowH, meBox: meBox,
         actionsY: actionsY, actionsH: actionsH, actionsInRow: actionsInRow, hintY: hintY, hintH: hintH,
         results: results,
