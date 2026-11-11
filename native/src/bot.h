@@ -190,6 +190,10 @@ struct Candidate {
   double mlEv = 0, mlPWin = 0, mlBest = 0;
   int mlOrder = 0;
   bool mlChoice = false;
+  // Shadow models (NeuralCat::shadows, lcm-sim shadow): on a shadow's top candidate, its
+  // value and chance to win there and its best value, by shadow.
+  std::vector<double> shEv, shPWin, shBest;
+  std::vector<char> shOther;  // on a claim's hand read ahead: the shadow's first is another candidate
 };
 using CandP = std::shared_ptr<Candidate>;
 
@@ -279,6 +283,9 @@ class Foundation {
 
   // A strategy's last word on the discard order (Neural Cat).
   virtual bool hasRerank() const { return false; }
+  // After a discard analysis has its final order (shadow models compare their own first).
+  // real: the seat's own hand (not a claim's hand read ahead).
+  virtual void afterOrder(const std::vector<CandP>&, const Game&, const Counts&, bool, bool) {}
   virtual std::vector<CandP> rerank(std::vector<CandP> out, Ctx& ctx, const Counts& counts, const Game& g, int seat,
                                     const std::vector<Threat>& threats, bool folding) { return out; }
 

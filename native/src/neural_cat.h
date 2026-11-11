@@ -39,6 +39,16 @@ class NeuralCat : public Foundation {
   int row(Reading& r, int index, float* x);  // returns the kept tiles' plan (a PlanKind), or -1
   void waitingRow(const Game& g, int seat, int kind, int tile, float* x);  // 0 pass, 1 kong, 2 concealed, 3 added
 
+  // Shadow models (lcm-sim shadow): other weights for the same strategy, read on every
+  // input this model reads, each making its own choice at every decision. A shadow is
+  // diverged once a choice differs from this model's: until then its own game would be
+  // this game, move for move (exactly so on the exact build, whose forward pass keeps no
+  // state between inputs), so its result is this game's and needs no play.
+  struct Shadow { std::shared_ptr<Mlp> mlp; double winBonus = 0, claimMargin = 0; bool diverged = false; };
+  std::vector<Shadow> shadows;
+  void addShadow(std::shared_ptr<Mlp> m);
+  void resetShadows() { for (auto& s : shadows) s.diverged = false; }
+
  protected:
   bool hasRerank() const override { return true; }
   // create({ allow, claimOk, kongOk }) (none: every discard, call and kong).
@@ -66,6 +76,10 @@ class NeuralCat : public Foundation {
   MlRead waitingFeatures(const Game& g, int seat, int kind, int tile);
   int pickIndex(const std::vector<CandP>& ranked, int k0);
   template <class C> int pickChoice(const std::vector<C>& choices, int at);
+  void afterOrder(const std::vector<CandP>& out, const Game& g, const Counts& c, bool folding, bool real) override;
+  std::vector<std::vector<CandP>> shadowLists_;
+  std::vector<MlRead> shadowReads_;  // the shadows' reads of the last waitingFeatures
+  static int pickPlain(const std::vector<MlRead>& ml, double bonus, double margin, int at);
 };
 
 }  // namespace lcm

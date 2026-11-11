@@ -1835,6 +1835,7 @@ DiscardAnalysis Foundation::analyzeDiscards(const Game& g, int seat, const Ctx* 
   if (T.honorOrder && !folding) out = honorTieOrder(out, ctx, c);
   if (hasRerank()) out = rerank(out, ctx, c, g, seat, threats, folding);
   out = consistentFirst(out, g, c, folding);
+  if (hasRerank()) afterOrder(out, g, c, folding, !handOverride);
   if (!handOverride && ctx.actualMelds) updateCommit(g, seat, out.empty() ? nullptr : out[0].get(), folding);
   res.candidates = out;
   res.defense = weight;

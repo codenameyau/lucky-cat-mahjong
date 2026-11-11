@@ -119,7 +119,61 @@ function readRows(file) {
 }
 
 // Rows for several models over blocks [b0, b1) of a deck: { file: Float64Array(deals * COLS) }.
-async function rowsFor(files, seed, b0, b1, build, workers) {
+// The same with the first file as the champion and the rest read as its shadows
+// (lcm-sim shadow): one process a block plays the champion's hands, and each arm's
+// only where it chose otherwise. Each model's rows are cached as play's would be.
+const rowsKey = (modelId, seed, b, build) => {
+  const table = TABLES[b % TABLES.length].map((n) => oo(poolFile(n)));
+  return path.join(ROWS, sha(JSON.stringify([path.basename(modelId), table.map((t) => path.basename(t)), seed, b, BLOCK, build, simHash(build)])).slice(0, 24) + '.bin');
+};
+const replayStats = { hands: 0, replays: 0 };
+function shadowTask(ids, seed, b, build) {
+  const files = ids.map((id) => rowsKey(id, seed, b, build));
+  return () => {
+    const need = ids.map((id, m) => m > 0 && !fs.existsSync(files[m]));
+    if (!need.some(Boolean)) {
+      if (fs.existsSync(files[0])) { stats.cached += ids.length; return Promise.resolve(files.map(readRows)); }
+      return blockTask(ids[0], seed, b, build)().then((r0) => [r0].concat(files.slice(1).map(readRows)));
+    }
+    const arms = ids.filter((id, m) => need[m]);
+    const table = TABLES[b % TABLES.length].map((n) => oo(poolFile(n)));
+    fs.mkdirSync(ROWS, { recursive: true });
+    const tmp = path.join(ROWS, 'shadow-' + process.pid + '-' + b + '-' + Math.random().toString(36).slice(2) + '.tmp');
+    const t0 = Date.now();
+    return new Promise((resolve, reject) => {
+      const p = spawn(SIM[build], ['shadow', '--champion', ids[0], '--shadows', arms.join(','), '--table', table.join(','), '--seed', String(seed),
+        '--from', String(b * BLOCK), '--to', String((b + 1) * BLOCK), '--rows', tmp], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+      let e = '', o = '';
+      p.stdout.on('data', (d) => (o += d));
+      p.stderr.on('data', (d) => (e += d));
+      p.on('exit', (c) => {
+        if (c) return reject(new Error('lcm-sim shadow: ' + e));
+        const all = readRows(tmp);
+        fs.unlinkSync(tmp);
+        const M = 1 + arms.length, per = BLOCK * COLS;
+        const part = (m) => { const r = new Float64Array(per); for (let d = 0; d < BLOCK; d++) r.set(all.subarray((d * M + m) * COLS, (d * M + m + 1) * COLS), d * COLS); return r; };
+        const write = (file, r) => { const t = file + '.' + process.pid + '.tmp'; fs.writeFileSync(t, Buffer.from(r.buffer)); fs.renameSync(t, file); };
+        if (!fs.existsSync(files[0])) write(files[0], part(0));
+        arms.forEach((id, k) => write(files[ids.indexOf(id)], part(k + 1)));
+        const js = JSON.parse(o);
+        replayStats.hands += js.hands * arms.length; replayStats.replays += js.replays.reduce((t, x) => t + x, 0);
+        stats.played += M; stats.seconds += (Date.now() - t0) / 1000;
+        resolve(files.map(readRows));
+      });
+    });
+  };
+}
+
+async function rowsFor(files, seed, b0, b1, build, workers, useShadow) {
+  if (useShadow && files.length > 1) {
+    const ids = files.map(oo);
+    const tasks = [];
+    for (let b = b0; b < b1; b++) tasks.push(shadowTask(ids, seed, b, build));
+    const outs = await pool(tasks, workers);
+    const res = files.map(() => new Float64Array((b1 - b0) * BLOCK * COLS));
+    outs.forEach((rs, k) => rs.forEach((r, m) => res[m].set(r, k * BLOCK * COLS)));
+    return res;
+  }
   const tasks = [], where = [];
   files.forEach((f, m) => { const id = oo(f); for (let b = b0; b < b1; b++) { tasks.push(blockTask(id, seed, b, build)); where.push([m, b]); } });
   const outs = await pool(tasks, workers);
@@ -177,7 +231,7 @@ async function screen(arms, champion, seed, stages, opt) {
     const nb = Math.round(stages[k] / BLOCK), b1 = b + nb;
     const live = alive.filter((a) => a.alive);
     const files = [champion].concat(live.map((a) => a.file));
-    const res = await rowsFor(files, seed, b, b1, build, workers);
+    const res = await rowsFor(files, seed, b, b1, build, workers, opt.shadow !== false);
     champRows.push(res[0]);
     live.forEach((a, i) => armRows[alive.indexOf(a)].push(res[i + 1]));
     b = b1;
@@ -200,7 +254,8 @@ async function screen(arms, champion, seed, stages, opt) {
     log.push(...msg);
   }
   const secs = (Date.now() - t0) / 1000;
-  console.log('Screen: ' + secs.toFixed(0) + ' s; blocks played ' + stats.played + ', from the cache ' + stats.cached);
+  console.log('Screen: ' + secs.toFixed(0) + ' s; blocks played ' + stats.played + ', from the cache ' + stats.cached +
+    (replayStats.hands ? '; shadow hands replayed ' + replayStats.replays + ' of ' + replayStats.hands + ' (' + (100 * replayStats.replays / replayStats.hands).toFixed(0) + '%)' : ''));
   return { seed, stages, build, champion: summary(cat2(champRows)), seconds: secs, played: stats.played, cached: stats.cached,
     arms: alive.map((a) => ({ name: a.name, file: path.relative(ROOT, a.file), alive: a.alive, summary: a.summary, gap: a.gap })), log };
 }
@@ -259,7 +314,7 @@ function setting(from, name, play) {
   return out;
 }
 
-module.exports = { screen, mutate, setting, rowsFor, summary, gap, TABLES, BLOCK, stats, line };
+module.exports = { replayStats, screen, mutate, setting, rowsFor, summary, gap, TABLES, BLOCK, stats, line };
 
 if (require.main === module) {
   (async () => {

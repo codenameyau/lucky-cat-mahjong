@@ -25,6 +25,7 @@
 #include <io.h>
 #endif
 #include <cstdlib>
+#include <array>
 #include <map>
 #include <sstream>
 
@@ -215,6 +216,71 @@ int main(int argc, char** argv) {
       }
       if (rowsFile) std::fclose(rowsFile);
       std::printf("],\"pair\":{\"n\":%.17g,\"sum\":%.17g,\"sq\":%.17g,\"win\":%.17g,\"winSq\":%.17g}}\n", pn, psum, psq, pwin, pwinSq);
+      return 0;
+    }
+    if (cmd == "shadow") {
+      // lcm-sim shadow --champion oo:C --shadows oo:a,oo:b,... --table x,y,z --seed S --from F --to T --rows FILE
+      // As play, for the champion and each shadow in every seat of every deal, but each
+      // shadow is read alongside the champion (NeuralCat::shadows): a hand where it chose
+      // as the champion at every decision is the champion's hand, and only the hands where
+      // it chose otherwise are played with it. Rows as play --rows: champion first, then
+      // the shadows in order.
+      std::string champId = a["champion"];
+      auto shadowIds = split(a["shadows"], ',');
+      auto table = split(a.count("table") ? a["table"] : "", ',');
+      if (table.size() != 3) throw std::runtime_error("lcm-sim shadow: --table needs 3 ids");
+      if (champId.rfind("oo:", 0) != 0) throw std::runtime_error("lcm-sim shadow: --champion oo:<file>");
+      uint32_t seed = uint32_t(std::stoul(a["seed"]));
+      long from = std::stol(a["from"]), to = std::stol(a["to"]);
+      auto champ = std::make_shared<OnlyOrphans>(std::make_shared<Mlp>(loadWeights(champId.substr(3))), champId);
+      for (auto& id : shadowIds) {
+        if (id.rfind("oo:", 0) != 0) throw std::runtime_error("lcm-sim shadow: --shadows oo:<file>,...");
+        champ->addShadow(std::make_shared<Mlp>(loadWeights(id.substr(3))));
+      }
+      BotAgent champAgent(champ);
+      std::vector<std::unique_ptr<Agent>> own, tableAgents;
+      for (auto& id : shadowIds) own.push_back(makeAgent(id));
+      for (auto& id : table) tableAgents.push_back(makeAgent(id));
+      const size_t M = 1 + shadowIds.size();
+      std::vector<double> replays(shadowIds.size(), 0);
+      FILE* rowsFile = std::fopen(a["rows"].c_str(), "wb");
+      if (!rowsFile) throw std::runtime_error("lcm-sim: can't write " + a["rows"]);
+      double hands = 0;
+      for (long d = from; d < to; d++) {
+        std::vector<std::array<double, 6>> acc(M, std::array<double, 6>{0, 0, 0, 0, 0, 0});
+        auto add = [&](size_t m, const Result& r, int k) {
+          auto& q = acc[m];
+          q[0] += r.deltas[k];
+          if (r.win && r.winner == k) { q[1]++; q[3] += r.deltas[k]; q[4] += r.score.faan; if (r.how == H_SELF_DRAW) q[5]++; }
+          else if (r.win && r.payer == k) q[2]++;
+        };
+        auto playWith = [&](Agent* me, int k) {
+          Agent* agents[4];
+          int t = 0;
+          for (int s = 0; s < 4; s++) agents[s] = s == k ? me : tableAgents[t++].get();
+          GameOptions o;
+          o.seed = uint32_t(seed + d); o.dealer = int(d % 4); o.startPoints = 1000000000;
+          Game g = createGame(o);
+          return runHand(g, agents);
+        };
+        for (int k = 0; k < 4; k++) {
+          champ->resetShadows();
+          Result r = playWith(&champAgent, k);
+          hands++;
+          add(0, r, k);
+          for (size_t s = 0; s < shadowIds.size(); s++) {
+            if (!champ->shadows[s].diverged) { add(s + 1, r, k); continue; }
+            Result rs = playWith(own[s].get(), k);
+            replays[s]++;
+            add(s + 1, rs, k);
+          }
+        }
+        for (size_t m = 0; m < M; m++) std::fwrite(acc[m].data(), sizeof(double), 6, rowsFile);
+      }
+      std::fclose(rowsFile);
+      std::printf("{\"hands\":%.17g,\"replays\":[", hands);
+      for (size_t s = 0; s < replays.size(); s++) std::printf("%s%.17g", s ? "," : "", replays[s]);
+      std::printf("]}\n");
       return 0;
     }
     if (cmd == "generate") {

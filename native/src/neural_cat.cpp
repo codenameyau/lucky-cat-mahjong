@@ -302,7 +302,92 @@ std::vector<CandP> NeuralCat::rerank(std::vector<CandP> out, Ctx& ctx, const Cou
   double best = -DINF;
   for (int k = 0; k < k0; k++) best = std::max(best, out[k]->mlEv);
   ranked[0]->mlBest = best;
+  // Each shadow ranks the same inputs with its own network and settings, as its own rerank would.
+  shadowLists_.assign(shadows.size(), std::vector<CandP>());
+  if (!shadows.empty()) {
+    const size_t S = shadows.size();
+    for (auto& x : out) { x->shEv.assign(S, 0); x->shPWin.assign(S, 0); x->shBest.assign(S, 0); }
+    static thread_local std::vector<double> sraws[16];
+    std::vector<double> sev(k0), spw(k0);
+    std::vector<int> ord(k0);
+    for (size_t s = 0; s < S; s++) {
+      Shadow& sh = shadows[s];
+      if (sh.diverged) continue;
+      sh.mlp->forwardBatch(ptrs, k0, sraws);
+      for (int k = 0; k < k0; k++) { MlRead m = evRaw(sraws[k]); sev[k] = m.ev; spw[k] = m.pWin; ord[k] = k; }
+      const double wb = sh.winBonus;
+      js::sort(ord, [&](int p, int q) -> double {
+        double d = (sev[q] + wb * spw[q]) - (sev[p] + wb * spw[p]);
+        return d ? d : p - q;
+      });
+      std::vector<CandP> r;
+      for (int k : ord) r.push_back(out[k]);
+      r.insert(r.end(), out.begin() + k0, out.end());
+      if (T.honorOrder && !folding) r = honorTieOrder(r, ctx, counts);
+      r = consistentFirst(r, g, counts, folding);
+      int pos = -1;
+      for (int k = 0; k < k0; k++) if (out[k] == r[0]) pos = k;
+      double tev, tpw;
+      if (pos >= 0) { tev = sev[pos]; tpw = spw[pos]; }
+      else {
+        float x1[SIZE];
+        encode(st, r[0]->index, *r[0]->analysis, r[0]->loss, x1);
+        MlRead m = evRaw(sh.mlp->forward(x1));
+        tev = m.ev; tpw = m.pWin;
+      }
+      double sb = -DINF;
+      for (int k = 0; k < k0; k++) sb = std::max(sb, sev[k]);
+      r[0]->shEv[s] = tev; r[0]->shPWin[s] = tpw; r[0]->shBest[s] = sb;
+      shadowLists_[s] = r;
+    }
+  }
   return ranked;
+}
+
+void NeuralCat::addShadow(std::shared_ptr<Mlp> m) {
+  if (reader_ || !m->weights().reader.empty()) throw std::runtime_error("shadow: stacked models are not supported");
+  if (m->inputs() != SIZE) throw std::runtime_error("shadow: the model reads " + std::to_string(m->inputs()) + " inputs");
+  Shadow s;
+  const Json& play = m->weights().meta["play"];
+  // The shadow's k0 is this model's: Only Orphans reads every allowed discard whatever topK says.
+  if (topK_ > 0 && int(play["topK"].num(3)) != topK_) throw std::runtime_error("shadow: another topK");
+  s.mlp = std::move(m);
+  s.winBonus = play["winBonus"].num(0);
+  s.claimMargin = play["claimMargin"].num(0);
+  shadows.push_back(s);
+}
+
+// The final first discard: a shadow whose own first is another tile has diverged.
+// On a claim's hand read ahead, another first only matters through the values the claim is
+// weighed by (the best value, which doesn't depend on the first, and the first's chance to
+// win), so they're copied to this model's first for the claim to read, and the order of the
+// claim's options (chooseClaim checks it).
+void NeuralCat::afterOrder(const std::vector<CandP>& out, const Game& g, const Counts& c, bool folding, bool real) {
+  for (size_t s = 0; s < shadows.size(); s++) {
+    Shadow& sh = shadows[s];
+    if (sh.diverged || out.empty()) continue;
+    if (shadowLists_.size() <= s || shadowLists_[s].empty()) { sh.diverged = true; continue; }
+    std::vector<CandP> r = consistentFirst(shadowLists_[s], g, c, folding);
+    // The shadow's values sit on its list's first; a second pass that moves it is read as diverged.
+    if (r[0] != shadowLists_[s][0]) { sh.diverged = true; continue; }
+    if (real) { if (r[0] != out[0]) sh.diverged = true; continue; }
+    Candidate& top = *out[0];
+    if (top.shEv.size() != shadows.size()) { top.shEv.assign(shadows.size(), 0); top.shPWin.assign(shadows.size(), 0); top.shBest.assign(shadows.size(), 0); }
+    top.shOther.resize(shadows.size(), 0);
+    if (r[0] != out[0]) {
+      top.shEv[s] = r[0]->shEv[s]; top.shPWin[s] = r[0]->shPWin[s]; top.shBest[s] = r[0]->shBest[s];
+      top.shOther[s] = 1;
+    }
+  }
+  shadowLists_.clear();
+}
+
+// pickChoice without exploring, for a shadow's own settings.
+int NeuralCat::pickPlain(const std::vector<MlRead>& ml, double bonus, double margin, int at) {
+  auto v = [&](int k) { return ml[size_t(k)].ev + bonus * ml[size_t(k)].pWin; };
+  int top = 0;
+  for (size_t k = 0; k < ml.size(); k++) if (v(int(k)) > v(top)) top = int(k);
+  return v(top) > v(at) + margin ? top : at;
 }
 
 // Exploring (js/mahjong-ml.js pickIndex): the same draws from the same generator.
@@ -363,7 +448,10 @@ int NeuralCat::row(Reading& r, int index, float* x) {
 MlRead NeuralCat::waitingFeatures(const Game& g, int seat, int kind, int tile) {
   float x[SIZE];
   waitingRow(g, seat, kind, tile, x);
-  return ev(x);
+  MlRead r = ev(x);
+  shadowReads_.assign(shadows.size(), MlRead());
+  for (size_t s = 0; s < shadows.size(); s++) if (!shadows[s].diverged) shadowReads_[s] = evRaw(shadows[s].mlp->forward(x));
+  return r;
 }
 
 void NeuralCat::waitingRow(const Game& g, int seat, int kind, int tile, float* x) {
@@ -404,26 +492,40 @@ Decision NeuralCat::chooseClaim(const Game& g, int seat, const ClaimOptions& opt
   if (!d.hasFound || d.found.options.empty() || d.decision.type == A_WIN) return d.decision;
   struct Choice { Decision decision; MlRead ml; };
   std::vector<Choice> choices;
+  std::vector<std::vector<MlRead>> sml(shadows.size());  // each shadow's reads of the choices
   Choice pass;
   pass.decision.type = A_PASS;
   pass.ml = waitingFeatures(g, seat, 0, opts.tile);
+  for (size_t s = 0; s < shadows.size(); s++) sml[s].push_back(shadowReads_[s]);
   choices.push_back(pass);
   for (auto& o : d.found.options) {
     if (!claimOk(o, opts, g, seat)) continue;
     // Never a call that goes against the hand it's building (the contradiction check).
     if (!claimConsistent(g, seat, &d.found, o.decision, opts.tile)) continue;
     MlRead ml;
-    if (o.decision.type == A_KONG) ml = waitingFeatures(g, seat, 1, opts.tile);
-    else {
+    if (o.decision.type == A_KONG) {
+      ml = waitingFeatures(g, seat, 1, opts.tile);
+      for (size_t s = 0; s < shadows.size(); s++) sml[s].push_back(shadowReads_[s]);
+    } else {
       if (!o.cand || !o.cand->hasMl) continue;
       ml.ev = o.cand->mlBest; ml.pWin = o.cand->mlPWin;  // ml.best stands in for ev
+      for (size_t s = 0; s < shadows.size(); s++) {
+        MlRead m;
+        if (o.cand->shBest.size() > s) { m.ev = o.cand->shBest[s]; m.pWin = o.cand->shPWin[s]; } else shadows[s].diverged = true;
+        // Another first after the claim can change the claim's score, and so the order of its options.
+        if (o.cand->shOther.size() > s && o.cand->shOther[s] && d.found.options.size() > 1) shadows[s].diverged = true;
+        sml[s].push_back(m);
+      }
     }
     choices.push_back({o.decision, ml});
   }
   if (choices.size() == 1) { Decision p; p.type = A_PASS; return p; }
   int at = 0;
   for (size_t k = 0; k < choices.size(); k++) if (sameDecision(choices[k].decision, d.decision)) at = int(k);
-  return choices[size_t(pickChoice(choices, at))].decision;
+  int pick = pickChoice(choices, at);
+  for (size_t s = 0; s < shadows.size(); s++)
+    if (!shadows[s].diverged && pickPlain(sml[s], shadows[s].winBonus, shadows[s].claimMargin, at) != pick) shadows[s].diverged = true;
+  return choices[size_t(pick)].decision;
 }
 
 Decision NeuralCat::chooseTurnAction(const Game& g, int seat, const TurnOptions& opts) {
@@ -445,16 +547,26 @@ Decision NeuralCat::chooseTurnAction(const Game& g, int seat, const TurnOptions&
   first.ml.ev = keep.mlBest;  // keep.ml.best is always set on the top candidate
   first.ml.pWin = keep.mlPWin;
   choices.push_back(first);
+  std::vector<std::vector<MlRead>> sml(shadows.size());
+  for (size_t s = 0; s < shadows.size(); s++) {
+    MlRead m;
+    if (keep.shBest.size() > s) { m.ev = keep.shBest[s]; m.pWin = keep.shPWin[s]; } else shadows[s].diverged = true;
+    sml[s].push_back(m);
+  }
   for (auto& kong : kongs) {
     Choice c;
     c.decision.type = A_KONG;
     c.decision.tile = kong.tile;
     c.ml = waitingFeatures(g, seat, kong.added ? 3 : 2, kong.tile);
+    for (size_t s = 0; s < shadows.size(); s++) sml[s].push_back(shadowReads_[s]);
     choices.push_back(c);
   }
   int at = 0;
   for (size_t k = 0; k < choices.size(); k++) if (sameDecision(choices[k].decision, d)) at = int(k);
-  return choices[size_t(pickChoice(choices, at))].decision;
+  int pick = pickChoice(choices, at);
+  for (size_t s = 0; s < shadows.size(); s++)
+    if (!shadows[s].diverged && pickPlain(sml[s], shadows[s].winBonus, shadows[s].claimMargin, at) != pick) shadows[s].diverged = true;
+  return choices[size_t(pick)].decision;
 }
 
 }  // namespace lcm
