@@ -4,12 +4,12 @@
 
 *Updated 2026-11-11 03:50 local.* Rounds done: 5. Rounds done: 4.
 
-- **Champion: G3 = LO4h** (`ml/models/LO4h.json`, variance-aware target: vnorm 1, bonus 150, trained from G2). Against G2 on 160,000 fresh exact deals: points **+1.4 ± 0.8**, hands won **+0.22 ± 0.04 (5.5 SE)**, deal-ins −0.05 ± 0.04, average win 306 vs 304. It meets the generation bar on hands won, but not the points milestone (1.75 SE). Its ship check against lc32 isn't run yet.
+- **Champion: G3 = LO4h** (`ml/models/LO4h.json`, variance-aware target: vnorm 1, bonus 150, trained from G2). Against G2 on 160,000 fresh exact deals: points **+1.4 ± 0.8**, hands won **+0.22 ± 0.04 (5.5 SE)**, deal-ins −0.05 ± 0.04, average win 306 vs 304. It meets the generation bar on hands won, but not the points milestone (1.75 SE). **Ship check against lc32** (two fresh exact runs of 80,000 deals each, pooled to 160,000): **+2.4 ± 1.1 points (2.2 SE)**, hands won **+0.34 ± 0.06**. That is **below the 3 SE ship bar**. The runs alone were +1.0 ± 1.5 and +3.8 ± 1.5. Caveat: its table pool (G3, G2, G1, lc32) is not the one G2's ship check used (G2, G1, lc32, lc31), so the two checks don't compare directly. **G2 remains the ship candidate.**
 - **G2 = LO2a** (`ml/models/LO2a.json`), the lineage's first points gain. Against G1 on 160,000 fresh exact deals: **+2.2 ± 0.9 points a hand (2.4 SE)**, hands won +0.07 ± 0.05, deal-ins level (−0.00 ± 0.05), average win 301 vs 295. It meets the generation bar and the points milestone. Fair-play shuffle check (`scripts/ml/fair-play.js`): **pass**.
 - **G1 = LO1b:** hands won +0.23 ± 0.07 against lc32 (generation bar only).
 - **SHIP CANDIDATE: G2 against lc32**, on two fresh exact runs of 80,000 deals each (seeds 801,264,000 and 801,344,000), pooled to 160,000 deals: **+5.9 ± 1.1 points a hand (5.5 SE)**, hands won **+0.35 ± 0.05** (22.1% vs 21.8%), deal-ins level (+0.00 ± 0.06), average win about 310 vs 289. The two runs alone: +6.3 ± 1.5 and +5.5 ± 1.5 points. It clears the 3 SE ship bar, and fair play passes.
 - **Running now:**
-  - **G3's ship check against lc32** (two fresh exact runs of 80,000 deals, pooled), then **round 6**: on-policy data only, drop at 1.5 SE. Round 5 kept nothing. Round 4 kept nothing; its arms were: a control (tau 30, bonus 150), bonus 75, bonus 225, EMA, the LO1d retry (lr 1e-3, warm-up, cosine, EMA), gradient noise with two seeds, and the variance-aware target.
+  - **Round 6**: on-policy data only, drop at 1.5 SE. Round 5 kept nothing. Round 4 kept nothing; its arms were: a control (tau 30, bonus 150), bonus 75, bonus 225, EMA, the LO1d retry (lr 1e-3, warm-up, cosine, EMA), gradient noise with two seeds, and the variance-aware target.
 - **Table pool:** G3, G2, G1, lc32.
 - **Blockers:** none.
 
@@ -19,7 +19,7 @@
 - **Points milestone:** a generation whose points are up 2 SE.
 - **Ship candidate (orchestrator, 2026-11-11):** against lc32 itself, on two fresh exact runs pooled (never screen deals), points up 3 SE and hands won not down more than 1 SE. The loop runs this check for every generation with a points milestone (`shipCheck` in `lc-own-loop.js`).
 
-So far: **G1 (LO1b)** met the generation bar on hands won (+0.23 ± 0.07 against lc32), with no points milestone. **G2 (LO2a)** met the generation bar and the points milestone against G1 (+2.2 ± 0.9). It also met the **ship bar** against lc32: +5.9 ± 1.1 points (5.5 SE) and +0.35 ± 0.05 hands won, on 160,000 pooled fresh exact deals.
+So far: **G1 (LO1b)** met the generation bar on hands won (+0.23 ± 0.07 against lc32), with no points milestone. **G3 (LO4h)** met the generation bar on hands won (+0.22 ± 0.04 against G2), with no points milestone, and is below the ship bar against lc32 (+2.4 ± 1.1). **G2 (LO2a)** met the generation bar and the points milestone against G1 (+2.2 ± 0.9). It also met the **ship bar** against lc32: +5.9 ± 1.1 points (5.5 SE) and +0.35 ± 0.05 hands won, on 160,000 pooled fresh exact deals.
 
 ## Setup
 
