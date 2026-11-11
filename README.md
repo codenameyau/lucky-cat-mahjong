@@ -6,7 +6,7 @@ Lucky Cat Mahjong is a New York City mahjong community. We host events, lessons,
 
 Here at Lucky Cat Mahjong we believe some of the strongest connections are built one tile at a time.
 
-This repository is the club's site at [luckycatmahjong.com](https://luckycatmahjong.com): a static website, with its content managed through [Pages CMS](https://pagescms.org), plus a Hong Kong mahjong game with a coach and bots to practice against.
+This repository is the club's site at [luckycatmahjong.com](https://luckycatmahjong.com): a static website, with its content in JSON files under `data/`, plus a Hong Kong mahjong game with a coach and bots to practice against.
 
 The learned bot, Neural Cat, is on Hugging Face:
 
@@ -35,7 +35,7 @@ The learned bot, Neural Cat, is on Hugging Face:
 - [Local preview](#local-preview)
 - [Tests](#tests)
 - [Other scripts](#other-scripts): [Media formatting](#media-formatting) · [Print and PDF](#print-and-pdf)
-- [Editing content with Pages CMS](#editing-content-with-pages-cms)
+- [Editing content](#editing-content)
 - [Deploy to GitHub Pages](#deploy-to-github-pages)
 - [Project structure](#project-structure)
 - [Documentation](docs/README.md): [Machine learning](docs/machine-learning/README.md) · [Strategies](docs/strategies/README.md) · [Architecture](docs/architecture/README.md) · [Offline](docs/offline/README.md)
@@ -52,11 +52,11 @@ The learned bot, Neural Cat, is on Hugging Face:
 - **"Book a session" form** — Static lead form that builds a pre-filled email (no backend needed); a direct email/Instagram link sits beneath it
 - **Direct Instagram message links** — "Message us" buttons open straight into a DM via `ig.me/m/<handle>`
 - **Pre-filled email** — `mailto:` links open with a subject and a short template so leads arrive qualified
-- **Multi-paragraph copy** — About and CTA body text support paragraphs (leave a blank line in the CMS to start a new paragraph)
+- **Multi-paragraph copy** — About and CTA body text support paragraphs (leave a blank line in the JSON text to start a new paragraph)
 - **Social proof** — Editable testimonials section and hero "stats" band to build trust
 - **Floating mobile contact bar** — "Email Us" + "Message Us" buttons pinned to the bottom on phones
 - **Services** — Private lessons, workshops, and business collaborations
-- **Editable rates** — Pricing table managed via Pages CMS
+- **Editable rates** — Pricing table from `data/rates.json`
 - **Instagram** — Links to [@luckycat.mahjong](https://www.instagram.com/luckycat.mahjong/)
 
 ### Hong Kong Mahjong Points Guide (`/hong-kong-mahjong-scoring/`)
@@ -71,15 +71,15 @@ The learned bot, Neural Cat, is on Hugging Face:
 
 ### Community page (`/community/`)
 
-- **CMS-managed event recaps** — Heading, subheading, and a list of past events (name, date, description, photos) editable in Pages CMS
-- **Photo galleries** — Each event renders a responsive photo grid; events sort newest-first by date regardless of CMS list order
+- **Event recaps** — Heading, subheading, and a list of past events (name, date, description, photos) from `data/community.json`
+- **Photo galleries** — Each event renders a responsive photo grid; events sort newest-first by date regardless of their order in the file
 - **Infinite scroll** — Events load in batches as you scroll for fast initial page load
 - **Desktop lightbox** — Click any photo on larger screens to browse full-size in a keyboard-navigable viewer
 - **Image pipeline** — `npm run format-media` converts uploaded JPG/PNG to WebP, resizes for the web, and syncs paths back into `data/community.json`
 
 ### Events page (`/events/`)
 
-- **Upcoming events and tickets** — A Ticket Tailor widget lists upcoming events and tournaments and sells tickets, so this page isn't edited through the CMS
+- **Upcoming events and tickets** — A Ticket Tailor widget lists upcoming events and tournaments and sells tickets, so this page has no JSON content
 
 ### "Which Mahjong Tile Are You?" quiz (`/which-mahjong-tiles-are-you/`)
 
@@ -475,13 +475,13 @@ This runs `node --test` over the test files listed in `package.json`:
 
 > **Note to self: pinned files.** Any time you change a file listed in `native/ported.json`, check whether the change has to be redone in `native/`. `npm run native:check-pin` compares each file's SHA-256 with the pin (the `GAME_VERSION` line is left out), and the `native-pin` CI job runs it on every PR. If the change affects how the game plays, port it. Either way, run `npm run native:build`, then `node scripts/ml/native.js parity` on every player, then `node scripts/ml/native.js pin`, and commit `native/ported.json`.
 
-Harnesses in `js/points.harness.js` and `js/main.harness.js` load each script in a mocked browser environment, so scoring logic and CMS rendering can be tested without opening the page.
+Harnesses in `js/points.harness.js` and `js/main.harness.js` load each script in a mocked browser environment, so scoring logic and homepage rendering can be tested without opening the page.
 
 ## Other scripts
 
 ### Media formatting
 
-After uploading event photos through Pages CMS into `media/`, run:
+After adding event photos to `media/`, run:
 
 ```bash
 npm run format-media
@@ -494,21 +494,19 @@ This optimizes images to WebP (max 2000px wide, 2:3 aspect crop) and updates pho
 - `npm run generate-guide` renders the printable rules booklet to PDF (`scripts/generate-guide.js`)
 - `npm run licensing-agreement` renders the licensing agreement to PDF (`scripts/licensing-agreement.js`)
 
-## Editing content with Pages CMS
+## Editing content
 
-1. Go to [app.pagescms.org](https://app.pagescms.org) and sign in with GitHub
-2. Install the Pages CMS GitHub App on this repository
-3. Open the repo — the `.pages.yml` config defines all editable content:
-   - **Site Settings** — Title, hero text, about section, contact email, Instagram, and hero stats (About and CTA body text support multiple paragraphs — leave a blank line between them)
-   - **Services** — Add, edit, or reorder service offerings
-   - **Rates** — Set and update pricing for each service
-   - **Testimonials** — Add reviews/social proof (leave empty to hide the section)
-   - **FAQ** — Questions and answers
-   - **Community** — Page heading/subheading and past events with date, description, and photo uploads
+The site's content is in JSON files in `data/`, edited in the repo and merged through a PR:
 
-Changes save directly to the JSON files in `data/` and deploy with your next push.
+- **`site.json`** — Title, hero text, about section, contact email, Instagram, and hero stats (About and CTA body text support multiple paragraphs — leave a blank line between them)
+- **`services.json`** — Service offerings
+- **`rates.json`** — Pricing for each service
+- **`testimonials.json`** — Reviews and social proof (leave empty to hide the section)
+- **`faq.json`** — Questions and answers
+- **`community.json`** — Page heading/subheading and past events with date, description, and photos
+- **`nav.json`** — Navigation links
 
-Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are edited directly in the repo.
+Site styles (`css/`) and the Events page are edited directly too.
 
 ## Deploy to GitHub Pages
 
@@ -521,7 +519,6 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 ## Project structure
 
 ```
-├── .pages.yml                           # Pages CMS configuration
 ├── CNAME                                # Custom domain
 ├── index.html                           # Homepage
 ├── community/                           # Community event recaps
@@ -545,7 +542,7 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── privacy.css                      # Privacy, terms and refund page styles
 │   └── fonts.css                        # Web font (KN Yuanmo SC)
 ├── js/                                  # Each has a *.test.js beside it where noted below
-│   ├── main.js                          # Loads CMS data and renders the home page (tested)
+│   ├── main.js                          # Loads data/ and renders the home page (tested)
 │   ├── main.harness.js                  # Test harness for the homepage renderer
 │   ├── nav.js                           # Shared header nav (loads data/nav.json)
 │   ├── analytics-id.js                  # Analytics: visitor and session IDs, the cookie choice (tested)
@@ -611,7 +608,7 @@ Navigation links (`data/nav.json`), site styles (`css/`) and the Events page are
 │   ├── testimonials.json                # Social proof / reviews
 │   ├── faq.json                         # Frequently asked questions
 │   └── community.json                   # Community page events & photos
-├── media/                               # Uploaded event photos (via Pages CMS)
+├── media/                               # Event photos
 ├── sitemap.xml
 └── robots.txt
 ```

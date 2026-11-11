@@ -364,7 +364,7 @@ async function init() {
     if (faq) applyFaq(faq);
     setupConversion(services);
   } catch (err) {
-    console.warn('Could not load CMS data, using static defaults:', err);
+    console.warn('Could not load site data, using static defaults:', err);
   }
 }
 
