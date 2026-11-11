@@ -34,7 +34,7 @@
 **Recommendation: ship G4 (`ml/models/LO9d.json`) in place of G2**, subject to your game-table check.
 
 
-*Updated 2026-11-11 11:10 local.* Rounds done: 18. Since G4, three generations (G5, G6) have added hands won, not points. Now running rounds 19 to 21 to aim at points: full-spicy replays again with the close-choice budget and soups, bonus 50. Rounds done: 4.
+*Updated 2026-11-11 12:20 local.* Rounds done: 21. LO21d (full-spicy block) gained points (+3.5 ± 0.9) but lost hands won against G6. It and G6 are now on the fixed ship table against lc33. Next: plan-biased exploration toward bigger hands (orchestrator), built and tested for parity, from round 22. Rounds done: 4.
 
 - **Champion: G6 = LO18d** (`ml/models/LO18d.json`), from 3 blind steps on G5: half/full 50/50 blend, vnorm 1, bonus 150, 3-seed soup.
   - **Against G5** on 160,000 fresh exact deals: points +0.0 ± 0.9 (half spicy +0.14 ± 0.07), **hands won +0.14 ± 0.04 (3.5 SE)**, deal-ins −0.09 ± 0.05, average win 296 vs 294. A generation on hands won.
@@ -290,6 +290,16 @@ Data: own-16 to own-18, about 61,000 choices each, 909 to 937 s.
 - **Why:** the targets weight small hands relatively more, so the steps they teach are steps toward winning more often.
 - **The steps that moved points were full spicy:** G2 (full, bonus 150), and the two full-spicy steps inside G4.
 - **Next (rounds 19 to 21):** full-spicy replays, with the close-choice budget and soups kept (the noise tools), and bonus 50.
+
+### Rounds 19 to 21: blind steps from G6, full-spicy replays (16 at close choices, 3-seed soup, vnorm 1, bonus 50)
+
+Data: own-19 to own-21, about 61,000 choices each, 907 to 978 s.
+
+**Confirmation of LO21d against G6, 160,000 fresh exact deals:** **points +3.5 ± 0.9 (3.9 SE)**, half spicy +0.18 ± 0.07, **hands won −0.20 ± 0.04**, deal-ins +0.09 ± 0.05, average win 314 vs 298. **Not a generation:** hands won are down 5 SE. The head went back to G6.
+
+**Reading.**
+- **Full-spicy replays buy points again, by giving up hands won:** 16 more points a win. That confirms the frontier the orchestrator described.
+- **Ship check under way:** LO21d (and G6) against lc33 (G4) on the fixed table. The ship bar needs only points up 3 SE with hands won not down against G4, not a Pareto step against G6.
 
 ## Half spicy
 
