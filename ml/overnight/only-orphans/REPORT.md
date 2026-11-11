@@ -2,10 +2,10 @@
 
 ## Status
 
-- **Champion (lineage loop):** **ON1** (): OS2c1 fine-tuned with faan targets clipped at 10, win bonus 600. On 40,000 fresh exact deals against OS2c1: points +1.9 ± 3.2 a hand, hands won +0.72 ± 0.05 pp (5.06% to 4.34%), deal-ins +0.00 ± 0.04 pp. **It meets the Pareto rule (a new generation), not the ship bar** (points +3 SE pooled).
-- **Rounds done:** R0, round 1, R1b, C0, structural arms, R2, R3, C1.
-- **Last result:** C1 (above). N2cap1 (the same network at win bonus 800) won even more (+0.83 pp) but dealt in +0.05 ± 0.04 pp: no bar.
-- **Now:** round 2 from ON1: data  (ON1 exploring against OS2c1 and the older generations), fine-tunes with the cap (two recipes x 2 seeds), win bonus 400/800, screen, confirmation.
+- **Champion (lineage loop):** **ON1** (`ml/models/ON1.json`): OS2c1 fine-tuned with the faan targets clipped at 10, playing win bonus 600. Against OS2c1 on 40,000 fresh exact deals: points +1.9 ± 3.2 a hand, hands won +0.72 ± 0.05 pp (5.06% to 4.34%), deal-ins +0.00 ± 0.04 pp. **It meets the Pareto rule, so it is a new generation. It does not meet the ship bar** (points up 3 SE on pooled fresh deals).
+- **Rounds done:** R0, round 1, R1b, C0, the structural arms, R2, R3, C1.
+- **Last result:** C1 (above). N2cap1, the same network at win bonus 800, won even more hands (+0.83 pp) but dealt in +0.05 ± 0.04 pp more, so it met no bar.
+- **Now:** round 2 from ON1. Data `oon-2` (ON1 exploring against OS2c1 and the older generations), fine-tunes with the cap (two recipes x 2 seeds), win bonus 400 and 800, then a screen and a confirmation.
 - **Blockers:** none.
 
 ## The table and the measures
