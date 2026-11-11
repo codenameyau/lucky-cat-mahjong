@@ -115,8 +115,6 @@
   gap: 0.6rem;
 }
 
-.play-options--3 { grid-template-columns: repeat(3, 1fr); }
-
 .play-option {
   position: relative;
   cursor: pointer;
@@ -297,17 +295,6 @@ html.play-has-save:not(.play-settled):not(.play-new-first) #play-resume {
 
 /* The game page has two: the game's table and the playback view's. */
 .play-canvas[hidden] { display: none; }
-
-/* Refreshing the game: hide the page until the table opens. The animation
-   shows it anyway if the game's script never gets there. */
-html.play-reopening body {
-  visibility: hidden;
-  animation: play-reopen-reveal 0s 3s forwards;
-}
-
-@keyframes play-reopen-reveal {
-  to { visibility: visible; }
-}
 
 html.is-playing,
 html.is-playing body {
@@ -1041,8 +1028,7 @@ html.is-playing.is-sideways body {
 @media (max-width: 560px) {
   .play-card,
   .play-rules { padding: 1.4rem 1.1rem; }
-  .play-options,
-  .play-options--3 { grid-template-columns: 1fr; }
+  .play-options { grid-template-columns: 1fr; }
   .play-actions { flex-direction: column; }
   .play-start { flex: none; width: 100%; }
 }

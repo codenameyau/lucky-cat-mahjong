@@ -729,7 +729,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.61.5');
+    assert.equal(E.GAME_VERSION, '0.61.6');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
@@ -1259,7 +1259,6 @@ describe('sticking to a plan', () => {
 
 describe('the coach says when its hand changes', () => {
   const hint = (game, bot) => Coach.forStrategy(bot || B).turnHint(game, 0, { kongs: [] }).tips.join(' ');
-  const honors = ['we', 'we', 'we', 'ws', 'ws', 'ws', 'wn', 'wn', 'c2', 'c5', 'd3', 'd7', 'b4', 'b8'];
   const flush = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'c9', 'd2', 'b3', 'we', 'ws'];
   const mixed = ['c2', 'c3', 'c4', 'd4', 'd5', 'd6', 'b3', 'b4', 'b6', 'b7', 'b8', 'c7', 'd1', 'we'];
   const three = ['b1', 'b9', 'd1'].map((tile) => ({ tile, claimed: false }));

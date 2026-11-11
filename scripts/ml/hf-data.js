@@ -76,10 +76,6 @@ function defaultSets() {
   return ['j0', 's1', 's2', 's3', 's4', 's5', 's6'].filter((n) => names.indexOf(n) !== -1).concat(league);
 }
 
-function readJson(file) {
-  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (err) { return null; }
-}
-
 // The command that makes a set again, from its manifest.
 function rebuild(name, m) {
   const c = m.config;

@@ -73,17 +73,6 @@ body {
   word-break: break-word;
 }
 
-.privacy-summary {
-  padding: 1rem 1.25rem;
-  border: 1px solid rgba(var(--color-primary-rgb), 0.18);
-  border-radius: var(--radius);
-  background: linear-gradient(180deg, rgba(var(--color-secondary-rgb), 0.08) 0%, transparent 70%), var(--color-surface);
-}
-
-.privacy-summary h2 {
-  margin-top: 0.25rem;
-}
-
 .privacy-table-wrap {
   overflow-x: auto;
   margin: 1rem 0;

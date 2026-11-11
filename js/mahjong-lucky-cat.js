@@ -37,7 +37,6 @@
   var GATES_MIN = 11;
   var SUIT_LETTERS = ['c', 'd', 'b'];
   var EARLY_WALL = 60;
-  var DRAGON_INDEXES = [31, 32, 33];
 
   /* ------------------------------------------------------------------ *
    * 1. Special hands

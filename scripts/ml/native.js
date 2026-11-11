@@ -160,7 +160,6 @@ function resultLine(r) {
 function debugAgent(bot, seed) {
   const agent = bot.createBotAgent();
   if (!bot.analyzeDiscards) return agent;
-  const f = (v) => (Object.is(v, -0) ? 0 : v).toPrecision(17).replace(/\.?0+$/, '').replace(/\.?0+e/, 'e');
   return {
     turn(game, seat, o) {
       if (String(game.seed) === process.env.LCM_DEBUG && !o.win) {

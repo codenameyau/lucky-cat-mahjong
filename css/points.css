@@ -1010,8 +1010,6 @@ html.hide-extra-chinese .result-cn {
   cursor: pointer;
 }
 
-.opt-check .opt-cn { color: var(--color-text-muted); }
-
 .opt-select {
   display: flex;
   flex-direction: column;
@@ -1034,12 +1032,6 @@ html.hide-extra-chinese .result-cn {
 
 /* Result */
 .calc-result { margin-top: 0.5rem; }
-
-.result-note {
-  color: var(--color-text-muted);
-  font-size: 0.95rem;
-  margin: 0;
-}
 
 .result-list {
   list-style: none;
@@ -1139,27 +1131,11 @@ html.hide-extra-chinese .result-cn {
   font-style: italic;
 }
 
-/* ---- Back-to-home / page footer link ---- */
-.points-backlink {
-  text-align: center;
-  padding: 0 0 2.5rem;
-  background: var(--color-surface);
-}
-.points-backlink .btn { justify-content: center; }
-
 .points-cta {
   text-align: center;
   margin-top: 2rem;
 }
 .points-cta .btn { justify-content: center; }
-
-/* ---- Attribution ---- */
-.tile-credit {
-  text-align: center;
-  font-size: 0.82rem;
-  color: var(--color-text-muted);
-  margin-top: 1.5rem;
-}
 
 @media (max-width: 768px) {
   .calc-card-head {

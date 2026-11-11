@@ -9,8 +9,6 @@
   'use strict';
 
   var node = typeof module !== 'undefined' && module.exports;
-  var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-
   // Opening hands, 13 tiles each. East's 14th tile is EXTRA.
   // Opponents hold no pairs, so they never claim ahead of the lesson.
   var HANDS = [

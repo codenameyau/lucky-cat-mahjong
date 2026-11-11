@@ -488,7 +488,7 @@ def main():
     if args.replay:
         rep_t = to(rep[~val], torch.float32)
     if args.heads:
-        aux_t, aux_v = to(aux[~val], torch.uint8), aux[val]
+        aux_t = to(aux[~val], torch.uint8)
         has_t = to(has_aux[~val], torch.bool)
         print('Extra heads: %d of %d rows carry their labels' % (int(has_aux.sum()), len(has_aux)))
     opt_data = load_options(manifests, size) if args.options else None

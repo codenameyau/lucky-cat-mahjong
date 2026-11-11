@@ -61,20 +61,6 @@ function buildMailto(subject, body) {
   return `mailto:${email}` + (params.length ? '?' + params.join('&') : '');
 }
 
-let toastTimer;
-function showToast(message) {
-  const el = document.querySelector('.toast');
-  if (!el) return;
-  el.textContent = message;
-  el.hidden = false;
-  requestAnimationFrame(() => el.classList.add('show'));
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    el.classList.remove('show');
-    setTimeout(() => { el.hidden = true; }, 300);
-  }, 4500);
-}
-
 function buildPageTitle(site) {
   return site.tagline ? `${site.title} | ${site.tagline}` : site.title;
 }
