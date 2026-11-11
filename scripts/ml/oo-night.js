@@ -49,6 +49,11 @@ const TABLES = [
   ['OT11d', 'OT6e', 'OL2c'],
 ];
 const poolFile = (name) => path.join(ROOT, 'ml', 'models', name + '.json');
+// The game's table (--game-table): the shipped Neural Cat twice and Jorge Yau, as the game seats them
+// around one Only Orphans seat. Evaluation only.
+const GAME_TABLE = [['neural-cat', 'jorge-yau', 'neural-cat']];
+const tableAt = (b) => TABLES[b % TABLES.length].map((n) => (/^(neural-cat|jorge-yau)$/.test(n) ? N.nativeId(n) : oo(poolFile(n))));
+function useGameTable() { TABLES.length = 0; GAME_TABLE.forEach((t) => TABLES.push(t)); }
 
 function parseArgs(argv) {
   const out = { _: [] };
@@ -91,7 +96,7 @@ const stats = { played: 0, cached: 0, seconds: 0 };
 
 // One model's rows on one block (cached).
 function blockTask(modelId, seed, b, build) {
-  const table = TABLES[b % TABLES.length].map((n) => oo(poolFile(n)));
+  const table = tableAt(b);
   const key = sha(JSON.stringify([path.basename(modelId), table.map((t) => path.basename(t)), seed, b, BLOCK, build, simHash(build)])).slice(0, 24);
   const file = path.join(ROWS, key + '.bin');
   return () => {
@@ -123,7 +128,7 @@ function readRows(file) {
 // (lcm-sim shadow): one process a block plays the champion's hands, and each arm's
 // only where it chose otherwise. Each model's rows are cached as play's would be.
 const rowsKey = (modelId, seed, b, build) => {
-  const table = TABLES[b % TABLES.length].map((n) => oo(poolFile(n)));
+  const table = tableAt(b);
   return path.join(ROWS, sha(JSON.stringify([path.basename(modelId), table.map((t) => path.basename(t)), seed, b, BLOCK, build, simHash(build)])).slice(0, 24) + '.bin');
 };
 const replayStats = { hands: 0, replays: 0 };
@@ -136,7 +141,7 @@ function shadowTask(ids, seed, b, build) {
       return blockTask(ids[0], seed, b, build)().then((r0) => [r0].concat(files.slice(1).map(readRows)));
     }
     const arms = ids.filter((id, m) => need[m]);
-    const table = TABLES[b % TABLES.length].map((n) => oo(poolFile(n)));
+    const table = tableAt(b);
     fs.mkdirSync(ROWS, { recursive: true });
     const tmp = path.join(ROWS, 'shadow-' + process.pid + '-' + b + '-' + Math.random().toString(36).slice(2) + '.tmp');
     const t0 = Date.now();
@@ -350,6 +355,7 @@ if (require.main === module) {
     const a = parseArgs(process.argv.slice(2));
     const cmd = a._[0];
     const workers = parseInt(a.workers || 10, 10);
+    if (a['game-table']) useGameTable();
     if (cmd === 'screen' || cmd === 'confirm') {
       const arms = String(a.arms || a.arm).split(',').map((f) => path.resolve(ROOT, f));
       const champion = path.resolve(ROOT, a.champion || 'ml/models/OS2c1.json');

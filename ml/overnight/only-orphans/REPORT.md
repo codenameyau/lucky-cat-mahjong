@@ -381,3 +381,44 @@ Next experiments, in order:
 4. **Port `halfSpicy` (and the cap needs nothing: it is in the weights) to `js/mahjong-ml.js`** if a half-spicy-play model is wanted in the game. The cap generations ON1 to ON3 need no JS change: they are plain weights with a win bonus.
 5. **The evaluation table:** add OS2c1 and ON1/ON2 to the table once they are older generations of the shipped model, so the next lineage plays its own recent past.
 6. **A variance-reduced points estimator:** replay each diverging deal several times with the hidden tiles shuffled (the native `--replays` machinery), and take the paired gap over replays. This targets the deal-level luck that dominated every points measurement tonight.
+
+# Phase 2 (the orchestrator's plan: measure points)
+
+## 1. The variance-reduced points estimator (`lcm-sim vr`)
+
+**How it works.** Each hand is played once by the champion with the arm read alongside it as a shadow.
+
+- If the arm makes the same choice at every decision, the hand contributes a gap of exactly zero.
+- Where the arm first chooses differently, the game just before that decision is kept. The rest of the hand is then played K times by each side from there, with the remaining wall reshuffled the same way for both (common random numbers).
+- Only the wall is reshuffled. Every hand stays as it was, and given everything that has happened, the remaining wall order is exchangeable. So each replay is an unbiased draw of the hand's ending.
+- Reshuffling the hidden hands as well would bias it: generate.js measured that random hands deal in far less than the real ones.
+- A hand where the split comes at a robbed kong is played whole by the arm instead.
+
+**Validation** (ON2 against OS2c1, 1,000 deals from seed 1,620,000,000, fast build). Per-deal paired gap, points a hand:
+
+| Estimator | Mean | SD per deal | SE | Wins SD | Half-spicy SD | Compute (against shadow) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| plain (shadow) | +7.7 | 578 | ±18.3 | 0.108 | 30.2 | 1x |
+| vr, K = 1 | −13.8 | 644 | ±20.4 | 0.106 | 32.8 | about 1.9x |
+| vr, K = 4 | +8.2 | 342 | ±10.8 | 0.054 | 17.2 | 4.3x |
+
+The means agree: vr4 − plain is +0.5 ± 21.5 on the same deals. The variance ratio is 2.86 at K = 4, against 4.3x the compute, so **the efficiency is 0.66: worse than plain deals.**
+
+The decomposition explains why. The per-deal variance is about 18,000 (the hand's state at the split) plus 396,000 / K (the wall after it). The split comes early: an arm that is a different network chooses differently on almost every hand, mostly in its first few discards. So a replay costs nearly a whole hand, and buying wall replays is no cheaper than buying fresh deals. The optimum is about K = 3.4 at an efficiency of about 0.67.
+
+**Not used for judgments.** It would pay only for arms that diverge late, or if continuations were cheaper than hands. The 5x the orchestrator hoped for isn't there.
+
+## 3. The game's table: ON2 against OS2c1 (60,000 fresh deals, exact build)
+
+The table is the shipped Neural Cat NC9 twice and Jorge Yau (`neural-cat, jorge-yau, neural-cat`, as the game seats them around one Only Orphans seat; `oo-night.js --game-table`). ON2 and OS2c1 each take every seat of the same 60,000 deals from seed 2,507,000,000.
+
+| | OS2c1 | ON2 | Gap |
+| --- | ---: | ---: | ---: |
+| Points a hand (full spicy) | 15.6 | 11.1 | **−4.5 ± 3.8** (−1.2 SE) |
+| Points a hand (half spicy) | | −4.6 | +0.3 ± 0.2 |
+| Hands won | 5.69% | 6.19% | **+0.51 ± 0.06 pp** |
+| Deal-ins | 12.24% | 11.74% | **−0.50 ± 0.08 pp** |
+| Average win | 2,406 | 2,093 | |
+| Limit-hand wins | 0.864% | 0.787% | **−0.077 ± 0.021 pp** (3.7 SE fewer) |
+
+Reading: at the game's table ON2 still wins more hands and deals in less. **But it finishes fewer limit hands (−0.08 pp, 3.7 SE)**, which it didn't against the older generations. Its full-spicy points are −4.5 ± 3.8, inconclusive but on the wrong side. Against faster opponents, small wins taken early cost limit hands that would have come later. The orchestrator's draft rule says "not worse at the game's table". On this run ON2 is not shown to be worse, but it is not shown to be level either. The limit-hand loss is real.
