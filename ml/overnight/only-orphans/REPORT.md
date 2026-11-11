@@ -2,23 +2,28 @@
 
 ## Status
 
-- **Ship candidates: W1b0 and W1b1** (`ml/models/W1b0.json`, `W1b1.json`). Each is OS2c1 fine-tuned on won-position-rich data (`oow-1`), with no faan cap, lr 3e-4, 8 epochs, and OS2c1's play settings. Both pass the fair-play check.
-  - **Bars (the maintainer's objective for Only Orphans: full-spicy points and limit-hand wins; hands won reported only).** A generation needs points up 2 SE on fresh exact deals with deal-ins not up more than 0.25 pp or 1 SE. **A ship candidate needs points up 3 SE against OS2c1 on pooled fresh exact deals at the older-generations table.**
-  - **Run 1, C7** (80,000 fresh exact deals, seed 2,514,000,000):
+- **SHIP CANDIDATE: W1b0** (`ml/models/W1b0.json`; W1b1, a second seed of the same recipe, passes too). The recipe: OS2c1 fine-tuned on won-position-rich data `oow-1` (1,000,000 deals, every position of a hand's winner kept, the rest at 3% with importance weights), no faan cap, lr 3e-4, 8 epochs. It plays OS2c1's settings (win bonus 800, claim margin 50).
 
-    | Model | Full-spicy points | Half-spicy points | Limit-hand wins | Hands won | Deal-ins |
-    | --- | ---: | ---: | ---: | ---: | ---: |
-    | W1b0 | **+12.3 ± 2.3** (5.4 SE) | +0.5 ± 0.1 | +0.052 ± 0.011 pp | −0.19 pp | −0.08 pp |
-    | W1b1 | **+12.8 ± 2.3** (5.5 SE) | +0.5 ± 0.1 | +0.063 ± 0.011 pp | −0.25 pp | −0.06 pp |
+  **Against OS2c1, pooled over two fresh exact runs at the older-generations table (C7 + C8, 160,000 deals; no screen deals):**
 
-    Both are generations.
-  - **Run 2, C8** (80,000 fresh exact deals, seed 2,516,000,000): running. The pooled ship numbers will be put here.
-- **Benchmark purity (the maintainer's ruling):** every training-data table and every evaluation table tonight had only Only Orphans generations in the other seats.
+  | | W1b0 | W1b1 |
+  | --- | ---: | ---: |
+  | **Full-spicy points a hand** | **+9.59 ± 1.63 (5.9 SE)** | +9.29 ± 1.65 (5.6 SE) |
+  | Half-spicy points a hand | +0.35 ± 0.08 | +0.33 ± 0.08 |
+  | **Limit-hand wins** | **+0.041 ± 0.008 pp** (0.84% against 0.80% of hands, +5%) | +0.042 ± 0.008 pp |
+  | Hands won (reported only) | −0.208 ± 0.026 pp | −0.225 ± 0.026 pp |
+  | Deal-ins | −0.075 ± 0.018 pp | −0.073 ± 0.018 pp |
+
+  Run by run: C7 +12.3 ± 2.3 and C8 +6.7 ± 2.3 for W1b0; C7 +12.8 ± 2.3 and C8 +5.8 ± 2.3 for W1b1.
+
+  - **Bar met: ship candidate** (points up 3 SE against OS2c1 on pooled fresh exact deals, lineage-only table).
+  - **Fair play: passes** (`scripts/ml/oo-fair-play.js`).
+  - **No game-table result**, by the maintainer's ruling.
+- **Benchmark purity:** every training-data table and every evaluation table tonight had only Only Orphans generations in the other seats.
   - Data pools: the exploring learner plus OT11d, OT7c, OT6e, OT5e, OT4a, OT2d, OT1a, and from round 2 OS2c1 and ON1.
-  - Evaluation tables: three older generations from OT11d, OT7c, OT6e, OT5e, OT4a, OT2d, OT1a and OL2c, cycling.
-  - Two game-table runs (NC9, Jorge Yau) were evaluation only, never training data: G1 (ON2 against OS2c1, 60,000 deals) and G2 (W1b0/W1b1, stopped part way on the ruling, no result used). No more will be run.
-- **Next:** the win-bonus map on W1b0 and the W1b0+W1b1 soup (200 / 300 / 400 / 500 / 1000), then a second round of won-position-rich data from the new champion.
-- **3.2, the target choice: empty.**
+  - Evaluation tables: three of OT11d, OT7c, OT6e, OT5e, OT4a, OT2d, OT1a and OL2c, cycling.
+  - Two game-table runs were evaluation only, never training data: G1 (ON2) and G2 (stopped on the ruling, unused).
+- **Next:** the win-bonus map on W1b0 and the W1b0+W1b1 soup (200 to 1000), the limit-weighted fine-tunes (W1L2, W1L4), then a second round of won-position-rich data played by W1b0.
 - **Blockers:** none.
 
 ## The table and the measures
@@ -609,3 +614,25 @@ Reading: **this is the first lever tonight that moves the other way along the fr
 - **The orchestrator's draft rule** (hands won up 3 SE): not met.
 
 This is a trade in the other direction: many more points, slightly fewer wins. Whether that ships is the maintainer's call: the maintainer optimizes points and hands won together. The game-table check (G2) is running.
+
+### Confirmation C8: the second fresh run, and the ship numbers
+
+80,000 fresh deals from seed 2,516,000,000, exact build, against OS2c1 (10.6 points a hand, wins 4.38%, limit-hand wins 0.808%):
+
+| Model | Points | Wins (pp) | Deal-ins (pp) | Limit-hand wins (pp) | Half-spicy points |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| W1b0 | +6.7 ± 2.3 | −0.22 ± 0.04 | −0.07 ± 0.03 | +0.029 ± 0.011 | +0.2 ± 0.1 |
+| W1b1 | +5.8 ± 2.3 | −0.20 ± 0.04 | −0.08 ± 0.03 | +0.022 ± 0.011 | +0.2 ± 0.1 |
+
+**Pooled C7 + C8 (160,000 fresh exact deals):**
+
+| Model | Points | Limit-hand wins | Wins | Deal-ins | Half-spicy points |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| W1b0 | **+9.59 ± 1.63 (5.9 SE)** | **+0.041 ± 0.008 pp** | −0.21 pp | −0.075 pp | +0.35 ± 0.08 |
+| W1b1 | **+9.29 ± 1.65 (5.6 SE)** | **+0.042 ± 0.008 pp** | −0.23 pp | −0.073 pp | +0.33 ± 0.08 |
+
+Under the maintainer's objective for Only Orphans (biggest hands and most points; hands won may fall), **both are ship candidates.** W1b0 is the recommended one, ahead of W1b1 by a hair.
+
+The second run came in at about half the first: the first run's +12 was partly luck, as single runs have been all night. The pooled figure is the one to quote.
+
+The game's-table run G2 was stopped on the maintainer's ruling (lineage-only benchmark); no result from it is used.
