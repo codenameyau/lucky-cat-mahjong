@@ -304,3 +304,43 @@ Against the anchor OS2c1 it is +8.1 ± 3.1 points and +0.92 ± 0.05 pp hands won
 | ON2 at win bonus 400 | C5 (40,000) | +5.4 ± 3.1 | +0.67 ± 0.05 | −0.06 ± 0.04 | one run: 1.7 SE on points |
 
 Reading: the cap generations win 0.7 to 0.9 pp more hands than OS2c1 (5.0 to 5.3% against 4.35%), measured to ±0.03 pp. On points they are level to slightly ahead, but the standard error is ±1.8 even on 120,000 deals. ON2 is the best measured: +2.5 ± 1.8 points and +0.83 pp hands won, with deal-ins level. A lower win bonus moves ON2 along its own frontier, toward fewer, bigger wins (+5.4 ± 3.1 points and +0.67 pp hands won on one run). That is the strongest single result on full-spicy points tonight, but it is one run, and the ship bar needs +3 SE pooled.
+
+## Half spicy
+
+**What was built.** `meta.play.halfSpicy` is a play setting of the native Only Orphans and Neural Cat players: the weight of the half-spicy payout in each option's expected points (0 is full spicy, as before; 0.5 is the blend; 1 is half spicy). The rows now carry each deal's half-spicy points and its limit-hand wins.
+
+- The half-spicy points are a re-scoring. A hand's payments are linear in its points, so its half-spicy deltas are its deltas times `halfSpicyPoints(f) / fullSpicyPoints(f)` for the win's faan `f`.
+- That ratio matches `js/points.js` `faanToPoints(f, {spicy})` for every faan from 3 to 16.
+- With the setting at 0 the players play exactly as before: parity holds on all-Only-Orphans and mixed tables, and `npm test` passes. Shadow rows with half-spicy arms are identical to play rows on the exact build.
+- The game's JS doesn't read the setting, so a model that uses it could not ship without porting it to `js/mahjong-ml.js`.
+
+**Screen HS** (deck seed 1,506,000,000, fast build, 8,000 deals, against OS2c1). OS2c1: 10.2 full-spicy points a hand, wins 4.28%. "h50" = half-spicy weight 0.5, "h100" = 1.
+
+| Arm | Full-spicy points gap | Half-spicy points gap | Wins gap (pp) | Deal-ins gap (pp) | Limit-hand wins (gap, pp) | Average win |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| OS2c1 h50 (arm 1, no training) | +0.3 ± 4.1 | +0.3 ± 0.2 | +0.48 ± 0.07 | +0.08 ± 0.05 | 0.744% (+0.000 ± 0.020) | 3,307 |
+| OS2c1 h100 | −3.2 ± 6.4 | +0.2 ± 0.3 | +0.79 ± 0.10 | +0.31 ± 0.08 | 0.772% (+0.028) | 3,140 |
+| ON2 h50 | +4.0 ± 7.2 | +0.7 ± 0.4 | +1.15 ± 0.12 | +0.09 ± 0.09 | 0.791% (+0.047) | 3,044 |
+| ON3 h50 | +6.2 ± 7.4 | +0.8 ± 0.4 | +1.10 ± 0.12 | +0.08 ± 0.08 | 0.781% (+0.037) | 3,108 |
+| ON3 h100 | −15.8 ± 7.2 (dropped) | −0.2 ± 0.4 | +1.21 ± 0.12 | +0.26 ± 0.09 | 0.737% (−0.006) | 2,858 |
+| ON3 (full spicy) | +3.8 ± 7.1 | +0.6 ± 0.4 | +0.98 ± 0.12 | +0.04 ± 0.08 | 0.784% (+0.041) | 3,133 |
+| ON2, win bonus 400 | +1.0 ± 7.4 | +0.4 ± 0.4 | +0.66 ± 0.12 | +0.03 ± 0.08 | 0.747% (+0.003) | 3,214 |
+
+Reading:
+
+- **The standard error is 15 to 20 times smaller in half-spicy points** (±0.2 to ±0.4 against ±4 to ±7 on the same deals): the tail is what makes full-spicy evaluation so expensive.
+- **The play setting alone (arm 1) does part of what the cap did, less cleanly.** On OS2c1's own weights, the blend at 0.5 adds +0.48 pp of hands won, but deal-ins rise by +0.08 pp. The cap generation ON1 had added +0.73 pp with deal-ins level. At weight 1, deal-ins rise by +0.31 pp: the model stops valuing safety against big hands.
+- **On top of the cap generations,** the blend at 0.5 adds another 0.1 to 0.2 pp of wins (ON3: +0.98 to +1.10), with deal-ins up about 0.04 pp and half-spicy points up a little. Weight 1 over-shoots: full-spicy points −15.8 ± 7.2 and deal-ins +0.26 pp.
+- **Limit hands are not given up.** Every cap and blend arm wins as many limit hands as OS2c1 (0.74 to 0.79% of hands against 0.744%, within ±0.035 pp). The extra wins are small hands added on top, which is why the average win falls while the full-spicy points don't.
+- **The transfer question, so far:** on half-spicy points the capped and blended models are a little ahead (+0.6 to +0.8 ± 0.4). On full-spicy points they are level within a noise of ±7. This is "better on half, level on full", with hands won up: a Pareto generation, not a demonstrated full-spicy gain.
+- Arms 2 to 4 (data made under the half-spicy setting, training under it, a curriculum) are not run: no time was left after the confirmations. The faan-target cap is the target-side version of arm 3, and it is what made ON1 to ON3.
+
+At 24,000 deals (stage 2, the best three):
+
+| Arm | Full-spicy points gap | Half-spicy points gap | Wins gap (pp) | Deal-ins gap (pp) | Limit-hand wins (gap, pp) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| ON2 h50 | +3.0 ± 4.1 | +0.6 ± 0.2 | +0.99 ± 0.07 | +0.11 ± 0.05 | +0.023 ± 0.020 |
+| ON3 h50 | +1.8 ± 4.2 | +0.5 ± 0.2 | +0.99 ± 0.07 | +0.12 ± 0.05 | +0.018 ± 0.020 |
+| ON3 | +1.1 ± 4.1 | +0.5 ± 0.2 | +0.81 ± 0.07 | +0.02 ± 0.05 | +0.007 ± 0.020 |
+
+On half-spicy points the cap generations are ahead of OS2c1 by about 2.5 SE, and the blend adds deal-ins without adding half-spicy points. The blend is not worth it on top of the cap.
