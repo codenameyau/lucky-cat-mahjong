@@ -94,6 +94,7 @@ Every training idea and every milestone model is a section below, in the order t
   - [Round 1: a value, judged on points, wins fewer hands](#round-1-a-value-judged-on-points-wins-fewer-hands)
   - [Round 2: the policy learns from the replays (LV2p)](#round-2-the-policy-learns-from-the-replays-lv2p)
   - [The objective: points, with a floor on hands won](#the-objective-points-with-a-floor-on-hands-won)
+- [Lucky Cat against its own lineage: LC33 (2026-11-11)](#lucky-cat-against-its-own-lineage-lc33-2026-11-11)
 - [Only Orphans on the stacked method (2026-11-10)](#only-orphans-on-the-stacked-method-2026-11-10)
   - [Round 1: replayed labels against the control](#round-1-replayed-labels-against-the-control)
   - [The reader, OR1](#the-reader-or1)
@@ -1256,6 +1257,43 @@ Thinking: if the value can't choose better than the policy, use the replays to m
 ### The objective: points, with a floor on hands won
 
 The maintainer then settled the objective: Lucky Cat may be trained to maximize points, as long as it keeps a fairly high win rate. Screens and the bar judge points a hand, and a model more than one point of win rate behind its champion is dropped. The policy recipes now learn each move's replayed mean points plus a bonus for a sure win (300 or 1,000 points). LV2p, level on points (−2.1 ± 2.0), is the starting champion for round 3, not a release.
+
+## Lucky Cat against its own lineage: LC33 (2026-11-11)
+
+In this section: [the idea](#the-idea-only-older-lucky-cats-at-the-table) · [LC33](#lc33-lo2a-two-confirmed-steps-from-lc32) · [what didn't work](#what-didnt-work-that-night)
+
+### The idea: only older Lucky Cats at the table
+
+Thinking: one overnight run (2026-11-10 to 11) trained each lineage against nothing but its own older models, on the native simulator. Lucky Cat's table was three of its last four generations, and a candidate was paired with the champion in every seat of the same deals.
+
+- **Replays with common random numbers.** At a sampled choice, each of the policy's top 4 moves is forced and the hand replayed 8 times on the *same* reshuffled walls (the tiles the seat hasn't seen). The gap between two moves then has 2.4 times less noise than with independent replays, measured with two salts on the same choices. The trainer's q mode tilts the policy's shares toward the moves that scored more.
+- **Small steps that compound.** A model becomes the lineage's next generation when, on fresh deals on the exact build, points a hand or hands won is up by two standard errors and the other isn't down by more than one. Each generation then plays the next round's data and joins the table.
+- **A stricter bar to ship:** three standard errors on points against the shipped model, on pooled fresh deals, with hands won not down.
+- **Screens overstate.** Every arm shared the champion's games, so its luck moved them together. Round 1's leader screened at +4.6 ± 1.4 and confirmed at +0.1 ± 1.4, so every step is confirmed on fresh deals: 160,000 when the gap is small.
+
+### LC33 (LO2a): two confirmed steps from LC32
+
+| Step | Against | Fresh deals (exact build) | Points a hand | Hands won | Deal-ins | Average win |
+| --- | --- | --- | --- | --- | --- | --- |
+| G1 = LO1b (tau 30, win bonus 300) | LC32 | 80,000 | +0.1 ± 1.4 | **+0.23 ± 0.07** (22.45% vs 22.22%) | 16.72% vs 16.69% | 288 vs 291 |
+| G2 = LO2a (tau 30, win bonus 150, data from G1) | G1 | 160,000 | **+2.2 ± 0.9** | +0.07 ± 0.05 | level | 301 vs 295 |
+| **LC33 = G2** | **LC32** | **160,000** (two runs of 80,000: +6.3 ± 1.5 and +5.5 ± 1.5) | **+5.9 ± 1.1** | **+0.35 ± 0.05** (22.1% vs 21.8%) | level | about 310 vs 289 |
+
+- **Reading:** the win bonus decides what the replays teach. Points double with each faan, so with 8 replays a move's chance to win is measured far better than its points. At bonus 300 the network learned to win more often and gave up a little hand value (G1). At 150 it kept the wins and won bigger (G2). At 0 it scored more still on the screen but won 0.30 ± 0.10 fewer hands, and was dropped.
+- **What the bot does differently:** against its own kind, LC33 wins slightly more often than LC32 and its wins are worth about 20 points more, with the same deal-ins. It is the same network (376 inputs, 512-256, 74 outputs) with its shares moved toward the moves that scored more on the replays; KL from G1 0.014.
+- **At the game's table it is level with LC32.** With two Neural Cats and Jorge Yau, on 60,000 fresh deals on the exact build: −1.6 ± 2.6 points a hand, hands won 19.23% vs 19.17%, deal-ins 14.27% vs 14.29%. What it learned against Lucky Cats neither helps nor hurts against the other strategies.
+- **Fair play:** the shuffle check passes; it reads only its seat.
+
+### What didn't work that night
+
+- **Weight noise** (sigma 0.01 to 0.05, alone or before a fine-tune): level or behind, every time.
+- **Larger steps** (lr 1e-3, 8 epochs): −6.4 ± 4.8 on the screen. With warm-up, a cosine schedule and averaged weights the same step trains stably; in play it kept nothing.
+- **Gradient clipping** never bites: the loss is a cross-entropy to a softmax target, and the largest gradient norm was 0.18.
+- **A residual, layer-normalized teacher** (768 wide, 4 blocks) overfits and its distilled student is worse than the control: capacity isn't the limit at this much data.
+- **Truncated replays scored by a learned value** made the data 2.8 times faster, but the value's expected points correlate with the hand's real points at only 0.12, and every arm trained on them dealt in more.
+- **Round 4**, from G2: the screen's leader, LO4c, confirmed at −1.3 ± 0.9 on 160,000 deals. Nothing kept.
+
+Tools: `scripts/ml/lc-own.js` (cached, pruned paired screens and the replay data), `scripts/ml/lc-own-loop.js` (the round driver), `ml/lc_own_train.py` (every arm in one GPU process: 9 arms in 15 s, against 52 s for one arm before).
 
 ## Only Orphans on the stacked method (2026-11-10)
 

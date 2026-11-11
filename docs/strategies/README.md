@@ -17,7 +17,7 @@ Before version 0.6.0 the two ids were the other way round; saved choices and sav
 | Strategy | In the game | How it is made | Where its story is |
 | --- | --- | --- | --- |
 | `jorge-yau` | Rules only (no model) | Hand-written rules: it picks a target hand, keeps honors, locks onto a hand worth 7 faan or more and plays no defense until late in the wall | [jorge-yau.md](jorge-yau.md) |
-| `lucky-cat` | **lc32** | A network that makes every move itself, trained in the lab on fresh games and kept only for a clear gain on 20,000 deals; learns from deal-ins since lc31 | [lucky-cat.md](lucky-cat.md), [iterations](../machine-learning/iterations.md#lucky-cat-2-the-lab-lc21-to-lc32) |
+| `lucky-cat` | **lc33** | A network that makes every move itself, trained in the lab on fresh games and kept only for a clear gain on fresh deals; learns from deal-ins since lc31, and since lc33 from replays of its own choices against its older versions | [lucky-cat.md](lucky-cat.md), [iterations](../machine-learning/iterations.md#lucky-cat-2-the-lab-lc21-to-lc32) |
 | `neural-cat` | **NC9** | Jorge Yau's best choices, ranked by a network in expected score; trained by the league (to NC2) and then the lab (NC3 to NC9) | [neural-cat.md](neural-cat.md), [iterations](../machine-learning/iterations.md#the-lab-neural-cat-3-to-8-nc3-to-nc8) |
 | `only-orphans` | **OS2c1** | Rules that pick a target each deal (Thirteen Orphans, triplets, Seven Pairs) and a network that chooses the rest in expected points | [only-orphans.md](only-orphans.md), [training progress](only-orphans-training.md) |
 
