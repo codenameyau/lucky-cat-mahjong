@@ -83,16 +83,6 @@ The learned strategies of [Lucky Cat Mahjong](https://github.com/codenameyau/luc
 
 `;
 
-// The card's front matter names the dataset, so Hugging Face links the two.
-function withDataset(text) {
-  if (!/^---\n/.test(text) || /\ndatasets:\n/.test(text.split('\n---')[0])) return text;
-  return text.replace(/^---\n/, '---\ndatasets:\n  - codenameyau/lucky-cat-mahjong-games\n');
-}
-
-function readme(old, section, marks) {
-  return withDataset(readmeText(old, section, marks));
-}
-
 // marks: the section's [start, end] markers, Neural Cat's by default.
 function readmeText(old, section, marks) {
   const [start, end] = marks || [START, END];
@@ -195,7 +185,7 @@ Neural Cat is a learned strategy in the game. A small neural network scores each
 2. **Self-play against the rule bots** (s1 to s6, discards only): s5 was kept.
 3. **League**: every seat is a Neural Cat model, never a rule bot. Half the seats are the best model so far, exploring; the rest are earlier best models, s5 always among them. Each round plays 50,000 new hands, trains a new model from the best on the last 400,000 hands, and plays it head to head against the best (two seats each, every seat rotation, 2,000 new deals). It becomes the best only if it scores more points a hand.
 
-The data is public: [codenameyau/lucky-cat-mahjong-games](https://huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games). Trained with PyTorch on an Apple GPU. Each position is labelled with how its hand really ended: the only thing from the future it learns from, and only in training.
+Trained with PyTorch on an Apple GPU. Each position is labelled with how its hand really ended: the only thing from the future it learns from, and only in training.
 
 ${latestBest(state)}
 ### League results
@@ -271,7 +261,7 @@ function sync(args) {
     if (r) fs.copyFileSync(path.join(ROOT, r.model), path.join(home, 'models', r.name + '.json'));
     fs.copyFileSync(path.join(ROOT, view.best), path.join(home, 'neural-cat.json'));
     const card = path.join(dir, 'README.md');
-    fs.writeFileSync(card, readme(fs.existsSync(card) ? fs.readFileSync(card, 'utf8') : '', modelCard(args.repo, view, upTo)));
+    fs.writeFileSync(card, readmeText(fs.existsSync(card) ? fs.readFileSync(card, 'utf8') : '', modelCard(args.repo, view, upTo)));
     const msg = r
       ? 'Add ' + r.name + ', the new best: ' + signed(r.vsBest.score) + ' points a hand against ' + path.basename(r.against, '.json') +
         (r.against === state.anchor || !r.vsAnchor ? '' : ', ' + signed(r.vsAnchor.score) + ' against ' + path.basename(state.anchor, '.json'))
@@ -369,7 +359,7 @@ function syncOrphans(args) {
     if (r) fs.copyFileSync(path.join(ROOT, r.model), path.join(home, 'models', r.name + '.json'));
     if (shipped) fs.copyFileSync(path.join(ROOT, shipped), path.join(home, 'only-orphans.json'));
     const card = path.join(dir, 'README.md');
-    fs.writeFileSync(card, readme(fs.existsSync(card) ? fs.readFileSync(card, 'utf8') : '', orphansCard(view), OO_MARKS));
+    fs.writeFileSync(card, readmeText(fs.existsSync(card) ? fs.readFileSync(card, 'utf8') : '', orphansCard(view), OO_MARKS));
     const msg = r
       ? 'Add Only Orphans ' + r.name + ', in the game: ' + signed(r.vsBaseline.score) + ' ± ' + r.vsBaseline.margin.toFixed(0) + ' points a hand against the rule-based bot'
       : 'Update the Only Orphans model card';

@@ -18,7 +18,6 @@ In the game, the models run in the browser in plain JavaScript, with no ML serve
 Where all of that stands, and why each choice was made, is in [frontier history](frontier-history.md).
 
 - **Model**: [huggingface.co/codenameyau/lucky-cat-mahjong](https://huggingface.co/codenameyau/lucky-cat-mahjong)
-- **Training data**: [huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games](https://huggingface.co/datasets/codenameyau/lucky-cat-mahjong-games)
 - **How they play and their results**: the playbooks for [Neural Cat](../strategies/neural-cat.md), [Lucky Cat](../strategies/lucky-cat.md) and [Only Orphans](../strategies/only-orphans.md)
 
 ## Contents
@@ -38,7 +37,7 @@ Where all of that stands, and why each choice was made, is in [frontier history]
 | [Decisions](decisions.md) | How Neural Cat picks discards, claims and kongs, how it explains them, and what the coach says |
 | [Training](training.md) | Generating data, training, self-play, the league, competitions, and every command and option |
 | [Fair play](fair-play.md) | How the models are kept from seeing the wall or another hand, and the test that checks it |
-| [Hugging Face](hugging-face.md) | Where the models and data live, and how they're uploaded |
+| [Hugging Face](hugging-face.md) | Where the models live, and how they're uploaded |
 | [Iterations](iterations.md) | How each Neural Cat, Lucky Cat and Only Orphans model was made, how it plays differently from the one before it, and what each step taught. One section per training idea (the league, the lab, points first, Suphx, the frontier) or milestone (Neural Cat 2, Lucky Cat 2), a heading for each model inside it |
 | [Frontier report](frontier-report.md) | The stacked evaluation architecture (Frontier Cat FC1, folded into Neural Cat in 0.59.0) against the previous architecture (Neural Cat: NC8 in the game, N14c the lab's best), head to head on 100,000 deals, with what each step added and what comes next |
 | [Frontier plan](frontier-plan.md) | The plan for the frontier model: one network with three heads (the table, the hand, the move), grown from Neural Cat. The steps to make it strong, each with a bar and a point at which it is dropped, where it is weak, and its Learnings |
@@ -94,7 +93,7 @@ npm run ml:bench -- score lc:ml/models/<model>.json   # a model's Table Score
 | `scripts/ml/loop.js` | Self-play rounds against the rule bots |
 | `scripts/ml/league.js` | League rounds: models against models |
 | `scripts/competition.js` | Head-to-head matches (`npm run compete`) |
-| `scripts/ml/hf-sync.js`, `scripts/ml/hf-data.js` | Upload models and data to [Hugging Face](hugging-face.md) |
+| `scripts/ml/hf-sync.js` | Uploads models to [Hugging Face](hugging-face.md) |
 | `scripts/ml/prune-data.js` | Moves training data no model uses to the Trash ([what is kept](hugging-face.md#what-is-kept)) |
 | `js/mahjong-lucky-cat-ml.js`, `js/mahjong-lucky-cat-net.js`, `js/mahjong-lucky-cat-weights.js` | Lucky Cat: the strategy, its network and features (v1), the shipped weights |
 | `js/mahjong-frontier-net.js` | Features v2 for the frontier models ([frontier training](frontier-training.md)) |
