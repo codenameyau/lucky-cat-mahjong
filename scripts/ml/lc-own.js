@@ -163,8 +163,13 @@ async function data(champ, poolFiles, seed, deals, dir, opts = {}) {
   const key = sha(JSON.stringify(settings));
   const was = readJson(manifest, null);
   if (was && was.key === key) return Object.assign({ cached: true }, was);
-  fs.rmSync(path.join(ROOT, dir), { recursive: true, force: true });
-  fs.mkdirSync(path.join(ROOT, dir), { recursive: true });
+  // A stopped run keeps the shards it finished (each marked .done with the settings' key).
+  const keyFile = path.join(ROOT, dir, 'key.txt');
+  if (!fs.existsSync(keyFile) || fs.readFileSync(keyFile, 'utf8') !== key) {
+    fs.rmSync(path.join(ROOT, dir), { recursive: true, force: true });
+    fs.mkdirSync(path.join(ROOT, dir), { recursive: true });
+    fs.writeFileSync(keyFile, key);
+  }
   const L = nid(champ).slice(3);
   const pool = new Array(settings.learners).fill('learner').concat(poolFiles.map(nid));
   const strategies = pool.map((p, k) => (p === 'learner' ? 0 : k - settings.learners + 1));
@@ -172,10 +177,11 @@ async function data(champ, poolFiles, seed, deals, dir, opts = {}) {
   const t0 = Date.now();
   for (let f = 0, k = 0; f < deals; f += per, k++) {
     const n = Math.min(per, deals - f);
-    tasks.push(() => run(SIM, ['generate-lcv', '--weights', L, '--seed', String(seed + f), '--deals', String(n), '--shard', String(k),
+    const done = path.join(ROOT, dir, 'shard-' + k + '.done.json');
+    tasks.push(() => fs.existsSync(done) ? Promise.resolve(readJson(done)) : run(SIM, ['generate-lcv', '--weights', L, '--seed', String(seed + f), '--deals', String(n), '--shard', String(k),
       '--pool', pool.join(','), '--strategies', strategies.join(','), '--out', path.join(ROOT, dir), '--sample', String(settings.sample),
       '--temperature', '1', '--epsilon', '0.1', '--option-replays', String(settings.replays), '--options', '4',
-      '--option-share', String(settings.share), '--crn', '--policy-only']).then((o) => JSON.parse(o)));
+      '--option-share', String(settings.share), '--crn', '--policy-only']).then((o) => { const j = JSON.parse(o); writeJson(done, j); return j; }));
   }
   const shards = await N.pool(tasks, opts.workers || WORKERS);
   // Drop the empty value files --policy-only leaves.

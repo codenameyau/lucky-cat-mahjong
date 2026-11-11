@@ -47,58 +47,74 @@ function takeSeeds(state, n) { const s = state.seed; state.seed += n; writeJson(
 async function round(state, plan) {
   const r = state.rounds.length + 1;
   const champ = state.champion;
+  // The head: the lineage's working model, which makes the data and starts the arms.
+  // With plan.advance 'screen' it moves to the best screened arm ahead (policy
+  // iteration: steps too small to confirm one at a time add up); it becomes the
+  // champion only when it beats the champion by the bar on fresh deals.
+  const head = state.head || champ;
   const tag = plan.prefix || 'LO';
-  const rec = { round: r, champion: champ, started: new Date().toISOString(), times: {} };
-  log('Round ' + r + ': champion ' + champ + ', table pool ' + state.pool.map((f) => path.basename(f, '.json')).join(','));
+  const rec = { round: r, champion: champ, head, started: new Date().toISOString(), times: {} };
+  log('Round ' + r + ': champion ' + champ + ', head ' + head + ', table pool ' + state.pool.map((f) => path.basename(f, '.json')).join(','));
   // 1. data
   let t = Date.now();
   const dataDir = 'ml/data/own-' + r;
   // plan.dataSeed: round 1 only (data made by hand before the loop started), then the counter.
   const dseed = (r === 1 && plan.dataSeed) || takeSeeds(state, plan.deals);
-  const dm = await O.data(champ, state.pool, dseed, plan.deals, dataDir, { replays: plan.replays, share: plan.share });
+  const dm = await O.data(head, state.pool, dseed, plan.deals, dataDir, { replays: plan.replays, share: plan.share });
   rec.data = { dir: dataDir, seed: dseed, deals: plan.deals, rows: dm.policyRows, seconds: dm.seconds, cached: !!dm.cached };
   rec.times.data = (Date.now() - t) / 1000;
-  log('Round ' + r + ': data ' + dataDir + ', ' + dm.policyRows + ' choices replayed, ' + rec.times.data.toFixed(0) + 's' + (dm.cached ? ' (cached)' : ''));
-  state.dataDirs = (state.dataDirs || []).concat([{ dir: dataDir, champion: champ }]);
-  const window = state.dataDirs.filter((d) => plan.offPolicy || d.champion === champ).slice(-(plan.window || 2)).map((d) => d.dir);
+  log('Round ' + r + ': data ' + dataDir + ' (' + path.basename(head, '.json') + ' exploring), ' + dm.policyRows + ' choices replayed, ' + rec.times.data.toFixed(0) + 's' + (dm.cached ? ' (cached)' : ''));
+  state.dataDirs = (state.dataDirs || []).concat([{ dir: dataDir, champion: head }]);
+  const window = state.dataDirs.filter((d) => plan.offPolicy || d.champion === head).slice(-(plan.window || 2)).map((d) => d.dir);
   // 2. training
   t = Date.now();
-  const arms = plan.arms.map((a, k) => Object.assign({ init: champ }, a, { name: tag + r + String.fromCharCode(97 + k) }));
+  const arms = plan.arms.map((a, k) => Object.assign({ init: head }, a, { name: tag + r + String.fromCharCode(97 + k) }));
   const armsFile = path.join(DIR, 'arms-' + r + '.json');
   writeJson(armsFile, arms);
   await py(['ml/lc_own_train.py', '--data'].concat(window, ['--arms', armsFile, '--report', path.join(DIR, 'train-' + r + '.json')]), path.join(DIR, 'train-' + r + '.log'));
   rec.times.train = (Date.now() - t) / 1000;
   const tr = readJson(path.join(DIR, 'train-' + r + '.json'), []);
   log('Round ' + r + ': trained ' + arms.length + ' arms on ' + window.join(',') + ' in ' + rec.times.train.toFixed(0) + 's');
-  // 3. screen
+  // 3. screen, against the head
   t = Date.now();
   const stages = plan.stages || [8000, 24000, 48000];
-  const sseed = takeSeeds(state, stages.reduce((a, b) => a + b, 0));
+  const total = stages.reduce((a, b) => a + b, 0);
+  const sseed = takeSeeds(state, total);
   O.stats.played = 0; O.stats.cached = 0; O.stats.seconds = 0;
-  const res = await O.screen(champ, arms.map((a) => 'ml/models/' + a.name + '.json'), sseed, stages, { pool: state.pool, log });
+  const res = await O.screen(head, arms.map((a) => 'ml/models/' + a.name + '.json'), sseed, stages, { pool: state.pool, log });
   rec.times.screen = (Date.now() - t) / 1000;
-  rec.screen = { seed: sseed, stages, played: O.stats.played, cached: O.stats.cached };
+  rec.screen = { against: head, seed: sseed, stages, played: O.stats.played, cached: O.stats.cached };
   rec.arms = res.map((x, k) => Object.assign({ name: arms[k].name, recipe: plan.arms[k], train: tr.find((y) => y.name === arms[k].name) || null }, x));
-  // 4. confirm
-  const bar = plan.screenBar || 2;
-  const ok = rec.arms.filter((a) => a.alive && a.pair && a.pair.deals >= stages.reduce((x, y) => x + y, 0) && a.pair.gap > bar * a.pair.se && a.pair.winGap >= -a.pair.winSe)
-    .sort((a, b) => b.pair.gap - a.pair.gap);
-  log('Round ' + r + ': screen in ' + rec.times.screen.toFixed(0) + 's, ' + O.stats.played + ' deal-models played, ' + O.stats.cached + ' from cache; ' + ok.length + ' past the screen bar');
-  if (ok.length) {
+  const full = rec.arms.filter((a) => a.alive && a.pair && a.pair.deals >= total);
+  log('Round ' + r + ': screen in ' + rec.times.screen.toFixed(0) + 's, ' + O.stats.played + ' deal-models played, ' + O.stats.cached + ' from cache; ' + full.length + ' arms played the whole screen');
+  // 4. the next head, then a confirmation against the champion
+  let cand = null;
+  if (plan.advance === 'screen') {
+    // ahead of the head by plan.advanceBar SE in points, hands won not behind
+    const up = full.filter((a) => a.pair.gap > (plan.advanceBar || 1) * a.pair.se && a.pair.winGap >= 0).sort((a, b) => b.pair.gap - a.pair.gap);
+    if (up.length) { state.head = up[0].file; rec.newHead = up[0].name; log('Round ' + r + ': head moves to ' + up[0].name); }
+    if (state.head && state.head !== champ && (r % (plan.confirmEvery || 1) === 0 || up.length)) cand = { file: state.head, name: path.basename(state.head, '.json') };
+  } else {
+    const bar = plan.screenBar || 2;
+    const ok = full.filter((a) => a.pair.gap > bar * a.pair.se && a.pair.winGap >= -a.pair.winSe).sort((a, b) => b.pair.gap - a.pair.gap);
+    if (ok.length) cand = { file: ok[0].file, name: ok[0].name };
+  }
+  if (cand && !(state.confirmed || {})[cand.file + '|' + champ]) {
     t = Date.now();
-    const best = ok[0];
     const cseed = takeSeeds(state, plan.confirmDeals || 80000);
-    const conf = await O.screen(champ, [best.file], cseed, [plan.confirmDeals || 80000], { pool: state.pool, exact: true, drop: 1e9, log });
+    const conf = await O.screen(champ, [cand.file], cseed, [plan.confirmDeals || 80000], { pool: state.pool, exact: true, drop: 1e9, log });
     const c = conf[0];
-    rec.confirm = { name: best.name, seed: cseed, pair: c.pair, me: c.me, ch: c.ch, line: c.line };
+    rec.confirm = { name: cand.name, against: champ, seed: cseed, pair: c.pair, me: c.me, ch: c.ch, line: c.line };
     rec.times.confirm = (Date.now() - t) / 1000;
     const pass = c.pair.gap > 2 * c.pair.se && c.pair.winGap >= -c.pair.winSe;
     rec.confirm.pass = pass;
-    log('Round ' + r + ': confirm ' + c.line + (pass ? ' -> NEW CHAMPION' : ' -> not confirmed'));
+    state.confirmed = Object.assign(state.confirmed || {}, { [cand.file + '|' + champ]: { pass, gap: c.pair.gap, se: c.pair.se, winGap: c.pair.winGap, winSe: c.pair.winSe, deals: c.pair.deals } });
+    log('Round ' + r + ': confirm ' + c.line + ' against ' + path.basename(champ, '.json') + (pass ? ' -> NEW CHAMPION' : ' -> not confirmed'));
     if (pass) {
-      state.champion = best.file;
-      state.champions = (state.champions || ['ml/models/lc32.json']).concat([best.file]);
-      if (plan.poolGrows !== false) state.pool = [best.file].concat(state.pool).slice(0, plan.poolSize || 4);
+      state.champion = cand.file;
+      state.head = cand.file;
+      state.champions = (state.champions || ['ml/models/lc32.json']).concat([cand.file]);
+      if (plan.poolGrows !== false) state.pool = [cand.file].concat(state.pool).slice(0, plan.poolSize || 4);
     }
   }
   rec.finished = new Date().toISOString();
