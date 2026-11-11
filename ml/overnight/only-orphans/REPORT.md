@@ -2,10 +2,10 @@
 
 ## Status
 
-- **Champion:** OS2c1 (the shipped model). Nothing has beaten it on fresh deals.
-- **Rounds done:** R0, round 1, side screen R1b, confirmation C0, structural arms (held-out loss).
-- **Last result:** C0, claim margin 100 on 80,000 fresh exact deals: +0.0 ± 0.2 points a hand (no bar met). Structural arms: clipping, EMA, warm-up change nothing; gradient noise −0.17% held-out loss; the residual teacher is worse (capacity is not the bottleneck; the 28,000 won positions are).
-- **Now:** screen R2 (deck seed 1,502,000,000): the structural fine-tunes at win bonus 1400 and claim margin 100 (about level wins), the control at its own settings, two soups, three settings. Next: more data (a larger round of games) so the faan heads see more wins.
+- **Champion:** OS2c1. Nothing has beaten it on fresh deals yet.
+- **Rounds done:** R0, round 1, R1b, C0, structural arms, R2, R3.
+- **Last result:** the faan-target cap (structural arm A4) wins 0.4 to 1.1 pp more hands than OS2c1 on two decks (4.3% to 5.2-5.4%), with points within one standard error. Everything else (fine-tunes, clipping, EMA, warm-up, gradient noise, soups, settings) is level with OS2c1 or fails the wins rule. C0 (claim margin 100) was +0.0 ± 0.2 on 80,000 fresh deals.
+- **Now:** confirmation C1, 40,000 fresh exact deals: N2cap1 (cap 10, win bonus 800) and N2cap1w600, by the Pareto rule.
 - **Blockers:** none.
 
 ## The table and the measures
@@ -153,3 +153,21 @@ OS2c1 on this deck: 17.4 points a hand, wins 4.28%, deal-ins 1.61%, average win 
 | claim margin 100 + win bonus 900 / 850 | +0.2 ± 1.8 / +0.8 ± 1.2 | +0.03 / +0.00 | | |
 
 Reading: at about level wins, the fine-tunes are level with OS2c1 on points (mean of the five plain-recipe L arms +0.4); clipping, EMA and gradient noise don't separate from the control in play. **The faan-target cap (A4) is the one arm that moves play: +1.1 percentage points of hands won (5.34% against 4.28%, 9 standard errors) on both seeds**, smaller wins (about 2,970 points against 3,805), points within one standard error, deal-ins up 0.1 to 0.15 pp. It values a limit hand like a 10-faan hand, so it takes the faster, smaller wins. As screened it carried win bonus 1400; it should give back wins for points at a lower win bonus. Next: screen R3, the cap at its trained settings (win bonus 800) and at 600 and 400, and caps 8, 9 and 11.
+
+### Screen R3: the faan cap (deck seed 1,503,000,000, 8,000 deals, fast build; stopped after stage 1)
+
+OS2c1 on this deck: 1.9 points a hand, wins 4.32%, deal-ins 1.69%, average win 3,504. Every cap arm is from OS2c1, lr 3e-4, 8 epochs on `oon-1`; "w600" etc. = win bonus (OS2c1's is 800), claim margin 50 throughout.
+
+| Arm | Points gap | Wins gap (pp) | Deal-ins gap (pp) | Average win |
+| --- | ---: | ---: | ---: | ---: |
+| N2ctl0 (control, no cap) | −2.0 ± 6.7 | −0.42 ± 0.11 | −0.12 ± 0.08 | 3,861 |
+| N2cap0 / N2cap1 (cap 10) | −3.1 ± 6.9 / +3.2 ± 7.0 | +0.84 / +0.84 (± 0.12) | +0.15 / +0.01 | 2,909 / 2,977 |
+| cap 10, win bonus 600: cap0 / cap1 | +0.4 ± 6.8 / +6.5 ± 7.1 | +0.69 / +0.66 | +0.09 / −0.04 | 3,014 / 3,128 |
+| cap 10, win bonus 400: cap0 / cap1 | −0.6 ± 6.8 / +2.8 ± 6.9 | +0.55 / +0.44 | −0.01 / −0.03 | 3,066 / 3,234 |
+| cap 9, two seeds | −3.0 ± 6.7 / −7.2 ± 6.9 | +1.02 / +0.98 | +0.22 / +0.24 | 2,819 / 2,916 |
+| cap 8 | −0.2 ± 6.6 | +1.08 | +0.24 | 2,839 |
+| cap 11, two seeds | −6.1 ± 6.9 / −2.8 ± 7.0 | +0.53 / +0.57 | +0.01 / +0.08 | 3,046 / 3,044 |
+
+Reading: the cap is a dial, the same on two decks. The lower the cap, the more hands won (+0.55 at 11, +0.84 at 10, +1.0 at 8 and 9) and the smaller each win. Below 10 the deal-ins rise by 0.2 pp (3 SE). A lower win bonus gives some of the extra wins back for bigger hands. Points stay within one standard error everywhere: the screen can't see a points gain smaller than ±7. Under the Pareto rule (wins up 2 SE, points not down 1 SE, deal-ins not up 1 SE), cap 10 with seed 1 at win bonus 800 or 600 is the cleanest. Seed 0 deals in more (+0.15 and +0.09). So recipes go by the mean of seeds, and seeds 2 and 3 of cap 10 are trained for that.
+
+Confirmation C1 (running): N2cap1 (cap 10, win bonus 800) and N2cap1w600 on the same 40,000 fresh deals from seed 2,501,000,000, exact build, each judged by the Pareto rule on its own (two candidates on one deck: a small multiplicity, noted).
