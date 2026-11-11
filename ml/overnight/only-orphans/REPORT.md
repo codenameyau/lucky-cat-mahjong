@@ -24,18 +24,24 @@
 
 ## Speed
 
-Measured on this shared machine (three agents, about 30 simulation workers between them), 10 workers of mine.
+Measured on this shared machine, which three agents use at once (about 30 simulation workers between them). I used 10 workers.
 
 | Stage | Before | After | How |
 | --- | --- | --- | --- |
-| Simulator, all-Only-Orphans table, one core (fast build) | 39 hands/s (master's build) | 52 hands/s (1.32x) |  reuses its buffer;  keeps triplets / seven pairs / orphans shanten as counts (O(1) a tile, exact). Parity holds on all-Only-Orphans and mixed tables; generate parity byte for byte |
+| Simulator, all-Only-Orphans table, one core (fast build) | 39 hands/s (master's build) | 52 hands/s (1.32x) | `groupShanten` reuses its buffer; `finishOdds` keeps the triplets, seven pairs and orphans shanten as counts (O(1) a tile, exact). Parity holds on all-Only-Orphans and mixed tables; generate parity is byte for byte |
 | Data, 100,000 deals, 10 workers | 277 s | 253 s (1.10x, under a different load) | the faster simulator; generate.js keeps finished shards by key |
-| A screen's champion side | played again with every arm (8 hands a deal an arm) | played once a deck for every arm and cached (4 hands a deal an arm + 4 shared) | per-deal rows (, ), cached by model, table, deals, build and binary |
-| Arms that rarely play differently | every hand | only the hands where the arm chose otherwise: claim-margin arms 0.4% of hands (C0: 1,392 of 320,000), win-bonus arms about 30%, networks about 100% |  (exact on both builds: rows identical to play) |
-| Losing arms | 4,000 + 16,000 + 40,000 deals unless 1 SE behind | 8,000 deals, then only the best 4 (Pareto-ranked) go on to 40,000 | staged screen with a top-4 cut |
+| The champion's side of a screen | played again with every arm (8 hands a deal for each arm) | played once a deck for all arms and cached (4 hands a deal for each arm, plus 4 shared) | per-deal rows (`lcm-sim play --rows`, `lcm-sim shadow --rows`), cached by model, table, deals, build and binary |
+| Arms that rarely play differently | every hand played | only the hands where the arm chose otherwise: claim-margin arms 0.4% of hands (C0: 1,392 of 320,000), win-bonus arms about 30%, networks about 100% | `lcm-sim shadow` (exact on both builds: its rows are identical to play's) |
+| Losing arms | 4,000 + 16,000 + 40,000 deals unless 1 SE behind | 8,000 deals, then only the best 4 (ranked by the Pareto rule) go on to 40,000 | staged screen with a top-4 cut |
 | Training one arm | about 20 s | about 20 s (40 s on two rounds of data) | not the bottleneck |
 
-**End to end, measured on round 1** (14 arms): 1,621 s, 615,000 hands played (160,000 for the champion, 455,000 for the arms; the shadow skipped 53% of the arms' hands). The same arms the old way (frontier-model.js: champion replayed with each arm, 4,000/16,000/40,000 stages with the 1 SE drop, which dropped one arm here) is about 6.3 million hands on a simulator 1.32x slower: about 21,900 s. **Speed-up about 13.5x end to end for a screening round**, of which 1.32x is the simulator, about 3.1x the per-hand caching and the shadow (the same arms to the same depth: 1.92 million hands, about 4.1x with the simulator), and about 3.3x the stage cut. Confirmations: a low-divergence arm on 80,000 exact deals costs the champion's 320,000 hands and 0.4% more (about 2.6x with the simulator); a network costs about 1.3x (it differs on every hand). Data and training are a small part of a round (about 4 and 2 minutes against 25 for the screen).
+**End to end, measured on round 1** (14 arms): 1,621 s and 615,000 hands played: 160,000 for the champion and 455,000 for the arms (the shadow skipped 53% of the arms' hands). The old way (frontier-model.js) replays the champion with each arm and screens in 4,000/16,000/40,000-deal stages with the 1 SE drop, which would have dropped one arm here. For the same 14 arms that is about 6.3 million hands on a simulator 1.32x slower, about 21,900 s. **That is about a 13.5x speed-up end to end for a screening round.** It breaks down into three factors:
+
+- 1.32x from the simulator.
+- About 3.1x from the per-hand caching and the shadow. Taking the same arms to the same depth would be 1.92 million hands the old way, about 4.1x slower counting the simulator.
+- About 3.3x from the stage cut.
+
+Confirmations: a low-divergence arm on 80,000 exact deals costs the champion's 320,000 hands plus 0.4%, about 2.6x faster counting the simulator. A network costs about 1.3x less, because it plays differently on every hand. Data and training are a small part of a round: about 4 and 2 minutes, against 25 for the screen.
 
 ## Log
 
