@@ -122,21 +122,36 @@ async function round(state, plan) {
   rec.times.train = (Date.now() - t) / 1000;
   const tr = readJson(path.join(DIR, 'train-' + r + '.json'), []);
   log('Round ' + r + ': trained ' + arms.length + ' arms on ' + window.join(',') + ' in ' + rec.times.train.toFixed(0) + 's');
-  // 3. screen, against the head
-  t = Date.now();
-  const stages = plan.stages || [8000, 24000, 48000];
-  const total = stages.reduce((a, b) => a + b, 0);
-  const sseed = takeSeeds(state, total);
-  O.stats.played = 0; O.stats.cached = 0; O.stats.seconds = 0;
-  const res = await O.screen(head, arms.map((a) => 'ml/models/' + a.name + '.json'), sseed, stages, { pool: state.pool, log, drop: plan.drop == null ? 1 : plan.drop });
-  rec.times.screen = (Date.now() - t) / 1000;
-  rec.screen = { against: head, seed: sseed, stages, played: O.stats.played, cached: O.stats.cached };
-  rec.arms = res.map((x, k) => Object.assign({ name: arms[k].name, recipe: plan.arms[k], train: tr.find((y) => y.name === arms[k].name) || null }, x));
-  const full = rec.arms.filter((a) => a.alive && a.pair && a.pair.deals >= total);
-  log('Round ' + r + ': screen in ' + rec.times.screen.toFixed(0) + 's, ' + O.stats.played + ' deal-models played, ' + O.stats.cached + ' from cache; ' + full.length + ' arms played the whole screen');
+  // Blind steps (plan.blind N, after the plateau of rounds 5 and 6): no screen. The single arm
+  // becomes the head and makes the next round's data; every N steps the head is confirmed against
+  // the champion, so N small steps are judged together, where their sum can be seen.
+  let full = [], blindCand = null;
+  if (plan.blind) {
+    state.head = 'ml/models/' + arms[0].name + '.json';
+    state.blindSteps = (state.blindSteps || 0) + 1;
+    rec.newHead = arms[0].name; rec.blind = state.blindSteps;
+    log('Round ' + r + ': blind step ' + state.blindSteps + ', head moves to ' + arms[0].name);
+    if (state.blindSteps % plan.blind === 0) blindCand = { file: state.head, name: arms[0].name, screenGap: 0 };
+  } else {
+    // 3. screen, against the head
+    t = Date.now();
+    const stages = plan.stages || [8000, 24000, 48000];
+    const total = stages.reduce((a, b) => a + b, 0);
+    const sseed = takeSeeds(state, total);
+    O.stats.played = 0; O.stats.cached = 0; O.stats.seconds = 0;
+    const res = await O.screen(head, arms.map((a) => 'ml/models/' + a.name + '.json'), sseed, stages, { pool: state.pool, log, drop: plan.drop == null ? 1 : plan.drop });
+    rec.times.screen = (Date.now() - t) / 1000;
+    rec.screen = { against: head, seed: sseed, stages, played: O.stats.played, cached: O.stats.cached };
+    rec.arms = res.map((x, k) => Object.assign({ name: arms[k].name, recipe: plan.arms[k], train: tr.find((y) => y.name === arms[k].name) || null }, x));
+    full = rec.arms.filter((a) => a.alive && a.pair && a.pair.deals >= total);
+    log('Round ' + r + ': screen in ' + rec.times.screen.toFixed(0) + 's, ' + O.stats.played + ' deal-models played, ' + O.stats.cached + ' from cache; ' + full.length + ' arms played the whole screen');
+
+  }
   // 4. the next head, then a confirmation against the champion
-  let cand = null;
-  if (plan.advance === 'screen') {
+  let cand = blindCand;
+  if (plan.blind) {
+    // judged every plan.blind steps (above)
+  } else if (plan.advance === 'screen') {
     // ahead of the head by plan.advanceBar SE in points, hands won not behind
     // A Pareto-shaped advance: points up advanceBar SE with hands won not down, or hands won up
     // 2 SE with points not down; deal-ins not up by more than 1 SE. Ranked by the two z-scores summed.
@@ -171,6 +186,7 @@ async function round(state, plan) {
     const pass = dealsOk && ((P.gap > 2 * P.se && P.winGap >= -P.winSe) || (P.winGap > 2 * P.winSe && P.gap >= -P.se));
     const milestone = pass && P.gap > 2 * P.se;
     rec.confirm.pass = pass; rec.confirm.milestone = milestone;
+    state.blindSteps = 0;
     state.confirmed = Object.assign(state.confirmed || {}, { [cand.file + '|' + champ]: { pass, gap: c.pair.gap, se: c.pair.se, winGap: c.pair.winGap, winSe: c.pair.winSe, deals: c.pair.deals } });
     log('Round ' + r + ': confirm ' + c.line + ' against ' + path.basename(champ, '.json') + (pass ? ' -> NEW GENERATION' + (milestone ? ' (points milestone)' : '') : ' -> not confirmed'));
     if (!pass && plan.revertOnFail !== false && state.head === cand.file) { state.head = champ; log('Round ' + r + ': head back to ' + path.basename(champ, '.json')); }

@@ -2,14 +2,14 @@
 
 ## Status
 
-*Updated 2026-11-11 03:50 local.* Rounds done: 5. Rounds done: 4.
+*Updated 2026-11-11 04:40 local.* Rounds done: 6. Rounds done: 4.
 
 - **Champion: G3 = LO4h** (`ml/models/LO4h.json`, variance-aware target: vnorm 1, bonus 150, trained from G2). Against G2 on 160,000 fresh exact deals: points **+1.4 ± 0.8**, hands won **+0.22 ± 0.04 (5.5 SE)**, deal-ins −0.05 ± 0.04, average win 306 vs 304. It meets the generation bar on hands won, but not the points milestone (1.75 SE). **Ship check against lc32** (two fresh exact runs of 80,000 deals each, pooled to 160,000): **+2.4 ± 1.1 points (2.2 SE)**, hands won **+0.34 ± 0.06**. That is **below the 3 SE ship bar**. The runs alone were +1.0 ± 1.5 and +3.8 ± 1.5. Caveat: its table pool (G3, G2, G1, lc32) is not the one G2's ship check used (G2, G1, lc32, lc31), so the two checks don't compare directly. **G2 remains the ship candidate.**
 - **G2 = LO2a** (`ml/models/LO2a.json`), the lineage's first points gain. Against G1 on 160,000 fresh exact deals: **+2.2 ± 0.9 points a hand (2.4 SE)**, hands won +0.07 ± 0.05, deal-ins level (−0.00 ± 0.05), average win 301 vs 295. It meets the generation bar and the points milestone. Fair-play shuffle check (`scripts/ml/fair-play.js`): **pass**.
 - **G1 = LO1b:** hands won +0.23 ± 0.07 against lc32 (generation bar only).
 - **SHIP CANDIDATE: G2 against lc32**, on two fresh exact runs of 80,000 deals each (seeds 801,264,000 and 801,344,000), pooled to 160,000 deals: **+5.9 ± 1.1 points a hand (5.5 SE)**, hands won **+0.35 ± 0.05** (22.1% vs 21.8%), deal-ins level (+0.00 ± 0.06), average win about 310 vs 289. The two runs alone: +6.3 ± 1.5 and +5.5 ± 1.5 points. It clears the 3 SE ship bar, and fair play passes.
 - **Running now:**
-  - **Round 6**: on-policy data only, drop at 1.5 SE. Round 5 kept nothing. Round 4 kept nothing; its arms were: a control (tau 30, bonus 150), bonus 75, bonus 225, EMA, the LO1d retry (lr 1e-3, warm-up, cosine, EMA), gradient noise with two seeds, and the variance-aware target.
+  - **Blind policy iteration from round 7** (critique below): one recipe a round, no screen, and the head confirmed against G3 every 3 steps. Rounds 5 and 6 kept nothing. Round 4 kept nothing; its arms were: a control (tau 30, bonus 150), bonus 75, bonus 225, EMA, the LO1d retry (lr 1e-3, warm-up, cosine, EMA), gradient noise with two seeds, and the variance-aware target.
 - **Table pool:** G3, G2, G1, lc32.
 - **Blockers:** none.
 
@@ -158,6 +158,29 @@ Every arm was dropped at stage 1 (8,000 deals), all on hands won: −0.22 to −
   - stage-1 dropping loosened to 1.5 SE;
   - arms: vnorm 1 (2 seeds), vnorm 0.7, the control (2 seeds), tau 50.
 - **Before round 6:** G3's ship check against lc32.
+
+### Round 6 (champion G3; data own-6: 24,000 deals, G3 exploring, 124,674 choices in 1,005 s; trained on-policy only, on own-5 + own-6, in 26 s; stage-1 drop at 1.5 SE)
+
+| Arm | Recipe | Points | Hands won | Deal-ins | Avg win | Deals |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| LO6a | vnorm 1, bonus 150 | −1.2 ± 1.1 | +0.19 ± 0.06 | +0.02 ± 0.06 | 299 vs 310 | 80,000 |
+| LO6b | vnorm 1, bonus 150, seed 2 | −5.4 ± 3.4 | +0.37 ± 0.19 | +0.08 ± 0.18 | 274 vs 291 | 8,000 (dropped) |
+| LO6c | vnorm 0.7, bonus 150 | −0.2 ± 1.0 | +0.15 ± 0.05 | +0.01 ± 0.06 | 304 vs 310 | 80,000 |
+| LO6d | control: tau 30, bonus 150 | +0.5 ± 1.4 | −0.16 ± 0.07 | +0.18 ± 0.07 | 314 vs 310 | 80,000 (dropped) |
+| LO6e | control, seed 2 | −0.0 ± 1.4 | −0.03 ± 0.07 | +0.10 ± 0.07 | 307 vs 310 | 80,000 |
+| LO6f | tau 50, bonus 150 | +1.7 ± 1.3 | −0.04 ± 0.07 | +0.08 ± 0.07 | 313 vs 310 | 80,000 |
+
+No arm met the advance rule. The vnorm arms gained hands won (3 SE) but gave up a little in points. No head move.
+
+### Critique after rounds 5 and 6 (a plateau: two rounds kept nothing), and the change
+
+- **The effects left are below what a screen can see.** Since G3, every arm's points gap on 80,000 deals is within about 1.5 SE (SE 1.0 to 1.4), and the hands-won gains come with a small points cost. The q step moves the policy very little (KL about 0.007 an arm). Seeing a 1-point step at 2 SE takes about 640,000 deals per arm, four times what a round spends on all its arms.
+- **One step's evidence can't separate the good recipes from noise any more.** Rounds 1, 2 and 4 still show the method works when it compounds (G1, G2, G3). Bigger steps (lr 1e-3, a refreshed reference) dealt in more every time, so the step can't simply be made larger.
+- **The data isn't the problem.** On-policy data alone (round 6) and mixed data (round 5) both came out level.
+- **The change: blind policy iteration (`plan.blind`).**
+  - Each round trains one recipe (vnorm 1, bonus 100, between the points recipe and the hands-won recipe). It becomes the head with no screen and makes the next round's data, so a round is about 18 min instead of 50.
+  - Every 3 steps the head is confirmed against G3 on 160,000 fresh exact deals under the Pareto rule. Three steps' sum is what gets judged, where a single step was invisible.
+  - If the confirmation fails, the head goes back to G3.
 
 ## Structural arms (from the maintainer's list)
 
