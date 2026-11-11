@@ -518,7 +518,7 @@ struct LcvRecorder : Agent {
   Agent* inner = nullptr;  // the seat's own strategy; null: the learner
   uint8_t strategy = 0;
   Rng* rng; Rng* replayRng;
-  double sample = 0.12, optionShare = 0; int options = 4;
+  double sample = 0.12, optionShare = 0; int options = 4, extraRandom = 0;
   std::vector<LcRow>* rows; std::vector<OptGroup>* groups;
 
   LcRow& push(const Game& g, int seat, const lucky::After& a, int thrown) {
@@ -583,6 +583,15 @@ struct LcvRecorder : Agent {
       auto moves = lc->turnShares(g, seat, o);
       auto order = byShare(moves);
       for (int k = 0; k < int(order.size()) && k < options; k++) { G.opts.push_back(turnOpt(g, seat, moves[order[k]].decision)); G.opts.back().action = moves[order[k]].action; }
+      // --extra-random N: N more legal moves, drawn at random from the rest (plans the policy under-rates).
+      for (int e = 0; e < extraRandom && int(order.size()) > int(G.opts.size()); e++) {
+        int pick = options + int((*replayRng)() * double(int(order.size()) - options));
+        if (pick >= int(order.size())) pick = int(order.size()) - 1;
+        bool dup = false;
+        for (auto& op : G.opts) if (op.action == moves[order[pick]].action) dup = true;
+        if (dup) continue;
+        G.opts.push_back(turnOpt(g, seat, moves[order[pick]].decision)); G.opts.back().action = moves[order[pick]].action;
+      }
       G.px.resize(lucky::SIZE_V1); lucky::encode(g, seat, nullptr, 1, G.px.data());
       for (auto& m : moves) G.legal.push_back(m.action);
       grp = &G;
@@ -624,6 +633,32 @@ struct LcvRecorder : Agent {
   }
 };
 
+// --truncate K with --value V: a replay stops at the seat's K-th own move after the option,
+// and scores the position that move leaves with the value (expected points), not the hand's
+// end: far less of the futures' luck, and a fraction of the cost.
+struct TruncEv { double ev; };
+// A hand's delta for a seat on the half-spicy table (js/points.js halfSpicyPoints): the settlement
+// is linear in the winner's base points, so the full-spicy delta is scaled by half/full.
+double halfSpicyDelta(const Result& r, int seat) {
+  if (!r.win || r.score.points <= 0) return 0;
+  int f = std::min(r.score.faan, 13);
+  double h = f <= 4 ? std::pow(2.0, f) : f % 2 == 0 ? std::pow(2.0, (f + 4) / 2) : std::pow(2.0, (f + 3) / 2) * 1.5;
+  return r.deltas[seat] * h / double(r.score.points);
+}
+struct Truncate : Agent {
+  Agent* inner; int seat; int left; const ValueNet* value;
+  Decision turn(Game& g, int s, const TurnOptions& o) override {
+    Decision d = inner->turn(g, s, o);
+    if (s == seat && (d.type == A_DISCARD || d.type == A_KONG) && --left <= 0) {
+      float x[lucky::VALUE_SIZE];
+      lucky::valueFeatures(g, s, lucky::afterTurn(g, s, d), x);
+      throw TruncEv{value->ev(x).ev};
+    }
+    return d;
+  }
+  Decision claim(Game& g, int s, const ClaimOptions& o) override { return inner->claim(g, s, o); }
+};
+
 // <policy.lcmw>[+<value.lcmw>]
 static std::unique_ptr<LuckyCat> makeLucky(const std::string& spec, double temperature, std::function<double()> rng) {
   std::string pol = spec, val;
@@ -647,7 +682,7 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
   std::vector<OptGroup> groups;
   LcvRecorder rec;
   rec.lc = learner.get(); rec.rng = &rng; rec.replayRng = &replayRng; rec.sample = job.sample;
-  rec.optionShare = job.optionReplays > 0 ? job.optionShare : 0; rec.options = job.options;
+  rec.optionShare = job.optionReplays > 0 ? job.optionShare : 0; rec.options = job.options; rec.extraRandom = job.extraRandom;
   rec.rows = &rows; rec.groups = &groups;
   std::map<std::string, std::unique_ptr<Agent>> pool;
   for (auto& id : job.pool) if (id != "learner" && !pool.count(id)) pool[id] = make(id);
@@ -663,14 +698,23 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
   // features, the legal moves, the moves tried (the one played first) and each one's share of
   // replays won.
   static const int SLOTS = 8;
-  FILE* px = nullptr; FILE* pm = nullptr; FILE* pqa = nullptr; FILE* pq = nullptr; FILE* pqp = nullptr; FILE* ph = nullptr; FILE* pa = nullptr; FILE* pw = nullptr;
+  FILE* px = nullptr; FILE* pm = nullptr; FILE* pqa = nullptr; FILE* pq = nullptr; FILE* pqp = nullptr; FILE* ph = nullptr; FILE* pa = nullptr; FILE* pw = nullptr; FILE* pqr = nullptr; FILE* pqn = nullptr;
   if (job.optionReplays > 0) {
+    // --policy-only: each slot's SE of its gap to the move played (.qs.f4) and replays taken (.qn.u1);
+    // otherwise each slot's mean real points (.qr.f4: the engine's deltas, the same numbers as .qp.f4).
+    pqr = std::fopen((base + (job.policyOnly ? ".qs.f4" : ".qr.f4")).c_str(), "wb");
+    if (job.policyOnly) pqn = std::fopen((base + ".qn.u1").c_str(), "wb");
     px = std::fopen((base + ".x.f16").c_str(), "wb"); pm = std::fopen((base + ".m.u1").c_str(), "wb");
     pqa = std::fopen((base + ".qa.u1").c_str(), "wb"); pq = std::fopen((base + ".q.f4").c_str(), "wb"); pqp = std::fopen((base + ".qp.f4").c_str(), "wb");
     ph = std::fopen((base + ".h.u4").c_str(), "wb"); pa = std::fopen((base + ".a.u1").c_str(), "wb"); pw = std::fopen((base + ".w.f4").c_str(), "wb");
-    if (!px || !pm || !pqa || !pq || !pqp || !ph || !pa || !pw) throw std::runtime_error("generate-lcv: can't write " + base + " (policy files)");
+    if (!px || !pm || !pqa || !pq || !pqp || !ph || !pa || !pw || !pqr) throw std::runtime_error("generate-lcv: can't write " + base + " (policy files)");
   }
-  long samples = 0, hands = 0, optionRows = 0, optionGroups = 0, policyRows = 0, outcomes[6] = {0, 0, 0, 0, 0, 0};
+  long samples = 0, hands = 0, optionRows = 0, optionGroups = 0, policyRows = 0, truncated = 0, outcomes[6] = {0, 0, 0, 0, 0, 0};
+  std::unique_ptr<ValueNet> truncValue;
+  if (job.truncate > 0) {
+    if (job.value.empty()) throw std::runtime_error("generate-lcv: --truncate needs --value");
+    truncValue.reset(new ValueNet(std::make_shared<Mlp>(loadWeights(job.value)), lucky::VALUE_SIZE));
+  }
   for (long d = 0; d < job.deals; d++) {
     uint32_t dealSeed = uint32_t(job.seed + d);
     Agent* agents[4]; Agent* real[4];
@@ -708,7 +752,7 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
       if (oc <= 1) r.aux[1] = uint8_t(won);
       A.insert(A.end(), r.aux, r.aux + AUX_BYTES);
     }
-    std::fwrite(X.data(), 2, X.size(), ff); std::fwrite(L.data(), 1, L.size(), fl); std::fwrite(A.data(), 1, A.size(), fa);
+    if (!job.policyOnly || job.valueRows) { std::fwrite(X.data(), 2, X.size(), ff); std::fwrite(L.data(), 1, L.size(), fl); std::fwrite(A.data(), 1, A.size(), fa); }
     samples += long(rows.size());
     if (fo && !groups.empty()) {
       Agent* again[4];
@@ -716,20 +760,98 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
       std::vector<uint16_t> OX; std::vector<uint8_t> OL;
       for (auto& G : groups) {
         uint32_t gid = uint32_t(optionGroups++);
+        if (job.policyOnly) {
+          // Policy rows only: every option on the same futures (CRN); with --halving H, H replays
+          // each first, then only the options within --halving-margin points of the best (and the
+          // move played) take the rest. Each slot: mean points, share won, the SE of its gap to
+          // the move played (paired by future), and the replays it took.
+          size_t K = G.opts.size();
+          std::vector<std::vector<double>> P(K), Wn(K);
+          auto replay = [&](size_t k, int n) {
+            Game copy = *G.snap; cloneMemos(copy);
+            Rng fut(dealSeed * 2654435761u ^ (gid * 40503u + uint32_t(n) * 2246822519u + 0x85ebca6bu + job.crnSalt * 3266489917u));
+            reshuffle(copy, G.seat, fut);
+            Truncate tr; tr.inner = again[G.seat]; tr.seat = G.seat; tr.left = job.truncate; tr.value = truncValue.get();
+            Forced fz; fz.inner = truncValue ? static_cast<Agent*>(&tr) : again[G.seat]; fz.seat = G.seat; fz.opt = &G.opts[k]; fz.melds = G.melds;
+            Agent* ag[4];
+            for (int s2 = 0; s2 < 4; s2++) ag[s2] = s2 == G.seat ? static_cast<Agent*>(&fz) : again[s2];
+            try {
+              Result rr = G.atClaim ? continueAtClaims(copy, ag, G.from, G.tile) : continueAtTurn(copy, ag, G.seat);
+              P[k].push_back(job.halfSpicy ? halfSpicyDelta(rr, G.seat) : double(rr.deltas[G.seat]));
+              Wn[k].push_back(rr.win && rr.winner == G.seat ? 1 : 0);
+            } catch (const TruncEv& t) {
+              P[k].push_back(t.ev);
+              Wn[k].push_back(0);  // not known: the share won counts only hands that ended
+              truncated++;
+            }
+            optionRows++;
+          };
+          int R = job.optionReplays, r0 = job.halving > 0 ? std::min(job.halving, R) : R;
+          for (size_t k = 0; k < K; k++) for (int n = 0; n < r0; n++) replay(k, n);
+          bool goOn = r0 < R;
+          if (goOn && job.closeSe > 0 && K >= 2) {
+            // --close-se X: the rest of the replays only where the best two options are within X SE
+            // (their CRN-paired gap over the first replays): the close decisions.
+            std::vector<double> m(K, 0);
+            for (size_t k = 0; k < K; k++) { for (double v : P[k]) m[k] += v; m[k] /= P[k].size(); }
+            size_t b1 = 0; for (size_t k = 1; k < K; k++) if (m[k] > m[b1]) b1 = k;
+            size_t b2 = b1 == 0 ? 1 : 0; for (size_t k = 0; k < K; k++) if (k != b1 && m[k] > m[b2]) b2 = k;
+            double ds = 0, dq = 0; int L = r0;
+            for (int n = 0; n < L; n++) { double d = P[b1][n] - P[b2][n]; ds += d; dq += d * d; }
+            double dm = ds / L, se = L > 1 ? std::sqrt(std::max(0.0, dq / L - dm * dm) / (L - 1)) : 0;
+            goOn = dm <= job.closeSe * se;
+            if (goOn) for (size_t k = 0; k < K; k++) for (int n = r0; n < R; n++) replay(k, n);
+            goOn = false;
+          }
+          if (goOn) {
+            double bestM = -1e18;
+            std::vector<double> m(K, 0);
+            for (size_t k = 0; k < K; k++) { for (double v : P[k]) m[k] += v; m[k] /= P[k].size(); bestM = std::max(bestM, m[k]); }
+            for (size_t k = 0; k < K; k++) if (int(k) == G.chosen || m[k] >= bestM - job.halvingMargin) for (int n = r0; n < R; n++) replay(k, n);
+          }
+          if (G.px.empty() || G.chosen < 0 || G.opts[G.chosen].action < 0) continue;
+          std::vector<uint16_t> hx; for (float v : G.px) hx.push_back(toHalf(v));
+          std::fwrite(hx.data(), 2, hx.size(), px);
+          uint8_t mask[10] = {0};
+          for (int a : G.legal) mask[a >> 3] |= uint8_t(1 << (a & 7));
+          std::fwrite(mask, 1, 10, pm);
+          uint8_t qa[SLOTS], qn[SLOTS]; float q[SLOTS], qp[SLOTS], qs[SLOTS];
+          for (int k = 0; k < SLOTS; k++) { qa[k] = 255; qn[k] = 0; q[k] = 0; qp[k] = 0; qs[k] = 0; }
+          auto slot = [&](int j, size_t k) {
+            qa[j] = uint8_t(G.opts[k].action);
+            double sm = 0, sw = 0; for (size_t n = 0; n < P[k].size(); n++) { sm += P[k][n]; sw += Wn[k][n]; }
+            qp[j] = float(sm / P[k].size()); q[j] = float(sw / P[k].size()); qn[j] = uint8_t(P[k].size());
+            size_t c = size_t(G.chosen), L = std::min(P[k].size(), P[c].size());
+            double ds = 0, dq = 0; for (size_t n = 0; n < L; n++) { double d = P[k][n] - P[c][n]; ds += d; dq += d * d; }
+            double dm = ds / L; qs[j] = L > 1 ? float(std::sqrt(std::max(0.0, dq / L - dm * dm) / (L - 1))) : 0;
+          };
+          int j = 0;
+          slot(j++, size_t(G.chosen));
+          for (size_t k = 0; k < K && j < SLOTS; k++) if (int(k) != G.chosen && G.opts[k].action >= 0) slot(j++, k);
+          std::fwrite(qa, 1, SLOTS, pqa); std::fwrite(q, 4, SLOTS, pq); std::fwrite(qp, 4, SLOTS, pqp); std::fwrite(qs, 4, SLOTS, pqr);
+          std::fwrite(qn, 1, SLOTS, pqn);
+          std::fwrite(&dealSeed, 4, 1, ph);
+          uint8_t a0 = qa[0]; std::fwrite(&a0, 1, 1, pa);
+          float w1 = 1; std::fwrite(&w1, 4, 1, pw);
+          policyRows++;
+          continue;
+        }
         std::vector<double> winShare(G.opts.size(), 0);
-        std::vector<float> meanPts(G.opts.size(), 0);
+        std::vector<float> meanPts(G.opts.size(), 0), realPts(G.opts.size(), 0);
         for (size_t k = 0; k < G.opts.size(); k++) {
           const Opt& op = G.opts[k];
-          for (float v : op.x) OX.push_back(toHalf(v));
+          if (!job.policyOnly) for (float v : op.x) OX.push_back(toHalf(v));
           uint8_t p[OPT_BYTES]; std::memset(p, 0, OPT_BYTES);
-          double pts = 0;
+          double pts = 0, real = 0;
           for (int n = 0; n < job.optionReplays; n++) {
             Game copy = *G.snap; cloneMemos(copy);
-            reshuffle(copy, G.seat, replayRng);
+            if (job.crn) { Rng fut(dealSeed * 2654435761u ^ (gid * 40503u + uint32_t(n) * 2246822519u + 0x85ebca6bu + job.crnSalt * 3266489917u)); reshuffle(copy, G.seat, fut); }
+            else reshuffle(copy, G.seat, replayRng);
             Forced fz; fz.inner = again[G.seat]; fz.seat = G.seat; fz.opt = &op; fz.melds = G.melds;
             Agent* ag[4];
             for (int s = 0; s < 4; s++) ag[s] = s == G.seat ? static_cast<Agent*>(&fz) : again[s];
             Result rr = G.atClaim ? continueAtClaims(copy, ag, G.from, G.tile) : continueAtTurn(copy, ag, G.seat);
+            real += rr.deltas[G.seat];
             int f = std::max(3, std::min(13, rr.score.faan ? rr.score.faan : 3));
             double v = 8.0 * std::pow(2.0, f - 3);
             int oc = 5;
@@ -748,6 +870,7 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
           optionRows++;
           winShare[k] = double(p[9] + p[10]) / job.optionReplays;
           meanPts[k] = mean;
+          realPts[k] = float(real / job.optionReplays);
         }
         // The policy's row: the played move first, then the others tried.
         if (G.px.empty() || G.chosen < 0 || G.opts[G.chosen].action < 0) continue;
@@ -757,26 +880,26 @@ int runGenerateLcv(const NcGenerateJob& job, const AgentFactory& make) {
         for (int a : G.legal) mask[a >> 3] |= uint8_t(1 << (a & 7));
         std::fwrite(mask, 1, 10, pm);
         // Each slot's share of replays won (.q.f4) and mean points (.qp.f4).
-        uint8_t qa[SLOTS]; float q[SLOTS], qp[SLOTS];
-        for (int k = 0; k < SLOTS; k++) { qa[k] = 255; q[k] = 0; qp[k] = 0; }
+        uint8_t qa[SLOTS]; float q[SLOTS], qp[SLOTS], qr[SLOTS];
+        for (int k = 0; k < SLOTS; k++) { qa[k] = 255; q[k] = 0; qp[k] = 0; qr[k] = 0; }
         int n = 0;
-        qa[n] = uint8_t(G.opts[G.chosen].action); qp[n] = meanPts[G.chosen]; q[n++] = float(winShare[G.chosen]);
-        for (size_t k = 0; k < G.opts.size() && n < SLOTS; k++) if (int(k) != G.chosen && G.opts[k].action >= 0) { qa[n] = uint8_t(G.opts[k].action); qp[n] = meanPts[k]; q[n++] = float(winShare[k]); }
-        std::fwrite(qa, 1, SLOTS, pqa); std::fwrite(q, 4, SLOTS, pq); std::fwrite(qp, 4, SLOTS, pqp);
+        qa[n] = uint8_t(G.opts[G.chosen].action); qp[n] = meanPts[G.chosen]; qr[n] = realPts[G.chosen]; q[n++] = float(winShare[G.chosen]);
+        for (size_t k = 0; k < G.opts.size() && n < SLOTS; k++) if (int(k) != G.chosen && G.opts[k].action >= 0) { qa[n] = uint8_t(G.opts[k].action); qp[n] = meanPts[k]; qr[n] = realPts[k]; q[n++] = float(winShare[k]); }
+        std::fwrite(qa, 1, SLOTS, pqa); std::fwrite(q, 4, SLOTS, pq); std::fwrite(qp, 4, SLOTS, pqp); std::fwrite(qr, 4, SLOTS, pqr);
         std::fwrite(&dealSeed, 4, 1, ph);
         uint8_t a0 = qa[0]; std::fwrite(&a0, 1, 1, pa);
         float w1 = 1; std::fwrite(&w1, 4, 1, pw);
         policyRows++;
       }
-      std::fwrite(OX.data(), 2, OX.size(), fo); std::fwrite(OL.data(), 1, OL.size(), fol);
+      if (!job.policyOnly) { std::fwrite(OX.data(), 2, OX.size(), fo); std::fwrite(OL.data(), 1, OL.size(), fol); }
     }
   }
   std::fclose(ff); std::fclose(fl); std::fclose(fa);
   if (fo) { std::fclose(fo); std::fclose(fol); }
-  if (px) { std::fclose(px); std::fclose(pm); std::fclose(pqa); std::fclose(pq); std::fclose(pqp); std::fclose(ph); std::fclose(pa); std::fclose(pw); }
+  if (px) { std::fclose(px); std::fclose(pm); std::fclose(pqa); std::fclose(pq); std::fclose(pqp); std::fclose(ph); std::fclose(pa); std::fclose(pw); std::fclose(pqr); if (pqn) std::fclose(pqn); }
   long ms = long(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count());
-  std::printf("{\"index\":%d,\"deals\":%ld,\"hands\":%ld,\"samples\":%ld,\"policyRows\":%ld,\"replayed\":0,\"optionRows\":%ld,\"optionGroups\":%ld,\"outcomes\":[%ld,%ld,%ld,%ld,%ld,%ld],\"ms\":%ld}\n",
-              job.shard, job.deals, hands, samples, policyRows, optionRows, optionGroups, outcomes[0], outcomes[1], outcomes[2], outcomes[3], outcomes[4], outcomes[5], ms);
+  std::printf("{\"truncated\":%ld,\"index\":%d,\"deals\":%ld,\"hands\":%ld,\"samples\":%ld,\"policyRows\":%ld,\"replayed\":0,\"optionRows\":%ld,\"optionGroups\":%ld,\"outcomes\":[%ld,%ld,%ld,%ld,%ld,%ld],\"ms\":%ld}\n",
+              truncated, job.shard, job.deals, hands, samples, policyRows, optionRows, optionGroups, outcomes[0], outcomes[1], outcomes[2], outcomes[3], outcomes[4], outcomes[5], ms);
   return 0;
 }
 

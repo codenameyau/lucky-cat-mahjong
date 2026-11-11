@@ -177,3 +177,8 @@ native/build*/
 # Python bytecode
 __pycache__/
 *.pyc
+
+# The Lucky Cat overnight loop (scripts/ml/lc-own-loop.js): its cache, state and logs; the report is kept
+ml/overnight/lucky-cat/*
+!ml/overnight/lucky-cat/REPORT.md
+native/build-dev/

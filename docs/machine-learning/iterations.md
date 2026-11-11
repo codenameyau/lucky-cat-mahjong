@@ -94,6 +94,8 @@ Every training idea and every milestone model is a section below, in the order t
   - [Round 1: a value, judged on points, wins fewer hands](#round-1-a-value-judged-on-points-wins-fewer-hands)
   - [Round 2: the policy learns from the replays (LV2p)](#round-2-the-policy-learns-from-the-replays-lv2p)
   - [The objective: points, with a floor on hands won](#the-objective-points-with-a-floor-on-hands-won)
+- [Lucky Cat against its own lineage: LC33 (2026-11-11)](#lucky-cat-against-its-own-lineage-lc33-2026-11-11)
+- [Neural Cat against its own lineage: NC10 (2026-11-11)](#neural-cat-against-its-own-lineage-nc10-2026-11-11)
 - [Only Orphans on the stacked method (2026-11-10)](#only-orphans-on-the-stacked-method-2026-11-10)
   - [Round 1: replayed labels against the control](#round-1-replayed-labels-against-the-control)
   - [The reader, OR1](#the-reader-or1)
@@ -1256,6 +1258,97 @@ Thinking: if the value can't choose better than the policy, use the replays to m
 ### The objective: points, with a floor on hands won
 
 The maintainer then settled the objective: Lucky Cat may be trained to maximize points, as long as it keeps a fairly high win rate. Screens and the bar judge points a hand, and a model more than one point of win rate behind its champion is dropped. The policy recipes now learn each move's replayed mean points plus a bonus for a sure win (300 or 1,000 points). LV2p, level on points (−2.1 ± 2.0), is the starting champion for round 3, not a release.
+
+## Lucky Cat against its own lineage: LC33 (2026-11-11)
+
+In this section: [the idea](#the-idea-only-older-lucky-cats-at-the-table) · [LC33](#lc33-lo9d-four-confirmed-generations-from-lc32) · [what didn't work](#what-didnt-work-that-night)
+
+### The idea: only older Lucky Cats at the table
+
+Thinking: one overnight run (2026-11-10 to 11) trained each lineage against nothing but its own older models, on the native simulator. Lucky Cat's table was three of its last four generations, and a candidate was paired with the champion in every seat of the same deals.
+
+- **Replays with common random numbers.** At a sampled choice, each of the policy's top 4 moves is forced and the hand replayed 8 times on the *same* reshuffled walls (the tiles the seat hasn't seen). The gap between two moves then has 2.4 times less noise than with independent replays, measured with two salts on the same choices. The trainer's q mode tilts the policy's shares toward the moves that scored more.
+- **Small steps that compound.** A model becomes the lineage's next generation when, on fresh deals on the exact build, points a hand or hands won is up by two standard errors and the other isn't down by more than one. Each generation then plays the next round's data and joins the table.
+- **A stricter bar to ship:** three standard errors on points against the shipped model, on pooled fresh deals, with hands won not down.
+- **Screens overstate.** Every arm shared the champion's games, so its luck moved them together. Round 1's leader screened at +4.6 ± 1.4 and confirmed at +0.1 ± 1.4, so every step is confirmed on fresh deals: 160,000 when the gap is small.
+
+### LC33 (LO9d): four confirmed generations from LC32
+
+Each generation was confirmed against the one before it on fresh deals on the exact build, at a table of the lineage's last four generations:
+
+| Generation | Recipe | Against | Fresh deals | Points a hand | Hands won | Deal-ins | Average win |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| G1 = LO1b | tau 30, win bonus 300 | LC32 | 80,000 | +0.1 ± 1.4 | **+0.23 ± 0.07** | 16.72% vs 16.69% | 288 vs 291 |
+| G2 = LO2a | win bonus 150, data from G1 | G1 | 160,000 | **+2.2 ± 0.9** | +0.07 ± 0.05 | level | 301 vs 295 |
+| G3 = LO4h | each move's advantage divided by its standard error | G2 | 160,000 | +1.4 ± 0.8 | **+0.22 ± 0.04** | −0.05 ± 0.04 | 306 vs 304 |
+| **G4 = LO9d** | three steps with no screen, the last on half-spicy replays (below) | G3 | 160,000 | **+3.4 ± 0.9** | **+0.31 ± 0.05** | −0.04 ± 0.05 | 305 vs 298 |
+
+**LC33 is G4.** Against LC32 itself, on a fixed table (LC32, LC31 and LC30 in the other seats) and the same 160,000 fresh deals:
+
+| Pair | Points a hand (full spicy) | Half spicy | Hands won | Deal-ins | Average win |
+| --- | --- | --- | --- | --- | --- |
+| **G4 against LC32** | **+7.8 ± 1.1** | +1.02 ± 0.09 | **+0.83 ± 0.06** (22.83% vs 22.00%) | −0.10 ± 0.06 | 307 vs 284 |
+| G2 against LC32 | +5.0 ± 1.0 | +0.49 ± 0.08 | +0.26 ± 0.06 | −0.08 ± 0.06 | 301 vs 284 |
+| G4 against G2 | +2.8 ± 1.0 | +0.52 ± 0.08 | +0.57 ± 0.05 | −0.01 ± 0.05 | 307 vs 301 |
+
+- **At the game's table it is ahead too.** With two Neural Cats and Jorge Yau, on 60,000 fresh deals on the exact build: **+5.3 ± 2.7 points a hand** (1.96 standard errors), hands won 19.78% vs 19.17%, deal-ins 14.10% vs 14.29%, average win 342 vs 336. G2 was level there (−1.6 ± 2.6 on the same deals), so the later steps are what carried over.
+- **The win bonus decides what the replays teach.** Points double with each faan, so with 8 replays a move's chance to win is measured far better than its points. At bonus 300 the network learned to win more often and gave up a little hand value (G1). At 150 it kept the wins and won bigger (G2). At 0 it scored more still on the screen but won 0.30 ± 0.10 fewer hands, and was dropped.
+- **The plateau after G3, and what broke it.** Rounds 5 and 6 kept nothing: the steps left were about a point a hand, below what an 80,000-deal screen can see, and bigger steps dealt in more. So the loop stopped screening: each round trains one recipe, which becomes the next round's starting point, and the sum of three steps is confirmed on 160,000 fresh deals (and reverted if it fails). G4 is the first such sum.
+- **Half-spicy replays** (the maintainer's idea). G4's last step scored its replays on the half-spicy payout table, which doubles every two faan above 4 instead of every one, so a move's score is far less noisy. With it went 16 replays at the close choices and the average of three training seeds, at win bonus 50. G4 is better on both payout tables, so here the lighter-tailed target carried over to full spicy. The three changes went in together, so their shares aren't separated.
+- **What the bot does differently:** against its own kind LC33 wins about one hand in 27 more often than LC32 (22.8% of hands to 22.0%), its wins are worth about 23 points more, and it deals in slightly less. It is the same network (376 inputs, 512-256, 74 outputs) with its shares moved toward the moves that scored more on the replays.
+- **Fair play:** the shuffle check passes; it reads only its seat.
+
+### What didn't work that night
+
+- **Weight noise** (sigma 0.01 to 0.05, alone or before a fine-tune): level or behind, every time.
+- **Larger steps** (lr 1e-3, 8 epochs): −6.4 ± 4.8 on the screen. With warm-up, a cosine schedule and averaged weights the same step trains stably; in play it kept nothing.
+- **Gradient clipping** never bites: the loss is a cross-entropy to a softmax target, and the largest gradient norm was 0.18.
+- **A residual, layer-normalized teacher** (768 wide, 4 blocks) overfits and its distilled student is worse than the control: capacity isn't the limit at this much data.
+- **Truncated replays scored by a learned value** made the data 2.8 times faster, but the value's expected points correlate with the hand's real points at only 0.12, and every arm trained on them dealt in more.
+- **Round 4's screen leader**, LO4c, confirmed at −1.3 ± 0.9 on 160,000 deals; its second arm became G3.
+
+Tools: `scripts/ml/lc-own.js` (cached, pruned paired screens and the replay data), `scripts/ml/lc-own-loop.js` (the round driver), `scripts/ml/lc-own-ship.js` (the fixed ship table), `ml/lc_own_train.py` (every arm in one GPU process: 9 arms in 15 s, against 52 s for one arm before).
+
+## Neural Cat against its own lineage: NC10 (2026-11-11)
+
+In this section: [NC10](#nc10-sc1-the-faan-heads-reshaped-in-two-steps) · [what didn't work](#what-didnt-work-for-neural-cat-that-night)
+
+### NC10 (SC1): the faan heads reshaped in two steps
+
+Thinking: the same overnight run as LC33, with Neural Cat at a table of only its own older generations (NC9, NC8, NC7, NC5, NC3), on the native simulator. Fine-tuning NC9 on more of its own games made its predictions better (held-out loss 3.063 to 2.985) and its play no different: four screen leaders came back at −0.3, −7.8, −0.1 and +4.3 points a hand on fresh deals. What moved it was changing what the two faan heads are trained to say.
+
+- **Step 1, G1 (R4sm03): label smoothing 0.03 on both faan heads.** A little of each hand's faan label is spread over the other buckets, so the rare big hands pull less. Against NC9 on 150,000 fresh deals on the exact build: hands won **+1.4 ± 0.05** points of a percent (17.61% vs 16.19%), points +0.6 ± 2.3 a hand, deal-ins +0.10 points, average win 833 vs 915. More wins, each smaller, for the same points.
+- **Step 2, SC1 (R9pay): smoothing 0.03 on the pay head only, from G1.** The head that predicts what a deal-in costs gets the softer labels, so the network is more cautious about paying. Against G1 on 150,000 fresh deals: points **+4.5 ± 2.1**, hands won −0.4 ± 0.05.
+
+**NC10 is SC1.** Against NC9:
+
+| On fresh deals, exact build | NC10 | NC9 | Gap |
+| --- | --- | --- | --- |
+| **A table of older Neural Cats, 200,000 deals** (two runs of 100,000: +8.6 ± 2.9 and +7.6 ± 2.9) | | | |
+| Points a hand, full spicy | | | **+8.1 ± 2.0** (4.0 standard errors) |
+| Points a hand, half spicy | | | +1.23 ± 0.12 |
+| Hands won | 17.23% | 16.15% | **+1.08 ± 0.05** |
+| Deal-ins | 10.51% | 10.27% | +0.24 ± 0.04 |
+| Average win | 903 points | 915 points | |
+| **The benchmark table (NC8, Jorge Yau, NC8), 60,000 deals** | | | |
+| Points a hand | +27.5 | +20.1 | **+7.4 ± 3.4** (2.2 standard errors) |
+| Hands won | 16.97% | 16.00% | |
+| Deal-ins | 11.04% | 10.78% | |
+
+- **What the bot does differently:** the same network (568 inputs, 512-256, 28 outputs) and the same play settings (best 6 options, win bonus 300). It wins about one hand in 15 more often than NC9, for wins about as big, and deals in a little more (a quarter of a point); the points gain counts those deal-ins.
+- **Reading:** points double with each faan, so a few very big hands dominate what the faan heads learn. Softening their labels is the same idea as the half-spicy payout table, applied in training instead of at the decision: as a play setting, half spicy lost points (at full weight, 57 a hand), and a blend of 0.25 won 1.1 points of a percent more hands for fewer full-spicy points than smoothing costs.
+- **Fair play:** the shuffle check passes.
+
+### What didn't work for Neural Cat that night
+
+- **Weight noise and output-bias tweaks:** all within ±1.5 points a hand.
+- **Gradient clipping** never bites (99th-percentile gradient norm 0.45 against a cap of 1.0); warm-up and gradient noise made no measurable difference; averaged weights (EMA) confirmed at +4.3 ± 2.3 with deal-ins up 0.30 points.
+- **A residual, layer-normalized teacher** 23 times the network's size reached the same held-out loss: capacity isn't the limit.
+- **Replays of every option on the same walls** (what made LC33): with 8 replays the options' scores spread by 163 points, too noisy to rank Neural Cat's close options; every arm trained on them lost to its control.
+- **Choosing among the best 7** instead of 6 adds about 0.3 points of deal-ins.
+- **Shared screens mislead.** Arms that share the champion's games win or lose together: the same model scored −1.9 and then +6.6 on two 40,000-deal decks. The fast build isn't the cause: 39,995 of 40,000 deals played identically on the fast and exact builds.
+
+Speed, at 10 workers: data 47 to about 1,200 deals a second, screens 62 to about 1,190 hands a second, a lab-sized round 95 minutes to about 6. Tools (on the branch `train/neural-cat-overnight`): `scripts/ml/nc-overnight.js`, `ml/nc_multi.py`.
 
 ## Only Orphans on the stacked method (2026-11-10)
 
