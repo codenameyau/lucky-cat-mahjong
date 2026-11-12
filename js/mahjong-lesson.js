@@ -86,7 +86,7 @@
     ]) },
     { seat: 1, kind: 'turn', drawn: true },
     { seat: 0, kind: 'claim', action: { type: 'pung' }, hint: say('Pung 8 Bamboo.', 'b8', { type: 'pung' }, [
-      'A pung is three of a kind. You may take it from anyone. It stays exposed. The pair of 6 Bamboo is your eyes, the pair every hand needs to win.',
+      'A pung is three of tiles of a kind. You can claim a discarded tile from any player to form a pung, which immediately skips all other player\'s turns. Afterwards, expose the pung. Let\'s keep the two 6 Bamboo tiles as your pair or eyes, which is needed in every hand to win.',
     ]) },
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'c5' }, hint: say('Discard 5 Characters.', 'c5', { type: 'discard' }, [
       'To reach 3 faan, the most common hand is a half flush so your tiles are just one suit plus any combination of dragon or wind tiles. Discard the 5 Characters so your hand only has bamboo tiles.',
