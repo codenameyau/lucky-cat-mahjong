@@ -73,7 +73,7 @@
   // coach line, and any other choice is refused.
   var STEPS = [
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'c1' }, hint: say('Discard 1 Character.', 'c1', { type: 'discard' }, [
-      'Tiles in your hand are concealed. Double click on a tile to discard it.',
+      'The player sitting on east always goes first. Tiles in your hand are concealed. Double click on a tile to discard it.',
     ]) },
     { seat: 1, kind: 'turn', drawn: true },
     { seat: 2, kind: 'turn', drawn: true },
