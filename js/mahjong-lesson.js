@@ -66,8 +66,9 @@
   // coach line, and any other choice is refused.
   var STEPS = [
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'c1' }, hint: say('Discard 1 Character.', 'c1', { type: 'discard' }, [
-      'Plum is your flower, because you sit East. A flower sets aside, and you draw a replacement from the back of the wall. Your own flower scores a faan.',
-      'The three Red Dragons in your hand are concealed. Nobody sees them until you win. A meld you claim is exposed, face up.',
+      'Plum is your flower because you sit East, so it scores a faan. Your three Red Dragons stay concealed until you win.',
+      'Double tap a tile to discard it.',
+      'Click on a strategy to change the coach.',
     ]) },
     { seat: 1, kind: 'turn', drawn: true },
     { seat: 2, kind: 'turn', drawn: true },
