@@ -246,9 +246,13 @@ Every strategy sat in all ${n(hands)} hands, one seat each. ${n(draws)} hands ($
 
   const fullTable = (full, total, k) => {
     const keys = Object.keys(full).sort((a, b) => full[b] - full[a]).slice(0, k);
-    return '| Full hand (every pattern, = total faan) | Wins | % of wins |\n| --- | ---: | ---: |\n' + keys.map((key) => `| ${key} | ${n(full[key])} | ${pct(full[key], total)} |\n`).join('');
+    // Each key is "Pattern + Pattern = faan": the patterns, and the total faan in its own column.
+    return '| Full hand (every pattern) | Total faan | Wins | % of wins |\n| --- | ---: | ---: | ---: |\n' + keys.map((key) => {
+      const at = key.lastIndexOf(' = ');
+      return `| ${key.slice(0, at)} | ${key.slice(at + 3)} | ${n(full[key])} | ${pct(full[key], total)} |\n`;
+    }).join('');
   };
-  md += `\n## Full hands: every pattern of a win, with its faan\n\nThe most common complete wins: every pattern a win scored, with its total. Patterns that score twice show ×2.\n\n### All four strategies\n\n` + fullTable(all.full, all.wins, 20).replace(/ x(\d)/g, ' ×$1');
+  md += `\n## Full hands: every pattern of a win, with its faan\n\nThe most common complete wins: every pattern a win scored, and its total faan. Patterns that score twice show ×2.\n\n### All four strategies\n\n` + fullTable(all.full, all.wins, 20).replace(/ x(\d)/g, ' ×$1');
   for (const [id, name, model] of S) md += `\n### ${name} (${model})\n\n` + fullTable(st[id].full, st[id].wins, 12).replace(/ x(\d)/g, ' ×$1');
 
   // Winning tiles: the tile that completed each win.

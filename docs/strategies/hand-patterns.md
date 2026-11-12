@@ -249,100 +249,100 @@ Each strategy's wins collecting each number of points, and their share of its wi
 
 ## Full hands: every pattern of a win, with its faan
 
-The most common complete wins: every pattern a win scored, with its total. Patterns that score twice show ×2.
+The most common complete wins: every pattern a win scored, and its total faan. Patterns that score twice show ×2.
 
 ### All four strategies
 
-| Full hand (every pattern, = total faan) | Wins | % of wins |
-| --- | ---: | ---: |
-| Full Flush = 7 | 67,949 | 5.2% |
-| Half Flush = 3 | 67,680 | 5.2% |
-| Seven Pairs = 4 | 48,284 | 3.7% |
-| Dragon Triplet + Half Flush = 4 | 37,916 | 2.9% |
-| Full Flush + No Flowers = 8 | 26,764 | 2.1% |
-| Half Flush + No Flowers = 4 | 26,115 | 2.0% |
-| All Sequences + Concealed + Self-Draw = 3 | 25,864 | 2.0% |
-| Full Flush + Seat Season = 8 | 23,984 | 1.8% |
-| Full Flush + Seat Flower = 8 | 23,612 | 1.8% |
-| All Triplets = 3 | 23,324 | 1.8% |
-| All Sequences + Concealed + No Flowers = 3 | 23,197 | 1.8% |
-| No Flowers + Seven Pairs = 5 | 21,163 | 1.6% |
-| Half Flush + Seat Season = 4 | 20,846 | 1.6% |
-| Half Flush + Seat Flower = 4 | 20,841 | 1.6% |
-| Half Flush + Self-Draw = 4 | 20,027 | 1.5% |
-| Full Flush + Self-Draw = 8 | 19,760 | 1.5% |
-| Seat Flower + Seven Pairs = 5 | 17,358 | 1.3% |
-| Seat Season + Seven Pairs = 5 | 17,114 | 1.3% |
-| All Sequences + Concealed + Seat Season = 3 | 16,737 | 1.3% |
-| All Sequences + Concealed + Seat Flower = 3 | 16,655 | 1.3% |
+| Full hand (every pattern) | Total faan | Wins | % of wins |
+| --- | ---: | ---: | ---: |
+| Full Flush | 7 | 67,949 | 5.2% |
+| Half Flush | 3 | 67,680 | 5.2% |
+| Seven Pairs | 4 | 48,284 | 3.7% |
+| Dragon Triplet + Half Flush | 4 | 37,916 | 2.9% |
+| Full Flush + No Flowers | 8 | 26,764 | 2.1% |
+| Half Flush + No Flowers | 4 | 26,115 | 2.0% |
+| All Sequences + Concealed + Self-Draw | 3 | 25,864 | 2.0% |
+| Full Flush + Seat Season | 8 | 23,984 | 1.8% |
+| Full Flush + Seat Flower | 8 | 23,612 | 1.8% |
+| All Triplets | 3 | 23,324 | 1.8% |
+| All Sequences + Concealed + No Flowers | 3 | 23,197 | 1.8% |
+| No Flowers + Seven Pairs | 5 | 21,163 | 1.6% |
+| Half Flush + Seat Season | 4 | 20,846 | 1.6% |
+| Half Flush + Seat Flower | 4 | 20,841 | 1.6% |
+| Half Flush + Self-Draw | 4 | 20,027 | 1.5% |
+| Full Flush + Self-Draw | 8 | 19,760 | 1.5% |
+| Seat Flower + Seven Pairs | 5 | 17,358 | 1.3% |
+| Seat Season + Seven Pairs | 5 | 17,114 | 1.3% |
+| All Sequences + Concealed + Seat Season | 3 | 16,737 | 1.3% |
+| All Sequences + Concealed + Seat Flower | 3 | 16,655 | 1.3% |
 
 ### Jorge Yau (Rules only)
 
-| Full hand (every pattern, = total faan) | Wins | % of wins |
-| --- | ---: | ---: |
-| Full Flush = 7 | 18,743 | 4.8% |
-| All Sequences + Concealed + Self-Draw = 3 | 13,214 | 3.4% |
-| Half Flush = 3 | 12,227 | 3.1% |
-| Seven Pairs = 4 | 11,741 | 3.0% |
-| All Sequences + Concealed + No Flowers = 3 | 10,601 | 2.7% |
-| Dragon Triplet + Half Flush = 4 | 10,019 | 2.6% |
-| All Sequences + Concealed + Seat Season = 3 | 7,523 | 1.9% |
-| All Sequences + Concealed + Seat Flower = 3 | 7,514 | 1.9% |
-| Chicken Hand + Concealed + No Flowers + Self-Draw = 3 | 7,274 | 1.9% |
-| Full Flush + No Flowers = 8 | 7,137 | 1.8% |
-| Full Flush + Seat Season = 8 | 6,585 | 1.7% |
-| Full Flush + Seat Flower = 8 | 6,472 | 1.7% |
+| Full hand (every pattern) | Total faan | Wins | % of wins |
+| --- | ---: | ---: | ---: |
+| Full Flush | 7 | 18,743 | 4.8% |
+| All Sequences + Concealed + Self-Draw | 3 | 13,214 | 3.4% |
+| Half Flush | 3 | 12,227 | 3.1% |
+| Seven Pairs | 4 | 11,741 | 3.0% |
+| All Sequences + Concealed + No Flowers | 3 | 10,601 | 2.7% |
+| Dragon Triplet + Half Flush | 4 | 10,019 | 2.6% |
+| All Sequences + Concealed + Seat Season | 3 | 7,523 | 1.9% |
+| All Sequences + Concealed + Seat Flower | 3 | 7,514 | 1.9% |
+| Chicken Hand + Concealed + No Flowers + Self-Draw | 3 | 7,274 | 1.9% |
+| Full Flush + No Flowers | 8 | 7,137 | 1.8% |
+| Full Flush + Seat Season | 8 | 6,585 | 1.7% |
+| Full Flush + Seat Flower | 8 | 6,472 | 1.7% |
 
 ### Neural Cat (NC10)
 
-| Full hand (every pattern, = total faan) | Wins | % of wins |
-| --- | ---: | ---: |
-| Full Flush = 7 | 21,832 | 5.9% |
-| Half Flush = 3 | 17,361 | 4.7% |
-| Seven Pairs = 4 | 12,996 | 3.5% |
-| All Sequences + Concealed + Self-Draw = 3 | 12,533 | 3.4% |
-| All Sequences + Concealed + No Flowers = 3 | 12,386 | 3.3% |
-| Dragon Triplet + Half Flush = 4 | 11,274 | 3.0% |
-| All Sequences + Concealed + Seat Season = 3 | 9,091 | 2.5% |
-| All Sequences + Concealed + Seat Flower = 3 | 9,028 | 2.4% |
-| Full Flush + No Flowers = 8 | 8,986 | 2.4% |
-| Full Flush + Seat Season = 8 | 7,757 | 2.1% |
-| Full Flush + Seat Flower = 8 | 7,722 | 2.1% |
-| All Sequences + Full Flush = 8 | 7,243 | 2.0% |
+| Full hand (every pattern) | Total faan | Wins | % of wins |
+| --- | ---: | ---: | ---: |
+| Full Flush | 7 | 21,832 | 5.9% |
+| Half Flush | 3 | 17,361 | 4.7% |
+| Seven Pairs | 4 | 12,996 | 3.5% |
+| All Sequences + Concealed + Self-Draw | 3 | 12,533 | 3.4% |
+| All Sequences + Concealed + No Flowers | 3 | 12,386 | 3.3% |
+| Dragon Triplet + Half Flush | 4 | 11,274 | 3.0% |
+| All Sequences + Concealed + Seat Season | 3 | 9,091 | 2.5% |
+| All Sequences + Concealed + Seat Flower | 3 | 9,028 | 2.4% |
+| Full Flush + No Flowers | 8 | 8,986 | 2.4% |
+| Full Flush + Seat Season | 8 | 7,757 | 2.1% |
+| Full Flush + Seat Flower | 8 | 7,722 | 2.1% |
+| All Sequences + Full Flush | 8 | 7,243 | 2.0% |
 
 ### Lucky Cat (LC34)
 
-| Full hand (every pattern, = total faan) | Wins | % of wins |
-| --- | ---: | ---: |
-| Half Flush = 3 | 38,092 | 8.7% |
-| Full Flush = 7 | 27,374 | 6.3% |
-| Dragon Triplet + Half Flush = 4 | 16,623 | 3.8% |
-| Half Flush + No Flowers = 4 | 15,959 | 3.7% |
-| Half Flush + Seat Flower = 4 | 12,871 | 2.9% |
-| Half Flush + Seat Season = 4 | 12,838 | 2.9% |
-| All Triplets = 3 | 12,637 | 2.9% |
-| Half Flush + Self-Draw = 4 | 11,331 | 2.6% |
-| Full Flush + No Flowers = 8 | 10,641 | 2.4% |
-| Full Flush + Seat Season = 8 | 9,642 | 2.2% |
-| Full Flush + Seat Flower = 8 | 9,418 | 2.2% |
-| Full Flush + Self-Draw = 8 | 8,026 | 1.8% |
+| Full hand (every pattern) | Total faan | Wins | % of wins |
+| --- | ---: | ---: | ---: |
+| Half Flush | 3 | 38,092 | 8.7% |
+| Full Flush | 7 | 27,374 | 6.3% |
+| Dragon Triplet + Half Flush | 4 | 16,623 | 3.8% |
+| Half Flush + No Flowers | 4 | 15,959 | 3.7% |
+| Half Flush + Seat Flower | 4 | 12,871 | 2.9% |
+| Half Flush + Seat Season | 4 | 12,838 | 2.9% |
+| All Triplets | 3 | 12,637 | 2.9% |
+| Half Flush + Self-Draw | 4 | 11,331 | 2.6% |
+| Full Flush + No Flowers | 8 | 10,641 | 2.4% |
+| Full Flush + Seat Season | 8 | 9,642 | 2.2% |
+| Full Flush + Seat Flower | 8 | 9,418 | 2.2% |
+| Full Flush + Self-Draw | 8 | 8,026 | 1.8% |
 
 ### Only Orphans (OW1)
 
-| Full hand (every pattern, = total faan) | Wins | % of wins |
-| --- | ---: | ---: |
-| Seven Pairs = 4 | 18,463 | 17.9% |
-| No Flowers + Seven Pairs = 5 | 8,976 | 8.7% |
-| Seat Flower + Seven Pairs = 5 | 7,994 | 7.7% |
-| Seat Season + Seven Pairs = 5 | 7,770 | 7.5% |
-| Self-Draw + Seven Pairs = 5 | 6,086 | 5.9% |
-| Thirteen Orphans = 13 | 4,089 | 4.0% |
-| No Flowers + Self-Draw + Seven Pairs = 6 | 2,755 | 2.7% |
-| Seat Season + Self-Draw + Seven Pairs = 6 | 2,701 | 2.6% |
-| Seat Flower + Self-Draw + Seven Pairs = 6 | 2,645 | 2.6% |
-| Seat Flower + Seat Season + Seven Pairs = 6 | 2,529 | 2.4% |
-| Half Flush + Seven Pairs = 7 | 2,051 | 2.0% |
-| Concealed Triplets = 10 | 1,750 | 1.7% |
+| Full hand (every pattern) | Total faan | Wins | % of wins |
+| --- | ---: | ---: | ---: |
+| Seven Pairs | 4 | 18,463 | 17.9% |
+| No Flowers + Seven Pairs | 5 | 8,976 | 8.7% |
+| Seat Flower + Seven Pairs | 5 | 7,994 | 7.7% |
+| Seat Season + Seven Pairs | 5 | 7,770 | 7.5% |
+| Self-Draw + Seven Pairs | 5 | 6,086 | 5.9% |
+| Thirteen Orphans | 13 | 4,089 | 4.0% |
+| No Flowers + Self-Draw + Seven Pairs | 6 | 2,755 | 2.7% |
+| Seat Season + Self-Draw + Seven Pairs | 6 | 2,701 | 2.6% |
+| Seat Flower + Self-Draw + Seven Pairs | 6 | 2,645 | 2.6% |
+| Seat Flower + Seat Season + Seven Pairs | 6 | 2,529 | 2.4% |
+| Half Flush + Seven Pairs | 7 | 2,051 | 2.0% |
+| Concealed Triplets | 10 | 1,750 | 1.7% |
 
 ## Winning tiles
 
