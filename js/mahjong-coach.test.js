@@ -123,7 +123,7 @@ describe('coach: discards', () => {
 
   it('on Concealed Straights, with No Flowers or your own flower it makes 3 already', () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
-    assert.match(text(hint), /Concealed Straights\. Flowers make it 3\./);
+    assert.match(text(hint), /Concealed Straights\.( You have \d+ tiles? needed and \d+ tiles? remaining\.)? Flowers make it 3\./);
     assert.doesNotMatch(text(hint), /situational bonus/);
   });
 

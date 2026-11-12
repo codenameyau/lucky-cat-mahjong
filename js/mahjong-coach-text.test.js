@@ -153,6 +153,35 @@ describe('coach text', () => {
     assert.ok(orphans > 10 && pairs > 10, orphans + ' orphans and ' + pairs + ' pairs hands counted');
   });
 
+  it('Detailed and Complex say the tile counts after "Go for" too, on turns and claims', () => {
+    let said = 0, go = 0;
+    for (const id of S.ids()) {
+      for (const detail of ['detailed', 'complex']) {
+        const coach = C.forStrategy(S.get(id).bot, { detail });
+        for (let seed = 1; seed <= 40; seed++) {
+          const game = E.createGame({ seed, humanSeat: true, dealer: 0 });
+          E.startHand && E.startHand(game);
+          const hints = [coach.turnHint(game, 0, E.turnOptions(game, 0))];
+          const tile = game.hand.seats[1].hand[0];
+          hints.push(coach.claimHint(game, 0, E.claimOptions(game, 0, tile, 3, false)));
+          for (const h of hints) {
+            if (!h) continue;
+            const w = words(h);
+            checkText(w, id + ' ' + detail);
+            if (!/Go for /.test(w)) continue;
+            go++;
+            const m = w.match(/Go for [^.]+\. You have (\d+) tiles? needed and (\d+) tiles? remaining\./);
+            if (!m) continue;
+            said++;
+            assert.equal(Number(m[1]) + Number(m[2]), 14, w);
+          }
+        }
+      }
+    }
+    // Only a hint that would run past 400 characters leaves the counts out.
+    assert.ok(go > 100 && said >= go * 0.97, said + ' of ' + go);
+  });
+
   it('cuts a long hint to whole tips, keeping the action and the model line', () => {
     const long = 'This tip is long enough that a few of them will not fit together in one hint. ';
     const h = C.fit({ action: 'Discard Red Dragon.', tips: [long, long + long, long, 'The model expects +40 score on average from this discard.', long], model: 'The model expects +40 score on average from this discard.' });
