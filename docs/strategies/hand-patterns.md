@@ -599,7 +599,7 @@ Each strategy's share of its wins with each hand pattern, at a table of four cop
 
 ## Win rate and expected faan of each hand pattern
 
-From the first 20,000 games of the 100,000-game run (all four strategies at one table, seeds from 8,000,001): 389,806 hands, 259,873 won.
+From all 100,000 games of the 100,000-game run (all four strategies at one table, seeds from 8,000,001): 1,949,960 hands, 1,301,137 won.
 
 - **Win rate per hand** is the share of all hands that ended in a win scoring that pattern (± one standard error). The dataset records only how hands ended, not which hand a seat was aiming for. So this is how often the table finished the pattern, not how often a seat that went for it finished it.
 - **Expected faan of the win** is the average total faan of the wins that scored the pattern, with every other pattern counted in (± one standard error). **Points a win** is what the winner collected on average.
@@ -609,43 +609,45 @@ From the first 20,000 games of the 100,000-game run (all four strategies at one 
 
 | Pattern | Its own faan | Wins with it | Win rate per hand | Share of wins | Expected faan of the win | Points a win | Self-drawn |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Half Flush | 3 | 92,011 | 23.60% ± 0.068% | 35.4% | 4.99 ± 0.01 | 287 | 24% |
-| Full Flush | 7 | 54,040 | 13.86% ± 0.055% | 20.8% | 8.26 ± 0.00 | 787 | 23% |
-| All Triplets | 3 | 39,393 | 10.11% ± 0.048% | 15.2% | 5.93 ± 0.01 | 652 | 25% |
-| Seven Pairs | 4 | 33,275 | 8.54% ± 0.045% | 12.8% | 5.14 ± 0.01 | 104 | 25% |
-| All Sequences | 1 | 31,820 | 8.16% ± 0.044% | 12.2% | 5.00 ± 0.02 | 313 | 36% |
-| Chicken Hand | 0 | 8,068 | 2.07% ± 0.023% | 3.1% | 3.06 ± 0.00 | 27 | 83% |
-| Concealed Triplets | 10 | 7,165 | 1.84% ± 0.022% | 2.8% | 11.76 ± 0.01 | 7,046 | 23% |
-| Thirteen Orphans | 13 | 5,262 | 1.35% ± 0.018% | 2.0% | 13.00 ± 0.00 | 12,205 | 24% |
-| Mixed Orphans | 1 | 3,136 | 0.80% ± 0.014% | 1.2% | 7.59 ± 0.05 | 2,001 | 26% |
-| Small Three Dragons | 5 | 657 | 0.17% ± 0.007% | 0.3% | 10.47 ± 0.09 | 5,623 | 25% |
-| All Honors | 10 | 403 | 0.10% ± 0.005% | 0.2% | 12.95 ± 0.01 | 11,912 | 24% |
-| Big Three Dragons | 8 | 205 | 0.053% ± 0.004% | 0.1% | 12.55 ± 0.07 | 9,863 | 20% |
-| Small Four Winds | 6 | 85 | 0.022% ± 0.002% | 0.0% | 12.55 ± 0.11 | 10,758 | 25% |
-| All Terminals | 10 | 40 | 0.010% ± 0.002% | 0.0% | 11.05 ± 0.13 | 4,864 | 33% |
-| Big Four Winds | 13 | 17 | 0.004% ± 0.001% | 0.0% | 13.00 ± 0.00 | 11,083 | 18% |
-| Nine Gates | 13 | 16 | 0.004% ± 0.001% | 0.0% | 13.00 ± 0.00 | 11,264 | 19% |
+| Half Flush | 3 | 461,142 | 23.65% ± 0.030% | 35.4% | 4.99 ± 0.00 | 284 | 24% |
+| Full Flush | 7 | 269,568 | 13.82% ± 0.025% | 20.7% | 8.26 ± 0.00 | 792 | 23% |
+| All Triplets | 3 | 197,087 | 10.11% ± 0.022% | 15.1% | 5.92 ± 0.01 | 656 | 25% |
+| Seven Pairs | 4 | 167,874 | 8.61% ± 0.020% | 12.9% | 5.14 ± 0.00 | 104 | 25% |
+| All Sequences | 1 | 158,526 | 8.13% ± 0.020% | 12.2% | 5.00 ± 0.01 | 316 | 36% |
+| Chicken Hand | 0 | 40,605 | 2.08% ± 0.010% | 3.1% | 3.06 ± 0.00 | 27 | 83% |
+| Concealed Triplets | 10 | 35,415 | 1.82% ± 0.010% | 2.7% | 11.76 ± 0.01 | 7,058 | 23% |
+| Thirteen Orphans | 13 | 26,121 | 1.34% ± 0.008% | 2.0% | 13.00 ± 0.00 | 12,353 | 25% |
+| Mixed Orphans | 1 | 15,722 | 0.81% ± 0.006% | 1.2% | 7.56 ± 0.02 | 1,941 | 25% |
+| Small Three Dragons | 5 | 3,126 | 0.16% ± 0.003% | 0.2% | 10.54 ± 0.04 | 5,907 | 26% |
+| All Honors | 10 | 2,098 | 0.11% ± 0.002% | 0.2% | 12.93 ± 0.01 | 11,773 | 23% |
+| Big Three Dragons | 8 | 1,103 | 0.057% ± 0.002% | 0.1% | 12.50 ± 0.03 | 10,258 | 24% |
+| Small Four Winds | 6 | 402 | 0.021% ± 0.001% | 0.0% | 12.61 ± 0.05 | 10,585 | 23% |
+| All Terminals | 10 | 215 | 0.011% ± 0.001% | 0.0% | 10.99 ± 0.05 | 4,315 | 28% |
+| Big Four Winds | 13 | 109 | 0.006% ± 0.001% | 0.0% | 13.00 ± 0.00 | 11,950 | 23% |
+| Nine Gates | 13 | 101 | 0.005% ± 0.001% | 0.0% | 13.00 ± 0.00 | 11,923 | 23% |
+| Four Quads | 13 | 2 | 0.000% ± 0.000% | 0.0% | 13.00 ± 0.00 | 16,384 | 50% |
 
 ### Sorted by expected faan
 
 | Pattern | Its own faan | Wins with it | Win rate per hand | Share of wins | Expected faan of the win | Points a win | Self-drawn |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Thirteen Orphans | 13 | 5,262 | 1.35% ± 0.018% | 2.0% | 13.00 ± 0.00 | 12,205 | 24% |
-| Big Four Winds | 13 | 17 | 0.004% ± 0.001% | 0.0% | 13.00 ± 0.00 | 11,083 | 18% |
-| Nine Gates | 13 | 16 | 0.004% ± 0.001% | 0.0% | 13.00 ± 0.00 | 11,264 | 19% |
-| All Honors | 10 | 403 | 0.10% ± 0.005% | 0.2% | 12.95 ± 0.01 | 11,912 | 24% |
-| Small Four Winds | 6 | 85 | 0.022% ± 0.002% | 0.0% | 12.55 ± 0.11 | 10,758 | 25% |
-| Big Three Dragons | 8 | 205 | 0.053% ± 0.004% | 0.1% | 12.55 ± 0.07 | 9,863 | 20% |
-| Concealed Triplets | 10 | 7,165 | 1.84% ± 0.022% | 2.8% | 11.76 ± 0.01 | 7,046 | 23% |
-| All Terminals | 10 | 40 | 0.010% ± 0.002% | 0.0% | 11.05 ± 0.13 | 4,864 | 33% |
-| Small Three Dragons | 5 | 657 | 0.17% ± 0.007% | 0.3% | 10.47 ± 0.09 | 5,623 | 25% |
-| Full Flush | 7 | 54,040 | 13.86% ± 0.055% | 20.8% | 8.26 ± 0.00 | 787 | 23% |
-| Mixed Orphans | 1 | 3,136 | 0.80% ± 0.014% | 1.2% | 7.59 ± 0.05 | 2,001 | 26% |
-| All Triplets | 3 | 39,393 | 10.11% ± 0.048% | 15.2% | 5.93 ± 0.01 | 652 | 25% |
-| Seven Pairs | 4 | 33,275 | 8.54% ± 0.045% | 12.8% | 5.14 ± 0.01 | 104 | 25% |
-| All Sequences | 1 | 31,820 | 8.16% ± 0.044% | 12.2% | 5.00 ± 0.02 | 313 | 36% |
-| Half Flush | 3 | 92,011 | 23.60% ± 0.068% | 35.4% | 4.99 ± 0.01 | 287 | 24% |
-| Chicken Hand | 0 | 8,068 | 2.07% ± 0.023% | 3.1% | 3.06 ± 0.00 | 27 | 83% |
+| Thirteen Orphans | 13 | 26,121 | 1.34% ± 0.008% | 2.0% | 13.00 ± 0.00 | 12,353 | 25% |
+| Big Four Winds | 13 | 109 | 0.006% ± 0.001% | 0.0% | 13.00 ± 0.00 | 11,950 | 23% |
+| Nine Gates | 13 | 101 | 0.005% ± 0.001% | 0.0% | 13.00 ± 0.00 | 11,923 | 23% |
+| Four Quads | 13 | 2 | 0.000% ± 0.000% | 0.0% | 13.00 ± 0.00 | 16,384 | 50% |
+| All Honors | 10 | 2,098 | 0.11% ± 0.002% | 0.2% | 12.93 ± 0.01 | 11,773 | 23% |
+| Small Four Winds | 6 | 402 | 0.021% ± 0.001% | 0.0% | 12.61 ± 0.05 | 10,585 | 23% |
+| Big Three Dragons | 8 | 1,103 | 0.057% ± 0.002% | 0.1% | 12.50 ± 0.03 | 10,258 | 24% |
+| Concealed Triplets | 10 | 35,415 | 1.82% ± 0.010% | 2.7% | 11.76 ± 0.01 | 7,058 | 23% |
+| All Terminals | 10 | 215 | 0.011% ± 0.001% | 0.0% | 10.99 ± 0.05 | 4,315 | 28% |
+| Small Three Dragons | 5 | 3,126 | 0.16% ± 0.003% | 0.2% | 10.54 ± 0.04 | 5,907 | 26% |
+| Full Flush | 7 | 269,568 | 13.82% ± 0.025% | 20.7% | 8.26 ± 0.00 | 792 | 23% |
+| Mixed Orphans | 1 | 15,722 | 0.81% ± 0.006% | 1.2% | 7.56 ± 0.02 | 1,941 | 25% |
+| All Triplets | 3 | 197,087 | 10.11% ± 0.022% | 15.1% | 5.92 ± 0.01 | 656 | 25% |
+| Seven Pairs | 4 | 167,874 | 8.61% ± 0.020% | 12.9% | 5.14 ± 0.00 | 104 | 25% |
+| All Sequences | 1 | 158,526 | 8.13% ± 0.020% | 12.2% | 5.00 ± 0.01 | 316 | 36% |
+| Half Flush | 3 | 461,142 | 23.65% ± 0.030% | 35.4% | 4.99 ± 0.00 | 284 | 24% |
+| Chicken Hand | 0 | 40,605 | 2.08% ± 0.010% | 3.1% | 3.06 ± 0.00 | 27 | 83% |
 
 ## The dataset
 
@@ -658,7 +660,7 @@ Every hand of all five experiments, one row a hand, is on Hugging Face: [codenam
 | `hand-results/self-lucky-cat.parquet` | Four Lucky Cat | 1,000 | 20,987 |
 | `hand-results/self-only-orphans.parquet` | Four Only Orphans | 1,000 | 16,669 |
 | `hand-results/mixed.parquet` | All four, one seat each | 1,000 | 19,499 |
-| `hand-results/mixed-100k.parquet` | All four, one seat each (a 100,000-game run, uploaded as it grows) | 30,000 so far | 584,625 so far |
+| `hand-results/mixed-100k.parquet` | All four, one seat each | 100,000 | 1,949,960 |
 
 ```python
 from datasets import load_dataset
@@ -697,5 +699,13 @@ node scripts/hand-patterns.js --strategy lucky-cat --games 1000 --seed 7200001 -
 node scripts/hand-patterns.js --strategy only-orphans --games 1000 --seed 7200001 --parquet ml/data/hand-patterns/data/self-only-orphans.parquet
 node scripts/hand-patterns.js --lineup jorge-yau,neural-cat,lucky-cat,only-orphans --games 1000 --seed 7300001 --parquet ml/data/hand-patterns/data/mixed.parquet
 ```
+
+The 100,000-game run (seeds 8,000,001 to 8,100,000) played its first 30,000 games in JS as above, and the rest on the native simulator, about 21 times faster a core, in 30 processes:
+
+```bash
+native/build/lcm-sim-exact games --lineup <native ids> --names jorge-yau,neural-cat,lucky-cat,only-orphans --seed 8000001 --from 30000 --to 100000 --out rows.csv
+```
+
+`games` writes the JS's rows (no header). `--lineup` takes the native ids `node scripts/ml/native.js` gives the four strategies, and `--from`/`--to` split the run across processes. On 400 games its exact build matched the JS on 7,804 of 7,805 hands. In the other one, a port difference has Neural Cat claim a pung the JS doesn't.
 
 `scripts/hand-patterns.js` plays full games and writes every hand as a row in Parquet (`--parquet`, which needs Python with `pyarrow`; `--csv` writes the same rows as CSV) and the counts as JSON (`--json`: the games and hands, the hands with no winner, and for each strategy its wins, patterns, full hands and wins by faan). `ml/data/` is gitignored, so the files stay local until they're uploaded.
