@@ -333,7 +333,7 @@ hands = load_dataset("codenameyau/lucky-cat-mahjong-games", "mixed-100k")["train
 | \`winner_discards\` | The winner's own discards before the win (how fast it won) |
 | \`wall_left\` | Tiles left in the wall when the hand ended |
 | \`pattern_count\`, \`patterns\` | How many patterns the hand scored, and each with its faan, e.g. \`Half Flush (3); Dragon Triplet (1)\` |
-| \`full_hand\` | Every pattern of the win with the total faan, as in the tables above |
+| \`full_hand\` | Every pattern of the win and its total faan, e.g. \`Dragon Triplet + Half Flush = 4\` |
 
 ## Reproducing it
 
