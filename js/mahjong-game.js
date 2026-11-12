@@ -4447,21 +4447,17 @@
       }
       if (!acts.length) { setButtonsOverName(false); return; }
       var phone = W < 600; // smaller buttons on a phone
-      var h = phone ? 30 : 38;
+      // Every action button (Discard, Win, Pung, Chow, Kong, Pass, Replace
+      // flowers) is sized like the top bar's controls (Menu, Rules...).
+      var h = 28;
       var gap = phone ? 6 : 8;
       // When claiming, show the tile that is up for grabs beside the buttons.
       var claimTile = ui.claimPrompt ? ui.claimPrompt.opts.tile : null;
       var ctw = claimTile ? Math.min(phone ? 24 : 30, (L.actionsH - 4) / TILE_ASPECT) : 0;
       var lead = claimTile ? ctw + 10 : 0;
-      ctx.font = 'bold ' + (phone ? 12 : 15) + 'px ' + FONT_BODY;
+      ctx.font = Math.min(15, h * 0.39) + 'px ' + FONT_HEAD; // the label size button() draws at
       // Each button is only as wide as its label.
       var widths = acts.map(function (a) { return Math.ceil(ctx.measureText(a.label).width) + (phone ? 20 : 28); });
-      if (ui.flowerPrompt) {
-        // The tutorial's Replace flowers is sized like the top bar's controls (Menu, Rules...).
-        h = 28;
-        ctx.font = Math.min(15, h * 0.39) + 'px ' + FONT_HEAD;
-        widths = acts.map(function (a) { return Math.ceil(ctx.measureText(a.label).width) + 28; });
-      }
       var buttonsW = widths.reduce(function (sum, w) { return sum + w; }, 0) + gap * (acts.length - 1);
       var x0 = L.meX + L.pad, x1 = L.meX + L.meW - L.pad, rowY = L.actionsY;
       var free = ui.meRowFree;
