@@ -64,7 +64,7 @@
         'It has no plan and no rules. Each turn it looks at what its seat can see (its own tiles and melds, every discard, the melds and flowers others have shown, the winds, and how many tiles are left), and its neural network gives every legal move a share. It plays the move with the biggest share.',
         'That goes for every move: which tile to discard, each chow, pung and kong, and whether to pass. It doesn\'t count tiles from ready, pick a target hand or keep a list of safe tiles. What looks like a plan is a habit the network learned.',
         'What it is for: winning the most hands. It values speed over size. It wins often and in few discards, mostly small hands of 4 to 5 faan, and it takes risks to get them, so it deals in more often than Neural Cat does. A bigger hand is worth taking when the chance is good and the hand is nearly ready, and its training keeps its points from falling while its wins rise.',
-        'It never looks at the wall or another player\'s hand, and a test checks that shuffling those changes nothing it does. A win of 3 faan or more is always declared.',
+        'A win of 3 faan or more is always declared.',
       ],
       doc: 'docs/strategies/lucky-cat.md',
     },
@@ -80,7 +80,6 @@
         'Each deal it picks a target and checks it again every turn: Thirteen Orphans; triplets of 1s, 9s and honors (Mixed Orphans, All Terminals, All Honors); the same hands as pairs; Seven Pairs; or Concealed Triplets of any tiles. It picks the one worth the most points on average, which is what the hand pays times its chance of finishing, from the tiles still live and the draws left. It changes target only when another is worth clearly more.',
         '1s, 9s and honors are the heart of every target: they stay longest, and their pairs become the eyes or pungs. Tiles the target can\'t use go first, even late in the hand when it plays safe. On Seven Pairs and Concealed Triplets that means single tiles go first, and pairs and pungs of any tile stay.',
         'It never chows. It pungs or kongs only a 1, a 9 or an honor, and only when the target is triplets of them. On Thirteen Orphans, the pairs hands and Concealed Triplets it claims nothing but the winning tile.',
-        'It sees only what its seat can see: never the wall or another player\'s hand.',
         'It rarely pungs a discard: it claims one only when that is clearly worth more than passing. So it keeps more pairs and triplets concealed and declares more kongs.',
         'What it is for: the biggest hands and the most points. It wins the fewest hands of the strategies, and that is by design: a limit hand pays for many lost ones. Its training is judged on points a hand and on limit hands won, not on how often it wins.',
         'It leans toward finishing: each choice\'s score gets a bonus for its chance to win (800 points for a sure win), so among choices worth about the same it takes the one more likely to win.',
@@ -107,7 +106,6 @@
         'Then its neural network scores each option. It predicts how the hand will end after it: a win by self-draw or off a discard, dealing in, someone else winning, or a draw, and how many faan a win would be. Those make one score, the points the option is worth on average, plus a bonus for the chance to win. The best score is played.',
         'What it is for: the best of both, as many wins as it can get without giving up their size. A quick small win and a slower big one are scored on the same scale, so it can wait for a bigger hand when the numbers favor it. And because dealing in is part of every score, it plays safe without a separate rule for it.',
         'Claims and kongs work the same way: passing, each pung, chow or kong, and the best discard after it are all scored. When the network\'s pick scores higher than Jorge Yau\'s call, the network\'s pick goes.',
-        'It plays fair: it sees only what its seat can see, the same as you. Never the wall, another player\'s hand, or which tile a concealed kong is.',
         ];
       },
       doc: 'docs/strategies/neural-cat.md',
@@ -124,7 +122,7 @@
       lab: true,
       summary: 'Lucky Cat\'s rules without its network: tracks every discard by who threw it and plays the odds to the fastest 3-faan win, avoiding feeding the table more and more toward the end.',
       details: [
-        'It remembers every discard, who threw it, and what each opponent let go by. From that it estimates what each one wants, and where the unseen copies of each tile are likely to be. It never looks at the wall or another player\'s hand.',
+        'It remembers every discard, who threw it, and what each opponent let go by. From that it estimates what each one wants, and where the unseen copies of each tile are likely to be.',
         'For every possible discard it works out the odds of finishing each hand before the wall runs out or someone else wins. A win at the 3-faan minimum comes first, so a bigger hand has to be close to as fast. A ready hand that can win is not broken for a bigger one.',
         'It reads again every turn, so it pivots to a new hand as soon as another one looks faster, or when an opponent starts collecting what it needs or changes hands.',
         'It switches to Seven Pairs, Thirteen Orphans or Nine Gates when the hand is close to one. Otherwise it plays a standard hand, Half Flush, Full Flush, All Triplets or Concealed Straights, whichever has the best odds, and keeps the tiles for Mixed Orphans, All Terminals, All Honors, Small Three Dragons, Big Three Dragons, Small Four Winds or Big Four Winds while one is in reach.',
