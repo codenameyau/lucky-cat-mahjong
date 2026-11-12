@@ -2605,17 +2605,24 @@
     document.documentElement.classList.toggle('hide-extra-chinese', !SHOW_EXTRA_CHINESE);
   }
 
+  function trackLink(name, link) {
+    try {
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', name, { link_text: link.textContent, destination: link.getAttribute('href') });
+      }
+    } catch (_) { /* analytics is best-effort */ }
+  }
+
   // The bottom button, for Google Analytics: how many readers reach it, and how many click.
+  // Links marked data-track (the PDF rulesheet, the Wikipedia source) send
+  // that event when clicked.
   function setupCtaTracking() {
+    Array.prototype.forEach.call(document.querySelectorAll('a[data-track]'), function (a) {
+      a.addEventListener('click', function () { trackLink(a.getAttribute('data-track'), a); });
+    });
     var link = document.querySelector('.points-cta a');
     if (!link) return;
-    var track = function (name) {
-      try {
-        if (typeof window.gtag === 'function') {
-          window.gtag('event', name, { link_text: link.textContent, destination: link.getAttribute('href') });
-        }
-      } catch (_) { /* analytics is best-effort */ }
-    };
+    var track = function (name) { trackLink(name, link); };
     link.addEventListener('click', function () { track('points_cta_click'); });
     if (!('IntersectionObserver' in window)) return;
     var seen = new IntersectionObserver(function (entries) {
