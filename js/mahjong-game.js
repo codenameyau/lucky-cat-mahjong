@@ -3811,9 +3811,17 @@
       return { action: action, detail: detail };
     }
 
-    // Your own moves in this hand, counted 1, 2, 3 (one note per move).
-    function handMoveNumber(list, hand) {
-      return list.filter(function (e) { return e.hand === hand; }).length + 1;
+    // Your moves so far this hand. A move is a turn on which you discard a
+    // tile or win, so it's counted from the game (your discards), the same
+    // for every coach, however many notes each one has written.
+    function movesMade() {
+      return game && game.hand ? game.hand.seats[0].discards.length : 0;
+    }
+
+    // The move a note belongs to: the one being decided at your turn or claim
+    // (set when it starts), so every coach's hint and feedback share it.
+    function handMoveNumber() {
+      return ui.moveAt || movesMade() + 1;
     }
 
     function hintList(id) {
@@ -3921,7 +3929,7 @@
         }
         return;
       }
-      var entry = { kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber(list, hand), hand: hand };
+      var entry = { kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber(), hand: hand };
       if (levels) entry.levels = levels;
       list.push(entry);
       if (list.length > 200) list.shift();
@@ -6217,7 +6225,8 @@
 
     var handlers = {
       handStart: function () {
-        ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null };
+        ui.moveAt = null; // a new hand starts again at move 1
+        ui.hide ={ pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null };
         ui.botDrawn = [false, false, false, false];
         ui.botLift = null;
         ui.winInHand = null;
@@ -6480,6 +6489,7 @@
         turn: function (g, seat, opts) {
           return new Promise(function (resolve) {
             ui.turnPrompt = { opts: opts, resolve: resolve };
+            ui.moveAt = movesMade() + 1; // this turn's discard (or win) is your next move
             ui.selected = -1;
             // Feedback on a discard clears when your next turn starts. Feedback on
             // a claim stays until your next move.
@@ -6501,6 +6511,7 @@
             if (opts.pung || opts.kong) highlight.push(opts.tile);
             opts.chows.forEach(function (p) { highlight = highlight.concat(p); });
             ui.claimPrompt = { opts: opts, resolve: resolve, highlight: highlight };
+            ui.moveAt = movesMade() + 1; // a claim isn't a move: it leads to your next discard (or win)
             clearDiscardFeedback();
             refreshHint();
             var lessonLine = settings.lesson && ui.hint && ui.hint.action;
