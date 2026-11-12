@@ -35,7 +35,7 @@ test('Complex never says "almost no chance to win": under 1% it leaves the chanc
   assert.equal(said, 'The model expects −30 score from this discard. Next best discard is Two Character: −45 score.');
   const sure = { tile: 'c1', ml: { ev: 12, pWin: 0.08, avgWin: 1200 } };
   const likely = Coach.modelLine([sure], sure);
-  assert.match(likely, /^The model expects \+12 score from this discard, with an 8% chance to win \(about 1,200 points\)\.$/);
+  assert.match(likely, /^The model expects \+12 score from this discard, with an 8% chance to win\.$/);
 });
 
 test('Detailed leaves out the score and says why in plain words', () => {

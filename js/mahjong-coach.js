@@ -1205,7 +1205,7 @@
     if (!m) return '';
     if (m.policy != null) return policyLine(list, pick, m);
     var line = 'The model expects ' + pointsWord(m.ev) + ' from this discard' +
-      (m.pWin >= 0.01 ? ', with ' + chance(m.pWin, 'win') + ' (about ' + Math.round(m.avgWin).toLocaleString('en-US') + ' points)' : '') + '.';
+      (m.pWin >= 0.01 ? ', with ' + chance(m.pWin, 'win') : '') + '.';
     var next = list.filter(function (x) { return x !== pick && x.ml && x.ml.choice !== false; })
       .sort(function (a, b) { return b.ml.ev - a.ml.ev; })[0];
     if (next) line += ' Next best discard is ' + E.tileName(next.tile) + ': ' + pointsWord(next.ml.ev) + '.';
