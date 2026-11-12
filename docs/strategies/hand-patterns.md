@@ -441,7 +441,7 @@ The most common is 18 turns: 123,191 wins, 9.5% of them. The longest win took 27
 
 ### Choosing a hand
 
-- **A full flush is worth more than a half flush.** A player scores a half flush in more games (58.0% against 44.5%), but a full flush earns 533 points a game against 328.
+- **A full flush wins more often than all triplets, and is worth more.** It wins 13.8% of hands against 10.1%, and a player scores it in 44.5% of games against 35.7%. It also earns 533 points a game against 323.
 - **The rare big hands earn the most a game.** Thirteen Orphans (807 points a game) and Concealed Triplets (625) top the table, though a player scores them in only 6.2% and 8.4% of games.
 - **Seven Pairs is common but cheap.** It is scored in 33.2% of games for 44 points a game, against 323 for All Triplets, which is scored about as often (35.7%).
 

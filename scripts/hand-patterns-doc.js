@@ -307,7 +307,7 @@ Every strategy sat in all ${n(hands)} hands, one seat each. ${n(draws)} hands ($
   md += `- **Dealing in is the other half of the score.** Deal-ins per hand: ${byDealIn.map(([id, nm]) => `${nm} ${pct(st[id].dealIns, st[id].hands, 1)}`).join(', ')}. ${NAME[topPts]} deals in the least of the four and scores the most.\n`;
 
   md += `\n### Choosing a hand\n\n`;
-  if (hf && ff) md += `- **A full flush is worth more than a half flush.** A player scores a half flush in more games (${pct(hf.games, seatGames)} against ${pct(ff.games, seatGames)}), but a full flush earns ${ff.ptsMean.toFixed(0)} points a game against ${hf.ptsMean.toFixed(0)}.\n`;
+  if (ff && at) md += `- **A full flush wins more often than all triplets, and is worth more.** It wins ${pct(ff.k, hands)} of hands against ${pct(at.k, hands)}, and a player scores it in ${pct(ff.games, seatGames)} of games against ${pct(at.games, seatGames)}. It also earns ${ff.ptsMean.toFixed(0)} points a game against ${at.ptsMean.toFixed(0)}.\n`;
   if (to && ct) md += `- **The rare big hands earn the most a game.** Thirteen Orphans (${to.ptsMean.toFixed(0)} points a game) and Concealed Triplets (${ct.ptsMean.toFixed(0)}) top the table, though a player scores them in only ${pct(to.games, seatGames)} and ${pct(ct.games, seatGames)} of games.\n`;
   if (sp && at) md += `- **Seven Pairs is common but cheap.** It is scored in ${pct(sp.games, seatGames)} of games for ${sp.ptsMean.toFixed(0)} points a game, against ${at.ptsMean.toFixed(0)} for All Triplets, which is scored about as often (${pct(at.games, seatGames)}).\n`;
 
