@@ -4456,6 +4456,12 @@
       ctx.font = 'bold ' + (phone ? 12 : 15) + 'px ' + FONT_BODY;
       // Each button is only as wide as its label.
       var widths = acts.map(function (a) { return Math.ceil(ctx.measureText(a.label).width) + (phone ? 20 : 28); });
+      if (ui.flowerPrompt) {
+        // The tutorial's Replace flowers is sized like the top bar's controls (Menu, Rules...).
+        h = 28;
+        ctx.font = Math.min(15, h * 0.39) + 'px ' + FONT_HEAD;
+        widths = acts.map(function (a) { return Math.ceil(ctx.measureText(a.label).width) + 28; });
+      }
       var buttonsW = widths.reduce(function (sum, w) { return sum + w; }, 0) + gap * (acts.length - 1);
       var x0 = L.meX + L.pad, x1 = L.meX + L.meW - L.pad, rowY = L.actionsY;
       var free = ui.meRowFree;
