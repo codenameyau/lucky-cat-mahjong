@@ -350,6 +350,35 @@
 
   var spriteCache = {};
 
+  // The logo at exactly pw x ph device pixels, shrunk in halving steps: a
+  // 1024px image drawn straight down to a tile back or the coach's avatar
+  // skips most of its pixels and looks jagged. Cached by size.
+  var logoSizes = {};
+  function logoAtPixels(pw, ph) {
+    var src = images.logo;
+    if (!src) return null;
+    pw = Math.max(1, Math.round(pw)); ph = Math.max(1, Math.round(ph));
+    var key = pw + 'x' + ph;
+    if (logoSizes[key]) return logoSizes[key];
+    var cur = src, sw = src.width, sh = src.height;
+    while (sw / 2 >= pw && sh / 2 >= ph) {
+      sw = Math.round(sw / 2); sh = Math.round(sh / 2);
+      var step = document.createElement('canvas');
+      step.width = sw; step.height = sh;
+      var sc = step.getContext('2d');
+      sc.imageSmoothingQuality = 'high';
+      sc.drawImage(cur, 0, 0, sw, sh);
+      cur = step;
+    }
+    var cv = document.createElement('canvas');
+    cv.width = pw; cv.height = ph;
+    var c = cv.getContext('2d');
+    c.imageSmoothingQuality = 'high';
+    c.drawImage(cur, 0, 0, pw, ph);
+    logoSizes[key] = cv;
+    return cv;
+  }
+
   // A tile sprite includes its green "depth" edge below the face, so the
   // drawn height is w * TILE_ASPECT + depth.
   function tileSprite(id, w, dpr, back) {
@@ -385,9 +414,14 @@
       if (images.logo && w * dpr >= 18) {
         var lw = w * 0.62;
         var lh = lw * (images.logo.height / images.logo.width || 1);
+        // Shrunk smoothly to its device pixels and placed on whole pixels.
+        var lpw = Math.round(lw * dpr), lph = Math.round(lh * dpr);
+        var small = logoAtPixels(lpw, lph);
+        c.save();
+        c.setTransform(1, 0, 0, 1, 0, 0);
         c.globalAlpha = 0.95;
-        c.drawImage(images.logo, (w - lw) / 2, (h - lh) / 2, lw, lh);
-        c.globalAlpha = 1;
+        c.drawImage(small, Math.round((w - lw) / 2 * dpr), Math.round((h - lh) / 2 * dpr));
+        c.restore();
       }
     } else {
       roundRect(c, 0, 0, w, h, r);
@@ -1435,38 +1469,15 @@
 
     /* ---------------- drawing primitives ---------------- */
 
-    // The logo at w x h on screen, from a copy shrunk in halving steps to the
-    // exact device pixels (a 1024px image drawn straight down to ~40px skips
-    // most of its pixels and looks jagged on a large screen). Cached by size.
-    var logoSizes = {};
+    // The logo at w x h on screen (the coach's avatar), shrunk smoothly to
+    // its device pixels (logoAtPixels) and copied pixel for pixel.
     function drawLogo(x, y, w, h) {
-      var src = images.logo;
-      if (!src) return;
+      if (!images.logo) return;
       // Where it lands in device pixels (the canvas's own scale), snapped to
       // whole pixels: a copy drawn between pixels is resampled, and blurs.
       var t = ctx.getTransform();
       var dx = Math.round(t.a * x + t.c * y + t.e), dy = Math.round(t.b * x + t.d * y + t.f);
-      var pw = Math.max(1, Math.round(w * t.a)), ph = Math.max(1, Math.round(h * t.d));
-      var key = pw + 'x' + ph;
-      var cv = logoSizes[key];
-      if (!cv) {
-        var cur = src, sw = src.width, sh = src.height;
-        while (sw / 2 >= pw && sh / 2 >= ph) {
-          sw = Math.round(sw / 2); sh = Math.round(sh / 2);
-          var step = document.createElement('canvas');
-          step.width = sw; step.height = sh;
-          var sc = step.getContext('2d');
-          sc.imageSmoothingQuality = 'high';
-          sc.drawImage(cur, 0, 0, sw, sh);
-          cur = step;
-        }
-        cv = document.createElement('canvas');
-        cv.width = pw; cv.height = ph;
-        var c = cv.getContext('2d');
-        c.imageSmoothingQuality = 'high';
-        c.drawImage(cur, 0, 0, pw, ph);
-        logoSizes[key] = cv;
-      }
+      var cv = logoAtPixels(w * t.a, h * t.d);
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.drawImage(cv, dx, dy); // pixel for pixel
