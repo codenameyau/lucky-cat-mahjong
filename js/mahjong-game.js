@@ -1520,7 +1520,7 @@
       if (!ui.shake || ui.shake.kind !== kind || ui.shake.key !== key) return 0;
       var p = (now() - ui.shake.start) / SHAKE_MS;
       if (p < 0 || p >= 1) return 0;
-      return Math.sin(p * Math.PI * 5) * (1 - p) * 18;
+      return Math.sin(p * Math.PI * 5) * (1 - p) * (kind === 'tile' ? 10 : 18); // a refused tile shakes gently
     }
 
     function button(label, x, y, w, h, onTap, style, id, picked) {
