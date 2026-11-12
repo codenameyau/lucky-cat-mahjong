@@ -875,7 +875,7 @@
       turnPrompt: null,
       claimPrompt: null,
       hint: null,
-      hintLists: {}, // by strategy id: every hint and feedback note it gave this game, oldest first (HINTS_KEY)
+      hintLists: {}, // by strategy id: every hint and feedback note it gave this hand, oldest first (HINTS_KEY)
       hintsAll: {}, // by strategy id: the hint for the move in front of you, at the coach level
       hintsWhole: {}, // by strategy id: the same hints whole, said at any level (Coach.atDetail)
       feedbackAll: {}, // by strategy id, then coach level: its note on your last move
@@ -6226,6 +6226,11 @@
     var handlers = {
       handStart: function () {
         ui.moveAt = null; // a new hand starts again at move 1
+        // The coach's history is this hand only: every other hand's notes go.
+        Object.keys(ui.hintLists).forEach(function (id) {
+          ui.hintLists[id] = ui.hintLists[id].filter(function (e) { return e.hand === game.handNumber; });
+        });
+        saveHints();
         ui.hide ={ pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null };
         ui.botDrawn = [false, false, false, false];
         ui.botLift = null;
