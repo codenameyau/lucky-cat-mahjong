@@ -1433,6 +1433,37 @@
 
     /* ---------------- drawing primitives ---------------- */
 
+    // The logo at w x h on screen, from a copy shrunk in halving steps to the
+    // exact device pixels (a 1024px image drawn straight down to ~40px skips
+    // most of its pixels and looks jagged on a large screen). Cached by size.
+    var logoSizes = {};
+    function drawLogo(x, y, w, h) {
+      var src = images.logo;
+      if (!src) return;
+      var pw = Math.max(1, Math.round(w * dpr)), ph = Math.max(1, Math.round(h * dpr));
+      var key = pw + 'x' + ph;
+      var cv = logoSizes[key];
+      if (!cv) {
+        var cur = src, sw = src.width, sh = src.height;
+        while (sw / 2 >= pw && sh / 2 >= ph) {
+          sw = Math.round(sw / 2); sh = Math.round(sh / 2);
+          var step = document.createElement('canvas');
+          step.width = sw; step.height = sh;
+          var sc = step.getContext('2d');
+          sc.imageSmoothingQuality = 'high';
+          sc.drawImage(cur, 0, 0, sw, sh);
+          cur = step;
+        }
+        cv = document.createElement('canvas');
+        cv.width = pw; cv.height = ph;
+        var c = cv.getContext('2d');
+        c.imageSmoothingQuality = 'high';
+        c.drawImage(cur, 0, 0, pw, ph);
+        logoSizes[key] = cv;
+      }
+      ctx.drawImage(cv, x, y, w, h);
+    }
+
     function drawTile(id, x, y, w, opts) {
       opts = opts || {};
       var sp = tileSprite(id, w, dpr, !!opts.back);
@@ -3556,7 +3587,7 @@
         if (i === ui.selected) lift = tw * 0.32;
         else if (hover === 'hand-' + i && ui.turnPrompt) lift = tw * 0.12;
         var glow = null;
-        // On the tutorial's Replace flower step the flower glows too.
+        // On the tutorial's Replace flowers step the flower glows too.
         if (hintTile && !hintUsed && id === hintTile && (ui.turnPrompt || ui.flowerPrompt)) {
           // Glow the rightmost copy so it matches the drawn tile when relevant.
           var lastCopy = tiles.lastIndexOf(id);
@@ -3714,7 +3745,7 @@
       if (images.logo) {
         var iw = iconS * (images.logo.width / images.logo.height);
         var dw = Math.min(iw, 48), dh = Math.min(iconS, 48 / (iw / iconS));
-        ctx.drawImage(images.logo, x + 8, y + (h - dh) / 2, dw, dh); // centered in the box, however tall it grows
+        drawLogo(x + 8, y + (h - dh) / 2, dw, dh); // centered in the box, however tall it grows
       }
       var startY = y + h / 2 - (out.length * lh) / 2 + lh / 2;
       out.forEach(function (l, i) {
@@ -4128,7 +4159,7 @@
         ctx.fill();
         if (images.logo) {
           var logoH = avatar * (images.logo.height / images.logo.width || 1);
-          ctx.drawImage(images.logo, viewX + 8, y + (b.h - logoH) / 2, avatar, logoH);
+          drawLogo(viewX + 8, y + (b.h - logoH) / 2, avatar, logoH);
         }
         var blockH = b.lines.length * lh;
         var startY = y + (b.h - blockH) / 2 + lh / 2;
@@ -4383,7 +4414,7 @@
       if (ui.overlay) { setButtonsOverName(false); return; }
       var acts = [];
       if (ui.flowerPrompt) {
-        acts.push({ id: 'replace-flower', label: 'Replace flower', style: 'red', fn: function () {
+        acts.push({ id: 'replace-flower', label: 'Replace flowers', style: 'red', fn: function () {
           var p = ui.flowerPrompt;
           if (p) { ui.flowerPrompt = null; p.resolve(); }
         } });
@@ -6164,7 +6195,7 @@
         announce('Hand ' + game.handNumber + '. ' + (game.dealer === 0 ? 'You are' : game.players[game.dealer].name + ' is') + ' the dealer.');
         requestRender();
         // The tutorial's step one: the deal waits, flower in hand, for the
-        // Replace flower button (only here, never in a practice or full game).
+        // Replace flowers button (only here, never in a practice or full game).
         if (settings.lesson && !game.lessonStep && game.hand.seats[0].hand.some(E.isBonus)) {
           ui.hint = Lesson.FLOWER_HINT;
           rememberCoach(ui.hint, 'hint');

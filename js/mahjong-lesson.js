@@ -62,8 +62,8 @@
   }
 
   // Step one, before the first move: the deal has put Plum in your hand, and
-  // the table waits for the Replace flower button (the tutorial's only).
-  var FLOWER_HINT = { kind: 'flower', action: 'Replace flower.', tile: 'f1', decision: null, tips: [
+  // the table waits for the Replace flowers button (the tutorial's only).
+  var FLOWER_HINT = { kind: 'flower', action: 'Replace flowers.', tile: 'f1', decision: null, tips: [
     'At the beginning of the game, reveal and set aside any flower and season tiles and draw a replacement tile for each.',
     'Plum is your flower because you sit East, so it scores a faan.',
   ] };
