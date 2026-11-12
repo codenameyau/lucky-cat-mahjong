@@ -5017,7 +5017,7 @@
       text(line, lx, ly, { size: 12, color: 'rgba(255,248,240,0.7)' });
       pill(lx + lineW + 6, ly - badgeH / 2, badgeW, badgeH, COLORS.primary);
       text('BETA', lx + lineW + 6 + badgeW / 2, ly + 1, { size: 10, weight: 'bold', align: 'center', color: COLORS.white });
-      text('Built by Jorge Yau, developer, mahjong instructor', r.x + r.w / 2, r.y + r.h - 22, { size: 12, align: 'center', color: 'rgba(255,248,240,0.55)' });
+      text('Built by Jorge Yau Lee, developer, mahjong instructor', r.x + r.w / 2, r.y + r.h - 22, { size: 12, align: 'center', color: 'rgba(255,248,240,0.55)' });
     }
 
     /* ---------------- saving and loading ---------------- */
