@@ -105,7 +105,7 @@
     { seat: 0, kind: 'claim', action: { type: 'win' }, hint: say('Win on East Wind.', null, { type: 'win' }, [
       'East Wind finishes your wind triplet. You are East, and the round is East, so it scores as your seat wind and the round wind.',
       'This is taking a winning tile, not a self-draw, so only the thrower pays.',
-      'The hand is a Half Flush: Bamboo, a concealed Red Dragon triplet, the East wind triplet, the exposed 8 Bamboo kong, the exposed 2-3-4 chow, and a pair of 6 Bamboo.',
+      'The hand is now a Half Flush. You now can take the last remaining tile to form your 4 melds and a pair to win.',
     ]) },
   ];
 
