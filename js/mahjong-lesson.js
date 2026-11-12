@@ -89,7 +89,7 @@
       'A pung is three of a kind. You may take it from anyone. It stays exposed. The pair of 6 Bamboo is your eyes, the pair every hand needs to win.',
     ]) },
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'c5' }, hint: say('Discard 5 Characters.', 'c5', { type: 'discard' }, [
-      '5 Characters replaced your flower. It is not Bamboo or an honor, so it goes.',
+      'To reach 3 faan, the most common hand is a half flush so your tiles are just one suit plus any combination of dragon or wind tiles. Discard the 5 Characters so your hand only has bamboo tiles.',
     ]) },
     { seat: 1, kind: 'turn', drawn: true },
     { seat: 2, kind: 'turn', drawn: true },
