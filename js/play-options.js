@@ -67,7 +67,7 @@
       var has = !!game;
       html.classList.toggle('play-has-save', has);
       if (resumeBtn) resumeBtn.hidden = !has;
-      if (learnBtn) learnBtn.hidden = has;
+      if (learnBtn) learnBtn.hidden = false; // Learn to play always shows, as the secondary button
       if (startBtn) startBtn.textContent = has ? 'Start new game' : 'Start game';
       var startFirst = has && !!(game.settings && game.settings.mode) && game.settings.mode !== mode();
       html.classList.toggle('play-new-first', startFirst);
