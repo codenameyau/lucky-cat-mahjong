@@ -82,7 +82,7 @@
       'A chow is three tiles of the same suit (either bamboo, dots, or characters) in a sequential order. You can claim a tile from the player on your left to form a chow. After claiming a tile from another player, you must expose all tiles used to form that meld. Those tiles can no longer be separated.',
     ]) },
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'd9' }, hint: say('Discard 9 Dots.', 'd9', { type: 'discard' }, [
-      'You do not draw after a chow. 9 Dots is not part of a Half Flush in Bamboo.',
+      'You do not draw after claiming a tile. Let\'s go for a Half Flush in Bamboo, which is worth 3 faan. Discard the 9 dots.',
     ]) },
     { seat: 1, kind: 'turn', drawn: true },
     { seat: 0, kind: 'claim', action: { type: 'pung' }, hint: say('Pung 8 Bamboo.', 'b8', { type: 'pung' }, [
