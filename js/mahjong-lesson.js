@@ -65,7 +65,7 @@
   // the table waits for the Replace flowers button (the tutorial's only).
   var FLOWER_HINT = { kind: 'flower', action: 'Replace flowers.', tile: 'f1', decision: null, tips: [
     'At the beginning of the game, reveal and set aside any flower and season tiles and draw a replacement tile for each.',
-    'Plum is your flower because it has the number 1 and you sit on East, which is seat number 1, so it scores a faan because they match.',
+    'Plum is your flower since it has the number 1 and you sit on East, which is seat number 1, so it scores a faan since they match.',
   ] };
 
   // The moves, in the order the table asks for them. `drawn` discards the
