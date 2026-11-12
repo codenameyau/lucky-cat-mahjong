@@ -3559,7 +3559,8 @@
         if (i === ui.selected) lift = tw * 0.32;
         else if (hover === 'hand-' + i && ui.turnPrompt) lift = tw * 0.12;
         var glow = null;
-        if (hintTile && !hintUsed && id === hintTile && ui.turnPrompt) {
+        // On the tutorial's Replace flower step the flower glows too.
+        if (hintTile && !hintUsed && id === hintTile && (ui.turnPrompt || ui.flowerPrompt)) {
           // Glow the rightmost copy so it matches the drawn tile when relevant.
           var lastCopy = tiles.lastIndexOf(id);
           if (i === lastCopy) { glow = COLORS.gold; hintUsed = true; }
