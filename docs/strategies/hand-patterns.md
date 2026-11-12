@@ -432,13 +432,26 @@ The most common is 18 turns: 123,191 wins, 9.5% of them. The longest win took 27
 
 ## What it shows
 
-- **Points a hand decide who finishes on top, not hands won.** Neural Cat +61.8, Only Orphans +48.4, Jorge Yau −35.9, Lucky Cat −74.2 points a hand; games on top: Neural Cat 34.5%, Lucky Cat 24.1%, Jorge Yau 21.3%, Only Orphans 20.3%.
-- **Hands won, most first:** Lucky Cat 22.4%, Jorge Yau 20.0%, Neural Cat 19.0%, Only Orphans 5.3%. Lucky Cat wins the most hands but averages 5.56 faan a win; Only Orphans wins the fewest at 7.29.
-- **Half Flush is the most common winning hand** (23.6% of all hands): a player scores it in 58.0% of games, for 327.8 points a game on average. **Full Flush** wins fewer hands (13.8%) but is worth 533.4 points a game. Of all hand patterns, **Thirteen Orphans** is worth the most points a game (806.7).
-- **The dragons are the most common winning tiles:** Red Dragon, White Dragon, Green Dragon, 51,343 wins each against 39,663 for a middle suit tile (2 to 8). Winds are the least common, at 29,972 each.
-- **Wins take 16.0 turns on average** (the median is 16), and Lucky Cat takes the longest at 16.6. Slower wins score more faan: 0 to 8 turns averages 4.1 faan and 161 points, 21 or more averages 6.4 faan and 930 points.
-- **Self-draws:** 28.7% of wins are self-drawn and pay three times over; the rest are paid by the one player who threw the tile.
-- **33.3% of hands end with no winner**, and every game had at least one win.
+### Winning games
+
+- **Points a hand decide games, not hands won.** Neural Cat finishes on top most often, in 34.5% of games (34,531), while winning only 19.0% of hands. Lucky Cat wins the most hands (22.4%) but has the worst points a hand (−74.2).
+- **Small wins don't cover what you pay out.** A Lucky Cat win collects 331 points on average, against 849 for Neural Cat. That isn't enough to cover the wins it pays for, so it loses points overall.
+- **A few big hands can carry a game.** Only Orphans wins just 5.3% of hands, but 17.7% of its wins are limit hands and the average one collects 2,740 points. That puts it second in points a hand (+48.4).
+- **Dealing in is the other half of the score.** Deal-ins per hand: Only Orphans 14.3%, Lucky Cat 12.4%, Jorge Yau 10.6%, Neural Cat 10.3%. Neural Cat deals in the least of the four and scores the most.
+
+### Choosing a hand
+
+- **A full flush is worth more than a half flush.** A player scores a half flush in more games (58.0% against 44.5%), but a full flush earns 533 points a game against 328.
+- **The rare big hands earn the most a game.** Thirteen Orphans (807 points a game) and Concealed Triplets (625) top the table, though a player scores them in only 6.2% and 8.4% of games.
+- **Seven Pairs is common but cheap.** It is scored in 33.2% of games for 44 points a game, against 323 for All Triplets, which is scored about as often (35.7%).
+
+### Tiles and timing
+
+- **Dragons complete the most wins.** Each dragon completes 51,343 wins, against 39,663 for a middle suit tile (2 to 8) and 29,972 for a wind.
+- **Longer hands end in bigger wins.** Wins average 16.0 turns. Those after 8 turns or fewer average 4.1 faan and 161 points, and those after 21 or more average 6.4 faan and 930 points.
+- **Self-draws pay triple.** 28.7% of wins are self-drawn, collecting from all three opponents. The rest are paid by the one player who threw the tile.
+- **The dealer wins more often:** Jorge Yau 21.1% as dealer against 20.0% overall; Neural Cat 19.4% as dealer against 19.0% overall; Lucky Cat 23.5% as dealer against 22.4% overall; Only Orphans 5.6% as dealer against 5.3% overall.
+- **A third of hands have no winner:** 648,823 (33.3%).
 
 ## The dataset
 

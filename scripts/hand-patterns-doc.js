@@ -286,23 +286,37 @@ Every strategy sat in all ${n(hands)} hands, one seat each. ${n(draws)} hands ($
   const turnKeys = Object.keys(all.turns).map(Number).sort((a, b) => all.turns[b] - all.turns[a]);
   md += `\nThe most common is ${turnKeys[0]} turns: ${n(all.turns[turnKeys[0]])} wins, ${pct(all.turns[turnKeys[0]], wins)} of them. The longest win took ${Math.max(...Object.keys(all.turns).map(Number))}.\n`;
 
-  // What it shows, from the numbers above.
+  // What it shows: the findings, each with the numbers behind it.
   const W = (id) => st[id].wins / st[id].hands;
-  const F = (id) => st[id].faan / st[id].wins;
+  const ptsWin = (id) => st[id].winPts / st[id].wins;
+  const ppHand = (id) => ppH(id).m;
+  const R = (name) => rows.find((x) => x.p === name);
+  const hf = R('Half Flush'), ff = R('Full Flush'), to = R('Thirteen Orphans'), ct = R('Concealed Triplets'), sp = R('Seven Pairs'), at = R('All Triplets');
   const byWin = S.slice().sort((a, b) => W(b[0]) - W(a[0]));
-  const topG = S.slice().sort((a, b) => st[b[0]].top - st[a[0]].top);
-  const hf = rows.find((x) => x.p === 'Half Flush'), ff = rows.find((x) => x.p === 'Full Flush');
-  md += `\n## What it shows\n\n`;
-  md += `- **Points a hand decide who finishes on top, not hands won.** ${byPts.map(([id, nm]) => `${nm} ${sgn(ppH(id).m)}`).join(', ')} points a hand; games on top: ${topG.map(([id, nm]) => `${nm} ${pct(st[id].top, st[id].games)}`).join(', ')}.\n`;
-  md += `- **Hands won, most first:** ${byWin.map(([id, nm]) => `${nm} ${pct(st[id].wins, st[id].hands)}`).join(', ')}. ${NAME[byWin[0][0]]} wins the most hands but averages ${F(byWin[0][0]).toFixed(2)} faan a win; Only Orphans wins the fewest at ${F('only-orphans').toFixed(2)}.\n`;
-  const best = rows.slice().sort((a, b) => b.ptsMean - a.ptsMean)[0];
-  if (hf && ff) md += `- **Half Flush is the most common winning hand** (${pct(hf.k, hands)} of all hands): a player scores it in ${pct(hf.games, seatGames)} of games, for ${hf.ptsMean.toFixed(1)} points a game on average. **Full Flush** wins fewer hands (${pct(ff.k, hands)}) but is worth ${ff.ptsMean.toFixed(1)} points a game. Of all hand patterns, **${best.p}** is worth the most points a game (${best.ptsMean.toFixed(1)}).\n`;
+  const byDealIn = S.slice().sort((a, b) => st[b[0]].dealIns / st[b[0]].hands - st[a[0]].dealIns / st[a[0]].hands);
+  const topPts = byPts[0][0], mostWins = byWin[0][0];
   const dragonWins = groups.Dragons || 0, midWins = (groups['Characters (2 to 8)'] || 0) + (groups['Bamboo (2 to 8)'] || 0) + (groups['Dots (2 to 8)'] || 0);
-  md += `- **The dragons are the most common winning tiles:** ${tileRows.slice(0, 3).map((t) => tileName(t)).join(', ')}, ${n(dragonWins / 3)} wins each against ${n(midWins / 21)} for a middle suit tile (2 to 8). Winds are the least common, at ${n((groups.Winds || 0) / 4)} each.\n`;
   const fast = all.turnVal[0], slow = all.turnVal[TURN_BANDS.length - 1];
-  md += `- **Wins take ${(all.turnSum / all.wins).toFixed(1)} turns on average** (the median is ${medianTurns(all)}), and Lucky Cat takes the longest at ${(st['lucky-cat'].turnSum / st['lucky-cat'].wins).toFixed(1)}. Slower wins score more faan: ${TURN_BANDS[0][0]} turns averages ${(fast[1] / fast[0]).toFixed(1)} faan and ${n(fast[2] / fast[0])} points, ${TURN_BANDS[TURN_BANDS.length - 1][0]} averages ${(slow[1] / slow[0]).toFixed(1)} faan and ${n(slow[2] / slow[0])} points.\n`;
-  md += `- **Self-draws:** ${pct(all.self, all.wins)} of wins are self-drawn and pay three times over; the rest are paid by the one player who threw the tile.\n`;
-  md += `- **${pct(draws, hands)} of hands end with no winner**${noWinGames ? ', and ' + n(noWinGames) + ' games had none at all' : ', and every game had at least one win'}.\n`;
+  const dealerEdge = S.map(([id, nm]) => `${nm} ${pct(st[id].dealerWins, st[id].dealerHands)} as dealer against ${pct(st[id].wins, st[id].hands)} overall`);
+  md += `\n## What it shows\n`;
+
+  md += `\n### Winning games\n\n`;
+  md += `- **Points a hand decide games, not hands won.** ${NAME[topPts]} finishes on top most often, in ${pct(st[topPts].top, st[topPts].games)} of games (${n(st[topPts].top)}), while winning only ${pct(st[topPts].wins, st[topPts].hands)} of hands. ${NAME[mostWins]} wins the most hands (${pct(st[mostWins].wins, st[mostWins].hands)}) but has the worst points a hand (${sgn(ppHand(mostWins))}).\n`;
+  md += `- **Small wins don't cover what you pay out.** A ${NAME[mostWins]} win collects ${n(ptsWin(mostWins))} points on average, against ${n(ptsWin(topPts))} for ${NAME[topPts]}. That isn't enough to cover the wins it pays for, so it loses points overall.\n`;
+  md += `- **A few big hands can carry a game.** Only Orphans wins just ${pct(st['only-orphans'].wins, st['only-orphans'].hands)} of hands, but ${pct(st['only-orphans'].limit, st['only-orphans'].wins)} of its wins are limit hands and the average one collects ${n(ptsWin('only-orphans'))} points. That puts it second in points a hand (${sgn(ppHand('only-orphans'))}).\n`;
+  md += `- **Dealing in is the other half of the score.** Deal-ins per hand: ${byDealIn.map(([id, nm]) => `${nm} ${pct(st[id].dealIns, st[id].hands, 1)}`).join(', ')}. ${NAME[topPts]} deals in the least of the four and scores the most.\n`;
+
+  md += `\n### Choosing a hand\n\n`;
+  if (hf && ff) md += `- **A full flush is worth more than a half flush.** A player scores a half flush in more games (${pct(hf.games, seatGames)} against ${pct(ff.games, seatGames)}), but a full flush earns ${ff.ptsMean.toFixed(0)} points a game against ${hf.ptsMean.toFixed(0)}.\n`;
+  if (to && ct) md += `- **The rare big hands earn the most a game.** Thirteen Orphans (${to.ptsMean.toFixed(0)} points a game) and Concealed Triplets (${ct.ptsMean.toFixed(0)}) top the table, though a player scores them in only ${pct(to.games, seatGames)} and ${pct(ct.games, seatGames)} of games.\n`;
+  if (sp && at) md += `- **Seven Pairs is common but cheap.** It is scored in ${pct(sp.games, seatGames)} of games for ${sp.ptsMean.toFixed(0)} points a game, against ${at.ptsMean.toFixed(0)} for All Triplets, which is scored about as often (${pct(at.games, seatGames)}).\n`;
+
+  md += `\n### Tiles and timing\n\n`;
+  md += `- **Dragons complete the most wins.** Each dragon completes ${n(dragonWins / 3)} wins, against ${n(midWins / 21)} for a middle suit tile (2 to 8) and ${n((groups.Winds || 0) / 4)} for a wind.\n`;
+  md += `- **Longer hands end in bigger wins.** Wins average ${(all.turnSum / all.wins).toFixed(1)} turns. Those after ${TURN_BANDS[0][2]} turns or fewer average ${(fast[1] / fast[0]).toFixed(1)} faan and ${n(fast[2] / fast[0])} points, and those after ${TURN_BANDS[TURN_BANDS.length - 1][1]} or more average ${(slow[1] / slow[0]).toFixed(1)} faan and ${n(slow[2] / slow[0])} points.\n`;
+  md += `- **Self-draws pay triple.** ${pct(all.self, all.wins)} of wins are self-drawn, collecting from all three opponents. The rest are paid by the one player who threw the tile.\n`;
+  md += `- **The dealer wins more often:** ${dealerEdge.join('; ')}.\n`;
+  md += `- **A third of hands have no winner:** ${cp(draws, hands)}.\n`;
 
   md += `
 ## The dataset
