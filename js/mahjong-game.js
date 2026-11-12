@@ -807,6 +807,9 @@
     // Music on plays the music and the sounds, Sound on only the sounds.
     sound.musicEnabled = sound.enabled && prefs.music !== false;
     var reduceMotion = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // A mouse (or trackpad) is the main pointer: a computer, not an iPad,
+    // even when an iPad sideways gets the desktop layout.
+    var finePointer = !!(root.matchMedia && root.matchMedia('(hover: hover) and (pointer: fine)').matches);
 
     // W and H are the layout size. On short landscape screens the table is
     // laid out taller and scaled down to fit (zoom < 1); dpr then includes
@@ -4493,15 +4496,20 @@
       var phone = W < 600; // smaller buttons on a phone
       // Every action button (Discard, Win, Pung, Chow, Kong, Pass, Replace
       // flowers) is sized like the top bar's controls (Menu, Rules...).
-      var h = 28;
+      // On a computer a claim's buttons and its tile are about a fifth
+      // larger, so the choice reads at a glance (not on a phone or an iPad).
+      var bigClaim = !!ui.claimPrompt && L.desktop && finePointer;
+      var h = bigClaim ? 34 : 28;
       var gap = phone ? 6 : 8;
       // When claiming, show the tile that is up for grabs beside the buttons.
       var claimTile = ui.claimPrompt ? ui.claimPrompt.opts.tile : null;
-      var ctw = claimTile ? Math.min(phone ? 24 : 30, (L.actionsH - 4) / TILE_ASPECT) : 0;
+      var ctw = !claimTile ? 0 : bigClaim
+        ? Math.min(34, (L.meldRowH - 6) / TILE_ASPECT) // taller than the buttons, inside your meld row
+        : Math.min(phone ? 24 : 30, (L.actionsH - 4) / TILE_ASPECT);
       var lead = claimTile ? ctw + 10 : 0;
       ctx.font = Math.min(15, h * 0.39) + 'px ' + FONT_HEAD; // the label size button() draws at
       // Each button is only as wide as its label.
-      var widths = acts.map(function (a) { return Math.ceil(ctx.measureText(a.label).width) + (phone ? 20 : 28); });
+      var widths = acts.map(function (a) { return Math.ceil(ctx.measureText(a.label).width) + (phone ? 20 : bigClaim ? 34 : 28); });
       var buttonsW = widths.reduce(function (sum, w) { return sum + w; }, 0) + gap * (acts.length - 1);
       var x0 = L.meX + L.pad, x1 = L.meX + L.meW - L.pad, rowY = L.actionsY;
       var free = ui.meRowFree;
