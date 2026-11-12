@@ -804,7 +804,8 @@
     var sound = createSound(soundOn);
     // Silent for the tile cues while auto-play runs (it follows the live state, so it can't stick on).
     sound.isQuiet = function (name) { return autoPlay && TILE_CUES[name] === 1; };
-    sound.musicEnabled = sound.enabled;
+    // Music on plays the music and the sounds, Sound on only the sounds.
+    sound.musicEnabled = sound.enabled && prefs.music !== false;
     var reduceMotion = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     // W and H are the layout size. On short landscape screens the table is
@@ -2808,12 +2809,14 @@
     }
 
     var COACH_LABELS = { on: 'Coach on', feedback: 'Feedback on', off: 'Coach off' };
-    // The Sound button toggles effects and music together.
-    var SOUND_LABELS = { on: 'Sound on', off: 'Sound off' };
-    var SOUND_ORDER = ['on', 'off'];
+    // The Sound button cycles Music on (music and sounds), Sound on (sounds,
+    // no music) and Sound off (neither).
+    var SOUND_LABELS = { music: 'Music on', sound: 'Sound on', off: 'Sound off' };
+    var SOUND_ORDER = ['music', 'sound', 'off'];
 
     function soundMode() {
-      return sound.enabled ? 'on' : 'off';
+      if (!sound.enabled) return 'off';
+      return sound.musicEnabled ? 'music' : 'sound';
     }
     var COACH_ORDER = ['on', 'feedback', 'off'];
 
@@ -5449,9 +5452,9 @@
     function toggleSound() {
       var next = SOUND_ORDER[(SOUND_ORDER.indexOf(soundMode()) + 1) % SOUND_ORDER.length];
       sound.enabled = next !== 'off';
-      sound.musicEnabled = sound.enabled;
+      sound.musicEnabled = next === 'music';
       prefs.sound = sound.enabled;
-      prefs.music = sound.enabled;
+      prefs.music = sound.musicEnabled;
       writeJson(PREFS_KEY, prefs);
       sound.music(true); // plays or pauses to match
       if (sound.enabled) sound.play('select');
@@ -8187,7 +8190,7 @@
         applyTheme(prefs.theme);
         if (!soundParam) {
           sound.enabled = prefs.sound !== false;
-          sound.musicEnabled = sound.enabled;
+          sound.musicEnabled = sound.enabled && prefs.music !== false;
         }
         document.addEventListener('visibilitychange', onVisibility);
         root.addEventListener('resize', onResize);
