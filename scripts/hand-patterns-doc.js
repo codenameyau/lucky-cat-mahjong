@@ -185,27 +185,21 @@ Every strategy sat in all ${n(hands)} hands, one seat each. ${n(draws)} hands ($
   md += `\nNet points a hand is what a seat won less what it paid, averaged over every hand it sat in. Games finished on top is the share of games a strategy ended with the most points; a tie counts for each.\n`;
 
   // Expected faan and points a game, from every player in every game.
-  // values: the non-zero games; the other seatGames - values.length are 0.
+  // values: the non-zero games; the rest of the seatGames count as 0.
   const meanOf = (values) => values.reduce((t, v) => t + v, 0) / seatGames;
-  const medianOf = (values) => {
-    const zeros = seatGames - values.length;
-    const sorted = values.slice().sort((x, y) => x - y);
-    const at = (i) => (i < zeros ? 0 : sorted[i - zeros]);
-    return seatGames % 2 ? at((seatGames - 1) / 2) : (at(seatGames / 2 - 1) + at(seatGames / 2)) / 2;
-  };
   const handPats = Object.keys(all.pat).filter((p) => KIND(p) === 'hand');
   const rows = handPats.map((p) => {
     const g = perGame[p];
-    return { p, k: all.pat[p], games: g.faan.length, faanMean: meanOf(g.faan), faanMed: medianOf(g.faan), ptsMean: meanOf(g.pts), ptsMed: medianOf(g.pts) };
+    return { p, k: all.pat[p], games: g.faan.length, faanMean: meanOf(g.faan), ptsMean: meanOf(g.pts) };
   });
-  const allRow = { p: '**Any win**', k: wins, games: perGameAll.faan.length, faanMean: meanOf(perGameAll.faan), faanMed: medianOf(perGameAll.faan), ptsMean: meanOf(perGameAll.pts), ptsMed: medianOf(perGameAll.pts), any: true };
+  const allRow = { p: '**Any win**', k: wins, games: perGameAll.faan.length, faanMean: meanOf(perGameAll.faan), ptsMean: meanOf(perGameAll.pts), any: true };
   const fx = (v) => (v === 0 ? '0' : v.toFixed(v < 0.1 ? 3 : 2));
-  const head = '| Pattern | Its own faan | Win rate per hand | Games a player scores it | Faan a game: mean | Faan a game: median | Points a game: mean | Points a game: median |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n';
-  const row = (x) => `| ${x.p} | ${x.any ? '' : ownFaan(x.p)} | ${cp(x.k, hands, x.k / hands < 0.001 ? 3 : 2)} | ${cp(x.games, seatGames, x.games / seatGames < 0.001 ? 3 : 1)} | ${fx(x.faanMean)} | ${fx(x.faanMed)} | ${x.ptsMean.toFixed(1)} | ${n(x.ptsMed)} |\n`;
+  const head = '| Pattern | Its own faan | Win rate per hand | Games a player scores it | Faan a game | Points a game |\n| --- | ---: | ---: | ---: | ---: | ---: |\n';
+  const row = (x) => `| ${x.p} | ${x.any ? '' : ownFaan(x.p)} | ${cp(x.k, hands, x.k / hands < 0.001 ? 3 : 2)} | ${cp(x.games, seatGames, x.games / seatGames < 0.001 ? 3 : 1)} | ${fx(x.faanMean)} | ${x.ptsMean.toFixed(1)} |\n`;
   md += `\n## Win rate and expected faan of each hand pattern\n\n`;
   md += `Each pattern's expected value over **every player in every game**: the ${n(seatGames)} games a player sat through (${n(games)} games × 4 players), including every game where that player never won with it.\n\n`;
-  md += `- **Faan a game** and **Points a game:** the faan and points a player collected in one game from wins that scored the pattern, as the mean and the median over all ${n(seatGames)}. A game where the player didn't win with the pattern counts as 0. The faan is the whole win's, every other pattern of it included.\n`;
-  md += `- **Games a player scores it:** the share of games in which a player won at least once with the pattern. Below 50%, the median is 0: in most games a player doesn't score it at all.\n`;
+  md += `- **Faan a game** and **Points a game:** the faan and points a player collected in one game from wins that scored the pattern, averaged over all ${n(seatGames)}. A game where the player didn't win with the pattern counts as 0. The faan is the whole win's, every other pattern of it included.\n`;
+  md += `- **Games a player scores it:** the share of games in which a player won at least once with the pattern.\n`;
   md += `- **Win rate per hand:** the share of all ${n(hands)} hands that ended in a win scoring the pattern, by anyone.\n`;
   md += `- **Points** are what the winner collected, before anything paid elsewhere in the game. They double with each faan (8 at 3 faan, 8,192 at the 13-faan limit), so a few big wins pull the means up. **Any win** is every win, whatever its pattern: a player's total from winning, a game.\n`;
   md += `- The data record how hands ended, not what a player was aiming for. These are the values a player gets from each pattern at this table, not the odds of finishing it once going for it. A win can score more than one hand pattern, so the rows overlap.\n`;
@@ -288,8 +282,6 @@ Every strategy sat in all ${n(hands)} hands, one seat each. ${n(draws)} hands ($
   md += `- **Hands won, most first:** ${byWin.map(([id, nm]) => `${nm} ${pct(st[id].wins, st[id].hands)}`).join(', ')}. ${NAME[byWin[0][0]]} wins the most hands but averages ${F(byWin[0][0]).toFixed(2)} faan a win; Only Orphans wins the fewest at ${F('only-orphans').toFixed(2)}.\n`;
   const best = rows.slice().sort((a, b) => b.ptsMean - a.ptsMean)[0];
   if (hf && ff) md += `- **Half Flush is the most common winning hand** (${pct(hf.k, hands)} of all hands): a player scores it in ${pct(hf.games, seatGames)} of games, for ${hf.ptsMean.toFixed(1)} points a game on average. **Full Flush** wins fewer hands (${pct(ff.k, hands)}) but is worth ${ff.ptsMean.toFixed(1)} points a game. Of all hand patterns, **${best.p}** is worth the most points a game (${best.ptsMean.toFixed(1)}).\n`;
-  const nonZero = rows.filter((x) => x.ptsMed > 0).map((x) => x.p);
-  md += `- **Medians are 0 for most patterns**, since a player scores them in fewer than half its games. ${nonZero.length ? `Only ${nonZero.join(' and ')} ${nonZero.length > 1 ? 'have' : 'has'} a median above 0.` : 'None has a median above 0.'} Winning at all, with any pattern, is worth a median of ${n(allRow.ptsMed)} points a game against a mean of ${n(allRow.ptsMean)}, because a few big wins carry the mean.\n`;
   const dragonWins = groups.Dragons || 0, midWins = (groups['Characters (2 to 8)'] || 0) + (groups['Bamboo (2 to 8)'] || 0) + (groups['Dots (2 to 8)'] || 0);
   md += `- **The dragons are the most common winning tiles:** ${tileRows.slice(0, 3).map((t) => tileName(t)).join(', ')}, ${n(dragonWins / 3)} wins each against ${n(midWins / 21)} for a middle suit tile (2 to 8). Winds are the least common, at ${n((groups.Winds || 0) / 4)} each.\n`;
   const fast = all.turnVal[0], slow = all.turnVal[TURN_BANDS.length - 1];
