@@ -21,7 +21,7 @@ function split(line) {
 
 const blank = () => ({ hands: 0, wins: 0, faan: 0, limit: 0, self: 0, concealed: 0, dealIns: 0, points: 0, top: 0, games: 0,
   dealerHands: 0, dealerWins: 0, pat: {}, patFaan: {}, patPts: {}, byFaan: {}, full: {}, gamePts: [],
-  tiles: {}, turns: {}, turnSum: 0, turnVal: {} });
+  tiles: {}, turns: {}, turnSum: 0, turnVal: {}, byPts: {}, winPts: 0 });
 // Turns to win, in bands: [label, lowest, highest].
 const TURN_BANDS = [['0 to 8', 0, 8], ['9 to 11', 9, 11], ['12 to 14', 12, 14], ['15 to 17', 15, 17], ['18 to 20', 18, 20], ['21 or more', 21, Infinity]];
 const turnBucket = (t) => TURN_BANDS.findIndex(([, lo, hi]) => t >= lo && t <= hi);
@@ -95,6 +95,7 @@ function closeGame() {
     for (const y of [x, all]) {
       y.wins++; y.faan += f; if (f >= 13) y.limit++; if (how === 'selfDraw') y.self++; if (r[I.concealed] === '1') y.concealed++;
       y.byFaan[f] = (y.byFaan[f] || 0) + 1;
+      y.byPts[wp] = (y.byPts[wp] || 0) + 1; y.winPts += wp;
       y.full[r[I.full_hand]] = (y.full[r[I.full_hand]] || 0) + 1;
     }
     if (w === dealer) x.dealerWins++;
@@ -149,6 +150,7 @@ A **hand** is one hand of mahjong, which ends in a win or a draw. A **game** is 
 - [Hand patterns by strategy](#hand-patterns-by-strategy)
 - [Sets of honors and bonuses](#sets-of-honors-and-bonuses)
 - [Wins by total faan](#wins-by-total-faan)
+- [Wins by total points](#wins-by-total-points)
 - [Full hands: every pattern of a win, with its faan](#full-hands-every-pattern-of-a-win-with-its-faan)
 - [Winning tiles](#winning-tiles)
 - [Turns to win](#turns-to-win)
@@ -231,13 +233,26 @@ Every strategy sat in all ${n(hands)} hands, one seat each. ${n(draws)} hands ($
   const faans = Object.keys(all.byFaan).map(Number).sort((a, b) => a - b);
   md += `\n## Wins by total faan\n\n| Total faan | ${S.map(([, nm]) => nm).join(' | ')} | All |\n| --- | ${S.map(() => '---:').join(' | ')} | ---: |\n`;
   for (const f of faans) md += `| ${f >= 13 ? '13 (limit)' : f} | ${S.map(([id]) => cp(st[id].byFaan[f] || 0, st[id].wins)).join(' | ')} | ${cp(all.byFaan[f], all.wins)} |\n`;
+  md += `| **Total** | ${S.map(([id]) => `**${cp(st[id].wins, st[id].wins)}**`).join(' | ')} | **${cp(all.wins, all.wins)}** |\n`;
   md += `\nEach strategy's wins at each total faan, and their share of its wins.\n`;
+
+  // Wins by the points the winner collected: the payout for the faan, three times it on a self-draw.
+  const ptsKeys = Object.keys(all.byPts).map(Number).sort((a, b) => a - b);
+  md += `\n## Wins by total points\n\nThe points the winner collected from each win: the full-spicy payout for its faan, from 8 at 3 faan to 8,192 at the limit, collected three times on a self-draw (once from each opponent).\n\n| Points | ${S.map(([, nm]) => nm).join(' | ')} | All |\n| ---: | ${S.map(() => '---:').join(' | ')} | ---: |\n`;
+  for (const v of ptsKeys) md += `| ${n(v)} | ${S.map(([id]) => cp(st[id].byPts[v] || 0, st[id].wins)).join(' | ')} | ${cp(all.byPts[v], all.wins)} |\n`;
+  md += `| **Total wins** | ${S.map(([id]) => `**${cp(st[id].wins, st[id].wins)}**`).join(' | ')} | **${cp(all.wins, all.wins)}** |\n`;
+  md += `| **Total points collected** | ${S.map(([id]) => `**${n(st[id].winPts)}**`).join(' | ')} | **${n(all.winPts)}** |\n`;
+  md += `\nEach strategy's wins collecting each number of points, and their share of its wins. Total points collected adds up everything its wins collected, before what it paid on other players' wins.\n`;
 
   const fullTable = (full, total, k) => {
     const keys = Object.keys(full).sort((a, b) => full[b] - full[a]).slice(0, k);
-    return '| Full hand (every pattern, = total faan) | Wins | % of wins |\n| --- | ---: | ---: |\n' + keys.map((key) => `| ${key} | ${n(full[key])} | ${pct(full[key], total)} |\n`).join('');
+    // Each key is "Pattern + Pattern = faan": the patterns, and the total faan in its own column.
+    return '| Full hand (every pattern) | Total faan | Wins | % of wins |\n| --- | ---: | ---: | ---: |\n' + keys.map((key) => {
+      const at = key.lastIndexOf(' = ');
+      return `| ${key.slice(0, at)} | ${key.slice(at + 3)} | ${n(full[key])} | ${pct(full[key], total)} |\n`;
+    }).join('');
   };
-  md += `\n## Full hands: every pattern of a win, with its faan\n\nThe most common complete wins: every pattern a win scored, with its total. Patterns that score twice show ×2.\n\n### All four strategies\n\n` + fullTable(all.full, all.wins, 20).replace(/ x(\d)/g, ' ×$1');
+  md += `\n## Full hands: every pattern of a win, with its faan\n\nThe most common complete wins: every pattern a win scored, and its total faan. Patterns that score twice show ×2.\n\n### All four strategies\n\n` + fullTable(all.full, all.wins, 20).replace(/ x(\d)/g, ' ×$1');
   for (const [id, name, model] of S) md += `\n### ${name} (${model})\n\n` + fullTable(st[id].full, st[id].wins, 12).replace(/ x(\d)/g, ' ×$1');
 
   // Winning tiles: the tile that completed each win.
@@ -271,23 +286,37 @@ Every strategy sat in all ${n(hands)} hands, one seat each. ${n(draws)} hands ($
   const turnKeys = Object.keys(all.turns).map(Number).sort((a, b) => all.turns[b] - all.turns[a]);
   md += `\nThe most common is ${turnKeys[0]} turns: ${n(all.turns[turnKeys[0]])} wins, ${pct(all.turns[turnKeys[0]], wins)} of them. The longest win took ${Math.max(...Object.keys(all.turns).map(Number))}.\n`;
 
-  // What it shows, from the numbers above.
+  // What it shows: the findings, each with the numbers behind it.
   const W = (id) => st[id].wins / st[id].hands;
-  const F = (id) => st[id].faan / st[id].wins;
+  const ptsWin = (id) => st[id].winPts / st[id].wins;
+  const ppHand = (id) => ppH(id).m;
+  const R = (name) => rows.find((x) => x.p === name);
+  const hf = R('Half Flush'), ff = R('Full Flush'), to = R('Thirteen Orphans'), ct = R('Concealed Triplets'), sp = R('Seven Pairs'), at = R('All Triplets');
   const byWin = S.slice().sort((a, b) => W(b[0]) - W(a[0]));
-  const topG = S.slice().sort((a, b) => st[b[0]].top - st[a[0]].top);
-  const hf = rows.find((x) => x.p === 'Half Flush'), ff = rows.find((x) => x.p === 'Full Flush');
-  md += `\n## What it shows\n\n`;
-  md += `- **Points a hand decide who finishes on top, not hands won.** ${byPts.map(([id, nm]) => `${nm} ${sgn(ppH(id).m)}`).join(', ')} points a hand; games on top: ${topG.map(([id, nm]) => `${nm} ${pct(st[id].top, st[id].games)}`).join(', ')}.\n`;
-  md += `- **Hands won, most first:** ${byWin.map(([id, nm]) => `${nm} ${pct(st[id].wins, st[id].hands)}`).join(', ')}. ${NAME[byWin[0][0]]} wins the most hands but averages ${F(byWin[0][0]).toFixed(2)} faan a win; Only Orphans wins the fewest at ${F('only-orphans').toFixed(2)}.\n`;
-  const best = rows.slice().sort((a, b) => b.ptsMean - a.ptsMean)[0];
-  if (hf && ff) md += `- **Half Flush is the most common winning hand** (${pct(hf.k, hands)} of all hands): a player scores it in ${pct(hf.games, seatGames)} of games, for ${hf.ptsMean.toFixed(1)} points a game on average. **Full Flush** wins fewer hands (${pct(ff.k, hands)}) but is worth ${ff.ptsMean.toFixed(1)} points a game. Of all hand patterns, **${best.p}** is worth the most points a game (${best.ptsMean.toFixed(1)}).\n`;
+  const byDealIn = S.slice().sort((a, b) => st[b[0]].dealIns / st[b[0]].hands - st[a[0]].dealIns / st[a[0]].hands);
+  const topPts = byPts[0][0], mostWins = byWin[0][0];
   const dragonWins = groups.Dragons || 0, midWins = (groups['Characters (2 to 8)'] || 0) + (groups['Bamboo (2 to 8)'] || 0) + (groups['Dots (2 to 8)'] || 0);
-  md += `- **The dragons are the most common winning tiles:** ${tileRows.slice(0, 3).map((t) => tileName(t)).join(', ')}, ${n(dragonWins / 3)} wins each against ${n(midWins / 21)} for a middle suit tile (2 to 8). Winds are the least common, at ${n((groups.Winds || 0) / 4)} each.\n`;
   const fast = all.turnVal[0], slow = all.turnVal[TURN_BANDS.length - 1];
-  md += `- **Wins take ${(all.turnSum / all.wins).toFixed(1)} turns on average** (the median is ${medianTurns(all)}), and Lucky Cat takes the longest at ${(st['lucky-cat'].turnSum / st['lucky-cat'].wins).toFixed(1)}. Slower wins score more faan: ${TURN_BANDS[0][0]} turns averages ${(fast[1] / fast[0]).toFixed(1)} faan and ${n(fast[2] / fast[0])} points, ${TURN_BANDS[TURN_BANDS.length - 1][0]} averages ${(slow[1] / slow[0]).toFixed(1)} faan and ${n(slow[2] / slow[0])} points.\n`;
-  md += `- **Self-draws:** ${pct(all.self, all.wins)} of wins are self-drawn and pay three times over; the rest are paid by the one player who threw the tile.\n`;
-  md += `- **${pct(draws, hands)} of hands end with no winner**${noWinGames ? ', and ' + n(noWinGames) + ' games had none at all' : ', and every game had at least one win'}.\n`;
+  const dealerEdge = S.map(([id, nm]) => `${nm} ${pct(st[id].dealerWins, st[id].dealerHands)} as dealer against ${pct(st[id].wins, st[id].hands)} overall`);
+  md += `\n## What it shows\n`;
+
+  md += `\n### Winning games\n\n`;
+  md += `- **Points a hand decide games, not hands won.** ${NAME[topPts]} finishes on top most often, in ${pct(st[topPts].top, st[topPts].games)} of games (${n(st[topPts].top)}), while winning only ${pct(st[topPts].wins, st[topPts].hands)} of hands. ${NAME[mostWins]} wins the most hands (${pct(st[mostWins].wins, st[mostWins].hands)}) but has the worst points a hand (${sgn(ppHand(mostWins))}).\n`;
+  md += `- **Small wins don't cover what you pay out.** A ${NAME[mostWins]} win collects ${n(ptsWin(mostWins))} points on average, against ${n(ptsWin(topPts))} for ${NAME[topPts]}. That isn't enough to cover the wins it pays for, so it loses points overall.\n`;
+  md += `- **A few big hands can carry a game.** Only Orphans wins just ${pct(st['only-orphans'].wins, st['only-orphans'].hands)} of hands, but ${pct(st['only-orphans'].limit, st['only-orphans'].wins)} of its wins are limit hands and the average one collects ${n(ptsWin('only-orphans'))} points. That puts it second in points a hand (${sgn(ppHand('only-orphans'))}).\n`;
+  md += `- **Dealing in is the other half of the score.** Deal-ins per hand: ${byDealIn.map(([id, nm]) => `${nm} ${pct(st[id].dealIns, st[id].hands, 1)}`).join(', ')}. ${NAME[topPts]} deals in the least of the four and scores the most.\n`;
+
+  md += `\n### Choosing a hand\n\n`;
+  if (hf && ff) md += `- **A full flush is worth more than a half flush.** A player scores a half flush in more games (${pct(hf.games, seatGames)} against ${pct(ff.games, seatGames)}), but a full flush earns ${ff.ptsMean.toFixed(0)} points a game against ${hf.ptsMean.toFixed(0)}.\n`;
+  if (to && ct) md += `- **The rare big hands earn the most a game.** Thirteen Orphans (${to.ptsMean.toFixed(0)} points a game) and Concealed Triplets (${ct.ptsMean.toFixed(0)}) top the table, though a player scores them in only ${pct(to.games, seatGames)} and ${pct(ct.games, seatGames)} of games.\n`;
+  if (sp && at) md += `- **Seven Pairs is common but cheap.** It is scored in ${pct(sp.games, seatGames)} of games for ${sp.ptsMean.toFixed(0)} points a game, against ${at.ptsMean.toFixed(0)} for All Triplets, which is scored about as often (${pct(at.games, seatGames)}).\n`;
+
+  md += `\n### Tiles and timing\n\n`;
+  md += `- **Dragons complete the most wins.** Each dragon completes ${n(dragonWins / 3)} wins, against ${n(midWins / 21)} for a middle suit tile (2 to 8) and ${n((groups.Winds || 0) / 4)} for a wind.\n`;
+  md += `- **Longer hands end in bigger wins.** Wins average ${(all.turnSum / all.wins).toFixed(1)} turns. Those after ${TURN_BANDS[0][2]} turns or fewer average ${(fast[1] / fast[0]).toFixed(1)} faan and ${n(fast[2] / fast[0])} points, and those after ${TURN_BANDS[TURN_BANDS.length - 1][1]} or more average ${(slow[1] / slow[0]).toFixed(1)} faan and ${n(slow[2] / slow[0])} points.\n`;
+  md += `- **Self-draws pay triple.** ${pct(all.self, all.wins)} of wins are self-drawn, collecting from all three opponents. The rest are paid by the one player who threw the tile.\n`;
+  md += `- **The dealer wins more often:** ${dealerEdge.join('; ')}.\n`;
+  md += `- **A third of hands have no winner:** ${cp(draws, hands)}.\n`;
 
   md += `
 ## The dataset
@@ -318,7 +347,7 @@ hands = load_dataset("codenameyau/lucky-cat-mahjong-games", "mixed-100k")["train
 | \`winner_discards\` | The winner's own discards before the win (how fast it won) |
 | \`wall_left\` | Tiles left in the wall when the hand ended |
 | \`pattern_count\`, \`patterns\` | How many patterns the hand scored, and each with its faan, e.g. \`Half Flush (3); Dragon Triplet (1)\` |
-| \`full_hand\` | Every pattern of the win with the total faan, as in the tables above |
+| \`full_hand\` | Every pattern of the win and its total faan, e.g. \`Dragon Triplet + Half Flush = 4\` |
 
 ## Reproducing it
 

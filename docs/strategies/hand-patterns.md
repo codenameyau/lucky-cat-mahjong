@@ -13,6 +13,7 @@ A **hand** is one hand of mahjong, which ends in a win or a draw. A **game** is 
 - [Hand patterns by strategy](#hand-patterns-by-strategy)
 - [Sets of honors and bonuses](#sets-of-honors-and-bonuses)
 - [Wins by total faan](#wins-by-total-faan)
+- [Wins by total points](#wins-by-total-points)
 - [Full hands: every pattern of a win, with its faan](#full-hands-every-pattern-of-a-win-with-its-faan)
 - [Winning tiles](#winning-tiles)
 - [Turns to win](#turns-to-win)
@@ -209,105 +210,139 @@ Each strategy's wins scoring each set of honors or bonus, and their share of its
 | 11 | 4,191 (1.1%) | 8,264 (2.2%) | 5,130 (1.2%) | 4,808 (4.7%) | 22,393 (1.7%) |
 | 12 | 2,067 (0.5%) | 4,748 (1.3%) | 2,197 (0.5%) | 4,710 (4.6%) | 13,722 (1.1%) |
 | 13 (limit) | 6,740 (1.7%) | 13,812 (3.7%) | 1,879 (0.4%) | 18,300 (17.7%) | 40,731 (3.1%) |
+| **Total** | **389,856 (100.0%)** | **370,904 (100.0%)** | **437,088 (100.0%)** | **103,289 (100.0%)** | **1,301,137 (100.0%)** |
 
 Each strategy's wins at each total faan, and their share of its wins.
 
+## Wins by total points
+
+The points the winner collected from each win: the full-spicy payout for its faan, from 8 at 3 faan to 8,192 at the limit, collected three times on a self-draw (once from each opponent).
+
+| Points | Jorge Yau | Neural Cat | Lucky Cat | Only Orphans | All |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 8 | 65,611 (16.8%) | 63,637 (17.2%) | 53,742 (12.3%) | 182 (0.2%) | 183,172 (14.1%) |
+| 16 | 61,057 (15.7%) | 53,055 (14.3%) | 99,238 (22.7%) | 18,573 (18.0%) | 231,923 (17.8%) |
+| 24 | 48,089 (12.3%) | 29,762 (8.0%) | 4,634 (1.1%) | 125 (0.1%) | 82,610 (6.3%) |
+| 32 | 47,654 (12.2%) | 35,164 (9.5%) | 59,568 (13.6%) | 26,260 (25.4%) | 168,646 (13.0%) |
+| 48 | 19,930 (5.1%) | 18,990 (5.1%) | 16,479 (3.8%) | 46 (0.0%) | 55,445 (4.3%) |
+| 64 | 13,137 (3.4%) | 7,027 (1.9%) | 15,151 (3.5%) | 4,418 (4.3%) | 39,733 (3.1%) |
+| 96 | 19,157 (4.9%) | 16,722 (4.5%) | 31,556 (7.2%) | 6,125 (5.9%) | 73,560 (5.7%) |
+| 128 | 23,700 (6.1%) | 25,955 (7.0%) | 35,460 (8.1%) | 3,013 (2.9%) | 88,128 (6.8%) |
+| 192 | 15,352 (3.9%) | 11,336 (3.1%) | 20,674 (4.7%) | 8,593 (8.3%) | 55,955 (4.3%) |
+| 256 | 28,151 (7.2%) | 36,087 (9.7%) | 41,717 (9.5%) | 2,404 (2.3%) | 108,359 (8.3%) |
+| 384 | 4,667 (1.2%) | 2,439 (0.7%) | 6,026 (1.4%) | 1,588 (1.5%) | 14,720 (1.1%) |
+| 512 | 8,722 (2.2%) | 15,187 (4.1%) | 12,017 (2.7%) | 425 (0.4%) | 36,351 (2.8%) |
+| 768 | 6,996 (1.8%) | 7,393 (2.0%) | 10,917 (2.5%) | 791 (0.8%) | 26,097 (2.0%) |
+| 1,024 | 3,639 (0.9%) | 6,255 (1.7%) | 4,195 (1.0%) | 2,045 (2.0%) | 16,134 (1.2%) |
+| 1,536 | 8,298 (2.1%) | 10,636 (2.9%) | 12,645 (2.9%) | 745 (0.7%) | 32,324 (2.5%) |
+| 2,048 | 3,090 (0.8%) | 6,409 (1.7%) | 3,700 (0.8%) | 4,224 (4.1%) | 17,423 (1.3%) |
+| 3,072 | 2,698 (0.7%) | 4,435 (1.2%) | 3,863 (0.9%) | 138 (0.1%) | 11,134 (0.9%) |
+| 4,096 | 1,152 (0.3%) | 2,810 (0.8%) | 1,026 (0.2%) | 3,409 (3.3%) | 8,397 (0.6%) |
+| 6,144 | 1,101 (0.3%) | 1,855 (0.5%) | 1,430 (0.3%) | 584 (0.6%) | 4,970 (0.4%) |
+| 8,192 | 4,625 (1.2%) | 9,527 (2.6%) | 1,027 (0.2%) | 13,349 (12.9%) | 28,528 (2.2%) |
+| 12,288 | 915 (0.2%) | 1,938 (0.5%) | 1,171 (0.3%) | 1,301 (1.3%) | 5,325 (0.4%) |
+| 24,576 | 2,115 (0.5%) | 4,285 (1.2%) | 852 (0.2%) | 4,951 (4.8%) | 12,203 (0.9%) |
+| **Total wins** | **389,856 (100.0%)** | **370,904 (100.0%)** | **437,088 (100.0%)** | **103,289 (100.0%)** | **1,301,137 (100.0%)** |
+| **Total points collected** | **176,317,440** | **314,857,576** | **144,756,688** | **282,982,648** | **918,914,352** |
+
+Each strategy's wins collecting each number of points, and their share of its wins. Total points collected adds up everything its wins collected, before what it paid on other players' wins.
+
 ## Full hands: every pattern of a win, with its faan
 
-The most common complete wins: every pattern a win scored, with its total. Patterns that score twice show ×2.
+The most common complete wins: every pattern a win scored, and its total faan. Patterns that score twice show ×2.
 
 ### All four strategies
 
-| Full hand (every pattern, = total faan) | Wins | % of wins |
-| --- | ---: | ---: |
-| Full Flush = 7 | 67,949 | 5.2% |
-| Half Flush = 3 | 67,680 | 5.2% |
-| Seven Pairs = 4 | 48,284 | 3.7% |
-| Dragon Triplet + Half Flush = 4 | 37,916 | 2.9% |
-| Full Flush + No Flowers = 8 | 26,764 | 2.1% |
-| Half Flush + No Flowers = 4 | 26,115 | 2.0% |
-| All Sequences + Concealed + Self-Draw = 3 | 25,864 | 2.0% |
-| Full Flush + Seat Season = 8 | 23,984 | 1.8% |
-| Full Flush + Seat Flower = 8 | 23,612 | 1.8% |
-| All Triplets = 3 | 23,324 | 1.8% |
-| All Sequences + Concealed + No Flowers = 3 | 23,197 | 1.8% |
-| No Flowers + Seven Pairs = 5 | 21,163 | 1.6% |
-| Half Flush + Seat Season = 4 | 20,846 | 1.6% |
-| Half Flush + Seat Flower = 4 | 20,841 | 1.6% |
-| Half Flush + Self-Draw = 4 | 20,027 | 1.5% |
-| Full Flush + Self-Draw = 8 | 19,760 | 1.5% |
-| Seat Flower + Seven Pairs = 5 | 17,358 | 1.3% |
-| Seat Season + Seven Pairs = 5 | 17,114 | 1.3% |
-| All Sequences + Concealed + Seat Season = 3 | 16,737 | 1.3% |
-| All Sequences + Concealed + Seat Flower = 3 | 16,655 | 1.3% |
+| Full hand (every pattern) | Total faan | Wins | % of wins |
+| --- | ---: | ---: | ---: |
+| Full Flush | 7 | 67,949 | 5.2% |
+| Half Flush | 3 | 67,680 | 5.2% |
+| Seven Pairs | 4 | 48,284 | 3.7% |
+| Dragon Triplet + Half Flush | 4 | 37,916 | 2.9% |
+| Full Flush + No Flowers | 8 | 26,764 | 2.1% |
+| Half Flush + No Flowers | 4 | 26,115 | 2.0% |
+| All Sequences + Concealed + Self-Draw | 3 | 25,864 | 2.0% |
+| Full Flush + Seat Season | 8 | 23,984 | 1.8% |
+| Full Flush + Seat Flower | 8 | 23,612 | 1.8% |
+| All Triplets | 3 | 23,324 | 1.8% |
+| All Sequences + Concealed + No Flowers | 3 | 23,197 | 1.8% |
+| No Flowers + Seven Pairs | 5 | 21,163 | 1.6% |
+| Half Flush + Seat Season | 4 | 20,846 | 1.6% |
+| Half Flush + Seat Flower | 4 | 20,841 | 1.6% |
+| Half Flush + Self-Draw | 4 | 20,027 | 1.5% |
+| Full Flush + Self-Draw | 8 | 19,760 | 1.5% |
+| Seat Flower + Seven Pairs | 5 | 17,358 | 1.3% |
+| Seat Season + Seven Pairs | 5 | 17,114 | 1.3% |
+| All Sequences + Concealed + Seat Season | 3 | 16,737 | 1.3% |
+| All Sequences + Concealed + Seat Flower | 3 | 16,655 | 1.3% |
 
 ### Jorge Yau (Rules only)
 
-| Full hand (every pattern, = total faan) | Wins | % of wins |
-| --- | ---: | ---: |
-| Full Flush = 7 | 18,743 | 4.8% |
-| All Sequences + Concealed + Self-Draw = 3 | 13,214 | 3.4% |
-| Half Flush = 3 | 12,227 | 3.1% |
-| Seven Pairs = 4 | 11,741 | 3.0% |
-| All Sequences + Concealed + No Flowers = 3 | 10,601 | 2.7% |
-| Dragon Triplet + Half Flush = 4 | 10,019 | 2.6% |
-| All Sequences + Concealed + Seat Season = 3 | 7,523 | 1.9% |
-| All Sequences + Concealed + Seat Flower = 3 | 7,514 | 1.9% |
-| Chicken Hand + Concealed + No Flowers + Self-Draw = 3 | 7,274 | 1.9% |
-| Full Flush + No Flowers = 8 | 7,137 | 1.8% |
-| Full Flush + Seat Season = 8 | 6,585 | 1.7% |
-| Full Flush + Seat Flower = 8 | 6,472 | 1.7% |
+| Full hand (every pattern) | Total faan | Wins | % of wins |
+| --- | ---: | ---: | ---: |
+| Full Flush | 7 | 18,743 | 4.8% |
+| All Sequences + Concealed + Self-Draw | 3 | 13,214 | 3.4% |
+| Half Flush | 3 | 12,227 | 3.1% |
+| Seven Pairs | 4 | 11,741 | 3.0% |
+| All Sequences + Concealed + No Flowers | 3 | 10,601 | 2.7% |
+| Dragon Triplet + Half Flush | 4 | 10,019 | 2.6% |
+| All Sequences + Concealed + Seat Season | 3 | 7,523 | 1.9% |
+| All Sequences + Concealed + Seat Flower | 3 | 7,514 | 1.9% |
+| Chicken Hand + Concealed + No Flowers + Self-Draw | 3 | 7,274 | 1.9% |
+| Full Flush + No Flowers | 8 | 7,137 | 1.8% |
+| Full Flush + Seat Season | 8 | 6,585 | 1.7% |
+| Full Flush + Seat Flower | 8 | 6,472 | 1.7% |
 
 ### Neural Cat (NC10)
 
-| Full hand (every pattern, = total faan) | Wins | % of wins |
-| --- | ---: | ---: |
-| Full Flush = 7 | 21,832 | 5.9% |
-| Half Flush = 3 | 17,361 | 4.7% |
-| Seven Pairs = 4 | 12,996 | 3.5% |
-| All Sequences + Concealed + Self-Draw = 3 | 12,533 | 3.4% |
-| All Sequences + Concealed + No Flowers = 3 | 12,386 | 3.3% |
-| Dragon Triplet + Half Flush = 4 | 11,274 | 3.0% |
-| All Sequences + Concealed + Seat Season = 3 | 9,091 | 2.5% |
-| All Sequences + Concealed + Seat Flower = 3 | 9,028 | 2.4% |
-| Full Flush + No Flowers = 8 | 8,986 | 2.4% |
-| Full Flush + Seat Season = 8 | 7,757 | 2.1% |
-| Full Flush + Seat Flower = 8 | 7,722 | 2.1% |
-| All Sequences + Full Flush = 8 | 7,243 | 2.0% |
+| Full hand (every pattern) | Total faan | Wins | % of wins |
+| --- | ---: | ---: | ---: |
+| Full Flush | 7 | 21,832 | 5.9% |
+| Half Flush | 3 | 17,361 | 4.7% |
+| Seven Pairs | 4 | 12,996 | 3.5% |
+| All Sequences + Concealed + Self-Draw | 3 | 12,533 | 3.4% |
+| All Sequences + Concealed + No Flowers | 3 | 12,386 | 3.3% |
+| Dragon Triplet + Half Flush | 4 | 11,274 | 3.0% |
+| All Sequences + Concealed + Seat Season | 3 | 9,091 | 2.5% |
+| All Sequences + Concealed + Seat Flower | 3 | 9,028 | 2.4% |
+| Full Flush + No Flowers | 8 | 8,986 | 2.4% |
+| Full Flush + Seat Season | 8 | 7,757 | 2.1% |
+| Full Flush + Seat Flower | 8 | 7,722 | 2.1% |
+| All Sequences + Full Flush | 8 | 7,243 | 2.0% |
 
 ### Lucky Cat (LC34)
 
-| Full hand (every pattern, = total faan) | Wins | % of wins |
-| --- | ---: | ---: |
-| Half Flush = 3 | 38,092 | 8.7% |
-| Full Flush = 7 | 27,374 | 6.3% |
-| Dragon Triplet + Half Flush = 4 | 16,623 | 3.8% |
-| Half Flush + No Flowers = 4 | 15,959 | 3.7% |
-| Half Flush + Seat Flower = 4 | 12,871 | 2.9% |
-| Half Flush + Seat Season = 4 | 12,838 | 2.9% |
-| All Triplets = 3 | 12,637 | 2.9% |
-| Half Flush + Self-Draw = 4 | 11,331 | 2.6% |
-| Full Flush + No Flowers = 8 | 10,641 | 2.4% |
-| Full Flush + Seat Season = 8 | 9,642 | 2.2% |
-| Full Flush + Seat Flower = 8 | 9,418 | 2.2% |
-| Full Flush + Self-Draw = 8 | 8,026 | 1.8% |
+| Full hand (every pattern) | Total faan | Wins | % of wins |
+| --- | ---: | ---: | ---: |
+| Half Flush | 3 | 38,092 | 8.7% |
+| Full Flush | 7 | 27,374 | 6.3% |
+| Dragon Triplet + Half Flush | 4 | 16,623 | 3.8% |
+| Half Flush + No Flowers | 4 | 15,959 | 3.7% |
+| Half Flush + Seat Flower | 4 | 12,871 | 2.9% |
+| Half Flush + Seat Season | 4 | 12,838 | 2.9% |
+| All Triplets | 3 | 12,637 | 2.9% |
+| Half Flush + Self-Draw | 4 | 11,331 | 2.6% |
+| Full Flush + No Flowers | 8 | 10,641 | 2.4% |
+| Full Flush + Seat Season | 8 | 9,642 | 2.2% |
+| Full Flush + Seat Flower | 8 | 9,418 | 2.2% |
+| Full Flush + Self-Draw | 8 | 8,026 | 1.8% |
 
 ### Only Orphans (OW1)
 
-| Full hand (every pattern, = total faan) | Wins | % of wins |
-| --- | ---: | ---: |
-| Seven Pairs = 4 | 18,463 | 17.9% |
-| No Flowers + Seven Pairs = 5 | 8,976 | 8.7% |
-| Seat Flower + Seven Pairs = 5 | 7,994 | 7.7% |
-| Seat Season + Seven Pairs = 5 | 7,770 | 7.5% |
-| Self-Draw + Seven Pairs = 5 | 6,086 | 5.9% |
-| Thirteen Orphans = 13 | 4,089 | 4.0% |
-| No Flowers + Self-Draw + Seven Pairs = 6 | 2,755 | 2.7% |
-| Seat Season + Self-Draw + Seven Pairs = 6 | 2,701 | 2.6% |
-| Seat Flower + Self-Draw + Seven Pairs = 6 | 2,645 | 2.6% |
-| Seat Flower + Seat Season + Seven Pairs = 6 | 2,529 | 2.4% |
-| Half Flush + Seven Pairs = 7 | 2,051 | 2.0% |
-| Concealed Triplets = 10 | 1,750 | 1.7% |
+| Full hand (every pattern) | Total faan | Wins | % of wins |
+| --- | ---: | ---: | ---: |
+| Seven Pairs | 4 | 18,463 | 17.9% |
+| No Flowers + Seven Pairs | 5 | 8,976 | 8.7% |
+| Seat Flower + Seven Pairs | 5 | 7,994 | 7.7% |
+| Seat Season + Seven Pairs | 5 | 7,770 | 7.5% |
+| Self-Draw + Seven Pairs | 5 | 6,086 | 5.9% |
+| Thirteen Orphans | 13 | 4,089 | 4.0% |
+| No Flowers + Self-Draw + Seven Pairs | 6 | 2,755 | 2.7% |
+| Seat Season + Self-Draw + Seven Pairs | 6 | 2,701 | 2.6% |
+| Seat Flower + Self-Draw + Seven Pairs | 6 | 2,645 | 2.6% |
+| Seat Flower + Seat Season + Seven Pairs | 6 | 2,529 | 2.4% |
+| Half Flush + Seven Pairs | 7 | 2,051 | 2.0% |
+| Concealed Triplets | 10 | 1,750 | 1.7% |
 
 ## Winning tiles
 
@@ -397,13 +432,26 @@ The most common is 18 turns: 123,191 wins, 9.5% of them. The longest win took 27
 
 ## What it shows
 
-- **Points a hand decide who finishes on top, not hands won.** Neural Cat +61.8, Only Orphans +48.4, Jorge Yau −35.9, Lucky Cat −74.2 points a hand; games on top: Neural Cat 34.5%, Lucky Cat 24.1%, Jorge Yau 21.3%, Only Orphans 20.3%.
-- **Hands won, most first:** Lucky Cat 22.4%, Jorge Yau 20.0%, Neural Cat 19.0%, Only Orphans 5.3%. Lucky Cat wins the most hands but averages 5.56 faan a win; Only Orphans wins the fewest at 7.29.
-- **Half Flush is the most common winning hand** (23.6% of all hands): a player scores it in 58.0% of games, for 327.8 points a game on average. **Full Flush** wins fewer hands (13.8%) but is worth 533.4 points a game. Of all hand patterns, **Thirteen Orphans** is worth the most points a game (806.7).
-- **The dragons are the most common winning tiles:** Red Dragon, White Dragon, Green Dragon, 51,343 wins each against 39,663 for a middle suit tile (2 to 8). Winds are the least common, at 29,972 each.
-- **Wins take 16.0 turns on average** (the median is 16), and Lucky Cat takes the longest at 16.6. Slower wins score more faan: 0 to 8 turns averages 4.1 faan and 161 points, 21 or more averages 6.4 faan and 930 points.
-- **Self-draws:** 28.7% of wins are self-drawn and pay three times over; the rest are paid by the one player who threw the tile.
-- **33.3% of hands end with no winner**, and every game had at least one win.
+### Winning games
+
+- **Points a hand decide games, not hands won.** Neural Cat finishes on top most often, in 34.5% of games (34,531), while winning only 19.0% of hands. Lucky Cat wins the most hands (22.4%) but has the worst points a hand (−74.2).
+- **Small wins don't cover what you pay out.** A Lucky Cat win collects 331 points on average, against 849 for Neural Cat. That isn't enough to cover the wins it pays for, so it loses points overall.
+- **A few big hands can carry a game.** Only Orphans wins just 5.3% of hands, but 17.7% of its wins are limit hands and the average one collects 2,740 points. That puts it second in points a hand (+48.4).
+- **Dealing in is the other half of the score.** Deal-ins per hand: Only Orphans 14.3%, Lucky Cat 12.4%, Jorge Yau 10.6%, Neural Cat 10.3%. Neural Cat deals in the least of the four and scores the most.
+
+### Choosing a hand
+
+- **A full flush is worth more than a half flush.** A player scores a half flush in more games (58.0% against 44.5%), but a full flush earns 533 points a game against 328.
+- **The rare big hands earn the most a game.** Thirteen Orphans (807 points a game) and Concealed Triplets (625) top the table, though a player scores them in only 6.2% and 8.4% of games.
+- **Seven Pairs is common but cheap.** It is scored in 33.2% of games for 44 points a game, against 323 for All Triplets, which is scored about as often (35.7%).
+
+### Tiles and timing
+
+- **Dragons complete the most wins.** Each dragon completes 51,343 wins, against 39,663 for a middle suit tile (2 to 8) and 29,972 for a wind.
+- **Longer hands end in bigger wins.** Wins average 16.0 turns. Those after 8 turns or fewer average 4.1 faan and 161 points, and those after 21 or more average 6.4 faan and 930 points.
+- **Self-draws pay triple.** 28.7% of wins are self-drawn, collecting from all three opponents. The rest are paid by the one player who threw the tile.
+- **The dealer wins more often:** Jorge Yau 21.1% as dealer against 20.0% overall; Neural Cat 19.4% as dealer against 19.0% overall; Lucky Cat 23.5% as dealer against 22.4% overall; Only Orphans 5.6% as dealer against 5.3% overall.
+- **A third of hands have no winner:** 648,823 (33.3%).
 
 ## The dataset
 
@@ -433,7 +481,7 @@ hands = load_dataset("codenameyau/lucky-cat-mahjong-games", "mixed-100k")["train
 | `winner_discards` | The winner's own discards before the win (how fast it won) |
 | `wall_left` | Tiles left in the wall when the hand ended |
 | `pattern_count`, `patterns` | How many patterns the hand scored, and each with its faan, e.g. `Half Flush (3); Dragon Triplet (1)` |
-| `full_hand` | Every pattern of the win with the total faan, as in the tables above |
+| `full_hand` | Every pattern of the win and its total faan, e.g. `Dragon Triplet + Half Flush = 4` |
 
 ## Reproducing it
 
