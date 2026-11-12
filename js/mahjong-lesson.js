@@ -3,7 +3,7 @@
    You are East. Plum, your flower, sets aside. You chow 2-3-4 Bamboo, pung
    8 Bamboo, and kong the fourth 8. Three Red Dragons stay concealed. A pair
    of 6 Bamboo is the pair. East Wind, taken from a discard, finishes the
-   East wind triplet and the Half Flush. */
+   East Wind triplet and the Half Flush. */
 
 (function (root) {
   'use strict';
@@ -73,23 +73,23 @@
   // coach line, and any other choice is refused.
   var STEPS = [
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'c1' }, hint: say('Discard 1 Character.', 'c1', { type: 'discard' }, [
-      'The player sitting on east always goes first. Tiles in your hand are concealed. Double click on a tile to discard it.',
+      'The player sitting on East always goes first. Tiles in your hand are concealed. Double click on a tile to discard it.',
     ]) },
     { seat: 1, kind: 'turn', drawn: true },
     { seat: 2, kind: 'turn', drawn: true },
     { seat: 3, kind: 'turn', drawn: true },
     { seat: 0, kind: 'claim', action: { type: 'chow', tiles: ['b2', 'b3'] }, hint: say('Chow 2-3-4 Bamboo.', null, { type: 'chow', tiles: ['b2', 'b3'] }, [
-      'A chow is three tiles of the same suit (either bamboo, dots, or characters) in a sequential order. You can claim a tile from the player on your left to form a chow. After claiming a tile from another player, you must expose all tiles used to form that meld. Those tiles can no longer be separated.',
+      'A chow is three tiles of the same suit (either Bamboo, Dots, or Characters) in a sequential order. You can claim a tile from the player on your left to form a chow. After claiming a tile from another player, you must expose all tiles used to form that meld. Those tiles can no longer be separated.',
     ]) },
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'd9' }, hint: say('Discard 9 Dots.', 'd9', { type: 'discard' }, [
-      'You do not draw after claiming a tile. Let\'s go for a half flush in Bamboo, which is worth 3 faan. Discard the 9 dots.',
+      'You do not draw after claiming a tile. Let\'s go for a half flush in Bamboo, which is worth 3 faan. Discard the 9 Dots.',
     ]) },
     { seat: 1, kind: 'turn', drawn: true },
     { seat: 0, kind: 'claim', action: { type: 'pung' }, hint: say('Pung 8 Bamboo.', 'b8', { type: 'pung' }, [
       'A pung is three tiles of a kind. You can claim a discarded tile from any player to form a pung, which immediately skips all other players\' turns. Afterwards, expose the pung. Let\'s keep the two 6 Bamboo tiles as your pair or eyes, which is needed in every hand to win.',
     ]) },
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'c5' }, hint: say('Discard 5 Characters.', 'c5', { type: 'discard' }, [
-      'To reach 3 faan, the most common hand is a half flush so your tiles are just one suit plus any combination of dragon or wind tiles. Discard the 5 Characters so your hand only has bamboo tiles.',
+      'To reach 3 faan, the most common hand is a half flush so your tiles are just one suit plus any combination of Dragon or Wind tiles. Discard the 5 Characters so your hand only has Bamboo tiles.',
     ]) },
     { seat: 1, kind: 'turn', drawn: true },
     { seat: 2, kind: 'turn', drawn: true },
@@ -104,8 +104,8 @@
     { seat: 1, kind: 'turn', drawn: true },
     { seat: 0, kind: 'claim', action: { type: 'win' }, hint: say('Win on East Wind.', null, { type: 'win' }, [
       'East Wind finishes your wind triplet. You are East, and the round is East, so it scores as your seat wind and the round wind.',
-      'This is taking a winning tile, not a self-draw, so only the thrower pays.',
-      'The hand is now a half flush. You now can take the last remaining tile to form your 4 melds and a pair to win.',
+      'This is claiming a winning tile, not a self-draw, so only the thrower pays.',
+      'The hand is now a half flush. You can claim the last tile you need to win from anyone. Claim the East Wind to win.',
     ]) },
   ];
 
