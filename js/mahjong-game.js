@@ -350,6 +350,35 @@
 
   var spriteCache = {};
 
+  // The logo at exactly pw x ph device pixels, shrunk in halving steps: a
+  // 1024px image drawn straight down to a tile back or the coach's avatar
+  // skips most of its pixels and looks jagged. Cached by size.
+  var logoSizes = {};
+  function logoAtPixels(pw, ph) {
+    var src = images.logo;
+    if (!src) return null;
+    pw = Math.max(1, Math.round(pw)); ph = Math.max(1, Math.round(ph));
+    var key = pw + 'x' + ph;
+    if (logoSizes[key]) return logoSizes[key];
+    var cur = src, sw = src.width, sh = src.height;
+    while (sw / 2 >= pw && sh / 2 >= ph) {
+      sw = Math.round(sw / 2); sh = Math.round(sh / 2);
+      var step = document.createElement('canvas');
+      step.width = sw; step.height = sh;
+      var sc = step.getContext('2d');
+      sc.imageSmoothingQuality = 'high';
+      sc.drawImage(cur, 0, 0, sw, sh);
+      cur = step;
+    }
+    var cv = document.createElement('canvas');
+    cv.width = pw; cv.height = ph;
+    var c = cv.getContext('2d');
+    c.imageSmoothingQuality = 'high';
+    c.drawImage(cur, 0, 0, pw, ph);
+    logoSizes[key] = cv;
+    return cv;
+  }
+
   // A tile sprite includes its green "depth" edge below the face, so the
   // drawn height is w * TILE_ASPECT + depth.
   function tileSprite(id, w, dpr, back) {
@@ -385,9 +414,14 @@
       if (images.logo && w * dpr >= 18) {
         var lw = w * 0.62;
         var lh = lw * (images.logo.height / images.logo.width || 1);
+        // Shrunk smoothly to its device pixels and placed on whole pixels.
+        var lpw = Math.round(lw * dpr), lph = Math.round(lh * dpr);
+        var small = logoAtPixels(lpw, lph);
+        c.save();
+        c.setTransform(1, 0, 0, 1, 0, 0);
         c.globalAlpha = 0.95;
-        c.drawImage(images.logo, (w - lw) / 2, (h - lh) / 2, lw, lh);
-        c.globalAlpha = 1;
+        c.drawImage(small, Math.round((w - lw) / 2 * dpr), Math.round((h - lh) / 2 * dpr));
+        c.restore();
       }
     } else {
       roundRect(c, 0, 0, w, h, r);
@@ -841,7 +875,7 @@
       turnPrompt: null,
       claimPrompt: null,
       hint: null,
-      hintLists: {}, // by strategy id: every hint and feedback note it gave this game, oldest first (HINTS_KEY)
+      hintLists: {}, // by strategy id: every hint and feedback note it gave this hand, oldest first (HINTS_KEY)
       hintsAll: {}, // by strategy id: the hint for the move in front of you, at the coach level
       hintsWhole: {}, // by strategy id: the same hints whole, said at any level (Coach.atDetail)
       feedbackAll: {}, // by strategy id, then coach level: its note on your last move
@@ -1435,38 +1469,15 @@
 
     /* ---------------- drawing primitives ---------------- */
 
-    // The logo at w x h on screen, from a copy shrunk in halving steps to the
-    // exact device pixels (a 1024px image drawn straight down to ~40px skips
-    // most of its pixels and looks jagged on a large screen). Cached by size.
-    var logoSizes = {};
+    // The logo at w x h on screen (the coach's avatar), shrunk smoothly to
+    // its device pixels (logoAtPixels) and copied pixel for pixel.
     function drawLogo(x, y, w, h) {
-      var src = images.logo;
-      if (!src) return;
+      if (!images.logo) return;
       // Where it lands in device pixels (the canvas's own scale), snapped to
       // whole pixels: a copy drawn between pixels is resampled, and blurs.
       var t = ctx.getTransform();
       var dx = Math.round(t.a * x + t.c * y + t.e), dy = Math.round(t.b * x + t.d * y + t.f);
-      var pw = Math.max(1, Math.round(w * t.a)), ph = Math.max(1, Math.round(h * t.d));
-      var key = pw + 'x' + ph;
-      var cv = logoSizes[key];
-      if (!cv) {
-        var cur = src, sw = src.width, sh = src.height;
-        while (sw / 2 >= pw && sh / 2 >= ph) {
-          sw = Math.round(sw / 2); sh = Math.round(sh / 2);
-          var step = document.createElement('canvas');
-          step.width = sw; step.height = sh;
-          var sc = step.getContext('2d');
-          sc.imageSmoothingQuality = 'high';
-          sc.drawImage(cur, 0, 0, sw, sh);
-          cur = step;
-        }
-        cv = document.createElement('canvas');
-        cv.width = pw; cv.height = ph;
-        var c = cv.getContext('2d');
-        c.imageSmoothingQuality = 'high';
-        c.drawImage(cur, 0, 0, pw, ph);
-        logoSizes[key] = cv;
-      }
+      var cv = logoAtPixels(w * t.a, h * t.d);
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.drawImage(cv, dx, dy); // pixel for pixel
@@ -1493,7 +1504,17 @@
       // A face-down tile has no tip, except your own (opts.peek: your
       // concealed kong, whose tiles you know).
       if (id && (!opts.back || opts.peek) && tipsOn) recordSpot(id, x, y, w, h);
-      ctx.drawImage(sp, x, y, w, h);
+      // An upright tile is copied pixel for pixel at whole device pixels: a
+      // sprite drawn between pixels is resampled, and looks soft or jagged.
+      // (A turning or flipping tile is drawn scaled as before.)
+      var t = ctx.getTransform();
+      if (!t.b && !t.c && Math.abs(t.a - dpr) < 1e-6 && Math.abs(t.d - dpr) < 1e-6) {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.drawImage(sp, Math.round(t.a * x + t.e), Math.round(t.d * y + t.f));
+        ctx.setTransform(t);
+      } else {
+        ctx.drawImage(sp, x, y, w, h);
+      }
       if (opts.glow) {
         ctx.strokeStyle = opts.glow;
         // Red marks a tile a claim would use. Every other highlight is a thinner yellow.
@@ -3790,9 +3811,17 @@
       return { action: action, detail: detail };
     }
 
-    // Your own moves in this hand, counted 1, 2, 3 (one note per move).
-    function handMoveNumber(list, hand) {
-      return list.filter(function (e) { return e.hand === hand; }).length + 1;
+    // Your moves so far this hand. A move is a turn on which you discard a
+    // tile or win, so it's counted from the game (your discards), the same
+    // for every coach, however many notes each one has written.
+    function movesMade() {
+      return game && game.hand ? game.hand.seats[0].discards.length : 0;
+    }
+
+    // The move a note belongs to: the one being decided at your turn or claim
+    // (set when it starts), so every coach's hint and feedback share it.
+    function handMoveNumber() {
+      return ui.moveAt || movesMade() + 1;
     }
 
     function hintList(id) {
@@ -3900,7 +3929,7 @@
         }
         return;
       }
-      var entry = { kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber(list, hand), hand: hand };
+      var entry = { kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber(), hand: hand };
       if (levels) entry.levels = levels;
       list.push(entry);
       if (list.length > 200) list.shift();
@@ -6196,7 +6225,13 @@
 
     var handlers = {
       handStart: function () {
-        ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null };
+        ui.moveAt = null; // a new hand starts again at move 1
+        // The coach's history is this hand only: every other hand's notes go.
+        Object.keys(ui.hintLists).forEach(function (id) {
+          ui.hintLists[id] = ui.hintLists[id].filter(function (e) { return e.hand === game.handNumber; });
+        });
+        saveHints();
+        ui.hide ={ pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null };
         ui.botDrawn = [false, false, false, false];
         ui.botLift = null;
         ui.winInHand = null;
@@ -6459,6 +6494,7 @@
         turn: function (g, seat, opts) {
           return new Promise(function (resolve) {
             ui.turnPrompt = { opts: opts, resolve: resolve };
+            ui.moveAt = movesMade() + 1; // this turn's discard (or win) is your next move
             ui.selected = -1;
             // Feedback on a discard clears when your next turn starts. Feedback on
             // a claim stays until your next move.
@@ -6480,6 +6516,7 @@
             if (opts.pung || opts.kong) highlight.push(opts.tile);
             opts.chows.forEach(function (p) { highlight = highlight.concat(p); });
             ui.claimPrompt = { opts: opts, resolve: resolve, highlight: highlight };
+            ui.moveAt = movesMade() + 1; // a claim isn't a move: it leads to your next discard (or win)
             clearDiscardFeedback();
             refreshHint();
             var lessonLine = settings.lesson && ui.hint && ui.hint.action;
