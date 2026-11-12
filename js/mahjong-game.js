@@ -4297,6 +4297,14 @@
     }
 
     function liveStrategyRows() {
+      // The tutorial has one script: every coach gives its move (the tile to
+      // discard, or the claim or step in words), whatever its own play would be.
+      if (settings.lesson) {
+        var lh = ui.hint;
+        var toss = !!(lh && lh.decision && lh.decision.type === 'discard');
+        var said = lh && !toss && lh.action ? String(lh.action).replace(/\.$/, '') : null;
+        return Strategies.list().map(function (s) { return { id: s.id, name: s.name, tile: toss ? lh.tile : null, action: said }; });
+      }
       // Feedback looks back at the discard you just made, not at the next one.
       if (ui.coach === 'feedback') {
         return ui.feedbackDiscards || Strategies.list().map(function (s) {
