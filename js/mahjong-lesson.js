@@ -68,7 +68,6 @@
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'c1' }, hint: say('Discard 1 Character.', 'c1', { type: 'discard' }, [
       'Plum is your flower because you sit East, so it scores a faan. Your three Red Dragons stay concealed until you win.',
       'Double tap a tile to discard it.',
-      'Click on a strategy to change the coach.',
     ]) },
     { seat: 1, kind: 'turn', drawn: true },
     { seat: 2, kind: 'turn', drawn: true },
