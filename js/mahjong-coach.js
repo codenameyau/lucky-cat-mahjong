@@ -1165,13 +1165,6 @@
     }, kongAt !== undefined ? kongAt : discardAt);
   }
 
-  // What a learned strategy (js/mahjong-ml.js) expects from the discard, in
-  // points, and the feature groups that put it ahead of the next best.
-  var GROUP_WORDS = {
-    hand: 'the tiles you keep', discard: 'the tile itself', table: 'what the table shows',
-    context: 'the wall and your seat', speed: 'speed', value: 'hand value', safety: 'safety',
-  };
-
   function pointsText(n) {
     var r = Math.round(n);
     return (r > 0 ? '+' : r < 0 ? '\u2212' : '') + Math.abs(r).toLocaleString('en-US');
@@ -1216,8 +1209,6 @@
     var next = list.filter(function (x) { return x !== pick && x.ml && x.ml.choice !== false; })
       .sort(function (a, b) { return b.ml.ev - a.ml.ev; })[0];
     if (next) line += ' Next best discard is ' + E.tileName(next.tile) + ': ' + pointsWord(next.ml.ev) + '.';
-    var why = (m.why || []).filter(function (g) { return g.points >= 1; }).slice(0, 2);
-    if (why.length) line += ' This one comes out ahead on ' + why.map(function (g) { return GROUP_WORDS[g.group] || g.group; }).join(' and on ') + '.';
     return line + readLine(m.read);
   }
 
