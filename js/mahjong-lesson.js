@@ -79,7 +79,7 @@
     { seat: 2, kind: 'turn', drawn: true },
     { seat: 3, kind: 'turn', drawn: true },
     { seat: 0, kind: 'claim', action: { type: 'chow', tiles: ['b2', 'b3'] }, hint: say('Chow 2-3-4 Bamboo.', null, { type: 'chow', tiles: ['b2', 'b3'] }, [
-      'A chow is three tiles in a row, and only from the player on your left. This chow is exposed.',
+      'A chow is three tiles of the same suit (either bamboo, dots, or characters) in a sequential order. You can claim a tile from the player on your left to form a chow. After claiming a tile from another player, you must expose all tiles used to form that meld. Those tiles can no longer be separated.',
     ]) },
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'd9' }, hint: say('Discard 9 Dots.', 'd9', { type: 'discard' }, [
       'You do not draw after a chow. 9 Dots is not part of a Half Flush in Bamboo.',
