@@ -197,7 +197,7 @@ describe('Neural Cat strategy', () => {
           // The model's pick is worth the most, or it's the foundation's.
           const top = Math.max.apply(null, r.choices.map((x) => x.ml.ev));
           assert.ok(r.pick === r.foundation || r.choices[r.pick].ml.ev === top);
-          if (kongs === 1) assert.ok(Coach.turnHint(g, s, o).tips.some((t) => /kong/.test(t) && /^On average, the model expects /.test(t)));
+          if (kongs === 1) assert.ok(Coach.turnHint(g, s, o).tips.some((t) => /kong/.test(t) && /^The model expects /.test(t)));
         }
         return Promise.resolve(r.decision);
       },
@@ -217,7 +217,7 @@ describe('Neural Cat strategy', () => {
           if (read.choices.length > 1 && !said) {
             said = true;
             const hint = Coach.claimHint(g, s, o);
-            assert.match(hint.model, /^On average, the model expects /);
+            assert.match(hint.model, /^The model expects /);
           }
         }
         return Promise.resolve(d.decision);

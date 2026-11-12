@@ -517,7 +517,7 @@
   function upgradeNote(v, route) {
     var up = v.ctx.upgrade;
     if (!up || (route && route.id === up.id)) return '';
-    return ' ' + up.label + ' is in reach, so aim for it too: ' + up.hint + '.';
+    return ' ' + up.label + ' is in reach: ' + up.hint + '.';
   }
 
   // Tiles in your hand that can no longer do their job for a hand of pairs or
@@ -1165,13 +1165,6 @@
     }, kongAt !== undefined ? kongAt : discardAt);
   }
 
-  // What a learned strategy (js/mahjong-ml.js) expects from the discard, in
-  // points, and the feature groups that put it ahead of the next best.
-  var GROUP_WORDS = {
-    hand: 'the tiles you keep', discard: 'the tile itself', table: 'what the table shows',
-    context: 'the wall and your seat', speed: 'speed', value: 'hand value', safety: 'safety',
-  };
-
   function pointsText(n) {
     var r = Math.round(n);
     return (r > 0 ? '+' : r < 0 ? '\u2212' : '') + Math.abs(r).toLocaleString('en-US');
@@ -1211,13 +1204,11 @@
     var m = pick && pick.ml;
     if (!m) return '';
     if (m.policy != null) return policyLine(list, pick, m);
-    var line = 'The model expects ' + pointsWord(m.ev) + ' on average from this discard' +
-      (m.pWin >= 0.01 ? ', with ' + chance(m.pWin, 'win') + ' (about ' + Math.round(m.avgWin).toLocaleString('en-US') + ' points)' : '') + '.';
+    var line = 'The model expects ' + pointsWord(m.ev) + ' from this discard' +
+      (m.pWin >= 0.01 ? ', with ' + chance(m.pWin, 'win') : '') + '.';
     var next = list.filter(function (x) { return x !== pick && x.ml && x.ml.choice !== false; })
       .sort(function (a, b) { return b.ml.ev - a.ml.ev; })[0];
     if (next) line += ' Next best discard is ' + E.tileName(next.tile) + ': ' + pointsWord(next.ml.ev) + '.';
-    var why = (m.why || []).filter(function (g) { return g.points >= 1; }).slice(0, 2);
-    if (why.length) line += ' This one comes out ahead on ' + why.map(function (g) { return GROUP_WORDS[g.group] || g.group; }).join(' and on ') + '.';
     return line + readLine(m.read);
   }
 
@@ -1322,7 +1313,7 @@
     var ranked = [pick].concat(read.choices.filter(function (x) { return x !== pick; })
       .sort(function (a, b) { return b.ml.ev - a.ml.ev; }).slice(0, 2));
     var said = ranked.map(function (x) { return pointsWord(x.ml.ev) + ' ' + ifYou(x.decision, tile); });
-    var line = 'On average, the model expects ' + said[0] +
+    var line = 'The model expects ' + said[0] +
       (said.length > 2 ? ', ' + said.slice(1, -1).join(', ') + ', and ' + said[said.length - 1] : ' and ' + said[1]) + '.' +
       (pick.ml.pWin >= 0.01 ? ' That gives ' + chance(pick.ml.pWin, 'win') + '.' : '');
     if (read.pick !== read.foundation) {
@@ -1613,7 +1604,7 @@
     var out = [iPick(hint, best, good)];
     if (slows) out.push(slowsLine(top, chosen, mine, best));
     if (risky && chosen.evidence) out.push(chosen.evidence + '.');
-    out.push('The model expects ' + pointsWord(top.ml.ev) + ' on average from ' + best + ', and ' + pointsWord(chosen.ml.ev) +
+    out.push('The model expects ' + pointsWord(top.ml.ev) + ' from ' + best + ', and ' + pointsWord(chosen.ml.ev) +
       ' from ' + mine + '.' + odds(best, top.ml, chosen.ml));
     var action = slows ? 'That discard slows your hand.' : risky ? 'That discard was risky.'
       : good ? 'Good discard.' : 'There was a better discard.';

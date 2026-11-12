@@ -184,10 +184,10 @@ describe('coach text', () => {
 
   it('cuts a long hint to whole tips, keeping the action and the model line', () => {
     const long = 'This tip is long enough that a few of them will not fit together in one hint. ';
-    const h = C.fit({ action: 'Discard Red Dragon.', tips: [long, long + long, long, 'The model expects +40 score on average from this discard.', long], model: 'The model expects +40 score on average from this discard.' });
+    const h = C.fit({ action: 'Discard Red Dragon.', tips: [long, long + long, long, 'The model expects +40 score from this discard.', long], model: 'The model expects +40 score from this discard.' });
     assert.ok(words(h).length <= MAX);
     assert.equal(h.action, 'Discard Red Dragon.');
     assert.equal(h.tips[0], long);
-    assert.ok(h.tips.indexOf('The model expects +40 score on average from this discard.') !== -1);
+    assert.ok(h.tips.indexOf('The model expects +40 score from this discard.') !== -1);
   });
 });
