@@ -7983,7 +7983,7 @@
           if (lessonTrack) lessonTrack.done = true;
         }
         var extra = null;
-        if (settings.lesson && res.type === 'win' && res.winner === 0) extra = 'You won a Half Flush on East Wind.';
+        if (settings.lesson && res.type === 'win' && res.winner === 0) extra = 'You won a half flush on East Wind.';
         else if (res.roundAdvanced) extra = 'The round wind is now ' + E.WIND_NAMES[game.round] + '.';
         if (game.over) extra = 'That was the last deal of the game.';
         pendingSummary = keptSummary({ result: res, extra: extra });
