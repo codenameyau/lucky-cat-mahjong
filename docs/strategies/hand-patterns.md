@@ -58,57 +58,57 @@ Net points a hand is what a seat won less what it paid, averaged over every hand
 
 Each pattern's expected value over **every player in every game**: the 400,000 games a player sat through (100,000 games × 4 players), including every game where that player never won with it.
 
-- **Faan a game** and **Points a game:** the faan and points a player collected in one game from wins that scored the pattern, as the mean and the median over all 400,000. A game where the player didn't win with the pattern counts as 0. The faan is the whole win's, every other pattern of it included.
-- **Games a player scores it:** the share of games in which a player won at least once with the pattern. Below 50%, the median is 0: in most games a player doesn't score it at all.
+- **Faan a game** and **Points a game:** the faan and points a player collected in one game from wins that scored the pattern, averaged over all 400,000. A game where the player didn't win with the pattern counts as 0. The faan is the whole win's, every other pattern of it included.
+- **Games a player scores it:** the share of games in which a player won at least once with the pattern.
 - **Win rate per hand:** the share of all 1,949,960 hands that ended in a win scoring the pattern, by anyone.
 - **Points** are what the winner collected, before anything paid elsewhere in the game. They double with each faan (8 at 3 faan, 8,192 at the 13-faan limit), so a few big wins pull the means up. **Any win** is every win, whatever its pattern: a player's total from winning, a game.
 - The data record how hands ended, not what a player was aiming for. These are the values a player gets from each pattern at this table, not the odds of finishing it once going for it. A win can score more than one hand pattern, so the rows overlap.
 
 ### Sorted by points a game
 
-| Pattern | Its own faan | Win rate per hand | Games a player scores it | Faan a game: mean | Faan a game: median | Points a game: mean | Points a game: median |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| **Any win** |  | 1,301,137 (66.73%) | 360,930 (90.2%) | 18.40 | 17.00 | 2297.3 | 368 |
-| Thirteen Orphans | 13 | 26,121 (1.34%) | 24,944 (6.2%) | 0.85 | 0 | 806.7 | 0 |
-| Concealed Triplets | 10 | 35,415 (1.82%) | 33,410 (8.4%) | 1.04 | 0 | 624.9 | 0 |
-| Full Flush | 7 | 269,568 (13.82%) | 177,995 (44.5%) | 5.57 | 0 | 533.4 | 0 |
-| Half Flush | 3 | 461,142 (23.65%) | 231,981 (58.0%) | 5.75 | 4.00 | 327.8 | 16 |
-| All Triplets | 3 | 197,087 (10.11%) | 142,635 (35.7%) | 2.92 | 0 | 323.3 | 0 |
-| All Sequences | 1 | 158,526 (8.13%) | 116,795 (29.2%) | 1.98 | 0 | 125.3 | 0 |
-| Mixed Orphans | 1 | 15,722 (0.81%) | 15,353 (3.8%) | 0.30 | 0 | 76.3 | 0 |
-| All Honors | 10 | 2,098 (0.11%) | 2,094 (0.5%) | 0.068 | 0 | 61.7 | 0 |
-| Small Three Dragons | 5 | 3,126 (0.16%) | 3,119 (0.8%) | 0.082 | 0 | 46.2 | 0 |
-| Seven Pairs | 4 | 167,874 (8.61%) | 132,940 (33.2%) | 2.16 | 0 | 43.6 | 0 |
-| Big Three Dragons | 8 | 1,103 (0.057%) | 1,101 (0.3%) | 0.034 | 0 | 28.3 | 0 |
-| Small Four Winds | 6 | 402 (0.021%) | 402 (0.1%) | 0.013 | 0 | 10.6 | 0 |
-| Big Four Winds | 13 | 109 (0.006%) | 109 (0.027%) | 0.004 | 0 | 3.3 | 0 |
-| Nine Gates | 13 | 101 (0.005%) | 101 (0.025%) | 0.003 | 0 | 3.0 | 0 |
-| Chicken Hand | 0 | 40,605 (2.08%) | 36,908 (9.2%) | 0.31 | 0 | 2.7 | 0 |
-| All Terminals | 10 | 215 (0.011%) | 215 (0.054%) | 0.006 | 0 | 2.3 | 0 |
-| Four Quads | 13 | 2 (0.000%) | 2 (0.001%) | 0.000 | 0 | 0.1 | 0 |
+| Pattern | Its own faan | Win rate per hand | Games a player scores it | Faan a game | Points a game |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **Any win** |  | 1,301,137 (66.73%) | 360,930 (90.2%) | 18.40 | 2297.3 |
+| Thirteen Orphans | 13 | 26,121 (1.34%) | 24,944 (6.2%) | 0.85 | 806.7 |
+| Concealed Triplets | 10 | 35,415 (1.82%) | 33,410 (8.4%) | 1.04 | 624.9 |
+| Full Flush | 7 | 269,568 (13.82%) | 177,995 (44.5%) | 5.57 | 533.4 |
+| Half Flush | 3 | 461,142 (23.65%) | 231,981 (58.0%) | 5.75 | 327.8 |
+| All Triplets | 3 | 197,087 (10.11%) | 142,635 (35.7%) | 2.92 | 323.3 |
+| All Sequences | 1 | 158,526 (8.13%) | 116,795 (29.2%) | 1.98 | 125.3 |
+| Mixed Orphans | 1 | 15,722 (0.81%) | 15,353 (3.8%) | 0.30 | 76.3 |
+| All Honors | 10 | 2,098 (0.11%) | 2,094 (0.5%) | 0.068 | 61.7 |
+| Small Three Dragons | 5 | 3,126 (0.16%) | 3,119 (0.8%) | 0.082 | 46.2 |
+| Seven Pairs | 4 | 167,874 (8.61%) | 132,940 (33.2%) | 2.16 | 43.6 |
+| Big Three Dragons | 8 | 1,103 (0.057%) | 1,101 (0.3%) | 0.034 | 28.3 |
+| Small Four Winds | 6 | 402 (0.021%) | 402 (0.1%) | 0.013 | 10.6 |
+| Big Four Winds | 13 | 109 (0.006%) | 109 (0.027%) | 0.004 | 3.3 |
+| Nine Gates | 13 | 101 (0.005%) | 101 (0.025%) | 0.003 | 3.0 |
+| Chicken Hand | 0 | 40,605 (2.08%) | 36,908 (9.2%) | 0.31 | 2.7 |
+| All Terminals | 10 | 215 (0.011%) | 215 (0.054%) | 0.006 | 2.3 |
+| Four Quads | 13 | 2 (0.000%) | 2 (0.001%) | 0.000 | 0.1 |
 
 ### Sorted by faan a game
 
-| Pattern | Its own faan | Win rate per hand | Games a player scores it | Faan a game: mean | Faan a game: median | Points a game: mean | Points a game: median |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| **Any win** |  | 1,301,137 (66.73%) | 360,930 (90.2%) | 18.40 | 17.00 | 2297.3 | 368 |
-| Half Flush | 3 | 461,142 (23.65%) | 231,981 (58.0%) | 5.75 | 4.00 | 327.8 | 16 |
-| Full Flush | 7 | 269,568 (13.82%) | 177,995 (44.5%) | 5.57 | 0 | 533.4 | 0 |
-| All Triplets | 3 | 197,087 (10.11%) | 142,635 (35.7%) | 2.92 | 0 | 323.3 | 0 |
-| Seven Pairs | 4 | 167,874 (8.61%) | 132,940 (33.2%) | 2.16 | 0 | 43.6 | 0 |
-| All Sequences | 1 | 158,526 (8.13%) | 116,795 (29.2%) | 1.98 | 0 | 125.3 | 0 |
-| Concealed Triplets | 10 | 35,415 (1.82%) | 33,410 (8.4%) | 1.04 | 0 | 624.9 | 0 |
-| Thirteen Orphans | 13 | 26,121 (1.34%) | 24,944 (6.2%) | 0.85 | 0 | 806.7 | 0 |
-| Chicken Hand | 0 | 40,605 (2.08%) | 36,908 (9.2%) | 0.31 | 0 | 2.7 | 0 |
-| Mixed Orphans | 1 | 15,722 (0.81%) | 15,353 (3.8%) | 0.30 | 0 | 76.3 | 0 |
-| Small Three Dragons | 5 | 3,126 (0.16%) | 3,119 (0.8%) | 0.082 | 0 | 46.2 | 0 |
-| All Honors | 10 | 2,098 (0.11%) | 2,094 (0.5%) | 0.068 | 0 | 61.7 | 0 |
-| Big Three Dragons | 8 | 1,103 (0.057%) | 1,101 (0.3%) | 0.034 | 0 | 28.3 | 0 |
-| Small Four Winds | 6 | 402 (0.021%) | 402 (0.1%) | 0.013 | 0 | 10.6 | 0 |
-| All Terminals | 10 | 215 (0.011%) | 215 (0.054%) | 0.006 | 0 | 2.3 | 0 |
-| Big Four Winds | 13 | 109 (0.006%) | 109 (0.027%) | 0.004 | 0 | 3.3 | 0 |
-| Nine Gates | 13 | 101 (0.005%) | 101 (0.025%) | 0.003 | 0 | 3.0 | 0 |
-| Four Quads | 13 | 2 (0.000%) | 2 (0.001%) | 0.000 | 0 | 0.1 | 0 |
+| Pattern | Its own faan | Win rate per hand | Games a player scores it | Faan a game | Points a game |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **Any win** |  | 1,301,137 (66.73%) | 360,930 (90.2%) | 18.40 | 2297.3 |
+| Half Flush | 3 | 461,142 (23.65%) | 231,981 (58.0%) | 5.75 | 327.8 |
+| Full Flush | 7 | 269,568 (13.82%) | 177,995 (44.5%) | 5.57 | 533.4 |
+| All Triplets | 3 | 197,087 (10.11%) | 142,635 (35.7%) | 2.92 | 323.3 |
+| Seven Pairs | 4 | 167,874 (8.61%) | 132,940 (33.2%) | 2.16 | 43.6 |
+| All Sequences | 1 | 158,526 (8.13%) | 116,795 (29.2%) | 1.98 | 125.3 |
+| Concealed Triplets | 10 | 35,415 (1.82%) | 33,410 (8.4%) | 1.04 | 624.9 |
+| Thirteen Orphans | 13 | 26,121 (1.34%) | 24,944 (6.2%) | 0.85 | 806.7 |
+| Chicken Hand | 0 | 40,605 (2.08%) | 36,908 (9.2%) | 0.31 | 2.7 |
+| Mixed Orphans | 1 | 15,722 (0.81%) | 15,353 (3.8%) | 0.30 | 76.3 |
+| Small Three Dragons | 5 | 3,126 (0.16%) | 3,119 (0.8%) | 0.082 | 46.2 |
+| All Honors | 10 | 2,098 (0.11%) | 2,094 (0.5%) | 0.068 | 61.7 |
+| Big Three Dragons | 8 | 1,103 (0.057%) | 1,101 (0.3%) | 0.034 | 28.3 |
+| Small Four Winds | 6 | 402 (0.021%) | 402 (0.1%) | 0.013 | 10.6 |
+| All Terminals | 10 | 215 (0.011%) | 215 (0.054%) | 0.006 | 2.3 |
+| Big Four Winds | 13 | 109 (0.006%) | 109 (0.027%) | 0.004 | 3.3 |
+| Nine Gates | 13 | 101 (0.005%) | 101 (0.025%) | 0.003 | 3.0 |
+| Four Quads | 13 | 2 (0.000%) | 2 (0.001%) | 0.000 | 0.1 |
 
 ## Hand patterns by strategy
 
@@ -400,7 +400,6 @@ The most common is 18 turns: 123,191 wins, 9.5% of them. The longest win took 27
 - **Points a hand decide who finishes on top, not hands won.** Neural Cat +61.8, Only Orphans +48.4, Jorge Yau −35.9, Lucky Cat −74.2 points a hand; games on top: Neural Cat 34.5%, Lucky Cat 24.1%, Jorge Yau 21.3%, Only Orphans 20.3%.
 - **Hands won, most first:** Lucky Cat 22.4%, Jorge Yau 20.0%, Neural Cat 19.0%, Only Orphans 5.3%. Lucky Cat wins the most hands but averages 5.56 faan a win; Only Orphans wins the fewest at 7.29.
 - **Half Flush is the most common winning hand** (23.6% of all hands): a player scores it in 58.0% of games, for 327.8 points a game on average. **Full Flush** wins fewer hands (13.8%) but is worth 533.4 points a game. Of all hand patterns, **Thirteen Orphans** is worth the most points a game (806.7).
-- **Medians are 0 for most patterns**, since a player scores them in fewer than half its games. Only Half Flush has a median above 0. Winning at all, with any pattern, is worth a median of 368 points a game against a mean of 2,297, because a few big wins carry the mean.
 - **The dragons are the most common winning tiles:** Red Dragon, White Dragon, Green Dragon, 51,343 wins each against 39,663 for a middle suit tile (2 to 8). Winds are the least common, at 29,972 each.
 - **Wins take 16.0 turns on average** (the median is 16), and Lucky Cat takes the longest at 16.6. Slower wins score more faan: 0 to 8 turns averages 4.1 faan and 161 points, 21 or more averages 6.4 faan and 930 points.
 - **Self-draws:** 28.7% of wins are self-drawn and pay three times over; the rest are paid by the one player who threw the tile.
