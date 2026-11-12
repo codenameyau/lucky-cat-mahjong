@@ -1221,7 +1221,9 @@
       // Landscape phones show the coach in the column instead.
       var hintH = 0;
       var room = meBox.y - 6 - topH - 6; // table and bar together
-      if (desktop) hintH = 84;
+      // (A tablet or window sideways keeps it too; only a phone held sideways,
+      // too short to spare it, shows the coach in its column alone.)
+      if (desktop || (landscape && H >= 500)) hintH = 84;
       // (Upright, the coach's bar stays shorter than your section.)
       if (phonePortrait && coachShown) hintH = clamp(room - Math.min(tableW - 2 * pad, room - 72), 72, 80);
       // Playback keeps the coach's bar even on a landscape phone, where a
