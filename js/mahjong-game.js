@@ -1180,14 +1180,10 @@
       var tableW = W;
       if (desktop) tableW = Math.min(Math.round((W - historyGap - pad) * 2 / 3), Math.round(H * 1.1));
       if (landscape && coachShown) tableW = Math.round((W - historyGap - pad) * 2 / 3);
+      // Your section always spans the table: the side seats stop above it,
+      // in every layout (a landscape phone's too).
       var meX = ox, meW = phonePortrait ? W : tableW;
-      // A landscape phone's side seats run the full height (their tiles in
-      // one row need the length), so your section sits between them.
       var LANDSCAPE_SIDE_W = 48;
-      if (landscape) {
-        meX = ox + LANDSCAPE_SIDE_W + 6;
-        meW = tableW - 2 * (LANDSCAPE_SIDE_W + 6);
-      }
 
       // Hand tiles: one row of 14 across your section, or two rows of 7 on a
       // portrait phone, as wide as the screen unless that's too tall.
@@ -1277,11 +1273,11 @@
       }
       var opp = [];
       // An upright phone's player across spans the table, above the side
-      // seats; sideways the side seats run the full height instead, with the
-      // player across between them.
+      // seats; otherwise the side seats run from the top to your section,
+      // with the player across between them.
       var acrossSpans = phonePortrait;
       var sideTop = acrossSpans ? topH + topPanelH + gap : topH;
-      var sideBottom = landscape ? H - Math.max(4, pad / 2) : bandTop - gap;
+      var sideBottom = bandTop - gap;
       opp[3] = { x: ox + pad, y: sideTop, w: sideW, h: sideBottom - sideTop };
       opp[1] = { x: ox + tableW - pad - sideW, y: sideTop, w: sideW, h: sideBottom - sideTop };
       var mid = ox + pad + sideW + gap;
