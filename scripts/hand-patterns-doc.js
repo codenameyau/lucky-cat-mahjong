@@ -21,7 +21,7 @@ function split(line) {
 
 const blank = () => ({ hands: 0, wins: 0, faan: 0, limit: 0, self: 0, concealed: 0, dealIns: 0, points: 0, top: 0, games: 0,
   dealerHands: 0, dealerWins: 0, pat: {}, patFaan: {}, patPts: {}, byFaan: {}, full: {}, gamePts: [],
-  tiles: {}, turns: {}, turnSum: 0, turnVal: {} });
+  tiles: {}, turns: {}, turnSum: 0, turnVal: {}, byPts: {}, winPts: 0 });
 // Turns to win, in bands: [label, lowest, highest].
 const TURN_BANDS = [['0 to 8', 0, 8], ['9 to 11', 9, 11], ['12 to 14', 12, 14], ['15 to 17', 15, 17], ['18 to 20', 18, 20], ['21 or more', 21, Infinity]];
 const turnBucket = (t) => TURN_BANDS.findIndex(([, lo, hi]) => t >= lo && t <= hi);
@@ -95,6 +95,7 @@ function closeGame() {
     for (const y of [x, all]) {
       y.wins++; y.faan += f; if (f >= 13) y.limit++; if (how === 'selfDraw') y.self++; if (r[I.concealed] === '1') y.concealed++;
       y.byFaan[f] = (y.byFaan[f] || 0) + 1;
+      y.byPts[wp] = (y.byPts[wp] || 0) + 1; y.winPts += wp;
       y.full[r[I.full_hand]] = (y.full[r[I.full_hand]] || 0) + 1;
     }
     if (w === dealer) x.dealerWins++;
@@ -149,6 +150,7 @@ A **hand** is one hand of mahjong, which ends in a win or a draw. A **game** is 
 - [Hand patterns by strategy](#hand-patterns-by-strategy)
 - [Sets of honors and bonuses](#sets-of-honors-and-bonuses)
 - [Wins by total faan](#wins-by-total-faan)
+- [Wins by total points](#wins-by-total-points)
 - [Full hands: every pattern of a win, with its faan](#full-hands-every-pattern-of-a-win-with-its-faan)
 - [Winning tiles](#winning-tiles)
 - [Turns to win](#turns-to-win)
@@ -231,7 +233,16 @@ Every strategy sat in all ${n(hands)} hands, one seat each. ${n(draws)} hands ($
   const faans = Object.keys(all.byFaan).map(Number).sort((a, b) => a - b);
   md += `\n## Wins by total faan\n\n| Total faan | ${S.map(([, nm]) => nm).join(' | ')} | All |\n| --- | ${S.map(() => '---:').join(' | ')} | ---: |\n`;
   for (const f of faans) md += `| ${f >= 13 ? '13 (limit)' : f} | ${S.map(([id]) => cp(st[id].byFaan[f] || 0, st[id].wins)).join(' | ')} | ${cp(all.byFaan[f], all.wins)} |\n`;
+  md += `| **Total** | ${S.map(([id]) => `**${cp(st[id].wins, st[id].wins)}**`).join(' | ')} | **${cp(all.wins, all.wins)}** |\n`;
   md += `\nEach strategy's wins at each total faan, and their share of its wins.\n`;
+
+  // Wins by the points the winner collected: the payout for the faan, three times it on a self-draw.
+  const ptsKeys = Object.keys(all.byPts).map(Number).sort((a, b) => a - b);
+  md += `\n## Wins by total points\n\nThe points the winner collected from each win: the full-spicy payout for its faan, from 8 at 3 faan to 8,192 at the limit, collected three times on a self-draw (once from each opponent).\n\n| Points | ${S.map(([, nm]) => nm).join(' | ')} | All |\n| ---: | ${S.map(() => '---:').join(' | ')} | ---: |\n`;
+  for (const v of ptsKeys) md += `| ${n(v)} | ${S.map(([id]) => cp(st[id].byPts[v] || 0, st[id].wins)).join(' | ')} | ${cp(all.byPts[v], all.wins)} |\n`;
+  md += `| **Total wins** | ${S.map(([id]) => `**${cp(st[id].wins, st[id].wins)}**`).join(' | ')} | **${cp(all.wins, all.wins)}** |\n`;
+  md += `| **Total points collected** | ${S.map(([id]) => `**${n(st[id].winPts)}**`).join(' | ')} | **${n(all.winPts)}** |\n`;
+  md += `\nEach strategy's wins collecting each number of points, and their share of its wins. Total points collected adds up everything its wins collected, before what it paid on other players' wins.\n`;
 
   const fullTable = (full, total, k) => {
     const keys = Object.keys(full).sort((a, b) => full[b] - full[a]).slice(0, k);
