@@ -183,11 +183,14 @@ html.play-mode-payout:not(.play-settled) .play-option input[value="payout"] + sp
   display: none;
 }
 
-/* Resume shows from the class set in the head, before the buttons exist.
-   Learn to play always shows, as the secondary button. */
+/* Two buttons, from the class set in the head before the buttons exist:
+   Resume game (a saved game in the selected mode) or Start new game, and
+   Learn to play, always the secondary one. */
 #play-resume { display: none; }
 
 html.play-has-save #play-resume { display: inline-flex; }
+
+html.play-has-save #play-start { display: none; }
 
 .play-start {
   flex: 1 1 0;
@@ -212,23 +215,9 @@ html.play-swapping .play-actions .btn { transition: none; }
   html.play-settled .play-actions .btn { transition: none; }
 }
 
-/* Start is marked primary in the markup. A stored game paints Resume red
-   and this button white before that class is rewritten. */
-html.play-has-save:not(.play-settled):not(.play-new-first) #play-start {
-  background: #fff;
-  color: var(--color-text);
-  border-color: rgba(0, 0, 0, 0.12);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  filter: none;
-}
-
-html.play-has-save:not(.play-settled):not(.play-new-first) #play-start:hover {
-  background: #f6f1ea;
-  color: var(--color-text);
-  filter: none;
-}
-
-html.play-has-save:not(.play-settled):not(.play-new-first) #play-resume {
+/* Resume is white in the markup: a stored game paints it red before the
+   script rewrites its class. */
+html.play-has-save:not(.play-settled) #play-resume {
   background: var(--color-primary);
   color: #fff;
   border-color: transparent;
