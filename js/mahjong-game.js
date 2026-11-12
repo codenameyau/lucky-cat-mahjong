@@ -1440,7 +1440,11 @@
     function drawLogo(x, y, w, h) {
       var src = images.logo;
       if (!src) return;
-      var pw = Math.max(1, Math.round(w * dpr)), ph = Math.max(1, Math.round(h * dpr));
+      // Where it lands in device pixels (the canvas's own scale), snapped to
+      // whole pixels: a copy drawn between pixels is resampled, and blurs.
+      var t = ctx.getTransform();
+      var dx = Math.round(t.a * x + t.c * y + t.e), dy = Math.round(t.b * x + t.d * y + t.f);
+      var pw = Math.max(1, Math.round(w * t.a)), ph = Math.max(1, Math.round(h * t.d));
       var key = pw + 'x' + ph;
       var cv = logoSizes[key];
       if (!cv) {
@@ -1461,7 +1465,10 @@
         c.drawImage(cur, 0, 0, pw, ph);
         logoSizes[key] = cv;
       }
-      ctx.drawImage(cv, x, y, w, h);
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(cv, dx, dy); // pixel for pixel
+      ctx.restore();
     }
 
     function drawTile(id, x, y, w, opts) {
