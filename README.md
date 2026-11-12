@@ -291,7 +291,7 @@ The same setting applies to everything the coach says: the hint before your move
 
 - **Simple** — Feedback is the verdict, the pick (*That discard slows your hand. I pick Eight Character.*) and the same sentence on the hand to go for (*Go for Thirteen Orphans, the 13 faan limit. You have 8 tiles needed and 6 tiles remaining.*), with no reasons. The playback's table read keeps its first sentence
 - **Detailed** — Feedback adds the coach's reasons in plain words (*It keeps a bigger hand in reach.*); the table read keeps its first few sentences
-- **Complex** — Feedback adds the model's numbers (*The model expects +663 score on average from Eight Character, and +6 score from Red Dragon.*); the table read is whole
+- **Complex** — Feedback adds the model's numbers (*The model expects +663 score from Eight Character, and +6 score from Red Dragon.*); the table read is whole
 
 `shapeFeedback(feedback, hint, detail)` and `shapeNote(note, detail)` in `js/mahjong-coach.js` do this; the hand and its faan travel on each hint as `hint.aim` (`{ name, faan, bonus, total, min }`) and `aimSentence(aim)` says it, so other notes can reuse it; the game applies them wherever feedback or a table-read note is shown, and redoes a playback's notes when the setting changes.
 

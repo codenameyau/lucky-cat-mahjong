@@ -1204,7 +1204,7 @@
     var m = pick && pick.ml;
     if (!m) return '';
     if (m.policy != null) return policyLine(list, pick, m);
-    var line = 'The model expects ' + pointsWord(m.ev) + ' on average from this discard' +
+    var line = 'The model expects ' + pointsWord(m.ev) + ' from this discard' +
       (m.pWin >= 0.01 ? ', with ' + chance(m.pWin, 'win') + ' (about ' + Math.round(m.avgWin).toLocaleString('en-US') + ' points)' : '') + '.';
     var next = list.filter(function (x) { return x !== pick && x.ml && x.ml.choice !== false; })
       .sort(function (a, b) { return b.ml.ev - a.ml.ev; })[0];
@@ -1313,7 +1313,7 @@
     var ranked = [pick].concat(read.choices.filter(function (x) { return x !== pick; })
       .sort(function (a, b) { return b.ml.ev - a.ml.ev; }).slice(0, 2));
     var said = ranked.map(function (x) { return pointsWord(x.ml.ev) + ' ' + ifYou(x.decision, tile); });
-    var line = 'On average, the model expects ' + said[0] +
+    var line = 'The model expects ' + said[0] +
       (said.length > 2 ? ', ' + said.slice(1, -1).join(', ') + ', and ' + said[said.length - 1] : ' and ' + said[1]) + '.' +
       (pick.ml.pWin >= 0.01 ? ' That gives ' + chance(pick.ml.pWin, 'win') + '.' : '');
     if (read.pick !== read.foundation) {
@@ -1604,7 +1604,7 @@
     var out = [iPick(hint, best, good)];
     if (slows) out.push(slowsLine(top, chosen, mine, best));
     if (risky && chosen.evidence) out.push(chosen.evidence + '.');
-    out.push('The model expects ' + pointsWord(top.ml.ev) + ' on average from ' + best + ', and ' + pointsWord(chosen.ml.ev) +
+    out.push('The model expects ' + pointsWord(top.ml.ev) + ' from ' + best + ', and ' + pointsWord(chosen.ml.ev) +
       ' from ' + mine + '.' + odds(best, top.ml, chosen.ml));
     var action = slows ? 'That discard slows your hand.' : risky ? 'That discard was risky.'
       : good ? 'Good discard.' : 'There was a better discard.';
