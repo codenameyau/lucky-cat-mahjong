@@ -517,7 +517,7 @@
   function upgradeNote(v, route) {
     var up = v.ctx.upgrade;
     if (!up || (route && route.id === up.id)) return '';
-    return ' ' + up.label + ' is in reach, so aim for it too: ' + up.hint + '.';
+    return ' ' + up.label + ' is in reach: ' + up.hint + '.';
   }
 
   // Tiles in your hand that can no longer do their job for a hand of pairs or

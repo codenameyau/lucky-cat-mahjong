@@ -558,7 +558,7 @@ describe('both strategies: special-hand upgrades', () => {
     const hint = Coach.turnHint(game, 0, { kongs: [] });
     const said = [hint.action].concat(hint.tips).join(' ').replace(/[\u0001\u0002]/g, '');
     assert.match(said, /Discard Four Circle\. Mixed Orphans uses only 1s, 9s and honors\./);
-    assert.match(said, /Mixed Orphans is in reach, so aim for it too: keep your 1s, 9s and honors\./);
+    assert.match(said, /Mixed Orphans is in reach: keep your 1s, 9s and honors\./);
   });
 
   it('the coach says to throw an upgrade tile with none left', () => {
@@ -728,7 +728,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.61.26');
+    assert.equal(E.GAME_VERSION, '0.61.27');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
