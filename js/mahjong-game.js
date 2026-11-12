@@ -3796,6 +3796,8 @@
     }
 
     function hintList(id) {
+      // The tutorial has one script, so every coach shares one history.
+      if (settings.lesson) id = 'lesson';
       return ui.hintLists[id] || (ui.hintLists[id] = []);
     }
 
