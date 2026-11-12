@@ -5331,11 +5331,11 @@
     }
 
     // Where See results goes while the hands are face up: the coach's bar,
-    // directly above your avatar. The column only when there is no bar
-    // (a landscape phone). Beside your name when the coach is hidden.
+    // directly above your avatar; with no bar (a tablet or a window sideways,
+    // the coach in its column, or the coach hidden), by your name. Never up
+    // in the coach's column, far from your hand.
     function seeResultsHome() {
       if (L.hintH) return 'bar';
-      if (L.history) return 'column';
       return 'name';
     }
 
