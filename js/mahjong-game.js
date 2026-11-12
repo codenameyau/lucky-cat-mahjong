@@ -1180,14 +1180,10 @@
       var tableW = W;
       if (desktop) tableW = Math.min(Math.round((W - historyGap - pad) * 2 / 3), Math.round(H * 1.1));
       if (landscape && coachShown) tableW = Math.round((W - historyGap - pad) * 2 / 3);
+      // Your section always spans the table: the side seats stop above it,
+      // in every layout (a landscape phone's too).
       var meX = ox, meW = phonePortrait ? W : tableW;
-      // A landscape phone's side seats run the full height (their tiles in
-      // one row need the length), so your section sits between them.
       var LANDSCAPE_SIDE_W = 48;
-      if (landscape) {
-        meX = ox + LANDSCAPE_SIDE_W + 6;
-        meW = tableW - 2 * (LANDSCAPE_SIDE_W + 6);
-      }
 
       // Hand tiles: one row of 14 across your section, or two rows of 7 on a
       // portrait phone, as wide as the screen unless that's too tall.
@@ -1225,7 +1221,9 @@
       // Landscape phones show the coach in the column instead.
       var hintH = 0;
       var room = meBox.y - 6 - topH - 6; // table and bar together
-      if (desktop) hintH = 84;
+      // (A tablet or window sideways keeps it too; only a phone held sideways,
+      // too short to spare it, shows the coach in its column alone.)
+      if (desktop || (landscape && H >= 500)) hintH = 84;
       // (Upright, the coach's bar stays shorter than your section.)
       if (phonePortrait && coachShown) hintH = clamp(room - Math.min(tableW - 2 * pad, room - 72), 72, 80);
       // Playback keeps the coach's bar even on a landscape phone, where a
@@ -1276,12 +1274,13 @@
         topHead = phoneHead;
       }
       var opp = [];
-      // An upright phone's player across spans the table, above the side
-      // seats; sideways the side seats run the full height instead, with the
-      // player across between them.
-      var acrossSpans = phonePortrait;
+      // Below desktop (an upright phone, or a sideways phone or medium window)
+      // the player across spans the table, above the side seats, as you span
+      // it below them. On desktop the side seats run from the top to your
+      // section, with the player across between them.
+      var acrossSpans = phonePortrait || landscape;
       var sideTop = acrossSpans ? topH + topPanelH + gap : topH;
-      var sideBottom = landscape ? H - Math.max(4, pad / 2) : bandTop - gap;
+      var sideBottom = bandTop - gap;
       opp[3] = { x: ox + pad, y: sideTop, w: sideW, h: sideBottom - sideTop };
       opp[1] = { x: ox + tableW - pad - sideW, y: sideTop, w: sideW, h: sideBottom - sideTop };
       var mid = ox + pad + sideW + gap;
@@ -1436,6 +1435,44 @@
 
     /* ---------------- drawing primitives ---------------- */
 
+    // The logo at w x h on screen, from a copy shrunk in halving steps to the
+    // exact device pixels (a 1024px image drawn straight down to ~40px skips
+    // most of its pixels and looks jagged on a large screen). Cached by size.
+    var logoSizes = {};
+    function drawLogo(x, y, w, h) {
+      var src = images.logo;
+      if (!src) return;
+      // Where it lands in device pixels (the canvas's own scale), snapped to
+      // whole pixels: a copy drawn between pixels is resampled, and blurs.
+      var t = ctx.getTransform();
+      var dx = Math.round(t.a * x + t.c * y + t.e), dy = Math.round(t.b * x + t.d * y + t.f);
+      var pw = Math.max(1, Math.round(w * t.a)), ph = Math.max(1, Math.round(h * t.d));
+      var key = pw + 'x' + ph;
+      var cv = logoSizes[key];
+      if (!cv) {
+        var cur = src, sw = src.width, sh = src.height;
+        while (sw / 2 >= pw && sh / 2 >= ph) {
+          sw = Math.round(sw / 2); sh = Math.round(sh / 2);
+          var step = document.createElement('canvas');
+          step.width = sw; step.height = sh;
+          var sc = step.getContext('2d');
+          sc.imageSmoothingQuality = 'high';
+          sc.drawImage(cur, 0, 0, sw, sh);
+          cur = step;
+        }
+        cv = document.createElement('canvas');
+        cv.width = pw; cv.height = ph;
+        var c = cv.getContext('2d');
+        c.imageSmoothingQuality = 'high';
+        c.drawImage(cur, 0, 0, pw, ph);
+        logoSizes[key] = cv;
+      }
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(cv, dx, dy); // pixel for pixel
+      ctx.restore();
+    }
+
     function drawTile(id, x, y, w, opts) {
       opts = opts || {};
       var sp = tileSprite(id, w, dpr, !!opts.back);
@@ -1520,7 +1557,7 @@
       if (!ui.shake || ui.shake.kind !== kind || ui.shake.key !== key) return 0;
       var p = (now() - ui.shake.start) / SHAKE_MS;
       if (p < 0 || p >= 1) return 0;
-      return Math.sin(p * Math.PI * 5) * (1 - p) * 18;
+      return Math.sin(p * Math.PI * 5) * (1 - p) * (kind === 'tile' ? 10 : 18); // a refused tile shakes gently
     }
 
     function button(label, x, y, w, h, onTap, style, id, picked) {
@@ -1530,6 +1567,7 @@
       if (dx) { ctx.save(); ctx.translate(dx, 0); }
       var fills = {
         primary: isHover ? COLORS.primaryHover : COLORS.primary,
+        red: isHover ? '#D62A47' : COLORS.red, // red whatever the theme
         gold: isHover ? '#ffb43c' : COLORS.gold,
         light: isHover ? '#ffffff' : 'rgba(255, 248, 240, 0.94)',
         white: isHover ? '#ece6de' : '#ffffff',
@@ -3558,7 +3596,8 @@
         if (i === ui.selected) lift = tw * 0.32;
         else if (hover === 'hand-' + i && ui.turnPrompt) lift = tw * 0.12;
         var glow = null;
-        if (hintTile && !hintUsed && id === hintTile && ui.turnPrompt) {
+        // On the tutorial's Replace flowers step the flower glows too.
+        if (hintTile && !hintUsed && id === hintTile && (ui.turnPrompt || ui.flowerPrompt)) {
           // Glow the rightmost copy so it matches the drawn tile when relevant.
           var lastCopy = tiles.lastIndexOf(id);
           if (i === lastCopy) { glow = COLORS.gold; hintUsed = true; }
@@ -3715,7 +3754,7 @@
       if (images.logo) {
         var iw = iconS * (images.logo.width / images.logo.height);
         var dw = Math.min(iw, 48), dh = Math.min(iconS, 48 / (iw / iconS));
-        ctx.drawImage(images.logo, x + 8, y + (h - dh) / 2, dw, dh); // centered in the box, however tall it grows
+        drawLogo(x + 8, y + (h - dh) / 2, dw, dh); // centered in the box, however tall it grows
       }
       var startY = y + h / 2 - (out.length * lh) / 2 + lh / 2;
       out.forEach(function (l, i) {
@@ -3757,6 +3796,8 @@
     }
 
     function hintList(id) {
+      // The tutorial has one script, so every coach shares one history.
+      if (settings.lesson) id = 'lesson';
       return ui.hintLists[id] || (ui.hintLists[id] = []);
     }
 
@@ -4129,7 +4170,7 @@
         ctx.fill();
         if (images.logo) {
           var logoH = avatar * (images.logo.height / images.logo.width || 1);
-          ctx.drawImage(images.logo, viewX + 8, y + (b.h - logoH) / 2, avatar, logoH);
+          drawLogo(viewX + 8, y + (b.h - logoH) / 2, avatar, logoH);
         }
         var blockH = b.lines.length * lh;
         var startY = y + (b.h - blockH) / 2 + lh / 2;
@@ -4258,6 +4299,14 @@
     }
 
     function liveStrategyRows() {
+      // The tutorial has one script: every coach gives its move (the tile to
+      // discard, or the claim or step in words), whatever its own play would be.
+      if (settings.lesson) {
+        var lh = ui.hint;
+        var toss = !!(lh && lh.decision && lh.decision.type === 'discard');
+        var said = lh && !toss && lh.action ? String(lh.action).replace(/\.$/, '') : null;
+        return Strategies.list().map(function (s) { return { id: s.id, name: s.name, tile: toss ? lh.tile : null, action: said }; });
+      }
       // Feedback looks back at the discard you just made, not at the next one.
       if (ui.coach === 'feedback') {
         return ui.feedbackDiscards || Strategies.list().map(function (s) {
@@ -4383,7 +4432,12 @@
     function drawActions() {
       if (ui.overlay) { setButtonsOverName(false); return; }
       var acts = [];
-      if (ui.turnPrompt) {
+      if (ui.flowerPrompt) {
+        acts.push({ id: 'replace-flower', label: 'Replace flowers', style: 'red', fn: function () {
+          var p = ui.flowerPrompt;
+          if (p) { ui.flowerPrompt = null; p.resolve(); }
+        } });
+      } else if (ui.turnPrompt) {
         var o = ui.turnPrompt.opts;
         if (o.win) acts.push({ id: 'win', label: winButtonLabel(o.win), style: 'gold', fn: function () { resolveTurn({ type: 'win' }); } });
         o.kongs.forEach(function (k) {
@@ -4405,13 +4459,15 @@
       }
       if (!acts.length) { setButtonsOverName(false); return; }
       var phone = W < 600; // smaller buttons on a phone
-      var h = phone ? 30 : 38;
+      // Every action button (Discard, Win, Pung, Chow, Kong, Pass, Replace
+      // flowers) is sized like the top bar's controls (Menu, Rules...).
+      var h = 28;
       var gap = phone ? 6 : 8;
       // When claiming, show the tile that is up for grabs beside the buttons.
       var claimTile = ui.claimPrompt ? ui.claimPrompt.opts.tile : null;
       var ctw = claimTile ? Math.min(phone ? 24 : 30, (L.actionsH - 4) / TILE_ASPECT) : 0;
       var lead = claimTile ? ctw + 10 : 0;
-      ctx.font = 'bold ' + (phone ? 12 : 15) + 'px ' + FONT_BODY;
+      ctx.font = Math.min(15, h * 0.39) + 'px ' + FONT_HEAD; // the label size button() draws at
       // Each button is only as wide as its label.
       var widths = acts.map(function (a) { return Math.ceil(ctx.measureText(a.label).width) + (phone ? 20 : 28); });
       var buttonsW = widths.reduce(function (sum, w) { return sum + w; }, 0) + gap * (acts.length - 1);
@@ -4427,15 +4483,15 @@
           if (midX - groupW / 2 >= free.x0 && midX + groupW / 2 <= free.x1) { x0 = L.meX + L.pad; x1 = L.meX + L.meW - L.pad; }
           else { x0 = free.x0; x1 = free.x1; }
         }
-        else if (L.meX + L.meW - L.pad - free.x0 - lead >= buttonsW) {
+        else {
           // Not enough room beside your name: use the rest of the row and
-          // cover the name while the buttons are up.
+          // cover the name while the buttons are up. They always stay in your
+          // row (never over the coach's message): with lots of melds and chow
+          // choices they narrow to fit, below.
           x0 = free.x0; x1 = L.meX + L.meW - L.pad;
           cover = { x: free.x1, w: x1 - free.x1 };
-        } else {
-          // Still too many (lots of melds and chow choices): float them over the coach's bar.
-          // Phones have no bar, so the buttons sit just above the meld row.
-          rowY = L.hintH >= L.actionsH ? L.hintY + (L.hintH - L.actionsH) / 2 : L.meY - L.actionsH - 4;
+          // Even at their narrowest they don't fit after your melds: the whole row, over them.
+          if (x1 - x0 - lead < acts.length * 36 + gap * (acts.length - 1)) x0 = L.meX + L.pad;
         }
       }
       setButtonsOverName(!!cover);
@@ -4456,7 +4512,8 @@
       var cursor = x;
       acts.forEach(function (a, i) {
         var id = a.id || ('act-' + i);
-        var recommended = hintDecision && labelMatches(a.label, hintDecision);
+        // (The tutorial's Replace flowers is the only move, so it always gets the ring.)
+        var recommended = a.id === 'replace-flower' || (hintDecision && labelMatches(a.label, hintDecision));
         button(a.label, cursor, y, widths[i], h, a.fn, a.style, id, recommended);
         cursor += widths[i] + gap;
       });
@@ -5286,11 +5343,11 @@
     }
 
     // Where See results goes while the hands are face up: the coach's bar,
-    // directly above your avatar. The column only when there is no bar
-    // (a landscape phone). Beside your name when the coach is hidden.
+    // directly above your avatar; with no bar (a tablet or a window sideways,
+    // the coach in its column, or the coach hidden), by your name. Never up
+    // in the coach's column, far from your hand.
     function seeResultsHome() {
       if (L.hintH) return 'bar';
-      if (L.history) return 'column';
       return 'name';
     }
 
@@ -6159,6 +6216,19 @@
         L = computeLayout();
         announce('Hand ' + game.handNumber + '. ' + (game.dealer === 0 ? 'You are' : game.players[game.dealer].name + ' is') + ' the dealer.');
         requestRender();
+        // The tutorial's step one: the deal waits, flower in hand, for the
+        // Replace flowers button (only here, never in a practice or full game).
+        if (settings.lesson && !game.lessonStep && game.hand.seats[0].hand.some(E.isBonus)) {
+          ui.hint = Lesson.FLOWER_HINT;
+          rememberCoach(ui.hint, 'hint');
+          return new Promise(function (resolve) {
+            ui.flowerPrompt = { resolve: resolve };
+            requestRender();
+          }).then(function () {
+            ui.flowerPrompt = null;
+            requestRender();
+          });
+        }
         return sleep(400);
       },
       turn: function (d) {
@@ -7915,7 +7985,7 @@
           if (lessonTrack) lessonTrack.done = true;
         }
         var extra = null;
-        if (settings.lesson && res.type === 'win' && res.winner === 0) extra = 'You won a Half Flush on East Wind.';
+        if (settings.lesson && res.type === 'win' && res.winner === 0) extra = 'You won a half flush on East Wind.';
         else if (res.roundAdvanced) extra = 'The round wind is now ' + E.WIND_NAMES[game.round] + '.';
         if (game.over) extra = 'That was the last deal of the game.';
         pendingSummary = keptSummary({ result: res, extra: extra });

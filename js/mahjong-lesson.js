@@ -3,7 +3,7 @@
    You are East. Plum, your flower, sets aside. You chow 2-3-4 Bamboo, pung
    8 Bamboo, and kong the fourth 8. Three Red Dragons stay concealed. A pair
    of 6 Bamboo is the pair. East Wind, taken from a discard, finishes the
-   East wind triplet and the Half Flush. */
+   East Wind triplet and the Half Flush. */
 
 (function (root) {
   'use strict';
@@ -61,29 +61,35 @@
     return { kind: decision.type === 'discard' ? 'discard' : 'claim', action: action, tile: tile || null, decision: decision, tips: tips };
   }
 
+  // Step one, before the first move: the deal has put Plum in your hand, and
+  // the table waits for the Replace flowers button (the tutorial's only).
+  var FLOWER_HINT = { kind: 'flower', action: 'Replace flowers.', tile: 'f1', decision: null, tips: [
+    'At the beginning of the game, reveal and set aside any flower and season tiles and draw a replacement tile for each.',
+    'Plum is your flower since it has the number 1 and you sit on East, which is seat number 1, so it scores a faan since they match.',
+  ] };
+
   // The moves, in the order the table asks for them. `drawn` discards the
   // tile that seat just drew. Seat 0 is the player; those steps carry the
   // coach line, and any other choice is refused.
   var STEPS = [
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'c1' }, hint: say('Discard 1 Character.', 'c1', { type: 'discard' }, [
-      'Plum is your flower, because you sit East. A flower sets aside, and you draw a replacement from the back of the wall. Your own flower scores a faan.',
-      'The three Red Dragons in your hand are concealed. Nobody sees them until you win. A meld you claim is exposed, face up.',
+      'The player sitting on East always goes first. Tiles in your hand are concealed. Double click on a tile to discard it.',
     ]) },
     { seat: 1, kind: 'turn', drawn: true },
     { seat: 2, kind: 'turn', drawn: true },
     { seat: 3, kind: 'turn', drawn: true },
     { seat: 0, kind: 'claim', action: { type: 'chow', tiles: ['b2', 'b3'] }, hint: say('Chow 2-3-4 Bamboo.', null, { type: 'chow', tiles: ['b2', 'b3'] }, [
-      'A chow is three tiles in a row, and only from the player on your left. This chow is exposed.',
+      'A chow is three tiles of the same suit (either Bamboo, Dots, or Characters) in a sequential order. You can claim a tile from the player on your left to form a chow. After claiming a tile from another player, you must expose all tiles used to form that meld. Those tiles can no longer be separated.',
     ]) },
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'd9' }, hint: say('Discard 9 Dots.', 'd9', { type: 'discard' }, [
-      'You do not draw after a chow. 9 Dots is not part of a Half Flush in Bamboo.',
+      'You do not draw after claiming a tile. Let\'s go for a half flush in Bamboo, which is worth 3 faan. Discard the 9 Dots.',
     ]) },
     { seat: 1, kind: 'turn', drawn: true },
     { seat: 0, kind: 'claim', action: { type: 'pung' }, hint: say('Pung 8 Bamboo.', 'b8', { type: 'pung' }, [
-      'A pung is three of a kind. You may take it from anyone. It stays exposed. The pair of 6 Bamboo is your eyes, the pair every hand needs to win.',
+      'A pung is three tiles of a kind. You can claim a discarded tile from any player to form a pung, which immediately skips all other players\' turns. Afterwards, expose the pung. Let\'s keep the two 6 Bamboo tiles as your pair or eyes, which is needed in every hand to win.',
     ]) },
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'c5' }, hint: say('Discard 5 Characters.', 'c5', { type: 'discard' }, [
-      '5 Characters replaced your flower. It is not Bamboo or an honor, so it goes.',
+      'To reach 3 faan, the most common hand is a half flush so your tiles are just one suit plus any combination of Dragon or Wind tiles. Discard the 5 Characters so your hand only has Bamboo tiles.',
     ]) },
     { seat: 1, kind: 'turn', drawn: true },
     { seat: 2, kind: 'turn', drawn: true },
@@ -92,14 +98,14 @@
       'You drew the fourth 8 Bamboo. Add it to the pung to make a kong. A kong draws a replacement from the back of the wall.',
     ]) },
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'd1' }, hint: say('Discard 1 Dot.', 'd1', { type: 'discard' }, [
-      'That replacement is not part of the hand. You are ready on East Wind.',
+      'That replacement tile is now part of the hand. You are ready on East Wind.',
       'Draw East Wind yourself and it is a self-draw: every opponent pays. Take it from a discard and only the player who threw it pays.',
     ]) },
     { seat: 1, kind: 'turn', drawn: true },
     { seat: 0, kind: 'claim', action: { type: 'win' }, hint: say('Win on East Wind.', null, { type: 'win' }, [
       'East Wind finishes your wind triplet. You are East, and the round is East, so it scores as your seat wind and the round wind.',
-      'This is taking a winning tile, not a self-draw, so only the thrower pays.',
-      'The hand is a Half Flush: Bamboo, a concealed Red Dragon triplet, the East wind triplet, the exposed 8 Bamboo kong, the exposed 2-3-4 chow, and a pair of 6 Bamboo.',
+      'This is claiming a winning tile, not a self-draw, so only the thrower pays.',
+      'The hand is now a half flush. You can claim the last tile you need to win from anyone. Claim the East Wind to win.',
     ]) },
   ];
 
@@ -167,7 +173,7 @@
     game.round = 1;
   }
 
-  var api = { wall: wall, prepare: prepare, hint: hint, matches: matches, accept: accept, take: take, progress: progress, MOVES: MOVES };
+  var api = { FLOWER_HINT: FLOWER_HINT, wall: wall, prepare: prepare, hint: hint, matches: matches, accept: accept, take: take, progress: progress, MOVES: MOVES };
 
   if (node) module.exports = api;
   else root.MahjongLesson = api;
