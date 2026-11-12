@@ -12,8 +12,11 @@
      --seed N          first game's seed; game k plays seed + k (default 1)
      --workers N       worker threads (default: CPU cores - 1)
      --json FILE       write the counts as JSON (by strategy, and for the table)
-     --csv FILE        write every hand as a row (for analysis; keep it under
-                       the gitignored ml/data/, e.g. ml/data/hand-patterns/)
+     --parquet FILE    write every hand as a row, in Parquet (for analysis and
+                       the Hugging Face dataset; keep it under the gitignored
+                       ml/data/, e.g. ml/data/hand-patterns/). Needs Python with
+                       pyarrow (pip install pyarrow); see hand-results-parquet.py
+     --csv FILE        the same rows as CSV
 
    A game is every hand played until the deal has gone round all four rounds;
    a hand is one hand of mahjong, ending in a win or a draw. */
@@ -23,6 +26,7 @@
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { Worker, isMainThread, parentPort, workerData } = require('node:worker_threads');
 
 const START = 1e9; // nobody busts, so every game plays all four rounds
@@ -132,7 +136,7 @@ if (!isMainThread) {
   const a = args(process.argv.slice(2));
   const lineup = a.lineup ? String(a.lineup).split(',') : a.strategy ? [a.strategy, a.strategy, a.strategy, a.strategy] : null;
   if (!lineup || lineup.length !== 4) {
-    console.error('usage: node scripts/hand-patterns.js (--strategy ID | --lineup A,B,C,D) [--games N] [--seed N] [--workers N] [--json FILE] [--csv FILE]');
+    console.error('usage: node scripts/hand-patterns.js (--strategy ID | --lineup A,B,C,D) [--games N] [--seed N] [--workers N] [--json FILE] [--parquet FILE] [--csv FILE]');
     process.exit(1);
   }
   const tableName = a.lineup ? 'mixed' : 'self:' + a.strategy;
@@ -149,13 +153,20 @@ if (!isMainThread) {
     const table = rs.map((r) => r.table).reduce(addInto, emptyTable());
     const by = {};
     for (const r of rs) for (const [id, st] of Object.entries(r.by)) by[id] = addInto(by[id] || emptyStrategy(), st);
-    if (a.csv) {
+    const csvPath = a.csv || (a.parquet ? a.parquet + '.tmp.csv' : null);
+    if (csvPath) {
       // Every hand, one row each, in game order (gitignored under ml/data/).
       const rows = [].concat(...rs.map((r) => r.rows));
       const key = (row) => row.split(',').slice(1, 3).map(Number);
       rows.sort((x, y) => { const [sx, hx] = key(x), [sy, hy] = key(y); return sx - sy || hx - hy; });
-      fs.mkdirSync(path.dirname(a.csv), { recursive: true });
-      fs.writeFileSync(a.csv, CSV_COLUMNS.join(',') + '\n' + rows.join('\n') + '\n');
+      fs.mkdirSync(path.dirname(csvPath), { recursive: true });
+      fs.writeFileSync(csvPath, CSV_COLUMNS.join(',') + '\n' + rows.join('\n') + '\n');
+    }
+    if (a.parquet) {
+      // The rows as typed Parquet (Python with pyarrow does the writing).
+      const py = spawnSync(process.env.PYTHON || 'python', [path.join(__dirname, 'hand-results-parquet.py'), csvPath, a.parquet], { stdio: 'inherit' });
+      if (!a.csv) fs.rmSync(csvPath, { force: true });
+      if (py.status !== 0) { console.error('writing Parquet failed: needs Python with pyarrow (pip install pyarrow)'); process.exitCode = 1; }
     }
     const out = { table: tableName, lineup, seed, games, ...table, strategies: by, seconds: (Date.now() - t0) / 1000 };
     const won = Object.values(by).reduce((s, st) => s + st.wins, 0);

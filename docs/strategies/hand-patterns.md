@@ -653,11 +653,12 @@ Every hand of all five experiments, one row a hand, is on Hugging Face: [codenam
 
 | File | Table | Games | Hands |
 | --- | --- | ---: | ---: |
-| `hand-results/self-jorge-yau.csv` | Four Jorge Yau | 1,000 | 19,298 |
-| `hand-results/self-neural-cat.csv` | Four Neural Cat | 1,000 | 19,245 |
-| `hand-results/self-lucky-cat.csv` | Four Lucky Cat | 1,000 | 20,987 |
-| `hand-results/self-only-orphans.csv` | Four Only Orphans | 1,000 | 16,669 |
-| `hand-results/mixed.csv` | All four, one seat each | 1,000 | 19,499 |
+| `hand-results/self-jorge-yau.parquet` | Four Jorge Yau | 1,000 | 19,298 |
+| `hand-results/self-neural-cat.parquet` | Four Neural Cat | 1,000 | 19,245 |
+| `hand-results/self-lucky-cat.parquet` | Four Lucky Cat | 1,000 | 20,987 |
+| `hand-results/self-only-orphans.parquet` | Four Only Orphans | 1,000 | 16,669 |
+| `hand-results/mixed.parquet` | All four, one seat each | 1,000 | 19,499 |
+| `hand-results/mixed-100k.parquet` | All four, one seat each (a 100,000-game run, uploaded as it grows) | 30,000 so far | 584,625 so far |
 
 ```python
 from datasets import load_dataset
@@ -690,11 +691,11 @@ The columns:
 ## Reproducing it
 
 ```bash
-node scripts/hand-patterns.js --strategy jorge-yau --games 1000 --seed 7200001 --csv ml/data/hand-patterns/data/self-jorge-yau.csv
-node scripts/hand-patterns.js --strategy neural-cat --games 1000 --seed 7200001 --csv ml/data/hand-patterns/data/self-neural-cat.csv
-node scripts/hand-patterns.js --strategy lucky-cat --games 1000 --seed 7200001 --csv ml/data/hand-patterns/data/self-lucky-cat.csv
-node scripts/hand-patterns.js --strategy only-orphans --games 1000 --seed 7200001 --csv ml/data/hand-patterns/data/self-only-orphans.csv
-node scripts/hand-patterns.js --lineup jorge-yau,neural-cat,lucky-cat,only-orphans --games 1000 --seed 7300001 --csv ml/data/hand-patterns/data/mixed.csv
+node scripts/hand-patterns.js --strategy jorge-yau --games 1000 --seed 7200001 --parquet ml/data/hand-patterns/data/self-jorge-yau.parquet
+node scripts/hand-patterns.js --strategy neural-cat --games 1000 --seed 7200001 --parquet ml/data/hand-patterns/data/self-neural-cat.parquet
+node scripts/hand-patterns.js --strategy lucky-cat --games 1000 --seed 7200001 --parquet ml/data/hand-patterns/data/self-lucky-cat.parquet
+node scripts/hand-patterns.js --strategy only-orphans --games 1000 --seed 7200001 --parquet ml/data/hand-patterns/data/self-only-orphans.parquet
+node scripts/hand-patterns.js --lineup jorge-yau,neural-cat,lucky-cat,only-orphans --games 1000 --seed 7300001 --parquet ml/data/hand-patterns/data/mixed.parquet
 ```
 
-`scripts/hand-patterns.js` plays full games and writes every hand as a CSV row (`--csv`) and the counts as JSON (`--json`: the games and hands, the hands with no winner, and for each strategy its wins, patterns, full hands and wins by faan). `ml/data/` is gitignored, so the CSVs stay local until they're uploaded.
+`scripts/hand-patterns.js` plays full games and writes every hand as a row in Parquet (`--parquet`, which needs Python with `pyarrow`; `--csv` writes the same rows as CSV) and the counts as JSON (`--json`: the games and hands, the hands with no winner, and for each strategy its wins, patterns, full hands and wins by faan). `ml/data/` is gitignored, so the files stay local until they're uploaded.
