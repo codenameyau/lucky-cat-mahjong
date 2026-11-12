@@ -1530,6 +1530,7 @@
       if (dx) { ctx.save(); ctx.translate(dx, 0); }
       var fills = {
         primary: isHover ? COLORS.primaryHover : COLORS.primary,
+        red: isHover ? '#D62A47' : COLORS.red, // red whatever the theme
         gold: isHover ? '#ffb43c' : COLORS.gold,
         light: isHover ? '#ffffff' : 'rgba(255, 248, 240, 0.94)',
         white: isHover ? '#ece6de' : '#ffffff',
@@ -4383,7 +4384,12 @@
     function drawActions() {
       if (ui.overlay) { setButtonsOverName(false); return; }
       var acts = [];
-      if (ui.turnPrompt) {
+      if (ui.flowerPrompt) {
+        acts.push({ id: 'replace-flower', label: 'Replace flower', style: 'red', fn: function () {
+          var p = ui.flowerPrompt;
+          if (p) { ui.flowerPrompt = null; p.resolve(); }
+        } });
+      } else if (ui.turnPrompt) {
         var o = ui.turnPrompt.opts;
         if (o.win) acts.push({ id: 'win', label: winButtonLabel(o.win), style: 'gold', fn: function () { resolveTurn({ type: 'win' }); } });
         o.kongs.forEach(function (k) {
@@ -6159,6 +6165,19 @@
         L = computeLayout();
         announce('Hand ' + game.handNumber + '. ' + (game.dealer === 0 ? 'You are' : game.players[game.dealer].name + ' is') + ' the dealer.');
         requestRender();
+        // The tutorial's step one: the deal waits, flower in hand, for the
+        // Replace flower button (only here, never in a practice or full game).
+        if (settings.lesson && !game.lessonStep && game.hand.seats[0].hand.some(E.isBonus)) {
+          ui.hint = Lesson.FLOWER_HINT;
+          rememberCoach(ui.hint, 'hint');
+          return new Promise(function (resolve) {
+            ui.flowerPrompt = { resolve: resolve };
+            requestRender();
+          }).then(function () {
+            ui.flowerPrompt = null;
+            requestRender();
+          });
+        }
         return sleep(400);
       },
       turn: function (d) {

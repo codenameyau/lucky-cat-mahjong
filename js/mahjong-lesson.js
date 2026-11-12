@@ -61,13 +61,19 @@
     return { kind: decision.type === 'discard' ? 'discard' : 'claim', action: action, tile: tile || null, decision: decision, tips: tips };
   }
 
+  // Step one, before the first move: the deal has put Plum in your hand, and
+  // the table waits for the Replace flower button (the tutorial's only).
+  var FLOWER_HINT = { kind: 'flower', action: 'Replace flower.', tile: 'f1', decision: null, tips: [
+    'At the beginning of the game, reveal and set aside any flower and season tiles and draw a replacement tile for each.',
+    'Plum is your flower because you sit East, so it scores a faan.',
+  ] };
+
   // The moves, in the order the table asks for them. `drawn` discards the
   // tile that seat just drew. Seat 0 is the player; those steps carry the
   // coach line, and any other choice is refused.
   var STEPS = [
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'c1' }, hint: say('Discard 1 Character.', 'c1', { type: 'discard' }, [
-      'Plum is your flower because you sit East, so it scores a faan. Your three Red Dragons stay concealed until you win.',
-      'Double tap a tile to discard it.',
+      'Tiles in your hand are concealed. Double click on a tile to discard it.',
     ]) },
     { seat: 1, kind: 'turn', drawn: true },
     { seat: 2, kind: 'turn', drawn: true },
@@ -167,7 +173,7 @@
     game.round = 1;
   }
 
-  var api = { wall: wall, prepare: prepare, hint: hint, matches: matches, accept: accept, take: take, progress: progress, MOVES: MOVES };
+  var api = { FLOWER_HINT: FLOWER_HINT, wall: wall, prepare: prepare, hint: hint, matches: matches, accept: accept, take: take, progress: progress, MOVES: MOVES };
 
   if (node) module.exports = api;
   else root.MahjongLesson = api;
