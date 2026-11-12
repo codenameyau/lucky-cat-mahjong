@@ -4469,15 +4469,15 @@
           if (midX - groupW / 2 >= free.x0 && midX + groupW / 2 <= free.x1) { x0 = L.meX + L.pad; x1 = L.meX + L.meW - L.pad; }
           else { x0 = free.x0; x1 = free.x1; }
         }
-        else if (L.meX + L.meW - L.pad - free.x0 - lead >= buttonsW) {
+        else {
           // Not enough room beside your name: use the rest of the row and
-          // cover the name while the buttons are up.
+          // cover the name while the buttons are up. They always stay in your
+          // row (never over the coach's message): with lots of melds and chow
+          // choices they narrow to fit, below.
           x0 = free.x0; x1 = L.meX + L.meW - L.pad;
           cover = { x: free.x1, w: x1 - free.x1 };
-        } else {
-          // Still too many (lots of melds and chow choices): float them over the coach's bar.
-          // Phones have no bar, so the buttons sit just above the meld row.
-          rowY = L.hintH >= L.actionsH ? L.hintY + (L.hintH - L.actionsH) / 2 : L.meY - L.actionsH - 4;
+          // Even at their narrowest they don't fit after your melds: the whole row, over them.
+          if (x1 - x0 - lead < acts.length * 36 + gap * (acts.length - 1)) x0 = L.meX + L.pad;
         }
       }
       setButtonsOverName(!!cover);
