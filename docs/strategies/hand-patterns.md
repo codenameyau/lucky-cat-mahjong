@@ -14,6 +14,7 @@ A **hand** is one hand of mahjong, which ends in a win or a draw. A **game** is 
 - [Each strategy](#each-strategy)
 - [What it shows](#what-it-shows)
 - [All four at one table](#all-four-at-one-table)
+- [Win rate and expected faan of each hand pattern](#win-rate-and-expected-faan-of-each-hand-pattern): [by win rate](#sorted-by-win-rate), [by expected faan](#sorted-by-expected-faan)
 - [The dataset](#the-dataset)
 - [Reproducing it](#reproducing-it)
 
@@ -595,6 +596,56 @@ Each strategy's share of its wins with each hand pattern, at a table of four cop
 - **Winning the most hands doesn't win the most points.** Lucky Cat wins the most hands (22.8%) but loses the most points a hand (-79.9): its wins are small and it deals in most often after Only Orphans (12.4% of its hands). Neural Cat wins about as many hands as Jorge Yau but bigger ones (5.86 faan against 5.13), and that is the difference between +96.1 and -60.3 points a hand.
 - **Points a hand mostly decide who finishes a game on top.** Neural Cat leads both. Only Orphans is second on points a hand but last on games on top: its points come in a few very big wins, so most games pass without one.
 - **A faster table finishes fewer slow, big hands.** Compare each strategy's patterns alone and together in the table above.
+
+## Win rate and expected faan of each hand pattern
+
+From the first 20,000 games of the 100,000-game run (all four strategies at one table, seeds from 8,000,001): 389,806 hands, 259,873 won.
+
+- **Win rate per hand** is the share of all hands that ended in a win scoring that pattern (± one standard error). The dataset records only how hands ended, not which hand a seat was aiming for. So this is how often the table finished the pattern, not how often a seat that went for it finished it.
+- **Expected faan of the win** is the average total faan of the wins that scored the pattern, with every other pattern counted in (± one standard error). **Points a win** is what the winner collected on average.
+- Only hand patterns are counted here, not sets of honors or bonuses. A win can score more than one, so the shares of wins add up to more than 100%.
+
+### Sorted by win rate
+
+| Pattern | Its own faan | Wins with it | Win rate per hand | Share of wins | Expected faan of the win | Points a win | Self-drawn |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Half Flush | 3 | 92,011 | 23.60% ± 0.068% | 35.4% | 4.99 ± 0.01 | 287 | 24% |
+| Full Flush | 7 | 54,040 | 13.86% ± 0.055% | 20.8% | 8.26 ± 0.00 | 787 | 23% |
+| All Triplets | 3 | 39,393 | 10.11% ± 0.048% | 15.2% | 5.93 ± 0.01 | 652 | 25% |
+| Seven Pairs | 4 | 33,275 | 8.54% ± 0.045% | 12.8% | 5.14 ± 0.01 | 104 | 25% |
+| All Sequences | 1 | 31,820 | 8.16% ± 0.044% | 12.2% | 5.00 ± 0.02 | 313 | 36% |
+| Chicken Hand | 0 | 8,068 | 2.07% ± 0.023% | 3.1% | 3.06 ± 0.00 | 27 | 83% |
+| Concealed Triplets | 10 | 7,165 | 1.84% ± 0.022% | 2.8% | 11.76 ± 0.01 | 7,046 | 23% |
+| Thirteen Orphans | 13 | 5,262 | 1.35% ± 0.018% | 2.0% | 13.00 ± 0.00 | 12,205 | 24% |
+| Mixed Orphans | 1 | 3,136 | 0.80% ± 0.014% | 1.2% | 7.59 ± 0.05 | 2,001 | 26% |
+| Small Three Dragons | 5 | 657 | 0.17% ± 0.007% | 0.3% | 10.47 ± 0.09 | 5,623 | 25% |
+| All Honors | 10 | 403 | 0.10% ± 0.005% | 0.2% | 12.95 ± 0.01 | 11,912 | 24% |
+| Big Three Dragons | 8 | 205 | 0.053% ± 0.004% | 0.1% | 12.55 ± 0.07 | 9,863 | 20% |
+| Small Four Winds | 6 | 85 | 0.022% ± 0.002% | 0.0% | 12.55 ± 0.11 | 10,758 | 25% |
+| All Terminals | 10 | 40 | 0.010% ± 0.002% | 0.0% | 11.05 ± 0.13 | 4,864 | 33% |
+| Big Four Winds | 13 | 17 | 0.004% ± 0.001% | 0.0% | 13.00 ± 0.00 | 11,083 | 18% |
+| Nine Gates | 13 | 16 | 0.004% ± 0.001% | 0.0% | 13.00 ± 0.00 | 11,264 | 19% |
+
+### Sorted by expected faan
+
+| Pattern | Its own faan | Wins with it | Win rate per hand | Share of wins | Expected faan of the win | Points a win | Self-drawn |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Thirteen Orphans | 13 | 5,262 | 1.35% ± 0.018% | 2.0% | 13.00 ± 0.00 | 12,205 | 24% |
+| Big Four Winds | 13 | 17 | 0.004% ± 0.001% | 0.0% | 13.00 ± 0.00 | 11,083 | 18% |
+| Nine Gates | 13 | 16 | 0.004% ± 0.001% | 0.0% | 13.00 ± 0.00 | 11,264 | 19% |
+| All Honors | 10 | 403 | 0.10% ± 0.005% | 0.2% | 12.95 ± 0.01 | 11,912 | 24% |
+| Small Four Winds | 6 | 85 | 0.022% ± 0.002% | 0.0% | 12.55 ± 0.11 | 10,758 | 25% |
+| Big Three Dragons | 8 | 205 | 0.053% ± 0.004% | 0.1% | 12.55 ± 0.07 | 9,863 | 20% |
+| Concealed Triplets | 10 | 7,165 | 1.84% ± 0.022% | 2.8% | 11.76 ± 0.01 | 7,046 | 23% |
+| All Terminals | 10 | 40 | 0.010% ± 0.002% | 0.0% | 11.05 ± 0.13 | 4,864 | 33% |
+| Small Three Dragons | 5 | 657 | 0.17% ± 0.007% | 0.3% | 10.47 ± 0.09 | 5,623 | 25% |
+| Full Flush | 7 | 54,040 | 13.86% ± 0.055% | 20.8% | 8.26 ± 0.00 | 787 | 23% |
+| Mixed Orphans | 1 | 3,136 | 0.80% ± 0.014% | 1.2% | 7.59 ± 0.05 | 2,001 | 26% |
+| All Triplets | 3 | 39,393 | 10.11% ± 0.048% | 15.2% | 5.93 ± 0.01 | 652 | 25% |
+| Seven Pairs | 4 | 33,275 | 8.54% ± 0.045% | 12.8% | 5.14 ± 0.01 | 104 | 25% |
+| All Sequences | 1 | 31,820 | 8.16% ± 0.044% | 12.2% | 5.00 ± 0.02 | 313 | 36% |
+| Half Flush | 3 | 92,011 | 23.60% ± 0.068% | 35.4% | 4.99 ± 0.01 | 287 | 24% |
+| Chicken Hand | 0 | 8,068 | 2.07% ± 0.023% | 3.1% | 3.06 ± 0.00 | 27 | 83% |
 
 ## The dataset
 
