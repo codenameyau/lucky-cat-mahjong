@@ -61,7 +61,7 @@
     else if (id === 'half') keep = function (j) { return E.suitOfIndex(j) === suit || j >= 27; };
     else if (id === 'full') keep = function (j) { return E.suitOfIndex(j) === suit; };
     else if (id === 'straights' || id === 'runs') keep = function (j) { return j < 27; };
-    return { id: id, suit: suit, faan: plan.faan, keep: keep, label: plan.label, reason: plan.reason, hint: plan.hint };
+    return { id: id, suit: suit, faan: plan.faan, keep: keep, label: plan.label, reason: plan.reason, hint: plan.hint, shantenFn: plan.shantenFn || null };
   }
 
   function described(analysis) {
@@ -462,10 +462,26 @@
     var total = Math.max(0, Math.floor(won + 0.25));
     var faan = patternFaan(route, text, total);
     var bonus = Math.max(0, Math.min(confirmedBonus(v, route, c), LIMIT_FAAN - faan));
-    return { name: label, faan: faan, bonus: bonus, total: total, min: v.game.settings.minFaan };
+    var left = tilesLeft(v, route, c);
+    return { name: label, faan: faan, bonus: bonus, total: total, min: v.game.settings.minFaan, left: left, have: left === null ? null : WIN_TILES - left };
   }
 
-  // "Go for All Triplets, about 3 faan +2 for bonuses." One sentence, the same
+  // Tiles still to bring in for the hand: its steps from finishing, plus the
+  // one that finishes it. Every winning hand is 14 tiles (four melds and a pair,
+  // or seven pairs, or thirteen orphans and a pair), so the hand's tiles that
+  // are already doing their job are the rest. `c` is the hand after the move.
+  // Null when the plan can't be read (no steps, or none left to finish it).
+  var WIN_TILES = 14;
+  function tilesLeft(v, route, c) {
+    if (!route || !route.shantenFn || !c) return null;
+    var held = route.keep ? c.map(function (n, i) { return route.keep(i) ? n : 0; }) : c;
+    var steps = route.shantenFn(held, v.ctx.declared || 0);
+    if (typeof steps !== 'number' || !isFinite(steps)) return null;
+    return Math.max(0, Math.min(WIN_TILES, steps + 1));
+  }
+
+  // "Go for All Triplets, about 3 faan +2 for bonuses. You have 8 tiles needed
+  // and 6 tiles remaining." Two sentences, the same
   // at every level that says it (the Simple hint and feedback; a playback can
   // reuse it). The faan is the pattern's alone; bonuses show once the hand has one.
   function aimSentence(aim) {
@@ -475,7 +491,9 @@
     var extra = !limit && aim.bonus > 0 ? ' +' + aim.bonus + ' for bonuses' : '';
     var total = aim.total !== undefined ? aim.total : aim.faan + (aim.bonus || 0);
     var short = aim.min && !limit && total < aim.min ? ', short of the ' + aim.min + ' faan minimum' : '';
-    return 'Go for ' + aim.name + ', ' + worth + extra + short + '.';
+    var tiles = aim.left === null || aim.left === undefined || aim.have === null || aim.have === undefined ? '' :
+      ' You have ' + aim.have + ' tile' + (aim.have === 1 ? '' : 's') + ' needed and ' + aim.left + ' tile' + (aim.left === 1 ? '' : 's') + ' remaining.';
+    return 'Go for ' + aim.name + ', ' + worth + extra + short + '.' + tiles;
   }
 
   // The bigger hand the same tiles can still make, when it isn't already

@@ -89,7 +89,7 @@ describe('coach text', () => {
         if (!h.aim) continue;
         named++;
         const said = C.aimSentence(h.aim);
-        assert.match(said, /^Go for .+, (about \d+ faan( \+\d+ for bonuses)?|the 13 faan limit)(, short of the \d+ faan minimum)?\.$/, said);
+        assert.match(said, /^Go for .+, (about \d+ faan( \+\d+ for bonuses)?|the 13 faan limit)(, short of the \d+ faan minimum)?\.( You have \d+ tiles? needed and \d+ tiles? remaining\.)?$/, said);
         assert.ok(w.endsWith(said), id + ' ' + seed + ': ' + w);
         assert.equal(h.tips.length, 1, 'Simple stays one tip');
         assert.ok((w.match(/going for|go for/gi) || []).length <= 1, id + ' ' + seed + ' says "go for" once: ' + w);
@@ -109,8 +109,49 @@ describe('coach text', () => {
     assert.equal(C.aimSentence({ name: 'a chicken hand', faan: 1, min: 3 }), 'Go for a chicken hand, about 1 faan, short of the 3 faan minimum.');
     assert.equal(C.aimSentence({ name: 'All Triplets', faan: 4, min: 3 }), 'Go for All Triplets, about 4 faan.');
     assert.equal(C.aimSentence(null), '');
+    assert.equal(C.aimSentence({ name: 'Thirteen Orphans', faan: 13, left: 6, have: 8 }), 'Go for Thirteen Orphans, the 13 faan limit. You have 8 tiles needed and 6 tiles remaining.');
+    assert.equal(C.aimSentence({ name: 'All Triplets', faan: 3, left: 1, have: 13 }), 'Go for All Triplets, about 3 faan. You have 13 tiles needed and 1 tile remaining.');
   });
 
+
+  it('Simple says how many tiles the hand needs and how many remain, for every strategy and every pattern', () => {
+    // A winning hand is 14 tiles, so the two numbers always add up to 14.
+    const ORPHANS = [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33];
+    const patterns = new Set();
+    let orphans = 0, pairs = 0;
+    for (const id of S.ids()) {
+      const simple = C.forStrategy(S.get(id).bot, { detail: 'simple' });
+      for (let seed = 1; seed <= 120; seed++) {
+        const game = E.createGame({ seed, humanSeat: true, dealer: 0 });
+        E.startHand && E.startHand(game);
+        const h = simple.turnHint(game, 0, E.turnOptions(game, 0));
+        if (!h || !h.aim || !h.tile) continue;
+        const a = h.aim;
+        assert.ok(Number.isInteger(a.have) && Number.isInteger(a.left), id + ' ' + seed + ' says no tile counts');
+        assert.equal(a.have + a.left, 14, id + ' ' + seed + ': ' + a.name);
+        const w = words(h);
+        assert.ok(w.endsWith('You have ' + a.have + ' tile' + (a.have === 1 ? '' : 's') + ' needed and ' + a.left + ' tile' + (a.left === 1 ? '' : 's') + ' remaining.'), w);
+        assert.ok(w.length <= MAX, w);
+        patterns.add(a.name);
+        // Counted by hand for two patterns, from the hand after the discard.
+        const seat = game.hand.seats[0];
+        if (seat.melds && seat.melds.length) continue;
+        const c = new Array(34).fill(0);
+        seat.hand.forEach((t) => c[E.tileIndex(t)]++);
+        c[E.tileIndex(h.tile)]--;
+        if (a.name === 'Thirteen Orphans') {
+          const kinds = ORPHANS.filter((i) => c[i] > 0).length;
+          assert.equal(a.have, kinds + (ORPHANS.some((i) => c[i] > 1) ? 1 : 0), id + ' ' + seed + ' orphans');
+          orphans++;
+        } else if (a.name === 'Seven Pairs') {
+          assert.equal(a.have, Math.min(7, c.filter((n) => n > 0).length) + Math.min(7, c.filter((n) => n > 1).length), id + ' ' + seed + ' pairs');
+          pairs++;
+        }
+      }
+    }
+    assert.ok(patterns.size >= 10, 'patterns covered: ' + [...patterns].join(', '));
+    assert.ok(orphans > 10 && pairs > 10, orphans + ' orphans and ' + pairs + ' pairs hands counted');
+  });
 
   it('cuts a long hint to whole tips, keeping the action and the model line', () => {
     const long = 'This tip is long enough that a few of them will not fit together in one hint. ';
