@@ -147,7 +147,7 @@
           var start = document.getElementById('play-start');
           var learn = document.getElementById('play-learn');
           if (resume) resume.hidden = !hasSave;
-          if (learn) learn.hidden = hasSave;
+          if (learn) learn.hidden = false; // always shown, never the primary
           if (start) start.textContent = hasSave ? 'Start new game' : 'Start game';
           var seen = false;
           var startFirst = document.documentElement.classList.contains('play-new-first');

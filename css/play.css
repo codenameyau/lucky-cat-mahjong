@@ -183,12 +183,11 @@ html.play-mode-payout:not(.play-settled) .play-option input[value="payout"] + sp
   display: none;
 }
 
-/* Resume and Learn swap from the class set in the head, before the buttons exist. */
+/* Resume shows from the class set in the head, before the buttons exist.
+   Learn to play always shows, as the secondary button. */
 #play-resume { display: none; }
 
 html.play-has-save #play-resume { display: inline-flex; }
-
-html.play-has-save #play-learn { display: none; }
 
 .play-start {
   flex: 1 1 0;

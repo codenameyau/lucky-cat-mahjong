@@ -2892,7 +2892,7 @@
       var hw = W < 420 ? 84 : 106;
       button(COACH_LABELS[ui.coach], right - sw - hw - 6, 7, hw, 28, cycleCoach, ui.coach === 'off' ? 'ghost' : 'gold', 'hints');
       var rw = W < 420 ? 50 : 68;
-      button('Rules', right - sw - hw - rw - 12, 7, rw, 28, openRules, 'ghost', 'rules');
+      button('Rules', right - sw - hw - rw - 12, 7, rw, 28, openRules, 'ghost', 'rules', !!(settings.lesson && ui.hint && ui.hint.highlight === 'rules')); // the tutorial points to it with a gold ring
       var stw = W < 420 ? 70 : 96;
       button('Strategies', right - sw - hw - rw - stw - 18, 7, stw, 28, openStrategies, 'ghost', 'strategies');
       if (game) {
