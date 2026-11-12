@@ -20,7 +20,21 @@ function split(line) {
 }
 
 const blank = () => ({ hands: 0, wins: 0, faan: 0, limit: 0, self: 0, concealed: 0, dealIns: 0, points: 0, top: 0, games: 0,
-  dealerHands: 0, dealerWins: 0, pat: {}, patFaan: {}, patPts: {}, byFaan: {}, full: {}, gamePts: [] });
+  dealerHands: 0, dealerWins: 0, pat: {}, patFaan: {}, patPts: {}, byFaan: {}, full: {}, gamePts: [],
+  tiles: {}, turns: {}, turnSum: 0, turnVal: {} });
+// Turns to win, in bands: [label, lowest, highest].
+const TURN_BANDS = [['0 to 8', 0, 8], ['9 to 11', 9, 11], ['12 to 14', 12, 14], ['15 to 17', 15, 17], ['18 to 20', 18, 20], ['21 or more', 21, Infinity]];
+const turnBucket = (t) => TURN_BANDS.findIndex(([, lo, hi]) => t >= lo && t <= hi);
+// A tile id as its name: c1 1 Character, b5 5 Bamboo, d9 9 Dots, we East Wind, dr Red Dragon.
+function tileName(id) {
+  const honors = { we: 'East Wind', ws: 'South Wind', ww: 'West Wind', wn: 'North Wind', dr: 'Red Dragon', dg: 'Green Dragon', dw: 'White Dragon', flower: 'a flower (no tile)' };
+  if (honors[id]) return honors[id];
+  const suit = { c: 'Character', b: 'Bamboo', d: 'Dot' }[id[0]];
+  const k = +id.slice(1);
+  return suit ? `${k} ${suit === 'Bamboo' ? 'Bamboo' : suit + (k > 1 ? 's' : '')}` : id;
+}
+const tileGroup = (id) => (id === 'flower' ? 'Flowers' : id[0] === 'w' ? 'Winds' : id[0] === 'd' && id.length === 2 && 'rgw'.includes(id[1]) ? 'Dragons'
+  : { c: 'Characters', b: 'Bamboo', d: 'Dots' }[id[0]] + (['1', '9'].includes(id.slice(1)) ? ' (1 or 9)' : ' (2 to 8)'));
 const st = Object.fromEntries(S.map(([id]) => [id, blank()]));
 const all = blank();
 const own = {}; // a pattern's own faan: its most common value
@@ -85,6 +99,14 @@ function closeGame() {
     }
     if (w === dealer) x.dealerWins++;
     cur.seatWin[w][0] += f; cur.seatWin[w][1] += wp;
+    // The winning tile, and the turns it took: the winner's own discards before the win.
+    const tile = r[I.winning_tile] || 'flower', turns = +r[I.winner_discards];
+    for (const y of [x, all]) {
+      y.tiles[tile] = (y.tiles[tile] || 0) + 1;
+      y.turns[turns] = (y.turns[turns] || 0) + 1; y.turnSum += turns;
+      const tb = turnBucket(turns), tv = y.turnVal[tb] || (y.turnVal[tb] = [0, 0, 0, 0]);
+      tv[0]++; tv[1] += f; tv[2] += wp; if (how === 'selfDraw') tv[3]++;
+    }
     const items = r[I.patterns] ? r[I.patterns].split('; ') : [];
     const seen = new Set();
     for (const it of items) {
@@ -128,6 +150,8 @@ A **hand** is one hand of mahjong, which ends in a win or a draw. A **game** is 
 - [Sets of honors and bonuses](#sets-of-honors-and-bonuses)
 - [Wins by total faan](#wins-by-total-faan)
 - [Full hands: every pattern of a win, with its faan](#full-hands-every-pattern-of-a-win-with-its-faan)
+- [Winning tiles](#winning-tiles)
+- [Turns to win](#turns-to-win)
 - [What it shows](#what-it-shows)
 - [The dataset](#the-dataset)
 - [Reproducing it](#reproducing-it)
@@ -222,6 +246,37 @@ Every strategy sat in all ${n(hands)} hands, one seat each. ${n(draws)} hands ($
   md += `\n## Full hands: every pattern of a win, with its faan\n\nThe most common complete wins: every pattern a win scored, with its total. Patterns that score twice show ×2.\n\n### All four strategies\n\n` + fullTable(all.full, all.wins, 20).replace(/ x(\d)/g, ' ×$1');
   for (const [id, name, model] of S) md += `\n### ${name} (${model})\n\n` + fullTable(st[id].full, st[id].wins, 12).replace(/ x(\d)/g, ' ×$1');
 
+  // Winning tiles: the tile that completed each win.
+  const tileRows = Object.keys(all.tiles).sort((a, b) => all.tiles[b] - all.tiles[a]);
+  md += `\n## Winning tiles\n\nThe tile that completed each of the ${n(wins)} wins, whether drawn or claimed from a discard. A win on flowers alone has no winning tile.\n\n### The most common winning tiles\n\n| Rank | Tile | Wins |\n| ---: | --- | ---: |\n`;
+  tileRows.slice(0, 15).forEach((t, i) => { md += `| ${i + 1} | ${tileName(t)} | ${cp(all.tiles[t], wins, 2)} |\n`; });
+  const least = tileRows.filter((t) => t !== 'flower').slice(-3).reverse();
+  md += `\nThe least common: ${least.map((t) => `${tileName(t)}, ${cp(all.tiles[t], wins, 2)}`).join('; ')}.\n`;
+  const groups = {};
+  for (const t of tileRows) groups[tileGroup(t)] = (groups[tileGroup(t)] || 0) + all.tiles[t];
+  const groupOrder = ['Characters (2 to 8)', 'Bamboo (2 to 8)', 'Dots (2 to 8)', 'Characters (1 or 9)', 'Bamboo (1 or 9)', 'Dots (1 or 9)', 'Winds', 'Dragons', 'Flowers'].filter((g) => groups[g]);
+  const kinds = { 'Characters (2 to 8)': 7, 'Bamboo (2 to 8)': 7, 'Dots (2 to 8)': 7, 'Characters (1 or 9)': 2, 'Bamboo (1 or 9)': 2, 'Dots (1 or 9)': 2, Winds: 4, Dragons: 3 };
+  md += `\n### By kind of tile\n\nPer kind, and per tile of that kind, so groups of different sizes compare.\n\n| Kind | Tiles in it | Wins | Wins per tile |\n| --- | ---: | ---: | ---: |\n`;
+  for (const g of groupOrder) md += `| ${g} | ${kinds[g] || '-'} | ${cp(groups[g], wins)} | ${kinds[g] ? n(groups[g] / kinds[g]) : '-'} |\n`;
+  md += `\n"Tiles in it" is how many different tiles the kind has, each in the wall 4 times: a suit's 2 to 8 is 7 tiles, its 1 and 9 are 2, the winds 4 and the dragons 3.\n`;
+  md += `\n### Each strategy's most common winning tiles\n\n| Rank | ${S.map(([, nm]) => nm).join(' | ')} |\n| ---: | ${S.map(() => '---').join(' | ')} |\n`;
+  for (let i = 0; i < 8; i++) {
+    md += `| ${i + 1} | ${S.map(([id]) => { const x = st[id]; const t = Object.keys(x.tiles).sort((a, b) => x.tiles[b] - x.tiles[a])[i]; return t ? `${tileName(t)}: ${cp(x.tiles[t], x.wins)}` : ''; }).join(' | ')} |\n`;
+  }
+
+  // Turns to win: the winner's own discards before the win.
+  const medianTurns = (x) => { const half = x.wins / 2; let acc = 0; for (const t of Object.keys(x.turns).map(Number).sort((a, b) => a - b)) { acc += x.turns[t]; if (acc >= half) return t; } return 0; };
+  md += `\n## Turns to win\n\n**Turns** here are the winner's own discards before it won (the dataset's \`winner_discards\`): 12 turns means it had thrown 12 tiles when it won, by drawing the winning tile on its next turn or claiming someone else's discard. A dealer can win before discarding at all.\n\n`;
+  md += `| Strategy | Wins | Turns: mean | Turns: median | ${TURN_BANDS.map(([l]) => l).join(' | ')} |\n| --- | ---: | ---: | ---: | ${TURN_BANDS.map(() => '---:').join(' | ')} |\n`;
+  for (const [id, name] of S.concat([['all', '**All**']])) {
+    const x = id === 'all' ? all : st[id];
+    md += `| ${name} | ${n(x.wins)} | ${(x.turnSum / x.wins).toFixed(2)} | ${medianTurns(x)} | ${TURN_BANDS.map((b, i) => cp((x.turnVal[i] || [0])[0], x.wins)).join(' | ')} |\n`;
+  }
+  md += `\nThe bands are the share of each strategy's wins that took that many turns.\n\n### What a win is worth by how long it took\n\nAll ${n(wins)} wins, by the winner's turns:\n\n| Turns | Wins | Average faan | Points a win | Self-drawn |\n| --- | ---: | ---: | ---: | ---: |\n`;
+  TURN_BANDS.forEach(([label], i) => { const v = all.turnVal[i]; if (v) md += `| ${label} | ${cp(v[0], wins)} | ${(v[1] / v[0]).toFixed(2)} | ${n(v[2] / v[0])} | ${cp(v[3], v[0])} |\n`; });
+  const turnKeys = Object.keys(all.turns).map(Number).sort((a, b) => all.turns[b] - all.turns[a]);
+  md += `\nThe most common is ${turnKeys[0]} turns: ${n(all.turns[turnKeys[0]])} wins, ${pct(all.turns[turnKeys[0]], wins)} of them. The longest win took ${Math.max(...Object.keys(all.turns).map(Number))}.\n`;
+
   // What it shows, from the numbers above.
   const W = (id) => st[id].wins / st[id].hands;
   const F = (id) => st[id].faan / st[id].wins;
@@ -235,6 +290,10 @@ Every strategy sat in all ${n(hands)} hands, one seat each. ${n(draws)} hands ($
   if (hf && ff) md += `- **Half Flush is the most common winning hand** (${pct(hf.k, hands)} of all hands): a player scores it in ${pct(hf.games, seatGames)} of games, for ${hf.ptsMean.toFixed(1)} points a game on average. **Full Flush** wins fewer hands (${pct(ff.k, hands)}) but is worth ${ff.ptsMean.toFixed(1)} points a game. Of all hand patterns, **${best.p}** is worth the most points a game (${best.ptsMean.toFixed(1)}).\n`;
   const nonZero = rows.filter((x) => x.ptsMed > 0).map((x) => x.p);
   md += `- **Medians are 0 for most patterns**, since a player scores them in fewer than half its games. ${nonZero.length ? `Only ${nonZero.join(' and ')} ${nonZero.length > 1 ? 'have' : 'has'} a median above 0.` : 'None has a median above 0.'} Winning at all, with any pattern, is worth a median of ${n(allRow.ptsMed)} points a game against a mean of ${n(allRow.ptsMean)}, because a few big wins carry the mean.\n`;
+  const dragonWins = groups.Dragons || 0, midWins = (groups['Characters (2 to 8)'] || 0) + (groups['Bamboo (2 to 8)'] || 0) + (groups['Dots (2 to 8)'] || 0);
+  md += `- **The dragons are the most common winning tiles:** ${tileRows.slice(0, 3).map((t) => tileName(t)).join(', ')}, ${n(dragonWins / 3)} wins each against ${n(midWins / 21)} for a middle suit tile (2 to 8). Winds are the least common, at ${n((groups.Winds || 0) / 4)} each.\n`;
+  const fast = all.turnVal[0], slow = all.turnVal[TURN_BANDS.length - 1];
+  md += `- **Wins take ${(all.turnSum / all.wins).toFixed(1)} turns on average** (the median is ${medianTurns(all)}), and Lucky Cat takes the longest at ${(st['lucky-cat'].turnSum / st['lucky-cat'].wins).toFixed(1)}. Slower wins score more faan: ${TURN_BANDS[0][0]} turns averages ${(fast[1] / fast[0]).toFixed(1)} faan and ${n(fast[2] / fast[0])} points, ${TURN_BANDS[TURN_BANDS.length - 1][0]} averages ${(slow[1] / slow[0]).toFixed(1)} faan and ${n(slow[2] / slow[0])} points.\n`;
   md += `- **Self-draws:** ${pct(all.self, all.wins)} of wins are self-drawn and pay three times over; the rest are paid by the one player who threw the tile.\n`;
   md += `- **${pct(draws, hands)} of hands end with no winner**${noWinGames ? ', and ' + n(noWinGames) + ' games had none at all' : ', and every game had at least one win'}.\n`;
 
@@ -272,10 +331,29 @@ hands = load_dataset("codenameyau/lucky-cat-mahjong-games", "mixed-100k")["train
 ## Reproducing it
 
 \`\`\`bash
-node scripts/hand-patterns.js --lineup jorge-yau,neural-cat,lucky-cat,only-orphans --games 100000 --seed 8000001 --parquet ml/data/hand-patterns/data/mixed-100k.parquet
+# Native, about 21 times faster a core: build, then play the 100,000 games in 30 processes.
+make -C native -j10
+IDS=$(node -e "const N = require('./scripts/ml/native.js'); console.log(['jorge-yau', 'neural-cat', 'lc:js/mahjong-lucky-cat-weights.js', 'only-orphans'].map((id) => N.nativeId(id)).join(','))")
+D=ml/data/hand-patterns
+mkdir -p $D/parts $D/data
+for j in $(seq 0 29); do
+  native/build/lcm-sim-exact games --lineup "$IDS" --names jorge-yau,neural-cat,lucky-cat,only-orphans \\
+    --seed 8000001 --from $((j * 3334)) --to $(( j == 29 ? 100000 : (j + 1) * 3334 )) --out $D/parts/part-$(printf %02d $j).csv &
+done
+wait
+echo "${H.join(',')}" > $D/data/mixed-100k.csv
+cat $D/parts/part-*.csv >> $D/data/mixed-100k.csv
+python scripts/hand-results-parquet.py $D/data/mixed-100k.csv $D/data/mixed-100k.parquet
+
+# Or in JS, the game's own engine (about 10 hours on 16 workers):
+node scripts/hand-patterns.js --lineup jorge-yau,neural-cat,lucky-cat,only-orphans --games 100000 --seed 8000001 \\
+  --csv $D/data/mixed-100k.csv --parquet $D/data/mixed-100k.parquet
+
+# Then this page, from the CSV:
+node scripts/hand-patterns-doc.js $D/data/mixed-100k.csv docs/strategies/hand-patterns.md
 \`\`\`
 
-\`scripts/hand-patterns.js\` plays full games in JS and writes every hand as a row: Parquet with \`--parquet\` (needs Python with \`pyarrow\`), CSV with \`--csv\`. The native simulator plays the same games about 21 times faster a core (\`native/build/lcm-sim-exact games --lineup <native ids> --names jorge-yau,neural-cat,lucky-cat,only-orphans --seed 8000001 --from A --to B\`, split across processes), writing the same rows. \`ml/data/\` is gitignored.
+The native simulator's \`games\` command plays full games and writes the same rows as \`scripts/hand-patterns.js\`, without the header line. On a 400-game check its exact build matched the JS on 7,804 of 7,805 hands. \`scripts/hand-patterns.js\` writes Parquet with \`--parquet\` (needs Python with \`pyarrow\`) and CSV with \`--csv\`. \`ml/data/\` is gitignored.
 `;
   fs.writeFileSync(OUT, md);
   console.log('wrote', OUT, md.length, 'chars;', games, 'games', hands, 'hands', wins, 'wins');

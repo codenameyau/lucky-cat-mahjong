@@ -14,6 +14,8 @@ A **hand** is one hand of mahjong, which ends in a win or a draw. A **game** is 
 - [Sets of honors and bonuses](#sets-of-honors-and-bonuses)
 - [Wins by total faan](#wins-by-total-faan)
 - [Full hands: every pattern of a win, with its faan](#full-hands-every-pattern-of-a-win-with-its-faan)
+- [Winning tiles](#winning-tiles)
+- [Turns to win](#turns-to-win)
 - [What it shows](#what-it-shows)
 - [The dataset](#the-dataset)
 - [Reproducing it](#reproducing-it)
@@ -307,12 +309,100 @@ The most common complete wins: every pattern a win scored, with its total. Patte
 | Half Flush + Seven Pairs = 7 | 2,051 | 2.0% |
 | Concealed Triplets = 10 | 1,750 | 1.7% |
 
+## Winning tiles
+
+The tile that completed each of the 1,301,137 wins, whether drawn or claimed from a discard. A win on flowers alone has no winning tile.
+
+### The most common winning tiles
+
+| Rank | Tile | Wins |
+| ---: | --- | ---: |
+| 1 | Red Dragon | 55,855 (4.29%) |
+| 2 | White Dragon | 50,764 (3.90%) |
+| 3 | Green Dragon | 47,410 (3.64%) |
+| 4 | 7 Characters | 46,430 (3.57%) |
+| 5 | 3 Characters | 44,781 (3.44%) |
+| 6 | 4 Characters | 43,114 (3.31%) |
+| 7 | 7 Dots | 42,976 (3.30%) |
+| 8 | 5 Characters | 42,468 (3.26%) |
+| 9 | 6 Dots | 42,434 (3.26%) |
+| 10 | 6 Characters | 42,075 (3.23%) |
+| 11 | 6 Bamboo | 41,241 (3.17%) |
+| 12 | 4 Dots | 40,652 (3.12%) |
+| 13 | 7 Bamboo | 40,400 (3.10%) |
+| 14 | 3 Dots | 39,974 (3.07%) |
+| 15 | 5 Dots | 39,737 (3.05%) |
+
+The least common: East Wind, 27,483 (2.11%); South Wind, 29,356 (2.26%); North Wind, 29,532 (2.27%).
+
+### By kind of tile
+
+Per kind, and per tile of that kind, so groups of different sizes compare.
+
+| Kind | Tiles in it | Wins | Wins per tile |
+| --- | ---: | ---: | ---: |
+| Characters (2 to 8) | 7 | 292,792 (22.5%) | 41,827 |
+| Bamboo (2 to 8) | 7 | 265,671 (20.4%) | 37,953 |
+| Dots (2 to 8) | 7 | 274,462 (21.1%) | 39,209 |
+| Characters (1 or 9) | 2 | 66,046 (5.1%) | 33,023 |
+| Bamboo (1 or 9) | 2 | 63,723 (4.9%) | 31,862 |
+| Dots (1 or 9) | 2 | 61,992 (4.8%) | 30,996 |
+| Winds | 4 | 119,886 (9.2%) | 29,972 |
+| Dragons | 3 | 154,029 (11.8%) | 51,343 |
+| Flowers | - | 2,536 (0.2%) | - |
+
+"Tiles in it" is how many different tiles the kind has, each in the wall 4 times: a suit's 2 to 8 is 7 tiles, its 1 and 9 are 2, the winds 4 and the dragons 3.
+
+### Each strategy's most common winning tiles
+
+| Rank | Jorge Yau | Neural Cat | Lucky Cat | Only Orphans |
+| ---: | --- | --- | --- | --- |
+| 1 | Red Dragon: 21,163 (5.4%) | 7 Characters: 15,133 (4.1%) | 7 Characters: 17,280 (4.0%) | White Dragon: 12,557 (12.2%) |
+| 2 | Green Dragon: 16,341 (4.2%) | 4 Characters: 14,425 (3.9%) | 3 Characters: 17,237 (3.9%) | Green Dragon: 11,432 (11.1%) |
+| 3 | White Dragon: 16,163 (4.1%) | 3 Characters: 14,088 (3.8%) | 7 Dots: 17,061 (3.9%) | Red Dragon: 10,814 (10.5%) |
+| 4 | 7 Characters: 13,533 (3.5%) | 6 Characters: 13,484 (3.6%) | 6 Dots: 17,051 (3.9%) | West Wind: 7,948 (7.7%) |
+| 5 | 7 Dots: 13,221 (3.4%) | 5 Characters: 13,058 (3.5%) | 5 Characters: 16,541 (3.8%) | 1 Bamboo: 7,925 (7.7%) |
+| 6 | 7 Bamboo: 13,124 (3.4%) | 6 Bamboo: 12,937 (3.5%) | 4 Dots: 16,224 (3.7%) | North Wind: 7,858 (7.6%) |
+| 7 | 3 Characters: 13,075 (3.4%) | 6 Dots: 12,502 (3.4%) | 5 Dots: 15,995 (3.7%) | South Wind: 6,984 (6.8%) |
+| 8 | 6 Bamboo: 12,847 (3.3%) | 7 Dots: 12,426 (3.4%) | 6 Characters: 15,955 (3.7%) | 1 Dot: 6,860 (6.6%) |
+
+## Turns to win
+
+**Turns** here are the winner's own discards before it won (the dataset's `winner_discards`): 12 turns means it had thrown 12 tiles when it won, by drawing the winning tile on its next turn or claiming someone else's discard. A dealer can win before discarding at all.
+
+| Strategy | Wins | Turns: mean | Turns: median | 0 to 8 | 9 to 11 | 12 to 14 | 15 to 17 | 18 to 20 | 21 or more |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Jorge Yau | 389,856 | 15.44 | 16 | 28,981 (7.4%) | 43,584 (11.2%) | 75,165 (19.3%) | 99,697 (25.6%) | 100,128 (25.7%) | 42,301 (10.9%) |
+| Neural Cat | 370,904 | 15.83 | 16 | 21,212 (5.7%) | 37,255 (10.0%) | 69,592 (18.8%) | 97,291 (26.2%) | 99,916 (26.9%) | 45,638 (12.3%) |
+| Lucky Cat | 437,088 | 16.63 | 17 | 10,472 (2.4%) | 33,361 (7.6%) | 76,696 (17.5%) | 117,963 (27.0%) | 128,625 (29.4%) | 69,971 (16.0%) |
+| Only Orphans | 103,289 | 15.60 | 16 | 4,708 (4.6%) | 10,358 (10.0%) | 21,439 (20.8%) | 30,937 (30.0%) | 28,045 (27.2%) | 7,802 (7.6%) |
+| **All** | 1,301,137 | 15.96 | 16 | 65,373 (5.0%) | 124,558 (9.6%) | 242,892 (18.7%) | 345,888 (26.6%) | 356,714 (27.4%) | 165,712 (12.7%) |
+
+The bands are the share of each strategy's wins that took that many turns.
+
+### What a win is worth by how long it took
+
+All 1,301,137 wins, by the winner's turns:
+
+| Turns | Wins | Average faan | Points a win | Self-drawn |
+| --- | ---: | ---: | ---: | ---: |
+| 0 to 8 | 65,373 (5.0%) | 4.10 | 161 | 23,922 (36.6%) |
+| 9 to 11 | 124,558 (9.6%) | 4.77 | 338 | 40,282 (32.3%) |
+| 12 to 14 | 242,892 (18.7%) | 5.27 | 508 | 71,598 (29.5%) |
+| 15 to 17 | 345,888 (26.6%) | 5.71 | 714 | 97,940 (28.3%) |
+| 18 to 20 | 356,714 (27.4%) | 6.10 | 957 | 102,651 (28.8%) |
+| 21 or more | 165,712 (12.7%) | 6.43 | 930 | 37,377 (22.6%) |
+
+The most common is 18 turns: 123,191 wins, 9.5% of them. The longest win took 27.
+
 ## What it shows
 
 - **Points a hand decide who finishes on top, not hands won.** Neural Cat +61.8, Only Orphans +48.4, Jorge Yau −35.9, Lucky Cat −74.2 points a hand; games on top: Neural Cat 34.5%, Lucky Cat 24.1%, Jorge Yau 21.3%, Only Orphans 20.3%.
 - **Hands won, most first:** Lucky Cat 22.4%, Jorge Yau 20.0%, Neural Cat 19.0%, Only Orphans 5.3%. Lucky Cat wins the most hands but averages 5.56 faan a win; Only Orphans wins the fewest at 7.29.
 - **Half Flush is the most common winning hand** (23.6% of all hands): a player scores it in 58.0% of games, for 327.8 points a game on average. **Full Flush** wins fewer hands (13.8%) but is worth 533.4 points a game. Of all hand patterns, **Thirteen Orphans** is worth the most points a game (806.7).
 - **Medians are 0 for most patterns**, since a player scores them in fewer than half its games. Only Half Flush has a median above 0. Winning at all, with any pattern, is worth a median of 368 points a game against a mean of 2,297, because a few big wins carry the mean.
+- **The dragons are the most common winning tiles:** Red Dragon, White Dragon, Green Dragon, 51,343 wins each against 39,663 for a middle suit tile (2 to 8). Winds are the least common, at 29,972 each.
+- **Wins take 16.0 turns on average** (the median is 16), and Lucky Cat takes the longest at 16.6. Slower wins score more faan: 0 to 8 turns averages 4.1 faan and 161 points, 21 or more averages 6.4 faan and 930 points.
 - **Self-draws:** 28.7% of wins are self-drawn and pay three times over; the rest are paid by the one player who threw the tile.
 - **33.3% of hands end with no winner**, and every game had at least one win.
 
@@ -349,7 +439,26 @@ hands = load_dataset("codenameyau/lucky-cat-mahjong-games", "mixed-100k")["train
 ## Reproducing it
 
 ```bash
-node scripts/hand-patterns.js --lineup jorge-yau,neural-cat,lucky-cat,only-orphans --games 100000 --seed 8000001 --parquet ml/data/hand-patterns/data/mixed-100k.parquet
+# Native, about 21 times faster a core: build, then play the 100,000 games in 30 processes.
+make -C native -j10
+IDS=$(node -e "const N = require('./scripts/ml/native.js'); console.log(['jorge-yau', 'neural-cat', 'lc:js/mahjong-lucky-cat-weights.js', 'only-orphans'].map((id) => N.nativeId(id)).join(','))")
+D=ml/data/hand-patterns
+mkdir -p $D/parts $D/data
+for j in $(seq 0 29); do
+  native/build/lcm-sim-exact games --lineup "$IDS" --names jorge-yau,neural-cat,lucky-cat,only-orphans \
+    --seed 8000001 --from $((j * 3334)) --to $(( j == 29 ? 100000 : (j + 1) * 3334 )) --out $D/parts/part-$(printf %02d $j).csv &
+done
+wait
+echo "table,game_seed,hand_in_game,round,dealer_seat,dealer_repeat,seat0_strategy,seat1_strategy,seat2_strategy,seat3_strategy,result,winner_seat,winner_strategy,winner_is_dealer,how,payer_seat,payer_strategy,winning_tile,faan,limit,base_points,winner_points,claimed_melds,concealed,winner_discards,wall_left,pattern_count,patterns,full_hand" > $D/data/mixed-100k.csv
+cat $D/parts/part-*.csv >> $D/data/mixed-100k.csv
+python scripts/hand-results-parquet.py $D/data/mixed-100k.csv $D/data/mixed-100k.parquet
+
+# Or in JS, the game's own engine (about 10 hours on 16 workers):
+node scripts/hand-patterns.js --lineup jorge-yau,neural-cat,lucky-cat,only-orphans --games 100000 --seed 8000001 \
+  --csv $D/data/mixed-100k.csv --parquet $D/data/mixed-100k.parquet
+
+# Then this page, from the CSV:
+node scripts/hand-patterns-doc.js $D/data/mixed-100k.csv docs/strategies/hand-patterns.md
 ```
 
-`scripts/hand-patterns.js` plays full games in JS and writes every hand as a row: Parquet with `--parquet` (needs Python with `pyarrow`), CSV with `--csv`. The native simulator plays the same games about 21 times faster a core (`native/build/lcm-sim-exact games --lineup <native ids> --names jorge-yau,neural-cat,lucky-cat,only-orphans --seed 8000001 --from A --to B`, split across processes), writing the same rows. `ml/data/` is gitignored.
+The native simulator's `games` command plays full games and writes the same rows as `scripts/hand-patterns.js`, without the header line. On a 400-game check its exact build matched the JS on 7,804 of 7,805 hands. `scripts/hand-patterns.js` writes Parquet with `--parquet` (needs Python with `pyarrow`) and CSV with `--csv`. `ml/data/` is gitignored.
