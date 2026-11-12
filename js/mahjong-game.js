@@ -1272,10 +1272,11 @@
         topHead = phoneHead;
       }
       var opp = [];
-      // An upright phone's player across spans the table, above the side
-      // seats; otherwise the side seats run from the top to your section,
-      // with the player across between them.
-      var acrossSpans = phonePortrait;
+      // Below desktop (an upright phone, or a sideways phone or medium window)
+      // the player across spans the table, above the side seats, as you span
+      // it below them. On desktop the side seats run from the top to your
+      // section, with the player across between them.
+      var acrossSpans = phonePortrait || landscape;
       var sideTop = acrossSpans ? topH + topPanelH + gap : topH;
       var sideBottom = bandTop - gap;
       opp[3] = { x: ox + pad, y: sideTop, w: sideW, h: sideBottom - sideTop };
