@@ -98,7 +98,7 @@
       'You drew the fourth 8 Bamboo. Add it to the pung to make a kong. A kong draws a replacement from the back of the wall.',
     ]) },
     { seat: 0, kind: 'turn', action: { type: 'discard', tile: 'd1' }, hint: say('Discard 1 Dot.', 'd1', { type: 'discard' }, [
-      'That replacement is not part of the hand. You are ready on East Wind.',
+      'That replacement tile is now part of the hand. You are ready on East Wind.',
       'Draw East Wind yourself and it is a self-draw: every opponent pays. Take it from a discard and only the player who threw it pays.',
     ]) },
     { seat: 1, kind: 'turn', drawn: true },
