@@ -61,7 +61,7 @@
     else if (id === 'half') keep = function (j) { return E.suitOfIndex(j) === suit || j >= 27; };
     else if (id === 'full') keep = function (j) { return E.suitOfIndex(j) === suit; };
     else if (id === 'straights' || id === 'runs') keep = function (j) { return j < 27; };
-    return { id: id, suit: suit, faan: plan.faan, keep: keep, label: plan.label, reason: plan.reason, hint: plan.hint };
+    return { id: id, suit: suit, faan: plan.faan, keep: keep, label: plan.label, reason: plan.reason, hint: plan.hint, shantenFn: plan.shantenFn || null };
   }
 
   function described(analysis) {
@@ -453,7 +453,7 @@
   // whether it reaches the minimum. `route` is the bot's plan (routeOf), `c` the
   // hand after the move, and `won` what a ready hand wins for, when it is ready;
   // otherwise the plan's own faan. Null without a plan.
-  function aimOf(v, route, c, won) {
+  function aimOf(v, route, c, won, declared) {
     if (!route) return null;
     var text = targetText(v, { route: route }, c, null).split(/[.:]/)[0];
     var label = text.replace(/\s*\(\d+ faan\)/, '');
@@ -462,10 +462,27 @@
     var total = Math.max(0, Math.floor(won + 0.25));
     var faan = patternFaan(route, text, total);
     var bonus = Math.max(0, Math.min(confirmedBonus(v, route, c), LIMIT_FAAN - faan));
-    return { name: label, faan: faan, bonus: bonus, total: total, min: v.game.settings.minFaan };
+    var left = tilesLeft(v, route, c, declared);
+    return { name: label, faan: faan, bonus: bonus, total: total, min: v.game.settings.minFaan, left: left, have: left === null ? null : WIN_TILES - left };
   }
 
-  // "Go for All Triplets, about 3 faan +2 for bonuses." One sentence, the same
+  // Tiles still to bring in for the hand: its steps from finishing, plus the
+  // one that finishes it. Every winning hand is 14 tiles (four melds and a pair,
+  // or seven pairs, or thirteen orphans and a pair), so the hand's tiles that
+  // are already doing their job are the rest. `c` is the hand after the move.
+  // Null when the plan can't be read (no steps, or none left to finish it).
+  // `declared` is the melds shown, when a claim adds one (default: the seat's).
+  var WIN_TILES = 14;
+  function tilesLeft(v, route, c, declared) {
+    if (!route || !route.shantenFn || !c) return null;
+    var held = route.keep ? c.map(function (n, i) { return route.keep(i) ? n : 0; }) : c;
+    var steps = route.shantenFn(held, declared != null ? declared : v.ctx.declared || 0);
+    if (typeof steps !== 'number' || !isFinite(steps)) return null;
+    return Math.max(0, Math.min(WIN_TILES, steps + 1));
+  }
+
+  // "Go for All Triplets, about 3 faan +2 for bonuses. You have 8 tiles needed
+  // and 6 tiles remaining." Two sentences, the same
   // at every level that says it (the Simple hint and feedback; a playback can
   // reuse it). The faan is the pattern's alone; bonuses show once the hand has one.
   function aimSentence(aim) {
@@ -475,7 +492,24 @@
     var extra = !limit && aim.bonus > 0 ? ' +' + aim.bonus + ' for bonuses' : '';
     var total = aim.total !== undefined ? aim.total : aim.faan + (aim.bonus || 0);
     var short = aim.min && !limit && total < aim.min ? ', short of the ' + aim.min + ' faan minimum' : '';
-    return 'Go for ' + aim.name + ', ' + worth + extra + short + '.';
+    return 'Go for ' + aim.name + ', ' + worth + extra + short + '.' + tilesText(aim.left);
+  }
+
+  // " You have 8 tiles needed and 6 tiles remaining." after every coach's
+  // "Go for" sentence, at every level. `left` is from tilesLeft; '' without it.
+  // "Go for Concealed Straights. You have 10 tiles needed and 4 tiles
+  // remaining. Flowers make it 3.": the counts follow the hand's name.
+  function goFor(text, left) {
+    var at = text.indexOf('. ');
+    var head = at === -1 ? text : text.slice(0, at);
+    var rest = at === -1 ? '' : text.slice(at + 1) + '.';
+    return 'Go for ' + head + '.' + tilesText(left) + rest;
+  }
+
+  function tilesText(left) {
+    if (typeof left !== 'number') return '';
+    var have = WIN_TILES - left;
+    return ' You have ' + have + ' tile' + (have === 1 ? '' : 's') + ' needed and ' + left + ' tile' + (left === 1 ? '' : 's') + ' remaining.';
   }
 
   // The bigger hand the same tiles can still make, when it isn't already
@@ -871,6 +905,7 @@
   // is more to say, the least useful tips go first: the last ones, then the
   // model's line, then the first tip (the reason). Then sentences, from the end.
   var MAX_TEXT = 400;
+  var TILES_SAID = / You have \d+ tiles? needed and \d+ tiles? remaining\./;
 
   function plain(t) { return String(t || '').replace(/[\u0001\u0002]/g, ''); }
 
@@ -898,6 +933,10 @@
     // add to the advice, and never push out a reason, plan or threat.
     var isModel = function (t) { return /^(On average, )?[Tt]he model expects /.test(plain(t)); };
     var isOdds = function (t) { return /^Odds to finish /.test(plain(t)); };
+    // The tile counts after "Go for" go before any whole tip, so a threat stays.
+    if (textLength(h) > MAX_TEXT && h.tips.some(function (t) { return TILES_SAID.test(plain(t)); })) {
+      h.tips = h.tips.map(function (t) { return typeof t === 'string' ? t.replace(TILES_SAID, '') : t; });
+    }
     while (textLength(h) > MAX_TEXT && h.tips.length) {
       var drop = -1;
       for (var o = h.tips.length - 1; o >= 1 && drop === -1; o--) if (isOdds(h.tips[o])) drop = o;
@@ -1077,7 +1116,7 @@
     } else if (pick.plan || followed) {
       var spoken = followed ? { route: routeOf(followed) } : pick.plan;
       var speak = spoken.route;
-      var line = 'Go for ' + targetText(v, spoken, cAfter, null) + '.';
+      var line = goFor(targetText(v, spoken, cAfter, null), tilesLeft(v, speak, cAfter));
       line += shifted;
       line += deadNote(v, speak, cAfter);
       // A complete shape that doesn't score isn't ready, so say why.
@@ -1383,16 +1422,17 @@
 
     // Where the hand stands afterwards, and the threats. On a pass this is
     // the hand as it is; on a claim it is the hand after the call and its discard.
-    function after(plan, counts, discard, named, ready) {
+    function after(plan, counts, discard, named, ready, claimed) {
+      var declared = (v.ctx.declared || 0) + (claimed ? 1 : 0);
       var lines = [];
       var waiting = winningWaits(ready);
       var readyFaan = waiting.filter(function (w) { return w.ronOk; }).map(function (w) { return w.ronFaan; });
       var aimRoute = followed && !waiting.length ? routeOf(followed) : plan && plan.route;
-      lastAim = aimOf(v, aimRoute, counts, readyFaan.length ? Math.min.apply(null, readyFaan) : null);
+      lastAim = aimOf(v, aimRoute, counts, readyFaan.length ? Math.min.apply(null, readyFaan) : null, declared);
       if (followed && !waiting.length) {
         if (discard && !planClaims(followed, E.tileIndex(discard), v.ctx.declared)) discard = null;
         if (discard) lines.push('Then discard ' + E.tileName(discard) + '.');
-        lines.push('Go for ' + targetText(v, { route: routeOf(followed) }, counts) + '.');
+        lines.push(goFor(targetText(v, { route: routeOf(followed) }, counts), tilesLeft(v, routeOf(followed), counts, declared)));
         var shown = threats.filter(function (t) { return t.level >= 2; });
         var said = threatSentence(v.game, shown);
         if (said) lines.push(said);
@@ -1407,7 +1447,7 @@
       } else if (plan) {
         var short = plan.route.faan < min - 0.25 ? ' Still short of ' + min + ' faan.' : '';
         lines.push((discard ? 'Then discard ' + E.tileName(discard) + '. ' : '') +
-          'Go for ' + targetText(v, plan, counts) + '.' + short);
+          goFor(targetText(v, plan, counts), tilesLeft(v, plan.route, counts, declared)) + short);
       }
       var shown = threats.filter(function (t) { return t.level >= 2; });
       var said = threatSentence(v.game, shown);
@@ -1422,13 +1462,13 @@
     if (taken && ti >= 27 && honorWorth(v, ti) && dec.type !== 'chow') {
       var honorCall = spoken(taken);
       tips.push(honorCall.label + '! A ' + E.tileName(opts.tile) + ' meld is ' + honorWorth(v, ti) + ' faan.');
-      return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(honorCall.plan, honorCall.counts, honorCall.discard, false, honorCall.ready)) }, tips.length - 1);
+      return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(honorCall.plan, honorCall.counts, honorCall.discard, false, honorCall.ready, true)) }, tips.length - 1);
     }
     if (taken) {
       var call = spoken(taken);
       if (followed) {
         tips.push(call.label + '. It helps the hand you\'re going for.');
-        return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(call.plan, call.counts, call.discard, true, call.ready)) }, tips.length - 1);
+        return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(call.plan, call.counts, call.discard, true, call.ready, true)) }, tips.length - 1);
       }
       // A call with no plan behind it (a learned strategy can take one the rules wouldn't):
       // it speeds the hand up, and no hand is named.
@@ -1440,7 +1480,7 @@
           : 'It speeds up your hand';
       tips.push(call.label + '. ' + fits + (call.faan >= min ? ', about ' + faanWord(call.faan) + '.' : '.'));
       var named = route.id !== 'plain' && route.id !== 'mixed' && /builds/.test(fits);
-      return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(call.plan, call.counts, call.discard, named, call.ready)) }, tips.length - 1);
+      return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(call.plan, call.counts, call.discard, named, call.ready, true)) }, tips.length - 1);
     }
 
     var chowOnly = found.options.every(function (o) { return o.decision.type === 'chow'; });
