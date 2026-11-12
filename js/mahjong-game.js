@@ -4504,7 +4504,8 @@
       var cursor = x;
       acts.forEach(function (a, i) {
         var id = a.id || ('act-' + i);
-        var recommended = hintDecision && labelMatches(a.label, hintDecision);
+        // (The tutorial's Replace flowers is the only move, so it always gets the ring.)
+        var recommended = a.id === 'replace-flower' || (hintDecision && labelMatches(a.label, hintDecision));
         button(a.label, cursor, y, widths[i], h, a.fn, a.style, id, recommended);
         cursor += widths[i] + gap;
       });
