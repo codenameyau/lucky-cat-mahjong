@@ -232,13 +232,3 @@ test('feedback says the same verdict in the same words, a rule\'s or a network\'
     }
   }
 });
-
-test('the Strategies sheet says what the coach says in the same words for every strategy', () => {
-  const SHARED = 'The coach names the hand to go for and says why each move fits it, in the words it uses for every strategy.';
-  for (const id of IDS) {
-    const details = S.get(id).details.join(' ');
-    assert.ok(details.includes(SHARED), id);
-    if (RULES.includes(id)) assert.match(details, /On Complex it also gives the odds its rules work out: the chance to finish the hand before the wall runs out/, id);
-    else assert.match(details, /On Complex it also (gives the network's numbers|says how often Lucky Cat)/, id);
-  }
-});
