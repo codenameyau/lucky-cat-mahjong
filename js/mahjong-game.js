@@ -1493,7 +1493,17 @@
       // A face-down tile has no tip, except your own (opts.peek: your
       // concealed kong, whose tiles you know).
       if (id && (!opts.back || opts.peek) && tipsOn) recordSpot(id, x, y, w, h);
-      ctx.drawImage(sp, x, y, w, h);
+      // An upright tile is copied pixel for pixel at whole device pixels: a
+      // sprite drawn between pixels is resampled, and looks soft or jagged.
+      // (A turning or flipping tile is drawn scaled as before.)
+      var t = ctx.getTransform();
+      if (!t.b && !t.c && Math.abs(t.a - dpr) < 1e-6 && Math.abs(t.d - dpr) < 1e-6) {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.drawImage(sp, Math.round(t.a * x + t.e), Math.round(t.d * y + t.f));
+        ctx.setTransform(t);
+      } else {
+        ctx.drawImage(sp, x, y, w, h);
+      }
       if (opts.glow) {
         ctx.strokeStyle = opts.glow;
         // Red marks a tile a claim would use. Every other highlight is a thinner yellow.
