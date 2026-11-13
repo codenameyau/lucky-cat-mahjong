@@ -2445,10 +2445,12 @@
     // The choice is kept in PREFS_KEY (coachDetail), and the hint on screen
     // is worked out again at once in the new words.
 
+    // Each example is what that level really says for one hand: Neural Cat's
+    // coach, East's first turn of the game with seed 11.
     var COACH_OPTIONS = [
-      { id: 'simple', name: 'Simple', note: 'What to do, the hand to go for with its faan, and how many of your tiles it needs.', example: 'Discard Two Bamboo. Go for Half Flush in Circles, about 3 faan +2 for bonuses. You have 9 tiles needed and 5 tiles remaining.' },
-      { id: 'detailed', name: 'Detailed', note: 'What to do, the hand to go for and how many of your tiles it needs, any threats at the table, and why the move fits. No odds or scores.', example: 'Discard Two Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 9 tiles needed and 5 tiles remaining. It keeps a bigger hand in reach.' },
-      { id: 'complex', name: 'Complex', note: 'Everything, with each strategy\'s own numbers: a network\'s expected score, chance to win and next best choice, or a rule strategy\'s odds of finishing the hand.', example: 'Discard Two Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 9 tiles needed and 5 tiles remaining. The model expects +67 score from this discard, with a 3% chance to win. Next best discard is Six Bamboo: +48 score.' },
+      { id: 'simple', name: 'Simple', example: 'Discard Four Bamboo. Go for Half Flush in Circles, about 3 faan. You have 8 tiles needed and 6 tiles remaining.' },
+      { id: 'detailed', name: 'Detailed', example: 'Discard Four Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 8 tiles needed and 6 tiles remaining. It is the tile you need least and works best with the tiles you have.' },
+      { id: 'complex', name: 'Complex', example: 'Discard Four Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 8 tiles needed and 6 tiles remaining. The model expects +164 score from this discard, with a 7% chance to win. Next best discard is Five Character: +111 score.' },
     ];
 
     function coachSettingsSheet() {
@@ -2475,14 +2477,10 @@
         var name = document.createElement('span');
         name.className = 'coach-option-name';
         name.textContent = o.name + (o.id === 'simple' ? ' (default)' : '');
-        var note = document.createElement('span');
-        note.className = 'coach-option-note';
-        note.textContent = o.note;
         var ex = document.createElement('span');
         ex.className = 'coach-option-example';
         ex.textContent = o.example;
         b.appendChild(name);
-        b.appendChild(note);
         b.appendChild(ex);
         b.addEventListener('click', function () { setCoachDetail(o.id); });
         body.appendChild(b);
