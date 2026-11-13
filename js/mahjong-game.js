@@ -4694,7 +4694,7 @@
           if (settings.lesson && game) {
             game.lessonFlowers = true;
             var at = Lesson.progress(game);
-            track("play_lesson_flowers", { screen: at.screen, screens: at.screens, seconds: lessonSeconds() });
+            track("play_lesson_flowers", { step: at.screen, step_name: lessonStepName(at.screen), steps: at.screens, seconds: lessonSeconds() });
             lessonStepDone();
           }
           p.resolve();
@@ -5765,6 +5765,12 @@
       resolveTurn({ type: "discard", tile: tile }, target);
     }
 
+    // A step's stable name (its id in the lesson), for analytics: it stays when steps are added or moved.
+    function lessonStepName(n) {
+      var row = Lesson.outline()[n - 1];
+      return row ? row.id : "none";
+    }
+
     // The tutorial's card on show: the coach's note for this move is a few
     // short cards, the ones to read first and the move to make last.
     function lessonCardNow() {
@@ -5782,7 +5788,7 @@
       if (n > (settings.lessonFurthest || 0)) {
         settings.lessonFurthest = n; // the furthest step reached, kept across jumps
         // Every step reached for the first time, to see how far people get.
-        track("play_lesson_screen", { screen: n, screens: Lesson.SCREENS, move: Lesson.progress(game).move, moves: Lesson.MOVES, seconds: lessonSeconds() });
+        track("play_lesson_step", { step: n, step_name: lessonStepName(n), steps: Lesson.SCREENS, move: Lesson.progress(game).move, moves: Lesson.MOVES, seconds: lessonSeconds() });
       }
       return { note: ui.hint, index: i, card: card, last: i === cards.length - 1, gated: gated, n: n, total: Lesson.SCREENS };
     }
@@ -5961,9 +5967,9 @@
       return { kind: "button", key: decision.type };
     }
 
-    // Lesson analytics: how far people get. Each of the player's moves sends
-    // play_lesson_step (move 1 to 8) and every step reached for the first time
-    // play_lesson_screen (screen 1 to 29); a first wrong try on a move sends
+    // Lesson analytics: how far people get. Every step reached for the first time
+    // sends play_lesson_step (step 1 to 29), and each of the player's moves
+    // play_lesson_move (move 1 to 8); a first wrong try on a move sends
     // play_lesson_wrong_move; leaving before the end sends play_lesson_exit.
     var lessonTrack = null;
 
@@ -5974,7 +5980,7 @@
     function startLessonTracking() {
       lessonTrack = { started: Date.now(), wrong: 0, wrongTotal: 0, done: false };
       // A jump back or forward (the tutorial played again) is the same lesson, not a new start.
-      if (!ui.lessonJump) track("play_lesson_start", { moves: Lesson.MOVES, screens: Lesson.SCREENS });
+      if (!ui.lessonJump) track("play_lesson_start", { moves: Lesson.MOVES, steps: Lesson.SCREENS });
     }
 
     // The lesson ended before its hand did: quit from the menu (how: quit) or the page closed (how: leave).
@@ -5984,7 +5990,7 @@
       var at = Lesson.progress(game);
       track("play_lesson_exit", {
         move: at.move, moves: at.moves, next_action: at.next || "none", how: how,
-        screen: lessonCardNow() ? lessonCardNow().n : at.screen, screens: at.screens,
+        step: lessonCardNow() ? lessonCardNow().n : at.screen, step_name: lessonStepName(lessonCardNow() ? lessonCardNow().n : at.screen), steps: at.screens,
         seconds: lessonSeconds(), wrong_tries: lessonTrack.wrongTotal, transport_type: "beacon",
       });
     }
@@ -5996,9 +6002,9 @@
       if (card && !card.last) { lessonNextCard(); return false; }
       if (Lesson.accept(game, 0, kind, decision)) {
         var at = Lesson.progress(game);
-        track("play_lesson_step", {
-          step: game.lessonStep, move: at.move, moves: at.moves, action: decision.type,
-          screen: at.screen, screens: at.screens,
+        track("play_lesson_move", {
+          move: at.move, moves: at.moves, action: decision.type,
+          step: at.screen, step_name: lessonStepName(at.screen), steps: at.screens,
           seconds: lessonSeconds(), wrong_tries: lessonTrack ? lessonTrack.wrong : 0,
         });
         if (lessonTrack) lessonTrack.wrong = 0;
@@ -6012,7 +6018,7 @@
           var now0 = Lesson.progress(game);
           track("play_lesson_wrong_move", {
             move: now0.move + 1, moves: now0.moves, expected: now0.next || "none", tried: decision.type,
-            screen: card ? card.n : now0.screen + 1, screens: now0.screens,
+            step: card ? card.n : now0.screen + 1, step_name: lessonStepName(card ? card.n : now0.screen + 1), steps: now0.screens,
             mistake: decision.type === now0.next ? "wrong_tile" : "wrong_action",
           });
         }
@@ -8507,7 +8513,7 @@
         if (settings.lesson) {
           track("play_lesson_complete", {
             result: res.type === "win" && res.winner === 0 ? "win" : "other",
-            moves: Lesson.MOVES, screens: Lesson.SCREENS, seconds: lessonSeconds(), wrong_tries: lessonTrack ? lessonTrack.wrongTotal : 0,
+            moves: Lesson.MOVES, steps: Lesson.SCREENS, seconds: lessonSeconds(), wrong_tries: lessonTrack ? lessonTrack.wrongTotal : 0,
           });
           if (lessonTrack) lessonTrack.done = true;
         }

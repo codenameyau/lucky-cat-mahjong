@@ -128,3 +128,14 @@ describe("the steps list", () => {
     });
   });
 });
+
+describe("the steps' stable names", () => {
+  it("gives every step its own name for analytics", () => {
+    const names = Lesson.outline().map((r) => r.id);
+    assert.equal(names.length, Lesson.SCREENS);
+    assert.equal(new Set(names).size, names.length, "every name is different");
+    names.forEach((id) => assert.match(id, /^[a-z0-9]+(-[a-z0-9]+)*$/, id));
+    assert.equal(names[0], "welcome");
+    assert.equal(names[names.length - 1], "win-press");
+  });
+});

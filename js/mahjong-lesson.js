@@ -62,8 +62,8 @@
   // a pulsing ring: a tile in your hand, a button (by its id), or the tile up
   // for a claim ("claim-tile"). The tips are the cards' text run together,
   // for the Coach panel's history.
-  // `gate` holds the card until the player has done what it asks (open and close Rules).
-  function read(text, point, gate) { return { text: text, point: point || null, gate: gate || null }; }
+  // `id` is the step's stable name, for analytics (it stays when steps move). `gate` holds the card until the player has done what it asks (open and close Rules).
+  function read(id, text, point, gate) { return { id: id, text: text, point: point || null, gate: gate || null }; }
 
   function say(action, tile, decision, cards) {
     return {
@@ -75,9 +75,9 @@
   // Before the first move: the deal has put Plum in your hand, and the table
   // waits for the Replace flowers button (the tutorial's only).
   var FLOWER_HINT = { kind: "flower", action: "Replace flowers.", tile: "f1", decision: null, cards: [
-    read("Welcome, I'm your coach, Lucky Cat! We'll play one hand together, one small step at a time."),
-    read("This is Plum, a flower. You set aside every flower and season tile. Plum has the number 1 and you sit on East, seat number 1, so it scores 1 faan.", "f1"),
-    read("Press Replace flowers. Plum goes in front of you face up, and you draw a new tile for it from the end of the wall.", "replace-flower"),
+    read("welcome", "Welcome, I'm your coach, Lucky Cat! We'll play one hand together, one small step at a time."),
+    read("plum-flower", "This is Plum, a flower. You set aside every flower and season tile. Plum has the number 1 and you sit on East, seat number 1, so it scores 1 faan.", "f1"),
+    read("replace-flowers", "Press Replace flowers. Plum goes in front of you face up, and you draw a new tile for it from the end of the wall.", "replace-flower"),
   ] };
   FLOWER_HINT.tips = FLOWER_HINT.cards.map(function (c) { return c.text; });
 
@@ -86,54 +86,54 @@
   // coach's cards, and any other choice is refused.
   var STEPS = [
     { seat: 0, kind: "turn", action: { type: "discard", tile: "c1" }, hint: say("Discard 1 Character.", "c1", { type: "discard" }, [
-      read("The player on East always goes first. That's you!"),
-      read("The tiles in your hand are concealed: only you see them. Click Rules at the top to see every hand pattern and how to score faan, then close it.", "rules", "rules"),
-      read("We're going to learn the hand pattern for half flush, the most common way to win. Tap the 1 Character twice to discard it.", "c1"),
+      read("east-goes-first", "The player on East always goes first. That's you!"),
+      read("rules-concealed", "The tiles in your hand are concealed: only you see them. Click Rules at the top to see every hand pattern and how to score faan, then close it.", "rules", "rules"),
+      read("discard-1-character", "We're going to learn the hand pattern for half flush, the most common way to win. Tap the 1 Character twice to discard it.", "c1"),
     ]) },
     { seat: 1, kind: "turn", drawn: true },
     { seat: 2, kind: "turn", drawn: true },
     { seat: 3, kind: "turn", drawn: true },
     { seat: 0, kind: "claim", action: { type: "chow", tiles: ["b2", "b3"] }, hint: say("Chow 2-3-4 Bamboo.", null, { type: "chow", tiles: ["b2", "b3"] }, [
-      read("The player on your left threw 4 Bamboo. You hold 2 and 3 Bamboo, so you can make a chow: 3 tiles of one suit in a row.", "claim-tile"),
-      read("A chow always comes from one suit: Bamboo, Dots or Characters."),
-      read("You can claim a tile from the player on your left to make a chow. A claimed meld is exposed: everyone sees it, and its tiles stay together."),
-      read("Press Chow 2-3-4 to claim the 4 Bamboo.", "chow-2-3-4"),
+      read("chow-claim", "The player on your left threw 4 Bamboo. You hold 2 and 3 Bamboo, so you can make a chow: 3 tiles of one suit in a row.", "claim-tile"),
+      read("chow-one-suit", "A chow always comes from one suit: Bamboo, Dots or Characters."),
+      read("chow-exposed", "You can claim a tile from the player on your left to make a chow. A claimed meld is exposed: everyone sees it, and its tiles stay together."),
+      read("chow-press", "Press Chow 2-3-4 to claim the 4 Bamboo.", "chow-2-3-4"),
     ]) },
     { seat: 0, kind: "turn", action: { type: "discard", tile: "d9" }, hint: say("Discard 9 Dots.", "d9", { type: "discard" }, [
-      read("You don't draw after claiming a tile. Let's aim for a half flush in Bamboo, worth 3 faan."),
-      read("Tap the 9 Dots twice to discard it.", "d9"),
+      read("half-flush-aim", "You don't draw after claiming a tile. Let's aim for a half flush in Bamboo, worth 3 faan."),
+      read("discard-9-dots", "Tap the 9 Dots twice to discard it.", "d9"),
     ]) },
     { seat: 1, kind: "turn", drawn: true },
     { seat: 0, kind: "claim", action: { type: "pung" }, hint: say("Pung 8 Bamboo.", "b8", { type: "pung" }, [
-      read("A pung is 3 of the same tile. You hold two 8 Bamboo, and 8 Bamboo was just thrown.", "claim-tile"),
-      read("You can claim a discard from any player to make a pung. It skips the other players' turns."),
-      read("Keep your two 6 Bamboo. They're your eyes: the pair every winning hand needs.", "b6"),
-      read("Press Pung to claim the 8 Bamboo.", "pung"),
+      read("pung-claim", "A pung is 3 of the same tile. You hold two 8 Bamboo, and 8 Bamboo was just thrown.", "claim-tile"),
+      read("pung-any-player", "You can claim a discard from any player to make a pung. It skips the other players' turns."),
+      read("eyes", "Keep your two 6 Bamboo. They're your eyes: the pair every winning hand needs.", "b6"),
+      read("pung-press", "Press Pung to claim the 8 Bamboo.", "pung"),
     ]) },
     { seat: 0, kind: "turn", action: { type: "discard", tile: "c5" }, hint: say("Discard 5 Characters.", "c5", { type: "discard" }, [
-      read("A half flush is one suit plus any triplets or a pair of Dragon or Wind tiles."),
-      read("Tap the 5 Characters twice to discard it. Then your hand is all Bamboo, Dragons and Winds.", "c5"),
+      read("half-flush-honors", "A half flush is one suit plus any triplets or a pair of Dragon or Wind tiles."),
+      read("discard-5-characters", "Tap the 5 Characters twice to discard it. Then your hand is all Bamboo, Dragons and Winds.", "c5"),
     ]) },
     { seat: 1, kind: "turn", drawn: true },
     { seat: 2, kind: "turn", drawn: true },
     { seat: 3, kind: "turn", drawn: true },
     { seat: 0, kind: "turn", action: { type: "kong", tile: "b8" }, hint: say("Kong 8 Bamboo.", "b8", { type: "kong" }, [
-      read("You drew the fourth 8 Bamboo!", "b8"),
-      read("Add it to your pung to make a kong: 4 of a kind. A kong draws a replacement tile from the back of the wall."),
-      read("Press Kong 8B.", "kong-b8"),
+      read("kong-fourth-tile", "You drew the fourth 8 Bamboo!", "b8"),
+      read("kong-explained", "Add it to your pung to make a kong: 4 of a kind. A kong draws a replacement tile from the back of the wall."),
+      read("kong-press", "Press Kong 8B.", "kong-b8"),
     ]) },
     { seat: 0, kind: "turn", action: { type: "discard", tile: "d1" }, hint: say("Discard 1 Dot.", "d1", { type: "discard" }, [
-      read("Your replacement tile is 1 Dot. Throw it, and you're one tile from winning: you need East Wind."),
-      read("Tap the 1 Dot twice to discard it.", "d1"),
+      read("replacement-tile", "Your replacement tile is 1 Dot. Throw it, and you're one tile from winning: you need East Wind."),
+      read("discard-1-dot", "Tap the 1 Dot twice to discard it.", "d1"),
     ]) },
     { seat: 1, kind: "turn", drawn: true },
     { seat: 0, kind: "claim", action: { type: "win" }, hint: say("Win on East Wind.", null, { type: "win" }, [
-      read("The player on your right threw East Wind! You can claim the last tile you need to win from any player.", "claim-tile"),
-      read("The wind in the middle of the table is the round wind. This is the East round, so a triplet of East Wind scores 1 faan for the round wind.", "table-wind"),
-      read("You sit on East, so East is also your seat wind. A triplet of East Wind scores another 1 faan for your seat wind: 2 faan in all."),
-      read("Draw East Wind yourself and it's a self-draw: every opponent pays."),
-      read("This win is on a discard, so only the player who threw it out pays."),
-      read("Press Win to finish your half flush.", "win"),
+      read("east-wind-thrown", "The player on your right threw East Wind! You can claim the last tile you need to win from any player.", "claim-tile"),
+      read("round-wind", "The wind in the middle of the table is the round wind. This is the East round, so a triplet of East Wind scores 1 faan for the round wind.", "table-wind"),
+      read("seat-wind", "You sit on East, so East is also your seat wind. A triplet of East Wind scores another 1 faan for your seat wind: 2 faan in all."),
+      read("self-draw", "Draw East Wind yourself and it's a self-draw: every opponent pays."),
+      read("discard-win-payment", "This win is on a discard, so only the player who threw it out pays."),
+      read("win-press", "Press Win to finish your half flush.", "win"),
     ]) },
   ];
 
@@ -228,9 +228,9 @@
   // in the script (STEPS) and the card in it. The flower steps are `flower`.
   function outline() {
     var rows = [];
-    FLOWER_HINT.cards.forEach(function (c, i) { rows.push({ n: rows.length + 1, text: c.text, step: 0, card: i, flower: true }); });
+    FLOWER_HINT.cards.forEach(function (c, i) { rows.push({ n: rows.length + 1, id: c.id, text: c.text, step: 0, card: i, flower: true }); });
     STEPS.forEach(function (st, k) {
-      if (st.hint) st.hint.cards.forEach(function (c, i) { rows.push({ n: rows.length + 1, text: c.text, step: k, card: i, flower: false }); });
+      if (st.hint) st.hint.cards.forEach(function (c, i) { rows.push({ n: rows.length + 1, id: c.id, text: c.text, step: k, card: i, flower: false }); });
     });
     return rows;
   }
