@@ -5929,7 +5929,11 @@
     function lessonGlides(c) {
       var d = c.note.decision;
       if (c.note.kind === "flower") {
-        return (c.note.tiles || [c.note.tile]).map(function (id) { return { id: id, from: lessonRects(id, true)[0], to: ui.flowerAnchor[0] }; });
+        // Side by side where they land, not on top of each other.
+        var spot = ui.flowerAnchor[0];
+        return (c.note.tiles || [c.note.tile]).map(function (id, i) {
+          return { id: id, from: lessonRects(id, true)[0], to: spot && { x: spot.x + i * spot.w * 1.1, y: spot.y, w: spot.w, rot: spot.rot } };
+        });
       }
       if (!d || !game || !game.hand) return [];
       if (d.type === "discard") {
