@@ -26,6 +26,7 @@ const fs = require("node:fs");
 const crypto = require("node:crypto");
 const { spawn, execFileSync } = require("node:child_process");
 const E = require("../../js/mahjong-engine.js");
+const { parseArgs } = require("./args.js");
 // The fast build plays training, screens and judgments; the exact build is diffed against the JS.
 // On Windows the compiler names the builds lcm-sim.exe and lcm-sim-exact.exe.
 const EXE = process.platform === "win32" ? ".exe" : "";
@@ -42,7 +43,9 @@ const GROUPS = {
   // Only Orphans (oo:<file>): its hooks and target system on the shared foundation, through MahjongML.create
   // (which loads Jorge Yau as its default base).
   "only-orphans": ["js/mahjong-only-orphans.js", "js/mahjong-bot.js", "js/mahjong-jorge-yau.js", "js/mahjong-ml.js", "js/mahjong-ml-features.js", "js/mahjong-ml-model.js"],
-  "lucky-cat": ["js/mahjong-lucky-cat-ml.js", "js/mahjong-lucky-cat-net.js", "js/mahjong-frontier-net.js", "js/mahjong-lucky-cat-value.js", "js/mahjong-ml-model.js"],
+  // Lucky Cat checks each move against the shared foundation's analysis, so it runs on Jorge Yau's too.
+  "lucky-cat": ["js/mahjong-lucky-cat-ml.js", "js/mahjong-lucky-cat-net.js", "js/mahjong-frontier-net.js", "js/mahjong-lucky-cat-value.js", "js/mahjong-ml-model.js",
+    "js/mahjong-bot.js", "js/mahjong-jorge-yau.js", "js/mahjong-ml-features.js"],
 };
 const sha = (buf) => crypto.createHash("sha256").update(buf).digest("hex");
 // A file as the port depends on it: the engine's GAME_VERSION line changes with
@@ -86,18 +89,6 @@ function frozenSum(bm, f) {
     try { frozenSums[key] = pinSum(f, execFileSync("git", ["show", bm.frozen.commit + ":" + f], { cwd: ROOT, maxBuffer: 1 << 28 })); } catch (e) { frozenSums[key] = null; }
   }
   return frozenSums[key];
-}
-
-function parseArgs(argv) {
-  const out = { _: [] };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (!a.startsWith("--")) { out._.push(a); continue; }
-    const next = argv[i + 1];
-    if (next === undefined || next.startsWith("--")) out[a.slice(2)] = true;
-    else { out[a.slice(2)] = next; i++; }
-  }
-  return out;
 }
 
 // The test agent of native/src/simple_agent.h.

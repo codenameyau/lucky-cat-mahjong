@@ -29,8 +29,7 @@ const ROOT = path.join(__dirname, "..", "..");
 const DIR = O.OUT;
 const STATE = path.join(DIR, "state.json");
 const PLAN = path.join(DIR, "plan.json");
-const readJson = (f, d) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch (e) { return d; } };
-const writeJson = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 1) + "\n"); };
+const { readJson, writeJson } = require("./json.js");
 const log = (s) => { const l = new Date().toISOString().slice(0, 19).replace("T", " ") + " " + s; console.log(l); fs.appendFileSync(path.join(DIR, "loop.log"), l + "\n"); };
 
 function py(args, logFile) {

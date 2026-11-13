@@ -103,6 +103,7 @@ const { spawnSync } = require("node:child_process");
 const { ship } = require("./ship.js");
 const { prune } = require("./prune-data.js");
 const { PYTHON } = require("./python.js");
+const { parseArgs } = require("./args.js");
 
 const ROOT = path.join(__dirname, "..", "..");
 const DATA_SEED = 60000000;   // round r's deals: DATA_SEED + r * 1,000,000
@@ -222,18 +223,6 @@ function stale(state) {
   let n = 0;
   for (let k = state.rounds.length - 1; k >= 0 && !state.rounds[k].shipped && !state.rounds[k].dryKept; k--) n++;
   return n;
-}
-
-function parseArgs(argv) {
-  const out = { _: [] };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (!a.startsWith("--")) { out._.push(a); continue; }
-    const next = argv[i + 1];
-    if (next === undefined || next.startsWith("--")) out[a.slice(2)] = true;
-    else { out[a.slice(2)] = next; i++; }
-  }
-  return out;
 }
 
 function log(line) {

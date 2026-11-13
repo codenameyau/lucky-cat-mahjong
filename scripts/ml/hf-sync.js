@@ -33,20 +33,9 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
+const { parseArgs } = require("./args.js");
 
 const ROOT = path.join(__dirname, "..", "..");
-
-function parseArgs(argv) {
-  const out = {};
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (!a.startsWith("--")) continue;
-    const next = argv[i + 1];
-    if (next === undefined || next.startsWith("--")) out[a.slice(2)] = true;
-    else { out[a.slice(2)] = next; i++; }
-  }
-  return out;
-}
 
 function git(dir, args, quiet) {
   const res = spawnSync("git", args, {

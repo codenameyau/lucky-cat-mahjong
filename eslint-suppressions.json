@@ -53,11 +53,6 @@
       "count": 1
     }
   },
-  "js/mahjong-ml-model.js": {
-    "no-redeclare": {
-      "count": 2
-    }
-  },
   "js/mahjong-strategies.js": {
     "no-useless-assignment": {
       "count": 1

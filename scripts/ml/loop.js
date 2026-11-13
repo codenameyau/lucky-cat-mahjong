@@ -29,24 +29,13 @@ const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const { ship } = require("./ship.js");
 const { PYTHON } = require("./python.js");
+const { parseArgs } = require("./args.js");
 
 const ROOT = path.join(__dirname, "..", "..");
 let DIR = path.join(ROOT, "ml", "loop");
 let STATE = path.join(DIR, "state.json");
 const EVAL_LINEUP = "neural-cat,jorge-yau,lucky-cat,jorge-yau";
 const POOL = "neural-cat,neural-cat,neural-cat,jorge-yau,lucky-cat,only-orphans";
-
-function parseArgs(argv) {
-  const out = {};
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (!a.startsWith("--")) continue;
-    const next = argv[i + 1];
-    if (next === undefined || next.startsWith("--")) out[a.slice(2)] = true;
-    else { out[a.slice(2)] = next; i++; }
-  }
-  return out;
-}
 
 function log(line) {
   const text = new Date().toISOString().slice(11, 19) + " " + line;

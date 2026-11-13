@@ -86,6 +86,7 @@ const ML = require("../../js/mahjong-ml.js");
 const OO = require("../../js/mahjong-only-orphans.js");
 const { addBaselines, MODEL_PREFIX } = require("./baselines/register.js");
 const H = require("./heads.js");
+const { parseArgs } = require("./args.js");
 
 const LABEL_BYTES = 16;
 const OUTCOMES = M.OUTCOMES;
@@ -269,18 +270,6 @@ async function runWorker(cfg) {
 if (!isMainThread) {
   runWorker(workerData).then((r) => parentPort.postMessage({ done: r }));
   return;
-}
-
-function parseArgs(argv) {
-  const out = {};
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (!a.startsWith("--")) continue;
-    const next = argv[i + 1];
-    if (next === undefined || next.startsWith("--")) out[a.slice(2)] = true;
-    else { out[a.slice(2)] = next; i++; }
-  }
-  return out;
 }
 
 // The same run on the native simulator: a function that plays one worker's

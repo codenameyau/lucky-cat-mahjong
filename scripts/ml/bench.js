@@ -61,18 +61,7 @@ const ROOT = path.join(__dirname, "..", "..");
 const BENCH = path.join(ROOT, "bench");
 const LOCAL = path.join(ROOT, "ml", "bench");
 const E = require("../../js/mahjong-engine.js");
-
-function parseArgs(argv) {
-  const out = { _: [] };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (!a.startsWith("--")) { out._.push(a); continue; }
-    const next = argv[i + 1];
-    if (next === undefined || next.startsWith("--")) out[a.slice(2)] = true;
-    else { out[a.slice(2)] = next; i++; }
-  }
-  return out;
-}
+const { parseArgs } = require("./args.js");
 
 const readJson = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const writeJson = (file, x) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(x, null, 2) + "\n"); };

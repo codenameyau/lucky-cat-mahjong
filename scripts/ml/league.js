@@ -40,22 +40,11 @@ const { spawnSync } = require("node:child_process");
 const { ship } = require("./ship.js");
 const { prune } = require("./prune-data.js");
 const { PYTHON } = require("./python.js");
+const { parseArgs } = require("./args.js");
 
 const ROOT = path.join(__dirname, "..", "..");
 const DATA_SEED = 10000000; // round r's deals start at DATA_SEED + r * 1,000,000
 const EVAL_SEED = 30000000; // round r's evaluation deals start at EVAL_SEED + r * 10,000
-
-function parseArgs(argv) {
-  const out = {};
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (!a.startsWith("--")) continue;
-    const next = argv[i + 1];
-    if (next === undefined || next.startsWith("--")) out[a.slice(2)] = true;
-    else { out[a.slice(2)] = next; i++; }
-  }
-  return out;
-}
 
 let DIR = path.join(ROOT, "ml", "league");
 

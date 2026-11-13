@@ -166,12 +166,17 @@
   // first `n`) for one input. float32 buffers, sums in double.
   function network(layers, n) {
     var widest = layers.reduce(function (m, l) { return Math.max(m, l.rows); }, 0);
-    var bufA = new Float32Array(widest), bufB = new Float32Array(widest);
-    // The first layer by input, so the many zero features cost nothing.
-    var first = layers[0], firstT = new Float32Array(first.rows * first.cols);
-    for (var r0 = 0; r0 < first.rows; r0++) {
-      for (var c0 = 0; c0 < first.cols; c0++) firstT[c0 * first.rows + r0] = first.w[r0 * first.cols + c0];
-    }
+    var bufA = new Float32Array(widest), bufB = new Float32Array(widest), acc = new Float64Array(widest);
+    // Every layer by input, so the many zero features (and the zeros ReLU
+    // leaves) cost nothing. Each row still sums its inputs in order.
+    var byInput = layers.map(function (l) {
+      var t = new Float32Array(l.rows * l.cols);
+      for (var r0 = 0; r0 < l.rows; r0++) {
+        for (var c0 = 0; c0 < l.cols; c0++) t[c0 * l.rows + r0] = l.w[r0 * l.cols + c0];
+      }
+      return t;
+    });
+    var first = layers[0], firstT = byInput[0];
 
     // The raw outputs for one feature vector.
     function forward(x) {
@@ -186,14 +191,17 @@
       if (layers.length > 1) for (r = 0; r < rows; r++) if (out[r] < 0) out[r] = 0;
       input = out;
       for (var k = 1; k < layers.length; k++) {
-        var l = layers[k], w = l.w, b = l.b, cols = l.cols;
+        var l = layers[k], wT = byInput[k], b = l.b, lrows = l.rows;
         out = k % 2 ? bufB : bufA;
         var last = k === layers.length - 1;
-        for (var r = 0; r < l.rows; r++) {
-          var s = b[r], off = r * cols;
-          for (var c = 0; c < cols; c++) s += w[off + c] * input[c];
-          out[r] = last || s > 0 ? s : 0;
+        for (r = 0; r < lrows; r++) acc[r] = b[r];
+        for (c = 0; c < l.cols; c++) {
+          var u = input[c];
+          if (u === 0) continue;
+          var off = c * lrows;
+          for (r = 0; r < lrows; r++) acc[r] += wT[off + r] * u;
         }
+        for (r = 0; r < lrows; r++) out[r] = last || acc[r] > 0 ? acc[r] : 0;
         input = out;
       }
       return Array.prototype.slice.call(out, 0, n);

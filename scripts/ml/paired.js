@@ -28,18 +28,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { Worker, isMainThread, parentPort, workerData } = require("node:worker_threads");
-
-function parseArgs(argv) {
-  const out = { _: [] };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (!a.startsWith("--")) { out._.push(a); continue; }
-    const next = argv[i + 1];
-    if (next === undefined || next.startsWith("--")) out[a.slice(2)] = true;
-    else { out[a.slice(2)] = next; i++; }
-  }
-  return out;
-}
+const { parseArgs } = require("./args.js");
 
 function load(root, lineup) {
   const S = require(path.join(root, "js", "mahjong-strategies.js"));

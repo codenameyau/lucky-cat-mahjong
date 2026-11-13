@@ -75,6 +75,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const { PYTHON } = require("./python.js");
+const { parseArgs } = require("./args.js");
 
 const ROOT = path.join(__dirname, "..", "..");
 const DATA_SEED = 90000000;      // round r's deals: DATA_SEED + (r - 1) * 1,000,000
@@ -122,20 +123,7 @@ const RECIPE_SETS = {
   ],
 };
 
-function parseArgs(argv) {
-  const out = { _: [] };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (!a.startsWith("--")) { out._.push(a); continue; }
-    const next = argv[i + 1];
-    if (next === undefined || next.startsWith("--")) out[a.slice(2)] = true;
-    else { out[a.slice(2)] = next; i++; }
-  }
-  return out;
-}
-
-const readJson = (f, dflt) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch (e) { return dflt; } };
-const writeJson = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 1) + "\n"); };
+const { readJson, writeJson } = require("./json.js");
 const rel = (f) => path.relative(ROOT, f);
 
 // The learned strategies a round can train: the id its exploring copy has in a

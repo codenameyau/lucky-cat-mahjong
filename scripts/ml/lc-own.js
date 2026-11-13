@@ -32,6 +32,7 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const { spawn } = require("node:child_process");
 const N = require("./native.js");
+const { parseArgs } = require("./args.js");
 
 const ROOT = path.join(__dirname, "..", "..");
 const EXE = process.platform === "win32" ? ".exe" : "";
@@ -43,8 +44,7 @@ const WORKERS = parseInt(process.env.LC_WORKERS || "10", 10);
 const DEFAULT_POOL = ["lc32", "lc31", "lc30", "lc29"].map((m) => "ml/models/" + m + ".json");
 
 const sha = (s) => crypto.createHash("sha256").update(s).digest("hex").slice(0, 16);
-const readJson = (f, d) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch (e) { return d; } };
-const writeJson = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 1) + "\n"); };
+const { readJson, writeJson } = require("./json.js");
 
 function nid(file) {
   const id = N.nativeId("lc:" + file);
@@ -236,18 +236,6 @@ async function valueData(champ, poolFiles, seed, deals, dir, opts = {}) {
 }
 
 /* ---------------- CLI ---------------- */
-
-function parseArgs(argv) {
-  const out = { _: [] };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (!a.startsWith("--")) { out._.push(a); continue; }
-    const next = argv[i + 1];
-    if (next === undefined || next.startsWith("--")) out[a.slice(2)] = true;
-    else { out[a.slice(2)] = next; i++; }
-  }
-  return out;
-}
 
 async function main(a) {
   const cmd = a._[0];

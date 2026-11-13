@@ -15,19 +15,9 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { headToHead } = require("./h2h.js");
+const { parseArgs } = require("./args.js");
 
 const ROOT = path.join(__dirname, "..", "..");
-
-function parseArgs(argv) {
-  const out = {};
-  for (let i = 0; i < argv.length; i++) {
-    if (!argv[i].startsWith("--")) continue;
-    const next = argv[i + 1];
-    if (next === undefined || next.startsWith("--")) out[argv[i].slice(2)] = true;
-    else { out[argv[i].slice(2)] = next; i++; }
-  }
-  return out;
-}
 
 const short = (id) => path.basename(id.replace(/^(nc|lc):/, "")).replace(/\.(json|js)$/, "").replace("mahjong-", "");
 const fmt = (v, se) => (v >= 0 ? "+" : "") + v.toFixed(1) + " ± " + se.toFixed(1);

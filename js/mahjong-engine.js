@@ -110,16 +110,30 @@
    *    achievable (melds, partial sets, pair) combinations.
    * ------------------------------------------------------------------ */
 
-  var suitMemo = {};
+  var suitMemo = new Map(), honorMemo = new Map();
 
   function encode(m, t, p) { return m * 100 + t * 10 + p; }
 
+  // A suit's counts as one number: base 8 after a leading 1, so slices of
+  // different lengths never share a key. A count out of that range keys by string.
+  function suitKey(c) {
+    var key = 1;
+    for (var j = 0; j < c.length; j++) {
+      var n = c[j];
+      if (n < 0 || n > 7) return c.join(",");
+      key = key * 8 + n;
+    }
+    return key;
+  }
+
   // All (melds, taatsu, pair) totals reachable from c[i..] for one suit.
+  // The tiles before i are all 0, so the counts alone say where it is.
   function suitOptions(c, i, honor) {
     while (i < c.length && c[i] === 0) i++;
     if (i >= c.length) return [0];
-    var key = (honor ? "h" : "n") + i + ":" + c.join("");
-    var hit = suitMemo[key];
+    var memo = honor ? honorMemo : suitMemo;
+    var key = suitKey(c);
+    var hit = memo.get(key);
     if (hit) return hit;
 
     var seen = {};
@@ -156,12 +170,38 @@
     }
     c[i]--; add(0, suitOptions(c, i, honor)); c[i]++;
 
-    suitMemo[key] = out;
+    memo.set(key, out);
     return out;
   }
 
+  // Codes seen in this merge: a merge stamps them with its own number, so the
+  // table never needs clearing. With at most 4 sets to make, codes stay under 500.
+  var mergeSeen = new Uint32Array(500);
+  var mergeStamp = 0;
+
   // Merge two option lists, keeping p <= 1 and capping melds+taatsu.
   function combineOptions(a, b, need) {
+    if (need < 0 || need > 4) return combineAny(a, b, need);
+    if (++mergeStamp === 0xffffffff) { mergeSeen.fill(0); mergeStamp = 1; }
+    var out = [];
+    for (var x = 0; x < a.length; x++) {
+      var ax = a[x], ap = ax % 10, am = (ax - ax % 100) / 100, at = ((ax - ap) / 10) % 10;
+      for (var y = 0; y < b.length; y++) {
+        var by = b[y], p = ap + by % 10;
+        if (p > 1) continue;
+        var m = am + (by - by % 100) / 100;
+        var t = at + ((by - by % 10) / 10) % 10;
+        if (m > need) m = need;
+        if (m + t > need) t = need - m;
+        var code = encode(m, t, p);
+        if (mergeSeen[code] !== mergeStamp) { mergeSeen[code] = mergeStamp; out.push(code); }
+      }
+    }
+    return out;
+  }
+
+  // The same merge for any number of sets to make.
+  function combineAny(a, b, need) {
     var seen = {};
     var out = [];
     for (var x = 0; x < a.length; x++) {
@@ -241,10 +281,11 @@
   function orphansShanten(c, declared) {
     if (declared) return Infinity;
     var kinds = 0, pair = 0;
-    ORPHAN_INDEXES.forEach(function (i) {
-      if (c[i] >= 1) kinds++;
-      if (c[i] >= 2) pair = 1;
-    });
+    for (var k = 0; k < ORPHAN_INDEXES.length; k++) {
+      var n = c[ORPHAN_INDEXES[k]];
+      if (n >= 1) kinds++;
+      if (n >= 2) pair = 1;
+    }
     return 13 - kinds - pair;
   }
 

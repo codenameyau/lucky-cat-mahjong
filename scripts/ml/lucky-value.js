@@ -48,6 +48,7 @@ const { spawn, spawnSync } = require("node:child_process");
 const { PYTHON } = require("./python.js");
 const N = require("./native.js");
 const H = require("./heads.js");
+const { parseArgs } = require("./args.js");
 
 const ROOT = path.join(__dirname, "..", "..");
 const SIM = path.join(ROOT, "native", "build", "lcm-sim" + (process.platform === "win32" ? ".exe" : ""));
@@ -70,18 +71,7 @@ const RECIPES = {
   c: { what: "value from real endings only (the control)", args: [] },
 };
 
-function parseArgs(argv) {
-  const out = {};
-  for (let i = 0; i < argv.length; i++) {
-    if (!argv[i].startsWith("--")) continue;
-    const next = argv[i + 1];
-    if (next === undefined || next.startsWith("--")) out[argv[i].slice(2)] = true;
-    else { out[argv[i].slice(2)] = next; i++; }
-  }
-  return out;
-}
-const readJson = (f, d) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch (e) { return d; } };
-const writeJson = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 1) + "\n"); };
+const { readJson, writeJson } = require("./json.js");
 
 function shard(args) {
   return new Promise((resolve, reject) => {

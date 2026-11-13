@@ -74,18 +74,7 @@ const ROOT = path.join(__dirname, "..", "..");
 const E = require("../../js/mahjong-engine.js");
 const N = require("../../js/mahjong-lucky-cat-net.js");
 const O = require("./oracle.js");
-
-function parseArgs(argv) {
-  const out = { _: [] };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (!a.startsWith("--")) { out._.push(a); continue; }
-    const next = argv[i + 1];
-    if (next === undefined || next.startsWith("--")) out[a.slice(2)] = true;
-    else { out[a.slice(2)] = next; i++; }
-  }
-  return out;
-}
+const { parseArgs } = require("./args.js");
 
 // The encoder a model reads: Lucky Cat's (version 1), or features v2 (js/mahjong-frontier-net.js).
 const F2 = require("../../js/mahjong-frontier-net.js");

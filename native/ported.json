@@ -29,6 +29,34 @@
         "commit": "8ffc0d098046326c3b1c33557448ae65e4a94bbb",
         "why": "the benchmark v2 freeze; today's adds setupCtaTracking (Google Analytics on the Points Guide's button and its data-track links, run only from the calculator page's init) and scores the same"
       }
+    ],
+    "js/mahjong-bot.js": [
+      {
+        "sha256": "cd11e35f2e46c5206b0dcdf4de77df14d2240e55d07f5da0e93afa0170572692",
+        "commit": "8ffc0d098046326c3b1c33557448ae65e4a94bbb",
+        "why": "the benchmark v2 freeze; the same program as today's, token for token: today's only writes its strings in double quotes"
+      }
+    ],
+    "js/mahjong-jorge-yau.js": [
+      {
+        "sha256": "30fc10f3e23a69a69967a2d154afa7b57f9eba0947fcec470b099fabfb5fe771",
+        "commit": "8ffc0d098046326c3b1c33557448ae65e4a94bbb",
+        "why": "the benchmark v2 freeze; the same program as today's, token for token: today's only writes its strings in double quotes"
+      }
+    ],
+    "js/mahjong-ml.js": [
+      {
+        "sha256": "8eccb1e0fdaec526aa834eb056c9724f92e2da4426fb0a0491956dc64a0ba6c4",
+        "commit": "8ffc0d098046326c3b1c33557448ae65e4a94bbb",
+        "why": "the benchmark v2 freeze; the same program as today's, token for token: today's only writes its strings in double quotes"
+      }
+    ],
+    "js/mahjong-ml-features.js": [
+      {
+        "sha256": "6f55fa69ffdc4fca867a16c1c038e80183f3251373766525e77f64910f5d7a40",
+        "commit": "8ffc0d098046326c3b1c33557448ae65e4a94bbb",
+        "why": "the benchmark v1 and v2 freezes; the same program as today's, token for token: today's only writes its strings in double quotes"
+      }
     ]
   }
 }

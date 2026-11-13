@@ -49,6 +49,7 @@ const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const { ship } = require("./ship.js");
 const { PYTHON } = require("./python.js");
+const { parseArgs } = require("./args.js");
 
 const ROOT = path.join(__dirname, "..", "..");
 const LEARNER = "only-orphans";
@@ -61,18 +62,6 @@ const WEIGHTS = path.join("js", "mahjong-only-orphans-weights.js");
 const BRANCH = "feature/only-orphans-model";
 
 let DIR = path.join(ROOT, "ml", "orphans");
-
-function parseArgs(argv) {
-  const out = {};
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (!a.startsWith("--")) continue;
-    const next = argv[i + 1];
-    if (next === undefined || next.startsWith("--")) out[a.slice(2)] = true;
-    else { out[a.slice(2)] = next; i++; }
-  }
-  return out;
-}
 
 function log(line) {
   const text = new Date().toISOString().slice(0, 19).replace("T", " ") + " " + line;
