@@ -47,10 +47,10 @@
         hasSave = !!(save && save.payload && save.payload.game);
       } catch (e) {}
       root.classList.add('play-mode-' + mode);
-      if (hasSave) root.classList.add('play-has-save');
-      if (hasSave && save.payload.game.settings && save.payload.game.settings.mode !== mode) {
-        root.classList.add('play-new-first');
-      }
+      // play-has-save: there's a saved game in the selected mode, so Resume
+      // game is the button; otherwise it's Start new game.
+      var savedMode = hasSave && save.payload.game.settings && save.payload.game.settings.mode;
+      if (hasSave && (!savedMode || savedMode === mode)) root.classList.add('play-has-save');
     })();
   </script>
   <script src="/js/analytics-id.js"></script>
@@ -74,7 +74,7 @@
     }
   </script>
   <script type="application/ld+json">
-{
+  {
     "@context": "https://schema.org",
     "@type": [
       "VideoGame",
@@ -164,7 +164,7 @@
 
         <div class="play-actions">
           <button type="button" class="btn btn-white play-start" id="play-resume">Resume game</button>
-          <button type="submit" class="btn btn-primary play-start" id="play-start">Start game</button>
+          <button type="submit" class="btn btn-primary play-start" id="play-start">Start new game</button>
           <button type="button" class="btn btn-white play-start" id="play-learn">Learn to play</button>
         </div>
       </form>
@@ -182,24 +182,19 @@
             var radio = form.querySelector('input[name="mode"][value="' + settings.mode + '"]');
             if (radio) radio.checked = true;
           }
+          // Two buttons: Resume game when there's a saved game in the selected
+          // mode, else Start new game (red), and Learn to play (white).
           var save = read('lcm-play-autosave');
-          var hasSave = !!(save && save.payload && save.payload.game);
+          var game = save && save.payload && save.payload.game;
+          var picked = form.querySelector('input[name="mode"]:checked');
+          var savedMode = game && game.settings && game.settings.mode;
+          var here = !!game && (!savedMode || !picked || savedMode === picked.value);
           var resume = document.getElementById('play-resume');
           var start = document.getElementById('play-start');
           var learn = document.getElementById('play-learn');
-          if (resume) resume.hidden = !hasSave;
-          if (learn) learn.hidden = hasSave;
-          if (start) start.textContent = hasSave ? 'Start new game' : 'Start game';
-          var seen = false;
-          var startFirst = document.documentElement.classList.contains('play-new-first');
-          if (startFirst && start && resume) start.parentNode.insertBefore(start, resume);
-          (startFirst ? [start, resume, learn] : [resume, start, learn]).forEach(function (btn) {
-            if (!btn) return;
-            var primary = !seen && !btn.hidden;
-            if (!btn.hidden) seen = true;
-            btn.classList.toggle('btn-primary', primary);
-            btn.classList.toggle('btn-white', !primary);
-          });
+          if (resume) { resume.hidden = !here; resume.classList.add('btn-primary'); resume.classList.remove('btn-white'); }
+          if (start) { start.hidden = here; start.classList.add('btn-primary'); start.classList.remove('btn-white'); }
+          if (learn) { learn.hidden = false; learn.classList.add('btn-white'); learn.classList.remove('btn-primary'); }
         })();
       </script>
     </section>
@@ -217,7 +212,7 @@
     <section class="play-rules play-credits" aria-labelledby="play-credits-title">
       <h2 id="play-credits-title">Credits</h2>
       <ul>
-        <li>Built by Jorge Yau, developer, mahjong instructor.</li>
+        <li>Built by Jorge Yau Lee, developer, mahjong instructor.</li>
         <li>Music: &ldquo;Guzheng City&rdquo;, &ldquo;Shenyang&rdquo; and &ldquo;Ripples&rdquo; by Kevin MacLeod (<a href="https://incompetech.com">incompetech.com</a>), licensed under <a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons: By Attribution 4.0</a>.</li>
         <li>Sound effects by <a href="https://kenney.nl">Kenney</a>, released under <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</li>
         <li>Tile artwork from <a href="https://github.com/samoheen/mahjong-tiles">samoheen/mahjong-tiles</a>, released under <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</li>

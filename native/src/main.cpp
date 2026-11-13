@@ -205,6 +205,78 @@ int main(int argc, char** argv) {
       std::printf("],\"pair\":{\"n\":%.17g,\"sum\":%.17g,\"sq\":%.17g,\"win\":%.17g,\"winSq\":%.17g}}\n", pn, psum, psq, pwin, pwinSq);
       return 0;
     }
+    if (cmd == "games") {
+      // scripts/hand-patterns.js natively: full games (four rounds), the lineup rotated by
+      // game, every hand written as the JS's CSV row (no header). --lineup takes native ids,
+      // --names the strategy ids the rows show; game k plays seed + k.
+      auto ids = split(a["lineup"], ','), names = split(a.count("names") ? a["names"] : a["lineup"], ',');
+      if (ids.size() != 4 || names.size() != 4) throw std::runtime_error("lcm-sim games: --lineup and --names need 4 ids");
+      std::string table = a.count("table") ? a["table"] : "mixed";
+      uint32_t seed = uint32_t(std::stoul(a["seed"]));
+      long from = std::stol(a["from"]), to = std::stol(a["to"]);
+      FILE* out = a.count("out") ? std::fopen(a["out"].c_str(), "wb") : stdout;
+      if (!out) throw std::runtime_error("lcm-sim games: can't write " + a["out"]);
+      auto cell = [](const std::string& s) {
+        if (s.find_first_of(",\"\n") == std::string::npos) return s;
+        std::string q = "\"";
+        for (char c : s) { if (c == '"') q += '"'; q += c; }
+        return q + "\"";
+      };
+      static const char* HOW[] = {"selfDraw", "discard", "robKong", "flowers"};
+      std::string line;
+      for (long k = from; k < to; k++) {
+        uint32_t gs = uint32_t(seed + k);
+        std::string seats[4];
+        std::unique_ptr<Agent> own[4];
+        Agent* agents[4];
+        for (int s = 0; s < 4; s++) {
+          int i = int((s + k) % 4);
+          seats[s] = names[i];
+          own[s] = makeAgent(ids[i]);  // fresh players each game, as the JS
+          agents[s] = own[s].get();
+        }
+        GameOptions o;
+        o.seed = gs; o.dealer = int(gs % 4); o.startPoints = 1000000000;
+        Game g = createGame(o);
+        int handInGame = 0;
+        while (!g.over) {
+          int dealer = g.dealer, repeat = g.dealerRepeat, round = g.round;
+          Result r = runHand(g, agents);
+          handInGame++;
+          line = cell(table) + "," + std::to_string(gs) + "," + std::to_string(handInGame) + "," + std::to_string(round) + "," +
+                 std::to_string(dealer) + "," + std::to_string(repeat);
+          for (int s = 0; s < 4; s++) line += "," + cell(seats[s]);
+          int wall = g.hand.wall.size();
+          if (!r.win) {
+            line += ",draw,,,,,,,,,,,,,,," + std::to_string(wall) + ",0,,";
+          } else {
+            int w = r.winner, f = r.score.faan, claimed = 0;
+            for (auto& m : g.hand.seats[w].melds) if (!m.concealed) claimed++;
+            std::string pats, full;
+            std::map<std::string, int> by;
+            for (size_t i = 0; i < r.score.items.size(); i++) {
+              std::string nm = itemName(r.score.items[i].item);
+              pats += (i ? "; " : "") + nm + " (" + std::to_string(r.score.items[i].faan) + ")";
+              by[nm]++;
+            }
+            bool first = true;
+            for (auto& kv : by) { full += (first ? "" : " + ") + kv.first + (kv.second > 1 ? " x" + std::to_string(kv.second) : ""); first = false; }
+            full += " = " + std::to_string(f);
+            bool hasPayer = r.how != H_SELF_DRAW && r.payer >= 0;
+            line += ",win," + std::to_string(w) + "," + cell(seats[w]) + "," + (w == dealer ? "1" : "0") + "," + HOW[r.how] + "," +
+                    (hasPayer ? std::to_string(r.payer) : "") + "," + (hasPayer ? cell(seats[r.payer]) : "") + "," +
+                    (r.tile == NO_TILE ? "" : tileId(r.tile)) + "," + std::to_string(f) + "," + (f >= 13 ? "1" : "0") + "," +
+                    std::to_string(r.score.points) + "," + std::to_string(r.deltas[w]) + "," + std::to_string(claimed) + "," +
+                    (claimed ? "0" : "1") + "," + std::to_string(g.hand.seats[w].discards.size()) + "," + std::to_string(wall) + "," +
+                    std::to_string(r.score.items.size()) + "," + cell(pats) + "," + cell(full);
+          }
+          line += "\n";
+          std::fwrite(line.data(), 1, line.size(), out);
+        }
+      }
+      if (out != stdout) std::fclose(out);
+      return 0;
+    }
     if (cmd == "generate") {
       // scripts/ml/lucky.js generate's worker: the same rows, shard files and stats.
       GenerateJob j;

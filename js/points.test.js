@@ -768,4 +768,10 @@ describe('Points Guide bottom button analytics', () => {
     assert.match(src, /track\('points_cta_view'\)/);
     assert.match(src, /setupCtaTracking\(\);/);
   });
+
+  it('tracks clicks on the PDF rulesheet and the Wikipedia source', () => {
+    assert.match(html, /<a href="\/assets\/lucky-cat-mahjong-rules\.pdf" data-track="points_pdf_click">/);
+    assert.match(html, /<a href="https:\/\/en\.wikipedia\.org\/wiki\/Hong_Kong_mahjong_scoring_rules" data-track="points_wikipedia_click">/);
+    assert.match(src, /querySelectorAll\('a\[data-track\]'\)/);
+  });
 });

@@ -66,6 +66,7 @@ How each bot plays, and how the coach follows a strategy.
 - [Lucky Cat](strategies/lucky-cat.md): a network that makes every move itself, trained by self-play. Its aim is the most hands won; LC34 is the current model.
 - [Only Orphans](strategies/only-orphans.md): big hands of 1s, 9s and honors. Rules pick the target and a network plays inside it.
   - [Training progress](strategies/only-orphans-training.md): its league and lab rounds.
+- [Hand patterns](strategies/hand-patterns.md): every scoring pattern, and how often each strategy wins with it, with the games and wins behind each percentage.
 
 ## Architecture
 

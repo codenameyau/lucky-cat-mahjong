@@ -60,29 +60,17 @@
       return el ? el.value : 'practice';
     }
 
-    // A saved game in the other mode puts Start new game first: Resume
-    // wouldn't open the mode you just picked. The first shown button is red.
+    // Two buttons. The red one is Resume game when there's a saved game in
+    // the selected mode, otherwise Start new game; Learn to play is always the
+    // white one beside it.
     function paint() {
       var game = savedGame();
-      var has = !!game;
-      html.classList.toggle('play-has-save', has);
-      if (resumeBtn) resumeBtn.hidden = !has;
-      if (learnBtn) learnBtn.hidden = has;
-      if (startBtn) startBtn.textContent = has ? 'Start new game' : 'Start game';
-      var startFirst = has && !!(game.settings && game.settings.mode) && game.settings.mode !== mode();
-      html.classList.toggle('play-new-first', startFirst);
-      if (resumeBtn && startBtn) {
-        if (startFirst) startBtn.parentNode.insertBefore(startBtn, resumeBtn);
-        else resumeBtn.parentNode.insertBefore(resumeBtn, startBtn);
-      }
-      var seen = false;
-      (startFirst ? [startBtn, resumeBtn, learnBtn] : [resumeBtn, startBtn, learnBtn]).forEach(function (btn) {
-        if (!btn) return;
-        var primary = !seen && !btn.hidden;
-        if (!btn.hidden) seen = true;
-        btn.classList.toggle('btn-primary', primary);
-        btn.classList.toggle('btn-white', !primary);
-      });
+      var saved = game && game.settings && game.settings.mode;
+      var here = !!game && (!saved || saved === mode());
+      html.classList.toggle('play-has-save', here);
+      if (resumeBtn) { resumeBtn.hidden = !here; resumeBtn.classList.add('btn-primary'); resumeBtn.classList.remove('btn-white'); }
+      if (startBtn) { startBtn.hidden = here; startBtn.textContent = 'Start new game'; startBtn.classList.add('btn-primary'); startBtn.classList.remove('btn-white'); }
+      if (learnBtn) { learnBtn.hidden = false; learnBtn.classList.add('btn-white'); learnBtn.classList.remove('btn-primary'); }
       html.classList.add('play-settled');
     }
 

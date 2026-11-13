@@ -32,10 +32,10 @@ test('Complex never says "almost no chance to win": under 1% it leaves the chanc
   const pick = { tile: 'c1', ml: { ev: -30, pWin: 0.004, avgWin: 0 } };
   const rival = { tile: 'c2', ml: { ev: -45, pWin: 0.002, avgWin: 0, choice: true } };
   const said = Coach.modelLine([pick, rival], pick);
-  assert.equal(said, 'The model expects −30 score on average from this discard. Next best discard is Two Character: −45 score.');
+  assert.equal(said, 'The model expects −30 score from this discard. Next best discard is Two Character: −45 score.');
   const sure = { tile: 'c1', ml: { ev: 12, pWin: 0.08, avgWin: 1200 } };
   const likely = Coach.modelLine([sure], sure);
-  assert.match(likely, /^The model expects \+12 score on average from this discard, with an 8% chance to win \(about 1,200 points\)\.$/);
+  assert.match(likely, /^The model expects \+12 score from this discard, with an 8% chance to win\.$/);
 });
 
 test('Detailed leaves out the score and says why in plain words', () => {
@@ -57,8 +57,8 @@ test('Simple is the action and the hand to go for, with no reason and never the 
       assert.doesNotMatch(words(h), /model expects|score|chance to win|Lucky Cat (discards this|would|plays)/, id + ' ' + seed);
       assert.ok(h.tips.length <= 1, id + ' says one thing after the action at most');
       assert.ok(!h.tips.some(Coach.isReasonSentence) && !/I like it because|I pick it because/.test(words(h)), id + ' ' + seed + ' gives no reason');
-      if (h.aim) assert.match(words(h), /\. Go for [^.]+, (about \d+ faan( \+\d+ for bonuses)?|the 13 faan limit)(, short of the \d+ faan minimum)?\.$/, id + ' ' + seed + ': ' + words(h));
-      assert.ok(words(h).length <= 260, id + ' ' + seed + ': ' + words(h).length + ' characters');
+      if (h.aim) assert.match(words(h), /\. Go for [^.]+, (about \d+ faan( \+\d+ for bonuses)?|the 13 faan limit)(, short of the \d+ faan minimum)?\.( You have \d+ tiles? needed and \d+ tiles? remaining\.)?$/, id + ' ' + seed + ': ' + words(h));
+      assert.ok(words(h).length <= 320, id + ' ' + seed + ': ' + words(h).length + ' characters');
     }
   }
 });

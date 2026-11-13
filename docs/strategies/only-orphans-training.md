@@ -61,6 +61,8 @@ The lab started again from OL2c when the rules began picking a target each deal 
 | 9 | OT7c | +81.5 ± 25 | winBonus+50 (to 550) +1.7, finetune-slow +1.1, finetune-fast +0.5, claimMargin+25 (to 75) −1.1, finetune-wins −6.0 | winBonus+50 +1.9 (points +1.4 ± 1.4, below the +2 floor), finetune-slow −2.4 (points −1.8 ± 9.2) | none kept |
 | 10 | OT7c | +90.7 ± 25 | claimMargin+50 (to 100) −0.9, winBonus−50 (to 450) −3.3, recent −9.2, finetune-fast −13.0, wide −25.5 | none above 0 | none kept |
 | 11 (bold) | OT7c | +68.8 ± 24 | finetune-wins +10.3, winBonus+300 (to 800) +4.7, finetune +3.8, wider (from scratch) +1.3, winBonus+150 (to 650) −0.8 | winBonus+300 **+2.9** (points +0.3 ± 3.0), finetune-wins −3.3 (points −5.7 ± 9.1) | **OT11d kept, shipped** (+85.1 ± 9.4 against the baseline) |
+| 12 | OT11d | +86.2 ± 24 | networks on 12,000 deals: recent −0.2, finetune-wins −1.0, finetune-slow −11.8; settings: winBonus+50 (to 850) +0.3, claimMargin+25 (to 75) −3.0 | winBonus+50 +1.1 (points +0.8 ± 1.2) | none kept (first round with the new screen) |
+| 13 | OT11d | +90.0 ± 24 | networks on 12,000 deals: finetune −6.6, finetune-fast −8.8, deep (from scratch) −17.1; settings: winBonus+150 (to 950) +6.2, claimMargin+50 (to 100) +0.0 | winBonus+150 +0.7 (points −0.3 ± 2.0), claimMargin+50 −0.2 (points −0.1 ± 1.1) | none kept |
 
 OT1a against OL2c on the same 40,000 deals, both with the targets: wins 2.8% to 4.4%, deal-ins 13.5% to 13.1%, average win 5,546 to 3,196, Seven Pairs 1,733 to 4,665, Concealed Triplets 961 to 578, Dragon Triplet 800 to 484, Thirteen Orphans 1,347 to 1,419, pungs 0.10 a hand to 0.07. Points a hand 72.2 to 57.4, the rule-based baseline −1.9.
 

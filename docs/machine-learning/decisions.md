@@ -83,10 +83,10 @@ The coach names the top two groups that are worth a point or more, in words: spe
 
 The coach (`js/mahjong-coach.js`) speaks for whichever strategy is the coach. For Neural Cat it adds the model's line to the usual hint:
 
-- **A discard**: "The model expects +51 score on average from this discard, with a 27% chance to win (about 444 points). Next best discard is South Wind: +17 score. This one comes out ahead on the tiles you keep and on hand value."
-- **A claim**: "On average, the model expects −22 score if you pass and −32 score if you chow 5-6-7. That gives an 11% chance to win. The usual call here would be to chow 5-6-7, but the model expects less from it."
-- **A kong**: "On average, the model expects −14 score if you skip the kong and −19 score if you kong Two Circle."
-- **Feedback on your discard**: "The model expects −114 score on average from Four Character, and −137 score from Two Circle. With Four Character, your chance to win is 17% instead of 8%."
+- **A discard**: "The model expects +51 score from this discard, with a 27% chance to win. Next best discard is South Wind: +17 score."
+- **A claim**: "The model expects −22 score if you pass and −32 score if you chow 5-6-7. That gives an 11% chance to win. The usual call here would be to chow 5-6-7, but the model expects less from it."
+- **A kong**: "The model expects −14 score if you skip the kong and −19 score if you kong Two Circle."
+- **Feedback on your discard**: "The model expects −114 score from Four Character, and −137 score from Two Circle. With Four Character, your chance to win is 17% instead of 8%."
 
 Every hint is held to the coach's house style, and `js/mahjong-coach-text.test.js` checks it on real hands for every strategy:
 

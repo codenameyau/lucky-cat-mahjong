@@ -350,6 +350,35 @@
 
   var spriteCache = {};
 
+  // The logo at exactly pw x ph device pixels, shrunk in halving steps: a
+  // 1024px image drawn straight down to a tile back or the coach's avatar
+  // skips most of its pixels and looks jagged. Cached by size.
+  var logoSizes = {};
+  function logoAtPixels(pw, ph) {
+    var src = images.logo;
+    if (!src) return null;
+    pw = Math.max(1, Math.round(pw)); ph = Math.max(1, Math.round(ph));
+    var key = pw + 'x' + ph;
+    if (logoSizes[key]) return logoSizes[key];
+    var cur = src, sw = src.width, sh = src.height;
+    while (sw / 2 >= pw && sh / 2 >= ph) {
+      sw = Math.round(sw / 2); sh = Math.round(sh / 2);
+      var step = document.createElement('canvas');
+      step.width = sw; step.height = sh;
+      var sc = step.getContext('2d');
+      sc.imageSmoothingQuality = 'high';
+      sc.drawImage(cur, 0, 0, sw, sh);
+      cur = step;
+    }
+    var cv = document.createElement('canvas');
+    cv.width = pw; cv.height = ph;
+    var c = cv.getContext('2d');
+    c.imageSmoothingQuality = 'high';
+    c.drawImage(cur, 0, 0, pw, ph);
+    logoSizes[key] = cv;
+    return cv;
+  }
+
   // A tile sprite includes its green "depth" edge below the face, so the
   // drawn height is w * TILE_ASPECT + depth.
   function tileSprite(id, w, dpr, back) {
@@ -385,9 +414,14 @@
       if (images.logo && w * dpr >= 18) {
         var lw = w * 0.62;
         var lh = lw * (images.logo.height / images.logo.width || 1);
+        // Shrunk smoothly to its device pixels and placed on whole pixels.
+        var lpw = Math.round(lw * dpr), lph = Math.round(lh * dpr);
+        var small = logoAtPixels(lpw, lph);
+        c.save();
+        c.setTransform(1, 0, 0, 1, 0, 0);
         c.globalAlpha = 0.95;
-        c.drawImage(images.logo, (w - lw) / 2, (h - lh) / 2, lw, lh);
-        c.globalAlpha = 1;
+        c.drawImage(small, Math.round((w - lw) / 2 * dpr), Math.round((h - lh) / 2 * dpr));
+        c.restore();
       }
     } else {
       roundRect(c, 0, 0, w, h, r);
@@ -770,8 +804,12 @@
     var sound = createSound(soundOn);
     // Silent for the tile cues while auto-play runs (it follows the live state, so it can't stick on).
     sound.isQuiet = function (name) { return autoPlay && TILE_CUES[name] === 1; };
-    sound.musicEnabled = sound.enabled;
+    // Music on plays the music and the sounds, Sound on only the sounds.
+    sound.musicEnabled = sound.enabled && prefs.music !== false;
     var reduceMotion = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // A mouse (or trackpad) is the main pointer: a computer, not an iPad,
+    // even when an iPad sideways gets the desktop layout.
+    var finePointer = !!(root.matchMedia && root.matchMedia('(hover: hover) and (pointer: fine)').matches);
 
     // W and H are the layout size. On short landscape screens the table is
     // laid out taller and scaled down to fit (zoom < 1); dpr then includes
@@ -841,7 +879,7 @@
       turnPrompt: null,
       claimPrompt: null,
       hint: null,
-      hintLists: {}, // by strategy id: every hint and feedback note it gave this game, oldest first (HINTS_KEY)
+      hintLists: {}, // by strategy id: every hint and feedback note it gave this hand, oldest first (HINTS_KEY)
       hintsAll: {}, // by strategy id: the hint for the move in front of you, at the coach level
       hintsWhole: {}, // by strategy id: the same hints whole, said at any level (Coach.atDetail)
       feedbackAll: {}, // by strategy id, then coach level: its note on your last move
@@ -991,6 +1029,9 @@
     var POND_COLS = 8;
     var POND_ROWS = 3;
     var PHONE_POND_CAPACITY = 8;
+    // A tablet held upright gets the phone's layout, but its screen has the
+    // room to plan for a full pond (like desktop), so its discards draw smaller.
+    var TABLET_POND_CAPACITY = POND_COLS * POND_ROWS;
 
     function fitPondTile(zw, zh, n, cols) {
       cols = cols || POND_COLS;
@@ -1159,6 +1200,9 @@
       var desktop = cssW >= 980 && cssW >= cssH * 0.9;
       var landscape = !desktop && W > H;
       var phonePortrait = !desktop && !landscape;
+      // An upright tablet (an iPad, 768 to 1024 wide) uses the phone's
+      // portrait layout with deeper opponent seats and a desktop-sized pond.
+      var tabletPortrait = phonePortrait && cssW >= 700;
       var handRows = phonePortrait ? 2 : 1;
       var depth = function (w) { return Math.max(2, w * 0.08); };
 
@@ -1174,14 +1218,10 @@
       var tableW = W;
       if (desktop) tableW = Math.min(Math.round((W - historyGap - pad) * 2 / 3), Math.round(H * 1.1));
       if (landscape && coachShown) tableW = Math.round((W - historyGap - pad) * 2 / 3);
+      // Your section always spans the table: the side seats stop above it,
+      // in every layout (a landscape phone's too).
       var meX = ox, meW = phonePortrait ? W : tableW;
-      // A landscape phone's side seats run the full height (their tiles in
-      // one row need the length), so your section sits between them.
       var LANDSCAPE_SIDE_W = 48;
-      if (landscape) {
-        meX = ox + LANDSCAPE_SIDE_W + 6;
-        meW = tableW - 2 * (LANDSCAPE_SIDE_W + 6);
-      }
 
       // Hand tiles: one row of 14 across your section, or two rows of 7 on a
       // portrait phone, as wide as the screen unless that's too tall.
@@ -1219,7 +1259,9 @@
       // Landscape phones show the coach in the column instead.
       var hintH = 0;
       var room = meBox.y - 6 - topH - 6; // table and bar together
-      if (desktop) hintH = 84;
+      // (A tablet or window sideways keeps it too; only a phone held sideways,
+      // too short to spare it, shows the coach in its column alone.)
+      if (desktop || (landscape && H >= 500)) hintH = 84;
       // (Upright, the coach's bar stays shorter than your section.)
       if (phonePortrait && coachShown) hintH = clamp(room - Math.min(tableW - 2 * pad, room - 72), 72, 80);
       // Playback keeps the coach's bar even on a landscape phone, where a
@@ -1262,19 +1304,21 @@
         var oppFit = clamp(Math.min(lengthFit, depthFit), 8, 72);
         topPanelH = Math.ceil(oppFit * 2 * depthUnit + 16) - TOP_PANEL_TRIM;
       } else {
-        sideW = phonePortrait ? 46 : landscape ? LANDSCAPE_SIDE_W : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
+        // (An upright tablet's seats are a little deeper, so its opponents' tiles are larger.)
+        sideW = tabletPortrait ? clamp(Math.round(W * 0.072), 56, 72) : phonePortrait ? 46 : landscape ? LANDSCAPE_SIDE_W : portrait ? clamp(tableW * 0.16, 56, 88) : clamp(tableW * 0.16, 118, 200);
         // Every opponent's panel is the same depth.
         topPanelH = sideW;
         sideHead = phoneHead;
         topHead = phoneHead;
       }
       var opp = [];
-      // An upright phone's player across spans the table, above the side
-      // seats; sideways the side seats run the full height instead, with the
-      // player across between them.
-      var acrossSpans = phonePortrait;
+      // Below desktop (an upright phone, or a sideways phone or medium window)
+      // the player across spans the table, above the side seats, as you span
+      // it below them. On desktop the side seats run from the top to your
+      // section, with the player across between them.
+      var acrossSpans = phonePortrait || landscape;
       var sideTop = acrossSpans ? topH + topPanelH + gap : topH;
-      var sideBottom = landscape ? H - Math.max(4, pad / 2) : bandTop - gap;
+      var sideBottom = bandTop - gap;
       opp[3] = { x: ox + pad, y: sideTop, w: sideW, h: sideBottom - sideTop };
       opp[1] = { x: ox + tableW - pad - sideW, y: sideTop, w: sideW, h: sideBottom - sideTop };
       var mid = ox + pad + sideW + gap;
@@ -1314,11 +1358,12 @@
 
       var inner = pond;
 
-      // Each pond is planned to hold this many discards: 24 on desktop, 8 on
+      // Each pond is planned to hold this many discards: 24 on desktop and on
+      // an upright tablet, 8 on
       // a phone so its discards draw close to twice as large. A pond that
       // runs past it re-fits them smaller (with a full pond, about the size
       // they were before).
-      var maxDiscards = desktop ? POND_COLS * POND_ROWS : PHONE_POND_CAPACITY;
+      var maxDiscards = desktop ? POND_COLS * POND_ROWS : tabletPortrait ? TABLET_POND_CAPACITY : PHONE_POND_CAPACITY;
       if (game && game.hand) {
         game.hand.seats.forEach(function (st) { maxDiscards = Math.max(maxDiscards, st.discards.length + 1); });
       }
@@ -1392,7 +1437,7 @@
 
       return {
         pad: pad, topH: topH, portrait: portrait, ox: ox, tableW: tableW, history: history,
-        desktop: desktop, landscape: landscape, phonePortrait: phonePortrait, meX: meX, meW: meW,
+        desktop: desktop, landscape: landscape, phonePortrait: phonePortrait, tabletPortrait: tabletPortrait, meX: meX, meW: meW,
         tw: tw, th: th, handGap: handGap, handY: handY, handRows: handRows, mw: mw, meY: meY, meldRowH: meldRowH, meBox: meBox,
         actionsY: actionsY, actionsH: actionsH, actionsInRow: actionsInRow, hintY: hintY, hintH: hintH,
         results: results,
@@ -1428,6 +1473,21 @@
 
     /* ---------------- drawing primitives ---------------- */
 
+    // The logo at w x h on screen (the coach's avatar), shrunk smoothly to
+    // its device pixels (logoAtPixels) and copied pixel for pixel.
+    function drawLogo(x, y, w, h) {
+      if (!images.logo) return;
+      // Where it lands in device pixels (the canvas's own scale), snapped to
+      // whole pixels: a copy drawn between pixels is resampled, and blurs.
+      var t = ctx.getTransform();
+      var dx = Math.round(t.a * x + t.c * y + t.e), dy = Math.round(t.b * x + t.d * y + t.f);
+      var cv = logoAtPixels(w * t.a, h * t.d);
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(cv, dx, dy); // pixel for pixel
+      ctx.restore();
+    }
+
     function drawTile(id, x, y, w, opts) {
       opts = opts || {};
       var sp = tileSprite(id, w, dpr, !!opts.back);
@@ -1448,7 +1508,17 @@
       // A face-down tile has no tip, except your own (opts.peek: your
       // concealed kong, whose tiles you know).
       if (id && (!opts.back || opts.peek) && tipsOn) recordSpot(id, x, y, w, h);
-      ctx.drawImage(sp, x, y, w, h);
+      // An upright tile is copied pixel for pixel at whole device pixels: a
+      // sprite drawn between pixels is resampled, and looks soft or jagged.
+      // (A turning or flipping tile is drawn scaled as before.)
+      var t = ctx.getTransform();
+      if (!t.b && !t.c && Math.abs(t.a - dpr) < 1e-6 && Math.abs(t.d - dpr) < 1e-6) {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.drawImage(sp, Math.round(t.a * x + t.e), Math.round(t.d * y + t.f));
+        ctx.setTransform(t);
+      } else {
+        ctx.drawImage(sp, x, y, w, h);
+      }
       if (opts.glow) {
         ctx.strokeStyle = opts.glow;
         // Red marks a tile a claim would use. Every other highlight is a thinner yellow.
@@ -1512,7 +1582,7 @@
       if (!ui.shake || ui.shake.kind !== kind || ui.shake.key !== key) return 0;
       var p = (now() - ui.shake.start) / SHAKE_MS;
       if (p < 0 || p >= 1) return 0;
-      return Math.sin(p * Math.PI * 5) * (1 - p) * 18;
+      return Math.sin(p * Math.PI * 5) * (1 - p) * (kind === 'tile' ? 10 : 18); // a refused tile shakes gently
     }
 
     function button(label, x, y, w, h, onTap, style, id, picked) {
@@ -1522,6 +1592,7 @@
       if (dx) { ctx.save(); ctx.translate(dx, 0); }
       var fills = {
         primary: isHover ? COLORS.primaryHover : COLORS.primary,
+        red: isHover ? '#D62A47' : COLORS.red, // red whatever the theme
         gold: isHover ? '#ffb43c' : COLORS.gold,
         light: isHover ? '#ffffff' : 'rgba(255, 248, 240, 0.94)',
         white: isHover ? '#ece6de' : '#ffffff',
@@ -2375,9 +2446,9 @@
     // is worked out again at once in the new words.
 
     var COACH_OPTIONS = [
-      { id: 'simple', name: 'Simple', note: 'What to do and the hand to go for with its faan.', example: 'Discard Two Bamboo. Go for Half Flush in Circles, about 3 faan +2 for bonuses.' },
-      { id: 'detailed', name: 'Detailed', note: 'What to do, the hand to go for, any threats at the table, and why the move fits. No numbers.', example: 'Discard Two Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. It keeps a bigger hand in reach.' },
-      { id: 'complex', name: 'Complex', note: 'Everything, with each strategy\'s own numbers: a network\'s expected score, chance to win and next best choice, or a rule strategy\'s odds of finishing the hand.', example: 'Discard Two Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. The model expects +67 score on average from this discard, with a 3% chance to win (about 418 points). Next best discard is Six Bamboo: +48 score.' },
+      { id: 'simple', name: 'Simple', note: 'What to do, the hand to go for with its faan, and how many of your tiles it needs.', example: 'Discard Two Bamboo. Go for Half Flush in Circles, about 3 faan +2 for bonuses. You have 9 tiles needed and 5 tiles remaining.' },
+      { id: 'detailed', name: 'Detailed', note: 'What to do, the hand to go for and how many of your tiles it needs, any threats at the table, and why the move fits. No odds or scores.', example: 'Discard Two Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 9 tiles needed and 5 tiles remaining. It keeps a bigger hand in reach.' },
+      { id: 'complex', name: 'Complex', note: 'Everything, with each strategy\'s own numbers: a network\'s expected score, chance to win and next best choice, or a rule strategy\'s odds of finishing the hand.', example: 'Discard Two Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 9 tiles needed and 5 tiles remaining. The model expects +67 score from this discard, with a 3% chance to win. Next best discard is Six Bamboo: +48 score.' },
     ];
 
     function coachSettingsSheet() {
@@ -2741,12 +2812,14 @@
     }
 
     var COACH_LABELS = { on: 'Coach on', feedback: 'Feedback on', off: 'Coach off' };
-    // The Sound button toggles effects and music together.
-    var SOUND_LABELS = { on: 'Sound on', off: 'Sound off' };
-    var SOUND_ORDER = ['on', 'off'];
+    // The Sound button cycles Music on (music and sounds), Sound on (sounds,
+    // no music) and Sound off (neither).
+    var SOUND_LABELS = { music: 'Music on', sound: 'Sound on', off: 'Sound off' };
+    var SOUND_ORDER = ['music', 'sound', 'off'];
 
     function soundMode() {
-      return sound.enabled ? 'on' : 'off';
+      if (!sound.enabled) return 'off';
+      return sound.musicEnabled ? 'music' : 'sound';
     }
     var COACH_ORDER = ['on', 'feedback', 'off'];
 
@@ -2825,7 +2898,7 @@
       var hw = W < 420 ? 84 : 106;
       button(COACH_LABELS[ui.coach], right - sw - hw - 6, 7, hw, 28, cycleCoach, ui.coach === 'off' ? 'ghost' : 'gold', 'hints');
       var rw = W < 420 ? 50 : 68;
-      button('Rules', right - sw - hw - rw - 12, 7, rw, 28, openRules, 'ghost', 'rules');
+      button('Rules', right - sw - hw - rw - 12, 7, rw, 28, openRules, 'ghost', 'rules', !!(settings.lesson && ui.hint && ui.hint.highlight === 'rules')); // the tutorial points to it with a gold ring
       var stw = W < 420 ? 70 : 96;
       button('Strategies', right - sw - hw - rw - stw - 18, 7, stw, 28, openStrategies, 'ghost', 'strategies');
       if (game) {
@@ -3550,7 +3623,8 @@
         if (i === ui.selected) lift = tw * 0.32;
         else if (hover === 'hand-' + i && ui.turnPrompt) lift = tw * 0.12;
         var glow = null;
-        if (hintTile && !hintUsed && id === hintTile && ui.turnPrompt) {
+        // On the tutorial's Replace flowers step the flower glows too.
+        if (hintTile && !hintUsed && id === hintTile && (ui.turnPrompt || ui.flowerPrompt)) {
           // Glow the rightmost copy so it matches the drawn tile when relevant.
           var lastCopy = tiles.lastIndexOf(id);
           if (i === lastCopy) { glow = COLORS.gold; hintUsed = true; }
@@ -3707,7 +3781,7 @@
       if (images.logo) {
         var iw = iconS * (images.logo.width / images.logo.height);
         var dw = Math.min(iw, 48), dh = Math.min(iconS, 48 / (iw / iconS));
-        ctx.drawImage(images.logo, x + 8, y + (h - dh) / 2, dw, dh); // centered in the box, however tall it grows
+        drawLogo(x + 8, y + (h - dh) / 2, dw, dh); // centered in the box, however tall it grows
       }
       var startY = y + h / 2 - (out.length * lh) / 2 + lh / 2;
       out.forEach(function (l, i) {
@@ -3743,12 +3817,22 @@
       return { action: action, detail: detail };
     }
 
-    // Your own moves in this hand, counted 1, 2, 3 (one note per move).
-    function handMoveNumber(list, hand) {
-      return list.filter(function (e) { return e.hand === hand; }).length + 1;
+    // Your moves so far this hand. A move is a turn on which you discard a
+    // tile or win, so it's counted from the game (your discards), the same
+    // for every coach, however many notes each one has written.
+    function movesMade() {
+      return game && game.hand ? game.hand.seats[0].discards.length : 0;
+    }
+
+    // The move a note belongs to: the one being decided at your turn or claim
+    // (set when it starts), so every coach's hint and feedback share it.
+    function handMoveNumber() {
+      return ui.moveAt || movesMade() + 1;
     }
 
     function hintList(id) {
+      // The tutorial has one script, so every coach shares one history.
+      if (settings.lesson) id = 'lesson';
       return ui.hintLists[id] || (ui.hintLists[id] = []);
     }
 
@@ -3851,7 +3935,7 @@
         }
         return;
       }
-      var entry = { kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber(list, hand), hand: hand };
+      var entry = { kind: kind, action: plain.action, detail: plain.detail, move: handMoveNumber(), hand: hand };
       if (levels) entry.levels = levels;
       list.push(entry);
       if (list.length > 200) list.shift();
@@ -4121,7 +4205,7 @@
         ctx.fill();
         if (images.logo) {
           var logoH = avatar * (images.logo.height / images.logo.width || 1);
-          ctx.drawImage(images.logo, viewX + 8, y + (b.h - logoH) / 2, avatar, logoH);
+          drawLogo(viewX + 8, y + (b.h - logoH) / 2, avatar, logoH);
         }
         var blockH = b.lines.length * lh;
         var startY = y + (b.h - blockH) / 2 + lh / 2;
@@ -4250,6 +4334,14 @@
     }
 
     function liveStrategyRows() {
+      // The tutorial has one script: every coach gives its move (the tile to
+      // discard, or the claim or step in words), whatever its own play would be.
+      if (settings.lesson) {
+        var lh = ui.hint;
+        var toss = !!(lh && lh.decision && lh.decision.type === 'discard');
+        var said = lh && !toss && lh.action ? String(lh.action).replace(/\.$/, '') : null;
+        return Strategies.list().map(function (s) { return { id: s.id, name: s.name, tile: toss ? lh.tile : null, action: said }; });
+      }
       // Feedback looks back at the discard you just made, not at the next one.
       if (ui.coach === 'feedback') {
         return ui.feedbackDiscards || Strategies.list().map(function (s) {
@@ -4375,7 +4467,12 @@
     function drawActions() {
       if (ui.overlay) { setButtonsOverName(false); return; }
       var acts = [];
-      if (ui.turnPrompt) {
+      if (ui.flowerPrompt) {
+        acts.push({ id: 'replace-flower', label: 'Replace flowers', style: 'red', fn: function () {
+          var p = ui.flowerPrompt;
+          if (p) { ui.flowerPrompt = null; p.resolve(); }
+        } });
+      } else if (ui.turnPrompt) {
         var o = ui.turnPrompt.opts;
         if (o.win) acts.push({ id: 'win', label: winButtonLabel(o.win), style: 'gold', fn: function () { resolveTurn({ type: 'win' }); } });
         o.kongs.forEach(function (k) {
@@ -4397,15 +4494,22 @@
       }
       if (!acts.length) { setButtonsOverName(false); return; }
       var phone = W < 600; // smaller buttons on a phone
-      var h = phone ? 30 : 38;
+      // Every action button (Discard, Win, Pung, Chow, Kong, Pass, Replace
+      // flowers) is sized like the top bar's controls (Menu, Rules...).
+      // On a computer a claim's buttons and its tile are about a fifth
+      // larger, so the choice reads at a glance (not on a phone or an iPad).
+      var bigClaim = !!ui.claimPrompt && L.desktop && finePointer;
+      var h = bigClaim ? 34 : 28;
       var gap = phone ? 6 : 8;
       // When claiming, show the tile that is up for grabs beside the buttons.
       var claimTile = ui.claimPrompt ? ui.claimPrompt.opts.tile : null;
-      var ctw = claimTile ? Math.min(phone ? 24 : 30, (L.actionsH - 4) / TILE_ASPECT) : 0;
+      var ctw = !claimTile ? 0 : bigClaim
+        ? Math.min(34, (L.meldRowH - 6) / TILE_ASPECT) // taller than the buttons, inside your meld row
+        : Math.min(phone ? 24 : 30, (L.actionsH - 4) / TILE_ASPECT);
       var lead = claimTile ? ctw + 10 : 0;
-      ctx.font = 'bold ' + (phone ? 12 : 15) + 'px ' + FONT_BODY;
+      ctx.font = Math.min(15, h * 0.39) + 'px ' + FONT_HEAD; // the label size button() draws at
       // Each button is only as wide as its label.
-      var widths = acts.map(function (a) { return Math.ceil(ctx.measureText(a.label).width) + (phone ? 20 : 28); });
+      var widths = acts.map(function (a) { return Math.ceil(ctx.measureText(a.label).width) + (phone ? 20 : bigClaim ? 34 : 28); });
       var buttonsW = widths.reduce(function (sum, w) { return sum + w; }, 0) + gap * (acts.length - 1);
       var x0 = L.meX + L.pad, x1 = L.meX + L.meW - L.pad, rowY = L.actionsY;
       var free = ui.meRowFree;
@@ -4419,15 +4523,15 @@
           if (midX - groupW / 2 >= free.x0 && midX + groupW / 2 <= free.x1) { x0 = L.meX + L.pad; x1 = L.meX + L.meW - L.pad; }
           else { x0 = free.x0; x1 = free.x1; }
         }
-        else if (L.meX + L.meW - L.pad - free.x0 - lead >= buttonsW) {
+        else {
           // Not enough room beside your name: use the rest of the row and
-          // cover the name while the buttons are up.
+          // cover the name while the buttons are up. They always stay in your
+          // row (never over the coach's message): with lots of melds and chow
+          // choices they narrow to fit, below.
           x0 = free.x0; x1 = L.meX + L.meW - L.pad;
           cover = { x: free.x1, w: x1 - free.x1 };
-        } else {
-          // Still too many (lots of melds and chow choices): float them over the coach's bar.
-          // Phones have no bar, so the buttons sit just above the meld row.
-          rowY = L.hintH >= L.actionsH ? L.hintY + (L.hintH - L.actionsH) / 2 : L.meY - L.actionsH - 4;
+          // Even at their narrowest they don't fit after your melds: the whole row, over them.
+          if (x1 - x0 - lead < acts.length * 36 + gap * (acts.length - 1)) x0 = L.meX + L.pad;
         }
       }
       setButtonsOverName(!!cover);
@@ -4448,7 +4552,8 @@
       var cursor = x;
       acts.forEach(function (a, i) {
         var id = a.id || ('act-' + i);
-        var recommended = hintDecision && labelMatches(a.label, hintDecision);
+        // (The tutorial's Replace flowers is the only move, so it always gets the ring.)
+        var recommended = a.id === 'replace-flower' || (hintDecision && labelMatches(a.label, hintDecision));
         button(a.label, cursor, y, widths[i], h, a.fn, a.style, id, recommended);
         cursor += widths[i] + gap;
       });
@@ -4923,7 +5028,7 @@
       text(line, lx, ly, { size: 12, color: 'rgba(255,248,240,0.7)' });
       pill(lx + lineW + 6, ly - badgeH / 2, badgeW, badgeH, COLORS.primary);
       text('BETA', lx + lineW + 6 + badgeW / 2, ly + 1, { size: 10, weight: 'bold', align: 'center', color: COLORS.white });
-      text('Built by Jorge Yau, developer, mahjong instructor', r.x + r.w / 2, r.y + r.h - 22, { size: 12, align: 'center', color: 'rgba(255,248,240,0.55)' });
+      text('Built by Jorge Yau Lee, developer, mahjong instructor', r.x + r.w / 2, r.y + r.h - 22, { size: 12, align: 'center', color: 'rgba(255,248,240,0.55)' });
     }
 
     /* ---------------- saving and loading ---------------- */
@@ -5278,11 +5383,11 @@
     }
 
     // Where See results goes while the hands are face up: the coach's bar,
-    // directly above your avatar. The column only when there is no bar
-    // (a landscape phone). Beside your name when the coach is hidden.
+    // directly above your avatar; with no bar (a tablet or a window sideways,
+    // the coach in its column, or the coach hidden), by your name. Never up
+    // in the coach's column, far from your hand.
     function seeResultsHome() {
       if (L.hintH) return 'bar';
-      if (L.history) return 'column';
       return 'name';
     }
 
@@ -5355,9 +5460,9 @@
     function toggleSound() {
       var next = SOUND_ORDER[(SOUND_ORDER.indexOf(soundMode()) + 1) % SOUND_ORDER.length];
       sound.enabled = next !== 'off';
-      sound.musicEnabled = sound.enabled;
+      sound.musicEnabled = next === 'music';
       prefs.sound = sound.enabled;
-      prefs.music = sound.enabled;
+      prefs.music = sound.musicEnabled;
       writeJson(PREFS_KEY, prefs);
       sound.music(true); // plays or pauses to match
       if (sound.enabled) sound.play('select');
@@ -6131,7 +6236,13 @@
 
     var handlers = {
       handStart: function () {
-        ui.hide = { pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null };
+        ui.moveAt = null; // a new hand starts again at move 1
+        // The coach's history is this hand only: every other hand's notes go.
+        Object.keys(ui.hintLists).forEach(function (id) {
+          ui.hintLists[id] = ui.hintLists[id].filter(function (e) { return e.hand === game.handNumber; });
+        });
+        saveHints();
+        ui.hide ={ pond: [0, 0, 0, 0], meld: [0, 0, 0, 0], backs: [0, 0, 0, 0], flower: [0, 0, 0, 0], drawn: false, tile: null };
         ui.botDrawn = [false, false, false, false];
         ui.botLift = null;
         ui.winInHand = null;
@@ -6151,6 +6262,19 @@
         L = computeLayout();
         announce('Hand ' + game.handNumber + '. ' + (game.dealer === 0 ? 'You are' : game.players[game.dealer].name + ' is') + ' the dealer.');
         requestRender();
+        // The tutorial's step one: the deal waits, flower in hand, for the
+        // Replace flowers button (only here, never in a practice or full game).
+        if (settings.lesson && !game.lessonStep && game.hand.seats[0].hand.some(E.isBonus)) {
+          ui.hint = Lesson.FLOWER_HINT;
+          rememberCoach(ui.hint, 'hint');
+          return new Promise(function (resolve) {
+            ui.flowerPrompt = { resolve: resolve };
+            requestRender();
+          }).then(function () {
+            ui.flowerPrompt = null;
+            requestRender();
+          });
+        }
         return sleep(400);
       },
       turn: function (d) {
@@ -6381,6 +6505,7 @@
         turn: function (g, seat, opts) {
           return new Promise(function (resolve) {
             ui.turnPrompt = { opts: opts, resolve: resolve };
+            ui.moveAt = movesMade() + 1; // this turn's discard (or win) is your next move
             ui.selected = -1;
             // Feedback on a discard clears when your next turn starts. Feedback on
             // a claim stays until your next move.
@@ -6402,6 +6527,7 @@
             if (opts.pung || opts.kong) highlight.push(opts.tile);
             opts.chows.forEach(function (p) { highlight = highlight.concat(p); });
             ui.claimPrompt = { opts: opts, resolve: resolve, highlight: highlight };
+            ui.moveAt = movesMade() + 1; // a claim isn't a move: it leads to your next discard (or win)
             clearDiscardFeedback();
             refreshHint();
             var lessonLine = settings.lesson && ui.hint && ui.hint.action;
@@ -7907,7 +8033,7 @@
           if (lessonTrack) lessonTrack.done = true;
         }
         var extra = null;
-        if (settings.lesson && res.type === 'win' && res.winner === 0) extra = 'You won a Half Flush on East Wind.';
+        if (settings.lesson && res.type === 'win' && res.winner === 0) extra = 'You won a half flush on East Wind.';
         else if (res.roundAdvanced) extra = 'The round wind is now ' + E.WIND_NAMES[game.round] + '.';
         if (game.over) extra = 'That was the last deal of the game.';
         pendingSummary = keptSummary({ result: res, extra: extra });
@@ -8072,7 +8198,7 @@
         applyTheme(prefs.theme);
         if (!soundParam) {
           sound.enabled = prefs.sound !== false;
-          sound.musicEnabled = sound.enabled;
+          sound.musicEnabled = sound.enabled && prefs.music !== false;
         }
         document.addEventListener('visibilitychange', onVisibility);
         root.addEventListener('resize', onResize);
