@@ -1210,6 +1210,8 @@
           H = full;
           layoutNesting = false;
         }
+        // The tutorial has no strategy strip under a phone's table: the table takes that room.
+        if (settings.lesson) return laid;
         var reserve = 0;
         var fallback = null;
         layoutNesting = true;
