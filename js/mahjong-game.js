@@ -3898,14 +3898,16 @@
       return { plain: plain, red: red, color: baseColor };
     }
 
-    // The tutorial writes its core mahjong terms in red, like hand names.
-    var LESSON_TERMS = /\b(chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind|claim(?:s|ed|ing)?|discard(?:s|ed|ing)?|draws?|drawing|drew|drawn)\b/gi;
+    // The tutorial writes its core mahjong terms and its tile names in red, like hand names.
+    var LESSON_TERMS = /\b(chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind|claim(?:s|ed|ing)?|discard(?:s|ed|ing)?|draws?|drawing|drew|drawn)\b|(?:\b\d )?\b(?:bamboo|dots?|characters?)\b|\b(?:(?:east|south|west|north) )?winds?\b|\b(?:(?:red|green|white) )?dragons?\b|\b(?:plum|flowers?|seasons?)\b|\b\d[bdc]\b/gi;
     function withLessonTerms(plain, red) {
       var out = red.slice();
       var m;
       LESSON_TERMS.lastIndex = 0;
       while ((m = LESSON_TERMS.exec(plain))) {
         var a = m.index, b = a + m[0].length;
+        // A rank in a run such as 2-3-4 Bamboo stays plain: only the suit is red.
+        if (/^\d /.test(m[0]) && plain.charAt(a - 1) === "-") a += 2;
         var clash = out.some(function (r) { return a < r[1] && b > r[0]; });
         if (!clash) out.push([a, b]);
       }
