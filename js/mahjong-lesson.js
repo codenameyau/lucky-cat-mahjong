@@ -75,7 +75,7 @@
   // Before the first move: the deal has put Plum in your hand, and the table
   // waits for the Replace flowers button (the tutorial's only).
   var FLOWER_HINT = { kind: "flower", action: "Replace flowers.", tile: "f1", decision: null, cards: [
-    read("Welcome, I'm your coach Lucky Cat! We'll play one hand together, one small step at a time."),
+    read("Welcome, I'm your coach, Lucky Cat! We'll play one hand together, one small step at a time."),
     read("This is Plum, a flower. You set aside every flower and season tile. Plum has the number 1 and you sit on East, seat number 1, so it scores 1 faan.", "f1"),
     read("Press Replace flowers. Plum goes beside your hand, and you draw a new tile for it.", "replace-flower"),
   ] };
