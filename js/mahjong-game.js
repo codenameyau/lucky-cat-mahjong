@@ -3792,10 +3792,9 @@
         reserve = x + w - spot.x + 8;
       }
       // A card to read has a Next button at the right of the box.
-      // Back and Next are always there (dim when there is nowhere to go).
+      // Next is always there (dim when there is nowhere to go).
       var nextW = settings.lesson ? (L.desktop ? 76 : 60) : 0;
-      var backW = settings.lesson ? (L.desktop ? 64 : 52) : 0;
-      if (nextW) reserve += nextW + backW + 8 + 10;
+      if (nextW) reserve += nextW + 10;
       var tw = w - (tx - x) - 10 - reserve;
       var baseSize = !L.desktop ? 11 : L.tableW < 600 ? 12 : 13; // smaller on a phone
       // The box keeps its height. A longer note shrinks the text until it fits.
@@ -3878,13 +3877,13 @@
         });
       });
       ctx.restore();
-      if (settings.lesson) drawLessonProgress(x, y, w, h, lesson, nextW, backW);
+      if (settings.lesson) drawLessonProgress(x, y, w, h, lesson, nextW);
     }
 
     // The tutorial's progress bar along the bottom of the coach's box, and
     // the Next button on a card to read. A tap anywhere on the box also
     // turns to the next card.
-    function drawLessonProgress(x, y, w, h, lesson, nextW, backW) {
+    function drawLessonProgress(x, y, w, h, lesson, nextW) {
       var at = game ? Lesson.progress(game) : null;
       // The step on show counts as begun, and the bar never starts empty, so it reads as a progress bar.
       var done = lesson ? lesson.n : at ? at.screen : 0;
@@ -3903,11 +3902,9 @@
       }
       ctx.restore();
       var bh = L.desktop ? 30 : 26;
-      // (While the other players take their turns there is no step on show: both are dim.)
-      var canBack = !!lesson && lesson.n > 1;
+      // (While the other players take their turns there is no step on show: it is dim.)
       var canNext = !!lesson && ((!lesson.last && !lesson.gated) || (lesson.last && lesson.n < (settings.lessonFurthest || 0)));
       if (canNext) addRegion(x, y, w, h, lessonNextCard, "lesson-band");
-      button("Back", x + w - 10 - nextW - 8 - backW, y + (h - bh) / 2, backW, bh, lessonPrevCard, canBack ? "ghost" : "off", "lesson-back");
       button("Next", x + w - 10 - nextW, y + (h - bh) / 2, nextW, bh, lessonNextCard, canNext ? "gold" : "off", "lesson-next");
     }
 
@@ -5807,14 +5804,6 @@
       }
       sound.play("select");
       showLessonCard(c.index + 1);
-    }
-
-    // Back: the step before.
-    function lessonPrevCard() {
-      var c = lessonCardNow();
-      if (!c || c.n <= 1) return;
-      if (c.index > 0) { sound.play("select"); showLessonCard(c.index - 1); return; }
-      lessonGo(c.n - 1);
     }
 
     // To a step already reached, from the steps list, Back or Next. Within this move
