@@ -3812,7 +3812,8 @@
             (l.runs || []).forEach(function (r) { if (r.from <= pos) run = r; });
             return run;
           };
-          var weightAt = function (pos) { var r = runAt(pos); return r ? r.bold : !!l.bold; };
+          var boldSpan = function (pos) { return red.some(function (sp) { return sp[3] && pos >= sp[0] && pos < sp[1]; }); }; // a span can be bold on its own (the coach's name)
+          var weightAt = function (pos) { if (boldSpan(pos)) return true; var r = runAt(pos); return r ? r.bold : !!l.bold; };
           var chunks = l.nowrap ? [plain] : l.runs ? wrapRuns(ctx, plain, tw, weightAt, lineSize) : wrapText(ctx, plain, tw);
           chunks.forEach(function (ln) {
             var at = plain.indexOf(ln, cursor);
@@ -3923,8 +3924,7 @@
     }
 
     // The tutorial writes its core mahjong terms and its tile names in red, like hand names, the first time each comes up.
-    var LESSON_NAME_COLOR = "#FFE94D";
-    var LESSON_TERMS = /\b(hong kong style|hand patterns?|replace flowers?|chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind|claim(?:s|ed|ing)?|discard(?:s|ed|ing)?|hands?|east|round)\b|\b(?:(?:east|south|west|north) )?winds?\b|\b(?:(?:red|green|white) )?dragons?\b|\b(?:plum|flowers?|seasons?)\b/gi;
+    var LESSON_TERMS = /\b(hong kong mahjong|hand patterns?|replace flowers?|chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind|claim(?:s|ed|ing)?|discard(?:s|ed|ing)?|hands?|east|round)\b|\b(?:(?:east|south|west|north) )?winds?\b|\b(?:(?:red|green|white) )?dragons?\b|\b(?:plum|flowers?|seasons?)\b/gi;
     // Where the terms are in a text: [from, to, key], the key being the word without its plural or ending.
     function lessonTermMatches(plain) {
       var out = [];
@@ -3962,9 +3962,9 @@
         var clash = out.some(function (r) { return tm.from < r[1] && tm.to > r[0]; });
         if (!clash) out.push([tm.from, tm.to]);
       });
-      // The coach's name, in bright yellow (a span's third item is its colour).
+      // The coach's name, in gold and bold (a span's third item is its colour, its fourth is bold).
       var named = /lucky cat/gi, nm;
-      while ((nm = named.exec(plain))) out.push([nm.index, nm.index + nm[0].length, LESSON_NAME_COLOR]);
+      while ((nm = named.exec(plain))) out.push([nm.index, nm.index + nm[0].length, COLORS.gold, true]);
       return out.sort(function (x, y) { return x[0] - y[0]; });
     }
 

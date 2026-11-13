@@ -794,7 +794,7 @@ test("colour themes: red (the default), green and blue, cycled from the menu and
   assert.match(src, /"Theme: " \+ themeLabel/);
   assert.match(src, /prefs\.theme = applyTheme\(next\)[\s\S]{0,60}writeJson\(PREFS_KEY, prefs\)/);
   assert.match(src, /applyTheme\(prefs\.theme\)/);
-  assert.match(src, /color: COLORS\.accent, bold: weightAt\(a\)/);
+  assert.match(src, /color: r\[2\] \|\| COLORS\.accent, bold: weightAt\(a\)/); // (a span can carry its own colour, such as the tutorial's coach name)
   assert.match(src, /c\.fillStyle = back \? COLORS\.backDark/);
   assert.match(src, /addColorStop\(1, COLORS\.primary\)/);
   assert.match(src, /primary: isHover \? COLORS\.primaryHover : COLORS\.primary/);
