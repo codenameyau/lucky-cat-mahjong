@@ -24,12 +24,51 @@ describe("the first game", () => {
 
   it("counts the player's own moves for analytics: 8 of them, and names the next", () => {
     assert.equal(Lesson.MOVES, 8);
-    assert.deepEqual(Lesson.progress({ lessonStep: 0 }), { move: 0, moves: 8, next: "discard" });
+    const at = (game) => { const p = Lesson.progress(game); return { move: p.move, moves: p.moves, next: p.next }; };
+    assert.deepEqual(at({ lessonStep: 0 }), { move: 0, moves: 8, next: "discard" });
     // After the first discard, the three other seats play, then the chow.
-    assert.deepEqual(Lesson.progress({ lessonStep: 1 }), { move: 1, moves: 8, next: "chow" });
-    assert.deepEqual(Lesson.progress({ lessonStep: 4 }), { move: 1, moves: 8, next: "chow" });
-    assert.deepEqual(Lesson.progress({ lessonStep: 5 }), { move: 2, moves: 8, next: "discard" });
-    assert.deepEqual(Lesson.progress({ lessonStep: 16 }), { move: 8, moves: 8, next: null });
+    assert.deepEqual(at({ lessonStep: 1 }), { move: 1, moves: 8, next: "chow" });
+    assert.deepEqual(at({ lessonStep: 4 }), { move: 1, moves: 8, next: "chow" });
+    assert.deepEqual(at({ lessonStep: 5 }), { move: 2, moves: 8, next: "discard" });
+    assert.deepEqual(at({ lessonStep: 16 }), { move: 8, moves: 8, next: null });
+  });
+
+  it("shows 32 short steps: 4 for the flowers, then each move's cards", () => {
+    assert.equal(Lesson.SCREENS, 32);
+    // Steps done: none before the flowers, 4 after them, 7 after the first discard.
+    assert.equal(Lesson.progress({ lessonStep: 0 }).screen, 0);
+    assert.equal(Lesson.progress({ lessonStep: 0, lessonFlowers: true }).screen, 4);
+    assert.equal(Lesson.progress({ lessonStep: 1 }).screen, 7);
+    assert.equal(Lesson.progress({ lessonStep: 16 }).screen, 32);
+    assert.equal(Lesson.progress({ lessonStep: 16 }).screens, 32);
+    // Each card's number, flowers first, with no gaps.
+    const numbers = [];
+    Lesson.FLOWER_HINT.cards.forEach((c, i) => numbers.push(Lesson.screen({ lessonStep: 0 }, Lesson.FLOWER_HINT, i)));
+    for (let step = 0; step < 16; step++) {
+      const note = Lesson.hint({ lessonStep: step });
+      if (note) note.cards.forEach((c, i) => numbers.push(Lesson.screen({ lessonStep: step }, note, i)));
+    }
+    assert.deepEqual(numbers, Array.from({ length: 32 }, (x, i) => i + 1));
+  });
+
+  it("keeps every step short, and ends each move on what to do and where", () => {
+    const notes = [Lesson.FLOWER_HINT];
+    for (let step = 0; step < 16; step++) {
+      const note = Lesson.hint({ lessonStep: step });
+      if (note) notes.push(note);
+    }
+    assert.equal(notes.length, 9);
+    // What each move's last card points at: the tile, or the button to press.
+    const targets = ["replace-flower", "c1", "chow-2-3-4", "d9", "pung", "c5", "kong-b8", "d1", "win"];
+    notes.forEach((note, k) => {
+      assert.ok(note.cards.length >= 2 && note.cards.length <= 5, note.action);
+      note.cards.forEach((c) => {
+        assert.ok(c.text.length <= 130, c.text.length + ": " + c.text);
+        assert.doesNotMatch(c.text, /\bsets?\b(?! aside)/, c.text); // meld, never set (setting a tile aside is fine)
+      });
+      assert.equal(note.cards[note.cards.length - 1].point, targets[k], note.action);
+      assert.deepEqual(note.tips, note.cards.map((c) => c.text));
+    });
   });
 
   it("wins a Half Flush by taking East Wind", async () => {
