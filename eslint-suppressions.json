@@ -1,0 +1,122 @@
+{
+  "404.html": {
+    "no-redeclare": {
+      "count": 1
+    },
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "index.html": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "js/mahjong-analysis.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "js/mahjong-coach.js": {
+    "no-redeclare": {
+      "count": 2
+    }
+  },
+  "js/mahjong-engine.test.js": {
+    "no-unused-vars": {
+      "count": 2
+    }
+  },
+  "js/mahjong-frontier-net.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "js/mahjong-game.js": {
+    "no-redeclare": {
+      "count": 6
+    },
+    "no-unused-vars": {
+      "count": 1
+    },
+    "no-useless-assignment": {
+      "count": 9
+    }
+  },
+  "js/mahjong-lesson.test.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "js/mahjong-lucky-cat-ml.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "js/mahjong-ml-model.js": {
+    "no-redeclare": {
+      "count": 2
+    }
+  },
+  "js/mahjong-strategies.js": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "js/main.harness.js": {
+    "no-useless-assignment": {
+      "count": 2
+    }
+  },
+  "js/offline-cache.test.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "js/points.js": {
+    "no-redeclare": {
+      "count": 1
+    },
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "scripts/hand-patterns-doc.js": {
+    "no-unused-vars": {
+      "count": 3
+    }
+  },
+  "scripts/ml/bench.js": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "scripts/ml/fair-play.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "scripts/ml/generate.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "scripts/ml/hf-sync.js": {
+    "no-unused-vars": {
+      "count": 1
+    },
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "scripts/ml/native.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "scripts/ml/ship.js": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  }
+}

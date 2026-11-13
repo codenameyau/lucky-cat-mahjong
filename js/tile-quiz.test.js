@@ -258,7 +258,7 @@ describe("back to the intro", () => {
       "lcm-tile-quiz": JSON.stringify({ progress: { answers: [0], current: 0 } }),
     };
     global.localStorage = {
-      getItem(key) { return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null; },
+      getItem(key) { return Object.hasOwn(store, key) ? store[key] : null; },
       setItem(key, value) { store[key] = String(value); },
     };
     global.location = { href: "http://127.0.0.1:8080/which-mahjong-tiles-are-you/", search: "" };
@@ -320,7 +320,7 @@ describe("quiz analytics", () => {
     const store = {};
     if (progress) store["lcm-tile-quiz"] = JSON.stringify({ progress });
     global.localStorage = {
-      getItem(key) { return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null; },
+      getItem(key) { return Object.hasOwn(store, key) ? store[key] : null; },
       setItem(key, value) { store[key] = String(value); },
     };
     global.location = {

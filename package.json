@@ -6,6 +6,7 @@
     "generate-guide": "node scripts/generate-guide.js",
     "licensing-agreement": "node scripts/licensing-agreement.js",
     "test": "node --test js/*.test.js scripts/*.test.js scripts/ml/*.test.js",
+    "lint": "eslint . && ruff check",
     "check:game-version": "node scripts/check-game-version.js",
     "generate-tile-pages": "node scripts/generate-tile-pages.js",
     "compete": "node scripts/competition.js",
@@ -26,6 +27,11 @@
     "native:check-pin": "node scripts/ml/native.js check-pin"
   },
   "devDependencies": {
+    "@eslint/compat": "2.1.1",
+    "@eslint/js": "10.0.1",
+    "eslint": "10.14.0",
+    "eslint-plugin-html": "8.2.1",
+    "globals": "17.14.0",
     "puppeteer": "^25.3.0",
     "sharp": "^0.34.2"
   }

@@ -13,7 +13,8 @@ const TABLE = ["lc32", "lc31", "lc30"].map((m) => "ml/models/" + m + ".json");
 const fmt = (x, d = 1) => (x >= 0 ? "+" : "") + x.toFixed(d);
 (async () => {
   const ids = [O.nid("ml/models/lc32.json")].concat(cands.map(O.nid));
-  let blocks = ids.map(() => []), from = 0;
+  const blocks = ids.map(() => []);
+  let from = 0;
   for (const n of runs) {
     const res = await O.playDeck(ids, TABLE, seed, from, from + n, { exact: true });
     res.forEach((b, k) => { blocks[k] = blocks[k].concat(b); });

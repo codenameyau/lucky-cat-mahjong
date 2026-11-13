@@ -222,7 +222,6 @@ def main():
         net.to(dev)
         init_net, _ = load_model(arm["init"])
         init_net.to(dev).eval()
-        ref = init_net
         floor = torch.where(V, adv, torch.full_like(adv, 1e9)).min(1).values.clamp(max=0)
         A = floor[:, None].expand(-1, OUTPUTS).clone()
         A.scatter_(1, QA, torch.where(V, adv, floor[:, None].expand_as(adv)))

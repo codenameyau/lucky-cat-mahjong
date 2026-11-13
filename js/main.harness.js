@@ -98,7 +98,6 @@ function createElement(tag) {
 
 function matchesSelector(el, selector) {
   let tag = null;
-  let className = null;
   let attrName = null;
   let attrValue = null;
 
@@ -122,7 +121,6 @@ function matchesSelector(el, selector) {
   }
 
   if (tag && el.tagName !== tag) return false;
-  if (className && !el.className.split(/\s+/).filter(Boolean).includes(className)) return false;
   if (attrName) {
     const value = el.getAttribute ? el.getAttribute(attrName) : el.attributes[attrName];
     return attrValue === undefined ? value != null : value === attrValue;

@@ -2218,7 +2218,7 @@
       }
       card.style.transition = "none";
       card.style.transform = "translate(" + (-dx / mag * 36) + "px," + (-dy / mag * 20) + "px)";
-      card.offsetWidth;
+      void card.offsetWidth;
       card.style.transition = "transform 0.16s ease-out";
       card.style.transform = "translate(0, 0)";
     }
@@ -6315,7 +6315,7 @@
           var order = myHandOrder();
           var n = order.tiles.length;
           var at = d.replacement ? order.tiles.lastIndexOf(d.tile) : n - 1;
-          var spot = handPositions(n, d.replacement ? false : true)[at >= 0 ? at : n - 1] || { x: L.meX + L.meW / 2, y: L.handY };
+          var spot = handPositions(n, !d.replacement)[at >= 0 ? at : n - 1] || { x: L.meX + L.meW / 2, y: L.handY };
           var to = { x: spot.x, y: spot.y, w: L.tw, rot: 0 };
           return fly(d.tile, from, to, 300, { arc: 20 }).then(function () {
             ui.hide.drawn = false;
