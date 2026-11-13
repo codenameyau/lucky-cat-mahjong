@@ -5779,7 +5779,11 @@
       var card = cards[i];
       var gated = card.gate === "rules" && !settings.lessonRulesSeen; // done once Rules has been opened and closed
       var n = Lesson.screen(game, ui.hint, i);
-      if (n > (settings.lessonFurthest || 0)) settings.lessonFurthest = n; // the furthest step reached, kept across jumps
+      if (n > (settings.lessonFurthest || 0)) {
+        settings.lessonFurthest = n; // the furthest step reached, kept across jumps
+        // Every step reached for the first time, to see how far people get.
+        track("play_lesson_screen", { screen: n, screens: Lesson.SCREENS, move: Lesson.progress(game).move, moves: Lesson.MOVES, seconds: lessonSeconds() });
+      }
       return { note: ui.hint, index: i, card: card, last: i === cards.length - 1, gated: gated, n: n, total: Lesson.SCREENS };
     }
 
@@ -5958,7 +5962,8 @@
     }
 
     // Lesson analytics: how far people get. Each of the player's moves sends
-    // play_lesson_step (move 1 to 8); a first wrong try on a move sends
+    // play_lesson_step (move 1 to 8) and every step reached for the first time
+    // play_lesson_screen (screen 1 to 29); a first wrong try on a move sends
     // play_lesson_wrong_move; leaving before the end sends play_lesson_exit.
     var lessonTrack = null;
 
