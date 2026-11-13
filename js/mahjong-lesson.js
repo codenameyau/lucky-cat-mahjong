@@ -77,7 +77,7 @@
   // waits for the Replace flowers button (the tutorial's only).
   var FLOWER_HINT = { kind: "flower", action: "Replace flowers.", tile: "f1", decision: null, cards: [
     read("welcome", "Welcome! I'm your coach, Lucky Cat. We'll play one hand of Hong Kong Mahjong together, one small step at a time."),
-    read("plum-flower", "You announce and set aside every flower and season tile you draw. Plum is a flower and Spring is a season.", "f1,s1"),
+    read("plum-flower", "At the beginning, every player announces and sets aside every flower and season tile they drew.", "f1,s1"),
     read("flower-faan", "Both have the number 1, and you sit on East, seat number 1, so they match your seat and each scores 1 faan: +2 faan.", "f1,s1"),
     read("replace-flowers", "Press Replace flowers. Plum and Spring go in front of you face up, and you draw a new tile for each from the end of the wall.", "replace-flower"),
   ], tiles: ["f1", "s1"] };
