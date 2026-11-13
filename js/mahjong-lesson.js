@@ -87,6 +87,7 @@
   var STEPS = [
     { seat: 0, kind: "turn", action: { type: "discard", tile: "c1" }, hint: say("Discard 1 Character.", "c1", { type: "discard" }, [
       read("The player on East always goes first. That's you!"),
+      read("The wind in the middle of the table is the round wind. This is the East round, and you sit on East too, so East is also your seat wind.", "table-wind"),
       read("The tiles in your hand are concealed: only you see them. Click Rules at the top to see every hand pattern and how to score faan, then close it.", "rules", "rules"),
       read("We're going to learn the hand pattern for half flush, the most common way to win. Tap the 1 Character twice to discard it.", "c1"),
     ]) },

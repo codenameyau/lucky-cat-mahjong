@@ -33,14 +33,14 @@ describe("the first game", () => {
     assert.deepEqual(at({ lessonStep: 16 }), { move: 8, moves: 8, next: null });
   });
 
-  it("shows 30 short steps: 3 for the flowers, then each move's cards", () => {
-    assert.equal(Lesson.SCREENS, 30);
-    // Steps done: none before the flowers, 3 after them, 6 after the first discard.
+  it("shows 31 short steps: 3 for the flowers, then each move's cards", () => {
+    assert.equal(Lesson.SCREENS, 31);
+    // Steps done: none before the flowers, 3 after them, 7 after the first discard.
     assert.equal(Lesson.progress({ lessonStep: 0 }).screen, 0);
     assert.equal(Lesson.progress({ lessonStep: 0, lessonFlowers: true }).screen, 3);
-    assert.equal(Lesson.progress({ lessonStep: 1 }).screen, 6);
-    assert.equal(Lesson.progress({ lessonStep: 16 }).screen, 30);
-    assert.equal(Lesson.progress({ lessonStep: 16 }).screens, 30);
+    assert.equal(Lesson.progress({ lessonStep: 1 }).screen, 7);
+    assert.equal(Lesson.progress({ lessonStep: 16 }).screen, 31);
+    assert.equal(Lesson.progress({ lessonStep: 16 }).screens, 31);
     // Each card's number, flowers first, with no gaps.
     const numbers = [];
     Lesson.FLOWER_HINT.cards.forEach((c, i) => numbers.push(Lesson.screen({ lessonStep: 0 }, Lesson.FLOWER_HINT, i)));
@@ -48,7 +48,7 @@ describe("the first game", () => {
       const note = Lesson.hint({ lessonStep: step });
       if (note) note.cards.forEach((c, i) => numbers.push(Lesson.screen({ lessonStep: step }, note, i)));
     }
-    assert.deepEqual(numbers, Array.from({ length: 30 }, (x, i) => i + 1));
+    assert.deepEqual(numbers, Array.from({ length: 31 }, (x, i) => i + 1));
   });
 
   it("keeps every step short, and ends each move on what to do and where", () => {

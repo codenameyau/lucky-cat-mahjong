@@ -935,6 +935,7 @@
       lessonCardAt: 0,
       lessonRulesSeen: false, // the tutorial's Rules step is done once Rules has been opened and closed
       lessonBar: 0,
+      centerRect: null, // the table's wind indicator, for the tutorial to point at
       claimTileRect: null, // the tile up for a claim, beside the buttons, for the tutorial to point at
       // dealIns: the times you discarded the winning tile. stays: the times the deal
       // stayed with you (you won as dealer and dealt again).
@@ -3443,6 +3444,7 @@
       // Results open from this square only: the wind and the tiles left. A
       // discard tile keeps its own tap, for the tip.
       if (!ui.overlay && !settings.review && !settings.lesson) addRegion(c.x, c.y, c.w, c.h, function () { sound.play("select"); openResults(); }, "center"); // (the tutorial has no results table)
+      ui.centerRect = { x: c.x, y: c.y, w: c.w, h: c.h }; // the tutorial points at it
       var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
       // The round wind, as its tile's character, with the tiles left close under
       // it. The two sit as one group in the middle of the panel.
@@ -5735,6 +5737,7 @@
     function lessonRects(point, one) {
       if (!point) return [];
       if (point === "claim-tile") return ui.claimTileRect ? [ui.claimTileRect] : [];
+      if (point === "table-wind") return ui.centerRect ? [ui.centerRect] : [];
       if (TILE_ID.test(point)) {
         var mine = ui.lastHandRects.filter(function (r) { return r.id === point; });
         return one ? mine.slice(-1) : mine;
