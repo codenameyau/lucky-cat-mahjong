@@ -3862,8 +3862,9 @@
     // turns to the next card.
     function drawLessonProgress(x, y, w, h, lesson, nextW) {
       var at = game ? Lesson.progress(game) : null;
-      var done = lesson ? lesson.n - 1 : at ? at.screen : 0;
-      var goal = done / Lesson.SCREENS;
+      // The step on show counts as begun, and the bar never starts empty, so it reads as a progress bar.
+      var done = lesson ? lesson.n : at ? at.screen : 0;
+      var goal = Math.max(done / Lesson.SCREENS, 0.04);
       ui.lessonBar = reduceMotion ? goal : ui.lessonBar + (goal - ui.lessonBar) * 0.18;
       if (Math.abs(goal - ui.lessonBar) < 0.001) ui.lessonBar = goal;
       var bx = x + 8, bw = w - 16, by = y + h - 5;
