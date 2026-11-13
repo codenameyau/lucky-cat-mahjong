@@ -3910,17 +3910,15 @@
     }
 
     // The tutorial writes its core mahjong terms and its tile names in red, like hand names, the first time each comes up.
-    var LESSON_TERMS = /\b(hand patterns?|replace flowers?|chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind|claim(?:s|ed|ing)?|discard(?:s|ed|ing)?|hands?|east|round)\b|(?:\b\d )?\b(?:bamboo|dots?|characters?)\b|\b(?:(?:east|south|west|north) )?winds?\b|\b(?:(?:red|green|white) )?dragons?\b|\b(?:plum|flowers?|seasons?)\b|\b\d[bdc]\b/gi;
-    // Where the terms are in a text: [from, to, key], the key being the word without its rank, plural or ending.
+    var LESSON_TERMS = /\b(hand patterns?|replace flowers?|chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind|claim(?:s|ed|ing)?|discard(?:s|ed|ing)?|hands?|east|round)\b|\b(?:(?:east|south|west|north) )?winds?\b|\b(?:(?:red|green|white) )?dragons?\b|\b(?:plum|flowers?|seasons?)\b/gi;
+    // Where the terms are in a text: [from, to, key], the key being the word without its plural or ending.
     function lessonTermMatches(plain) {
       var out = [];
       var m;
       LESSON_TERMS.lastIndex = 0;
       while ((m = LESSON_TERMS.exec(plain))) {
         var a = m.index, b = a + m[0].length;
-        // A rank in a run such as 2-3-4 Bamboo stays plain: only the suit is red.
-        if (/^\d /.test(m[0]) && plain.charAt(a - 1) === "-") a += 2;
-        out.push({ from: a, to: b, key: plain.slice(a, b).toLowerCase().replace(/^\d /, "").replace(/(?:ed|ing|s)$/, "") });
+        out.push({ from: a, to: b, key: plain.slice(a, b).toLowerCase().replace(/(?:ed|ing|s)$/, "") });
       }
       return out;
     }
