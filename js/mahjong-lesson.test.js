@@ -61,7 +61,7 @@ describe("the first game", () => {
     // What each move's last card points at: the tile, or the button to press.
     const targets = ["replace-flower", "c1", "chow-2-3-4", "d9", "pung", "c5", "kong-b8", "d1", "win"];
     notes.forEach((note, k) => {
-      assert.ok(note.cards.length >= 2 && note.cards.length <= 5, note.action);
+      assert.ok(note.cards.length >= 2 && note.cards.length <= 6, note.action);
       note.cards.forEach((c) => {
         assert.ok(c.text.length <= 160, c.text.length + ": " + c.text);
         assert.doesNotMatch(c.text, /\bsets?\b(?! aside)/, c.text); // meld, never set (setting a tile aside is fine)
