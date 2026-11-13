@@ -5943,8 +5943,26 @@
       var claimed = ui.claimPrompt && ui.claimPrompt.opts.tile;
       if (!claimed || !ui.claimTileRect) return [];
       if (d.type === "win") return [{ id: claimed, from: ui.claimTileRect, to: winningHandPose(0, claimed) }];
-      if (d.type === "chow" || d.type === "pung") return [{ id: claimed, from: ui.claimTileRect, to: ui.meldAnchor[0] }];
+      if (d.type === "chow" || d.type === "pung") return lessonMeldGlides(d, claimed);
       return [];
+    }
+
+    // A chow or pung forming: every tile of it (the ones from your hand and the claimed one)
+    // glides side by side to where the meld goes.
+    function lessonMeldGlides(d, claimed) {
+      var spot = ui.meldAnchor[0];
+      if (!spot) return [];
+      var ids = d.type === "chow" ? E.sortTiles(d.tiles.concat([claimed])) : [claimed, claimed, claimed];
+      var claimedAt = ids.lastIndexOf(claimed); // the claimed tile is the one on the right of equals
+      var pool = {};
+      ids.forEach(function (id, i) {
+        if (i === claimedAt) return;
+        if (!pool[id]) pool[id] = ui.lastHandRects.filter(function (r) { return r.id === id; });
+      });
+      return ids.map(function (id, i) {
+        var from = i === claimedAt ? ui.claimTileRect : pool[id].shift();
+        return { id: id, from: from, to: { x: spot.x + i * spot.w * 1.05, y: spot.y, w: spot.w, rot: spot.rot } };
+      });
     }
 
     function drawLessonGlide(c, t) {
