@@ -104,3 +104,14 @@ describe("the tutorial's card texts", () => {
     assert.match(texts[texts.length - 1], /Press Win/);
   });
 });
+
+describe("the Rules step", () => {
+  it("asks the player to open Rules before moving on", () => {
+    const note = Lesson.hint({ lessonStep: 0 });
+    const gated = note.cards.filter((c) => c.gate);
+    assert.equal(gated.length, 1);
+    assert.equal(gated[0].gate, "rules");
+    assert.equal(gated[0].point, "rules");
+    assert.match(gated[0].text, /Click Rules at the top/);
+  });
+});

@@ -62,7 +62,8 @@
   // a pulsing ring: a tile in your hand, a button (by its id), or the tile up
   // for a claim ("claim-tile"). The tips are the cards' text run together,
   // for the Coach panel's history.
-  function read(text, point) { return { text: text, point: point || null }; }
+  // `gate` holds the card until the player has done what it asks (open and close Rules).
+  function read(text, point, gate) { return { text: text, point: point || null, gate: gate || null }; }
 
   function say(action, tile, decision, cards) {
     return {
@@ -86,15 +87,15 @@
   var STEPS = [
     { seat: 0, kind: "turn", action: { type: "discard", tile: "c1" }, hint: say("Discard 1 Character.", "c1", { type: "discard" }, [
       read("The player on East always goes first. That's you!"),
-      read("The tiles in your hand are concealed: only you see them. Rules shows every hand pattern and how to score faan.", "rules"),
+      read("The tiles in your hand are concealed: only you see them. Click Rules at the top to see every hand pattern and how to score faan, then close it.", "rules", "rules"),
       read("We're going to learn the hand pattern for half flush, the most common way to win. Tap the 1 Character twice to discard it.", "c1"),
     ]) },
     { seat: 1, kind: "turn", drawn: true },
     { seat: 2, kind: "turn", drawn: true },
     { seat: 3, kind: "turn", drawn: true },
     { seat: 0, kind: "claim", action: { type: "chow", tiles: ["b2", "b3"] }, hint: say("Chow 2-3-4 Bamboo.", null, { type: "chow", tiles: ["b2", "b3"] }, [
-      read("The player on your left threw 4 Bamboo. You hold 2 and 3 Bamboo.", "claim-tile"),
-      read("A chow is 3 tiles of one suit in a row. The suits are Bamboo, Dots and Characters."),
+      read("The player on your left threw 4 Bamboo. You hold 2 and 3 Bamboo, so you can make a chow: 3 tiles of one suit in a row.", "claim-tile"),
+      read("A chow always comes from one suit: Bamboo, Dots or Characters."),
       read("You can claim a tile from the player on your left to make a chow."),
       read("A claimed meld is exposed: everyone sees it, and its tiles stay together."),
       read("Press Chow 2-3-4 to claim the 4 Bamboo.", "chow-2-3-4"),

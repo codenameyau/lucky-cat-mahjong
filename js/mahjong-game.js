@@ -933,6 +933,7 @@
       lessonNote: null,
       lessonCard: 0,
       lessonCardAt: 0,
+      lessonRulesSeen: false, // the tutorial's Rules step is done once Rules has been opened and closed
       lessonBar: 0,
       claimTileRect: null, // the tile up for a claim, beside the buttons, for the tutorial to point at
       // dealIns: the times you discarded the winning tile. stays: the times the deal
@@ -2252,6 +2253,11 @@
       buildRules();
       if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
       track("play_open_rules", {});
+      var gatedNow = lessonCardNow();
+      if (gatedNow && gatedNow.gated) {
+        // The tutorial's Rules step moves on once Rules has been closed.
+        dlg.addEventListener("close", function () { ui.lessonRulesSeen = true; requestRender(); }, { once: true });
+      }
     }
 
     function closeRules() {
@@ -3772,7 +3778,7 @@
         reserve = x + w - spot.x + 8;
       }
       // A card to read has a Next button at the right of the box.
-      var nextW = lesson && !lesson.last ? (L.desktop ? 76 : 60) : 0;
+      var nextW = lesson && !lesson.last && !lesson.gated ? (L.desktop ? 76 : 60) : 0;
       if (nextW) reserve += nextW + 10;
       var tw = w - (tx - x) - 10 - reserve;
       var baseSize = !L.desktop ? 11 : L.tableW < 600 ? 12 : 13; // smaller on a phone
@@ -3880,7 +3886,7 @@
         ctx.fill();
       }
       ctx.restore();
-      if (!lesson || lesson.last) return;
+      if (!lesson || lesson.last || lesson.gated) return;
       addRegion(x, y, w, h, lessonNextCard, "lesson-band");
       var bh = L.desktop ? 30 : 26;
       button("Next", x + w - 10 - nextW, y + (h - bh) / 2, nextW, bh, lessonNextCard, "gold", "lesson-next");
@@ -5689,7 +5695,9 @@
       }
       var cards = ui.hint.cards;
       var i = Math.min(ui.lessonCard, cards.length - 1);
-      return { note: ui.hint, index: i, card: cards[i], last: i === cards.length - 1, n: Lesson.screen(game, ui.hint, i), total: Lesson.SCREENS };
+      var card = cards[i];
+      var gated = card.gate === "rules" && !ui.lessonRulesSeen;
+      return { note: ui.hint, index: i, card: card, last: i === cards.length - 1, gated: gated, n: Lesson.screen(game, ui.hint, i), total: Lesson.SCREENS };
     }
 
     function showLessonCard(i) {
@@ -5704,6 +5712,7 @@
     function lessonNextCard() {
       var c = lessonCardNow();
       if (!c || c.last) return;
+      if (c.gated) { ui.shake = { kind: "button", key: "rules", start: now() }; requestRender(); return; } // open Rules first
       sound.play("select");
       showLessonCard(c.index + 1);
     }
@@ -5739,7 +5748,9 @@
       var c = lessonCardNow();
       if (!c) return;
       // A card to read that points at nothing points at its Next button.
-      var rects = lessonRects(c.card.point || (c.last ? null : "lesson-next"), c.last);
+      // The Rules step points at Rules until Rules has been opened and closed, then at Next.
+      var point = c.card.gate && !c.gated ? null : c.card.point;
+      var rects = lessonRects(point || (c.last ? null : "lesson-next"), c.last);
       if (!rects.length) return;
       var pulse = reduceMotion ? 1 : 0.5 + 0.5 * Math.sin((t / GUIDE_MS) * Math.PI * 2);
       ctx.save();
@@ -5755,31 +5766,29 @@
       });
       ctx.restore();
       if (c.last) drawLessonGlide(c, t);
-      // The arrow: above the target, or below it when it is near the top.
+      // The arrow is the table's turn indicator (the rounded gold point on the
+      // plaque), larger, bobbing above the target, or below it near the top.
       var r0 = rects[0];
       var below = r0.y < H * 0.25;
       var bob = reduceMotion ? 0 : Math.sin((t / (GUIDE_MS * 0.8)) * Math.PI * 2) * 4;
-      var size = L.desktop ? 12 : 10;
-      var ax = r0.x + r0.w / 2;
-      var tip = below ? r0.y + r0.h + 9 + bob : r0.y - 9 - bob;
-      var dir = below ? 1 : -1;
+      var k = L.desktop ? 2.2 : 1.9;
+      var breathe = reduceMotion ? 1 : 0.5 + 0.5 * Math.sin(t / 600);
       ctx.save();
+      ctx.translate(r0.x + r0.w / 2, below ? r0.y + r0.h + 8 + 4.5 * k + bob : r0.y - 8 - 4.5 * k - bob);
+      ctx.rotate(below ? -Math.PI / 2 : Math.PI / 2);
+      ctx.scale(k, k);
       ctx.beginPath();
-      ctx.moveTo(ax, tip);
-      ctx.lineTo(ax - size, tip + dir * size * 1.2);
-      ctx.lineTo(ax - size * 0.4, tip + dir * size * 1.2);
-      ctx.lineTo(ax - size * 0.4, tip + dir * size * 2);
-      ctx.lineTo(ax + size * 0.4, tip + dir * size * 2);
-      ctx.lineTo(ax + size * 0.4, tip + dir * size * 1.2);
-      ctx.lineTo(ax + size, tip + dir * size * 1.2);
-      ctx.closePath();
-      ctx.shadowColor = "rgba(0,0,0,0.35)";
-      ctx.shadowBlur = 4;
-      ctx.fillStyle = COLORS.goldLight;
+      ctx.moveTo(4.5, 0); ctx.lineTo(-3, -5); ctx.lineTo(-3, 5); ctx.closePath();
+      var tipFill = ctx.createLinearGradient(-3, 0, 4.5, 0);
+      tipFill.addColorStop(0, COLORS.gold);
+      tipFill.addColorStop(1, COLORS.goldLight);
+      ctx.shadowColor = "rgba(244,160,32," + (0.45 + 0.35 * breathe) + ")";
+      ctx.shadowBlur = 6 + 4 * breathe;
+      ctx.fillStyle = tipFill;
+      ctx.strokeStyle = tipFill;
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 1.5 / k * 1.2;
       ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = COLORS.feltDark;
-      ctx.lineWidth = 1.5;
       ctx.stroke();
       ctx.restore();
     }
