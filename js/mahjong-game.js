@@ -166,8 +166,22 @@
       // Newer Safari tints its bars from the page's own background instead.
       document.documentElement.style.backgroundColor = meta;
       if (document.body) document.body.style.backgroundColor = meta;
+      resampleBars();
     }
     return name;
+  }
+
+  // Safari 26 tints its top and bottom bars from the full-screen fixed table
+  // (#play-stage), and reads that colour again only when the fixed layer is laid
+  // out again, not when its background changes. So the table leaves fixed
+  // positioning for one frame (absolute fills the same unscrolled page, so
+  // nothing moves) and comes back, and Safari picks up the new colour.
+  function resampleBars() {
+    var stage = document.getElementById ? document.getElementById('play-stage') : null;
+    if (!stage || !stage.style || stage.hidden) return;
+    var later = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : function (f) { return setTimeout(f, 16); };
+    stage.style.position = 'absolute';
+    later(function () { later(function () { stage.style.position = ''; }); });
   }
   var FONT_BODY = '"Avenir Medium", "Avenir Next Medium", Avenir, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
   // The site's heading font (css/fonts.css), for headings, winds and banners.
@@ -930,10 +944,23 @@
 
     /* ---------------- frame loop ---------------- */
 
+    // Safari on iPhone and iPad can hold back animation frames after a page
+    // loads or resumes a saved game: the frame comes only with the next touch,
+    // so a tap seems to do nothing (the game takes it, the table doesn't show
+    // it). So a frame that hasn't come in FRAME_FALLBACK_MS is drawn from a
+    // timer instead. A hidden tab is left alone: its frames stop on purpose.
+    var FRAME_FALLBACK_MS = 100;
+    var frameToken = 0;
     function requestRender() {
       if (frameRequested || destroyed) return;
       frameRequested = true;
-      root.requestAnimationFrame(frame);
+      var token = ++frameToken;
+      root.requestAnimationFrame(function () { if (token === frameToken && frameRequested) frame(); });
+      setTimeout(function () {
+        if (token !== frameToken || !frameRequested || destroyed) return;
+        if (root.document && root.document.hidden) return;
+        frame();
+      }, FRAME_FALLBACK_MS);
     }
 
     var lastFrameAt = 0; // when the last frame was drawn
@@ -2445,10 +2472,12 @@
     // The choice is kept in PREFS_KEY (coachDetail), and the hint on screen
     // is worked out again at once in the new words.
 
+    // Each example is what that level really says for one hand: Neural Cat's
+    // coach, East's first turn of the game with seed 11.
     var COACH_OPTIONS = [
-      { id: 'simple', name: 'Simple', note: 'What to do, the hand to go for with its faan, and how many of your tiles it needs.', example: 'Discard Two Bamboo. Go for Half Flush in Circles, about 3 faan +2 for bonuses. You have 9 tiles needed and 5 tiles remaining.' },
-      { id: 'detailed', name: 'Detailed', note: 'What to do, the hand to go for and how many of your tiles it needs, any threats at the table, and why the move fits. No odds or scores.', example: 'Discard Two Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 9 tiles needed and 5 tiles remaining. It keeps a bigger hand in reach.' },
-      { id: 'complex', name: 'Complex', note: 'Everything, with each strategy\'s own numbers: a network\'s expected score, chance to win and next best choice, or a rule strategy\'s odds of finishing the hand.', example: 'Discard Two Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 9 tiles needed and 5 tiles remaining. The model expects +67 score from this discard, with a 3% chance to win. Next best discard is Six Bamboo: +48 score.' },
+      { id: 'simple', name: 'Simple', example: 'Discard Four Bamboo. Go for Half Flush in Circles, about 3 faan. You have 8 tiles needed and 6 tiles remaining.' },
+      { id: 'detailed', name: 'Detailed', example: 'Discard Four Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 8 tiles needed and 6 tiles remaining. It is the tile you need least and works best with the tiles you have.' },
+      { id: 'complex', name: 'Complex', example: 'Discard Four Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 8 tiles needed and 6 tiles remaining. The model expects +164 score from this discard, with a 7% chance to win. Next best discard is Five Character: +111 score.' },
     ];
 
     function coachSettingsSheet() {
@@ -2474,15 +2503,11 @@
         b.setAttribute('data-detail', o.id);
         var name = document.createElement('span');
         name.className = 'coach-option-name';
-        name.textContent = o.name + (o.id === 'simple' ? ' (default)' : '');
-        var note = document.createElement('span');
-        note.className = 'coach-option-note';
-        note.textContent = o.note;
+        name.textContent = o.name;
         var ex = document.createElement('span');
         ex.className = 'coach-option-example';
         ex.textContent = o.example;
         b.appendChild(name);
-        b.appendChild(note);
         b.appendChild(ex);
         b.addEventListener('click', function () { setCoachDetail(o.id); });
         body.appendChild(b);
