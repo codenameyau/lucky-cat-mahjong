@@ -61,7 +61,9 @@ function buildMailto(subject, body) {
   return `mailto:${email}` + (params.length ? '?' + params.join('&') : '');
 }
 
+// page_title is the search-result title (it matches index.html's <title>); without it, the title and the tagline.
 function buildPageTitle(site) {
+  if (site.page_title) return site.page_title;
   return site.tagline ? `${site.title} | ${site.tagline}` : site.title;
 }
 
