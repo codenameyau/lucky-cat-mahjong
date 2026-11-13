@@ -3923,7 +3923,7 @@
     }
 
     // The tutorial writes its core mahjong terms and its tile names in red, like hand names, the first time each comes up.
-    var LESSON_TERMS = /\b(hand patterns?|replace flowers?|chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind|claim(?:s|ed|ing)?|discard(?:s|ed|ing)?|hands?|east|round)\b|\b(?:(?:east|south|west|north) )?winds?\b|\b(?:(?:red|green|white) )?dragons?\b|\b(?:plum|flowers?|seasons?)\b/gi;
+    var LESSON_TERMS = /\b(hong kong style|hand patterns?|replace flowers?|chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind|claim(?:s|ed|ing)?|discard(?:s|ed|ing)?|hands?|east|round)\b|\b(?:(?:east|south|west|north) )?winds?\b|\b(?:(?:red|green|white) )?dragons?\b|\b(?:plum|flowers?|seasons?)\b/gi;
     // Where the terms are in a text: [from, to, key], the key being the word without its plural or ending.
     function lessonTermMatches(plain) {
       var out = [];
