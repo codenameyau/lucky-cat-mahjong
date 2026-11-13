@@ -2,7 +2,7 @@
 <html lang="en-US">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lucky Cat Mahjong | Free Mahjong Game, Events &amp; Lessons in NYC</title>
   <meta name="description" content="Play free mahjong online with Lucky Cat Mahjong, a community founded in New York City. Join our mahjong events, or learn in a workshop or private lesson.">
   <meta name="keywords" content="mahjong, mahjong game, free mahjong, mahjong free, play mahjong, play mahjong online, mahjong online, mahjong points, learn mahjong, mahjong events, mahjong workshop, mahjong nyc, mahjong lessons, mahjong personality quiz, hong kong mahjong, lucky cat, lucky cat mahjong">
@@ -33,12 +33,27 @@
   <link rel="icon" href="logo.png" type="image/png" sizes="1024x1063">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
-  <link rel="preload" as="image" href="logo.webp" type="image/webp" fetchpriority="high">
+  <link rel="preload" as="image" href="logo-490.webp" imagesrcset="logo-280.webp 280w, logo-490.webp 490w, logo-560.webp 560w, logo-840.webp 840w" imagesizes="280px" type="image/webp" fetchpriority="high">
   <link rel="preload" href="fonts/kn-yuanmo-sc.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css">
+  <!-- css/fonts.css, inline so the page waits on one stylesheet, not two. Keep the two in step. -->
+  <style>
+    @font-face {
+      font-family: "KN Yuanmo SC";
+      src: url("fonts/kn-yuanmo-sc.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "Avenir Medium";
+      src: local("Avenir Medium"), local("Avenir-Medium"), local("AvenirNext-Medium"), local("Avenir Next Medium"), local("Avenir Next Demi Bold");
+      font-weight: 500;
+      font-style: normal;
+      font-display: swap;
+    }
+  </style>
   <link rel="stylesheet" href="css/styles.css">
 
-  <script src="/js/analytics-id.js"></script>
   <script>
     // Google Analytics runs on the live site only. On localhost and private network
     // addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x, .local) gtag does nothing, so
@@ -47,17 +62,32 @@
     window.dataLayer = window.dataLayer || [];
     var localHost = /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local)$/i.test(location.hostname);
     function gtag(){ if (!localHost) dataLayer.push(arguments); else (window.lcmLocalEvents = window.lcmLocalEvents || []).push([].slice.call(arguments)); }
-    // The visitor and session IDs and the cookie choice (js/analytics-id.js), before the page view.
-    if (window.lcmAnalytics) window.lcmAnalytics.start(gtag);
-    if (!localHost) {
-      var gaScript = document.createElement('script');
-      gaScript.async = true;
-      gaScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-B514HH987M';
-      document.head.appendChild(gaScript);
-      gtag('js', new Date());
-      gtag('config', 'G-B514HH987M');
+    // js/analytics-id.js loads with defer, so it doesn't hold up the first paint. It runs
+    // before js/nav.js and js/main.js (deferred scripts run in order) and its onload runs
+    // this, so the IDs and the cookie choice still come before the page view and every
+    // event. Google's own script (about 180 KB) is fetched once the page has loaded, so it
+    // doesn't compete with the logo and the stylesheet; calls made before then wait in
+    // dataLayer and are sent when it arrives.
+    function lcmStartAnalytics() {
+      if (window.lcmAnalyticsStarted) return;
+      window.lcmAnalyticsStarted = true;
+      // The visitor and session IDs and the cookie choice (js/analytics-id.js), before the page view.
+      if (window.lcmAnalytics) window.lcmAnalytics.start(gtag);
+      if (!localHost) {
+        gtag('js', new Date());
+        gtag('config', 'G-B514HH987M');
+        var loadGtag = function () {
+          var gaScript = document.createElement('script');
+          gaScript.async = true;
+          gaScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-B514HH987M';
+          document.head.appendChild(gaScript);
+        };
+        if (document.readyState === 'complete') loadGtag();
+        else window.addEventListener('load', loadGtag);
+      }
     }
   </script>
+  <script src="/js/analytics-id.js" defer onload="lcmStartAnalytics()" onerror="lcmStartAnalytics()"></script>
 
   <script type="application/ld+json">
   {
@@ -207,7 +237,7 @@
     <nav class="nav container">
       <a href="/" class="header-brand" aria-label="Lucky Cat Mahjong home">
         <picture>
-          <source srcset="/logo.webp" type="image/webp">
+          <source srcset="/logo-80.webp" type="image/webp">
           <img src="/logo.png" alt="" class="header-logo" width="36" height="37" decoding="async" draggable="false">
         </picture>
         <span class="header-brand-name">Lucky Cat Mahjong</span>
@@ -232,8 +262,8 @@
       <div class="hero-bg"></div>
       <div class="container hero-inner">
         <picture>
-          <source srcset="logo.webp" type="image/webp">
-          <img src="logo.png" alt="Lucky Cat Mahjong logo" class="hero-logo" width="280" height="291" fetchpriority="high" decoding="async" draggable="false">
+          <source srcset="logo-280.webp 280w, logo-490.webp 490w, logo-560.webp 560w, logo-840.webp 840w" sizes="280px" type="image/webp">
+          <img src="logo.png" alt="Lucky Cat Mahjong logo" class="hero-logo" width="280" height="291" fetchpriority="high" draggable="false">
         </picture>
         <div class="hero-copy">
           <h1 class="hero-headline">Learn and Play Mahjong</h1>
@@ -377,7 +407,7 @@
           <h2 class="section-heading faq-heading">Frequently Asked Questions</h2>
           <p class="section-subheading faq-subheading">Everything you need to know before booking</p>
         </div>
-        <div class="faq-list" role="list"></div>
+        <div class="faq-list"></div>
       </div>
     </section>
 
@@ -386,7 +416,7 @@
         <h2 class="section-heading cta-heading">Ready to play?</h2>
         <p class="section-body cta-body"></p>
         <div class="cta-actions">
-          <a href="mailto:events@luckycatmahjong.com" class="btn btn-primary cta-button" data-evt="email_click_cta" data-channel="email_click" data-loc="cta">
+          <a href="mailto:events@luckycatmahjong.com" class="btn btn-primary cta-button" aria-label="Book a session by email" data-evt="email_click_cta" data-channel="email_click" data-loc="cta">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z"/></svg>
             <span class="btn-label">Book a session</span>
           </a>
@@ -420,7 +450,7 @@
     <div class="container footer-inner">
       <div class="footer-brand">
         <picture>
-          <source srcset="logo.webp" type="image/webp">
+          <source srcset="logo-80.webp" type="image/webp">
           <img src="logo.png" alt="" class="footer-logo" width="40" height="42" loading="lazy" decoding="async" draggable="false">
         </picture>
         <span>Lucky Cat Mahjong</span>
