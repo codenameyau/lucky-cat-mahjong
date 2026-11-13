@@ -6073,11 +6073,11 @@
       return false;
     }
 
-    // Whether this move is the one the coach on show recommended (the tutorial plays its
-    // chime for every move it accepts, so this is for the game).
+    // Whether this move is the one the coach recommended, in On and in Feedback (the tutorial
+    // plays its chime for every move it accepts, so this is for the game).
     function followsCoach(kind, decision) {
       var h = ui.hint;
-      if (settings.lesson || autoPlay || ui.coach !== "on" || !h || !decision) return false;
+      if (settings.lesson || autoPlay || ui.coach === "off" || !h || !decision) return false; // (Feedback judges the move too, though its advice isn't shown first)
       if (kind === "turn") {
         if (decision.type === "discard") return h.kind === "discard" && h.tile === decision.tile;
         return decision.type === "win" && h.kind === "win";
