@@ -107,13 +107,12 @@ describe("the tutorial's card texts", () => {
 });
 
 describe("the Rules step", () => {
-  it("asks the player to open Rules before moving on", () => {
+  it("points at Rules without asking the player to open it", () => {
     const note = Lesson.hint({ lessonStep: 0 });
-    const gated = note.cards.filter((c) => c.gate);
-    assert.equal(gated.length, 1);
-    assert.equal(gated[0].gate, "rules");
-    assert.equal(gated[0].point, "rules");
-    assert.match(gated[0].text, /Click Rules at the top/);
+    const card = note.cards.filter((c) => c.point === "rules");
+    assert.equal(card.length, 1);
+    assert.equal(card[0].gate, undefined);
+    assert.match(card[0].text, /Rules, at the top/);
   });
 });
 

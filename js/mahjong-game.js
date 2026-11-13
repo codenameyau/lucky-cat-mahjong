@@ -2266,11 +2266,6 @@
       buildRules();
       if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
       track("play_open_rules", {});
-      var gatedNow = lessonCardNow();
-      if (gatedNow && gatedNow.gated) {
-        // The tutorial's Rules step moves on once Rules has been closed.
-        dlg.addEventListener("close", function () { settings.lessonRulesSeen = true; requestRender(); }, { once: true });
-      }
     }
 
     function closeRules() {
@@ -3923,7 +3918,7 @@
       ctx.restore();
       var bh = L.desktop ? 30 : 26;
       // (While the other players take their turns there is no step on show: it is dim.)
-      var canNext = !!lesson && ((!lesson.last && !lesson.gated) || (lesson.last && lesson.n < (settings.lessonFurthest || 0)));
+      var canNext = !!lesson && (!lesson.last || (lesson.last && lesson.n < (settings.lessonFurthest || 0)));
       if (canNext) addRegion(x, y, w, h, lessonNextCard, "lesson-band");
       button("Next", x + w - 10 - nextW, y + (h - bh) / 2, nextW, bh, lessonNextCard, canNext ? "gold" : "off", "lesson-next");
     }
@@ -5807,14 +5802,13 @@
       var cards = ui.hint.cards;
       var i = Math.min(ui.lessonCard, cards.length - 1);
       var card = cards[i];
-      var gated = card.gate === "rules" && !settings.lessonRulesSeen; // done once Rules has been opened and closed
       var n = Lesson.screen(game, ui.hint, i);
       if (n > (settings.lessonFurthest || 0)) {
         settings.lessonFurthest = n; // the furthest step reached, kept across jumps
         // Every step reached for the first time, to see how far people get.
         track("play_lesson_step", { step: n, step_name: lessonStepName(n), steps: Lesson.SCREENS, move: Lesson.progress(game).move, moves: Lesson.MOVES, seconds: lessonSeconds() });
       }
-      return { note: ui.hint, index: i, card: card, last: i === cards.length - 1, gated: gated, n: n, total: Lesson.SCREENS };
+      return { note: ui.hint, index: i, card: card, last: i === cards.length - 1, n: n, total: Lesson.SCREENS };
     }
 
     function showLessonCard(i) {
@@ -5830,7 +5824,6 @@
     function lessonNextCard() {
       var c = lessonCardNow();
       if (!c) return;
-      if (c.gated) { ui.shake = { kind: "button", key: "rules", start: now() }; requestRender(); return; } // open Rules first
       if (c.last) {
         if (c.n < (settings.lessonFurthest || 0)) lessonGo(c.n + 1);
         else { ui.shake = { kind: "button", key: "lesson-next", start: now() }; requestRender(); }
@@ -5850,8 +5843,6 @@
       sound.play("select");
       var note = row.flower ? Lesson.FLOWER_HINT : Lesson.hint({ lessonStep: row.step });
       if (note === ui.hint) {
-        var gateAt = note.cards.findIndex(function (cd) { return cd.gate; });
-        if (gateAt !== -1 && row.card > gateAt) settings.lessonRulesSeen = true;
         showLessonCard(row.card);
         return;
       }
@@ -5897,9 +5888,7 @@
       var c = lessonCardNow();
       if (!c) return;
       // A card to read that points at nothing points at its Next button.
-      // The Rules step points at Rules until Rules has been opened and closed, then at Next.
-      var point = c.card.gate && !c.gated ? null : c.card.point;
-      var rects = lessonRects(point || (c.last ? null : "lesson-next"), c.last);
+      var rects = lessonRects(c.card.point || (c.last ? null : "lesson-next"), c.last);
       if (!rects.length) return;
       var pulse = reduceMotion ? 1 : 0.5 + 0.5 * Math.sin((t / GUIDE_MS) * Math.PI * 2);
       ctx.save();
@@ -8489,7 +8478,6 @@
             ui.lessonSkipping = true;
             ui.replaying = true; // plays at once, with no animation
             game.lessonFlowers = true;
-            if (ui.lessonJump.step > 0) settings.lessonRulesSeen = true;
           }
           startLessonTracking();
         }

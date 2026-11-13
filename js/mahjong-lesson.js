@@ -63,8 +63,8 @@
   // a pulsing ring: a tile in your hand, a button (by its id), or the tile up
   // for a claim ("claim-tile"). The tips are the cards' text run together,
   // for the Coach panel's history.
-  // `id` is the step's stable name, for analytics (it stays when steps move). `gate` holds the card until the player has done what it asks (open and close Rules).
-  function read(id, text, point, gate) { return { id: id, text: text, point: point || null, gate: gate || null }; }
+  // `id` is the step's stable name, for analytics (it stays when steps move).
+  function read(id, text, point) { return { id: id, text: text, point: point || null }; }
 
   function say(action, tile, decision, cards) {
     return {
@@ -89,7 +89,7 @@
   var STEPS = [
     { seat: 0, kind: "turn", action: { type: "discard", tile: "c1" }, hint: say("Discard 1 Character.", "c1", { type: "discard" }, [
       read("east-goes-first", "The player on East always goes first. That's you! Players take turns going counter-clockwise and drawing tiles clockwise."),
-      read("rules-concealed", "The tiles in your hand are concealed: only you see them. Click Rules at the top to see every hand pattern and how to score faan, then close it.", "rules", "rules"),
+      read("rules-concealed", "The tiles in your hand are concealed: only you see them. Rules, at the top, shows every hand pattern and how to score faan.", "rules"),
       read("discard-1-character", "We're going to learn the hand pattern for half flush, the most common way to win. Tap the 1 Character twice to discard it.", "c1"),
     ]) },
     { seat: 1, kind: "turn", drawn: true },
