@@ -88,7 +88,7 @@
     { seat: 0, kind: "turn", action: { type: "discard", tile: "c1" }, hint: say("Discard 1 Character.", "c1", { type: "discard" }, [
       read("The player on East always goes first. That's you!"),
       read("The tiles in your hand are concealed: only you see them. Rules shows every hand pattern and how to score faan.", "rules"),
-      read("Tap the 1 Character twice to discard it.", "c1"),
+      read("We're going to learn the hand pattern for half flush, the most common way to win. Tap the 1 Character twice to discard it.", "c1"),
     ]) },
     { seat: 1, kind: "turn", drawn: true },
     { seat: 2, kind: "turn", drawn: true },
