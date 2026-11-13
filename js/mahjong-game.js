@@ -4694,7 +4694,7 @@
           if (settings.lesson && game) {
             game.lessonFlowers = true;
             var at = Lesson.progress(game);
-            track("play_lesson_flowers", { screen: at.screen, screens: at.screens, seconds: lessonSeconds() });
+            track("play_tutorial_flowers", { screen: at.screen, screens: at.screens, seconds: lessonSeconds() });
             lessonStepDone();
           }
           p.resolve();
@@ -5958,8 +5958,8 @@
     }
 
     // Lesson analytics: how far people get. Each of the player's moves sends
-    // play_lesson_step (move 1 to 8); a first wrong try on a move sends
-    // play_lesson_wrong_move; leaving before the end sends play_lesson_exit.
+    // play_tutorial_step (move 1 to 8); a first wrong try on a move sends
+    // play_tutorial_wrong_move; leaving before the end sends play_tutorial_exit.
     var lessonTrack = null;
 
     function lessonSeconds() {
@@ -5969,7 +5969,7 @@
     function startLessonTracking() {
       lessonTrack = { started: Date.now(), wrong: 0, wrongTotal: 0, done: false };
       // A jump back or forward (the tutorial played again) is the same lesson, not a new start.
-      if (!ui.lessonJump) track("play_lesson_start", { moves: Lesson.MOVES, screens: Lesson.SCREENS });
+      if (!ui.lessonJump) track("play_tutorial_start", { moves: Lesson.MOVES, screens: Lesson.SCREENS });
     }
 
     // The lesson ended before its hand did: quit from the menu (how: quit) or the page closed (how: leave).
@@ -5977,7 +5977,7 @@
       if (!settings.lesson || !lessonTrack || lessonTrack.done || !game || ui.lessonJumping) return; // (a jump is not leaving)
       lessonTrack.done = true;
       var at = Lesson.progress(game);
-      track("play_lesson_exit", {
+      track("play_tutorial_exit", {
         move: at.move, moves: at.moves, next_action: at.next || "none", how: how,
         screen: lessonCardNow() ? lessonCardNow().n : at.screen, screens: at.screens,
         seconds: lessonSeconds(), wrong_tries: lessonTrack.wrongTotal, transport_type: "beacon",
@@ -5991,7 +5991,7 @@
       if (card && !card.last) { lessonNextCard(); return false; }
       if (Lesson.accept(game, 0, kind, decision)) {
         var at = Lesson.progress(game);
-        track("play_lesson_step", {
+        track("play_tutorial_step", {
           step: game.lessonStep, move: at.move, moves: at.moves, action: decision.type,
           screen: at.screen, screens: at.screens,
           seconds: lessonSeconds(), wrong_tries: lessonTrack ? lessonTrack.wrong : 0,
@@ -6005,7 +6005,7 @@
         lessonTrack.wrongTotal++;
         if (lessonTrack.wrong === 1) {
           var now0 = Lesson.progress(game);
-          track("play_lesson_wrong_move", {
+          track("play_tutorial_wrong_move", {
             move: now0.move + 1, moves: now0.moves, expected: now0.next || "none", tried: decision.type,
             screen: card ? card.n : now0.screen + 1, screens: now0.screens,
             mistake: decision.type === now0.next ? "wrong_tile" : "wrong_action",
@@ -8437,7 +8437,7 @@
       var started = saved || settings.lesson ? null : countGameStarted(); // the lesson isn't a game
       if (started) setUserProperties({ player_type: started > 1 ? "returning" : "new" });
       var startParams = {
-        lesson: !!settings.lesson,
+        tutorial: !!settings.lesson,
         spicy: settings.spicy, mode: settings.mode, coach: settings.coach,
         speed: settings.speed, coach_strategy: ui.strategies.coach,
         strategies: ui.strategies.seats.slice(1).join(","),
@@ -8497,10 +8497,10 @@
         track("play_hand_end", {
           result: res.type === "draw" ? "draw" : res.winner === 0 ? "win" : "loss",
           faan: res.type === "win" ? res.score.faan : 0,
-          hand_number: ui.stats.hands, lesson: !!settings.lesson, mode: settings.mode,
+          hand_number: ui.stats.hands, tutorial: !!settings.lesson, mode: settings.mode,
         });
         if (settings.lesson) {
-          track("play_lesson_complete", {
+          track("play_tutorial_complete", {
             result: res.type === "win" && res.winner === 0 ? "win" : "other",
             moves: Lesson.MOVES, screens: Lesson.SCREENS, seconds: lessonSeconds(), wrong_tries: lessonTrack ? lessonTrack.wrongTotal : 0,
           });
