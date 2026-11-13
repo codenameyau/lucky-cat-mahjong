@@ -28,9 +28,9 @@
                  answer key ml/train_lucky.py --mode oracle teaches from.
 */
 
-'use strict';
+"use strict";
 
-const E = require('../../js/mahjong-engine.js');
+const E = require("../../js/mahjong-engine.js");
 
 const PER = 34 + 34 + 1;
 const DANGER = 3 * PER + 34 + 34 + 3;
@@ -82,8 +82,8 @@ function oracle(game, seat, tile, mask) {
   });
   // Dropout: Suphx keeps each oracle input with chance delta, falling to 0.
   if (mask != null && mask < 1) {
-    const rng = typeof mask === 'object' ? mask.rng : Math.random;
-    const keep = typeof mask === 'object' ? mask.delta : mask;
+    const rng = typeof mask === "object" ? mask.rng : Math.random;
+    const keep = typeof mask === "object" ? mask.delta : mask;
     for (let i = 0; i < SIZE; i++) if (rng() >= keep) out[i] = 0;
   }
   return out;

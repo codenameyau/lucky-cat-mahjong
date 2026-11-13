@@ -22,36 +22,36 @@
 
      node scripts/ml/paired.js compare ml/paired/new.json ml/paired/old.json */
 
-'use strict';
+"use strict";
 
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { Worker, isMainThread, parentPort, workerData } = require('node:worker_threads');
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { Worker, isMainThread, parentPort, workerData } = require("node:worker_threads");
 
 function parseArgs(argv) {
   const out = { _: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (!a.startsWith('--')) { out._.push(a); continue; }
+    if (!a.startsWith("--")) { out._.push(a); continue; }
     const next = argv[i + 1];
-    if (next === undefined || next.startsWith('--')) out[a.slice(2)] = true;
+    if (next === undefined || next.startsWith("--")) out[a.slice(2)] = true;
     else { out[a.slice(2)] = next; i++; }
   }
   return out;
 }
 
 function load(root, lineup) {
-  const S = require(path.join(root, 'js', 'mahjong-strategies.js'));
-  const reg = require(path.join(root, 'scripts', 'ml', 'baselines', 'register.js'));
+  const S = require(path.join(root, "js", "mahjong-strategies.js"));
+  const reg = require(path.join(root, "scripts", "ml", "baselines", "register.js"));
   reg.addBaselines();
   reg.addOrphanModels(lineup);
-  const ML = require(path.join(root, 'js', 'mahjong-ml.js'));
+  const ML = require(path.join(root, "js", "mahjong-ml.js"));
   lineup.filter((id) => /^ml:/.test(id) && !S.has(id)).forEach((id) => {
-    const weights = JSON.parse(fs.readFileSync(path.resolve(id.slice(3)), 'utf8'));
+    const weights = JSON.parse(fs.readFileSync(path.resolve(id.slice(3)), "utf8"));
     S.addLab({ id, name: id, bot: ML.create({ id, weights, fast: true }) });
   });
-  return require(path.join(root, 'js', 'mahjong-competition.js'));
+  return require(path.join(root, "js", "mahjong-competition.js"));
 }
 
 if (!isMainThread) {
@@ -66,8 +66,8 @@ if (!isMainThread) {
       const seat = ids.indexOf(me);
       row[6]++;
       row[1] += res.deltas[seat];
-      if (res.type !== 'draw' && res.winner === seat) { row[2]++; row[3] += res.deltas[seat]; row[5] += res.score.faan; }
-      else if (res.type !== 'draw' && res.payer === seat && res.how !== 'flowers') row[4]++;
+      if (res.type !== "draw" && res.winner === seat) { row[2]++; row[3] += res.deltas[seat]; row[5] += res.score.faan; }
+      else if (res.type !== "draw" && res.payer === seat && res.how !== "flowers") row[4]++;
       if (row[6] === rotations) {
         batch.push(row.slice(0, 6));
         row = null;
@@ -83,8 +83,8 @@ if (!isMainThread) {
 // summed over its four seat rotations. The file is written as deals finish,
 // so a run can be compared while it plays.
 async function runAll(a) {
-  const root = path.resolve(String(a.root || path.join(__dirname, '..', '..')));
-  const lineup = String(a.lineup).split(',');
+  const root = path.resolve(String(a.root || path.join(__dirname, "..", "..")));
+  const lineup = String(a.lineup).split(",");
   const deals = parseInt(a.deals || 1000, 10);
   const seed = parseInt(a.seed || 93000000, 10);
   const workers = Math.max(1, Math.min(deals, parseInt(a.workers || Math.max(1, os.cpus().length - 1), 10)));
@@ -96,8 +96,8 @@ async function runAll(a) {
   const rows = [];
   const save = (done) => {
     const out = { lineup, seed, deals, rotations, root, done: !!done, ms: Date.now() - t0, rows: rows.slice().sort((x, y) => x[0] - y[0]) };
-    fs.writeFileSync(file + '.tmp', JSON.stringify(out));
-    fs.renameSync(file + '.tmp', file);
+    fs.writeFileSync(file + ".tmp", JSON.stringify(out));
+    fs.renameSync(file + ".tmp", file);
     return out;
   };
   const jobs = [];
@@ -107,18 +107,18 @@ async function runAll(a) {
     if (count <= 0) break;
     jobs.push(new Promise((resolve, reject) => {
       const worker = new Worker(__filename, { workerData: { root, lineup, deals: count, seed: seed + first, rotations } });
-      worker.on('message', (m) => {
+      worker.on("message", (m) => {
         rows.push(...m.rows);
         if (m.done) resolve(); else save(false);
       });
-      worker.once('error', reject);
+      worker.once("error", reject);
     }));
   }
   await Promise.all(jobs);
   const out = save(true);
   const s = stats(out);
-  console.log(lineup[0] + ': ' + s.pointsPerHand.toFixed(1) + ' ± ' + s.margin.toFixed(1) + ' points a hand, wins ' + (100 * s.winRate).toFixed(2) + '%, average win ' + Math.round(s.avgWin) +
-    ', deal-ins ' + (100 * s.dealInRate).toFixed(2) + '% (' + deals + ' deals, ' + Math.round(out.ms / 1000) + ' s)');
+  console.log(lineup[0] + ": " + s.pointsPerHand.toFixed(1) + " ± " + s.margin.toFixed(1) + " points a hand, wins " + (100 * s.winRate).toFixed(2) + "%, average win " + Math.round(s.avgWin) +
+    ", deal-ins " + (100 * s.dealInRate).toFixed(2) + "% (" + deals + " deals, " + Math.round(out.ms / 1000) + " s)");
 }
 
 function stats(run) {
@@ -136,15 +136,15 @@ function stats(run) {
 
 // The two runs on the deals both have played.
 function compare(fileA, fileB) {
-  const A = JSON.parse(fs.readFileSync(fileA, 'utf8'));
-  const B = JSON.parse(fs.readFileSync(fileB, 'utf8'));
+  const A = JSON.parse(fs.readFileSync(fileA, "utf8"));
+  const B = JSON.parse(fs.readFileSync(fileB, "utf8"));
   const bySeed = new Map(B.rows.map((r) => [r[0], r]));
   const a = [], b = [];
   A.rows.forEach((r) => { if (bySeed.has(r[0])) { a.push(r); b.push(bySeed.get(r[0])); } });
   const n = a.length;
-  if (!n) throw new Error('no deals in common');
+  if (!n) throw new Error("no deals in common");
   const k = A.rotations || 4;
-  if ((B.rotations || 4) !== k) throw new Error('not the same seat rotations');
+  if ((B.rotations || 4) !== k) throw new Error("not the same seat rotations");
   let s = 0, s2 = 0, ws = 0, ws2 = 0;
   for (let i = 0; i < n; i++) {
     const d = (a[i][1] - b[i][1]) / k;
@@ -162,16 +162,16 @@ function compare(fileA, fileB) {
 if (require.main === module) {
   const a = parseArgs(process.argv.slice(2));
   const cmd = a._[0];
-  if (cmd === 'run') runAll(a).catch((err) => { console.error(err.stack || err); process.exit(1); });
-  else if (cmd === 'compare') {
+  if (cmd === "run") runAll(a).catch((err) => { console.error(err.stack || err); process.exit(1); });
+  else if (cmd === "compare") {
     const r = compare(a._[1], a._[2]);
-    const line = (name, s) => name + ': ' + s.pointsPerHand.toFixed(1) + ' ± ' + s.margin.toFixed(1) + ' points a hand, wins ' + (100 * s.winRate).toFixed(2) + '%, average win ' + Math.round(s.avgWin) + ' (' + s.avgFaan.toFixed(2) + ' faan), deal-ins ' + (100 * s.dealInRate).toFixed(2) + '%';
+    const line = (name, s) => name + ": " + s.pointsPerHand.toFixed(1) + " ± " + s.margin.toFixed(1) + " points a hand, wins " + (100 * s.winRate).toFixed(2) + "%, average win " + Math.round(s.avgWin) + " (" + s.avgFaan.toFixed(2) + " faan), deal-ins " + (100 * s.dealInRate).toFixed(2) + "%";
     console.log(line(a._[1], r.a));
     console.log(line(a._[2], r.b));
-    console.log('difference: ' + (r.points >= 0 ? '+' : '') + r.points.toFixed(1) + ' ± ' + r.margin.toFixed(1) + ' points a hand (paired, 95%), wins ' +
-      (r.wins >= 0 ? '+' : '') + (100 * r.wins).toFixed(2) + ' ± ' + (100 * r.winMargin).toFixed(2) + ' points, ' + r.deals + ' deals');
+    console.log("difference: " + (r.points >= 0 ? "+" : "") + r.points.toFixed(1) + " ± " + r.margin.toFixed(1) + " points a hand (paired, 95%), wins " +
+      (r.wins >= 0 ? "+" : "") + (100 * r.wins).toFixed(2) + " ± " + (100 * r.winMargin).toFixed(2) + " points, " + r.deals + " deals");
   } else {
-    console.error('usage: paired.js run|compare (see the top of the file)');
+    console.error("usage: paired.js run|compare (see the top of the file)");
     process.exit(1);
   }
 }

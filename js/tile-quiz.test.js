@@ -1,16 +1,16 @@
-'use strict';
+"use strict";
 
-const assert = require('node:assert/strict');
-const { describe, it, mock } = require('node:test');
-const quiz = require('./tile-quiz.js');
-const art = require('./tile-quiz-art.js');
+const assert = require("node:assert/strict");
+const { describe, it, mock } = require("node:test");
+const quiz = require("./tile-quiz.js");
+const art = require("./tile-quiz-art.js");
 
 const ORPHANS = [
-  'one-bamboo', 'nine-bamboo', 'one-character', 'nine-character', 'one-dot', 'nine-dot',
-  'green-dragon', 'red-dragon', 'white-dragon',
-  'east-wind', 'south-wind', 'west-wind', 'north-wind',
+  "one-bamboo", "nine-bamboo", "one-character", "nine-character", "one-dot", "nine-dot",
+  "green-dragon", "red-dragon", "white-dragon",
+  "east-wind", "south-wind", "west-wind", "north-wind",
 ];
-const FLOWERS_AND_SEASONS = ['spring', 'summer', 'autumn', 'winter', 'plum-blossom', 'orchid', 'chrysanthemum', 'bamboo'];
+const FLOWERS_AND_SEASONS = ["spring", "summer", "autumn", "winter", "plum-blossom", "orchid", "chrysanthemum", "bamboo"];
 
 // Deterministic pseudo-random answer sets; 4^12 combos is too many to enumerate.
 function eachSampledAnswers(count, fn) {
@@ -24,13 +24,13 @@ function eachSampledAnswers(count, fn) {
   }
 }
 
-describe('tile quiz data', () => {
-  it('has the 13 orphans, 8 flowers and seasons, and the blank tile', () => {
+describe("tile quiz data", () => {
+  it("has the 13 orphans, 8 flowers and seasons, and the blank tile", () => {
     const ids = quiz.TILES.map((t) => t.id).sort();
-    assert.deepEqual(ids, [...ORPHANS, ...FLOWERS_AND_SEASONS, 'blank-tile'].sort());
+    assert.deepEqual(ids, [...ORPHANS, ...FLOWERS_AND_SEASONS, "blank-tile"].sort());
   });
 
-  it('gives every tile artwork, copy, and a valid bestie', () => {
+  it("gives every tile artwork, copy, and a valid bestie", () => {
     quiz.TILES.forEach((t) => {
       assert.ok(art.ids.includes(t.id), `${t.id} art`);
       assert.match(art.render(t.id), /^<svg[\s\S]*<\/svg>$/);
@@ -44,7 +44,7 @@ describe('tile quiz data', () => {
     });
   });
 
-  it('only awards tiles that exist', () => {
+  it("only awards tiles that exist", () => {
     quiz.QUESTIONS.forEach((q) => {
       assert.equal(q.options.length, 4);
       q.options.forEach((o) => o.tiles.forEach((id) => assert.ok(quiz.getTile(id), id)));
@@ -52,13 +52,13 @@ describe('tile quiz data', () => {
   });
 });
 
-describe('scoreAnswers', () => {
-  it('is deterministic', () => {
+describe("scoreAnswers", () => {
+  it("is deterministic", () => {
     const answers = [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3];
     assert.equal(quiz.scoreAnswers(answers), quiz.scoreAnswers(answers.slice()));
   });
 
-  it('can land on every tile, and no tile hogs the results', () => {
+  it("can land on every tile, and no tile hogs the results", () => {
     const counts = {};
     let total = 0;
     eachSampledAnswers(200000, (answers) => {
@@ -73,74 +73,74 @@ describe('scoreAnswers', () => {
   });
 });
 
-describe('profile helpers', () => {
-  it('normalizes Instagram handles and links', () => {
-    assert.equal(quiz.normalizeInstagram('luckycat.mahjong'), '@luckycat.mahjong');
-    assert.equal(quiz.normalizeInstagram(' @@luckycat.mahjong '), '@luckycat.mahjong');
-    assert.equal(quiz.normalizeInstagram('https://www.instagram.com/luckycat.mahjong/?hl=en'), '@luckycat.mahjong');
-    assert.equal(quiz.normalizeInstagram('instagram.com/luckycat.mahjong'), '@luckycat.mahjong');
-    assert.equal(quiz.normalizeInstagram(''), '');
+describe("profile helpers", () => {
+  it("normalizes Instagram handles and links", () => {
+    assert.equal(quiz.normalizeInstagram("luckycat.mahjong"), "@luckycat.mahjong");
+    assert.equal(quiz.normalizeInstagram(" @@luckycat.mahjong "), "@luckycat.mahjong");
+    assert.equal(quiz.normalizeInstagram("https://www.instagram.com/luckycat.mahjong/?hl=en"), "@luckycat.mahjong");
+    assert.equal(quiz.normalizeInstagram("instagram.com/luckycat.mahjong"), "@luckycat.mahjong");
+    assert.equal(quiz.normalizeInstagram(""), "");
   });
 
-  it('validates zip codes', () => {
-    assert.ok(quiz.isValidZip('10001'));
-    assert.ok(quiz.isValidZip('10001-1234'));
-    assert.ok(!quiz.isValidZip('1000'));
-    assert.ok(!quiz.isValidZip('abcde'));
-    assert.ok(!quiz.isValidZip('00000'));
+  it("validates zip codes", () => {
+    assert.ok(quiz.isValidZip("10001"));
+    assert.ok(quiz.isValidZip("10001-1234"));
+    assert.ok(!quiz.isValidZip("1000"));
+    assert.ok(!quiz.isValidZip("abcde"));
+    assert.ok(!quiz.isValidZip("00000"));
   });
 
-  it('wants a full name: a first and a last name, not a letter or a word', () => {
-    for (const ok of ['Mei Lin', 'Jorge Yau', "Siobhan O'Neil", 'Anne-Marie Smith', 'José García', '  Mei   Lin  ', 'Al Li']) assert.ok(quiz.isValidName(ok), ok);
-    for (const bad of ['', ' ', 'a', 'aa', 'Mei', 'xxx', 'a b', 'aa bb', 'xxx xxx', '12 34', 'Mei 4', '-- --']) assert.ok(!quiz.isValidName(bad), bad);
+  it("wants a full name: a first and a last name, not a letter or a word", () => {
+    for (const ok of ["Mei Lin", "Jorge Yau", "Siobhan O'Neil", "Anne-Marie Smith", "José García", "  Mei   Lin  ", "Al Li"]) assert.ok(quiz.isValidName(ok), ok);
+    for (const bad of ["", " ", "a", "aa", "Mei", "xxx", "a b", "aa bb", "xxx xxx", "12 34", "Mei 4", "-- --"]) assert.ok(!quiz.isValidName(bad), bad);
   });
 
-  it('turns away profanity in a name or handle, but not names that only contain it', () => {
-    const profane = ['fuck', 'Shit Head', 'f u c k', 'f.u.c.k', 'fvck'.replace('v', 'u'), 'sh1t', 'b!tch', '$hit', 'Mei Cunt', 'asshole'];
+  it("turns away profanity in a name or handle, but not names that only contain it", () => {
+    const profane = ["fuck", "Shit Head", "f u c k", "f.u.c.k", "fvck".replace("v", "u"), "sh1t", "b!tch", "$hit", "Mei Cunt", "asshole"];
     for (const bad of profane) assert.ok(quiz.hasProfanity(bad), bad);
-    assert.ok(quiz.hasProfanity('xxfuckxx'));
-    assert.ok(!quiz.isValidName('Mei Fuck'));
-    assert.equal(quiz.validateProfile({ name: 'Mei Fuck', instagram: '@mei', zip: '11201', skill: 'Beginner' }).name, 'Please keep it clean: enter your full name');
-    assert.ok(!quiz.isValidInstagram('@xxfuckxx'));
-    assert.ok(!quiz.isValidInstagram('@big.sh1t'));
-    for (const ok of ['Class', 'Scunthorpe', 'Cassidy', 'Bassett', 'Hancock', 'Dickens', 'Mei Lin', 'Assunta', 'Compass', 'Peacock']) assert.ok(!quiz.hasProfanity(ok), ok);
-    assert.ok(quiz.isValidName('Cassidy Bassett'));
-    assert.ok(quiz.isValidInstagram('@classy.cassidy'));
+    assert.ok(quiz.hasProfanity("xxfuckxx"));
+    assert.ok(!quiz.isValidName("Mei Fuck"));
+    assert.equal(quiz.validateProfile({ name: "Mei Fuck", instagram: "@mei", zip: "11201", skill: "Beginner" }).name, "Please keep it clean: enter your full name");
+    assert.ok(!quiz.isValidInstagram("@xxfuckxx"));
+    assert.ok(!quiz.isValidInstagram("@big.sh1t"));
+    for (const ok of ["Class", "Scunthorpe", "Cassidy", "Bassett", "Hancock", "Dickens", "Mei Lin", "Assunta", "Compass", "Peacock"]) assert.ok(!quiz.hasProfanity(ok), ok);
+    assert.ok(quiz.isValidName("Cassidy Bassett"));
+    assert.ok(quiz.isValidInstagram("@classy.cassidy"));
   });
 
-  it('wants a real Instagram handle, not a letter or two', () => {
-    for (const ok of ['@mei.lin', 'mei_lin', 'https://instagram.com/luckycat.mahjong/', '@abc', 'A1b']) assert.ok(quiz.isValidInstagram(ok), ok);
-    for (const bad of ['', '@', 'a', '@ab', 'xx', '@aaaa', '@...', '@___', '@mei lin', '@' + 'a'.repeat(31)]) assert.ok(!quiz.isValidInstagram(bad), bad);
+  it("wants a real Instagram handle, not a letter or two", () => {
+    for (const ok of ["@mei.lin", "mei_lin", "https://instagram.com/luckycat.mahjong/", "@abc", "A1b"]) assert.ok(quiz.isValidInstagram(ok), ok);
+    for (const bad of ["", "@", "a", "@ab", "xx", "@aaaa", "@...", "@___", "@mei lin", "@" + "a".repeat(31)]) assert.ok(!quiz.isValidInstagram(bad), bad);
   });
 
-  it('requires every field', () => {
-    const errors = quiz.validateProfile({ name: ' ', instagram: '', zip: '1', skill: 'Expert' });
-    assert.deepEqual(Object.keys(errors).sort(), ['instagram', 'name', 'skill', 'zip']);
-    assert.deepEqual(quiz.validateProfile({ name: 'Mei Lin', instagram: 'mei.lin', zip: '11201', skill: 'Beginner' }), {});
-    assert.deepEqual(Object.keys(quiz.validateProfile({ name: 'M', instagram: 'a', zip: '00000', skill: 'Beginner' })).sort(), ['instagram', 'name', 'zip']);
-    assert.deepEqual(quiz.validateProfile({ name: 'Mei Lin', instagram: '@mei', zip: '11201', skill: 'Beginner' }), {});
+  it("requires every field", () => {
+    const errors = quiz.validateProfile({ name: " ", instagram: "", zip: "1", skill: "Expert" });
+    assert.deepEqual(Object.keys(errors).sort(), ["instagram", "name", "skill", "zip"]);
+    assert.deepEqual(quiz.validateProfile({ name: "Mei Lin", instagram: "mei.lin", zip: "11201", skill: "Beginner" }), {});
+    assert.deepEqual(Object.keys(quiz.validateProfile({ name: "M", instagram: "a", zip: "00000", skill: "Beginner" })).sort(), ["instagram", "name", "zip"]);
+    assert.deepEqual(quiz.validateProfile({ name: "Mei Lin", instagram: "@mei", zip: "11201", skill: "Beginner" }), {});
   });
 
-  it('encodes the Google Form body with the form entry IDs', () => {
+  it("encodes the Google Form body with the form entry IDs", () => {
     const body = new URLSearchParams(quiz.buildFormBody(
-      { name: 'Mei Lin', instagram: 'mei.lin', zip: '11201', skill: 'Advanced' },
-      quiz.getTile('red-dragon'),
+      { name: "Mei Lin", instagram: "mei.lin", zip: "11201", skill: "Advanced" },
+      quiz.getTile("red-dragon"),
     ));
-    assert.equal(body.get(quiz.FORM_FIELDS.name), 'Mei Lin');
-    assert.equal(body.get(quiz.FORM_FIELDS.instagram), '@mei.lin');
-    assert.equal(body.get(quiz.FORM_FIELDS.zip), '11201');
-    assert.equal(body.get(quiz.FORM_FIELDS.skill), 'Advanced');
-    assert.equal(body.get(quiz.FORM_FIELDS.result), 'Red Dragon');
+    assert.equal(body.get(quiz.FORM_FIELDS.name), "Mei Lin");
+    assert.equal(body.get(quiz.FORM_FIELDS.instagram), "@mei.lin");
+    assert.equal(body.get(quiz.FORM_FIELDS.zip), "11201");
+    assert.equal(body.get(quiz.FORM_FIELDS.skill), "Advanced");
+    assert.equal(body.get(quiz.FORM_FIELDS.result), "Red Dragon");
   });
 
-  it('sends a result that matches a Result dropdown option for every tile', () => {
+  it("sends a result that matches a Result dropdown option for every tile", () => {
     // Copied from the Google Form's "Result" dropdown; Google rejects submissions with any other value.
     const formOptions = [
-      '1 Bamboo', '9 Bamboo', '1 Character', '9 Character', '1 Dot', '9 Dot',
-      'Green Dragon', 'Red Dragon', 'White Dragon', 'East Wind', 'South Wind', 'West Wind', 'North Wind',
-      'Spring', 'Summer', 'Autumn', 'Winter', 'Plum Blossom', 'Orchid', 'Chrysanthemum', 'Bamboo', 'Blank Tile',
+      "1 Bamboo", "9 Bamboo", "1 Character", "9 Character", "1 Dot", "9 Dot",
+      "Green Dragon", "Red Dragon", "White Dragon", "East Wind", "South Wind", "West Wind", "North Wind",
+      "Spring", "Summer", "Autumn", "Winter", "Plum Blossom", "Orchid", "Chrysanthemum", "Bamboo", "Blank Tile",
     ];
-    const profile = { name: 'Mei', instagram: 'mei', zip: '11201', skill: 'Beginner' };
+    const profile = { name: "Mei", instagram: "mei", zip: "11201", skill: "Beginner" };
     quiz.TILES.forEach((t) => {
       const body = new URLSearchParams(quiz.buildFormBody(profile, t));
       assert.ok(formOptions.includes(body.get(quiz.FORM_FIELDS.result)), t.id);
@@ -148,20 +148,20 @@ describe('profile helpers', () => {
   });
 });
 
-describe('restorableProgress', () => {
-  it('restores a quiz in progress', () => {
+describe("restorableProgress", () => {
+  it("restores a quiz in progress", () => {
     assert.deepEqual(quiz.restorableProgress({ answers: [0, 3, 1], current: 3 }), { answers: [0, 3, 1], current: 3 });
     assert.deepEqual(quiz.restorableProgress({ answers: [], current: 0 }), { answers: [], current: 0 });
   });
 
-  it('restores a finished quiz at the info form step', () => {
+  it("restores a finished quiz at the info form step", () => {
     const answers = quiz.QUESTIONS.map(() => 2);
     assert.equal(quiz.restorableProgress({ answers, current: quiz.QUESTIONS.length }).current, quiz.QUESTIONS.length);
   });
 
-  it('rejects missing, malformed, or outdated progress', () => {
+  it("rejects missing, malformed, or outdated progress", () => {
     assert.equal(quiz.restorableProgress(undefined), null);
-    assert.equal(quiz.restorableProgress({ answers: 'nope', current: 0 }), null);
+    assert.equal(quiz.restorableProgress({ answers: "nope", current: 0 }), null);
     assert.equal(quiz.restorableProgress({ answers: [0, 9], current: 2 }), null);
     assert.equal(quiz.restorableProgress({ answers: [0], current: 3 }), null);
     assert.equal(quiz.restorableProgress({ answers: [0], current: -1 }), null);
@@ -169,50 +169,50 @@ describe('restorableProgress', () => {
   });
 });
 
-describe('quiz completion record', () => {
+describe("quiz completion record", () => {
   const answers = quiz.QUESTIONS.map((_, i) => i % 4);
-  const record = quiz.signCompletion(answers, '2026-11-01T12:00:00.000Z');
+  const record = quiz.signCompletion(answers, "2026-11-01T12:00:00.000Z");
 
-  it('verifies a genuine record and returns the tile the answers score to', () => {
+  it("verifies a genuine record and returns the tile the answers score to", () => {
     assert.equal(quiz.verifyCompletion(record).id, quiz.scoreAnswers(answers));
     assert.equal(quiz.verifyCompletion(JSON.parse(JSON.stringify(record))).id, record.tile);
   });
 
-  it('rejects a missing or hand-made record', () => {
+  it("rejects a missing or hand-made record", () => {
     assert.equal(quiz.verifyCompletion(undefined), null);
-    assert.equal(quiz.verifyCompletion({ tile: 'red-dragon' }), null);
+    assert.equal(quiz.verifyCompletion({ tile: "red-dragon" }), null);
     assert.equal(quiz.verifyCompletion(true), null);
   });
 
-  it('rejects a record whose tile, answers, time, or signature was edited', () => {
+  it("rejects a record whose tile, answers, time, or signature was edited", () => {
     const otherTile = quiz.TILES.find((t) => t.id !== record.tile).id;
     assert.equal(quiz.verifyCompletion({ ...record, tile: otherTile }), null);
     assert.equal(quiz.verifyCompletion({ ...record, answers: record.answers.map((a) => (a + 1) % 4) }), null);
-    assert.equal(quiz.verifyCompletion({ ...record, at: '2026-11-02T12:00:00.000Z' }), null);
-    assert.equal(quiz.verifyCompletion({ ...record, sig: 'deadbeef' }), null);
+    assert.equal(quiz.verifyCompletion({ ...record, at: "2026-11-02T12:00:00.000Z" }), null);
+    assert.equal(quiz.verifyCompletion({ ...record, sig: "deadbeef" }), null);
   });
 
-  it('rejects a record from a different set of questions', () => {
+  it("rejects a record from a different set of questions", () => {
     assert.equal(quiz.verifyCompletion({ ...record, answers: record.answers.slice(1) }), null);
   });
 });
 
-describe('getTile', () => {
-  it('still resolves the IDs used before the descriptive slugs', () => {
-    assert.equal(quiz.getTile('character-1').id, 'one-character');
-    assert.equal(quiz.getTile('dot-9').id, 'nine-dot');
-    assert.equal(quiz.getTile('bamboo-flower').id, 'bamboo');
-    assert.equal(quiz.getTile('blank').id, 'blank-tile');
-    assert.equal(quiz.getTile('nope'), null);
+describe("getTile", () => {
+  it("still resolves the IDs used before the descriptive slugs", () => {
+    assert.equal(quiz.getTile("character-1").id, "one-character");
+    assert.equal(quiz.getTile("dot-9").id, "nine-dot");
+    assert.equal(quiz.getTile("bamboo-flower").id, "bamboo");
+    assert.equal(quiz.getTile("blank").id, "blank-tile");
+    assert.equal(quiz.getTile("nope"), null);
   });
 });
 
-describe('clearAnswerFocus', () => {
-  it('blurs every answer so the last click does not stay focused on the next question', () => {
+describe("clearAnswerFocus", () => {
+  it("blurs every answer so the last click does not stay focused on the next question", () => {
     const blurred = [];
     function option() {
       return {
-        classList: { contains: (name) => name === 'tq-option' },
+        classList: { contains: (name) => name === "tq-option" },
         blur: function () { blurred.push(this); },
       };
     }
@@ -221,7 +221,7 @@ describe('clearAnswerFocus', () => {
     const doc = {
       activeElement: first,
       querySelectorAll: function (sel) {
-        assert.equal(sel, '.tq-option');
+        assert.equal(sel, ".tq-option");
         return [first, second];
       },
     };
@@ -232,22 +232,22 @@ describe('clearAnswerFocus', () => {
   });
 });
 
-describe('shareUrl', () => {
-  it('links to the tile\'s own page so previews show that tile', () => {
+describe("shareUrl", () => {
+  it("links to the tile's own page so previews show that tile", () => {
     assert.equal(
-      quiz.shareUrl('https://luckycatmahjong.com/which-mahjong-tiles-are-you/?tile=one-dot#x', 'blank-tile'),
-      'https://luckycatmahjong.com/which-mahjong-tiles-are-you/blank-tile/',
+      quiz.shareUrl("https://luckycatmahjong.com/which-mahjong-tiles-are-you/?tile=one-dot#x", "blank-tile"),
+      "https://luckycatmahjong.com/which-mahjong-tiles-are-you/blank-tile/",
     );
     assert.equal(
-      quiz.shareUrl('http://localhost:8080/which-mahjong-tiles-are-you/red-dragon/', 'nine-dot'),
-      'http://localhost:8080/which-mahjong-tiles-are-you/nine-dot/',
+      quiz.shareUrl("http://localhost:8080/which-mahjong-tiles-are-you/red-dragon/", "nine-dot"),
+      "http://localhost:8080/which-mahjong-tiles-are-you/nine-dot/",
     );
-    assert.equal(quiz.shareUrl('file:///tmp/quiz.html', 'one-dot'), 'https://luckycatmahjong.com/which-mahjong-tiles-are-you/one-dot/');
+    assert.equal(quiz.shareUrl("file:///tmp/quiz.html", "one-dot"), "https://luckycatmahjong.com/which-mahjong-tiles-are-you/one-dot/");
   });
 });
 
-describe('back to the intro', () => {
-  it('fills Meet the whole set after leaving a saved quiz', () => {
+describe("back to the intro", () => {
+  it("fills Meet the whole set after leaving a saved quiz", () => {
     const previous = {
       localStorage: global.localStorage,
       location: global.location,
@@ -255,13 +255,13 @@ describe('back to the intro', () => {
       LuckyCatTileArt: global.LuckyCatTileArt,
     };
     const store = {
-      'lcm-tile-quiz': JSON.stringify({ progress: { answers: [0], current: 0 } }),
+      "lcm-tile-quiz": JSON.stringify({ progress: { answers: [0], current: 0 } }),
     };
     global.localStorage = {
       getItem(key) { return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null; },
       setItem(key, value) { store[key] = String(value); },
     };
-    global.location = { href: 'http://127.0.0.1:8080/which-mahjong-tiles-are-you/', search: '' };
+    global.location = { href: "http://127.0.0.1:8080/which-mahjong-tiles-are-you/", search: "" };
     global.scrollTo = function () {};
     global.LuckyCatTileArt = art;
 
@@ -269,8 +269,8 @@ describe('back to the intro', () => {
     function element() {
       return {
         hidden: false,
-        innerHTML: '',
-        textContent: '',
+        innerHTML: "",
+        textContent: "",
         style: {},
         classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
         listeners: {},
@@ -282,9 +282,9 @@ describe('back to the intro', () => {
         setAttribute() {},
       };
     }
-    elements['#tq-gallery-grid'] = element();
+    elements["#tq-gallery-grid"] = element();
     const doc = {
-      title: '',
+      title: "",
       querySelector(sel) {
         if (!elements[sel]) elements[sel] = element();
         return elements[sel];
@@ -294,9 +294,9 @@ describe('back to the intro', () => {
 
     try {
       quiz.createApp(doc).init();
-      elements['#tq-back'].listeners.click[0]();
-      assert.match(elements['#tq-gallery-grid'].innerHTML, /one-bamboo/);
-      assert.equal(elements['#tq-intro'].hidden, false);
+      elements["#tq-back"].listeners.click[0]();
+      assert.match(elements["#tq-gallery-grid"].innerHTML, /one-bamboo/);
+      assert.equal(elements["#tq-intro"].hidden, false);
     } finally {
       global.localStorage = previous.localStorage;
       global.location = previous.location;
@@ -306,7 +306,7 @@ describe('back to the intro', () => {
   });
 });
 
-describe('quiz analytics', () => {
+describe("quiz analytics", () => {
   function mountQuiz(progress) {
     const calls = [];
     const previous = {
@@ -318,15 +318,15 @@ describe('quiz analytics', () => {
       gtag: global.gtag,
     };
     const store = {};
-    if (progress) store['lcm-tile-quiz'] = JSON.stringify({ progress });
+    if (progress) store["lcm-tile-quiz"] = JSON.stringify({ progress });
     global.localStorage = {
       getItem(key) { return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null; },
       setItem(key, value) { store[key] = String(value); },
     };
     global.location = {
-      href: 'http://127.0.0.1:8080/which-mahjong-tiles-are-you/',
-      search: '',
-      protocol: 'http:',
+      href: "http://127.0.0.1:8080/which-mahjong-tiles-are-you/",
+      search: "",
+      protocol: "http:",
     };
     global.scrollTo = function () {};
     global.history = { replaceState() {} };
@@ -337,8 +337,8 @@ describe('quiz analytics', () => {
     function element(sel) {
       const el = {
         hidden: false,
-        innerHTML: '',
-        textContent: '',
+        innerHTML: "",
+        textContent: "",
         style: {},
         classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
         listeners: {},
@@ -350,18 +350,18 @@ describe('quiz analytics', () => {
         setAttribute() {},
         getAttribute() { return null; },
       };
-      if (sel === '#tq-info-form') {
+      if (sel === "#tq-info-form") {
         el.elements = {
-          name: { value: '' },
-          instagram: { value: '' },
-          zip: { value: '' },
+          name: { value: "" },
+          instagram: { value: "" },
+          zip: { value: "" },
           skill: [],
         };
       }
       return el;
     }
     const doc = {
-      title: '',
+      title: "",
       querySelector(sel) {
         if (!elements[sel]) elements[sel] = element(sel);
         return elements[sel];
@@ -373,7 +373,7 @@ describe('quiz analytics', () => {
       elements,
       events() {
         return calls
-          .filter((call) => call[0] === 'event')
+          .filter((call) => call[0] === "event")
           .map((call) => ({ name: call[1], params: call[2] }));
       },
       init() { quiz.createApp(doc).init(); },
@@ -389,29 +389,29 @@ describe('quiz analytics', () => {
   }
 
   function clickAnswer(ui, index) {
-    ui.elements['#tq-options'].listeners.click[0]({
+    ui.elements["#tq-options"].listeners.click[0]({
       target: {
         closest(sel) {
-          assert.equal(sel, '.tq-option');
+          assert.equal(sel, ".tq-option");
           return { dataset: { index: String(index) } };
         },
       },
     });
   }
 
-  it('tracks the question shown when a saved quiz resumes', () => {
+  it("tracks the question shown when a saved quiz resumes", () => {
     const ui = mountQuiz({ answers: [0, 1, 2], current: 3 });
     try {
       ui.init();
       assert.deepEqual(ui.events(), [
-        { name: 'tile_quiz_question_view', params: { question_index: 3 } },
+        { name: "tile_quiz_question_view", params: { question_index: 3 } },
       ]);
     } finally {
       ui.restore();
     }
   });
 
-  it('does not track a question view when resume lands on the info form', () => {
+  it("does not track a question view when resume lands on the info form", () => {
     const ui = mountQuiz({
       answers: quiz.QUESTIONS.map(() => 0),
       current: quiz.QUESTIONS.length,
@@ -424,21 +424,21 @@ describe('quiz analytics', () => {
     }
   });
 
-  it('tracks the first question, the next question, and the same question again after Back', () => {
-    mock.timers.enable({ apis: ['setTimeout'] });
+  it("tracks the first question, the next question, and the same question again after Back", () => {
+    mock.timers.enable({ apis: ["setTimeout"] });
     const ui = mountQuiz(null);
     try {
       ui.init();
-      ui.elements['#tq-start'].listeners.click[0]();
+      ui.elements["#tq-start"].listeners.click[0]();
       clickAnswer(ui, 0);
       mock.timers.tick(220);
-      ui.elements['#tq-back'].listeners.click[0]();
+      ui.elements["#tq-back"].listeners.click[0]();
 
-      const views = ui.events().filter((event) => event.name === 'tile_quiz_question_view');
+      const views = ui.events().filter((event) => event.name === "tile_quiz_question_view");
       assert.deepEqual(views, [
-        { name: 'tile_quiz_question_view', params: { question_index: 0 } },
-        { name: 'tile_quiz_question_view', params: { question_index: 1 } },
-        { name: 'tile_quiz_question_view', params: { question_index: 0 } },
+        { name: "tile_quiz_question_view", params: { question_index: 0 } },
+        { name: "tile_quiz_question_view", params: { question_index: 1 } },
+        { name: "tile_quiz_question_view", params: { question_index: 0 } },
       ]);
     } finally {
       mock.timers.reset();
@@ -446,22 +446,22 @@ describe('quiz analytics', () => {
     }
   });
 
-  it('tracks the question index and answer label when an answer is clicked', () => {
-    mock.timers.enable({ apis: ['setTimeout'] });
+  it("tracks the question index and answer label when an answer is clicked", () => {
+    mock.timers.enable({ apis: ["setTimeout"] });
     const ui = mountQuiz(null);
     const answer = quiz.QUESTIONS[0].options[2];
     try {
       ui.init();
-      ui.elements['#tq-start'].listeners.click[0]();
+      ui.elements["#tq-start"].listeners.click[0]();
       clickAnswer(ui, 2);
-      const clicks = ui.events().filter((event) => event.name === 'tile_quiz_answer_click');
+      const clicks = ui.events().filter((event) => event.name === "tile_quiz_answer_click");
       assert.deepEqual(clicks, [
         {
-          name: 'tile_quiz_answer_click',
+          name: "tile_quiz_answer_click",
           params: { question_index: 0, answer_index: 2, answer_label: answer.text },
         },
       ]);
-      const own = ui.events().filter((event) => event.name === 'tile_quiz_q1_a3');
+      const own = ui.events().filter((event) => event.name === "tile_quiz_q1_a3");
       assert.deepEqual(own.map((event) => event.params), [clicks[0].params]);
     } finally {
       mock.timers.reset();
@@ -469,7 +469,7 @@ describe('quiz analytics', () => {
     }
   });
 
-  it('gives every answer its own valid event name', () => {
+  it("gives every answer its own valid event name", () => {
     const names = quiz.QUESTIONS.flatMap((q, i) => q.options.map((_, j) => quiz.answerEventName(i, j)));
     assert.equal(new Set(names).size, names.length);
     for (const name of names) assert.match(name, /^[a-z][a-z0-9_]{0,39}$/);

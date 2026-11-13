@@ -27,15 +27,15 @@
    The playbook is written out in docs/strategies/jorge-yau.md. */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
-  var node = typeof module !== 'undefined' && module.exports;
-  var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var B = node ? require('./mahjong-bot.js') : root.MahjongBot;
+  var node = typeof module !== "undefined" && module.exports;
+  var E = node ? require("./mahjong-engine.js") : root.MahjongEngine;
+  var B = node ? require("./mahjong-bot.js") : root.MahjongBot;
   var F = E.HKScoring.FAAN;
 
-  var SUITS = ['c', 'd', 'b'];
-  var SUIT_LABELS = { c: 'Characters', d: 'Circles', b: 'Bamboos' };
+  var SUITS = ["c", "d", "b"];
+  var SUIT_LABELS = { c: "Characters", d: "Circles", b: "Bamboos" };
   var ORPHANS = [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33];
   var TERMINALS = [0, 8, 9, 17, 18, 26];
   var WINDS = [27, 28, 29, 30];
@@ -124,7 +124,7 @@
   function hasSuitedMeld(ctx, except) {
     return ctx.melds.some(function (m) {
       var su = suitOf(E.tileIndex(m.tiles[0]));
-      return su !== 'z' && su !== except;
+      return su !== "z" && su !== except;
     });
   }
 
@@ -132,17 +132,17 @@
   // Each one: when it fits the hand, and when it can no longer be made.
   var TARGETS = [
     {
-      id: 'orphans', name: 'Thirteen Orphans', hard: true,
+      id: "orphans", name: "Thirteen Orphans", hard: true,
       fits: function (r) { return !r.ctx.declared && r.orphanKinds >= 8 && B.orphansAlive(r.c, r.ctx); },
       dead: function (r) { return r.ctx.declared || !B.orphansAlive(r.c, r.ctx); },
     },
     {
-      id: 'gates', name: 'Nine Gates', hard: true,
+      id: "gates", name: "Nine Gates", hard: true,
       fits: function (r) { return !r.ctx.declared && !!r.gates; },
       dead: function (r, t) { return r.ctx.declared || hasSuitedMeld(r.ctx, t.suit) || r.ctx.meldSuits.z; },
     },
     {
-      id: 'winds', name: 'Big Four Winds', hard: true,
+      id: "winds", name: "Big Four Winds", hard: true,
       fits: function (r) { return r.winds >= 8 && !this.dead(r); },
       // Small Four Winds has room for one set that isn't a wind; past that, or
       // with too few winds left to pung, neither can be made.
@@ -153,39 +153,39 @@
     },
     {
       // A pair or more of every dragon: Big Three Dragons, then Small Three Dragons.
-      id: 'dragons', name: 'Big Three Dragons', hard: true,
+      id: "dragons", name: "Big Three Dragons", hard: true,
       fits: function (r) { return DRAGONS.every(function (i) { return r.all[i] >= 2; }) && !this.dead(r); },
       dead: function (r) { return B.groupShanten(r.ctx, DRAGONS, 2, true)(r.c, r.ctx.declared) === Infinity; },
     },
     {
-      id: 'terminals', name: 'All Terminals', hard: true,
+      id: "terminals", name: "All Terminals", hard: true,
       fits: function (r) { return r.terminals >= 8; },
       dead: function (r) { return r.ctx.hasChow || r.ctx.melds.some(function (m) { return !isOrphan(E.tileIndex(m.tiles[0])); }); },
     },
     {
-      id: 'honors', name: 'All Honors', hard: true,
+      id: "honors", name: "All Honors", hard: true,
       fits: function (r) { return r.honors >= 8; },
       dead: function (r) { return r.ctx.hasChow; },
     },
     {
-      id: 'pairs', name: 'Seven Pairs',
+      id: "pairs", name: "Seven Pairs",
       fits: function (r) { return !r.ctx.declared && r.pairs >= 4; },
       dead: function (r) { return r.ctx.declared; },
     },
     {
-      id: 'full', name: 'Full Flush', hard: true,
+      id: "full", name: "Full Flush", hard: true,
       fits: function (r) { return r.by[r.top] >= 8; },
       dead: function (r, t) { return hasSuitedMeld(r.ctx, t.suit); },
     },
     {
       // Sets already in hand: build Concealed Triplets, then All Triplets or
       // Seven Pairs, in one suit and honors where it can.
-      id: 'triplets', name: 'Concealed Triplets',
+      id: "triplets", name: "Concealed Triplets",
       fits: function (r) { return r.sets >= 1 && r.sets <= 3; },
       dead: function (r) { return r.ctx.hasChow; },
     },
     {
-      id: 'half', name: 'Half Flush',
+      id: "half", name: "Half Flush",
       fits: function (r) {
         var second = SUITS.filter(function (s) { return s !== r.top; }).map(function (s) { return r.by[s]; });
         return r.honors >= 3 && r.by[r.top] >= 5 && r.by[r.top] >= Math.max.apply(null, second) * 2;
@@ -196,12 +196,12 @@
       // Three pairs and no set yet, when pairs are no slower than runs: pung
       // them into All Triplets, open or not, with Concealed Triplets and Seven
       // Pairs behind it.
-      id: 'all-triplets', name: 'All Triplets',
+      id: "all-triplets", name: "All Triplets",
       fits: function (r) { return !r.ctx.hasChow && r.pairs >= 3 && E.tripletsShanten(r.c) <= E.standardShanten(r.c); },
       dead: function (r) { return r.ctx.hasChow; },
     },
     {
-      id: 'sequences', name: 'Concealed Straights',
+      id: "sequences", name: "Concealed Straights",
       fits: function (r) {
         var suited = r.by.c + r.by.d + r.by.b;
         var used = SUITS.map(function (s) { return r.by[s]; }).filter(function (n) { return n >= 2; });
@@ -210,7 +210,7 @@
       dead: function (r) { return r.ctx.declared; },
     },
     {
-      id: 'standard', name: 'a standard hand',
+      id: "standard", name: "a standard hand",
       fits: function () { return true; },
       dead: function () { return false; },
     },
@@ -242,7 +242,7 @@
   }
 
   // One-suit targets: a flush, or Nine Gates (a flush with a shape).
-  var ONE_SUIT = ['gates', 'full', 'half'];
+  var ONE_SUIT = ["gates", "full", "half"];
 
   function classify(c, ctx) {
     var r = readHand(c, ctx);
@@ -253,8 +253,8 @@
       var t = TARGETS[k];
       if (knobs().skip.indexOf(t.id) !== -1 || !t.fits(r)) continue;
       var out = { id: t.id, rank: t.rank, name: t.name };
-      if (t.id === 'gates') { out.suit = r.gates.suit; out.start = r.gates.start; }
-      if (t.id === 'full' || t.id === 'half' || t.id === 'triplets') out.suit = r.top;
+      if (t.id === "gates") { out.suit = r.gates.suit; out.start = r.gates.start; }
+      if (t.id === "full" || t.id === "half" || t.id === "triplets") out.suit = r.top;
       if (avoid && ONE_SUIT.indexOf(t.id) !== -1 && out.suit === avoid) continue;
       return out;
     }
@@ -262,7 +262,7 @@
   }
 
   // Each seat's opening read, kept for the hand (keyed by the hand object).
-  var openings = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+  var openings = typeof WeakMap !== "undefined" ? new WeakMap() : null;
 
   function remember(game, seat, make) {
     if (!openings || !game.hand) return make();
@@ -299,7 +299,7 @@
     var wind = [mine, round].some(function (i) {
       return all[i] >= 3 || (all[i] === 2 && ctx.unseen[i] >= 1);
     });
-    var flower = ctx.flowers.some(function (f) { return f === 'f' + ctx.seatWind || f === 's' + ctx.seatWind; });
+    var flower = ctx.flowers.some(function (f) { return f === "f" + ctx.seatWind || f === "s" + ctx.seatWind; });
     return wind || flower || B.cheapWin(ctx);
   }
 
@@ -318,32 +318,32 @@
   function keepFor(target) {
     var su = target.suit;
     switch (target.id) {
-      case 'orphans': return isOrphan;
-      case 'gates': return function (i) { return suitOf(i) === su; };
-      case 'winds':
-      case 'honors': return isHonor;
-      case 'terminals': return function (i) { return isTerminal(i) || isHonor(i); };
-      case 'full': return function (i) { return suitOf(i) === su; };
-      case 'half': return function (i) { return suitOf(i) === su || isHonor(i); };
-      case 'sequences': return function (i) { return i < 27; };
+      case "orphans": return isOrphan;
+      case "gates": return function (i) { return suitOf(i) === su; };
+      case "winds":
+      case "honors": return isHonor;
+      case "terminals": return function (i) { return isTerminal(i) || isHonor(i); };
+      case "full": return function (i) { return suitOf(i) === su; };
+      case "half": return function (i) { return suitOf(i) === su || isHonor(i); };
+      case "sequences": return function (i) { return i < 27; };
       default: return null;
     }
   }
 
   // Why a tile the target can't use goes, in the coach's words for every
   // strategy: "<hand> uses only <tiles>." (js/mahjong-coach.js usesOnly).
-  var SPOKEN_SUIT = { c: 'Characters', d: 'Circles', b: 'Bamboo' }; // as the coach says them
+  var SPOKEN_SUIT = { c: "Characters", d: "Circles", b: "Bamboo" }; // as the coach says them
   function reasonFor(target) {
     var su = SPOKEN_SUIT[target.suit];
     switch (target.id) {
-      case 'orphans': return 'Thirteen Orphans uses only 1s, 9s and honors.';
-      case 'gates': return 'Nine Gates uses only ' + su + '.';
-      case 'winds': return 'Four Winds uses only honors.';
-      case 'honors': return 'All Honors uses only honors.';
-      case 'terminals': return 'All Terminals uses only 1s and 9s, and Mixed Orphans adds honors.';
-      case 'full': return 'Full Flush uses only ' + su + '.';
-      case 'half': return 'Half Flush uses only ' + su + ' and honors.';
-      case 'sequences': return 'Honors break All Sequences.';
+      case "orphans": return "Thirteen Orphans uses only 1s, 9s and honors.";
+      case "gates": return "Nine Gates uses only " + su + ".";
+      case "winds": return "Four Winds uses only honors.";
+      case "honors": return "All Honors uses only honors.";
+      case "terminals": return "All Terminals uses only 1s and 9s, and Mixed Orphans adds honors.";
+      case "full": return "Full Flush uses only " + su + ".";
+      case "half": return "Half Flush uses only " + su + " and honors.";
+      case "sequences": return "Honors break All Sequences.";
       default: return null;
     }
   }
@@ -359,13 +359,13 @@
     var inFull = function (i) { return suitOf(i) === su; };
     if (!hasSuitedMeld(ctx, su)) {
       out.push(plan({
-        id: 'half-' + su, suit: su, label: 'a Half Flush in ' + SUIT_LABELS[su],
+        id: "half-" + su, suit: su, label: "a Half Flush in " + SUIT_LABELS[su],
         counts: B.restrict(c, inHalf), shantenFn: E.standardShanten,
         faan: base + F.halfFlush + B.handYaku(ctx, B.restrict(c, inHalf)), open: true, weight: halfWeight,
       }));
       if (!ctx.meldSuits.z) {
         out.push(plan({
-          id: 'full-' + su, suit: su, label: 'a Full Flush in ' + SUIT_LABELS[su],
+          id: "full-" + su, suit: su, label: "a Full Flush in " + SUIT_LABELS[su],
           counts: B.restrict(c, inFull), shantenFn: E.standardShanten,
           faan: base + F.fullFlush, open: true, weight: fullWeight,
         }));
@@ -408,7 +408,7 @@
     var late = ctx.wallLeft <= LATE_WALL && ownSteps > 0;
     var moved = false;
     out.forEach(function (p) {
-      if (p.weight >= W || p.id === 'plain') return;
+      if (p.weight >= W || p.id === "plain") return;
       var s = steps(p);
       if ((s === 0 && ownSteps > 0) || (late && s <= ownSteps)) { p.weight = W; moved = true; }
     });
@@ -419,7 +419,7 @@
 
   function honorsPlan(c, ctx, base, weight) {
     return plan({
-      id: 'honors', label: 'All Honors', counts: honorsOnly(c), shantenFn: E.tripletsShanten,
+      id: "honors", label: "All Honors", counts: honorsOnly(c), shantenFn: E.tripletsShanten,
       faan: Math.min(LIMIT, base + F.allHonors + B.handYaku(ctx, honorsOnly(c))), open: true, weight: weight,
     });
   }
@@ -428,7 +428,7 @@
     var kept = B.restrict(c, function (i) { return isTerminal(i) || isHonor(i); });
     var honors = sum(kept, WINDS.concat(DRAGONS)) > 0 || ctx.meldSuits.z;
     return plan({
-      id: 'terminals', label: honors ? 'Mixed Orphans' : 'All Terminals',
+      id: "terminals", label: honors ? "Mixed Orphans" : "All Terminals",
       counts: kept, shantenFn: E.tripletsShanten,
       faan: honors ? base + F.mixedOrphans + F.allTriplets + B.handYaku(ctx, kept) : Math.min(LIMIT, base + F.allTerminals),
       open: true, weight: weight,
@@ -438,9 +438,9 @@
   function tripletsPlans(c, ctx, base, weight) {
     if (ctx.hasChow) return [];
     var yaku = B.handYaku(ctx, c);
-    var out = [plan({ id: 'triplets', label: 'All Triplets', counts: c, shantenFn: E.tripletsShanten, faan: base + F.allTriplets + yaku, open: true, weight: weight })];
+    var out = [plan({ id: "triplets", label: "All Triplets", counts: c, shantenFn: E.tripletsShanten, faan: base + F.allTriplets + yaku, open: true, weight: weight })];
     if (!ctx.declared) {
-      out.push(plan({ id: 'concealed-triplets', label: 'Concealed Triplets', counts: c, shantenFn: E.tripletsShanten, faan: base - 1 + F.allConcealedTriplets, open: false, weight: weight }));
+      out.push(plan({ id: "concealed-triplets", label: "Concealed Triplets", counts: c, shantenFn: E.tripletsShanten, faan: base - 1 + F.allConcealedTriplets, open: false, weight: weight }));
     }
     return out;
   }
@@ -454,125 +454,125 @@
   // plain hand, weighed lightly, which MahjongBot.aimablePlans takes back out
   // unless it already has the minimum faan.
   function plans(c, ctx) {
-    var t = ctx.target || { id: 'standard' };
+    var t = ctx.target || { id: "standard" };
     // After a chow only that suit's flush is left: the usual plans already say so.
     if (B.chowCommitment(ctx)) return B.basePlans(c, ctx);
     var def = TARGET_BY_ID[t.id];
     var W = ctx.fast && !def.hard ? 1 : knobs().targetWeight;
     var base = B.baseFaan(ctx) + (ctx.concealed ? 1 : 0);
-    var plain = plan({ id: 'plain', label: 'a standard hand', counts: c, shantenFn: E.standardShanten, faan: base + B.handYaku(ctx, c), open: true, weight: 0.6 });
+    var plain = plan({ id: "plain", label: "a standard hand", counts: c, shantenFn: E.standardShanten, faan: base + B.handYaku(ctx, c), open: true, weight: 0.6 });
     var out;
     var su = t.suit;
     switch (t.id) {
-      case 'orphans':
+      case "orphans":
         // Thirteen Orphans to Seven Pairs or All Triplets, both with Mixed Orphans.
-        out = [B.makeSpecialPlan('orphans', c, ctx)];
+        out = [B.makeSpecialPlan("orphans", c, ctx)];
         if (!ctx.declared) {
-          var op = B.makeSpecialPlan('pairs', B.restrict(c, isOrphan), ctx);
+          var op = B.makeSpecialPlan("pairs", B.restrict(c, isOrphan), ctx);
           op.faan += F.mixedOrphans;
-          op.label = 'Seven Pairs';
+          op.label = "Seven Pairs";
           op.weight = W * 0.8;
           out.push(op);
         }
         out.push(terminalsPlan(c, ctx, base, 0.8));
         out[0].weight = W;
         break;
-      case 'gates':
-        out = [B.makeSpecialPlan('gates', c, ctx, { suit: su, start: t.start })].concat(flushPlans(c, ctx, su, base, 0.8, W));
+      case "gates":
+        out = [B.makeSpecialPlan("gates", c, ctx, { suit: su, start: t.start })].concat(flushPlans(c, ctx, su, base, 0.8, W));
         out[0].weight = W;
         break;
-      case 'winds':
+      case "winds":
         // Big Four Winds to Small Four Winds.
         out = groupPlans(c, ctx, [
-          { id: 'big-winds', label: 'Big Four Winds', group: WINDS, pungs: 4, pair: false, faan: LIMIT, weight: W },
-          { id: 'small-winds', label: 'Small Four Winds', group: WINDS, pungs: 3, pair: true, faan: base + F.smallWinds + B.handYaku(ctx, B.restrict(c, isDragon)), weight: 1 },
+          { id: "big-winds", label: "Big Four Winds", group: WINDS, pungs: 4, pair: false, faan: LIMIT, weight: W },
+          { id: "small-winds", label: "Small Four Winds", group: WINDS, pungs: 3, pair: true, faan: base + F.smallWinds + B.handYaku(ctx, B.restrict(c, isDragon)), weight: 1 },
         ]);
         break;
-      case 'dragons':
+      case "dragons":
         // Big Three Dragons to Small Three Dragons.
         out = groupPlans(c, ctx, [
-          { id: 'big-dragons', label: 'Big Three Dragons', group: DRAGONS, pungs: 3, pair: false, faan: base + F.greatDragons + B.handYaku(ctx, B.restrict(c, isWind)), weight: W },
-          { id: 'small-dragons', label: 'Small Three Dragons', group: DRAGONS, pungs: 2, pair: true, faan: base + F.smallDragons + B.handYaku(ctx, B.restrict(c, isWind)), weight: 1 },
+          { id: "big-dragons", label: "Big Three Dragons", group: DRAGONS, pungs: 3, pair: false, faan: base + F.greatDragons + B.handYaku(ctx, B.restrict(c, isWind)), weight: W },
+          { id: "small-dragons", label: "Small Three Dragons", group: DRAGONS, pungs: 2, pair: true, faan: base + F.smallDragons + B.handYaku(ctx, B.restrict(c, isWind)), weight: 1 },
         ]);
         break;
-      case 'terminals':
+      case "terminals":
         out = [terminalsPlan(c, ctx, base, W)].concat(tripletsPlans(c, ctx, base, 0.8));
         break;
-      case 'honors':
+      case "honors":
         // All Honors to Half Flush or All Triplets.
         out = [honorsPlan(c, ctx, base, W)];
         SUITS.forEach(function (s) { out = out.concat(flushPlans(c, ctx, s, base, 1, 0.6).slice(0, 1)); });
-        out = out.concat(tripletsPlans(c, ctx, base, 1).filter(function (p) { return p.id === 'triplets'; }));
+        out = out.concat(tripletsPlans(c, ctx, base, 1).filter(function (p) { return p.id === "triplets"; }));
         break;
-      case 'pairs': {
+      case "pairs": {
         out = [];
         if (!ctx.declared && !B.concealedShape(c).hasSet) {
-          var pp = B.makeSpecialPlan('pairs', c, ctx);
+          var pp = B.makeSpecialPlan("pairs", c, ctx);
           pp.weight = W;
           out.push(pp);
         }
         // Seven Pairs to All Triplets.
-        out = out.concat(tripletsPlans(c, ctx, base, 1).filter(function (p) { return p.id === 'triplets'; }));
+        out = out.concat(tripletsPlans(c, ctx, base, 1).filter(function (p) { return p.id === "triplets"; }));
         break;
       }
-      case 'full':
+      case "full":
         out = flushPlans(c, ctx, su, base, W * 0.9, W);
         break;
-      case 'half':
+      case "half":
         out = flushPlans(c, ctx, su, base, W, 1).concat(tripletsPlans(c, ctx, base, 0.8));
         break;
-      case 'triplets': {
+      case "triplets": {
         // Concealed Triplets to Seven Pairs to All Triplets, the triplets
         // better in one suit with honors.
-        out = weigh(tripletsPlans(c, ctx, base, 0.9), function (p) { return p.id === 'concealed-triplets'; }, W);
+        out = weigh(tripletsPlans(c, ctx, base, 0.9), function (p) { return p.id === "concealed-triplets"; }, W);
         var inHalf = function (j) { return suitOf(j) === su || j >= 27; };
         if (!ctx.hasChow && !hasSuitedMeld(ctx, su)) {
           var kept = B.restrict(c, inHalf);
           out.push(plan({
-            id: 'triplets', label: 'All Triplets', counts: kept, shantenFn: E.tripletsShanten,
+            id: "triplets", label: "All Triplets", counts: kept, shantenFn: E.tripletsShanten,
             faan: base + F.allTriplets + F.halfFlush + B.handYaku(ctx, kept), open: true, weight: 0.9,
           }));
         }
         if (!ctx.declared) {
-          var sp = B.makeSpecialPlan('pairs', c, ctx);
+          var sp = B.makeSpecialPlan("pairs", c, ctx);
           sp.weight = 1;
           out.push(sp);
         }
         break;
       }
-      case 'all-triplets':
-        out = weigh(tripletsPlans(c, ctx, base, W * 0.9), function (p) { return p.id === 'triplets'; }, W);
+      case "all-triplets":
+        out = weigh(tripletsPlans(c, ctx, base, W * 0.9), function (p) { return p.id === "triplets"; }, W);
         if (!ctx.declared) {
-          var ap = B.makeSpecialPlan('pairs', c, ctx);
+          var ap = B.makeSpecialPlan("pairs", c, ctx);
           ap.weight = W * 0.8;
           out.push(ap);
         }
         break;
-      case 'sequences':
-        out = weigh(B.basePlans(c, ctx), function (p) { return p.id === 'straights'; }, W);
+      case "sequences":
+        out = weigh(B.basePlans(c, ctx), function (p) { return p.id === "straights"; }, W);
         break;
       default:
         out = B.basePlans(c, ctx);
-        if (B.chaseSevenPairs(c, ctx)) out.push(B.makeSpecialPlan('pairs', c, ctx));
+        if (B.chaseSevenPairs(c, ctx)) out.push(B.makeSpecialPlan("pairs", c, ctx));
     }
     pivot(out, ctx, W);
     // Softer targets also weigh the bigger hands the same tiles can make
     // (MahjongBot.upgradePlans); the hard ones already are one.
-    if (!def.hard || t.id === 'full') {
+    if (!def.hard || t.id === "full") {
       var have = {};
       out.forEach(function (p) { have[p.id] = true; });
-      var more = t.id === 'pairs' ? B.pairsUpgrades(c, ctx) : B.upgradePlans(c, ctx);
-      if (t.id === 'full') more = more.filter(function (p) { return !p.keep; });
+      var more = t.id === "pairs" ? B.pairsUpgrades(c, ctx) : B.upgradePlans(c, ctx);
+      if (t.id === "full") more = more.filter(function (p) { return !p.keep; });
       more.forEach(function (p) { if (!have[p.id]) out.push(p); });
     }
     var keep = keepFor(t), reason = reasonFor(t);
     out.forEach(function (p) {
-      if (keep && !p.keep && (p.id === t.id || p.id === t.id + '-' + su || (t.id === 'sequences' && p.id === 'straights') || (t.id === 'winds' && p.id === 'big-winds'))) {
+      if (keep && !p.keep && (p.id === t.id || p.id === t.id + "-" + su || (t.id === "sequences" && p.id === "straights") || (t.id === "winds" && p.id === "big-winds"))) {
         p.keep = keep;
         p.reason = reason;
       }
     });
-    if (!out.some(function (p) { return p.id === 'plain'; })) out.push(plain);
+    if (!out.some(function (p) { return p.id === "plain"; })) out.push(plain);
     return out;
   }
 
@@ -581,22 +581,22 @@
    * ------------------------------------------------------------------ */
 
   var FAMILY = {
-    triplets: ['triplets', 'concealed-triplets', 'pairs'],
-    'all-triplets': ['triplets', 'concealed-triplets', 'pairs'],
-    pairs: ['pairs'],
-    sequences: ['straights'],
+    triplets: ["triplets", "concealed-triplets", "pairs"],
+    "all-triplets": ["triplets", "concealed-triplets", "pairs"],
+    pairs: ["pairs"],
+    sequences: ["straights"],
   };
 
   function leading(t, cand) {
     var best = cand.analysis && cand.analysis.best;
     var id = best && best.plan && best.plan.id;
     if (!id) return false;
-    if (t.id === 'half' || t.id === 'triplets') { if (id === 'half-' + t.suit) return true; }
+    if (t.id === "half" || t.id === "triplets") { if (id === "half-" + t.suit) return true; }
     return (FAMILY[t.id] || []).indexOf(id) !== -1;
   }
 
   // Targets built on pairs and pungs: they keep every pair and pung.
-  var SET_TARGETS = ['triplets', 'all-triplets', 'terminals', 'honors', 'winds', 'dragons'];
+  var SET_TARGETS = ["triplets", "all-triplets", "terminals", "honors", "winds", "dragons"];
 
   // Lower goes first, after the shared one-suit rules (MahjongBot's group
   // 0): -1 off-target tiles for a hard target, 1 off-target for a softer
@@ -606,7 +606,7 @@
   function priority(game, ctx, counts, cand, bestShanten) {
     if (!knobs().ownDiscards) return null;
     var i = cand.index;
-    var t = ctx.target || { id: 'standard' };
+    var t = ctx.target || { id: "standard" };
     var def = TARGET_BY_ID[t.id];
     var givingUp = ctx.wallLeft < knobs().giveUpWall && bestShanten >= 2;
     var pair = counts[i] === 2;
@@ -617,8 +617,8 @@
     var keep = keepFor(t);
     // Concealed Straights may keep one honor pair as its pair (MahjongBot's
     // shared rule picks which).
-    var eyes = t.id === 'sequences' && i === B.keptHonorPair(counts, ctx);
-    if (t.id === 'sequences' && !eyes && B.holdsDragon(game, i, cand.shanten)) return 4;
+    var eyes = t.id === "sequences" && i === B.keptHonorPair(counts, ctx);
+    if (t.id === "sequences" && !eyes && B.holdsDragon(game, i, cand.shanten)) return 4;
     // Off-target singles go at 1. A pair sits just behind them (1.25): it is
     // still an eye, and a pung if the hand pivots to All Triplets, so it
     // waits until those singles are gone. A hard target has no use for it,
@@ -632,21 +632,21 @@
     // singles (Thirteen Orphans needs only one of each, and keeps it). An
     // honor single like that goes on any hand: it can't make a run either.
     var dead = counts[i] === 1 && ctx.unseen[i] === 0;
-    var setsHand = SET_TARGETS.indexOf(t.id) !== -1 || t.id === 'pairs';
+    var setsHand = SET_TARGETS.indexOf(t.id) !== -1 || t.id === "pairs";
     // (1, not a half step: MahjongBot reads x.5 as a tile to keep.)
-    if (dead && t.id !== 'orphans' && (setsHand || i >= 27)) return 1;
+    if (dead && t.id !== "orphans" && (setsHand || i >= 27)) return 1;
     // A pair with no copy left can still be the eyes, but never a pung.
     if (pair && ctx.unseen[i] === 0 && SET_TARGETS.indexOf(t.id) !== -1) return 3;
-    if (t.id === 'gates' && !B.gatesTileNeeded(counts, t.start, i)) return 1;
+    if (t.id === "gates" && !B.gatesTileNeeded(counts, t.start, i)) return 1;
     if (B.isPungTile(game, i) && counts[i] < 2 && cand.shanten <= bestShanten) return 1;
     // Seven Pairs keeps pairs and lets a third copy go.
-    if (t.id === 'pairs') return pair ? 6 : 2;
+    if (t.id === "pairs") return pair ? 6 : 2;
     // Hands of sets keep every pair and pung, the pung longest.
     if (SET_TARGETS.indexOf(t.id) !== -1 && counts[i] >= 2) return counts[i] >= 3 ? 6 : 5;
     // Concealed Triplets sticks to one suit and honors where it can: a
     // single of another suit goes first.
-    if (t.id === 'triplets' && i < 27 && suitOf(i) !== t.suit) return 1;
-    if (i >= 27 && t.id !== 'sequences') {
+    if (t.id === "triplets" && i < 27 && suitOf(i) !== t.suit) return 1;
+    if (i >= 27 && t.id !== "sequences") {
       var shown = B.revealedCopies(game, i);
       var value = B.valueWeight(ctx, i) > 0;
       if (shown < 2 && (ctx.wallLeft > EARLY_WALL || value)) {
@@ -668,7 +668,7 @@
     var kongable = false;
     for (var i = 0; i < 34; i++) if (c[i] === 4 || (c[i] === 3 && ctx.unseen[i] > 0)) kongable = true;
     ctx.melds.forEach(function (m) {
-      if (m.type === 'pung' && ctx.unseen[E.tileIndex(m.tiles[0])] > 0) kongable = true;
+      if (m.type === "pung" && ctx.unseen[E.tileIndex(m.tiles[0])] > 0) kongable = true;
     });
     var pLast = ctx.wallLeft <= 8 ? 0.25 : ctx.wallLeft <= 16 ? 0.08 : 0;
     var pKong = kongable ? 0.12 : 0;
@@ -689,17 +689,17 @@
   function suitHand(su) {
     var fits = inSuit(su);
     return {
-      id: 'full-' + su, fits: fits, tiles: function (c, ctx) { return tilesOf(c, ctx, fits); },
+      id: "full-" + su, fits: fits, tiles: function (c, ctx) { return tilesOf(c, ctx, fits); },
       plans: function (c, ctx) {
         if (ctx.melds.some(function (m) { return !fits(E.tileIndex(m.tiles[0])); })) return [];
         var out = [{
-          id: 'full-' + su, suit: su, label: 'a Full Flush in ' + SUIT_LABELS[su],
+          id: "full-" + su, suit: su, label: "a Full Flush in " + SUIT_LABELS[su],
           counts: B.restrict(c, fits), shantenFn: E.standardShanten,
           faan: B.baseFaan(ctx) + (ctx.concealed ? 1 : 0) + 7, open: true,
         }];
         var start = SUITS.indexOf(su) * 9;
         if (!ctx.declared && B.nineGatesProgress(c, start) >= LOCK_TILES) {
-          out.push(B.makeSpecialPlan('gates', c, ctx, { suit: su, start: start }));
+          out.push(B.makeSpecialPlan("gates", c, ctx, { suit: su, start: start }));
         }
         return out;
       },
@@ -729,7 +729,7 @@
   }
 
   var ORPHAN_HAND = {
-    id: 'orphans', fits: isOrphan,
+    id: "orphans", fits: isOrphan,
     // Thirteen Orphans uses one of each kind, and one pair.
     tiles: function (c) {
       var kinds = 0, pair = 0;
@@ -741,17 +741,17 @@
       return kinds + pair;
     },
     plans: function (c, ctx) {
-      return !ctx.declared && B.orphansAlive(c, ctx) ? [B.makeSpecialPlan('orphans', c, ctx)] : [];
+      return !ctx.declared && B.orphansAlive(c, ctx) ? [B.makeSpecialPlan("orphans", c, ctx)] : [];
     },
   };
 
   var HANDS = SUITS.map(suitHand).concat([
     ORPHAN_HAND,
-    setsHand('all-honors', isHonor, ['all-honors', 'pairs-honors']),
-    setsHand('all-terminals', isTerminal, ['all-terminals', 'pairs-terminals']),
-    setsHand('mixed-orphans', isOrphan, ['mixed-orphans', 'pairs-orphans']),
-    groupHand('winds', isWind, ['small-winds', 'big-winds']),
-    groupHand('dragons', isDragon, ['small-dragons', 'big-dragons']),
+    setsHand("all-honors", isHonor, ["all-honors", "pairs-honors"]),
+    setsHand("all-terminals", isTerminal, ["all-terminals", "pairs-terminals"]),
+    setsHand("mixed-orphans", isOrphan, ["mixed-orphans", "pairs-orphans"]),
+    groupHand("winds", isWind, ["small-winds", "big-winds"]),
+    groupHand("dragons", isDragon, ["small-dragons", "big-dragons"]),
   ]);
 
   function handById(id) {
@@ -850,7 +850,7 @@
     if (!read) return chance;
     if (read.flush && !threat.flush) {
       var su = suitOf(i);
-      chance *= su === read.flush ? 1.8 : su === 'z' ? 1.1 : 0.6;
+      chance *= su === read.flush ? 1.8 : su === "z" ? 1.1 : 0.6;
     }
     if (read.honors && i >= 27 && threat.unseen[i] >= 2) chance *= 1.6;
     if (read.sequences) {
@@ -931,7 +931,7 @@
 
   function lockRank(x, c, ctx, lock) {
     var i = x.index;
-    if (lock.id !== 'orphans' && deadHonor(c, ctx, i)) return 0;
+    if (lock.id !== "orphans" && deadHonor(c, ctx, i)) return 0;
     // A lone dragon nobody has shown outlasts even the hand's own tiles.
     if (B.loneDragon(ctx.game, c, i) && !winsNow(x)) return 5;
     var dead = lock.sets && c[i] === 1 && ctx.unseen[i] === 0;
@@ -947,7 +947,7 @@
     if (deadHonor(c, ctx, i)) return 0;
     if (winsNow(x)) return 1;
     if (B.loneDragon(ctx.game, c, i)) return 8;
-    var straights = ctx.leadPlan && ctx.leadPlan.id === 'straights';
+    var straights = ctx.leadPlan && ctx.leadPlan.id === "straights";
     var eyes = straights ? B.keptHonorPair(c, ctx) : null;
     // The pair is already kept, so every other honor goes before a number
     // tile. A finished straight waits behind a loose tile.
@@ -1005,17 +1005,17 @@
       return an.shanten === 0 || !!(p && p.faan >= min);
     };
     var best = function (list) { return list.sort(function (a, b) { return b.score - a.score; })[0]; };
-    var sets = res.options.filter(function (o) { return (o.decision.type === 'pung' || o.decision.type === 'kong') && quick(o); });
+    var sets = res.options.filter(function (o) { return (o.decision.type === "pung" || o.decision.type === "kong") && quick(o); });
     if (sets.length) return best(sets).decision;
     // A chow of a suit the player before it feeds, or tosses after a chow of
     // their own (they need only their suit): more of it will come.
     var read = ctx.leftRead;
     var known = !!(read && (read.feeds || read.keeps || (read.tosses && read.tosses.length)));
     var chows = known ? res.options.filter(function (o) {
-      return o.decision.type === 'chow' && quick(o) && B.chowAllowed(o, res, game, ctx);
+      return o.decision.type === "chow" && quick(o) && B.chowAllowed(o, res, game, ctx);
     }) : [];
     if (chows.length) return best(chows).decision;
-    return { type: 'pass' };
+    return { type: "pass" };
   }
 
   // Takes any claim that moves the hand closer and can still score. On a lock,
@@ -1024,9 +1024,9 @@
     // A dragon or a scoring wind (seat or round) is always punged, early or
     // late and whatever the hand, unless it is going for Thirteen Orphans.
     var ti = E.tileIndex(opts.tile);
-    var orphans = (ctx.target && ctx.target.id === 'orphans') || (savedLock(ctx) && savedLock(ctx).id === 'orphans');
+    var orphans = (ctx.target && ctx.target.id === "orphans") || (savedLock(ctx) && savedLock(ctx).id === "orphans");
     if ((opts.pung || opts.kong) && ti >= 27 && B.valueWeight(ctx, ti) > 0 && !orphans) {
-      return { type: opts.pung ? 'pung' : 'kong' };
+      return { type: opts.pung ? "pung" : "kong" };
     }
     var own = knobs().ownClaims;
     // The early-game rule is the default claims' (ownClaims off or 'lock').
@@ -1035,8 +1035,8 @@
     if (!own) return null;
     var lock = savedLock(ctx);
     // 'lock': its own claims only while locked onto a big hand; the shared ones otherwise.
-    if (own === 'lock' && !lock) return null;
-    if (lock && !lock.fits(E.tileIndex(opts.tile))) return { type: 'pass' };
+    if (own === "lock" && !lock) return null;
+    if (lock && !lock.fits(E.tileIndex(opts.tile))) return { type: "pass" };
     var min = game.settings.minFaan;
     var now = res.stay.shanten, pick = null;
     res.options.forEach(function (o) {
@@ -1048,11 +1048,11 @@
       if (!pick || an.shanten < pick.analysis.shanten ||
         (an.shanten === pick.analysis.shanten && an.util > pick.analysis.util)) pick = o;
     });
-    return pick ? pick.decision : { type: 'pass' };
+    return pick ? pick.decision : { type: "pass" };
   }
 
   function bigKongOk(kong, ctx) {
-    return !ctx.lock || (ctx.lock.fits(E.tileIndex(kong.tile)) && ctx.lock.id !== 'orphans');
+    return !ctx.lock || (ctx.lock.fits(E.tileIndex(kong.tile)) && ctx.lock.id !== "orphans");
   }
 
 
@@ -1061,7 +1061,7 @@
    * ------------------------------------------------------------------ */
 
   var bot = B.createStrategy({
-    id: 'jorge-yau',
+    id: "jorge-yau",
     hooks: {
       context: context,
       hand: lockHand,
@@ -1088,4 +1088,4 @@
 
   if (node) module.exports = bot;
   else root.MahjongJorgeYau = bot;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== "undefined" ? globalThis : this);

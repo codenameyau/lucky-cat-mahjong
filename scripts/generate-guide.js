@@ -14,20 +14,20 @@
  *   PREVIEW=1 node scripts/generate-guide.js   # also writes PNG previews
  */
 
-'use strict';
+"use strict";
 
-const fs = require('fs');
-const path = require('path');
-const puppeteer = require('puppeteer');
-const sharp = require('sharp');
+const fs = require("fs");
+const path = require("path");
+const puppeteer = require("puppeteer");
+const sharp = require("sharp");
 
-const ROOT = path.join(__dirname, '..');
-const TILES_DIR = path.join(ROOT, 'tiles');
-const ASSETS_DIR = path.join(ROOT, 'assets');
+const ROOT = path.join(__dirname, "..");
+const TILES_DIR = path.join(ROOT, "tiles");
+const ASSETS_DIR = path.join(ROOT, "assets");
 
 const OUTPUT = process.argv[2]
   ? path.resolve(process.argv[2])
-  : path.join(ASSETS_DIR, 'lucky-cat-mahjong-rules.pdf');
+  : path.join(ASSETS_DIR, "lucky-cat-mahjong-rules.pdf");
 
 /* ------------------------------------------------------------------ *
  * Asset loading
@@ -35,55 +35,55 @@ const OUTPUT = process.argv[2]
 
 function dataUri(file, mime) {
   const buf = fs.readFileSync(file);
-  return `data:${mime};base64,${buf.toString('base64')}`;
+  return `data:${mime};base64,${buf.toString("base64")}`;
 }
 
 function dataUriBuf(buf, mime) {
-  return `data:${mime};base64,${buf.toString('base64')}`;
+  return `data:${mime};base64,${buf.toString("base64")}`;
 }
 
 function readJson(file) {
-  return JSON.parse(fs.readFileSync(file, 'utf8'));
+  return JSON.parse(fs.readFileSync(file, "utf8"));
 }
 
-const SITE = readJson(path.join(ROOT, 'data', 'site.json'));
-const WEBSITE = fs.readFileSync(path.join(ROOT, 'CNAME'), 'utf8').trim();
+const SITE = readJson(path.join(ROOT, "data", "site.json"));
+const WEBSITE = fs.readFileSync(path.join(ROOT, "CNAME"), "utf8").trim();
 
-const LOGO_URI = dataUri(path.join(ROOT, 'logo.png'), 'image/png');
+const LOGO_URI = dataUri(path.join(ROOT, "logo.png"), "image/png");
 const QR_URI = dataUri(
-  path.join(ASSETS_DIR, 'lucky-cat-mahjong-qr-code-branded.png'),
-  'image/png'
+  path.join(ASSETS_DIR, "lucky-cat-mahjong-qr-code-branded.png"),
+  "image/png"
 );
 const SETUP_URI = dataUri(
-  path.join(ASSETS_DIR, 'mahjong-setup.png'),
-  'image/png'
+  path.join(ASSETS_DIR, "mahjong-setup.png"),
+  "image/png"
 );
 const FONT_URI = dataUri(
-  path.join(ROOT, 'fonts', 'kn-yuanmo-sc.ttf'),
-  'font/ttf'
+  path.join(ROOT, "fonts", "kn-yuanmo-sc.ttf"),
+  "font/ttf"
 );
 
 /* ------------------------------------------------------------------ *
  * Tile id -> file map (mirrors js/points.js)
  * ------------------------------------------------------------------ */
 
-function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+function pad2(n) { return n < 10 ? "0" + n : "" + n; }
 
 const TILE_FILES = {};
-[['c', 7, 'characters'], ['d', 16, 'circles'], ['b', 25, 'bamboos']].forEach(
+[["c", 7, "characters"], ["d", 16, "circles"], ["b", 25, "bamboos"]].forEach(
   function (entry) {
     const key = entry[0], off = entry[1], word = entry[2];
     for (let v = 1; v <= 9; v++) {
-      TILE_FILES[key + v] = pad2(off + v) + '-' + word + '-' + v + '.svg';
+      TILE_FILES[key + v] = pad2(off + v) + "-" + word + "-" + v + ".svg";
     }
   }
 );
 Object.assign(TILE_FILES, {
-  we: '04-east-wind.svg', ws: '05-south-wind.svg',
-  ww: '06-west-wind.svg', wn: '07-north-wind.svg',
-  dr: '03-red-dragon.svg', dg: '02-green-dragon.svg', dw: '01-white-dragon.svg',
-  f1: '39-plum.svg', f2: '40-orchid.svg', f3: '41-chrysanthemum.svg', f4: '42-bamboo.svg',
-  s1: '35-spring.svg', s2: '36-summer.svg', s3: '37-autumn.svg', s4: '38-winter.svg',
+  we: "04-east-wind.svg", ws: "05-south-wind.svg",
+  ww: "06-west-wind.svg", wn: "07-north-wind.svg",
+  dr: "03-red-dragon.svg", dg: "02-green-dragon.svg", dw: "01-white-dragon.svg",
+  f1: "39-plum.svg", f2: "40-orchid.svg", f3: "41-chrysanthemum.svg", f4: "42-bamboo.svg",
+  s1: "35-spring.svg", s2: "36-summer.svg", s3: "37-autumn.svg", s4: "38-winter.svg",
 });
 
 /*
@@ -99,7 +99,7 @@ const tileCache = {};
 async function tileUri(id) {
   if (tileCache[id]) return tileCache[id];
   const file = TILE_FILES[id];
-  if (!file) throw new Error('Unknown tile id: ' + id);
+  if (!file) throw new Error("Unknown tile id: " + id);
 
   const svgPath = path.join(TILES_DIR, file);
   // Match Points Guide padding (~9%/8%/6%/8%) → art ≈ 84% × 85% of face.
@@ -108,7 +108,7 @@ async function tileUri(id) {
   const artH = Math.round(TILE_FACE_H * 0.88);
   const art = await sharp(svgPath, { density: 400 })
     .resize(artW, artH, {
-      fit: 'contain',
+      fit: "contain",
       background: { r: 0, g: 0, b: 0, alpha: 0 },
     })
     .png()
@@ -122,27 +122,27 @@ async function tileUri(id) {
       background: TILE_IVORY,
     },
   })
-    .composite([{ input: art, gravity: 'centre' }])
+    .composite([{ input: art, gravity: "centre" }])
     .png()
     .toBuffer();
 
-  const uri = dataUriBuf(face, 'image/png');
+  const uri = dataUriBuf(face, "image/png");
   tileCache[id] = uri;
   return uri;
 }
 
 function tile(id, cls) {
   const uri = tileCache[id];
-  if (!uri) throw new Error('Tile not pre-rendered: ' + id + ' (call prepareTiles first)');
-  return `<span class="tile-face ${cls || ''}"><img src="${uri}" alt=""></span>`;
+  if (!uri) throw new Error("Tile not pre-rendered: " + id + " (call prepareTiles first)");
+  return `<span class="tile-face ${cls || ""}"><img src="${uri}" alt=""></span>`;
 }
 
 function meldRow(groups, cls) {
   return `<span class="meld-row">${groups
     .map(function (g) {
-      return `<span class="meld">${g.map(function (id) { return tile(id, cls); }).join('')}</span>`;
+      return `<span class="meld">${g.map(function (id) { return tile(id, cls); }).join("")}</span>`;
     })
-    .join('')}</span>`;
+    .join("")}</span>`;
 }
 
 async function prepareTiles(ids) {
@@ -152,18 +152,18 @@ async function prepareTiles(ids) {
 
 /** One of each unique tile in the Hong Kong set. */
 const TILE_SET_ROWS = [
-  { label: 'Characters', ids: ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9'] },
-  { label: 'Circles', ids: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9'] },
-  { label: 'Bamboos', ids: ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9'] },
-  { label: 'Honors', ids: ['we', 'ws', 'ww', 'wn', 'dg', 'dw', 'dr'] },
-  { label: 'Flowers & Seasons', ids: ['f1', 'f2', 'f3', 'f4', 's1', 's2', 's3', 's4'] },
+  { label: "Characters", ids: ["c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9"] },
+  { label: "Circles", ids: ["d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9"] },
+  { label: "Bamboos", ids: ["b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9"] },
+  { label: "Honors", ids: ["we", "ws", "ww", "wn", "dg", "dw", "dr"] },
+  { label: "Flowers & Seasons", ids: ["f1", "f2", "f3", "f4", "s1", "s2", "s3", "s4"] },
 ];
 
 /* ------------------------------------------------------------------ *
  * Content data
  * ------------------------------------------------------------------ */
 
-const ABOUT_PARAS = SITE.about.body.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+const ABOUT_PARAS = SITE.about.body.split("\n").map(function (s) { return s.trim(); }).filter(Boolean);
 const IG_HANDLE = SITE.instagram.handle;
 
 /*
@@ -172,124 +172,124 @@ const IG_HANDLE = SITE.instagram.handle;
  * Matches js/points.js evaluation rules.
  */
 const BONUS_TREE = [
-  { name: 'Self-Draw', faan: '1', note: 'draw the winning tile from the wall' },
-  { name: 'Concealed', faan: '1', note: 'no claimed discards except the winning tile' },
-  { name: 'Win on Last Tile', faan: '1', note: 'win on the last tile of the wall' },
-  { name: 'Robbing the Kong', faan: '1', note: 'win on a tile used to form a kong' },
-  { name: 'Win by Kong', faan: '1', note: 'win on a replacement tile after a kong', families: ['kong'] },
-  { name: 'Win by Double Kong', faan: '8', note: 'win on a tile from a kong, which itself was from a kong', families: ['kong'] },
-  { name: 'Heavenly Hand', faan: 'Limit', note: 'dealer wins on their initial 14-tile hand', families: ['opening'] },
-  { name: 'Earthly Hand', faan: 'Limit', note: 'win on dealer’s first discard', families: ['opening'] },
+  { name: "Self-Draw", faan: "1", note: "draw the winning tile from the wall" },
+  { name: "Concealed", faan: "1", note: "no claimed discards except the winning tile" },
+  { name: "Win on Last Tile", faan: "1", note: "win on the last tile of the wall" },
+  { name: "Robbing the Kong", faan: "1", note: "win on a tile used to form a kong" },
+  { name: "Win by Kong", faan: "1", note: "win on a replacement tile after a kong", families: ["kong"] },
+  { name: "Win by Double Kong", faan: "8", note: "win on a tile from a kong, which itself was from a kong", families: ["kong"] },
+  { name: "Heavenly Hand", faan: "Limit", note: "dealer wins on their initial 14-tile hand", families: ["opening"] },
+  { name: "Earthly Hand", faan: "Limit", note: "win on dealer’s first discard", families: ["opening"] },
 ];
 
 const HONORS_TREE = [
-  { name: 'Dragons', faan: '1 each', note: 'dragon triplet or quad', families: ['dragons'] },
-  { name: 'Seat Wind', faan: '1', note: 'wind triplet or quad', families: ['winds'] },
-  { name: 'Round Wind', faan: '1', note: 'wind triplet or quad', families: ['winds'] },
+  { name: "Dragons", faan: "1 each", note: "dragon triplet or quad", families: ["dragons"] },
+  { name: "Seat Wind", faan: "1", note: "wind triplet or quad", families: ["winds"] },
+  { name: "Round Wind", faan: "1", note: "wind triplet or quad", families: ["winds"] },
 ];
 
 const FLOWER_TREE = [
-  { name: 'No Flowers', faan: '1', note: 'no flower or season tiles' },
-  { name: 'Seat Flower', faan: '1', note: 'flower matching your seat' },
-  { name: 'Seat Season', faan: '1', note: 'season matching your seat' },
-  { name: 'Four Flowers', faan: '2', note: 'have all four flowers' },
-  { name: 'Four Seasons', faan: '2', note: 'have all four seasons' },
-  { name: 'Seven Robbing One', faan: '5', note: 'seven flowers and seasons; can rob the remaining tile from another player when drawn; auto-win' },
-  { name: 'Eight Immortals Crossing the Sea', faan: 'Limit', note: 'eight flowers and seasons; auto-win' },
+  { name: "No Flowers", faan: "1", note: "no flower or season tiles" },
+  { name: "Seat Flower", faan: "1", note: "flower matching your seat" },
+  { name: "Seat Season", faan: "1", note: "season matching your seat" },
+  { name: "Four Flowers", faan: "2", note: "have all four flowers" },
+  { name: "Four Seasons", faan: "2", note: "have all four seasons" },
+  { name: "Seven Robbing One", faan: "5", note: "seven flowers and seasons; can rob the remaining tile from another player when drawn; auto-win" },
+  { name: "Eight Immortals Crossing the Sea", faan: "Limit", note: "eight flowers and seasons; auto-win" },
 ];
 
 const EXAMPLE_HANDS = [
   {
-    name: 'Chicken Hand', faan: '0 faan',
-    note: 'Mixed suits, sequences, and triplets',
-    groups: [['c2', 'c3', 'c4'], ['d5', 'd5', 'd5'], ['b7', 'b8', 'b9'], ['we', 'we', 'we'], ['d2', 'd2']],
+    name: "Chicken Hand", faan: "0 faan",
+    note: "Mixed suits, sequences, and triplets",
+    groups: [["c2", "c3", "c4"], ["d5", "d5", "d5"], ["b7", "b8", "b9"], ["we", "we", "we"], ["d2", "d2"]],
   },
   {
-    name: 'All Sequences', faan: '1 faan',
-    note: 'Four sequences and a pair',
-    groups: [['c2', 'c3', 'c4'], ['d5', 'd6', 'd7'], ['b4', 'b5', 'b6'], ['b7', 'b8', 'b9'], ['d2', 'd2']],
+    name: "All Sequences", faan: "1 faan",
+    note: "Four sequences and a pair",
+    groups: [["c2", "c3", "c4"], ["d5", "d6", "d7"], ["b4", "b5", "b6"], ["b7", "b8", "b9"], ["d2", "d2"]],
   },
   {
-    name: 'Half Flush', faan: '3 faan',
-    note: 'One suit plus honors',
-    families: ['flush'],
-    groups: [['c2', 'c3', 'c4'], ['c5', 'c6', 'c7'], ['c7', 'c8', 'c9'], ['c3', 'c3', 'c3'], ['dr', 'dr']],
+    name: "Half Flush", faan: "3 faan",
+    note: "One suit plus honors",
+    families: ["flush"],
+    groups: [["c2", "c3", "c4"], ["c5", "c6", "c7"], ["c7", "c8", "c9"], ["c3", "c3", "c3"], ["dr", "dr"]],
   },
   {
-    name: 'All Triplets', faan: '3 faan',
-    note: 'Four triplets/quads. Worth 10 faan if hand is concealed',
-    families: ['triplets'],
-    groups: [['c2', 'c2', 'c2'], ['d5', 'd5', 'd5'], ['b8', 'b8', 'b8'], ['ws', 'ws', 'ws'], ['d2', 'd2']],
+    name: "All Triplets", faan: "3 faan",
+    note: "Four triplets/quads. Worth 10 faan if hand is concealed",
+    families: ["triplets"],
+    groups: [["c2", "c2", "c2"], ["d5", "d5", "d5"], ["b8", "b8", "b8"], ["ws", "ws", "ws"], ["d2", "d2"]],
   },
   {
-    name: 'Mixed Orphans', faan: '1 faan',
-    note: '1s, 9s, and honors only',
-    families: ['terminals'],
-    groups: [['c1', 'c1', 'c1'], ['c9', 'c9', 'c9'], ['d1', 'd1', 'd1'], ['we', 'we', 'we'], ['b9', 'b9']],
+    name: "Mixed Orphans", faan: "1 faan",
+    note: "1s, 9s, and honors only",
+    families: ["terminals"],
+    groups: [["c1", "c1", "c1"], ["c9", "c9", "c9"], ["d1", "d1", "d1"], ["we", "we", "we"], ["b9", "b9"]],
   },
   {
-    name: 'Seven Pairs', faan: '4 faan',
-    note: 'Seven unique pairs',
-    groups: [['c1', 'c1'], ['d2', 'd2'], ['b3', 'b3'], ['c5', 'c5'], ['d7', 'd7'], ['we', 'we'], ['dr', 'dr']],
+    name: "Seven Pairs", faan: "4 faan",
+    note: "Seven unique pairs",
+    groups: [["c1", "c1"], ["d2", "d2"], ["b3", "b3"], ["c5", "c5"], ["d7", "d7"], ["we", "we"], ["dr", "dr"]],
   },
   {
-    name: 'Small Three Dragons', faan: '5 faan',
-    note: 'Two dragon triplets/quads and a dragon pair',
-    families: ['dragons'],
-    groups: [['dg', 'dg', 'dg'], ['dw', 'dw', 'dw'], ['dr', 'dr'], ['c2', 'c3', 'c4'], ['b5', 'b5', 'b5']],
+    name: "Small Three Dragons", faan: "5 faan",
+    note: "Two dragon triplets/quads and a dragon pair",
+    families: ["dragons"],
+    groups: [["dg", "dg", "dg"], ["dw", "dw", "dw"], ["dr", "dr"], ["c2", "c3", "c4"], ["b5", "b5", "b5"]],
   },
   {
-    name: 'Small Four Winds', faan: '6 faan',
-    note: 'Three wind triplets/quads and a wind pair',
-    families: ['winds'],
-    groups: [['we', 'we', 'we'], ['ws', 'ws', 'ws'], ['ww', 'ww', 'ww'], ['wn', 'wn'], ['c5', 'c5', 'c5']],
+    name: "Small Four Winds", faan: "6 faan",
+    note: "Three wind triplets/quads and a wind pair",
+    families: ["winds"],
+    groups: [["we", "we", "we"], ["ws", "ws", "ws"], ["ww", "ww", "ww"], ["wn", "wn"], ["c5", "c5", "c5"]],
   },
   {
-    name: 'Full Flush', faan: '7 faan',
-    note: 'All one suit, no honors',
-    families: ['flush'],
-    groups: [['b1', 'b2', 'b3'], ['b4', 'b5', 'b6'], ['b7', 'b8', 'b9'], ['b8', 'b8', 'b8'], ['b5', 'b5']],
+    name: "Full Flush", faan: "7 faan",
+    note: "All one suit, no honors",
+    families: ["flush"],
+    groups: [["b1", "b2", "b3"], ["b4", "b5", "b6"], ["b7", "b8", "b9"], ["b8", "b8", "b8"], ["b5", "b5"]],
   },
   {
-    name: 'Big Three Dragons', faan: '8 faan',
-    note: 'A triplet/quad of each dragon',
-    families: ['dragons'],
-    groups: [['dg', 'dg', 'dg'], ['dw', 'dw', 'dw'], ['dr', 'dr', 'dr'], ['c2', 'c3', 'c4'], ['b5', 'b5']],
+    name: "Big Three Dragons", faan: "8 faan",
+    note: "A triplet/quad of each dragon",
+    families: ["dragons"],
+    groups: [["dg", "dg", "dg"], ["dw", "dw", "dw"], ["dr", "dr", "dr"], ["c2", "c3", "c4"], ["b5", "b5"]],
   },
   {
-    name: 'All Terminals', faan: '10 faan',
-    note: 'Only 1s and 9s',
-    families: ['terminals'],
-    groups: [['c1', 'c1', 'c1'], ['c9', 'c9', 'c9'], ['d1', 'd1', 'd1'], ['b9', 'b9', 'b9'], ['d9', 'd9']],
+    name: "All Terminals", faan: "10 faan",
+    note: "Only 1s and 9s",
+    families: ["terminals"],
+    groups: [["c1", "c1", "c1"], ["c9", "c9", "c9"], ["d1", "d1", "d1"], ["b9", "b9", "b9"], ["d9", "d9"]],
   },
   {
-    name: 'All Honors', faan: '10 faan',
-    note: 'Only wind and dragon tiles',
-    groups: [['we', 'we', 'we'], ['ws', 'ws', 'ws'], ['dg', 'dg', 'dg'], ['dr', 'dr', 'dr'], ['dw', 'dw']],
+    name: "All Honors", faan: "10 faan",
+    note: "Only wind and dragon tiles",
+    groups: [["we", "we", "we"], ["ws", "ws", "ws"], ["dg", "dg", "dg"], ["dr", "dr", "dr"], ["dw", "dw"]],
   },
   {
-    name: 'Thirteen Orphans', faan: 'Limit',
-    note: 'One of each terminal and honor, plus one duplicate',
-    families: ['terminals'],
-    groups: [['c1', 'c9', 'd1'], ['d9', 'b1', 'b9'], ['we', 'ws', 'ww'], ['wn', 'dg', 'dw'], ['dr', 'dr']],
+    name: "Thirteen Orphans", faan: "Limit",
+    note: "One of each terminal and honor, plus one duplicate",
+    families: ["terminals"],
+    groups: [["c1", "c9", "d1"], ["d9", "b1", "b9"], ["we", "ws", "ww"], ["wn", "dg", "dw"], ["dr", "dr"]],
   },
   {
-    name: 'Big Four Winds', faan: 'Limit',
-    note: 'A triplet/quad of each wind, plus a pair',
-    families: ['winds'],
-    groups: [['we', 'we', 'we'], ['ws', 'ws', 'ws'], ['ww', 'ww', 'ww'], ['wn', 'wn', 'wn'], ['dr', 'dr']],
+    name: "Big Four Winds", faan: "Limit",
+    note: "A triplet/quad of each wind, plus a pair",
+    families: ["winds"],
+    groups: [["we", "we", "we"], ["ws", "ws", "ws"], ["ww", "ww", "ww"], ["wn", "wn", "wn"], ["dr", "dr"]],
   },
   {
-    name: 'Nine Gates', faan: 'Limit',
-    note: 'One suit of 1112345678999 plus one. Must be concealed',
-    families: ['flush'],
-    groups: [['c1', 'c1', 'c1'], ['c2', 'c3', 'c4'], ['c5', 'c5'], ['c6', 'c7', 'c8'], ['c9', 'c9', 'c9']],
+    name: "Nine Gates", faan: "Limit",
+    note: "One suit of 1112345678999 plus one. Must be concealed",
+    families: ["flush"],
+    groups: [["c1", "c1", "c1"], ["c2", "c3", "c4"], ["c5", "c5"], ["c6", "c7", "c8"], ["c9", "c9", "c9"]],
   },
   {
-    name: 'Four Quads', faan: 'Limit',
-    note: 'Four kongs plus a pair',
-    families: ['triplets'],
-    groups: [['c1', 'c1', 'c1', 'c1'], ['d5', 'd5', 'd5', 'd5'], ['b8', 'b8', 'b8', 'b8'], ['we', 'we', 'we', 'we'], ['dr', 'dr']],
+    name: "Four Quads", faan: "Limit",
+    note: "Four kongs plus a pair",
+    families: ["triplets"],
+    groups: [["c1", "c1", "c1", "c1"], ["d5", "d5", "d5", "d5"], ["b8", "b8", "b8", "b8"], ["we", "we", "we", "we"], ["dr", "dr"]],
   },
 ];
 
@@ -301,34 +301,34 @@ function treeRows(nodes, depth) {
   depth = depth || 0;
   return nodes.map(function (n) {
     const indent = depth > 0
-      ? `<span class="tree-branch">${'└ '}</span>`
-      : '';
-    const note = n.note ? `<span class="tree-note"> — ${n.note}</span>` : '';
+      ? `<span class="tree-branch">${"└ "}</span>`
+      : "";
+    const note = n.note ? `<span class="tree-note"> — ${n.note}</span>` : "";
     const row = `<tr class="depth-${depth}">
       <td class="fn depth-${depth}">${indent}<span class="fname${familyClass(n.families)}">${n.name}</span>${note}</td>
       <td class="fv">${n.faan}</td>
     </tr>`;
-    const kids = n.children ? treeRows(n.children, depth + 1) : '';
+    const kids = n.children ? treeRows(n.children, depth + 1) : "";
     return row + kids;
-  }).join('');
+  }).join("");
 }
 
 function faanTree(title, nodes, legend) {
   return `<div class="score-block">
     <h4>${title}</h4>
-    ${legend ? `<p class="tree-legend">${legend}</p>` : ''}
+    ${legend ? `<p class="tree-legend">${legend}</p>` : ""}
     <table class="faan"><tbody>${treeRows(nodes)}</tbody></table>
   </div>`;
 }
 
 function familyClass(families) {
-  return families && families[0] ? ' family-' + families[0] : '';
+  return families && families[0] ? " family-" + families[0] : "";
 }
 
 function exampleHand(h) {
   const tiles = h.groups.reduce(function (all, g) { return all.concat(g); }, [])
-    .map(function (id) { return tile(id, 'tile-ex'); })
-    .join('');
+    .map(function (id) { return tile(id, "tile-ex"); })
+    .join("");
   return `<div class="example">
     <div class="example-head">
       <div class="example-title">
@@ -345,9 +345,9 @@ function tileSetHtml() {
   const setRows = TILE_SET_ROWS.map(function (row) {
     return `<div class="tile-set-row">
       <span class="tile-set-lbl">${row.label}</span>
-      <span class="tile-set-tiles">${row.ids.map(function (id) { return tile(id, 'tile-sm'); }).join('')}</span>
+      <span class="tile-set-tiles">${row.ids.map(function (id) { return tile(id, "tile-sm"); }).join("")}</span>
     </div>`;
-  }).join('');
+  }).join("");
   return `<div class="tile-set">
     <h3 class="tile-set-head">The Tiles</h3>
     ${setRows}
@@ -355,21 +355,21 @@ function tileSetHtml() {
 }
 
 const BONUS_TILES = [
-  { id: 'f1', name: 'Plum' },
-  { id: 'f2', name: 'Orchid' },
-  { id: 'f3', name: 'Chrysanthemum' },
-  { id: 'f4', name: 'Bamboo' },
-  { id: 's1', name: 'Spring' },
-  { id: 's2', name: 'Summer' },
-  { id: 's3', name: 'Autumn' },
-  { id: 's4', name: 'Winter' },
+  { id: "f1", name: "Plum" },
+  { id: "f2", name: "Orchid" },
+  { id: "f3", name: "Chrysanthemum" },
+  { id: "f4", name: "Bamboo" },
+  { id: "s1", name: "Spring" },
+  { id: "s2", name: "Summer" },
+  { id: "s3", name: "Autumn" },
+  { id: "s4", name: "Winter" },
 ];
 
 function bonusTilesHtml() {
   return `<div class="bonus-tiles">
     ${BONUS_TILES.map(function (t) {
-      return `<span class="bonus-tile">${tile(t.id, 'tile-sm')}<span class="bonus-name">${t.name}</span></span>`;
-    }).join('')}
+      return `<span class="bonus-tile">${tile(t.id, "tile-sm")}<span class="bonus-name">${t.name}</span></span>`;
+    }).join("")}
   </div>`;
 }
 
@@ -379,15 +379,15 @@ function bonusTilesHtml() {
 
 function applyEmphasis(text) {
   return String(text)
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>');
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>");
 }
 
 function coverPanel() {
   // Keep About Us readable — use first paragraph mainly if both are long
   const aboutHtml = ABOUT_PARAS.map(function (p) {
-    return `<p>${applyEmphasis(p).replace(/Lucky Cat Mahjong/g, '<strong>Lucky Cat Mahjong</strong>')}</p>`;
-  }).join('');
+    return `<p>${applyEmphasis(p).replace(/Lucky Cat Mahjong/g, "<strong>Lucky Cat Mahjong</strong>")}</p>`;
+  }).join("");
   return `<section class="panel cover">
     <div class="cover-top">
       <img class="cover-logo" src="${LOGO_URI}" alt="Lucky Cat Mahjong logo">
@@ -477,28 +477,28 @@ function conceptsPanel() {
         <h3>The Melds</h3>
         <div class="concept-list">
           <div class="concept-row">
-            <div class="concept-tiles">${meldRow([['c2', 'c3', 'c4']], 'tile-sm')}</div>
+            <div class="concept-tiles">${meldRow([["c2", "c3", "c4"]], "tile-sm")}</div>
             <div class="concept-text">
               <div class="concept-name">Chi <span class="concept-role">Sequence</span></div>
               Three tiles in a consecutive run of one suit (e.g. 2-3-4 Characters). Only claimable from the player on your left.
             </div>
           </div>
           <div class="concept-row">
-            <div class="concept-tiles">${meldRow([['d5', 'd5', 'd5']], 'tile-sm')}</div>
+            <div class="concept-tiles">${meldRow([["d5", "d5", "d5"]], "tile-sm")}</div>
             <div class="concept-text">
               <div class="concept-name">Pung <span class="concept-role">Triplet</span></div>
               Three identical tiles. You may claim a matching discard from any player. Has priority over a chi.
             </div>
           </div>
           <div class="concept-row">
-            <div class="concept-tiles">${meldRow([['b8', 'b8', 'b8', 'b8']], 'tile-sm')}</div>
+            <div class="concept-tiles">${meldRow([["b8", "b8", "b8", "b8"]], "tile-sm")}</div>
             <div class="concept-text">
               <div class="concept-name">Kong <span class="concept-role">Quad</span></div>
               Four identical tiles. Claim a discard to make an exposed kong, or declare a concealed kong or add it to an exposed meld when you draw the fourth yourself. After either, draw a replacement tile from the end of the wall. Has priority over a pung.
             </div>
           </div>
           <div class="concept-row">
-            <div class="concept-tiles">${meldRow([['dr', 'dr']], 'tile-sm')}</div>
+            <div class="concept-tiles">${meldRow([["dr", "dr"]], "tile-sm")}</div>
             <div class="concept-text">
               <div class="concept-name">Pair <span class="concept-role">The Eyes</span></div>
               Two identical tiles that complete the hand. Every winning hand needs exactly one pair.
@@ -535,18 +535,18 @@ function scoringPanel() {
 
       <div class="score-cols">
         <div class="score-col">
-          ${faanTree('Bonus &amp; Situational', BONUS_TREE)}
+          ${faanTree("Bonus &amp; Situational", BONUS_TREE)}
         </div>
         <div class="score-col">
-          ${faanTree('Flowers &amp; Seasons', FLOWER_TREE)}
-          ${faanTree('Honors', HONORS_TREE)}
+          ${faanTree("Flowers &amp; Seasons", FLOWER_TREE)}
+          ${faanTree("Honors", HONORS_TREE)}
         </div>
       </div>
 
       <div class="examples">
         <h4>All Hand Patterns</h4>
         <div class="examples-grid">
-          ${EXAMPLE_HANDS.map(exampleHand).join('')}
+          ${EXAMPLE_HANDS.map(exampleHand).join("")}
         </div>
       </div>
     </div>
@@ -915,29 +915,29 @@ function collectTileIds() {
     row.ids.forEach(function (id) { ids.push(id); });
   });
   // Concepts page examples
-  ['c2', 'c3', 'c4', 'd5', 'b8', 'dr',
-    'f1', 'f2', 'f3', 'f4', 's1', 's2', 's3', 's4'].forEach(function (id) { ids.push(id); });
+  ["c2", "c3", "c4", "d5", "b8", "dr",
+    "f1", "f2", "f3", "f4", "s1", "s2", "s3", "s4"].forEach(function (id) { ids.push(id); });
   return ids;
 }
 
 async function main() {
-  process.stdout.write('Rasterizing tile faces... ');
+  process.stdout.write("Rasterizing tile faces... ");
   await prepareTiles(collectTileIds());
-  console.log(Object.keys(tileCache).length + ' tiles');
+  console.log(Object.keys(tileCache).length + " tiles");
 
   const html = buildHtml();
 
-  const browser = await puppeteer.launch({ headless: 'new' });
+  const browser = await puppeteer.launch({ headless: "new" });
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    await page.evaluateHandle('document.fonts.ready');
+    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.evaluateHandle("document.fonts.ready");
 
     fs.mkdirSync(path.dirname(OUTPUT), { recursive: true });
     await page.pdf({
       path: OUTPUT,
-      width: '11in',
-      height: '8.5in',
+      width: "11in",
+      height: "8.5in",
       printBackground: true,
       preferCSSPageSize: true,
       margin: { top: 0, right: 0, bottom: 0, left: 0 },
@@ -945,20 +945,20 @@ async function main() {
 
     if (process.env.PREVIEW) {
       await page.setViewport({ width: 1056, height: 816, deviceScaleFactor: 2 });
-      const sheets = await page.$$('.sheet');
+      const sheets = await page.$$(".sheet");
       for (let i = 0; i < sheets.length; i++) {
-        const out = OUTPUT.replace(/\.pdf$/i, '') + `-preview-${i + 1}.png`;
+        const out = OUTPUT.replace(/\.pdf$/i, "") + `-preview-${i + 1}.png`;
         await sheets[i].screenshot({ path: out });
-        console.log('Preview written: ' + out);
+        console.log("Preview written: " + out);
       }
     }
   } finally {
     await browser.close();
   }
 
-  console.log('Booklet PDF written: ' + OUTPUT);
-  console.log('Print double-sided, flip on the LONG edge, then fold once down the middle.');
-  console.log('  Sheet 1 (outside): Page 4 | Page 1   ·   Sheet 2 (inside): Page 2 | Page 3');
+  console.log("Booklet PDF written: " + OUTPUT);
+  console.log("Print double-sided, flip on the LONG edge, then fold once down the middle.");
+  console.log("  Sheet 1 (outside): Page 4 | Page 1   ·   Sheet 2 (inside): Page 2 | Page 3");
 }
 
 main().catch(function (err) {

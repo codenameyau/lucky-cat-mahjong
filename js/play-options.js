@@ -11,11 +11,11 @@
    ?sound and ?instant (for testing) carry over to the game page. */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
-  var SETTINGS_KEY = 'lcm-play-settings';
-  var AUTOSAVE_KEY = 'lcm-play-autosave';
-  var GAME_PAGE = '/playing-mahjong/';
+  var SETTINGS_KEY = "lcm-play-settings";
+  var AUTOSAVE_KEY = "lcm-play-autosave";
+  var GAME_PAGE = "/playing-mahjong/";
 
   function readJson(key, fallback) {
     try {
@@ -29,17 +29,17 @@
   }
 
   function track(name, params) {
-    if (typeof root.gtag === 'function') root.gtag('event', name, params || {});
+    if (typeof root.gtag === "function") root.gtag("event", name, params || {});
   }
 
   // The game page's address: the request, and a quiet or instant visit kept so.
   function gameUrl(params, search) {
     var parts = [];
-    Object.keys(params || {}).forEach(function (k) { parts.push(k + '=' + encodeURIComponent(params[k])); });
-    var sound = /[?&]sound=(0|1)(?:&|$)/.exec(search || '');
-    if (sound) parts.push('sound=' + sound[1]);
-    if (/[?&]instant=1(?:&|$)/.test(search || '')) parts.push('instant=1');
-    return GAME_PAGE + (parts.length ? '?' + parts.join('&') : '');
+    Object.keys(params || {}).forEach(function (k) { parts.push(k + "=" + encodeURIComponent(params[k])); });
+    var sound = /[?&]sound=(0|1)(?:&|$)/.exec(search || "");
+    if (sound) parts.push("sound=" + sound[1]);
+    if (/[?&]instant=1(?:&|$)/.test(search || "")) parts.push("instant=1");
+    return GAME_PAGE + (parts.length ? "?" + parts.join("&") : "");
   }
 
   function savedGame() {
@@ -48,16 +48,16 @@
   }
 
   function init(document) {
-    var form = document.getElementById('play-settings');
+    var form = document.getElementById("play-settings");
     if (!form) return;
     var html = document.documentElement;
-    var resumeBtn = document.getElementById('play-resume');
-    var startBtn = document.getElementById('play-start');
-    var learnBtn = document.getElementById('play-learn');
+    var resumeBtn = document.getElementById("play-resume");
+    var startBtn = document.getElementById("play-start");
+    var learnBtn = document.getElementById("play-learn");
 
     function mode() {
-      var el = form.querySelector('input[name="mode"]:checked');
-      return el ? el.value : 'practice';
+      var el = form.querySelector("input[name=\"mode\"]:checked");
+      return el ? el.value : "practice";
     }
 
     // Two buttons. The red one is Resume game when there's a saved game in
@@ -67,18 +67,18 @@
       var game = savedGame();
       var saved = game && game.settings && game.settings.mode;
       var here = !!game && (!saved || saved === mode());
-      html.classList.toggle('play-has-save', here);
-      if (resumeBtn) { resumeBtn.hidden = !here; resumeBtn.classList.add('btn-primary'); resumeBtn.classList.remove('btn-white'); }
-      if (startBtn) { startBtn.hidden = here; startBtn.textContent = 'Start new game'; startBtn.classList.add('btn-primary'); startBtn.classList.remove('btn-white'); }
-      if (learnBtn) { learnBtn.hidden = false; learnBtn.classList.add('btn-white'); learnBtn.classList.remove('btn-primary'); }
-      html.classList.add('play-settled');
+      html.classList.toggle("play-has-save", here);
+      if (resumeBtn) { resumeBtn.hidden = !here; resumeBtn.classList.add("btn-primary"); resumeBtn.classList.remove("btn-white"); }
+      if (startBtn) { startBtn.hidden = here; startBtn.textContent = "Start new game"; startBtn.classList.add("btn-primary"); startBtn.classList.remove("btn-white"); }
+      if (learnBtn) { learnBtn.hidden = false; learnBtn.classList.add("btn-white"); learnBtn.classList.remove("btn-primary"); }
+      html.classList.add("play-settled");
     }
 
     function saveMode() {
       var saved = readJson(SETTINGS_KEY, {});
       saved.mode = mode();
       // Payouts are always full spicy, including games saved as half spicy.
-      saved.spicy = 'full';
+      saved.spicy = "full";
       writeJson(SETTINGS_KEY, saved);
       return saved;
     }
@@ -87,58 +87,58 @@
       root.location.assign(gameUrl(params, root.location.search));
     }
 
-    form.addEventListener('change', function () {
+    form.addEventListener("change", function () {
       saveMode();
-      html.classList.remove('play-mode-practice', 'play-mode-payout');
-      html.classList.add('play-mode-' + mode());
-      track('play_mode_select', { mode: mode() });
+      html.classList.remove("play-mode-practice", "play-mode-payout");
+      html.classList.add("play-mode-" + mode());
+      track("play_mode_select", { mode: mode() });
       // The buttons swap colors at once: reading a layout value applies the
       // new colors while their fade is off, so nothing fades when it's back on.
-      html.classList.add('play-swapping');
+      html.classList.add("play-swapping");
       paint();
       void html.offsetWidth;
-      html.classList.remove('play-swapping');
+      html.classList.remove("play-swapping");
     });
 
-    form.addEventListener('submit', function (e) {
+    form.addEventListener("submit", function (e) {
       e.preventDefault();
       saveMode();
-      track('play_start_click', { mode: mode() });
+      track("play_start_click", { mode: mode() });
       go({ new: 1 });
     });
 
     if (resumeBtn) {
-      resumeBtn.addEventListener('click', function () {
-        track('play_resume_click', {});
+      resumeBtn.addEventListener("click", function () {
+        track("play_resume_click", {});
         go({});
       });
     }
 
     if (learnBtn) {
-      learnBtn.addEventListener('click', function () {
-        track('play_learn_click', {});
+      learnBtn.addEventListener("click", function () {
+        track("play_learn_click", {});
         go({ learn: 1 });
       });
     }
 
-    var credits = document.querySelector('.play-credits');
+    var credits = document.querySelector(".play-credits");
     if (credits) {
-      credits.addEventListener('click', function (e) {
-        var link = e.target.closest('a');
-        if (link) track('play_credit_click', { link: link.textContent });
+      credits.addEventListener("click", function (e) {
+        var link = e.target.closest("a");
+        if (link) track("play_credit_click", { link: link.textContent });
       });
     }
 
     // Back to this page from the game (the browser may show it from its
     // back-forward cache): the saved game may have changed.
-    root.addEventListener('pageshow', paint);
+    root.addEventListener("pageshow", paint);
     paint();
   }
 
   var api = { gameUrl: gameUrl, init: init };
-  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
   else if (root.document) {
-    if (root.document.readyState === 'loading') root.document.addEventListener('DOMContentLoaded', function () { init(root.document); });
+    if (root.document.readyState === "loading") root.document.addEventListener("DOMContentLoaded", function () { init(root.document); });
     else init(root.document);
   }
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== "undefined" ? globalThis : this);

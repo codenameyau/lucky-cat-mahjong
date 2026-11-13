@@ -1,508 +1,508 @@
 /* "Which Mahjong Tile Are You?" quiz: questions, scoring, Google Form submission, results and sharing. */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
-  var FORM_ACTION = 'https://docs.google.com/forms/d/e/1FAIpQLSe5Xq5gywjpKD9_218x9GJNXR-1qmhd8v9Ih6B4FnIjOkucQA/formResponse';
+  var FORM_ACTION = "https://docs.google.com/forms/d/e/1FAIpQLSe5Xq5gywjpKD9_218x9GJNXR-1qmhd8v9Ih6B4FnIjOkucQA/formResponse";
 
   // Google Form entry IDs. `result` is a dropdown whose options must match each tile's `name` exactly,
   // otherwise Google rejects the whole submission.
   var FORM_FIELDS = {
-    name: 'entry.2005620554',
-    instagram: 'entry.1065046570',
-    zip: 'entry.1166974658',
-    skill: 'entry.839337160',
-    result: 'entry.409406812',
+    name: "entry.2005620554",
+    instagram: "entry.1065046570",
+    zip: "entry.1166974658",
+    skill: "entry.839337160",
+    result: "entry.409406812",
   };
 
-  var SKILL_LEVELS = ['Beginner', 'Intermediate', 'Advanced'];
-  var STORAGE_KEY = 'lcm-tile-quiz';
-  var SITE_URL = 'https://luckycatmahjong.com/which-mahjong-tiles-are-you/';
+  var SKILL_LEVELS = ["Beginner", "Intermediate", "Advanced"];
+  var STORAGE_KEY = "lcm-tile-quiz";
+  var SITE_URL = "https://luckycatmahjong.com/which-mahjong-tiles-are-you/";
 
   var TILES = [
     {
-      id: 'one-bamboo',
-      name: '1 Bamboo',
-      title: 'The Little Birdie',
-      emoji: '🐦',
-      tagline: 'Knows the tea before it\'s even been poured.',
-      description: 'Fun fact: the 1 Bamboo is a bird, and players literally nickname it "little chicken." Same energy. You\'re the group chat\'s unofficial news anchor, dropping 4-minute voice memos that start with "okay, don\'t be mad." You don\'t gossip, you share updates. Everyone acts annoyed, but they\'re refreshing their phone waiting for your next drop.',
+      id: "one-bamboo",
+      name: "1 Bamboo",
+      title: "The Little Birdie",
+      emoji: "🐦",
+      tagline: "Knows the tea before it's even been poured.",
+      description: "Fun fact: the 1 Bamboo is a bird, and players literally nickname it \"little chicken.\" Same energy. You're the group chat's unofficial news anchor, dropping 4-minute voice memos that start with \"okay, don't be mad.\" You don't gossip, you share updates. Everyone acts annoyed, but they're refreshing their phone waiting for your next drop.",
       why: [
-        'Your screen time report is a cry for help, but the content is elite.',
-        'You know everyone\'s birthday, ex, and MBTI.',
-        'You heard about your cousin\'s engagement before your mom did.',
+        "Your screen time report is a cry for help, but the content is elite.",
+        "You know everyone's birthday, ex, and MBTI.",
+        "You heard about your cousin's engagement before your mom did.",
       ],
-      greenFlag: 'Remembers the tiny thing you said once in March.',
-      redFlag: '"I won\'t tell anyone."',
-      bestie: 'south-wind',
-      enemy: 'north-wind',
+      greenFlag: "Remembers the tiny thing you said once in March.",
+      redFlag: "\"I won't tell anyone.\"",
+      bestie: "south-wind",
+      enemy: "north-wind",
     },
     {
-      id: 'nine-bamboo',
-      name: '9 Bamboo',
-      title: 'The Type A Icon',
-      emoji: '📋',
-      tagline: 'Has a Notion template for their Notion templates.',
-      description: 'Nine sticks, perfectly lined up? That\'s you before your 7am alarm. Five-year plan, color-coded calendar, and a backup itinerary for the backup itinerary. You\'ve Venmo-requested a friend for $3.47 and itemized the tip. People call you "a lot," then call you first the second anything goes wrong. Chaos fears you.',
+      id: "nine-bamboo",
+      name: "9 Bamboo",
+      title: "The Type A Icon",
+      emoji: "📋",
+      tagline: "Has a Notion template for their Notion templates.",
+      description: "Nine sticks, perfectly lined up? That's you before your 7am alarm. Five-year plan, color-coded calendar, and a backup itinerary for the backup itinerary. You've Venmo-requested a friend for $3.47 and itemized the tip. People call you \"a lot,\" then call you first the second anything goes wrong. Chaos fears you.",
       why: [
-        'Your Google Calendar is a work of art (and a threat).',
-        'You\'ve typed "per my last email" and meant violence.',
-        'Low-key your parents\' favorite. They\'ll never say it out loud.',
+        "Your Google Calendar is a work of art (and a threat).",
+        "You've typed \"per my last email\" and meant violence.",
+        "Low-key your parents' favorite. They'll never say it out loud.",
       ],
-      greenFlag: 'Shows up 10 minutes early with snacks and a plan.',
-      redFlag: 'Splits the hot pot bill down to who ate the extra fish balls.',
-      bestie: 'east-wind',
-      enemy: 'blank-tile',
+      greenFlag: "Shows up 10 minutes early with snacks and a plan.",
+      redFlag: "Splits the hot pot bill down to who ate the extra fish balls.",
+      bestie: "east-wind",
+      enemy: "blank-tile",
     },
     {
-      id: 'one-character',
-      name: '1 Character',
-      title: 'The Main Character',
-      emoji: '👑',
-      tagline: 'Walks to the bodega like it\'s the opening scene of an A24 movie.',
-      description: 'Number one, baby. One of one. You romanticize your commute, narrate your life in your head, and have a playlist for every mood, including "staring out the 7 train window like it\'s a music video." Some call it delulu. You call it manifesting. Either way, the camera is always on you, and you are giving the people a show.',
+      id: "one-character",
+      name: "1 Character",
+      title: "The Main Character",
+      emoji: "👑",
+      tagline: "Walks to the bodega like it's the opening scene of an A24 movie.",
+      description: "Number one, baby. One of one. You romanticize your commute, narrate your life in your head, and have a playlist for every mood, including \"staring out the 7 train window like it's a music video.\" Some call it delulu. You call it manifesting. Either way, the camera is always on you, and you are giving the people a show.",
       why: [
-        'You\'ve done a GRWM for a trip to H Mart.',
-        'You\'ve posed for a "candid" at least 40 times.',
-        'Your camera roll has 200 photos of the same pose and you need all of them.',
+        "You've done a GRWM for a trip to H Mart.",
+        "You've posed for a \"candid\" at least 40 times.",
+        "Your camera roll has 200 photos of the same pose and you need all of them.",
       ],
-      greenFlag: 'Hypes yourself up AND hypes your friends up.',
-      redFlag: 'Every story somehow ends up being about you.',
-      bestie: 'red-dragon',
-      enemy: 'blank-tile',
+      greenFlag: "Hypes yourself up AND hypes your friends up.",
+      redFlag: "Every story somehow ends up being about you.",
+      bestie: "red-dragon",
+      enemy: "blank-tile",
     },
     {
-      id: 'nine-character',
-      name: '9 Character',
-      title: 'The Big Spender',
-      emoji: '🛍️',
-      tagline: '"It was on sale." (It was not on sale.)',
-      description: 'The character on this tile means ten thousand, which is roughly how many online shopping tabs you have open right now. You treat yourself, you treat your friends, you treat the barista. You\'ll fight three aunties for the check at dim sum, and you\'ll win. Your bank account is in its villain era, but your vibes are immaculate.',
+      id: "nine-character",
+      name: "9 Character",
+      title: "The Big Spender",
+      emoji: "🛍️",
+      tagline: "\"It was on sale.\" (It was not on sale.)",
+      description: "The character on this tile means ten thousand, which is roughly how many online shopping tabs you have open right now. You treat yourself, you treat your friends, you treat the barista. You'll fight three aunties for the check at dim sum, and you'll win. Your bank account is in its villain era, but your vibes are immaculate.",
       why: [
-        'Your delivery driver knows you by name.',
-        'You\'ve justified a purchase with "cost per wear."',
-        'You grabbed the dim sum check so fast your uncle is still mad about it.',
+        "Your delivery driver knows you by name.",
+        "You've justified a purchase with \"cost per wear.\"",
+        "You grabbed the dim sum check so fast your uncle is still mad about it.",
       ],
-      greenFlag: 'Generous with gifts, time, and snacks.',
-      redFlag: 'Your "little treat" budget has its own zip code.',
-      bestie: 'green-dragon',
-      enemy: 'white-dragon',
+      greenFlag: "Generous with gifts, time, and snacks.",
+      redFlag: "Your \"little treat\" budget has its own zip code.",
+      bestie: "green-dragon",
+      enemy: "white-dragon",
     },
     {
-      id: 'one-dot',
-      name: '1 Dot',
-      title: 'The Snack Era',
-      emoji: '🥟',
-      tagline: 'Round, warm, and thinking about dumplings.',
-      description: 'The 1 Dot looks like the top of a mooncake, and so are you: soft, comforting, and a little bit sweet. You plan your whole day around meals, your camera roll is 80% food, and you have never once said no to "want to split something?" Like your mom, you always have snacks in your bag. Everyone feels at home around you because you feed them like it\'s your job.',
+      id: "one-dot",
+      name: "1 Dot",
+      title: "The Snack Era",
+      emoji: "🥟",
+      tagline: "Round, warm, and thinking about dumplings.",
+      description: "The 1 Dot looks like the top of a mooncake, and so are you: soft, comforting, and a little bit sweet. You plan your whole day around meals, your camera roll is 80% food, and you have never once said no to \"want to split something?\" Like your mom, you always have snacks in your bag. Everyone feels at home around you because you feed them like it's your job.",
       why: [
-        'You\'ve ranked every soup dumpling spot within a 2-mile radius.',
-        'Your love language is "have you eaten yet?"',
-        'You\'re the reason the group always ends up at hot pot.',
+        "You've ranked every soup dumpling spot within a 2-mile radius.",
+        "Your love language is \"have you eaten yet?\"",
+        "You're the reason the group always ends up at hot pot.",
       ],
-      greenFlag: 'Feeds everyone. Literally everyone.',
-      redFlag: 'Gets hangry and becomes a completely different person.',
-      bestie: 'autumn',
-      enemy: 'orchid',
+      greenFlag: "Feeds everyone. Literally everyone.",
+      redFlag: "Gets hangry and becomes a completely different person.",
+      bestie: "autumn",
+      enemy: "orchid",
     },
     {
-      id: 'nine-dot',
-      name: '9 Dot',
-      title: 'The Overthinker',
-      emoji: '🌀',
-      tagline: '47 tabs open in the browser. 47 more in the brain.',
-      description: 'Nine dots, nine thoughts per second, zero chill. You\'ve rehearsed a phone call to order takeout. You reread a text you sent four hours ago to check the "tone." At the mahjong table, you\'ve held the same tile for three turns because it might be someone\'s winning tile. But that big brain makes you the funniest, most self-aware person in the room. Your 3am thoughts are elite content.',
+      id: "nine-dot",
+      name: "9 Dot",
+      title: "The Overthinker",
+      emoji: "🌀",
+      tagline: "47 tabs open in the browser. 47 more in the brain.",
+      description: "Nine dots, nine thoughts per second, zero chill. You've rehearsed a phone call to order takeout. You reread a text you sent four hours ago to check the \"tone.\" At the mahjong table, you've held the same tile for three turns because it might be someone's winning tile. But that big brain makes you the funniest, most self-aware person in the room. Your 3am thoughts are elite content.",
       why: [
-        'You\'ve typed "haha" and deleted it 6 times.',
-        'You\'ve planned for a scenario with a 0.01% chance of happening.',
-        'Your Notes app is a museum of unhinged thoughts.',
+        "You've typed \"haha\" and deleted it 6 times.",
+        "You've planned for a scenario with a 0.01% chance of happening.",
+        "Your Notes app is a museum of unhinged thoughts.",
       ],
-      greenFlag: 'Notices everything. Thoughtful to the core.',
-      redFlag: 'Spirals for a full day if someone texts "can we talk?"',
-      bestie: 'chrysanthemum',
-      enemy: 'bamboo',
+      greenFlag: "Notices everything. Thoughtful to the core.",
+      redFlag: "Spirals for a full day if someone texts \"can we talk?\"",
+      bestie: "chrysanthemum",
+      enemy: "bamboo",
     },
     {
-      id: 'green-dragon',
-      name: 'Green Dragon',
-      title: 'The Hustler',
-      emoji: '💸',
-      tagline: 'Its character means "get rich." You took that personally.',
-      description: 'The character on this tile is the same "fat" as in "gung hei fat choy," and you\'ve had a side hustle since flipping Pokémon cards in third grade. A resale business, a Depop, a "personal brand": you\'ve tried them all and somehow turned a profit. You manifest, you grind, you check your stocks during Lunar New Year dinner. The Lucky Cat approves.',
+      id: "green-dragon",
+      name: "Green Dragon",
+      title: "The Hustler",
+      emoji: "💸",
+      tagline: "Its character means \"get rich.\" You took that personally.",
+      description: "The character on this tile is the same \"fat\" as in \"gung hei fat choy,\" and you've had a side hustle since flipping Pokémon cards in third grade. A resale business, a Depop, a \"personal brand\": you've tried them all and somehow turned a profit. You manifest, you grind, you check your stocks during Lunar New Year dinner. The Lucky Cat approves.",
       why: [
-        'You\'ve said "let\'s circle back" in a casual conversation.',
-        'Your red envelope money went straight into an index fund.',
-        'Low-key the luckiest person anyone knows.',
+        "You've said \"let's circle back\" in a casual conversation.",
+        "Your red envelope money went straight into an index fund.",
+        "Low-key the luckiest person anyone knows.",
       ],
-      greenFlag: 'Ambitious, and makes it look fun.',
-      redFlag: 'Turns a friend\'s birthday dinner into a networking event.',
-      bestie: 'nine-character',
-      enemy: 'summer',
+      greenFlag: "Ambitious, and makes it look fun.",
+      redFlag: "Turns a friend's birthday dinner into a networking event.",
+      bestie: "nine-character",
+      enemy: "summer",
     },
     {
-      id: 'red-dragon',
-      name: 'Red Dragon',
-      title: 'The Final Boss',
-      emoji: '🔥',
-      tagline: 'Center of attention? It\'s literally in the name.',
-      description: 'The character on this tile means "center," and it also means "hit the target." You do both. You walk in and the room rearranges itself around you. At the mahjong table you don\'t play to participate: you play to win, slam the winning tile, and post about it. People call you intimidating. You prefer "iconic." Even the aunties are a little scared of you.',
+      id: "red-dragon",
+      name: "Red Dragon",
+      title: "The Final Boss",
+      emoji: "🔥",
+      tagline: "Center of attention? It's literally in the name.",
+      description: "The character on this tile means \"center,\" and it also means \"hit the target.\" You do both. You walk in and the room rearranges itself around you. At the mahjong table you don't play to participate: you play to win, slam the winning tile, and post about it. People call you intimidating. You prefer \"iconic.\" Even the aunties are a little scared of you.",
       why: [
-        'You\'ve won an argument you were wrong in.',
-        'Your "just threw this on" fit took 45 minutes.',
-        'You slam your winning tile so hard the whole table jumps.',
+        "You've won an argument you were wrong in.",
+        "Your \"just threw this on\" fit took 45 minutes.",
+        "You slam your winning tile so hard the whole table jumps.",
       ],
-      greenFlag: 'Defends your friends like it\'s an Olympic sport.',
-      redFlag: 'Ultra competitive. Even at Uno. Especially at Uno.',
-      bestie: 'one-character',
-      enemy: 'bamboo',
+      greenFlag: "Defends your friends like it's an Olympic sport.",
+      redFlag: "Ultra competitive. Even at Uno. Especially at Uno.",
+      bestie: "one-character",
+      enemy: "bamboo",
     },
     {
-      id: 'white-dragon',
-      name: 'White Dragon',
-      title: 'The Quiet Luxury',
-      emoji: '🤍',
-      tagline: 'Beige apartment. Loud standards.',
-      description: 'The White Dragon is a clean blue frame and absolutely nothing else: the original minimalist. Your apartment is beige, your closet is a capsule, and your 10-step skincare routine exists so your face can look like zero steps. You\'re calm, curated, and a little mysterious. Nobody knows what you\'re thinking, and you like it that way.',
+      id: "white-dragon",
+      name: "White Dragon",
+      title: "The Quiet Luxury",
+      emoji: "🤍",
+      tagline: "Beige apartment. Loud standards.",
+      description: "The White Dragon is a clean blue frame and absolutely nothing else: the original minimalist. Your apartment is beige, your closet is a capsule, and your 10-step skincare routine exists so your face can look like zero steps. You're calm, curated, and a little mysterious. Nobody knows what you're thinking, and you like it that way.",
       why: [
-        'You own at least 3 of the exact same white tee.',
-        'Zero unread notifications (genuinely unhinged behavior).',
-        'Shoes off at the door, no exceptions.',
+        "You own at least 3 of the exact same white tee.",
+        "Zero unread notifications (genuinely unhinged behavior).",
+        "Shoes off at the door, no exceptions.",
       ],
-      greenFlag: 'Keeps the peace and the countertops clean.',
-      redFlag: 'Silently judges anyone who leaves dishes in the sink.',
-      bestie: 'north-wind',
-      enemy: 'nine-character',
+      greenFlag: "Keeps the peace and the countertops clean.",
+      redFlag: "Silently judges anyone who leaves dishes in the sink.",
+      bestie: "north-wind",
+      enemy: "nine-character",
     },
     {
-      id: 'east-wind',
-      name: 'East Wind',
-      title: 'The Group Chat CEO',
-      emoji: '🌅',
-      tagline: 'The sun rises in the east. So do you, at 6am, unprompted.',
-      description: 'In mahjong, East is the dealer, and in life you\'re the one dealing out the plans. Pure East Coast energy: you walk fast, text faster, and say "okay, so who\'s booking?" and then book it. Calendar invite sent, table for 8 secured, and you remembered who\'s vegetarian. Without you, the group chat is 12 people saying "I\'m down" and nobody doing anything.',
+      id: "east-wind",
+      name: "East Wind",
+      title: "The Group Chat CEO",
+      emoji: "🌅",
+      tagline: "The sun rises in the east. So do you, at 6am, unprompted.",
+      description: "In mahjong, East is the dealer, and in life you're the one dealing out the plans. Pure East Coast energy: you walk fast, text faster, and say \"okay, so who's booking?\" and then book it. Calendar invite sent, table for 8 secured, and you remembered who's vegetarian. Without you, the group chat is 12 people saying \"I'm down\" and nobody doing anything.",
       why: [
-        'You\'ve made a group poll for a casual dinner.',
-        'You wake up before your alarm and you\'re annoyingly happy about it.',
-        'You got a table for 10 at dim sum on a Sunday with no wait.',
+        "You've made a group poll for a casual dinner.",
+        "You wake up before your alarm and you're annoyingly happy about it.",
+        "You got a table for 10 at dim sum on a Sunday with no wait.",
       ],
-      greenFlag: 'Makes things actually happen.',
-      redFlag: 'Takes it personally when people don\'t vote in the poll.',
-      bestie: 'nine-bamboo',
-      enemy: 'winter',
+      greenFlag: "Makes things actually happen.",
+      redFlag: "Takes it personally when people don't vote in the poll.",
+      bestie: "nine-bamboo",
+      enemy: "winter",
     },
     {
-      id: 'south-wind',
-      name: 'South Wind',
-      title: 'The Golden Retriever',
-      emoji: '🐶',
-      tagline: 'Warm breeze, warm heart, zero thoughts, all vibes.',
-      description: 'South Wind brings the warm weather, and you bring warm, SoCal energy everywhere you go. You\'re the hype person, the "OMG YOU LOOK SO GOOD" commenter, the friend who greets everyone like it\'s been years (it\'s been two days). You\'d make friends with every auntie in the 99 Ranch checkout line, and every one of them would try to set you up with their kid.',
+      id: "south-wind",
+      name: "South Wind",
+      title: "The Golden Retriever",
+      emoji: "🐶",
+      tagline: "Warm breeze, warm heart, zero thoughts, all vibes.",
+      description: "South Wind brings the warm weather, and you bring warm, SoCal energy everywhere you go. You're the hype person, the \"OMG YOU LOOK SO GOOD\" commenter, the friend who greets everyone like it's been years (it's been two days). You'd make friends with every auntie in the 99 Ranch checkout line, and every one of them would try to set you up with their kid.",
       why: [
-        'You hug people you met 5 minutes ago.',
-        'You\'ve cried at a dog video this week.',
-        'Aunties love you. Like, a concerning amount.',
+        "You hug people you met 5 minutes ago.",
+        "You've cried at a dog video this week.",
+        "Aunties love you. Like, a concerning amount.",
       ],
-      greenFlag: 'Everyone\'s biggest fan, no conditions.',
-      redFlag: 'Cannot lie. Your face gives it away instantly.',
-      bestie: 'one-bamboo',
-      enemy: 'north-wind',
+      greenFlag: "Everyone's biggest fan, no conditions.",
+      redFlag: "Cannot lie. Your face gives it away instantly.",
+      bestie: "one-bamboo",
+      enemy: "north-wind",
     },
     {
-      id: 'west-wind',
-      name: 'West Wind',
-      title: 'The Sunset Romantic',
-      emoji: '🌇',
-      tagline: 'Golden hour is a personality, and you have it.',
-      description: 'The sun sets in the west and so does your heart, every single evening. You romanticize everything: your iced coffee, your commute, a mildly nice cloud. Your camera roll is 40% sunsets, and every single one is "the best one yet." You\'ve written a poem in your Notes app about a stranger at the boba shop. Hopeless romantic? Yes. Thriving? Also yes.',
+      id: "west-wind",
+      name: "West Wind",
+      title: "The Sunset Romantic",
+      emoji: "🌇",
+      tagline: "Golden hour is a personality, and you have it.",
+      description: "The sun sets in the west and so does your heart, every single evening. You romanticize everything: your iced coffee, your commute, a mildly nice cloud. Your camera roll is 40% sunsets, and every single one is \"the best one yet.\" You've written a poem in your Notes app about a stranger at the boba shop. Hopeless romantic? Yes. Thriving? Also yes.",
       why: [
-        'You\'ve stopped mid-sentence to photograph the sky.',
-        'Your Spotify Wrapped is just yearning.',
-        'You\'ve rewatched the same K-drama finale 4 times and cried every time.',
+        "You've stopped mid-sentence to photograph the sky.",
+        "Your Spotify Wrapped is just yearning.",
+        "You've rewatched the same K-drama finale 4 times and cried every time.",
       ],
-      greenFlag: 'Makes ordinary days feel like a movie.',
-      redFlag: 'Falls in love with anyone who holds the door open.',
-      bestie: 'orchid',
-      enemy: 'east-wind',
+      greenFlag: "Makes ordinary days feel like a movie.",
+      redFlag: "Falls in love with anyone who holds the door open.",
+      bestie: "orchid",
+      enemy: "east-wind",
     },
     {
-      id: 'north-wind',
-      name: 'North Wind',
-      title: 'The Cool Introvert',
-      emoji: '🎧',
-      tagline: 'Cold exterior. Warm interior. Do not disturb.',
-      description: 'North Wind is chilly, mysterious, and comes from somewhere far away. People think you\'re aloof, but your social battery is just at 2%. You have three close friends, AirPods that never come out, and a deadpan humor that absolutely destroys. At family parties you hide in the back room with the cousins and a phone charger. Once someone gets in, they\'re lucky for life.',
+      id: "north-wind",
+      name: "North Wind",
+      title: "The Cool Introvert",
+      emoji: "🎧",
+      tagline: "Cold exterior. Warm interior. Do not disturb.",
+      description: "North Wind is chilly, mysterious, and comes from somewhere far away. People think you're aloof, but your social battery is just at 2%. You have three close friends, AirPods that never come out, and a deadpan humor that absolutely destroys. At family parties you hide in the back room with the cousins and a phone charger. Once someone gets in, they're lucky for life.",
       why: [
-        'You\'ve pretended not to see someone you know at H Mart.',
-        'Your social battery has a 2-hour lifespan.',
-        'Deadpan jokes that hit 10 seconds later.',
+        "You've pretended not to see someone you know at H Mart.",
+        "Your social battery has a 2-hour lifespan.",
+        "Deadpan jokes that hit 10 seconds later.",
       ],
-      greenFlag: 'Loyal to the end (to a very select few).',
-      redFlag: 'Irish exits every single party.',
-      bestie: 'white-dragon',
-      enemy: 'south-wind',
+      greenFlag: "Loyal to the end (to a very select few).",
+      redFlag: "Irish exits every single party.",
+      bestie: "white-dragon",
+      enemy: "south-wind",
     },
     {
-      id: 'spring',
-      name: 'Spring',
-      title: 'The Fresh Start',
-      emoji: '🌸',
-      tagline: 'New hobby, new me. (Again.)',
-      description: 'The character for spring is the one people stick on their doors for Lunar New Year, and you\'re basically a walking New Year\'s resolution. Pottery, run club, crochet, sourdough, learning mahjong (great choice). You\'ve had about 47 fresh starts this year, and you\'re optimistic about every single one. The hobby gear is collecting dust, but the vibes are blooming.',
+      id: "spring",
+      name: "Spring",
+      title: "The Fresh Start",
+      emoji: "🌸",
+      tagline: "New hobby, new me. (Again.)",
+      description: "The character for spring is the one people stick on their doors for Lunar New Year, and you're basically a walking New Year's resolution. Pottery, run club, crochet, sourdough, learning mahjong (great choice). You've had about 47 fresh starts this year, and you're optimistic about every single one. The hobby gear is collecting dust, but the vibes are blooming.",
       why: [
-        'You\'ve bought all the gear for a hobby you tried once.',
-        'Your "new era" announcements are a monthly event.',
-        'Eternal optimist: the glass is half full and also sparkling.',
+        "You've bought all the gear for a hobby you tried once.",
+        "Your \"new era\" announcements are a monthly event.",
+        "Eternal optimist: the glass is half full and also sparkling.",
       ],
-      greenFlag: 'Brings fresh energy into every room.',
-      redFlag: 'Your hobbies have a two-week half-life.',
-      bestie: 'summer',
-      enemy: 'autumn',
+      greenFlag: "Brings fresh energy into every room.",
+      redFlag: "Your hobbies have a two-week half-life.",
+      bestie: "summer",
+      enemy: "autumn",
     },
     {
-      id: 'summer',
-      name: 'Summer',
-      title: 'Out of Office',
-      emoji: '😎',
-      tagline: 'Hot tile summer, all year round.',
-      description: 'Summer is the season of "say yes to everything," and you live there year-round. Beach day? Yes. Spontaneous road trip? Already in the car. K-town karaoke until 4am on a Tuesday? Obviously. You have a tan line in November and a camera roll full of sunsets. You\'ve never experienced FOMO, because you are always there.',
+      id: "summer",
+      name: "Summer",
+      title: "Out of Office",
+      emoji: "😎",
+      tagline: "Hot tile summer, all year round.",
+      description: "Summer is the season of \"say yes to everything,\" and you live there year-round. Beach day? Yes. Spontaneous road trip? Already in the car. K-town karaoke until 4am on a Tuesday? Obviously. You have a tan line in November and a camera roll full of sunsets. You've never experienced FOMO, because you are always there.",
       why: [
-        'You\'ve booked a flight on a whim.',
-        'You know which karaoke room has the best tambourine.',
-        'You have never once left a party early.',
+        "You've booked a flight on a whim.",
+        "You know which karaoke room has the best tambourine.",
+        "You have never once left a party early.",
       ],
-      greenFlag: 'The most fun person in any room.',
-      redFlag: 'Replies to texts from a different time zone.',
-      bestie: 'spring',
-      enemy: 'winter',
+      greenFlag: "The most fun person in any room.",
+      redFlag: "Replies to texts from a different time zone.",
+      bestie: "spring",
+      enemy: "winter",
     },
     {
-      id: 'autumn',
-      name: 'Autumn',
-      title: 'The Cozy Era',
-      emoji: '🍂',
-      tagline: 'Oversized sweater, warm drink, candle lit. Always.',
-      description: 'Autumn is your whole aesthetic: chunky knits, journaling at a café, and a candle called something like "Cashmere Woods" burning 24/7. Mid-Autumn Festival is your Super Bowl: lanterns, mooncakes, and 40 blurry photos of the moon. You\'re soft, sentimental, and always the first to say "let\'s just stay in and do a puzzle." It\'s giving cottagecore with Wi-Fi.',
+      id: "autumn",
+      name: "Autumn",
+      title: "The Cozy Era",
+      emoji: "🍂",
+      tagline: "Oversized sweater, warm drink, candle lit. Always.",
+      description: "Autumn is your whole aesthetic: chunky knits, journaling at a café, and a candle called something like \"Cashmere Woods\" burning 24/7. Mid-Autumn Festival is your Super Bowl: lanterns, mooncakes, and 40 blurry photos of the moon. You're soft, sentimental, and always the first to say \"let's just stay in and do a puzzle.\" It's giving cottagecore with Wi-Fi.",
       why: [
-        'You own more blankets than plates.',
-        'You start decorating for fall in August.',
-        'You have a strong opinion on lotus seed vs. red bean mooncakes.',
+        "You own more blankets than plates.",
+        "You start decorating for fall in August.",
+        "You have a strong opinion on lotus seed vs. red bean mooncakes.",
       ],
-      greenFlag: 'Makes everyone feel safe and cozy.',
-      redFlag: 'Will not leave the house if it\'s under 60°F.',
-      bestie: 'one-dot',
-      enemy: 'spring',
+      greenFlag: "Makes everyone feel safe and cozy.",
+      redFlag: "Will not leave the house if it's under 60°F.",
+      bestie: "one-dot",
+      enemy: "spring",
     },
     {
-      id: 'winter',
-      name: 'Winter',
-      title: 'The Hibernator',
-      emoji: '😴',
-      tagline: 'Canceled plans are my love language.',
-      description: 'Winter is here, and so are your blankets. You\'re a professional homebody, a certified blanket burrito, and a world-class napper. House slippers are a lifestyle. When plans get canceled you feel a joy so pure it should be illegal. But when you do show up for hot pot night, everyone\'s thrilled, because you\'re cozy, chill, and you bring the good snacks.',
+      id: "winter",
+      name: "Winter",
+      title: "The Hibernator",
+      emoji: "😴",
+      tagline: "Canceled plans are my love language.",
+      description: "Winter is here, and so are your blankets. You're a professional homebody, a certified blanket burrito, and a world-class napper. House slippers are a lifestyle. When plans get canceled you feel a joy so pure it should be illegal. But when you do show up for hot pot night, everyone's thrilled, because you're cozy, chill, and you bring the good snacks.",
       why: [
-        'Your bed is your office, dining room, and therapist.',
-        'You\'ve texted "omw!" while still in pajamas.',
-        'You own a heated blanket, a rice cooker, and no intention of leaving.',
+        "Your bed is your office, dining room, and therapist.",
+        "You've texted \"omw!\" while still in pajamas.",
+        "You own a heated blanket, a rice cooker, and no intention of leaving.",
       ],
-      greenFlag: 'Zero drama, ultra low-maintenance friend.',
-      redFlag: 'Do Not Disturb has been on since 2022.',
-      bestie: 'chrysanthemum',
-      enemy: 'summer',
+      greenFlag: "Zero drama, ultra low-maintenance friend.",
+      redFlag: "Do Not Disturb has been on since 2022.",
+      bestie: "chrysanthemum",
+      enemy: "summer",
     },
     {
-      id: 'plum-blossom',
-      name: 'Plum Blossom',
-      title: 'The Comeback Kid',
-      emoji: '🌺',
-      tagline: 'Blooms in the snow. Unbothered. Moisturized.',
-      description: 'The plum blossom blooms in the dead of winter, which is why it\'s a classic Chinese symbol of resilience. That\'s you: you\'ve been through it and came out glowing. You\'re the friend everyone calls in a crisis, the group\'s unpaid therapist, and somehow still smiling. You don\'t just bounce back. You bounce back with a new haircut and a 30-day gym streak.',
+      id: "plum-blossom",
+      name: "Plum Blossom",
+      title: "The Comeback Kid",
+      emoji: "🌺",
+      tagline: "Blooms in the snow. Unbothered. Moisturized.",
+      description: "The plum blossom blooms in the dead of winter, which is why it's a classic Chinese symbol of resilience. That's you: you've been through it and came out glowing. You're the friend everyone calls in a crisis, the group's unpaid therapist, and somehow still smiling. You don't just bounce back. You bounce back with a new haircut and a 30-day gym streak.",
       why: [
-        'You\'ve given life-changing advice while your own life was on fire.',
-        'Your glow-up arc is legendary.',
-        'Survived "why not 100%?" and turned out great.',
+        "You've given life-changing advice while your own life was on fire.",
+        "Your glow-up arc is legendary.",
+        "Survived \"why not 100%?\" and turned out great.",
       ],
-      greenFlag: 'Strong, steady, and always there for people.',
-      redFlag: 'Says "I\'m fine" while clearly in a season finale.',
-      bestie: 'bamboo',
-      enemy: 'one-character',
+      greenFlag: "Strong, steady, and always there for people.",
+      redFlag: "Says \"I'm fine\" while clearly in a season finale.",
+      bestie: "bamboo",
+      enemy: "one-character",
     },
     {
-      id: 'orchid',
-      name: 'Orchid',
-      title: 'The Elegant One',
-      emoji: '🪷',
-      tagline: 'Not high maintenance. Highly curated.',
-      description: 'Orchids are graceful, refined, and need very specific conditions to thrive. Sounds about right. You have taste: in music, in food, in restaurants nobody\'s heard of yet. You\'re a plant parent, a matcha snob, and you somehow always smell amazing. Basically, you\'re the orchid on your mom\'s windowsill that\'s been alive since 2009: elegant, a little dramatic, and low-key indestructible.',
+      id: "orchid",
+      name: "Orchid",
+      title: "The Elegant One",
+      emoji: "🪷",
+      tagline: "Not high maintenance. Highly curated.",
+      description: "Orchids are graceful, refined, and need very specific conditions to thrive. Sounds about right. You have taste: in music, in food, in restaurants nobody's heard of yet. You're a plant parent, a matcha snob, and you somehow always smell amazing. Basically, you're the orchid on your mom's windowsill that's been alive since 2009: elegant, a little dramatic, and low-key indestructible.",
       why: [
-        'You have opinions about the water temperature for tea.',
-        'Your plants have names and birthdays.',
-        'You\'ve said "it\'s giving" about wallpaper.',
+        "You have opinions about the water temperature for tea.",
+        "Your plants have names and birthdays.",
+        "You've said \"it's giving\" about wallpaper.",
       ],
-      greenFlag: 'Elevates every hangout with impeccable taste.',
-      redFlag: 'Won\'t eat anywhere under 4.5 stars.',
-      bestie: 'west-wind',
-      enemy: 'one-dot',
+      greenFlag: "Elevates every hangout with impeccable taste.",
+      redFlag: "Won't eat anywhere under 4.5 stars.",
+      bestie: "west-wind",
+      enemy: "one-dot",
     },
     {
-      id: 'chrysanthemum',
-      name: 'Chrysanthemum',
-      title: 'The Old Soul',
-      emoji: '🍵',
-      tagline: '24 going on 84.',
-      description: 'Chrysanthemums stand for long life, and you\'ve basically lived several already. You order chrysanthemum tea at dim sum unironically, do the crossword, and are in bed by 9:30pm. Your cure for everything is "drink more hot water." You give advice like the wise grandma in a kung fu movie, and nobody knows how you know so much. Your friend group would have fallen apart without you.',
+      id: "chrysanthemum",
+      name: "Chrysanthemum",
+      title: "The Old Soul",
+      emoji: "🍵",
+      tagline: "24 going on 84.",
+      description: "Chrysanthemums stand for long life, and you've basically lived several already. You order chrysanthemum tea at dim sum unironically, do the crossword, and are in bed by 9:30pm. Your cure for everything is \"drink more hot water.\" You give advice like the wise grandma in a kung fu movie, and nobody knows how you know so much. Your friend group would have fallen apart without you.",
       why: [
-        'You\'ve said "kids these days" unironically.',
-        'Your medical advice is hot water and going to bed early.',
-        'Your idea of a wild night is a new 1,000-piece puzzle.',
+        "You've said \"kids these days\" unironically.",
+        "Your medical advice is hot water and going to bed early.",
+        "Your idea of a wild night is a new 1,000-piece puzzle.",
       ],
-      greenFlag: 'Wise beyond your years and great at advice.',
-      redFlag: 'Goes to bed before the party even starts.',
-      bestie: 'nine-dot',
-      enemy: 'summer',
+      greenFlag: "Wise beyond your years and great at advice.",
+      redFlag: "Goes to bed before the party even starts.",
+      bestie: "nine-dot",
+      enemy: "summer",
     },
     {
-      id: 'bamboo',
-      name: 'Bamboo',
-      title: 'The Go-With-The-Flow',
-      emoji: '🐼',
-      tagline: 'Bends, never breaks. Also low-key a panda.',
-      description: 'Bamboo sways in the wind and never snaps, and you\'re just as chill. Plans changed? Cool. Two-hour wait at the dim sum spot? We\'ll find another one. You\'re the lucky bamboo from the Chinatown florist: low-maintenance, good vibes, and somehow always thriving. Pandas would trust you. Your friends definitely do.',
+      id: "bamboo",
+      name: "Bamboo",
+      title: "The Go-With-The-Flow",
+      emoji: "🐼",
+      tagline: "Bends, never breaks. Also low-key a panda.",
+      description: "Bamboo sways in the wind and never snaps, and you're just as chill. Plans changed? Cool. Two-hour wait at the dim sum spot? We'll find another one. You're the lucky bamboo from the Chinatown florist: low-maintenance, good vibes, and somehow always thriving. Pandas would trust you. Your friends definitely do.",
       why: [
-        'Your answer to "where do you want to eat?" is a genuine "anything!"',
-        'You have never once stressed about running late.',
-        'You grow on people fast (like, actual bamboo fast).',
+        "Your answer to \"where do you want to eat?\" is a genuine \"anything!\"",
+        "You have never once stressed about running late.",
+        "You grow on people fast (like, actual bamboo fast).",
       ],
-      greenFlag: 'Unshakeable calm in any storm.',
-      redFlag: 'Cannot make a decision to save your life.',
-      bestie: 'plum-blossom',
-      enemy: 'red-dragon',
+      greenFlag: "Unshakeable calm in any storm.",
+      redFlag: "Cannot make a decision to save your life.",
+      bestie: "plum-blossom",
+      enemy: "red-dragon",
     },
     {
-      id: 'blank-tile',
-      name: 'Blank Tile',
-      title: 'The Spare',
-      emoji: '🫥',
-      tagline: 'Wasn\'t supposed to be in the box. Showed up anyway.',
-      description: 'Plot twist: you\'re the blank tile. The spare. The "wait, what\'s this one for?" Your grandma uses you to replace the tile she lost in 1997. You have no suit, no number, no rules, and you are thriving. Unpredictable, unbothered, a total wildcard. Nobody knows what you\'re going to do next, including you.',
+      id: "blank-tile",
+      name: "Blank Tile",
+      title: "The Spare",
+      emoji: "🫥",
+      tagline: "Wasn't supposed to be in the box. Showed up anyway.",
+      description: "Plot twist: you're the blank tile. The spare. The \"wait, what's this one for?\" Your grandma uses you to replace the tile she lost in 1997. You have no suit, no number, no rules, and you are thriving. Unpredictable, unbothered, a total wildcard. Nobody knows what you're going to do next, including you.",
       why: [
-        'You\'ve shown up to a party without knowing whose party it was.',
-        'Your vibe is "loading..." and somehow it works.',
-        'You show up to Lunar New Year empty-handed and still get the biggest red envelope.',
+        "You've shown up to a party without knowing whose party it was.",
+        "Your vibe is \"loading...\" and somehow it works.",
+        "You show up to Lunar New Year empty-handed and still get the biggest red envelope.",
       ],
-      greenFlag: 'Fits in anywhere, gets along with everyone.',
-      redFlag: 'Your five-year plan is a shrug emoji.',
-      bestie: 'nine-dot',
-      enemy: 'nine-bamboo',
+      greenFlag: "Fits in anywhere, gets along with everyone.",
+      redFlag: "Your five-year plan is a shrug emoji.",
+      bestie: "nine-dot",
+      enemy: "nine-bamboo",
     },
   ];
 
   var QUESTIONS = [
     {
-      text: 'It\'s Friday night. Where are you?',
+      text: "It's Friday night. Where are you?",
       options: [
-        { emoji: '📊', text: 'Organizing dinner for 8. I made a group poll.', tiles: ['east-wind', 'nine-bamboo', 'south-wind'] },
-        { emoji: '💃', text: 'Partying in K-Town at 4 AM. No plans, all vibes.', tiles: ['summer', 'red-dragon', 'nine-character'] },
-        { emoji: '🛋️', text: 'Blanket burrito. Phone at 3%. Do not disturb.', tiles: ['winter', 'one-dot'] },
-        { emoji: '🎨', text: 'At a craft night I found on Insta.', tiles: ['spring', 'orchid', 'chrysanthemum'] },
+        { emoji: "📊", text: "Organizing dinner for 8. I made a group poll.", tiles: ["east-wind", "nine-bamboo", "south-wind"] },
+        { emoji: "💃", text: "Partying in K-Town at 4 AM. No plans, all vibes.", tiles: ["summer", "red-dragon", "nine-character"] },
+        { emoji: "🛋️", text: "Blanket burrito. Phone at 3%. Do not disturb.", tiles: ["winter", "one-dot"] },
+        { emoji: "🎨", text: "At a craft night I found on Insta.", tiles: ["spring", "orchid", "chrysanthemum"] },
       ],
     },
     {
-      text: 'What\'s your role in the group chat?',
+      text: "What's your role in the group chat?",
       options: [
-        { emoji: '🎙️', text: 'The yapper. Voice memos and breaking news.', tiles: ['one-bamboo', 'south-wind', 'one-character'] },
-        { emoji: '👍', text: 'Leaves it on read, hearts it 3 days later.', tiles: ['north-wind', 'winter'] },
-        { emoji: '🧾', text: 'Books the table and sends the Splitwise before dessert.', tiles: ['nine-bamboo', 'east-wind', 'white-dragon'] },
-        { emoji: '🐸', text: 'Sends reels at 3am that nobody asked for.', tiles: ['nine-dot', 'summer'] },
+        { emoji: "🎙️", text: "The yapper. Voice memos and breaking news.", tiles: ["one-bamboo", "south-wind", "one-character"] },
+        { emoji: "👍", text: "Leaves it on read, hearts it 3 days later.", tiles: ["north-wind", "winter"] },
+        { emoji: "🧾", text: "Books the table and sends the Splitwise before dessert.", tiles: ["nine-bamboo", "east-wind", "white-dragon"] },
+        { emoji: "🐸", text: "Sends reels at 3am that nobody asked for.", tiles: ["nine-dot", "summer"] },
       ],
     },
     {
-      text: 'Pick your drink order:',
+      text: "Pick your drink order:",
       options: [
-        { emoji: '☕', text: 'Iced oat latte, extra shot. I have meetings.', tiles: ['one-character', 'nine-bamboo', 'green-dragon'] },
-        { emoji: '🧋', text: 'Boba, 100% sugar, no regrets.', tiles: ['one-dot', 'autumn', 'winter'] },
-        { emoji: '🫖', text: 'Hot water. Mom said cold drinks are bad for you.', tiles: ['chrysanthemum', 'plum-blossom'] },
-        { emoji: '🍵', text: 'Ceremonial-grade matcha. I can taste the difference.', tiles: ['orchid', 'white-dragon'] },
+        { emoji: "☕", text: "Iced oat latte, extra shot. I have meetings.", tiles: ["one-character", "nine-bamboo", "green-dragon"] },
+        { emoji: "🧋", text: "Boba, 100% sugar, no regrets.", tiles: ["one-dot", "autumn", "winter"] },
+        { emoji: "🫖", text: "Hot water. Mom said cold drinks are bad for you.", tiles: ["chrysanthemum", "plum-blossom"] },
+        { emoji: "🍵", text: "Ceremonial-grade matcha. I can taste the difference.", tiles: ["orchid", "white-dragon"] },
       ],
     },
     {
-      text: 'Your relationship with money is',
+      text: "Your relationship with money is",
       options: [
-        { emoji: '📈', text: '3 side hustles and a high-yield savings account.', tiles: ['green-dragon', 'nine-bamboo', 'east-wind'] },
-        { emoji: '🕯️', text: 'A $50 candle, because "it\'s an investment."', tiles: ['nine-character', 'orchid'] },
-        { emoji: '🍜', text: 'Spent it all on food. No regrets.', tiles: ['one-dot', 'summer'] },
-        { emoji: '✨', text: 'What money? I run on vibes.', tiles: ['blank-tile', 'spring', 'bamboo'] },
+        { emoji: "📈", text: "3 side hustles and a high-yield savings account.", tiles: ["green-dragon", "nine-bamboo", "east-wind"] },
+        { emoji: "🕯️", text: "A $50 candle, because \"it's an investment.\"", tiles: ["nine-character", "orchid"] },
+        { emoji: "🍜", text: "Spent it all on food. No regrets.", tiles: ["one-dot", "summer"] },
+        { emoji: "✨", text: "What money? I run on vibes.", tiles: ["blank-tile", "spring", "bamboo"] },
       ],
     },
     {
-      text: 'Be honest. Your toxic trait is...',
+      text: "Be honest. Your toxic trait is...",
       options: [
-        { emoji: '📱', text: 'Overthinking a text for 45 minutes.', tiles: ['nine-dot', 'west-wind'] },
-        { emoji: '🏆', text: 'Turning everything into a competition.', tiles: ['red-dragon', 'green-dragon', 'east-wind'] },
-        { emoji: '🎬', text: 'Main-charactering on the subway with my headphones in.', tiles: ['one-character', 'west-wind', 'summer'] },
-        { emoji: '🙅', text: 'Canceling plans and feeling zero guilt.', tiles: ['winter', 'north-wind'] },
+        { emoji: "📱", text: "Overthinking a text for 45 minutes.", tiles: ["nine-dot", "west-wind"] },
+        { emoji: "🏆", text: "Turning everything into a competition.", tiles: ["red-dragon", "green-dragon", "east-wind"] },
+        { emoji: "🎬", text: "Main-charactering on the subway with my headphones in.", tiles: ["one-character", "west-wind", "summer"] },
+        { emoji: "🙅", text: "Canceling plans and feeling zero guilt.", tiles: ["winter", "north-wind"] },
       ],
     },
     {
-      text: 'Pick a season to live in forever:',
+      text: "Pick a season to live in forever:",
       options: [
-        { emoji: '🌸', text: 'Cherry blossoms and fresh starts.', tiles: ['spring', 'plum-blossom', 'one-bamboo', 'east-wind'] },
-        { emoji: '🏖️', text: 'Beach days and sunburns.', tiles: ['summer', 'south-wind'] },
-        { emoji: '🍂', text: 'Sweater weather and journaling.', tiles: ['autumn', 'west-wind', 'chrysanthemum'] },
-        { emoji: '❄️', text: 'Snow days and hot pot.', tiles: ['winter', 'plum-blossom'] },
+        { emoji: "🌸", text: "Cherry blossoms and fresh starts.", tiles: ["spring", "plum-blossom", "one-bamboo", "east-wind"] },
+        { emoji: "🏖️", text: "Beach days and sunburns.", tiles: ["summer", "south-wind"] },
+        { emoji: "🍂", text: "Sweater weather and journaling.", tiles: ["autumn", "west-wind", "chrysanthemum"] },
+        { emoji: "❄️", text: "Snow days and hot pot.", tiles: ["winter", "plum-blossom"] },
       ],
     },
     {
-      text: 'Your friends would describe you as...',
+      text: "Your friends would describe you as...",
       options: [
-        { emoji: '🐕', text: 'A golden retriever in human form.', tiles: ['south-wind', 'one-bamboo', 'spring'] },
-        { emoji: '🧊', text: 'Intimidating until they get to know you.', tiles: ['north-wind', 'red-dragon', 'white-dragon'] },
-        { emoji: '🫶', text: 'The mom friend and unpaid therapist.', tiles: ['plum-blossom', 'bamboo', 'chrysanthemum'] },
-        { emoji: '🌪️', text: 'Chaotic, but lovable.', tiles: ['nine-dot', 'blank-tile', 'nine-character'] },
+        { emoji: "🐕", text: "A golden retriever in human form.", tiles: ["south-wind", "one-bamboo", "spring"] },
+        { emoji: "🧊", text: "Intimidating until they get to know you.", tiles: ["north-wind", "red-dragon", "white-dragon"] },
+        { emoji: "🫶", text: "The mom friend and unpaid therapist.", tiles: ["plum-blossom", "bamboo", "chrysanthemum"] },
+        { emoji: "🌪️", text: "Chaotic, but lovable.", tiles: ["nine-dot", "blank-tile", "nine-character"] },
       ],
     },
     {
-      text: 'At the mahjong table, you\'re...',
+      text: "At the mahjong table, you're...",
       options: [
-        { emoji: '🐉', text: 'Going for Thirteen Orphans every single game.', tiles: ['nine-character', 'red-dragon', 'one-character'] },
-        { emoji: '🧮', text: 'Counting faan in my head before I\'ve even won.', tiles: ['nine-bamboo', 'nine-dot', 'green-dragon'] },
-        { emoji: '🥟', text: 'Mostly here for the snacks and the gossip.', tiles: ['one-dot', 'one-bamboo', 'autumn'] },
-        { emoji: '🍀', text: 'Winning on beginner\'s luck with no idea how.', tiles: ['blank-tile', 'bamboo', 'spring'] },
+        { emoji: "🐉", text: "Going for Thirteen Orphans every single game.", tiles: ["nine-character", "red-dragon", "one-character"] },
+        { emoji: "🧮", text: "Counting faan in my head before I've even won.", tiles: ["nine-bamboo", "nine-dot", "green-dragon"] },
+        { emoji: "🥟", text: "Mostly here for the snacks and the gossip.", tiles: ["one-dot", "one-bamboo", "autumn"] },
+        { emoji: "🍀", text: "Winning on beginner's luck with no idea how.", tiles: ["blank-tile", "bamboo", "spring"] },
       ],
     },
     {
-      text: 'What\'s on your phone lock screen?',
+      text: "What's on your phone lock screen?",
       options: [
-        { emoji: '🤳', text: 'A selfie. I look good, obviously.', tiles: ['one-character', 'red-dragon', 'one-bamboo'] },
-        { emoji: '🏞️', text: 'A nature picture. I touch grass, okay?', tiles: ['autumn', 'white-dragon'] },
-        { emoji: '🥰', text: 'My significant other. Or my crush, who has no idea.', tiles: ['west-wind', 'south-wind', 'nine-dot'] },
-        { emoji: '🪴', text: 'My pet. Or my plant. Same thing.', tiles: ['orchid', 'bamboo', 'blank-tile'] },
+        { emoji: "🤳", text: "A selfie. I look good, obviously.", tiles: ["one-character", "red-dragon", "one-bamboo"] },
+        { emoji: "🏞️", text: "A nature picture. I touch grass, okay?", tiles: ["autumn", "white-dragon"] },
+        { emoji: "🥰", text: "My significant other. Or my crush, who has no idea.", tiles: ["west-wind", "south-wind", "nine-dot"] },
+        { emoji: "🪴", text: "My pet. Or my plant. Same thing.", tiles: ["orchid", "bamboo", "blank-tile"] },
       ],
     },
     {
-      text: 'Lunar New Year at the family\'s. You\'re...',
+      text: "Lunar New Year at the family's. You're...",
       options: [
-        { emoji: '📸', text: 'Taking 300 photos for the family group chat.', tiles: ['one-bamboo', 'west-wind', 'one-character'] },
-        { emoji: '🀄', text: 'At the mahjong table with the uncles until 2am.', tiles: ['east-wind', 'nine-bamboo', 'green-dragon'] },
-        { emoji: '🥟', text: 'In the kitchen wrapping dumplings and eating half of them.', tiles: ['one-dot', 'plum-blossom', 'south-wind'] },
-        { emoji: '🙈', text: 'Hiding from aunties asking about my salary and love life.', tiles: ['north-wind', 'winter', 'blank-tile'] },
+        { emoji: "📸", text: "Taking 300 photos for the family group chat.", tiles: ["one-bamboo", "west-wind", "one-character"] },
+        { emoji: "🀄", text: "At the mahjong table with the uncles until 2am.", tiles: ["east-wind", "nine-bamboo", "green-dragon"] },
+        { emoji: "🥟", text: "In the kitchen wrapping dumplings and eating half of them.", tiles: ["one-dot", "plum-blossom", "south-wind"] },
+        { emoji: "🙈", text: "Hiding from aunties asking about my salary and love life.", tiles: ["north-wind", "winter", "blank-tile"] },
       ],
     },
     {
-      text: 'Pick your dim sum must-order:',
+      text: "Pick your dim sum must-order:",
       options: [
-        { emoji: '🦐', text: 'Har gow. Classic, clean, perfect.', tiles: ['white-dragon', 'orchid', 'chrysanthemum'] },
-        { emoji: '🥧', text: 'Egg tarts. Sweet, golden, everyone\'s favorite.', tiles: ['autumn', 'summer', 'spring'] },
-        { emoji: '🐔', text: 'Chicken feet. Misunderstood, but iconic.', tiles: ['north-wind', 'red-dragon', 'nine-dot'] },
-        { emoji: '🛒', text: 'Whatever the cart auntie brings. All of it.', tiles: ['bamboo', 'one-dot', 'blank-tile', 'nine-character'] },
+        { emoji: "🦐", text: "Har gow. Classic, clean, perfect.", tiles: ["white-dragon", "orchid", "chrysanthemum"] },
+        { emoji: "🥧", text: "Egg tarts. Sweet, golden, everyone's favorite.", tiles: ["autumn", "summer", "spring"] },
+        { emoji: "🐔", text: "Chicken feet. Misunderstood, but iconic.", tiles: ["north-wind", "red-dragon", "nine-dot"] },
+        { emoji: "🛒", text: "Whatever the cart auntie brings. All of it.", tiles: ["bamboo", "one-dot", "blank-tile", "nine-character"] },
       ],
     },
     {
-      text: 'Pick a life motto:',
+      text: "Pick a life motto:",
       options: [
-        { emoji: '🎋', text: '"Bend, don\'t break."', tiles: ['bamboo', 'plum-blossom'] },
-        { emoji: '💰', text: '"Secure the bag."', tiles: ['green-dragon', 'nine-character'] },
-        { emoji: '🤍', text: '"Less is more."', tiles: ['white-dragon', 'north-wind', 'chrysanthemum'] },
-        { emoji: '🎞️', text: '"Romanticize everything."', tiles: ['west-wind', 'autumn', 'orchid'] },
+        { emoji: "🎋", text: "\"Bend, don't break.\"", tiles: ["bamboo", "plum-blossom"] },
+        { emoji: "💰", text: "\"Secure the bag.\"", tiles: ["green-dragon", "nine-character"] },
+        { emoji: "🤍", text: "\"Less is more.\"", tiles: ["white-dragon", "north-wind", "chrysanthemum"] },
+        { emoji: "🎞️", text: "\"Romanticize everything.\"", tiles: ["west-wind", "autumn", "orchid"] },
       ],
     },
   ];
@@ -512,15 +512,15 @@
 
   // IDs used before the descriptive slugs; links with these were already shared, so keep them working.
   var LEGACY_TILE_IDS = {
-    'bamboo-1': 'one-bamboo',
-    'bamboo-9': 'nine-bamboo',
-    'character-1': 'one-character',
-    'character-9': 'nine-character',
-    'dot-1': 'one-dot',
-    'dot-9': 'nine-dot',
-    'plum': 'plum-blossom',
-    'bamboo-flower': 'bamboo',
-    'blank': 'blank-tile',
+    "bamboo-1": "one-bamboo",
+    "bamboo-9": "nine-bamboo",
+    "character-1": "one-character",
+    "character-9": "nine-character",
+    "dot-1": "one-dot",
+    "dot-9": "nine-dot",
+    "plum": "plum-blossom",
+    "bamboo-flower": "bamboo",
+    "blank": "blank-tile",
   };
 
   function getTile(id) {
@@ -547,7 +547,7 @@
         scores[id] = (scores[id] || 0) + 1;
       });
     });
-    var key = answers.join('');
+    var key = answers.join("");
     var best = null;
     Object.keys(scores).forEach(function (id) {
       if (!best || scores[id] > scores[best] ||
@@ -561,10 +561,10 @@
   // Proof that this browser finished the quiz: the answers, the tile they score to, and a signature
   // over both. Anyone who reads this code can still forge one, but a hand-added localStorage value
   // (or a tile that doesn't match the answers) won't unlock the results.
-  var COMPLETION_SALT = 'lucky-cat-mahjong/tile-quiz/v1';
+  var COMPLETION_SALT = "lucky-cat-mahjong/tile-quiz/v1";
 
   function completionSignature(answers, tile, at) {
-    var payload = [COMPLETION_SALT, answers.join(''), tile, at].join('|');
+    var payload = [COMPLETION_SALT, answers.join(""), tile, at].join("|");
     return hash(payload).toString(16) + hash(payload, 0x811c9dc5 ^ 0x5bd1e995).toString(16);
   }
 
@@ -575,7 +575,7 @@
 
   // The tile from a valid completion record, or null if it's missing, edited, or from older questions.
   function verifyCompletion(record) {
-    if (!record || !Array.isArray(record.answers) || typeof record.at !== 'string') return null;
+    if (!record || !Array.isArray(record.answers) || typeof record.at !== "string") return null;
     if (record.answers.length !== QUESTIONS.length) return null;
     var valid = record.answers.every(function (a, q) {
       return Number.isInteger(a) && a >= 0 && a < QUESTIONS[q].options.length;
@@ -585,10 +585,10 @@
     return getTile(record.tile);
   }
 
-  var QUIZ_PATH = '/which-mahjong-tiles-are-you/';
+  var QUIZ_PATH = "/which-mahjong-tiles-are-you/";
 
   function quizRootUrl(base) {
-    var clean = String(base).split('?')[0].split('#')[0];
+    var clean = String(base).split("?")[0].split("#")[0];
     var i = clean.indexOf(QUIZ_PATH);
     return i === -1 ? SITE_URL : clean.slice(0, i + QUIZ_PATH.length);
   }
@@ -596,21 +596,21 @@
   // Each tile has a small page (scripts/generate-tile-pages.js) with that tile's link preview, which
   // redirects back here with ?tile=. Sharing that page's URL is what makes previews show the tile.
   function shareUrl(base, id) {
-    return quizRootUrl(base) + encodeURIComponent(id) + '/';
+    return quizRootUrl(base) + encodeURIComponent(id) + "/";
   }
 
   function normalizeInstagram(value) {
-    var handle = String(value || '').trim()
-      .replace(/^(https?:\/\/)?(www\.)?instagram\.com\//i, '')
-      .replace(/[/?#].*$/, '')
-      .replace(/^@+/, '');
-    return handle ? '@' + handle : '';
+    var handle = String(value || "").trim()
+      .replace(/^(https?:\/\/)?(www\.)?instagram\.com\//i, "")
+      .replace(/[/?#].*$/, "")
+      .replace(/^@+/, "");
+    return handle ? "@" + handle : "";
   }
 
   // A real zip: five digits (and the optional four), and not the placeholder 00000.
   function isValidZip(value) {
-    var zip = String(value || '').trim();
-    return /^\d{5}(-\d{4})?$/.test(zip) && zip.slice(0, 5) !== '00000';
+    var zip = String(value || "").trim();
+    return /^\d{5}(-\d{4})?$/.test(zip) && zip.slice(0, 5) !== "00000";
   }
 
   // Words that are never fine in a name or a handle. A whole word on its own is matched, so
@@ -618,16 +618,16 @@
   // handle ("xxfuckxx"), after digits and symbols that stand in for letters are read as letters.
   // Words that sit inside real names and places (a "cunt" in Scunthorpe, a "nazi" in Nazir) are
   // matched whole only.
-  var BLOCKED_WORDS = ['fuck', 'fucker', 'fucking', 'shit', 'shitty', 'bitch', 'bastard', 'asshole', 'arse', 'ass', 'cunt',
-    'dick', 'cock', 'pussy', 'whore', 'slut', 'twat', 'wank', 'wanker', 'bollocks', 'piss', 'cum', 'porn', 'rape', 'rapist',
-    'nazi', 'hitler', 'nigger', 'nigga', 'faggot', 'fag', 'retard', 'tranny', 'kike', 'chink', 'spic', 'coon', 'dyke', 'paki'];
-  var BLOCKED_INSIDE = ['fuck', 'shit', 'bitch', 'asshole', 'pussy', 'whore', 'nigger', 'nigga', 'faggot', 'rapist', 'hitler',
-    'retard', 'tranny'];
-  var LOOKALIKES = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '8': 'b', '@': 'a', '$': 's', '!': 'i' };
+  var BLOCKED_WORDS = ["fuck", "fucker", "fucking", "shit", "shitty", "bitch", "bastard", "asshole", "arse", "ass", "cunt",
+    "dick", "cock", "pussy", "whore", "slut", "twat", "wank", "wanker", "bollocks", "piss", "cum", "porn", "rape", "rapist",
+    "nazi", "hitler", "nigger", "nigga", "faggot", "fag", "retard", "tranny", "kike", "chink", "spic", "coon", "dyke", "paki"];
+  var BLOCKED_INSIDE = ["fuck", "shit", "bitch", "asshole", "pussy", "whore", "nigger", "nigga", "faggot", "rapist", "hitler",
+    "retard", "tranny"];
+  var LOOKALIKES = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b", "@": "a", "$": "s", "!": "i" };
 
   function readAsLetters(value) {
-    return String(value || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[0134578@$!]/g, function (c) { return LOOKALIKES[c] || ''; });
+    return String(value || "").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[0134578@$!]/g, function (c) { return LOOKALIKES[c] || ""; });
   }
 
   // True when a name or handle holds a blocked word.
@@ -635,17 +635,17 @@
     var read = readAsLetters(value);
     var words = read.split(/[^a-z]+/).filter(Boolean);
     if (words.some(function (w) { return BLOCKED_WORDS.indexOf(w) !== -1; })) return true;
-    var squashed = read.replace(/[^a-z]/g, '');
+    var squashed = read.replace(/[^a-z]/g, "");
     return BLOCKED_INSIDE.some(function (w) { return squashed.indexOf(w) !== -1; });
   }
 
   // A full name: a first and a last name, each of two or more letters (hyphens, apostrophes and
   // periods are fine), not one letter typed over and over ("aa bb"), and nothing profane.
   function isValidName(value) {
-    var parts = String(value || '').trim().split(/\s+/);
+    var parts = String(value || "").trim().split(/\s+/);
     if (parts.length < 2 || hasProfanity(value)) return false;
     return parts.every(function (part) {
-      var letters = part.replace(/[-'\u2019.]/g, '');
+      var letters = part.replace(/[-'\u2019.]/g, "");
       return /^[\p{L}][\p{L}\p{M}'\u2019.-]*$/u.test(part) && letters.length >= 2 && !/^(.)\1+$/u.test(letters);
     });
   }
@@ -661,10 +661,10 @@
 
   function validateProfile(profile) {
     var errors = {};
-    if (!isValidName(profile.name)) errors.name = hasProfanity(profile.name) ? 'Please keep it clean: enter your full name' : 'Enter your full name';
-    if (!isValidInstagram(profile.instagram)) errors.instagram = hasProfanity(profile.instagram) ? 'Please keep it clean: enter your real Instagram handle' : 'Enter your real Instagram handle, like @luckycat.mahjong';
-    if (!isValidZip(profile.zip)) errors.zip = 'Enter a valid 5-digit zip code';
-    if (SKILL_LEVELS.indexOf(profile.skill) === -1) errors.skill = 'Pick your skill level';
+    if (!isValidName(profile.name)) errors.name = hasProfanity(profile.name) ? "Please keep it clean: enter your full name" : "Enter your full name";
+    if (!isValidInstagram(profile.instagram)) errors.instagram = hasProfanity(profile.instagram) ? "Please keep it clean: enter your real Instagram handle" : "Enter your real Instagram handle, like @luckycat.mahjong";
+    if (!isValidZip(profile.zip)) errors.zip = "Enter a valid 5-digit zip code";
+    if (SKILL_LEVELS.indexOf(profile.skill) === -1) errors.skill = "Pick your skill level";
     return errors;
   }
 
@@ -694,8 +694,8 @@
     ];
     if (tile) params.push([FORM_FIELDS.result, tile.name]);
     return params.map(function (p) {
-      return encodeURIComponent(p[0]) + '=' + encodeURIComponent(p[1]);
-    }).join('&');
+      return encodeURIComponent(p[0]) + "=" + encodeURIComponent(p[1]);
+    }).join("&");
   }
 
   // ---- Browser UI ----
@@ -704,28 +704,28 @@
   // button. After we advance, blur every option so the next question starts clean.
   function clearAnswerFocus(doc) {
     if (!doc || !doc.querySelectorAll) return;
-    var options = doc.querySelectorAll('.tq-option');
+    var options = doc.querySelectorAll(".tq-option");
     for (var i = 0; i < options.length; i++) {
-      if (typeof options[i].blur === 'function') options[i].blur();
+      if (typeof options[i].blur === "function") options[i].blur();
     }
   }
 
   function escapeHtml(str) {
     return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
 
   // An event of its own for each answer, so GA counts them without a custom
   // dimension: question 1's third answer is tile_quiz_q1_a3.
   function answerEventName(questionIndex, answerIndex) {
-    return 'tile_quiz_q' + (questionIndex + 1) + '_a' + (answerIndex + 1);
+    return "tile_quiz_q" + (questionIndex + 1) + "_a" + (answerIndex + 1);
   }
 
   function track(name, params) {
-    if (typeof root.gtag === 'function') root.gtag('event', name, params || {});
+    if (typeof root.gtag === "function") root.gtag("event", name, params || {});
   }
 
   function loadState() {
@@ -743,18 +743,18 @@
   }
 
   function art(id, opts) {
-    return root.LuckyCatTileArt ? root.LuckyCatTileArt.render(id, opts) : '';
+    return root.LuckyCatTileArt ? root.LuckyCatTileArt.render(id, opts) : "";
   }
 
   function submitToForm(profile, tile) {
     var request = fetch(FORM_ACTION, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: buildFormBody(profile, tile),
     });
     var timeout = new Promise(function (_, reject) {
-      setTimeout(function () { reject(new Error('timeout')); }, 10000);
+      setTimeout(function () { reject(new Error("timeout")); }, 10000);
     });
     return Promise.race([request, timeout]);
   }
@@ -765,8 +765,8 @@
 
   function createApp(doc) {
     var $ = function (sel) { return doc.querySelector(sel); };
-    var screens = ['intro', 'question', 'info', 'loading', 'result'];
-    var QUIZ_TITLE = 'Which Mahjong Tile Are You? Personality Quiz | Lucky Cat Mahjong';
+    var screens = ["intro", "question", "info", "loading", "result"];
+    var QUIZ_TITLE = "Which Mahjong Tile Are You? Personality Quiz | Lucky Cat Mahjong";
     var state = loadState();
     // Submissions flagged before Nov 2026 never reached the form (it required Google sign-in, and
     // no-cors requests can't see the error), so drop that flag to ask those players again.
@@ -783,21 +783,21 @@
 
     function show(name) {
       screens.forEach(function (s) {
-        var el = $('#tq-' + s);
+        var el = $("#tq-" + s);
         if (el) el.hidden = s !== name;
       });
-      var main = $('#tq-main');
-      if (main) main.setAttribute('data-screen', name);
-      root.scrollTo({ top: 0, behavior: 'smooth' });
+      var main = $("#tq-main");
+      if (main) main.setAttribute("data-screen", name);
+      root.scrollTo({ top: 0, behavior: "smooth" });
     }
 
     function setUrlTile(id) {
       if (!root.history || !root.history.replaceState) return;
       var url = id ? shareUrl(root.location.href, id) : quizRootUrl(root.location.href);
-      root.history.replaceState(null, '', url);
+      root.history.replaceState(null, "", url);
       // Match the title the tile's own page would have, since the URL changed without a page load.
       var tile = getTile(id);
-      doc.title = tile ? tile.name + ': ' + tile.title + ' | Which Mahjong Tile Are You?' : QUIZ_TITLE;
+      doc.title = tile ? tile.name + ": " + tile.title + " | Which Mahjong Tile Are You?" : QUIZ_TITLE;
     }
 
     // Fisher-Yates shuffle, so the intro shows a different random set of tiles on every visit.
@@ -814,16 +814,16 @@
 
     function renderIntro() {
       // The blank tile stays a surprise; the intro copy only hints at it.
-      var parade = shuffle(TILES.map(function (t) { return t.id; }).filter(function (id) { return id !== 'blank-tile'; })).slice(0, 3);
-      $('#tq-parade').innerHTML = parade.map(function (id, i) {
-        return '<div class="tq-parade-tile" style="--i:' + i + '">' + art(id) + '</div>';
-      }).join('');
+      var parade = shuffle(TILES.map(function (t) { return t.id; }).filter(function (id) { return id !== "blank-tile"; })).slice(0, 3);
+      $("#tq-parade").innerHTML = parade.map(function (id, i) {
+        return "<div class=\"tq-parade-tile\" style=\"--i:" + i + "\">" + art(id) + "</div>";
+      }).join("");
 
-      var note = $('#tq-returning');
+      var note = $("#tq-returning");
       var mine = completedTile();
       if (mine) {
-        note.innerHTML = 'Last time you were the <a href="' + escapeHtml(shareUrl(root.location.href, mine.id)) + '">' +
-          escapeHtml(mine.name) + '</a>. Let\'s see if that\'s still true.';
+        note.innerHTML = "Last time you were the <a href=\"" + escapeHtml(shareUrl(root.location.href, mine.id)) + "\">" +
+          escapeHtml(mine.name) + "</a>. Let's see if that's still true.";
         note.hidden = false;
       } else {
         note.hidden = true;
@@ -832,20 +832,20 @@
 
     function renderQuestion() {
       var q = QUESTIONS[current];
-      $('#tq-progress-label').textContent = 'Question ' + (current + 1) + ' of ' + QUESTIONS.length;
-      $('#tq-progress-bar').style.width = ((current) / QUESTIONS.length * 100) + '%';
-      $('#tq-question-text').textContent = q.text;
-      var list = $('#tq-options');
+      $("#tq-progress-label").textContent = "Question " + (current + 1) + " of " + QUESTIONS.length;
+      $("#tq-progress-bar").style.width = ((current) / QUESTIONS.length * 100) + "%";
+      $("#tq-question-text").textContent = q.text;
+      var list = $("#tq-options");
       list.innerHTML = q.options.map(function (opt, i) {
-        return '<button type="button" class="tq-option" data-index="' + i + '">' +
-          '<span class="tq-option-emoji" aria-hidden="true">' + opt.emoji + '</span>' +
-          '<span class="tq-option-text">' + escapeHtml(opt.text) + '</span></button>';
-      }).join('');
-      list.classList.add('is-fresh');
+        return "<button type=\"button\" class=\"tq-option\" data-index=\"" + i + "\">" +
+          "<span class=\"tq-option-emoji\" aria-hidden=\"true\">" + opt.emoji + "</span>" +
+          "<span class=\"tq-option-text\">" + escapeHtml(opt.text) + "</span></button>";
+      }).join("");
+      list.classList.add("is-fresh");
       clearAnswerFocus(doc);
-      var focusTarget = $('#tq-question-text');
+      var focusTarget = $("#tq-question-text");
       if (focusTarget) focusTarget.focus({ preventScroll: true });
-      track('tile_quiz_question_view', { question_index: current });
+      track("tile_quiz_question_view", { question_index: current });
     }
 
     function saveProgress() {
@@ -863,10 +863,10 @@
       current = 0;
       resultTile = null;
       setUrlTile(null);
-      track('tile_quiz_start');
+      track("tile_quiz_start");
       saveProgress();
       renderQuestion();
-      show('question');
+      show("question");
     }
 
     // Pick up where a refresh left off: the same question, or the info form if every question is answered.
@@ -880,7 +880,7 @@
         showAfterQuiz();
       } else {
         renderQuestion();
-        show('question');
+        show("question");
       }
       return true;
     }
@@ -888,11 +888,11 @@
     function choose(index) {
       var option = QUESTIONS[current].options[index];
       var clicked = { question_index: current, answer_index: index, answer_label: option.text };
-      track('tile_quiz_answer_click', clicked);
+      track("tile_quiz_answer_click", clicked);
       track(answerEventName(current, index), clicked);
       answers[current] = index;
-      var buttons = doc.querySelectorAll('.tq-option');
-      buttons.forEach(function (b) { b.classList.toggle('is-selected', Number(b.dataset.index) === index); });
+      var buttons = doc.querySelectorAll(".tq-option");
+      buttons.forEach(function (b) { b.classList.toggle("is-selected", Number(b.dataset.index) === index); });
       clearAnswerFocus(doc);
       setTimeout(function () {
         if (current < QUESTIONS.length - 1) {
@@ -908,8 +908,8 @@
     function markSavedAnswer() {
       var saved = answers[current];
       if (!Number.isInteger(saved)) return;
-      doc.querySelectorAll('.tq-option').forEach(function (b) {
-        b.classList.toggle('is-selected', Number(b.dataset.index) === saved);
+      doc.querySelectorAll(".tq-option").forEach(function (b) {
+        b.classList.toggle("is-selected", Number(b.dataset.index) === saved);
       });
     }
 
@@ -917,7 +917,7 @@
       if (current === 0) {
         clearProgress();
         renderGallery(null);
-        show('intro');
+        show("intro");
         return;
       }
       current -= 1;
@@ -927,9 +927,9 @@
     }
 
     function finishQuiz() {
-      $('#tq-progress-bar').style.width = '100%';
+      $("#tq-progress-bar").style.width = "100%";
       resultTile = getTile(scoreAnswers(answers));
-      track('tile_quiz_complete', { tile: resultTile.id });
+      track("tile_quiz_complete", { tile: resultTile.id });
       current = QUESTIONS.length;
       saveProgress();
       showAfterQuiz();
@@ -941,27 +941,27 @@
         return;
       }
       prefillInfo();
-      show('info');
+      show("info");
     }
 
     function prefillInfo() {
       var p = state.profile || {};
-      var form = $('#tq-info-form');
-      form.elements.name.value = p.name || '';
-      form.elements.instagram.value = p.instagram || '';
-      form.elements.zip.value = p.zip || '';
+      var form = $("#tq-info-form");
+      form.elements.name.value = p.name || "";
+      form.elements.instagram.value = p.instagram || "";
+      form.elements.zip.value = p.zip || "";
       Array.prototype.forEach.call(form.elements.skill, function (r) { r.checked = r.value === p.skill; });
       clearErrors();
     }
 
     function clearErrors() {
-      doc.querySelectorAll('.tq-field-error').forEach(function (el) { el.textContent = ''; });
-      doc.querySelectorAll('.tq-field.has-error').forEach(function (el) { el.classList.remove('has-error'); });
+      doc.querySelectorAll(".tq-field-error").forEach(function (el) { el.textContent = ""; });
+      doc.querySelectorAll(".tq-field.has-error").forEach(function (el) { el.classList.remove("has-error"); });
     }
 
     function readProfile() {
-      var form = $('#tq-info-form');
-      var skill = '';
+      var form = $("#tq-info-form");
+      var skill = "";
       Array.prototype.forEach.call(form.elements.skill, function (r) { if (r.checked) skill = r.value; });
       return {
         name: form.elements.name.value.trim(),
@@ -973,19 +973,19 @@
 
     function onInfoSubmit(e) {
       e.preventDefault();
-      track('tile_quiz_submit_click');
+      track("tile_quiz_submit_click");
       clearErrors();
       var profile = readProfile();
       var errors = validateProfile(profile);
       var keys = Object.keys(errors);
       if (keys.length) {
         keys.forEach(function (k) {
-          var field = doc.querySelector('[data-field="' + k + '"]');
+          var field = doc.querySelector("[data-field=\"" + k + "\"]");
           if (!field) return;
-          field.classList.add('has-error');
-          field.querySelector('.tq-field-error').textContent = errors[k];
+          field.classList.add("has-error");
+          field.querySelector(".tq-field-error").textContent = errors[k];
         });
-        var first = doc.querySelector('[data-field="' + keys[0] + '"] input');
+        var first = doc.querySelector("[data-field=\"" + keys[0] + "\"] input");
         if (first) first.focus();
         return;
       }
@@ -1000,71 +1000,71 @@
         state.submittedAt = new Date().toISOString();
         state.submittedTile = tile.id;
         saveState(state);
-        track('tile_quiz_submit', { tile: tile.id, skill_level: profile.skill });
+        track("tile_quiz_submit", { tile: tile.id, skill_level: profile.skill });
       }).catch(function () { /* show the result anyway; we'll retry on the next attempt */ });
 
       reveal(submission);
     }
 
     function reveal(pending) {
-      show('loading');
+      show("loading");
       Promise.all([pending, wait(1600)]).then(function () {
         state.tile = resultTile.id;
         state.completion = signCompletion(answers, new Date().toISOString());
         clearProgress();
         setUrlTile(resultTile.id);
         renderResult(resultTile, true);
-        show('result');
+        show("result");
       });
     }
 
     function renderResult(tile, isMine) {
-      var color = root.LuckyCatTileArt ? root.LuckyCatTileArt.colorFor(tile.id) : '#C41E3A';
-      var card = $('#tq-result');
-      card.style.setProperty('--tile-color', color);
+      var color = root.LuckyCatTileArt ? root.LuckyCatTileArt.colorFor(tile.id) : "#C41E3A";
+      var card = $("#tq-result");
+      card.style.setProperty("--tile-color", color);
 
-      var name = isMine && state.profile && state.profile.name ? state.profile.name.split(' ')[0] : '';
-      $('#tq-result-kicker').textContent = isMine ? (name ? name + ', you\'re the' : 'You\'re the') : 'Meet the';
-      $('#tq-result-art').innerHTML = art(tile.id, { label: tile.name + ' chibi mahjong tile', className: 'tile-art tq-result-svg' });
-      $('#tq-result-name').textContent = tile.name;
-      $('#tq-result-title').textContent = tile.emoji + ' ' + tile.title;
-      $('#tq-result-tagline').textContent = tile.tagline;
-      $('#tq-result-description').textContent = tile.description;
-      $('#tq-result-why').innerHTML = tile.why.map(function (w) { return '<li>' + escapeHtml(w) + '</li>'; }).join('');
-      $('#tq-result-green').textContent = tile.greenFlag;
-      $('#tq-result-red').textContent = tile.redFlag;
+      var name = isMine && state.profile && state.profile.name ? state.profile.name.split(" ")[0] : "";
+      $("#tq-result-kicker").textContent = isMine ? (name ? name + ", you're the" : "You're the") : "Meet the";
+      $("#tq-result-art").innerHTML = art(tile.id, { label: tile.name + " chibi mahjong tile", className: "tile-art tq-result-svg" });
+      $("#tq-result-name").textContent = tile.name;
+      $("#tq-result-title").textContent = tile.emoji + " " + tile.title;
+      $("#tq-result-tagline").textContent = tile.tagline;
+      $("#tq-result-description").textContent = tile.description;
+      $("#tq-result-why").innerHTML = tile.why.map(function (w) { return "<li>" + escapeHtml(w) + "</li>"; }).join("");
+      $("#tq-result-green").textContent = tile.greenFlag;
+      $("#tq-result-red").textContent = tile.redFlag;
 
-      $('#tq-result-bestie').innerHTML = renderRelation(getTile(tile.bestie));
-      $('#tq-result-enemy').innerHTML = renderRelation(getTile(tile.enemy));
+      $("#tq-result-bestie").innerHTML = renderRelation(getTile(tile.bestie));
+      $("#tq-result-enemy").innerHTML = renderRelation(getTile(tile.enemy));
 
-      card.setAttribute('data-mine', isMine ? 'true' : 'false');
+      card.setAttribute("data-mine", isMine ? "true" : "false");
       resultTile = tile;
       renderGallery(tile.id);
     }
 
     function renderRelation(other) {
-      if (!other) return '';
-      return '<a class="tq-relation-link" href="' + escapeHtml(shareUrl(root.location.href, other.id)) + '">' +
-        '<span class="tq-relation-art">' + art(other.id) + '</span>' +
-        '<span class="tq-relation-text"><strong>' + escapeHtml(other.name) + '</strong>' +
-        '<span class="tq-muted">' + escapeHtml(other.title) + '</span></span>' +
-      '</a>';
+      if (!other) return "";
+      return "<a class=\"tq-relation-link\" href=\"" + escapeHtml(shareUrl(root.location.href, other.id)) + "\">" +
+        "<span class=\"tq-relation-art\">" + art(other.id) + "</span>" +
+        "<span class=\"tq-relation-text\"><strong>" + escapeHtml(other.name) + "</strong>" +
+        "<span class=\"tq-muted\">" + escapeHtml(other.title) + "</span></span>" +
+      "</a>";
     }
 
     function renderGallery(activeId) {
-      var grid = $('#tq-gallery-grid');
+      var grid = $("#tq-gallery-grid");
       if (!grid) return;
       grid.innerHTML = TILES.map(function (t) {
-        var active = t.id === activeId ? ' is-active' : '';
-        return '<li><a class="tq-gallery-item' + active + '" href="' + escapeHtml(shareUrl(root.location.href, t.id)) + '">' +
-          '<span class="tq-gallery-art">' + art(t.id) + '</span>' +
-          '<span class="tq-gallery-name">' + escapeHtml(t.name) + '</span>' +
-          '<span class="tq-gallery-title">' + escapeHtml(t.title) + '</span></a></li>';
-      }).join('');
+        var active = t.id === activeId ? " is-active" : "";
+        return "<li><a class=\"tq-gallery-item" + active + "\" href=\"" + escapeHtml(shareUrl(root.location.href, t.id)) + "\">" +
+          "<span class=\"tq-gallery-art\">" + art(t.id) + "</span>" +
+          "<span class=\"tq-gallery-name\">" + escapeHtml(t.name) + "</span>" +
+          "<span class=\"tq-gallery-title\">" + escapeHtml(t.title) + "</span></a></li>";
+      }).join("");
     }
 
     function shareText(tile) {
-      return 'You\'re giving ' + tile.name + ' energy ' + tile.emoji + '.\nWhich mahjong tile are you?';
+      return "You're giving " + tile.name + " energy " + tile.emoji + ".\nWhich mahjong tile are you?";
     }
 
     function currentShareUrl() {
@@ -1073,28 +1073,28 @@
     }
 
     function toast(message) {
-      var el = $('#tq-toast');
+      var el = $("#tq-toast");
       el.textContent = message;
-      el.classList.add('is-visible');
+      el.classList.add("is-visible");
       clearTimeout(toast.timer);
-      toast.timer = setTimeout(function () { el.classList.remove('is-visible'); }, 2400);
+      toast.timer = setTimeout(function () { el.classList.remove("is-visible"); }, 2400);
     }
 
     function copyLink() {
       var url = currentShareUrl();
-      var done = function () { toast('Link copied! Go spread the tea 🫖'); };
+      var done = function () { toast("Link copied! Go spread the tea 🫖"); };
       if (root.navigator.clipboard && root.navigator.clipboard.writeText) {
-        root.navigator.clipboard.writeText(url).then(done, function () { root.prompt('Copy this link:', url); });
+        root.navigator.clipboard.writeText(url).then(done, function () { root.prompt("Copy this link:", url); });
       } else {
-        root.prompt('Copy this link:', url);
+        root.prompt("Copy this link:", url);
       }
-      track('tile_quiz_share', { method: 'copy_link', tile: resultTile.id });
+      track("tile_quiz_share", { method: "copy_link", tile: resultTile.id });
     }
 
     function shareLink() {
       if (root.navigator.share) {
-        root.navigator.share({ title: 'Which Mahjong Tile Are You?', text: shareText(resultTile), url: currentShareUrl() })
-          .then(function () { track('tile_quiz_share', { method: 'native', tile: resultTile.id }); })
+        root.navigator.share({ title: "Which Mahjong Tile Are You?", text: shareText(resultTile), url: currentShareUrl() })
+          .then(function () { track("tile_quiz_share", { method: "native", tile: resultTile.id }); })
           .catch(function () {});
       } else {
         copyLink();
@@ -1103,9 +1103,9 @@
 
     function wrapLines(ctx, text, maxWidth) {
       var lines = [];
-      var line = '';
-      text.split(' ').forEach(function (word) {
-        var test = line ? line + ' ' + word : word;
+      var line = "";
+      text.split(" ").forEach(function (word) {
+        var test = line ? line + " " + word : word;
         if (line && ctx.measureText(test).width > maxWidth) {
           lines.push(line);
           line = word;
@@ -1127,12 +1127,12 @@
     }
 
     function loadSvgImage(svg) {
-      return loadUrlImage('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg));
+      return loadUrlImage("data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg));
     }
 
     function hexToRgba(hex, alpha) {
       var n = parseInt(hex.slice(1), 16);
-      return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + alpha + ')';
+      return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + alpha + ")";
     }
 
     // Instagram story (1080x1920, 9:16). Copy sits in the middle band so the
@@ -1142,14 +1142,14 @@
       var H = 1920;
       var PAD = 88;
       var color = root.LuckyCatTileArt.colorFor(tile.id);
-      var heading = '"KN Yuanmo SC", "PingFang SC", sans-serif';
-      var body = '"Avenir Next", Avenir, -apple-system, "Segoe UI", sans-serif';
-      var canvas = doc.createElement('canvas');
+      var heading = "\"KN Yuanmo SC\", \"PingFang SC\", sans-serif";
+      var body = "\"Avenir Next\", Avenir, -apple-system, \"Segoe UI\", sans-serif";
+      var canvas = doc.createElement("canvas");
       canvas.width = W;
       canvas.height = H;
-      var ctx = canvas.getContext('2d');
+      var ctx = canvas.getContext("2d");
       var fontsReady = doc.fonts && doc.fonts.load
-        ? doc.fonts.load('64px "KN Yuanmo SC"').catch(function () {})
+        ? doc.fonts.load("64px \"KN Yuanmo SC\"").catch(function () {})
         : Promise.resolve();
       var artW = 440;
 
@@ -1162,7 +1162,7 @@
         var artTop = 560;
         var artBottom = artTop + artH;
 
-        ctx.fillStyle = '#FFF8F0';
+        ctx.fillStyle = "#FFF8F0";
         ctx.fillRect(0, 0, W, H);
         // Same soft tile-color bloom as the result card on the site.
         var glow = ctx.createRadialGradient(W / 2, artTop + artH * 0.62, 0, W / 2, artTop + artH * 0.62, 560);
@@ -1175,27 +1175,27 @@
         ctx.fillRect(0, 0, W, 16);
         ctx.fillRect(0, H - 16, W, 16);
 
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#5C5C5C';
-        ctx.font = '600 38px ' + body;
-        ctx.fillText('I\'m the', W / 2, 300);
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#5C5C5C";
+        ctx.font = "600 38px " + body;
+        ctx.fillText("I'm the", W / 2, 300);
         var nameText = tile.name;
         var nameSize = 92;
         do {
-          ctx.font = nameSize + 'px ' + heading;
+          ctx.font = nameSize + "px " + heading;
           nameSize -= 4;
         } while (ctx.measureText(nameText).width > W - PAD * 2 && nameSize > 48);
         ctx.fillStyle = color;
         ctx.fillText(nameText, W / 2, 410);
-        ctx.fillStyle = '#1A1A1A';
-        ctx.font = '48px ' + heading;
-        ctx.fillText(tile.emoji + ' ' + tile.title, W / 2, 500);
+        ctx.fillStyle = "#1A1A1A";
+        ctx.font = "48px " + heading;
+        ctx.fillText(tile.emoji + " " + tile.title, W / 2, 500);
 
         ctx.drawImage(img, (W - artW) / 2, artTop, artW, artH);
 
         var y = artBottom + 96;
-        ctx.fillStyle = '#1A1A1A';
-        ctx.font = '700 38px ' + body;
+        ctx.fillStyle = "#1A1A1A";
+        ctx.font = "700 38px " + body;
         wrapLines(ctx, tile.tagline, W - PAD * 2).forEach(function (line) {
           ctx.fillText(line, W / 2, y);
           y += 50;
@@ -1209,148 +1209,148 @@
         var size = 32;
         var lines;
         do {
-          ctx.font = '500 ' + size + 'px ' + body;
+          ctx.font = "500 " + size + "px " + body;
           lines = wrapLines(ctx, tile.description, W - PAD * 2);
           size -= 2;
         } while (y + descShift + lines.length * (size + 2) * 1.45 > maxBottom && size > 22);
         var lineHeight = (size + 2) * 1.45;
         y += descShift;
-        ctx.textAlign = 'left';
-        ctx.fillStyle = '#3D3D3D';
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#3D3D3D";
         lines.forEach(function (line) {
           y += lineHeight;
           ctx.fillText(line, PAD, y);
         });
 
-        ctx.textAlign = 'center';
+        ctx.textAlign = "center";
         ctx.fillStyle = color;
-        ctx.font = '44px ' + heading;
-        ctx.fillText('Which mahjong tile are you?', W / 2, footerY);
-        ctx.fillStyle = '#5C5C5C';
-        ctx.font = '600 30px ' + body;
-        ctx.fillText('luckycatmahjong.com', W / 2, footerY + 56);
+        ctx.font = "44px " + heading;
+        ctx.fillText("Which mahjong tile are you?", W / 2, footerY);
+        ctx.fillStyle = "#5C5C5C";
+        ctx.font = "600 30px " + body;
+        ctx.fillText("luckycatmahjong.com", W / 2, footerY + 56);
 
-        return new Promise(function (resolve) { canvas.toBlob(resolve, 'image/png'); });
+        return new Promise(function (resolve) { canvas.toBlob(resolve, "image/png"); });
       });
     }
 
     function downloadImage() {
       var tile = resultTile;
-      var button = $('#tq-download');
+      var button = $("#tq-download");
       button.disabled = true;
       buildShareImage(tile).then(function (blob) {
-        var filename = 'lucky-cat-mahjong-' + tile.id + '.png';
-        var file = typeof File === 'function' ? new File([blob], filename, { type: 'image/png' }) : null;
+        var filename = "lucky-cat-mahjong-" + tile.id + ".png";
+        var file = typeof File === "function" ? new File([blob], filename, { type: "image/png" }) : null;
         // Phones: the share sheet's "Save Image" puts it in the camera roll, ready for a story.
         if (file && root.navigator.canShare && root.navigator.canShare({ files: [file] }) && /Mobi|Android|iPhone|iPad/i.test(root.navigator.userAgent)) {
           return root.navigator.share({ files: [file], title: tile.name }).catch(function () {});
         }
-        var a = doc.createElement('a');
+        var a = doc.createElement("a");
         a.href = URL.createObjectURL(blob);
         a.download = filename;
         doc.body.appendChild(a);
         a.click();
         a.remove();
         setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
-        toast('Downloaded! Perfect for your story 📸');
+        toast("Downloaded! Perfect for your story 📸");
       }).catch(function () {
-        toast('Couldn\'t make the image. Try a screenshot instead!');
+        toast("Couldn't make the image. Try a screenshot instead!");
       }).then(function () {
         button.disabled = false;
-        track('tile_quiz_share', { method: 'image', tile: tile.id });
+        track("tile_quiz_share", { method: "image", tile: tile.id });
       });
     }
 
     function bind() {
-      $('#tq-start').addEventListener('click', function () {
-        track('tile_quiz_start_click', { location: 'intro' });
+      $("#tq-start").addEventListener("click", function () {
+        track("tile_quiz_start_click", { location: "intro" });
         startQuiz();
       });
-      $('#tq-back').addEventListener('click', function () {
-        track('tile_quiz_back_click', { question_index: current });
+      $("#tq-back").addEventListener("click", function () {
+        track("tile_quiz_back_click", { question_index: current });
         goBack();
       });
-      $('#tq-options').addEventListener('click', function (e) {
-        var btn = e.target.closest('.tq-option');
+      $("#tq-options").addEventListener("click", function (e) {
+        var btn = e.target.closest(".tq-option");
         if (btn) choose(Number(btn.dataset.index));
       });
-      $('#tq-options').addEventListener('pointerdown', function () {
-        this.classList.remove('is-fresh');
+      $("#tq-options").addEventListener("pointerdown", function () {
+        this.classList.remove("is-fresh");
       });
-      $('#tq-options').addEventListener('pointermove', function () {
-        this.classList.remove('is-fresh');
+      $("#tq-options").addEventListener("pointermove", function () {
+        this.classList.remove("is-fresh");
       });
-      $('#tq-info-form').addEventListener('submit', onInfoSubmit);
+      $("#tq-info-form").addEventListener("submit", onInfoSubmit);
       // The skill level is the only field tracked: the rest is personal.
-      $('#tq-info-form').addEventListener('change', function (e) {
-        if (e.target.name === 'skill') track('tile_quiz_skill_click', { skill_level: e.target.value });
+      $("#tq-info-form").addEventListener("change", function (e) {
+        if (e.target.name === "skill") track("tile_quiz_skill_click", { skill_level: e.target.value });
       });
-      $('#tq-info-back').addEventListener('click', function () {
-        track('tile_quiz_info_back_click');
+      $("#tq-info-back").addEventListener("click", function () {
+        track("tile_quiz_info_back_click");
         current = QUESTIONS.length - 1;
         saveProgress();
         renderQuestion();
         markSavedAnswer();
-        show('question');
+        show("question");
       });
-      var skip = $('#tq-info-skip');
+      var skip = $("#tq-info-skip");
       var host = root.location && root.location.hostname;
-      var local = host === 'localhost' || host === '127.0.0.1' || /^192\.168\.\d+\.\d+$/.test(host);
+      var local = host === "localhost" || host === "127.0.0.1" || /^192\.168\.\d+\.\d+$/.test(host);
       if (skip && local) {
         skip.hidden = false;
-        skip.addEventListener('click', function () { reveal(Promise.resolve()); });
+        skip.addEventListener("click", function () { reveal(Promise.resolve()); });
       }
-      $('#tq-download').addEventListener('click', function () {
-        track('tile_quiz_download_click', { tile: resultTile.id });
+      $("#tq-download").addEventListener("click", function () {
+        track("tile_quiz_download_click", { tile: resultTile.id });
         downloadImage();
       });
-      $('#tq-again').addEventListener('click', function () {
-        track('tile_quiz_start_click', { location: 'take_again' });
+      $("#tq-again").addEventListener("click", function () {
+        track("tile_quiz_start_click", { location: "take_again" });
         startQuiz();
       });
-      $('#tq-share').addEventListener('click', function () {
-        track('tile_quiz_share_click', { tile: resultTile.id });
+      $("#tq-share").addEventListener("click", function () {
+        track("tile_quiz_share_click", { tile: resultTile.id });
         shareLink();
       });
-      if (doc.addEventListener) doc.addEventListener('click', trackLink);
+      if (doc.addEventListener) doc.addEventListener("click", trackLink);
     }
 
     // Links to other tiles, by the tile's own path, and out of the quiz.
     function trackLink(e) {
-      var link = e.target.closest('a');
+      var link = e.target.closest("a");
       if (!link) return;
-      var tile = link.pathname.split('/').filter(Boolean).pop();
-      if (link.closest('.tq-gallery-item')) track('tile_quiz_gallery_click', { tile: tile });
-      else if (link.closest('.tq-relation-link')) track('tile_quiz_relation_click', { tile: tile });
-      else if (link.closest('#tq-returning')) track('tile_quiz_returning_click', { tile: tile });
-      else if (link.closest('.tq-cta')) track('tile_quiz_cta_click', { link: link.textContent });
+      var tile = link.pathname.split("/").filter(Boolean).pop();
+      if (link.closest(".tq-gallery-item")) track("tile_quiz_gallery_click", { tile: tile });
+      else if (link.closest(".tq-relation-link")) track("tile_quiz_relation_click", { tile: tile });
+      else if (link.closest("#tq-returning")) track("tile_quiz_returning_click", { tile: tile });
+      else if (link.closest(".tq-cta")) track("tile_quiz_cta_click", { link: link.textContent });
     }
 
     function init() {
       bind();
       renderIntro();
       var params = new URLSearchParams(root.location.search);
-      var shared = getTile(params.get('tile'));
+      var shared = getTile(params.get("tile"));
       var mine = completedTile();
       if (shared && mine) {
         // Show the tile page's URL, so sharing from the browser's own share button gets the tile preview.
         setUrlTile(shared.id);
         renderResult(shared, shared.id === mine.id);
-        show('result');
-        track('tile_quiz_view_shared', { tile: shared.id });
+        show("result");
+        track("tile_quiz_view_shared", { tile: shared.id });
         return;
       }
       if (shared) {
         // Haven't finished the quiz yet: send them to it, with a note about the tile they tried to open.
         setUrlTile(null);
-        var unlock = $('#tq-unlock-note');
-        unlock.textContent = 'Take the quiz to unlock the ' + shared.name + ' and every other tile.';
+        var unlock = $("#tq-unlock-note");
+        unlock.textContent = "Take the quiz to unlock the " + shared.name + " and every other tile.";
         unlock.hidden = false;
-        track('tile_quiz_locked_view', { tile: shared.id });
+        track("tile_quiz_locked_view", { tile: shared.id });
       }
       // Draw the set even when a saved quiz resumes, so Back has tiles to show.
       renderGallery(null);
-      if (!resumeQuiz()) show('intro');
+      if (!resumeQuiz()) show("intro");
     }
 
     return { init: init };
@@ -1379,15 +1379,15 @@
     createApp: createApp,
   };
 
-  if (typeof module !== 'undefined' && module.exports) {
+  if (typeof module !== "undefined" && module.exports) {
     module.exports = api;
   } else {
     root.LuckyCatTileQuiz = api;
     var start = function () { createApp(document).init(); };
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', start);
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", start);
     } else {
       start();
     }
   }
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== "undefined" ? globalThis : this);

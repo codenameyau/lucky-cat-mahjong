@@ -20,15 +20,15 @@
    and any data set that isn't a frontier round (other labs prune their own:
    scripts/ml/prune-data.js). */
 
-'use strict';
+"use strict";
 
-const fs = require('node:fs');
-const path = require('node:path');
+const fs = require("node:fs");
+const path = require("node:path");
 
-const ROOT = path.join(__dirname, '..', '..');
-const DATA = path.join(ROOT, 'ml', 'data');
-const FRONTIER = path.join(ROOT, 'ml', 'frontier');
-const CACHE = path.join(ROOT, 'native', 'build', 'cache');
+const ROOT = path.join(__dirname, "..", "..");
+const DATA = path.join(ROOT, "ml", "data");
+const FRONTIER = path.join(ROOT, "ml", "frontier");
+const CACHE = path.join(ROOT, "native", "build", "cache");
 const GB = 1024 ** 3;
 const FRONTIER_SET = /^(lv|sp)-\d+$/;
 
@@ -47,7 +47,7 @@ function freeBytes(dir) {
   return s.bavail * s.bsize;
 }
 
-const gb = (n) => (n / GB).toFixed(1) + ' GB';
+const gb = (n) => (n / GB).toFixed(1) + " GB";
 
 // The frontier data every lineage's state still lists (ml/frontier/<lineage>/state.json).
 function listedSets(frontier) {
@@ -55,9 +55,9 @@ function listedSets(frontier) {
   const keep = new Set();
   if (!fs.existsSync(frontier)) return keep;
   for (const name of fs.readdirSync(frontier)) {
-    const file = path.join(frontier, name, 'state.json');
+    const file = path.join(frontier, name, "state.json");
     if (!fs.existsSync(file)) continue;
-    try { (JSON.parse(fs.readFileSync(file, 'utf8')).data || []).forEach((d) => keep.add(path.basename(d))); } catch (e) { /* unreadable: keep everything */ return null; }
+    try { (JSON.parse(fs.readFileSync(file, "utf8")).data || []).forEach((d) => keep.add(path.basename(d))); } catch (e) { /* unreadable: keep everything */ return null; }
   }
   return keep;
 }
@@ -65,7 +65,7 @@ function listedSets(frontier) {
 function remove(dir, why, log) {
   const bytes = dirBytes(dir);
   fs.rmSync(dir, { recursive: true, force: true });
-  log('deleted ' + (path.relative(ROOT, dir).startsWith('..') ? dir : path.relative(ROOT, dir)) + ' (' + gb(bytes) + '): ' + why);
+  log("deleted " + (path.relative(ROOT, dir).startsWith("..") ? dir : path.relative(ROOT, dir)) + " (" + gb(bytes) + "): " + why);
   return bytes;
 }
 
@@ -82,7 +82,7 @@ function pruneOrphans(log, dirs) {
     const p = path.join(data, name);
     const st = fs.statSync(p);
     // Not while it could still be being written (a lineage lists a round's data once it's generated).
-    if (st.isDirectory() && Date.now() - st.mtimeMs > 6 * 3600e3) freed += remove(p, 'no frontier lineage uses it', log);
+    if (st.isDirectory() && Date.now() - st.mtimeMs > 6 * 3600e3) freed += remove(p, "no frontier lineage uses it", log);
   }
   return freed;
 }
@@ -93,7 +93,7 @@ function pruneCache(log, opts) {
   const maxAge = (opts.maxAgeDays || 14) * 86400e3, maxBytes = opts.maxBytes || 1 * GB, cache = opts.cache || CACHE;
   if (!fs.existsSync(cache)) return 0;
   const now = Date.now();
-  const files = fs.readdirSync(cache).filter((f) => f.endsWith('.lcmw')).map((f) => {
+  const files = fs.readdirSync(cache).filter((f) => f.endsWith(".lcmw")).map((f) => {
     const p = path.join(cache, f), st = fs.statSync(p);
     return { p, size: st.size, used: Math.max(st.mtimeMs, st.atimeMs) };
   }).sort((a, b) => b.used - a.used);
@@ -102,7 +102,7 @@ function pruneCache(log, opts) {
     total += f.size;
     if (now - f.used > maxAge || total > maxBytes) { fs.rmSync(f.p, { force: true }); freed += f.size; n++; }
   }
-  if (n) log('deleted ' + n + ' converted weights from native/build/cache (' + gb(freed) + '): unused for ' + (opts.maxAgeDays || 14) + ' days, or past ' + gb(maxBytes));
+  if (n) log("deleted " + n + " converted weights from native/build/cache (" + gb(freed) + "): unused for " + (opts.maxAgeDays || 14) + " days, or past " + gb(maxBytes));
   return freed;
 }
 
@@ -116,11 +116,11 @@ function makeRoom(state, need, log, margin, opts) {
   const want = need + margin;
   while (free() < want && state.data.length > 1) {
     const old = state.data.shift();
-    remove(path.join(root, old), 'to make room for the next round (' + gb(free()) + ' free, ' + gb(want) + ' wanted)', log);
+    remove(path.join(root, old), "to make room for the next round (" + gb(free()) + " free, " + gb(want) + " wanted)", log);
   }
   if (free() < want) {
-    throw new Error('disk: ' + gb(free()) + ' free, and the next round needs about ' + gb(need) + ' plus ' + gb(margin) +
-      ' to spare. Free some space (other labs: node scripts/ml/prune-data.js --apply) and run again.');
+    throw new Error("disk: " + gb(free()) + " free, and the next round needs about " + gb(need) + " plus " + gb(margin) +
+      " to spare. Free some space (other labs: node scripts/ml/prune-data.js --apply) and run again.");
   }
 }
 
@@ -129,7 +129,7 @@ function roundBytes(state, deals, fallback) {
   const last = state.data.length ? path.join(ROOT, state.data[state.data.length - 1]) : null;
   if (last && fs.existsSync(last)) {
     let lastDeals = null;
-    try { lastDeals = JSON.parse(fs.readFileSync(path.join(last, 'meta.json'), 'utf8')).deals; } catch (e) { /* no meta */ }
+    try { lastDeals = JSON.parse(fs.readFileSync(path.join(last, "meta.json"), "utf8")).deals; } catch (e) { /* no meta */ }
     const b = dirBytes(last);
     return lastDeals ? b * deals / lastDeals : b;
   }

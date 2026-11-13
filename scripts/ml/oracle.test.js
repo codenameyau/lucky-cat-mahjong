@@ -1,19 +1,19 @@
-'use strict';
+"use strict";
 
 // Suphx's oracle features (scripts/ml/oracle.js): training only. They must
 // read the hidden tiles correctly, and nothing that reads them may ship.
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
+const { describe, it } = require("node:test");
+const assert = require("node:assert");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 
-const E = require('../../js/mahjong-engine.js');
-const N = require('../../js/mahjong-lucky-cat-net.js');
-const LC = require('../../js/mahjong-lucky-cat-ml.js');
-const O = require('./oracle.js');
-const { ship } = require('./ship.js');
+const E = require("../../js/mahjong-engine.js");
+const N = require("../../js/mahjong-lucky-cat-net.js");
+const LC = require("../../js/mahjong-lucky-cat-ml.js");
+const O = require("./oracle.js");
+const { ship } = require("./ship.js");
 
 // Plays one hand with Lucky Cat in every seat, reading the oracle at each choice.
 async function playReading(seed, check) {
@@ -25,8 +25,8 @@ async function playReading(seed, check) {
   return E.runHand(game, [0, 1, 2, 3].map(() => bot.createBotAgent()));
 }
 
-describe('oracle features (Suphx, training only)', () => {
-  it('reads every other hand, the wall and the next draw', async () => {
+describe("oracle features (Suphx, training only)", () => {
+  it("reads every other hand, the wall and the next draw", async () => {
     let checked = 0;
     await playReading(11, (game, seat, o) => {
       assert.strictEqual(o.length, O.SIZE);
@@ -47,7 +47,7 @@ describe('oracle features (Suphx, training only)', () => {
     assert.ok(checked > 20);
   });
 
-  it('marks exactly the discards that would deal in, with what they pay', async () => {
+  it("marks exactly the discards that would deal in, with what they pay", async () => {
     let risky = 0;
     for (let seed = 1; seed <= 12; seed++) {
       await playReading(seed, (game, seat, o) => {
@@ -62,11 +62,11 @@ describe('oracle features (Suphx, training only)', () => {
         });
       });
     }
-    assert.ok(risky > 0, 'some discard in twelve hands would deal in');
+    assert.ok(risky > 0, "some discard in twelve hands would deal in");
   });
 
-  it('never ships: the game model reads only the seat, and ship refuses an oracle model', () => {
-    const w = require('../../js/mahjong-lucky-cat-weights.js');
+  it("never ships: the game model reads only the seat, and ship refuses an oracle model", () => {
+    const w = require("../../js/mahjong-lucky-cat-weights.js");
     assert.ok(!(w.meta || {}).oracle);
     assert.strictEqual(w.layers[0].cols, N.SIZE);
     const oracleModel = N.zeroWeights();
@@ -74,9 +74,9 @@ describe('oracle features (Suphx, training only)', () => {
     oracleModel.layers[0].w = new Array(oracleModel.layers[0].rows * oracleModel.layers[0].cols).fill(0);
     oracleModel.layers.slice(1).forEach((l) => { l.w = Array.from(l.w); });
     oracleModel.layers.forEach((l) => { l.b = Array.from(l.b); });
-    oracleModel.meta = { name: 'oracle-test', oracle: { delta: 1, size: O.SIZE, publicSize: N.SIZE } };
-    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'oracle-')), 'm.json');
+    oracleModel.meta = { name: "oracle-test", oracle: { delta: 1, size: O.SIZE, publicSize: N.SIZE } };
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "oracle-")), "m.json");
     fs.writeFileSync(file, JSON.stringify(oracleModel));
-    assert.throws(() => ship(file, 'lucky-cat'), /hidden tiles/);
+    assert.throws(() => ship(file, "lucky-cat"), /hidden tiles/);
   });
 });

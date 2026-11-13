@@ -12,11 +12,11 @@
    formatReport(report) is the table the CLI prints (scripts/competition.js). */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
-  var node = typeof module !== 'undefined' && module.exports;
-  var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var S = node ? require('./mahjong-strategies.js') : root.MahjongStrategies;
+  var node = typeof module !== "undefined" && module.exports;
+  var E = node ? require("./mahjong-engine.js") : root.MahjongEngine;
+  var S = node ? require("./mahjong-strategies.js") : root.MahjongStrategies;
 
   var START = 1e9; // nobody busts, so every deal is played in full
   var LIMIT = 13;
@@ -63,15 +63,15 @@
     return {
       turn: function (game, seat, opts) {
         return agent.turn(game, seat, opts).then(function (a) {
-          if (a && a.type === 'kong') counts.kongs++;
+          if (a && a.type === "kong") counts.kongs++;
           return a;
         });
       },
       claim: function (game, seat, opts) {
         return agent.claim(game, seat, opts).then(function (d) {
-          if (d && d.type === 'chow') counts.chows++;
-          if (d && d.type === 'pung') counts.pungs++;
-          if (d && d.type === 'kong') counts.kongs++;
+          if (d && d.type === "chow") counts.chows++;
+          if (d && d.type === "pung") counts.pungs++;
+          if (d && d.type === "kong") counts.kongs++;
           return d;
         });
       },
@@ -97,7 +97,7 @@
     });
     var res = await E.runHand(game, withTargets);
     report.hands++;
-    if (res.type === 'draw') report.draws++;
+    if (res.type === "draw") report.draws++;
     for (var seat = 0; seat < 4; seat++) {
       var st = report.strategies[ids[seat]];
       var mine = res.deltas[seat];
@@ -108,7 +108,7 @@
       st.pungs += counts[seat].pungs;
       st.kongs += counts[seat].kongs;
       if (targets[seat]) st.targets[targets[seat]] = (st.targets[targets[seat]] || 0) + 1;
-      if (res.type === 'draw') { st.draws++; continue; }
+      if (res.type === "draw") { st.draws++; continue; }
       if (res.winner === seat) {
         st.wins++;
         st.wonPoints += mine;
@@ -116,10 +116,10 @@
         st.faan += f;
         st.maxFaan = Math.max(st.maxFaan, f);
         if (f >= LIMIT) st.limitWins++;
-        if (res.how === 'selfDraw') st.selfDraws++;
-        else if (res.how === 'discard') st.discardWins++;
-        else if (res.how === 'robKong') st.robKongWins++;
-        else if (res.how === 'flowers') st.flowerWins++;
+        if (res.how === "selfDraw") st.selfDraws++;
+        else if (res.how === "discard") st.discardWins++;
+        else if (res.how === "robKong") st.robKongWins++;
+        else if (res.how === "flowers") st.flowerWins++;
         if (res.melds.every(function (m) { return m.concealed; })) st.concealedWins++;
         st.winTurns += game.hand.seats[seat].discards.length;
         if (game.hand.seats[seat].discards.length <= FAST_TURN) st.fastWins++;
@@ -134,10 +134,10 @@
           var os = report.strategies[oid];
           os.vs[ids[seat]] = (os.vs[ids[seat]] || 0) + res.deltas[o];
         }
-      } else if (res.payer === seat && res.how !== 'flowers') {
+      } else if (res.payer === seat && res.how !== "flowers") {
         st.dealIns++;
         st.dealInPoints -= mine;
-      } else if (res.how === 'selfDraw' && mine < 0) {
+      } else if (res.how === "selfDraw" && mine < 0) {
         st.selfDrawPaid -= mine;
       }
     }
@@ -146,8 +146,8 @@
 
   async function runMatch(options) {
     var lineup = options.lineup;
-    if (!lineup || lineup.length !== 4) throw new Error('lineup needs four strategy ids');
-    lineup.forEach(function (id) { if (!S.has(id)) throw new Error('unknown strategy: ' + id); });
+    if (!lineup || lineup.length !== 4) throw new Error("lineup needs four strategy ids");
+    lineup.forEach(function (id) { if (!S.has(id)) throw new Error("unknown strategy: " + id); });
     var deals = options.deals || 100;
     var seed = options.seed || 1;
     var rotations = options.rotate === false ? 1 : 4;
@@ -168,9 +168,9 @@
 
   function addInto(a, b) {
     Object.keys(b).forEach(function (k) {
-      if (typeof b[k] === 'number') {
-        a[k] = k === 'maxFaan' ? Math.max(a[k] || 0, b[k]) : (a[k] || 0) + b[k];
-      } else if (b[k] && typeof b[k] === 'object') {
+      if (typeof b[k] === "number") {
+        a[k] = k === "maxFaan" ? Math.max(a[k] || 0, b[k]) : (a[k] || 0) + b[k];
+      } else if (b[k] && typeof b[k] === "object") {
         a[k] = a[k] || {};
         addInto(a[k], b[k]);
       }
@@ -180,7 +180,7 @@
 
   function mergeReports(a, b) {
     var out = emptyReport(a.lineup);
-    ['deals', 'hands', 'draws'].forEach(function (k) { out[k] = a[k] + b[k]; });
+    ["deals", "hands", "draws"].forEach(function (k) { out[k] = a[k] + b[k]; });
     out.ms = Math.max(a.ms, b.ms);
     [a, b].forEach(function (r) {
       Object.keys(r.strategies).forEach(function (id) {
@@ -217,10 +217,10 @@
     };
   }
 
-  function pct(x) { return (x * 100).toFixed(1) + '%'; }
+  function pct(x) { return (x * 100).toFixed(1) + "%"; }
   function num(x, d) { return x.toFixed(d === undefined ? 1 : d); }
-  function pad(s, n) { s = String(s); return s.length >= n ? s : s + new Array(n - s.length + 1).join(' '); }
-  function lpad(s, n) { s = String(s); return s.length >= n ? s : new Array(n - s.length + 1).join(' ') + s; }
+  function pad(s, n) { s = String(s); return s.length >= n ? s : s + new Array(n - s.length + 1).join(" "); }
+  function lpad(s, n) { s = String(s); return s.length >= n ? s : new Array(n - s.length + 1).join(" ") + s; }
 
   function top(obj, n) {
     return Object.keys(obj).sort(function (a, b) { return obj[b] - obj[a]; }).slice(0, n);
@@ -229,49 +229,49 @@
   function formatReport(report) {
     var ids = Object.keys(report.strategies);
     var rows = [
-      ['Points per hand', function (s, t) { return num(t.pointsPerHand) + ' (+/- ' + num(t.pointsMargin) + ')'; }],
-      ['Net points', function (s) { return Math.round(s.points).toLocaleString('en-US'); }],
-      ['Wins', function (s, t) { return s.wins + ' (' + pct(t.winRate) + ' +/- ' + pct(t.winMargin) + ')'; }],
-      ['Wins by own turn ' + FAST_TURN, function (s, t) { return s.fastWins + ' (' + pct(t.fastWinRate) + ')'; }],
-      ['Self-draws', function (s, t) { return s.selfDraws + ' (' + pct(t.selfDrawShare) + ' of wins)'; }],
-      ['Wins off a discard', function (s) { return s.discardWins; }],
-      ['Robbed kongs / flowers', function (s) { return s.robKongWins + ' / ' + s.flowerWins; }],
-      ['Dealt in (gave the winning tile)', function (s, t) { return s.dealIns + ' (' + pct(t.dealInRate) + ')'; }],
-      ['Points paid dealing in', function (s, t) { return Math.round(s.dealInPoints).toLocaleString('en-US') + ' (avg ' + num(t.avgDealInPoints, 0) + ')'; }],
-      ['Points paid to self-draws', function (s) { return Math.round(s.selfDrawPaid).toLocaleString('en-US'); }],
-      ['Deal-ins per win', function (s, t) { return num(t.dealInsPerWin, 2); }],
-      ['Average faan of a win', function (s, t) { return num(t.avgFaan, 2); }],
-      ['Average points of a win', function (s, t) { return num(t.avgWinPoints, 0); }],
-      ['Biggest win (faan)', function (s) { return s.maxFaan; }],
-      ['Limit hands', function (s) { return s.limitWins; }],
-      ['Concealed wins', function (s, t) { return s.concealedWins + ' (' + pct(t.concealedWinShare) + ' of wins)'; }],
-      ['Average turn of a win', function (s, t) { return num(t.avgWinTurn); }],
-      ['Chows / pungs / kongs per hand', function (s, t) { return num(t.chowsPerHand, 2) + ' / ' + num(t.pungsPerHand, 2) + ' / ' + num(t.kongsPerHand, 2); }],
+      ["Points per hand", function (s, t) { return num(t.pointsPerHand) + " (+/- " + num(t.pointsMargin) + ")"; }],
+      ["Net points", function (s) { return Math.round(s.points).toLocaleString("en-US"); }],
+      ["Wins", function (s, t) { return s.wins + " (" + pct(t.winRate) + " +/- " + pct(t.winMargin) + ")"; }],
+      ["Wins by own turn " + FAST_TURN, function (s, t) { return s.fastWins + " (" + pct(t.fastWinRate) + ")"; }],
+      ["Self-draws", function (s, t) { return s.selfDraws + " (" + pct(t.selfDrawShare) + " of wins)"; }],
+      ["Wins off a discard", function (s) { return s.discardWins; }],
+      ["Robbed kongs / flowers", function (s) { return s.robKongWins + " / " + s.flowerWins; }],
+      ["Dealt in (gave the winning tile)", function (s, t) { return s.dealIns + " (" + pct(t.dealInRate) + ")"; }],
+      ["Points paid dealing in", function (s, t) { return Math.round(s.dealInPoints).toLocaleString("en-US") + " (avg " + num(t.avgDealInPoints, 0) + ")"; }],
+      ["Points paid to self-draws", function (s) { return Math.round(s.selfDrawPaid).toLocaleString("en-US"); }],
+      ["Deal-ins per win", function (s, t) { return num(t.dealInsPerWin, 2); }],
+      ["Average faan of a win", function (s, t) { return num(t.avgFaan, 2); }],
+      ["Average points of a win", function (s, t) { return num(t.avgWinPoints, 0); }],
+      ["Biggest win (faan)", function (s) { return s.maxFaan; }],
+      ["Limit hands", function (s) { return s.limitWins; }],
+      ["Concealed wins", function (s, t) { return s.concealedWins + " (" + pct(t.concealedWinShare) + " of wins)"; }],
+      ["Average turn of a win", function (s, t) { return num(t.avgWinTurn); }],
+      ["Chows / pungs / kongs per hand", function (s, t) { return num(t.chowsPerHand, 2) + " / " + num(t.pungsPerHand, 2) + " / " + num(t.kongsPerHand, 2); }],
     ];
     var colW = 30;
     var out = [];
-    out.push('Lineup: ' + report.lineup.join(', ') + ' (rotated through every seat)');
-    out.push(report.deals + ' deals, ' + report.hands + ' hands, ' + report.draws + ' drawn (' + pct(report.draws / (report.hands || 1)) + '), ' + (report.ms / 1000).toFixed(1) + 's');
-    out.push('');
-    out.push(pad('', 34) + ids.map(function (id) { return lpad(id, colW); }).join(''));
+    out.push("Lineup: " + report.lineup.join(", ") + " (rotated through every seat)");
+    out.push(report.deals + " deals, " + report.hands + " hands, " + report.draws + " drawn (" + pct(report.draws / (report.hands || 1)) + "), " + (report.ms / 1000).toFixed(1) + "s");
+    out.push("");
+    out.push(pad("", 34) + ids.map(function (id) { return lpad(id, colW); }).join(""));
     rows.forEach(function (row) {
       out.push(pad(row[0], 34) + ids.map(function (id) {
         var st = report.strategies[id];
         return lpad(row[1](st, summarize(st)), colW);
-      }).join(''));
+      }).join(""));
     });
     ids.forEach(function (id) {
       var st = report.strategies[id];
-      out.push('');
-      out.push(id + ':');
-      var vs = Object.keys(st.vs).map(function (o) { return o + ' ' + (st.vs[o] >= 0 ? '+' : '') + Math.round(st.vs[o]).toLocaleString('en-US'); });
-      if (vs.length) out.push('  net points against: ' + vs.join(', '));
-      var pats = top(st.patterns, 8).map(function (p) { return p + ' ' + st.patterns[p]; });
-      if (pats.length) out.push('  most common in wins: ' + pats.join(', '));
-      var tg = top(st.targets, 10).map(function (p) { return p + ' ' + st.targets[p]; });
-      if (tg.length) out.push('  opening targets: ' + tg.join(', '));
+      out.push("");
+      out.push(id + ":");
+      var vs = Object.keys(st.vs).map(function (o) { return o + " " + (st.vs[o] >= 0 ? "+" : "") + Math.round(st.vs[o]).toLocaleString("en-US"); });
+      if (vs.length) out.push("  net points against: " + vs.join(", "));
+      var pats = top(st.patterns, 8).map(function (p) { return p + " " + st.patterns[p]; });
+      if (pats.length) out.push("  most common in wins: " + pats.join(", "));
+      var tg = top(st.targets, 10).map(function (p) { return p + " " + st.targets[p]; });
+      if (tg.length) out.push("  opening targets: " + tg.join(", "));
     });
-    return out.join('\n');
+    return out.join("\n");
   }
 
   var api = {
@@ -285,4 +285,4 @@
 
   if (node) module.exports = api;
   else root.MahjongCompetition = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== "undefined" ? globalThis : this);

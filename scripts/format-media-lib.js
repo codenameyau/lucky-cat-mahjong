@@ -1,15 +1,15 @@
-'use strict';
+"use strict";
 
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 function mediaWebPath(relativePath) {
-  return '/media/' + relativePath.split(path.sep).join('/');
+  return "/media/" + relativePath.split(path.sep).join("/");
 }
 
 function normalizePhotoPath(photo) {
-  if (typeof photo !== 'string') return '';
-  return photo.trim().replace(/^["']+|["']+$/g, '').replace(/["',]+$/g, '').trim();
+  if (typeof photo !== "string") return "";
+  return photo.trim().replace(/^["']+|["']+$/g, "").replace(/["',]+$/g, "").trim();
 }
 
 function photosEqual(left, right) {
@@ -31,7 +31,7 @@ function buildDateToWebpMap(mediaDir, dirPath) {
         walk(entryPath);
         return;
       }
-      if (path.extname(entry.name).toLowerCase() !== '.webp') return;
+      if (path.extname(entry.name).toLowerCase() !== ".webp") return;
 
       const rel = path.relative(mediaDir, entryPath);
       const segments = rel.split(path.sep);
@@ -58,15 +58,15 @@ function defaultEventName(dateKey) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateKey));
   if (!match) return String(dateKey);
   const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 }
 
 function eventDateKey(event) {
-  if (!event || !event.date) return '';
+  if (!event || !event.date) return "";
   return String(event.date).slice(0, 10);
 }
 
@@ -108,7 +108,7 @@ function updateCommunityFromMedia(community, dateToPhotos, allowedDates) {
     community.events.unshift({
       name: defaultEventName(dateKey),
       date: dateKey,
-      description: '',
+      description: "",
       photos: photos,
     });
     changed = true;

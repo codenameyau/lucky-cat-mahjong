@@ -12,10 +12,10 @@
    Its playbook is in docs/strategies/only-orphans.md#the-rule-based-baseline. */
 
 (function () {
-  'use strict';
+  "use strict";
 
-  var E = require('../../../js/mahjong-engine.js');
-  var B = require('../../../js/mahjong-bot.js');
+  var E = require("../../../js/mahjong-engine.js");
+  var B = require("../../../js/mahjong-bot.js");
 
   var GIVE_UP_ODDS = 0.001; // under this chance of finishing, the hand pivots
   var HOLD_TURNS = 6;       // it plays this many discards before weighing the odds
@@ -69,7 +69,7 @@
   function stillOrphans(c, ctx) {
     if (ctx.declared || !B.orphansAlive(c, ctx)) return false;
     // Once it has given up on Thirteen Orphans, it doesn't come back.
-    if (B.leftPlan(ctx, 'orphans')) return false;
+    if (B.leftPlan(ctx, "orphans")) return false;
     if (ctx.turn < HOLD_TURNS) return true;
     return handOdds(c, ctx) >= GIVE_UP_ODDS;
   }
@@ -95,14 +95,14 @@
   // Decided from the 14 tiles, before any discard. The tiles these hands keep
   // can't be read as going for one suit.
   function hand(ctx, counts) {
-    ctx.lockedSpecial = stillOrphans(counts, ctx) ? { kind: 'orphans' } : null;
+    ctx.lockedSpecial = stillOrphans(counts, ctx) ? { kind: "orphans" } : null;
     ctx.mixedHand = !!ctx.lockedSpecial || pivotPlans(counts, ctx).length > 0;
   }
 
   // (A claim's choice is weighed from the 13 tiles, without hand() first.)
   function plans(c, ctx) {
     var locked = ctx.lockedSpecial === undefined ? stillOrphans(c, ctx) : ctx.lockedSpecial;
-    if (locked) return [B.makeSpecialPlan('orphans', c, ctx)];
+    if (locked) return [B.makeSpecialPlan("orphans", c, ctx)];
     // (The usual hands only if a meld somehow rules all of those out.)
     var pivots = pivotPlans(c, ctx);
     return pivots.length ? pivots : B.basePlans(c, ctx);
@@ -129,11 +129,11 @@
   function claim(res, ctx, game, seat, opts) {
     var best = res.stay.best;
     var plan = best && best.plan;
-    if (!plan || plan.id === 'orphans' || plan.pairs) return { type: 'pass' };
+    if (!plan || plan.id === "orphans" || plan.pairs) return { type: "pass" };
     if (!plan.keep) return null;
-    if (!plan.keep(E.tileIndex(opts.tile))) return { type: 'pass' };
-    if (opts.kong) return { type: 'kong' };
-    return opts.pung ? { type: 'pung' } : { type: 'pass' };
+    if (!plan.keep(E.tileIndex(opts.tile))) return { type: "pass" };
+    if (opts.kong) return { type: "kong" };
+    return opts.pung ? { type: "pung" } : { type: "pass" };
   }
 
   /* ------------------------------------------------------------------ *
@@ -141,7 +141,7 @@
    * ------------------------------------------------------------------ */
 
   var bot = B.createStrategy({
-    id: 'only-orphans-rules',
+    id: "only-orphans-rules",
     // A limit hand counts for much more than Mixed Orphans, but not so much
     // that it's chosen from many steps further away.
     tuning: { valuePower: 0.5, ownPlans: true },

@@ -23,11 +23,11 @@
    The playbook is written out in docs/strategies/lucky-cat.md. */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
-  var node = typeof module !== 'undefined' && module.exports;
-  var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var B = node ? require('./mahjong-bot.js') : root.MahjongBot;
+  var node = typeof module !== "undefined" && module.exports;
+  var E = node ? require("./mahjong-engine.js") : root.MahjongEngine;
+  var B = node ? require("./mahjong-bot.js") : root.MahjongBot;
 
   // Thirteen Orphans starts at 9 (nine different terminals and honors, or
   // eight and a pair). Nine Gates starts at 11 of its 13 tiles: short of that
@@ -35,7 +35,7 @@
   // plan.
   var ORPHANS_MIN = 9;
   var GATES_MIN = 11;
-  var SUIT_LETTERS = ['c', 'd', 'b'];
+  var SUIT_LETTERS = ["c", "d", "b"];
   var EARLY_WALL = 60;
 
   /* ------------------------------------------------------------------ *
@@ -58,10 +58,10 @@
   function pickSpecial(c, ctx) {
     if (ctx.declared) return null;
     var list = [];
-    if (B.chaseSevenPairs(c, ctx)) list.push({ kind: 'pairs', faan: B.baseFaan(ctx) + 4 + B.pairsFlush(c), shantenFn: E.sevenPairsShanten });
-    if (B.orphanProgress(c) >= ORPHANS_MIN && B.orphansAlive(c, ctx)) list.push({ kind: 'orphans', faan: 13, shantenFn: E.orphansShanten });
+    if (B.chaseSevenPairs(c, ctx)) list.push({ kind: "pairs", faan: B.baseFaan(ctx) + 4 + B.pairsFlush(c), shantenFn: E.sevenPairsShanten });
+    if (B.orphanProgress(c) >= ORPHANS_MIN && B.orphansAlive(c, ctx)) list.push({ kind: "orphans", faan: 13, shantenFn: E.orphansShanten });
     var gates = bestNineGates(c);
-    if (gates) list.push({ kind: 'gates', gates: gates, faan: 13, shantenFn: B.nineGatesShanten(gates.start) });
+    if (gates) list.push({ kind: "gates", gates: gates, faan: 13, shantenFn: B.nineGatesShanten(gates.start) });
     var best = null;
     list.forEach(function (item) {
       var s = item.shantenFn(c, ctx.declared || 0);
@@ -109,15 +109,15 @@
     var special = specialPlan(ctx, c);
     // A hand that can win now doesn't leave that for a bigger one.
     if (!special) return B.basePlans(c, ctx).filter(function (p) { return !ctx.holdsReady || !p.upgrade; });
-    return special.id === 'pairs' ? [special].concat(B.pairsUpgrades(c, ctx)) : [special];
+    return special.id === "pairs" ? [special].concat(B.pairsUpgrades(c, ctx)) : [special];
   }
 
   // Thirteen Orphans and Nine Gates throw every tile they can't use first.
   function priority(game, ctx, counts, candidate) {
     var i = candidate.index;
     var locked = ctx.lockedSpecial;
-    if (locked && locked.kind === 'orphans') return B.isOrphanIndex(i) ? 4 : 0;
-    if (locked && locked.kind === 'gates') return B.gatesTileNeeded(counts, locked.gates.start, i) ? 4 : 0;
+    if (locked && locked.kind === "orphans") return B.isOrphanIndex(i) ? 4 : 0;
+    if (locked && locked.kind === "gates") return B.gatesTileNeeded(counts, locked.gates.start, i) ? 4 : 0;
     return null;
   }
 
@@ -148,7 +148,7 @@
    * ------------------------------------------------------------------ */
 
   var bot = B.createStrategy({
-    id: 'lucky-cat',
+    id: "lucky-cat",
     // A win at the 3-faan minimum comes first, so each faan above it counts
     // for much less than its payout.
     tuning: { valuePower: 0.35, keepLive: 0.025, race: true },
@@ -164,4 +164,4 @@
 
   if (node) module.exports = bot;
   else root.MahjongLuckyCat = bot;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== "undefined" ? globalThis : this);

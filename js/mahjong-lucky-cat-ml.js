@@ -31,22 +31,22 @@
    reads of the hand, and say which move the network picks and its share. */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
-  var node = typeof module !== 'undefined' && module.exports;
-  var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var Base = node ? require('./mahjong-bot.js') : root.MahjongBot;
-  var L = node ? require('./mahjong-lucky-cat.js') : root.MahjongLuckyCat;
+  var node = typeof module !== "undefined" && module.exports;
+  var E = node ? require("./mahjong-engine.js") : root.MahjongEngine;
+  var Base = node ? require("./mahjong-bot.js") : root.MahjongBot;
+  var L = node ? require("./mahjong-lucky-cat.js") : root.MahjongLuckyCat;
   // The shared foundation (as Jorge Yau and Neural Cat play it): the plan each move builds
   // toward, for the contradiction check and the coach's words. The native simulator has it too.
-  var J = node ? require('./mahjong-jorge-yau.js') : root.MahjongJorgeYau;
-  var N = node ? require('./mahjong-lucky-cat-net.js') : root.MahjongLuckyCatNet;
+  var J = node ? require("./mahjong-jorge-yau.js") : root.MahjongJorgeYau;
+  var N = node ? require("./mahjong-lucky-cat-net.js") : root.MahjongLuckyCatNet;
   // The value (the stacked evaluation, self-taught): js/mahjong-lucky-cat-value.js.
-  var V = node ? require('./mahjong-lucky-cat-value.js') : root.MahjongLuckyCatValue;
+  var V = node ? require("./mahjong-lucky-cat-value.js") : root.MahjongLuckyCatValue;
 
   function shippedWeights() {
     if (!node) return root.MahjongLuckyCatWeights || null;
-    try { return require('./mahjong-lucky-cat-weights.js'); } catch (err) { return null; }
+    try { return require("./mahjong-lucky-cat-weights.js"); } catch (err) { return null; }
   }
 
   function trainedModel() {
@@ -87,8 +87,8 @@
     // foundation; every decision below is the network's, checked against
     // the plan the foundation reads for it (the contradiction check).
     var bot = Object.create(J);
-    bot.id = 'lucky-cat';
-    Object.defineProperty(bot, 'model', { get: getModel, enumerable: true });
+    bot.id = "lucky-cat";
+    Object.defineProperty(bot, "model", { get: getModel, enumerable: true });
     bot.learned = true;
     bot.onDecision = options.onDecision || null;
 
@@ -158,7 +158,7 @@
     function claimScore(game, seat, opts) {
       return function (m, vm) {
         var after = V.afterCall(game, seat, opts, m.decision);
-        if (m.decision.type !== 'pung' && m.decision.type !== 'chow') return vm.ev(V.features(game, seat, after));
+        if (m.decision.type !== "pung" && m.decision.type !== "chow") return vm.ev(V.features(game, seat, after));
         var play = (vm.meta && vm.meta.play) || {};
         var discards = N.turnMoves(after.hand, []);
         getModel().policy(N.encode(game, seat, { hand: after.hand, melds: after.melds }), discards);
@@ -193,8 +193,8 @@
         var byTile = {};
         res.candidates.forEach(function (x) { byTile[x.tile] = x; });
         return firstConsistent(this.moves, k, function (m) {
-          if (m.decision.type === 'kong') return !Base.kongContradicts(res.ctx.leadPlan, m.decision.tile);
-          if (m.decision.type !== 'discard' || res.folding) return true;
+          if (m.decision.type === "kong") return !Base.kongContradicts(res.ctx.leadPlan, m.decision.tile);
+          if (m.decision.type !== "discard" || res.folding) return true;
           var x = byTile[m.decision.tile];
           return !x || !Base.contradicts(game, counts, x);
         });
@@ -211,8 +211,8 @@
         var res = J.analyzeDiscards(game, seat), counts = E.countsOf(game.hand.seats[seat].hand), byTile = {};
         res.candidates.forEach(function (c) { byTile[c.tile] = c; });
         var ok = function (m) {
-          if (m.decision.type === 'kong') return !Base.kongContradicts(res.ctx.leadPlan, m.decision.tile);
-          if (m.decision.type !== 'discard' || res.folding) return true;
+          if (m.decision.type === "kong") return !Base.kongContradicts(res.ctx.leadPlan, m.decision.tile);
+          if (m.decision.type !== "discard" || res.folding) return true;
           var c = byTile[m.decision.tile];
           return !c || !Base.contradicts(game, counts, c);
         };
@@ -224,20 +224,20 @@
 
     // Each kong offered against the best discard, for the coach.
     bot.kongChoice = function (game, seat, opts) {
-      if (opts.win) return { decision: { type: 'win' }, choices: null };
+      if (opts.win) return { decision: { type: "win" }, choices: null };
       var r = turnRead(game, seat, opts);
       var decision = r.moves[r.k].decision;
       if (!opts.kongs || !opts.kongs.length) return { decision: decision, choices: null };
-      var discards = r.moves.filter(function (m) { return m.decision.type === 'discard'; });
+      var discards = r.moves.filter(function (m) { return m.decision.type === "discard"; });
       var bestDiscard = discards.reduce(function (a, m) { return m.p > a.p ? m : a; }, discards[0]);
-      var list = [bestDiscard].concat(r.moves.filter(function (m) { return m.decision.type === 'kong'; }));
+      var list = [bestDiscard].concat(r.moves.filter(function (m) { return m.decision.type === "kong"; }));
       var choices = list.map(function (m) { return { decision: m.decision, kind: m.kind, ml: share(m) }; });
       var at = Math.max(0, list.indexOf(r.moves[r.k]));
       return { decision: decision, choices: choices, pick: at, foundation: at };
     };
 
     bot.chooseTurnAction = function (game, seat, opts) {
-      if (opts.win) return { type: 'win' };
+      if (opts.win) return { type: "win" };
       var r = turnRead(game, seat, opts);
       return r.moves[r.k].decision;
     };
@@ -259,8 +259,8 @@
     }
 
     bot.chooseClaim = function (game, seat, opts) {
-      if (opts.win) return { type: 'win' };
-      if (!opts.pung && !opts.kong && !(opts.chows || []).length) return { type: 'pass' };
+      if (opts.win) return { type: "win" };
+      if (!opts.pung && !opts.kong && !(opts.chows || []).length) return { type: "pass" };
       var r = claimRead(game, seat, opts);
       return r.moves[r.k].decision;
     };
@@ -268,8 +268,8 @@
     // The network's claim, with the classic rules' read of each option for
     // the coach's words (found.ml: each choice and its share).
     bot.decideClaim = function (game, seat, opts) {
-      if (opts.win) return { decision: { type: 'win' }, found: null };
-      if (!opts.pung && !opts.kong && !(opts.chows || []).length) return { decision: { type: 'pass' }, found: null };
+      if (opts.win) return { decision: { type: "win" }, found: null };
+      if (!opts.pung && !opts.kong && !(opts.chows || []).length) return { decision: { type: "pass" }, found: null };
       var r = claimRead(game, seat, opts);
       var found = r.found;
       found.ml = {
@@ -322,4 +322,4 @@
 
   if (node) module.exports = api;
   else root.MahjongLuckyCatML = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== "undefined" ? globalThis : this);

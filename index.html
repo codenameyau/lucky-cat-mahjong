@@ -74,16 +74,16 @@
       // The visitor and session IDs and the cookie choice (js/analytics-id.js), before the page view.
       if (window.lcmAnalytics) window.lcmAnalytics.start(gtag);
       if (!localHost) {
-        gtag('js', new Date());
-        gtag('config', 'G-B514HH987M');
+        gtag("js", new Date());
+        gtag("config", "G-B514HH987M");
         var loadGtag = function () {
-          var gaScript = document.createElement('script');
+          var gaScript = document.createElement("script");
           gaScript.async = true;
-          gaScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-B514HH987M';
+          gaScript.src = "https://www.googletagmanager.com/gtag/js?id=G-B514HH987M";
           document.head.appendChild(gaScript);
         };
-        if (document.readyState === 'complete') loadGtag();
-        else window.addEventListener('load', loadGtag);
+        if (document.readyState === "complete") loadGtag();
+        else window.addEventListener("load", loadGtag);
       }
     }
   </script>

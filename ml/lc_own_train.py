@@ -48,12 +48,12 @@ SLOTS = 8
 
 def floats(v, dtype):
     if isinstance(v, str):
-        return np.frombuffer(base64.b64decode(v), dtype='<f2' if dtype == 'f16' else '<f4').astype(np.float32)
+        return np.frombuffer(base64.b64decode(v), dtype="<f2" if dtype == "f16" else "<f4").astype(np.float32)
     return np.asarray(v, dtype=np.float32)
 
 
 def b64(arr):
-    return base64.b64encode(np.ascontiguousarray(arr, dtype='<f2').tobytes()).decode('ascii')
+    return base64.b64encode(np.ascontiguousarray(arr, dtype="<f2").tobytes()).decode("ascii")
 
 
 class Net(nn.Module):
@@ -80,7 +80,7 @@ class ResNet(nn.Module):
         self.out_norm = nn.LayerNorm(width)
         self.out = nn.Linear(width, OUTPUTS)
         for l in [self.inp] + list(self.w1):
-            nn.init.kaiming_normal_(l.weight, nonlinearity='relu'); nn.init.zeros_(l.bias)
+            nn.init.kaiming_normal_(l.weight, nonlinearity="relu"); nn.init.zeros_(l.bias)
         for l in self.w2:
             nn.init.zeros_(l.weight); nn.init.zeros_(l.bias)
 
@@ -93,23 +93,23 @@ class ResNet(nn.Module):
 
 def load_model(path):
     w = json.load(open(os.path.join(ROOT, path)))
-    sizes = [w['layers'][0]['cols']] + [l['rows'] for l in w['layers']]
+    sizes = [w["layers"][0]["cols"]] + [l["rows"] for l in w["layers"]]
     net = Net(sizes)
     with torch.no_grad():
-        for l, src in zip(net.layers, w['layers']):
-            l.weight.copy_(torch.from_numpy(floats(src['w'], w.get('dtype')).reshape(src['rows'], src['cols'])))
-            l.bias.copy_(torch.from_numpy(floats(src['b'], w.get('dtype'))))
+        for l, src in zip(net.layers, w["layers"]):
+            l.weight.copy_(torch.from_numpy(floats(src["w"], w.get("dtype")).reshape(src["rows"], src["cols"])))
+            l.bias.copy_(torch.from_numpy(floats(src["b"], w.get("dtype"))))
     return net, w
 
 
 def save_model(net, base, name, extra):
-    layers = [{'rows': l.out_features, 'cols': l.in_features, 'w': b64(l.weight.detach().cpu().numpy()), 'b': b64(l.bias.detach().cpu().numpy())} for l in net.layers]
-    meta = dict(base.get('meta', {}))
-    meta.update({'name': name, 'trainedAt': time.strftime('%Y-%m-%d %H:%M'), 'hidden': [l.out_features for l in net.layers[:-1]]})
+    layers = [{"rows": l.out_features, "cols": l.in_features, "w": b64(l.weight.detach().cpu().numpy()), "b": b64(l.bias.detach().cpu().numpy())} for l in net.layers]
+    meta = dict(base.get("meta", {}))
+    meta.update({"name": name, "trainedAt": time.strftime("%Y-%m-%d %H:%M"), "hidden": [l.out_features for l in net.layers[:-1]]})
     meta.update(extra)
-    out = {'featureVersion': base['featureVersion'], 'featureSize': base['featureSize'], 'dtype': 'f16', 'meta': meta, 'layers': layers}
-    path = os.path.join(ROOT, 'ml', 'models', name + '.json')
-    json.dump(out, open(path, 'w'))
+    out = {"featureVersion": base["featureVersion"], "featureSize": base["featureSize"], "dtype": "f16", "meta": meta, "layers": layers}
+    path = os.path.join(ROOT, "ml", "models", name + ".json")
+    json.dump(out, open(path, "w"))
     return path
 
 
@@ -119,10 +119,10 @@ def js_check(net, path, x):
         want = net.cpu()(torch.from_numpy(probe)).numpy()
     js = ("const N=require(process.argv[1]+'/js/mahjong-lucky-cat-net.js');const m=N.createModel(require(process.argv[2]));"
           "const xs=JSON.parse(require('fs').readFileSync(0,'utf8'));console.log(JSON.stringify(xs.map(x=>m.forward(Float32Array.from(x)))));")
-    got = np.array(json.loads(subprocess.run(['node', '-e', js, ROOT, path], input=json.dumps(probe.tolist()), capture_output=True, text=True, check=True).stdout))
+    got = np.array(json.loads(subprocess.run(["node", "-e", js, ROOT, path], input=json.dumps(probe.tolist()), capture_output=True, text=True, check=True).stdout))
     err = float(np.abs(got - want).max())
     if err > 0.05 * max(1.0, float(np.abs(want).max())):
-        raise SystemExit(f'{path}: the JS model disagrees ({err})')
+        raise SystemExit(f"{path}: the JS model disagrees ({err})")
     return err
 
 
@@ -131,38 +131,38 @@ def load(dirs):
     for di, d in enumerate(dirs):
         full = os.path.join(ROOT, d)
         for f in sorted(os.listdir(full)):
-            if not f.endswith('.qa.u1'):
+            if not f.endswith(".qa.u1"):
                 continue
             base = os.path.join(full, f[:-6])
-            t = np.fromfile(base + '.qa.u1', dtype=np.uint8).reshape(-1, SLOTS)
+            t = np.fromfile(base + ".qa.u1", dtype=np.uint8).reshape(-1, SLOTS)
             if not len(t):
                 continue
             qa.append(t)
-            qp.append(np.fromfile(base + '.qp.f4', dtype='<f4').reshape(-1, SLOTS))
-            qw.append(np.fromfile(base + '.q.f4', dtype='<f4').reshape(-1, SLOTS))
+            qp.append(np.fromfile(base + ".qp.f4", dtype="<f4").reshape(-1, SLOTS))
+            qw.append(np.fromfile(base + ".q.f4", dtype="<f4").reshape(-1, SLOTS))
             # the SE of each slot's gap to the move played (new data); NaN where not recorded
-            qs.append(np.fromfile(base + '.qs.f4', dtype='<f4').reshape(-1, SLOTS) if os.path.exists(base + '.qs.f4') else np.full((len(t), SLOTS), np.nan, np.float32))
-            xs.append(np.fromfile(base + '.x.f16', dtype='<f2').reshape(-1, 376))
-            m = np.unpackbits(np.fromfile(base + '.m.u1', dtype=np.uint8).reshape(-1, 10), axis=1, bitorder='little')[:, :OUTPUTS]
+            qs.append(np.fromfile(base + ".qs.f4", dtype="<f4").reshape(-1, SLOTS) if os.path.exists(base + ".qs.f4") else np.full((len(t), SLOTS), np.nan, np.float32))
+            xs.append(np.fromfile(base + ".x.f16", dtype="<f2").reshape(-1, 376))
+            m = np.unpackbits(np.fromfile(base + ".m.u1", dtype=np.uint8).reshape(-1, 10), axis=1, bitorder="little")[:, :OUTPUTS]
             legal.append(m.astype(bool))
-            shard = int(f.split('-')[1].split('.')[0])
-            hs.append(np.fromfile(base + '.h.u4', dtype='<u4').astype(np.int64) + (di * 100000 + shard) * (1 << 32))
+            shard = int(f.split("-")[1].split(".")[0])
+            hs.append(np.fromfile(base + ".h.u4", dtype="<u4").astype(np.int64) + (di * 100000 + shard) * (1 << 32))
     return np.concatenate(xs), np.concatenate(legal), np.concatenate(qa), np.concatenate(qp), np.concatenate(qw), np.concatenate(hs), np.concatenate(qs)
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--data', nargs='+', required=True)
-    ap.add_argument('--arms', required=True)
-    ap.add_argument('--report')
+    ap.add_argument("--data", nargs="+", required=True)
+    ap.add_argument("--arms", required=True)
+    ap.add_argument("--report")
     args = ap.parse_args()
     arms = json.load(open(args.arms))
     t0 = time.time()
-    dev = 'cuda' if torch.cuda.is_available() else 'cpu'
+    dev = "cuda" if torch.cuda.is_available() else "cpu"
     x, legal, qa, qp, qw, h, qs = load(args.data)
     n = len(x)
     valid = qa != 255
-    print(f'{n} choices from {len(args.data)} sets, {int(valid.sum()) - n} alternatives, loaded in {time.time() - t0:.0f}s on {dev}', flush=True)
+    print(f"{n} choices from {len(args.data)} sets, {int(valid.sum()) - n} alternatives, loaded in {time.time() - t0:.0f}s on {dev}", flush=True)
     X = torch.from_numpy(x.astype(np.float32)).to(dev)
     Lg = torch.from_numpy(legal).to(dev)
     QA = torch.from_numpy(np.where(valid, qa, 0).astype(np.int64)).to(dev)
@@ -174,66 +174,68 @@ def main():
     report = []
     for arm in arms:
         ta = time.time()
-        name = arm['name']
-        net, base = load_model(arm['init'])
-        if arm.get('mode') == 'soup':
+        name = arm["name"]
+        net, base = load_model(arm["init"])
+        if arm.get("mode") == "soup":
             # the weight average of models trained from the same init (seeds), a model soup
-            nets = [load_model('ml/models/' + m + '.json')[0] for m in arm['members']]
+            nets = [load_model("ml/models/" + m + ".json")[0] for m in arm["members"]]
             with torch.no_grad():
                 for k, l in enumerate(net.layers):
                     l.weight.copy_(sum(n_.layers[k].weight for n_ in nets) / len(nets))
                     l.bias.copy_(sum(n_.layers[k].bias for n_ in nets) / len(nets))
-            path = save_model(net, base, name, {'mode': 'soup', 'members': arm['members'], 'init': arm['init']})
+            path = save_model(net, base, name, {"mode": "soup", "members": arm["members"], "init": arm["init"]})
             js_check(net, path, x)
-            report.append({'name': name, 'seconds': time.time() - ta})
-            print(f'{name}: soup of {", ".join(arm["members"])}', flush=True)
+            report.append({"name": name, "seconds": time.time() - ta})
+            members = ", ".join(arm["members"])
+            print(f"{name}: soup of {members}", flush=True)
             continue
-        if arm.get('mode') == 'noise':
-            g = torch.Generator().manual_seed(int(arm.get('seed', 1)))
+        if arm.get("mode") == "noise":
+            g = torch.Generator().manual_seed(int(arm.get("seed", 1)))
             with torch.no_grad():
                 for l in net.layers:
-                    l.weight.add_(torch.randn(l.weight.shape, generator=g) * float(arm['sigma']) * l.weight.std())
-                    l.bias.add_(torch.randn(l.bias.shape, generator=g) * float(arm['sigma']) * l.weight.std())
-            path = save_model(net, base, name, {'mode': 'noise', 'sigma': arm['sigma'], 'seed': arm.get('seed', 1), 'init': arm['init']})
+                    l.weight.add_(torch.randn(l.weight.shape, generator=g) * float(arm["sigma"]) * l.weight.std())
+                    l.bias.add_(torch.randn(l.bias.shape, generator=g) * float(arm["sigma"]) * l.weight.std())
+            path = save_model(net, base, name, {"mode": "noise", "sigma": arm["sigma"], "seed": arm.get("seed", 1), "init": arm["init"]})
             js_check(net, path, x)
-            report.append({'name': name, 'seconds': time.time() - ta})
-            print(f'{name}: noise sigma {arm["sigma"]} seed {arm.get("seed", 1)}', flush=True)
+            report.append({"name": name, "seconds": time.time() - ta})
+            sigma, seed = arm["sigma"], arm.get("seed", 1)
+            print(f"{name}: noise sigma {sigma} seed {seed}", flush=True)
             continue
-        if arm.get('noiseFirst'):
+        if arm.get("noiseFirst"):
             # noise, then the q step: an escape from init's basin before training
-            g = torch.Generator().manual_seed(int(arm.get('seed', 1)) + 1000)
+            g = torch.Generator().manual_seed(int(arm.get("seed", 1)) + 1000)
             with torch.no_grad():
                 for l in net.layers:
                     sd = l.weight.std()
-                    l.weight.add_(torch.randn(l.weight.shape, generator=g) * float(arm['noiseFirst']) * sd)
-                    l.bias.add_(torch.randn(l.bias.shape, generator=g) * float(arm['noiseFirst']) * sd)
-        tau, bonus = float(arm.get('tau', 100)), float(arm.get('bonus', 300))
-        lr, epochs, batch = float(arm.get('lr', 3e-4)), int(arm.get('epochs', 4)), int(arm.get('batch', 1024))
-        anchor, klw = arm.get('anchor', 'ref'), float(arm.get('kl', 0))
-        clip = float(arm.get('clip', 4000))
+                    l.weight.add_(torch.randn(l.weight.shape, generator=g) * float(arm["noiseFirst"]) * sd)
+                    l.bias.add_(torch.randn(l.bias.shape, generator=g) * float(arm["noiseFirst"]) * sd)
+        tau, bonus = float(arm.get("tau", 100)), float(arm.get("bonus", 300))
+        lr, epochs, batch = float(arm.get("lr", 3e-4)), int(arm.get("epochs", 4)), int(arm.get("batch", 1024))
+        anchor, klw = arm.get("anchor", "ref"), float(arm.get("kl", 0))
+        clip = float(arm.get("clip", 4000))
         q = QP + bonus * QW
         adv = torch.clamp(q - q[:, :1], -clip, clip) * V
-        rng = np.random.default_rng(int(arm.get('seed', 1)))
-        torch.manual_seed(int(arm.get('seed', 1)))
-        held = rng.random(len(hands)) < float(arm.get('valid', 0.1))
+        rng = np.random.default_rng(int(arm.get("seed", 1)))
+        torch.manual_seed(int(arm.get("seed", 1)))
+        held = rng.random(len(hands)) < float(arm.get("valid", 0.1))
         va, tr = np.nonzero(held[inv])[0], np.nonzero(~held[inv])[0]
         net.to(dev)
-        init_net, _ = load_model(arm['init'])
+        init_net, _ = load_model(arm["init"])
         init_net.to(dev).eval()
         ref = init_net
         floor = torch.where(V, adv, torch.full_like(adv, 1e9)).min(1).values.clamp(max=0)
         A = floor[:, None].expand(-1, OUTPUTS).clone()
         A.scatter_(1, QA, torch.where(V, adv, floor[:, None].expand_as(adv)))
         A = A / tau
-        if arm.get('vnorm'):
+        if arm.get("vnorm"):
             # variance-aware: each tried move's advantage over its own SE (with a floor s0 and a
             # default where the data has none), clipped at +-zclip, times vnorm (logit units).
-            se = torch.nan_to_num(QS, nan=float(arm.get('seDefault', 150)))
-            z = torch.clamp(adv / torch.sqrt(se ** 2 + float(arm.get('s0', 50)) ** 2), -float(arm.get('zclip', 3)), float(arm.get('zclip', 3))) * V
+            se = torch.nan_to_num(QS, nan=float(arm.get("seDefault", 150)))
+            z = torch.clamp(adv / torch.sqrt(se ** 2 + float(arm.get("s0", 50)) ** 2), -float(arm.get("zclip", 3)), float(arm.get("zclip", 3))) * V
             zf = torch.where(V, z, torch.full_like(z, 1e9)).min(1).values.clamp(max=0)
             A = zf[:, None].expand(-1, OUTPUTS).clone()
             A.scatter_(1, QA, torch.where(V, z, zf[:, None].expand_as(z)))
-            A = A * float(arm['vnorm'])
+            A = A * float(arm["vnorm"])
 
         def stats_for(model, idx):
             xb, lb = X[idx], Lg[idx]
@@ -272,22 +274,22 @@ def main():
         def fit(model, epochs, lr, teacher=None, alpha=0.0, label=name):
             """The q step, with the structural options: clip (global grad norm), warmup (share of steps),
             cosine, ema (decay), gradNoise (sigma x grad RMS, annealed to 0). Returns the model to export."""
-            opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=float(arm.get('wd', 1e-4)))
+            opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=float(arm.get("wd", 1e-4)))
             steps = epochs * ((len(trT) + batch - 1) // batch)
-            warm = float(arm.get('warmup', 0)) * steps
-            cosine = bool(arm.get('cosine', False))
-            gclip = float(arm['gradClip']) if arm.get('gradClip') else None
-            gnoise = float(arm.get('gradNoise', 0))
+            warm = float(arm.get("warmup", 0)) * steps
+            cosine = bool(arm.get("cosine", False))
+            gclip = float(arm["gradClip"]) if arm.get("gradClip") else None
+            gnoise = float(arm.get("gradNoise", 0))
             ema = None
-            if arm.get('ema'):
+            if arm.get("ema"):
                 ema = copy.deepcopy(model).eval()
                 for p_ in ema.parameters():
                     p_.requires_grad_(False)
-            decay = float(arm.get('ema', 0))
+            decay = float(arm.get("ema", 0))
             ref_net, step = init_net, 0
-            gen = torch.Generator(device=dev).manual_seed(int(arm.get('seed', 1)) + 77)
+            gen = torch.Generator(device=dev).manual_seed(int(arm.get("seed", 1)) + 77)
             for ep in range(epochs):
-                if anchor == 'self':
+                if anchor == "self":
                     ref_net = copy.deepcopy(model).eval()
                 model.train()
                 norms = []
@@ -312,7 +314,7 @@ def main():
                     if cosine:
                         f *= 0.5 * (1 + np.cos(np.pi * step / steps))
                     for g_ in opt.param_groups:
-                        g_['lr'] = lr * f
+                        g_["lr"] = lr * f
                     opt.zero_grad()
                     loss.backward()
                     if gnoise:
@@ -321,7 +323,7 @@ def main():
                             if p_.grad is not None:
                                 rms = p_.grad.pow(2).mean().sqrt()
                                 p_.grad.add_(torch.randn(p_.grad.shape, device=dev, generator=gen) * sig * rms)
-                    gn = torch.nn.utils.clip_grad_norm_(model.parameters(), gclip if gclip else float('inf'))
+                    gn = torch.nn.utils.clip_grad_norm_(model.parameters(), gclip if gclip else float("inf"))
                     norms.append(float(gn))
                     opt.step()
                     if ema is not None:
@@ -332,35 +334,35 @@ def main():
                 model.eval()
                 nm = np.array(norms)
                 out = ema if ema is not None else model
-                print(f'{label} epoch {ep + 1}: grad norm median {np.median(nm):.3f}, p99 {np.percentile(nm, 99):.3f}, max {nm.max():.3f}'
-                      + (f' (clip {gclip}, {100 * float((nm > gclip).mean()):.1f}% of steps clipped)' if gclip else '')
-                      + f', held-out CE {heldout_ce(out):.5f}', flush=True)
+                print(f"{label} epoch {ep + 1}: grad norm median {np.median(nm):.3f}, p99 {np.percentile(nm, 99):.3f}, max {nm.max():.3f}"
+                      + (f" (clip {gclip}, {100 * float((nm > gclip).mean()):.1f}% of steps clipped)" if gclip else "")
+                      + f", held-out CE {heldout_ce(out):.5f}", flush=True)
             return ema if ema is not None else model
 
         ce0 = heldout_ce(init_net)
         teacher = None
-        if arm.get('teacher'):
+        if arm.get("teacher"):
             # B6: a residual + LayerNorm teacher on the same targets (Python only), then distilled
             # into the champion's shape: the student fits alpha x the teacher's shares + (1 - alpha) x the target.
-            tw, tb = int(arm.get('teacherWidth', 768)), int(arm.get('teacherBlocks', 4))
+            tw, tb = int(arm.get("teacherWidth", 768)), int(arm.get("teacherBlocks", 4))
             teacher = ResNet(376, tw, tb).to(dev)
-            teacher = fit(teacher, int(arm.get('teacherEpochs', 12)), float(arm.get('teacherLr', 1e-3)), label=name + ' teacher')
+            teacher = fit(teacher, int(arm.get("teacherEpochs", 12)), float(arm.get("teacherLr", 1e-3)), label=name + " teacher")
             tce = heldout_ce(teacher)
-            print(f'{name} teacher ({tw} x {tb} blocks): held-out CE {tce:.5f} against init {ce0:.5f}', flush=True)
-        net = fit(net, epochs, lr, teacher=teacher, alpha=float(arm.get('alpha', 0.5)))
+            print(f"{name} teacher ({tw} x {tb} blocks): held-out CE {tce:.5f} against init {ce0:.5f}", flush=True)
+        net = fit(net, epochs, lr, teacher=teacher, alpha=float(arm.get("alpha", 0.5)))
         ce = heldout_ce(net)
         kl, gain, g2 = (lambda r: r)(stats_for(net, vaT))
-        print(f'{name}: held-out CE {ce:.5f} (init {ce0:.5f}), KL from init {kl:.4f}, held-out points gained (shares) {gain:+.2f}, (greedy) {g2:+.2f}', flush=True)
-        extra = {'mode': 'q', 'arm': arm, 'data': args.data, 'choices': int(n), 'kl': kl, 'heldOutGain': gain, 'heldOutGreedyGain': g2, 'heldOutCE': ce, 'initCE': ce0}
+        print(f"{name}: held-out CE {ce:.5f} (init {ce0:.5f}), KL from init {kl:.4f}, held-out points gained (shares) {gain:+.2f}, (greedy) {g2:+.2f}", flush=True)
+        extra = {"mode": "q", "arm": arm, "data": args.data, "choices": int(n), "kl": kl, "heldOutGain": gain, "heldOutGreedyGain": g2, "heldOutCE": ce, "initCE": ce0}
         if teacher is not None:
-            extra['teacherCE'] = tce
+            extra["teacherCE"] = tce
         path = save_model(net.cpu(), base, name, extra)
         js_check(net, path, x)
-        report.append({'name': name, 'kl': kl, 'gain': gain, 'greedyGain': g2, 'heldOutCE': ce, 'initCE': ce0, 'teacherCE': tce if teacher is not None else None, 'seconds': time.time() - ta})
+        report.append({"name": name, "kl": kl, "gain": gain, "greedyGain": g2, "heldOutCE": ce, "initCE": ce0, "teacherCE": tce if teacher is not None else None, "seconds": time.time() - ta})
     if args.report:
-        json.dump(report, open(args.report, 'w'), indent=1)
-    print(f'all arms in {time.time() - t0:.0f}s', flush=True)
+        json.dump(report, open(args.report, "w"), indent=1)
+    print(f"all arms in {time.time() - t0:.0f}s", flush=True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

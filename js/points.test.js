@@ -1,75 +1,75 @@
-'use strict';
+"use strict";
 
-const assert = require('node:assert/strict');
-const { describe, it, beforeEach } = require('node:test');
-const { createScoringApi } = require('./points.harness.js');
+const assert = require("node:assert/strict");
+const { describe, it, beforeEach } = require("node:test");
+const { createScoringApi } = require("./points.harness.js");
 
 const SITUATIONAL = new Set([
-  'Self-Draw',
-  'Concealed',
-  'Win on Last Tile',
-  'Robbing the Kong',
-  'Win by Kong',
-  'Win by Double Kong',
-  'No Flowers',
-  'Seat Flower',
-  'Seat Season',
-  'Four Flowers',
-  'Four Seasons',
-  'Chicken Hand',
+  "Self-Draw",
+  "Concealed",
+  "Win on Last Tile",
+  "Robbing the Kong",
+  "Win by Kong",
+  "Win by Double Kong",
+  "No Flowers",
+  "Seat Flower",
+  "Seat Season",
+  "Four Flowers",
+  "Four Seasons",
+  "Chicken Hand",
 ]);
 
 const HANDS = {
-  fourWinds: ['we', 'we', 'we', 'ws', 'ws', 'ws', 'ww', 'ww', 'ww', 'wn', 'wn', 'wn', 'dr', 'dr'],
-  fourWindsMixedPair: ['we', 'we', 'we', 'ws', 'ws', 'ws', 'ww', 'ww', 'ww', 'wn', 'wn', 'wn', 'c5', 'c5'],
-  allTerminals: ['c1', 'c1', 'c1', 'c9', 'c9', 'c9', 'd1', 'd1', 'd1', 'd9', 'd9', 'd9', 'b1', 'b1'],
-  thirteenOrphans: ['c1', 'c9', 'd1', 'd9', 'b1', 'b9', 'we', 'ws', 'ww', 'wn', 'dg', 'dw', 'dr', 'dr'],
-  nineGates: ['c1', 'c1', 'c1', 'c2', 'c3', 'c4', 'c5', 'c5', 'c6', 'c7', 'c8', 'c9', 'c9', 'c9'],
+  fourWinds: ["we", "we", "we", "ws", "ws", "ws", "ww", "ww", "ww", "wn", "wn", "wn", "dr", "dr"],
+  fourWindsMixedPair: ["we", "we", "we", "ws", "ws", "ws", "ww", "ww", "ww", "wn", "wn", "wn", "c5", "c5"],
+  allTerminals: ["c1", "c1", "c1", "c9", "c9", "c9", "d1", "d1", "d1", "d9", "d9", "d9", "b1", "b1"],
+  thirteenOrphans: ["c1", "c9", "d1", "d9", "b1", "b9", "we", "ws", "ww", "wn", "dg", "dw", "dr", "dr"],
+  nineGates: ["c1", "c1", "c1", "c2", "c3", "c4", "c5", "c5", "c6", "c7", "c8", "c9", "c9", "c9"],
   fourQuads: [
-    'c1', 'c1', 'c1', 'c1',
-    'c2', 'c2', 'c2', 'c2',
-    'c3', 'c3', 'c3', 'c3',
-    'c4', 'c4', 'c4', 'c4',
-    'c5', 'c5',
+    "c1", "c1", "c1", "c1",
+    "c2", "c2", "c2", "c2",
+    "c3", "c3", "c3", "c3",
+    "c4", "c4", "c4", "c4",
+    "c5", "c5",
   ],
-  allHonors: ['ws', 'ws', 'ws', 'ww', 'ww', 'ww', 'dr', 'dr', 'dr', 'dg', 'dg', 'dg', 'wn', 'wn'],
-  allTriplets: ['c2', 'c2', 'c2', 'd5', 'd5', 'd5', 'b8', 'b8', 'b8', 'ws', 'ws', 'ws', 'd2', 'd2'],
-  chicken: ['c2', 'c3', 'c4', 'd5', 'd6', 'd7', 'd8', 'd8', 'd8', 'b7', 'b8', 'b9', 'c5', 'c5'],
-  fullFlush: ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'c2', 'c2', 'c2', 'c5', 'c5'],
-  halfFlush: ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'dr', 'dr', 'dr', 'c5', 'c5'],
-  sevenPairs: ['c1', 'c1', 'd2', 'd2', 'b3', 'b3', 'c5', 'c5', 'd7', 'd7', 'b8', 'b8', 'dr', 'dr'],
-  bigThreeDragons: ['dr', 'dr', 'dr', 'dg', 'dg', 'dg', 'dw', 'dw', 'dw', 'c1', 'c2', 'c3', 'd5', 'd5'],
-  allSequences: ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'd2', 'd3', 'd4', 'd5', 'd5'],
-  mixedOrphans: ['c1', 'c1', 'c1', 'c9', 'c9', 'c9', 'd1', 'd1', 'd1', 'dr', 'dr', 'dr', 'd9', 'd9'],
-  seatWind: ['we', 'we', 'we', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'd2', 'd2'],
-  plainChicken: ['c2', 'c3', 'c4', 'd5', 'd6', 'd7', 'b1', 'b2', 'b3', 'c8', 'c8', 'c8', 'd2', 'd2'],
+  allHonors: ["ws", "ws", "ws", "ww", "ww", "ww", "dr", "dr", "dr", "dg", "dg", "dg", "wn", "wn"],
+  allTriplets: ["c2", "c2", "c2", "d5", "d5", "d5", "b8", "b8", "b8", "ws", "ws", "ws", "d2", "d2"],
+  chicken: ["c2", "c3", "c4", "d5", "d6", "d7", "d8", "d8", "d8", "b7", "b8", "b9", "c5", "c5"],
+  fullFlush: ["c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c2", "c2", "c2", "c5", "c5"],
+  halfFlush: ["c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "dr", "dr", "dr", "c5", "c5"],
+  sevenPairs: ["c1", "c1", "d2", "d2", "b3", "b3", "c5", "c5", "d7", "d7", "b8", "b8", "dr", "dr"],
+  bigThreeDragons: ["dr", "dr", "dr", "dg", "dg", "dg", "dw", "dw", "dw", "c1", "c2", "c3", "d5", "d5"],
+  allSequences: ["c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "d2", "d3", "d4", "d5", "d5"],
+  mixedOrphans: ["c1", "c1", "c1", "c9", "c9", "c9", "d1", "d1", "d1", "dr", "dr", "dr", "d9", "d9"],
+  seatWind: ["we", "we", "we", "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "d2", "d2"],
+  plainChicken: ["c2", "c3", "c4", "d5", "d6", "d7", "b1", "b2", "b3", "c8", "c8", "c8", "d2", "d2"],
   oneQuad: [
-    'c2', 'c2', 'c2', 'c2',
-    'd5', 'd5', 'd5',
-    'b8', 'b8', 'b8',
-    'c3', 'c3', 'c3',
-    'd2', 'd2',
+    "c2", "c2", "c2", "c2",
+    "d5", "d5", "d5",
+    "b8", "b8", "b8",
+    "c3", "c3", "c3",
+    "d2", "d2",
   ],
   twoQuads: [
-    'c2', 'c2', 'c2', 'c2',
-    'd5', 'd5', 'd5', 'd5',
-    'b8', 'b8', 'b8',
-    'c3', 'c3', 'c3',
-    'd2', 'd2',
+    "c2", "c2", "c2", "c2",
+    "d5", "d5", "d5", "d5",
+    "b8", "b8", "b8",
+    "c3", "c3", "c3",
+    "d2", "d2",
   ],
   threeQuads: [
-    'c2', 'c2', 'c2', 'c2',
-    'd5', 'd5', 'd5', 'd5',
-    'b8', 'b8', 'b8', 'b8',
-    'c3', 'c3', 'c3',
-    'd2', 'd2',
+    "c2", "c2", "c2", "c2",
+    "d5", "d5", "d5", "d5",
+    "b8", "b8", "b8", "b8",
+    "c3", "c3", "c3",
+    "d2", "d2",
   ],
   chickenWithQuad: [
-    'c2', 'c3', 'c4',
-    'd5', 'd6', 'd7',
-    'b8', 'b8', 'b8', 'b8',
-    'c6', 'c6', 'c6',
-    'd2', 'd2',
+    "c2", "c3", "c4",
+    "d5", "d6", "d7",
+    "b8", "b8", "b8", "b8",
+    "c6", "c6", "c6",
+    "d2", "d2",
   ],
 };
 
@@ -81,7 +81,7 @@ function hasQuad(hand) {
 
 function numberedTileIds() {
   var ids = [];
-  ['c', 'd', 'b'].forEach(function (suit) {
+  ["c", "d", "b"].forEach(function (suit) {
     for (var v = 1; v <= 9; v++) ids.push(suit + v);
   });
   return ids;
@@ -97,7 +97,7 @@ function patternNames(result) {
 
 function assertPatternNames(result, expected) {
   var names = patternNames(result);
-  assert.equal(names.length, expected.length, 'pattern count: ' + names.join(', '));
+  assert.equal(names.length, expected.length, "pattern count: " + names.join(", "));
   for (var i = 0; i < expected.length; i++) {
     assert.equal(names[i], expected[i]);
   }
@@ -108,203 +108,203 @@ function faanFor(result, name) {
   return item ? item.faan : null;
 }
 
-describe('Hong Kong mahjong scoring', function () {
+describe("Hong Kong mahjong scoring", function () {
   /** @type {ReturnType<typeof createScoringApi>} */
   let api;
 
   beforeEach(function () {
     api = createScoringApi();
     api.resetOptions();
-    api.setOption('opt-no-flowers', false);
+    api.setOption("opt-no-flowers", false);
   });
 
-  describe('limit hand no-stacking', function () {
-    it('scores Big Four Winds without structural constituents', function () {
+  describe("limit hand no-stacking", function () {
+    it("scores Big Four Winds without structural constituents", function () {
       api.setHand(HANDS.fourWindsMixedPair);
       var result = api.evaluate();
 
       assert.equal(result.valid, true);
-      assertPatternNames(result, ['Big Four Winds']);
+      assertPatternNames(result, ["Big Four Winds"]);
       assert.equal(result.faan, 13);
     });
 
-    it('scores Thirteen Orphans as a single limit pattern', function () {
+    it("scores Thirteen Orphans as a single limit pattern", function () {
       api.setHand(HANDS.thirteenOrphans);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['Thirteen Orphans']);
+      assertPatternNames(result, ["Thirteen Orphans"]);
       assert.equal(result.faan, 13);
     });
 
-    it('scores Nine Gates as a single limit pattern', function () {
+    it("scores Nine Gates as a single limit pattern", function () {
       api.setHand(HANDS.nineGates);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['Nine Gates']);
+      assertPatternNames(result, ["Nine Gates"]);
       assert.equal(result.faan, 13);
     });
 
-    it('scores Four Quads without All Triplets or Full Flush', function () {
+    it("scores Four Quads without All Triplets or Full Flush", function () {
       api.setHand(HANDS.fourQuads);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['Four Quads']);
+      assertPatternNames(result, ["Four Quads"]);
       assert.equal(result.faan, 13);
     });
   });
 
-  describe('stackable limit-hand achievements', function () {
-    it('stacks All Honors with Big Four Winds', function () {
+  describe("stackable limit-hand achievements", function () {
+    it("stacks All Honors with Big Four Winds", function () {
       api.setHand(HANDS.fourWinds);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['All Honors', 'Big Four Winds']);
+      assertPatternNames(result, ["All Honors", "Big Four Winds"]);
     });
 
-    it('stacks Concealed Triplets with Big Four Winds when concealed', function () {
-      api.setOption('opt-concealed', true);
+    it("stacks Concealed Triplets with Big Four Winds when concealed", function () {
+      api.setOption("opt-concealed", true);
       api.setHand(HANDS.fourWinds);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['All Honors', 'Concealed Triplets', 'Big Four Winds']);
+      assertPatternNames(result, ["All Honors", "Concealed Triplets", "Big Four Winds"]);
     });
 
-    it('stacks Concealed Triplets with Four Quads when concealed', function () {
-      api.setOption('opt-concealed', true);
+    it("stacks Concealed Triplets with Four Quads when concealed", function () {
+      api.setOption("opt-concealed", true);
       api.setHand(HANDS.fourQuads);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['Concealed Triplets', 'Four Quads']);
+      assertPatternNames(result, ["Concealed Triplets", "Four Quads"]);
     });
   });
 
-  describe('All Honors stacking rules', function () {
-    it('does not stack All Honors with All Triplets', function () {
+  describe("All Honors stacking rules", function () {
+    it("does not stack All Honors with All Triplets", function () {
       api.setHand(HANDS.allHonors);
       var result = api.evaluate();
 
-      assert.ok(patternNames(result).includes('All Honors'));
-      assert.ok(!patternNames(result).includes('All Triplets'));
+      assert.ok(patternNames(result).includes("All Honors"));
+      assert.ok(!patternNames(result).includes("All Triplets"));
     });
 
-    it('stacks All Honors with Concealed Triplets when concealed', function () {
-      api.setOption('opt-concealed', true);
+    it("stacks All Honors with Concealed Triplets when concealed", function () {
+      api.setOption("opt-concealed", true);
       api.setHand(HANDS.allHonors);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['All Honors', 'Concealed Triplets', 'Dragon Triplet']);
+      assertPatternNames(result, ["All Honors", "Concealed Triplets", "Dragon Triplet"]);
     });
   });
 
-  describe('All Terminals stacking rules', function () {
-    it('does not stack All Terminals with All Triplets', function () {
+  describe("All Terminals stacking rules", function () {
+    it("does not stack All Terminals with All Triplets", function () {
       api.setHand(HANDS.allTerminals);
       var result = api.evaluate();
 
-      assert.ok(patternNames(result).includes('All Terminals'));
-      assert.ok(!patternNames(result).includes('All Triplets'));
+      assert.ok(patternNames(result).includes("All Terminals"));
+      assert.ok(!patternNames(result).includes("All Triplets"));
       assert.equal(result.faan, 10);
       assert.equal(result.points, 1024);
     });
 
-    it('stacks Concealed Triplets with All Terminals when concealed', function () {
-      api.setOption('opt-concealed', true);
+    it("stacks Concealed Triplets with All Terminals when concealed", function () {
+      api.setOption("opt-concealed", true);
       api.setHand(HANDS.allTerminals);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['All Terminals', 'Concealed Triplets']);
-      assert.ok(!patternNames(result).includes('All Triplets'));
+      assertPatternNames(result, ["All Terminals", "Concealed Triplets"]);
+      assert.ok(!patternNames(result).includes("All Triplets"));
       assert.equal(result.faan, 13);
     });
   });
 
-  describe('dragon triplet display', function () {
-    it('combines multiple dragon triplets into one stacked line item', function () {
+  describe("dragon triplet display", function () {
+    it("combines multiple dragon triplets into one stacked line item", function () {
       api.setHand(HANDS.allHonors);
       var result = api.evaluate();
 
-      assert.equal(patternNames(result).filter(function (name) { return name === 'Dragon Triplet'; }).length, 1);
-      assert.equal(faanFor(result, 'Dragon Triplet'), 2);
+      assert.equal(patternNames(result).filter(function (name) { return name === "Dragon Triplet"; }).length, 1);
+      assert.equal(faanFor(result, "Dragon Triplet"), 2);
     });
   });
 
-  describe('situational faan', function () {
-    it('scores Win by Double Kong at 8 faan', function () {
+  describe("situational faan", function () {
+    it("scores Win by Double Kong at 8 faan", function () {
       api.setHand(HANDS.chicken);
-      api.setOption('opt-double-kong', true);
+      api.setOption("opt-double-kong", true);
       var result = api.evaluate();
 
-      assert.equal(faanFor(result, 'Win by Double Kong'), 8);
+      assert.equal(faanFor(result, "Win by Double Kong"), 8);
     });
 
-    it('does not stack Concealed with Concealed Triplets', function () {
-      api.setOption('opt-concealed', true);
+    it("does not stack Concealed with Concealed Triplets", function () {
+      api.setOption("opt-concealed", true);
       api.setHand(HANDS.allTriplets);
       var result = api.evaluate();
 
-      assert.ok(result.items.some(function (item) { return item.name === 'Concealed Triplets'; }));
-      assert.ok(!result.items.some(function (item) { return item.name === 'Concealed'; }));
+      assert.ok(result.items.some(function (item) { return item.name === "Concealed Triplets"; }));
+      assert.ok(!result.items.some(function (item) { return item.name === "Concealed"; }));
     });
 
-    it('does not stack Concealed with Seven Pairs', function () {
-      api.setOption('opt-concealed', true);
+    it("does not stack Concealed with Seven Pairs", function () {
+      api.setOption("opt-concealed", true);
       api.setHand(HANDS.sevenPairs);
       var result = api.evaluate();
 
-      assert.ok(result.items.some(function (item) { return item.name === 'Seven Pairs'; }));
-      assert.ok(!result.items.some(function (item) { return item.name === 'Concealed'; }));
+      assert.ok(result.items.some(function (item) { return item.name === "Seven Pairs"; }));
+      assert.ok(!result.items.some(function (item) { return item.name === "Concealed"; }));
     });
 
-    it('does not stack Concealed with Thirteen Orphans', function () {
-      api.setOption('opt-concealed', true);
+    it("does not stack Concealed with Thirteen Orphans", function () {
+      api.setOption("opt-concealed", true);
       api.setHand(HANDS.thirteenOrphans);
       var result = api.evaluate();
 
-      assert.ok(result.items.some(function (item) { return item.name === 'Thirteen Orphans'; }));
-      assert.ok(!result.items.some(function (item) { return item.name === 'Concealed'; }));
+      assert.ok(result.items.some(function (item) { return item.name === "Thirteen Orphans"; }));
+      assert.ok(!result.items.some(function (item) { return item.name === "Concealed"; }));
     });
 
-    it('does not stack Concealed with Seven Pairs Full Flush', function () {
-      api.setOption('opt-concealed', true);
-      api.setOption('opt-no-flowers', false);
+    it("does not stack Concealed with Seven Pairs Full Flush", function () {
+      api.setOption("opt-concealed", true);
+      api.setOption("opt-no-flowers", false);
       api.setHand([
-        'c1', 'c1', 'c2', 'c2', 'c3', 'c3',
-        'c4', 'c4', 'c5', 'c5', 'c6', 'c6',
-        'c7', 'c7',
+        "c1", "c1", "c2", "c2", "c3", "c3",
+        "c4", "c4", "c5", "c5", "c6", "c6",
+        "c7", "c7",
       ]);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['Seven Pairs', 'Full Flush']);
-      assert.ok(!result.items.some(function (item) { return item.name === 'Concealed'; }));
+      assertPatternNames(result, ["Seven Pairs", "Full Flush"]);
+      assert.ok(!result.items.some(function (item) { return item.name === "Concealed"; }));
       assert.equal(result.faan, 11);
     });
   });
 
-  describe('basic scoring', function () {
-    it('scores a standard All Triplets hand', function () {
+  describe("basic scoring", function () {
+    it("scores a standard All Triplets hand", function () {
       api.setHand(HANDS.allTriplets);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['All Triplets']);
+      assertPatternNames(result, ["All Triplets"]);
       assert.equal(result.faan, 3);
       assert.equal(result.points, 8);
     });
 
-    it('rejects incomplete hands', function () {
-      api.setHand(['c1', 'c2', 'c3']);
+    it("rejects incomplete hands", function () {
+      api.setHand(["c1", "c2", "c3"]);
       var result = api.evaluate();
 
       assert.equal(result.valid, false);
     });
 
-    it('rejects hands with fewer than 14 tiles', function () {
-      api.setHand(['c1', 'c1', 'c1', 'c2', 'c2', 'c2', 'c3', 'c3', 'c3', 'c4', 'c4', 'c4', 'c5']);
+    it("rejects hands with fewer than 14 tiles", function () {
+      api.setHand(["c1", "c1", "c1", "c2", "c2", "c2", "c3", "c3", "c3", "c4", "c4", "c4", "c5"]);
       var result = api.evaluate();
 
       assert.equal(result.valid, false);
     });
 
-    it('accepts winning hands with one to three quads (15–17 tiles)', function () {
+    it("accepts winning hands with one to three quads (15–17 tiles)", function () {
       assert.equal(api.isValidWinningHandIds(HANDS.oneQuad), true);
       assert.equal(api.isValidWinningHandIds(HANDS.twoQuads), true);
       assert.equal(api.isValidWinningHandIds(HANDS.threeQuads), true);
@@ -319,193 +319,193 @@ describe('Hong Kong mahjong scoring', function () {
       assert.equal(api.evaluate().valid, true);
     });
 
-    it('rejects 15-tile hands that are not winning shapes', function () {
+    it("rejects 15-tile hands that are not winning shapes", function () {
       assert.equal(api.isValidWinningHandIds([
-        'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9',
-        'd1', 'd2', 'd3', 'd4', 'd5', 'd6',
+        "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9",
+        "d1", "d2", "d3", "d4", "d5", "d6",
       ]), false);
     });
   });
 
-  describe('common patterns', function () {
-    it('scores Full Flush at 7 faan', function () {
+  describe("common patterns", function () {
+    it("scores Full Flush at 7 faan", function () {
       api.setHand(HANDS.fullFlush);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['Full Flush']);
+      assertPatternNames(result, ["Full Flush"]);
       assert.equal(result.faan, 7);
       assert.equal(result.points, 128);
     });
 
-    it('scores Half Flush with Dragon Triplet', function () {
+    it("scores Half Flush with Dragon Triplet", function () {
       api.setHand(HANDS.halfFlush);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['Half Flush', 'Dragon Triplet']);
+      assertPatternNames(result, ["Half Flush", "Dragon Triplet"]);
       assert.equal(result.faan, 4);
       assert.equal(result.points, 16);
     });
 
-    it('scores Seven Pairs at 4 faan', function () {
+    it("scores Seven Pairs at 4 faan", function () {
       api.setHand(HANDS.sevenPairs);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['Seven Pairs']);
+      assertPatternNames(result, ["Seven Pairs"]);
       assert.equal(result.faan, 4);
       assert.equal(result.points, 16);
     });
 
-    it('does not score wind faan from wind pairs in Seven Pairs', function () {
+    it("does not score wind faan from wind pairs in Seven Pairs", function () {
       api.setHand([
-        'we', 'we', 'c2', 'c2', 'd4', 'd4', 'b6', 'b6',
-        'c8', 'c8', 'd9', 'd9', 'b1', 'b1',
+        "we", "we", "c2", "c2", "d4", "d4", "b6", "b6",
+        "c8", "c8", "d9", "d9", "b1", "b1",
       ]);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['Seven Pairs']);
+      assertPatternNames(result, ["Seven Pairs"]);
       assert.ok(!result.items.some(function (item) {
-        return item.name.indexOf('Wind') !== -1;
+        return item.name.indexOf("Wind") !== -1;
       }));
     });
 
-    it('does not score Seven Pairs when a quad substitutes for two pairs', function () {
+    it("does not score Seven Pairs when a quad substitutes for two pairs", function () {
       api.setHand([
-        'c1', 'c1', 'c1', 'c1',
-        'c2', 'c2', 'c3', 'c3', 'c4', 'c4',
-        'c5', 'c5', 'c6', 'c6',
+        "c1", "c1", "c1", "c1",
+        "c2", "c2", "c3", "c3", "c4", "c4",
+        "c5", "c5", "c6", "c6",
       ]);
       var result = api.evaluate();
 
-      assert.ok(!result.items.some(function (item) { return item.name === 'Seven Pairs'; }));
+      assert.ok(!result.items.some(function (item) { return item.name === "Seven Pairs"; }));
     });
 
-    it('prefers Seven Pairs over a lower-scoring All Sequences parse', function () {
-      api.setOption('opt-no-flowers', false);
+    it("prefers Seven Pairs over a lower-scoring All Sequences parse", function () {
+      api.setOption("opt-no-flowers", false);
       api.setHand([
-        'c1', 'c1', 'c2', 'c2', 'c3', 'c3',
-        'd4', 'd4', 'd5', 'd5', 'd6', 'd6',
-        'c7', 'c7',
+        "c1", "c1", "c2", "c2", "c3", "c3",
+        "d4", "d4", "d5", "d5", "d6", "d6",
+        "c7", "c7",
       ]);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['Seven Pairs']);
+      assertPatternNames(result, ["Seven Pairs"]);
       assert.equal(result.faan, 4);
     });
 
-    it('prefers Seven Pairs with Full Flush over an All Sequences parse', function () {
-      api.setOption('opt-no-flowers', false);
+    it("prefers Seven Pairs with Full Flush over an All Sequences parse", function () {
+      api.setOption("opt-no-flowers", false);
       api.setHand([
-        'c1', 'c1', 'c2', 'c2', 'c3', 'c3',
-        'c4', 'c4', 'c5', 'c5', 'c6', 'c6',
-        'c7', 'c7',
+        "c1", "c1", "c2", "c2", "c3", "c3",
+        "c4", "c4", "c5", "c5", "c6", "c6",
+        "c7", "c7",
       ]);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['Seven Pairs', 'Full Flush']);
-      assert.ok(!result.items.some(function (item) { return item.name === 'All Sequences'; }));
+      assertPatternNames(result, ["Seven Pairs", "Full Flush"]);
+      assert.ok(!result.items.some(function (item) { return item.name === "All Sequences"; }));
       assert.equal(result.faan, 11);
     });
 
-    it('scores Big Three Dragons at 8 faan', function () {
+    it("scores Big Three Dragons at 8 faan", function () {
       api.setHand(HANDS.bigThreeDragons);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['Big Three Dragons']);
+      assertPatternNames(result, ["Big Three Dragons"]);
       assert.equal(result.faan, 8);
       assert.equal(result.points, 256);
     });
 
-    it('scores All Sequences (ping hu) at 1 faan', function () {
+    it("scores All Sequences (ping hu) at 1 faan", function () {
       api.setHand(HANDS.allSequences);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['All Sequences']);
+      assertPatternNames(result, ["All Sequences"]);
       assert.equal(result.faan, 1);
     });
 
-    it('scores Mixed Orphans at 1 faan stacked with All Triplets', function () {
+    it("scores Mixed Orphans at 1 faan stacked with All Triplets", function () {
       api.setHand(HANDS.mixedOrphans);
       var result = api.evaluate();
 
-      assert.equal(faanFor(result, 'Mixed Orphans'), 1);
-      assert.equal(faanFor(result, 'All Triplets'), 3);
+      assert.equal(faanFor(result, "Mixed Orphans"), 1);
+      assert.equal(faanFor(result, "All Triplets"), 3);
       assert.equal(result.faan, 5);
       assert.equal(result.points, 32);
     });
 
-    it('labels a zero-pattern hand as Chicken Hand', function () {
+    it("labels a zero-pattern hand as Chicken Hand", function () {
       api.setHand(HANDS.plainChicken);
       var result = api.evaluate();
 
       assert.equal(result.valid, true);
-      assert.ok(result.items.some(function (item) { return item.name === 'Chicken Hand'; }));
+      assert.ok(result.items.some(function (item) { return item.name === "Chicken Hand"; }));
       assert.equal(result.faan, 0);
       assert.equal(result.points, null);
     });
 
-    it('labels a zero-pattern 15-tile hand with a quad as Chicken Hand', function () {
+    it("labels a zero-pattern 15-tile hand with a quad as Chicken Hand", function () {
       api.setHand(HANDS.chickenWithQuad);
       var result = api.evaluate();
 
       assert.equal(result.valid, true);
       assert.equal(HANDS.chickenWithQuad.length, 15);
-      assert.ok(result.items.some(function (item) { return item.name === 'Chicken Hand'; }));
+      assert.ok(result.items.some(function (item) { return item.name === "Chicken Hand"; }));
       assert.equal(result.faan, 0);
       assert.equal(result.points, null);
     });
   });
 
-  describe('left-to-right meld parsing', function () {
-    it('scores grouped chows from left to right even when Seven Pairs is possible', function () {
-      api.setOption('opt-no-flowers', false);
+  describe("left-to-right meld parsing", function () {
+    it("scores grouped chows from left to right even when Seven Pairs is possible", function () {
+      api.setOption("opt-no-flowers", false);
       api.setHand([
-        'c1', 'c2', 'c3',
-        'c1', 'c2', 'c3',
-        'c4', 'c5', 'c6',
-        'c4', 'c5', 'c6',
-        'c7', 'c7',
+        "c1", "c2", "c3",
+        "c1", "c2", "c3",
+        "c4", "c5", "c6",
+        "c4", "c5", "c6",
+        "c7", "c7",
       ]);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['Full Flush', 'All Sequences']);
-      assert.ok(!result.items.some(function (item) { return item.name === 'Seven Pairs'; }));
+      assertPatternNames(result, ["Full Flush", "All Sequences"]);
+      assert.ok(!result.items.some(function (item) { return item.name === "Seven Pairs"; }));
       assert.equal(result.faan, 8);
     });
 
-    it('falls back to the highest faan when left-to-right melds do not form a winning hand', function () {
-      api.setOption('opt-no-flowers', false);
+    it("falls back to the highest faan when left-to-right melds do not form a winning hand", function () {
+      api.setOption("opt-no-flowers", false);
       api.setHand([
-        'c1', 'c1', 'c2', 'c2', 'c3', 'c3',
-        'c4', 'c4', 'c5', 'c5', 'c6', 'c6',
-        'c7', 'c7',
+        "c1", "c1", "c2", "c2", "c3", "c3",
+        "c4", "c4", "c5", "c5", "c6", "c6",
+        "c7", "c7",
       ]);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['Seven Pairs', 'Full Flush']);
+      assertPatternNames(result, ["Seven Pairs", "Full Flush"]);
       assert.equal(result.faan, 11);
     });
 
-    it('scores grouped chows when loaded from a share URL', function () {
-      api.loadFromQuery('h=c1-c2-c3-c1-c2-c3-c4-c5-c6-c4-c5-c6-c7-c7');
-      api.setOption('opt-no-flowers', false);
+    it("scores grouped chows when loaded from a share URL", function () {
+      api.loadFromQuery("h=c1-c2-c3-c1-c2-c3-c4-c5-c6-c4-c5-c6-c7-c7");
+      api.setOption("opt-no-flowers", false);
       var result = api.evaluate();
 
-      assertPatternNames(result, ['Full Flush', 'All Sequences']);
-      assert.ok(!result.items.some(function (item) { return item.name === 'Seven Pairs'; }));
+      assertPatternNames(result, ["Full Flush", "All Sequences"]);
+      assert.ok(!result.items.some(function (item) { return item.name === "Seven Pairs"; }));
       assert.equal(result.faan, 8);
     });
   });
 
-  describe('random hand generation', function () {
-    it('maps meld plans to the expected tile counts', function () {
-      assert.equal(api.handLengthForMeldPlan(['chow', 'chow', 'chow', 'chow']), 14);
-      assert.equal(api.handLengthForMeldPlan(['chow', 'chow', 'pung', 'quad']), 15);
-      assert.equal(api.handLengthForMeldPlan(['chow', 'quad', 'quad', 'quad']), 17);
-      assert.equal(api.handLengthForMeldPlan(['quad', 'quad', 'quad', 'quad']), 18);
+  describe("random hand generation", function () {
+    it("maps meld plans to the expected tile counts", function () {
+      assert.equal(api.handLengthForMeldPlan(["chow", "chow", "chow", "chow"]), 14);
+      assert.equal(api.handLengthForMeldPlan(["chow", "chow", "pung", "quad"]), 15);
+      assert.equal(api.handLengthForMeldPlan(["chow", "quad", "quad", "quad"]), 17);
+      assert.equal(api.handLengthForMeldPlan(["quad", "quad", "quad", "quad"]), 18);
     });
 
-    it('buildStandardHand constructs a single-quad hand with 15 tiles', function () {
-      var ids = api.buildStandardHand(['chow', 'chow', 'pung', 'quad'], {
+    it("buildStandardHand constructs a single-quad hand with 15 tiles", function () {
+      var ids = api.buildStandardHand(["chow", "chow", "pung", "quad"], {
         meldPool: numberedTileIds(),
         pairPool: numberedTileIds(),
         accept: function () { return true; },
@@ -517,7 +517,7 @@ describe('Hong Kong mahjong scoring', function () {
       assert.ok(hasQuad(ids));
     });
 
-    it('randomSequenceHand returns valid all-sequences hands', function () {
+    it("randomSequenceHand returns valid all-sequences hands", function () {
       for (var i = 0; i < 30; i++) {
         var ids = api.randomSequenceHand();
         assert.ok(ids);
@@ -527,7 +527,7 @@ describe('Hong Kong mahjong scoring', function () {
       }
     });
 
-    it('randomChickenHand returns valid zero-pattern hands', function () {
+    it("randomChickenHand returns valid zero-pattern hands", function () {
       for (var i = 0; i < 30; i++) {
         var ids = api.randomChickenHand();
         assert.ok(ids);
@@ -537,11 +537,11 @@ describe('Hong Kong mahjong scoring', function () {
 
         api.setHand(ids);
         var result = api.evaluate();
-        assert.ok(result.items.some(function (item) { return item.name === 'Chicken Hand'; }));
+        assert.ok(result.items.some(function (item) { return item.name === "Chicken Hand"; }));
       }
     });
 
-    it('randomStandardHand returns valid hands at or above the minimum faan', function () {
+    it("randomStandardHand returns valid hands at or above the minimum faan", function () {
       for (var i = 0; i < 40; i++) {
         var ids = api.randomStandardHand();
         assert.ok(ids);
@@ -551,7 +551,7 @@ describe('Hong Kong mahjong scoring', function () {
       }
     });
 
-    it('randomStandardHand can produce hands with quads', function () {
+    it("randomStandardHand can produce hands with quads", function () {
       var sawQuad = false;
       for (var i = 0; i < 80; i++) {
         var ids = api.randomStandardHand();
@@ -560,31 +560,31 @@ describe('Hong Kong mahjong scoring', function () {
       assert.equal(sawQuad, true);
     });
 
-    it('randomLimitHand can produce four-quad limit hands', function () {
+    it("randomLimitHand can produce four-quad limit hands", function () {
       var sawFourQuads = false;
       for (var i = 0; i < 80; i++) {
         var ids = api.randomLimitHand();
         if (ids.length === 18 && hasQuad(ids) && api.patternFaanForIds(ids) === 13) {
           sawFourQuads = true;
           api.setHand(ids);
-          assertPatternNames(api.evaluate(), ['Four Quads']);
+          assertPatternNames(api.evaluate(), ["Four Quads"]);
         }
       }
       assert.equal(sawFourQuads, true);
     });
   });
 
-  describe('payout and minimum faan', function () {
-    it('returns null points below the 3-faan minimum', function () {
+  describe("payout and minimum faan", function () {
+    it("returns null points below the 3-faan minimum", function () {
       api.setHand(HANDS.allSequences);
-      api.setOption('opt-selfdraw', true);
+      api.setOption("opt-selfdraw", true);
       var result = api.evaluate();
 
       assert.equal(result.faan, 2);
       assert.equal(result.points, null);
     });
 
-    it('maps faan totals to the classic payout table', function () {
+    it("maps faan totals to the classic payout table", function () {
       api.setHand(HANDS.halfFlush);
       var result = api.evaluate();
 
@@ -597,8 +597,8 @@ describe('Hong Kong mahjong scoring', function () {
       assert.equal(result.points, 8);
     });
 
-    it('maps faan totals to the half spicy payout table', function () {
-      api.setSpicyMode('half');
+    it("maps faan totals to the half spicy payout table", function () {
+      api.setSpicyMode("half");
       api.setHand(HANDS.halfFlush);
       var result = api.evaluate();
 
@@ -606,7 +606,7 @@ describe('Hong Kong mahjong scoring', function () {
       assert.equal(result.points, 16);
 
       api.setHand(HANDS.allTriplets);
-      api.setOption('opt-selfdraw', true);
+      api.setOption("opt-selfdraw", true);
       result = api.evaluate();
       assert.equal(result.faan, 4);
       assert.equal(result.points, 16);
@@ -616,162 +616,162 @@ describe('Hong Kong mahjong scoring', function () {
       assert.equal(api.faanToPoints(13), 384);
     });
 
-    it('extends payout tables beyond the limit when unlimited faan is enabled', function () {
-      api.setOption('opt-unlimited', true);
+    it("extends payout tables beyond the limit when unlimited faan is enabled", function () {
+      api.setOption("opt-unlimited", true);
 
-      api.setSpicyMode('full');
+      api.setSpicyMode("full");
       assert.equal(api.faanToPoints(14), 16384);
       assert.equal(api.faanToPoints(15), 32768);
 
-      api.setSpicyMode('half');
+      api.setSpicyMode("half");
       assert.equal(api.faanToPoints(14), 512);
       assert.equal(api.faanToPoints(15), 768);
     });
   });
 
-  describe('wind and flower bonuses', function () {
-    it('scores Seat Wind when seat matches East in a South round', function () {
-      api.setOption('opt-seat', 1);
-      api.setOption('opt-round', 2);
+  describe("wind and flower bonuses", function () {
+    it("scores Seat Wind when seat matches East in a South round", function () {
+      api.setOption("opt-seat", 1);
+      api.setOption("opt-round", 2);
       api.setHand(HANDS.seatWind);
       var result = api.evaluate();
 
-      assert.ok(patternNames(result).includes('Seat Wind'));
-      assert.equal(faanFor(result, 'Seat Wind'), 1);
+      assert.ok(patternNames(result).includes("Seat Wind"));
+      assert.equal(faanFor(result, "Seat Wind"), 1);
     });
 
-    it('scores No Flowers bonus when enabled and no bonus tiles', function () {
-      api.setOption('opt-no-flowers', true);
+    it("scores No Flowers bonus when enabled and no bonus tiles", function () {
+      api.setOption("opt-no-flowers", true);
       api.setHand(HANDS.chicken);
       var result = api.evaluate();
 
-      assert.equal(faanFor(result, 'No Flowers'), 1);
+      assert.equal(faanFor(result, "No Flowers"), 1);
     });
 
-    it('scores Seat Flower when the matching flower is held', function () {
-      api.setOption('opt-no-flowers', false);
-      api.setOption('opt-seat', 2);
-      api.setHand(HANDS.chicken, ['f2']);
+    it("scores Seat Flower when the matching flower is held", function () {
+      api.setOption("opt-no-flowers", false);
+      api.setOption("opt-seat", 2);
+      api.setHand(HANDS.chicken, ["f2"]);
       var result = api.evaluate();
 
-      assert.equal(faanFor(result, 'Seat Flower'), 1);
+      assert.equal(faanFor(result, "Seat Flower"), 1);
     });
 
-    it('does not stack Seat Flower with Four Flowers', function () {
-      api.setOption('opt-no-flowers', false);
-      api.setOption('opt-seat', 1);
-      api.setHand(HANDS.chicken, ['f1', 'f2', 'f3', 'f4']);
+    it("does not stack Seat Flower with Four Flowers", function () {
+      api.setOption("opt-no-flowers", false);
+      api.setOption("opt-seat", 1);
+      api.setHand(HANDS.chicken, ["f1", "f2", "f3", "f4"]);
       var result = api.evaluate();
 
-      assert.equal(faanFor(result, 'Four Flowers'), 2);
-      assert.equal(faanFor(result, 'Seat Flower'), null);
+      assert.equal(faanFor(result, "Four Flowers"), 2);
+      assert.equal(faanFor(result, "Seat Flower"), null);
     });
 
-    it('does not stack Seat Flower with Four Flowers for every seat', function () {
-      api.setOption('opt-no-flowers', false);
+    it("does not stack Seat Flower with Four Flowers for every seat", function () {
+      api.setOption("opt-no-flowers", false);
       [1, 2, 3, 4].forEach(function (seat) {
-        api.setOption('opt-seat', seat);
-        api.setHand(HANDS.chicken, ['f1', 'f2', 'f3', 'f4']);
+        api.setOption("opt-seat", seat);
+        api.setHand(HANDS.chicken, ["f1", "f2", "f3", "f4"]);
         var result = api.evaluate();
-        assert.equal(faanFor(result, 'Four Flowers'), 2, 'seat ' + seat);
-        assert.equal(faanFor(result, 'Seat Flower'), null, 'seat ' + seat);
+        assert.equal(faanFor(result, "Four Flowers"), 2, "seat " + seat);
+        assert.equal(faanFor(result, "Seat Flower"), null, "seat " + seat);
       });
     });
 
-    it('does not stack Seat Season with Four Seasons', function () {
-      api.setOption('opt-no-flowers', false);
-      api.setOption('opt-seat', 3);
-      api.setHand(HANDS.chicken, ['s1', 's2', 's3', 's4']);
+    it("does not stack Seat Season with Four Seasons", function () {
+      api.setOption("opt-no-flowers", false);
+      api.setOption("opt-seat", 3);
+      api.setHand(HANDS.chicken, ["s1", "s2", "s3", "s4"]);
       var result = api.evaluate();
 
-      assert.equal(faanFor(result, 'Four Seasons'), 2);
-      assert.equal(faanFor(result, 'Seat Season'), null);
+      assert.equal(faanFor(result, "Four Seasons"), 2);
+      assert.equal(faanFor(result, "Seat Season"), null);
     });
 
-    it('stacks Four Flowers with Season of Own Wind', function () {
+    it("stacks Four Flowers with Season of Own Wind", function () {
       // Wikipedia: All Flowers only conflicts with Flower of Own Wind, not the season.
-      api.setOption('opt-no-flowers', false);
-      api.setOption('opt-seat', 1);
-      api.setHand(HANDS.chicken, ['f1', 'f2', 'f3', 'f4', 's1']);
+      api.setOption("opt-no-flowers", false);
+      api.setOption("opt-seat", 1);
+      api.setHand(HANDS.chicken, ["f1", "f2", "f3", "f4", "s1"]);
       var result = api.evaluate();
 
-      assert.equal(faanFor(result, 'Four Flowers'), 2);
-      assert.equal(faanFor(result, 'Seat Season'), 1);
-      assert.equal(faanFor(result, 'Seat Flower'), null);
+      assert.equal(faanFor(result, "Four Flowers"), 2);
+      assert.equal(faanFor(result, "Seat Season"), 1);
+      assert.equal(faanFor(result, "Seat Flower"), null);
       assert.equal(result.faan, 3);
     });
 
-    it('stacks Four Seasons with Flower of Own Wind', function () {
-      api.setOption('opt-no-flowers', false);
-      api.setOption('opt-seat', 1);
-      api.setHand(HANDS.chicken, ['s1', 's2', 's3', 's4', 'f1']);
+    it("stacks Four Seasons with Flower of Own Wind", function () {
+      api.setOption("opt-no-flowers", false);
+      api.setOption("opt-seat", 1);
+      api.setHand(HANDS.chicken, ["s1", "s2", "s3", "s4", "f1"]);
       var result = api.evaluate();
 
-      assert.equal(faanFor(result, 'Four Seasons'), 2);
-      assert.equal(faanFor(result, 'Seat Flower'), 1);
-      assert.equal(faanFor(result, 'Seat Season'), null);
+      assert.equal(faanFor(result, "Four Seasons"), 2);
+      assert.equal(faanFor(result, "Seat Flower"), 1);
+      assert.equal(faanFor(result, "Seat Season"), null);
       assert.equal(result.faan, 3);
     });
 
-    it('stacks Flower of Own Wind with Season of Own Wind', function () {
-      api.setOption('opt-no-flowers', false);
-      api.setOption('opt-seat', 1);
-      api.setHand(HANDS.chicken, ['f1', 's1']);
+    it("stacks Flower of Own Wind with Season of Own Wind", function () {
+      api.setOption("opt-no-flowers", false);
+      api.setOption("opt-seat", 1);
+      api.setHand(HANDS.chicken, ["f1", "s1"]);
       var result = api.evaluate();
 
-      assert.equal(faanFor(result, 'Seat Flower'), 1);
-      assert.equal(faanFor(result, 'Seat Season'), 1);
+      assert.equal(faanFor(result, "Seat Flower"), 1);
+      assert.equal(faanFor(result, "Seat Season"), 1);
       assert.equal(result.faan, 2);
     });
 
-    it('checks No Flowers when the last bonus tile is removed', function () {
-      api.setHand(HANDS.chicken, ['f1']);
-      api.setOption('opt-no-flowers', false);
+    it("checks No Flowers when the last bonus tile is removed", function () {
+      api.setHand(HANDS.chicken, ["f1"]);
+      api.setOption("opt-no-flowers", false);
 
-      api.removeTile('f1', true);
+      api.removeTile("f1", true);
 
-      assert.equal(api.isOptionChecked('opt-no-flowers'), true);
-      assert.equal(faanFor(api.evaluate(), 'No Flowers'), 1);
+      assert.equal(api.isOptionChecked("opt-no-flowers"), true);
+      assert.equal(faanFor(api.evaluate(), "No Flowers"), 1);
     });
 
-    it('checks No Flowers when the last season tile is removed', function () {
-      api.setHand(HANDS.chicken, ['s2']);
-      api.setOption('opt-no-flowers', false);
+    it("checks No Flowers when the last season tile is removed", function () {
+      api.setHand(HANDS.chicken, ["s2"]);
+      api.setOption("opt-no-flowers", false);
 
-      api.removeTile('s2', true);
+      api.removeTile("s2", true);
 
-      assert.equal(api.isOptionChecked('opt-no-flowers'), true);
-      assert.equal(faanFor(api.evaluate(), 'No Flowers'), 1);
+      assert.equal(api.isOptionChecked("opt-no-flowers"), true);
+      assert.equal(faanFor(api.evaluate(), "No Flowers"), 1);
     });
 
-    it('does not check No Flowers while other bonus tiles remain', function () {
-      api.setHand(HANDS.chicken, ['f1', 's1']);
-      api.setOption('opt-no-flowers', false);
+    it("does not check No Flowers while other bonus tiles remain", function () {
+      api.setHand(HANDS.chicken, ["f1", "s1"]);
+      api.setOption("opt-no-flowers", false);
 
-      api.removeTile('f1', true);
+      api.removeTile("f1", true);
 
-      assert.equal(api.isOptionChecked('opt-no-flowers'), false);
-      assert.equal(faanFor(api.evaluate(), 'No Flowers'), null);
+      assert.equal(api.isOptionChecked("opt-no-flowers"), false);
+      assert.equal(faanFor(api.evaluate(), "No Flowers"), null);
     });
   });
 });
 
-describe('Points Guide bottom button analytics', () => {
-  const fs = require('node:fs');
-  const path = require('node:path');
-  const src = fs.readFileSync(path.join(__dirname, 'points.js'), 'utf8');
-  const html = fs.readFileSync(path.join(__dirname, '..', 'hong-kong-mahjong-scoring', 'index.html'), 'utf8');
+describe("Points Guide bottom button analytics", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.join(__dirname, "points.js"), "utf8");
+  const html = fs.readFileSync(path.join(__dirname, "..", "hong-kong-mahjong-scoring", "index.html"), "utf8");
 
-  it('tracks the button being seen and clicked, on the page that has it', () => {
+  it("tracks the button being seen and clicked, on the page that has it", () => {
     assert.match(html, /class="points-cta">\s*<a href="\/play-mahjong\/"/);
-    assert.match(src, /track\('points_cta_click'\)/);
-    assert.match(src, /track\('points_cta_view'\)/);
+    assert.match(src, /track\("points_cta_click"\)/);
+    assert.match(src, /track\("points_cta_view"\)/);
     assert.match(src, /setupCtaTracking\(\);/);
   });
 
-  it('tracks clicks on the PDF rulesheet and the Wikipedia source', () => {
+  it("tracks clicks on the PDF rulesheet and the Wikipedia source", () => {
     assert.match(html, /<a href="\/assets\/lucky-cat-mahjong-rules\.pdf" data-track="points_pdf_click">/);
     assert.match(html, /<a href="https:\/\/en\.wikipedia\.org\/wiki\/Hong_Kong_mahjong_scoring_rules" data-track="points_wikipedia_click">/);
-    assert.match(src, /querySelectorAll\('a\[data-track\]'\)/);
+    assert.match(src, /querySelectorAll\("a\[data-track\]"\)/);
   });
 });

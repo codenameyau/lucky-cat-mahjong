@@ -14,13 +14,13 @@
    takes over. Never delete this file: a browser that hasn't visited since
    0.45.0 still needs it. */
 
-self.addEventListener('install', function () {
+self.addEventListener("install", function () {
   self.skipWaiting();
 });
 
-self.addEventListener('activate', function (event) {
+self.addEventListener("activate", function (event) {
   event.waitUntil(self.registration.unregister().then(function () {
-    return self.clients.matchAll({ type: 'window' });
+    return self.clients.matchAll({ type: "window" });
   }).then(function (clients) {
     clients.forEach(function (client) {
       if (client.navigate) client.navigate(client.url).catch(function () {});

@@ -83,10 +83,10 @@
   <script src="/js/nav.js" defer></script>
   <script>
     (function () {
-      var tiles = document.querySelectorAll('.not-found-tile');
-      var container = document.querySelector('.not-found-tiles');
-      var area = document.querySelector('.not-found');
-      var inner = document.querySelector('.not-found-inner');
+      var tiles = document.querySelectorAll(".not-found-tile");
+      var container = document.querySelector(".not-found-tiles");
+      var area = document.querySelector(".not-found");
+      var inner = document.querySelector(".not-found-inner");
       if (!tiles.length || !container || !area || !inner) return;
 
       function rand(min, max) {
@@ -229,11 +229,11 @@
           });
 
           tile.hidden = false;
-          tile.style.setProperty('--tile-x', (position.x * 100).toFixed(1) + '%');
-          tile.style.setProperty('--tile-y', (position.y * 100).toFixed(1) + '%');
-          tile.style.setProperty('--tile-rotate', rand(-36, 36).toFixed(1) + 'deg');
-          tile.style.setProperty('--tile-scale', scale.toFixed(2));
-          tile.style.animationDelay = (-rand(0, 10)).toFixed(2) + 's';
+          tile.style.setProperty("--tile-x", (position.x * 100).toFixed(1) + "%");
+          tile.style.setProperty("--tile-y", (position.y * 100).toFixed(1) + "%");
+          tile.style.setProperty("--tile-rotate", rand(-36, 36).toFixed(1) + "deg");
+          tile.style.setProperty("--tile-scale", scale.toFixed(2));
+          tile.style.animationDelay = (-rand(0, 10)).toFixed(2) + "s";
         }
 
         var slots = shuffle(Array.from({ length: tiles.length }, function (_, i) { return i; }));
@@ -242,7 +242,7 @@
           applyPosition(tile, findPosition(slots[index], tiles.length));
         });
 
-        container.classList.add('is-placed');
+        container.classList.add("is-placed");
       }
 
       requestAnimationFrame(function () {

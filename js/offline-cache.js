@@ -21,79 +21,79 @@
      deletes the older ones. */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
   // The game's version (GAME_VERSION in js/mahjong-engine.js; a test keeps them equal).
-  var VERSION = '0.61.33';
-  var CACHE_PREFIX = 'lcm-play-v';
+  var VERSION = "0.61.34";
+  var CACHE_PREFIX = "lcm-play-v";
   // The old Play offline button's flag (0.45.0 builds before offline became the default), cleaned up.
-  var OLD_FLAG_CACHE = 'lcm-play-offline';
-  var SCOPE = '/';
-  var SW_URL = '/sw.js';
+  var OLD_FLAG_CACHE = "lcm-play-offline";
+  var SCOPE = "/";
+  var SW_URL = "/sw.js";
   // The game's own worker before the site had one, unregistered when found.
-  var OLD_SCOPE = '/play-mahjong/';
+  var OLD_SCOPE = "/play-mahjong/";
 
   var TILES = [
-    '01-white-dragon', '02-green-dragon', '03-red-dragon',
-    '04-east-wind', '05-south-wind', '06-west-wind', '07-north-wind',
-    '08-characters-1', '09-characters-2', '10-characters-3', '11-characters-4', '12-characters-5',
-    '13-characters-6', '14-characters-7', '15-characters-8', '16-characters-9',
-    '17-circles-1', '18-circles-2', '19-circles-3', '20-circles-4', '21-circles-5',
-    '22-circles-6', '23-circles-7', '24-circles-8', '25-circles-9',
-    '26-bamboos-1', '27-bamboos-2', '28-bamboos-3', '29-bamboos-4', '30-bamboos-5',
-    '31-bamboos-6', '32-bamboos-7', '33-bamboos-8', '34-bamboos-9',
-    '35-spring', '36-summer', '37-autumn', '38-winter',
-    '39-plum', '40-orchid', '41-chrysanthemum', '42-bamboo',
+    "01-white-dragon", "02-green-dragon", "03-red-dragon",
+    "04-east-wind", "05-south-wind", "06-west-wind", "07-north-wind",
+    "08-characters-1", "09-characters-2", "10-characters-3", "11-characters-4", "12-characters-5",
+    "13-characters-6", "14-characters-7", "15-characters-8", "16-characters-9",
+    "17-circles-1", "18-circles-2", "19-circles-3", "20-circles-4", "21-circles-5",
+    "22-circles-6", "23-circles-7", "24-circles-8", "25-circles-9",
+    "26-bamboos-1", "27-bamboos-2", "28-bamboos-3", "29-bamboos-4", "30-bamboos-5",
+    "31-bamboos-6", "32-bamboos-7", "33-bamboos-8", "34-bamboos-9",
+    "35-spring", "36-summer", "37-autumn", "38-winter",
+    "39-plum", "40-orchid", "41-chrysanthemum", "42-bamboo",
   ];
 
   var SOUNDS = [
-    'draw-game', 'flower', 'gong', 'impact-chow', 'impact-kong', 'impact-pung', 'other-win',
-    'tile-claim-1', 'tile-claim-2', 'tile-discard', 'tile-draw', 'tile-kong', 'tile-select',
-    'tiles-reveal', 'turn',
+    "draw-game", "flower", "gong", "impact-chow", "impact-kong", "impact-pung", "other-win",
+    "tile-claim-1", "tile-claim-2", "tile-discard", "tile-draw", "tile-kong", "tile-select",
+    "tiles-reveal", "turn",
   ];
 
-  var MUSIC = ['guzheng-city', 'shenyang', 'ripples'];
+  var MUSIC = ["guzheng-city", "shenyang", "ripples"];
 
   var SCRIPTS = [
-    'nav', 'points',
-    'mahjong-engine', 'mahjong-bot', 'mahjong-lucky-cat', 'mahjong-jorge-yau',
-    'mahjong-ml-features', 'mahjong-ml-model', 'mahjong-ml', 'mahjong-only-orphans',
-    'mahjong-lucky-cat-net', 'mahjong-lucky-cat-value', 'mahjong-lucky-cat-ml', 'mahjong-strategies', 'mahjong-coach',
-    'mahjong-analysis', 'mahjong-lesson', 'mahjong-rules', 'mahjong-game',
+    "nav", "points",
+    "mahjong-engine", "mahjong-bot", "mahjong-lucky-cat", "mahjong-jorge-yau",
+    "mahjong-ml-features", "mahjong-ml-model", "mahjong-ml", "mahjong-only-orphans",
+    "mahjong-lucky-cat-net", "mahjong-lucky-cat-value", "mahjong-lucky-cat-ml", "mahjong-strategies", "mahjong-coach",
+    "mahjong-analysis", "mahjong-lesson", "mahjong-rules", "mahjong-game",
     // Loaded later by the game (loadAssets in mahjong-game.js).
-    'mahjong-ml-weights', 'mahjong-only-orphans-weights', 'mahjong-lucky-cat-weights',
-    'offline-cache', 'offline', 'play-options', 'analytics-id',
+    "mahjong-ml-weights", "mahjong-only-orphans-weights", "mahjong-lucky-cat-weights",
+    "offline-cache", "offline", "play-options", "analytics-id",
   ];
 
   // The interactive pages, the only ones kept offline: the Points Guide, the
   // options page and the game. The rest of the site is left to the network.
   var PAGES = [
-    '/hong-kong-mahjong-scoring/',
-    '/play-mahjong/',
-    '/playing-mahjong/',
+    "/hong-kong-mahjong-scoring/",
+    "/play-mahjong/",
+    "/playing-mahjong/",
   ];
 
   // The header's links (js/nav.js).
-  var DATA = ['nav'];
+  var DATA = ["nav"];
 
-  var STYLES = ['fonts', 'styles', 'play', 'points'];
+  var STYLES = ["fonts", "styles", "play", "points"];
 
   var ASSETS = PAGES.concat([
-    '/play-mahjong/manifest.webmanifest',
-    '/fonts/kn-yuanmo-sc.woff2',
-    '/favicon-32.png',
-    '/logo.png',
-    '/logo.webp',
-    '/apple-touch-icon.png',
-    '/assets/icons/app-icon-192.png',
-    '/assets/icons/app-icon-512.png',
+    "/play-mahjong/manifest.webmanifest",
+    "/fonts/kn-yuanmo-sc.woff2",
+    "/favicon-32.png",
+    "/logo.png",
+    "/logo.webp",
+    "/apple-touch-icon.png",
+    "/assets/icons/app-icon-192.png",
+    "/assets/icons/app-icon-512.png",
   ]).concat(
-    STYLES.map(function (n) { return '/css/' + n + '.css'; }),
-    DATA.map(function (n) { return '/data/' + n + '.json'; }),
-    SCRIPTS.map(function (n) { return '/js/' + n + '.js'; }),
-    TILES.map(function (n) { return '/tiles/' + n + '.svg'; }),
-    SOUNDS.map(function (n) { return '/assets/sounds/' + n + '.wav'; }),
-    MUSIC.map(function (n) { return '/assets/music/' + n + '.m4a'; })
+    STYLES.map(function (n) { return "/css/" + n + ".css"; }),
+    DATA.map(function (n) { return "/data/" + n + ".json"; }),
+    SCRIPTS.map(function (n) { return "/js/" + n + ".js"; }),
+    TILES.map(function (n) { return "/tiles/" + n + ".svg"; }),
+    SOUNDS.map(function (n) { return "/assets/sounds/" + n + ".wav"; }),
+    MUSIC.map(function (n) { return "/assets/music/" + n + ".m4a"; })
   );
 
   var MEDIA_EXT = /\.(svg|png|webp|jpe?g|gif|ico|wav|m4a|mp3|ogg|woff2?|ttf)$/i;
@@ -114,7 +114,7 @@
   }
 
   function scriptUrl(version) {
-    return SW_URL + '?v=' + encodeURIComponent(version);
+    return SW_URL + "?v=" + encodeURIComponent(version);
   }
 
   function isLocalHost(hostname) {
@@ -128,14 +128,14 @@
   // Always 'network': the network first, the saved copy only when it fails.
   // (Media too: an unchanged file is a cheap 304, and a changed one is never missed.)
   function strategyFor() {
-    return 'network';
+    return "network";
   }
 
   // Where a request is kept: the path alone, so /playing-mahjong/?new=1 and
   // /playing-mahjong/index.html find the page.
   function cacheKey(url) {
-    var u = typeof url === 'string' ? new URL(url, 'https://x.invalid') : url;
-    var path = u.pathname.replace(/\/index\.html$/i, '/');
+    var u = typeof url === "string" ? new URL(url, "https://x.invalid") : url;
+    var path = u.pathname.replace(/\/index\.html$/i, "/");
     return path;
   }
 
@@ -149,27 +149,27 @@
   // A 206 for a media element's Range request, cut from the full cached file
   // (Safari's audio needs this to play from the cache).
   function rangeResponse(full, rangeHeader) {
-    var m = /^bytes=(\d*)-(\d*)$/.exec(String(rangeHeader || '').trim());
+    var m = /^bytes=(\d*)-(\d*)$/.exec(String(rangeHeader || "").trim());
     return full.arrayBuffer().then(function (buf) {
       var size = buf.byteLength;
       var start, end;
-      if (!m || (m[1] === '' && m[2] === '')) { start = 0; end = size - 1; }
-      else if (m[1] === '') { start = Math.max(0, size - Number(m[2])); end = size - 1; }
-      else { start = Number(m[1]); end = m[2] === '' ? size - 1 : Math.min(Number(m[2]), size - 1); }
+      if (!m || (m[1] === "" && m[2] === "")) { start = 0; end = size - 1; }
+      else if (m[1] === "") { start = Math.max(0, size - Number(m[2])); end = size - 1; }
+      else { start = Number(m[1]); end = m[2] === "" ? size - 1 : Math.min(Number(m[2]), size - 1); }
       if (start >= size || start > end) {
-        return new Response(null, { status: 416, headers: { 'Content-Range': 'bytes */' + size } });
+        return new Response(null, { status: 416, headers: { "Content-Range": "bytes */" + size } });
       }
       var headers = new Headers(full.headers);
-      headers.set('Content-Range', 'bytes ' + start + '-' + end + '/' + size);
-      headers.set('Content-Length', String(end - start + 1));
-      headers.set('Accept-Ranges', 'bytes');
-      return new Response(buf.slice(start, end + 1), { status: 206, statusText: 'Partial Content', headers: headers });
+      headers.set("Content-Range", "bytes " + start + "-" + end + "/" + size);
+      headers.set("Content-Length", String(end - start + 1));
+      headers.set("Accept-Ranges", "bytes");
+      return new Response(buf.slice(start, end + 1), { status: 206, statusText: "Partial Content", headers: headers });
     });
   }
 
   // Only whole, same-origin, successful responses go in the cache.
   function cacheable(res) {
-    return !!res && res.status === 200 && (res.type === 'basic' || res.type === 'default');
+    return !!res && res.status === 200 && (res.type === "basic" || res.type === "default");
   }
 
   // The listed files the version's cache doesn't have yet.
@@ -198,8 +198,8 @@
       function one(path) {
         return cache.match(path).then(function (have) {
           if (have && opts.onlyMissing) return;
-          return fetchFn(path, { cache: 'no-cache', credentials: 'same-origin' }).then(function (res) {
-            if (!cacheable(res)) throw new Error(path + ' ' + (res && res.status));
+          return fetchFn(path, { cache: "no-cache", credentials: "same-origin" }).then(function (res) {
+            if (!cacheable(res)) throw new Error(path + " " + (res && res.status));
             return cache.put(path, res);
           });
         }).then(function () {}, function () { failed.push(path); }).then(function () {
@@ -244,5 +244,5 @@
     precache: precache,
   };
   root.MahjongOfflineCache = api;
-  if (typeof module !== 'undefined' && module.exports) module.exports = api;
-})(typeof self !== 'undefined' ? self : globalThis);
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+})(typeof self !== "undefined" ? self : globalThis);

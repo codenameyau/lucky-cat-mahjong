@@ -79,16 +79,16 @@
    docs/strategies/. */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
-  var E = (typeof module !== 'undefined' && module.exports)
-    ? require('./mahjong-engine.js')
+  var E = (typeof module !== "undefined" && module.exports)
+    ? require("./mahjong-engine.js")
     : root.MahjongEngine;
 
   var DRAGONS = [31, 32, 33];
   var EARLY_WALL = 60;
   var LATE_WALL = 32; // fewer tiles than this left is the end of the hand // more tiles than this left in the wall is the early part of the hand
-  var SUIT_LABELS = { c: 'Characters', d: 'Circles', b: 'Bamboos' };
+  var SUIT_LABELS = { c: "Characters", d: "Circles", b: "Bamboos" };
   var ESTIMATE_FAAN_CAP = 10;
   var VALUE_SLOPE = 0.6; // value of each faan above the minimum
 
@@ -142,9 +142,9 @@
     var chowSuits = {};
     shownMelds(s).forEach(function (m) {
       var su = meldSuit(m);
-      if (su === 'z') return;
+      if (su === "z") return;
       meldSuits[su] = true;
-      if (m.type === 'chow') chowSuits[su] = true;
+      if (m.type === "chow") chowSuits[su] = true;
     });
     var inMelds = Object.keys(meldSuits);
     var keeps = inMelds.length === 1 ? inMelds[0] : null;
@@ -190,9 +190,9 @@
     var chowSuits = {};
     shownMelds(s).forEach(function (m) {
       var su = meldSuit(m);
-      if (su === 'z') return;
+      if (su === "z") return;
       danger[su]++;
-      if (m.type === 'chow') chowSuits[su] = true;
+      if (m.type === "chow") chowSuits[su] = true;
     });
     var chowList = Object.keys(chowSuits);
     var numberSuits = SUIT_LETTERS.filter(function (su) { return danger[su]; });
@@ -275,7 +275,7 @@
     var by = { c: 0, d: 0, b: 0, z: 0 };
     list.forEach(function (d) {
       var i = E.tileIndex(d.tile);
-      by[i < 27 ? E.suitOfIndex(i) : 'z']++;
+      by[i < 27 ? E.suitOfIndex(i) : "z"]++;
     });
     return { n: list.length, by: by };
   }
@@ -283,7 +283,7 @@
   function ownLean(plan, ctx) {
     var own = ctx.ownRead;
     if (!own || own.n < 4) return 1;
-    if (plan.id === 'straights') return own.by.z / own.n >= 0.4 ? OWN_RUNS : 1;
+    if (plan.id === "straights") return own.by.z / own.n >= 0.4 ? OWN_RUNS : 1;
     if (!plan.suit || !/^(half|full)-/.test(plan.id)) return 1;
     var share = own.by[plan.suit] / own.n;
     return share <= 0.1 ? OWN_KEEP : share >= 0.4 ? OWN_LEFT : 1;
@@ -300,7 +300,7 @@
       melds: melds,
       declared: melds.length,
       concealed: melds.every(function (m) { return m.concealed; }),
-      hasChow: melds.some(function (m) { return m.type === 'chow'; }),
+      hasChow: melds.some(function (m) { return m.type === "chow"; }),
       meldSuits: {},
       flowers: s.flowers,
       unseen: E.unseenCounts(game, seat),
@@ -331,7 +331,7 @@
     next.melds = ctx.melds.concat([meld]);
     next.declared = ctx.declared + 1;
     next.concealed = ctx.concealed && !!meld.concealed;
-    next.hasChow = ctx.hasChow || meld.type === 'chow';
+    next.hasChow = ctx.hasChow || meld.type === "chow";
     next.meldSuits = {};
     Object.keys(ctx.meldSuits).forEach(function (k) { next.meldSuits[k] = true; });
     next.meldSuits[meldSuit(meld)] = true;
@@ -403,7 +403,7 @@
       if (k === seat) return false;
       return o.melds.length >= 2 && shownMelds(o).some(function (m) {
         var i = E.tileIndex(m.tiles[0]);
-        return m.type !== 'chow' && i >= 27;
+        return m.type !== "chow" && i >= 27;
       });
     });
     return bigThreat ? Math.min(slope, 0.45) : slope;
@@ -416,7 +416,7 @@
   function baseFaan(ctx) {
     var f = flowerPoints(ctx);
     ctx.melds.forEach(function (m) {
-      if (m.type === 'chow') return;
+      if (m.type === "chow") return;
       f += valueWeight(ctx, E.tileIndex(m.tiles[0]));
     });
     return f;
@@ -426,7 +426,7 @@
     var f = 0;
     var dragonSets = 0, dragonPairs = 0;
     ctx.melds.forEach(function (m) {
-      if (m.type !== 'chow' && DRAGONS.indexOf(E.tileIndex(m.tiles[0])) !== -1) dragonSets++;
+      if (m.type !== "chow" && DRAGONS.indexOf(E.tileIndex(m.tiles[0])) !== -1) dragonSets++;
     });
     for (var i = 27; i < 34; i++) {
       var w = valueWeight(ctx, i);
@@ -467,7 +467,7 @@
       var all = [1, 2, 3, 4].every(function (n) { return has(letter + n); });
       return all ? 2 : has(letter + seat) ? 1 : 0;
     };
-    return group('f') + group('s');
+    return group("f") + group("s");
   }
 
   // Faan a hand is sure of however it finishes: its flowers and seasons
@@ -480,7 +480,7 @@
     var min = ctx.game.settings.minFaan;
     var sure = baseFaan(ctx);
     if (sure >= min) return true;
-    var runsOnly = ctx.melds.every(function (m) { return m.type === 'chow'; });
+    var runsOnly = ctx.melds.every(function (m) { return m.type === "chow"; });
     return sure >= min - 1 && runsOnly;
   }
 
@@ -494,13 +494,13 @@
   function chowCommitment(ctx) {
     if (!ctx.hasChow) return null;
     if (cheapWin(ctx)) return null;
-    var suits = Object.keys(ctx.meldSuits).filter(function (k) { return k !== 'z'; });
+    var suits = Object.keys(ctx.meldSuits).filter(function (k) { return k !== "z"; });
     return suits.length === 1 ? suits[0] : null;
   }
 
   // Hands that need their tiles from more than one suit, or a fixed shape:
   // the one-suit rule leaves their discard order alone.
-  var MIXED_PLANS = ['pairs', 'orphans', 'gates', 'terminals', 'honors', 'winds'];
+  var MIXED_PLANS = ["pairs", "orphans", "gates", "terminals", "honors", "winds"];
   var SUIT_MAJORITY = 7;
 
   // Tiles of one suit already yours: the hand, plus 3 for each meld of it.
@@ -529,8 +529,8 @@
     if (chow) return chow;
     if (ctx.mixedHand) return null;
     var lead = ctx.leadPlan;
-    if (lead && (lead.id === 'straights' || MIXED_PLANS.indexOf(lead.id) !== -1)) return null;
-    var other = Object.keys(ctx.meldSuits).filter(function (k) { return k !== 'z'; });
+    if (lead && (lead.id === "straights" || MIXED_PLANS.indexOf(lead.id) !== -1)) return null;
+    var other = Object.keys(ctx.meldSuits).filter(function (k) { return k !== "z"; });
     if (other.length > 1) return null;
     var best = null, bestN = 0, tie = false, bySuit = {};
     for (var s = 0; s < 3; s++) {
@@ -583,7 +583,7 @@
     if (i >= 27) return false;
     var suit = E.suitOfIndex(i);
     return ctx.melds.some(function (m) {
-      if (m.type !== 'chow') return false;
+      if (m.type !== "chow") return false;
       return E.suitOfIndex(E.tileIndex(m.tiles[0])) !== suit;
     });
   }
@@ -599,7 +599,7 @@
   function sharedPriority(game, ctx, counts, candidate) {
     var i = candidate.index;
     var lead = ctx.leadPlan;
-    if (lead && lead.id === 'straights' && !ctx.hasChow) {
+    if (lead && lead.id === "straights" && !ctx.hasChow) {
       var eyes = keptHonorPair(counts, ctx);
       return i >= 27 && i !== eyes && !holdsDragon(game, i, candidate.shanten) ? -1 : null;
     }
@@ -629,14 +629,14 @@
     // shedding one tile would leave five pairs.
     if (ctx.blockSevenPairs) return false;
     if (ctx.declared) return false;
-    if (ctx.melds.some(function (m) { return m.type === 'pung' || m.type === 'kong'; })) return false;
+    if (ctx.melds.some(function (m) { return m.type === "pung" || m.type === "kong"; })) return false;
     var shape = concealedShape(c);
     return !shape.hasSet && shape.pairs > 4;
   }
 
   var ORPHAN_INDEXES = [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33];
   var GATES_NEED = [3, 1, 1, 1, 1, 1, 1, 1, 3];
-  var SUIT_LETTERS = ['c', 'd', 'b'];
+  var SUIT_LETTERS = ["c", "d", "b"];
 
   function isOrphanIndex(i) {
     return ORPHAN_INDEXES.indexOf(i) !== -1;
@@ -691,20 +691,20 @@
   }
 
   function makeSpecialPlan(kind, c, ctx, gates) {
-    if (kind === 'pairs') {
+    if (kind === "pairs") {
       return {
-        id: 'pairs', label: 'Seven Pairs', counts: c, shantenFn: E.sevenPairsShanten,
+        id: "pairs", label: "Seven Pairs", counts: c, shantenFn: E.sevenPairsShanten,
         faan: baseFaan(ctx) + 4 + pairsFlush(c), open: false,
       };
     }
-    if (kind === 'orphans') {
+    if (kind === "orphans") {
       return {
-        id: 'orphans', label: 'Thirteen Orphans', counts: c, shantenFn: E.orphansShanten,
+        id: "orphans", label: "Thirteen Orphans", counts: c, shantenFn: E.orphansShanten,
         faan: 13, open: false,
       };
     }
     return {
-      id: 'gates', suit: gates.suit, start: gates.start, label: 'Nine Gates',
+      id: "gates", suit: gates.suit, start: gates.start, label: "Nine Gates",
       counts: c, shantenFn: nineGatesShanten(gates.start), faan: 13, open: false,
     };
   }
@@ -749,7 +749,7 @@
       for (var m = 0; m < melds.length; m++) {
         var meld = melds[m];
         if (meld.concealed) continue;
-        if ((meld.type === 'pung' || meld.type === 'kong') && meld.tiles[0] === id) return true;
+        if ((meld.type === "pung" || meld.type === "kong") && meld.tiles[0] === id) return true;
       }
     }
     return false;
@@ -797,7 +797,7 @@
   // The shared foundation's hands: the usual ones, and Seven Pairs when it's close.
   function foundationPlans(c, ctx) {
     var list = basePlans(c, ctx);
-    if (chaseSevenPairs(c, ctx)) list.push(makeSpecialPlan('pairs', c, ctx));
+    if (chaseSevenPairs(c, ctx)) list.push(makeSpecialPlan("pairs", c, ctx));
     return list;
   }
 
@@ -816,7 +816,7 @@
   // (With melds that rule those out too, the plain hand is all that's left.)
   function aimablePlans(plans, c, ctx) {
     var min = ctx.game.settings.minFaan;
-    var scoring = plans.filter(function (p) { return p.id !== 'plain' || p.faan >= min; });
+    var scoring = plans.filter(function (p) { return p.id !== "plain" || p.faan >= min; });
     if (scoring.length === plans.length) return plans;
     var finishable = function (p) { return !p.upgrade && p.shantenFn(p.counts, ctx.declared) !== Infinity; };
     if (scoring.some(finishable)) return scoring;
@@ -829,20 +829,20 @@
     var base = baseFaan(ctx) + (ctx.concealed ? 1 : 0);
     var out = [];
     var suitN = suitCounts(c, ctx);
-    var open = ['c', 'd', 'b'].filter(function (su) {
-      return !Object.keys(ctx.meldSuits).some(function (k) { return k !== su && k !== 'z'; });
+    var open = ["c", "d", "b"].filter(function (su) {
+      return !Object.keys(ctx.meldSuits).some(function (k) { return k !== su && k !== "z"; });
     });
     if (open.length) {
       var su = open.reduce(function (m, x) { return suitN[x] > suitN[m] ? x : m; }, open[0]);
       var kept = restrict(c, function (i) { return E.suitOfIndex(i) === su || i >= 27; });
       out.push({
-        id: 'half-' + su, suit: su, label: 'a Half Flush in ' + SUIT_LABELS[su],
+        id: "half-" + su, suit: su, label: "a Half Flush in " + SUIT_LABELS[su],
         counts: kept, shantenFn: E.standardShanten,
         faan: base + 3 + handYaku(ctx, kept), open: true,
       });
     }
     if (!ctx.hasChow) {
-      out.push({ id: 'triplets', label: 'All Triplets', counts: c, shantenFn: E.tripletsShanten, faan: base + 3 + handYaku(ctx, c), open: true });
+      out.push({ id: "triplets", label: "All Triplets", counts: c, shantenFn: E.tripletsShanten, faan: base + 3 + handYaku(ctx, c), open: true });
     }
     return out;
   }
@@ -862,13 +862,13 @@
       var inSuitHalf = function (i) { return E.suitOfIndex(i) === committed || i >= 27; };
       var inSuitFull = function (i) { return E.suitOfIndex(i) === committed; };
       plans.push({
-        id: 'half-' + committed, suit: committed, label: 'a Half Flush in ' + SUIT_LABELS[committed],
+        id: "half-" + committed, suit: committed, label: "a Half Flush in " + SUIT_LABELS[committed],
         counts: restrict(c, inSuitHalf), shantenFn: E.standardShanten,
         faan: base + 3 + handYaku(ctx, restrict(c, inSuitHalf)), open: true,
       });
       if (!ctx.meldSuits.z) {
         plans.push({
-          id: 'full-' + committed, suit: committed, label: 'a Full Flush in ' + SUIT_LABELS[committed],
+          id: "full-" + committed, suit: committed, label: "a Full Flush in " + SUIT_LABELS[committed],
           counts: restrict(c, inSuitFull), shantenFn: E.standardShanten,
           faan: base + 7, open: true,
         });
@@ -876,13 +876,13 @@
       return plans;
     }
 
-    plans.push({ id: 'plain', label: 'a standard hand', counts: c, shantenFn: E.standardShanten, faan: base + yaku, open: true });
+    plans.push({ id: "plain", label: "a standard hand", counts: c, shantenFn: E.standardShanten, faan: base + yaku, open: true });
     // After chows (and no sets), All Sequences is still a faan: runs only,
     // no honors. With flowers that's often the last faan a hand needs.
-    var allChows = ctx.declared > 0 && ctx.melds.every(function (m) { return m.type === 'chow'; });
+    var allChows = ctx.declared > 0 && ctx.melds.every(function (m) { return m.type === "chow"; });
     if (allChows) {
       plans.push({
-        id: 'runs', label: 'All Sequences', counts: restrict(c, function (i) { return i < 27; }),
+        id: "runs", label: "All Sequences", counts: restrict(c, function (i) { return i < 27; }),
         shantenFn: E.standardShanten, faan: base + 1, open: true,
       });
     }
@@ -896,8 +896,8 @@
     if (!ctx.declared && !honorSet) {
       var eyes = keptHonorPair(c, ctx);
       plans.push({
-        id: 'straights',
-        label: 'Concealed Straights',
+        id: "straights",
+        label: "Concealed Straights",
         counts: restrict(c, function (i) { return i < 27 || i === eyes; }),
         shantenFn: E.standardShanten,
         faan: base + (eyes === null ? 1 : 0),
@@ -917,8 +917,8 @@
     var read = ctx.leftRead;
     var avoid = ctx.avoidSuit !== undefined ? ctx.avoidSuit : avoidSuit(c, ctx);
     var close = function (su) { return suitN[su] >= 6 && suitN[su] >= topN - 1; };
-    ['c', 'd', 'b'].forEach(function (su) {
-      var offSuit = Object.keys(ctx.meldSuits).some(function (k) { return k !== su && k !== 'z'; });
+    ["c", "d", "b"].forEach(function (su) {
+      var offSuit = Object.keys(ctx.meldSuits).some(function (k) { return k !== su && k !== "z"; });
       if (offSuit || su === avoid) return;
       var inHalf = function (i) { return E.suitOfIndex(i) === su || i >= 27; };
       var inFull = function (i) { return E.suitOfIndex(i) === su; };
@@ -926,14 +926,14 @@
       var min = close(su) && (avoid || (read && read.feeds === su) || afterKeep) ? 6 : 7;
       if (countWhere(c, inHalf) + setTiles(inHalf) >= 7) {
         plans.push({
-          id: 'half-' + su, suit: su, label: 'a Half Flush in ' + SUIT_LABELS[su],
+          id: "half-" + su, suit: su, label: "a Half Flush in " + SUIT_LABELS[su],
           counts: restrict(c, inHalf), shantenFn: E.standardShanten,
           faan: base + 3 + handYaku(ctx, restrict(c, inHalf)), open: true,
         });
       }
       if (!ctx.meldSuits.z && countWhere(c, inFull) + setTiles(inFull) >= min) {
         plans.push({
-          id: 'full-' + su, suit: su, label: 'a Full Flush in ' + SUIT_LABELS[su],
+          id: "full-" + su, suit: su, label: "a Full Flush in " + SUIT_LABELS[su],
           counts: restrict(c, inFull), shantenFn: E.standardShanten,
           faan: base + 7, open: true,
         });
@@ -944,11 +944,11 @@
       var pairish = 0;
       for (var i = 0; i < 34; i++) if (c[i] >= 2) pairish++;
       if (pairish + ctx.declared >= 3) {
-        plans.push({ id: 'triplets', label: 'All Triplets', counts: c, shantenFn: E.tripletsShanten, faan: base + 3 + yaku, open: true });
+        plans.push({ id: "triplets", label: "All Triplets", counts: c, shantenFn: E.tripletsShanten, faan: base + 3 + yaku, open: true });
         var pungsHeld = 0;
         for (var q = 0; q < 34; q++) if (c[q] >= 3) pungsHeld++;
         if (ctx.declared === 0 && pungsHeld >= 2) {
-          plans.push({ id: 'concealed-triplets', label: 'Concealed Triplets', counts: c, shantenFn: E.tripletsShanten, faan: base - 1 + 10, open: false });
+          plans.push({ id: "concealed-triplets", label: "Concealed Triplets", counts: c, shantenFn: E.tripletsShanten, faan: base - 1 + 10, open: false });
         }
       }
     }
@@ -994,7 +994,7 @@
   // Held or melded copies of a tile (a set counts as three).
   function setCount(c, ctx, i) {
     var n = c[i];
-    ctx.melds.forEach(function (m) { if (m.type !== 'chow' && E.tileIndex(m.tiles[0]) === i) n = 3; });
+    ctx.melds.forEach(function (m) { if (m.type !== "chow" && E.tileIndex(m.tiles[0]) === i) n = 3; });
     return n;
   }
 
@@ -1017,7 +1017,7 @@
   // `group` but `pairs` as pungs, the rest as the pair) plus anything for
   // the remaining sets. Infinity when a needed tile has run out.
   function groupShanten(ctx, group, pungs, pair) {
-    var done = ctx.melds.filter(function (m) { return m.type !== 'chow' && group.indexOf(E.tileIndex(m.tiles[0])) !== -1; });
+    var done = ctx.melds.filter(function (m) { return m.type !== "chow" && group.indexOf(E.tileIndex(m.tiles[0])) !== -1; });
     var doneIdx = done.map(function (m) { return E.tileIndex(m.tiles[0]); });
     return function (c, declared) {
       var open = group.filter(function (i) { return doneIdx.indexOf(i) === -1; })
@@ -1052,7 +1052,7 @@
     var plans = [];
     if (ctx.hasChow) return plans;
     var meldsFit = function (fits) {
-      return ctx.melds.every(function (m) { return m.type !== 'chow' && fits(E.tileIndex(m.tiles[0])); });
+      return ctx.melds.every(function (m) { return m.type !== "chow" && fits(E.tileIndex(m.tiles[0])); });
     };
     var orphan = function (i) { return isTerminal(i) || isHonor(i); };
     var pairsOf = function (fits) {
@@ -1073,16 +1073,16 @@
     // (With no honors it's All Terminals; with no terminals, All Honors.)
     var both = tilesOf(c, ctx, isHonor) > 0 && tilesOf(c, ctx, isTerminal) > 0;
     if (fitsHand(orphan) && both) {
-      setsPlan('mixed-orphans', 'Mixed Orphans', orphan, function (k) { return base + 3 + 1 + handYaku(ctx, k); },
-        'Mixed Orphans uses only 1s, 9s and honors.', 'keep your 1s, 9s and honors');
+      setsPlan("mixed-orphans", "Mixed Orphans", orphan, function (k) { return base + 3 + 1 + handYaku(ctx, k); },
+        "Mixed Orphans uses only 1s, 9s and honors.", "keep your 1s, 9s and honors");
     }
     if (fitsHand(isTerminal)) {
-      setsPlan('all-terminals', 'All Terminals', isTerminal, function () { return LIMIT; },
-        'All Terminals uses only 1s and 9s.', 'keep your 1s and 9s');
+      setsPlan("all-terminals", "All Terminals", isTerminal, function () { return LIMIT; },
+        "All Terminals uses only 1s and 9s.", "keep your 1s and 9s");
     }
     if (fitsHand(isHonor)) {
-      setsPlan('all-honors', 'All Honors', isHonor, function (k) { return base + 10 + handYaku(ctx, k); },
-        'All Honors uses only honors.', 'keep your honors');
+      setsPlan("all-honors", "All Honors", isHonor, function (k) { return base + 10 + handYaku(ctx, k); },
+        "All Honors uses only honors.", "keep your honors");
     }
     return plans;
   }
@@ -1107,17 +1107,17 @@
     var dragonYaku = handYaku(ctx, restrict(c, isDragon));
     var dragons = tilesOf(c, ctx, isDragon);
     if (dragons >= 5 && have(DRAGONS, 2) >= 2) {
-      groupPlan('small-dragons', 'Small Three Dragons', DRAGONS, 2, true, base + 5 + windYaku, 'keep your dragons');
+      groupPlan("small-dragons", "Small Three Dragons", DRAGONS, 2, true, base + 5 + windYaku, "keep your dragons");
     }
     if (dragons >= 6 && have(DRAGONS, 2) === 3) {
-      groupPlan('big-dragons', 'Big Three Dragons', DRAGONS, 3, false, base + 8 + windYaku, 'pung all three dragons');
+      groupPlan("big-dragons", "Big Three Dragons", DRAGONS, 3, false, base + 8 + windYaku, "pung all three dragons");
     }
     var winds = tilesOf(c, ctx, isWind);
     if (winds >= 8 && have(WINDS, 2) >= 3) {
-      groupPlan('small-winds', 'Small Four Winds', WINDS, 3, true, base + 6 + dragonYaku, 'keep your winds');
+      groupPlan("small-winds", "Small Four Winds", WINDS, 3, true, base + 6 + dragonYaku, "keep your winds");
     }
     if (winds >= 9 && have(WINDS, 2) === 4) {
-      groupPlan('big-winds', 'Big Four Winds', WINDS, 4, false, LIMIT, 'pung all four winds');
+      groupPlan("big-winds", "Big Four Winds", WINDS, 4, false, LIMIT, "pung all four winds");
     }
     return plans;
   }
@@ -1141,10 +1141,10 @@
       });
     };
     var orphan = function (i) { return isTerminal(i) || isHonor(i); };
-    add('pairs-orphans', 'Seven Pairs with Mixed Orphans', orphan, baseFaan(ctx) + 4 + 1,
-      'Mixed Orphans uses only 1s, 9s and honors.', 'pair your 1s, 9s and honors');
-    add('pairs-honors', 'Seven Pairs in All Honors', isHonor, LIMIT, 'All Honors uses only honors.', 'pair your honors');
-    add('pairs-terminals', 'Seven Pairs in All Terminals', isTerminal, LIMIT, 'All Terminals uses only 1s and 9s.', 'pair your 1s and 9s');
+    add("pairs-orphans", "Seven Pairs with Mixed Orphans", orphan, baseFaan(ctx) + 4 + 1,
+      "Mixed Orphans uses only 1s, 9s and honors.", "pair your 1s, 9s and honors");
+    add("pairs-honors", "Seven Pairs in All Honors", isHonor, LIMIT, "All Honors uses only honors.", "pair your honors");
+    add("pairs-terminals", "Seven Pairs in All Terminals", isTerminal, LIMIT, "All Terminals uses only 1s and 9s.", "pair your 1s and 9s");
     return out;
   }
 
@@ -1212,8 +1212,8 @@
     var up = ctx.upgrade;
     if (!up || group <= 0 || group >= 10 || !up.favors(i)) return group;
     var lead = ctx.leadPlan && ctx.leadPlan.id;
-    if (lead === 'straights' || lead === 'runs') return group;
-    if (/^(half|full)-/.test(lead || '') && !isHonor(i)) return group;
+    if (lead === "straights" || lead === "runs") return group;
+    if (/^(half|full)-/.test(lead || "") && !isHonor(i)) return group;
     if (isDeadFor(up, counts, ctx, i)) return Math.min(group, 1);
     return group + 0.5;
   }
@@ -1257,7 +1257,7 @@
   // Feeding a claim costs more the less of the hand is left to answer it.
   var FEED_COST = 0.012, FEED_CHOW = 0.6, FEED_PUNG = 0.25;
 
-  function suitOf(i) { return i < 27 ? E.suitOfIndex(i) : 'z'; }
+  function suitOf(i) { return i < 27 ? E.suitOfIndex(i) : "z"; }
 
   function shares(list) {
     var by = { c: 0, d: 0, b: 0 }, total = 0;
@@ -1294,7 +1294,7 @@
     var inMelds = {};
     shownMelds(s).forEach(function (m) {
       var su = suitOf(E.tileIndex(m.tiles[0]));
-      if (su !== 'z') inMelds[su] = true;
+      if (su !== "z") inMelds[su] = true;
     });
     var suits = Object.keys(inMelds);
     if (suits.length) return suits.length === 1 ? suits[0] : null;
@@ -1585,20 +1585,20 @@
   // Hands built from the same tiles are one plan: moving from a Half Flush to
   // a Full Flush in that suit refines the hand, it doesn't change direction.
   function planFamily(id) {
-    if (/^(half|full)-/.test(id)) return 'flush-' + id.slice(5);
-    if (id === 'half' || id === 'full') return 'flush';
-    if (id === 'triplets' || id === 'concealed-triplets') return 'sets';
-    if (id === 'plain' || id === 'runs' || id === 'straights' || id === 'sequences') return 'runs';
-    if (id === 'pairs' || /^pairs-/.test(id)) return 'pairs';
-    if (id === 'mixed-orphans' || id === 'all-terminals' || id === 'all-honors') return 'majors';
-    if (/-dragons$/.test(id)) return 'dragons';
-    if (/-winds$/.test(id)) return 'winds';
+    if (/^(half|full)-/.test(id)) return "flush-" + id.slice(5);
+    if (id === "half" || id === "full") return "flush";
+    if (id === "triplets" || id === "concealed-triplets") return "sets";
+    if (id === "plain" || id === "runs" || id === "straights" || id === "sequences") return "runs";
+    if (id === "pairs" || /^pairs-/.test(id)) return "pairs";
+    if (id === "mixed-orphans" || id === "all-terminals" || id === "all-honors") return "majors";
+    if (/-dragons$/.test(id)) return "dragons";
+    if (/-winds$/.test(id)) return "winds";
     return id;
   }
 
   function planMemo(seatState) {
     var byBot = seatState.planMemo || (seatState.planMemo = {});
-    var id = T.id || 'base';
+    var id = T.id || "base";
     return byBot[id] || (byBot[id] = { turn: -1, base: null, now: null, left: {}, pivot: null });
   }
 
@@ -1621,7 +1621,7 @@
     memo.now = family;
     if (memo.base && memo.base !== family) {
       memo.left[memo.base] = turn;
-      memo.pivot = { turn: turn, from: memo.base, why: best.pivotWhy || 'gone' };
+      memo.pivot = { turn: turn, from: memo.base, why: best.pivotWhy || "gone" };
     } else if (memo.pivot && memo.pivot.turn === turn) {
       memo.pivot = null;
     }
@@ -1642,13 +1642,13 @@
   function pivotWhy(alt, cur, ctx) {
     // No tile helps it, there aren't the draws left to fill it, or it has
     // fallen well behind a hand with far better odds.
-    if (cur.ukeire === 0 || cur.planShanten + 1 > ctx.drawsLeft * 1.5) return 'hopeless';
-    if (alt.planShanten + HOPELESS_STEPS <= cur.planShanten && alt.chance >= cur.chance * HOPELESS_RATIO) return 'hopeless';
+    if (cur.ukeire === 0 || cur.planShanten + 1 > ctx.drawsLeft * 1.5) return "hopeless";
+    if (alt.planShanten + HOPELESS_STEPS <= cur.planShanten && alt.chance >= cur.chance * HOPELESS_RATIO) return "hopeless";
     var back = leftPlan(ctx, planFamily(alt.plan.id));
-    if (alt.pick === Infinity && !back) return 'points';
+    if (alt.pick === Infinity && !back) return "points";
     var more = alt.plan.faan >= cur.plan.faan + (back ? 2 : 1);
     var near = alt.planShanten <= cur.planShanten + (back ? 0 : 1);
-    return more && near && alt.pick > cur.pick * PIVOT_MARGIN ? 'points' : null;
+    return more && near && alt.pick > cur.pick * PIVOT_MARGIN ? "points" : null;
   }
 
   // The committed plan if it's still alive and nothing justifies leaving it.
@@ -1667,7 +1667,7 @@
     }
     entries.forEach(function (e) { if (!best || e.pick > best.pick) best = e; });
     // (A strategy that lists its own plans has given up on this one.)
-    if (best && key) best.pivotWhy = T.ownPlans ? 'hopeless' : 'gone';
+    if (best && key) best.pivotWhy = T.ownPlans ? "hopeless" : "gone";
     return best;
   }
 
@@ -1686,20 +1686,20 @@
     // A flush keeps going below the tiles that would first suggest it, unless
     // a meld in another suit has ruled it out.
     var su = /^flush-/.test(id) ? id.slice(6) : null;
-    if (su && !Object.keys(ctx.meldSuits).some(function (k) { return k !== su && k !== 'z'; })) {
+    if (su && !Object.keys(ctx.meldSuits).some(function (k) { return k !== su && k !== "z"; })) {
       var kept = restrict(c, function (i) { return E.suitOfIndex(i) === su || i >= 27; });
       pool.push({
-        id: 'half-' + su, suit: su, label: 'a Half Flush in ' + SUIT_LABELS[su], counts: kept, shantenFn: E.standardShanten,
+        id: "half-" + su, suit: su, label: "a Half Flush in " + SUIT_LABELS[su], counts: kept, shantenFn: E.standardShanten,
         faan: baseFaan(ctx) + (ctx.concealed ? 1 : 0) + 3 + handYaku(ctx, kept), open: true,
       });
     }
     if (!ctx.declared) {
-      pool.push(makeSpecialPlan('pairs', c, ctx));
-      if (orphansAlive(c, ctx)) pool.push(makeSpecialPlan('orphans', c, ctx));
+      pool.push(makeSpecialPlan("pairs", c, ctx));
+      if (orphansAlive(c, ctx)) pool.push(makeSpecialPlan("orphans", c, ctx));
     }
     var min = ctx.game.settings.minFaan;
     return pool.filter(function (p) {
-      return planFamily(p.id) === id && (p.id !== 'plain' || p.faan >= min) && p.shantenFn(p.counts, ctx.declared) !== Infinity;
+      return planFamily(p.id) === id && (p.id !== "plain" || p.faan >= min) && p.shantenFn(p.counts, ctx.declared) !== Infinity;
     });
   }
 
@@ -1769,7 +1769,7 @@
    * 6. Defense
    * ------------------------------------------------------------------ */
 
-  var THREAT_LEVELS = ['Low', 'Medium', 'High', 'Extreme'];
+  var THREAT_LEVELS = ["Low", "Medium", "High", "Extreme"];
 
   function threatLevel(p) {
     return p >= 0.55 ? 3 : p >= 0.3 ? 2 : p >= 0.12 ? 1 : 0;
@@ -1794,7 +1794,7 @@
       var flush = null;
       var suitsInMelds = {};
       shownMelds(s).forEach(function (m) { suitsInMelds[meldSuit(m)] = true; });
-      var numSuits = Object.keys(suitsInMelds).filter(function (x) { return x !== 'z'; });
+      var numSuits = Object.keys(suitsInMelds).filter(function (x) { return x !== "z"; });
       if (k >= 1 && numSuits.length === 1) flush = numSuits[0];
       if (!flush && n >= 6) {
         var bySuit = { c: 0, d: 0, b: 0 };
@@ -1802,7 +1802,7 @@
           var su = E.suitOfIndex(E.tileIndex(d.tile));
           if (bySuit[su] !== undefined) bySuit[su]++;
         });
-        ['c', 'd', 'b'].forEach(function (su) {
+        ["c", "d", "b"].forEach(function (su) {
           if (!flush && bySuit[su] === 0 && numSuits.every(function (x) { return x === su; })) flush = su;
         });
       }
@@ -1811,10 +1811,10 @@
       p = Math.min(0.93, p);
 
       var f = 3;
-      if (flush) f += (shownMelds(s).some(function (m) { return meldSuit(m) === 'z'; }) ? 3 : 4);
+      if (flush) f += (shownMelds(s).some(function (m) { return meldSuit(m) === "z"; }) ? 3 : 4);
       var wind = E.seatWind(game, o);
       shownMelds(s).forEach(function (m) {
-        if (m.type === 'chow') return;
+        if (m.type === "chow") return;
         var i = E.tileIndex(m.tiles[0]);
         if (DRAGONS.indexOf(i) !== -1) f += 1;
         if (i === 26 + wind) f += 1;
@@ -1848,7 +1848,7 @@
         since: since,
         suji: suji,
         chows: s.melds.reduce(function (m, x) {
-          if (x.type === 'chow') { var su = meldSuit(x); m[su] = (m[su] || 0) + 1; }
+          if (x.type === "chow") { var su = meldSuit(x); m[su] = (m[su] || 0) + 1; }
           return m;
         }, {}),
         windIndex: 26 + wind,
@@ -1934,7 +1934,7 @@
     if (threat.flush) {
       var fs = E.suitOfIndex(i);
       if (fs === threat.flush) chance *= 2.5;
-      else if (fs === 'z') chance *= 1.3;
+      else if (fs === "z") chance *= 1.3;
       else chance *= 0.15;
     }
     // Waiting on a tile is more likely the more they want it.
@@ -1986,7 +1986,7 @@
   // of a step toward a plainer hand and of risk. Tiles a strategy throws
   // whatever else is true (group 0 or below) still go first, tiles a bigger
   // hand wants still wait, and a discard that leaves the hand ready stays on top.
-  var SETS_PLANS = ['triplets', 'concealed-triplets', 'mixed-orphans', 'all-terminals', 'all-honors'];
+  var SETS_PLANS = ["triplets", "concealed-triplets", "mixed-orphans", "all-terminals", "all-honors"];
   function tripletsOrder(out, ctx, counts) {
     var lead = out[0] && out[0].analysis.best;
     var plan = lead && lead.plan;
@@ -2062,8 +2062,8 @@
   function keepsLooseTerminal(counts, i, plan) {
     if (!looseTerminal(counts, i) || majorTiles(counts) - 1 < 7) return false;
     var id = plan && plan.id;
-    if (id === 'all-honors' || id === 'pairs-honors') return false;
-    if (id === 'orphans' || id === 'mixed-orphans' || id === 'all-terminals' || id === 'pairs-orphans' || id === 'pairs-terminals') return true;
+    if (id === "all-honors" || id === "pairs-honors") return false;
+    if (id === "orphans" || id === "mixed-orphans" || id === "all-terminals" || id === "pairs-orphans" || id === "pairs-terminals") return true;
     var terminals = 0, honors = 0;
     for (var j = 0; j < 34; j++) {
       if (!counts[j]) continue;
@@ -2101,7 +2101,7 @@
 
   function shortSuitDiscard(counts, i, plan) {
     if (i >= 27 || counts[i] !== 1 || keepsLooseTerminal(counts, i, plan)) return false;
-    if (plan && plan.id === 'straights' && breaksFinishedStraight(counts, i)) return false;
+    if (plan && plan.id === "straights" && breaksFinishedStraight(counts, i)) return false;
     var least = leastSuits(counts);
     if (!least[E.suitOfIndex(i)]) return false;
     var mine = shortSuitRank(counts, i, plan);
@@ -2135,15 +2135,15 @@
     var least = leastSuits(counts);
     var longest = longestSuits(counts);
     var role = function (x) {
-      if (x.index >= 27) return '';
+      if (x.index >= 27) return "";
       var su = E.suitOfIndex(x.index);
-      if (least[su] && !longest[su]) return 'short';
-      if (longest[su] && !least[su] && rankTerminal(x.index)) return 'longTerminal';
-      return '';
+      if (least[su] && !longest[su]) return "short";
+      if (longest[su] && !least[su] && rankTerminal(x.index)) return "longTerminal";
+      return "";
     };
     var ra = role(a), rb = role(b);
-    if (ra === 'short' && rb === 'longTerminal') return -1;
-    if (rb === 'short' && ra === 'longTerminal') return 1;
+    if (ra === "short" && rb === "longTerminal") return -1;
+    if (rb === "short" && ra === "longTerminal") return 1;
     return 0;
   }
 
@@ -2211,7 +2211,7 @@
     var groups = {};
     out.forEach(function (x, k) {
       if (x.index < 27) return;
-      var key = c[x.index] + ':' + ctx.unseen[x.index] + ':' + x.shanten + ':' + (x.analysis && x.analysis.ready ? 1 : 0);
+      var key = c[x.index] + ":" + ctx.unseen[x.index] + ":" + x.shanten + ":" + (x.analysis && x.analysis.ready ? 1 : 0);
       (groups[key] = groups[key] || []).push(k);
     });
     var next = out.slice();
@@ -2240,12 +2240,12 @@
     var top = out[0];
     if (!top || c[top.index] !== 2 || !(ctx.unseen[top.index] >= 1)) return out;
     var plan = top.analysis && top.analysis.best && top.analysis.best.plan;
-    if (plan && (plan.id === 'pairs' || plan.id === 'orphans' || plan.id === 'gates' || /^pairs/.test(plan.id))) return out;
+    if (plan && (plan.id === "pairs" || plan.id === "orphans" || plan.id === "gates" || /^pairs/.test(plan.id))) return out;
     var pairs = 0;
     for (var i = 0; i < 34; i++) if (c[i] >= 2) pairs++;
     if (pairs < 2) return out;
     var topReady = top.shanten === 0 && !!(top.analysis && top.analysis.ready);
-    var slack = typeof T.keepPairs === 'number' ? T.keepPairs : 0.15;
+    var slack = typeof T.keepPairs === "number" ? T.keepPairs : 0.15;
     var risk = T.keepPairsRisk || 1.25; // how much more deal-in risk the single may carry
     var swap = null;
     for (var k = 1; k < out.length && !swap; k++) {
@@ -2353,7 +2353,7 @@
       if (offA !== offB) return offA ? -1 : 1;
       // Concealed Straights keeps a tile that already completes a straight.
       // Once a discard leaves the hand ready, the usual order decides.
-      if (!folding && ctx.leadPlan && ctx.leadPlan.id === 'straights' && a.shanten > 0 && b.shanten > 0) {
+      if (!folding && ctx.leadPlan && ctx.leadPlan.id === "straights" && a.shanten > 0 && b.shanten > 0) {
         var straightA = breaksFinishedStraight(c, a.index);
         var straightB = breaksFinishedStraight(c, b.index);
         if (straightA !== straightB) return straightA ? 1 : -1;
@@ -2413,11 +2413,11 @@
   function planKeep(plan) {
     if (!plan) return null;
     if (plan.keep) return plan.keep;
-    var id = plan.id || '';
+    var id = plan.id || "";
     var su = plan.suit;
-    if (id.slice(0, 5) === 'half-') return function (j) { return E.suitOfIndex(j) === su || j >= 27; };
-    if (id.slice(0, 5) === 'full-') return function (j) { return E.suitOfIndex(j) === su; };
-    if (id === 'straights' || id === 'runs') return function (j) { return j < 27; };
+    if (id.slice(0, 5) === "half-") return function (j) { return E.suitOfIndex(j) === su || j >= 27; };
+    if (id.slice(0, 5) === "full-") return function (j) { return E.suitOfIndex(j) === su; };
+    if (id === "straights" || id === "runs") return function (j) { return j < 27; };
     return null;
   }
 
@@ -2439,14 +2439,14 @@
     if (i >= 27 && counts[i] + revealedCopies(game, i) >= 4) return false;
     var after = counts.slice();
     after[i]--;
-    if (plan.id === 'triplets' || plan.id === 'concealed-triplets' || plan.id === 'pairs') {
+    if (plan.id === "triplets" || plan.id === "concealed-triplets" || plan.id === "pairs") {
       if (counts[i] < 2) return false;
       for (var s = 0; s < 34; s++) if (after[s] === 1 && s !== i && !holdsDragon(game, s, x.shanten)) return true;
       return false;
     }
     var keep = planKeep(plan);
     if (!keep || !keep(i)) return false;
-    var straights = plan.id === 'straights' || plan.id === 'runs';
+    var straights = plan.id === "straights" || plan.id === "runs";
     for (var j = 0; j < 34; j++) {
       if (!after[j] || keep(j)) continue;
       if (holdsDragon(game, j, x.shanten) || (straights && j >= 27 && after[j] >= 2)) continue;
@@ -2456,7 +2456,7 @@
   }
 
   // Hands built concealed: any claim breaks them.
-  var CONCEALED_PLANS = ['pairs', 'orphans', 'gates', 'concealed-triplets', 'straights'];
+  var CONCEALED_PLANS = ["pairs", "orphans", "gates", "concealed-triplets", "straights"];
 
   // A claim contradicts the hand being built (the plan if it passes) when that
   // hand can't take it: a hand built concealed (Seven Pairs, Thirteen Orphans,
@@ -2465,17 +2465,17 @@
   // never contradicts, nor a pung or kong of a dragon or scoring wind, except
   // on Thirteen Orphans.
   function claimContradicts(found, ctx, decision, tile) {
-    if (!decision || decision.type === 'pass' || decision.type === 'win') return false;
+    if (!decision || decision.type === "pass" || decision.type === "win") return false;
     var plan = found && found.stay && found.stay.best && found.stay.best.plan;
     if (!plan) return false;
     var ti = E.tileIndex(tile);
-    if (plan.id === 'orphans') return true;
-    if ((decision.type === 'pung' || decision.type === 'kong') && ti >= 27 && valueWeight(ctx, ti) > 0) return false;
+    if (plan.id === "orphans") return true;
+    if ((decision.type === "pung" || decision.type === "kong") && ti >= 27 && valueWeight(ctx, ti) > 0) return false;
     if (CONCEALED_PLANS.indexOf(plan.id) !== -1) return true;
     var keep = planKeep(plan);
     if (!keep) return false;
     var tiles = [ti];
-    if (decision.type === 'chow') decision.tiles.forEach(function (t) { tiles.push(E.tileIndex(t)); });
+    if (decision.type === "chow") decision.tiles.forEach(function (t) { tiles.push(E.tileIndex(t)); });
     return tiles.some(function (t) { return !keep(t); });
   }
 
@@ -2485,7 +2485,7 @@
   function kongContradicts(plan, tile) {
     if (!plan) return false;
     var id = plan.id;
-    if (id === 'pairs' || id === 'orphans' || id === 'gates' || id === 'straights' || id === 'runs') return true;
+    if (id === "pairs" || id === "orphans" || id === "gates" || id === "straights" || id === "runs") return true;
     var keep = planKeep(plan);
     return !!keep && !keep(E.tileIndex(tile));
   }
@@ -2507,7 +2507,7 @@
    * ------------------------------------------------------------------ */
 
   function chooseTurnAction(game, seat, opts) {
-    if (opts.win) return { type: 'win' };
+    if (opts.win) return { type: "win" };
     var analysis = analyzeDiscards(game, seat);
     var keep = analysis.candidates[0];
     var ctx = analysis.ctx;
@@ -2518,17 +2518,17 @@
       var i = E.tileIndex(kong.tile);
       var c = E.countsOf(game.hand.seats[seat].hand);
       var util;
-      if (kong.kind === 'concealed') {
+      if (kong.kind === "concealed") {
         c[i] -= 4;
-        util = handUtility(c, withMeld(ctx, { type: 'kong', tiles: [kong.tile], concealed: true })).util;
+        util = handUtility(c, withMeld(ctx, { type: "kong", tiles: [kong.tile], concealed: true })).util;
       } else {
         c[i] -= 1;
         util = handUtility(c, ctx).util;
       }
       // A kong draws a free replacement tile; only skip it if it breaks the hand.
-      if (util * 1.08 >= keep.util) return { type: 'kong', tile: kong.tile };
+      if (util * 1.08 >= keep.util) return { type: "kong", tile: kong.tile };
     }
-    return { type: 'discard', tile: keep.tile };
+    return { type: "discard", tile: keep.tile };
   }
 
   function claimCandidates(game, seat, opts) {
@@ -2549,24 +2549,24 @@
       var h1 = hand.slice();
       h1.splice(h1.indexOf(tile), 1);
       h1.splice(h1.indexOf(tile), 1);
-      var b1 = bestAfter(h1, withMeld(ctx, { type: 'pung', tiles: [tile, tile, tile], concealed: false }));
-      if (b1) out.push({ decision: { type: 'pung' }, score: b1.score, discard: b1.tile, analysis: b1.analysis, ml: b1.ml || null });
+      var b1 = bestAfter(h1, withMeld(ctx, { type: "pung", tiles: [tile, tile, tile], concealed: false }));
+      if (b1) out.push({ decision: { type: "pung" }, score: b1.score, discard: b1.tile, analysis: b1.analysis, ml: b1.ml || null });
     }
     if (opts.kong) {
       var ck = c.slice();
       ck[ti] -= 3;
-      var uk = handUtility(ck, withMeld(ctx, { type: 'kong', tiles: [tile, tile, tile, tile], concealed: false }));
+      var uk = handUtility(ck, withMeld(ctx, { type: "kong", tiles: [tile, tile, tile, tile], concealed: false }));
       // A kong is fine at any point in the hand: it draws a free
       // replacement tile, so it's taken whenever it doesn't hurt the hand.
-      out.push({ decision: { type: 'kong' }, score: uk.util * 1.05, analysis: uk });
+      out.push({ decision: { type: "kong" }, score: uk.util * 1.05, analysis: uk });
     }
     opts.chows.forEach(function (pair) {
       var h2 = hand.slice();
       h2.splice(h2.indexOf(pair[0]), 1);
       h2.splice(h2.indexOf(pair[1]), 1);
       var tiles = E.sortTiles(pair.concat([tile]));
-      var b2 = bestAfter(h2, withMeld(ctx, { type: 'chow', tiles: tiles, concealed: false }));
-      if (b2) out.push({ decision: { type: 'chow', tiles: pair }, score: b2.score, discard: b2.tile, analysis: b2.analysis, ml: b2.ml || null });
+      var b2 = bestAfter(h2, withMeld(ctx, { type: "chow", tiles: tiles, concealed: false }));
+      if (b2) out.push({ decision: { type: "chow", tiles: pair }, score: b2.score, discard: b2.tile, analysis: b2.analysis, ml: b2.ml || null });
     });
 
     var stay = handUtility(c, ctx);
@@ -2582,7 +2582,7 @@
   // A big hand the claim builds (a hard target, isHardTarget) is the hand it names, so a
   // claim of that hand's tiles is consistent with it.
   function claimConsistent(game, seat, opts, found, decision) {
-    if (!found || !decision || decision.type === 'pass' || decision.type === 'win') return true;
+    if (!found || !decision || decision.type === "pass" || decision.type === "win") return true;
     var ctx = buildContext(game, seat);
     var target = liveUpgrade(E.countsOf(game.hand.seats[seat].hand), ctx);
     if (target && target.hard && target.keep(E.tileIndex(opts.tile))) return true;
@@ -2591,13 +2591,13 @@
 
   function decideClaim(game, seat, opts) {
     var d = decideClaimRaw(game, seat, opts);
-    if (!claimConsistent(game, seat, opts, d.found, d.decision)) return { decision: { type: 'pass' }, found: d.found };
+    if (!claimConsistent(game, seat, opts, d.found, d.decision)) return { decision: { type: "pass" }, found: d.found };
     return d;
   }
 
   function decideClaimRaw(game, seat, opts) {
-    if (opts.win) return { decision: { type: 'win' }, found: null };
-    if (!opts.pung && !opts.kong && !opts.chows.length) return { decision: { type: 'pass' }, found: null };
+    if (opts.win) return { decision: { type: "win" }, found: null };
+    if (!opts.pung && !opts.kong && !opts.chows.length) return { decision: { type: "pass" }, found: null };
     var res = claimCandidates(game, seat, opts);
     var ctx = buildContext(game, seat);
     if (H.claim) {
@@ -2608,35 +2608,35 @@
     // On a target (isHardTarget), claim only what it uses.
     var target = liveUpgrade(E.countsOf(game.hand.seats[seat].hand), ctx);
     if (target && target.hard) {
-      if (!target.keep(ti)) return { decision: { type: 'pass' }, found: res };
-      if (opts.kong) return { decision: { type: 'kong' }, found: res };
-      if (opts.pung && !target.pairs) return { decision: { type: 'pung' }, found: res };
-      return { decision: { type: 'pass' }, found: res };
+      if (!target.keep(ti)) return { decision: { type: "pass" }, found: res };
+      if (opts.kong) return { decision: { type: "kong" }, found: res };
+      if (opts.pung && !target.pairs) return { decision: { type: "pung" }, found: res };
+      return { decision: { type: "pass" }, found: res };
     }
     var stayPlan = res.stay.best && res.stay.best.plan;
-    var lockedShape = stayPlan && (stayPlan.id === 'pairs' || stayPlan.id === 'orphans' || stayPlan.id === 'gates');
+    var lockedShape = stayPlan && (stayPlan.id === "pairs" || stayPlan.id === "orphans" || stayPlan.id === "gates");
     // A dragon, or your own or the round wind, is taken even out of a
     // sequence hand. Seven Pairs, Thirteen Orphans and Nine Gates cannot use a set.
     if (!lockedShape && ti >= 27 && valueWeight(ctx, ti) && (opts.pung || opts.kong)) {
       // ...unless the hand is already ready and the claim would leave it
       // slower and worth less: then it's weighed like any other claim.
-      var take = opts.pung ? 'pung' : 'kong';
+      var take = opts.pung ? "pung" : "kong";
       var after = res.options.filter(function (o) { return o.decision.type === take; })[0];
       var breaksReady = res.stay.shanten === 0 && after && after.analysis &&
         after.analysis.shanten > 0 && after.score < res.passScore;
       if (!breaksReady) return { decision: { type: take }, found: res };
     }
     // Any other claim breaks Concealed Straights.
-    if (stayPlan && stayPlan.id === 'straights') return { decision: { type: 'pass' }, found: res };
+    if (stayPlan && stayPlan.id === "straights") return { decision: { type: "pass" }, found: res };
     var options = res.options.filter(function (o) {
       if (!claimKeepsPlan(o, res, ctx)) return false;
-      if (o.decision.type !== 'chow') return true;
+      if (o.decision.type !== "chow") return true;
       return chowAllowed(o, res, game, ctx) && (!H.chowOk || H.chowOk(o, res, ctx, game));
     });
     var top = options[0];
-    var bar = top && top.decision.type === 'chow' ? 1.2 : 1.04;
+    var bar = top && top.decision.type === "chow" ? 1.2 : 1.04;
     if (top && top.score > res.passScore * bar + 0.01) return { decision: top.decision, found: res };
-    return { decision: { type: 'pass' }, found: res };
+    return { decision: { type: "pass" }, found: res };
   }
 
   function chooseClaim(game, seat, opts) {
@@ -2734,9 +2734,9 @@
     tuning.id = def.id;
     var out = { id: def.id };
     Object.keys(api).forEach(function (k) {
-      if (k === 'id') return;
+      if (k === "id") return;
       var f = api[k];
-      if (typeof f !== 'function' || k === 'createStrategy') { out[k] = f; return; }
+      if (typeof f !== "function" || k === "createStrategy") { out[k] = f; return; }
       out[k] = function () {
         var prevH = H, prevT = T;
         H = hooks;
@@ -2755,7 +2755,7 @@
   }
 
   var api = {
-    id: 'base',
+    id: "base",
     createStrategy: createStrategy,
     basePlans: basePlans,
     makeSpecialPlan: makeSpecialPlan,
@@ -2850,9 +2850,9 @@
     createBotAgent: createBotAgent,
   };
 
-  if (typeof module !== 'undefined' && module.exports) {
+  if (typeof module !== "undefined" && module.exports) {
     module.exports = api;
   } else {
     root.MahjongBot = api;
   }
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== "undefined" ? globalThis : this);

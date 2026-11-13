@@ -22,35 +22,35 @@
      here) the new version takes over only once all of it is saved; if that
      fails, the old version stays, still network first. */
 
-importScripts('/js/offline-cache.js');
+importScripts("/js/offline-cache.js");
 
 (function () {
-  'use strict';
+  "use strict";
 
   var C = self.MahjongOfflineCache;
   // The imported list's version, so an update check alone (which refetches
   // the imports) moves an old worker to a new version.
-  var VERSION = C.VERSION || C.versionFromScriptUrl(self.location.href) || 'dev';
+  var VERSION = C.VERSION || C.versionFromScriptUrl(self.location.href) || "dev";
   var CACHE = C.cacheName(VERSION);
 
-  self.addEventListener('install', function (event) {
+  self.addEventListener("install", function (event) {
     event.waitUntil(caches.keys().then(function (names) {
       var update = names.some(function (n) { return n.indexOf(C.CACHE_PREFIX) === 0 && n !== CACHE; });
       return C.precache({ caches: caches, fetch: fetch.bind(self), version: VERSION }).then(function (res) {
-        if (!res.ok && update) throw new Error('Offline play: could not save ' + res.failed.join(', '));
+        if (!res.ok && update) throw new Error("Offline play: could not save " + res.failed.join(", "));
       });
     }).then(function () { return self.skipWaiting(); }));
   });
 
-  self.addEventListener('activate', function (event) {
+  self.addEventListener("activate", function (event) {
     event.waitUntil(caches.keys().then(function (names) {
       return Promise.all(names.filter(function (n) { return C.isStaleCache(n, VERSION); }).map(function (n) {
         return caches.delete(n);
       }));
     }).then(function () { return self.clients.claim(); }).then(function () {
       // Tell open pages which version now answers: a page on older code reloads.
-      return self.clients.matchAll({ type: 'window' }).then(function (list) {
-        list.forEach(function (client) { client.postMessage({ type: 'version', version: VERSION }); });
+      return self.clients.matchAll({ type: "window" }).then(function (list) {
+        list.forEach(function (client) { client.postMessage({ type: "version", version: VERSION }); });
       });
     }));
   });
@@ -66,7 +66,7 @@ importScripts('/js/offline-cache.js');
         function worker() {
           if (!queue.length) return Promise.resolve();
           var key = queue.shift();
-          return fetch(key, { cache: 'no-cache', credentials: 'same-origin' }).then(function (res) {
+          return fetch(key, { cache: "no-cache", credentials: "same-origin" }).then(function (res) {
             if (!C.cacheable(res)) return;
             updated++;
             return cache.put(key, res);
@@ -80,12 +80,12 @@ importScripts('/js/offline-cache.js');
     return refreshing;
   }
 
-  self.addEventListener('message', function (event) {
+  self.addEventListener("message", function (event) {
     var data = event.data || {};
-    if (data.type === 'version' && event.source) event.source.postMessage({ type: 'version', version: VERSION });
-    if (data.type === 'refresh') {
+    if (data.type === "version" && event.source) event.source.postMessage({ type: "version", version: VERSION });
+    if (data.type === "refresh") {
       event.waitUntil(refreshAll().then(function (n) {
-        if (event.source) event.source.postMessage({ type: 'refreshed', updated: n, version: VERSION });
+        if (event.source) event.source.postMessage({ type: "refreshed", updated: n, version: VERSION });
       }));
     }
   });
@@ -114,9 +114,9 @@ importScripts('/js/offline-cache.js');
   // The network first, revalidated, and saved; the saved copy only when the network fails.
   function networkFirst(event, req, key) {
     // A navigation's own request can't take options, so its URL is fetched.
-    var network = req.mode === 'navigate'
-      ? fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' })
-      : fetch(req, { cache: 'no-cache' });
+    var network = req.mode === "navigate"
+      ? fetch(req.url, { cache: "no-cache", credentials: "same-origin" })
+      : fetch(req, { cache: "no-cache" });
     return network.then(function (res) {
       // Registered before the page reads the body, so the copy is taken first.
       event.waitUntil(store(key, res));
@@ -125,20 +125,20 @@ importScripts('/js/offline-cache.js');
       return res.status >= 500 ? fromCache(key).then(function (cached) { return cached || res; }) : res;
     }, function () {
       return fromCache(key).then(function (cached) {
-        return cached || Promise.reject(new Error('offline'));
+        return cached || Promise.reject(new Error("offline"));
       });
     });
   }
 
-  self.addEventListener('fetch', function (event) {
+  self.addEventListener("fetch", function (event) {
     var req = event.request;
-    if (req.method !== 'GET') return;
+    if (req.method !== "GET") return;
     var url = new URL(req.url);
     if (url.origin !== self.location.origin) return;
     var key = C.cacheKey(url);
     // Only the saved files: the rest of the site goes to the network untouched.
     if (!C.isSaved(key)) return;
-    var range = req.headers.get('range');
+    var range = req.headers.get("range");
     if (range) {
       // Audio asks for byte ranges: the network's own answer, or, when it
       // fails, a range cut from the saved file (a partial response isn't saved).

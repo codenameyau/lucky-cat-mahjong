@@ -25,39 +25,39 @@
    position, every move on the same reshuffled walls (common random numbers),
    cached by its settings. ml/lc_own_train.py learns from it. */
 
-'use strict';
+"use strict";
 
-const fs = require('node:fs');
-const path = require('node:path');
-const crypto = require('node:crypto');
-const { spawn } = require('node:child_process');
-const N = require('./native.js');
+const fs = require("node:fs");
+const path = require("node:path");
+const crypto = require("node:crypto");
+const { spawn } = require("node:child_process");
+const N = require("./native.js");
 
-const ROOT = path.join(__dirname, '..', '..');
-const EXE = process.platform === 'win32' ? '.exe' : '';
-const SIM = process.env.LC_SIM ? path.resolve(ROOT, process.env.LC_SIM) : path.join(ROOT, 'native', 'build', 'lcm-sim' + EXE);
-const SIM_EXACT = path.join(ROOT, 'native', 'build', 'lcm-sim-exact' + EXE);
-const OUT = path.join(ROOT, 'ml', 'overnight', 'lucky-cat');
-const CACHE = path.join(OUT, 'cache');
-const WORKERS = parseInt(process.env.LC_WORKERS || '10', 10);
-const DEFAULT_POOL = ['lc32', 'lc31', 'lc30', 'lc29'].map((m) => 'ml/models/' + m + '.json');
+const ROOT = path.join(__dirname, "..", "..");
+const EXE = process.platform === "win32" ? ".exe" : "";
+const SIM = process.env.LC_SIM ? path.resolve(ROOT, process.env.LC_SIM) : path.join(ROOT, "native", "build", "lcm-sim" + EXE);
+const SIM_EXACT = path.join(ROOT, "native", "build", "lcm-sim-exact" + EXE);
+const OUT = path.join(ROOT, "ml", "overnight", "lucky-cat");
+const CACHE = path.join(OUT, "cache");
+const WORKERS = parseInt(process.env.LC_WORKERS || "10", 10);
+const DEFAULT_POOL = ["lc32", "lc31", "lc30", "lc29"].map((m) => "ml/models/" + m + ".json");
 
-const sha = (s) => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
-const readJson = (f, d) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return d; } };
-const writeJson = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 1) + '\n'); };
+const sha = (s) => crypto.createHash("sha256").update(s).digest("hex").slice(0, 16);
+const readJson = (f, d) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch (e) { return d; } };
+const writeJson = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 1) + "\n"); };
 
 function nid(file) {
-  const id = N.nativeId('lc:' + file);
-  if (!id) throw new Error("lc-own: can't play " + file + ' natively');
+  const id = N.nativeId("lc:" + file);
+  if (!id) throw new Error("lc-own: can't play " + file + " natively");
   return id;
 }
 
 function run(exe, args) {
   return new Promise((resolve, reject) => {
     const p = spawn(exe, args, { cwd: ROOT });
-    let o = '', e = '';
-    p.stdout.on('data', (d) => (o += d)); p.stderr.on('data', (d) => (e += d));
-    p.on('exit', (c) => (c ? reject(new Error(path.basename(exe) + ' ' + args[0] + ': ' + e)) : resolve(o)));
+    let o = "", e = "";
+    p.stdout.on("data", (d) => (o += d)); p.stderr.on("data", (d) => (e += d));
+    p.on("exit", (c) => (c ? reject(new Error(path.basename(exe) + " " + args[0] + ": " + e)) : resolve(o)));
   });
 }
 
@@ -71,15 +71,15 @@ function tables(poolFiles) {
 // One block: a model at one table on deals [from, to) of seed. Cached.
 const stats = { played: 0, cached: 0, seconds: 0 };
 async function block(model, table, seed, from, to, exact) {
-  const key = sha(JSON.stringify([path.basename(model), table.map((t) => path.basename(t)), seed, from, to, exact ? 'exact' : 'fast']));
-  const file = path.join(CACHE, key + '.json');
+  const key = sha(JSON.stringify([path.basename(model), table.map((t) => path.basename(t)), seed, from, to, exact ? "exact" : "fast"]));
+  const file = path.join(CACHE, key + ".json");
   const hit = readJson(file, null);
   if (hit) { stats.cached += to - from; return hit; }
   fs.mkdirSync(CACHE, { recursive: true });
-  const dump = path.join(CACHE, key + '.f4');
+  const dump = path.join(CACHE, key + ".f4");
   const t0 = Date.now();
-  const out = JSON.parse(await run(exact ? SIM_EXACT : SIM, ['play', '--models', model, '--table', table.join(','), '--seed', String(seed),
-    '--from', String(from), '--to', String(to), '--dump', dump])).out[0];
+  const out = JSON.parse(await run(exact ? SIM_EXACT : SIM, ["play", "--models", model, "--table", table.join(","), "--seed", String(seed),
+    "--from", String(from), "--to", String(to), "--dump", dump])).out[0];
   const buf = fs.readFileSync(dump);
   const v = new Float32Array(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length));
   fs.unlinkSync(dump);
@@ -132,11 +132,11 @@ function paired(a, b) {
     dealInGap: hasD ? 100 * dm : null, dealInSe: hasD ? 100 * Math.sqrt(Math.max(0, dq / n - dm * dm) / n) : null };
 }
 
-const fmt = (x, d = 1) => (x >= 0 ? '+' : '') + x.toFixed(d);
+const fmt = (x, d = 1) => (x >= 0 ? "+" : "") + x.toFixed(d);
 function line(name, p, me, ch) {
-  return name + ': ' + fmt(p.gap) + ' ± ' + p.se.toFixed(1) + ' points a hand' + (p.halfSe != null ? ' (half spicy ' + fmt(p.halfGap, 2) + ' ± ' + p.halfSe.toFixed(2) + ')' : '') + ', hands won ' + fmt(p.winGap, 2) + ' ± ' + p.winSe.toFixed(2) +
-    ' (' + (100 * me.winRate).toFixed(2) + '% vs ' + (100 * ch.winRate).toFixed(2) + '%), deal-ins ' + (100 * me.dealIns).toFixed(2) + '% vs ' +
-    (100 * ch.dealIns).toFixed(2) + '%' + (p.dealInSe != null ? ' (' + fmt(p.dealInGap, 2) + ' ± ' + p.dealInSe.toFixed(2) + ')' : '') + ', average win ' + Math.round(me.avgWin) + ' vs ' + Math.round(ch.avgWin) + ', ' + p.deals + ' deals';
+  return name + ": " + fmt(p.gap) + " ± " + p.se.toFixed(1) + " points a hand" + (p.halfSe != null ? " (half spicy " + fmt(p.halfGap, 2) + " ± " + p.halfSe.toFixed(2) + ")" : "") + ", hands won " + fmt(p.winGap, 2) + " ± " + p.winSe.toFixed(2) +
+    " (" + (100 * me.winRate).toFixed(2) + "% vs " + (100 * ch.winRate).toFixed(2) + "%), deal-ins " + (100 * me.dealIns).toFixed(2) + "% vs " +
+    (100 * ch.dealIns).toFixed(2) + "%" + (p.dealInSe != null ? " (" + fmt(p.dealInGap, 2) + " ± " + p.dealInSe.toFixed(2) + ")" : "") + ", average win " + Math.round(me.avgWin) + " vs " + Math.round(ch.avgWin) + ", " + p.deals + " deals";
 }
 
 // A screen: stages of fresh deals from seed; arms behind by --drop SE (points or wins) stop.
@@ -155,10 +155,10 @@ async function screen(champ, cands, seed, stages, opts = {}) {
     live.forEach((a) => {
       a.pair = paired(a.blocks, champBlocks); a.me = summarize(a.blocks); a.ch = ch;
       if (a.pair.gap < -drop * a.pair.se || a.pair.winGap < -drop * a.pair.winSe) a.alive = false;
-      a.line = line(path.basename(a.file, '.json'), a.pair, a.me, ch) + (a.alive ? '' : ' [dropped]');
-      log('  stage ' + (s + 1) + ' ' + a.line);
+      a.line = line(path.basename(a.file, ".json"), a.pair, a.me, ch) + (a.alive ? "" : " [dropped]");
+      log("  stage " + (s + 1) + " " + a.line);
     });
-    log('  stage ' + (s + 1) + ': ' + live.length + ' arms, ' + (to - from) + ' deals in ' + ((Date.now() - t0) / 1000).toFixed(0) + 's');
+    log("  stage " + (s + 1) + ": " + live.length + " arms, " + (to - from) + " deals in " + ((Date.now() - t0) / 1000).toFixed(0) + "s");
     from = to;
   }
   return arms.map((a) => ({ file: a.file, alive: a.alive, pair: a.pair, me: a.me, ch: a.ch, line: a.line }));
@@ -167,7 +167,7 @@ async function screen(champ, cands, seed, stages, opts = {}) {
 /* ---------------- data ---------------- */
 
 async function data(champ, poolFiles, seed, deals, dir, opts = {}) {
-  const manifest = path.join(ROOT, dir, 'manifest.json');
+  const manifest = path.join(ROOT, dir, "manifest.json");
   const settings = { champ: path.basename(nid(champ)), pool: poolFiles.map((f) => path.basename(nid(f))), seed, deals,
     replays: opts.replays || 12, share: opts.share || 0.5, sample: opts.sample || 0.12, learners: opts.learners || 2, crn: true,
     halving: opts.halving || 0, margin: opts.margin || 150, extra: opts.extra || 0, v: 2, half: !!opts.half, closeSe: opts.closeSe || 0,
@@ -176,31 +176,31 @@ async function data(champ, poolFiles, seed, deals, dir, opts = {}) {
   const was = readJson(manifest, null);
   if (was && was.key === key) return Object.assign({ cached: true }, was);
   // A stopped run keeps the shards it finished (each marked .done with the settings' key).
-  const keyFile = path.join(ROOT, dir, 'key.txt');
-  if (!fs.existsSync(keyFile) || fs.readFileSync(keyFile, 'utf8') !== key) {
+  const keyFile = path.join(ROOT, dir, "key.txt");
+  if (!fs.existsSync(keyFile) || fs.readFileSync(keyFile, "utf8") !== key) {
     fs.rmSync(path.join(ROOT, dir), { recursive: true, force: true });
     fs.mkdirSync(path.join(ROOT, dir), { recursive: true });
     fs.writeFileSync(keyFile, key);
   }
   const L = nid(champ).slice(3);
-  const pool = new Array(settings.learners).fill('learner').concat(poolFiles.map(nid));
-  const strategies = pool.map((p, k) => (p === 'learner' ? 0 : k - settings.learners + 1));
+  const pool = new Array(settings.learners).fill("learner").concat(poolFiles.map(nid));
+  const strategies = pool.map((p, k) => (p === "learner" ? 0 : k - settings.learners + 1));
   const per = 250, tasks = [];
   const t0 = Date.now();
   for (let f = 0, k = 0; f < deals; f += per, k++) {
     const n = Math.min(per, deals - f);
-    const done = path.join(ROOT, dir, 'shard-' + k + '.done.json');
-    tasks.push(() => fs.existsSync(done) ? Promise.resolve(readJson(done)) : run(SIM, ['generate-lcv', '--weights', L, '--seed', String(seed + f), '--deals', String(n), '--shard', String(k),
-      '--pool', pool.join(','), '--strategies', strategies.join(','), '--out', path.join(ROOT, dir), '--sample', String(settings.sample),
-      '--temperature', '1', '--epsilon', '0.1', '--option-replays', String(settings.replays), '--options', '4',
-      '--option-share', String(settings.share), '--crn', '--policy-only', '--halving', String(settings.halving), '--halving-margin', String(settings.margin),
-      '--extra-random', String(settings.extra)].concat(settings.half ? ['--half-spicy'] : [], settings.closeSe ? ['--close-se', String(settings.closeSe)] : []).concat(settings.value ? ['--value', N.lcmwFor(opts.value), '--truncate', String(settings.truncate)] : [])).then((o) => { const j = JSON.parse(o); writeJson(done, j); return j; }));
+    const done = path.join(ROOT, dir, "shard-" + k + ".done.json");
+    tasks.push(() => fs.existsSync(done) ? Promise.resolve(readJson(done)) : run(SIM, ["generate-lcv", "--weights", L, "--seed", String(seed + f), "--deals", String(n), "--shard", String(k),
+      "--pool", pool.join(","), "--strategies", strategies.join(","), "--out", path.join(ROOT, dir), "--sample", String(settings.sample),
+      "--temperature", "1", "--epsilon", "0.1", "--option-replays", String(settings.replays), "--options", "4",
+      "--option-share", String(settings.share), "--crn", "--policy-only", "--halving", String(settings.halving), "--halving-margin", String(settings.margin),
+      "--extra-random", String(settings.extra)].concat(settings.half ? ["--half-spicy"] : [], settings.closeSe ? ["--close-se", String(settings.closeSe)] : []).concat(settings.value ? ["--value", N.lcmwFor(opts.value), "--truncate", String(settings.truncate)] : [])).then((o) => { const j = JSON.parse(o); writeJson(done, j); return j; }));
   }
   const shards = await N.pool(tasks, opts.workers || WORKERS);
   // Drop the empty value files --policy-only leaves.
   for (const f of fs.readdirSync(path.join(ROOT, dir))) if (/\.(features|labels|aux|options|optlabels)$/.test(f)) fs.unlinkSync(path.join(ROOT, dir, f));
   const m = { key, settings, seconds: (Date.now() - t0) / 1000, policyRows: shards.reduce((t, s) => t + s.policyRows, 0), shards: shards.length };
-  writeJson(path.join(ROOT, dir, 'meta.json'), { featureVersion: 1, featureSize: 376, rollouts: { slots: 8 }, qPoints: true, policyRows: m.policyRows });
+  writeJson(path.join(ROOT, dir, "meta.json"), { featureVersion: 1, featureSize: 376, rollouts: { slots: 8 }, qPoints: true, policyRows: m.policyRows });
   writeJson(manifest, m);
   return m;
 }
@@ -208,28 +208,28 @@ async function data(champ, poolFiles, seed, deals, dir, opts = {}) {
 // The value's rows (lcm-sim generate-lcv --value-rows): each sampled choice's 416 features of
 // the position its move leaves and how the hand ended for that seat, for ml/train.py.
 async function valueData(champ, poolFiles, seed, deals, dir, opts = {}) {
-  const full = path.join(ROOT, dir), manifest = path.join(full, 'manifest.json');
+  const full = path.join(ROOT, dir), manifest = path.join(full, "manifest.json");
   const settings = { champ: path.basename(nid(champ)), pool: poolFiles.map((f) => path.basename(nid(f))), seed, deals, sample: opts.sample || 0.5, learners: opts.learners || 2 };
   const key = sha(JSON.stringify(settings));
   const was = readJson(manifest, null);
   if (was && was.key === key) return Object.assign({ cached: true }, was);
   fs.rmSync(full, { recursive: true, force: true });
   fs.mkdirSync(full, { recursive: true });
-  const pool = new Array(settings.learners).fill('learner').concat(poolFiles.map(nid));
-  const strategies = pool.map((p, k) => (p === 'learner' ? 0 : k - settings.learners + 1));
+  const pool = new Array(settings.learners).fill("learner").concat(poolFiles.map(nid));
+  const strategies = pool.map((p, k) => (p === "learner" ? 0 : k - settings.learners + 1));
   const per = Math.ceil(deals / (opts.workers || WORKERS)), tasks = [];
   const t0 = Date.now();
   for (let f = 0, k = 0; f < deals; f += per, k++) {
-    tasks.push(() => run(SIM, ['generate-lcv', '--weights', nid(champ).slice(3), '--seed', String(seed + f), '--deals', String(Math.min(per, deals - f)), '--shard', String(k),
-      '--pool', pool.join(','), '--strategies', strategies.join(','), '--out', full, '--sample', String(settings.sample), '--temperature', '1', '--epsilon', '0.1',
-      '--option-replays', '0', '--policy-only', '--value-rows']).then((o) => JSON.parse(o)));
+    tasks.push(() => run(SIM, ["generate-lcv", "--weights", nid(champ).slice(3), "--seed", String(seed + f), "--deals", String(Math.min(per, deals - f)), "--shard", String(k),
+      "--pool", pool.join(","), "--strategies", strategies.join(","), "--out", full, "--sample", String(settings.sample), "--temperature", "1", "--epsilon", "0.1",
+      "--option-replays", "0", "--policy-only", "--value-rows"]).then((o) => JSON.parse(o)));
   }
   const shards = await N.pool(tasks, opts.workers || WORKERS);
-  const H = require('./heads.js');
-  const m = { key, settings, seconds: (Date.now() - t0) / 1000, featureVersion: 'lcv1', featureSize: 416, featureDtype: 'float16', labelBytes: 16,
-    auxBytes: H.AUX_BYTES, hands: H.HANDS, outcomes: ['winSelf', 'winDiscard', 'dealIn', 'otherSelf', 'otherWin', 'draw'], strategies: ['learner'].concat(poolFiles.map((f) => path.basename(f, '.json'))),
-    learner: 'learner', native: 'fast', champion: champ,
-    shards: shards.map((x) => ({ features: 'shard-' + x.index + '.features', labels: 'shard-' + x.index + '.labels', aux: 'shard-' + x.index + '.aux', samples: x.samples, deals: x.deals })),
+  const H = require("./heads.js");
+  const m = { key, settings, seconds: (Date.now() - t0) / 1000, featureVersion: "lcv1", featureSize: 416, featureDtype: "float16", labelBytes: 16,
+    auxBytes: H.AUX_BYTES, hands: H.HANDS, outcomes: ["winSelf", "winDiscard", "dealIn", "otherSelf", "otherWin", "draw"], strategies: ["learner"].concat(poolFiles.map((f) => path.basename(f, ".json"))),
+    learner: "learner", native: "fast", champion: champ,
+    shards: shards.map((x) => ({ features: "shard-" + x.index + ".features", labels: "shard-" + x.index + ".labels", aux: "shard-" + x.index + ".aux", samples: x.samples, deals: x.deals })),
     samples: shards.reduce((t, x) => t + x.samples, 0) };
   writeJson(manifest, m);
   return m;
@@ -241,9 +241,9 @@ function parseArgs(argv) {
   const out = { _: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (!a.startsWith('--')) { out._.push(a); continue; }
+    if (!a.startsWith("--")) { out._.push(a); continue; }
     const next = argv[i + 1];
-    if (next === undefined || next.startsWith('--')) out[a.slice(2)] = true;
+    if (next === undefined || next.startsWith("--")) out[a.slice(2)] = true;
     else { out[a.slice(2)] = next; i++; }
   }
   return out;
@@ -251,20 +251,20 @@ function parseArgs(argv) {
 
 async function main(a) {
   const cmd = a._[0];
-  const pool = a['table-pool'] ? String(a['table-pool']).split(',') : DEFAULT_POOL;
+  const pool = a["table-pool"] ? String(a["table-pool"]).split(",") : DEFAULT_POOL;
   const t0 = Date.now();
-  if (cmd === 'screen' || cmd === 'confirm') {
-    const cands = String(a.cands || a.cand).split(',');
-    const stages = cmd === 'confirm' ? [parseInt(a.deals || 80000, 10)] : String(a.stages || '8000,24000,48000').split(',').map(Number);
-    const res = await screen(a.champ, cands, parseInt(a.seed, 10), stages, { pool, exact: cmd === 'confirm' || !!a.exact, drop: a.drop != null ? parseFloat(a.drop) : (cmd === 'confirm' ? 1e9 : 1) });
+  if (cmd === "screen" || cmd === "confirm") {
+    const cands = String(a.cands || a.cand).split(",");
+    const stages = cmd === "confirm" ? [parseInt(a.deals || 80000, 10)] : String(a.stages || "8000,24000,48000").split(",").map(Number);
+    const res = await screen(a.champ, cands, parseInt(a.seed, 10), stages, { pool, exact: cmd === "confirm" || !!a.exact, drop: a.drop != null ? parseFloat(a.drop) : (cmd === "confirm" ? 1e9 : 1) });
     if (a.json) writeJson(path.resolve(ROOT, a.json), res);
-  } else if (cmd === 'data') {
+  } else if (cmd === "data") {
     const m = a.value === true ? await valueData(a.champ, pool, parseInt(a.seed, 10), parseInt(a.deals, 10), a.out) :
       await data(a.champ, pool, parseInt(a.seed, 10), parseInt(a.deals, 10), a.out, { replays: a.replays && parseInt(a.replays, 10), share: a.share && parseFloat(a.share),
-        halving: a.halving && parseInt(a.halving, 10), extra: a.extra && parseInt(a.extra, 10), value: typeof a.value === 'string' ? a.value : null, truncate: a.truncate && parseInt(a.truncate, 10) });
+        halving: a.halving && parseInt(a.halving, 10), extra: a.extra && parseInt(a.extra, 10), value: typeof a.value === "string" ? a.value : null, truncate: a.truncate && parseInt(a.truncate, 10) });
     console.log(JSON.stringify(m));
-  } else throw new Error('usage: lc-own.js screen|confirm|data');
-  console.log('done in ' + ((Date.now() - t0) / 1000).toFixed(0) + 's; blocks played ' + stats.played + ' deal-models (' + stats.seconds.toFixed(0) + ' worker-s), cached ' + stats.cached);
+  } else throw new Error("usage: lc-own.js screen|confirm|data");
+  console.log("done in " + ((Date.now() - t0) / 1000).toFixed(0) + "s; blocks played " + stats.played + " deal-models (" + stats.seconds.toFixed(0) + " worker-s), cached " + stats.cached);
 }
 
 if (require.main === module) main(parseArgs(process.argv.slice(2))).catch((e) => { console.error(e.stack || e.message); process.exit(1); });

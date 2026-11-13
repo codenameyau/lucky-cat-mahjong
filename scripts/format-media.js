@@ -1,22 +1,22 @@
-'use strict';
+"use strict";
 
-const fs = require('fs');
-const path = require('path');
-const { randomUUID } = require('crypto');
-const sharp = require('sharp');
+const fs = require("fs");
+const path = require("path");
+const { randomUUID } = require("crypto");
+const sharp = require("sharp");
 const {
   mediaWebPath,
   buildDateToWebpMap,
   updateCommunityFromMedia,
-} = require('./format-media-lib.js');
+} = require("./format-media-lib.js");
 
-const ROOT = path.resolve(__dirname, '..');
-const MEDIA_DIR = path.join(ROOT, 'media');
-const COMMUNITY_JSON = path.join(ROOT, 'data', 'community.json');
+const ROOT = path.resolve(__dirname, "..");
+const MEDIA_DIR = path.join(ROOT, "media");
+const COMMUNITY_JSON = path.join(ROOT, "data", "community.json");
 const TARGET_WIDTH = 2000;
 const TARGET_HEIGHT = Math.round(TARGET_WIDTH * (2 / 3));
-const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png']);
-const JPEG_EXTENSIONS = new Set(['.jpg', '.jpeg']);
+const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png"]);
+const JPEG_EXTENSIONS = new Set([".jpg", ".jpeg"]);
 
 function listMediaImages(dirPath) {
   if (!fs.existsSync(dirPath)) return [];
@@ -38,15 +38,15 @@ async function formatImage(sourcePath) {
   const oldWebPath = mediaWebPath(oldRelativePath);
   const meta = await sharp(sourcePath).metadata();
 
-  const outFilename = randomUUID() + '.webp';
-  const outRelativePath = relativeDir === '' ? outFilename : path.join(relativeDir, outFilename);
+  const outFilename = randomUUID() + ".webp";
+  const outRelativePath = relativeDir === "" ? outFilename : path.join(relativeDir, outFilename);
   const outPath = path.join(MEDIA_DIR, outRelativePath);
   const pipeline = sharp(sourcePath).rotate();
 
   if (isJpeg || meta.width !== TARGET_WIDTH) {
     pipeline.resize(TARGET_WIDTH, TARGET_HEIGHT, {
-      fit: 'cover',
-      position: 'centre',
+      fit: "cover",
+      position: "centre",
     });
   }
 
@@ -58,7 +58,7 @@ async function formatImage(sourcePath) {
   }
 
   return {
-    status: 'updated',
+    status: "updated",
     webPath: mediaWebPath(outRelativePath),
     oldWebPath: oldWebPath,
     sourcePath: sourcePath,
@@ -83,12 +83,12 @@ async function processMediaFolder() {
     try {
       const result = await formatImage(sourcePath);
       results.push(result);
-      if (result.status === 'updated') {
+      if (result.status === "updated") {
         console.log(`updated ${result.from} -> ${result.webPath}`);
       }
     } catch (err) {
       console.error(`failed ${filename}: ${err.message}`);
-      results.push({ file: filename, status: 'failed', error: err.message });
+      results.push({ file: filename, status: "failed", error: err.message });
     }
   }
 
@@ -100,7 +100,7 @@ function datesMissingFromCommunity(community, dateToPhotos) {
   const existing = new Set(
     (community.events || [])
       .map(function (event) {
-        return event && event.date ? String(event.date).slice(0, 10) : '';
+        return event && event.date ? String(event.date).slice(0, 10) : "";
       })
       .filter(Boolean)
   );
@@ -115,7 +115,7 @@ function datesMissingFromCommunity(community, dateToPhotos) {
 function syncCommunityJson(processedDates) {
   if (!fs.existsSync(COMMUNITY_JSON)) return false;
 
-  const community = JSON.parse(fs.readFileSync(COMMUNITY_JSON, 'utf8'));
+  const community = JSON.parse(fs.readFileSync(COMMUNITY_JSON, "utf8"));
   const dateToPhotos = buildDateToWebpMap(MEDIA_DIR, MEDIA_DIR);
   const datesToSync = new Set(processedDates || []);
   datesMissingFromCommunity(community, dateToPhotos).forEach(function (dateKey) {
@@ -127,7 +127,7 @@ function syncCommunityJson(processedDates) {
   const communityChanged = updateCommunityFromMedia(community, dateToPhotos, datesToSync);
 
   if (communityChanged) {
-    fs.writeFileSync(COMMUNITY_JSON, JSON.stringify(community, null, 2) + '\n', 'utf8');
+    fs.writeFileSync(COMMUNITY_JSON, JSON.stringify(community, null, 2) + "\n", "utf8");
     console.log(`updated ${COMMUNITY_JSON}`);
   }
 
@@ -136,7 +136,7 @@ function syncCommunityJson(processedDates) {
 
 async function main() {
   if (!fs.existsSync(MEDIA_DIR)) {
-    console.log('No media/ folder found.');
+    console.log("No media/ folder found.");
     return;
   }
 
@@ -144,12 +144,12 @@ async function main() {
   const communityChanged = syncCommunityJson(mediaRun.processedDates);
 
   if (!mediaRun.results.length && !communityChanged) {
-    console.log('No images found in media/.');
+    console.log("No images found in media/.");
     return;
   }
 
-  const updated = mediaRun.results.filter(function (r) { return r.status === 'updated'; }).length;
-  const failed = mediaRun.results.filter(function (r) { return r.status === 'failed'; }).length;
+  const updated = mediaRun.results.filter(function (r) { return r.status === "updated"; }).length;
+  const failed = mediaRun.results.filter(function (r) { return r.status === "failed"; }).length;
   console.log(`Done: ${updated} updated, ${failed} failed.`);
 }
 

@@ -1,10 +1,10 @@
-'use strict';
+"use strict";
 
-const assert = require('node:assert/strict');
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const { describe, it, beforeEach, afterEach } = require('node:test');
+const assert = require("node:assert/strict");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+const { describe, it, beforeEach, afterEach } = require("node:test");
 const {
   mediaWebPath,
   normalizePhotoPath,
@@ -12,200 +12,200 @@ const {
   buildDateToWebpMap,
   defaultEventName,
   updateCommunityFromMedia,
-} = require('./format-media-lib.js');
+} = require("./format-media-lib.js");
 
-describe('format-media utilities', function () {
-  describe('mediaWebPath', function () {
-    it('builds web paths with forward slashes', function () {
-      assert.equal(mediaWebPath(path.join('2026-06-14', 'photo.webp')), '/media/2026-06-14/photo.webp');
+describe("format-media utilities", function () {
+  describe("mediaWebPath", function () {
+    it("builds web paths with forward slashes", function () {
+      assert.equal(mediaWebPath(path.join("2026-06-14", "photo.webp")), "/media/2026-06-14/photo.webp");
     });
   });
 
-  describe('normalizePhotoPath', function () {
-    it('strips trailing commas and quotes from pasted paths', function () {
-      assert.equal(normalizePhotoPath('"/media/2026-06-14/photo.webp",'), '/media/2026-06-14/photo.webp');
-      assert.equal(normalizePhotoPath("/media/2026-06-14/photo.webp',"), '/media/2026-06-14/photo.webp');
+  describe("normalizePhotoPath", function () {
+    it("strips trailing commas and quotes from pasted paths", function () {
+      assert.equal(normalizePhotoPath("\"/media/2026-06-14/photo.webp\","), "/media/2026-06-14/photo.webp");
+      assert.equal(normalizePhotoPath("/media/2026-06-14/photo.webp',"), "/media/2026-06-14/photo.webp");
     });
 
-    it('trims whitespace', function () {
-      assert.equal(normalizePhotoPath('  /media/photo.webp  '), '/media/photo.webp');
-    });
-  });
-
-  describe('photosEqual', function () {
-    it('compares photo arrays by value', function () {
-      assert.equal(photosEqual(['/a.webp', '/b.webp'], ['/a.webp', '/b.webp']), true);
-      assert.equal(photosEqual(['/a.webp'], ['/b.webp']), false);
+    it("trims whitespace", function () {
+      assert.equal(normalizePhotoPath("  /media/photo.webp  "), "/media/photo.webp");
     });
   });
 
-  describe('buildDateToWebpMap', function () {
+  describe("photosEqual", function () {
+    it("compares photo arrays by value", function () {
+      assert.equal(photosEqual(["/a.webp", "/b.webp"], ["/a.webp", "/b.webp"]), true);
+      assert.equal(photosEqual(["/a.webp"], ["/b.webp"]), false);
+    });
+  });
+
+  describe("buildDateToWebpMap", function () {
     /** @type {string} */
     let tempDir;
 
     beforeEach(function () {
-      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'format-media-'));
+      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "format-media-"));
     });
 
     afterEach(function () {
       fs.rmSync(tempDir, { recursive: true, force: true });
     });
 
-    it('groups webp files by date subfolder', function () {
-      const dateDir = path.join(tempDir, '2026-06-14');
+    it("groups webp files by date subfolder", function () {
+      const dateDir = path.join(tempDir, "2026-06-14");
       fs.mkdirSync(dateDir, { recursive: true });
-      fs.writeFileSync(path.join(dateDir, 'b.webp'), '');
-      fs.writeFileSync(path.join(dateDir, 'a.webp'), '');
-      const skipDir = path.join(tempDir, 'not-a-date');
+      fs.writeFileSync(path.join(dateDir, "b.webp"), "");
+      fs.writeFileSync(path.join(dateDir, "a.webp"), "");
+      const skipDir = path.join(tempDir, "not-a-date");
       fs.mkdirSync(skipDir, { recursive: true });
-      fs.writeFileSync(path.join(skipDir, 'skip.webp'), '');
+      fs.writeFileSync(path.join(skipDir, "skip.webp"), "");
 
       const map = buildDateToWebpMap(tempDir, tempDir);
-      assert.deepEqual(map.get('2026-06-14'), [
-        '/media/2026-06-14/a.webp',
-        '/media/2026-06-14/b.webp',
+      assert.deepEqual(map.get("2026-06-14"), [
+        "/media/2026-06-14/a.webp",
+        "/media/2026-06-14/b.webp",
       ]);
-      assert.equal(map.has('not-a-date'), false);
+      assert.equal(map.has("not-a-date"), false);
     });
   });
 
-  describe('updateCommunityFromMedia', function () {
-    it('replaces photos for matching event dates', function () {
+  describe("updateCommunityFromMedia", function () {
+    it("replaces photos for matching event dates", function () {
       const community = {
         events: [
           {
-            name: 'June event',
-            date: '2026-06-14',
-            photos: ['/media/2026-06-14/old.webp'],
+            name: "June event",
+            date: "2026-06-14",
+            photos: ["/media/2026-06-14/old.webp"],
           },
           {
-            name: 'Other event',
-            date: '2026-05-26',
-            photos: ['/media/2026-05-26/keep.webp'],
+            name: "Other event",
+            date: "2026-05-26",
+            photos: ["/media/2026-05-26/keep.webp"],
           },
         ],
       };
       const dateToPhotos = new Map([
-        ['2026-06-14', ['/media/2026-06-14/new-a.webp', '/media/2026-06-14/new-b.webp']],
+        ["2026-06-14", ["/media/2026-06-14/new-a.webp", "/media/2026-06-14/new-b.webp"]],
       ]);
 
       const changed = updateCommunityFromMedia(community, dateToPhotos);
 
       assert.equal(changed, true);
       assert.deepEqual(community.events[0].photos, [
-        '/media/2026-06-14/new-a.webp',
-        '/media/2026-06-14/new-b.webp',
+        "/media/2026-06-14/new-a.webp",
+        "/media/2026-06-14/new-b.webp",
       ]);
-      assert.deepEqual(community.events[1].photos, ['/media/2026-05-26/keep.webp']);
+      assert.deepEqual(community.events[1].photos, ["/media/2026-05-26/keep.webp"]);
     });
 
-    it('only updates dates included in the current run', function () {
+    it("only updates dates included in the current run", function () {
       const community = {
         events: [
           {
-            name: 'June event',
-            date: '2026-06-14',
-            photos: ['/media/2026-06-14/old.webp'],
+            name: "June event",
+            date: "2026-06-14",
+            photos: ["/media/2026-06-14/old.webp"],
           },
           {
-            name: 'May event',
-            date: '2026-05-26',
-            photos: ['/media/2026-05-26/original-order-b.webp', '/media/2026-05-26/original-order-a.webp'],
+            name: "May event",
+            date: "2026-05-26",
+            photos: ["/media/2026-05-26/original-order-b.webp", "/media/2026-05-26/original-order-a.webp"],
           },
         ],
       };
       const dateToPhotos = new Map([
-        ['2026-06-14', ['/media/2026-06-14/new.webp']],
-        ['2026-05-26', ['/media/2026-05-26/a.webp', '/media/2026-05-26/b.webp']],
+        ["2026-06-14", ["/media/2026-06-14/new.webp"]],
+        ["2026-05-26", ["/media/2026-05-26/a.webp", "/media/2026-05-26/b.webp"]],
       ]);
 
-      const changed = updateCommunityFromMedia(community, dateToPhotos, new Set(['2026-06-14']));
+      const changed = updateCommunityFromMedia(community, dateToPhotos, new Set(["2026-06-14"]));
 
       assert.equal(changed, true);
-      assert.deepEqual(community.events[0].photos, ['/media/2026-06-14/new.webp']);
+      assert.deepEqual(community.events[0].photos, ["/media/2026-06-14/new.webp"]);
       assert.deepEqual(community.events[1].photos, [
-        '/media/2026-05-26/original-order-b.webp',
-        '/media/2026-05-26/original-order-a.webp',
+        "/media/2026-05-26/original-order-b.webp",
+        "/media/2026-05-26/original-order-a.webp",
       ]);
     });
 
-    it('cleans trailing comma artifacts before comparing paths', function () {
+    it("cleans trailing comma artifacts before comparing paths", function () {
       const community = {
         events: [
           {
-            name: 'June event',
-            date: '2026-06-14',
-            photos: ['"/media/2026-06-14/a.webp",'],
+            name: "June event",
+            date: "2026-06-14",
+            photos: ["\"/media/2026-06-14/a.webp\","],
           },
         ],
       };
       const dateToPhotos = new Map([
-        ['2026-06-14', ['/media/2026-06-14/a.webp']],
+        ["2026-06-14", ["/media/2026-06-14/a.webp"]],
       ]);
 
       const changed = updateCommunityFromMedia(community, dateToPhotos);
 
       assert.equal(changed, false);
-      assert.deepEqual(community.events[0].photos, ['"/media/2026-06-14/a.webp",']);
+      assert.deepEqual(community.events[0].photos, ["\"/media/2026-06-14/a.webp\","]);
     });
 
-    it('writes cleaned paths when replacing event photos', function () {
+    it("writes cleaned paths when replacing event photos", function () {
       const community = {
         events: [
           {
-            name: 'June event',
-            date: '2026-06-14',
-            photos: ['"/media/2026-06-14/old.webp",'],
+            name: "June event",
+            date: "2026-06-14",
+            photos: ["\"/media/2026-06-14/old.webp\","],
           },
         ],
       };
       const dateToPhotos = new Map([
-        ['2026-06-14', ['/media/2026-06-14/new.webp']],
+        ["2026-06-14", ["/media/2026-06-14/new.webp"]],
       ]);
 
       const changed = updateCommunityFromMedia(community, dateToPhotos);
 
       assert.equal(changed, true);
-      assert.deepEqual(community.events[0].photos, ['/media/2026-06-14/new.webp']);
+      assert.deepEqual(community.events[0].photos, ["/media/2026-06-14/new.webp"]);
     });
 
-    it('prepends new dated media into the events array', function () {
+    it("prepends new dated media into the events array", function () {
       const community = {
         events: [
           {
-            name: 'June event',
-            date: '2026-06-14',
-            photos: ['/media/2026-06-14/a.webp'],
+            name: "June event",
+            date: "2026-06-14",
+            photos: ["/media/2026-06-14/a.webp"],
           },
         ],
       };
       const dateToPhotos = new Map([
-        ['2026-07-12', ['/media/2026-07-12/uuid-b.webp', '/media/2026-07-12/uuid-a.webp']],
-        ['2026-06-14', ['/media/2026-06-14/a.webp']],
+        ["2026-07-12", ["/media/2026-07-12/uuid-b.webp", "/media/2026-07-12/uuid-a.webp"]],
+        ["2026-06-14", ["/media/2026-06-14/a.webp"]],
       ]);
 
       const changed = updateCommunityFromMedia(
         community,
         dateToPhotos,
-        new Set(['2026-07-12'])
+        new Set(["2026-07-12"])
       );
 
       assert.equal(changed, true);
       assert.equal(community.events.length, 2);
       assert.deepEqual(community.events[0], {
-        name: defaultEventName('2026-07-12'),
-        date: '2026-07-12',
-        description: '',
-        photos: ['/media/2026-07-12/uuid-b.webp', '/media/2026-07-12/uuid-a.webp'],
+        name: defaultEventName("2026-07-12"),
+        date: "2026-07-12",
+        description: "",
+        photos: ["/media/2026-07-12/uuid-b.webp", "/media/2026-07-12/uuid-a.webp"],
       });
-      assert.equal(community.events[1].name, 'June event');
+      assert.equal(community.events[1].name, "June event");
     });
 
-    it('prepends multiple new dates newest-first', function () {
+    it("prepends multiple new dates newest-first", function () {
       const community = { events: [] };
       const dateToPhotos = new Map([
-        ['2026-06-01', ['/media/2026-06-01/a.webp']],
-        ['2026-07-12', ['/media/2026-07-12/b.webp']],
+        ["2026-06-01", ["/media/2026-06-01/a.webp"]],
+        ["2026-07-12", ["/media/2026-07-12/b.webp"]],
       ]);
 
       const changed = updateCommunityFromMedia(community, dateToPhotos);
@@ -213,14 +213,14 @@ describe('format-media utilities', function () {
       assert.equal(changed, true);
       assert.deepEqual(
         community.events.map(function (event) { return event.date; }),
-        ['2026-07-12', '2026-06-01']
+        ["2026-07-12", "2026-06-01"]
       );
     });
   });
 
-  describe('defaultEventName', function () {
-    it('formats ISO dates for placeholder event names', function () {
-      assert.equal(defaultEventName('2026-07-12'), 'July 12, 2026');
+  describe("defaultEventName", function () {
+    it("formats ISO dates for placeholder event names", function () {
+      assert.equal(defaultEventName("2026-07-12"), "July 12, 2026");
     });
   });
 });
