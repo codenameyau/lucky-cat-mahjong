@@ -95,3 +95,12 @@ describe("the first game", () => {
     assert.equal(game.lessonStep, 16);
   });
 });
+
+describe("the tutorial's card texts", () => {
+  it("lists every card in reading order", () => {
+    const texts = Lesson.cardTexts();
+    assert.equal(texts.length, Lesson.SCREENS);
+    assert.match(texts[0], /^Welcome, I'm your coach!/);
+    assert.match(texts[texts.length - 1], /Press Win/);
+  });
+});

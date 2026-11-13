@@ -3900,19 +3900,47 @@
       return { plain: plain, red: red, color: baseColor };
     }
 
-    // The tutorial writes its core mahjong terms and its tile names in red, like hand names.
+    // The tutorial writes its core mahjong terms and its tile names in red, like hand names, the first time each comes up.
     var LESSON_TERMS = /\b(hand patterns?|replace flowers?|chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind|claim(?:s|ed|ing)?|discard(?:s|ed|ing)?|hands?|east|round)\b|(?:\b\d )?\b(?:bamboo|dots?|characters?)\b|\b(?:(?:east|south|west|north) )?winds?\b|\b(?:(?:red|green|white) )?dragons?\b|\b(?:plum|flowers?|seasons?)\b|\b\d[bdc]\b/gi;
-    function withLessonTerms(plain, red) {
-      var out = red.slice();
+    // Where the terms are in a text: [from, to, key], the key being the word without its rank, plural or ending.
+    function lessonTermMatches(plain) {
+      var out = [];
       var m;
       LESSON_TERMS.lastIndex = 0;
       while ((m = LESSON_TERMS.exec(plain))) {
         var a = m.index, b = a + m[0].length;
         // A rank in a run such as 2-3-4 Bamboo stays plain: only the suit is red.
         if (/^\d /.test(m[0]) && plain.charAt(a - 1) === "-") a += 2;
-        var clash = out.some(function (r) { return a < r[1] && b > r[0]; });
-        if (!clash) out.push([a, b]);
+        out.push({ from: a, to: b, key: plain.slice(a, b).toLowerCase().replace(/^\d /, "").replace(/(?:ed|ing|s)$/, "") });
       }
+      return out;
+    }
+
+    // Each term is red only where the tutorial first uses it: its card's text and the spot in it.
+    var lessonFirst = null;
+    function lessonFirstUses() {
+      if (lessonFirst) return lessonFirst;
+      lessonFirst = {};
+      Lesson.cardTexts().forEach(function (card) {
+        lessonTermMatches(card).forEach(function (tm) {
+          if (!lessonFirst[tm.key]) lessonFirst[tm.key] = { text: card, at: tm.from };
+        });
+      });
+      return lessonFirst;
+    }
+
+    // Text that holds a card (the card itself, or the Coach panel's notes with the cards run together).
+    function withLessonTerms(plain, red) {
+      var out = red.slice();
+      var first = lessonFirstUses();
+      lessonTermMatches(plain).forEach(function (tm) {
+        var f = first[tm.key];
+        if (!f) return;
+        var start = plain.indexOf(f.text);
+        if (start < 0 || tm.from !== start + f.at) return;
+        var clash = out.some(function (r) { return tm.from < r[1] && tm.to > r[0]; });
+        if (!clash) out.push([tm.from, tm.to]);
+      });
       return out.sort(function (x, y) { return x[0] - y[0]; });
     }
 

@@ -217,7 +217,14 @@
     game.round = 1;
   }
 
-  var api = { FLOWER_HINT: FLOWER_HINT, wall: wall, prepare: prepare, hint: hint, matches: matches, accept: accept, take: take, progress: progress, screen: screen, MOVES: MOVES, SCREENS: SCREENS };
+  // Every card's text, in the order the player reads them.
+  function cardTexts() {
+    var out = FLOWER_HINT.cards.map(function (c) { return c.text; });
+    STEPS.forEach(function (st) { if (st.hint) st.hint.cards.forEach(function (c) { out.push(c.text); }); });
+    return out;
+  }
+
+  var api = { cardTexts: cardTexts, FLOWER_HINT: FLOWER_HINT, wall: wall, prepare: prepare, hint: hint, matches: matches, accept: accept, take: take, progress: progress, screen: screen, MOVES: MOVES, SCREENS: SCREENS };
 
   if (node) module.exports = api;
   else root.MahjongLesson = api;
