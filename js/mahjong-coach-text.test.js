@@ -89,7 +89,7 @@ describe("coach text", () => {
         if (!h.aim) continue;
         named++;
         const said = C.aimSentence(h.aim);
-        assert.match(said, /^Go for .+, (about \d+ faan( \+\d+ for bonuses)?|the 13 faan limit)(, short of the \d+ faan minimum)?\.( You have \d+ tiles? needed and \d+ tiles? remaining\.)?$/, said);
+        assert.match(said, /^Go for .+, (about \d+ faan( \+\d+ for bonuses)?|the 13 faan limit)(, short of the \d+ faan minimum)?\.( You need \d+ more tiles? to win\.)?$/, said);
         assert.ok(w.endsWith(said), id + " " + seed + ": " + w);
         assert.equal(h.tips.length, 1, "Simple stays one tip");
         assert.ok((w.match(/going for|go for/gi) || []).length <= 1, id + " " + seed + " says \"go for\" once: " + w);
@@ -109,8 +109,8 @@ describe("coach text", () => {
     assert.equal(C.aimSentence({ name: "a chicken hand", faan: 1, min: 3 }), "Go for a chicken hand, about 1 faan, short of the 3 faan minimum.");
     assert.equal(C.aimSentence({ name: "All Triplets", faan: 4, min: 3 }), "Go for All Triplets, about 4 faan.");
     assert.equal(C.aimSentence(null), "");
-    assert.equal(C.aimSentence({ name: "Thirteen Orphans", faan: 13, left: 6, have: 8 }), "Go for Thirteen Orphans, the 13 faan limit. You have 8 tiles needed and 6 tiles remaining.");
-    assert.equal(C.aimSentence({ name: "All Triplets", faan: 3, left: 1, have: 13 }), "Go for All Triplets, about 3 faan. You have 13 tiles needed and 1 tile remaining.");
+    assert.equal(C.aimSentence({ name: "Thirteen Orphans", faan: 13, left: 6, have: 8 }), "Go for Thirteen Orphans, the 13 faan limit. You need 6 more tiles to win.");
+    assert.equal(C.aimSentence({ name: "All Triplets", faan: 3, left: 1, have: 13 }), "Go for All Triplets, about 3 faan. You need 1 more tile to win.");
   });
 
 
@@ -130,7 +130,8 @@ describe("coach text", () => {
         assert.ok(Number.isInteger(a.have) && Number.isInteger(a.left), id + " " + seed + " says no tile counts");
         assert.equal(a.have + a.left, 14, id + " " + seed + ": " + a.name);
         const w = words(h);
-        assert.ok(w.endsWith("You have " + a.have + " tile" + (a.have === 1 ? "" : "s") + " needed and " + a.left + " tile" + (a.left === 1 ? "" : "s") + " remaining."), w);
+        assert.ok(w.endsWith("You need " + a.left + " more tile" + (a.left === 1 ? "" : "s") + " to win."), w);
+        assert.doesNotMatch(w, /You have \d+ tiles?/, "it never says how many tiles you hold");
         assert.ok(w.length <= MAX, w);
         patterns.add(a.name);
         // Counted by hand for two patterns, from the hand after the discard.
@@ -170,10 +171,10 @@ describe("coach text", () => {
             checkText(w, id + " " + detail);
             if (!/Go for /.test(w)) continue;
             go++;
-            const m = w.match(/Go for [^.]+\. You have (\d+) tiles? needed and (\d+) tiles? remaining\./);
+            const m = w.match(/Go for [^.]+\. You need (\d+) more tiles? to win\./);
             if (!m) continue;
             said++;
-            assert.equal(Number(m[1]) + Number(m[2]), 14, w);
+            assert.ok(Number(m[1]) >= 1 && Number(m[1]) <= 14, w);
           }
         }
       }

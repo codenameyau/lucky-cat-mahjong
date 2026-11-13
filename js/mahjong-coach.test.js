@@ -123,7 +123,7 @@ describe("coach: discards", () => {
 
   it("on Concealed Straights, with No Flowers or your own flower it makes 3 already", () => {
     const hint = C.turnHint(table({ seats: [{ hand: mixed }] }), 0, { kongs: [] });
-    assert.match(text(hint), /Concealed Straights\.( You have \d+ tiles? needed and \d+ tiles? remaining\.)? Flowers make it 3\./);
+    assert.match(text(hint), /Concealed Straights\.( You need \d+ more tiles? to win\.)? Flowers make it 3\./);
     assert.doesNotMatch(text(hint), /situational bonus/);
   });
 
@@ -469,11 +469,11 @@ describe("coach: a player who ignores the discard", () => {
       return text(simple.turnHint(table({ seats: [seat] }), 0, { kongs: [] }));
     };
     // A shown dragon triplet and the seat's own flower: 2 bonus faan on Half Flush's 3.
-    assert.match(said({ hand: bamboo, melds: [meld("pung", dragon)], flowers: ["f1"] }), /Go for Half Flush in Bamboo, about 3 faan \+2 for bonuses\. You have \d+ tiles? needed and \d+ tiles? remaining\.$/);
+    assert.match(said({ hand: bamboo, melds: [meld("pung", dragon)], flowers: ["f1"] }), /Go for Half Flush in Bamboo, about 3 faan \+2 for bonuses\. You need \d+ more tiles? to win\.$/);
     // A seat-and-round wind triplet is worth 2 by itself.
-    assert.match(said({ hand: bamboo, melds: [meld("pung", eastWind)] }), /Go for Half Flush in Bamboo, about 3 faan \+2 for bonuses\. You have \d+ tiles? needed and \d+ tiles? remaining\.$/);
+    assert.match(said({ hand: bamboo, melds: [meld("pung", eastWind)] }), /Go for Half Flush in Bamboo, about 3 faan \+2 for bonuses\. You need \d+ more tiles? to win\.$/);
     // Another seat's flower gives nothing, so there's no bonus to mention.
-    assert.match(said({ hand: bamboo, melds: [meld("pung", E.tileId(28))], flowers: ["f2"] }), /Go for Half Flush in Bamboo, about 3 faan\. You have \d+ tiles? needed and \d+ tiles? remaining\.$/);
+    assert.match(said({ hand: bamboo, melds: [meld("pung", E.tileId(28))], flowers: ["f2"] }), /Go for Half Flush in Bamboo, about 3 faan\. You need \d+ more tiles? to win\.$/);
   });
 
   it("says bonuses only when there are some, and not on a limit hand", () => {
@@ -496,7 +496,7 @@ describe("coach: a player who ignores the discard", () => {
       const said = [text(simple.turnHint(game, 0, { kongs: [] })), text(simple.claimHint(game, 0, E.claimOptions(game, 0, "c1", 3, false)))];
       for (const s of said) {
         assert.equal((s.match(/going for|go for/gi) || []).length, 1, id + ": " + s);
-        assert.match(s, /Go for Half Flush in Bamboo, about \d+ faan( \+\d+ for bonuses)?\. You have \d+ tiles? needed and \d+ tiles? remaining\.$/, id + ": " + s);
+        assert.match(s, /Go for Half Flush in Bamboo, about \d+ faan( \+\d+ for bonuses)?\. You need \d+ more tiles? to win\.$/, id + ": " + s);
       }
     }
   });

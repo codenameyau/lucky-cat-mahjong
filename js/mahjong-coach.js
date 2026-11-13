@@ -481,8 +481,8 @@
     return Math.max(0, Math.min(WIN_TILES, steps + 1));
   }
 
-  // "Go for All Triplets, about 3 faan +2 for bonuses. You have 8 tiles needed
-  // and 6 tiles remaining." Two sentences, the same
+  // "Go for All Triplets, about 3 faan +2 for bonuses. You need 6 more tiles to
+  // win." Two sentences, the same
   // at every level that says it (the Simple hint and feedback; a playback can
   // reuse it). The faan is the pattern's alone; bonuses show once the hand has one.
   function aimSentence(aim) {
@@ -495,10 +495,10 @@
     return "Go for " + aim.name + ", " + worth + extra + short + "." + tilesText(aim.left);
   }
 
-  // " You have 8 tiles needed and 6 tiles remaining." after every coach's
+  // " You need 6 more tiles to win." after every coach's
   // "Go for" sentence, at every level. `left` is from tilesLeft; '' without it.
-  // "Go for Concealed Straights. You have 10 tiles needed and 4 tiles
-  // remaining. Flowers make it 3.": the counts follow the hand's name.
+  // "Go for Concealed Straights. You need 4 more tiles to win. Flowers make it
+  // 3.": the count follows the hand's name.
   function goFor(text, left) {
     var at = text.indexOf(". ");
     var head = at === -1 ? text : text.slice(0, at);
@@ -508,8 +508,7 @@
 
   function tilesText(left) {
     if (typeof left !== "number") return "";
-    var have = WIN_TILES - left;
-    return " You have " + have + " tile" + (have === 1 ? "" : "s") + " needed and " + left + " tile" + (left === 1 ? "" : "s") + " remaining.";
+    return " You need " + left + " more tile" + (left === 1 ? "" : "s") + " to win.";
   }
 
   // The bigger hand the same tiles can still make, when it isn't already
@@ -905,7 +904,7 @@
   // is more to say, the least useful tips go first: the last ones, then the
   // model's line, then the first tip (the reason). Then sentences, from the end.
   var MAX_TEXT = 400;
-  var TILES_SAID = / You have \d+ tiles? needed and \d+ tiles? remaining\./;
+  var TILES_SAID = / You need \d+ more tiles? to win\./;
 
   function plain(t) { return String(t || "").replace(/[\u0001\u0002]/g, ""); }
 

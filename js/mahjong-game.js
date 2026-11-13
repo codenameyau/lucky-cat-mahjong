@@ -2503,9 +2503,9 @@
     // Each example is what that level really says for one hand: Neural Cat's
     // coach, East's first turn of the game with seed 11.
     var COACH_OPTIONS = [
-      { id: "simple", name: "Simple", example: "Discard Four Bamboo. Go for Half Flush in Circles, about 3 faan. You have 8 tiles needed and 6 tiles remaining." },
-      { id: "detailed", name: "Detailed", example: "Discard Four Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 8 tiles needed and 6 tiles remaining. It is the tile you need least and works best with the tiles you have." },
-      { id: "complex", name: "Complex", example: "Discard Four Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 8 tiles needed and 6 tiles remaining. The model expects +164 score from this discard, with a 7% chance to win. Next best discard is Five Character: +111 score." },
+      { id: "simple", name: "Simple", example: "Discard Four Bamboo. Go for Half Flush in Circles, about 3 faan. You need 6 more tiles to win." },
+      { id: "detailed", name: "Detailed", example: "Discard Four Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You need 6 more tiles to win. It is the tile you need least and works best with the tiles you have." },
+      { id: "complex", name: "Complex", example: "Discard Four Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You need 6 more tiles to win. The model expects +164 score from this discard, with a 7% chance to win. Next best discard is Five Character: +111 score." },
     ];
 
     function coachSettingsSheet() {
