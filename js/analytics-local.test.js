@@ -55,14 +55,28 @@ test('the live site and public addresses are not local', () => {
 test('every page that loads Google Analytics starts the visitor IDs and cookie choice before the page view', () => {
   PAGES.forEach((page) => {
     const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
-    const script = html.indexOf('<script src="/js/analytics-id.js"></script>');
     const start = html.indexOf('if (window.lcmAnalytics) window.lcmAnalytics.start(gtag);');
     const gtagFn = html.indexOf('function gtag(){');
     const config = html.indexOf("gtag('config', 'G-B514HH987M')");
+    assert.ok(gtagFn < start && start < config, page + ' starts it after gtag is defined and before config');
+    // The homepage defers js/analytics-id.js so it doesn't hold up the first paint
+    // (PageSpeed): the snippet defines gtag and lcmStartAnalytics, and the deferred
+    // script's onload runs it, before js/nav.js and js/main.js (deferred scripts run in
+    // order), so the IDs still come before the page view and every event.
+    const deferred = '<script src="/js/analytics-id.js" defer onload="lcmStartAnalytics()" onerror="lcmStartAnalytics()"></script>';
+    if (page === 'index.html') {
+      const script = html.indexOf(deferred);
+      assert.ok(script > config, page + ' loads js/analytics-id.js deferred, after the snippet');
+      assert.ok(html.indexOf('function lcmStartAnalytics()') < start, page + ' starts it inside lcmStartAnalytics');
+      const later = ['/js/nav.js', 'js/main.js'].map((src) => html.indexOf('<script src="' + src + '" defer>'));
+      later.forEach((at) => assert.ok(at > script, page + ' runs it before the other deferred scripts'));
+      assert.equal((html.match(/src="\/js\/analytics-id\.js"/g) || []).length, 1, page + ' loads it once');
+      return;
+    }
+    const script = html.indexOf('<script src="/js/analytics-id.js"></script>');
     assert.ok(script > 0, page + ' loads js/analytics-id.js');
     assert.ok(script < gtagFn, page + ' loads it (not deferred) before the snippet');
     assert.doesNotMatch(html, /analytics-id\.js"[^>]*(defer|async)/, page + ' loads it in order');
-    assert.ok(gtagFn < start && start < config, page + ' starts it after gtag is defined and before config');
   });
 });
 

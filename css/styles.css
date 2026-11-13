@@ -576,7 +576,7 @@ h1, h2, h3 {
 .footer-copy {
   margin: 0.5rem 0 0;
   font-size: 0.85rem;
-  opacity: 0.6;
+  color: rgba(255, 255, 255, 0.65);
 }
 
 /* Footer: Privacy Policy and Cookie Settings (Cookie Settings opens the banner from js/analytics-id.js). */
@@ -1021,9 +1021,10 @@ h1, h2, h3 {
   color: #fff;
 }
 
+/* Dark text on the gold: red on gold is 2.75:1, under the 4.5:1 that WCAG AA asks. */
 .mobile-bar-dm {
   background: var(--color-secondary);
-  color: var(--color-primary);
+  color: var(--color-text);
 }
 
 @media (max-width: 768px) {

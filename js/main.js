@@ -163,7 +163,7 @@ function applyFaq(faqData) {
       contactInfo.igUrl
     ).replace(/\n+/g, '<br>');
     return `
-      <details class="faq-item" role="listitem"${idx === 0 ? ' open' : ''}>
+      <details class="faq-item"${idx === 0 ? ' open' : ''}>
         <summary class="faq-question">
           <span>${escapeHtml(item.question)}</span>
           <svg class="faq-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -301,7 +301,7 @@ function setupQuoteForm(servicesData) {
   const note = form.querySelector('.quote-note');
   if (note) {
     const mailto = buildMailto('Mahjong booking inquiry', '');
-    note.innerHTML = `Prefer to reach out directly? Email <a href="${mailto}" data-evt="email_click_quotenote" data-channel="email_click" data-loc="quote_note">${escapeHtml(contactInfo.email)}</a> or DM <a href="${contactInfo.igDmUrl}" target="_blank" rel="noopener noreferrer" data-evt="instagram_message_quotenote" data-channel="instagram_message" data-loc="quote_note">@${escapeHtml(contactInfo.igHandle)}</a>.`;
+    note.innerHTML = `Prefer to reach out directly? Email <a href="${mailto}" data-evt="email_click_quotenote" data-channel="email_click" data-loc="quote_note">${escapeHtml(contactInfo.email)}</a> or DM <a href="${contactInfo.igDmUrl}" aria-label="Message @${escapeHtml(contactInfo.igHandle)} on Instagram" target="_blank" rel="noopener noreferrer" data-evt="instagram_message_quotenote" data-channel="instagram_message" data-loc="quote_note">@${escapeHtml(contactInfo.igHandle)}</a>.`;
   }
 }
 
