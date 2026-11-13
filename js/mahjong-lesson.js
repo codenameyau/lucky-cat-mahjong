@@ -123,17 +123,16 @@
       read("Press Kong 8B.", "kong-b8"),
     ]) },
     { seat: 0, kind: "turn", action: { type: "discard", tile: "d1" }, hint: say("Discard 1 Dot.", "d1", { type: "discard" }, [
-      read("Your replacement tile is 1 Dot. Throw it, and you're one tile from winning: you need East Wind.", "d1"),
-      read("The wind in the middle of the table is the round wind. This is the East round, so a triplet of East Wind scores 1 faan for the round wind.", "table-wind"),
-      read("You sit on East, so East is also your seat wind. A triplet of East Wind scores another 1 faan for your seat wind: 2 faan in all."),
-      read("Draw East Wind yourself and it's a self-draw: every opponent pays."),
-      read("Win on a discard and only the player who threw it pays."),
+      read("Your replacement tile is 1 Dot. Throw it, and you're one tile from winning: you need East Wind."),
       read("Tap the 1 Dot twice to discard it.", "d1"),
     ]) },
     { seat: 1, kind: "turn", drawn: true },
     { seat: 0, kind: "claim", action: { type: "win" }, hint: say("Win on East Wind.", null, { type: "win" }, [
       read("The player on your right threw East Wind! You can claim the last tile you need to win from any player.", "claim-tile"),
-      read("This is a win on a discard, not a self-draw, so only the player who threw it pays."),
+      read("The wind in the middle of the table is the round wind. This is the East round, so a triplet of East Wind scores 1 faan for the round wind.", "table-wind"),
+      read("You sit on East, so East is also your seat wind. A triplet of East Wind scores another 1 faan for your seat wind: 2 faan in all."),
+      read("Draw East Wind yourself and it's a self-draw: every opponent pays."),
+      read("This win is on a discard, so only the player who threw it pays."),
       read("Press Win to finish your half flush.", "win"),
     ]) },
   ];
