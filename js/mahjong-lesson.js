@@ -226,11 +226,16 @@
 
   // Every step as the player sees it, in order, and where it lives: the move's index
   // in the script (STEPS) and the card in it. The flower steps are `flower`.
+  // `name` is the id with the step's number in front, two digits, for reports: 01-welcome.
+  function row(n, c, step, card, flower) {
+    return { n: n, id: c.id, name: (n < 10 ? "0" : "") + n + "-" + c.id, text: c.text, step: step, card: card, flower: flower };
+  }
+
   function outline() {
     var rows = [];
-    FLOWER_HINT.cards.forEach(function (c, i) { rows.push({ n: rows.length + 1, id: c.id, text: c.text, step: 0, card: i, flower: true }); });
+    FLOWER_HINT.cards.forEach(function (c, i) { rows.push(row(rows.length + 1, c, 0, i, true)); });
     STEPS.forEach(function (st, k) {
-      if (st.hint) st.hint.cards.forEach(function (c, i) { rows.push({ n: rows.length + 1, id: c.id, text: c.text, step: k, card: i, flower: false }); });
+      if (st.hint) st.hint.cards.forEach(function (c, i) { rows.push(row(rows.length + 1, c, k, i, false)); });
     });
     return rows;
   }

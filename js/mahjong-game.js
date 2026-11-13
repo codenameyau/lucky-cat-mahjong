@@ -5765,10 +5765,11 @@
       resolveTurn({ type: "discard", tile: tile }, target);
     }
 
-    // A step's stable name (its id in the lesson), for analytics: it stays when steps are added or moved.
+    // A step's name for analytics: its number (two digits) and its id in the lesson, such as 01-welcome.
+    // The id stays when steps are added or moved.
     function lessonStepName(n) {
       var row = Lesson.outline()[n - 1];
-      return row ? row.id : "none";
+      return row ? row.name : "none";
     }
 
     // The tutorial's card on show: the coach's note for this move is a few

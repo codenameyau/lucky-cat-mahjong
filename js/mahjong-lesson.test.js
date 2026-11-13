@@ -137,5 +137,11 @@ describe("the steps' stable names", () => {
     names.forEach((id) => assert.match(id, /^[a-z0-9]+(-[a-z0-9]+)*$/, id));
     assert.equal(names[0], "welcome");
     assert.equal(names[names.length - 1], "win-press");
+    // Reports see the number in front, two digits.
+    const full = Lesson.outline().map((r) => r.name);
+    assert.equal(full[0], "01-welcome");
+    assert.equal(full[8], "09-chow-exposed");
+    assert.equal(full[full.length - 1], "29-win-press");
+    full.forEach((n) => assert.match(n, /^\d\d-[a-z0-9-]+$/, n));
   });
 });
