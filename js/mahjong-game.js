@@ -2490,7 +2490,7 @@
         b.setAttribute('data-detail', o.id);
         var name = document.createElement('span');
         name.className = 'coach-option-name';
-        name.textContent = o.name + (o.id === 'simple' ? ' (default)' : '');
+        name.textContent = o.name;
         var ex = document.createElement('span');
         ex.className = 'coach-option-example';
         ex.textContent = o.example;
