@@ -79,7 +79,7 @@
     read("welcome", "Welcome! I'm your coach, Lucky Cat. We'll play one hand of Hong Kong Mahjong together, one small step at a time."),
     read("plum-flower", "At the beginning, every player announces and sets aside every flower and season tile they drew.", "f1,s1"),
     read("flower-faan", "Both have the number 1, and you sit on East, seat number 1, so they match your seat and each scores 1 faan: +2 faan.", "f1,s1"),
-    read("replace-flowers", "Press Replace flowers. Plum and Spring go in front of you face up, and you draw a new tile for each from the end of the wall.", "replace-flower"),
+    read("replace-flowers", "Press Replace flowers. They go in front of you face up, and you draw a new tile for each from the end of the wall.", "replace-flower"),
   ], tiles: ["f1", "s1"] };
   FLOWER_HINT.tips = FLOWER_HINT.cards.map(function (c) { return c.text; });
 
