@@ -132,7 +132,7 @@
       read("The wind in the middle of the table is the round wind. This is the East round, so a triplet of East Wind scores 1 faan for the round wind.", "table-wind"),
       read("You sit on East, so East is also your seat wind. A triplet of East Wind scores another 1 faan for your seat wind: 2 faan in all."),
       read("Draw East Wind yourself and it's a self-draw: every opponent pays."),
-      read("This win is on a discard, so only the player who threw it pays."),
+      read("This win is on a discard, so only the player who threw it out pays."),
       read("Press Win to finish your half flush.", "win"),
     ]) },
   ];
