@@ -166,8 +166,22 @@
       // Newer Safari tints its bars from the page's own background instead.
       document.documentElement.style.backgroundColor = meta;
       if (document.body) document.body.style.backgroundColor = meta;
+      resampleBars();
     }
     return name;
+  }
+
+  // Safari 26 tints its top and bottom bars from the full-screen fixed table
+  // (#play-stage), and reads that colour again only when the fixed layer is laid
+  // out again, not when its background changes. So the table leaves fixed
+  // positioning for one frame (absolute fills the same unscrolled page, so
+  // nothing moves) and comes back, and Safari picks up the new colour.
+  function resampleBars() {
+    var stage = document.getElementById ? document.getElementById('play-stage') : null;
+    if (!stage || !stage.style || stage.hidden) return;
+    var later = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : function (f) { return setTimeout(f, 16); };
+    stage.style.position = 'absolute';
+    later(function () { later(function () { stage.style.position = ''; }); });
   }
   var FONT_BODY = '"Avenir Medium", "Avenir Next Medium", Avenir, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
   // The site's heading font (css/fonts.css), for headings, winds and banners.
