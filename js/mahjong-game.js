@@ -3157,12 +3157,12 @@
 
     function revealedConcealed(seat) {
       var res = ui.heldSummary && ui.heldSummary.result;
-      if (res && res.type === "win" && seat === res.winner && res.concealed) return res.concealed.slice();
+      if (res && res.type === "win" && seat === res.winner && res.concealed) return settings.lesson ? handSort(res.concealed) : res.concealed.slice();
       var tiles = game.hand.seats[seat].hand.slice();
       // A discard or robbed kong is the winning tile, and it isn't in the hand yet.
       var win = game.hand.review && game.hand.review.win;
       if (win && win.s === seat && (win.how === "discard" || win.how === "robKong") && win.t) tiles.push(win.t);
-      return E.sortTiles(tiles);
+      return handSort(tiles);
     }
 
     // Between the computers' tiles, and between your own exposed tiles.
@@ -3517,20 +3517,39 @@
 
     var HAND_SLIDE_MS = 260;
 
+    // Your hand's order: suits, then (in the tutorial) the Dragons, then the Winds, so the
+    // Dragon triplet reads first and the East Wind pair after it. Everywhere else the
+    // engine's order (Winds before Dragons).
+    function handSort(ids) {
+      if (!settings.lesson) return E.sortTiles(ids);
+      var rank = function (id) {
+        var i = E.isBonus(id) ? 1000 : E.tileIndex(id);
+        return i >= 31 && i < 100 ? i - 4 : i >= 27 && i < 31 ? i + 3 : i; // Dragons 27-29, Winds 30-33
+      };
+      return ids.slice().sort(function (a, b) { return rank(a) - rank(b); });
+    }
+
     function myHandOrder() {
       if (ui.revealHands) return { tiles: revealedConcealed(0), drawnSeparate: false };
       var s = game.hand.seats[0];
       // A discard win joins the row in sorted order. The copy stays hidden
       // until the flight from the pond lands.
       if (ui.winInHand && ui.winInHand.seat === 0) {
-        var won = E.sortTiles(s.hand.concat([ui.winInHand.tile]));
+        var won = handSort(s.hand.concat([ui.winInHand.tile]));
         return { tiles: won, drawnSeparate: false, winAt: won.lastIndexOf(ui.winInHand.tile) };
+      }
+      // The tutorial's winning step: the hand opens a gap where East Wind will go, so the
+      // gliding copy of it lands in a free spot (the other tiles slide apart to make room).
+      var gapTile = lessonGapTile();
+      if (gapTile) {
+        var roomy = handSort(s.hand.concat([gapTile]));
+        return { tiles: roomy, drawnSeparate: false, winAt: roomy.lastIndexOf(gapTile), hole: true };
       }
       var drawn = game.hand.drawnTile;
       var showDrawn = ui.turnPrompt && drawn && game.hand.turn === 0 && game.hand.canSelfDraw && s.hand.indexOf(drawn) !== -1;
       var rest = s.hand.slice();
       if (showDrawn) rest.splice(rest.lastIndexOf(drawn), 1);
-      var order = E.sortTiles(rest);
+      var order = handSort(rest);
       if (showDrawn) order.push(drawn);
       return { tiles: order, drawnSeparate: !!showDrawn };
     }
@@ -3690,7 +3709,7 @@
         }
         var claimable = ui.claimPrompt && ui.claimPrompt.highlight && ui.claimPrompt.highlight.indexOf(id) !== -1;
         // A replacement, or the winning discard, keeps its spot empty until it lands.
-        if (i === heldAt || (i === order.winAt && ui.winInHand && !ui.winInHand.landed)) continue;
+        if (i === heldAt || (i === order.winAt && (order.hole || (ui.winInHand && !ui.winInHand.landed)))) continue;
         if (ui.winInHand && !ui.winInHand.landed && ui.winInHand.seat === 0 && id === ui.winInHand.tile && i === tiles.lastIndexOf(id)) continue;
         if (i === order.winAt) glow = COLORS.gold;
         if (!glow && reviewMark(0, id, "hand")) glow = COLORS.gold;
@@ -4929,7 +4948,7 @@
       if (res.concealed.length) {
         if (all.length) all.push({ gap: true });
         var marked = false;
-        res.concealed.forEach(function (id) {
+        (settings.lesson ? handSort(res.concealed) : res.concealed).forEach(function (id) {
           var win = !marked && res.tile === id;
           if (win) marked = true;
           all.push({ id: id, glow: win ? COLORS.gold : null, win: win });
@@ -5761,6 +5780,14 @@
       resolveTurn({ type: "discard", tile: tile }, target);
     }
 
+    // The tile the tutorial's winning step reserves a spot for in your hand, while its
+    // last step (with the glide) is up; otherwise nothing.
+    function lessonGapTile() {
+      if (!settings.lesson || reduceMotion || !ui.claimPrompt || !ui.hint || !ui.hint.decision || ui.hint.decision.type !== "win") return null;
+      var c = lessonCardNow();
+      return c && c.last && !ui.overlay ? ui.claimPrompt.opts.tile : null;
+    }
+
     // A step's name for analytics: its number (two digits) and its id in the lesson, such as 01-welcome.
     // The id stays when steps are added or moved.
     function lessonStepName(n) {
@@ -6584,7 +6611,7 @@
     // or at the end of an opponent's concealed row.
     function winningHandPose(seat, tile) {
       if (seat === 0) {
-        var tiles = E.sortTiles(game.hand.seats[0].hand.concat([tile]));
+        var tiles = handSort(game.hand.seats[0].hand.concat([tile]));
         var spot = handPositions(tiles.length)[tiles.lastIndexOf(tile)];
         return { x: spot.x, y: spot.y, w: L.tw, rot: 0 };
       }
@@ -6900,7 +6927,7 @@
       if (drawn && tile === drawn) return hand.length - 1;
       var rest = hand.slice();
       if (drawn) rest.splice(rest.lastIndexOf(drawn), 1);
-      return E.sortTiles(rest).indexOf(tile);
+      return handSort(rest).indexOf(tile);
     }
 
     // A bot keeps its seat's strategy for the whole game. Only the coach's
