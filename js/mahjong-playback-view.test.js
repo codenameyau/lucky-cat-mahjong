@@ -582,7 +582,7 @@ test("auto-play plays none of the tile sounds; hand results, the click and music
   const cues = Object.keys(new Function("return (" + block + ")")());
   const tile = Object.keys(new Function("return (" + /var TILE_CUES = (\{[^}]*\});/.exec(GAME_SRC)[1] + ")")());
   assert.deepEqual(tile.sort(), ["back", "chow", "discard", "draw", "flip", "flower", "forward", "kong", "pung", "turn"]);
-  assert.deepEqual(cues.filter((c) => !tile.includes(c)).sort(), ["drawgame", "lessonstep", "lose", "next", "otherwin", "select", "win"], "the hand results, the next hand, the generic click and the tutorial's step chime stay audible");
+  assert.deepEqual(cues.filter((c) => !tile.includes(c)).sort(), ["drawgame", "goodmove", "lose", "next", "otherwin", "select", "win"], "the hand results, the next hand, the generic click and the coach-move chime stay audible");
   assert.ok(tile.every((c) => cues.includes(c)), "every tile cue exists");
   // The sound player skips a cue the table calls quiet, and the table says so only while auto-play runs.
   assert.match(GAME_SRC, /if \(api\.isQuiet && api\.isQuiet\(name\)\) return;/);

@@ -533,9 +533,9 @@
     flip: { clips: ["tiles-reveal"], gain: 0.9 },
     // Next hand: the same mining hit as a win (impactMining_000).
     next: { clips: ["impact-pung"], gain: 1 },
-    // The tutorial: a step done is the flower's glass chime, played higher
-    // and again higher still, a soft rising ping.
-    lessonstep: { clips: ["flower"], gain: 0.22, pitch: 1.5, then: [["flower", 0.09, 0.18, 2]] },
+    // A move the coach recommended (every move in the tutorial): the flower's glass
+    // chime, played higher and again higher still, a soft rising ping.
+    goodmove: { clips: ["flower"], gain: 0.22, pitch: 1.5, then: [["flower", 0.09, 0.18, 2]] },
   };
 
   // The cues for tiles being placed or acted on: draws, discards, a flower, the
@@ -5855,7 +5855,7 @@
 
     // A step done: a soft rising chime (with Sound on), and the bar fills.
     function lessonStepDone() {
-      sound.play("lessonstep");
+      sound.play("goodmove");
       requestRender();
     }
 
@@ -6073,10 +6073,25 @@
       return false;
     }
 
+    // Whether this move is the one the coach on show recommended (the tutorial plays its
+    // chime for every move it accepts, so this is for the game).
+    function followsCoach(kind, decision) {
+      var h = ui.hint;
+      if (settings.lesson || autoPlay || ui.coach !== "on" || !h || !decision) return false;
+      if (kind === "turn") {
+        if (decision.type === "discard") return h.kind === "discard" && h.tile === decision.tile;
+        return decision.type === "win" && h.kind === "win";
+      }
+      var want = h.decision;
+      if (!want || want.type !== decision.type) return false;
+      return want.type !== "chow" || (want.tiles || []).slice().sort().join() === (decision.tiles || []).slice().sort().join();
+    }
+
     function resolveTurn(action, target) {
       var p = ui.turnPrompt;
       if (!p) return;
       if (!lessonAllows("turn", action, target)) return;
+      if (followsCoach("turn", action)) sound.play("goodmove");
       // Training mode: judge the move against what the coach would have done.
       if (!settings.lesson && ui.coach !== "off" && action.type === "discard" && ui.hint && ui.hint.tile) {
         noteDiscardForAll(action.tile);
@@ -6100,6 +6115,7 @@
       var p = ui.claimPrompt;
       if (!p) return;
       if (!lessonAllows("claim", decision)) return;
+      if (followsCoach("claim", decision)) sound.play("goodmove");
       if (ui.coach === "feedback" && ui.hint) {
         feedbackOnMove(function (hint) { return Coach.claimFeedback(hint, decision); });
       }

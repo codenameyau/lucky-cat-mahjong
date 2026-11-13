@@ -112,7 +112,7 @@ describe("the Rules step", () => {
     const card = note.cards.filter((c) => c.point === "rules");
     assert.equal(card.length, 1);
     assert.equal(card[0].gate, undefined);
-    assert.match(card[0].text, /Rules, at the top/);
+    assert.match(card[0].text, /Click Rules at the top/);
   });
 });
 

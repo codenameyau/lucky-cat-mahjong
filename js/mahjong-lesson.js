@@ -89,7 +89,7 @@
   var STEPS = [
     { seat: 0, kind: "turn", action: { type: "discard", tile: "c1" }, hint: say("Discard 1 Character.", "c1", { type: "discard" }, [
       read("east-goes-first", "The player on East always goes first. That's you! Players take turns going counter-clockwise and drawing tiles clockwise."),
-      read("rules-concealed", "The tiles in your hand are concealed: only you see them. Rules, at the top, shows every hand pattern and how to score faan.", "rules"),
+      read("rules-concealed", "The tiles in your hand are concealed: only you see them. Click Rules at the top to see every hand pattern and ways to score faan.", "rules"),
       read("discard-1-character", "We're going to learn the hand pattern for half flush, the most common way to win. Tap the 1 Character twice to discard it.", "c1"),
     ]) },
     { seat: 1, kind: "turn", drawn: true },
