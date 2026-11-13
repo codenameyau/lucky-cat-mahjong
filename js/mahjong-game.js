@@ -4750,7 +4750,8 @@
         // your name and avatar, so they are in the same place every time. They stay in
         // your row (never over the coach's message): with lots of melds and chow
         // choices they narrow to fit, below.
-        x0 = free.x0; x1 = L.meX + L.meW - L.pad;
+        // (The same margin as your name, so the last button, and the ring on the coach's pick, stay inside your panel.)
+        x0 = free.x0; x1 = L.meX + L.meW - L.pad - 8;
         cover = { x: free.x1, w: x1 - free.x1 };
         // Even at their narrowest they don't fit after your melds: the whole row, over them.
         if (x1 - x0 - lead < acts.length * 36 + gap * (acts.length - 1)) x0 = L.meX + L.pad;
