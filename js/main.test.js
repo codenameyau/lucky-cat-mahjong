@@ -115,6 +115,11 @@ describe('Homepage rendering', function () {
       assert.equal(ctx.document.querySelector('.instagram-link').href, SAMPLE_SITE.instagram.url);
       assert.equal(ctx.document.querySelector('.footer-tagline').textContent, SAMPLE_SITE.tagline);
     });
+
+    it('uses page_title for the document title when site.json has one', function () {
+      ctx.api.applySite(Object.assign({}, SAMPLE_SITE, { page_title: 'Test Mahjong Club | Free Online Game' }));
+      assert.equal(ctx.document.title, 'Test Mahjong Club | Free Online Game');
+    });
   });
 
   describe('applyServices', function () {
