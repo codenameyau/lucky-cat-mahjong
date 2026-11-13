@@ -8039,7 +8039,17 @@
         }
       }
       while (!destroyed) {
-        var res = await E.runHand(game, agents, uiBridge, replay);
+        var res;
+        try {
+          res = await E.runHand(game, agents, uiBridge, replay);
+        } catch (err) {
+          // A saved hand that can't be played back (it should go on live where it
+          // stops fitting) is dealt again from its seed, so the table never waits forever.
+          if (!replay || destroyed) throw err;
+          if (root.console) console.warn('Saved hand could not be resumed; dealing it again.', err);
+          if (ui.replaying) replayDone();
+          res = await E.runHand(game, agents, uiBridge, { seed: replay.seed });
+        }
         replay = null;
         if (destroyed) return;
         recordStats(res);
