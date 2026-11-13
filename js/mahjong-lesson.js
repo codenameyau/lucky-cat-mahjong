@@ -96,8 +96,7 @@
     { seat: 0, kind: "claim", action: { type: "chow", tiles: ["b2", "b3"] }, hint: say("Chow 2-3-4 Bamboo.", null, { type: "chow", tiles: ["b2", "b3"] }, [
       read("The player on your left threw 4 Bamboo. You hold 2 and 3 Bamboo, so you can make a chow: 3 tiles of one suit in a row.", "claim-tile"),
       read("A chow always comes from one suit: Bamboo, Dots or Characters."),
-      read("You can claim a tile from the player on your left to make a chow."),
-      read("A claimed meld is exposed: everyone sees it, and its tiles stay together."),
+      read("You can claim a tile from the player on your left to make a chow. A claimed meld is exposed: everyone sees it, and its tiles stay together."),
       read("Press Chow 2-3-4 to claim the 4 Bamboo.", "chow-2-3-4"),
     ]) },
     { seat: 0, kind: "turn", action: { type: "discard", tile: "d9" }, hint: say("Discard 9 Dots.", "d9", { type: "discard" }, [
@@ -226,7 +225,18 @@
     return out;
   }
 
-  var api = { cardTexts: cardTexts, FLOWER_HINT: FLOWER_HINT, wall: wall, prepare: prepare, hint: hint, matches: matches, accept: accept, take: take, progress: progress, screen: screen, MOVES: MOVES, SCREENS: SCREENS };
+  // Every step as the player sees it, in order, and where it lives: the move's index
+  // in the script (STEPS) and the card in it. The flower steps are `flower`.
+  function outline() {
+    var rows = [];
+    FLOWER_HINT.cards.forEach(function (c, i) { rows.push({ n: rows.length + 1, text: c.text, step: 0, card: i, flower: true }); });
+    STEPS.forEach(function (st, k) {
+      if (st.hint) st.hint.cards.forEach(function (c, i) { rows.push({ n: rows.length + 1, text: c.text, step: k, card: i, flower: false }); });
+    });
+    return rows;
+  }
+
+  var api = { outline: outline, cardTexts: cardTexts, FLOWER_HINT: FLOWER_HINT, wall: wall, prepare: prepare, hint: hint, matches: matches, accept: accept, take: take, progress: progress, screen: screen, MOVES: MOVES, SCREENS: SCREENS };
 
   if (node) module.exports = api;
   else root.MahjongLesson = api;

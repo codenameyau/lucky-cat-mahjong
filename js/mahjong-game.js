@@ -818,9 +818,14 @@
     // without changing the saved Sound button choice. No sound param keeps it.
     var soundParam = /[?&]sound=(0|1)(?:&|$)/.exec((root.location && root.location.search) || "");
     var soundOn = soundParam ? soundParam[1] === "1" : prefs.sound !== false;
-    var sound = createSound(soundOn);
+    // A jump to another tutorial step makes a new table; it keeps the music playing.
+    var sound = settings.carrySound || createSound(soundOn);
+    var soundCarried = false; // true once the next table has taken this one's sound
+    settings.carrySound = null;
     // Silent for the tile cues while auto-play runs (it follows the live state, so it can't stick on).
     sound.isQuiet = function (name) { return autoPlay && TILE_CUES[name] === 1; };
+    var quietAutoPlay = sound.isQuiet;
+    sound.isQuiet = function (name) { return ui.lessonSkipping || quietAutoPlay(name); }; // the tutorial playing up to a step is silent
     // Music on plays the music and the sounds, Sound on only the sounds.
     sound.musicEnabled = sound.enabled && prefs.music !== false;
     var reduceMotion = root.matchMedia && root.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -933,7 +938,11 @@
       lessonNote: null,
       lessonCard: 0,
       lessonCardAt: 0,
-      lessonRulesSeen: false, // the tutorial's Rules step is done once Rules has been opened and closed
+      lessonJump: null, // the tutorial, after a jump to an earlier or later step: the step to land on, while the table plays up to it
+      lessonJumping: false, // the table is being made again for a jump
+      lessonSkipping: false, // true while it plays up to that step (silently, at once)
+      lessonRows: [], // the steps list's rows, for taps
+      lessonShownN: 0, // the step the list last scrolled to
       lessonBar: 0,
       centerRect: null, // the table's wind indicator, for the tutorial to point at
       claimTileRect: null, // the tile up for a claim, beside the buttons, for the tutorial to point at
@@ -2260,7 +2269,7 @@
       var gatedNow = lessonCardNow();
       if (gatedNow && gatedNow.gated) {
         // The tutorial's Rules step moves on once Rules has been closed.
-        dlg.addEventListener("close", function () { ui.lessonRulesSeen = true; requestRender(); }, { once: true });
+        dlg.addEventListener("close", function () { settings.lessonRulesSeen = true; requestRender(); }, { once: true });
       }
     }
 
@@ -3783,10 +3792,10 @@
         reserve = x + w - spot.x + 8;
       }
       // A card to read has a Next button at the right of the box.
-      var nextW = lesson && !lesson.last && !lesson.gated ? (L.desktop ? 76 : 60) : 0;
-      // Back turns to the step before, within this move (a move played can't be taken back).
-      var backW = lesson && lesson.index > 0 ? (L.desktop ? 64 : 52) : 0;
-      if (nextW || backW) reserve += nextW + backW + (nextW && backW ? 8 : 0) + 10;
+      // Back and Next are always there (dim when there is nowhere to go).
+      var nextW = settings.lesson ? (L.desktop ? 76 : 60) : 0;
+      var backW = settings.lesson ? (L.desktop ? 64 : 52) : 0;
+      if (nextW) reserve += nextW + backW + 8 + 10;
       var tw = w - (tx - x) - 10 - reserve;
       var baseSize = !L.desktop ? 11 : L.tableW < 600 ? 12 : 13; // smaller on a phone
       // The box keeps its height. A longer note shrinks the text until it fits.
@@ -3893,11 +3902,13 @@
         ctx.fill();
       }
       ctx.restore();
-      if (!lesson) return;
       var bh = L.desktop ? 30 : 26;
-      if (nextW) addRegion(x, y, w, h, lessonNextCard, "lesson-band");
-      if (backW) button("Back", x + w - 10 - nextW - (nextW ? 8 : 0) - backW, y + (h - bh) / 2, backW, bh, lessonPrevCard, "ghost", "lesson-back");
-      if (nextW) button("Next", x + w - 10 - nextW, y + (h - bh) / 2, nextW, bh, lessonNextCard, "gold", "lesson-next");
+      // (While the other players take their turns there is no step on show: both are dim.)
+      var canBack = !!lesson && lesson.n > 1;
+      var canNext = !!lesson && ((!lesson.last && !lesson.gated) || (lesson.last && lesson.n < (settings.lessonFurthest || 0)));
+      if (canNext) addRegion(x, y, w, h, lessonNextCard, "lesson-band");
+      button("Back", x + w - 10 - nextW - 8 - backW, y + (h - bh) / 2, backW, bh, lessonPrevCard, canBack ? "ghost" : "off", "lesson-back");
+      button("Next", x + w - 10 - nextW, y + (h - bh) / 2, nextW, bh, lessonNextCard, canNext ? "gold" : "off", "lesson-next");
     }
 
     // Split coach copy into plain text plus the ranges that name a hand pattern.
@@ -4267,10 +4278,73 @@
       copyText(seed).then(function () { pendingCopy = null; }, function () { /* tried again on the click */ });
     }
 
+    // The tutorial's right panel: every step, the one on show lit. A tap on a step
+    // already reached goes back (or forward again) to it.
+    function lessonRowAt(p) {
+      for (var i = 0; i < ui.lessonRows.length; i++) {
+        var q = ui.lessonRows[i];
+        if (p.x >= q.x && p.x <= q.x + q.w && p.y >= q.y && p.y <= q.y + q.h) return q.n <= (settings.lessonFurthest || 0) ? q.n : null;
+      }
+      return null;
+    }
+
+    function drawLessonSteps(r) {
+      ctx.save();
+      roundRect(ctx, r.x, r.y, r.w, r.h, 6);
+      ctx.fillStyle = "rgba(0,0,0,0.28)";
+      ctx.fill();
+      ctx.restore();
+      var cur = lessonCardNow();
+      var curN = cur ? cur.n : game ? Lesson.progress(game).screen : 0; // between your moves, the last one done
+      var furthest = settings.lessonFurthest || 0;
+      var rows = Lesson.outline();
+      text("Tutorial steps", r.x + 14, r.y + 20, { size: 14, weight: "bold", family: FONT_HEAD, color: COLORS.cream });
+      text(curN + " of " + rows.length, r.x + r.w - 14, r.y + 20, { size: 12, align: "right", color: COLORS.goldLight });
+      var viewX = r.x + 8, viewY = r.y + 36, viewW = r.w - 16, viewH = r.h - 44;
+      var rowH = Math.max(17, Math.min(26, viewH / rows.length));
+      var size = Math.max(9, Math.min(12, rowH * 0.6));
+      ui.coachScrollMax = Math.max(0, rowH * rows.length - viewH);
+      if (curN && ui.lessonShownN !== curN) { // follow the step on show
+        ui.lessonShownN = curN;
+        ui.coachScroll = clamp(rowH * (curN - 0.5) - viewH / 2, 0, ui.coachScrollMax);
+      }
+      ui.coachScroll = clamp(ui.coachScroll, 0, ui.coachScrollMax);
+      ui.lessonRows = [];
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(viewX, viewY, viewW, viewH);
+      ctx.clip();
+      rows.forEach(function (row, i) {
+        var y = viewY + i * rowH - ui.coachScroll;
+        if (y + rowH < viewY || y > viewY + viewH) return;
+        var on = row.n === curN, seen = row.n <= furthest;
+        if (on) {
+          roundRect(ctx, viewX, y + 1, viewW, rowH - 2, 5);
+          ctx.fillStyle = "rgba(244,160,32,0.22)";
+          ctx.fill();
+          ctx.strokeStyle = "rgba(255,210,122,0.7)";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+        var color = on ? COLORS.goldLight : seen ? COLORS.cream : "rgba(255,248,240,0.32)";
+        text(String(row.n), viewX + 22, y + rowH / 2 + 1, { size: size, align: "right", weight: on ? "bold" : "", color: color });
+        // The step's words, cut to fit the line.
+        var plain = coachPieces(row.text).plain;
+        ctx.font = (on ? "bold " : "") + size + "px " + FONT_BODY;
+        var room = viewW - 36, label = plain;
+        while (label.length > 4 && ctx.measureText(label).width > room) label = label.slice(0, -2);
+        if (label.length < plain.length) label = label.replace(/\s+$/, "") + "…";
+        text(label, viewX + 30, y + rowH / 2 + 1, { size: size, weight: on ? "bold" : "", color: color });
+        ui.lessonRows.push({ n: row.n, x: viewX, y: y, w: viewW, h: rowH });
+      });
+      ctx.restore();
+    }
+
     // Older notes start at the top and later ones follow downward.
     function drawCoachHistory() {
       var r = L.history;
       if (!r) return;
+      if (settings.lesson) { drawLessonSteps(r); return; }
       ctx.save();
       roundRect(ctx, r.x, r.y, r.w, r.h, 6);
       ctx.fillStyle = "rgba(0,0,0,0.28)";
@@ -5706,8 +5780,10 @@
       var cards = ui.hint.cards;
       var i = Math.min(ui.lessonCard, cards.length - 1);
       var card = cards[i];
-      var gated = card.gate === "rules" && !ui.lessonRulesSeen;
-      return { note: ui.hint, index: i, card: card, last: i === cards.length - 1, gated: gated, n: Lesson.screen(game, ui.hint, i), total: Lesson.SCREENS };
+      var gated = card.gate === "rules" && !settings.lessonRulesSeen; // done once Rules has been opened and closed
+      var n = Lesson.screen(game, ui.hint, i);
+      if (n > (settings.lessonFurthest || 0)) settings.lessonFurthest = n; // the furthest step reached, kept across jumps
+      return { note: ui.hint, index: i, card: card, last: i === cards.length - 1, gated: gated, n: n, total: Lesson.SCREENS };
     }
 
     function showLessonCard(i) {
@@ -5718,21 +5794,49 @@
       requestRender();
     }
 
-    // Next, or a tap on the coach's box: the next card.
+    // Next, or a tap on the coach's box: the next step. On a move's last step it
+    // goes on only to a step seen before (the move itself has to be made).
     function lessonNextCard() {
       var c = lessonCardNow();
-      if (!c || c.last) return;
+      if (!c) return;
       if (c.gated) { ui.shake = { kind: "button", key: "rules", start: now() }; requestRender(); return; } // open Rules first
+      if (c.last) {
+        if (c.n < (settings.lessonFurthest || 0)) lessonGo(c.n + 1);
+        else { ui.shake = { kind: "button", key: "lesson-next", start: now() }; requestRender(); }
+        return;
+      }
       sound.play("select");
       showLessonCard(c.index + 1);
     }
 
-    // Back: the step before, in this move.
+    // Back: the step before.
     function lessonPrevCard() {
       var c = lessonCardNow();
-      if (!c || c.index === 0) return;
+      if (!c || c.n <= 1) return;
+      if (c.index > 0) { sound.play("select"); showLessonCard(c.index - 1); return; }
+      lessonGo(c.n - 1);
+    }
+
+    // To a step already reached, from the steps list, Back or Next. Within this move
+    // it just turns the card; another move plays the lesson again, silently and at
+    // once, up to that move (the script never changes), and lands on the card.
+    function lessonGo(n) {
+      var row = Lesson.outline()[n - 1];
+      var cur = lessonCardNow();
+      if (!row || !cur || n === cur.n || n > (settings.lessonFurthest || 0)) return;
       sound.play("select");
-      showLessonCard(c.index - 1);
+      var note = row.flower ? Lesson.FLOWER_HINT : Lesson.hint({ lessonStep: row.step });
+      if (note === ui.hint) {
+        var gateAt = note.cards.findIndex(function (cd) { return cd.gate; });
+        if (gateAt !== -1 && row.card > gateAt) settings.lessonRulesSeen = true;
+        showLessonCard(row.card);
+        return;
+      }
+      settings.lessonJump = { step: row.step, card: row.card, flower: row.flower };
+      settings.carrySound = sound; // the music plays on through the jump
+      soundCarried = true;
+      ui.lessonJumping = true;
+      callbacks.restart();
     }
 
     // A step done: a soft rising chime (with Sound on), and the bar fills.
@@ -5875,12 +5979,13 @@
 
     function startLessonTracking() {
       lessonTrack = { started: Date.now(), wrong: 0, wrongTotal: 0, done: false };
-      track("play_lesson_start", { moves: Lesson.MOVES, screens: Lesson.SCREENS });
+      // A jump back or forward (the tutorial played again) is the same lesson, not a new start.
+      if (!ui.lessonJump) track("play_lesson_start", { moves: Lesson.MOVES, screens: Lesson.SCREENS });
     }
 
     // The lesson ended before its hand did: quit from the menu (how: quit) or the page closed (how: leave).
     function trackLessonExit(how) {
-      if (!settings.lesson || !lessonTrack || lessonTrack.done || !game) return;
+      if (!settings.lesson || !lessonTrack || lessonTrack.done || !game || ui.lessonJumping) return; // (a jump is not leaving)
       lessonTrack.done = true;
       var at = Lesson.progress(game);
       track("play_lesson_exit", {
@@ -6284,7 +6389,8 @@
         return;
       }
       if (historyAt(p)) {
-        historyTap = settings.review ? { x: p.x, y: p.y, id: e.pointerId, step: coachNoteAt(p) } : null;
+        historyTap = settings.review ? { x: p.x, y: p.y, id: e.pointerId, step: coachNoteAt(p) }
+          : settings.lesson ? { x: p.x, y: p.y, id: e.pointerId, step: null, lessonN: lessonRowAt(p) } : null;
         if (ui.coachScrollMax > 0) {
           historyDrag = { y: p.y, scroll: ui.coachScroll, id: e.pointerId };
           if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
@@ -6330,7 +6436,7 @@
       if (e.pointerType && e.pointerType !== "mouse") return;
       var p = pointerPos(e);
       if ((resultsAt(p) || historyAt(p)) && !seeResultsHit(p) && !overlayButtonAt(p)) {
-        canvas.style.cursor = !resultsAt(p) && settings.review && coachNoteAt(p) !== null ? "pointer"
+        canvas.style.cursor = !resultsAt(p) && ((settings.review && coachNoteAt(p) !== null) || (settings.lesson && lessonRowAt(p))) ? "pointer"
           : (resultsAt(p) ? ui.resultsScrollMax > 0 : ui.coachScrollMax > 0) ? "grab" : "default";
         mouse = p;
         if (hover || tipSeat !== null) { hover = null; requestRender(); }
@@ -6374,6 +6480,7 @@
         historyTap = null;
         var up = pointerPos(e);
         if (tap.step !== null && up && Math.abs(up.x - tap.x) < 8 && Math.abs(up.y - tap.y) < 8) jumpToNote(tap.step);
+        else if (tap.lessonN && up && Math.abs(up.x - tap.x) < 8 && Math.abs(up.y - tap.y) < 8) lessonGo(tap.lessonN);
       }
       if (reviewScrub && e.pointerId === reviewScrub) {
         reviewScrub = 0;
@@ -6595,9 +6702,10 @@
         requestRender();
         // The tutorial's step one: the deal waits, flower in hand, for the
         // Replace flowers button (only here, never in a practice or full game).
-        if (settings.lesson && !game.lessonStep && game.hand.seats[0].hand.some(E.isBonus)) {
+        if (settings.lesson && !game.lessonStep && !ui.lessonSkipping && game.hand.seats[0].hand.some(E.isBonus)) {
           ui.hint = Lesson.FLOWER_HINT;
           rememberCoach(ui.hint, "hint");
+          if (ui.lessonJump) lessonLand(); // a jump back to the flower steps
           return new Promise(function (resolve) {
             ui.flowerPrompt = { resolve: resolve };
             requestRender();
@@ -6809,6 +6917,29 @@
       };
     }
 
+    // The tutorial playing up to a jump's step: your scripted moves are made for you,
+    // at once. At the step itself the table is drawn as it stands and play is yours.
+    function lessonSkipTo(g, seat, kind, resolve) {
+      if (!settings.lesson || !ui.lessonSkipping) return false;
+      if (g.lessonStep < ui.lessonJump.step) {
+        resolve(Lesson.take(g, seat, kind));
+        return true;
+      }
+      ui.lessonSkipping = false;
+      replayDone();
+      return false;
+    }
+
+    // The note on show lands on the card a jump asked for.
+    function lessonLand() {
+      var j = ui.lessonJump;
+      if (!j || !ui.hint) return;
+      ui.lessonJump = null;
+      ui.lessonNote = ui.hint;
+      ui.lessonCard = Math.min(j.card, ui.hint.cards.length - 1);
+      ui.lessonCardAt = now();
+    }
+
     function lessonAgent() {
       return {
         turn: function (g, seat) {
@@ -6835,6 +6966,7 @@
       return {
         turn: function (g, seat, opts) {
           return new Promise(function (resolve) {
+            if (lessonSkipTo(g, seat, "turn", resolve)) return;
             ui.turnPrompt = { opts: opts, resolve: resolve };
             ui.moveAt = movesMade() + 1; // this turn's discard (or win) is your next move
             ui.selected = -1;
@@ -6842,6 +6974,7 @@
             // a claim stays until your next move.
             clearDiscardFeedback();
             refreshHint();
+            lessonLand();
             var lessonLine = settings.lesson && ui.hint && ui.hint.action;
             ui.notice = lessonLine ? null : (opts.completeButShort
               ? "Your hand is complete, but only " + opts.completeButShort.faan + " faan. You need " + game.settings.minFaan + " to win."
@@ -6854,6 +6987,7 @@
         },
         claim: function (g, seat, opts) {
           return new Promise(function (resolve) {
+            if (lessonSkipTo(g, seat, "claim", resolve)) return;
             var highlight = [];
             if (opts.pung || opts.kong) highlight.push(opts.tile);
             opts.chows.forEach(function (p) { highlight = highlight.concat(p); });
@@ -6861,6 +6995,7 @@
             ui.moveAt = movesMade() + 1; // a claim isn't a move: it leads to your next discard (or win)
             clearDiscardFeedback();
             refreshHint();
+            lessonLand();
             var lessonLine = settings.lesson && ui.hint && ui.hint.action;
             ui.notice = lessonLine ? null : (opts.win
               ? coachFor().claimHint(game, 0, opts).action
@@ -8292,6 +8427,15 @@
         if (settings.lesson) {
           Lesson.prepare(game);
           ui.coach = "on";
+          // After a jump to another step the lesson plays up to it at once.
+          ui.lessonJump = settings.lessonJump || null;
+          settings.lessonJump = null;
+          if (ui.lessonJump && !ui.lessonJump.flower) {
+            ui.lessonSkipping = true;
+            ui.replaying = true; // plays at once, with no animation
+            game.lessonFlowers = true;
+            if (ui.lessonJump.step > 0) settings.lessonRulesSeen = true;
+          }
           startLessonTracking();
         }
         ui.strategies = pickStrategies();
@@ -8579,7 +8723,7 @@
         if (strategyToastTimer) clearTimeout(strategyToastTimer);
         stopReviewPlay();
         if (reviewCoachTimer) { clearTimeout(reviewCoachTimer); reviewCoachTimer = null; }
-        sound.stopMusic();
+        if (!soundCarried) sound.stopMusic();
         detachWindow();
         sheetListeners.forEach(function (l) { l[0].removeEventListener(l[1], l[2]); });
         sheetListeners = [];
