@@ -3832,7 +3832,7 @@
               var a = Math.max(r[0], at), b = Math.min(r[1], at + ln.length);
               if (b <= a) return;
               if (a > pos) pushPlain(pos, a);
-              segs.push({ text: plain.slice(a, b), color: COLORS.accent, bold: weightAt(a) });
+              segs.push({ text: plain.slice(a, b), color: r[2] || COLORS.accent, bold: weightAt(a) });
               pos = b;
             });
             if (pos < at + ln.length) pushPlain(pos, at + ln.length);
@@ -3923,6 +3923,7 @@
     }
 
     // The tutorial writes its core mahjong terms and its tile names in red, like hand names, the first time each comes up.
+    var LESSON_NAME_COLOR = "#FFE94D";
     var LESSON_TERMS = /\b(hong kong style|hand patterns?|replace flowers?|chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind|claim(?:s|ed|ing)?|discard(?:s|ed|ing)?|hands?|east|round)\b|\b(?:(?:east|south|west|north) )?winds?\b|\b(?:(?:red|green|white) )?dragons?\b|\b(?:plum|flowers?|seasons?)\b/gi;
     // Where the terms are in a text: [from, to, key], the key being the word without its plural or ending.
     function lessonTermMatches(plain) {
@@ -3961,6 +3962,9 @@
         var clash = out.some(function (r) { return tm.from < r[1] && tm.to > r[0]; });
         if (!clash) out.push([tm.from, tm.to]);
       });
+      // The coach's name, in bright yellow (a span's third item is its colour).
+      var named = /lucky cat/gi, nm;
+      while ((nm = named.exec(plain))) out.push([nm.index, nm.index + nm[0].length, LESSON_NAME_COLOR]);
       return out.sort(function (x, y) { return x[0] - y[0]; });
     }
 
@@ -4381,7 +4385,7 @@
               var a = Math.max(span[0], at), b = Math.min(span[1], at + ln.length);
               if (b <= a) return;
               if (a > pos) segs.push({ text: piece.plain.slice(pos, a), color: baseColor });
-              segs.push({ text: piece.plain.slice(a, b), color: COLORS.accent });
+              segs.push({ text: piece.plain.slice(a, b), color: span[2] || COLORS.accent });
               pos = b;
             });
             if (pos < at + ln.length) segs.push({ text: piece.plain.slice(pos, at + ln.length), color: baseColor });
