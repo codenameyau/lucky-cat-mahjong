@@ -3899,7 +3899,7 @@
     }
 
     // The tutorial writes its core mahjong terms and its tile names in red, like hand names.
-    var LESSON_TERMS = /\b(replace flowers?|chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind|claim(?:s|ed|ing)?|discard(?:s|ed|ing)?|draws?|drawing|drew|drawn|hands?|east|round)\b|(?:\b\d )?\b(?:bamboo|dots?|characters?)\b|\b(?:(?:east|south|west|north) )?winds?\b|\b(?:(?:red|green|white) )?dragons?\b|\b(?:plum|flowers?|seasons?)\b|\b\d[bdc]\b/gi;
+    var LESSON_TERMS = /\b(hand patterns?|replace flowers?|chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind|claim(?:s|ed|ing)?|discard(?:s|ed|ing)?|draws?|drawing|drew|drawn|hands?|east|round)\b|(?:\b\d )?\b(?:bamboo|dots?|characters?)\b|\b(?:(?:east|south|west|north) )?winds?\b|\b(?:(?:red|green|white) )?dragons?\b|\b(?:plum|flowers?|seasons?)\b|\b\d[bdc]\b/gi;
     function withLessonTerms(plain, red) {
       var out = red.slice();
       var m;
