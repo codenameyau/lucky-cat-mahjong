@@ -75,8 +75,7 @@
   // waits for the Replace flowers button (the tutorial's only).
   var FLOWER_HINT = { kind: "flower", action: "Replace flowers.", tile: "f1", decision: null, cards: [
     read("Welcome, I'm your coach! We'll play one hand together, one small step at a time."),
-    read("This is Plum, a flower. At the start of the game, you set aside every flower and season tile.", "f1"),
-    read("Plum has the number 1, and you sit on East, seat number 1. They match, so Plum scores 1 faan.", "f1"),
+    read("This is Plum, a flower. You set aside every flower and season tile. Plum has the number 1 and you sit on East, seat number 1, so it scores 1 faan.", "f1"),
     read("Press Replace flowers. Plum goes beside your hand, and you draw a new tile for it.", "replace-flower"),
   ] };
   FLOWER_HINT.tips = FLOWER_HINT.cards.map(function (c) { return c.text; });
@@ -86,8 +85,7 @@
   // coach's cards, and any other choice is refused.
   var STEPS = [
     { seat: 0, kind: "turn", action: { type: "discard", tile: "c1" }, hint: say("Discard 1 Character.", "c1", { type: "discard" }, [
-      read("The player on East always goes first. That's you!"),
-      read("The tiles in your hand are concealed: only you see them. Rules shows every hand pattern and how to score faan.", "rules"),
+      read("The player on East always goes first. That's you! The tiles in your hand are concealed: only you see them. Rules shows every hand pattern and how to score faan.", "rules"),
       read("We're going to learn the hand pattern for half flush, the most common way to win. Tap the 1 Character twice to discard it.", "c1"),
     ]) },
     { seat: 1, kind: "turn", drawn: true },
@@ -95,46 +93,38 @@
     { seat: 3, kind: "turn", drawn: true },
     { seat: 0, kind: "claim", action: { type: "chow", tiles: ["b2", "b3"] }, hint: say("Chow 2-3-4 Bamboo.", null, { type: "chow", tiles: ["b2", "b3"] }, [
       read("The player on your left threw 4 Bamboo. You hold 2 and 3 Bamboo.", "claim-tile"),
-      read("A chow is 3 tiles of one suit in a row. The suits are Bamboo, Dots and Characters."),
-      read("You can claim a tile from the player on your left to make a chow."),
-      read("A claimed meld is exposed: everyone sees it, and its tiles stay together."),
-      read("Press Chow 2-3-4 to claim the 4 Bamboo.", "chow-2-3-4"),
+      read("A chow is 3 tiles of one suit in a row. You can claim a tile from the player on your left to make a chow."),
+      read("Press Chow 2-3-4 to claim the 4 Bamboo. The meld is exposed: everyone sees it, and its tiles stay together.", "chow-2-3-4"),
     ]) },
     { seat: 0, kind: "turn", action: { type: "discard", tile: "d9" }, hint: say("Discard 9 Dots.", "d9", { type: "discard" }, [
-      read("You don't draw after claiming a tile. You discard straight away."),
-      read("Let's aim for a half flush in Bamboo, worth 3 faan."),
+      read("You don't draw after claiming a tile. Let's aim for a half flush in Bamboo, worth 3 faan."),
       read("Tap the 9 Dots twice to discard it.", "d9"),
     ]) },
     { seat: 1, kind: "turn", drawn: true },
     { seat: 0, kind: "claim", action: { type: "pung" }, hint: say("Pung 8 Bamboo.", "b8", { type: "pung" }, [
-      read("A pung is 3 of the same tile. You hold two 8 Bamboo, and 8 Bamboo was just thrown.", "claim-tile"),
-      read("You can claim a discard from any player to make a pung. It skips the other players' turns."),
+      read("8 Bamboo was just thrown, and you hold two. A pung is 3 of the same tile: claim a discard from any player to make one.", "claim-tile"),
       read("Keep your two 6 Bamboo. They're your eyes: the pair every winning hand needs.", "b6"),
       read("Press Pung to claim the 8 Bamboo.", "pung"),
     ]) },
     { seat: 0, kind: "turn", action: { type: "discard", tile: "c5" }, hint: say("Discard 5 Characters.", "c5", { type: "discard" }, [
-      read("A half flush is one suit plus any Dragon or Wind tiles."),
-      read("Tap the 5 Characters twice to discard it. Then your hand is all Bamboo, Dragons and Winds.", "c5"),
+      read("A half flush is one suit plus any Dragon or Wind tiles. Tap the 5 Characters twice to discard it, leaving only Bamboo, Dragons and Winds.", "c5"),
     ]) },
     { seat: 1, kind: "turn", drawn: true },
     { seat: 2, kind: "turn", drawn: true },
     { seat: 3, kind: "turn", drawn: true },
     { seat: 0, kind: "turn", action: { type: "kong", tile: "b8" }, hint: say("Kong 8 Bamboo.", "b8", { type: "kong" }, [
-      read("You drew the fourth 8 Bamboo!", "b8"),
-      read("Add it to your pung to make a kong: 4 of a kind. A kong draws a replacement tile from the back of the wall."),
+      read("You drew the fourth 8 Bamboo! Add it to your pung to make a kong: 4 of a kind, with a replacement tile from the back of the wall.", "b8"),
       read("Press Kong 8B.", "kong-b8"),
     ]) },
     { seat: 0, kind: "turn", action: { type: "discard", tile: "d1" }, hint: say("Discard 1 Dot.", "d1", { type: "discard" }, [
       read("Your replacement tile is 1 Dot. Throw it, and you're one tile from winning: you need East Wind.", "d1"),
-      read("Draw East Wind yourself and it's a self-draw: every opponent pays."),
-      read("Win on a discard and only the player who threw it pays."),
+      read("Draw East Wind yourself and it's a self-draw: every opponent pays. Win on a discard and only the player who threw it pays."),
       read("Tap the 1 Dot twice to discard it.", "d1"),
     ]) },
     { seat: 1, kind: "turn", drawn: true },
     { seat: 0, kind: "claim", action: { type: "win" }, hint: say("Win on East Wind.", null, { type: "win" }, [
       read("The player on your right threw East Wind! You can claim the last tile you need to win from any player.", "claim-tile"),
-      read("You are East, and the round is East, so your East Wind triplet scores as your seat wind and the round wind."),
-      read("This is a win on a discard, not a self-draw, so only the player who threw it pays."),
+      read("You are East and the round is East, so your East Wind triplet scores as your seat wind and round wind. This win is on a discard, so only the thrower pays."),
       read("Press Win to finish your half flush.", "win"),
     ]) },
   ];
