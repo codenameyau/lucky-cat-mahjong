@@ -3899,7 +3899,7 @@
     }
 
     // The tutorial writes its core mahjong terms in red, like hand names.
-    var LESSON_TERMS = /\b(chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind)\b/gi;
+    var LESSON_TERMS = /\b(chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind|claim(?:s|ed|ing)?|discard(?:s|ed|ing)?|draws?|drawing|drew|drawn)\b/gi;
     function withLessonTerms(plain, red) {
       var out = red.slice();
       var m;
