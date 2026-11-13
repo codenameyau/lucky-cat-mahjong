@@ -34,7 +34,7 @@
   // saveCompatibility). Bump it with every change to the game: patch for
   // fixes, minor for features, major for changes that older saves can't
   // load into.
-  var GAME_VERSION = '0.61.32';
+  var GAME_VERSION = '0.61.33';
   var SAVE_APP = 'lucky-cat-mahjong';
 
   var START_POINTS = 2000;
@@ -866,37 +866,66 @@
     return winner;
   }
 
-  // Plays one hand. Every decision a human player makes is recorded in
-  // hand.moves, so the hand can be played again from its seed: with
-  // opts.seed and opts.replay (those moves), the hand is dealt from the
-  // seed, the bots play as they did, and the human's moves are taken from
-  // the list with no events sent to the ui. When the list runs out,
-  // opts.onReplayEnd() is called and the hand goes on live.
+  // Plays one hand. Every decision is recorded in hand.moves, { k: kind,
+  // d: decision, s: seat }, so the hand can be played again from its seed:
+  // with opts.seed and opts.replay (those moves), the hand is dealt from the
+  // seed and every seat's moves are taken from the list, with no events sent
+  // to the ui. When the list runs out, opts.onReplayEnd() is called and the
+  // hand goes on live. The bots' moves are kept too, so a saved hand comes back
+  // the same after a bot changes (a new model or rule).
+  //
+  // Saves before 0.61.33 kept only the human's moves (no s), and the bots
+  // played again. If a bot now plays differently, a saved move can stop
+  // fitting the hand: then the replay stops there and the hand goes on live,
+  // instead of the table waiting forever.
   async function runHand(game, agents, ui, opts) {
     opts = opts || {};
     var queue = (opts.replay || []).slice();
     var replaying = !!opts.replay;
+    var everySeat = queue.some(function (m) { return m && typeof m.s === 'number'; });
     var liveUi = ui;
     ui = { emit: function (name, data) { return replaying ? Promise.resolve() : emit(liveUi, name, data); } };
     function endReplay() {
       if (!replaying) return;
       replaying = false;
+      queue.length = 0;
       if (opts.onReplayEnd) opts.onReplayEnd();
+    }
+    // A saved move fits when it is a choice the hand offers now.
+    function fits(move, kind, seat, o) {
+      if (!move || move.k !== kind || !move.d || typeof move.d !== 'object') return false;
+      if (everySeat && move.s !== seat) return false;
+      var d = move.d;
+      if (kind === 'claim') return claimAllowed(o || {}, d);
+      if (d.type === 'win') return !!(o && o.win);
+      if (d.type === 'kong') return !!(o && (o.kongs || []).some(function (x) { return x.tile === d.tile; }));
+      if (d.type === 'discard') return game.hand.seats[seat].hand.indexOf(d.tile) !== -1;
+      return false;
+    }
+    // Only what the engine reads from a decision is saved.
+    function kept(d) {
+      if (!d || typeof d !== 'object') return d;
+      var m = { type: d.type };
+      if (d.tile != null) m.tile = d.tile;
+      if (d.tiles) m.tiles = d.tiles.slice();
+      return m;
     }
     function ask(seat, kind, gameArg, opts2) {
       var agent = realAgents[seat];
-      if (!game.players[seat].isHuman) return agent[kind](gameArg, seat, opts2);
-      if (replaying && queue.length) {
-        var move = queue.shift();
-        if (move.k !== kind) throw new Error('saved move doesn\'t fit the hand');
-        // The table rebuilds the coach's notes here. The move is still unplayed.
-        if (liveUi && typeof liveUi.replayDecision === 'function') liveUi.replayDecision(kind, opts2, move.d);
-        game.hand.moves.push(move);
-        return Promise.resolve(move.d);
+      var human = game.players[seat].isHuman;
+      if (replaying && queue.length && (everySeat || human)) {
+        if (fits(queue[0], kind, seat, opts2)) {
+          var move = queue.shift();
+          // The table rebuilds the coach's notes here. The move is still unplayed.
+          if (human && liveUi && typeof liveUi.replayDecision === 'function') liveUi.replayDecision(kind, opts2, move.d);
+          game.hand.moves.push({ k: move.k, d: move.d, s: seat });
+          return Promise.resolve(move.d);
+        }
+        endReplay(); // the saved hand no longer fits: go on live from here
       }
-      endReplay();
+      if (replaying && (everySeat || human)) endReplay();
       return Promise.resolve(agent[kind](gameArg, seat, opts2)).then(function (d) {
-        game.hand.moves.push({ k: kind, d: d });
+        game.hand.moves.push({ k: kind, d: human ? d : kept(d), s: seat });
         return d;
       });
     }

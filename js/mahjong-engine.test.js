@@ -523,7 +523,7 @@ describe('playback seed', () => {
     let snapshot = null;
     const play = () => ({
       turn: (g, seat) => {
-        if (seat === 0 && !saved && g.hand.moves.length === 2) {
+        if (seat === 0 && !saved && g.hand.moves.filter((m) => m.s === 0).length === 2) {
           saved = E.gameRecord(g);
           snapshot = E.playbackText(g, { seat: 0 });
         }
@@ -557,7 +557,7 @@ describe('playback seed', () => {
     let saved = null;
     const play = () => ({
       turn: (g, seat) => {
-        if (seat === 0 && !saved && g.hand.moves.length === 2) saved = E.gameRecord(g);
+        if (seat === 0 && !saved && g.hand.moves.filter((m) => m.s === 0).length === 2) saved = E.gameRecord(g);
         return { type: 'discard', tile: g.hand.seats[seat].hand[0] };
       },
       claim: () => ({ type: 'pass' }),
@@ -580,11 +580,13 @@ describe('playback seed', () => {
       seed: saved.hand.seed,
       replay: saved.hand.moves,
     }), /past the snapshot/);
-    assert.equal(seen.length, saved.hand.moves.length);
+    // Only your moves rebuild the coach's notes; the bots' moves are replayed silently.
+    const yours = saved.hand.moves.filter((m) => m.s === 0);
+    assert.equal(seen.length, yours.length);
     assert.ok(seen.length >= 2);
     seen.forEach((row, i) => {
-      assert.equal(row.kind, saved.hand.moves[i].k);
-      assert.deepEqual(row.decision, saved.hand.moves[i].d);
+      assert.equal(row.kind, yours[i].k);
+      assert.deepEqual(row.decision, yours[i].d);
       assert.equal(row.stillHeld, true);
       assert.equal(row.opts, true);
     });

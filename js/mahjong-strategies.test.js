@@ -673,12 +673,47 @@ describe('saving and loading a game', () => {
     assert.ok(record.hand.moves.every((m) => m.k === 'turn' || m.k === 'claim'));
   });
 
-  it('refuses a replayed move the hand doesn\'t allow', async () => {
+  it('goes on live, instead of waiting forever, when a saved move no longer fits the hand', async () => {
     const game = newGame();
     const { records } = await playSaving(game);
-    const record = JSON.parse(records.find((r) => JSON.parse(r).hand.moves.length > 0));
-    record.hand.moves[0] = { k: 'turn', d: { type: 'discard', tile: 'zz' } };
-    await assert.rejects(E.runHand(E.restoreGame(record), agents(), {}, { seed: record.hand.seed, replay: record.hand.moves }));
+    const record = JSON.parse(records.find((r) => JSON.parse(r).hand.moves.length > 3));
+    const at = record.hand.moves.findIndex((m) => m.s === 0 && m.k === 'turn');
+    record.hand.moves[at] = { k: 'turn', d: { type: 'discard', tile: 'zz' }, s: 0 };
+    let ended = 0;
+    const res = await E.runHand(E.restoreGame(record), agents(), {}, { seed: record.hand.seed, replay: record.hand.moves, onReplayEnd: () => { ended++; } });
+    assert.equal(ended, 1);
+    assert.ok(res && (res.type === 'win' || res.type === 'draw'), 'the hand plays to its end');
+  });
+
+  it('keeps every seat\'s moves, so a saved hand comes back the same after a bot changes', async () => {
+    const game = newGame();
+    const { records } = await playSaving(game);
+    const record = JSON.parse(records.find((r) => JSON.parse(r).hand.moves.length > 8));
+    assert.ok(record.hand.moves.every((m) => typeof m.s === 'number'), 'each move names its seat');
+    assert.ok(record.hand.moves.some((m) => m.s !== 0), 'the bots\' moves are kept');
+    // Bots that would now play differently (always their last tile) don't change the replayed hand.
+    const changed = agents().map((a, seat) => seat === 0 ? a : {
+      turn: (g, s) => ({ type: 'discard', tile: g.hand.seats[s].hand[g.hand.seats[s].hand.length - 1] }),
+      claim: () => ({ type: 'pass' }),
+    });
+    const replayed = E.restoreGame(record);
+    let caught = null;
+    await E.runHand(replayed, changed, {}, {
+      seed: record.hand.seed, replay: record.hand.moves,
+      onReplayEnd: () => { caught = replayed.hand.moves.map((m) => JSON.stringify(m)); },
+    });
+    assert.deepEqual(caught, record.hand.moves.map((m) => JSON.stringify(m)));
+  });
+
+  it('plays an old save (your moves only) with the bots deciding again, as before', async () => {
+    const game = newGame();
+    const { records } = await playSaving(game);
+    const record = JSON.parse(records.find((r) => JSON.parse(r).hand.moves.length > 8));
+    const old = record.hand.moves.filter((m) => m.s === 0).map((m) => ({ k: m.k, d: m.d }));
+    let ended = 0;
+    const res = await E.runHand(E.restoreGame(record), agents(), {}, { seed: record.hand.seed, replay: old, onReplayEnd: () => { ended++; } });
+    assert.equal(ended, 1);
+    assert.ok(res && (res.type === 'win' || res.type === 'draw'));
   });
 
   it('signs saves, and refuses changed, foreign or incompatible ones', async () => {
@@ -728,7 +763,7 @@ describe('saving and loading a game', () => {
   });
 
   it('loads saves from any minor or patch version of the same major version', () => {
-    assert.equal(E.GAME_VERSION, '0.61.32');
+    assert.equal(E.GAME_VERSION, '0.61.33');
     for (const v of ['0.1.0', '0.2.0', '0.2.7', '0.0.9', '0.9.3']) assert.equal(E.saveCompatibility(v).ok, true, v);
     assert.match(E.saveCompatibility('1.0.0').reason, /newer/);
     assert.equal(E.saveCompatibility('0.1').ok, false);
