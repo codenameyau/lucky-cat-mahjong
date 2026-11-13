@@ -32,19 +32,19 @@
    this file yet: a frontier model plays in the lab until it earns a place. */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
-  var node = typeof module !== 'undefined' && module.exports;
-  var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var N = node ? require('./mahjong-lucky-cat-net.js') : root.MahjongLuckyCatNet;
+  var node = typeof module !== "undefined" && module.exports;
+  var E = node ? require("./mahjong-engine.js") : root.MahjongEngine;
+  var N = node ? require("./mahjong-lucky-cat-net.js") : root.MahjongLuckyCatNet;
 
   var FEATURE_VERSION = 2;
   var EXTRA_LAYOUT = [
-    ['piles', 3 * 3 * 34],
-    ['afterClaim', 3 * 34],
-    ['shantenAfter', 34],
-    ['wavesAfter', 34],
-    ['now', 2],
+    ["piles", 3 * 3 * 34],
+    ["afterClaim", 3 * 34],
+    ["shantenAfter", 34],
+    ["wavesAfter", 34],
+    ["now", 2],
   ];
   var GROUPS = {};
   var SIZE = N.SIZE;
@@ -126,7 +126,7 @@
   // did: the new inputs' columns start at zero. How the Lucky Cat lineage
   // starts phase 1 from lc32. Weights must be plain arrays or Float32Arrays.
   function widen(w1) {
-    if (w1.featureVersion !== N.FEATURE_VERSION) throw new Error('widen takes a version ' + N.FEATURE_VERSION + ' model');
+    if (w1.featureVersion !== N.FEATURE_VERSION) throw new Error("widen takes a version " + N.FEATURE_VERSION + " model");
     N.createModel(w1); // refuses anything that isn't a Lucky Cat model
     var dtype = w1.dtype;
     var layers = w1.layers.map(function (l, k) {
@@ -159,4 +159,4 @@
 
   if (node) module.exports = api;
   else root.MahjongFrontierNet = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== "undefined" ? globalThis : this);

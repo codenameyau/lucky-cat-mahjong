@@ -63,35 +63,24 @@
    Every model sees only what its seat can see: js/mahjong-lucky-cat-net.js
    reads the seat's own tiles and the table (js/mahjong-fair-play.test.js). */
 
-'use strict';
+"use strict";
 
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { fork, spawn, spawnSync } = require('node:child_process');
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { fork, spawn, spawnSync } = require("node:child_process");
 
-const ROOT = path.join(__dirname, '..', '..');
-const E = require('../../js/mahjong-engine.js');
-const N = require('../../js/mahjong-lucky-cat-net.js');
-const O = require('./oracle.js');
-
-function parseArgs(argv) {
-  const out = { _: [] };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (!a.startsWith('--')) { out._.push(a); continue; }
-    const next = argv[i + 1];
-    if (next === undefined || next.startsWith('--')) out[a.slice(2)] = true;
-    else { out[a.slice(2)] = next; i++; }
-  }
-  return out;
-}
+const ROOT = path.join(__dirname, "..", "..");
+const E = require("../../js/mahjong-engine.js");
+const N = require("../../js/mahjong-lucky-cat-net.js");
+const O = require("./oracle.js");
+const { parseArgs } = require("./args.js");
 
 // The encoder a model reads: Lucky Cat's (version 1), or features v2 (js/mahjong-frontier-net.js).
-const F2 = require('../../js/mahjong-frontier-net.js');
+const F2 = require("../../js/mahjong-frontier-net.js");
 function netFor(w) { return w && w.featureVersion === F2.FEATURE_VERSION ? F2 : N; }
 
-function readWeights(file) { return JSON.parse(fs.readFileSync(path.resolve(ROOT, file), 'utf8')); }
+function readWeights(file) { return JSON.parse(fs.readFileSync(path.resolve(ROOT, file), "utf8")); }
 
 /* ------------------------------------------------------------------ *
  * Agents
@@ -101,21 +90,21 @@ const cache = {};
 function opponent(id) {
   if (cache[id]) return cache[id];
   let bot;
-  if (id.startsWith('lc:')) {
+  if (id.startsWith("lc:")) {
     const w = readWeights(id.slice(3));
     // An oracle model (Suphx's oracle guiding) also reads the hidden tiles, at its own dropout.
     const o = (w.meta || {}).oracle;
-    bot = require('../../js/mahjong-lucky-cat-ml.js').create({ weights: w, fast: true, net: netFor(w),
+    bot = require("../../js/mahjong-lucky-cat-ml.js").create({ weights: w, fast: true, net: netFor(w),
       features: o ? oracleFeatures(o.delta, E.createRng(7)) : null });
-  } else if (id === 'neural-cat') {
-    bot = require('../../js/mahjong-ml.js').create({ fast: true });
-  } else if (id.startsWith('nc:')) {
+  } else if (id === "neural-cat") {
+    bot = require("../../js/mahjong-ml.js").create({ fast: true });
+  } else if (id.startsWith("nc:")) {
     // Neural Cat with other weights: a model JSON, or a shipped weights file.
     const file = path.resolve(ROOT, id.slice(3));
-    const weights = file.endsWith('.js') ? require(file) : readWeights(file);
-    bot = require('../../js/mahjong-ml.js').create({ fast: true, weights });
+    const weights = file.endsWith(".js") ? require(file) : readWeights(file);
+    bot = require("../../js/mahjong-ml.js").create({ fast: true, weights });
   } else {
-    bot = require('../../js/mahjong-strategies.js').get(id).bot;
+    bot = require("../../js/mahjong-strategies.js").get(id).bot;
   }
   cache[id] = bot;
   return bot;
@@ -149,11 +138,11 @@ function winWeight(discards, faan) {
 
 async function work(job) {
   if (job.rollouts) return rolloutWork(job);
-  const LC = require('../../js/mahjong-lucky-cat-ml.js');
+  const LC = require("../../js/mahjong-lucky-cat-ml.js");
   const rng = E.createRng(job.seed + 7919);
-  const v2 = job.features === 'v2';
+  const v2 = job.features === "v2";
   const learnerWeights = job.weights ? readWeights(job.weights) : v2 ? F2.zeroWeights() : N.zeroWeights();
-  if (v2 !== (learnerWeights.featureVersion === F2.FEATURE_VERSION)) throw new Error('--features ' + (v2 ? 'v2' : 'v1') + ' needs a model of that version, not ' + job.weights);
+  if (v2 !== (learnerWeights.featureVersion === F2.FEATURE_VERSION)) throw new Error("--features " + (v2 ? "v2" : "v1") + " needs a model of that version, not " + job.weights);
   let buffers = [[], [], [], []];
   const returns = !!job.returns;
   const sample = job.sample == null ? 1 : job.sample;
@@ -182,25 +171,25 @@ async function work(job) {
   const stats = { deals: 0, learnerSeats: 0, learnerWins: 0, wins: 0, winDiscards: 0, winFaan: 0, dealIns: 0, samples: 0, negatives: 0, learnerPoints: 0, learnerWinPoints: 0, byOpponent: {} };
   for (let d = job.from; d < job.to; d++) {
     const game = E.createGame({ seed: job.seed + d, humanSeat: false, dealer: d % 4, startPoints: 1e9 });
-    const pool = job.pool.length ? job.pool : ['lc:' + job.weights];
+    const pool = job.pool.length ? job.pool : ["lc:" + job.weights];
     // The learner's seats, the rest from the pool.
     const seats = [0, 1, 2, 3];
     E.shuffle(seats, rng);
     const learnerSeats = seats.slice(0, job.learners);
-    const ids = [0, 1, 2, 3].map((s) => (learnerSeats.includes(s) ? 'learn' : pool[Math.floor(rng() * pool.length)]));
-    const agents = ids.map((id) => (id === 'learn' ? learner : opponent(id)).createBotAgent());
+    const ids = [0, 1, 2, 3].map((s) => (learnerSeats.includes(s) ? "learn" : pool[Math.floor(rng() * pool.length)]));
+    const agents = ids.map((id) => (id === "learn" ? learner : opponent(id)).createBotAgent());
     buffers = [[], [], [], []];
     const res = await E.runHand(game, agents);
     stats.deals++;
     stats.learnerSeats += learnerSeats.length;
-    if (res.type === 'win') stats.wins++;
+    if (res.type === "win") stats.wins++;
     ids.forEach((id, seat) => {
-      if (id === 'learn') return;
+      if (id === "learn") return;
       const o = (stats.byOpponent[id] = stats.byOpponent[id] || { seats: 0, wins: 0 });
       o.seats++;
-      if (res.type === 'win' && res.winner === seat) o.wins++;
+      if (res.type === "win" && res.winner === seat) o.wins++;
     });
-    if (res.type === 'win' && res.payer != null && ids[res.payer] === 'learn' && ids[res.winner] !== 'learn') {
+    if (res.type === "win" && res.payer != null && ids[res.payer] === "learn" && ids[res.winner] !== "learn") {
       stats.dealIns++;
       // Imitation: the move that dealt in (the learner's last: the discard, or
       // a robbed kong), written with weight -1: training can push it down
@@ -213,8 +202,8 @@ async function work(job) {
     if (returns) {
       // Every learner seat's moves, with what the hand paid that seat.
       learnerSeats.forEach((s) => {
-        const won = res.type === 'win' && res.winner === s;
-        const outcome = won ? 0 : res.type === 'win' && res.payer === s ? 1 : res.type === 'win' ? 2 : 3;
+        const won = res.type === "win" && res.winner === s;
+        const outcome = won ? 0 : res.type === "win" && res.payer === s ? 1 : res.type === "win" ? 2 : 3;
         if (won) {
           stats.learnerWins++;
           stats.winDiscards += game.hand.seats[s].discards.length;
@@ -232,7 +221,7 @@ async function work(job) {
       });
       continue;
     }
-    if (res.type !== 'win' || ids[res.winner] !== 'learn') continue;
+    if (res.type !== "win" || ids[res.winner] !== "learn") continue;
     const s = res.winner;
     const discards = game.hand.seats[s].discards.length;
     const faan = res.score && res.score.faan;
@@ -252,16 +241,16 @@ async function work(job) {
     rows.x.forEach((v, k) => { for (let i = 0; i < W; i++) x[k * W + i] = floatToHalf(v[i]); });
     const legal = new Uint8Array(n * 10);
     rows.legal.forEach((v, k) => legal.set(v, k * 10));
-    const base = path.join(job.out, 'shard-' + job.shard);
-    fs.writeFileSync(base + '.x.f16', Buffer.from(x.buffer));
-    fs.writeFileSync(base + '.a.u1', Buffer.from(Uint8Array.from(rows.a)));
-    fs.writeFileSync(base + '.m.u1', Buffer.from(legal));
-    fs.writeFileSync(base + '.w.f4', Buffer.from(Float32Array.from(rows.w).buffer));
+    const base = path.join(job.out, "shard-" + job.shard);
+    fs.writeFileSync(base + ".x.f16", Buffer.from(x.buffer));
+    fs.writeFileSync(base + ".a.u1", Buffer.from(Uint8Array.from(rows.a)));
+    fs.writeFileSync(base + ".m.u1", Buffer.from(legal));
+    fs.writeFileSync(base + ".w.f4", Buffer.from(Float32Array.from(rows.w).buffer));
     if (returns) {
-      fs.writeFileSync(base + '.r.f4', Buffer.from(Float32Array.from(rows.r).buffer));
-      fs.writeFileSync(base + '.p.f4', Buffer.from(Float32Array.from(rows.p).buffer));
-      fs.writeFileSync(base + '.o.u1', Buffer.from(Uint8Array.from(rows.o)));
-      fs.writeFileSync(base + '.h.u4', Buffer.from(Uint32Array.from(rows.h).buffer));
+      fs.writeFileSync(base + ".r.f4", Buffer.from(Float32Array.from(rows.r).buffer));
+      fs.writeFileSync(base + ".p.f4", Buffer.from(Float32Array.from(rows.p).buffer));
+      fs.writeFileSync(base + ".o.u1", Buffer.from(Uint8Array.from(rows.o)));
+      fs.writeFileSync(base + ".h.u4", Buffer.from(Uint32Array.from(rows.h).buffer));
     }
   }
   return stats;
@@ -291,8 +280,8 @@ async function work(job) {
 // Its points are the mean: what the move is worth from what the learner
 // knew, with the futures' luck shared between the moves.
 async function rolloutWork(job) {
-  const LC = require('../../js/mahjong-lucky-cat-ml.js');
-  const N2 = require('../../js/mahjong-lucky-cat-net.js');
+  const LC = require("../../js/mahjong-lucky-cat-ml.js");
+  const N2 = require("../../js/mahjong-lucky-cat-net.js");
   const rng = E.createRng(job.seed + 104729);
   const model = N2.createModel(readWeights(job.weights));
   const SLOTS = job.alts + 1;
@@ -346,7 +335,7 @@ async function rolloutWork(job) {
     stats.deals++;
     stats.learnerSeats++;
     stats.learnerPoints += base.points;
-    if (res.type === 'win') {
+    if (res.type === "win") {
       stats.wins++;
       if (res.winner === seat) {
         stats.learnerWins++;
@@ -419,20 +408,20 @@ async function rolloutWork(job) {
     const qa = new Uint8Array(n * SLOTS), q = new Float32Array(n * SLOTS);
     rows.qa.forEach((v, k) => qa.set(v, k * SLOTS));
     rows.q.forEach((v, k) => q.set(v, k * SLOTS));
-    const out = path.join(job.out, 'shard-' + job.shard);
-    fs.writeFileSync(out + '.x.f16', Buffer.from(x.buffer));
-    fs.writeFileSync(out + '.a.u1', Buffer.from(Uint8Array.from(rows.a)));
-    fs.writeFileSync(out + '.m.u1', Buffer.from(legal));
-    fs.writeFileSync(out + '.w.f4', Buffer.from(new Float32Array(n).fill(1).buffer));
-    fs.writeFileSync(out + '.qa.u1', Buffer.from(qa));
-    fs.writeFileSync(out + '.q.f4', Buffer.from(q.buffer));
-    fs.writeFileSync(out + '.h.u4', Buffer.from(Uint32Array.from(rows.h).buffer));
+    const out = path.join(job.out, "shard-" + job.shard);
+    fs.writeFileSync(out + ".x.f16", Buffer.from(x.buffer));
+    fs.writeFileSync(out + ".a.u1", Buffer.from(Uint8Array.from(rows.a)));
+    fs.writeFileSync(out + ".m.u1", Buffer.from(legal));
+    fs.writeFileSync(out + ".w.f4", Buffer.from(new Float32Array(n).fill(1).buffer));
+    fs.writeFileSync(out + ".qa.u1", Buffer.from(qa));
+    fs.writeFileSync(out + ".q.f4", Buffer.from(q.buffer));
+    fs.writeFileSync(out + ".h.u4", Buffer.from(Uint32Array.from(rows.h).buffer));
   }
   return stats;
 }
 
 // A recorded row: the seat's features, then the hidden tiles' with --oracle.
-function publicSize(job) { return job.features === 'v2' ? F2.SIZE : N.SIZE; }
+function publicSize(job) { return job.features === "v2" ? F2.SIZE : N.SIZE; }
 function rowSize(job) { return publicSize(job) + (job.oracle ? O.SIZE : 0); }
 
 const f32 = new Float32Array(1), u32 = new Uint32Array(f32.buffer);
@@ -454,7 +443,7 @@ function floatToHalf(v) {
 function merge(all) {
   const out = { deals: 0, learnerSeats: 0, learnerWins: 0, wins: 0, winDiscards: 0, winFaan: 0, dealIns: 0, samples: 0, negatives: 0, learnerPoints: 0, learnerWinPoints: 0, byOpponent: {} };
   all.forEach((s) => {
-    Object.keys(s).forEach((k) => { if (typeof s[k] === 'number') out[k] = (out[k] || 0) + s[k]; });
+    Object.keys(s).forEach((k) => { if (typeof s[k] === "number") out[k] = (out[k] || 0) + s[k]; });
     Object.keys(s.byOpponent).forEach((id) => {
       const o = (out.byOpponent[id] = out.byOpponent[id] || { seats: 0, wins: 0 });
       o.seats += s.byOpponent[id].seats;
@@ -468,17 +457,17 @@ function merge(all) {
 // when it can play the learner and every opponent exactly; LCM_JS=1 forces the JS.
 function nativeJob(job) {
   if (process.env.LCM_JS || job.rollouts || job.oracleDelta != null || !job.weights) return null;
-  const N = require('./native.js');
-  const learner = N.nativeId('lc:' + job.weights);
+  const N = require("./native.js");
+  const learner = N.nativeId("lc:" + job.weights);
   const pool = job.pool.map((id) => N.nativeId(id));
   if (!learner || pool.some((x) => !x)) return null;
-  const args = ['generate', '--weights', learner.slice(3), '--seed', String(job.seed), '--from', String(job.from), '--to', String(job.to),
-    '--shard', String(job.shard), '--learners', String(job.learners), '--temperature', String(job.temperature), '--sample', String(job.sample)];
-  if (pool.length) args.push('--pool', pool.join(','));
-  if (job.returns) args.push('--returns');
-  if (job.oracle) args.push('--oracle');
-  if (job.sampleWon != null) args.push('--sample-won', String(job.sampleWon));
-  if (job.out) args.push('--out', job.out);
+  const args = ["generate", "--weights", learner.slice(3), "--seed", String(job.seed), "--from", String(job.from), "--to", String(job.to),
+    "--shard", String(job.shard), "--learners", String(job.learners), "--temperature", String(job.temperature), "--sample", String(job.sample)];
+  if (pool.length) args.push("--pool", pool.join(","));
+  if (job.returns) args.push("--returns");
+  if (job.oracle) args.push("--oracle");
+  if (job.sampleWon != null) args.push("--sample-won", String(job.sampleWon));
+  if (job.out) args.push("--out", job.out);
   return args;
 }
 
@@ -495,19 +484,19 @@ function runJobs(base, deals, workers) {
   for (let k = 0, from = 0; from < deals; k++, from += nper) chunks.push(Object.assign({}, base, { from, to: Math.min(deals, from + nper), shard: k }));
   const natives = chunks.map(nativeJob);
   if (natives.every((x) => x)) {
-    const SIM = process.env.LCM_SIM || path.join(ROOT, 'native', 'build', 'lcm-sim' + (process.platform === 'win32' ? '.exe' : ''));
+    const SIM = process.env.LCM_SIM || path.join(ROOT, "native", "build", "lcm-sim" + (process.platform === "win32" ? ".exe" : ""));
     const run = (args) => () => new Promise((resolve, reject) => {
-      const child = spawn(SIM, args, { stdio: ['ignore', 'pipe', 'inherit'] });
-      let out = '';
-      child.stdout.on('data', (d) => { out += d; });
-      child.on('exit', (code) => (code ? reject(new Error('lcm-sim generate exited with ' + code)) : resolve(JSON.parse(out))));
+      const child = spawn(SIM, args, { stdio: ["ignore", "pipe", "inherit"] });
+      let out = "";
+      child.stdout.on("data", (d) => { out += d; });
+      child.on("exit", (code) => (code ? reject(new Error("lcm-sim generate exited with " + code)) : resolve(JSON.parse(out))));
     });
-    return require('./native.js').pool(natives.map(run), workers).then(merge);
+    return require("./native.js").pool(natives.map(run), workers).then(merge);
   }
   return Promise.all(jobs.map((job) => new Promise((resolve, reject) => {
-    const child = fork(__filename, ['--worker'], { stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
-    child.on('message', (m) => { if (m.error) reject(new Error(m.error)); else resolve(m.stats); child.kill(); });
-    child.on('exit', (code) => { if (code) reject(new Error('worker exited ' + code)); });
+    const child = fork(__filename, ["--worker"], { stdio: ["ignore", "inherit", "inherit", "ipc"] });
+    child.on("message", (m) => { if (m.error) reject(new Error(m.error)); else resolve(m.stats); child.kill(); });
+    child.on("exit", (code) => { if (code) reject(new Error("worker exited " + code)); });
     child.send(job);
   }))).then(merge);
 }
@@ -523,16 +512,16 @@ async function generate(a) {
   const t0 = Date.now();
   const job = {
     weights: a.weights || null, temperature: parseFloat(a.temperature || 1), seed: parseInt(a.seed || 7000000, 10),
-    pool: a.pool ? String(a.pool).split(',') : [], learners: parseInt(a.learners || 2, 10), out,
+    pool: a.pool ? String(a.pool).split(",") : [], learners: parseInt(a.learners || 2, 10), out,
     returns: !!a.returns, sample: a.returns ? parseFloat(a.sample || 0.5) : 1,
     rollouts: a.rollouts ? parseInt(a.rollouts, 10) : 0, alts: parseInt(a.alts || 2, 10),
     futures: parseInt(a.futures || 1, 10),
-    oracle: !!a.oracle, oracleDelta: a['oracle-delta'] != null ? parseFloat(a['oracle-delta']) : null,
+    oracle: !!a.oracle, oracleDelta: a["oracle-delta"] != null ? parseFloat(a["oracle-delta"]) : null,
     // --features v2: the learner reads features v2 (js/mahjong-frontier-net.js); its model must be v2.
-    sampleWon: a['sample-won'] != null ? parseFloat(a['sample-won']) : null,
-    features: a.features ? String(a.features) : (job0Weights(a) || {}).featureVersion === F2.FEATURE_VERSION ? 'v2' : 'v1',
+    sampleWon: a["sample-won"] != null ? parseFloat(a["sample-won"]) : null,
+    features: a.features ? String(a.features) : (job0Weights(a) || {}).featureVersion === F2.FEATURE_VERSION ? "v2" : "v1",
   };
-  if (job.oracle && job.rollouts) throw new Error('--oracle records hands played (--returns or wins), not --rollouts');
+  if (job.oracle && job.rollouts) throw new Error("--oracle records hands played (--returns or wins), not --rollouts");
   if (!job.oracle && job.weights && (readWeights(job.weights).meta || {}).oracle) job.oracle = true;
   const stats = await runJobs(job, parseInt(a.deals || 10000, 10), workerCount(a));
   stats.seconds = (Date.now() - t0) / 1000;
@@ -541,13 +530,13 @@ async function generate(a) {
   stats.avgWinFaan = stats.winFaan / Math.max(1, stats.learnerWins);
   stats.pointsPerHand = stats.learnerPoints / Math.max(1, stats.learnerSeats);
   stats.avgWinPoints = stats.learnerWinPoints / Math.max(1, stats.learnerWins);
-  if (out) fs.writeFileSync(path.join(out, 'meta.json'), JSON.stringify(Object.assign({ featureVersion: job.features === 'v2' ? F2.FEATURE_VERSION : N.FEATURE_VERSION, featureSize: rowSize(job), oracle: job.oracle ? { size: O.SIZE, publicSize: publicSize(job), dangerAt: publicSize(job) + O.DANGER, oracleAt: publicSize(job), per: O.PER, delta: job.oracleDelta } : null, returns: job.returns, rollouts: job.rollouts ? { slots: job.alts + 1 } : null, job }, stats), null, 2) + '\n');
-  console.log('generated ' + stats.deals + ' deals in ' + stats.seconds.toFixed(0) + 's: learner won ' + (100 * stats.winRate).toFixed(2) +
-    '% of its seats (' + stats.learnerWins + ' hands, ' + stats.avgWinDiscards.toFixed(1) + ' discards, ' + stats.avgWinFaan.toFixed(2) + ' faan, ' +
-    Math.round(stats.avgWinPoints) + ' points a win), ' + stats.pointsPerHand.toFixed(1) + ' points a hand, ' + stats.samples + ' samples' +
-    (stats.negatives ? ' (' + stats.negatives + ' of them deal-ins)' : '') +
-    (stats.replays ? '; ' + stats.replays + ' replays, ' + (100 * stats.changed / (stats.compared || stats.replays)).toFixed(1) + '% changed the points, ' +
-      (100 * stats.better / (stats.compared || stats.replays)).toFixed(1) + '% for the better' + (stats.mismatches ? ', ' + stats.mismatches + ' out of step' : '') : ''));
+  if (out) fs.writeFileSync(path.join(out, "meta.json"), JSON.stringify(Object.assign({ featureVersion: job.features === "v2" ? F2.FEATURE_VERSION : N.FEATURE_VERSION, featureSize: rowSize(job), oracle: job.oracle ? { size: O.SIZE, publicSize: publicSize(job), dangerAt: publicSize(job) + O.DANGER, oracleAt: publicSize(job), per: O.PER, delta: job.oracleDelta } : null, returns: job.returns, rollouts: job.rollouts ? { slots: job.alts + 1 } : null, job }, stats), null, 2) + "\n");
+  console.log("generated " + stats.deals + " deals in " + stats.seconds.toFixed(0) + "s: learner won " + (100 * stats.winRate).toFixed(2) +
+    "% of its seats (" + stats.learnerWins + " hands, " + stats.avgWinDiscards.toFixed(1) + " discards, " + stats.avgWinFaan.toFixed(2) + " faan, " +
+    Math.round(stats.avgWinPoints) + " points a win), " + stats.pointsPerHand.toFixed(1) + " points a hand, " + stats.samples + " samples" +
+    (stats.negatives ? " (" + stats.negatives + " of them deal-ins)" : "") +
+    (stats.replays ? "; " + stats.replays + " replays, " + (100 * stats.changed / (stats.compared || stats.replays)).toFixed(1) + "% changed the points, " +
+      (100 * stats.better / (stats.compared || stats.replays)).toFixed(1) + "% for the better" + (stats.mismatches ? ", " + stats.mismatches + " out of step" : "") : ""));
   return stats;
 }
 
@@ -564,13 +553,13 @@ async function evalWork(job) {
   const record = (o, res, s, game) => {
     o.seats++;
     o.points += res.deltas[s];
-    if (res.type !== 'win') return;
+    if (res.type !== "win") return;
     if (res.winner === s) {
       o.wins++;
       o.winPoints += res.deltas[s];
       o.winDiscards += game.hand.seats[s].discards.length;
       o.winFaan += (res.score && res.score.faan) || 0;
-      if (res.how === 'selfDraw') o.selfDraws++;
+      if (res.how === "selfDraw") o.selfDraws++;
     } else if (res.payer === s) o.dealIns++;
   };
   for (let d = job.from; d < job.to; d++) {
@@ -601,13 +590,13 @@ async function evalWork(job) {
         o.seats++;
         o.points += res.deltas[s];
         if (two) gap += (id === job.lineup[0] ? 1 : -1) * res.deltas[s] / 4;
-        if (res.type !== 'win') return;
+        if (res.type !== "win") return;
         if (res.winner === s) {
           o.wins++;
           o.winPoints += res.deltas[s];
           o.winDiscards += game.hand.seats[s].discards.length;
           o.winFaan += (res.score && res.score.faan) || 0;
-          if (res.how === 'selfDraw') o.selfDraws++;
+          if (res.how === "selfDraw") o.selfDraws++;
         } else if (res.payer === s) o.dealIns++;
       });
     }
@@ -618,21 +607,21 @@ async function evalWork(job) {
 }
 
 async function evaluate(a) {
-  const lineup = String(a.lineup).split(',');
+  const lineup = String(a.lineup).split(",");
   const deals = parseInt(a.deals || 2000, 10), workers = workerCount(a);
   const per = Math.ceil(deals / workers), jobs = [];
-  const table = a.table ? String(a.table).split(',') : null;
-  if (table && table.length !== 3) throw new Error('--table needs three strategies, e.g. neural-cat,jorge-yau,neural-cat');
-  for (let k = 0; k < workers; k++) if (k * per < deals) jobs.push({ mode: 'eval', lineup, table, seed: parseInt(a.seed || 3100000, 10), from: k * per, to: Math.min(deals, (k + 1) * per) });
+  const table = a.table ? String(a.table).split(",") : null;
+  if (table && table.length !== 3) throw new Error("--table needs three strategies, e.g. neural-cat,jorge-yau,neural-cat");
+  for (let k = 0; k < workers; k++) if (k * per < deals) jobs.push({ mode: "eval", lineup, table, seed: parseInt(a.seed || 3100000, 10), from: k * per, to: Math.min(deals, (k + 1) * per) });
   const parts = await Promise.all(jobs.map((job) => new Promise((resolve, reject) => {
-    const child = fork(__filename, ['--worker'], { stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
-    child.on('message', (m) => { if (m.error) reject(new Error(m.error)); else resolve(m.stats); child.kill(); });
+    const child = fork(__filename, ["--worker"], { stdio: ["ignore", "inherit", "inherit", "ipc"] });
+    child.on("message", (m) => { if (m.error) reject(new Error(m.error)); else resolve(m.stats); child.kill(); });
     child.send(job);
   })));
   const sum = {};
   const pair = { n: 0, sum: 0, sq: 0 };
   parts.forEach((p) => Object.keys(p).forEach((id) => {
-    if (id === '_pair') { pair.n += p[id].n; pair.sum += p[id].sum; pair.sq += p[id].sq; return; }
+    if (id === "_pair") { pair.n += p[id].n; pair.sum += p[id].sum; pair.sq += p[id].sq; return; }
     const o = (sum[id] = sum[id] || { seats: 0, wins: 0, points: 0, dealIns: 0, winDiscards: 0, winFaan: 0, selfDraws: 0, winPoints: 0 });
     Object.keys(p[id]).forEach((k) => { o[k] += p[id][k]; });
   }));
@@ -650,11 +639,11 @@ async function evaluate(a) {
     o.avgWinDiscards = o.winDiscards / Math.max(1, o.wins);
     o.avgWinFaan = o.winFaan / Math.max(1, o.wins);
     o.avgWinPoints = o.winPoints / Math.max(1, o.wins);
-    console.log(id + ': won ' + (100 * o.winRate).toFixed(2) + '% of hands (' + o.avgWinDiscards.toFixed(1) + ' discards, ' +
-      o.avgWinFaan.toFixed(2) + ' faan), dealt in ' + (100 * o.dealInRate).toFixed(2) + '%, ' + o.pointsPerHand.toFixed(1) + ' points/hand, ' + Math.round(o.avgWinPoints) + ' points a win');
+    console.log(id + ": won " + (100 * o.winRate).toFixed(2) + "% of hands (" + o.avgWinDiscards.toFixed(1) + " discards, " +
+      o.avgWinFaan.toFixed(2) + " faan), dealt in " + (100 * o.dealInRate).toFixed(2) + "%, " + o.pointsPerHand.toFixed(1) + " points/hand, " + Math.round(o.avgWinPoints) + " points a win");
   });
-  if (paired) console.log(lineup[0] + ' less ' + lineup[1] + ': ' + paired.points.toFixed(1) + ' ± ' + paired.standardError.toFixed(1) + ' points a hand (standard error, ' + paired.deals + ' deals)');
-  if (a.json) fs.writeFileSync(path.resolve(ROOT, a.json), JSON.stringify({ lineup, deals, summary: sum, paired }, null, 2) + '\n');
+  if (paired) console.log(lineup[0] + " less " + lineup[1] + ": " + paired.points.toFixed(1) + " ± " + paired.standardError.toFixed(1) + " points a hand (standard error, " + paired.deals + " deals)");
+  if (a.json) fs.writeFileSync(path.resolve(ROOT, a.json), JSON.stringify({ lineup, deals, summary: sum, paired }, null, 2) + "\n");
   return sum;
 }
 
@@ -663,102 +652,102 @@ async function evaluate(a) {
  * ------------------------------------------------------------------ */
 
 async function league(a) {
-  const dir = path.resolve(ROOT, a.dir || 'ml/lucky');
+  const dir = path.resolve(ROOT, a.dir || "ml/lucky");
   fs.mkdirSync(dir, { recursive: true });
-  fs.mkdirSync(path.join(ROOT, 'ml', 'models'), { recursive: true });
-  const STATE = path.join(dir, 'state.json');
-  const LOG = path.join(dir, 'league.log');
-  const log = (s) => { const line = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' ' + s; console.log(line); fs.appendFileSync(LOG, line + '\n'); };
-  const prefix = a.prefix || 'lc';
-  let state = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : null;
+  fs.mkdirSync(path.join(ROOT, "ml", "models"), { recursive: true });
+  const STATE = path.join(dir, "state.json");
+  const LOG = path.join(dir, "league.log");
+  const log = (s) => { const line = new Date().toISOString().replace("T", " ").slice(0, 19) + " " + s; console.log(line); fs.appendFileSync(LOG, line + "\n"); };
+  const prefix = a.prefix || "lc";
+  let state = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, "utf8")) : null;
   if (!state) {
     // The first model plays at random.
-    const zero = path.join('ml', 'models', prefix + '0.json');
+    const zero = path.join("ml", "models", prefix + "0.json");
     const w = N.zeroWeights();
     w.layers = w.layers.map((l) => ({ rows: l.rows, cols: l.cols, w: Array.from(l.w), b: Array.from(l.b) }));
-    w.meta = { name: prefix + '0', random: true };
+    w.meta = { name: prefix + "0", random: true };
     fs.writeFileSync(path.join(ROOT, zero), JSON.stringify(w));
-    state = { best: { name: prefix + '0', model: zero }, pool: [zero], rounds: [], deals: 0 };
-    fs.writeFileSync(STATE, JSON.stringify(state, null, 2) + '\n');
-    log('League starts from ' + zero + ' (random moves)');
+    state = { best: { name: prefix + "0", model: zero }, pool: [zero], rounds: [], deals: 0 };
+    fs.writeFileSync(STATE, JSON.stringify(state, null, 2) + "\n");
+    log("League starts from " + zero + " (random moves)");
   }
   const rounds = parseInt(a.rounds || 20, 10), deals = parseInt(a.deals || 50000, 10);
-  const keep = parseInt(a.keep || 6, 10), poolSize = parseInt(a['pool-size'] || 6, 10);
-  const extra = a.opponents ? String(a.opponents).split(',') : [];
-  const evalDeals = parseInt(a['eval-deals'] || 2000, 10);
+  const keep = parseInt(a.keep || 6, 10), poolSize = parseInt(a["pool-size"] || 6, 10);
+  const extra = a.opponents ? String(a.opponents).split(",") : [];
+  const evalDeals = parseInt(a["eval-deals"] || 2000, 10);
   const rival = a.rival ? String(a.rival) : null;
-  const rivalAt = parseFloat(a['rival-at'] || 0.1);
-  const rivalDeals = parseInt(a['rival-eval-deals'] || 1000, 10);
+  const rivalAt = parseFloat(a["rival-at"] || 0.1);
+  const rivalDeals = parseInt(a["rival-eval-deals"] || 1000, 10);
   const bestWinRate = () => {
     const r = state.rounds.filter((x) => x.name === state.best.name)[0];
     return r ? r.vsBest.winRate : 0;
   };
   for (let k = 0; k < rounds; k++) {
     const r = state.rounds.length + 1, name = prefix + r;
-    const data = path.join('ml', 'data', name);
+    const data = path.join("ml", "data", name);
     // Opponents: the best and the latest past selves, plus any others.
-    const selves = state.pool.slice(-poolSize).map((m) => 'lc:' + m);
+    const selves = state.pool.slice(-poolSize).map((m) => "lc:" + m);
     if (rival && !state.rivalFrom && bestWinRate() >= rivalAt) {
       state.rivalFrom = r;
-      log('Round ' + r + ': ' + state.best.name + ' wins ' + (100 * bestWinRate()).toFixed(1) + '% of its seats, so ' + rival + ' joins the opponents');
+      log("Round " + r + ": " + state.best.name + " wins " + (100 * bestWinRate()).toFixed(1) + "% of its seats, so " + rival + " joins the opponents");
     }
     const rivals = state.rivalFrom ? new Array(Math.max(1, Math.ceil(selves.length / 2))).fill(rival) : [];
     const pool = selves.concat(rivals, extra);
-    log('Round ' + r + ': ' + deals + ' deals, ' + state.best.model + ' learning against ' + pool.join(', '));
-    const g = await generate({ weights: state.best.model, deals, out: data, pool: pool.join(','), seed: String(7000000 + r * 1000000),
+    log("Round " + r + ": " + deals + " deals, " + state.best.model + " learning against " + pool.join(", "));
+    const g = await generate({ weights: state.best.model, deals, out: data, pool: pool.join(","), seed: String(7000000 + r * 1000000),
       temperature: a.temperature || 1, learners: a.learners || 2, workers: a.workers });
     const recent = state.rounds.map((x) => x.data).concat([data]).slice(-keep);
-    log('Round ' + r + ': training ' + name + ' on ' + recent.join(', '));
-    const tr = spawnSync(require('./python.js').PYTHON, ['ml/train_lucky.py', '--data'].concat(recent,
-      ['--name', name, '--init', state.best.model, '--epochs', String(a.epochs || 6)]), { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 << 20 });
-    fs.appendFileSync(LOG, (tr.stdout || '') + (tr.stderr || ''));
-    if (tr.status !== 0) throw new Error('training failed:\n' + (tr.stderr || '').slice(-2000));
-    const model = path.join('ml', 'models', name + '.json');
-    const ev = await evaluate({ lineup: 'lc:' + model + ',lc:' + state.best.model, deals: evalDeals, seed: String(3100000 + r * 10000),
-      workers: a.workers, json: path.join(path.relative(ROOT, dir), 'eval-' + name + '.json') });
-    const mine = ev['lc:' + model], best = ev['lc:' + state.best.model];
+    log("Round " + r + ": training " + name + " on " + recent.join(", "));
+    const tr = spawnSync(require("./python.js").PYTHON, ["ml/train_lucky.py", "--data"].concat(recent,
+      ["--name", name, "--init", state.best.model, "--epochs", String(a.epochs || 6)]), { cwd: ROOT, encoding: "utf8", maxBuffer: 64 << 20 });
+    fs.appendFileSync(LOG, (tr.stdout || "") + (tr.stderr || ""));
+    if (tr.status !== 0) throw new Error("training failed:\n" + (tr.stderr || "").slice(-2000));
+    const model = path.join("ml", "models", name + ".json");
+    const ev = await evaluate({ lineup: "lc:" + model + ",lc:" + state.best.model, deals: evalDeals, seed: String(3100000 + r * 10000),
+      workers: a.workers, json: path.join(path.relative(ROOT, dir), "eval-" + name + ".json") });
+    const mine = ev["lc:" + model], best = ev["lc:" + state.best.model];
     const kept = mine.winRate > best.winRate;
-    log('Round ' + r + ': ' + name + ' won ' + (100 * mine.winRate).toFixed(2) + '% of hands (' + mine.avgWinDiscards.toFixed(1) +
-      ' discards), the best (' + state.best.name + ') ' + (100 * best.winRate).toFixed(2) + '%' + (kept ? ' -> new best' : ' -> kept ' + state.best.name));
+    log("Round " + r + ": " + name + " won " + (100 * mine.winRate).toFixed(2) + "% of hands (" + mine.avgWinDiscards.toFixed(1) +
+      " discards), the best (" + state.best.name + ") " + (100 * best.winRate).toFixed(2) + "%" + (kept ? " -> new best" : " -> kept " + state.best.name));
     state.rounds.push({ name, data, model, kept, generate: { winRate: g.winRate, learnerWins: g.learnerWins, samples: g.samples },
       vsBest: { winRate: mine.winRate, bestWinRate: best.winRate, avgWinDiscards: mine.avgWinDiscards, pointsPerHand: mine.pointsPerHand } });
     state.deals += deals;
     if (state.rivalFrom) {
       const who = kept ? model : state.best.model;
-      const rv = await evaluate({ lineup: 'lc:' + who + ',' + rival, deals: rivalDeals, seed: String(3500000 + r * 10000),
-        workers: a.workers, json: path.join(path.relative(ROOT, dir), 'rival-' + name + '.json') });
-      const me = rv['lc:' + who], them = rv[rival];
+      const rv = await evaluate({ lineup: "lc:" + who + "," + rival, deals: rivalDeals, seed: String(3500000 + r * 10000),
+        workers: a.workers, json: path.join(path.relative(ROOT, dir), "rival-" + name + ".json") });
+      const me = rv["lc:" + who], them = rv[rival];
       state.rounds[state.rounds.length - 1].vsRival = { model: who, winRate: me.winRate, rivalWinRate: them.winRate,
         avgWinDiscards: me.avgWinDiscards, pointsPerHand: me.pointsPerHand, rivalPointsPerHand: them.pointsPerHand };
-      log('Round ' + r + ': against ' + rival + ', ' + path.basename(who, '.json') + ' won ' + (100 * me.winRate).toFixed(2) + '% of hands (' +
-        me.pointsPerHand.toFixed(1) + ' points/hand), ' + rival + ' ' + (100 * them.winRate).toFixed(2) + '% (' + them.pointsPerHand.toFixed(1) + ')');
+      log("Round " + r + ": against " + rival + ", " + path.basename(who, ".json") + " won " + (100 * me.winRate).toFixed(2) + "% of hands (" +
+        me.pointsPerHand.toFixed(1) + " points/hand), " + rival + " " + (100 * them.winRate).toFixed(2) + "% (" + them.pointsPerHand.toFixed(1) + ")");
     }
     if (kept) {
       state.best = { name, model };
       state.pool.push(model);
-      if (!a['no-ship']) {
-        require('./ship.js').ship(path.join(ROOT, model), 'lucky-cat');
-        log('Shipped ' + name + ' to js/mahjong-lucky-cat-weights.js');
+      if (!a["no-ship"]) {
+        require("./ship.js").ship(path.join(ROOT, model), "lucky-cat");
+        log("Shipped " + name + " to js/mahjong-lucky-cat-weights.js");
       }
     }
-    fs.writeFileSync(STATE, JSON.stringify(state, null, 2) + '\n');
+    fs.writeFileSync(STATE, JSON.stringify(state, null, 2) + "\n");
   }
-  log('Done. Best: ' + state.best.name + ' after ' + state.deals + ' deals');
+  log("Done. Best: " + state.best.name + " after " + state.deals + " deals");
 }
 
 /* ------------------------------------------------------------------ */
 
-if (process.argv.includes('--worker')) {
-  process.on('message', (job) => {
-    (job.mode === 'eval' ? evalWork(job) : work(job))
+if (process.argv.includes("--worker")) {
+  process.on("message", (job) => {
+    (job.mode === "eval" ? evalWork(job) : work(job))
       .then((stats) => process.send({ stats }))
       .catch((err) => process.send({ error: err.stack || String(err) }));
   });
 } else if (require.main === module) {
   const a = parseArgs(process.argv.slice(2));
   const cmd = a._[0];
-  const run = cmd === 'generate' ? generate : cmd === 'eval' ? evaluate : cmd === 'league' ? league : null;
-  if (!run) { console.error('usage: lucky.js generate|eval|league [options]'); process.exit(2); }
+  const run = cmd === "generate" ? generate : cmd === "eval" ? evaluate : cmd === "league" ? league : null;
+  if (!run) { console.error("usage: lucky.js generate|eval|league [options]"); process.exit(2); }
   run(a).catch((err) => { console.error(err.stack || err.message); process.exit(1); });
 }
 

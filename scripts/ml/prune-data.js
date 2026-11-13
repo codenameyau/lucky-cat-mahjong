@@ -16,27 +16,27 @@
      --data DIR   the data folder (default ml/data)
      --league DIR the league's folder, for state.json (default ml/league) */
 
-'use strict';
+"use strict";
 
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 
-const ROOT = path.join(__dirname, '..', '..');
+const ROOT = path.join(__dirname, "..", "..");
 
 function readJson(file) {
-  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (err) { return null; }
+  try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch (err) { return null; }
 }
 
 // The sets whose data stays, or null with no league (keep everything).
 function keptSets(window, leagueDir) {
-  const state = readJson(path.join(leagueDir || path.join(ROOT, 'ml', 'league'), 'state.json'));
+  const state = readJson(path.join(leagueDir || path.join(ROOT, "ml", "league"), "state.json"));
   if (!state) return null;
   const keep = new Set();
   const best = readJson(path.join(ROOT, state.best));
   ((best && best.meta && best.meta.data) || []).forEach((d) => keep.add(path.basename(d)));
   const playing = state.rounds.length + 1;
-  for (let r = Math.max(1, playing - window + 1); r <= playing; r++) keep.add('league-' + r);
+  for (let r = Math.max(1, playing - window + 1); r <= playing; r++) keep.add("league-" + r);
   return keep;
 }
 
@@ -54,14 +54,14 @@ function unused(dataDir, keep) {
 // (not macOS), nothing moves and the caller is told why.
 function prune(opts) {
   opts = opts || {};
-  const dataDir = opts.data || path.join(ROOT, 'ml', 'data');
+  const dataDir = opts.data || path.join(ROOT, "ml", "data");
   // opts.keep: the caller's own set of names to keep (the lab's), instead of the league's.
   const gone = unused(dataDir, opts.keep || keptSets(opts.window || 8, opts.league));
   if (!opts.apply || !gone.length) return { names: gone, moved: false };
-  const trash = path.join(os.homedir(), '.Trash');
-  if (!fs.existsSync(trash)) return { names: gone, moved: false, reason: 'no ~/.Trash folder here: delete them yourself' };
-  const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
-  gone.forEach((n) => fs.renameSync(path.join(dataDir, n), path.join(trash, 'lucky-cat-mahjong-' + n + '-' + stamp)));
+  const trash = path.join(os.homedir(), ".Trash");
+  if (!fs.existsSync(trash)) return { names: gone, moved: false, reason: "no ~/.Trash folder here: delete them yourself" };
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+  gone.forEach((n) => fs.renameSync(path.join(dataDir, n), path.join(trash, "lucky-cat-mahjong-" + n + "-" + stamp)));
   return { names: gone, moved: true };
 }
 
@@ -69,13 +69,13 @@ module.exports = { keptSets, unused, prune };
 
 if (require.main === module) {
   const argv = process.argv.slice(2);
-  const arg = (k) => { const i = argv.indexOf('--' + k); return i === -1 ? undefined : argv[i + 1]; };
+  const arg = (k) => { const i = argv.indexOf("--" + k); return i === -1 ? undefined : argv[i + 1]; };
   const res = prune({
-    apply: argv.indexOf('--apply') !== -1,
-    window: parseInt(arg('window') || 8, 10),
-    data: arg('data') ? path.resolve(arg('data')) : undefined,
-    league: arg('league') ? path.resolve(arg('league')) : undefined,
+    apply: argv.indexOf("--apply") !== -1,
+    window: parseInt(arg("window") || 8, 10),
+    data: arg("data") ? path.resolve(arg("data")) : undefined,
+    league: arg("league") ? path.resolve(arg("league")) : undefined,
   });
-  if (!res.names.length) console.log('Nothing to prune.');
-  else console.log((res.moved ? 'Moved to the Trash: ' : res.reason ? 'Not moved (' + res.reason + '): ' : 'Would move to the Trash (run with --apply): ') + res.names.join(', '));
+  if (!res.names.length) console.log("Nothing to prune.");
+  else console.log((res.moved ? "Moved to the Trash: " : res.reason ? "Not moved (" + res.reason + "): " : "Would move to the Trash (run with --apply): ") + res.names.join(", "));
 }

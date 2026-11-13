@@ -35,15 +35,15 @@
   <link rel="stylesheet" href="/css/play.css">
   <script>
     // The table covers the page from the first paint.
-    document.documentElement.classList.add('is-playing');
+    document.documentElement.classList.add("is-playing");
     // The colour theme from the saved game prefs, before the first paint. No saved theme
     // is the default (red). The colours are CSS variables (css/play.css), the address bar's too.
     try {
-      var t = JSON.parse(localStorage.getItem('lcm-play-prefs') || '{}').theme;
-      if (typeof t === 'string' && /^[a-z]+$/.test(t)) document.documentElement.setAttribute('data-theme', t);
-      var c = getComputedStyle(document.documentElement).getPropertyValue('--theme-meta').trim();
+      var t = JSON.parse(localStorage.getItem("lcm-play-prefs") || "{}").theme;
+      if (typeof t === "string" && /^[a-z]+$/.test(t)) document.documentElement.setAttribute("data-theme", t);
+      var c = getComputedStyle(document.documentElement).getPropertyValue("--theme-meta").trim();
       if (c) {
-        document.querySelector('meta[name="theme-color"]').setAttribute('content', c);
+        document.querySelector("meta[name=\"theme-color\"]").setAttribute("content", c);
         document.documentElement.style.backgroundColor = c;
       }
     } catch (e) {}
@@ -60,12 +60,12 @@
     // The visitor and session IDs and the cookie choice (js/analytics-id.js), before the page view.
     if (window.lcmAnalytics) window.lcmAnalytics.start(gtag);
     if (!localHost) {
-      var gaScript = document.createElement('script');
+      var gaScript = document.createElement("script");
       gaScript.async = true;
-      gaScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-B514HH987M';
+      gaScript.src = "https://www.googletagmanager.com/gtag/js?id=G-B514HH987M";
       document.head.appendChild(gaScript);
-      gtag('js', new Date());
-      gtag('config', 'G-B514HH987M');
+      gtag("js", new Date());
+      gtag("config", "G-B514HH987M");
     }
   </script>
 </head>

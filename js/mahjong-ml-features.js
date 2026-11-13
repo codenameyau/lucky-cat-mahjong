@@ -25,26 +25,26 @@
    GROUPS: the named feature ranges, for explaining a choice. */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
-  var node = typeof module !== 'undefined' && module.exports;
-  var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var B = node ? require('./mahjong-bot.js') : root.MahjongBot;
+  var node = typeof module !== "undefined" && module.exports;
+  var E = node ? require("./mahjong-engine.js") : root.MahjongEngine;
+  var B = node ? require("./mahjong-bot.js") : root.MahjongBot;
 
   var FEATURE_VERSION = 2;
   var DRAGONS = [31, 32, 33];
-  var FAMILIES = ['runs', 'sets', 'pairs', 'majors', 'dragons', 'winds', 'orphans', 'gates', 'flush', 'standard'];
-  var SUITS = ['c', 'd', 'b'];
+  var FAMILIES = ["runs", "sets", "pairs", "majors", "dragons", "winds", "orphans", "gates", "flush", "standard"];
+  var SUITS = ["c", "d", "b"];
 
   // The layout: each group is [name, size]. Explanations switch groups off.
   var LAYOUT = [
-    ['hand', 34 * 4 + 34 + 8],    // tiles kept (1+, 2+, 3+, 4 copies), own melds, meld kinds
-    ['discard', 34 + 6],          // the tile thrown and what kind of tile it is
-    ['table', 34 + 3 * (34 + 34 + 12)], // unseen copies; each opponent's discards, melds, reads
-    ['context', 16],              // wall, turn, winds, dealer
-    ['speed', 16],                // steps from ready and live tiles
-    ['value', 32],                // the best plan and what a win scores
-    ['safety', 12],               // how likely the tile deals in
+    ["hand", 34 * 4 + 34 + 8],    // tiles kept (1+, 2+, 3+, 4 copies), own melds, meld kinds
+    ["discard", 34 + 6],          // the tile thrown and what kind of tile it is
+    ["table", 34 + 3 * (34 + 34 + 12)], // unseen copies; each opponent's discards, melds, reads
+    ["context", 16],              // wall, turn, winds, dealer
+    ["speed", 16],                // steps from ready and live tiles
+    ["value", 32],                // the best plan and what a win scores
+    ["safety", 12],               // how likely the tile deals in
   ];
   var GROUPS = {};
   var SIZE = 0;
@@ -109,9 +109,9 @@
     for (i = 0; i < 34; i++) x[p + i] = state.own.counts[i] / 4;
     p += 34;
     var melds = ctx.melds;
-    x[p] = melds.filter(function (m) { return m.type === 'chow'; }).length / 4;
-    x[p + 1] = melds.filter(function (m) { return m.type === 'pung'; }).length / 4;
-    x[p + 2] = melds.filter(function (m) { return m.type === 'kong'; }).length / 4;
+    x[p] = melds.filter(function (m) { return m.type === "chow"; }).length / 4;
+    x[p + 1] = melds.filter(function (m) { return m.type === "pung"; }).length / 4;
+    x[p + 2] = melds.filter(function (m) { return m.type === "kong"; }).length / 4;
     x[p + 3] = ctx.concealed ? 1 : 0;
     x[p + 4] = ctx.flowers.length / 8;
     x[p + 5] = state.flowerFaan / 4;
@@ -191,7 +191,7 @@
     var plan = best.plan || null;
     if (plan) {
       var fam = b.planFamily(plan.id);
-      var famKey = /^flush/.test(fam) ? 'flush' : fam;
+      var famKey = /^flush/.test(fam) ? "flush" : fam;
       var fi = FAMILIES.indexOf(famKey);
       x[p + (fi === -1 ? FAMILIES.length - 1 : fi)] = 1; // 10
       x[p + 10] = /^full/.test(plan.id) ? 1 : 0;
@@ -207,7 +207,7 @@
     x[p + 21] = ready ? clip(ready.bestFaan || 0, 0, 13) / 13 : 0;
     x[p + 22] = ready ? log1(ready.value) / 3 : 0;
     var su = { c: 0, d: 0, b: 0, z: 0 };
-    for (i = 0; i < 34; i++) su[i >= 27 ? 'z' : E.suitOfIndex(i)] += c[i] + state.own.counts[i];
+    for (i = 0; i < 34; i++) su[i >= 27 ? "z" : E.suitOfIndex(i)] += c[i] + state.own.counts[i];
     x[p + 23] = su.c / 14; x[p + 24] = su.d / 14; x[p + 25] = su.b / 14; x[p + 26] = su.z / 14;
     var nPairs = 0, nSets = 0, valueHonors = 0;
     for (i = 0; i < 34; i++) {
@@ -277,4 +277,4 @@
 
   if (node) module.exports = api;
   else root.MahjongMLFeatures = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== "undefined" ? globalThis : this);

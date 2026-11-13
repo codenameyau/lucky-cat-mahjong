@@ -10,21 +10,21 @@
    The game's own worker from before (scope /play-mahjong/) is retired. */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
-  var C = root.MahjongOfflineCache || (typeof require === 'function' ? require('./offline-cache.js') : null);
+  var C = root.MahjongOfflineCache || (typeof require === "function" ? require("./offline-cache.js") : null);
   var nav = root.navigator || {};
-  var loc = root.location || { protocol: 'file:', hostname: '' };
+  var loc = root.location || { protocol: "file:", hostname: "" };
 
   // null when it can work here, or why not: 'file', 'insecure' or 'browser'.
   function unsupportedReason() {
-    if (!/^https?:$/.test(loc.protocol)) return 'file';
-    if (root.isSecureContext === false) return 'insecure';
-    if (!nav.serviceWorker || !root.caches) return 'browser';
+    if (!/^https?:$/.test(loc.protocol)) return "file";
+    if (root.isSecureContext === false) return "insecure";
+    if (!nav.serviceWorker || !root.caches) return "browser";
     return null;
   }
 
-  var state = { status: 'idle' };
+  var state = { status: "idle" };
   var registration = null;
   var saving = null;
 
@@ -54,11 +54,11 @@
     if (registration) return registration;
     registration = dropOldWorker().then(function () {
       // updateViaCache 'none': update checks fetch the worker and its imports fresh.
-      return nav.serviceWorker.register(C.scriptUrl(version()), { scope: C.SCOPE, updateViaCache: 'none' });
+      return nav.serviceWorker.register(C.scriptUrl(version()), { scope: C.SCOPE, updateViaCache: "none" });
     })
       .catch(function (err) {
         registration = null;
-        if (root.console) console.warn('Offline: the service worker did not register.', err);
+        if (root.console) console.warn("Offline: the service worker did not register.", err);
         return null;
       });
     return registration;
@@ -66,38 +66,38 @@
 
   // Saves what this version's cache is still missing, when there's a connection.
   function topUp() {
-    if (unsupportedReason()) { state = { status: 'unsupported', reason: unsupportedReason() }; return Promise.resolve(state); }
+    if (unsupportedReason()) { state = { status: "unsupported", reason: unsupportedReason() }; return Promise.resolve(state); }
     if (saving) return saving;
     if (nav.onLine === false) return Promise.resolve(state);
     var fresh = false; // this load saved files, so the event fires once per version saved
     saving = C.missing(root.caches, version()).then(function (left) {
       if (!left.length) return { ok: true, failed: [] };
-      state = { status: 'saving' };
+      state = { status: "saving" };
       fresh = true;
       return C.precache({ caches: root.caches, fetch: root.fetch.bind(root), version: version(), onlyMissing: true });
     }).then(function (res) {
-      state = res.ok ? { status: 'ready' } : { status: 'partial', failed: res.failed };
-      if (fresh) track(res.ok ? 'offline_ready' : 'offline_partial', res.ok ? { version: version() } : { version: version(), failed_count: (res.failed || []).length });
+      state = res.ok ? { status: "ready" } : { status: "partial", failed: res.failed };
+      if (fresh) track(res.ok ? "offline_ready" : "offline_partial", res.ok ? { version: version() } : { version: version(), failed_count: (res.failed || []).length });
       return state;
     }, function () {
-      state = { status: 'partial' };
+      state = { status: "partial" };
       return state;
     }).then(function (s) { saving = null; return s; });
     return saving;
   }
 
   function track(name, params) {
-    if (typeof root.gtag === 'function') root.gtag('event', name, params || {});
+    if (typeof root.gtag === "function") root.gtag("event", name, params || {});
   }
 
   // Installing the site as an app (Add to Home Screen / Install app), and
   // opening it from that icon.
   function watchInstall() {
     if (!root.addEventListener) return;
-    root.addEventListener('beforeinstallprompt', function () { track('app_install_prompt', {}); });
-    root.addEventListener('appinstalled', function () { track('app_installed', {}); });
-    var standalone = (root.matchMedia && root.matchMedia('(display-mode: standalone)').matches) || nav.standalone === true;
-    if (standalone) track('app_open_installed', {});
+    root.addEventListener("beforeinstallprompt", function () { track("app_install_prompt", {}); });
+    root.addEventListener("appinstalled", function () { track("app_installed", {}); });
+    var standalone = (root.matchMedia && root.matchMedia("(display-mode: standalone)").matches) || nav.standalone === true;
+    if (standalone) track("app_open_installed", {});
   }
 
   function init() {
@@ -116,22 +116,22 @@
       });
     };
     // A newer version took over (or answered a refresh): reload onto its code.
-    nav.serviceWorker.addEventListener('message', function (event) {
+    nav.serviceWorker.addEventListener("message", function (event) {
       var data = event.data || {};
-      if (data.type === 'version' || data.type === 'refreshed') reloadIfNewer(data.version);
+      if (data.type === "version" || data.type === "refreshed") reloadIfNewer(data.version);
     });
-    if (root.document && root.document.readyState !== 'complete') root.addEventListener('load', go);
+    if (root.document && root.document.readyState !== "complete") root.addEventListener("load", go);
     else go();
     // Back online: look for a newer worker, fetch every saved file again so
     // nothing stays stale, and save whatever is missing.
-    root.addEventListener('online', refreshOnline);
+    root.addEventListener("online", refreshOnline);
   }
 
   // The page runs older code than the worker now answering: reload once, so
   // the latest code runs. Once per version, so a mismatch can never loop.
   function reloadIfNewer(workerVersion) {
     if (!workerVersion || !newer(workerVersion, version())) return false;
-    var key = 'lcm-reloaded-for';
+    var key = "lcm-reloaded-for";
     try {
       if (root.sessionStorage.getItem(key) === workerVersion) return false;
       root.sessionStorage.setItem(key, workerVersion);
@@ -142,8 +142,8 @@
 
   // a > b, as versions (0.46.0 > 0.45.9).
   function newer(a, b) {
-    var x = String(a).split('.').map(Number);
-    var y = String(b || '0').split('.').map(Number);
+    var x = String(a).split(".").map(Number);
+    var y = String(b || "0").split(".").map(Number);
     for (var i = 0; i < 3; i++) {
       if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
     }
@@ -156,7 +156,7 @@
       var check = reg.update ? reg.update().catch(function () {}) : Promise.resolve();
       return check.then(function () {
         var worker = reg.active || (nav.serviceWorker && nav.serviceWorker.controller);
-        if (worker && worker.postMessage) worker.postMessage({ type: 'refresh' });
+        if (worker && worker.postMessage) worker.postMessage({ type: "refresh" });
         return topUp();
       });
     });
@@ -173,6 +173,6 @@
     reloadIfNewer: reloadIfNewer,
   };
   root.MahjongOffline = api;
-  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
   else init();
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== "undefined" ? globalThis : this);

@@ -6,7 +6,7 @@
    mahjong-strategies.js, scoring in points.js. */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
   var E = root.MahjongEngine;
   var Coach = root.MahjongCoach;
@@ -14,17 +14,17 @@
   var Strategies = root.MahjongStrategies;
   var Lesson = root.MahjongLesson;
 
-  var SETTINGS_KEY = 'lcm-play-settings';
-  var PREFS_KEY = 'lcm-play-prefs';
+  var SETTINGS_KEY = "lcm-play-settings";
+  var PREFS_KEY = "lcm-play-prefs";
   // { coach: id }. The computer players are not saved: each gets a random
   // strategy every game.
-  var STRATEGIES_KEY = 'lcm-play-strategies';
+  var STRATEGIES_KEY = "lcm-play-strategies";
   // The one saved game on this device, signed (HMAC-SHA256). Each turn writes
   // it; Resume game reads it. Quit leaves it.
-  var AUTOSAVE_KEY = 'lcm-play-autosave';
+  var AUTOSAVE_KEY = "lcm-play-autosave";
   // The signed playback View playback and a finished hand save. The playback
   // page opens it on its own.
-  var REPLAY_KEY = 'lcm-play-replay';
+  var REPLAY_KEY = "lcm-play-replay";
   // The playback of a hand still being played. Its file holds the whole deal,
   // so it is never written to storage: it lives here, for the playback view
   // on this page, and goes when the page does.
@@ -50,15 +50,15 @@
   // place of its own, so it never replaces the game's (REPLAY_KEY): View
   // playback on the game always shows the game. A refresh while it shows
   // brings it back.
-  var UPLOAD_KEY = 'lcm-play-upload';
+  var UPLOAD_KEY = "lcm-play-upload";
   // The three most recent finished hands, newest first: [{ savedAt, file }].
   // The View playback sheet lists them, each with Play and Download.
-  var RECENT_KEY = 'lcm-play-recent';
+  var RECENT_KEY = "lcm-play-recent";
   var RECENT_MAX = 3;
   // One hand's playback, whoever saved it.
   function playbackId(file) {
     var p = file && file.payload;
-    return p ? p.handSeed + ':' + p.handNumber + ':' + file.moves : null;
+    return p ? p.handSeed + ":" + p.handNumber + ":" + file.moves : null;
   }
   function recentPlaybacks() {
     var list = readJson(RECENT_KEY, null);
@@ -85,9 +85,9 @@
   }
   // Each strategy's hints for the game in progress: { v: 1, lists: { id: [note, ...] } }.
   // A new game overwrites it. Switching the coach only picks which list shows.
-  var HINTS_KEY = 'lcm-play-hints';
-  var PLAYBACK_EMPTY = 'Pick one of your recent hands, or upload a playback file.';
-  var SEAT_SIDES = ['', 'your right', 'across', 'your left'];
+  var HINTS_KEY = "lcm-play-hints";
+  var PLAYBACK_EMPTY = "Pick one of your recent hands, or upload a playback file.";
+  var SEAT_SIDES = ["", "your right", "across", "your left"];
   var TILE_ASPECT = 1.4;
   var TILE_GAP = 4;
   // On an upright phone: between your hand's tiles, and between the computers'
@@ -102,24 +102,24 @@
   // by applyTheme; the values here are the default (red) theme's, for when there is
   // no stylesheet to read.
   var COLORS = {
-    felt: '#6e1a2c',
-    feltLight: '#8c2639',
-    feltDark: '#4a0f1c',
-    green: '#7f2336', // the tile's edge
-    primary: '#C41E3A', // the primary buttons and badges
-    primaryHover: '#D62A47',
-    backLight: '#d8344f', // tile backs: light face (the main colour is primary) and dark edge
-    backDark: '#8f1229',
-    accent: '#EE6A80', // text on a dark bar: hand names in the coach's notes
-    red: '#C41E3A', // the brand red, for what means red whatever the theme
-    redDark: '#8f1229',
-    redLight: '#EE6A80', // the brand red, lightened to read on the dark coach bar (losses)
-    gold: '#F4A020',
-    goldLight: '#ffd27a',
-    cream: '#FFF8F0',
-    ink: '#1A1A1A',
-    muted: '#5C5C5C',
-    white: '#ffffff',
+    felt: "#6e1a2c",
+    feltLight: "#8c2639",
+    feltDark: "#4a0f1c",
+    green: "#7f2336", // the tile's edge
+    primary: "#C41E3A", // the primary buttons and badges
+    primaryHover: "#D62A47",
+    backLight: "#d8344f", // tile backs: light face (the main colour is primary) and dark edge
+    backDark: "#8f1229",
+    accent: "#EE6A80", // text on a dark bar: hand names in the coach's notes
+    red: "#C41E3A", // the brand red, for what means red whatever the theme
+    redDark: "#8f1229",
+    redLight: "#EE6A80", // the brand red, lightened to read on the dark coach bar (losses)
+    gold: "#F4A020",
+    goldLight: "#ffd27a",
+    cream: "#FFF8F0",
+    ink: "#1A1A1A",
+    muted: "#5C5C5C",
+    white: "#ffffff",
   };
 
 
@@ -128,39 +128,39 @@
   // the sheets, the page and the canvas all read the same ones; only the labels
   // and the order are here. applyTheme sets <html data-theme> and copies the
   // theme's variables into COLORS.
-  var THEMES = { red: { label: 'Red' }, green: { label: 'Green' }, blue: { label: 'Blue' } };
-  var THEME_ORDER = ['red', 'green', 'blue'];
-  var DEFAULT_THEME = 'red';
+  var THEMES = { red: { label: "Red" }, green: { label: "Green" }, blue: { label: "Blue" } };
+  var THEME_ORDER = ["red", "green", "blue"];
+  var DEFAULT_THEME = "red";
   var THEME_COLORS = {
-    felt: '--theme-felt', feltLight: '--theme-light', feltDark: '--theme-dark', green: '--theme-edge',
-    primary: '--theme-primary', primaryHover: '--theme-primary-hover',
-    backLight: '--theme-back-light', backDark: '--theme-back-dark', accent: '--theme-accent',
+    felt: "--theme-felt", feltLight: "--theme-light", feltDark: "--theme-dark", green: "--theme-edge",
+    primary: "--theme-primary", primaryHover: "--theme-primary-hover",
+    backLight: "--theme-back-light", backDark: "--theme-back-dark", accent: "--theme-accent",
   };
   function themeName(name) { return THEMES[name] ? name : DEFAULT_THEME; }
   function applyTheme(name) {
     name = themeName(name);
-    var hasDom = typeof document !== 'undefined' && document.documentElement && document.documentElement.setAttribute;
-    if (hasDom) document.documentElement.setAttribute('data-theme', name);
+    var hasDom = typeof document !== "undefined" && document.documentElement && document.documentElement.setAttribute;
+    if (hasDom) document.documentElement.setAttribute("data-theme", name);
     var meta = null;
-    if (hasDom && typeof getComputedStyle === 'function') {
+    if (hasDom && typeof getComputedStyle === "function") {
       var css = getComputedStyle(document.documentElement);
       Object.keys(THEME_COLORS).forEach(function (key) {
-        var value = String(css.getPropertyValue(THEME_COLORS[key]) || '').trim();
+        var value = String(css.getPropertyValue(THEME_COLORS[key]) || "").trim();
         if (value) COLORS[key] = value;
       });
-      meta = String(css.getPropertyValue('--theme-meta') || '').trim() || null;
+      meta = String(css.getPropertyValue("--theme-meta") || "").trim() || null;
     }
     spriteCache = {}; // the tile backs are drawn in the theme's colour
     // The browser's address bar takes the theme's colour right away, not on the next load.
     if (meta && document.querySelectorAll) {
       // Safari only repaints its bars for a new tag, so the old ones are replaced, not edited.
-      var bars = document.querySelectorAll('meta[name="theme-color"]');
-      var head = document.head || document.getElementsByTagName('head')[0];
+      var bars = document.querySelectorAll("meta[name=\"theme-color\"]");
+      var head = document.head || document.getElementsByTagName("head")[0];
       for (var i = 0; i < bars.length; i++) bars[i].parentNode.removeChild(bars[i]);
-      var bar = document.createElement('meta');
+      var bar = document.createElement("meta");
       if (bar && bar.setAttribute && head) {
-        bar.setAttribute('name', 'theme-color');
-        bar.setAttribute('content', meta);
+        bar.setAttribute("name", "theme-color");
+        bar.setAttribute("content", meta);
         head.appendChild(bar);
       }
       // Newer Safari tints its bars from the page's own background instead.
@@ -177,24 +177,24 @@
   // positioning for one frame (absolute fills the same unscrolled page, so
   // nothing moves) and comes back, and Safari picks up the new colour.
   function resampleBars() {
-    var stage = document.getElementById ? document.getElementById('play-stage') : null;
+    var stage = document.getElementById ? document.getElementById("play-stage") : null;
     if (!stage || !stage.style || stage.hidden) return;
-    var later = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : function (f) { return setTimeout(f, 16); };
-    stage.style.position = 'absolute';
-    later(function () { later(function () { stage.style.position = ''; }); });
+    var later = typeof requestAnimationFrame === "function" ? requestAnimationFrame : function (f) { return setTimeout(f, 16); };
+    stage.style.position = "absolute";
+    later(function () { later(function () { stage.style.position = ""; }); });
   }
-  var FONT_BODY = '"Avenir Medium", "Avenir Next Medium", Avenir, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  var FONT_BODY = "\"Avenir Medium\", \"Avenir Next Medium\", Avenir, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif";
   // The site's heading font (css/fonts.css), for headings, winds and banners.
-  var FONT_HEAD = '"KN Yuanmo SC", ' + FONT_BODY;
-  var WIND_LETTERS = ['', 'E', 'S', 'W', 'N'];
-  var TAP_TWICE = 'Tap a tile twice to discard it.';
+  var FONT_HEAD = "\"KN Yuanmo SC\", " + FONT_BODY;
+  var WIND_LETTERS = ["", "E", "S", "W", "N"];
+  var TAP_TWICE = "Tap a tile twice to discard it.";
 
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function now() { return (root.performance && performance.now) ? performance.now() : Date.now(); }
   function easeInOut(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
   function easeBack(t) { var c = 1.7; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
-  function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
-  function signed(n) { return (n > 0 ? '+' : n < 0 ? '−' : '±') + fmt(Math.abs(n)); }
+  function fmt(n) { return Math.round(n).toLocaleString("en-US"); }
+  function signed(n) { return (n > 0 ? "+" : n < 0 ? "−" : "±") + fmt(Math.abs(n)); }
 
   function readJson(key, fallback) {
     try {
@@ -212,11 +212,11 @@
 
   // Strategies saved under an older id.
   // Frontier Cat (0.58) was Neural Cat with a stacked model; it folded into Neural Cat's lineage.
-  var RENAMED_STRATEGIES = { 'claude-cat': 'lucky-cat', 'no-defense': 'jorge-yau', 'frontier-cat': 'neural-cat' };
+  var RENAMED_STRATEGIES = { "claude-cat": "lucky-cat", "no-defense": "jorge-yau", "frontier-cat": "neural-cat" };
   // Before 0.6.0 the lucky-cat and jorge-yau ids were the other way round.
   // Saved choices from then have no `v`; saves from then are older than
   // SWAPPED_BEFORE.
-  var SWAPPED_STRATEGIES = { 'lucky-cat': 'jorge-yau', 'jorge-yau': 'lucky-cat' };
+  var SWAPPED_STRATEGIES = { "lucky-cat": "jorge-yau", "jorge-yau": "lucky-cat" };
   var SWAPPED_BEFORE = [0, 6, 0];
 
   function swapOldIds(list) {
@@ -224,7 +224,7 @@
   }
 
   function savedBeforeSwap(version) {
-    var v = String(version || '').split('.').map(Number);
+    var v = String(version || "").split(".").map(Number);
     for (var k = 0; k < 3; k++) {
       if ((v[k] || 0) !== SWAPPED_BEFORE[k]) return (v[k] || 0) < SWAPPED_BEFORE[k];
     }
@@ -256,18 +256,18 @@
   }
 
   function track(name, params) {
-    if (typeof root.gtag === 'function') root.gtag('event', name, params || {});
+    if (typeof root.gtag === "function") root.gtag("event", name, params || {});
   }
 
   // GA4 user properties, for splitting reports by player (register each as a
   // user-scoped custom dimension). Never anything personal or about the tiles.
   function setUserProperties(props) {
-    if (typeof root.gtag === 'function') root.gtag('set', 'user_properties', props);
+    if (typeof root.gtag === "function") root.gtag("set", "user_properties", props);
   }
 
   // How many games this browser has started, kept only on the device: the
   // first is a new player, any later one a returning player.
-  var ANALYTICS_KEY = 'lcm-analytics';
+  var ANALYTICS_KEY = "lcm-analytics";
   function countGameStarted() {
     var a = readJson(ANALYTICS_KEY, {}) || {};
     a.games = (a.games || 0) + 1;
@@ -280,25 +280,25 @@
   // playback speed. Tiles and the buttons that play a move (Win, Kong, Pung,
   // Chow, Pass, Discard) are not tracked.
   var BUTTON_EVENTS = {
-    menu: 'play_menu_open',
-    fullscreen: 'play_fullscreen_click',
-    'show-hands': 'play_show_hands_click',
-    next: 'play_next_hand_click',
-    'see-results': 'play_see_results_click',
-    'm-resume': 'play_menu_resume_click',
-    'm-close': 'play_menu_resume_click',
-    'm-restart': 'play_menu_restart_click',
-    'm-quit': 'play_menu_quit_click',
-    'go-again': 'play_again_click',
-    'go-results': 'play_end_results_click',
-    'go-quit': 'play_end_quit_click',
-    'go-close': 'play_end_close_click',
-    'review-prev': 'play_playback_prev_click',
-    'review-next': 'play_playback_next_click',
-    'review-back': 'play_playback_back_click',
-    'review-result-back': 'play_playback_back_click',
-    'review-list': 'play_playback_list_click',
-    'review-list-center': 'play_playback_list_click',
+    menu: "play_menu_open",
+    fullscreen: "play_fullscreen_click",
+    "show-hands": "play_show_hands_click",
+    next: "play_next_hand_click",
+    "see-results": "play_see_results_click",
+    "m-resume": "play_menu_resume_click",
+    "m-close": "play_menu_resume_click",
+    "m-restart": "play_menu_restart_click",
+    "m-quit": "play_menu_quit_click",
+    "go-again": "play_again_click",
+    "go-results": "play_end_results_click",
+    "go-quit": "play_end_quit_click",
+    "go-close": "play_end_close_click",
+    "review-prev": "play_playback_prev_click",
+    "review-next": "play_playback_next_click",
+    "review-back": "play_playback_back_click",
+    "review-result-back": "play_playback_back_click",
+    "review-list": "play_playback_list_click",
+    "review-list-center": "play_playback_list_click",
   };
 
   /* ------------------------------------------------------------------ *
@@ -310,7 +310,7 @@
 
   function loadScript(src) {
     return new Promise(function (resolve) {
-      var el = document.createElement('script');
+      var el = document.createElement("script");
       el.src = src;
       el.onload = resolve;
       el.onerror = resolve; // like an image, a miss must not stop the game starting
@@ -321,7 +321,7 @@
   function loadImage(src) {
     return new Promise(function (resolve) {
       var img = new Image();
-      img.decoding = 'async';
+      img.decoding = "async";
       img.onload = function () { resolve(img); };
       img.onerror = function () { resolve(null); };
       img.src = src;
@@ -332,18 +332,18 @@
     if (assetsReady) return assetsReady;
     var ids = E.TILE_IDS.concat(E.BONUS_IDS);
     var jobs = ids.map(function (id) {
-      return loadImage('/tiles/' + E.HKScoring.TILE_BY_ID[id].file).then(function (img) { images[id] = img; });
+      return loadImage("/tiles/" + E.HKScoring.TILE_BY_ID[id].file).then(function (img) { images[id] = img; });
     });
-    jobs.push(loadImage('/logo.png').then(function (img) { images.logo = img; }));
+    jobs.push(loadImage("/logo.png").then(function (img) { images.logo = img; }));
     // Neural Cat's and Lucky Cat's weights are the page's biggest scripts. The menu does not
     // need them, so they load here, before a strategy first builds its model.
-    if (!root.MahjongMLWeights) jobs.push(loadScript('/js/mahjong-ml-weights.js'));
+    if (!root.MahjongMLWeights) jobs.push(loadScript("/js/mahjong-ml-weights.js"));
     // Only Orphans' weights, the same way.
-    if (!root.MahjongOnlyOrphansWeights) jobs.push(loadScript('/js/mahjong-only-orphans-weights.js'));
-    if (!root.MahjongLuckyCatWeights) jobs.push(loadScript('/js/mahjong-lucky-cat-weights.js'));
+    if (!root.MahjongOnlyOrphansWeights) jobs.push(loadScript("/js/mahjong-only-orphans-weights.js"));
+    if (!root.MahjongLuckyCatWeights) jobs.push(loadScript("/js/mahjong-lucky-cat-weights.js"));
     if (document.fonts && document.fonts.load) {
       jobs.push(Promise.race([
-        document.fonts.load('16px "KN Yuanmo SC"').catch(function () {}),
+        document.fonts.load("16px \"KN Yuanmo SC\"").catch(function () {}),
         new Promise(function (resolve) { setTimeout(resolve, 1500); }),
       ]));
     }
@@ -372,22 +372,22 @@
     var src = images.logo;
     if (!src) return null;
     pw = Math.max(1, Math.round(pw)); ph = Math.max(1, Math.round(ph));
-    var key = pw + 'x' + ph;
+    var key = pw + "x" + ph;
     if (logoSizes[key]) return logoSizes[key];
     var cur = src, sw = src.width, sh = src.height;
     while (sw / 2 >= pw && sh / 2 >= ph) {
       sw = Math.round(sw / 2); sh = Math.round(sh / 2);
-      var step = document.createElement('canvas');
+      var step = document.createElement("canvas");
       step.width = sw; step.height = sh;
-      var sc = step.getContext('2d');
-      sc.imageSmoothingQuality = 'high';
+      var sc = step.getContext("2d");
+      sc.imageSmoothingQuality = "high";
       sc.drawImage(cur, 0, 0, sw, sh);
       cur = step;
     }
-    var cv = document.createElement('canvas');
+    var cv = document.createElement("canvas");
     cv.width = pw; cv.height = ph;
-    var c = cv.getContext('2d');
-    c.imageSmoothingQuality = 'high';
+    var c = cv.getContext("2d");
+    c.imageSmoothingQuality = "high";
     c.drawImage(cur, 0, 0, pw, ph);
     logoSizes[key] = cv;
     return cv;
@@ -396,15 +396,15 @@
   // A tile sprite includes its green "depth" edge below the face, so the
   // drawn height is w * TILE_ASPECT + depth.
   function tileSprite(id, w, dpr, back) {
-    var key = (back ? 'back' : id) + '|' + w.toFixed(1) + '|' + dpr;
+    var key = (back ? "back" : id) + "|" + w.toFixed(1) + "|" + dpr;
     var hit = spriteCache[key];
     if (hit) return hit;
     var h = w * TILE_ASPECT;
     var depth = Math.max(1.5, w * 0.08);
-    var cv = document.createElement('canvas');
+    var cv = document.createElement("canvas");
     cv.width = Math.ceil(w * dpr);
     cv.height = Math.ceil((h + depth) * dpr);
-    var c = cv.getContext('2d');
+    var c = cv.getContext("2d");
     c.scale(dpr, dpr);
     var r = Math.max(2, w * 0.13);
 
@@ -419,7 +419,7 @@
       g.addColorStop(1, COLORS.primary);
       c.fillStyle = g;
       c.fill();
-      c.strokeStyle = 'rgba(255, 210, 122, 0.75)';
+      c.strokeStyle = "rgba(255, 210, 122, 0.75)";
       c.lineWidth = Math.max(0.8, w * 0.04);
       roundRect(c, w * 0.12, w * 0.12, w * 0.76, h - w * 0.24, r * 0.6);
       c.stroke();
@@ -440,11 +440,11 @@
     } else {
       roundRect(c, 0, 0, w, h, r);
       var gf = c.createLinearGradient(0, 0, w * 0.6, h);
-      gf.addColorStop(0, '#ffffff');
-      gf.addColorStop(1, '#fbf1e2');
+      gf.addColorStop(0, "#ffffff");
+      gf.addColorStop(1, "#fbf1e2");
       c.fillStyle = gf;
       c.fill();
-      c.strokeStyle = 'rgba(0, 0, 0, 0.14)';
+      c.strokeStyle = "rgba(0, 0, 0, 0.14)";
       c.lineWidth = 1;
       c.stroke();
       var img = images[id];
@@ -455,9 +455,9 @@
         c.drawImage(img, ix + (iw - dw) / 2, iy + (ih - dh) * 0.55, dw, dh);
       } else {
         c.fillStyle = COLORS.ink;
-        c.font = 'bold ' + Math.round(w * 0.4) + 'px ' + FONT_BODY;
-        c.textAlign = 'center';
-        c.textBaseline = 'middle';
+        c.font = "bold " + Math.round(w * 0.4) + "px " + FONT_BODY;
+        c.textAlign = "center";
+        c.textBaseline = "middle";
         c.fillText(id, w / 2, h / 2);
       }
     }
@@ -477,62 +477,62 @@
    *    knocks on wood. Flowers keep a soft glass chime.
    * ------------------------------------------------------------------ */
 
-  var SOUND_DIR = '/assets/sounds/';
+  var SOUND_DIR = "/assets/sounds/";
   // Each cue plays one of its clips (picked at random, so repeats differ),
   // at `gain`, and any `then` clips [name, delay in seconds, gain, pitch]
   // after it. `vary` nudges the pitch a little each time.
   var CUES = {
-    draw: { clips: ['tile-draw'], gain: 0.3, vary: true },
+    draw: { clips: ["tile-draw"], gain: 0.3, vary: true },
     // Previous on the playback: the draw's own chip clip (Casino Audio) played
     // lower, with chips settling just before it, as if the tile were going back.
-    back: { clips: ['tile-claim-1'], gain: 0.45, then: [['tile-draw', 0.04, 0.4, 0.8]] },
+    back: { clips: ["tile-claim-1"], gain: 0.45, then: [["tile-draw", 0.04, 0.4, 0.8]] },
     // Next: the same two chip clips the other way round, the draw first and
     // the chips settling after it.
-    forward: { clips: ['tile-draw'], gain: 0.45, then: [['tile-claim-1', 0.05, 0.35, 1.1]] },
+    forward: { clips: ["tile-draw"], gain: 0.45, then: [["tile-claim-1", 0.05, 0.35, 1.1]] },
     // One sound for every discard: the duller chip, the closest to a
     // mahjong tile landing on the table.
-    discard: { clips: ['tile-discard'], gain: 0.85 },
+    discard: { clips: ["tile-discard"], gain: 0.85 },
     // Picking up a tile: chips handled. A flower: a soft glass chime
     // (glass_001 from Kenney's Interface Sounds), the one bell on the table.
-    select: { clips: ['tile-select'], gain: 0.2 },
-    flower: { clips: ['flower'], gain: 0.4 },
+    select: { clips: ["tile-select"], gain: 0.2 },
+    flower: { clips: ["flower"], gain: 0.4 },
     // Claims are big moments, and each has its own heavy hit (a different
     // impactMining clip from Kenney's Impact Sounds pack) under the chips:
     // chow: impactMining_001, the brightest, then the run's chips settle;
     chow: {
-      clips: ['impact-chow'], gain: 0.9,
-      then: [['tile-claim-1', 0.03, 0.7]],
+      clips: ["impact-chow"], gain: 0.9,
+      then: [["tile-claim-1", 0.03, 0.7]],
     },
     // pung: impactMining_000, a fuller hit with the three tiles on top;
     pung: {
-      clips: ['impact-pung'], gain: 0.95,
-      then: [['tile-claim-2', 0.02, 0.75], ['tile-discard', 0.04, 0.6, 0.9]],
+      clips: ["impact-pung"], gain: 0.95,
+      then: [["tile-claim-2", 0.02, 0.75], ["tile-discard", 0.04, 0.6, 0.9]],
     },
     // kong: impactMining_002, struck twice (the second lower) while four
     // tiles stack.
     kong: {
-      clips: ['impact-kong'], gain: 1,
-      then: [['impact-kong', 0.12, 0.7, 0.8], ['tile-claim-2', 0.03, 0.7], ['tile-kong', 0.16, 0.6], ['tile-discard', 0.28, 0.6, 0.85]],
+      clips: ["impact-kong"], gain: 1,
+      then: [["impact-kong", 0.12, 0.7, 0.8], ["tile-claim-2", 0.03, 0.7], ["tile-kong", 0.16, 0.6], ["tile-discard", 0.28, 0.6, 0.85]],
     },
     // Your turn: a light knock on the table.
-    turn: { clips: ['turn'], gain: 0.3 },
+    turn: { clips: ["turn"], gain: 0.3 },
     // A win, whoever takes it, including a self-draw: impactMining_000 (the
     // pung's hit), louder and struck again lower, then the pot's chips.
     // Bigger than a pung, same kind of hit.
     win: {
-      clips: ['impact-pung'], gain: 1,
-      then: [['impact-pung', 0.18, 0.8, 0.78], ['tile-claim-2', 0.08, 0.7], ['tile-kong', 0.2, 0.6]],
+      clips: ["impact-pung"], gain: 1,
+      then: [["impact-pung", 0.18, 0.8, 0.78], ["tile-claim-2", 0.08, 0.7], ["tile-kong", 0.2, 0.6]],
     },
     // Someone else's win: a medium wooden hit and their chips.
-    otherwin: { clips: ['other-win'], gain: 0.55, then: [['tile-claim-1', 0.04, 0.45]] },
+    otherwin: { clips: ["other-win"], gain: 0.55, then: [["tile-claim-1", 0.04, 0.45]] },
     // You paid for the win: poker chips, a few pushed across.
-    lose: { clips: ['tile-claim-1'], gain: 0.8, then: [['tile-kong', 0.08, 0.7], ['tile-claim-1', 0.16, 0.6]] },
+    lose: { clips: ["tile-claim-1"], gain: 0.8, then: [["tile-kong", 0.08, 0.7], ["tile-claim-1", 0.16, 0.6]] },
     // The wall ran out: the bell (impactBell_heavy_000), the whole ring.
-    drawgame: { clips: ['gong'], gain: 0.7 },
+    drawgame: { clips: ["gong"], gain: 0.7 },
     // Show hands: impactMining_003, the whole clip, untrimmed.
-    flip: { clips: ['tiles-reveal'], gain: 0.9 },
+    flip: { clips: ["tiles-reveal"], gain: 0.9 },
     // Next hand: the same mining hit as a win (impactMining_000).
-    next: { clips: ['impact-pung'], gain: 1 },
+    next: { clips: ["impact-pung"], gain: 1 },
   };
 
   // The cues for tiles being placed or acted on: draws, discards, a flower, the
@@ -544,14 +544,14 @@
   // Background music: CC BY 4.0 tracks by Kevin MacLeod (incompetech.com),
   // re-encoded to 96 kbps AAC in /assets/music/. The credit is on the play
   // page and in /assets/music/README.md.
-  var MUSIC_DIR = '/assets/music/';
+  var MUSIC_DIR = "/assets/music/";
   // Quiet under the effects. Applied through Web Audio (see playTrack):
   // iPhones ignore an audio element's own volume and play it at full.
   var MUSIC_VOLUME = 0.18;
   var MUSIC = [
-    { file: 'guzheng-city.m4a', title: 'Guzheng City' },
-    { file: 'shenyang.m4a', title: 'Shenyang' },
-    { file: 'ripples.m4a', title: 'Ripples' },
+    { file: "guzheng-city.m4a", title: "Guzheng City" },
+    { file: "shenyang.m4a", title: "Shenyang" },
+    { file: "ripples.m4a", title: "Ripples" },
   ];
 
   function shuffle(list) {
@@ -576,7 +576,7 @@
   var clipBytes = {};
   function fetchClip(name) {
     if (!clipBytes[name]) {
-      clipBytes[name] = root.fetch(SOUND_DIR + name + '.wav')
+      clipBytes[name] = root.fetch(SOUND_DIR + name + ".wav")
         .then(function (r) { return r.ok ? r.arrayBuffer() : null; })
         .catch(function () { delete clipBytes[name]; return null; });
     }
@@ -620,7 +620,7 @@
         if (!AC) return null;
         // iOS mutes Web Audio when the ring/silent switch is on, but not
         // media; 'playback' lets the effects play like the music does.
-        try { if (root.navigator && root.navigator.audioSession) root.navigator.audioSession.type = 'playback'; } catch (e) {}
+        try { if (root.navigator && root.navigator.audioSession) root.navigator.audioSession.type = "playback"; } catch (e) {}
         ac = new AC();
         out = ac.createGain();
         out.gain.value = 0.9;
@@ -628,7 +628,7 @@
         fetchAll();
         decodeAll(ac);
       }
-      if (ac.state === 'suspended') ac.resume();
+      if (ac.state === "suspended") ac.resume();
       return ac;
     }
 
@@ -677,9 +677,9 @@
         } else {
           music.el.volume = MUSIC_VOLUME;
         }
-        music.el.addEventListener('ended', function () { playTrack(nextTrack()); });
+        music.el.addEventListener("ended", function () { playTrack(nextTrack()); });
         // A track that can't load is skipped.
-        music.el.addEventListener('error', function () { if (music.on) playTrack(nextTrack()); });
+        music.el.addEventListener("error", function () { if (music.on) playTrack(nextTrack()); });
       }
       music.el.src = MUSIC_DIR + track.file;
       if (music.on && api.enabled && api.musicEnabled) {
@@ -707,7 +707,7 @@
         UNLOCK_EVENTS.forEach(function (type) { root.document.removeEventListener(type, unlock, true); });
       }
       api.music(false);
-      if (music.el) { music.el.removeAttribute('src'); music.el.load(); }
+      if (music.el) { music.el.removeAttribute("src"); music.el.load(); }
       music.el = null;
       music.at = music.order.length; // the next start reshuffles
     };
@@ -729,12 +729,12 @@
     // tap or key then wakes the audio and plays a random song, if music
     // should be playing and isn't.
     function unlock() {
-      if (ac && ac.state === 'suspended') ac.resume();
+      if (ac && ac.state === "suspended") ac.resume();
       if (!music.on || !api.enabled || !api.musicEnabled) return;
       if (music.el && !music.el.paused) return;
       playTrack(nextTrack());
     }
-    var UNLOCK_EVENTS = ['pointerdown', 'keydown', 'touchend'];
+    var UNLOCK_EVENTS = ["pointerdown", "keydown", "touchend"];
     if (root.document) {
       UNLOCK_EVENTS.forEach(function (type) { root.document.addEventListener(type, unlock, true); });
     }
@@ -748,11 +748,11 @@
    * ------------------------------------------------------------------ */
 
   function wrapText(ctx, text, maxW) {
-    var words = String(text).split(' ');
+    var words = String(text).split(" ");
     var lines = [];
-    var line = '';
+    var line = "";
     words.forEach(function (w) {
-      var test = line ? line + ' ' + w : w;
+      var test = line ? line + " " + w : w;
       if (ctx.measureText(test).width > maxW && line) {
         lines.push(line);
         line = w;
@@ -768,19 +768,19 @@
   // measured in its own weight (weightAt gives it from the word's position).
   function wrapRuns(ctx, text, maxW, weightAt, size) {
     var lines = [];
-    var line = '', width = 0, at = 0;
+    var line = "", width = 0, at = 0;
     function wide(word, pos) {
-      ctx.font = (weightAt(pos) ? 'bold ' : '') + size + 'px ' + FONT_BODY;
+      ctx.font = (weightAt(pos) ? "bold " : "") + size + "px " + FONT_BODY;
       return ctx.measureText(word).width;
     }
-    String(text).split(' ').forEach(function (w) {
-      var gap = line ? wide(' ', at - 1) : 0;
+    String(text).split(" ").forEach(function (w) {
+      var gap = line ? wide(" ", at - 1) : 0;
       var ww = wide(w, at);
       if (line && width + gap + ww > maxW) {
         lines.push(line);
         line = w; width = ww;
       } else {
-        line = line ? line + ' ' + w : w;
+        line = line ? line + " " + w : w;
         width += gap + ww;
       }
       at += w.length + 1;
@@ -792,7 +792,7 @@
   function fitFont(ctx, text, maxW, size, family, weight) {
     var s = size;
     for (; s > 8; s--) {
-      ctx.font = (weight || '') + ' ' + s + 'px ' + family;
+      ctx.font = (weight || "") + " " + s + "px " + family;
       if (ctx.measureText(text).width <= maxW) break;
     }
     return s;
@@ -805,7 +805,7 @@
   // `saved` (optional) is a checked save file (MahjongEngine.checkSave) to
   // play on from.
   function createTable(canvas, liveRegion, settings, callbacks, saved) {
-    var ctx = canvas.getContext('2d');
+    var ctx = canvas.getContext("2d");
     if (!settings.playback) liveReplay = null; // a new game starts without the last one's unfinished playback
     dropUnfinishedStored();
     var prefs = readJson(PREFS_KEY, { sound: true });
@@ -813,17 +813,17 @@
     setUserProperties({ theme: themeName(prefs.theme) });
     // ?sound=0 and ?sound=1 cover this visit only, so a test can stay quiet
     // without changing the saved Sound button choice. No sound param keeps it.
-    var soundParam = /[?&]sound=(0|1)(?:&|$)/.exec((root.location && root.location.search) || '');
-    var soundOn = soundParam ? soundParam[1] === '1' : prefs.sound !== false;
+    var soundParam = /[?&]sound=(0|1)(?:&|$)/.exec((root.location && root.location.search) || "");
+    var soundOn = soundParam ? soundParam[1] === "1" : prefs.sound !== false;
     var sound = createSound(soundOn);
     // Silent for the tile cues while auto-play runs (it follows the live state, so it can't stick on).
     sound.isQuiet = function (name) { return autoPlay && TILE_CUES[name] === 1; };
     // Music on plays the music and the sounds, Sound on only the sounds.
     sound.musicEnabled = sound.enabled && prefs.music !== false;
-    var reduceMotion = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var reduceMotion = root.matchMedia && root.matchMedia("(prefers-reduced-motion: reduce)").matches;
     // A mouse (or trackpad) is the main pointer: a computer, not an iPad,
     // even when an iPad sideways gets the desktop layout.
-    var finePointer = !!(root.matchMedia && root.matchMedia('(hover: hover) and (pointer: fine)').matches);
+    var finePointer = !!(root.matchMedia && root.matchMedia("(hover: hover) and (pointer: fine)").matches);
 
     // W and H are the layout size. On short landscape screens the table is
     // laid out taller and scaled down to fit (zoom < 1); dpr then includes
@@ -877,14 +877,14 @@
     var lastTouch = false; // the last press was a finger: no hover, so the selected tile gets the tip
 
     var ui = {
-      coach: settings.coach || 'on', // 'on' (advice), 'feedback' (notes on your last move) or 'off'
+      coach: settings.coach || "on", // 'on' (advice), 'feedback' (notes on your last move) or 'off'
       feedback: null, // the coach's note on your previous move
       feedbackDiscards: null, // what each strategy would have done on your last discard or claim
       feedbackKind: null, // 'discard' or 'claim': which of those the boxes show
       handSlots: [], // each hand tile's slide from where it was to where it belongs
       handSlide: 1,  // 0..1 progress of that slide
-      handSig: '',   // what the hand looked like when the slots were last matched
-      handLayout: '',
+      handSig: "",   // what the hand looked like when the slots were last matched
+      handLayout: "",
       restartArmed: 0, // when Restart game was first tapped in the menu
       replaying: false, // a loaded hand is being played again up to your next move
       windFlash: 0, // 1 to 0 as your wind badge flashes after copying the seed
@@ -939,7 +939,7 @@
     // Auto-play (the wind badge, on development addresses) skips every one of
     // them: the flights, pauses and bot delays, and the declaration banners
     // (Pung!, Flower! ...) and win confetti.
-    function instantMode() { return settings.speed === 'off' || ui.replaying || autoPlay; }
+    function instantMode() { return settings.speed === "off" || ui.replaying || autoPlay; }
     function speed(ms) { return reduceMotion ? 0 : ms; }
 
     /* ---------------- frame loop ---------------- */
@@ -1019,7 +1019,7 @@
     // While the menu is open the table waits, so the bots don't play on
     // behind it (and a save is the game as you left it).
     function menuOpen() {
-      return !!(ui.overlay && ui.overlay.type === 'menu');
+      return !!(ui.overlay && ui.overlay.type === "menu");
     }
 
     function sleep(ms) {
@@ -1183,7 +1183,7 @@
       // column and as tall as your hand, in a game and in playback. A phone
       // with no column keeps the strip under the table instead. The coach
       // being off hides it, along with the coach's notes.
-      if ((settings.review || (game && game.hand && ui.coach !== 'off')) && !layoutNesting) {
+      if ((settings.review || (game && game.hand && ui.coach !== "off")) && !layoutNesting) {
         var full = H;
         layoutNesting = true;
         try {
@@ -1235,7 +1235,7 @@
 
       // Desktop keeps the column so the results stay put. A phone drops the
       // coach's bar and column while the coach is off, and the table takes that room.
-      var coachShown = desktop || ui.coach !== 'off';
+      var coachShown = desktop || ui.coach !== "off";
 
       // Your section: the table's width on desktop and on a landscape phone
       // (the board takes the left two thirds there, the coach the rest),
@@ -1444,7 +1444,7 @@
       } : null;
       var results = null;
       if (desktop && history && !settings.playback && !settings.review) {
-        if (ui.coach === 'off') {
+        if (ui.coach === "off") {
           // The coach's notes and the recommendations are hidden, so the
           // results take the column.
           results = { x: history.x, y: history.y, w: history.w, h: history.h };
@@ -1487,8 +1487,8 @@
     // complete set of four flowers or four seasons.
     function flowerGlow(list, wind, id) {
       var kind = id.charAt(0);
-      if (kind !== 'f' && kind !== 's') return null;
-      var set = kind === 'f' ? ['f1', 'f2', 'f3', 'f4'] : ['s1', 's2', 's3', 's4'];
+      if (kind !== "f" && kind !== "s") return null;
+      var set = kind === "f" ? ["f1", "f2", "f3", "f4"] : ["s1", "s2", "s3", "s4"];
       var full = set.every(function (tid) { return list.indexOf(tid) !== -1; });
       return full || id === kind + wind ? COLORS.gold : null;
     }
@@ -1528,7 +1528,7 @@
         ctx.translate(-(x + w / 2), -(y + h / 2));
       }
       if (opts.shadow !== false && w >= 14) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+        ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
         roundRect(ctx, x + 1, y + 2, w, h, w * 0.13);
         ctx.fill();
       }
@@ -1554,7 +1554,7 @@
         ctx.stroke();
       }
       if (opts.dim) {
-        ctx.fillStyle = 'rgba(0, 0, 0, ' + opts.dim + ')';
+        ctx.fillStyle = "rgba(0, 0, 0, " + opts.dim + ")";
         roundRect(ctx, x, y, w, w * TILE_ASPECT, w * 0.13);
         ctx.fill();
       }
@@ -1564,10 +1564,10 @@
 
     function text(str, x, y, opts) {
       opts = opts || {};
-      ctx.font = (opts.weight || '') + ' ' + (opts.size || 13) + 'px ' + (opts.family || FONT_BODY);
+      ctx.font = (opts.weight || "") + " " + (opts.size || 13) + "px " + (opts.family || FONT_BODY);
       ctx.fillStyle = opts.color || COLORS.white;
-      ctx.textAlign = opts.align || 'left';
-      ctx.textBaseline = opts.baseline || 'middle';
+      ctx.textAlign = opts.align || "left";
+      ctx.textBaseline = opts.baseline || "middle";
       ctx.fillText(str, x, y);
     }
 
@@ -1575,15 +1575,15 @@
     // bounds decide, so a letter sits in the middle of a circle whatever the font's metrics.
     function inkCenteredText(str, cx, cy, opts) {
       opts = opts || {};
-      ctx.font = (opts.weight || '') + ' ' + (opts.size || 13) + 'px ' + (opts.family || FONT_BODY);
+      ctx.font = (opts.weight || "") + " " + (opts.size || 13) + "px " + (opts.family || FONT_BODY);
       ctx.fillStyle = opts.color || COLORS.white;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'alphabetic';
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
       var m = ctx.measureText(str);
       if (m && m.actualBoundingBoxAscent != null && m.actualBoundingBoxRight != null) {
         ctx.fillText(str, cx - (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2, cy + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2);
       } else {
-        text(str, cx, cy, { size: opts.size, family: opts.family, color: opts.color, align: 'center', weight: opts.weight });
+        text(str, cx, cy, { size: opts.size, family: opts.family, color: opts.color, align: "center", weight: opts.weight });
       }
     }
 
@@ -1609,28 +1609,28 @@
       if (!ui.shake || ui.shake.kind !== kind || ui.shake.key !== key) return 0;
       var p = (now() - ui.shake.start) / SHAKE_MS;
       if (p < 0 || p >= 1) return 0;
-      return Math.sin(p * Math.PI * 5) * (1 - p) * (kind === 'tile' ? 10 : 18); // a refused tile shakes gently
+      return Math.sin(p * Math.PI * 5) * (1 - p) * (kind === "tile" ? 10 : 18); // a refused tile shakes gently
     }
 
     function button(label, x, y, w, h, onTap, style, id, picked) {
-      style = style || 'light';
+      style = style || "light";
       var isHover = hover === id;
-      var dx = shakeDx('button', id);
+      var dx = shakeDx("button", id);
       if (dx) { ctx.save(); ctx.translate(dx, 0); }
       var fills = {
         primary: isHover ? COLORS.primaryHover : COLORS.primary,
-        red: isHover ? '#D62A47' : COLORS.red, // red whatever the theme
-        gold: isHover ? '#ffb43c' : COLORS.gold,
-        light: isHover ? '#ffffff' : 'rgba(255, 248, 240, 0.94)',
-        white: isHover ? '#ece6de' : '#ffffff',
-        ghost: isHover ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)',
-        off: 'rgba(255,255,255,0.05)',
+        red: isHover ? "#D62A47" : COLORS.red, // red whatever the theme
+        gold: isHover ? "#ffb43c" : COLORS.gold,
+        light: isHover ? "#ffffff" : "rgba(255, 248, 240, 0.94)",
+        white: isHover ? "#ece6de" : "#ffffff",
+        ghost: isHover ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.12)",
+        off: "rgba(255,255,255,0.05)",
       };
       ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.25)';
-      ctx.shadowBlur = style === 'ghost' || style === 'off' ? 0 : 8;
+      ctx.shadowColor = "rgba(0,0,0,0.25)";
+      ctx.shadowBlur = style === "ghost" || style === "off" ? 0 : 8;
       ctx.shadowOffsetY = 2;
-      pill(x, y, w, h, fills[style], style === 'ghost' ? 'rgba(255,255,255,0.3)' : style === 'off' ? 'rgba(255,255,255,0.12)' : null);
+      pill(x, y, w, h, fills[style], style === "ghost" ? "rgba(255,255,255,0.3)" : style === "off" ? "rgba(255,255,255,0.12)" : null);
       ctx.restore();
       if (picked) {
         // The coach's recommended move keeps its own color and gets a gold ring.
@@ -1642,11 +1642,11 @@
       // A touch smaller, and dark text a little softer than black, so the pixel
       // font (which has only one weight) reads lighter on a button. White text
       // stays pure white.
-      var dark = style === 'light' || style === 'white' || style === 'gold';
-      var color = dark ? '#3a3a3a' : style === 'off' ? 'rgba(255,255,255,0.35)' : COLORS.white;
+      var dark = style === "light" || style === "white" || style === "gold";
+      var color = dark ? "#3a3a3a" : style === "off" ? "rgba(255,255,255,0.35)" : COLORS.white;
       // Buttons use the game's own font, the one on its titles.
       var size = fitFont(ctx, label, w - 16, Math.min(15, h * 0.39), FONT_HEAD);
-      text(label, x + w / 2, y + h / 2 + 1, { size: size, family: FONT_HEAD, color: color, align: 'center' });
+      text(label, x + w / 2, y + h / 2 + 1, { size: size, family: FONT_HEAD, color: color, align: "center" });
       if (dx) ctx.restore();
       var event = BUTTON_EVENTS[id];
       addRegion(x, y, w, h, event ? function () { track(event, {}); onTap(); } : onTap, id);
@@ -1713,8 +1713,8 @@
 
     function tileTipText(id) {
       var label = E.tileName(id);
-      var sub = '';
-      if (!E.isBonus(id) && game && game.hand) sub = E.unseenCounts(game, 0)[E.tileIndex(id)] + ' left';
+      var sub = "";
+      if (!E.isBonus(id) && game && game.hand) sub = E.unseenCounts(game, 0)[E.tileIndex(id)] + " left";
       return { label: label, sub: sub };
     }
 
@@ -1727,10 +1727,10 @@
       var same = pinnedTip && pinnedTip.id === sp.id && Math.abs(pinnedTip.x - x) < 2 && Math.abs(pinnedTip.y - y) < 2;
       if (same) pinnedTip = null; // putting it away is silent
       else {
-        sound.play('select'); // showing the tip
+        sound.play("select"); // showing the tip
         pinnedTip = { id: sp.id, x: x, y: y };
         var tip = tileTipText(sp.id);
-        announce(tip.label + (tip.sub ? ', ' + tip.sub : '') + '.');
+        announce(tip.label + (tip.sub ? ", " + tip.sub : "") + ".");
       }
       if (ui.selected >= 0) { ui.selected = -1; ui.notice = null; }
       requestRender();
@@ -1763,27 +1763,27 @@
     function drawSeatTip() {
       var sp = seatSpotAt(mouse);
       tipSeat = sp ? sp.seat : null;
-      if (sp && ui.strategies.seats[sp.seat]) drawTip('Strategy: ' + Strategies.get(ui.strategies.seats[sp.seat]).name, '', sp);
+      if (sp && ui.strategies.seats[sp.seat]) drawTip("Strategy: " + Strategies.get(ui.strategies.seats[sp.seat]).name, "", sp);
     }
 
     function drawTip(label, sub, sp) {
-      ctx.font = 'bold 13px ' + FONT_BODY;
+      ctx.font = "bold 13px " + FONT_BODY;
       var w = ctx.measureText(label).width + 18;
-      ctx.font = '12px ' + FONT_BODY;
+      ctx.font = "12px " + FONT_BODY;
       if (sub) w = Math.max(w, ctx.measureText(sub).width + 18);
       var h = sub ? 42 : 26;
       var x = clamp((sp.x0 + sp.x1) / 2 - w / 2, 4, W - w - 4);
       var y = sp.y0 - h - 6;
       if (y < 4) y = sp.y1 + 6;
       ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.3)';
+      ctx.shadowColor = "rgba(0,0,0,0.3)";
       ctx.shadowBlur = 8;
       roundRect(ctx, x, y, w, h, 4);
-      ctx.fillStyle = 'rgba(26,26,26,0.92)';
+      ctx.fillStyle = "rgba(26,26,26,0.92)";
       ctx.fill();
       ctx.restore();
-      text(label, x + w / 2, sub ? y + 14 : y + h / 2 + 1, { size: 13, weight: 'bold', align: 'center', color: COLORS.cream });
-      if (sub) text(sub, x + w / 2, y + 30, { size: 12, align: 'center', color: COLORS.goldLight });
+      text(label, x + w / 2, sub ? y + 14 : y + h / 2 + 1, { size: 13, weight: "bold", align: "center", color: COLORS.cream });
+      if (sub) text(sub, x + w / 2, y + 30, { size: 12, align: "center", color: COLORS.goldLight });
     }
 
     // Grey blocks where the table's parts will go, with a soft light sweeping
@@ -1804,8 +1804,8 @@
       // bar looks the same before and after the playback loads. It does nothing yet.
       if (settings.playback) {
         var padTop = skeletonLayout ? skeletonLayout.pad : 8;
-        pill(padTop, 7, 64, 28, 'rgba(255,255,255,0.12)', 'rgba(255,255,255,0.3)');
-        text('Back', padTop + 32, 22, { size: 13, family: FONT_HEAD, align: 'center', color: COLORS.white });
+        pill(padTop, 7, 64, 28, "rgba(255,255,255,0.12)", "rgba(255,255,255,0.3)");
+        text("Back", padTop + 32, 22, { size: 13, family: FONT_HEAD, align: "center", color: COLORS.white });
       }
       var real = L;
       L = skeletonLayout;
@@ -1815,13 +1815,13 @@
         ctx.save();
         roundRect(ctx, x, y, w, h, r == null ? 8 : r);
         ctx.clip();
-        ctx.fillStyle = 'rgba(255,255,255,0.07)';
+        ctx.fillStyle = "rgba(255,255,255,0.07)";
         ctx.fillRect(x, y, w, h);
         var gx = -W * 0.5 + sweep * (W * 2);
         var g = ctx.createLinearGradient(gx, 0, gx + W * 0.45, 0);
-        g.addColorStop(0, 'rgba(255,255,255,0)');
-        g.addColorStop(0.5, 'rgba(255,255,255,0.09)');
-        g.addColorStop(1, 'rgba(255,255,255,0)');
+        g.addColorStop(0, "rgba(255,255,255,0)");
+        g.addColorStop(0.5, "rgba(255,255,255,0.09)");
+        g.addColorStop(1, "rgba(255,255,255,0)");
         ctx.fillStyle = g;
         ctx.fillRect(x, y, w, h);
         ctx.restore();
@@ -1870,7 +1870,7 @@
         else if ((settings.playback || !game) && t - loadStartedAt > skeletonAfterMs()) drawSkeleton(t);
         // A finished hand restored on its results has no tiles to draw.
         // The scoring column and the coach notes stay beside that panel.
-        if (ui.overlay && ui.overlay.type === 'summary') {
+        if (ui.overlay && ui.overlay.type === "summary") {
           drawResults();
           drawCoachHistory();
         }
@@ -1914,7 +1914,7 @@
     /* ---------------- rules sheet ---------------- */
 
     function rulesSheet() {
-      return document.getElementById('rules-sheet');
+      return document.getElementById("rules-sheet");
     }
 
     // The sheet's rows play this table's sounds and open its examples, so a
@@ -1922,102 +1922,102 @@
     // built again for this one.
     var rulesOwner = {};
     function buildRules() {
-      var body = document.getElementById('rules-sheet-body');
+      var body = document.getElementById("rules-sheet-body");
       if (!body) return;
       if (body.childElementCount && body.lcmOwner === rulesOwner) return;
-      body.innerHTML = '';
-      var oldIntro = body.parentNode.querySelector('.rules-sheet-intro');
+      body.innerHTML = "";
+      var oldIntro = body.parentNode.querySelector(".rules-sheet-intro");
       if (oldIntro) oldIntro.remove();
-      var oldCard = rulesSheet().querySelector('.rules-example');
+      var oldCard = rulesSheet().querySelector(".rules-example");
       if (oldCard) oldCard.remove();
       body.lcmOwner = rulesOwner;
       var F = E.HKScoring.FAAN;
-      var intro = document.createElement('p');
-      intro.className = 'rules-sheet-intro';
-      intro.textContent = 'Win with four melds and the eyes (a pair), worth at least ' + E.MIN_FAAN +
-        ' faan. Add up every pattern your hand has, but only count the highest faan per group. A limit hand is worth ' +
-        F.thirteenOrphans + ' faan.';
+      var intro = document.createElement("p");
+      intro.className = "rules-sheet-intro";
+      intro.textContent = "Win with four melds and the eyes (a pair), worth at least " + E.MIN_FAAN +
+        " faan. Add up every pattern your hand has, but only count the highest faan per group. A limit hand is worth " +
+        F.thirteenOrphans + " faan.";
       body.parentNode.insertBefore(intro, body);
       root.MahjongRules.RULES.forEach(function (section) {
-        var sec = document.createElement('section');
-        sec.className = 'rules-section' + (section.half ? ' rules-section--half' : '');
-        var h = document.createElement('h3');
-        h.className = 'rules-section-title';
+        var sec = document.createElement("section");
+        sec.className = "rules-section" + (section.half ? " rules-section--half" : "");
+        var h = document.createElement("h3");
+        h.className = "rules-section-title";
         h.textContent = section.title;
         sec.appendChild(h);
-        var grid = document.createElement('div');
-        grid.className = 'rules-families' + (section.families.length === 1 ? ' rules-families--flat' : '');
+        var grid = document.createElement("div");
+        grid.className = "rules-families" + (section.families.length === 1 ? " rules-families--flat" : "");
         section.families.forEach(function (fam) {
-          var box = document.createElement('div');
-          box.className = 'rules-family';
+          var box = document.createElement("div");
+          box.className = "rules-family";
           if (fam.title) {
-            var ft = document.createElement('h4');
+            var ft = document.createElement("h4");
             ft.textContent = fam.title;
             box.appendChild(ft);
           }
           fam.rows.forEach(function (r) {
-            var row = document.createElement('div');
-            row.className = 'rules-row';
+            var row = document.createElement("div");
+            row.className = "rules-row";
             var faan = F[r.key];
             var limit = faan >= F.thirteenOrphans;
-            row.innerHTML = '<div class="rules-row-text"><div class="rules-name"></div><div class="rules-desc"></div></div><div class="rules-faan"></div>';
+            row.innerHTML = "<div class=\"rules-row-text\"><div class=\"rules-name\"></div><div class=\"rules-desc\"></div></div><div class=\"rules-faan\"></div>";
             // English names only (the Chinese names stay in the rule data).
-            row.querySelector('.rules-name').textContent = r.name;
-            row.querySelector('.rules-desc').textContent = r.desc;
-            var pill = row.querySelector('.rules-faan');
-            pill.textContent = limit ? 'Limit' : faan + ' faan';
-            if (limit) pill.classList.add('rules-faan--limit');
+            row.querySelector(".rules-name").textContent = r.name;
+            row.querySelector(".rules-desc").textContent = r.desc;
+            var pill = row.querySelector(".rules-faan");
+            pill.textContent = limit ? "Limit" : faan + " faan";
+            if (limit) pill.classList.add("rules-faan--limit");
             if (!(section.preview !== false && r.preview !== false)) {
               // A pattern with no example still clicks.
-              row.addEventListener('click', function () {
-                sound.play('select');
-                track('play_rule_click', { hand: r.name });
+              row.addEventListener("click", function () {
+                sound.play("select");
+                track("play_rule_click", { hand: r.name });
               });
             }
             // Desktop: hover or click opens the example above the pattern, and
             // leaving it hides the example. Touch still opens from the press,
             // and that first tap does not also close it.
             if (section.preview !== false && r.preview !== false) {
-              row.classList.add('rules-row--example');
+              row.classList.add("rules-row--example");
               row.tabIndex = 0;
-              row.setAttribute('role', 'button');
-              row.setAttribute('aria-expanded', 'false');
+              row.setAttribute("role", "button");
+              row.setAttribute("aria-expanded", "false");
               var show = function () { showRuleExample(row, r, pill.textContent); };
               var fromMouse = true;
               var openBeforePress = false;
               // A tap opens the example from the hover and focus it fakes, and iOS
               // then skips the click, so the sound plays on the press itself.
               var pressSounded = false;
-              row.addEventListener('pointerdown', function (e) {
+              row.addEventListener("pointerdown", function (e) {
                 if (desktopRules()) return;
-                fromMouse = e.pointerType === 'mouse';
+                fromMouse = e.pointerType === "mouse";
                 openBeforePress = openExampleRow === row;
                 pressSounded = !fromMouse;
-                if (pressSounded) sound.play('select'); // opening or putting away an example
+                if (pressSounded) sound.play("select"); // opening or putting away an example
               });
-              row.addEventListener('mouseenter', function () {
+              row.addEventListener("mouseenter", function () {
                 if (desktopRules()) { show(); return; }
                 if (fromMouse || !openBeforePress) show();
               });
-              row.addEventListener('focus', function () {
+              row.addEventListener("focus", function () {
                 if (desktopRules()) return;
                 if (fromMouse || !openBeforePress) show();
               });
-              row.addEventListener('click', function () {
-                if (!pressSounded) sound.play('select'); // opening or putting away an example
+              row.addEventListener("click", function () {
+                if (!pressSounded) sound.play("select"); // opening or putting away an example
                 pressSounded = false;
-                track('play_rule_click', { hand: r.name });
+                track("play_rule_click", { hand: r.name });
                 if (desktopRules()) { show(); return; }
                 if (fromMouse ? openExampleRow === row : openBeforePress) { hideRuleExample(); return; }
                 show();
               });
-              row.addEventListener('keydown', function (e) {
-                if (!desktopRules() || (e.key !== 'Enter' && e.key !== ' ')) return;
+              row.addEventListener("keydown", function (e) {
+                if (!desktopRules() || (e.key !== "Enter" && e.key !== " ")) return;
                 e.preventDefault();
                 if (openExampleRow === row) hideRuleExample();
                 else show();
               });
-              row.addEventListener('mouseleave', function (e) {
+              row.addEventListener("mouseleave", function (e) {
                 if (desktopRules()) {
                   if (exampleCardHas(e.relatedTarget)) return;
                   if (openExampleRow === row) hideRuleExample();
@@ -2027,7 +2027,7 @@
                 openBeforePress = false;
                 hideRuleExample();
               });
-              row.addEventListener('blur', function () {
+              row.addEventListener("blur", function () {
                 if (desktopRules()) return;
                 if (!exampleCardPressed) hideRuleExample();
               });
@@ -2041,14 +2041,14 @@
       });
       // One listener for the sheet: a click that isn't the open pattern or its
       // card puts the example away. The backdrop click still closes the sheet.
-      onSheet(rulesSheet(), 'click', function (e) {
+      onSheet(rulesSheet(), "click", function (e) {
         if (!desktopRules() || !openExampleRow) return;
         if (openExampleRow.contains(e.target) || exampleCardHas(e.target)) return;
-        sound.play('select'); // a click elsewhere puts the example away
+        sound.play("select"); // a click elsewhere puts the example away
         hideRuleExample();
       });
       // Where the pointer was last, so the example can enter from that side.
-      onSheet(rulesSheet(), 'pointermove', function (e) {
+      onSheet(rulesSheet(), "pointermove", function (e) {
         if (pointerTravel.ready) {
           pointerTravel.dx = e.clientX - pointerTravel.x;
           pointerTravel.dy = e.clientY - pointerTravel.y;
@@ -2061,14 +2061,14 @@
 
     // A finger still follows the touch path. Desktop uses hover and click.
     function desktopRules() {
-      return !!(root.matchMedia && root.matchMedia('(hover: hover) and (pointer: fine)').matches);
+      return !!(root.matchMedia && root.matchMedia("(hover: hover) and (pointer: fine)").matches);
     }
 
     function tileImg(id) {
-      var img = document.createElement('img');
-      img.src = '/tiles/' + E.HKScoring.TILE_BY_ID[id].file;
+      var img = document.createElement("img");
+      img.src = "/tiles/" + E.HKScoring.TILE_BY_ID[id].file;
       img.alt = E.tileName ? E.HKScoring.TILE_BY_ID[id].name : id;
-      img.className = 'rules-tile';
+      img.className = "rules-tile";
       return img;
     }
 
@@ -2079,22 +2079,22 @@
 
     function exampleCardHas(node) {
       var dlg = rulesSheet();
-      var card = dlg && dlg.querySelector('.rules-example');
+      var card = dlg && dlg.querySelector(".rules-example");
       return !!(card && node && (node === card || card.contains(node)));
     }
 
     // A meld or pair the pattern needs, as opposed to tiles that only complete the hand.
     function patternSet(key, set, example) {
       var id = set[0];
-      var dragons = id === 'dr' || id === 'dg' || id === 'dw';
-      var winds = id === 'we' || id === 'ws' || id === 'ww' || id === 'wn';
-      if (key === 'allKongs') return set.length === 4;
-      if (key === 'dragonPung' || key === 'greatDragons') return dragons && set.length >= 3;
-      if (key === 'smallDragons') return dragons;
-      if (key === 'greatWinds') return winds && set.length >= 3;
-      if (key === 'smallWinds') return winds;
-      if (key === 'yakuWind') {
-        var windOf = { 1: 'we', 2: 'ws', 3: 'ww', 4: 'wn' };
+      var dragons = id === "dr" || id === "dg" || id === "dw";
+      var winds = id === "we" || id === "ws" || id === "ww" || id === "wn";
+      if (key === "allKongs") return set.length === 4;
+      if (key === "dragonPung" || key === "greatDragons") return dragons && set.length >= 3;
+      if (key === "smallDragons") return dragons;
+      if (key === "greatWinds") return winds && set.length >= 3;
+      if (key === "smallWinds") return winds;
+      if (key === "yakuWind") {
+        var windOf = { 1: "we", 2: "ws", 3: "ww", 4: "wn" };
         var seat = example.seat || 2;
         var round = example.round || 1;
         return set.length >= 3 && (id === windOf[seat] || id === windOf[round]);
@@ -2105,59 +2105,59 @@
     // The example hand. On a desktop it sits in the middle of the sheet.
     function showRuleExample(row, r, faanLabel) {
       var dlg = rulesSheet();
-      var card = dlg.querySelector('.rules-example');
+      var card = dlg.querySelector(".rules-example");
       if (!card) {
-        card = document.createElement('div');
-        card.className = 'rules-example';
-        card.setAttribute('role', 'tooltip');
-        card.addEventListener('pointerdown', function (e) {
+        card = document.createElement("div");
+        card.className = "rules-example";
+        card.setAttribute("role", "tooltip");
+        card.addEventListener("pointerdown", function (e) {
           e.stopPropagation();
           exampleCardPressed = true;
         });
-        card.addEventListener('click', function (e) {
+        card.addEventListener("click", function (e) {
           e.stopPropagation();
           if (desktopRules()) return;
           exampleCardPressed = false;
           hideRuleExample();
         });
-        card.addEventListener('mouseenter', function () {
+        card.addEventListener("mouseenter", function () {
           if (desktopRules()) hideRuleExample();
         });
-        card.addEventListener('mouseleave', function (e) {
+        card.addEventListener("mouseleave", function (e) {
           if (openExampleRow && e.relatedTarget && openExampleRow.contains(e.relatedTarget)) return;
           hideRuleExample();
         });
         dlg.appendChild(card);
       }
       openExampleRow = row;
-      row.setAttribute('aria-expanded', 'true');
+      row.setAttribute("aria-expanded", "true");
       var ex = r.example;
-      card.innerHTML = '';
-      var head = document.createElement('div');
-      head.className = 'rules-example-head';
-      head.innerHTML = '<span class="rules-example-name"></span><span class="rules-faan"></span>';
-      head.firstChild.textContent = r.name + ' example';
+      card.innerHTML = "";
+      var head = document.createElement("div");
+      head.className = "rules-example-head";
+      head.innerHTML = "<span class=\"rules-example-name\"></span><span class=\"rules-faan\"></span>";
+      head.firstChild.textContent = r.name + " example";
       head.lastChild.textContent = faanLabel;
-      if (faanLabel === 'Limit') head.lastChild.classList.add('rules-faan--limit');
+      if (faanLabel === "Limit") head.lastChild.classList.add("rules-faan--limit");
       card.appendChild(head);
-      var tiles = document.createElement('div');
-      tiles.className = 'rules-example-tiles';
+      var tiles = document.createElement("div");
+      tiles.className = "rules-example-tiles";
       // Flower hands show only the bonus tiles. No Flowers shows none.
-      var flowersOnly = r.key === 'noFlowers' || r.key === 'seatFlower' || r.key === 'seatSeason' ||
-        r.key === 'allFlowers' || r.key === 'allSeasons' || r.key === 'sevenFlowers' || r.key === 'eightFlowers';
+      var flowersOnly = r.key === "noFlowers" || r.key === "seatFlower" || r.key === "seatSeason" ||
+        r.key === "allFlowers" || r.key === "allSeasons" || r.key === "sevenFlowers" || r.key === "eightFlowers";
       if (!flowersOnly) {
         ex.sets.forEach(function (set) {
-          var cls = 'rules-set' + (patternSet(r.key, set, ex) ? ' rules-set--open' : '');
+          var cls = "rules-set" + (patternSet(r.key, set, ex) ? " rules-set--open" : "");
           // A phone shows these 14-tile hands on two even rows. Desktop fits the whole hand on one.
-          var twoRows = !desktopRules() && (r.key === 'nineGates' || r.key === 'thirteenOrphans') && set.length > 1;
+          var twoRows = !desktopRules() && (r.key === "nineGates" || r.key === "thirteenOrphans") && set.length > 1;
           var parts = twoRows ? [set.slice(0, Math.ceil(set.length / 2)), set.slice(Math.ceil(set.length / 2))] : [set];
           parts.forEach(function (ids, i) {
             if (i) {
-              var br = document.createElement('span');
-              br.className = 'rules-example-break';
+              var br = document.createElement("span");
+              br.className = "rules-example-break";
               tiles.appendChild(br);
             }
-            var g = document.createElement('span');
+            var g = document.createElement("span");
             g.className = cls;
             ids.forEach(function (id) { g.appendChild(tileImg(id)); });
             tiles.appendChild(g);
@@ -2165,8 +2165,8 @@
         });
       }
       if (ex.flowers && ex.flowers.length) {
-        var fl = document.createElement('span');
-        fl.className = 'rules-set' + (flowersOnly ? ' rules-set--open' : ' rules-set--flowers');
+        var fl = document.createElement("span");
+        fl.className = "rules-set" + (flowersOnly ? " rules-set--open" : " rules-set--flowers");
         ex.flowers.forEach(function (id) { fl.appendChild(tileImg(id)); });
         tiles.appendChild(fl);
       }
@@ -2174,77 +2174,77 @@
       var notes = [];
       if (ex.note) notes.push(ex.note);
       if (notes.length) {
-        var p = document.createElement('p');
-        p.className = 'rules-example-note';
-        p.textContent = notes.join(' ');
+        var p = document.createElement("p");
+        p.className = "rules-example-note";
+        p.textContent = notes.join(" ");
         card.appendChild(p);
       }
-      card.style.display = 'block';
+      card.style.display = "block";
       var w = card.offsetWidth, h = card.offsetHeight;
       var dr = dlg.getBoundingClientRect(), rr = row.getBoundingClientRect();
       if (desktopRules()) {
         // Just above the pattern, overlapping it by a hair so the pointer can
         // move onto the card. It slides in from the side the pointer came from.
-        card.style.zIndex = '2147483647';
+        card.style.zIndex = "2147483647";
         var anchor = pointerTravel.ready ? pointerTravel.x - dr.left : rr.left - dr.left + rr.width / 2;
         var left = anchor - w / 2;
         left = Math.max(8, Math.min(left, dlg.clientWidth - w - 8));
         var top = rr.top - dr.top + dlg.scrollTop - h + 2;
         if (top < dlg.scrollTop + 8) top = rr.bottom - dr.top + dlg.scrollTop - 2;
-        card.style.left = left + 'px';
-        card.style.top = top + 'px';
+        card.style.left = left + "px";
+        card.style.top = top + "px";
         slideExampleFromPointer(card);
       } else {
-        card.style.zIndex = '';
-        card.style.transform = 'none';
+        card.style.zIndex = "";
+        card.style.transform = "none";
         // On a phone it stops 10px further from the sheet's right edge (css/play.css).
-        var rightGap = root.matchMedia && root.matchMedia('(max-width: 600px)').matches ? 18 : 8;
+        var rightGap = root.matchMedia && root.matchMedia("(max-width: 600px)").matches ? 18 : 8;
         var touchLeft = Math.min(Math.max(8, rr.left - dr.left), dr.width - w - rightGap);
         var touchTop = rr.bottom - dr.top - 2;
         if (touchTop + h > dr.height - 8) touchTop = rr.top - dr.top - h + 2;
-        card.style.left = touchLeft + 'px';
-        card.style.top = (touchTop + dlg.scrollTop) + 'px';
+        card.style.left = touchLeft + "px";
+        card.style.top = (touchTop + dlg.scrollTop) + "px";
       }
     }
 
     function slideExampleFromPointer(card) {
-      var reduce = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var reduce = root.matchMedia && root.matchMedia("(prefers-reduced-motion: reduce)").matches;
       var dx = pointerTravel.dx, dy = pointerTravel.dy;
       var mag = Math.hypot(dx, dy);
       if (reduce || mag < 1) {
-        card.style.transition = 'none';
-        card.style.transform = 'none';
+        card.style.transition = "none";
+        card.style.transform = "none";
         return;
       }
-      card.style.transition = 'none';
-      card.style.transform = 'translate(' + (-dx / mag * 36) + 'px,' + (-dy / mag * 20) + 'px)';
-      card.offsetWidth;
-      card.style.transition = 'transform 0.16s ease-out';
-      card.style.transform = 'translate(0, 0)';
+      card.style.transition = "none";
+      card.style.transform = "translate(" + (-dx / mag * 36) + "px," + (-dy / mag * 20) + "px)";
+      void card.offsetWidth;
+      card.style.transition = "transform 0.16s ease-out";
+      card.style.transform = "translate(0, 0)";
     }
 
     function hideRuleExample() {
-      if (openExampleRow) openExampleRow.setAttribute('aria-expanded', 'false');
+      if (openExampleRow) openExampleRow.setAttribute("aria-expanded", "false");
       openExampleRow = null;
       var dlg = rulesSheet();
-      var card = dlg && dlg.querySelector('.rules-example');
-      if (card) card.style.display = 'none';
+      var card = dlg && dlg.querySelector(".rules-example");
+      if (card) card.style.display = "none";
     }
 
     function openRules() {
       var dlg = rulesSheet();
       if (!dlg || dlg.open) return;
-      sound.play('select'); // the click
+      sound.play("select"); // the click
       buildRules();
-      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
-      track('play_open_rules', {});
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+      track("play_open_rules", {});
     }
 
     function closeRules() {
       var dlg = rulesSheet();
       if (!dlg || !dlg.open) return;
-      if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
-      track('play_close_rules', {});
+      if (dlg.close) dlg.close(); else dlg.removeAttribute("open");
+      track("play_close_rules", {});
     }
 
     function rulesOpen() {
@@ -2255,14 +2255,14 @@
     /* ---------------- strategies sheet ---------------- */
 
     function strategiesSheet() {
-      return document.getElementById('strategies-sheet');
+      return document.getElementById("strategies-sheet");
     }
 
     // How much the coach says (Coach settings): 'simple' (the default),
     // 'detailed' or 'complex'. Kept in PREFS_KEY.
-    var COACH_DETAILS = ['simple', 'detailed', 'complex'];
+    var COACH_DETAILS = ["simple", "detailed", "complex"];
     function coachDetail() {
-      return COACH_DETAILS.indexOf(prefs.coachDetail) !== -1 ? prefs.coachDetail : 'simple';
+      return COACH_DETAILS.indexOf(prefs.coachDetail) !== -1 ? prefs.coachDetail : "simple";
     }
 
     function coachWith(id) {
@@ -2274,13 +2274,13 @@
     }
 
     function playerLabel(seat) {
-      var name = game ? game.players[seat].name : 'Bot ' + seat;
-      return name + ' (' + SEAT_SIDES[seat] + ')';
+      var name = game ? game.players[seat].name : "Bot " + seat;
+      return name + " (" + SEAT_SIDES[seat] + ")";
     }
 
     var ASSIGN_ICON = {
-      user: '<circle cx="8" cy="4.4" r="2.3" fill="currentColor"/><path d="M2.1 14.4c.4-3.5 2.3-5.2 5.9-5.2s5.5 1.7 5.9 5.2z" fill="currentColor"/>',
-      bot: '<path d="M8 3.1V1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="1.15" r="0.85" fill="currentColor"/><rect x="0.5" y="6.1" width="1.5" height="2.5" rx="0.4" fill="currentColor"/><rect x="14" y="6.1" width="1.5" height="2.5" rx="0.4" fill="currentColor"/><rect x="2.3" y="3.5" width="11.4" height="10.2" rx="2.2" fill="currentColor"/><circle cx="6.2" cy="7.8" r="0.95" fill="var(--theme-dark, #074029)"/><circle cx="9.8" cy="7.8" r="0.95" fill="var(--theme-dark, #074029)"/><rect x="5.7" y="10.5" width="4.6" height="1" rx="0.4" fill="var(--theme-dark, #074029)"/>',
+      user: "<circle cx=\"8\" cy=\"4.4\" r=\"2.3\" fill=\"currentColor\"/><path d=\"M2.1 14.4c.4-3.5 2.3-5.2 5.9-5.2s5.5 1.7 5.9 5.2z\" fill=\"currentColor\"/>",
+      bot: "<path d=\"M8 3.1V1.5\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/><circle cx=\"8\" cy=\"1.15\" r=\"0.85\" fill=\"currentColor\"/><rect x=\"0.5\" y=\"6.1\" width=\"1.5\" height=\"2.5\" rx=\"0.4\" fill=\"currentColor\"/><rect x=\"14\" y=\"6.1\" width=\"1.5\" height=\"2.5\" rx=\"0.4\" fill=\"currentColor\"/><rect x=\"2.3\" y=\"3.5\" width=\"11.4\" height=\"10.2\" rx=\"2.2\" fill=\"currentColor\"/><circle cx=\"6.2\" cy=\"7.8\" r=\"0.95\" fill=\"var(--theme-dark, #074029)\"/><circle cx=\"9.8\" cy=\"7.8\" r=\"0.95\" fill=\"var(--theme-dark, #074029)\"/><rect x=\"5.7\" y=\"10.5\" width=\"4.6\" height=\"1\" rx=\"0.4\" fill=\"var(--theme-dark, #074029)\"/>",
     };
 
     // The drawings stop short of the view box. Drop each one so its lowest
@@ -2288,121 +2288,121 @@
     var ICON_DROP = { user: 1.6, bot: 2.3 };
 
     function assignIcon(kind) {
-      var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('viewBox', '0 0 16 16');
-      svg.setAttribute('aria-hidden', 'true');
-      svg.classList.add('strategies-assign-icon');
-      svg.innerHTML = '<g transform="translate(0 ' + ICON_DROP[kind] + ')">' + ASSIGN_ICON[kind] + '</g>';
+      var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 16 16");
+      svg.setAttribute("aria-hidden", "true");
+      svg.classList.add("strategies-assign-icon");
+      svg.innerHTML = "<g transform=\"translate(0 " + ICON_DROP[kind] + ")\">" + ASSIGN_ICON[kind] + "</g>";
       return svg;
     }
 
     function playingNow(id) {
-      return 'Playing ' + Strategies.get(id).name;
+      return "Playing " + Strategies.get(id).name;
     }
 
     function assignRow(labelText, playing, icon) {
-      var row = document.createElement('div');
-      row.className = 'strategies-assign-row';
-      var label = document.createElement('label');
-      label.className = 'strategies-assign-label';
-      var who = document.createElement('span');
-      who.className = 'strategies-assign-who';
+      var row = document.createElement("div");
+      row.className = "strategies-assign-row";
+      var label = document.createElement("label");
+      label.className = "strategies-assign-label";
+      var who = document.createElement("span");
+      who.className = "strategies-assign-who";
       if (icon) who.appendChild(assignIcon(icon));
       who.appendChild(document.createTextNode(labelText));
       label.appendChild(who);
       if (playing) {
-        var now = document.createElement('span');
-        now.className = 'strategies-assign-playing';
+        var now = document.createElement("span");
+        now.className = "strategies-assign-playing";
         now.textContent = playing;
         label.appendChild(now);
       }
       row.appendChild(label);
-      row.classList.add('strategies-assign-row--read');
+      row.classList.add("strategies-assign-row--read");
       return row;
     }
 
     var strategyDetailsOpen = false;
 
     function buildStrategies() {
-      var body = document.getElementById('strategies-sheet-body');
+      var body = document.getElementById("strategies-sheet-body");
       if (!body) return;
-      body.innerHTML = '';
+      body.innerHTML = "";
 
-      var assign = document.createElement('section');
-      assign.className = 'rules-section';
-      var h = document.createElement('h3');
-      h.className = 'rules-section-title';
-      h.textContent = 'Who plays what';
+      var assign = document.createElement("section");
+      assign.className = "rules-section";
+      var h = document.createElement("h3");
+      h.className = "rules-section-title";
+      h.textContent = "Who plays what";
       assign.appendChild(h);
-      var box = document.createElement('div');
-      box.className = 'rules-family strategies-assign';
+      var box = document.createElement("div");
+      box.className = "rules-family strategies-assign";
       // The sheet only shows who is playing what. The coach is picked on the
       // table, and each computer player gets a random strategy every game.
-      box.appendChild(assignRow('Coach', playingNow(ui.strategies.coach), 'user'));
+      box.appendChild(assignRow("Coach", playingNow(ui.strategies.coach), "user"));
       [1, 2, 3].forEach(function (seat) {
-        box.appendChild(assignRow(playerLabel(seat), playingNow(ui.strategies.seats[seat]), 'bot'));
+        box.appendChild(assignRow(playerLabel(seat), playingNow(ui.strategies.seats[seat]), "bot"));
       });
       assign.appendChild(box);
       body.appendChild(assign);
 
-      var about = document.createElement('section');
-      about.className = 'rules-section';
-      var aboutHead = document.createElement('div');
-      aboutHead.className = 'strategies-about-head';
-      var h2 = document.createElement('h3');
-      h2.className = 'rules-section-title';
-      h2.textContent = 'Strategies';
+      var about = document.createElement("section");
+      about.className = "rules-section";
+      var aboutHead = document.createElement("div");
+      aboutHead.className = "strategies-about-head";
+      var h2 = document.createElement("h3");
+      h2.className = "rules-section-title";
+      h2.textContent = "Strategies";
       aboutHead.appendChild(h2);
-      var toggle = document.createElement('button');
-      toggle.type = 'button';
-      toggle.id = 'strategies-details-toggle';
-      toggle.className = 'strategies-details-toggle';
+      var toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.id = "strategies-details-toggle";
+      toggle.className = "strategies-details-toggle";
       aboutHead.appendChild(toggle);
       about.appendChild(aboutHead);
-      var grid = document.createElement('div');
-      grid.className = 'strategies-cards';
+      var grid = document.createElement("div");
+      grid.className = "strategies-cards";
       // One link shows or hides every strategy's details.
       var showDetails = function () {
-        grid.classList.toggle('is-showing-details', strategyDetailsOpen);
-        toggle.textContent = strategyDetailsOpen ? 'Hide details' : 'See details';
-        toggle.setAttribute('aria-expanded', strategyDetailsOpen ? 'true' : 'false');
+        grid.classList.toggle("is-showing-details", strategyDetailsOpen);
+        toggle.textContent = strategyDetailsOpen ? "Hide details" : "See details";
+        toggle.setAttribute("aria-expanded", strategyDetailsOpen ? "true" : "false");
       };
-      toggle.addEventListener('click', function () {
-        sound.play('select'); // See details or Hide details
+      toggle.addEventListener("click", function () {
+        sound.play("select"); // See details or Hide details
         strategyDetailsOpen = !strategyDetailsOpen;
-        track('play_strategy_details_click', { open: strategyDetailsOpen });
+        track("play_strategy_details_click", { open: strategyDetailsOpen });
         showDetails();
       });
       showDetails();
       Strategies.list().forEach(function (s) {
-        var card = document.createElement('article');
-        card.className = 'rules-family strategies-card';
-        var head = document.createElement('div');
-        head.className = 'strategies-card-head';
-        var name = document.createElement('h4');
-        name.className = 'strategies-card-name';
+        var card = document.createElement("article");
+        card.className = "rules-family strategies-card";
+        var head = document.createElement("div");
+        head.className = "strategies-card-head";
+        var name = document.createElement("h4");
+        name.className = "strategies-card-name";
         name.textContent = s.name; // a learned strategy's model opens its summary
-        var id = document.createElement('code');
-        id.className = 'strategies-card-id';
+        var id = document.createElement("code");
+        id.className = "strategies-card-id";
         id.textContent = s.id;
         head.appendChild(name);
         head.appendChild(id);
         card.appendChild(head);
         var used = [1, 2, 3].filter(function (seat) { return ui.strategies.seats[seat] === s.id; })
-          .map(function (seat) { return game ? game.players[seat].name : 'Bot ' + seat; });
-        if (ui.strategies.coach === s.id) used.push('the coach');
-        var who = document.createElement('p');
-        who.className = 'strategies-card-who';
-        who.textContent = used.length ? 'Used by ' + listWords(used) + '.' : 'Not in use this game.';
+          .map(function (seat) { return game ? game.players[seat].name : "Bot " + seat; });
+        if (ui.strategies.coach === s.id) used.push("the coach");
+        var who = document.createElement("p");
+        who.className = "strategies-card-who";
+        who.textContent = used.length ? "Used by " + listWords(used) + "." : "Not in use this game.";
         card.appendChild(who);
-        var sum = document.createElement('p');
-        sum.className = 'strategies-card-summary';
+        var sum = document.createElement("p");
+        sum.className = "strategies-card-summary";
         appendHandNames(sum, s.summary);
         card.appendChild(sum);
-        var more = document.createElement('div');
-        more.className = 'strategies-card-more';
+        var more = document.createElement("div");
+        more.className = "strategies-card-more";
         s.details.forEach(function (t) {
-          var p = document.createElement('p');
+          var p = document.createElement("p");
           appendHandNames(p, t);
           more.appendChild(p);
         });
@@ -2415,19 +2415,19 @@
 
     // Text with its hand names (the coach's list) in red spans.
     function appendHandNames(el, value) {
-      Coach.highlightPatterns(value).split('\u0002').forEach(function (part) {
-        var at = part.indexOf('\u0001');
+      Coach.highlightPatterns(value).split("\u0002").forEach(function (part) {
+        var at = part.indexOf("\u0001");
         el.appendChild(document.createTextNode(at < 0 ? part : part.slice(0, at)));
         if (at < 0) return;
-        var span = document.createElement('span');
-        span.className = 'strategies-hand';
+        var span = document.createElement("span");
+        span.className = "strategies-hand";
         span.textContent = part.slice(at + 1);
         el.appendChild(span);
       });
     }
 
     function listWords(list) {
-      return list.length > 1 ? list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1] : list[0];
+      return list.length > 1 ? list.slice(0, -1).join(", ") + " and " + list[list.length - 1] : list[0];
     }
 
     function setCoachStrategy(id) {
@@ -2435,9 +2435,9 @@
       saved.coach = id;
       ui.strategies.coach = id;
       writeJson(STRATEGIES_KEY, saved);
-      track('play_set_coach_strategy', { strategy: id });
+      track("play_set_coach_strategy", { strategy: id });
       // Only which list shows changes. Every strategy has kept its own.
-      if (ui.hint && !settings.lesson && ui.coach !== 'off') ui.hint = ui.hintsAll[id] || ui.hint;
+      if (ui.hint && !settings.lesson && ui.coach !== "off") ui.hint = ui.hintsAll[id] || ui.hint;
       // In Feedback mode, its own note on your last move.
       var said = ui.feedbackAll[id];
       if (ui.feedback && said && said[coachDetail()]) ui.feedback = said[coachDetail()];
@@ -2449,17 +2449,17 @@
     function openStrategies() {
       var dlg = strategiesSheet();
       if (!dlg || dlg.open) return;
-      sound.play('select'); // the click
+      sound.play("select"); // the click
       buildStrategies();
-      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
-      track('play_open_strategies', {});
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+      track("play_open_strategies", {});
     }
 
     function closeStrategies() {
       var dlg = strategiesSheet();
       if (!dlg || !dlg.open) return;
-      if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
-      track('play_close_strategies', {});
+      if (dlg.close) dlg.close(); else dlg.removeAttribute("open");
+      track("play_close_strategies", {});
     }
 
     function strategiesOpen() {
@@ -2475,13 +2475,13 @@
     // Each example is what that level really says for one hand: Neural Cat's
     // coach, East's first turn of the game with seed 11.
     var COACH_OPTIONS = [
-      { id: 'simple', name: 'Simple', example: 'Discard Four Bamboo. Go for Half Flush in Circles, about 3 faan. You have 8 tiles needed and 6 tiles remaining.' },
-      { id: 'detailed', name: 'Detailed', example: 'Discard Four Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 8 tiles needed and 6 tiles remaining. It is the tile you need least and works best with the tiles you have.' },
-      { id: 'complex', name: 'Complex', example: 'Discard Four Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 8 tiles needed and 6 tiles remaining. The model expects +164 score from this discard, with a 7% chance to win. Next best discard is Five Character: +111 score.' },
+      { id: "simple", name: "Simple", example: "Discard Four Bamboo. Go for Half Flush in Circles, about 3 faan. You have 8 tiles needed and 6 tiles remaining." },
+      { id: "detailed", name: "Detailed", example: "Discard Four Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 8 tiles needed and 6 tiles remaining. It is the tile you need least and works best with the tiles you have." },
+      { id: "complex", name: "Complex", example: "Discard Four Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 8 tiles needed and 6 tiles remaining. The model expects +164 score from this discard, with a 7% chance to win. Next best discard is Five Character: +111 score." },
     ];
 
     function coachSettingsSheet() {
-      return document.getElementById('coach-settings-sheet');
+      return document.getElementById("coach-settings-sheet");
     }
 
     function coachSettingsOpen() {
@@ -2490,39 +2490,39 @@
     }
 
     function buildCoachSettings() {
-      var body = document.getElementById('coach-settings-body');
+      var body = document.getElementById("coach-settings-body");
       if (!body) return;
-      body.textContent = '';
+      body.textContent = "";
       var current = coachDetail();
       COACH_OPTIONS.forEach(function (o) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'coach-option' + (o.id === current ? ' is-selected' : '');
-        b.setAttribute('role', 'radio');
-        b.setAttribute('aria-checked', o.id === current ? 'true' : 'false');
-        b.setAttribute('data-detail', o.id);
-        var name = document.createElement('span');
-        name.className = 'coach-option-name';
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "coach-option" + (o.id === current ? " is-selected" : "");
+        b.setAttribute("role", "radio");
+        b.setAttribute("aria-checked", o.id === current ? "true" : "false");
+        b.setAttribute("data-detail", o.id);
+        var name = document.createElement("span");
+        name.className = "coach-option-name";
         name.textContent = o.name;
-        var ex = document.createElement('span');
-        ex.className = 'coach-option-example';
+        var ex = document.createElement("span");
+        ex.className = "coach-option-example";
         ex.textContent = o.example;
         b.appendChild(name);
         b.appendChild(ex);
-        b.addEventListener('click', function () { setCoachDetail(o.id); });
+        b.addEventListener("click", function () { setCoachDetail(o.id); });
         body.appendChild(b);
       });
     }
 
     function setCoachDetail(id) {
       if (COACH_DETAILS.indexOf(id) === -1 || id === coachDetail()) return;
-      sound.play('select');
+      sound.play("select");
       prefs.coachDetail = id;
       writeJson(PREFS_KEY, prefs);
-      track('play_coach_detail', { detail: id });
+      track("play_coach_detail", { detail: id });
       buildCoachSettings();
       // The hint on screen says it again in the new words.
-      if (!settings.lesson && ui.coach !== 'off' && game && game.hand && (ui.turnPrompt || ui.claimPrompt)) {
+      if (!settings.lesson && ui.coach !== "off" && game && game.hand && (ui.turnPrompt || ui.claimPrompt)) {
         Object.keys(ui.hintsWhole).forEach(function (sid) {
           ui.hintsAll[sid] = ui.hintsWhole[sid] ? Coach.atDetail(ui.hintsWhole[sid], id) : null;
         });
@@ -2544,14 +2544,14 @@
       var dlg = coachSettingsSheet();
       if (!dlg || dlg.open) return;
       buildCoachSettings();
-      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
     }
 
     function closeCoachSettings() {
       var dlg = coachSettingsSheet();
       if (!dlg || !dlg.open) return;
-      sound.play('select'); // the click
-      if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
+      sound.play("select"); // the click
+      if (dlg.close) dlg.close(); else dlg.removeAttribute("open");
     }
 
     /* ---------------- results sheet ---------------- */
@@ -2559,13 +2559,13 @@
     // center square, and at the end of a full game.
 
     function resultsSheet() {
-      return document.getElementById('results-sheet');
+      return document.getElementById("results-sheet");
     }
 
     // Faan on one line, points on the next. Zero points read as 0, not ±0.
     // Practice never pays, so the points line would only ever say 0.
     function showsPoints() {
-      return settings.mode !== 'practice';
+      return settings.mode !== "practice";
     }
 
     function resultLines(row, seat) {
@@ -2575,8 +2575,8 @@
       var stake = row.stake || 0;
       var delta = stake ? points - stake : points;
       return {
-        faan: (faan ? signed(faan) : '0') + ' faan',
-        points: stake ? (points < 0 ? '−' + fmt(-points) : fmt(points)) : (points ? signed(points) : '0'),
+        faan: (faan ? signed(faan) : "0") + " faan",
+        points: stake ? (points < 0 ? "−" + fmt(-points) : fmt(points)) : (points ? signed(points) : "0"),
         scored: faan > 0,
         faanLoss: faan < 0,
         gain: delta > 0,
@@ -2597,46 +2597,46 @@
       var stake = 0;
       if (showsPoints()) {
         var opening = game && game.settings && game.settings.startPoints;
-        stake = typeof opening === 'number' ? opening : E.START_POINTS;
+        stake = typeof opening === "number" ? opening : E.START_POINTS;
         for (var seat = 0; seat < 4; seat++) points[seat] += stake;
       }
       return { faan: faan, points: points, stake: stake };
     }
 
     function fillResults() {
-      var body = document.getElementById('results-sheet-body');
+      var body = document.getElementById("results-sheet-body");
       if (!body) return;
       while (body.firstChild) body.removeChild(body.firstChild);
       if (!ui.results.length) {
-        var empty = document.createElement('p');
-        empty.className = 'results-empty';
-        empty.textContent = 'Finished hands show up here.';
+        var empty = document.createElement("p");
+        empty.className = "results-empty";
+        empty.textContent = "Finished hands show up here.";
         body.appendChild(empty);
         return;
       }
-      var table = document.createElement('table');
-      table.className = 'results-table';
-      var caption = document.createElement('caption');
-      caption.className = 'visually-hidden';
+      var table = document.createElement("table");
+      table.className = "results-table";
+      var caption = document.createElement("caption");
+      caption.className = "visually-hidden";
       var total = resultsTotal();
       caption.textContent = showsPoints()
-        ? 'Faan and points each player gained or lost, one row per hand. The total starts each player at ' + fmt(total.stake) + '.'
-        : 'Faan each player gained or lost, one row per hand.';
+        ? "Faan and points each player gained or lost, one row per hand. The total starts each player at " + fmt(total.stake) + "."
+        : "Faan each player gained or lost, one row per hand.";
       table.appendChild(caption);
-      var thead = document.createElement('thead');
-      var head = document.createElement('tr');
-      var handHead = document.createElement('th');
-      handHead.scope = 'col';
-      handHead.textContent = 'Hand';
+      var thead = document.createElement("thead");
+      var head = document.createElement("tr");
+      var handHead = document.createElement("th");
+      handHead.scope = "col";
+      handHead.textContent = "Hand";
       head.appendChild(handHead);
       [0, 1, 2, 3].forEach(function (seat) {
-        var th = document.createElement('th');
-        th.scope = 'col';
-        var who = document.createElement('span');
-        who.className = 'results-player';
-        var avatar = assignIcon(game.players[seat].isHuman ? 'user' : 'bot');
-        avatar.classList.remove('strategies-assign-icon');
-        avatar.classList.add('results-avatar');
+        var th = document.createElement("th");
+        th.scope = "col";
+        var who = document.createElement("span");
+        who.className = "results-player";
+        var avatar = assignIcon(game.players[seat].isHuman ? "user" : "bot");
+        avatar.classList.remove("strategies-assign-icon");
+        avatar.classList.add("results-avatar");
         who.appendChild(document.createTextNode(seatTitle(seat)));
         who.appendChild(avatar);
         th.appendChild(who);
@@ -2648,14 +2648,14 @@
         var cells = [];
         for (var seat = 0; seat < 4; seat++) {
           var lines = resultLines(row, seat);
-          var td = document.createElement('td');
-          var faan = document.createElement('span');
-          faan.className = 'results-faan' + (lines.scored ? ' results-faan--scored' : lines.faanLoss ? ' results-faan--loss' : '');
+          var td = document.createElement("td");
+          var faan = document.createElement("span");
+          faan.className = "results-faan" + (lines.scored ? " results-faan--scored" : lines.faanLoss ? " results-faan--loss" : "");
           faan.textContent = lines.faan;
           td.appendChild(faan);
           if (showsPoints()) {
-            var pts = document.createElement('span');
-            pts.className = 'results-points' + (lines.gain ? ' results-points--gain' : lines.loss ? ' results-points--loss' : '');
+            var pts = document.createElement("span");
+            pts.className = "results-points" + (lines.gain ? " results-points--gain" : lines.loss ? " results-points--loss" : "");
             pts.textContent = lines.points;
             td.appendChild(pts);
           }
@@ -2663,16 +2663,16 @@
         }
         return cells;
       }
-      var tbody = document.createElement('tbody');
+      var tbody = document.createElement("tbody");
       ui.results.forEach(function (row) {
-        var tr = document.createElement('tr');
-        var hand = document.createElement('th');
-        hand.scope = 'row';
+        var tr = document.createElement("tr");
+        var hand = document.createElement("th");
+        hand.scope = "row";
         hand.textContent = String(row.hand);
         if (row.draw) {
-          var draw = document.createElement('span');
-          draw.className = 'results-draw';
-          draw.textContent = 'Draw';
+          var draw = document.createElement("span");
+          draw.className = "results-draw";
+          draw.textContent = "Draw";
           hand.appendChild(draw);
         }
         tr.appendChild(hand);
@@ -2680,12 +2680,12 @@
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
-      var foot = document.createElement('tfoot');
-      var totalRow = document.createElement('tr');
-      totalRow.className = 'results-total';
-      var totalHead = document.createElement('th');
-      totalHead.scope = 'row';
-      totalHead.textContent = 'Total';
+      var foot = document.createElement("tfoot");
+      var totalRow = document.createElement("tr");
+      totalRow.className = "results-total";
+      var totalHead = document.createElement("th");
+      totalHead.scope = "row";
+      totalHead.textContent = "Total";
       totalRow.appendChild(totalHead);
       resultCells(total).forEach(function (td) { totalRow.appendChild(td); });
       foot.appendChild(totalRow);
@@ -2727,19 +2727,19 @@
         keepReplay(file);
         if (!liveReplay && !readJson(REPLAY_KEY, null)) return;
       } else if (!storedReplay()) return;
-      track('play_view_replay', {});
+      track("play_view_replay", {});
       if (callbacks.playback) { callbacks.playback(); return; }
-      root.location.assign(visitUrl('/playing-mahjong/', { playback: '1' }));
+      root.location.assign(visitUrl("/playing-mahjong/", { playback: "1" }));
     }
 
     // Keep a quiet or instant visit quiet on the next page too.
     function visitUrl(path, params) {
       var url = new URL(path, root.location.origin);
       Object.keys(params).forEach(function (key) { url.searchParams.set(key, params[key]); });
-      var search = (root.location && root.location.search) || '';
+      var search = (root.location && root.location.search) || "";
       var sound = /[?&]sound=(0|1)(?:&|$)/.exec(search);
-      if (sound) url.searchParams.set('sound', sound[1]);
-      if (/[?&]instant=1(?:&|$)/.test(search)) url.searchParams.set('instant', '1');
+      if (sound) url.searchParams.set("sound", sound[1]);
+      if (/[?&]instant=1(?:&|$)/.test(search)) url.searchParams.set("instant", "1");
       return url.pathname + url.search;
     }
 
@@ -2749,7 +2749,7 @@
       var trace = game.hand && game.hand.trace;
       if (!trace) return;
       var win = null;
-      for (var i = trace.length - 1; i >= 0; i--) if (trace[i].a === 'win') { win = trace[i]; break; }
+      for (var i = trace.length - 1; i >= 0; i--) if (trace[i].a === "win") { win = trace[i]; break; }
       if (!win) return;
       if (!game.hand.review) game.hand.review = { mark: null, win: win };
       else if (!game.hand.review.win) game.hand.review.win = win;
@@ -2804,9 +2804,9 @@
       ui.resultsOpen = !!open;
       if (root.history && root.history.replaceState) {
         var url = new URL(root.location.href);
-        if (open) url.searchParams.set('results', '1');
-        else url.searchParams.delete('results');
-        root.history.replaceState(root.history.state, '', url.pathname + url.search);
+        if (open) url.searchParams.set("results", "1");
+        else url.searchParams.delete("results");
+        root.history.replaceState(root.history.state, "", url.pathname + url.search);
       }
       autosave(true);
     }
@@ -2815,20 +2815,20 @@
       var dlg = resultsSheet();
       // The game-over standings sit under this sheet, so they must not block it.
       if (!dlg || dlg.open || !game) return;
-      if (ui.overlay && ui.overlay.type !== 'gameover') return;
+      if (ui.overlay && ui.overlay.type !== "gameover") return;
       pinnedTip = null;
       if (game.over) saveMatchPlayback();
       fillResults();
-      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
       if (game.over) markResultsOpen(true);
-      track('play_open_results', {});
+      track("play_open_results", {});
     }
 
     function closeResults() {
       var dlg = resultsSheet();
       if (!dlg || !dlg.open) return;
-      if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
-      track('play_close_results', {});
+      if (dlg.close) dlg.close(); else dlg.removeAttribute("open");
+      track("play_close_results", {});
     }
 
     function resultsOpen() {
@@ -2836,20 +2836,20 @@
       return !!(dlg && dlg.open);
     }
 
-    var COACH_LABELS = { on: 'Coach on', feedback: 'Feedback on', off: 'Coach off' };
+    var COACH_LABELS = { on: "Coach on", feedback: "Feedback on", off: "Coach off" };
     // The Sound button cycles Music on (music and sounds), Sound on (sounds,
     // no music) and Sound off (neither).
-    var SOUND_LABELS = { music: 'Music on', sound: 'Sound on', off: 'Sound off' };
-    var SOUND_ORDER = ['music', 'sound', 'off'];
+    var SOUND_LABELS = { music: "Music on", sound: "Sound on", off: "Sound off" };
+    var SOUND_ORDER = ["music", "sound", "off"];
 
     function soundMode() {
-      if (!sound.enabled) return 'off';
-      return sound.musicEnabled ? 'music' : 'sound';
+      if (!sound.enabled) return "off";
+      return sound.musicEnabled ? "music" : "sound";
     }
-    var COACH_ORDER = ['on', 'feedback', 'off'];
+    var COACH_ORDER = ["on", "feedback", "off"];
 
     function drawTopBar() {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+      ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
       ctx.fillRect(0, 0, W, 42);
       var pad = L ? L.pad : 8;
       if (settings.playback) {
@@ -2859,15 +2859,15 @@
         // and a desktop, with or without a hand loaded. Download and Upload
         // keep their words only when that still leaves the title room;
         // otherwise they are icons.
-        var TITLE = 'Playback Analysis';
+        var TITLE = "Playback Analysis";
         var TITLE_ROOM = 150; // the width the title gets before the buttons turn to icons
         var sw = W < 420 ? 66 : 92;
         var right = W - pad;
         var soundX = right - sw;
-        button(SOUND_LABELS[soundMode()], soundX, 7, sw, 28, toggleSound, 'ghost', 'sound');
+        button(SOUND_LABELS[soundMode()], soundX, 7, sw, 28, toggleSound, "ghost", "sound");
         // Back always goes to the game, however the playback was opened.
         var backW = 64;
-        button('Back', pad, 7, backW, 28, function () { sound.play('select'); backToGame(); }, 'ghost', 'review-back');
+        button("Back", pad, 7, backW, 28, function () { sound.play("select"); backToGame(); }, "ghost", "review-back");
         var gapL = pad + backW + 8;
         var clusterX = soundX; // the left edge of the buttons on the right
         // View playback (the sheet of recent hands and the upload: each row
@@ -2877,7 +2877,7 @@
         var words = W >= 600 && soundX - 6 - LIST_W - 8 - gapL >= TITLE_ROOM;
         var vpW = words ? LIST_W : 34;
         var vpX = soundX - 6 - vpW;
-        button(words ? 'Saved playbacks' : '', vpX, 7, vpW, 28, openPlaybacks, 'ghost', 'review-list');
+        button(words ? "Saved playbacks" : "", vpX, 7, vpW, 28, openPlaybacks, "ghost", "review-list");
         clusterX = vpX;
         if (!words) {
           // A list, three rows each with a dot (your saved hands), drawn here so it needs no font.
@@ -2885,7 +2885,7 @@
           ctx.strokeStyle = COLORS.white;
           ctx.fillStyle = COLORS.white;
           ctx.lineWidth = 2;
-          ctx.lineCap = 'round';
+          ctx.lineCap = "round";
           var ay = 21;
           var lx = vpX + vpW / 2;
           ctx.beginPath();
@@ -2904,36 +2904,36 @@
         var gapR = clusterX - 8;
         var titleX = (gapL + gapR) / 2;
         var titleW = Math.max(1, gapR - gapL - 8);
-        text(TITLE, titleX, 22, { size: fitFont(ctx, TITLE, titleW, 15, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.cream });
+        text(TITLE, titleX, 22, { size: fitFont(ctx, TITLE, titleW, 15, FONT_HEAD), family: FONT_HEAD, align: "center", color: COLORS.cream });
         return;
       }
-      button('Menu', pad, 7, 64, 28, openMenu, 'ghost', 'menu');
+      button("Menu", pad, 7, 64, 28, openMenu, "ghost", "menu");
       // A sideways phone gets a Full screen button beside Menu.
       var left = pad + 72;
       if (L && L.landscape && callbacks.fullscreen) {
         var fsOn = callbacks.isFullscreen && callbacks.isFullscreen();
         var fsW = 112;
-        button(fsOn ? 'Exit full screen' : 'Full screen', left, 7, fsW, 28, callbacks.fullscreen, 'ghost', 'fullscreen');
+        button(fsOn ? "Exit full screen" : "Full screen", left, 7, fsW, 28, callbacks.fullscreen, "ghost", "fullscreen");
         left += fsW + 6;
       }
       var right = W - pad;
       var soundLabel = SOUND_LABELS[soundMode()];
       var sw = W < 420 ? 66 : 92;
-      button(soundLabel, right - sw, 7, sw, 28, toggleSound, 'ghost', 'sound');
+      button(soundLabel, right - sw, 7, sw, 28, toggleSound, "ghost", "sound");
       var hw = W < 420 ? 84 : 106;
-      button(COACH_LABELS[ui.coach], right - sw - hw - 6, 7, hw, 28, cycleCoach, ui.coach === 'off' ? 'ghost' : 'gold', 'hints');
+      button(COACH_LABELS[ui.coach], right - sw - hw - 6, 7, hw, 28, cycleCoach, ui.coach === "off" ? "ghost" : "gold", "hints");
       var rw = W < 420 ? 50 : 68;
-      button('Rules', right - sw - hw - rw - 12, 7, rw, 28, openRules, 'ghost', 'rules', !!(settings.lesson && ui.hint && ui.hint.highlight === 'rules')); // the tutorial points to it with a gold ring
+      button("Rules", right - sw - hw - rw - 12, 7, rw, 28, openRules, "ghost", "rules", !!(settings.lesson && ui.hint && ui.hint.highlight === "rules")); // the tutorial points to it with a gold ring
       var stw = W < 420 ? 70 : 96;
-      button('Strategies', right - sw - hw - rw - stw - 18, 7, stw, 28, openStrategies, 'ghost', 'strategies');
+      button("Strategies", right - sw - hw - rw - stw - 18, 7, stw, 28, openStrategies, "ghost", "strategies");
       if (game) {
-        var label = E.WIND_NAMES[game.round] + ' round · Hand ' + game.handNumber;
+        var label = E.WIND_NAMES[game.round] + " round · Hand " + game.handNumber;
         var maxW = right - sw - hw - rw - stw - 24 - left;
         // Phones have no room beside the buttons; the round wind still shows
         // in the middle of the table.
         if (maxW >= 90) {
           var size = fitFont(ctx, label, maxW, 15, FONT_HEAD);
-          text(label, left + maxW / 2, 22, { size: size, family: FONT_HEAD, align: 'center', color: COLORS.cream });
+          text(label, left + maxW / 2, 22, { size: size, family: FONT_HEAD, align: "center", color: COLORS.cream });
         }
       }
     }
@@ -2943,7 +2943,7 @@
       var isDealer = seat === game.dealer;
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fillStyle = isDealer ? COLORS.primary : 'rgba(255,248,240,0.92)';
+      ctx.fillStyle = isDealer ? COLORS.primary : "rgba(255,248,240,0.92)";
       ctx.fill();
       inkCenteredText(WIND_LETTERS[wind], x, y, { size: Math.round(r * 1.05), family: FONT_HEAD, color: isDealer ? COLORS.white : COLORS.ink });
     }
@@ -2971,7 +2971,7 @@
 
     // The name is drawn from its middle. This is the lowest painted pixel.
     function paintedBottom(name, y) {
-      ctx.textBaseline = 'middle';
+      ctx.textBaseline = "middle";
       return y + (ctx.measureText(name).actualBoundingBoxDescent || 0);
     }
 
@@ -2982,7 +2982,7 @@
       ctx.fillStyle = color || COLORS.cream;
       ctx.strokeStyle = color || COLORS.cream;
       ctx.lineWidth = Math.max(1, s * 0.09);
-      ctx.lineCap = 'round';
+      ctx.lineCap = "round";
       if (human) {
         ctx.beginPath();
         ctx.arc(x + s / 2, cy - s * 0.2, s * 0.24, 0, Math.PI * 2);
@@ -3024,10 +3024,10 @@
     }
 
     function seatHeaderWidth(seat, max) {
-      var pts = settings.mode === 'payout' ? fmt(game.players[seat].points) : '';
-      ctx.font = 'bold 13px ' + FONT_BODY;
+      var pts = settings.mode === "payout" ? fmt(game.players[seat].points) : "";
+      ctx.font = "bold 13px " + FONT_BODY;
       var ptsW = pts ? ctx.measureText(pts).width : 0;
-      ctx.font = 'bold 14px ' + FONT_BODY;
+      ctx.font = "bold 14px " + FONT_BODY;
       var nameW = namesShown() ? ctx.measureText(seatTitle(seat)).width : 0;
       // Badge, name, icon, then the score beside the icon.
       var content = 22 + 6 + nameW + (namesShown() ? ICON_GAP : 0) + 15 + (pts ? SCORE_GAP + ptsW : 0) + 2;
@@ -3041,11 +3041,11 @@
       var iconS = small ? 13 : 15;
       var namePx = small ? 13 : 14;
       // (On a phone your points sit at the bottom right of your hand instead.)
-      var pts = settings.mode === 'payout' && L.desktop ? fmt(game.players[seat].points) : '';
+      var pts = settings.mode === "payout" && L.desktop ? fmt(game.players[seat].points) : "";
       var ptsPx = 13;
       windBadge(seat, x + r, y + r, r);
       if (seat === 0 && !settings.review) {
-        addRegion(x, y, 2 * r, 2 * r, onMyWind, 'my-wind', true);
+        addRegion(x, y, 2 * r, 2 * r, onMyWind, "my-wind", true);
         // Auto-play on (localhost): a steady gold ring round your wind.
         if (autoPlay) {
           ctx.save();
@@ -3063,17 +3063,17 @@
           ctx.save();
           ctx.beginPath();
           ctx.arc(x + r, y + r, r, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(244,160,32,' + (0.75 * f).toFixed(3) + ')';
+          ctx.fillStyle = "rgba(244,160,32," + (0.75 * f).toFixed(3) + ")";
           ctx.fill();
           ctx.beginPath();
           ctx.arc(x + r, y + r, r * (1 + 0.7 * (1 - f)), 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(255,210,122,' + f.toFixed(3) + ')';
+          ctx.strokeStyle = "rgba(255,210,122," + f.toFixed(3) + ")";
           ctx.lineWidth = 2.5;
           ctx.stroke();
           ctx.restore();
         }
       }
-      ctx.font = 'bold ' + ptsPx + 'px ' + FONT_BODY;
+      ctx.font = "bold " + ptsPx + "px " + FONT_BODY;
       var ptsW = pts ? ctx.measureText(pts).width : 0;
       var scoreGap = SCORE_GAP;
       var iconX = x + 2 * r + 6;
@@ -3081,15 +3081,15 @@
       if (namesShown()) {
         var name = seatTitle(seat);
         var nameRoom = w - (iconX - x) - ICON_GAP - iconS - (pts ? scoreGap + ptsW : 0) - 2;
-        var nameSize = fitFont(ctx, name, nameRoom, namePx, FONT_BODY, 'bold');
-        text(name, x + 2 * r + 6, y + r + 1, { size: nameSize, weight: 'bold', color: COLORS.cream });
-        ctx.font = 'bold ' + nameSize + 'px ' + FONT_BODY;
+        var nameSize = fitFont(ctx, name, nameRoom, namePx, FONT_BODY, "bold");
+        text(name, x + 2 * r + 6, y + r + 1, { size: nameSize, weight: "bold", color: COLORS.cream });
+        ctx.font = "bold " + nameSize + "px " + FONT_BODY;
         iconX += ctx.measureText(name).width + ICON_GAP;
         iconY = iconCy(seat, paintedBottom(name, y + r + 1), iconS);
       }
       playerIcon(seat, iconX, iconY, iconS);
       var scoreX = iconX + iconS + scoreGap;
-      if (pts) text(pts, scoreX, y + r + 1, { size: ptsPx, weight: 'bold', color: COLORS.goldLight });
+      if (pts) text(pts, scoreX, y + r + 1, { size: ptsPx, weight: "bold", color: COLORS.goldLight });
       var mark = { iconX: iconX, iconRight: iconX + iconS, scoreX: scoreX, y: y + r, hasScore: !!pts };
       ui.headerMark[seat] = mark;
       if (seat === 0) ui.youIcon = { x: iconX, y: y + r, s: iconS, rowRight: pts ? scoreX + ptsW : scoreX };
@@ -3124,11 +3124,11 @@
 
     function revealedConcealed(seat) {
       var res = ui.heldSummary && ui.heldSummary.result;
-      if (res && res.type === 'win' && seat === res.winner && res.concealed) return res.concealed.slice();
+      if (res && res.type === "win" && seat === res.winner && res.concealed) return res.concealed.slice();
       var tiles = game.hand.seats[seat].hand.slice();
       // A discard or robbed kong is the winning tile, and it isn't in the hand yet.
       var win = game.hand.review && game.hand.review.win;
-      if (win && win.s === seat && (win.how === 'discard' || win.how === 'robKong') && win.t) tiles.push(win.t);
+      if (win && win.s === seat && (win.how === "discard" || win.how === "robKong") && win.t) tiles.push(win.t);
       return E.sortTiles(tiles);
     }
 
@@ -3161,7 +3161,7 @@
         if (items.length) items.push({ gap: true });
         meldTiles(m, ui.revealHands).forEach(function (x) {
           if (seat === 0) x.peek = true; // your concealed kong still shows its tip
-          if (reviewMark(seat, x.id, 'meld')) x.glow = COLORS.gold;
+          if (reviewMark(seat, x.id, "meld")) x.glow = COLORS.gold;
           items.push(x);
         });
       });
@@ -3187,13 +3187,13 @@
     function drawSeatBox(r, active, t) {
       ctx.save();
       roundRect(ctx, r.x, r.y, r.w, r.h, 6);
-      ctx.fillStyle = active ? 'rgba(244,160,32,0.13)' : 'rgba(0,0,0,0.16)';
+      ctx.fillStyle = active ? "rgba(244,160,32,0.13)" : "rgba(0,0,0,0.16)";
       ctx.fill();
       if (active) {
         var pulse = Math.sin(t / 600);
-        ctx.shadowColor = 'rgba(244,160,32,' + (0.4 + 0.15 * pulse) + ')';
+        ctx.shadowColor = "rgba(244,160,32," + (0.4 + 0.15 * pulse) + ")";
         ctx.shadowBlur = 9 + 3 * pulse;
-        ctx.strokeStyle = 'rgba(244,160,32,' + (0.62 + 0.15 * pulse) + ')';
+        ctx.strokeStyle = "rgba(244,160,32," + (0.62 + 0.15 * pulse) + ")";
         ctx.lineWidth = 2;
         ctx.stroke();
         requestRender();
@@ -3292,7 +3292,7 @@
       enterFrame(f);
       for (var i = 0; i < count; i++) {
         if (faceUp && reviewConcealedHidden(seat, faceUp, i)) continue;
-        if (faceUp) drawTile(faceUp[i], backX(i), backsY, bw, { shadow: false, glow: reviewMark(seat, faceUp[i], 'hand') ? COLORS.gold : null });
+        if (faceUp) drawTile(faceUp[i], backX(i), backsY, bw, { shadow: false, glow: reviewMark(seat, faceUp[i], "hand") ? COLORS.gold : null });
         else drawTile(null, backX(i), backsY - (i === lift ? liftBy : 0), bw, { back: true, shadow: false });
       }
       // A discard win sits face up at the end of an opponent's row once it lands.
@@ -3308,7 +3308,7 @@
       var flowerShown = Math.max(0, s.flowers.length - (ui.hide.flower[seat] || 0));
       for (var fk = 0; fk < flowerShown; fk++) {
         var fid = s.flowers[fk];
-        drawTile(fid, fx + fk * (fw + gapT), meldY, fw, { shadow: false, glow: reviewMark(seat, fid, 'flower') ? COLORS.gold : flowerGlow(s.flowers, wind, fid) });
+        drawTile(fid, fx + fk * (fw + gapT), meldY, fw, { shadow: false, glow: reviewMark(seat, fid, "flower") ? COLORS.gold : flowerGlow(s.flowers, wind, fid) });
       }
       var mx = fx + flowersN * (fw + gapT) + (flowersN && items.length ? mw * FLOWER_GAP : 0);
       items.forEach(function (it) {
@@ -3350,9 +3350,9 @@
         var color = ui.turnSeat === spot[0] ? COLORS.goldLight : COLORS.cream;
         playerIcon(spot[0], spot[1] - PHONE_SCORE_ICON / 2, spot[2] - 10, PHONE_SCORE_ICON, color);
         var name = seatTitle(spot[0]);
-        var nameSize = fitFont(ctx, name, PHONE_NAME_W, PHONE_NAME_PX, FONT_BODY, 'bold');
-        text(name, spot[1], spot[2] - 1, { size: nameSize, weight: 'bold', align: 'center', color: color });
-        text(fmt(game.players[spot[0]].points), spot[1], spot[2] + 8, { size: PHONE_POINTS_PX, weight: 'bold', align: 'center', color: color });
+        var nameSize = fitFont(ctx, name, PHONE_NAME_W, PHONE_NAME_PX, FONT_BODY, "bold");
+        text(name, spot[1], spot[2] - 1, { size: nameSize, weight: "bold", align: "center", color: color });
+        text(fmt(game.players[spot[0]].points), spot[1], spot[2] + 8, { size: PHONE_POINTS_PX, weight: "bold", align: "center", color: color });
       });
     }
 
@@ -3360,7 +3360,7 @@
       var p = L.pond;
       ctx.save();
       roundRect(ctx, p.x, p.y, p.w, p.h, 8);
-      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.fillStyle = "rgba(0,0,0,0.12)";
       ctx.fill();
       ctx.restore();
 
@@ -3381,7 +3381,7 @@
         ctx.translate(f.w / 2, f.h - ws * 0.5 - 2);
         ctx.rotate(-f.a);
         ctx.globalAlpha = ui.turnSeat === seat ? 0.2 : 0.09;
-        text(WIND_LETTERS[E.seatWind(game, seat)], 0, 0, { size: ws, family: FONT_HEAD, align: 'center', color: COLORS.cream });
+        text(WIND_LETTERS[E.seatWind(game, seat)], 0, 0, { size: ws, family: FONT_HEAD, align: "center", color: COLORS.cream });
         ctx.restore();
         var all = game.hand.seats[seat].discards;
         var list = all.filter(function (d) { return !d.claimed; });
@@ -3391,49 +3391,49 @@
           var slot = pondSlotLocal(seat, i);
           var glow = null;
           if (lastLive && i === list.length - 1) {
-            glow = ui.claimPrompt ? 'rgba(244,160,32,' + (0.7 + 0.3 * Math.sin(t / 160)) + ')' : COLORS.gold;
+            glow = ui.claimPrompt ? "rgba(244,160,32," + (0.7 + 0.3 * Math.sin(t / 160)) + ")" : COLORS.gold;
             if (ui.claimPrompt) requestRender();
           }
-          if (!glow && i === list.length - 1 && reviewMark(seat, list[i].tile, 'pond')) glow = COLORS.gold;
+          if (!glow && i === list.length - 1 && reviewMark(seat, list[i].tile, "pond")) glow = COLORS.gold;
           drawTile(list[i].tile, slot.x, slot.y, slot.w, { shadow: false, glow: glow });
         }
         ctx.restore();
       }
 
-      if (!L.desktop && settings.mode === 'payout') drawPhoneScores();
+      if (!L.desktop && settings.mode === "payout") drawPhoneScores();
 
       var c0 = L.center;
       var c = { x: c0.x + 4, y: c0.y, w: c0.w - 8, h: c0.h }; // a few pixels narrower than the layout's square
-      var lit = hover === 'center';
+      var lit = hover === "center";
       // The plaque: a soft dark panel with a fine gold edge.
       ctx.save();
       roundRect(ctx, c.x, c.y, c.w, c.h, 10);
       var plaque = ctx.createLinearGradient(0, c.y, 0, c.y + c.h);
-      plaque.addColorStop(0, lit ? 'rgba(244,160,32,0.30)' : 'rgba(0,0,0,0.30)');
-      plaque.addColorStop(1, lit ? 'rgba(244,160,32,0.18)' : 'rgba(0,0,0,0.16)');
+      plaque.addColorStop(0, lit ? "rgba(244,160,32,0.30)" : "rgba(0,0,0,0.30)");
+      plaque.addColorStop(1, lit ? "rgba(244,160,32,0.18)" : "rgba(0,0,0,0.16)");
       ctx.fillStyle = plaque;
       ctx.fill();
       ctx.lineWidth = 1.2;
-      ctx.strokeStyle = lit ? 'rgba(255,210,122,0.8)' : 'rgba(255,210,122,0.32)';
+      ctx.strokeStyle = lit ? "rgba(255,210,122,0.8)" : "rgba(255,210,122,0.32)";
       ctx.stroke();
       ctx.restore();
       // Results open from this square only: the wind and the tiles left. A
       // discard tile keeps its own tap, for the tip.
-      if (!ui.overlay && !settings.review) addRegion(c.x, c.y, c.w, c.h, function () { sound.play('select'); openResults(); }, 'center');
+      if (!ui.overlay && !settings.review) addRegion(c.x, c.y, c.w, c.h, function () { sound.play("select"); openResults(); }, "center");
       var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
       // The round wind, as its tile's character, with the tiles left close under
       // it. The two sit as one group in the middle of the panel.
       var rad = clamp(c.h * 0.25, 11, 26);
       var gw = rad * 1.8, gh = gw * TILE_ASPECT; // the character alone, so a good size
       var visH = gh * 0.716; // the SVG's character fills about this much of its height
-      var leftLabel = game.hand.wall.length + ' tiles left';
+      var leftLabel = game.hand.wall.length + " tiles left";
       var leftSize = fitFont(ctx, leftLabel, c.w - 22, clamp(c.h * 0.15, 10, 13), FONT_BODY); // clear of the side arrows
       var textGap = 3;
       var top = cy - (visH + textGap + leftSize) / 2;
       var glyphY = top + visH / 2;
-      var windGlyph = windGlyphSprite(['', 'we', 'ws', 'ww', 'wn'][game.round], gw, gh);
+      var windGlyph = windGlyphSprite(["", "we", "ws", "ww", "wn"][game.round], gw, gh);
       if (windGlyph) ctx.drawImage(windGlyph, cx - gw / 2, glyphY - gh / 2, gw, gh);
-      text(leftLabel, cx, top + visH + textGap + leftSize / 2, { size: leftSize, align: 'center', color: COLORS.cream });
+      text(leftLabel, cx, top + visH + textGap + leftSize / 2, { size: leftSize, align: "center", color: COLORS.cream });
 
       // Arrow toward whose turn it is, on the plaque's edge nearest that seat.
       // A soft rounded gold point whose glow breathes with the seat's outline.
@@ -3449,11 +3449,11 @@
         var tip = ctx.createLinearGradient(-3, 0, 4.5, 0);
         tip.addColorStop(0, COLORS.gold);
         tip.addColorStop(1, COLORS.goldLight);
-        ctx.shadowColor = 'rgba(244,160,32,' + (0.45 + 0.35 * breathe) + ')';
+        ctx.shadowColor = "rgba(244,160,32," + (0.45 + 0.35 * breathe) + ")";
         ctx.shadowBlur = 4 + 3 * breathe;
         ctx.fillStyle = tip;
         ctx.strokeStyle = tip;
-        ctx.lineJoin = 'round';
+        ctx.lineJoin = "round";
         ctx.lineWidth = 1.5; // rounds the three corners
         ctx.fill();
         ctx.stroke();
@@ -3467,14 +3467,14 @@
     function windGlyphSprite(id, w, h) {
       var img = images[id];
       if (!img || !id) return null;
-      var key = id + '|' + Math.round(w * dpr) + '|' + dpr;
+      var key = id + "|" + Math.round(w * dpr) + "|" + dpr;
       if (glyphCache[key]) return glyphCache[key];
-      var cv = document.createElement('canvas');
+      var cv = document.createElement("canvas");
       cv.width = Math.max(1, Math.ceil(w * dpr));
       cv.height = Math.max(1, Math.ceil(h * dpr));
-      var g = cv.getContext('2d');
+      var g = cv.getContext("2d");
       g.drawImage(img, 0, 0, cv.width, cv.height);
-      g.globalCompositeOperation = 'source-in';
+      g.globalCompositeOperation = "source-in";
       g.fillStyle = COLORS.goldLight; // gold, to read on the dark panel
       g.fillRect(0, 0, cv.width, cv.height);
       glyphCache[key] = cv;
@@ -3548,7 +3548,7 @@
       // needs room here when there is no coach box to hold it.
       var headW = seatHeaderWidth(0, clamp(L.meW * 0.3, 130, 240));
       var infoW = headW;
-      if (ui.revealHands && seeResultsHome() === 'name') infoW = seeResultsUnder() ? Math.max(headW, SEE_RESULTS_W) : headW + 6 + SEE_RESULTS_W;
+      if (ui.revealHands && seeResultsHome() === "name") infoW = seeResultsUnder() ? Math.max(headW, SEE_RESULTS_W) : headW + 6 + SEE_RESULTS_W;
       // On a phone your wind and avatar are centered on your exposed tiles.
       var headY = L.desktop ? y + 4 : y + (L.mw * TILE_ASPECT - 22) / 2;
       ui.youHeader = { x: rightEdge - pad - 8 - headW, y: headY, w: headW, right: rightEdge - pad - 8 };
@@ -3571,7 +3571,7 @@
       var flowerShown = Math.max(0, s.flowers.length - (ui.hide.flower[0] || 0));
       for (var fk = 0; fk < flowerShown; fk++) {
         var fid = s.flowers[fk];
-        drawTile(fid, fx + fk * (fw + tileGap()), y0, fw, { shadow: false, glow: reviewMark(0, fid, 'flower') ? COLORS.gold : flowerGlow(s.flowers, myWind, fid) });
+        drawTile(fid, fx + fk * (fw + tileGap()), y0, fw, { shadow: false, glow: reviewMark(0, fid, "flower") ? COLORS.gold : flowerGlow(s.flowers, myWind, fid) });
       }
       ui.flowerAnchor[0] = { x: fx + flowerShown * (fw + tileGap()), y: y0, w: fw, rot: 0 };
       mx = fx + s.flowers.length * (fw + tileGap());
@@ -3589,7 +3589,7 @@
       var count = tiles.length;
       if (ui.hide.drawn && order.drawnSeparate) count = Math.min(count, tiles.length - 1);
       var tw = L.tw;
-      var hintTile = ui.coach === 'on' && ui.hint && ui.hint.tile;
+      var hintTile = ui.coach === "on" && ui.hint && ui.hint.tile;
       var hintUsed = false;
       ui.lastHandRects = [];
 
@@ -3597,8 +3597,8 @@
       // re-sorts (a drawn tile merging in, tiles leaving for a claim) every
       // tile slides from its old place to its new one.
       var targets = handPositions(tiles.length, order.drawnSeparate);
-      var layoutKey = [tw, W, H, L.handRows].join(':');
-      var sig = tiles.join(',') + '|' + (order.drawnSeparate ? 1 : 0);
+      var layoutKey = [tw, W, H, L.handRows].join(":");
+      var sig = tiles.join(",") + "|" + (order.drawnSeparate ? 1 : 0);
       if (ui.handSig !== sig || ui.handLayout !== layoutKey) {
         var snap = ui.handLayout !== layoutKey || reviewSnapHand; // a resize, or a replay jump, repositions without sliding
         var pool = (ui.handSlots || []).slice();
@@ -3634,7 +3634,7 @@
         var by0 = targets[0].y;
         ctx.save();
         roundRect(ctx, bx0 - 6, by0 - 8, bx1 - bx0 + 12, L.handY + L.th - by0 + 16, 6);
-        ctx.fillStyle = 'rgba(244,160,32,0.14)';
+        ctx.fillStyle = "rgba(244,160,32,0.14)";
         ctx.fill();
         ctx.restore();
       }
@@ -3646,7 +3646,7 @@
         var x = pos.x;
         var lift = 0;
         if (i === ui.selected) lift = tw * 0.32;
-        else if (hover === 'hand-' + i && ui.turnPrompt) lift = tw * 0.12;
+        else if (hover === "hand-" + i && ui.turnPrompt) lift = tw * 0.12;
         var glow = null;
         // On the tutorial's Replace flowers step the flower glows too.
         if (hintTile && !hintUsed && id === hintTile && (ui.turnPrompt || ui.flowerPrompt)) {
@@ -3659,14 +3659,14 @@
         if (i === heldAt || (i === order.winAt && ui.winInHand && !ui.winInHand.landed)) continue;
         if (ui.winInHand && !ui.winInHand.landed && ui.winInHand.seat === 0 && id === ui.winInHand.tile && i === tiles.lastIndexOf(id)) continue;
         if (i === order.winAt) glow = COLORS.gold;
-        if (!glow && reviewMark(0, id, 'hand')) glow = COLORS.gold;
+        if (!glow && reviewMark(0, id, "hand")) glow = COLORS.gold;
         // Tiles a pung or chow would use get a red border.
-        drawTile(id, x + shakeDx('tile', i), pos.y - lift, tw, { glow: glow || (claimable ? COLORS.red : null) });
+        drawTile(id, x + shakeDx("tile", i), pos.y - lift, tw, { glow: glow || (claimable ? COLORS.red : null) });
         var rect = { x: x, y: pos.y - lift, w: tw, h: L.th, id: id, index: i };
         ui.lastHandRects.push(rect);
         if (ui.turnPrompt) {
           (function (idx) {
-            addRegion(rect.x, rect.y, rect.w, rect.h + lift, function () { tapHandTile(idx); }, 'hand-' + idx);
+            addRegion(rect.x, rect.y, rect.w, rect.h + lift, function () { tapHandTile(idx); }, "hand-" + idx);
           })(i);
         }
       }
@@ -3678,31 +3678,31 @@
       if (settings.review) { drawReviewCoachBox(); return; }
       var x = L.ox + L.pad, w = L.tableW - 2 * L.pad;
       var lines = [];
-      var GRAY = 'rgba(255,248,240,0.5)';
-      var note = ui.coach === 'on' ? ui.hint : ui.coach === 'feedback' ? ui.feedback : null;
+      var GRAY = "rgba(255,248,240,0.5)";
+      var note = ui.coach === "on" ? ui.hint : ui.coach === "feedback" ? ui.feedback : null;
       var showNotice = ui.notice && !ui.overlay && (ui.turnPrompt || ui.claimPrompt);
       // In Feedback the Chow and Pass buttons already name the tile, so
       // "Claim Five Bamboo?" adds nothing. Win and short-hand notices stay.
-      if (ui.coach === 'feedback' && ui.claimPrompt && ui.notice && ui.notice.indexOf('Claim ') === 0) showNotice = false;
+      if (ui.coach === "feedback" && ui.claimPrompt && ui.notice && ui.notice.indexOf("Claim ") === 0) showNotice = false;
       // The note on a tile you've selected to throw ("... is OK, but ...")
       // goes last, running on from the coach's hint in its own color.
       var choiceNote = showNotice && ui.turnPrompt && ui.selected >= 0;
       // A win is one bold sentence. The coach's copy is that same sentence.
-      var declaring = ui.notice && ui.notice.indexOf('Mahjong!') === 0;
+      var declaring = ui.notice && ui.notice.indexOf("Mahjong!") === 0;
       // The coach's action (with a question before it on a claim) is the first
       // line, in bold gold. Everything else is one paragraph run on in order
       // with no line breaks: the tips, how to discard on your first move in
       // bold white, and the note on a selected tile in gold. A win is one bold
       // sentence on its own.
-      var tips = declaring ? '' : (note && note.tips && note.tips.length ? note.tips.join(' ') : '');
+      var tips = declaring ? "" : (note && note.tips && note.tips.length ? note.tips.join(" ") : "");
       // Your first move of a game also says how to discard.
-      var firstMove = !settings.lesson && ui.coach === 'on' && ui.turnPrompt && game && game.handNumber === 1 && !game.hand.seats[0].discards.length;
+      var firstMove = !settings.lesson && ui.coach === "on" && ui.turnPrompt && game && game.handNumber === 1 && !game.hand.seats[0].discards.length;
       var parts = [], head = [];
       if (declaring) {
         lines.push({ text: ui.notice, color: COLORS.goldLight, bold: true, nowrap: true });
       } else {
         // On a claim the question and the coach's answer are both bold, such as "Claim One Circle? Chow 1-2-3 Circles."
-        var claimAsk = showNotice && ui.claimPrompt && ui.coach === 'on' && note && note.action;
+        var claimAsk = showNotice && ui.claimPrompt && ui.coach === "on" && note && note.action;
         if (showNotice && !choiceNote) head.push({ text: ui.notice, color: COLORS.goldLight, bold: !!claimAsk });
         if (note && note.action) head.push({ text: note.action, color: COLORS.goldLight, bold: true });
         if (tips) parts.push({ text: tips, color: COLORS.cream });
@@ -3710,22 +3710,22 @@
         if (choiceNote) parts.push({ text: ui.notice, color: COLORS.goldLight });
         if (!note) {
           // Nothing to say right now: say what this box is for, in gray.
-          if (ui.coach === 'off') {
-            parts.push({ text: 'The coach is off. Click the Coach button at the top to turn it on and get advice on every move, or switch it to Feedback to learn from the moves you\'ve made.', color: GRAY });
-          } else if (ui.coach === 'feedback') {
-            parts.push({ text: 'Feedback is on. After you make a move, the coach will tell you how it went so you can learn from it.', color: GRAY });
+          if (ui.coach === "off") {
+            parts.push({ text: "The coach is off. Click the Coach button at the top to turn it on and get advice on every move, or switch it to Feedback to learn from the moves you've made.", color: GRAY });
+          } else if (ui.coach === "feedback") {
+            parts.push({ text: "Feedback is on. After you make a move, the coach will tell you how it went so you can learn from it.", color: GRAY });
             parts.push({ text: TAP_TWICE, color: GRAY, bold: true });
           } else {
-            parts.push({ text: 'The coach gives advice here on your turn and when you can claim a tile.', color: GRAY });
+            parts.push({ text: "The coach gives advice here on your turn and when you can claim a tile.", color: GRAY });
           }
         }
       }
       // Parts run on as one line or paragraph, each keeping its color and weight.
       function pushRun(list) {
         if (!list.length) return;
-        var runs = [], joined = '', plainAt = 0;
+        var runs = [], joined = "", plainAt = 0;
         list.forEach(function (pt, k) {
-          if (k) { joined += ' '; plainAt += 1; }
+          if (k) { joined += " "; plainAt += 1; }
           runs.push({ from: plainAt, color: pt.color, bold: !!pt.bold }); // plain-text positions, so hand-name marks don't shift them
           joined += pt.text;
           plainAt += coachPieces(pt.text).plain.length;
@@ -3738,7 +3738,7 @@
       var tx = x + 8 + iconS + 8;
       // See results sits above your avatar, to the right of this note, so the note stops short of it.
       var reserve = 0;
-      if (ui.revealHands && !settings.review && !ui.overlay && seeResultsHome() === 'bar') {
+      if (ui.revealHands && !settings.review && !ui.overlay && seeResultsHome() === "bar") {
         var spot = seeResultsBarPlace({ x: x, y: 0, w: w, h: L.hintH });
         reserve = x + w - spot.x + 8;
       }
@@ -3748,8 +3748,8 @@
       function layout(size) {
         var out = [];
         lines.forEach(function (l) {
-          var lineSize = l.nowrap ? fitFont(ctx, coachPieces(l.text).plain, tw, size, FONT_BODY, 'bold') : size;
-          ctx.font = (l.bold ? 'bold ' : '') + lineSize + 'px ' + FONT_BODY;
+          var lineSize = l.nowrap ? fitFont(ctx, coachPieces(l.text).plain, tw, size, FONT_BODY, "bold") : size;
+          ctx.font = (l.bold ? "bold " : "") + lineSize + "px " + FONT_BODY;
           // Hand-pattern names and their faan, such as All Triplets (3 faan), are red.
           var piece = coachPieces(l.text, l.color);
           var plain = piece.plain, red = piece.red;
@@ -3800,7 +3800,7 @@
       ui.coachBox = { x: x, y: y, w: w, h: h };
       ctx.save();
       roundRect(ctx, x, y, w, h, 6);
-      ctx.fillStyle = 'rgba(0,0,0,0.32)';
+      ctx.fillStyle = "rgba(0,0,0,0.32)";
       ctx.fill();
       ctx.restore();
       if (images.logo) {
@@ -3813,8 +3813,8 @@
         var cx = tx;
         l.segs.forEach(function (sg) {
           var bold = sg.bold !== undefined ? sg.bold : l.bold;
-          text(sg.text, cx, startY + i * lh, { size: l.size || size, color: sg.color, weight: bold ? 'bold' : '' });
-          ctx.font = (bold ? 'bold ' : '') + (l.size || size) + 'px ' + FONT_BODY;
+          text(sg.text, cx, startY + i * lh, { size: l.size || size, color: sg.color, weight: bold ? "bold" : "" });
+          ctx.font = (bold ? "bold " : "") + (l.size || size) + "px " + FONT_BODY;
           cx += ctx.measureText(sg.text).width;
         });
       });
@@ -3823,21 +3823,21 @@
     // Split coach copy into plain text plus the ranges that name a hand pattern.
     function coachPieces(text, baseColor) {
       var marked = Coach.highlightPatterns ? Coach.highlightPatterns(text) : String(text);
-      var plain = '', red = [], from = -1;
+      var plain = "", red = [], from = -1;
       for (var ci = 0; ci < marked.length; ci++) {
         var ch = marked.charAt(ci);
-        if (ch === '\u0001') from = plain.length;
-        else if (ch === '\u0002') { if (from >= 0) red.push([from, plain.length]); from = -1; }
+        if (ch === "\u0001") from = plain.length;
+        else if (ch === "\u0002") { if (from >= 0) red.push([from, plain.length]); from = -1; }
         else plain += ch;
       }
       return { plain: plain, red: red, color: baseColor };
     }
 
     function coachPlain(note) {
-      function clean(s) { return String(s).replace(/[\u0001\u0002]/g, ''); }
+      function clean(s) { return String(s).replace(/[\u0001\u0002]/g, ""); }
       if (!note) return null;
-      var action = note.action ? clean(note.action) : '';
-      var detail = note.tips && note.tips.length ? note.tips.map(clean).join(' ') : '';
+      var action = note.action ? clean(note.action) : "";
+      var detail = note.tips && note.tips.length ? note.tips.map(clean).join(" ") : "";
       if (!action && !detail) return null;
       return { action: action, detail: detail };
     }
@@ -3857,7 +3857,7 @@
 
     function hintList(id) {
       // The tutorial has one script, so every coach shares one history.
-      if (settings.lesson) id = 'lesson';
+      if (settings.lesson) id = "lesson";
       return ui.hintLists[id] || (ui.hintLists[id] = []);
     }
 
@@ -3869,16 +3869,16 @@
     // The stored lists, as long as every note in them reads back whole.
     function keptHints(raw) {
       var out = {};
-      if (!raw || raw.v !== 1 || !raw.lists || typeof raw.lists !== 'object') return out;
+      if (!raw || raw.v !== 1 || !raw.lists || typeof raw.lists !== "object") return out;
       Strategies.ids().forEach(function (id) {
         var list = raw.lists[id];
         if (!Array.isArray(list)) return;
         out[id] = list.filter(function (e) {
-          return e && (e.kind === 'hint' || e.kind === 'feedback') && typeof e.action === 'string'
-            && typeof e.detail === 'string' && typeof e.move === 'number' && typeof e.hand === 'number'
-            && (e.levels === undefined || (e.levels && typeof e.levels === 'object' && Object.keys(e.levels).every(function (d) {
+          return e && (e.kind === "hint" || e.kind === "feedback") && typeof e.action === "string"
+            && typeof e.detail === "string" && typeof e.move === "number" && typeof e.hand === "number"
+            && (e.levels === undefined || (e.levels && typeof e.levels === "object" && Object.keys(e.levels).every(function (d) {
               var l = e.levels[d];
-              return COACH_DETAILS.indexOf(d) !== -1 && l && typeof l.action === 'string' && typeof l.detail === 'string';
+              return COACH_DETAILS.indexOf(d) !== -1 && l && typeof l.action === "string" && typeof l.detail === "string";
             })));
         }).slice(-200);
       });
@@ -3893,9 +3893,9 @@
       var out = {};
       ui.hintsWhole = {};
       Strategies.ids().forEach(function (id) {
-        var coach = Coach.forStrategy(Strategies.get(id).bot, { detail: 'all' });
+        var coach = Coach.forStrategy(Strategies.get(id).bot, { detail: "all" });
         var whole = null;
-        try { whole = kind === 'turn' ? coach.turnHint(game, 0, opts) : coach.claimHint(game, 0, opts); }
+        try { whole = kind === "turn" ? coach.turnHint(game, 0, opts) : coach.claimHint(game, 0, opts); }
         catch (err) { whole = null; }
         ui.hintsWhole[id] = whole;
         out[id] = whole ? Coach.atDetail(whole, coachDetail()) : null;
@@ -3942,7 +3942,7 @@
       // The same suggestion, with "N tiles from ready" moved to the end.
       function sameAdvice(detail) {
         var norm = function (s) {
-          return String(s).replace(/\s*(?:\d+ tiles|1 tile) from ready\./g, '').replace(/\s+/g, ' ').trim();
+          return String(s).replace(/\s*(?:\d+ tiles|1 tile) from ready\./g, "").replace(/\s+/g, " ").trim();
         };
         return norm(detail) === norm(plain.detail);
       }
@@ -3977,7 +3977,7 @@
       var entries = hintList(ui.strategies.coach).filter(function (e) { return e.hand === hand; }).map(atLevel);
       // Without the bar (a landscape phone), the column shows the live note too.
       if (!L.hintH) return entries;
-      var live = coachPlain(ui.coach === 'on' ? ui.hint : ui.coach === 'feedback' ? ui.feedback : null);
+      var live = coachPlain(ui.coach === "on" ? ui.hint : ui.coach === "feedback" ? ui.feedback : null);
       if (!live || !entries.length) return entries;
       var last = entries[entries.length - 1];
       // A note joins the panel once its move is done, at every coach level: while
@@ -3991,20 +3991,20 @@
     function copyText(text) {
       var fallback = function () {
         return new Promise(function (resolve, reject) {
-          var ta = document.createElement('textarea');
+          var ta = document.createElement("textarea");
           ta.value = text;
-          ta.setAttribute('readonly', '');
-          ta.style.position = 'fixed';
-          ta.style.top = '0';
-          ta.style.left = '-9999px';
+          ta.setAttribute("readonly", "");
+          ta.style.position = "fixed";
+          ta.style.top = "0";
+          ta.style.left = "-9999px";
           document.body.appendChild(ta);
           ta.focus();
           ta.select();
           var ok = false;
-          try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+          try { ok = document.execCommand("copy"); } catch (err) { ok = false; }
           document.body.removeChild(ta);
           if (canvas && canvas.focus) canvas.focus();
-          ok ? resolve() : reject(new Error('copy failed'));
+          ok ? resolve() : reject(new Error("copy failed"));
         });
       };
       var clip = root.navigator && navigator.clipboard && navigator.clipboard.writeText;
@@ -4035,11 +4035,11 @@
     var autoTimer = null;
     var autoAgents = {};
     function localDev() {
-      return isLocalHost((root.location && root.location.hostname) || '');
+      return isLocalHost((root.location && root.location.hostname) || "");
     }
 
     function canAutoPlay() {
-      return localDev() && !settings.review && !settings.playback && !settings.lesson && ui.coach !== 'off';
+      return localDev() && !settings.review && !settings.playback && !settings.lesson && ui.coach !== "off";
     }
 
     function onMyWind() {
@@ -4072,11 +4072,11 @@
 
     function toggleAutoPlay() {
       autoPlay = !autoPlay;
-      sound.play('select');
+      sound.play("select");
       clearTimeout(autoTimer);
       var coachName = Strategies.get(ui.strategies.coach).name;
-      announce(autoPlay ? 'Auto-play on: ' + coachName + ' plays your moves. Click your wind to stop.' : 'Auto-play off.');
-      track('play_autoplay', { on: autoPlay });
+      announce(autoPlay ? "Auto-play on: " + coachName + " plays your moves. Click your wind to stop." : "Auto-play off.");
+      track("play_autoplay", { on: autoPlay });
       // Whatever is mid-flight lands now, so the first auto move isn't held up by it.
       if (autoPlay) finishAnimations();
       if (autoPlay) autoStep();
@@ -4093,7 +4093,7 @@
     function autoStep() {
       clearTimeout(autoTimer);
       if (!autoPlay) return;
-      if (!canAutoPlay()) { autoPlay = false; announce('Auto-play off.'); requestRender(); return; }
+      if (!canAutoPlay()) { autoPlay = false; announce("Auto-play off."); requestRender(); return; }
       autoTimer = setTimeout(autoMove, instantMode() ? 30 : 650);
     }
 
@@ -4102,10 +4102,10 @@
       if (!autoPlay || destroyed || !game || !game.hand) return;
       if (!canAutoPlay()) { autoPlay = false; requestRender(); return; }
       // The hand's results: on to the next hand after a look (the last hand's end stops it).
-      if (ui.overlay && ui.overlay.type === 'summary' && !ui.overlay.playback) {
+      if (ui.overlay && ui.overlay.type === "summary" && !ui.overlay.playback) {
         if (game.over) { autoPlay = false; requestRender(); return; }
         autoTimer = setTimeout(function () {
-          if (autoPlay && ui.overlay && ui.overlay.type === 'summary') nextHand();
+          if (autoPlay && ui.overlay && ui.overlay.type === "summary") nextHand();
         }, instantMode() ? 50 : 1800);
         return;
       }
@@ -4116,7 +4116,7 @@
       Promise.resolve(turn ? agent.turn(game, 0, turn.opts) : agent.claim(game, 0, claim.opts)).then(function (d) {
         if (!autoPlay || destroyed || !d) return;
         if (turn && ui.turnPrompt === turn) {
-          if (d.type === 'discard') {
+          if (d.type === "discard") {
             var idx = myHandOrder().tiles.indexOf(d.tile);
             if (idx < 0) return;
             ui.selected = idx;
@@ -4137,7 +4137,7 @@
         file = currentReplay() || storedReplay(); // this hand as it stands now
       } catch (err) { return; }
       if (!file || !file.payload || !file.payload.handSeed) return;
-      track('play_copy_seed', {});
+      track("play_copy_seed", {});
       animate(520, function (e) { ui.windFlash = 1 - e; });
       var seed = String(file.payload.handSeed);
       pendingCopy = seed;
@@ -4150,14 +4150,14 @@
       if (!r) return;
       ctx.save();
       roundRect(ctx, r.x, r.y, r.w, r.h, 6);
-      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.fillStyle = "rgba(0,0,0,0.28)";
       ctx.fill();
       ctx.restore();
       var coachName = Strategies.get(ui.strategies.coach).name;
-      var coachTitle = 'Coach ' + coachName;
+      var coachTitle = "Coach " + coachName;
       var titleMax = r.w - 28;
-      if (ui.revealHands && !settings.review && !ui.overlay && seeResultsHome() === 'column') titleMax -= Math.min(SEE_RESULTS_W, r.w - 24) + 8;
-      text(coachTitle, r.x + 14, r.y + 20, { size: fitFont(ctx, coachTitle, Math.max(40, titleMax), 14, FONT_HEAD, 'bold'), weight: 'bold', family: FONT_HEAD, color: COLORS.cream });
+      if (ui.revealHands && !settings.review && !ui.overlay && seeResultsHome() === "column") titleMax -= Math.min(SEE_RESULTS_W, r.w - 24) + 8;
+      text(coachTitle, r.x + 14, r.y + 20, { size: fitFont(ctx, coachTitle, Math.max(40, titleMax), 14, FONT_HEAD, "bold"), weight: "bold", family: FONT_HEAD, color: COLORS.cream });
 
       var viewX = r.x + 10;
       var viewY = r.y + 36;
@@ -4170,13 +4170,13 @@
       var blocks = pastCoachEntries().map(function (entry) {
         var lines = [];
         // "Hand 2 · Move 4" sits at the right end of the advice's row.
-        var moveLabel = 'Hand ' + entry.hand + ' · Move ' + entry.move;
-        ctx.font = (size - 2) + 'px ' + FONT_BODY;
+        var moveLabel = "Hand " + entry.hand + " · Move " + entry.move;
+        ctx.font = (size - 2) + "px " + FONT_BODY;
         var moveW = ctx.measureText(moveLabel).width + 12;
         var innerW = viewW - textPad - 16;
         function pushWrapped(value, bold, baseColor, width) {
           if (!value) return;
-          ctx.font = (bold ? 'bold ' : '') + size + 'px ' + FONT_BODY;
+          ctx.font = (bold ? "bold " : "") + size + "px " + FONT_BODY;
           var piece = coachPieces(value, baseColor);
           var cursor = 0;
           wrapText(ctx, piece.plain, width || innerW).forEach(function (ln) {
@@ -4211,22 +4211,22 @@
       ctx.rect(viewX, viewY, viewW, viewH);
       ctx.clip();
       if (!blocks.length) {
-        ctx.font = size + 'px ' + FONT_BODY;
+        ctx.font = size + "px " + FONT_BODY;
         var empty = settings.review
-          ? (reviewCoaches[ui.strategies.coach] && reviewCoaches[ui.strategies.coach].index < reviewStep ? 'Reading your moves...' : 'Feedback on your moves shows here.')
-          : 'Hints and feedback will collect here.';
+          ? (reviewCoaches[ui.strategies.coach] && reviewCoaches[ui.strategies.coach].index < reviewStep ? "Reading your moves..." : "Feedback on your moves shows here.")
+          : "Hints and feedback will collect here.";
         wrapText(ctx, empty, viewW - 8).forEach(function (ln, i) {
-          text(ln, viewX + 4, viewY + 14 + i * lh, { size: size, color: 'rgba(255,248,240,0.5)' });
+          text(ln, viewX + 4, viewY + 14 + i * lh, { size: size, color: "rgba(255,248,240,0.5)" });
         });
       }
       var y = viewY - ui.coachScroll;
       ui.coachHits = [];
       blocks.forEach(function (b) {
-        if (settings.review && typeof b.entry.step === 'number') {
+        if (settings.review && typeof b.entry.step === "number") {
           ui.coachHits.push({ x: viewX, y: Math.max(y, viewY), w: viewW, h: Math.min(y + b.h, viewY + viewH) - Math.max(y, viewY), step: b.entry.step });
         }
         roundRect(ctx, viewX, y, viewW - (ui.coachScrollMax > 0 ? 8 : 0), b.h, 4);
-        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.fillStyle = "rgba(0,0,0,0.22)";
         ctx.fill();
         if (images.logo) {
           var logoH = avatar * (images.logo.height / images.logo.width || 1);
@@ -4235,13 +4235,13 @@
         var blockH = b.lines.length * lh;
         var startY = y + (b.h - blockH) / 2 + lh / 2;
         var rightX = viewX + viewW - (ui.coachScrollMax > 0 ? 8 : 0) - 10;
-        var moveColor = b.entry.move === 1 ? COLORS.goldLight : 'rgba(255,248,240,0.6)';
-        text(b.moveLabel, rightX, startY, { size: size - 2, color: moveColor, align: 'right' });
+        var moveColor = b.entry.move === 1 ? COLORS.goldLight : "rgba(255,248,240,0.6)";
+        text(b.moveLabel, rightX, startY, { size: size - 2, color: moveColor, align: "right" });
         b.lines.forEach(function (ln, i) {
           var cx = viewX + textPad;
           ln.segs.forEach(function (sg) {
-            text(sg.text, cx, startY + i * lh, { size: size, color: sg.color, weight: ln.bold ? 'bold' : '' });
-            ctx.font = (ln.bold ? 'bold ' : '') + size + 'px ' + FONT_BODY;
+            text(sg.text, cx, startY + i * lh, { size: size, color: sg.color, weight: ln.bold ? "bold" : "" });
+            ctx.font = (ln.bold ? "bold " : "") + size + "px " + FONT_BODY;
             cx += ctx.measureText(sg.text).width;
           });
         });
@@ -4254,7 +4254,7 @@
         var thumbH = Math.max(28, viewH * (viewH / (viewH + ui.coachScrollMax)));
         var thumbY = viewY + (viewH - thumbH) * (ui.coachScroll / ui.coachScrollMax);
         roundRect(ctx, trackX, thumbY, 4, thumbH, 2);
-        ctx.fillStyle = 'rgba(255,248,240,0.45)';
+        ctx.fillStyle = "rgba(255,248,240,0.45)";
         ctx.fill();
       }
     }
@@ -4269,10 +4269,10 @@
       var actions = settings.review.actions;
       var limit = reviewMoves();
       for (var i = Math.min(reviewStep, limit) - 1; i >= 0; i--) {
-        if (actions[i].a === 'discard' && actions[i].s === 0) return i;
+        if (actions[i].a === "discard" && actions[i].s === 0) return i;
       }
       for (var j = Math.max(0, reviewStep); j < limit; j++) {
-        if (actions[j].a === 'discard' && actions[j].s === 0) return j;
+        if (actions[j].a === "discard" && actions[j].s === 0) return j;
       }
       return null;
     }
@@ -4306,35 +4306,35 @@
 
     function claimText(decision, opts) {
       if (!decision) return null;
-      if (decision.type === 'chow') {
+      if (decision.type === "chow") {
         var seq = E.sortTiles((decision.tiles || []).concat([opts.tile])).map(function (id) {
           return E.rankOfIndex(E.tileIndex(id));
-        }).join('-');
-        return 'Chow ' + seq;
+        }).join("-");
+        return "Chow " + seq;
       }
-      if (decision.type === 'pung') return 'Pung';
-      if (decision.type === 'kong') return kongLabel(opts && opts.tile);
-      if (decision.type === 'pass') return 'Pass';
-      if (decision.type === 'win') return 'Win';
+      if (decision.type === "pung") return "Pung";
+      if (decision.type === "kong") return kongLabel(opts && opts.tile);
+      if (decision.type === "pass") return "Pass";
+      if (decision.type === "win") return "Win";
       return null;
     }
 
     // What you are about to throw, or the claim in front of you, so a copied
     // hand can be read without moving the coach's plan on the real tiles.
     function liveDiscardSignature() {
-      if (!game || !game.hand) return '';
+      if (!game || !game.hand) return "";
       var seat = game.hand.seats[0];
       var offer = claimOffer();
-      if (!offer && seat.hand.length % 3 !== 2) return '';
-      var body = seat.hand.join(',') + '|'
-        + seat.melds.map(function (m) { return m.type + m.tiles.join(''); }).join(';') + '|'
-        + game.hand.wall.length + '|'
+      if (!offer && seat.hand.length % 3 !== 2) return "";
+      var body = seat.hand.join(",") + "|"
+        + seat.melds.map(function (m) { return m.type + m.tiles.join(""); }).join(";") + "|"
+        + game.hand.wall.length + "|"
         + game.hand.seats.map(function (s) {
-          return s.discards.map(function (d) { return d.tile; }).join('');
-        }).join('/');
-      if (!offer) return 'discard|' + body;
-      var chows = (offer.chows || []).map(function (pair) { return pair.join(','); }).join(';');
-      return 'claim|' + offer.tile + '|' + (offer.pung ? 1 : 0) + (offer.kong ? 1 : 0) + (offer.win ? 1 : 0) + '|' + chows + '|' + body;
+          return s.discards.map(function (d) { return d.tile; }).join("");
+        }).join("/");
+      if (!offer) return "discard|" + body;
+      var chows = (offer.chows || []).map(function (pair) { return pair.join(","); }).join(";");
+      return "claim|" + offer.tile + "|" + (offer.pung ? 1 : 0) + (offer.kong ? 1 : 0) + (offer.win ? 1 : 0) + "|" + chows + "|" + body;
     }
 
     function strategyChoice(bot, handCopy, offer) {
@@ -4363,12 +4363,12 @@
       // discard, or the claim or step in words), whatever its own play would be.
       if (settings.lesson) {
         var lh = ui.hint;
-        var toss = !!(lh && lh.decision && lh.decision.type === 'discard');
-        var said = lh && !toss && lh.action ? String(lh.action).replace(/\.$/, '') : null;
+        var toss = !!(lh && lh.decision && lh.decision.type === "discard");
+        var said = lh && !toss && lh.action ? String(lh.action).replace(/\.$/, "") : null;
         return Strategies.list().map(function (s) { return { id: s.id, name: s.name, tile: toss ? lh.tile : null, action: said }; });
       }
       // Feedback looks back at the discard you just made, not at the next one.
-      if (ui.coach === 'feedback') {
+      if (ui.coach === "feedback") {
         return ui.feedbackDiscards || Strategies.list().map(function (s) {
           return { id: s.id, name: s.name, tile: null, action: null };
         });
@@ -4377,7 +4377,7 @@
       var canWin = (ui.turnPrompt && ui.turnPrompt.opts && ui.turnPrompt.opts.win)
         || (ui.claimPrompt && ui.claimPrompt.opts && ui.claimPrompt.opts.win);
       if (canWin) {
-        return Strategies.list().map(function (s) { return { id: s.id, name: s.name, tile: null, action: 'Win' }; });
+        return Strategies.list().map(function (s) { return { id: s.id, name: s.name, tile: null, action: "Win" }; });
       }
       var sig = liveDiscardSignature();
       if (livePicks && livePicks.sig === sig) return livePicks.rows;
@@ -4398,15 +4398,15 @@
       if (!p || !(settings.review || (game && game.hand))) return;
       ctx.save();
       roundRect(ctx, p.x, p.y, p.w, p.h, 6);
-      ctx.fillStyle = 'rgba(0,0,0,0.32)';
+      ctx.fillStyle = "rgba(0,0,0,0.32)";
       ctx.fill();
       ctx.restore();
       var strip = !!p.phone; // the phone strip has no heading
       var small = strip || p.h < 150; // the strip and the half-height column panel
       if (!strip) {
-        text('Strategies', p.x + 14, p.y + (small ? 14 : 18), {
-          size: fitFont(ctx, 'Strategies', Math.max(40, p.w - 28), small ? 12 : 14, FONT_HEAD, 'bold'),
-          weight: 'bold', family: FONT_HEAD, color: COLORS.cream,
+        text("Strategies", p.x + 14, p.y + (small ? 14 : 18), {
+          size: fitFont(ctx, "Strategies", Math.max(40, p.w - 28), small ? 12 : 14, FONT_HEAD, "bold"),
+          weight: "bold", family: FONT_HEAD, color: COLORS.cream,
         });
       }
       var rows = settings.review ? reviewStrategyRows() : liveStrategyRows();
@@ -4421,10 +4421,10 @@
       rows.forEach(function (row, i) {
         var x = p.x + gap + i * (colW + gap);
         var on = row.id === ui.strategies.coach;
-        var hot = hover === 'strategy-' + row.id;
+        var hot = hover === "strategy-" + row.id;
         ctx.save();
         roundRect(ctx, x, y, colW, h, 6);
-        ctx.fillStyle = on ? 'rgba(244,160,32,0.16)' : (hot ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.2)');
+        ctx.fillStyle = on ? "rgba(244,160,32,0.16)" : (hot ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.2)");
         ctx.fill();
         if (on) {
           ctx.strokeStyle = COLORS.gold;
@@ -4434,8 +4434,8 @@
         ctx.restore();
         var label = row.name;
         text(label, x + colW / 2, y + topPad + nameH / 2 + 2, {
-          size: fitFont(ctx, label, colW - 12, strip ? 11 : small ? 12 : 14, FONT_BODY, 'bold'),
-          weight: 'bold', align: 'center',
+          size: fitFont(ctx, label, colW - 12, strip ? 11 : small ? 12 : 14, FONT_BODY, "bold"),
+          weight: "bold", align: "center",
           color: on ? COLORS.gold : COLORS.cream,
         });
         var tileRoom = h - topPad - nameH - (strip ? 3 : small ? 4 : 8);
@@ -4443,13 +4443,13 @@
         if (row.action) {
           var maxW = Math.max(24, colW - 10);
           var one = strip ? 10 : small ? 13 : 15, many = strip ? 10 : small ? 12 : 13; // on a phone every line but the name is 10
-          ctx.font = 'bold ' + one + 'px ' + FONT_BODY;
+          ctx.font = "bold " + one + "px " + FONT_BODY;
           var lines = ctx.measureText(row.action).width <= maxW ? [row.action] : wrapText(ctx, row.action, maxW);
           var size = lines.length > 1 ? many : one;
           var lh = size + 3;
           var start = y + topPad + nameH + (tileRoom - lines.length * lh) / 2 + lh / 2;
           lines.forEach(function (ln, n) {
-            text(ln, x + colW / 2, start + n * lh, { size: size, weight: 'bold', align: 'center', color: color });
+            text(ln, x + colW / 2, start + n * lh, { size: size, weight: "bold", align: "center", color: color });
           });
         } else {
           var labelH = strip ? 12 : small ? 15 : 22; // "Discard" under the tile, with a little above it
@@ -4459,27 +4459,27 @@
             var tx = x + (colW - tw) / 2;
             var ty = y + topPad + nameH + (tileRoom - labelH - tw * TILE_ASPECT) / 2;
             drawTile(row.tile, tx, ty, tw);
-            text('Discard', x + colW / 2, ty + tw * TILE_ASPECT + labelH / 2 + 4, {
-              size: fitFont(ctx, 'Discard', colW - 12, strip ? 10 : small ? 11 : 13, FONT_BODY, strip ? '' : 'bold'),
-              weight: strip ? '' : 'bold', align: 'center', color: on ? COLORS.gold : COLORS.cream,
+            text("Discard", x + colW / 2, ty + tw * TILE_ASPECT + labelH / 2 + 4, {
+              size: fitFont(ctx, "Discard", colW - 12, strip ? 10 : small ? 11 : 13, FONT_BODY, strip ? "" : "bold"),
+              weight: strip ? "" : "bold", align: "center", color: on ? COLORS.gold : COLORS.cream,
             });
-          } else if (ui.coach === 'feedback' && !settings.review) {
+          } else if (ui.coach === "feedback" && !settings.review) {
             // Feedback looks back, so before your discard there is nothing to show.
-            var waiting = 'Discard tile for feedback';
+            var waiting = "Discard tile for feedback";
             var wmax = Math.max(24, colW - 12);
             var wsize = strip ? 10 : 13;
-            ctx.font = wsize + 'px ' + FONT_BODY;
+            ctx.font = wsize + "px " + FONT_BODY;
             var wlines = wrapText(ctx, waiting, wmax);
             var wlh = wsize + 3;
             var wstart = y + topPad + nameH + (tileRoom - wlines.length * wlh) / 2 + wlh / 2;
             wlines.forEach(function (ln, n) {
-              text(ln, x + colW / 2, wstart + n * wlh, { size: wsize, align: 'center', color: 'rgba(255,248,240,0.6)' });
+              text(ln, x + colW / 2, wstart + n * wlh, { size: wsize, align: "center", color: "rgba(255,248,240,0.6)" });
             });
           } else {
-            text('—', x + colW / 2, y + topPad + nameH + tileRoom / 2, { size: strip ? 10 : 16, align: 'center', color: COLORS.cream });
+            text("—", x + colW / 2, y + topPad + nameH + tileRoom / 2, { size: strip ? 10 : 16, align: "center", color: COLORS.cream });
           }
         }
-        addRegion(x, y, colW, h, function () { chooseCoach(row.id); }, 'strategy-' + row.id);
+        addRegion(x, y, colW, h, function () { chooseCoach(row.id); }, "strategy-" + row.id);
       });
     }
 
@@ -4493,29 +4493,29 @@
       if (ui.overlay) { setButtonsOverName(false); return; }
       var acts = [];
       if (ui.flowerPrompt) {
-        acts.push({ id: 'replace-flower', label: 'Replace flowers', style: 'red', fn: function () {
+        acts.push({ id: "replace-flower", label: "Replace flowers", style: "red", fn: function () {
           var p = ui.flowerPrompt;
           if (p) { ui.flowerPrompt = null; p.resolve(); }
         } });
       } else if (ui.turnPrompt) {
         var o = ui.turnPrompt.opts;
-        if (o.win) acts.push({ id: 'win', label: winButtonLabel(o.win), style: 'gold', fn: function () { resolveTurn({ type: 'win' }); } });
+        if (o.win) acts.push({ id: "win", label: winButtonLabel(o.win), style: "gold", fn: function () { resolveTurn({ type: "win" }); } });
         o.kongs.forEach(function (k) {
-          acts.push({ id: 'kong-' + k.tile, label: kongLabel(k.tile), style: 'primary', fn: function () { resolveTurn({ type: 'kong', tile: k.tile }); } });
+          acts.push({ id: "kong-" + k.tile, label: kongLabel(k.tile), style: "primary", fn: function () { resolveTurn({ type: "kong", tile: k.tile }); } });
         });
         if (ui.selected >= 0) {
-          acts.push({ id: 'discard', label: 'Discard', style: 'light', fn: function () { discardSelected(true); } });
+          acts.push({ id: "discard", label: "Discard", style: "light", fn: function () { discardSelected(true); } });
         }
       } else if (ui.claimPrompt) {
         var c = ui.claimPrompt.opts;
-        if (c.win) acts.push({ id: 'win', label: winButtonLabel(c.win), style: 'gold', fn: function () { resolveClaim({ type: 'win' }); } });
-        if (c.kong) acts.push({ id: 'kong-' + c.tile, label: kongLabel(c.tile), style: 'primary', fn: function () { resolveClaim({ type: 'kong' }); } });
-        if (c.pung) acts.push({ id: 'pung', label: 'Pung', style: 'primary', fn: function () { resolveClaim({ type: 'pung' }); } });
+        if (c.win) acts.push({ id: "win", label: winButtonLabel(c.win), style: "gold", fn: function () { resolveClaim({ type: "win" }); } });
+        if (c.kong) acts.push({ id: "kong-" + c.tile, label: kongLabel(c.tile), style: "primary", fn: function () { resolveClaim({ type: "kong" }); } });
+        if (c.pung) acts.push({ id: "pung", label: "Pung", style: "primary", fn: function () { resolveClaim({ type: "pung" }); } });
         c.chows.forEach(function (pair) {
-          var seq = E.sortTiles(pair.concat([c.tile])).map(function (id) { return E.rankOfIndex(E.tileIndex(id)); }).join('-');
-          acts.push({ id: 'chow-' + seq, label: 'Chow ' + seq, style: 'primary', fn: function () { resolveClaim({ type: 'chow', tiles: pair }); } });
+          var seq = E.sortTiles(pair.concat([c.tile])).map(function (id) { return E.rankOfIndex(E.tileIndex(id)); }).join("-");
+          acts.push({ id: "chow-" + seq, label: "Chow " + seq, style: "primary", fn: function () { resolveClaim({ type: "chow", tiles: pair }); } });
         });
-        acts.push({ id: 'pass', label: 'Pass', style: 'white', fn: function () { resolveClaim({ type: 'pass' }); } });
+        acts.push({ id: "pass", label: "Pass", style: "white", fn: function () { resolveClaim({ type: "pass" }); } });
       }
       if (!acts.length) { setButtonsOverName(false); return; }
       var phone = W < 600; // smaller buttons on a phone
@@ -4532,7 +4532,7 @@
         ? Math.min(34, (L.meldRowH - 6) / TILE_ASPECT) // taller than the buttons, inside your meld row
         : Math.min(phone ? 24 : 30, (L.actionsH - 4) / TILE_ASPECT);
       var lead = claimTile ? ctw + 10 : 0;
-      ctx.font = Math.min(15, h * 0.39) + 'px ' + FONT_HEAD; // the label size button() draws at
+      ctx.font = Math.min(15, h * 0.39) + "px " + FONT_HEAD; // the label size button() draws at
       // Each button is only as wide as its label.
       var widths = acts.map(function (a) { return Math.ceil(ctx.measureText(a.label).width) + (phone ? 20 : bigClaim ? 34 : 28); });
       var buttonsW = widths.reduce(function (sum, w) { return sum + w; }, 0) + gap * (acts.length - 1);
@@ -4573,27 +4573,27 @@
       if (claimTile) {
         drawTile(claimTile, x - lead, rowY + (L.actionsH - ctw * TILE_ASPECT) / 2, ctw, { glow: COLORS.red });
       }
-      var hintDecision = ui.coach === 'on' && ui.hint && ui.hint.decision;
+      var hintDecision = ui.coach === "on" && ui.hint && ui.hint.decision;
       var cursor = x;
       acts.forEach(function (a, i) {
-        var id = a.id || ('act-' + i);
+        var id = a.id || ("act-" + i);
         // (The tutorial's Replace flowers is the only move, so it always gets the ring.)
-        var recommended = a.id === 'replace-flower' || (hintDecision && labelMatches(a.label, hintDecision));
+        var recommended = a.id === "replace-flower" || (hintDecision && labelMatches(a.label, hintDecision));
         button(a.label, cursor, y, widths[i], h, a.fn, a.style, id, recommended);
         cursor += widths[i] + gap;
       });
     }
 
     function winButtonLabel(win) {
-      var selfDraw = win.items && win.items.some(function (it) { return it.name === 'Self-Draw'; });
-      return 'Win · ' + (selfDraw ? 'self-draw · ' : '') + win.faan + ' faan';
+      var selfDraw = win.items && win.items.some(function (it) { return it.name === "Self-Draw"; });
+      return "Win · " + (selfDraw ? "self-draw · " : "") + win.faan + " faan";
     }
 
     function labelMatches(label, decision) {
       var l = label.toLowerCase();
-      if (decision.type === 'chow') {
-        var seq = E.sortTiles(decision.tiles.concat([ui.claimPrompt.opts.tile])).map(function (id) { return E.rankOfIndex(E.tileIndex(id)); }).join('-');
-        return l === 'chow ' + seq;
+      if (decision.type === "chow") {
+        var seq = E.sortTiles(decision.tiles.concat([ui.claimPrompt.opts.tile])).map(function (id) { return E.rankOfIndex(E.tileIndex(id)); }).join("-");
+        return l === "chow " + seq;
       }
       return l.indexOf(decision.type) === 0;
     }
@@ -4601,13 +4601,13 @@
     // Two characters: the rank, then the suit. 9C, 5D, 3B, EW, RD.
     function shortName(id) {
       var i = E.tileIndex(id);
-      if (i < 27) return E.rankOfIndex(i) + { c: 'C', d: 'D', b: 'B' }[E.suitOfIndex(i)];
-      return { we: 'EW', ws: 'SW', ww: 'WW', wn: 'NW', dw: 'WD', dg: 'GD', dr: 'RD' }[id] || '';
+      if (i < 27) return E.rankOfIndex(i) + { c: "C", d: "D", b: "B" }[E.suitOfIndex(i)];
+      return { we: "EW", ws: "SW", ww: "WW", wn: "NW", dw: "WD", dg: "GD", dr: "RD" }[id] || "";
     }
 
     function kongLabel(id) {
       var code = shortName(id);
-      return code ? 'Kong ' + code : 'Kong';
+      return code ? "Kong " + code : "Kong";
     }
 
     function drawFlights() {
@@ -4633,12 +4633,12 @@
         if (b.rot) ctx.rotate(b.rot);
         ctx.scale(scale, scale);
         var size = b.size || 30;
-        ctx.font = size + 'px ' + FONT_HEAD;
+        ctx.font = size + "px " + FONT_HEAD;
         var tw = ctx.measureText(b.text).width;
         var bw = tw + size * 1.2, bh = size * 1.5;
         roundRect(ctx, -bw / 2, -bh / 2, bw, bh, bh / 2);
         ctx.fillStyle = b.color || COLORS.primary;
-        ctx.shadowColor = 'rgba(0,0,0,0.35)';
+        ctx.shadowColor = "rgba(0,0,0,0.35)";
         ctx.shadowBlur = 14;
         ctx.fill();
         ctx.shadowBlur = 0;
@@ -4647,14 +4647,14 @@
         ctx.stroke();
         // Center the letters (by cap height) in the pill; a fixed offset sits
         // off-center because the heading font's line box isn't symmetric.
-        ctx.font = size + 'px ' + FONT_HEAD;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'alphabetic'; // set before measuring: the metrics depend on it
+        ctx.font = size + "px " + FONT_HEAD;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic"; // set before measuring: the metrics depend on it
         // The height of the letters above the baseline (descenders aren't counted).
         var rise = ctx.measureText(b.text).actualBoundingBoxAscent || size * 0.7;
         ctx.fillStyle = b.textColor || COLORS.white;
         ctx.fillText(b.text, 0, rise / 2);
-        if (b.sub) text(b.sub, 0, bh / 2 + 14, { size: 14, weight: 'bold', align: 'center', color: COLORS.cream });
+        if (b.sub) text(b.sub, 0, bh / 2 + 14, { size: 14, weight: "bold", align: "center", color: COLORS.cream });
         ctx.restore();
       });
     }
@@ -4691,7 +4691,7 @@
     // The green sheet the Results window uses: a deep green with a gold edge.
     function drawSheetBg(r) {
       ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.55)';
+      ctx.shadowColor = "rgba(0,0,0,0.55)";
       ctx.shadowBlur = 40;
       ctx.shadowOffsetY = 18;
       roundRect(ctx, r.x, r.y, r.w, r.h, 8);
@@ -4709,9 +4709,9 @@
 
     function drawOverlay(t) {
       var o = ui.overlay;
-      if (o.type === 'summary') drawSummary(o);
-      else if (o.type === 'menu') drawMenu();
-      else if (o.type === 'gameover') drawGameOver();
+      if (o.type === "summary") drawSummary(o);
+      else if (o.type === "menu") drawMenu();
+      else if (o.type === "gameover") drawGameOver();
     }
 
     // Winning hand as one row: melds, then concealed tiles, small gaps between groups.
@@ -4734,15 +4734,15 @@
     }
 
     function sectionLabel(str, x, y) {
-      text(str.toUpperCase(), x, y, { size: 11, weight: 'bold', color: 'rgba(255,248,240,0.6)' });
+      text(str.toUpperCase(), x, y, { size: 11, weight: "bold", color: "rgba(255,248,240,0.6)" });
     }
 
     var SUMMARY_PAD = 24; // above the title and below the buttons
 
     function drawSummary(o) {
       var res = o.result;
-      var isWin = res.type === 'win';
-      var showPay = isWin && settings.mode !== 'practice';
+      var isWin = res.type === "win";
+      var showPay = isWin && settings.mode !== "practice";
       var items = isWin ? res.score.items : [];
       var hand = isWin ? summaryHandItems(res) : [];
       var flowers = isWin ? res.flowers : [];
@@ -4786,7 +4786,7 @@
       var r = { x: (W - pw) / 2, y: (H - lay.h) / 2, w: pw, h: lay.h };
       // Where the panel really is once it has been scaled to fit, for a click outside it.
       ui.overlayBox = { x: W / 2 + (r.x - W / 2) * k, y: H / 2 + (r.y - H / 2) * k, w: r.w * k, h: r.h * k };
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
       ctx.fillRect(0, 0, W, H);
       ctx.save();
       ctx.translate(W / 2, H / 2);
@@ -4799,20 +4799,20 @@
 
       var title, sub;
       if (isWin) {
-        var who = res.winner === 0 ? 'You win' : game.players[res.winner].name + ' wins';
-        title = who + (res.how === 'selfDraw' ? ' by self-draw!' : res.how === 'robKong' ? ' by robbing the kong!' : res.how === 'flowers' ? ' with flowers!' : '!');
-        if (res.how === 'discard' || res.how === 'robKong') {
-          sub = (res.payer === 0 ? 'You' : game.players[res.payer].name) + ' discarded the winning tile.';
+        var who = res.winner === 0 ? "You win" : game.players[res.winner].name + " wins";
+        title = who + (res.how === "selfDraw" ? " by self-draw!" : res.how === "robKong" ? " by robbing the kong!" : res.how === "flowers" ? " with flowers!" : "!");
+        if (res.how === "discard" || res.how === "robKong") {
+          sub = (res.payer === 0 ? "You" : game.players[res.payer].name) + " discarded the winning tile.";
         } else {
-          sub = E.WIND_NAMES[res.seatWind] + ' seat · ' + E.WIND_NAMES[res.round] + ' round';
+          sub = E.WIND_NAMES[res.seatWind] + " seat · " + E.WIND_NAMES[res.round] + " round";
         }
       } else {
-        title = 'Draw game';
-        sub = 'The wall ran out with no winner. The deal passes to the next player.';
+        title = "Draw game";
+        sub = "The wall ran out with no winner. The deal passes to the next player.";
       }
-      text(title, cx, y, { size: fitFont(ctx, title, w, 26, FONT_HEAD), family: FONT_HEAD, align: 'center', color: COLORS.goldLight });
+      text(title, cx, y, { size: fitFont(ctx, title, w, 26, FONT_HEAD), family: FONT_HEAD, align: "center", color: COLORS.goldLight });
       y += 15 + 18;
-      text(sub, cx, y, { size: fitFont(ctx, sub, w, 13, FONT_BODY), align: 'center', color: 'rgba(255,248,240,0.75)' });
+      text(sub, cx, y, { size: fitFont(ctx, sub, w, 13, FONT_BODY), align: "center", color: "rgba(255,248,240,0.75)" });
       y += 11 + 14;
 
       if (isWin) {
@@ -4820,7 +4820,7 @@
         var tw = lay.tw, th = tw * TILE_ASPECT;
         var stripH = th + 26;
         roundRect(ctx, x, y, w, stripH, 6);
-        ctx.fillStyle = 'rgba(0,0,0,0.28)';
+        ctx.fillStyle = "rgba(0,0,0,0.28)";
         ctx.fill();
         var span = 0;
         hand.forEach(function (it) { span += it.gap ? tw * 0.3 : tw + TILE_GAP; });
@@ -4849,9 +4849,9 @@
           var fw = lay.fw, fh = fw * TILE_ASPECT;
           y += 14;
           var fy = y;
-          sectionLabel('Flowers & seasons', x, fy + fh / 2);
-          ctx.font = 'bold 11px ' + FONT_BODY;
-          var fx = Math.min(x + ctx.measureText('FLOWERS & SEASONS').width + 16, x + w - flowers.length * (fw + TILE_GAP) + TILE_GAP);
+          sectionLabel("Flowers & seasons", x, fy + fh / 2);
+          ctx.font = "bold 11px " + FONT_BODY;
+          var fx = Math.min(x + ctx.measureText("FLOWERS & SEASONS").width + 16, x + w - flowers.length * (fw + TILE_GAP) + TILE_GAP);
           flowers.forEach(function (f) {
             drawTile(f, fx, fy, fw, { shadow: false, glow: flowerGlow(flowers, res.seatWind, f) });
             fx += fw + TILE_GAP;
@@ -4864,56 +4864,56 @@
         var colX = x;
         var top = y;
         // Patterns and faan.
-        sectionLabel('Patterns', colX, y + 6);
+        sectionLabel("Patterns", colX, y + 6);
         y += 24;
         items.forEach(function (it, i) {
           if (i % 2 === 0) {
-            ctx.fillStyle = 'rgba(255,255,255,0.05)';
+            ctx.fillStyle = "rgba(255,255,255,0.05)";
             roundRect(ctx, colX - 8, y, colW + 16, rh, 3);
             ctx.fill();
           }
           var my = y + rh / 2;
-          var faanLabel = it.faan >= 13 ? 'Limit' : it.faan + ' faan';
-          ctx.font = 'bold 15px ' + FONT_BODY;
+          var faanLabel = it.faan >= 13 ? "Limit" : it.faan + " faan";
+          ctx.font = "bold 15px " + FONT_BODY;
           var faanW = ctx.measureText(faanLabel).width + 12;
           var ns = fitFont(ctx, it.name, colW - faanW - 40, 15, FONT_BODY);
           text(it.name, colX, my, { size: ns, color: COLORS.cream });
-          ctx.font = ns + 'px ' + FONT_BODY;
-          text(faanLabel, colX + colW, my, { size: 15, weight: 'bold', align: 'right', color: it.faan ? COLORS.cream : 'rgba(255,248,240,0.55)' });
+          ctx.font = ns + "px " + FONT_BODY;
+          text(faanLabel, colX + colW, my, { size: 15, weight: "bold", align: "right", color: it.faan ? COLORS.cream : "rgba(255,248,240,0.55)" });
           y += rh;
         });
         y += 6;
-        ctx.fillStyle = 'rgba(255,210,122,0.4)';
+        ctx.fillStyle = "rgba(255,210,122,0.4)";
         ctx.fillRect(colX, y, colW, 1);
         y += 6;
-        var totalLabel = res.score.faan >= 13 ? res.score.faan + ' faan · limit' : res.score.faan + ' faan';
-        text('Total', colX, y + 13, { size: 17, weight: 'bold', color: COLORS.white });
-        text(totalLabel, colX + colW, y + 13, { size: 17, weight: 'bold', align: 'right', color: COLORS.goldLight });
+        var totalLabel = res.score.faan >= 13 ? res.score.faan + " faan · limit" : res.score.faan + " faan";
+        text("Total", colX, y + 13, { size: 17, weight: "bold", color: COLORS.white });
+        text(totalLabel, colX + colW, y + 13, { size: 17, weight: "bold", align: "right", color: COLORS.goldLight });
         y += 26;
         var bottom = y;
 
         if (showPay) {
           if (wide) { colX = x + colW + colGap; y = top; } else { y += 18; }
-          sectionLabel('Payout · ' + (settings.spicy === 'half' ? 'half spicy' : 'full spicy'), colX, y + 6);
+          sectionLabel("Payout · " + (settings.spicy === "half" ? "half spicy" : "full spicy"), colX, y + 6);
           y += 24;
           var base = res.score.points;
           var how = res.payer === null || res.payer === undefined
-            ? 'Self-draw: everyone pays ' + fmt(base)
-            : (res.payer === 0 ? 'You pay ' : game.players[res.payer].name + ' pays ') + fmt(base);
-          text(how, colX, y + 7, { size: fitFont(ctx, how, colW, 13, FONT_BODY), color: 'rgba(255,248,240,0.7)' });
+            ? "Self-draw: everyone pays " + fmt(base)
+            : (res.payer === 0 ? "You pay " : game.players[res.payer].name + " pays ") + fmt(base);
+          text(how, colX, y + 7, { size: fitFont(ctx, how, colW, 13, FONT_BODY), color: "rgba(255,248,240,0.7)" });
           y += 22;
           for (var p = 0; p < 4; p++) {
             var d = res.deltas[p];
             var my2 = y + rh / 2;
             if (p === res.winner) {
-              ctx.fillStyle = 'rgba(244,160,32,0.16)';
+              ctx.fillStyle = "rgba(244,160,32,0.16)";
               roundRect(ctx, colX - 8, y, colW + 16, rh, 3);
               ctx.fill();
             }
-            var name = (p === 0 ? 'You' : game.players[p].name);
-            text(name, colX, my2, { size: fitFont(ctx, name, colW * 0.5, 15, FONT_BODY, p === 0 ? 'bold' : ''), weight: p === 0 ? 'bold' : '', color: COLORS.cream });
-            text(signed(d), colX + colW * 0.7, my2, { size: 15, weight: 'bold', align: 'right', color: d > 0 ? COLORS.goldLight : d < 0 ? COLORS.redLight : 'rgba(255,248,240,0.55)' });
-            text(fmt(res.after[p]), colX + colW, my2, { size: 15, align: 'right', color: 'rgba(255,248,240,0.55)' });
+            var name = (p === 0 ? "You" : game.players[p].name);
+            text(name, colX, my2, { size: fitFont(ctx, name, colW * 0.5, 15, FONT_BODY, p === 0 ? "bold" : ""), weight: p === 0 ? "bold" : "", color: COLORS.cream });
+            text(signed(d), colX + colW * 0.7, my2, { size: 15, weight: "bold", align: "right", color: d > 0 ? COLORS.goldLight : d < 0 ? COLORS.redLight : "rgba(255,248,240,0.55)" });
+            text(fmt(res.after[p]), colX + colW, my2, { size: 15, align: "right", color: "rgba(255,248,240,0.55)" });
             y += rh;
           }
           bottom = Math.max(bottom, y);
@@ -4922,7 +4922,7 @@
       }
       if (o.extra) {
         var ey = y + 16;
-        text(o.extra, cx, ey, { size: fitFont(ctx, o.extra, w, 13, FONT_BODY, 'bold'), weight: 'bold', align: 'center', color: COLORS.goldLight });
+        text(o.extra, cx, ey, { size: fitFont(ctx, o.extra, w, 13, FONT_BODY, "bold"), weight: "bold", align: "center", color: COLORS.goldLight });
       }
       if (o.playback) {
         // A playback's results: Back to game, the main button, and Watch again
@@ -4931,12 +4931,12 @@
         var byP = r.y + r.h - SUMMARY_PAD - 42;
         if (phoneStack) {
           var swP = Math.min(w, 280);
-          button('Watch again', cx - swP / 2, byP - 58, swP, 42, function () { sound.play('select'); watchAgain(); }, 'white', 'review-again');
-          button('Back to game', cx - swP / 2, byP, swP, 42, function () { sound.play('select'); backToGame(); }, 'primary', 'review-result-back');
+          button("Watch again", cx - swP / 2, byP - 58, swP, 42, function () { sound.play("select"); watchAgain(); }, "white", "review-again");
+          button("Back to game", cx - swP / 2, byP, swP, 42, function () { sound.play("select"); backToGame(); }, "primary", "review-result-back");
         } else {
           var bwP = Math.min(156, (w - 12) / 2);
-          button('Watch again', cx - bwP - 6, byP, bwP, 42, function () { sound.play('select'); watchAgain(); }, 'white', 'review-again');
-          button('Back to game', cx + 6, byP, bwP, 42, function () { sound.play('select'); backToGame(); }, 'primary', 'review-result-back');
+          button("Watch again", cx - bwP - 6, byP, bwP, 42, function () { sound.play("select"); watchAgain(); }, "white", "review-again");
+          button("Back to game", cx + 6, byP, bwP, 42, function () { sound.play("select"); backToGame(); }, "primary", "review-result-back");
         }
         ctx.restore();
         regions.slice(firstP).forEach(function (g) {
@@ -4947,9 +4947,9 @@
         });
         return;
       }
-      var label = settings.lesson ? 'Done' : (game.over ? 'See results' : 'Next hand');
+      var label = settings.lesson ? "Done" : (game.over ? "See results" : "Next hand");
       // Show hands turns the hands face up; once they are, the button says See hands.
-      var handsLabel = ui.revealHands ? 'See hands' : 'Show hands';
+      var handsLabel = ui.revealHands ? "See hands" : "Show hands";
       var firstRegion = regions.length;
       var gap = 12;
       var handsW = 140;
@@ -4966,9 +4966,9 @@
         // One column, one size, with room between: Show hands, View playback,
         // and Next hand last, at the bottom.
         var stack = [];
-        if (haveHand) stack.push({ label: handsLabel, fn: showHands, style: 'white', id: 'show-hands' });
-        if (o.hasPlayback) stack.push({ label: 'View playback', fn: viewReplay, style: 'white', id: 'view-playback' });
-        stack.push({ label: label, fn: nextHand, style: 'primary', id: 'next' });
+        if (haveHand) stack.push({ label: handsLabel, fn: showHands, style: "white", id: "show-hands" });
+        if (o.hasPlayback) stack.push({ label: "View playback", fn: viewReplay, style: "white", id: "view-playback" });
+        stack.push({ label: label, fn: nextHand, style: "primary", id: "next" });
         var sw = Math.min(w, 280);
         stack.forEach(function (b, i) {
           button(b.label, cx - sw / 2, by - (stack.length - 1 - i) * 58, sw, 42, b.fn, b.style, b.id);
@@ -4992,10 +4992,10 @@
       // Show hands leaves this panel without dealing, and only while the
       // finished hand is still on the table. Next hand is the only way on.
       var nx = bx;
-      if (game && game.hand) { button(handsLabel, nx, rowY, handsW, 42, showHands, 'white', 'show-hands'); nx += handsW + gap; }
-      button(label, game && game.hand ? nx : cx - nextW / 2, rowY, nextW, 42, nextHand, 'primary', 'next');
-      if (threeButtons) button('View playback', nx + nextW + gap, rowY, playW, 42, viewReplay, 'white', 'view-playback');
-      if (playbackRow) button('View playback', cx - 110, by, 220, 42, viewReplay, 'white', 'view-playback');
+      if (game && game.hand) { button(handsLabel, nx, rowY, handsW, 42, showHands, "white", "show-hands"); nx += handsW + gap; }
+      button(label, game && game.hand ? nx : cx - nextW / 2, rowY, nextW, 42, nextHand, "primary", "next");
+      if (threeButtons) button("View playback", nx + nextW + gap, rowY, playW, 42, viewReplay, "white", "view-playback");
+      if (playbackRow) button("View playback", cx - 110, by, 220, 42, viewReplay, "white", "view-playback");
       ctx.restore();
       regions.slice(firstRegion).forEach(function (g) {
         g.x = W / 2 + (g.x - W / 2) * k;
@@ -5013,7 +5013,7 @@
       var next = THEME_ORDER[(THEME_ORDER.indexOf(themeName(prefs.theme)) + 1) % THEME_ORDER.length];
       prefs.theme = applyTheme(next);
       writeJson(PREFS_KEY, prefs);
-      track('play_set_theme', { theme: prefs.theme });
+      track("play_set_theme", { theme: prefs.theme });
       setUserProperties({ theme: prefs.theme });
       requestRender();
     }
@@ -5023,37 +5023,37 @@
       var withPlayback = menuHasPlayback();
       var r = panelRect(360, withPlayback ? 466 : 414);
       ui.overlayBox = r;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
       ctx.fillRect(0, 0, W, H);
       drawSheetBg(r);
       var px = r.x + 22;
-      text('Menu', px, r.y + 36, { size: 28, family: FONT_HEAD, align: 'left', color: COLORS.goldLight });
-      button('Close', r.x + r.w - 22 - 64, r.y + 22, 64, 28, function () { sound.play('select'); closeOverlay(); }, 'ghost', 'm-close');
+      text("Menu", px, r.y + 36, { size: 28, family: FONT_HEAD, align: "left", color: COLORS.goldLight });
+      button("Close", r.x + r.w - 22 - 64, r.y + 22, 64, 28, function () { sound.play("select"); closeOverlay(); }, "ghost", "m-close");
       // On a short screen (a phone held sideways) the buttons close up to fit.
       var rows = withPlayback ? 6 : 5;
       var room = r.h - 70 - 64;
       var step = Math.max(34, Math.min(52, room / rows));
       var bh = Math.min(42, step - 6);
       var bx = px, bw = r.w - 44, y = r.y + 70;
-      button('Resume', bx, y, bw, bh, function () { sound.play('select'); closeOverlay(); }, 'primary', 'm-resume'); y += step;
+      button("Resume", bx, y, bw, bh, function () { sound.play("select"); closeOverlay(); }, "primary", "m-resume"); y += step;
       var themeLabel = THEMES[themeName(prefs.theme)].label;
-      button('Theme: ' + themeLabel, bx, y, bw, bh, function () { sound.play('select'); cycleTheme(); }, 'white', 'm-theme'); y += step;
-      button('Coach settings', bx, y, bw, bh, function () { sound.play('select'); closeOverlay(); openCoachSettings(); }, 'white', 'm-coach'); y += step;
-      if (withPlayback) { button('View playback', bx, y, bw, bh, function () { sound.play('select'); closeOverlay(); viewReplay(); }, 'white', 'm-playback'); y += step; }
+      button("Theme: " + themeLabel, bx, y, bw, bh, function () { sound.play("select"); cycleTheme(); }, "white", "m-theme"); y += step;
+      button("Coach settings", bx, y, bw, bh, function () { sound.play("select"); closeOverlay(); openCoachSettings(); }, "white", "m-coach"); y += step;
+      if (withPlayback) { button("View playback", bx, y, bw, bh, function () { sound.play("select"); closeOverlay(); viewReplay(); }, "white", "m-playback"); y += step; }
       var armed = ui.restartArmed && now() - ui.restartArmed < 5000;
-      button(armed ? 'Tap again to restart' : 'Restart game', bx, y, bw, bh, function () { sound.play('select'); restartGame(); }, armed ? 'gold' : 'white', 'm-restart'); y += step;
-      button('Quit game', bx, y, bw, bh, function () { sound.play('select'); quit(); }, 'white', 'm-quit');
+      button(armed ? "Tap again to restart" : "Restart game", bx, y, bw, bh, function () { sound.play("select"); restartGame(); }, armed ? "gold" : "white", "m-restart"); y += step;
+      button("Quit game", bx, y, bw, bh, function () { sound.play("select"); quit(); }, "white", "m-quit");
       // Mode and version, with a Beta badge.
-      var line = (settings.lesson ? 'Learn to play' : settings.mode === 'practice' ? 'Practice mode' : 'Full game') + ' · v' + E.GAME_VERSION;
-      ctx.font = '12px ' + FONT_BODY;
+      var line = (settings.lesson ? "Learn to play" : settings.mode === "practice" ? "Practice mode" : "Full game") + " · v" + E.GAME_VERSION;
+      ctx.font = "12px " + FONT_BODY;
       var lineW = ctx.measureText(line).width;
-      ctx.font = 'bold 10px ' + FONT_BODY;
-      var badgeW = ctx.measureText('BETA').width + 12, badgeH = 16;
+      ctx.font = "bold 10px " + FONT_BODY;
+      var badgeW = ctx.measureText("BETA").width + 12, badgeH = 16;
       var lx = r.x + (r.w - lineW - 6 - badgeW) / 2, ly = r.y + r.h - 46;
-      text(line, lx, ly, { size: 12, color: 'rgba(255,248,240,0.7)' });
+      text(line, lx, ly, { size: 12, color: "rgba(255,248,240,0.7)" });
       pill(lx + lineW + 6, ly - badgeH / 2, badgeW, badgeH, COLORS.primary);
-      text('BETA', lx + lineW + 6 + badgeW / 2, ly + 1, { size: 10, weight: 'bold', align: 'center', color: COLORS.white });
-      text('Built by Jorge Yau Lee, developer, mahjong instructor', r.x + r.w / 2, r.y + r.h - 22, { size: 12, align: 'center', color: 'rgba(255,248,240,0.55)' });
+      text("BETA", lx + lineW + 6 + badgeW / 2, ly + 1, { size: 10, weight: "bold", align: "center", color: COLORS.white });
+      text("Built by Jorge Yau Lee, developer, mahjong instructor", r.x + r.w / 2, r.y + r.h - 22, { size: 12, align: "center", color: "rgba(255,248,240,0.55)" });
     }
 
     /* ---------------- saving and loading ---------------- */
@@ -5090,35 +5090,35 @@
     function keptSummary(raw) {
       if (!raw || !raw.result) return null;
       var res = raw.result;
-      var extra = typeof raw.extra === 'string' ? raw.extra : null;
-      if (res.type === 'draw') return { result: { type: 'draw' }, extra: extra };
-      if (res.type !== 'win' || typeof res.winner !== 'number' || res.winner < 0 || res.winner > 3) return null;
+      var extra = typeof raw.extra === "string" ? raw.extra : null;
+      if (res.type === "draw") return { result: { type: "draw" }, extra: extra };
+      if (res.type !== "win" || typeof res.winner !== "number" || res.winner < 0 || res.winner > 3) return null;
       if (!res.score || !Array.isArray(res.score.items)) return null;
       var hows = { discard: 1, selfDraw: 1, robKong: 1, flowers: 1 };
       var tiles = function (list) {
-        return Array.isArray(list) ? list.filter(function (id) { return typeof id === 'string'; }) : [];
+        return Array.isArray(list) ? list.filter(function (id) { return typeof id === "string"; }) : [];
       };
       var nums = function (list) {
         return [0, 1, 2, 3].map(function (i) { return Array.isArray(list) ? +list[i] || 0 : 0; });
       };
       return {
         result: {
-          type: 'win',
+          type: "win",
           winner: res.winner,
-          payer: typeof res.payer === 'number' && res.payer >= 0 && res.payer <= 3 ? res.payer : null,
-          tile: typeof res.tile === 'string' ? res.tile : null,
-          how: hows[res.how] ? res.how : 'discard',
+          payer: typeof res.payer === "number" && res.payer >= 0 && res.payer <= 3 ? res.payer : null,
+          tile: typeof res.tile === "string" ? res.tile : null,
+          how: hows[res.how] ? res.how : "discard",
           score: {
             faan: +res.score.faan || 0,
             points: +res.score.points || 0,
-            items: res.score.items.filter(function (it) { return it && typeof it.name === 'string'; }).map(function (it) {
+            items: res.score.items.filter(function (it) { return it && typeof it.name === "string"; }).map(function (it) {
               return { name: it.name, faan: +it.faan || 0 };
             }),
           },
           deltas: nums(res.deltas),
           after: nums(res.after),
           concealed: tiles(res.concealed),
-          melds: Array.isArray(res.melds) ? res.melds.filter(function (m) { return m && typeof m.type === 'string'; }).map(function (m) {
+          melds: Array.isArray(res.melds) ? res.melds.filter(function (m) { return m && typeof m.type === "string"; }).map(function (m) {
             return { type: m.type, tiles: tiles(m.tiles), concealed: !!m.concealed };
           }) : [],
           flowers: tiles(res.flowers),
@@ -5132,7 +5132,7 @@
     function keptResults(list) {
       if (!Array.isArray(list)) return [];
       return list.filter(function (row) {
-        return row && typeof row.hand === 'number' && row.faan && row.faan.length === 4 && row.points && row.points.length === 4;
+        return row && typeof row.hand === "number" && row.faan && row.faan.length === 4 && row.points && row.points.length === 4;
       }).map(function (row) {
         return {
           hand: row.hand,
@@ -5185,7 +5185,7 @@
     function restartGame() {
       if (ui.restartArmed && now() - ui.restartArmed < 5000) {
         ui.restartArmed = 0;
-        track('play_restart', {});
+        track("play_restart", {});
         callbacks.restart();
         return;
       }
@@ -5205,9 +5205,9 @@
     // coach's (the Strategies sheet reads the same way: "Coach", then what it plays).
     function gameOverStrategy(seat) {
       var id = seat === 0 ? ui.strategies.coach : ui.strategies.seats[seat];
-      var name = id && Strategies.has(id) ? Strategies.get(id).name : '';
-      if (!name) return '';
-      return seat === 0 ? 'Coach \u00b7 ' + name : name;
+      var name = id && Strategies.has(id) ? Strategies.get(id).name : "";
+      if (!name) return "";
+      return seat === 0 ? "Coach \u00b7 " + name : name;
     }
 
     // The game over window, in the look of the Results window: the deep green
@@ -5219,13 +5219,13 @@
       var standings = E.finalStandings(game);
       var streak = longestWinStreak(ui.results);
       var statLines = [
-        ['Hands played', String(st.hands)],
-        ['Your biggest hand', st.best ? st.best + ' faan' : '\u2014'],
-        ['Fastest win', st.fastest == null ? '\u2014' : st.fastest + (st.fastest === 1 ? ' move' : ' moves')],
-        ['Hands you won', String(st.wins)],
-        ['Longest winning streak', streak ? streak + (streak === 1 ? ' hand' : ' hands') : '\u2014'],
-        ['Times you discarded the winning tile', String(st.dealIns || 0)],
-        ['Times you stayed dealer', String(st.stays || 0)],
+        ["Hands played", String(st.hands)],
+        ["Your biggest hand", st.best ? st.best + " faan" : "\u2014"],
+        ["Fastest win", st.fastest == null ? "\u2014" : st.fastest + (st.fastest === 1 ? " move" : " moves")],
+        ["Hands you won", String(st.wins)],
+        ["Longest winning streak", streak ? streak + (streak === 1 ? " hand" : " hands") : "\u2014"],
+        ["Times you discarded the winning tile", String(st.dealIns || 0)],
+        ["Times you stayed dealer", String(st.stays || 0)],
       ];
       var PAD = 22, ROW = 50, STAT = 23, BTN = 42, BIG = 48;
       var pw = Math.min(480, W - 24);
@@ -5236,7 +5236,7 @@
       var k = Math.min(1, (H - 24) / h);
       var r = { x: (W - pw) / 2, y: (H - h) / 2, w: pw, h: h };
       ui.overlayBox = { x: W / 2 + (r.x - W / 2) * k, y: H / 2 + (r.y - H / 2) * k, w: r.w * k, h: r.h * k };
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
       ctx.fillRect(0, 0, W, H);
       var firstRegion = regions.length;
       ctx.save();
@@ -5245,13 +5245,13 @@
       ctx.translate(-W / 2, -H / 2);
       drawSheetBg(r);
       var px = r.x + PAD, innerW = r.w - 2 * PAD;
-      text('Game over', px, r.y + 36, { size: 28, family: FONT_HEAD, align: 'left', color: COLORS.goldLight });
-      button('Close', r.x + r.w - PAD - 64, r.y + PAD, 64, 28, seeMatchHands, 'ghost', 'go-close');
+      text("Game over", px, r.y + 36, { size: 28, family: FONT_HEAD, align: "left", color: COLORS.goldLight });
+      button("Close", r.x + r.w - PAD - 64, r.y + PAD, 64, 28, seeMatchHands, "ghost", "go-close");
 
       // The standings: a dark panel, a row for each player.
       var sy = r.y + PAD + 34 + 14; // under the title; your place is the highlighted row
       roundRect(ctx, px, sy, innerW, standH, 6);
-      ctx.fillStyle = 'rgba(0,0,0,0.26)';
+      ctx.fillStyle = "rgba(0,0,0,0.26)";
       ctx.fill();
       standings.forEach(function (row, i) {
         var ry = sy + 8 + i * ROW;
@@ -5259,49 +5259,49 @@
         var you = row.seat === 0;
         if (you) {
           roundRect(ctx, px + 6, ry + 2, innerW - 12, ROW - 4, 5);
-          ctx.fillStyle = 'rgba(244,160,32,0.2)';
+          ctx.fillStyle = "rgba(244,160,32,0.2)";
           ctx.fill();
         }
         var ink = you ? COLORS.goldLight : COLORS.cream;
-        text(row.place + '.', px + 18, cy + 1, { size: 15, weight: 'bold', color: you ? COLORS.goldLight : 'rgba(255,248,240,0.7)' });
+        text(row.place + ".", px + 18, cy + 1, { size: 15, weight: "bold", color: you ? COLORS.goldLight : "rgba(255,248,240,0.7)" });
         // The avatar: the person or robot icon in a round badge.
         var ax = px + 58;
         ctx.beginPath();
         ctx.arc(ax, cy, 16, 0, Math.PI * 2);
-        ctx.fillStyle = you ? 'rgba(255,210,122,0.25)' : 'rgba(255,248,240,0.12)';
+        ctx.fillStyle = you ? "rgba(255,210,122,0.25)" : "rgba(255,248,240,0.12)";
         ctx.fill();
         playerIcon(row.seat, ax - 9, cy + 1, 18, ink);
         var tx = px + 84;
         var pointsText = fmt(row.points);
-        ctx.font = 'bold 16px ' + FONT_BODY;
+        ctx.font = "bold 16px " + FONT_BODY;
         var pointsW = ctx.measureText(pointsText).width;
         var room = innerW - (tx - px) - pointsW - 28;
         var strat = gameOverStrategy(row.seat);
-        var nameSize = fitFont(ctx, row.name, room, 16, FONT_BODY, 'bold');
-        text(row.name, tx, strat ? cy - 8 : cy + 1, { size: nameSize, weight: 'bold', color: ink });
+        var nameSize = fitFont(ctx, row.name, room, 16, FONT_BODY, "bold");
+        text(row.name, tx, strat ? cy - 8 : cy + 1, { size: nameSize, weight: "bold", color: ink });
         if (strat) {
           var stratSize = fitFont(ctx, strat, room, 12.5, FONT_BODY);
-          text(strat, tx, cy + 10, { size: stratSize, color: 'rgba(255,248,240,0.7)' });
+          text(strat, tx, cy + 10, { size: stratSize, color: "rgba(255,248,240,0.7)" });
         }
-        text(pointsText, px + innerW - 16, cy + 1, { size: 16, weight: 'bold', align: 'right', color: ink });
+        text(pointsText, px + innerW - 16, cy + 1, { size: 16, weight: "bold", align: "right", color: ink });
       });
 
       // How the game went.
       var y = sy + standH + 18;
-      sectionLabel('Your game', px, y + 6);
+      sectionLabel("Your game", px, y + 6);
       y += 18;
       statLines.forEach(function (l) {
         y += STAT;
-        text(l[0], px, y - 6, { size: 14, color: 'rgba(255,248,240,0.7)' });
-        text(l[1], px + innerW, y - 6, { size: 14, weight: 'bold', align: 'right', color: COLORS.cream });
+        text(l[0], px, y - 6, { size: 14, color: "rgba(255,248,240,0.7)" });
+        text(l[1], px + innerW, y - 6, { size: 14, weight: "bold", align: "right", color: COLORS.cream });
       });
 
       // Play again is the large red button on top; Results and Quit share the row under it.
       var by = r.y + r.h - PAD - BTN;
       var bw = (innerW - 12) / 2;
-      button('Play again', px, by - BIG - 10, innerW, BIG, function () { callbacks.restart(); }, 'primary', 'go-again');
-      button('Results', px, by, bw, BTN, openResults, 'white', 'go-results');
-      button('Quit', px + bw + 12, by, bw, BTN, function () { quit(); }, 'white', 'go-quit');
+      button("Play again", px, by - BIG - 10, innerW, BIG, function () { callbacks.restart(); }, "primary", "go-again");
+      button("Results", px, by, bw, BTN, openResults, "white", "go-results");
+      button("Quit", px + bw + 12, by, bw, BTN, function () { quit(); }, "white", "go-quit");
       ctx.restore();
       regions.slice(firstRegion).forEach(function (g) {
         g.x = W / 2 + (g.x - W / 2) * k;
@@ -5329,17 +5329,17 @@
     function dismissOverlay() {
       var o = ui.overlay;
       if (!o) return false;
-      if (o.type === 'menu') { closeOverlay(); return true; }
+      if (o.type === "menu") { closeOverlay(); return true; }
       if (o.playback) { closeOverlay(); return true; } // a playback's results step aside to the table
       if (settings.lesson || !game || !game.hand) return false;
-      if (o.type === 'summary') { showHands(true); return true; }
-      if (o.type === 'gameover') { seeMatchHands(); return true; }
+      if (o.type === "summary") { showHands(true); return true; }
+      if (o.type === "gameover") { seeMatchHands(); return true; }
       return false;
     }
 
     function closeOverlay() {
       var o = ui.overlay;
-      var leavingSummary = o && o.type !== 'menu' && overlayResolve;
+      var leavingSummary = o && o.type !== "menu" && overlayResolve;
       ui.overlay = o && o.previous ? o.previous : null;
       if (leavingSummary) {
         ui.revealHands = false;
@@ -5356,7 +5356,7 @@
     // Look at the table with every hand face up. The next hand waits.
     function showHands(clickedOut) {
       var o = ui.overlay;
-      if (!o || o.type !== 'summary') return;
+      if (!o || o.type !== "summary") return;
       var already = ui.revealHands;
       ui.heldSummary = o;
       ui.revealHands = true;
@@ -5364,20 +5364,20 @@
       ui.overlay = null;
       // The first time is the mining hit. Coming back to See hands after See
       // results is a plain click.
-      sound.play(clickedOut === true || already ? 'select' : 'flip');
-      if (!already) announce('All four hands are face up.');
+      sound.play(clickedOut === true || already ? "select" : "flip");
+      if (!already) announce("All four hands are face up.");
       requestRender();
     }
 
     // Leaves the summary for the next deal, with the mining hit.
     function nextHand() {
       // On the last hand the button reads See results, and that is a plain click.
-      sound.play(game && game.over && !settings.lesson ? 'select' : 'next');
+      sound.play(game && game.over && !settings.lesson ? "select" : "next");
       closeOverlay();
     }
 
     function seeResults() {
-      sound.play('select'); // the click
+      sound.play("select"); // the click
       if (ui.heldSummary && !ui.overlay) {
         ui.overlay = ui.heldSummary;
         requestRender();
@@ -5386,7 +5386,7 @@
       if (game && game.over) {
         // Only the game over window: its Results button opens the Results table.
         ui.revealHands = false;
-        ui.overlay = { type: 'gameover' };
+        ui.overlay = { type: "gameover" };
         saveMatchPlayback();
         requestRender();
       }
@@ -5398,12 +5398,12 @@
       noteFinishedWin();
       resultsStay = true;
       var dlg = resultsSheet();
-      if (dlg && dlg.open) { if (dlg.close) dlg.close(); else dlg.removeAttribute('open'); }
+      if (dlg && dlg.open) { if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); }
       ui.overlay = null;
       ui.revealHands = true;
       ui.botLift = null;
       // No sound: this is the game over window being closed or dismissed (Close, or a click outside).
-      announce('All four hands are face up.');
+      announce("All four hands are face up.");
       requestRender();
     }
 
@@ -5412,8 +5412,8 @@
     // the coach in its column, or the coach hidden), by your name. Never up
     // in the coach's column, far from your hand.
     function seeResultsHome() {
-      if (L.hintH) return 'bar';
-      return 'name';
+      if (L.hintH) return "bar";
+      return "name";
     }
 
     // The button in the coach bar, centered on your avatar and kept inside the bar.
@@ -5436,15 +5436,15 @@
       if (settings.review || !ui.revealHands || ui.overlay) return;
       var home = seeResultsHome();
       var bw = SEE_RESULTS_W;
-      if (home === 'column') {
+      if (home === "column") {
         var col = L.history;
         bw = Math.min(bw, col.w - 24);
-        button('See results', col.x + col.w - 10 - bw, col.y + 5, bw, 28, seeResults, 'primary', 'see-results', true);
+        button("See results", col.x + col.w - 10 - bw, col.y + 5, bw, 28, seeResults, "primary", "see-results", true);
         return;
       }
-      if (home === 'bar' && ui.coachBox) {
+      if (home === "bar" && ui.coachBox) {
         var place = seeResultsBarPlace(ui.coachBox);
-        button('See results', place.x, place.y, place.w, place.h, seeResults, 'primary', 'see-results', true);
+        button("See results", place.x, place.y, place.w, place.h, seeResults, "primary", "see-results", true);
         return;
       }
       var head = ui.youHeader;
@@ -5455,44 +5455,44 @@
       var top = head.y + 22 + gap;
       var room = L.meY + L.meldRowH - top;
       if (seeResultsUnder()) {
-        button('See results', head.right - bw, top, bw, Math.min(36, room), seeResults, 'primary', 'see-results', true);
+        button("See results", head.right - bw, top, bw, Math.min(36, room), seeResults, "primary", "see-results", true);
       } else {
-        button('See results', head.x - gap - bw, head.y + 11 - 15, bw, 30, seeResults, 'primary', 'see-results', true);
+        button("See results", head.x - gap - bw, head.y + 11 - 15, bw, 30, seeResults, "primary", "see-results", true);
       }
     }
 
     function openMenu() {
-      sound.play('select'); // the click
-      if (ui.overlay && ui.overlay.type === 'menu') { closeOverlay(); return; }
-      ui.overlay = { type: 'menu', previous: ui.overlay };
+      sound.play("select"); // the click
+      if (ui.overlay && ui.overlay.type === "menu") { closeOverlay(); return; }
+      ui.overlay = { type: "menu", previous: ui.overlay };
       requestRender();
     }
 
     function cycleCoach() {
       if (settings.lesson) return;
-      sound.play('select'); // the click
+      sound.play("select"); // the click
       var next = COACH_ORDER[(COACH_ORDER.indexOf(ui.coach) + 1) % COACH_ORDER.length];
       ui.coach = next;
-      saveSetting('coach', next);
+      saveSetting("coach", next);
       // Auto-play follows the coach: turning it off stops it.
-      if (autoPlay && next === 'off') { autoPlay = false; clearTimeout(autoTimer); announce('Auto-play off.'); }
+      if (autoPlay && next === "off") { autoPlay = false; clearTimeout(autoTimer); announce("Auto-play off."); }
       refreshHint();
       L = computeLayout(); // phones show or hide the coach's bar or column
       requestRender();
-      track('play_set_coach', { coach: next });
+      track("play_set_coach", { coach: next });
     }
 
     function toggleSound() {
       var next = SOUND_ORDER[(SOUND_ORDER.indexOf(soundMode()) + 1) % SOUND_ORDER.length];
-      sound.enabled = next !== 'off';
-      sound.musicEnabled = next === 'music';
+      sound.enabled = next !== "off";
+      sound.musicEnabled = next === "music";
       prefs.sound = sound.enabled;
       prefs.music = sound.musicEnabled;
       writeJson(PREFS_KEY, prefs);
       sound.music(true); // plays or pauses to match
-      if (sound.enabled) sound.play('select');
+      if (sound.enabled) sound.play("select");
       requestRender();
-      track('play_set_sound', { sound: next });
+      track("play_set_sound", { sound: next });
     }
 
     function quit() {
@@ -5504,16 +5504,16 @@
     // (no page around it) loads the game page.
     function backToGame() {
       if (callbacks.back) { callbacks.back(); return; }
-      root.location.assign(visitUrl('/playing-mahjong/', { results: '1' }));
+      root.location.assign(visitUrl("/playing-mahjong/", { results: "1" }));
     }
 
     // ?results=1 asks the finished game to open its results. One visit only.
     function consumeResultsRequest() {
-      if (!/[?&]results=1(?:&|$)/.test(root.location.search || '')) return false;
+      if (!/[?&]results=1(?:&|$)/.test(root.location.search || "")) return false;
       if (root.history && root.history.replaceState) {
         var url = new URL(root.location.href);
-        url.searchParams.delete('results');
-        root.history.replaceState(root.history.state, '', url.pathname + url.search);
+        url.searchParams.delete("results");
+        root.history.replaceState(root.history.state, "", url.pathname + url.search);
       }
       return true;
     }
@@ -5527,9 +5527,9 @@
         return;
       }
       ui.selected = idx;
-      sound.play('select');
+      sound.play("select");
       var picked = myHandOrder().tiles[idx];
-      if (picked && ui.coach === 'on' && ui.hint && ui.hint.candidates) {
+      if (picked && ui.coach === "on" && ui.hint && ui.hint.candidates) {
         var cand = ui.hint.candidates.filter(function (c) { return c.tile === picked; })[0];
         var top = ui.hint.candidates[0];
         if (cand && cand.tile !== top.tile) {
@@ -5542,8 +5542,8 @@
     }
 
     function noteForChoice(cand, top) {
-      if (cand.shanten > top.shanten) return E.tileName(cand.tile) + ' takes you further from winning.';
-      return E.tileName(cand.tile) + ' is OK, but ' + E.tileName(top.tile) + ' is better.';
+      if (cand.shanten > top.shanten) return E.tileName(cand.tile) + " takes you further from winning.";
+      return E.tileName(cand.tile) + " is OK, but " + E.tileName(top.tile) + " is better.";
     }
 
     function discardSelected(fromButton) {
@@ -5552,20 +5552,20 @@
       if (!tile) return;
       var rect = ui.lastHandRects[ui.selected];
       ui.discardFrom = rect ? { x: rect.x, y: rect.y, w: rect.w, rot: 0 } : null;
-      var target = fromButton ? { kind: 'button', key: 'discard' } : { kind: 'tile', index: ui.selected };
-      resolveTurn({ type: 'discard', tile: tile }, target);
+      var target = fromButton ? { kind: "button", key: "discard" } : { kind: "tile", index: ui.selected };
+      resolveTurn({ type: "discard", tile: tile }, target);
     }
 
     // The lesson plays one fixed hand. A refused click shakes that tile or button.
     function lessonTarget(decision, target) {
       if (target) return { kind: target.kind, key: target.key != null ? target.key : target.index };
-      if (decision.type === 'discard') return { kind: 'tile', index: ui.selected };
-      if (decision.type === 'chow' && ui.claimPrompt) {
-        var seq = E.sortTiles(decision.tiles.concat([ui.claimPrompt.opts.tile])).map(function (id) { return E.rankOfIndex(E.tileIndex(id)); }).join('-');
-        return { kind: 'button', key: 'chow-' + seq };
+      if (decision.type === "discard") return { kind: "tile", index: ui.selected };
+      if (decision.type === "chow" && ui.claimPrompt) {
+        var seq = E.sortTiles(decision.tiles.concat([ui.claimPrompt.opts.tile])).map(function (id) { return E.rankOfIndex(E.tileIndex(id)); }).join("-");
+        return { kind: "button", key: "chow-" + seq };
       }
-      if (decision.type === 'kong') return { kind: 'button', key: 'kong-' + decision.tile };
-      return { kind: 'button', key: decision.type };
+      if (decision.type === "kong") return { kind: "button", key: "kong-" + decision.tile };
+      return { kind: "button", key: decision.type };
     }
 
     // Lesson analytics: how far people get. Each of the player's moves sends
@@ -5579,7 +5579,7 @@
 
     function startLessonTracking() {
       lessonTrack = { started: Date.now(), wrong: 0, wrongTotal: 0, done: false };
-      track('play_lesson_start', { moves: Lesson.MOVES });
+      track("play_lesson_start", { moves: Lesson.MOVES });
     }
 
     // The lesson ended before its hand did: quit from the menu (how: quit) or the page closed (how: leave).
@@ -5587,9 +5587,9 @@
       if (!settings.lesson || !lessonTrack || lessonTrack.done || !game) return;
       lessonTrack.done = true;
       var at = Lesson.progress(game);
-      track('play_lesson_exit', {
-        move: at.move, moves: at.moves, next_action: at.next || 'none', how: how,
-        seconds: lessonSeconds(), wrong_tries: lessonTrack.wrongTotal, transport_type: 'beacon',
+      track("play_lesson_exit", {
+        move: at.move, moves: at.moves, next_action: at.next || "none", how: how,
+        seconds: lessonSeconds(), wrong_tries: lessonTrack.wrongTotal, transport_type: "beacon",
       });
     }
 
@@ -5597,7 +5597,7 @@
       if (!settings.lesson) return true;
       if (Lesson.accept(game, 0, kind, decision)) {
         var at = Lesson.progress(game);
-        track('play_lesson_step', {
+        track("play_lesson_step", {
           step: game.lessonStep, move: at.move, moves: at.moves, action: decision.type,
           seconds: lessonSeconds(), wrong_tries: lessonTrack ? lessonTrack.wrong : 0,
         });
@@ -5609,9 +5609,9 @@
         lessonTrack.wrongTotal++;
         if (lessonTrack.wrong === 1) {
           var now0 = Lesson.progress(game);
-          track('play_lesson_wrong_move', {
-            move: now0.move + 1, moves: now0.moves, expected: now0.next || 'none', tried: decision.type,
-            mistake: decision.type === now0.next ? 'wrong_tile' : 'wrong_action',
+          track("play_lesson_wrong_move", {
+            move: now0.move + 1, moves: now0.moves, expected: now0.next || "none", tried: decision.type,
+            mistake: decision.type === now0.next ? "wrong_tile" : "wrong_action",
           });
         }
       }
@@ -5624,16 +5624,16 @@
     function resolveTurn(action, target) {
       var p = ui.turnPrompt;
       if (!p) return;
-      if (!lessonAllows('turn', action, target)) return;
+      if (!lessonAllows("turn", action, target)) return;
       // Training mode: judge the move against what the coach would have done.
-      if (!settings.lesson && ui.coach !== 'off' && action.type === 'discard' && ui.hint && ui.hint.tile) {
+      if (!settings.lesson && ui.coach !== "off" && action.type === "discard" && ui.hint && ui.hint.tile) {
         noteDiscardForAll(action.tile);
       }
-      if (action.type === 'discard' && game && game.hand) {
+      if (action.type === "discard" && game && game.hand) {
         ui.feedbackDiscards = strategyDiscardRows();
-        ui.feedbackKind = 'discard';
+        ui.feedbackKind = "discard";
       }
-      if (ui.coach === 'feedback' && ui.hint && action.type === 'discard') {
+      if (ui.coach === "feedback" && ui.hint && action.type === "discard") {
         feedbackOnMove(function (hint) { return Coach.discardFeedback(hint, action.tile); });
       }
       ui.turnPrompt = null;
@@ -5647,11 +5647,11 @@
     function resolveClaim(decision) {
       var p = ui.claimPrompt;
       if (!p) return;
-      if (!lessonAllows('claim', decision)) return;
-      if (ui.coach === 'feedback' && ui.hint) {
+      if (!lessonAllows("claim", decision)) return;
+      if (ui.coach === "feedback" && ui.hint) {
         feedbackOnMove(function (hint) { return Coach.claimFeedback(hint, decision); });
       }
-      if (ui.coach === 'feedback') {
+      if (ui.coach === "feedback") {
         // What each strategy would have done with this tile, shown after your call.
         ui.feedbackDiscards = Strategies.list().map(function (s) {
           var pick = strategyChoice(s.bot, null, p.opts);
@@ -5659,7 +5659,7 @@
         });
         // These stay after a chow, pung, kong or pass until your next move's
         // feedback replaces them.
-        ui.feedbackKind = 'claim';
+        ui.feedbackKind = "claim";
       }
       ui.claimPrompt = null;
       ui.hint = null;
@@ -5693,28 +5693,28 @@
       ui.feedbackAll = notes;
       var mine = notes[ui.strategies.coach];
       if (mine && mine[coachDetail()]) ui.feedback = mine[coachDetail()];
-      rememberAll(notes, 'feedback');
+      rememberAll(notes, "feedback");
     }
 
     // The same notes the strategies would have given, before this saved move.
     function rebuildCoachNote(kind, opts, decision) {
-      if (settings.lesson || ui.coach === 'off' || !game || !game.hand || !decision) return;
-      if (kind !== 'turn' && kind !== 'claim') return;
+      if (settings.lesson || ui.coach === "off" || !game || !game.hand || !decision) return;
+      if (kind !== "turn" && kind !== "claim") return;
       var all = hintsForAll(kind, opts);
       var hint = all[ui.strategies.coach];
       if (!hint) return;
       ui.hintsAll = all;
-      if (ui.coach === 'on') rememberAll(hintLevelsForAll(), 'hint');
-      if (kind === 'turn' && decision.type === 'discard') noteDiscardForAll(decision.tile);
-      if (ui.coach !== 'feedback') return;
-      var judge = kind === 'turn'
-        ? function (h) { return decision.type === 'discard' ? Coach.discardFeedback(h, decision.tile) : null; }
+      if (ui.coach === "on") rememberAll(hintLevelsForAll(), "hint");
+      if (kind === "turn" && decision.type === "discard") noteDiscardForAll(decision.tile);
+      if (ui.coach !== "feedback") return;
+      var judge = kind === "turn"
+        ? function (h) { return decision.type === "discard" ? Coach.discardFeedback(h, decision.tile) : null; }
         : function (h) { return Coach.claimFeedback(h, decision); };
       var notes = feedbackForAll(judge);
       if (!notes[ui.strategies.coach]) return;
       ui.feedbackAll = notes;
       ui.feedback = notes[ui.strategies.coach][coachDetail()];
-      rememberAll(notes, 'feedback');
+      rememberAll(notes, "feedback");
     }
 
     // Every strategy follows your discards (two away from its pick and its
@@ -5728,19 +5728,19 @@
 
     function refreshHint() {
       if (settings.lesson && game && game.hand) {
-        ui.coach = 'on';
+        ui.coach = "on";
         ui.hint = Lesson.hint(game);
-        if (ui.hint) rememberCoach(ui.hint, 'hint');
+        if (ui.hint) rememberCoach(ui.hint, "hint");
         return;
       }
       // In Feedback mode the advice is worked out (to judge your move) but not shown.
-      if (ui.coach === 'off' || !game || !game.hand) { ui.hint = null; ui.hintsAll = {}; ui.hintsWhole = {}; return; }
-      var kind = ui.turnPrompt ? 'turn' : ui.claimPrompt ? 'claim' : null;
+      if (ui.coach === "off" || !game || !game.hand) { ui.hint = null; ui.hintsAll = {}; ui.hintsWhole = {}; return; }
+      var kind = ui.turnPrompt ? "turn" : ui.claimPrompt ? "claim" : null;
       if (!kind) return;
       // Every strategy works out its advice, and each keeps its own list.
       ui.hintsAll = hintsForAll(kind, (ui.turnPrompt || ui.claimPrompt).opts);
       ui.hint = ui.hintsAll[ui.strategies.coach];
-      if (ui.coach === 'on') rememberAll(hintLevelsForAll(), 'hint');
+      if (ui.coach === "on") rememberAll(hintLevelsForAll(), "hint");
     }
 
     function hitTest(x, y) {
@@ -5759,7 +5759,7 @@
     function deltaColor(n) {
       if (n > 0) return COLORS.goldLight;
       if (n < 0) return COLORS.redLight;
-      return 'rgba(255,248,240,0.55)';
+      return "rgba(255,248,240,0.55)";
     }
 
     // Finished hands, above the coach. The newest row stays in view until
@@ -5769,10 +5769,10 @@
       if (!r) return;
       ctx.save();
       roundRect(ctx, r.x, r.y, r.w, r.h, 6);
-      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.fillStyle = "rgba(0,0,0,0.28)";
       ctx.fill();
       ctx.restore();
-      text('Results', r.x + 14, r.y + 18, { size: 14, weight: 'bold', family: FONT_HEAD, color: COLORS.cream });
+      text("Results", r.x + 14, r.y + 18, { size: 14, weight: "bold", family: FONT_HEAD, color: COLORS.cream });
 
       var pad = 10;
       var handW = 44;
@@ -5780,16 +5780,16 @@
       var viewW = r.w - pad * 2;
       var playerW = (viewW - handW) / 4;
       var headerY = r.y + 40;
-      text('Hand', viewX + handW / 2, headerY, { size: 11, weight: 'bold', align: 'center', color: COLORS.white });
+      text("Hand", viewX + handW / 2, headerY, { size: 11, weight: "bold", align: "center", color: COLORS.white });
       for (var seat = 0; seat < 4; seat++) {
         var name = seatTitle(seat);
         var iconS = 13;
         var nameMax = playerW - 6 - iconS - 4;
-        var nameSize = fitFont(ctx, name, Math.max(24, nameMax), 12, FONT_BODY, 'bold');
-        ctx.font = 'bold ' + nameSize + 'px ' + FONT_BODY;
+        var nameSize = fitFont(ctx, name, Math.max(24, nameMax), 12, FONT_BODY, "bold");
+        ctx.font = "bold " + nameSize + "px " + FONT_BODY;
         var nameW = ctx.measureText(name).width;
         var left = viewX + handW + playerW * seat + (playerW - nameW - iconS - 4) / 2;
-        text(name, left, headerY, { size: nameSize, weight: 'bold', color: COLORS.white });
+        text(name, left, headerY, { size: nameSize, weight: "bold", color: COLORS.white });
         playerIcon(seat, left + nameW + 4, iconCy(seat, paintedBottom(name, headerY), iconS), iconS, COLORS.white);
       }
 
@@ -5807,26 +5807,26 @@
       function drawResultRow(row, y, label, isDraw, isTotal) {
         if (y + rowH < bodyY || y > bodyY + bodyH) return;
         roundRect(ctx, viewX, y + 1, viewW - scrollW, rowH - 2, 3);
-        ctx.fillStyle = isTotal ? 'rgba(0,0,0,0.34)' : 'rgba(0,0,0,0.18)';
+        ctx.fillStyle = isTotal ? "rgba(0,0,0,0.34)" : "rgba(0,0,0,0.18)";
         ctx.fill();
         var mid = y + rowH / 2;
-        var labelSize = fitFont(ctx, label, handW - 4, 13, FONT_BODY, 'bold');
-        text(label, viewX + handW / 2, isDraw ? mid - 6 : mid, { size: labelSize, weight: 'bold', align: 'center', color: COLORS.white });
-        if (isDraw) text('Draw', viewX + handW / 2, mid + 8, { size: 10, align: 'center', color: COLORS.white });
+        var labelSize = fitFont(ctx, label, handW - 4, 13, FONT_BODY, "bold");
+        text(label, viewX + handW / 2, isDraw ? mid - 6 : mid, { size: labelSize, weight: "bold", align: "center", color: COLORS.white });
+        if (isDraw) text("Draw", viewX + handW / 2, mid + 8, { size: 10, align: "center", color: COLORS.white });
         for (var s = 0; s < 4; s++) {
           var lines = resultLines(row, s);
           var cx = viewX + handW + playerW * s + playerW / 2;
-          var faanSize = fitFont(ctx, lines.faan, playerW - 4, 11, FONT_BODY, lines.scored || lines.faanLoss ? 'bold' : '');
+          var faanSize = fitFont(ctx, lines.faan, playerW - 4, 11, FONT_BODY, lines.scored || lines.faanLoss ? "bold" : "");
           text(lines.faan, cx, pay ? mid - 7 : mid, {
             size: faanSize,
-            weight: lines.scored || lines.faanLoss ? 'bold' : '',
-            align: 'center',
-            color: lines.faanLoss ? COLORS.redLight : lines.scored ? COLORS.cream : 'rgba(255,248,240,0.55)',
+            weight: lines.scored || lines.faanLoss ? "bold" : "",
+            align: "center",
+            color: lines.faanLoss ? COLORS.redLight : lines.scored ? COLORS.cream : "rgba(255,248,240,0.55)",
           });
           if (!pay) continue;
-          var pointSize = fitFont(ctx, lines.points, playerW - 4, 12, FONT_BODY, 'bold');
+          var pointSize = fitFont(ctx, lines.points, playerW - 4, 12, FONT_BODY, "bold");
           var pointDelta = row.stake ? row.points[s] - row.stake : row.points[s];
-          text(lines.points, cx, mid + 8, { size: pointSize, weight: 'bold', align: 'center', color: deltaColor(pointDelta) });
+          text(lines.points, cx, mid + 8, { size: pointSize, weight: "bold", align: "center", color: deltaColor(pointDelta) });
         }
       }
 
@@ -5835,16 +5835,16 @@
       ctx.rect(viewX, bodyY, viewW, bodyH);
       ctx.clip();
       if (!rows.length) {
-        var empty = 'Finished hands show up here.';
+        var empty = "Finished hands show up here.";
         var emptySize = fitFont(ctx, empty, viewW - 8, 13, FONT_BODY);
-        text(empty, viewX + 4, bodyY + 16, { size: emptySize, color: 'rgba(255,248,240,0.5)' });
+        text(empty, viewX + 4, bodyY + 16, { size: emptySize, color: "rgba(255,248,240,0.5)" });
       }
       var y = bodyY - ui.resultsScroll;
       rows.forEach(function (row) {
         drawResultRow(row, y, String(row.hand), row.draw, false);
         y += rowH;
       });
-      if (rows.length) drawResultRow(resultsTotal(), y, 'Total', false, true);
+      if (rows.length) drawResultRow(resultsTotal(), y, "Total", false, true);
       ctx.restore();
 
       if (ui.resultsScrollMax > 0) {
@@ -5852,7 +5852,7 @@
         var thumbH = Math.max(28, bodyH * (bodyH / (bodyH + ui.resultsScrollMax)));
         var thumbY = bodyY + (bodyH - thumbH) * (ui.resultsScroll / ui.resultsScrollMax);
         roundRect(ctx, trackX, thumbY, 4, thumbH, 2);
-        ctx.fillStyle = 'rgba(255,248,240,0.45)';
+        ctx.fillStyle = "rgba(255,248,240,0.45)";
         ctx.fill();
       }
     }
@@ -5897,7 +5897,7 @@
     function seeResultsHit(p) {
       if (!p || !ui.revealHands || ui.overlay) return null;
       var r = hitTest(p.x, p.y);
-      return r && r.id === 'see-results' ? r : null;
+      return r && r.id === "see-results" ? r : null;
     }
 
     // A button of the open overlay (summary, game over) under this point.
@@ -5937,14 +5937,14 @@
       writeJson(PREFS_KEY, prefs);
       ui.revealHands = reviewFinished() && shown;
       ui.botLift = null;
-      sound.play('flip');
-      track('play_playback_toggle_hands', { shown: shown });
-      announce(shown ? 'Opponents\' hands are face up.' : 'Opponents\' hands are hidden.');
+      sound.play("flip");
+      track("play_playback_toggle_hands", { shown: shown });
+      announce(shown ? "Opponents' hands are face up." : "Opponents' hands are hidden.");
       requestRender();
     }
 
     function onPointerDown(e) {
-      lastTouch = !!e.pointerType && e.pointerType !== 'mouse';
+      lastTouch = !!e.pointerType && e.pointerType !== "mouse";
       if (lastTouch) mouse = null;
       var p = pointerPos(e);
       if (settings.review && !ui.overlay && opponentHandsTap(p, e)) { e.preventDefault(); return; }
@@ -6009,33 +6009,33 @@
     function onPointerMove(e) {
       if (reviewScrub && e.pointerId === reviewScrub) {
         jumpReview(reviewStepAt(pointerPos(e).x), true);
-        canvas.style.cursor = 'pointer';
+        canvas.style.cursor = "pointer";
         return;
       }
       if (resultsDrag && e.pointerId === resultsDrag.id) {
         var draggedResults = pointerPos(e);
         scrollResults(resultsDrag.scroll + (resultsDrag.y - draggedResults.y));
-        canvas.style.cursor = 'grabbing';
+        canvas.style.cursor = "grabbing";
         return;
       }
       if (historyDrag && e.pointerId === historyDrag.id) {
         var dragged = pointerPos(e);
         scrollHistory(historyDrag.scroll + (historyDrag.y - dragged.y));
-        canvas.style.cursor = 'grabbing';
+        canvas.style.cursor = "grabbing";
         return;
       }
-      if (e.pointerType && e.pointerType !== 'mouse') return;
+      if (e.pointerType && e.pointerType !== "mouse") return;
       var p = pointerPos(e);
       if ((resultsAt(p) || historyAt(p)) && !seeResultsHit(p) && !overlayButtonAt(p)) {
-        canvas.style.cursor = !resultsAt(p) && settings.review && coachNoteAt(p) !== null ? 'pointer'
-          : (resultsAt(p) ? ui.resultsScrollMax > 0 : ui.coachScrollMax > 0) ? 'grab' : 'default';
+        canvas.style.cursor = !resultsAt(p) && settings.review && coachNoteAt(p) !== null ? "pointer"
+          : (resultsAt(p) ? ui.resultsScrollMax > 0 : ui.coachScrollMax > 0) ? "grab" : "default";
         mouse = p;
         if (hover || tipSeat !== null) { hover = null; requestRender(); }
         return;
       }
       var r = hitTest(p.x, p.y);
       var id = r ? r.id : null;
-      canvas.style.cursor = r && !r.plain ? 'pointer' : 'default';
+      canvas.style.cursor = r && !r.plain ? "pointer" : "default";
       mouse = p;
       var sp = spotAt(p);
       var seatSp = seatSpotAt(p);
@@ -6057,8 +6057,8 @@
       var stops = reviewStops().stops;
       var at = stops[stops.length - 1];
       for (var i = 0; i < stops.length; i++) { if (stops[i] >= step) { at = stops[i]; break; } }
-      sound.play('select');
-      track('play_playback_coach_note_click', {});
+      sound.play("select");
+      track("play_playback_coach_note_click", {});
       jumpReview(at);
       ensureReviewNotes(reviewStep);
       ui.coachStick = true;
@@ -6089,44 +6089,44 @@
       if (destroyed) return;
       if (rulesOpen() || strategiesOpen() || resultsOpen() || playbacksOpen() || uploadErrorOpen() || coachSettingsOpen()) return; // the sheets handle their own keys (Escape closes them)
       if (settings.playback && !settings.review) return;
-      if (settings.review && ui.overlay && ui.overlay.type === 'summary') {
+      if (settings.review && ui.overlay && ui.overlay.type === "summary") {
         // The playback's results: Enter goes back to the game, Escape puts them away, Space watches it again.
-        if (e.key === 'Enter') { sound.play('select'); backToGame(); e.preventDefault(); }
-        else if (e.key === 'Escape') { sound.play('select'); closeOverlay(); e.preventDefault(); }
-        else if (e.key === ' ') { sound.play('select'); watchAgain(); e.preventDefault(); }
+        if (e.key === "Enter") { sound.play("select"); backToGame(); e.preventDefault(); }
+        else if (e.key === "Escape") { sound.play("select"); closeOverlay(); e.preventDefault(); }
+        else if (e.key === " ") { sound.play("select"); watchAgain(); e.preventDefault(); }
         return;
       }
       if (settings.review) {
         // The keys press the same buttons, so they click, squeeze and glow too.
-        if (e.key === 'ArrowLeft') { sound.play('back'); pressButton('review-prev'); stepReview(-1); e.preventDefault(); }
-        else if (e.key === 'ArrowRight') { sound.play('forward'); pressButton('review-next'); stepReview(1); e.preventDefault(); }
-        else if (e.key === 'Home') { jumpReview(0); e.preventDefault(); }
-        else if (e.key === 'End') { jumpReview(reviewMoves()); e.preventDefault(); }
-        else if (e.key === ' ') { sound.play('select'); pressButton('review-play'); toggleReviewPlay(); e.preventDefault(); }
-        else if (e.key === 'Escape') { quit(); e.preventDefault(); }
+        if (e.key === "ArrowLeft") { sound.play("back"); pressButton("review-prev"); stepReview(-1); e.preventDefault(); }
+        else if (e.key === "ArrowRight") { sound.play("forward"); pressButton("review-next"); stepReview(1); e.preventDefault(); }
+        else if (e.key === "Home") { jumpReview(0); e.preventDefault(); }
+        else if (e.key === "End") { jumpReview(reviewMoves()); e.preventDefault(); }
+        else if (e.key === " ") { sound.play("select"); pressButton("review-play"); toggleReviewPlay(); e.preventDefault(); }
+        else if (e.key === "Escape") { quit(); e.preventDefault(); }
         return;
       }
-      if (e.key === 'Escape') { openMenu(); e.preventDefault(); return; }
+      if (e.key === "Escape") { openMenu(); e.preventDefault(); return; }
       if (ui.overlay) {
-        if (e.key === 'Enter' && ui.overlay.type === 'summary') { nextHand(); e.preventDefault(); }
+        if (e.key === "Enter" && ui.overlay.type === "summary") { nextHand(); e.preventDefault(); }
         return;
       }
       if (ui.revealHands) {
-        if (e.key === 'Enter' || e.key === ' ') { seeResults(); e.preventDefault(); }
+        if (e.key === "Enter" || e.key === " ") { seeResults(); e.preventDefault(); }
         return;
       }
       if (ui.turnPrompt) {
         var n = myHandOrder().tiles.length;
-        if (e.key === 'ArrowLeft') { ui.selected = ui.selected <= 0 ? n - 1 : ui.selected - 1; requestRender(); e.preventDefault(); }
-        else if (e.key === 'ArrowRight') { ui.selected = (ui.selected + 1) % n; requestRender(); e.preventDefault(); }
-        else if (e.key === 'Enter' || e.key === ' ') {
+        if (e.key === "ArrowLeft") { ui.selected = ui.selected <= 0 ? n - 1 : ui.selected - 1; requestRender(); e.preventDefault(); }
+        else if (e.key === "ArrowRight") { ui.selected = (ui.selected + 1) % n; requestRender(); e.preventDefault(); }
+        else if (e.key === "Enter" || e.key === " ") {
           if (ui.selected >= 0) discardSelected();
-          else if (ui.turnPrompt.opts.win) resolveTurn({ type: 'win' });
+          else if (ui.turnPrompt.opts.win) resolveTurn({ type: "win" });
           e.preventDefault();
         }
       } else if (ui.claimPrompt) {
-        if (e.key === 'Enter' && ui.claimPrompt.opts.win) { resolveClaim({ type: 'win' }); e.preventDefault(); }
-        else if (e.key === 'Escape' || e.key === 'p' || e.key === ' ') { resolveClaim({ type: 'pass' }); e.preventDefault(); }
+        if (e.key === "Enter" && ui.claimPrompt.opts.win) { resolveClaim({ type: "win" }); e.preventDefault(); }
+        else if (e.key === "Escape" || e.key === "p" || e.key === " ") { resolveClaim({ type: "pass" }); e.preventDefault(); }
       }
     }
 
@@ -6191,7 +6191,7 @@
     function shrinkBanner(textStr, size, maxW, maxH) {
       if (!maxW && !maxH) return size;
       for (; size > 10; size--) {
-        ctx.font = size + 'px ' + FONT_HEAD;
+        ctx.font = size + "px " + FONT_HEAD;
         var fitsW = !maxW || ctx.measureText(textStr).width + size * 1.2 <= maxW;
         var fitsH = !maxH || size * 1.5 <= maxH;
         if (fitsW && fitsH) break;
@@ -6205,7 +6205,7 @@
       var fitted = shrinkBanner(textStr, opts.size || 30, opts.maxW, opts.maxH);
       if (opts.span) {
         // Stay centered on x unless the pill would cover something at either end.
-        ctx.font = fitted + 'px ' + FONT_HEAD;
+        ctx.font = fitted + "px " + FONT_HEAD;
         var half = (ctx.measureText(textStr).width + fitted * 1.2) / 2;
         x = Math.min(Math.max(x, opts.span[0] + half), opts.span[1] - half);
       }
@@ -6242,7 +6242,7 @@
     function confetti(cx, cy, n, coins) {
       if (autoPlay) return; // nor confetti
       var t = now();
-      var palette = [COLORS.red, COLORS.gold, COLORS.goldLight, COLORS.green, '#ffffff'];
+      var palette = [COLORS.red, COLORS.gold, COLORS.goldLight, COLORS.green, "#ffffff"];
       for (var i = 0; i < n; i++) {
         var ang = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.2;
         var v = 260 + Math.random() * 420;
@@ -6285,13 +6285,13 @@
         ui.coachScroll = 0;
         ui.coachStick = true;
         L = computeLayout();
-        announce('Hand ' + game.handNumber + '. ' + (game.dealer === 0 ? 'You are' : game.players[game.dealer].name + ' is') + ' the dealer.');
+        announce("Hand " + game.handNumber + ". " + (game.dealer === 0 ? "You are" : game.players[game.dealer].name + " is") + " the dealer.");
         requestRender();
         // The tutorial's step one: the deal waits, flower in hand, for the
         // Replace flowers button (only here, never in a practice or full game).
         if (settings.lesson && !game.lessonStep && game.hand.seats[0].hand.some(E.isBonus)) {
           ui.hint = Lesson.FLOWER_HINT;
-          rememberCoach(ui.hint, 'hint');
+          rememberCoach(ui.hint, "hint");
           return new Promise(function (resolve) {
             ui.flowerPrompt = { resolve: resolve };
             requestRender();
@@ -6307,7 +6307,7 @@
         requestRender();
       },
       draw: function (d) {
-        sound.play('draw');
+        sound.play("draw");
         var from = drawOrigin();
         if (d.seat === 0) {
           ui.hide.drawn = true;
@@ -6315,7 +6315,7 @@
           var order = myHandOrder();
           var n = order.tiles.length;
           var at = d.replacement ? order.tiles.lastIndexOf(d.tile) : n - 1;
-          var spot = handPositions(n, d.replacement ? false : true)[at >= 0 ? at : n - 1] || { x: L.meX + L.meW / 2, y: L.handY };
+          var spot = handPositions(n, !d.replacement)[at >= 0 ? at : n - 1] || { x: L.meX + L.meW / 2, y: L.handY };
           var to = { x: spot.x, y: spot.y, w: L.tw, rot: 0 };
           return fly(d.tile, from, to, 300, { arc: 20 }).then(function () {
             ui.hide.drawn = false;
@@ -6333,10 +6333,10 @@
         });
       },
       flower: function (d) {
-        sound.play('flower');
+        sound.play("flower");
         var pos = declarationPos(d.seat);
-        banner(d.seat === 0 ? 'Flower!' : 'Flower', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 24, color: COLORS.green, dur: 800 });
-        announce((d.seat === 0 ? 'You' : game.players[d.seat].name) + ' reveals ' + E.tileName(d.tile) + '.');
+        banner(d.seat === 0 ? "Flower!" : "Flower", pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 24, color: COLORS.green, dur: 800 });
+        announce((d.seat === 0 ? "You" : game.players[d.seat].name) + " reveals " + E.tileName(d.tile) + ".");
         var to = ui.flowerAnchor[d.seat] || seatAnchor(d.seat);
         var from = seatAnchor(d.seat);
         ui.hide.flower[d.seat] = (ui.hide.flower[d.seat] || 0) + 1;
@@ -6356,17 +6356,17 @@
         ui.botDrawn[d.seat] = false;
         ui.botLift = null;
         ui.hide.pond[d.seat] = 1;
-        announce((d.seat === 0 ? 'You discard ' : game.players[d.seat].name + ' discards ') + E.tileName(d.tile) + '.');
+        announce((d.seat === 0 ? "You discard " : game.players[d.seat].name + " discards ") + E.tileName(d.tile) + ".");
         // Bots reveal the tile as it leaves their hand.
         return fly(d.tile, from, slot, bot ? 380 : 260, { arc: 26, flip: bot }).then(function () {
           ui.hide.pond[d.seat] = 0;
-          sound.play('discard');
+          sound.play("discard");
           requestRender();
         });
       },
       claim: function (d) {
         sound.play(d.type); // chow, pung or kong, each its own sound
-        var words = { chow: 'Chow!', pung: 'Pung!', kong: 'Kong!' };
+        var words = { chow: "Chow!", pung: "Pung!", kong: "Kong!" };
         var pos = declarationPos(d.seat);
         banner(words[d.type], pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 32 });
         var list = game.hand.seats[d.from].discards.filter(function (x) { return !x.claimed; });
@@ -6374,7 +6374,7 @@
         var to = ui.meldAnchor[d.seat] || seatAnchor(d.seat);
         ui.hide.meld[d.seat] = 1;
         ui.botDrawn[d.seat] = false;
-        announce((d.seat === 0 ? 'You claim ' : game.players[d.seat].name + ' claims ') + E.tileName(d.tile) + ' for a ' + d.type + '.');
+        announce((d.seat === 0 ? "You claim " : game.players[d.seat].name + " claims ") + E.tileName(d.tile) + " for a " + d.type + ".");
         return fly(d.tile, from, to, 320, { arc: 34 }).then(function () {
           ui.hide.meld[d.seat] = 0;
           requestRender();
@@ -6385,13 +6385,13 @@
         // An added kong can still be robbed. No banner here: "Kong?" was flashing before "Kong!".
       },
       kong: function (d) {
-        sound.play('kong');
+        sound.play("kong");
         var pos = declarationPos(d.seat);
-        banner('Kong!', pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 32 });
+        banner("Kong!", pos.x, pos.y, { rot: pos.rot, maxW: pos.maxW, span: pos.span, maxH: pos.maxH, size: 32 });
         // An opponent's concealed kong stays hidden, from screen readers too.
-        var hiddenKong = d.kind === 'concealed' && d.seat !== 0;
-        announce((d.seat === 0 ? 'You declare' : game.players[d.seat].name + ' declares') +
-          (hiddenKong ? ' a concealed kong.' : ' a ' + (d.kind === 'concealed' ? 'concealed ' : '') + 'kong of ' + E.tileName(d.tile) + '.'));
+        var hiddenKong = d.kind === "concealed" && d.seat !== 0;
+        announce((d.seat === 0 ? "You declare" : game.players[d.seat].name + " declares") +
+          (hiddenKong ? " a concealed kong." : " a " + (d.kind === "concealed" ? "concealed " : "") + "kong of " + E.tileName(d.tile) + "."));
         return sleep(650);
       },
       win: function (res) {
@@ -6400,23 +6400,23 @@
         var celebrate = function () {
           var c = L.center;
           var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
-          var label = res.how === 'selfDraw' ? 'Self-draw!' : 'Win!';
-          if (res.how === 'flowers') label = 'Flower win!';
+          var label = res.how === "selfDraw" ? "Self-draw!" : "Win!";
+          if (res.how === "flowers") label = "Flower win!";
           var mine = res.winner === 0;
-          banner(label, cx, cy, { size: 34, dur: 1700, color: mine ? COLORS.gold : COLORS.primary, textColor: mine ? COLORS.ink : COLORS.white, sub: (mine ? 'You' : game.players[res.winner].name) + ' · ' + res.score.faan + ' faan' });
-          sound.play('win');
+          banner(label, cx, cy, { size: 34, dur: 1700, color: mine ? COLORS.gold : COLORS.primary, textColor: mine ? COLORS.ink : COLORS.white, sub: (mine ? "You" : game.players[res.winner].name) + " · " + res.score.faan + " faan" });
+          sound.play("win");
           if (mine) {
             confetti(cx, cy, 140, false);
             confetti(cx, cy, 50, true);
           } else {
             confetti(cx, cy, 40, true);
           }
-          announce((mine ? 'You win' : game.players[res.winner].name + ' wins') + ' with ' + res.score.faan + ' faan.');
+          announce((mine ? "You win" : game.players[res.winner].name + " wins") + " with " + res.score.faan + " faan.");
           return sleep(1500);
         };
         // The winning discard leaves the pond and joins the winner's hand
         // before the banner. Self-draw already holds the tile.
-        if (res.how !== 'discard' || !res.tile || res.payer == null) return celebrate();
+        if (res.how !== "discard" || !res.tile || res.payer == null) return celebrate();
         ui.winInHand = { seat: res.winner, tile: res.tile, landed: false };
         return fly(res.tile, claimedDiscardPose(res.payer), winningHandPose(res.winner, res.tile), 420, { arc: 36, glow: COLORS.gold }).then(function () {
           if (ui.winInHand) ui.winInHand.landed = true;
@@ -6425,10 +6425,10 @@
         });
       },
       drawGame: function () {
-        sound.play('drawgame');
+        sound.play("drawgame");
         var c = L.center;
-        banner('Draw', c.x + c.w / 2, c.y + c.h / 2, { size: 30, dur: 1400, color: COLORS.muted });
-        announce('Draw game. The wall is empty.');
+        banner("Draw", c.x + c.w / 2, c.y + c.h / 2, { size: 30, dur: 1400, color: COLORS.muted });
+        announce("Draw game. The wall is empty.");
         return sleep(1200);
       },
     };
@@ -6481,7 +6481,7 @@
             return sleep(think / 3);
           };
           return glance().then(glance).then(function () {
-            if (action.type !== 'discard') {
+            if (action.type !== "discard") {
               ui.botLift = null;
               return action;
             }
@@ -6498,7 +6498,7 @@
         claim: function (g, seat, opts) {
           var decision = botFor(seat).chooseClaim(g, seat, opts);
           if (instantMode()) return Promise.resolve(decision);
-          return sleep(decision.type === 'pass' ? 50 : 420).then(function () { return decision; });
+          return sleep(decision.type === "pass" ? 50 : 420).then(function () { return decision; });
         },
       };
     }
@@ -6506,12 +6506,12 @@
     function lessonAgent() {
       return {
         turn: function (g, seat) {
-          var action = Lesson.take(g, seat, 'turn');
+          var action = Lesson.take(g, seat, "turn");
           if (instantMode()) return Promise.resolve(action);
           return sleep(640).then(function () { return action; });
         },
         claim: function (g, seat) {
-          var decision = Lesson.take(g, seat, 'claim');
+          var decision = Lesson.take(g, seat, "claim");
           if (instantMode()) return Promise.resolve(decision);
           return sleep(420).then(function () { return decision; });
         },
@@ -6519,7 +6519,7 @@
     }
 
     function clearDiscardFeedback() {
-      if (ui.feedbackKind === 'discard') {
+      if (ui.feedbackKind === "discard") {
         ui.feedbackDiscards = null;
         ui.feedbackKind = null;
       }
@@ -6538,10 +6538,10 @@
             refreshHint();
             var lessonLine = settings.lesson && ui.hint && ui.hint.action;
             ui.notice = lessonLine ? null : (opts.completeButShort
-              ? 'Your hand is complete, but only ' + opts.completeButShort.faan + ' faan. You need ' + game.settings.minFaan + ' to win.'
+              ? "Your hand is complete, but only " + opts.completeButShort.faan + " faan. You need " + game.settings.minFaan + " to win."
               : (opts.win ? coachFor().turnHint(game, 0, opts).action : null));
-            sound.play('turn');
-            announce(lessonLine || ui.notice || 'Your turn. Pick a tile to discard.');
+            sound.play("turn");
+            announce(lessonLine || ui.notice || "Your turn. Pick a tile to discard.");
             requestRender();
             if (autoPlay) autoStep();
           });
@@ -6558,8 +6558,8 @@
             var lessonLine = settings.lesson && ui.hint && ui.hint.action;
             ui.notice = lessonLine ? null : (opts.win
               ? coachFor().claimHint(game, 0, opts).action
-              : (opts.completeButShort ? E.tileName(opts.tile) + ' completes your hand, but only for ' + opts.completeButShort.faan + ' faan.' : 'Claim ' + E.tileName(opts.tile) + '?'));
-            sound.play('turn');
+              : (opts.completeButShort ? E.tileName(opts.tile) + " completes your hand, but only for " + opts.completeButShort.faan + " faan." : "Claim " + E.tileName(opts.tile) + "?"));
+            sound.play("turn");
             announce(lessonLine || ui.notice);
             requestRender();
             if (autoPlay) autoStep();
@@ -6573,16 +6573,16 @@
     function recordStats(res) {
       var st = ui.stats;
       st.hands++;
-      if (res.type === 'win' && res.winner === 0) {
+      if (res.type === "win" && res.winner === 0) {
         st.wins++;
         st.best = Math.max(st.best || 0, res.score.faan);
         // Your moves in that hand: each discard of yours, and the winning move (a win on your
         // 6th turn is 6 moves, whether you drew the tile or took a discard).
-        var moves = 1 + ((game && game.hand && game.hand.trace) || []).filter(function (ev) { return ev.a === 'discard' && ev.s === 0; }).length;
+        var moves = 1 + ((game && game.hand && game.hand.trace) || []).filter(function (ev) { return ev.a === "discard" && ev.s === 0; }).length;
         st.fastest = st.fastest == null ? moves : Math.min(st.fastest, moves);
       }
       // Your discard was the tile another player won on (a robbed kong isn't a discard).
-      if (res.type === 'win' && res.how === 'discard' && res.payer === 0) st.dealIns = (st.dealIns || 0) + 1;
+      if (res.type === "win" && res.how === "discard" && res.payer === 0) st.dealIns = (st.dealIns || 0) + 1;
       // The dealer won, so the deal stays: one more time for you if you were that dealer.
       if (res.dealerKeeps && res.winner === 0) st.stays = (st.stays || 0) + 1;
     }
@@ -6598,7 +6598,7 @@
       // The replay is silent, so this is whose turn it is now: their board glows.
       ui.turnSeat = game.hand.turn;
       L = computeLayout();
-      announce('Game loaded. Hand ' + game.handNumber + '.');
+      announce("Game loaded. Hand " + game.handNumber + ".");
       requestRender();
       // A refresh of View playback: the hand is back on the table, so its playback opens again.
       if (settings.openPlayback) {
@@ -6611,7 +6611,7 @@
     function drawPlaybackPrompt() {
       var msg = reviewNote || PLAYBACK_EMPTY;
       var maxW = Math.min(520, W - 48);
-      ctx.font = '16px ' + FONT_BODY;
+      ctx.font = "16px " + FONT_BODY;
       var lines = wrapText(ctx, msg, maxW);
       var lh = 24;
       var y0;
@@ -6626,11 +6626,11 @@
       }
       lines.forEach(function (ln, i) {
         text(ln, W / 2, y0 + i * lh, {
-          size: 16, align: 'center',
+          size: 16, align: "center",
           color: reviewNote ? COLORS.goldLight : COLORS.cream,
         });
       });
-      button('Saved playbacks', (W - bw) / 2, by, bw, bh, openPlaybacks, 'gold', 'review-list-center');
+      button("Saved playbacks", (W - bw) / 2, by, bw, bh, openPlaybacks, "gold", "review-list-center");
     }
 
     // Whether the playback on screen is of a finished hand. Only then are the
@@ -6648,13 +6648,13 @@
     // lucky-cat-mahjong-playback-2026-11-05-1430.json.
     function saveFile(file, savedAt) {
       var d = new Date(savedAt == null ? Date.now() : savedAt);
-      function two(n) { return (n < 10 ? '0' : '') + n; }
-      var stamp = d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) + '-' + two(d.getHours()) + two(d.getMinutes());
-      var blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
+      function two(n) { return (n < 10 ? "0" : "") + n; }
+      var stamp = d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate()) + "-" + two(d.getHours()) + two(d.getMinutes());
+      var blob = new Blob([JSON.stringify(file, null, 2)], { type: "application/json" });
       var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
+      var a = document.createElement("a");
       a.href = url;
-      a.download = 'lucky-cat-mahjong-playback-' + stamp + '.json';
+      a.download = "lucky-cat-mahjong-playback-" + stamp + ".json";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -6665,15 +6665,15 @@
        with the time it was saved, Play and Download, then the one playback
        you uploaded last (if any), and Upload playback. */
     function playbacksSheet() {
-      return document.getElementById('playbacks-sheet');
+      return document.getElementById("playbacks-sheet");
     }
 
     function openPlaybacks() {
       var dlg = playbacksSheet();
       if (!dlg || dlg.open) return;
-      sound.play('select'); // the click
+      sound.play("select"); // the click
       buildPlaybacks();
-      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
     }
 
     /* The popup for a playback that couldn't be uploaded (a file or a paste):
@@ -6682,29 +6682,29 @@
     // The line under the heading: this one is not about the file being bad, but
     // about the version it was saved by.
     var UPLOAD_LEADS = {
-      version: 'This playback is from an incompatible version of the game.',
+      version: "This playback is from an incompatible version of the game.",
     };
 
     // What to do about a version this game can't load, named with both versions.
     function versionMessage(c) {
       var file = c.fileVersion, game = c.gameVersion;
-      if (c.versionKind === 'newer') {
-        return 'It was saved by a newer version of the game (' + file + '), and this page is on ' + game + '. Reload the page to update, then upload it again.';
+      if (c.versionKind === "newer") {
+        return "It was saved by a newer version of the game (" + file + "), and this page is on " + game + ". Reload the page to update, then upload it again.";
       }
-      if (c.versionKind === 'older') {
-        return 'It was saved by an older version of the game (' + file + ') that this version (' + game + ') can\'t play.';
+      if (c.versionKind === "older") {
+        return "It was saved by an older version of the game (" + file + ") that this version (" + game + ") can't play.";
       }
-      return 'It has no game version, so this version (' + game + ') can\'t tell whether it can be played.';
+      return "It has no game version, so this version (" + game + ") can't tell whether it can be played.";
     }
 
     var UPLOAD_ERRORS = {
-      signature: 'Its signature doesn\'t match, so the file was changed or damaged after it was saved. Only a playback downloaded from this game, as it was saved, can be played.',
-      damaged: 'Its contents don\'t fit together, so the file was changed or damaged after it was saved.',
-      notFile: 'That isn\'t a playback file. Upload a JSON file downloaded from Saved playbacks.',
+      signature: "Its signature doesn't match, so the file was changed or damaged after it was saved. Only a playback downloaded from this game, as it was saved, can be played.",
+      damaged: "Its contents don't fit together, so the file was changed or damaged after it was saved.",
+      notFile: "That isn't a playback file. Upload a JSON file downloaded from Saved playbacks.",
     };
 
     function uploadErrorSheet() {
-      return document.getElementById('upload-error-sheet');
+      return document.getElementById("upload-error-sheet");
     }
 
     function uploadErrorOpen() {
@@ -6714,21 +6714,21 @@
 
     function showUploadError(checked) {
       var dlg = uploadErrorSheet();
-      var why = document.getElementById('upload-error-why');
-      if (!dlg) { announce('This playback could not be uploaded. ' + checked.reason); return; }
-      var lead = document.getElementById('upload-error-lead');
-      if (lead) lead.textContent = UPLOAD_LEADS[checked.code] || 'This playback could not be uploaded.';
-      if (why) why.textContent = checked.code === 'version' ? versionMessage(checked) : (UPLOAD_ERRORS[checked.code] || checked.reason);
+      var why = document.getElementById("upload-error-why");
+      if (!dlg) { announce("This playback could not be uploaded. " + checked.reason); return; }
+      var lead = document.getElementById("upload-error-lead");
+      if (lead) lead.textContent = UPLOAD_LEADS[checked.code] || "This playback could not be uploaded.";
+      if (why) why.textContent = checked.code === "version" ? versionMessage(checked) : (UPLOAD_ERRORS[checked.code] || checked.reason);
       closePlaybacks();
       if (dlg.open) return;
-      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
     }
 
     function closeUploadError() {
       var dlg = uploadErrorSheet();
       if (!dlg || !dlg.open) return;
-      sound.play('select'); // the click
-      if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
+      sound.play("select"); // the click
+      if (dlg.close) dlg.close(); else dlg.removeAttribute("open");
     }
 
     function playbacksOpen() {
@@ -6739,95 +6739,95 @@
     function closePlaybacks() {
       var dlg = playbacksSheet();
       if (!dlg || !dlg.open) return;
-      if (dlg.close) dlg.close(); else dlg.removeAttribute('open');
+      if (dlg.close) dlg.close(); else dlg.removeAttribute("open");
     }
 
     // The row buttons are icons: their names are in aria-label, and a tooltip
     // (data-tip, drawn by css/play.css) shows them on hover or keyboard focus.
-    var ICON_PLAY = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>';
-    var ICON_COPY = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15"/></svg>';
-    var ICON_CHECK = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
-    var ICON_DOWNLOAD = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg>';
+    var ICON_PLAY = "<svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M8 5.5v13l10.5-6.5z\" fill=\"currentColor\"/></svg>";
+    var ICON_COPY = "<svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" aria-hidden=\"true\" focusable=\"false\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"9\" y=\"9\" width=\"11\" height=\"11\" rx=\"2.5\"/><path d=\"M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15\"/></svg>";
+    var ICON_CHECK = "<svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" aria-hidden=\"true\" focusable=\"false\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12.5l4.5 4.5L19 7.5\"/></svg>";
+    var ICON_DOWNLOAD = "<svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" aria-hidden=\"true\" focusable=\"false\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 4v11M7 10.5l5 5 5-5M5 19.5h14\"/></svg>";
 
     function playbackRow(entry, mark, kind) {
-      var li = document.createElement('li');
-      li.className = 'playbacks-row';
+      var li = document.createElement("li");
+      li.className = "playbacks-row";
       var check = E.checkPlayback(entry.file);
       var showing = shownFile && playbackId(shownFile) === playbackId(entry.file);
-      if (showing) li.classList.add('is-showing');
-      var info = document.createElement('div');
-      info.className = 'playbacks-text';
+      if (showing) li.classList.add("is-showing");
+      var info = document.createElement("div");
+      info.className = "playbacks-text";
       // Who won and with which hand, then which hand of the game (no round) and when it finished.
-      var sum = check.ok ? E.playbackSummary(check.record) : { result: 'A playback that no longer plays', hand: '', number: '' };
-      var name = document.createElement('div');
-      name.className = 'playbacks-name';
+      var sum = check.ok ? E.playbackSummary(check.record) : { result: "A playback that no longer plays", hand: "", number: "" };
+      var name = document.createElement("div");
+      name.className = "playbacks-name";
       name.textContent = sum.result;
-      var when = document.createElement('div');
-      when.className = 'playbacks-when';
+      var when = document.createElement("div");
+      when.className = "playbacks-when";
       // One timestamp, with no label, in words (Today, 2:30 PM): when the hand finished (the
       // file's own time). A file from before that was recorded shows when it was saved or
       // uploaded instead, and a time nobody kept isn't shown at all.
       var ended = check.ok ? check.record.endedAt : null;
       var stamp = ended != null ? ended : entry.savedAt;
-      when.textContent = [sum.number, stamp != null ? E.playbackWhen(stamp) : ''].filter(Boolean).join(' \u00b7 ');
+      when.textContent = [sum.number, stamp != null ? E.playbackWhen(stamp) : ""].filter(Boolean).join(" \u00b7 ");
       info.appendChild(name);
       info.appendChild(when);
       li.appendChild(info);
-      var play = document.createElement('button');
-      play.type = 'button';
-      play.className = 'playbacks-btn playbacks-play';
+      var play = document.createElement("button");
+      play.type = "button";
+      play.className = "playbacks-btn playbacks-play";
       play.innerHTML = ICON_PLAY;
       play.disabled = !check.ok;
       // The one on screen has a white ring round its button (css/play.css), and says so to a screen reader and in its tooltip.
-      play.classList.toggle('is-showing', !!showing);
-      play.setAttribute('data-tip', showing ? 'Playing now' : 'Play');
-      play.setAttribute('aria-label', (showing ? 'Playing now: ' : 'Play ') + sum.hand + ', ' + sum.result);
-      if (showing) play.setAttribute('aria-current', 'true');
-      play.addEventListener('click', function () {
-        sound.play('select');
-        track('play_playback_list_play', { kind: kind });
+      play.classList.toggle("is-showing", !!showing);
+      play.setAttribute("data-tip", showing ? "Playing now" : "Play");
+      play.setAttribute("aria-label", (showing ? "Playing now: " : "Play ") + sum.hand + ", " + sum.result);
+      if (showing) play.setAttribute("aria-current", "true");
+      play.addEventListener("click", function () {
+        sound.play("select");
+        track("play_playback_list_play", { kind: kind });
         closePlaybacks();
         loadPlaybackText(entry.file, mark);
       });
       // Copy hand seed, between Play and Download: the hand's seed (such as
       // 919942249-NE) on the clipboard, the same text your wind badge copies.
-      var seedText = check.ok && entry.file.payload ? String(entry.file.payload.handSeed || '') : '';
-      var copy = document.createElement('button');
-      copy.type = 'button';
-      copy.className = 'playbacks-btn playbacks-copy';
+      var seedText = check.ok && entry.file.payload ? String(entry.file.payload.handSeed || "") : "";
+      var copy = document.createElement("button");
+      copy.type = "button";
+      copy.className = "playbacks-btn playbacks-copy";
       copy.innerHTML = ICON_COPY;
-      copy.setAttribute('data-tip', 'Copy hand seed');
+      copy.setAttribute("data-tip", "Copy hand seed");
       copy.disabled = !seedText;
-      copy.setAttribute('aria-label', 'Copy hand seed for ' + sum.hand + ', ' + sum.result);
+      copy.setAttribute("aria-label", "Copy hand seed for " + sum.hand + ", " + sum.result);
       var copiedTimer = null;
-      copy.addEventListener('click', function () {
-        sound.play('select');
-        track('play_playback_list_copy_seed', { kind: kind });
+      copy.addEventListener("click", function () {
+        sound.play("select");
+        track("play_playback_list_copy_seed", { kind: kind });
         copyText(seedText).then(function () {
           // "Copied" shows even without a hover (a phone), then goes back.
-          copy.classList.add('is-copied');
+          copy.classList.add("is-copied");
           copy.innerHTML = ICON_CHECK;
-          copy.setAttribute('data-tip', 'Copied');
-          announce('Copied hand seed ' + seedText + '.');
+          copy.setAttribute("data-tip", "Copied");
+          announce("Copied hand seed " + seedText + ".");
           clearTimeout(copiedTimer);
           copiedTimer = setTimeout(function () {
-            copy.classList.remove('is-copied');
+            copy.classList.remove("is-copied");
             copy.innerHTML = ICON_COPY;
-            copy.setAttribute('data-tip', 'Copy hand seed');
+            copy.setAttribute("data-tip", "Copy hand seed");
           }, 1500);
-        }, function () { announce('Could not copy the hand seed.'); });
+        }, function () { announce("Could not copy the hand seed."); });
       });
-      var down = document.createElement('button');
-      down.type = 'button';
-      down.className = 'playbacks-btn playbacks-download';
+      var down = document.createElement("button");
+      down.type = "button";
+      down.className = "playbacks-btn playbacks-download";
       down.innerHTML = ICON_DOWNLOAD;
       // Only a finished hand's file is saved: an unfinished one holds the whole deal.
       down.disabled = !check.ok || !E.playbackFinished(check.record);
-      down.setAttribute('data-tip', down.disabled ? 'Download opens once the hand is finished' : 'Download');
-      down.setAttribute('aria-label', 'Download ' + sum.hand + ', ' + sum.result);
-      down.addEventListener('click', function () {
-        sound.play('select');
-        track('play_playback_list_download', { kind: kind });
+      down.setAttribute("data-tip", down.disabled ? "Download opens once the hand is finished" : "Download");
+      down.setAttribute("aria-label", "Download " + sum.hand + ", " + sum.result);
+      down.addEventListener("click", function () {
+        sound.play("select");
+        track("play_playback_list_download", { kind: kind });
         saveFile(entry.file, entry.savedAt);
       });
       li.appendChild(play);
@@ -6840,8 +6840,8 @@
       if (!el) return;
       while (el.firstChild) el.removeChild(el.firstChild);
       if (!entries.length) {
-        var empty = document.createElement('li');
-        empty.className = 'playbacks-empty';
+        var empty = document.createElement("li");
+        empty.className = "playbacks-empty";
         empty.textContent = emptyText;
         el.appendChild(empty);
         return;
@@ -6850,31 +6850,31 @@
     }
 
     function buildPlaybacks() {
-      fillList(document.getElementById('playbacks-recent'), recentPlaybacks(),
-        'No finished hands yet. Each hand you finish is kept here, the last three.',
-        function (e) { return { lcmRecent: playbackId(e.file) }; }, 'recent');
+      fillList(document.getElementById("playbacks-recent"), recentPlaybacks(),
+        "No finished hands yet. Each hand you finish is kept here, the last three.",
+        function (e) { return { lcmRecent: playbackId(e.file) }; }, "recent");
       var up = uploadedPlayback();
-      fillList(document.getElementById('playbacks-uploaded'), up ? [up] : [],
-        'Nothing uploaded yet.', function () { return { lcmUpload: true }; }, 'upload');
+      fillList(document.getElementById("playbacks-uploaded"), up ? [up] : [],
+        "Nothing uploaded yet.", function () { return { lcmUpload: true }; }, "upload");
     }
 
     var replayFileInput = null;
     function openReplayPicker() {
       if (!replayFileInput) {
-        var input = document.createElement('input');
-        input.type = 'file';
+        var input = document.createElement("input");
+        input.type = "file";
         // Json first, and plain text too: a phone can save the download as .txt, and the text is checked on load.
-        input.accept = 'application/json,.json,text/plain,.txt';
+        input.accept = "application/json,.json,text/plain,.txt";
         input.hidden = true; // not drawn at all, so nothing shows behind the picker
         input.tabIndex = -1;
-        input.setAttribute('aria-hidden', 'true');
-        input.addEventListener('change', function () {
+        input.setAttribute("aria-hidden", "true");
+        input.addEventListener("change", function () {
           var picked = input.files && input.files[0];
-          input.value = '';
+          input.value = "";
           if (!picked) return;
           var reader = new FileReader();
           reader.onload = function () {
-            if (!destroyed) loadPlaybackText(String(reader.result || ''));
+            if (!destroyed) loadPlaybackText(String(reader.result || ""));
           };
           reader.readAsText(picked);
         });
@@ -6892,14 +6892,14 @@
       if (!checked.ok) {
         // Nothing is kept or shown: the playback on screen stays, and a popup says why.
         reviewNote = checked.reason;
-        track('play_playback_upload_failed', { code: checked.code || 'unknown' });
+        track("play_playback_upload_failed", { code: checked.code || "unknown" });
         showUploadError(checked);
         requestRender();
         return;
       }
       var rec = checked.record;
       try {
-        var file = typeof text === 'string' ? JSON.parse(text) : text;
+        var file = typeof text === "string" ? JSON.parse(text) : text;
         if (file && file.payload) {
           if (!mark) writeJson(UPLOAD_KEY, { savedAt: Date.now(), file: file });
           shownFile = file;
@@ -6909,13 +6909,13 @@
             delete next.lcmUpload;
             delete next.lcmRecent;
             Object.assign(next, mark || { lcmUpload: true });
-            root.history.replaceState(next, '');
+            root.history.replaceState(next, "");
           }
         }
       } catch (e) {}
       try { E.playbackGame(rec, 0); }
       catch (err) {
-        reviewNote = 'That playback doesn\'t replay on the table.';
+        reviewNote = "That playback doesn't replay on the table.";
         announce(reviewNote);
         requestRender();
         return;
@@ -6925,7 +6925,7 @@
       resetReviewCoach();
       reviewPicks = null;
       settings.review = rec;
-      track('play_playback_view', { source: mark && mark.lcmRecent ? 'recent' : 'upload' });
+      track("play_playback_view", { source: mark && mark.lcmRecent ? "recent" : "upload" });
       reviewStep = 0;
       showReviewStep();
       reviewPlaying = true;
@@ -6934,7 +6934,7 @@
 
     function onCanvasPaste(e) {
       if (!settings.playback || destroyed) return;
-      var text = e.clipboardData && e.clipboardData.getData('text');
+      var text = e.clipboardData && e.clipboardData.getData("text");
       if (!text) return;
       e.preventDefault();
       loadPlaybackText(text);
@@ -6960,7 +6960,7 @@
     // On a phone there is no hover, so picking a strategy says so for a second.
     var strategyToastTimer = null;
     function showStrategyToast(id) {
-      ui.strategyToast = 'Selected strategy: ' + Strategies.get(id).name;
+      ui.strategyToast = "Selected strategy: " + Strategies.get(id).name;
       ui.strategyToastAt = now();
       if (strategyToastTimer) clearTimeout(strategyToastTimer);
       strategyToastTimer = setTimeout(function () {
@@ -6983,29 +6983,29 @@
       if (age < TOTAL) requestRender(); // keep drawing while it fades
       if (alpha <= 0) return;
       var label = ui.strategyToast;
-      var size = fitFont(ctx, label, Math.max(80, W - 40), 14, FONT_BODY, 'bold');
-      ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
+      var size = fitFont(ctx, label, Math.max(80, W - 40), 14, FONT_BODY, "bold");
+      ctx.font = "bold " + size + "px " + FONT_BODY;
       var w = Math.min(ctx.measureText(label).width + 28, W - 16);
       var h = 30;
       var x = clamp(p.x + p.w / 2 - w / 2, 8, W - w - 8);
       var y = p.y - h - 8 + rise;
       ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowColor = "rgba(0,0,0,0.4)";
       ctx.shadowBlur = 8;
       roundRect(ctx, x, y, w, h, 8);
-      ctx.fillStyle = 'rgba(20,20,20,0.94)';
+      ctx.fillStyle = "rgba(20,20,20,0.94)";
       ctx.fill();
       ctx.restore();
       ctx.save();
       ctx.globalAlpha = alpha;
-      text(label, x + w / 2, y + h / 2 + 1, { size: size, weight: 'bold', align: 'center', color: COLORS.cream });
+      text(label, x + w / 2, y + h / 2 + 1, { size: size, weight: "bold", align: "center", color: COLORS.cream });
       ctx.restore();
     }
 
     function chooseCoach(id) {
-      sound.play('select'); // the same tick as picking a tile
-      if (settings.review) track('play_set_coach_strategy', { strategy: id, playback: true });
+      sound.play("select"); // the same tick as picking a tile
+      if (settings.review) track("play_set_coach_strategy", { strategy: id, playback: true });
       if (W < 600 || lastTouch) showStrategyToast(id);
       if (settings.review) setReviewCoach(id);
       else setCoachStrategy(id);
@@ -7062,7 +7062,7 @@
           }
           try { E.applyPlaybackAction(walk.game, ev); }
           catch (err) { walk.index = actions.length; break; }
-          if (ev && ev.a === 'discard') walk.discards++; // one discard is one move, anyone's
+          if (ev && ev.a === "discard") walk.discards++; // one discard is one move, anyone's
           walk.index++;
           if (hints >= 2 && walk.index < target) { more = true; break; }
         }
@@ -7092,7 +7092,7 @@
         return { n: n, k: k };
       }).sort(function (a, b) { return a.n.step - b.n.step || a.k - b.k; }).map(function (o) {
         // The table read is said at the Coach settings detail too.
-        return o.n.kind === 'analysis' && Coach.shapeNote ? Coach.shapeNote(o.n, coachDetail()) : o.n;
+        return o.n.kind === "analysis" && Coach.shapeNote ? Coach.shapeNote(o.n, coachDetail()) : o.n;
       });
     }
 
@@ -7101,11 +7101,11 @@
       if (!ev || ev.s !== 0) return null;
       var hint = null;
       var fb = null;
-      if (ev.a === 'discard') {
+      if (ev.a === "discard") {
         hint = coach.turnHint(game, 0, E.turnOptions(game, 0));
         if (hint && hint.tile) coach.noteDiscard(game, 0, hint.tile, ev.t);
         fb = coach.discardFeedback(hint, ev.t);
-      } else if (ev.a === 'claim') {
+      } else if (ev.a === "claim") {
         hint = coach.claimHint(game, 0, E.claimOptions(game, 0, ev.t, ev.from, false));
         if (hint && hint.decision && hint.decision.tiles) {
           hint = {
@@ -7115,16 +7115,16 @@
           };
         }
         fb = coach.claimFeedback(hint, { type: ev.c, tiles: ev.tiles ? ev.tiles.slice().sort() : [] });
-      } else if (ev.a === 'kong') {
+      } else if (ev.a === "kong") {
         hint = coach.turnHint(game, 0, E.turnOptions(game, 0));
         fb = reviewKongFeedback(hint, ev.t);
       } else return null;
       fb = judged(fb, hint);
       if (!fb || !fb.action) return null;
       return {
-        kind: 'feedback',
+        kind: "feedback",
         action: fb.action,
-        detail: (fb.tips || []).filter(Boolean).join(' '),
+        detail: (fb.tips || []).filter(Boolean).join(" "),
         hand: settings.review.handNumber || 1,
         move: move,
         step: step,
@@ -7133,10 +7133,10 @@
 
     function reviewKongFeedback(hint, tile) {
       var name = E.tileName(tile);
-      var wanted = hint && hint.action && hint.action.indexOf('Kong ') === 0;
-      if (wanted && hint.action.indexOf(name) !== -1) return { action: 'Good call.', tips: [hint.action] };
-      if (wanted) return { action: 'I would have called ' + hint.action.replace(/[.!]$/, '') + '.', tips: ['You konged ' + name + '.'] };
-      if (hint && hint.tile) return { action: 'I would have discarded ' + E.tileName(hint.tile) + '.', tips: ['You konged ' + name + '.'] };
+      var wanted = hint && hint.action && hint.action.indexOf("Kong ") === 0;
+      if (wanted && hint.action.indexOf(name) !== -1) return { action: "Good call.", tips: [hint.action] };
+      if (wanted) return { action: "I would have called " + hint.action.replace(/[.!]$/, "") + ".", tips: ["You konged " + name + "."] };
+      if (hint && hint.tile) return { action: "I would have discarded " + E.tileName(hint.tile) + ".", tips: ["You konged " + name + "."] };
       return null;
     }
 
@@ -7152,9 +7152,9 @@
       var claim = false; // you did a chow, pung or kong since the last stop
       for (var i = 0; i < limit; i++) {
         var ev = rec.actions[i];
-        if (ev.s === 0 && (ev.a === 'claim' || ev.a === 'kong')) claim = true;
-        if (ev.s === 0 && (ev.a === 'claim' || (ev.a === 'kong' && ev.k === 'added'))) meld = true;
-        if (ev.a === 'discard') { stops.push(i + 1); mine.push(ev.s === 0); melds.push(meld); claims.push(claim); meld = false; claim = false; discards++; }
+        if (ev.s === 0 && (ev.a === "claim" || ev.a === "kong")) claim = true;
+        if (ev.s === 0 && (ev.a === "claim" || (ev.a === "kong" && ev.k === "added"))) meld = true;
+        if (ev.a === "discard") { stops.push(i + 1); mine.push(ev.s === 0); melds.push(meld); claims.push(claim); meld = false; claim = false; discards++; }
       }
       if (limit > 0 && stops[stops.length - 1] !== limit) { stops.push(limit); mine.push(false); melds.push(meld); claims.push(claim); }
       reviewStopsFor = { rec: rec, stops: stops, mine: mine, melds: melds, claims: claims, discards: discards };
@@ -7175,7 +7175,7 @@
 
     // What happened to reach a stop: claims and the discard, without the draws.
     function reviewCaptionAt(step) {
-      if (!step) return 'The deal.';
+      if (!step) return "The deal.";
       var from = reviewStops().stops[Math.max(0, reviewStopIndex(step) - 1)];
       return E.playbackCaption(settings.review, from, step);
     }
@@ -7189,24 +7189,24 @@
       var rec = settings.review;
       if (!rec || !rec.actions) return 0;
       var n = rec.actions.length;
-      if (typeof rec.moves === 'number' && rec.moves >= 0) n = Math.min(n, rec.moves);
+      if (typeof rec.moves === "number" && rec.moves >= 0) n = Math.min(n, rec.moves);
       return n;
     }
 
     function reviewSpoken() {
-      if (!reviewStep) return 'The deal.';
-      return 'Move ' + reviewMoveNo(reviewStep) + ' of ' + reviewStops().discards + '. ' + reviewCaption();
+      if (!reviewStep) return "The deal.";
+      return "Move " + reviewMoveNo(reviewStep) + " of " + reviewStops().discards + ". " + reviewCaption();
     }
 
     // One move is long enough to read. A reduced-motion visit waits longer.
     function reviewPace() { return (reduceMotion ? 2400 : 1500) / reviewSpeed; }
 
     function setReviewSpeed(v) {
-      track('play_playback_speed', { speed: v });
+      track("play_playback_speed", { speed: v });
       reviewSpeed = v;
       prefs.speed = v;
       writeJson(PREFS_KEY, prefs);
-      announce('Speed ' + v + 'x.');
+      announce("Speed " + v + "x.");
       if (reviewPlaying) scheduleReview();
       requestRender();
     }
@@ -7224,7 +7224,7 @@
         if (!reviewPlaying || destroyed) return;
         if (reviewStep >= reviewMoves()) {
           stopReviewPlay();
-          announce('The last move.');
+          announce("The last move.");
           requestRender();
           return;
         }
@@ -7234,10 +7234,10 @@
     }
 
     function toggleReviewPlay() {
-      track(reviewPlaying ? 'play_playback_pause_click' : 'play_playback_play_click', {});
+      track(reviewPlaying ? "play_playback_pause_click" : "play_playback_play_click", {});
       if (reviewPlaying) {
         stopReviewPlay();
-        announce('Paused.');
+        announce("Paused.");
         requestRender();
         return;
       }
@@ -7246,7 +7246,7 @@
         if (!showReviewStep()) return;
       }
       reviewPlaying = true;
-      announce('Playing.');
+      announce("Playing.");
       scheduleReview();
       requestRender();
     }
@@ -7280,7 +7280,7 @@
       ui.coachBox = { x: x, y: y, w: w, h: h };
       ctx.save();
       roundRect(ctx, x, y, w, h, 6);
-      ctx.fillStyle = 'rgba(0,0,0,0.32)';
+      ctx.fillStyle = "rgba(0,0,0,0.32)";
       ctx.fill();
       ctx.restore();
       var padX = 14;
@@ -7314,17 +7314,17 @@
       ctx.save();
       ctx.fillStyle = color;
       ctx.beginPath();
-      if (kind === 'play') {
+      if (kind === "play") {
         ctx.moveTo(cx - w * 0.7, cy - h); ctx.lineTo(cx + w * 0.9, cy); ctx.lineTo(cx - w * 0.7, cy + h);
-      } else if (kind === 'pause') {
+      } else if (kind === "pause") {
         var bw2 = s * 0.2;
         ctx.rect(cx - bw2 * 1.6, cy - h, bw2, s);
         ctx.rect(cx + bw2 * 0.6, cy - h, bw2, s);
-      } else if (kind === 'prev') {
+      } else if (kind === "prev") {
         // A bar on the left and a triangle pointing left.
         ctx.rect(cx - w * 1.05, cy - h, s * 0.16, s);
         ctx.moveTo(cx + w * 0.9, cy - h); ctx.lineTo(cx - w * 0.6, cy); ctx.lineTo(cx + w * 0.9, cy + h);
-      } else if (kind === 'next') {
+      } else if (kind === "next") {
         ctx.rect(cx + w * 1.05 - s * 0.16, cy - h, s * 0.16, s);
         ctx.moveTo(cx - w * 0.9, cy - h); ctx.lineTo(cx + w * 0.6, cy); ctx.lineTo(cx - w * 0.9, cy + h);
       }
@@ -7346,9 +7346,9 @@
       // for Play and two bars for Pause.
       // All three always show. Previous is dimmed and does nothing at the start,
       // and Next at the end. Play still works at the end: it starts over.
-      acts.push({ id: 'review-prev', icon: 'prev', style: 'white', off: reviewStep <= 0, fn: function () { sound.play('back'); pressButton('review-prev'); stepReview(-1); } });
-      acts.push({ id: 'review-play', icon: reviewPlaying ? 'pause' : 'play', style: 'gold', fn: function () { sound.play('select'); pressButton('review-play'); toggleReviewPlay(); } });
-      acts.push({ id: 'review-next', icon: 'next', style: 'white', off: reviewStep >= n, fn: function () { sound.play('forward'); pressButton('review-next'); stepReview(1); } });
+      acts.push({ id: "review-prev", icon: "prev", style: "white", off: reviewStep <= 0, fn: function () { sound.play("back"); pressButton("review-prev"); stepReview(-1); } });
+      acts.push({ id: "review-play", icon: reviewPlaying ? "pause" : "play", style: "gold", fn: function () { sound.play("select"); pressButton("review-play"); toggleReviewPlay(); } });
+      acts.push({ id: "review-next", icon: "next", style: "white", off: reviewStep >= n, fn: function () { sound.play("forward"); pressButton("review-next"); stepReview(1); } });
       var gap = 6;
       var bw = rowW >= 560 ? 84 : 66;
       // The buttons sit in the middle of the row, with the caption and the speed
@@ -7380,14 +7380,14 @@
         // Up to three lines at 14, then smaller until it fits.
         var size = 14, lines;
         for (; size >= 11; size--) {
-          ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
+          ctx.font = "bold " + size + "px " + FONT_BODY;
           lines = wrapText(ctx, caption, captionW);
           if (lines.length <= 3) break;
         }
         lines = lines.slice(0, 3);
         var lh = size + 2;
         lines.forEach(function (ln, i) {
-          text(ln, slot.x0, slot.y + slot.h / 2 + (i - (lines.length - 1) / 2) * lh + 1, { size: size, weight: 'bold', color: COLORS.cream });
+          text(ln, slot.x0, slot.y + slot.h / 2 + (i - (lines.length - 1) / 2) * lh + 1, { size: size, weight: "bold", color: COLORS.cream });
         });
       }
       acts.forEach(function (a, i) {
@@ -7403,14 +7403,14 @@
           ctx.translate(-cx, -cy);
         }
         if (a.off) ctx.globalAlpha = 0.35;
-        button('', ax, slot.y, bw, slot.h, a.fn, a.style, a.id);
+        button("", ax, slot.y, bw, slot.h, a.fn, a.style, a.id);
         if (press > 0) {
           ctx.save();
           ctx.globalAlpha = 0.5 * press;
           pill(ax, slot.y, bw, slot.h, COLORS.goldLight, null);
           ctx.restore();
         }
-        drawTransportIcon(a.icon, cx, cy, Math.min(18, slot.h * 0.5), '#3a3a3a');
+        drawTransportIcon(a.icon, cx, cy, Math.min(18, slot.h * 0.5), "#3a3a3a");
         ctx.restore();
         if (a.off) regions.pop(); // a dimmed button can't be pressed
       });
@@ -7418,22 +7418,22 @@
       var gy = slot.y + (slot.h - sbh) / 2;
       ctx.save();
       roundRect(ctx, gx, gy, groupW, sbh, sbh / 2);
-      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      ctx.fillStyle = "rgba(255,255,255,0.1)";
       ctx.fill();
       ctx.restore();
       speeds.forEach(function (v, i) {
         var on = reviewSpeed === v;
-        var hot = hover === 'review-speed-' + v;
+        var hot = hover === "review-speed-" + v;
         var bx = gx + i * sbw;
         if (on || hot) {
           ctx.save();
           roundRect(ctx, bx + 2, gy + 2, sbw - 4, sbh - 4, (sbh - 4) / 2);
-          ctx.fillStyle = on ? COLORS.gold : 'rgba(255,255,255,0.2)';
+          ctx.fillStyle = on ? COLORS.gold : "rgba(255,255,255,0.2)";
           ctx.fill();
           ctx.restore();
         }
-        text(v + 'x', bx + sbw / 2, gy + sbh / 2 + 1, { size: 12, family: FONT_HEAD, align: 'center', color: on ? COLORS.ink : COLORS.cream });
-        addRegion(bx, gy, sbw, sbh, function () { sound.play('select'); setReviewSpeed(v); }, 'review-speed-' + v);
+        text(v + "x", bx + sbw / 2, gy + sbh / 2 + 1, { size: 12, family: FONT_HEAD, align: "center", color: on ? COLORS.ink : COLORS.cream });
+        addRegion(bx, gy, sbw, sbh, function () { sound.play("select"); setReviewSpeed(v); }, "review-speed-" + v);
       });
     }
 
@@ -7447,7 +7447,7 @@
       var segs = Math.max(1, stops.length - 1);
       var x = slot.x, y = slot.y, w = slot.w, h = slot.h;
       reviewBar = { x: x, y: y, w: w, h: h };
-      var live = hover === 'review-bar' || !!reviewScrub;
+      var live = hover === "review-bar" || !!reviewScrub;
       var at = reviewStopIndex(reviewStep);
       var cy = y + h / 2;
       var trackH = live ? 10 : 8;
@@ -7456,8 +7456,8 @@
       ctx.save();
       roundRect(ctx, x, ty, w, trackH, trackH / 2);
       var groove = ctx.createLinearGradient(0, ty, 0, ty + trackH);
-      groove.addColorStop(0, 'rgba(255,248,240,0.30)');
-      groove.addColorStop(1, 'rgba(255,248,240,0.16)');
+      groove.addColorStop(0, "rgba(255,248,240,0.30)");
+      groove.addColorStop(1, "rgba(255,248,240,0.16)");
       ctx.fillStyle = groove;
       ctx.fill();
       ctx.restore();
@@ -7467,13 +7467,13 @@
         ctx.save();
         roundRect(ctx, x, ty, Math.max(trackH, fx - x), trackH, trackH / 2);
         var grad = ctx.createLinearGradient(x, 0, x + w, 0);
-        grad.addColorStop(0, '#e08a10');
+        grad.addColorStop(0, "#e08a10");
         grad.addColorStop(1, COLORS.goldLight);
         ctx.fillStyle = grad;
         ctx.fill();
         // A soft highlight along the top of the fill.
         roundRect(ctx, x + 2, ty + 1.5, Math.max(0, fx - x - 4), 2, 1);
-        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.fillStyle = "rgba(255,255,255,0.35)";
         ctx.fill();
         ctx.restore();
       }
@@ -7490,16 +7490,16 @@
           // A meld you exposed: a larger yellow circle behind the red dot.
           ctx.beginPath();
           ctx.arc(dx, cy, 5.2, 0, Math.PI * 2);
-          ctx.fillStyle = '#FFE14D';
+          ctx.fillStyle = "#FFE14D";
           ctx.fill();
           ctx.lineWidth = 1.2;
-          ctx.strokeStyle = '#8a5200';
+          ctx.strokeStyle = "#8a5200";
           ctx.stroke();
         }
         ctx.beginPath();
         ctx.arc(dx, cy, called ? (exposed ? 2.8 : 3.8) : mine ? 3 : 1.5, 0, Math.PI * 2);
         // A red dot is a chow, pung or kong by you, not the computers.
-        ctx.fillStyle = called ? COLORS.red : mine ? COLORS.cream : (done ? 'rgba(90,50,0,0.55)' : 'rgba(255,248,240,0.55)');
+        ctx.fillStyle = called ? COLORS.red : mine ? COLORS.cream : (done ? "rgba(90,50,0,0.55)" : "rgba(255,248,240,0.55)");
         ctx.fill();
         if (called && !exposed) {
           ctx.lineWidth = 1.2;
@@ -7507,7 +7507,7 @@
           ctx.stroke();
         } else if (mine && !called) {
           ctx.lineWidth = 1;
-          ctx.strokeStyle = done ? COLORS.gold : 'rgba(255,255,255,0.7)';
+          ctx.strokeStyle = done ? COLORS.gold : "rgba(255,255,255,0.7)";
           ctx.stroke();
         }
       }
@@ -7515,7 +7515,7 @@
       var hx = clamp(fx, x + 7, x + w - 7);
       var hr = live ? 8.5 : 7;
       ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.45)';
+      ctx.shadowColor = "rgba(0,0,0,0.45)";
       ctx.shadowBlur = 5;
       ctx.shadowOffsetY = 1;
       ctx.beginPath();
@@ -7531,22 +7531,22 @@
       if (live && mouse && mouse.x >= x - 4 && mouse.x <= x + w + 4) {
         var hoverStep = reviewStepAt(mouse.x);
         var idx = reviewStopIndex(hoverStep);
-        var label = (hoverStep ? 'Move ' + reviewMoveNo(hoverStep) + ' · ' : '') + reviewCaptionAt(hoverStep);
+        var label = (hoverStep ? "Move " + reviewMoveNo(hoverStep) + " · " : "") + reviewCaptionAt(hoverStep);
         var size = 12;
-        ctx.font = 'bold ' + size + 'px ' + FONT_BODY;
+        ctx.font = "bold " + size + "px " + FONT_BODY;
         var tw = Math.min(ctx.measureText(label).width + 16, Math.max(80, W - 16));
         var px = clamp(x + idx / segs * w - tw / 2, 4, W - tw - 4);
         var py = y - 30;
         ctx.save();
-        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+        ctx.shadowColor = "rgba(0,0,0,0.4)";
         ctx.shadowBlur = 6;
         roundRect(ctx, px, py, tw, 22, 6);
-        ctx.fillStyle = 'rgba(20,20,20,0.92)';
+        ctx.fillStyle = "rgba(20,20,20,0.92)";
         ctx.fill();
         ctx.restore();
-        text(label, px + tw / 2, py + 12, { size: fitFont(ctx, label, tw - 12, size, FONT_BODY, 'bold'), weight: 'bold', align: 'center', color: COLORS.cream });
+        text(label, px + tw / 2, py + 12, { size: fitFont(ctx, label, tw - 12, size, FONT_BODY, "bold"), weight: "bold", align: "center", color: COLORS.cream });
       }
-      addRegion(x, y - 4, w, h + 8, function () {}, 'review-bar');
+      addRegion(x, y - 4, w, h + 8, function () {}, "review-bar");
     }
 
     function clearReviewMotion() {
@@ -7602,19 +7602,19 @@
     function reviewMotionFrom(ev) {
       if (!ev) return null;
       var seat = ev.s;
-      if (ev.a === 'flower') return { from: reviewHandPose(seat, ev.t), to: ui.flowerAnchor[seat] || seatAnchor(seat) };
-      if (ev.a === 'discard') {
+      if (ev.a === "flower") return { from: reviewHandPose(seat, ev.t), to: ui.flowerAnchor[seat] || seatAnchor(seat) };
+      if (ev.a === "discard") {
         var n = game.hand.seats[seat].discards.filter(function (d) { return !d.claimed; }).length;
         return { from: reviewHandPose(seat, ev.t), to: pondPose(seat, n) };
       }
-      if (ev.a === 'draw') return { from: drawOrigin() };
-      if (ev.a === 'claim') {
+      if (ev.a === "draw") return { from: drawOrigin() };
+      if (ev.a === "claim") {
         var list = game.hand.seats[ev.from] ? game.hand.seats[ev.from].discards : [];
         var idx = -1;
         for (var i = 0; i < list.length; i++) if (!list[i].claimed && list[i].tile === ev.t) idx = i;
         return { from: idx >= 0 ? pondPose(ev.from, idx) : seatAnchor(ev.from), to: ui.meldAnchor[seat] || seatAnchor(seat) };
       }
-      if (ev.a === 'kong' || ev.a === 'win' || ev.a === 'drawGame') return {};
+      if (ev.a === "kong" || ev.a === "win" || ev.a === "drawGame") return {};
       return null;
     }
 
@@ -7627,13 +7627,13 @@
     // the start of its flight when the action is played backwards.
     function reviewReverseFrom(ev) {
       var seat = ev.s;
-      if (ev.a === 'discard') {
+      if (ev.a === "discard") {
         var n = game.hand.seats[seat].discards.filter(function (d) { return !d.claimed; }).length;
         return { from: pondPose(seat, Math.max(0, n - 1)) };
       }
-      if (ev.a === 'draw') return { from: reviewSortedPose(seat, ev.t) };
-      if (ev.a === 'flower') return { from: ui.flowerAnchor[seat] || seatAnchor(seat) };
-      if (ev.a === 'claim') return { from: ui.meldAnchor[seat] || seatAnchor(seat) };
+      if (ev.a === "draw") return { from: reviewSortedPose(seat, ev.t) };
+      if (ev.a === "flower") return { from: ui.flowerAnchor[seat] || seatAnchor(seat) };
+      if (ev.a === "claim") return { from: ui.meldAnchor[seat] || seatAnchor(seat) };
       return null; // a kong declaration, a win and a drawn game have no flight
     }
 
@@ -7650,17 +7650,17 @@
         ui.hide.hand = null;
         requestRender();
       }
-      if (ev.a === 'discard' || ev.a === 'flower') {
+      if (ev.a === "discard" || ev.a === "flower") {
         ui.hide.tile = ev.t;
         ui.hide.hand = seat;
         fly(ev.t, rev.from, reviewHandPose(seat, ev.t), seat === 0 ? 260 : 380, { arc: 26, glow: COLORS.gold }).then(finish);
         return;
       }
-      if (ev.a === 'draw') {
+      if (ev.a === "draw") {
         fly(ev.t, rev.from, drawOrigin(), 300, { arc: 20, glow: COLORS.gold }).then(finish);
         return;
       }
-      if (ev.a === 'claim') {
+      if (ev.a === "claim") {
         var list = game.hand.seats[ev.from] ? game.hand.seats[ev.from].discards : [];
         var idx = -1;
         for (var i = 0; i < list.length; i++) if (!list[i].claimed && list[i].tile === ev.t) idx = i;
@@ -7684,52 +7684,52 @@
         if (ui.winInHand && ui.winInHand.seat === seat) ui.winInHand.landed = true;
         requestRender();
       }
-      if (ev.a === 'flower') {
-        sound.play('flower');
-        reviewDeclare(seat, seat === 0 ? 'Flower!' : 'Flower', 24);
+      if (ev.a === "flower") {
+        sound.play("flower");
+        reviewDeclare(seat, seat === 0 ? "Flower!" : "Flower", 24);
         ui.hide.flower[seat] = 1;
         fly(ev.t, motion.from, motion.to, 280, { arc: 18, glow: COLORS.gold }).then(finish);
         return;
       }
-      if (ev.a === 'draw') {
-        sound.play('draw');
+      if (ev.a === "draw") {
+        sound.play("draw");
         ui.hide.tile = ev.t;
         ui.hide.hand = seat;
         fly(ev.t, motion.from, reviewSortedPose(seat, ev.t), 300, { arc: 20, glow: COLORS.gold }).then(finish);
         return;
       }
-      if (ev.a === 'discard') {
+      if (ev.a === "discard") {
         ui.hide.pond[seat] = 1;
         fly(ev.t, motion.from, motion.to, seat === 0 ? 260 : 380, { arc: 26, glow: COLORS.gold }).then(function () {
-          if (token === reviewMotion) sound.play('discard');
+          if (token === reviewMotion) sound.play("discard");
           finish();
         });
         return;
       }
-      if (ev.a === 'claim') {
+      if (ev.a === "claim") {
         sound.play(ev.c);
-        reviewDeclare(seat, ev.c === 'chow' ? 'Chow!' : ev.c === 'kong' ? 'Kong!' : 'Pung!');
+        reviewDeclare(seat, ev.c === "chow" ? "Chow!" : ev.c === "kong" ? "Kong!" : "Pung!");
         ui.hide.meld[seat] = 1;
         fly(ev.t, motion.from, motion.to, 320, { arc: 34, glow: COLORS.gold }).then(finish);
         return;
       }
-      if (ev.a === 'kong') {
-        sound.play('kong');
-        reviewDeclare(seat, 'Kong!');
+      if (ev.a === "kong") {
+        sound.play("kong");
+        reviewDeclare(seat, "Kong!");
         return;
       }
-      if (ev.a === 'win') {
+      if (ev.a === "win") {
         var celebrate = function () {
           if (token !== reviewMotion || !L) return;
           var c = L.center;
           var mine = seat === 0;
-          var label = ev.how === 'selfDraw' ? 'Self-draw!' : ev.how === 'flowers' ? 'Flower win!' : 'Win!';
+          var label = ev.how === "selfDraw" ? "Self-draw!" : ev.how === "flowers" ? "Flower win!" : "Win!";
           banner(label, c.x + c.w / 2, c.y + c.h / 2, { size: 34, dur: 1700, color: mine ? COLORS.gold : COLORS.primary, textColor: mine ? COLORS.ink : COLORS.white });
-          sound.play('win');
+          sound.play("win");
           confetti(c.x + c.w / 2, c.y + c.h / 2, mine ? 140 : 40, !mine);
           if (mine) confetti(c.x + c.w / 2, c.y + c.h / 2, 50, true);
         };
-        if (ev.how === 'discard' && ev.t && ev.from != null) {
+        if (ev.how === "discard" && ev.t && ev.from != null) {
           ui.winInHand = { seat: seat, tile: ev.t, landed: false };
           fly(ev.t, claimedDiscardPose(ev.from), reviewSortedPose(seat, ev.t), 420, { arc: 36, glow: COLORS.gold }).then(function () {
             finish();
@@ -7740,10 +7740,10 @@
         celebrate();
         return;
       }
-      if (ev.a === 'drawGame' && L) {
-        sound.play('drawgame');
+      if (ev.a === "drawGame" && L) {
+        sound.play("drawgame");
         var c = L.center;
-        banner('Draw', c.x + c.w / 2, c.y + c.h / 2, { size: 30, dur: 1400, color: COLORS.muted });
+        banner("Draw", c.x + c.w / 2, c.y + c.h / 2, { size: 30, dur: 1400, color: COLORS.muted });
       }
     }
 
@@ -7765,7 +7765,7 @@
       var built;
       try { built = E.playbackGame(settings.review, reviewStep); }
       catch (err) {
-        announce('That move doesn\'t match the deal, so the replay stopped.');
+        announce("That move doesn't match the deal, so the replay stopped.");
         return false;
       }
       if (!built) return false;
@@ -7783,7 +7783,7 @@
       // A finished hand's playback shows every hand face up, unless you hid them (double-click an
       // opponent's hand); an unfinished hand's opponents always stay concealed.
       ui.revealHands = reviewFinished() && prefs.showOpponents !== false;
-      ui.coach = 'on';
+      ui.coach = "on";
       ui.turnPrompt = null;
       ui.claimPrompt = null;
       ui.notice = null;
@@ -7816,11 +7816,11 @@
       var res = E.playbackResult(settings.review);
       if (!res) return;
       stopReviewPlay();
-      ui.overlay = { type: 'summary', result: res, hasPlayback: false, playback: true };
-      track('play_playback_results', { result: res.type === 'win' ? 'win' : 'draw' });
-      announce(res.type === 'win'
-        ? (res.winner === 0 ? 'You' : game.players[res.winner].name) + ' won with ' + res.score.faan + ' faan.'
-        : 'No winner: the wall ran out.');
+      ui.overlay = { type: "summary", result: res, hasPlayback: false, playback: true };
+      track("play_playback_results", { result: res.type === "win" ? "win" : "draw" });
+      announce(res.type === "win"
+        ? (res.winner === 0 ? "You" : game.players[res.winner].name) + " won with " + res.score.faan + " faan."
+        : "No winner: the wall ran out.");
       requestRender();
     }
 
@@ -7879,7 +7879,7 @@
         reviewStep = st - 1;
         if (!showReviewStep(!last, true, ev)) { reviewStep = before; return; }
         if (!last) {
-          var wait = ev && (ev.a === 'claim' || ev.a === 'kong') ? 520 : 340;
+          var wait = ev && (ev.a === "claim" || ev.a === "kong") ? 520 : 340;
           await sleep(wait / reviewSpeed);
         }
       }
@@ -7896,7 +7896,7 @@
         if (!showReviewStep(!last, true)) { reviewStep = before; return; }
         if (!last) {
           // Long enough to watch the tile fly, shorter at a faster speed.
-          var wait = ev && (ev.a === 'claim' || ev.a === 'kong') ? 520 : 340;
+          var wait = ev && (ev.a === "claim" || ev.a === "kong") ? 520 : 340;
           await sleep(wait / reviewSpeed);
         }
       }
@@ -7923,7 +7923,7 @@
           var check = stored ? E.checkPlayback(stored) : null;
           if (check && check.ok) {
             settings.review = check.record;
-            track('play_playback_view', { source: viewState.lcmUpload ? 'upload' : viewState.lcmRecent ? 'recent' : 'game' });
+            track("play_playback_view", { source: viewState.lcmUpload ? "upload" : viewState.lcmRecent ? "recent" : "game" });
             // Back belongs to View playback, which opens this page on purpose.
             if (settings.replayFromStorage) settings.replayBack = true;
           } else if (check && check.reason) {
@@ -7985,7 +7985,7 @@
         game = E.createGame(created);
         if (settings.lesson) {
           Lesson.prepare(game);
-          ui.coach = 'on';
+          ui.coach = "on";
           startLessonTracking();
         }
         ui.strategies = pickStrategies();
@@ -7996,20 +7996,20 @@
         ? [humanAgent(), lessonAgent(), lessonAgent(), lessonAgent()]
         : [humanAgent(), botAgent(), botAgent(), botAgent()];
       var started = saved || settings.lesson ? null : countGameStarted(); // the lesson isn't a game
-      if (started) setUserProperties({ player_type: started > 1 ? 'returning' : 'new' });
+      if (started) setUserProperties({ player_type: started > 1 ? "returning" : "new" });
       var startParams = {
         lesson: !!settings.lesson,
         spicy: settings.spicy, mode: settings.mode, coach: settings.coach,
         speed: settings.speed, coach_strategy: ui.strategies.coach,
-        strategies: ui.strategies.seats.slice(1).join(','),
+        strategies: ui.strategies.seats.slice(1).join(","),
       };
       if (started) startParams.games_started = started;
-      track(saved ? 'play_resume' : 'play_start', startParams);
+      track(saved ? "play_resume" : "play_start", startParams);
       if (pendingSummary) restoreFinishedHand();
       var showSavedResults = consumeResultsRequest() || !!ui.resultsOpen;
       if (game.over && !pendingSummary) {
         showFinalMatch();
-        ui.overlay = { type: 'gameover' };
+        ui.overlay = { type: "gameover" };
         L = computeLayout();
         requestRender();
         if (showSavedResults) openResults();
@@ -8018,7 +8018,7 @@
       autosave();
       if (pendingSummary) {
         var held = pendingSummary;
-        await showOverlay({ type: 'summary', result: held.result, extra: held.extra });
+        await showOverlay({ type: "summary", result: held.result, extra: held.extra });
         if (destroyed) return;
         pendingSummary = null;
         autosave(true); // Next hand was pressed: this is the next deal
@@ -8027,12 +8027,12 @@
           return;
         }
         if (game.over) {
-          track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins, mode: settings.mode });
+          track("play_game_over", { hands: ui.stats.hands, wins: ui.stats.wins, mode: settings.mode });
           showFinalMatch();
           L = computeLayout();
           // Only the game over window shows (not the Results table): its Results
           // button opens that. The match's playback is kept for a refresh.
-          ui.overlay = { type: 'gameover' };
+          ui.overlay = { type: "gameover" };
           saveMatchPlayback();
           requestRender();
           return;
@@ -8046,7 +8046,7 @@
           // A saved hand that can't be played back (it should go on live where it
           // stops fitting) is dealt again from its seed, so the table never waits forever.
           if (!replay || destroyed) throw err;
-          if (root.console) console.warn('Saved hand could not be resumed; dealing it again.', err);
+          if (root.console) console.warn("Saved hand could not be resumed; dealing it again.", err);
           if (ui.replaying) replayDone();
           res = await E.runHand(game, agents, uiBridge, { seed: replay.seed });
         }
@@ -8055,29 +8055,29 @@
         recordStats(res);
         rememberResult(res);
         ui.turnSeat = null;
-        track('play_hand_end', {
-          result: res.type === 'draw' ? 'draw' : res.winner === 0 ? 'win' : 'loss',
-          faan: res.type === 'win' ? res.score.faan : 0,
+        track("play_hand_end", {
+          result: res.type === "draw" ? "draw" : res.winner === 0 ? "win" : "loss",
+          faan: res.type === "win" ? res.score.faan : 0,
           hand_number: ui.stats.hands, lesson: !!settings.lesson, mode: settings.mode,
         });
         if (settings.lesson) {
-          track('play_lesson_complete', {
-            result: res.type === 'win' && res.winner === 0 ? 'win' : 'other',
+          track("play_lesson_complete", {
+            result: res.type === "win" && res.winner === 0 ? "win" : "other",
             moves: Lesson.MOVES, seconds: lessonSeconds(), wrong_tries: lessonTrack ? lessonTrack.wrongTotal : 0,
           });
           if (lessonTrack) lessonTrack.done = true;
         }
         var extra = null;
-        if (settings.lesson && res.type === 'win' && res.winner === 0) extra = 'You won a half flush on East Wind.';
-        else if (res.roundAdvanced) extra = 'The round wind is now ' + E.WIND_NAMES[game.round] + '.';
-        if (game.over) extra = 'That was the last deal of the game.';
+        if (settings.lesson && res.type === "win" && res.winner === 0) extra = "You won a half flush on East Wind.";
+        else if (res.roundAdvanced) extra = "The round wind is now " + E.WIND_NAMES[game.round] + ".";
+        if (game.over) extra = "That was the last deal of the game.";
         pendingSummary = keptSummary({ result: res, extra: extra });
         if (!settings.lesson) { // a refresh puts this hand back for Show hands
           var finished = currentReplay();
           if (finished) keepReplay(finished);
         }
         autosave(true); // a refresh returns to these results until Next hand
-        await showOverlay({ type: 'summary', result: res, extra: extra });
+        await showOverlay({ type: "summary", result: res, extra: extra });
         if (destroyed) return;
         pendingSummary = null;
         autosave(true); // Next hand was pressed: this is the next deal
@@ -8086,12 +8086,12 @@
           return;
         }
         if (game.over) {
-          track('play_game_over', { hands: ui.stats.hands, wins: ui.stats.wins, mode: settings.mode });
+          track("play_game_over", { hands: ui.stats.hands, wins: ui.stats.wins, mode: settings.mode });
           showFinalMatch();
           L = computeLayout();
           // Only the game over window shows (not the Results table): its Results
           // button opens that. The match's playback is kept for a refresh.
-          ui.overlay = { type: 'gameover' };
+          ui.overlay = { type: "gameover" };
           saveMatchPlayback();
           requestRender();
           return;
@@ -8102,15 +8102,15 @@
     /* ---------------- lifecycle ---------------- */
 
     var onResize = function () { resize(); };
-    root.addEventListener('resize', onResize);
+    root.addEventListener("resize", onResize);
     // A page restored from the browser's frozen-page cache keeps its variables
     // and timers, so auto-play would still be on; it never is after a load.
     var onPageLife = function (e) {
-      if (e.type === 'pagehide' || e.persisted) stopAutoPlay();
-      if (e.type === 'pagehide') trackLessonExit('leave');
+      if (e.type === "pagehide" || e.persisted) stopAutoPlay();
+      if (e.type === "pagehide") trackLessonExit("leave");
     };
-    root.addEventListener('pageshow', onPageLife);
-    root.addEventListener('pagehide', onPageLife);
+    root.addEventListener("pageshow", onPageLife);
+    root.addEventListener("pagehide", onPageLife);
     // The music pauses while the tab is in the background.
     var reviewPausedByHide = false;
     var onVisibility = function () {
@@ -8128,8 +8128,8 @@
       }
       sound.music(!document.hidden);
     };
-    document.addEventListener('visibilitychange', onVisibility);
-    root.addEventListener('keydown', onKey);
+    document.addEventListener("visibilitychange", onVisibility);
+    root.addEventListener("keydown", onKey);
     // The sheets belong to the page, and every table (a new game, the playback
     // view) adds its own listeners to them, so destroy() takes them off again:
     // [element, type, handler] for each.
@@ -8141,36 +8141,36 @@
     (function () {
       var dlg = rulesSheet();
       if (!dlg) return;
-      onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeRules);
+      onSheet(dlg.querySelector(".rules-sheet-close"), "click", closeRules);
       // A click on the dimmed area outside the sheet closes it too.
-      onSheet(dlg, 'click', function (e) { if (e.target === dlg) closeRules(); });
-      onSheet(dlg, 'close', function () { canvas.focus(); });
+      onSheet(dlg, "click", function (e) { if (e.target === dlg) closeRules(); });
+      onSheet(dlg, "close", function () { canvas.focus(); });
     })();
     (function () {
       var dlg = strategiesSheet();
       if (!dlg) return;
-      onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeStrategies);
-      onSheet(dlg, 'click', function (e) { if (e.target === dlg) closeStrategies(); });
-      onSheet(dlg, 'close', function () { canvas.focus(); });
+      onSheet(dlg.querySelector(".rules-sheet-close"), "click", closeStrategies);
+      onSheet(dlg, "click", function (e) { if (e.target === dlg) closeStrategies(); });
+      onSheet(dlg, "close", function () { canvas.focus(); });
     })();
     (function () {
       var dlg = coachSettingsSheet();
       if (!dlg) return;
-      onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeCoachSettings);
-      onSheet(dlg, 'click', function (e) { if (e.target === dlg) closeCoachSettings(); });
-      onSheet(dlg, 'close', function () { canvas.focus(); });
+      onSheet(dlg.querySelector(".rules-sheet-close"), "click", closeCoachSettings);
+      onSheet(dlg, "click", function (e) { if (e.target === dlg) closeCoachSettings(); });
+      onSheet(dlg, "close", function () { canvas.focus(); });
     })();
     (function () {
       var dlg = settings.playback ? playbacksSheet() : null;
       if (!dlg) return;
-      onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closePlaybacks);
-      onSheet(dlg, 'click', function (e) { if (e.target === dlg) closePlaybacks(); });
-      onSheet(dlg, 'close', function () { canvas.focus(); });
-      var up = document.getElementById('playbacks-upload');
+      onSheet(dlg.querySelector(".rules-sheet-close"), "click", closePlaybacks);
+      onSheet(dlg, "click", function (e) { if (e.target === dlg) closePlaybacks(); });
+      onSheet(dlg, "close", function () { canvas.focus(); });
+      var up = document.getElementById("playbacks-upload");
       // A click on a page button may open the file picker straight away.
-      if (up) onSheet(up, 'click', function () {
-        sound.play('select');
-        track('play_playback_upload_click', {});
+      if (up) onSheet(up, "click", function () {
+        sound.play("select");
+        track("play_playback_upload_click", {});
         closePlaybacks();
         openReplayPicker();
       });
@@ -8178,29 +8178,29 @@
     (function () {
       var dlg = settings.playback ? uploadErrorSheet() : null;
       if (!dlg) return;
-      onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeUploadError);
-      onSheet(dlg, 'click', function (e) { if (e.target === dlg) closeUploadError(); });
-      onSheet(dlg, 'close', function () { canvas.focus(); });
+      onSheet(dlg.querySelector(".rules-sheet-close"), "click", closeUploadError);
+      onSheet(dlg, "click", function (e) { if (e.target === dlg) closeUploadError(); });
+      onSheet(dlg, "close", function () { canvas.focus(); });
     })();
     (function () {
       var dlg = resultsSheet();
       if (!dlg) return;
-      onSheet(dlg.querySelector('.rules-sheet-close'), 'click', closeResults);
-      onSheet(dlg, 'click', function (e) { if (e.target === dlg) closeResults(); });
-      onSheet(dlg, 'close', function () {
+      onSheet(dlg.querySelector(".rules-sheet-close"), "click", closeResults);
+      onSheet(dlg, "click", function (e) { if (e.target === dlg) closeResults(); });
+      onSheet(dlg, "close", function () {
         canvas.focus();
         if (resultsStay) { resultsStay = false; return; }
         markResultsOpen(false);
       });
     })();
-    canvas.addEventListener('pointerdown', onPointerDown);
-    canvas.addEventListener('click', onCanvasClick);
-    canvas.addEventListener('pointermove', onPointerMove);
-    canvas.addEventListener('pointerup', onPointerUp);
-    canvas.addEventListener('pointercancel', onPointerUp);
-    canvas.addEventListener('pointerleave', onPointerLeave);
-    canvas.addEventListener('wheel', onWheel, { passive: false });
-    canvas.addEventListener('paste', onCanvasPaste);
+    canvas.addEventListener("pointerdown", onPointerDown);
+    canvas.addEventListener("click", onCanvasClick);
+    canvas.addEventListener("pointermove", onPointerMove);
+    canvas.addEventListener("pointerup", onPointerUp);
+    canvas.addEventListener("pointercancel", onPointerUp);
+    canvas.addEventListener("pointerleave", onPointerLeave);
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    canvas.addEventListener("paste", onCanvasPaste);
     var ro = root.ResizeObserver ? new ResizeObserver(onResize) : null;
     if (ro) ro.observe(canvas);
     resize();
@@ -8210,9 +8210,9 @@
     // stays as it is, so resume() carries on from exactly there.
     var suspended = false;
     function detachWindow() {
-      document.removeEventListener('visibilitychange', onVisibility);
-      root.removeEventListener('resize', onResize);
-      root.removeEventListener('keydown', onKey);
+      document.removeEventListener("visibilitychange", onVisibility);
+      root.removeEventListener("resize", onResize);
+      root.removeEventListener("keydown", onKey);
       if (ro) ro.disconnect();
     }
 
@@ -8235,9 +8235,9 @@
           sound.enabled = prefs.sound !== false;
           sound.musicEnabled = sound.enabled && prefs.music !== false;
         }
-        document.addEventListener('visibilitychange', onVisibility);
-        root.addEventListener('resize', onResize);
-        root.addEventListener('keydown', onKey);
+        document.addEventListener("visibilitychange", onVisibility);
+        root.addEventListener("resize", onResize);
+        root.addEventListener("keydown", onKey);
         if (ro) ro.observe(canvas);
         resize();
         sound.music(!document.hidden);
@@ -8265,11 +8265,11 @@
         });
       },
       destroy: function () {
-        trackLessonExit('quit');
+        trackLessonExit("quit");
         destroyed = true;
         stopAutoPlay();
-        root.removeEventListener('pageshow', onPageLife);
-        root.removeEventListener('pagehide', onPageLife);
+        root.removeEventListener("pageshow", onPageLife);
+        root.removeEventListener("pagehide", onPageLife);
         if (strategyToastTimer) clearTimeout(strategyToastTimer);
         stopReviewPlay();
         if (reviewCoachTimer) { clearTimeout(reviewCoachTimer); reviewCoachTimer = null; }
@@ -8277,14 +8277,14 @@
         detachWindow();
         sheetListeners.forEach(function (l) { l[0].removeEventListener(l[1], l[2]); });
         sheetListeners = [];
-        canvas.removeEventListener('pointerdown', onPointerDown);
-        canvas.removeEventListener('click', onCanvasClick);
-        canvas.removeEventListener('pointermove', onPointerMove);
-        canvas.removeEventListener('pointerup', onPointerUp);
-        canvas.removeEventListener('pointercancel', onPointerUp);
-        canvas.removeEventListener('pointerleave', onPointerLeave);
-        canvas.removeEventListener('wheel', onWheel);
-        canvas.removeEventListener('paste', onCanvasPaste);
+        canvas.removeEventListener("pointerdown", onPointerDown);
+        canvas.removeEventListener("click", onCanvasClick);
+        canvas.removeEventListener("pointermove", onPointerMove);
+        canvas.removeEventListener("pointerup", onPointerUp);
+        canvas.removeEventListener("pointercancel", onPointerUp);
+        canvas.removeEventListener("pointerleave", onPointerLeave);
+        canvas.removeEventListener("wheel", onWheel);
+        canvas.removeEventListener("paste", onCanvasPaste);
         if (replayFileInput) { replayFileInput.remove(); replayFileInput = null; }
       },
       // Exposed for debugging in the browser console.
@@ -8310,12 +8310,12 @@
   function savedSettings(saved) {
     saved = saved || {};
     return {
-      spicy: 'full',
-      mode: saved.mode === 'payout' ? 'payout' : 'practice',
+      spicy: "full",
+      mode: saved.mode === "payout" ? "payout" : "practice",
       // Older saves had a hints on/off flag. With nothing saved, the coach is on.
-      coach: saved.coach || (saved.hints === false ? 'off' : 'on'),
+      coach: saved.coach || (saved.hints === false ? "off" : "on"),
       // Animations are always on; ?instant=1 skips them for a visit (see below).
-      speed: 'normal',
+      speed: "normal",
     };
   }
 
@@ -8325,14 +8325,14 @@
      none). A refresh resumes the saved game. ?playback=1 is the playback
      view. Quit goes back to the options page. */
   function init() {
-    var stage = document.getElementById('play-stage');
-    var canvas = document.getElementById('play-canvas');
-    var live = document.getElementById('play-live');
+    var stage = document.getElementById("play-stage");
+    var canvas = document.getElementById("play-canvas");
+    var live = document.getElementById("play-live");
     if (!stage || !canvas) return;
     loadAssets();
 
     function hasParam(name) {
-      return new RegExp('[?&]' + name + '=1(&|$)').test(root.location.search);
+      return new RegExp("[?&]" + name + "=1(&|$)").test(root.location.search);
     }
 
     // Takes a one-time request (?new=1) out of the address, so a refresh resumes.
@@ -8340,27 +8340,27 @@
       if (!root.history || !root.history.replaceState) return;
       var url = new URL(root.location.href);
       url.searchParams.delete(name);
-      root.history.replaceState(root.history.state, '', url.pathname + url.search);
+      root.history.replaceState(root.history.state, "", url.pathname + url.search);
     }
 
     // Keep a quiet or instant visit quiet on the next page too.
     function pageUrl(path) {
       var url = new URL(path, root.location.origin);
-      var search = root.location.search || '';
+      var search = root.location.search || "";
       var sound = /[?&]sound=(0|1)(?:&|$)/.exec(search);
-      if (sound) url.searchParams.set('sound', sound[1]);
-      if (/[?&]instant=1(?:&|$)/.test(search)) url.searchParams.set('instant', '1');
+      if (sound) url.searchParams.set("sound", sound[1]);
+      if (/[?&]instant=1(?:&|$)/.test(search)) url.searchParams.set("instant", "1");
       return url.pathname + url.search;
     }
 
     function goToOptions() {
-      root.location.assign(pageUrl('/play-mahjong/'));
+      root.location.assign(pageUrl("/play-mahjong/"));
     }
 
     function settingsNow() {
       var settings = savedSettings(readJson(SETTINGS_KEY, {}));
       // ?instant=1 skips animations for this visit only, to speed up testing.
-      if (hasParam('instant')) settings.speed = 'off';
+      if (hasParam("instant")) settings.speed = "off";
       return settings;
     }
 
@@ -8371,7 +8371,7 @@
       if (!saved && !settings.lesson) removeJson(AUTOSAVE_KEY);
       closePlaybackView();
       stage.hidden = false;
-      document.documentElement.classList.add('is-playing');
+      document.documentElement.classList.add("is-playing");
       if (table) table.destroy();
       table = api.createTable(canvas, live, settings, {
         quit: close,
@@ -8394,7 +8394,7 @@
 
     function startLesson() {
       var settings = settingsNow();
-      settings.mode = 'practice';
+      settings.mode = "practice";
       settings.lesson = true;
       open(settings);
     }
@@ -8434,7 +8434,7 @@
     var declinedFullscreen = false;
     var fullscreenPending = false; // one request at a time (a tap on Full screen fires both)
     function phoneSideways() {
-      var coarse = root.matchMedia && root.matchMedia('(pointer: coarse)').matches;
+      var coarse = root.matchMedia && root.matchMedia("(pointer: coarse)").matches;
       return coarse && root.innerWidth > root.innerHeight && root.innerHeight < 600;
     }
     function fullscreenElement() {
@@ -8458,7 +8458,7 @@
       var req = el.requestFullscreen || el.webkitRequestFullscreen;
       if (!req) return;
       try {
-        var p = req.call(el, { navigationUI: 'hide' });
+        var p = req.call(el, { navigationUI: "hide" });
         autoFullscreen = true;
         fullscreenPending = !!(p && p.then);
         setTimeout(function () { fullscreenPending = false; }, 3000); // in case it never settles
@@ -8476,7 +8476,7 @@
     // dropped while the page is still settling.) Back to the top first, so
     // the scroll down always happens even if the page was already there.
     function scrollToY(y) {
-      try { root.scrollTo({ top: y, left: 0, behavior: 'instant' }); } catch (e) { root.scrollTo(0, y); }
+      try { root.scrollTo({ top: y, left: 0, behavior: "instant" }); } catch (e) { root.scrollTo(0, y); }
     }
     function nudgeScroll() {
       if (stage.hidden || !phoneSideways()) return;
@@ -8488,14 +8488,14 @@
     // Repeats as a rotation settles (phones resize in steps as the toolbar moves).
     function hideToolbar() {
       var sideways = !stage.hidden && phoneSideways();
-      document.documentElement.classList.toggle('is-sideways', sideways);
+      document.documentElement.classList.toggle("is-sideways", sideways);
       if (!sideways) return;
       [60, 300, 700, 1200].forEach(function (ms) { setTimeout(nudgeScroll, ms); });
     }
-    document.addEventListener('pointerup', function () { if (!stage.hidden && phoneSideways()) nudgeScroll(); }, true);
-    root.addEventListener('orientationchange', hideToolbar);
+    document.addEventListener("pointerup", function () { if (!stage.hidden && phoneSideways()) nudgeScroll(); }, true);
+    root.addEventListener("orientationchange", hideToolbar);
     if (root.screen && root.screen.orientation && root.screen.orientation.addEventListener) {
-      root.screen.orientation.addEventListener('change', hideToolbar);
+      root.screen.orientation.addEventListener("change", hideToolbar);
     }
     // The Full screen button (sideways phones): in or out of fullscreen,
     // and the toolbar tucked away either way (iPhone Safari has no page
@@ -8512,22 +8512,22 @@
       if (!fullscreenPending) requestFullscreen();
       hideToolbar();
     }
-    document.addEventListener('pointerup', enterFullscreenOnTap, true);
+    document.addEventListener("pointerup", enterFullscreenOnTap, true);
     function onFullscreenChange() {
       if (!fullscreenElement() && autoFullscreen) {
         autoFullscreen = false;
         if (phoneSideways()) declinedFullscreen = true;
       }
     }
-    document.addEventListener('fullscreenchange', onFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
-    root.addEventListener('resize', function () {
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", onFullscreenChange);
+    root.addEventListener("resize", function () {
       if (root.innerHeight > root.innerWidth) {
         declinedFullscreen = false;
         leaveAutoFullscreen();
       }
       // Only when it changes, so the toolbar showing again (a resize) doesn't loop.
-      var was = document.documentElement.classList.contains('is-sideways');
+      var was = document.documentElement.classList.contains("is-sideways");
       if (was !== (!stage.hidden && phoneSideways())) hideToolbar();
     });
 
@@ -8537,12 +8537,12 @@
        and sounds are the game's. ?playback=1 marks it, so a refresh opens the
        same view, with the hand read from storage. Stepping through the moves
        never touches the history, so Back always leaves the view. */
-    var playbackCanvas = document.getElementById('playback-canvas');
-    var playbackLive = document.getElementById('playback-live');
+    var playbackCanvas = document.getElementById("playback-canvas");
+    var playbackLive = document.getElementById("playback-live");
     var playbackTable = null;
-    var strategiesIntro = document.querySelector('#strategies-sheet .rules-sheet-intro');
-    var gameStrategiesIntro = strategiesIntro ? strategiesIntro.textContent : '';
-    var PLAYBACK_STRATEGIES_INTRO = 'How each strategy chooses a discard. The coach is the one named on the side panel.';
+    var strategiesIntro = document.querySelector("#strategies-sheet .rules-sheet-intro");
+    var gameStrategiesIntro = strategiesIntro ? strategiesIntro.textContent : "";
+    var PLAYBACK_STRATEGIES_INTRO = "How each strategy chooses a discard. The coach is the one named on the side panel.";
 
     function isPlaybackUrl() {
       return /[?&]playback=1(&|$)/.test(root.location.search);
@@ -8550,8 +8550,8 @@
 
     function playbackUrl(on) {
       var url = new URL(root.location.href);
-      if (on) url.searchParams.set('playback', '1');
-      else url.searchParams.delete('playback');
+      if (on) url.searchParams.set("playback", "1");
+      else url.searchParams.delete("playback");
       return url;
     }
 
@@ -8560,7 +8560,7 @@
     }
 
     function closeSheets() {
-      document.querySelectorAll('dialog.rules-sheet[open]').forEach(function (dlg) { dlg.close(); });
+      document.querySelectorAll("dialog.rules-sheet[open]").forEach(function (dlg) { dlg.close(); });
     }
 
     // fromGame: View playback on the open game. The view gets a history entry
@@ -8570,9 +8570,9 @@
       if (!playbackCanvas || !playbackLive) return;
       if (fromGame && root.history && root.history.pushState) {
         var state = Object.assign({}, root.history.state || {}, { lcmPlayback: true, lcmFromGame: true });
-        root.history.pushState(state, '', playbackUrl(true));
+        root.history.pushState(state, "", playbackUrl(true));
       } else if (root.history && root.history.replaceState && !inPlaybackEntry()) {
-        root.history.replaceState(Object.assign({}, root.history.state || {}, { lcmPlayback: true }), '', playbackUrl(true));
+        root.history.replaceState(Object.assign({}, root.history.state || {}, { lcmPlayback: true }), "", playbackUrl(true));
       }
       if (playbackTable) return;
       closeSheets();
@@ -8581,15 +8581,15 @@
       canvas.hidden = true;
       playbackCanvas.hidden = false;
       if (strategiesIntro) strategiesIntro.textContent = PLAYBACK_STRATEGIES_INTRO;
-      document.documentElement.classList.add('is-playing');
+      document.documentElement.classList.add("is-playing");
       playbackTable = api.createTable(playbackCanvas, playbackLive, {
         playback: true,
         review: null,
         replayFromStorage: true,
-        coach: 'on',
-        speed: 'normal',
-        spicy: 'full',
-        mode: 'practice',
+        coach: "on",
+        speed: "normal",
+        spicy: "full",
+        mode: "practice",
       }, { quit: function () {}, restart: function () {}, back: leavePlayback });
       playbackTable.start();
       playbackCanvas.focus();
@@ -8612,7 +8612,7 @@
         canvas.focus();
       } else {
         stage.hidden = true;
-        document.documentElement.classList.remove('is-playing');
+        document.documentElement.classList.remove("is-playing");
       }
       return true;
     }
@@ -8623,8 +8623,8 @@
       if (table) return;
       if (readJson(AUTOSAVE_KEY, null)) {
         var url = new URL(root.location.href);
-        url.searchParams.set('results', '1');
-        root.history.replaceState(root.history.state, '', url.pathname + url.search);
+        url.searchParams.set("results", "1");
+        root.history.replaceState(root.history.state, "", url.pathname + url.search);
         resumeGame();
       } else {
         goToOptions();
@@ -8642,7 +8642,7 @@
         var state = Object.assign({}, root.history.state || {});
         delete state.lcmPlayback;
         delete state.lcmFromGame;
-        root.history.replaceState(state, '', playbackUrl(false));
+        root.history.replaceState(state, "", playbackUrl(false));
       }
       closePlaybackView();
       reopenAfterPlayback();
@@ -8652,20 +8652,20 @@
     // Resume game there brings it back.
     function close() {
       leaveAutoFullscreen();
-      document.documentElement.classList.remove('is-sideways');
+      document.documentElement.classList.remove("is-sideways");
       if (table) table.destroy();
       table = null;
       goToOptions();
     }
 
-    if (hasParam('playback') && refreshedGamePlayback()) resumeGame({ openPlayback: true });
-    else if (hasParam('playback')) showPlayback(false);
-    else if (hasParam('learn')) startLesson();
-    else if (hasParam('new')) { dropParam('new'); startFresh(); }
+    if (hasParam("playback") && refreshedGamePlayback()) resumeGame({ openPlayback: true });
+    else if (hasParam("playback")) showPlayback(false);
+    else if (hasParam("learn")) startLesson();
+    else if (hasParam("new")) { dropParam("new"); startFresh(); }
     else resumeGame();
 
     // Back from playback returns to the game, and Forward to playback again.
-    root.addEventListener('popstate', function () {
+    root.addEventListener("popstate", function () {
       if (inPlaybackEntry() || isPlaybackUrl()) {
         if (!playbackTable) showPlayback(false);
         return;
@@ -8696,14 +8696,14 @@
   // 172.16-31.x.x, and .local, .localhost and .test names. Auto-play is for
   // these only.
   function isLocalHost(host) {
-    return /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local|.+\.localhost|.+\.test)$/i.test(String(host || ''));
+    return /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local|.+\.localhost|.+\.test)$/i.test(String(host || ""));
   }
 
   var api = { createTable: createTable, init: init, isLocalHost: isLocalHost, longestWinStreak: longestWinStreak, THEMES: THEMES };
   root.MahjongGame = api;
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
   } else {
     init();
   }
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== "undefined" ? globalThis : this);

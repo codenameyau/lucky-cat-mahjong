@@ -21,13 +21,13 @@
    A game is every hand played until the deal has gone round all four rounds;
    a hand is one hand of mahjong, ending in a win or a draw. */
 
-'use strict';
+"use strict";
 
-const os = require('node:os');
-const fs = require('node:fs');
-const path = require('node:path');
-const { spawnSync } = require('node:child_process');
-const { Worker, isMainThread, parentPort, workerData } = require('node:worker_threads');
+const os = require("node:os");
+const fs = require("node:fs");
+const path = require("node:path");
+const { spawnSync } = require("node:child_process");
+const { Worker, isMainThread, parentPort, workerData } = require("node:worker_threads");
 
 const START = 1e9; // nobody busts, so every game plays all four rounds
 const LIMIT = 13;
@@ -39,7 +39,7 @@ function emptyStrategy() {
     patterns: {}, hands_by_faan: {}, full: {} };
 }
 function emptyTable() { return { games: 0, hands: 0, draws: 0, gamesNoWinner: 0 }; }
-const COUNTS = ['patterns', 'hands_by_faan', 'full'];
+const COUNTS = ["patterns", "hands_by_faan", "full"];
 function addInto(a, b) {
   for (const k of Object.keys(b)) {
     if (COUNTS.includes(k)) for (const p of Object.keys(b[k])) a[k][p] = (a[k][p] || 0) + b[k][p];
@@ -54,21 +54,21 @@ function addInto(a, b) {
 function fullPattern(items, faan) {
   const by = {};
   for (const it of items) by[it.name] = (by[it.name] || 0) + 1;
-  return Object.keys(by).sort().map((nm) => (by[nm] > 1 ? nm + ' x' + by[nm] : nm)).join(' + ') + ' = ' + faan;
+  return Object.keys(by).sort().map((nm) => (by[nm] > 1 ? nm + " x" + by[nm] : nm)).join(" + ") + " = " + faan;
 }
 
 // The seats' strategies in game k: the lineup rotated by k.
 const seatsFor = (lineup, k) => [0, 1, 2, 3].map((s) => lineup[(s + k) % 4]);
 
 async function playGames(lineup, tableName, jobs) {
-  const E = require('../js/mahjong-engine.js');
-  const S = require('../js/mahjong-strategies.js');
+  const E = require("../js/mahjong-engine.js");
+  const S = require("../js/mahjong-strategies.js");
   const table = emptyTable(), by = {};
   for (const id of lineup) by[id] = by[id] || emptyStrategy();
   const rows = [];
   for (const { seed, k } of jobs) {
     const seats = seatsFor(lineup, k);
-    const game = E.createGame({ seed, humanSeat: false, dealer: seed % 4, startPoints: START, mode: 'payout' });
+    const game = E.createGame({ seed, humanSeat: false, dealer: seed % 4, startPoints: START, mode: "payout" });
     const agents = seats.map((id) => S.createAgent(id));
     let won = 0, handInGame = 0;
     while (!game.over) {
@@ -77,18 +77,18 @@ async function playGames(lineup, tableName, jobs) {
       handInGame++;
       table.hands++;
       for (const id of seats) by[id].seatHands++;
-      const draw = res.type === 'draw' || res.winner == null;
+      const draw = res.type === "draw" || res.winner == null;
       rows.push(csvRow(tableName, seats, seed, handInGame, round, dealer, repeat, res, game, draw));
       for (let s = 0; s < 4; s++) by[seats[s]].points += res.deltas ? res.deltas[s] : 0;
       if (draw) { table.draws++; continue; }
       won++;
       const st = by[seats[res.winner]];
       st.wins++;
-      if (res.payer != null && res.how !== 'selfDraw') by[seats[res.payer]].dealIns++;
+      if (res.payer != null && res.how !== "selfDraw") by[seats[res.payer]].dealIns++;
       const f = res.score.faan;
       st.faan += f;
       if (f >= LIMIT) st.limitWins++;
-      if (res.how === 'selfDraw') st.selfDraws++;
+      if (res.how === "selfDraw") st.selfDraws++;
       if ((res.melds || []).every((m) => m.concealed)) st.concealedWins++;
       const items = res.score.items || [];
       for (const it of items) st.patterns[it.name] = (st.patterns[it.name] || 0) + 1;
@@ -106,27 +106,27 @@ async function playGames(lineup, tableName, jobs) {
 }
 
 // One hand as a CSV row (the columns are CSV_COLUMNS).
-const CSV_COLUMNS = ['table', 'game_seed', 'hand_in_game', 'round', 'dealer_seat', 'dealer_repeat',
-  'seat0_strategy', 'seat1_strategy', 'seat2_strategy', 'seat3_strategy', 'result', 'winner_seat', 'winner_strategy',
-  'winner_is_dealer', 'how', 'payer_seat', 'payer_strategy', 'winning_tile', 'faan', 'limit', 'base_points', 'winner_points',
-  'claimed_melds', 'concealed', 'winner_discards', 'wall_left', 'pattern_count', 'patterns', 'full_hand'];
-const csvCell = (v) => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+const CSV_COLUMNS = ["table", "game_seed", "hand_in_game", "round", "dealer_seat", "dealer_repeat",
+  "seat0_strategy", "seat1_strategy", "seat2_strategy", "seat3_strategy", "result", "winner_seat", "winner_strategy",
+  "winner_is_dealer", "how", "payer_seat", "payer_strategy", "winning_tile", "faan", "limit", "base_points", "winner_points",
+  "claimed_melds", "concealed", "winner_discards", "wall_left", "pattern_count", "patterns", "full_hand"];
+const csvCell = (v) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? "\"" + s.replace(/"/g, "\"\"") + "\"" : s; };
 function csvRow(tableName, seats, seed, handInGame, round, dealer, repeat, res, game, draw) {
-  const wall = game.hand && game.hand.wall ? game.hand.wall.length : '';
+  const wall = game.hand && game.hand.wall ? game.hand.wall.length : "";
   const head = [tableName, seed, handInGame, round, dealer, repeat, ...seats];
-  if (draw) return [...head, 'draw', '', '', '', '', '', '', '', '', '', '', '', '', '', '', wall, 0, '', ''].map(csvCell).join(',');
+  if (draw) return [...head, "draw", "", "", "", "", "", "", "", "", "", "", "", "", "", "", wall, 0, "", ""].map(csvCell).join(",");
   const w = res.winner, items = res.score.items || [], f = res.score.faan;
   const claimed = (res.melds || []).filter((m) => !m.concealed).length;
-  const pats = items.map((it) => it.name + ' (' + it.faan + ')').join('; ');
-  const payer = res.how === 'selfDraw' || res.payer == null ? '' : res.payer;
-  return [...head, 'win', w, seats[w], w === dealer ? 1 : 0, res.how, payer, payer === '' ? '' : seats[payer],
-    res.tile || '', f, f >= LIMIT ? 1 : 0, res.score.points, res.deltas[w], claimed, claimed ? 0 : 1,
-    game.hand.seats[w].discards.length, wall, items.length, pats, fullPattern(items, f)].map(csvCell).join(',');
+  const pats = items.map((it) => it.name + " (" + it.faan + ")").join("; ");
+  const payer = res.how === "selfDraw" || res.payer == null ? "" : res.payer;
+  return [...head, "win", w, seats[w], w === dealer ? 1 : 0, res.how, payer, payer === "" ? "" : seats[payer],
+    res.tile || "", f, f >= LIMIT ? 1 : 0, res.score.points, res.deltas[w], claimed, claimed ? 0 : 1,
+    game.hand.seats[w].discards.length, wall, items.length, pats, fullPattern(items, f)].map(csvCell).join(",");
 }
 
 function args(argv) {
   const a = {};
-  for (let i = 0; i < argv.length; i++) if (argv[i].startsWith('--')) a[argv[i].slice(2)] = argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[++i] : true;
+  for (let i = 0; i < argv.length; i++) if (argv[i].startsWith("--")) a[argv[i].slice(2)] = argv[i + 1] && !argv[i + 1].startsWith("--") ? argv[++i] : true;
   return a;
 }
 
@@ -134,12 +134,12 @@ if (!isMainThread) {
   playGames(workerData.lineup, workerData.tableName, workerData.jobs).then((r) => parentPort.postMessage(r));
 } else {
   const a = args(process.argv.slice(2));
-  const lineup = a.lineup ? String(a.lineup).split(',') : a.strategy ? [a.strategy, a.strategy, a.strategy, a.strategy] : null;
+  const lineup = a.lineup ? String(a.lineup).split(",") : a.strategy ? [a.strategy, a.strategy, a.strategy, a.strategy] : null;
   if (!lineup || lineup.length !== 4) {
-    console.error('usage: node scripts/hand-patterns.js (--strategy ID | --lineup A,B,C,D) [--games N] [--seed N] [--workers N] [--json FILE] [--parquet FILE] [--csv FILE]');
+    console.error("usage: node scripts/hand-patterns.js (--strategy ID | --lineup A,B,C,D) [--games N] [--seed N] [--workers N] [--json FILE] [--parquet FILE] [--csv FILE]");
     process.exit(1);
   }
-  const tableName = a.lineup ? 'mixed' : 'self:' + a.strategy;
+  const tableName = a.lineup ? "mixed" : "self:" + a.strategy;
   const games = parseInt(a.games || 100, 10), seed = parseInt(a.seed || 1, 10);
   const workers = Math.max(1, Math.min(games, parseInt(a.workers || Math.max(1, os.cpus().length - 1), 10)));
   const jobs = Array.from({ length: games }, (_, k) => ({ seed: seed + k, k }));
@@ -147,26 +147,26 @@ if (!isMainThread) {
   const t0 = Date.now();
   Promise.all(parts.map((js) => new Promise((resolve, reject) => {
     const w = new Worker(__filename, { workerData: { lineup, tableName, jobs: js } });
-    w.on('message', resolve);
-    w.on('error', reject);
+    w.on("message", resolve);
+    w.on("error", reject);
   }))).then((rs) => {
     const table = rs.map((r) => r.table).reduce(addInto, emptyTable());
     const by = {};
     for (const r of rs) for (const [id, st] of Object.entries(r.by)) by[id] = addInto(by[id] || emptyStrategy(), st);
-    const csvPath = a.csv || (a.parquet ? a.parquet + '.tmp.csv' : null);
+    const csvPath = a.csv || (a.parquet ? a.parquet + ".tmp.csv" : null);
     if (csvPath) {
       // Every hand, one row each, in game order (gitignored under ml/data/).
       const rows = [].concat(...rs.map((r) => r.rows));
-      const key = (row) => row.split(',').slice(1, 3).map(Number);
+      const key = (row) => row.split(",").slice(1, 3).map(Number);
       rows.sort((x, y) => { const [sx, hx] = key(x), [sy, hy] = key(y); return sx - sy || hx - hy; });
       fs.mkdirSync(path.dirname(csvPath), { recursive: true });
-      fs.writeFileSync(csvPath, CSV_COLUMNS.join(',') + '\n' + rows.join('\n') + '\n');
+      fs.writeFileSync(csvPath, CSV_COLUMNS.join(",") + "\n" + rows.join("\n") + "\n");
     }
     if (a.parquet) {
       // The rows as typed Parquet (Python with pyarrow does the writing).
-      const py = spawnSync(process.env.PYTHON || 'python', [path.join(__dirname, 'hand-results-parquet.py'), csvPath, a.parquet], { stdio: 'inherit' });
+      const py = spawnSync(process.env.PYTHON || "python", [path.join(__dirname, "hand-results-parquet.py"), csvPath, a.parquet], { stdio: "inherit" });
       if (!a.csv) fs.rmSync(csvPath, { force: true });
-      if (py.status !== 0) { console.error('writing Parquet failed: needs Python with pyarrow (pip install pyarrow)'); process.exitCode = 1; }
+      if (py.status !== 0) { console.error("writing Parquet failed: needs Python with pyarrow (pip install pyarrow)"); process.exitCode = 1; }
     }
     const out = { table: tableName, lineup, seed, games, ...table, strategies: by, seconds: (Date.now() - t0) / 1000 };
     const won = Object.values(by).reduce((s, st) => s + st.wins, 0);

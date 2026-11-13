@@ -9,21 +9,21 @@
  *   node scripts/licensing-agreement.js [output.pdf]
  */
 
-'use strict';
+"use strict";
 
-const fs = require('fs');
-const path = require('path');
-const puppeteer = require('puppeteer');
+const fs = require("fs");
+const path = require("path");
+const puppeteer = require("puppeteer");
 
 const FOOTER_TITLE =
-  'Intellectual Property & Merchandise Licensing Agreement (Lucky Cat Mahjong)';
+  "Intellectual Property & Merchandise Licensing Agreement (Lucky Cat Mahjong)";
 
-const ROOT = path.join(__dirname, '..');
-const ASSETS_DIR = path.join(ROOT, 'assets');
+const ROOT = path.join(__dirname, "..");
+const ASSETS_DIR = path.join(ROOT, "assets");
 
 const OUTPUT = process.argv[2]
   ? path.resolve(process.argv[2])
-  : path.join(ASSETS_DIR, 'Licensing_Agreement_Lucky_Cat_Mahjong.pdf');
+  : path.join(ASSETS_DIR, "Licensing_Agreement_Lucky_Cat_Mahjong.pdf");
 
 /* ------------------------------------------------------------------ *
  * Document
@@ -255,27 +255,27 @@ const FOOTER_TEMPLATE = `
 async function main() {
   const html = buildHtml();
 
-  const browser = await puppeteer.launch({ headless: 'new' });
+  const browser = await puppeteer.launch({ headless: "new" });
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    await page.evaluateHandle('document.fonts.ready');
+    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.evaluateHandle("document.fonts.ready");
 
     fs.mkdirSync(path.dirname(OUTPUT), { recursive: true });
     await page.pdf({
       path: OUTPUT,
-      format: 'A4',
+      format: "A4",
       printBackground: true,
       displayHeaderFooter: true,
-      headerTemplate: '<div></div>',
+      headerTemplate: "<div></div>",
       footerTemplate: FOOTER_TEMPLATE,
-      margin: { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' },
+      margin: { top: "20mm", right: "15mm", bottom: "20mm", left: "15mm" },
     });
   } finally {
     await browser.close();
   }
 
-  console.log('File generated successfully: ' + OUTPUT);
+  console.log("File generated successfully: " + OUTPUT);
 }
 
 main().catch(function (err) {

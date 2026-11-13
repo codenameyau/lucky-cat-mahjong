@@ -24,13 +24,13 @@
    move network (docs/machine-learning/porting.md). */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
-  var node = typeof module !== 'undefined' && module.exports;
-  var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var F = node ? require('./mahjong-ml-features.js') : root.MahjongMLFeatures;
+  var node = typeof module !== "undefined" && module.exports;
+  var E = node ? require("./mahjong-engine.js") : root.MahjongEngine;
+  var F = node ? require("./mahjong-ml-features.js") : root.MahjongMLFeatures;
 
-  var OUTCOMES = ['winSelf', 'winDiscard', 'dealIn', 'otherSelf', 'otherWin', 'draw'];
+  var OUTCOMES = ["winSelf", "winDiscard", "dealIn", "otherSelf", "otherWin", "draw"];
   var FAAN = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
   var OUTPUTS = OUTCOMES.length + 2 * FAAN.length;
   var HIDDEN = [256, 128];
@@ -43,8 +43,8 @@
   var R_WIN = OUTPUTS, R_READY = OUTPUTS + 24, R_DEAL = R_READY + 3, READER_OUTPUTS = R_DEAL + 1 + 102;
   var READ_SIZE = 16;
   // The hands of the read, in its order (scripts/ml/heads.js HANDS), as the coach names them.
-  var READ_HANDS = ['a standard hand', 'All Sequences', 'Half Flush', 'Full Flush', 'All Triplets', 'Concealed Triplets',
-    'Seven Pairs', 'Thirteen Orphans', 'Nine Gates', 'a hand of 1s, 9s and honors', 'Three Dragons', 'Four Winds'];
+  var READ_HANDS = ["a standard hand", "All Sequences", "Half Flush", "Full Flush", "All Triplets", "Concealed Triplets",
+    "Seven Pairs", "Thirteen Orphans", "Nine Gates", "a hand of 1s, 9s and honors", "Three Dragons", "Four Winds"];
   function sigmoid(z) { return 1 / (1 + Math.exp(-z)); }
   // Read version 1: each opponent ready, the tile thrown deals in now, and the
   // hand this seat would win with, as chances.
@@ -65,13 +65,13 @@
 
   function fromBase64(s, dtype) {
     var bytes;
-    if (typeof Buffer !== 'undefined') bytes = new Uint8Array(Buffer.from(s, 'base64'));
+    if (typeof Buffer !== "undefined") bytes = new Uint8Array(Buffer.from(s, "base64"));
     else {
       var bin = atob(s);
       bytes = new Uint8Array(bin.length);
       for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     }
-    if (dtype === 'f16') {
+    if (dtype === "f16") {
       var n = bytes.byteLength / 2, out = new Float32Array(n);
       for (var j = 0; j < n; j++) out[j] = halfToFloat(bytes[2 * j] | (bytes[2 * j + 1] << 8));
       return out;
@@ -81,15 +81,15 @@
 
   function toBase64(arr) {
     var bytes = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength);
-    if (typeof Buffer !== 'undefined') return Buffer.from(bytes).toString('base64');
-    var bin = '';
+    if (typeof Buffer !== "undefined") return Buffer.from(bytes).toString("base64");
+    var bin = "";
     for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
     return btoa(bin);
   }
 
   function floats(v, dtype) {
     if (v instanceof Float32Array) return v;
-    if (typeof v === 'string') return fromBase64(v, dtype);
+    if (typeof v === "string") return fromBase64(v, dtype);
     return Float32Array.from(v);
   }
 
@@ -107,20 +107,20 @@
   function createModel(weights, expect) {
     var SIZE = expect ? expect.size : F.SIZE, VERSION = expect ? expect.version : F.FEATURE_VERSION;
     if (weights.featureSize !== SIZE || weights.featureVersion !== VERSION) {
-      throw new Error('model expects ' + weights.featureSize + ' features (version ' + weights.featureVersion +
-        '), have ' + SIZE + ' (version ' + VERSION + ')');
+      throw new Error("model expects " + weights.featureSize + " features (version " + weights.featureVersion +
+        "), have " + SIZE + " (version " + VERSION + ")");
     }
     var layers = weights.layers.map(function (l) {
       return { rows: l.rows, cols: l.cols, w: floats(l.w, weights.dtype), b: floats(l.b, weights.dtype) };
     });
-    if (layers[layers.length - 1].rows !== OUTPUTS) throw new Error('model must have ' + OUTPUTS + ' outputs');
+    if (layers[layers.length - 1].rows !== OUTPUTS) throw new Error("model must have " + OUTPUTS + " outputs");
     var reader = null;
     if (weights.reader) {
-      if (weights.readerVersion !== 1) throw new Error('model reads version ' + weights.readerVersion + ' of the reader, have 1');
+      if (weights.readerVersion !== 1) throw new Error("model reads version " + weights.readerVersion + " of the reader, have 1");
       reader = network(weights.reader.layers.map(function (l) {
         return { rows: l.rows, cols: l.cols, w: floats(l.w, weights.reader.dtype || weights.dtype), b: floats(l.b, weights.reader.dtype || weights.dtype) };
       }), READER_OUTPUTS);
-      if (layers[0].cols !== SIZE + READ_SIZE) throw new Error('a stacked model reads ' + (SIZE + READ_SIZE) + ' inputs');
+      if (layers[0].cols !== SIZE + READ_SIZE) throw new Error("a stacked model reads " + (SIZE + READ_SIZE) + " inputs");
     }
     var move = network(layers, OUTPUTS);
     var stacked = new Float32Array(SIZE + READ_SIZE);
@@ -166,12 +166,17 @@
   // first `n`) for one input. float32 buffers, sums in double.
   function network(layers, n) {
     var widest = layers.reduce(function (m, l) { return Math.max(m, l.rows); }, 0);
-    var bufA = new Float32Array(widest), bufB = new Float32Array(widest);
-    // The first layer by input, so the many zero features cost nothing.
-    var first = layers[0], firstT = new Float32Array(first.rows * first.cols);
-    for (var r0 = 0; r0 < first.rows; r0++) {
-      for (var c0 = 0; c0 < first.cols; c0++) firstT[c0 * first.rows + r0] = first.w[r0 * first.cols + c0];
-    }
+    var bufA = new Float32Array(widest), bufB = new Float32Array(widest), acc = new Float64Array(widest);
+    // Every layer by input, so the many zero features (and the zeros ReLU
+    // leaves) cost nothing. Each row still sums its inputs in order.
+    var byInput = layers.map(function (l) {
+      var t = new Float32Array(l.rows * l.cols);
+      for (var r0 = 0; r0 < l.rows; r0++) {
+        for (var c0 = 0; c0 < l.cols; c0++) t[c0 * l.rows + r0] = l.w[r0 * l.cols + c0];
+      }
+      return t;
+    });
+    var first = layers[0], firstT = byInput[0];
 
     // The raw outputs for one feature vector.
     function forward(x) {
@@ -186,14 +191,17 @@
       if (layers.length > 1) for (r = 0; r < rows; r++) if (out[r] < 0) out[r] = 0;
       input = out;
       for (var k = 1; k < layers.length; k++) {
-        var l = layers[k], w = l.w, b = l.b, cols = l.cols;
+        var l = layers[k], wT = byInput[k], b = l.b, lrows = l.rows;
         out = k % 2 ? bufB : bufA;
         var last = k === layers.length - 1;
-        for (var r = 0; r < l.rows; r++) {
-          var s = b[r], off = r * cols;
-          for (var c = 0; c < cols; c++) s += w[off + c] * input[c];
-          out[r] = last || s > 0 ? s : 0;
+        for (r = 0; r < lrows; r++) acc[r] = b[r];
+        for (c = 0; c < l.cols; c++) {
+          var u = input[c];
+          if (u === 0) continue;
+          var off = c * lrows;
+          for (r = 0; r < lrows; r++) acc[r] += wT[off + r] * u;
         }
+        for (r = 0; r < lrows; r++) out[r] = last || acc[r] > 0 ? acc[r] : 0;
         input = out;
       }
       return Array.prototype.slice.call(out, 0, n);
@@ -288,4 +296,4 @@
 
   if (node) module.exports = api;
   else root.MahjongMLModel = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== "undefined" ? globalThis : this);

@@ -10,13 +10,13 @@
      steps     u8 x 3   each opponent's steps from ready, 0 to 4, from the seat's right
      waits     u8 x 102 each opponent's winning tiles (34 each), when it is ready */
 
-'use strict';
+"use strict";
 
-const E = require('../../js/mahjong-engine.js');
+const E = require("../../js/mahjong-engine.js");
 
 // The hand families a seat can be building, or win with.
-const HANDS = ['plain', 'sequences', 'half-flush', 'full-flush', 'triplets', 'concealed-triplets',
-  'pairs', 'orphans', 'gates', 'majors', 'dragons', 'winds'];
+const HANDS = ["plain", "sequences", "half-flush", "full-flush", "triplets", "concealed-triplets",
+  "pairs", "orphans", "gates", "majors", "dragons", "winds"];
 const AUX_BYTES = 6 + 102;
 const NONE = 255;
 
@@ -25,24 +25,24 @@ function planHand(id) {
   if (!id) return NONE;
   if (/^half(-|$)/.test(id)) return 2;
   if (/^full(-|$)/.test(id)) return 3;
-  if (id === 'triplets') return 4;
-  if (id === 'concealed-triplets') return 5;
-  if (id === 'runs' || id === 'straights' || id === 'sequences') return 1;
-  if (id === 'pairs' || /^pairs-/.test(id)) return 6;
-  if (id === 'orphans') return 7;
-  if (id === 'gates') return 8;
-  if (id === 'mixed-orphans' || id === 'all-terminals' || id === 'all-honors' || id === 'honors' || id === 'terminals') return 9;
-  if (id === 'dragons' || /-dragons$/.test(id)) return 10;
-  if (id === 'winds' || /-winds$/.test(id)) return 11;
+  if (id === "triplets") return 4;
+  if (id === "concealed-triplets") return 5;
+  if (id === "runs" || id === "straights" || id === "sequences") return 1;
+  if (id === "pairs" || /^pairs-/.test(id)) return 6;
+  if (id === "orphans") return 7;
+  if (id === "gates") return 8;
+  if (id === "mixed-orphans" || id === "all-terminals" || id === "all-honors" || id === "honors" || id === "terminals") return 9;
+  if (id === "dragons" || /-dragons$/.test(id)) return 10;
+  if (id === "winds" || /-winds$/.test(id)) return 11;
   return 0;
 }
 
 // The family of a winning hand, from what it scored: the rarest pattern names it.
 const WIN_ORDER = [
-  ['Thirteen Orphans', 7], ['Nine Gates', 8], ['Big Four Winds', 11], ['Small Four Winds', 11],
-  ['Big Three Dragons', 10], ['Small Three Dragons', 10], ['All Honors', 9], ['All Terminals', 9],
-  ['Mixed Orphans', 9], ['Seven Pairs', 6], ['Full Flush', 3], ['Concealed Triplets', 5],
-  ['Half Flush', 2], ['All Triplets', 4], ['All Sequences', 1],
+  ["Thirteen Orphans", 7], ["Nine Gates", 8], ["Big Four Winds", 11], ["Small Four Winds", 11],
+  ["Big Three Dragons", 10], ["Small Three Dragons", 10], ["All Honors", 9], ["All Terminals", 9],
+  ["Mixed Orphans", 9], ["Seven Pairs", 6], ["Full Flush", 3], ["Concealed Triplets", 5],
+  ["Half Flush", 2], ["All Triplets", 4], ["All Sequences", 1],
 ];
 function winHand(score) {
   const names = {};

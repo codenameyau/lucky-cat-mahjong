@@ -28,15 +28,15 @@
    generate-lcv). */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
-  var node = typeof module !== 'undefined' && module.exports;
-  var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var N = node ? require('./mahjong-lucky-cat-net.js') : root.MahjongLuckyCatNet;
-  var M = node ? require('./mahjong-ml-model.js') : root.MahjongMLModel;
+  var node = typeof module !== "undefined" && module.exports;
+  var E = node ? require("./mahjong-engine.js") : root.MahjongEngine;
+  var N = node ? require("./mahjong-lucky-cat-net.js") : root.MahjongLuckyCatNet;
+  var M = node ? require("./mahjong-ml-model.js") : root.MahjongMLModel;
 
-  var VALUE_VERSION = 'lcv1';
-  var KINDS = ['discard', 'kong', 'pass', 'pung', 'chow', 'call-kong'];
+  var VALUE_VERSION = "lcv1";
+  var KINDS = ["discard", "kong", "pass", "pung", "chow", "call-kong"];
   var THROWN = N.SIZE, KIND = N.SIZE + 34;
   var SIZE = N.SIZE + 34 + KINDS.length;
 
@@ -52,20 +52,20 @@
   function afterTurn(game, seat, decision) {
     var me = game.hand.seats[seat];
     var i = E.tileIndex(decision.tile);
-    if (decision.type === 'discard') {
+    if (decision.type === "discard") {
       return { hand: removeIds(me.hand, i, 1).hand, melds: me.melds, thrown: i, kind: 0 };
     }
     // A kong: added to a pung of the tile, or four concealed.
     var pung = -1;
-    me.melds.forEach(function (m, k) { if (m.type === 'pung' && E.tileIndex(m.tiles[0]) === i) pung = k; });
+    me.melds.forEach(function (m, k) { if (m.type === "pung" && E.tileIndex(m.tiles[0]) === i) pung = k; });
     var melds = me.melds.slice();
     if (pung >= 0) {
       var r1 = removeIds(me.hand, i, 1);
-      melds[pung] = { type: 'kong', tiles: melds[pung].tiles.concat(r1.taken), concealed: false };
+      melds[pung] = { type: "kong", tiles: melds[pung].tiles.concat(r1.taken), concealed: false };
       return { hand: r1.hand, melds: melds, thrown: -1, kind: 1 };
     }
     var r4 = removeIds(me.hand, i, 4);
-    melds.push({ type: 'kong', tiles: r4.taken, concealed: true });
+    melds.push({ type: "kong", tiles: r4.taken, concealed: true });
     return { hand: r4.hand, melds: melds, thrown: -1, kind: 1 };
   }
 
@@ -73,17 +73,17 @@
   function afterCall(game, seat, opts, decision) {
     var me = game.hand.seats[seat];
     var t = E.tileIndex(opts.tile);
-    if (decision.type === 'pass') return { hand: me.hand, melds: me.melds, thrown: -1, kind: 2 };
+    if (decision.type === "pass") return { hand: me.hand, melds: me.melds, thrown: -1, kind: 2 };
     var melds = me.melds.slice(), r;
-    if (decision.type === 'chow') {
+    if (decision.type === "chow") {
       var a = removeIds(me.hand, E.tileIndex(decision.tiles[0]), 1);
       var b = removeIds(a.hand, E.tileIndex(decision.tiles[1]), 1);
-      melds.push({ type: 'chow', tiles: [a.taken[0], b.taken[0], opts.tile], concealed: false });
+      melds.push({ type: "chow", tiles: [a.taken[0], b.taken[0], opts.tile], concealed: false });
       return { hand: b.hand, melds: melds, thrown: -1, kind: 4 };
     }
-    r = removeIds(me.hand, t, decision.type === 'kong' ? 3 : 2);
-    melds.push({ type: decision.type === 'kong' ? 'kong' : 'pung', tiles: r.taken.concat([opts.tile]), concealed: false });
-    return { hand: r.hand, melds: melds, thrown: -1, kind: decision.type === 'kong' ? 5 : 3 };
+    r = removeIds(me.hand, t, decision.type === "kong" ? 3 : 2);
+    melds.push({ type: decision.type === "kong" ? "kong" : "pung", tiles: r.taken.concat([opts.tile]), concealed: false });
+    return { hand: r.hand, melds: melds, thrown: -1, kind: decision.type === "kong" ? 5 : 3 };
   }
 
   // The value's features for a position after a move (`after` as above).
@@ -104,4 +104,4 @@
   };
   if (node) module.exports = api;
   else root.MahjongLuckyCatValue = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== "undefined" ? globalThis : this);

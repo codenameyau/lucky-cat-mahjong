@@ -1,11 +1,11 @@
-'use strict';
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const A = require('./analytics-id.js');
+"use strict";
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const A = require("./analytics-id.js");
 
-const ROOT = path.join(__dirname, '..');
+const ROOT = path.join(__dirname, "..");
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 // A browser's cookie jar: document.cookie reads name=value pairs, and each write
@@ -16,16 +16,16 @@ function cookieJar() {
   return {
     writes,
     jar,
-    get cookie() { return Array.from(jar.values()).map((c) => c.name + '=' + c.value).join('; '); },
+    get cookie() { return Array.from(jar.values()).map((c) => c.name + "=" + c.value).join("; "); },
     set cookie(str) {
       writes.push(str);
       const parts = str.split(/;\s*/);
-      const [name, ...rest] = parts[0].split('=');
-      const value = rest.join('=');
+      const [name, ...rest] = parts[0].split("=");
+      const value = rest.join("=");
       const attrs = {};
-      parts.slice(1).forEach((p) => { const [k, v] = p.split('='); attrs[k.toLowerCase()] = v === undefined ? true : v; });
-      const key = name + '|' + (attrs.domain || '');
-      if (attrs['max-age'] === '0') jar.delete(key);
+      parts.slice(1).forEach((p) => { const [k, v] = p.split("="); attrs[k.toLowerCase()] = v === undefined ? true : v; });
+      const key = name + "|" + (attrs.domain || "");
+      if (attrs["max-age"] === "0") jar.delete(key);
       else jar.set(key, { name, value, attrs });
     },
   };
@@ -33,7 +33,7 @@ function cookieJar() {
 
 function setup(opts = {}) {
   const doc = cookieJar();
-  if (opts.cookies) Object.entries(opts.cookies).forEach(([k, v]) => { doc.cookie = k + '=' + v + '; Path=/'; });
+  if (opts.cookies) Object.entries(opts.cookies).forEach(([k, v]) => { doc.cookie = k + "=" + v + "; Path=/"; });
   doc.writes.length = 0;
   const win = {};
   let t = opts.now || 1_000_000;
@@ -41,8 +41,8 @@ function setup(opts = {}) {
     window: win,
     document: doc,
     navigator: opts.navigator || {},
-    location: { protocol: opts.protocol || 'https:', hostname: 'luckycatmahjong.com' },
-    timeZone: opts.timeZone === undefined ? 'America/New_York' : opts.timeZone,
+    location: { protocol: opts.protocol || "https:", hostname: "luckycatmahjong.com" },
+    timeZone: opts.timeZone === undefined ? "America/New_York" : opts.timeZone,
     now: () => t,
   });
   const calls = [];
@@ -55,206 +55,206 @@ function cookie(doc, name) {
   return c ? c.value : undefined;
 }
 
-test('a first visit gets a random visitor ID and session, sent to GA as user_id', () => {
+test("a first visit gets a random visitor ID and session, sent to GA as user_id", () => {
   const { api, doc, win, calls, gtag } = setup();
-  assert.equal(api.start(gtag), 'granted');
-  const vid = cookie(doc, 'lcm_vid');
-  const [id, sessions] = vid.split('.');
+  assert.equal(api.start(gtag), "granted");
+  const vid = cookie(doc, "lcm_vid");
+  const [id, sessions] = vid.split(".");
   assert.match(id, UUID);
-  assert.equal(sessions, '1');
-  assert.match(cookie(doc, 'lcm_sid'), UUID);
-  const set = calls.find((c) => c[0] === 'set');
+  assert.equal(sessions, "1");
+  assert.match(cookie(doc, "lcm_sid"), UUID);
+  const set = calls.find((c) => c[0] === "set");
   assert.deepEqual(set[1], {
     user_id: id,
     visitor_id: id,
-    visitor_session_id: cookie(doc, 'lcm_sid'),
+    visitor_session_id: cookie(doc, "lcm_sid"),
     visitor_session_number: 1,
   });
-  assert.equal(win['ga-disable-G-B514HH987M'], false);
+  assert.equal(win["ga-disable-G-B514HH987M"], false);
 });
 
-test('the cookies are first-party, Lax, Secure on https, and last 400 days and 7 hours 55 minutes', () => {
+test("the cookies are first-party, Lax, Secure on https, and last 400 days and 7 hours 55 minutes", () => {
   const { api, doc, gtag } = setup();
   api.start(gtag);
-  const vid = doc.writes.find((w) => w.startsWith('lcm_vid='));
-  const sid = doc.writes.find((w) => w.startsWith('lcm_sid='));
+  const vid = doc.writes.find((w) => w.startsWith("lcm_vid="));
+  const sid = doc.writes.find((w) => w.startsWith("lcm_sid="));
   assert.match(vid, /Path=\/; Max-Age=34560000; SameSite=Lax; Secure$/);
   assert.match(sid, /Path=\/; Max-Age=28500; SameSite=Lax; Secure$/);
   assert.doesNotMatch(vid, /Domain=/);
-  const local = setup({ protocol: 'http:' });
+  const local = setup({ protocol: "http:" });
   local.api.start(local.gtag);
-  assert.doesNotMatch(local.doc.writes.find((w) => w.startsWith('lcm_vid=')), /Secure/);
+  assert.doesNotMatch(local.doc.writes.find((w) => w.startsWith("lcm_vid=")), /Secure/);
 });
 
-test('the ID never comes from anything personal: only random UUIDs are kept', () => {
-  const { api, doc, calls, gtag } = setup({ cookies: { lcm_vid: encodeURIComponent('jane@example.com.3') } });
+test("the ID never comes from anything personal: only random UUIDs are kept", () => {
+  const { api, doc, calls, gtag } = setup({ cookies: { lcm_vid: encodeURIComponent("jane@example.com.3") } });
   api.start(gtag);
-  assert.match(cookie(doc, 'lcm_vid').split('.')[0], UUID);
+  assert.match(cookie(doc, "lcm_vid").split(".")[0], UUID);
   assert.doesNotMatch(JSON.stringify(calls), /jane|example/);
-  assert.equal(A.parseVisitor('not-a-uuid-at-all-but-36-characters.2'), null);
+  assert.equal(A.parseVisitor("not-a-uuid-at-all-but-36-characters.2"), null);
   for (let i = 0; i < 20; i++) assert.match(A.uuid(null, Math.random), UUID);
   assert.match(A.uuid({ getRandomValues: (a) => { a.fill(255); return a; } }), UUID);
 });
 
-test('a returning visitor keeps their ID; a session lasts until 7 hours 55 minutes without a page or click', () => {
+test("a returning visitor keeps their ID; a session lasts until 7 hours 55 minutes without a page or click", () => {
   const first = setup();
   first.api.start(first.gtag);
   const id = first.api.ids().visitorId;
   const sid = first.api.ids().sessionId;
 
   // Same session: the next page within the session timeout.
-  const page2 = setup({ cookies: { lcm_vid: id + '.1', lcm_sid: sid } });
+  const page2 = setup({ cookies: { lcm_vid: id + ".1", lcm_sid: sid } });
   page2.api.start(page2.gtag);
   assert.deepEqual(page2.api.ids(), { visitorId: id, sessionId: sid, sessionNumber: 1 });
 
   // The session cookie has expired: a new session, numbered 2.
-  const later = setup({ cookies: { lcm_vid: id + '.1' } });
+  const later = setup({ cookies: { lcm_vid: id + ".1" } });
   later.api.start(later.gtag);
   assert.equal(later.api.ids().visitorId, id);
   assert.notEqual(later.api.ids().sessionId, sid);
   assert.equal(later.api.ids().sessionNumber, 2);
-  assert.equal(cookie(later.doc, 'lcm_vid'), id + '.2');
+  assert.equal(cookie(later.doc, "lcm_vid"), id + ".2");
 });
 
-test('clicks keep the session cookie fresh, at most once a minute', () => {
+test("clicks keep the session cookie fresh, at most once a minute", () => {
   const s = setup();
   s.api.start(s.gtag);
-  const writes = () => s.doc.writes.filter((w) => w.startsWith('lcm_sid=')).length;
+  const writes = () => s.doc.writes.filter((w) => w.startsWith("lcm_sid=")).length;
   const before = writes();
   s.api.renew();
-  assert.equal(writes(), before, 'not again within a minute');
+  assert.equal(writes(), before, "not again within a minute");
   s.advance(61_000);
   s.api.renew();
   assert.equal(writes(), before + 1);
 });
 
-test('consent defaults: denied by Google region in Europe, then this browser\'s state', () => {
+test("consent defaults: denied by Google region in Europe, then this browser's state", () => {
   const { api, calls, gtag } = setup();
   api.start(gtag);
-  const defaults = calls.filter((c) => c[0] === 'consent' && c[1] === 'default');
+  const defaults = calls.filter((c) => c[0] === "consent" && c[1] === "default");
   assert.equal(defaults.length, 2);
-  assert.equal(defaults[0][2].analytics_storage, 'denied');
-  assert.ok(defaults[0][2].region.includes('DE') && defaults[0][2].region.includes('GB') && defaults[0][2].region.includes('CH'));
-  assert.equal(defaults[1][2].analytics_storage, 'granted');
+  assert.equal(defaults[0][2].analytics_storage, "denied");
+  assert.ok(defaults[0][2].region.includes("DE") && defaults[0][2].region.includes("GB") && defaults[0][2].region.includes("CH"));
+  assert.equal(defaults[1][2].analytics_storage, "granted");
   assert.equal(defaults[1][2].region, undefined);
   // Before the page's set and config.
-  assert.ok(calls.findIndex((c) => c[0] === 'consent') < calls.findIndex((c) => c[0] === 'set'));
+  assert.ok(calls.findIndex((c) => c[0] === "consent") < calls.findIndex((c) => c[0] === "set"));
 });
 
-test('in Europe nothing is set or sent until the visitor accepts', () => {
-  ['Europe/Berlin', 'Europe/London', 'Europe/Zurich', 'Atlantic/Canary'].forEach((tz) => {
+test("in Europe nothing is set or sent until the visitor accepts", () => {
+  ["Europe/Berlin", "Europe/London", "Europe/Zurich", "Atlantic/Canary"].forEach((tz) => {
     const { api, doc, win, calls, gtag } = setup({ timeZone: tz });
-    assert.equal(api.start(gtag), 'pending', tz);
-    assert.equal(cookie(doc, 'lcm_vid'), undefined);
-    assert.equal(cookie(doc, 'lcm_sid'), undefined);
-    assert.equal(win['ga-disable-G-B514HH987M'], true);
-    assert.equal(calls.find((c) => c[0] === 'set'), undefined);
+    assert.equal(api.start(gtag), "pending", tz);
+    assert.equal(cookie(doc, "lcm_vid"), undefined);
+    assert.equal(cookie(doc, "lcm_sid"), undefined);
+    assert.equal(win["ga-disable-G-B514HH987M"], true);
+    assert.equal(calls.find((c) => c[0] === "set"), undefined);
 
-    api.setConsent('granted');
-    assert.equal(cookie(doc, 'lcm_consent'), 'granted');
-    assert.match(cookie(doc, 'lcm_vid'), /\.1$/);
-    assert.equal(win['ga-disable-G-B514HH987M'], false);
-    assert.deepEqual(calls.find((c) => c[0] === 'consent' && c[1] === 'update')[2].analytics_storage, 'granted');
-    assert.ok(calls.find((c) => c[0] === 'set'));
-    assert.deepEqual(calls[calls.length - 1], ['event', 'page_view'], 'the held-back page view is sent');
+    api.setConsent("granted");
+    assert.equal(cookie(doc, "lcm_consent"), "granted");
+    assert.match(cookie(doc, "lcm_vid"), /\.1$/);
+    assert.equal(win["ga-disable-G-B514HH987M"], false);
+    assert.deepEqual(calls.find((c) => c[0] === "consent" && c[1] === "update")[2].analytics_storage, "granted");
+    assert.ok(calls.find((c) => c[0] === "set"));
+    assert.deepEqual(calls[calls.length - 1], ["event", "page_view"], "the held-back page view is sent");
   });
-  ['America/New_York', 'America/Los_Angeles', 'Asia/Hong_Kong', ''].forEach((tz) => {
-    assert.equal(setup({ timeZone: tz }).api.start(() => {}), 'granted', tz || 'no time zone');
+  ["America/New_York", "America/Los_Angeles", "Asia/Hong_Kong", ""].forEach((tz) => {
+    assert.equal(setup({ timeZone: tz }).api.start(() => {}), "granted", tz || "no time zone");
   });
 });
 
-test('the banner opens by itself only in Europe; Cookie Settings opens it anywhere', () => {
+test("the banner opens by itself only in Europe; Cookie Settings opens it anywhere", () => {
   const page = (tz) => {
     const body = { children: [], appendChild(el) { this.children.push(el); } };
     const el = () => ({ hidden: false, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, querySelector: () => null });
     const doc = cookieJar();
-    Object.assign(doc, { body, readyState: 'complete', addEventListener() {}, createElement: el, querySelectorAll: () => [] });
-    const api = A.create({ window: {}, document: doc, navigator: {}, location: { protocol: 'https:', hostname: 'luckycatmahjong.com' }, timeZone: tz });
+    Object.assign(doc, { body, readyState: "complete", addEventListener() {}, createElement: el, querySelectorAll: () => [] });
+    const api = A.create({ window: {}, document: doc, navigator: {}, location: { protocol: "https:", hostname: "luckycatmahjong.com" }, timeZone: tz });
     api.start(() => {});
     return { api, body };
   };
-  const us = page('America/New_York');
-  assert.equal(us.body.children.length, 0, 'no banner in the US');
+  const us = page("America/New_York");
+  assert.equal(us.body.children.length, 0, "no banner in the US");
   us.api.openSettings();
-  assert.equal(us.body.children.length, 1, 'Cookie Settings opens it');
+  assert.equal(us.body.children.length, 1, "Cookie Settings opens it");
   assert.equal(us.body.children[0].hidden, false);
-  const eu = page('Europe/London');
-  assert.equal(eu.body.children.length, 1, 'the banner opens by itself in Europe');
+  const eu = page("Europe/London");
+  assert.equal(eu.body.children.length, 1, "the banner opens by itself in Europe");
 });
 
-test('closing Cookie Settings without Decline accepts, outside Europe only', () => {
+test("closing Cookie Settings without Decline accepts, outside Europe only", () => {
   const page = (tz, cookies) => {
     const body = { children: [], appendChild(el) { this.children.push(el); } };
     const el = () => ({ hidden: false, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, querySelector: () => null, contains: () => false });
     const doc = cookieJar();
-    if (cookies) Object.entries(cookies).forEach(([k, v]) => { doc.cookie = k + '=' + v + '; Path=/'; });
-    Object.assign(doc, { body, readyState: 'complete', addEventListener() {}, createElement: el, querySelectorAll: () => [] });
-    const api = A.create({ window: {}, document: doc, navigator: {}, location: { protocol: 'https:', hostname: 'luckycatmahjong.com' }, timeZone: tz });
+    if (cookies) Object.entries(cookies).forEach(([k, v]) => { doc.cookie = k + "=" + v + "; Path=/"; });
+    Object.assign(doc, { body, readyState: "complete", addEventListener() {}, createElement: el, querySelectorAll: () => [] });
+    const api = A.create({ window: {}, document: doc, navigator: {}, location: { protocol: "https:", hostname: "luckycatmahjong.com" }, timeZone: tz });
     api.start(() => {});
     return { api, doc, body };
   };
   // A US visitor who had declined opens Cookie Settings and clicks away: that's Accept.
-  const us = page('America/New_York', { lcm_consent: 'denied' });
+  const us = page("America/New_York", { lcm_consent: "denied" });
   us.api.openSettings();
   us.api.dismissBanner();
-  assert.equal(cookie(us.doc, 'lcm_consent'), 'granted');
-  assert.ok(cookie(us.doc, 'lcm_vid'));
+  assert.equal(cookie(us.doc, "lcm_consent"), "granted");
+  assert.ok(cookie(us.doc, "lcm_vid"));
   assert.equal(us.body.children[0].hidden, true);
   // In Europe it only closes: no choice is made for them.
-  const eu = page('Europe/Berlin');
+  const eu = page("Europe/Berlin");
   eu.api.openSettings();
   eu.api.dismissBanner();
-  assert.equal(cookie(eu.doc, 'lcm_consent'), undefined);
-  assert.equal(cookie(eu.doc, 'lcm_vid'), undefined);
+  assert.equal(cookie(eu.doc, "lcm_consent"), undefined);
+  assert.equal(cookie(eu.doc, "lcm_vid"), undefined);
   assert.equal(eu.body.children[0].hidden, true);
   // The banner that opens by itself in Europe isn't closed by a click elsewhere.
-  const eu2 = page('Europe/Paris');
+  const eu2 = page("Europe/Paris");
   eu2.api.dismissBanner();
   assert.equal(eu2.body.children[0].hidden, false);
 });
 
-test('declining deletes the IDs and Google\'s cookies and disables GA', () => {
-  const { api, doc, win, calls, gtag } = setup({ cookies: { _ga: 'GA1.1.123', _ga_B514HH987M: 'GS1.1.x' } });
+test("declining deletes the IDs and Google's cookies and disables GA", () => {
+  const { api, doc, win, calls, gtag } = setup({ cookies: { _ga: "GA1.1.123", _ga_B514HH987M: "GS1.1.x" } });
   api.start(gtag);
-  assert.ok(cookie(doc, 'lcm_vid'));
-  api.setConsent('denied');
-  assert.equal(cookie(doc, 'lcm_consent'), 'denied');
-  assert.equal(cookie(doc, 'lcm_vid'), undefined);
-  assert.equal(cookie(doc, 'lcm_sid'), undefined);
-  assert.equal(cookie(doc, '_ga'), undefined);
-  assert.equal(cookie(doc, '_ga_B514HH987M'), undefined);
-  assert.ok(doc.writes.some((w) => w.startsWith('_ga=') && /Domain=\.luckycatmahjong\.com/.test(w)), 'on the parent domain too');
-  assert.equal(win['ga-disable-G-B514HH987M'], true);
+  assert.ok(cookie(doc, "lcm_vid"));
+  api.setConsent("denied");
+  assert.equal(cookie(doc, "lcm_consent"), "denied");
+  assert.equal(cookie(doc, "lcm_vid"), undefined);
+  assert.equal(cookie(doc, "lcm_sid"), undefined);
+  assert.equal(cookie(doc, "_ga"), undefined);
+  assert.equal(cookie(doc, "_ga_B514HH987M"), undefined);
+  assert.ok(doc.writes.some((w) => w.startsWith("_ga=") && /Domain=\.luckycatmahjong\.com/.test(w)), "on the parent domain too");
+  assert.equal(win["ga-disable-G-B514HH987M"], true);
   assert.equal(api.fields().user_id, undefined);
-  assert.equal(calls.find((c) => c[0] === 'consent' && c[1] === 'update')[2].analytics_storage, 'denied');
+  assert.equal(calls.find((c) => c[0] === "consent" && c[1] === "update")[2].analytics_storage, "denied");
 
   // The next page remembers it.
-  const next = setup({ cookies: { lcm_consent: 'denied' } });
-  assert.equal(next.api.start(next.gtag), 'denied');
-  assert.equal(cookie(next.doc, 'lcm_vid'), undefined);
+  const next = setup({ cookies: { lcm_consent: "denied" } });
+  assert.equal(next.api.start(next.gtag), "denied");
+  assert.equal(cookie(next.doc, "lcm_vid"), undefined);
 });
 
-test('Global Privacy Control turns analytics off unless the visitor turns it on', () => {
+test("Global Privacy Control turns analytics off unless the visitor turns it on", () => {
   const gpc = { globalPrivacyControl: true };
   const s = setup({ navigator: gpc });
-  assert.equal(s.api.start(s.gtag), 'denied');
-  assert.equal(cookie(s.doc, 'lcm_vid'), undefined);
-  const chose = setup({ navigator: gpc, cookies: { lcm_consent: 'granted' } });
-  assert.equal(chose.api.start(chose.gtag), 'granted');
+  assert.equal(s.api.start(s.gtag), "denied");
+  assert.equal(cookie(s.doc, "lcm_vid"), undefined);
+  const chose = setup({ navigator: gpc, cookies: { lcm_consent: "granted" } });
+  assert.equal(chose.api.start(chose.gtag), "granted");
 });
 
-test('the privacy page explains every cookie the tracker sets, and the GA4 settings', () => {
-  const html = fs.readFileSync(path.join(ROOT, 'privacy-policy/index.html'), 'utf8');
-  Object.values(A.COOKIES).forEach((name) => assert.match(html, new RegExp('<code>' + name + '</code>'), name));
+test("the privacy page explains every cookie the tracker sets, and the GA4 settings", () => {
+  const html = fs.readFileSync(path.join(ROOT, "privacy-policy/index.html"), "utf8");
+  Object.values(A.COOKIES).forEach((name) => assert.match(html, new RegExp("<code>" + name + "</code>"), name));
   assert.match(html, /<code>_ga<\/code>/);
-  assert.match(html, /400 days, renewed on each visit/, 'lcm_vid lasts as long as the code keeps it');
-  assert.match(html, /7 hours 55 minutes without activity/, 'lcm_sid lasts as long as the code keeps it');
-  ['Google signals', 'User-ID', 'granular location and device data'].forEach((s) => assert.ok(html.includes(s), s));
+  assert.match(html, /400 days, renewed on each visit/, "lcm_vid lasts as long as the code keeps it");
+  assert.match(html, /7 hours 55 minutes without activity/, "lcm_sid lasts as long as the code keeps it");
+  ["Google signals", "User-ID", "granular location and device data"].forEach((s) => assert.ok(html.includes(s), s));
   assert.match(html, /We do not sell your personal information\. We do not share it with advertisers, marketers or other businesses for their own use\./);
   assert.doesNotMatch(html, /sell, or lease/);
-  assert.match(html, /mailto:events@luckycatmahjong\.com/, 'the contact email');
+  assert.match(html, /mailto:events@luckycatmahjong\.com/, "the contact email");
   assert.match(html, /Global Privacy Control/);
-  assert.doesNotMatch(html, /data-consent/, 'no on/off box on the page');
-  assert.match(html, /id="cookies"/, 'the banner links to #cookies');
+  assert.doesNotMatch(html, /data-consent/, "no on/off box on the page");
+  assert.match(html, /id="cookies"/, "the banner links to #cookies");
   assert.match(html, /id="choices"[^>]*>7\. California Residents: Your Privacy Choices/);
 });

@@ -34,18 +34,18 @@
    docs/strategies/only-orphans.md. */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
-  var node = typeof module !== 'undefined' && module.exports;
-  var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var B = node ? require('./mahjong-bot.js') : root.MahjongBot;
-  var ML = node ? require('./mahjong-ml.js') : root.MahjongML;
+  var node = typeof module !== "undefined" && module.exports;
+  var E = node ? require("./mahjong-engine.js") : root.MahjongEngine;
+  var B = node ? require("./mahjong-bot.js") : root.MahjongBot;
+  var ML = node ? require("./mahjong-ml.js") : root.MahjongML;
 
-  var ID = 'only-orphans';
+  var ID = "only-orphans";
 
   function shippedWeights() {
     if (!node) return root.MahjongOnlyOrphansWeights || null;
-    try { return require('./mahjong-only-orphans-weights.js'); } catch (err) { return null; }
+    try { return require("./mahjong-only-orphans-weights.js"); } catch (err) { return null; }
   }
 
   /* ------------------------------------------------------------------ *
@@ -58,13 +58,13 @@
    *    what the seat can see goes in: its tiles and the unseen counts.
    * ------------------------------------------------------------------ */
 
-  var TARGETS = ['orphans', 'major-sets', 'major-pairs', 'pairs', 'concealed-triplets'];
+  var TARGETS = ["orphans", "major-sets", "major-pairs", "pairs", "concealed-triplets"];
   var LABELS = {
-    orphans: 'Thirteen Orphans',
-    'major-sets': 'triplets of 1s, 9s and honors',
-    'major-pairs': 'pairs of 1s, 9s and honors',
-    pairs: 'Seven Pairs',
-    'concealed-triplets': 'Concealed Triplets',
+    orphans: "Thirteen Orphans",
+    "major-sets": "triplets of 1s, 9s and honors",
+    "major-pairs": "pairs of 1s, 9s and honors",
+    pairs: "Seven Pairs",
+    "concealed-triplets": "Concealed Triplets",
   };
   var SWITCH = 1.3;
 
@@ -89,7 +89,7 @@
   // Seven different pairs of any tiles, nothing claimed.
   function sevenPairsPlan(c, ctx) {
     if (ctx.declared) return null;
-    var p = B.makeSpecialPlan('pairs', c, ctx);
+    var p = B.makeSpecialPlan("pairs", c, ctx);
     p.committed = true;
     return p;
   }
@@ -98,7 +98,7 @@
   function concealedTripletsPlan(c, ctx) {
     if (exposed(ctx) || ctx.hasChow) return null;
     return {
-      id: 'concealed-triplets', label: 'Concealed Triplets', counts: c, shantenFn: E.tripletsShanten,
+      id: "concealed-triplets", label: "Concealed Triplets", counts: c, shantenFn: E.tripletsShanten,
       faan: Math.min(13, B.baseFaan(ctx) + 10 + B.handYaku(ctx, c)), open: false, committed: true,
     };
   }
@@ -106,13 +106,13 @@
   // Every target's plans for a hand waiting to draw (13 tiles, less melds).
   function targetPlans(c, ctx) {
     var out = [];
-    if (!ctx.declared && B.orphansAlive(c, ctx)) out.push({ target: 'orphans', plan: B.makeSpecialPlan('orphans', c, ctx) });
-    setPlans(c, ctx).forEach(function (p) { out.push({ target: 'major-sets', plan: p }); });
-    pairPlans(c, ctx).forEach(function (p) { out.push({ target: 'major-pairs', plan: p }); });
+    if (!ctx.declared && B.orphansAlive(c, ctx)) out.push({ target: "orphans", plan: B.makeSpecialPlan("orphans", c, ctx) });
+    setPlans(c, ctx).forEach(function (p) { out.push({ target: "major-sets", plan: p }); });
+    pairPlans(c, ctx).forEach(function (p) { out.push({ target: "major-pairs", plan: p }); });
     var sp = sevenPairsPlan(c, ctx);
-    if (sp) out.push({ target: 'pairs', plan: sp });
+    if (sp) out.push({ target: "pairs", plan: sp });
     var ct = concealedTripletsPlan(c, ctx);
-    if (ct) out.push({ target: 'concealed-triplets', plan: ct });
+    if (ct) out.push({ target: "concealed-triplets", plan: ct });
     return out;
   }
 
@@ -199,7 +199,7 @@
   function targetWorths(c, ctx) {
     // The same tiles read again in the same position (a turn reads its hand
     // more than once) are worth the same.
-    var key = c.join('') + '|' + ctx.declared + '|' + (exposed(ctx) ? 1 : 0);
+    var key = c.join("") + "|" + ctx.declared + "|" + (exposed(ctx) ? 1 : 0);
     var seen = ctx.ooWorths || (ctx.ooWorths = {});
     if (!seen[key]) seen[key] = readWorths(c, ctx);
     return seen[key];
@@ -214,7 +214,7 @@
     var done = {};
     var read = function (k) {
       targetPlans(k, ctx).forEach(function (e) {
-        var key = e.plan.id + ':' + e.plan.counts.join('');
+        var key = e.plan.id + ":" + e.plan.counts.join("");
         if (done[key] === undefined) done[key] = planWorth(e.plan, ctx);
         var w = done[key];
         if (w > worth[e.target]) worth[e.target] = w;
@@ -235,13 +235,13 @@
   function pickTarget(worth, now) {
     var best = null;
     TARGETS.forEach(function (t) { if (worth[t] > 0 && (!best || worth[t] > worth[best])) best = t; });
-    if (!best) return now || 'orphans';
+    if (!best) return now || "orphans";
     if (now && worth[now] > 0 && worth[best] < worth[now] * SWITCH) return now;
     return best;
   }
 
   // Each copy of the strategy (a training copy, say) keeps its own record.
-  function memoKey() { return 'ooTarget:' + (B.currentTuning().id || ID); }
+  function memoKey() { return "ooTarget:" + (B.currentTuning().id || ID); }
 
   function isRealHand(game, seat, ctx, counts) {
     var s = game.hand.seats[seat];
@@ -284,15 +284,15 @@
   function plans(c, ctx) {
     var t = ctx.ooTarget;
     var out = [];
-    if (t === 'pairs') {
+    if (t === "pairs") {
       var sp = sevenPairsPlan(c, ctx);
       if (sp) out = [sp].concat(pairPlans(c, ctx));
-    } else if (t === 'concealed-triplets') {
+    } else if (t === "concealed-triplets") {
       var ct = concealedTripletsPlan(c, ctx);
       if (ct) out = [ct].concat(setPlans(c, ctx));
     }
     if (!out.length) {
-      out = !ctx.declared && B.orphansAlive(c, ctx) ? [B.makeSpecialPlan('orphans', c, ctx)] : [];
+      out = !ctx.declared && B.orphansAlive(c, ctx) ? [B.makeSpecialPlan("orphans", c, ctx)] : [];
       out = out.concat(pivotPlans(c, ctx));
     }
     // (The usual hands only if a meld somehow rules all of those out.)
@@ -318,7 +318,7 @@
     var held = 0;
     for (var i = 0; i < 34; i++) held += counts[i];
     if (held % 3 === 2 && isRealHand(ctx.game, ctx.seat, ctx, counts)) ctx.ooTarget = readTarget(ctx, counts, true);
-    else if (exposed(ctx)) ctx.ooTarget = 'major-sets';
+    else if (exposed(ctx)) ctx.ooTarget = "major-sets";
   }
 
   // A tile the target can't use, which must go first: on Seven Pairs one not
@@ -327,8 +327,8 @@
   function mustGo(ctx, counts, i) {
     if (B.isOrphanIndex(i)) return false;
     var t = ctx.ooTarget;
-    if (t === 'pairs') return counts[i] !== 2;
-    if (t === 'concealed-triplets') return counts[i] < 2;
+    if (t === "pairs") return counts[i] !== 2;
+    if (t === "concealed-triplets") return counts[i] < 2;
     return true;
   }
 
@@ -342,14 +342,14 @@
   // A kong on the triplets target (of a 1, a 9 or an honor), or a concealed
   // one on Concealed Triplets. Thirteen Orphans and the pairs hands can't use one.
   function kongFits(kong, t) {
-    if (t === 'major-sets') return orphanTile(kong.tile);
-    if (t === 'concealed-triplets') return kong.kind === 'concealed';
+    if (t === "major-sets") return orphanTile(kong.tile);
+    if (t === "concealed-triplets") return kong.kind === "concealed";
     return false;
   }
   function kongOk(kong, ctx) { return kongFits(kong, ctx.ooTarget); }
 
   // It passes unless the model takes a pung or kong the target allows.
-  function claim() { return { type: 'pass' }; }
+  function claim() { return { type: "pass" }; }
 
   var hooks = { context: context, hand: hand, plans: plans, priority: priority, kongOk: kongOk, claim: claim };
   var tuning = { valuePower: 0.5, ownPlans: true };
@@ -370,21 +370,21 @@
 
   function create(options) {
     options = options || {};
-    var base = B.createStrategy({ id: ID + '-rules', hooks: hooks, tuning: tuning });
+    var base = B.createStrategy({ id: ID + "-rules", hooks: hooks, tuning: tuning });
 
     // A pung or kong of a 1, a 9 or an honor: on the triplets target, or when
     // the claim makes that target worth SWITCH times the one it's on.
     function claimOk(option, opts, game, seat) {
-      if (option.decision.type === 'chow' || !orphanTile(opts.tile)) return false;
+      if (option.decision.type === "chow" || !orphanTile(opts.tile)) return false;
       var ctx = bot.buildContext(game, seat);
       var t = ctx.ooTarget;
-      if (t === 'major-sets') return true;
+      if (t === "major-sets") return true;
       var c = E.countsOf(game.hand.seats[seat].hand);
       var now = targetWorths(c, ctx)[t] || 0;
-      var kong = option.decision.type === 'kong';
+      var kong = option.decision.type === "kong";
       c[E.tileIndex(opts.tile)] -= kong ? 3 : 2;
       var tiles = [opts.tile, opts.tile, opts.tile].concat(kong ? [opts.tile] : []);
-      var after = targetWorths(c, B.withMeld(ctx, { type: kong ? 'kong' : 'pung', tiles: tiles, concealed: false }))['major-sets'];
+      var after = targetWorths(c, B.withMeld(ctx, { type: kong ? "kong" : "pung", tiles: tiles, concealed: false }))["major-sets"];
       return after > 0 && after >= now * SWITCH;
     }
     function kongAllowed(kong, game, seat) {
@@ -411,7 +411,7 @@
     // from, at } (from: the target it left, at: on which discard), or null.
     bot.targetOf = function (game, seat) {
       var s = game.hand.seats[seat];
-      var memo = s['ooTarget:' + (bot.tuning.id || ID)];
+      var memo = s["ooTarget:" + (bot.tuning.id || ID)];
       return memo ? { id: memo.id, label: LABELS[memo.id], worth: memo.worth, from: memo.from, at: memo.at } : null;
     };
     return bot;
@@ -430,4 +430,4 @@
 
   if (node) module.exports = api;
   else root.MahjongOnlyOrphans = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== "undefined" ? globalThis : this);

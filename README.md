@@ -478,6 +478,18 @@ CI also fails a PR that changes the game without raising `GAME_VERSION` (`npm ru
 
 Harnesses in `js/points.harness.js` and `js/main.harness.js` load each script in a mocked browser environment, so scoring logic and homepage rendering can be tested without opening the page.
 
+## Lint
+
+```bash
+npm install            # ESLint
+pipx install ruff      # or pip install ruff
+npm run lint
+```
+
+ESLint needs Node.js 20.19+ or 22.13+. It checks the JS and the pages' inline scripts (`eslint.config.js`); Ruff checks the Python (`ruff.toml`), down to Python 3.10's f-string rules. Both want double quotes, with an apostrophe written as a plain `'`, never `\'`. The `lint` CI job runs them on every push and PR.
+
+`eslint-suppressions.json` records the problems the code had when ESLint arrived, so only new ones fail. After you fix one, run `npx eslint . --prune-suppressions`: the lint fails while the file lists a problem that's gone.
+
 ## Other scripts
 
 ### Media formatting
@@ -599,7 +611,10 @@ Site styles (`css/`) and the Events page are edited directly too.
 │   └── strategies/                      # Bot and coach playbooks
 ├── assets/                              # Music, sounds, PDFs and images
 ├── fonts/                               # The web font
-├── .github/workflows/test.yml           # CI: npm test, the game version and the native pin
+├── .github/workflows/test.yml           # CI: npm test, the game version, lint and the native pin
+├── eslint.config.js                     # Lint rules for the JS (npm run lint)
+├── eslint-suppressions.json             # The JS problems from before the lint, to fix
+├── ruff.toml                            # Lint rules for the Python
 ├── package.json                         # npm scripts
 ├── tiles/                               # Hong Kong mahjong tile SVGs (CC0, see credit below)
 ├── data/

@@ -119,7 +119,7 @@ HIDDEN = [256, 128]
 PUBLIC = [None]
 # Where the danger row (each discard's points paid now) starts in an --oracle row.
 DANGER_AT = [None]
-CRITIC_LOSS = ['mse']
+CRITIC_LOSS = ["mse"]
 # Where the hidden tiles start in an --oracle row, and each opponent's block (scripts/ml/oracle.js).
 ORACLE_AT = [None]
 PER = [69]
@@ -132,31 +132,31 @@ def load_q(dirs, q_points=None):
     xs, legal, qa, q, hs = [], [], [], [], []
     size = version = None
     for di, d in enumerate(dirs):
-        meta = json.load(open(os.path.join(ROOT, d, 'meta.json')))
-        size, version = meta['featureSize'], meta['featureVersion']
-        if not meta.get('rollouts'):
-            raise SystemExit(d + ' has no rollouts (generate it with --rollouts)')
-        slots = meta['rollouts']['slots']
+        meta = json.load(open(os.path.join(ROOT, d, "meta.json")))
+        size, version = meta["featureSize"], meta["featureVersion"]
+        if not meta.get("rollouts"):
+            raise SystemExit(d + " has no rollouts (generate it with --rollouts)")
+        slots = meta["rollouts"]["slots"]
         for f in sorted(os.listdir(os.path.join(ROOT, d))):
-            if not f.endswith('.qa.u1'):
+            if not f.endswith(".qa.u1"):
                 continue
             base = os.path.join(ROOT, d, f[:-6])
-            t = np.fromfile(base + '.qa.u1', dtype=np.uint8).reshape(-1, slots)
+            t = np.fromfile(base + ".qa.u1", dtype=np.uint8).reshape(-1, slots)
             if not len(t):
                 continue
             # Four slots whatever the data had: the move played and up to three tried.
             qa.append(np.concatenate([t, np.full((len(t), 4), 255, dtype=np.uint8)], axis=1)[:, :4])
-            qv = np.fromfile(base + '.q.f4', dtype='<f4').reshape(-1, slots)
+            qv = np.fromfile(base + ".q.f4", dtype="<f4").reshape(-1, slots)
             # --q-points B: each move's replayed mean points plus B for a sure win
             # (.qp.f4 beside the share of replays won, lcm-sim generate-lcv).
             if q_points is not None:
-                qv = np.fromfile(base + '.qp.f4', dtype='<f4').reshape(-1, slots) + q_points * qv
+                qv = np.fromfile(base + ".qp.f4", dtype="<f4").reshape(-1, slots) + q_points * qv
             q.append(np.concatenate([qv, np.zeros((len(t), 4), np.float32)], axis=1)[:, :4])
-            xs.append(np.fromfile(base + '.x.f16', dtype='<f2').reshape(-1, size))
-            m = np.unpackbits(np.fromfile(base + '.m.u1', dtype=np.uint8).reshape(-1, 10), axis=1, bitorder='little')[:, :OUTPUTS]
+            xs.append(np.fromfile(base + ".x.f16", dtype="<f2").reshape(-1, size))
+            m = np.unpackbits(np.fromfile(base + ".m.u1", dtype=np.uint8).reshape(-1, 10), axis=1, bitorder="little")[:, :OUTPUTS]
             legal.append(m.astype(bool))
-            shard = int(f.split('-')[1].split('.')[0])
-            hs.append(np.fromfile(base + '.h.u4', dtype='<u4').astype(np.int64) + (di * 1000 + shard) * (1 << 32))
+            shard = int(f.split("-")[1].split(".")[0])
+            hs.append(np.fromfile(base + ".h.u4", dtype="<u4").astype(np.int64) + (di * 1000 + shard) * (1 << 32))
     return np.concatenate(xs), np.concatenate(legal), np.concatenate(qa), np.concatenate(q), np.concatenate(hs), size, version
 
 
@@ -167,20 +167,20 @@ def train_q(args, hidden, init_hidden):
     valid = qa != 255
     adv = np.clip(q - q[:, :1], -args.reward_clip, args.reward_clip) * valid
     reps = max(1, int(valid.sum()) - n)
-    print(f'{n} choices from {len(args.data)} rounds ({x.shape[1]} features), {reps} replays; '
-          f'{100 * float((np.abs(adv[:, 1:]) > 0).sum()) / reps:.1f}% changed the points, '
-          f'{100 * float((adv[:, 1:] > 0).sum()) / reps:.1f}% for the better')
+    print(f"{n} choices from {len(args.data)} rounds ({x.shape[1]} features), {reps} replays; "
+          f"{100 * float((np.abs(adv[:, 1:]) > 0).sum()) / reps:.1f}% changed the points, "
+          f"{100 * float((adv[:, 1:] > 0).sum()) / reps:.1f}% for the better")
     torch.manual_seed(1)
-    dev = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f'training on {dev}' + (f' ({torch.cuda.get_device_name(0)})' if dev == 'cuda' else ''))
+    dev = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"training on {dev}" + (f" ({torch.cuda.get_device_name(0)})" if dev == "cuda" else ""))
     shape = hidden or init_hidden
     net = Net(size, args.dropout, shape)
     init = json.load(open(os.path.join(ROOT, args.init)))
     with torch.no_grad():
-        for l, src in zip(net.layers, init['layers']):
-            l.weight.copy_(torch.from_numpy(floats(src['w'], init.get('dtype')).reshape(src['rows'], src['cols'])))
-            l.bias.copy_(torch.from_numpy(floats(src['b'], init.get('dtype'))))
-    print('from ' + args.init)
+        for l, src in zip(net.layers, init["layers"]):
+            l.weight.copy_(torch.from_numpy(floats(src["w"], init.get("dtype")).reshape(src["rows"], src["cols"])))
+            l.bias.copy_(torch.from_numpy(floats(src["b"], init.get("dtype"))))
+    print("from " + args.init)
     net.to(dev)
     ref = Net(size, 0.0, shape).to(dev)
     ref.load_state_dict(net.state_dict(), strict=False)
@@ -215,7 +215,7 @@ def train_q(args, hidden, init_hidden):
         return ce, kl, gain
 
     opt = torch.optim.AdamW(net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    best, best_state, stats = float('inf'), None, {}
+    best, best_state, stats = float("inf"), None, {}
     for ep in range(args.epochs):
         net.train()
         perm = torch.from_numpy(rng.permutation(tr))
@@ -231,14 +231,14 @@ def train_q(args, hidden, init_hidden):
                 idx = torch.from_numpy(va[s_:s_ + 8192])
                 tot += np.array([v.item() for v in q_loss(idx)]) * len(idx)
             ce, kl, gain = tot / len(va)
-        print(f'epoch {ep + 1}: held-out cross-entropy {ce:.4f}, KL from the champion {kl:.4f}, points gained on the moves tried {gain:+.2f}')
+        print(f"epoch {ep + 1}: held-out cross-entropy {ce:.4f}, KL from the champion {kl:.4f}, points gained on the moves tried {gain:+.2f}")
         if ce < best:
             best = ce
             best_state = {k: v.detach().cpu().clone() for k, v in net.state_dict().items()}
-            stats = {'epochs': ep + 1, 'kl': float(kl), 'heldOutGain': float(gain)}
+            stats = {"epochs": ep + 1, "kl": float(kl), "heldOutGain": float(gain)}
     net.load_state_dict(best_state)
     net.cpu().eval()
-    meta_train = dict({'mode': 'q', 'tau': args.tau, 'qPoints': args.q_points, 'rewardClip': args.reward_clip, 'lr': args.lr, 'choices': int(n)}, **stats)
+    meta_train = dict({"mode": "q", "tau": args.tau, "qPoints": args.q_points, "rewardClip": args.reward_clip, "lr": args.lr, "choices": int(n)}, **stats)
     return net, x, va, n, size, version, best, meta_train
 
 
@@ -247,40 +247,40 @@ def load(dirs, returns=False):
     rs, ps, os_, hs, ts = [], [], [], [], []
     size = version = None
     for di, d in enumerate(dirs):
-        meta = json.load(open(os.path.join(ROOT, d, 'meta.json')))
-        if size is not None and meta['featureSize'] != size:
-            raise SystemExit(d + ' has ' + str(meta['featureSize']) + ' features a row, the others ' + str(size) + ' (mix --oracle data only with --oracle data)')
-        size, version = meta['featureSize'], meta['featureVersion']
-        PUBLIC[0] = ((meta.get('oracle') or {}).get('publicSize')) or size
-        DANGER_AT[0] = (meta.get('oracle') or {}).get('dangerAt')
-        ORACLE_AT[0] = (meta.get('oracle') or {}).get('oracleAt') or PUBLIC[0]
-        PER[0] = (meta.get('oracle') or {}).get('per') or 69
-        if returns and not meta.get('returns'):
-            raise SystemExit(d + ' has no returns (generate it with --returns)')
-        temp = float((meta.get('job') or {}).get('temperature') or 1)
+        meta = json.load(open(os.path.join(ROOT, d, "meta.json")))
+        if size is not None and meta["featureSize"] != size:
+            raise SystemExit(d + " has " + str(meta["featureSize"]) + " features a row, the others " + str(size) + " (mix --oracle data only with --oracle data)")
+        size, version = meta["featureSize"], meta["featureVersion"]
+        PUBLIC[0] = ((meta.get("oracle") or {}).get("publicSize")) or size
+        DANGER_AT[0] = (meta.get("oracle") or {}).get("dangerAt")
+        ORACLE_AT[0] = (meta.get("oracle") or {}).get("oracleAt") or PUBLIC[0]
+        PER[0] = (meta.get("oracle") or {}).get("per") or 69
+        if returns and not meta.get("returns"):
+            raise SystemExit(d + " has no returns (generate it with --returns)")
+        temp = float((meta.get("job") or {}).get("temperature") or 1)
         for f in sorted(os.listdir(os.path.join(ROOT, d))):
-            if not f.endswith('.a.u1'):
+            if not f.endswith(".a.u1"):
                 continue
             base = os.path.join(ROOT, d, f[:-5])
-            a = np.fromfile(base + '.a.u1', dtype=np.uint8)
+            a = np.fromfile(base + ".a.u1", dtype=np.uint8)
             if not len(a):
                 continue
             acts.append(a)
-            xs.append(np.fromfile(base + '.x.f16', dtype='<f2').reshape(-1, size))
-            m = np.unpackbits(np.fromfile(base + '.m.u1', dtype=np.uint8).reshape(-1, 10), axis=1, bitorder='little')[:, :OUTPUTS]
+            xs.append(np.fromfile(base + ".x.f16", dtype="<f2").reshape(-1, size))
+            m = np.unpackbits(np.fromfile(base + ".m.u1", dtype=np.uint8).reshape(-1, 10), axis=1, bitorder="little")[:, :OUTPUTS]
             legal.append(m.astype(bool))
-            ws.append(np.fromfile(base + '.w.f4', dtype='<f4'))
+            ws.append(np.fromfile(base + ".w.f4", dtype="<f4"))
             if returns:
-                rs.append(np.fromfile(base + '.r.f4', dtype='<f4'))
-                ps.append(np.fromfile(base + '.p.f4', dtype='<f4'))
-                os_.append(np.fromfile(base + '.o.u1', dtype=np.uint8))
+                rs.append(np.fromfile(base + ".r.f4", dtype="<f4"))
+                ps.append(np.fromfile(base + ".p.f4", dtype="<f4"))
+                os_.append(np.fromfile(base + ".o.u1", dtype=np.uint8))
                 # A hand id unique across shards and data sets.
-                shard = int(f.split('-')[1].split('.')[0])
-                hs.append(np.fromfile(base + '.h.u4', dtype='<u4').astype(np.int64) + (di * 1000 + shard) * (1 << 32))
+                shard = int(f.split("-")[1].split(".")[0])
+                hs.append(np.fromfile(base + ".h.u4", dtype="<u4").astype(np.int64) + (di * 1000 + shard) * (1 << 32))
                 ts.append(np.full(len(a), temp, dtype=np.float32))
     out = [np.concatenate(xs), np.concatenate(acts).astype(np.int64), np.concatenate(legal), np.concatenate(ws), size, version]
     if returns:
-        out.append({'r': np.concatenate(rs), 'p': np.concatenate(ps), 'o': np.concatenate(os_), 'h': np.concatenate(hs), 't': np.concatenate(ts)})
+        out.append({"r": np.concatenate(rs), "p": np.concatenate(ps), "o": np.concatenate(os_), "h": np.concatenate(hs), "t": np.concatenate(ts)})
     return out
 
 
@@ -324,7 +324,7 @@ def aux_loss(out, xb, P):
     l_r = bce(out[:, b:b + 3], ready)
     l_s = nn.functional.mse_loss(torch.sigmoid(out[:, b + 3:b + 6]), steps)
     l_wall = nn.functional.mse_loss(torch.sigmoid(out[:, b + 6:b + 40]), wall)
-    d = bce(out[:, b + 40:b + 74], dealin, reduction='none')
+    d = bce(out[:, b + 40:b + 74], dealin, reduction="none")
     l_d = (d * held).sum() / held.sum().clamp(min=1)
     return l_w + l_r + l_s + 4 * l_wall + 2 * l_d
 
@@ -334,9 +334,9 @@ def auc(score, label):
     score, label = np.asarray(score, np.float64), np.asarray(label, bool)
     pos, neg = int(label.sum()), int((~label).sum())
     if not pos or not neg:
-        return float('nan')
+        return float("nan")
     ranks = np.empty(len(score))
-    order = np.argsort(score, kind='mergesort')
+    order = np.argsort(score, kind="mergesort")
     ranks[order] = np.arange(1, len(score) + 1)
     return float((ranks[label].sum() - pos * (pos + 1) / 2) / (pos * neg))
 
@@ -362,7 +362,7 @@ def fit_critic(X, R, train_idx, score_idx, dev, epochs, rng):
             # Squared error: the critic must learn the mean points (a baseline); a
             # Huber loss on these heavy-tailed rewards learns closer to the median.
             pred, tgt = c(X[idx].to(dev).float()), R[idx].to(dev)
-            loss = nn.functional.mse_loss(pred, tgt) if CRITIC_LOSS[0] == 'mse' else nn.functional.smooth_l1_loss(pred, tgt)
+            loss = nn.functional.mse_loss(pred, tgt) if CRITIC_LOSS[0] == "mse" else nn.functional.smooth_l1_loss(pred, tgt)
             opt.zero_grad()
             loss.backward()
             opt.step()
@@ -377,80 +377,80 @@ def fit_critic(X, R, train_idx, score_idx, dev, epochs, rng):
 
 def floats(v, dtype):
     if isinstance(v, str):
-        return np.frombuffer(base64.b64decode(v), dtype='<f2' if dtype == 'f16' else '<f4').astype(np.float32)
+        return np.frombuffer(base64.b64decode(v), dtype="<f2" if dtype == "f16" else "<f4").astype(np.float32)
     return np.asarray(v, dtype=np.float32)
 
 
 def b64(arr):
-    return base64.b64encode(np.ascontiguousarray(arr, dtype='<f2').tobytes()).decode('ascii')
+    return base64.b64encode(np.ascontiguousarray(arr, dtype="<f2").tobytes()).decode("ascii")
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--data', nargs='+', required=True)
-    ap.add_argument('--name', required=True)
-    ap.add_argument('--init')
-    ap.add_argument('--epochs', type=int, default=6)
-    ap.add_argument('--lr', type=float, default=1e-3)
-    ap.add_argument('--batch', type=int, default=1024)
-    ap.add_argument('--dropout', type=float, default=0.1)
-    ap.add_argument('--weight-decay', type=float, default=1e-4)
-    ap.add_argument('--smoothing', type=float, default=0.05)
+    ap.add_argument("--data", nargs="+", required=True)
+    ap.add_argument("--name", required=True)
+    ap.add_argument("--init")
+    ap.add_argument("--epochs", type=int, default=6)
+    ap.add_argument("--lr", type=float, default=1e-3)
+    ap.add_argument("--batch", type=int, default=1024)
+    ap.add_argument("--dropout", type=float, default=0.1)
+    ap.add_argument("--weight-decay", type=float, default=1e-4)
+    ap.add_argument("--smoothing", type=float, default=0.05)
     # Points first (data from lucky.js generate --returns).
-    ap.add_argument('--mode', choices=['imitate', 'pg', 'awr', 'q', 'oracle'], default='imitate')
-    ap.add_argument('--danger-tau', type=float, default=100.0, help='--mode oracle: the points paid that divide a discard\'s share by e')
-    ap.add_argument('--danger-weight', type=float, default=4.0, help='--mode oracle: weight of a choice with a discard that deals in')
-    ap.add_argument('--tau', type=float, default=100.0, help='--mode q: the points of advantage that multiply a share by e')
-    ap.add_argument('--reward', choices=['points', 'sqrt'], default='points', help='the hand\'s points, or their signed square root')
-    ap.add_argument('--reward-clip', type=float, default=4000)
-    ap.add_argument('--q-points', type=float, default=None, help='--mode q: target each move\'s replayed mean points plus this bonus for a sure win, instead of its share of replays won')
-    ap.add_argument('--win-bonus', type=float, default=0, help='points added to the reward of a hand won')
-    ap.add_argument('--critic-epochs', type=int, default=3)
-    ap.add_argument('--critic-loss', choices=['mse', 'huber'], default='mse', help='the critic\'s loss (huber was the default before Suphx)')
-    ap.add_argument('--clip', type=float, default=0.2)
-    ap.add_argument('--entropy', type=float, default=0.003)
-    ap.add_argument('--kl-max', type=float, default=0.03)
-    ap.add_argument('--beta', type=float, default=1.0)
-    ap.add_argument('--neg-weight', type=float, default=0.0)
-    ap.add_argument('--hidden', help='hidden layer sizes, e.g. 512,256 (a new network: --init is ignored)')
+    ap.add_argument("--mode", choices=["imitate", "pg", "awr", "q", "oracle"], default="imitate")
+    ap.add_argument("--danger-tau", type=float, default=100.0, help="--mode oracle: the points paid that divide a discard's share by e")
+    ap.add_argument("--danger-weight", type=float, default=4.0, help="--mode oracle: weight of a choice with a discard that deals in")
+    ap.add_argument("--tau", type=float, default=100.0, help="--mode q: the points of advantage that multiply a share by e")
+    ap.add_argument("--reward", choices=["points", "sqrt"], default="points", help="the hand's points, or their signed square root")
+    ap.add_argument("--reward-clip", type=float, default=4000)
+    ap.add_argument("--q-points", type=float, default=None, help="--mode q: target each move's replayed mean points plus this bonus for a sure win, instead of its share of replays won")
+    ap.add_argument("--win-bonus", type=float, default=0, help="points added to the reward of a hand won")
+    ap.add_argument("--critic-epochs", type=int, default=3)
+    ap.add_argument("--critic-loss", choices=["mse", "huber"], default="mse", help="the critic's loss (huber was the default before Suphx)")
+    ap.add_argument("--clip", type=float, default=0.2)
+    ap.add_argument("--entropy", type=float, default=0.003)
+    ap.add_argument("--kl-max", type=float, default=0.03)
+    ap.add_argument("--beta", type=float, default=1.0)
+    ap.add_argument("--neg-weight", type=float, default=0.0)
+    ap.add_argument("--hidden", help="hidden layer sizes, e.g. 512,256 (a new network: --init is ignored)")
     # Suphx (data from lucky.js generate --oracle).
-    ap.add_argument('--oracle-critic', action='store_true', help='the critic also reads the hidden tiles')
-    ap.add_argument('--oracle-delta', type=float, help='the policy reads the hidden tiles, each kept with this chance')
-    ap.add_argument('--oracle-anneal', help='A,B: lower the oracle delta from A to B over the epochs')
-    ap.add_argument('--public', action='store_true', help='write the model without the hidden tiles\' columns')
-    ap.add_argument('--reject-ratio', type=float, default=0, help='drop moves whose share moved more than this factor from the one played')
-    ap.add_argument('--target-entropy', type=float, default=0, help='adapt the entropy bonus to keep the entropy near this')
+    ap.add_argument("--oracle-critic", action="store_true", help="the critic also reads the hidden tiles")
+    ap.add_argument("--oracle-delta", type=float, help="the policy reads the hidden tiles, each kept with this chance")
+    ap.add_argument("--oracle-anneal", help="A,B: lower the oracle delta from A to B over the epochs")
+    ap.add_argument("--public", action="store_true", help="write the model without the hidden tiles' columns")
+    ap.add_argument("--reject-ratio", type=float, default=0, help="drop moves whose share moved more than this factor from the one played")
+    ap.add_argument("--target-entropy", type=float, default=0, help="adapt the entropy bonus to keep the entropy near this")
     # Frontier plan, phase 1 (data from lucky.js generate --oracle, usually --features v2).
-    ap.add_argument('--aux', type=float, default=0, help='weight of the auxiliary heads that predict the hidden tiles (targets, never inputs)')
-    ap.add_argument('--imitate-wins', type=float, default=0, help='--mode oracle with --returns data: also imitate the moves of hands won, at this weight')
-    ap.add_argument('--imitate-points', action='store_true', help='with --imitate-wins: weight each won hand\'s moves by the points it scored (mean 1 over wins), not equally, so a big win teaches more than a cheap one')
-    ap.add_argument('--teach', type=float, default=0, help='--mode pg or awr: also train toward the per-move deal-in teacher of --mode oracle, at this weight')
-    ap.add_argument('--progress', type=float, default=0, help='teacher (features v2): points a discard costs for each step it sets the hand back from its best, scaled by the hand\'s prospects')
-    ap.add_argument('--fold', type=float, default=0, help='teacher (features v2): deal-in costs grow by up to this factor as the hand\'s prospects fall (far from ready, late in the wall)')
+    ap.add_argument("--aux", type=float, default=0, help="weight of the auxiliary heads that predict the hidden tiles (targets, never inputs)")
+    ap.add_argument("--imitate-wins", type=float, default=0, help="--mode oracle with --returns data: also imitate the moves of hands won, at this weight")
+    ap.add_argument("--imitate-points", action="store_true", help="with --imitate-wins: weight each won hand's moves by the points it scored (mean 1 over wins), not equally, so a big win teaches more than a cheap one")
+    ap.add_argument("--teach", type=float, default=0, help="--mode pg or awr: also train toward the per-move deal-in teacher of --mode oracle, at this weight")
+    ap.add_argument("--progress", type=float, default=0, help="teacher (features v2): points a discard costs for each step it sets the hand back from its best, scaled by the hand's prospects")
+    ap.add_argument("--fold", type=float, default=0, help="teacher (features v2): deal-in costs grow by up to this factor as the hand's prospects fall (far from ready, late in the wall)")
     args = ap.parse_args()
     CRITIC_LOSS[0] = args.critic_loss
     if args.oracle_anneal:
-        a0, a1 = [float(v) for v in args.oracle_anneal.split(',')]
+        a0, a1 = [float(v) for v in args.oracle_anneal.split(",")]
         args.oracle_delta = a0 if args.oracle_delta is None else args.oracle_delta
         args.anneal = (a0, a1)
     else:
         args.anneal = None if args.oracle_delta is None else (args.oracle_delta, args.oracle_delta)
-    hidden = [int(v) for v in args.hidden.split(',')] if args.hidden else None
+    hidden = [int(v) for v in args.hidden.split(",")] if args.hidden else None
     # A fine-tune keeps the shape of the model it starts from (lc30 and on
     # can be wider than the original 256, 128).
     init_hidden = None
     if args.init and not hidden:
         src = json.load(open(os.path.join(ROOT, args.init)))
-        if not (src.get('meta') or {}).get('random'):
-            init_hidden = [l['rows'] for l in src['layers'][:-1]]
+        if not (src.get("meta") or {}).get("random"):
+            init_hidden = [l["rows"] for l in src["layers"][:-1]]
 
     t0 = time.time()
-    if args.mode == 'q':
+    if args.mode == "q":
         net, x, va, n, size, version, best, meta_train = train_q(args, hidden, init_hidden)
-        export(args, net, x, va, n, size, version, best, hidden, init_hidden, {'objective': 'points', 'train': meta_train}, t0)
+        export(args, net, x, va, n, size, version, best, hidden, init_hidden, {"objective": "points", "train": meta_train}, t0)
         return
-    teacher = args.mode == 'oracle'
-    rl = args.mode not in ('imitate', 'oracle')
+    teacher = args.mode == "oracle"
+    rl = args.mode not in ("imitate", "oracle")
     loaded = load(args.data, rl or args.imitate_wins > 0)
     x, a, legal, w, size, version = loaded[:6]
     neg = w < 0
@@ -460,46 +460,47 @@ def main():
         x, a, legal, w = x[keep], a[keep], legal[keep], w[keep]
         neg = w < 0
     n = len(a)
-    print(f'{n} samples from {len(args.data)} rounds ({x.shape[1]} features), {int(neg.sum())} of them deal-ins')
+    print(f"{n} samples from {len(args.data)} rounds ({x.shape[1]} features), {int(neg.sum())} of them deal-ins")
     P = PUBLIC[0] or size
     if args.aux and P == size:
-        raise SystemExit('--aux needs data from lucky.js generate --oracle (its targets are the hidden tiles)')
-    if args.teach and args.mode not in ('pg', 'awr'):
-        raise SystemExit('--teach trains with --mode pg or awr (--mode oracle is the teacher alone)')
+        raise SystemExit("--aux needs data from lucky.js generate --oracle (its targets are the hidden tiles)")
+    if args.teach and args.mode not in ("pg", "awr"):
+        raise SystemExit("--teach trains with --mode pg or awr (--mode oracle is the teacher alone)")
     if (args.oracle_critic or args.anneal) and P == size:
-        raise SystemExit('--oracle-critic and --oracle-delta need data from lucky.js generate --oracle')
+        raise SystemExit("--oracle-critic and --oracle-delta need data from lucky.js generate --oracle")
     # The policy's inputs: the seat's view, plus the hidden tiles for an oracle policy.
     IN = size if args.anneal else P
     if args.anneal:
-        print(f'oracle guiding: the policy reads {size - P} hidden-tile inputs, kept with chance {args.anneal[0]} to {args.anneal[1]}')
+        print(f"oracle guiding: the policy reads {size - P} hidden-tile inputs, kept with chance {args.anneal[0]} to {args.anneal[1]}")
     torch.manual_seed(1)
-    dev = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f'training on {dev}' + (f' ({torch.cuda.get_device_name(0)})' if dev == 'cuda' else ''))
+    dev = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"training on {dev}" + (f" ({torch.cuda.get_device_name(0)})" if dev == "cuda" else ""))
     net = Net(IN, args.dropout, hidden or init_hidden, aux=args.aux > 0)
     if args.init and hidden:
-        print('a new ' + args.hidden + ' network: --init ' + args.init + ' ignored')
+        print("a new " + args.hidden + " network: --init " + args.init + " ignored")
         with torch.no_grad():
             net.layers[-1].weight.mul_(0.1)
             net.layers[-1].bias.zero_()
     elif args.init:
         init = json.load(open(os.path.join(ROOT, args.init)))
-        if not (init.get('meta') or {}).get('random'):
+        if not (init.get("meta") or {}).get("random"):
             load_init(net, init)
-            print('from ' + args.init + ('' if init['layers'][0]['cols'] == IN else
-                  f' ({init["layers"][0]["cols"]} inputs to {IN}: the hidden tiles\' columns ' + ('start at 0' if IN > init['layers'][0]['cols'] else 'dropped') + ')'))
+            cols = init["layers"][0]["cols"]
+            print("from " + args.init + ("" if cols == IN else
+                  f" ({cols} inputs to {IN}: the hidden tiles' columns " + ("start at 0" if IN > cols else "dropped") + ")"))
         else:
             # Small last layer: the new model starts close to random moves.
             with torch.no_grad():
                 net.layers[-1].weight.mul_(0.1)
                 net.layers[-1].bias.zero_()
-            print('from fresh weights (the start model plays at random)')
+            print("from fresh weights (the start model plays at random)")
     net.to(dev)
 
     rng = np.random.default_rng(1)
     if rl:
         # Hold out whole hands: a tenth of them.
         ret = loaded[6]
-        hands, inv = np.unique(ret['h'], return_inverse=True)
+        hands, inv = np.unique(ret["h"], return_inverse=True)
         held = rng.random(len(hands)) < 0.1
         va, tr = np.nonzero(held[inv])[0], np.nonzero(~held[inv])[0]
         nv = len(va)
@@ -519,20 +520,20 @@ def main():
     teacher_stats = {}
     WON = None
     if args.imitate_wins > 0:
-        won = (loaded[6]['o'] == 0)
+        won = (loaded[6]["o"] == 0)
         if args.imitate_points:
             # A won hand's moves count by its points (scaled to a mean of 1 over
             # the wins): imitating every win equally taught Sphinx to race for
             # cheap hands at any risk (rounds 1-3, -41 to -54 points a hand).
-            pts = np.clip(loaded[6]['r'], 0, None) * won
+            pts = np.clip(loaded[6]["r"], 0, None) * won
             m = float(pts[won].mean()) if won.any() else 1.0
             WON = torch.from_numpy((pts / (m or 1.0)).astype(np.float32))
         else:
             WON = torch.from_numpy(won.astype(np.float32))
-        print(f'imitating the moves of hands won: {int(won.sum())} of {n} choices ({100 * float(won.mean()):.1f}%), weight {args.imitate_wins}' + (', by points' if args.imitate_points else ''))
+        print(f"imitating the moves of hands won: {int(won.sum())} of {n} choices ({100 * float(won.mean()):.1f}%), weight {args.imitate_wins}" + (", by points" if args.imitate_points else ""))
     if rl:
-        r = np.clip(ret['r'], -args.reward_clip, args.reward_clip) + args.win_bonus * (ret['o'] == 0)
-        if args.reward == 'sqrt':
+        r = np.clip(ret["r"], -args.reward_clip, args.reward_clip) + args.win_bonus * (ret["o"] == 0)
+        if args.reward == "sqrt":
             r = np.sign(r) * np.sqrt(np.abs(r))
         scale = float(r.std()) or 1.0
         R = torch.from_numpy((r / scale).astype(np.float32))
@@ -549,13 +550,13 @@ def main():
         explained = 1 - float(np.var(adv)) / max(1e-9, float(np.var(R.numpy())))
         adv = np.clip((adv - adv.mean()) / (adv.std() + 1e-8), -5, 5)
         ADV = torch.from_numpy(adv.astype(np.float32))
-        LOGB = torch.from_numpy(np.log(np.clip(ret['p'], 1e-6, 1)).astype(np.float32))
-        TEMP = torch.from_numpy(ret['t'])
-        rl_stats = {'hands': int(len(hands)), 'rewardScale': scale, 'criticExplained': explained,
-                    'meanPoints': float(ret['r'].mean())}
-        print(f'{len(hands)} hands, reward scale {scale:.1f}, the critic' + (' (with the hidden tiles)' if args.oracle_critic else '') +
-              f' explains {100 * explained:.1f}% of the reward\'s variance')
-        rl_stats['oracleCritic'] = bool(args.oracle_critic)
+        LOGB = torch.from_numpy(np.log(np.clip(ret["p"], 1e-6, 1)).astype(np.float32))
+        TEMP = torch.from_numpy(ret["t"])
+        rl_stats = {"hands": int(len(hands)), "rewardScale": scale, "criticExplained": explained,
+                    "meanPoints": float(ret["r"].mean())}
+        print(f"{len(hands)} hands, reward scale {scale:.1f}, the critic" + (" (with the hidden tiles)" if args.oracle_critic else "") +
+              f" explains {100 * explained:.1f}% of the reward's variance")
+        rl_stats["oracleCritic"] = bool(args.oracle_critic)
         ref = Net(IN, 0.0, hidden or init_hidden).to(dev)
         ref.load_state_dict(net.state_dict(), strict=False)
         ref.eval()
@@ -573,7 +574,7 @@ def main():
 
     if teacher or args.teach > 0:
         if DANGER_AT[0] is None:
-            raise SystemExit('--mode oracle and --teach need data from lucky.js generate --oracle')
+            raise SystemExit("--mode oracle and --teach need data from lucky.js generate --oracle")
         at = DANGER_AT[0]
         COST = torch.zeros(n, OUTPUTS)
         COST[:, :34] = X[:, at:at + 34].float() * 1024
@@ -588,7 +589,7 @@ def main():
         BACK = None
         if args.progress or args.fold:
             if P < 854:
-                raise SystemExit('--progress and --fold need features v2 data (shanten after each discard)')
+                raise SystemExit("--progress and --fold need features v2 data (shanten after each discard)")
             v = X[:, 784:818].float()
             held = Lg[:, :34]
             sh = torch.where(v > 0, torch.round(8 * (1 - v) - 1), torch.full_like(v, 7.0))
@@ -604,13 +605,13 @@ def main():
             TCOST = TCOST.masked_fill(~Lg, 0)
             BACK = torch.zeros(n, OUTPUTS, dtype=torch.bool)
             BACK[:, :34] = back > 0
-            print(f'progress and fold: {100 * float((back > 0).any(1).float().mean()):.1f}% of choices have a discard that sets the hand back; '
-                  f'the champion played one {int(BACK.gather(1, A[:, None])[:, 0].sum())} times; mean prospects {float(prospects[turn].mean()):.2f}')
+            print(f"progress and fold: {100 * float((back > 0).any(1).float().mean()):.1f}% of choices have a discard that sets the hand back; "
+                  f"the champion played one {int(BACK.gather(1, A[:, None])[:, 0].sum())} times; mean prospects {float(prospects[turn].mean()):.2f}")
         risky = (COST > 0).any(1)
         TW = torch.where(risky, torch.full((n,), args.danger_weight), torch.ones(n))
         TW = TW / TW.mean()
-        print(f'{int(risky.sum())} choices ({100 * float(risky.float().mean()):.1f}%) had a discard that would deal in now; '
-              f'the champion played one {int(((COST.gather(1, A[:, None])[:, 0]) > 0).sum())} times')
+        print(f"{int(risky.sum())} choices ({100 * float(risky.float().mean()):.1f}%) had a discard that would deal in now; "
+              f"the champion played one {int(((COST.gather(1, A[:, None])[:, 0]) > 0).sum())} times")
         ref = Net(IN, 0.0, hidden or init_hidden).to(dev)
         ref.load_state_dict(net.state_dict(), strict=False)
         ref.eval()
@@ -677,7 +678,7 @@ def main():
         logp = torch.log_softmax(logits / tb[:, None], dim=1)
         lpa = logp.gather(1, ab[:, None])[:, 0]
         ent = -(logp.exp() * logp.masked_fill(~lb, 0)).sum(1)
-        if args.mode == 'pg':
+        if args.mode == "pg":
             ratio = torch.exp(lpa - logb)
             surr = torch.min(ratio * advb, torch.clamp(ratio, 1 - args.clip, 1 + args.clip) * advb)
         else:
@@ -706,10 +707,10 @@ def main():
                 lp_ = torch.log_softmax(ref(pin(xb)).masked_fill(~lb, -1e9) / tb[:, None], dim=1).gather(1, ab[:, None])[:, 0]
                 lr_[s_:s_ + len(idx)] = (lp_.cpu() - LOGB[idx]).numpy()
         ok = np.abs(lr_) <= np.log(args.reject_ratio)
-        print(f'rejecting {100 * (1 - ok.mean()):.1f}% of the moves: their share moved more than {args.reject_ratio}x from the one played')
+        print(f"rejecting {100 * (1 - ok.mean()):.1f}% of the moves: their share moved more than {args.reject_ratio}x from the one played")
         tr, va = tr[ok[tr]], va[ok[va]]
         nv = len(va)
-        rl_stats['rejected'] = float(1 - ok.mean())
+        rl_stats["rejected"] = float(1 - ok.mean())
 
     def delta_at(ep):
         if not args.anneal:
@@ -718,7 +719,7 @@ def main():
         return a0 + (a1 - a0) * (ep / max(1, args.epochs - 1))
 
     opt = torch.optim.AdamW(net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    best, best_state = float('inf'), None
+    best, best_state = float("inf"), None
     if rl:
         # Fixed epochs, stopping once the policy has moved too far from the champion's.
         best_state = {k: v.detach().cpu().clone() for k, v in net.state_dict().items()}
@@ -749,18 +750,18 @@ def main():
             sv /= cnt
             kv /= cnt
             ev /= cnt
-            print(f'epoch {ep + 1}: held-out surrogate {sv:.4f}, KL from the champion {kv:.4f}, entropy {ev:.3f}' +
-                  (f', oracle kept {delta[0]:.2f}' if args.anneal else '') + (f', entropy bonus {alpha[0]:.4f}' if args.target_entropy > 0 else ''))
+            print(f"epoch {ep + 1}: held-out surrogate {sv:.4f}, KL from the champion {kv:.4f}, entropy {ev:.3f}" +
+                  (f", oracle kept {delta[0]:.2f}" if args.anneal else "") + (f", entropy bonus {alpha[0]:.4f}" if args.target_entropy > 0 else ""))
             if kv > 2 * args.kl_max and ep > 0:
-                print(f'stopping: the policy moved more than {2 * args.kl_max} from the champion, keeping epoch {ep}')
+                print(f"stopping: the policy moved more than {2 * args.kl_max} from the champion, keeping epoch {ep}")
                 break
             best = sv
             best_state = {k: v.detach().cpu().clone() for k, v in net.state_dict().items()}
-            rl_stats.update({'epochs': ep + 1, 'kl': kv, 'heldOutEntropy': ev, 'surrogate': sv})
+            rl_stats.update({"epochs": ep + 1, "kl": kv, "heldOutEntropy": ev, "surrogate": sv})
             if args.anneal:
-                rl_stats['oracleDelta'] = delta[0]
+                rl_stats["oracleDelta"] = delta[0]
             if kv > args.kl_max:
-                print(f'stopping: the policy moved {kv:.4f} from the champion')
+                print(f"stopping: the policy moved {kv:.4f} from the champion")
                 break
     for ep in range(0 if rl else args.epochs):
         delta[0] = delta_at(ep)
@@ -787,15 +788,15 @@ def main():
                     idx = torch.from_numpy(va[s:s + 8192])
                     tot += np.array([v.item() for v in teacher_loss(idx)]) * len(idx)
                 _, kl_, pay_, pay0_ = tot / max(1, nv)
-            sb = f', set-back discards {100 * back_share[0] / max(1, back_share[2]):.2f}% of its shares (the champion\'s {100 * back_share[1] / max(1, back_share[2]):.2f}%)' if BACK is not None else ''
-            print(f'epoch {ep + 1}: held-out loss {vl:.4f}, KL from the champion {kl_:.4f}, points its shares would pay now '
-                  f'{pay_:.2f} a choice (the champion\'s {pay0_:.2f})' + sb + (f', oracle kept {delta[0]:.2f}' if args.anneal else ''))
+            sb = f", set-back discards {100 * back_share[0] / max(1, back_share[2]):.2f}% of its shares (the champion's {100 * back_share[1] / max(1, back_share[2]):.2f}%)" if BACK is not None else ""
+            print(f"epoch {ep + 1}: held-out loss {vl:.4f}, KL from the champion {kl_:.4f}, points its shares would pay now "
+                  f"{pay_:.2f} a choice (the champion's {pay0_:.2f})" + sb + (f", oracle kept {delta[0]:.2f}" if args.anneal else ""))
             if vl < best:
-                teacher_stats = {'epochs': ep + 1, 'kl': float(kl_), 'heldOutPay': float(pay_), 'championPay': float(pay0_)}
+                teacher_stats = {"epochs": ep + 1, "kl": float(kl_), "heldOutPay": float(pay_), "championPay": float(pay0_)}
                 if BACK is not None:
-                    teacher_stats.update({'setBackShare': back_share[0] / max(1, back_share[2]), 'championSetBackShare': back_share[1] / max(1, back_share[2])})
+                    teacher_stats.update({"setBackShare": back_share[0] / max(1, back_share[2]), "championSetBackShare": back_share[1] / max(1, back_share[2])})
         else:
-            print(f'epoch {ep + 1}: validation loss {vl:.4f}, picks the move it won with {100 * vacc:.1f}%')
+            print(f"epoch {ep + 1}: validation loss {vl:.4f}, picks the move it won with {100 * vacc:.1f}%")
         if vl < best:
             best = vl
             best_state = {k: v.detach().cpu().clone() for k, v in net.state_dict().items()}
@@ -803,27 +804,27 @@ def main():
     net.cpu().eval()
     extra = {}
     if args.aux > 0:
-        extra['aux'] = dict({'weight': args.aux}, **aux_report(net, X, va, P, pin))
+        extra["aux"] = dict({"weight": args.aux}, **aux_report(net, X, va, P, pin))
     if teacher:
-        extra['objective'] = 'points'
-        extra['train'] = dict({'mode': 'oracle', 'dangerTau': args.danger_tau, 'dangerWeight': args.danger_weight, 'progress': args.progress, 'fold': args.fold, 'lr': args.lr}, **teacher_stats)
-        rl_stats['oracleDelta'] = delta[0]
+        extra["objective"] = "points"
+        extra["train"] = dict({"mode": "oracle", "dangerTau": args.danger_tau, "dangerWeight": args.danger_weight, "progress": args.progress, "fold": args.fold, "lr": args.lr}, **teacher_stats)
+        rl_stats["oracleDelta"] = delta[0]
     if rl:
-        extra['objective'] = 'points'
-        extra['train'] = dict({'mode': args.mode, 'reward': args.reward, 'rewardClip': args.reward_clip, 'winBonus': args.win_bonus,
-                               'lr': args.lr, 'clip': args.clip, 'entropy': args.entropy, 'klMax': args.kl_max, 'beta': args.beta}, **rl_stats)
+        extra["objective"] = "points"
+        extra["train"] = dict({"mode": args.mode, "reward": args.reward, "rewardClip": args.reward_clip, "winBonus": args.win_bonus,
+                               "lr": args.lr, "clip": args.clip, "entropy": args.entropy, "klMax": args.kl_max, "beta": args.beta}, **rl_stats)
         if args.teach > 0:
-            extra['train'].update({'teach': args.teach, 'dangerTau': args.danger_tau, 'dangerWeight': args.danger_weight})
+            extra["train"].update({"teach": args.teach, "dangerTau": args.danger_tau, "dangerWeight": args.danger_weight})
     if IN > P:
-        final = float(rl_stats.get('oracleDelta', delta[0]))
+        final = float(rl_stats.get("oracleDelta", delta[0]))
         if args.public:
             if final > 0:
-                print(f'note: --public drops the hidden tiles while the oracle was still kept {final:.2f} of the time')
+                print(f"note: --public drops the hidden tiles while the oracle was still kept {final:.2f} of the time")
             net = public_net(net, P)
         else:
-            extra['oracle'] = {'delta': final, 'size': IN - P, 'publicSize': P}
-    extra['suphx'] = {k: v for k, v in {'oracleCritic': bool(args.oracle_critic), 'anneal': args.anneal, 'public': bool(args.public),
-                                        'rejectRatio': args.reject_ratio or None, 'targetEntropy': args.target_entropy or None}.items() if v}
+            extra["oracle"] = {"delta": final, "size": IN - P, "publicSize": P}
+    extra["suphx"] = {k: v for k, v in {"oracleCritic": bool(args.oracle_critic), "anneal": args.anneal, "public": bool(args.public),
+                                        "rejectRatio": args.reject_ratio or None, "targetEntropy": args.target_entropy or None}.items() if v}
     export(args, net, x, va, n, P, version, best, hidden, init_hidden, extra, t0)
 
 
@@ -839,12 +840,12 @@ def aux_report(net, X, va, P, pin):
     out = np.concatenate(outs)
     waits, ready, steps, wall, dealin, held = [np.concatenate([t[k] for t in tg]) for k in range(6)]
     h = held > 0
-    r = {'dealInAuc': auc(out[:, 142:176][h], dealin[h] > 0),
-         'readyAuc': auc(out[:, 102:105].ravel(), ready.ravel() > 0),
-         'waitsAuc': auc(out[:, :102][np.repeat(ready > 0, 34, axis=1)], waits[np.repeat(ready > 0, 34, axis=1)] > 0),
-         'wallMae': float(np.abs(1 / (1 + np.exp(-out[:, 108:142])) - wall).mean() * 4)}
-    print(f"auxiliary heads, held out: deal-in AUC {r['dealInAuc']:.3f}, ready AUC {r['readyAuc']:.3f}, "
-          f"waits AUC (when ready) {r['waitsAuc']:.3f}, wall count error {r['wallMae']:.3f} copies")
+    r = {"dealInAuc": auc(out[:, 142:176][h], dealin[h] > 0),
+         "readyAuc": auc(out[:, 102:105].ravel(), ready.ravel() > 0),
+         "waitsAuc": auc(out[:, :102][np.repeat(ready > 0, 34, axis=1)], waits[np.repeat(ready > 0, 34, axis=1)] > 0),
+         "wallMae": float(np.abs(1 / (1 + np.exp(-out[:, 108:142])) - wall).mean() * 4)}
+    print(("auxiliary heads, held out: deal-in AUC {dealInAuc:.3f}, ready AUC {readyAuc:.3f}, "
+           "waits AUC (when ready) {waitsAuc:.3f}, wall count error {wallMae:.3f} copies").format(**r))
     return r
 
 
@@ -853,15 +854,15 @@ def load_init(net, init):
     (an oracle model has the hidden tiles' columns after the seat's own):
     columns net has and init doesn't start at 0, and init's extra are dropped."""
     with torch.no_grad():
-        for k, (l, src) in enumerate(zip(net.layers, init['layers'])):
-            w = torch.from_numpy(floats(src['w'], init.get('dtype')).reshape(src['rows'], src['cols']))
-            if k == 0 and src['cols'] != l.in_features:
+        for k, (l, src) in enumerate(zip(net.layers, init["layers"])):
+            w = torch.from_numpy(floats(src["w"], init.get("dtype")).reshape(src["rows"], src["cols"]))
+            if k == 0 and src["cols"] != l.in_features:
                 l.weight.zero_()
-                c = min(src['cols'], l.in_features)
+                c = min(src["cols"], l.in_features)
                 l.weight[:, :c] = w[:, :c]
             else:
                 l.weight.copy_(w)
-            l.bias.copy_(torch.from_numpy(floats(src['b'], init.get('dtype'))))
+            l.bias.copy_(torch.from_numpy(floats(src["b"], init.get("dtype"))))
 
 
 def public_net(net, P):
@@ -878,31 +879,31 @@ def public_net(net, P):
 def export(args, net, x, va, n, size, version, best, hidden, init_hidden, extra, t0):
     layers = []
     for l in net.layers:
-        layers.append({'rows': l.out_features, 'cols': l.in_features, 'w': b64(l.weight.detach().numpy()), 'b': b64(l.bias.detach().numpy())})
-    meta = {'name': args.name, 'trainedAt': time.strftime('%Y-%m-%d %H:%M'), 'samples': int(n), 'data': args.data,
-            'init': None if hidden else args.init, 'validationLoss': best, 'negWeight': args.neg_weight,
-            'hidden': hidden or init_hidden or HIDDEN}
+        layers.append({"rows": l.out_features, "cols": l.in_features, "w": b64(l.weight.detach().numpy()), "b": b64(l.bias.detach().numpy())})
+    meta = {"name": args.name, "trainedAt": time.strftime("%Y-%m-%d %H:%M"), "samples": int(n), "data": args.data,
+            "init": None if hidden else args.init, "validationLoss": best, "negWeight": args.neg_weight,
+            "hidden": hidden or init_hidden or HIDDEN}
     meta.update(extra)
-    out = {'featureVersion': version, 'featureSize': size, 'dtype': 'f16', 'meta': meta, 'layers': layers}
-    os.makedirs(os.path.join(ROOT, 'ml', 'models'), exist_ok=True)
-    path = os.path.join(ROOT, 'ml', 'models', args.name + '.json')
-    json.dump(out, open(path, 'w'))
+    out = {"featureVersion": version, "featureSize": size, "dtype": "f16", "meta": meta, "layers": layers}
+    os.makedirs(os.path.join(ROOT, "ml", "models"), exist_ok=True)
+    path = os.path.join(ROOT, "ml", "models", args.name + ".json")
+    json.dump(out, open(path, "w"))
 
     # The JS model must give the same logits (to float16 rounding).
     probe = x[va[:8]][:, :net.layers[0].in_features].astype(np.float32)
     with torch.no_grad():
         want = net(torch.from_numpy(probe)).numpy()
-    mod = '/js/mahjong-frontier-net.js' if version == 2 else '/js/mahjong-lucky-cat-net.js'
+    mod = "/js/mahjong-frontier-net.js" if version == 2 else "/js/mahjong-lucky-cat-net.js"
     js = ("const N=require(process.argv[1]+'" + mod + "');const m=N.createModel(require(process.argv[2]));"
           "const xs=JSON.parse(require('fs').readFileSync(0,'utf8'));console.log(JSON.stringify(xs.map(x=>m.forward(Float32Array.from(x)))));")
-    got = np.array(json.loads(subprocess.run(['node', '-e', js, ROOT, path], input=json.dumps(probe.tolist()),
+    got = np.array(json.loads(subprocess.run(["node", "-e", js, ROOT, path], input=json.dumps(probe.tolist()),
                                              capture_output=True, text=True, check=True).stdout))
     err = float(np.abs(got - want).max())
-    print(f'JS check: largest difference {err:.4f}')
+    print(f"JS check: largest difference {err:.4f}")
     if err > 0.05 * max(1.0, float(np.abs(want).max())):
-        raise SystemExit('the JS model disagrees with the trained one')
-    print(f'wrote {path} in {time.time() - t0:.0f}s')
+        raise SystemExit("the JS model disagrees with the trained one")
+    print(f"wrote {path} in {time.time() - t0:.0f}s")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -1111,7 +1111,7 @@ h1, h2, h3 {
   }
 
   .site-header::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;

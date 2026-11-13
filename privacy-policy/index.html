@@ -47,12 +47,12 @@
     // The visitor and session IDs and the cookie choice (js/analytics-id.js), before the page view.
     if (window.lcmAnalytics) window.lcmAnalytics.start(gtag);
     if (!localHost) {
-      var gaScript = document.createElement('script');
+      var gaScript = document.createElement("script");
       gaScript.async = true;
-      gaScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-B514HH987M';
+      gaScript.src = "https://www.googletagmanager.com/gtag/js?id=G-B514HH987M";
       document.head.appendChild(gaScript);
-      gtag('js', new Date());
-      gtag('config', 'G-B514HH987M');
+      gtag("js", new Date());
+      gtag("config", "G-B514HH987M");
     }
   </script>
 </head>
@@ -226,7 +226,7 @@
 
   <script src="/js/nav.js" defer></script>
   <script>
-    document.getElementById('year').textContent = new Date().getFullYear();
+    document.getElementById("year").textContent = new Date().getFullYear();
   </script>
 </body>
 </html>

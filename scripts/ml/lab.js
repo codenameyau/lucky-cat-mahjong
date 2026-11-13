@@ -95,16 +95,17 @@
      --prefix NAME       the round's data set is ml/data/<NAME>-<round>
                          (default lab, oolab or lcpts) */
 
-'use strict';
+"use strict";
 
-const fs = require('node:fs');
-const path = require('node:path');
-const { spawnSync } = require('node:child_process');
-const { ship } = require('./ship.js');
-const { prune } = require('./prune-data.js');
-const { PYTHON } = require('./python.js');
+const fs = require("node:fs");
+const path = require("node:path");
+const { spawnSync } = require("node:child_process");
+const { ship } = require("./ship.js");
+const { prune } = require("./prune-data.js");
+const { PYTHON } = require("./python.js");
+const { parseArgs } = require("./args.js");
 
-const ROOT = path.join(__dirname, '..', '..');
+const ROOT = path.join(__dirname, "..", "..");
 const DATA_SEED = 60000000;   // round r's deals: DATA_SEED + r * 1,000,000
 const QUICK_SEED = 70000000;  // round r's first evaluation: QUICK_SEED + r * 10,000
 const FULL_SEED = 80000000;   // round r's long evaluation: FULL_SEED + r * 100,000
@@ -123,23 +124,23 @@ let WORKERS = null;           // Lucky Cat's processes (--workers)
 // (two learner seats, earlier selves in the pool, head to head) rewarded
 // bigger hands that beat Lucky Cat but not this table: LP11b and LP12b beat
 // lc32 head to head by 4 to 6 points a hand and tied or lost to it here.
-const LC_TABLE = ['neural-cat', 'jorge-yau', 'neural-cat'];
+const LC_TABLE = ["neural-cat", "jorge-yau", "neural-cat"];
 const WINDOW = 8;             // data sets a fine-tune trains on
 
-let DIR = path.join(ROOT, 'ml', 'lab');
+let DIR = path.join(ROOT, "ml", "lab");
 
 // Neural Cat's experiments, and Only Orphans' (the same network and trainer).
 // Training arms make a new network; play arms change the champion's play
 // settings, relative to its own.
 const TRAIN_ARMS = {
-  finetune: { init: true, lr: 3e-4, epochs: 8, window: WINDOW, about: 'fine-tune the champion' },
-  'finetune-slow': { init: true, lr: 1e-4, epochs: 10, window: WINDOW, about: 'fine-tune at a third of the learning rate' },
-  'finetune-fast': { init: true, lr: 1e-3, epochs: 6, window: WINDOW, about: 'fine-tune at 3x the learning rate' },
-  recent: { init: true, lr: 3e-4, epochs: 8, window: 3, about: 'fine-tune on the last 3 rounds only' },
-  wide: { hidden: '512,256', lr: 1e-3, epochs: 14, window: 12, about: 'a wider network (512, 256), from scratch' },
-  deep: { hidden: '512,256,128', lr: 1e-3, epochs: 14, window: 12, about: 'a deeper network (512, 256, 128), from scratch' },
+  finetune: { init: true, lr: 3e-4, epochs: 8, window: WINDOW, about: "fine-tune the champion" },
+  "finetune-slow": { init: true, lr: 1e-4, epochs: 10, window: WINDOW, about: "fine-tune at a third of the learning rate" },
+  "finetune-fast": { init: true, lr: 1e-3, epochs: 6, window: WINDOW, about: "fine-tune at 3x the learning rate" },
+  recent: { init: true, lr: 3e-4, epochs: 8, window: 3, about: "fine-tune on the last 3 rounds only" },
+  wide: { hidden: "512,256", lr: 1e-3, epochs: 14, window: 12, about: "a wider network (512, 256), from scratch" },
+  deep: { hidden: "512,256,128", lr: 1e-3, epochs: 14, window: 12, about: "a deeper network (512, 256, 128), from scratch" },
   // Bold arms join only after a plateau (see stale()).
-  wider: { hidden: '768,384', lr: 1e-3, epochs: 16, window: 14, bold: true, about: 'a much wider network (768, 384), from scratch' },
+  wider: { hidden: "768,384", lr: 1e-3, epochs: 16, window: 14, bold: true, about: "a much wider network (768, 384), from scratch" },
 };
 // Only Orphans' training arms: Neural Cat's, and a fine-tune that also leans
 // toward winning (winBonus +300 on top of the champion's). In lab rounds 3 to
@@ -147,20 +148,20 @@ const TRAIN_ARMS = {
 // average wins, and lost (J -5.8 on average), even trained on the champion's
 // own games only: training pulls it back to fewer, bigger hands.
 const OO_TRAIN_ARMS = Object.assign({}, TRAIN_ARMS, {
-  'finetune-wins': { init: true, lr: 3e-4, epochs: 8, window: WINDOW, play: { winBonus: 300 }, about: 'fine-tune the champion, then winBonus +300' },
+  "finetune-wins": { init: true, lr: 3e-4, epochs: 8, window: WINDOW, play: { winBonus: 300 }, about: "fine-tune the champion, then winBonus +300" },
 });
 const PLAY_DEFAULTS = { topK: 3, winBonus: 0, claimMargin: 0 };
 const PLAY_ARMS = {
-  'topK+1': { key: 'topK', step: 1, min: 1, max: 10 },
-  'topK+2': { key: 'topK', step: 2, min: 1, max: 10 },
-  'topK-1': { key: 'topK', step: -1, min: 1, max: 10 },
-  'winBonus+50': { key: 'winBonus', step: 50, min: 0, max: 2000 },
-  'winBonus+150': { key: 'winBonus', step: 150, min: 0, max: 2000 },
-  'winBonus-50': { key: 'winBonus', step: -50, min: 0, max: 2000 },
-  'claimMargin+25': { key: 'claimMargin', step: 25, min: -200, max: 200 },
-  'claimMargin-25': { key: 'claimMargin', step: -25, min: -200, max: 200 },
-  'topK+3': { key: 'topK', step: 3, min: 1, max: 12, bold: true },
-  'winBonus+300': { key: 'winBonus', step: 300, min: 0, max: 3000, bold: true },
+  "topK+1": { key: "topK", step: 1, min: 1, max: 10 },
+  "topK+2": { key: "topK", step: 2, min: 1, max: 10 },
+  "topK-1": { key: "topK", step: -1, min: 1, max: 10 },
+  "winBonus+50": { key: "winBonus", step: 50, min: 0, max: 2000 },
+  "winBonus+150": { key: "winBonus", step: 150, min: 0, max: 2000 },
+  "winBonus-50": { key: "winBonus", step: -50, min: 0, max: 2000 },
+  "claimMargin+25": { key: "claimMargin", step: 25, min: -200, max: 200 },
+  "claimMargin-25": { key: "claimMargin", step: -25, min: -200, max: 200 },
+  "topK+3": { key: "topK", step: 3, min: 1, max: 12, bold: true },
+  "winBonus+300": { key: "winBonus", step: 300, min: 0, max: 3000, bold: true },
 };
 // Only Orphans picks among every allowed discard (topK 0, fixed by the
 // strategy), so it has no topK arms. Nor claimMargin-25: the model's claim is
@@ -169,8 +170,8 @@ const PLAY_ARMS = {
 // three lab rounds it was tried). claimMargin+50 goes further the way
 // claimMargin+25 went: fewer calls, fewer deal-ins (rounds 2 to 6).
 const OO_PLAY_ARMS = {};
-Object.keys(PLAY_ARMS).filter((n) => PLAY_ARMS[n].key !== 'topK' && n !== 'claimMargin-25').forEach((n) => { OO_PLAY_ARMS[n] = PLAY_ARMS[n]; });
-OO_PLAY_ARMS['claimMargin+50'] = { key: 'claimMargin', step: 50, min: -200, max: 200 };
+Object.keys(PLAY_ARMS).filter((n) => PLAY_ARMS[n].key !== "topK" && n !== "claimMargin-25").forEach((n) => { OO_PLAY_ARMS[n] = PLAY_ARMS[n]; });
+OO_PLAY_ARMS["claimMargin+50"] = { key: "claimMargin", step: 50, min: -200, max: 200 };
 // Move by move, from replays (since the table rounds LT1 to LT4 stalled):
 // at a few of the champion's choices a hand, the same deal is played again
 // with its next-best moves forced (lucky.js generate --rollouts), so each
@@ -179,12 +180,12 @@ OO_PLAY_ARMS['claimMargin+50'] = { key: 'claimMargin', step: 50, min: -200, max:
 // that scored more: --tau is how many points of advantage multiply a
 // move's share by e (smaller is a bigger step).
 const LC_Q_ARMS = {
-  q: { init: true, mode: 'q', lr: 1e-4, epochs: 4, window: 1, tau: 100, about: 'move by move, the last round' },
-  'q-2': { init: true, mode: 'q', lr: 1e-4, epochs: 4, window: 2, tau: 100, about: 'move by move, the last 2 rounds' },
-  'q-all': { init: true, mode: 'q', lr: 1e-4, epochs: 4, window: 4, tau: 100, about: 'move by move, the last 4 rounds' },
-  'q-soft': { init: true, mode: 'q', lr: 1e-4, epochs: 4, window: 2, tau: 200, about: 'move by move, a smaller step (tau 200)' },
-  'q-sharp': { init: true, mode: 'q', lr: 1e-4, epochs: 4, window: 2, tau: 50, about: 'move by move, a bigger step (tau 50)' },
-  'q-bold': { init: true, mode: 'q', lr: 3e-4, epochs: 6, window: 4, tau: 30, bold: true, about: 'move by move, a big step on the last 4 rounds (tau 30)' },
+  q: { init: true, mode: "q", lr: 1e-4, epochs: 4, window: 1, tau: 100, about: "move by move, the last round" },
+  "q-2": { init: true, mode: "q", lr: 1e-4, epochs: 4, window: 2, tau: 100, about: "move by move, the last 2 rounds" },
+  "q-all": { init: true, mode: "q", lr: 1e-4, epochs: 4, window: 4, tau: 100, about: "move by move, the last 4 rounds" },
+  "q-soft": { init: true, mode: "q", lr: 1e-4, epochs: 4, window: 2, tau: 200, about: "move by move, a smaller step (tau 200)" },
+  "q-sharp": { init: true, mode: "q", lr: 1e-4, epochs: 4, window: 2, tau: 50, about: "move by move, a bigger step (tau 50)" },
+  "q-bold": { init: true, mode: "q", lr: 3e-4, epochs: 6, window: 4, tau: 30, bold: true, about: "move by move, a big step on the last 4 rounds (tau 30)" },
 };
 // Suphx for Lucky Cat (Li et al. 2020, arXiv:2003.13590; --strategy
 // lucky-cat-suphx). Each round the champion plays the game's table with the
@@ -205,13 +206,13 @@ const LC_Q_ARMS = {
 //   pg-oc    Suphx's RL stage: a policy gradient on the hand's points with a
 //            critic that sees the hidden tiles and an adaptive entropy bonus.
 const LC_SUPHX_ARMS = {
-  teach: { init: true, mode: 'oracle', lr: 3e-4, epochs: 6, window: 1, dangerTau: 400, about: 'oracle teacher, the last round (tau 400)' },
-  'teach-2': { init: true, mode: 'oracle', lr: 3e-4, epochs: 6, window: 2, dangerTau: 400, about: 'oracle teacher, the last 2 rounds (tau 400)' },
-  'teach-sharp': { init: true, mode: 'oracle', lr: 3e-4, epochs: 6, window: 2, dangerTau: 100, about: 'oracle teacher, a bigger step (tau 100)' },
-  'teach-soft': { init: true, mode: 'oracle', lr: 3e-4, epochs: 6, window: 2, dangerTau: 1000, about: 'oracle teacher, a smaller step (tau 1,000)' },
-  guided: { init: true, mode: 'oracle', lr: 3e-4, epochs: 8, window: 2, dangerTau: 400, oracleAnneal: '1,0', publicOut: true, about: 'oracle guiding: the hidden tiles dropped out over the epochs' },
-  'pg-oc': { init: true, mode: 'pg', lr: 3e-4, epochs: 4, window: 2, oracleCritic: true, targetEntropy: 1.0, about: 'policy gradient with a critic that sees the hidden tiles' },
-  'teach-bold': { init: true, mode: 'oracle', lr: 1e-3, epochs: 8, window: 2, dangerTau: 50, dangerWeight: 8, bold: true, about: 'oracle teacher, a big step (tau 50, lr 1e-3)' },
+  teach: { init: true, mode: "oracle", lr: 3e-4, epochs: 6, window: 1, dangerTau: 400, about: "oracle teacher, the last round (tau 400)" },
+  "teach-2": { init: true, mode: "oracle", lr: 3e-4, epochs: 6, window: 2, dangerTau: 400, about: "oracle teacher, the last 2 rounds (tau 400)" },
+  "teach-sharp": { init: true, mode: "oracle", lr: 3e-4, epochs: 6, window: 2, dangerTau: 100, about: "oracle teacher, a bigger step (tau 100)" },
+  "teach-soft": { init: true, mode: "oracle", lr: 3e-4, epochs: 6, window: 2, dangerTau: 1000, about: "oracle teacher, a smaller step (tau 1,000)" },
+  guided: { init: true, mode: "oracle", lr: 3e-4, epochs: 8, window: 2, dangerTau: 400, oracleAnneal: "1,0", publicOut: true, about: "oracle guiding: the hidden tiles dropped out over the epochs" },
+  "pg-oc": { init: true, mode: "pg", lr: 3e-4, epochs: 4, window: 2, oracleCritic: true, targetEntropy: 1.0, about: "policy gradient with a critic that sees the hidden tiles" },
+  "teach-bold": { init: true, mode: "oracle", lr: 1e-3, epochs: 8, window: 2, dangerTau: 50, dangerWeight: 8, bold: true, about: "oracle teacher, a big step (tau 50, lr 1e-3)" },
 };
 
 // The plateau: rounds since the champion last changed. After --bold-after
@@ -224,40 +225,28 @@ function stale(state) {
   return n;
 }
 
-function parseArgs(argv) {
-  const out = { _: [] };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (!a.startsWith('--')) { out._.push(a); continue; }
-    const next = argv[i + 1];
-    if (next === undefined || next.startsWith('--')) out[a.slice(2)] = true;
-    else { out[a.slice(2)] = next; i++; }
-  }
-  return out;
-}
-
 function log(line) {
-  const text = new Date().toISOString().slice(0, 19).replace('T', ' ') + ' ' + line;
+  const text = new Date().toISOString().slice(0, 19).replace("T", " ") + " " + line;
   console.log(text);
-  fs.appendFileSync(path.join(DIR, 'lab.log'), text + '\n');
+  fs.appendFileSync(path.join(DIR, "lab.log"), text + "\n");
 }
 
 function run(cmd, args) {
-  fs.appendFileSync(path.join(DIR, 'lab.log'), '$ ' + cmd + ' ' + args.join(' ') + '\n');
-  const res = spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
-  const out = (res.stdout || '') + (res.stderr || '');
-  fs.appendFileSync(path.join(DIR, 'lab.log'), out.split('\n').slice(-12).join('\n') + '\n');
-  if (res.status !== 0) throw new Error(cmd + ' failed:\n' + out.slice(-2000));
+  fs.appendFileSync(path.join(DIR, "lab.log"), "$ " + cmd + " " + args.join(" ") + "\n");
+  const res = spawnSync(cmd, args, { cwd: ROOT, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
+  const out = (res.stdout || "") + (res.stderr || "");
+  fs.appendFileSync(path.join(DIR, "lab.log"), out.split("\n").slice(-12).join("\n") + "\n");
+  if (res.status !== 0) throw new Error(cmd + " failed:\n" + out.slice(-2000));
   return out;
 }
 
-const readJson = (file) => JSON.parse(fs.readFileSync(path.resolve(ROOT, file), 'utf8'));
+const readJson = (file) => JSON.parse(fs.readFileSync(path.resolve(ROOT, file), "utf8"));
 const writeJson = (file, v) => fs.writeFileSync(path.resolve(ROOT, file), JSON.stringify(v));
-const base = (file) => path.basename(file, '.json');
-const signed = (n) => (n >= 0 ? '+' : '−') + Math.abs(n).toFixed(1);
-const pct = (p) => (100 * (p || 0)).toFixed(1) + '%';
+const base = (file) => path.basename(file, ".json");
+const signed = (n) => (n >= 0 ? "+" : "−") + Math.abs(n).toFixed(1);
+const pct = (p) => (100 * (p || 0)).toFixed(1) + "%";
 const evalJson = (name) => {
-  const json = path.join(DIR, 'eval', name + '.json');
+  const json = path.join(DIR, "eval", name + ".json");
   fs.mkdirSync(path.dirname(json), { recursive: true });
   return json;
 };
@@ -269,9 +258,9 @@ const evalJson = (name) => {
 // Neural Cat: a against b, two seats each, every seat rotation, on the same deals.
 function headToHead(a, b, deals, seed, name) {
   const json = evalJson(name);
-  const A = 'ml:' + a, B = 'ml:' + b;
-  run('node', ['scripts/competition.js', '--lineup', [A, B, A, B].join(','), '--deals', String(deals), '--seed', String(seed), '--json', json]);
-  const s = JSON.parse(fs.readFileSync(json, 'utf8')).summary;
+  const A = "ml:" + a, B = "ml:" + b;
+  run("node", ["scripts/competition.js", "--lineup", [A, B, A, B].join(","), "--deals", String(deals), "--seed", String(seed), "--json", json]);
+  const s = JSON.parse(fs.readFileSync(json, "utf8")).summary;
   const points = s[A].pointsPerHand - s[B].pointsPerHand;
   const wins = s[A].winRate - s[B].winRate;
   return {
@@ -287,20 +276,20 @@ function headToHead(a, b, deals, seed, name) {
 // Only Orphans: one seat against the three strategies the game seats beside
 // it, every seat rotation. The champion's and the baseline's runs on a set
 // of deals are reused for every candidate judged on them.
-const OO_TABLE = ['neural-cat', 'jorge-yau', 'lucky-cat'];
+const OO_TABLE = ["neural-cat", "jorge-yau", "lucky-cat"];
 const seatCache = {};
 function seatOO(id, deals, seed, name) {
-  const key = id + '@' + deals + '@' + seed;
+  const key = id + "@" + deals + "@" + seed;
   if (seatCache[key]) return seatCache[key];
   const json = evalJson(name);
-  run('node', ['scripts/competition.js', '--lineup', [id].concat(OO_TABLE).join(','), '--deals', String(deals), '--seed', String(seed), '--json', json, '--per-deal']);
-  const r = JSON.parse(fs.readFileSync(json, 'utf8'));
+  run("node", ["scripts/competition.js", "--lineup", [id].concat(OO_TABLE).join(","), "--deals", String(deals), "--seed", String(seed), "--json", json, "--per-deal"]);
+  const r = JSON.parse(fs.readFileSync(json, "utf8"));
   const s = r.summary[id];
   const raw = (r.report && r.report.strategies && r.report.strategies[id]) || {};
   const p = raw.patterns || {};
   return (seatCache[key] = {
     pointsPerHand: s.pointsPerHand, margin: s.pointsMargin || 0, winRate: s.winRate, dealInRate: s.dealInRate,
-    avgWin: s.avgWinPoints, limitWins: raw.limitWins || 0, thirteenOrphans: p['Thirteen Orphans'] || 0,
+    avgWin: s.avgWinPoints, limitWins: raw.limitWins || 0, thirteenOrphans: p["Thirteen Orphans"] || 0,
     perDeal: r.perDeal ? r.perDeal.points : null,
   });
 }
@@ -319,8 +308,8 @@ function pairedMargin(A, B) {
   return 1.96 * sd / Math.sqrt(n) / 4;
 }
 function compareOO(a, b, deals, seed, name, champName) {
-  const A = seatOO('oo:' + a, deals, seed, name);
-  const B = seatOO('oo:' + b, deals, seed, champName);
+  const A = seatOO("oo:" + a, deals, seed, name);
+  const B = seatOO("oo:" + b, deals, seed, champName);
   const points = A.pointsPerHand - B.pointsPerHand;
   const wins = A.winRate - B.winRate;
   return {
@@ -340,13 +329,13 @@ function compareOO(a, b, deals, seed, name, champName) {
 // 95% margin (twice its standard error, deal by deal).
 function compareLC(a, b, deals, seed, name) {
   const json = evalJson(name);
-  const A = /^[a-z]+:/.test(a) || !/\.json$/.test(a) ? a : 'lc:' + a;
-  const B = /^[a-z]+:/.test(b) || !/\.json$/.test(b) ? b : 'lc:' + b;
+  const A = /^[a-z]+:/.test(a) || !/\.json$/.test(a) ? a : "lc:" + a;
+  const B = /^[a-z]+:/.test(b) || !/\.json$/.test(b) ? b : "lc:" + b;
   // Each takes one seat at the game's table, every seat in turn, on the same deals.
-  const args = ['scripts/ml/lucky.js', 'eval', '--lineup', A + ',' + B, '--table', LC_TABLE.join(','), '--deals', String(deals), '--seed', String(seed), '--json', json];
-  if (WORKERS) args.push('--workers', String(WORKERS));
-  run('node', args);
-  const r = JSON.parse(fs.readFileSync(json, 'utf8'));
+  const args = ["scripts/ml/lucky.js", "eval", "--lineup", A + "," + B, "--table", LC_TABLE.join(","), "--deals", String(deals), "--seed", String(seed), "--json", json];
+  if (WORKERS) args.push("--workers", String(WORKERS));
+  run("node", args);
+  const r = JSON.parse(fs.readFileSync(json, "utf8"));
   const s = r.summary;
   const wins = s[A].winRate - s[B].winRate;
   const points = r.paired ? r.paired.points : s[A].pointsPerHand - s[B].pointsPerHand;
@@ -367,41 +356,41 @@ function compareLC(a, b, deals, seed, name) {
  * ------------------------------------------------------------------ */
 
 const STRATEGIES = {
-  'neural-cat': {
-    dir: 'lab', prefix: 'lab', model: 'N', trainArms: TRAIN_ARMS, playArms: PLAY_ARMS, folder: 'neural-cat',
-    weights: 'mahjong-ml-weights.js',
+  "neural-cat": {
+    dir: "lab", prefix: "lab", model: "N", trainArms: TRAIN_ARMS, playArms: PLAY_ARMS, folder: "neural-cat",
+    weights: "mahjong-ml-weights.js",
     // Training data in order: the league's rounds, then the lab's.
-    earlier: /^league-(\d+)$/, done: 'manifest.json',
+    earlier: /^league-(\d+)$/, done: "manifest.json",
     start() {
-      const league = fs.existsSync(path.join(ROOT, 'ml', 'league', 'state.json')) ? readJson('ml/league/state.json') : null;
+      const league = fs.existsSync(path.join(ROOT, "ml", "league", "state.json")) ? readJson("ml/league/state.json") : null;
       return { start: league ? league.best : null, members: league ? league.members : [] };
     },
     generate(state, r, champ, data, opts) {
-      const others = state.members.filter((m) => m !== champ).slice(-3).map((m) => 'ml:' + m);
-      if (others.indexOf('ml:ml/models/s5.json') === -1 && fs.existsSync(path.join(ROOT, 'ml', 'models', 's5.json'))) others.push('ml:ml/models/s5.json');
-      const opponents = others.concat(['jorge-yau', 'lucky-cat', 'lucky-cat-classic']);
-      const pool = opponents.map(() => 'neural-cat').concat(opponents);
-      log('Round ' + r + ': ' + opts.deals + ' deals, champion ' + base(champ) + ' (' + JSON.stringify(playOf(champ)) + ') exploring against ' + opponents.map(short).join(', '));
-      run('node', ['scripts/ml/generate.js', '--deals', String(opts.deals), '--lineup', 'mix', '--pool', pool.join(','),
-        '--weights', champ, '--temperature', opts.bold ? '300' : '150', '--epsilon', opts.bold ? '0.1' : '0.05', '--explore', '0',
-        '--sample', '0.12', '--seed', String(DATA_SEED + r * 1000000), '--out', data]);
+      const others = state.members.filter((m) => m !== champ).slice(-3).map((m) => "ml:" + m);
+      if (others.indexOf("ml:ml/models/s5.json") === -1 && fs.existsSync(path.join(ROOT, "ml", "models", "s5.json"))) others.push("ml:ml/models/s5.json");
+      const opponents = others.concat(["jorge-yau", "lucky-cat", "lucky-cat-classic"]);
+      const pool = opponents.map(() => "neural-cat").concat(opponents);
+      log("Round " + r + ": " + opts.deals + " deals, champion " + base(champ) + " (" + JSON.stringify(playOf(champ)) + ") exploring against " + opponents.map(short).join(", "));
+      run("node", ["scripts/ml/generate.js", "--deals", String(opts.deals), "--lineup", "mix", "--pool", pool.join(","),
+        "--weights", champ, "--temperature", opts.bold ? "300" : "150", "--epsilon", opts.bold ? "0.1" : "0.05", "--explore", "0",
+        "--sample", "0.12", "--seed", String(DATA_SEED + r * 1000000), "--out", data]);
     },
     trainArgs: trainNetArgs,
-    judge: (c, champ, deals, seed, tag) => headToHead(c, champ, deals, seed, base(c) + '-' + tag),
+    judge: (c, champ, deals, seed, tag) => headToHead(c, champ, deals, seed, base(c) + "-" + tag),
     ship(file) {
       ship(path.join(ROOT, file));
       // ship() reads the old weights through require() first, so drop that cached copy.
-      const out = path.join(ROOT, 'js', 'mahjong-ml-weights.js');
+      const out = path.join(ROOT, "js", "mahjong-ml-weights.js");
       delete require.cache[require.resolve(out)];
       return require(out).meta.name;
     },
   },
-  'only-orphans': {
+  "only-orphans": {
     // From the expected-points targets (#178) on, new names (OT models, ootgt
     // data), so a fresh lab never overwrites the fixed-family rounds (OL<n>,
     // oolab-<n>, state moved to ml/lab-only-orphans-fixed-families/).
-    dir: 'lab-only-orphans', prefix: 'ootgt', model: 'OT', trainArms: OO_TRAIN_ARMS, playArms: OO_PLAY_ARMS, folder: 'only-orphans',
-    weights: 'mahjong-only-orphans-weights.js',
+    dir: "lab-only-orphans", prefix: "ootgt", model: "OT", trainArms: OO_TRAIN_ARMS, playArms: OO_PLAY_ARMS, folder: "only-orphans",
+    weights: "mahjong-only-orphans-weights.js",
     // Its points swing more than the others' (a limit hand pays up to 24,576),
     // so its long evaluation plays twice the deals: a 95% margin of about
     // ±8 points a hand, paired, against ±15 on 20,000 deals unpaired.
@@ -428,30 +417,30 @@ const STRATEGIES = {
     // Training data: only the lab's own rounds under the targets. The league's
     // (orphans-<n>) and the fixed-family lab's (oolab-<n>) positions were read
     // through the old fixed-family plans, so they no longer match how it plays.
-    earlier: /^$/, done: 'manifest.json',
+    earlier: /^$/, done: "manifest.json",
     start() {
-      const shipped = shippedModel('mahjong-only-orphans-weights.js');
-      const league = fs.existsSync(path.join(ROOT, 'ml', 'orphans', 'state.json')) ? readJson('ml/orphans/state.json') : null;
+      const shipped = shippedModel("mahjong-only-orphans-weights.js");
+      const league = fs.existsSync(path.join(ROOT, "ml", "orphans", "state.json")) ? readJson("ml/orphans/state.json") : null;
       return { start: shipped, members: league ? league.members || [] : [] };
     },
     generate(state, r, champ, data, opts) {
-      const members = state.members.filter((m) => m !== champ).slice(-2).map((m) => 'oo:' + m);
-      const pool = ['only-orphans', 'only-orphans', 'only-orphans'].concat(OO_TABLE, members);
-      log('Round ' + r + ': ' + opts.deals + ' deals, champion ' + base(champ) + ' (' + JSON.stringify(playOf(champ)) + ') exploring against ' + OO_TABLE.concat(members.map(short)).join(', '));
-      run('node', ['scripts/ml/generate.js', '--learner', 'only-orphans', '--deals', String(opts.deals), '--lineup', 'mix', '--pool', pool.join(','),
-        '--weights', champ, '--temperature', opts.bold ? '300' : '150', '--epsilon', opts.bold ? '0.1' : '0.05', '--explore', '0', '--record', 'only-orphans',
-        '--sample', '0.25', '--seed', String(DATA_SEED + r * 1000000), '--out', data]);
+      const members = state.members.filter((m) => m !== champ).slice(-2).map((m) => "oo:" + m);
+      const pool = ["only-orphans", "only-orphans", "only-orphans"].concat(OO_TABLE, members);
+      log("Round " + r + ": " + opts.deals + " deals, champion " + base(champ) + " (" + JSON.stringify(playOf(champ)) + ") exploring against " + OO_TABLE.concat(members.map(short)).join(", "));
+      run("node", ["scripts/ml/generate.js", "--learner", "only-orphans", "--deals", String(opts.deals), "--lineup", "mix", "--pool", pool.join(","),
+        "--weights", champ, "--temperature", opts.bold ? "300" : "150", "--epsilon", opts.bold ? "0.1" : "0.05", "--explore", "0", "--record", "only-orphans",
+        "--sample", "0.25", "--seed", String(DATA_SEED + r * 1000000), "--out", data]);
     },
     trainArgs: trainNetArgs,
-    judge: (c, champ, deals, seed, tag) => compareOO(c, champ, deals, seed, base(c) + '-' + tag, base(champ) + '-' + tag + '-' + seed),
+    judge: (c, champ, deals, seed, tag) => compareOO(c, champ, deals, seed, base(c) + "-" + tag, base(champ) + "-" + tag + "-" + seed),
     // The rule-based Only Orphans on the same deals as the long evaluation.
-    baseline: (deals, seed, tag) => seatOO('only-orphans-rules', deals, seed, 'baseline-' + tag + '-' + seed),
+    baseline: (deals, seed, tag) => seatOO("only-orphans-rules", deals, seed, "baseline-" + tag + "-" + seed),
     ship(file) {
-      ship(path.join(ROOT, file), 'only-orphans');
+      ship(path.join(ROOT, file), "only-orphans");
       return base(file);
     },
   },
-  'lucky-cat': {
+  "lucky-cat": {
     // Move by move from replays over reshuffled futures (--futures), new
     // names: LF models, lcfut data. The replays on one fixed wall were
     // LR<n><letter> and lcroll-<n> (state in ml/lab-lucky-cat-one-wall/).
@@ -459,11 +448,11 @@ const STRATEGIES = {
     // hand were LT<n><letter> and lctab-<n> (state in ml/lab-lucky-cat-table-pg/);
     // the rounds against its own kind LP<n><letter> and lcpts-<n>
     // (ml/lab-lucky-cat-points-h2h/).
-    dir: 'lab-lucky-cat', prefix: 'lcfut', model: 'LF', trainArms: LC_Q_ARMS, playArms: {}, folder: 'lucky-cat',
-    weights: 'mahjong-lucky-cat-weights.js',
+    dir: "lab-lucky-cat", prefix: "lcfut", model: "LF", trainArms: LC_Q_ARMS, playArms: {}, folder: "lucky-cat",
+    weights: "mahjong-lucky-cat-weights.js",
     // Training data: only the lab's own rounds, which record every hand
     // (the league's lc<n> sets hold only the moves of hands won).
-    earlier: /^$/, done: 'meta.json',
+    earlier: /^$/, done: "meta.json",
     // Points first: kept only when its points a hand beat the champion's by
     // more than their standard error (and J, with the wins, is ahead too).
     // Since LR3a (+3.0 ± 1.9 when kept, -0.4 ± 1.9 on fresh deals against
@@ -485,14 +474,14 @@ const STRATEGIES = {
     // move played on 4 futures), about 90 minutes on 8 processes.
     deals: 20000,
     start() {
-      const shipped = shippedModel('mahjong-lucky-cat-weights.js');
-      const league = fs.existsSync(path.join(ROOT, 'ml', 'lucky', 'state.json')) ? readJson('ml/lucky/state.json') : null;
+      const shipped = shippedModel("mahjong-lucky-cat-weights.js");
+      const league = fs.existsSync(path.join(ROOT, "ml", "lucky", "state.json")) ? readJson("ml/lucky/state.json") : null;
       if (league) return { start: shipped, members: league.pool || [] };
       // No league here: the Lucky Cat models on disk (lc<n>.json), in order.
       const re = /^lc(\d+)\.json$/;
-      const files = fs.readdirSync(path.join(ROOT, 'ml', 'models')).filter((n) => re.test(n))
+      const files = fs.readdirSync(path.join(ROOT, "ml", "models")).filter((n) => re.test(n))
         .sort((x, y) => parseInt(re.exec(x)[1], 10) - parseInt(re.exec(y)[1], 10));
-      return { start: shipped, members: files.map((n) => path.join('ml', 'models', n)) };
+      return { start: shipped, members: files.map((n) => path.join("ml", "models", n)) };
     },
     generate(state, r, champ, data, opts) {
       // One seat at the game's table: the other seats from Neural Cat (two
@@ -501,45 +490,45 @@ const STRATEGIES = {
       // Replays: up to 2 choices a hand (3 in bold mode), each with its 2
       // next-best moves, every move on the same 4 reshuffled futures.
       const rollouts = opts.bold ? 3 : 2;
-      log('Round ' + r + ': ' + opts.deals + ' deals, champion ' + base(champ) + ' playing its best against ' + pool.map(short).join(', ') + ', up to ' + rollouts + ' of its choices a hand replayed on 4 futures');
-      const args = ['scripts/ml/lucky.js', 'generate', '--rollouts', String(rollouts), '--alts', '2', '--futures', '4', '--weights', champ, '--deals', String(opts.deals), '--out', data,
-        '--pool', pool.join(','), '--seed', String(DATA_SEED + r * 1000000)];
-      if (WORKERS) args.push('--workers', String(WORKERS));
-      log('Round ' + r + ': ' + run('node', args).trim().split('\n').pop());
+      log("Round " + r + ": " + opts.deals + " deals, champion " + base(champ) + " playing its best against " + pool.map(short).join(", ") + ", up to " + rollouts + " of its choices a hand replayed on 4 futures");
+      const args = ["scripts/ml/lucky.js", "generate", "--rollouts", String(rollouts), "--alts", "2", "--futures", "4", "--weights", champ, "--deals", String(opts.deals), "--out", data,
+        "--pool", pool.join(","), "--seed", String(DATA_SEED + r * 1000000)];
+      if (WORKERS) args.push("--workers", String(WORKERS));
+      log("Round " + r + ": " + run("node", args).trim().split("\n").pop());
     },
     trainArgs(spec, sets, name, champ) {
-      const args = ['ml/train_lucky.py', '--data'].concat(sets, ['--name', name, '--lr', String(spec.lr), '--epochs', String(spec.epochs),
-        '--mode', spec.mode || 'imitate']);
-      if (spec.smoothing != null) args.push('--smoothing', String(spec.smoothing));
-      if (spec.reward) args.push('--reward', spec.reward);
-      if (spec.winBonus != null) args.push('--win-bonus', String(spec.winBonus));
-      if (spec.klMax != null) args.push('--kl-max', String(spec.klMax));
-      if (spec.rewardClip != null) args.push('--reward-clip', String(spec.rewardClip));
-      if (spec.negWeight) args.push('--neg-weight', String(spec.negWeight));
-      if (spec.hidden) args.push('--hidden', spec.hidden);
-      if (spec.tau != null) args.push('--tau', String(spec.tau));
+      const args = ["ml/train_lucky.py", "--data"].concat(sets, ["--name", name, "--lr", String(spec.lr), "--epochs", String(spec.epochs),
+        "--mode", spec.mode || "imitate"]);
+      if (spec.smoothing != null) args.push("--smoothing", String(spec.smoothing));
+      if (spec.reward) args.push("--reward", spec.reward);
+      if (spec.winBonus != null) args.push("--win-bonus", String(spec.winBonus));
+      if (spec.klMax != null) args.push("--kl-max", String(spec.klMax));
+      if (spec.rewardClip != null) args.push("--reward-clip", String(spec.rewardClip));
+      if (spec.negWeight) args.push("--neg-weight", String(spec.negWeight));
+      if (spec.hidden) args.push("--hidden", spec.hidden);
+      if (spec.tau != null) args.push("--tau", String(spec.tau));
       // Suphx (lucky-cat-suphx).
-      if (spec.dangerTau != null) args.push('--danger-tau', String(spec.dangerTau));
-      if (spec.dangerWeight != null) args.push('--danger-weight', String(spec.dangerWeight));
-      if (spec.oracleCritic) args.push('--oracle-critic');
-      if (spec.oracleAnneal) args.push('--oracle-anneal', spec.oracleAnneal);
-      if (spec.publicOut) args.push('--public');
-      if (spec.targetEntropy) args.push('--target-entropy', String(spec.targetEntropy));
-      if (spec.mode === 'oracle') args.push('--dropout', '0', '--smoothing', '0');
-      if (spec.init) args.push('--init', champ);
-      return { args, about: '(' + sets.length + ' data set' + (sets.length > 1 ? 's' : '') + ')' };
+      if (spec.dangerTau != null) args.push("--danger-tau", String(spec.dangerTau));
+      if (spec.dangerWeight != null) args.push("--danger-weight", String(spec.dangerWeight));
+      if (spec.oracleCritic) args.push("--oracle-critic");
+      if (spec.oracleAnneal) args.push("--oracle-anneal", spec.oracleAnneal);
+      if (spec.publicOut) args.push("--public");
+      if (spec.targetEntropy) args.push("--target-entropy", String(spec.targetEntropy));
+      if (spec.mode === "oracle") args.push("--dropout", "0", "--smoothing", "0");
+      if (spec.init) args.push("--init", champ);
+      return { args, about: "(" + sets.length + " data set" + (sets.length > 1 ? "s" : "") + ")" };
     },
-    judge: (c, champ, deals, seed, tag) => compareLC(c, champ, deals, seed, base(c) + '-' + tag),
+    judge: (c, champ, deals, seed, tag) => compareLC(c, champ, deals, seed, base(c) + "-" + tag),
     ship(file) {
       // Lucky Cat's releases go on from the last shipped, lc32: lc33, lc34, ... (scripts/ml/ship.js).
-      ship(path.join(ROOT, file), 'lucky-cat');
-      return shippedName('mahjong-lucky-cat-weights.js') || base(file); // lc21, lc22, ...
+      ship(path.join(ROOT, file), "lucky-cat");
+      return shippedName("mahjong-lucky-cat-weights.js") || base(file); // lc21, lc22, ...
     },
   },
 };
 // Suphx for Lucky Cat: the lucky-cat lab with oracle data and arms (LC_SUPHX_ARMS).
-STRATEGIES['lucky-cat-suphx'] = Object.assign({}, STRATEGIES['lucky-cat'], {
-  dir: 'lab-lucky-cat-suphx', prefix: 'lcsx', model: 'LS', trainArms: LC_SUPHX_ARMS,
+STRATEGIES["lucky-cat-suphx"] = Object.assign({}, STRATEGIES["lucky-cat"], {
+  dir: "lab-lucky-cat-suphx", prefix: "lcsx", model: "LS", trainArms: LC_SUPHX_ARMS,
   // Points first, as lucky-cat, and the win rate kept: hands won no lower
   // than the champion's by more than one standard error.
   keep: (e) => e.points > e.margin && e.J > 0 && e.wins > -Math.sqrt(2 * e.winRate * (1 - e.winRate) / (4 * e.deals)),
@@ -548,34 +537,34 @@ STRATEGIES['lucky-cat-suphx'] = Object.assign({}, STRATEGIES['lucky-cat'], {
   deals: 20000,
   generate(state, r, champ, data, opts) {
     const pool = LC_TABLE.slice();
-    log('Round ' + r + ': ' + opts.deals + ' deals, champion ' + base(champ) + ' at the table against ' + pool.map(short).join(', ') + ', the hidden tiles recorded (Suphx)');
-    const args = ['scripts/ml/lucky.js', 'generate', '--returns', '--oracle', '--sample', '0.5', '--learners', '1', '--temperature', opts.bold ? '1' : '0.5',
-      '--weights', champ, '--deals', String(opts.deals), '--out', data, '--pool', pool.join(','), '--seed', String(DATA_SEED + r * 1000000)];
-    if (WORKERS) args.push('--workers', String(WORKERS));
-    log('Round ' + r + ': ' + run('node', args).trim().split('\n').pop());
+    log("Round " + r + ": " + opts.deals + " deals, champion " + base(champ) + " at the table against " + pool.map(short).join(", ") + ", the hidden tiles recorded (Suphx)");
+    const args = ["scripts/ml/lucky.js", "generate", "--returns", "--oracle", "--sample", "0.5", "--learners", "1", "--temperature", opts.bold ? "1" : "0.5",
+      "--weights", champ, "--deals", String(opts.deals), "--out", data, "--pool", pool.join(","), "--seed", String(DATA_SEED + r * 1000000)];
+    if (WORKERS) args.push("--workers", String(WORKERS));
+    log("Round " + r + ": " + run("node", args).trim().split("\n").pop());
   },
 });
-let S = STRATEGIES['neural-cat'];
+let S = STRATEGIES["neural-cat"];
 let PREFIX = S.prefix;
 
-const short = (id) => id.replace(/^(ml|oo|lc):ml[\\/]models[\\/]/, '').replace('.json', '');
+const short = (id) => id.replace(/^(ml|oo|lc):ml[\\/]models[\\/]/, "").replace(".json", "");
 
 // The name a shipped weights file shows in the game (its release name).
 function shippedName(weightsFile) {
-  const file = path.join(ROOT, 'js', weightsFile);
+  const file = path.join(ROOT, "js", weightsFile);
   try { delete require.cache[require.resolve(file)]; return require(file).meta.name || null; } catch (err) { return null; }
 }
 
 // The model file a shipped weights file came from (ml/models/<trained name>.json).
 function shippedModel(weightsFile) {
   try {
-    const w = require(path.join(ROOT, 'js', weightsFile));
+    const w = require(path.join(ROOT, "js", weightsFile));
     const name = (w.meta && (w.meta.trainedName || w.meta.name)) || null;
-    const file = name && path.join('ml', 'models', name + '.json');
+    const file = name && path.join("ml", "models", name + ".json");
     if (!file) return null;
     // A new machine has no ml/models/ (not committed): write the shipped weights out as the model.
     if (!fs.existsSync(path.join(ROOT, file))) {
-      fs.mkdirSync(path.join(ROOT, 'ml', 'models'), { recursive: true });
+      fs.mkdirSync(path.join(ROOT, "ml", "models"), { recursive: true });
       fs.writeFileSync(path.join(ROOT, file), JSON.stringify(w));
     }
     return file;
@@ -589,32 +578,32 @@ function playOf(file) {
 
 // Neural Cat's and Only Orphans' trainer (ml/train.py).
 function trainNetArgs(spec, sets, name, champ) {
-  const champHidden = (readJson(champ).layers || []).slice(0, -1).map((l) => l.rows).join(',');
+  const champHidden = (readJson(champ).layers || []).slice(0, -1).map((l) => l.rows).join(",");
   const hidden = spec.hidden || champHidden;
-  const args = ['ml/train.py', '--data'].concat(sets, ['--name', name, '--hidden', hidden, '--lr', String(spec.lr),
-    '--epochs', String(spec.epochs), '--patience', '3', '--dropout', '0.2', '--weight-decay', '1e-3']);
-  if (spec.init && hidden === champHidden) args.push('--init', champ);
-  return { args, about: '(' + hidden + ', ' + sets.length + ' data sets)' };
+  const args = ["ml/train.py", "--data"].concat(sets, ["--name", name, "--hidden", hidden, "--lr", String(spec.lr),
+    "--epochs", String(spec.epochs), "--patience", "3", "--dropout", "0.2", "--weight-decay", "1e-3"]);
+  if (spec.init && hidden === champHidden) args.push("--init", champ);
+  return { args, about: "(" + hidden + ", " + sets.length + " data sets)" };
 }
 
 function fmt(e) {
-  if (S.folder === 'lucky-cat') {
-    return 'J ' + signed(e.J) + ' (points ' + signed(e.points) + ' ± ' + (e.margin / 2).toFixed(1) + ' standard error, wins ' + pct(e.winRate) + ' vs ' + pct(e.otherWinRate) +
-      ', deal-ins ' + pct(e.dealInRate) + ' vs ' + pct(e.otherDealInRate) + ', average win ' + Math.round(e.avgWin || 0) + ' vs ' + Math.round(e.otherAvgWin || 0) +
-      ' (' + (e.avgWinFaan || 0).toFixed(2) + ' vs ' + (e.otherAvgWinFaan || 0).toFixed(2) + ' faan), ' + e.deals + ' deals)';
+  if (S.folder === "lucky-cat") {
+    return "J " + signed(e.J) + " (points " + signed(e.points) + " ± " + (e.margin / 2).toFixed(1) + " standard error, wins " + pct(e.winRate) + " vs " + pct(e.otherWinRate) +
+      ", deal-ins " + pct(e.dealInRate) + " vs " + pct(e.otherDealInRate) + ", average win " + Math.round(e.avgWin || 0) + " vs " + Math.round(e.otherAvgWin || 0) +
+      " (" + (e.avgWinFaan || 0).toFixed(2) + " vs " + (e.otherAvgWinFaan || 0).toFixed(2) + " faan), " + e.deals + " deals)";
   }
-  return 'J ' + signed(e.J) + ' (points ' + signed(e.points) + ' ± ' + e.margin.toFixed(1) + ', wins ' + pct(e.winRate) + ' vs ' + pct(e.otherWinRate) +
-    ', deal-ins ' + pct(e.dealInRate) + ' vs ' + pct(e.otherDealInRate) + ', average win ' + Math.round(e.avgWin) + ' vs ' + Math.round(e.otherAvgWin) + ', ' + e.deals + ' deals)';
+  return "J " + signed(e.J) + " (points " + signed(e.points) + " ± " + e.margin.toFixed(1) + ", wins " + pct(e.winRate) + " vs " + pct(e.otherWinRate) +
+    ", deal-ins " + pct(e.dealInRate) + " vs " + pct(e.otherDealInRate) + ", average win " + Math.round(e.avgWin) + " vs " + Math.round(e.otherAvgWin) + ", " + e.deals + " deals)";
 }
 
 // Training data in order: the strategy's earlier rounds, then the lab's.
 function dataSets() {
-  const dir = path.join(ROOT, 'ml', 'data');
+  const dir = path.join(ROOT, "ml", "data");
   const names = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
   const done = (n) => fs.existsSync(path.join(dir, n, S.done));
-  const mine = new RegExp('^' + PREFIX + '-(\\d+)$');
+  const mine = new RegExp("^" + PREFIX + "-(\\d+)$");
   const sorted = (re) => names.filter((n) => re.test(n) && done(n)).sort((a, b) => parseInt(re.exec(a)[1], 10) - parseInt(re.exec(b)[1], 10));
-  return sorted(S.earlier).concat(sorted(mine)).map((n) => path.join('ml', 'data', n));
+  return sorted(S.earlier).concat(sorted(mine)).map((n) => path.join("ml", "data", n));
 }
 
 // Upper confidence bound on an arm's average J; untried arms first.
@@ -642,14 +631,14 @@ function train(state, r, letter, arm, data) {
   const sets = data.slice(-spec.window);
   const t = S.trainArgs(spec, sets, name, champ);
   run(PYTHON, t.args);
-  const file = path.join('ml', 'models', name + '.json');
+  const file = path.join("ml", "models", name + ".json");
   const w = readJson(file);
   w.meta = Object.assign(w.meta || {}, { arm, from: base(champ) });
-  if (S.folder !== 'lucky-cat') w.meta.play = playOf(champ);
+  if (S.folder !== "lucky-cat") w.meta.play = playOf(champ);
   // An arm may also move play settings, relative to the champion's.
   if (spec.play) Object.keys(spec.play).forEach((k) => { w.meta.play[k] = (w.meta.play[k] || 0) + spec.play[k]; });
   writeJson(file, w);
-  return { name, file, arm, about: spec.about + ' ' + t.about };
+  return { name, file, arm, about: spec.about + " " + t.about };
 }
 
 function tune(state, r, letter, arm) {
@@ -662,9 +651,9 @@ function tune(state, r, letter, arm) {
   play[spec.key] = playArmValue(play, arm);
   w.meta = Object.assign({}, w.meta, { name, play, arm, from: base(champ) });
   delete w.meta.trainedName;
-  const file = path.join('ml', 'models', name + '.json');
+  const file = path.join("ml", "models", name + ".json");
   writeJson(file, w);
-  return { name, file, arm, about: spec.key + ' ' + was + ' → ' + play[spec.key] + ' (same network)' };
+  return { name, file, arm, about: spec.key + " " + was + " → " + play[spec.key] + " (same network)" };
 }
 
 function record(state, arm, J, kept) {
@@ -676,19 +665,19 @@ function record(state, arm, J, kept) {
 }
 
 function upload(file, release) {
-  const dir = path.join(ROOT, 'ml', 'hf', 'lucky-cat-mahjong');
-  if (!fs.existsSync(path.join(dir, '.git'))) return log('No Hugging Face clone in ml/hf/lucky-cat-mahjong: not uploaded.');
-  const git = (args) => spawnSync('git', args, { cwd: dir, encoding: 'utf8', env: Object.assign({}, process.env, { GIT_SSH_COMMAND: 'ssh -o ConnectTimeout=20 -o BatchMode=yes' }) });
-  git(['pull', '-q', '--ff-only']);
+  const dir = path.join(ROOT, "ml", "hf", "lucky-cat-mahjong");
+  if (!fs.existsSync(path.join(dir, ".git"))) return log("No Hugging Face clone in ml/hf/lucky-cat-mahjong: not uploaded.");
+  const git = (args) => spawnSync("git", args, { cwd: dir, encoding: "utf8", env: Object.assign({}, process.env, { GIT_SSH_COMMAND: "ssh -o ConnectTimeout=20 -o BatchMode=yes" }) });
+  git(["pull", "-q", "--ff-only"]);
   const name = base(file);
-  fs.mkdirSync(path.join(dir, S.folder, 'models'), { recursive: true });
-  fs.copyFileSync(path.join(ROOT, file), path.join(dir, S.folder, 'models', name + '.json'));
-  fs.copyFileSync(path.join(ROOT, file), path.join(dir, S.folder, S.folder + '.json'));
-  git(['add', '-A']);
-  const what = release && release !== name ? name + ' as ' + release : name;
-  git(['commit', '-q', '-m', 'Ship ' + what + ' (' + S.folder + ', the lab)\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>']);
-  const res = git(['push', '-q', 'origin', 'HEAD']);
-  log(res.status === 0 ? 'Pushed ' + name + ' to https://huggingface.co/codenameyau/lucky-cat-mahjong' : 'Upload failed: ' + (res.stderr || '').slice(-300));
+  fs.mkdirSync(path.join(dir, S.folder, "models"), { recursive: true });
+  fs.copyFileSync(path.join(ROOT, file), path.join(dir, S.folder, "models", name + ".json"));
+  fs.copyFileSync(path.join(ROOT, file), path.join(dir, S.folder, S.folder + ".json"));
+  git(["add", "-A"]);
+  const what = release && release !== name ? name + " as " + release : name;
+  git(["commit", "-q", "-m", "Ship " + what + " (" + S.folder + ", the lab)\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"]);
+  const res = git(["push", "-q", "origin", "HEAD"]);
+  log(res.status === 0 ? "Pushed " + name + " to https://huggingface.co/codenameyau/lucky-cat-mahjong" : "Upload failed: " + (res.stderr || "").slice(-300));
 }
 
 // The full evaluation's two places: the best network ahead and the best play
@@ -696,7 +685,7 @@ function upload(file, release) {
 // ahead, the other may take both.
 function oneOfEach(candidates) {
   const ahead = candidates.filter((c) => c.quick.J > 0).sort((a, b) => b.quick.J - a.quick.J);
-  const picks = ['train', 'play'].map((k) => ahead.find((c) => c.kind === k)).filter(Boolean);
+  const picks = ["train", "play"].map((k) => ahead.find((c) => c.kind === k)).filter(Boolean);
   ahead.forEach((c) => { if (picks.length < 2 && picks.indexOf(c) < 0) picks.push(c); });
   return picks.sort((a, b) => b.quick.J - a.quick.J);
 }
@@ -706,64 +695,64 @@ function round(state, opts) {
   const champ = state.champion;
   const quiet = stale(state);
   const bold = opts.bold = quiet >= opts.boldAfter;
-  if (bold) log('Round ' + r + ': bold mode after ' + quiet + ' round' + (quiet === 1 ? '' : 's') + ' without a new champion: bold arms, more exploration, and ' + EXTRA_DEALS + ' more deals for close calls');
-  const data = path.join('ml', 'data', PREFIX + '-' + r);
+  if (bold) log("Round " + r + ": bold mode after " + quiet + " round" + (quiet === 1 ? "" : "s") + " without a new champion: bold arms, more exploration, and " + EXTRA_DEALS + " more deals for close calls");
+  const data = path.join("ml", "data", PREFIX + "-" + r);
   // 1. Play: the champion exploring, against earlier champions and other styles.
   if (!fs.existsSync(path.join(ROOT, data, S.done))) S.generate(state, r, champ, data, opts);
-  else log('Round ' + r + ': ' + data + ' was already played');
+  else log("Round " + r + ": " + data + " was already played");
   state.deals += opts.deals;
   const sets = dataSets();
 
   // 2. Experiments, chosen by what has worked.
-  const letters = 'abcdefghij';
+  const letters = "abcdefghij";
   const play = playOf(champ);
   const trainArms = pickArms(state, Object.keys(S.trainArms), opts.train, (n) => bold || !S.trainArms[n].bold);
   const playArms = pickArms(state, Object.keys(S.playArms), opts.play, (n) => (bold || !S.playArms[n].bold) && playArmValue(play, n) !== null);
   const candidates = [];
   trainArms.forEach((arm) => {
-    try { candidates.push(Object.assign(train(state, r, letters[candidates.length], arm, sets), { kind: 'train' })); } catch (err) {
-      log('Round ' + r + ': ' + arm + ' failed to train: ' + err.message.split('\n')[0]);
+    try { candidates.push(Object.assign(train(state, r, letters[candidates.length], arm, sets), { kind: "train" })); } catch (err) {
+      log("Round " + r + ": " + arm + " failed to train: " + err.message.split("\n")[0]);
       record(state, arm, -50, false);
     }
   });
-  playArms.forEach((arm) => candidates.push(Object.assign(tune(state, r, letters[candidates.length], arm), { kind: 'play' })));
+  playArms.forEach((arm) => candidates.push(Object.assign(tune(state, r, letters[candidates.length], arm), { kind: "play" })));
 
   // 3. Judge: 6,000 deals each (Lucky Cat 15,000; Only Orphans' networks
   // 12,000), then the full evaluation's fresh deals for the best two ahead
   // (Only Orphans: the best network and the best play setting).
   candidates.forEach((c) => {
-    const deals = c.kind === 'train' && QUICK_TRAIN_DEALS ? QUICK_TRAIN_DEALS : QUICK_DEALS;
-    c.quick = S.judge(c.file, champ, deals, QUICK_SEED + r * 10000, 'quick');
-    log('Round ' + r + ': ' + c.name + ' [' + c.arm + ': ' + c.about + '] ' + fmt(c.quick));
+    const deals = c.kind === "train" && QUICK_TRAIN_DEALS ? QUICK_TRAIN_DEALS : QUICK_DEALS;
+    c.quick = S.judge(c.file, champ, deals, QUICK_SEED + r * 10000, "quick");
+    log("Round " + r + ": " + c.name + " [" + c.arm + ": " + c.about + "] " + fmt(c.quick));
   });
   let champVsBaseline = null;
   if (S.baseline) {
     // Only Orphans: every round, the champion against the rule-based bot on the first evaluation's deals.
-    const b = S.baseline(QUICK_DEALS, QUICK_SEED + r * 10000, 'quick');
-    const mine = seatOO('oo:' + champ, QUICK_DEALS, QUICK_SEED + r * 10000, base(champ) + '-quick-' + (QUICK_SEED + r * 10000));
+    const b = S.baseline(QUICK_DEALS, QUICK_SEED + r * 10000, "quick");
+    const mine = seatOO("oo:" + champ, QUICK_DEALS, QUICK_SEED + r * 10000, base(champ) + "-quick-" + (QUICK_SEED + r * 10000));
     champVsBaseline = { points: mine.pointsPerHand - b.pointsPerHand, margin: pairedMargin(mine, b),
       pointsPerHand: mine.pointsPerHand, baselinePointsPerHand: b.pointsPerHand, winRate: mine.winRate, baselineWinRate: b.winRate,
       dealInRate: mine.dealInRate, baselineDealInRate: b.dealInRate, deals: QUICK_DEALS };
-    log('Round ' + r + ': champion ' + base(champ) + ' against the rule-based bot ' + signed(champVsBaseline.points) + ' ± ' + champVsBaseline.margin.toFixed(1) +
-      ' points a hand (' + mine.pointsPerHand.toFixed(1) + ' against ' + b.pointsPerHand.toFixed(1) + ', wins ' + pct(mine.winRate) + ' vs ' + pct(b.winRate) + ')');
+    log("Round " + r + ": champion " + base(champ) + " against the rule-based bot " + signed(champVsBaseline.points) + " ± " + champVsBaseline.margin.toFixed(1) +
+      " points a hand (" + mine.pointsPerHand.toFixed(1) + " against " + b.pointsPerHand.toFixed(1) + ", wins " + pct(mine.winRate) + " vs " + pct(b.winRate) + ")");
   }
   const ahead = S.finalists ? S.finalists(candidates) : candidates.filter((c) => c.quick.J > 0).sort((a, b) => b.quick.J - a.quick.J).slice(0, 2);
   ahead.forEach((c) => {
-    c.full = S.judge(c.file, champ, FULL_DEALS, FULL_SEED + r * 100000, 'full');
+    c.full = S.judge(c.file, champ, FULL_DEALS, FULL_SEED + r * 100000, "full");
     c.kept = S.keep ? S.keep(c.full) : c.full.J > c.full.margin / 2;
     const close = !c.kept && c.full.J > 0 && bold;
-    log('Round ' + r + ': ' + c.name + ' on ' + FULL_DEALS + ' fresh deals: ' + fmt(c.full) + (c.kept ? ', beyond its standard error' : close ? ', ahead but within the noise' : ', within the noise: rejected'));
+    log("Round " + r + ": " + c.name + " on " + FULL_DEALS + " fresh deals: " + fmt(c.full) + (c.kept ? ", beyond its standard error" : close ? ", ahead but within the noise" : ", within the noise: rejected"));
     if (close) {
       // Bold mode: a close call plays 30,000 more deals and is judged on
       // all of them, each run weighted by its precision.
-      const more = S.judge(c.file, champ, EXTRA_DEALS, FULL_SEED + r * 100000 + 50000, 'more');
+      const more = S.judge(c.file, champ, EXTRA_DEALS, FULL_SEED + r * 100000 + 50000, "more");
       const w1 = 1 / Math.pow(c.full.margin / 2, 2), w2 = 1 / Math.pow(more.margin / 2, 2);
       const J = (c.full.J * w1 + more.J * w2) / (w1 + w2);
       const se = 1 / Math.sqrt(w1 + w2);
       c.full = Object.assign({}, more, { J, points: (c.full.points * w1 + more.points * w2) / (w1 + w2), margin: 2 * se, deals: FULL_DEALS + EXTRA_DEALS });
       c.kept = S.keep ? S.keep(c.full) : J > se;
-      log('Round ' + r + ': ' + c.name + ' on ' + (FULL_DEALS + EXTRA_DEALS) + ' deals in all: J ' + signed(J) + ' \u00b1 ' + (2 * se).toFixed(1) +
-        (c.kept ? ', beyond its standard error' : ', still within the noise: rejected'));
+      log("Round " + r + ": " + c.name + " on " + (FULL_DEALS + EXTRA_DEALS) + " deals in all: J " + signed(J) + " \u00b1 " + (2 * se).toFixed(1) +
+        (c.kept ? ", beyond its standard error" : ", still within the noise: rejected"));
     }
   });
 
@@ -777,113 +766,113 @@ function round(state, opts) {
   })) };
   if (best && S.baseline) {
     // Only Orphans: the new champion against the rule-based bot, on the same deals.
-    const b = S.baseline(FULL_DEALS, FULL_SEED + r * 100000, 'full');
-    const mine = seatOO('oo:' + best.file, FULL_DEALS, FULL_SEED + r * 100000, best.name + '-full');
+    const b = S.baseline(FULL_DEALS, FULL_SEED + r * 100000, "full");
+    const mine = seatOO("oo:" + best.file, FULL_DEALS, FULL_SEED + r * 100000, best.name + "-full");
     result.vsBaseline = { points: mine.pointsPerHand - b.pointsPerHand, margin: pairedMargin(mine, b),
       pointsPerHand: mine.pointsPerHand, baselinePointsPerHand: b.pointsPerHand, winRate: mine.winRate, baselineWinRate: b.winRate };
-    log('Round ' + r + ': ' + best.name + ' against the rule-based bot ' + signed(result.vsBaseline.points) + ' ± ' + result.vsBaseline.margin.toFixed(1) +
-      ' points a hand (' + mine.pointsPerHand.toFixed(1) + ' against ' + b.pointsPerHand.toFixed(1) + ')');
+    log("Round " + r + ": " + best.name + " against the rule-based bot " + signed(result.vsBaseline.points) + " ± " + result.vsBaseline.margin.toFixed(1) +
+      " points a hand (" + mine.pointsPerHand.toFixed(1) + " against " + b.pointsPerHand.toFixed(1) + ")");
   }
   if (best) {
     state.champion = best.file;
     state.members.push(best.file);
-    if (opts.dry) { result.dryKept = true; log('Round ' + r + ': ' + best.name + ' would be the new champion (dry run: not shipped)'); state.rounds.push(result); return result; }
+    if (opts.dry) { result.dryKept = true; log("Round " + r + ": " + best.name + " would be the new champion (dry run: not shipped)"); state.rounds.push(result); return result; }
     const release = S.ship(best.file);
     result.shipped = release;
-    log('Round ' + r + ': ' + best.name + ' is the new champion (' + best.arm + ', J ' + signed(best.full.J) + '), shipped as ' + release);
+    log("Round " + r + ": " + best.name + " is the new champion (" + best.arm + ", J " + signed(best.full.J) + "), shipped as " + release);
     if (!opts.noUpload) upload(best.file, release);
   } else {
-    log('Round ' + r + ': no candidate beat ' + base(champ) + ' beyond its standard error; it stays champion');
+    log("Round " + r + ": no candidate beat " + base(champ) + " beyond its standard error; it stays champion");
   }
   state.rounds.push(result);
 
-  if (opts.dry || S !== STRATEGIES['neural-cat']) return result;
+  if (opts.dry || S !== STRATEGIES["neural-cat"]) return result;
   // Data in use: what the champion trained on, and the last rounds a fine-tune or a new network would use.
   const champMeta = readJson(state.champion).meta || {};
   const keep = new Set(((champMeta.data) || []).map((d) => path.basename(d)).concat(dataSets().slice(-12).map((d) => path.basename(d))));
   const gone = prune({ apply: true, keep });
-  if (gone.moved) log('Moved to the Trash: ' + gone.names.join(', '));
+  if (gone.moved) log("Moved to the Trash: " + gone.names.join(", "));
   return result;
 }
 
 function report(state) {
-  console.log('Champion: ' + base(state.champion) + ' ' + JSON.stringify(playOf(state.champion)) + ', after ' + state.rounds.length + ' rounds (' + state.deals.toLocaleString('en-US') + ' deals); ' +
-    stale(state) + ' round' + (stale(state) === 1 ? '' : 's') + ' since it last changed. Arms marked * join only in bold mode.\n');
-  console.log('Arm               Tries  Kept  Average J  Results');
+  console.log("Champion: " + base(state.champion) + " " + JSON.stringify(playOf(state.champion)) + ", after " + state.rounds.length + " rounds (" + state.deals.toLocaleString("en-US") + " deals); " +
+    stale(state) + " round" + (stale(state) === 1 ? "" : "s") + " since it last changed. Arms marked * join only in bold mode.\n");
+  console.log("Arm               Tries  Kept  Average J  Results");
   Object.keys(S.trainArms).concat(Object.keys(S.playArms)).forEach((n) => {
     const a = state.arms[n];
     const spec = S.trainArms[n] || S.playArms[n];
-    console.log((n + (spec.bold ? ' *' : '')).padEnd(18) + String(a ? a.tries : 0).padStart(5) + String(a ? a.kept : 0).padStart(6) + (a && a.tries ? signed(a.sumJ / a.tries) : '').padStart(11) + '  ' + (a ? a.results.join(', ') : ''));
+    console.log((n + (spec.bold ? " *" : "")).padEnd(18) + String(a ? a.tries : 0).padStart(5) + String(a ? a.kept : 0).padStart(6) + (a && a.tries ? signed(a.sumJ / a.tries) : "").padStart(11) + "  " + (a ? a.results.join(", ") : ""));
   });
 }
 
 function main() {
   const a = parseArgs(process.argv.slice(2));
-  const id = String(a.strategy || 'neural-cat');
-  if (!STRATEGIES[id]) throw new Error('--strategy is ' + Object.keys(STRATEGIES).join(', '));
+  const id = String(a.strategy || "neural-cat");
+  if (!STRATEGIES[id]) throw new Error("--strategy is " + Object.keys(STRATEGIES).join(", "));
   S = STRATEGIES[id];
   PREFIX = a.prefix ? String(a.prefix) : S.prefix;
-  DIR = a.dir ? path.resolve(String(a.dir)) : path.join(ROOT, 'ml', S.dir);
+  DIR = a.dir ? path.resolve(String(a.dir)) : path.join(ROOT, "ml", S.dir);
   fs.mkdirSync(DIR, { recursive: true });
-  const STATE = path.join(DIR, 'state.json');
-  const cmd = a._[0] || 'run';
-  if (a['quick-deals']) QUICK_DEALS = parseInt(a['quick-deals'], 10);
+  const STATE = path.join(DIR, "state.json");
+  const cmd = a._[0] || "run";
+  if (a["quick-deals"]) QUICK_DEALS = parseInt(a["quick-deals"], 10);
   else if (S.quickDeals) QUICK_DEALS = S.quickDeals;
-  if (a['quick-train-deals']) QUICK_TRAIN_DEALS = parseInt(a['quick-train-deals'], 10);
+  if (a["quick-train-deals"]) QUICK_TRAIN_DEALS = parseInt(a["quick-train-deals"], 10);
   else if (S.quickTrainDeals) QUICK_TRAIN_DEALS = S.quickTrainDeals;
-  if (a['full-deals']) FULL_DEALS = parseInt(a['full-deals'], 10);
+  if (a["full-deals"]) FULL_DEALS = parseInt(a["full-deals"], 10);
   else if (S.fullDeals) FULL_DEALS = S.fullDeals;
-  if (a['extra-deals']) EXTRA_DEALS = parseInt(a['extra-deals'], 10);
+  if (a["extra-deals"]) EXTRA_DEALS = parseInt(a["extra-deals"], 10);
   if (a.workers) WORKERS = parseInt(a.workers, 10);
 
-  if (cmd === 'bench') {
+  if (cmd === "bench") {
     const model = String(a.model);
     const deals = parseInt(a.deals || FULL_DEALS, 10);
-    String(a.against).split(',').forEach((o) => {
+    String(a.against).split(",").forEach((o) => {
       // A model name, a model file, or (Lucky Cat) a table strategy such as jorge-yau.
-      const strategy = S.folder === 'lucky-cat' && !/\.json$/.test(o) && !fs.existsSync(path.join(ROOT, 'ml', 'models', o + '.json'));
-      const other = strategy || /\.json$/.test(o) ? o : path.join('ml', 'models', o + '.json');
-      const e = S.judge(model, other, deals, parseInt(a.seed || 50000000, 10), 'bench-vs-' + base(other));
-      log('Bench ' + base(model) + ' vs ' + base(other) + ': ' + fmt(e));
+      const strategy = S.folder === "lucky-cat" && !/\.json$/.test(o) && !fs.existsSync(path.join(ROOT, "ml", "models", o + ".json"));
+      const other = strategy || /\.json$/.test(o) ? o : path.join("ml", "models", o + ".json");
+      const e = S.judge(model, other, deals, parseInt(a.seed || 50000000, 10), "bench-vs-" + base(other));
+      log("Bench " + base(model) + " vs " + base(other) + ": " + fmt(e));
     });
     return;
   }
 
-  let state = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : null;
+  let state = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, "utf8")) : null;
   if (!state) {
     const found = S.start();
     const start = a.start ? path.relative(ROOT, path.resolve(String(a.start))) : found.start && path.normalize(found.start);
-    if (!start) throw new Error('first run needs --start ml/models/<name>.json');
+    if (!start) throw new Error("first run needs --start ml/models/<name>.json");
     // Paths in one form (a league's state may use the other slash), so the champion is never its own opponent.
     const members = (found.members || []).map((m) => path.normalize(m)).filter((m, k, all) => m !== start && all.indexOf(m) === k && fs.existsSync(path.join(ROOT, m)));
     state = { strategy: id, champion: start, members: members.concat([start]), arms: {}, rounds: [], deals: 0 };
-    fs.writeFileSync(STATE, JSON.stringify(state, null, 2) + '\n');
-    log('The lab starts ' + id + ' from ' + start);
+    fs.writeFileSync(STATE, JSON.stringify(state, null, 2) + "\n");
+    log("The lab starts " + id + " from " + start);
   }
-  if (cmd === 'report') return report(state);
+  if (cmd === "report") return report(state);
 
   const opts = {
     deals: parseInt(a.deals || S.deals || 50000, 10),
     train: parseInt(a.train || 3, 10),
     play: parseInt(a.play != null ? a.play : 2, 10),
-    noUpload: !!a['no-upload'],
+    noUpload: !!a["no-upload"],
     dry: !!a.dry,
-    boldAfter: parseInt(a['bold-after'] || 3, 10),
-    stopAfter: parseInt(a['stop-after'] || 6, 10),
+    boldAfter: parseInt(a["bold-after"] || 3, 10),
+    stopAfter: parseInt(a["stop-after"] || 6, 10),
   };
   const rounds = parseInt(a.rounds || 10, 10);
   for (let k = 0; k < rounds; k++) {
     if (stale(state) >= opts.stopAfter) {
-      const tried = Object.keys(state.arms).map((n) => n + ' ' + state.arms[n].tries + 'x (average J ' + signed(state.arms[n].sumJ / state.arms[n].tries) + ')').join(', ');
-      log('Stopping: ' + stale(state) + ' round' + (stale(state) === 1 ? '' : 's') + ' without a new champion, bold mode included. Champion ' + base(state.champion) + '. Tried: ' + tried +
-        '. Next: new features (what the model can\'t see yet), which need new data and a person to design them.');
+      const tried = Object.keys(state.arms).map((n) => n + " " + state.arms[n].tries + "x (average J " + signed(state.arms[n].sumJ / state.arms[n].tries) + ")").join(", ");
+      log("Stopping: " + stale(state) + " round" + (stale(state) === 1 ? "" : "s") + " without a new champion, bold mode included. Champion " + base(state.champion) + ". Tried: " + tried +
+        ". Next: new features (what the model can't see yet), which need new data and a person to design them.");
       break;
     }
     round(state, opts);
-    fs.writeFileSync(STATE, JSON.stringify(state, null, 2) + '\n');
+    fs.writeFileSync(STATE, JSON.stringify(state, null, 2) + "\n");
   }
-  log('Done: ' + state.rounds.length + ' rounds. Champion: ' + base(state.champion));
+  log("Done: " + state.rounds.length + " rounds. Champion: " + base(state.champion));
   report(state);
 }
 
-try { main(); } catch (err) { log('FAILED: ' + (err.stack || err.message)); process.exit(1); }
+try { main(); } catch (err) { log("FAILED: " + (err.stack || err.message)); process.exit(1); }

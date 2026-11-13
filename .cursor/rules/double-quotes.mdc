@@ -1,0 +1,18 @@
+---
+description: Quote string literals with double quotes
+alwaysApply: true
+---
+
+# Double quotes
+
+Write string literals with double quotes. An apostrophe inside a string is a plain `'`, never `\'`.
+
+```js
+const note = "That isn't a hand seed.";
+```
+
+```py
+print(f"the hand's points")
+```
+
+`npm run lint` checks this. Keep template literals in backticks. On Python 3.10, a double-quoted f-string cannot contain another double-quoted string. Split that f-string into double-quoted pieces instead of switching one of them back to single quotes.

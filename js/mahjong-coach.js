@@ -11,21 +11,21 @@
    (js/mahjong-strategies.js); the default speaks for lucky-cat. */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
-  var node = typeof module !== 'undefined' && module.exports;
-  var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var DEFAULT_BOT = node ? require('./mahjong-lucky-cat.js') : root.MahjongLuckyCat;
+  var node = typeof module !== "undefined" && module.exports;
+  var E = node ? require("./mahjong-engine.js") : root.MahjongEngine;
+  var DEFAULT_BOT = node ? require("./mahjong-lucky-cat.js") : root.MahjongLuckyCat;
   // The names of a stacked model's read (js/mahjong-ml-model.js), where it loads.
-  var M = node ? require('./mahjong-ml-model.js') : root.MahjongMLModel;
+  var M = node ? require("./mahjong-ml-model.js") : root.MahjongMLModel;
   var B = DEFAULT_BOT;
 
-  var SUIT_NAME = { c: 'Characters', d: 'Circles', b: 'Bamboo' };
-  var COUNT_WORDS = ['No', 'One', 'Two', 'Three', 'Four'];
+  var SUIT_NAME = { c: "Characters", d: "Circles", b: "Bamboo" };
+  var COUNT_WORDS = ["No", "One", "Two", "Three", "Four"];
   var LAST_WALL = 36; // fewer tiles than this left: the last wall
 
   function name(i) { return E.tileName(E.tileId(i)); }
-  function plural(i) { return name(i) + 's'; }
+  function plural(i) { return name(i) + "s"; }
 
   /* ------------------------------------------------------------------ *
    * 1. What the player can see
@@ -53,14 +53,14 @@
     if (!plan) return null;
     var id = plan.id;
     var suit = plan.suit || null;
-    if (id.slice(0, 5) === 'half-') id = 'half';
-    else if (id.slice(0, 5) === 'full-') id = 'full';
-    else if (id === 'plain') id = 'mixed';
+    if (id.slice(0, 5) === "half-") id = "half";
+    else if (id.slice(0, 5) === "full-") id = "full";
+    else if (id === "plain") id = "mixed";
     var keep = null;
     if (plan.keep) keep = plan.keep;
-    else if (id === 'half') keep = function (j) { return E.suitOfIndex(j) === suit || j >= 27; };
-    else if (id === 'full') keep = function (j) { return E.suitOfIndex(j) === suit; };
-    else if (id === 'straights' || id === 'runs') keep = function (j) { return j < 27; };
+    else if (id === "half") keep = function (j) { return E.suitOfIndex(j) === suit || j >= 27; };
+    else if (id === "full") keep = function (j) { return E.suitOfIndex(j) === suit; };
+    else if (id === "straights" || id === "runs") keep = function (j) { return j < 27; };
     return { id: id, suit: suit, faan: plan.faan, keep: keep, label: plan.label, reason: plan.reason, hint: plan.hint, shantenFn: plan.shantenFn || null };
   }
 
@@ -73,7 +73,7 @@
       live: best.ukeire || 0,
       // The rules' own estimate of finishing this plan before the wall runs
       // out (MahjongBot finishChance). A ready hand has its waits instead.
-      chance: typeof best.chance === 'number' ? best.chance : null,
+      chance: typeof best.chance === "number" ? best.chance : null,
     };
   }
 
@@ -119,15 +119,15 @@
 
   function faanWord(f) {
     var n = Math.max(0, Math.floor(f + 0.25));
-    return n + ' faan';
+    return n + " faan";
   }
 
   function waitsText(ready) {
     var live = winningWaits(ready);
     var list = live.map(function (w) { return name(E.tileIndex(w.tile)); });
     var left = live.reduce(function (n, w) { return n + w.left; }, 0);
-    var tiles = list.length > 1 ? list.slice(0, -1).join(', ') + ' or ' + list[list.length - 1] : list[0];
-    return tiles + ' (' + left + ' left)';
+    var tiles = list.length > 1 ? list.slice(0, -1).join(", ") + " or " + list[list.length - 1] : list[0];
+    return tiles + " (" + left + " left)";
   }
 
   function readyNotes(ready, min) {
@@ -135,10 +135,10 @@
     var selfOnly = ready.waits.filter(function (w) { return !w.ronOk && w.tsumoOk; });
     var short = ready.waits.filter(function (w) { return !w.tsumoOk; });
     if (short.length === ready.waits.length) {
-      notes.push('No wait reaches ' + min + ' faan yet.');
+      notes.push("No wait reaches " + min + " faan yet.");
     } else {
-      if (selfOnly.length) notes.push(selfOnly.map(function (w) { return name(E.tileIndex(w.tile)); }).join(' and ') + ' wins only on self-draw.');
-      if (short.length) notes.push(short.map(function (w) { return name(E.tileIndex(w.tile)); }).join(' and ') + ' is under ' + min + ' faan.');
+      if (selfOnly.length) notes.push(selfOnly.map(function (w) { return name(E.tileIndex(w.tile)); }).join(" and ") + " wins only on self-draw.");
+      if (short.length) notes.push(short.map(function (w) { return name(E.tileIndex(w.tile)); }).join(" and ") + " is under " + min + " faan.");
     }
     return notes;
   }
@@ -155,11 +155,11 @@
       var r = B.honorKeepRank(v.ctx, k);
       if (r > mine && (!kept || r > kept.r)) kept = { k: k, r: r };
     }
-    if (!kept) return '';
-    var what = mine === 0 ? name(i) + ' is worth nothing to you' : name(i) + ' is worth 1 faan to you';
-    if (kept.r === 3) return what + ', and your ' + name(kept.k) + ' is worth 2 faan, so it stays longest.';
-    if (kept.r === 2) return what + '. Your ' + name(kept.k) + ' scores for every player, so keeping it also keeps it from them.';
-    return what + ', and your ' + name(kept.k) + ' is worth 1 faan.';
+    if (!kept) return "";
+    var what = mine === 0 ? name(i) + " is worth nothing to you" : name(i) + " is worth 1 faan to you";
+    if (kept.r === 3) return what + ", and your " + name(kept.k) + " is worth 2 faan, so it stays longest.";
+    if (kept.r === 2) return what + ". Your " + name(kept.k) + " scores for every player, so keeping it also keeps it from them.";
+    return what + ", and your " + name(kept.k) + " is worth 1 faan.";
   }
 
   // Why a pair is broken. Pairs are good to hold: one is the eyes, and each
@@ -170,7 +170,7 @@
     var pairs = 0;
     for (var j = 0; j < 34; j++) if (c[j] >= 2) pairs++;
     if (left === 0) {
-      return 'No ' + name(i) + ' is left, so this pair can\'t become a pung' + (pairs >= 2 ? ', and another pair can be the eyes.' : '.');
+      return "No " + name(i) + " is left, so this pair can't become a pung" + (pairs >= 2 ? ", and another pair can be the eyes." : ".");
     }
     var declared = v.ctx.declared;
     c[i]--;
@@ -183,8 +183,8 @@
       if (E.shanten(c, declared) <= mine) single = true;
       c[k]++;
     }
-    if (!single) return 'Every single you hold would slow the hand more, so this pair is the one to split.';
-    return 'Your other tiles are worth more to the hand right now than a pung of ' + name(i) + '.';
+    if (!single) return "Every single you hold would slow the hand more, so this pair is the one to split.";
+    return "Your other tiles are worth more to the hand right now than a pung of " + name(i) + ".";
   }
 
   // What a hand keeps, said one way for every strategy: "Full Flush uses
@@ -192,23 +192,23 @@
   // the foundation's upgrades) says it in the same words.
   function usesOnly(route) {
     var suit = SUIT_NAME[route.suit];
-    if (route.id === 'orphans') return 'Thirteen Orphans uses only 1s, 9s and honors.';
-    if (route.id === 'gates') return 'Nine Gates uses only ' + suit + '.';
-    if (route.id === 'straights' || route.id === 'runs') return 'Honors break All Sequences.';
-    if (route.id === 'full') return 'Full Flush uses only ' + suit + '.';
-    if (route.id === 'half') return 'Half Flush uses only ' + suit + ' and honors.';
-    return '';
+    if (route.id === "orphans") return "Thirteen Orphans uses only 1s, 9s and honors.";
+    if (route.id === "gates") return "Nine Gates uses only " + suit + ".";
+    if (route.id === "straights" || route.id === "runs") return "Honors break All Sequences.";
+    if (route.id === "full") return "Full Flush uses only " + suit + ".";
+    if (route.id === "half") return "Half Flush uses only " + suit + " and honors.";
+    return "";
   }
 
   function whyDiscard(v, c, pick, route) {
     var i = pick.index;
     if (v.committedSuit && i < 27 && E.suitOfIndex(i) !== v.committedSuit) {
-      return 'You chowed ' + SUIT_NAME[v.committedSuit] + ', so other suits are dead weight.';
+      return "You chowed " + SUIT_NAME[v.committedSuit] + ", so other suits are dead weight.";
     }
     var oneSuit = B.suitCommitment(v.ctx, c);
     if (oneSuit && i < 27 && E.suitOfIndex(i) !== oneSuit) {
       // The plan line names the flush, so this one only says why the tile goes.
-      return 'Your hand is keeping ' + SUIT_NAME[oneSuit] + ': discard other suits first.';
+      return "Your hand is keeping " + SUIT_NAME[oneSuit] + ": discard other suits first.";
     }
     if (B.isPungTile(v.game, i) && c[i] < 2) {
       return pungedReason(i);
@@ -218,7 +218,7 @@
     var up = v.ctx.upgrade;
     var upgradeTile = up && up.favors(i);
     if (upgradeTile && c[i] <= 2 && v.unseen[i] === 0) {
-      return 'None are left, so it can\'t help ' + up.label + '.';
+      return "None are left, so it can't help " + up.label + ".";
     }
     if (up && !upgradeTile && (!route || route.id !== up.id) && up.keep) {
       return up.reason;
@@ -228,86 +228,86 @@
       // All Triplets needs more copies, so the tile with fewest left goes.
       // Say so only when it's true: compare it with the other tiles held the
       // same way (singles with singles, pairs with pairs).
-      if (left === 0) return 'None are left, so it can never become a meld.';
+      if (left === 0) return "None are left, so it can never become a meld.";
       var fewest = true, others = 0;
       for (var j = 0; j < 34; j++) {
         if (j === i || c[j] !== c[i]) continue;
         others++;
         if (v.unseen[j] <= left) fewest = false;
       }
-      var kind = c[i] === 2 ? 'pair' : 'single';
-      var count = left === 1 ? 'Only one is left' : COUNT_WORDS[left] + ' are left';
-      if (others && fewest) return count + ', fewer than any other ' + kind + ' you hold, so it\'s the least likely to become a meld.';
-      if (left === 1) return 'Only one is left, so it\'s unlikely to become a meld.';
+      var kind = c[i] === 2 ? "pair" : "single";
+      var count = left === 1 ? "Only one is left" : COUNT_WORDS[left] + " are left";
+      if (others && fewest) return count + ", fewer than any other " + kind + " you hold, so it's the least likely to become a meld.";
+      if (left === 1) return "Only one is left, so it's unlikely to become a meld.";
     }
-    if (route && route.id === 'pairs' && c[i] === 1) {
-      return 'Seven Pairs keeps pairs, so singles go.';
+    if (route && route.id === "pairs" && c[i] === 1) {
+      return "Seven Pairs keeps pairs, so singles go.";
     }
-    if (route && route.id === 'orphans' && !E.isTerminalOrHonorIndex(i)) return usesOnly(route);
-    if (route && route.id === 'gates' && E.suitOfIndex(i) !== route.suit) return usesOnly(route);
+    if (route && route.id === "orphans" && !E.isTerminalOrHonorIndex(i)) return usesOnly(route);
+    if (route && route.id === "gates" && E.suitOfIndex(i) !== route.suit) return usesOnly(route);
     if (i >= 27 && c[i] === 1 && B.revealedCopies(v.game, i) >= 2) {
       var out = B.revealedCopies(v.game, i);
-      return COUNT_WORDS[out] + ' are out, so it can\'t make a meld.';
+      return COUNT_WORDS[out] + " are out, so it can't make a meld.";
     }
     if (route && route.keep && !route.keep(i)) {
       if (route.reason) return route.reason;
-      return usesOnly(route) || 'Your hand needs it least.';
+      return usesOnly(route) || "Your hand needs it least.";
     }
-    var honor = i >= 27 ? honorReason(v, c, i) : '';
+    var honor = i >= 27 ? honorReason(v, c, i) : "";
     if (honor) return honor;
-    if (c[i] >= 3) return route && route.id === 'pairs' ? 'Seven Pairs uses only two of each.' : 'A spare from your three.';
+    if (c[i] >= 3) return route && route.id === "pairs" ? "Seven Pairs uses only two of each." : "A spare from your three.";
     if (c[i] === 2) return pairReason(v, c, i);
     if (pick.keptPair != null && c[i] === 1) {
-      return 'Keep your ' + name(pick.keptPair) + ' pair: one pair is the eyes, and the others can become pungs.';
+      return "Keep your " + name(pick.keptPair) + " pair: one pair is the eyes, and the others can become pungs.";
     }
     if (pick.shortSuit && i < 27) {
       var su = E.suitOfIndex(i);
-      if (neighbors(c, i) === 0) return 'Nothing connects to it, and ' + SUIT_NAME[su] + ' is your shortest suit.';
-      if (B.looseTerminal(c, i)) return SUIT_NAME[su] + ' is your shortest suit: discard its terminal first.';
-      return SUIT_NAME[su] + ' is your shortest suit, and it connects the least.';
+      if (neighbors(c, i) === 0) return "Nothing connects to it, and " + SUIT_NAME[su] + " is your shortest suit.";
+      if (B.looseTerminal(c, i)) return SUIT_NAME[su] + " is your shortest suit: discard its terminal first.";
+      return SUIT_NAME[su] + " is your shortest suit, and it connects the least.";
     }
     if (pick.lone) {
-      if (i >= 27) return 'A lone honor worth no faan to you.';
-      return E.isTerminalOrHonorIndex(i) ? 'A lone terminal, the hardest to use.' : 'Nothing connects to it.';
+      if (i >= 27) return "A lone honor worth no faan to you.";
+      return E.isTerminalOrHonorIndex(i) ? "A lone terminal, the hardest to use." : "Nothing connects to it.";
     }
     var r = i % 9;
-    if (i < 27 && (r === 0 || r === 8)) return 'Terminals are slow to build on.';
-    return 'Your hand needs it least.';
+    if (i < 27 && (r === 0 || r === 8)) return "Terminals are slow to build on.";
+    return "Your hand needs it least.";
   }
 
   // Hand-pattern names are wrapped in invisible markers so the game can draw
   // them in the brand red. Their faan is on the Rules sheet, not in the tips.
   var HAND_PATTERNS = [
-    'eight immortals crossing the sea',
-    'seven robbing one',
-    'seat and round wind',
-    'concealed straights',
-    'concealed triplets',
-    'thirteen orphans',
-    'dragon triplet',
-    'dragon quad',
-    'four quads',
-    'seat wind',
-    'round wind',
-    'small three dragons',
-    'big three dragons',
-    'small four winds',
-    'big four winds',
-    'four winds',
-    'mixed orphans',
-    'all terminals',
-    'all honors',
-    'all sequences',
-    'all triplets',
-    'seven pairs',
-    'nine gates',
-    'half flush',
-    'full flush',
-    'chicken hand',
+    "eight immortals crossing the sea",
+    "seven robbing one",
+    "seat and round wind",
+    "concealed straights",
+    "concealed triplets",
+    "thirteen orphans",
+    "dragon triplet",
+    "dragon quad",
+    "four quads",
+    "seat wind",
+    "round wind",
+    "small three dragons",
+    "big three dragons",
+    "small four winds",
+    "big four winds",
+    "four winds",
+    "mixed orphans",
+    "all terminals",
+    "all honors",
+    "all sequences",
+    "all triplets",
+    "seven pairs",
+    "nine gates",
+    "half flush",
+    "full flush",
+    "chicken hand",
   ];
 
   function highlightPatterns(text) {
-    var raw = String(text).replace(/[\u0001\u0002]/g, '');
+    var raw = String(text).replace(/[\u0001\u0002]/g, "");
     var lower = raw.toLowerCase();
     var hits = [];
     HAND_PATTERNS.forEach(function (needle) {
@@ -331,10 +331,10 @@
       }
     });
     hits.sort(function (a, b) { return a.at - b.at; });
-    var out = '';
+    var out = "";
     var cursor = 0;
     hits.forEach(function (h) {
-      out += raw.slice(cursor, h.at) + '\u0001' + raw.slice(h.at, h.nameEnd) + '\u0002';
+      out += raw.slice(cursor, h.at) + "\u0001" + raw.slice(h.at, h.nameEnd) + "\u0002";
       cursor = h.spanEnd;
     });
     return out + raw.slice(cursor);
@@ -350,17 +350,17 @@
   // they're collecting another suit you nearly chose, or throwing this one.
   function leftNote(v, suit) {
     var read = v.ctx.leftRead;
-    if (!read) return '';
+    if (!read) return "";
     var who = v.game.players[read.seat].name;
     var avoid = B.avoidSuit(E.countsOf(v.game.hand.seats[v.seat].hand), v.ctx);
-    if (avoid && avoid !== suit) return '. ' + who + ' is collecting ' + SUIT_NAME[avoid] + ', so stay out of it';
-    if (read.feeds === suit) return '. ' + who + ' is throwing ' + SUIT_NAME[suit] + ', so you can chow them';
-    return '';
+    if (avoid && avoid !== suit) return ". " + who + " is collecting " + SUIT_NAME[avoid] + ", so stay out of it";
+    if (read.feeds === suit) return ". " + who + " is throwing " + SUIT_NAME[suit] + ", so you can chow them";
+    return "";
   }
 
   function targetText(v, plan, c, nextOut) {
     var r = plan.route;
-    if (r.id === 'straights') {
+    if (r.id === "straights") {
       // Every bot throws honors first on this hand, all but one honor pair
       // and a dragon nobody has shown.
       var eyes = B.keptHonorPair(c, v.ctx);
@@ -370,35 +370,35 @@
         if (B.holdsDragon(v.game, h, 1)) continue;
         honors += c[h] || 0;
       }
-      var keepPair = eyes !== null ? '. Keep your ' + name(eyes) + ' pair as the eyes' : '';
-      var lastFaan = v.flowerFaan ? '. Flowers make it 3'
-        : '. Get the last faan from a situational bonus like self-draw or drawing your own seat flower';
-      return 'Concealed Straights' + lastFaan + '. Don\'t claim' + keepPair +
-        (honors ? (eyes !== null ? ', and throw your other honors first' : '. Throw your honors first') : '');
+      var keepPair = eyes !== null ? ". Keep your " + name(eyes) + " pair as the eyes" : "";
+      var lastFaan = v.flowerFaan ? ". Flowers make it 3"
+        : ". Get the last faan from a situational bonus like self-draw or drawing your own seat flower";
+      return "Concealed Straights" + lastFaan + ". Don't claim" + keepPair +
+        (honors ? (eyes !== null ? ", and throw your other honors first" : ". Throw your honors first") : "");
     }
-    if (r.id === 'half') return 'Half Flush in ' + SUIT_NAME[r.suit] + leftNote(v, r.suit);
-    if (r.id === 'full') return 'Full Flush in ' + SUIT_NAME[r.suit] + leftNote(v, r.suit);
-    if (r.id === 'triplets') return 'All Triplets. Pung your pairs';
-    if (r.id === 'concealed-triplets') return 'Concealed Triplets. Don\'t claim';
-    if (r.id === 'pairs') return 'Seven Pairs. Don\'t claim';
-    if (r.id === 'orphans') return 'Thirteen Orphans. Don\'t claim';
-    if (r.id === 'gates') return 'Nine Gates in ' + SUIT_NAME[r.suit] + '. Don\'t claim';
-    if (r.id === 'winds') return 'Big or Small Four Winds. Keep every honor';
-    if (r.id === 'honors') return 'All Honors. Pung your honor pairs';
-    if (r.id === 'terminals') return 'All Terminals, or Mixed Orphans with honors';
-    if (r.id === 'runs') return 'All Sequences: chows only, no honors';
-    if (r.id === 'mixed-orphans') return 'Mixed Orphans on All Triplets. Keep only 1s, 9s and honors, and pung your pairs';
-    if (r.id === 'all-terminals') return 'All Terminals. Keep only 1s and 9s, and pung your pairs';
-    if (r.id === 'all-honors') return 'All Honors. Keep only honors, and pung your pairs';
-    if (r.id === 'small-dragons') return 'Small Three Dragons. Pung two dragons and make the third your eyes';
-    if (r.id === 'big-dragons') return 'Big Three Dragons. Pung all three dragons';
-    if (r.id === 'small-winds') return 'Small Four Winds. Pung three winds and make the fourth your eyes';
-    if (r.id === 'big-winds') return 'Big Four Winds. Pung all four winds';
-    if (/^pairs-/.test(r.id)) return r.label + '. Don\'t claim';
+    if (r.id === "half") return "Half Flush in " + SUIT_NAME[r.suit] + leftNote(v, r.suit);
+    if (r.id === "full") return "Full Flush in " + SUIT_NAME[r.suit] + leftNote(v, r.suit);
+    if (r.id === "triplets") return "All Triplets. Pung your pairs";
+    if (r.id === "concealed-triplets") return "Concealed Triplets. Don't claim";
+    if (r.id === "pairs") return "Seven Pairs. Don't claim";
+    if (r.id === "orphans") return "Thirteen Orphans. Don't claim";
+    if (r.id === "gates") return "Nine Gates in " + SUIT_NAME[r.suit] + ". Don't claim";
+    if (r.id === "winds") return "Big or Small Four Winds. Keep every honor";
+    if (r.id === "honors") return "All Honors. Pung your honor pairs";
+    if (r.id === "terminals") return "All Terminals, or Mixed Orphans with honors";
+    if (r.id === "runs") return "All Sequences: chows only, no honors";
+    if (r.id === "mixed-orphans") return "Mixed Orphans on All Triplets. Keep only 1s, 9s and honors, and pung your pairs";
+    if (r.id === "all-terminals") return "All Terminals. Keep only 1s and 9s, and pung your pairs";
+    if (r.id === "all-honors") return "All Honors. Keep only honors, and pung your pairs";
+    if (r.id === "small-dragons") return "Small Three Dragons. Pung two dragons and make the third your eyes";
+    if (r.id === "big-dragons") return "Big Three Dragons. Pung all three dragons";
+    if (r.id === "small-winds") return "Small Four Winds. Pung three winds and make the fourth your eyes";
+    if (r.id === "big-winds") return "Big Four Winds. Pung all four winds";
+    if (/^pairs-/.test(r.id)) return r.label + ". Don't claim";
     for (var i = 27; i < 34; i++) {
-      if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) return (/^[AEIOU]/.test(name(i)) ? 'an ' : 'a ') + name(i) + ' meld (' + honorWorth(v, i) + ' faan). Pung it if it\'s thrown';
+      if (c[i] === 2 && honorWorth(v, i) && v.unseen[i] >= 1) return (/^[AEIOU]/.test(name(i)) ? "an " : "a ") + name(i) + " meld (" + honorWorth(v, i) + " faan). Pung it if it's thrown";
     }
-    return r.faan >= v.game.settings.minFaan ? 'a chicken hand' : 'a dragon or wind meld';
+    return r.faan >= v.game.settings.minFaan ? "a chicken hand" : "a dragon or wind meld";
   }
 
   // What each hand pattern is worth on its own, by the plan's id: the scoring
@@ -408,14 +408,14 @@
     var F = E.HKScoring.FAAN;
     return {
       half: F.halfFlush, full: F.fullFlush,
-      triplets: F.allTriplets, 'all-triplets': F.allTriplets, 'concealed-triplets': F.allConcealedTriplets,
-      pairs: F.sevenPairs, 'pairs-orphans': F.sevenPairs + F.mixedOrphans,
-      'pairs-honors': LIMIT_FAAN, 'pairs-terminals': LIMIT_FAAN,
-      orphans: LIMIT_FAAN, gates: LIMIT_FAAN, 'big-winds': LIMIT_FAAN,
-      winds: F.smallWinds, 'small-winds': F.smallWinds,
-      'small-dragons': F.smallDragons, 'big-dragons': F.greatDragons,
-      honors: F.allHonors, 'all-honors': F.allHonors, 'all-terminals': F.allTerminals,
-      'mixed-orphans': F.allTriplets + F.mixedOrphans,
+      triplets: F.allTriplets, "all-triplets": F.allTriplets, "concealed-triplets": F.allConcealedTriplets,
+      pairs: F.sevenPairs, "pairs-orphans": F.sevenPairs + F.mixedOrphans,
+      "pairs-honors": LIMIT_FAAN, "pairs-terminals": LIMIT_FAAN,
+      orphans: LIMIT_FAAN, gates: LIMIT_FAAN, "big-winds": LIMIT_FAAN,
+      winds: F.smallWinds, "small-winds": F.smallWinds,
+      "small-dragons": F.smallDragons, "big-dragons": F.greatDragons,
+      honors: F.allHonors, "all-honors": F.allHonors, "all-terminals": F.allTerminals,
+      "mixed-orphans": F.allTriplets + F.mixedOrphans,
       runs: F.allSequences, straights: F.allSequences + F.concealed,
       mixed: F.chicken,
     };
@@ -424,7 +424,7 @@
   function patternFaan(route, label, total) {
     var meld = /\((\d+) faan\)/.exec(label); // "a Red Dragon meld (1 faan)": the meld is the aim
     if (meld) return Number(meld[1]);
-    if (route.id === 'terminals') return route.label === 'Mixed Orphans' ? PATTERN_FAAN['mixed-orphans'] : PATTERN_FAAN['all-terminals'];
+    if (route.id === "terminals") return route.label === "Mixed Orphans" ? PATTERN_FAAN["mixed-orphans"] : PATTERN_FAAN["all-terminals"];
     return PATTERN_FAAN[route.id] !== undefined ? PATTERN_FAAN[route.id] : total;
   }
 
@@ -436,10 +436,10 @@
   function confirmedBonus(v, route, c) {
     var ctx = v.ctx;
     var bonus = ctx.flowers.length ? B.flowerPoints(ctx) : 0;
-    var noDragons = route.id === 'small-dragons' || route.id === 'big-dragons';
+    var noDragons = route.id === "small-dragons" || route.id === "big-dragons";
     var worth = function (i) { return noDragons && i >= 31 ? 0 : honorWorth(v, i); };
     ctx.melds.forEach(function (m) {
-      if (m.type !== 'chow') bonus += worth(E.tileIndex(m.tiles[0]));
+      if (m.type !== "chow") bonus += worth(E.tileIndex(m.tiles[0]));
     });
     if (!/^pairs|^straights$|^runs$|^orphans$/.test(route.id)) {
       for (var i = 27; i < 34; i++) if (c[i] >= 3) bonus += worth(i);
@@ -456,9 +456,9 @@
   function aimOf(v, route, c, won, declared) {
     if (!route) return null;
     var text = targetText(v, { route: route }, c, null).split(/[.:]/)[0];
-    var label = text.replace(/\s*\(\d+ faan\)/, '');
-    if (label === 'a dragon or wind meld') label = 'a chicken hand';
-    if (won == null) won = route.faan + (route.id === 'straights' ? v.flowerFaan || 0 : 0);
+    var label = text.replace(/\s*\(\d+ faan\)/, "");
+    if (label === "a dragon or wind meld") label = "a chicken hand";
+    if (won == null) won = route.faan + (route.id === "straights" ? v.flowerFaan || 0 : 0);
     var total = Math.max(0, Math.floor(won + 0.25));
     var faan = patternFaan(route, text, total);
     var bonus = Math.max(0, Math.min(confirmedBonus(v, route, c), LIMIT_FAAN - faan));
@@ -477,7 +477,7 @@
     if (!route || !route.shantenFn || !c) return null;
     var held = route.keep ? c.map(function (n, i) { return route.keep(i) ? n : 0; }) : c;
     var steps = route.shantenFn(held, declared != null ? declared : v.ctx.declared || 0);
-    if (typeof steps !== 'number' || !isFinite(steps)) return null;
+    if (typeof steps !== "number" || !isFinite(steps)) return null;
     return Math.max(0, Math.min(WIN_TILES, steps + 1));
   }
 
@@ -486,13 +486,13 @@
   // at every level that says it (the Simple hint and feedback; a playback can
   // reuse it). The faan is the pattern's alone; bonuses show once the hand has one.
   function aimSentence(aim) {
-    if (!aim || !aim.name) return '';
+    if (!aim || !aim.name) return "";
     var limit = aim.faan >= LIMIT_FAAN;
-    var worth = limit ? 'the 13 faan limit' : 'about ' + aim.faan + ' faan';
-    var extra = !limit && aim.bonus > 0 ? ' +' + aim.bonus + ' for bonuses' : '';
+    var worth = limit ? "the 13 faan limit" : "about " + aim.faan + " faan";
+    var extra = !limit && aim.bonus > 0 ? " +" + aim.bonus + " for bonuses" : "";
     var total = aim.total !== undefined ? aim.total : aim.faan + (aim.bonus || 0);
-    var short = aim.min && !limit && total < aim.min ? ', short of the ' + aim.min + ' faan minimum' : '';
-    return 'Go for ' + aim.name + ', ' + worth + extra + short + '.' + tilesText(aim.left);
+    var short = aim.min && !limit && total < aim.min ? ", short of the " + aim.min + " faan minimum" : "";
+    return "Go for " + aim.name + ", " + worth + extra + short + "." + tilesText(aim.left);
   }
 
   // " You have 8 tiles needed and 6 tiles remaining." after every coach's
@@ -500,24 +500,24 @@
   // "Go for Concealed Straights. You have 10 tiles needed and 4 tiles
   // remaining. Flowers make it 3.": the counts follow the hand's name.
   function goFor(text, left) {
-    var at = text.indexOf('. ');
+    var at = text.indexOf(". ");
     var head = at === -1 ? text : text.slice(0, at);
-    var rest = at === -1 ? '' : text.slice(at + 1) + '.';
-    return 'Go for ' + head + '.' + tilesText(left) + rest;
+    var rest = at === -1 ? "" : text.slice(at + 1) + ".";
+    return "Go for " + head + "." + tilesText(left) + rest;
   }
 
   function tilesText(left) {
-    if (typeof left !== 'number') return '';
+    if (typeof left !== "number") return "";
     var have = WIN_TILES - left;
-    return ' You have ' + have + ' tile' + (have === 1 ? '' : 's') + ' needed and ' + left + ' tile' + (left === 1 ? '' : 's') + ' remaining.';
+    return " You have " + have + " tile" + (have === 1 ? "" : "s") + " needed and " + left + " tile" + (left === 1 ? "" : "s") + " remaining.";
   }
 
   // The bigger hand the same tiles can still make, when it isn't already
   // the aim: name it, and what to keep for it.
   function upgradeNote(v, route) {
     var up = v.ctx.upgrade;
-    if (!up || (route && route.id === up.id)) return '';
-    return ' ' + up.label + ' is in reach: ' + up.hint + '.';
+    if (!up || (route && route.id === up.id)) return "";
+    return " " + up.label + " is in reach: " + up.hint + ".";
   }
 
   // Tiles in your hand that can no longer do their job for a hand of pairs or
@@ -528,28 +528,28 @@
   //   Triplets: a pair with no copy left can't be punged, and a single needs
   //   two more.
   function deadNote(v, route, c) {
-    if (!route || ['pairs', 'triplets', 'concealed-triplets'].indexOf(route.id) === -1) return '';
-    var pairs = route.id === 'pairs';
+    if (!route || ["pairs", "triplets", "concealed-triplets"].indexOf(route.id) === -1) return "";
+    var pairs = route.id === "pairs";
     var dead = [];
     for (var i = 0; i < 34; i++) {
       if (!c[i]) continue;
       var left = v.unseen[i];
       if (pairs ? (c[i] === 1 && left === 0) : (c[i] === 2 ? left === 0 : c[i] === 1 && left < 2)) dead.push(i);
     }
-    if (!dead.length) return '';
+    if (!dead.length) return "";
     var names = dead.slice(0, 3).map(name);
-    var list = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
-    var what = pairs ? 'has no copy left to pair with' : 'can\'t become a meld';
-    return ' Dead for ' + (pairs ? 'Seven Pairs' : route.id === 'concealed-triplets' ? 'Concealed Triplets' : 'All Triplets') + ': ' + list + (dead.length > 3 ? ' and ' + (dead.length - 3) + ' more' : '') + (dead.length === 1 ? ' ' + what : ', ' + (pairs ? 'none have a copy left to pair with' : 'none can become a meld')) + '. Swap ' + (dead.length === 1 ? 'it' : 'them') + ' for a tile that can still finish.';
+    var list = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : names[0];
+    var what = pairs ? "has no copy left to pair with" : "can't become a meld";
+    return " Dead for " + (pairs ? "Seven Pairs" : route.id === "concealed-triplets" ? "Concealed Triplets" : "All Triplets") + ": " + list + (dead.length > 3 ? " and " + (dead.length - 3) + " more" : "") + (dead.length === 1 ? " " + what : ", " + (pairs ? "none have a copy left to pair with" : "none can become a meld")) + ". Swap " + (dead.length === 1 ? "it" : "them") + " for a tile that can still finish.";
   }
 
   // The hand each coach last named, per seat, so it can say when that changes.
   // (A hint can be asked for twice in a turn, so `prev` stays until the next.)
-  var LAST_HAND = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+  var LAST_HAND = typeof WeakMap !== "undefined" ? new WeakMap() : null;
 
   // Discards the player threw instead of the recommended tile, per game.
   // Two in a row means the next hints follow the hand those discards point to.
-  var PLAYER_AIM = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+  var PLAYER_AIM = typeof WeakMap !== "undefined" ? new WeakMap() : null;
 
   // Kept per strategy: each one compares your discards with its own picks.
   function aimBag(game) {
@@ -607,8 +607,8 @@
   function flushPlans(counts, ctx) {
     var out = [];
     var melds = ctx.meldSuits || {};
-    ['c', 'd', 'b'].forEach(function (su) {
-      var blocked = Object.keys(melds).some(function (k) { return k !== su && k !== 'z'; });
+    ["c", "d", "b"].forEach(function (su) {
+      var blocked = Object.keys(melds).some(function (k) { return k !== su && k !== "z"; });
       if (blocked) return;
       var n = 0;
       for (var i = 0; i < 27; i++) if (E.suitOfIndex(i) === su) n += counts[i] || 0;
@@ -619,8 +619,8 @@
         if (!inSuit) full[j] = 0;
         if (!inSuit && j < 27) half[j] = 0;
       }
-      out.push({ id: 'half-' + su, suit: su, counts: half, shantenFn: E.standardShanten, faan: 3 });
-      if (!melds.z) out.push({ id: 'full-' + su, suit: su, counts: full, shantenFn: E.standardShanten, faan: 7 });
+      out.push({ id: "half-" + su, suit: su, counts: half, shantenFn: E.standardShanten, faan: 3 });
+      if (!melds.z) out.push({ id: "full-" + su, suit: su, counts: full, shantenFn: E.standardShanten, faan: 7 });
     });
     return out;
   }
@@ -666,13 +666,13 @@
   function playerDiscardWhy(plan, pick) {
     var route = routeOf(plan);
     if (route && route.suit && pick.index < 27 && E.suitOfIndex(pick.index) !== route.suit) {
-      return 'Your hand is keeping ' + SUIT_NAME[route.suit] + ': discard other suits first.';
+      return "Your hand is keeping " + SUIT_NAME[route.suit] + ": discard other suits first.";
     }
-    return 'It doesn\'t help the hand you\'re going for.';
+    return "It doesn't help the hand you're going for.";
   }
 
   function routeKey(route) {
-    return route.id + (route.suit || '');
+    return route.id + (route.suit || "");
   }
 
   function roundFaan(f) {
@@ -682,35 +682,35 @@
   // Why the hand changed, from what's true now about the hand it left.
   function pivotReason(v, prev, now, cAfter, why) {
     var melds = v.game.hand.seats[v.seat].melds;
-    if (v.ctx.lock) return 'you hold 8 or more of its tiles, so it\'s worth keeping them';
+    if (v.ctx.lock) return "you hold 8 or more of its tiles, so it's worth keeping them";
     // A strategy that picks its target by expected points (Only Orphans) says so.
     var target = B.targetOf && B.targetOf(v.game, v.seat);
     if (target && target.from && target.at === v.game.hand.seats[v.seat].discards.length) {
-      return 'counting the odds of finishing each, it\'s now worth more points on average';
+      return "counting the odds of finishing each, it's now worth more points on average";
     }
     var old = B.plansFor(cAfter, v.ctx).filter(function (p) { return routeKey(routeOf(p)) === prev.key; })[0];
     var oldSteps = old ? old.shantenFn(old.counts, v.ctx.declared) : prev.steps;
     if (melds.length > prev.melds && (!old || oldSteps === Infinity)) {
-      return 'your ' + melds[melds.length - 1].type + ' rules out the old hand';
+      return "your " + melds[melds.length - 1].type + " rules out the old hand";
     }
-    if (old && oldSteps === Infinity) return 'the old hand can\'t be finished now';
+    if (old && oldSteps === Infinity) return "the old hand can't be finished now";
     var oldFaan = old ? old.faan : prev.faan;
-    if (why !== 'gone' && now.faan > oldFaan) {
-      return 'it\'s worth ' + roundFaan(now.faan) + ' faan, and the old hand ' + roundFaan(oldFaan);
+    if (why !== "gone" && now.faan > oldFaan) {
+      return "it's worth " + roundFaan(now.faan) + " faan, and the old hand " + roundFaan(oldFaan);
     }
     var track = v.ctx.track;
     var rival = prev.suit && track && track.seats.filter(function (r) { return r.collecting === prev.suit; })[0];
     if (rival && now.suit !== prev.suit) {
-      return v.game.players[rival.seat].name + ' is collecting ' + SUIT_NAME[prev.suit] + ', so the old hand has little chance left';
+      return v.game.players[rival.seat].name + " is collecting " + SUIT_NAME[prev.suit] + ", so the old hand has little chance left";
     }
-    if (why === 'gone') return 'the old hand can\'t be finished now';
-    return 'the old hand has little chance left, and this one has better odds';
+    if (why === "gone") return "the old hand can't be finished now";
+    return "the old hand has little chance left, and this one has better odds";
   }
 
   // One sentence when the coach's hand changes from last turn, with the reason.
   function pivotNote(v, plan, cAfter) {
     var seat = v.game.hand.seats[v.seat];
-    if (!LAST_HAND || !plan) return '';
+    if (!LAST_HAND || !plan) return "";
     var route = plan.route;
     var now = {
       key: routeKey(route), suit: route.suit, faan: route.faan, steps: plan.shanten, live: plan.live,
@@ -720,14 +720,14 @@
     if (!byBot) LAST_HAND.set(seat, byBot = {});
     var rec = byBot[B.id];
     var turn = seat.discards.length;
-    if (!rec) { byBot[B.id] = { turn: turn, now: now, prev: null }; return ''; }
+    if (!rec) { byBot[B.id] = { turn: turn, now: now, prev: null }; return ""; }
     if (rec.turn !== turn) { rec.prev = rec.now; rec.turn = turn; }
     rec.now = now;
     var prev = rec.prev;
     // Only a real pivot: the first discards keep their options open.
     var pivot = B.planPivot(v.game, v.seat);
-    if (!prev || !pivot || prev.key === now.key) return '';
-    return ' Pivoting from ' + prev.name + ' to ' + now.name + ': ' + pivotReason(v, prev, now, cAfter, pivot.why) + '.';
+    if (!prev || !pivot || prev.key === now.key) return "";
+    return " Pivoting from " + prev.name + " to " + now.name + ": " + pivotReason(v, prev, now, cAfter, pivot.why) + ".";
   }
 
   // What the table tracker read from the discards, when it bears on this hand:
@@ -737,71 +737,71 @@
   // repeats it is left out.
   function tableNote(v, route, line, said) {
     var track = v.ctx.track;
-    if (!track) return '';
+    if (!track) return "";
     var c = E.countsOf(v.game.hand.seats[v.seat].hand);
     var held = function (su) {
       var n = 0;
       for (var i = 0; i < 27; i++) if (E.suitOfIndex(i) === su) n += c[i];
       return n;
     };
-    var note = '';
+    var note = "";
     var after = v.ctx.afterRead;
     if (after && after.keeps) {
       var nextName = v.game.players[after.seat].name;
       var leftKeeps = v.ctx.leftRead && v.ctx.leftRead.keeps === after.keeps;
-      if (!leftKeeps && held(after.keeps) >= 4 && line.indexOf(nextName + ' is collecting') === -1) {
-        note = nextName + ' is collecting ' + SUIT_NAME[after.keeps] +
-          (after.locked ? ', and their chow locks that suit' : '') + ', so keep it.';
+      if (!leftKeeps && held(after.keeps) >= 4 && line.indexOf(nextName + " is collecting") === -1) {
+        note = nextName + " is collecting " + SUIT_NAME[after.keeps] +
+          (after.locked ? ", and their chow locks that suit" : "") + ", so keep it.";
       }
     }
     var own = v.ctx.ownRead;
-    var keeping = route && route.suit && (said || '').indexOf('keeping ' + SUIT_NAME[route.suit]) !== -1;
-    if (!note && !keeping && own && own.n >= 4 && route && route.suit && (route.id === 'half' || route.id === 'full') && own.by[route.suit] / own.n <= 0.1) {
-      note = 'You\'ve kept your ' + SUIT_NAME[route.suit] + ' so far, so stay on it.';
+    var keeping = route && route.suit && (said || "").indexOf("keeping " + SUIT_NAME[route.suit]) !== -1;
+    if (!note && !keeping && own && own.n >= 4 && route && route.suit && (route.id === "half" || route.id === "full") && own.by[route.suit] / own.n <= 0.1) {
+      note = "You've kept your " + SUIT_NAME[route.suit] + " so far, so stay on it.";
     }
     track.seats.forEach(function (r) {
       var who = v.game.players[r.seat].name;
-      if (note || line.indexOf(who + ' is collecting') !== -1) return;
+      if (note || line.indexOf(who + " is collecting") !== -1) return;
       var su = r.collecting;
-      if (su && route && route.suit === su) note = who + ' is collecting ' + SUIT_NAME[su] + ' too, so those tiles will be slow.';
-      else if (su && held(su) >= 6) note = who + ' is collecting ' + SUIT_NAME[su] + ', so stay out of it.';
+      if (su && route && route.suit === su) note = who + " is collecting " + SUIT_NAME[su] + " too, so those tiles will be slow.";
+      else if (su && held(su) >= 6) note = who + " is collecting " + SUIT_NAME[su] + ", so stay out of it.";
     });
-    if (note) return ' ' + note;
+    if (note) return " " + note;
     track.seats.forEach(function (r) {
       if (note || !r.pivot) return;
       var who = v.game.players[r.seat].name;
       note = r.pivot.from
-        ? who + ' has pivoted out of ' + SUIT_NAME[r.pivot.from] + ': they kept it early and are throwing it now.'
-        : who + ' has started keeping ' + SUIT_NAME[r.pivot.to] + ': they threw it early and have stopped.';
+        ? who + " has pivoted out of " + SUIT_NAME[r.pivot.from] + ": they kept it early and are throwing it now."
+        : who + " has started keeping " + SUIT_NAME[r.pivot.to] + ": they threw it early and have stopped.";
     });
-    return note ? ' ' + note : '';
+    return note ? " " + note : "";
   }
 
   function dangerWord(loss) {
-    if (loss < 0.002) return 'safe';
-    if (loss < 0.012) return 'low risk';
-    if (loss < 0.035) return 'some risk';
-    return 'risky';
+    if (loss < 0.002) return "safe";
+    if (loss < 0.012) return "low risk";
+    if (loss < 0.035) return "some risk";
+    return "risky";
   }
 
   // Why a tile is safe against a threat, in the usual order of reads.
   function safetyReason(v, t, i) {
     var id = E.tileId(i);
-    if (B.deadTile(v.game, i)) return 'it\'s already Punged';
-    if (t.since[id]) return t.name + ' just threw one';
-    if (i >= 27 && 4 - v.unseen[i] >= 3) return 'three are out';
-    if (t.flush && E.suitOfIndex(i) !== t.flush && i < 27) return t.name + ' wants ' + SUIT_NAME[t.flush];
+    if (B.deadTile(v.game, i)) return "it's already Punged";
+    if (t.since[id]) return t.name + " just threw one";
+    if (i >= 27 && 4 - v.unseen[i] >= 3) return "three are out";
+    if (t.flush && E.suitOfIndex(i) !== t.flush && i < 27) return t.name + " wants " + SUIT_NAME[t.flush];
     if (i < 27) {
       var r = i % 9, su = E.suitOfIndex(i);
       var low = r >= 3 && t.suji[su][r - 3], high = r <= 5 && t.suji[su][r + 3];
       if ((r < 3 && high) || (r > 5 && low) || (low && high)) {
-        return t.name + ' threw the ' + name(low ? i - 3 : i + 3);
+        return t.name + " threw the " + name(low ? i - 3 : i + 3);
       }
       var blocked = [-1, 1].filter(function (d) { var j = r + d; return j >= 0 && j <= 8 && v.unseen[i + d] === 0; })[0];
-      if (blocked !== undefined) return 'all four ' + plural(i + blocked) + ' are out';
+      if (blocked !== undefined) return "all four " + plural(i + blocked) + " are out";
     }
-    if (t.discarded[id]) return t.name + ' threw one earlier';
-    return '';
+    if (t.discarded[id]) return t.name + " threw one earlier";
+    return "";
   }
 
   // What the table shows that makes a tile dangerous, in words, or null.
@@ -815,7 +815,7 @@
       var t = list[k];
       if (safetyReason(v, t, i)) continue;
       var sure = sureHand(v.game, t.seat);
-      if (i < 27 && sure && sure.suit === E.suitOfIndex(i)) return t.name + ' is almost certainly going for ' + sure.text;
+      if (i < 27 && sure && sure.suit === E.suitOfIndex(i)) return t.name + " is almost certainly going for " + sure.text;
     }
     return null;
   }
@@ -844,11 +844,11 @@
       var su = nums[0];
       var thrown = s.discards.filter(function (d) { return E.suitOfIndex(E.tileIndex(d.tile)) === su; }).length;
       if (thrown === 0) {
-        return { suit: su, kind: 'flush', text: 'a ' + (honors ? SUIT_NAME[su] + ' Half Flush' : SUIT_NAME[su] + ' flush') };
+        return { suit: su, kind: "flush", text: "a " + (honors ? SUIT_NAME[su] + " Half Flush" : SUIT_NAME[su] + " flush") };
       }
     }
-    if (melds.length >= 4 && melds.every(function (m) { return m.type !== 'chow'; })) {
-      return { suit: null, kind: 'triplets', text: 'All Triplets' };
+    if (melds.length >= 4 && melds.every(function (m) { return m.type !== "chow"; })) {
+      return { suit: null, kind: "triplets", text: "All Triplets" };
     }
     return null;
   }
@@ -856,11 +856,11 @@
   function threatSentence(game, list) {
     return list.map(function (t) {
       var sure = sureHand(game, t.seat);
-      if (!sure) return '';
-      return sure.kind === 'flush'
-        ? t.name + ' is almost certainly going for ' + sure.text + ', so any ' + SUIT_NAME[sure.suit] + ' you throw is a likely deal-in.'
-        : t.name + ' is almost certainly going for All Triplets with four melds down: they are one tile from winning, so play very safe.';
-    }).filter(Boolean).join(' ');
+      if (!sure) return "";
+      return sure.kind === "flush"
+        ? t.name + " is almost certainly going for " + sure.text + ", so any " + SUIT_NAME[sure.suit] + " you throw is a likely deal-in."
+        : t.name + " is almost certainly going for All Triplets with four melds down: they are one tile from winning, so play very safe.";
+    }).filter(Boolean).join(" ");
   }
 
   function defenseLine(v, threats, pick, list) {
@@ -869,22 +869,22 @@
     var tile = E.tileName(pick.tile);
     // Risk is an estimate, so a tile is only called risky with a reason the
     // table shows (riskEvidence). A quiet table never has one.
-    if (!shown.length) return '';
+    if (!shown.length) return "";
     var top = shown[0];
-    if (top.level < 2) return pick.evidence ? tile + ' is ' + word + ': ' + pick.evidence + '.' : '';
+    if (top.level < 2) return pick.evidence ? tile + " is " + word + ": " + pick.evidence + "." : "";
     // Sorted worst first, so Extreme players are named before High ones.
     var line = threatSentence(v.game, shown.filter(function (t) { return t.level >= 2; }));
-    var add = function (more) { line += (line ? ' ' : '') + more; };
+    var add = function (more) { line += (line ? " " : "") + more; };
     if (pick.loss < 0.012) {
       var why = safetyReason(v, top, pick.index);
-      add(tile + ' is ' + word + (why ? ', ' + why : '') + '.');
+      add(tile + " is " + word + (why ? ", " + why : "") + ".");
     } else if (pick.evidence) {
-      add(tile + ' is ' + word + ': ' + pick.evidence + '.');
+      add(tile + " is " + word + ": " + pick.evidence + ".");
     }
     var worst = list.filter(function (x) { return x.evidence && x.tile !== pick.tile; })
       .sort(function (a, b) { return b.loss - a.loss; })[0];
     if (worst && worst.loss > pick.loss * 2 && worst.loss >= 0.012) {
-      add('Hold ' + E.tileName(worst.tile) + ': ' + worst.evidence + '.');
+      add("Hold " + E.tileName(worst.tile) + ": " + worst.evidence + ".");
     }
     return line;
   }
@@ -896,8 +896,8 @@
   // punged or waited on as a pair, but it can still finish someone's chow.
   function pungedReason(i) {
     return i >= 27
-      ? 'Already Punged, so it\'s safe and useless to you.'
-      : 'Already Punged, so nobody can Pung it.';
+      ? "Already Punged, so it's safe and useless to you."
+      : "Already Punged, so nobody can Pung it.";
   }
 
   // Every hint and every piece of feedback fits four lines on a phone: at
@@ -907,24 +907,24 @@
   var MAX_TEXT = 400;
   var TILES_SAID = / You have \d+ tiles? needed and \d+ tiles? remaining\./;
 
-  function plain(t) { return String(t || '').replace(/[\u0001\u0002]/g, ''); }
+  function plain(t) { return String(t || "").replace(/[\u0001\u0002]/g, ""); }
 
   function textLength(h) {
-    return [h.action].concat(h.tips || []).map(plain).filter(Boolean).join(' ').length;
+    return [h.action].concat(h.tips || []).map(plain).filter(Boolean).join(" ").length;
   }
 
   // Cut to whole sentences that fit in n characters.
   function clip(t, n) {
     if (plain(t).length <= n) return t;
     var parts = String(t).match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [t];
-    var out = '';
+    var out = "";
     for (var k = 0; k < parts.length; k++) {
       if (plain(out + parts[k]).trim().length > n) break;
       out += parts[k];
     }
     if (out.trim()) return out.trim();
     var cut = plain(t).slice(0, n - 1);
-    return cut.slice(0, cut.lastIndexOf(' ') > 0 ? cut.lastIndexOf(' ') : cut.length) + '\u2026';
+    return cut.slice(0, cut.lastIndexOf(" ") > 0 ? cut.lastIndexOf(" ") : cut.length) + "\u2026";
   }
 
   function fit(h) {
@@ -935,7 +935,7 @@
     var isOdds = function (t) { return /^Odds to finish /.test(plain(t)); };
     // The tile counts after "Go for" go before any whole tip, so a threat stays.
     if (textLength(h) > MAX_TEXT && h.tips.some(function (t) { return TILES_SAID.test(plain(t)); })) {
-      h.tips = h.tips.map(function (t) { return typeof t === 'string' ? t.replace(TILES_SAID, '') : t; });
+      h.tips = h.tips.map(function (t) { return typeof t === "string" ? t.replace(TILES_SAID, "") : t; });
     }
     while (textLength(h) > MAX_TEXT && h.tips.length) {
       var drop = -1;
@@ -959,7 +959,7 @@
   }
 
   function lead(hint, k) {
-    var t = hint.tips[k] || '';
+    var t = hint.tips[k] || "";
     var m = t.match(/^(.+?[.!?])(?:\s+(.*))?$/);
     hint.action = m ? m[1] : t;
     var rest = hint.tips.filter(function (x, i) { return i !== k; });
@@ -976,9 +976,9 @@
 
   // Situational bonuses and flowers are how the hand was won, not the pattern.
   var NOT_A_PATTERN = {
-    'Self-Draw': 1, 'Concealed': 1, 'Win on Last Tile': 1, 'Robbing the Kong': 1,
-    'Win by Kong': 1, 'Win by Double Kong': 1, 'Heavenly Hand': 1, 'Earthly Hand': 1,
-    'No Flowers': 1, 'Seat Flower': 1, 'Seat Season': 1, 'Four Flowers': 1, 'Four Seasons': 1,
+    "Self-Draw": 1, "Concealed": 1, "Win on Last Tile": 1, "Robbing the Kong": 1,
+    "Win by Kong": 1, "Win by Double Kong": 1, "Heavenly Hand": 1, "Earthly Hand": 1,
+    "No Flowers": 1, "Seat Flower": 1, "Seat Season": 1, "Four Flowers": 1, "Four Seasons": 1,
   };
 
   function handPatternPhrase(win) {
@@ -986,16 +986,16 @@
     (win.items || []).forEach(function (it) {
       if (it && it.name && !NOT_A_PATTERN[it.name]) names.push(it.name);
     });
-    if (names.length <= 1) return names[0] || '';
-    if (names.length === 2) return names[0] + ' and ' + names[1];
-    return names.slice(0, -1).join(', ') + ', and ' + names[names.length - 1];
+    if (names.length <= 1) return names[0] || "";
+    if (names.length === 2) return names[0] + " and " + names[1];
+    return names.slice(0, -1).join(", ") + ", and " + names[names.length - 1];
   }
 
   // One sentence. The pattern names are drawn bold red by the table.
   function winDeclaration(win, how) {
     var pattern = handPatternPhrase(win);
-    if (pattern) return 'Mahjong! Win ' + how + ' with ' + pattern + ' for ' + win.faan + ' faan!';
-    return 'Mahjong! Win ' + how + ' with ' + win.faan + ' faan!';
+    if (pattern) return "Mahjong! Win " + how + " with " + pattern + " for " + win.faan + " faan!";
+    return "Mahjong! Win " + how + " with " + win.faan + " faan!";
   }
 
   // The contradiction check. A discard contradicts the hand the coach names
@@ -1012,7 +1012,7 @@
     if (i >= 27 && c[i] + B.revealedCopies(v.game, i) >= 4) return false;
     var after = c.slice();
     after[i]--;
-    if (route.id === 'triplets' || route.id === 'concealed-triplets' || route.id === 'pairs') {
+    if (route.id === "triplets" || route.id === "concealed-triplets" || route.id === "pairs") {
       if (c[i] < 2) return false;
       for (var s = 0; s < 34; s++) if (after[s] === 1 && s !== i && !B.holdsDragon(v.game, s, x.shanten)) return true;
       return false;
@@ -1021,7 +1021,7 @@
     if (!keep || !keep(i)) return false;
     for (var j = 0; j < 34; j++) {
       if (!after[j] || keep(j)) continue;
-      if (B.holdsDragon(v.game, j, x.shanten) || (route.id === 'straights' && j >= 27 && after[j] >= 2)) continue;
+      if (B.holdsDragon(v.game, j, x.shanten) || (route.id === "straights" && j >= 27 && after[j] >= 2)) continue;
       return true;
     }
     return false;
@@ -1037,7 +1037,7 @@
 
   function turnHint(game, seat, opts) {
     var min = game.settings.minFaan;
-    if (opts.win) return { kind: 'win', action: winDeclaration(opts.win, 'by self-draw'), tips: [] };
+    if (opts.win) return { kind: "win", action: winDeclaration(opts.win, "by self-draw"), tips: [] };
     var v = look(game, seat);
     var hand = game.hand.seats[seat].hand;
     var c = E.countsOf(hand);
@@ -1061,23 +1061,23 @@
     // lucky-cat's discard order only bends to its value read, so any gap
     // from the top offense pick is defense. Other strategies keep their own
     // order (a target's tiles first), so only their folding counts.
-    var defending = (B.id === 'lucky-cat' ? list.defense > 1.25 : list.folding) && offenseTop.tile !== pick.tile;
+    var defending = (B.id === "lucky-cat" ? list.defense > 1.25 : list.folding) && offenseTop.tile !== pick.tile;
     var tips = [];
 
     if (opts.completeButShort) {
-      tips.push('Complete, but only ' + opts.completeButShort.faan + ' faan. You need ' + min + '.');
+      tips.push("Complete, but only " + opts.completeButShort.faan + " faan. You need " + min + ".");
     }
     var kongRead = null;
     if (opts.kongs && opts.kongs.length) {
       // A learned strategy weighs each kong against the best discard.
       kongRead = B.kongChoice ? B.kongChoice(game, seat, { kongs: opts.kongs }) : null;
       var kong = kongRead ? kongRead.decision : B.chooseTurnAction(game, seat, { kongs: opts.kongs });
-      if (kong.type === 'kong') { var kongAt = tips.length; tips.push('Kong ' + E.tileName(kong.tile) + '. You get a free tile.'); }
+      if (kong.type === "kong") { var kongAt = tips.length; tips.push("Kong " + E.tileName(kong.tile) + ". You get a free tile."); }
     }
 
     // 1. What to do.
     var route = pick.plan && pick.plan.route;
-    var buildingLimit = route && (route.id === 'orphans' || route.id === 'gates');
+    var buildingLimit = route && (route.id === "orphans" || route.id === "gates");
     var pungSafe = B.isPungTile(v.game, pick.index) && c[pick.index] < 2;
     // "Play safe" is only said on the last wall, when a win is unlikely:
     // under 16 tiles left and not ready, or under 36 and 2+ tiles from ready.
@@ -1092,27 +1092,27 @@
       : (followed && !canWin
         ? playerDiscardWhy(followed, pick)
         : ((defending || list.folding) && hopeless
-          ? 'Play safe. The wall is nearly gone and a win is unlikely.'
-          : (canWin ? 'It leaves you ready.' : whyDiscard(v, c, pick, route))));
+          ? "Play safe. The wall is nearly gone and a win is unlikely."
+          : (canWin ? "It leaves you ready." : whyDiscard(v, c, pick, route))));
     var discardAt = tips.length;
     // (Defending or not: a ready discard reads the same for every strategy.)
     var readyPick = !pungSafe && canWin;
     // A ready discard is explained by the wait that follows.
-    tips.push('Discard ' + E.tileName(pick.tile) + '.' + (readyPick ? '' : ' ' + why));
+    tips.push("Discard " + E.tileName(pick.tile) + "." + (readyPick ? "" : " " + why));
 
     // 2. Where the hand stands.
     var cAfter = c.slice();
     cAfter[pick.index]--;
     // Folding, the discard isn't building anything, so the hand hasn't changed.
-    var shifted = list.folding || followed ? '' : pivotNote(v, pick.plan, cAfter);
+    var shifted = list.folding || followed ? "" : pivotNote(v, pick.plan, cAfter);
     if (canWin) {
       var wins = winning.filter(function (w) { return w.ronOk; }).map(function (w) { return w.ronFaan; });
-      var state = 'Ready, waiting on ' + waitsText(pick.ready) + (wins.length ? ' for ' + Math.min.apply(null, wins) + '+ faan.' : '.');
+      var state = "Ready, waiting on " + waitsText(pick.ready) + (wins.length ? " for " + Math.min.apply(null, wins) + "+ faan." : ".");
       var notes = readyNotes(pick.ready, min);
       var liveLeft = winning.reduce(function (n, w) { return n + w.left; }, 0);
-      if (liveLeft <= 1) notes.push('Almost none left, so switch waits if you can.');
-      var keptSuit = v.ctx.afterRead && route && route.suit === v.ctx.afterRead.keeps ? tableNote(v, route, state) : '';
-      tips.push(state + (shifted ? shifted : '') + (notes.length ? ' ' + notes.join(' ') : '') + keptSuit);
+      if (liveLeft <= 1) notes.push("Almost none left, so switch waits if you can.");
+      var keptSuit = v.ctx.afterRead && route && route.suit === v.ctx.afterRead.keeps ? tableNote(v, route, state) : "";
+      tips.push(state + (shifted ? shifted : "") + (notes.length ? " " + notes.join(" ") : "") + keptSuit);
     } else if (pick.plan || followed) {
       var spoken = followed ? { route: routeOf(followed) } : pick.plan;
       var speak = spoken.route;
@@ -1120,20 +1120,20 @@
       line += shifted;
       line += deadNote(v, speak, cAfter);
       // A complete shape that doesn't score isn't ready, so say why.
-      if (pick.ready) line = 'Complete, but under ' + min + ' faan. ' + line;
+      if (pick.ready) line = "Complete, but under " + min + " faan. " + line;
       var sure = B.baseFaan(v.ctx);
       // Concealed Straights says flowers make it 3, so they count here too.
-      var faanNow = speak ? speak.faan + (speak.id === 'straights' ? v.flowerFaan || 0 : 0) : 0;
+      var faanNow = speak ? speak.faan + (speak.id === "straights" ? v.flowerFaan || 0 : 0) : 0;
       var short = speak && faanNow < min - 0.25;
       if (short && B.cheapWin(v.ctx)) {
         // Flowers (and melds) already give all but the last faan.
-        line += ' Your flowers and melds give ' + sure + ' faan, so one more wins: a self-draw, All Sequences, or a dragon or wind meld.';
+        line += " Your flowers and melds give " + sure + " faan, so one more wins: a self-draw, All Sequences, or a dragon or wind meld.";
       } else if (short) {
-        line += pick.ready ? ' To reach ' + min + ' faan, add a flush, All Triplets or a dragon or wind meld.'
-          : ' You\'re short of ' + min + ' faan, so add a flush, All Triplets or a dragon or wind meld.';
+        line += pick.ready ? " To reach " + min + " faan, add a flush, All Triplets or a dragon or wind meld."
+          : " You're short of " + min + " faan, so add a flush, All Triplets or a dragon or wind meld.";
       }
       if (!followed) line += upgradeNote(v, route);
-      line += tableNote(v, speak, line, tips.join(' '));
+      line += tableNote(v, speak, line, tips.join(" "));
       tips.push(line);
     }
 
@@ -1154,12 +1154,12 @@
     var learned = modelLine(list, pick);
     if (learned) tips.push(learned);
     // A rule strategy says the odds its rules worked out (Complex only).
-    var ruled = learned || kongLine ? '' : oddsLine(v, list, pick, cAfter);
+    var ruled = learned || kongLine ? "" : oddsLine(v, list, pick, cAfter);
     if (ruled) tips.push(ruled);
 
     var worry = threats.filter(function (t) { return t.level >= 2; }).sort(function (a, b) { return b.level - a.level; })[0];
     return lead({
-      kind: 'discard', tile: pick.tile, tips: tips, candidates: list,
+      kind: "discard", tile: pick.tile, tips: tips, candidates: list,
       why: why, threatName: worry ? worry.name : null, model: learned || null,
       modelWhy: modelReasons(pick), modelWhyClear: modelReasons(pick, true), aim: aim,
     }, kongAt !== undefined ? kongAt : discardAt);
@@ -1167,63 +1167,63 @@
 
   function pointsText(n) {
     var r = Math.round(n);
-    return (r > 0 ? '+' : r < 0 ? '\u2212' : '') + Math.abs(r).toLocaleString('en-US');
+    return (r > 0 ? "+" : r < 0 ? "\u2212" : "") + Math.abs(r).toLocaleString("en-US");
   }
 
   // The model's expected value is a score, not a payout, so it says "+23 score",
   // never "+23" alone and never "points" (which are what a win pays).
   function pointsWord(n) {
-    return pointsText(n) + ' score';
+    return pointsText(n) + " score";
   }
 
   // "an 8% chance to win", "a 12% chance to win". Under 1% it says nothing: "almost none" is
   // often wrong for the model's estimate, so the chance is left out.
   function chance(p, what) {
-    if (p < 0.01) return '';
+    if (p < 0.01) return "";
     var n = pct(p);
-    return (/^(8|11|18)(\D|$)|^8\d/.test(n) ? 'an ' : 'a ') + n + ' chance to ' + what;
+    return (/^(8|11|18)(\D|$)|^8\d/.test(n) ? "an " : "a ") + n + " chance to " + what;
   }
 
   function pct(p) {
     var n = 100 * p;
-    return (n < 1 && n > 0 ? '<1' : String(Math.round(n))) + '%';
+    return (n < 1 && n > 0 ? "<1" : String(Math.round(n))) + "%";
   }
 
   // Lucky Cat's network (ml.policy: the share it gives each move) has no
   // score for a move, only a share learned from the points its hands paid,
   // so its line says how sure it is.
   function policyLine(list, pick, m) {
-    var line = 'Lucky Cat discards this ' + pct(m.policy) + ' of the time';
+    var line = "Lucky Cat discards this " + pct(m.policy) + " of the time";
     var next = list.filter(function (x) { return x !== pick && x.ml; })
       .sort(function (a, b) { return b.ml.policy - a.ml.policy; })[0];
-    if (next && next.ml.policy >= 0.005) line += '. Next most likely discard is ' + E.tileName(next.tile) + ': ' + pct(next.ml.policy) + ' of the time';
-    return line + '.';
+    if (next && next.ml.policy >= 0.005) line += ". Next most likely discard is " + E.tileName(next.tile) + ": " + pct(next.ml.policy) + " of the time";
+    return line + ".";
   }
 
   function modelLine(list, pick) {
     var m = pick && pick.ml;
-    if (!m) return '';
+    if (!m) return "";
     if (m.policy != null) return policyLine(list, pick, m);
-    var line = 'The model expects ' + pointsWord(m.ev) + ' from this discard' +
-      (m.pWin >= 0.01 ? ', with ' + chance(m.pWin, 'win') : '') + '.';
+    var line = "The model expects " + pointsWord(m.ev) + " from this discard" +
+      (m.pWin >= 0.01 ? ", with " + chance(m.pWin, "win") : "") + ".";
     var next = list.filter(function (x) { return x !== pick && x.ml && x.ml.choice !== false; })
       .sort(function (a, b) { return b.ml.ev - a.ml.ev; })[0];
-    if (next) line += ' Next best discard is ' + E.tileName(next.tile) + ': ' + pointsWord(next.ml.ev) + '.';
+    if (next) line += " Next best discard is " + E.tileName(next.tile) + ": " + pointsWord(next.ml.ev) + ".";
     return line + readLine(m.read);
   }
 
   // A stacked model's read (a Neural Cat model with a reader): who it thinks is ready, how likely the
   // tile is to win someone the hand right now, and the hand it expects to win with.
-  var READ_SEATS = ['the player on your right', 'the player across', 'the player on your left'];
+  var READ_SEATS = ["the player on your right", "the player across", "the player on your left"];
   function readLine(read) {
-    if (!read) return '';
-    var out = '', top = 0;
+    if (!read) return "";
+    var out = "", top = 0;
     read.ready.forEach(function (p, k) { if (p > read.ready[top]) top = k; });
-    if (read.ready[top] >= 0.3) out += ' It reads ' + READ_SEATS[top] + ' as ready (' + pct(read.ready[top]) + ' likely).';
-    if (read.dealNow >= 0.01) out += ' It gives this tile ' + chance(read.dealNow, 'win someone the hand right now') + '.';
+    if (read.ready[top] >= 0.3) out += " It reads " + READ_SEATS[top] + " as ready (" + pct(read.ready[top]) + " likely).";
+    if (read.dealNow >= 0.01) out += " It gives this tile " + chance(read.dealNow, "win someone the hand right now") + ".";
     var h = 0;
     read.hand.forEach(function (p, k) { if (p > read.hand[h]) h = k; });
-    if (read.hand[h] >= 0.4 && M && M.READ_HANDS) out += ' If you win, it expects ' + M.READ_HANDS[h] + ' (' + pct(read.hand[h]) + ' likely).';
+    if (read.hand[h] >= 0.4 && M && M.READ_HANDS) out += " If you win, it expects " + M.READ_HANDS[h] + " (" + pct(read.hand[h]) + " likely).";
     return out;
   }
 
@@ -1232,7 +1232,7 @@
   // discard's odds. Complex only (shape leaves it out), like a network's line.
   // The hand by the name its "Go for" sentence uses.
   function oddsName(v, plan, c) {
-    return targetText(v, { route: plan.route }, c, null).split(/[.:]/)[0].replace(/\s*\(\d+ faan\)/, '');
+    return targetText(v, { route: plan.route }, c, null).split(/[.:]/)[0].replace(/\s*\(\d+ faan\)/, "");
   }
 
   // A strategy with a neural network gives the network's numbers instead.
@@ -1240,40 +1240,40 @@
 
   function oddsLine(v, list, pick, cAfter) {
     var plan = pick.plan;
-    if (!ruleStrategy()) return '';
-    if (!plan || plan.chance == null || plan.chance < 0.01 || pick.ready) return '';
-    var line = 'Odds to finish ' + oddsName(v, plan, cAfter) + ' before the wall runs out: about ' + pct(plan.chance) +
-      (plan.live ? ', with ' + plan.live + (plan.live === 1 ? ' tile' : ' tiles') + ' that help.' : '.');
+    if (!ruleStrategy()) return "";
+    if (!plan || plan.chance == null || plan.chance < 0.01 || pick.ready) return "";
+    var line = "Odds to finish " + oddsName(v, plan, cAfter) + " before the wall runs out: about " + pct(plan.chance) +
+      (plan.live ? ", with " + plan.live + (plan.live === 1 ? " tile" : " tiles") + " that help." : ".");
     var next = list.filter(function (x) { return x !== pick && x.plan && x.plan.chance != null; })[0];
-    if (next && next.plan.chance >= 0.01) line += ' Next best discard is ' + E.tileName(next.tile) + ': about ' + pct(next.plan.chance) + '.';
+    if (next && next.plan.chance >= 0.01) line += " Next best discard is " + E.tileName(next.tile) + ": about " + pct(next.plan.chance) + ".";
     return line;
   }
 
   function claimOddsLine(v, found, dec, taken, stay, tile, c) {
-    if (!found || !ruleStrategy()) return '';
+    if (!found || !ruleStrategy()) return "";
     var said = [];
     var add = function (plan, decision) {
-      if (plan && plan.chance != null && plan.chance >= 0.01) said.push('about ' + pct(plan.chance) + ' ' + ifYou(decision, tile));
+      if (plan && plan.chance != null && plan.chance >= 0.01) said.push("about " + pct(plan.chance) + " " + ifYou(decision, tile));
     };
     if (taken) add(described(taken.analysis), taken.decision);
-    add(stay, { type: 'pass' });
-    if (!said.length) return '';
+    add(stay, { type: "pass" });
+    if (!said.length) return "";
     var plan = taken ? described(taken.analysis) : stay;
-    var name = plan && plan.route ? oddsName(v, plan, c) : 'the hand';
-    return 'Odds to finish ' + name + ' before the wall runs out: ' + said.join(', and ') + '.';
+    var name = plan && plan.route ? oddsName(v, plan, c) : "the hand";
+    return "Odds to finish " + name + " before the wall runs out: " + said.join(", and ") + ".";
   }
 
   // The same feature groups, in plain words for a player: why the model
   // likes the tile. Used by the Simple and Detailed coach (the Complex coach
   // says the score and the groups' own names).
   var GROUP_PLAIN = {
-    speed: 'gets you ready fastest',
-    value: 'keeps a bigger hand in reach',
-    safety: 'is the safest tile to throw',
-    table: 'fits what the other players are doing',
-    hand: 'works best with the tiles you have',
-    discard: 'is the tile you need least',
-    context: 'suits this stage of the game',
+    speed: "gets you ready fastest",
+    value: "keeps a bigger hand in reach",
+    safety: "is the safest tile to throw",
+    table: "fits what the other players are doing",
+    hand: "works best with the tiles you have",
+    discard: "is the tile you need least",
+    context: "suits this stage of the game",
   };
 
   // Up to two plain reasons the model prefers its pick, the groups that put
@@ -1284,7 +1284,7 @@
   function modelReasons(pick, clear) {
     var m = pick && pick.ml;
     if (!m || !m.why) return [];
-    return m.why.filter(function (g) { return g.points >= 1 && GROUP_PLAIN[g.group] && !(clear && (g.group === 'discard' || g.group === 'context' || g.group === 'hand')); })
+    return m.why.filter(function (g) { return g.points >= 1 && GROUP_PLAIN[g.group] && !(clear && (g.group === "discard" || g.group === "context" || g.group === "hand")); })
       .slice(0, 2).map(function (g) { return GROUP_PLAIN[g.group]; });
   }
 
@@ -1292,32 +1292,32 @@
   // (read: { choices: [{ decision, ml }], pick, foundation }), said as
   // "if you ...": "if you pass", "if you chow 3-4-5", "if you kong Red Dragon".
   function ifYou(decision, tile) {
-    if (decision.type === 'pass') return 'if you pass';
-    if (decision.type === 'discard') return 'if you skip the kong';
-    if (decision.type === 'chow') {
+    if (decision.type === "pass") return "if you pass";
+    if (decision.type === "discard") return "if you skip the kong";
+    if (decision.type === "chow") {
       var tiles = E.sortTiles(decision.tiles.concat([tile]));
-      return 'if you chow ' + tiles.map(function (id) { return E.rankOfIndex(E.tileIndex(id)); }).join('-');
+      return "if you chow " + tiles.map(function (id) { return E.rankOfIndex(E.tileIndex(id)); }).join("-");
     }
-    return 'if you ' + decision.type + (decision.tile ? ' ' + E.tileName(decision.tile) : '');
+    return "if you " + decision.type + (decision.tile ? " " + E.tileName(decision.tile) : "");
   }
 
   function choicesLine(read, tile) {
-    if (!read || !read.choices || read.choices.length < 2) return '';
+    if (!read || !read.choices || read.choices.length < 2) return "";
     var pick = read.choices[read.pick];
     if (pick.ml.policy != null) {
       var rest = read.choices.filter(function (x) { return x !== pick; })
         .sort(function (a, b) { return b.ml.policy - a.ml.policy; }).slice(0, 2);
-      var act = function (x) { return ifYou(x.decision, tile).replace(/^if you /, '') + ' ' + pct(x.ml.policy) + ' of the time'; };
-      return 'Lucky Cat would ' + [pick].concat(rest).map(act).join(', and ') + '.';
+      var act = function (x) { return ifYou(x.decision, tile).replace(/^if you /, "") + " " + pct(x.ml.policy) + " of the time"; };
+      return "Lucky Cat would " + [pick].concat(rest).map(act).join(", and ") + ".";
     }
     var ranked = [pick].concat(read.choices.filter(function (x) { return x !== pick; })
       .sort(function (a, b) { return b.ml.ev - a.ml.ev; }).slice(0, 2));
-    var said = ranked.map(function (x) { return pointsWord(x.ml.ev) + ' ' + ifYou(x.decision, tile); });
-    var line = 'The model expects ' + said[0] +
-      (said.length > 2 ? ', ' + said.slice(1, -1).join(', ') + ', and ' + said[said.length - 1] : ' and ' + said[1]) + '.' +
-      (pick.ml.pWin >= 0.01 ? ' That gives ' + chance(pick.ml.pWin, 'win') + '.' : '');
+    var said = ranked.map(function (x) { return pointsWord(x.ml.ev) + " " + ifYou(x.decision, tile); });
+    var line = "The model expects " + said[0] +
+      (said.length > 2 ? ", " + said.slice(1, -1).join(", ") + ", and " + said[said.length - 1] : " and " + said[1]) + "." +
+      (pick.ml.pWin >= 0.01 ? " That gives " + chance(pick.ml.pWin, "win") + "." : "");
     if (read.pick !== read.foundation) {
-      line += ' The usual call here would be to ' + ifYou(read.choices[read.foundation].decision, tile).replace(/^if you /, '') + ', but the model expects less from it.';
+      line += " The usual call here would be to " + ifYou(read.choices[read.foundation].decision, tile).replace(/^if you /, "") + ", but the model expects less from it.";
     }
     return line;
   }
@@ -1334,17 +1334,17 @@
   function chowLabel(pair, tile) {
     var tiles = E.sortTiles(pair.concat([tile]));
     var su = E.suitOfIndex(E.tileIndex(tile));
-    return 'Chow ' + tiles.map(function (id) { return E.rankOfIndex(E.tileIndex(id)); }).join('-') + ' ' + SUIT_NAME[su];
+    return "Chow " + tiles.map(function (id) { return E.rankOfIndex(E.tileIndex(id)); }).join("-") + " " + SUIT_NAME[su];
   }
 
   var lastClaim = null; // what the strategy decided, for the model line
   var lastAim = null; // the hand the claim hint is aiming for (aimOf)
-  var lastOdds = ''; // a rule strategy's odds for the claim (claimOddsLine)
+  var lastOdds = ""; // a rule strategy's odds for the claim (claimOddsLine)
 
   function claimHint(game, seat, opts) {
     lastClaim = null;
     lastAim = null;
-    lastOdds = '';
+    lastOdds = "";
     var hint = claimAdvice(game, seat, opts);
     if (lastAim) hint.aim = lastAim;
     var read = lastClaim && lastClaim.found && lastClaim.found.ml;
@@ -1357,8 +1357,8 @@
   function claimAdvice(game, seat, opts) {
     var min = game.settings.minFaan;
     if (opts.win) {
-      var how = opts.robKong ? 'by robbing the kong' : 'on ' + E.tileName(opts.tile);
-      return { kind: 'claim', decision: { type: 'win' }, action: winDeclaration(opts.win, how), tips: [] };
+      var how = opts.robKong ? "by robbing the kong" : "on " + E.tileName(opts.tile);
+      return { kind: "claim", decision: { type: "win" }, action: winDeclaration(opts.win, how), tips: [] };
     }
     var v = look(game, seat);
     var hand = game.hand.seats[seat].hand;
@@ -1374,11 +1374,11 @@
     var threats = B.opponentThreats(game, seat);
     var tips = [];
     if (opts.completeButShort) {
-      tips.push(E.tileName(opts.tile) + ' completes your hand, but only for ' + opts.completeButShort.faan + ' faan. You need ' + min + '.');
+      tips.push(E.tileName(opts.tile) + " completes your hand, but only for " + opts.completeButShort.faan + " faan. You need " + min + ".");
     }
-    if (!found || !found.options.length) return lead({ kind: 'claim', decision: dec, tips: tips.concat(['Pass.']) }, tips.length);
+    if (!found || !found.options.length) return lead({ kind: "claim", decision: dec, tips: tips.concat(["Pass."]) }, tips.length);
     var takenOption = found.options.filter(function (o) {
-      return dec.type !== 'pass' && o.decision.type === dec.type && (dec.type !== 'chow' || o.decision.tiles.join() === dec.tiles.join());
+      return dec.type !== "pass" && o.decision.type === dec.type && (dec.type !== "chow" || o.decision.tiles.join() === dec.tiles.join());
     })[0];
     lastOdds = claimOddsLine(v, found, dec, takenOption, stay, opts.tile, c);
 
@@ -1394,15 +1394,15 @@
     var best = found.options[0];
     var bestFaan = best.analysis.best && best.analysis.best.plan ? best.analysis.best.plan.faan : 0;
     var taken = found.options.filter(function (o) {
-      return o.decision.type === dec.type && (dec.type !== 'chow' || o.decision.tiles.join() === dec.tiles.join());
+      return o.decision.type === dec.type && (dec.type !== "chow" || o.decision.tiles.join() === dec.tiles.join());
     })[0];
 
     function spoken(option) {
-      var used = option.decision.type === 'chow' ? option.decision.tiles
-        : option.decision.type === 'kong' ? [opts.tile, opts.tile, opts.tile]
+      var used = option.decision.type === "chow" ? option.decision.tiles
+        : option.decision.type === "kong" ? [opts.tile, opts.tile, opts.tile]
         : [opts.tile, opts.tile];
       return {
-        label: option.decision.type === 'chow' ? chowLabel(option.decision.tiles, opts.tile) : option.decision.type.charAt(0).toUpperCase() + option.decision.type.slice(1),
+        label: option.decision.type === "chow" ? chowLabel(option.decision.tiles, opts.tile) : option.decision.type.charAt(0).toUpperCase() + option.decision.type.slice(1),
         plan: described(option.analysis),
         discard: option.discard,
         counts: without(used.concat(option.discard ? [option.discard] : [])),
@@ -1422,7 +1422,7 @@
       lastAim = aimOf(v, aimRoute, counts, readyFaan.length ? Math.min.apply(null, readyFaan) : null, declared);
       if (followed && !waiting.length) {
         if (discard && !planClaims(followed, E.tileIndex(discard), v.ctx.declared)) discard = null;
-        if (discard) lines.push('Then discard ' + E.tileName(discard) + '.');
+        if (discard) lines.push("Then discard " + E.tileName(discard) + ".");
         lines.push(goFor(targetText(v, { route: routeOf(followed) }, counts), tilesLeft(v, routeOf(followed), counts, declared)));
         var shown = threats.filter(function (t) { return t.level >= 2; });
         var said = threatSentence(v.game, shown);
@@ -1430,14 +1430,14 @@
         return lines;
       }
       if (waiting.length) {
-        if (discard) lines.push('Then discard ' + E.tileName(discard) + '.');
+        if (discard) lines.push("Then discard " + E.tileName(discard) + ".");
         var faan = waiting.filter(function (w) { return w.ronOk; }).map(function (w) { return w.ronFaan; });
-        lines.push('Ready, waiting on ' + waitsText(ready) + (faan.length ? ' for ' + Math.min.apply(null, faan) + '+ faan.' : '.'));
+        lines.push("Ready, waiting on " + waitsText(ready) + (faan.length ? " for " + Math.min.apply(null, faan) + "+ faan." : "."));
       } else if (plan && named) {
-        if (discard) lines.push('Then discard ' + E.tileName(discard) + '.');
+        if (discard) lines.push("Then discard " + E.tileName(discard) + ".");
       } else if (plan) {
-        var short = plan.route.faan < min - 0.25 ? ' Still short of ' + min + ' faan.' : '';
-        lines.push((discard ? 'Then discard ' + E.tileName(discard) + '. ' : '') +
+        var short = plan.route.faan < min - 0.25 ? " Still short of " + min + " faan." : "";
+        lines.push((discard ? "Then discard " + E.tileName(discard) + ". " : "") +
           goFor(targetText(v, plan, counts), tilesLeft(v, plan.route, counts, declared)) + short);
       }
       var shown = threats.filter(function (t) { return t.level >= 2; });
@@ -1446,35 +1446,35 @@
       return lines;
     }
 
-    if (followed && dec.type !== 'pass' && !planClaims(followed, ti, v.ctx.declared)) {
-      tips.push('Pass. It doesn\'t help the hand you\'re going for.');
-      return lead({ kind: 'claim', decision: { type: 'pass' }, tips: tips.concat(after(stay, c, null, false, found.stay && found.stay.ready)) }, tips.length - 1);
+    if (followed && dec.type !== "pass" && !planClaims(followed, ti, v.ctx.declared)) {
+      tips.push("Pass. It doesn't help the hand you're going for.");
+      return lead({ kind: "claim", decision: { type: "pass" }, tips: tips.concat(after(stay, c, null, false, found.stay && found.stay.ready)) }, tips.length - 1);
     }
-    if (taken && ti >= 27 && honorWorth(v, ti) && dec.type !== 'chow') {
+    if (taken && ti >= 27 && honorWorth(v, ti) && dec.type !== "chow") {
       var honorCall = spoken(taken);
-      tips.push(honorCall.label + '! A ' + E.tileName(opts.tile) + ' meld is ' + honorWorth(v, ti) + ' faan.');
-      return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(honorCall.plan, honorCall.counts, honorCall.discard, false, honorCall.ready, true)) }, tips.length - 1);
+      tips.push(honorCall.label + "! A " + E.tileName(opts.tile) + " meld is " + honorWorth(v, ti) + " faan.");
+      return lead({ kind: "claim", decision: dec, tips: tips.concat(after(honorCall.plan, honorCall.counts, honorCall.discard, false, honorCall.ready, true)) }, tips.length - 1);
     }
     if (taken) {
       var call = spoken(taken);
       if (followed) {
-        tips.push(call.label + '. It helps the hand you\'re going for.');
-        return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(call.plan, call.counts, call.discard, true, call.ready, true)) }, tips.length - 1);
+        tips.push(call.label + ". It helps the hand you're going for.");
+        return lead({ kind: "claim", decision: dec, tips: tips.concat(after(call.plan, call.counts, call.discard, true, call.ready, true)) }, tips.length - 1);
       }
       // A call with no plan behind it (a learned strategy can take one the rules wouldn't):
       // it speeds the hand up, and no hand is named.
-      var route = call.plan ? call.plan.route : { id: 'plain' };
-      var fits = route.id === 'half' || route.id === 'full'
-        ? 'It builds your ' + (route.id === 'full' ? 'Full Flush' : 'Half Flush') + ' in ' + SUIT_NAME[route.suit]
-        : route.id === 'triplets' || route.id === 'concealed-triplets'
-          ? 'It builds ' + (route.id === 'concealed-triplets' ? 'Concealed Triplets' : 'All Triplets')
-          : 'It speeds up your hand';
-      tips.push(call.label + '. ' + fits + (call.faan >= min ? ', about ' + faanWord(call.faan) + '.' : '.'));
-      var named = route.id !== 'plain' && route.id !== 'mixed' && /builds/.test(fits);
-      return lead({ kind: 'claim', decision: dec, tips: tips.concat(after(call.plan, call.counts, call.discard, named, call.ready, true)) }, tips.length - 1);
+      var route = call.plan ? call.plan.route : { id: "plain" };
+      var fits = route.id === "half" || route.id === "full"
+        ? "It builds your " + (route.id === "full" ? "Full Flush" : "Half Flush") + " in " + SUIT_NAME[route.suit]
+        : route.id === "triplets" || route.id === "concealed-triplets"
+          ? "It builds " + (route.id === "concealed-triplets" ? "Concealed Triplets" : "All Triplets")
+          : "It speeds up your hand";
+      tips.push(call.label + ". " + fits + (call.faan >= min ? ", about " + faanWord(call.faan) + "." : "."));
+      var named = route.id !== "plain" && route.id !== "mixed" && /builds/.test(fits);
+      return lead({ kind: "claim", decision: dec, tips: tips.concat(after(call.plan, call.counts, call.discard, named, call.ready, true)) }, tips.length - 1);
     }
 
-    var chowOnly = found.options.every(function (o) { return o.decision.type === 'chow'; });
+    var chowOnly = found.options.every(function (o) { return o.decision.type === "chow"; });
     var tileSuit = ti < 27 ? E.suitOfIndex(ti) : null;
     var shortSuit = tileSuit && opts.chows.length && !B.chowSuitReady(v.ctx, c, tileSuit);
     // A hand that claims nothing but the winning tile, or takes no chows,
@@ -1483,28 +1483,28 @@
     var target = B.targetOf && B.targetOf(game, seat);
     var stayRoute = stay && stay.route;
     var stayName = stayRoute ? aimOf(v, stayRoute, c).name : null;
-    var claimsNothing = stayRoute ? NO_CLAIM_HANDS.test(stayRoute.id) : !!(target && target.id !== 'major-sets');
+    var claimsNothing = stayRoute ? NO_CLAIM_HANDS.test(stayRoute.id) : !!(target && target.id !== "major-sets");
     var noChows = stayRoute ? NO_CHOW_HANDS.test(stayRoute.id) : !!target;
     if (!stayName && target) stayName = target.label.charAt(0).toUpperCase() + target.label.slice(1);
     if (claimsNothing && stayName) {
-      tips.push('Pass. ' + stayName + ' claims nothing but the winning tile.');
+      tips.push("Pass. " + stayName + " claims nothing but the winning tile.");
     } else if (noChows && stayName && chowOnly) {
-      tips.push('Pass. ' + stayName + ' takes no chows.');
+      tips.push("Pass. " + stayName + " takes no chows.");
     } else if (shortSuit && chowOnly && bestFaan >= min && !v.concealed) {
-      tips.push('Pass. Hold 7 ' + SUIT_NAME[tileSuit] + ' before you chow that suit.');
+      tips.push("Pass. Hold 7 " + SUIT_NAME[tileSuit] + " before you chow that suit.");
     } else if (chowOnly && bestFaan >= min) {
       tips.push(v.concealed
-        ? 'Pass. Stay concealed, and save chows for a ready hand or a flush.'
-        : 'Pass. Save chows for a ready hand or a flush.');
+        ? "Pass. Stay concealed, and save chows for a ready hand or a flush."
+        : "Pass. Save chows for a ready hand or a flush.");
     } else if (bestFaan < min) {
-      tips.push('Pass. Claiming leaves you short of ' + min + ' faan.');
+      tips.push("Pass. Claiming leaves you short of " + min + " faan.");
     } else if (v.concealed) {
-      tips.push('Pass. Stay concealed for 1 faan' +
-        (stay && stay.route.id === 'straights' ? ' and to keep All Sequences' : '') + '.');
+      tips.push("Pass. Stay concealed for 1 faan" +
+        (stay && stay.route.id === "straights" ? " and to keep All Sequences" : "") + ".");
     } else {
-      tips.push('Pass. It doesn\'t help enough.');
+      tips.push("Pass. It doesn't help enough.");
     }
-    return lead({ kind: 'claim', decision: { type: 'pass' }, tips: tips.concat(after(stay, c, null, false, found.stay && found.stay.ready)) }, tips.length - 1);
+    return lead({ kind: "claim", decision: { type: "pass" }, tips: tips.concat(after(stay, c, null, false, found.stay && found.stay.ready)) }, tips.length - 1);
   }
 
   /* ------------------------------------------------------------------ *
@@ -1512,25 +1512,25 @@
    * ------------------------------------------------------------------ */
 
   function stepsWords(shanten) {
-    if (shanten <= 0) return 'ready';
-    return shanten === 1 ? '1 tile from ready' : shanten + ' tiles from ready';
+    if (shanten <= 0) return "ready";
+    return shanten === 1 ? "1 tile from ready" : shanten + " tiles from ready";
   }
 
   // The sentences every strategy's feedback shares, so the same verdict reads
   // the same way whoever judged it. A learned strategy adds its numbers after.
   function praise(hint, top, chosen, mine, best) {
     return [chosen.tile === top.tile
-      ? (mine + ' was the top choice. ' + (hint.why || '')).trim()
-      : mine + ' is as good as ' + best + '.'];
+      ? (mine + " was the top choice. " + (hint.why || "")).trim()
+      : mine + " is as good as " + best + "."];
   }
 
   function iPick(hint, best, close) {
-    return ((close ? 'Both work, but I pick ' : 'I pick ') + best + '. ' + (hint.why || '')).trim();
+    return ((close ? "Both work, but I pick " : "I pick ") + best + ". " + (hint.why || "")).trim();
   }
 
   function slowsLine(top, chosen, mine, best) {
     var more = chosen.shanten - top.shanten;
-    return mine + ' leaves you ' + stepsWords(chosen.shanten) + ', ' + more + ' more than ' + best + '.';
+    return mine + " leaves you " + stepsWords(chosen.shanten) + ", " + more + " more than " + best + ".";
   }
 
   // `hint` is what turnHint said before you moved; `tile` is what you threw.
@@ -1548,29 +1548,29 @@
     var risky = chosen.loss >= 0.035 && chosen.loss > top.loss * 1.5 + 0.01 && !!chosen.evidence;
     var good = gap <= Math.max(0.003, Math.abs(top.score) * 0.15);
 
-    if (great) return { kind: 'feedback', action: 'Great discard.', tips: praise(hint, top, chosen, mine, best) };
+    if (great) return { kind: "feedback", action: "Great discard.", tips: praise(hint, top, chosen, mine, best) };
     var tips = [iPick(hint, best)];
     var action;
     if (slows) {
-      action = 'That discard slows your hand.';
+      action = "That discard slows your hand.";
       tips.push(slowsLine(top, chosen, mine, best));
     } else if (risky) {
-      action = 'That discard was risky.';
-      tips.push(chosen.evidence + '.');
+      action = "That discard was risky.";
+      tips.push(chosen.evidence + ".");
     } else if (good) {
-      action = 'Good discard.';
+      action = "Good discard.";
       tips = [iPick(hint, best, true)];
     } else {
-      action = 'There was a better discard.';
-      tips.push(mine + ' leaves fewer ways to improve.');
+      action = "There was a better discard.";
+      tips.push(mine + " leaves fewer ways to improve.");
     }
-    return { kind: 'feedback', action: action, tips: tips.map(function (t) { return t.trim(); }) };
+    return { kind: "feedback", action: action, tips: tips.map(function (t) { return t.trim(); }) };
   }
 
   // How the two discards' chances to win differ, when they differ by a point or more.
   function odds(best, a, b) {
-    if (Math.abs(a.pWin - b.pWin) < 0.01) return '';
-    return ' With ' + best + ', your chance to win is ' + pct(a.pWin) + ' instead of ' + pct(b.pWin) + '.';
+    if (Math.abs(a.pWin - b.pWin) < 0.01) return "";
+    return " With " + best + ", your chance to win is " + pct(a.pWin) + " instead of " + pct(b.pWin) + ".";
   }
 
   // A learned strategy weighs discards in expected points, so feedback
@@ -1580,14 +1580,14 @@
     if (chosen.tile === top.tile || (!steps && chosen.ml.policy >= top.ml.policy * 0.8)) {
       var tips = praise(hint, top, chosen, mine, best);
       if (chosen.tile === top.tile && hint.model) tips.push(hint.model);
-      return { kind: 'feedback', action: 'Great discard.', tips: tips };
+      return { kind: "feedback", action: "Great discard.", tips: tips };
     }
     var good = !steps && chosen.ml.policy >= top.ml.policy * 0.4;
     var out = [iPick(hint, best, good)];
     if (steps) out.push(slowsLine(top, chosen, mine, best));
-    out.push('Lucky Cat discards ' + best + ' ' + pct(top.ml.policy) + ' of the time, and ' + mine + ' ' + pct(chosen.ml.policy) + ' of the time.');
-    var action = steps ? 'That discard slows your hand.' : good ? 'Good discard.' : 'There was a better discard.';
-    return { kind: 'feedback', action: action, tips: out.map(function (t) { return t.trim(); }) };
+    out.push("Lucky Cat discards " + best + " " + pct(top.ml.policy) + " of the time, and " + mine + " " + pct(chosen.ml.policy) + " of the time.");
+    var action = steps ? "That discard slows your hand." : good ? "Good discard." : "There was a better discard.";
+    return { kind: "feedback", action: action, tips: out.map(function (t) { return t.trim(); }) };
   }
 
   function modelFeedback(hint, top, chosen, mine, best) {
@@ -1596,39 +1596,39 @@
     if (chosen.tile === top.tile || diff <= Math.max(5, Math.abs(top.ml.ev) * 0.03)) {
       var tips = praise(hint, top, chosen, mine, best);
       if (chosen.tile === top.tile && hint.model) tips.push(hint.model);
-      return { kind: 'feedback', action: 'Great discard.', tips: tips };
+      return { kind: "feedback", action: "Great discard.", tips: tips };
     }
     var slows = chosen.shanten > top.shanten;
     var risky = !slows && chosen.ml.pDealIn > top.ml.pDealIn + 0.02;
     var good = !slows && !risky && diff <= Math.max(20, Math.abs(top.ml.ev) * 0.1);
     var out = [iPick(hint, best, good)];
     if (slows) out.push(slowsLine(top, chosen, mine, best));
-    if (risky && chosen.evidence) out.push(chosen.evidence + '.');
-    out.push('The model expects ' + pointsWord(top.ml.ev) + ' from ' + best + ', and ' + pointsWord(chosen.ml.ev) +
-      ' from ' + mine + '.' + odds(best, top.ml, chosen.ml));
-    var action = slows ? 'That discard slows your hand.' : risky ? 'That discard was risky.'
-      : good ? 'Good discard.' : 'There was a better discard.';
-    return { kind: 'feedback', action: action, tips: out.map(function (t) { return t.trim(); }) };
+    if (risky && chosen.evidence) out.push(chosen.evidence + ".");
+    out.push("The model expects " + pointsWord(top.ml.ev) + " from " + best + ", and " + pointsWord(chosen.ml.ev) +
+      " from " + mine + "." + odds(best, top.ml, chosen.ml));
+    var action = slows ? "That discard slows your hand." : risky ? "That discard was risky."
+      : good ? "Good discard." : "There was a better discard.";
+    return { kind: "feedback", action: action, tips: out.map(function (t) { return t.trim(); }) };
   }
 
   function claimName(decision) {
-    return decision.type === 'chow' ? 'Chow' : decision.type.charAt(0).toUpperCase() + decision.type.slice(1);
+    return decision.type === "chow" ? "Chow" : decision.type.charAt(0).toUpperCase() + decision.type.slice(1);
   }
 
   // `hint` is what claimHint said before you chose; `decision` is what you did.
   function claimFeedback(hint, decision) {
-    if (!hint || !hint.decision || !decision || decision.type === 'win') return null;
+    if (!hint || !hint.decision || !decision || decision.type === "win") return null;
     var coachType = hint.decision.type;
     var same = coachType === decision.type &&
-      (decision.type !== 'chow' || !hint.decision.tiles || decision.tiles.join() === hint.decision.tiles.join());
-    var reason = hint.tips[0] || '';
-    var coachSays = hint.decision.type === 'win' ? 'Win' : (hint.action || '').replace(/[.!]$/, '');
+      (decision.type !== "chow" || !hint.decision.tiles || decision.tiles.join() === hint.decision.tiles.join());
+    var reason = hint.tips[0] || "";
+    var coachSays = hint.decision.type === "win" ? "Win" : (hint.action || "").replace(/[.!]$/, "");
     if (same) {
-      return { kind: 'feedback', action: decision.type === 'pass' ? 'Good pass.' : 'Good call.', tips: [reason].filter(Boolean) };
+      return { kind: "feedback", action: decision.type === "pass" ? "Good pass." : "Good call.", tips: [reason].filter(Boolean) };
     }
-    var did = decision.type === 'pass' ? 'You passed.' : 'You took the ' + claimName(decision) + '.';
-    var action = coachType === 'pass' ? 'I would have passed.' : 'I would have called ' + coachSays + '.';
-    return { kind: 'feedback', action: action, tips: [did + ' ' + reason] };
+    var did = decision.type === "pass" ? "You passed." : "You took the " + claimName(decision) + ".";
+    var action = coachType === "pass" ? "I would have passed." : "I would have called " + coachSays + ".";
+    return { kind: "feedback", action: action, tips: [did + " " + reason] };
   }
 
   /* ------------------------------------------------------------------ *
@@ -1638,7 +1638,7 @@
    *    one short reason why, and the hand it's aiming for with its faan. The game picks one (its Coach settings).
    * ------------------------------------------------------------------ */
 
-  var DETAILS = ['simple', 'detailed', 'complex'];
+  var DETAILS = ["simple", "detailed", "complex"];
   var SIMPLE_WHY = 130; // characters: one short reason
 
   // "It gets you ready fastest and keeps a bigger hand in reach."
@@ -1647,20 +1647,20 @@
   // Simple leaves out pivots, yours ("Pivoting from Half Flush to Full Flush: ...")
   // and an opponent's ("Mei has pivoted out of Bamboo ...", "... has started keeping ...").
   function withoutPivots(text) {
-    var parts = String(text || '').match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [];
+    var parts = String(text || "").match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [];
     return parts.filter(function (p) {
       return !/^\s*Pivoting from |\bhas pivoted out of\b|\bhas started keeping\b/.test(plain(p));
-    }).join('').trim();
+    }).join("").trim();
   }
 
   function sentenceOf(reasons) {
-    return 'It ' + reasons.join(' and ') + '.';
+    return "It " + reasons.join(" and ") + ".";
   }
 
   // "It keeps a bigger hand in reach." A network's reasons, said as one sentence.
   function isReasonSentence(t) {
     var said = plain(t);
-    return Object.keys(GROUP_PLAIN).some(function (g) { return said.indexOf('It ' + GROUP_PLAIN[g]) === 0; });
+    return Object.keys(GROUP_PLAIN).some(function (g) { return said.indexOf("It " + GROUP_PLAIN[g]) === 0; });
   }
 
   function isModelTip(t) {
@@ -1668,13 +1668,13 @@
   }
 
   function shape(hint, detail) {
-    if (!hint || !hint.tips || detail === 'complex' || DETAILS.indexOf(detail) === -1) return hint;
+    if (!hint || !hint.tips || detail === "complex" || DETAILS.indexOf(detail) === -1) return hint;
     var out = {};
     Object.keys(hint).forEach(function (k) { out[k] = hint[k]; });
     var tips = hint.tips.filter(function (t) { return !isModelTip(t); });
     var reasons = hint.modelWhy || [];
     out.model = null;
-    if (detail === 'detailed') {
+    if (detail === "detailed") {
       if (reasons.length) tips.push(sentenceOf(reasons));
       out.tips = tips;
       return fit(out);
@@ -1687,7 +1687,7 @@
     } else {
       var clear = hint.modelWhyClear || [];
       why = clip(withoutPivots(tips[0]), SIMPLE_WHY);
-      if (clear.length) why = (why + ' ' + sentenceOf(clear)).trim();
+      if (clear.length) why = (why + " " + sentenceOf(clear)).trim();
     }
     out.tips = why ? [why] : [];
     return fit(out);
@@ -1701,13 +1701,13 @@
   //  - Simple: the verdict, one short reason, and the hand it's aiming for.
   var SIMPLE_FEEDBACK = 160;
   function shapeFeedback(fb, hint, detail) {
-    if (!fb || detail === 'complex' || DETAILS.indexOf(detail) === -1) return fb;
+    if (!fb || detail === "complex" || DETAILS.indexOf(detail) === -1) return fb;
     var out = {};
     Object.keys(fb).forEach(function (k) { out[k] = fb[k]; });
         var tips = (fb.tips || []).filter(function (t) { return t && !isModelTip(t); });
-    var praised = /^(Great|Good) /.test(fb.action || '');
-    var reasons = hint && !praised ? (detail === 'simple' ? hint.modelWhyClear : hint.modelWhy) || [] : [];
-    if (detail === 'detailed') {
+    var praised = /^(Great|Good) /.test(fb.action || "");
+    var reasons = hint && !praised ? (detail === "simple" ? hint.modelWhyClear : hint.modelWhy) || [] : [];
+    if (detail === "detailed") {
       if (reasons.length) tips.push(sentenceOf(reasons));
       out.tips = tips;
       return fit(out);
@@ -1716,13 +1716,13 @@
     var why;
     if (hint && hint.aim) {
       // "I pick Eight Character." says what to do instead, so it stays; the reasons after it go.
-      var pick = (String(tips[0] || '').match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || []).filter(function (p) {
+      var pick = (String(tips[0] || "").match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || []).filter(function (p) {
         return /\bI (pick|would)\b/.test(plain(p));
-      }).join('').trim();
-      why = (pick + ' ' + aimSentence(hint.aim)).trim();
+      }).join("").trim();
+      why = (pick + " " + aimSentence(hint.aim)).trim();
     } else {
       why = clip(withoutPivots(tips[0]), SIMPLE_FEEDBACK);
-      if (reasons.length) why = (why + ' ' + sentenceOf(reasons)).trim();
+      if (reasons.length) why = (why + " " + sentenceOf(reasons)).trim();
     }
     out.tips = why ? [why] : [];
     return fit(out);
@@ -1777,7 +1777,7 @@
     var detail = opts && opts.detail;
     Object.keys(api).forEach(function (k) {
       var f = api[k];
-      if (typeof f !== 'function' || k === 'fit' || /^shape/.test(k)) { out[k] = f; return; }
+      if (typeof f !== "function" || k === "fit" || /^shape/.test(k)) { out[k] = f; return; }
       var spoken = UNFITTED[k];
       out[k] = function () {
         var prev = B;
@@ -1785,7 +1785,7 @@
         try {
           if (!spoken) return f.apply(null, arguments);
           var whole = spoken.apply(null, arguments);
-          return detail === 'all' ? whole : atDetail(whole, detail);
+          return detail === "all" ? whole : atDetail(whole, detail);
         } finally { B = prev; }
       };
     });
@@ -1796,4 +1796,4 @@
   api.isReasonSentence = isReasonSentence;
   if (node) module.exports = api;
   else root.MahjongCoach = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== "undefined" ? globalThis : this);

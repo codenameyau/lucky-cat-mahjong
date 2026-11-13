@@ -17,13 +17,13 @@
    Version 2 is a stacked model: the header also has readerVersion and
    reader.layers, and the reader's layers follow the move network's. */
 
-'use strict';
+"use strict";
 
-const fs = require('node:fs');
-const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const fs = require("node:fs");
+const path = require("node:path");
+const { execFileSync } = require("node:child_process");
 
-const ROOT = path.join(__dirname, '..', '..');
+const ROOT = path.join(__dirname, "..", "..");
 
 function halfToFloat(h) {
   const sign = h & 0x8000 ? -1 : 1, exp = (h >> 10) & 0x1f, frac = h & 0x3ff;
@@ -33,9 +33,9 @@ function halfToFloat(h) {
 }
 
 function floats(v, dtype) {
-  if (typeof v !== 'string') return Float32Array.from(v);
-  const bytes = Buffer.from(v, 'base64');
-  if (dtype === 'f16') {
+  if (typeof v !== "string") return Float32Array.from(v);
+  const bytes = Buffer.from(v, "base64");
+  if (dtype === "f16") {
     const out = new Float32Array(bytes.length / 2);
     for (let j = 0; j < out.length; j++) out[j] = halfToFloat(bytes[2 * j] | (bytes[2 * j + 1] << 8));
     return out;
@@ -44,15 +44,15 @@ function floats(v, dtype) {
 }
 
 function readWeights(spec) {
-  if (spec.startsWith('git:')) {
+  if (spec.startsWith("git:")) {
     const [, commit, file] = spec.match(/^git:([^:]+):(.+)$/);
-    const text = execFileSync('git', ['show', commit + ':' + file], { cwd: ROOT, maxBuffer: 1 << 30 }).toString();
-    if (file.endsWith('.js')) { const m = { exports: {} }; new Function('module', 'exports', text)(m, m.exports); return m.exports; }
+    const text = execFileSync("git", ["show", commit + ":" + file], { cwd: ROOT, maxBuffer: 1 << 30 }).toString();
+    if (file.endsWith(".js")) { const m = { exports: {} }; new Function("module", "exports", text)(m, m.exports); return m.exports; }
     return JSON.parse(text);
   }
   const file = path.resolve(ROOT, spec);
-  if (file.endsWith('.js')) return require(file);
-  return JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (file.endsWith(".js")) return require(file);
+  return JSON.parse(fs.readFileSync(file, "utf8"));
 }
 
 function toLcmw(w) {
@@ -65,7 +65,7 @@ function toLcmw(w) {
   };
   if (reader) { head.readerVersion = w.readerVersion; head.reader = { layers: reader.map((l) => ({ rows: l.rows, cols: l.cols })) }; }
   const header = Buffer.from(JSON.stringify(head));
-  const parts = [Buffer.from('LCMW'), Buffer.alloc(8)];
+  const parts = [Buffer.from("LCMW"), Buffer.alloc(8)];
   parts[1].writeUInt32LE(reader ? 2 : 1, 0);
   parts[1].writeUInt32LE(header.length, 4);
   parts.push(header);
@@ -74,12 +74,12 @@ function toLcmw(w) {
 }
 
 function fromLcmw(buf) {
-  if (buf.toString('latin1', 0, 4) !== 'LCMW') throw new Error('not an .lcmw file');
+  if (buf.toString("latin1", 0, 4) !== "LCMW") throw new Error("not an .lcmw file");
   const n = buf.readUInt32LE(8);
-  const h = JSON.parse(buf.toString('utf8', 12, 12 + n));
+  const h = JSON.parse(buf.toString("utf8", 12, 12 + n));
   let at = 12 + n;
   const take = (len) => { const a = new Float32Array(buf.buffer.slice(buf.byteOffset + at, buf.byteOffset + at + 4 * len)); at += 4 * len; return a; };
-  const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
+  const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString("base64");
   const one = (l) => { const w = take(l.rows * l.cols), b = take(l.rows); return { rows: l.rows, cols: l.cols, w: b64(w), b: b64(b) }; };
   const layers = h.layers.map(one);
   const out = { featureVersion: h.featureVersion, featureSize: h.featureSize, meta: h.meta, layers };
@@ -89,14 +89,14 @@ function fromLcmw(buf) {
 
 if (require.main === module) {
   const [cmd, from, to] = process.argv.slice(2);
-  if (cmd === 'export' && from && to) {
+  if (cmd === "export" && from && to) {
     fs.writeFileSync(to, toLcmw(readWeights(from)));
-    console.log('wrote ' + to);
-  } else if (cmd === 'import' && from && to) {
+    console.log("wrote " + to);
+  } else if (cmd === "import" && from && to) {
     fs.writeFileSync(to, JSON.stringify(fromLcmw(fs.readFileSync(from))));
-    console.log('wrote ' + to);
+    console.log("wrote " + to);
   } else {
-    console.error('usage: weights.js export <weights> <out.lcmw> | import <in.lcmw> <out.json>');
+    console.error("usage: weights.js export <weights> <out.lcmw> | import <in.lcmw> <out.json>");
     process.exit(2);
   }
 }

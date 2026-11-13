@@ -38,19 +38,19 @@
     // and a script after the buttons is already too late to stop that flash.
     (function () {
       var root = document.documentElement;
-      var mode = 'practice';
+      var mode = "practice";
       var hasSave = false;
       try {
-        var settings = JSON.parse(localStorage.getItem('lcm-play-settings') || 'null');
-        if (settings && settings.mode === 'payout') mode = 'payout';
-        var save = JSON.parse(localStorage.getItem('lcm-play-autosave') || 'null');
+        var settings = JSON.parse(localStorage.getItem("lcm-play-settings") || "null");
+        if (settings && settings.mode === "payout") mode = "payout";
+        var save = JSON.parse(localStorage.getItem("lcm-play-autosave") || "null");
         hasSave = !!(save && save.payload && save.payload.game);
       } catch (e) {}
-      root.classList.add('play-mode-' + mode);
+      root.classList.add("play-mode-" + mode);
       // play-has-save: there's a saved game in the selected mode, so Resume
       // game is the button; otherwise it's Start new game.
       var savedMode = hasSave && save.payload.game.settings && save.payload.game.settings.mode;
-      if (hasSave && (!savedMode || savedMode === mode)) root.classList.add('play-has-save');
+      if (hasSave && (!savedMode || savedMode === mode)) root.classList.add("play-has-save");
     })();
   </script>
   <script src="/js/analytics-id.js"></script>
@@ -65,12 +65,12 @@
     // The visitor and session IDs and the cookie choice (js/analytics-id.js), before the page view.
     if (window.lcmAnalytics) window.lcmAnalytics.start(gtag);
     if (!localHost) {
-      var gaScript = document.createElement('script');
+      var gaScript = document.createElement("script");
       gaScript.async = true;
-      gaScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-B514HH987M';
+      gaScript.src = "https://www.googletagmanager.com/gtag/js?id=G-B514HH987M";
       document.head.appendChild(gaScript);
-      gtag('js', new Date());
-      gtag('config', 'G-B514HH987M');
+      gtag("js", new Date());
+      gtag("config", "G-B514HH987M");
     }
   </script>
   <script type="application/ld+json">
@@ -176,25 +176,25 @@
             try { return JSON.parse(localStorage.getItem(key)); }
             catch (e) { return null; }
           }
-          var form = document.getElementById('play-settings');
-          var settings = read('lcm-play-settings') || {};
-          if (settings.mode === 'practice' || settings.mode === 'payout') {
-            var radio = form.querySelector('input[name="mode"][value="' + settings.mode + '"]');
+          var form = document.getElementById("play-settings");
+          var settings = read("lcm-play-settings") || {};
+          if (settings.mode === "practice" || settings.mode === "payout") {
+            var radio = form.querySelector("input[name=\"mode\"][value=\"" + settings.mode + "\"]");
             if (radio) radio.checked = true;
           }
           // Two buttons: Resume game when there's a saved game in the selected
           // mode, else Start new game (red), and Learn to play (white).
-          var save = read('lcm-play-autosave');
+          var save = read("lcm-play-autosave");
           var game = save && save.payload && save.payload.game;
-          var picked = form.querySelector('input[name="mode"]:checked');
+          var picked = form.querySelector("input[name=\"mode\"]:checked");
           var savedMode = game && game.settings && game.settings.mode;
           var here = !!game && (!savedMode || !picked || savedMode === picked.value);
-          var resume = document.getElementById('play-resume');
-          var start = document.getElementById('play-start');
-          var learn = document.getElementById('play-learn');
-          if (resume) { resume.hidden = !here; resume.classList.add('btn-primary'); resume.classList.remove('btn-white'); }
-          if (start) { start.hidden = here; start.classList.add('btn-primary'); start.classList.remove('btn-white'); }
-          if (learn) { learn.hidden = false; learn.classList.add('btn-white'); learn.classList.remove('btn-primary'); }
+          var resume = document.getElementById("play-resume");
+          var start = document.getElementById("play-start");
+          var learn = document.getElementById("play-learn");
+          if (resume) { resume.hidden = !here; resume.classList.add("btn-primary"); resume.classList.remove("btn-white"); }
+          if (start) { start.hidden = here; start.classList.add("btn-primary"); start.classList.remove("btn-white"); }
+          if (learn) { learn.hidden = false; learn.classList.add("btn-white"); learn.classList.remove("btn-primary"); }
         })();
       </script>
     </section>
@@ -240,7 +240,7 @@
   <script src="/js/offline-cache.js" defer></script>
   <script src="/js/offline.js" defer></script>
   <script>
-    document.getElementById('year').textContent = new Date().getFullYear();
+    document.getElementById("year").textContent = new Date().getFullYear();
   </script>
 </body>
 </html>

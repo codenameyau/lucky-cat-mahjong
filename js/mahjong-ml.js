@@ -50,14 +50,14 @@
    random and this strategy isn't offered at the table. */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
-  var node = typeof module !== 'undefined' && module.exports;
-  var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
-  var B = node ? require('./mahjong-bot.js') : root.MahjongBot;
-  var J = node ? require('./mahjong-jorge-yau.js') : root.MahjongJorgeYau;
-  var F = node ? require('./mahjong-ml-features.js') : root.MahjongMLFeatures;
-  var M = node ? require('./mahjong-ml-model.js') : root.MahjongMLModel;
+  var node = typeof module !== "undefined" && module.exports;
+  var E = node ? require("./mahjong-engine.js") : root.MahjongEngine;
+  var B = node ? require("./mahjong-bot.js") : root.MahjongBot;
+  var J = node ? require("./mahjong-jorge-yau.js") : root.MahjongJorgeYau;
+  var F = node ? require("./mahjong-ml-features.js") : root.MahjongMLFeatures;
+  var M = node ? require("./mahjong-ml-model.js") : root.MahjongMLModel;
 
   // How many of the foundation's best discards the model chooses among
   // (0 = all). The model alone dealt in far too often (docs/strategies/neural-cat.md).
@@ -68,7 +68,7 @@
 
   function shippedWeights() {
     if (!node) return root.MahjongMLWeights || null;
-    try { return require('./mahjong-ml-weights.js'); } catch (err) { return null; }
+    try { return require("./mahjong-ml-weights.js"); } catch (err) { return null; }
   }
 
   function defaultModel(load) {
@@ -115,17 +115,17 @@
     var c = E.countsOf(game.hand.seats[seat].hand);
     var i = E.tileIndex(tile);
     var four = [tile, tile, tile, tile];
-    if (kind === 'kong') {
+    if (kind === "kong") {
       c[i] -= 3;
-      ctx = bot.withMeld(ctx, { type: 'kong', tiles: four, concealed: false });
-    } else if (kind === 'concealed') {
+      ctx = bot.withMeld(ctx, { type: "kong", tiles: four, concealed: false });
+    } else if (kind === "concealed") {
       c[i] -= 4;
-      ctx = bot.withMeld(ctx, { type: 'kong', tiles: four, concealed: true });
-    } else if (kind === 'added') {
+      ctx = bot.withMeld(ctx, { type: "kong", tiles: four, concealed: true });
+    } else if (kind === "added") {
       c[i] -= 1;
       ctx = copyCtx(ctx);
       ctx.melds = ctx.melds.map(function (m) {
-        return m.type === 'pung' && E.tileIndex(m.tiles[0]) === i ? { type: 'kong', tiles: four, concealed: false } : m;
+        return m.type === "pung" && E.tileIndex(m.tiles[0]) === i ? { type: "kong", tiles: four, concealed: false } : m;
       });
     }
     ctx.mlSynced = false;
@@ -154,7 +154,7 @@
     }
     // What a choice is worth when choosing: its expected points, plus the
     // win bonus for its chance to win.
-    function value(ml) { return ml.ev + setting('winBonus', 0) * ml.pWin; }
+    function value(ml) { return ml.ev + setting("winBonus", 0) * ml.pWin; }
     var claims = options.claims !== false;
     var fast = !!options.fast;
 
@@ -187,7 +187,7 @@
         }
       }
       // The model picks among the foundation's best few; the rest keep its order.
-      var topK = setting('topK', TOP_K);
+      var topK = setting("topK", TOP_K);
       var k0 = topK > 0 ? Math.min(topK, open) : open;
       out.forEach(function (x, k) {
         if (fast && k >= k0) return; // only the ones it picks from
@@ -225,8 +225,8 @@
     var hooks = {};
     if (base && base.hooks) Object.keys(base.hooks).forEach(function (k) { hooks[k] = base.hooks[k]; });
     hooks.rerank = rerank;
-    var bot = B.createStrategy({ id: options.id || 'neural-cat', hooks: hooks, tuning: base ? base.tuning : undefined });
-    bot.base = base ? base.id : 'base';
+    var bot = B.createStrategy({ id: options.id || "neural-cat", hooks: hooks, tuning: base ? base.tuning : undefined });
+    bot.base = base ? base.id : "base";
 
     function read(x) {
       var ml = getModel().ev(x);
@@ -246,11 +246,11 @@
       }
       var top = 0;
       choices.forEach(function (x, k) { if (value(x.ml) > value(choices[top].ml)) top = k; });
-      return value(choices[top].ml) > value(choices[at].ml) + setting('claimMargin', CLAIM_MARGIN) ? top : at;
+      return value(choices[top].ml) > value(choices[at].ml) + setting("claimMargin", CLAIM_MARGIN) ? top : at;
     }
 
     function sameDecision(a, b) {
-      return a.type === b.type && (a.type !== 'chow' || a.tiles.join() === b.tiles.join()) &&
+      return a.type === b.type && (a.type !== "chow" || a.tiles.join() === b.tiles.join()) &&
         (!a.tile || !b.tile || a.tile === b.tile);
     }
 
@@ -264,13 +264,13 @@
     bot.decideClaim = function (game, seat, opts) {
       var d = baseDecide(game, seat, opts);
       var found = d.found;
-      if (!claims || !found || !found.options.length || d.decision.type === 'win') return d;
-      var choices = [{ decision: { type: 'pass' }, ml: read(waitingFeatures(bot, game, seat, 'pass', opts.tile)) }];
+      if (!claims || !found || !found.options.length || d.decision.type === "win") return d;
+      var choices = [{ decision: { type: "pass" }, ml: read(waitingFeatures(bot, game, seat, "pass", opts.tile)) }];
       found.options.forEach(function (o) {
         if (claimOk && !claimOk(o, opts, game, seat)) return;
         // Never a call that goes against the hand it's building (the contradiction check).
         if (!bot.claimConsistent(game, seat, opts, found, o.decision)) return;
-        var ml = o.decision.type === 'kong' ? read(waitingFeatures(bot, game, seat, 'kong', opts.tile)) : o.ml;
+        var ml = o.decision.type === "kong" ? read(waitingFeatures(bot, game, seat, "kong", opts.tile)) : o.ml;
         if (!ml) return;
         if (ml.best != null) ml = Object.assign({}, ml, { ev: ml.best });
         choices.push({ decision: o.decision, discard: o.discard, ml: ml });
@@ -278,7 +278,7 @@
       // Nothing it may call: it passes.
       if (choices.length === 1) {
         found.ml = finish(choices, 0, 0);
-        return { decision: { type: 'pass' }, found: found };
+        return { decision: { type: "pass" }, found: found };
       }
       var at = 0;
       choices.forEach(function (x, k) { if (sameDecision(x.decision, d.decision)) at = k; });
@@ -299,10 +299,10 @@
       kongs = kongs.filter(function (k) { return !B.kongContradicts(analysis.ctx.leadPlan, k.tile); });
       if (!kongs.length) return { decision: d, choices: null };
       var keep = analysis.candidates[0];
-      var discard = d.type === 'discard' ? d : { type: 'discard', tile: keep.tile };
+      var discard = d.type === "discard" ? d : { type: "discard", tile: keep.tile };
       var choices = [{ decision: discard, ml: Object.assign({}, keep.ml, { ev: keep.ml.best != null ? keep.ml.best : keep.ml.ev }) }];
       kongs.forEach(function (kong) {
-        choices.push({ decision: { type: 'kong', tile: kong.tile }, kind: kong.kind, ml: read(waitingFeatures(bot, game, seat, kong.kind, kong.tile)) });
+        choices.push({ decision: { type: "kong", tile: kong.tile }, kind: kong.kind, ml: read(waitingFeatures(bot, game, seat, kong.kind, kong.tile)) });
       });
       var at = 0;
       choices.forEach(function (x, k) { if (sameDecision(x.decision, d)) at = k; });
@@ -313,7 +313,7 @@
     };
     bot.chooseTurnAction = function (game, seat, opts) { return bot.kongChoice(game, seat, opts).decision; };
     // (createBotAgent plays these: it calls bot.chooseTurnAction and bot.chooseClaim.)
-    Object.defineProperty(bot, 'model', { get: getModel, enumerable: true });
+    Object.defineProperty(bot, "model", { get: getModel, enumerable: true });
     bot.explain = function (a, b) { return explain(getModel(), a, b); };
     return bot;
   }
@@ -326,4 +326,4 @@
 
   if (node) module.exports = api;
   else root.MahjongML = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== "undefined" ? globalThis : this);

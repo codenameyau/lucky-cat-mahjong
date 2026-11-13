@@ -21,37 +21,37 @@
    likely, so it plays at random. */
 
 (function (root) {
-  'use strict';
+  "use strict";
 
-  var node = typeof module !== 'undefined' && module.exports;
-  var E = node ? require('./mahjong-engine.js') : root.MahjongEngine;
+  var node = typeof module !== "undefined" && module.exports;
+  var E = node ? require("./mahjong-engine.js") : root.MahjongEngine;
 
   var FEATURE_VERSION = 1;
   var TURN = 68;                // 34 discards, then 34 kongs
   var CLAIM = 6;                // pass, chow low, chow mid, chow high, pung, kong
   var OUTPUTS = TURN + CLAIM;
-  var CLAIM_NAMES = ['pass', 'chow-low', 'chow-mid', 'chow-high', 'pung', 'kong'];
+  var CLAIM_NAMES = ["pass", "chow-low", "chow-mid", "chow-high", "pung", "kong"];
   var HIDDEN = [256, 128];
   var WALL = 91;                // tiles in the wall after the deal
 
   // The feature layout: [name, size].
   var LAYOUT = [
-    ['hand', 4 * 34],         // own concealed tiles: 1+, 2+, 3+, 4 copies
-    ['melds', 34],            // own melds' tiles (copies / 4)
-    ['ownMelds', 4],          // own chows, pungs, kongs (exposed), concealed kongs
-    ['pond', 34],             // discards still in the ponds (copies / 4)
-    ['shown', 34],            // the other players' shown melds (copies / 4)
-    ['unseen', 34],           // copies this seat hasn't seen (/ 4)
-    ['players', 3 * 14],      // each other player: melds, concealed kongs, flowers,
+    ["hand", 4 * 34],         // own concealed tiles: 1+, 2+, 3+, 4 copies
+    ["melds", 34],            // own melds' tiles (copies / 4)
+    ["ownMelds", 4],          // own chows, pungs, kongs (exposed), concealed kongs
+    ["pond", 34],             // discards still in the ponds (copies / 4)
+    ["shown", 34],            // the other players' shown melds (copies / 4)
+    ["unseen", 34],           // copies this seat hasn't seen (/ 4)
+    ["players", 3 * 14],      // each other player: melds, concealed kongs, flowers,
                               // discards, discards by suit (4), shown melds by suit (4),
                               // chows, pungs/kongs, ready-looking (4 sets shown)
-    ['self', 8],              // own flowers, own seat flower and season, discards,
+    ["self", 8],              // own flowers, own seat flower and season, discards,
                               // concealed, sets, dealer, last wall
-    ['winds', 8],             // seat wind, round wind
-    ['wall', 2],              // tiles left / 91, and its square
-    ['mode', 2],              // own turn, claim
-    ['offer', 34],            // the tile on offer (claims)
-    ['offerFrom', 4],         // thrown by the player on the left, opposite, right; robbing a kong
+    ["winds", 8],             // seat wind, round wind
+    ["wall", 2],              // tiles left / 91, and its square
+    ["mode", 2],              // own turn, claim
+    ["offer", 34],            // the tile on offer (claims)
+    ["offerFrom", 4],         // thrown by the player on the left, opposite, right; robbing a kong
   ];
   var GROUPS = {};
   var SIZE = 0;
@@ -67,7 +67,7 @@
   function seatBonus(flowers, wind) {
     var f = 0, s = 0;
     flowers.forEach(function (id) {
-      var n = parseInt(String(id).replace(/\D/g, ''), 10);
+      var n = parseInt(String(id).replace(/\D/g, ""), 10);
       if (n !== wind) return;
       if (/^f/i.test(id)) f = 1; else s = 1;
     });
@@ -93,8 +93,8 @@
     var ownKinds = [0, 0, 0, 0];
     melds.forEach(function (m) {
       m.tiles.forEach(function (id) { var j = E.tileIndex(id); x[g + j] += 0.25; seen[j]++; });
-      if (m.type === 'chow') ownKinds[0]++;
-      else if (m.type === 'pung') ownKinds[1]++;
+      if (m.type === "chow") ownKinds[0]++;
+      else if (m.type === "pung") ownKinds[1]++;
       else if (m.concealed) ownKinds[3]++;
       else ownKinds[2]++;
     });
@@ -109,7 +109,7 @@
         // Another player's concealed kong is a kong, never its tile.
         if (m.concealed) { concealedKongs++; return; }
         open++;
-        if (m.type === 'chow') chows++; else sets++;
+        if (m.type === "chow") chows++; else sets++;
         m.tiles.forEach(function (id) {
           var j = E.tileIndex(id);
           x[shown + j] += 0.25;
@@ -178,24 +178,24 @@
   function turnMoves(hand, kongs) {
     var out = [];
     var c = E.countsOf(hand);
-    for (var i = 0; i < 34; i++) if (c[i]) out.push({ action: i, decision: { type: 'discard', tile: E.tileId(i) } });
+    for (var i = 0; i < 34; i++) if (c[i]) out.push({ action: i, decision: { type: "discard", tile: E.tileId(i) } });
     (kongs || []).forEach(function (kg) {
-      out.push({ action: 34 + E.tileIndex(kg.tile), decision: { type: 'kong', tile: kg.tile }, kind: kg.kind });
+      out.push({ action: 34 + E.tileIndex(kg.tile), decision: { type: "kong", tile: kg.tile }, kind: kg.kind });
     });
     return out;
   }
 
   // A claim: pass, each chow offered, pung, kong (a win is always taken).
   function claimMoves(opts) {
-    var out = [{ action: TURN, decision: { type: 'pass' } }];
+    var out = [{ action: TURN, decision: { type: "pass" } }];
     var ti = E.tileIndex(opts.tile);
     (opts.chows || []).forEach(function (pair) {
       var lo = Math.min(E.tileIndex(pair[0]), E.tileIndex(pair[1]));
       var slot = lo > ti ? 1 : lo === ti - 1 ? 2 : 3; // the tile is lowest, middle, highest
-      out.push({ action: TURN + slot, decision: { type: 'chow', tiles: pair.slice() } });
+      out.push({ action: TURN + slot, decision: { type: "chow", tiles: pair.slice() } });
     });
-    if (opts.pung) out.push({ action: TURN + 4, decision: { type: 'pung' } });
-    if (opts.kong) out.push({ action: TURN + 5, decision: { type: 'kong' } });
+    if (opts.pung) out.push({ action: TURN + 4, decision: { type: "pung" } });
+    if (opts.kong) out.push({ action: TURN + 5, decision: { type: "kong" } });
     return out;
   }
 
@@ -212,13 +212,13 @@
 
   function fromBase64(s, dtype) {
     var bytes;
-    if (typeof Buffer !== 'undefined') bytes = new Uint8Array(Buffer.from(s, 'base64'));
+    if (typeof Buffer !== "undefined") bytes = new Uint8Array(Buffer.from(s, "base64"));
     else {
       var bin = atob(s);
       bytes = new Uint8Array(bin.length);
       for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     }
-    if (dtype === 'f16') {
+    if (dtype === "f16") {
       var n = bytes.byteLength / 2, out = new Float32Array(n);
       for (var j = 0; j < n; j++) out[j] = halfToFloat(bytes[2 * j] | (bytes[2 * j + 1] << 8));
       return out;
@@ -228,7 +228,7 @@
 
   function floats(v, dtype) {
     if (v instanceof Float32Array) return v;
-    if (typeof v === 'string') return fromBase64(v, dtype);
+    if (typeof v === "string") return fromBase64(v, dtype);
     return Float32Array.from(v);
   }
 
@@ -237,13 +237,13 @@
   function createModel(weights, expect) {
     var size = expect ? expect.size : SIZE, version = expect ? expect.version : FEATURE_VERSION;
     if (weights.featureSize !== size || weights.featureVersion !== version) {
-      throw new Error('Lucky Cat model expects ' + weights.featureSize + ' features (version ' + weights.featureVersion +
-        '), have ' + size + ' (version ' + version + ')');
+      throw new Error("Lucky Cat model expects " + weights.featureSize + " features (version " + weights.featureVersion +
+        "), have " + size + " (version " + version + ")");
     }
     var layers = weights.layers.map(function (l) {
       return { rows: l.rows, cols: l.cols, w: floats(l.w, weights.dtype), b: floats(l.b, weights.dtype) };
     });
-    if (layers[layers.length - 1].rows !== OUTPUTS) throw new Error('Lucky Cat model must have ' + OUTPUTS + ' outputs');
+    if (layers[layers.length - 1].rows !== OUTPUTS) throw new Error("Lucky Cat model must have " + OUTPUTS + " outputs");
     var widest = layers.reduce(function (m, l) { return Math.max(m, l.rows); }, 0);
     var bufA = new Float32Array(widest), bufB = new Float32Array(widest);
     var first = layers[0], firstT = new Float32Array(first.rows * first.cols);
@@ -333,4 +333,4 @@
 
   if (node) module.exports = api;
   else root.MahjongLuckyCatNet = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== "undefined" ? globalThis : this);

@@ -6,23 +6,23 @@ async function loadJSON(path) {
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;",
   }[c]));
 }
 
 function multilineHtml(text) {
   return applyEmphasis(
     escapeHtml(text)
-      .replace(/\r\n/g, '\n')
-      .replace(/\n{2,}/g, '<br><br>')
-      .replace(/\n/g, '<br>')
+      .replace(/\r\n/g, "\n")
+      .replace(/\n{2,}/g, "<br><br>")
+      .replace(/\n/g, "<br>")
   );
 }
 
 function applyEmphasis(html) {
   return html
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>');
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>");
 }
 
 function linkifyContact(text, email, igHandle, igUrl) {
@@ -45,20 +45,20 @@ function linkifyContact(text, email, igHandle, igUrl) {
   return html;
 }
 
-let contactInfo = { email: '', igHandle: '', igUrl: '', igDmUrl: '' };
+let contactInfo = { email: "", igHandle: "", igUrl: "", igDmUrl: "" };
 
 function track(name, params) {
   try {
-    if (typeof gtag === 'function') gtag('event', name, params || {});
+    if (typeof gtag === "function") gtag("event", name, params || {});
   } catch (_) { /* analytics is best-effort */ }
 }
 
 function buildMailto(subject, body) {
-  const email = contactInfo.email || 'events@luckycatmahjong.com';
+  const email = contactInfo.email || "events@luckycatmahjong.com";
   const params = [];
-  if (subject) params.push('subject=' + encodeURIComponent(subject));
-  if (body) params.push('body=' + encodeURIComponent(body));
-  return `mailto:${email}` + (params.length ? '?' + params.join('&') : '');
+  if (subject) params.push("subject=" + encodeURIComponent(subject));
+  if (body) params.push("body=" + encodeURIComponent(body));
+  return `mailto:${email}` + (params.length ? "?" + params.join("&") : "");
 }
 
 // page_title is the search-result title (it matches index.html's <title>); without it, the title and the tagline.
@@ -72,33 +72,33 @@ function applySite(site) {
   if (document.title !== pageTitle) {
     document.title = pageTitle;
   }
-  document.querySelector('meta[name="description"]').content = site.description;
+  document.querySelector("meta[name=\"description\"]").content = site.description;
 
   // The hero's own headline (hero.headline in site.json), not the site tagline the page title and footer use.
-  document.querySelector('.hero-headline').textContent = (site.hero && site.hero.headline) || site.tagline;
-  const subheadline = document.querySelector('.hero-subheadline');
-  const subheadlineText = site.hero.subheadline || '';
-  if (subheadlineText.includes('\n')) {
+  document.querySelector(".hero-headline").textContent = (site.hero && site.hero.headline) || site.tagline;
+  const subheadline = document.querySelector(".hero-subheadline");
+  const subheadlineText = site.hero.subheadline || "";
+  if (subheadlineText.includes("\n")) {
     subheadline.innerHTML = escapeHtml(subheadlineText)
-      .replace(/\r\n/g, '\n')
-      .replace(/\n+/g, '<br> ');
+      .replace(/\r\n/g, "\n")
+      .replace(/\n+/g, "<br> ");
   } else {
     subheadline.textContent = subheadlineText;
   }
-  document.querySelector('#about .section-heading').textContent = site.about.heading;
-  document.querySelector('.about-body').innerHTML = multilineHtml(site.about.body);
+  document.querySelector("#about .section-heading").textContent = site.about.heading;
+  document.querySelector(".about-body").innerHTML = multilineHtml(site.about.body);
 
-  document.querySelector('.cta-heading').textContent = site.cta.heading;
-  document.querySelector('.cta-body').innerHTML = multilineHtml(site.cta.body);
+  document.querySelector(".cta-heading").textContent = site.cta.heading;
+  document.querySelector(".cta-body").innerHTML = multilineHtml(site.cta.body);
 
   const mailto = `mailto:${site.contact_email}`;
-  document.querySelectorAll('.cta-button, .hero-book-button, .header-book').forEach((btn) => {
-    const label = btn.querySelector('.btn-label');
+  document.querySelectorAll(".cta-button, .hero-book-button, .header-book").forEach((btn) => {
+    const label = btn.querySelector(".btn-label");
     if (label) {
       label.textContent = site.cta.button_label;
     }
   });
-  const ctaBtn = document.querySelector('.cta-button');
+  const ctaBtn = document.querySelector(".cta-button");
   if (ctaBtn) ctaBtn.href = mailto;
 
   const igUrl = site.instagram.url;
@@ -106,17 +106,17 @@ function applySite(site) {
 
   contactInfo = { email: site.contact_email, igHandle, igUrl };
 
-  document.querySelectorAll('.instagram-link, .instagram-link-footer, .footer-instagram').forEach((el) => {
+  document.querySelectorAll(".instagram-link, .instagram-link-footer, .footer-instagram").forEach((el) => {
     el.href = igUrl;
     const textNode = el.childNodes[el.childNodes.length - 1];
     if (textNode && textNode.nodeType === Node.TEXT_NODE) {
       textNode.textContent = igHandle;
-    } else if (el.classList.contains('footer-instagram')) {
+    } else if (el.classList.contains("footer-instagram")) {
       el.textContent = igHandle;
     }
   });
 
-  const footerEmail = document.querySelector('.footer-email');
+  const footerEmail = document.querySelector(".footer-email");
   if (footerEmail) {
     footerEmail.href = mailto;
     const emailTextNode = footerEmail.childNodes[footerEmail.childNodes.length - 1];
@@ -125,45 +125,45 @@ function applySite(site) {
     }
   }
 
-  document.querySelector('.footer-brand span').textContent = site.title;
-  document.querySelector('.footer-tagline').textContent = site.tagline;
+  document.querySelector(".footer-brand span").textContent = site.title;
+  document.querySelector(".footer-tagline").textContent = site.tagline;
 }
 
 function applyServices(servicesData) {
-  document.querySelector('.services-heading').textContent = servicesData.heading;
-  document.querySelector('.services-subheading').textContent = servicesData.subheading;
+  document.querySelector(".services-heading").textContent = servicesData.heading;
+  document.querySelector(".services-subheading").textContent = servicesData.subheading;
 
-  const grid = document.querySelector('.services-grid');
+  const grid = document.querySelector(".services-grid");
   grid.innerHTML = servicesData.services.map((service) => `
       <article class="service-card" id="${service.id}">
         <h3 class="service-title">${service.title}</h3>
         <p class="service-description">${service.description}</p>
       </article>
-    `).join('');
+    `).join("");
 }
 
 function applyFaq(faqData) {
   if (!faqData || !Array.isArray(faqData.faqs) || faqData.faqs.length === 0) {
-    const faqSection = document.getElementById('faq');
+    const faqSection = document.getElementById("faq");
     if (faqSection) faqSection.hidden = true;
     return;
   }
 
-  const headingEl = document.querySelector('.faq-heading');
-  const subheadingEl = document.querySelector('.faq-subheading');
+  const headingEl = document.querySelector(".faq-heading");
+  const subheadingEl = document.querySelector(".faq-subheading");
   if (headingEl && faqData.heading) headingEl.textContent = faqData.heading;
   if (subheadingEl && faqData.subheading) subheadingEl.textContent = faqData.subheading;
 
-  const list = document.querySelector('.faq-list');
+  const list = document.querySelector(".faq-list");
   list.innerHTML = faqData.faqs.map((item, idx) => {
     const answerHtml = linkifyContact(
       item.answer,
       contactInfo.email,
       contactInfo.igHandle,
       contactInfo.igUrl
-    ).replace(/\n+/g, '<br>');
+    ).replace(/\n+/g, "<br>");
     return `
-      <details class="faq-item"${idx === 0 ? ' open' : ''}>
+      <details class="faq-item"${idx === 0 ? " open" : ""}>
         <summary class="faq-question">
           <span>${escapeHtml(item.question)}</span>
           <svg class="faq-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -171,21 +171,21 @@ function applyFaq(faqData) {
         <div class="faq-answer">${answerHtml}</div>
       </details>
     `;
-  }).join('');
+  }).join("");
 
-  const ldId = 'faq-jsonld';
+  const ldId = "faq-jsonld";
   document.getElementById(ldId)?.remove();
-  const ldScript = document.createElement('script');
-  ldScript.type = 'application/ld+json';
+  const ldScript = document.createElement("script");
+  ldScript.type = "application/ld+json";
   ldScript.id = ldId;
   ldScript.textContent = JSON.stringify({
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
     mainEntity: faqData.faqs.map((item) => ({
-      '@type': 'Question',
+      "@type": "Question",
       name: item.question,
       acceptedAnswer: {
-        '@type': 'Answer',
+        "@type": "Answer",
         text: item.answer,
       },
     })),
@@ -194,16 +194,16 @@ function applyFaq(faqData) {
 }
 
 function applyRates(ratesData) {
-  document.querySelector('.rates-heading').textContent = ratesData.heading;
-  document.querySelector('.rates-subheading').textContent = ratesData.subheading;
-  document.querySelector('.rates-disclaimer').innerHTML = linkifyContact(
+  document.querySelector(".rates-heading").textContent = ratesData.heading;
+  document.querySelector(".rates-subheading").textContent = ratesData.subheading;
+  document.querySelector(".rates-disclaimer").innerHTML = linkifyContact(
     ratesData.disclaimer,
     contactInfo.email,
     contactInfo.igHandle,
     contactInfo.igUrl
   );
 
-  const tbody = document.querySelector('.rates-body');
+  const tbody = document.querySelector(".rates-body");
   tbody.innerHTML = ratesData.rates.map((rate) => `
     <tr>
       <td>${escapeHtml(rate.service)}</td>
@@ -211,11 +211,11 @@ function applyRates(ratesData) {
       <td>${escapeHtml(rate.price)}</td>
       <td>${linkifyContact(rate.notes, contactInfo.email, contactInfo.igHandle, contactInfo.igUrl)}</td>
     </tr>
-  `).join('');
+  `).join("");
 }
 
 function applyStats(stats) {
-  const el = document.querySelector('.hero-stats');
+  const el = document.querySelector(".hero-stats");
   if (!el) return;
   if (!Array.isArray(stats) || stats.length === 0) {
     el.hidden = true;
@@ -227,11 +227,11 @@ function applyStats(stats) {
       <span class="hero-stat-value">${escapeHtml(s.value)}</span>
       <span class="hero-stat-label">${escapeHtml(s.label)}</span>
     </div>
-  `).join('');
+  `).join("");
 }
 
 function applyTestimonials(data) {
-  const section = document.getElementById('testimonials');
+  const section = document.getElementById("testimonials");
   if (!section) return;
   if (!data || !Array.isArray(data.testimonials) || data.testimonials.length === 0) {
     section.hidden = true;
@@ -239,68 +239,68 @@ function applyTestimonials(data) {
   }
   section.hidden = false;
 
-  const headingEl = document.querySelector('.testimonials-heading');
-  const subheadingEl = document.querySelector('.testimonials-subheading');
+  const headingEl = document.querySelector(".testimonials-heading");
+  const subheadingEl = document.querySelector(".testimonials-subheading");
   if (headingEl && data.heading) headingEl.textContent = data.heading;
   if (subheadingEl && data.subheading) subheadingEl.textContent = data.subheading;
 
-  const grid = section.querySelector('.testimonials-grid');
+  const grid = section.querySelector(".testimonials-grid");
   grid.innerHTML = data.testimonials.map((t) => `
     <figure class="testimonial-card">
       <svg class="testimonial-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6C6.46 6 4 8.46 4 11.5V18h6v-6H7.5c0-1.66 0-3.5 2-3.5V6zm10 0c-3.04 0-5.5 2.46-5.5 5.5V18h6v-6h-2.5c0-1.66 0-3.5 2-3.5V6z"/></svg>
       <blockquote class="testimonial-quote">${escapeHtml(t.quote)}</blockquote>
       <figcaption class="testimonial-author">
-        ${escapeHtml(t.author || '')}
-        ${t.role ? `<span class="testimonial-role">${escapeHtml(t.role)}</span>` : ''}
+        ${escapeHtml(t.author || "")}
+        ${t.role ? `<span class="testimonial-role">${escapeHtml(t.role)}</span>` : ""}
       </figcaption>
     </figure>
-  `).join('');
+  `).join("");
 }
 
 function setupQuoteForm(servicesData) {
-  const form = document.querySelector('.quote-form');
+  const form = document.querySelector(".quote-form");
   if (!form) return;
 
-  const select = form.querySelector('.quote-service');
+  const select = form.querySelector(".quote-service");
   if (select) {
     const titles = (servicesData && Array.isArray(servicesData.services))
-      ? servicesData.services.map((s) => (s.title === 'Business Collaborations' ? 'Business Collaboration' : s.title))
+      ? servicesData.services.map((s) => (s.title === "Business Collaborations" ? "Business Collaboration" : s.title))
       : [];
-    const options = [...titles, 'Something else'];
+    const options = [...titles, "Something else"];
     select.innerHTML = options
       .map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`)
-      .join('');
+      .join("");
   }
 
   const compose = () => {
     const data = new FormData(form);
-    const get = (k) => String(data.get(k) || '').trim();
-    const name = get('name');
-    const service = get('service') || 'a session';
-    const group = get('group');
-    const dates = get('dates');
-    const message = get('message');
+    const get = (k) => String(data.get(k) || "").trim();
+    const name = get("name");
+    const service = get("service") || "a session";
+    const group = get("group");
+    const dates = get("dates");
+    const message = get("message");
 
-    const lines = [`Hi Lucky Cat Mahjong! I'd love to book ${service}.`, ''];
+    const lines = [`Hi Lucky Cat Mahjong! I'd love to book ${service}.`, ""];
     if (name) lines.push(`Name: ${name}`);
     if (group) lines.push(`Group size: ${group}`);
     if (dates) lines.push(`Preferred date(s): ${dates}`);
-    if (message) lines.push('', message);
-    return { service, name, text: lines.join('\n') };
+    if (message) lines.push("", message);
+    return { service, name, text: lines.join("\n") };
   };
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener("submit", (e) => {
     e.preventDefault();
-    if (typeof form.reportValidity === 'function' && !form.reportValidity()) return;
+    if (typeof form.reportValidity === "function" && !form.reportValidity()) return;
     const { service, text } = compose();
-    track('book_session_submit', { location: 'quote_form', service });
-    track('email_click', { location: 'quote_form', source_event: 'book_session_submit' });
+    track("book_session_submit", { location: "quote_form", service });
+    track("email_click", { location: "quote_form", source_event: "book_session_submit" });
     window.location.href = buildMailto(`Mahjong inquiry: ${service}`, text);
   });
 
-  const note = form.querySelector('.quote-note');
+  const note = form.querySelector(".quote-note");
   if (note) {
-    const mailto = buildMailto('Mahjong booking inquiry', '');
+    const mailto = buildMailto("Mahjong booking inquiry", "");
     note.innerHTML = `Prefer to reach out directly? Email <a href="${mailto}" data-evt="email_click_quotenote" data-channel="email_click" data-loc="quote_note">${escapeHtml(contactInfo.email)}</a> or DM <a href="${contactInfo.igDmUrl}" aria-label="Message @${escapeHtml(contactInfo.igHandle)} on Instagram" target="_blank" rel="noopener noreferrer" data-evt="instagram_message_quotenote" data-channel="instagram_message" data-loc="quote_note">@${escapeHtml(contactInfo.igHandle)}</a>.`;
   }
 }
@@ -309,32 +309,32 @@ function setupConversion(servicesData) {
   const handle = contactInfo.igHandle;
   contactInfo.igDmUrl = handle ? `https://ig.me/m/${handle}` : contactInfo.igUrl;
 
-  document.querySelectorAll('.js-ig-dm').forEach((el) => { el.href = contactInfo.igDmUrl; });
-  document.querySelectorAll('.js-ig-profile').forEach((el) => { el.href = contactInfo.igUrl; });
+  document.querySelectorAll(".js-ig-dm").forEach((el) => { el.href = contactInfo.igDmUrl; });
+  document.querySelectorAll(".js-ig-profile").forEach((el) => { el.href = contactInfo.igUrl; });
 
   const bookingBody = [
-    'Hi Lucky Cat Mahjong,',
-    '',
+    "Hi Lucky Cat Mahjong,",
+    "",
     "I'd like to book a session. A few details:",
-    '',
-    '\u2022 Service: ',
-    '\u2022 Group size: ',
-    '\u2022 Preferred date(s): ',
-    '\u2022 Location: ',
-    '',
-    'Thanks!',
-  ].join('\n');
-  const bookingMailto = buildMailto('Mahjong booking inquiry', bookingBody);
-  document.querySelectorAll('.cta-button, .footer-email, .mobile-bar-email').forEach((el) => {
+    "",
+    "\u2022 Service: ",
+    "\u2022 Group size: ",
+    "\u2022 Preferred date(s): ",
+    "\u2022 Location: ",
+    "",
+    "Thanks!",
+  ].join("\n");
+  const bookingMailto = buildMailto("Mahjong booking inquiry", bookingBody);
+  document.querySelectorAll(".cta-button, .footer-email, .mobile-bar-email").forEach((el) => {
     el.href = bookingMailto;
   });
 
   setupQuoteForm(servicesData);
 
-  document.addEventListener('click', (e) => {
-    const el = e.target.closest('[data-evt]');
+  document.addEventListener("click", (e) => {
+    const el = e.target.closest("[data-evt]");
     if (!el) return;
-    const location = el.dataset.loc || 'unknown';
+    const location = el.dataset.loc || "unknown";
     track(el.dataset.evt, { location });
     if (el.dataset.channel) {
       track(el.dataset.channel, { location, source_event: el.dataset.evt });
@@ -343,19 +343,19 @@ function setupConversion(servicesData) {
 }
 
 async function init() {
-  document.getElementById('year').textContent = new Date().getFullYear();
+  document.getElementById("year").textContent = new Date().getFullYear();
 
-  document.querySelectorAll('.hero-logo, .header-logo, .footer-logo, .hero picture, .header-brand picture, .footer-brand picture').forEach((el) => {
-    el.addEventListener('contextmenu', (e) => e.preventDefault());
+  document.querySelectorAll(".hero-logo, .header-logo, .footer-logo, .hero picture, .header-brand picture, .footer-brand picture").forEach((el) => {
+    el.addEventListener("contextmenu", (e) => e.preventDefault());
   });
 
   try {
     const [site, services, rates, faq, testimonials] = await Promise.all([
-      loadJSON('data/site.json'),
-      loadJSON('data/services.json'),
-      loadJSON('data/rates.json'),
-      loadJSON('data/faq.json').catch(() => null),
-      loadJSON('data/testimonials.json').catch(() => null),
+      loadJSON("data/site.json"),
+      loadJSON("data/services.json"),
+      loadJSON("data/rates.json"),
+      loadJSON("data/faq.json").catch(() => null),
+      loadJSON("data/testimonials.json").catch(() => null),
     ]);
 
     applySite(site);
@@ -366,7 +366,7 @@ async function init() {
     if (faq) applyFaq(faq);
     setupConversion(services);
   } catch (err) {
-    console.warn('Could not load site data, using static defaults:', err);
+    console.warn("Could not load site data, using static defaults:", err);
   }
 }
 

@@ -33,6 +33,27 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: node scripts/check-game-version.js "origin/$BASE_REF"
 
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install ESLint
+        run: npm ci --ignore-scripts
+
+      - name: Lint JavaScript and the pages' scripts
+        run: npx eslint .
+
+      - name: Lint Python
+        run: pipx run --spec ruff==0.17.5 ruff check
+
   native-pin:
     runs-on: ubuntu-latest
 

@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 // The fair-play shuffle check, shared by js/mahjong-fair-play.test.js and the
 // benchmark's last stage (scripts/ml/bench.js). At real positions from whole
@@ -9,8 +9,8 @@
 // tile) throws when read. The decisions, and every number behind them, must
 // be the same.
 
-const assert = require('node:assert/strict');
-const E = require('../../js/mahjong-engine.js');
+const assert = require("node:assert/strict");
+const E = require("../../js/mahjong-engine.js");
 
 function copyGame(game) {
   const { rng, ...rest } = game;
@@ -19,8 +19,8 @@ function copyGame(game) {
 
 function trap(obj, key, what) {
   Object.defineProperty(obj, key, {
-    get() { throw new Error('peeked at ' + what); },
-    set() { throw new Error('peeked at ' + what); },
+    get() { throw new Error("peeked at " + what); },
+    set() { throw new Error("peeked at " + what); },
     enumerable: false, configurable: true,
   });
 }
@@ -53,18 +53,18 @@ function hiddenShuffled(game, seat, rng, ownTurn) {
     [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
   }
   places.forEach((p, k) => { p[0][p[1]] = tiles[k]; });
-  trap(g, 'seed', 'the game seed');
-  trap(g, 'rng', 'the random number generator');
-  trap(h, 'seed', 'the deal seed');
-  trap(h, 'moves', 'the move log');
-  trap(h, 'trace', 'the move trace');
-  if (!ownTurn) trap(h, 'drawnTile', "another player's drawn tile");
+  trap(g, "seed", "the game seed");
+  trap(g, "rng", "the random number generator");
+  trap(h, "seed", "the deal seed");
+  trap(h, "moves", "the move log");
+  trap(h, "trace", "the move trace");
+  if (!ownTurn) trap(h, "drawnTile", "another player's drawn tile");
   return g;
 }
 
 // Everything a decision says, as text, so two can be compared exactly.
 function said(x) {
-  return JSON.stringify(x, (k, v) => (k === 'features' ? undefined : v instanceof Float32Array ? Array.from(v) : v));
+  return JSON.stringify(x, (k, v) => (k === "features" ? undefined : v instanceof Float32Array ? Array.from(v) : v));
 }
 
 function check(name, bot, coach) {
@@ -76,9 +76,9 @@ function check(name, bot, coach) {
     try {
       b = decide(hiddenShuffled(game, seat, rng, ownTurn));
     } catch (err) {
-      assert.fail(name + ' ' + err.message);
+      assert.fail(name + " " + err.message);
     }
-    assert.equal(said(b), said(a), name + ' changed its decision when hidden tiles moved');
+    assert.equal(said(b), said(a), name + " changed its decision when hidden tiles moved");
   }
   const agent = {
     turn(game, seat, opts) {
@@ -118,7 +118,7 @@ async function playAll(name, bot, coach, deals) {
     await E.runHand(game, [c.agent, c.agent, c.agent, c.agent]);
   }
   const n = c.counts();
-  assert.ok(n.turns > 50 && n.claims > 20, name + ': too few positions checked');
+  assert.ok(n.turns > 50 && n.claims > 20, name + ": too few positions checked");
   return n;
 }
 
