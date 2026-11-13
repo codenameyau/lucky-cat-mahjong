@@ -4746,24 +4746,14 @@
       var free = ui.meRowFree;
       var cover = null;
       if (L.actionsInRow && free) {
-        if (free.x1 - free.x0 - lead >= buttonsW) {
-          // Centered on your whole row when nothing there collides with them
-          // (your name sits to one side); otherwise centered in the room left.
-          var midX = (L.meX + L.pad + L.meX + L.meW - L.pad) / 2;
-          var groupW = buttonsW + lead;
-          if (midX - groupW / 2 >= free.x0 && midX + groupW / 2 <= free.x1) { x0 = L.meX + L.pad; x1 = L.meX + L.meW - L.pad; }
-          else { x0 = free.x0; x1 = free.x1; }
-        }
-        else {
-          // Not enough room beside your name: use the rest of the row and
-          // cover the name while the buttons are up. They always stay in your
-          // row (never over the coach's message): with lots of melds and chow
-          // choices they narrow to fit, below.
-          x0 = free.x0; x1 = L.meX + L.meW - L.pad;
-          cover = { x: free.x1, w: x1 - free.x1 };
-          // Even at their narrowest they don't fit after your melds: the whole row, over them.
-          if (x1 - x0 - lead < acts.length * 36 + gap * (acts.length - 1)) x0 = L.meX + L.pad;
-        }
+        // The buttons (and a claim's tile) always sit at the right end of your row, over
+        // your name and avatar, so they are in the same place every time. They stay in
+        // your row (never over the coach's message): with lots of melds and chow
+        // choices they narrow to fit, below.
+        x0 = free.x0; x1 = L.meX + L.meW - L.pad;
+        cover = { x: free.x1, w: x1 - free.x1 };
+        // Even at their narrowest they don't fit after your melds: the whole row, over them.
+        if (x1 - x0 - lead < acts.length * 36 + gap * (acts.length - 1)) x0 = L.meX + L.pad;
       }
       setButtonsOverName(!!cover);
       rowY -= ACTIONS_LIFT;
@@ -4774,7 +4764,8 @@
         widths = widths.map(function (w) { return Math.max(36, w * scale); });
         buttonsW = widths.reduce(function (sum, w) { return sum + w; }, 0) + gap * (acts.length - 1);
       }
-      var x = x0 + (x1 - x0 - buttonsW - lead) / 2 + lead;
+      // Against the right end of the row where it is your row's actions; centered in the room otherwise.
+      var x = cover ? x1 - buttonsW : x0 + (x1 - x0 - buttonsW - lead) / 2 + lead;
       var y = rowY + (L.actionsH - h) / 2;
       ui.claimTileRect = null;
       if (claimTile) {
