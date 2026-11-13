@@ -87,7 +87,6 @@
   var STEPS = [
     { seat: 0, kind: "turn", action: { type: "discard", tile: "c1" }, hint: say("Discard 1 Character.", "c1", { type: "discard" }, [
       read("The player on East always goes first. That's you!"),
-      read("The wind in the middle of the table is the round wind. This is the East round, and you sit on East too, so East is also your seat wind.", "table-wind"),
       read("The tiles in your hand are concealed: only you see them. Click Rules at the top to see every hand pattern and how to score faan, then close it.", "rules", "rules"),
       read("We're going to learn the hand pattern for half flush, the most common way to win. Tap the 1 Character twice to discard it.", "c1"),
     ]) },
@@ -126,6 +125,7 @@
     ]) },
     { seat: 0, kind: "turn", action: { type: "discard", tile: "d1" }, hint: say("Discard 1 Dot.", "d1", { type: "discard" }, [
       read("Your replacement tile is 1 Dot. Throw it, and you're one tile from winning: you need East Wind.", "d1"),
+      read("East Wind is special: the wind in the middle of the table is the round wind. This is the East round, and you sit on East too, so East is also your seat wind.", "table-wind"),
       read("Draw East Wind yourself and it's a self-draw: every opponent pays."),
       read("Win on a discard and only the player who threw it pays."),
       read("Tap the 1 Dot twice to discard it.", "d1"),
