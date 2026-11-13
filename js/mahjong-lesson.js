@@ -112,7 +112,7 @@
       read("Press Pung to claim the 8 Bamboo.", "pung"),
     ]) },
     { seat: 0, kind: "turn", action: { type: "discard", tile: "c5" }, hint: say("Discard 5 Characters.", "c5", { type: "discard" }, [
-      read("A half flush is one suit plus any Dragon or Wind tiles."),
+      read("A half flush is one suit plus any triplets or pairs of Dragon or Wind tiles."),
       read("Tap the 5 Characters twice to discard it. Then your hand is all Bamboo, Dragons and Winds.", "c5"),
     ]) },
     { seat: 1, kind: "turn", drawn: true },
