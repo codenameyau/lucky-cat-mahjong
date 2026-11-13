@@ -9,7 +9,7 @@
     <image:image>
       <image:loc>https://luckycatmahjong.com/logo.png</image:loc>
       <image:title>Lucky Cat Mahjong logo</image:title>
-      <image:caption>Lucky Cat Mahjong — a free online Hong Kong mahjong game, a mahjong personality quiz, and mahjong events in New York City</image:caption>
+      <image:caption>Lucky Cat Mahjong — a free mahjong game, mahjong events, workshops and lessons, and a mahjong personality quiz from a mahjong community in New York City</image:caption>
     </image:image>
   </url>
   <url>
@@ -19,7 +19,7 @@
     <priority>0.9</priority>
     <image:image>
       <image:loc>https://luckycatmahjong.com/logo.png</image:loc>
-      <image:title>Hong Kong Mahjong Points Guide</image:title>
+      <image:title>Mahjong Points Guide</image:title>
       <image:caption>Free Hong Kong mahjong Points Guide and scoring guide — count faan, score winning patterns, and learn special hands</image:caption>
     </image:image>
   </url>
@@ -30,8 +30,8 @@
     <priority>0.9</priority>
     <image:image>
       <image:loc>https://luckycatmahjong.com/logo.png</image:loc>
-      <image:title>Mahjong Events in NYC</image:title>
-      <image:caption>Upcoming Lucky Cat Mahjong events and tournaments in New York City</image:caption>
+      <image:title>Mahjong Events &amp; Workshops in NYC</image:title>
+      <image:caption>Upcoming mahjong events, tournaments and workshops in New York City</image:caption>
     </image:image>
   </url>
   <url>
@@ -41,8 +41,8 @@
     <priority>0.95</priority>
     <image:image>
       <image:loc>https://luckycatmahjong.com/logo.png</image:loc>
-      <image:title>Free Online Mahjong Game</image:title>
-      <image:caption>Play Hong Kong mahjong online for free, with a coach that helps you score points and win more hands.</image:caption>
+      <image:title>Free Mahjong Game</image:title>
+      <image:caption>Play free mahjong online, with a coach that teaches you mahjong points and helps you win more hands.</image:caption>
     </image:image>
   </url>
   <url>
