@@ -3894,7 +3894,22 @@
         else if (ch === "\u0002") { if (from >= 0) red.push([from, plain.length]); from = -1; }
         else plain += ch;
       }
+      if (settings.lesson) red = withLessonTerms(plain, red);
       return { plain: plain, red: red, color: baseColor };
+    }
+
+    // The tutorial writes its core mahjong terms in red, like hand names.
+    var LESSON_TERMS = /\b(chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind)\b/gi;
+    function withLessonTerms(plain, red) {
+      var out = red.slice();
+      var m;
+      LESSON_TERMS.lastIndex = 0;
+      while ((m = LESSON_TERMS.exec(plain))) {
+        var a = m.index, b = a + m[0].length;
+        var clash = out.some(function (r) { return a < r[1] && b > r[0]; });
+        if (!clash) out.push([a, b]);
+      }
+      return out.sort(function (x, y) { return x[0] - y[0]; });
     }
 
     function coachPlain(note) {
