@@ -8,7 +8,7 @@ Lucky Cat Mahjong is a static site whose centre is a Hong Kong mahjong game play
 
 - **Neural Cat** (NC10) scores Jorge Yau's best options by the points it expects them to win or lose. It is the balanced one: it aims to win often and win big.
 - **Lucky Cat** (LC34) makes every move itself; only the contradiction check reads a plan for it. It aims to win the most hands.
-- **Only Orphans** (OW1) builds big hands on 1s, 9s and honors. It aims for the biggest hands and the most points, even if it wins less often.
+- **Only Orphans** (OW2) builds big hands on 1s, 9s and honors. It aims for the biggest hands and the most points, even if it wins less often.
 
 Every strategy sees only what its seat can see. A **contradiction check** keeps every move in line with the hand it is going for. The coach explains moves in the same words for every strategy, at three levels: Simple, Detailed and Complex.
 
