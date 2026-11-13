@@ -3784,7 +3784,9 @@
       }
       // A card to read has a Next button at the right of the box.
       var nextW = lesson && !lesson.last && !lesson.gated ? (L.desktop ? 76 : 60) : 0;
-      if (nextW) reserve += nextW + 10;
+      // Back turns to the step before, within this move (a move played can't be taken back).
+      var backW = lesson && lesson.index > 0 ? (L.desktop ? 64 : 52) : 0;
+      if (nextW || backW) reserve += nextW + backW + (nextW && backW ? 8 : 0) + 10;
       var tw = w - (tx - x) - 10 - reserve;
       var baseSize = !L.desktop ? 11 : L.tableW < 600 ? 12 : 13; // smaller on a phone
       // The box keeps its height. A longer note shrinks the text until it fits.
@@ -3867,13 +3869,13 @@
         });
       });
       ctx.restore();
-      if (settings.lesson) drawLessonProgress(x, y, w, h, lesson, nextW);
+      if (settings.lesson) drawLessonProgress(x, y, w, h, lesson, nextW, backW);
     }
 
     // The tutorial's progress bar along the bottom of the coach's box, and
     // the Next button on a card to read. A tap anywhere on the box also
     // turns to the next card.
-    function drawLessonProgress(x, y, w, h, lesson, nextW) {
+    function drawLessonProgress(x, y, w, h, lesson, nextW, backW) {
       var at = game ? Lesson.progress(game) : null;
       // The step on show counts as begun, and the bar never starts empty, so it reads as a progress bar.
       var done = lesson ? lesson.n : at ? at.screen : 0;
@@ -3891,10 +3893,11 @@
         ctx.fill();
       }
       ctx.restore();
-      if (!lesson || lesson.last || lesson.gated) return;
-      addRegion(x, y, w, h, lessonNextCard, "lesson-band");
+      if (!lesson) return;
       var bh = L.desktop ? 30 : 26;
-      button("Next", x + w - 10 - nextW, y + (h - bh) / 2, nextW, bh, lessonNextCard, "gold", "lesson-next");
+      if (nextW) addRegion(x, y, w, h, lessonNextCard, "lesson-band");
+      if (backW) button("Back", x + w - 10 - nextW - (nextW ? 8 : 0) - backW, y + (h - bh) / 2, backW, bh, lessonPrevCard, "ghost", "lesson-back");
+      if (nextW) button("Next", x + w - 10 - nextW, y + (h - bh) / 2, nextW, bh, lessonNextCard, "gold", "lesson-next");
     }
 
     // Split coach copy into plain text plus the ranges that name a hand pattern.
@@ -5722,6 +5725,14 @@
       if (c.gated) { ui.shake = { kind: "button", key: "rules", start: now() }; requestRender(); return; } // open Rules first
       sound.play("select");
       showLessonCard(c.index + 1);
+    }
+
+    // Back: the step before, in this move.
+    function lessonPrevCard() {
+      var c = lessonCardNow();
+      if (!c || c.index === 0) return;
+      sound.play("select");
+      showLessonCard(c.index - 1);
     }
 
     // A step done: a soft rising chime (with Sound on), and the bar fills.
