@@ -944,10 +944,23 @@
 
     /* ---------------- frame loop ---------------- */
 
+    // Safari on iPhone and iPad can hold back animation frames after a page
+    // loads or resumes a saved game: the frame comes only with the next touch,
+    // so a tap seems to do nothing (the game takes it, the table doesn't show
+    // it). So a frame that hasn't come in FRAME_FALLBACK_MS is drawn from a
+    // timer instead. A hidden tab is left alone: its frames stop on purpose.
+    var FRAME_FALLBACK_MS = 100;
+    var frameToken = 0;
     function requestRender() {
       if (frameRequested || destroyed) return;
       frameRequested = true;
-      root.requestAnimationFrame(frame);
+      var token = ++frameToken;
+      root.requestAnimationFrame(function () { if (token === frameToken && frameRequested) frame(); });
+      setTimeout(function () {
+        if (token !== frameToken || !frameRequested || destroyed) return;
+        if (root.document && root.document.hidden) return;
+        frame();
+      }, FRAME_FALLBACK_MS);
     }
 
     var lastFrameAt = 0; // when the last frame was drawn
