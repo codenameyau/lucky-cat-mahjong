@@ -3924,7 +3924,7 @@
     }
 
     // The tutorial writes its core mahjong terms and its tile names in red, like hand names, the first time each comes up.
-    var LESSON_TERMS = /\b(hong kong mahjong|hand patterns?|replace flowers?|chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind|claim(?:s|ed|ing)?|discard(?:s|ed|ing)?|hands?|east|round)\b|\b(?:(?:east|south|west|north) )?winds?\b|\b(?:(?:red|green|white) )?dragons?\b|\b(?:plum|flowers?|seasons?)\b/gi;
+    var LESSON_TERMS = /\b(hong kong mahjong|hand patterns?|replace flowers?|chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind|claim(?:s|ed|ing)?|discard(?:s|ed|ing)?|hands?|east|round)\b|\b(?:(?:east|south|west|north) )?winds?\b|\b(?:(?:red|green|white) )?dragons?\b|\b(?:flowers?|seasons?)\b/gi;
     // Where the terms are in a text: [from, to, key], the key being the word without its plural or ending.
     function lessonTermMatches(plain) {
       var out = [];
@@ -5857,6 +5857,9 @@
       if (!point) return [];
       if (point === "claim-tile") return ui.claimTileRect ? [ui.claimTileRect] : [];
       if (point === "table-wind") return ui.centerRect ? [ui.centerRect] : [];
+      if (point.indexOf(",") !== -1) { // several tiles, such as "f1,s1"
+        return point.split(",").reduce(function (all, one1) { return all.concat(lessonRects(one1, true)); }, []);
+      }
       if (TILE_ID.test(point)) {
         var mine = ui.lastHandRects.filter(function (r) { return r.id === point; });
         return one ? mine.slice(-1) : mine;
@@ -5922,25 +5925,31 @@
 
     // Where the move sends its tile: a discard to your discards, Plum to
     // your flowers, a claimed tile to your melds or (a win) into your hand.
-    function lessonGlide(c) {
+    // The tiles the move sends, each from where it is to where it goes.
+    function lessonGlides(c) {
       var d = c.note.decision;
-      if (c.note.kind === "flower") return { id: c.note.tile, from: lessonRects(c.note.tile, true)[0], to: ui.flowerAnchor[0] };
-      if (!d || !game || !game.hand) return null;
+      if (c.note.kind === "flower") {
+        return (c.note.tiles || [c.note.tile]).map(function (id) { return { id: id, from: lessonRects(id, true)[0], to: ui.flowerAnchor[0] }; });
+      }
+      if (!d || !game || !game.hand) return [];
       if (d.type === "discard") {
         var kept = game.hand.seats[0].discards.filter(function (x) { return !x.claimed; }).length;
-        return { id: c.note.tile, from: lessonRects(c.note.tile, true)[0], to: pondPose(0, kept) };
+        return [{ id: c.note.tile, from: lessonRects(c.note.tile, true)[0], to: pondPose(0, kept) }];
       }
       var claimed = ui.claimPrompt && ui.claimPrompt.opts.tile;
-      if (!claimed || !ui.claimTileRect) return null;
-      if (d.type === "win") return { id: claimed, from: ui.claimTileRect, to: winningHandPose(0, claimed) };
-      if (d.type === "chow" || d.type === "pung") return { id: claimed, from: ui.claimTileRect, to: ui.meldAnchor[0] };
-      return null;
+      if (!claimed || !ui.claimTileRect) return [];
+      if (d.type === "win") return [{ id: claimed, from: ui.claimTileRect, to: winningHandPose(0, claimed) }];
+      if (d.type === "chow" || d.type === "pung") return [{ id: claimed, from: ui.claimTileRect, to: ui.meldAnchor[0] }];
+      return [];
     }
 
     function drawLessonGlide(c, t) {
       if (reduceMotion) return;
-      var g = lessonGlide(c);
-      var src = g && g.from;
+      lessonGlides(c).forEach(function (g) { drawOneGlide(g, t); });
+    }
+
+    function drawOneGlide(g, t) {
+      var src = g.from;
       if (!src || !g.to) return;
       // Fade in where it is, glide, and fade out where it lands; then again.
       var p = ((t - ui.lessonCardAt) % GLIDE_MS) / GLIDE_MS;

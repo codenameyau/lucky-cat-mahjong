@@ -1,6 +1,7 @@
 /* The first game: one fixed East hand, and only the move the coach names.
 
-   You are East. Plum, your flower, sets aside. You chow 2-3-4 Bamboo, pung
+   You are East. Plum, your flower, and Spring, your season, set aside (two
+   faan). You chow 2-3-4 Bamboo, pung
    8 Bamboo, and kong the fourth 8. Three Red Dragons stay concealed. A pair
    of 6 Bamboo is the pair. East Wind, taken from a discard, finishes the
    East Wind triplet and the Half Flush. */
@@ -12,16 +13,16 @@
   // Opening hands, 13 tiles each. East's 14th tile is EXTRA.
   // Opponents hold no pairs, so they never claim ahead of the lesson.
   var HANDS = [
-    ["f1", "dr", "dr", "dr", "we", "we", "b2", "b3", "b8", "b8", "b6", "b6", "c1"],
+    ["f1", "dr", "dr", "dr", "we", "we", "b2", "b3", "b8", "b8", "b6", "b6", "s1"],
     ["c9", "d4", "d5", "d6", "b1", "b5", "b7", "b9", "ws", "wn", "ww", "dg", "dr"],
     ["c2", "c3", "c4", "c6", "d2", "d3", "d7", "d8", "b1", "b5", "b9", "ws", "ww"],
     ["b1", "b5", "b7", "b9", "d3", "d4", "d5", "ws", "wn", "dg", "dw", "c2", "c3"],
   ];
   var EXTRA = "d9";
-  // Draws after the deal, front of the wall. The last two tiles of the wall
-  // are popped: c5 replaces the flower, d1 replaces the kong.
+  // Draws after the deal, front of the wall. The last three tiles of the wall
+  // are popped: c1 and c5 replace the flower and the season, d1 replaces the kong.
   var DRAWS = ["c7", "c8", "b4", "b8", "dg", "dw", "ww", "b8", "we"];
-  var BACK = ["d1", "c5"];
+  var BACK = ["d1", "c5", "c1"];
 
   function fullSet() {
     var tiles = [];
@@ -76,9 +77,10 @@
   // waits for the Replace flowers button (the tutorial's only).
   var FLOWER_HINT = { kind: "flower", action: "Replace flowers.", tile: "f1", decision: null, cards: [
     read("welcome", "Welcome! I'm your coach, Lucky Cat. We'll play one hand of Hong Kong Mahjong together, one small step at a time."),
-    read("plum-flower", "This is Plum, a flower. You set aside every flower and season tile. Plum has the number 1 and you sit on East, seat number 1, so it scores 1 faan.", "f1"),
-    read("replace-flowers", "Press Replace flowers. Plum goes in front of you face up, and you draw a new tile for it from the end of the wall.", "replace-flower"),
-  ] };
+    read("plum-flower", "Plum is a flower and Spring is a season. You set aside every flower and season tile.", "f1,s1"),
+    read("flower-faan", "Both have the number 1, and you sit on East, seat number 1, so they match your seat and each scores 1 faan: +2 faan.", "f1,s1"),
+    read("replace-flowers", "Press Replace flowers. Plum and Spring go in front of you face up, and you draw a new tile for each from the end of the wall.", "replace-flower"),
+  ], tiles: ["f1", "s1"] };
   FLOWER_HINT.tips = FLOWER_HINT.cards.map(function (c) { return c.text; });
 
   // The moves, in the order the table asks for them. `drawn` discards the
