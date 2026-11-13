@@ -1201,6 +1201,8 @@
         try {
           var laid = computeLayout();
           if (laid.history) {
+            // The tutorial has no strategies panel: the coach's column keeps its whole height.
+            if (settings.lesson) return laid;
             var split = 8;
             var col = laid.history;
             col.h = Math.max(48, laid.meBox.y - split - col.y);
@@ -1457,7 +1459,8 @@
         h: historyBottom - opp[2].y,
       } : null;
       var results = null;
-      if (desktop && history && !settings.playback && !settings.review) {
+      // (The tutorial has no results table: its coach column is whole.)
+      if (desktop && history && !settings.playback && !settings.review && !settings.lesson) {
         if (ui.coach === "off") {
           // The coach's notes and the recommendations are hidden, so the
           // results take the column.
@@ -3439,7 +3442,7 @@
       ctx.restore();
       // Results open from this square only: the wind and the tiles left. A
       // discard tile keeps its own tap, for the tip.
-      if (!ui.overlay && !settings.review) addRegion(c.x, c.y, c.w, c.h, function () { sound.play("select"); openResults(); }, "center");
+      if (!ui.overlay && !settings.review && !settings.lesson) addRegion(c.x, c.y, c.w, c.h, function () { sound.play("select"); openResults(); }, "center"); // (the tutorial has no results table)
       var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
       // The round wind, as its tile's character, with the tiles left close under
       // it. The two sit as one group in the middle of the panel.
