@@ -4706,7 +4706,11 @@
       }
       var hintDecision = ui.coach === "on" && ui.hint && ui.hint.decision;
       var cursor = x;
+      // The tutorial shows its buttons only on the move's last step, once every step before it has been read.
+      var reading = settings.lesson && lessonCardNow();
+      var buttonsHidden = !!(reading && !reading.last);
       acts.forEach(function (a, i) {
+        if (buttonsHidden) return;
         var id = a.id || ("act-" + i);
         // (The tutorial points at its moves with its own pulsing ring.)
         var recommended = !settings.lesson && hintDecision && labelMatches(a.label, hintDecision);
@@ -5877,19 +5881,19 @@
     function lessonAllows(kind, decision, target) {
       if (!settings.lesson) return true;
       var card = lessonCardNow();
+      // Until the move's last step is up, a tap on a tile (or a key) just turns to the next step.
+      if (card && !card.last) { lessonNextCard(); return false; }
       if (Lesson.accept(game, 0, kind, decision)) {
         var at = Lesson.progress(game);
         track("play_lesson_step", {
           step: game.lessonStep, move: at.move, moves: at.moves, action: decision.type,
-          screen: at.screen, screens: at.screens, cards_skipped: card && !card.last ? card.note.cards.length - 1 - card.index : 0,
+          screen: at.screen, screens: at.screens,
           seconds: lessonSeconds(), wrong_tries: lessonTrack ? lessonTrack.wrong : 0,
         });
         if (lessonTrack) lessonTrack.wrong = 0;
         lessonStepDone();
         return true;
       }
-      // A wrong move turns straight to the card that says what to do.
-      if (card && !card.last) showLessonCard(card.note.cards.length - 1);
       if (lessonTrack) {
         lessonTrack.wrong++;
         lessonTrack.wrongTotal++;
