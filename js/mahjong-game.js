@@ -533,6 +533,9 @@
     flip: { clips: ["tiles-reveal"], gain: 0.9 },
     // Next hand: the same mining hit as a win (impactMining_000).
     next: { clips: ["impact-pung"], gain: 1 },
+    // A move the coach recommended (every move in the tutorial): the flower's glass
+    // chime, played higher and again higher still, a soft rising ping.
+    goodmove: { clips: ["flower"], gain: 0.22, pitch: 1.5, then: [["flower", 0.09, 0.18, 2]] },
   };
 
   // The cues for tiles being placed or acted on: draws, discards, a flower, the
@@ -720,7 +723,7 @@
       var a = cue && ctx();
       if (!a) return;
       var t = a.currentTime + 0.005;
-      clip(a, cue.clips[Math.floor(Math.random() * cue.clips.length)], t, cue.gain, cue.vary);
+      clip(a, cue.clips[Math.floor(Math.random() * cue.clips.length)], t, cue.gain, cue.vary, cue.pitch);
       (cue.then || []).forEach(function (x) { clip(a, x[0], t + x[1], x[2], cue.vary, x[3]); });
     };
 
@@ -815,9 +818,14 @@
     // without changing the saved Sound button choice. No sound param keeps it.
     var soundParam = /[?&]sound=(0|1)(?:&|$)/.exec((root.location && root.location.search) || "");
     var soundOn = soundParam ? soundParam[1] === "1" : prefs.sound !== false;
-    var sound = createSound(soundOn);
+    // A jump to another tutorial step makes a new table; it keeps the music playing.
+    var sound = settings.carrySound || createSound(soundOn);
+    var soundCarried = false; // true once the next table has taken this one's sound
+    settings.carrySound = null;
     // Silent for the tile cues while auto-play runs (it follows the live state, so it can't stick on).
     sound.isQuiet = function (name) { return autoPlay && TILE_CUES[name] === 1; };
+    var quietAutoPlay = sound.isQuiet;
+    sound.isQuiet = function (name) { return ui.lessonSkipping || quietAutoPlay(name); }; // the tutorial playing up to a step is silent
     // Music on plays the music and the sounds, Sound on only the sounds.
     sound.musicEnabled = sound.enabled && prefs.music !== false;
     var reduceMotion = root.matchMedia && root.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -924,6 +932,20 @@
       meldAnchor: [null, null, null, null],
       backAnchor: [null, null, null, null],
       flowerAnchor: [null, null, null, null],
+      // The tutorial shows its coach's note as short cards, one at a time:
+      // which note and card are up, when the card came up, and how full
+      // the progress bar under it is (it fills smoothly).
+      lessonNote: null,
+      lessonCard: 0,
+      lessonCardAt: 0,
+      lessonJump: null, // the tutorial, after a jump to an earlier or later step: the step to land on, while the table plays up to it
+      lessonJumping: false, // the table is being made again for a jump
+      lessonSkipping: false, // true while it plays up to that step (silently, at once)
+      lessonRows: [], // the steps list's rows, for taps
+      lessonShownN: 0, // the step the list last scrolled to
+      lessonBar: 0,
+      centerRect: null, // the table's wind indicator, for the tutorial to point at
+      claimTileRect: null, // the tile up for a claim, beside the buttons, for the tutorial to point at
       // dealIns: the times you discarded the winning tile. stays: the times the deal
       // stayed with you (you won as dealer and dealt again).
       // fastest: the fewest moves in a hand you won (your own discards, plus the winning move).
@@ -986,7 +1008,7 @@
       banners = banners.filter(function (b) { return t - b.start < b.dur; });
       if (ui.shake && t - ui.shake.start >= SHAKE_MS) ui.shake = null;
       render(t);
-      if (anims.length || particles.length || banners.length || ui.shake) requestRender();
+      if (anims.length || particles.length || banners.length || ui.shake || (settings.lesson && lessonMoving())) requestRender();
     }
 
     function animate(dur, step, ease) {
@@ -1189,6 +1211,8 @@
         try {
           var laid = computeLayout();
           if (laid.history) {
+            // The tutorial has no strategies panel: the coach's column keeps its whole height.
+            if (settings.lesson) return laid;
             var split = 8;
             var col = laid.history;
             col.h = Math.max(48, laid.meBox.y - split - col.y);
@@ -1199,6 +1223,8 @@
           H = full;
           layoutNesting = false;
         }
+        // The tutorial has no strategy strip under a phone's table: the table takes that room.
+        if (settings.lesson) return laid;
         var reserve = 0;
         var fallback = null;
         layoutNesting = true;
@@ -1443,7 +1469,8 @@
         h: historyBottom - opp[2].y,
       } : null;
       var results = null;
-      if (desktop && history && !settings.playback && !settings.review) {
+      // (The tutorial has no results table: its coach column is whole.)
+      if (desktop && history && !settings.playback && !settings.review && !settings.lesson) {
         if (ui.coach === "off") {
           // The coach's notes and the recommendations are hidden, so the
           // results take the column.
@@ -1886,6 +1913,7 @@
       drawCoachHistory();
       drawStrategyPanel();
       drawActions();
+      if (settings.lesson) drawLessonGuide(t);
       drawSeeResults();
       tipsOn = false; // tiles in flight, banners and effects get no tooltip
       drawFlights();
@@ -2475,9 +2503,9 @@
     // Each example is what that level really says for one hand: Neural Cat's
     // coach, East's first turn of the game with seed 11.
     var COACH_OPTIONS = [
-      { id: "simple", name: "Simple", example: "Discard Four Bamboo. Go for Half Flush in Circles, about 3 faan. You have 8 tiles needed and 6 tiles remaining." },
-      { id: "detailed", name: "Detailed", example: "Discard Four Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 8 tiles needed and 6 tiles remaining. It is the tile you need least and works best with the tiles you have." },
-      { id: "complex", name: "Complex", example: "Discard Four Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You have 8 tiles needed and 6 tiles remaining. The model expects +164 score from this discard, with a 7% chance to win. Next best discard is Five Character: +111 score." },
+      { id: "simple", name: "Simple", example: "Discard Four Bamboo. Go for Half Flush in Circles, about 3 faan. You need 6 more tiles to win." },
+      { id: "detailed", name: "Detailed", example: "Discard Four Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You need 6 more tiles to win. It is the tile you need least and works best with the tiles you have." },
+      { id: "complex", name: "Complex", example: "Discard Four Bamboo. Half Flush uses only Circles and honors. Go for Half Flush in Circles. You need 6 more tiles to win. The model expects +164 score from this discard, with a 7% chance to win. Next best discard is Five Character: +111 score." },
     ];
 
     function coachSettingsSheet() {
@@ -2923,7 +2951,7 @@
       var hw = W < 420 ? 84 : 106;
       button(COACH_LABELS[ui.coach], right - sw - hw - 6, 7, hw, 28, cycleCoach, ui.coach === "off" ? "ghost" : "gold", "hints");
       var rw = W < 420 ? 50 : 68;
-      button("Rules", right - sw - hw - rw - 12, 7, rw, 28, openRules, "ghost", "rules", !!(settings.lesson && ui.hint && ui.hint.highlight === "rules")); // the tutorial points to it with a gold ring
+      button("Rules", right - sw - hw - rw - 12, 7, rw, 28, openRules, "ghost", "rules"); // the tutorial points to it with its pulsing ring
       var stw = W < 420 ? 70 : 96;
       button("Strategies", right - sw - hw - rw - stw - 18, 7, stw, 28, openStrategies, "ghost", "strategies");
       if (game) {
@@ -3124,12 +3152,12 @@
 
     function revealedConcealed(seat) {
       var res = ui.heldSummary && ui.heldSummary.result;
-      if (res && res.type === "win" && seat === res.winner && res.concealed) return res.concealed.slice();
+      if (res && res.type === "win" && seat === res.winner && res.concealed) return settings.lesson ? handSort(res.concealed) : res.concealed.slice();
       var tiles = game.hand.seats[seat].hand.slice();
       // A discard or robbed kong is the winning tile, and it isn't in the hand yet.
       var win = game.hand.review && game.hand.review.win;
       if (win && win.s === seat && (win.how === "discard" || win.how === "robKong") && win.t) tiles.push(win.t);
-      return E.sortTiles(tiles);
+      return handSort(tiles);
     }
 
     // Between the computers' tiles, and between your own exposed tiles.
@@ -3419,7 +3447,8 @@
       ctx.restore();
       // Results open from this square only: the wind and the tiles left. A
       // discard tile keeps its own tap, for the tip.
-      if (!ui.overlay && !settings.review) addRegion(c.x, c.y, c.w, c.h, function () { sound.play("select"); openResults(); }, "center");
+      if (!ui.overlay && !settings.review && !settings.lesson) addRegion(c.x, c.y, c.w, c.h, function () { sound.play("select"); openResults(); }, "center"); // (the tutorial has no results table)
+      ui.centerRect = { x: c.x, y: c.y, w: c.w, h: c.h }; // the tutorial points at it
       var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
       // The round wind, as its tile's character, with the tiles left close under
       // it. The two sit as one group in the middle of the panel.
@@ -3483,20 +3512,39 @@
 
     var HAND_SLIDE_MS = 260;
 
+    // Your hand's order: suits, then (in the tutorial) the Dragons, then the Winds, so the
+    // Dragon triplet reads first and the East Wind pair after it. Everywhere else the
+    // engine's order (Winds before Dragons).
+    function handSort(ids) {
+      if (!settings.lesson) return E.sortTiles(ids);
+      var rank = function (id) {
+        var i = E.isBonus(id) ? 1000 : E.tileIndex(id);
+        return i >= 31 && i < 100 ? i - 4 : i >= 27 && i < 31 ? i + 3 : i; // Dragons 27-29, Winds 30-33
+      };
+      return ids.slice().sort(function (a, b) { return rank(a) - rank(b); });
+    }
+
     function myHandOrder() {
       if (ui.revealHands) return { tiles: revealedConcealed(0), drawnSeparate: false };
       var s = game.hand.seats[0];
       // A discard win joins the row in sorted order. The copy stays hidden
       // until the flight from the pond lands.
       if (ui.winInHand && ui.winInHand.seat === 0) {
-        var won = E.sortTiles(s.hand.concat([ui.winInHand.tile]));
+        var won = handSort(s.hand.concat([ui.winInHand.tile]));
         return { tiles: won, drawnSeparate: false, winAt: won.lastIndexOf(ui.winInHand.tile) };
+      }
+      // The tutorial's winning step: the hand opens a gap where East Wind will go, so the
+      // gliding copy of it lands in a free spot (the other tiles slide apart to make room).
+      var gapTile = lessonGapTile();
+      if (gapTile) {
+        var roomy = handSort(s.hand.concat([gapTile]));
+        return { tiles: roomy, drawnSeparate: false, winAt: roomy.lastIndexOf(gapTile), hole: true };
       }
       var drawn = game.hand.drawnTile;
       var showDrawn = ui.turnPrompt && drawn && game.hand.turn === 0 && game.hand.canSelfDraw && s.hand.indexOf(drawn) !== -1;
       var rest = s.hand.slice();
       if (showDrawn) rest.splice(rest.lastIndexOf(drawn), 1);
-      var order = E.sortTiles(rest);
+      var order = handSort(rest);
       if (showDrawn) order.push(drawn);
       return { tiles: order, drawnSeparate: !!showDrawn };
     }
@@ -3589,7 +3637,7 @@
       var count = tiles.length;
       if (ui.hide.drawn && order.drawnSeparate) count = Math.min(count, tiles.length - 1);
       var tw = L.tw;
-      var hintTile = ui.coach === "on" && ui.hint && ui.hint.tile;
+      var hintTile = !settings.lesson && ui.coach === "on" && ui.hint && ui.hint.tile; // the tutorial has its own pulsing ring
       var hintUsed = false;
       ui.lastHandRects = [];
 
@@ -3656,7 +3704,7 @@
         }
         var claimable = ui.claimPrompt && ui.claimPrompt.highlight && ui.claimPrompt.highlight.indexOf(id) !== -1;
         // A replacement, or the winning discard, keeps its spot empty until it lands.
-        if (i === heldAt || (i === order.winAt && ui.winInHand && !ui.winInHand.landed)) continue;
+        if (i === heldAt || (i === order.winAt && (order.hole || (ui.winInHand && !ui.winInHand.landed)))) continue;
         if (ui.winInHand && !ui.winInHand.landed && ui.winInHand.seat === 0 && id === ui.winInHand.tile && i === tiles.lastIndexOf(id)) continue;
         if (i === order.winAt) glow = COLORS.gold;
         if (!glow && reviewMark(0, id, "hand")) glow = COLORS.gold;
@@ -3697,18 +3745,33 @@
       var tips = declaring ? "" : (note && note.tips && note.tips.length ? note.tips.join(" ") : "");
       // Your first move of a game also says how to discard.
       var firstMove = !settings.lesson && ui.coach === "on" && ui.turnPrompt && game && game.handNumber === 1 && !game.hand.seats[0].discards.length;
+      var lesson = lessonCardNow();
       var parts = [], head = [];
       if (declaring) {
         lines.push({ text: ui.notice, color: COLORS.goldLight, bold: true, nowrap: true });
       } else {
         // On a claim the question and the coach's answer are both bold, such as "Claim One Circle? Chow 1-2-3 Circles."
         var claimAsk = showNotice && ui.claimPrompt && ui.coach === "on" && note && note.action;
-        if (showNotice && !choiceNote) head.push({ text: ui.notice, color: COLORS.goldLight, bold: !!claimAsk });
-        if (note && note.action) head.push({ text: note.action, color: COLORS.goldLight, bold: true });
-        if (tips) parts.push({ text: tips, color: COLORS.cream });
+        if (settings.lesson) {
+          // The tutorial: its step number, then one card. The last card (the
+          // move to make) leads with that move in bold gold. Between your
+          // moves it says what is happening.
+          if (lesson) {
+            head.push({ text: "Step " + lesson.n + " of " + lesson.total + " ·", color: GRAY });
+            if (lesson.last && note.action) head.push({ text: note.action, color: COLORS.goldLight, bold: true });
+            parts.push({ text: lesson.card.text, color: COLORS.cream });
+          } else if (game && game.hand && (game.lessonStep || game.lessonFlowers)) {
+            var last = !Lesson.progress(game).next;
+            parts.push({ text: last ? "Well done: you won your first hand!" : "Nice! Now watch the other players take their turns.", color: last ? COLORS.goldLight : GRAY });
+          }
+        } else {
+          if (showNotice && !choiceNote) head.push({ text: ui.notice, color: COLORS.goldLight, bold: !!claimAsk });
+          if (note && note.action) head.push({ text: note.action, color: COLORS.goldLight, bold: true });
+          if (tips) parts.push({ text: tips, color: COLORS.cream });
+        }
         if (firstMove && note && note.action) parts.push({ text: TAP_TWICE, color: COLORS.white, bold: true });
         if (choiceNote) parts.push({ text: ui.notice, color: COLORS.goldLight });
-        if (!note) {
+        if (!note && !settings.lesson) {
           // Nothing to say right now: say what this box is for, in gray.
           if (ui.coach === "off") {
             parts.push({ text: "The coach is off. Click the Coach button at the top to turn it on and get advice on every move, or switch it to Feedback to learn from the moves you've made.", color: GRAY });
@@ -3742,6 +3805,10 @@
         var spot = seeResultsBarPlace({ x: x, y: 0, w: w, h: L.hintH });
         reserve = x + w - spot.x + 8;
       }
+      // A card to read has a Next button at the right of the box.
+      // Next is always there (dim when there is nowhere to go).
+      var nextW = settings.lesson ? (L.desktop ? 76 : 60) : 0;
+      if (nextW) reserve += nextW + 10;
       var tw = w - (tx - x) - 10 - reserve;
       var baseSize = !L.desktop ? 11 : L.tableW < 600 ? 12 : 13; // smaller on a phone
       // The box keeps its height. A longer note shrinks the text until it fits.
@@ -3759,7 +3826,8 @@
             (l.runs || []).forEach(function (r) { if (r.from <= pos) run = r; });
             return run;
           };
-          var weightAt = function (pos) { var r = runAt(pos); return r ? r.bold : !!l.bold; };
+          var boldSpan = function (pos) { return red.some(function (sp) { return sp[3] && pos >= sp[0] && pos < sp[1]; }); }; // a span can be bold on its own (the coach's name)
+          var weightAt = function (pos) { if (boldSpan(pos)) return true; var r = runAt(pos); return r ? r.bold : !!l.bold; };
           var chunks = l.nowrap ? [plain] : l.runs ? wrapRuns(ctx, plain, tw, weightAt, lineSize) : wrapText(ctx, plain, tw);
           chunks.forEach(function (ln) {
             var at = plain.indexOf(ln, cursor);
@@ -3779,7 +3847,7 @@
               var a = Math.max(r[0], at), b = Math.min(r[1], at + ln.length);
               if (b <= a) return;
               if (a > pos) pushPlain(pos, a);
-              segs.push({ text: plain.slice(a, b), color: COLORS.accent, bold: weightAt(a) });
+              segs.push({ text: plain.slice(a, b), color: r[2] || COLORS.accent, bold: weightAt(a) });
               pos = b;
             });
             if (pos < at + ln.length) pushPlain(pos, at + ln.length);
@@ -3809,6 +3877,11 @@
         drawLogo(x + 8, y + (h - dh) / 2, dw, dh); // centered in the box, however tall it grows
       }
       var startY = y + h / 2 - (out.length * lh) / 2 + lh / 2;
+      // A new card fades in and rises a few pixels into place.
+      var fadeIn = lesson && !reduceMotion ? clamp((now() - ui.lessonCardAt) / 260, 0, 1) : 1;
+      ctx.save();
+      ctx.globalAlpha = fadeIn;
+      startY += (1 - easeInOut(fadeIn)) * 6;
       out.forEach(function (l, i) {
         var cx = tx;
         l.segs.forEach(function (sg) {
@@ -3818,6 +3891,36 @@
           cx += ctx.measureText(sg.text).width;
         });
       });
+      ctx.restore();
+      if (settings.lesson) drawLessonProgress(x, y, w, h, lesson, nextW);
+    }
+
+    // The tutorial's progress bar along the bottom of the coach's box, and
+    // the Next button on a card to read. A tap anywhere on the box also
+    // turns to the next card.
+    function drawLessonProgress(x, y, w, h, lesson, nextW) {
+      var at = game ? Lesson.progress(game) : null;
+      // The step on show counts as begun, and the bar never starts empty, so it reads as a progress bar.
+      var done = lesson ? lesson.n : at ? at.screen : 0;
+      var goal = Math.max(done / Lesson.SCREENS, 0.04);
+      ui.lessonBar = reduceMotion ? goal : ui.lessonBar + (goal - ui.lessonBar) * 0.18;
+      if (Math.abs(goal - ui.lessonBar) < 0.001) ui.lessonBar = goal;
+      var bx = x + 8, bw = w - 16, by = y + h - 5;
+      ctx.save();
+      roundRect(ctx, bx, by, bw, 3, 1.5);
+      ctx.fillStyle = "rgba(255,255,255,0.12)";
+      ctx.fill();
+      if (ui.lessonBar > 0) {
+        roundRect(ctx, bx, by, Math.max(3, bw * ui.lessonBar), 3, 1.5);
+        ctx.fillStyle = COLORS.gold;
+        ctx.fill();
+      }
+      ctx.restore();
+      var bh = L.desktop ? 30 : 26;
+      // (While the other players take their turns there is no step on show: it is dim.)
+      var canNext = !!lesson && (!lesson.last || (lesson.last && lesson.n < (settings.lessonFurthest || 0)));
+      if (canNext) addRegion(x, y, w, h, lessonNextCard, "lesson-band");
+      button("Next", x + w - 10 - nextW, y + (h - bh) / 2, nextW, bh, lessonNextCard, canNext ? "gold" : "off", "lesson-next");
     }
 
     // Split coach copy into plain text plus the ranges that name a hand pattern.
@@ -3830,7 +3933,53 @@
         else if (ch === "\u0002") { if (from >= 0) red.push([from, plain.length]); from = -1; }
         else plain += ch;
       }
+      if (settings.lesson) red = withLessonTerms(plain, red);
       return { plain: plain, red: red, color: baseColor };
+    }
+
+    // The tutorial writes its core mahjong terms and its tile names in red, like hand names, the first time each comes up.
+    var LESSON_TERMS = /\b(hong kong mahjong|hand patterns?|replace flowers?|chows?|pungs?|kongs?|melds?|exposed|concealed|eyes|faan|self-draw|seat wind|round wind|claim(?:s|ed|ing)?|discard(?:s|ed|ing)?|hands?|east|round)\b|\b(?:(?:east|south|west|north) )?winds?\b|\b(?:(?:red|green|white) )?dragons?\b|\b(?:flowers?|seasons?)\b/gi;
+    // Where the terms are in a text: [from, to, key], the key being the word without its plural or ending.
+    function lessonTermMatches(plain) {
+      var out = [];
+      var m;
+      LESSON_TERMS.lastIndex = 0;
+      while ((m = LESSON_TERMS.exec(plain))) {
+        var a = m.index, b = a + m[0].length;
+        out.push({ from: a, to: b, key: plain.slice(a, b).toLowerCase().replace(/(?:ed|ing|s)$/, "") });
+      }
+      return out;
+    }
+
+    // Each term is red only where the tutorial first uses it: its card's text and the spot in it.
+    var lessonFirst = null;
+    function lessonFirstUses() {
+      if (lessonFirst) return lessonFirst;
+      lessonFirst = {};
+      Lesson.cardTexts().forEach(function (card) {
+        lessonTermMatches(card).forEach(function (tm) {
+          if (!lessonFirst[tm.key]) lessonFirst[tm.key] = { text: card, at: tm.from };
+        });
+      });
+      return lessonFirst;
+    }
+
+    // Text that holds a card (the card itself, or the Coach panel's notes with the cards run together).
+    function withLessonTerms(plain, red) {
+      var out = red.slice();
+      var first = lessonFirstUses();
+      lessonTermMatches(plain).forEach(function (tm) {
+        var f = first[tm.key];
+        if (!f) return;
+        var start = plain.indexOf(f.text);
+        if (start < 0 || tm.from !== start + f.at) return;
+        var clash = out.some(function (r) { return tm.from < r[1] && tm.to > r[0]; });
+        if (!clash) out.push([tm.from, tm.to]);
+      });
+      // The coach's name, in gold and bold (a span's third item is its colour, its fourth is bold).
+      var named = /lucky cat/gi, nm;
+      while ((nm = named.exec(plain))) out.push([nm.index, nm.index + nm[0].length, COLORS.gold, true]);
+      return out.sort(function (x, y) { return x[0] - y[0]; });
     }
 
     function coachPlain(note) {
@@ -4144,10 +4293,73 @@
       copyText(seed).then(function () { pendingCopy = null; }, function () { /* tried again on the click */ });
     }
 
+    // The tutorial's right panel: every step, the one on show lit. A tap on a step
+    // already reached goes back (or forward again) to it.
+    function lessonRowAt(p) {
+      for (var i = 0; i < ui.lessonRows.length; i++) {
+        var q = ui.lessonRows[i];
+        if (p.x >= q.x && p.x <= q.x + q.w && p.y >= q.y && p.y <= q.y + q.h) return q.n <= (settings.lessonFurthest || 0) ? q.n : null;
+      }
+      return null;
+    }
+
+    function drawLessonSteps(r) {
+      ctx.save();
+      roundRect(ctx, r.x, r.y, r.w, r.h, 6);
+      ctx.fillStyle = "rgba(0,0,0,0.28)";
+      ctx.fill();
+      ctx.restore();
+      var cur = lessonCardNow();
+      var curN = cur ? cur.n : game ? Lesson.progress(game).screen : 0; // between your moves, the last one done
+      var furthest = settings.lessonFurthest || 0;
+      var rows = Lesson.outline();
+      text("Mahjong Lesson", r.x + 14, r.y + 20, { size: 14, weight: "bold", family: FONT_HEAD, color: COLORS.cream });
+      text(curN + " of " + rows.length, r.x + r.w - 14, r.y + 20, { size: 12, align: "right", color: COLORS.goldLight });
+      var viewX = r.x + 8, viewY = r.y + 36, viewW = r.w - 16, viewH = r.h - 44;
+      var rowH = Math.max(17, Math.min(26, viewH / rows.length));
+      var size = Math.max(9, Math.min(12, rowH * 0.6));
+      ui.coachScrollMax = Math.max(0, rowH * rows.length - viewH);
+      if (curN && ui.lessonShownN !== curN) { // follow the step on show
+        ui.lessonShownN = curN;
+        ui.coachScroll = clamp(rowH * (curN - 0.5) - viewH / 2, 0, ui.coachScrollMax);
+      }
+      ui.coachScroll = clamp(ui.coachScroll, 0, ui.coachScrollMax);
+      ui.lessonRows = [];
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(viewX, viewY, viewW, viewH);
+      ctx.clip();
+      rows.forEach(function (row, i) {
+        var y = viewY + i * rowH - ui.coachScroll;
+        if (y + rowH < viewY || y > viewY + viewH) return;
+        var on = row.n === curN, seen = row.n <= furthest;
+        if (on) {
+          roundRect(ctx, viewX, y + 1, viewW, rowH - 2, 5);
+          ctx.fillStyle = "rgba(244,160,32,0.22)";
+          ctx.fill();
+          ctx.strokeStyle = "rgba(255,210,122,0.7)";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+        var color = on ? COLORS.goldLight : seen ? COLORS.cream : "rgba(255,248,240,0.32)";
+        text(String(row.n), viewX + 22, y + rowH / 2 + 1, { size: size, align: "right", weight: on ? "bold" : "", color: color });
+        // The step's words, cut to fit the line.
+        var plain = coachPieces(row.text).plain;
+        ctx.font = (on ? "bold " : "") + size + "px " + FONT_BODY;
+        var room = viewW - 36, label = plain;
+        while (label.length > 4 && ctx.measureText(label).width > room) label = label.slice(0, -2);
+        if (label.length < plain.length) label = label.replace(/\s+$/, "") + "…";
+        text(label, viewX + 30, y + rowH / 2 + 1, { size: size, weight: on ? "bold" : "", color: color });
+        ui.lessonRows.push({ n: row.n, x: viewX, y: y, w: viewW, h: rowH });
+      });
+      ctx.restore();
+    }
+
     // Older notes start at the top and later ones follow downward.
     function drawCoachHistory() {
       var r = L.history;
       if (!r) return;
+      if (settings.lesson) { drawLessonSteps(r); return; }
       ctx.save();
       roundRect(ctx, r.x, r.y, r.w, r.h, 6);
       ctx.fillStyle = "rgba(0,0,0,0.28)";
@@ -4187,7 +4399,7 @@
               var a = Math.max(span[0], at), b = Math.min(span[1], at + ln.length);
               if (b <= a) return;
               if (a > pos) segs.push({ text: piece.plain.slice(pos, a), color: baseColor });
-              segs.push({ text: piece.plain.slice(a, b), color: COLORS.accent });
+              segs.push({ text: piece.plain.slice(a, b), color: span[2] || COLORS.accent });
               pos = b;
             });
             if (pos < at + ln.length) segs.push({ text: piece.plain.slice(pos, at + ln.length), color: baseColor });
@@ -4495,7 +4707,15 @@
       if (ui.flowerPrompt) {
         acts.push({ id: "replace-flower", label: "Replace flowers", style: "red", fn: function () {
           var p = ui.flowerPrompt;
-          if (p) { ui.flowerPrompt = null; p.resolve(); }
+          if (!p) return;
+          ui.flowerPrompt = null;
+          if (settings.lesson && game) {
+            game.lessonFlowers = true;
+            var at = Lesson.progress(game);
+            track("play_lesson_flowers", { step: at.screen, step_name: lessonStepName(at.screen), steps: at.screens, seconds: lessonSeconds() });
+            lessonStepDone();
+          }
+          p.resolve();
         } });
       } else if (ui.turnPrompt) {
         var o = ui.turnPrompt.opts;
@@ -4540,24 +4760,15 @@
       var free = ui.meRowFree;
       var cover = null;
       if (L.actionsInRow && free) {
-        if (free.x1 - free.x0 - lead >= buttonsW) {
-          // Centered on your whole row when nothing there collides with them
-          // (your name sits to one side); otherwise centered in the room left.
-          var midX = (L.meX + L.pad + L.meX + L.meW - L.pad) / 2;
-          var groupW = buttonsW + lead;
-          if (midX - groupW / 2 >= free.x0 && midX + groupW / 2 <= free.x1) { x0 = L.meX + L.pad; x1 = L.meX + L.meW - L.pad; }
-          else { x0 = free.x0; x1 = free.x1; }
-        }
-        else {
-          // Not enough room beside your name: use the rest of the row and
-          // cover the name while the buttons are up. They always stay in your
-          // row (never over the coach's message): with lots of melds and chow
-          // choices they narrow to fit, below.
-          x0 = free.x0; x1 = L.meX + L.meW - L.pad;
-          cover = { x: free.x1, w: x1 - free.x1 };
-          // Even at their narrowest they don't fit after your melds: the whole row, over them.
-          if (x1 - x0 - lead < acts.length * 36 + gap * (acts.length - 1)) x0 = L.meX + L.pad;
-        }
+        // The buttons (and a claim's tile) always sit at the right end of your row, over
+        // your name and avatar, so they are in the same place every time. They stay in
+        // your row (never over the coach's message): with lots of melds and chow
+        // choices they narrow to fit, below.
+        // (The same margin as your name, so the last button, and the ring on the coach's pick, stay inside your panel.)
+        x0 = free.x0; x1 = L.meX + L.meW - L.pad - 8;
+        cover = { x: free.x1, w: x1 - free.x1 };
+        // Even at their narrowest they don't fit after your melds: the whole row, over them.
+        if (x1 - x0 - lead < acts.length * 36 + gap * (acts.length - 1)) x0 = L.meX + L.pad;
       }
       setButtonsOverName(!!cover);
       rowY -= ACTIONS_LIFT;
@@ -4568,17 +4779,25 @@
         widths = widths.map(function (w) { return Math.max(36, w * scale); });
         buttonsW = widths.reduce(function (sum, w) { return sum + w; }, 0) + gap * (acts.length - 1);
       }
-      var x = x0 + (x1 - x0 - buttonsW - lead) / 2 + lead;
+      // Against the right end of the row where it is your row's actions; centered in the room otherwise.
+      var x = cover ? x1 - buttonsW : x0 + (x1 - x0 - buttonsW - lead) / 2 + lead;
       var y = rowY + (L.actionsH - h) / 2;
+      ui.claimTileRect = null;
       if (claimTile) {
-        drawTile(claimTile, x - lead, rowY + (L.actionsH - ctw * TILE_ASPECT) / 2, ctw, { glow: COLORS.red });
+        var cty = rowY + (L.actionsH - ctw * TILE_ASPECT) / 2;
+        drawTile(claimTile, x - lead, cty, ctw, { glow: COLORS.red });
+        ui.claimTileRect = { x: x - lead, y: cty, w: ctw, h: ctw * TILE_ASPECT };
       }
       var hintDecision = ui.coach === "on" && ui.hint && ui.hint.decision;
       var cursor = x;
+      // The tutorial shows its buttons only on the move's last step, once every step before it has been read.
+      var reading = settings.lesson && lessonCardNow();
+      var buttonsHidden = !!(reading && !reading.last);
       acts.forEach(function (a, i) {
+        if (buttonsHidden) return;
         var id = a.id || ("act-" + i);
-        // (The tutorial's Replace flowers is the only move, so it always gets the ring.)
-        var recommended = a.id === "replace-flower" || (hintDecision && labelMatches(a.label, hintDecision));
+        // (The tutorial points at its moves with its own pulsing ring.)
+        var recommended = !settings.lesson && hintDecision && labelMatches(a.label, hintDecision);
         button(a.label, cursor, y, widths[i], h, a.fn, a.style, id, recommended);
         cursor += widths[i] + gap;
       });
@@ -4724,7 +4943,7 @@
       if (res.concealed.length) {
         if (all.length) all.push({ gap: true });
         var marked = false;
-        res.concealed.forEach(function (id) {
+        (settings.lesson ? handSort(res.concealed) : res.concealed).forEach(function (id) {
           var win = !marked && res.tile === id;
           if (win) marked = true;
           all.push({ id: id, glow: win ? COLORS.gold : null, win: win });
@@ -5556,6 +5775,230 @@
       resolveTurn({ type: "discard", tile: tile }, target);
     }
 
+    // The tile the tutorial's winning step reserves a spot for in your hand, while its
+    // last step (with the glide) is up; otherwise nothing.
+    function lessonGapTile() {
+      if (!settings.lesson || reduceMotion || !ui.claimPrompt || !ui.hint || !ui.hint.decision || ui.hint.decision.type !== "win") return null;
+      var c = lessonCardNow();
+      return c && c.last && !ui.overlay ? ui.claimPrompt.opts.tile : null;
+    }
+
+    // A step's name for analytics: its number (two digits) and its id in the lesson, such as 01-welcome.
+    // The id stays when steps are added or moved.
+    function lessonStepName(n) {
+      var row = Lesson.outline()[n - 1];
+      return row ? row.name : "none";
+    }
+
+    // The tutorial's card on show: the coach's note for this move is a few
+    // short cards, the ones to read first and the move to make last.
+    function lessonCardNow() {
+      if (!settings.lesson || !ui.hint || !ui.hint.cards || ui.overlay || !game || !game.hand) return null;
+      if (ui.lessonNote !== ui.hint) {
+        ui.lessonNote = ui.hint;
+        ui.lessonCard = 0;
+        ui.lessonCardAt = now();
+      }
+      var cards = ui.hint.cards;
+      var i = Math.min(ui.lessonCard, cards.length - 1);
+      var card = cards[i];
+      var n = Lesson.screen(game, ui.hint, i);
+      if (n > (settings.lessonFurthest || 0)) {
+        settings.lessonFurthest = n; // the furthest step reached, kept across jumps
+        // Every step reached for the first time, to see how far people get.
+        track("play_lesson_step", { step: n, step_name: lessonStepName(n), steps: Lesson.SCREENS, move: Lesson.progress(game).move, moves: Lesson.MOVES, seconds: lessonSeconds() });
+      }
+      return { note: ui.hint, index: i, card: card, last: i === cards.length - 1, n: n, total: Lesson.SCREENS };
+    }
+
+    function showLessonCard(i) {
+      ui.lessonCard = i;
+      ui.lessonCardAt = now();
+      var c = lessonCardNow();
+      if (c) announce((c.last && c.note.action ? c.note.action + " " : "") + c.card.text);
+      requestRender();
+    }
+
+    // Next, or a tap on the coach's box: the next step. On a move's last step it
+    // goes on only to a step seen before (the move itself has to be made).
+    function lessonNextCard() {
+      var c = lessonCardNow();
+      if (!c) return;
+      if (c.last) {
+        if (c.n < (settings.lessonFurthest || 0)) lessonGo(c.n + 1);
+        else { ui.shake = { kind: "button", key: "lesson-next", start: now() }; requestRender(); }
+        return;
+      }
+      sound.play("select");
+      showLessonCard(c.index + 1);
+    }
+
+    // To a step already reached, from the steps list, Back or Next. Within this move
+    // it just turns the card; another move plays the lesson again, silently and at
+    // once, up to that move (the script never changes), and lands on the card.
+    function lessonGo(n) {
+      var row = Lesson.outline()[n - 1];
+      var cur = lessonCardNow();
+      if (!row || !cur || n === cur.n || n > (settings.lessonFurthest || 0)) return;
+      sound.play("select");
+      var note = row.flower ? Lesson.FLOWER_HINT : Lesson.hint({ lessonStep: row.step });
+      if (note === ui.hint) {
+        showLessonCard(row.card);
+        return;
+      }
+      settings.lessonJump = { step: row.step, card: row.card, flower: row.flower };
+      settings.carrySound = sound; // the music plays on through the jump
+      soundCarried = true;
+      ui.lessonJumping = true;
+      callbacks.restart();
+    }
+
+    // A step done: a soft rising chime (with Sound on), and the bar fills.
+    function lessonStepDone() {
+      sound.play("goodmove");
+      requestRender();
+    }
+
+    // What a card points at, on the table: a tile in your hand (every copy,
+    // as the eyes are two), a button by its id, or the tile up for a claim.
+    // On the move to make, only the copy that goes (the rightmost).
+    var TILE_ID = /^([cdb][1-9]|w[eswn]|d[wgr]|[fs][1-4])$/;
+    function lessonRects(point, one) {
+      if (!point) return [];
+      if (point === "claim-tile") return ui.claimTileRect ? [ui.claimTileRect] : [];
+      if (point === "table-wind") return ui.centerRect ? [ui.centerRect] : [];
+      if (point.indexOf(",") !== -1) { // several tiles, such as "f1,s1"
+        return point.split(",").reduce(function (all, one1) { return all.concat(lessonRects(one1, true)); }, []);
+      }
+      if (TILE_ID.test(point)) {
+        var mine = ui.lastHandRects.filter(function (r) { return r.id === point; });
+        return one ? mine.slice(-1) : mine;
+      }
+      for (var i = regions.length - 1; i >= 0; i--) {
+        if (regions[i].id === point) return [regions[i]];
+      }
+      return [];
+    }
+
+    // The tutorial's guide: a pulsing gold ring on what the card points at,
+    // a bobbing arrow over it, and on the move to make a faint copy of the
+    // tile gliding to where it goes (the discards, the flowers, your melds).
+    var GUIDE_MS = 1100, GLIDE_MS = 1800;
+    function drawLessonGuide(t) {
+      var c = lessonCardNow();
+      if (!c) return;
+      // A card to read that points at nothing points at its Next button.
+      var rects = lessonRects(c.card.point || (c.last ? null : "lesson-next"), c.last);
+      if (!rects.length) return;
+      var pulse = reduceMotion ? 1 : 0.5 + 0.5 * Math.sin((t / GUIDE_MS) * Math.PI * 2);
+      ctx.save();
+      rects.forEach(function (r) {
+        var pad = 3 + pulse * 3;
+        roundRect(ctx, r.x - pad, r.y - pad, r.w + 2 * pad, r.h + 2 * pad, Math.min(10, (r.h + 2 * pad) / 2));
+        ctx.shadowColor = COLORS.gold;
+        ctx.shadowBlur = 6 + pulse * 10;
+        ctx.strokeStyle = COLORS.goldLight;
+        ctx.globalAlpha = 0.55 + 0.45 * pulse;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      });
+      ctx.restore();
+      if (c.last) drawLessonGlide(c, t);
+      // The arrow is the table's turn indicator (the rounded gold point on the
+      // plaque), larger, bobbing above the target, or below it near the top.
+      var r0 = rects[0];
+      var below = r0.y < H * 0.25;
+      var bob = reduceMotion ? 0 : Math.sin((t / (GUIDE_MS * 0.8)) * Math.PI * 2) * 4;
+      var k = L.desktop ? 2.2 : 1.9;
+      var breathe = reduceMotion ? 1 : 0.5 + 0.5 * Math.sin(t / 600);
+      ctx.save();
+      ctx.translate(r0.x + r0.w / 2, below ? r0.y + r0.h + 8 + 4.5 * k + bob : r0.y - 8 - 4.5 * k - bob);
+      ctx.rotate(below ? -Math.PI / 2 : Math.PI / 2);
+      ctx.scale(k, k);
+      ctx.beginPath();
+      ctx.moveTo(4.5, 0); ctx.lineTo(-3, -5); ctx.lineTo(-3, 5); ctx.closePath();
+      var tipFill = ctx.createLinearGradient(-3, 0, 4.5, 0);
+      tipFill.addColorStop(0, COLORS.gold);
+      tipFill.addColorStop(1, COLORS.goldLight);
+      ctx.shadowColor = "rgba(244,160,32," + (0.45 + 0.35 * breathe) + ")";
+      ctx.shadowBlur = 6 + 4 * breathe;
+      ctx.fillStyle = tipFill;
+      ctx.strokeStyle = tipFill;
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 1.5 / k * 1.2;
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Where the move sends its tile: a discard to your discards, Plum to
+    // your flowers, a claimed tile to your melds or (a win) into your hand.
+    // The tiles the move sends, each from where it is to where it goes.
+    function lessonGlides(c) {
+      var d = c.note.decision;
+      if (c.note.kind === "flower") {
+        // Side by side where they land, not on top of each other.
+        var spot = ui.flowerAnchor[0];
+        return (c.note.tiles || [c.note.tile]).map(function (id, i) {
+          return { id: id, from: lessonRects(id, true)[0], to: spot && { x: spot.x + i * spot.w * 1.1, y: spot.y, w: spot.w, rot: spot.rot } };
+        });
+      }
+      if (!d || !game || !game.hand) return [];
+      if (d.type === "discard") {
+        var kept = game.hand.seats[0].discards.filter(function (x) { return !x.claimed; }).length;
+        return [{ id: c.note.tile, from: lessonRects(c.note.tile, true)[0], to: pondPose(0, kept) }];
+      }
+      var claimed = ui.claimPrompt && ui.claimPrompt.opts.tile;
+      if (!claimed || !ui.claimTileRect) return [];
+      if (d.type === "win") return [{ id: claimed, from: ui.claimTileRect, to: winningHandPose(0, claimed) }];
+      if (d.type === "chow" || d.type === "pung") return lessonMeldGlides(d, claimed);
+      return [];
+    }
+
+    // A chow or pung forming: every tile of it (the ones from your hand and the claimed one)
+    // glides side by side to where the meld goes.
+    function lessonMeldGlides(d, claimed) {
+      var spot = ui.meldAnchor[0];
+      if (!spot) return [];
+      var ids = d.type === "chow" ? E.sortTiles(d.tiles.concat([claimed])) : [claimed, claimed, claimed];
+      var claimedAt = ids.lastIndexOf(claimed); // the claimed tile is the one on the right of equals
+      var pool = {};
+      ids.forEach(function (id, i) {
+        if (i === claimedAt) return;
+        if (!pool[id]) pool[id] = ui.lastHandRects.filter(function (r) { return r.id === id; });
+      });
+      return ids.map(function (id, i) {
+        var from = i === claimedAt ? ui.claimTileRect : pool[id].shift();
+        return { id: id, from: from, to: { x: spot.x + i * spot.w * 1.05, y: spot.y, w: spot.w, rot: spot.rot } };
+      });
+    }
+
+    function drawLessonGlide(c, t) {
+      if (reduceMotion) return;
+      lessonGlides(c).forEach(function (g) { drawOneGlide(g, t); });
+    }
+
+    function drawOneGlide(g, t) {
+      var src = g.from;
+      if (!src || !g.to) return;
+      // Fade in where it is, glide, and fade out where it lands; then again.
+      var p = ((t - ui.lessonCardAt) % GLIDE_MS) / GLIDE_MS;
+      var move = easeInOut(clamp((p - 0.15) / 0.55, 0, 1));
+      var alpha = p < 0.15 ? p / 0.15 : p > 0.75 ? Math.max(0, 1 - (p - 0.75) / 0.2) : 1;
+      var w = src.w + (g.to.w - src.w) * move;
+      var x = src.x + (g.to.x - src.x) * move;
+      var y = src.y + (g.to.y - src.y) * move;
+      ctx.save();
+      ctx.globalAlpha = 0.6 * alpha;
+      drawTile(g.id, x, y, w, { rot: (g.to.rot || 0) * move, glow: COLORS.goldLight });
+      ctx.restore();
+    }
+
+    // The guide moves for as long as a card is up.
+    function lessonMoving() {
+      return !reduceMotion && !!lessonCardNow() && !(root.document && root.document.hidden);
+    }
+
     // The lesson plays one fixed hand. A refused click shakes that tile or button.
     function lessonTarget(decision, target) {
       if (target) return { kind: target.kind, key: target.key != null ? target.key : target.index };
@@ -5568,8 +6011,9 @@
       return { kind: "button", key: decision.type };
     }
 
-    // Lesson analytics: how far people get. Each of the player's moves sends
-    // play_lesson_step (move 1 to 8); a first wrong try on a move sends
+    // Lesson analytics: how far people get. Every step reached for the first time
+    // sends play_lesson_step (step 1 to 29), and each of the player's moves
+    // play_lesson_move (move 1 to 8); a first wrong try on a move sends
     // play_lesson_wrong_move; leaving before the end sends play_lesson_exit.
     var lessonTrack = null;
 
@@ -5579,29 +6023,36 @@
 
     function startLessonTracking() {
       lessonTrack = { started: Date.now(), wrong: 0, wrongTotal: 0, done: false };
-      track("play_lesson_start", { moves: Lesson.MOVES });
+      // A jump back or forward (the tutorial played again) is the same lesson, not a new start.
+      if (!ui.lessonJump) track("play_lesson_start", { moves: Lesson.MOVES, steps: Lesson.SCREENS });
     }
 
     // The lesson ended before its hand did: quit from the menu (how: quit) or the page closed (how: leave).
     function trackLessonExit(how) {
-      if (!settings.lesson || !lessonTrack || lessonTrack.done || !game) return;
+      if (!settings.lesson || !lessonTrack || lessonTrack.done || !game || ui.lessonJumping) return; // (a jump is not leaving)
       lessonTrack.done = true;
       var at = Lesson.progress(game);
       track("play_lesson_exit", {
         move: at.move, moves: at.moves, next_action: at.next || "none", how: how,
+        step: lessonCardNow() ? lessonCardNow().n : at.screen, step_name: lessonStepName(lessonCardNow() ? lessonCardNow().n : at.screen), steps: at.screens,
         seconds: lessonSeconds(), wrong_tries: lessonTrack.wrongTotal, transport_type: "beacon",
       });
     }
 
     function lessonAllows(kind, decision, target) {
       if (!settings.lesson) return true;
+      var card = lessonCardNow();
+      // Until the move's last step is up, a tap on a tile (or a key) just turns to the next step.
+      if (card && !card.last) { lessonNextCard(); return false; }
       if (Lesson.accept(game, 0, kind, decision)) {
         var at = Lesson.progress(game);
-        track("play_lesson_step", {
-          step: game.lessonStep, move: at.move, moves: at.moves, action: decision.type,
+        track("play_lesson_move", {
+          move: at.move, moves: at.moves, action: decision.type,
+          step: at.screen, step_name: lessonStepName(at.screen), steps: at.screens,
           seconds: lessonSeconds(), wrong_tries: lessonTrack ? lessonTrack.wrong : 0,
         });
         if (lessonTrack) lessonTrack.wrong = 0;
+        lessonStepDone();
         return true;
       }
       if (lessonTrack) {
@@ -5611,6 +6062,7 @@
           var now0 = Lesson.progress(game);
           track("play_lesson_wrong_move", {
             move: now0.move + 1, moves: now0.moves, expected: now0.next || "none", tried: decision.type,
+            step: card ? card.n : now0.screen + 1, step_name: lessonStepName(card ? card.n : now0.screen + 1), steps: now0.screens,
             mistake: decision.type === now0.next ? "wrong_tile" : "wrong_action",
           });
         }
@@ -5621,10 +6073,25 @@
       return false;
     }
 
+    // Whether this move is the one the coach recommended, in On and in Feedback (the tutorial
+    // plays its chime for every move it accepts, so this is for the game).
+    function followsCoach(kind, decision) {
+      var h = ui.hint;
+      if (settings.lesson || autoPlay || ui.coach === "off" || !h || !decision) return false; // (Feedback judges the move too, though its advice isn't shown first)
+      if (kind === "turn") {
+        if (decision.type === "discard") return h.kind === "discard" && h.tile === decision.tile;
+        return decision.type === "win" && h.kind === "win";
+      }
+      var want = h.decision;
+      if (!want || want.type !== decision.type) return false;
+      return want.type !== "chow" || (want.tiles || []).slice().sort().join() === (decision.tiles || []).slice().sort().join();
+    }
+
     function resolveTurn(action, target) {
       var p = ui.turnPrompt;
       if (!p) return;
       if (!lessonAllows("turn", action, target)) return;
+      if (followsCoach("turn", action)) sound.play("goodmove");
       // Training mode: judge the move against what the coach would have done.
       if (!settings.lesson && ui.coach !== "off" && action.type === "discard" && ui.hint && ui.hint.tile) {
         noteDiscardForAll(action.tile);
@@ -5648,6 +6115,7 @@
       var p = ui.claimPrompt;
       if (!p) return;
       if (!lessonAllows("claim", decision)) return;
+      if (followsCoach("claim", decision)) sound.play("goodmove");
       if (ui.coach === "feedback" && ui.hint) {
         feedbackOnMove(function (hint) { return Coach.claimFeedback(hint, decision); });
       }
@@ -5981,7 +6449,8 @@
         return;
       }
       if (historyAt(p)) {
-        historyTap = settings.review ? { x: p.x, y: p.y, id: e.pointerId, step: coachNoteAt(p) } : null;
+        historyTap = settings.review ? { x: p.x, y: p.y, id: e.pointerId, step: coachNoteAt(p) }
+          : settings.lesson ? { x: p.x, y: p.y, id: e.pointerId, step: null, lessonN: lessonRowAt(p) } : null;
         if (ui.coachScrollMax > 0) {
           historyDrag = { y: p.y, scroll: ui.coachScroll, id: e.pointerId };
           if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
@@ -6027,7 +6496,7 @@
       if (e.pointerType && e.pointerType !== "mouse") return;
       var p = pointerPos(e);
       if ((resultsAt(p) || historyAt(p)) && !seeResultsHit(p) && !overlayButtonAt(p)) {
-        canvas.style.cursor = !resultsAt(p) && settings.review && coachNoteAt(p) !== null ? "pointer"
+        canvas.style.cursor = !resultsAt(p) && ((settings.review && coachNoteAt(p) !== null) || (settings.lesson && lessonRowAt(p))) ? "pointer"
           : (resultsAt(p) ? ui.resultsScrollMax > 0 : ui.coachScrollMax > 0) ? "grab" : "default";
         mouse = p;
         if (hover || tipSeat !== null) { hover = null; requestRender(); }
@@ -6071,6 +6540,7 @@
         historyTap = null;
         var up = pointerPos(e);
         if (tap.step !== null && up && Math.abs(up.x - tap.x) < 8 && Math.abs(up.y - tap.y) < 8) jumpToNote(tap.step);
+        else if (tap.lessonN && up && Math.abs(up.x - tap.x) < 8 && Math.abs(up.y - tap.y) < 8) lessonGo(tap.lessonN);
       }
       if (reviewScrub && e.pointerId === reviewScrub) {
         reviewScrub = 0;
@@ -6115,6 +6585,9 @@
         if (e.key === "Enter" || e.key === " ") { seeResults(); e.preventDefault(); }
         return;
       }
+      // The tutorial: Enter turns to the next card.
+      var card = lessonCardNow();
+      if (card && !card.last && e.key === "Enter") { lessonNextCard(); e.preventDefault(); return; }
       if (ui.turnPrompt) {
         var n = myHandOrder().tiles.length;
         if (e.key === "ArrowLeft") { ui.selected = ui.selected <= 0 ? n - 1 : ui.selected - 1; requestRender(); e.preventDefault(); }
@@ -6143,7 +6616,7 @@
     // or at the end of an opponent's concealed row.
     function winningHandPose(seat, tile) {
       if (seat === 0) {
-        var tiles = E.sortTiles(game.hand.seats[0].hand.concat([tile]));
+        var tiles = handSort(game.hand.seats[0].hand.concat([tile]));
         var spot = handPositions(tiles.length)[tiles.lastIndexOf(tile)];
         return { x: spot.x, y: spot.y, w: L.tw, rot: 0 };
       }
@@ -6289,9 +6762,10 @@
         requestRender();
         // The tutorial's step one: the deal waits, flower in hand, for the
         // Replace flowers button (only here, never in a practice or full game).
-        if (settings.lesson && !game.lessonStep && game.hand.seats[0].hand.some(E.isBonus)) {
+        if (settings.lesson && !game.lessonStep && !ui.lessonSkipping && game.hand.seats[0].hand.some(E.isBonus)) {
           ui.hint = Lesson.FLOWER_HINT;
           rememberCoach(ui.hint, "hint");
+          if (ui.lessonJump) lessonLand(); // a jump back to the flower steps
           return new Promise(function (resolve) {
             ui.flowerPrompt = { resolve: resolve };
             requestRender();
@@ -6458,7 +6932,7 @@
       if (drawn && tile === drawn) return hand.length - 1;
       var rest = hand.slice();
       if (drawn) rest.splice(rest.lastIndexOf(drawn), 1);
-      return E.sortTiles(rest).indexOf(tile);
+      return handSort(rest).indexOf(tile);
     }
 
     // A bot keeps its seat's strategy for the whole game. Only the coach's
@@ -6503,6 +6977,29 @@
       };
     }
 
+    // The tutorial playing up to a jump's step: your scripted moves are made for you,
+    // at once. At the step itself the table is drawn as it stands and play is yours.
+    function lessonSkipTo(g, seat, kind, resolve) {
+      if (!settings.lesson || !ui.lessonSkipping) return false;
+      if (g.lessonStep < ui.lessonJump.step) {
+        resolve(Lesson.take(g, seat, kind));
+        return true;
+      }
+      ui.lessonSkipping = false;
+      replayDone();
+      return false;
+    }
+
+    // The note on show lands on the card a jump asked for.
+    function lessonLand() {
+      var j = ui.lessonJump;
+      if (!j || !ui.hint) return;
+      ui.lessonJump = null;
+      ui.lessonNote = ui.hint;
+      ui.lessonCard = Math.min(j.card, ui.hint.cards.length - 1);
+      ui.lessonCardAt = now();
+    }
+
     function lessonAgent() {
       return {
         turn: function (g, seat) {
@@ -6529,6 +7026,7 @@
       return {
         turn: function (g, seat, opts) {
           return new Promise(function (resolve) {
+            if (lessonSkipTo(g, seat, "turn", resolve)) return;
             ui.turnPrompt = { opts: opts, resolve: resolve };
             ui.moveAt = movesMade() + 1; // this turn's discard (or win) is your next move
             ui.selected = -1;
@@ -6536,6 +7034,7 @@
             // a claim stays until your next move.
             clearDiscardFeedback();
             refreshHint();
+            lessonLand();
             var lessonLine = settings.lesson && ui.hint && ui.hint.action;
             ui.notice = lessonLine ? null : (opts.completeButShort
               ? "Your hand is complete, but only " + opts.completeButShort.faan + " faan. You need " + game.settings.minFaan + " to win."
@@ -6548,6 +7047,7 @@
         },
         claim: function (g, seat, opts) {
           return new Promise(function (resolve) {
+            if (lessonSkipTo(g, seat, "claim", resolve)) return;
             var highlight = [];
             if (opts.pung || opts.kong) highlight.push(opts.tile);
             opts.chows.forEach(function (p) { highlight = highlight.concat(p); });
@@ -6555,6 +7055,7 @@
             ui.moveAt = movesMade() + 1; // a claim isn't a move: it leads to your next discard (or win)
             clearDiscardFeedback();
             refreshHint();
+            lessonLand();
             var lessonLine = settings.lesson && ui.hint && ui.hint.action;
             ui.notice = lessonLine ? null : (opts.win
               ? coachFor().claimHint(game, 0, opts).action
@@ -7986,6 +8487,14 @@
         if (settings.lesson) {
           Lesson.prepare(game);
           ui.coach = "on";
+          // After a jump to another step the lesson plays up to it at once.
+          ui.lessonJump = settings.lessonJump || null;
+          settings.lessonJump = null;
+          if (ui.lessonJump && !ui.lessonJump.flower) {
+            ui.lessonSkipping = true;
+            ui.replaying = true; // plays at once, with no animation
+            game.lessonFlowers = true;
+          }
           startLessonTracking();
         }
         ui.strategies = pickStrategies();
@@ -8063,7 +8572,7 @@
         if (settings.lesson) {
           track("play_lesson_complete", {
             result: res.type === "win" && res.winner === 0 ? "win" : "other",
-            moves: Lesson.MOVES, seconds: lessonSeconds(), wrong_tries: lessonTrack ? lessonTrack.wrongTotal : 0,
+            moves: Lesson.MOVES, steps: Lesson.SCREENS, seconds: lessonSeconds(), wrong_tries: lessonTrack ? lessonTrack.wrongTotal : 0,
           });
           if (lessonTrack) lessonTrack.done = true;
         }
@@ -8273,7 +8782,7 @@
         if (strategyToastTimer) clearTimeout(strategyToastTimer);
         stopReviewPlay();
         if (reviewCoachTimer) { clearTimeout(reviewCoachTimer); reviewCoachTimer = null; }
-        sound.stopMusic();
+        if (!soundCarried) sound.stopMusic();
         detachWindow();
         sheetListeners.forEach(function (l) { l[0].removeEventListener(l[1], l[2]); });
         sheetListeners = [];
