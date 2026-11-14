@@ -4313,7 +4313,7 @@
       var curN = cur ? cur.n : game ? Lesson.progress(game).screen : 0; // between your moves, the last one done
       var furthest = settings.lessonFurthest || 0;
       var rows = Lesson.outline();
-      text("Tutorial steps", r.x + 14, r.y + 20, { size: 14, weight: "bold", family: FONT_HEAD, color: COLORS.cream });
+      text("Mahjong Lesson", r.x + 14, r.y + 20, { size: 14, weight: "bold", family: FONT_HEAD, color: COLORS.cream });
       text(curN + " of " + rows.length, r.x + r.w - 14, r.y + 20, { size: 12, align: "right", color: COLORS.goldLight });
       var viewX = r.x + 8, viewY = r.y + 36, viewW = r.w - 16, viewH = r.h - 44;
       var rowH = Math.max(17, Math.min(26, viewH / rows.length));
