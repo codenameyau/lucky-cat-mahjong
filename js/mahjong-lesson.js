@@ -121,7 +121,7 @@
     { seat: 3, kind: "turn", drawn: true },
     { seat: 0, kind: "turn", action: { type: "kong", tile: "b8" }, hint: say("Kong 8 Bamboo.", "b8", { type: "kong" }, [
       read("kong-fourth-tile", "You drew the fourth 8 Bamboo!", "b8"),
-      read("kong-explained", "Add it to your pung to make a kong: 4 of a kind. A kong draws a replacement tile from the back of the wall."),
+      read("kong-explained", "Add it to your pung to make a kong: 4 of a kind. A kong draws a replacement tile from the end of the wall."),
       read("kong-press", "Press Kong 8B.", "kong-b8"),
     ]) },
     { seat: 0, kind: "turn", action: { type: "discard", tile: "d1" }, hint: say("Discard 1 Dot.", "d1", { type: "discard" }, [
