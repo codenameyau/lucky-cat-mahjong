@@ -9,6 +9,7 @@ on:
       - master
     paths:
       - public/**
+      - .github/workflows/pages.yml
   workflow_dispatch:
 
 permissions:
@@ -21,11 +22,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout
@@ -36,6 +34,15 @@ jobs:
         with:
           path: public
 
+  # A job of its own, so the artifact is listed by the time it deploys.
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
