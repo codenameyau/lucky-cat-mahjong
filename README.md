@@ -8,7 +8,8 @@ The website of [Lucky Cat Mahjong](https://luckycatmahjong.com), a mahjong commu
 - **[Mahjong Rules](https://luckycatmahjong.com/hong-kong-mahjong-rules/):** how to play Hong Kong mahjong, from the tiles to scoring.
 - **[Points Guide](https://luckycatmahjong.com/hong-kong-mahjong-scoring/):** every scoring pattern, and a calculator for a hand's faan and points.
 - **[Personality Quiz](https://luckycatmahjong.com/which-mahjong-tiles-are-you/):** which mahjong tile are you?
-- **[Events](https://luckycatmahjong.com/events/)** and **[Community](https://luckycatmahjong.com/community/):** mahjong nights, tournaments and workshops in New York City.
+- **[Events](https://luckycatmahjong.com/events/):** upcoming mahjong nights, tournaments and workshops in New York City.
+- **[Community](https://luckycatmahjong.com/community/):** photos and recaps from past events.
 
 ## Contact
 
