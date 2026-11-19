@@ -1,0 +1,24 @@
+{
+  "heading": "Rates",
+  "disclaimer": "Contact us by email at events@luckycatmahjong.com or Instagram DM at luckycat.mahjong. Discounts for multiple prepaid sessions are available.",
+  "rates": [
+    {
+      "service": "Private Lesson",
+      "duration": "2 hours",
+      "price": "$50/person",
+      "notes": "Minimum 4 people; max 8 people"
+    },
+    {
+      "service": "Workshop",
+      "duration": "2 hours",
+      "price": "$60/person",
+      "notes": "Minimum 8 people; max 24 people"
+    },
+    {
+      "service": "Business Collaboration",
+      "duration": "",
+      "price": "Contact us",
+      "notes": "Instagram DM us at luckycat.mahjong"
+    }
+  ]
+}

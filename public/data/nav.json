@@ -1,0 +1,28 @@
+{
+  "links": [
+    {
+      "label": "Community",
+      "href": "/community/"
+    },
+    {
+      "label": "Events",
+      "href": "/events/"
+    },
+    {
+      "label": "Rules",
+      "href": "/hong-kong-mahjong-rules/"
+    },
+    {
+      "label": "Points Guide",
+      "href": "/hong-kong-mahjong-scoring/"
+    },
+    {
+      "label": "Personality Quiz",
+      "href": "/which-mahjong-tiles-are-you/"
+    },
+    {
+      "label": "Play Mahjong",
+      "href": "/play-mahjong/"
+    }
+  ]
+}

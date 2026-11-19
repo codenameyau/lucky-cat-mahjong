@@ -1,0 +1,38 @@
+{
+  "title": "Lucky Cat Mahjong",
+  "tagline": "Hong Kong Mahjong",
+  "page_title": "Lucky Cat Mahjong | Free Mahjong Game, Events & Lessons in NYC",
+  "description": "Play free mahjong online with Lucky Cat Mahjong, a community founded in New York City. Join our mahjong events, or learn in a workshop or private lesson.",
+  "contact_email": "events@luckycatmahjong.com",
+  "instagram": {
+    "handle": "luckycat.mahjong",
+    "url": "https://www.instagram.com/luckycat.mahjong/"
+  },
+  "hero": {
+    "headline": "Learn and Play Mahjong",
+    "subheadline": "We make mahjong fun, easy, and unforgettable. From private lessons, to workshops, to brand collaborations and pop-ups, we make it happen. Our free online tools are here to help you learn mahjong and connect with its culture."
+  },
+  "about": {
+    "heading": "About Lucky Cat Mahjong",
+    "body": "*Lucky Cat Mahjong* was founded in New York City by *Jorge Yau Lee* and *Sophia Huang* in November 2025 with a simple goal: build a welcoming third-space mahjong community of strong players while honoring the rich heritage and traditional game of **Hong Kong Mahjong**. We organize **two free events**: a large *community event* open to the public and a mahjong *invitational tournament* to the strongest and most active mahjong players who are looking for a challenge.\n\nWe specialize in organizing mahjong events and teaching *fundamentals*, *points*, and *strategy*. Every month we also collaborate with a handful of businesses and organizations to create unique experiences with mahjong events. Whether you're picking up tiles for the first time or looking to level up, our sessions will give you the skills and confidence to sit down at any table."
+  },
+  "cta": {
+    "heading": "Ready to play?",
+    "body": "Follow us on Instagram for upcoming events and community highlights — or reach out to book your next session. We're most active on Instagram.",
+    "button_label": "Book a Session"
+  },
+  "stats": [
+    {
+      "value": "20K–30K",
+      "label": "Views per event"
+    },
+    {
+      "value": "300+",
+      "label": "People per event"
+    },
+    {
+      "value": "4-24",
+      "label": "Person lessons and workshops"
+    }
+  ]
+}

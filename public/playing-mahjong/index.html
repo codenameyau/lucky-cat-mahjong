@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Playing Mahjong | Lucky Cat Mahjong</title>
+  <meta name="description" content="Play mahjong online for free with a coach to help you get better at playing with points.">
+  <meta name="author" content="Lucky Cat Mahjong">
+  <meta name="robots" content="noindex, follow">
+  <meta name="theme-color" content="#4a0f1c">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="canonical" href="https://luckycatmahjong.com/play-mahjong/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Lucky Cat Mahjong">
+  <meta property="og:title" content="Play Mahjong | Lucky Cat Mahjong">
+  <meta property="og:description" content="Play mahjong online for free with a coach to help you get better at playing with points.">
+  <meta property="og:url" content="https://luckycatmahjong.com/play-mahjong/">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:image" content="https://luckycatmahjong.com/assets/social-preview.png">
+  <meta property="og:image:alt" content="Lucky Cat Mahjong logo">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Play Mahjong | Lucky Cat Mahjong">
+  <meta name="twitter:description" content="Play mahjong online for free with a coach to help you get better at playing with points.">
+  <meta name="twitter:image" content="https://luckycatmahjong.com/assets/social-preview.png">
+  <meta name="twitter:image:alt" content="Lucky Cat Mahjong logo">
+  <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="/assets/logo.png" type="image/png" sizes="1024x1063">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/play-mahjong/manifest.webmanifest">
+  <meta name="apple-mobile-web-app-title" content="Lucky Cat">
+  <link rel="preload" href="/fonts/kn-yuanmo-sc.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/fonts.css">
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/play.css">
+  <script>
+    // The table covers the page from the first paint.
+    document.documentElement.classList.add("is-playing");
+    // The colour theme from the saved game prefs, before the first paint. No saved theme
+    // is the default (red). The colours are CSS variables (css/play.css), the address bar's too.
+    try {
+      var t = JSON.parse(localStorage.getItem("lcm-play-prefs") || "{}").theme;
+      if (typeof t === "string" && /^[a-z]+$/.test(t)) document.documentElement.setAttribute("data-theme", t);
+      var c = getComputedStyle(document.documentElement).getPropertyValue("--theme-meta").trim();
+      if (c) {
+        document.querySelector("meta[name=\"theme-color\"]").setAttribute("content", c);
+        document.documentElement.style.backgroundColor = c;
+      }
+    } catch (e) {}
+  </script>
+  <script src="/js/analytics-id.js"></script>
+  <script>
+    // Google Analytics runs on the live site only. On localhost and private network
+    // addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x, .local) gtag does nothing, so
+    // testing never adds events. There, each call is kept in window.lcmLocalEvents
+    // instead, so a test can read what would have been sent.
+    window.dataLayer = window.dataLayer || [];
+    var localHost = /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local)$/i.test(location.hostname);
+    function gtag(){ if (!localHost) dataLayer.push(arguments); else (window.lcmLocalEvents = window.lcmLocalEvents || []).push([].slice.call(arguments)); }
+    // The visitor and session IDs and the cookie choice (js/analytics-id.js), before the page view.
+    if (window.lcmAnalytics) window.lcmAnalytics.start(gtag);
+    if (!localHost) {
+      var gaScript = document.createElement("script");
+      gaScript.async = true;
+      gaScript.src = "https://www.googletagmanager.com/gtag/js?id=G-B514HH987M";
+      document.head.appendChild(gaScript);
+      gtag("js", new Date());
+      gtag("config", "G-B514HH987M");
+    }
+  </script>
+</head>
+<body>
+  <div id="play-stage" class="play-stage">
+    <canvas id="play-canvas" class="play-canvas" tabindex="0" role="application" aria-label="Mahjong table. With the coach on, a panel beside your hand, headed Strategies, shows the tile each strategy would discard, and what it would chow, pung, kong, or pass. Feedback shows the tile each strategy would have discarded after you throw one. Both panels hide when the coach is off. Click one to make it the coach. Pick a tile with the arrow keys, Enter to discard, Escape for the menu."></canvas>
+    <p id="play-live" class="visually-hidden" aria-live="polite"></p>
+    <canvas id="playback-canvas" class="play-canvas" tabindex="0" role="application" hidden aria-label="Mahjong replay. A playback saved from your wind opens on its own. Upload, in the center, reads a JSON playback file. Command+V or Ctrl+V pastes one too. Strategies, Rules, and Sound sit at the top right. The hand then plays through the moves in that file. A panel under the coach column, headed Strategies, shows the tile each strategy would discard. Click one to make it the coach. The coach on the right is titled Coach and that strategy, and comments on your moves. Space pauses. Left and right arrows step one move. Drag the bar to a move. Back returns to the game. Escape clears the hand."></canvas>
+    <p id="playback-live" class="visually-hidden" aria-live="polite"></p>
+    <dialog id="rules-sheet" class="rules-sheet" aria-labelledby="rules-sheet-title">
+      <div class="rules-sheet-inner">
+        <header class="rules-sheet-head">
+          <h2 id="rules-sheet-title">Rules</h2>
+          <button type="button" class="rules-sheet-close" aria-label="Close the rules">Close</button>
+        </header>
+        <div id="rules-sheet-body" class="rules-sheet-body"></div>
+      </div>
+    </dialog>
+    <dialog id="results-sheet" class="rules-sheet results-sheet" aria-labelledby="results-sheet-title">
+      <div class="rules-sheet-inner">
+        <header class="rules-sheet-head">
+          <h2 id="results-sheet-title">Results</h2>
+          <button type="button" class="rules-sheet-close" aria-label="Close the results">Close</button>
+        </header>
+        <div id="results-sheet-body" class="rules-sheet-body"></div>
+      </div>
+    </dialog>
+    <dialog id="playbacks-sheet" class="rules-sheet playbacks-sheet" aria-labelledby="playbacks-sheet-title">
+      <div class="rules-sheet-inner">
+        <header class="rules-sheet-head">
+          <h2 id="playbacks-sheet-title">Saved playbacks</h2>
+          <button type="button" class="rules-sheet-close" aria-label="Close Saved playbacks">Close</button>
+        </header>
+        <p class="rules-sheet-intro">Your three most recent finished hands and your last upload are saved.</p>
+        <h3 class="playbacks-heading">Recent hands</h3>
+        <ul id="playbacks-recent" class="playbacks-list"></ul>
+        <h3 class="playbacks-heading">Uploaded</h3>
+        <ul id="playbacks-uploaded" class="playbacks-list"></ul>
+        <button type="button" id="playbacks-upload" class="playbacks-upload">Upload playback</button>
+      </div>
+    </dialog>
+    <dialog id="upload-error-sheet" class="rules-sheet upload-error-sheet" role="alertdialog" aria-labelledby="upload-error-title" aria-describedby="upload-error-why">
+      <div class="rules-sheet-inner">
+        <header class="rules-sheet-head">
+          <h2 id="upload-error-title">Upload failed</h2>
+          <button type="button" class="rules-sheet-close" aria-label="Close">Close</button>
+        </header>
+        <p id="upload-error-lead" class="upload-error-lead">This playback could not be uploaded.</p>
+        <p id="upload-error-why" class="rules-sheet-intro"></p>
+      </div>
+    </dialog>
+    <dialog id="coach-settings-sheet" class="rules-sheet coach-settings-sheet" aria-labelledby="coach-settings-title">
+      <div class="rules-sheet-inner">
+        <header class="rules-sheet-head">
+          <h2 id="coach-settings-title">Coach settings</h2>
+          <button type="button" class="rules-sheet-close" aria-label="Close Coach settings">Close</button>
+        </header>
+        <div id="coach-settings-body" class="coach-options" role="radiogroup" aria-label="Coach detail"></div>
+      </div>
+    </dialog>
+    <dialog id="keys-sheet" class="rules-sheet keys-sheet" aria-labelledby="keys-title">
+      <div class="rules-sheet-inner">
+        <header class="rules-sheet-head">
+          <h2 id="keys-title">Keyboard shortcuts</h2>
+          <button type="button" class="rules-sheet-close" aria-label="Close the keyboard shortcuts">Close</button>
+        </header>
+        <p class="rules-sheet-intro">Everything in the game works from the keyboard. Press <kbd>?</kbd> any time to see this list.</p>
+        <div class="keys-grid">
+          <section class="keys-group">
+            <h3>Your turn</h3>
+            <dl>
+              <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Move between your tiles, starting beside the coach's tile (or at an end when the coach is off)</dd>
+              <dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>First or last tile</dd>
+              <dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></dt><dd>The first three tiles</dd>
+              <dt><kbd>8</kbd> <kbd>9</kbd> <kbd>0</kbd></dt><dd>The last three tiles</dd>
+              <dt><kbd>4</kbd> <kbd>5</kbd> <kbd>6</kbd> <kbd>7</kbd></dt><dd>Jump to the tiles in between</dd>
+              <dt><kbd>H</kbd></dt><dd>Pick the coach's tile</dd>
+              <dt><kbd>Enter</kbd> <kbd>Space</kbd> <kbd>D</kbd></dt><dd>Discard the tile you picked</dd>
+              <dt><kbd>W</kbd></dt><dd>Win (Mahjong)</dd>
+              <dt><kbd>K</kbd></dt><dd>Kong</dd>
+              <dt><kbd>F</kbd> <kbd>Enter</kbd></dt><dd>Replace your flowers</dd>
+            </dl>
+          </section>
+          <section class="keys-group">
+            <h3>When a tile is thrown</h3>
+            <dl>
+              <dt><kbd>P</kbd></dt><dd>Pung</dd>
+              <dt><kbd>C</kbd></dt><dd>Chow</dd>
+              <dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></dt><dd>Pick a chow when there are several</dd>
+              <dt><kbd>K</kbd></dt><dd>Kong</dd>
+              <dt><kbd>W</kbd> <kbd>Enter</kbd></dt><dd>Win (Mahjong)</dd>
+              <dt><kbd>N</kbd> <kbd>Space</kbd></dt><dd>Pass</dd>
+              <dt><kbd>H</kbd></dt><dd>Do what the coach says</dd>
+            </dl>
+          </section>
+          <section class="keys-group">
+            <h3>Any time</h3>
+            <dl>
+              <dt><kbd>T</kbd></dt><dd>Coach: off, on, feedback</dd>
+              <dt><kbd>M</kbd></dt><dd>Sound: off, on, music</dd>
+              <dt><kbd>R</kbd></dt><dd>Rules</dd>
+              <dt><kbd>S</kbd></dt><dd>Strategies</dd>
+              <dt><kbd>Esc</kbd></dt><dd>Menu, or close a window</dd>
+              <dt><kbd>?</kbd></dt><dd>This list</dd>
+            </dl>
+          </section>
+          <section class="keys-group">
+            <h3>Between hands</h3>
+            <dl>
+              <dt><kbd>Enter</kbd> <kbd>Space</kbd></dt><dd>See the results, after the hands are shown</dd>
+              <dt><kbd>Enter</kbd> <kbd>N</kbd></dt><dd>Next hand</dd>
+              <dt><kbd>Enter</kbd></dt><dd>Next card in the tutorial</dd>
+            </dl>
+          </section>
+          <section class="keys-group">
+            <h3>Watching a playback</h3>
+            <dl>
+              <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Step back or forward</dd>
+              <dt><kbd>Space</kbd></dt><dd>Play or pause</dd>
+              <dt><kbd>Home</kbd> <kbd>End</kbd></dt><dd>Start or end</dd>
+              <dt><kbd>Esc</kbd></dt><dd>Leave the playback</dd>
+            </dl>
+          </section>
+        </div>
+      </div>
+    </dialog>
+    <dialog id="strategies-sheet" class="rules-sheet strategies-sheet" aria-labelledby="strategies-sheet-title">
+      <div class="rules-sheet-inner">
+        <header class="rules-sheet-head">
+          <h2 id="strategies-sheet-title">Strategies <span class="strategies-beta">Beta</span></h2>
+          <button type="button" class="rules-sheet-close" aria-label="Close the strategies">Close</button>
+        </header>
+        <p class="rules-sheet-intro">Each computer player gets a random strategy every game. Click a strategy on the table to make it your coach, and that choice is saved.</p>
+        <div id="strategies-sheet-body" class="rules-sheet-body"></div>
+      </div>
+    </dialog>
+  </div>
+
+
+  <script src="/js/points.js" defer></script>
+  <script src="/js/mahjong-engine.js" defer></script>
+  <script src="/js/mahjong-bot.js" defer></script>
+  <script src="/js/mahjong-lucky-cat.js" defer></script>
+  <script src="/js/mahjong-jorge-yau.js" defer></script>
+  <script src="/js/mahjong-finish-calibration.js" defer></script>
+  <script src="/js/mahjong-inputs-lookahead.js" defer></script>
+  <script src="/js/mahjong-inputs-table.js" defer></script>
+  <script src="/js/mahjong-inputs-rules.js" defer></script>
+  <script src="/js/mahjong-ml-features.js" defer></script>
+  <script src="/js/mahjong-ml-model.js" defer></script>
+  <script src="/js/mahjong-ml.js" defer></script>
+  <script src="/js/mahjong-only-orphans.js" defer></script>
+  <script src="/js/mahjong-lucky-cat-net.js" defer></script>
+  <script src="/js/mahjong-lucky-cat-value.js" defer></script>
+  <script src="/js/mahjong-lucky-cat-search.js" defer></script>
+  <script src="/js/mahjong-lucky-cat-ml.js" defer></script>
+  <script src="/js/mahjong-strategies.js" defer></script>
+  <script src="/js/mahjong-say.js" defer></script>
+  <script src="/js/mahjong-coach.js" defer></script>
+  <script src="/js/mahjong-analysis.js" defer></script>
+  <script src="/js/mahjong-lesson.js" defer></script>
+  <script src="/js/mahjong-rules.js" defer></script>
+  <script src="/js/mahjong-i18n.js" defer></script>
+  <script src="/js/i18n/zh.js" defer></script>
+  <script src="/js/offline-cache.js" defer></script>
+  <script src="/js/offline.js" defer></script>
+  <script src="/js/mahjong-game.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# Lucky Cat Mahjong
+
+> Lucky Cat Mahjong is a mahjong community and school in New York City, and a free online Hong Kong mahjong game. Play four-player Hong Kong (Cantonese) mahjong in the browser against computer players, with a coach, no download and no sign-up.
+
+## Play
+
+- [Play mahjong online free](https://luckycatmahjong.com/play-mahjong/): four-player Hong Kong mahjong against three computer players, with a coach that suggests discards, a guided lesson, real faan scoring (3 faan minimum, 13 faan limit), autosave and offline play.
+
+## Learn
+
+- [Hong Kong mahjong rules](https://luckycatmahjong.com/hong-kong-mahjong-rules/): the 144 tiles, setup, turns, chow, pung and kong, winning, faan and payouts.
+- [Mahjong Points Guide](https://luckycatmahjong.com/hong-kong-mahjong-scoring/): every Hong Kong scoring pattern and its faan, a free faan calculator, and faan-to-points tables.
+- [Printable rules sheet (PDF)](https://luckycatmahjong.com/assets/lucky-cat-mahjong-rules.pdf)
+
+## More
+
+- [Which Mahjong Tile Are You?](https://luckycatmahjong.com/which-mahjong-tiles-are-you/): a free mahjong personality quiz.
+- [Mahjong events in NYC](https://luckycatmahjong.com/events/) and [community](https://luckycatmahjong.com/community/).
