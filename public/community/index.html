@@ -2,6 +2,7 @@
 <html lang="en-US">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://cdn.tickettailor.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com; font-src 'self'; connect-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://docs.google.com https://*.tickettailor.com; frame-src https://www.tickettailor.com https://*.tickettailor.com; worker-src 'self'; manifest-src 'self'; form-action 'self' https://docs.google.com; base-uri 'self'; object-src 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Mahjong Community in NYC | Lucky Cat Mahjong</title>
   <meta name="description" content="Photos and highlights from Lucky Cat Mahjong's mahjong events and tournaments, and the mahjong community we've built in New York City.">
@@ -35,7 +36,6 @@
   <link rel="stylesheet" href="../css/styles.css">
   <link rel="stylesheet" href="../css/community.css">
 
-  <script src="/js/analytics-id.js"></script>
   <script>
     // Google Analytics runs on the live site only. On localhost and private network
     // addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x, .local) gtag does nothing, so
@@ -44,17 +44,32 @@
     window.dataLayer = window.dataLayer || [];
     var localHost = /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local)$/i.test(location.hostname);
     function gtag(){ if (!localHost) dataLayer.push(arguments); else (window.lcmLocalEvents = window.lcmLocalEvents || []).push([].slice.call(arguments)); }
-    // The visitor and session IDs and the cookie choice (js/analytics-id.js), before the page view.
-    if (window.lcmAnalytics) window.lcmAnalytics.start(gtag);
-    if (!localHost) {
-      var gaScript = document.createElement("script");
-      gaScript.async = true;
-      gaScript.src = "https://www.googletagmanager.com/gtag/js?id=G-B514HH987M";
-      document.head.appendChild(gaScript);
-      gtag("js", new Date());
-      gtag("config", "G-B514HH987M");
+    // js/analytics-id.js loads with defer, so it doesn't hold up the first paint. It runs
+    // before the page's other deferred scripts (they run in order) and its onload runs
+    // this, so the IDs and the cookie choice still come before the page view and every
+    // event. Google's own script (about 180 KB) is fetched once the page has loaded, so it
+    // doesn't compete with the logo and the stylesheet; calls made before then wait in
+    // dataLayer and are sent when it arrives.
+    window.lcmStartAnalytics = function lcmStartAnalytics() {
+      if (window.lcmAnalyticsStarted) return;
+      window.lcmAnalyticsStarted = true;
+      // The visitor and session IDs and the cookie choice (js/analytics-id.js), before the page view.
+      if (window.lcmAnalytics) window.lcmAnalytics.start(gtag);
+      if (!localHost) {
+        gtag("js", new Date());
+        gtag("config", "G-B514HH987M");
+        var loadGtag = function () {
+          var gaScript = document.createElement("script");
+          gaScript.async = true;
+          gaScript.src = "https://www.googletagmanager.com/gtag/js?id=G-B514HH987M";
+          document.head.appendChild(gaScript);
+        };
+        if (document.readyState === "complete") loadGtag();
+        else window.addEventListener("load", loadGtag);
+      }
     }
   </script>
+  <script src="/js/bundle-e9379d599f.js" defer onerror="lcmStartAnalytics()"></script>
 </head>
 <body>
   <header class="site-header" id="site-header">
@@ -114,7 +129,5 @@
     </div>
   </footer>
 
-  <script src="/js/nav.js" defer></script>
-  <script src="../js/community.js" defer></script>
 </body>
 </html>

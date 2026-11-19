@@ -2,6 +2,7 @@
 <html lang="en-US">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://cdn.tickettailor.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com; font-src 'self'; connect-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://docs.google.com https://*.tickettailor.com; frame-src https://www.tickettailor.com https://*.tickettailor.com; worker-src 'self'; manifest-src 'self'; form-action 'self' https://docs.google.com; base-uri 'self'; object-src 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lucky Cat Mahjong | Play Free Mahjong Online, Events &amp; Lessons NYC</title>
   <meta name="description" content="Play free mahjong online with Lucky Cat Mahjong, a community founded in New York City. Join our mahjong events, or learn in a workshop or private lesson.">
@@ -68,7 +69,7 @@
     // event. Google's own script (about 180 KB) is fetched once the page has loaded, so it
     // doesn't compete with the logo and the stylesheet; calls made before then wait in
     // dataLayer and are sent when it arrives.
-    function lcmStartAnalytics() {
+    window.lcmStartAnalytics = function lcmStartAnalytics() {
       if (window.lcmAnalyticsStarted) return;
       window.lcmAnalyticsStarted = true;
       // The visitor and session IDs and the cookie choice (js/analytics-id.js), before the page view.
@@ -87,7 +88,7 @@
       }
     }
   </script>
-  <script src="/js/analytics-id.js" defer onload="lcmStartAnalytics()" onerror="lcmStartAnalytics()"></script>
+  <script src="/js/bundle-c5a19d2335.js" defer onerror="lcmStartAnalytics()"></script>
 
   <script type="application/ld+json">
   {
@@ -443,7 +444,5 @@
     </div>
   </footer>
 
-  <script src="/js/nav.js" defer></script>
-  <script src="js/main.js" defer></script>
 </body>
 </html>
