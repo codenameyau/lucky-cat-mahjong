@@ -34,7 +34,7 @@
   <link rel="preload" href="/fonts/kn-yuanmo-sc.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/fonts.5643808184.css">
   <link rel="stylesheet" href="/css/styles.f804a69c27.css">
-  <link rel="stylesheet" href="/css/play.c51600247f.css">
+  <link rel="stylesheet" href="/css/play.8b338378d5.css">
   <script>
     // The table covers the page from the first paint.
     document.documentElement.classList.add("is-playing");
@@ -83,7 +83,7 @@
       }
     }
   </script>
-  <script src="/js/bundle-1147083b6a.js" defer onerror="lcmStartAnalytics()"></script>
+  <script src="/js/bundle-587eae1426.js" defer onerror="lcmStartAnalytics()"></script>
 </head>
 <body>
   <div id="play-stage" class="play-stage">
@@ -91,6 +91,10 @@
     <p id="play-live" class="visually-hidden" aria-live="polite"></p>
     <canvas id="playback-canvas" class="play-canvas" tabindex="0" role="application" hidden aria-label="Mahjong replay. A playback saved from your wind opens on its own. Upload, in the center, reads a JSON playback file. Command+V or Ctrl+V pastes one too. Strategies, Rules, and Sound sit at the top right. The hand then plays through the moves in that file. A panel under the coach column, headed Strategies, shows the tile each strategy would discard. Click one to make it the coach. The coach on the right is titled Coach and that strategy, and comments on your moves. Space pauses. Left and right arrows step one move. Drag the bar to a move. Back returns to the game. Escape clears the hand."></canvas>
     <p id="playback-live" class="visually-hidden" aria-live="polite"></p>
+    <div class="rotate-notice" role="alert">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
+      <p>Turn your phone upright to play.</p>
+    </div>
     <dialog id="rules-sheet" class="rules-sheet" aria-labelledby="rules-sheet-title">
       <div class="rules-sheet-inner">
         <header class="rules-sheet-head">
@@ -121,6 +125,16 @@
         <h3 class="playbacks-heading">Uploaded</h3>
         <ul id="playbacks-uploaded" class="playbacks-list"></ul>
         <button type="button" id="playbacks-upload" class="playbacks-upload">Upload playback</button>
+      </div>
+    </dialog>
+    <dialog id="coach-notes-sheet" class="rules-sheet coach-notes-sheet" aria-labelledby="coach-notes-title">
+      <div class="rules-sheet-inner">
+        <header class="rules-sheet-head">
+          <h2 id="coach-notes-title">Coach</h2>
+          <button type="button" class="rules-sheet-close" aria-label="Close the coach">Close</button>
+        </header>
+        <p class="rules-sheet-intro coach-notes-empty">No feedback yet. Step forward through the hand to see what the coach says.</p>
+        <ol class="coach-notes-list"></ol>
       </div>
     </dialog>
     <dialog id="upload-error-sheet" class="rules-sheet upload-error-sheet" role="alertdialog" aria-labelledby="upload-error-title" aria-describedby="upload-error-why">
