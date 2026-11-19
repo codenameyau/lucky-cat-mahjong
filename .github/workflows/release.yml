@@ -1,0 +1,39 @@
+name: Release
+
+# Publishes a GitHub release for every version tag. The private source repo's
+# release workflow pushes the tag with the site's build; the tag's message is
+# the release's title (its first line) and notes (the rest).
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create the release from the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" --repo "$REPO" > /dev/null 2>&1; then
+            echo "$TAG already has a release"
+            exit 0
+          fi
+          sha=$(gh api "repos/$REPO/git/ref/tags/$TAG" --jq .object.sha)
+          type=$(gh api "repos/$REPO/git/ref/tags/$TAG" --jq .object.type)
+          if [ "$type" = "tag" ]; then
+            gh api "repos/$REPO/git/tags/$sha" --jq .message > message.txt
+          else
+            printf '%s\n' "$TAG" > message.txt
+          fi
+          title=$(head -n 1 message.txt)
+          tail -n +2 message.txt | sed '/./,$!d' > notes.txt
+          gh release create "$TAG" --repo "$REPO" --verify-tag --title "${title:-$TAG}" --notes-file notes.txt
