@@ -32,7 +32,7 @@
   <link rel="preload" href="/fonts/kn-yuanmo-sc.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/fonts.5643808184.css">
   <link rel="stylesheet" href="/css/styles.f804a69c27.css">
-  <link rel="stylesheet" href="/css/play.8b338378d5.css">
+  <link rel="stylesheet" href="/css/play.daa9bc7bce.css">
   <script>
     // Class the first paint. The form's default is Practice and a red Start,
     // and a script after the buttons is already too late to stop that flash.
@@ -43,14 +43,22 @@
       try {
         var settings = JSON.parse(localStorage.getItem("lcm-play-settings") || "null");
         if (settings && settings.mode === "payout") mode = "payout";
-        var save = JSON.parse(localStorage.getItem("lcm-play-autosave") || "null");
+        // Each mode keeps its own game. The one save earlier versions kept
+        // for both moves into its mode's slot.
+        var old = JSON.parse(localStorage.getItem("lcm-play-autosave") || "null");
+        if (old != null) {
+          var og = old && old.payload && old.payload.game;
+          var okey = og && og.settings && og.settings.mode === "payout" ? "lcm-play-autosave-full" : "lcm-play-autosave-practice";
+          if (og && localStorage.getItem(okey) == null) localStorage.setItem(okey, JSON.stringify(old));
+          localStorage.removeItem("lcm-play-autosave");
+        }
+        var save = JSON.parse(localStorage.getItem(mode === "payout" ? "lcm-play-autosave-full" : "lcm-play-autosave-practice") || "null");
         hasSave = !!(save && save.payload && save.payload.game);
       } catch (e) {}
       root.classList.add("play-mode-" + mode);
       // play-has-save: there's a saved game in the selected mode, so Resume
       // game is the button; otherwise it's New Game.
-      var savedMode = hasSave && save.payload.game.settings && save.payload.game.settings.mode;
-      if (hasSave && (!savedMode || savedMode === mode)) root.classList.add("play-has-save");
+      if (hasSave) root.classList.add("play-has-save");
     })();
   </script>
   <script>
@@ -86,7 +94,7 @@
       }
     }
   </script>
-  <script src="/js/bundle-a97bf5670f.js" defer onerror="lcmStartAnalytics()"></script>
+  <script src="/js/bundle-e8bec4bf02.js" defer onerror="lcmStartAnalytics()"></script>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -165,9 +173,9 @@
         <h1 id="play-title" class="play-title">Play Mahjong</h1>
         <p class="play-lead">Your first hand is one tap away.</p>
         <ul class="play-perks">
-          <li>Free</li>
-          <li>Built-in coach</li>
-          <li>Real faan scoring</li>
+          <li>AI Coach</li>
+          <li>Full Scoring</li>
+          <li>Analyze Games</li>
         </ul>
 
         <form id="play-settings" class="play-form">
@@ -209,11 +217,9 @@
             }
             // Two buttons: Resume game when there's a saved game in the selected
             // mode, else New Game (red), and Learn to play (white).
-            var save = read("lcm-play-autosave");
-            var game = save && save.payload && save.payload.game;
             var picked = form.querySelector("input[name=\"mode\"]:checked");
-            var savedMode = game && game.settings && game.settings.mode;
-            var here = !!game && (!savedMode || !picked || savedMode === picked.value);
+            var save = read(picked && picked.value === "payout" ? "lcm-play-autosave-full" : "lcm-play-autosave-practice");
+            var here = !!(save && save.payload && save.payload.game);
             var resume = document.getElementById("play-resume");
             var start = document.getElementById("play-start");
             var learn = document.getElementById("play-learn");
@@ -254,7 +260,7 @@
         <div class="play-why-card">
           <span class="play-tile"><img src="/tiles/42-bamboo.svg" alt="" width="42" height="56" draggable="false"></span>
           <div>
-            <h3>Autosave and playback</h3>
+            <h3>Autosave and replays</h3>
             <p>Pick up where you left off on your device. Save your favorite games to replay anytime.</p>
           </div>
         </div>
