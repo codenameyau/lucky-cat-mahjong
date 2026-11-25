@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Main Mahjong Gratis: Game Mahjong Hong Kong | Lucky Cat</title>
+  <meta name="description" content="Main mahjong online gratis di browser, tanpa unduhan dan tanpa daftar. Mahjong Hong Kong empat pemain melawan komputer, dengan pelatih dan hitungan faan asli.">
+  <meta name="keywords" content="main mahjong online gratis, main mahjong online, mahjong online, mahjong gratis, game mahjong, game mahjong gratis, mahjong hongkong, mahjong hong kong, main mahjong hongkong, poin mahjong hongkong, cara bermain mahjong hongkong, belajar mahjong, 網上麻雀, 免費麻雀, 香港麻雀">
+  <meta name="author" content="Lucky Cat Mahjong">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+  <meta name="theme-color" content="#4a0f1c">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="canonical" href="https://luckycatmahjong.com/id/main-mahjong-online/">
+  <link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/play-mahjong/">
+  <link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/play-mahjong/">
+  <link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/play-mahjong/">
+  <link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/play-mahjong/">
+  <link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/main-mahjong-online/">
+  <link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/main-mahjong-online/">
+  <link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/choi-mat-chuoc-online/">
+  <link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/play-mahjong/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Lucky Cat Mahjong">
+  <meta property="og:title" content="Main Mahjong Gratis | Lucky Cat Mahjong">
+  <meta property="og:description" content="Main mahjong online gratis di browser, tanpa unduhan dan tanpa daftar. Mahjong Hong Kong empat pemain melawan komputer, dengan pelatih dan hitungan faan asli.">
+  <meta property="og:url" content="https://luckycatmahjong.com/id/main-mahjong-online/">
+  <meta property="og:locale" content="id_ID">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta property="og:locale:alternate" content="zh_HK">
+  <meta property="og:locale:alternate" content="zh_CN">
+  <meta property="og:locale:alternate" content="ja_JP">
+  <meta property="og:locale:alternate" content="ms_MY">
+  <meta property="og:locale:alternate" content="vi_VN">
+  <meta property="og:image" content="https://luckycatmahjong.com/assets/social-preview.png">
+  <meta property="og:image:alt" content="Logo Lucky Cat Mahjong">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Main Mahjong Gratis | Lucky Cat Mahjong">
+  <meta name="twitter:description" content="Main mahjong online gratis di browser, tanpa unduhan dan tanpa daftar. Mahjong Hong Kong empat pemain melawan komputer, dengan pelatih dan hitungan faan asli.">
+  <meta name="twitter:image" content="https://luckycatmahjong.com/assets/social-preview.png">
+  <meta name="twitter:image:alt" content="Logo Lucky Cat Mahjong">
+  <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="/assets/logo.png" type="image/png" sizes="1024x1063">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/play-mahjong/manifest.webmanifest">
+  <meta name="apple-mobile-web-app-title" content="Lucky Cat">
+  <link rel="preload" href="/fonts/paytone-one-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/fonts.e18fc0dab7.css">
+  <link rel="stylesheet" href="/css/styles.b2ca132840.css">
+  <link rel="stylesheet" href="/css/play.311fbcba1b.css">
+  <script>
+    // Class the first paint. The form's default is Practice and a red Start,
+    // and a script after the buttons is already too late to stop that flash.
+    (function () {
+      var root = document.documentElement;
+      var mode = "practice";
+      var hasSave = false;
+      try {
+        var settings = JSON.parse(localStorage.getItem("lcm-play-settings") || "null");
+        if (settings && settings.mode === "payout") mode = "payout";
+        // Each mode keeps its own game. The one save earlier versions kept
+        // for both moves into its mode's slot.
+        var old = JSON.parse(localStorage.getItem("lcm-play-autosave") || "null");
+        if (old != null) {
+          var og = old && old.payload && old.payload.game;
+          var okey = og && og.settings && og.settings.mode === "payout" ? "lcm-play-autosave-full" : "lcm-play-autosave-practice";
+          if (og && localStorage.getItem(okey) == null) localStorage.setItem(okey, JSON.stringify(old));
+          localStorage.removeItem("lcm-play-autosave");
+        }
+        var save = JSON.parse(localStorage.getItem(mode === "payout" ? "lcm-play-autosave-full" : "lcm-play-autosave-practice") || "null");
+        hasSave = !!(save && save.payload && save.payload.game);
+      } catch (e) {}
+      root.classList.add("play-mode-" + mode);
+      // play-has-save: there's a saved game in the selected mode, so Resume
+      // game is the button; otherwise it's New Game.
+      if (hasSave) root.classList.add("play-has-save");
+    })();
+  </script>
+  <script>
+    // Google Analytics runs on the live site only. On localhost and private network
+    // addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x, .local) gtag does nothing, so
+    // testing never adds events. There, each call is kept in window.lcmLocalEvents
+    // instead, so a test can read what would have been sent.
+    window.dataLayer = window.dataLayer || [];
+    var localHost = /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local)$/i.test(location.hostname);
+    function gtag(){ if (!localHost) dataLayer.push(arguments); else (window.lcmLocalEvents = window.lcmLocalEvents || []).push([].slice.call(arguments)); }
+    // js/analytics-id.js loads with defer, so it doesn't hold up the first paint. It runs
+    // before the page's other deferred scripts (they run in order) and its onload runs
+    // this, so the IDs and the cookie choice still come before the page view and every
+    // event. Google's own script (about 180 KB) is fetched once the page has loaded, so it
+    // doesn't compete with the logo and the stylesheet; calls made before then wait in
+    // dataLayer and are sent when it arrives.
+    window.lcmStartAnalytics = function lcmStartAnalytics() {
+      if (window.lcmAnalyticsStarted) return;
+      window.lcmAnalyticsStarted = true;
+      // The visitor and session IDs and the cookie choice (js/analytics-id.js), before the page view.
+      if (window.lcmAnalytics) window.lcmAnalytics.start(gtag);
+      if (!localHost) {
+        gtag("js", new Date());
+        gtag("config", "G-B514HH987M");
+        var loadGtag = function () {
+          var gaScript = document.createElement("script");
+          gaScript.async = true;
+          gaScript.src = "https://www.googletagmanager.com/gtag/js?id=G-B514HH987M";
+          document.head.appendChild(gaScript);
+        };
+        if (document.readyState === "complete") loadGtag();
+        else window.addEventListener("load", loadGtag);
+      }
+    }
+  </script>
+  <script src="/js/bundle-b34dbe27e2.js" defer onerror="lcmStartAnalytics()"></script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": [
+      "VideoGame",
+      "WebApplication"
+    ],
+    "@id": "https://luckycatmahjong.com/id/main-mahjong-online/#game",
+    "name": "Lucky Cat Mahjong: Game Mahjong Gratis",
+    "alternateName": [
+      "Mahjong Gratis",
+      "Main Mahjong",
+      "Mahjong Hong Kong Online",
+      "Mahjong Online",
+      "Main Mahjong Hong Kong"
+    ],
+    "url": "https://luckycatmahjong.com/id/main-mahjong-online/",
+    "image": "https://luckycatmahjong.com/assets/logo.png",
+    "description": "Main mahjong online gratis di browser melawan pemain komputer, dengan pelatih yang mengajarkan poin mahjong dan membantu Anda lebih sering menang. Memakai aturan mahjong Hong Kong.",
+    "genre": [
+      "Mahjong",
+      "Tile game",
+      "Board game"
+    ],
+    "gamePlatform": "Web browser",
+    "playMode": "SinglePlayer",
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "Any",
+    "inLanguage": "id",
+    "isAccessibleForFree": true,
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "@id": "https://luckycatmahjong.com/#business",
+      "name": "Lucky Cat Mahjong",
+      "url": "https://luckycatmahjong.com/"
+    }
+  }
+  </script>
+  <script>window.LCM_WORDS = {"New Game":"Permainan Baru"};</script>
+</head>
+<body>
+  <header class="site-header" id="site-header">
+    <nav class="nav container">
+      <a href="/id/" class="header-brand" aria-label="Beranda Lucky Cat Mahjong">
+        <picture>
+          <source srcset="/assets/logo.webp" type="image/webp">
+          <img src="/assets/logo.png" alt="" class="header-logo" width="36" height="37" decoding="async" draggable="false">
+        </picture>
+        <span class="header-brand-name">Lucky Cat Mahjong</span>
+      </a>
+      <button type="button" class="nav-toggle" aria-label="Buka atau tutup menu" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <ul class="nav-links">
+        <li><a href="/id/komunitas/" class="nav-link" data-label="Community"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 13.7c2.6 0 4.5 1.8 4.5 4.3"/></svg>Komunitas</a></li>
+        <li><a href="/events/" class="nav-link" data-label="Events"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Acara</a></li>
+        <li><a href="/id/cara-bermain-mahjong/" class="nav-link" data-label="Rules"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 6.5C10.5 5 8 4.5 4 4.5v14c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-14c-4 0-6.5.5-8 2z"/><path d="M12 6.5v14"/></svg>Aturan</a></li>
+        <li><a href="/id/poin-mahjong-hongkong/" class="nav-link" data-label="Points Guide"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8.5 7.5h7"/><path d="M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01"/></svg>Panduan Poin</a></li>
+        <li><a href="/id/which-mahjong-tiles-are-you/" class="nav-link" data-label="Personality Quiz"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"/><path d="M19 15v4M17 17h4"/></svg>Kuis Kepribadian</a></li>
+        <li><a href="/id/main-mahjong-online/" class="nav-link" data-label="Play Mahjong"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg>Main Mahjong</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="play container">
+    <section class="play-card play-hero" aria-labelledby="play-title">
+      <img src="/assets/logo.webp" alt="" width="140" height="145" class="play-cat" draggable="false">
+      <div class="play-hero-copy">
+        <p class="play-eyebrow">Mahjong Hong Kong Gratis</p>
+        <h1 id="play-title" class="play-title">Main Mahjong</h1>
+        <p class="play-lead">Tangan pertama Anda tinggal satu ketukan lagi.</p>
+        <ul class="play-perks">
+          <li>Pelatih AI</li>
+          <li>Poin Lengkap</li>
+          <li>Analisis Permainan</li>
+        </ul>
+
+        <form id="play-settings" class="play-form">
+          <fieldset class="play-field">
+            <legend>Mode permainan</legend>
+            <div class="play-options">
+              <label class="play-option">
+                <input type="radio" name="mode" value="practice" checked>
+                <span><strong>Latihan</strong><small>Tanpa poin atau pembayaran. Main saja dan lihat faan setiap tangan.</small></span>
+              </label>
+              <label class="play-option">
+                <input type="radio" name="mode" value="payout">
+                <span><strong>Permainan penuh</strong><small>Mainkan keempat putaran. Setiap pemain mulai dengan 2.000 poin. Poin terbanyak di akhir yang menang.</small></span>
+              </label>
+            </div>
+            <p class="play-mode-note" data-mode="practice">Tanpa poin atau pembayaran. Main saja dan lihat faan setiap tangan.</p>
+            <p class="play-mode-note" data-mode="payout">Mainkan keempat putaran. Setiap pemain mulai dengan 2.000 poin, dan poin terbanyak yang menang.</p>
+          </fieldset>
+
+          <div class="play-actions">
+            <button type="button" class="btn btn-white play-start" id="play-resume">Lanjutkan permainan</button>
+            <button type="submit" class="btn btn-primary play-start" id="play-start">Permainan Baru</button>
+            <button type="button" class="btn btn-white play-start" id="play-learn">Belajar bermain</button>
+          </div>
+        </form>
+        <script>
+          // Paint the saved mode and buttons before the first frame. The deferred
+          // game script checks the signature afterwards and only corrects a bad save.
+          (function () {
+            function read(key) {
+              try { return JSON.parse(localStorage.getItem(key)); }
+              catch (e) { return null; }
+            }
+            var form = document.getElementById("play-settings");
+            var settings = read("lcm-play-settings") || {};
+            if (settings.mode === "practice" || settings.mode === "payout") {
+              var radio = form.querySelector("input[name=\"mode\"][value=\"" + settings.mode + "\"]");
+              if (radio) radio.checked = true;
+            }
+            // Two buttons: Resume game when there's a saved game in the selected
+            // mode, else New Game (red), and Learn to play (white).
+            var picked = form.querySelector("input[name=\"mode\"]:checked");
+            var save = read(picked && picked.value === "payout" ? "lcm-play-autosave-full" : "lcm-play-autosave-practice");
+            var here = !!(save && save.payload && save.payload.game);
+            var resume = document.getElementById("play-resume");
+            var start = document.getElementById("play-start");
+            var learn = document.getElementById("play-learn");
+            if (resume) { resume.hidden = !here; resume.classList.add("btn-primary"); resume.classList.remove("btn-white"); }
+            if (start) { start.hidden = here; start.classList.add("btn-primary"); start.classList.remove("btn-white"); }
+            if (learn) { learn.hidden = false; learn.classList.add("btn-white"); learn.classList.remove("btn-primary"); }
+          })();
+        </script>
+        <p class="play-note">Dibuat untuk ponsel dan paling nyaman di komputer. Permainan Anda tersimpan sendiri dan bisa dimainkan offline.</p>
+      </div>
+    </section>
+
+    <section class="play-why" aria-labelledby="play-why-title" data-view="play_why">
+      <h2 id="play-why-title" class="play-section-title">Kenapa Anda akan suka bermain</h2>
+      <p class="play-why-lead">Sejak dulu, mahjong menyatukan keluarga dan teman di satu meja. Lucky Cat Mahjong dibuat supaya siapa pun, di mana pun, bisa belajar dan bermain gratis, apa pun latar belakang dan pengalamannya, untuk meneruskan tradisi ini.</p>
+      <div class="play-why-grid">
+        <div class="play-why-card">
+          <span class="play-tile"><img src="/tiles/39-plum.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div>
+            <h3>Pelatih di samping Anda</h3>
+            <p>Pilih <strong>Coach</strong> untuk saran tile terbaik untuk dibuang dan tangan yang sebaiknya dibangun, atau <strong>Feedback</strong> untuk ulasan setiap langkah Anda.</p>
+          </div>
+        </div>
+        <div class="play-why-card">
+          <span class="play-tile"><img src="/tiles/40-orchid.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div>
+            <h3>Empat strategi yang berbeda</h3>
+            <p>Setiap pemain komputer mendapat strateginya sendiri di setiap permainan, jadi tidak ada dua meja yang bermain sama.</p>
+          </div>
+        </div>
+        <div class="play-why-card">
+          <span class="play-tile"><img src="/tiles/41-chrysanthemum.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div>
+            <h3>Poin Hong Kong asli</h3>
+            <p>Mainkan permainan dengan minimum 3 faan dan semua pola tangan serta bonus standar dari <a href="/id/poin-mahjong-hongkong/" data-evt="points_guide_link" data-loc="play_why">panduan poin</a> kami.</p>
+          </div>
+        </div>
+        <div class="play-why-card">
+          <span class="play-tile"><img src="/tiles/42-bamboo.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div>
+            <h3>Simpan otomatis dan main ulang</h3>
+            <p>Lanjutkan dari tempat Anda berhenti di perangkat Anda. Simpan permainan favorit untuk dimainkan ulang kapan saja.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="play-bots" aria-labelledby="play-bots-title" data-view="play_strategies">
+      <h2 id="play-bots-title" class="play-section-title">Kenali pelatih Anda</h2>
+      <p class="play-bots-lead">Kami percaya bermain dengan poin membuat permainan lebih strategis, lebih seru, dan lebih berkesan. Karena itu kami mengajarkannya. Setiap pemain komputer di meja Anda memakai salah satu dari empat strategi. Pilih yang mana saja sebagai pelatih, dan ia akan mengajarkan gaya bermainnya.</p>
+      <div class="play-bots-grid">
+        <div class="play-bot">
+          <span class="play-tile"><img src="/tiles/04-east-wind.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div><h3>Jorge Yau</h3><p>Bermain seperti pendirinya.</p></div>
+        </div>
+        <div class="play-bot">
+          <span class="play-tile"><img src="/tiles/05-south-wind.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div><h3>Neural Cat</h3><p>Menyeimbangkan sering menang dengan poin yang besar.</p></div>
+        </div>
+        <div class="play-bot">
+          <span class="play-tile"><img src="/tiles/06-west-wind.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div><h3>Lucky Cat</h3><p>Bermain untuk menang secepat mungkin.</p></div>
+        </div>
+        <div class="play-bot">
+          <span class="play-tile"><img src="/tiles/07-north-wind.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div><h3>Only Orphans</h3><p>Mengejar tangan besar dengan tile 1, 9 dan kehormatan.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="play-cta" aria-labelledby="play-cta-title" data-view="play_cta">
+      <h2 id="play-cta-title" class="play-cta-title">Kursi Anda sudah menunggu</h2>
+      <p>Tiga pemain sudah di meja. Ayo ikut main.</p>
+      <a href="/playing-mahjong/" class="btn btn-white play-cta-btn" data-evt="play_now_click" data-loc="bottom_cta">Main sekarang</a>
+    </section>
+
+    <section class="play-rules" aria-labelledby="play-rules-title" data-view="play_rules">
+      <h2 id="play-rules-title">Aturan meja</h2>
+      <ul>
+        <li><strong>Minimum 3 faan untuk menang.</strong> Tangan lengkap di bawah 3 faan tidak boleh dinyatakan menang.</li>
+        <li><strong>Aturan pembayaran.</strong> Saat <strong>ambil sendiri</strong>, setiap lawan membayar pemenang. Saat menang dari <strong>buangan</strong>, hanya pemain yang membuang tile kemenangan yang membayar pemenang.</li>
+        <li><strong>Tangan batas.</strong> Nilai satu tangan dibatasi 13 faan.</li>
+        <li><strong>Bandar.</strong> Bandar tetap membagi setelah menang. Jika tidak, giliran bandar berpindah, dan angin putaran berganti setelah semua pemain sudah menjadi bandar.</li>
+      </ul>
+    </section>
+
+    <section class="play-rules play-credits" aria-labelledby="play-credits-title">
+      <h2 id="play-credits-title">Kredit</h2>
+      <ul>
+        <li>Dibuat oleh Jorge Yau Lee, pengembang dan pengajar mahjong.</li>
+        <li>Musik: &ldquo;Guzheng City&rdquo;, &ldquo;Shenyang&rdquo; dan &ldquo;Ripples&rdquo; oleh Kevin MacLeod (<a href="https://incompetech.com">incompetech.com</a>), dengan lisensi <a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons: By Attribution 4.0</a>.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <picture>
+          <source srcset="/assets/logo.webp" type="image/webp">
+          <img src="/assets/logo.png" alt="" class="footer-logo" width="40" height="42" loading="lazy" decoding="async" draggable="false">
+        </picture>
+        <span>Lucky Cat Mahjong</span>
+      </div>
+      <p class="footer-links footer-guides"><a href="/id/main-mahjong-online/" class="footer-link" data-evt="play_link_footer" data-loc="footer" data-label="Play Mahjong">Main Mahjong</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/id/cara-bermain-mahjong/" class="footer-link" data-evt="rules_link_footer" data-loc="footer" data-label="Mahjong Rules">Aturan</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/id/poin-mahjong-hongkong/" class="footer-link" data-evt="points_link_footer" data-loc="footer" data-label="Points Guide">Panduan Poin</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/id/which-mahjong-tiles-are-you/" class="footer-link" data-evt="quiz_link_footer" data-loc="footer" data-label="Personality Quiz">Kuis Kepribadian</a></p>
+      <p class="footer-links footer-languages"><a href="/play-mahjong/" class="footer-link" lang="en-US" hreflang="en" data-evt="language_link_footer" data-loc="footer">English</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/zh-hk/play-mahjong/" class="footer-link" lang="zh-HK" hreflang="zh-HK" data-evt="language_link_footer" data-loc="footer">中文(香港)</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/zh-hans/play-mahjong/" class="footer-link" lang="zh-Hans" hreflang="zh-Hans" data-evt="language_link_footer" data-loc="footer">简体中文</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/ja/play-mahjong/" class="footer-link" lang="ja" hreflang="ja" data-evt="language_link_footer" data-loc="footer">日本語</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/ms/main-mahjong-online/" class="footer-link" lang="ms" hreflang="ms" data-evt="language_link_footer" data-loc="footer">Bahasa Melayu</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/vi/choi-mat-chuoc-online/" class="footer-link" lang="vi" hreflang="vi" data-evt="language_link_footer" data-loc="footer">Tiếng Việt</a></p>
+      <p class="footer-links"><a href="/terms-and-conditions/" class="footer-link" data-evt="terms_link_footer" data-loc="footer">Terms and Conditions</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/privacy-policy/" class="footer-link" data-evt="privacy_link_footer" data-loc="footer">Privacy Policy</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/refund-policy/" class="footer-link" data-evt="refund_link_footer" data-loc="footer">Refund Policy</a><span class="footer-links-sep" aria-hidden="true">|</span><button type="button" data-evt="cookie_settings_footer" data-loc="footer" class="footer-link js-cookie-settings">Cookie Settings</button></p>
+      <p class="footer-copy">&copy; <span id="year"></span> Lucky Cat Mahjong</p>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

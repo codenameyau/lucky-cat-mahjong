@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>免費打麻雀：香港麻雀網上遊戲 | Lucky Cat Mahjong</title>
+  <meta name="description" content="喺瀏覽器免費網上打麻雀，唔使下載，唔使登記。同電腦玩家打四人香港麻雀，有教練陪你，仲有真正嘅計番。">
+  <meta name="keywords" content="免費麻雀，網上麻雀，免費網上麻雀，打麻雀，網上打麻雀，麻雀遊戲，免費麻雀遊戲，香港麻雀，港式麻雀，打香港麻雀，麻雀 online，麻雀計番，麻雀教學">
+  <meta name="author" content="Lucky Cat Mahjong">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+  <meta name="theme-color" content="#4a0f1c">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="canonical" href="https://luckycatmahjong.com/zh-hk/play-mahjong/">
+  <link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/play-mahjong/">
+  <link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/play-mahjong/">
+  <link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/play-mahjong/">
+  <link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/play-mahjong/">
+  <link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/main-mahjong-online/">
+  <link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/main-mahjong-online/">
+  <link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/choi-mat-chuoc-online/">
+  <link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/play-mahjong/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Lucky Cat Mahjong">
+  <meta property="og:title" content="免費打麻雀 | Lucky Cat Mahjong">
+  <meta property="og:description" content="喺瀏覽器免費網上打麻雀，唔使下載，唔使登記。同電腦玩家打四人香港麻雀，有教練陪你，仲有真正嘅計番。">
+  <meta property="og:url" content="https://luckycatmahjong.com/zh-hk/play-mahjong/">
+  <meta property="og:locale" content="zh_HK">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta property="og:locale:alternate" content="zh_CN">
+  <meta property="og:locale:alternate" content="ja_JP">
+  <meta property="og:locale:alternate" content="id_ID">
+  <meta property="og:locale:alternate" content="ms_MY">
+  <meta property="og:locale:alternate" content="vi_VN">
+  <meta property="og:image" content="https://luckycatmahjong.com/assets/social-preview.png">
+  <meta property="og:image:alt" content="Lucky Cat Mahjong 標誌">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="免費打麻雀 | Lucky Cat Mahjong">
+  <meta name="twitter:description" content="喺瀏覽器免費網上打麻雀，唔使下載，唔使登記。同電腦玩家打四人香港麻雀，有教練陪你，仲有真正嘅計番。">
+  <meta name="twitter:image" content="https://luckycatmahjong.com/assets/social-preview.png">
+  <meta name="twitter:image:alt" content="Lucky Cat Mahjong 標誌">
+  <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="/assets/logo.png" type="image/png" sizes="1024x1063">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/play-mahjong/manifest.webmanifest">
+  <meta name="apple-mobile-web-app-title" content="Lucky Cat">
+  <link rel="preload" href="/fonts/paytone-one-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/fonts.e18fc0dab7.css">
+  <link rel="stylesheet" href="/css/styles.b2ca132840.css">
+  <link rel="stylesheet" href="/css/play.311fbcba1b.css">
+  <script>
+    // Class the first paint. The form's default is Practice and a red Start,
+    // and a script after the buttons is already too late to stop that flash.
+    (function () {
+      var root = document.documentElement;
+      var mode = "practice";
+      var hasSave = false;
+      try {
+        var settings = JSON.parse(localStorage.getItem("lcm-play-settings") || "null");
+        if (settings && settings.mode === "payout") mode = "payout";
+        // Each mode keeps its own game. The one save earlier versions kept
+        // for both moves into its mode's slot.
+        var old = JSON.parse(localStorage.getItem("lcm-play-autosave") || "null");
+        if (old != null) {
+          var og = old && old.payload && old.payload.game;
+          var okey = og && og.settings && og.settings.mode === "payout" ? "lcm-play-autosave-full" : "lcm-play-autosave-practice";
+          if (og && localStorage.getItem(okey) == null) localStorage.setItem(okey, JSON.stringify(old));
+          localStorage.removeItem("lcm-play-autosave");
+        }
+        var save = JSON.parse(localStorage.getItem(mode === "payout" ? "lcm-play-autosave-full" : "lcm-play-autosave-practice") || "null");
+        hasSave = !!(save && save.payload && save.payload.game);
+      } catch (e) {}
+      root.classList.add("play-mode-" + mode);
+      // play-has-save: there's a saved game in the selected mode, so Resume
+      // game is the button; otherwise it's New Game.
+      if (hasSave) root.classList.add("play-has-save");
+    })();
+  </script>
+  <script>
+    // Google Analytics runs on the live site only. On localhost and private network
+    // addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x, .local) gtag does nothing, so
+    // testing never adds events. There, each call is kept in window.lcmLocalEvents
+    // instead, so a test can read what would have been sent.
+    window.dataLayer = window.dataLayer || [];
+    var localHost = /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local)$/i.test(location.hostname);
+    function gtag(){ if (!localHost) dataLayer.push(arguments); else (window.lcmLocalEvents = window.lcmLocalEvents || []).push([].slice.call(arguments)); }
+    // js/analytics-id.js loads with defer, so it doesn't hold up the first paint. It runs
+    // before the page's other deferred scripts (they run in order) and its onload runs
+    // this, so the IDs and the cookie choice still come before the page view and every
+    // event. Google's own script (about 180 KB) is fetched once the page has loaded, so it
+    // doesn't compete with the logo and the stylesheet; calls made before then wait in
+    // dataLayer and are sent when it arrives.
+    window.lcmStartAnalytics = function lcmStartAnalytics() {
+      if (window.lcmAnalyticsStarted) return;
+      window.lcmAnalyticsStarted = true;
+      // The visitor and session IDs and the cookie choice (js/analytics-id.js), before the page view.
+      if (window.lcmAnalytics) window.lcmAnalytics.start(gtag);
+      if (!localHost) {
+        gtag("js", new Date());
+        gtag("config", "G-B514HH987M");
+        var loadGtag = function () {
+          var gaScript = document.createElement("script");
+          gaScript.async = true;
+          gaScript.src = "https://www.googletagmanager.com/gtag/js?id=G-B514HH987M";
+          document.head.appendChild(gaScript);
+        };
+        if (document.readyState === "complete") loadGtag();
+        else window.addEventListener("load", loadGtag);
+      }
+    }
+  </script>
+  <script src="/js/bundle-797b27aeef.js" defer onerror="lcmStartAnalytics()"></script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": [
+      "VideoGame",
+      "WebApplication"
+    ],
+    "@id": "https://luckycatmahjong.com/zh-hk/play-mahjong/#game",
+    "name": "Lucky Cat Mahjong：免費麻雀遊戲",
+    "alternateName": [
+      "免費麻雀",
+      "打麻雀",
+      "網上香港麻雀",
+      "網上麻雀",
+      "玩香港麻雀"
+    ],
+    "url": "https://luckycatmahjong.com/zh-hk/play-mahjong/",
+    "image": "https://luckycatmahjong.com/assets/logo.png",
+    "description": "喺瀏覽器免費網上打麻雀，同電腦玩家對打。教練會教你計番，幫你食多啲糊。照香港麻雀規則玩。",
+    "genre": [
+      "Mahjong",
+      "Tile game",
+      "Board game"
+    ],
+    "gamePlatform": "Web browser",
+    "playMode": "SinglePlayer",
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "Any",
+    "inLanguage": "zh-HK",
+    "isAccessibleForFree": true,
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "@id": "https://luckycatmahjong.com/#business",
+      "name": "Lucky Cat Mahjong",
+      "url": "https://luckycatmahjong.com/"
+    }
+  }
+  </script>
+  <script>window.LCM_WORDS = {"New Game":"新一局"};</script>
+</head>
+<body>
+  <header class="site-header" id="site-header">
+    <nav class="nav container">
+      <a href="/zh-hk/" class="header-brand" aria-label="Lucky Cat Mahjong 首頁">
+        <picture>
+          <source srcset="/assets/logo.webp" type="image/webp">
+          <img src="/assets/logo.png" alt="" class="header-logo" width="36" height="37" decoding="async" draggable="false">
+        </picture>
+        <span class="header-brand-name">Lucky Cat Mahjong</span>
+      </a>
+      <button type="button" class="nav-toggle" aria-label="開關選單" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <ul class="nav-links">
+        <li><a href="/zh-hk/community/" class="nav-link" data-label="Community"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 13.7c2.6 0 4.5 1.8 4.5 4.3"/></svg>社群</a></li>
+        <li><a href="/events/" class="nav-link" data-label="Events"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>活動</a></li>
+        <li><a href="/zh-hk/how-to-play-mahjong/" class="nav-link" data-label="Rules"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 6.5C10.5 5 8 4.5 4 4.5v14c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-14c-4 0-6.5.5-8 2z"/><path d="M12 6.5v14"/></svg>規則</a></li>
+        <li><a href="/zh-hk/hong-kong-mahjong/" class="nav-link" data-label="Points Guide"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8.5 7.5h7"/><path d="M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01"/></svg>計番教學</a></li>
+        <li><a href="/zh-hk/which-mahjong-tiles-are-you/" class="nav-link" data-label="Personality Quiz"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"/><path d="M19 15v4M17 17h4"/></svg>性格測驗</a></li>
+        <li><a href="/zh-hk/play-mahjong/" class="nav-link" data-label="Play Mahjong"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg>打麻雀</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="play container">
+    <section class="play-card play-hero" aria-labelledby="play-title">
+      <img src="/assets/logo.webp" alt="" width="140" height="145" class="play-cat" draggable="false">
+      <div class="play-hero-copy">
+        <p class="play-eyebrow">免費香港麻雀</p>
+        <h1 id="play-title" class="play-title">打麻雀</h1>
+        <p class="play-lead">撳一下就開始你第一鋪牌。</p>
+        <ul class="play-perks">
+          <li>AI 教練</li>
+          <li>完整計番</li>
+          <li>分析牌局</li>
+        </ul>
+
+        <form id="play-settings" class="play-form">
+          <fieldset class="play-field">
+            <legend>遊戲模式</legend>
+            <div class="play-options">
+              <label class="play-option">
+                <input type="radio" name="mode" value="practice" checked>
+                <span><strong>練習</strong><small>唔計分，唔使賠。打就得，睇下每鋪牌幾多番。</small></span>
+              </label>
+              <label class="play-option">
+                <input type="radio" name="mode" value="payout">
+                <span><strong>完整一局</strong><small>打足四圈，每人2,000分開始。最後分數最多嘅人贏。</small></span>
+              </label>
+            </div>
+            <p class="play-mode-note" data-mode="practice">唔計分，唔使賠。打就得，睇下每鋪牌幾多番。</p>
+            <p class="play-mode-note" data-mode="payout">打足四圈。每人2,000分開始，分數最多嘅人贏。</p>
+          </fieldset>
+
+          <div class="play-actions">
+            <button type="button" class="btn btn-white play-start" id="play-resume">繼續牌局</button>
+            <button type="submit" class="btn btn-primary play-start" id="play-start">新一局</button>
+            <button type="button" class="btn btn-white play-start" id="play-learn">學打麻雀</button>
+          </div>
+        </form>
+        <script>
+          // Paint the saved mode and buttons before the first frame. The deferred
+          // game script checks the signature afterwards and only corrects a bad save.
+          (function () {
+            function read(key) {
+              try { return JSON.parse(localStorage.getItem(key)); }
+              catch (e) { return null; }
+            }
+            var form = document.getElementById("play-settings");
+            var settings = read("lcm-play-settings") || {};
+            if (settings.mode === "practice" || settings.mode === "payout") {
+              var radio = form.querySelector("input[name=\"mode\"][value=\"" + settings.mode + "\"]");
+              if (radio) radio.checked = true;
+            }
+            // Two buttons: Resume game when there's a saved game in the selected
+            // mode, else New Game (red), and Learn to play (white).
+            var picked = form.querySelector("input[name=\"mode\"]:checked");
+            var save = read(picked && picked.value === "payout" ? "lcm-play-autosave-full" : "lcm-play-autosave-practice");
+            var here = !!(save && save.payload && save.payload.game);
+            var resume = document.getElementById("play-resume");
+            var start = document.getElementById("play-start");
+            var learn = document.getElementById("play-learn");
+            if (resume) { resume.hidden = !here; resume.classList.add("btn-primary"); resume.classList.remove("btn-white"); }
+            if (start) { start.hidden = here; start.classList.add("btn-primary"); start.classList.remove("btn-white"); }
+            if (learn) { learn.hidden = false; learn.classList.add("btn-white"); learn.classList.remove("btn-primary"); }
+          })();
+        </script>
+        <p class="play-note">為手機設計，用電腦玩最好。遊戲會自動儲存，冇網都玩得。</p>
+      </div>
+    </section>
+
+    <section class="play-why" aria-labelledby="play-why-title" data-view="play_why">
+      <h2 id="play-why-title" class="play-section-title">點解你會鍾意</h2>
+      <p class="play-why-lead">幾代人以嚟，麻雀都將屋企人同朋友聚埋一枱。Lucky Cat Mahjong 就係想任何人喺任何地方，唔理背景同經驗，都可以免費學、免費玩，將呢個傳統傳落去。</p>
+      <div class="play-why-grid">
+        <div class="play-why-card">
+          <span class="play-tile"><img src="/tiles/39-plum.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div>
+            <h3>教練陪住你</h3>
+            <p>揀 <strong>Coach</strong>，教練會提你打邊隻牌最好、應該做咩牌；揀 <strong>Feedback</strong>，就會檢討你打嘅每一步。</p>
+          </div>
+        </div>
+        <div class="play-why-card">
+          <span class="play-tile"><img src="/tiles/40-orchid.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div>
+            <h3>四種唔同打法</h3>
+            <p>每局每個電腦玩家都有自己嘅打法，所以每枱都唔同。</p>
+          </div>
+        </div>
+        <div class="play-why-card">
+          <span class="play-tile"><img src="/tiles/41-chrysanthemum.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div>
+            <h3>正宗香港計番</h3>
+            <p>3番起糊，<a href="/zh-hk/hong-kong-mahjong/" data-evt="points_guide_link" data-loc="play_why">計番教學</a>入面所有標準牌型同加番都計齊。</p>
+          </div>
+        </div>
+        <div class="play-why-card">
+          <span class="play-tile"><img src="/tiles/42-bamboo.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div>
+            <h3>自動儲存同重播</h3>
+            <p>喺你部機由上次打到嘅地方繼續。儲低你最鍾意嘅牌局，隨時重播。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="play-bots" aria-labelledby="play-bots-title" data-view="play_strategies">
+      <h2 id="play-bots-title" class="play-section-title">認識你嘅教練</h2>
+      <p class="play-bots-lead">我哋相信計番打令麻雀更講策略，每局都更刺激、更難忘，所以我哋教計番。枱上每個電腦玩家都用四種打法其中一種。揀邊個做教練都得，佢會教你佢嘅打法。</p>
+      <div class="play-bots-grid">
+        <div class="play-bot">
+          <span class="play-tile"><img src="/tiles/04-east-wind.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div><h3>Jorge Yau</h3><p>照創辦人嘅方法打。</p></div>
+        </div>
+        <div class="play-bot">
+          <span class="play-tile"><img src="/tiles/05-south-wind.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div><h3>Neural Cat</h3><p>兼顧食糊次數同番數。</p></div>
+        </div>
+        <div class="play-bot">
+          <span class="play-tile"><img src="/tiles/06-west-wind.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div><h3>Lucky Cat</h3><p>以最快食糊為目標。</p></div>
+        </div>
+        <div class="play-bot">
+          <span class="play-tile"><img src="/tiles/07-north-wind.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div><h3>Only Orphans</h3><p>專做一、九同字牌嘅大牌。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="play-cta" aria-labelledby="play-cta-title" data-view="play_cta">
+      <h2 id="play-cta-title" class="play-cta-title">你個位等緊你</h2>
+      <p>枱上已經有三個玩家。坐低一齊打啦。</p>
+      <a href="/playing-mahjong/" class="btn btn-white play-cta-btn" data-evt="play_now_click" data-loc="bottom_cta">即刻玩</a>
+    </section>
+
+    <section class="play-rules" aria-labelledby="play-rules-title" data-view="play_rules">
+      <h2 id="play-rules-title">枱面規矩</h2>
+      <ul>
+        <li><strong>3番起糊。</strong>一副完整嘅牌唔夠3番，唔可以食糊。</li>
+        <li><strong>點賠。</strong><strong>自摸</strong>嘅話，每個對手都要賠俾贏家。<strong>食出銃</strong>就只係打出糊牌嗰家賠俾贏家。</li>
+        <li><strong>封頂。</strong>一副牌最多13番。</li>
+        <li><strong>莊家。</strong>莊家食糊就連莊。否則落莊，每個人都做過莊之後就轉圈風。</li>
+      </ul>
+    </section>
+
+    <section class="play-rules play-credits" aria-labelledby="play-credits-title">
+      <h2 id="play-credits-title">鳴謝</h2>
+      <ul>
+        <li>由 Jorge Yau Lee 製作，開發者、麻雀導師。</li>
+        <li>音樂：Kevin MacLeod 嘅「Guzheng City」、「Shenyang」同「Ripples」（<a href="https://incompetech.com">incompetech.com</a>），以<a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons: By Attribution 4.0</a>授權使用。</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <picture>
+          <source srcset="/assets/logo.webp" type="image/webp">
+          <img src="/assets/logo.png" alt="" class="footer-logo" width="40" height="42" loading="lazy" decoding="async" draggable="false">
+        </picture>
+        <span>Lucky Cat Mahjong</span>
+      </div>
+      <p class="footer-links footer-guides"><a href="/zh-hk/play-mahjong/" class="footer-link" data-evt="play_link_footer" data-loc="footer" data-label="Play Mahjong">打麻雀</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/zh-hk/how-to-play-mahjong/" class="footer-link" data-evt="rules_link_footer" data-loc="footer" data-label="Mahjong Rules">規則</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/zh-hk/hong-kong-mahjong/" class="footer-link" data-evt="points_link_footer" data-loc="footer" data-label="Points Guide">計番教學</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/zh-hk/which-mahjong-tiles-are-you/" class="footer-link" data-evt="quiz_link_footer" data-loc="footer" data-label="Personality Quiz">性格測驗</a></p>
+      <p class="footer-links footer-languages"><a href="/play-mahjong/" class="footer-link" lang="en-US" hreflang="en" data-evt="language_link_footer" data-loc="footer">English</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/zh-hans/play-mahjong/" class="footer-link" lang="zh-Hans" hreflang="zh-Hans" data-evt="language_link_footer" data-loc="footer">简体中文</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/ja/play-mahjong/" class="footer-link" lang="ja" hreflang="ja" data-evt="language_link_footer" data-loc="footer">日本語</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/id/main-mahjong-online/" class="footer-link" lang="id" hreflang="id" data-evt="language_link_footer" data-loc="footer">Bahasa Indonesia</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/ms/main-mahjong-online/" class="footer-link" lang="ms" hreflang="ms" data-evt="language_link_footer" data-loc="footer">Bahasa Melayu</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/vi/choi-mat-chuoc-online/" class="footer-link" lang="vi" hreflang="vi" data-evt="language_link_footer" data-loc="footer">Tiếng Việt</a></p>
+      <p class="footer-links"><a href="/terms-and-conditions/" class="footer-link" data-evt="terms_link_footer" data-loc="footer">Terms and Conditions</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/privacy-policy/" class="footer-link" data-evt="privacy_link_footer" data-loc="footer">Privacy Policy</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/refund-policy/" class="footer-link" data-evt="refund_link_footer" data-loc="footer">Refund Policy</a><span class="footer-links-sep" aria-hidden="true">|</span><button type="button" data-evt="cookie_settings_footer" data-loc="footer" class="footer-link js-cookie-settings">Cookie Settings</button></p>
+      <p class="footer-copy">&copy; <span id="year"></span> Lucky Cat Mahjong</p>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

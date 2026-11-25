@@ -1,0 +1,6 @@
+Paytone One (paytone-one-vietnamese.woff2, paytone-one-latin.woff2)
+
+Paytone One, from Google Fonts: https://fonts.google.com/specimen/Paytone+One
+Licensed under the SIL Open Font License, Version 1.1: https://openfontlicense.org
+Used for Vietnamese headings (public/css/fonts-vi.css, public/css/styles.css). The files are Google Fonts'
+woff2 subsets for Vietnamese and Latin, unchanged.

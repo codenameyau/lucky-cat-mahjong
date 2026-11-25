@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Chơi mạt chược miễn phí: game mạt chược Hồng Kông | Lucky Cat</title>
+  <meta name="description" content="Chơi mạt chược online miễn phí trên trình duyệt, không cần tải về hay đăng ký. Mạt chược Hồng Kông bốn người với máy, có huấn luyện viên và tính faan thật.">
+  <meta name="keywords" content="chơi mạt chược online miễn phí, mạt chược online, game mạt chược, mạt chược miễn phí, chơi mạt chược, mạt chược hồng kông, mạt chược quảng đông, chơi mạt chược trên trình duyệt, chơi mạt chược với máy, tải game mạt chược miễn phí">
+  <meta name="author" content="Lucky Cat Mahjong">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+  <meta name="theme-color" content="#4a0f1c">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="canonical" href="https://luckycatmahjong.com/vi/choi-mat-chuoc-online/">
+  <link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/play-mahjong/">
+  <link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/play-mahjong/">
+  <link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/play-mahjong/">
+  <link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/play-mahjong/">
+  <link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/main-mahjong-online/">
+  <link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/main-mahjong-online/">
+  <link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/choi-mat-chuoc-online/">
+  <link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/play-mahjong/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Lucky Cat Mahjong">
+  <meta property="og:title" content="Chơi mạt chược miễn phí | Lucky Cat Mahjong">
+  <meta property="og:description" content="Chơi mạt chược online miễn phí trên trình duyệt, không cần tải về hay đăng ký. Mạt chược Hồng Kông bốn người với máy, có huấn luyện viên và tính faan thật.">
+  <meta property="og:url" content="https://luckycatmahjong.com/vi/choi-mat-chuoc-online/">
+  <meta property="og:locale" content="vi_VN">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta property="og:locale:alternate" content="zh_HK">
+  <meta property="og:locale:alternate" content="zh_CN">
+  <meta property="og:locale:alternate" content="ja_JP">
+  <meta property="og:locale:alternate" content="id_ID">
+  <meta property="og:locale:alternate" content="ms_MY">
+  <meta property="og:image" content="https://luckycatmahjong.com/assets/social-preview.png">
+  <meta property="og:image:alt" content="Logo Lucky Cat Mahjong">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Chơi mạt chược miễn phí | Lucky Cat Mahjong">
+  <meta name="twitter:description" content="Chơi mạt chược online miễn phí trên trình duyệt, không cần tải về hay đăng ký. Mạt chược Hồng Kông bốn người với máy, có huấn luyện viên và tính faan thật.">
+  <meta name="twitter:image" content="https://luckycatmahjong.com/assets/social-preview.png">
+  <meta name="twitter:image:alt" content="Logo Lucky Cat Mahjong">
+  <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="/assets/logo.png" type="image/png" sizes="1024x1063">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/play-mahjong/manifest.webmanifest">
+  <meta name="apple-mobile-web-app-title" content="Lucky Cat">
+  <link rel="preload" href="/fonts/paytone-one-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/fonts.e18fc0dab7.css">
+  <link rel="stylesheet" href="/css/styles.b2ca132840.css">
+  <link rel="stylesheet" href="/css/play.311fbcba1b.css">
+  <script>
+    // Class the first paint. The form's default is Practice and a red Start,
+    // and a script after the buttons is already too late to stop that flash.
+    (function () {
+      var root = document.documentElement;
+      var mode = "practice";
+      var hasSave = false;
+      try {
+        var settings = JSON.parse(localStorage.getItem("lcm-play-settings") || "null");
+        if (settings && settings.mode === "payout") mode = "payout";
+        // Each mode keeps its own game. The one save earlier versions kept
+        // for both moves into its mode's slot.
+        var old = JSON.parse(localStorage.getItem("lcm-play-autosave") || "null");
+        if (old != null) {
+          var og = old && old.payload && old.payload.game;
+          var okey = og && og.settings && og.settings.mode === "payout" ? "lcm-play-autosave-full" : "lcm-play-autosave-practice";
+          if (og && localStorage.getItem(okey) == null) localStorage.setItem(okey, JSON.stringify(old));
+          localStorage.removeItem("lcm-play-autosave");
+        }
+        var save = JSON.parse(localStorage.getItem(mode === "payout" ? "lcm-play-autosave-full" : "lcm-play-autosave-practice") || "null");
+        hasSave = !!(save && save.payload && save.payload.game);
+      } catch (e) {}
+      root.classList.add("play-mode-" + mode);
+      // play-has-save: there's a saved game in the selected mode, so Resume
+      // game is the button; otherwise it's New Game.
+      if (hasSave) root.classList.add("play-has-save");
+    })();
+  </script>
+  <script>
+    // Google Analytics runs on the live site only. On localhost and private network
+    // addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x, .local) gtag does nothing, so
+    // testing never adds events. There, each call is kept in window.lcmLocalEvents
+    // instead, so a test can read what would have been sent.
+    window.dataLayer = window.dataLayer || [];
+    var localHost = /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local)$/i.test(location.hostname);
+    function gtag(){ if (!localHost) dataLayer.push(arguments); else (window.lcmLocalEvents = window.lcmLocalEvents || []).push([].slice.call(arguments)); }
+    // js/analytics-id.js loads with defer, so it doesn't hold up the first paint. It runs
+    // before the page's other deferred scripts (they run in order) and its onload runs
+    // this, so the IDs and the cookie choice still come before the page view and every
+    // event. Google's own script (about 180 KB) is fetched once the page has loaded, so it
+    // doesn't compete with the logo and the stylesheet; calls made before then wait in
+    // dataLayer and are sent when it arrives.
+    window.lcmStartAnalytics = function lcmStartAnalytics() {
+      if (window.lcmAnalyticsStarted) return;
+      window.lcmAnalyticsStarted = true;
+      // The visitor and session IDs and the cookie choice (js/analytics-id.js), before the page view.
+      if (window.lcmAnalytics) window.lcmAnalytics.start(gtag);
+      if (!localHost) {
+        gtag("js", new Date());
+        gtag("config", "G-B514HH987M");
+        var loadGtag = function () {
+          var gaScript = document.createElement("script");
+          gaScript.async = true;
+          gaScript.src = "https://www.googletagmanager.com/gtag/js?id=G-B514HH987M";
+          document.head.appendChild(gaScript);
+        };
+        if (document.readyState === "complete") loadGtag();
+        else window.addEventListener("load", loadGtag);
+      }
+    }
+  </script>
+  <script src="/js/bundle-b34dbe27e2.js" defer onerror="lcmStartAnalytics()"></script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": [
+      "VideoGame",
+      "WebApplication"
+    ],
+    "@id": "https://luckycatmahjong.com/vi/choi-mat-chuoc-online/#game",
+    "name": "Lucky Cat Mahjong: game mạt chược miễn phí",
+    "alternateName": [
+      "Mạt chược miễn phí",
+      "Chơi mạt chược",
+      "Mạt chược Hồng Kông online",
+      "Mạt chược online",
+      "Chơi mạt chược Hồng Kông"
+    ],
+    "url": "https://luckycatmahjong.com/vi/choi-mat-chuoc-online/",
+    "image": "https://luckycatmahjong.com/assets/logo.png",
+    "description": "Chơi mạt chược miễn phí trên trình duyệt với người chơi máy. Huấn luyện viên dạy bạn tính điểm và giúp bạn ù nhiều ván hơn. Chơi theo luật mạt chược Hồng Kông.",
+    "genre": [
+      "Mahjong",
+      "Tile game",
+      "Board game"
+    ],
+    "gamePlatform": "Web browser",
+    "playMode": "SinglePlayer",
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "Any",
+    "inLanguage": "vi",
+    "isAccessibleForFree": true,
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "@id": "https://luckycatmahjong.com/#business",
+      "name": "Lucky Cat Mahjong",
+      "url": "https://luckycatmahjong.com/"
+    }
+  }
+  </script>
+  <script>window.LCM_WORDS = {"New Game":"Trận mới"};</script>
+  <link rel="preload" href="/fonts/paytone-one-vietnamese.woff2" as="font" type="font/woff2" crossorigin data-locale-asset>
+</head>
+<body>
+  <header class="site-header" id="site-header">
+    <nav class="nav container">
+      <a href="/vi/" class="header-brand" aria-label="Trang chủ Lucky Cat Mahjong">
+        <picture>
+          <source srcset="/assets/logo.webp" type="image/webp">
+          <img src="/assets/logo.png" alt="" class="header-logo" width="36" height="37" decoding="async" draggable="false">
+        </picture>
+        <span class="header-brand-name">Lucky Cat Mahjong</span>
+      </a>
+      <button type="button" class="nav-toggle" aria-label="Mở hoặc đóng menu" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <ul class="nav-links">
+        <li><a href="/vi/cong-dong/" class="nav-link" data-label="Community"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 13.7c2.6 0 4.5 1.8 4.5 4.3"/></svg>Cộng đồng</a></li>
+        <li><a href="/events/" class="nav-link" data-label="Events"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Sự kiện</a></li>
+        <li><a href="/vi/cach-choi-mat-chuoc/" class="nav-link" data-label="Rules"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 6.5C10.5 5 8 4.5 4 4.5v14c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-14c-4 0-6.5.5-8 2z"/><path d="M12 6.5v14"/></svg>Luật chơi</a></li>
+        <li><a href="/vi/cach-tinh-diem-mat-chuoc-hong-kong/" class="nav-link" data-label="Points Guide"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8.5 7.5h7"/><path d="M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01"/></svg>Tính điểm</a></li>
+        <li><a href="/vi/which-mahjong-tiles-are-you/" class="nav-link" data-label="Personality Quiz"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"/><path d="M19 15v4M17 17h4"/></svg>Trắc nghiệm</a></li>
+        <li><a href="/vi/choi-mat-chuoc-online/" class="nav-link" data-label="Play Mahjong"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg>Chơi mạt chược</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="play container">
+    <section class="play-card play-hero" aria-labelledby="play-title">
+      <img src="/assets/logo.webp" alt="" width="140" height="145" class="play-cat" draggable="false">
+      <div class="play-hero-copy">
+        <p class="play-eyebrow">Mạt chược Hồng Kông miễn phí</p>
+        <h1 id="play-title" class="play-title">Chơi mạt chược</h1>
+        <p class="play-lead">Ván đầu tiên của bạn chỉ cách một lần chạm.</p>
+        <ul class="play-perks">
+          <li>Huấn luyện viên AI</li>
+          <li>Tính điểm đầy đủ</li>
+          <li>Phân tích trận đấu</li>
+        </ul>
+
+        <form id="play-settings" class="play-form">
+          <fieldset class="play-field">
+            <legend>Chế độ chơi</legend>
+            <div class="play-options">
+              <label class="play-option">
+                <input type="radio" name="mode" value="practice" checked>
+                <span><strong>Luyện tập</strong><small>Không tính điểm, không trả tiền. Chỉ cần chơi và xem faan của mỗi ván.</small></span>
+              </label>
+              <label class="play-option">
+                <input type="radio" name="mode" value="payout">
+                <span><strong>Trận đầy đủ</strong><small>Chơi đủ 4 vòng, mỗi người bắt đầu với 2.000 điểm. Ai nhiều điểm nhất khi kết thúc sẽ thắng.</small></span>
+              </label>
+            </div>
+            <p class="play-mode-note" data-mode="practice">Không tính điểm, không trả tiền. Chỉ cần chơi và xem faan của mỗi ván.</p>
+            <p class="play-mode-note" data-mode="payout">Chơi đủ 4 vòng. Mỗi người bắt đầu với 2.000 điểm, ai nhiều điểm nhất sẽ thắng.</p>
+          </fieldset>
+
+          <div class="play-actions">
+            <button type="button" class="btn btn-white play-start" id="play-resume">Chơi tiếp</button>
+            <button type="submit" class="btn btn-primary play-start" id="play-start">Trận mới</button>
+            <button type="button" class="btn btn-white play-start" id="play-learn">Học chơi</button>
+          </div>
+        </form>
+        <script>
+          // Paint the saved mode and buttons before the first frame. The deferred
+          // game script checks the signature afterwards and only corrects a bad save.
+          (function () {
+            function read(key) {
+              try { return JSON.parse(localStorage.getItem(key)); }
+              catch (e) { return null; }
+            }
+            var form = document.getElementById("play-settings");
+            var settings = read("lcm-play-settings") || {};
+            if (settings.mode === "practice" || settings.mode === "payout") {
+              var radio = form.querySelector("input[name=\"mode\"][value=\"" + settings.mode + "\"]");
+              if (radio) radio.checked = true;
+            }
+            // Two buttons: Resume game when there's a saved game in the selected
+            // mode, else New Game (red), and Learn to play (white).
+            var picked = form.querySelector("input[name=\"mode\"]:checked");
+            var save = read(picked && picked.value === "payout" ? "lcm-play-autosave-full" : "lcm-play-autosave-practice");
+            var here = !!(save && save.payload && save.payload.game);
+            var resume = document.getElementById("play-resume");
+            var start = document.getElementById("play-start");
+            var learn = document.getElementById("play-learn");
+            if (resume) { resume.hidden = !here; resume.classList.add("btn-primary"); resume.classList.remove("btn-white"); }
+            if (start) { start.hidden = here; start.classList.add("btn-primary"); start.classList.remove("btn-white"); }
+            if (learn) { learn.hidden = false; learn.classList.add("btn-white"); learn.classList.remove("btn-primary"); }
+          })();
+        </script>
+        <p class="play-note">Làm cho điện thoại, chơi trên máy tính là tốt nhất. Trận đấu tự lưu và chơi được cả khi không có mạng.</p>
+      </div>
+    </section>
+
+    <section class="play-why" aria-labelledby="play-why-title" data-view="play_why">
+      <h2 id="play-why-title" class="play-section-title">Vì sao bạn sẽ thích chơi</h2>
+      <p class="play-why-lead">Mạt chược đã gắn kết gia đình và bạn bè quanh bàn chơi qua nhiều thế hệ. Lucky Cat Mahjong được làm ra để bất kỳ ai, ở bất kỳ đâu, dù xuất thân hay kinh nghiệm thế nào, cũng có thể học và chơi miễn phí, để tiếp nối truyền thống này.</p>
+      <div class="play-why-grid">
+        <div class="play-why-card">
+          <span class="play-tile"><img src="/tiles/39-plum.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div>
+            <h3>Huấn luyện viên bên cạnh</h3>
+            <p>Chọn <strong>Coach</strong> để được gợi ý quân nên đánh và bài nên làm, hoặc <strong>Feedback</strong> để được nhận xét từng nước đi của bạn.</p>
+          </div>
+        </div>
+        <div class="play-why-card">
+          <span class="play-tile"><img src="/tiles/40-orchid.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div>
+            <h3>Bốn chiến thuật riêng</h3>
+            <p>Mỗi người chơi máy nhận một chiến thuật riêng mỗi trận, nên không bàn nào chơi giống bàn nào.</p>
+          </div>
+        </div>
+        <div class="play-why-card">
+          <span class="play-tile"><img src="/tiles/41-chrysanthemum.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div>
+            <h3>Tính điểm Hồng Kông thật</h3>
+            <p>Chơi với mức tối thiểu 3 faan, cùng mọi mẫu bài và điểm thưởng tiêu chuẩn trong <a href="/vi/cach-tinh-diem-mat-chuoc-hong-kong/" data-evt="points_guide_link" data-loc="play_why">hướng dẫn tính điểm</a> của chúng tôi.</p>
+          </div>
+        </div>
+        <div class="play-why-card">
+          <span class="play-tile"><img src="/tiles/42-bamboo.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div>
+            <h3>Tự lưu và xem lại</h3>
+            <p>Chơi tiếp từ chỗ bạn dừng trên thiết bị của mình. Lưu những trận yêu thích để xem lại bất cứ lúc nào.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="play-bots" aria-labelledby="play-bots-title" data-view="play_strategies">
+      <h2 id="play-bots-title" class="play-section-title">Gặp các huấn luyện viên</h2>
+      <p class="play-bots-lead">Chúng tôi tin rằng chơi có tính điểm giúp trò chơi có chiều sâu chiến thuật hơn, và khiến mỗi trận thú vị, đáng nhớ hơn. Vì vậy chúng tôi dạy cách tính điểm. Mỗi người chơi máy ở bàn của bạn dùng một trong bốn chiến thuật. Chọn bất kỳ chiến thuật nào làm huấn luyện viên, nó sẽ dạy bạn lối chơi của mình.</p>
+      <div class="play-bots-grid">
+        <div class="play-bot">
+          <span class="play-tile"><img src="/tiles/04-east-wind.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div><h3>Jorge Yau</h3><p>Chơi theo cách của người sáng lập.</p></div>
+        </div>
+        <div class="play-bot">
+          <span class="play-tile"><img src="/tiles/05-south-wind.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div><h3>Neural Cat</h3><p>Cân bằng giữa ù thường xuyên và ù bài lớn.</p></div>
+        </div>
+        <div class="play-bot">
+          <span class="play-tile"><img src="/tiles/06-west-wind.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div><h3>Lucky Cat</h3><p>Chơi để ù nhanh nhất.</p></div>
+        </div>
+        <div class="play-bot">
+          <span class="play-tile"><img src="/tiles/07-north-wind.svg" alt="" width="42" height="56" draggable="false"></span>
+          <div><h3>Only Orphans</h3><p>Săn bài lớn với quân 1, 9 và quân chữ.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="play-cta" aria-labelledby="play-cta-title" data-view="play_cta">
+      <h2 id="play-cta-title" class="play-cta-title">Chỗ của bạn đang chờ</h2>
+      <p>Ba người chơi đã ngồi vào bàn. Vào chơi thôi.</p>
+      <a href="/playing-mahjong/" class="btn btn-white play-cta-btn" data-evt="play_now_click" data-loc="bottom_cta">Chơi ngay</a>
+    </section>
+
+    <section class="play-rules" aria-labelledby="play-rules-title" data-view="play_rules">
+      <h2 id="play-rules-title">Luật bàn chơi</h2>
+      <ul>
+        <li><strong>Ù từ 3 faan.</strong> Bài hoàn chỉnh dưới 3 faan không được ù.</li>
+        <li><strong>Trả tiền.</strong> Khi <strong>tự bốc</strong>, mọi đối thủ đều trả cho người ù. Khi ù <strong>quân đánh ra</strong>, chỉ người đánh ra quân ù trả cho người ù.</li>
+        <li><strong>Bài tối đa.</strong> Một ván bài tính tối đa 13 faan.</li>
+        <li><strong>Nhà cái.</strong> Nhà cái được làm cái tiếp sau khi ù. Nếu không, quyền làm cái chuyển sang người kế tiếp, và gió vòng đổi sau khi ai cũng đã làm cái.</li>
+      </ul>
+    </section>
+
+    <section class="play-rules play-credits" aria-labelledby="play-credits-title">
+      <h2 id="play-credits-title">Ghi công</h2>
+      <ul>
+        <li>Được làm bởi Jorge Yau Lee, lập trình viên và người dạy mạt chược.</li>
+        <li>Nhạc: &ldquo;Guzheng City&rdquo;, &ldquo;Shenyang&rdquo; và &ldquo;Ripples&rdquo; của Kevin MacLeod (<a href="https://incompetech.com">incompetech.com</a>), cấp phép theo <a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons: By Attribution 4.0</a>.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <picture>
+          <source srcset="/assets/logo.webp" type="image/webp">
+          <img src="/assets/logo.png" alt="" class="footer-logo" width="40" height="42" loading="lazy" decoding="async" draggable="false">
+        </picture>
+        <span>Lucky Cat Mahjong</span>
+      </div>
+      <p class="footer-links footer-guides"><a href="/vi/choi-mat-chuoc-online/" class="footer-link" data-evt="play_link_footer" data-loc="footer" data-label="Play Mahjong">Chơi mạt chược</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/vi/cach-choi-mat-chuoc/" class="footer-link" data-evt="rules_link_footer" data-loc="footer" data-label="Mahjong Rules">Luật chơi</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/vi/cach-tinh-diem-mat-chuoc-hong-kong/" class="footer-link" data-evt="points_link_footer" data-loc="footer" data-label="Points Guide">Tính điểm</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/vi/which-mahjong-tiles-are-you/" class="footer-link" data-evt="quiz_link_footer" data-loc="footer" data-label="Personality Quiz">Trắc nghiệm</a></p>
+      <p class="footer-links footer-languages"><a href="/play-mahjong/" class="footer-link" lang="en-US" hreflang="en" data-evt="language_link_footer" data-loc="footer">English</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/zh-hk/play-mahjong/" class="footer-link" lang="zh-HK" hreflang="zh-HK" data-evt="language_link_footer" data-loc="footer">中文(香港)</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/zh-hans/play-mahjong/" class="footer-link" lang="zh-Hans" hreflang="zh-Hans" data-evt="language_link_footer" data-loc="footer">简体中文</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/ja/play-mahjong/" class="footer-link" lang="ja" hreflang="ja" data-evt="language_link_footer" data-loc="footer">日本語</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/id/main-mahjong-online/" class="footer-link" lang="id" hreflang="id" data-evt="language_link_footer" data-loc="footer">Bahasa Indonesia</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/ms/main-mahjong-online/" class="footer-link" lang="ms" hreflang="ms" data-evt="language_link_footer" data-loc="footer">Bahasa Melayu</a></p>
+      <p class="footer-links"><a href="/terms-and-conditions/" class="footer-link" data-evt="terms_link_footer" data-loc="footer">Terms and Conditions</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/privacy-policy/" class="footer-link" data-evt="privacy_link_footer" data-loc="footer">Privacy Policy</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/refund-policy/" class="footer-link" data-evt="refund_link_footer" data-loc="footer">Refund Policy</a><span class="footer-links-sep" aria-hidden="true">|</span><button type="button" data-evt="cookie_settings_footer" data-loc="footer" class="footer-link js-cookie-settings">Cookie Settings</button></p>
+      <p class="footer-copy">&copy; <span id="year"></span> Lucky Cat Mahjong</p>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

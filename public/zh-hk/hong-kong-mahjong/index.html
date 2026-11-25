@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>香港麻雀點計番：計番教學、番數表同計番計算機</title>
+  <meta name="description" content="免費香港麻雀計番教學同計番計算機：計任何一副牌幾多番，學晒糊牌牌型同特別牌型，仲有半辣、全辣賠率表。">
+  <meta name="keywords" content="香港麻雀，港式麻雀，香港麻雀計番，港式麻雀 番數，麻雀計番，計番，番數表，麻雀番數，麻雀牌型，麻雀計番器，計番計算機，麻雀 滿糊，十三么，混一色，清一色，對對糊，半辣，全辣，麻雀 3番起糊，學計番，麻雀規則，麻雀教學，hong kong mahjong, mahjong faan">
+  <meta name="author" content="Lucky Cat Mahjong">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+  <meta name="theme-color" content="#C41E3A">
+
+  <link rel="canonical" href="https://luckycatmahjong.com/zh-hk/hong-kong-mahjong/">
+  <link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/">
+  <link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/hong-kong-mahjong/">
+  <link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/hong-kong-mahjong/">
+  <link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/hong-kong-mahjong/">
+  <link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/poin-mahjong-hongkong/">
+  <link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/mata-mahjong-hong-kong/">
+  <link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cach-tinh-diem-mat-chuoc-hong-kong/">
+  <link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Lucky Cat Mahjong">
+  <meta property="og:title" content="香港麻雀點計番：計番教學同計番計算機 | Lucky Cat Mahjong">
+  <meta property="og:description" content="免費香港麻雀計番教學同計番計算機：計任何一副牌幾多番，學晒糊牌牌型同特別牌型，仲有半辣、全辣賠率表。">
+  <meta property="og:url" content="https://luckycatmahjong.com/zh-hk/hong-kong-mahjong/">
+  <meta property="og:locale" content="zh_HK">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta property="og:locale:alternate" content="zh_CN">
+  <meta property="og:locale:alternate" content="ja_JP">
+  <meta property="og:locale:alternate" content="id_ID">
+  <meta property="og:locale:alternate" content="ms_MY">
+  <meta property="og:locale:alternate" content="vi_VN">
+  <meta property="og:image" content="https://luckycatmahjong.com/assets/social-preview.png">
+  <meta property="og:image:alt" content="Lucky Cat Mahjong 標誌">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="香港麻雀點計番：計番教學同計番計算機 | Lucky Cat Mahjong">
+  <meta name="twitter:description" content="免費香港麻雀計番教學同計番計算機：計任何一副牌幾多番，學晒糊牌牌型同特別牌型，仲有半辣、全辣賠率表。">
+  <meta name="twitter:image" content="https://luckycatmahjong.com/assets/social-preview.png">
+  <meta name="twitter:image:alt" content="Lucky Cat Mahjong 標誌">
+
+  <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="/assets/logo.png" type="image/png" sizes="1024x1063">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+  <link rel="preload" href="/fonts/paytone-one-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/fonts.e18fc0dab7.css">
+  <link rel="stylesheet" href="/css/styles.b2ca132840.css">
+  <link rel="stylesheet" href="/css/points.17a152a1ae.css">
+
+  <script>
+    // Google Analytics runs on the live site only. On localhost and private network
+    // addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x, .local) gtag does nothing, so
+    // testing never adds events. There, each call is kept in window.lcmLocalEvents
+    // instead, so a test can read what would have been sent.
+    window.dataLayer = window.dataLayer || [];
+    var localHost = /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local)$/i.test(location.hostname);
+    function gtag(){ if (!localHost) dataLayer.push(arguments); else (window.lcmLocalEvents = window.lcmLocalEvents || []).push([].slice.call(arguments)); }
+    // js/analytics-id.js loads with defer, so it doesn't hold up the first paint. It runs
+    // before the page's other deferred scripts (they run in order) and its onload runs
+    // this, so the IDs and the cookie choice still come before the page view and every
+    // event. Google's own script (about 180 KB) is fetched once the page has loaded, so it
+    // doesn't compete with the logo and the stylesheet; calls made before then wait in
+    // dataLayer and are sent when it arrives.
+    window.lcmStartAnalytics = function lcmStartAnalytics() {
+      if (window.lcmAnalyticsStarted) return;
+      window.lcmAnalyticsStarted = true;
+      // The visitor and session IDs and the cookie choice (js/analytics-id.js), before the page view.
+      if (window.lcmAnalytics) window.lcmAnalytics.start(gtag);
+      if (!localHost) {
+        gtag("js", new Date());
+        gtag("config", "G-B514HH987M");
+        var loadGtag = function () {
+          var gaScript = document.createElement("script");
+          gaScript.async = true;
+          gaScript.src = "https://www.googletagmanager.com/gtag/js?id=G-B514HH987M";
+          document.head.appendChild(gaScript);
+        };
+        if (document.readyState === "complete") loadGtag();
+        else window.addEventListener("load", loadGtag);
+      }
+    }
+  </script>
+  <script src="/js/bundle-290f928abe.js" defer onerror="lcmStartAnalytics()"></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Article",
+        "@id": "https://luckycatmahjong.com/zh-hk/hong-kong-mahjong/#article",
+        "headline": "麻雀計番教學：香港麻雀點樣計番",
+        "description": "免費香港麻雀計番教學：輸入你副牌就計到幾多番同有咩牌型，仲有新手易明嘅牌、特別牌型同賠錢規則教學。",
+        "image": "https://luckycatmahjong.com/assets/logo.png",
+        "inLanguage": "zh-HK",
+        "about": [
+          "麻雀計番",
+          "香港麻雀計番"
+        ],
+        "author": {
+          "@type": "Organization",
+          "name": "Lucky Cat Mahjong",
+          "url": "https://luckycatmahjong.com/"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Lucky Cat Mahjong",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://luckycatmahjong.com/assets/logo.png"
+          }
+        },
+        "mainEntityOfPage": "https://luckycatmahjong.com/zh-hk/hong-kong-mahjong/"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "首頁",
+            "item": "https://luckycatmahjong.com/zh-hk/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "麻雀計番教學",
+            "item": "https://luckycatmahjong.com/zh-hk/hong-kong-mahjong/"
+          }
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "香港麻雀嘅「番」係咩？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "番係香港麻雀計分嘅單位。你副糊牌靠牌型攞番，例如混一色、清一色、對對糊、三元牌同特別牌型。計好總番數，再換成其他玩家要賠嘅分數或籌碼。"
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "打麻雀要幾多番先可以食糊？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "大部分香港枱面要最少3番先可以食糊，亦有人玩1番起糊或者0番（雞糊）起糊。開枱前記得講定幾多番起糊。"
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "香港麻雀嘅滿糊係咩？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "滿糊即係賠到封頂嘅牌，通常係13番。例子有十三么、大四喜、九子連環同十八羅漢。"
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "番數點樣換成麻雀分數？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "番數會跟一個逐番加倍嘅表換成分數。由3番起糊開始，每多一番，基本賠率大約加一倍，直到封頂為止。"
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <script>window.LCM_WORDS = {"Add {tile}":"加{tile}","{n} faan":"{n}番","{tile} — drag to reorder, tap to remove":"{tile}：拖住調位，撳一下移走","1 tile":"1隻牌","{n} tiles":"{n}隻牌","{count} (incomplete hand)":"{count}（未成糊牌）","+ {n} bonus tiles":"+ {n}隻花牌","Press {keys} to paste your hand seed.":"撳{keys}貼上你嘅手牌代碼。","That isn't a hand seed or a playback file.":"呢個唔係手牌代碼，亦唔係重播檔案。","Click random, show examples, or add tiles to make a hand and see its score":"撳隨機、顯示例子，或者加牌砌一副牌，睇下計幾多番","{n} faan (limit hand)":"{n}番（滿糊）","Below the {n}-faan minimum to win":"未夠{n}番起糊","{points} points":"{points}分","Payout table":"賠率表","Full spicy":"全辣","Half spicy":"半辣","Total":"合共","Share hand":"分享手牌","Copied Link":"已複製連結","Copy failed":"複製唔到","Hide examples":"收埋例子","Show examples":"顯示例子","One Character":"一萬","Two Character":"二萬","Three Character":"三萬","Four Character":"四萬","Five Character":"五萬","Six Character":"六萬","Seven Character":"七萬","Eight Character":"八萬","Nine Character":"九萬","One Circle":"一筒","Two Circle":"二筒","Three Circle":"三筒","Four Circle":"四筒","Five Circle":"五筒","Six Circle":"六筒","Seven Circle":"七筒","Eight Circle":"八筒","Nine Circle":"九筒","One Bamboo":"一索","Two Bamboo":"二索","Three Bamboo":"三索","Four Bamboo":"四索","Five Bamboo":"五索","Six Bamboo":"六索","Seven Bamboo":"七索","Eight Bamboo":"八索","Nine Bamboo":"九索","East Wind":"東風","South Wind":"南風","West Wind":"西風","North Wind":"北風","Red Dragon":"紅中","Green Dragon":"發財","White Dragon":"白板","Plum":"梅","Orchid":"蘭","Chrysanthe-mum":"菊","Bamboo":"竹","Spring":"春","Summer":"夏","Autumn":"秋","Winter":"冬","All Terminals":"清么九","Mixed Orphans":"花么九","Seat and Round Wind":"門風同圈風","Seat Wind":"門風","Round Wind":"圈風","Seven Pairs":"七對子","All Honors":"字一色","Full Flush":"清一色","Half Flush":"混一色","Concealed Triplets":"坎坎糊","All Triplets":"對對糊","Four Quads":"十八羅漢","All Sequences":"平糊","Big Three Dragons":"大三元","Small Three Dragons":"小三元","Dragon Triplet":"番牌","Dragon Quad":"番牌","Big Four Winds":"大四喜","Small Four Winds":"小四喜","Eight Immortals Crossing the Sea":"八仙過海","Seven Robbing One":"花糊","No Flowers":"無花","Four Flowers":"一台花（梅蘭菊竹）","Seat Flower":"正花（梅蘭菊竹）","Four Seasons":"一台花（春夏秋冬）","Seat Season":"正花（春夏秋冬）","Heavenly Hand":"天糊","Earthly Hand":"地糊","Self-Draw":"自摸","Concealed":"門前清","Win on Last Tile":"海底撈月","Robbing the Kong":"搶槓","Win by Double Kong":"槓上槓","Win by Kong":"槓上開花","Thirteen Orphans":"十三么","Nine Gates":"九子連環","Chicken Hand":"雞糊","Characters":"萬子","Circles":"筒子","Bamboos":"索子","Honors":"字牌","Flowers & Seasons":"花牌同季節牌"};</script>
+</head>
+<body>
+  <header class="site-header" id="site-header">
+    <nav class="nav container">
+      <a href="/zh-hk/" class="header-brand" aria-label="Lucky Cat Mahjong 首頁">
+        <picture>
+          <source srcset="/assets/logo.webp" type="image/webp">
+          <img src="/assets/logo.png" alt="" class="header-logo" width="36" height="37" decoding="async" draggable="false">
+        </picture>
+        <span class="header-brand-name">Lucky Cat Mahjong</span>
+      </a>
+      <button type="button" class="nav-toggle" aria-label="開關選單" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <ul class="nav-links">
+        <li><a href="/zh-hk/community/" class="nav-link" data-label="Community"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 13.7c2.6 0 4.5 1.8 4.5 4.3"/></svg>社群</a></li>
+        <li><a href="/events/" class="nav-link" data-label="Events"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>活動</a></li>
+        <li><a href="/zh-hk/how-to-play-mahjong/" class="nav-link" data-label="Rules"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 6.5C10.5 5 8 4.5 4 4.5v14c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-14c-4 0-6.5.5-8 2z"/><path d="M12 6.5v14"/></svg>規則</a></li>
+        <li><a href="/zh-hk/hong-kong-mahjong/" class="nav-link" data-label="Points Guide"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8.5 7.5h7"/><path d="M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01"/></svg>計番教學</a></li>
+        <li><a href="/zh-hk/which-mahjong-tiles-are-you/" class="nav-link" data-label="Personality Quiz"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"/><path d="M19 15v4M17 17h4"/></svg>性格測驗</a></li>
+        <li><a href="/zh-hk/play-mahjong/" class="nav-link" data-label="Play Mahjong"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg>打麻雀</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="top">
+    <!-- CALCULATOR -->
+    <section id="calculator" class="points-section">
+      <div class="container">
+        <div class="section-intro">
+          <h1 class="section-heading">麻雀計番教學</h1>
+        </div>
+        <div class="calc">
+          <div class="calc-left">
+            <div class="calc-card calc-bonuses">
+              <div class="calc-card-head">
+                <h3>食糊情況加番</h3>
+                <button type="button" id="calc-reset-options" class="calc-reset" data-evt="points_reset_options_click" data-loc="options">重設</button>
+              </div>
+              <form id="calc-options" class="calc-options">
+                <table class="calc-options-table">
+                  <tbody>
+                    <tr>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-selfdraw" data-evt="points_self_draw_click" data-loc="options"><span>自摸</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-concealed" data-evt="points_concealed_click" data-loc="options"><span>門前清</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-lasttile" data-evt="points_last_tile_click" data-loc="options"><span>海底撈月</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-robkong" data-evt="points_rob_kong_click" data-loc="options"><span>搶槓</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-kongwin" data-evt="points_kong_win_click" data-loc="options"><span>槓上開花</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-double-kong" data-evt="points_double_kong_click" data-loc="options"><span>槓上槓</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-include-flowers" data-evt="points_no_flowers_click" data-loc="options"><span>包括花牌</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-unlimited" data-evt="points_unlimited_click" data-loc="options"><span>唔封頂</span></label></td>
+                    </tr>
+                    <tr class="calc-options-winds">
+                      <td>
+                        <label class="opt-select opt-select--inline">門風
+                          <select id="opt-seat" data-evt="points_seat_wind_select" data-loc="options">
+                            <option value="1" selected>東</option>
+                            <option value="2">南</option>
+                            <option value="3">西</option>
+                            <option value="4">北</option>
+                          </select>
+                        </label>
+                      </td>
+                      <td>
+                        <label class="opt-select opt-select--inline">圈風
+                          <select id="opt-round" data-evt="points_round_wind_select" data-loc="options">
+                            <option value="1" selected>東</option>
+                            <option value="2">南</option>
+                            <option value="3">西</option>
+                            <option value="4">北</option>
+                          </select>
+                        </label>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </form>
+            </div>
+
+            <div class="calc-card">
+              <div class="calc-card-head">
+                <h3>手牌</h3>
+                <div class="calc-card-actions">
+                  <button type="button" id="calc-random" class="calc-reset" data-evt="points_random_click" data-loc="hand">隨機</button>
+                  <button type="button" id="calc-reset" class="calc-reset" data-evt="points_reset_click" data-loc="hand">重設</button>
+                  <button type="button" id="calc-share" class="calc-reset" data-evt="points_share_click" data-loc="hand">分享手牌</button>
+                </div>
+              </div>
+              <div id="calc-hand" class="calc-hand"></div>
+              <div id="calc-result" class="calc-result"></div>
+            </div>
+          </div>
+
+          <div class="calc-right">
+            <div class="calc-card">
+              <div class="calc-card-head">
+                <h3>加牌落手牌</h3>
+                <button type="button" id="calc-toggle-examples" class="calc-reset" data-evt="points_examples_toggle_click" data-loc="examples" aria-expanded="true" aria-controls="calc-examples">收埋例子</button>
+              </div>
+              <div id="calc-examples" class="calc-controls">
+                <button type="button" data-example="chicken" data-evt="points_example_click" data-evt-value="chicken" data-loc="examples">雞糊</button>
+                <button type="button" data-example="sequence" data-evt="points_example_click" data-evt-value="sequence" data-loc="examples">平糊</button>
+                <button type="button" data-example="halfflush" data-evt="points_example_click" data-evt-value="halfflush" data-loc="examples">混一色</button>
+                <button type="button" data-example="alltriplets" data-evt="points_example_click" data-evt-value="alltriplets" data-loc="examples">對對糊</button>
+                <button type="button" data-example="sevenpairs" data-evt="points_example_click" data-evt-value="sevenpairs" data-loc="examples">七對子</button>
+                <button type="button" data-example="fullflush" data-evt="points_example_click" data-evt-value="fullflush" data-loc="examples">清一色</button>
+                <button type="button" data-example="threedragons" data-evt="points_example_click" data-evt-value="threedragons" data-loc="examples">大三元</button>
+                <button type="button" data-example="allhonors" data-evt="points_example_click" data-evt-value="allhonors" data-loc="examples">字一色</button>
+                <button type="button" data-example="allterminals" data-evt="points_example_click" data-evt-value="allterminals" data-loc="examples">清么九</button>
+                <button type="button" data-example="thirteen" data-evt="points_example_click" data-evt-value="thirteen" data-loc="examples">十三么</button>
+                <button type="button" data-example="fourwinds" data-evt="points_example_click" data-evt-value="fourwinds" data-loc="examples">大四喜</button>
+                <button type="button" data-example="ninegates" data-evt="points_example_click" data-evt-value="ninegates" data-loc="examples">九子連環</button>
+              </div>
+              <div id="calc-palette"></div>
+            </div>
+          </div>
+        </div>
+
+        <p class="calc-disclaimer">呢個計算機用一套常見嘅香港計番規則，13番封頂。你枱嘅規矩可能唔同。當佢係學習工具，唔好當佢係裁判。</p>
+      </div>
+    </section>
+
+    <!-- PLAY BANNER: under the calculator -->
+    <section class="points-hero-section" aria-labelledby="points-hero-title">
+      <div class="container">
+        <div class="points-hero">
+          <img src="/assets/logo.webp" alt="" width="140" height="145" class="points-hero-cat" draggable="false">
+          <h2 id="points-hero-title" class="points-hero-title">邊打邊學計番</h2>
+          <p class="points-hero-text">同三個電腦玩家埋枱。教練會解釋每一隻打出嘅牌，每次食糊都會顯示點樣計番。</p>
+          <a href="/zh-hk/play-mahjong/" class="btn points-hero-btn" data-evt="play_link_points" data-loc="calculator_banner">免費打麻雀</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- BASICS -->
+    <section id="basics" class="points-section">
+      <div class="container">
+        <div class="section-intro">
+          <h2 class="section-heading">點樣計番</h2>
+        </div>
+        <p class="points-lead">
+          香港麻雀嘅糊牌通常有14隻牌：四組牌（叫<strong>牌組</strong>）加一對<strong>眼</strong>。一組牌可以係<em>上</em>（同一花色三隻連續嘅牌，例如四五六筒）、<em>碰</em>（三隻一樣嘅牌）或者<em>槓</em>（四隻一樣嘅牌）。眼一定係兩隻一樣嘅牌。一副香港麻雀有三個數字花色（萬子、筒子、索子）、字牌（風牌同三元牌），同花牌同季節牌。每款牌有四隻，8隻花牌同季節牌各一隻，一共144隻。有咗糊牌，就計<strong>番</strong>：混一色、對對糊、三元牌碰等等牌型都有番。大部分枱面要最少<strong>3番</strong>先可以食糊。最高係<strong>滿糊</strong>，通常係13番。</p>
+        <p class="points-lead">
+          呢啲規則參考自<a href="https://en.wikipedia.org/wiki/Hong_Kong_mahjong_scoring_rules" data-track="points_wikipedia_click">維基百科</a>。第一次玩？先睇<a href="/zh-hk/how-to-play-mahjong/" data-track="points_rules_page_click">香港麻雀規則</a>。下載我哋<a href="/assets/lucky-cat-mahjong-rules.pdf" data-track="points_pdf_click">方便列印嘅規則表 PDF</a>。</p>
+      </div>
+    </section>
+
+    <!-- SCORING -->
+    <section id="scoring" class="points-section">
+      <div class="container">
+        <div class="section-intro">
+          <h2 class="section-heading">所有計番方法</h2>
+        </div>
+        <p class="points-lead">同一種顏色嘅番唔疊加，只計嗰組入面最高嗰個。</p>
+
+        <div class="faan-block">
+          <h3>食糊情況</h3>
+          <div class="faan-table-wrap">
+            <table class="faan-table">
+              <thead><tr><th>加番</th><th>番數</th><th>解釋</th></tr></thead>
+              <tbody>
+                <tr><td><span class="faan-name">自摸<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">自己喺牌牆摸到糊牌。</td></tr>
+                <tr><td><span class="faan-name">門前清<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">除咗糊牌，冇要過別人嘅牌。</td></tr>
+                <tr><td><span class="faan-name">海底撈月<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">用最後一隻摸到或者打出嘅牌食糊。</td></tr>
+                <tr><td><span class="faan-name">搶槓<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">搶別人加槓嗰隻牌食糊。</td></tr>
+                <tr class="family-kong"><td><span class="faan-name">槓上開花<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">槓完補牌摸到糊牌。</td></tr>
+                <tr class="family-kong"><td><span class="faan-name">槓上槓<span class="faan-cn"></span></span></td><td class="faan-value">8</td><td class="faan-desc">槓完補牌又槓，再補牌摸到糊牌。</td></tr>
+                <tr class="family-opening"><td><span class="faan-name">天糊<span class="faan-cn"></span></span></td><td class="faan-value faan-limit">滿糊</td><td class="faan-desc">莊家揸牌時已經係一副糊牌。</td></tr>
+                <tr class="family-opening"><td><span class="faan-name">地糊<span class="faan-cn"></span></span></td><td class="faan-value faan-limit">滿糊</td><td class="faan-desc">閒家用莊家打出嘅第一隻牌食糊。</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="faan-block">
+          <h3>糊牌牌型</h3>
+          <div class="faan-table-wrap">
+            <table class="faan-table">
+              <thead><tr><th>牌型</th><th>番數</th><th>解釋</th></tr></thead>
+              <tbody>
+                <tr><td><span class="faan-name">雞糊<span class="faan-cn"></span></span></td><td class="faan-value">0</td><td class="faan-desc">四組牌加一對眼，花色混雜，上同碰都得。</td></tr>
+                <tr><td><span class="faan-name">平糊<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">四組上加一對眼。</td></tr>
+                <tr><td><span class="faan-name">七對子<span class="faan-cn"></span></span></td><td class="faan-value">4</td><td class="faan-desc">14隻牌組成七對唔同嘅對子。有啲枱面先計。</td></tr>
+                <tr><td><span class="faan-name">字一色<span class="faan-cn"></span></span></td><td class="faan-value">10</td><td class="faan-desc">全部係風牌同三元牌。</td></tr>
+                <tr class="family-triplets"><td><span class="faan-name">對對糊<span class="faan-cn"></span></span></td><td class="faan-value">3</td><td class="faan-desc">四組都係碰或槓，加一對眼。</td></tr>
+                <tr class="family-triplets"><td><span class="faan-name">坎坎糊<span class="faan-cn"></span></span></td><td class="faan-value">10</td><td class="faan-desc">四組都係自己摸齊嘅暗碰或暗槓。全部牌組都要暗先計。</td></tr>
+                <tr class="family-triplets"><td><span class="faan-name">十八羅漢<span class="faan-cn"></span></span></td><td class="faan-value faan-limit">滿糊</td><td class="faan-desc">四組槓加一對眼（18隻牌）。</td></tr>
+                <tr class="family-flush"><td><span class="faan-name">混一色<span class="faan-cn"></span></span></td><td class="faan-value">3</td><td class="faan-desc">只有一個花色，加字牌（風牌或三元牌）。</td></tr>
+                <tr class="family-flush"><td><span class="faan-name">清一色<span class="faan-cn"></span></span></td><td class="faan-value">7</td><td class="faan-desc">只有一個花色，冇字牌。</td></tr>
+                <tr class="family-flush"><td><span class="faan-name">九子連環<span class="faan-cn"></span></span></td><td class="faan-value faan-limit">滿糊</td><td class="faan-desc">同一花色，排成1-1-1-2-3-4-5-6-7-8-9-9-9，再加一隻同色嘅牌。一定要門前清。</td></tr>
+                <tr class="family-terminals"><td><span class="faan-name">花么九<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">每隻牌都係一、九或者字牌。冇二至八嘅數字牌。</td></tr>
+                <tr class="family-terminals"><td><span class="faan-name">清么九<span class="faan-cn"></span></span></td><td class="faan-value">10</td><td class="faan-desc">每隻牌都係一或者九。冇二至八嘅數字牌，亦冇字牌。</td></tr>
+                <tr class="family-terminals"><td><span class="faan-name">十三么<span class="faan-cn"></span></span></td><td class="faan-value faan-limit">滿糊</td><td class="faan-desc">所有一、九同字牌各一隻，再加其中一款多一隻。</td></tr>
+                <tr class="family-dragons"><td><span class="faan-name">番牌<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">紅中、發財或白板嘅碰或槓（每組1番）。</td></tr>
+                <tr class="family-dragons"><td><span class="faan-name">小三元<span class="faan-cn"></span></span></td><td class="faan-value">5</td><td class="faan-desc">兩款三元牌嘅碰或槓，加第三款做眼。</td></tr>
+                <tr class="family-dragons"><td><span class="faan-name">大三元<span class="faan-cn"></span></span></td><td class="faan-value">8</td><td class="faan-desc">三款三元牌（紅中、發財、白板）都係碰或槓。</td></tr>
+                <tr class="family-winds"><td><span class="faan-name">門風 / 圈風<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">自己門風或者圈風嘅碰或槓（每組1番）。</td></tr>
+                <tr class="family-winds"><td><span class="faan-name">小四喜<span class="faan-cn"></span></span></td><td class="faan-value">6</td><td class="faan-desc">三款風牌嘅碰或槓，加第四款風做眼。</td></tr>
+                <tr class="family-winds"><td><span class="faan-name">大四喜<span class="faan-cn"></span></span></td><td class="faan-value faan-limit">滿糊</td><td class="faan-desc">四款風牌都係碰或槓。</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="faan-block">
+          <h3>花牌同季節牌</h3>
+          <div class="faan-table-wrap">
+            <table class="faan-table">
+              <thead><tr><th>花牌</th><th>番數</th><th>解釋</th></tr></thead>
+              <tbody>
+                <tr><td><span class="faan-name">無花<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">冇花牌，亦冇季節牌。</td></tr>
+                <tr><td><span class="faan-name">正花（梅蘭菊竹）<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">有同自己座位號碼一樣嘅花牌。</td></tr>
+                <tr><td><span class="faan-name">正花（春夏秋冬）<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">有同自己座位號碼一樣嘅季節牌。</td></tr>
+                <tr><td><span class="faan-name">一台花（梅蘭菊竹）<span class="faan-cn"></span></span></td><td class="faan-value">2</td><td class="faan-desc">梅蘭菊竹四隻花牌齊晒。唔同正花疊加。</td></tr>
+                <tr><td><span class="faan-name">一台花（春夏秋冬）<span class="faan-cn"></span></span></td><td class="faan-value">2</td><td class="faan-desc">春夏秋冬四隻季節牌齊晒。唔同正花疊加。</td></tr>
+                <tr><td><span class="faan-name">花糊<span class="faan-cn">（七搶一）</span></span></td><td class="faan-value">5</td><td class="faan-desc">有7隻花牌，唔理手牌係咩都可以即刻食糊。別人摸到最後一隻花牌時，可以搶嗰隻食糊。</td></tr>
+                <tr><td><span class="faan-name">八仙過海<span class="faan-cn"></span></span></td><td class="faan-value faan-limit">滿糊</td><td class="faan-desc">8隻花牌同季節牌齊晒，唔理手牌係咩都即刻食糊。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="points-note">「封頂」係一副牌最多賠幾多。好多香港枱面10番或13番封頂。開枱前同朋友講定。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADVANCED TIPS -->
+    <section id="tips" class="points-section" data-view="points_tips">
+      <div class="container">
+        <div class="section-intro">
+          <h2 class="section-heading">進階貼士</h2>
+        </div>
+        <p class="points-lead">高手打牌嘅習慣。</p>
+        <div class="tips-grid">
+          <article class="tip-card">
+            <h3>學晒所有牌型同食糊情況加番</h3>
+            <p>食糊要3番，細番加埋都夠：自摸、門前清、無花或者正花各1番。上面表入面所有牌型同加番都要識，包括海底撈月、槓上開花同搶槓呢啲少見嘅。</p>
+          </article>
+          <article class="tip-card">
+            <h3>保持門前清</h3>
+            <p>每要一隻別人打出嘅牌，你就冇咗門前清嗰1番，仲俾成枱人知你做緊咩牌。有啲牌型一定要門前清先計：坎坎糊、七對子、十三么同九子連環。</p>
+          </article>
+          <article class="tip-card">
+            <h3>專心做一個花色</h3>
+            <p>手上有七隻或以上同一花色嘅牌，就打走另外兩個花色。混一色食糊次數多過任何其他牌型，清一色賠得多過對對糊。</p>
+          </article>
+          <article class="tip-card">
+            <h3>上牌要揀</h3>
+            <p>上咗就鎖死你嘅花色，露咗你嘅打法，又冇咗門前清嗰1番。一般嚟講，嗰個花色連字牌有8隻或以上先好上。</p>
+          </article>
+          <article class="tip-card">
+            <h3>留住對子同字牌</h3>
+            <p>一對牌仲可以變碰。未有人打過嘅三元牌或者圈風，一定要留住。出咗一兩隻嘅字牌先好打。玩門清順子例外。</p>
+          </article>
+          <article class="tip-card">
+            <h3>識打安全牌</h3>
+            <p>最安全嘅排先：有人碰咗嘅牌、別人打過嘅牌、有人上咗嗰個花色入面嘅另一隻牌，或者隔三隻嘅牌（1-4-7法則）。</p>
+          </article>
+          <article class="tip-card">
+            <h3>睇對手打</h3>
+            <p>明牌話你知對手做緊咩牌。唔好同人爭人哋淨係收緊嘅花色，尤其係你上家。唔好餵牌俾人上。睇打出嘅牌再調整。</p>
+          </article>
+          <article class="tip-card">
+            <h3>知道幾時做大牌</h3>
+            <p>大牌賠得最多：十三么每局得分多過任何其他牌型，跟住係坎坎糊同清一色，不過十三么同坎坎糊食糊嘅次數少好多。</p>
+          </article>
+          <article class="tip-card">
+            <h3>將啲牌反轉</h3>
+            <p>將要碰或者要打嘅牌反轉，做個記號。咁樣容易記。</p>
+          </article>
+          <article class="tip-card">
+            <h3>手牌保持彈性</h3>
+            <p>唔好太早鎖死做一種牌型。保持手牌彈性，方便由一種牌型轉做另一種，例如由混一色轉做清一色。保持門前清，唔好上、碰、槓唔必要嘅牌。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- STATISTICS -->
+    <section id="statistics" class="points-section" data-view="points_statistics">
+      <div class="container">
+        <div class="section-intro">
+          <h2 class="section-heading">統計</h2>
+        </div>
+        <p class="points-lead">來自我哋<a href="/zh-hk/play-mahjong/" data-track="points_statistics_game_click">網上遊戲</a>超過100,000局、1,949,960鋪牌。</p>
+        <div class="faan-block">
+          <h3>最常食糊嘅牌型</h3>
+          <div class="faan-table-wrap stats-table-wrap">
+            <table class="faan-table stats-table stats-patterns">
+              <thead><tr><th>牌型</th><th>番數</th><th>食糊鋪數</th><th>每鋪食糊率</th><th>有計分局數</th><th>預期得分</th></tr></thead>
+              <tbody>
+                <tr><td><span class="faan-name">混一色<span class="faan-cn"></span></span></td><td class="faan-value">3</td><td class="faan-value">461,142</td><td class="faan-value">23.65%</td><td class="faan-value">58.0%</td><td class="faan-value">327.8</td></tr>
+                <tr><td><span class="faan-name">清一色<span class="faan-cn"></span></span></td><td class="faan-value">7</td><td class="faan-value">269,568</td><td class="faan-value">13.82%</td><td class="faan-value">44.5%</td><td class="faan-value">533.4</td></tr>
+                <tr><td><span class="faan-name">對對糊<span class="faan-cn"></span></span></td><td class="faan-value">3</td><td class="faan-value">197,087</td><td class="faan-value">10.11%</td><td class="faan-value">35.7%</td><td class="faan-value">323.3</td></tr>
+                <tr><td><span class="faan-name">七對子<span class="faan-cn"></span></span></td><td class="faan-value">4</td><td class="faan-value">167,874</td><td class="faan-value">8.61%</td><td class="faan-value">33.2%</td><td class="faan-value">43.6</td></tr>
+                <tr><td><span class="faan-name">平糊<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-value">158,526</td><td class="faan-value">8.13%</td><td class="faan-value">29.2%</td><td class="faan-value">125.3</td></tr>
+                <tr><td><span class="faan-name">雞糊<span class="faan-cn"></span></span></td><td class="faan-value">0</td><td class="faan-value">40,605</td><td class="faan-value">2.08%</td><td class="faan-value">9.2%</td><td class="faan-value">2.7</td></tr>
+                <tr><td><span class="faan-name">坎坎糊<span class="faan-cn"></span></span></td><td class="faan-value">10</td><td class="faan-value">35,415</td><td class="faan-value">1.82%</td><td class="faan-value">8.4%</td><td class="faan-value">624.9</td></tr>
+                <tr><td><span class="faan-name">十三么<span class="faan-cn"></span></span></td><td class="faan-value">13</td><td class="faan-value">26,121</td><td class="faan-value">1.34%</td><td class="faan-value">6.2%</td><td class="faan-value">806.7</td></tr>
+                <tr><td><span class="faan-name">花么九<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-value">15,722</td><td class="faan-value">0.81%</td><td class="faan-value">3.8%</td><td class="faan-value">76.3</td></tr>
+                <tr><td><span class="faan-name">小三元<span class="faan-cn"></span></span></td><td class="faan-value">5</td><td class="faan-value">3,126</td><td class="faan-value">0.16%</td><td class="faan-value">0.8%</td><td class="faan-value">46.2</td></tr>
+                <tr><td><span class="faan-name">字一色<span class="faan-cn"></span></span></td><td class="faan-value">10</td><td class="faan-value">2,098</td><td class="faan-value">0.11%</td><td class="faan-value">0.5%</td><td class="faan-value">61.7</td></tr>
+                <tr><td><span class="faan-name">大三元<span class="faan-cn"></span></span></td><td class="faan-value">8</td><td class="faan-value">1,103</td><td class="faan-value">0.057%</td><td class="faan-value">0.3%</td><td class="faan-value">28.3</td></tr>
+                <tr><td><span class="faan-name">小四喜<span class="faan-cn"></span></span></td><td class="faan-value">6</td><td class="faan-value">402</td><td class="faan-value">0.021%</td><td class="faan-value">0.1%</td><td class="faan-value">10.6</td></tr>
+                <tr><td><span class="faan-name">清么九<span class="faan-cn"></span></span></td><td class="faan-value">10</td><td class="faan-value">215</td><td class="faan-value">0.011%</td><td class="faan-value">0.054%</td><td class="faan-value">2.3</td></tr>
+                <tr><td><span class="faan-name">大四喜<span class="faan-cn"></span></span></td><td class="faan-value">13</td><td class="faan-value">109</td><td class="faan-value">0.006%</td><td class="faan-value">0.027%</td><td class="faan-value">3.3</td></tr>
+                <tr><td><span class="faan-name">九子連環<span class="faan-cn"></span></span></td><td class="faan-value">13</td><td class="faan-value">101</td><td class="faan-value">0.005%</td><td class="faan-value">0.025%</td><td class="faan-value">3.0</td></tr>
+                <tr><td><span class="faan-name">十八羅漢<span class="faan-cn"></span></span></td><td class="faan-value">13</td><td class="faan-value">2</td><td class="faan-value">0.000%</td><td class="faan-value">0.001%</td><td class="faan-value">0.1</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="faan-block">
+          <h3>加番：有幾常見</h3>
+          <div class="faan-table-wrap stats-table-wrap">
+            <table class="faan-table stats-table stats-bonus">
+              <thead><tr><th>加番</th><th>番數</th><th>食糊次數</th><th>佔食糊比例</th></tr></thead>
+              <tbody>
+                <tr><td><span class="faan-name">自摸<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-value">376,300</td><td class="faan-value">28.9%</td></tr>
+                <tr><td><span class="faan-name">正花（春夏秋冬）<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-value">280,749</td><td class="faan-value">21.6%</td></tr>
+                <tr><td><span class="faan-name">正花（梅蘭菊竹）<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-value">280,394</td><td class="faan-value">21.5%</td></tr>
+                <tr><td><span class="faan-name">無花<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-value">245,850</td><td class="faan-value">18.9%</td></tr>
+                <tr><td><span class="faan-name">門前清<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-value">211,995</td><td class="faan-value">16.3%</td></tr>
+                <tr><td><span class="faan-name">海底撈月<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-value">26,022</td><td class="faan-value">2.0%</td></tr>
+                <tr><td><span class="faan-name">槓上開花<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-value">5,556</td><td class="faan-value">0.43%</td></tr>
+                <tr><td><span class="faan-name">一台花（春夏秋冬）<span class="faan-cn"></span></span></td><td class="faan-value">2</td><td class="faan-value">3,313</td><td class="faan-value">0.25%</td></tr>
+                <tr><td><span class="faan-name">一台花（梅蘭菊竹）<span class="faan-cn"></span></span></td><td class="faan-value">2</td><td class="faan-value">3,078</td><td class="faan-value">0.24%</td></tr>
+                <tr><td><span class="faan-name">花糊<span class="faan-cn">（七搶一）</span></span></td><td class="faan-value">5</td><td class="faan-value">2,506</td><td class="faan-value">0.19%</td></tr>
+                <tr><td><span class="faan-name">搶槓<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-value">1,546</td><td class="faan-value">0.12%</td></tr>
+                <tr><td><span class="faan-name">槓上槓<span class="faan-cn"></span></span></td><td class="faan-value">8</td><td class="faan-value">88</td><td class="faan-value">0.0068%</td></tr>
+                <tr><td><span class="faan-name">八仙過海<span class="faan-cn"></span></span></td><td class="faan-value">13</td><td class="faan-value">24</td><td class="faan-value">0.0018%</td></tr>
+                <tr><td><span class="faan-name">地糊<span class="faan-cn"></span></span></td><td class="faan-value">13</td><td class="faan-value">17</td><td class="faan-value">0.0013%</td></tr>
+                <tr><td><span class="faan-name">天糊<span class="faan-cn"></span></span></td><td class="faan-value">13</td><td class="faan-value">6</td><td class="faan-value">0.0005%</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="faan-block">
+          <h3>幾多轉先食糊</h3>
+          <div class="faan-table-wrap stats-table-wrap">
+            <table class="faan-table stats-table stats-turns">
+              <thead><tr><th>轉數</th><th>食糊次數</th><th>每次食糊番數</th><th>每次食糊分數</th><th>自摸</th></tr></thead>
+              <tbody>
+                <tr><td class="faan-name">0至8</td><td class="faan-value">5.0%</td><td class="faan-value">4.10</td><td class="faan-value">161</td><td class="faan-value">36.6%</td></tr>
+                <tr><td class="faan-name">9至11</td><td class="faan-value">9.6%</td><td class="faan-value">4.77</td><td class="faan-value">338</td><td class="faan-value">32.3%</td></tr>
+                <tr><td class="faan-name">12至14</td><td class="faan-value">18.7%</td><td class="faan-value">5.27</td><td class="faan-value">508</td><td class="faan-value">29.5%</td></tr>
+                <tr><td class="faan-name">15至17</td><td class="faan-value">26.6%</td><td class="faan-value">5.71</td><td class="faan-value">714</td><td class="faan-value">28.3%</td></tr>
+                <tr><td class="faan-name">18至20</td><td class="faan-value">27.4%</td><td class="faan-value">6.10</td><td class="faan-value">957</td><td class="faan-value">28.8%</td></tr>
+                <tr><td class="faan-name">21或以上</td><td class="faan-value">12.7%</td><td class="faan-value">6.43</td><td class="faan-value">930</td><td class="faan-value">22.6%</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAYOUT -->
+    <section id="payout" class="points-section">
+      <div class="container">
+        <div class="section-intro">
+          <h2 class="section-heading">番數換分數</h2>
+        </div>
+        <p class="points-lead">用兩種最常見嘅方法將番數換成分數。</p>
+        <div class="payout-table">
+          <div class="faan-table-wrap">
+            <table class="faan-table payout-faan-table">
+              <colgroup>
+                <col class="payout-col">
+                <col class="payout-col">
+                <col class="payout-col">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>番數</th>
+                  <th>半辣</th>
+                  <th>全辣</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="faan-value payout-faan-num">3</td><td class="faan-value">8</td><td class="faan-value">8</td></tr>
+                <tr><td class="faan-value payout-faan-num">4</td><td class="faan-value">16</td><td class="faan-value">16</td></tr>
+                <tr><td class="faan-value payout-faan-num">5</td><td class="faan-value">24</td><td class="faan-value">32</td></tr>
+                <tr><td class="faan-value payout-faan-num">6</td><td class="faan-value">32</td><td class="faan-value">64</td></tr>
+                <tr><td class="faan-value payout-faan-num">7</td><td class="faan-value">48</td><td class="faan-value">128</td></tr>
+                <tr><td class="faan-value payout-faan-num">8</td><td class="faan-value">64</td><td class="faan-value">256</td></tr>
+                <tr><td class="faan-value payout-faan-num">9</td><td class="faan-value">96</td><td class="faan-value">512</td></tr>
+                <tr><td class="faan-value payout-faan-num">10</td><td class="faan-value">128</td><td class="faan-value">1,024</td></tr>
+                <tr><td class="faan-value payout-faan-num">11</td><td class="faan-value">192</td><td class="faan-value">2,048</td></tr>
+                <tr><td class="faan-value payout-faan-num">12</td><td class="faan-value">256</td><td class="faan-value">4,096</td></tr>
+                <tr><td class="faan-value payout-faan-num">13</td><td class="faan-value faan-limit">384</td><td class="faan-value faan-limit">8,192</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <p class="points-note"><em>自摸</em>嘅話，每個對手都賠基本分俾贏家。有啲玩法<em>自摸</em>每家只賠一半。<em>食出銃</em>嘅話，打出糊牌嗰家賠基本分。封頂番數同點樣分賠都係枱面規矩。</p>
+      </div>
+    </section>
+    <!-- FAQ: the same questions and answers as the FAQPage in the JSON-LD above, which must match what the page shows. -->
+    <section id="faq" class="points-section">
+      <div class="container">
+        <div class="section-intro">
+          <h2 class="section-heading">常見問題</h2>
+        </div>
+        <div class="faq-list">
+          <details class="faq-item" open>
+            <summary class="faq-question" data-evt="faq_question_click" data-loc="points_faq"><span>香港麻雀嘅「番」係咩？</span><svg class="faq-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+            <div class="faq-answer">番係香港麻雀計分嘅單位。你副糊牌靠牌型攞番，例如混一色、清一色、對對糊、三元牌同特別牌型。計好總番數，再換成其他玩家要賠嘅分數或籌碼。</div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-question" data-evt="faq_question_click" data-loc="points_faq"><span>打麻雀要幾多番先可以食糊？</span><svg class="faq-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+            <div class="faq-answer">大部分香港枱面要最少3番先可以食糊，亦有人玩1番起糊或者0番（雞糊）起糊。開枱前記得講定幾多番起糊。</div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-question" data-evt="faq_question_click" data-loc="points_faq"><span>香港麻雀嘅滿糊係咩？</span><svg class="faq-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+            <div class="faq-answer">滿糊即係賠到封頂嘅牌，通常係13番。例子有十三么、大四喜、九子連環同十八羅漢。</div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-question" data-evt="faq_question_click" data-loc="points_faq"><span>番數點樣換成麻雀分數？</span><svg class="faq-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+            <div class="faq-answer">番數會跟一個逐番加倍嘅表換成分數。由3番起糊開始，每多一番，基本賠率大約加一倍，直到封頂為止。</div>
+          </details>
+        </div>
+        <!-- The same banner as the end of the rules page. The class points-cta stays: js/points-guide.js reports this button's views and clicks (points_cta_view, points_cta_click). -->
+        <aside class="guide-cta points-cta" aria-label="打麻雀">
+          <p class="guide-cta-title">網上打麻雀</p>
+          <p>咩機都玩得。</p>
+          <a href="/zh-hk/play-mahjong/" class="btn btn-primary">免費玩</a>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <picture>
+          <source srcset="/assets/logo.webp" type="image/webp">
+          <img src="/assets/logo.png" alt="" class="footer-logo" width="40" height="42" loading="lazy" decoding="async" draggable="false">
+        </picture>
+        <span>Lucky Cat Mahjong</span>
+      </div>
+      <p class="footer-links footer-guides"><a href="/zh-hk/play-mahjong/" class="footer-link" data-evt="play_link_footer" data-loc="footer" data-label="Play Mahjong">打麻雀</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/zh-hk/how-to-play-mahjong/" class="footer-link" data-evt="rules_link_footer" data-loc="footer" data-label="Mahjong Rules">規則</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/zh-hk/hong-kong-mahjong/" class="footer-link" data-evt="points_link_footer" data-loc="footer" data-label="Points Guide">計番教學</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/zh-hk/which-mahjong-tiles-are-you/" class="footer-link" data-evt="quiz_link_footer" data-loc="footer" data-label="Personality Quiz">性格測驗</a></p>
+      <p class="footer-links footer-languages"><a href="/hong-kong-mahjong-scoring/" class="footer-link" lang="en-US" hreflang="en" data-evt="language_link_footer" data-loc="footer">English</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/zh-hans/hong-kong-mahjong/" class="footer-link" lang="zh-Hans" hreflang="zh-Hans" data-evt="language_link_footer" data-loc="footer">简体中文</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/ja/hong-kong-mahjong/" class="footer-link" lang="ja" hreflang="ja" data-evt="language_link_footer" data-loc="footer">日本語</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/id/poin-mahjong-hongkong/" class="footer-link" lang="id" hreflang="id" data-evt="language_link_footer" data-loc="footer">Bahasa Indonesia</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/ms/mata-mahjong-hong-kong/" class="footer-link" lang="ms" hreflang="ms" data-evt="language_link_footer" data-loc="footer">Bahasa Melayu</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/vi/cach-tinh-diem-mat-chuoc-hong-kong/" class="footer-link" lang="vi" hreflang="vi" data-evt="language_link_footer" data-loc="footer">Tiếng Việt</a></p>
+      <p class="footer-links"><a href="/terms-and-conditions/" class="footer-link" data-evt="terms_link_footer" data-loc="footer">Terms and Conditions</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/privacy-policy/" class="footer-link" data-evt="privacy_link_footer" data-loc="footer">Privacy Policy</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/refund-policy/" class="footer-link" data-evt="refund_link_footer" data-loc="footer">Refund Policy</a><span class="footer-links-sep" aria-hidden="true">|</span><button type="button" data-evt="cookie_settings_footer" data-loc="footer" class="footer-link js-cookie-settings">Cookie Settings</button></p>
+      <p class="footer-copy">&copy; <span id="year"></span> Lucky Cat Mahjong</p>
+    </div>
+  </footer>
+
+</body>
+</html>

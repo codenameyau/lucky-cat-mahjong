@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>香港麻雀の点数計算：点数ガイドと番（ファン）計算機</title>
+  <meta name="description" content="無料の香港麻雀の点数ガイドと番計算機。どんな手でも番と点数を数えられます。和了の役と特別な役を覚え、支払い表も確かめられます。">
+  <meta name="keywords" content="香港麻雀、広東麻雀、香港麻雀 点数計算、香港麻雀 役、香港麻雀 ルール、広東麻雀 点数、麻雀 番、番 計算、ファン 計算、麻雀 点数計算 ツール、麻雀 点数 計算機、麻雀 役一覧、麻雀 役満、十三么、混一色、清一色、花牌、半辣 全辣、香港麻雀計番、hong kong mahjong scoring, mahjong faan calculator">
+  <meta name="author" content="Lucky Cat Mahjong">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+  <meta name="theme-color" content="#C41E3A">
+
+  <link rel="canonical" href="https://luckycatmahjong.com/ja/hong-kong-mahjong/">
+  <link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/">
+  <link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/hong-kong-mahjong/">
+  <link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/hong-kong-mahjong/">
+  <link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/hong-kong-mahjong/">
+  <link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/poin-mahjong-hongkong/">
+  <link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/mata-mahjong-hong-kong/">
+  <link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cach-tinh-diem-mat-chuoc-hong-kong/">
+  <link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Lucky Cat Mahjong">
+  <meta property="og:title" content="香港麻雀の点数計算：点数ガイドと番計算機 | Lucky Cat Mahjong">
+  <meta property="og:description" content="無料の香港麻雀の点数ガイドと番計算機。どんな手でも番と点数を数えられます。和了の役と特別な役を覚え、支払い表も確かめられます。">
+  <meta property="og:url" content="https://luckycatmahjong.com/ja/hong-kong-mahjong/">
+  <meta property="og:locale" content="ja_JP">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta property="og:locale:alternate" content="zh_HK">
+  <meta property="og:locale:alternate" content="zh_CN">
+  <meta property="og:locale:alternate" content="id_ID">
+  <meta property="og:locale:alternate" content="ms_MY">
+  <meta property="og:locale:alternate" content="vi_VN">
+  <meta property="og:image" content="https://luckycatmahjong.com/assets/social-preview.png">
+  <meta property="og:image:alt" content="Lucky Cat Mahjongのロゴ">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="香港麻雀の点数計算：点数ガイドと番計算機 | Lucky Cat Mahjong">
+  <meta name="twitter:description" content="無料の香港麻雀の点数ガイドと番計算機。どんな手でも番と点数を数えられます。和了の役と特別な役を覚え、支払い表も確かめられます。">
+  <meta name="twitter:image" content="https://luckycatmahjong.com/assets/social-preview.png">
+  <meta name="twitter:image:alt" content="Lucky Cat Mahjongのロゴ">
+
+  <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="/assets/logo.png" type="image/png" sizes="1024x1063">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+  <link rel="preload" href="/fonts/paytone-one-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/fonts.e18fc0dab7.css">
+  <link rel="stylesheet" href="/css/styles.b2ca132840.css">
+  <link rel="stylesheet" href="/css/points.17a152a1ae.css">
+
+  <script>
+    // Google Analytics runs on the live site only. On localhost and private network
+    // addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x, .local) gtag does nothing, so
+    // testing never adds events. There, each call is kept in window.lcmLocalEvents
+    // instead, so a test can read what would have been sent.
+    window.dataLayer = window.dataLayer || [];
+    var localHost = /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local)$/i.test(location.hostname);
+    function gtag(){ if (!localHost) dataLayer.push(arguments); else (window.lcmLocalEvents = window.lcmLocalEvents || []).push([].slice.call(arguments)); }
+    // js/analytics-id.js loads with defer, so it doesn't hold up the first paint. It runs
+    // before the page's other deferred scripts (they run in order) and its onload runs
+    // this, so the IDs and the cookie choice still come before the page view and every
+    // event. Google's own script (about 180 KB) is fetched once the page has loaded, so it
+    // doesn't compete with the logo and the stylesheet; calls made before then wait in
+    // dataLayer and are sent when it arrives.
+    window.lcmStartAnalytics = function lcmStartAnalytics() {
+      if (window.lcmAnalyticsStarted) return;
+      window.lcmAnalyticsStarted = true;
+      // The visitor and session IDs and the cookie choice (js/analytics-id.js), before the page view.
+      if (window.lcmAnalytics) window.lcmAnalytics.start(gtag);
+      if (!localHost) {
+        gtag("js", new Date());
+        gtag("config", "G-B514HH987M");
+        var loadGtag = function () {
+          var gaScript = document.createElement("script");
+          gaScript.async = true;
+          gaScript.src = "https://www.googletagmanager.com/gtag/js?id=G-B514HH987M";
+          document.head.appendChild(gaScript);
+        };
+        if (document.readyState === "complete") loadGtag();
+        else window.addEventListener("load", loadGtag);
+      }
+    }
+  </script>
+  <script src="/js/bundle-4bb7a7021c.js" defer onerror="lcmStartAnalytics()"></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Article",
+        "@id": "https://luckycatmahjong.com/ja/hong-kong-mahjong/#article",
+        "headline": "麻雀の点数ガイド：香港麻雀の点数の数え方",
+        "description": "香港麻雀の無料点数ガイド。手牌を入れると番を数え、和了の役を表示します。牌、特別な役、支払いのルールも初心者向けに解説します。",
+        "image": "https://luckycatmahjong.com/assets/logo.png",
+        "inLanguage": "ja",
+        "about": [
+          "麻雀の点数",
+          "香港麻雀の点数計算"
+        ],
+        "author": {
+          "@type": "Organization",
+          "name": "Lucky Cat Mahjong",
+          "url": "https://luckycatmahjong.com/"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Lucky Cat Mahjong",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://luckycatmahjong.com/assets/logo.png"
+          }
+        },
+        "mainEntityOfPage": "https://luckycatmahjong.com/ja/hong-kong-mahjong/"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "ホーム",
+            "item": "https://luckycatmahjong.com/ja/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "麻雀の点数ガイド",
+            "item": "https://luckycatmahjong.com/ja/hong-kong-mahjong/"
+          }
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "香港麻雀の番とは何ですか？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "番（ファン）は香港麻雀の点数の単位です。和了した手は、混一色や清一色、対々和、三元牌、特別な役などの役で番を得ます。合計の番を、他家が支払う点数やチップに換算します。"
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "麻雀で和了するには何番必要ですか？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "香港の卓の多くは、和了に最低3番が必要です。1番や0番（雞糊）から和了できるルールで遊ぶ卓もあります。始める前に必ず最低の番を確かめましょう。"
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "香港麻雀の上限の手とは何ですか？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "上限の手は、支払いが最高額になる手で、ふつうは13番です。国士無双、大四喜、九蓮宝燈、四槓子などがあります。"
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "麻雀の点数は番からどう計算しますか？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "番は、1番ごとに倍になる表で点数に換算します。最低の3番から始まり、1番増えるごとに基本の支払いがおよそ2倍になり、卓の上限で止まります。"
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <script>window.LCM_WORDS = {"Add {tile}":"{tile}を追加","{n} faan":"{n}番","{tile} — drag to reorder, tap to remove":"{tile}：ドラッグで並べ替え、タップで外す","1 tile":"1枚","{n} tiles":"{n}枚","{count} (incomplete hand)":"{count}（未完成の手）","+ {n} bonus tiles":"+ 花牌{n}枚","Press {keys} to paste your hand seed.":"{keys}を押すと手牌のシードを貼り付けます。","That isn't a hand seed or a playback file.":"手牌のシードでも、リプレイのファイルでもありません。","Click random, show examples, or add tiles to make a hand and see its score":"「ランダム」か「例を表示」を押すか、牌を追加して手を作ると、点数がわかります","{n} faan (limit hand)":"{n}番（上限の手）","Below the {n}-faan minimum to win":"和了に必要な{n}番に届きません","{points} points":"{points}点","Payout table":"支払い表","Full spicy":"全辣","Half spicy":"半辣","Total":"合計","Share hand":"手を共有","Copied Link":"リンクをコピーしました","Copy failed":"コピーできませんでした","Hide examples":"例を隠す","Show examples":"例を表示","One Character":"萬子の1","Two Character":"萬子の2","Three Character":"萬子の3","Four Character":"萬子の4","Five Character":"萬子の5","Six Character":"萬子の6","Seven Character":"萬子の7","Eight Character":"萬子の8","Nine Character":"萬子の9","One Circle":"筒子の1","Two Circle":"筒子の2","Three Circle":"筒子の3","Four Circle":"筒子の4","Five Circle":"筒子の5","Six Circle":"筒子の6","Seven Circle":"筒子の7","Eight Circle":"筒子の8","Nine Circle":"筒子の9","One Bamboo":"索子の1","Two Bamboo":"索子の2","Three Bamboo":"索子の3","Four Bamboo":"索子の4","Five Bamboo":"索子の5","Six Bamboo":"索子の6","Seven Bamboo":"索子の7","Eight Bamboo":"索子の8","Nine Bamboo":"索子の9","East Wind":"東風","South Wind":"南風","West Wind":"西風","North Wind":"北風","Red Dragon":"紅中","Green Dragon":"青發","White Dragon":"白板","Plum":"花牌の梅","Orchid":"花牌の蘭","Chrysanthe-mum":"花牌の菊","Bamboo":"花牌の竹","Spring":"季節牌の春","Summer":"季節牌の夏","Autumn":"季節牌の秋","Winter":"季節牌の冬","All Terminals":"清老頭","Mixed Orphans":"混老頭","Seat and Round Wind":"自風と場風","Seat Wind":"自風","Round Wind":"場風","Seven Pairs":"七対子","All Honors":"字一色","Full Flush":"清一色","Half Flush":"混一色","Concealed Triplets":"四暗刻","All Triplets":"対々和","Four Quads":"四槓子","All Sequences":"平和","Big Three Dragons":"大三元","Small Three Dragons":"小三元","Dragon Triplet":"三元牌の刻子","Dragon Quad":"三元牌の槓子","Big Four Winds":"大四喜","Small Four Winds":"小四喜","Eight Immortals Crossing the Sea":"八仙過海","Seven Robbing One":"七搶一","No Flowers":"無花","Four Flowers":"花牌の一台花","Seat Flower":"正花","Four Seasons":"季節牌の一台花","Seat Season":"正季","Heavenly Hand":"天和","Earthly Hand":"地和","Self-Draw":"自摸","Concealed":"門前清","Win on Last Tile":"海底摸月","Robbing the Kong":"搶槓","Win by Double Kong":"槓上槓","Win by Kong":"嶺上開花","Thirteen Orphans":"国士無双","Nine Gates":"九蓮宝燈","Chicken Hand":"雞糊","Characters":"萬子","Circles":"筒子","Bamboos":"索子","Honors":"字牌","Flowers & Seasons":"花牌と季節牌"};</script>
+</head>
+<body>
+  <header class="site-header" id="site-header">
+    <nav class="nav container">
+      <a href="/ja/" class="header-brand" aria-label="Lucky Cat Mahjong ホーム">
+        <picture>
+          <source srcset="/assets/logo.webp" type="image/webp">
+          <img src="/assets/logo.png" alt="" class="header-logo" width="36" height="37" decoding="async" draggable="false">
+        </picture>
+        <span class="header-brand-name">Lucky Cat Mahjong</span>
+      </a>
+      <button type="button" class="nav-toggle" aria-label="メニューを開閉" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <ul class="nav-links">
+        <li><a href="/ja/community/" class="nav-link" data-label="Community"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 13.7c2.6 0 4.5 1.8 4.5 4.3"/></svg>コミュニティ</a></li>
+        <li><a href="/events/" class="nav-link" data-label="Events"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>イベント</a></li>
+        <li><a href="/ja/how-to-play-mahjong/" class="nav-link" data-label="Rules"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 6.5C10.5 5 8 4.5 4 4.5v14c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-14c-4 0-6.5.5-8 2z"/><path d="M12 6.5v14"/></svg>ルール</a></li>
+        <li><a href="/ja/hong-kong-mahjong/" class="nav-link" data-label="Points Guide"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8.5 7.5h7"/><path d="M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01"/></svg>点数ガイド</a></li>
+        <li><a href="/ja/which-mahjong-tiles-are-you/" class="nav-link" data-label="Personality Quiz"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"/><path d="M19 15v4M17 17h4"/></svg>性格診断</a></li>
+        <li><a href="/ja/play-mahjong/" class="nav-link" data-label="Play Mahjong"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg>麻雀を打つ</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="top">
+    <!-- CALCULATOR -->
+    <section id="calculator" class="points-section">
+      <div class="container">
+        <div class="section-intro">
+          <h1 class="section-heading">麻雀の点数ガイド</h1>
+        </div>
+        <div class="calc">
+          <div class="calc-left">
+            <div class="calc-card calc-bonuses">
+              <div class="calc-card-head">
+                <h3>状況役</h3>
+                <button type="button" id="calc-reset-options" class="calc-reset" data-evt="points_reset_options_click" data-loc="options">リセット</button>
+              </div>
+              <form id="calc-options" class="calc-options">
+                <table class="calc-options-table">
+                  <tbody>
+                    <tr>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-selfdraw" data-evt="points_self_draw_click" data-loc="options"><span>自摸</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-concealed" data-evt="points_concealed_click" data-loc="options"><span>門前清</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-lasttile" data-evt="points_last_tile_click" data-loc="options"><span>海底摸月</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-robkong" data-evt="points_rob_kong_click" data-loc="options"><span>搶槓</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-kongwin" data-evt="points_kong_win_click" data-loc="options"><span>嶺上開花</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-double-kong" data-evt="points_double_kong_click" data-loc="options"><span>槓上槓</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-include-flowers" data-evt="points_no_flowers_click" data-loc="options"><span>花牌を含める</span></label></td>
+                      <td><label class="opt-check"><input type="checkbox" id="opt-unlimited" data-evt="points_unlimited_click" data-loc="options"><span>番の上限なし</span></label></td>
+                    </tr>
+                    <tr class="calc-options-winds">
+                      <td>
+                        <label class="opt-select opt-select--inline">自風
+                          <select id="opt-seat" data-evt="points_seat_wind_select" data-loc="options">
+                            <option value="1" selected>東</option>
+                            <option value="2">南</option>
+                            <option value="3">西</option>
+                            <option value="4">北</option>
+                          </select>
+                        </label>
+                      </td>
+                      <td>
+                        <label class="opt-select opt-select--inline">場風
+                          <select id="opt-round" data-evt="points_round_wind_select" data-loc="options">
+                            <option value="1" selected>東</option>
+                            <option value="2">南</option>
+                            <option value="3">西</option>
+                            <option value="4">北</option>
+                          </select>
+                        </label>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </form>
+            </div>
+
+            <div class="calc-card">
+              <div class="calc-card-head">
+                <h3>手牌</h3>
+                <div class="calc-card-actions">
+                  <button type="button" id="calc-random" class="calc-reset" data-evt="points_random_click" data-loc="hand">ランダム</button>
+                  <button type="button" id="calc-reset" class="calc-reset" data-evt="points_reset_click" data-loc="hand">リセット</button>
+                  <button type="button" id="calc-share" class="calc-reset" data-evt="points_share_click" data-loc="hand">手を共有</button>
+                </div>
+              </div>
+              <div id="calc-hand" class="calc-hand"></div>
+              <div id="calc-result" class="calc-result"></div>
+            </div>
+          </div>
+
+          <div class="calc-right">
+            <div class="calc-card">
+              <div class="calc-card-head">
+                <h3>手牌に牌を追加</h3>
+                <button type="button" id="calc-toggle-examples" class="calc-reset" data-evt="points_examples_toggle_click" data-loc="examples" aria-expanded="true" aria-controls="calc-examples">例を隠す</button>
+              </div>
+              <div id="calc-examples" class="calc-controls">
+                <button type="button" data-example="chicken" data-evt="points_example_click" data-evt-value="chicken" data-loc="examples">雞糊</button>
+                <button type="button" data-example="sequence" data-evt="points_example_click" data-evt-value="sequence" data-loc="examples">平和</button>
+                <button type="button" data-example="halfflush" data-evt="points_example_click" data-evt-value="halfflush" data-loc="examples">混一色</button>
+                <button type="button" data-example="alltriplets" data-evt="points_example_click" data-evt-value="alltriplets" data-loc="examples">対々和</button>
+                <button type="button" data-example="sevenpairs" data-evt="points_example_click" data-evt-value="sevenpairs" data-loc="examples">七対子</button>
+                <button type="button" data-example="fullflush" data-evt="points_example_click" data-evt-value="fullflush" data-loc="examples">清一色</button>
+                <button type="button" data-example="threedragons" data-evt="points_example_click" data-evt-value="threedragons" data-loc="examples">大三元</button>
+                <button type="button" data-example="allhonors" data-evt="points_example_click" data-evt-value="allhonors" data-loc="examples">字一色</button>
+                <button type="button" data-example="allterminals" data-evt="points_example_click" data-evt-value="allterminals" data-loc="examples">清老頭</button>
+                <button type="button" data-example="thirteen" data-evt="points_example_click" data-evt-value="thirteen" data-loc="examples">国士無双</button>
+                <button type="button" data-example="fourwinds" data-evt="points_example_click" data-evt-value="fourwinds" data-loc="examples">大四喜</button>
+                <button type="button" data-example="ninegates" data-evt="points_example_click" data-evt-value="ninegates" data-loc="examples">九蓮宝燈</button>
+              </div>
+              <div id="calc-palette"></div>
+            </div>
+          </div>
+        </div>
+
+        <p class="calc-disclaimer">この計算機は、上限13番の一般的な香港麻雀の番のルールを使っています。あなたの卓のルールとは違うことがあります。審判ではなく、学ぶための道具として使ってください。</p>
+      </div>
+    </section>
+
+    <!-- PLAY BANNER: under the calculator -->
+    <section class="points-hero-section" aria-labelledby="points-hero-title">
+      <div class="container">
+        <div class="points-hero">
+          <img src="/assets/logo.webp" alt="" width="140" height="145" class="points-hero-cat" draggable="false">
+          <h2 id="points-hero-title" class="points-hero-title">打ちながら点数計算を覚えよう</h2>
+          <p class="points-hero-text">コンピューター3人と卓を囲みましょう。コーチが捨て牌ごとに説明し、和了のたびに番の数え方を表示します。</p>
+          <a href="/ja/play-mahjong/" class="btn points-hero-btn" data-evt="play_link_points" data-loc="calculator_banner">無料で麻雀を打つ</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- BASICS -->
+    <section id="basics" class="points-section">
+      <div class="container">
+        <div class="section-intro">
+          <h2 class="section-heading">点数計算のしくみ</h2>
+        </div>
+        <p class="points-lead">
+          香港麻雀の和了の形は、ふつう4つの<strong>面子</strong>と1つの<strong>雀頭</strong>の14枚です。面子は、同じ種類の数牌が3枚続いた<em>順子</em>（例：筒子の四五六）か、同じ牌3枚の<em>刻子</em>、同じ牌4枚の<em>槓子</em>のどれかです。雀頭はいつも同じ牌2枚です。香港麻雀の牌は、3種類の数牌（萬子・筒子・索子）、字牌（風牌と三元牌）、そして花牌と季節牌です。どの牌も4枚ずつ、花牌と季節牌の8枚は1枚ずつで、全部で144枚です。和了の形ができたら、一色の手、刻子だけの手、三元牌の刻子などの形について<strong>番（ファン）</strong>を数えます。たいていの卓では和了に<strong>最低3番</strong>が必要です。最高は<strong>上限の手</strong>で、ふつうは13番です。</p>
+        <p class="points-lead">
+          このルールは<a href="https://en.wikipedia.org/wiki/Hong_Kong_mahjong_scoring_rules" data-track="points_wikipedia_click">Wikipedia</a>を参考にしています。麻雀は初めてですか？まずは<a href="/ja/how-to-play-mahjong/" data-track="points_rules_page_click">香港麻雀のルール</a>を読みましょう。<a href="/assets/lucky-cat-mahjong-rules.pdf" data-track="points_pdf_click">印刷用のルール表（PDF）</a>もダウンロードできます。</p>
+      </div>
+    </section>
+
+    <!-- SCORING -->
+    <section id="scoring" class="points-section">
+      <div class="container">
+        <div class="section-intro">
+          <h2 class="section-heading">点数のつけ方すべて</h2>
+        </div>
+        <p class="points-lead">同じ色のグループの役は重なりません。そのグループでいちばん高いものだけを数えます。</p>
+
+        <div class="faan-block">
+          <h3>状況役</h3>
+          <div class="faan-table-wrap">
+            <table class="faan-table">
+              <thead><tr><th>役</th><th>番</th><th>説明</th></tr></thead>
+              <tbody>
+                <tr><td><span class="faan-name">自摸<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">自分で山から和了牌を引いた。</td></tr>
+                <tr><td><span class="faan-name">門前清<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">和了牌のほかは、他家の牌を取っていない。</td></tr>
+                <tr><td><span class="faan-name">海底摸月<span class="faan-cn">（海底撈月）</span></span></td><td class="faan-value">1</td><td class="faan-desc">最後に引いた牌か、最後に捨てられた牌で和了する。</td></tr>
+                <tr><td><span class="faan-name">搶槓<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">他家が加槓に使った牌を奪って和了する。</td></tr>
+                <tr class="family-kong"><td><span class="faan-name">嶺上開花<span class="faan-cn">（槓上開花）</span></span></td><td class="faan-value">1</td><td class="faan-desc">カンのあとに引いた代わりの牌で和了する。</td></tr>
+                <tr class="family-kong"><td><span class="faan-name">槓上槓<span class="faan-cn"></span></span></td><td class="faan-value">8</td><td class="faan-desc">カンの代わりの牌でまたカンをして、その代わりの牌で和了する。</td></tr>
+                <tr class="family-opening"><td><span class="faan-name">天和<span class="faan-cn">（天糊）</span></span></td><td class="faan-value faan-limit">上限</td><td class="faan-desc">親が配牌のときにすでに完成した手で和了する。</td></tr>
+                <tr class="family-opening"><td><span class="faan-name">地和<span class="faan-cn">（地糊）</span></span></td><td class="faan-value faan-limit">上限</td><td class="faan-desc">子が親の最初の捨て牌で和了する。</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="faan-block">
+          <h3>手の役</h3>
+          <div class="faan-table-wrap">
+            <table class="faan-table">
+              <thead><tr><th>役</th><th>番</th><th>説明</th></tr></thead>
+              <tbody>
+                <tr><td><span class="faan-name">雞糊<span class="faan-cn"></span></span></td><td class="faan-value">0</td><td class="faan-desc">種類が混ざった4つの面子と雀頭。順子でも刻子でも、両方でもかまいません。</td></tr>
+                <tr><td><span class="faan-name">平和<span class="faan-cn">（平糊）</span></span></td><td class="faan-value">1</td><td class="faan-desc">4つの順子と雀頭。</td></tr>
+                <tr><td><span class="faan-name">七対子<span class="faan-cn">（七對子）</span></span></td><td class="faan-value">4</td><td class="faan-desc">異なる7つの対子で14枚。卓によってはこれだけ特別に認められる手です。</td></tr>
+                <tr><td><span class="faan-name">字一色<span class="faan-cn"></span></span></td><td class="faan-value">10</td><td class="faan-desc">風牌と三元牌だけ。</td></tr>
+                <tr class="family-triplets"><td><span class="faan-name">対々和<span class="faan-cn">（對對糊）</span></span></td><td class="faan-value">3</td><td class="faan-desc">4つの面子がすべて刻子か槓子で、それに雀頭。</td></tr>
+                <tr class="family-triplets"><td><span class="faan-name">四暗刻<span class="faan-cn">（門清對對糊）</span></span></td><td class="faan-value">10</td><td class="faan-desc">4つの面子がすべて鳴いていない刻子か槓子。すべての面子が門前でなければ数えません。</td></tr>
+                <tr class="family-triplets"><td><span class="faan-name">四槓子<span class="faan-cn">（十八羅漢）</span></span></td><td class="faan-value faan-limit">上限</td><td class="faan-desc">4つの槓子と雀頭（18枚）。</td></tr>
+                <tr class="family-flush"><td><span class="faan-name">混一色<span class="faan-cn"></span></span></td><td class="faan-value">3</td><td class="faan-desc">1種類の数牌に字牌（風牌・三元牌）が混ざった手。</td></tr>
+                <tr class="family-flush"><td><span class="faan-name">清一色<span class="faan-cn"></span></span></td><td class="faan-value">7</td><td class="faan-desc">1種類の数牌だけで、字牌なし。</td></tr>
+                <tr class="family-flush"><td><span class="faan-name">九蓮宝燈<span class="faan-cn">（九蓮寶燈）</span></span></td><td class="faan-value faan-limit">上限</td><td class="faan-desc">1種類の数牌で1-1-1-2-3-4-5-6-7-8-9-9-9の形に、もう1枚。門前でなければいけません。</td></tr>
+                <tr class="family-terminals"><td><span class="faan-name">混老頭<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">すべての牌が1、9、字牌のどれか。2から8の数牌はなし。</td></tr>
+                <tr class="family-terminals"><td><span class="faan-name">清老頭<span class="faan-cn"></span></span></td><td class="faan-value">10</td><td class="faan-desc">すべての牌が1か9。2から8の数牌も字牌もなし。</td></tr>
+                <tr class="family-terminals"><td><span class="faan-name">国士無双<span class="faan-cn">（十三么）</span></span></td><td class="faan-value faan-limit">上限</td><td class="faan-desc">1と9の数牌と字牌を1枚ずつ、さらにそのどれか1枚。</td></tr>
+                <tr class="family-dragons"><td><span class="faan-name">三元牌の刻子・槓子<span class="faan-cn">（箭刻）</span></span></td><td class="faan-value">1</td><td class="faan-desc">中・發・白のどれかの刻子か槓子（1つにつき+1）。</td></tr>
+                <tr class="family-dragons"><td><span class="faan-name">小三元<span class="faan-cn"></span></span></td><td class="faan-value">5</td><td class="faan-desc">三元牌2種の刻子か槓子と、残り1種の雀頭。</td></tr>
+                <tr class="family-dragons"><td><span class="faan-name">大三元<span class="faan-cn"></span></span></td><td class="faan-value">8</td><td class="faan-desc">三元牌3種（中・發・白）すべての刻子か槓子。</td></tr>
+                <tr class="family-winds"><td><span class="faan-name">自風・場風<span class="faan-cn">（門風 / 圈風）</span></span></td><td class="faan-value">1</td><td class="faan-desc">自風か場風の刻子か槓子（1つにつき+1）。</td></tr>
+                <tr class="family-winds"><td><span class="faan-name">小四喜<span class="faan-cn"></span></span></td><td class="faan-value">6</td><td class="faan-desc">風牌3種の刻子か槓子と、残り1種の雀頭。</td></tr>
+                <tr class="family-winds"><td><span class="faan-name">大四喜<span class="faan-cn"></span></span></td><td class="faan-value faan-limit">上限</td><td class="faan-desc">風牌4種すべての刻子か槓子。</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="faan-block">
+          <h3>花牌と季節牌</h3>
+          <div class="faan-table-wrap">
+            <table class="faan-table">
+              <thead><tr><th>花牌</th><th>番</th><th>説明</th></tr></thead>
+              <tbody>
+                <tr><td><span class="faan-name">無花<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">花牌も季節牌も持っていない。</td></tr>
+                <tr><td><span class="faan-name">正花<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">自分の席と同じ番号の花牌を持っている。</td></tr>
+                <tr><td><span class="faan-name">正季<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-desc">自分の席と同じ番号の季節牌を持っている。</td></tr>
+                <tr><td><span class="faan-name">花牌の一台花<span class="faan-cn">（四花齊）</span></span></td><td class="faan-value">2</td><td class="faan-desc">花牌4枚をすべて持っている。正花とは重なりません。</td></tr>
+                <tr><td><span class="faan-name">季節牌の一台花<span class="faan-cn">（四季齊）</span></span></td><td class="faan-value">2</td><td class="faan-desc">季節牌4枚をすべて持っている。正季とは重なりません。</td></tr>
+                <tr><td><span class="faan-name">七搶一<span class="faan-cn"></span></span></td><td class="faan-value">5</td><td class="faan-desc">花牌を7枚集めると、手に関係なく和了を宣言できます。最後の1枚を他家が引いたときは、それを奪えます。</td></tr>
+                <tr><td><span class="faan-name">八仙過海<span class="faan-cn"></span></span></td><td class="faan-value faan-limit">上限</td><td class="faan-desc">花牌と季節牌の8枚をすべて集めると、手に関係なく和了です。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="points-note">「上限」は、1つの手で払われる最高の額です。香港の卓の多くは上限を10番か13番にしています。上限は仲間と確かめておきましょう。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADVANCED TIPS -->
+    <section id="tips" class="points-section" data-view="points_tips">
+      <div class="container">
+        <div class="section-intro">
+          <h2 class="section-heading">上級者のコツ</h2>
+        </div>
+        <p class="points-lead">強い人たちの習慣です。</p>
+        <div class="tips-grid">
+          <article class="tip-card">
+            <h3>手の役と状況役をすべて覚える</h3>
+            <p>和了には3番が必要で、小さな番も積み重なります。自摸、門前清、無花、正花はそれぞれ1番です。上の表の役とボーナスをすべて覚えましょう。海底摸月、嶺上開花、搶槓のような珍しいものもです。</p>
+          </article>
+          <article class="tip-card">
+            <h3>門前を保つ</h3>
+            <p>捨て牌を1枚鳴くたびに、門前清の1番を失い、何を作っているかが卓に知られます。門前でなければ数えない手もあります。四暗刻、七対子、国士無双、九蓮宝燈です。</p>
+          </article>
+          <article class="tip-card">
+            <h3>1種類の数牌に絞る</h3>
+            <p>1種類の数牌が7枚以上になったら、ほかの2種類を捨てましょう。混一色はほかのどの役よりも多く和了でき、清一色は対々和より多く稼げます。</p>
+          </article>
+          <article class="tip-card">
+            <h3>チーは慎重に</h3>
+            <p>チーをすると数牌の種類が決まり、手の方針が知られ、門前清の1番を失います。目安として、その種類の牌が字牌を含めて8枚以上あるときだけチーしましょう。</p>
+          </article>
+          <article class="tip-card">
+            <h3>対子と字牌を残す</h3>
+            <p>対子はまだ刻子になれます。誰もまださらしていない三元牌や場風の牌は、いつも残しておきましょう。字牌は1枚か2枚が見えてから捨てます。例外は門前で順子の手を狙うときです。</p>
+          </article>
+          <article class="tip-card">
+            <h3>安全な捨て牌を知る</h3>
+            <p>安全な順に：誰かがすでにポンした牌、他家が捨てた牌、誰かがチーした種類とは別の種類の牌、または同じ種類で3つ離れた牌（1-4-7のスジ）。</p>
+          </article>
+          <article class="tip-card">
+            <h3>相手に合わせる</h3>
+            <p>さらされた面子は、相手の手について多くを語ります。ほかの人だけが集めている種類の牌、特に上家が集めている種類には手を出さないようにしましょう。チーさせる牌は避けます。捨て牌の流れを見て打ち方を変えましょう。</p>
+          </article>
+          <article class="tip-card">
+            <h3>特別な役を狙うときを知る</h3>
+            <p>大きな手ほど多く稼げます。対局あたりの点数がいちばん多いのは国士無双で、次が四暗刻と清一色です。ただし国士無双と四暗刻は和了できる局がずっと少ないです。</p>
+          </article>
+          <article class="tip-card">
+            <h3>牌を逆さにする</h3>
+            <p>ポンしたい牌や捨てる牌を、逆さにして目印にしましょう。手を把握しやすくなります。</p>
+          </article>
+          <article class="tip-card">
+            <h3>手を柔軟に保つ</h3>
+            <p>早いうちに1つの手に決めすぎないようにしましょう。混一色から清一色へのように、別の役に切り替えられるよう牌を柔軟に持ちます。門前を保ち、いらないチー・ポン・カンは避けましょう。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- STATISTICS -->
+    <section id="statistics" class="points-section" data-view="points_statistics">
+      <div class="container">
+        <div class="section-intro">
+          <h2 class="section-heading">統計</h2>
+        </div>
+        <p class="points-lead">私たちの<a href="/ja/play-mahjong/" data-track="points_statistics_game_click">オンラインゲーム</a>で打たれた10万回以上の対局、1,949,960局から集めました。</p>
+        <div class="faan-block">
+          <h3>よく和了する手の役</h3>
+          <div class="faan-table-wrap stats-table-wrap">
+            <table class="faan-table stats-table stats-patterns">
+              <thead><tr><th>役</th><th>番</th><th>和了した局</th><th>1局あたりの和了</th><th>出た対局</th><th>期待点</th></tr></thead>
+              <tbody>
+                <tr><td><span class="faan-name">混一色<span class="faan-cn"></span></span></td><td class="faan-value">3</td><td class="faan-value">461,142</td><td class="faan-value">23.65%</td><td class="faan-value">58.0%</td><td class="faan-value">327.8</td></tr>
+                <tr><td><span class="faan-name">清一色<span class="faan-cn"></span></span></td><td class="faan-value">7</td><td class="faan-value">269,568</td><td class="faan-value">13.82%</td><td class="faan-value">44.5%</td><td class="faan-value">533.4</td></tr>
+                <tr><td><span class="faan-name">対々和<span class="faan-cn">（對對糊）</span></span></td><td class="faan-value">3</td><td class="faan-value">197,087</td><td class="faan-value">10.11%</td><td class="faan-value">35.7%</td><td class="faan-value">323.3</td></tr>
+                <tr><td><span class="faan-name">七対子<span class="faan-cn">（七對子）</span></span></td><td class="faan-value">4</td><td class="faan-value">167,874</td><td class="faan-value">8.61%</td><td class="faan-value">33.2%</td><td class="faan-value">43.6</td></tr>
+                <tr><td><span class="faan-name">平和<span class="faan-cn">（平糊）</span></span></td><td class="faan-value">1</td><td class="faan-value">158,526</td><td class="faan-value">8.13%</td><td class="faan-value">29.2%</td><td class="faan-value">125.3</td></tr>
+                <tr><td><span class="faan-name">雞糊<span class="faan-cn"></span></span></td><td class="faan-value">0</td><td class="faan-value">40,605</td><td class="faan-value">2.08%</td><td class="faan-value">9.2%</td><td class="faan-value">2.7</td></tr>
+                <tr><td><span class="faan-name">四暗刻<span class="faan-cn">（門清對對糊）</span></span></td><td class="faan-value">10</td><td class="faan-value">35,415</td><td class="faan-value">1.82%</td><td class="faan-value">8.4%</td><td class="faan-value">624.9</td></tr>
+                <tr><td><span class="faan-name">国士無双<span class="faan-cn">（十三么）</span></span></td><td class="faan-value">13</td><td class="faan-value">26,121</td><td class="faan-value">1.34%</td><td class="faan-value">6.2%</td><td class="faan-value">806.7</td></tr>
+                <tr><td><span class="faan-name">混老頭<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-value">15,722</td><td class="faan-value">0.81%</td><td class="faan-value">3.8%</td><td class="faan-value">76.3</td></tr>
+                <tr><td><span class="faan-name">小三元<span class="faan-cn"></span></span></td><td class="faan-value">5</td><td class="faan-value">3,126</td><td class="faan-value">0.16%</td><td class="faan-value">0.8%</td><td class="faan-value">46.2</td></tr>
+                <tr><td><span class="faan-name">字一色<span class="faan-cn"></span></span></td><td class="faan-value">10</td><td class="faan-value">2,098</td><td class="faan-value">0.11%</td><td class="faan-value">0.5%</td><td class="faan-value">61.7</td></tr>
+                <tr><td><span class="faan-name">大三元<span class="faan-cn"></span></span></td><td class="faan-value">8</td><td class="faan-value">1,103</td><td class="faan-value">0.057%</td><td class="faan-value">0.3%</td><td class="faan-value">28.3</td></tr>
+                <tr><td><span class="faan-name">小四喜<span class="faan-cn"></span></span></td><td class="faan-value">6</td><td class="faan-value">402</td><td class="faan-value">0.021%</td><td class="faan-value">0.1%</td><td class="faan-value">10.6</td></tr>
+                <tr><td><span class="faan-name">清老頭<span class="faan-cn"></span></span></td><td class="faan-value">10</td><td class="faan-value">215</td><td class="faan-value">0.011%</td><td class="faan-value">0.054%</td><td class="faan-value">2.3</td></tr>
+                <tr><td><span class="faan-name">大四喜<span class="faan-cn"></span></span></td><td class="faan-value">13</td><td class="faan-value">109</td><td class="faan-value">0.006%</td><td class="faan-value">0.027%</td><td class="faan-value">3.3</td></tr>
+                <tr><td><span class="faan-name">九蓮宝燈<span class="faan-cn">（九蓮寶燈）</span></span></td><td class="faan-value">13</td><td class="faan-value">101</td><td class="faan-value">0.005%</td><td class="faan-value">0.025%</td><td class="faan-value">3.0</td></tr>
+                <tr><td><span class="faan-name">四槓子<span class="faan-cn">（十八羅漢）</span></span></td><td class="faan-value">13</td><td class="faan-value">2</td><td class="faan-value">0.000%</td><td class="faan-value">0.001%</td><td class="faan-value">0.1</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="faan-block">
+          <h3>ボーナス：どのくらい出るか</h3>
+          <div class="faan-table-wrap stats-table-wrap">
+            <table class="faan-table stats-table stats-bonus">
+              <thead><tr><th>役</th><th>番</th><th>和了</th><th>和了に占める割合</th></tr></thead>
+              <tbody>
+                <tr><td><span class="faan-name">自摸<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-value">376,300</td><td class="faan-value">28.9%</td></tr>
+                <tr><td><span class="faan-name">正季<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-value">280,749</td><td class="faan-value">21.6%</td></tr>
+                <tr><td><span class="faan-name">正花<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-value">280,394</td><td class="faan-value">21.5%</td></tr>
+                <tr><td><span class="faan-name">無花<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-value">245,850</td><td class="faan-value">18.9%</td></tr>
+                <tr><td><span class="faan-name">門前清<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-value">211,995</td><td class="faan-value">16.3%</td></tr>
+                <tr><td><span class="faan-name">海底摸月<span class="faan-cn">（海底撈月）</span></span></td><td class="faan-value">1</td><td class="faan-value">26,022</td><td class="faan-value">2.0%</td></tr>
+                <tr><td><span class="faan-name">嶺上開花<span class="faan-cn">（槓上開花）</span></span></td><td class="faan-value">1</td><td class="faan-value">5,556</td><td class="faan-value">0.43%</td></tr>
+                <tr><td><span class="faan-name">季節牌の一台花<span class="faan-cn">（四季齊）</span></span></td><td class="faan-value">2</td><td class="faan-value">3,313</td><td class="faan-value">0.25%</td></tr>
+                <tr><td><span class="faan-name">花牌の一台花<span class="faan-cn">（四花齊）</span></span></td><td class="faan-value">2</td><td class="faan-value">3,078</td><td class="faan-value">0.24%</td></tr>
+                <tr><td><span class="faan-name">七搶一<span class="faan-cn"></span></span></td><td class="faan-value">5</td><td class="faan-value">2,506</td><td class="faan-value">0.19%</td></tr>
+                <tr><td><span class="faan-name">搶槓<span class="faan-cn"></span></span></td><td class="faan-value">1</td><td class="faan-value">1,546</td><td class="faan-value">0.12%</td></tr>
+                <tr><td><span class="faan-name">槓上槓<span class="faan-cn"></span></span></td><td class="faan-value">8</td><td class="faan-value">88</td><td class="faan-value">0.0068%</td></tr>
+                <tr><td><span class="faan-name">八仙過海<span class="faan-cn"></span></span></td><td class="faan-value">13</td><td class="faan-value">24</td><td class="faan-value">0.0018%</td></tr>
+                <tr><td><span class="faan-name">地和<span class="faan-cn">（地糊）</span></span></td><td class="faan-value">13</td><td class="faan-value">17</td><td class="faan-value">0.0013%</td></tr>
+                <tr><td><span class="faan-name">天和<span class="faan-cn">（天糊）</span></span></td><td class="faan-value">13</td><td class="faan-value">6</td><td class="faan-value">0.0005%</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="faan-block">
+          <h3>和了までに何巡かかるか</h3>
+          <div class="faan-table-wrap stats-table-wrap">
+            <table class="faan-table stats-table stats-turns">
+              <thead><tr><th>巡</th><th>和了</th><th>和了1回の番</th><th>和了1回の点</th><th>自摸</th></tr></thead>
+              <tbody>
+                <tr><td class="faan-name">0〜8</td><td class="faan-value">5.0%</td><td class="faan-value">4.10</td><td class="faan-value">161</td><td class="faan-value">36.6%</td></tr>
+                <tr><td class="faan-name">9〜11</td><td class="faan-value">9.6%</td><td class="faan-value">4.77</td><td class="faan-value">338</td><td class="faan-value">32.3%</td></tr>
+                <tr><td class="faan-name">12〜14</td><td class="faan-value">18.7%</td><td class="faan-value">5.27</td><td class="faan-value">508</td><td class="faan-value">29.5%</td></tr>
+                <tr><td class="faan-name">15〜17</td><td class="faan-value">26.6%</td><td class="faan-value">5.71</td><td class="faan-value">714</td><td class="faan-value">28.3%</td></tr>
+                <tr><td class="faan-name">18〜20</td><td class="faan-value">27.4%</td><td class="faan-value">6.10</td><td class="faan-value">957</td><td class="faan-value">28.8%</td></tr>
+                <tr><td class="faan-name">21以上</td><td class="faan-value">12.7%</td><td class="faan-value">6.43</td><td class="faan-value">930</td><td class="faan-value">22.6%</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAYOUT -->
+    <section id="payout" class="points-section">
+      <div class="container">
+        <div class="section-intro">
+          <h2 class="section-heading">番から点数へ</h2>
+        </div>
+        <p class="points-lead">よく使われる2つの方法で、番を点数に換える方法です。</p>
+        <div class="payout-table">
+          <div class="faan-table-wrap">
+            <table class="faan-table payout-faan-table">
+              <colgroup>
+                <col class="payout-col">
+                <col class="payout-col">
+                <col class="payout-col">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>番</th>
+                  <th>半辣</th>
+                  <th>全辣</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="faan-value payout-faan-num">3</td><td class="faan-value">8</td><td class="faan-value">8</td></tr>
+                <tr><td class="faan-value payout-faan-num">4</td><td class="faan-value">16</td><td class="faan-value">16</td></tr>
+                <tr><td class="faan-value payout-faan-num">5</td><td class="faan-value">24</td><td class="faan-value">32</td></tr>
+                <tr><td class="faan-value payout-faan-num">6</td><td class="faan-value">32</td><td class="faan-value">64</td></tr>
+                <tr><td class="faan-value payout-faan-num">7</td><td class="faan-value">48</td><td class="faan-value">128</td></tr>
+                <tr><td class="faan-value payout-faan-num">8</td><td class="faan-value">64</td><td class="faan-value">256</td></tr>
+                <tr><td class="faan-value payout-faan-num">9</td><td class="faan-value">96</td><td class="faan-value">512</td></tr>
+                <tr><td class="faan-value payout-faan-num">10</td><td class="faan-value">128</td><td class="faan-value">1,024</td></tr>
+                <tr><td class="faan-value payout-faan-num">11</td><td class="faan-value">192</td><td class="faan-value">2,048</td></tr>
+                <tr><td class="faan-value payout-faan-num">12</td><td class="faan-value">256</td><td class="faan-value">4,096</td></tr>
+                <tr><td class="faan-value payout-faan-num">13</td><td class="faan-value faan-limit">384</td><td class="faan-value faan-limit">8,192</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <p class="points-note"><em>自摸</em>では、相手それぞれが和了した人に基本の点数を払います。<em>自摸</em>のとき、相手それぞれが基本の点数の半分を払うルールもあります。<em>捨て牌</em>で和了したときは、和了牌を捨てた人が基本の点数を払います。番の上限や支払いの分け方はローカルルールです。</p>
+      </div>
+    </section>
+    <!-- FAQ: the same questions and answers as the FAQPage in the JSON-LD above, which must match what the page shows. -->
+    <section id="faq" class="points-section">
+      <div class="container">
+        <div class="section-intro">
+          <h2 class="section-heading">よくある質問</h2>
+        </div>
+        <div class="faq-list">
+          <details class="faq-item" open>
+            <summary class="faq-question" data-evt="faq_question_click" data-loc="points_faq"><span>香港麻雀の番とは何ですか？</span><svg class="faq-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+            <div class="faq-answer">番（ファン）は香港麻雀の点数の単位です。和了した手は、混一色や清一色、対々和、三元牌、特別な役などの役で番を得ます。合計の番を、他家が支払う点数やチップに換算します。</div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-question" data-evt="faq_question_click" data-loc="points_faq"><span>麻雀で和了するには何番必要ですか？</span><svg class="faq-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+            <div class="faq-answer">香港の卓の多くは、和了に最低3番が必要です。1番や0番（雞糊）から和了できるルールで遊ぶ卓もあります。始める前に必ず最低の番を確かめましょう。</div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-question" data-evt="faq_question_click" data-loc="points_faq"><span>香港麻雀の上限の手とは何ですか？</span><svg class="faq-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+            <div class="faq-answer">上限の手は、支払いが最高額になる手で、ふつうは13番です。国士無双、大四喜、九蓮宝燈、四槓子などがあります。</div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-question" data-evt="faq_question_click" data-loc="points_faq"><span>麻雀の点数は番からどう計算しますか？</span><svg class="faq-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+            <div class="faq-answer">番は、1番ごとに倍になる表で点数に換算します。最低の3番から始まり、1番増えるごとに基本の支払いがおよそ2倍になり、卓の上限で止まります。</div>
+          </details>
+        </div>
+        <!-- The same banner as the end of the rules page. The class points-cta stays: js/points-guide.js reports this button's views and clicks (points_cta_view, points_cta_click). -->
+        <aside class="guide-cta points-cta" aria-label="麻雀を打つ">
+          <p class="guide-cta-title">オンラインで麻雀を打とう</p>
+          <p>どの端末でも遊べるように作りました。</p>
+          <a href="/ja/play-mahjong/" class="btn btn-primary">無料で遊ぶ</a>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <picture>
+          <source srcset="/assets/logo.webp" type="image/webp">
+          <img src="/assets/logo.png" alt="" class="footer-logo" width="40" height="42" loading="lazy" decoding="async" draggable="false">
+        </picture>
+        <span>Lucky Cat Mahjong</span>
+      </div>
+      <p class="footer-links footer-guides"><a href="/ja/play-mahjong/" class="footer-link" data-evt="play_link_footer" data-loc="footer" data-label="Play Mahjong">麻雀を打つ</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/ja/how-to-play-mahjong/" class="footer-link" data-evt="rules_link_footer" data-loc="footer" data-label="Mahjong Rules">ルール</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/ja/hong-kong-mahjong/" class="footer-link" data-evt="points_link_footer" data-loc="footer" data-label="Points Guide">点数ガイド</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/ja/which-mahjong-tiles-are-you/" class="footer-link" data-evt="quiz_link_footer" data-loc="footer" data-label="Personality Quiz">性格診断</a></p>
+      <p class="footer-links footer-languages"><a href="/hong-kong-mahjong-scoring/" class="footer-link" lang="en-US" hreflang="en" data-evt="language_link_footer" data-loc="footer">English</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/zh-hk/hong-kong-mahjong/" class="footer-link" lang="zh-HK" hreflang="zh-HK" data-evt="language_link_footer" data-loc="footer">中文(香港)</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/zh-hans/hong-kong-mahjong/" class="footer-link" lang="zh-Hans" hreflang="zh-Hans" data-evt="language_link_footer" data-loc="footer">简体中文</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/id/poin-mahjong-hongkong/" class="footer-link" lang="id" hreflang="id" data-evt="language_link_footer" data-loc="footer">Bahasa Indonesia</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/ms/mata-mahjong-hong-kong/" class="footer-link" lang="ms" hreflang="ms" data-evt="language_link_footer" data-loc="footer">Bahasa Melayu</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/vi/cach-tinh-diem-mat-chuoc-hong-kong/" class="footer-link" lang="vi" hreflang="vi" data-evt="language_link_footer" data-loc="footer">Tiếng Việt</a></p>
+      <p class="footer-links"><a href="/terms-and-conditions/" class="footer-link" data-evt="terms_link_footer" data-loc="footer">Terms and Conditions</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/privacy-policy/" class="footer-link" data-evt="privacy_link_footer" data-loc="footer">Privacy Policy</a><span class="footer-links-sep" aria-hidden="true">|</span><a href="/refund-policy/" class="footer-link" data-evt="refund_link_footer" data-loc="footer">Refund Policy</a><span class="footer-links-sep" aria-hidden="true">|</span><button type="button" data-evt="cookie_settings_footer" data-loc="footer" class="footer-link js-cookie-settings">Cookie Settings</button></p>
+      <p class="footer-copy">&copy; <span id="year"></span> Lucky Cat Mahjong</p>
+    </div>
+  </footer>
+
+</body>
+</html>

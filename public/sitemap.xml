@@ -1,11 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://luckycatmahjong.com/</loc>
-    <lastmod>2026-11-18</lastmod>
+    <lastmod>2026-11-25</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/"/>
     <image:image>
       <image:loc>https://luckycatmahjong.com/assets/logo.png</image:loc>
       <image:title>Lucky Cat Mahjong</image:title>
@@ -14,9 +23,17 @@
   </url>
   <url>
     <loc>https://luckycatmahjong.com/play-mahjong/</loc>
-    <lastmod>2026-11-18</lastmod>
+    <lastmod>2026-11-25</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.95</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/main-mahjong-online/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/main-mahjong-online/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/choi-mat-chuoc-online/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/play-mahjong/"/>
     <image:image>
       <image:loc>https://luckycatmahjong.com/assets/logo.png</image:loc>
       <image:title>Free Mahjong Game</image:title>
@@ -24,10 +41,18 @@
     </image:image>
   </url>
   <url>
-    <loc>https://luckycatmahjong.com/hong-kong-mahjong-rules/</loc>
-    <lastmod>2026-11-18</lastmod>
+    <loc>https://luckycatmahjong.com/how-to-play-mahjong/</loc>
+    <lastmod>2026-11-25</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/cara-bermain-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/cara-main-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cach-choi-mat-chuoc/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/how-to-play-mahjong/"/>
     <image:image>
       <image:loc>https://luckycatmahjong.com/assets/logo.png</image:loc>
       <image:title>Hong Kong Mahjong Rules</image:title>
@@ -36,9 +61,17 @@
   </url>
   <url>
     <loc>https://luckycatmahjong.com/which-mahjong-tiles-are-you/</loc>
-    <lastmod>2026-11-18</lastmod>
+    <lastmod>2026-11-25</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/which-mahjong-tiles-are-you/"/>
     <image:image>
       <image:loc>https://luckycatmahjong.com/assets/logo.png</image:loc>
       <image:title>Which Mahjong Tile Are You? Free Mahjong Personality Quiz</image:title>
@@ -47,7 +80,7 @@
   </url>
   <url>
     <loc>https://luckycatmahjong.com/events/</loc>
-    <lastmod>2026-11-18</lastmod>
+    <lastmod>2026-11-25</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.75</priority>
     <image:image>
@@ -58,9 +91,17 @@
   </url>
   <url>
     <loc>https://luckycatmahjong.com/hong-kong-mahjong-scoring/</loc>
-    <lastmod>2026-11-18</lastmod>
+    <lastmod>2026-11-25</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/poin-mahjong-hongkong/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/mata-mahjong-hong-kong/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cach-tinh-diem-mat-chuoc-hong-kong/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/"/>
     <image:image>
       <image:loc>https://luckycatmahjong.com/assets/logo.png</image:loc>
       <image:title>Mahjong Points Guide</image:title>
@@ -69,9 +110,17 @@
   </url>
   <url>
     <loc>https://luckycatmahjong.com/community/</loc>
-    <lastmod>2026-11-18</lastmod>
+    <lastmod>2026-11-25</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/community/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/community/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/community/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/community/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/komunitas/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/komuniti/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cong-dong/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/community/"/>
     <image:image>
       <image:loc>https://luckycatmahjong.com/media/2026-08-25/1c4f25f2-0246-4c40-9ef8-55fce892280b.webp</image:loc>
       <image:title>August 2026 Mahjong Tournament (Invitational)</image:title>
@@ -90,7 +139,7 @@
     <image:image>
       <image:loc>https://luckycatmahjong.com/media/2026-07-25/4a111d93-41e9-4816-ad7f-3d3c4bc4f072.webp</image:loc>
       <image:title>Mahjong at Indoor Pickleball X</image:title>
-      <image:caption>The biggest mahjong x pickleball collab of the summer. In collaboration with Ohynot for marketing and Visual Lee Media for photos.</image:caption>
+      <image:caption>The biggest mahjong x pickleball collab of the summer.</image:caption>
     </image:image>
     <image:image>
       <image:loc>https://luckycatmahjong.com/media/2026-07-12/eb1d9356-be2e-4a31-8a02-5793b35c6860.webp</image:loc>
@@ -115,7 +164,7 @@
     <image:image>
       <image:loc>https://luckycatmahjong.com/media/2026-06-14/4367139b-c2d2-4ba3-82f2-71d30c0fb0b8.webp</image:loc>
       <image:title>June 2026 Mahjong Community Night (Monthly)</image:title>
-      <image:caption>Our signature free monthly community gathering with 300+ in attendance. Sponsored this month by Umami Granola.</image:caption>
+      <image:caption>Our signature free monthly community gathering with 300+ in attendance.</image:caption>
     </image:image>
     <image:image>
       <image:loc>https://luckycatmahjong.com/media/2026-05-26/6ff49ba3-20de-410d-a0ed-48688e574b3f.webp</image:loc>
@@ -144,20 +193,524 @@
     </image:image>
   </url>
   <url>
+    <loc>https://luckycatmahjong.com/id/komunitas/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.42</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/community/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/community/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/community/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/community/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/komunitas/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/komuniti/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cong-dong/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/community/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/zh-hk/community/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.42</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/community/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/community/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/community/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/community/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/komunitas/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/komuniti/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cong-dong/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/community/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/zh-hans/community/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.42</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/community/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/community/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/community/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/community/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/komunitas/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/komuniti/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cong-dong/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/community/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/ja/community/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.42</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/community/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/community/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/community/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/community/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/komunitas/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/komuniti/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cong-dong/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/community/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/vi/cong-dong/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.42</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/community/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/community/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/community/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/community/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/komunitas/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/komuniti/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cong-dong/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/community/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/ms/komuniti/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.42</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/community/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/community/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/community/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/community/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/komunitas/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/komuniti/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cong-dong/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/community/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/id/main-mahjong-online/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.57</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/main-mahjong-online/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/main-mahjong-online/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/choi-mat-chuoc-online/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/play-mahjong/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/id/poin-mahjong-hongkong/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.54</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/poin-mahjong-hongkong/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/mata-mahjong-hong-kong/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cach-tinh-diem-mat-chuoc-hong-kong/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/id/cara-bermain-mahjong/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.51</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/cara-bermain-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/cara-main-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cach-choi-mat-chuoc/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/how-to-play-mahjong/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/zh-hk/hong-kong-mahjong/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.54</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/poin-mahjong-hongkong/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/mata-mahjong-hong-kong/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cach-tinh-diem-mat-chuoc-hong-kong/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/zh-hans/hong-kong-mahjong/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.54</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/poin-mahjong-hongkong/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/mata-mahjong-hong-kong/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cach-tinh-diem-mat-chuoc-hong-kong/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/ja/hong-kong-mahjong/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.54</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/poin-mahjong-hongkong/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/mata-mahjong-hong-kong/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cach-tinh-diem-mat-chuoc-hong-kong/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/vi/cach-tinh-diem-mat-chuoc-hong-kong/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.54</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/poin-mahjong-hongkong/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/mata-mahjong-hong-kong/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cach-tinh-diem-mat-chuoc-hong-kong/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/ms/mata-mahjong-hong-kong/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.54</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/hong-kong-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/poin-mahjong-hongkong/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/mata-mahjong-hong-kong/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cach-tinh-diem-mat-chuoc-hong-kong/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/hong-kong-mahjong-scoring/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/zh-hk/how-to-play-mahjong/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.51</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/cara-bermain-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/cara-main-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cach-choi-mat-chuoc/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/how-to-play-mahjong/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/zh-hans/how-to-play-mahjong/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.51</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/cara-bermain-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/cara-main-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cach-choi-mat-chuoc/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/how-to-play-mahjong/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/ja/how-to-play-mahjong/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.51</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/cara-bermain-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/cara-main-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cach-choi-mat-chuoc/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/how-to-play-mahjong/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/vi/cach-choi-mat-chuoc/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.51</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/cara-bermain-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/cara-main-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cach-choi-mat-chuoc/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/how-to-play-mahjong/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/ms/cara-main-mahjong/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.51</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/how-to-play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/cara-bermain-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/cara-main-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/cach-choi-mat-chuoc/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/how-to-play-mahjong/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/zh-hk/play-mahjong/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.57</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/main-mahjong-online/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/main-mahjong-online/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/choi-mat-chuoc-online/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/play-mahjong/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/zh-hans/play-mahjong/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.57</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/main-mahjong-online/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/main-mahjong-online/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/choi-mat-chuoc-online/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/play-mahjong/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/ja/play-mahjong/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.57</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/main-mahjong-online/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/main-mahjong-online/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/choi-mat-chuoc-online/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/play-mahjong/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/vi/choi-mat-chuoc-online/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.57</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/main-mahjong-online/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/main-mahjong-online/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/choi-mat-chuoc-online/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/play-mahjong/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/ms/main-mahjong-online/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.57</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/play-mahjong/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/main-mahjong-online/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/main-mahjong-online/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/choi-mat-chuoc-online/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/play-mahjong/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/id/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/zh-hk/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/zh-hans/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/ja/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/vi/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/ms/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/id/which-mahjong-tiles-are-you/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.48</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/which-mahjong-tiles-are-you/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/zh-hk/which-mahjong-tiles-are-you/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.48</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/which-mahjong-tiles-are-you/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/zh-hans/which-mahjong-tiles-are-you/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.48</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/which-mahjong-tiles-are-you/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/ja/which-mahjong-tiles-are-you/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.48</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/which-mahjong-tiles-are-you/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/vi/which-mahjong-tiles-are-you/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.48</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/which-mahjong-tiles-are-you/"/>
+  </url>
+  <url>
+    <loc>https://luckycatmahjong.com/ms/which-mahjong-tiles-are-you/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.48</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://luckycatmahjong.com/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="zh-HK" href="https://luckycatmahjong.com/zh-hk/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://luckycatmahjong.com/zh-hans/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://luckycatmahjong.com/ja/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://luckycatmahjong.com/id/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="ms" href="https://luckycatmahjong.com/ms/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://luckycatmahjong.com/vi/which-mahjong-tiles-are-you/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://luckycatmahjong.com/which-mahjong-tiles-are-you/"/>
+  </url>
+  <url>
     <loc>https://luckycatmahjong.com/privacy-policy/</loc>
-    <lastmod>2026-11-18</lastmod>
+    <lastmod>2026-11-25</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://luckycatmahjong.com/terms-and-conditions/</loc>
-    <lastmod>2026-11-18</lastmod>
+    <lastmod>2026-11-25</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://luckycatmahjong.com/refund-policy/</loc>
-    <lastmod>2026-11-18</lastmod>
+    <lastmod>2026-11-25</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
